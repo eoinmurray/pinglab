@@ -1,0 +1,80 @@
+
+
+plotting:
+  raster:
+    start_time: 000.0  # Start time for raster plot (ms)
+    stop_time: 1000.0   # Stop time for raster plot (ms)
+
+inputs:
+  I_E: 1.2       # Input to E neurons (moderate drive for AI regime)
+  I_I: 0.9       # Input to I neurons (slightly lower)
+  noise: 0.4  # Strong noise (0.5-1.0 range) creates irregularity and breaks synchrony
+
+pulse:
+  width_ms: 5.0
+  amp: 0.5
+  pre_window_ms: 20.0
+  post_window_ms: 100.0
+
+base:
+  instruments:
+    variables:
+      - V        # Membrane potential (mV)
+      - g_e      # Excitatory conductance
+      - g_i      # Inhibitory conductance
+    neuron_ids: null  # No individual neurons
+    population_means: true  # Record population averages
+    downsample: 1
+
+  dt: 0.1        # Time step for numerical integration (ms)
+  T: 1000.0      # Total simulation time (ms)
+  seed: 0        # Random seed for reproducibility
+
+  # Network topology: Canonical PING (Pyramidal Interneuron Network Gamma)
+  N_E: 800       # Excitatory neurons (4:1 ratio standard)
+  N_I: 200       # Inhibitory neurons
+
+  # Synaptic weights: Balanced E-I for asynchronous regime
+  g_ei: 1.5      # E→I (moderate excitation to interneurons)
+  g_ie: 2.5      # I→E (strong inhibitory feedback to suppress synchrony)
+  g_ee: 0.3      # E→E (weak recurrent excitation)
+  g_ii: 0.3      # I→I (weak recurrent inhibition)
+
+  # Connection probabilities: Moderately sparse (not too sparse)
+  p_ee: 0.04      # Moderate E→E connections
+  p_ei: 0.12      # Moderate E→I connections
+  p_ie: 0.04      # Moderate I→E connections
+  p_ii: 0.04      # Moderate I→I connections
+
+  # Synaptic delays
+  delay_ei: 0.5  # E→I delay (ms)
+  delay_ie: 1.2  # I→E delay (ms)
+  delay_ee: 0.5  # E→E delay (ms) 
+  delay_ii: 0.5  # I→I delay (ms)
+
+  # LIF neuron parameters
+  V_init: -65.0  # Initial membrane potential (mV)
+  E_L: -65.0     # Leak reversal potential (mV)
+  E_e: 0.0       # Excitatory synaptic reversal (mV)
+  E_i: -80.0     # Inhibitory synaptic reversal (mV)
+  C_m_E: 1.0     # Membrane capacitance (E)
+  g_L_E: 0.05    # Leak conductance (E)
+  C_m_I: 1.0     # Membrane capacitance (I)
+  g_L_I: 0.1     # Leak conductance (I)
+  V_th: -50.0    # Spike threshold (mV)
+  V_reset: -65.0 # Reset potential (mV)
+  t_ref_E: 3.0   # Refractory period for E neurons (ms)
+  t_ref_I: 1.5   # Refractory period for I neurons (ms)
+
+  # Synaptic time constants: Critical for PING oscillation timing
+  tau_ampa: 2.0  # AMPA (excitatory) - fast, ~2ms
+  tau_gaba: 6.5  # GABA (inhibitory) - slower, ~6.5ms
+
+  # Connectivity scaling
+  connectivity_scaling: "one_over_N_src"
+
+  # Heterogeneity parameters: Add heterogeneity for more irregularity
+  V_th_heterogeneity_sd: 1.5   # Threshold variability (±1.5 mV)
+  g_L_heterogeneity_sd: 0.15   # Leak conductance variability (15%)
+  C_m_heterogeneity_sd: 0.10    # Capacitance variability (10%)
+  t_ref_heterogeneity_sd: 0.3  # Refractory period variability (±0.3 ms)

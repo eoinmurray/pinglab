@@ -1,0 +1,157 @@
+
+
+plotting:
+  raster:
+    start_time: 500.0  # Start time for raster plot (ms), post-transient
+    stop_time: 1000.0   # Stop time for raster plot (ms)
+
+pulse:
+  width_ms: 10.0       # Duration of pulse to create volley in A
+  amp: 1.0             # Amplitude of pulse
+  pre_window_ms: 50.0  # Window before pulse for baseline measurement
+  post_window_ms: 100.0 # Window after pulse for response measurement
+
+coupling:
+  p_AB: 0.20           # Connection probability from A_E to B_E (20%)
+  g_AB: 0.5            # Synaptic strength for A→B connections (nS)
+  delay_AB: 1.5        # Axonal delay for A→B transmission (ms)
+
+# List of populations (A and B)
+populations:
+  # Upstream population A
+  - inputs:
+      I_E: 1.2       # Input to E neurons in A (moderate drive)
+      I_I: 0.9       # Input to I neurons in A
+      noise: 0.4     # Noise level for A
+
+    base:
+      instruments:
+        variables:
+          - V        # Membrane potential (mV)
+          - g_e      # Excitatory conductance
+          - g_i      # Inhibitory conductance
+        neuron_ids: null  # No individual neurons
+        population_means: true  # Record population averages
+        downsample: 1
+
+      dt: 0.1        # Time step for numerical integration (ms)
+      T: 1000.0      # Total simulation time (ms)
+      seed: 0        # Random seed for reproducibility
+
+      # Network topology: Standard PING
+      N_E: 800       # Excitatory neurons
+      N_I: 200       # Inhibitory neurons
+
+      # Synaptic weights: Tuned for oscillating regime
+      g_ei: 1.5      # E→I (strong to ensure oscillations)
+      g_ie: 2.5      # I→E (strong inhibitory feedback)
+      g_ee: 0.3      # E→E (weak recurrent excitation)
+      g_ii: 0.3      # I→I (weak recurrent inhibition)
+
+      # Connection probabilities
+      p_ee: 0.04      # Moderate E→E connections
+      p_ei: 0.12      # Moderate E→I connections
+      p_ie: 0.04      # Moderate I→E connections
+      p_ii: 0.04      # Moderate I→I connections
+
+      # Synaptic delays
+      delay_ei: 0.5  # E→I delay (ms)
+      delay_ie: 1.2  # I→E delay (ms)
+      delay_ee: 0.5  # E→E delay (ms)
+      delay_ii: 0.5  # I→I delay (ms)
+
+      # LIF neuron parameters
+      V_init: -65.0  # Initial membrane potential (mV)
+      E_L: -65.0     # Leak reversal potential (mV)
+      E_e: 0.0       # Excitatory synaptic reversal (mV)
+      E_i: -80.0     # Inhibitory synaptic reversal (mV)
+      C_m_E: 1.0     # Membrane capacitance (E)
+      g_L_E: 0.05    # Leak conductance (E)
+      C_m_I: 1.0     # Membrane capacitance (I)
+      g_L_I: 0.1     # Leak conductance (I)
+      V_th: -50.0    # Spike threshold (mV)
+      V_reset: -65.0 # Reset potential (mV)
+      t_ref_E: 3.0   # Refractory period for E neurons (ms)
+      t_ref_I: 1.5   # Refractory period for I neurons (ms)
+
+      # Synaptic time constants
+      tau_ampa: 2.0  # AMPA (excitatory) - fast, ~2ms
+      tau_gaba: 6.5  # GABA (inhibitory) - slower, ~6.5ms
+
+      # Connectivity scaling
+      connectivity_scaling: "one_over_N_src"
+
+      # Heterogeneity parameters
+      V_th_heterogeneity_sd: 1.5   # Threshold variability (±1.5 mV)
+      g_L_heterogeneity_sd: 0.15   # Leak conductance variability (15%)
+      C_m_heterogeneity_sd: 0.10    # Capacitance variability (10%)
+      t_ref_heterogeneity_sd: 0.3  # Refractory period variability (±0.3 ms)
+
+  # Downstream population B
+  - inputs:
+      I_E: 1.0       # Input to E neurons in B (weaker drive, needs external input)
+      I_I: 0.8       # Input to I neurons in B
+      noise: 0.4     # Noise level for B
+
+    base:
+      instruments:
+        variables:
+          - V        # Membrane potential (mV)
+          - g_e      # Excitatory conductance
+          - g_i      # Inhibitory conductance
+        neuron_ids: null  # No individual neurons
+        population_means: true  # Record population averages
+        downsample: 1
+
+      dt: 0.1        # Time step for numerical integration (ms)
+      T: 1000.0      # Total simulation time (ms)
+      seed: 1        # Different seed for B to avoid identical dynamics
+
+      # Network topology: Smaller downstream network
+      N_E: 200       # Excitatory neurons (smaller than A)
+      N_I: 50        # Inhibitory neurons (4:1 ratio maintained)
+
+      # Synaptic weights: Slightly weaker to need external drive
+      g_ei: 1.4      # E→I (slightly weaker than A)
+      g_ie: 2.5      # I→E (same inhibitory strength)
+      g_ee: 0.3      # E→E (weak recurrent excitation)
+      g_ii: 0.3      # I→I (weak recurrent inhibition)
+
+      # Connection probabilities
+      p_ee: 0.04      # Moderate E→E connections
+      p_ei: 0.12      # Moderate E→I connections
+      p_ie: 0.04      # Moderate I→E connections
+      p_ii: 0.04      # Moderate I→I connections
+
+      # Synaptic delays
+      delay_ei: 0.5  # E→I delay (ms)
+      delay_ie: 1.2  # I→E delay (ms)
+      delay_ee: 0.5  # E→E delay (ms)
+      delay_ii: 0.5  # I→I delay (ms)
+
+      # LIF neuron parameters (same as A)
+      V_init: -65.0  # Initial membrane potential (mV)
+      E_L: -65.0     # Leak reversal potential (mV)
+      E_e: 0.0       # Excitatory synaptic reversal (mV)
+      E_i: -80.0     # Inhibitory synaptic reversal (mV)
+      C_m_E: 1.0     # Membrane capacitance (E)
+      g_L_E: 0.05    # Leak conductance (E)
+      C_m_I: 1.0     # Membrane capacitance (I)
+      g_L_I: 0.1     # Leak conductance (I)
+      V_th: -50.0    # Spike threshold (mV)
+      V_reset: -65.0 # Reset potential (mV)
+      t_ref_E: 3.0   # Refractory period for E neurons (ms)
+      t_ref_I: 1.5   # Refractory period for I neurons (ms)
+
+      # Synaptic time constants
+      tau_ampa: 2.0  # AMPA (excitatory) - fast, ~2ms
+      tau_gaba: 6.5  # GABA (inhibitory) - slower, ~6.5ms
+
+      # Connectivity scaling
+      connectivity_scaling: "one_over_N_src"
+
+      # Heterogeneity parameters
+      V_th_heterogeneity_sd: 1.5   # Threshold variability (±1.5 mV)
+      g_L_heterogeneity_sd: 0.15   # Leak conductance variability (15%)
+      C_m_heterogeneity_sd: 0.10    # Capacitance variability (10%)
+      t_ref_heterogeneity_sd: 0.3  # Refractory period variability (±0.3 ms)

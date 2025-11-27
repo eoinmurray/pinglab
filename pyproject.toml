@@ -1,0 +1,18 @@
+[project]
+name = "pinglab-root"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.2.6",
+    "scipy>=1.15.3",
+    "pinglab",
+    "joblib>=1.5.2",
+]
+
+[tool.uv.sources]
+pinglab = { workspace = true }
+
+[tool.uv.workspace]
+members = ["pinglab"]

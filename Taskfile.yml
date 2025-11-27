@@ -1,0 +1,90 @@
+# https://taskfile.dev
+
+version: '3'
+
+silent: true
+
+tasks:
+  default:
+    desc: Show help
+    cmds:
+      - task --list
+
+  install:
+    desc: Install project dependencies
+    cmds:
+      - cd pinglab && uv sync
+      - cd cathedral && bun install
+      - cd cathedral && bun add cathedral-plugin@file:./plugins/cathedral-plugin/
+
+  execute:
+    desc: Execute cathedral with the specified config file
+    vars:
+      python_file: "{{.CLI_ARGS | default \"content/dynamical-regimes/experiment.py\"}}"
+    cmds:
+      - touch content/.running
+      - uv run python {{.python_file}}
+      - rm content/.running
+
+  execute:all:
+    desc: Execute all experiment.py files in content/**
+    cmds:
+      - |
+        find content -name "experiment.py" -type f | while read -r exp_file; do
+          echo "Executing $exp_file..."
+          uv run python "$exp_file"
+        done
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf content/*/rungroups
+      - task: validate-content
+
+  clean:datafiles:
+    desc: Clean temporary svg data files
+    cmds:
+      - rm -rf content/**.npz
+
+  validate-config:
+    desc: Validate an experiment config file
+    vars:
+      config_file: "{{.CLI_ARGS}}"
+    cmds:
+      - uv run python pinglab/validate.py {{.config_file}}
+
+  validate-content:
+    desc: Build the frontend content
+    cmds:
+      - bun run cathedral/plugins/content-builder.ts -c content -o content/.cathedral.json
+      - bun run cathedral/plugins/content-builder.ts -c docs -o docs/.cathedral.json
+
+  dev:
+    desc: Start the development server
+    dir: cathedral
+    cmds:
+      - bun run dev
+
+  build:
+    desc: Build the production assets
+    dir: cathedral
+    cmds:
+      - bun run build
+
+  start:
+    desc: Start the production server
+    dir: cathedral
+    cmds:
+      - bun run start
+
+  bg:
+    desc: Start the development server in the background
+    dir: cathedral
+    cmds:
+      - pm2 start "bun run dev" --name cathedral
+
+  bg:stop:
+    desc: Stop the background development server
+    dir: cathedral
+    cmds:
+      - pm2 delete cathedral
