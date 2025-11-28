@@ -1,17 +1,15 @@
 # Dynamical Regimes
 
-## Background
-
-PING (Pyramidal-Interneuron Network Gamma) networks can operate in fundamentally different dynamical regimes depending on the balance of excitation and inhibition. We show this by sweeping parameters and mapping the network from Asynchronous Irregular mode to Oscillating mode.
-
-## Results
+## Results / Images
 
 <Gallery
   path="1.dynamical-regimes/data"
   globs={[
     "raster_g_ei_*.png"
   ]}
-  caption="Raster plots showing the AI-to-OSC transition as g_ei increases from 1.2 to 1.7 nS. Early plots show asynchronous irregular firing, while later plots reveal progressive emergence of rhythmic gamma oscillations."
+  caption="Raster plots showing the AI-to-OSC transition as g_ei increases from
+  1.2 to 1.7 nS. Early plots show asynchronous irregular firing, while later
+  plots reveal progressive emergence of rhythmic gamma oscillations."
 />
 
 <br/>
@@ -23,7 +21,52 @@ PING (Pyramidal-Interneuron Network Gamma) networks can operate in fundamentally
   ]}
 />
 
+## TL;DR Outcome
+{/* one paragraph */}
+
+The network transitions from asynchronous irregular (AI) dynamics to oscillating
+(OSC) gamma rhythms as the excitatory-to-inhibitory conductance ($g_{ei}$)
+increases. Raster plots illustrate this shift, with early plots showing
+irregular firing patterns and later plots revealing organized rhythmic activity.
+
+---
+
+## Experimental Design
+{/* the design */}
+
+The excitatory-to-inhibitory conductance ($g_{ei}$) is systematically varied to observe its effect on
+network dynamics.
+
+- Network size: 800 E cells, 200 I cells
+- Simulation duration: 1000 ms (discard first 500 ms for raster)
+- External input: Tonic + noise (I_E=1.2, I_I=0.9, noise_std=0.6)
+- Base $g_{ei} = 0.8$ (from config)
+- All other synaptic conductances fixed
+
+**Swept parameter**:
+- $g_{ei}$: Excitatory-to-inhibitory conductance
+- Range: 1.2 to 1.7 nS
+- Steps: 10 values (linear spacing)
+
+**Output**:
+- Raster plots for visual inspection of regime transitions
+- Time window: 500-1000 ms (post-transient)
+
+## Todo
+{/* list of todo items */}
+- [x] allow for parameter sweeps in pinglab
+
+## Usage
+
+```
+uv run biblio/0.example-report/experiment.py 
+```
+
+---
+
 ## Discussion
+
+### Background
 
 ### Asynchronous-Irregular (AI) Regime
 Neurons fire irregularly and independently with no temporal structure. This occurs when inhibitory feedback is weak.
@@ -44,29 +87,4 @@ Strong inhibitory feedback creates rhythmic gamma oscillations through an "escap
 - Activity concentrated in brief temporal windows
 
 **Transition control**: The regime is primarily controlled by **excitatory-to-inhibitory conductance** $g_{ei}$. Increasing $g_{ei}$ transitions the network from AI to OSC.
-
-## Experimental Design
-
-### Goal
-Map the AI-to-OSC transition by systematically varying $g_{ei}$ and measuring regime signatures.
-
-### Parameter Sweep
-
-**Fixed parameters**:
-- Network size: 800 E cells, 200 I cells
-- Simulation duration: 1000 ms (discard first 500 ms for raster)
-- External input: Tonic + noise (I_E=1.2, I_I=0.9, noise_std=0.6)
-- Base $g_{ei} = 0.8$ (from config)
-- All other synaptic conductances fixed
-
-**Swept parameter**:
-- $g_{ei}$: Excitatory-to-inhibitory conductance
-- Range: 1.2 to 1.7 nS
-- Steps: 10 values (linear spacing)
-
-**Output**:
-- Raster plots for visual inspection of regime transitions
-- Time window: 500-1000 ms (post-transient)
-
-Visual inspection of raster plots reveals the transition from asynchronous to oscillating dynamics as $g_{ei}$ increases. The plots show how stronger excitation to inhibitory neurons progressively organizes the network activity into rhythmic gamma oscillations.
 

@@ -1,12 +1,47 @@
 # Coupled Populations Phase Dependence
 
-If two neural populations oscillate in gamma, does **their relative phase** determine **how effectively spikes from one population drive the other**?
+## Results / Images
 
-The Communication-Through-Coherence hypothesis (Fries 2005; Fries 2015) predicts that input arriving when the downstream population is in a **permissive phase** (low inhibition, high excitability) will propagate strongly, while input arriving during the **suppressive phase** (high inhibition) will be weakened — even when anatomical connectivity and spike content are identical.
+<Gallery
+   path="3.coupled-population-phase/data"
+   globs={[
+      "baseline_A_raster*.png",
+      "baseline_B_raster*.png",
+      "baseline_traces*.png"
+   ]}
+   caption="Population A and B exhibit self-sustained gamma oscillations. The baseline shows similar frequencies but different amplitudes, and establishes the reference phase for later manipulations."
+/>
 
-If true, **effective connectivity becomes a function of phase alignment**, not wiring strength or firing rate.
+<br/>
+
+<Gallery
+   path="3.coupled-population-phase/data"
+   globs={[
+      "rasters_*.png",
+   ]}
+   caption="Downstream responses to identical upstream volleys at different relative phases. When inhibition in B is minimal (0° lag), the volley triggers a strong spike cascade. When B is in the suppressive phase (≈180° lag), the volley is attenuated or silenced."
+/>
+
+<br/>
+
+<Gallery
+   single={true}
+   path="3.coupled-population-phase/data"
+   globs={[
+      "phase_transfer_gain*.png"
+   ]}
+   caption="Transfer gain as a function of relative phase lag. Maximal transmission occurs when A's volley lands during the trough of inhibition in B. As lag shifts toward suppressive phases, transfer gain collapses despite identical input."
+/>
+
+## TL;DR Outcome
+{/* one paragraph */}
+
+The relative phase between two coupled oscillating populations determines how effectively spikes propagate between them. With identical synaptic weights and input volleys, downstream response varies >4× depending on phase alignment—maximal when input arrives during low inhibition, minimal during high inhibition. This demonstrates that effective connectivity is a function of phase, not just wiring strength, confirming the core prediction of Communication-Through-Coherence.
+
+---
 
 ## Experimental Design
+{/* the design */}
 
 ### Architecture
 
@@ -36,44 +71,29 @@ For each phase lag:
 
 This isolates **how effectively a fixed upstream event drives downstream firing**.
 
-## Baseline A and B Activity
+## Todo
+{/* list of todo items */}
+- [ ] Add competing senders experiment (A and A′ to B with different phase alignments)
 
-Both populations show stable gamma:
+## Usage
 
-<Gallery
-   path="3.coupled-population-phase/data"
-   globs={[
-      "baseline_A_raster*.png",
-      "baseline_B_raster*.png",
-      "baseline_traces*.png"
-   ]}
-   caption="Population A and B exhibit self-sustained gamma oscillations. The baseline shows similar frequencies but different amplitudes, and establishes the reference phase for later manipulations."
-/>
+```
+uv run biblio/3.coupled-population-phase/experiment.py
+```
 
-## Transfer Responses
+---
 
-The same upstream volley induces different downstream responses depending on phase lag:
+## Discussion
 
-<Gallery
-   path="3.coupled-population-phase/data"
-   globs={[
-      "rasters_*.png",
-   ]}
-   caption="Downstream responses to identical upstream volleys at different relative phases. When inhibition in B is minimal (0° lag), the volley triggers a strong spike cascade. When B is in the suppressive phase (≈180° lag), the volley is attenuated or silenced."
-/>
+### Background
 
-## Phase–Transfer Curve
+If two neural populations oscillate in gamma, does **their relative phase** determine **how effectively spikes from one population drive the other**?
 
-<Gallery
-   single={true}
-   path="3.coupled-population-phase/data"
-   globs={[
-      "phase_transfer_gain*.png"
-   ]}
-   caption="Transfer gain as a function of relative phase lag. Maximal transmission occurs when A's volley lands during the trough of inhibition in B. As lag shifts toward suppressive phases, transfer gain collapses despite identical input."
-/>
+The Communication-Through-Coherence hypothesis (Fries 2005; Fries 2015) predicts that input arriving when the downstream population is in a **permissive phase** (low inhibition, high excitability) will propagate strongly, while input arriving during the **suppressive phase** (high inhibition) will be weakened — even when anatomical connectivity and spike content are identical.
 
-## Interpretation
+If true, **effective connectivity becomes a function of phase alignment**, not wiring strength or firing rate.
+
+### Key Findings
 
 1. **Effective connectivity depends on phase**.
    The synaptic weights A→B are constant, but downstream response varies >4× across phase conditions.
@@ -82,12 +102,12 @@ The same upstream volley induces different downstream responses depending on pha
    A fires the same spike volley every trial; only the **state of B** determines whether the volley is heard.
 
 3. **Downstream inhibition gates information flow**.
-   When B’s inhibitory conductance is low, the volley pushes the network over threshold. When high, the volley dies on arrival.
+   When B's inhibitory conductance is low, the volley pushes the network over threshold. When high, the volley dies on arrival.
 
 4. **This is the computational heart of CTC**.
-   Not just rhythmic firing, not “synchrony good, asynchrony bad” — but **phase-specific routing**.
+   Not just rhythmic firing, not "synchrony good, asynchrony bad" — but **phase-specific routing**.
 
-## Next Step
+### Next Step
 
 This experiment proves **phase-dependent gain across populations**.
 The next escalation — still small — is:
@@ -97,4 +117,4 @@ The next escalation — still small — is:
 > Both send the same volley.
 > B should selectively transmit whichever sender is phase-aligned.
 
-If that holds, we’ve reached the canonical **“routing by coherence”** result — the core prediction of Fries’ communication theory.
+If that holds, we've reached the canonical **"routing by coherence"** result — the core prediction of Fries' communication theory.

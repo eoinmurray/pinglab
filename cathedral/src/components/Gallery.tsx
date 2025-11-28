@@ -131,7 +131,7 @@ export default function Gallery({
 
   return (
     <>
-      <div className="border rounded">
+      <div className="border lg:mx-[-17px]">
         <div className="border-b px-3 py-2 bg-sidebar rounded-t">
           <span className="text-muted-foreground text-sm">
             Gallery for{' '}
