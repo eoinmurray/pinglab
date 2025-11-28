@@ -73,7 +73,7 @@ To test this, we:
 The network exhibits stable gamma oscillations in the baseline condition:
 
 <Gallery
-  path="phase-dependence/data"
+  path="2.phase-dependence/data"
   globs={[
     'trace*',
     'raster*',
@@ -89,7 +89,7 @@ The phase-gain curve reveals how network response depends on input timing:
 
 <Gallery
   single={true}
-  path="phase-dependence/data"
+  path="2.phase-dependence/data"
   globs={[
     'phase_gain_curve*'
   ]}

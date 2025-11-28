@@ -12,7 +12,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "1.dynamical-regimes/README.mdx",
-          "size": 2500
+          "size": 2504
         },
         {
           "type": "file",
@@ -290,7 +290,7 @@
           "type": "file",
           "name": "README.md",
           "path": "2.phase-dependence/README.md",
-          "size": 5059
+          "size": 5063
         },
         {
           "type": "file",
@@ -394,7 +394,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "3.coupled-population-phase/README.mdx",
-          "size": 4249
+          "size": 4255
         },
         {
           "type": "file",

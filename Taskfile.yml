@@ -13,6 +13,7 @@ tasks:
   install:
     desc: Install project dependencies
     cmds:
+      - uv sync
       - cd pinglab && uv sync
       - cd cathedral && bun install
       - cd cathedral && bun add cathedral-plugin@file:./plugins/cathedral-plugin/

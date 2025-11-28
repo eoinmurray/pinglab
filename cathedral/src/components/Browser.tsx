@@ -1,6 +1,6 @@
 
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Folder, FileText } from "lucide-react";
+import { Folder, FileText, ChevronDown, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { DirectoryEntry, FileEntry } from "../../plugins/cathedral-plugin/src/lib";
@@ -17,8 +17,28 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 }
 
-export default function Browser({ directory, defaultOpen = true }: { directory: DirectoryEntry, defaultOpen?: boolean }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+const BROWSER_OPEN_KEY = "cathedral-browser-open";
+
+export default function Browser({ directory, defaultOpen = true, alwaysOpen = false }: { directory: DirectoryEntry, defaultOpen?: boolean, alwaysOpen?: boolean }) {
+  const [isOpen, setIsOpen] = useState(() => {
+    if (alwaysOpen) return true;
+    const stored = localStorage.getItem(BROWSER_OPEN_KEY);
+    return stored !== null ? stored === "true" : defaultOpen;
+  });
+
+  // Force open when alwaysOpen prop is true
+  useEffect(() => {
+    if (alwaysOpen && !isOpen) {
+      setIsOpen(true);
+    }
+  }, [alwaysOpen, isOpen]);
+
+  // Persist open state to localStorage (only when not forced open)
+  useEffect(() => {
+    if (!alwaysOpen) {
+      localStorage.setItem(BROWSER_OPEN_KEY, String(isOpen));
+    }
+  }, [isOpen, alwaysOpen]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const navigate = useNavigate();
   const { "*": currentPath } = useParams();
@@ -134,6 +154,13 @@ export default function Browser({ directory, defaultOpen = true }: { directory: 
     <div className="border rounded divide-y print:hidden">
       <div className="px-4 py-3 flex rounded-t bg-sidebar justify-between items-center gap-4">
         <Breadcrumbs />
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+          aria-label={isOpen ? "Collapse browser" : "Expand browser"}
+        >
+          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
       </div>
 
       {isOpen && directory.children.length === 0 && (

@@ -3,7 +3,7 @@ import { Kbd } from "./ui/kbd";
 
 export default function Footer() {
   return (
-    <footer className="w-full py-3 text-center text-sm text-gray-500 print:hidden">
+    <footer className="w-full py-3 px-4 text-center text-sm text-gray-500 print:hidden">
       <div className="flex items-center justify-end gap-2 mt-1">
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mr-2">
           <div className="flex items-center gap-1">

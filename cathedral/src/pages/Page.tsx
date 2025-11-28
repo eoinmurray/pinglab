@@ -53,7 +53,7 @@ export function Page() {
             <Welcome />
           )}
 
-          {directory && <Browser directory={directory} />}
+          {directory && <Browser directory={directory} alwaysOpen={path === ''} />}
 
           {fileToRender && ( <File file={fileToRender} /> )}
 
