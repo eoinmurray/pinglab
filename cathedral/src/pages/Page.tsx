@@ -4,19 +4,20 @@ import { Layout } from "@/components/Layout";
 import Browser from "@/components/Browser";
 import Gallery from "@/components/Gallery"; 
 import File from "@/components/File";
-import { fetchDirectory } from "../../plugins/cathedral-plugin/src/client";
+import { useDirectory, findReadme } from "../../plugins/cathedral-plugin/src/client";
 import { FileEntry } from "../../plugins/cathedral-plugin/src/lib";
 import { Welcome } from "@/components/Welcome";
 import Loading from "@/components/Loading";
 
 export function Page() {
   const { "*": path = "." } = useParams();
-  const { directory, file, loading, error } = fetchDirectory(path)
+
+  const { directory, file, loading, error } = useDirectory(path)
 
   if (error) {
     return (
       <main className="min-h-screen bg-background container mx-auto max-w-4xl py-12">
-        <p className="text-center text-red-600">Error loading content: {error.message}</p>
+        <p className="text-center text-red-600">{error}</p>
       </main>
     )
   }
@@ -32,13 +33,7 @@ export function Page() {
       return !!child.name.match(/\.(png|jpeg|gif|svg|webp)$/i) && child.type === "file";
     })
 
-  const indexFile = directory?.children.find((child) => 
-    child.type === "file" && 
-    [
-      "index.md", "readme.md", "Readme.md", "README.md",
-      "index.mdx", "readme.mdx", "Readme.mdx", "README.mdx"
-    ].includes(child.name)
-  );
+  const indexFile = findReadme(directory!);
 
   let fileToRender = file;
   if (!fileToRender && indexFile && indexFile.type === "file") {

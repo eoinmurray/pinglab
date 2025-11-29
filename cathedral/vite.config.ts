@@ -4,6 +4,13 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import cathedralPlugin from './plugins/cathedral-plugin/src/plugin.js'
 import { cathedralPluginConfig } from './cathedral-plugin.config.js'
+import mdx from '@mdx-js/rollup'
+import remarkGfm from 'remark-gfm'
+import rehypeHighlight from 'rehype-highlight'
+import remarkFrontmatter from 'remark-frontmatter'
+import remarkMdxFrontmatter from 'remark-mdx-frontmatter'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
 
 export default defineConfig({
   clearScreen: false,
@@ -11,6 +18,10 @@ export default defineConfig({
   plugins: [
     react(),
     cathedralPlugin(cathedralPluginConfig.contentDirs),
+    mdx({
+      remarkPlugins: [remarkGfm, remarkFrontmatter, remarkMdxFrontmatter, remarkMath],
+      rehypePlugins: [rehypeHighlight, rehypeKatex],
+    })
   ],
   resolve: {
     alias: {

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { DirectoryEntry, FileEntry } from "./lib";
 import { cathedralPluginConfig } from "../../../cathedral-plugin.config";
 
-async function parsePath(directory: DirectoryEntry, path: string) {
+async function parsePath(directory: DirectoryEntry, path: string): Promise<{ directory: DirectoryEntry; file: FileEntry | null }> {
   const parts = path === "." ? [] : path.split("/").filter(Boolean);
 
   let file = null;
@@ -39,11 +39,23 @@ async function parsePath(directory: DirectoryEntry, path: string) {
   return { directory: currentDir, file };
 }
 
-export function fetchDirectory(path: string = ".") {
+export function findReadme(directory: DirectoryEntry): FileEntry | null {
+  const readme = directory.children.find((child) => 
+    child.type === "file" && 
+    [
+      "README.md", "Readme.md", "readme.md",
+      "README.mdx", "Readme.mdx", "readme.mdx"
+    ].includes(child.name)
+  ) as FileEntry | undefined;
+
+  return readme || null;
+}
+
+export function useDirectory(path: string = ".") {
   const [directory, setDirectory] = useState<DirectoryEntry | null>(null);
   const [file, setFile] = useState<FileEntry | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -52,20 +64,41 @@ export function fetchDirectory(path: string = ".") {
       try {
         try {
           const res = await fetch(`${cathedralPluginConfig.contentPrefix}/.cathedral.json`);
-          const json = await res.json();
-          const parsed = await parsePath(json, path)
 
-          // TODO: fix this upstream
-          parsed.directory.children = parsed.directory.children.sort((a, b) => {
-              const na = parseInt(a.name.split("_")[1], 10)
-              const nb = parseInt(b.name.split("_")[1], 10)
-              return na - nb
-            });
+          if (!res.ok) {
+            throw new Error(`Failed to fetch directory structure: ${res.status} ${res.statusText}`);
+          } 
+          
+          const json = await res.json();
+          const parsed: {
+            directory: DirectoryEntry;
+            file: FileEntry | null;
+          } = await parsePath(json, path)
+
+          parsed.directory.children.sort((a: any, b: any) => {
+            let aDate, bDate;
+            if (a.children) {
+              const readme = findReadme(a);
+              if (readme && readme.frontmatter && readme.frontmatter.date) {
+                aDate = new Date(readme.frontmatter.date as string | number | Date)
+              }
+            }
+            if (b.children) {
+              const readme = findReadme(b);
+              if (readme && readme.frontmatter && readme.frontmatter.date) {
+                bDate = new Date(readme.frontmatter.date as string | number | Date)
+              }
+            }
+            if (aDate && bDate) {
+              return aDate.getTime() - bDate.getTime()
+            }
+            return 0;
+          })
 
           setDirectory(parsed.directory);
           setFile(parsed.file);
-        } catch (err) {
-          setError(err as Error);
+        } catch (err: any) {
+          setError('Failed to load .cathedral.json');
         }
         
       } finally {

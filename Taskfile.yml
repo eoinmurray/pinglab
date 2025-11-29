@@ -58,7 +58,6 @@ tasks:
     desc: Build the frontend content
     cmds:
       - bun run cathedral/plugins/content-builder.ts -c content -o content/.cathedral.json
-      - bun run cathedral/plugins/content-builder.ts -c docs -o docs/.cathedral.json
 
   dev:
     desc: Start the development server

@@ -1,4 +1,4 @@
-
+import { format } from 'date-fns'
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Folder, FileText, ChevronDown, ChevronRight } from "lucide-react";
 
@@ -7,6 +7,7 @@ import { DirectoryEntry, FileEntry } from "../../plugins/cathedral-plugin/src/li
 import { cathedralPluginConfig } from "../../cathedral-plugin.config";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { useState, useEffect, useRef } from "react";
+import { findReadme } from "../../plugins/cathedral-plugin/src/client";
 
 
 function formatFileSize(bytes: number): string {
@@ -171,6 +172,10 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
         <div className="space-y-1 px-2 py-3">
           {folders.map((folder, index) => {
             const isSelected = selectedIndex === index;
+
+            const readme = findReadme(folder);
+            const frontmatter = readme?.frontmatter;
+
             return (
               <Link
                 key={folder.path}
@@ -191,7 +196,8 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
                   {folder.name}
                 </span>
                 <span className="text-xs text-muted-foreground flex-shrink-0">
-                  {folder.children.length} item{folder.children.length !== 1 ? "s" : ""}
+                  {/* {folder.children.length} item{folder.children.length !== 1 ? "s" : ""} */}
+                  {frontmatter?.date ? format(new Date(frontmatter.date as string), "MMM dd, Y") : ""}
                 </span>
               </Link>
             );

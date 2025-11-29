@@ -1,6 +1,8 @@
 import { readdir, writeFile, stat, readFile } from 'fs/promises';
 import { join, relative } from 'path';
 import * as path from 'path';
+import matter from 'gray-matter';
+
 export const GITIGNORE_FILENAME = '.gitignore'
 
 export type FileEntry = {
@@ -8,6 +10,7 @@ export type FileEntry = {
   name: string;
   path: string;
   size: number;
+  frontmatter?: Record<string, unknown>;
 }
 
 export type DirectoryEntry = {
@@ -15,6 +18,34 @@ export type DirectoryEntry = {
   name: string;
   path: string;
   children: (FileEntry | DirectoryEntry)[];
+}
+
+const MARKDOWN_EXTENSIONS = ['.md', '.mdx', '.markdown'];
+
+/**
+ * Check if a file is a markdown file
+ */
+function isMarkdownFile(filename: string): boolean {
+  const ext = path.extname(filename).toLowerCase();
+  return MARKDOWN_EXTENSIONS.includes(ext);
+}
+
+/**
+ * Parse frontmatter from a markdown file
+ * Returns undefined if no frontmatter exists or file is not markdown
+ */
+async function parseFrontmatter(filePath: string): Promise<Record<string, unknown> | undefined> {
+  try {
+    const content = await readFile(filePath, 'utf-8');
+    const { data } = matter(content);
+    // Only return frontmatter if it has content
+    if (Object.keys(data).length > 0) {
+      return data;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -146,12 +177,22 @@ async function scanDirectory(
     } else {
       // Add file entry
       const stats = await stat(fullPath);
-      children.push({
+      const fileEntry: FileEntry = {
         type: 'file',
         name: entry,
         path: relativePath,
         size: stats.size,
-      });
+      };
+
+      // Parse frontmatter for markdown files
+      if (isMarkdownFile(entry)) {
+        const frontmatter = await parseFrontmatter(fullPath);
+        if (frontmatter) {
+          fileEntry.frontmatter = frontmatter;
+        }
+      }
+
+      children.push(fileEntry);
     }
   }
 

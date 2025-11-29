@@ -2,10 +2,12 @@ import { useState, useEffect, useMemo } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
-import { fetchDirectory } from "../../plugins/cathedral-plugin/src/client";
+import { useDirectory } from "../../plugins/cathedral-plugin/src/client";
 import { FileEntry } from "../../plugins/cathedral-plugin/src/lib";
 import { cathedralPluginConfig } from "../../cathedral-plugin.config";
 import { minimatch } from "minimatch";
+import { useParams } from "react-router-dom";
+import { dir } from "console";
 
 function filterPathsByTheme(paths: string[], theme: string | undefined): string[] {
   // Group paths by base name (without _light or _dark suffix)
@@ -48,16 +50,27 @@ function filterPathsByTheme(paths: string[], theme: string | undefined): string[
 
 export default function Gallery({
   path,
+  relativePath,
   caption,
   globs = null,
   single = false,
   } : {
-  path: string,
+  path?: string,
+  relativePath?: string,
   caption?: string,
   globs?: string[] | null,
   single?: boolean
 }) {
-  const { directory } = fetchDirectory(path)
+  const { "*": paramPath = "." } = useParams();
+
+  if (relativePath) {
+    const basePath = paramPath === "." ? "" : paramPath;
+    path = basePath + (basePath.endsWith("/") ? "" : "/") + relativePath;
+  }
+
+  const { directory } = useDirectory(path);
+
+  console.log("Gallery directory:", directory);
 
   const imageChildren = directory?.children
     .filter((child): child is FileEntry => {

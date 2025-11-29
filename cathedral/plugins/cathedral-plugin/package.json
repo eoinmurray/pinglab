@@ -13,6 +13,7 @@
     "start": "NODE_ENV=production bun src/index.ts"
   },
   "dependencies": {
+    "gray-matter": "^4.0.3",
     "react": "^19",
     "react-dom": "^19"
   },
