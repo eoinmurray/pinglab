@@ -12,6 +12,7 @@ from local.experiment_2 import experiment_2
 from local.experiment_3 import experiment_3
 from local.experiment_4 import experiment_4
 from local.experiment_5 import experiment_5
+from local.experiment_6 import experiment_6
 
 def main() -> None:
     root = Path(__file__).parent
@@ -35,6 +36,9 @@ def main() -> None:
 
     # Experiment 5: Cross corr
     experiment_5(config, data_path)
+
+    # # Experiment 6: ISI CV vs I_E
+    experiment_6(config, data_path)
 
 if __name__ == "__main__":
     main()

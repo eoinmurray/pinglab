@@ -5,6 +5,12 @@ date: 2025-11-25
 
 # Minimal validation of a PING Spiking Neural Network
 
+## Notes
+
+- Note throughout how the network oscillates a little even at weak drive, all the metrics pick it up.
+
+## Images
+
 ## AI-OSC Transition as a function of input current to E neurons $I_E$.
 
 <Gallery
@@ -58,6 +64,7 @@ date: 2025-11-25
 ## EI Cross-Correlelogram
 
 <Gallery
+  single
   path="minimal-validation/data"
   globs={[
     "ei_crosscorr_*.png"
@@ -65,4 +72,28 @@ date: 2025-11-25
   caption="Cross-correlogram between excitatory and inhibitory populations. The
   peak in the correlograms at a specific time lag indicates the temporal
   relationship between E and I firing."
+/>
+
+## Population ISI CV
+
+<Gallery
+  path="minimal-validation/data"
+  globs={[
+    "raster_population_isi_cv*.png"
+  ]}
+  caption="Cross-correlogram between excitatory and inhibitory populations. The
+  peak in the correlograms at a specific time lag indicates the temporal
+  relationship between E and I firing."
+/>
+
+<br/>
+
+<Gallery
+  single
+  path="minimal-validation/data"
+  globs={[
+    "population_isi_cv*"
+  ]}
+  caption="Population ISI CV not hitting 1 at low drive, indicating some level of network synchrony even at weak input.
+  The other plots show this also."
 />

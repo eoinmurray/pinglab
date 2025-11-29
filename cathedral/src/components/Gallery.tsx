@@ -172,7 +172,7 @@ export default function Gallery({
           className={
             cn(
               "w-full not-prose p-6",
-              !single && "grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-5 xl:grid-cols-5 ",
+              !single && "grid grid-cols-5 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-5 ",
               "gap-2 sm:gap-3 md:gap-4"
           )}
         >

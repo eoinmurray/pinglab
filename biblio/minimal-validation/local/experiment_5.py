@@ -8,13 +8,13 @@ from local.inner import inner
 
 
 def experiment_5(config, data_path: Path) -> None:
-    cfgs = {
+    cfg = {
             "config": config,
             "g_ei": 1.4,
             "I_E": 1.5,
         }
 
-    result = inner(cfgs)
+    result = inner(cfg)
 
     centers, hist = ei_crosscorr(result.spikes, N_E=config.base.N_E)
 

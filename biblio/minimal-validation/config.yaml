@@ -20,7 +20,7 @@ base:
 
   # Synaptic weights: Balanced E-I for asynchronous regime
   g_ei: 1.4      # E→I (moderate excitation to interneurons)
-  g_ie: 2.5      # I→E (strong inhibitory feedback to suppress synchrony)
+  g_ie: 2.1      # I→E (strong inhibitory feedback to suppress synchrony)
   g_ee: 0.3      # E→E (weak recurrent excitation)
   g_ii: 0.3      # I→I (weak recurrent inhibition)
 
