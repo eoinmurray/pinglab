@@ -21,7 +21,7 @@ from local import (
 )
 
 
-def run_phase_condition(cfg: dict) -> tuple[float, float]:
+def run_phase_condition(cfg: dict) -> tuple[float, float, object]:
     """Run single phase condition: B receives A's volley at shifted time."""
     config = cfg["config"]
     pop_B = cfg["pop_B"]
