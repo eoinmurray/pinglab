@@ -52,6 +52,9 @@ export function Slides({ content }: { content: string }) {
       const galleryFullscreen = document.querySelector('[data-gallery-fullscreen="true"]');
       if (galleryFullscreen) return;
 
+      // Allow default browser behavior for modifier key combinations (Cmd/Ctrl + key)
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
       switch (e.key) {
         case "ArrowRight":
         case " ":

@@ -32,6 +32,8 @@ DARK = {
     "axes.prop_cycle": mpl.cycler(color=["#ffffff", "#ff6b6b", "#4dabf7", "#51cf66"]),
 }
 
+figsize = (8, 8)
+
 def apply_style(style):
     mpl.rcParams.update(style)
 

@@ -1,0 +1,68 @@
+---
+title: Minimal validation of a PING Spiking Neural Network
+date: 2025-11-25
+---
+
+# Minimal validation of a PING Spiking Neural Network
+
+## AI-OSC Transition as a function of input current to E neurons $I_E$.
+
+<Gallery
+  path="minimal-validation/data"
+  globs={[
+    "raster_I_E_*.png"
+  ]}
+  caption="Raster plots showing the AI-to-OSC transition as external drive I_E increases from
+  1.15 to 1.25. With g_ei fixed at 1.4, increasing excitatory drive pushes the network
+  toward more synchronized oscillatory activity."
+/>
+
+## AI-OSC Transition as a function of E→I synaptic conductance $g_{ei}$.
+
+<Gallery
+  path="minimal-validation/data"
+  globs={[
+    "raster_g_ei_*.png"
+  ]}
+  caption="Raster plots showing the AI-to-OSC transition as g_ei increases from
+  1.2 to 1.7 nS. Early plots show asynchronous irregular firing, while later
+  plots reveal progressive emergence of rhythmic gamma oscillations."
+/>
+
+## F-I curves for E and I populations.
+
+<Gallery
+  path="minimal-validation/data"
+  globs={[
+    "firing_rates_vs_I_E*.png"
+  ]}
+  caption="F-I curves showing the firing rates of excitatory (E) and inhibitory (I)
+  populations as a function of external drive I_E. Both populations exhibit
+  increasing firing rates with higher I_E, with the E population showing a
+  steeper increase due to its direct input."
+/>
+
+## PSD
+
+<Gallery
+  path="minimal-validation/data"
+  globs={[
+    "psd_*.png"
+  ]}
+  caption="Power Spectral Density (PSD) plots of the population firing rates for
+  varying I_E and g_ei. As I_E or g_ei increase, a pronounced peak emerges
+  in the gamma frequency range (30-80 Hz), indicating the onset of oscillatory
+  activity in the network."
+/>
+
+## EI Cross-Correlelogram
+
+<Gallery
+  path="minimal-validation/data"
+  globs={[
+    "ei_crosscorr_*.png"
+  ]}
+  caption="Cross-correlogram between excitatory and inhibitory populations. The
+  peak in the correlograms at a specific time lag indicates the temporal
+  relationship between E and I firing."
+/>

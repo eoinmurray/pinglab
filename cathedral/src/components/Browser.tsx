@@ -207,10 +207,7 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
           {files.map((file, index) => {
             const fileIndex = folders.length + index;
             const isSelected = selectedIndex === fileIndex;
-
             const isOwnPage = currentPath === file.path;
-
-            console.log({ currentPath, filePath: file.path, isOwnPage });
 
             return (
               <Link

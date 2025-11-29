@@ -93,6 +93,23 @@ def run_network(config: NetworkConfig) -> NetworkResult:
 
     # Instrument recording setup
     instrument_recording = v.instruments is not None
+    # Initialize all instrument variables unconditionally to avoid "possibly unbound" errors
+    instrument_neuron_ids = None
+    instrument_downsample = 1
+    instrument_variables = []
+    instrument_population_means = False
+    instrument_times = []
+    instrument_V = None
+    instrument_g_e = None
+    instrument_g_i = None
+    instrument_V_mean_E = None
+    instrument_V_mean_I = None
+    instrument_g_e_mean_E = None
+    instrument_g_e_mean_I = None
+    instrument_g_i_mean_E = None
+    instrument_g_i_mean_I = None
+    instrument_step_counter = 0
+    
     if instrument_recording:
         instrument_neuron_ids = np.array(v.instruments.neuron_ids) if v.instruments.neuron_ids is not None else None
         instrument_downsample = v.instruments.downsample

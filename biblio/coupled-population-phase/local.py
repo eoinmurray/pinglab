@@ -287,7 +287,7 @@ def plot_coupled_raster(
         axes[1].set_ylabel("Neuron ID (B)")
         axes[1].set_xlabel("Time (ms)")
         axes[1].set_title(f"{title} - Downstream B")
-        axes[1].set_ylim(-5, N_E_B + 5)
+        # axes[1].set_ylim(-5, N_E_B + 5)
 
         plt.tight_layout()
 

@@ -41,7 +41,7 @@ export function Page() {
   }
 
   return (
-    <Layout>
+    <>
       <title>{`Pinglab ${path}`}</title>
       <main className="flex flex-col gap-8 mx-auto max-w-4xl p-4 md:px-0 mb-24">
           {path === '' && (
@@ -58,6 +58,6 @@ export function Page() {
             />
           )}
       </main>
-    </Layout>
+    </>
   )
 }

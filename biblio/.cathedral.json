@@ -18,7 +18,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "coupled-population-phase/README.mdx",
-          "size": 4898,
+          "size": 4921,
           "frontmatter": {
             "title": "Coupled Populations Phase Dependence",
             "description": "Relative phase between coupled oscillating populations determines spike propagation effectiveness, confirming Communication-Through-Coherence.",
@@ -88,481 +88,481 @@
               "type": "file",
               "name": "rasters_phase0_dark.png",
               "path": "coupled-population-phase/data/rasters_phase0_dark.png",
-              "size": 1522109
+              "size": 1526053
             },
             {
               "type": "file",
               "name": "rasters_phase0_light.png",
               "path": "coupled-population-phase/data/rasters_phase0_light.png",
-              "size": 1373944
+              "size": 1377599
             },
             {
               "type": "file",
               "name": "rasters_phase10_dark.png",
               "path": "coupled-population-phase/data/rasters_phase10_dark.png",
-              "size": 1538117
+              "size": 1542236
             },
             {
               "type": "file",
               "name": "rasters_phase10_light.png",
               "path": "coupled-population-phase/data/rasters_phase10_light.png",
-              "size": 1387593
+              "size": 1391316
             },
             {
               "type": "file",
               "name": "rasters_phase12_dark.png",
               "path": "coupled-population-phase/data/rasters_phase12_dark.png",
-              "size": 1543923
+              "size": 1548386
             },
             {
               "type": "file",
               "name": "rasters_phase12_light.png",
               "path": "coupled-population-phase/data/rasters_phase12_light.png",
-              "size": 1391468
+              "size": 1395570
             },
             {
               "type": "file",
               "name": "rasters_phase14_dark.png",
               "path": "coupled-population-phase/data/rasters_phase14_dark.png",
-              "size": 1542105
+              "size": 1546542
             },
             {
               "type": "file",
               "name": "rasters_phase14_light.png",
               "path": "coupled-population-phase/data/rasters_phase14_light.png",
-              "size": 1390002
+              "size": 1394093
             },
             {
               "type": "file",
               "name": "rasters_phase16_dark.png",
               "path": "coupled-population-phase/data/rasters_phase16_dark.png",
-              "size": 1536173
+              "size": 1540176
             },
             {
               "type": "file",
               "name": "rasters_phase16_light.png",
               "path": "coupled-population-phase/data/rasters_phase16_light.png",
-              "size": 1385549
+              "size": 1389149
             },
             {
               "type": "file",
               "name": "rasters_phase18_dark.png",
               "path": "coupled-population-phase/data/rasters_phase18_dark.png",
-              "size": 1538053
+              "size": 1542277
             },
             {
               "type": "file",
               "name": "rasters_phase18_light.png",
               "path": "coupled-population-phase/data/rasters_phase18_light.png",
-              "size": 1387198
+              "size": 1390887
             },
             {
               "type": "file",
               "name": "rasters_phase20_dark.png",
               "path": "coupled-population-phase/data/rasters_phase20_dark.png",
-              "size": 1534911
+              "size": 1538755
             },
             {
               "type": "file",
               "name": "rasters_phase20_light.png",
               "path": "coupled-population-phase/data/rasters_phase20_light.png",
-              "size": 1384922
+              "size": 1388603
             },
             {
               "type": "file",
               "name": "rasters_phase22_dark.png",
               "path": "coupled-population-phase/data/rasters_phase22_dark.png",
-              "size": 1536909
+              "size": 1541044
             },
             {
               "type": "file",
               "name": "rasters_phase22_light.png",
               "path": "coupled-population-phase/data/rasters_phase22_light.png",
-              "size": 1386217
+              "size": 1390113
             },
             {
               "type": "file",
               "name": "rasters_phase24_dark.png",
               "path": "coupled-population-phase/data/rasters_phase24_dark.png",
-              "size": 1537688
+              "size": 1541530
             },
             {
               "type": "file",
               "name": "rasters_phase24_light.png",
               "path": "coupled-population-phase/data/rasters_phase24_light.png",
-              "size": 1386315
+              "size": 1389780
             },
             {
               "type": "file",
               "name": "rasters_phase26_dark.png",
               "path": "coupled-population-phase/data/rasters_phase26_dark.png",
-              "size": 1533731
+              "size": 1537306
             },
             {
               "type": "file",
               "name": "rasters_phase26_light.png",
               "path": "coupled-population-phase/data/rasters_phase26_light.png",
-              "size": 1384292
+              "size": 1387499
             },
             {
               "type": "file",
               "name": "rasters_phase28_dark.png",
               "path": "coupled-population-phase/data/rasters_phase28_dark.png",
-              "size": 1536134
+              "size": 1539897
             },
             {
               "type": "file",
               "name": "rasters_phase28_light.png",
               "path": "coupled-population-phase/data/rasters_phase28_light.png",
-              "size": 1384928
+              "size": 1388379
             },
             {
               "type": "file",
               "name": "rasters_phase2_dark.png",
               "path": "coupled-population-phase/data/rasters_phase2_dark.png",
-              "size": 1533664
+              "size": 1537381
             },
             {
               "type": "file",
               "name": "rasters_phase2_light.png",
               "path": "coupled-population-phase/data/rasters_phase2_light.png",
-              "size": 1383407
+              "size": 1386985
             },
             {
               "type": "file",
               "name": "rasters_phase30_dark.png",
               "path": "coupled-population-phase/data/rasters_phase30_dark.png",
-              "size": 1541604
+              "size": 1545879
             },
             {
               "type": "file",
               "name": "rasters_phase30_light.png",
               "path": "coupled-population-phase/data/rasters_phase30_light.png",
-              "size": 1390124
+              "size": 1394112
             },
             {
               "type": "file",
               "name": "rasters_phase32_dark.png",
               "path": "coupled-population-phase/data/rasters_phase32_dark.png",
-              "size": 1534716
+              "size": 1538373
             },
             {
               "type": "file",
               "name": "rasters_phase32_light.png",
               "path": "coupled-population-phase/data/rasters_phase32_light.png",
-              "size": 1383841
+              "size": 1387263
             },
             {
               "type": "file",
               "name": "rasters_phase34_dark.png",
               "path": "coupled-population-phase/data/rasters_phase34_dark.png",
-              "size": 1535252
+              "size": 1539593
             },
             {
               "type": "file",
               "name": "rasters_phase34_light.png",
               "path": "coupled-population-phase/data/rasters_phase34_light.png",
-              "size": 1384739
+              "size": 1388729
             },
             {
               "type": "file",
               "name": "rasters_phase36_dark.png",
               "path": "coupled-population-phase/data/rasters_phase36_dark.png",
-              "size": 1541391
+              "size": 1545426
             },
             {
               "type": "file",
               "name": "rasters_phase36_light.png",
               "path": "coupled-population-phase/data/rasters_phase36_light.png",
-              "size": 1389963
+              "size": 1393581
             },
             {
               "type": "file",
               "name": "rasters_phase38_dark.png",
               "path": "coupled-population-phase/data/rasters_phase38_dark.png",
-              "size": 1540783
+              "size": 1544806
             },
             {
               "type": "file",
               "name": "rasters_phase38_light.png",
               "path": "coupled-population-phase/data/rasters_phase38_light.png",
-              "size": 1389340
+              "size": 1392834
             },
             {
               "type": "file",
               "name": "rasters_phase41_dark.png",
               "path": "coupled-population-phase/data/rasters_phase41_dark.png",
-              "size": 1537453
+              "size": 1541577
             },
             {
               "type": "file",
               "name": "rasters_phase41_light.png",
               "path": "coupled-population-phase/data/rasters_phase41_light.png",
-              "size": 1387112
+              "size": 1390610
             },
             {
               "type": "file",
               "name": "rasters_phase43_dark.png",
               "path": "coupled-population-phase/data/rasters_phase43_dark.png",
-              "size": 1541443
+              "size": 1545354
             },
             {
               "type": "file",
               "name": "rasters_phase43_light.png",
               "path": "coupled-population-phase/data/rasters_phase43_light.png",
-              "size": 1389733
+              "size": 1393364
             },
             {
               "type": "file",
               "name": "rasters_phase45_dark.png",
               "path": "coupled-population-phase/data/rasters_phase45_dark.png",
-              "size": 1535829
+              "size": 1539867
             },
             {
               "type": "file",
               "name": "rasters_phase45_light.png",
               "path": "coupled-population-phase/data/rasters_phase45_light.png",
-              "size": 1385524
+              "size": 1389289
             },
             {
               "type": "file",
               "name": "rasters_phase47_dark.png",
               "path": "coupled-population-phase/data/rasters_phase47_dark.png",
-              "size": 1535505
+              "size": 1539313
             },
             {
               "type": "file",
               "name": "rasters_phase47_light.png",
               "path": "coupled-population-phase/data/rasters_phase47_light.png",
-              "size": 1384975
+              "size": 1388421
             },
             {
               "type": "file",
               "name": "rasters_phase49_dark.png",
               "path": "coupled-population-phase/data/rasters_phase49_dark.png",
-              "size": 1542895
+              "size": 1547069
             },
             {
               "type": "file",
               "name": "rasters_phase49_light.png",
               "path": "coupled-population-phase/data/rasters_phase49_light.png",
-              "size": 1390518
+              "size": 1394439
             },
             {
               "type": "file",
               "name": "rasters_phase4_dark.png",
               "path": "coupled-population-phase/data/rasters_phase4_dark.png",
-              "size": 1537627
+              "size": 1541713
             },
             {
               "type": "file",
               "name": "rasters_phase4_light.png",
               "path": "coupled-population-phase/data/rasters_phase4_light.png",
-              "size": 1386819
+              "size": 1390431
             },
             {
               "type": "file",
               "name": "rasters_phase51_dark.png",
               "path": "coupled-population-phase/data/rasters_phase51_dark.png",
-              "size": 1534273
+              "size": 1538201
             },
             {
               "type": "file",
               "name": "rasters_phase51_light.png",
               "path": "coupled-population-phase/data/rasters_phase51_light.png",
-              "size": 1383552
+              "size": 1387136
             },
             {
               "type": "file",
               "name": "rasters_phase53_dark.png",
               "path": "coupled-population-phase/data/rasters_phase53_dark.png",
-              "size": 1528197
+              "size": 1532222
             },
             {
               "type": "file",
               "name": "rasters_phase53_light.png",
               "path": "coupled-population-phase/data/rasters_phase53_light.png",
-              "size": 1378709
+              "size": 1382088
             },
             {
               "type": "file",
               "name": "rasters_phase55_dark.png",
               "path": "coupled-population-phase/data/rasters_phase55_dark.png",
-              "size": 1540817
+              "size": 1544755
             },
             {
               "type": "file",
               "name": "rasters_phase55_light.png",
               "path": "coupled-population-phase/data/rasters_phase55_light.png",
-              "size": 1389523
+              "size": 1393230
             },
             {
               "type": "file",
               "name": "rasters_phase57_dark.png",
               "path": "coupled-population-phase/data/rasters_phase57_dark.png",
-              "size": 1538291
+              "size": 1542267
             },
             {
               "type": "file",
               "name": "rasters_phase57_light.png",
               "path": "coupled-population-phase/data/rasters_phase57_light.png",
-              "size": 1387691
+              "size": 1391669
             },
             {
               "type": "file",
               "name": "rasters_phase59_dark.png",
               "path": "coupled-population-phase/data/rasters_phase59_dark.png",
-              "size": 1538170
+              "size": 1542066
             },
             {
               "type": "file",
               "name": "rasters_phase59_light.png",
               "path": "coupled-population-phase/data/rasters_phase59_light.png",
-              "size": 1386629
+              "size": 1390413
             },
             {
               "type": "file",
               "name": "rasters_phase61_dark.png",
               "path": "coupled-population-phase/data/rasters_phase61_dark.png",
-              "size": 1539090
+              "size": 1542831
             },
             {
               "type": "file",
               "name": "rasters_phase61_light.png",
               "path": "coupled-population-phase/data/rasters_phase61_light.png",
-              "size": 1387573
+              "size": 1391178
             },
             {
               "type": "file",
               "name": "rasters_phase63_dark.png",
               "path": "coupled-population-phase/data/rasters_phase63_dark.png",
-              "size": 1540860
+              "size": 1545009
             },
             {
               "type": "file",
               "name": "rasters_phase63_light.png",
               "path": "coupled-population-phase/data/rasters_phase63_light.png",
-              "size": 1389256
+              "size": 1393157
             },
             {
               "type": "file",
               "name": "rasters_phase65_dark.png",
               "path": "coupled-population-phase/data/rasters_phase65_dark.png",
-              "size": 1537915
+              "size": 1542206
             },
             {
               "type": "file",
               "name": "rasters_phase65_light.png",
               "path": "coupled-population-phase/data/rasters_phase65_light.png",
-              "size": 1386923
+              "size": 1390640
             },
             {
               "type": "file",
               "name": "rasters_phase67_dark.png",
               "path": "coupled-population-phase/data/rasters_phase67_dark.png",
-              "size": 1540981
+              "size": 1545064
             },
             {
               "type": "file",
               "name": "rasters_phase67_light.png",
               "path": "coupled-population-phase/data/rasters_phase67_light.png",
-              "size": 1389538
+              "size": 1393063
             },
             {
               "type": "file",
               "name": "rasters_phase69_dark.png",
               "path": "coupled-population-phase/data/rasters_phase69_dark.png",
-              "size": 1539123
+              "size": 1543495
             },
             {
               "type": "file",
               "name": "rasters_phase69_light.png",
               "path": "coupled-population-phase/data/rasters_phase69_light.png",
-              "size": 1387530
+              "size": 1391501
             },
             {
               "type": "file",
               "name": "rasters_phase6_dark.png",
               "path": "coupled-population-phase/data/rasters_phase6_dark.png",
-              "size": 1536673
+              "size": 1540621
             },
             {
               "type": "file",
               "name": "rasters_phase6_light.png",
               "path": "coupled-population-phase/data/rasters_phase6_light.png",
-              "size": 1385782
+              "size": 1389538
             },
             {
               "type": "file",
               "name": "rasters_phase71_dark.png",
               "path": "coupled-population-phase/data/rasters_phase71_dark.png",
-              "size": 1532842
+              "size": 1536952
             },
             {
               "type": "file",
               "name": "rasters_phase71_light.png",
               "path": "coupled-population-phase/data/rasters_phase71_light.png",
-              "size": 1382902
+              "size": 1386528
             },
             {
               "type": "file",
               "name": "rasters_phase73_dark.png",
               "path": "coupled-population-phase/data/rasters_phase73_dark.png",
-              "size": 1537496
+              "size": 1541864
             },
             {
               "type": "file",
               "name": "rasters_phase73_light.png",
               "path": "coupled-population-phase/data/rasters_phase73_light.png",
-              "size": 1385951
+              "size": 1389620
             },
             {
               "type": "file",
               "name": "rasters_phase75_dark.png",
               "path": "coupled-population-phase/data/rasters_phase75_dark.png",
-              "size": 1536917
+              "size": 1540991
             },
             {
               "type": "file",
               "name": "rasters_phase75_light.png",
               "path": "coupled-population-phase/data/rasters_phase75_light.png",
-              "size": 1385239
+              "size": 1388975
             },
             {
               "type": "file",
               "name": "rasters_phase77_dark.png",
               "path": "coupled-population-phase/data/rasters_phase77_dark.png",
-              "size": 1535009
+              "size": 1539034
             },
             {
               "type": "file",
               "name": "rasters_phase77_light.png",
               "path": "coupled-population-phase/data/rasters_phase77_light.png",
-              "size": 1384256
+              "size": 1388149
             },
             {
               "type": "file",
               "name": "rasters_phase80_dark.png",
               "path": "coupled-population-phase/data/rasters_phase80_dark.png",
-              "size": 1526112
+              "size": 1530551
             },
             {
               "type": "file",
               "name": "rasters_phase80_light.png",
               "path": "coupled-population-phase/data/rasters_phase80_light.png",
-              "size": 1376607
+              "size": 1380529
             },
             {
               "type": "file",
               "name": "rasters_phase8_dark.png",
               "path": "coupled-population-phase/data/rasters_phase8_dark.png",
-              "size": 1535799
+              "size": 1539948
             },
             {
               "type": "file",
               "name": "rasters_phase8_light.png",
               "path": "coupled-population-phase/data/rasters_phase8_light.png",
-              "size": 1385243
+              "size": 1389301
             }
           ]
         },
@@ -576,290 +576,848 @@
           "type": "file",
           "name": "local.py",
           "path": "coupled-population-phase/local.py",
-          "size": 9645
+          "size": 9647
         }
       ]
     },
     {
       "type": "directory",
-      "name": "dynamical-regimes",
-      "path": "dynamical-regimes",
+      "name": "minimal-validation",
+      "path": "minimal-validation",
       "children": [
         {
           "type": "file",
           "name": "README.mdx",
-          "path": "dynamical-regimes/README.mdx",
-          "size": 3430,
+          "path": "minimal-validation/README.mdx",
+          "size": 1985,
           "frontmatter": {
-            "title": "Dynamical Regimes",
-            "description": "Network transitions from asynchronous irregular (AI) to oscillating (OSC) gamma rhythms as excitatory-to-inhibitory conductance increases.",
+            "title": "Minimal validation of a PING Spiking Neural Network",
             "date": "2025-11-25T00:00:00.000Z"
           }
         },
         {
           "type": "file",
           "name": "SLIDES.mdx",
-          "path": "dynamical-regimes/SLIDES.mdx",
+          "path": "minimal-validation/SLIDES.mdx",
           "size": 2371
         },
         {
           "type": "file",
           "name": "config.yaml",
-          "path": "dynamical-regimes/config.yaml",
+          "path": "minimal-validation/config.yaml",
           "size": 2549
         },
         {
           "type": "directory",
           "name": "data",
-          "path": "dynamical-regimes/data",
+          "path": "minimal-validation/data",
           "children": [
             {
               "type": "file",
+              "name": "ei_crosscorr_dark.png",
+              "path": "minimal-validation/data/ei_crosscorr_dark.png",
+              "size": 120585
+            },
+            {
+              "type": "file",
+              "name": "ei_crosscorr_light.png",
+              "path": "minimal-validation/data/ei_crosscorr_light.png",
+              "size": 116865
+            },
+            {
+              "type": "file",
+              "name": "firing_rates_vs_I_E_large_dark.png",
+              "path": "minimal-validation/data/firing_rates_vs_I_E_large_dark.png",
+              "size": 143734
+            },
+            {
+              "type": "file",
+              "name": "firing_rates_vs_I_E_large_light.png",
+              "path": "minimal-validation/data/firing_rates_vs_I_E_large_light.png",
+              "size": 134737
+            },
+            {
+              "type": "file",
+              "name": "firing_rates_vs_I_E_small_dark.png",
+              "path": "minimal-validation/data/firing_rates_vs_I_E_small_dark.png",
+              "size": 157568
+            },
+            {
+              "type": "file",
+              "name": "firing_rates_vs_I_E_small_light.png",
+              "path": "minimal-validation/data/firing_rates_vs_I_E_small_light.png",
+              "size": 147934
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.50_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.50_dark.png",
+              "size": 197394
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.50_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.50_light.png",
+              "size": 181684
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.54_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.54_dark.png",
+              "size": 208524
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.54_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.54_light.png",
+              "size": 193464
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.58_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.58_dark.png",
+              "size": 226318
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.58_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.58_light.png",
+              "size": 212288
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.62_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.62_dark.png",
+              "size": 229455
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.62_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.62_light.png",
+              "size": 218098
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.65_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.65_dark.png",
+              "size": 249624
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.65_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.65_light.png",
+              "size": 238699
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.69_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.69_dark.png",
+              "size": 270208
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.69_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.69_light.png",
+              "size": 256914
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.73_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.73_dark.png",
+              "size": 297021
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.73_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.73_light.png",
+              "size": 274073
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.77_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.77_dark.png",
+              "size": 335675
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.77_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.77_light.png",
+              "size": 298388
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.81_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.81_dark.png",
+              "size": 358930
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.81_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.81_light.png",
+              "size": 310036
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.85_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.85_dark.png",
+              "size": 390354
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.85_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.85_light.png",
+              "size": 327422
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.88_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.88_dark.png",
+              "size": 412970
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.88_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.88_light.png",
+              "size": 340491
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.92_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.92_dark.png",
+              "size": 437866
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.92_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.92_light.png",
+              "size": 356273
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.96_dark.png",
+              "path": "minimal-validation/data/psd_I_E_0.96_dark.png",
+              "size": 464847
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_0.96_light.png",
+              "path": "minimal-validation/data/psd_I_E_0.96_light.png",
+              "size": 372795
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.00_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.00_dark.png",
+              "size": 484716
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.00_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.00_light.png",
+              "size": 384298
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.04_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.04_dark.png",
+              "size": 498951
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.04_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.04_light.png",
+              "size": 395464
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.08_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.08_dark.png",
+              "size": 533662
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.08_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.08_light.png",
+              "size": 414817
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.12_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.12_dark.png",
+              "size": 545949
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.12_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.12_light.png",
+              "size": 420117
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.15_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.15_dark.png",
+              "size": 565504
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.15_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.15_light.png",
+              "size": 434521
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.19_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.19_dark.png",
+              "size": 584677
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.19_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.19_light.png",
+              "size": 445583
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.23_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.23_dark.png",
+              "size": 607796
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.23_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.23_light.png",
+              "size": 451776
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.27_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.27_dark.png",
+              "size": 624626
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.27_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.27_light.png",
+              "size": 450296
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.31_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.31_dark.png",
+              "size": 644303
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.31_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.31_light.png",
+              "size": 462804
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.35_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.35_dark.png",
+              "size": 659457
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.35_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.35_light.png",
+              "size": 469587
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.38_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.38_dark.png",
+              "size": 675862
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.38_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.38_light.png",
+              "size": 477058
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.42_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.42_dark.png",
+              "size": 678280
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.42_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.42_light.png",
+              "size": 478489
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.46_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.46_dark.png",
+              "size": 701985
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.46_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.46_light.png",
+              "size": 493603
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.50_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.50_dark.png",
+              "size": 722741
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.50_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.50_light.png",
+              "size": 507819
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.54_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.54_dark.png",
+              "size": 731673
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.54_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.54_light.png",
+              "size": 513329
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.58_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.58_dark.png",
+              "size": 755400
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.58_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.58_light.png",
+              "size": 528332
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.62_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.62_dark.png",
+              "size": 759282
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.62_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.62_light.png",
+              "size": 528943
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.65_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.65_dark.png",
+              "size": 784146
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.65_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.65_light.png",
+              "size": 541094
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.69_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.69_dark.png",
+              "size": 789516
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.69_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.69_light.png",
+              "size": 547099
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.73_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.73_dark.png",
+              "size": 814352
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.73_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.73_light.png",
+              "size": 559400
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.77_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.77_dark.png",
+              "size": 804844
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.77_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.77_light.png",
+              "size": 556217
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.81_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.81_dark.png",
+              "size": 829449
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.81_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.81_light.png",
+              "size": 571531
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.85_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.85_dark.png",
+              "size": 837522
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.85_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.85_light.png",
+              "size": 576386
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.88_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.88_dark.png",
+              "size": 852836
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.88_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.88_light.png",
+              "size": 588399
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.92_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.92_dark.png",
+              "size": 865881
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.92_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.92_light.png",
+              "size": 597414
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.96_dark.png",
+              "path": "minimal-validation/data/psd_I_E_1.96_dark.png",
+              "size": 878063
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_1.96_light.png",
+              "path": "minimal-validation/data/psd_I_E_1.96_light.png",
+              "size": 602898
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_2.00_dark.png",
+              "path": "minimal-validation/data/psd_I_E_2.00_dark.png",
+              "size": 898154
+            },
+            {
+              "type": "file",
+              "name": "psd_I_E_2.00_light.png",
+              "path": "minimal-validation/data/psd_I_E_2.00_light.png",
+              "size": 616218
+            },
+            {
+              "type": "file",
               "name": "raster_I_E_10_dark.png",
-              "path": "dynamical-regimes/data/raster_I_E_10_dark.png",
-              "size": 509265
+              "path": "minimal-validation/data/raster_I_E_10_dark.png",
+              "size": 501571
             },
             {
               "type": "file",
               "name": "raster_I_E_10_light.png",
-              "path": "dynamical-regimes/data/raster_I_E_10_light.png",
-              "size": 417570
+              "path": "minimal-validation/data/raster_I_E_10_light.png",
+              "size": 411405
             },
             {
               "type": "file",
               "name": "raster_I_E_1_dark.png",
-              "path": "dynamical-regimes/data/raster_I_E_1_dark.png",
-              "size": 447527
+              "path": "minimal-validation/data/raster_I_E_1_dark.png",
+              "size": 440620
             },
             {
               "type": "file",
               "name": "raster_I_E_1_light.png",
-              "path": "dynamical-regimes/data/raster_I_E_1_light.png",
-              "size": 376262
+              "path": "minimal-validation/data/raster_I_E_1_light.png",
+              "size": 370080
             },
             {
               "type": "file",
               "name": "raster_I_E_2_dark.png",
-              "path": "dynamical-regimes/data/raster_I_E_2_dark.png",
-              "size": 448970
+              "path": "minimal-validation/data/raster_I_E_2_dark.png",
+              "size": 442304
             },
             {
               "type": "file",
               "name": "raster_I_E_2_light.png",
-              "path": "dynamical-regimes/data/raster_I_E_2_light.png",
-              "size": 377919
+              "path": "minimal-validation/data/raster_I_E_2_light.png",
+              "size": 372343
             },
             {
               "type": "file",
               "name": "raster_I_E_3_dark.png",
-              "path": "dynamical-regimes/data/raster_I_E_3_dark.png",
-              "size": 458475
+              "path": "minimal-validation/data/raster_I_E_3_dark.png",
+              "size": 451871
             },
             {
               "type": "file",
               "name": "raster_I_E_3_light.png",
-              "path": "dynamical-regimes/data/raster_I_E_3_light.png",
-              "size": 382382
+              "path": "minimal-validation/data/raster_I_E_3_light.png",
+              "size": 376811
             },
             {
               "type": "file",
               "name": "raster_I_E_4_dark.png",
-              "path": "dynamical-regimes/data/raster_I_E_4_dark.png",
-              "size": 459660
+              "path": "minimal-validation/data/raster_I_E_4_dark.png",
+              "size": 452299
             },
             {
               "type": "file",
               "name": "raster_I_E_4_light.png",
-              "path": "dynamical-regimes/data/raster_I_E_4_light.png",
-              "size": 383344
+              "path": "minimal-validation/data/raster_I_E_4_light.png",
+              "size": 377417
             },
             {
               "type": "file",
               "name": "raster_I_E_5_dark.png",
-              "path": "dynamical-regimes/data/raster_I_E_5_dark.png",
-              "size": 463900
+              "path": "minimal-validation/data/raster_I_E_5_dark.png",
+              "size": 456301
             },
             {
               "type": "file",
               "name": "raster_I_E_5_light.png",
-              "path": "dynamical-regimes/data/raster_I_E_5_light.png",
-              "size": 384521
+              "path": "minimal-validation/data/raster_I_E_5_light.png",
+              "size": 378590
             },
             {
               "type": "file",
               "name": "raster_I_E_6_dark.png",
-              "path": "dynamical-regimes/data/raster_I_E_6_dark.png",
-              "size": 471468
+              "path": "minimal-validation/data/raster_I_E_6_dark.png",
+              "size": 464325
             },
             {
               "type": "file",
               "name": "raster_I_E_6_light.png",
-              "path": "dynamical-regimes/data/raster_I_E_6_light.png",
-              "size": 390554
+              "path": "minimal-validation/data/raster_I_E_6_light.png",
+              "size": 384637
             },
             {
               "type": "file",
               "name": "raster_I_E_7_dark.png",
-              "path": "dynamical-regimes/data/raster_I_E_7_dark.png",
-              "size": 491106
+              "path": "minimal-validation/data/raster_I_E_7_dark.png",
+              "size": 484401
             },
             {
               "type": "file",
               "name": "raster_I_E_7_light.png",
-              "path": "dynamical-regimes/data/raster_I_E_7_light.png",
-              "size": 402879
+              "path": "minimal-validation/data/raster_I_E_7_light.png",
+              "size": 396579
             },
             {
               "type": "file",
               "name": "raster_I_E_8_dark.png",
-              "path": "dynamical-regimes/data/raster_I_E_8_dark.png",
-              "size": 494586
+              "path": "minimal-validation/data/raster_I_E_8_dark.png",
+              "size": 488332
             },
             {
               "type": "file",
               "name": "raster_I_E_8_light.png",
-              "path": "dynamical-regimes/data/raster_I_E_8_light.png",
-              "size": 406774
+              "path": "minimal-validation/data/raster_I_E_8_light.png",
+              "size": 400456
             },
             {
               "type": "file",
               "name": "raster_I_E_9_dark.png",
-              "path": "dynamical-regimes/data/raster_I_E_9_dark.png",
-              "size": 503194
+              "path": "minimal-validation/data/raster_I_E_9_dark.png",
+              "size": 495770
             },
             {
               "type": "file",
               "name": "raster_I_E_9_light.png",
-              "path": "dynamical-regimes/data/raster_I_E_9_light.png",
-              "size": 413530
+              "path": "minimal-validation/data/raster_I_E_9_light.png",
+              "size": 407582
             },
             {
               "type": "file",
               "name": "raster_g_ei_10_dark.png",
-              "path": "dynamical-regimes/data/raster_g_ei_10_dark.png",
-              "size": 469437
+              "path": "minimal-validation/data/raster_g_ei_10_dark.png",
+              "size": 464557
             },
             {
               "type": "file",
               "name": "raster_g_ei_10_light.png",
-              "path": "dynamical-regimes/data/raster_g_ei_10_light.png",
-              "size": 401618
+              "path": "minimal-validation/data/raster_g_ei_10_light.png",
+              "size": 397550
             },
             {
               "type": "file",
               "name": "raster_g_ei_1_dark.png",
-              "path": "dynamical-regimes/data/raster_g_ei_1_dark.png",
-              "size": 485141
+              "path": "minimal-validation/data/raster_g_ei_1_dark.png",
+              "size": 480125
             },
             {
               "type": "file",
               "name": "raster_g_ei_1_light.png",
-              "path": "dynamical-regimes/data/raster_g_ei_1_light.png",
-              "size": 391480
+              "path": "minimal-validation/data/raster_g_ei_1_light.png",
+              "size": 387251
             },
             {
               "type": "file",
               "name": "raster_g_ei_2_dark.png",
-              "path": "dynamical-regimes/data/raster_g_ei_2_dark.png",
-              "size": 480927
+              "path": "minimal-validation/data/raster_g_ei_2_dark.png",
+              "size": 476480
             },
             {
               "type": "file",
               "name": "raster_g_ei_2_light.png",
-              "path": "dynamical-regimes/data/raster_g_ei_2_light.png",
-              "size": 390582
+              "path": "minimal-validation/data/raster_g_ei_2_light.png",
+              "size": 386766
             },
             {
               "type": "file",
               "name": "raster_g_ei_3_dark.png",
-              "path": "dynamical-regimes/data/raster_g_ei_3_dark.png",
-              "size": 475246
+              "path": "minimal-validation/data/raster_g_ei_3_dark.png",
+              "size": 470205
             },
             {
               "type": "file",
               "name": "raster_g_ei_3_light.png",
-              "path": "dynamical-regimes/data/raster_g_ei_3_light.png",
-              "size": 388550
+              "path": "minimal-validation/data/raster_g_ei_3_light.png",
+              "size": 384226
             },
             {
               "type": "file",
               "name": "raster_g_ei_4_dark.png",
-              "path": "dynamical-regimes/data/raster_g_ei_4_dark.png",
-              "size": 470998
+              "path": "minimal-validation/data/raster_g_ei_4_dark.png",
+              "size": 465817
             },
             {
               "type": "file",
               "name": "raster_g_ei_4_light.png",
-              "path": "dynamical-regimes/data/raster_g_ei_4_light.png",
-              "size": 388149
+              "path": "minimal-validation/data/raster_g_ei_4_light.png",
+              "size": 383952
             },
             {
               "type": "file",
               "name": "raster_g_ei_5_dark.png",
-              "path": "dynamical-regimes/data/raster_g_ei_5_dark.png",
-              "size": 471998
+              "path": "minimal-validation/data/raster_g_ei_5_dark.png",
+              "size": 467073
             },
             {
               "type": "file",
               "name": "raster_g_ei_5_light.png",
-              "path": "dynamical-regimes/data/raster_g_ei_5_light.png",
-              "size": 392451
+              "path": "minimal-validation/data/raster_g_ei_5_light.png",
+              "size": 388766
             },
             {
               "type": "file",
               "name": "raster_g_ei_6_dark.png",
-              "path": "dynamical-regimes/data/raster_g_ei_6_dark.png",
-              "size": 473526
+              "path": "minimal-validation/data/raster_g_ei_6_dark.png",
+              "size": 468415
             },
             {
               "type": "file",
               "name": "raster_g_ei_6_light.png",
-              "path": "dynamical-regimes/data/raster_g_ei_6_light.png",
-              "size": 395185
+              "path": "minimal-validation/data/raster_g_ei_6_light.png",
+              "size": 390762
             },
             {
               "type": "file",
               "name": "raster_g_ei_7_dark.png",
-              "path": "dynamical-regimes/data/raster_g_ei_7_dark.png",
-              "size": 477029
+              "path": "minimal-validation/data/raster_g_ei_7_dark.png",
+              "size": 471798
             },
             {
               "type": "file",
               "name": "raster_g_ei_7_light.png",
-              "path": "dynamical-regimes/data/raster_g_ei_7_light.png",
-              "size": 402118
+              "path": "minimal-validation/data/raster_g_ei_7_light.png",
+              "size": 397845
             },
             {
               "type": "file",
               "name": "raster_g_ei_8_dark.png",
-              "path": "dynamical-regimes/data/raster_g_ei_8_dark.png",
-              "size": 474336
+              "path": "minimal-validation/data/raster_g_ei_8_dark.png",
+              "size": 469073
             },
             {
               "type": "file",
               "name": "raster_g_ei_8_light.png",
-              "path": "dynamical-regimes/data/raster_g_ei_8_light.png",
-              "size": 401067
+              "path": "minimal-validation/data/raster_g_ei_8_light.png",
+              "size": 396753
             },
             {
               "type": "file",
               "name": "raster_g_ei_9_dark.png",
-              "path": "dynamical-regimes/data/raster_g_ei_9_dark.png",
-              "size": 475686
+              "path": "minimal-validation/data/raster_g_ei_9_dark.png",
+              "size": 470638
             },
             {
               "type": "file",
               "name": "raster_g_ei_9_light.png",
-              "path": "dynamical-regimes/data/raster_g_ei_9_light.png",
-              "size": 404310
+              "path": "minimal-validation/data/raster_g_ei_9_light.png",
+              "size": 400133
             }
           ]
         },
         {
           "type": "file",
           "name": "experiment.py",
-          "path": "dynamical-regimes/experiment.py",
-          "size": 2457
+          "path": "minimal-validation/experiment.py",
+          "size": 1057
+        },
+        {
+          "type": "directory",
+          "name": "local",
+          "path": "minimal-validation/local",
+          "children": [
+            {
+              "type": "file",
+              "name": "experiment_1.py",
+              "path": "minimal-validation/local/experiment_1.py",
+              "size": 890
+            },
+            {
+              "type": "file",
+              "name": "experiment_2.py",
+              "path": "minimal-validation/local/experiment_2.py",
+              "size": 891
+            },
+            {
+              "type": "file",
+              "name": "experiment_3.py",
+              "path": "minimal-validation/local/experiment_3.py",
+              "size": 2723
+            },
+            {
+              "type": "file",
+              "name": "experiment_4.py",
+              "path": "minimal-validation/local/experiment_4.py",
+              "size": 2458
+            },
+            {
+              "type": "file",
+              "name": "experiment_5.py",
+              "path": "minimal-validation/local/experiment_5.py",
+              "size": 722
+            },
+            {
+              "type": "file",
+              "name": "inner.py",
+              "path": "minimal-validation/local/inner.py",
+              "size": 812
+            }
+          ]
         }
       ]
     },
@@ -872,7 +1430,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "phase-dependence/README.mdx",
-          "size": 5421,
+          "size": 5381,
           "frontmatter": {
             "title": "Phase Dependence",
             "description": "Gamma oscillations create phase-dependent gating where identical inputs produce different responses depending on gamma phase.",

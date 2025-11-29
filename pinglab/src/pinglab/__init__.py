@@ -4,6 +4,7 @@ from . import types
 from . import inputs
 from . import utils
 from . import plots
+from . import analysis
 
 __version__ = "0.1.0"
 
@@ -13,4 +14,5 @@ __all__ = [
     "inputs",
     "utils",
     "plots",
+    "analysis",
 ]
