@@ -598,8 +598,8 @@
         },
         {
           "type": "file",
-          "name": "SLIDES.md",
-          "path": "dynamical-regimes/SLIDES.md",
+          "name": "SLIDES.mdx",
+          "path": "dynamical-regimes/SLIDES.mdx",
           "size": 2358
         },
         {

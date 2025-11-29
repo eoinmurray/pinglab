@@ -1,21 +1,12 @@
-import { fetchFileContent } from "../../plugins/cathedral-plugin/src/client";
+import { useFileContent } from "../../plugins/cathedral-plugin/src/client";
 import { FileEntry } from "../../plugins/cathedral-plugin/src/lib";
 import { MDXRenderer } from "./MDXRenderer";
 import { CodeEditor } from "./CodeEditor";
-import { Slides } from "./Slides";
 import { Spinner } from "./ui/spinner";
-import { formatDate } from "@/lib/format-date";
-import { Badge } from "./ui/badge";
 
 
 function RenderFile({ file, content, blob }: { file: FileEntry; content: string | null; blob: unknown | null; }) {
   const fileType = file.name.split('.').pop();
-
-  if (file.name === "SLIDES.md" || file.name === "slides.md" || file.name === "Slides.md" ) {
-    return (
-      <Slides content={content!} />
-    )
-  }
 
   switch (fileType) {
     case 'svg':
@@ -48,7 +39,7 @@ function RenderFile({ file, content, blob }: { file: FileEntry; content: string 
 }
 
 export default function File({ file }: { file: FileEntry }) {
-  const { content, blob, loading, error } = fetchFileContent(file.path);
+  const { content, blob, loading, error } = useFileContent(file.path);
 
   return (
     <div className="print:border-none rounded">

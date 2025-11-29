@@ -112,11 +112,11 @@ export function useDirectory(path: string = ".") {
   return { directory, file, loading, error };
 }
 
-export function fetchFileContent(path: string) {
+export function useFileContent(path: string) {
   const [blob, setBlob] = useState<unknown | null>(null);
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -133,8 +133,8 @@ export function fetchFileContent(path: string) {
             setContent(text);
           } catch (err) {}
 
-        } catch (err) {
-          setError(err as Error);
+        } catch (err: any) {
+          setError(err.message);
         }
         
       } finally {
