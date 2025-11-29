@@ -54,12 +54,15 @@ export default function Gallery({
   caption,
   globs = null,
   single = false,
+  limit,
   } : {
+  
   path?: string,
   relativePath?: string,
   caption?: string,
   globs?: string[] | null,
-  single?: boolean
+  single?: boolean,
+  limit?: number
 }) {
   const { "*": paramPath = "." } = useParams();
 
@@ -102,10 +105,15 @@ export default function Gallery({
     return a.localeCompare(b);
   });
 
-
   const { resolvedTheme } = useTheme();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const filteredPaths = useMemo(() => filterPathsByTheme(paths, resolvedTheme), [paths, resolvedTheme]);
+  let filteredPaths = useMemo(() => filterPathsByTheme(paths, resolvedTheme), [paths, resolvedTheme]);
+
+  if (limit) {
+    console.log("Limiting gallery to", limit, "images", filteredPaths.length);
+    filteredPaths = filteredPaths.slice(0, limit);
+    console.log("After limiting, paths:", filteredPaths.length);
+  }
   
   const goToPrevious = () => {
     if (selectedIndex !== null && selectedIndex > 0) {
