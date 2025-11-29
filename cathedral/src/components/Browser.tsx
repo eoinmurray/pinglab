@@ -153,8 +153,8 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
   }, [isOpen, allItems, selectedIndex, navigate, currentPath, setIsOpen]);
 
   return (
-    <div className="border rounded divide-y print:hidden">
-      <div className="px-4 py-3 flex rounded-t bg-sidebar justify-between items-center gap-4">
+    <div className="border rounded-lg overflow-hidden shadow-sm print:hidden">
+      <div className="px-4 py-3 flex bg-muted/50 justify-between items-center gap-4 border-b">
         <Breadcrumbs />
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -183,10 +183,10 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
                 to={`/${folder.path}`}
                 ref={(el) => (itemRefs.current[index] = el)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md",
-                  "hover:underline transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-md",
+                  "hover:bg-accent transition-all duration-150",
                   "text-sm group",
-                  isSelected && "bg-accent",
+                  isSelected && "bg-accent ring-1 ring-primary/20",
                 )}
               >
                 <Folder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -216,10 +216,10 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
                 target={file.path.endsWith('.pdf') ? "_blank" : "_self"}
                 ref={(el) => (itemRefs.current[fileIndex] = el)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md",
-                  "hover:underline",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-md",
+                  "hover:bg-accent transition-all duration-150",
                   "text-sm group",
-                  isSelected && "bg-accent",
+                  isSelected && "bg-accent ring-1 ring-primary/20",
                   isOwnPage && "text-muted-foreground"
                 )}
               >

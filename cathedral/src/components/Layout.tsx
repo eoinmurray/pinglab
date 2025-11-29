@@ -7,13 +7,16 @@ type Props = {
 };
 
 export function Layout({ children }: Props) {
-  const isRunning = isSimulationRunning()
+  const isRunning = isSimulationRunning();
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       {isRunning && (
-        <div className="sticky top-0 z-50 px-3 py-2 bg-red-600 font-mono text-xs text-white animate-pulse">
-          Simulation in progress, this page will reload when finished.
+        <div className="sticky top-0 z-50 px-4 py-2 bg-primary text-primary-foreground font-mono text-xs text-center">
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-current animate-pulse" />
+            Simulation in progress
+          </span>
         </div>
       )}
 
@@ -25,5 +28,5 @@ export function Layout({ children }: Props) {
 
       <Footer />
     </div>
-  )
+  );
 }

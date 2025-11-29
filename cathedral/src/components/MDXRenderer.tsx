@@ -7,60 +7,51 @@ import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import Gallery from './Gallery'
 
+function generateId(children: any): string {
+  return children
+    ?.toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+}
 
 const MDX_COMPONENTS = {
   Gallery,
-  // Style headers with IDs for TOC navigation
   h1: (props: any) => {
-    const id = props.children
-      ?.toString()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-    return <h1 id={id} className="text-3xl font-serif font-bold mt-8 mb-4" {...props} />
+    const id = generateId(props.children)
+    return <h1 id={id} className="text-3xl font-semibold tracking-tight mt-10 mb-4" {...props} />
   },
   h2: (props: any) => {
-    const id = props.children
-      ?.toString()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-    return <h2 id={id} className="text-2xl font-serif font-bold mt-6 mb-3" {...props} />
+    const id = generateId(props.children)
+    return <h2 id={id} className="text-2xl font-semibold tracking-tight mt-8 mb-3 pb-2 border-b" {...props} />
   },
   h3: (props: any) => {
-    const id = props.children
-      ?.toString()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-    return <h3 id={id} className="text-xl font-serif font-bold mt-4 mb-2" {...props} />
+    const id = generateId(props.children)
+    return <h3 id={id} className="text-xl font-medium mt-6 mb-2" {...props} />
   },
-
   h4: (props: any) => {
-    const id = props.children
-      ?.toString()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-    return <h4 id={id} className="text-lg font-serif font-bold mt-3 mb-1" {...props} />
+    const id = generateId(props.children)
+    return <h4 id={id} className="text-lg font-medium mt-4 mb-2" {...props} />
   },
-
   h5: (props: any) => {
-    const id = props.children
-      ?.toString()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-    return <h5 id={id} className="text-base font-serif font-bold mt-2 mb-1" {...props} />
+    const id = generateId(props.children)
+    return <h5 id={id} className="text-base font-medium mt-3 mb-1" {...props} />
   },
-
   pre: (props: any) => {
     return (
       <pre
-        className={`not-prose w-full overflow-x-auto p-2 md:p-4 text-xs md:text-sm bg-sidebar`}
+        className="not-prose w-full overflow-x-auto p-4 text-sm bg-muted/50 rounded-lg border font-mono"
         {...props}
       />
     )
+  },
+  code: (props: any) => {
+    // Check if this is inline code (not inside a pre tag)
+    const isInline = !props.className?.includes('language-')
+    if (isInline) {
+      return <code className="font-mono text-[0.9em] bg-muted px-1.5 py-0.5 rounded" {...props} />
+    }
+    return <code {...props} />
   },
 }
 
@@ -116,9 +107,9 @@ export function MDXRenderer({ content }: { content: string }) {
 
   if (error) {
     return (
-      <div className="text-red-600 p-4 border border-red-300 rounded">
-        <h3 className="font-bold">MDX Compilation Error</h3>
-        <pre className="text-sm mt-2 overflow-x-auto">{error.message}</pre>
+      <div className="text-destructive p-4 border border-destructive/30 rounded-lg bg-destructive/5">
+        <h3 className="font-semibold">MDX Compilation Error</h3>
+        <pre className="text-sm mt-2 overflow-x-auto font-mono">{error.message}</pre>
       </div>
     )
   }
@@ -128,7 +119,7 @@ export function MDXRenderer({ content }: { content: string }) {
   }
 
   return (
-    <div 
+    <div
       className="prose max-w-full prose-slate dark:prose-invert md:prose-base"
     >
       <MDXContent components={MDX_COMPONENTS} />
