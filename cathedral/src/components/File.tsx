@@ -4,6 +4,8 @@ import { MDXRenderer } from "./MDXRenderer";
 import { CodeEditor } from "./CodeEditor";
 import { Slides } from "./Slides";
 import { Spinner } from "./ui/spinner";
+import { formatDate } from "@/lib/format-date";
+import { Badge } from "./ui/badge";
 
 
 function RenderFile({ file, content, blob }: { file: FileEntry; content: string | null; blob: unknown | null; }) {
@@ -49,10 +51,14 @@ export default function File({ file }: { file: FileEntry }) {
   const { content, blob, loading, error } = fetchFileContent(file.path);
 
   return (
-    <div className="border print:border-none rounded">
-      <div className="print:hidden border-b px-4 py-3 bg-sidebar rounded-t">
-        <span className="text-sm text-muted-foreground">{file.name}</span>
-      </div>
+    <div className="print:border-none rounded">
+      {/* <div className="print:hidden px-4 py-3 flex gap-2 items-center">
+        <Badge variant="outline">{file.name}</Badge>
+        {file.frontmatter?.date && (
+          <span className="text-xs text-muted-foreground">{formatDate(file.frontmatter.date)}</span>
+        )}
+      </div> */}
+
       {!loading && !error && (
         <RenderFile file={file} content={content} blob={blob} />
       )}

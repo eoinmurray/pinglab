@@ -70,8 +70,6 @@ export default function Gallery({
 
   const { directory } = useDirectory(path);
 
-  console.log("Gallery directory:", directory);
-
   const imageChildren = directory?.children
     .filter((child): child is FileEntry => {
       return !!child.name.match(/\.(png|jpeg|gif|svg|webp)$/i) && child.type === "file";
@@ -144,15 +142,15 @@ export default function Gallery({
 
   return (
     <>
-      <div className="border lg:mx-[-17px]">
+      <div className="border rounded">
         <div className="border-b px-3 py-2 bg-sidebar rounded-t">
-          <span className="text-muted-foreground text-sm">
+          <span className="text-muted-foreground">
             Gallery for{' '}
           </span>
-          <span className="text-muted-foreground text-xs font-mono">
+          <span className="text-muted-foreground">
             {path}
           </span>
-          <span className="text-muted-foreground text-xs font-mono">
+          <span className="text-muted-foreground">
             {globs && globs.length > 0 && (
               <>
                 {' '}|{' '}
@@ -198,7 +196,7 @@ export default function Gallery({
           ))}
         </div>
         {caption && (
-          <div className="mt-2 text-xs text-muted-foreground p-3 border-t rounded-b bg-sidebar">
+          <div className="mt-2 text-muted-foreground p-3 border-t rounded-b bg-sidebar">
             {caption}
           </div>
         )}

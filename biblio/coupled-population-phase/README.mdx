@@ -6,10 +6,16 @@ date: 2025-11-27
 
 # Coupled Populations Phase Dependence
 
+The relative phase between two coupled oscillating populations determines how
+effectively spikes propagate between them. With identical synaptic weights and
+input volleys, downstream response varies >4× depending on phase
+alignment—maximal when input arrives during low inhibition, minimal during high
+inhibition.
+
 ## Results / Images
 
 <Gallery 
-   relativePath="data" 
+   path="coupled-population-phase/data" 
    globs={[
       "baseline_A_raster*.png", 
       "baseline_B_raster*.png", 
@@ -23,7 +29,7 @@ date: 2025-11-27
 <br/>
 
 <Gallery 
-   relativePath="data" 
+   path="coupled-population-phase/data" 
    globs={[ "rasters_*.png", ]}
    caption="Downstream responses to identical upstream volleys at different
    relative phases. When inhibition in B is minimal (0° lag), the volley
@@ -44,17 +50,6 @@ date: 2025-11-27
    the trough of inhibition in B. As lag shifts toward suppressive phases,
    transfer gain collapses despite identical input." 
 />
-
-## TL;DR Outcome
-{/* one paragraph */}
-
-The relative phase between two coupled oscillating populations determines how
-effectively spikes propagate between them. With identical synaptic weights and
-input volleys, downstream response varies >4× depending on phase
-alignment—maximal when input arrives during low inhibition, minimal during high
-inhibition. This demonstrates that effective connectivity is a function of
-phase, not just wiring strength, confirming the core prediction of
-Communication-Through-Coherence.
 
 ---
 
@@ -100,7 +95,7 @@ firing**.
 ## Usage
 
 ```
-uv run biblio/3.coupled-population-phase/experiment.py
+uv run biblio/coupled-population-phase/experiment.py
 ```
 
 ---

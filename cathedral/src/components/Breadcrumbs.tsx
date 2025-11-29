@@ -1,5 +1,12 @@
 import { useParams } from "react-router-dom"
-import { Breadcrumb } from "./ui/breadcrumb";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 
 export function Breadcrumbs() {
   const { "*": path } = useParams();
@@ -17,8 +24,19 @@ export function Breadcrumbs() {
   }
 
   return (
-    <div className="font-mono text-sm">
-      <Breadcrumb items={breadcrumbItems} />
-    </div>
+    <Breadcrumb>
+      <BreadcrumbList>
+        {breadcrumbItems.map((item, index) => (
+          <BreadcrumbItem key={index}>
+            {index < breadcrumbItems.length - 1 ? (
+              <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+            ) : (
+              <BreadcrumbPage>{item.label}</BreadcrumbPage>
+            )}
+            {index < breadcrumbItems.length - 1 && <BreadcrumbSeparator />}
+          </BreadcrumbItem>
+        ))}
+      </BreadcrumbList>
+    </Breadcrumb>
   )
 }

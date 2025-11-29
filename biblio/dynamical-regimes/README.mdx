@@ -6,10 +6,22 @@ date: 2025-11-25
 
 # Dynamical Regimes
 
+## TL;DR Outcome
+{/* one paragraph */}
+
+The network transitions from asynchronous irregular (AI) dynamics to oscillating
+(OSC) gamma rhythms as either the excitatory-to-inhibitory conductance ($g_{ei}$)
+or the external drive ($I_E$) increases. Raster plots illustrate this shift,
+with early plots showing irregular firing patterns and later plots revealing
+organized rhythmic activity. Both parameters control the transition by different
+mechanisms: $g_{ei}$ strengthens the E→I coupling that drives PING oscillations,
+while $I_E$ increases overall network excitability.
+
+
 ## Results / Images
 
 <Gallery
-  relativePath="data"
+  path="dynamical-regimes/data"
   globs={[
     "raster_g_ei_*.png"
   ]}
@@ -21,42 +33,45 @@ date: 2025-11-25
 <br/>
 
 <Gallery
-  relativePath="data"
+  path="dynamical-regimes/data"
   globs={[
     "raster_I_E_*.png"
   ]}
+  caption="Raster plots showing the AI-to-OSC transition as external drive I_E increases from
+  1.15 to 1.25. With g_ei fixed at 1.4, increasing excitatory drive pushes the network
+  toward more synchronized oscillatory activity."
 />
-
-## TL;DR Outcome
-{/* one paragraph */}
-
-The network transitions from asynchronous irregular (AI) dynamics to oscillating
-(OSC) gamma rhythms as the excitatory-to-inhibitory conductance ($g_{ei}$)
-increases. Raster plots illustrate this shift, with early plots showing
-irregular firing patterns and later plots revealing organized rhythmic activity.
 
 ---
 
 ## Experimental Design
 {/* the design */}
 
-The excitatory-to-inhibitory conductance ($g_{ei}$) is systematically varied to observe its effect on
-network dynamics.
+Two parameter sweeps are performed to observe their effects on network dynamics.
 
-- Network size: 800 E cells, 200 I cells
+### Network Configuration
+
+- Network size: 800 E cells, 200 I cells (4:1 ratio)
 - Simulation duration: 1000 ms (discard first 500 ms for raster)
-- External input: Tonic + noise (I_E=1.2, I_I=0.9, noise_std=0.6)
-- Base $g_{ei} = 0.8$ (from config)
-- All other synaptic conductances fixed
+- External input: Tonic + noise ($I_I = 0.9$, noise_std = 0.6)
+- Base synaptic conductances: $g_{ie} = 2.5$, $g_{ee} = 0.3$, $g_{ii} = 0.3$
 
-**Swept parameter**:
-- $g_{ei}$: Excitatory-to-inhibitory conductance
-- Range: 1.2 to 1.7 nS
-- Steps: 10 values (linear spacing)
+### Sweep 1: $g_{ei}$ (E→I conductance)
 
-**Output**:
+- **Swept parameter**: $g_{ei}$
+- **Range**: 1.2 to 1.7 nS (10 values, linear spacing)
+- **Fixed**: $I_E = 1.2$
+
+### Sweep 2: $I_E$ (External drive to E neurons)
+
+- **Swept parameter**: $I_E$
+- **Range**: 1.15 to 1.25 (10 values, linear spacing)
+- **Fixed**: $g_{ei} = 1.4$
+
+### Output
+
 - Raster plots for visual inspection of regime transitions
-- Time window: 500-1000 ms (post-transient)
+- Time window: 500–1000 ms (post-transient)
 
 ## Todo
 {/* list of todo items */}
@@ -65,7 +80,7 @@ network dynamics.
 ## Usage
 
 ```
-uv run biblio/0.example-report/experiment.py 
+uv run biblio/dynamical-regimes/experiment.py
 ```
 
 ---
@@ -92,5 +107,5 @@ Strong inhibitory feedback creates rhythmic gamma oscillations through an "escap
 - High spike-time synchrony
 - Activity concentrated in brief temporal windows
 
-**Transition control**: The regime is primarily controlled by **excitatory-to-inhibitory conductance** $g_{ei}$. Increasing $g_{ei}$ transitions the network from AI to OSC.
+**Transition control**: The regime can be controlled by either **excitatory-to-inhibitory conductance** $g_{ei}$ or **external drive** $I_E$. Increasing $g_{ei}$ strengthens the PING mechanism, while increasing $I_E$ raises overall excitability—both push the network from AI toward OSC.
 

@@ -90,7 +90,7 @@ export function useDirectory(path: string = ".") {
               }
             }
             if (aDate && bDate) {
-              return aDate.getTime() - bDate.getTime()
+              return bDate.getTime() - aDate.getTime()
             }
             return 0;
           })

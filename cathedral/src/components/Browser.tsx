@@ -1,4 +1,4 @@
-import { format } from 'date-fns'
+
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Folder, FileText, ChevronDown, ChevronRight } from "lucide-react";
 
@@ -8,6 +8,7 @@ import { cathedralPluginConfig } from "../../cathedral-plugin.config";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { useState, useEffect, useRef } from "react";
 import { findReadme } from "../../plugins/cathedral-plugin/src/client";
+import { formatDate } from "@/lib/format-date";
 
 
 function formatFileSize(bytes: number): string {
@@ -172,7 +173,7 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
         <div className="space-y-1 px-2 py-3">
           {folders.map((folder, index) => {
             const isSelected = selectedIndex === index;
-
+            
             const readme = findReadme(folder);
             const frontmatter = readme?.frontmatter;
 
@@ -197,7 +198,7 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
                 </span>
                 <span className="text-xs text-muted-foreground flex-shrink-0">
                   {/* {folder.children.length} item{folder.children.length !== 1 ? "s" : ""} */}
-                  {frontmatter?.date ? format(new Date(frontmatter.date as string), "MMM dd, Y") : ""}
+                  {frontmatter?.date ? formatDate(new Date(frontmatter.date as string)) : ""}
                 </span>
               </Link>
             );
@@ -206,6 +207,11 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
           {files.map((file, index) => {
             const fileIndex = folders.length + index;
             const isSelected = selectedIndex === fileIndex;
+
+            const isOwnPage = currentPath === file.path;
+
+            console.log({ currentPath, filePath: file.path, isOwnPage });
+
             return (
               <Link
                 key={file.path}
@@ -214,15 +220,16 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
                 ref={(el) => (itemRefs.current[fileIndex] = el)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-md",
-                  "hover:underline transition-colors",
+                  "hover:underline",
                   "text-sm group",
-                  isSelected && "bg-accent"
+                  isSelected && "bg-accent",
+                  isOwnPage && "text-muted-foreground"
                 )}
               >
                 <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <span className={cn(
-                  "flex-1 truncate group-hover:text-foreground",
-                  isSelected && "text-foreground"
+                  "flex-1 truncate",
+                  // isSelected && "text-foreground"
                 )}>
                   {file.name}
                 </span>

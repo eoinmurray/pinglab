@@ -18,7 +18,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "coupled-population-phase/README.mdx",
-          "size": 5069,
+          "size": 4898,
           "frontmatter": {
             "title": "Coupled Populations Phase Dependence",
             "description": "Relative phase between coupled oscillating populations determines spike propagation effectiveness, confirming Communication-Through-Coherence.",
@@ -589,7 +589,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "dynamical-regimes/README.mdx",
-          "size": 2650,
+          "size": 3430,
           "frontmatter": {
             "title": "Dynamical Regimes",
             "description": "Network transitions from asynchronous irregular (AI) to oscillating (OSC) gamma rhythms as excitatory-to-inhibitory conductance increases.",
@@ -872,7 +872,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "phase-dependence/README.mdx",
-          "size": 5403,
+          "size": 5421,
           "frontmatter": {
             "title": "Phase Dependence",
             "description": "Gamma oscillations create phase-dependent gating where identical inputs produce different responses depending on gamma phase.",

@@ -10,7 +10,11 @@ export type FileEntry = {
   name: string;
   path: string;
   size: number;
-  frontmatter?: Record<string, unknown>;
+  frontmatter?: {
+    title?: string;
+    description?: string;
+    date?: string;
+  };
 }
 
 export type DirectoryEntry = {
