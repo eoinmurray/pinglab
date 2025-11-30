@@ -582,6 +582,32 @@
     },
     {
       "type": "directory",
+      "name": "mdx-test",
+      "path": "mdx-test",
+      "children": [
+        {
+          "type": "file",
+          "name": "README.mdx",
+          "path": "mdx-test/README.mdx",
+          "size": 93
+        },
+        {
+          "type": "directory",
+          "name": "components",
+          "path": "mdx-test/components",
+          "children": [
+            {
+              "type": "file",
+              "name": "lif-playground.tsx",
+              "path": "mdx-test/components/lif-playground.tsx",
+              "size": 3840
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "directory",
       "name": "minimal-validation",
       "path": "minimal-validation",
       "children": [
