@@ -1,13 +1,13 @@
-
 import numpy as np
 from pydantic import BaseModel, ConfigDict
 
 
 class Spikes(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
     times: np.ndarray  # Spike times in ms
     ids: np.ndarray  # Neuron indices corresponding to spike times
-    types: np.ndarray | None = None  #  # 0=E,1=I, neuron types if applicable
+    types: np.ndarray | None = None  # 0=E,1=I, neuron types if applicable
     populations: np.ndarray | None = None  # For two-population simulations
 
 
@@ -20,6 +20,7 @@ class InstrumentsConfig(BaseModel):
 
 class InstrumentsResults(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
     times: np.ndarray
     neuron_ids: np.ndarray
     types: np.ndarray | None = None  # Neuron types if applicable
@@ -37,6 +38,7 @@ class InstrumentsResults(BaseModel):
 
 class NetworkConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
     instruments: InstrumentsConfig | None = None
     external_input: np.ndarray | None = (
         None  # Required at runtime. Shape: (num_steps, N_E + N_I) or (num_steps,) for uniform
@@ -75,7 +77,7 @@ class NetworkConfig(BaseModel):
     t_ref_I: float = 1.5
     # Connectivity scaling
     connectivity_scaling: str = "one_over_N_src"
-    # Heterogeneity parameters (biologically-motivated neural diversity)
+    # Heterogeneity parameters
     V_th_heterogeneity_sd: float = 0.0
     g_L_heterogeneity_sd: float = 0.0
     C_m_heterogeneity_sd: float = 0.0
@@ -94,63 +96,31 @@ class NetworkResult(BaseModel):
     instruments: InstrumentsResults | None = None
 
 
-class RasterConfig(BaseModel):
-    start_time: float
-    stop_time: float
-
-
-class PlottingConfig(BaseModel):
-    raster: RasterConfig
-
-
-class InputsConfig(BaseModel):
-    I_E: float
-    I_I: float
-    noise: float
-
-
-class PulseConfig(BaseModel):
-    width_ms: float
-    amp: float
-    pre_window_ms: float
-    post_window_ms: float
-
-
-class PopulationConfig(BaseModel):
-    """Configuration for a single population in multi-population experiments."""
-    base: NetworkConfig
-    inputs: InputsConfig
-
-
-class CouplingConfig(BaseModel):
-    """Coupling parameters between populations."""
-    p_AB: float  # Connection probability from A to B
-    g_AB: float  # Synaptic strength for A→B connections
-    delay_AB: float  # Axonal delay for A→B transmission
-
-
-class ExperimentConfig(BaseModel):
+class DictModel(BaseModel):
     """
-    Unified configuration for both single and multi-population experiments.
-
-    For single population experiments:
-        Use `base` and `inputs` fields
-
-    For multi-population experiments:
-        Use `populations` field (list of PopulationConfig)
-        Use `coupling` field for inter-population connections
+    Base model that:
+    - allows arbitrary extra fields
+    - recursively converts EXTRA dicts/lists-of-dicts into DictModel
+      so they're dot-accessible, without touching declared fields.
     """
-    plotting: PlottingConfig | None = None
 
-    # Single population mode (legacy/simple experiments)
-    inputs: InputsConfig | None = None
+    model_config = ConfigDict(extra="allow")
+
+    def __init__(self, **data):
+        fields = self.__class__.model_fields
+        converted: dict = {}
+
+        for k, v in data.items():
+            if k not in fields:
+                # Only auto-wrap *extra* fields
+                if isinstance(v, dict):
+                    v = DictModel(**v)
+                elif isinstance(v, list):
+                    v = [DictModel(**i) if isinstance(i, dict) else i for i in v]
+            converted[k] = v
+
+        super().__init__(**converted)
+
+
+class ExperimentConfig(DictModel):
     base: NetworkConfig | None = None
-
-    # Multi-population mode (coupled population experiments)
-    populations: list[PopulationConfig] | None = None
-    coupling: CouplingConfig | None = None
-
-    # Common fields
-    pulse: PulseConfig | None = None
-    spec: dict[str, dict] | None = None
-    mode: str | None = None

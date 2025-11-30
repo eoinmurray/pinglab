@@ -12,19 +12,27 @@ def experiment_3(config, data_path: Path) -> None:
     cfgs_large = [
         {
             "config": config,
-            "g_ei": 1.4,
+            "g_ei": config.experiment_3.g_ei,
             "I_E": value,
         }
-        for i, value in enumerate(np.linspace(0.0, 100.0, 40))
+        for value in np.linspace(
+            config.experiment_3.linspace_large.start,
+            config.experiment_3.linspace_large.stop,
+            config.experiment_3.linspace_large.num
+        )
     ]
 
     cfgs_small = [
         {
             "config": config,
-            "g_ei": 1.4,
+            "g_ei": config.experiment_3.g_ei,
             "I_E": value,
         }
-        for i, value in enumerate(np.linspace(0.0, 2.0, 40))
+        for value in np.linspace(
+            config.experiment_3.linspace_small.start,
+            config.experiment_3.linspace_small.stop,
+            config.experiment_3.linspace_small.num
+        )
     ]
 
     results_large = parallel(inner, cfgs_large, label="Experiment 3 Large")

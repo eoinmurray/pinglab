@@ -6,17 +6,8 @@ from pinglab.types import Spikes, InstrumentsResults, NetworkConfig, NetworkResu
 from pinglab.run.apply_heterogeneity import apply_heterogeneity
 
 
-def run_network(config: NetworkConfig) -> NetworkResult:
+def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkResult:
     v = config # v for validated
-
-    # Validate that external_input is provided
-    if v.external_input is None:
-        raise ValueError(
-            "external_input is required for run_network. "
-            "NetworkConfig must include external_input array with shape (num_steps, N_E + N_I) or (num_steps,)"
-        )
-
-    external_input = v.external_input
 
     # Numerical stability check for Euler method
     # Requirement: dt << tau (typically dt < tau/5 for reasonable accuracy)
@@ -108,7 +99,7 @@ def run_network(config: NetworkConfig) -> NetworkResult:
     instrument_g_i_mean_I = None
     instrument_step_counter = 0
     
-    if instrument_recording:
+    if instrument_recording and v.instruments is not None:
         instrument_neuron_ids = np.array(v.instruments.neuron_ids) if v.instruments.neuron_ids is not None else None
         instrument_downsample = v.instruments.downsample
         instrument_variables = v.instruments.variables

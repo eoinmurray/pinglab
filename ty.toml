@@ -1,0 +1,8 @@
+[environment]
+# Use the project's virtual environment
+python = ".venv/bin/python"
+
+[src]
+# Only type-check the core library, not experiment scripts
+include = ["pinglab/src", "shards"]
+exclude = ["biblio"]

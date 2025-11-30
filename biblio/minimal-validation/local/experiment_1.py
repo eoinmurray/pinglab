@@ -10,10 +10,14 @@ def experiment_1(config, data_path: Path) -> None:
     cfgs = [
         {   
             "config": config,
-            "I_E": 1.2,
+            "I_E": config.experiment_1.I_E,
             "g_ei": value,
         }
-        for i, value in enumerate(np.linspace(1.2, 1.7, 10))
+        for value in np.linspace(
+            config.experiment_1.linspace.start, 
+            config.experiment_1.linspace.stop, 
+            config.experiment_1.linspace.num
+        )
     ]
 
     results = parallel(inner, cfgs, label="Experiment 1")

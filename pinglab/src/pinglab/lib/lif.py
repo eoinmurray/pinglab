@@ -17,7 +17,7 @@ def lif_step(
     g_L: float | np.ndarray,
     V_th: float,
     V_reset: float,
-    can_spike: np.ndarray = None,
+    can_spike: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Perform one Euler integration step of the LIF model.

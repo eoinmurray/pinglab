@@ -1,69 +1,106 @@
 
-PING (Pyramidal-Interneuron Network Gamma) networks can operate in fundamentally different dynamical regimes depending on the balance of excitation and inhibition.
+# Minimal validation of a PING Spiking Neural Network
+
+## Notes
+
+- This is just a draft for now with plots, we need to add more plots.
+- Note throughout how the network oscillates a little even at weak drive, all the metrics pick it up.
 
 ---
 
-### Asynchronous-Irregular (AI) Regime
-Neurons fire irregularly and independently with no temporal structure. This occurs when inhibitory feedback is weak.
-
-**Signatures**:
-- Flat power spectrum (no dominant frequency)
-- High interspike interval variability (CV $> 0.7$)
-- Low population synchrony
-- Activity evenly distributed across time
-
----
-
-### Oscillating (OSC) Regime
-Strong inhibitory feedback creates rhythmic gamma oscillations through an "escape-then-suppress" cycle.
-
-**Signatures**:
-- Sharp spectral peak at gamma frequency (30-90 Hz)
-- Periodic population activity
-- High spike-time synchrony
-- Activity concentrated in brief temporal windows
-
-**Transition control**: The regime is primarily controlled by **excitatory-to-inhibitory conductance** $g_{ei}$. Increasing $g_{ei}$ transitions the network from AI to OSC.
-
----
-
-## Experimental Design
-
-### Goal
-Map the AI-to-OSC transition by systematically varying $g_{ei}$ and measuring regime signatures.
-
-### Parameter Sweep
-
-**Fixed parameters**:
-- Network size: 800 E cells, 200 I cells
-- Simulation duration: 1000 ms (discard first 500 ms for raster)
-- External input: Tonic + noise (I_E=1.2, I_I=0.9, noise_std=0.6)
-- Base $g_{ei} = 0.8$ (from config)
-- All other synaptic conductances fixed
-
-**Swept parameter**:
-- $g_{ei}$: Excitatory-to-inhibitory conductance
-- Range: 1.2 to 1.7 nS
-- Steps: 10 values (linear spacing)
-
-**Output**:
-- Raster plots for visual inspection of regime transitions
-- Time window: 500-1000 ms (post-transient)
-
----
-
-## Rasters
-
-The experiment generated 10 raster plots spanning $g_{ei} \in [1.2, 1.7]$ nS with linear spacing:
+## AI-OSC Transition as a function of input current to E neurons $I_E$.
 
 <Gallery
-  path="dynamical-regimes/data"
+  path="minimal-validation/data"
   globs={[
-    "raster*.png"
+    "raster_I_E_*.png"
   ]}
-  limit={10}
-  caption="Raster plots showing the AI-to-OSC transition as g_ei increases from 1.2 to 1.7 nS. Early plots show asynchronous irregular firing, while later plots reveal progressive emergence of rhythmic gamma oscillations."
+  caption="Raster plots showing the AI-to-OSC transition as external drive I_E increases from
+  1.15 to 1.25. With g_ei fixed at 1.4, increasing excitatory drive pushes the network
+  toward more synchronized oscillatory activity."
 />
 
+---
 
-Visual inspection of raster plots reveals the transition from asynchronous to oscillating dynamics as $g_{ei}$ increases. The plots show how stronger excitation to inhibitory neurons progressively organizes the network activity into rhythmic gamma oscillations.
+## AI-OSC Transition as a function of E→I synaptic conductance $g_{ei}$.
+
+<Gallery
+  path="minimal-validation/data"
+  globs={[
+    "raster_g_ei_*.png"
+  ]}
+  caption="Raster plots showing the AI-to-OSC transition as g_ei increases from
+  1.2 to 1.7 nS. Early plots show asynchronous irregular firing, while later
+  plots reveal progressive emergence of rhythmic gamma oscillations."
+/>
+
+---
+
+## F-I curves for E and I populations.
+
+<Gallery
+  path="minimal-validation/data"
+  globs={[
+    "firing_rates_vs_I_E*.png"
+  ]}
+  caption="F-I curves showing the firing rates of excitatory (E) and inhibitory (I)
+  populations as a function of external drive I_E. Both populations exhibit
+  increasing firing rates with higher I_E, with the E population showing a
+  steeper increase due to its direct input."
+/>
+
+---
+
+## PSD
+
+<Gallery
+  path="minimal-validation/data"
+  globs={[
+    "psd_*.png"
+  ]}
+  caption="Power Spectral Density (PSD) plots of the population firing rates for
+  varying I_E and g_ei. As I_E or g_ei increase, a pronounced peak emerges
+  in the gamma frequency range (30-80 Hz), indicating the onset of oscillatory
+  activity in the network."
+/>
+
+---
+
+## EI Cross-Correlelogram
+
+<Gallery
+  single
+  path="minimal-validation/data"
+  globs={[
+    "crosscorr_*.png"
+  ]}
+  caption="Cross-correlogram between excitatory and inhibitory populations. The
+  peak in the correlograms at a specific time lag indicates the temporal
+  relationship between E and I firing."
+/>
+
+---
+
+## Population ISI CV
+
+<Gallery
+  path="minimal-validation/data"
+  globs={[
+    "raster_population_isi_cv*.png"
+  ]}
+  caption="Cross-correlogram between excitatory and inhibitory populations. The
+  peak in the correlograms at a specific time lag indicates the temporal
+  relationship between E and I firing."
+/>
+
+<br/>
+
+<Gallery
+  single
+  path="minimal-validation/data"
+  globs={[
+    "population_isi_cv*"
+  ]}
+  caption="Population ISI CV not hitting 1 at low drive, indicating some level of network synchrony even at weak input.
+  The other plots show this also."
+/>

@@ -1,7 +1,11 @@
 
 from pathlib import Path
 import shutil
+import sys
 import numpy as np
+
+# Add the experiment directory to path for local imports
+sys.path.insert(0, str(Path(__file__).parent))
 
 from pinglab.plots import save_raster
 from pinglab.inputs import tonic
@@ -43,9 +47,7 @@ def inner(cfg: dict) -> tuple[float, float, object]:
     )
 
     # Run population B with volley input
-    results_B = run_network(
-        pop_B.base.model_copy(update={"external_input": input_B_with_volley})
-    )
+    results_B = run_network(pop_B.base, input_B_with_volley)
 
     # Measure transfer gain
     _, _, gain = measure_transfer_gain(
@@ -92,9 +94,7 @@ def main() -> None:
         seed=pop_A.base.seed or 0,
     )
 
-    baseline_A = run_network(
-        pop_A.base.model_copy(update={"external_input": baseline_input_A})
-    )
+    baseline_A = run_network(pop_A.base, baseline_input_A)
 
     if not baseline_A.instruments:
         raise RuntimeError("No instruments recorded for population A")
@@ -126,9 +126,7 @@ def main() -> None:
         seed=pop_B.base.seed or 1,
     )
 
-    baseline_B = run_network(
-        pop_B.base.model_copy(update={"external_input": baseline_input_B})
-    )
+    baseline_B = run_network(pop_B.base, baseline_input_B)
 
     if not baseline_B.instruments:
         raise RuntimeError("No instruments recorded for population B")
@@ -193,9 +191,7 @@ def main() -> None:
     )
 
     # Run A with pulse
-    results_A_pulse = run_network(
-        pop_A.base.model_copy(update={"external_input": pulse_input_A})
-    )
+    results_A_pulse = run_network(pop_A.base, pulse_input_A)
 
     # Extract volley
     volley_times, volley_count = extract_spike_volley(

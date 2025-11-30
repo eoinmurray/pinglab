@@ -15,19 +15,14 @@ def inner(cfg):
         N_E=int(config.base.N_E),
         N_I=int(config.base.N_E * 0.25),
         I_E=I_E,
-        I_I=config.inputs.I_I,
-        noise_std=config.inputs.noise,
+        I_I=config.default_inputs.I_I,
+        noise_std=config.default_inputs.noise,
         num_steps=int(np.ceil(config.base.T / config.base.dt)),
         seed=config.base.seed if config.base.seed is not None else 0,
     )
 
-    result: NetworkResult = run_network(
-        config.base.model_copy(
-            update={
-                "external_input": external_input,
-                "g_ei": g_ei,
-            }
-        )
-    )
+    run_cfg = config.base.model_copy(update={ "I_E": I_E, "g_ei": g_ei })
+
+    result: NetworkResult = run_network(run_cfg, external_input=external_input) 
 
     return result

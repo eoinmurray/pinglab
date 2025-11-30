@@ -15,10 +15,14 @@ def experiment_6(config, data_path: Path) -> None:
     cfgs = [
         {
             "config": config,
-            "g_ei": 1.4,
+            "g_ei": config.experiment_6.g_ei,
             "I_E": value,
         }
-        for i, value in enumerate(np.linspace(0.5, 2.0, 40))
+        for i, value in enumerate(np.linspace(
+            config.experiment_6.linspace.start,
+            config.experiment_6.linspace.stop,
+            config.experiment_6.linspace.num,
+        ))
     ]
 
     results = parallel(inner, cfgs, label="Experiment 6")
@@ -31,7 +35,11 @@ def experiment_6(config, data_path: Path) -> None:
         cfg = cfgs[i]
         I_E = cfg["I_E"]
 
-        sliced_spikes = slice_spikes(result.spikes, 500.0, 1000.0)
+        sliced_spikes = slice_spikes(
+            result.spikes,
+            start_time=config.plotting.raster.start_time,
+            stop_time=config.plotting.raster.stop_time,
+        )
 
         cv_E, cv_I = population_isi_cv(sliced_spikes, N_E=config.base.N_E, N_I=config.base.N_I)
         param_values.append(I_E)

@@ -1,13 +1,59 @@
 
-plotting:
-  raster:
-    start_time: 500.0  # Start time for raster plot (ms)
-    stop_time: 1000.0   # Stop time for raster plot (ms)
+experiment_1:
+  I_E: 1.2  # Fixed input to E neurons
+  # g_ei
+  linspace:
+    start: 1.2
+    stop: 1.7
+    num: 10
 
-inputs:
-  I_E: 1.2       # Input to E neurons (moderate drive for AI regime)
+experiment_2:
+  g_ei: 1.4  # Fixed E→I synaptic weight
+  # I_E
+  linspace:
+    start: 1.15
+    stop: 1.25
+    num: 10
+
+experiment_3:
+  g_ei: 1.4
+  # I_E
+  linspace_large:
+    start: 0.0
+    stop: 100.0
+    num: 40
+  linspace_small:
+    start: 0.0
+    stop: 2.0
+    num: 40
+
+experiment_4:
+  g_ei: 1.4
+  # I_E
+  linspace:
+    start: 0.5
+    stop: 2.0
+    num: 40
+
+experiment_5:
+  g_ei: 1.4
+  I_E: 1.5
+
+experiment_6:
+  g_ei: 1.4
+  linspace:
+    start: 0.5
+    stop: 2.0
+    num: 40
+
+default_inputs:
   I_I: 0.9       # Input to I neurons (slightly lower)
   noise: 0.6  # Strong noise (0.5-1.0 range) creates irregularity and breaks synchrony
+
+plotting:
+  raster:
+    start_time: 500.0  # ms
+    stop_time: 1000.0  # ms
 
 base:
   dt: 0.1        # Time step for numerical integration (ms)

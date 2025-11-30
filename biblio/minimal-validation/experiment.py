@@ -22,22 +22,11 @@ def main() -> None:
     data_path.mkdir(parents=True, exist_ok=True)
     config = load_config(root / "config.yaml")
 
-    # Experiment 1: Vary g_ei
     experiment_1(config, data_path)
-
-    # Experiment 2: Vary I_E
     experiment_2(config, data_path)
-    
-    # Experiment 3: Firing rates vs I_E (over larger range)
     experiment_3(config, data_path)
-
-    # Experiment 4: PSD
     experiment_4(config, data_path)
-
-    # Experiment 5: Cross corr
     experiment_5(config, data_path)
-
-    # Experiment 6: ISI CV vs I_E
     experiment_6(config, data_path)
 
 if __name__ == "__main__":

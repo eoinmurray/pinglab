@@ -14,10 +14,14 @@ def experiment_4(config, data_path: Path) -> None:
     cfgs = [
         {
             "config": config,
-            "g_ei": 1.4,
+            "g_ei": config.experiment_4.g_ei,
             "I_E": value,
         }
-        for i, value in enumerate(np.linspace(0.5, 2.0, 40))
+        for i, value in enumerate(np.linspace(
+            config.experiment_4.linspace.start,
+            config.experiment_4.linspace.stop,
+            config.experiment_4.linspace.num
+        ))
     ]
 
     results = parallel(inner, cfgs, label="Experiment 4")
@@ -25,8 +29,8 @@ def experiment_4(config, data_path: Path) -> None:
     for i, result in enumerate(results):
         sliced_spikes = slice_spikes(
             result.spikes,
-            start_time=500,
-            stop_time=1000,
+            start_time=config.plotting.raster.start_time,
+            stop_time=config.plotting.raster.stop_time,
         )
 
         dt_ms = 1.0  # critical: choose dt_ms = 1.0 for PSD calculation

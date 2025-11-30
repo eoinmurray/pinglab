@@ -21,7 +21,7 @@ from pathlib import Path
 from urllib.request import urlretrieve
 
 
-def download_mathpix_images(html_file: Path, output_dir: Path = None):
+def download_mathpix_images(html_file: Path, output_dir: Path | None = None):
     """Download all Mathpix CDN images from an HTML file and rewrite URLs to local paths.
 
     Args:

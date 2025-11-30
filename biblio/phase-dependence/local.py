@@ -111,7 +111,7 @@ def plot_phase_gain_curve(
         colors = prop_cycle.by_key()['color']
 
         # First line uses first color (black/white)
-        line1 = ax1.plot(phases_sorted, deltas_sorted, "o-", lw=2, label="Δ-spikes", color=colors[0])
+        ax1.plot(phases_sorted, deltas_sorted, "o-", lw=2, label="Δ-spikes", color=colors[0])
         ax1.set_xlabel("Pulse phase (unwrapped radians)")
         ax1.set_ylabel("Δ-spikes (target E)")
         ax1.set_xlim(x_min, x_max)
@@ -126,7 +126,7 @@ def plot_phase_gain_curve(
 
             ax2 = ax1.twinx()
             # Second line uses second color (red/light red)
-            line2 = ax2.plot(phases_lfp_sorted, lfp_norm, "--", alpha=0.6, label="LFP proxy", color=colors[1])
+            ax2.plot(phases_lfp_sorted, lfp_norm, "--", alpha=0.6, label="LFP proxy", color=colors[1])
             ax2.set_ylabel("Normalized inhibitory conductance (LFP proxy)")
 
         plt.title("Phase-dependent gain (Δ-spikes) in probed phase window")

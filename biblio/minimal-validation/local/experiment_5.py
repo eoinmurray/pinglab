@@ -10,8 +10,8 @@ from local.inner import inner
 def experiment_5(config, data_path: Path) -> None:
     cfg = {
             "config": config,
-            "g_ei": 1.4,
-            "I_E": 1.5,
+            "g_ei": config.experiment_5.g_ei,
+            "I_E": config.experiment_5.I_E,
         }
 
     result = inner(cfg)

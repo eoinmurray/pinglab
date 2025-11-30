@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from cycler import cycler
 from pathlib import Path
 
 LIGHT = {
@@ -14,7 +15,7 @@ LIGHT = {
     "patch.edgecolor": "#333333",
     "savefig.facecolor": "white",
     "savefig.edgecolor": "white",
-    "axes.prop_cycle": mpl.cycler(color=["#000000", "#ff0000", "#0000ff", "#00aa00"]),
+    "axes.prop_cycle": cycler(color=["#000000", "#ff0000", "#0000ff", "#00aa00"]),
 }
 
 DARK = {
@@ -29,7 +30,7 @@ DARK = {
     "patch.edgecolor": "#cccccc",
     "savefig.facecolor": "#18181b",
     "savefig.edgecolor": "#18181b",
-    "axes.prop_cycle": mpl.cycler(color=["#ffffff", "#ff6b6b", "#4dabf7", "#51cf66"]),
+    "axes.prop_cycle": cycler(color=["#ffffff", "#ff6b6b", "#4dabf7", "#51cf66"]),
 }
 
 figsize = (8, 8)

@@ -1,8 +1,11 @@
 
 from pathlib import Path
 import shutil
+import sys
 import numpy as np
 
+# Add the experiment directory to path for local imports
+sys.path.insert(0, str(Path(__file__).parent))
 
 from pinglab.plots import save_raster, save_instrument_traces
 from pinglab.inputs import tonic
@@ -35,9 +38,7 @@ def inner(cfg: dict) -> tuple[float, float]:
         config.base.dt,
         num_steps=int(np.ceil(config.base.T / config.base.dt)),
     )
-    pulse_results = run_network(
-        config.base.model_copy(update={"external_input": pulse_input})
-    )
+    pulse_results = run_network(config.base, pulse_input)
     delta = compute_spike_delta(
         pulse_results.spikes,
         target_E,
@@ -69,7 +70,7 @@ def main() -> None:
     )
 
     print("Run baseline")
-    baseline_results = run_network(config.base.model_copy(update={"external_input": baseline_input}))
+    baseline_results = run_network(config.base, baseline_input)
 
     if not baseline_results.instruments:
         raise RuntimeError("No baseline_results.instruments recorded in baseline")
