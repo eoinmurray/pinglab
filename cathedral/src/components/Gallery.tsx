@@ -160,7 +160,8 @@ export default function Gallery({
           className={cn(
             "w-full not-prose p-4",
             !single && "grid gap-3",
-            !single && gridClass
+            !single && gridClass,
+            // "max-h-[55vh] overflow-y-auto",
           )}
         >
           {single && filteredPaths.length > 0 && (

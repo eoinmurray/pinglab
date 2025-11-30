@@ -49,6 +49,7 @@ export default defineConfig({
     fs: {
       allow: ['..', '../..'],
     },
+    allowedHosts: true,
   },
   preview: {
     allowedHosts: [

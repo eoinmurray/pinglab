@@ -18,10 +18,10 @@
           "type": "file",
           "name": "README.mdx",
           "path": "coupled-population-phase/README.mdx",
-          "size": 1745,
+          "size": 1701,
           "frontmatter": {
             "title": "Coupled Populations Phase Dependence",
-            "description": "Relative phase between coupled oscillating populations determines spike propagation effectiveness, confirming Communication-Through-Coherence.",
+            "description": "Relative phase between coupled oscillating populations determines spike propagation effectiveness.",
             "date": "2025-11-27T00:00:00.000Z"
           }
         },
@@ -570,13 +570,13 @@
           "type": "file",
           "name": "experiment.py",
           "path": "coupled-population-phase/experiment.py",
-          "size": 8664
+          "size": 8660
         },
         {
           "type": "file",
           "name": "local.py",
           "path": "coupled-population-phase/local.py",
-          "size": 9647
+          "size": 8758
         }
       ]
     },
@@ -2164,19 +2164,13 @@
           "type": "file",
           "name": "experiment.py",
           "path": "phase-dependence/experiment.py",
-          "size": 4645
+          "size": 4523
         },
         {
           "type": "file",
           "name": "fries.pdf",
           "path": "phase-dependence/fries.pdf",
           "size": 2431199
-        },
-        {
-          "type": "file",
-          "name": "local.py",
-          "path": "phase-dependence/local.py",
-          "size": 1114
         }
       ]
     }
