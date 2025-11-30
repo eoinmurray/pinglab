@@ -1960,7 +1960,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "phase-dependence/README.mdx",
-          "size": 1357,
+          "size": 1537,
           "frontmatter": {
             "title": "Phase Dependence",
             "description": "Gamma oscillations create phase-dependent gating where identical inputs produce different responses depending on gamma phase.",
@@ -1971,7 +1971,7 @@
           "type": "file",
           "name": "config.yaml",
           "path": "phase-dependence/config.yaml",
-          "size": 2951
+          "size": 3009
         },
         {
           "type": "directory",
@@ -1982,13 +1982,13 @@
               "type": "file",
               "name": "phase_gain_curve_dark.png",
               "path": "phase-dependence/data/phase_gain_curve_dark.png",
-              "size": 453343
+              "size": 464272
             },
             {
               "type": "file",
               "name": "phase_gain_curve_light.png",
               "path": "phase-dependence/data/phase_gain_curve_light.png",
-              "size": 392644
+              "size": 402528
             },
             {
               "type": "file",
@@ -2001,6 +2001,126 @@
               "name": "raster_baseline_light.png",
               "path": "phase-dependence/data/raster_baseline_light.png",
               "size": 670760
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse11_dark.png",
+              "path": "phase-dependence/data/raster_with_pulse11_dark.png",
+              "size": 958364
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse11_light.png",
+              "path": "phase-dependence/data/raster_with_pulse11_light.png",
+              "size": 677921
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse1_dark.png",
+              "path": "phase-dependence/data/raster_with_pulse1_dark.png",
+              "size": 954447
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse1_light.png",
+              "path": "phase-dependence/data/raster_with_pulse1_light.png",
+              "size": 674492
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse21_dark.png",
+              "path": "phase-dependence/data/raster_with_pulse21_dark.png",
+              "size": 957518
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse21_light.png",
+              "path": "phase-dependence/data/raster_with_pulse21_light.png",
+              "size": 676974
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse31_dark.png",
+              "path": "phase-dependence/data/raster_with_pulse31_dark.png",
+              "size": 952879
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse31_light.png",
+              "path": "phase-dependence/data/raster_with_pulse31_light.png",
+              "size": 673212
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse41_dark.png",
+              "path": "phase-dependence/data/raster_with_pulse41_dark.png",
+              "size": 963667
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse41_light.png",
+              "path": "phase-dependence/data/raster_with_pulse41_light.png",
+              "size": 682108
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse51_dark.png",
+              "path": "phase-dependence/data/raster_with_pulse51_dark.png",
+              "size": 954380
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse51_light.png",
+              "path": "phase-dependence/data/raster_with_pulse51_light.png",
+              "size": 674563
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse61_dark.png",
+              "path": "phase-dependence/data/raster_with_pulse61_dark.png",
+              "size": 953640
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse61_light.png",
+              "path": "phase-dependence/data/raster_with_pulse61_light.png",
+              "size": 674012
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse71_dark.png",
+              "path": "phase-dependence/data/raster_with_pulse71_dark.png",
+              "size": 951909
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse71_light.png",
+              "path": "phase-dependence/data/raster_with_pulse71_light.png",
+              "size": 671812
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse81_dark.png",
+              "path": "phase-dependence/data/raster_with_pulse81_dark.png",
+              "size": 948848
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse81_light.png",
+              "path": "phase-dependence/data/raster_with_pulse81_light.png",
+              "size": 669654
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse91_dark.png",
+              "path": "phase-dependence/data/raster_with_pulse91_dark.png",
+              "size": 953088
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse91_light.png",
+              "path": "phase-dependence/data/raster_with_pulse91_light.png",
+              "size": 673533
             },
             {
               "type": "file",
@@ -2044,7 +2164,7 @@
           "type": "file",
           "name": "experiment.py",
           "path": "phase-dependence/experiment.py",
-          "size": 3430
+          "size": 4645
         },
         {
           "type": "file",
@@ -2056,7 +2176,7 @@
           "type": "file",
           "name": "local.py",
           "path": "phase-dependence/local.py",
-          "size": 4363
+          "size": 1114
         }
       ]
     }

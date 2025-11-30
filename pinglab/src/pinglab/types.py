@@ -123,4 +123,4 @@ class DictModel(BaseModel):
 
 
 class ExperimentConfig(DictModel):
-    base: NetworkConfig | None = None
+    base: NetworkConfig
