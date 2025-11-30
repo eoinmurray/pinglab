@@ -21,26 +21,26 @@ function formatFileSize(bytes: number): string {
 
 const BROWSER_OPEN_KEY = "cathedral-browser-open";
 
-export default function Browser({ directory, defaultOpen = true, alwaysOpen = false }: { directory: DirectoryEntry, defaultOpen?: boolean, alwaysOpen?: boolean }) {
+export default function Browser({ directory, defaultOpen = true, isRoot = false }: { directory: DirectoryEntry, defaultOpen?: boolean, isRoot?: boolean }) {
   const [isOpen, setIsOpen] = useState(() => {
-    if (alwaysOpen) return true;
+    if (isRoot) return true;
     const stored = localStorage.getItem(BROWSER_OPEN_KEY);
     return stored !== null ? stored === "true" : defaultOpen;
   });
 
-  // Force open when alwaysOpen prop is true
+  // Force open when isRoot prop is true
   useEffect(() => {
-    if (alwaysOpen && !isOpen) {
+    if (isRoot && !isOpen) {
       setIsOpen(true);
     }
-  }, [alwaysOpen, isOpen]);
+  }, [isRoot, isOpen]);
 
   // Persist open state to localStorage (only when not forced open)
   useEffect(() => {
-    if (!alwaysOpen) {
+    if (!isRoot) {
       localStorage.setItem(BROWSER_OPEN_KEY, String(isOpen));
     }
-  }, [isOpen, alwaysOpen]);
+  }, [isOpen, isRoot]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const navigate = useNavigate();
   const { "*": currentPath } = useParams();
@@ -70,7 +70,7 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if any fullscreen component is active (Gallery or Slides)
-      const isFullscreenActive = document.querySelector('.fixed.inset-0.bg-black\\/90') ||
+      const isFullscreenActive = document.querySelector('[data-gallery-fullscreen="true"]') ||
                                  document.querySelector('.slides-container.fixed.inset-0');
 
       // Toggle browser with .
@@ -156,13 +156,17 @@ export default function Browser({ directory, defaultOpen = true, alwaysOpen = fa
     <div className="border rounded-lg overflow-hidden shadow-sm print:hidden">
       <div className="px-4 py-3 flex bg-muted/50 justify-between items-center gap-4 border-b">
         <Breadcrumbs />
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-          aria-label={isOpen ? "Collapse browser" : "Expand browser"}
-        >
-          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        </button>
+
+        {!isRoot && (
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            aria-label={isOpen ? "Collapse browser" : "Expand browser"}
+          >
+            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+        )}
+        
       </div>
 
       {isOpen && directory.children.length === 0 && (

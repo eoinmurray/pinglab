@@ -1,6 +1,5 @@
 
 import { useParams } from "react-router-dom"
-import { Layout } from "@/components/Layout";
 import Browser from "@/components/Browser";
 import Gallery from "@/components/Gallery"; 
 import File from "@/components/File";
@@ -8,11 +7,14 @@ import { useDirectory, findReadme } from "../../plugins/cathedral-plugin/src/cli
 import { FileEntry } from "../../plugins/cathedral-plugin/src/lib";
 import { Welcome } from "@/components/Welcome";
 import Loading from "@/components/Loading";
+import PostList from "@/components/PostList";
 
 export function Page() {
   const { "*": path = "." } = useParams();
 
   const { directory, file, loading, error } = useDirectory(path)
+
+  const isRoot = path === "." || path === "";
 
   if (error) {
     return (
@@ -44,13 +46,13 @@ export function Page() {
     <>
       <title>{`Pinglab ${path}`}</title>
       <main className="flex flex-col gap-8 mx-auto max-w-4xl p-4 md:px-0 mb-24">
-          {path === '' && (
-            <Welcome />
-          )}
+          {isRoot && <Welcome />}
 
-          {directory && <Browser directory={directory} alwaysOpen={path === ''} />}
+          {!isRoot && directory && <Browser directory={directory} isRoot={isRoot} />}
 
-          {fileToRender && ( <File file={fileToRender} /> )}
+          {isRoot && directory && <PostList directory={directory}/>}
+
+          {!isRoot && fileToRender && ( <File file={fileToRender} /> )}
 
           {!file && hasImageChildren && (
             <Gallery

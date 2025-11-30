@@ -4,13 +4,13 @@ import { SiGithub } from "@icons-pack/react-simple-icons";
 
 export function Header() {
   return (
-    <header className="border-b bg-background print:hidden">
-      <div className="flex items-center gap-6 px-6 py-3 max-w-7xl mx-auto">
+    <header className="bg-background print:hidden">
+      <div className="flex items-center gap-6 px-6 py-3 w-full mx-auto">
         <Link
           to="/"
           className="font-mono text-lg font-medium tracking-tight hover:text-primary transition-colors"
         >
-          pinglab
+          pl
         </Link>
 
         <div className="flex-1" />

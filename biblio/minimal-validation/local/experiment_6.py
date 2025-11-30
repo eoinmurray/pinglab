@@ -17,7 +17,7 @@ def experiment_6(config, data_path: Path) -> None:
             "g_ei": 1.4,
             "I_E": value,
         }
-        for i, value in enumerate(np.linspace(0.1, 2.0, 40))
+        for i, value in enumerate(np.linspace(0.5, 2.0, 40))
     ]
 
     results = Parallel(n_jobs=-1)(delayed(inner)(cfg) for cfg in cfgs)
