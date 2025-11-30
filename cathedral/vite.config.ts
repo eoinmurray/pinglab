@@ -38,6 +38,8 @@ export default defineConfig({
       // Ensure single React instance for all imports
       'react': path.resolve(__dirname, './node_modules/react'),
       'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
+      // MDX runtime for files outside project root
+      '@mdx-js/react': path.resolve(__dirname, './node_modules/@mdx-js/react'),
     },
   },
   server: {
