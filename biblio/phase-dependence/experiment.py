@@ -8,14 +8,10 @@ import sys
 
 from pinglab.plots.styles import save_both
 from pinglab.plots import save_raster, save_instrument_traces
-from pinglab.inputs import tonic
+from pinglab.inputs import tonic, add_pulse_to_input, compute_spike_delta
 from pinglab.utils import load_config, slice_spikes
 from pinglab.multiprocessing import parallel
 from pinglab import run_network
-
-# Add the experiment directory to path for local imports
-sys.path.insert(0, str(Path(__file__).parent))
-from local import add_pulse_to_input, compute_spike_delta
 
 
 def inner(cfg: dict):

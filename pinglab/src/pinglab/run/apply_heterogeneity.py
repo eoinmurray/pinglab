@@ -1,23 +1,22 @@
-
 import numpy as np
 
 
 def apply_heterogeneity(
-    rng,
-    N_E,
-    N_I,
-    V_th_heterogeneity_sd,
-    g_L_heterogeneity_sd,
-    C_m_heterogeneity_sd,
-    t_ref_heterogeneity_sd,
-    g_L_E,
-    g_L_I,
-    C_m_E,
-    C_m_I,
-    V_th,
-    t_ref_E,
-    t_ref_I,
-):
+    rng: np.random.RandomState,
+    N_E: int,
+    N_I: int,
+    V_th_heterogeneity_sd: float,
+    g_L_heterogeneity_sd: float,
+    C_m_heterogeneity_sd: float,
+    t_ref_heterogeneity_sd: float,
+    g_L_E: float,
+    g_L_I: float,
+    C_m_E: float,
+    C_m_I: float,
+    V_th: float,
+    t_ref_E: float,
+    t_ref_I: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Generate heterogeneous neural parameters from base values.
 

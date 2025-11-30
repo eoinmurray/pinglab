@@ -1,15 +1,22 @@
+"""Parameter sweep expansion utilities."""
 
 import itertools
+from typing import Any
+
 import numpy as np
 
 
-def expand_parameter_spec(spec, mode):
+def expand_parameter_spec(
+    spec: dict[str, dict[str, Any]] | None,
+    mode: str,
+) -> list[dict[str, Any]]:
     """
     Expand a parameter specification into a list of parameter dictionaries.
 
-    Args:
+    Parameters:
         spec: Dict mapping parameter names to spec dicts with 'type', 'start', 'stop', 'num', etc.
-        mode: 'grid' for all combinations, 'random' for random sampling
+              Supported types: 'linspace', 'range', 'values'
+        mode: Expansion mode ('grid' for Cartesian product, 'random' not yet implemented)
 
     Returns:
         List of dicts, each containing parameter overrides for one run

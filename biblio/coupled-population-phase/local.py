@@ -111,39 +111,6 @@ def measure_transfer_gain(
     return pre_count, post_count, gain
 
 
-def add_pulse_to_input(
-    baseline_input: np.ndarray,
-    target_neurons: np.ndarray,
-    pulse_t: float,
-    pulse_width_ms: float,
-    pulse_amp: float,
-    dt: float,
-    num_steps: int,
-) -> np.ndarray:
-    """
-    Add a brief pulse to create spike volley.
-
-    Args:
-        baseline_input: Base input array (num_steps, N_E)
-        target_neurons: Neuron IDs to stimulate
-        pulse_t: Pulse onset time (ms)
-        pulse_width_ms: Pulse duration (ms)
-        pulse_amp: Pulse amplitude
-        dt: Time step (ms)
-        num_steps: Total simulation steps
-
-    Returns:
-        Modified input array
-    """
-    pulse_input = baseline_input.copy()
-    p0 = int(pulse_t / dt)
-    p1 = int((pulse_t + pulse_width_ms) / dt)
-    p0 = max(0, min(p0, num_steps - 1))
-    p1 = max(p0 + 1, min(p1, num_steps))
-    pulse_input[p0:p1, target_neurons] += pulse_amp
-    return pulse_input
-
-
 def add_volley_as_input(
     baseline_input: np.ndarray,
     target_neurons: np.ndarray,
@@ -295,7 +262,7 @@ def plot_coupled_raster(
 
 
 def plot_phase_transfer_curve(
-    phase_lags_deg: np.ndarray,
+    phase_lags_ms: np.ndarray,
     gains: np.ndarray,
     save_path: Path,
 ) -> None:
@@ -303,7 +270,7 @@ def plot_phase_transfer_curve(
     Plot transfer gain as function of phase lag.
 
     Args:
-        phase_lags_deg: Phase lags in degrees (0°, 45°, 90°, 135°, 180°)
+        phase_lags_ms: Phase lags in milliseconds
         gains: Transfer gain values
         save_path: Path to save figure
     """
@@ -314,11 +281,11 @@ def plot_phase_transfer_curve(
         prop_cycle = mpl.rcParams['axes.prop_cycle']
         colors = prop_cycle.by_key()['color']
 
-        ax.plot(phase_lags_deg, gains, 'o-', lw=3, markersize=10, color=colors[0])
-        ax.set_xlabel("Relative Phase Lag (degrees)")
+        ax.plot(phase_lags_ms, gains, 'o-', lw=3, markersize=10, color=colors[0])
+        ax.set_xlabel("Relative Phase Lag (ms)")
         ax.set_ylabel("Transfer Gain (Δ-spikes in B)")
         ax.set_title("Phase-Dependent Transfer Gain (A → B)")
-        ax.set_xticks(phase_lags_deg)
+        ax.set_xticks(phase_lags_ms[::max(1, len(phase_lags_ms) // 10)])
         ax.grid(True, alpha=0.3)
         ax.axhline(0, color='gray', linestyle='--', alpha=0.5)
 

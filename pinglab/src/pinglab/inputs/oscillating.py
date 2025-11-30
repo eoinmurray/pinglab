@@ -1,5 +1,7 @@
+"""Oscillating input generation with configurable frequency and phase."""
 
 import numpy as np
+
 
 def oscillating(
     N_E: int,
@@ -10,10 +12,10 @@ def oscillating(
     num_steps: int,
     dt: float,
     seed: int,
-    oscillation_freq: float = 40.0,  # Oscillation frequency in Hz
-    oscillation_amplitude: float = 0.5,  # Amplitude of oscillation (relative to baseline)
-    oscillation_phase: float = 0.0,  # Initial phase in radians
-    phase_offset: float = 0.0,  # Phase offset between E and I populations (radians)
+    oscillation_freq: float = 40.0,
+    oscillation_amplitude: float = 0.5,
+    oscillation_phase: float = 0.0,
+    phase_offset_I: float = 0.0,
 ) -> np.ndarray:
     """
     Generate oscillating input with additive noise.
@@ -28,19 +30,14 @@ def oscillating(
         dt: Time step duration in milliseconds
         seed: Random seed for noise generation
         oscillation_freq: Frequency of oscillation in Hz
-        oscillation_amplitude: Amplitude of oscillation (multiplied by baseline)
+        oscillation_amplitude: Amplitude of oscillation (added to baseline)
         oscillation_phase: Initial phase of oscillation in radians
-        population_specific: If True, E and I populations receive different phases
-        phase_offset: Phase offset between E and I populations in radians (used if population_specific=True)
+        phase_offset_I: Phase offset for I population relative to E (radians)
 
     Returns:
         np.ndarray: External input of shape (num_steps, N_E + N_I)
     """
     rng = np.random.RandomState(seed)
-    N = N_E + N_I
-
-    # Pre-allocate output array
-    I_ext = np.zeros((num_steps, N))
 
     # Convert frequency to angular frequency (rad/ms)
     omega = 2.0 * np.pi * oscillation_freq / 1000.0  # Hz to rad/ms
@@ -48,23 +45,22 @@ def oscillating(
     # Generate time array
     t = np.arange(num_steps) * dt  # Time in ms
 
-    osc = np.sin(omega * t + oscillation_phase + phase_offset)
-    osc_E = osc
-    osc_I = osc
+    # Compute oscillations for E and I populations (vectorized)
+    osc_E = np.sin(omega * t + oscillation_phase)
+    osc_I = np.sin(omega * t + oscillation_phase + phase_offset_I)
 
-    # Generate input for each timestep
-    for step in range(num_steps):
-        # Base input with oscillation
-        I_E_osc = I_E + oscillation_amplitude * osc_E[step]
-        I_I_osc = I_I + oscillation_amplitude * osc_I[step]
+    # Compute oscillating baselines for each population
+    I_E_osc = I_E + oscillation_amplitude * osc_E  # Shape: (num_steps,)
+    I_I_osc = I_I + oscillation_amplitude * osc_I  # Shape: (num_steps,)
 
-        I_base = np.concatenate([
-            np.full(N_E, I_E_osc),
-            np.full(N_I, I_I_osc)
-        ])
+    # Build full input array (vectorized)
+    I_ext = np.column_stack([
+        np.tile(I_E_osc[:, np.newaxis], (1, N_E)),
+        np.tile(I_I_osc[:, np.newaxis], (1, N_I)),
+    ])
 
-        # Add Gaussian noise
-        noise = rng.normal(0, noise_std, N)
-        I_ext[step, :] = I_base + noise
+    # Add Gaussian noise
+    noise = rng.normal(0, noise_std, (num_steps, N_E + N_I))
+    I_ext += noise
 
     return I_ext

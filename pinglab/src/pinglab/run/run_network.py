@@ -1,3 +1,4 @@
+import warnings
 
 import numpy as np
 
@@ -7,7 +8,25 @@ from pinglab.run.apply_heterogeneity import apply_heterogeneity
 
 
 def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkResult:
-    v = config # v for validated
+    """
+    Run a conductance-based E/I network simulation.
+
+    Implements a leaky integrate-and-fire network with:
+    - Excitatory (E) and inhibitory (I) populations
+    - Exponentially decaying synaptic conductances (AMPA, GABA)
+    - Synaptic delays via ring buffers
+    - Optional per-neuron heterogeneity
+    - Optional instrument recording (voltage, conductance traces)
+
+    Parameters:
+        config: Network configuration including neuron counts, time constants,
+                coupling strengths, and simulation parameters
+        external_input: External input current array of shape (num_steps, N) or (num_steps,)
+
+    Returns:
+        NetworkResult containing spike data and optional instrument recordings
+    """
+    v = config  # v for validated
 
     # Numerical stability check for Euler method
     # Requirement: dt << tau (typically dt < tau/5 for reasonable accuracy)
@@ -23,9 +42,11 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
         )
 
     if v.dt > tau_min / 10:
-        print(
-            f"WARNING: dt={v.dt}ms is large relative to tau_min={tau_min:.2f}ms. "
-            f"Consider dt < {tau_min/10:.2f}ms for better accuracy."
+        warnings.warn(
+            f"dt={v.dt}ms is large relative to tau_min={tau_min:.2f}ms. "
+            f"Consider dt < {tau_min/10:.2f}ms for better accuracy.",
+            UserWarning,
+            stacklevel=2,
         )
 
     rng = np.random.RandomState(v.seed)
@@ -75,10 +96,6 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
     spike_times = []
     spike_ids = []
     spike_types = []
-    # Tonic input tracking (mean per population per timestep)
-    tonic_input_times = []
-    tonic_input_E = []
-    tonic_input_I = []
 
     # Instrument recording setup
     instrument_recording = v.instruments is not None
@@ -151,11 +168,6 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
         else:
             # Per-neuron time series
             I_ext = external_input[step, :]
-
-        # Record input (mean per population)
-        tonic_input_times.append(t)
-        tonic_input_E.append(np.mean(I_ext[:v.N_E]))
-        tonic_input_I.append(np.mean(I_ext[v.N_E:]))
 
         # Synaptic conductance decay (AFTER adding new conductances)
         g_e = decay_exponential(g_e, v.tau_ampa, v.dt)
@@ -250,15 +262,30 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
         rate_I = len([s for s in spike_types if s == 1]) / (v.N_I * (v.T / 1000.0)) if v.N_I > 0 else 0
 
         if rate_E > max_possible_rate_E * 1.01:  # Allow 1% tolerance
-            print(f"WARNING: E firing rate {rate_E:.1f} Hz exceeds theoretical max {max_possible_rate_E:.1f} Hz")
+            warnings.warn(
+                f"E firing rate {rate_E:.1f} Hz exceeds theoretical max {max_possible_rate_E:.1f} Hz",
+                UserWarning,
+                stacklevel=2,
+            )
         if rate_I > max_possible_rate_I * 1.01:
-            print(f"WARNING: I firing rate {rate_I:.1f} Hz exceeds theoretical max {max_possible_rate_I:.1f} Hz")
+            warnings.warn(
+                f"I firing rate {rate_I:.1f} Hz exceeds theoretical max {max_possible_rate_I:.1f} Hz",
+                UserWarning,
+                stacklevel=2,
+            )
 
         # Check 2: Sanity checks on spike counts
+        # Maximum possible spikes: each neuron fires at most once per refractory period
         n_total = len(spike_times)
-        expected_max = v.N_E * v.N_I * (v.T / v.dt)  # Very loose upper bound
-        if n_total > expected_max:
-            print(f"WARNING: Spike count {n_total} seems unreasonably high")
+        min_ref_steps = min(ref_steps_arr)
+        max_spikes_per_neuron = num_steps / max(1, min_ref_steps)
+        expected_max = N * max_spikes_per_neuron
+        if n_total > expected_max * 1.01:  # Allow 1% tolerance
+            warnings.warn(
+                f"Spike count {n_total} exceeds theoretical max {expected_max:.0f}",
+                UserWarning,
+                stacklevel=2,
+            )
 
     spikes = Spikes(
         times=np.array(spike_times),

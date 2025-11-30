@@ -8,7 +8,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 
 from pinglab.plots import save_raster
-from pinglab.inputs import tonic
+from pinglab.inputs import tonic, add_pulse_to_input
 from pinglab.utils import load_config
 from pinglab import run_network
 from pinglab.multiprocessing import parallel
@@ -17,7 +17,6 @@ from local import (
     estimate_gamma_period,
     extract_spike_volley,
     measure_transfer_gain,
-    add_pulse_to_input,
     add_volley_as_input,
     plot_baseline_traces,
     plot_coupled_raster,

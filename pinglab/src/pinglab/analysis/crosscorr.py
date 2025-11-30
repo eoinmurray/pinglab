@@ -1,3 +1,4 @@
+"""E→I cross-correlation analysis for spike timing."""
 
 import numpy as np
 from pinglab.types import Spikes
@@ -7,8 +8,23 @@ def crosscorr(
     spikes: Spikes,
     N_E: int,
     bin_ms: float = 1.0,
-    max_lag_ms: float = 20.0,  # <= one gamma cycle
-):
+    max_lag_ms: float = 20.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Compute E→I cross-correlation histogram.
+
+    Measures temporal lag between E spikes and subsequent I spikes
+    within a specified time window.
+
+    Parameters:
+        spikes: Spike data with times and neuron IDs
+        N_E: Number of excitatory neurons (IDs 0 to N_E-1 are E)
+        bin_ms: Histogram bin width in milliseconds
+        max_lag_ms: Maximum lag to consider (default 20ms for gamma)
+
+    Returns:
+        (centers, hist): Bin centers (ms) and spike counts per bin
+    """
     tE = spikes.times[spikes.ids < N_E]
     tI = spikes.times[spikes.ids >= N_E]
 

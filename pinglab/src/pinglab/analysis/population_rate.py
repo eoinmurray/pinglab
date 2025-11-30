@@ -1,3 +1,4 @@
+"""Population firing rate computation with time binning."""
 
 import numpy as np
 from pinglab.types import Spikes
@@ -10,10 +11,20 @@ def population_rate(
     pop: str = "E",
     N_E: int | None = None,
     N_I: int | None = None,
-):
+) -> tuple[np.ndarray, np.ndarray]:
     """
-    pop: 'E', 'I', or 'all'
-    returns t, rate in Hz
+    Compute time-binned population firing rate.
+
+    Parameters:
+        spikes: Spike data with times and neuron IDs
+        T_ms: Total simulation time in milliseconds
+        dt_ms: Bin width in milliseconds
+        pop: Population to analyze ('E', 'I', or 'all')
+        N_E: Number of excitatory neurons
+        N_I: Number of inhibitory neurons
+
+    Returns:
+        (t_ms, rate_hz): Bin centers (ms) and firing rates (Hz)
     """
     # choose neuron indices
     if pop == "E":

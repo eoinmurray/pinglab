@@ -15,7 +15,7 @@ def lif_step(
     E_i: float,
     C_m: float | np.ndarray,
     g_L: float | np.ndarray,
-    V_th: float,
+    V_th: float | np.ndarray,
     V_reset: float,
     can_spike: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -33,7 +33,7 @@ def lif_step(
         E_i: inhibitory reversal potential
         C_m: membrane capacitance (float or array for heterogeneous C_m)
         g_L: leak conductance (float or array for heterogeneous g_L)
-        V_th: spike threshold
+        V_th: spike threshold (float or array for heterogeneous thresholds)
         V_reset: reset potential after spike
         can_spike: boolean array indicating which neurons can spike (not in refractory period).
                   If None, all neurons can spike. Neurons not in can_spike are held at V_reset.

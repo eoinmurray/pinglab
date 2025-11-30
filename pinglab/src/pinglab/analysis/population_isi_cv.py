@@ -1,13 +1,14 @@
+"""Inter-spike interval coefficient of variation analysis."""
+
 import numpy as np
-from typing import Tuple
-from pinglab.types import Spikes  # or wherever your Spikes lives
+from pinglab.types import Spikes
 
 
 def isi_cv_per_neuron(
     spikes: Spikes,
     neuron_ids: np.ndarray | None = None,
     min_spikes: int = 2,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute ISI CV per neuron.
 
@@ -57,7 +58,7 @@ def population_isi_cv(
     N_E: int,
     N_I: int,
     min_spikes: int = 2,
-) -> Tuple[float | None, float | None]:
+) -> tuple[float | None, float | None]:
     """
     Compute population ISI CV for E and I as the **median** across neurons.
     Silent/near-silent neurons (spikes < min_spikes) are ignored.
