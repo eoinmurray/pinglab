@@ -589,7 +589,12 @@
           "type": "file",
           "name": "README.mdx",
           "path": "mdx-test/README.mdx",
-          "size": 93
+          "size": 187,
+          "frontmatter": {
+            "title": "MDX Test",
+            "description": "A test file for MDX functionality.",
+            "date": "2025-11-30T00:00:00.000Z"
+          }
         },
         {
           "type": "directory",
@@ -600,7 +605,7 @@
               "type": "file",
               "name": "lif-playground.tsx",
               "path": "mdx-test/components/lif-playground.tsx",
-              "size": 3840
+              "size": 3843
             }
           ]
         }

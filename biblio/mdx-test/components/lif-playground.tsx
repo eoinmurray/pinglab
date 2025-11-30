@@ -44,7 +44,7 @@ function simulateLIF(
 }
 
 export function LIFPlayground() {
-  const [current, setCurrent] = useState(1.5)
+  const [current, setCurrent] = useState(15.5)
   const [tau, setTau] = useState(10)
 
   const Vrest = -70
@@ -74,8 +74,8 @@ export function LIFPlayground() {
           <span className="text-sm text-zinc-400">Input Current: {current.toFixed(1)}</span>
           <input
             type="range"
-            min="0"
-            max="3"
+            min="10"
+            max="20"
             step="0.1"
             value={current}
             onChange={(e) => setCurrent(parseFloat(e.target.value))}
