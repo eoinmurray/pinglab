@@ -1,7 +1,7 @@
 
 from pathlib import Path
 from matplotlib import pyplot as plt
-from pinglab.analysis.ei_crosscorr import ei_crosscorr
+from pinglab.analysis.crosscorr import crosscorr
 from pinglab.plots.styles import save_both, figsize
 
 from local.inner import inner
@@ -16,7 +16,7 @@ def experiment_5(config, data_path: Path) -> None:
 
     result = inner(cfg)
 
-    centers, hist = ei_crosscorr(result.spikes, N_E=config.base.N_E)
+    centers, hist = crosscorr(result.spikes, N_E=config.base.N_E)
 
     def plot_fn():
         plt.figure(figsize=figsize)
@@ -25,4 +25,4 @@ def experiment_5(config, data_path: Path) -> None:
         plt.xlabel("I lag relative to E (ms)")
         plt.ylabel("count")
 
-    save_both(data_path / "ei_crosscorr", plot_fn)
+    save_both(data_path / "crosscorr", plot_fn)

@@ -1,7 +1,7 @@
 
 import numpy as np
 
-def generate_tonic_noise_input(
+def tonic(
     N_E: int,
     N_I: int,
     I_E: float,

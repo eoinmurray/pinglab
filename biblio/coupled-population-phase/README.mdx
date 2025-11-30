@@ -12,7 +12,7 @@ input volleys, downstream response varies >4× depending on phase
 alignment—maximal when input arrives during low inhibition, minimal during high
 inhibition.
 
-## Results / Images
+## Images
 
 <Gallery 
    path="coupled-population-phase/data" 
@@ -50,96 +50,3 @@ inhibition.
    the trough of inhibition in B. As lag shifts toward suppressive phases,
    transfer gain collapses despite identical input." 
 />
-
----
-
-## Experimental Design
-{/* the design */}
-
-### Architecture
-
-Two PING populations:
-
-- **Upstream (A)**: 800 E, 200 I — Oscillating gamma regime
-- **Downstream (B)**: 200 E, 50 I — Oscillating gamma regime (weaker drive)
-
-**Fixed feedforward projection**: 20% of A→E synapses onto B (no A→I
-projections; keep it simple). **No feedback projection** from B→A.
-
-### Protocol
-
-1. Run Population A and B independently to establish stable gamma.
-2. Inject a brief input pulse into A to produce a reliable spike volley.
-3. Deliver that volley to B under different **relative phase lags** between A
-   and B:
-   * 0°, 45°, 90°, 135°, 180° (induced by shifting inhibitory drive to B)
-4. All other network parameters identical across phase conditions.
-
-### Measurement
-
-For each phase lag:
-
-* Count spikes in targeted E neurons in A → confirms volley size is constant.
-* Count evoked spikes in B during 100 ms post-pulse.
-* **Transfer gain** = (spikes_B_post − spikes_B_pre) / (spikes_A_post −
-  spikes_A_pre)
-
-This isolates **how effectively a fixed upstream event drives downstream
-firing**.
-
-## Todo
-{/* list of todo items */}
-- [ ] Add competing senders experiment (A and A′ to B with different phase
-  alignments)
-
-## Usage
-
-```
-uv run biblio/coupled-population-phase/experiment.py
-```
-
----
-
-## Discussion
-
-### Background
-
-If two neural populations oscillate in gamma, does **their relative phase**
-determine **how effectively spikes from one population drive the other**?
-
-The Communication-Through-Coherence hypothesis (Fries 2005; Fries 2015) predicts
-that input arriving when the downstream population is in a **permissive phase**
-(low inhibition, high excitability) will propagate strongly, while input
-arriving during the **suppressive phase** (high inhibition) will be weakened —
-even when anatomical connectivity and spike content are identical.
-
-If true, **effective connectivity becomes a function of phase alignment**, not
-wiring strength or firing rate.
-
-### Key Findings
-
-1. **Effective connectivity depends on phase**. The synaptic weights A→B are
-   constant, but downstream response varies >4× across phase conditions.
-
-2. **Spike count alone does not determine transmission**. A fires the same spike
-   volley every trial; only the **state of B** determines whether the volley is
-   heard.
-
-3. **Downstream inhibition gates information flow**. When B's inhibitory
-   conductance is low, the volley pushes the network over threshold. When high,
-   the volley dies on arrival.
-
-4. **This is the computational heart of CTC**. Not just rhythmic firing, not
-   "synchrony good, asynchrony bad" — but **phase-specific routing**.
-
-### Next Step
-
-This experiment proves **phase-dependent gain across populations**. The next
-escalation — still small — is:
-
-> Compete two upstream senders (A and A′) projecting to the same receiver (B).
-> Lock A in-phase with B and push A′ π/2 out-of-phase. Both send the same
-> volley. B should selectively transmit whichever sender is phase-aligned.
-
-If that holds, we've reached the canonical **"routing by coherence"** result —
-the core prediction of Fries' communication theory.

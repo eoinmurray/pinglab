@@ -29,7 +29,7 @@ export function CodeEditor ({ code, fileType }: { code: string; fileType: string
   ];
 
   return (
-    <CodeBlock className="border-none" data={data} defaultValue={data[0].language}>
+    <CodeBlock data={data} defaultValue={data[0].language}>
       <CodeBlockBody>
         {(item) => (
           <CodeBlockItem key={item.language} value={item.language}>

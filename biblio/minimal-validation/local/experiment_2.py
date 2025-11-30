@@ -1,10 +1,9 @@
-from joblib import Parallel, delayed
 from pathlib import Path
 import numpy as np
 
 from pinglab.plots import save_raster
 from pinglab.utils import slice_spikes
-
+from pinglab.multiprocessing import parallel
 from local.inner import inner
 
 
@@ -18,7 +17,7 @@ def experiment_2(config, data_path: Path) -> None:
         for i, value in enumerate(np.linspace(1.15, 1.25, 10))
     ]
 
-    results = Parallel(n_jobs=-1)(delayed(inner)(cfg) for cfg in cfgs)
+    results = parallel(inner, cfgs, label="Experiment 2")
 
     for i, result in enumerate(results):
         sliced_spikes = slice_spikes(

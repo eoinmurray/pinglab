@@ -25,6 +25,17 @@ tasks:
       - uv run python {{.CLI_ARGS}}
       - rm biblio/.running
 
+  execute:all:
+    desc: Execute all experiment.py files in biblio/**
+    cmds:
+      - touch biblio/.running
+      - |
+        find biblio -name "experiment.py" -type f | while read -r exp_file; do
+          echo "Executing $exp_file..."
+          uv run python "$exp_file"
+        done
+      - rm biblio/.running
+
   dev:
     desc: Start the development server
     dir: cathedral
@@ -47,6 +58,7 @@ tasks:
     desc: Start the development server in the background
     dir: cathedral
     cmds:
+      - task: bg:stop
       - pm2 start "bun run dev" --name cathedral
 
   bg:stop:

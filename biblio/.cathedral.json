@@ -18,7 +18,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "coupled-population-phase/README.mdx",
-          "size": 4921,
+          "size": 1745,
           "frontmatter": {
             "title": "Coupled Populations Phase Dependence",
             "description": "Relative phase between coupled oscillating populations determines spike propagation effectiveness, confirming Communication-Through-Coherence.",
@@ -570,7 +570,7 @@
           "type": "file",
           "name": "experiment.py",
           "path": "coupled-population-phase/experiment.py",
-          "size": 8922
+          "size": 8756
         },
         {
           "type": "file",
@@ -615,14 +615,14 @@
           "children": [
             {
               "type": "file",
-              "name": "ei_crosscorr_dark.png",
-              "path": "minimal-validation/data/ei_crosscorr_dark.png",
+              "name": "crosscorr_dark.png",
+              "path": "minimal-validation/data/crosscorr_dark.png",
               "size": 128794
             },
             {
               "type": "file",
-              "name": "ei_crosscorr_light.png",
-              "path": "minimal-validation/data/ei_crosscorr_light.png",
+              "name": "crosscorr_light.png",
+              "path": "minimal-validation/data/crosscorr_light.png",
               "size": 125050
             },
             {
@@ -1867,7 +1867,7 @@
           "type": "file",
           "name": "experiment.py",
           "path": "minimal-validation/experiment.py",
-          "size": 1174
+          "size": 1172
         },
         {
           "type": "directory",
@@ -1878,43 +1878,43 @@
               "type": "file",
               "name": "experiment_1.py",
               "path": "minimal-validation/local/experiment_1.py",
-              "size": 890
+              "size": 888
             },
             {
               "type": "file",
               "name": "experiment_2.py",
               "path": "minimal-validation/local/experiment_2.py",
-              "size": 891
+              "size": 885
             },
             {
               "type": "file",
               "name": "experiment_3.py",
               "path": "minimal-validation/local/experiment_3.py",
-              "size": 2723
+              "size": 2666
             },
             {
               "type": "file",
               "name": "experiment_4.py",
               "path": "minimal-validation/local/experiment_4.py",
-              "size": 2458
+              "size": 2412
             },
             {
               "type": "file",
               "name": "experiment_5.py",
               "path": "minimal-validation/local/experiment_5.py",
-              "size": 720
+              "size": 708
             },
             {
               "type": "file",
               "name": "experiment_6.py",
               "path": "minimal-validation/local/experiment_6.py",
-              "size": 1959
+              "size": 1955
             },
             {
               "type": "file",
               "name": "inner.py",
               "path": "minimal-validation/local/inner.py",
-              "size": 812
+              "size": 770
             }
           ]
         }
@@ -1929,7 +1929,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "phase-dependence/README.mdx",
-          "size": 5381,
+          "size": 1357,
           "frontmatter": {
             "title": "Phase Dependence",
             "description": "Gamma oscillations create phase-dependent gating where identical inputs produce different responses depending on gamma phase.",
@@ -2013,7 +2013,7 @@
           "type": "file",
           "name": "experiment.py",
           "path": "phase-dependence/experiment.py",
-          "size": 3485
+          "size": 3405
         },
         {
           "type": "file",

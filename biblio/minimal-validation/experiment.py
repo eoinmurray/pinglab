@@ -37,7 +37,7 @@ def main() -> None:
     # Experiment 5: Cross corr
     experiment_5(config, data_path)
 
-    # # Experiment 6: ISI CV vs I_E
+    # Experiment 6: ISI CV vs I_E
     experiment_6(config, data_path)
 
 if __name__ == "__main__":

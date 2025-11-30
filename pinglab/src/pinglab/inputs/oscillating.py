@@ -1,7 +1,7 @@
 
 import numpy as np
 
-def generate_oscillating_input(
+def oscillating(
     N_E: int,
     N_I: int,
     I_E: float,

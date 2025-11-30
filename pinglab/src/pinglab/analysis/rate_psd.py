@@ -3,7 +3,7 @@ import numpy as np
 from scipy.signal import welch
 
 
-def calculate_rate_psd(
+def rate_psd(
     rate_hz: np.ndarray,
     dt_ms: float,
     nperseg: int | None = None,

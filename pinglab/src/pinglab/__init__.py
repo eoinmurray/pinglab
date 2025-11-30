@@ -5,6 +5,7 @@ from . import inputs
 from . import utils
 from . import plots
 from . import analysis
+from . import multiprocessing
 
 __version__ = "0.1.0"
 
@@ -15,4 +16,5 @@ __all__ = [
     "utils",
     "plots",
     "analysis",
+    "multiprocessing",
 ]

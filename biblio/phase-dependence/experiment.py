@@ -2,11 +2,12 @@
 from pathlib import Path
 import shutil
 import numpy as np
-from joblib import Parallel, delayed
+
 
 from pinglab.plots import save_raster, save_instrument_traces
-from pinglab.inputs import generate_tonic_noise_input
+from pinglab.inputs import tonic
 from pinglab.utils import load_config
+from pinglab.multiprocessing import parallel
 from pinglab import run_network
 
 from local import (
@@ -57,7 +58,7 @@ def main() -> None:
 
     num_steps = int(np.ceil(config.base.T / config.base.dt))
 
-    baseline_input = generate_tonic_noise_input(
+    baseline_input = tonic(
         N_E=config.base.N_E,
         N_I=config.base.N_I,
         I_E=config.inputs.I_E,
@@ -95,7 +96,7 @@ def main() -> None:
     phase_times: list[float] = []
     deltas: list[float] = []
 
-    inner_cfgs = [{
+    cfgs = [{
         "config": config,
         "peak_t_ms": peak_t_ms,
         "offset_ms": offset_ms,
@@ -103,7 +104,7 @@ def main() -> None:
         "target_E": target_E,
     } for idx, offset_ms in enumerate(phase_offsets_ms)]
 
-    results = Parallel(n_jobs=-1)(delayed(inner)(cfg) for cfg in inner_cfgs)
+    results = parallel(inner, cfgs)
 
     for offset_ms, delta in results:
         phase_times.append(offset_ms)

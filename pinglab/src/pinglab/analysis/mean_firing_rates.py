@@ -1,6 +1,6 @@
 from pinglab.types import Spikes
 
-def calculate_mean_firing_rates(spikes: Spikes, N_E: int, N_I: int):
+def mean_firing_rates(spikes: Spikes, N_E: int, N_I: int):
     assert spikes.times.shape == spikes.ids.shape
 
     mask_E = spikes.ids < N_E

@@ -1,13 +1,12 @@
-from joblib import Parallel, delayed
 from pathlib import Path
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
 import numpy as np
 
-from pinglab.analysis import calculate_population_rate, calculate_rate_psd
+from pinglab.analysis import population_rate, rate_psd
 from pinglab.plots.styles import save_both, figsize
 from pinglab.utils import slice_spikes
-
+from pinglab.multiprocessing import parallel
 from local.inner import inner
 
 
@@ -21,7 +20,7 @@ def experiment_4(config, data_path: Path) -> None:
         for i, value in enumerate(np.linspace(0.5, 2.0, 40))
     ]
 
-    results = Parallel(n_jobs=-1)(delayed(inner)(cfg) for cfg in cfgs)
+    results = parallel(inner, cfgs, label="Experiment 4")
 
     for i, result in enumerate(results):
         sliced_spikes = slice_spikes(
@@ -31,7 +30,7 @@ def experiment_4(config, data_path: Path) -> None:
         )
 
         dt_ms = 1.0  # critical: choose dt_ms = 1.0 for PSD calculation
-        t_ms, rate_hz = calculate_population_rate(
+        t_ms, rate_hz = population_rate(
             sliced_spikes,
             config.base.T,
             dt_ms,
@@ -41,7 +40,7 @@ def experiment_4(config, data_path: Path) -> None:
         )
 
         rate_smooth = gaussian_filter1d(rate_hz, sigma=2)  # 2 ms smoothing
-        f, Pxx = calculate_rate_psd(rate_smooth, dt_ms)
+        f, Pxx = rate_psd(rate_smooth, dt_ms)
         mask = (f >= 5) & (f <= 150)
 
         def plot_fn():

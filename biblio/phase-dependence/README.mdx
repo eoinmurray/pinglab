@@ -9,11 +9,9 @@ date: 2025-11-26
 Gamma oscillations create phase-dependent gating of inputs. The phase-gain curve
 shows that identical pulses delivered at different gamma phases produce
 different responses—inputs during low inhibition (troughs) trigger more spikes
-while inputs during high inhibition (peaks) are suppressed. This confirms that
-gamma phase controls network gain and implements a dynamic temporal gating
-mechanism.
+while inputs during high inhibition (peaks) are suppressed. 
 
-## Results / Images
+## Images
 
 <Gallery
   path="phase-dependence/data"
@@ -34,98 +32,3 @@ mechanism.
   ]}
   caption="Phase-dependent gain curve. Blue circles show Δ-spikes (change in spike count for target neurons) as a function of pulse phase. Dashed orange line shows normalized inhibitory conductance (LFP proxy) aligned by phase. Pulses delivered during low inhibition (troughs) produce larger responses than pulses during high inhibition (peaks)."
 />
-
----
-
-## Experimental Design
-{/* the design */}
-
-### Network Configuration
-
-**Population**: 800 E cells, 200 I cells (canonical PING architecture)
-
-**Regime**: Oscillating (OSC) regime to produce stable gamma
-- $g_{ei} = 1.5$ nS (E→I conductance, moderate)
-- $g_{ie} = 2.5$ nS (I→E conductance, strong inhibitory feedback)
-- $g_{ee} = 0.3$ nS (weak E→E recurrence)
-- $g_{ii} = 0.3$ nS (weak I→I recurrence)
-
-**External drive**: Tonic + noise input
-- $I_E = 1.2$ (excitatory neuron drive)
-- $I_I = 0.9$ (inhibitory neuron drive)
-- Noise std = 0.4 (moderate fluctuations)
-
-**Simulation**: 1000 ms total duration
-
-### Phase Sweep Protocol
-
-**Step 1: Baseline oscillation**
-- Run network without pulses
-- Extract LFP proxy: mean inhibitory conductance to E neurons ($\bar{g}_i^E$)
-- Identify first peak time ($t_{\text{peak}}$) and gamma period ($T_\gamma$) after 500 ms transient
-
-**Step 2: Pulse delivery**
-- **Target neurons**: Random 10% of E population (80 cells)
-- **Pulse parameters**:
-  - Width: 5 ms
-  - Amplitude: 0.5 (additional current)
-  - Delivered at $t = t_{\text{peak}} + \text{offset}$
-- **Phase sweep**: 100 offsets linearly spaced from 0 to 180 ms
-  - Spans approximately 0 to $\pi$ radians of the gamma cycle
-  - Each offset run independently with pulse added to baseline input
-
-**Step 3: Response measurement**
-- For each phase, compute $\Delta$-spikes:
-  - Count spikes in target neurons 20 ms before pulse
-  - Count spikes in target neurons 100 ms after pulse
-  - $\Delta$-spikes = post-count - pre-count
-
-**Output**: Phase-gain curve relating pulse phase (in radians) to network response ($\Delta$-spikes)
-
-## Todo
-{/* list of todo items */}
-- [ ] Add quantitative modulation index measurement
-
-## Usage
-
-```
-uv run biblio/2.phase-dependence/experiment.py
-```
-
----
-
-## Discussion
-
-### Background
-
-In oscillating neural networks, the instantaneous network state varies rhythmically. At different phases of the gamma cycle, neurons experience different levels of inhibition and excitability:
-
-**Peak excitability phase**: When inhibitory conductance is minimal (trough of inhibition), excitatory neurons are most likely to fire in response to input.
-
-**Peak inhibition phase**: When inhibitory conductance is maximal, the network is suppressed and less responsive to external drive.
-
-If gamma oscillations control gain, identical inputs delivered at different phases should produce different responses:
-- Inputs at the **excitable phase** should trigger more spikes
-- Inputs at the **inhibited phase** should be suppressed
-
-This creates a **phase-gain curve**: the relationship between input timing (phase) and network response (spike count change).
-
-### Measuring Phase-Dependent Gain
-
-To test this, we:
-1. Establish stable gamma oscillations (OSC regime)
-2. Identify the gamma cycle period and reference phase
-3. Deliver identical brief current pulses to a subset of neurons at systematically varied phases
-4. Measure response strength as the change in spike count ($\Delta$-spikes)
-
-**Key metric**: $\Delta\text{-spikes} = \text{spikes}_{\text{post-pulse}} - \text{spikes}_{\text{pre-pulse}}$ for targeted neurons
-
-### Key Findings
-
-1. **Phase modulation is present**: $\Delta$-spikes varies substantially across phases, confirming that gamma phase controls input gain.
-
-2. **Anti-correlation with inhibition**: Response is highest when inhibitory conductance is lowest (near troughs) and suppressed when inhibition is high (near peaks). This matches the predicted gating mechanism.
-
-3. **Modulation depth**: The difference between maximum and minimum response quantifies how strongly gamma phase gates inputs. A large modulation index indicates effective temporal gating.
-
-4. **Phase selectivity**: The curve shape reveals which phases are permissive versus suppressive for information transmission, suggesting that gamma oscillations implement a dynamic gain control mechanism.

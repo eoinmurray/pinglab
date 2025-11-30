@@ -3,7 +3,7 @@ import numpy as np
 from pinglab.types import Spikes
 
 
-def calculate_population_rate(
+def population_rate(
     spikes: Spikes,
     T_ms: float,
     dt_ms: float,

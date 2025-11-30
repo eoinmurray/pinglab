@@ -2,7 +2,7 @@
 import numpy as np
 
 from pinglab import run_network
-from pinglab.inputs import generate_tonic_noise_input
+from pinglab.inputs import tonic
 from pinglab.types import NetworkResult
 
 
@@ -11,7 +11,7 @@ def inner(cfg):
     g_ei = cfg["g_ei"]
     I_E = cfg["I_E"]
 
-    external_input = generate_tonic_noise_input(
+    external_input = tonic(
         N_E=int(config.base.N_E),
         N_I=int(config.base.N_E * 0.25),
         I_E=I_E,

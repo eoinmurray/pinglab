@@ -1,7 +1,5 @@
 
 import numpy as np
-import sys
-from tqdm import tqdm
 
 from pinglab.lib import lif_step, decay_exponential
 from pinglab.types import Spikes, InstrumentsResults, NetworkConfig, NetworkResult
@@ -128,8 +126,8 @@ def run_network(config: NetworkConfig) -> NetworkResult:
         instrument_g_i_mean_E = [] if 'g_i' in instrument_variables and instrument_population_means else None
         instrument_g_i_mean_I = [] if 'g_i' in instrument_variables and instrument_population_means else None
         instrument_step_counter = 0
-    # Simulation loop with progress bar
-    for step in tqdm(range(num_steps), desc="Simulating", unit=" steps", file=sys.stdout, leave=False, dynamic_ncols=True):
+
+    for step in range(num_steps):
         t = step * v.dt
         # Apply delayed synaptic events
         nE_to_i = buffer_e_to_i[buf_idx]

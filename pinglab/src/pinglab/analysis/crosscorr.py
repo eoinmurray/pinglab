@@ -3,7 +3,7 @@ import numpy as np
 from pinglab.types import Spikes
 
 
-def ei_crosscorr(
+def crosscorr(
     spikes: Spikes,
     N_E: int,
     bin_ms: float = 1.0,

@@ -2,12 +2,12 @@
 from pathlib import Path
 import shutil
 import numpy as np
-from joblib import Parallel, delayed
 
 from pinglab.plots import save_raster
-from pinglab.inputs import generate_tonic_noise_input
+from pinglab.inputs import tonic
 from pinglab.utils import load_config
 from pinglab import run_network
+from pinglab.multiprocessing import parallel
 
 from local import (
     estimate_gamma_period,
@@ -21,7 +21,7 @@ from local import (
 )
 
 
-def run_phase_condition(cfg: dict) -> tuple[float, float, object]:
+def inner(cfg: dict) -> tuple[float, float, object]:
     """Run single phase condition: B receives A's volley at shifted time."""
     config = cfg["config"]
     pop_B = cfg["pop_B"]
@@ -82,7 +82,7 @@ def main() -> None:
     print("\n[1/5] Running Population A baseline...")
 
     num_steps_A = int(np.ceil(pop_A.base.T / pop_A.base.dt))
-    baseline_input_A = generate_tonic_noise_input(
+    baseline_input_A = tonic(
         N_E=pop_A.base.N_E,
         N_I=pop_A.base.N_I,
         I_E=pop_A.inputs.I_E,
@@ -116,7 +116,7 @@ def main() -> None:
     print("\n[2/5] Running Population B baseline...")
 
     num_steps_B = int(np.ceil(pop_B.base.T / pop_B.base.dt))
-    baseline_input_B = generate_tonic_noise_input(
+    baseline_input_B = tonic(
         N_E=pop_B.base.N_E,
         N_I=pop_B.base.N_I,
         I_E=pop_B.inputs.I_E,
@@ -229,7 +229,7 @@ def main() -> None:
     volley_t = pulse_t + config.coupling.delay_AB
 
     # Prepare configs for parallel execution
-    phase_cfgs = [{
+    cfgs = [{
         "config": config,
         "pop_B": pop_B,
         "baseline_input_B": baseline_input_B,
@@ -239,10 +239,7 @@ def main() -> None:
         "volley_t": volley_t,
     } for phase_lag in phase_lags_ms]
 
-    # Run in parallel
-    results = Parallel(n_jobs=-1)(
-        delayed(run_phase_condition)(cfg) for cfg in phase_cfgs
-    )
+    results = parallel(inner, cfgs)
 
     gains = []
     for i, (_, gain, spikes_B) in enumerate(results):

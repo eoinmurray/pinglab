@@ -1,12 +1,13 @@
-from joblib import Parallel, delayed
+
+import numpy as np
 from pathlib import Path
 from matplotlib import pyplot as plt
+
 from pinglab.analysis import population_isi_cv
-import numpy as np
 from pinglab.plots.raster import save_raster
 from pinglab.plots.styles import save_both, figsize
 from pinglab.utils import slice_spikes
-
+from pinglab.multiprocessing import parallel
 from local.inner import inner
 
 
@@ -20,7 +21,7 @@ def experiment_6(config, data_path: Path) -> None:
         for i, value in enumerate(np.linspace(0.5, 2.0, 40))
     ]
 
-    results = Parallel(n_jobs=-1)(delayed(inner)(cfg) for cfg in cfgs)
+    results = parallel(inner, cfgs, label="Experiment 6")
 
     cv_E_list = []
     cv_I_list = []
