@@ -1,8 +1,9 @@
-import { type Plugin } from 'vite'
-import path, { join } from 'path'
+import { type Plugin, type Connect } from 'vite'
+import path from 'path'
 import fs from 'fs'
 import { buildAll } from './lib'
 import chokidar from 'chokidar'
+import type { IncomingMessage, ServerResponse } from 'http'
 
 export default function contentPlugin(dirs: string[]): Plugin {
   
@@ -25,7 +26,7 @@ export default function contentPlugin(dirs: string[]): Plugin {
     urlToDir.set(`/${dirName}`, dir)
   })
 
-  const middleware = (req: any, res: any, next: any) => {
+  const middleware: Connect.NextHandleFunction = (req: IncomingMessage, res: ServerResponse, next: Connect.NextFunction) => {
     // Check if URL matches any registered content directory
     for (const [urlBase, contentDir] of urlToDir.entries()) {
       if (req.url?.startsWith(urlBase + '/')) {
@@ -55,11 +56,7 @@ export default function contentPlugin(dirs: string[]): Plugin {
           }
 
           return fs.createReadStream(filePath).pipe(res)
-        } 
-        // else {
-        //   res.statusCode = 404
-        //   return res.end('File not found')
-        // }
+        }
       }
     }
     next()

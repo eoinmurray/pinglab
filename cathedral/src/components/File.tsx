@@ -60,15 +60,27 @@ function MDXFile({ file }: { file: FileEntry }) {
   )
 }
 
-function OtherFile({ file, content, blob }: { file: FileEntry; content: string | null; blob: unknown | null }) {
+function ImageFile({ file, blob }: { file: FileEntry; blob: Blob }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(blob);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [blob]);
+
+  if (!url) return null;
+  return <img src={url} alt={file.name} />;
+}
+
+function OtherFile({ file, content, blob }: { file: FileEntry; content: string | null; blob: Blob | null }) {
   const fileType = file.name.split('.').pop();
 
   switch (fileType) {
     case 'svg':
     case 'png':
-      if (blob instanceof Blob) {
-        const url = URL.createObjectURL(blob);
-        return <img src={url} alt="" />;
+      if (blob) {
+        return <ImageFile file={file} blob={blob} />;
       }
       return <p>Image viewer not implemented yet.</p>;
 

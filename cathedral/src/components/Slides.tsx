@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { RuntimeMDX } from "./RuntimeMDX";
 import { Button } from "./ui/button";
+import { FULLSCREEN_DATA_ATTR, isFullscreenActive } from "@/lib/constants";
 import {
   ChevronLeft,
   ChevronRight,
@@ -48,9 +49,8 @@ export function Slides({ content }: { content: string }) {
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keyboard events if Gallery is in fullscreen mode
-      const galleryFullscreen = document.querySelector('[data-gallery-fullscreen="true"]');
-      if (galleryFullscreen) return;
+      // Don't handle keyboard events if another fullscreen component is active
+      if (isFullscreenActive()) return;
 
       // Allow default browser behavior for modifier key combinations (Cmd/Ctrl + key)
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -102,7 +102,7 @@ export function Slides({ content }: { content: string }) {
 
   // Always render in fullscreen presentation mode
   return (
-      <div className="slides-container fixed inset-0 z-50 bg-background flex flex-col">
+      <div className="slides-container fixed inset-0 z-50 bg-background flex flex-col" {...{[FULLSCREEN_DATA_ATTR]: "true"}}>
         {/* Controls */}
         <div className="slide-controls flex-shrink-0 flex items-center justify-between gap-4 bg-muted/50 backdrop-blur-sm border-b px-3 py-2">
           {/* Left controls */}

@@ -132,36 +132,48 @@ export function useDirectory(path: string = ".") {
 }
 
 export function useFileContent(path: string) {
-  const [blob, setBlob] = useState<unknown | null>(null);
+  const [blob, setBlob] = useState<Blob | null>(null);
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
+    setError(null);
 
     (async () => {
       try {
-        try {
-          const res = await fetch(`${cathedralPluginConfig.contentPrefix}/${path}`);
-          const blob = await res.blob()
-          setBlob(blob);
+        const res = await fetch(`${cathedralPluginConfig.contentPrefix}/${path}`, {
+          signal: controller.signal,
+        });
 
-          try {
-            const text = await blob.text();
-            setContent(text);
-          } catch (err) {}
-
-        } catch (err: any) {
-          setError(err.message);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`);
         }
-        
+
+        const fetchedBlob = await res.blob();
+        setBlob(fetchedBlob);
+
+        // Try to read as text - some binary files may fail
+        try {
+          const text = await fetchedBlob.text();
+          setContent(text);
+        } catch {
+          // Binary file - text content not available
+          setContent(null);
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return; // Ignore abort errors
+        }
+        setError(err instanceof Error ? err : new Error('Unknown error'));
       } finally {
         setLoading(false);
       }
     })();
 
-    return () => {};
+    return () => controller.abort();
   }, [path]);
 
   return { blob, content, loading, error };
@@ -188,7 +200,7 @@ export function isSimulationRunning() {
     // Initial fetch
     fetchStatus();
 
-    // Poll every 5 seconds
+    // Poll every second
     interval = setInterval(fetchStatus, 1000);
 
     return () => {

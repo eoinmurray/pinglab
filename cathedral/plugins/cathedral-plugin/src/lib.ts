@@ -1,6 +1,5 @@
 import { readdir, writeFile, stat, readFile } from 'fs/promises';
-import { join, relative } from 'path';
-import * as path from 'path';
+import { join, relative, basename, extname } from 'path';
 import matter from 'gray-matter';
 
 export const GITIGNORE_FILENAME = '.gitignore'
@@ -30,7 +29,7 @@ const MARKDOWN_EXTENSIONS = ['.md', '.mdx', '.markdown'];
  * Check if a file is a markdown file
  */
 function isMarkdownFile(filename: string): boolean {
-  const ext = path.extname(filename).toLowerCase();
+  const ext = extname(filename).toLowerCase();
   return MARKDOWN_EXTENSIONS.includes(ext);
 }
 
@@ -90,7 +89,7 @@ async function parseGitignore(gitignorePath: string): Promise<string[]> {
 function createGitignoreMatcher(patterns: string[]): (relativePath: string, isDir: boolean) => boolean {
   return (relativePath: string, isDir: boolean) => {
     const pathParts = relativePath.split('/');
-    const basename = path.basename(relativePath);
+    const filename = basename(relativePath);
 
     for (const pattern of patterns) {
       // Handle directory patterns (ending with /)
@@ -126,14 +125,14 @@ function createGitignoreMatcher(patterns: string[]): (relativePath: string, isDi
         const regex = new RegExp(`^${regexPattern}$`);
 
         // Check if the pattern matches the full path or just the filename
-        if (regex.test(relativePath) || regex.test(basename)) {
+        if (regex.test(relativePath) || regex.test(filename)) {
           return true;
         }
         continue;
       }
 
-      // Exact match - check both full path and basename
-      if (relativePath === pattern || basename === pattern) {
+      // Exact match - check both full path and filename
+      if (relativePath === pattern || filename === pattern) {
         return true;
       }
 
@@ -202,7 +201,7 @@ async function scanDirectory(
 
   return {
     type: 'directory',
-    name: path.basename(dirPath),
+    name: basename(dirPath),
     path: relative(rootPath, dirPath) || '.',
     children,
   };

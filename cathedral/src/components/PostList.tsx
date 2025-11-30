@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { isFullscreenActive } from "@/lib/constants";
 import { DirectoryEntry } from "../../plugins/cathedral-plugin/src/lib";
 import { findReadme } from "../../plugins/cathedral-plugin/src/client";
 import { formatDate } from "@/lib/format-date";
@@ -33,12 +34,8 @@ export default function PostList({ directory }: { directory: DirectoryEntry }) {
     if (folders.length === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if any fullscreen component is active (Gallery or Slides)
-      const isFullscreenActive = document.querySelector('.fixed.inset-0.bg-black\\/90') ||
-                                 document.querySelector('.slides-container.fixed.inset-0') ||
-                                 document.querySelector('[data-gallery-fullscreen="true"]');
-
-      if (isFullscreenActive) return;
+      // Don't handle keyboard events if any fullscreen component is active
+      if (isFullscreenActive()) return;
 
       switch (e.key) {
         case "ArrowDown":

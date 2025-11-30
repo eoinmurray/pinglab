@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FULLSCREEN_DATA_ATTR } from "@/lib/constants";
 import { useTheme } from "next-themes";
 import { useDirectory } from "../../plugins/cathedral-plugin/src/client";
 import { FileEntry } from "../../plugins/cathedral-plugin/src/lib";
@@ -114,21 +115,17 @@ export default function Gallery({
     return "grid-cols-4 md:grid-cols-5 lg:grid-cols-6";
   }, [filteredPaths.length]);
 
-  const goToPrevious = () => {
-    if (selectedIndex !== null && selectedIndex > 0) {
-      setSelectedIndex(selectedIndex - 1);
-    }
-  };
+  const goToPrevious = useCallback(() => {
+    setSelectedIndex(prev => prev !== null && prev > 0 ? prev - 1 : prev);
+  }, []);
 
-  const goToNext = () => {
-    if (selectedIndex !== null && selectedIndex < filteredPaths.length - 1) {
-      setSelectedIndex(selectedIndex + 1);
-    }
-  };
+  const goToNext = useCallback(() => {
+    setSelectedIndex(prev => prev !== null && prev < filteredPaths.length - 1 ? prev + 1 : prev);
+  }, [filteredPaths.length]);
 
-  const close = () => {
+  const close = useCallback(() => {
     setSelectedIndex(null);
-  };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -145,7 +142,7 @@ export default function Gallery({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIndex]);
+  }, [selectedIndex, close, goToPrevious, goToNext]);
 
   return (
     <>
@@ -161,7 +158,6 @@ export default function Gallery({
             "w-full not-prose p-4",
             !single && "grid gap-3",
             !single && gridClass,
-            // "max-h-[55vh] overflow-y-auto",
           )}
         >
           {single && filteredPaths.length > 0 && (
@@ -202,7 +198,7 @@ export default function Gallery({
         <div
           className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={close}
-          data-gallery-fullscreen="true"
+          {...{[FULLSCREEN_DATA_ATTR]: "true"}}
         >
           <button
             onClick={close}

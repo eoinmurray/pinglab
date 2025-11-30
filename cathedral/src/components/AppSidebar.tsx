@@ -19,14 +19,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-}
+import { formatFileSize } from "@/lib/format-file-size";
+import { isFullscreenActive } from "@/lib/constants";
 
 function useRootDirectory() {
   const [rootDirectory, setRootDirectory] = useState<DirectoryEntry | null>(null);
@@ -194,12 +188,11 @@ export function AppSidebar() {
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isFullscreenActive = document.querySelector('.fixed.inset-0.bg-black\\/90') ||
-                                 document.querySelector('.slides-container.fixed.inset-0');
+      // Don't handle keyboard events if any fullscreen component is active
+      if (isFullscreenActive()) return;
 
       // Toggle sidebar with .
       if (e.key === "." && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-        if (isFullscreenActive) return;
         e.preventDefault();
         if (isMobile) {
           setOpenMobile(!open);
@@ -211,7 +204,6 @@ export function AppSidebar() {
 
       // Navigate to homepage with ,
       if (e.key === "," && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-        if (isFullscreenActive) return;
         e.preventDefault();
         navigate("/");
         return;

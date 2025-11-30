@@ -3,23 +3,14 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Folder, FileText, ChevronDown, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { BROWSER_OPEN_KEY, isFullscreenActive } from "@/lib/constants";
 import { DirectoryEntry, FileEntry } from "../../plugins/cathedral-plugin/src/lib";
 import { cathedralPluginConfig } from "../../cathedral-plugin.config";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { useState, useEffect, useRef } from "react";
 import { findReadme } from "../../plugins/cathedral-plugin/src/client";
 import { formatDate } from "@/lib/format-date";
-
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-}
-
-const BROWSER_OPEN_KEY = "cathedral-browser-open";
+import { formatFileSize } from "@/lib/format-file-size";
 
 export default function Browser({ directory, defaultOpen = true, isRoot = false }: { directory: DirectoryEntry, defaultOpen?: boolean, isRoot?: boolean }) {
   const [isOpen, setIsOpen] = useState(() => {
@@ -28,12 +19,12 @@ export default function Browser({ directory, defaultOpen = true, isRoot = false 
     return stored !== null ? stored === "true" : defaultOpen;
   });
 
-  // Force open when isRoot prop is true
+  // Force open when isRoot prop becomes true
   useEffect(() => {
-    if (isRoot && !isOpen) {
+    if (isRoot) {
       setIsOpen(true);
     }
-  }, [isRoot, isOpen]);
+  }, [isRoot]);
 
   // Persist open state to localStorage (only when not forced open)
   useEffect(() => {
@@ -69,14 +60,11 @@ export default function Browser({ directory, defaultOpen = true, isRoot = false 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if any fullscreen component is active (Gallery or Slides)
-      const isFullscreenActive = document.querySelector('[data-gallery-fullscreen="true"]') ||
-                                 document.querySelector('.slides-container.fixed.inset-0');
+      // Don't handle keyboard events if any fullscreen component is active
+      if (isFullscreenActive()) return;
 
       // Toggle browser with .
       if (e.key === "." && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-        // Don't toggle browser if fullscreen is active
-        if (isFullscreenActive) return;
         e.preventDefault();
         setIsOpen(!isOpen);
         return;
@@ -84,8 +72,6 @@ export default function Browser({ directory, defaultOpen = true, isRoot = false 
 
       // Navigate to homepage with ,
       if (e.key === "," && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-        // Don't navigate if fullscreen is active
-        if (isFullscreenActive) return;
         e.preventDefault();
         navigate("/");
         return;
@@ -97,8 +83,6 @@ export default function Browser({ directory, defaultOpen = true, isRoot = false 
         case "ArrowDown":
           // Allow cmd-down to work normally
           if (e.metaKey) return;
-          // Don't intercept if fullscreen is active
-          if (isFullscreenActive) return;
           e.preventDefault();
           setSelectedIndex((prev) => prev === null ? 0 : (prev + 1) % allItems.length);
           break;
@@ -106,18 +90,12 @@ export default function Browser({ directory, defaultOpen = true, isRoot = false 
         case "ArrowUp":
           // Allow cmd-up to work normally
           if (e.metaKey) return;
-          // Don't intercept if fullscreen is active
-          if (isFullscreenActive) return;
           e.preventDefault();
           setSelectedIndex((prev) => prev === null ? 0 : (prev - 1 + allItems.length) % allItems.length);
           break;
 
         case "Enter":
         case "ArrowRight":
-          // Don't intercept if fullscreen is active
-          if (isFullscreenActive) {
-            return;
-          }
           e.preventDefault();
           if (selectedIndex !== null && allItems[selectedIndex]) {
             navigate(`/${allItems[selectedIndex].path}`);
@@ -125,10 +103,6 @@ export default function Browser({ directory, defaultOpen = true, isRoot = false 
           break;
 
         case "ArrowLeft":
-          // Don't intercept if fullscreen is active
-          if (isFullscreenActive) {
-            return;
-          }
           e.preventDefault();
           // Navigate to parent directory
           if (currentPath) {
@@ -140,8 +114,6 @@ export default function Browser({ directory, defaultOpen = true, isRoot = false 
           break;
 
         case "Escape":
-          // Don't intercept if fullscreen is active (let the fullscreen component handle it)
-          if (isFullscreenActive) return;
           e.preventDefault();
           setSelectedIndex(null);
           break;
@@ -201,7 +173,6 @@ export default function Browser({ directory, defaultOpen = true, isRoot = false 
                   {folder.name}
                 </span>
                 <span className="text-xs text-muted-foreground flex-shrink-0">
-                  {/* {folder.children.length} item{folder.children.length !== 1 ? "s" : ""} */}
                   {frontmatter?.date ? formatDate(new Date(frontmatter.date as string)) : ""}
                 </span>
               </Link>
@@ -228,10 +199,7 @@ export default function Browser({ directory, defaultOpen = true, isRoot = false 
                 )}
               >
                 <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className={cn(
-                  "flex-1 truncate",
-                  // isSelected && "text-foreground"
-                )}>
+                <span className="flex-1 truncate">
                   {file.name}
                 </span>
                 <span className="text-xs text-muted-foreground flex-shrink-0">
