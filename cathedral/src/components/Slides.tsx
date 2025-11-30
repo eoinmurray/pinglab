@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { MDXRenderer } from "./MDXRenderer";
+import { RuntimeMDX } from "./RuntimeMDX";
 import { Button } from "./ui/button";
 import {
   ChevronLeft,
@@ -150,7 +150,7 @@ export function Slides({ content }: { content: string }) {
         <div className="slide-content flex-1 min-h-0 overflow-auto p-16">
           <div className="max-w-4xl mx-auto h-full flex items-center justify-center">
             <div className="w-full">
-              <MDXRenderer content={slides[currentSlide]} />
+              <RuntimeMDX content={slides[currentSlide]} />
             </div>
           </div>
         </div>

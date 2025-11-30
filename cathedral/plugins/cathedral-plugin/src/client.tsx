@@ -51,56 +51,75 @@ export function findReadme(directory: DirectoryEntry): FileEntry | null {
   return readme || null;
 }
 
+export type DirectoryError =
+  | { type: 'config_not_found'; message: string }
+  | { type: 'path_not_found'; message: string; status: 404 }
+  | { type: 'fetch_error'; message: string }
+  | { type: 'parse_error'; message: string };
+
 export function useDirectory(path: string = ".") {
   const [directory, setDirectory] = useState<DirectoryEntry | null>(null);
   const [file, setFile] = useState<FileEntry | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DirectoryError | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
 
     (async () => {
       try {
-        try {
-          const res = await fetch(`${cathedralPluginConfig.contentPrefix}/.cathedral.json`);
+        const response = await fetch(`${cathedralPluginConfig.contentPrefix}/.cathedral.json`);
 
-          if (!res.ok) {
-            throw new Error(`Failed to fetch directory structure: ${res.status} ${res.statusText}`);
-          } 
-          
-          const json = await res.json();
-          const parsed: {
-            directory: DirectoryEntry;
-            file: FileEntry | null;
-          } = await parsePath(json, path)
-
-          parsed.directory.children.sort((a: any, b: any) => {
-            let aDate, bDate;
-            if (a.children) {
-              const readme = findReadme(a);
-              if (readme && readme.frontmatter && readme.frontmatter.date) {
-                aDate = new Date(readme.frontmatter.date as string | number | Date)
-              }
-            }
-            if (b.children) {
-              const readme = findReadme(b);
-              if (readme && readme.frontmatter && readme.frontmatter.date) {
-                bDate = new Date(readme.frontmatter.date as string | number | Date)
-              }
-            }
-            if (aDate && bDate) {
-              return bDate.getTime() - aDate.getTime()
-            }
-            return 0;
-          })
-
-          setDirectory(parsed.directory);
-          setFile(parsed.file);
-        } catch (err: any) {
-          setError('Failed to load .cathedral.json');
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError({ type: 'config_not_found', message: '.cathedral.json not found' });
+          } else {
+            setError({ type: 'fetch_error', message: `Failed to fetch: ${response.status} ${response.statusText}` });
+          }
+          return;
         }
-        
+
+        let json;
+        try {
+          json = await response.json();
+        } catch {
+          setError({ type: 'parse_error', message: 'Failed to parse .cathedral.json' });
+          return;
+        }
+
+        let parsed: { directory: DirectoryEntry; file: FileEntry | null };
+        try {
+          parsed = await parsePath(json, path);
+        } catch {
+          setError({ type: 'path_not_found', message: `Path not found: ${path}`, status: 404 });
+          return;
+        }
+
+        parsed.directory.children.sort((a: any, b: any) => {
+          let aDate, bDate;
+          if (a.children) {
+            const readme = findReadme(a);
+            if (readme && readme.frontmatter && readme.frontmatter.date) {
+              aDate = new Date(readme.frontmatter.date as string | number | Date)
+            }
+          }
+          if (b.children) {
+            const readme = findReadme(b);
+            if (readme && readme.frontmatter && readme.frontmatter.date) {
+              bDate = new Date(readme.frontmatter.date as string | number | Date)
+            }
+          }
+          if (aDate && bDate) {
+            return bDate.getTime() - aDate.getTime()
+          }
+          return 0;
+        });
+
+        setDirectory(parsed.directory);
+        setFile(parsed.file);
+      } catch (err: any) {
+        setError({ type: 'fetch_error', message: err.message || 'Unknown error' });
       } finally {
         setLoading(false);
       }
