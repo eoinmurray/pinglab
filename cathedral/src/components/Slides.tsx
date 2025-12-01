@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { RuntimeMDX } from "./RuntimeMDX";
 import { Button } from "./ui/button";
-import { FULLSCREEN_DATA_ATTR, isFullscreenActive } from "@/lib/constants";
+import { FULLSCREEN_DATA_ATTR } from "@/lib/constants";
 import {
   ChevronLeft,
   ChevronRight,
@@ -49,8 +49,11 @@ export function Slides({ content }: { content: string }) {
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keyboard events if another fullscreen component is active
-      if (isFullscreenActive()) return;
+      // Don't handle keyboard events if another fullscreen component (e.g., Gallery lightbox) is active
+      const fullscreenElements = document.querySelectorAll(`[${FULLSCREEN_DATA_ATTR}="true"]`);
+      // If there's more than one fullscreen element, or if the only one isn't the slides container, bail
+      if (fullscreenElements.length > 1) return;
+      if (fullscreenElements.length === 1 && !fullscreenElements[0].classList.contains("slides-container")) return;
 
       // Allow default browser behavior for modifier key combinations (Cmd/Ctrl + key)
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -102,9 +105,9 @@ export function Slides({ content }: { content: string }) {
 
   // Always render in fullscreen presentation mode
   return (
-      <div className="slides-container fixed inset-0 z-50 bg-background flex flex-col" {...{[FULLSCREEN_DATA_ATTR]: "true"}}>
+      <div className="slides-container bg-background flex flex-col" {...{[FULLSCREEN_DATA_ATTR]: "true"}}>
         {/* Controls */}
-        <div className="slide-controls flex-shrink-0 flex items-center justify-between gap-4 bg-muted/50 backdrop-blur-sm border-b px-3 py-2">
+        <div className="slide-controls flex-shrink-0 flex items-center justify-end gap-4 px-3 py-2">
           {/* Left controls */}
           <div />
 
