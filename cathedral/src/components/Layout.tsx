@@ -12,7 +12,7 @@ export function Layout({ children }: Props) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {isRunning && (
-        <div className="sticky top-0 z-50 px-4 py-2 bg-amber-600 text-white font-mono text-xs text-center">
+        <div className="sticky top-0 z-50 px-4 py-2 bg-red-500 text-white font-mono text-xs text-center">
           <span className="inline-flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-current animate-pulse" />
             Simulation in progress, the page will auto-refresh when complete.
