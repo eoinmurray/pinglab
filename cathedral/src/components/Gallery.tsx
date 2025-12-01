@@ -107,7 +107,6 @@ export default function Gallery({
   globs = null,
   single = false,
   limit,
-  title = null,
 }: {
   path?: string,
   relativePath?: string,
@@ -115,7 +114,6 @@ export default function Gallery({
   globs?: string[] | null,
   single?: boolean,
   limit?: number
-  title?: string | null,
 }) {
   const { "*": paramPath = "." } = useParams();
 
