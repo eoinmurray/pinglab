@@ -1,21 +1,25 @@
 
+import sys
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 from pathlib import Path
 import numpy as np
 import shutil
-import sys
 
 from pinglab.plots.styles import save_both
 from pinglab.plots import save_raster, save_instrument_traces
 from pinglab.inputs import tonic, add_pulse_to_input, compute_spike_delta
-from pinglab.utils import load_config, slice_spikes
+from pinglab.utils import slice_spikes
 from pinglab.multiprocessing import parallel
 from pinglab import run_network
+import yaml
 
+# Add the experiment directory to path for local imports
+sys.path.insert(0, str(Path(__file__).parent))
+from local.model import LocalConfig
 
 def inner(cfg: dict):
-    config = cfg["config"]
+    config: LocalConfig = cfg["config"]
     baseline_input = cfg["baseline_input"]
     pulse_t = cfg["pulse_t"]
     target_E = cfg["target_E"]
@@ -44,16 +48,19 @@ def main() -> None:
     if data_path.exists():
         shutil.rmtree(data_path)
     data_path.mkdir(parents=True, exist_ok=True)
-    config = load_config(root / "config.yaml")
+    config_path = root / "config.yaml"
+    with config_path.open() as f:
+        data = yaml.safe_load(f)
+    config = LocalConfig.model_validate(data)
 
     num_steps = int(np.ceil(config.base.T / config.base.dt))
 
     baseline_input = tonic(
         N_E=config.base.N_E,
         N_I=config.base.N_I,
-        I_E=config.inputs.I_E,
-        I_I=config.inputs.I_I,
-        noise_std=config.inputs.noise,
+        I_E=config.default_inputs.I_E,
+        I_I=config.default_inputs.I_I,
+        noise_std=config.default_inputs.noise,
         num_steps=num_steps,
         seed=config.base.seed or 0,
     )
@@ -129,7 +136,7 @@ def main() -> None:
     def plot_fn():
         prop_cycle = mpl.rcParams['axes.prop_cycle']
         colors = prop_cycle.by_key()['color']
-        fig, ax1 = plt.subplots(figsize=(8, 8))
+        _, ax1 = plt.subplots(figsize=(8, 8))
         ax1.set_xlim((float(np.min(pulses)), float(np.max(pulses))))
         
         ax1.plot(pulses, deltas, "o-", label="Spike count delta", color=colors[0])

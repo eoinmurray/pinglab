@@ -7,8 +7,9 @@ from pinglab.analysis import mean_firing_rates
 from pinglab.types import NetworkResult, Spikes
 from pinglab.multiprocessing import parallel
 from local.inner import inner
+from local.model import LocalConfig
 
-def experiment_3(config, data_path: Path) -> None:
+def experiment_3(config: LocalConfig, data_path: Path) -> None:
     cfgs_large = [
         {
             "config": config,

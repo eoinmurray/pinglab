@@ -58,7 +58,6 @@ tasks:
     desc: Start the development server in the background
     dir: cathedral
     cmds:
-      - task: bg:stop
       - pm2 start "bun run dev" --name cathedral
 
   bg:stop:

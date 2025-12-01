@@ -5,9 +5,10 @@ from pinglab.analysis.crosscorr import crosscorr
 from pinglab.plots.styles import save_both, figsize
 
 from local.inner import inner
+from local.model import LocalConfig
 
 
-def experiment_5(config, data_path: Path) -> None:
+def experiment_5(config: LocalConfig, data_path: Path) -> None:
     cfg = {
             "config": config,
             "g_ei": config.experiment_5.g_ei,

@@ -3,10 +3,11 @@ from pathlib import Path
 import shutil
 import sys
 
+import yaml
+
 # Add the experiment directory to path for local imports
 sys.path.insert(0, str(Path(__file__).parent))
-
-from pinglab.utils import load_config
+from local.model import LocalConfig
 from local.experiment_1 import experiment_1
 from local.experiment_2 import experiment_2
 from local.experiment_3 import experiment_3
@@ -20,7 +21,10 @@ def main() -> None:
     if data_path.exists():
         shutil.rmtree(data_path)
     data_path.mkdir(parents=True, exist_ok=True)
-    config = load_config(root / "config.yaml")
+    config_path = root / "config.yaml"
+    with config_path.open() as f:
+        data = yaml.safe_load(f)
+    config = LocalConfig.model_validate(data)
 
     experiment_1(config, data_path)
     experiment_2(config, data_path)

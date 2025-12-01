@@ -4,7 +4,6 @@ from pydantic import BaseModel, ConfigDict
 
 class Spikes(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
     times: np.ndarray  # Spike times in ms
     ids: np.ndarray  # Neuron indices corresponding to spike times
     types: np.ndarray | None = None  # 0=E,1=I, neuron types if applicable
@@ -20,7 +19,6 @@ class InstrumentsConfig(BaseModel):
 
 class InstrumentsResults(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
     times: np.ndarray
     neuron_ids: np.ndarray
     types: np.ndarray | None = None  # Neuron types if applicable
@@ -38,7 +36,6 @@ class InstrumentsResults(BaseModel):
 
 class NetworkConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
     instruments: InstrumentsConfig | None = None
     external_input: np.ndarray | None = (
         None  # Required at runtime. Shape: (num_steps, N_E + N_I) or (num_steps,) for uniform
@@ -103,7 +100,6 @@ class DictModel(BaseModel):
     - recursively converts EXTRA dicts/lists-of-dicts into DictModel
       so they're dot-accessible, without touching declared fields.
     """
-
     model_config = ConfigDict(extra="allow")
 
     def __init__(self, **data):
@@ -122,5 +118,24 @@ class DictModel(BaseModel):
         super().__init__(**converted)
 
 
+class Inputs(BaseModel):
+    I_E: float
+    I_I: float
+    noise: float
+
+class PlottingConfig(BaseModel):
+    raster: 'RasterConfig'
+
+class RasterConfig(BaseModel):
+    start_time: float
+    stop_time: float
+
+class LinspaceConfig(BaseModel):
+    start: float
+    stop: float
+    num: int
+
 class ExperimentConfig(DictModel):
     base: NetworkConfig
+    plotting: PlottingConfig | None = None
+    default_inputs: Inputs

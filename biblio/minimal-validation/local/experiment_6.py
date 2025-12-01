@@ -9,9 +9,10 @@ from pinglab.plots.styles import save_both, figsize
 from pinglab.utils import slice_spikes
 from pinglab.multiprocessing import parallel
 from local.inner import inner
+from local.model import LocalConfig
 
 
-def experiment_6(config, data_path: Path) -> None:
+def experiment_6(config: LocalConfig, data_path: Path) -> None:
     cfgs = [
         {
             "config": config,

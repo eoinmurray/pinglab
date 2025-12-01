@@ -5,7 +5,7 @@ plotting:
     start_time: 000.0  # Start time for raster plot (ms)
     stop_time: 1000.0   # Stop time for raster plot (ms)
 
-inputs:
+default_inputs:
   I_E: 1.2       # Input to E neurons (moderate drive for AI regime)
   I_I: 0.9       # Input to I neurons (slightly lower)
   noise: 0.4  # Strong noise (0.5-1.0 range) creates irregularity and breaks synchrony

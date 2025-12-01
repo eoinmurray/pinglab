@@ -8,9 +8,10 @@ from pinglab.plots.styles import save_both, figsize
 from pinglab.utils import slice_spikes
 from pinglab.multiprocessing import parallel
 from local.inner import inner
+from local.model import LocalConfig
 
 
-def experiment_4(config, data_path: Path) -> None:
+def experiment_4(config: LocalConfig, data_path: Path) -> None:
     cfgs = [
         {
             "config": config,
@@ -34,7 +35,7 @@ def experiment_4(config, data_path: Path) -> None:
         )
 
         dt_ms = 1.0  # critical: choose dt_ms = 1.0 for PSD calculation
-        t_ms, rate_hz = population_rate(
+        _, rate_hz = population_rate(
             sliced_spikes,
             config.base.T,
             dt_ms,

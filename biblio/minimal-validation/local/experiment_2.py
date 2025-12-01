@@ -5,9 +5,9 @@ from pinglab.plots import save_raster
 from pinglab.utils import slice_spikes
 from pinglab.multiprocessing import parallel
 from local.inner import inner
+from local.model import LocalConfig
 
-
-def experiment_2(config, data_path: Path) -> None:
+def experiment_2(config: LocalConfig, data_path: Path) -> None:
     cfgs = [
         {
             "config": config,

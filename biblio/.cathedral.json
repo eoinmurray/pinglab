@@ -637,7 +637,7 @@
           "type": "file",
           "name": "config.yaml",
           "path": "minimal-validation/config.yaml",
-          "size": 3028
+          "size": 3100
         },
         {
           "type": "directory",
@@ -660,25 +660,25 @@
               "type": "file",
               "name": "firing_rates_vs_I_E_large_dark.png",
               "path": "minimal-validation/data/firing_rates_vs_I_E_large_dark.png",
-              "size": 142791
+              "size": 153573
             },
             {
               "type": "file",
               "name": "firing_rates_vs_I_E_large_light.png",
               "path": "minimal-validation/data/firing_rates_vs_I_E_large_light.png",
-              "size": 134070
+              "size": 145572
             },
             {
               "type": "file",
               "name": "firing_rates_vs_I_E_small_dark.png",
               "path": "minimal-validation/data/firing_rates_vs_I_E_small_dark.png",
-              "size": 159875
+              "size": 175819
             },
             {
               "type": "file",
               "name": "firing_rates_vs_I_E_small_light.png",
               "path": "minimal-validation/data/firing_rates_vs_I_E_small_light.png",
-              "size": 150145
+              "size": 166157
             },
             {
               "type": "file",
@@ -1898,7 +1898,7 @@
           "type": "file",
           "name": "experiment.py",
           "path": "minimal-validation/experiment.py",
-          "size": 955
+          "size": 1070
         },
         {
           "type": "directory",
@@ -1909,43 +1909,49 @@
               "type": "file",
               "name": "experiment_1.py",
               "path": "minimal-validation/local/experiment_1.py",
-              "size": 1033
+              "size": 1082
             },
             {
               "type": "file",
               "name": "experiment_2.py",
               "path": "minimal-validation/local/experiment_2.py",
-              "size": 1029
+              "size": 1077
             },
             {
               "type": "file",
               "name": "experiment_3.py",
               "path": "minimal-validation/local/experiment_3.py",
-              "size": 2988
+              "size": 3037
             },
             {
               "type": "file",
               "name": "experiment_4.py",
               "path": "minimal-validation/local/experiment_4.py",
-              "size": 2628
+              "size": 2674
             },
             {
               "type": "file",
               "name": "experiment_5.py",
               "path": "minimal-validation/local/experiment_5.py",
-              "size": 749
+              "size": 798
             },
             {
               "type": "file",
               "name": "experiment_6.py",
               "path": "minimal-validation/local/experiment_6.py",
-              "size": 2236
+              "size": 2285
             },
             {
               "type": "file",
               "name": "inner.py",
               "path": "minimal-validation/local/inner.py",
-              "size": 738
+              "size": 788
+            },
+            {
+              "type": "file",
+              "name": "model.py",
+              "path": "minimal-validation/local/model.py",
+              "size": 640
             }
           ]
         }
@@ -1971,7 +1977,7 @@
           "type": "file",
           "name": "config.yaml",
           "path": "phase-dependence/config.yaml",
-          "size": 3009
+          "size": 3017
         },
         {
           "type": "directory",
@@ -2164,13 +2170,26 @@
           "type": "file",
           "name": "experiment.py",
           "path": "phase-dependence/experiment.py",
-          "size": 4523
+          "size": 4802
         },
         {
           "type": "file",
           "name": "fries.pdf",
           "path": "phase-dependence/fries.pdf",
           "size": 2431199
+        },
+        {
+          "type": "directory",
+          "name": "local",
+          "path": "phase-dependence/local",
+          "children": [
+            {
+              "type": "file",
+              "name": "model.py",
+              "path": "phase-dependence/local/model.py",
+              "size": 297
+            }
+          ]
         }
       ]
     }
