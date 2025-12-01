@@ -1549,6 +1549,19 @@
           ]
         }
       ]
+    },
+    {
+      "type": "directory",
+      "name": "test",
+      "path": "test",
+      "children": [
+        {
+          "type": "file",
+          "name": "README.mdx",
+          "path": "test/README.mdx",
+          "size": 190
+        }
+      ]
     }
   ]
 }
