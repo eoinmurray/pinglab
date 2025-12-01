@@ -107,6 +107,7 @@ export default function Gallery({
   globs = null,
   single = false,
   limit,
+  title = null,
 }: {
   path?: string,
   relativePath?: string,
@@ -114,6 +115,7 @@ export default function Gallery({
   globs?: string[] | null,
   single?: boolean,
   limit?: number
+  title?: string | null,
 }) {
   const { "*": paramPath = "." } = useParams();
 
@@ -239,13 +241,17 @@ export default function Gallery({
         <div className="px-4 py-2.5 bg-muted/30 border-b border-border flex items-center gap-2">
           <Image className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="font-mono text-xs text-muted-foreground">
-            {path}
+            {title ? title : path === "." ? "root" : ""}
+            {/* {path}
             {globs && globs.length > 0 && (
               <span className="text-muted-foreground/50"> · {globs.join(', ')}</span>
-            )}
+            )} */}
           </span>
-          <span className="ml-auto text-xs text-muted-foreground/60">
-            {filteredPaths.length} {filteredPaths.length === 1 ? 'image' : 'images'}
+          <span className="ml-auto flex items-center gap-3 text-xs text-muted-foreground/60">
+            <span className="flex items-center gap-1">
+              <ZoomIn className="h-3 w-3" />
+              <span>Click to expand</span>
+            </span>
           </span>
         </div>
 
@@ -308,10 +314,10 @@ export default function Gallery({
 
         {/* Caption */}
         {caption && (
-          <div className="px-4 py-3 border-t border-border bg-muted/20">
-            <p className="text-sm text-muted-foreground leading-relaxed">
+          <div className="not-prose px-4 py-3 border-t border-border bg-muted/20">
+            <div className="not-prose mb-0 text-sm text-muted-foreground leading-relaxed">
               {caption}
-            </p>
+            </div>
           </div>
         )}
       </div>

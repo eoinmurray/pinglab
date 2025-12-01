@@ -589,7 +589,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "minimal-validation/README.mdx",
-          "size": 8542,
+          "size": 8885,
           "frontmatter": {
             "title": "Minimal validation of a PING Spiking Neural Network",
             "description": "Validation results for a minimal PING spiking neural network model, demonstrating some key metrics and transitions.",
@@ -600,7 +600,7 @@
           "type": "file",
           "name": "SLIDES.mdx",
           "path": "minimal-validation/SLIDES.mdx",
-          "size": 2692
+          "size": 5863
         },
         {
           "type": "file",
@@ -1323,7 +1323,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "phase-dependence/README.mdx",
-          "size": 1537,
+          "size": 4570,
           "frontmatter": {
             "title": "Phase Dependence",
             "description": "Gamma oscillations create phase-dependent gating where identical inputs produce different responses depending on gamma phase.",

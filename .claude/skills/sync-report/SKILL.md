@@ -9,6 +9,7 @@ This skill guides the synchronization of experiment reports (README.mdx) with th
 ## Rules
 - Don't mention the python files in the report.
 - No equations in titles
+- Make sure all Galleries have titles and captions.
 
 ## When to use
 

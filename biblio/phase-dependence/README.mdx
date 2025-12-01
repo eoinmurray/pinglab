@@ -9,11 +9,24 @@ date: 2025-11-26
 Gamma oscillations create phase-dependent gating of inputs. The phase-gain curve
 shows that identical pulses delivered at different gamma phases produce
 different responses—inputs during low inhibition (troughs) trigger more spikes
-while inputs during high inhibition (peaks) are suppressed. 
+while inputs during high inhibition (peaks) are suppressed.
 
-## Images
+## Baseline Network Dynamics
+
+### What this shows
+
+The baseline network dynamics before any input pulses are delivered. These traces establish that the network exhibits stable gamma oscillations with rhythmic modulation of inhibitory conductance, creating alternating windows of high and low excitability.
+
+### How we created it
+
+We simulate a canonical PING network ($N_E = 800$, $N_I = 200$) for $T = 1000$ ms with tonic input ($I_E = 1.2$, $I_I = 0.9$) and noise ($\sigma = 0.4$). Network parameters include $g_{ei} = 1.5$, $g_{ie} = 2.5$ (strong inhibitory feedback), and synaptic time constants $\tau_{AMPA} = 2$ ms, $\tau_{GABA} = 6.5$ ms. We record population-averaged membrane potential $V$ and conductances $g_e$, $g_i$ at each timestep ($dt = 0.1$ ms).
+
+### What we expect to see
+
+Clear gamma-band oscillations (~30–80 Hz) in the LFP proxy (mean inhibitory conductance). The raster should show rhythmic volleys where E neurons fire, recruit I neurons, and then are silenced by inhibitory feedback—the hallmark PING mechanism.
 
 <Gallery
+  title="Baseline Traces"
   path="phase-dependence/data"
   globs={[
     'trace*',
@@ -21,9 +34,22 @@ while inputs during high inhibition (peaks) are suppressed.
   caption="Baseline network dynamics showing (1) mean inhibitory conductance (LFP proxy) with clear gamma rhythm, (2) mean membrane potential oscillations, and (3) raster plot of spike times. The rhythmic modulation of inhibitory conductance creates temporal windows of high and low excitability."
 />
 
-<br/>
+## Raster Plots Across Gamma Phases
+
+### What this shows
+
+Network responses to identical input pulses delivered at different gamma phases. Each raster demonstrates how the same pulse produces different spiking patterns depending on when it arrives relative to the ongoing oscillation.
+
+### How we created it
+
+We select 10% of E neurons as targets and deliver brief current pulses (width = 5 ms, amplitude = 0.5) at 100 different times spanning 500–700 ms (one gamma cycle period). For visualization, we save raster plots for every 10th pulse. Each raster shows the 500–1000 ms window with the pulse timing indicated.
+
+### What we expect to see
+
+Pulses arriving during inhibitory troughs (low $g_i$) should trigger robust responses with many target neurons firing. Pulses arriving during inhibitory peaks (high $g_i$) should be largely suppressed. The spatial pattern of responsive neurons should shift with pulse timing.
 
 <Gallery
+  title="Rasters by Phase"
   path="phase-dependence/data"
   globs={[
     'raster*'
@@ -31,9 +57,22 @@ while inputs during high inhibition (peaks) are suppressed.
   caption="Raster plots showing network responses to identical input pulses delivered at different gamma phases."
 />
 
-<br/>
+## Phase-Dependent Gain Curve
+
+### What this shows
+
+The relationship between pulse timing (gamma phase) and response magnitude, quantified as the change in spike count (Δ-spikes) for target neurons. This curve demonstrates that gamma oscillations implement a phase-dependent gain control mechanism.
+
+### How we created it
+
+For each of 100 pulse times spanning 500–700 ms, we compute Δ-spikes = (spikes in post-window) − (spikes in pre-window) for the target E neurons. The pre-window is 20 ms before the pulse; the post-window is 100 ms after. We overlay the normalized inhibitory conductance (LFP proxy) from the baseline simulation to show the phase relationship.
+
+### What we expect to see
+
+Δ-spikes should be anti-correlated with inhibitory conductance: maximum response when $g_i$ is at its trough, minimum response when $g_i$ is at its peak. This demonstrates the "temporal gating" hypothesis—gamma oscillations rhythmically modulate network excitability, filtering inputs based on their timing.
 
 <Gallery
+  title="Phase-Gain Curve"
   single={true}
   path="phase-dependence/data"
   globs={[
