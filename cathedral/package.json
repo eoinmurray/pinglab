@@ -43,6 +43,7 @@
     "react-use": "^17.6.0",
     "rehype-katex": "^7.0.1",
     "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "remark-mdx-frontmatter": "^5.2.0",
     "shiki": "^3.15.0"

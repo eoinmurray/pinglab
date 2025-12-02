@@ -5,6 +5,7 @@ import mdx from '@mdx-js/rollup'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import remarkFrontmatter from 'remark-frontmatter'
+import remarkGfm from 'remark-gfm'
 import remarkMdxFrontmatter from 'remark-mdx-frontmatter'
 import path from 'path'
 import cathedralPlugin from './plugins/cathedral-plugin/src/plugin.js'
@@ -19,6 +20,7 @@ export default defineConfig({
       enforce: 'pre',
       ...mdx({
         remarkPlugins: [
+          remarkGfm,
           remarkMath,
           remarkFrontmatter,
           [remarkMdxFrontmatter, { name: 'frontmatter' }],

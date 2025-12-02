@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { compile, run } from '@mdx-js/mdx'
 import * as runtime from 'react/jsx-runtime'
+import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
@@ -17,7 +18,7 @@ export function RuntimeMDX({ content }: { content: string }) {
       try {
         const compiled = await compile(content, {
           outputFormat: 'function-body',
-          remarkPlugins: [remarkMath],
+          remarkPlugins: [remarkGfm, remarkMath],
           rehypePlugins: [rehypeKatex as never],
         })
 

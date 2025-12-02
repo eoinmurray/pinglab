@@ -589,7 +589,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "minimal-validation/README.mdx",
-          "size": 8885,
+          "size": 9001,
           "frontmatter": {
             "title": "Minimal validation of a PING Spiking Neural Network",
             "description": "Validation results for a minimal PING spiking neural network model, demonstrating some key metrics and transitions.",
@@ -1547,19 +1547,6 @@
               "size": 297
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "directory",
-      "name": "test",
-      "path": "test",
-      "children": [
-        {
-          "type": "file",
-          "name": "README.mdx",
-          "path": "test/README.mdx",
-          "size": 190
         }
       ]
     }
