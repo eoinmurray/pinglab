@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { RuntimeMDX } from "./RuntimeMDX";
 import { Button } from "./ui/button";
@@ -8,6 +8,8 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
+import { useKeyBindings } from "@/hooks/useKeyBindings";
+import { isFullscreenActive } from "@/lib/constants";
 
 export function Slides({ content }: { content: string }) {
   const navigate = useNavigate();
@@ -46,54 +48,28 @@ export function Slides({ content }: { content: string }) {
     }
   }, [location.pathname, navigate]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keyboard events if another fullscreen component (e.g., Gallery lightbox) is active
-      const fullscreenElements = document.querySelectorAll(`[${FULLSCREEN_DATA_ATTR}="true"]`);
-      // If there's more than one fullscreen element, or if the only one isn't the slides container, bail
-      if (fullscreenElements.length > 1) return;
-      if (fullscreenElements.length === 1 && !fullscreenElements[0].classList.contains("slides-container")) return;
+  const goToLastSlide = useCallback(() => {
+    setCurrentSlide(totalSlides - 1);
+  }, [totalSlides]);
 
-      // Allow default browser behavior for modifier key combinations (Cmd/Ctrl + key)
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+  // Check if slides should handle keyboard (not when another fullscreen like Gallery lightbox is active)
+  const slidesCanHandleKeys = useCallback(() => {
+    const fullscreenElements = document.querySelectorAll(`[${FULLSCREEN_DATA_ATTR}="true"]`);
+    if (fullscreenElements.length > 1) return false;
+    if (fullscreenElements.length === 1 && !fullscreenElements[0].classList.contains("slides-container")) return false;
+    return true;
+  }, []);
 
-      switch (e.key) {
-        case "ArrowRight":
-        case " ":
-        case "PageDown":
-          e.preventDefault();
-          goToNextSlide();
-          break;
-        case "ArrowLeft":
-        case "PageUp":
-          e.preventDefault();
-          goToPreviousSlide();
-          break;
-        case "Home":
-          e.preventDefault();
-          goToFirstSlide();
-          break;
-        case "End":
-          e.preventDefault();
-          setCurrentSlide(totalSlides - 1);
-          break;
-        case "Escape":
-          e.preventDefault();
-          goToParentDir();
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    goToNextSlide,
-    goToPreviousSlide,
-    goToFirstSlide,
-    goToParentDir,
-    totalSlides,
-  ]);
+  useKeyBindings(
+    [
+      { key: ["ArrowRight", " ", "PageDown"], action: goToNextSlide },
+      { key: ["ArrowLeft", "PageUp"], action: goToPreviousSlide },
+      { key: "Home", action: goToFirstSlide },
+      { key: "End", action: goToLastSlide },
+      { key: "Escape", action: goToParentDir },
+    ],
+    { enabled: slidesCanHandleKeys }
+  );
 
   if (totalSlides === 0) {
     return (

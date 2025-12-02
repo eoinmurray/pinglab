@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, ImgHTMLAttributes } from "react";
+import { useState, useMemo, useCallback, ImgHTMLAttributes } from "react";
 import { X, ChevronLeft, ChevronRight, Image, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FULLSCREEN_DATA_ATTR } from "@/lib/constants";
@@ -8,8 +8,8 @@ import { FileEntry } from "../../plugins/cathedral-plugin/src/lib";
 import { cathedralPluginConfig } from "../../cathedral-plugin.config";
 import { minimatch } from "minimatch";
 import { useParams } from "react-router-dom";
+import { useKeyBindings } from "@/hooks/useKeyBindings";
 
-// Image component with loading state
 function LoadingImage({
   className,
   wrapperClassName,
@@ -165,11 +165,12 @@ export default function Gallery({
   // Dynamic grid based on image count
   const gridClass = useMemo(() => {
     const count = filteredPaths.length;
-    if (count === 1) return "grid-cols-1 max-w-lg";
+    if (count === 1) return "grid-cols-1 max-w-sm";
     if (count === 2) return "grid-cols-2 max-w-2xl";
-    if (count <= 4) return "grid-cols-2 md:grid-cols-4";
-    if (count <= 6) return "grid-cols-3 md:grid-cols-6";
-    return "grid-cols-4 md:grid-cols-5 lg:grid-cols-6";
+    if (count === 3) return "grid-cols-3 max-w-3xl";
+    if (count === 4) return "grid-cols-2 md:grid-cols-4 max-w-3xl";
+    if (count <= 6) return "grid-cols-3 md:grid-cols-6 max-w-4xl";
+    return "grid-cols-4 md:grid-cols-5 lg:grid-cols-6 max-w-5xl";
   }, [filteredPaths.length]);
 
   const goToPrevious = useCallback(() => {
@@ -184,22 +185,14 @@ export default function Gallery({
     setSelectedIndex(null);
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (selectedIndex === null) return;
-
-      if (e.key === "Escape") {
-        close();
-      } else if (e.key === "ArrowLeft") {
-        goToPrevious();
-      } else if (e.key === "ArrowRight") {
-        goToNext();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIndex, close, goToPrevious, goToNext]);
+  useKeyBindings(
+    [
+      { key: "Escape", action: close },
+      { key: "ArrowLeft", action: goToPrevious },
+      { key: "ArrowRight", action: goToNext },
+    ],
+    { enabled: () => selectedIndex !== null }
+  );
 
   // Loading state
   if (!directory) {
@@ -235,30 +228,17 @@ export default function Gallery({
   return (
     <>
       <div className="not-prose rounded-lg overflow-hidden">
-        {/* <div className="px-4 py-2.5 flex items-center gap-2">
-          <Image className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="font-mono text-xs text-muted-foreground">
-            {title ? title : path === "." ? "root" : ""}
-          </span>
-          <span className="ml-auto flex items-center gap-3 text-xs text-muted-foreground/60">
-            <span className="flex items-center gap-1">
-              <ZoomIn className="h-3 w-3" />
-              <span>Click to expand</span>
-            </span>
-          </span>
-        </div> */}
-
         {/* Grid */}
         <div
           className={cn(
-            "w-full p-8",
+            "px-8 py-2 mx-auto",
             !single && "grid gap-3",
             !single && gridClass,
           )}
         >
           {single && filteredPaths.length > 0 && (
             <figure
-              className="group relative w-full max-w-lg cursor-pointer"
+              className="group relative w-full max-w-sm cursor-pointer mx-auto"
               onClick={() => setSelectedIndex(0)}
             >
               <div className="relative overflow-hidden rounded-md border border-border bg-muted/20">

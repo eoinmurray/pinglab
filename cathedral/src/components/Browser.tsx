@@ -1,37 +1,19 @@
 
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Folder, FileText, ChevronDown, ChevronRight } from "lucide-react";
+import { Folder, FileText } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { BROWSER_OPEN_KEY, isFullscreenActive } from "@/lib/constants";
+import { isFullscreenActive } from "@/lib/constants";
 import { DirectoryEntry, FileEntry } from "../../plugins/cathedral-plugin/src/lib";
 import { cathedralPluginConfig } from "../../cathedral-plugin.config";
 import { Breadcrumbs } from "./Breadcrumbs";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useKeyBindings } from "@/hooks/useKeyBindings";
 import { findReadme } from "../../plugins/cathedral-plugin/src/client";
 import { formatDate } from "@/lib/format-date";
 import { formatFileSize } from "@/lib/format-file-size";
 
-export default function Browser({ directory, defaultOpen = true, isRoot = false }: { directory: DirectoryEntry, defaultOpen?: boolean, isRoot?: boolean }) {
-  const [isOpen, setIsOpen] = useState(() => {
-    if (isRoot) return true;
-    const stored = localStorage.getItem(BROWSER_OPEN_KEY);
-    return stored !== null ? stored === "true" : defaultOpen;
-  });
-
-  // Force open when isRoot prop becomes true
-  useEffect(() => {
-    if (isRoot) {
-      setIsOpen(true);
-    }
-  }, [isRoot]);
-
-  // Persist open state to localStorage (only when not forced open)
-  useEffect(() => {
-    if (!isRoot) {
-      localStorage.setItem(BROWSER_OPEN_KEY, String(isOpen));
-    }
-  }, [isOpen, isRoot]);
+export default function Browser({ directory }: { directory: DirectoryEntry }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const navigate = useNavigate();
   const { "*": currentPath } = useParams();
@@ -49,168 +31,130 @@ export default function Browser({ directory, defaultOpen = true, isRoot = false 
 
   // Scroll selected item into view
   useEffect(() => {
-    if (isOpen && selectedIndex !== null && itemRefs.current[selectedIndex]) {
+    if (selectedIndex !== null && itemRefs.current[selectedIndex]) {
       itemRefs.current[selectedIndex]?.scrollIntoView({
         block: "nearest",
         behavior: "smooth",
       });
     }
-  }, [selectedIndex, isOpen]);
+  }, [selectedIndex]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keyboard events if any fullscreen component is active
-      if (isFullscreenActive()) return;
+  // Navigation actions
+  const goHome = useCallback(() => navigate("/"), [navigate]);
+  const selectNext = useCallback(() => {
+    setSelectedIndex((prev) => prev === null ? 0 : (prev + 1) % allItems.length);
+  }, [allItems.length]);
+  const selectPrevious = useCallback(() => {
+    setSelectedIndex((prev) => prev === null ? 0 : (prev - 1 + allItems.length) % allItems.length);
+  }, [allItems.length]);
+  const openSelected = useCallback(() => {
+    if (selectedIndex !== null && allItems[selectedIndex]) {
+      navigate(`/${allItems[selectedIndex].path}`);
+    }
+  }, [selectedIndex, allItems, navigate]);
+  const goToParent = useCallback(() => {
+    if (currentPath) {
+      const pathParts = currentPath.split("/");
+      pathParts.pop();
+      const parentPath = pathParts.join("/");
+      navigate(parentPath ? `/${parentPath}` : "/");
+    }
+  }, [currentPath, navigate]);
+  const clearSelection = useCallback(() => setSelectedIndex(null), []);
 
-      // Toggle browser with .
-      if (e.key === "." && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-        e.preventDefault();
-        setIsOpen(!isOpen);
-        return;
-      }
+  // Global keybindings (always active unless fullscreen)
+  useKeyBindings(
+    [
+      { key: ",", action: goHome },
+    ],
+    { enabled: () => !isFullscreenActive() }
+  );
 
-      // Navigate to homepage with ,
-      if (e.key === "," && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-        e.preventDefault();
-        navigate("/");
-        return;
-      }
-
-      if (!isOpen || allItems.length === 0) return;
-
-      switch (e.key) {
-        case "ArrowDown":
-          // Allow cmd-down to work normally
-          if (e.metaKey) return;
-          e.preventDefault();
-          setSelectedIndex((prev) => prev === null ? 0 : (prev + 1) % allItems.length);
-          break;
-
-        case "ArrowUp":
-          // Allow cmd-up to work normally
-          if (e.metaKey) return;
-          e.preventDefault();
-          setSelectedIndex((prev) => prev === null ? 0 : (prev - 1 + allItems.length) % allItems.length);
-          break;
-
-        case "Enter":
-        case "ArrowRight":
-          e.preventDefault();
-          if (selectedIndex !== null && allItems[selectedIndex]) {
-            navigate(`/${allItems[selectedIndex].path}`);
-          }
-          break;
-
-        case "ArrowLeft":
-          e.preventDefault();
-          // Navigate to parent directory
-          if (currentPath) {
-            const pathParts = currentPath.split("/");
-            pathParts.pop();
-            const parentPath = pathParts.join("/");
-            navigate(parentPath ? `/${parentPath}` : "/");
-          }
-          break;
-
-        case "Escape":
-          e.preventDefault();
-          setSelectedIndex(null);
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, allItems, selectedIndex, navigate, currentPath, setIsOpen]);
+  // Browser navigation keybindings
+  useKeyBindings(
+    [
+      { key: "ArrowDown", action: selectNext },
+      { key: "ArrowUp", action: selectPrevious },
+      { key: ["Enter", "ArrowRight"], action: openSelected },
+      { key: "ArrowLeft", action: goToParent },
+      { key: "Escape", action: clearSelection },
+    ],
+    { enabled: () => !isFullscreenActive() && allItems.length > 0 }
+  );
 
   return (
     <div className="border rounded-lg overflow-hidden shadow-sm print:hidden">
       <div className="px-4 py-3 flex bg-muted/50 justify-between items-center gap-4 border-b">
         <Breadcrumbs />
-
-        {!isRoot && (
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-            aria-label={isOpen ? "Collapse browser" : "Expand browser"}
-          >
-            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </button>
-        )}
-        
       </div>
 
-      {isOpen && directory.children.length === 0 && (
+      {directory.children.length === 0 && (
         <p className="text-muted-foreground text-center py-8 text-sm">No content found.</p>
       )}
-      
-      {isOpen && (
-        <div className="space-y-1 px-2 py-3">
-          {folders.map((folder, index) => {
-            const isSelected = selectedIndex === index;
-            
-            const readme = findReadme(folder);
-            const frontmatter = readme?.frontmatter;
 
-            return (
-              <Link
-                key={folder.path}
-                to={`/${folder.path}`}
-                ref={(el) => (itemRefs.current[index] = el)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md",
-                  "hover:bg-accent transition-all duration-150",
-                  "text-sm group",
-                  isSelected && "bg-accent ring-1 ring-primary/20",
-                )}
-              >
-                <Folder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className={cn(
-                  "flex-1 truncate font-medium group-hover:text-foreground",
-                  isSelected && "text-foreground"
-                )}>
-                  {folder.name}
-                </span>
-                <span className="text-xs text-muted-foreground flex-shrink-0">
-                  {frontmatter?.date ? formatDate(new Date(frontmatter.date as string)) : ""}
-                </span>
-              </Link>
-            );
-          })}
+      <div className="space-y-1 px-2 py-3">
+        {folders.map((folder, index) => {
+          const isSelected = selectedIndex === index;
 
-          {files.map((file, index) => {
-            const fileIndex = folders.length + index;
-            const isSelected = selectedIndex === fileIndex;
-            const isOwnPage = currentPath === file.path;
+          const readme = findReadme(folder);
+          const frontmatter = readme?.frontmatter;
 
-            return (
-              <Link
-                key={file.path}
-                to={file.path.endsWith('.pdf') ? `${cathedralPluginConfig.contentPrefix}/${file.path}` : `/${file.path}`}
-                target={file.path.endsWith('.pdf') ? "_blank" : "_self"}
-                ref={(el) => (itemRefs.current[fileIndex] = el)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md",
-                  "hover:bg-accent transition-all duration-150",
-                  "text-sm group",
-                  isSelected && "bg-accent ring-1 ring-primary/20",
-                  isOwnPage && "text-muted-foreground"
-                )}
-              >
-                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="flex-1 truncate">
-                  {file.name}
-                </span>
-                <span className="text-xs text-muted-foreground flex-shrink-0">
-                  {formatFileSize(file.size)}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+          return (
+            <Link
+              key={folder.path}
+              to={`/${folder.path}`}
+              ref={(el) => (itemRefs.current[index] = el)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-md",
+                "hover:bg-accent transition-all duration-150",
+                "text-sm group",
+                isSelected && "bg-accent ring-1 ring-primary/20",
+              )}
+            >
+              <Folder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className={cn(
+                "flex-1 truncate font-medium group-hover:text-foreground",
+                isSelected && "text-foreground"
+              )}>
+                {folder.name}
+              </span>
+              <span className="text-xs text-muted-foreground flex-shrink-0">
+                {frontmatter?.date ? formatDate(new Date(frontmatter.date as string)) : ""}
+              </span>
+            </Link>
+          );
+        })}
 
+        {files.map((file, index) => {
+          const fileIndex = folders.length + index;
+          const isSelected = selectedIndex === fileIndex;
+          const isOwnPage = currentPath === file.path;
+
+          return (
+            <Link
+              key={file.path}
+              to={file.path.endsWith('.pdf') ? `${cathedralPluginConfig.contentPrefix}/${file.path}` : `/${file.path}`}
+              target={file.path.endsWith('.pdf') ? "_blank" : "_self"}
+              ref={(el) => (itemRefs.current[fileIndex] = el)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-md",
+                "hover:bg-accent transition-all duration-150",
+                "text-sm group",
+                isSelected && "bg-accent ring-1 ring-primary/20",
+                isOwnPage && "text-muted-foreground"
+              )}
+            >
+              <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="flex-1 truncate">
+                {file.name}
+              </span>
+              <span className="text-xs text-muted-foreground flex-shrink-0">
+                {formatFileSize(file.size)}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

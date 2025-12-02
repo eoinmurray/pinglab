@@ -105,7 +105,7 @@ export function Page() {
       <main className="flex flex-col gap-8 mx-auto max-w-4xl p-4 md:px-0 mb-24">
           {isRoot && <Welcome />}
 
-          {!isRoot && directory && <Browser directory={directory} isRoot={isRoot} />}
+          {!isRoot && directory && <Browser directory={directory} />}
 
           {isRoot && directory && <PostList directory={directory}/>}
 

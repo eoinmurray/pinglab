@@ -1,6 +1,3 @@
-// Storage keys
-export const BROWSER_OPEN_KEY = "cathedral-browser-open";
-
 // Data attributes for fullscreen components
 export const FULLSCREEN_DATA_ATTR = "data-fullscreen-active";
 
