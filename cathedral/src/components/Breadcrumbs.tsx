@@ -14,7 +14,7 @@ export function Breadcrumbs() {
 
   let breadcrumbItems = []
 
-  breadcrumbItems.push({ label: "root", href: `/` });
+  breadcrumbItems.push({ label: "pl", href: `/` });
 
   if (path) {
     path.split("/").reduce((acc, part) => {

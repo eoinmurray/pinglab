@@ -52,7 +52,7 @@ function MDXFile({ file }: { file: FileEntry }) {
   const MDXContent = mdxModule.default
 
   return (
-    <article className="flex gap-8 p-4">
+    <article className="prose dark:prose-invert max-w-none">
       <MDXProviderWrapper>
         <MDXContent />
       </MDXProviderWrapper>

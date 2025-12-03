@@ -51,6 +51,19 @@ export function findReadme(directory: DirectoryEntry): FileEntry | null {
   return readme || null;
 }
 
+export function findSlides(directory: DirectoryEntry): FileEntry | null {
+  const readme = directory.children.find((child) =>
+    child.type === "file" &&
+    [
+      "SLIDES.md", "Slides.md", "slides.md",
+      "SLIDES.mdx", "Slides.mdx", "slides.mdx"
+    ].includes(child.name)
+  ) as FileEntry | undefined;
+
+  return readme || null;
+}
+
+
 export type DirectoryError =
   | { type: 'config_not_found'; message: string }
   | { type: 'path_not_found'; message: string; status: 404 }

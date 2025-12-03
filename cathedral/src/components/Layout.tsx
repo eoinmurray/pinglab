@@ -22,7 +22,7 @@ export function Layout({ children }: Props) {
 
       <Header />
 
-      <main className="flex-1">
+      <main className="mx-auto max-w-4xl">
         {children}
       </main>
 

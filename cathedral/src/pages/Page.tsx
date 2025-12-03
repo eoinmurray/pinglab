@@ -9,6 +9,7 @@ import { Welcome } from "@/components/Welcome";
 import Loading from "@/components/Loading";
 import PostList from "@/components/PostList";
 import { Layout } from "@/components/Layout";
+import PageHeader from "@/components/PageHeader";
 
 function ErrorDisplay({ error, path }: { error: DirectoryError; path: string }) {
   const containerClass = "min-h-screen bg-background container mx-auto max-w-4xl py-12 px-4";
@@ -102,20 +103,18 @@ export function Page() {
   return (
     <Layout>
       <title>{`Pinglab ${path}`}</title>
-      <main className="flex flex-col gap-8 mx-auto max-w-4xl p-4 md:px-0 mb-24">
-          {isRoot && <Welcome />}
+      <main className="flex flex-col gap-4 mb-24">
+        {!isRoot && directory && <PageHeader directory={directory} />}
 
-          {!isRoot && directory && <Browser directory={directory} />}
+        {isRoot && directory && <PostList directory={directory}/>}
 
-          {isRoot && directory && <PostList directory={directory}/>}
+        {!isRoot && fileToRender && ( <File file={fileToRender} /> )}
 
-          {!isRoot && fileToRender && ( <File file={fileToRender} /> )}
-
-          {!file && hasImageChildren && (
-            <Gallery
-              path={path}
-            />
-          )}
+        {!file && hasImageChildren && (
+          <Gallery
+            path={path}
+          />
+        )}
       </main>
     </Layout>
   )
