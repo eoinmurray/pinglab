@@ -5,7 +5,7 @@ import { SiGithub } from "@icons-pack/react-simple-icons";
 export function Header() {
   return (
     <header className="bg-background print:hidden">
-      <div className="flex items-center gap-6 py-3 px-4 w-full">
+      <div className="mx-auto w-full px-[var(--page-padding)] flex items-center gap-6 py-3">
         <Link
           to="/"
           className="font-mono text-lg font-medium tracking-tight hover:text-primary transition-colors"

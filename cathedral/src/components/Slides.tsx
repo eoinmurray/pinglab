@@ -127,7 +127,7 @@ export function Slides({ content }: { content: string }) {
 
         {/* Main slide content */}
         <div className="slide-content flex-1 min-h-0 overflow-auto p-16">
-          <div className="max-w-4xl mx-auto h-full flex items-center justify-center">
+          <div className="max-w-[var(--content-width-wide)] mx-auto h-full flex items-center justify-center">
             <div className="w-full">
               <RuntimeMDX content={slides[currentSlide]} />
             </div>

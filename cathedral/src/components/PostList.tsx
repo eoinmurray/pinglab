@@ -106,7 +106,7 @@ export default function PostList({ directory }: { directory: DirectoryEntry }) {
             className={cn(
               "group block py-4",
               "transition-all duration-200",
-              isSelected && "bg-accent -mx-4 px-4 rounded-lg"
+              isSelected && "bg-accent -mx-[var(--page-padding)] px-[var(--page-padding)] rounded-lg"
             )}
             style={{
               animationDelay: `${index * 50}ms`,

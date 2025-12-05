@@ -162,15 +162,15 @@ export default function Gallery({
     filteredPaths = filteredPaths.slice(0, limit);
   }
 
-  // Dynamic grid based on image count
+  // Dynamic grid based on image count - uses CSS variable for consistency
   const gridClass = useMemo(() => {
     const count = filteredPaths.length;
-    if (count === 1) return "grid-cols-1 max-w-sm";
-    if (count === 2) return "grid-cols-2 max-w-2xl";
-    if (count === 3) return "grid-cols-3 max-w-3xl";
-    if (count === 4) return "grid-cols-2 md:grid-cols-4 max-w-3xl";
-    if (count <= 6) return "grid-cols-3 md:grid-cols-6 max-w-4xl";
-    return "grid-cols-4 md:grid-cols-5 lg:grid-cols-6 max-w-5xl";
+    if (count === 1) return "grid-cols-1 max-w-[20rem]";
+    if (count === 2) return "grid-cols-2 max-w-[var(--content-width)]";
+    if (count === 3) return "grid-cols-3 max-w-[var(--content-width)]";
+    if (count === 4) return "grid-cols-2 md:grid-cols-4 max-w-[var(--content-width)]";
+    if (count <= 6) return "grid-cols-3 md:grid-cols-6 max-w-[var(--content-width-wide)]";
+    return "grid-cols-4 md:grid-cols-5 lg:grid-cols-6 max-w-[var(--content-width-wide)]";
   }, [filteredPaths.length]);
 
   const goToPrevious = useCallback(() => {
@@ -231,14 +231,14 @@ export default function Gallery({
         {/* Grid */}
         <div
           className={cn(
-            "px-8 py-2 mx-auto",
+            "py-2 mx-auto",
             !single && "grid gap-3",
             !single && gridClass,
           )}
         >
           {single && filteredPaths.length > 0 && (
             <figure
-              className="group relative w-full max-w-sm cursor-pointer mx-auto"
+              className="group relative w-full max-w-[20rem] cursor-pointer mx-auto"
               onClick={() => setSelectedIndex(0)}
             >
               <div className="relative overflow-hidden rounded-md border border-border bg-muted/20">

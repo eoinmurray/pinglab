@@ -68,6 +68,14 @@
 }
 
 @layer base {
+  :root {
+    /* Layout widths - single source of truth */
+    --content-width: 42rem;          /* 672px - main content container */
+    --content-width-wide: 56rem;     /* 896px - galleries, wide elements */
+    --prose-width: 65ch;             /* Optimal line length for reading */
+    --page-padding: 1.5rem;          /* Consistent horizontal padding */
+  }
+
   * {
     @apply border-border;
   }

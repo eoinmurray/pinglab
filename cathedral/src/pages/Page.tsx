@@ -10,9 +10,10 @@ import Loading from "@/components/Loading";
 import PostList from "@/components/PostList";
 import { Layout } from "@/components/Layout";
 import PageHeader from "@/components/PageHeader";
+import { cn } from "@/lib/utils";
 
 function ErrorDisplay({ error, path }: { error: DirectoryError; path: string }) {
-  const containerClass = "min-h-screen bg-background container mx-auto max-w-4xl py-12 px-4";
+  const containerClass = "min-h-screen bg-background container mx-auto max-w-[var(--content-width)] py-12 px-[var(--page-padding)]";
 
   switch (error.type) {
     case 'config_not_found':
@@ -103,7 +104,10 @@ export function Page() {
   return (
     <Layout>
       <title>{`Pinglab ${path}`}</title>
-      <main className="flex flex-col gap-4 mb-24">
+      <main className={cn(
+        "flex flex-col gap-4 mb-24",
+        isRoot && "pt-16",
+      )}>
         {!isRoot && directory && <PageHeader directory={directory} />}
 
         {isRoot && directory && <PostList directory={directory}/>}
