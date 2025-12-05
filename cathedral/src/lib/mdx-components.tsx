@@ -1,4 +1,5 @@
 import Gallery from '@/components/Gallery'
+import SlideGallery from '@/components/SlideGallery'
 import { ParameterTable } from '@/components/ParameterTable'
 
 function generateId(children: unknown): string {
@@ -13,6 +14,7 @@ function generateId(children: unknown): string {
 export const mdxComponents = {
   ParameterTable,
   Gallery,
+  SlideGallery,
 
   // Headings - clean sans-serif
   h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => {

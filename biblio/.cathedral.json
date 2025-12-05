@@ -1553,11 +1553,11 @@
           "type": "file",
           "name": "SLIDES.mdx",
           "path": "slides-only/SLIDES.mdx",
-          "size": 109,
+          "size": 1813,
           "frontmatter": {
-            "title": "Slides Only",
-            "description": "A document that contains only slides.",
-            "date": "2024-06-01T00:00:00.000Z"
+            "title": "Slides only",
+            "description": "Slides about the validation",
+            "date": "2025-11-25T00:00:00.000Z"
           }
         }
       ]

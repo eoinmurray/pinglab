@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, ImgHTMLAttributes } from "react";
+import { createPortal } from "react-dom";
 import { X, ChevronLeft, ChevronRight, Image, Expand } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FULLSCREEN_DATA_ATTR } from "@/lib/constants";
@@ -113,7 +114,7 @@ export default function Gallery({
   caption?: string,
   globs?: string[] | null,
   single?: boolean,
-  limit?: number
+  limit?: number,
 }) {
   const { "*": paramPath = "." } = useParams();
 
@@ -225,7 +226,7 @@ export default function Gallery({
 
   return (
     <>
-      {/* Gallery Container - breaks out of content width for full impact */}
+      {/* Gallery Container */}
       <div className="not-prose relative -mx-[var(--page-padding)] md:-mx-[calc((var(--gallery-width)-var(--content-width))/2+var(--page-padding))] px-[var(--page-padding)] py-8 md:py-12">
         {/* Subtle background for gallery section */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/20 to-transparent pointer-events-none" />
@@ -242,15 +243,15 @@ export default function Gallery({
         >
           {single && filteredPaths.length > 0 && (
             <figure
-              className="group relative max-w-2xl mx-auto cursor-pointer"
+              className="group relative mx-auto cursor-pointer max-w-xl"
               onClick={() => setSelectedIndex(0)}
             >
-              <div className="relative overflow-hidden bg-card shadow-sm hover:shadow-lg transition-shadow duration-500 ease-out-expo">
+              <div className="relative overflow-hidden bg-card duration-500 ease-out-expo">
                 <LoadingImage
                   src={`${cathedralPluginConfig.contentPrefix}/${filteredPaths[0]}`}
                   alt={getImageLabel(filteredPaths[0])}
                   className="w-full h-auto object-contain"
-                  wrapperClassName="w-full"
+                  wrapperClassName="w-full flex items-center justify-center"
                 />
                 {/* Hover overlay - minimal */}
                 <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors duration-300 flex items-center justify-center pointer-events-none">
@@ -273,7 +274,7 @@ export default function Gallery({
               className="group relative cursor-pointer"
               onClick={() => setSelectedIndex(index)}
             >
-              <div className="relative aspect-square overflow-hidden bg-card shadow-sm hover:shadow-md transition-all duration-500 ease-out-expo">
+              <div className="relative aspect-square overflow-hidden bg-card transition-all duration-500 ease-out-expo">
                 <LoadingImage
                   src={`${cathedralPluginConfig.contentPrefix}/${imgPath}`}
                   alt={getImageLabel(imgPath)}
@@ -311,29 +312,30 @@ export default function Gallery({
         )}
       </div>
 
-      {/* Fullscreen Lightbox - cinematic experience */}
-      {selectedIndex !== null && (
+      {/* Fullscreen Lightbox */}
+      {selectedIndex !== null && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
+          className="fixed inset-0 z-[9999] bg-background"
           onClick={close}
           {...{[FULLSCREEN_DATA_ATTR]: "true"}}
+          style={{ top: 0, left: 0, right: 0, bottom: 0 }}
         >
-          {/* Backdrop - deep, immersive */}
-          <div className="absolute inset-0 bg-background/98 backdrop-blur-xl animate-fade-in-slow" />
+          {/* Top bar */}
+          <div className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-sm">
+            {/* Counter */}
+            <div className="font-mono text-xs text-muted-foreground tabular-nums">
+              {String(selectedIndex + 1).padStart(2, '0')} / {String(filteredPaths.length).padStart(2, '0')}
+            </div>
 
-          {/* Close button - minimal, top-right */}
-          <button
-            onClick={close}
-            className={cn(
-              "absolute top-6 right-6 z-20",
-              "p-3 transition-all duration-300",
-              "text-muted-foreground hover:text-foreground",
-              "hover:bg-muted/50"
-            )}
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
+            {/* Close button */}
+            <button
+              onClick={close}
+              className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
           {/* Navigation: Previous */}
           {selectedIndex > 0 && (
@@ -342,15 +344,10 @@ export default function Gallery({
                 e.stopPropagation();
                 goToPrevious();
               }}
-              className={cn(
-                "absolute left-6 z-20",
-                "p-3 transition-all duration-300",
-                "text-muted-foreground hover:text-foreground",
-                "hover:bg-muted/50"
-              )}
+              className="fixed left-4 top-1/2 -translate-y-1/2 z-10 p-2 text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Previous image"
             >
-              <ChevronLeft className="h-6 w-6" />
+              <ChevronLeft className="h-8 w-8" />
             </button>
           )}
 
@@ -361,50 +358,33 @@ export default function Gallery({
                 e.stopPropagation();
                 goToNext();
               }}
-              className={cn(
-                "absolute right-6 z-20",
-                "p-3 transition-all duration-300",
-                "text-muted-foreground hover:text-foreground",
-                "hover:bg-muted/50"
-              )}
+              className="fixed right-4 top-1/2 -translate-y-1/2 z-10 p-2 text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Next image"
             >
-              <ChevronRight className="h-6 w-6" />
+              <ChevronRight className="h-8 w-8" />
             </button>
           )}
 
-          {/* Main image - centered, maximum impact */}
-          <figure
-            className="relative z-10 max-w-[92vw] max-h-[88vh] flex flex-col items-center animate-slide-up"
+          {/* Main image - centered */}
+          <div
+            className="fixed inset-0 flex items-center justify-center p-16"
             onClick={(e) => e.stopPropagation()}
           >
-            <LoadingImage
+            <img
               src={`${cathedralPluginConfig.contentPrefix}/${filteredPaths[selectedIndex]}`}
               alt={getImageLabel(filteredPaths[selectedIndex])}
-              className="max-h-[82vh] max-w-full object-contain shadow-2xl"
-              wrapperClassName="max-h-[82vh] max-w-full flex items-center justify-center min-w-[200px] min-h-[200px]"
+              className="max-w-full max-h-full object-contain"
             />
-            <figcaption className="mt-6 text-center">
-              <span className="font-mono text-sm text-muted-foreground tracking-wide">
-                {getImageLabel(filteredPaths[selectedIndex])}
-              </span>
-            </figcaption>
-          </figure>
-
-          {/* Counter - bottom, minimal */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-            <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground tracking-widest">
-              <span className="tabular-nums">{String(selectedIndex + 1).padStart(2, '0')}</span>
-              <span className="text-border">/</span>
-              <span className="tabular-nums">{String(filteredPaths.length).padStart(2, '0')}</span>
-            </div>
           </div>
 
-          {/* Keyboard hint */}
-          <div className="absolute bottom-6 right-6 z-20 hidden md:flex items-center gap-3 text-muted-foreground/50">
-            <span className="font-mono text-[10px] tracking-wider">ESC to close</span>
+          {/* Caption */}
+          <div className="fixed bottom-0 left-0 right-0 z-10 p-4 text-center bg-background/80 backdrop-blur-sm">
+            <span className="font-mono text-xs text-muted-foreground">
+              {getImageLabel(filteredPaths[selectedIndex])}
+            </span>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

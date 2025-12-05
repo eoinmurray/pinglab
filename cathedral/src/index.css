@@ -1,9 +1,10 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Import fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
 
 @layer base {
   :root {
@@ -46,41 +47,41 @@
   }
 
   .dark {
-    /* Dark theme - terminal/IDE feel */
-    --background: 240 10% 4%;
-    --foreground: 220 14% 90%;
-    --card: 240 10% 6%;
-    --card-foreground: 220 14% 90%;
-    --popover: 240 10% 6%;
-    --popover-foreground: 220 14% 90%;
+    /* Dark theme - zinc neutrals, no blue tint */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 93%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 93%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 93%;
 
-    /* Brighter cyan in dark mode */
-    --primary: 190 95% 55%;
-    --primary-foreground: 240 10% 4%;
+    /* Cyan accent - crisp against zinc */
+    --primary: 175 70% 45%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 240 6% 12%;
-    --secondary-foreground: 220 14% 85%;
-    --muted: 240 6% 14%;
-    --muted-foreground: 220 10% 55%;
-    --accent: 240 6% 12%;
-    --accent-foreground: 220 14% 90%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 80%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 50%;
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 93%;
 
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 240 6% 18%;
-    --input: 240 6% 18%;
-    --ring: 190 95% 55%;
+    --border: 0 0% 22%;
+    --input: 0 0% 22%;
+    --ring: 175 70% 45%;
 
-    /* Sidebar - dark */
-    --sidebar-background: 240 10% 6%;
-    --sidebar-foreground: 220 10% 60%;
-    --sidebar-primary: 190 95% 55%;
-    --sidebar-primary-foreground: 240 10% 4%;
-    --sidebar-accent: 240 6% 10%;
-    --sidebar-accent-foreground: 220 14% 90%;
-    --sidebar-border: 240 6% 15%;
-    --sidebar-ring: 190 95% 55%;
+    /* Sidebar - zinc */
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 65%;
+    --sidebar-primary: 175 70% 45%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 13%;
+    --sidebar-accent-foreground: 0 0% 93%;
+    --sidebar-border: 0 0% 19%;
+    --sidebar-ring: 175 70% 45%;
   }
 }
 
