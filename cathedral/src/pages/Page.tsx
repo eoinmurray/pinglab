@@ -1,5 +1,4 @@
 import { useParams } from "react-router-dom"
-import Browser from "@/components/Browser";
 import Gallery from "@/components/Gallery";
 import File from "@/components/File";
 import { useDirectory, findReadme, DirectoryError } from "../../plugins/cathedral-plugin/src/client";
@@ -7,7 +6,6 @@ import { FileEntry } from "../../plugins/cathedral-plugin/src/lib";
 import Loading from "@/components/Loading";
 import PostList from "@/components/PostList";
 import { Layout } from "@/components/Layout";
-import PageHeader from "@/components/PageHeader";
 import { cn } from "@/lib/utils";
 
 function ErrorDisplay({ error, path }: { error: DirectoryError; path: string }) {
@@ -110,11 +108,8 @@ export function Page() {
           </div>
         )}
 
-        {/* Non-root pages */}
-        {!isRoot && directory && <PageHeader directory={directory} />}
-
         {!isRoot && fileToRender && (
-          <File file={fileToRender} />
+          <File file={fileToRender} directory={directory} />
         )}
 
         {!file && hasImageChildren && (

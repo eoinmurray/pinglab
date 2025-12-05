@@ -598,6 +598,17 @@
         },
         {
           "type": "file",
+          "name": "SLIDES.mdx",
+          "path": "minimal-validation/SLIDES.mdx",
+          "size": 1813,
+          "frontmatter": {
+            "title": "Slides only",
+            "description": "Slides about the validation",
+            "date": "2025-11-25T00:00:00.000Z"
+          }
+        },
+        {
+          "type": "file",
           "name": "config.yaml",
           "path": "minimal-validation/config.yaml",
           "size": 3095

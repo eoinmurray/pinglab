@@ -1,16 +1,23 @@
 import { useState, useEffect } from "react";
-import { useFileContent } from "../../plugins/cathedral-plugin/src/client";
-import { FileEntry } from "../../plugins/cathedral-plugin/src/lib";
+import { findSlides, useFileContent } from "../../plugins/cathedral-plugin/src/client";
+import { DirectoryEntry, FileEntry } from "../../plugins/cathedral-plugin/src/lib";
 import { loadMDXContent, MDXModule } from "@/lib/mdx-content";
 import { MDXProviderWrapper } from "./MDXProvider";
 import { CodeEditor } from "./CodeEditor";
 import { Spinner } from "./ui/spinner";
 import { formatDate } from "@/lib/format-date";
+import { Link } from "react-router-dom";
+import { Presentation } from "lucide-react";
 
-function MDXFile({ file }: { file: FileEntry }) {
+function MDXFile({ file, directory }: { file: FileEntry; directory?: DirectoryEntry | null }) {
   const [mdxModule, setMdxModule] = useState<MDXModule | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  let slides: FileEntry | null = null;
+  if (directory) {
+    slides = findSlides(directory);
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -67,6 +74,15 @@ function MDXFile({ file }: { file: FileEntry }) {
               <time className="font-mono text-xs bg-muted px-2 py-0.5 rounded">
                 {formatDate(new Date(file.frontmatter.date as string))}
               </time>
+            )}
+            {slides && (
+              <Link
+                to={`/${slides.path}`}
+                className="font-mono text-xs px-2 py-0.5 rounded flex items-center gap-1"
+              >
+                <Presentation className="h-3.5 w-3.5" />
+                <span>slides</span>
+              </Link>
             )}
             {file.frontmatter?.description && (
               <p className="text-sm">
@@ -139,13 +155,13 @@ function OtherFile({ file, content, blob }: { file: FileEntry; content: string |
   }
 }
 
-export default function File({ file }: { file: FileEntry }) {
+export default function File({ file, directory }: { file: FileEntry; directory?: DirectoryEntry | null }) {
   const isMDX = file.name.endsWith('.mdx') || file.name.endsWith('.md')
 
   if (isMDX) {
     return (
       <div className="print:border-none">
-        <MDXFile file={file} />
+        <MDXFile file={file} directory={directory} />
       </div>
     )
   }
