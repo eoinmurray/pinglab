@@ -8,8 +8,32 @@ export default {
   theme: {
   	extend: {
   		fontFamily: {
-  			sans: ['DM Sans', 'system-ui', 'sans-serif'],
-  			mono: ['DM Mono', 'ui-monospace', 'monospace'],
+  			// Clean sans-serif for everything
+  			sans: ['Inter', 'system-ui', 'sans-serif'],
+  			// Monospace for code, data, technical elements
+  			mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+  		},
+  		fontSize: {
+  			// Refined type scale
+  			'xs': ['0.75rem', { lineHeight: '1.5' }],
+  			'sm': ['0.875rem', { lineHeight: '1.6' }],
+  			'base': ['1rem', { lineHeight: '1.75' }],
+  			'lg': ['1.125rem', { lineHeight: '1.7' }],
+  			'xl': ['1.25rem', { lineHeight: '1.5' }],
+  			'2xl': ['1.5rem', { lineHeight: '1.35' }],
+  			'3xl': ['1.875rem', { lineHeight: '1.25' }],
+  			'4xl': ['2.25rem', { lineHeight: '1.2' }],
+  			'5xl': ['3rem', { lineHeight: '1.15' }],
+  			'6xl': ['3.75rem', { lineHeight: '1.1' }],
+  		},
+  		letterSpacing: {
+  			'tightest': '-0.04em',
+  			'tighter': '-0.02em',
+  			'tight': '-0.01em',
+  			'normal': '0',
+  			'wide': '0.01em',
+  			'wider': '0.02em',
+  			'widest': '0.05em',
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -67,7 +91,29 @@ export default {
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			}
-  		}
+  		},
+  		animation: {
+  			'fade-in': 'fade-in 0.4s ease-out forwards',
+  			'fade-in-slow': 'fade-in-slow 0.6s ease-out forwards',
+  			'slide-up': 'slide-up 0.5s ease-out forwards',
+  		},
+  		keyframes: {
+  			'fade-in': {
+  				from: { opacity: '0', transform: 'translateY(8px)' },
+  				to: { opacity: '1', transform: 'translateY(0)' },
+  			},
+  			'fade-in-slow': {
+  				from: { opacity: '0' },
+  				to: { opacity: '1' },
+  			},
+  			'slide-up': {
+  				from: { opacity: '0', transform: 'translateY(20px)' },
+  				to: { opacity: '1', transform: 'translateY(0)' },
+  			},
+  		},
+  		transitionTimingFunction: {
+  			'out-expo': 'cubic-bezier(0.19, 1, 0.22, 1)',
+  		},
   	}
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],

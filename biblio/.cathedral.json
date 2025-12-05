@@ -18,7 +18,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "coupled-population-phase/README.mdx",
-          "size": 1701,
+          "size": 1661,
           "frontmatter": {
             "title": "Coupled Populations Phase Dependence",
             "description": "Relative phase between coupled oscillating populations determines spike propagation effectiveness.",
@@ -589,18 +589,12 @@
           "type": "file",
           "name": "README.mdx",
           "path": "minimal-validation/README.mdx",
-          "size": 9001,
+          "size": 8946,
           "frontmatter": {
             "title": "Minimal validation of a PING Spiking Neural Network",
             "description": "Validation results for a minimal PING spiking neural network model, demonstrating some key metrics and transitions.",
             "date": "2025-11-25T00:00:00.000Z"
           }
-        },
-        {
-          "type": "file",
-          "name": "SLIDES.mdx",
-          "path": "minimal-validation/SLIDES.mdx",
-          "size": 5863
         },
         {
           "type": "file",
@@ -1323,7 +1317,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "phase-dependence/README.mdx",
-          "size": 4570,
+          "size": 4550,
           "frontmatter": {
             "title": "Phase Dependence",
             "description": "Gamma oscillations create phase-dependent gating where identical inputs produce different responses depending on gamma phase.",
@@ -1547,6 +1541,24 @@
               "size": 297
             }
           ]
+        }
+      ]
+    },
+    {
+      "type": "directory",
+      "name": "slides-only",
+      "path": "slides-only",
+      "children": [
+        {
+          "type": "file",
+          "name": "SLIDES.mdx",
+          "path": "slides-only/SLIDES.mdx",
+          "size": 109,
+          "frontmatter": {
+            "title": "Slides Only",
+            "description": "A document that contains only slides.",
+            "date": "2024-06-01T00:00:00.000Z"
+          }
         }
       ]
     }

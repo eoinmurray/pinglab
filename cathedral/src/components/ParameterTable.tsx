@@ -17,16 +17,14 @@ function formatValue(value: unknown): string {
   if (value === undefined) return "—";
   if (typeof value === "boolean") return value ? "true" : "false";
   if (typeof value === "number") {
-    // Scientific notation for very small/large numbers
     if (Math.abs(value) < 0.001 && value !== 0) return value.toExponential(2);
     if (Math.abs(value) >= 10000) return value.toExponential(2);
-    // Clean up floating point display
     if (Number.isInteger(value)) return value.toString();
     return value.toPrecision(4).replace(/\.?0+$/, '');
   }
   if (typeof value === "string") return value;
-  if (Array.isArray(value)) return `[${value.length} items]`;
-  if (typeof value === "object") return `{${Object.keys(value).length} keys}`;
+  if (Array.isArray(value)) return `[${value.length}]`;
+  if (typeof value === "object") return `{${Object.keys(value).length}}`;
   return String(value);
 }
 
@@ -66,14 +64,16 @@ export function ParameterTable({ path, fields }: { path: string; fields?: string
 
   if (loading) {
     return (
-      <div className="not-prose border border-border rounded-lg overflow-hidden">
-        <div className="px-4 py-3 bg-muted/30 border-b border-border">
-          <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-        </div>
-        <div className="p-4 space-y-2">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-4 bg-muted/50 animate-pulse rounded" style={{ width: `${60 + Math.random() * 30}%` }} />
-          ))}
+      <div className="not-prose my-8">
+        <div className="border border-border/50">
+          <div className="px-4 py-3 border-b border-border/30 bg-muted/20">
+            <div className="h-3 w-32 bg-muted/50 animate-pulse" />
+          </div>
+          <div className="p-4 space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-3 bg-muted/30 animate-pulse" style={{ width: `${50 + Math.random() * 40}%`, animationDelay: `${i * 100}ms` }} />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -81,18 +81,18 @@ export function ParameterTable({ path, fields }: { path: string; fields?: string
 
   if (error) {
     return (
-      <div className="not-prose border border-destructive/30 rounded-lg bg-destructive/5 p-4">
-        <p className="text-sm text-destructive font-medium">Failed to load parameters</p>
-        <p className="text-xs text-destructive/70 mt-1 font-mono">{error.message}</p>
+      <div className="not-prose my-8 border border-destructive/20 bg-destructive/5 p-4">
+        <p className="font-mono text-xs text-destructive tracking-wide">error loading parameters</p>
+        <p className="text-xs text-destructive/60 mt-1 font-mono">{error.message}</p>
       </div>
     );
   }
 
   if (!file || !content) {
     return (
-      <div className="not-prose border border-border rounded-lg bg-muted/30 p-4">
-        <p className="text-sm text-muted-foreground">No file found at path</p>
-        <p className="text-xs text-muted-foreground/70 mt-1 font-mono">{path}</p>
+      <div className="not-prose my-8 border border-border/50 bg-muted/20 p-4">
+        <p className="font-mono text-xs text-muted-foreground tracking-wide">file not found</p>
+        <p className="text-xs text-muted-foreground/50 mt-1 font-mono">{path}</p>
       </div>
     );
   }
@@ -104,14 +104,13 @@ export function ParameterTable({ path, fields }: { path: string; fields?: string
       : yaml.load(content) as Record<string, unknown>;
   } catch (e) {
     return (
-      <div className="not-prose border border-destructive/30 rounded-lg bg-destructive/5 p-4">
-        <p className="text-sm text-destructive font-medium">Parse error</p>
-        <p className="text-xs text-destructive/70 mt-1 font-mono">{(e as Error).message}</p>
+      <div className="not-prose my-8 border border-destructive/20 bg-destructive/5 p-4">
+        <p className="font-mono text-xs text-destructive tracking-wide">parse error</p>
+        <p className="text-xs text-destructive/60 mt-1 font-mono">{(e as Error).message}</p>
       </div>
     );
   }
 
-  // If fields specified, extract only those fields into a new object
   let display: Record<string, unknown>;
   if (fields && fields.length > 0) {
     display = {};
@@ -125,23 +124,16 @@ export function ParameterTable({ path, fields }: { path: string; fields?: string
     display = parsed;
   }
 
-  // Handle empty or non-object display values
   if (typeof display !== "object" || display === null || Object.keys(display).length === 0) {
     return (
-      <div className="not-prose border border-border rounded-lg overflow-hidden">
-        <div className="px-4 py-2.5 bg-muted/30 border-b border-border flex items-center gap-2">
-          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+      <div className="not-prose my-8 border border-border/50">
+        <div className="px-4 py-3 border-b border-border/30 bg-muted/10 flex items-center gap-2">
+          <FileText className="h-3 w-3 text-muted-foreground/50" />
           <span className="font-mono text-xs text-muted-foreground">{file.name}</span>
-          {fields && fields.length > 0 && (
-            <>
-              <span className="text-muted-foreground/40">→</span>
-              <span className="font-mono text-xs text-primary">{fields.join(", ")}</span>
-            </>
-          )}
         </div>
         <div className="p-4">
-          <span className="font-mono text-sm text-muted-foreground">
-            {fields ? "No matching fields found" : "Empty"}
+          <span className="font-mono text-xs text-muted-foreground/60">
+            {fields ? "no matching fields" : "empty"}
           </span>
         </div>
       </div>
@@ -151,68 +143,66 @@ export function ParameterTable({ path, fields }: { path: string; fields?: string
   const entries = flattenObject(display);
 
   return (
-    <div className="not-prose border border-border rounded-lg overflow-hidden">
+    <div className="not-prose my-8 border border-border/50 overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-2.5 bg-muted/30 border-b border-border flex items-center gap-2">
-        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+      <div className="px-4 py-2.5 border-b border-border/30 bg-muted/10 flex items-center gap-3">
+        <FileText className="h-3 w-3 text-muted-foreground/50" />
         <span className="font-mono text-xs text-muted-foreground">{file.name}</span>
         {fields && fields.length > 0 && (
           <>
-            <span className="text-muted-foreground/40">→</span>
-            <span className="font-mono text-xs text-primary">{fields.join(", ")}</span>
+            <span className="text-border">→</span>
+            <span className="font-mono text-xs text-primary/70">{fields.join(", ")}</span>
           </>
         )}
-        <span className="ml-auto text-xs text-muted-foreground/60">
-          {Object.keys(display).length} parameters
+        <span className="ml-auto font-mono text-[10px] text-muted-foreground/40 tracking-wide">
+          {Object.keys(display).length} params
         </span>
       </div>
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full">
           <thead>
-            <tr className="border-b border-border bg-muted/20">
-              <th className="text-left font-medium text-muted-foreground px-4 py-2 text-xs uppercase tracking-wider">
-                Parameter
+            <tr className="border-b border-border/30">
+              <th className="text-left font-mono text-[10px] text-muted-foreground/60 uppercase tracking-widest px-4 py-2">
+                key
               </th>
-              <th className="text-left font-medium text-muted-foreground px-4 py-2 text-xs uppercase tracking-wider">
-                Value
+              <th className="text-left font-mono text-[10px] text-muted-foreground/60 uppercase tracking-widest px-4 py-2">
+                value
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/50">
+          <tbody>
             {entries.map((entry, index) => {
-              const isNested = entry.depth > 0;
               const isSection = typeof entry.value === "string" && entry.value.startsWith("{");
 
               return (
                 <tr
                   key={entry.key}
                   className={cn(
-                    "transition-colors",
-                    index % 2 === 0 ? "bg-transparent" : "bg-muted/10",
-                    "hover:bg-primary/5",
+                    "border-b border-border/20 last:border-b-0",
+                    "transition-colors hover:bg-muted/30",
                     isSection && "bg-muted/20"
                   )}
                 >
                   <td className={cn(
                     "px-4 py-2 font-mono text-xs",
-                    isSection ? "text-foreground font-medium" : "text-muted-foreground"
+                    isSection ? "text-foreground/80" : "text-muted-foreground"
                   )}>
                     <span style={{ paddingLeft: `${entry.depth * 12}px` }}>
-                      {isNested ? entry.key.split(".").pop() : entry.key}
+                      {entry.depth > 0 ? entry.key.split(".").pop() : entry.key}
                     </span>
                   </td>
                   <td className="px-4 py-2 font-mono text-xs">
                     {isSection ? (
-                      <span className="text-muted-foreground/60 italic">{entry.value as string}</span>
+                      <span className="text-muted-foreground/40">{entry.value as string}</span>
                     ) : (
                       <span className={cn(
                         getValueType(entry.value) === "number" && "text-primary",
-                        getValueType(entry.value) === "boolean" && (entry.value ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"),
+                        getValueType(entry.value) === "boolean" && (entry.value ? "text-primary" : "text-muted-foreground/50"),
                         getValueType(entry.value) === "string" && "text-foreground",
-                        getValueType(entry.value) === "null" && "text-muted-foreground/50 italic",
-                        getValueType(entry.value) === "array" && "text-amber-600 dark:text-amber-400"
+                        getValueType(entry.value) === "null" && "text-muted-foreground/40 italic",
+                        getValueType(entry.value) === "array" && "text-primary/70"
                       )}>
                         {formatValue(entry.value)}
                       </span>

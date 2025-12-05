@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Folder, FileText, ChevronRight, Home } from "lucide-react";
+import { Folder, FileText, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 
@@ -10,7 +10,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -62,7 +61,7 @@ function TreeItem({
         <SidebarMenuButton
           asChild
           isActive={isActive}
-          className="pl-2"
+          className="pl-2 font-mono text-xs"
         >
           <Link
             to={item.path.endsWith('.pdf') ? `${cathedralPluginConfig.contentPrefix}/${item.path}` : `/${item.path}`}
@@ -70,10 +69,10 @@ function TreeItem({
             className="flex items-center justify-between"
           >
             <span className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
+              <FileText className="h-3.5 w-3.5 text-muted-foreground/50" />
               <span className="truncate">{item.name}</span>
             </span>
-            <span className="text-xs text-muted-foreground flex-shrink-0">
+            <span className="text-[10px] text-muted-foreground/50 flex-shrink-0 tabular-nums">
               {formatFileSize(item.size)}
             </span>
           </Link>
@@ -95,7 +94,7 @@ function TreeItem({
           <Collapsible.Trigger asChild>
             <button
               disabled
-              className="p-1 rounded-sm"
+              className="p-1"
               onClick={(e) => {
                 e.stopPropagation();
                 toggleExpanded(item.path);
@@ -103,7 +102,7 @@ function TreeItem({
             >
               <ChevronRight
                 className={cn(
-                  "h-4 w-4 transition-transform",
+                  "h-3.5 w-3.5 text-muted-foreground/50 transition-transform duration-200",
                   isExpanded && "rotate-90"
                 )}
               />
@@ -112,17 +111,17 @@ function TreeItem({
           <SidebarMenuButton
             asChild
             isActive={isActive}
-            className="flex-1"
+            className="flex-1 font-mono text-xs"
           >
             <Link
               to={`/${item.path}`}
               className="flex items-center justify-between"
             >
               <span className="flex items-center gap-2">
-                <Folder className="h-4 w-4" />
-                <span className="truncate font-medium">{item.name}</span>
+                <Folder className="h-3.5 w-3.5 text-muted-foreground/50" />
+                <span className="truncate">{item.name}</span>
               </span>
-              <span className="text-xs text-muted-foreground flex-shrink-0">
+              <span className="text-[10px] text-muted-foreground/40 flex-shrink-0 tabular-nums">
                 {item.children.length}
               </span>
             </Link>
@@ -188,7 +187,6 @@ export function AppSidebar() {
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keyboard events if any fullscreen component is active
       if (isFullscreenActive()) return;
 
       // Toggle sidebar with .
@@ -219,25 +217,30 @@ export function AppSidebar() {
   const sortedChildren = [...folders, ...files];
 
   return (
-    <Sidebar>
-      <SidebarContent>
+    <Sidebar className="border-r border-border/30">
+      <SidebarContent className="bg-sidebar">
         <SidebarGroup>
           <SidebarGroupContent>
             {loading && (
-              <p className="text-muted-foreground text-center py-8 text-sm">Loading...</p>
+              <div className="py-8 text-center">
+                <p className="font-mono text-xs text-muted-foreground/50 tracking-wide">loading...</p>
+              </div>
             )}
             {!loading && sortedChildren.length === 0 && (
-              <p className="text-muted-foreground text-center py-8 text-sm">No content found.</p>
+              <div className="py-8 text-center">
+                <p className="font-mono text-xs text-muted-foreground/50 tracking-wide">no content</p>
+              </div>
             )}
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
                   isActive={currentPath === ""}
+                  className="font-mono text-xs"
                 >
                   <Link to="/" className="flex items-center gap-2">
-                    <Folder className="h-4 w-4" />
-                    <span className="font-medium">root</span>
+                    <Folder className="h-3.5 w-3.5 text-muted-foreground/50" />
+                    <span>root</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

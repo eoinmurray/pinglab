@@ -1,22 +1,24 @@
 import { useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { RuntimeMDX } from "./RuntimeMDX";
-import { Button } from "./ui/button";
 import { FULLSCREEN_DATA_ATTR } from "@/lib/constants";
-import {
-  ChevronLeft,
-  ChevronRight,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useKeyBindings } from "@/hooks/useKeyBindings";
-import { isFullscreenActive } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 export function Slides({ content }: { content: string }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const slides = content
+  // Strip frontmatter if present (starts with --- and ends with ---)
+  let processedContent = content;
+  const frontmatterMatch = content.match(/^---\n[\s\S]*?\n---\n/);
+  if (frontmatterMatch) {
+    processedContent = content.slice(frontmatterMatch[0].length);
+  }
+
+  const slides = processedContent
     .split(/^---$/m)
     .map((slide) => slide.trim())
     .filter((slide) => slide.length > 0);
@@ -40,7 +42,7 @@ export function Slides({ content }: { content: string }) {
   const goToParentDir = useCallback(() => {
     const pathParts = location.pathname.split('/').filter(Boolean);
     if (pathParts.length > 0) {
-      pathParts.pop(); // Remove current file/directory
+      pathParts.pop();
       const parentPath = pathParts.length > 0 ? `/${pathParts.join('/')}` : '/';
       navigate(parentPath);
     } else {
@@ -52,7 +54,7 @@ export function Slides({ content }: { content: string }) {
     setCurrentSlide(totalSlides - 1);
   }, [totalSlides]);
 
-  // Check if slides should handle keyboard (not when another fullscreen like Gallery lightbox is active)
+  // Check if slides should handle keyboard
   const slidesCanHandleKeys = useCallback(() => {
     const fullscreenElements = document.querySelectorAll(`[${FULLSCREEN_DATA_ATTR}="true"]`);
     if (fullscreenElements.length > 1) return false;
@@ -73,66 +75,89 @@ export function Slides({ content }: { content: string }) {
 
   if (totalSlides === 0) {
     return (
-      <div className="flex items-center justify-center p-8 text-muted-foreground">
-        No slides found. Use "---" to separate slides.
+      <div className="flex items-center justify-center p-12 text-muted-foreground font-mono text-sm">
+        no slides found — use "---" to separate slides
       </div>
     );
   }
 
-  // Always render in fullscreen presentation mode
   return (
-      <div className="slides-container bg-background flex flex-col" {...{[FULLSCREEN_DATA_ATTR]: "true"}}>
-        {/* Controls */}
-        <div className="slide-controls flex-shrink-0 flex items-center justify-end gap-4 px-3 py-2">
-          {/* Left controls */}
-          <div />
-
-          {/* Center - slide counter */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium tabular-nums">
-              {currentSlide + 1} / {totalSlides}
-            </span>
-          </div>
-
-          {/* Right controls */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToPreviousSlide}
-              disabled={currentSlide === 0}
-              title="Previous slide (←)"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToNextSlide}
-              disabled={currentSlide === totalSlides - 1}
-              title="Next slide (→)"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToParentDir}
-              title="Go to parent directory (Esc)"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+    <div
+      className="slides-container fixed inset-0 bg-background flex flex-col noise-overlay"
+      {...{[FULLSCREEN_DATA_ATTR]: "true"}}
+    >
+      {/* Minimal top bar */}
+      <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-border/20">
+        {/* Slide counter - left */}
+        <div className="font-mono text-xs text-muted-foreground tracking-widest tabular-nums">
+          <span>{String(currentSlide + 1).padStart(2, '0')}</span>
+          <span className="text-border mx-2">/</span>
+          <span>{String(totalSlides).padStart(2, '0')}</span>
         </div>
 
-        {/* Main slide content */}
-        <div className="slide-content flex-1 min-h-0 overflow-auto p-16">
-          <div className="max-w-[var(--content-width-wide)] mx-auto h-full flex items-center justify-center">
-            <div className="w-full">
+        {/* Navigation controls - right */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={goToPreviousSlide}
+            disabled={currentSlide === 0}
+            className={cn(
+              "p-2 transition-colors duration-200",
+              currentSlide === 0
+                ? "text-muted-foreground/30 cursor-not-allowed"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            title="Previous slide"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={goToNextSlide}
+            disabled={currentSlide === totalSlides - 1}
+            className={cn(
+              "p-2 transition-colors duration-200",
+              currentSlide === totalSlides - 1
+                ? "text-muted-foreground/30 cursor-not-allowed"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            title="Next slide"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <div className="w-px h-4 bg-border/30 mx-2" />
+          <button
+            onClick={goToParentDir}
+            className="p-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
+            title="Exit (Esc)"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main slide content - centered, generous padding */}
+      <div className="flex-1 min-h-0 overflow-auto">
+        <div className="min-h-full flex items-center justify-center p-12 md:p-20">
+          <div className="max-w-4xl w-full animate-fade-in" key={currentSlide}>
+            <article className="prose dark:prose-invert prose-headings:tracking-tight prose-lg md:prose-xl max-w-none">
               <RuntimeMDX content={slides[currentSlide]} />
-            </div>
+            </article>
           </div>
         </div>
       </div>
+
+      {/* Progress bar - bottom */}
+      <div className="flex-shrink-0 h-0.5 bg-border/20">
+        <div
+          className="h-full bg-primary/50 transition-all duration-300 ease-out-expo"
+          style={{ width: `${((currentSlide + 1) / totalSlides) * 100}%` }}
+        />
+      </div>
+
+      {/* Keyboard hints - hidden on mobile */}
+      <div className="absolute bottom-4 right-6 hidden md:flex items-center gap-4 text-muted-foreground/30 font-mono text-[10px] tracking-wider">
+        <span>← → navigate</span>
+        <span>ESC exit</span>
+      </div>
+    </div>
   );
 }

@@ -3,8 +3,9 @@ import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { isFullscreenActive } from "@/lib/constants";
 import { DirectoryEntry } from "../../plugins/cathedral-plugin/src/lib";
-import { findReadme } from "../../plugins/cathedral-plugin/src/client";
+import { findReadme, findSlides } from "../../plugins/cathedral-plugin/src/client";
 import { formatDate } from "@/lib/format-date";
+import { ArrowRight, Presentation } from "lucide-react";
 
 export default function PostList({ directory }: { directory: DirectoryEntry }) {
   const folders = directory.children.filter((c): c is DirectoryEntry => c.type === "directory");
@@ -34,7 +35,6 @@ export default function PostList({ directory }: { directory: DirectoryEntry }) {
     if (folders.length === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keyboard events if any fullscreen component is active
       if (isFullscreenActive()) return;
 
       switch (e.key) {
@@ -60,7 +60,6 @@ export default function PostList({ directory }: { directory: DirectoryEntry }) {
 
         case "ArrowLeft":
           e.preventDefault();
-          // Navigate to parent directory
           if (currentPath) {
             const pathParts = currentPath.split("/");
             pathParts.pop();
@@ -82,67 +81,74 @@ export default function PostList({ directory }: { directory: DirectoryEntry }) {
 
   if (folders.length === 0) {
     return (
-      <div className="py-16 text-center">
-        <p className="text-muted-foreground text-sm">No posts yet.</p>
+      <div className="py-24 text-center">
+        <p className="text-muted-foreground font-mono text-sm tracking-wide">no entries</p>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-1">
       {folders.map((folder, index) => {
         const readme = findReadme(folder);
-        const frontmatter = readme?.frontmatter;
+        const slides = findSlides(folder);
+
+        let frontmatter = readme?.frontmatter;
+
+        if (!readme && slides) {
+          frontmatter = slides.frontmatter;
+        }
+
         const title = (frontmatter?.title as string) || folder.name;
         const description = frontmatter?.description as string | undefined;
         const date = frontmatter?.date ? new Date(frontmatter.date as string) : null;
         const isSelected = selectedIndex === index;
+        const isSlidesOnly = slides && !readme;
 
         return (
           <Link
             key={folder.path}
-            to={`/${folder.path}`}
+            to={(slides && !readme)? `/${slides.path}` : `/${folder.path}`}
             ref={(el) => (itemRefs.current[index] = el)}
             className={cn(
-              "group block py-4",
-              "transition-all duration-200",
-              isSelected && "bg-accent -mx-[var(--page-padding)] px-[var(--page-padding)] rounded-lg"
+              "group block py-3 px-3 -mx-3 rounded-md",
+              "transition-colors duration-150",
+              "hover:bg-accent",
+              isSelected && "bg-accent ring-1 ring-ring"
             )}
-            style={{
-              animationDelay: `${index * 50}ms`,
-            }}
           >
-            <article className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+            <article className="flex items-start gap-4">
+              {/* Date - left side, fixed width */}
+              <time
+                dateTime={date?.toISOString()}
+                className="font-mono text-xs text-muted-foreground tabular-nums w-20 flex-shrink-0 pt-0.5"
+              >
+                {date ? formatDate(date) : <span className="text-muted-foreground/30">—</span>}
+              </time>
+
               {/* Main content */}
-              <div className="flex-1 min-w-0 space-y-1.5">
+              <div className="flex-1 min-w-0">
                 <h3 className={cn(
-                  "font-medium text-foreground",
+                  "text-sm font-medium text-foreground",
                   "group-hover:text-primary transition-colors duration-200",
                   "flex items-center gap-2"
                 )}>
-                  <span className="truncate">{title}</span>
+                  {isSlidesOnly && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-mono uppercase tracking-wider">
+                      <Presentation className="h-2.5 w-2.5" />
+                      slides
+                    </span>
+                  )}
+                  <span>{title}</span>
+                  <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 text-primary" />
                 </h3>
 
                 {description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                  <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">
                     {description}
                   </p>
                 )}
               </div>
-
-              {/* Date - right aligned on desktop */}
-              {date && (
-                <time
-                  dateTime={date.toISOString()}
-                  className={cn(
-                    "text-xs font-mono text-muted-foreground tabular-nums",
-                    "sm:text-right flex-shrink-0",
-                    "mt-1 sm:mt-0.5"
-                  )}
-                >
-                  {formatDate(date)}
-                </time>
-              )}
             </article>
           </Link>
         );

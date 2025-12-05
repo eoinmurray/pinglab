@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, ImgHTMLAttributes } from "react";
-import { X, ChevronLeft, ChevronRight, Image, ZoomIn } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Image, Expand } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FULLSCREEN_DATA_ATTR } from "@/lib/constants";
 import { useTheme } from "next-themes";
@@ -20,18 +20,18 @@ function LoadingImage({
 
   return (
     <div className={cn("relative", wrapperClassName)}>
-      {/* Loading skeleton */}
+      {/* Loading skeleton - subtle pulse */}
       {isLoading && !hasError && (
-        <div className="absolute inset-0 bg-muted/50 animate-pulse flex items-center justify-center">
-          <Image className="h-6 w-6 text-muted-foreground/30" />
+        <div className="absolute inset-0 bg-muted/30 animate-pulse flex items-center justify-center">
+          <div className="w-8 h-8 border border-border/50 rounded-sm" />
         </div>
       )}
       {/* Error state */}
       {hasError && (
-        <div className="absolute inset-0 bg-muted/30 flex items-center justify-center">
+        <div className="absolute inset-0 bg-muted/20 flex items-center justify-center">
           <div className="text-center">
-            <Image className="h-6 w-6 text-muted-foreground/50 mx-auto" />
-            <span className="text-xs text-muted-foreground/50 mt-1 block">Failed</span>
+            <Image className="h-5 w-5 text-muted-foreground/40 mx-auto" />
+            <span className="text-xs text-muted-foreground/40 mt-1.5 block font-mono">failed</span>
           </div>
         </div>
       )}
@@ -39,6 +39,7 @@ function LoadingImage({
         {...props}
         className={cn(
           className,
+          "transition-opacity duration-500 ease-out-expo",
           isLoading && "opacity-0",
           hasError && "opacity-0"
         )}
@@ -92,7 +93,6 @@ function filterPathsByTheme(paths: string[], theme: string | undefined): string[
 
 function getImageLabel(path: string): string {
   const filename = path.split('/').pop() || path;
-  // Remove extension and clean up
   return filename
     .replace(/\.(png|jpg|jpeg|gif|svg|webp)$/i, '')
     .replace(/[_-]/g, ' ')
@@ -162,15 +162,15 @@ export default function Gallery({
     filteredPaths = filteredPaths.slice(0, limit);
   }
 
-  // Dynamic grid based on image count - uses CSS variable for consistency
-  const gridClass = useMemo(() => {
+  // Museum-style grid: generous spacing, square aspect ratio for plots
+  const gridConfig = useMemo(() => {
     const count = filteredPaths.length;
-    if (count === 1) return "grid-cols-1 max-w-[20rem]";
-    if (count === 2) return "grid-cols-2 max-w-[var(--content-width)]";
-    if (count === 3) return "grid-cols-3 max-w-[var(--content-width)]";
-    if (count === 4) return "grid-cols-2 md:grid-cols-4 max-w-[var(--content-width)]";
-    if (count <= 6) return "grid-cols-3 md:grid-cols-6 max-w-[var(--content-width-wide)]";
-    return "grid-cols-4 md:grid-cols-5 lg:grid-cols-6 max-w-[var(--content-width-wide)]";
+    if (count === 1) return { cols: "grid-cols-1", maxWidth: "max-w-md", gap: "gap-0" };
+    if (count === 2) return { cols: "grid-cols-2", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-6 md:gap-8" };
+    if (count === 3) return { cols: "grid-cols-2 md:grid-cols-3", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-5 md:gap-6" };
+    if (count === 4) return { cols: "grid-cols-2", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-5 md:gap-6" };
+    if (count <= 6) return { cols: "grid-cols-2 md:grid-cols-3", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-4 md:gap-5" };
+    return { cols: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-4" };
   }, [filteredPaths.length]);
 
   const goToPrevious = useCallback(() => {
@@ -194,16 +194,17 @@ export default function Gallery({
     { enabled: () => selectedIndex !== null }
   );
 
-  // Loading state
+  // Loading state - minimal skeleton
   if (!directory) {
     return (
-      <div className="not-prose border border-border rounded-lg overflow-hidden">
-        <div className="px-4 py-2.5 bg-muted/30 border-b border-border">
-          <div className="h-4 w-48 bg-muted animate-pulse rounded" />
-        </div>
-        <div className="p-4 grid grid-cols-4 gap-3">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="aspect-square bg-muted/50 animate-pulse rounded-md" />
+      <div className="not-prose py-12">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-[var(--gallery-width)] mx-auto">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="aspect-[4/3] bg-muted/30 animate-pulse"
+              style={{ animationDelay: `${i * 100}ms` }}
+            />
           ))}
         </div>
       </div>
@@ -213,13 +214,10 @@ export default function Gallery({
   // Empty state
   if (filteredPaths.length === 0) {
     return (
-      <div className="not-prose border border-border rounded-lg overflow-hidden">
-        <div className="px-4 py-2.5 bg-muted/30 border-b border-border flex items-center gap-2">
-          <Image className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="font-mono text-xs text-muted-foreground">{path}</span>
-        </div>
-        <div className="p-8 text-center">
-          <p className="text-sm text-muted-foreground">No images found</p>
+      <div className="not-prose py-16 text-center">
+        <div className="inline-flex items-center gap-3 text-muted-foreground/60">
+          <Image className="h-4 w-4" />
+          <span className="font-mono text-sm tracking-wide">no images found</span>
         </div>
       </div>
     );
@@ -227,36 +225,44 @@ export default function Gallery({
 
   return (
     <>
-      <div className="not-prose rounded-lg overflow-hidden">
+      {/* Gallery Container - breaks out of content width for full impact */}
+      <div className="not-prose relative -mx-[var(--page-padding)] md:-mx-[calc((var(--gallery-width)-var(--content-width))/2+var(--page-padding))] px-[var(--page-padding)] py-8 md:py-12">
+        {/* Subtle background for gallery section */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/20 to-transparent pointer-events-none" />
+
         {/* Grid */}
         <div
           className={cn(
-            "py-2 mx-auto",
-            !single && "grid gap-3",
-            !single && gridClass,
+            "relative mx-auto stagger-children",
+            !single && "grid",
+            !single && gridConfig.cols,
+            !single && gridConfig.maxWidth,
+            !single && gridConfig.gap,
           )}
         >
           {single && filteredPaths.length > 0 && (
             <figure
-              className="group relative w-full max-w-[20rem] cursor-pointer mx-auto"
+              className="group relative max-w-2xl mx-auto cursor-pointer"
               onClick={() => setSelectedIndex(0)}
             >
-              <div className="relative overflow-hidden rounded-md border border-border bg-muted/20">
+              <div className="relative overflow-hidden bg-card shadow-sm hover:shadow-lg transition-shadow duration-500 ease-out-expo">
                 <LoadingImage
                   src={`${cathedralPluginConfig.contentPrefix}/${filteredPaths[0]}`}
                   alt={getImageLabel(filteredPaths[0])}
-                  className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+                  className="w-full h-auto object-contain"
                   wrapperClassName="w-full"
                 />
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none">
-                  <div className="bg-background/90 backdrop-blur-sm rounded-full p-2 shadow-sm">
-                    <ZoomIn className="h-4 w-4 text-primary" />
+                {/* Hover overlay - minimal */}
+                <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors duration-300 flex items-center justify-center pointer-events-none">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-background/90 backdrop-blur-sm px-3 py-1.5 shadow-sm">
+                    <Expand className="h-3.5 w-3.5 text-foreground" />
                   </div>
                 </div>
               </div>
-              <figcaption className="mt-2 text-xs text-muted-foreground font-mono">
-                {getImageLabel(filteredPaths[0])}
+              <figcaption className="mt-4 text-center">
+                <span className="font-mono text-xs text-muted-foreground tracking-wide">
+                  {getImageLabel(filteredPaths[0])}
+                </span>
               </figcaption>
             </figure>
           )}
@@ -267,18 +273,28 @@ export default function Gallery({
               className="group relative cursor-pointer"
               onClick={() => setSelectedIndex(index)}
             >
-              <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-muted/20 transition-all duration-200 group-hover:border-primary/30 group-hover:shadow-md">
+              <div className="relative aspect-square overflow-hidden bg-card shadow-sm hover:shadow-md transition-all duration-500 ease-out-expo">
                 <LoadingImage
                   src={`${cathedralPluginConfig.contentPrefix}/${imgPath}`}
                   alt={getImageLabel(imgPath)}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="w-full h-full object-contain transition-transform duration-700 ease-out-expo group-hover:scale-[1.02]"
                   wrapperClassName="w-full h-full"
                 />
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
-                {/* Index badge */}
-                <div className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm rounded px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                  {index + 1}
+                {/* Subtle vignette on hover */}
+                <div className="absolute inset-0 bg-gradient-to-t from-foreground/0 via-transparent to-foreground/0 group-hover:from-foreground/10 transition-all duration-500 pointer-events-none" />
+
+                {/* Index - terminal style */}
+                <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <span className="font-mono text-[10px] text-white/90 bg-foreground/60 backdrop-blur-sm px-1.5 py-0.5 tracking-wider">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                </div>
+
+                {/* Expand icon */}
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="bg-background/80 backdrop-blur-sm p-1.5 shadow-sm">
+                    <Expand className="h-3 w-3 text-foreground" />
+                  </div>
                 </div>
               </div>
             </figure>
@@ -287,33 +303,32 @@ export default function Gallery({
 
         {/* Caption */}
         {caption && (
-          <div className="not-prose px-4 py-3">
-            <div className="not-prose mb-0 text-sm text-muted-foreground leading-relaxed">
+          <div className="mt-8 max-w-[var(--prose-width)] mx-auto text-center">
+            <p className="text-sm text-muted-foreground italic">
               {caption}
-            </div>
+            </p>
           </div>
         )}
       </div>
 
-      {/* Fullscreen Lightbox */}
+      {/* Fullscreen Lightbox - cinematic experience */}
       {selectedIndex !== null && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           onClick={close}
           {...{[FULLSCREEN_DATA_ATTR]: "true"}}
         >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-background/98 backdrop-blur-md" />
+          {/* Backdrop - deep, immersive */}
+          <div className="absolute inset-0 bg-background/98 backdrop-blur-xl animate-fade-in-slow" />
 
-          {/* Close button */}
+          {/* Close button - minimal, top-right */}
           <button
             onClick={close}
             className={cn(
-              "absolute top-4 right-4 z-20",
-              "p-2.5 rounded-full",
-              "bg-muted/80 hover:bg-muted border border-border",
-              "text-foreground transition-all duration-200",
-              "hover:scale-105 active:scale-95"
+              "absolute top-6 right-6 z-20",
+              "p-3 transition-all duration-300",
+              "text-muted-foreground hover:text-foreground",
+              "hover:bg-muted/50"
             )}
             aria-label="Close"
           >
@@ -321,72 +336,73 @@ export default function Gallery({
           </button>
 
           {/* Navigation: Previous */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              goToPrevious();
-            }}
-            disabled={selectedIndex === 0}
-            className={cn(
-              "absolute left-4 z-20",
-              "p-2.5 rounded-full",
-              "bg-muted/80 hover:bg-muted border border-border",
-              "text-foreground transition-all duration-200",
-              "hover:scale-105 active:scale-95",
-              "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-            )}
-            aria-label="Previous image"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
+          {selectedIndex > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrevious();
+              }}
+              className={cn(
+                "absolute left-6 z-20",
+                "p-3 transition-all duration-300",
+                "text-muted-foreground hover:text-foreground",
+                "hover:bg-muted/50"
+              )}
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+          )}
 
           {/* Navigation: Next */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              goToNext();
-            }}
-            disabled={selectedIndex === filteredPaths.length - 1}
-            className={cn(
-              "absolute right-4 z-20",
-              "p-2.5 rounded-full",
-              "bg-muted/80 hover:bg-muted border border-border",
-              "text-foreground transition-all duration-200",
-              "hover:scale-105 active:scale-95",
-              "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-            )}
-            aria-label="Next image"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
+          {selectedIndex < filteredPaths.length - 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNext();
+              }}
+              className={cn(
+                "absolute right-6 z-20",
+                "p-3 transition-all duration-300",
+                "text-muted-foreground hover:text-foreground",
+                "hover:bg-muted/50"
+              )}
+              aria-label="Next image"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          )}
 
-          {/* Main image */}
+          {/* Main image - centered, maximum impact */}
           <figure
-            className="relative z-10 max-w-[90vw] max-h-[85vh] flex flex-col items-center"
+            className="relative z-10 max-w-[92vw] max-h-[88vh] flex flex-col items-center animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <LoadingImage
               src={`${cathedralPluginConfig.contentPrefix}/${filteredPaths[selectedIndex]}`}
               alt={getImageLabel(filteredPaths[selectedIndex])}
-              className="max-h-[80vh] max-w-full object-contain rounded-lg shadow-2xl border border-border/50"
-              wrapperClassName="max-h-[80vh] max-w-full flex items-center justify-center min-w-[200px] min-h-[200px]"
+              className="max-h-[82vh] max-w-full object-contain shadow-2xl"
+              wrapperClassName="max-h-[82vh] max-w-full flex items-center justify-center min-w-[200px] min-h-[200px]"
             />
-            <figcaption className="mt-4 text-sm text-muted-foreground font-mono text-center">
-              {getImageLabel(filteredPaths[selectedIndex])}
+            <figcaption className="mt-6 text-center">
+              <span className="font-mono text-sm text-muted-foreground tracking-wide">
+                {getImageLabel(filteredPaths[selectedIndex])}
+              </span>
             </figcaption>
           </figure>
 
-          {/* Counter */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
-            <div className="bg-muted/80 backdrop-blur-sm border border-border rounded-full px-4 py-2 flex items-center gap-2">
-              <span className="font-mono text-sm text-foreground tabular-nums">
-                {selectedIndex + 1}
-              </span>
-              <span className="text-muted-foreground/50">/</span>
-              <span className="font-mono text-sm text-muted-foreground tabular-nums">
-                {filteredPaths.length}
-              </span>
+          {/* Counter - bottom, minimal */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
+            <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground tracking-widest">
+              <span className="tabular-nums">{String(selectedIndex + 1).padStart(2, '0')}</span>
+              <span className="text-border">/</span>
+              <span className="tabular-nums">{String(filteredPaths.length).padStart(2, '0')}</span>
             </div>
+          </div>
+
+          {/* Keyboard hint */}
+          <div className="absolute bottom-6 right-6 z-20 hidden md:flex items-center gap-3 text-muted-foreground/50">
+            <span className="font-mono text-[10px] tracking-wider">ESC to close</span>
           </div>
         </div>
       )}

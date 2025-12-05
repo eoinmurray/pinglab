@@ -10,19 +10,21 @@ export function Layout({ children }: Props) {
   const isRunning = isSimulationRunning();
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background noise-overlay">
+      {/* Simulation status bar - terminal aesthetic */}
       {isRunning && (
-        <div className="sticky top-0 z-50 px-[var(--page-padding)] py-2 bg-red-500 text-white font-mono text-xs text-center">
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-current animate-pulse" />
-            Simulation in progress, the page will auto-refresh when complete.
+        <div className="sticky top-0 z-50 px-[var(--page-padding)] py-2 bg-primary text-primary-foreground font-mono text-xs text-center tracking-wide">
+          <span className="inline-flex items-center gap-3">
+            <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+            <span className="uppercase tracking-widest">simulation running</span>
+            <span className="text-primary-foreground/60">auto-refresh on complete</span>
           </span>
         </div>
       )}
 
       <Header />
 
-      <main className="mx-auto w-full max-w-[var(--content-width)] px-[var(--page-padding)]">
+      <main className="flex-1 mx-auto w-full max-w-[var(--content-width)] px-[var(--page-padding)]">
         {children}
       </main>
 
