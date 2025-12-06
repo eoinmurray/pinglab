@@ -6,14 +6,6 @@ export function Header() {
   return (
     <header className="z-40 print:hidden">
       <div className="mx-auto w-full px-[var(--page-padding)] flex items-center gap-8 py-4">
-        {/* Logo - scholarly monospace */}
-        <nav className="flex items-center gap-1">
-          <span
-            className="rounded-lg px-3 py-1.5 text-xs font-light transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-          >
-            Scroll or use keyboard to navigate.
-          </span>
-        </nav>
         <div className="flex-1" />
 
         {/* Navigation */}

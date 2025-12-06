@@ -226,12 +226,12 @@ function LoadingImage({
   return (
     <div className={cn("relative", wrapperClassName)}>
       {isLoading && !hasError && (
-        <div className="absolute inset-0 bg-muted/30 animate-pulse flex items-center justify-center">
+        <div className="absolute inset-0 bg-muted/30 animate-pulse flex items-center justify-center print:hidden">
           <div className="w-8 h-8 border border-border/50 rounded-sm" />
         </div>
       )}
       {hasError && (
-        <div className="absolute inset-0 bg-muted/20 flex items-center justify-center">
+        <div className="absolute inset-0 bg-muted/20 flex items-center justify-center print:hidden">
           <div className="text-center">
             <Image className="h-5 w-5 text-muted-foreground/40 mx-auto" />
             <span className="text-xs text-muted-foreground/40 mt-1.5 block font-mono">failed</span>
@@ -242,7 +242,7 @@ function LoadingImage({
         {...props}
         className={cn(
           className,
-          "transition-opacity duration-500 ease-out-expo",
+          "transition-opacity duration-500 ease-out-expo print:opacity-100 print:transition-none",
           isLoading && "opacity-0",
           hasError && "opacity-0"
         )}
@@ -354,7 +354,7 @@ export default function Gallery({
 
   return (
     <>
-      <div className="not-prose relative -mx-[var(--page-padding)] md:-mx-[calc((var(--gallery-width)-var(--content-width))/2+var(--page-padding))] px-[var(--page-padding)] py-8 md:py-12">
+      <div className="not-prose relative -mx-[var(--page-padding)] md:-mx-[calc((var(--gallery-width)-var(--content-width))/2+var(--page-padding))] px-[var(--page-padding)] py-8 md:py-12 print:mx-0 print:px-0 print:py-4">
         <div className="absolute inset-0 pointer-events-none" />
 
         <div
@@ -378,7 +378,7 @@ export default function Gallery({
                   className="w-full h-auto object-contain"
                   wrapperClassName="w-full flex items-center justify-center"
                 />
-                <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors duration-300 flex items-center justify-center pointer-events-none">
+                <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors duration-300 flex items-center justify-center pointer-events-none print:hidden">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-background/90 backdrop-blur-sm px-3 py-1.5 shadow-sm">
                     <Expand className="h-3.5 w-3.5 text-foreground" />
                   </div>
@@ -405,15 +405,15 @@ export default function Gallery({
                   className="w-full h-full object-contain transition-transform duration-700 ease-out-expo group-hover:scale-[1.02]"
                   wrapperClassName="w-full h-full"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-foreground/0 via-transparent to-foreground/0 group-hover:from-foreground/10 transition-all duration-500 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-foreground/0 via-transparent to-foreground/0 group-hover:from-foreground/10 transition-all duration-500 pointer-events-none print:hidden" />
 
-                <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 print:hidden">
                   <span className="font-mono text-[10px] text-white/90 bg-foreground/60 backdrop-blur-sm px-1.5 py-0.5 tracking-wider">
                     {String(index + 1).padStart(2, '0')}
                   </span>
                 </div>
 
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 print:hidden">
                   <div className="bg-background/80 backdrop-blur-sm p-1.5 shadow-sm">
                     <Expand className="h-3 w-3 text-foreground" />
                   </div>

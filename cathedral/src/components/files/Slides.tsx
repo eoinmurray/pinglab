@@ -101,8 +101,8 @@ export function Slides({ content }: { content: string }) {
       className="slides-container fixed inset-0 bg-background flex flex-col noise-overlay"
       {...{[FULLSCREEN_DATA_ATTR]: "true"}}
     >
-      {/* Fixed navigation controls - hidden when printing */}
-      {/* <div className="absolute top-4 left-6 z-10 flex items-center gap-1 print:hidden">
+      {/* Navigation controls */}
+      <div className="absolute top-4 right-6 z-10 flex items-center gap-1 print:hidden">
         <button
           onClick={goToPreviousSlide}
           className="p-2 transition-colors duration-200 flex items-center gap-2 text-muted-foreground hover:text-foreground"
@@ -117,16 +117,13 @@ export function Slides({ content }: { content: string }) {
         >
           <ChevronDown className="h-6 w-6" />
         </button>
-      </div> */}
+      </div>
 
       {/* Scrollable slide container */}
-      <div
-        ref={containerRef}
-        className="flex-1 overflow-y-auto"
-      >
+      <div ref={containerRef} className="flex-1 overflow-y-auto">
         {slides.map((slide, index) => (
           <div key={index} className="slide-page">
-            <div className="min-h-screen w-full max-w-xl mx-auto flex items-center justify-center text-lg md:text-2xl print:min-h-0 print:h-full print:py-8">
+            <div className="min-h-screen w-full max-w-xl mx-auto flex items-center justify-center text-lg md:text-2xl print:max-w-none print:[&_img]:max-w-full">
               <RuntimeMDX content={slide} size="2xl" />
             </div>
             {index < slides.length - 1 && (
@@ -136,7 +133,7 @@ export function Slides({ content }: { content: string }) {
         ))}
       </div>
 
-      {/* Keyboard hints - hidden on mobile and when printing */}
+      {/* Keyboard hints */}
       <div className="absolute bottom-4 right-6 hidden md:flex print:hidden items-center gap-4 text-muted-foreground/30 font-mono text-[10px] tracking-wider">
         <span>↑ ↓ navigate</span>
         <span>ESC exit</span>

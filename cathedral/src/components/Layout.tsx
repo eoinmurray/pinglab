@@ -14,7 +14,7 @@ export function Layout({ children }: Props) {
       {/* Simulation status bar - terminal aesthetic */}
       {isRunning && (
         // this should stay red not another color
-        <div className="sticky top-0 z-50 px-[var(--page-padding)] py-2 bg-red-500 text-primary-foreground font-mono text-xs text-center tracking-wide">
+        <div className="sticky top-0 z-50 px-[var(--page-padding)] py-2 bg-red-500 text-primary-foreground font-mono text-xs text-center tracking-wide print:hidden">
           <span className="inline-flex items-center gap-3">
             <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
             <span className="uppercase tracking-widest">simulation running</span>
@@ -25,7 +25,7 @@ export function Layout({ children }: Props) {
 
       <Header />
 
-      <main className="flex-1 mx-auto w-full max-w-[var(--content-width)] px-[var(--page-padding)]">
+      <main className="flex-1 mx-auto w-full max-w-[var(--content-width)] px-[var(--page-padding)] print:max-w-none print:px-0">
         {children}
       </main>
 

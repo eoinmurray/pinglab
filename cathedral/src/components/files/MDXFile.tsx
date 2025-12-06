@@ -7,7 +7,7 @@ import { MDXProviderWrapper } from "./MDXProvider";
 import { Spinner } from "../ui/spinner";
 import { formatDate } from "@/lib/format-date";
 import { Link } from "react-router-dom";
-import { LayoutDashboard, Presentation } from "lucide-react";
+import { Presentation } from "lucide-react";
 
 
 export function MDXFile({ file, directory }: { file: FileEntry; directory?: DirectoryEntry | null }) {

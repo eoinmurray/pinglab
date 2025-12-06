@@ -3,9 +3,9 @@ experiment_1:
   I_E: 1.2  # Fixed input to E neurons
   # g_ei
   linspace:
-    start: 1.45
+    start: 1.2
     stop: 1.5
-    num: 3
+    num: 10
 
 experiment_2:
   g_ei: 1.6  # Fixed E→I synaptic weight

@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom"
 import { useFileContent } from "../../plugins/cathedral-plugin/src/client";
 import { Slides as RenderSlides } from "@/components/files/Slides";
 import Loading from "@/components/Loading";
-import { Layout } from "@/components/Layout";
 
 
 export function Slides() {
@@ -26,9 +25,9 @@ export function Slides() {
   }
   
   return (
-    <Layout>
+    <>
       <title>{`Pinglab ${path}`}</title>
       {content && <RenderSlides content={content} />}
-    </Layout>
+    </>
   )
 }

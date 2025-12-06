@@ -225,39 +225,123 @@
             },
             {
               "type": "file",
+              "name": "raster_g_ei_10_dark.png",
+              "path": "minimal-validation/data/raster_g_ei_10_dark.png",
+              "size": 498907
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_10_light.png",
+              "path": "minimal-validation/data/raster_g_ei_10_light.png",
+              "size": 418305
+            },
+            {
+              "type": "file",
               "name": "raster_g_ei_1_dark.png",
               "path": "minimal-validation/data/raster_g_ei_1_dark.png",
-              "size": 504175
+              "size": 497815
             },
             {
               "type": "file",
               "name": "raster_g_ei_1_light.png",
               "path": "minimal-validation/data/raster_g_ei_1_light.png",
-              "size": 421262
+              "size": 400332
             },
             {
               "type": "file",
               "name": "raster_g_ei_2_dark.png",
               "path": "minimal-validation/data/raster_g_ei_2_dark.png",
-              "size": 503742
+              "size": 493067
             },
             {
               "type": "file",
               "name": "raster_g_ei_2_light.png",
               "path": "minimal-validation/data/raster_g_ei_2_light.png",
-              "size": 419084
+              "size": 398590
             },
             {
               "type": "file",
               "name": "raster_g_ei_3_dark.png",
               "path": "minimal-validation/data/raster_g_ei_3_dark.png",
-              "size": 498907
+              "size": 488490
             },
             {
               "type": "file",
               "name": "raster_g_ei_3_light.png",
               "path": "minimal-validation/data/raster_g_ei_3_light.png",
-              "size": 418305
+              "size": 396843
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_4_dark.png",
+              "path": "minimal-validation/data/raster_g_ei_4_dark.png",
+              "size": 488991
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_4_light.png",
+              "path": "minimal-validation/data/raster_g_ei_4_light.png",
+              "size": 398041
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_5_dark.png",
+              "path": "minimal-validation/data/raster_g_ei_5_dark.png",
+              "size": 489070
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_5_light.png",
+              "path": "minimal-validation/data/raster_g_ei_5_light.png",
+              "size": 399766
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_6_dark.png",
+              "path": "minimal-validation/data/raster_g_ei_6_dark.png",
+              "size": 483421
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_6_light.png",
+              "path": "minimal-validation/data/raster_g_ei_6_light.png",
+              "size": 396415
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_7_dark.png",
+              "path": "minimal-validation/data/raster_g_ei_7_dark.png",
+              "size": 482759
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_7_light.png",
+              "path": "minimal-validation/data/raster_g_ei_7_light.png",
+              "size": 398278
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_8_dark.png",
+              "path": "minimal-validation/data/raster_g_ei_8_dark.png",
+              "size": 480531
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_8_light.png",
+              "path": "minimal-validation/data/raster_g_ei_8_light.png",
+              "size": 398770
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_9_dark.png",
+              "path": "minimal-validation/data/raster_g_ei_9_dark.png",
+              "size": 501646
+            },
+            {
+              "type": "file",
+              "name": "raster_g_ei_9_light.png",
+              "path": "minimal-validation/data/raster_g_ei_9_light.png",
+              "size": 420841
             },
             {
               "type": "file",
