@@ -102,7 +102,7 @@ export function Slides({ content }: { content: string }) {
       {...{[FULLSCREEN_DATA_ATTR]: "true"}}
     >
       {/* Fixed navigation controls - hidden when printing */}
-      <div className="absolute top-4 right-6 z-10 flex items-center gap-1 print:hidden">
+      {/* <div className="absolute top-4 left-6 z-10 flex items-center gap-1 print:hidden">
         <button
           onClick={goToPreviousSlide}
           className="p-2 transition-colors duration-200 flex items-center gap-2 text-muted-foreground hover:text-foreground"
@@ -117,7 +117,7 @@ export function Slides({ content }: { content: string }) {
         >
           <ChevronDown className="h-6 w-6" />
         </button>
-      </div>
+      </div> */}
 
       {/* Scrollable slide container */}
       <div
@@ -126,7 +126,7 @@ export function Slides({ content }: { content: string }) {
       >
         {slides.map((slide, index) => (
           <div key={index} className="slide-page">
-            <div className="min-h-screen w-full flex items-center justify-center text-lg md:text-2xl print:min-h-0 print:h-full print:py-8">
+            <div className="min-h-screen w-full max-w-xl mx-auto flex items-center justify-center text-lg md:text-2xl print:min-h-0 print:h-full print:py-8">
               <RuntimeMDX content={slide} size="2xl" />
             </div>
             {index < slides.length - 1 && (

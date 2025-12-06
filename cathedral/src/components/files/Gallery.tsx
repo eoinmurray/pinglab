@@ -1,8 +1,6 @@
-import { useState, useMemo, useCallback, ImgHTMLAttributes } from "react";
-import { createPortal } from "react-dom";
-import { X, ChevronLeft, ChevronRight, Image, Expand } from "lucide-react";
+import { useState, useMemo, useCallback, ImgHTMLAttributes, ReactNode } from "react";
+import { Image, Expand } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FULLSCREEN_DATA_ATTR } from "@/lib/constants";
 import { useTheme } from "next-themes";
 import { useDirectory } from "../../../plugins/cathedral-plugin/src/client";
 import { FileEntry } from "../../../plugins/cathedral-plugin/src/lib";
@@ -10,52 +8,54 @@ import { cathedralPluginConfig } from "../../../cathedral-plugin.config";
 import { minimatch } from "minimatch";
 import { useParams } from "react-router-dom";
 import { useKeyBindings } from "@/hooks/useKeyBindings";
+import { Lightbox, LightboxImage } from "@/components/Lightbox";
+import katex from "katex";
 
-function LoadingImage({
-  className,
-  wrapperClassName,
-  ...props
-}: ImgHTMLAttributes<HTMLImageElement> & { wrapperClassName?: string }) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+// --- Utility functions ---
 
-  return (
-    <div className={cn("relative", wrapperClassName)}>
-      {/* Loading skeleton - subtle pulse */}
-      {isLoading && !hasError && (
-        <div className="absolute inset-0 bg-muted/30 animate-pulse flex items-center justify-center">
-          <div className="w-8 h-8 border border-border/50 rounded-sm" />
-        </div>
-      )}
-      {/* Error state */}
-      {hasError && (
-        <div className="absolute inset-0 bg-muted/20 flex items-center justify-center">
-          <div className="text-center">
-            <Image className="h-5 w-5 text-muted-foreground/40 mx-auto" />
-            <span className="text-xs text-muted-foreground/40 mt-1.5 block font-mono">failed</span>
-          </div>
-        </div>
-      )}
-      <img
-        {...props}
-        className={cn(
-          className,
-          "transition-opacity duration-500 ease-out-expo",
-          isLoading && "opacity-0",
-          hasError && "opacity-0"
-        )}
-        onLoad={(e) => {
-          setIsLoading(false);
-          props.onLoad?.(e);
-        }}
-        onError={(e) => {
-          setIsLoading(false);
-          setHasError(true);
-          props.onError?.(e);
-        }}
-      />
-    </div>
-  );
+function renderMathInText(text: string): ReactNode {
+  // Match $...$ for inline math and $$...$$ for display math
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  // Match display math ($$...$$) first, then inline math ($...$)
+  const regex = /\$\$([^$]+)\$\$|\$([^$]+)\$/g;
+  let match;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Add text before this match
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    const isDisplay = match[1] !== undefined;
+    const mathContent = match[1] || match[2];
+
+    try {
+      const html = katex.renderToString(mathContent, {
+        displayMode: isDisplay,
+        throwOnError: false,
+      });
+      parts.push(
+        <span
+          key={key++}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      );
+    } catch {
+      // If KaTeX fails, just show the original text
+      parts.push(match[0]);
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length === 1 && typeof parts[0] === 'string' ? parts[0] : <>{parts}</>;
 }
 
 function filterPathsByTheme(paths: string[], theme: string | undefined): string[] {
@@ -101,90 +101,98 @@ function getImageLabel(path: string): string {
     .trim();
 }
 
-export default function Gallery({
-  path,
-  relativePath,
-  caption,
-  globs = null,
-  single = false,
-  limit,
-}: {
-  path?: string,
-  relativePath?: string,
-  caption?: string,
-  globs?: string[] | null,
-  single?: boolean,
-  limit?: number,
-}) {
-  const { "*": paramPath = "." } = useParams();
-
-  if (relativePath) {
-    const basePath = paramPath === "." ? "" : paramPath;
-    path = basePath + (basePath.endsWith("/") ? "" : "/") + relativePath;
-  }
-
-  const { directory } = useDirectory(path);
-
-  const imageChildren = directory?.children
-    .filter((child): child is FileEntry => {
-      return !!child.name.match(/\.(png|jpeg|gif|svg|webp)$/i) && child.type === "file";
-    });
-
-  const paths = imageChildren?.map(child => child.path) || [];
-
-  if (globs && globs.length > 0) {
-    const matchedPaths = paths.filter(path => {
-      return globs.some(glob => minimatch(path.split('/').pop() || '', glob));
-    });
-    paths.splice(0, paths.length, ...matchedPaths);
-  }
-
+function sortPathsNumerically(paths: string[]): void {
   paths.sort((a, b) => {
-    const nums = (s: string) =>
-      (s.match(/\d+/g) || []).map(Number);
-
+    const nums = (s: string) => (s.match(/\d+/g) || []).map(Number);
     const na = nums(a);
     const nb = nums(b);
-
     const len = Math.max(na.length, nb.length);
     for (let i = 0; i < len; i++) {
       const diff = (na[i] ?? 0) - (nb[i] ?? 0);
       if (diff !== 0) return diff;
     }
-
     return a.localeCompare(b);
   });
+}
 
+function getImageUrl(path: string): string {
+  return `${cathedralPluginConfig.contentPrefix}/${path}`;
+}
+
+// --- Hooks ---
+
+function useGalleryImages({
+  path,
+  relativePath,
+  globs = null,
+  limit,
+}: {
+  path?: string;
+  relativePath?: string;
+  globs?: string[] | null;
+  limit?: number;
+}) {
+  const { "*": paramPath = "." } = useParams();
   const { resolvedTheme } = useTheme();
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  let filteredPaths = useMemo(() => filterPathsByTheme(paths, resolvedTheme), [paths, resolvedTheme]);
 
-  if (limit) {
-    filteredPaths = filteredPaths.slice(0, limit);
+  let resolvedPath = path;
+  if (relativePath) {
+    const basePath = paramPath === "." ? "" : paramPath;
+    resolvedPath = basePath + (basePath.endsWith("/") ? "" : "/") + relativePath;
   }
 
-  // Museum-style grid: generous spacing, square aspect ratio for plots
-  const gridConfig = useMemo(() => {
-    const count = filteredPaths.length;
-    if (count === 1) return { cols: "grid-cols-1", maxWidth: "max-w-md", gap: "gap-0" };
-    if (count === 2) return { cols: "grid-cols-2", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-6 md:gap-8" };
-    if (count === 3) return { cols: "grid-cols-2 md:grid-cols-3", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-5 md:gap-6" };
-    if (count === 4) return { cols: "grid-cols-2", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-5 md:gap-6" };
-    if (count <= 6) return { cols: "grid-cols-2 md:grid-cols-3", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-4 md:gap-5" };
-    return { cols: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-4" };
-  }, [filteredPaths.length]);
+  const { directory } = useDirectory(resolvedPath);
+
+  const paths = useMemo(() => {
+    if (!directory) return [];
+
+    const imageChildren = directory.children.filter((child): child is FileEntry => {
+      return !!child.name.match(/\.(png|jpeg|gif|svg|webp)$/i) && child.type === "file";
+    });
+
+    let imagePaths = imageChildren.map(child => child.path);
+
+    if (globs && globs.length > 0) {
+      imagePaths = imagePaths.filter(p => {
+        return globs.some(glob => minimatch(p.split('/').pop() || '', glob));
+      });
+    }
+
+    sortPathsNumerically(imagePaths);
+    let filtered = filterPathsByTheme(imagePaths, resolvedTheme);
+
+    if (limit) {
+      filtered = filtered.slice(0, limit);
+    }
+
+    return filtered;
+  }, [directory, globs, resolvedTheme, limit]);
+
+  return {
+    paths,
+    isLoading: !directory,
+    isEmpty: directory !== undefined && paths.length === 0,
+  };
+}
+
+function useLightbox(totalImages: number) {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  const open = useCallback((index: number) => {
+    setSelectedIndex(index);
+  }, []);
+
+  const close = useCallback(() => {
+    setSelectedIndex(null);
+  }, []);
 
   const goToPrevious = useCallback(() => {
     setSelectedIndex(prev => prev !== null && prev > 0 ? prev - 1 : prev);
   }, []);
 
   const goToNext = useCallback(() => {
-    setSelectedIndex(prev => prev !== null && prev < filteredPaths.length - 1 ? prev + 1 : prev);
-  }, [filteredPaths.length]);
-
-  const close = useCallback(() => {
-    setSelectedIndex(null);
-  }, []);
+    setSelectedIndex(prev => prev !== null && prev < totalImages - 1 ? prev + 1 : prev);
+  }, [totalImages]);
 
   useKeyBindings(
     [
@@ -195,8 +203,129 @@ export default function Gallery({
     { enabled: () => selectedIndex !== null }
   );
 
-  // Loading state - minimal skeleton
-  if (!directory) {
+  return {
+    selectedIndex,
+    open,
+    close,
+    goToPrevious,
+    goToNext,
+    isOpen: selectedIndex !== null,
+  };
+}
+
+// --- Components ---
+
+function LoadingImage({
+  className,
+  wrapperClassName,
+  ...props
+}: ImgHTMLAttributes<HTMLImageElement> & { wrapperClassName?: string }) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div className={cn("relative", wrapperClassName)}>
+      {isLoading && !hasError && (
+        <div className="absolute inset-0 bg-muted/30 animate-pulse flex items-center justify-center">
+          <div className="w-8 h-8 border border-border/50 rounded-sm" />
+        </div>
+      )}
+      {hasError && (
+        <div className="absolute inset-0 bg-muted/20 flex items-center justify-center">
+          <div className="text-center">
+            <Image className="h-5 w-5 text-muted-foreground/40 mx-auto" />
+            <span className="text-xs text-muted-foreground/40 mt-1.5 block font-mono">failed</span>
+          </div>
+        </div>
+      )}
+      <img
+        {...props}
+        className={cn(
+          className,
+          "transition-opacity duration-500 ease-out-expo",
+          isLoading && "opacity-0",
+          hasError && "opacity-0"
+        )}
+        onLoad={(e) => {
+          setIsLoading(false);
+          props.onLoad?.(e);
+        }}
+        onError={(e) => {
+          setIsLoading(false);
+          setHasError(true);
+          props.onError?.(e);
+        }}
+      />
+    </div>
+  );
+}
+
+function FigureTitle({ title }: { title?: string }) {
+  if (!title) return null;
+
+  return (
+    <div className="mx-auto mt-6">
+      <h3 className="text-sm md:text-base font-medium tracking-tight text-foreground text-left">
+        {renderMathInText(title)}
+      </h3>
+    </div>
+  );
+}
+
+function FigureCaption({ caption }: { caption?: string }) {
+  if (!caption) return null;
+
+  return (
+    <div className="mx-auto mx-w-md mt-2">
+      <p className="text-sm text-muted-foreground leading-relaxed text-left">
+        {renderMathInText(caption)}
+      </p>
+    </div>
+  );
+}
+
+export default function Gallery({
+  path,
+  relativePath,
+  caption,
+  title,
+  globs = null,
+  single = false,
+  limit,
+}: {
+  path?: string;
+  relativePath?: string;
+  caption?: string;
+  title?: string;
+  globs?: string[] | null;
+  single?: boolean;
+  limit?: number;
+}) {
+  const { paths, isLoading, isEmpty } = useGalleryImages({
+    path,
+    relativePath,
+    globs,
+    limit,
+  });
+
+  const lightbox = useLightbox(paths.length);
+
+  const images: LightboxImage[] = useMemo(() =>
+    paths.map(p => ({ src: getImageUrl(p), label: getImageLabel(p) })),
+    [paths]
+  );
+
+  const gridConfig = useMemo(() => {
+    const count = paths.length;
+    if (count === 1) return { cols: "grid-cols-1", maxWidth: "max-w-md", gap: "gap-0" };
+    if (count === 2) return { cols: "grid-cols-2", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-6 md:gap-8" };
+    if (count === 3) return { cols: "grid-cols-2 md:grid-cols-3", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-5 md:gap-6" };
+    if (count === 4) return { cols: "grid-cols-2", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-5 md:gap-6" };
+    if (count <= 6) return { cols: "grid-cols-2 md:grid-cols-3", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-4 md:gap-5" };
+    return { cols: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-4" };
+  }, [paths.length]);
+
+  if (isLoading) {
     return (
       <div className="not-prose py-12">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-[var(--gallery-width)] mx-auto">
@@ -212,13 +341,12 @@ export default function Gallery({
     );
   }
 
-  // Empty state
-  if (filteredPaths.length === 0) {
+  if (isEmpty) {
     return (
       <div className="not-prose py-16 text-center">
         <div className="inline-flex items-center gap-3 text-muted-foreground/60">
           <Image className="h-4 w-4" />
-          <span className="font-mono text-sm tracking-wide">no images found</span>
+          <span className="font-mono text-sm tracking-wide">no image(s) found</span>
         </div>
       </div>
     );
@@ -226,12 +354,9 @@ export default function Gallery({
 
   return (
     <>
-      {/* Gallery Container */}
       <div className="not-prose relative -mx-[var(--page-padding)] md:-mx-[calc((var(--gallery-width)-var(--content-width))/2+var(--page-padding))] px-[var(--page-padding)] py-8 md:py-12">
-        {/* Subtle background for gallery section */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/20 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 pointer-events-none" />
 
-        {/* Grid */}
         <div
           className={cn(
             "relative mx-auto stagger-children",
@@ -241,19 +366,18 @@ export default function Gallery({
             !single && gridConfig.gap,
           )}
         >
-          {single && filteredPaths.length > 0 && (
+          {single && images.length > 0 && (
             <figure
-              className="group relative mx-auto cursor-pointer max-w-xl"
-              onClick={() => setSelectedIndex(0)}
+              className="group relative mx-auto cursor-pointer max-w-md"
+              onClick={() => lightbox.open(0)}
             >
               <div className="relative overflow-hidden bg-card duration-500 ease-out-expo">
                 <LoadingImage
-                  src={`${cathedralPluginConfig.contentPrefix}/${filteredPaths[0]}`}
-                  alt={getImageLabel(filteredPaths[0])}
+                  src={images[0].src}
+                  alt={images[0].label}
                   className="w-full h-auto object-contain"
                   wrapperClassName="w-full flex items-center justify-center"
                 />
-                {/* Hover overlay - minimal */}
                 <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors duration-300 flex items-center justify-center pointer-events-none">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-background/90 backdrop-blur-sm px-3 py-1.5 shadow-sm">
                     <Expand className="h-3.5 w-3.5 text-foreground" />
@@ -262,36 +386,33 @@ export default function Gallery({
               </div>
               <figcaption className="mt-4 text-center">
                 <span className="font-mono text-xs text-muted-foreground tracking-wide">
-                  {getImageLabel(filteredPaths[0])}
+                  {images[0].label}
                 </span>
               </figcaption>
             </figure>
           )}
 
-          {!single && filteredPaths.map((imgPath, index) => (
+          {!single && images.map((img, index) => (
             <figure
-              key={imgPath}
+              key={paths[index]}
               className="group relative cursor-pointer"
-              onClick={() => setSelectedIndex(index)}
+              onClick={() => lightbox.open(index)}
             >
               <div className="relative aspect-square overflow-hidden bg-card transition-all duration-500 ease-out-expo">
                 <LoadingImage
-                  src={`${cathedralPluginConfig.contentPrefix}/${imgPath}`}
-                  alt={getImageLabel(imgPath)}
+                  src={img.src}
+                  alt={img.label}
                   className="w-full h-full object-contain transition-transform duration-700 ease-out-expo group-hover:scale-[1.02]"
                   wrapperClassName="w-full h-full"
                 />
-                {/* Subtle vignette on hover */}
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/0 via-transparent to-foreground/0 group-hover:from-foreground/10 transition-all duration-500 pointer-events-none" />
 
-                {/* Index - terminal style */}
                 <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <span className="font-mono text-[10px] text-white/90 bg-foreground/60 backdrop-blur-sm px-1.5 py-0.5 tracking-wider">
                     {String(index + 1).padStart(2, '0')}
                   </span>
                 </div>
 
-                {/* Expand icon */}
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <div className="bg-background/80 backdrop-blur-sm p-1.5 shadow-sm">
                     <Expand className="h-3 w-3 text-foreground" />
@@ -302,89 +423,18 @@ export default function Gallery({
           ))}
         </div>
 
-        {/* Caption */}
-        {caption && (
-          <div className="mt-8 max-w-[var(--prose-width)] mx-auto text-center">
-            <p className="text-sm text-muted-foreground italic">
-              {caption}
-            </p>
-          </div>
-        )}
+        <FigureTitle title={title} />
+        <FigureCaption caption={caption} />
       </div>
 
-      {/* Fullscreen Lightbox */}
-      {selectedIndex !== null && createPortal(
-        <div
-          className="fixed inset-0 z-[9999] bg-background"
-          onClick={close}
-          {...{[FULLSCREEN_DATA_ATTR]: "true"}}
-          style={{ top: 0, left: 0, right: 0, bottom: 0 }}
-        >
-          {/* Top bar */}
-          <div className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-sm">
-            {/* Counter */}
-            <div className="font-mono text-xs text-muted-foreground tabular-nums">
-              {String(selectedIndex + 1).padStart(2, '0')} / {String(filteredPaths.length).padStart(2, '0')}
-            </div>
-
-            {/* Close button */}
-            <button
-              onClick={close}
-              className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Navigation: Previous */}
-          {selectedIndex > 0 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                goToPrevious();
-              }}
-              className="fixed left-4 top-1/2 -translate-y-1/2 z-10 p-2 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Previous image"
-            >
-              <ChevronLeft className="h-8 w-8" />
-            </button>
-          )}
-
-          {/* Navigation: Next */}
-          {selectedIndex < filteredPaths.length - 1 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                goToNext();
-              }}
-              className="fixed right-4 top-1/2 -translate-y-1/2 z-10 p-2 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Next image"
-            >
-              <ChevronRight className="h-8 w-8" />
-            </button>
-          )}
-
-          {/* Main image - centered */}
-          <div
-            className="fixed inset-0 flex items-center justify-center p-16"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={`${cathedralPluginConfig.contentPrefix}/${filteredPaths[selectedIndex]}`}
-              alt={getImageLabel(filteredPaths[selectedIndex])}
-              className="max-w-full max-h-full object-contain"
-            />
-          </div>
-
-          {/* Caption */}
-          <div className="fixed bottom-0 left-0 right-0 z-10 p-4 text-center bg-background/80 backdrop-blur-sm">
-            <span className="font-mono text-xs text-muted-foreground">
-              {getImageLabel(filteredPaths[selectedIndex])}
-            </span>
-          </div>
-        </div>,
-        document.body
+      {lightbox.isOpen && lightbox.selectedIndex !== null && (
+        <Lightbox
+          images={images}
+          selectedIndex={lightbox.selectedIndex}
+          onClose={lightbox.close}
+          onPrevious={lightbox.goToPrevious}
+          onNext={lightbox.goToNext}
+        />
       )}
     </>
   );

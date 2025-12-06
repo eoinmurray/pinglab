@@ -15,6 +15,7 @@ pulse:
   amp: 0.5
   pre_window_ms: 20.0
   post_window_ms: 100.0
+  repeats: 30
   linspace:
     start: 500.0
     stop: 700.0

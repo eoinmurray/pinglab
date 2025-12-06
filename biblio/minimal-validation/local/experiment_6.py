@@ -13,17 +13,21 @@ from local.model import LocalConfig
 
 
 def experiment_6(config: LocalConfig, data_path: Path) -> None:
+
+    if not config.experiment_6.linspace:
+        raise RuntimeError("Experiment 6 is disabled in the configuration.")
+
     cfgs = [
         {
             "config": config,
             "g_ei": config.experiment_6.g_ei,
             "I_E": value,
         }
-        for i, value in enumerate(np.linspace(
+        for value in np.linspace(
             config.experiment_6.linspace.start,
             config.experiment_6.linspace.stop,
             config.experiment_6.linspace.num,
-        ))
+        )
     ]
 
     results = parallel(inner, cfgs, label="Experiment 6")
@@ -35,6 +39,9 @@ def experiment_6(config: LocalConfig, data_path: Path) -> None:
     for i, result in enumerate(results):
         cfg = cfgs[i]
         I_E = cfg["I_E"]
+
+        if not config.plotting:
+            raise RuntimeError("Plotting must be enabled for Experiment 6.")
 
         sliced_spikes = slice_spikes(
             result.spikes,

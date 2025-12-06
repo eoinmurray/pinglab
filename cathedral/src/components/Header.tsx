@@ -4,10 +4,16 @@ import { SiGithub } from "@icons-pack/react-simple-icons";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 print:hidden">
+    <header className="z-40 print:hidden">
       <div className="mx-auto w-full px-[var(--page-padding)] flex items-center gap-8 py-4">
         {/* Logo - scholarly monospace */}
-
+        <nav className="flex items-center gap-1">
+          <span
+            className="rounded-lg px-3 py-1.5 text-xs font-light transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+          >
+            Scroll or use keyboard to navigate.
+          </span>
+        </nav>
         <div className="flex-1" />
 
         {/* Navigation */}
@@ -26,6 +32,18 @@ export function Header() {
           >
             Docs
           </Link>
+
+          <Link
+            to="/biblio/docs/README.mdx"
+            target="_blank"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            aria-label="GitHub"
+          >
+            LLM
+          </Link>
+
+          
+
           <Link
             to="/logs"
             className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"

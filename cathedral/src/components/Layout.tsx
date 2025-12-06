@@ -18,7 +18,7 @@ export function Layout({ children }: Props) {
           <span className="inline-flex items-center gap-3">
             <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
             <span className="uppercase tracking-widest">simulation running</span>
-            <span className="text-primary-foreground/60">auto-refresh on complete</span>
+            <span className="text-primary-foreground/60">Page will auto-refresh on completion</span>
           </span>
         </div>
       )}

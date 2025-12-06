@@ -1,5 +1,4 @@
 import Gallery from '@/components/files/Gallery'
-import SlideGallery from '@/components/files/SlideGallery'
 import { ParameterTable } from '@/components/files/ParameterTable'
 
 function generateId(children: unknown): string {
@@ -14,7 +13,7 @@ function generateId(children: unknown): string {
 export const mdxComponents = {
   ParameterTable,
   Gallery,
-  SlideGallery,
+  SlideGallery: Gallery, // Alias for backwards compatibility
 
   // Headings - clean sans-serif
   h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => {
@@ -117,18 +116,27 @@ export const mdxComponents = {
 
   // Tables
   table: (props: React.TableHTMLAttributes<HTMLTableElement>) => (
-    <div className="my-6 overflow-x-auto border border-border rounded-md">
-      <table className="w-full text-sm" {...props} />
+    <div className="not-prose my-6 overflow-x-auto border border-border rounded-md">
+      <table className="w-full text-sm border-collapse" {...props} />
     </div>
+  ),
+  thead: (props: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <thead className="bg-muted/50" {...props} />
+  ),
+  tbody: (props: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <tbody {...props} />
+  ),
+  tr: (props: React.HTMLAttributes<HTMLTableRowElement>) => (
+    <tr className="border-b border-border last:border-b-0" {...props} />
   ),
   th: (props: React.ThHTMLAttributes<HTMLTableCellElement>) => (
     <th
-      className="border-b border-border bg-muted/50 px-3 py-2 text-left text-xs font-medium text-muted-foreground"
+      className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
       {...props}
     />
   ),
   td: (props: React.TdHTMLAttributes<HTMLTableCellElement>) => (
-    <td className="border-b border-border/50 px-3 py-2" {...props} />
+    <td className="px-4 py-3 align-top" {...props} />
   ),
 
   // Horizontal rule

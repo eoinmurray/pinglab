@@ -1,6 +1,7 @@
 
-from pinglab.types import ExperimentConfig, LinspaceConfig
 from pydantic import BaseModel
+from pinglab.types import ExperimentConfig, LinspaceConfig
+
 
 class PulseConfig(BaseModel):
     linspace: LinspaceConfig
@@ -8,6 +9,8 @@ class PulseConfig(BaseModel):
     post_window_ms: float
     width_ms: float
     amp: float
+    repeats: int
+
 
 class LocalConfig(ExperimentConfig):
     pulse: PulseConfig

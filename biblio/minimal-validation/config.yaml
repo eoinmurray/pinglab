@@ -3,8 +3,8 @@ experiment_1:
   I_E: 1.2  # Fixed input to E neurons
   # g_ei
   linspace:
-    start: 1.3
-    stop: 1.8
+    start: 1.45
+    stop: 1.5
     num: 3
 
 experiment_2:
@@ -47,9 +47,9 @@ experiment_6:
     num: 40
 
 default_inputs:
-  I_I: 0.9       # Input to I neurons (slightly lower)
+  I_I: 0.7       # Input to I neurons (slightly lower)
   I_E: 1.2       # not used in this experiment but typechecker needs it
-  noise: 0.6  # Strong noise (0.5-1.0 range) creates irregularity and breaks synchrony
+  noise: 0.8     # Strong noise (0.5-1.0 range) creates irregularity and breaks synchrony
 
 plotting:
   raster:
@@ -66,16 +66,16 @@ base:
   N_I: 200       # Inhibitory neurons
 
   # Synaptic weights: Balanced E-I for asynchronous regime
-  g_ei: 1.4      # E→I (moderate excitation to interneurons)
-  g_ie: 2.1      # I→E (strong inhibitory feedback to suppress synchrony)
+  g_ei: 1.5      # E→I (moderate excitation to interneurons)
+  g_ie: 1.8      # I→E (strong inhibitory feedback to suppress synchrony)
   g_ee: 0.3      # E→E (weak recurrent excitation)
-  g_ii: 0.3      # I→I (weak recurrent inhibition)
+  g_ii: 0.4      # I→I (weak recurrent inhibition)
 
   # Connection probabilities: Moderately sparse (not too sparse)
-  p_ee: 0.04      # Moderate E→E connections
-  p_ei: 0.12      # Moderate E→I connections
+  p_ee: 0.02      # Moderate E→E connections
+  p_ei: 0.18      # Moderate E→I connections
   p_ie: 0.04      # Moderate I→E connections
-  p_ii: 0.04      # Moderate I→I connections
+  p_ii: 0.06      # Moderate I→I connections
 
   # Synaptic delays
   delay_ei: 0.5  # E→I delay (ms)
@@ -105,7 +105,7 @@ base:
   connectivity_scaling: "one_over_N_src"
 
   # Heterogeneity parameters: Add heterogeneity for more irregularity
-  V_th_heterogeneity_sd: 1.5   # Threshold variability (±1.5 mV)
-  g_L_heterogeneity_sd: 0.15   # Leak conductance variability (15%)
-  C_m_heterogeneity_sd: 0.10    # Capacitance variability (10%)
-  t_ref_heterogeneity_sd: 0.3  # Refractory period variability (±0.3 ms)
+  V_th_heterogeneity_sd: 1.2   # Threshold variability (mV)
+  g_L_heterogeneity_sd: 0.15   # Leak conductance variability (%)
+  C_m_heterogeneity_sd: 0.10    # Capacitance variability (1%)
+  t_ref_heterogeneity_sd: 0.3  # Refractory period variability (± ms)
