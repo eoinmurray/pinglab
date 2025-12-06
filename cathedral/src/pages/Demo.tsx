@@ -1,37 +1,7 @@
-import { useEffect, useRef, useCallback } from 'react';
-
-interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  radius: number;
-  opacity: number;
-}
+import { useEffect, useRef } from 'react';
 
 export default function Demo() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<Particle[]>([]);
-  const animationRef = useRef<number>(0);
-  const mouseRef = useRef({ x: -1000, y: -1000 });
-
-  const initParticles = useCallback((width: number, height: number) => {
-    const particles: Particle[] = [];
-    const count = Math.floor((width * height) / 8000);
-
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        radius: 1 + Math.random() * 1.5,
-        opacity: 0.1 + Math.random() * 0.4,
-      });
-    }
-
-    particlesRef.current = particles;
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -40,158 +10,322 @@ export default function Demo() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    let animationId: number;
+    let time = 0;
+
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
       ctx.scale(dpr, dpr);
-      initParticles(rect.width, rect.height);
     };
 
     resize();
     window.addEventListener('resize', resize);
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      };
+    // Orb configuration
+    const orbs = [
+      { x: 0.2, y: 0.3, radius: 400, color: [124, 58, 237], speed: 0.0003, phase: 0 },
+      { x: 0.8, y: 0.2, radius: 350, color: [236, 72, 153], speed: 0.0004, phase: 2 },
+      { x: 0.5, y: 0.7, radius: 450, color: [6, 182, 212], speed: 0.0002, phase: 4 },
+      { x: 0.3, y: 0.8, radius: 300, color: [249, 115, 22], speed: 0.0005, phase: 1 },
+      { x: 0.7, y: 0.5, radius: 380, color: [34, 197, 94], speed: 0.00035, phase: 3 },
+    ];
+
+    // Flowing particles
+    const particles: Array<{
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      life: number;
+      maxLife: number;
+      size: number;
+    }> = [];
+
+    const spawnParticle = (width: number, height: number) => {
+      particles.push({
+        x: Math.random() * width,
+        y: height + 10,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: -0.5 - Math.random() * 1.5,
+        life: 1,
+        maxLife: 200 + Math.random() * 300,
+        size: 1 + Math.random() * 2,
+      });
     };
-
-    const handleMouseLeave = () => {
-      mouseRef.current = { x: -1000, y: -1000 };
-    };
-
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseleave', handleMouseLeave);
-
-    let running = true;
 
     const animate = () => {
-      if (!running) return;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      time += 16;
 
-      const rect = canvas.getBoundingClientRect();
-      const width = rect.width;
-      const height = rect.height;
-      const particles = particlesRef.current;
-      const mouse = mouseRef.current;
-
-      // Clear
-      ctx.fillStyle = '#0a0a0f';
+      // Dark base
+      ctx.fillStyle = '#030014';
       ctx.fillRect(0, 0, width, height);
 
-      // Update and draw particles
-      for (const p of particles) {
-        p.x += p.vx;
-        p.y += p.vy;
+      // Animated gradient orbs with blur effect
+      ctx.globalCompositeOperation = 'lighter';
 
-        // Wrap around edges
-        if (p.x < 0) p.x = width;
-        if (p.x > width) p.x = 0;
-        if (p.y < 0) p.y = height;
-        if (p.y > height) p.y = 0;
+      for (const orb of orbs) {
+        const wobbleX = Math.sin(time * orb.speed + orb.phase) * 100;
+        const wobbleY = Math.cos(time * orb.speed * 0.7 + orb.phase) * 80;
+        const pulseRadius = orb.radius + Math.sin(time * orb.speed * 2) * 50;
 
-        // Mouse repulsion
-        const dx = p.x - mouse.x;
-        const dy = p.y - mouse.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 100) {
-          const force = (100 - dist) / 100;
-          p.x += (dx / dist) * force * 2;
-          p.y += (dy / dist) * force * 2;
-        }
+        const x = orb.x * width + wobbleX;
+        const y = orb.y * height + wobbleY;
+
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, pulseRadius);
+        gradient.addColorStop(0, `rgba(${orb.color.join(',')}, 0.4)`);
+        gradient.addColorStop(0.4, `rgba(${orb.color.join(',')}, 0.1)`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
       }
 
-      // Draw connections
-      ctx.lineWidth = 0.5;
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const p1 = particles[i];
-          const p2 = particles[j];
-          const dx = p1.x - p2.x;
-          const dy = p1.y - p2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+      // Mesh grid effect
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.lineWidth = 1;
 
-          if (dist < 120) {
-            const opacity = (1 - dist / 120) * 0.15;
-            ctx.strokeStyle = `rgba(99, 102, 241, ${opacity})`;
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-          }
-        }
-      }
-
-      // Draw particles
-      for (const p of particles) {
+      const gridSize = 60;
+      for (let x = 0; x < width; x += gridSize) {
+        const wave = Math.sin(time * 0.001 + x * 0.01) * 5;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(99, 102, 241, ${p.opacity})`;
+        ctx.moveTo(x + wave, 0);
+        ctx.lineTo(x + wave, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += gridSize) {
+        const wave = Math.cos(time * 0.001 + y * 0.01) * 5;
+        ctx.beginPath();
+        ctx.moveTo(0, y + wave);
+        ctx.lineTo(width, y + wave);
+        ctx.stroke();
+      }
+
+      // Spawn and update particles
+      if (Math.random() < 0.3) spawnParticle(width, height);
+
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx + Math.sin(time * 0.002 + p.y * 0.01) * 0.3;
+        p.y += p.vy;
+        p.life -= 1 / p.maxLife;
+
+        if (p.life <= 0 || p.y < -10) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        const alpha = p.life * 0.6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
         ctx.fill();
       }
 
-      // Subtle gradient overlay
-      const gradient = ctx.createRadialGradient(
-        width / 2, height / 2, 0,
-        width / 2, height / 2, Math.max(width, height) * 0.7
+      // Horizontal light streaks
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 3; i++) {
+        const streakY = (height * 0.3) + (i * height * 0.2);
+        const streakPhase = time * 0.0005 + i;
+        const streakX = ((Math.sin(streakPhase) + 1) / 2) * width * 1.5 - width * 0.25;
+
+        const streakGradient = ctx.createLinearGradient(streakX - 200, 0, streakX + 200, 0);
+        streakGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        streakGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.03)');
+        streakGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+        ctx.fillStyle = streakGradient;
+        ctx.fillRect(streakX - 200, streakY - 1, 400, 2);
+      }
+
+      // Aurora wave effect at top
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+
+        for (let x = 0; x <= width; x += 10) {
+          const waveHeight = 100 + i * 30;
+          const y = Math.sin(x * 0.003 + time * 0.001 + i) * waveHeight * 0.5 +
+                    Math.sin(x * 0.007 - time * 0.0015) * waveHeight * 0.3;
+          ctx.lineTo(x, y + 50);
+        }
+
+        ctx.lineTo(width, 0);
+        ctx.closePath();
+
+        const auroraGradient = ctx.createLinearGradient(0, 0, 0, 200);
+        const hue = (i * 40 + time * 0.02) % 360;
+        auroraGradient.addColorStop(0, `hsla(${hue}, 80%, 60%, 0.05)`);
+        auroraGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = auroraGradient;
+        ctx.fill();
+      }
+
+      // Vignette
+      ctx.globalCompositeOperation = 'source-over';
+      const vignette = ctx.createRadialGradient(
+        width / 2, height / 2, height * 0.2,
+        width / 2, height / 2, height
       );
-      gradient.addColorStop(0, 'rgba(99, 102, 241, 0.03)');
-      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = gradient;
+      vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      vignette.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+      ctx.fillStyle = vignette;
       ctx.fillRect(0, 0, width, height);
 
-      animationRef.current = requestAnimationFrame(animate);
+      // Noise texture simulation
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.fillStyle = 'rgba(128, 128, 128, 0.02)';
+      for (let i = 0; i < 50; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        ctx.fillRect(x, y, 2, 2);
+      }
+
+      ctx.globalCompositeOperation = 'source-over';
+
+      animationId = requestAnimationFrame(animate);
     };
 
     animate();
 
     return () => {
-      running = false;
-      cancelAnimationFrame(animationRef.current);
+      cancelAnimationFrame(animationId);
       window.removeEventListener('resize', resize);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [initParticles]);
+  }, []);
 
   return (
-    <div className="relative min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-      {/* Canvas background */}
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full"
-      />
+    <div className="relative min-h-screen overflow-hidden bg-[#030014]">
+      <canvas ref={canvasRef} className="fixed inset-0 w-full h-full" />
 
-      {/* Hero card */}
-      <div className="relative z-10 max-w-2xl mx-auto px-8">
-        <div className="backdrop-blur-xl bg-white/[0.03] border border-white/10 rounded-2xl p-12 shadow-2xl">
-          <div className="text-center">
-            {/* Logo mark */}
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-6 shadow-lg shadow-indigo-500/25">
-              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611l-2.31.393a9.064 9.064 0 01-11.65 0l-2.31-.393c-1.717-.293-2.3-2.379-1.067-3.61L5 14.5" />
+      {/* Content */}
+      <div className="relative z-10">
+        {/* Nav */}
+        <nav className="flex items-center justify-between px-8 py-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500" />
+            <span className="text-white font-semibold text-lg">pinglab</span>
+          </div>
+          <div className="hidden md:flex items-center gap-8 text-sm text-white/60">
+            <a href="#" className="hover:text-white transition-colors">Platform</a>
+            <a href="#" className="hover:text-white transition-colors">Research</a>
+            <a href="#" className="hover:text-white transition-colors">Docs</a>
+            <a href="#" className="hover:text-white transition-colors">Pricing</a>
+          </div>
+          <div className="flex items-center gap-4">
+            <button className="text-sm text-white/60 hover:text-white transition-colors">Sign in</button>
+            <button className="text-sm px-4 py-2 rounded-full bg-white text-black font-medium hover:bg-white/90 transition-colors">
+              Get Started
+            </button>
+          </div>
+        </nav>
+
+        {/* Hero */}
+        <div className="max-w-6xl mx-auto px-8 pt-32 pb-20">
+          {/* Badge */}
+          <div className="flex justify-center mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-sm text-white/70">Series B — $120M raised from Sequoia & a]6z</span>
+            </div>
+          </div>
+
+          {/* Heading */}
+          <h1 className="text-center text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8">
+            <span className="bg-gradient-to-b from-white via-white/90 to-white/50 bg-clip-text text-transparent">
+              The infrastructure for
+            </span>
+            <br />
+            <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
+              biological intelligence
+            </span>
+          </h1>
+
+          {/* Subheading */}
+          <p className="text-center text-lg md:text-xl text-white/50 max-w-2xl mx-auto mb-12 leading-relaxed">
+            Accelerate discovery with our unified platform for computational biology.
+            From protein design to drug discovery — 10x faster, infinitely scalable.
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
+            <button className="group relative px-8 py-4 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-medium text-lg overflow-hidden transition-all hover:shadow-[0_0_40px_rgba(167,139,250,0.4)]">
+              <span className="relative z-10">Start Building Free</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
+            <button className="px-8 py-4 rounded-full border border-white/20 text-white font-medium text-lg hover:bg-white/5 transition-all flex items-center gap-2">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
               </svg>
-            </div>
+              Watch Demo
+            </button>
+          </div>
 
-            <h1 className="text-4xl font-semibold text-white tracking-tight mb-3">
-              pinglab
-            </h1>
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+            {[
+              { value: '50B+', label: 'Proteins analyzed' },
+              { value: '10x', label: 'Faster discovery' },
+              { value: '99.9%', label: 'Uptime SLA' },
+              { value: '300+', label: 'Research teams' },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent mb-2">
+                  {stat.value}
+                </div>
+                <div className="text-sm text-white/40">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-            <p className="text-lg text-white/50 mb-8 max-w-md mx-auto">
-              Research tools for computational biology and machine learning
-            </p>
+        {/* Logos */}
+        <div className="border-t border-white/5 py-12">
+          <p className="text-center text-sm text-white/30 mb-8">Trusted by leading research institutions</p>
+          <div className="flex flex-wrap justify-center items-center gap-12 px-8 opacity-40">
+            {['Stanford', 'MIT', 'Genentech', 'Moderna', 'DeepMind'].map((name) => (
+              <div key={name} className="text-white/60 text-xl font-semibold tracking-tight">
+                {name}
+              </div>
+            ))}
+          </div>
+        </div>
 
-            <div className="flex items-center justify-center gap-4">
-              <button className="px-6 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium rounded-lg transition-colors">
-                Get Started
-              </button>
-              <button className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white/70 text-sm font-medium rounded-lg border border-white/10 transition-colors">
-                Documentation
-              </button>
-            </div>
+        {/* Feature cards */}
+        <div className="max-w-6xl mx-auto px-8 py-24">
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                icon: '⚡',
+                title: 'GPU-Native Compute',
+                description: 'Run molecular simulations on our distributed GPU cluster. Scale from 1 to 10,000 nodes instantly.'
+              },
+              {
+                icon: '🧬',
+                title: 'Foundation Models',
+                description: 'Access state-of-the-art protein language models trained on 200M+ sequences with zero setup.'
+              },
+              {
+                icon: '🔬',
+                title: 'Lab Integration',
+                description: 'Connect your wet lab with our SDK. Automated experiment tracking and reproducibility.'
+              },
+            ].map((feature, i) => (
+              <div
+                key={i}
+                className="group p-8 rounded-2xl bg-gradient-to-b from-white/[0.05] to-transparent border border-white/10 hover:border-white/20 transition-all hover:bg-white/[0.02]"
+              >
+                <div className="text-4xl mb-4">{feature.icon}</div>
+                <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
+                <p className="text-white/50 leading-relaxed">{feature.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
