@@ -1,7 +1,7 @@
 
 import { useParams } from "react-router-dom"
 import { useFileContent } from "../../plugins/cathedral-plugin/src/client";
-import { Slides as RenderSlides } from "@/components/Slides";
+import { Slides as RenderSlides } from "@/components/files/Slides";
 import Loading from "@/components/Loading";
 
 

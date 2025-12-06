@@ -87,28 +87,54 @@ export default function PostList({ directory }: { directory: DirectoryEntry }) {
     );
   }
 
+  let posts = folders.map((folder) => {
+    const readme = findReadme(folder);
+    const slides = findSlides(folder);
+    return {
+      ...folder,
+      readme,
+      slides,
+    }
+  })
+
+  posts = posts.filter((post) => {
+    return post.readme?.frontmatter?.visibility !== "hidden";
+  });
+
+  posts = posts.sort((a, b) => {
+    const aDate = a.readme?.frontmatter?.date ? new Date(a.readme.frontmatter.date as string) : null;
+    const bDate = b.readme?.frontmatter?.date ? new Date(b.readme.frontmatter.date as string) : null;
+
+    if (aDate && bDate) {
+      return bDate.getTime() - aDate.getTime();
+    } else if (aDate) {
+      return -1;
+    } else if (bDate) {
+      return 1;
+    } else {
+      return a.name.localeCompare(b.name);
+    }
+  });
+
   return (
     <div className="space-y-1">
-      {folders.map((folder, index) => {
-        const readme = findReadme(folder);
-        const slides = findSlides(folder);
+      {posts.map((post, index) => {
 
-        let frontmatter = readme?.frontmatter;
+        let frontmatter = post.readme?.frontmatter;
 
-        if (!readme && slides) {
-          frontmatter = slides.frontmatter;
+        if (!post.readme && post.slides) {
+          frontmatter = post.slides.frontmatter;
         }
 
-        const title = (frontmatter?.title as string) || folder.name;
+        const title = (frontmatter?.title as string) || post.name;
         const description = frontmatter?.description as string | undefined;
         const date = frontmatter?.date ? new Date(frontmatter.date as string) : null;
         const isSelected = selectedIndex === index;
-        const isSlidesOnly = slides && !readme;
-
+        const isSlidesOnly = post.slides && !post.readme;
         return (
           <Link
-            key={folder.path}
-            to={(slides && !readme)? `/${slides.path}` : `/${folder.path}`}
+            key={post.path}
+            to={(post.slides && !post.readme)? `/${post.slides.path}` : `/${post.path}`}
             ref={(el) => (itemRefs.current[index] = el)}
             className={cn(
               "group block py-3 px-3 -mx-3 rounded-md",

@@ -19,7 +19,28 @@ export function Header() {
         <div className="flex-1" />
 
         {/* Navigation */}
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-1">
+          <Link
+            to="/"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            aria-label="GitHub"
+          >
+            Posts
+          </Link>
+          <Link
+            to="/docs"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            aria-label="GitHub"
+          >
+            Docs
+          </Link>
+          <Link
+            to="/logs"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            aria-label="GitHub"
+          >
+            Logs
+          </Link>
           <Link
             to="https://github.com/eoinmurray/pinglab"
             target="_blank"

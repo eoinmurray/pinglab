@@ -11,572 +11,39 @@
     },
     {
       "type": "directory",
-      "name": "coupled-population-phase",
-      "path": "coupled-population-phase",
+      "name": "docs",
+      "path": "docs",
       "children": [
         {
           "type": "file",
           "name": "README.mdx",
-          "path": "coupled-population-phase/README.mdx",
-          "size": 1661,
+          "path": "docs/README.mdx",
+          "size": 17374,
           "frontmatter": {
-            "title": "Coupled Populations Phase Dependence",
-            "description": "Relative phase between coupled oscillating populations determines spike propagation effectiveness.",
-            "date": "2025-11-27T00:00:00.000Z"
+            "title": "Pinglab Docs",
+            "visibility": "hidden",
+            "description": "Documentation for the Pinglab python package.",
+            "date": "2025-11-30T00:00:00.000Z"
           }
-        },
+        }
+      ]
+    },
+    {
+      "type": "directory",
+      "name": "logs",
+      "path": "logs",
+      "children": [
         {
           "type": "file",
-          "name": "config.yaml",
-          "path": "coupled-population-phase/config.yaml",
-          "size": 6186
-        },
-        {
-          "type": "directory",
-          "name": "data",
-          "path": "coupled-population-phase/data",
-          "children": [
-            {
-              "type": "file",
-              "name": "baseline_A_raster_dark.png",
-              "path": "coupled-population-phase/data/baseline_A_raster_dark.png",
-              "size": 952552
-            },
-            {
-              "type": "file",
-              "name": "baseline_A_raster_light.png",
-              "path": "coupled-population-phase/data/baseline_A_raster_light.png",
-              "size": 671793
-            },
-            {
-              "type": "file",
-              "name": "baseline_B_raster_dark.png",
-              "path": "coupled-population-phase/data/baseline_B_raster_dark.png",
-              "size": 332726
-            },
-            {
-              "type": "file",
-              "name": "baseline_B_raster_light.png",
-              "path": "coupled-population-phase/data/baseline_B_raster_light.png",
-              "size": 317559
-            },
-            {
-              "type": "file",
-              "name": "baseline_traces_dark.png",
-              "path": "coupled-population-phase/data/baseline_traces_dark.png",
-              "size": 679825
-            },
-            {
-              "type": "file",
-              "name": "baseline_traces_light.png",
-              "path": "coupled-population-phase/data/baseline_traces_light.png",
-              "size": 568184
-            },
-            {
-              "type": "file",
-              "name": "phase_transfer_gain_dark.png",
-              "path": "coupled-population-phase/data/phase_transfer_gain_dark.png",
-              "size": 209141
-            },
-            {
-              "type": "file",
-              "name": "phase_transfer_gain_light.png",
-              "path": "coupled-population-phase/data/phase_transfer_gain_light.png",
-              "size": 198332
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase0_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase0_dark.png",
-              "size": 1526053
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase0_light.png",
-              "path": "coupled-population-phase/data/rasters_phase0_light.png",
-              "size": 1377599
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase10_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase10_dark.png",
-              "size": 1542236
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase10_light.png",
-              "path": "coupled-population-phase/data/rasters_phase10_light.png",
-              "size": 1391316
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase12_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase12_dark.png",
-              "size": 1548386
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase12_light.png",
-              "path": "coupled-population-phase/data/rasters_phase12_light.png",
-              "size": 1395570
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase14_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase14_dark.png",
-              "size": 1546542
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase14_light.png",
-              "path": "coupled-population-phase/data/rasters_phase14_light.png",
-              "size": 1394093
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase16_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase16_dark.png",
-              "size": 1540176
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase16_light.png",
-              "path": "coupled-population-phase/data/rasters_phase16_light.png",
-              "size": 1389149
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase18_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase18_dark.png",
-              "size": 1542277
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase18_light.png",
-              "path": "coupled-population-phase/data/rasters_phase18_light.png",
-              "size": 1390887
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase20_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase20_dark.png",
-              "size": 1538755
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase20_light.png",
-              "path": "coupled-population-phase/data/rasters_phase20_light.png",
-              "size": 1388603
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase22_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase22_dark.png",
-              "size": 1541044
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase22_light.png",
-              "path": "coupled-population-phase/data/rasters_phase22_light.png",
-              "size": 1390113
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase24_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase24_dark.png",
-              "size": 1541530
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase24_light.png",
-              "path": "coupled-population-phase/data/rasters_phase24_light.png",
-              "size": 1389780
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase26_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase26_dark.png",
-              "size": 1537306
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase26_light.png",
-              "path": "coupled-population-phase/data/rasters_phase26_light.png",
-              "size": 1387499
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase28_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase28_dark.png",
-              "size": 1539897
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase28_light.png",
-              "path": "coupled-population-phase/data/rasters_phase28_light.png",
-              "size": 1388379
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase2_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase2_dark.png",
-              "size": 1537381
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase2_light.png",
-              "path": "coupled-population-phase/data/rasters_phase2_light.png",
-              "size": 1386985
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase30_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase30_dark.png",
-              "size": 1545879
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase30_light.png",
-              "path": "coupled-population-phase/data/rasters_phase30_light.png",
-              "size": 1394112
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase32_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase32_dark.png",
-              "size": 1538373
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase32_light.png",
-              "path": "coupled-population-phase/data/rasters_phase32_light.png",
-              "size": 1387263
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase34_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase34_dark.png",
-              "size": 1539593
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase34_light.png",
-              "path": "coupled-population-phase/data/rasters_phase34_light.png",
-              "size": 1388729
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase36_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase36_dark.png",
-              "size": 1545426
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase36_light.png",
-              "path": "coupled-population-phase/data/rasters_phase36_light.png",
-              "size": 1393581
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase38_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase38_dark.png",
-              "size": 1544806
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase38_light.png",
-              "path": "coupled-population-phase/data/rasters_phase38_light.png",
-              "size": 1392834
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase41_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase41_dark.png",
-              "size": 1541577
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase41_light.png",
-              "path": "coupled-population-phase/data/rasters_phase41_light.png",
-              "size": 1390610
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase43_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase43_dark.png",
-              "size": 1545354
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase43_light.png",
-              "path": "coupled-population-phase/data/rasters_phase43_light.png",
-              "size": 1393364
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase45_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase45_dark.png",
-              "size": 1539867
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase45_light.png",
-              "path": "coupled-population-phase/data/rasters_phase45_light.png",
-              "size": 1389289
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase47_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase47_dark.png",
-              "size": 1539313
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase47_light.png",
-              "path": "coupled-population-phase/data/rasters_phase47_light.png",
-              "size": 1388421
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase49_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase49_dark.png",
-              "size": 1547069
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase49_light.png",
-              "path": "coupled-population-phase/data/rasters_phase49_light.png",
-              "size": 1394439
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase4_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase4_dark.png",
-              "size": 1541713
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase4_light.png",
-              "path": "coupled-population-phase/data/rasters_phase4_light.png",
-              "size": 1390431
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase51_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase51_dark.png",
-              "size": 1538201
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase51_light.png",
-              "path": "coupled-population-phase/data/rasters_phase51_light.png",
-              "size": 1387136
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase53_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase53_dark.png",
-              "size": 1532222
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase53_light.png",
-              "path": "coupled-population-phase/data/rasters_phase53_light.png",
-              "size": 1382088
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase55_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase55_dark.png",
-              "size": 1544755
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase55_light.png",
-              "path": "coupled-population-phase/data/rasters_phase55_light.png",
-              "size": 1393230
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase57_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase57_dark.png",
-              "size": 1542267
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase57_light.png",
-              "path": "coupled-population-phase/data/rasters_phase57_light.png",
-              "size": 1391669
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase59_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase59_dark.png",
-              "size": 1542066
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase59_light.png",
-              "path": "coupled-population-phase/data/rasters_phase59_light.png",
-              "size": 1390413
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase61_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase61_dark.png",
-              "size": 1542831
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase61_light.png",
-              "path": "coupled-population-phase/data/rasters_phase61_light.png",
-              "size": 1391178
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase63_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase63_dark.png",
-              "size": 1545009
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase63_light.png",
-              "path": "coupled-population-phase/data/rasters_phase63_light.png",
-              "size": 1393157
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase65_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase65_dark.png",
-              "size": 1542206
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase65_light.png",
-              "path": "coupled-population-phase/data/rasters_phase65_light.png",
-              "size": 1390640
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase67_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase67_dark.png",
-              "size": 1545064
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase67_light.png",
-              "path": "coupled-population-phase/data/rasters_phase67_light.png",
-              "size": 1393063
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase69_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase69_dark.png",
-              "size": 1543495
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase69_light.png",
-              "path": "coupled-population-phase/data/rasters_phase69_light.png",
-              "size": 1391501
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase6_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase6_dark.png",
-              "size": 1540621
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase6_light.png",
-              "path": "coupled-population-phase/data/rasters_phase6_light.png",
-              "size": 1389538
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase71_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase71_dark.png",
-              "size": 1536952
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase71_light.png",
-              "path": "coupled-population-phase/data/rasters_phase71_light.png",
-              "size": 1386528
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase73_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase73_dark.png",
-              "size": 1541864
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase73_light.png",
-              "path": "coupled-population-phase/data/rasters_phase73_light.png",
-              "size": 1389620
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase75_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase75_dark.png",
-              "size": 1540991
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase75_light.png",
-              "path": "coupled-population-phase/data/rasters_phase75_light.png",
-              "size": 1388975
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase77_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase77_dark.png",
-              "size": 1539034
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase77_light.png",
-              "path": "coupled-population-phase/data/rasters_phase77_light.png",
-              "size": 1388149
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase80_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase80_dark.png",
-              "size": 1530551
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase80_light.png",
-              "path": "coupled-population-phase/data/rasters_phase80_light.png",
-              "size": 1380529
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase8_dark.png",
-              "path": "coupled-population-phase/data/rasters_phase8_dark.png",
-              "size": 1539948
-            },
-            {
-              "type": "file",
-              "name": "rasters_phase8_light.png",
-              "path": "coupled-population-phase/data/rasters_phase8_light.png",
-              "size": 1389301
-            }
-          ]
-        },
-        {
-          "type": "file",
-          "name": "experiment.py",
-          "path": "coupled-population-phase/experiment.py",
-          "size": 8660
-        },
-        {
-          "type": "file",
-          "name": "local.py",
-          "path": "coupled-population-phase/local.py",
-          "size": 8758
+          "name": "README.mdx",
+          "path": "logs/README.mdx",
+          "size": 349,
+          "frontmatter": {
+            "title": "Logs",
+            "visibility": "hidden",
+            "description": "My logs",
+            "date": "2025-11-30T00:00:00.000Z"
+          }
         }
       ]
     },
@@ -600,7 +67,7 @@
           "type": "file",
           "name": "SLIDES.mdx",
           "path": "minimal-validation/SLIDES.mdx",
-          "size": 1813,
+          "size": 1812,
           "frontmatter": {
             "title": "Slides only",
             "description": "Slides about the validation",
@@ -1321,6 +788,24 @@
     },
     {
       "type": "directory",
+      "name": "november-summary",
+      "path": "november-summary",
+      "children": [
+        {
+          "type": "file",
+          "name": "SLIDES.mdx",
+          "path": "november-summary/SLIDES.mdx",
+          "size": 5487,
+          "frontmatter": {
+            "title": "November Summary",
+            "description": "What we did in November 2025.",
+            "date": "2025-11-30T00:00:00.000Z"
+          }
+        }
+      ]
+    },
+    {
+      "type": "directory",
       "name": "phase-dependence",
       "path": "phase-dependence",
       "children": [
@@ -1328,7 +813,7 @@
           "type": "file",
           "name": "README.mdx",
           "path": "phase-dependence/README.mdx",
-          "size": 4550,
+          "size": 4551,
           "frontmatter": {
             "title": "Phase Dependence",
             "description": "Gamma oscillations create phase-dependent gating where identical inputs produce different responses depending on gamma phase.",
@@ -1552,24 +1037,6 @@
               "size": 297
             }
           ]
-        }
-      ]
-    },
-    {
-      "type": "directory",
-      "name": "slides-only",
-      "path": "slides-only",
-      "children": [
-        {
-          "type": "file",
-          "name": "SLIDES.mdx",
-          "path": "slides-only/SLIDES.mdx",
-          "size": 2282,
-          "frontmatter": {
-            "title": "Slides only",
-            "description": "Slides about the validation",
-            "date": "2025-11-25T00:00:00.000Z"
-          }
         }
       ]
     }

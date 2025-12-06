@@ -1,6 +1,6 @@
-import Gallery from '@/components/Gallery'
-import SlideGallery from '@/components/SlideGallery'
-import { ParameterTable } from '@/components/ParameterTable'
+import Gallery from '@/components/files/Gallery'
+import SlideGallery from '@/components/files/SlideGallery'
+import { ParameterTable } from '@/components/files/ParameterTable'
 
 function generateId(children: unknown): string {
   return children

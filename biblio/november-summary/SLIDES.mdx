@@ -1,0 +1,212 @@
+---
+title: November Summary
+description: What we did in November 2025.
+date: 2025-11-30
+---
+
+# November Summary
+
+- Minimal Validation | AI-OSC Transition vs $g_{ei}$
+- Minimal Validation | AI-OSC Transition vs $I_E$
+- Minimal Validation | F-I Curves
+- Minimal Validation | Power Spectral Density
+- Minimal Validation | Cross-Correlogram
+- Minimal Validation | Population ISI CV
+- Delivering a Pulse | Baseline
+- Delivering a Pulse | Raster Plots Across Gamma Phases
+- Delivering a Pulse | Phase-Dependent Gain Curve
+
+---
+
+## Minimal Validation | AI-OSC Transition vs $g_{ei}$
+
+Raster plots showing transition from asynchronous to oscillatory activity as E→I conductance increases.
+
+- Sweep $g_{ei}$ from 1.3 to 1.8 nS with fixed $I_E = 1.2$
+- Stronger E→I coupling enables PING oscillations
+
+[Image on next slide]
+
+---
+
+<SlideGallery
+  path="minimal-validation/data"
+  globs={["raster_g_ei_*.png"]}
+/>
+
+---
+
+## Minimal Validation | AI-OSC Transition vs $I_E$
+
+Raster plots showing transition as external drive to E neurons increases.
+
+- Sweep $I_E$ from 0.8 to 1.3 with fixed $g_{ei} = 1.6$ nS
+- Higher drive pushes network toward synchronized gamma
+
+[Image on next slide]
+
+---
+
+<SlideGallery
+  path="minimal-validation/data"
+  globs={["raster_I_E_*.png"]}
+/>
+
+---
+
+## Minimal Validation | F-I Curves
+
+Firing rate vs input current for E and I populations.
+
+- E population: direct input, steeper curve
+- I population: driven indirectly via E→I synapses
+
+[Image on next slide]
+
+---
+
+<SlideGallery
+  path="minimal-validation/data"
+  globs={["firing_rates_vs_I_E*.png"]}
+/>
+
+---
+
+## Minimal Validation | Power Spectral Density
+
+PSD of E population firing rate across different drive levels.
+
+- Flat spectrum → asynchronous firing
+- Gamma peak (30-80 Hz) → oscillatory activity
+
+[Image on next slide]
+
+---
+
+<SlideGallery
+  path="minimal-validation/data"
+  globs={["psd_*.png"]}
+/>
+
+---
+
+## Minimal Validation | Cross-Correlogram
+
+Temporal relationship between E and I populations.
+
+- Peak at positive lag: I lags E by ~2-5 ms
+- Confirms PING mechanism: E fires → recruits I → I inhibits E
+
+[Image on next slide]
+
+---
+
+<SlideGallery
+  single
+  path="minimal-validation/data"
+  globs={["crosscorr_*.png"]}
+/>
+
+---
+
+## Minimal Validation | Population ISI CV
+
+Coefficient of variation of inter-spike intervals.
+
+- CV = 1: Poisson-like (irregular)
+- CV < 1: Regular firing (oscillatory)
+
+[Image on next slide]
+
+---
+
+<SlideGallery
+  single
+  path="minimal-validation/data"
+  globs={["population_isi_cv*"]}
+/>
+
+---
+
+## Delivering a Pulse | Baseline
+
+We record population-averaged membrane potential $V$ and conductances $g_e$,
+$g_i$ at each timestep ($dt = 0.1$ ms).
+
+We see clear gamma-band oscillations (~30–80 Hz) in the LFP proxy (mean inhibitory
+conductance).
+
+[Image on next slide]
+
+---
+
+<Gallery
+  title="Baseline Traces"
+  path="phase-dependence/data"
+  globs={[
+    'trace*',
+  ]}
+  caption="Baseline network dynamics showing (1) mean inhibitory conductance (LFP proxy) with clear gamma rhythm, (2) mean membrane potential oscillations, and (3) raster plot of spike times. The rhythmic modulation of inhibitory conductance creates temporal windows of high and low excitability."
+/>
+
+---
+
+## Delivering a Pulse | Raster Plots Across Gamma Phases
+
+Network responses to identical input pulses delivered at different gamma phases.
+Each raster demonstrates how the same pulse produces different spiking patterns
+depending on when it arrives relative to the ongoing oscillation.
+
+We select 10% of E neurons as targets and deliver brief current pulses (width =
+5 ms, amplitude = 0.5) at 100 different times spanning 500–700 ms (one gamma
+cycle period). For visualization, we save raster plots for every 10th pulse.
+Each raster shows the 500–1000 ms window with the pulse timing indicated.
+
+Pulses arriving during inhibitory troughs (low $g_i$) should trigger robust
+responses with many target neurons firing. Pulses arriving during inhibitory
+peaks (high $g_i$) should be largely suppressed. The spatial pattern of
+responsive neurons should shift with pulse timing.
+
+[Image on next slide]
+
+---
+
+<Gallery
+  title="Rasters by Phase"
+  path="phase-dependence/data"
+  globs={[
+    'raster*'
+  ]}
+  caption="Raster plots showing network responses to identical input pulses delivered at different gamma phases."
+/>
+
+---
+
+## Delivering a Pulse | Phase-Dependent Gain Curve
+
+This curve demonstrates that gamma oscillations implement a phase-dependent gain
+control mechanism.
+
+For each of 100 pulse times spanning 500–700 ms, we compute Δ-spikes = (spikes
+in post-window) − (spikes in pre-window) for the target E neurons. The
+pre-window is 20 ms before the pulse; the post-window is 100 ms after. We
+overlay the normalized inhibitory conductance (LFP proxy) from the baseline
+simulation to show the phase relationship.
+
+Δ-spikes should be anti-correlated with inhibitory conductance: maximum response
+when $g_i$ is at its trough, minimum response when $g_i$ is at its peak. 
+
+[Image on next slide]
+
+---
+
+<Gallery
+  title="Phase-Gain Curve"
+  single={true}
+  path="phase-dependence/data"
+  globs={[
+    'phase_gain_curve*'
+  ]}
+  caption="Phase-dependent gain curve. Blue circles show Δ-spikes (change in spike count for target neurons) as a function of pulse phase. Dashed orange line shows normalized inhibitory conductance (LFP proxy) aligned by phase. Pulses delivered during low inhibition (troughs) produce larger responses than pulses during high inhibition (peaks)."
+/>
+
