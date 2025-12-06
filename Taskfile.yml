@@ -18,6 +18,11 @@ tasks:
       - cd cathedral && bun install
       - cd cathedral && bun add cathedral-plugin@file:./plugins/cathedral-plugin/
 
+  test:
+    desc: Run tests
+    cmds:
+      - uv run pytest -s
+
   execute:
     desc: Execute cathedral with the specified config file
     cmds:

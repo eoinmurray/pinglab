@@ -14,7 +14,7 @@ from pinglab import run_network
 from local.model import LocalConfig
 
 
-def inner(cfg: dict):
+def hotloop(cfg: dict):
     config: LocalConfig = cfg["config"]
     baseline_input = cfg["baseline_input"]
     pulse_t = cfg["pulse_t"]
@@ -84,7 +84,7 @@ def experiment_1(config: LocalConfig, data_path: Path) -> None:
         "target_E": target_E,
     } for value in pulses]
 
-    results = parallel(inner, cfgs)
+    results = parallel(hotloop, cfgs)
 
     for i, result in enumerate(results):
         pulsed_input = result["input"]

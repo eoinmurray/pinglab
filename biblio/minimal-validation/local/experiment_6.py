@@ -56,7 +56,7 @@ def experiment_6(config: LocalConfig, data_path: Path) -> None:
         save_raster(
             sliced_spikes,
             data_path / f"raster_population_isi_cv_I_E_{I_E:.2f}.png",
-            label=f"I_E={cfgs[-1]['I_E']}",
+            label=f"I_E={I_E:.2f}",
         )
 
     def plot_fn():

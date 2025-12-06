@@ -47,8 +47,8 @@ experiment_6:
     num: 40
 
 default_inputs:
-  I_I: 0.7       # Input to I neurons (slightly lower)
   I_E: 1.2       # not used in this experiment but typechecker needs it
+  I_I: 0.7       # Input to I neurons (slightly lower)
   noise: 0.8     # Strong noise (0.5-1.0 range) creates irregularity and breaks synchrony
 
 plotting:

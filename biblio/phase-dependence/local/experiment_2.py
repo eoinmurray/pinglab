@@ -71,7 +71,7 @@ def compute_precision_metrics_for_trial(
     return delta_spikes, spike_count_post, np.asarray(latencies, dtype=float)
 
 
-def inner(cfg: dict):
+def hotloop(cfg: dict):
     """
     Single trial:
     - build noisy tonic input with a trial-specific seed
@@ -197,7 +197,7 @@ def experiment_2(config: LocalConfig, data_path: Path) -> None:
         f"{n_phases} phases × {n_repeats} repeats = {len(cfgs)} trials"
     )
 
-    results = parallel(inner, cfgs)
+    results = parallel(hotloop, cfgs)
 
     # -------------------------------------------------------------------------
     # 3. Aggregate trial-level metrics: gain, Fano, jitter

@@ -11,31 +11,17 @@ from pinglab.types import Spikes
 def isi_cv_per_neuron(
     spikes: Spikes,
     neuron_ids: np.ndarray | None = None,
-    min_spikes: int = 2,
+    min_spikes: int = 20,  # default: require at least 2 ISIs
     ddof: int = 0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute ISI CV per neuron.
 
-    Parameters
-    ----------
-    spikes : Spikes
-        Spikes object with `times` (float array) and `ids` (int array).
-    neuron_ids : array-like or None, optional
-        Neuron IDs to include. If None, all unique IDs in `spikes.ids` are used.
-    min_spikes : int, optional
-        Minimum number of spikes required for a neuron to be included.
-        Neurons with fewer spikes are ignored.
-    ddof : int, optional
-        Delta degrees of freedom for the ISI standard deviation.
-        Use 0 for population std, 1 for sample std.
-
-    Returns
-    -------
-    neuron_ids_out : np.ndarray (int)
-        IDs of neurons with a valid CV estimate (size >= min_spikes).
-    cv : np.ndarray (float)
-        CV values for each neuron in `neuron_ids_out`, same length.
+    Returns only neurons with:
+    - at least `min_spikes` spikes
+    - at least `ddof + 1` ISIs (for std to be defined)
+    - finite, positive mean ISI
+    - finite CV
     """
     times = np.asarray(spikes.times, dtype=float)
     ids = np.asarray(spikes.ids, dtype=int)
@@ -52,25 +38,30 @@ def isi_cv_per_neuron(
         mask = ids == nid
         t = times[mask]
 
-        # Not enough spikes to define ISIs
+        # Not enough spikes to define a sensible ISI distribution
         if t.size < min_spikes:
             continue
 
-        # Ensure sorted by time (paranoia in case upstream ever changes)
         t = np.sort(t)
         isi = np.diff(t)
 
-        # No ISIs => skip
-        if isi.size == 0:
+        # Need enough ISIs for the chosen ddof
+        if isi.size == 0 or isi.size <= ddof:
             continue
 
         mean_isi = float(np.mean(isi))
-        if mean_isi <= 0.0:
-            # Degenerate / invalid timing
+        if not np.isfinite(mean_isi) or mean_isi <= 0.0:
             continue
 
         std_isi = float(np.std(isi, ddof=ddof))
-        cvs.append(std_isi / mean_isi)
+        if not np.isfinite(std_isi):
+            continue
+
+        cv = std_isi / mean_isi
+        if not np.isfinite(cv):
+            continue
+
+        cvs.append(cv)
         kept_ids.append(int(nid))
 
     if not cvs:
@@ -83,7 +74,7 @@ def population_isi_cv(
     spikes: Spikes,
     N_E: int,
     N_I: int,
-    min_spikes: int = 2,
+    min_spikes: int = 20,
     ddof: int = 0,
 ) -> tuple[float | None, float | None]:
     """

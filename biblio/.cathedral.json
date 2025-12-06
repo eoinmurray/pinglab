@@ -143,13 +143,13 @@
               "type": "file",
               "name": "population_isi_cv_dark.png",
               "path": "minimal-validation/data/population_isi_cv_dark.png",
-              "size": 178852
+              "size": 151189
             },
             {
               "type": "file",
               "name": "population_isi_cv_light.png",
               "path": "minimal-validation/data/population_isi_cv_light.png",
-              "size": 165913
+              "size": 138617
             },
             {
               "type": "file",
@@ -347,481 +347,481 @@
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.50_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.50_dark.png",
-              "size": 98774
+              "size": 99564
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.50_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.50_light.png",
-              "size": 96043
+              "size": 96689
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.54_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.54_dark.png",
-              "size": 114813
+              "size": 115090
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.54_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.54_light.png",
-              "size": 112087
+              "size": 112287
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.58_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.58_dark.png",
-              "size": 133546
+              "size": 134572
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.58_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.58_light.png",
-              "size": 130024
+              "size": 130861
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.62_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.62_dark.png",
-              "size": 141825
+              "size": 142837
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.62_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.62_light.png",
-              "size": 138766
+              "size": 139593
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.65_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.65_dark.png",
-              "size": 166481
+              "size": 167307
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.65_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.65_light.png",
-              "size": 162811
+              "size": 163524
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.69_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.69_dark.png",
-              "size": 195866
+              "size": 197322
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.69_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.69_light.png",
-              "size": 190848
+              "size": 191992
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.73_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.73_dark.png",
-              "size": 224513
+              "size": 225073
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.73_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.73_light.png",
-              "size": 216586
+              "size": 217008
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.77_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.77_dark.png",
-              "size": 251742
+              "size": 251810
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.77_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.77_light.png",
-              "size": 240098
+              "size": 240148
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.81_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.81_dark.png",
-              "size": 276836
+              "size": 277467
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.81_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.81_light.png",
-              "size": 258172
+              "size": 258690
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.85_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.85_dark.png",
-              "size": 302103
+              "size": 303290
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.85_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.85_light.png",
-              "size": 275498
+              "size": 276378
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.88_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.88_dark.png",
-              "size": 322092
+              "size": 323853
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.88_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.88_light.png",
-              "size": 289550
+              "size": 290829
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.92_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.92_dark.png",
-              "size": 344029
+              "size": 345108
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.92_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.92_light.png",
-              "size": 305217
+              "size": 306219
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.96_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.96_dark.png",
-              "size": 364311
+              "size": 365434
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_0.96_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_0.96_light.png",
-              "size": 319346
+              "size": 320566
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.00_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.00_dark.png",
-              "size": 384413
+              "size": 384767
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.00_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.00_light.png",
-              "size": 333898
+              "size": 334232
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.04_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.04_dark.png",
-              "size": 404903
+              "size": 404752
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.04_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.04_light.png",
-              "size": 346376
+              "size": 346211
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.08_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.08_dark.png",
-              "size": 422796
+              "size": 423469
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.08_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.08_light.png",
-              "size": 357763
+              "size": 358311
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.12_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.12_dark.png",
-              "size": 440329
+              "size": 439683
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.12_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.12_light.png",
-              "size": 369940
+              "size": 369354
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.15_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.15_dark.png",
-              "size": 462462
+              "size": 461553
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.15_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.15_light.png",
-              "size": 383853
+              "size": 383092
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.19_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.19_dark.png",
-              "size": 481236
+              "size": 480886
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.19_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.19_light.png",
-              "size": 396620
+              "size": 396331
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.23_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.23_dark.png",
-              "size": 500967
+              "size": 501010
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.23_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.23_light.png",
-              "size": 408302
+              "size": 408335
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.27_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.27_dark.png",
-              "size": 542597
+              "size": 542265
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.27_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.27_light.png",
-              "size": 441312
+              "size": 440991
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.31_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.31_dark.png",
-              "size": 558463
+              "size": 557907
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.31_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.31_light.png",
-              "size": 451527
+              "size": 451103
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.35_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.35_dark.png",
-              "size": 577264
+              "size": 577172
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.35_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.35_light.png",
-              "size": 459745
+              "size": 459645
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.38_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.38_dark.png",
-              "size": 597219
+              "size": 597717
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.38_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.38_light.png",
-              "size": 469874
+              "size": 470168
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.42_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.42_dark.png",
-              "size": 618363
+              "size": 617919
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.42_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.42_light.png",
-              "size": 480254
+              "size": 479939
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.46_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.46_dark.png",
-              "size": 632323
+              "size": 632216
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.46_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.46_light.png",
-              "size": 487957
+              "size": 487859
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.50_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.50_dark.png",
-              "size": 650526
+              "size": 650514
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.50_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.50_light.png",
-              "size": 498902
+              "size": 498891
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.54_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.54_dark.png",
-              "size": 658630
+              "size": 658136
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.54_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.54_light.png",
-              "size": 500809
+              "size": 500314
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.58_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.58_dark.png",
-              "size": 685233
+              "size": 685481
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.58_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.58_light.png",
-              "size": 522781
+              "size": 522911
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.62_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.62_dark.png",
-              "size": 686957
+              "size": 687239
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.62_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.62_light.png",
-              "size": 521759
+              "size": 521944
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.65_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.65_dark.png",
-              "size": 710219
+              "size": 710251
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.65_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.65_light.png",
-              "size": 535197
+              "size": 535223
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.69_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.69_dark.png",
-              "size": 717656
+              "size": 718184
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.69_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.69_light.png",
-              "size": 540088
+              "size": 540504
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.73_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.73_dark.png",
-              "size": 732775
+              "size": 732521
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.73_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.73_light.png",
-              "size": 550911
+              "size": 550715
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.77_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.77_dark.png",
-              "size": 744020
+              "size": 743531
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.77_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.77_light.png",
-              "size": 556807
+              "size": 556277
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.81_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.81_dark.png",
-              "size": 766540
+              "size": 766354
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.81_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.81_light.png",
-              "size": 570779
+              "size": 570643
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.85_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.85_dark.png",
-              "size": 779803
+              "size": 780063
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.85_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.85_light.png",
-              "size": 579476
+              "size": 579612
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.88_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.88_dark.png",
-              "size": 792354
+              "size": 793162
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.88_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.88_light.png",
-              "size": 586049
+              "size": 586536
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.92_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.92_dark.png",
-              "size": 802663
+              "size": 802901
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.92_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.92_light.png",
-              "size": 591017
+              "size": 591305
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.96_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.96_dark.png",
-              "size": 812788
+              "size": 813286
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_1.96_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_1.96_light.png",
-              "size": 601536
+              "size": 602018
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_2.00_dark.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_2.00_dark.png",
-              "size": 824897
+              "size": 825908
             },
             {
               "type": "file",
               "name": "raster_population_isi_cv_I_E_2.00_light.png",
               "path": "minimal-validation/data/raster_population_isi_cv_I_E_2.00_light.png",
-              "size": 610038
+              "size": 610875
             }
           ]
         },
@@ -870,7 +870,7 @@
               "type": "file",
               "name": "experiment_6.py",
               "path": "minimal-validation/local/experiment_6.py",
-              "size": 2500
+              "size": 2492
             },
             {
               "type": "file",
@@ -1118,13 +1118,13 @@
               "type": "file",
               "name": "experiment_1.py",
               "path": "phase-dependence/local/experiment_1.py",
-              "size": 4482
+              "size": 4486
             },
             {
               "type": "file",
               "name": "experiment_2.py",
               "path": "phase-dependence/local/experiment_2.py",
-              "size": 11355
+              "size": 11359
             },
             {
               "type": "file",
