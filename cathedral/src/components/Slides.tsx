@@ -127,7 +127,7 @@ export function Slides({ content }: { content: string }) {
       >
         {slides.map((slide, index) => (
           <div key={index}>
-            <div className="min-h-screen w-full flex items-center justify-center">
+            <div className="min-h-screen w-full flex items-center justify-center text-lg md:text-2xl">
               <RuntimeMDX content={slide} />
             </div>
             {index < slides.length - 1 && (

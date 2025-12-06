@@ -60,7 +60,7 @@ export function RuntimeMDX({ content }: { content: string }) {
   }
 
   return (
-    <div className="prose max-w-full prose-slate dark:prose-invert md:prose-base">
+    <div className="prose max-w-full prose-slate dark:prose-invert">
       <MDXContent components={mdxComponents} />
     </div>
   )

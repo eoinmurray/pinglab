@@ -1564,7 +1564,7 @@
           "type": "file",
           "name": "SLIDES.mdx",
           "path": "slides-only/SLIDES.mdx",
-          "size": 1813,
+          "size": 2282,
           "frontmatter": {
             "title": "Slides only",
             "description": "Slides about the validation",

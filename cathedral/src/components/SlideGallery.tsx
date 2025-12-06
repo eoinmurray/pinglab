@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useTheme } from "next-themes";
 import { useDirectory } from "../../plugins/cathedral-plugin/src/client";
 import { FileEntry } from "../../plugins/cathedral-plugin/src/lib";
@@ -6,6 +7,9 @@ import { cathedralPluginConfig } from "../../cathedral-plugin.config";
 import { minimatch } from "minimatch";
 import { useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { X, ChevronLeft, ChevronRight, Expand } from "lucide-react";
+import { FULLSCREEN_DATA_ATTR } from "@/lib/constants";
+import { useKeyBindings } from "@/hooks/useKeyBindings";
 
 function filterPathsByTheme(paths: string[], theme: string | undefined): string[] {
   const pathGroups = new Map<string, { light?: string; dark?: string; original?: string }>();
@@ -41,20 +45,34 @@ function filterPathsByTheme(paths: string[], theme: string | undefined): string[
   return filtered;
 }
 
+function getImageLabel(path: string): string {
+  const filename = path.split('/').pop() || path;
+  return filename
+    .replace(/\.(png|jpg|jpeg|gif|svg|webp)$/i, '')
+    .replace(/[_-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export default function SlideGallery({
   path,
   relativePath,
   globs = null,
   single = false,
   limit,
+  title,
+  caption,
 }: {
   path?: string,
   relativePath?: string,
   globs?: string[] | null,
   single?: boolean,
   limit?: number,
+  title?: string,
+  caption?: string,
 }) {
   const { "*": paramPath = "." } = useParams();
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   if (relativePath) {
     const basePath = paramPath === "." ? "" : paramPath;
@@ -104,6 +122,27 @@ export default function SlideGallery({
     return "grid-cols-3";
   }, [filteredPaths.length]);
 
+  const goToPrevious = useCallback(() => {
+    setSelectedIndex(prev => prev !== null && prev > 0 ? prev - 1 : prev);
+  }, []);
+
+  const goToNext = useCallback(() => {
+    setSelectedIndex(prev => prev !== null && prev < filteredPaths.length - 1 ? prev + 1 : prev);
+  }, [filteredPaths.length]);
+
+  const close = useCallback(() => {
+    setSelectedIndex(null);
+  }, []);
+
+  useKeyBindings(
+    [
+      { key: "Escape", action: close },
+      { key: "ArrowLeft", action: goToPrevious },
+      { key: "ArrowRight", action: goToNext },
+    ],
+    { enabled: () => selectedIndex !== null }
+  );
+
   if (!directory) {
     return (
       <div className="not-prose h-[50vh] flex items-center justify-center">
@@ -123,30 +162,193 @@ export default function SlideGallery({
   // Single image - maximize to fill available space
   if (single) {
     return (
-      <div className="not-prose w-full h-[90vh] flex items-center justify-center">
-        <img
-          src={`${cathedralPluginConfig.contentPrefix}/${filteredPaths[0]}`}
-          alt=""
-          className="max-h-full max-w-full w-auto h-auto object-contain"
-        />
-      </div>
+      <>
+        <figure className="not-prose w-full h-[90vh] flex flex-col items-center justify-center gap-4">
+          {title && (
+            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground text-center max-w-4xl px-4">
+              {title}
+            </h2>
+          )}
+          <div
+            className="relative group cursor-pointer max-h-[calc(100%-6rem)] flex items-center justify-center"
+            onClick={() => setSelectedIndex(0)}
+          >
+            <img
+              src={`${cathedralPluginConfig.contentPrefix}/${filteredPaths[0]}`}
+              alt={caption || title || ""}
+              className="max-h-full max-w-full w-auto h-auto object-contain"
+            />
+            <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors duration-300 flex items-center justify-center pointer-events-none">
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-background/90 backdrop-blur-sm px-3 py-1.5 shadow-sm">
+                <Expand className="h-4 w-4 text-foreground" />
+              </div>
+            </div>
+          </div>
+          {caption && (
+            <figcaption className="text-xl md:text-2xl text-muted-foreground text-center max-w-3xl px-4">
+              {caption}
+            </figcaption>
+          )}
+        </figure>
+
+        {/* Fullscreen Lightbox */}
+        {selectedIndex !== null && createPortal(
+          <div
+            className="fixed inset-0 z-[9999] bg-background"
+            onClick={close}
+            {...{[FULLSCREEN_DATA_ATTR]: "true"}}
+          >
+            {/* Top bar */}
+            <div className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-sm">
+              <div className="font-mono text-xs text-muted-foreground tabular-nums">
+                {String(selectedIndex + 1).padStart(2, '0')} / {String(filteredPaths.length).padStart(2, '0')}
+              </div>
+              <button
+                onClick={close}
+                className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Main image */}
+            <div
+              className="fixed inset-0 flex items-center justify-center p-16"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={`${cathedralPluginConfig.contentPrefix}/${filteredPaths[selectedIndex]}`}
+                alt={getImageLabel(filteredPaths[selectedIndex])}
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+
+            {/* Caption */}
+            <div className="fixed bottom-0 left-0 right-0 z-10 p-4 text-center bg-background/80 backdrop-blur-sm">
+              <span className="font-mono text-xs text-muted-foreground">
+                {getImageLabel(filteredPaths[selectedIndex])}
+              </span>
+            </div>
+          </div>,
+          document.body
+        )}
+      </>
     );
   }
 
   // Grid of images - maximize to fill screen
   return (
-    <div className="not-prose w-full h-[100vh] lg:px-12">
-      <div className={cn("grid h-full w-full", gridCols, "gap-2")}>
-        {filteredPaths.map((imgPath) => (
-          <div key={imgPath} className="flex items-center justify-center overflow-hidden min-h-0">
+    <>
+      <figure className="not-prose w-full h-[100vh] lg:px-12 flex flex-col">
+        {title && (
+          <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground text-center py-4 max-w-4xl mx-auto px-4">
+            {title}
+          </h2>
+        )}
+        <div className={cn("grid flex-1 w-full min-h-0", gridCols, "gap-2")}>
+          {filteredPaths.map((imgPath, index) => (
+            <div
+              key={imgPath}
+              className="relative group flex items-center justify-center overflow-hidden min-h-0 cursor-pointer"
+              onClick={() => setSelectedIndex(index)}
+            >
+              <img
+                src={`${cathedralPluginConfig.contentPrefix}/${imgPath}`}
+                alt=""
+                className="max-h-full max-w-full w-auto h-auto object-contain"
+              />
+              <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors duration-300 flex items-center justify-center pointer-events-none">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-background/90 backdrop-blur-sm px-3 py-1.5 shadow-sm">
+                  <Expand className="h-4 w-4 text-foreground" />
+                </div>
+              </div>
+              {/* Index overlay */}
+              <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="font-mono text-[10px] text-white/90 bg-foreground/60 backdrop-blur-sm px-1.5 py-0.5 tracking-wider">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+        {caption && (
+          <figcaption className="text-xl md:text-2xl text-muted-foreground text-center py-6 max-w-4xl mx-auto px-4">
+            {caption}
+          </figcaption>
+        )}
+      </figure>
+
+      {/* Fullscreen Lightbox */}
+      {selectedIndex !== null && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] bg-background"
+          onClick={close}
+          {...{[FULLSCREEN_DATA_ATTR]: "true"}}
+        >
+          {/* Top bar */}
+          <div className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-sm">
+            <div className="font-mono text-xs text-muted-foreground tabular-nums">
+              {String(selectedIndex + 1).padStart(2, '0')} / {String(filteredPaths.length).padStart(2, '0')}
+            </div>
+            <button
+              onClick={close}
+              className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Navigation: Previous */}
+          {selectedIndex > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrevious();
+              }}
+              className="fixed left-4 top-1/2 -translate-y-1/2 z-10 p-2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="h-8 w-8" />
+            </button>
+          )}
+
+          {/* Navigation: Next */}
+          {selectedIndex < filteredPaths.length - 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNext();
+              }}
+              className="fixed right-4 top-1/2 -translate-y-1/2 z-10 p-2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Next image"
+            >
+              <ChevronRight className="h-8 w-8" />
+            </button>
+          )}
+
+          {/* Main image */}
+          <div
+            className="fixed inset-0 flex items-center justify-center p-16"
+            onClick={(e) => e.stopPropagation()}
+          >
             <img
-              src={`${cathedralPluginConfig.contentPrefix}/${imgPath}`}
-              alt=""
-              className="max-h-full max-w-full w-auto h-auto object-contain"
+              src={`${cathedralPluginConfig.contentPrefix}/${filteredPaths[selectedIndex]}`}
+              alt={getImageLabel(filteredPaths[selectedIndex])}
+              className="max-w-full max-h-full object-contain"
             />
           </div>
-        ))}
-      </div>
-    </div>
+
+          {/* Caption */}
+          <div className="fixed bottom-0 left-0 right-0 z-10 p-4 text-center bg-background/80 backdrop-blur-sm">
+            <span className="font-mono text-xs text-muted-foreground">
+              {getImageLabel(filteredPaths[selectedIndex])}
+            </span>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
