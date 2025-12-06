@@ -41,6 +41,15 @@ export default {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+  			// Ministry of Unsanctioned Computation
+  			ministry: {
+  				parchment: '#F5F0E6',
+  				cream: '#FAF7F0',
+  				crimson: '#8B1538',
+  				gold: '#B8860B',
+  				brown: '#5C4033',
+  				ink: '#2C1810',
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

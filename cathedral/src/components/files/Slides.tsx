@@ -102,7 +102,7 @@ export function Slides({ content }: { content: string }) {
       {...{[FULLSCREEN_DATA_ATTR]: "true"}}
     >
       {/* Navigation controls */}
-      <div className="absolute top-4 right-6 z-10 flex items-center gap-1 print:hidden">
+      <div className="absolute top-2 right-6 z-10 flex items-center gap-1 print:hidden">
         <button
           onClick={goToPreviousSlide}
           className="p-2 transition-colors duration-200 flex items-center gap-2 text-muted-foreground hover:text-foreground"
