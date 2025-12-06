@@ -1,4 +1,5 @@
 
+from pinglab.types import Spikes
 from .population_isi_cv import isi_cv_per_neuron
 import numpy as np
 
@@ -6,11 +7,6 @@ import numpy as np
 def test_isi_cv_per_neuron():
     print("Testing isi_cv_per_neuron...")
     rng = np.random.default_rng(0)
-
-    class DummySpikes:
-        def __init__(self, times, ids):
-            self.times = times
-            self.ids = ids
 
     # 100 neurons, gamma/Poisson ISIs
     N_neurons = 100
@@ -31,7 +27,18 @@ def test_isi_cv_per_neuron():
         spike_times.extend(times_n)
         spike_ids.extend([nid] * len(times_n))
 
-    spikes = DummySpikes(np.array(spike_times), np.array(spike_ids))
+    spikes = Spikes(times=np.array(spike_times), ids=np.array(spike_ids))
+
+    # import matplotlib.pyplot as plt
+    
+    # plt.figure(figsize=(10, 6))
+    # plt.scatter(spikes.times, spikes.ids, s=1, c='black')
+    # plt.xlabel('Time (ms)')
+    # plt.ylabel('Neuron ID')
+    # plt.title('Spike Raster Plot')
+    # plt.tight_layout()
+    # plt.show()
+
     ids_out, cv = isi_cv_per_neuron(spikes, min_spikes=5, ddof=0)
 
     median_cv = np.median(cv)
