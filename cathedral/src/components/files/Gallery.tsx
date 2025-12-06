@@ -11,8 +11,6 @@ import { useKeyBindings } from "@/hooks/useKeyBindings";
 import { Lightbox, LightboxImage } from "@/components/Lightbox";
 import katex from "katex";
 
-// --- Utility functions ---
-
 function renderMathInText(text: string): ReactNode {
   // Match $...$ for inline math and $$...$$ for display math
   const parts: ReactNode[] = [];
@@ -260,25 +258,34 @@ function LoadingImage({
   );
 }
 
-function FigureTitle({ title }: { title?: string }) {
-  if (!title) return null;
+function FigureHeader({ title, subtitle }: { title?: string; subtitle?: string }) {
+  if (!title && !subtitle) return null;
 
   return (
-    <div className="mx-auto mt-6">
-      <h3 className="text-sm md:text-base font-medium tracking-tight text-foreground text-left">
-        {renderMathInText(title)}
-      </h3>
+    <div className="max-w-lg mx-auto mb-4">
+      {title && (
+        <h3 className="text-sm md:text-base font-medium tracking-tight text-foreground text-left">
+          {renderMathInText(title)}
+        </h3>
+      )}
+      {subtitle && (
+        <p className="text-sm text-muted-foreground leading-relaxed text-left mt-1">
+          {renderMathInText(subtitle)}
+        </p>
+      )}
     </div>
   );
 }
 
-function FigureCaption({ caption }: { caption?: string }) {
-  if (!caption) return null;
+function FigureCaption({ caption, label }: { caption?: string; label?: string }) {
+  if (!caption && !label) return null;
 
   return (
-    <div className="mx-auto mx-w-md mt-2">
+    <div className="mx-auto mx-w-md">
       <p className="text-sm text-muted-foreground leading-relaxed text-left">
-        {renderMathInText(caption)}
+        {label && <span className="font-medium text-foreground">{label}</span>}
+        {label && caption && <span className="mx-1">—</span>}
+        {caption && renderMathInText(caption)}
       </p>
     </div>
   );
@@ -288,7 +295,9 @@ export default function Gallery({
   path,
   relativePath,
   caption,
+  captionLabel,
   title,
+  subtitle,
   globs = null,
   single = false,
   limit,
@@ -296,7 +305,9 @@ export default function Gallery({
   path?: string;
   relativePath?: string;
   caption?: string;
+  captionLabel?: string;
   title?: string;
+  subtitle?: string;
   globs?: string[] | null;
   single?: boolean;
   limit?: number;
@@ -356,6 +367,8 @@ export default function Gallery({
     <>
       <div className="not-prose relative -mx-[var(--page-padding)] md:-mx-[calc((var(--gallery-width)-var(--content-width))/2+var(--page-padding))] px-[var(--page-padding)] py-8 md:py-12 print:mx-0 print:px-0 print:py-4">
         <div className="absolute inset-0 pointer-events-none" />
+
+        <FigureHeader title={title} subtitle={subtitle} />
 
         <div
           className={cn(
@@ -423,8 +436,9 @@ export default function Gallery({
           ))}
         </div>
 
-        <FigureTitle title={title} />
-        <FigureCaption caption={caption} />
+        <div className="max-w-lg mx-auto mt-6">
+          <FigureCaption caption={caption} label={captionLabel} />
+        </div>
       </div>
 
       {lightbox.isOpen && lightbox.selectedIndex !== null && (

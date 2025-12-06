@@ -8,12 +8,11 @@ from pinglab.plots.raster import save_raster
 from pinglab.plots.styles import save_both, figsize
 from pinglab.utils import slice_spikes
 from pinglab.multiprocessing import parallel
-from local.inner import inner
+from local.hotloop import hotloop
 from local.model import LocalConfig
 
 
 def experiment_6(config: LocalConfig, data_path: Path) -> None:
-
     if not config.experiment_6.linspace:
         raise RuntimeError("Experiment 6 is disabled in the configuration.")
 
@@ -30,7 +29,7 @@ def experiment_6(config: LocalConfig, data_path: Path) -> None:
         )
     ]
 
-    results = parallel(inner, cfgs, label="Experiment 6")
+    results = parallel(hotloop, cfgs, label="Experiment 6")
 
     cv_E_list = []
     cv_I_list = []
@@ -80,5 +79,3 @@ def experiment_6(config: LocalConfig, data_path: Path) -> None:
         plt.tight_layout()
 
     save_both(data_path / "population_isi_cv", plot_fn)
-
-    

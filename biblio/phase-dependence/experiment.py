@@ -10,7 +10,6 @@ from local.experiment_1 import experiment_1
 from local.experiment_2 import experiment_2
 from local.model import LocalConfig
 
-
 def main() -> None:
     root = Path(__file__).parent
     data_path = root / "data"
@@ -23,7 +22,7 @@ def main() -> None:
     config = LocalConfig.model_validate(data)
 
     experiment_1(config, data_path)
-    experiment_2(config, data_path)
+    # experiment_2(config, data_path)
 
 
 if __name__ == "__main__":

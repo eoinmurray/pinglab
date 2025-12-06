@@ -8,7 +8,7 @@ from pinglab.types import NetworkResult
 from local.model import LocalConfig
 
 
-def inner(cfg):
+def hotloop(cfg):
     config: LocalConfig = cfg["config"]
     g_ei = cfg["g_ei"]
     I_E = cfg["I_E"]

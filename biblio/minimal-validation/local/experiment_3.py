@@ -6,7 +6,7 @@ from pinglab.plots.styles import save_both, figsize
 from pinglab.analysis import mean_firing_rates
 from pinglab.types import NetworkResult, Spikes
 from pinglab.multiprocessing import parallel
-from local.inner import inner
+from local.hotloop import hotloop
 from local.model import LocalConfig
 
 def experiment_3(config: LocalConfig, data_path: Path) -> None:
@@ -36,8 +36,8 @@ def experiment_3(config: LocalConfig, data_path: Path) -> None:
         )
     ]
 
-    results_large = parallel(inner, cfgs_large, label="Experiment 3 Large")
-    results_small = parallel(inner, cfgs_small, label="Experiment 3 Small")
+    results_large = parallel(hotloop, cfgs_large, label="Experiment 3 Large")
+    results_small = parallel(hotloop, cfgs_small, label="Experiment 3 Small")
 
     def map_mean_firing_rates(result: NetworkResult) -> tuple[float, float]:
         spikes: Spikes = result.spikes

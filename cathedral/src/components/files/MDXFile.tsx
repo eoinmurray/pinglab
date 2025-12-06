@@ -79,7 +79,7 @@ export function MDXFile({ file, directory }: { file: FileEntry; directory?: Dire
             {slides && (
               <Link
                 to={`/${slides.path}`}
-                className="font-mono text-xs px-2 py-0.5 rounded flex items-center gap-1"
+                className="font-mono text-xs px-2 py-0.5 rounded flex items-center gap-1 print:hidden"
               >
                 <Presentation className="h-3.5 w-3.5" />
                 <span>slides</span>
@@ -92,7 +92,6 @@ export function MDXFile({ file, directory }: { file: FileEntry; directory?: Dire
               {file.frontmatter.description}
             </div>
           )}
-          
         </header>
       )}
 

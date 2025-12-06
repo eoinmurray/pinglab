@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from pinglab.analysis.crosscorr import crosscorr
 from pinglab.plots.styles import save_both, figsize
 
-from local.inner import inner
+from local.hotloop import hotloop
 from local.model import LocalConfig
 
 
@@ -15,7 +15,7 @@ def experiment_5(config: LocalConfig, data_path: Path) -> None:
             "I_E": config.experiment_5.I_E,
         }
 
-    result = inner(cfg)
+    result = hotloop(cfg)
 
     centers, hist = crosscorr(result.spikes, N_E=config.base.N_E)
 

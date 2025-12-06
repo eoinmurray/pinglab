@@ -4,7 +4,7 @@ import numpy as np
 from pinglab.plots import save_raster
 from pinglab.utils import slice_spikes
 from pinglab.multiprocessing import parallel
-from local.inner import inner
+from local.hotloop import hotloop
 from local.model import LocalConfig
 
 def experiment_1(config: LocalConfig, data_path: Path) -> None:
@@ -21,7 +21,7 @@ def experiment_1(config: LocalConfig, data_path: Path) -> None:
         )
     ]
 
-    results = parallel(inner, cfgs, label="Experiment 1")
+    results = parallel(hotloop, cfgs, label="Experiment 1")
 
     for i, result in enumerate(results):
         sliced_spikes = slice_spikes(
