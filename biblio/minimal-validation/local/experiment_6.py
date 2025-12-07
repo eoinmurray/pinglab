@@ -17,15 +17,15 @@ def experiment_6(config: LocalConfig, data_path: Path) -> None:
         raise RuntimeError("Experiment 6 is disabled in the configuration.")
 
     cfgs = [
-        {
+        {   
             "config": config,
-            "g_ei": config.experiment_6.g_ei,
-            "I_E": value,
+            "I_E": config.experiment_6.I_E,
+            "g_ei": value,
         }
         for value in np.linspace(
-            config.experiment_6.linspace.start,
-            config.experiment_6.linspace.stop,
-            config.experiment_6.linspace.num,
+            config.experiment_6.linspace.start, 
+            config.experiment_6.linspace.stop, 
+            config.experiment_6.linspace.num
         )
     ]
 
@@ -42,22 +42,25 @@ def experiment_6(config: LocalConfig, data_path: Path) -> None:
         if not config.plotting:
             raise RuntimeError("Plotting must be enabled for Experiment 6.")
 
-        sliced_spikes = slice_spikes(
-            result.spikes,
-            start_time=config.plotting.raster.start_time,
-            stop_time=config.plotting.raster.stop_time,
-        )
+        spikes = result.spikes
 
-        cv_E, cv_I = population_isi_cv(sliced_spikes, N_E=config.base.N_E, N_I=config.base.N_I)
-        param_values.append(I_E)
-        cv_E_list.append(cv_E)
-        cv_I_list.append(cv_I)
+        # if config.plotting:
+        #     spikes = slice_spikes(
+        #         spikes,
+        #         start_time=config.plotting.raster.start_time,
+        #         stop_time=config.plotting.raster.stop_time,
+        #     )
 
         save_raster(
-            sliced_spikes,
-            data_path / f"raster_population_isi_cv_I_E_{I_E:.2f}.png",
-            label=f"I_E={I_E:.2f}",
+            spikes,
+            data_path / f"raster_population_isi_cv_g_{cfg['g_ei']:.2f}.png",
+            label=f"g_ei={cfg['g_ei']:.2f}",
         )
+
+        cv_E, cv_I = population_isi_cv(spikes, N_E=config.base.N_E, N_I=config.base.N_I)
+        param_values.append(cfg["g_ei"])
+        cv_E_list.append(cv_E)
+        cv_I_list.append(cv_I)
 
     def plot_fn():
         params = np.array(param_values)

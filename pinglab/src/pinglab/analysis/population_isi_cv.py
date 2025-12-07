@@ -23,6 +23,7 @@ def isi_cv_per_neuron(
     - finite, positive mean ISI
     - finite CV
     """
+
     times = np.asarray(spikes.times, dtype=float)
     ids = np.asarray(spikes.ids, dtype=int)
 
@@ -47,6 +48,7 @@ def isi_cv_per_neuron(
 
         # Need enough ISIs for the chosen ddof
         if isi.size == 0 or isi.size <= ddof:
+            print(f"Warning: Neuron {nid} has insufficient ISIs for ddof={ddof}.")
             continue
 
         mean_isi = float(np.mean(isi))
@@ -58,6 +60,7 @@ def isi_cv_per_neuron(
             continue
 
         cv = std_isi / mean_isi
+
         if not np.isfinite(cv):
             continue
 
@@ -110,13 +113,14 @@ def population_isi_cv(
     _, cv_E_neurons = isi_cv_per_neuron(
         spikes,
         neuron_ids=all_E_ids,
-        min_spikes=min_spikes,
+        min_spikes=30,
         ddof=ddof,
     )
+
     _, cv_I_neurons = isi_cv_per_neuron(
         spikes,
         neuron_ids=all_I_ids,
-        min_spikes=min_spikes,
+        min_spikes=30,
         ddof=ddof,
     )
 

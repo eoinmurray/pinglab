@@ -40,11 +40,13 @@ experiment_5:
   I_E: 1.5
 
 experiment_6:
-  g_ei: 1.4
+  I_E: 1.2  # Fixed input to E neurons
+  # g_ei
   linspace:
-    start: 0.5
-    stop: 2.0
-    num: 40
+    start: 1.0
+    stop: 1.5
+    num: 20
+
 
 default_inputs:
   I_E: 1.2       # not used in this experiment but typechecker needs it
