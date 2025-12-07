@@ -80,5 +80,5 @@ def experiment_4(config: LocalConfig, data_path: Path) -> None:
             plt.grid(True)
             plt.tight_layout()
 
-        save_both(data_path / f"psd_I_E_{cfgs[i]['I_E']:.2f}", plot_fn)
+        save_both(data_path / f"experiment_4_psd_I_E_{cfgs[i]['I_E']:.2f}", plot_fn)
 

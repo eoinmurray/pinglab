@@ -1,10 +1,10 @@
 ---
 name: sync-report
-description: Sync a README.mdx report with its experiment.py code. For each image/gallery in the report, add methodology sections explaining what the image shows, how it was created, and what to expect.
+description: Sync a README.mdx report or SLIDES.mdx presentation with its experiment.py code. For each image/gallery in the report, add methodology sections explaining what the image shows, how it was created, and what to expect.
 license: MIT
 ---
 
-This skill guides the synchronization of experiment reports (README.mdx) with their underlying experiment code (experiment.py and related files).
+This skill guides the synchronization of experiment reports (README.mdx) and slide presentations (SLIDES.mdx) with their underlying experiment code (experiment.py and related files).
 
 ## Rules
 - Don't mention the python files in the report.
@@ -13,8 +13,8 @@ This skill guides the synchronization of experiment reports (README.mdx) with th
 
 ## When to use
 
-- User asks to sync a report with its experiment code
-- User wants to add methodology sections to a report
+- User asks to sync a report or slides with its experiment code
+- User wants to add methodology sections to a report or slides
 - User asks to document how figures/images were generated
 
 ## Report structure
@@ -23,6 +23,7 @@ Reports live in `biblio/{experiment-name}/` with this structure:
 ```
 biblio/{experiment-name}/
 ├── README.mdx           # The report (MDX format)
+├── SLIDES.mdx           # Slide presentation (MDX format)
 ├── experiment.py        # Main experiment runner
 ├── config.yaml          # Experiment parameters
 ├── local/               # Local modules
@@ -33,11 +34,11 @@ biblio/{experiment-name}/
 
 ## Task workflow
 
-1. **Read the README.mdx** to identify all Gallery components and their glob patterns
+1. **Read the README.mdx or SLIDES.mdx** to identify all Gallery components and their glob patterns
 2. **Read experiment.py** to understand the experiment structure
 3. **Read config.yaml** to get actual parameter values
 4. **Read local/experiment_*.py** files to understand how each figure is generated
-5. **For each Gallery**, add methodology sections:
+5. **For each Gallery**, add methodology sections (for README) or speaker notes (for SLIDES):
 
 ## Methodology section format
 
@@ -61,6 +62,40 @@ For each `<Gallery>` component in the report, add three subsections immediately 
 
 <Gallery ... />
 ```
+
+## Slides format (SLIDES.mdx)
+
+Slides use `---` as separators between slides. Each slide typically contains a single `<Gallery>` component. For slides, instead of adding methodology sections, ensure each Gallery has:
+
+- **title**: What the visualization shows (concise, one line)
+- **subtitle**: Key context or regime information
+- **caption**: Brief methodology summary
+- **captionLabel**: Figure numbering (e.g., "Figure 1")
+
+### Slide structure
+
+```mdx
+---
+
+<Gallery
+  title="Raster plot of A-OSC transition as $g_{ei}$ increases."
+  path="experiment/data"
+  globs={["raster_g_ei_*.png"]}
+  subtitle="At $I_E = 1.0$ nA in the oscillatory regime."
+  caption="Sweep $g_{ei}$ from 0.8 to 2.4 nS with fixed $I_E = 1.0$ nA"
+  captionLabel="Figure 1"
+/>
+
+---
+```
+
+### Slides-specific guidelines
+
+- Keep titles under 80 characters
+- Subtitles should provide key parameter context
+- Captions summarize the methodology in one sentence
+- Use `single` prop for galleries that should show one image at a time
+- Ensure all parameter values match config.yaml
 
 ## Guidelines
 

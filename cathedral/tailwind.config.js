@@ -4,6 +4,8 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
+		"../biblio/**/*.mdx",
+		"../biblio/**/*.md",
   ],
   theme: {
   	extend: {

@@ -37,7 +37,10 @@ export function Lightbox({
       style={{ top: 0, left: 0, right: 0, bottom: 0 }}
     >
       {/* Top bar */}
-      <div className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-sm">
+      <div
+        className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="font-mono text-xs text-muted-foreground tabular-nums">
           {String(selectedIndex + 1).padStart(2, '0')} / {String(images.length).padStart(2, '0')}
         </div>
@@ -79,19 +82,20 @@ export function Lightbox({
       )}
 
       {/* Main image */}
-      <div
-        className="fixed inset-0 flex items-center justify-center p-16"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="fixed inset-0 flex items-center justify-center p-16">
         <img
           src={current.src}
           alt={current.label}
           className="max-w-full max-h-full object-contain"
+          onClick={(e) => e.stopPropagation()}
         />
       </div>
 
       {/* Caption */}
-      <div className="fixed bottom-0 left-0 right-0 z-10 p-4 text-center bg-background/80 backdrop-blur-sm">
+      <div
+        className="fixed bottom-0 left-0 right-0 z-10 p-4 text-center bg-background/80 backdrop-blur-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
         <span className="font-mono text-xs text-muted-foreground">
           {current.label}
         </span>

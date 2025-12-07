@@ -32,6 +32,6 @@ def experiment_1(config: LocalConfig, data_path: Path) -> None:
 
         save_raster(
             sliced_spikes,
-            path=data_path / f"raster_g_ei_{i + 1}.png",
+            path=data_path / f"experiment_1_raster_g_ei_{i + 1}.png",
             label=f"g_ei={cfgs[i]['g_ei']:.2f}",
         )

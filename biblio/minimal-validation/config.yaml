@@ -5,7 +5,7 @@ experiment_1:
   linspace:
     start: 1.2
     stop: 1.5
-    num: 10
+    num: 3
 
 experiment_2:
   g_ei: 1.6  # Fixed E→I synaptic weight
@@ -49,7 +49,7 @@ experiment_6:
 
 
 default_inputs:
-  I_E: 1.2       # not used in this experiment but typechecker needs it
+  I_E: 1.7       # not used in this experiment but typechecker needs it
   I_I: 0.7       # Input to I neurons (slightly lower)
   noise: 0.8     # Strong noise (0.5-1.0 range) creates irregularity and breaks synchrony
 

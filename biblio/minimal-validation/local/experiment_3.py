@@ -83,5 +83,5 @@ def experiment_3(config: LocalConfig, data_path: Path) -> None:
         plt.grid(True)
         plt.tight_layout()
 
-    save_both(data_path / "firing_rates_vs_I_E_large", plot_fn_large)
-    save_both(data_path / "firing_rates_vs_I_E_small", plot_fn_small)
+    save_both(data_path / "experiment_3_firing_rates_vs_I_E_large", plot_fn_large)
+    save_both(data_path / "experiment_3_firing_rates_vs_I_E_small", plot_fn_small)

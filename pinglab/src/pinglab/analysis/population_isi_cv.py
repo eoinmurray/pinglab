@@ -1,77 +1,10 @@
 """Inter-spike interval coefficient of variation (CV) analysis."""
 
 from __future__ import annotations
-
-from typing import Tuple
-
 import numpy as np
+
+from .isi_cv_per_neuron import isi_cv_per_neuron
 from pinglab.types import Spikes
-
-
-def isi_cv_per_neuron(
-    spikes: Spikes,
-    neuron_ids: np.ndarray | None = None,
-    min_spikes: int = 20,  # default: require at least 2 ISIs
-    ddof: int = 0,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Compute ISI CV per neuron.
-
-    Returns only neurons with:
-    - at least `min_spikes` spikes
-    - at least `ddof + 1` ISIs (for std to be defined)
-    - finite, positive mean ISI
-    - finite CV
-    """
-
-    times = np.asarray(spikes.times, dtype=float)
-    ids = np.asarray(spikes.ids, dtype=int)
-
-    if neuron_ids is None:
-        neuron_ids = np.unique(ids)
-    else:
-        neuron_ids = np.asarray(neuron_ids, dtype=int)
-
-    cvs: list[float] = []
-    kept_ids: list[int] = []
-
-    for nid in neuron_ids:
-        mask = ids == nid
-        t = times[mask]
-
-        # Not enough spikes to define a sensible ISI distribution
-        if t.size < min_spikes:
-            continue
-
-        t = np.sort(t)
-        isi = np.diff(t)
-
-        # Need enough ISIs for the chosen ddof
-        if isi.size == 0 or isi.size <= ddof:
-            print(f"Warning: Neuron {nid} has insufficient ISIs for ddof={ddof}.")
-            continue
-
-        mean_isi = float(np.mean(isi))
-        if not np.isfinite(mean_isi) or mean_isi <= 0.0:
-            continue
-
-        std_isi = float(np.std(isi, ddof=ddof))
-        if not np.isfinite(std_isi):
-            continue
-
-        cv = std_isi / mean_isi
-
-        if not np.isfinite(cv):
-            continue
-
-        cvs.append(cv)
-        kept_ids.append(int(nid))
-
-    if not cvs:
-        return np.array([], dtype=int), np.array([], dtype=float)
-
-    return np.array(kept_ids, dtype=int), np.array(cvs, dtype=float)
-
 
 def population_isi_cv(
     spikes: Spikes,
@@ -113,14 +46,14 @@ def population_isi_cv(
     _, cv_E_neurons = isi_cv_per_neuron(
         spikes,
         neuron_ids=all_E_ids,
-        min_spikes=30,
+        min_spikes=min_spikes,
         ddof=ddof,
     )
 
     _, cv_I_neurons = isi_cv_per_neuron(
         spikes,
         neuron_ids=all_I_ids,
-        min_spikes=30,
+        min_spikes=min_spikes,
         ddof=ddof,
     )
 

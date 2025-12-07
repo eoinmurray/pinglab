@@ -1,5 +1,5 @@
-import { useCallback, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useCallback, useRef, useEffect } from "react";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { RuntimeMDX } from "./RuntimeMDX";
 import { FULLSCREEN_DATA_ATTR } from "@/lib/constants";
 import { ChevronDown, ChevronUp } from "lucide-react";
@@ -8,7 +8,9 @@ import { useKeyBindings } from "@/hooks/useKeyBindings";
 export function Slides({ content }: { content: string }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<number | null>(null);
 
   // Strip frontmatter if present (starts with --- and ends with ---)
   let processedContent = content;
@@ -24,6 +26,30 @@ export function Slides({ content }: { content: string }) {
 
   const totalSlides = slides.length;
 
+  // Update URL with current slide index
+  const updateSlideUrl = useCallback((slideIndex: number) => {
+    setSearchParams((params) => {
+      if (slideIndex === 0) {
+        params.delete("slide");
+      } else {
+        params.set("slide", String(slideIndex));
+      }
+      return params;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Scroll to initial slide from URL on mount
+  useEffect(() => {
+    const slideParam = searchParams.get("slide");
+    if (slideParam && containerRef.current) {
+      const slideIndex = parseInt(slideParam, 10);
+      if (!isNaN(slideIndex) && slideIndex >= 0 && slideIndex < totalSlides) {
+        const viewportHeight = containerRef.current.clientHeight;
+        containerRef.current.scrollTo({ top: slideIndex * viewportHeight, behavior: "instant" });
+      }
+    }
+  }, []); // Only run on mount
+
   // Navigation handlers - scroll to next/prev slide
   const goToNextSlide = useCallback(() => {
     if (!containerRef.current) return;
@@ -33,7 +59,8 @@ export function Slides({ content }: { content: string }) {
     const currentSlide = Math.round(currentScroll / viewportHeight);
     const nextSlide = Math.min(currentSlide + 1, totalSlides - 1);
     container.scrollTo({ top: nextSlide * viewportHeight, behavior: "smooth" });
-  }, [totalSlides]);
+    updateSlideUrl(nextSlide);
+  }, [totalSlides, updateSlideUrl]);
 
   const goToPreviousSlide = useCallback(() => {
     if (!containerRef.current) return;
@@ -43,19 +70,49 @@ export function Slides({ content }: { content: string }) {
     const currentSlide = Math.round(currentScroll / viewportHeight);
     const prevSlide = Math.max(currentSlide - 1, 0);
     container.scrollTo({ top: prevSlide * viewportHeight, behavior: "smooth" });
-  }, []);
+    updateSlideUrl(prevSlide);
+  }, [updateSlideUrl]);
 
   const goToFirstSlide = useCallback(() => {
     if (!containerRef.current) return;
     containerRef.current.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+    updateSlideUrl(0);
+  }, [updateSlideUrl]);
 
   const goToLastSlide = useCallback(() => {
     if (!containerRef.current) return;
     const container = containerRef.current;
     const viewportHeight = container.clientHeight;
     container.scrollTo({ top: (totalSlides - 1) * viewportHeight, behavior: "smooth" });
-  }, [totalSlides]);
+    updateSlideUrl(totalSlides - 1);
+  }, [totalSlides, updateSlideUrl]);
+
+  // Handle scroll events to update URL when scrolling stops
+  const handleScroll = useCallback(() => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    scrollTimeoutRef.current = window.setTimeout(() => {
+      if (!containerRef.current) return;
+      const container = containerRef.current;
+      const viewportHeight = container.clientHeight;
+      const currentSlide = Math.round(container.scrollTop / viewportHeight);
+      updateSlideUrl(currentSlide);
+    }, 150);
+  }, [updateSlideUrl]);
+
+  // Attach scroll listener
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.addEventListener("scroll", handleScroll);
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, [handleScroll]);
 
   // Go to parent directory
   const goToParentDir = useCallback(() => {
@@ -124,7 +181,7 @@ export function Slides({ content }: { content: string }) {
         {slides.map((slide, index) => (
           <div key={index} className="slide-page">
             <div className="min-h-screen w-full max-w-xl mx-auto flex items-center justify-center text-lg md:text-2xl print:max-w-none print:[&_img]:max-w-full">
-              <RuntimeMDX content={slide} size="2xl" />
+              <RuntimeMDX content={slide} size="md" />
             </div>
             {index < slides.length - 1 && (
               <div className="w-full h-px bg-border print:hidden" />
