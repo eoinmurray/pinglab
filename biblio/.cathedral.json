@@ -11,62 +11,6 @@
     },
     {
       "type": "directory",
-      "name": "config",
-      "path": "config",
-      "children": [
-        {
-          "type": "file",
-          "name": "README.mdx",
-          "path": "config/README.mdx",
-          "size": 8583,
-          "frontmatter": {
-            "title": "Network Configuration Reference",
-            "description": "Configuration parameters for network experiments.",
-            "date": "2025-12-06T00:00:00.000Z"
-          }
-        }
-      ]
-    },
-    {
-      "type": "directory",
-      "name": "docs",
-      "path": "docs",
-      "children": [
-        {
-          "type": "file",
-          "name": "README.mdx",
-          "path": "docs/README.mdx",
-          "size": 17374,
-          "frontmatter": {
-            "title": "Pinglab Docs",
-            "visibility": "hidden",
-            "description": "Documentation for the Pinglab python package.",
-            "date": "2025-11-30T00:00:00.000Z"
-          }
-        }
-      ]
-    },
-    {
-      "type": "directory",
-      "name": "logs",
-      "path": "logs",
-      "children": [
-        {
-          "type": "file",
-          "name": "README.mdx",
-          "path": "logs/README.mdx",
-          "size": 349,
-          "frontmatter": {
-            "title": "Logs",
-            "visibility": "hidden",
-            "description": "My logs",
-            "date": "2025-11-30T00:00:00.000Z"
-          }
-        }
-      ]
-    },
-    {
-      "type": "directory",
       "name": "minimal-validation",
       "path": "minimal-validation",
       "children": [

@@ -6,43 +6,19 @@ export function Header() {
   return (
     <header className="z-40 print:hidden">
       <div className="mx-auto w-full px-[var(--page-padding)] flex items-center gap-8 py-4">
-        <div className="flex-1" />
-
-        {/* Navigation */}
         <nav className="flex items-center gap-1">
           <Link
             to="/"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            aria-label="GitHub"
+            className="rounded-lg font-mono py-1.5 text-sm font-medium text-muted-foreground hover:underline"
           >
-            Posts
+            pl
           </Link>
-          <Link
-            to="/docs"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            aria-label="GitHub"
-          >
-            Docs
-          </Link>
+        </nav>
 
-          <Link
-            to="/biblio/docs/README.mdx"
-            target="_blank"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            aria-label="GitHub"
-          >
-            LLM
-          </Link>
+        <div className="flex-1" />
 
-          
-
-          <Link
-            to="/logs"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            aria-label="GitHub"
-          >
-            Logs
-          </Link>
+        {/* Navigation */}
+        <nav className="flex items-center gap-2">
           <Link
             to="https://github.com/eoinmurray/pinglab"
             target="_blank"
