@@ -148,7 +148,7 @@ export function useFileContent(path: string) {
   const [blob, setBlob] = useState<Blob | null>(null);
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();

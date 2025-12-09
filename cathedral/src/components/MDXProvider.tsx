@@ -1,6 +1,6 @@
 import { MDXProvider } from '@mdx-js/react'
 import { ReactNode } from 'react'
-import { mdxComponents } from '@/lib/mdx-components'
+import { mdxComponents } from '@/components/mdx-components'
 import 'katex/dist/katex.min.css'
 
 export function MDXProviderWrapper({ children }: { children: ReactNode }) {

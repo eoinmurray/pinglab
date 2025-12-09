@@ -31,7 +31,7 @@ export function Lightbox({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] bg-background print:hidden"
+      className="fixed inset-0 z-[9999] bg-background"
       onClick={onClose}
       {...{ [FULLSCREEN_DATA_ATTR]: "true" }}
       style={{ top: 0, left: 0, right: 0, bottom: 0 }}

@@ -4,432 +4,426 @@
   "path": ".",
   "children": [
     {
-      "type": "file",
-      "name": "README.md",
-      "path": "README.md",
-      "size": 472
-    },
-    {
       "type": "directory",
-      "name": "minimal-validation",
-      "path": "minimal-validation",
+      "name": "1.minimal-validation",
+      "path": "1.minimal-validation",
       "children": [
         {
           "type": "file",
           "name": "SLIDES.mdx",
-          "path": "minimal-validation/SLIDES.mdx",
-          "size": 2886,
+          "path": "1.minimal-validation/SLIDES.mdx",
+          "size": 3489,
           "frontmatter": {
-            "title": "Minimal Validation",
-            "description": "Validating the PING Network",
+            "title": "Minimal Validation of a PING Spiking Network",
+            "description": "Here we present a series of plots for a PING (Pyramidal Interneuron Network Gamma) spiking network model to validate that the model is working.",
             "date": "2025-11-25T00:00:00.000Z"
           }
         },
         {
           "type": "file",
           "name": "config.yaml",
-          "path": "minimal-validation/config.yaml",
+          "path": "1.minimal-validation/config.yaml",
           "size": 3123
         },
         {
           "type": "directory",
           "name": "data",
-          "path": "minimal-validation/data",
+          "path": "1.minimal-validation/data",
           "children": [
             {
               "type": "file",
               "name": "experiment_1_raster_g_ei_1_dark.png",
-              "path": "minimal-validation/data/experiment_1_raster_g_ei_1_dark.png",
+              "path": "1.minimal-validation/data/experiment_1_raster_g_ei_1_dark.png",
               "size": 497815
             },
             {
               "type": "file",
               "name": "experiment_1_raster_g_ei_1_light.png",
-              "path": "minimal-validation/data/experiment_1_raster_g_ei_1_light.png",
+              "path": "1.minimal-validation/data/experiment_1_raster_g_ei_1_light.png",
               "size": 400332
             },
             {
               "type": "file",
               "name": "experiment_1_raster_g_ei_2_dark.png",
-              "path": "minimal-validation/data/experiment_1_raster_g_ei_2_dark.png",
+              "path": "1.minimal-validation/data/experiment_1_raster_g_ei_2_dark.png",
               "size": 487314
             },
             {
               "type": "file",
               "name": "experiment_1_raster_g_ei_2_light.png",
-              "path": "minimal-validation/data/experiment_1_raster_g_ei_2_light.png",
+              "path": "1.minimal-validation/data/experiment_1_raster_g_ei_2_light.png",
               "size": 398293
             },
             {
               "type": "file",
               "name": "experiment_1_raster_g_ei_3_dark.png",
-              "path": "minimal-validation/data/experiment_1_raster_g_ei_3_dark.png",
+              "path": "1.minimal-validation/data/experiment_1_raster_g_ei_3_dark.png",
               "size": 498907
             },
             {
               "type": "file",
               "name": "experiment_1_raster_g_ei_3_light.png",
-              "path": "minimal-validation/data/experiment_1_raster_g_ei_3_light.png",
+              "path": "1.minimal-validation/data/experiment_1_raster_g_ei_3_light.png",
               "size": 418305
             },
             {
               "type": "file",
               "name": "experiment_2_raster_I_E_1_dark.png",
-              "path": "minimal-validation/data/experiment_2_raster_I_E_1_dark.png",
+              "path": "1.minimal-validation/data/experiment_2_raster_I_E_1_dark.png",
               "size": 266897
             },
             {
               "type": "file",
               "name": "experiment_2_raster_I_E_1_light.png",
-              "path": "minimal-validation/data/experiment_2_raster_I_E_1_light.png",
+              "path": "1.minimal-validation/data/experiment_2_raster_I_E_1_light.png",
               "size": 252539
             },
             {
               "type": "file",
               "name": "experiment_2_raster_I_E_2_dark.png",
-              "path": "minimal-validation/data/experiment_2_raster_I_E_2_dark.png",
+              "path": "1.minimal-validation/data/experiment_2_raster_I_E_2_dark.png",
               "size": 401382
             },
             {
               "type": "file",
               "name": "experiment_2_raster_I_E_2_light.png",
-              "path": "minimal-validation/data/experiment_2_raster_I_E_2_light.png",
+              "path": "1.minimal-validation/data/experiment_2_raster_I_E_2_light.png",
               "size": 351161
             },
             {
               "type": "file",
               "name": "experiment_2_raster_I_E_3_dark.png",
-              "path": "minimal-validation/data/experiment_2_raster_I_E_3_dark.png",
+              "path": "1.minimal-validation/data/experiment_2_raster_I_E_3_dark.png",
               "size": 549990
             },
             {
               "type": "file",
               "name": "experiment_2_raster_I_E_3_light.png",
-              "path": "minimal-validation/data/experiment_2_raster_I_E_3_light.png",
+              "path": "1.minimal-validation/data/experiment_2_raster_I_E_3_light.png",
               "size": 451499
             },
             {
               "type": "file",
               "name": "experiment_3_firing_rates_vs_I_E_large_dark.png",
-              "path": "minimal-validation/data/experiment_3_firing_rates_vs_I_E_large_dark.png",
+              "path": "1.minimal-validation/data/experiment_3_firing_rates_vs_I_E_large_dark.png",
               "size": 156352
             },
             {
               "type": "file",
               "name": "experiment_3_firing_rates_vs_I_E_large_light.png",
-              "path": "minimal-validation/data/experiment_3_firing_rates_vs_I_E_large_light.png",
+              "path": "1.minimal-validation/data/experiment_3_firing_rates_vs_I_E_large_light.png",
               "size": 147521
             },
             {
               "type": "file",
               "name": "experiment_3_firing_rates_vs_I_E_small_dark.png",
-              "path": "minimal-validation/data/experiment_3_firing_rates_vs_I_E_small_dark.png",
+              "path": "1.minimal-validation/data/experiment_3_firing_rates_vs_I_E_small_dark.png",
               "size": 172274
             },
             {
               "type": "file",
               "name": "experiment_3_firing_rates_vs_I_E_small_light.png",
-              "path": "minimal-validation/data/experiment_3_firing_rates_vs_I_E_small_light.png",
+              "path": "1.minimal-validation/data/experiment_3_firing_rates_vs_I_E_small_light.png",
               "size": 163014
             },
             {
               "type": "file",
               "name": "experiment_4_psd_I_E_0.50_dark.png",
-              "path": "minimal-validation/data/experiment_4_psd_I_E_0.50_dark.png",
+              "path": "1.minimal-validation/data/experiment_4_psd_I_E_0.50_dark.png",
               "size": 218615
             },
             {
               "type": "file",
               "name": "experiment_4_psd_I_E_0.50_light.png",
-              "path": "minimal-validation/data/experiment_4_psd_I_E_0.50_light.png",
+              "path": "1.minimal-validation/data/experiment_4_psd_I_E_0.50_light.png",
               "size": 200394
             },
             {
               "type": "file",
               "name": "experiment_4_psd_I_E_1.25_dark.png",
-              "path": "minimal-validation/data/experiment_4_psd_I_E_1.25_dark.png",
+              "path": "1.minimal-validation/data/experiment_4_psd_I_E_1.25_dark.png",
               "size": 632997
             },
             {
               "type": "file",
               "name": "experiment_4_psd_I_E_1.25_light.png",
-              "path": "minimal-validation/data/experiment_4_psd_I_E_1.25_light.png",
+              "path": "1.minimal-validation/data/experiment_4_psd_I_E_1.25_light.png",
               "size": 473380
             },
             {
               "type": "file",
               "name": "experiment_4_psd_I_E_2.00_dark.png",
-              "path": "minimal-validation/data/experiment_4_psd_I_E_2.00_dark.png",
+              "path": "1.minimal-validation/data/experiment_4_psd_I_E_2.00_dark.png",
               "size": 940050
             },
             {
               "type": "file",
               "name": "experiment_4_psd_I_E_2.00_light.png",
-              "path": "minimal-validation/data/experiment_4_psd_I_E_2.00_light.png",
+              "path": "1.minimal-validation/data/experiment_4_psd_I_E_2.00_light.png",
               "size": 641019
             },
             {
               "type": "file",
               "name": "experiment_5_crosscorr_dark.png",
-              "path": "minimal-validation/data/experiment_5_crosscorr_dark.png",
+              "path": "1.minimal-validation/data/experiment_5_crosscorr_dark.png",
               "size": 127885
             },
             {
               "type": "file",
               "name": "experiment_5_crosscorr_light.png",
-              "path": "minimal-validation/data/experiment_5_crosscorr_light.png",
+              "path": "1.minimal-validation/data/experiment_5_crosscorr_light.png",
               "size": 123314
             },
             {
               "type": "file",
               "name": "experiment_6_population_isi_cv_dark.png",
-              "path": "minimal-validation/data/experiment_6_population_isi_cv_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_population_isi_cv_dark.png",
               "size": 133471
             },
             {
               "type": "file",
               "name": "experiment_6_population_isi_cv_light.png",
-              "path": "minimal-validation/data/experiment_6_population_isi_cv_light.png",
+              "path": "1.minimal-validation/data/experiment_6_population_isi_cv_light.png",
               "size": 122953
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.00_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.00_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.00_dark.png",
               "size": 511695
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.00_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.00_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.00_light.png",
               "size": 403598
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.03_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.03_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.03_dark.png",
               "size": 509457
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.03_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.03_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.03_light.png",
               "size": 403582
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.05_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.05_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.05_dark.png",
               "size": 506879
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.05_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.05_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.05_light.png",
               "size": 403707
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.08_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.08_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.08_dark.png",
               "size": 504604
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.08_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.08_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.08_light.png",
               "size": 401360
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.11_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.11_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.11_dark.png",
               "size": 503803
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.11_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.11_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.11_light.png",
               "size": 401990
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.13_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.13_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.13_dark.png",
               "size": 501800
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.13_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.13_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.13_light.png",
               "size": 400280
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.16_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.16_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.16_dark.png",
               "size": 499157
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.16_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.16_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.16_light.png",
               "size": 399006
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.18_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.18_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.18_dark.png",
               "size": 494816
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.18_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.18_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.18_light.png",
               "size": 397602
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.21_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.21_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.21_dark.png",
               "size": 493788
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.21_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.21_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.21_light.png",
               "size": 397270
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.24_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.24_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.24_dark.png",
               "size": 492084
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.24_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.24_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.24_light.png",
               "size": 397825
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.26_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.26_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.26_dark.png",
               "size": 488250
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.26_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.26_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.26_light.png",
               "size": 395474
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.29_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.29_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.29_dark.png",
               "size": 489474
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.29_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.29_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.29_light.png",
               "size": 398239
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.32_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.32_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.32_dark.png",
               "size": 486568
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.32_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.32_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.32_light.png",
               "size": 397160
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.34_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.34_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.34_dark.png",
               "size": 487394
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.34_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.34_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.34_light.png",
               "size": 397682
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.37_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.37_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.37_dark.png",
               "size": 485811
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.37_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.37_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.37_light.png",
               "size": 396888
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.39_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.39_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.39_dark.png",
               "size": 485281
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.39_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.39_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.39_light.png",
               "size": 398913
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.42_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.42_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.42_dark.png",
               "size": 488322
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.42_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.42_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.42_light.png",
               "size": 402268
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.45_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.45_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.45_dark.png",
               "size": 507361
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.45_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.45_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.45_light.png",
               "size": 424373
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.47_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.47_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.47_dark.png",
               "size": 500690
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.47_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.47_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.47_light.png",
               "size": 418471
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.50_dark.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.50_dark.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.50_dark.png",
               "size": 498907
             },
             {
               "type": "file",
               "name": "experiment_6_raster_g_1.50_light.png",
-              "path": "minimal-validation/data/experiment_6_raster_g_1.50_light.png",
+              "path": "1.minimal-validation/data/experiment_6_raster_g_1.50_light.png",
               "size": 418305
             }
           ]
@@ -437,60 +431,60 @@
         {
           "type": "file",
           "name": "experiment.py",
-          "path": "minimal-validation/experiment.py",
+          "path": "1.minimal-validation/experiment.py",
           "size": 1070
         },
         {
           "type": "directory",
           "name": "local",
-          "path": "minimal-validation/local",
+          "path": "1.minimal-validation/local",
           "children": [
             {
               "type": "file",
               "name": "experiment_1.py",
-              "path": "minimal-validation/local/experiment_1.py",
+              "path": "1.minimal-validation/local/experiment_1.py",
               "size": 1101
             },
             {
               "type": "file",
               "name": "experiment_2.py",
-              "path": "minimal-validation/local/experiment_2.py",
+              "path": "1.minimal-validation/local/experiment_2.py",
               "size": 1096
             },
             {
               "type": "file",
               "name": "experiment_3.py",
-              "path": "minimal-validation/local/experiment_3.py",
+              "path": "1.minimal-validation/local/experiment_3.py",
               "size": 3070
             },
             {
               "type": "file",
               "name": "experiment_4.py",
-              "path": "minimal-validation/local/experiment_4.py",
+              "path": "1.minimal-validation/local/experiment_4.py",
               "size": 2693
             },
             {
               "type": "file",
               "name": "experiment_5.py",
-              "path": "minimal-validation/local/experiment_5.py",
+              "path": "1.minimal-validation/local/experiment_5.py",
               "size": 817
             },
             {
               "type": "file",
               "name": "experiment_6.py",
-              "path": "minimal-validation/local/experiment_6.py",
+              "path": "1.minimal-validation/local/experiment_6.py",
               "size": 2677
             },
             {
               "type": "file",
               "name": "hotloop.py",
-              "path": "minimal-validation/local/hotloop.py",
+              "path": "1.minimal-validation/local/hotloop.py",
               "size": 790
             },
             {
               "type": "file",
               "name": "model.py",
-              "path": "minimal-validation/local/model.py",
+              "path": "1.minimal-validation/local/model.py",
               "size": 640
             }
           ]
@@ -499,14 +493,14 @@
     },
     {
       "type": "directory",
-      "name": "phase-dependence",
-      "path": "phase-dependence",
+      "name": "2.phase-dependence",
+      "path": "2.phase-dependence",
       "children": [
         {
           "type": "file",
           "name": "README.mdx",
-          "path": "phase-dependence/README.mdx",
-          "size": 4554,
+          "path": "2.phase-dependence/README.mdx",
+          "size": 4560,
           "frontmatter": {
             "title": "Phase Dependence",
             "description": "Gamma oscillations create phase-dependent gating where identical inputs produce different responses depending on gamma phase.",
@@ -516,192 +510,192 @@
         {
           "type": "file",
           "name": "config.yaml",
-          "path": "phase-dependence/config.yaml",
+          "path": "2.phase-dependence/config.yaml",
           "size": 3031
         },
         {
           "type": "directory",
           "name": "data",
-          "path": "phase-dependence/data",
+          "path": "2.phase-dependence/data",
           "children": [
             {
               "type": "file",
               "name": "phase_gain_curve_dark.png",
-              "path": "phase-dependence/data/phase_gain_curve_dark.png",
+              "path": "2.phase-dependence/data/phase_gain_curve_dark.png",
               "size": 464272
             },
             {
               "type": "file",
               "name": "phase_gain_curve_light.png",
-              "path": "phase-dependence/data/phase_gain_curve_light.png",
+              "path": "2.phase-dependence/data/phase_gain_curve_light.png",
               "size": 402528
             },
             {
               "type": "file",
               "name": "raster_baseline_dark.png",
-              "path": "phase-dependence/data/raster_baseline_dark.png",
+              "path": "2.phase-dependence/data/raster_baseline_dark.png",
               "size": 951244
             },
             {
               "type": "file",
               "name": "raster_baseline_light.png",
-              "path": "phase-dependence/data/raster_baseline_light.png",
+              "path": "2.phase-dependence/data/raster_baseline_light.png",
               "size": 670760
             },
             {
               "type": "file",
               "name": "raster_with_pulse11_dark.png",
-              "path": "phase-dependence/data/raster_with_pulse11_dark.png",
+              "path": "2.phase-dependence/data/raster_with_pulse11_dark.png",
               "size": 958364
             },
             {
               "type": "file",
               "name": "raster_with_pulse11_light.png",
-              "path": "phase-dependence/data/raster_with_pulse11_light.png",
+              "path": "2.phase-dependence/data/raster_with_pulse11_light.png",
               "size": 677921
             },
             {
               "type": "file",
               "name": "raster_with_pulse1_dark.png",
-              "path": "phase-dependence/data/raster_with_pulse1_dark.png",
+              "path": "2.phase-dependence/data/raster_with_pulse1_dark.png",
               "size": 954447
             },
             {
               "type": "file",
               "name": "raster_with_pulse1_light.png",
-              "path": "phase-dependence/data/raster_with_pulse1_light.png",
+              "path": "2.phase-dependence/data/raster_with_pulse1_light.png",
               "size": 674492
             },
             {
               "type": "file",
               "name": "raster_with_pulse21_dark.png",
-              "path": "phase-dependence/data/raster_with_pulse21_dark.png",
+              "path": "2.phase-dependence/data/raster_with_pulse21_dark.png",
               "size": 957518
             },
             {
               "type": "file",
               "name": "raster_with_pulse21_light.png",
-              "path": "phase-dependence/data/raster_with_pulse21_light.png",
+              "path": "2.phase-dependence/data/raster_with_pulse21_light.png",
               "size": 676974
             },
             {
               "type": "file",
               "name": "raster_with_pulse31_dark.png",
-              "path": "phase-dependence/data/raster_with_pulse31_dark.png",
+              "path": "2.phase-dependence/data/raster_with_pulse31_dark.png",
               "size": 952879
             },
             {
               "type": "file",
               "name": "raster_with_pulse31_light.png",
-              "path": "phase-dependence/data/raster_with_pulse31_light.png",
+              "path": "2.phase-dependence/data/raster_with_pulse31_light.png",
               "size": 673212
             },
             {
               "type": "file",
               "name": "raster_with_pulse41_dark.png",
-              "path": "phase-dependence/data/raster_with_pulse41_dark.png",
+              "path": "2.phase-dependence/data/raster_with_pulse41_dark.png",
               "size": 963667
             },
             {
               "type": "file",
               "name": "raster_with_pulse41_light.png",
-              "path": "phase-dependence/data/raster_with_pulse41_light.png",
+              "path": "2.phase-dependence/data/raster_with_pulse41_light.png",
               "size": 682108
             },
             {
               "type": "file",
               "name": "raster_with_pulse51_dark.png",
-              "path": "phase-dependence/data/raster_with_pulse51_dark.png",
+              "path": "2.phase-dependence/data/raster_with_pulse51_dark.png",
               "size": 954380
             },
             {
               "type": "file",
               "name": "raster_with_pulse51_light.png",
-              "path": "phase-dependence/data/raster_with_pulse51_light.png",
+              "path": "2.phase-dependence/data/raster_with_pulse51_light.png",
               "size": 674563
             },
             {
               "type": "file",
               "name": "raster_with_pulse61_dark.png",
-              "path": "phase-dependence/data/raster_with_pulse61_dark.png",
+              "path": "2.phase-dependence/data/raster_with_pulse61_dark.png",
               "size": 953640
             },
             {
               "type": "file",
               "name": "raster_with_pulse61_light.png",
-              "path": "phase-dependence/data/raster_with_pulse61_light.png",
+              "path": "2.phase-dependence/data/raster_with_pulse61_light.png",
               "size": 674012
             },
             {
               "type": "file",
               "name": "raster_with_pulse71_dark.png",
-              "path": "phase-dependence/data/raster_with_pulse71_dark.png",
+              "path": "2.phase-dependence/data/raster_with_pulse71_dark.png",
               "size": 951909
             },
             {
               "type": "file",
               "name": "raster_with_pulse71_light.png",
-              "path": "phase-dependence/data/raster_with_pulse71_light.png",
+              "path": "2.phase-dependence/data/raster_with_pulse71_light.png",
               "size": 671812
             },
             {
               "type": "file",
               "name": "raster_with_pulse81_dark.png",
-              "path": "phase-dependence/data/raster_with_pulse81_dark.png",
+              "path": "2.phase-dependence/data/raster_with_pulse81_dark.png",
               "size": 948848
             },
             {
               "type": "file",
               "name": "raster_with_pulse81_light.png",
-              "path": "phase-dependence/data/raster_with_pulse81_light.png",
+              "path": "2.phase-dependence/data/raster_with_pulse81_light.png",
               "size": 669654
             },
             {
               "type": "file",
               "name": "raster_with_pulse91_dark.png",
-              "path": "phase-dependence/data/raster_with_pulse91_dark.png",
+              "path": "2.phase-dependence/data/raster_with_pulse91_dark.png",
               "size": 953088
             },
             {
               "type": "file",
               "name": "raster_with_pulse91_light.png",
-              "path": "phase-dependence/data/raster_with_pulse91_light.png",
+              "path": "2.phase-dependence/data/raster_with_pulse91_light.png",
               "size": 673533
             },
             {
               "type": "file",
               "name": "trace_g_e_mean_dark.png",
-              "path": "phase-dependence/data/trace_g_e_mean_dark.png",
+              "path": "2.phase-dependence/data/trace_g_e_mean_dark.png",
               "size": 558219
             },
             {
               "type": "file",
               "name": "trace_g_e_mean_light.png",
-              "path": "phase-dependence/data/trace_g_e_mean_light.png",
+              "path": "2.phase-dependence/data/trace_g_e_mean_light.png",
               "size": 433114
             },
             {
               "type": "file",
               "name": "trace_g_i_mean_dark.png",
-              "path": "phase-dependence/data/trace_g_i_mean_dark.png",
+              "path": "2.phase-dependence/data/trace_g_i_mean_dark.png",
               "size": 461972
             },
             {
               "type": "file",
               "name": "trace_g_i_mean_light.png",
-              "path": "phase-dependence/data/trace_g_i_mean_light.png",
+              "path": "2.phase-dependence/data/trace_g_i_mean_light.png",
               "size": 385667
             },
             {
               "type": "file",
               "name": "trace_voltage_mean_dark.png",
-              "path": "phase-dependence/data/trace_voltage_mean_dark.png",
+              "path": "2.phase-dependence/data/trace_voltage_mean_dark.png",
               "size": 457255
             },
             {
               "type": "file",
               "name": "trace_voltage_mean_light.png",
-              "path": "phase-dependence/data/trace_voltage_mean_light.png",
+              "path": "2.phase-dependence/data/trace_voltage_mean_light.png",
               "size": 367625
             }
           ]
@@ -709,41 +703,47 @@
         {
           "type": "file",
           "name": "experiment.py",
-          "path": "phase-dependence/experiment.py",
+          "path": "2.phase-dependence/experiment.py",
           "size": 740
         },
         {
           "type": "file",
           "name": "fries.pdf",
-          "path": "phase-dependence/fries.pdf",
+          "path": "2.phase-dependence/fries.pdf",
           "size": 2431199
         },
         {
           "type": "directory",
           "name": "local",
-          "path": "phase-dependence/local",
+          "path": "2.phase-dependence/local",
           "children": [
             {
               "type": "file",
               "name": "experiment_1.py",
-              "path": "phase-dependence/local/experiment_1.py",
+              "path": "2.phase-dependence/local/experiment_1.py",
               "size": 4486
             },
             {
               "type": "file",
               "name": "experiment_2.py",
-              "path": "phase-dependence/local/experiment_2.py",
+              "path": "2.phase-dependence/local/experiment_2.py",
               "size": 11359
             },
             {
               "type": "file",
               "name": "model.py",
-              "path": "phase-dependence/local/model.py",
+              "path": "2.phase-dependence/local/model.py",
               "size": 317
             }
           ]
         }
       ]
+    },
+    {
+      "type": "file",
+      "name": "README.md",
+      "path": "README.md",
+      "size": 472
     }
   ]
 }

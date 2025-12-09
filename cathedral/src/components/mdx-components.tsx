@@ -1,5 +1,5 @@
-import Gallery from '@/components/files/Gallery'
-import { ParameterTable } from '@/components/files/ParameterTable'
+import Gallery from '@/components/gallery'
+import SlideGallery from '@/components/slide-gallery'
 
 function generateId(children: unknown): string {
   return children
@@ -11,9 +11,8 @@ function generateId(children: unknown): string {
 
 // Shared MDX components - lab notebook / coder aesthetic
 export const mdxComponents = {
-  ParameterTable,
   Gallery,
-  SlideGallery: Gallery, // Alias for backwards compatibility
+  SlideGallery,
 
   // Headings - clean sans-serif
   h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => {
