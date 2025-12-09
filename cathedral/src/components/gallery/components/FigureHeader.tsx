@@ -4,7 +4,7 @@ export function FigureHeader({ title, subtitle }: { title?: string; subtitle?: s
   if (!title && !subtitle) return null;
 
   return (
-    <div className="max-w-lg mx-auto mb-4">
+    <div className="mx-auto max-w-md">
       {title && (
         <h3 className="text-sm md:text-base font-medium tracking-tight text-foreground text-left">
           {renderMathInText(title)}

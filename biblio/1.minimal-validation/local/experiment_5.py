@@ -25,5 +25,6 @@ def experiment_5(config: LocalConfig, data_path: Path) -> None:
         plt.title("E-I cross-correlogram")
         plt.xlabel("I lag relative to E (ms)")
         plt.ylabel("count")
+        plt.tight_layout()
 
     save_both(data_path / "experiment_5_crosscorr", plot_fn)

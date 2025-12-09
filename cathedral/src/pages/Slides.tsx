@@ -155,7 +155,7 @@ export function SlidesPage() {
             />
           )}
         </div>
-        <hr />
+        <hr className="print:hidden" />
         {slides.map((content, index) => (
           <div key={index}>
             <div
@@ -164,7 +164,7 @@ export function SlidesPage() {
             >
               {content && <RuntimeMDX content={content} size="md" />}
             </div>
-            {index < slides.length - 1 && <hr />}
+            {index < slides.length - 1 && <hr className="print:hidden" />}
           </div>
         ))}
       </div>

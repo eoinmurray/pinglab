@@ -12,7 +12,7 @@
           "type": "file",
           "name": "SLIDES.mdx",
           "path": "1.minimal-validation/SLIDES.mdx",
-          "size": 3489,
+          "size": 3449,
           "frontmatter": {
             "title": "Minimal Validation of a PING Spiking Network",
             "description": "Here we present a series of plots for a PING (Pyramidal Interneuron Network Gamma) spiking network model to validate that the model is working.",
@@ -166,13 +166,13 @@
               "type": "file",
               "name": "experiment_5_crosscorr_dark.png",
               "path": "1.minimal-validation/data/experiment_5_crosscorr_dark.png",
-              "size": 127885
+              "size": 135567
             },
             {
               "type": "file",
               "name": "experiment_5_crosscorr_light.png",
               "path": "1.minimal-validation/data/experiment_5_crosscorr_light.png",
-              "size": 123314
+              "size": 130649
             },
             {
               "type": "file",
@@ -467,7 +467,7 @@
               "type": "file",
               "name": "experiment_5.py",
               "path": "1.minimal-validation/local/experiment_5.py",
-              "size": 817
+              "size": 844
             },
             {
               "type": "file",

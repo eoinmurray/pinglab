@@ -29,7 +29,8 @@ export default function Gallery({
   captionLabel,
   title,
   subtitle,
-  limit,
+  limit = 3,
+  page = 0,
 }: {
   path?: string;
   globs?: string[] | null;
@@ -38,11 +39,13 @@ export default function Gallery({
   title?: string;
   subtitle?: string;
   limit?: number;
+  page?: number;
 }) {
   const { paths, isLoading, isEmpty } = useGalleryImages({
     path,
     globs,
     limit,
+    page: page,
   });
 
   const lightbox = useLightbox(paths.length);
@@ -51,21 +54,6 @@ export default function Gallery({
     paths.map(p => ({ src: getImageUrl(p), label: getImageLabel(p) })),
     [paths]
   );
-
-  const gridConfig = useMemo(() => {
-    const count = paths.length;
-    const rows = count <= 3 ? 1 : count <= 6 ? 2 : Math.ceil(count / 4);
-    // Calculate height per image based on rows (leaving room for header/caption)
-    const imgH = rows === 1 ? "h-[45vh]" : rows === 2 ? "h-[28vh]" : "h-[20vh]";
-
-    if (count === 1) return { cols: "grid-cols-1", maxWidth: "max-w-md", gap: "gap-0", imgH };
-    if (count === 2) return { cols: "grid-cols-2", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-2 sm:gap-4 md:gap-6", imgH };
-    if (count === 3) return { cols: "grid-cols-3", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-2 sm:gap-4 md:gap-5", imgH };
-    if (count === 4) return { cols: "grid-cols-2", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-2 sm:gap-3 md:gap-4", imgH };
-    if (count <= 6) return { cols: "grid-cols-3", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-2 sm:gap-3", imgH };
-    return { cols: "grid-cols-3 md:grid-cols-4", maxWidth: "max-w-[var(--gallery-width)]", gap: "gap-1 sm:gap-2", imgH };
-  }, [paths.length]);
-
   if (isLoading) {
     return (
       <div className="not-prose py-4 md:py-6">
@@ -93,20 +81,26 @@ export default function Gallery({
     );
   }
 
+  const count = Math.min(paths.length, 6);
+
+  let cols = 'grid-cols-1';
+  if (count === 2) cols = 'grid-cols-2';
+  else if (count >= 3) cols = 'grid-cols-3';
+
+  let rows = 'grid-rows-1';
+  if (count >= 4) rows = 'grid-rows-2';
+
   return (
     <>
-      <div className="not-prose relative -mx-[var(--page-padding)] md:-mx-[calc((var(--gallery-width)-var(--content-width))/2+var(--page-padding))] px-[var(--page-padding)] py-4 md:py-6">
-        <div className="absolute inset-0 pointer-events-none" />
-
+      <div className="rounded-lg not-prose flex flex-col gap-0 relative p-4 -mx-[calc((var(--gallery-width)-var(--content-width))/2+var(--page-padding))]">
         <FigureHeader title={title} subtitle={subtitle} />
 
         <div
           className={cn(
-            "relative mx-auto stagger-children",
-            "grid",
-            gridConfig.cols,
-            gridConfig.maxWidth,
-            gridConfig.gap,
+            "w-full h-full max-w-6xl",
+            "grid gap-2",
+            cols,
+            rows
           )}
         >
           {images.map((img, index) => (
@@ -115,34 +109,30 @@ export default function Gallery({
               className="group relative cursor-pointer"
               onClick={() => lightbox.open(index)}
             >
-              <div className={cn("relative overflow-hidden transition-all duration-500 ease-out-expo", gridConfig.imgH)}>
-                <LoadingImage
-                  src={img.src}
-                  alt={img.label}
-                  className="w-full h-full object-contain transition-transform duration-700 ease-out-expo group-hover:scale-[1.02]"
-                  wrapperClassName="w-full h-full"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-foreground/0 via-transparent to-foreground/0 group-hover:from-foreground/10 transition-all duration-500 pointer-events-none" />
+              <LoadingImage
+                src={img.src}
+                alt={img.label}
+                className="mx-auto max-h-[60vh] transition-transform duration-700 ease-out-expo group-hover:scale-[1.02]"
+                wrapperClassName="h-full"
+              />
+              {/* <div className="absolute inset-0 bg-gradient-to-t from-foreground/0 via-transparent to-foreground/0 group-hover:from-foreground/10 transition-all duration-500 pointer-events-none" /> */}
 
-                <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <span className="font-mono text-[10px] text-white/90 bg-foreground/60 backdrop-blur-sm px-1.5 py-0.5 tracking-wider">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                </div>
+              {/* <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="font-mono text-[10px] text-white/90 bg-foreground/60 backdrop-blur-sm px-1.5 py-0.5 tracking-wider">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+              </div> */}
 
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="bg-background/80 backdrop-blur-sm p-1.5 shadow-sm">
-                    <Expand className="h-3 w-3 text-foreground" />
-                  </div>
+              {/* <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="bg-background/80 backdrop-blur-sm p-1.5 shadow-sm">
+                  <Expand className="h-3 w-3 text-foreground" />
                 </div>
-              </div>
+              </div> */}
             </figure>
           ))}
         </div>
 
-        <div className="max-w-lg mx-auto mt-3">
-          <FigureCaption caption={caption} label={captionLabel} />
-        </div>
+        <FigureCaption caption={caption} label={captionLabel} />
       </div>
 
       {lightbox.isOpen && lightbox.selectedIndex !== null && (

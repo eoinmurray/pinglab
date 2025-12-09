@@ -57,10 +57,12 @@ export function useGalleryImages({
   path,
   globs = null,
   limit,
+  page = 0,
 }: {
   path?: string;
   globs?: string[] | null;
   limit?: number;
+  page?: number;
 }) {
   const { resolvedTheme } = useTheme();
 
@@ -87,11 +89,11 @@ export function useGalleryImages({
     let filtered = filterPathsByTheme(imagePaths, resolvedTheme);
 
     if (limit) {
-      filtered = filtered.slice(0, limit);
+      filtered = filtered.slice(page * limit, (page + 1) * limit);
     }
 
     return filtered;
-  }, [directory, globs, resolvedTheme, limit]);
+  }, [directory, globs, resolvedTheme, limit, page]);
 
   return {
     paths,

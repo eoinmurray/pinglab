@@ -14,7 +14,7 @@ interface HeaderProps {
 
 export function Header({ slideControls }: HeaderProps = {}) {
   return (
-    <header className="fixed top-0 left-0 right-0 z-40">
+    <header className="print:hidden fixed top-0 left-0 right-0 z-40">
       <div className="mx-auto w-full px-[var(--page-padding)] flex items-center gap-8 py-4">
         <nav className="flex items-center gap-1">
           <Link
