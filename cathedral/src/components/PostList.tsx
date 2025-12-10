@@ -98,7 +98,6 @@ export default function PostList({ directory }: { directory: DirectoryEntry }) {
                   const title = (frontmatter?.title as string) || post.name;
                   const description = frontmatter?.description as string | undefined;
                   const date = frontmatter?.date ? new Date(frontmatter.date as string) : null;
-                  const isSlidesOnly = post.slides && !post.readme;
 
                   return (
                     <Link
@@ -126,11 +125,6 @@ export default function PostList({ directory }: { directory: DirectoryEntry }) {
                             "group-hover:underline",
                             "flex items-center gap-2"
                           )}>
-                            {isSlidesOnly && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-mono uppercase tracking-wider">
-                                <Presentation className="h-2.5 w-2.5" />
-                              </span>
-                            )}
                             <span>{title}</span>
                             <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 text-primary" />
                           </h3>

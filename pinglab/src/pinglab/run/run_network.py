@@ -110,10 +110,10 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
     buf_idx = 0
     # Determine scaling factors
     if v.connectivity_scaling == "one_over_N_src":
-        scale_e_to_i = 1.0 / v.N_E
-        scale_i_to_e = 1.0 / v.N_I
-        scale_e_to_e = 1.0 / v.N_E
-        scale_i_to_i = 1.0 / v.N_I
+        scale_e_to_i = 1.0 / v.N_E if v.N_E > 0 else 0.0
+        scale_i_to_e = 1.0 / v.N_I if v.N_I > 0 else 0.0
+        scale_e_to_e = 1.0 / v.N_E if v.N_E > 0 else 0.0
+        scale_i_to_i = 1.0 / v.N_I if v.N_I > 0 else 0.0
     else:
         scale_e_to_i = 1.0
         scale_i_to_e = 1.0

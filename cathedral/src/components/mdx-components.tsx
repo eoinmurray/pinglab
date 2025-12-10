@@ -1,5 +1,6 @@
 
 import Gallery from '@/components/gallery'
+import { ParameterTable } from '@/components/ParameterTable'
 
 function generateId(children: unknown): string {
   return children
@@ -12,6 +13,8 @@ function generateId(children: unknown): string {
 // Shared MDX components - lab notebook / coder aesthetic
 export const mdxComponents = {
   Gallery,
+
+  ParameterTable,
 
   // Headings - clean sans-serif
   h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => {

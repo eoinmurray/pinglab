@@ -12,7 +12,7 @@ from pinglab.types import Spikes
 def save_raster(
     spikes: Spikes,
     path: Path | str,
-    label: str,
+    label: str | None = None,
     vertical_lines: list[float] | None = None,
     external_input: np.ndarray | None = None,
     dt: float | None = None,
@@ -29,6 +29,9 @@ def save_raster(
         dt: Time step in ms (required if external_input is provided)
     """
 
+    if external_input is not None and dt is None:
+        raise ValueError("dt must be provided if external_input is given.")
+
     def plot_fun() -> None:
         if external_input is not None:
             num_steps = external_input.shape[0]
@@ -36,9 +39,9 @@ def save_raster(
         else:
             time = None
 
-        fig: plt.Figure
-        ax_in: plt.Axes | None = None
-        ax_ras: plt.Axes
+        fig = None
+        ax_in = None
+        ax_ras = None
 
         if external_input is None:
             fig, ax_ras = plt.subplots(1, 1, figsize=(8, 8))
@@ -54,9 +57,9 @@ def save_raster(
             # --- Top: external input for one neuron (0) ---
             ax_in.plot(time, external_input[:, 0], lw=0.3)
             ax_in.set_ylabel("I_ext (neuron 0)")
-            ax_in.set_title(f"External input and spikes ({label})")
+            ax_in.set_title(f"External input and spikes ({label})" if label is not None else "External input and spikes")
         else:
-            ax_ras.set_title(f"Spike raster ({label})")
+            ax_ras.set_title(f"Spike raster ({label})" if label is not None else "Spike raster")
 
         # --- Bottom: spike raster ---
         times = spikes.times

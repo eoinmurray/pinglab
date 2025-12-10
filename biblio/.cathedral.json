@@ -12,7 +12,7 @@
           "type": "file",
           "name": "SLIDES.mdx",
           "path": "1.minimal-validation/SLIDES.mdx",
-          "size": 3426,
+          "size": 3043,
           "frontmatter": {
             "title": "Minimal Validation of a PING Spiking Network",
             "description": "Here we present a series of plots for a PING (Pyramidal Interneuron Network Gamma) spiking network model to validate that the model is working.",
@@ -734,6 +734,208 @@
               "name": "model.py",
               "path": "2.phase-dependence/local/model.py",
               "size": 317
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "directory",
+      "name": "3.precision",
+      "path": "3.precision",
+      "children": [
+        {
+          "type": "file",
+          "name": "SLIDES.mdx",
+          "path": "3.precision/SLIDES.mdx",
+          "size": 994,
+          "frontmatter": {
+            "title": "Precision",
+            "description": "Exploring Fries Precision Argument",
+            "date": "2025-12-10T00:00:00.000Z"
+          }
+        },
+        {
+          "type": "file",
+          "name": "config.yaml",
+          "path": "3.precision/config.yaml",
+          "size": 2476
+        },
+        {
+          "type": "directory",
+          "name": "data",
+          "path": "3.precision/data",
+          "children": [
+            {
+              "type": "file",
+              "name": "input_image_dark.png",
+              "path": "3.precision/data/input_image_dark.png",
+              "size": 45293
+            },
+            {
+              "type": "file",
+              "name": "input_image_light.png",
+              "path": "3.precision/data/input_image_light.png",
+              "size": 44753
+            },
+            {
+              "type": "file",
+              "name": "raster_A_dark.png",
+              "path": "3.precision/data/raster_A_dark.png",
+              "size": 342973
+            },
+            {
+              "type": "file",
+              "name": "raster_A_light.png",
+              "path": "3.precision/data/raster_A_light.png",
+              "size": 325491
+            },
+            {
+              "type": "file",
+              "name": "raster_B_dark.png",
+              "path": "3.precision/data/raster_B_dark.png",
+              "size": 148234
+            },
+            {
+              "type": "file",
+              "name": "raster_B_light.png",
+              "path": "3.precision/data/raster_B_light.png",
+              "size": 146173
+            },
+            {
+              "type": "file",
+              "name": "reconstruction_AB_dark.png",
+              "path": "3.precision/data/reconstruction_AB_dark.png",
+              "size": 43588
+            },
+            {
+              "type": "file",
+              "name": "reconstruction_AB_light.png",
+              "path": "3.precision/data/reconstruction_AB_light.png",
+              "size": 41759
+            },
+            {
+              "type": "file",
+              "name": "reconstruction_A_only_dark.png",
+              "path": "3.precision/data/reconstruction_A_only_dark.png",
+              "size": 26520
+            },
+            {
+              "type": "file",
+              "name": "reconstruction_A_only_light.png",
+              "path": "3.precision/data/reconstruction_A_only_light.png",
+              "size": 25501
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "experiment.py",
+          "path": "3.precision/experiment.py",
+          "size": 5777
+        },
+        {
+          "type": "directory",
+          "name": "local",
+          "path": "3.precision/local",
+          "children": [
+            {
+              "type": "file",
+              "name": "build_feedforward_current.py",
+              "path": "3.precision/local/build_feedforward_current.py",
+              "size": 812
+            },
+            {
+              "type": "file",
+              "name": "collect_dataset.py",
+              "path": "3.precision/local/collect_dataset.py",
+              "size": 2202
+            },
+            {
+              "type": "file",
+              "name": "generate_image.py",
+              "path": "3.precision/local/generate_image.py",
+              "size": 299
+            },
+            {
+              "type": "file",
+              "name": "image_to_external_input.py",
+              "path": "3.precision/local/image_to_external_input.py",
+              "size": 891
+            },
+            {
+              "type": "file",
+              "name": "model.py",
+              "path": "3.precision/local/model.py",
+              "size": 137
+            },
+            {
+              "type": "file",
+              "name": "reconstruct_image_from_spikes.py",
+              "path": "3.precision/local/reconstruct_image_from_spikes.py",
+              "size": 796
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "directory",
+      "name": "4.isi-cv-deepdive",
+      "path": "4.isi-cv-deepdive",
+      "children": [
+        {
+          "type": "file",
+          "name": "SLIDES.mdx",
+          "path": "4.isi-cv-deepdive/SLIDES.mdx",
+          "size": 607,
+          "frontmatter": {
+            "title": "ISI CV Deep Dive",
+            "description": "Here we present a series of plots for a PING (Pyramidal Interneuron Network Gamma) spiking network model to validate that the model is working.",
+            "date": "2025-12-10T00:00:00.000Z"
+          }
+        },
+        {
+          "type": "file",
+          "name": "config.yaml",
+          "path": "4.isi-cv-deepdive/config.yaml",
+          "size": 2247
+        },
+        {
+          "type": "directory",
+          "name": "data",
+          "path": "4.isi-cv-deepdive/data",
+          "children": [
+            {
+              "type": "file",
+              "name": "raster_dark.png",
+              "path": "4.isi-cv-deepdive/data/raster_dark.png",
+              "size": 608775
+            },
+            {
+              "type": "file",
+              "name": "raster_light.png",
+              "path": "4.isi-cv-deepdive/data/raster_light.png",
+              "size": 470144
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "experiment.py",
+          "path": "4.isi-cv-deepdive/experiment.py",
+          "size": 1640
+        },
+        {
+          "type": "directory",
+          "name": "local",
+          "path": "4.isi-cv-deepdive/local",
+          "children": [
+            {
+              "type": "file",
+              "name": "model.py",
+              "path": "4.isi-cv-deepdive/local/model.py",
+              "size": 312
             }
           ]
         }

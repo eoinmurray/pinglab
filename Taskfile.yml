@@ -27,8 +27,8 @@ tasks:
     desc: Execute cathedral with the specified config file
     cmds:
       - touch biblio/.running
+      - defer: rm biblio/.running
       - uv run python {{.CLI_ARGS}}
-      - rm biblio/.running
 
   execute:all:
     desc: Execute all experiment.py files in biblio/**
