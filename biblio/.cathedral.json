@@ -12,7 +12,7 @@
           "type": "file",
           "name": "SLIDES.mdx",
           "path": "1.minimal-validation/SLIDES.mdx",
-          "size": 3449,
+          "size": 3426,
           "frontmatter": {
             "title": "Minimal Validation of a PING Spiking Network",
             "description": "Here we present a series of plots for a PING (Pyramidal Interneuron Network Gamma) spiking network model to validate that the model is working.",

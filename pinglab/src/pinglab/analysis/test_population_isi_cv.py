@@ -1,7 +1,7 @@
 
-from pinglab.types import Spikes
-from .population_isi_cv import isi_cv_per_neuron
 import numpy as np
+from pinglab.types import Spikes
+from .isi_cv_per_neuron import isi_cv_per_neuron
 
 
 def test_isi_cv_per_neuron():

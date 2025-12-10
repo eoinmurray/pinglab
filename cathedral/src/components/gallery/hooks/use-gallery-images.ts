@@ -61,7 +61,7 @@ export function useGalleryImages({
 }: {
   path?: string;
   globs?: string[] | null;
-  limit?: number;
+  limit?: number | null;
   page?: number;
 }) {
   const { resolvedTheme } = useTheme();

@@ -1,3 +1,4 @@
+"""Visualization utilities for spike rasters and instrument traces."""
 
 from .raster import save_raster
 from .instrument import save_instrument_traces

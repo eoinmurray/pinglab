@@ -6,6 +6,14 @@ from pinglab.lib import lif_step, decay_exponential
 from pinglab.types import Spikes, InstrumentsResults, NetworkConfig, NetworkResult
 from pinglab.run.apply_heterogeneity import apply_heterogeneity
 
+# Numerical stability thresholds for Euler integration
+# dt must be less than tau/DT_STABILITY_FACTOR for stability
+DT_STABILITY_FACTOR = 5
+# dt should be less than tau/DT_ACCURACY_FACTOR for good accuracy
+DT_ACCURACY_FACTOR = 10
+# Tolerance for firing rate validation (1% above theoretical max)
+RATE_VALIDATION_TOLERANCE = 1.01
+
 
 def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkResult:
     """
@@ -27,31 +35,50 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
         NetworkResult containing spike data and optional instrument recordings
     """
     v = config  # v for validated
+    N = v.N_E + v.N_I
+    num_steps = int(np.ceil(v.T / v.dt))
+
+    # Validate external input shape
+    if external_input.ndim == 1:
+        if external_input.shape[0] != num_steps:
+            raise ValueError(
+                f"external_input has {external_input.shape[0]} steps, expected {num_steps}"
+            )
+    elif external_input.ndim == 2:
+        if external_input.shape[0] != num_steps:
+            raise ValueError(
+                f"external_input has {external_input.shape[0]} steps, expected {num_steps}"
+            )
+        if external_input.shape[1] != N:
+            raise ValueError(
+                f"external_input has {external_input.shape[1]} neurons, expected {N}"
+            )
+    else:
+        raise ValueError(
+            f"external_input must be 1D or 2D, got {external_input.ndim}D"
+        )
 
     # Numerical stability check for Euler method
-    # Requirement: dt << tau (typically dt < tau/5 for reasonable accuracy)
     tau_mem_E = v.C_m_E / v.g_L_E
     tau_mem_I = v.C_m_I / v.g_L_I
     tau_min = min(tau_mem_E, tau_mem_I)
 
-    if v.dt > tau_min / 5:
+    if v.dt > tau_min / DT_STABILITY_FACTOR:
         raise ValueError(
             f"Time step dt={v.dt}ms is too large for numerical stability. "
             f"Minimum membrane time constant is tau_min={tau_min:.2f}ms. "
-            f"Require dt < tau_min/5 = {tau_min/5:.2f}ms"
+            f"Require dt < tau_min/{DT_STABILITY_FACTOR} = {tau_min/DT_STABILITY_FACTOR:.2f}ms"
         )
 
-    if v.dt > tau_min / 10:
+    if v.dt > tau_min / DT_ACCURACY_FACTOR:
         warnings.warn(
             f"dt={v.dt}ms is large relative to tau_min={tau_min:.2f}ms. "
-            f"Consider dt < {tau_min/10:.2f}ms for better accuracy.",
+            f"Consider dt < {tau_min/DT_ACCURACY_FACTOR:.2f}ms for better accuracy.",
             UserWarning,
             stacklevel=2,
         )
 
     rng = np.random.RandomState(v.seed)
-    N = v.N_E + v.N_I
-    num_steps = int(np.ceil(v.T / v.dt))
     # Synaptic delays in steps
     delay_ei_steps = max(1, int(np.round(v.delay_ei / v.dt)))
     delay_ie_steps = max(1, int(np.round(v.delay_ie / v.dt)))
@@ -207,10 +234,11 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
             # Reset voltage for spiked neurons
             V[idxs] = v.V_reset
             # Record all spikes (filtering by burn_in_ms happens during analysis)
+            # Spike types: 0=E (excitatory), 1=I (inhibitory)
             for idx in idxs:
                 spike_times.append(t)
-                spike_ids.append(int(idx))
-                spike_types.append(np.uint8(0 if idx < v.N_E else 1)) # 0=E,1=I
+                spike_ids.append(idx)
+                spike_types.append(0 if idx < v.N_E else 1)
             # Count population spikes
             nE_spikes = int((idxs < v.N_E).sum())
             nI_spikes = int((idxs >= v.N_E).sum())
@@ -261,13 +289,13 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
         rate_E = len([s for s in spike_types if s == 0]) / (v.N_E * (v.T / 1000.0)) if v.N_E > 0 else 0
         rate_I = len([s for s in spike_types if s == 1]) / (v.N_I * (v.T / 1000.0)) if v.N_I > 0 else 0
 
-        if rate_E > max_possible_rate_E * 1.01:  # Allow 1% tolerance
+        if rate_E > max_possible_rate_E * RATE_VALIDATION_TOLERANCE:
             warnings.warn(
                 f"E firing rate {rate_E:.1f} Hz exceeds theoretical max {max_possible_rate_E:.1f} Hz",
                 UserWarning,
                 stacklevel=2,
             )
-        if rate_I > max_possible_rate_I * 1.01:
+        if rate_I > max_possible_rate_I * RATE_VALIDATION_TOLERANCE:
             warnings.warn(
                 f"I firing rate {rate_I:.1f} Hz exceeds theoretical max {max_possible_rate_I:.1f} Hz",
                 UserWarning,
@@ -280,7 +308,7 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
         min_ref_steps = min(ref_steps_arr)
         max_spikes_per_neuron = num_steps / max(1, min_ref_steps)
         expected_max = N * max_spikes_per_neuron
-        if n_total > expected_max * 1.01:  # Allow 1% tolerance
+        if n_total > expected_max * RATE_VALIDATION_TOLERANCE:
             warnings.warn(
                 f"Spike count {n_total} exceeds theoretical max {expected_max:.0f}",
                 UserWarning,

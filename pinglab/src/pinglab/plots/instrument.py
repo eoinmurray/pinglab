@@ -1,9 +1,24 @@
-from pinglab.types import InstrumentsResults
-import matplotlib.pyplot as plt
-from pathlib import Path
-from pinglab.plots.styles import save_both
+"""Instrument trace plotting for voltage and conductance recordings."""
 
-def save_instrument_traces(instruments: InstrumentsResults, save_path):
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+
+from pinglab.plots.styles import save_both
+from pinglab.types import InstrumentsResults
+
+
+def save_instrument_traces(
+    instruments: InstrumentsResults,
+    save_path: Path | str,
+) -> None:
+    """
+    Save voltage and conductance trace plots for instrumented neurons.
+
+    Parameters:
+        instruments: Recording results containing times, neuron_ids, and traces
+        save_path: Directory to save plot files
+    """
     save_path = Path(save_path)
 
     if instruments.V is not None:

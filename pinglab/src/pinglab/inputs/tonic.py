@@ -16,17 +16,29 @@ def tonic(
     Generate external tonic input with additive Gaussian noise.
 
     Parameters:
-        N_E: Number of excitatory neurons
-        N_I: Number of inhibitory neurons
+        N_E: Number of excitatory neurons (must be >= 0)
+        N_I: Number of inhibitory neurons (must be >= 0)
         I_E: Baseline input current to E neurons
         I_I: Baseline input current to I neurons
-        noise_std: Standard deviation of additive Gaussian noise
-        num_steps: Number of simulation time steps
+        noise_std: Standard deviation of additive Gaussian noise (must be >= 0)
+        num_steps: Number of simulation time steps (must be > 0)
         seed: Random seed for noise generation
 
     Returns:
         np.ndarray: External input of shape (num_steps, N_E + N_I)
+
+    Raises:
+        ValueError: If parameters are invalid
     """
+    if N_E < 0:
+        raise ValueError(f"N_E must be >= 0, got {N_E}")
+    if N_I < 0:
+        raise ValueError(f"N_I must be >= 0, got {N_I}")
+    if noise_std < 0:
+        raise ValueError(f"noise_std must be >= 0, got {noise_std}")
+    if num_steps <= 0:
+        raise ValueError(f"num_steps must be > 0, got {num_steps}")
+
     rng = np.random.RandomState(seed)
     N = N_E + N_I
 

@@ -16,6 +16,10 @@ def crosscorr(
     Measures temporal lag between E spikes and subsequent I spikes
     within a specified time window.
 
+    Note:
+        Returns raw spike counts per bin, not normalized by the number of
+        E spikes or bin width. To get a rate, divide by len(tE) * bin_ms.
+
     Parameters:
         spikes: Spike data with times and neuron IDs
         N_E: Number of excitatory neurons (IDs 0 to N_E-1 are E)
@@ -23,7 +27,7 @@ def crosscorr(
         max_lag_ms: Maximum lag to consider (default 20ms for gamma)
 
     Returns:
-        (centers, hist): Bin centers (ms) and spike counts per bin
+        (centers, hist): Bin centers (ms) and raw spike counts per bin
     """
     tE = spikes.times[spikes.ids < N_E]
     tI = spikes.times[spikes.ids >= N_E]

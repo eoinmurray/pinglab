@@ -26,18 +26,27 @@ def population_rate(
     Returns:
         (t_ms, rate_hz): Bin centers (ms) and firing rates (Hz)
     """
-    # choose neuron indices
+    # Validate parameters
+    if T_ms <= 0:
+        raise ValueError(f"T_ms must be positive, got {T_ms}")
+    if dt_ms <= 0:
+        raise ValueError(f"dt_ms must be positive, got {dt_ms}")
+
+    # Choose neuron indices
     if pop == "E":
-        assert N_E is not None
+        if N_E is None:
+            raise ValueError("N_E is required when pop='E'")
         mask = spikes.ids < N_E
         N_pop = N_E
     elif pop == "I":
-        assert N_E is not None and N_I is not None
+        if N_E is None or N_I is None:
+            raise ValueError("N_E and N_I are required when pop='I'")
         mask = spikes.ids >= N_E
         N_pop = N_I
     elif pop == "all":
+        if N_E is None or N_I is None:
+            raise ValueError("N_E and N_I are required when pop='all'")
         mask = np.ones_like(spikes.ids, dtype=bool)
-        assert N_E is not None and N_I is not None
         N_pop = N_E + N_I
     else:
         raise ValueError("pop must be 'E', 'I', or 'all'")

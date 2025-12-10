@@ -1,6 +1,5 @@
 import { useMemo } from "react";
-import { Image, Expand } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Image } from "lucide-react";
 import { cathedralPluginConfig } from "../../../cathedral-plugin.config";
 import { Lightbox, LightboxImage } from "@/components/gallery/components/Lightbox";
 import { useGalleryImages } from "./hooks/use-gallery-images";
@@ -8,6 +7,13 @@ import { useLightbox } from "./hooks/use-lightbox";
 import { LoadingImage } from "./components/LoadingImage";
 import { FigureHeader } from "./components/FigureHeader";
 import { FigureCaption } from "./components/FigureCaption";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel"
 
 function getImageLabel(path: string): string {
   const filename = path.split('/').pop() || path;
@@ -29,7 +35,7 @@ export default function Gallery({
   captionLabel,
   title,
   subtitle,
-  limit = 3,
+  limit = null,
   page = 0,
 }: {
   path?: string;
@@ -38,7 +44,7 @@ export default function Gallery({
   captionLabel?: string;
   title?: string;
   subtitle?: string;
-  limit?: number;
+  limit?: number | null;
   page?: number;
 }) {
   const { paths, isLoading, isEmpty } = useGalleryImages({
@@ -54,6 +60,7 @@ export default function Gallery({
     paths.map(p => ({ src: getImageUrl(p), label: getImageLabel(p) })),
     [paths]
   );
+
   if (isLoading) {
     return (
       <div className="not-prose py-4 md:py-6">
@@ -81,56 +88,35 @@ export default function Gallery({
     );
   }
 
-  const count = Math.min(paths.length, 6);
-
-  let cols = 'grid-cols-1';
-  if (count === 2) cols = 'grid-cols-2';
-  else if (count >= 3) cols = 'grid-cols-3';
-
-  let rows = 'grid-rows-1';
-  if (count >= 4) rows = 'grid-rows-2';
-
   return (
     <>
       <div className="rounded-lg not-prose flex flex-col gap-0 relative p-4 -mx-[calc((var(--gallery-width)-var(--content-width))/2+var(--page-padding))]">
         <FigureHeader title={title} subtitle={subtitle} />
 
-        <div
-          className={cn(
-            "w-full h-full max-w-6xl",
-            "grid gap-2",
-            cols,
-            rows
-          )}
-        >
-          {images.map((img, index) => (
-            <figure
-              key={paths[index]}
-              className="group relative cursor-pointer"
-              onClick={() => lightbox.open(index)}
-            >
-              <LoadingImage
-                src={img.src}
-                alt={img.label}
-                className="mx-auto max-h-[60vh] transition-transform duration-700 ease-out-expo group-hover:scale-[1.02]"
-                wrapperClassName="h-full"
-              />
-              {/* <div className="absolute inset-0 bg-gradient-to-t from-foreground/0 via-transparent to-foreground/0 group-hover:from-foreground/10 transition-all duration-500 pointer-events-none" /> */}
+        <Carousel>
+          <CarouselContent>
+            {images.map((img, index) => (
+              <CarouselItem 
+                key={index} 
+                className="mx-auto md:basis-1/2 lg:basis-1/3 cursor-pointer transition-transform duration-700 ease-out-expo hover:scale-[1.02]"
+                // wrapperClassName="h-full"
+                onClick={() => lightbox.open(index)}
+              >
+                <LoadingImage
+                  src={img.src}
+                  alt={img.label}
+                />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
 
-              {/* <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <span className="font-mono text-[10px] text-white/90 bg-foreground/60 backdrop-blur-sm px-1.5 py-0.5 tracking-wider">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-              </div> */}
-
-              {/* <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="bg-background/80 backdrop-blur-sm p-1.5 shadow-sm">
-                  <Expand className="h-3 w-3 text-foreground" />
-                </div>
-              </div> */}
-            </figure>
-          ))}
-        </div>
+          {images.length > 3 && (
+            <>
+              <CarouselPrevious />
+              <CarouselNext />
+            </>
+          )}          
+        </Carousel>
 
         <FigureCaption caption={caption} label={captionLabel} />
       </div>

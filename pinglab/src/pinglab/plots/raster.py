@@ -1,31 +1,44 @@
+"""Spike raster plot generation."""
 
-import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 from pinglab.plots.styles import save_both
+from pinglab.types import Spikes
+
 
 def save_raster(
-    spikes,
-    path: Path,
+    spikes: Spikes,
+    path: Path | str,
     label: str,
     vertical_lines: list[float] | None = None,
     external_input: np.ndarray | None = None,
     dt: float | None = None,
 ) -> None:
     """
-    Custom figure: external input (top) + spike raster (bottom).
-    `spikes` is your Spikes model: times, ids, optional types.
+    Save spike raster plot with optional external input overlay.
+
+    Parameters:
+        spikes: Spike data with times, ids, and optional types
+        path: Output file path (without extension)
+        label: Plot title label
+        vertical_lines: Optional list of times to mark with vertical lines
+        external_input: Optional external input array of shape (num_steps, N)
+        dt: Time step in ms (required if external_input is provided)
     """
 
-    def plot_fun():
+    def plot_fun() -> None:
         if external_input is not None:
             num_steps = external_input.shape[0]
             time = np.arange(num_steps) * dt
         else:
             time = None
 
-        fig, ax_in, ax_ras = None, None, None
+        fig: plt.Figure
+        ax_in: plt.Axes | None = None
+        ax_ras: plt.Axes
 
         if external_input is None:
             fig, ax_ras = plt.subplots(1, 1, figsize=(8, 8))

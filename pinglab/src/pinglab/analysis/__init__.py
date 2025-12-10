@@ -1,3 +1,4 @@
+"""Spike train analysis functions for firing rates, ISI statistics, and correlations."""
 
 from .mean_firing_rates import mean_firing_rates
 from .population_rate import population_rate

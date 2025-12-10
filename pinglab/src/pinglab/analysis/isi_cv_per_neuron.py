@@ -46,13 +46,10 @@ def isi_cv_per_neuron(
             raise RuntimeError(f"Non-monotonic spike times for neuron {nid}")
 
         t = np.sort(t)
-
-        t = np.sort(t)
         isi = np.diff(t)
 
         # Need enough ISIs for the chosen ddof
         if isi.size == 0 or isi.size <= ddof:
-            print(f"Warning: Neuron {nid} has insufficient ISIs for ddof={ddof}.")
             continue
 
         mean_isi = float(np.mean(isi))
