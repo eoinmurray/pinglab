@@ -1,20 +1,25 @@
 ---
 title: ISI CV Deep Dive
-description: Here we present a series of plots for a PING (Pyramidal Interneuron Network Gamma) spiking network model to validate that the model is working.
+description: Exploring the transition from noise-driven asynchronous irregular (AI) activity to PING oscillations in a spiking network model.
 date: 2025-12-10
 ---
 
 <Gallery
   path="4.isi-cv-deepdive/data"
   globs={["raster*.png"]}
-  title="Rasters for population ISI CV at different $g_{ei}$ values"
-  subtitle="From high variability (A) to low variability (OSC)."
-  caption="Visualizing spike timing variability across neurons as $g_{ei}$ increases from 1.0 to 1.5 nS."
+  title="Raster plots across the AI → PING transition"
+  subtitle="Sweeping $g_{ei}$, $I_E$, and noise together across 10 parameter combinations."
+  caption="Parameters vary simultaneously: $g_{ei}$ (0.5→4.0), $I_E$ (0.4→3.5), noise (4.0→0.5). Early rasters show noise-driven asynchronous activity (high CV ~0.55), while later rasters show regular PING oscillations (low CV < 0.2)."
   captionLabel="Figure 7"
 />
 
 ---
 
-<ParameterTable 
-  path="4.isi-cv-deepdive/config.yaml"
+<Gallery
+  path="4.isi-cv-deepdive/data"
+  globs={["cv_vs_gei*.png"]}
+  title="ISI CV vs $g_{ei}$ during regime transition"
+  subtitle="Transition from asynchronous irregular (AI) to PING oscillations."
+  caption="The decreasing ISI CV reflects the emergence of synchronized gamma oscillations as E→I coupling strengthens, excitatory drive increases, and noise decreases."
+  captionLabel="Figure 8"
 />

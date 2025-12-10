@@ -1,0 +1,30 @@
+---
+title: Regime Characterisation
+description: Numerically characterising the network regime
+date: 2025-12-12
+---
+
+export const labels = ["ai", "osc"]
+
+{labels.map((label) => (
+  <div>
+    <div className="font-bold text-2xl">{label.toLocaleUpperCase()} case</div>
+    <div className="flex">
+      <Gallery
+        path="5.regime-characterisation/data"
+        globs={[`${label}_raster*.png`]}
+        title="Raster"
+      />
+
+      <Gallery
+        path="5.regime-characterisation/data"
+        globs={[`${label}_psd*.png`]}
+        title="PSD"
+      />
+    </div>
+
+    <ParameterTable
+      path={`5.regime-characterisation/data/${label}_metrics.yaml`}
+    />
+  </div>
+))}

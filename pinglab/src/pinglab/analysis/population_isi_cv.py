@@ -1,63 +1,60 @@
-"""Inter-spike interval coefficient of variation (CV) analysis."""
 
-from __future__ import annotations
 import numpy as np
-
-from .isi_cv_per_neuron import isi_cv_per_neuron
 from pinglab.types import Spikes
+
 
 def population_isi_cv(
     spikes: Spikes,
-    N_E: int,
-    N_I: int,
-    min_spikes: int = 20,
-    ddof: int = 0,
-) -> tuple[float | None, float | None]:
+    neuron_ids: np.ndarray | None = None,
+    min_spikes: int = 2,
+) -> tuple[float, np.ndarray]:
     """
-    Compute population ISI CV for E and I as the median across neurons.
-
-    Neurons with fewer than `min_spikes` spikes (or degenerate ISIs)
-    are ignored. If no valid neurons exist in a population, returns None.
-
-    Parameters
-    ----------
-    spikes : Spikes
-        Spikes object with `times` and `ids`.
-    N_E : int
-        Number of excitatory neurons. Assumes E IDs are [0 .. N_E-1].
-    N_I : int
-        Number of inhibitory neurons. Assumes I IDs are [N_E .. N_E+N_I-1].
-    min_spikes : int, optional
-        Minimum number of spikes for a neuron to be considered.
-    ddof : int, optional
-        Delta degrees of freedom for ISI std (passed to `isi_cv_per_neuron`).
+    Compute population ISI CV and per-neuron CVs.
 
     Returns
     -------
-    cv_E : float or None
-        Median ISI CV across excitatory neurons, or None if no valid E neurons.
-    cv_I : float or None
-        Median ISI CV across inhibitory neurons, or None if no valid I neurons.
+    cv_population : float
+        CV of all ISIs pooled across the selected neurons.
+    cv_per_neuron : np.ndarray
+        1D array of CVs for each neuron with >= min_spikes.
     """
-    # Assumes contiguous indexing: E = [0..N_E-1], I = [N_E..N_E+N_I-1]
-    all_E_ids = np.arange(0, N_E, dtype=int)
-    all_I_ids = np.arange(N_E, N_E + N_I, dtype=int)
+    times = spikes.times
+    ids = spikes.ids
 
-    _, cv_E_neurons = isi_cv_per_neuron(
-        spikes,
-        neuron_ids=all_E_ids,
-        min_spikes=min_spikes,
-        ddof=ddof,
-    )
+    # choose neurons
+    if neuron_ids is None:
+        neuron_ids = np.unique(ids)
 
-    _, cv_I_neurons = isi_cv_per_neuron(
-        spikes,
-        neuron_ids=all_I_ids,
-        min_spikes=min_spikes,
-        ddof=ddof,
-    )
+    per_neuron = []
 
-    cv_E = float(np.median(cv_E_neurons)) if cv_E_neurons.size > 0 else None
-    cv_I = float(np.median(cv_I_neurons)) if cv_I_neurons.size > 0 else None
+    all_isis = []   # pooled for population CV
 
-    return cv_E, cv_I
+    for nid in neuron_ids:
+        t = times[ids == nid]
+        if t.size < min_spikes:
+            continue
+
+        t = np.sort(t)
+        isi = np.diff(t)
+        if isi.size == 0:
+            continue
+
+        mu = np.mean(isi)
+        sigma = np.std(isi)
+
+        per_neuron.append(sigma / mu if mu > 0 else np.nan)
+        all_isis.append(isi)
+
+    # If no valid neurons, return zeros
+    if not per_neuron:
+        return 0.0, np.array([])
+
+    cv_per_neuron = np.array(per_neuron)
+
+    # population CV = CV of pooled ISIs
+    pooled = np.concatenate(all_isis)
+    pop_mu = np.mean(pooled)
+    pop_sigma = np.std(pooled)
+    cv_population = float(pop_sigma / pop_mu if pop_mu > 0 else 0.0)
+
+    return cv_population, cv_per_neuron

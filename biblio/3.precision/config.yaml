@@ -1,6 +1,6 @@
 
 default_inputs:
-  I_E: 1.5       # Input to E neurons (slightly higher)
+  I_E: 2.5       # Input to E neurons (slightly higher)
   I_I: 1.2       # Input to I neurons (slightly lower)
   noise: 0.8     # Strong noise (0.5-1.0 range) creates irregularity and breaks synchrony
 
@@ -15,8 +15,8 @@ base:
   seed: 0        # Random seed for reproducibility
 
   # Network topology: Canonical PING (Pyramidal Interneuron Network Gamma)
-  N_E: 256       # Excitatory neurons (4:1 ratio standard)
-  N_I: 64       # Inhibitory neurons
+  N_E: 800       # Excitatory neurons (4:1 ratio standard)
+  N_I: 200       # Inhibitory neurons
 
   # Synaptic weights: Balanced E-I for asynchronous regime
   g_ei: 1.5      # E→I (moderate excitation to interneurons)

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import shutil
 import sys
+from pinglab.inputs import tonic
 from pinglab.plots.raster import save_raster
 from pinglab.run.run_network import run_network
 from pinglab.types import NetworkResult
@@ -32,16 +33,26 @@ def main() -> None:
         data = yaml.safe_load(f)
     config = LocalConfig.model_validate(data)
 
-    image = generate_image()
+    # image = generate_image()
 
-    def plot_input_image():
-      _, ax = plt.subplots(1, 1, figsize=figsize)
-      ax.imshow(image, cmap='gray')
-      plt.tight_layout()
+    # def plot_input_image():
+    #   _, ax = plt.subplots(1, 1, figsize=figsize)
+    #   ax.imshow(image, cmap='gray')
+    #   plt.tight_layout()
 
-    save_both(data_path / "input_image", plot_input_image)
+    # save_both(data_path / "input_image", plot_input_image)
 
-    external_input_A = image_to_external_input(image, config)
+    # external_input_A = image_to_external_input(image, config)
+
+    external_input_A = tonic(
+        N_E=int(config.base.N_E),
+        N_I=int(config.base.N_I),
+        I_E=config.default_inputs.I_E,
+        I_I=config.default_inputs.I_I,
+        noise_std=config.default_inputs.noise,
+        num_steps=int(np.ceil(config.base.T / config.base.dt)),
+        seed=config.base.seed if config.base.seed is not None else 0,
+    )
 
     result_A: NetworkResult = run_network(config.base, external_input=external_input_A)
 
@@ -52,87 +63,87 @@ def main() -> None:
         dt=config.base.dt,
     )
 
-    rate_image_A = reconstruct_image_from_spikes(
-        result_A.spikes,
-        N_E=config.base.N_E,
-        T_window=(500.0, 1000.0),   # avoid initial transients
-    )
+    # rate_image_A = reconstruct_image_from_spikes(
+    #     result_A.spikes,
+    #     N_E=config.base.N_E,
+    #     T_window=(500.0, 1000.0),   # avoid initial transients
+    # )
 
-    def plot_reconstruction():
-        fig, axes = plt.subplots(1, 2, figsize=(figsize[0], figsize[1] / 2))
-        axes[0].set_title("Input")
-        axes[0].imshow(image, cmap="gray")
-        axes[0].axis("off")
+    # def plot_reconstruction():
+    #     fig, axes = plt.subplots(1, 2, figsize=(figsize[0], figsize[1] / 2))
+    #     axes[0].set_title("Input")
+    #     axes[0].imshow(image, cmap="gray")
+    #     axes[0].axis("off")
 
-        axes[1].set_title("Rate reconstruction")
-        axes[1].imshow(rate_image_A, cmap="gray")
-        axes[1].axis("off")
+    #     axes[1].set_title("Rate reconstruction")
+    #     axes[1].imshow(rate_image_A, cmap="gray")
+    #     axes[1].axis("off")
 
-        plt.tight_layout()
+    #     plt.tight_layout()
 
-    save_both(data_path / "reconstruction_A_only", plot_reconstruction)
+    # save_both(data_path / "reconstruction_A_only", plot_reconstruction)
 
-    ff_current = build_feedforward_current(
-        result_A.spikes,
-        N_E=config.base.N_E,
-        N_I=config.base.N_I,
-        T=config.base.T,
-        dt=config.base.dt,
-        delay_ms=5.0,
-        pulse_ms=3.0,
-        w_ff=0.3,
-    )
+    # ff_current = build_feedforward_current(
+    #     result_A.spikes,
+    #     N_E=config.base.N_E,
+    #     N_I=config.base.N_I,
+    #     T=config.base.T,
+    #     dt=config.base.dt,
+    #     delay_ms=5.0,
+    #     pulse_ms=3.0,
+    #     w_ff=0.3,
+    # )
 
-    # 3) Baseline tonic input for B (no image; just drive it into gamma)
-    num_steps = int(config.base.T / config.base.dt)
-    N = config.base.N_E + config.base.N_I
-    external_input_B = np.zeros((num_steps, N), dtype=np.float32)
+    # # 3) Baseline tonic input for B (no image; just drive it into gamma)
+    # num_steps = int(config.base.T / config.base.dt)
+    # N = config.base.N_E + config.base.N_I
+    # external_input_B = np.zeros((num_steps, N), dtype=np.float32)
 
-    baseline_I_E = 0.7   # lower than your usual 1.2-ish
-    baseline_I_I = 0.5
+    # baseline_I_E = 0.7   # lower than your usual 1.2-ish
+    # baseline_I_I = 0.5
 
-    # simple: same constant I_E / I_I for all neurons
-    external_input_B[:, :config.base.N_E] = baseline_I_E
-    external_input_B[:, config.base.N_E:] = baseline_I_I
+    # # simple: same constant I_E / I_I for all neurons
+    # external_input_B[:, :config.base.N_E] = baseline_I_E
+    # external_input_B[:, config.base.N_E:] = baseline_I_I
 
-    # add noise if you like
-    if config.default_inputs.noise > 0:
-        external_input_B += np.random.normal(
-            loc=0.0,
-            scale=config.default_inputs.noise,
-            size=(num_steps, N),
-        ).astype(np.float32)
+    # # add noise if you like
+    # if config.default_inputs.noise > 0:
+    #     external_input_B += np.random.normal(
+    #         loc=0.0,
+    #         scale=config.default_inputs.noise,
+    #         size=(num_steps, N),
+    #     ).astype(np.float32)
 
-    # external_input_B[:] = 0.0
+    # # external_input_B[:] = 0.0
 
-    # add the feedforward current from A
-    external_input_B += ff_current
+    # # add the feedforward current from A
+    # external_input_B += ff_current
 
-    # 4) Run Network B
-    result_B: NetworkResult = run_network(config.base, external_input=external_input_B)
+    # # 4) Run Network B
+    # result_B: NetworkResult = run_network(config.base, external_input=external_input_B)
 
-    save_raster(result_B.spikes, path=data_path / "raster_B.png")
+    # save_raster(result_B.spikes, path=data_path / "raster_B.png")
 
-    rate_image_B = reconstruct_image_from_spikes(
-        result_B.spikes,
-        N_E=config.base.N_E,
-        T_window=(500.0, 1000.0),
-    )
+    # rate_image_B = reconstruct_image_from_spikes(
+    #     result_B.spikes,
+    #     N_E=config.base.N_E,
+    #     T_window=(500.0, 1000.0),
+    # )
 
-    def plot_recon_B():
-        fig, axes = plt.subplots(1, 3, figsize=(12, 4))
-        axes[0].set_title("Input image")
-        axes[0].imshow(image, cmap="gray"); axes[0].axis("off")
+    # def plot_recon_B():
+    #     fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+    #     axes[0].set_title("Input image")
+    #     axes[0].imshow(image, cmap="gray"); axes[0].axis("off")
 
-        axes[1].set_title("A (direct rate recon)")
-        axes[1].imshow(rate_image_A, cmap="gray"); axes[1].axis("off")
+    #     axes[1].set_title("A (direct rate recon)")
+    #     axes[1].imshow(rate_image_A, cmap="gray"); axes[1].axis("off")
 
-        axes[2].set_title("B (after feedforward)")
-        axes[2].imshow(rate_image_B, cmap="gray"); axes[2].axis("off")
+    #     axes[2].set_title("B (after feedforward)")
+    #     axes[2].imshow(rate_image_B, cmap="gray"); axes[2].axis("off")
 
-        plt.tight_layout()
+    #     plt.tight_layout()
 
-    save_both(data_path / "reconstruction_AB", plot_recon_B)
+    # save_both(data_path / "reconstruction_AB", plot_recon_B)
 
     # X_train, Y_train = collect_dataset(config, num_images=50, phase_ms=0.0)
     # decoder = Ridge(alpha=1.0)

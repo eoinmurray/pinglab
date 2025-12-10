@@ -32,7 +32,7 @@ experiment_4:
   # I_E
   linspace:
     start: 0.5
-    stop: 2.0
+    stop: 1.5
     num: 3
 
 experiment_5:

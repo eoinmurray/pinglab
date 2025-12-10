@@ -144,7 +144,11 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
     instrument_step_counter = 0
     
     if instrument_recording and v.instruments is not None:
-        instrument_neuron_ids = np.array(v.instruments.neuron_ids) if v.instruments.neuron_ids is not None else None
+        instrument_all_neurons = v.instruments.all_neurons
+        if instrument_all_neurons:
+            instrument_neuron_ids = np.arange(N)
+        else:
+            instrument_neuron_ids = np.array(v.instruments.neuron_ids) if v.instruments.neuron_ids is not None else None
         instrument_downsample = v.instruments.downsample
         instrument_variables = v.instruments.variables
         instrument_population_means = v.instruments.population_means

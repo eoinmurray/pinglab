@@ -1,6 +1,7 @@
 
 import Gallery from '@/components/gallery'
 import { ParameterTable } from '@/components/ParameterTable'
+import { ParameterBadge } from '@/components/ParameterBadge'
 
 function generateId(children: unknown): string {
   return children
@@ -15,6 +16,8 @@ export const mdxComponents = {
   Gallery,
 
   ParameterTable,
+
+  ParameterBadge,
 
   // Headings - clean sans-serif
   h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => {

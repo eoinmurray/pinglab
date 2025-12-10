@@ -15,6 +15,7 @@ class InstrumentsConfig(BaseModel):
     neuron_ids: list[int] | None = None  # Neuron indices to record from
     downsample: int = 1  # Downsampling factor for recorded data
     population_means: bool = False  # Record population-averaged traces for E and I
+    all_neurons: bool = False  # Record all neurons (overrides neuron_ids)
 
 
 class InstrumentsResults(BaseModel):

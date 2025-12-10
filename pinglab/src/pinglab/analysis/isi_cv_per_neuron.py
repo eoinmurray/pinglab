@@ -20,6 +20,13 @@ def isi_cv_per_neuron(
     - at least `ddof + 1` ISIs (for std to be defined)
     - finite, positive mean ISI
     - finite CV
+
+    Returns
+    -------
+    kept_ids : np.ndarray
+        Neuron IDs for which CV was computed.
+    cvs : np.ndarray
+        ISI CV values for the kept neurons.
     """
 
     times = np.asarray(spikes.times, dtype=float)
