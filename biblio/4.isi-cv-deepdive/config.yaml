@@ -9,9 +9,9 @@ experiment_1:
 
 
 default_inputs:
-  I_E: 0.8       # Subthreshold - neurons fire from fluctuations only
-  I_I: 0.8       # Input to I neurons
-  noise: 2.5     # Strong noise
+  I_E: 0.4       # Subthreshold
+  I_I: 0.4       # Input to I neurons
+  noise: 4.0     # Strong noise
 
 plotting:
   raster:

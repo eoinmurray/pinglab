@@ -899,7 +899,7 @@
           "type": "file",
           "name": "config.yaml",
           "path": "4.isi-cv-deepdive/config.yaml",
-          "size": 2247
+          "size": 2209
         },
         {
           "type": "directory",
@@ -910,13 +910,13 @@
               "type": "file",
               "name": "raster_dark.png",
               "path": "4.isi-cv-deepdive/data/raster_dark.png",
-              "size": 608775
+              "size": 357286
             },
             {
               "type": "file",
               "name": "raster_light.png",
               "path": "4.isi-cv-deepdive/data/raster_light.png",
-              "size": 470144
+              "size": 330546
             }
           ]
         },
