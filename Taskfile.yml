@@ -26,20 +26,20 @@ tasks:
   execute:
     desc: Execute cathedral with the specified config file
     cmds:
-      - touch biblio/.running
-      - defer: rm biblio/.running
+      - touch content/.running
+      - defer: rm content/.running
       - uv run python {{.CLI_ARGS}}
 
   execute:all:
-    desc: Execute all experiment.py files in biblio/**
+    desc: Execute all experiment.py files in content/**
     cmds:
-      - touch biblio/.running
+      - touch content/.running
       - |
-        find biblio -name "experiment.py" -type f | while read -r exp_file; do
+        find content -name "experiment.py" -type f | while read -r exp_file; do
           echo "Executing $exp_file..."
           uv run python "$exp_file"
         done
-      - rm biblio/.running
+      - rm content/.running
 
   dev:
     desc: Start the development server

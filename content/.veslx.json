@@ -1,0 +1,979 @@
+{
+  "type": "directory",
+  "name": "content",
+  "path": ".",
+  "children": [
+    {
+      "type": "directory",
+      "name": "1.sweeps",
+      "path": "1.sweeps",
+      "children": [
+        {
+          "type": "file",
+          "name": "config.yaml",
+          "path": "1.sweeps/config.yaml",
+          "size": 3123
+        },
+        {
+          "type": "file",
+          "name": "SLIDES.mdx",
+          "path": "1.sweeps/SLIDES.mdx",
+          "size": 2432,
+          "frontmatter": {
+            "title": "Sweeps",
+            "description": "Sweeping parameters to observe transitions",
+            "date": "2025-11-25T00:00:00.000Z"
+          }
+        },
+        {
+          "type": "directory",
+          "name": "local",
+          "path": "1.sweeps/local",
+          "children": [
+            {
+              "type": "file",
+              "name": "experiment_6.py",
+              "path": "1.sweeps/local/experiment_6.py",
+              "size": 3255
+            },
+            {
+              "type": "file",
+              "name": "experiment_2.py",
+              "path": "1.sweeps/local/experiment_2.py",
+              "size": 1096
+            },
+            {
+              "type": "file",
+              "name": "experiment_3.py",
+              "path": "1.sweeps/local/experiment_3.py",
+              "size": 3070
+            },
+            {
+              "type": "directory",
+              "name": "__pycache__",
+              "path": "1.sweeps/local/__pycache__",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "experiment_6.cpython-310.pyc",
+                  "path": "1.sweeps/local/__pycache__/experiment_6.cpython-310.pyc",
+                  "size": 2662
+                },
+                {
+                  "type": "file",
+                  "name": "model.cpython-310.pyc",
+                  "path": "1.sweeps/local/__pycache__/model.cpython-310.pyc",
+                  "size": 1102
+                },
+                {
+                  "type": "file",
+                  "name": "experiment_1.cpython-310.pyc",
+                  "path": "1.sweeps/local/__pycache__/experiment_1.cpython-310.pyc",
+                  "size": 1260
+                },
+                {
+                  "type": "file",
+                  "name": "experiment_4.cpython-310.pyc",
+                  "path": "1.sweeps/local/__pycache__/experiment_4.cpython-310.pyc",
+                  "size": 2551
+                },
+                {
+                  "type": "file",
+                  "name": "hotloop.cpython-310.pyc",
+                  "path": "1.sweeps/local/__pycache__/hotloop.cpython-310.pyc",
+                  "size": 890
+                },
+                {
+                  "type": "file",
+                  "name": "inner.cpython-310.pyc",
+                  "path": "1.sweeps/local/__pycache__/inner.cpython-310.pyc",
+                  "size": 883
+                },
+                {
+                  "type": "file",
+                  "name": "experiment_3.cpython-310.pyc",
+                  "path": "1.sweeps/local/__pycache__/experiment_3.cpython-310.pyc",
+                  "size": 3442
+                },
+                {
+                  "type": "file",
+                  "name": "experiment_2.cpython-310.pyc",
+                  "path": "1.sweeps/local/__pycache__/experiment_2.cpython-310.pyc",
+                  "size": 1258
+                },
+                {
+                  "type": "file",
+                  "name": "experiment_5.cpython-310.pyc",
+                  "path": "1.sweeps/local/__pycache__/experiment_5.cpython-310.pyc",
+                  "size": 1136
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "model.py",
+              "path": "1.sweeps/local/model.py",
+              "size": 640
+            },
+            {
+              "type": "file",
+              "name": "hotloop.py",
+              "path": "1.sweeps/local/hotloop.py",
+              "size": 790
+            },
+            {
+              "type": "file",
+              "name": "experiment_4.py",
+              "path": "1.sweeps/local/experiment_4.py",
+              "size": 2693
+            },
+            {
+              "type": "file",
+              "name": "experiment_5.py",
+              "path": "1.sweeps/local/experiment_5.py",
+              "size": 817
+            },
+            {
+              "type": "file",
+              "name": "experiment_1.py",
+              "path": "1.sweeps/local/experiment_1.py",
+              "size": 1101
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "experiment.py",
+          "path": "1.sweeps/experiment.py",
+          "size": 1070
+        },
+        {
+          "type": "directory",
+          "name": "data",
+          "path": "1.sweeps/data",
+          "children": [
+            {
+              "type": "file",
+              "name": "experiment_4_psd_I_E_1.25_light.png",
+              "path": "1.sweeps/data/experiment_4_psd_I_E_1.25_light.png",
+              "size": 473380
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_07_light.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_07_light.png",
+              "size": 764945
+            },
+            {
+              "type": "file",
+              "name": "experiment_3_firing_rates_vs_I_E_small_light.png",
+              "path": "1.sweeps/data/experiment_3_firing_rates_vs_I_E_small_light.png",
+              "size": 163014
+            },
+            {
+              "type": "file",
+              "name": "experiment_2_raster_I_E_2_dark.png",
+              "path": "1.sweeps/data/experiment_2_raster_I_E_2_dark.png",
+              "size": 401382
+            },
+            {
+              "type": "file",
+              "name": "experiment_2_raster_I_E_3_dark.png",
+              "path": "1.sweeps/data/experiment_2_raster_I_E_3_dark.png",
+              "size": 549990
+            },
+            {
+              "type": "file",
+              "name": "experiment_2_raster_I_E_3_light.png",
+              "path": "1.sweeps/data/experiment_2_raster_I_E_3_light.png",
+              "size": 451499
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_01_light.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_01_light.png",
+              "size": 276084
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_03_dark.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_03_dark.png",
+              "size": 560760
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_02_dark.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_02_dark.png",
+              "size": 439949
+            },
+            {
+              "type": "file",
+              "name": "experiment_3_firing_rates_vs_I_E_small_dark.png",
+              "path": "1.sweeps/data/experiment_3_firing_rates_vs_I_E_small_dark.png",
+              "size": 172274
+            },
+            {
+              "type": "file",
+              "name": "experiment_1_raster_g_ei_2_light.png",
+              "path": "1.sweeps/data/experiment_1_raster_g_ei_2_light.png",
+              "size": 398293
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_09_dark.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_09_dark.png",
+              "size": 1157718
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_08_dark.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_08_dark.png",
+              "size": 1063129
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_04_dark.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_04_dark.png",
+              "size": 691979
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_05_dark.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_05_dark.png",
+              "size": 801804
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_06_light.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_06_light.png",
+              "size": 702119
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_cv_vs_gei_dark.png",
+              "path": "1.sweeps/data/experiment_6_cv_vs_gei_dark.png",
+              "size": 120103
+            },
+            {
+              "type": "file",
+              "name": "experiment_2_raster_I_E_2_light.png",
+              "path": "1.sweeps/data/experiment_2_raster_I_E_2_light.png",
+              "size": 351161
+            },
+            {
+              "type": "file",
+              "name": "experiment_4_psd_I_E_2.00_light.png",
+              "path": "1.sweeps/data/experiment_4_psd_I_E_2.00_light.png",
+              "size": 641019
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_00_light.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_00_light.png",
+              "size": 169166
+            },
+            {
+              "type": "file",
+              "name": "experiment_3_firing_rates_vs_I_E_large_light.png",
+              "path": "1.sweeps/data/experiment_3_firing_rates_vs_I_E_large_light.png",
+              "size": 147521
+            },
+            {
+              "type": "file",
+              "name": "experiment_1_raster_g_ei_3_light.png",
+              "path": "1.sweeps/data/experiment_1_raster_g_ei_3_light.png",
+              "size": 418305
+            },
+            {
+              "type": "file",
+              "name": "experiment_1_raster_g_ei_1_dark.png",
+              "path": "1.sweeps/data/experiment_1_raster_g_ei_1_dark.png",
+              "size": 497815
+            },
+            {
+              "type": "file",
+              "name": "experiment_5_crosscorr_dark.png",
+              "path": "1.sweeps/data/experiment_5_crosscorr_dark.png",
+              "size": 127885
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_05_light.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_05_light.png",
+              "size": 635767
+            },
+            {
+              "type": "file",
+              "name": "experiment_4_psd_I_E_0.50_dark.png",
+              "path": "1.sweeps/data/experiment_4_psd_I_E_0.50_dark.png",
+              "size": 218615
+            },
+            {
+              "type": "file",
+              "name": "experiment_4_psd_I_E_1.25_dark.png",
+              "path": "1.sweeps/data/experiment_4_psd_I_E_1.25_dark.png",
+              "size": 632997
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_cv_vs_gei_light.png",
+              "path": "1.sweeps/data/experiment_6_cv_vs_gei_light.png",
+              "size": 115761
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_08_light.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_08_light.png",
+              "size": 823114
+            },
+            {
+              "type": "file",
+              "name": "experiment_2_raster_I_E_1_light.png",
+              "path": "1.sweeps/data/experiment_2_raster_I_E_1_light.png",
+              "size": 252539
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_00_dark.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_00_dark.png",
+              "size": 175187
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_01_dark.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_01_dark.png",
+              "size": 296878
+            },
+            {
+              "type": "file",
+              "name": "experiment_3_firing_rates_vs_I_E_large_dark.png",
+              "path": "1.sweeps/data/experiment_3_firing_rates_vs_I_E_large_dark.png",
+              "size": 156352
+            },
+            {
+              "type": "file",
+              "name": "experiment_4_psd_I_E_2.00_dark.png",
+              "path": "1.sweeps/data/experiment_4_psd_I_E_2.00_dark.png",
+              "size": 940050
+            },
+            {
+              "type": "file",
+              "name": "experiment_2_raster_I_E_1_dark.png",
+              "path": "1.sweeps/data/experiment_2_raster_I_E_1_dark.png",
+              "size": 266897
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_03_light.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_03_light.png",
+              "size": 462902
+            },
+            {
+              "type": "file",
+              "name": "experiment_4_psd_I_E_0.50_light.png",
+              "path": "1.sweeps/data/experiment_4_psd_I_E_0.50_light.png",
+              "size": 200394
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_04_light.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_04_light.png",
+              "size": 557289
+            },
+            {
+              "type": "file",
+              "name": "experiment_1_raster_g_ei_3_dark.png",
+              "path": "1.sweeps/data/experiment_1_raster_g_ei_3_dark.png",
+              "size": 498907
+            },
+            {
+              "type": "file",
+              "name": "experiment_1_raster_g_ei_2_dark.png",
+              "path": "1.sweeps/data/experiment_1_raster_g_ei_2_dark.png",
+              "size": 487314
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_09_light.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_09_light.png",
+              "size": 878039
+            },
+            {
+              "type": "file",
+              "name": "experiment_5_crosscorr_light.png",
+              "path": "1.sweeps/data/experiment_5_crosscorr_light.png",
+              "size": 123314
+            },
+            {
+              "type": "file",
+              "name": "experiment_1_raster_g_ei_1_light.png",
+              "path": "1.sweeps/data/experiment_1_raster_g_ei_1_light.png",
+              "size": 400332
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_02_light.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_02_light.png",
+              "size": 376296
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_07_dark.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_07_dark.png",
+              "size": 980796
+            },
+            {
+              "type": "file",
+              "name": "experiment_6_raster_gei_06_dark.png",
+              "path": "1.sweeps/data/experiment_6_raster_gei_06_dark.png",
+              "size": 896471
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "directory",
+      "name": "2.metrics",
+      "path": "2.metrics",
+      "children": [
+        {
+          "type": "file",
+          "name": "config.yaml",
+          "path": "2.metrics/config.yaml",
+          "size": 2250
+        },
+        {
+          "type": "directory",
+          "name": "local",
+          "path": "2.metrics/local",
+          "children": [
+            {
+              "type": "directory",
+              "name": "__pycache__",
+              "path": "2.metrics/local/__pycache__",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "model.cpython-310.pyc",
+                  "path": "2.metrics/local/__pycache__/model.cpython-310.pyc",
+                  "size": 361
+                },
+                {
+                  "type": "file",
+                  "name": "run_regime.cpython-310.pyc",
+                  "path": "2.metrics/local/__pycache__/run_regime.cpython-310.pyc",
+                  "size": 3962
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "model.py",
+              "path": "2.metrics/local/model.py",
+              "size": 91
+            },
+            {
+              "type": "file",
+              "name": "run_regime.py",
+              "path": "2.metrics/local/run_regime.py",
+              "size": 5757
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "experiment.py",
+          "path": "2.metrics/experiment.py",
+          "size": 1040
+        },
+        {
+          "type": "file",
+          "name": "README.mdx",
+          "path": "2.metrics/README.mdx",
+          "size": 3164,
+          "frontmatter": {
+            "title": "Metrics",
+            "description": "Numerically characterising the network regime",
+            "date": "2025-11-26T00:00:00.000Z"
+          }
+        },
+        {
+          "type": "directory",
+          "name": "data",
+          "path": "2.metrics/data",
+          "children": [
+            {
+              "type": "file",
+              "name": "osc_psd_light.png",
+              "path": "2.metrics/data/osc_psd_light.png",
+              "size": 110112
+            },
+            {
+              "type": "file",
+              "name": "ai_raster_light.png",
+              "path": "2.metrics/data/ai_raster_light.png",
+              "size": 215714
+            },
+            {
+              "type": "file",
+              "name": "osc_metrics.yaml",
+              "path": "2.metrics/data/osc_metrics.yaml",
+              "size": 640
+            },
+            {
+              "type": "file",
+              "name": "ai_metrics.yaml",
+              "path": "2.metrics/data/ai_metrics.yaml",
+              "size": 649
+            },
+            {
+              "type": "file",
+              "name": "osc_raster_light.png",
+              "path": "2.metrics/data/osc_raster_light.png",
+              "size": 664518
+            },
+            {
+              "type": "file",
+              "name": "ai_raster_dark.png",
+              "path": "2.metrics/data/ai_raster_dark.png",
+              "size": 221226
+            },
+            {
+              "type": "file",
+              "name": "osc_raster_dark.png",
+              "path": "2.metrics/data/osc_raster_dark.png",
+              "size": 938412
+            },
+            {
+              "type": "file",
+              "name": "ai_psd_light.png",
+              "path": "2.metrics/data/ai_psd_light.png",
+              "size": 251091
+            },
+            {
+              "type": "file",
+              "name": "ai_psd_dark.png",
+              "path": "2.metrics/data/ai_psd_dark.png",
+              "size": 315687
+            },
+            {
+              "type": "file",
+              "name": "osc_psd_dark.png",
+              "path": "2.metrics/data/osc_psd_dark.png",
+              "size": 127705
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "directory",
+      "name": "3.phase-dependence",
+      "path": "3.phase-dependence",
+      "children": [
+        {
+          "type": "file",
+          "name": "config.yaml",
+          "path": "3.phase-dependence/config.yaml",
+          "size": 3031
+        },
+        {
+          "type": "directory",
+          "name": "local",
+          "path": "3.phase-dependence/local",
+          "children": [
+            {
+              "type": "file",
+              "name": "experiment_2.py",
+              "path": "3.phase-dependence/local/experiment_2.py",
+              "size": 11359
+            },
+            {
+              "type": "directory",
+              "name": "__pycache__",
+              "path": "3.phase-dependence/local/__pycache__",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "model.cpython-310.pyc",
+                  "path": "3.phase-dependence/local/__pycache__/model.cpython-310.pyc",
+                  "size": 763
+                },
+                {
+                  "type": "file",
+                  "name": "experiment_1.cpython-310.pyc",
+                  "path": "3.phase-dependence/local/__pycache__/experiment_1.cpython-310.pyc",
+                  "size": 3841
+                },
+                {
+                  "type": "file",
+                  "name": "experiment_2.cpython-310.pyc",
+                  "path": "3.phase-dependence/local/__pycache__/experiment_2.cpython-310.pyc",
+                  "size": 6986
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "model.py",
+              "path": "3.phase-dependence/local/model.py",
+              "size": 317
+            },
+            {
+              "type": "file",
+              "name": "experiment_1.py",
+              "path": "3.phase-dependence/local/experiment_1.py",
+              "size": 4486
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "experiment.py",
+          "path": "3.phase-dependence/experiment.py",
+          "size": 700
+        },
+        {
+          "type": "file",
+          "name": "README.mdx",
+          "path": "3.phase-dependence/README.mdx",
+          "size": 4576,
+          "frontmatter": {
+            "title": "Phase Dependence",
+            "description": "Gamma oscillations create phase-dependent gating where identical inputs produce different responses depending on gamma phase.",
+            "date": "2025-12-10T00:00:00.000Z"
+          }
+        },
+        {
+          "type": "file",
+          "name": "fries.pdf",
+          "path": "3.phase-dependence/fries.pdf",
+          "size": 2431199
+        },
+        {
+          "type": "directory",
+          "name": "data",
+          "path": "3.phase-dependence/data",
+          "children": [
+            {
+              "type": "file",
+              "name": "raster_with_pulse91_dark.png",
+              "path": "3.phase-dependence/data/raster_with_pulse91_dark.png",
+              "size": 953088
+            },
+            {
+              "type": "file",
+              "name": "trace_g_e_mean_dark.png",
+              "path": "3.phase-dependence/data/trace_g_e_mean_dark.png",
+              "size": 558219
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse81_light.png",
+              "path": "3.phase-dependence/data/raster_with_pulse81_light.png",
+              "size": 669654
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse41_dark.png",
+              "path": "3.phase-dependence/data/raster_with_pulse41_dark.png",
+              "size": 963667
+            },
+            {
+              "type": "file",
+              "name": "trace_voltage_mean_light.png",
+              "path": "3.phase-dependence/data/trace_voltage_mean_light.png",
+              "size": 367625
+            },
+            {
+              "type": "file",
+              "name": "phase_gain_curve_light.png",
+              "path": "3.phase-dependence/data/phase_gain_curve_light.png",
+              "size": 402528
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse51_light.png",
+              "path": "3.phase-dependence/data/raster_with_pulse51_light.png",
+              "size": 674563
+            },
+            {
+              "type": "file",
+              "name": "trace_g_e_mean_light.png",
+              "path": "3.phase-dependence/data/trace_g_e_mean_light.png",
+              "size": 433114
+            },
+            {
+              "type": "file",
+              "name": "trace_voltage_mean_dark.png",
+              "path": "3.phase-dependence/data/trace_voltage_mean_dark.png",
+              "size": 457255
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse21_dark.png",
+              "path": "3.phase-dependence/data/raster_with_pulse21_dark.png",
+              "size": 957518
+            },
+            {
+              "type": "file",
+              "name": "raster_baseline_dark.png",
+              "path": "3.phase-dependence/data/raster_baseline_dark.png",
+              "size": 951244
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse81_dark.png",
+              "path": "3.phase-dependence/data/raster_with_pulse81_dark.png",
+              "size": 948848
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse71_light.png",
+              "path": "3.phase-dependence/data/raster_with_pulse71_light.png",
+              "size": 671812
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse51_dark.png",
+              "path": "3.phase-dependence/data/raster_with_pulse51_dark.png",
+              "size": 954380
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse21_light.png",
+              "path": "3.phase-dependence/data/raster_with_pulse21_light.png",
+              "size": 676974
+            },
+            {
+              "type": "file",
+              "name": "trace_g_i_mean_light.png",
+              "path": "3.phase-dependence/data/trace_g_i_mean_light.png",
+              "size": 385667
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse31_dark.png",
+              "path": "3.phase-dependence/data/raster_with_pulse31_dark.png",
+              "size": 952879
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse11_light.png",
+              "path": "3.phase-dependence/data/raster_with_pulse11_light.png",
+              "size": 677921
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse1_light.png",
+              "path": "3.phase-dependence/data/raster_with_pulse1_light.png",
+              "size": 674492
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse61_dark.png",
+              "path": "3.phase-dependence/data/raster_with_pulse61_dark.png",
+              "size": 953640
+            },
+            {
+              "type": "file",
+              "name": "trace_g_i_mean_dark.png",
+              "path": "3.phase-dependence/data/trace_g_i_mean_dark.png",
+              "size": 461972
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse91_light.png",
+              "path": "3.phase-dependence/data/raster_with_pulse91_light.png",
+              "size": 673533
+            },
+            {
+              "type": "file",
+              "name": "raster_baseline_light.png",
+              "path": "3.phase-dependence/data/raster_baseline_light.png",
+              "size": 670760
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse41_light.png",
+              "path": "3.phase-dependence/data/raster_with_pulse41_light.png",
+              "size": 682108
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse1_dark.png",
+              "path": "3.phase-dependence/data/raster_with_pulse1_dark.png",
+              "size": 954447
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse31_light.png",
+              "path": "3.phase-dependence/data/raster_with_pulse31_light.png",
+              "size": 673212
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse71_dark.png",
+              "path": "3.phase-dependence/data/raster_with_pulse71_dark.png",
+              "size": 951909
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse61_light.png",
+              "path": "3.phase-dependence/data/raster_with_pulse61_light.png",
+              "size": 674012
+            },
+            {
+              "type": "file",
+              "name": "phase_gain_curve_dark.png",
+              "path": "3.phase-dependence/data/phase_gain_curve_dark.png",
+              "size": 464272
+            },
+            {
+              "type": "file",
+              "name": "raster_with_pulse11_dark.png",
+              "path": "3.phase-dependence/data/raster_with_pulse11_dark.png",
+              "size": 958364
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "directory",
+      "name": "4.precision",
+      "path": "4.precision",
+      "children": [
+        {
+          "type": "file",
+          "name": "config.yaml",
+          "path": "4.precision/config.yaml",
+          "size": 2477
+        },
+        {
+          "type": "file",
+          "name": "SLIDES.mdx",
+          "path": "4.precision/SLIDES.mdx",
+          "size": 1234,
+          "frontmatter": {
+            "title": "Precision",
+            "description": "Exploring Fries Precision Argument",
+            "date": "2025-12-11T00:00:00.000Z"
+          }
+        },
+        {
+          "type": "directory",
+          "name": "local",
+          "path": "4.precision/local",
+          "children": [
+            {
+              "type": "directory",
+              "name": "__pycache__",
+              "path": "4.precision/local/__pycache__",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "generate_image.cpython-310.pyc",
+                  "path": "4.precision/local/__pycache__/generate_image.cpython-310.pyc",
+                  "size": 447
+                },
+                {
+                  "type": "file",
+                  "name": "build_feedforward_current.cpython-310.pyc",
+                  "path": "4.precision/local/__pycache__/build_feedforward_current.cpython-310.pyc",
+                  "size": 989
+                },
+                {
+                  "type": "file",
+                  "name": "model.cpython-310.pyc",
+                  "path": "4.precision/local/__pycache__/model.cpython-310.pyc",
+                  "size": 429
+                },
+                {
+                  "type": "file",
+                  "name": "image_to_external_input.cpython-310.pyc",
+                  "path": "4.precision/local/__pycache__/image_to_external_input.cpython-310.pyc",
+                  "size": 988
+                },
+                {
+                  "type": "file",
+                  "name": "reconstruct_image_from_spikes.cpython-310.pyc",
+                  "path": "4.precision/local/__pycache__/reconstruct_image_from_spikes.cpython-310.pyc",
+                  "size": 879
+                },
+                {
+                  "type": "file",
+                  "name": "collect_dataset.cpython-310.pyc",
+                  "path": "4.precision/local/__pycache__/collect_dataset.cpython-310.pyc",
+                  "size": 1991
+                }
+              ]
+            },
+            {
+              "type": "file",
+              "name": "model.py",
+              "path": "4.precision/local/model.py",
+              "size": 137
+            },
+            {
+              "type": "file",
+              "name": "generate_image.py",
+              "path": "4.precision/local/generate_image.py",
+              "size": 299
+            },
+            {
+              "type": "file",
+              "name": "build_feedforward_current.py",
+              "path": "4.precision/local/build_feedforward_current.py",
+              "size": 812
+            },
+            {
+              "type": "file",
+              "name": "reconstruct_image_from_spikes.py",
+              "path": "4.precision/local/reconstruct_image_from_spikes.py",
+              "size": 796
+            },
+            {
+              "type": "file",
+              "name": "collect_dataset.py",
+              "path": "4.precision/local/collect_dataset.py",
+              "size": 2202
+            },
+            {
+              "type": "file",
+              "name": "image_to_external_input.py",
+              "path": "4.precision/local/image_to_external_input.py",
+              "size": 891
+            }
+          ]
+        },
+        {
+          "type": "file",
+          "name": "experiment.py",
+          "path": "4.precision/experiment.py",
+          "size": 6312
+        },
+        {
+          "type": "directory",
+          "name": "data",
+          "path": "4.precision/data",
+          "children": [
+            {
+              "type": "file",
+              "name": "raster_A_light.png",
+              "path": "4.precision/data/raster_A_light.png",
+              "size": 1316187
+            },
+            {
+              "type": "file",
+              "name": "raster_A_dark.png",
+              "path": "4.precision/data/raster_A_dark.png",
+              "size": 1910161
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

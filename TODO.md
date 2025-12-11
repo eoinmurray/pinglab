@@ -1,6 +1,7 @@
 
-slide-gallery:
-  - must be wide and tall as possible
-  - allow for title, subtitle, caption and caption label
-  - must allow for fullscreen clicking
-  - max 6 elements
+Regime Classification
+  - individual metrics and plots
+
+Sweeps
+  - metrics across sweeps
+  - move isi to sweeps
