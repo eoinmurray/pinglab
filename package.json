@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "build": "veslx build",
+    "dev": "veslx serve"
+  },
+  "dependencies": {
+    "veslx": "^0.0.28"
+  }
+}
