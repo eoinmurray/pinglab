@@ -10,18 +10,10 @@ tasks:
     cmds:
       - task --list
 
-  install:
-    desc: Install project dependencies
-    cmds:
-      - uv sync
-      - cd pinglab && uv sync
-      - cd cathedral && bun install
-      - cd cathedral && bun add cathedral-plugin@file:./plugins/cathedral-plugin/
-
   test:
     desc: Run tests
     cmds:
-      - uv run pytest -s
+      - uv run pytest -s # -s to see print statements
 
   execute:
     desc: Execute cathedral with the specified config file
@@ -40,33 +32,3 @@ tasks:
           uv run python "$exp_file"
         done
       - rm content/.running
-
-  dev:
-    desc: Start the development server
-    dir: cathedral
-    cmds:
-      - bun run dev
-
-  build:
-    desc: Build the production assets
-    dir: cathedral
-    cmds:
-      - bun run build
-
-  start:
-    desc: Start the production server
-    dir: cathedral
-    cmds:
-      - bun run start
-
-  bg:
-    desc: Start the development server in the background
-    dir: cathedral
-    cmds:
-      - pm2 start "bun run dev" --name cathedral
-
-  bg:stop:
-    desc: Stop the background development server
-    dir: cathedral
-    cmds:
-      - pm2 delete cathedral

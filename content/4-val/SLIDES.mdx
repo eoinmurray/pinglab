@@ -1,0 +1,76 @@
+---
+title: Precision
+description: Exploring Fries Precision Argument
+date: 2025-12-11
+---
+
+export const path = "_artifacts/val";
+
+<Gallery
+  title="Input Image"
+  path={`${path}`}
+  globs={[
+    'input_image*'
+  ]}
+/>
+
+---
+
+<Gallery
+  title="Population A raster with input image"
+  path={`${path}`}
+  globs={[
+    'raster_A*'
+  ]}
+/>
+
+---
+
+<Gallery
+  title="Population A reconstructed image from spikes"
+  path={`${path}`}
+  globs={[
+    'reconstruction_A_only*'
+  ]}
+/>
+
+---
+
+<Gallery
+  title="Population B raster with input from Population A"
+  path={`${path}`}
+  globs={[
+    'raster_B*'
+  ]}
+/>
+
+---
+
+<Gallery
+  title="Population B reconstructed image from spikes"
+  path={`${path}`}
+  globs={[
+    'reconstruction_AB*'
+  ]}
+/>
+
+---
+
+<Gallery
+  title="Population B reconstructed image at phase 0 with linear decoder"
+  path={`${path}`}
+  globs={[
+    'reconstruction_phase_0*'
+  ]}
+/>
+
+---
+
+<Gallery
+  title="MSE vs Phase"
+  path={`${path}`}
+  globs={[
+    'mse_vs_phase*'
+  ]}
+/>
+

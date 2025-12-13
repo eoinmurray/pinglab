@@ -1,0 +1,82 @@
+---
+title: Sweeps
+description: Sweeping parameters to observe transitions
+date: 2025-11-25
+---
+
+<Gallery
+  title="Raster plot of A-OSC transition as $g_{ei}$ increases."
+  path="_artifacts/agp"
+  globs={["experiment_1_raster_g_ei_*.png"]}
+  subtitle="At $I_E = 1.2$ nA in the oscillatory regime."
+  caption="Sweep $g_{ei}$ from 1.2 to 1.5 nS with fixed $I_E = 1.2$ nA"
+  captionLabel="Figure 1"
+/>
+
+---
+
+<Gallery
+  path="_artifacts/agp"
+  globs={["experiment_2_raster_I_E_*.png"]}
+  title="Raster plot of A-OSC transition as $I_E$ increases."
+  subtitle="With fixed $g_{ei} = 1.6$ nS in the oscillatory regime."
+  caption="Sweep $I_E$ from 0.8 to 1.3 nA with fixed $g_{ei} = 1.6$ nS"
+  captionLabel="Figure 2"
+/>
+
+---
+
+<Gallery
+  path="_artifacts/agp"
+  globs={["experiment_3_firing_rates_vs_I_E_*.png"]}
+  title="Firing rate vs input current for E and I populations."
+  subtitle="E population shows steeper increase due to direct input."
+  caption="E population: direct input, steeper curve. I population: driven indirectly via E→I synapses."
+  captionLabel="Figure 3"
+/>
+
+---
+
+<Gallery
+  path="_artifacts/agp"
+  globs={["experiment_4_psd_*.png"]}
+  title="Power Spectral Density of E population firing rate."
+  subtitle="With fixed $g_{ei} = 1.4$ nS across input current range."
+  caption="Sweep $I_E$ from 0.5 to 2.0 nA with fixed $g_{ei} = 1.4$ nS"
+  captionLabel="Figure 4"
+/>
+
+---
+
+<Gallery
+  single
+  path="_artifacts/agp"
+  globs={["experiment_5_crosscorr_*.png"]}
+  title="Cross-Correlogram between E and I populations."
+  subtitle="At $I_E = 1.5$ nA and $g_{ei} = 1.4$ nS in the oscillatory regime."
+  caption="Temporal relationship showing I lags E by ~2-5 ms, confirming PING mechanism."
+  captionLabel="Figure 5"
+/>
+
+---
+
+<Gallery
+  single
+  path="_artifacts/agp"
+  globs={["experiment_6_cv_vs_gei*"]}
+  title="Population ISI Coefficient of Variation vs Synaptic Weight"
+  subtitle="From high variability (A) to low variability (OSC)."
+  caption="Sweep $g_{ei}$ from 1.0 to 1.5 nS with fixed $I_E = 1.2$ nA. CV decreases as inhibition strengthens."
+  captionLabel="Figure 6"
+/>
+
+---
+
+<Gallery
+  path="_artifacts/agp"
+  globs={["experiment_6_raster*.png"]}
+  title="Rasters for population ISI CV at different $g_{ei}$ values"
+  subtitle="From high variability (A) to low variability (OSC)."
+  caption="Visualizing spike timing variability across neurons as $g_{ei}$ increases from 1.0 to 1.5 nS."
+  captionLabel="Figure 7"
+/>
