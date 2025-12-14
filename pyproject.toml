@@ -8,7 +8,6 @@ dependencies = [
     "numpy>=2.2.6",
     "scipy>=1.15.3",
     "pinglab",
-    "experiments",
     "joblib>=1.5.2",
     "tqdm-joblib>=0.0.5",
     "pytest>=9.0.1",
@@ -17,7 +16,6 @@ dependencies = [
 
 [tool.uv.sources]
 pinglab = { workspace = true }
-experiments = { workspace = true }
 
 [tool.uv.workspace]
 members = ["pinglab", "experiments"]
