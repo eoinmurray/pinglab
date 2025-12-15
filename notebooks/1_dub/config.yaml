@@ -32,7 +32,7 @@ experiment_4:
   # I_E
   linspace:
     start: 0.5
-    stop: 2.0
+    stop: 1.5
     num: 3
 
 experiment_5:
@@ -40,7 +40,7 @@ experiment_5:
   I_E: 1.5
 
 experiment_6:
-  I_E: 1.2  # Fixed input to E neurons
+  I_E: 1.0  # Fixed input to E neurons
   # g_ei
   linspace:
     start: 1.0
