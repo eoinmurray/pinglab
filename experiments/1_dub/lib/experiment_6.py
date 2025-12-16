@@ -18,11 +18,11 @@ from .model import LocalConfig
 
 
 def experiment_6(config: LocalConfig, data_path: Path) -> None:
-        # Sweep g_ei, I_E, and noise together to transition from AI to oscillating regime
+    # Sweep g_ei, I_E, and noise together to transition from AI to oscillating regime
     # At low g_ei/I_E + high noise: noise-driven asynchronous (CV ~0.55)
     # At high g_ei/I_E + low noise: PING oscillations (CV < 0.2)
-    g_ei_values = np.linspace(0.5, 4.0, 10)
-    I_E_values = np.linspace(0.4, 3.5, 10)  # Increase drive to activate PING
+    g_ei_values = np.linspace(0.5, 2.0, 10)
+    I_E_values = np.linspace(0.4, 2.0, 10)  # Increase drive to activate PING
     noise_values = np.linspace(4.0, 0.5, 10)  # Reduce noise for regular oscillations
     cv_values = []
 

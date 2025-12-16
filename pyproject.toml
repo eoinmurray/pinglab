@@ -18,4 +18,4 @@ dependencies = [
 pinglab = { workspace = true }
 
 [tool.uv.workspace]
-members = ["pinglab", "experiments"]
+members = ["pinglab"]

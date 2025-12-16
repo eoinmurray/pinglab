@@ -4,6 +4,6 @@
     "build": "veslx build content"
   },
   "dependencies": {
-    "veslx": "^0.1.27"
+    "veslx": "^0.1.28"
   }
 }
