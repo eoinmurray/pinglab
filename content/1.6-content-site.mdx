@@ -1,0 +1,148 @@
+---
+title: "Content Site"
+description: "How the documentation site is built"
+---
+
+<FrontMatter/>
+
+The documentation is built with veslx, a static site generator for MDX content.
+Experiment outputs are referenced via the `<Gallery>` component.
+
+## Directory Structure
+
+```
+content/
+├── veslx.yaml        # Site configuration
+├── 1.x-*.mdx         # Background and meta posts
+├── 2.x-*.mdx         # Experiment results
+└── _artifacts/       # Generated figures from experiments
+    ├── sweeps/
+    ├── metrics/
+    └── phase_dependence/
+```
+
+## Configuration
+
+`veslx.yaml` defines the site:
+
+```yaml
+dir: .
+site:
+  name: pinglab
+  description: Pinglab Documentation
+  github: "eoinmurray/pinglab"
+  llmsTxt: true
+
+posts:
+  sort: date
+```
+
+## Building the Site
+
+```bash
+npm run dev    # Development server
+npm run build  # Production build → dist/
+```
+
+Both commands invoke veslx on the content directory.
+
+## MDX Format
+
+Posts are MDX files (Markdown + JSX) with YAML frontmatter:
+
+```mdx
+---
+title: Parameter Sweeps
+description: Mapping dynamical regimes
+---
+
+export const path = "_artifacts/sweeps"
+
+<FrontMatter />
+
+## Overview
+
+Math uses KaTeX: $g_{ei}$, $I_E$, $\sigma$
+
+Block equations:
+
+$$
+\tau_m \frac{dV}{dt} = E_L - V + R_m I
+$$
+```
+
+The `<FrontMatter />` component renders the title and description at the top of
+the page.
+
+## The Gallery Component
+
+`<Gallery>` displays images from `_artifacts/` using glob patterns:
+
+```jsx
+<Gallery
+  title="Raster plots across regimes"
+  path={`${path}`}
+  globs={["experiment_1_raster_*.png"]}
+  subtitle="Fixed $I_E = 1.2$ nA"
+  caption="Transition from async to oscillatory."
+  captionLabel="Figure 1"
+/>
+```
+
+Props:
+
+| Prop | Description |
+|------|-------------|
+| `path` | Relative path within content |
+| `globs` | Array of glob patterns to match images |
+| `title` | Gallery title (supports KaTeX) |
+| `subtitle` | Secondary label |
+| `caption` | Description below images |
+| `captionLabel` | e.g., "Figure 1" |
+| `single` | Display single image instead of grid |
+
+## Referencing Artifacts
+
+A common pattern is to define the artifact path once and reuse it:
+
+```jsx
+export const path = "_artifacts/sweeps"
+
+<Gallery path={`${path}`} globs={["experiment_1_*.png"]} />
+<Gallery path={`${path}`} globs={["experiment_2_*.png"]} />
+```
+
+This keeps paths DRY and makes it easy to reorganize artifacts.
+
+## File Naming
+
+Posts are numbered for ordering:
+
+- `1.x` — Background and meta content
+  - `1.1` — PING introduction
+  - `1.2` — Experiments overview
+  - `1.3` — Project layout
+  - `1.4` — Pinglab library
+  - `1.5` — Experiment code
+  - `1.6` — Content site (this page)
+- `2.x` — Experiment results
+  - `2.0` — Metrics
+  - `2.1` — Sweeps
+  - `2.2` — Phase dependence
+
+## Data Flow
+
+```
+experiments/<name>/experiment.py
+        ↓
+content/_artifacts/<name>/*.png
+        ↓
+content/2.x-<name>.mdx
+        ↓
+npm run build
+        ↓
+dist/ (static site)
+```
+
+Artifacts are version-controlled alongside the MDX files that reference them,
+keeping documentation and results in sync.

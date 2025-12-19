@@ -1,0 +1,171 @@
+---
+title: "Experiments"
+description: "Experiment roadmap for Pinglab"
+---
+
+<FrontMatter />
+
+The goal is to show, quantitatively, **when PING/gamma helps** communication and
+routing **under matched mean rate and matched energy proxy**, and **when it
+hurts** (over-coherence / interference). Treat PING as a **control primitive**,
+not a representational theory.
+
+The code rule is every comparison that isn't explicitly about rate must be **rate-matched**
+(mean_rate_E/I) and ideally **energy-matched** (conductance integral + spikes).
+Otherwise you're just measuring "more activity".
+
+---
+
+## Completed Experiments
+
+The following experiments are implemented and documented:
+
+| Experiment | Status | Documentation |
+|------------|--------|---------------|
+| **Metrics** | Done | Defines the measurement framework |
+| **Parameter Sweeps** | Done | Maps A→OSC regime transitions |
+| **Phase Dependence** | Done | Demonstrates phase-dependent gating |
+
+---
+
+## Planned Experiments
+
+### 0) Common infrastructure (do first)
+
+**Purpose:** Make every experiment run through the same harness, save tidy
+outputs, and produce a standard diagnostics page.
+
+**TODO**
+
+* Build an experiment runner: `run_experiment(config, protocol) -> {result,
+  metrics, artifacts}`
+* Standardize a **metrics bundle** for all runs:
+
+  * rasters, mean rates, PSD/gamma metrics, ISI CV, E–I lag, correlations, Fano
+  * “energy proxy”: $E_{\text{proxy}}=\int (g_e+g_i),dt$ (plus spike counts)
+* Implement **rate matching** helper:
+
+  * given target mean rates, find parameter pairs for AI vs PING regimes
+* Standardize **phase reference**:
+
+  * use inhibitory conductance onto E (`g_i_mean_E`) + Hilbert transform to get
+    phase
+* Standardize output schema per run:
+
+  * config used, spikes, key traces (downsampled), metrics JSON row, task
+    outputs (decoded images etc.)
+
+**Exit criteria**
+
+* One command runs “AI vs PING” and produces comparable artifacts + a single
+  metrics row.
+
+### 1) Phase-dependent gating (done — see Phase Dependence)
+
+**Purpose:** Make your existing result reusable and “library-grade”.
+
+**TODO**
+
+* Turn GPP-1 into a protocol module (repeatable function call)
+* Add one summary figure: phase → (gain, Fano, latency SD), **rate-matched**
+* Add failure modes: when phase dependence disappears (weak gamma, too-strong
+  inhibition, etc.)
+
+**Exit criteria**
+
+* A protocol call reproduces the key figure + metrics reliably across seeds.
+
+### 2) Single-network task: "image in → decode out"
+
+**Purpose:** First real task beyond regime diagnostics. Keep it simple and
+debuggable.
+
+**Critical design decision (pick one first)**
+
+* **Rate code**: pixel intensity → Poisson rate for a fixed window (simplest)
+* or **Latency code**: brighter pixel → earlier spikes (more spiking-native)
+
+**TODO**
+
+* Choose small images (start **synthetic**: bars/blobs/checkerboards; later
+  MNIST)
+* Define mapping: image pixels → subset of E neurons (topographic or random
+  projection)
+* Stimulus protocol: present image for $T_{\text{img}}$ ms with baseline noise;
+  include blank trials
+* Readout: linear ridge regression on binned rates or filtered spikes to
+  reconstruct pixels
+* Metrics:
+
+  * fidelity: MSE + (PSNR or SSIM)
+  * correlation(image, recon)
+  * cost: spikes per fidelity + energy proxy
+* Controls:
+
+  * shuffled mapping should collapse reconstruction
+  * **rate-matched AI vs PING** comparison
+
+**Exit criteria**
+
+* Reliable above-chance reconstruction with stable metrics across seeds.
+
+### 3) Two-network transfer: image A → B with regime + phase sweeps
+
+**Purpose:** The headline “communication-through-coherence” test: does relative
+phase change effective transfer without big rate changes?
+
+**Minimal architecture**
+
+* Network A encodes image → produces spikes
+* Projection A→B converts A spikes into synaptic input to B (with controllable
+  delay)
+* Network B decodes/reconstructs the image (or classifies it)
+
+**TODO**
+
+* Define coupling interface: how A spikes become conductance in B (with delay)
+* Phase control knobs (use at least one “clean” knob):
+
+  * **delay sweep** (best)
+  * tonic drive offset (phase drift/frequency mismatch)
+  * optional weak forcing to phase-lock (later)
+* Regime conditions to compare:
+
+  * AI/AI
+  * PING/PING in-phase
+  * PING/PING out-of-phase
+  * PING/AI (both directions)
+* Enforce **rate + energy matching** across conditions
+* Transfer metrics:
+
+  * B reconstruction fidelity (MSE/SSIM etc.)
+  * coherence/phase-locking between A and B (prove in/out-of-phase)
+  * optional: transfer entropy / mutual information later
+
+**Exit criteria**
+
+* A clear curve: fidelity in B vs phase offset (or delay), with a peak when
+  inputs arrive in excitable windows, holding under rate matching.
+
+### 4) The necessary counterpoint: "over-coherence hurts"
+
+**Purpose:** Don’t write gamma propaganda. Show principled limits.
+
+**TODO**
+
+* Increase synchrony (stronger coupling / lower noise) and show fidelity
+  degrades
+* Multi-signal inputs: show crosstalk/interference rises with excessive
+  coherence
+
+**Exit criteria**
+
+* Identify a regime where gamma exists but task performance drops.
+
+### Recommended execution order (fast path)
+
+1. **Infrastructure (0)**
+2. **Single-network image decode (2)**
+3. **Two-network transfer with phase/regime sweeps (3)**
+4. **Over-coherence limit (4)** (Phase gating (1) is already done—just package
+   it.)

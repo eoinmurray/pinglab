@@ -67,17 +67,41 @@ def experiment_6(config: LocalConfig, data_path: Path) -> None:
         cv_values.append(cv_pop_E)
         print(f"  cv_E: {cv_pop_E:.3f}")
 
-    # Plot CV vs g_ei curve
-    def plot_cv_curve():
-        plt.figure(figsize=figsize)
+    # Plot CV vs g_ei
+    def plot_cv_vs_gei():
+        plt.figure(figsize=(figsize[0], figsize[0]))
         plt.plot(g_ei_values, cv_values, "o-", linewidth=2, markersize=8)
-        plt.xlabel("$g_{ei}$ (E→I synaptic weight)", fontsize=12)
+        plt.xlabel("$g_{ei}$", fontsize=12)
         plt.ylabel("ISI CV", fontsize=12)
-        plt.title("Transition from AI to Oscillating Regime", fontsize=14)
+        plt.title("CV vs $g_{ei}$", fontsize=14)
         plt.ylim(0.0, 1.0)
         plt.grid(True, alpha=0.3)
 
-    save_both(data_path / "experiment_6_cv_vs_gei.png", plot_cv_curve)
+    save_both(data_path / "experiment_6_cv_vs_gei.png", plot_cv_vs_gei)
+
+    # Plot CV vs I_E
+    def plot_cv_vs_ie():
+        plt.figure(figsize=(figsize[0], figsize[0]))
+        plt.plot(I_E_values, cv_values, "o-", linewidth=2, markersize=8)
+        plt.xlabel("$I_E$", fontsize=12)
+        plt.ylabel("ISI CV", fontsize=12)
+        plt.title("CV vs $I_E$", fontsize=14)
+        plt.ylim(0.0, 1.0)
+        plt.grid(True, alpha=0.3)
+
+    save_both(data_path / "experiment_6_cv_vs_ie.png", plot_cv_vs_ie)
+
+    # Plot CV vs noise
+    def plot_cv_vs_noise():
+        plt.figure(figsize=(figsize[0], figsize[0]))
+        plt.plot(noise_values, cv_values, "o-", linewidth=2, markersize=8)
+        plt.xlabel("noise", fontsize=12)
+        plt.ylabel("ISI CV", fontsize=12)
+        plt.title("CV vs noise", fontsize=14)
+        plt.ylim(0.0, 1.0)
+        plt.grid(True, alpha=0.3)
+
+    save_both(data_path / "experiment_6_cv_vs_noise.png", plot_cv_vs_noise)
 
     print("\nSummary:")
     for g_ei, I_E, noise, cv in zip(g_ei_values, I_E_values, noise_values, cv_values):

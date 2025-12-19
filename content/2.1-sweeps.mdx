@@ -1,0 +1,180 @@
+---
+title: Parameter Sweeps and Regime Identification
+description: Mapping dynamical regimes in a PING circuit
+---
+
+export const path = "_artifacts/sweeps"
+
+<FrontMatter />
+
+## Overview
+
+This experiment establishes the **baseline dynamical regimes** of a PING
+(Pyramidal–Interneuron Network Gamma) circuit under systematic parameter
+variation.
+
+The goal is not to demonstrate gamma per se, but to **identify, delimit, and
+instrument** the transition between asynchronous and oscillatory regimes under
+controlled conditions. This provides the reference point for all subsequent
+experiments on perturbation, communication, robustness, and control.
+
+Throughout, we emphasize *rate-matched* and *diagnostically grounded*
+comparisons, consistent with the framing of PING as a circuit-level control
+mechanism rather than a representational theory.
+
+## Parameters and Regimes
+
+We vary three core parameters that jointly determine network state:
+
+- $g_{ei}$ — excitatory → inhibitory synaptic strength  
+- $I_E$ — external drive to excitatory neurons  
+- $\sigma$ — input noise standard deviation  
+
+Across these dimensions, the network exhibits a transition between:
+
+- **Asynchronous (A)** activity: irregular spiking, weak temporal structure  
+- **Oscillatory (OSC)** activity: coherent population rhythms consistent with
+  PING dynamics  
+
+The purpose of the sweeps is to map where these regimes occur and how they are
+expressed across standard metrics.
+
+## Experiments and Diagnostics
+
+### 1. $g_{ei}$ sweep at fixed input
+
+We sweep $g_{ei}$ while holding $I_E$ fixed to isolate the effect of
+E→I feedback strength.
+
+**Readout:** raster plots  
+**Interpretation:** Increasing inhibitory feedback stabilizes recurrent
+excitation and induces rhythmic population structure.
+
+<Gallery
+  title="A→OSC transition as $g_{ei}$ increases"
+  path={`${path}`}
+  globs={["experiment_1_raster_g_ei_*.png"]}
+  subtitle="Fixed $I_E = 1.2$ nA"
+  caption="Progressive emergence of oscillatory structure as E–I feedback strengthens."
+  captionLabel="Figure 1"
+/>
+
+### 2. $I_E$ sweep at fixed coupling
+
+Here we vary external drive with fixed synaptic parameters.
+
+**Readout:** raster plots  
+**Interpretation:** Increasing drive pushes the circuit through regimes of
+asynchronous firing into coherent oscillations, highlighting the interaction
+between input gain and inhibitory stabilization.
+
+<Gallery
+  path={`${path}`}
+  globs={["experiment_2_raster_I_E_*.png"]}
+  title="A→OSC transition as $I_E$ increases"
+  subtitle="Fixed $g_{ei} = 1.6$ nS"
+  caption="Input-driven transition between dynamical regimes."
+  captionLabel="Figure 2"
+/>
+
+### 3. f–I curves and gain structure
+
+We measure firing rate as a function of input current for excitatory and
+inhibitory populations.
+
+**Readout:** population firing rates  
+**Interpretation:** The steeper E-population f–I curve reflects direct input,
+while I activity is mediated indirectly via E→I coupling, illustrating
+gain regulation through feedback.
+
+<Gallery
+  path={`${path}`}
+  globs={["experiment_3_firing_rates_vs_I_E_*.png"]}
+  title="Firing rate vs input current"
+  subtitle="Fixed $g_{ei} = 1.4$ nS"
+  caption="Differential gain structure of E and I populations."
+  captionLabel="Figure 3"
+/>
+
+### 4. Spectral signatures of regime change
+
+We compute power spectral density (PSD) of population activity across input
+levels.
+
+**Readout:** PSD of E population  
+**Interpretation:** Oscillatory regimes are marked by narrowband gamma peaks,
+absent in asynchronous states.
+
+<Gallery
+  path={`${path}`}
+  globs={["experiment_4_psd_*.png"]}
+  title="Power spectral density across input drive"
+  subtitle="Fixed $g_{ei} = 1.4$ nS"
+  caption="Emergence of gamma-band power with increasing coherence."
+  captionLabel="Figure 4"
+/>
+
+### 5. E–I timing and PING verification
+
+We compute cross-correlograms between excitatory and inhibitory populations in
+the oscillatory regime.
+
+**Readout:** E–I cross-correlation  
+**Interpretation:** Inhibitory spikes reliably lag excitatory spikes by a few
+milliseconds, consistent with the PING mechanism.
+
+<Gallery
+  single
+  path={`${path}`}
+  globs={["experiment_5_crosscorr_*.png"]}
+  title="E–I cross-correlogram in oscillatory regime"
+  subtitle="$I_E = 1.5$ nA, $g_{ei} = 1.4$ nS"
+  caption="Characteristic E→I→E timing loop."
+  captionLabel="Figure 5"
+/>
+
+### 6. Variability as a regime marker
+
+We jointly vary $g_{ei}$, $I_E$, and noise to assess spike-time variability.
+
+**Readout:** ISI coefficient of variation (CV)  
+**Interpretation:** CV decreases systematically as the network transitions from
+asynchronous to oscillatory activity, reflecting increased temporal regularity.
+
+<Gallery
+  path={`${path}`}
+  globs={["experiment_6_cv_vs*"]}
+  title="ISI variability across regimes"
+  subtitle="Joint parameter sweep"
+  caption="Reduced variability in oscillatory states."
+  captionLabel="Figure 6"
+/>
+
+<Gallery
+  path={`${path}`}
+  globs={["experiment_6_raster*.png"]}
+  title="Rasters across A→OSC transition"
+  subtitle="Joint parameter sweep"
+  caption="Visual correspondence between variability reduction and temporal structure."
+  captionLabel="Figure 7"
+/>
+
+## Role in the Experimental Program
+
+This sweep establishes:
+
+- the **existence and boundaries** of asynchronous and oscillatory regimes,
+- **standard diagnostics** for identifying regime transitions,
+- and **rate-aware reference points** for controlled comparisons.
+
+All subsequent experiments—perturbations, phase-dependent gating, communication,
+and energy tradeoffs—are defined relative to these baseline regimes.
+
+---
+
+## See Also
+
+- **Metrics** — defines the measurements (CV, PSD, synchrony) used throughout
+  these sweeps
+- **Phase Dependence** — builds on the oscillatory regime identified here to
+  study phase-dependent input gating

@@ -1,5 +1,9 @@
 dir: .
 site:
   name: pinglab
-  description: Pinglab Documentation  
+  description: "Note: some of these notebooks are written by AI."
   github: "eoinmurray/pinglab"
+  llmsTxt: true
+
+posts:
+  sort: date

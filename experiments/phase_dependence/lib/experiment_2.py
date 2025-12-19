@@ -289,7 +289,7 @@ def experiment_2(config: LocalConfig, data_path: Path) -> None:
         colors = prop_cycle.by_key()["color"]
 
         fig, axes = plt.subplots(
-            3, 1, figsize=(8, 10), sharex=True, constrained_layout=True
+            3, 1, figsize=(8, 8), sharex=True, constrained_layout=True
         )
 
         # Panel 1: Δ-spikes (gain) and LFP proxy
