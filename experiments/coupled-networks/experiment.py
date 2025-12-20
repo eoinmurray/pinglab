@@ -18,7 +18,7 @@ from lib.phase import estimate_phase
 from lib.input_drive import add_fiber_spikes_to_input
 
 from pinglab import run_network, inputs
-from pinglab.plots.styles import save_both
+from pinglab.plots.styles import save_both, figsize
 from pinglab.plots import save_raster
 from pinglab.utils import slice_spikes
 
@@ -178,19 +178,27 @@ def main() -> None:
         f"phase_sample={phase_trace[:5].tolist()}",
     )
 
-    def plot_phase_trace() -> None:
+    def plot_phase_signal() -> None:
         t = np.arange(phase_signal.size) * config.base.dt
-        fig, ax1 = plt.subplots(figsize=(8, 6))
-        ax1.plot(t, phase_signal, lw=0.6, label=config.phase.signal)
-        ax1.set_xlabel("Time (ms)")
-        ax1.set_ylabel("Phase signal")
-        ax2 = ax1.twinx()
-        ax2.plot(t, phase_trace, lw=0.6, alpha=0.7, label="phase (rad)")
-        ax2.set_ylabel("Phase (rad)")
-        plt.title("Receiver phase trace")
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.plot(t, phase_signal, lw=0.6)
+        ax.set_xlabel("Time (ms)")
+        ax.set_ylabel("Phase signal")
+        ax.set_title("Receiver LFP proxy (g_i_mean_E)")
         plt.tight_layout()
 
-    save_both(data_path / "phase_trace.png", plot_phase_trace)
+    def plot_phase_unwrapped() -> None:
+        t = np.arange(phase_signal.size) * config.base.dt
+        phase_unwrapped = np.unwrap(phase_trace)
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.plot(t, phase_unwrapped, lw=0.6)
+        ax.set_xlabel("Time (ms)")
+        ax.set_ylabel("Phase (rad, unwrapped)")
+        ax.set_title("Receiver phase (unwrapped)")
+        plt.tight_layout()
+
+    save_both(data_path / "phase_signal.png", plot_phase_signal)
+    save_both(data_path / "phase_unwrapped.png", plot_phase_unwrapped)
 
     target_mask = np.zeros(config.base.N_E, dtype=bool)
     for fiber_targets in projection:
@@ -299,7 +307,7 @@ def main() -> None:
             )
 
     def plot_response_curves() -> None:
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig, ax = plt.subplots(figsize=figsize)
         for j, jitter in enumerate(jitters):
             ax.plot(delays, responses[j, :], marker="o", label=f"jitter={jitter:.1f} ms")
         ax.set_xlabel("Delay (ms)")

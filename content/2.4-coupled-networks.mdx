@@ -9,112 +9,179 @@ export const path = "_artifacts/coupled-networks";
 
 ## Overview
 
-This experiment tests whether **oscillatory phase alignment** and **spike-time
-precision** modulate effective communication into a receiver network (the
-communication-through-coherence idea), without building a full sender network.
+We test whether oscillatory phase and spike-time precision jointly gate
+communication into a receiver network. The implementation lives in
+`experiments/coupled-networks/` and replaces a full sender network with a
+controlled spike-packet generator. The core question is whether identical input
+packets have different efficacy depending only on arrival phase and timing
+jitter.
 
-Instead of a sender, we use a **controlled spike-packet generator** that can:
+## Receiver model
 
-* place packets at specific **phases** of the receiver oscillation
-* add controllable **timing jitter** (precision)
+The receiver is a fixed PING regime with E and I populations and conductance-
+based LIF dynamics. A baseline tonic drive produces a stable gamma oscillation.
+We use the population mean inhibitory conductance onto E neurons,
+`g_i_mean_E(t)`, as an LFP proxy.
 
-We then measure how strongly the receiver responds as a function of **delay
-(phase)** and **jitter**.
+The receiver dynamics are summarized by
 
-## Implementation
+$$
+C_m \frac{dV}{dt} = g_L(E_L - V) + g_e(E_e - V) + g_i(E_i - V) + I_{ext}(t)
+$$
 
-### Receiver network
+where $I_{ext}(t)$ is the external input constructed from the spike packets.
 
-* A fixed PING regime (no coupling sweep during the main test).
-* We record population-mean inhibitory conductance as the phase proxy.
+## Input interface (fiber projection)
 
-### Input interface
+We define an input fiber population of size $N_{in}$. Each fiber $f$ targets a
+fixed subset $\mathcal{T}_f$ of E neurons. This is a sparse random projection
+with $|\mathcal{T}_f| = M$ targets per fiber. When fiber $f$ emits a spike, we
+add a brief conductance/current pulse of amplitude $w$ to all neurons in
+$\mathcal{T}_f$.
 
-* Create an input fiber population.
-* Each fiber targets a random subset of E neurons (fixed projection).
-* Inputs are **spikes only** (no analog sender network).
+Formally, the external input to neuron $i$ is
 
-### Packet generator
+$$
+I_{ext,i}(t) = I_{tonic} + \sum_{f=1}^{N_{in}} \mathbf{1}[i \in \mathcal{T}_f]
+\sum_{k} w \cdot \mathbf{1}[t \in (t_{f,k}, t_{f,k}+\Delta t_{pulse})]
+$$
 
-For each packet time:
+where $t_{f,k}$ are spike times for fiber $f$.
 
-* Each fiber emits a Poisson number of spikes (mean `K`).
-* Spike times are uniform in `[t0, t0 + width]`.
-* Gaussian jitter is added to each spike time.
+## Packet generator
 
-### Phase control (delay sweep)
+A packet is defined a base time $t_0$, width $W$, mean spike count per fiber
+$K$, and jitter $\sigma$. For each fiber $f$ we sample a spike count
+$k_f \sim \mathrm{Poisson}(K)$ and then sample spike times uniformly within the
+packet window, then add Gaussian jitter:
 
-We keep packet times fixed in absolute time and apply a **delay sweep** to the
-packets. This sweeps the arrival phase relative to the receiver oscillation
-without changing packet generation logic.
+$$
+\tau_{f,j} \sim \mathrm{Uniform}(t_0, t_0 + W), \quad
+t_{f,j} = \tau_{f,j} + \mathcal{N}(0, \sigma^2).
+$$
 
-### Readout metric
+Packets are delivered at a set of times $\{t_0^m\}$ across the trial.
 
-For each packet arrival time, we measure a baseline-subtracted evoked response
-in the **targeted E neurons**:
+## Phase estimation
 
-```
-R_evoked = spikes_target(post window) - spikes_target(baseline run, same window)
-```
+We estimate instantaneous phase from the LFP proxy $x(t) = g_i\_\mathrm{mean\_E}(t)$.
+After mean subtraction and smoothing, we compute the analytic signal
 
-We then average across packet times and trials.
+$$
+\tilde{x}(t) = x(t) + i\,\mathcal{H}[x](t),
+$$
 
-## How to run
+and define phase as
 
-```
-uv run python experiments/coupled-networks/experiment.py
-```
+$$
+\phi(t) = \arg\,\tilde{x}(t).
+$$
 
-Artifacts are written to `content/_artifacts/coupled-networks/`.
+For visualization, we also plot the unwrapped phase to avoid $\pm\pi$ wrapping
+artifacts.
 
-## Config snapshot
+## Phase control (delay sweep)
 
-Key experiment settings (from `experiments/coupled-networks/config.yaml`):
+We keep packet times fixed and apply an additional delay $d$ to all packet
+spikes. This sweeps packet arrival phase without changing the packet generator.
+Delays $d$ span one gamma cycle, so the arrival phase is
 
-* Packet times: 500–900 ms (10 packets)
-* Delay sweep: 0–25 ms (13 steps)
-* Jitter levels: 0, 1, 2, 5 ms
-* Packet width: 3 ms
-* Fibers: 200, targets per fiber: 80
-* Readout window: 20 ms (baseline subtraction from baseline run)
+$$
+\phi(t_0^m + d).
+$$
 
-## Plots
+## Readout metric
+
+We measure the evoked response in the **targeted E neurons only**. For each
+packet arrival time $t_a$, we compute a baseline-subtracted spike count:
+
+$$
+R_{\mathrm{evoked}}(t_a) =
+\#\,\mathrm{spikes}_{\mathrm{target}}[t_a, t_a+\Delta] -
+\#\,\mathrm{spikes}_{\mathrm{target}}^{\mathrm{baseline}}[t_a, t_a+\Delta].
+$$
+
+We then average across packet times and trials to obtain
+$\bar{R}(d, \sigma)$, the mean evoked response as a function of delay and jitter.
+
+## Expected signature
+
+This minimal Fries-style prediction is:
+
+1. **Phase dependence:** $\bar{R}(d, \sigma)$ is modulated across delays, with a
+   preferred delay where packets land on a high-excitability phase.
+2. **Precision dependence:** increasing jitter $\sigma$ reduces peak response and
+   flattens phase modulation.
+
+## Plots in context
+
+### LFP proxy and phase
 
 <Gallery
-  title="Receiver phase trace"
+  title="Receiver LFP proxy"
   path={`${path}`}
-  globs={["phase_trace*"]}
-  caption="Phase estimate from receiver LFP proxy (g_i_mean_E)."
+  globs={["phase_signal*"]}
+  caption="Population mean inhibitory conductance (g_i_mean_E) shows a stable oscillation."
 />
+
+The LFP proxy should look like a clean, nearly periodic waveform. This indicates
+the receiver is in a stable oscillatory regime rather than drifting into
+asynchrony. If this trace is noisy or nonperiodic, phase becomes ambiguous and
+any delay sweep will fail to produce systematic modulation.
+
+<Gallery
+  title="Receiver phase (unwrapped)"
+  path={`${path}`}
+  globs={["phase_unwrapped*"]}
+  caption="Unwrapped instantaneous phase derived from the LFP proxy."
+/>
+
+The unwrapped phase should rise smoothly with time, with a roughly constant
+slope that reflects the oscillation frequency. Deviations in slope correspond
+to transient changes in frequency or coherence. A stable ramp confirms that the
+phase estimate can be used as a timing reference for packet delivery.
+
+### Phase- and precision-gated response
 
 <Gallery
   title="Response vs delay"
   path={`${path}`}
   globs={["response_vs_delay*"]}
-  caption="Mean evoked response vs delay, with separate curves per jitter level."
+  caption="Mean evoked response vs delay for each jitter level. Lower jitter preserves phase modulation; higher jitter reduces response magnitude and phase contrast."
 />
+
+This plot is the core test. We expect a **phase window**: a preferred delay
+where evoked response peaks and an anti-preferred delay where response troughs.
+As jitter increases, the peak should drop and the trough should fill in, because
+timing noise smears packets across both excitable and inexcitable phases. A
+flattened curve at high jitter is the hallmark of precision loss.
+### Example rasters
 
 <Gallery
   title="Raster at good phase"
   path={`${path}`}
   globs={["raster_good*"]}
-  caption="Packet train at the delay with highest response (lowest jitter)."
+  caption="Packet-aligned bursts at the preferred delay (lowest jitter)."
 />
 
+In the good-phase raster, packet times (vertical markers) align with moments of
+high excitability. You should see transient increases in E spiking shortly after
+packet arrival, often as sharper, more synchronous bands. This is the spiking
+level correlate of the response curve peak.
 <Gallery
   title="Raster at bad phase"
   path={`${path}`}
   globs={["raster_bad*"]}
-  caption="Packet train at the delay with lowest response (lowest jitter)."
+  caption="Weaker, less synchronized responses at an anti-preferred delay (lowest jitter)."
 />
 
-## Interpretation
+In the bad-phase raster, packet times fall during inhibitory peaks, so the same
+inputs yield muted or dispersed responses. The contrast with the good-phase
+raster is exactly what the delay curve summarizes: phase gating expressed in
+spike timing and synchrony.
 
-The response curves should show:
+## Practical notes
 
-* **Phase dependence:** a clear modulation of evoked response vs delay.
-* **Precision dependence:** higher jitter reduces overall response and flattens
-  the phase modulation.
-
-This is the minimal Fries-style signature: precise packet timing is required to
-exploit the oscillatory excitability window.
+The full sweep is computationally heavy (delays x jitters x trials). For quick
+validation, reduce the number of delays, packets, and trials in
+`experiments/coupled-networks/config.yaml`.

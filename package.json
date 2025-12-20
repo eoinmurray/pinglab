@@ -6,6 +6,6 @@
     "stop": "veslx stop"
   },
   "dependencies": {
-    "veslx": "^0.1.36"
+    "veslx": "^0.1.41"
   }
 }

@@ -89,6 +89,9 @@ def save_raster(
             for vline in vertical_lines:
                 ax_ras.axvline(vline, linestyle="--", lw=0.7)
 
+        if time is not None:
+            ax_ras.set_xlim(time[0], time[-1])
+
         ax_ras.set_xlabel("Time (ms)")
         ax_ras.set_ylabel("Neuron id")
 
