@@ -1,5 +1,13 @@
+from typing import Literal
+from pydantic import BaseModel
+from pinglab.types import ExperimentConfig, LinspaceConfig
 
-from pinglab.types import ExperimentConfig
+
+class SweepConfig(BaseModel):
+    param: str
+    linspace: LinspaceConfig
+    outputs: list[Literal["raster", "psd", "metrics"]]
+
 
 class LocalConfig(ExperimentConfig):
-    pass
+    sweep: SweepConfig

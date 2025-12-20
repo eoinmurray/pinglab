@@ -12,7 +12,9 @@ from .gamma_metrics import gamma_metrics
 from .population_fano_factor import population_fano_factor
 from .synchrony_index import synchrony_index
 from .conductance_stats import conductance_stats
-from .calculate_regime import calculate_regime
+from .energy_metrics import energy_metrics
+from .calculate_regime_label import calculate_regime_label
+from .base_metrics import base_metrics
 
 
 __all__ = [
@@ -28,5 +30,7 @@ __all__ = [
     "population_fano_factor",
     "synchrony_index",
     "conductance_stats",
-    "calculate_regime",
+    "energy_metrics",
+    "calculate_regime_label",
+    "base_metrics",
 ]

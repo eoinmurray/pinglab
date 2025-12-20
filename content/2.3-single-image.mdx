@@ -1,0 +1,237 @@
+---
+title: "Single Image"
+description: "Sending an image through the network."
+---
+
+export const path = "_artifacts/single-image";
+
+<FrontMatter />
+
+# Images
+
+<Gallery 
+  title="True Image"
+  path={path}
+  globs={["image_true*.png"]}
+/>
+
+<Gallery 
+  title="Reconstructed Image"
+  path={path}
+  globs={["image_recon*.png"]}
+/>
+
+<Gallery 
+  title="Raster"
+  path={path}
+  globs={["raster*.png"]}
+/>
+
+<Gallery 
+  title="PSD"
+  path={path}
+  globs={["psd*.png"]}
+/>
+
+<Gallery 
+  title="g_ei vs MSE"
+  path={path}
+  globs={["mse_vs_g_ei*.png"]}
+/>
+
+<Gallery
+  title="g_ei vs Mean E Rate"
+  path={path}
+  globs={["mean_E_rate_vs_g_ei*.png"]}
+/>
+
+<Gallery
+  title="g_ei vs Tuned I_E"
+  path={path}
+  globs={["I_E_tuned_vs_g_ei*.png"]}
+/>
+
+<ParameterTable 
+  path={`${path}/metrics*.yaml`}
+/>
+
+<ParameterTable 
+  path={`${path}/recon_metrics*.yaml`}
+/>
+
+---
+
+## Single Image Experiment Design
+
+### Purpose
+
+Test whether a **single PING network** can carry a **static spatial pattern**
+(an “image”) through its dynamics in a way that allows **simple readout** to
+reconstruct the pattern—*under rate- and ideally energy-matched comparisons*.
+
+## Stimulus and Encoding
+
+### Image set
+
+Start synthetic. MNIST later.
+
+**Phase 0: Synthetic images**
+
+* blobs (Gaussian spots)
+* bars (horizontal/vertical)
+* checkerboard-ish patterns
+* 2–4 blobs at random locations
+
+Small resolution: e.g. **16×16** (256 pixels). 
+
+### Map pixels → neurons
+
+Pick a subset of E neurons that will “represent the image”.
+
+* Partition E neurons into `P = H*W` groups (one group per pixel).
+* Pixel intensity `x_p ∈ [0,1]` controls the input current to that pixel’s
+  group.
+* Each pixel group size `k` is fixed (e.g. 5–20 neurons).
+
+This is the simplest to interpret and makes reconstruction trivial *if the
+network preserves that structure at all*.
+
+### Temporal form of input
+
+we need to choose *when* the image is applied.
+
+**Step input (“hold the image”)**
+
+* After warmup, present image as constant additional current for `T_img` (e.g.
+  300–800 ms).
+* Readout integrates spikes during this window.
+
+## Network Conditions (what we compare)
+
+we want PING vs non-PING without cheating.
+
+### Condition definitions
+
+* **PING regime**: strong gamma / coherent E–I loop (verified by our existing
+  metrics).
+* **AI regime**: asynchronous irregular, weak gamma.
+
+### Matching constraints (non-negotiable)
+
+At minimum:
+
+* match **mean_rate_E** and **mean_rate_I** during the image window.
+
+Ideally:
+
+* match an **energy proxy** too (conductance integral + spikes), as we already
+  frame it.
+
+How to do it in practice:
+
+* For each regime, tune baseline drive/noise so that when the image is
+  presented, the *global* rates match (or post-hoc reject runs that don’t match
+  within tolerance).
+* If we don’t do this, the decoder will mostly read “more spikes = brighter
+  image”.
+
+## Readout and Reconstruction
+
+### What signal do we read out?
+
+**Readout features** (per pixel group):
+
+* `r_p = spike_count(group p, window) / window_duration` or
+* `r_p = mean_V(group p)` if we prefer subthreshold readout (but spikes are
+  cleaner for now).
+
+This produces a vector `r ∈ R^P`.
+
+### Reconstruction rule
+
+Start with the least “trainy” method possible:
+
+**Untrained linear readout**
+
+* If groups are one-to-one with pixels, reconstruction can just be:
+
+  * `x_hat = normalize(r)` (affine rescale to [0,1])
+* This is nice because it can’t hide complexity.
+
+**Trained linear readout (optional later)**
+
+* Fit `W` with ridge regression over a dataset of images:
+* `x_hat = W r`
+* But only do this once the untrained baseline is established, otherwise the
+  story becomes “the decoder learned it”, not “the network preserved it”.
+
+## Metrics
+
+we need metrics that don’t flatter we.
+
+**Primary**
+
+* **MSE**: `||x - x_hat||^2 / P`
+* **Pearson correlation** between flattened images
+* **SSIM** (optional; good for blobs/bars)
+
+**Controls against cheating**
+
+* Total spike count vs reconstruction quality: if quality tracks total spikes,
+  we’re not measuring “representation”.
+* Per-pixel dynamic range: are some pixels always saturated?
+
+**Cost / efficiency**
+
+* spikes per unit fidelity, e.g.
+
+  * `MSE per spike` or `corr per spike`
+
+## Controls (must-have)
+
+If we don’t include these, we’ll never trust the result.
+
+1. **Shuffled mapping control**
+
+   * Same network + same image, but permute pixel→neuron-group mapping at
+     readout time.
+   * Reconstruction should collapse.
+
+2. **Uniform image control**
+
+   * All pixels equal intensity.
+   * Ensures decoder isn’t just responding to spatial bias.
+
+3. **No-image baseline**
+
+   * Present nothing during the “image window”.
+   * Reconstruction should be flat / noise.
+
+4. **Rate-matched AI vs PING**
+
+   * The actual point: show PING helps (or doesn’t) *when rates are controlled*.
+
+## What we expect to see (and what would be embarrassing)
+
+### If PING helps
+
+* Higher correlation / lower MSE **at equal mean rates**
+* Less trial-to-trial variance in reconstructed image (higher reliability)
+* Better “contrast preservation” (pixel groups don’t smear into each other)
+
+### If PING hurts (totally plausible)
+
+* Over-coherence causes interference: pixel groups start moving together →
+  blurrier reconstructions
+* we get a strong global oscillation but poorer spatial selectivity
+
+## Suggested structure for the “Single Image” post (minimal)
+
+1. **Goal** (1 paragraph)
+2. **Stimulus** (synthetic 16×16; step input during window)
+3. **Encoding** (pixel groups → E subset; input current proportional to
+   intensity)
+4. **Regimes compared** (PING vs AI; rate-matched)
+5. **Readout** (spike counts per pixel group; simple normalization)
+6. **Metrics + controls** (MSE/corr; shuffled mapping; baseline)
+7. **What we’ll look for** (fidelity vs spikes; robustness across seeds)

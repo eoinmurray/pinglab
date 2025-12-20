@@ -3,11 +3,9 @@ title: Phase-Dependent Gating
 description: Phase-dependent input efficacy in an oscillatory PING regime
 ---
 
-export const path = "_artifacts/phase_dependence";
+export const path = "_artifacts/phase-dependence";
 
 <FrontMatter />
-
----
 
 ## Overview
 
@@ -26,8 +24,6 @@ The experiment proceeds in two stages:
 1. A single-trial phase sweep to visualize phase-dependent gain.
 2. A multi-trial protocol (GPP-1) to quantify gain, reliability, and temporal
    precision as a function of phase.
-
----
 
 ## Baseline Oscillatory Regime
 
@@ -65,8 +61,6 @@ creating alternating periods of higher and lower excitability.
   caption="Population-averaged voltage and conductance traces. Rhythmic modulation of inhibitory conductance defines gamma phase and provides a temporal reference for subsequent input delivery."
 />
 
----
-
 ## Phase-Dependent Responses to Identical Inputs
 
 ### Design
@@ -100,8 +94,6 @@ depending solely on its timing.
   caption="Raster plots showing responses to identical pulses delivered at different phases. Differences in response arise from phase-dependent excitability, not parameter changes."
 />
 
----
-
 ## Phase–Gain Relationship
 
 ### Quantification
@@ -128,8 +120,6 @@ responses occur during periods of high inhibition.
   globs={['phase_gain_curve*']}
   caption="Phase–gain curve showing Δ-spikes (black) and inhibitory conductance (red dashed). Input efficacy depends on oscillatory phase."
 />
-
----
 
 ## Gamma Phase Precision (GPP-1)
 
@@ -167,8 +157,6 @@ Metrics are saved for downstream analysis.
   caption="Phase-resolved gain, Fano factor, and latency jitter. Oscillatory phase modulates both response strength and precision."
 />
 
----
-
 ## Interpretation
 
 These results show that, once an oscillatory regime is established, PING
@@ -180,11 +168,3 @@ This supports the view of gamma oscillations as a **control mechanism** that
 structures when inputs are effective, rather than as a representational code in
 their own right. Subsequent experiments examine whether such phase-dependent
 gating can support selective communication, routing, and rapid regime switching.
-
----
-
-## See Also
-
-- **Metrics** — defines gain, Fano factor, and latency precision used here
-- **Parameter Sweeps** — establishes the oscillatory regime used as the baseline
-  for this experiment

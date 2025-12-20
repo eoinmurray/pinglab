@@ -1,0 +1,102 @@
+base:
+  instruments:
+    variables:
+      - V        # Membrane potential (mV)
+      - g_e      # Excitatory conductance
+      - g_i      # Inhibitory conductance
+    population_means: true
+    downsample: 10
+
+  seed: 1
+
+  # Network
+  dt: 0.1
+  T: 1200.0
+  N_E: 800
+  N_I: 200
+
+  # Synaptic weights: Balanced E-I for PING
+  g_ei: 1.5
+  g_ie: 2.5
+  g_ee: 0.3
+  g_ii: 0.3
+
+  # Connection probabilities
+  p_ee: 0.04
+  p_ei: 0.12
+  p_ie: 0.04
+  p_ii: 0.04
+
+  # Delays
+  delay_ei: 0.5
+  delay_ie: 1.2
+  delay_ee: 0.5
+  delay_ii: 0.5
+
+  # Synapses
+  tau_ampa: 2.0
+  tau_gaba: 6.5
+
+  # LIF
+  V_init: -65.0
+  E_L: -65.0
+  E_e: 0.0
+  E_i: -80.0
+  C_m_E: 1.0
+  C_m_I: 1.0
+  g_L_E: 0.05
+  g_L_I: 0.1
+  V_th: -50.0
+  V_reset: -65.0
+  t_ref_E: 3.0
+  t_ref_I: 1.5
+
+  # Heterogeneity
+  V_th_heterogeneity_sd: 1.5
+  g_L_heterogeneity_sd: 0.15
+  C_m_heterogeneity_sd: 0.10
+  t_ref_heterogeneity_sd: 0.3
+
+  connectivity_scaling: one_over_N_src
+
+default_inputs:
+  # Baseline tonic drive (initial value, will be tuned by homeostasis)
+  I_E: 1.2
+  I_I: 0.9
+  noise: 0.4
+
+homeostasis:
+  target_rate_E: 20.0   # Target mean E firing rate (Hz)
+  burnin_ms: 300.0      # Duration of each tuning simulation (ms)
+  max_iters: 20         # Maximum tuning iterations
+  eta: 0.03             # Learning rate (nA / Hz)
+  tol: 0.5              # Convergence tolerance (Hz)
+
+experiment_1:
+  # Image
+  image_h: 10
+  image_w: 10
+  image_type: blobs   # blobs | bars | checker
+  image_seed: 123
+  image_contrast: 1.0  # multiply intensities
+
+  # Encoding: pixel -> group of E neurons
+  group_size: 5
+  mapping_seed: 999
+  pixel_value_range: [0.0, 1.0]
+
+  # Presentation window (ms)
+  warmup_ms: 400.0
+  stim_ms: 600.0
+
+  # Stimulus amplitude: added current to E neurons in a pixel group
+  image_current_scale: 0.8
+
+  # Readout
+  readout_bin_ms: 600.0   # integrate spikes during stim window
+  recon_method: linear_rescale  # linear_rescale only for now
+
+plotting:
+  raster:
+    start_time: 400.0
+    stop_time: 1000.0

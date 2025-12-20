@@ -1,9 +1,11 @@
 {
   "scripts": {
     "dev": "veslx serve content",
-    "build": "veslx build content"
+    "build": "veslx build content",
+    "start": "veslx start content",
+    "stop": "veslx stop"
   },
   "dependencies": {
-    "veslx": "^0.1.34"
+    "veslx": "^0.1.36"
   }
 }

@@ -50,7 +50,7 @@ def pairwise_spike_count_corr(
     # Only consider spikes within [0, T)
     mask = (times >= 0.0) & (times < T)
     times = times[mask]
-    ids = ids[mask]
+    ids = ids[mask].astype(int)
 
     # Bin indices for each spike
     bin_idx = (times / bin_ms).astype(int)

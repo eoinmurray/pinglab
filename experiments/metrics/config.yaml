@@ -1,6 +1,16 @@
+sweep:
+  param: g_ei
+  linspace:
+    start: 0.5
+    stop: 3.0
+    num: 10
+  outputs:
+    - raster
+    - psd
+    - metrics
 
 default_inputs:
-  I_E: 0.4       # Subthreshold
+  I_E: 2.0       # Subthreshold
   I_I: 0.4       # Input to I neurons
   noise: 4.0     # Strong noise
 
