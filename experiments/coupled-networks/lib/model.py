@@ -1,50 +1,43 @@
 from __future__ import annotations
+
 from typing import Literal
 from pydantic import BaseModel, Field
 
-from pinglab.types import ExperimentConfig
+from pinglab.types import ExperimentConfig, LinspaceConfig
 
-ImageType = Literal["blobs", "bars", "checker"]
-ReconMethod = Literal["linear_rescale"]
-
-
-class HomeostasisConfig(BaseModel):
-    """Configuration for the homeostatic rate controller."""
-
-    target_rate_E: float = 20.0
-    """Target mean E firing rate (Hz)."""
-
-    burnin_ms: float = 300.0
-    """Duration of each burn-in simulation for rate measurement (ms)."""
-
-    max_iters: int = 10
-    """Maximum tuning iterations."""
-
-    eta: float = 0.05
-    """Learning rate for I_E updates (nA / Hz)."""
-
-    tol: float = 1.0
-    """Convergence tolerance (Hz). Stop if |error| < tol."""
+PhaseSignal = Literal["g_i_mean_E", "rate_E", "rate_I"]
 
 
-class SingleImageExperimentConfig(BaseModel):
-    image_h: int = 16
-    image_w: int = 16
-    image_type: ImageType = "blobs"
-    image_seed: int = 0
-    image_contrast: float = 1.0
+class PhaseConfig(BaseModel):
+    signal: PhaseSignal = "g_i_mean_E"
+    rate_bin_ms: float = 2.0
+    smoothing_ms: float = 5.0
 
-    group_size: int = 5
-    mapping_seed: int = 0
-    pixel_value_range: tuple[float, float] = (0.0, 1.0)
 
-    warmup_ms: float = 400.0
-    stim_ms: float = 600.0
-    image_current_scale: float = 0.8
+class InputProjectionConfig(BaseModel):
+    num_fibers: int = 200
+    targets_per_fiber: int = 80
+    weight: float = 0.6
+    seed: int = 1
 
-    readout_bin_ms: float = 600.0
-    recon_method: ReconMethod = "linear_rescale"
+
+class PacketConfig(BaseModel):
+    times: LinspaceConfig
+    delays_ms: LinspaceConfig
+    width_ms: float = 3.0
+    mean_spikes_per_fiber: float = 1.0
+    jitter_ms: list[float] = Field(default_factory=lambda: [0.0, 1.0, 2.0, 5.0])
+    trials_per_condition: int = 10
+    seed: int = 2
+
+
+class ReadoutConfig(BaseModel):
+    window_ms: float = 20.0
+    baseline_ms: float = 20.0
+
 
 class LocalConfig(ExperimentConfig):
-    homeostasis: HomeostasisConfig = Field(default_factory=HomeostasisConfig)
-    experiment_1: SingleImageExperimentConfig = Field(default_factory=SingleImageExperimentConfig)
+    phase: PhaseConfig = Field(default_factory=PhaseConfig)
+    projection: InputProjectionConfig = Field(default_factory=InputProjectionConfig)
+    packet: PacketConfig
+    readout: ReadoutConfig = Field(default_factory=ReadoutConfig)

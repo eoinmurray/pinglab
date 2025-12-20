@@ -1,11 +1,51 @@
+plotting:
+  raster:
+    start_time: 400.0
+    stop_time: 1000.0
+
+default_inputs:
+  I_E: 1.2
+  I_I: 0.9
+  noise: 0.4
+
+phase:
+  signal: g_i_mean_E
+  rate_bin_ms: 2.0
+  smoothing_ms: 5.0
+
+projection:
+  num_fibers: 200
+  targets_per_fiber: 80
+  weight: 0.6
+  seed: 1
+
+packet:
+  times:
+    start: 500.0
+    stop: 900.0
+    num: 10
+  delays_ms:
+    start: 0.0
+    stop: 25.0
+    num: 13
+  width_ms: 3.0
+  mean_spikes_per_fiber: 1.0
+  jitter_ms: [0.0, 1.0, 2.0, 5.0]
+  trials_per_condition: 10
+  seed: 2
+
+readout:
+  window_ms: 20.0
+  baseline_ms: 20.0
+
 base:
   instruments:
     variables:
-      - V        # Membrane potential (mV)
-      - g_e      # Excitatory conductance
-      - g_i      # Inhibitory conductance
+      - V
+      - g_e
+      - g_i
     population_means: true
-    downsample: 10
+    downsample: 1
 
   seed: 1
 
@@ -58,45 +98,3 @@ base:
   t_ref_heterogeneity_sd: 0.3
 
   connectivity_scaling: one_over_N_src
-
-default_inputs:
-  # Baseline tonic drive (initial value, will be tuned by homeostasis)
-  I_E: 1.2
-  I_I: 0.9
-  noise: 0.4
-
-homeostasis:
-  target_rate_E: 20.0   # Target mean E firing rate (Hz)
-  burnin_ms: 300.0      # Duration of each tuning simulation (ms)
-  max_iters: 20         # Maximum tuning iterations
-  eta: 0.03             # Learning rate (nA / Hz)
-  tol: 0.5              # Convergence tolerance (Hz)
-
-experiment_1:
-  # Image
-  image_h: 10
-  image_w: 10
-  image_type: blobs   # blobs | bars | checker
-  image_seed: 123
-  image_contrast: 1.0  # multiply intensities
-
-  # Encoding: pixel -> group of E neurons
-  group_size: 5
-  mapping_seed: 999
-  pixel_value_range: [0.0, 1.0]
-
-  # Presentation window (ms)
-  warmup_ms: 400.0
-  stim_ms: 600.0
-
-  # Stimulus amplitude: added current to E neurons in a pixel group
-  image_current_scale: 0.8
-
-  # Readout
-  readout_bin_ms: 600.0   # integrate spikes during stim window
-  recon_method: linear_rescale  # linear_rescale only for now
-
-plotting:
-  raster:
-    start_time: 400.0
-    stop_time: 1000.0

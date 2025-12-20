@@ -3,185 +3,118 @@ title: Precision-gated communication test
 description: A minimal Fries experiment
 ---
 
+export const path = "_artifacts/coupled-networks";
+
 <FrontMatter />
 
-We want to test whether **oscillatory phase alignment** and **spike-time precision**
-modulate effective communication into a receiver network
-(“communication-through-coherence” Fries-style precision argument), without
-confounds from a full sender network.
+## Overview
 
-### Core idea
+This experiment tests whether **oscillatory phase alignment** and **spike-time
+precision** modulate effective communication into a receiver network (the
+communication-through-coherence idea), without building a full sender network.
 
-We don’t need a sender network. We use a **controlled spike-packet generator**
-that can:
+Instead of a sender, we use a **controlled spike-packet generator** that can:
 
 * place packets at specific **phases** of the receiver oscillation
 * add controllable **timing jitter** (precision)
 
-Then we measure how strongly the receiver responds.
+We then measure how strongly the receiver responds as a function of **delay
+(phase)** and **jitter**.
 
-## Setup
+## Implementation
 
-### Receiver network B
+### Receiver network
 
-* A spiking network configured to show a clear oscillatory regime (e.g., PING
-  gamma).
-* Keep B in a *fixed operating point* throughout the experiment (don’t sweep
-  g_ei during the main test).
+* A fixed PING regime (no coupling sweep during the main test).
+* We record population-mean inhibitory conductance as the phase proxy.
 
-**Outputs to record**
+### Input interface
 
-* Population rate or synaptic current proxy for phase estimation.
-* Spike times of B (at least for E population).
+* Create an input fiber population.
+* Each fiber targets a random subset of E neurons (fixed projection).
+* Inputs are **spikes only** (no analog sender network).
 
-### Input interface to B
+### Packet generator
 
-* Create an “input fiber” population of size $N_\text{in}$.
-* Each input fiber makes fixed excitatory synapses onto some subset of B’s
-  excitatory neurons (sparse random projection is fine).
-* Inputs are spikes only (no analog current required).
+For each packet time:
 
-## Stimulus: spike packet generator
+* Each fiber emits a Poisson number of spikes (mean `K`).
+* Spike times are uniform in `[t0, t0 + width]`.
+* Gaussian jitter is added to each spike time.
 
-Define a packet by:
+### Phase control (delay sweep)
 
-* **Packet time** $t_0$ (this is what we will shift to sweep phase)
-* **Packet width** $w$ (e.g., 2–5 ms)
-* **Packet size** $K$ (expected spikes per fiber or total spikes across fibers)
-* **Jitter** $\sigma$ (Gaussian timing noise added to each spike time)
+We keep packet times fixed in absolute time and apply a **delay sweep** to the
+packets. This sweeps the arrival phase relative to the receiver oscillation
+without changing packet generation logic.
 
-Implementation conceptually:
+### Readout metric
 
-* For each packet event, for each input fiber:
+For each packet arrival time, we measure a baseline-subtracted evoked response
+in the **targeted E neurons**:
 
-  * generate 0/1 (or Poisson count) spikes
-  * place spike times within $[t_0, t_0+w]$
-  * add jitter: $t \leftarrow t + \mathcal{N}(0,\sigma^2)$
+```
+R_evoked = spikes_target(post window) - spikes_target(baseline run, same window)
+```
 
-This creates a precisely controllable “message” whose timing precision we can
-degrade smoothly.
+We then average across packet times and trials.
 
+## How to run
 
+```
+uv run python experiments/coupled-networks/experiment.py
+```
 
-## Phase definition and control
+Artifacts are written to `content/_artifacts/coupled-networks/`.
 
-### Phase estimation (simple)
+## Config snapshot
 
-* Compute B's population rate $r_B(t)$ (or LFP proxy, e.g., mean synaptic
-  current).
-* Bandpass around the oscillation band (or just smooth if our oscillation is
-  clean).
-* Use Hilbert transform to get instantaneous phase $\phi_B(t)$.
+Key experiment settings (from `experiments/coupled-networks/config.yaml`):
 
-### Phase targeting
+* Packet times: 500–900 ms (10 packets)
+* Delay sweep: 0–25 ms (13 steps)
+* Jitter levels: 0, 1, 2, 5 ms
+* Packet width: 3 ms
+* Fibers: 200, targets per fiber: 80
+* Readout window: 20 ms (baseline subtraction from baseline run)
 
-Pick a reference phase (e.g., $\phi = 0$ at the peak of B's population rate). To
-sweep phase, we have two easy methods:
+## Plots
 
-1. **Delay sweep (recommended):**
+<Gallery
+  title="Receiver phase trace"
+  path={`${path}`}
+  globs={["phase_trace*"]}
+  caption="Phase estimate from receiver LFP proxy (g_i_mean_E)."
+/>
 
-* Keep packet schedule fixed in absolute time.
-* Vary A→B effective delay $d$ applied to the packet spikes.
-* This sweeps relative phase without changing packet generation logic.
+<Gallery
+  title="Response vs delay"
+  path={`${path}`}
+  globs={["response_vs_delay*"]}
+  caption="Mean evoked response vs delay, with separate curves per jitter level."
+/>
 
-2. **Time shift:**
+<Gallery
+  title="Raster at good phase"
+  path={`${path}`}
+  globs={["raster_good*"]}
+  caption="Packet train at the delay with highest response (lowest jitter)."
+/>
 
-* Keep synaptic delay fixed.
-* Shift packet time $t_0$ relative to the estimated phase.
+<Gallery
+  title="Raster at bad phase"
+  path={`${path}`}
+  globs={["raster_bad*"]}
+  caption="Packet train at the delay with lowest response (lowest jitter)."
+/>
 
-Delay sweep is usually simpler and more robust.
+## Interpretation
 
+The response curves should show:
 
+* **Phase dependence:** a clear modulation of evoked response vs delay.
+* **Precision dependence:** higher jitter reduces overall response and flattens
+  the phase modulation.
 
-## Experimental manipulations
-
-### 1) Phase sweep
-
-* Choose a set of delays $d$ spanning one oscillation period $T$.
-
-  * e.g., $d \in \{0, 2, 4, \dots, T\}$ ms.
-
-### 2) Precision (jitter) sweep
-
-* Choose jitter values $\sigma$ (ms), e.g. $\{0, 1, 2, 5\}$.
-* Jitter is applied to transmitted spike times.
-
-### Optional controls
-
-* Keep packet “energy” constant across conditions (same expected total spike
-  count per packet).
-* If we’re worried about mean rate confounds, use baseline subtraction in the
-  readout metric rather than trying to clamp rates aggressively.
-
-
-
-## Readout metric (keep it brutally simple)
-
-Pick one scalar response per packet:
-
-### Recommended: evoked spike count
-
-For each packet delivered at time $t_\text{arrive}$:
-
-* count B excitatory spikes in a short window: $R = \#\text{spikes}_E \text{ in } [t_\text{arrive},\ t_\text{arrive}+\Delta]$
-* baseline subtract using a pre-window: $R_\text{evoked} = R - \#\text{spikes}_E \text{ in } [t_\text{arrive}-\Delta,\ t_\text{arrive}]$
-
-Use $\Delta \sim 10\text{–}20$ ms (big enough to capture the response, small enough not to
-smear across phases).
-
-
-
-## Expected result (the Fries signature)
-
-Plot **mean evoked response** vs **phase (delay)** for each jitter level:
-
-* At **low jitter**: response vs phase is **strongly modulated** (clear peak at
-  “good phase”).
-* As **jitter increases**: phase modulation **flattens** and overall evoked
-  response drops.
-
-That’s the precision argument in one figure: *timing precision determines how
-effectively inputs exploit the oscillatory excitability window.*
-
-
-
-## Minimal plotting checklist
-
-1. B population rate trace + phase estimate (sanity)
-2. Example raster around a few packets at "good phase" vs "bad phase"
-3. Main figure: $\mathbb{E}[R_\text{evoked}]$ vs delay, with separate curves
-   for $\sigma$
-
-
-
-## How to expand this after the minimal test
-
-### Expansion A: add a real sender network A
-
-Replace the packet generator with an actual network A:
-
-* A encodes a signal into spike packets (or population bursts).
-* A→B coupling is the same projection.
-* Repeat the same **delay** and **jitter** sweeps. This tests whether a
-  realistic sender can exploit the same gating.
-
-### Expansion B: two oscillatory networks + coherence
-
-Make both A and B oscillatory (PING/PING):
-
-* introduce a shared weak pacemaker or coupling so they can phase-lock
-* measure how transfer depends on **phase difference** between their
-  oscillations
-* compare coherent vs incoherent conditions at matched mean rates
-
-### Expansion C: “image sending”
-
-Only after the above:
-
-* encode image into multiple packet streams (patches or latent dims)
-* measure reconstruction quality vs phase alignment + jitter
-* keep the encoding fixed so we’re not re-learning a decoder while testing
-  coherence
-
-The key principle stays the same: **first demonstrate the phase+precision gate
-with a scalar message**, then scale up bandwidth to images.
+This is the minimal Fries-style signature: precise packet timing is required to
+exploit the oscillatory excitability window.
