@@ -3,7 +3,7 @@ title: "Project Layout"
 description: "How the pinglab codebase is organized"
 ---
 
-<FrontMatter/>
+<VeslxFrontMatter/>
 
 Pinglab is organized into three interconnected parts: a Python library for neural
 simulation, experiment scripts that generate results, and documentation that
@@ -13,9 +13,11 @@ presents them.
 
 ```
 pinglab/
-├── pinglab/          # Python library
+├── pinglab/          # Python library (workspace member)
 ├── experiments/      # Reproducible research scripts
-└── content/          # Documentation site (you are here)
+├── content/          # Documentation site (you are here)
+├── tools/            # Helper scripts and utilities
+└── dist/             # Built static site output
 ```
 
 ## The Library (`pinglab/`)
@@ -47,9 +49,11 @@ Current experiments:
 
 | Directory           | Purpose                          | Artifacts          |
 |---------------------|----------------------------------|--------------------|
-| `sweeps/`           | Parameter sweeps (gei, I, noise) | `sweeps/`          |
 | `metrics/`          | Population metrics analysis      | `metrics/`         |
-| `phase_dependence/` | Phase-dependent gating           | `phase_dependence/`|
+| `sweeps/`           | Parameter sweeps (g_ei, I_E, noise) | `sweeps/`        |
+| `phase-dependence/` | Phase-dependent gating           | `phase-dependence/`|
+| `single-image/`     | Single-image readout             | `single-image/`    |
+| `coupled-networks/` | Precision-gated communication    | `coupled-networks/`|
 
 ## Content (`content/`)
 
@@ -59,12 +63,14 @@ Veslx-based documentation. MDX files reference experiment outputs via the
 ```
 content/
 ├── veslx.yaml        # Site configuration
-├── 1.x-*.mdx         # Background and meta content
-├── 2.x-*.mdx         # Experiment results and analysis
+├── docs.*.mdx        # Background and meta content
+├── exp.*.mdx         # Experiment results and analysis
 └── _artifacts/       # Generated figures from experiments
-    ├── sweeps/           # Sweeps artifacts
     ├── metrics/          # Metrics artifacts
-    └── phase_dependence/ # Phase dependence artifacts
+    ├── sweeps/           # Sweeps artifacts
+    ├── phase-dependence/ # Phase dependence artifacts
+    ├── single-image/     # Single-image artifacts
+    └── coupled-networks/ # Coupled-networks artifacts
 ```
 
 ## Data Flow
@@ -76,7 +82,7 @@ experiments (run simulations)
       ↓
 content/_artifacts (save figures)
       ↓
-content/*.mdx (display and explain)
+content/docs.*.mdx and content/exp.*.mdx (display and explain)
       ↓
 veslx build → dist/ (static site)
 ```

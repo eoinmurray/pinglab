@@ -1,0 +1,291 @@
+---
+title: "Fries Paper"
+description: "A PING-centric mathematical review of Fries (2015): Communication Through Coherence."
+---
+
+<VeslxFrontMatter />
+
+**Paper:** *Neuron* (2015-10-07) 88(1): 220–235. DOI: `10.1016/j.neuron.2015.09.034` (https://doi.org/10.1016/j.neuron.2015.09.034)
+
+This is a PING-focused mathematical review of Pascal Fries’ paper *Rhythms for Cognition: Communication Through Coherence* (2015). Fries’ central claim is **CTC**: rhythmic synchronization within neuronal groups, and **coherence** (stable phase relations) between them, implements a communication protocol that is:
+
+- **Effective** (inputs can actually drive postsynaptic spiking),
+- **Precise** (spatiotemporal spike-rate patterns transmit reliably),
+- **Selective** (one sender can “win” access to the receiver),
+
+with slower rhythms (alpha/beta, theta) coordinating when and where gamma-band communication occurs.
+
+PING (Pyramidal–Interneuron Network Gamma) is the circuit primitive that instantiates Fries’ mechanism: **brief excitation → delayed inhibition → a narrow excitability window** that repeats at gamma frequency. The review below follows Fries’ argument order and makes the “CTC → PING” connection explicit at each step.
+
+## 1) The essence of CTC as a gain-modulated channel
+
+Fries’ “essence of CTC” can be stated as: postsynaptic excitability oscillates; inputs arriving at high-excitability phases have larger impact; therefore effective connectivity depends on phase relation.
+
+### 1.1 Notation: spike trains, synaptic activation, rhythmic gain
+
+Let sender population $i$ emit a spike train
+
+```math
+x_i(t) = \sum_k \delta(t - t_{ik}).
+```
+
+Let its synaptic activation at the receiver be the filtered drive
+
+```math
+s_i(t) = (h * x_i)(t), \quad h(t) = \frac{1}{\tau_s} e^{-t/\tau_s}\, \mathbf{1}_{t\ge 0}.
+```
+
+Let the receiver’s instantaneous input gain (excitability) be rhythmically modulated:
+
+```math
+g(t) = g_0 + \tilde g(\phi(t)), \quad \phi(t)=\omega t + \phi_0,\quad \omega = 2\pi f_\gamma.
+```
+
+The gain-weighted input from sender $i$ is
+
+```math
+I_i(t) = w_i\, g(t)\, s_i(t),
+```
+
+and the total input is $I(t)=\sum_i I_i(t)$. This is the mathematical form of Fries’ “rhythmic modulation of postsynaptic excitability constitutes rhythmic modulations in synaptic input gain”.
+
+### 1.2 Coherence as a statement about phase statistics
+
+Coherence between continuous rhythms $u(t),v(t)$ at frequency $f$ is
+
+```math
+\mathrm{Coh}_{uv}(f) = \frac{|S_{uv}(f)|^2}{S_{uu}(f)\,S_{vv}(f)},
+```
+
+with $S_{uv}$ the cross-spectrum. For spikes, a common measure is the phase-locking value (PLV) relative to a postsynaptic phase $\phi_\mathrm{post}(t)$:
+
+```math
+\mathrm{PLV}_i
+\;=\;
+\left|\frac{1}{N_i}\sum_{k=1}^{N_i} e^{\,j\,\phi_\mathrm{post}(t_{ik})}\right|.
+```
+
+In CTC language, “communication requires coherence” means: the distribution of presynaptic spike phases relative to the receiver’s excitability rhythm is not uniform.
+
+### 1.3 Why phase relations change effective connectivity (a one-line derivation)
+
+Assume (for intuition) sinusoidal components at the same $\omega$:
+
+```math
+r_i(t)=r_{i0}+r_{i1}\cos(\omega t + \psi_i), \qquad
+g(t)=g_0+g_1\cos(\omega t + \psi_\mathrm{post}).
+```
+
+Then the time-averaged gain-weighted rate contains a phase-difference term:
+
+```math
+\langle g\,r_i\rangle
+= g_0 r_{i0} + \frac{1}{2}g_1 r_{i1}\cos(\psi_i-\psi_\mathrm{post}).
+```
+
+This $\cos(\Delta\psi)$ dependence is the mathematical core of “effective connectivity depends on phase relation”. PING matters because it produces a non-sinusoidal, duty-cycle–asymmetric $g(t)$ (a narrow high-gain window), which increases the contrast between coherent and incoherent inputs beyond the sinusoidal case.
+
+## 2) PING as the mechanism that creates the gain window
+
+Fries’ mechanistic picture is “short excitation followed by slightly delayed inhibition”. PING is exactly that, at the population level.
+
+### 2.1 Minimal E/I rate model (PING motif)
+
+Let $E(t)$ and $I(t)$ denote excitatory and inhibitory population activities. A canonical PING-form model is
+
+```math
+\tau_E \dot{E} = -E + F_E\!\left(w_{EE}E - w_{EI}I + I_E^\mathrm{ext}\right),
+```
+```math
+\tau_I \dot{I} = -I + F_I\!\left(w_{IE}E - w_{II}I + I_I^\mathrm{ext}\right).
+```
+
+In the PING regime, an increase in $E$ drives $I$ after a short delay, and $I$ suppresses $E$ for a longer fraction of the cycle. The receiver’s gain can be viewed as a monotone function of inhibition (or inhibitory conductance):
+
+```math
+g(t) \approx G\!\left(-I(t)\right), \qquad G'(\cdot) > 0.
+```
+
+### 2.2 Event-based approximation: duty cycle and frequency control
+
+An intuitive approximation is to treat inhibition as a pulse-and-decay process. Suppose an inhibitory volley occurs at $t_n+\Delta$, producing
+
+```math
+g_I(t) = g_{I,\mathrm{peak}}\, e^{-(t-(t_n+\Delta))/\tau_I}\, \mathbf{1}_{t\ge t_n+\Delta}.
+```
+
+Let the next excitatory volley occur when $g_I(t)$ decays below some threshold $g_{I,\mathrm{th}}$ set by drive and recurrent excitation. Then
+
+```math
+T_\gamma \approx \Delta + \tau_I \ln\!\left(\frac{g_{I,\mathrm{peak}}}{g_{I,\mathrm{th}}}\right),
+\qquad f_\gamma \approx \frac{1}{T_\gamma}.
+```
+
+This captures a core advantage of PING for CTC: **frequency and window width are tunable** by circuit parameters (drive, E/I coupling, inhibitory time constants), enabling frequency matching and phase alignment across areas.
+
+## 3) Fries’ three claims, in mathematical form (and why PING helps)
+
+Fries explicitly organizes the argument as: gamma coherence makes communication **effective**, **precise**, and **selective**. Each claim below is restated mathematically, and then tied to PING.
+
+### 3.1 Effective: “escape inhibition” requires a short E-before-I window
+
+Fries emphasizes balanced excitation and inhibition tracked with a small delay (order milliseconds). Effectiveness requires presynaptic input to arrive in the brief time when inhibition has not yet cancelled excitation.
+
+#### 3.1.1 A spike-threshold inequality
+
+Let a receiver neuron integrate synaptic inputs with membrane time constant $\tau_m$. For a presynaptic volley arriving around phase $\phi$ with spike times $\{t_k\}$, the summed EPSP at the end of an excitation window of width $W$ is approximately
+
+```math
+\Delta V(\phi)
+\;\approx\;
+\sum_{k:\, t_k \in [t_0,\, t_0+W]}
+w_k\, e^{-(t_0+W-t_k)/\tau_m}.
+```
+
+Spiking requires $\Delta V(\phi)$ to exceed the distance to threshold **before inhibition closes the window**:
+
+```math
+\Delta V(\phi) \;\gtrsim\; V_\mathrm{th}-V(t_0).
+```
+
+PING is the circuit mechanism that creates $W$: excitation rises, triggers inhibition after $\Delta$, and inhibition dominates the rest of the cycle. Coherence improves effectiveness by concentrating spikes into the same favorable $[t_0,t_0+W]$.
+
+#### 3.1.2 Effective connectivity as a phase-dependent gain
+
+Define a phase-dependent effective coupling from sender $i$ to receiver as the expected output sensitivity to a small input perturbation at phase $\phi$:
+
+```math
+K_i(\phi) \;=\; \frac{\partial}{\partial a}\,\mathbb{E}\!\left[y \,\middle|\, s_i \mapsto s_i + a\,\delta_\phi\right]\Bigg|_{a=0}.
+```
+
+In a gain-modulated approximation, $K_i(\phi)\propto g(\phi)$, hence sharply peaked in PING because $g(\phi)$ is sharply peaked.
+
+**PING advantage (Effectiveness):** it makes $K_i(\phi)$ strongly phase dependent with a biologically plausible E→I delay, enabling rapid transient imbalances that convert synaptic input into spikes.
+
+### 3.2 Precise: rhythmic windows make rate-pattern transmission reliable
+
+Fries’ “precision” is about transmitting a neuronal representation encoded in a spatial pattern of spike rates.
+
+#### 3.2.1 Pattern transmission as a gated linear-nonlinear map
+
+Let $\mathbf{r}(t)\in\mathbb{R}^N$ be the presynaptic rate vector and $\mathbf{W}$ synaptic weights into a postsynaptic population. A standard readout is
+
+```math
+\mathbf{u}(t) = g(t)\,\mathbf{W}\,\mathbf{r}(t),
+\qquad
+\mathbf{y}(t)=\Phi(\mathbf{u}(t)),
+```
+
+with $\Phi$ a static nonlinearity. Gamma coherence improves precision by reducing variability in when the effective multiplication by $g(t)$ occurs and by compressing the integration time, so $\mathbf{u}(t)$ is dominated by the intended volley rather than temporally smeared inputs.
+
+#### 3.2.2 A phase-jitter variance view
+
+If presynaptic spikes arrive with phase jitter $\epsilon$ around a preferred phase $\phi^\*$, then for a narrow gain peak
+
+```math
+g(\phi^\*+\epsilon) \approx g(\phi^\*) + g'(\phi^\*)\,\epsilon.
+```
+
+Thus drive variability scales with phase jitter:
+
+```math
+\mathrm{Var}[I_i] \propto (g'(\phi^\*))^2\,\mathrm{Var}[\epsilon].
+```
+
+**PING advantage (Precision):** strong E/I coupling can tighten phase locking, and the duty-cycle–asymmetric gain function supports crisp, repeatable temporal packaging of rate patterns (volley-based coding), with tunable $f_\gamma$ and window width.
+
+### 3.3 Selective: coherence implements competition for a shared inhibitory gate
+
+Fries’ selectivity claim is: if multiple inputs converge onto a receiver, the receiver responds primarily to the sender that is coherent with it; the winner can entrain the receiver, and inhibition shuts out competitors.
+
+#### 3.3.1 Two senders into one receiver: phase-gated competition
+
+With gain modulation, mean effective drives satisfy
+
+```math
+\langle I_i\rangle = w_i\,\langle g\,s_i\rangle.
+```
+
+If both senders have gamma-modulated inputs with phases $\psi_1,\psi_2$, then (using the sinusoidal intuition from §1.3)
+
+```math
+\langle I_i\rangle \approx \text{baseline} + \frac{1}{2}w_i g_1 s_{i1}\cos(\psi_i-\psi_\mathrm{post}).
+```
+
+The sender whose phase best aligns with the receiver maximizes $\langle I_i\rangle$ and gains competitive advantage.
+
+#### 3.3.2 Entrainment as coupled phase oscillators (CTC in one equation)
+
+Selective coherence can be formalized as phase locking. A minimal phase model is
+
+```math
+\dot{\phi}_\mathrm{post}
+= \omega_\mathrm{post}
+  + \sum_i K_i \sin\!\big(\phi_i - \phi_\mathrm{post} - \delta_i\big)
+  + \xi(t).
+```
+
+with coupling strengths $K_i$, delays $\delta_i$, and noise $\xi(t)$. A stable fixed point corresponds to a consistent phase relation; the selected sender is the one providing the strongest stable lock (largest effective $K_i$ relative to detuning and noise).
+
+PING provides a physiological implementation of the $K_i$ terms: if sender $i$ reliably triggers the receiver’s excitation-before-inhibition window, it entrains the receiver’s interneuron timing and increases its own effective coupling.
+
+#### 3.3.3 “Inhibition closes the door”: exclusivity from a shared gate
+
+The exclusivity intuition is captured by a shared inhibitory variable that suppresses gain:
+
+```math
+g(t)=G(-I(t)), \quad I(t)\uparrow \ \Rightarrow\ g(t)\downarrow.
+```
+
+If sender 1’s volley triggers a strong inhibitory response in the receiver (PING loop), then for the rest of the gamma cycle $g(t)$ is small and sender 2’s inputs are attenuated. Coherence therefore acts like a time-division gate enforced by inhibition.
+
+**PING advantage (Selectivity):** the E→I→E loop creates a shared inhibitory gate that a coherent sender can reliably recruit, yielding exclusive “link establishment” without changing anatomical weights.
+
+## 4) Attention in CTC: PING as the controllable knob
+
+Fries proposes that attention selects a representation by increasing and sharpening its gamma synchronization (often stronger coherence and higher gamma frequency), thereby increasing its ability to entrain the receiver.
+
+Mathematically, attention corresponds to changing:
+
+- Sender rhythmic amplitude / locking (larger modulation, larger $K_i$, smaller phase noise),
+- Frequency (change in $\omega$) enabling frequency matching,
+- Phase relations (choice of $\delta_i$ / relative timing).
+
+PING supplies concrete circuit levers for these changes:
+
+```math
+I_E^\mathrm{ext},\ w_{IE},\ w_{EI},\ \tau_I,\ \Delta
+\quad\Rightarrow\quad
+f_\gamma,\ W,\ \text{locking strength}.
+```
+
+## 5) Directed coherence, delays, and why phase ≠ 0 is expected
+
+Fries updates early “zero-lag” intuitions: with inter-areal delays, coherent gamma interactions can occur at non-zero phase, consistent with directed influence.
+
+If a signal takes conduction delay $d$ from sender to receiver, then consistent phase relations at frequency $\omega$ satisfy
+
+```math
+\Delta\phi^\* \approx \omega d \quad (\mathrm{mod}\ 2\pi).
+```
+
+PING makes this operational: aligning presynaptic volleys to the receiver’s inhibitory gate (at the appropriate delayed phase) maximizes $\langle g\,s\rangle$.
+
+## 6) PING advantages implied by Fries’ CTC
+
+Fries’ argument is conceptual; PING makes it mechanistic and parameterizable.
+
+- **Concrete gain window:** PING produces a sharp, asymmetric $g(\phi)$ from inhibitory gating, making phase relations strongly consequential for effective connectivity.
+- **Controllable communication clock:** PING offers knobs for $f_\gamma$, duty cycle $W/T_\gamma$, and locking strength, supporting frequency matching and attention-like control.
+- **Natural exclusivity mechanism:** shared inhibition implements winner-take-window competition that realizes “selective coherence”.
+- **Compatibility with multi-rhythm control:** slower rhythms can modulate PING drive/coupling, providing substrate for alpha/beta top-down control and theta sampling without changing the core CTC math.
+
+In PING-native form, Fries’ headline becomes:
+
+```math
+\text{Effective connectivity} \;\approx\; \langle g_\mathrm{PING}(\phi_\mathrm{post})\, s_\mathrm{pre}(\phi_\mathrm{pre}) \rangle
+\quad\text{and}\quad
+\text{attention} \;\approx\; \text{control of } g_\mathrm{PING},\ \omega,\ \Delta\phi.
+```
+
+PING turns coherence into a tunable circuit-level control primitive for communication.

@@ -3,14 +3,20 @@ title: "The Pinglab Python Library"
 description: "A Python library for simulating and analyzing PING networks"
 ---
 
-<FrontMatter/>
+<VeslxFrontMatter/>
 
 Pinglab is a conductance-based neural network simulation library for modeling leaky integrate-and-fire (LIF) networks with excitatory (E) and inhibitory (I) populations. It provides tools for simulating spiking neural networks with realistic biophysical properties, along with comprehensive analysis and visualization capabilities.
 
 ## Installation
 
 ```bash
-pip install pinglab
+uv sync
+```
+
+Or install the library in editable mode from the repo root:
+
+```bash
+pip install -e pinglab
 ```
 
 **Requirements:** Python ≥ 3.10

@@ -1,0 +1,28 @@
+---
+title: "Experiments"
+description: "Experiment roadmap for Pinglab"
+---
+
+<VeslxFrontMatter />
+
+**Goal:** Show quantitatively when PING/gamma is useful.
+
+**Rule:** Every comparison must be **rate-matched** (`mean_rate_E/I`) and ideally
+**energy-matched** (conductance integral + spikes).
+
+## Completed
+
+- [Metrics](/exp.1-metrics.mdx)
+- [Parameter Sweeps](/exp.2-sweeps.mdx)
+- [Phase Dependence](/exp.3-phase-dependence.mdx)
+- [Single Image](/exp.4-single-image.mdx)
+- [Coupled Networks](/exp.5-coupled-networks.mdx)
+
+## Planned
+
+### 1. Two-network transfer
+
+Network A encodes an image, projects to B, and B decodes. Sweep coupling delay
+to control relative phase. Compare AI/AI, PING/PING in-phase, PING/PING
+out-of-phase, PING/AI. Enforce rate + energy matching. Fidelity vs phase curve
+with peak at the excitable window, holding under rate matching.

@@ -1,0 +1,32 @@
+---
+title: "PING as a control primitive"
+description: "PING can be used as a control primitive in network protocols and applications."
+date: "12-21-2025"
+---
+
+<VeslxFrontMatter />
+
+Control primitives are small, reusable circuit motifs that implement a specific regulatory behavior: stabilize, gate, pace, or couple. They are the control-layer equivalents of logic gates in digital design. A cognition system needs a handful of these primitives to coordinate activity across modules rather than letting dynamics drift.
+
+At a minimum, useful control primitives for cognition include:
+
+- Timing and rhythm generators to provide shared clocks or phase references
+- Gain control to keep activity within functional ranges
+- Gating and routing to open or close information pathways
+- Working-memory stabilization to maintain transient state
+- Synchronization and coupling to align distributed computations
+- Reset and inhibition to clear or refocus state
+
+PING (Pyramidal Interneuron Network Gamma) circuits are compact excitatory-inhibitory loops that naturally generate gamma-band rhythms. The core dynamic is simple: excitatory cells drive inhibitory cells, inhibition suppresses excitation, inhibition decays, and excitation rebounds. That loop repeats with a period set by synaptic time constants and drive.
+
+Thinking of PING as a control primitive is useful because it behaves like a tunable regulator rather than a one-off phenomenon. Small changes in drive, synaptic weights, or time constants shift the oscillation frequency, duty cycle, and phase response, which lets you shape timing and stability across a larger circuit.
+
+As a circuit primitive, PING can provide:
+
+- A rhythmic pacing signal that other populations can lock to
+- Dynamic gain control that stabilizes excitation
+- Phase-based gating for routing or selective communication
+- Synchronization across distributed populations via shared inhibition
+- Enforced recovery windows that shape temporal integration
+
+In practice, you can drop a PING module into a network to impose timing structure, stabilize activity, or coordinate coupling between subnetworks. That makes it a flexible building block for circuit-level control, not just a descriptive model of gamma rhythms.

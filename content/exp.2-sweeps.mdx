@@ -1,11 +1,12 @@
 ---
 title: Parameter Sweeps and Regime Identification
 description: Mapping dynamical regimes in a PING circuit
+date: "11-11-2025"
 ---
 
 export const path = "_artifacts/sweeps"
 
-<FrontMatter />
+<VeslxFrontMatter />
 
 ## Overview
 
@@ -22,7 +23,10 @@ Throughout, we emphasize *rate-matched* and *diagnostically grounded*
 comparisons, consistent with the framing of PING as a circuit-level control
 mechanism rather than a representational theory.
 
-## Parameters and Regimes
+The narrative is a sweep: start with the knobs that define regime, observe the
+transition in raw spiking, then confirm it with spectral and timing diagnostics.
+
+## Question and Parameters
 
 We vary three core parameters that jointly determine network state:
 
@@ -41,6 +45,9 @@ expressed across standard metrics.
 
 ## Experiments and Diagnostics
 
+We run the experiments in a fixed order so each step adds evidence without
+changing multiple variables at once.
+
 ### 1. $g_{ei}$ sweep at fixed input
 
 We sweep $g_{ei}$ while holding $I_E$ fixed to isolate the effect of
@@ -50,7 +57,7 @@ E→I feedback strength.
 **Interpretation:** Increasing inhibitory feedback stabilizes recurrent.
 excitation and induces rhythmic population structure.
 
-<Gallery
+<VeslxGallery
   title="A→OSC transition as $g_{ei}$ increases"
   path={`${path}`}
   globs={["experiment_1_raster_g_ei_*.png"]}
@@ -68,7 +75,7 @@ Here we vary external drive with fixed synaptic parameters.
 asynchronous firing into coherent oscillations, highlighting the interaction
 between input gain and inhibitory stabilization.
 
-<Gallery
+<VeslxGallery
   path={`${path}`}
   globs={["experiment_2_raster_I_E_*.png"]}
   title="A→OSC transition as $I_E$ increases"
@@ -87,7 +94,7 @@ inhibitory populations.
 while I activity is mediated indirectly via E→I coupling, illustrating
 gain regulation through feedback.
 
-<Gallery
+<VeslxGallery
   path={`${path}`}
   globs={["experiment_3_firing_rates_vs_I_E_*.png"]}
   title="Firing rate vs input current"
@@ -105,7 +112,7 @@ levels.
 **Interpretation:** Oscillatory regimes are marked by narrowband gamma peaks,
 absent in asynchronous states.
 
-<Gallery
+<VeslxGallery
   path={`${path}`}
   globs={["experiment_4_psd_*.png"]}
   title="Power spectral density across input drive"
@@ -123,7 +130,19 @@ the oscillatory regime.
 **Interpretation:** Inhibitory spikes reliably lag excitatory spikes by a few
 milliseconds, consistent with the PING mechanism.
 
-<Gallery
+**How the plot is produced (math):** Let $\{t^E_m\}$ and $\{t^I_n\}$ be excitatory
+and inhibitory spike times. For a lag $\tau$, we count E–I pairs whose time
+difference falls in a bin around $\tau$:
+
+$$
+H(\tau) = \sum_{m,n} \mathbf{1}\!\left[t^I_n - t^E_m \in \left(\tau-\tfrac{\Delta}{2},\,\tau+\tfrac{\Delta}{2}\right)\right],
+$$
+
+where $\Delta$ is the bin width. The plotted curve is the normalized
+cross-correlogram $H(\tau)/\max_\tau H(\tau)$, with $\tau>0$ indicating I spikes
+lagging E spikes.
+
+<VeslxGallery
   single
   path={`${path}`}
   globs={["experiment_5_crosscorr_*.png"]}
@@ -141,7 +160,7 @@ We jointly vary $g_{ei}$, $I_E$, and noise to assess spike-time variability.
 **Interpretation:** CV decreases systematically as the network transitions from
 asynchronous to oscillatory activity, reflecting increased temporal regularity.
 
-<Gallery
+<VeslxGallery
   path={`${path}`}
   globs={["experiment_6_cv_vs*"]}
   title="ISI variability across regimes"
@@ -150,7 +169,7 @@ asynchronous to oscillatory activity, reflecting increased temporal regularity.
   captionLabel="Figure 6"
 />
 
-<Gallery
+<VeslxGallery
   path={`${path}`}
   globs={["experiment_6_raster*.png"]}
   title="Rasters across A→OSC transition"

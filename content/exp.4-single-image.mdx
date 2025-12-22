@@ -1,0 +1,167 @@
+---
+title: "Single Image"
+description: "Sending an image through the network."
+date: "12-01-2025"
+---
+
+export const path = "_artifacts/single-image";
+
+<VeslxFrontMatter />
+
+## Overview
+
+This experiment asks whether a single PING network can carry a static spatial
+pattern through its dynamics in a way that supports a simple readout. The
+narrative is: define a controlled image stimulus, map pixels to neuron groups,
+compare PING and AI regimes under rate and energy matching, then evaluate
+reconstruction quality and cost.
+
+## Experiment Design
+
+### Question
+
+Can coherent E–I dynamics preserve a spatial pattern well enough that a simple
+readout reconstructs the image, once mean rates and energy are controlled?
+
+### Stimulus
+
+We start with synthetic images before moving to larger datasets. The initial
+library includes blobs, bars, checkerboard-like patterns, and 2–4 blobs at
+random locations. Resolution is small (e.g. 16×16, 256 pixels) to keep the
+mapping transparent.
+
+The image is presented as a step input: after a warmup, we apply a constant
+additional current for a window $T_{img}$ (e.g. 300–800 ms). Readout integrates
+spikes during this window.
+
+<VeslxGallery 
+  title="True Image"
+  path={path}
+  globs={["image_true*.png"]}
+/>
+
+### Encoding (pixels to neurons)
+
+We assign each pixel to a fixed group of E neurons:
+
+- Partition E neurons into $P = H\times W$ groups (one group per pixel).
+- Pixel intensity $x_p \in [0,1]$ scales the additional current to that group.
+- Each group has a fixed size $k$ (e.g. 5–20 neurons).
+
+This one-to-one mapping keeps reconstruction rules simple and makes failures
+interpretable.
+
+### Regimes and matching
+
+We compare two regimes with the same stimulus:
+
+- **PING regime:** strong gamma, coherent E–I loop.
+- **AI regime:** asynchronous irregular, weak gamma.
+
+Matching constraints are non-negotiable:
+
+- Match **mean_rate_E** and **mean_rate_I** during the image window.
+- Preferably match an **energy proxy** (conductance integral + spikes) so that
+  decoding is not just a proxy for higher activity.
+
+Practically, we tune baseline drive and noise within each regime and reject runs
+that miss the matching tolerance.
+
+<VeslxGallery 
+  title="Raster"
+  path={path}
+  globs={["raster*.png"]}
+/>
+
+Raster responses show whether population activity remains structured during the
+image window.
+
+<VeslxGallery 
+  title="PSD"
+  path={path}
+  globs={["psd*.png"]}
+/>
+
+### Readout and reconstruction
+
+We read out spike counts per pixel group over the image window:
+
+- $r_p = \mathrm{spike\_count}(\mathrm{group}\ p,\ \mathrm{window}) / \mathrm{window\_duration}$
+
+The default reconstruction is an untrained linear mapping:
+
+- $\hat{x} = \mathrm{normalize}(r)$ to rescale into [0,1]
+
+A trained linear readout (ridge regression) is optional later, but only after
+establishing the untrained baseline.
+
+<VeslxGallery 
+  title="Reconstructed Image"
+  path={path}
+  globs={["image_recon*.png"]}
+/>
+
+### Metrics
+
+Primary fidelity measures:
+
+- **MSE:** $\|x - \hat{x}\|^2 / P$
+- **Pearson correlation** between flattened images
+- **SSIM** (optional, for structured patterns)
+
+Cost-aware measures:
+
+- Total spikes vs reconstruction quality
+- MSE or correlation per spike
+
+<VeslxGallery 
+  title="g_ei vs MSE"
+  path={path}
+  globs={["mse_vs_g_ei*.png"]}
+/>
+
+This curve summarizes reconstruction error across coupling strengths.
+
+<VeslxGallery
+  title="g_ei vs Mean E Rate"
+  path={path}
+  globs={["mean_E_rate_vs_g_ei*.png"]}
+/>
+
+Rate matching is shown alongside fidelity to reveal any confound.
+
+<VeslxGallery
+  title="g_ei vs Tuned I_E"
+  path={path}
+  globs={["I_E_tuned_vs_g_ei*.png"]}
+/>
+
+These tuning values document how matching was achieved.
+
+### Controls
+
+To validate that reconstruction reflects the mapping, not incidental activity:
+
+1. **Shuffled mapping control:** permute pixel-to-group mapping at readout.
+2. **Uniform image control:** all pixels equal intensity.
+3. **No-image baseline:** no additional current during the image window.
+4. **Rate-matched AI vs PING:** the central comparison under constraints.
+
+### Expected outcomes
+
+If PING helps, we expect higher correlation or lower MSE at matched rates, plus
+lower trial-to-trial variance in reconstruction. If PING hurts, over-coherence
+should blur spatial selectivity and reduce fidelity even as global oscillation
+strength increases.
+
+## Parameter Tables
+
+The tables below summarize run-level metrics and reconstruction statistics.
+
+<VeslxParameterTable 
+  path={`${path}/metrics*.yaml`}
+/>
+
+<VeslxParameterTable 
+  path={`${path}/recon_metrics*.yaml`}
+/>

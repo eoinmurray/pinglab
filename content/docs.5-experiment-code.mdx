@@ -3,10 +3,11 @@ title: "Experiment Code"
 description: "How experiments are structured and run"
 ---
 
-<FrontMatter/>
+<VeslxFrontMatter/>
 
 Each experiment follows a consistent pattern: a YAML config, a Pydantic model,
-a simulation loop, and sub-experiments that sweep parameters and save figures.
+an entry point, and one or more sub-experiments that sweep parameters and save
+figures. Some experiments also include a shared `hotloop.py` for reuse.
 
 ## Directory Structure
 
@@ -16,7 +17,7 @@ experiments/<name>/
 ├── experiment.py    # Entry point
 └── lib/
     ├── model.py     # Pydantic config schema
-    ├── hotloop.py   # Core simulation call
+    ├── hotloop.py   # Core simulation call (optional)
     └── experiment_N.py  # Sub-experiments
 ```
 

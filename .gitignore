@@ -34,3 +34,6 @@ results/blobs/
 node_modules
 
 # Frontend builds are handled by src/cathedral/.gitignore
+
+# Avoid committing full-text PDFs of papers (link out instead)
+content/paper.*/*.pdf

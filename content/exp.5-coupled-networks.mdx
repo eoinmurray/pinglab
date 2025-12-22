@@ -1,11 +1,12 @@
 ---
 title: Precision-gated communication test
 description: A minimal Fries experiment
+date: "12-20-2025"
 ---
 
 export const path = "_artifacts/coupled-networks";
 
-<FrontMatter />
+<VeslxFrontMatter />
 
 ## Overview
 
@@ -15,6 +16,9 @@ communication into a receiver network. The implementation lives in
 controlled spike-packet generator. The core question is whether identical input
 packets have different efficacy depending only on arrival phase and timing
 jitter.
+
+The narrative flow is: define a stable receiver, specify a controlled packet
+input, sweep arrival phase and jitter, then read out the evoked response.
 
 ## Receiver model
 
@@ -29,7 +33,10 @@ $$
 C_m \frac{dV}{dt} = g_L(E_L - V) + g_e(E_e - V) + g_i(E_i - V) + I_{ext}(t)
 $$
 
-where $I_{ext}(t)$ is the external input constructed from the spike packets.
+where $C_m$ is membrane capacitance, $V$ is membrane potential, $g_L$ is leak
+conductance, $E_L$ is leak reversal, $g_e$ and $g_i$ are total excitatory and
+inhibitory conductances, $E_e$ and $E_i$ are their reversal potentials, and
+$I_{ext}(t)$ is the external input constructed from the spike packets.
 
 ## Input interface (fiber projection)
 
@@ -46,7 +53,11 @@ I_{ext,i}(t) = I_{tonic} + \sum_{f=1}^{N_{in}} \mathbf{1}[i \in \mathcal{T}_f]
 \sum_{k} w \cdot \mathbf{1}[t \in (t_{f,k}, t_{f,k}+\Delta t_{pulse})]
 $$
 
-where $t_{f,k}$ are spike times for fiber $f$.
+where $i$ indexes E neurons, $I_{tonic}$ is the baseline drive, $N_{in}$ is the
+number of fibers, $\mathcal{T}_f$ is the target set for fiber $f$ with
+$|\mathcal{T}_f| = M$, $w$ is the pulse amplitude, $\Delta t_{pulse}$ is the
+pulse width, $\mathbf{1}[\cdot]$ equals $1$ when its condition is true and $0$
+otherwise, and $t_{f,k}$ are spike times for fiber $f$.
 
 ## Packet generator
 
@@ -60,7 +71,13 @@ $$
 t_{f,j} = \tau_{f,j} + \mathcal{N}(0, \sigma^2).
 $$
 
-Packets are delivered at a set of times $\{t_0^m\}$ across the trial.
+where $t_0$ is the packet base time, $W$ is packet width, $K$ is the mean spikes
+per fiber, $k_f$ is the sampled spike count for fiber $f$, and $\sigma$ is the
+jitter standard deviation. Packets are delivered at a set of times $\{t_0^m\}$
+across the trial.
+
+This generator gives us identical statistical packets whose only difference is
+the timing shift applied in the next section.
 
 ## Phase estimation
 
@@ -77,6 +94,8 @@ $$
 \phi(t) = \arg\,\tilde{x}(t).
 $$
 
+where $\mathcal{H}[\cdot]$ is the Hilbert transform and $\arg$ returns the
+instantaneous phase angle.
 For visualization, we also plot the unwrapped phase to avoid $\pm\pi$ wrapping
 artifacts.
 
@@ -101,8 +120,14 @@ R_{\mathrm{evoked}}(t_a) =
 \#\,\mathrm{spikes}_{\mathrm{target}}^{\mathrm{baseline}}[t_a, t_a+\Delta].
 $$
 
+where $t_a$ is the packet arrival time, $\Delta$ is the response window length,
+and baseline counts are taken from the same window in a no-packet condition or
+from a pre-packet period.
 We then average across packet times and trials to obtain
 $\bar{R}(d, \sigma)$, the mean evoked response as a function of delay and jitter.
+
+This readout lets us isolate phase and precision effects without changing
+overall rate or connectivity.
 
 ## Expected signature
 
@@ -117,7 +142,7 @@ This minimal Fries-style prediction is:
 
 ### LFP proxy and phase
 
-<Gallery
+<VeslxGallery
   title="Receiver LFP proxy"
   path={`${path}`}
   globs={["phase_signal*"]}
@@ -129,7 +154,7 @@ the receiver is in a stable oscillatory regime rather than drifting into
 asynchrony. If this trace is noisy or nonperiodic, phase becomes ambiguous and
 any delay sweep will fail to produce systematic modulation.
 
-<Gallery
+<VeslxGallery
   title="Receiver phase (unwrapped)"
   path={`${path}`}
   globs={["phase_unwrapped*"]}
@@ -143,7 +168,7 @@ phase estimate can be used as a timing reference for packet delivery.
 
 ### Phase- and precision-gated response
 
-<Gallery
+<VeslxGallery
   title="Response vs delay"
   path={`${path}`}
   globs={["response_vs_delay*"]}
@@ -157,7 +182,7 @@ timing noise smears packets across both excitable and inexcitable phases. A
 flattened curve at high jitter is the hallmark of precision loss.
 ### Example rasters
 
-<Gallery
+<VeslxGallery
   title="Raster at good phase"
   path={`${path}`}
   globs={["raster_good*"]}
@@ -168,7 +193,7 @@ In the good-phase raster, packet times (vertical markers) align with moments of
 high excitability. You should see transient increases in E spiking shortly after
 packet arrival, often as sharper, more synchronous bands. This is the spiking
 level correlate of the response curve peak.
-<Gallery
+<VeslxGallery
   title="Raster at bad phase"
   path={`${path}`}
   globs={["raster_bad*"]}

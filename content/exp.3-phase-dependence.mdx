@@ -1,11 +1,12 @@
 ---
 title: Phase-Dependent Gating
 description: Phase-dependent input efficacy in an oscillatory PING regime
+date: "11-15-2025"
 ---
 
 export const path = "_artifacts/phase-dependence";
 
-<FrontMatter />
+<VeslxFrontMatter />
 
 ## Overview
 
@@ -24,6 +25,9 @@ The experiment proceeds in two stages:
 1. A single-trial phase sweep to visualize phase-dependent gain.
 2. A multi-trial protocol (GPP-1) to quantify gain, reliability, and temporal
    precision as a function of phase.
+
+The narrative flow is: establish a clean oscillation, probe it with identical
+inputs at different phases, then quantify gain and precision across trials.
 
 ## Baseline Oscillatory Regime
 
@@ -54,7 +58,7 @@ The network exhibits sustained gamma-band oscillations with the characteristic
 E→I→E timing loop. Inhibitory conductance shows strong rhythmic modulation,
 creating alternating periods of higher and lower excitability.
 
-<Gallery
+<VeslxGallery
   title="Baseline oscillatory dynamics"
   path={`${path}`}
   globs={['trace*']}
@@ -87,7 +91,10 @@ target population, while inputs delivered near inhibitory peaks are strongly
 attenuated. The same physical input thus produces different network responses
 depending solely on its timing.
 
-<Gallery
+This step is descriptive: it shows phase gating in a single sweep without yet
+testing reliability.
+
+<VeslxGallery
   title="Responses across gamma phase"
   path={`${path}`}
   globs={['raster*']}
@@ -113,7 +120,10 @@ simulation to relate response magnitude to oscillatory phase.
 conductance. Maximal responses occur during periods of low inhibition; minimal
 responses occur during periods of high inhibition.
 
-<Gallery
+This gives a compact gain curve we can compare against the trial-averaged
+protocol below.
+
+<VeslxGallery
   title="Phase-dependent gain"
   single
   path={`${path}`}
@@ -149,7 +159,7 @@ Metrics are saved for downstream analysis.
 - Periods of low inhibition tend to support more temporally precise responses,
   though the relationship is not strictly monotonic.
 
-<Gallery
+<VeslxGallery
   title="Phase-dependent precision (GPP-1)"
   single
   path={`${path}`}
