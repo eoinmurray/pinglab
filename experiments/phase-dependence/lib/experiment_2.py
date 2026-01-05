@@ -282,18 +282,15 @@ def experiment_2(config: LocalConfig, data_path: Path) -> None:
     )
 
     # -------------------------------------------------------------------------
-    # 4. Plot: gain, Fano, jitter vs phase, with LFP proxy
+    # 4. Plot: Δ-spikes vs phase, with LFP proxy
     # -------------------------------------------------------------------------
     def plot_fn():
         prop_cycle = mpl.rcParams["axes.prop_cycle"]
         colors = prop_cycle.by_key()["color"]
 
-        fig, axes = plt.subplots(
-            3, 1, figsize=(8, 8), sharex=True, constrained_layout=True
-        )
+        fig, ax1 = plt.subplots(1, 1, figsize=(8, 8), constrained_layout=True)
 
         # Panel 1: Δ-spikes (gain) and LFP proxy
-        ax1 = axes[0]
         ax1.set_xlim(float(np.min(pulses)), float(np.max(pulses)))
         ax1.plot(
             pulses,
@@ -303,47 +300,25 @@ def experiment_2(config: LocalConfig, data_path: Path) -> None:
             color=colors[0],
         )
         ax1.set_ylabel("Δ-spikes")
-        ax1.set_title("Gamma phase–dependent precision (GPP-1)")
+        ax1.set_xlabel("Pulse time (ms)")
+        ax1.set_title("Gamma phase–dependent Δ-spikes (GPP-1)")
 
         ax1b = ax1.twinx()
+        lfp_at_pulses = np.interp(pulses, time, lfp_proxy)
         ax1b.plot(
-            time,
-            lfp_proxy,
+            pulses,
+            lfp_at_pulses,
             "--",
             alpha=0.6,
-            label="g_i_mean_E (LFP proxy)",
+            label="g_i_mean_E (LFP proxy @ pulse time)",
             color=colors[1],
         )
         ax1b.set_ylabel("Inhibitory conductance (LFP proxy)")
 
-        # Hacky shared legend for panel 1
+        # Shared legend
         lines, labels = ax1.get_legend_handles_labels()
         lines2, labels2 = ax1b.get_legend_handles_labels()
         ax1.legend(lines + lines2, labels + labels2, loc="upper right")
-
-        # Panel 2: Fano factor vs phase
-        ax2 = axes[1]
-        ax2.plot(
-            pulses,
-            fano,
-            "o-",
-            color=colors[2],
-        )
-        ax2.set_ylabel("Fano factor\n(post-window spike count)")
-        ax2.axhline(1.0, linestyle="--", alpha=0.3)
-        ax2.set_title("Reliability (count variability) vs phase")
-
-        # Panel 3: latency jitter vs phase
-        ax3 = axes[2]
-        ax3.plot(
-            pulses,
-            jitter,
-            "o-",
-            color=colors[3] if len(colors) > 3 else colors[0],
-        )
-        ax3.set_ylabel("Latency jitter (ms)")
-        ax3.set_xlabel("Pulse time (ms)")
-        ax3.set_title("Temporal precision (first-spike jitter) vs phase")
 
     plot_fn()
     save_both(
