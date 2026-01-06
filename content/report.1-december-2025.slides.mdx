@@ -6,6 +6,23 @@ date: "12-21-2025"
 
 <VeslxFrontMatter />
 
+Scroll to view slides. Click on images to see them full screen.
+
+---
+
+LIF neurons:
+
+$$
+C_m \frac{dV}{dt} = g_L (E_L - V) + g_e (E_e - V) + g_i (E_i - V) + I_{\text{ext}}(t)
+$$
+
+Conductance dynamics:
+
+$$
+g_e(t + \Delta t) = g_e(t)\, e^{-\Delta t/\tau_{\text{AMPA}}}, \quad
+g_i(t + \Delta t) = g_i(t)\, e^{-\Delta t/\tau_{\text{GABA}}}
+$$
+
 ---
 
 <VeslxGallery
@@ -77,7 +94,7 @@ lagging E spikes.
   single
   path="_artifacts/phase-dependence"
   globs={['phase_precision_gpp1*']}
-  caption="Phase-resolved gain, Fano factor, and latency jitter. Oscillatory phase modulates both response strength and precision."
+  caption="Phase-resolved gain."
 >
 
 We ask whether oscillatory phase also affects **response reliability and
@@ -87,13 +104,5 @@ For each of the 100 pulse phases, we run 30 trials with independent noise
 realizations. For each phase we compute:
 
 - **Gain:** Δ-spikes rate (spikes/ms)
-- **Reliability:** Fano factor of spike counts across trials
-- **Temporal precision:** standard deviation of first-spike latencies
 
-Gain reproduces the phase dependence observed in the single-trial sweep.
-Reliability and latency precision vary with phase, indicating that oscillatory
-timing modulates not only response magnitude but also trial-to-trial
-variability. Periods of low inhibition tend to support more temporally precise
-responses, though the relationship is not strictly monotonic.
 </VeslxGallery>
-
