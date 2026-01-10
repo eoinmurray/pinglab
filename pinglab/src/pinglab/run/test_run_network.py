@@ -73,6 +73,56 @@ class TestRunNetwork:
         assert result.spikes.types is not None
         assert len(result.spikes.types) == len(result.spikes.times)
 
+    def test_hh_spiking_with_strong_input(self):
+        """HH mode should run and produce spikes with strong input."""
+        config = self.make_config(
+            neuron_model="hh",
+            E_L=-54.4,
+            g_L_E=0.3,
+            g_L_I=0.3,
+            g_Na=120.0,
+            g_K=36.0,
+            E_Na=50.0,
+            E_K=-77.0,
+        )
+        num_steps = int(config.T / config.dt)
+        external_input = tonic(
+            N_E=config.N_E, N_I=config.N_I,
+            I_E=10.0, I_I=10.0, noise_std=0.5, num_steps=num_steps, seed=42
+        )
+
+        result = run_network(config, external_input)
+
+        assert len(result.spikes.times) > 0, "HH neurons should spike with strong input"
+
+    def test_additional_neuron_models(self):
+        """Other neuron models should run; most should spike with strong input."""
+        cases = [
+            ("adex", {"adex_V_T": -50.0, "adex_V_peak": 20.0}, {"I_E": 200.0, "I_I": 200.0}, True),
+            ("connor_stevens", {"g_A": 47.7}, {"I_E": 10.0, "I_I": 10.0}, False),
+            ("mqif", {"mqif_a": [1.0], "mqif_Vr": [-50.0]}, {"I_E": 20.0, "I_I": 20.0}, True),
+            ("izhikevich", {"V_th": 30.0}, {"I_E": 10.0, "I_I": 10.0}, True),
+            (
+                "fitzhugh",
+                {"V_init": -1.0, "V_th": 1.0, "fhn_a": 0.7, "fhn_b": 0.8, "fhn_tau_w": 12.5, "dt": 0.01},
+                {"I_E": 0.5, "I_I": 0.5},
+                False,
+            ),
+        ]
+
+        for neuron_model, overrides, inputs, expect_spikes in cases:
+            config = self.make_config(neuron_model=neuron_model, **overrides)
+            num_steps = int(config.T / config.dt)
+            external_input = tonic(
+                N_E=config.N_E, N_I=config.N_I,
+                I_E=inputs["I_E"], I_I=inputs["I_I"], noise_std=0.0, num_steps=num_steps, seed=42
+            )
+            result = run_network(config, external_input)
+
+            assert len(result.spikes.times) == len(result.spikes.ids)
+            if expect_spikes:
+                assert len(result.spikes.times) > 0, f"{neuron_model} should spike with strong input"
+
     def test_deterministic_with_same_seed(self):
         """Same seed should produce identical spike trains."""
         results = []

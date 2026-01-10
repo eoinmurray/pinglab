@@ -2,7 +2,19 @@ import warnings
 
 import numpy as np
 
-from pinglab.lib import lif_step, decay_exponential
+from pinglab.lib import (
+    lif_step,
+    hh_step,
+    hh_init_gating,
+    adex_step,
+    cs_step,
+    cs_init_gating,
+    fhn_step,
+    izh_step,
+    izh_init_u,
+    mqif_step,
+    decay_exponential,
+)
 from pinglab.types import Spikes, InstrumentsResults, NetworkConfig, NetworkResult
 from pinglab.run.apply_heterogeneity import apply_heterogeneity
 
@@ -19,7 +31,7 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
     """
     Run a conductance-based E/I network simulation.
 
-    Implements a leaky integrate-and-fire network with:
+    Implements either a leaky integrate-and-fire or Hodgkin-Huxley network with:
     - Excitatory (E) and inhibitory (I) populations
     - Exponentially decaying synaptic conductances (AMPA, GABA)
     - Synaptic delays via ring buffers
@@ -101,6 +113,28 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
     g_e = np.zeros(N)
     g_i = np.zeros(N)
     refractory_countdown = np.zeros(N, dtype=int)
+    m = h = n = None
+    cs_a = cs_b = None
+    adex_w = None
+    fhn_w = None
+    izh_u = None
+    mqif_a_terms = None
+    mqif_vr_terms = None
+    if v.neuron_model == "hh":
+        m, h, n = hh_init_gating(V)
+    elif v.neuron_model == "connor_stevens":
+        m, h, n, cs_a, cs_b = cs_init_gating(V)
+    elif v.neuron_model == "adex":
+        adex_w = np.zeros(N)
+    elif v.neuron_model == "fitzhugh":
+        fhn_w = np.zeros(N)
+    elif v.neuron_model == "izhikevich":
+        izh_u = izh_init_u(V, v.izh_b)
+    elif v.neuron_model == "mqif":
+        mqif_a_terms = np.asarray(v.mqif_a, dtype=float)
+        mqif_vr_terms = np.asarray(v.mqif_Vr, dtype=float)
+        if mqif_a_terms.size != mqif_vr_terms.size:
+            raise ValueError("mqif_a and mqif_Vr must have the same length")
     # Ring buffers for synaptic events
     buf_len = max(delay_ei_steps, delay_ie_steps, delay_ee_steps, delay_ii_steps) + 1
     buffer_e_to_i = np.zeros(buf_len, dtype=int) # E->I buffer
@@ -211,32 +245,155 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
         # Create a mask for neurons that can spike
         can_spike = refractory_countdown == 0
 
-        V, spiked = lif_step(
-            V,
-            g_e,
-            g_i,
-            I_ext,
-            v.dt,
-            E_L=v.E_L,
-            E_e=v.E_e,
-            E_i=v.E_i,
-            C_m=C_m_arr,
-            g_L=g_L_arr,
-            V_th=V_th_arr,
-            V_reset=v.V_reset,
-            can_spike=can_spike,
-        )
-
-        # Clear spikes for neurons in refractory period
-        spiked = spiked & can_spike
+        if v.neuron_model == "lif":
+            V, spiked = lif_step(
+                V,
+                g_e,
+                g_i,
+                I_ext,
+                v.dt,
+                E_L=v.E_L,
+                E_e=v.E_e,
+                E_i=v.E_i,
+                C_m=C_m_arr,
+                g_L=g_L_arr,
+                V_th=V_th_arr,
+                V_reset=v.V_reset,
+                can_spike=can_spike,
+            )
+            # Clear spikes for neurons in refractory period
+            spiked = spiked & can_spike
+        elif v.neuron_model == "hh":
+            V_prev = V.copy()
+            V, m, h, n = hh_step(
+                V,
+                m,
+                h,
+                n,
+                g_e,
+                g_i,
+                I_ext,
+                v.dt,
+                C_m=C_m_arr,
+                g_L=g_L_arr,
+                g_Na=v.g_Na,
+                g_K=v.g_K,
+                E_L=v.E_L,
+                E_Na=v.E_Na,
+                E_K=v.E_K,
+                E_e=v.E_e,
+                E_i=v.E_i,
+            )
+            spiked = (V_prev < V_th_arr) & (V >= V_th_arr) & can_spike
+        elif v.neuron_model == "adex":
+            V, adex_w, spiked = adex_step(
+                V,
+                adex_w,
+                g_e,
+                g_i,
+                I_ext,
+                v.dt,
+                C_m=C_m_arr,
+                g_L=g_L_arr,
+                E_L=v.E_L,
+                E_e=v.E_e,
+                E_i=v.E_i,
+                V_T=v.adex_V_T,
+                Delta_T=v.adex_delta_T,
+                tau_w=v.adex_tau_w,
+                a=v.adex_a,
+                b=v.adex_b,
+                V_reset=v.V_reset,
+                V_peak=v.adex_V_peak,
+                can_spike=can_spike,
+            )
+        elif v.neuron_model == "connor_stevens":
+            V_prev = V.copy()
+            V, m, h, n, cs_a, cs_b = cs_step(
+                V,
+                m,
+                h,
+                n,
+                cs_a,
+                cs_b,
+                g_e,
+                g_i,
+                I_ext,
+                v.dt,
+                C_m=C_m_arr,
+                g_L=g_L_arr,
+                g_Na=v.g_Na,
+                g_K=v.g_K,
+                g_A=v.g_A,
+                E_L=v.E_L,
+                E_Na=v.E_Na,
+                E_K=v.E_K,
+                E_e=v.E_e,
+                E_i=v.E_i,
+            )
+            spiked = (V_prev < V_th_arr) & (V >= V_th_arr) & can_spike
+        elif v.neuron_model == "fitzhugh":
+            V_prev = V.copy()
+            V, fhn_w = fhn_step(
+                V,
+                fhn_w,
+                g_e,
+                g_i,
+                I_ext,
+                v.dt,
+                a=v.fhn_a,
+                b=v.fhn_b,
+                tau_w=v.fhn_tau_w,
+                E_e=v.E_e,
+                E_i=v.E_i,
+            )
+            spiked = (V_prev < V_th_arr) & (V >= V_th_arr) & can_spike
+        elif v.neuron_model == "mqif":
+            V, spiked = mqif_step(
+                V,
+                g_e,
+                g_i,
+                I_ext,
+                v.dt,
+                C_m=C_m_arr,
+                g_L=g_L_arr,
+                E_L=v.E_L,
+                E_e=v.E_e,
+                E_i=v.E_i,
+                a_terms=mqif_a_terms,
+                V_r_terms=mqif_vr_terms,
+                V_th=V_th_arr,
+                V_reset=v.V_reset,
+                can_spike=can_spike,
+            )
+        elif v.neuron_model == "izhikevich":
+            V, izh_u, spiked = izh_step(
+                V,
+                izh_u,
+                g_e,
+                g_i,
+                I_ext,
+                v.dt,
+                a=v.izh_a,
+                b=v.izh_b,
+                c=v.izh_c,
+                d=v.izh_d,
+                V_th=V_th_arr,
+                E_e=v.E_e,
+                E_i=v.E_i,
+                can_spike=can_spike,
+            )
+        else:
+            raise ValueError(f"Unsupported neuron_model: {v.neuron_model}")
 
         # Record spikes and schedule synaptic events
         if spiked.any():
             idxs = np.nonzero(spiked)[0]
             # Set refractory period for spiked neurons (per-neuron)
             refractory_countdown[idxs] = ref_steps_arr[idxs]
-            # Reset voltage for spiked neurons
-            V[idxs] = v.V_reset
+            # Reset voltage only for integrate-and-fire style neurons
+            if v.neuron_model in {"lif", "adex", "mqif"}:
+                V[idxs] = v.V_reset
             # Record all spikes (filtering by burn_in_ms happens during analysis)
             # Spike types: 0=E (excitatory), 1=I (inhibitory)
             for idx in idxs:

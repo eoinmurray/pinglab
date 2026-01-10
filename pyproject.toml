@@ -12,6 +12,7 @@ dependencies = [
     "tqdm-joblib>=0.0.5",
     "pytest>=9.0.1",
     "scikit-learn>=1.7.2",
+    "imageio>=2.34.0",
 ]
 
 [tool.uv.sources]

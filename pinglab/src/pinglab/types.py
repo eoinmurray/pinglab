@@ -1,3 +1,4 @@
+from typing import Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict
 
@@ -41,6 +42,15 @@ class NetworkConfig(BaseModel):
     external_input: np.ndarray | None = (
         None  # Required at runtime. Shape: (num_steps, N_E + N_I) or (num_steps,) for uniform
     )
+    neuron_model: Literal[
+        "lif",
+        "hh",
+        "adex",
+        "connor_stevens",
+        "fitzhugh",
+        "mqif",
+        "izhikevich",
+    ] = "lif"
     dt: float
     T: float
     N_E: int
@@ -68,6 +78,32 @@ class NetworkConfig(BaseModel):
     g_L_I: float = 0.1
     V_th: float = -50.0
     V_reset: float = -65.0
+    # HH neuron parameters
+    g_Na: float = 120.0
+    g_K: float = 36.0
+    E_Na: float = 50.0
+    E_K: float = -77.0
+    # AdEx neuron parameters
+    adex_V_T: float = -50.0
+    adex_delta_T: float = 2.0
+    adex_tau_w: float = 100.0
+    adex_a: float = 2.0
+    adex_b: float = 60.0
+    adex_V_peak: float = 20.0
+    # Connor-Stevens neuron parameters
+    g_A: float = 47.7
+    # FitzHugh-Nagumo parameters
+    fhn_a: float = 0.7
+    fhn_b: float = 0.8
+    fhn_tau_w: float = 12.5
+    # MQIF parameters
+    mqif_a: list[float] = []
+    mqif_Vr: list[float] = []
+    # Izhikevich parameters
+    izh_a: float = 0.02
+    izh_b: float = 0.2
+    izh_c: float = -65.0
+    izh_d: float = 8.0
     # Synaptic time constants
     tau_ampa: float = 5.0
     tau_gaba: float = 10.0
