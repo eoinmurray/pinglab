@@ -9,13 +9,21 @@ import numpy as np
 def _safe_div_nexp(x: np.ndarray, y: float) -> np.ndarray:
     """Compute x / (1 - exp(-x / y)) with a stable small-x limit."""
     small = np.abs(x / y) < 1e-6
-    return np.where(small, y, x / (1.0 - np.exp(-x / y)))
+    denom = 1.0 - np.exp(-x / y)
+    out = np.empty_like(x)
+    np.divide(x, denom, out=out, where=~small)
+    out[small] = y
+    return out
 
 
 def _safe_div_expm1(x: np.ndarray, y: float) -> np.ndarray:
     """Compute x / (exp(x / y) - 1) with a stable small-x limit."""
     small = np.abs(x / y) < 1e-6
-    return np.where(small, y, x / np.expm1(x / y))
+    denom = np.expm1(x / y)
+    out = np.empty_like(x)
+    np.divide(x, denom, out=out, where=~small)
+    out[small] = y
+    return out
 
 
 def _alpha_m(V: np.ndarray) -> np.ndarray:

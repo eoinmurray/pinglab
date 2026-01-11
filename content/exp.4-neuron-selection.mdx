@@ -39,6 +39,39 @@ The LIF dynamics used in pinglab are:
 
 $$ C_m \frac{dV}{dt} = g_L (E_L - V) + g_e (E_e - V) + g_i (E_i - V) + I_{ext} $$
 
+<VeslxGallery
+  path={`${path}`}
+  globs={[`lif/voltage_lif_*.gif`]}
+  title="LIF voltage traces across tonic input"
+  caption="Light and dark renders of the voltage GIF."
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`lif/if_curve_lif_*.png`]}
+  title="LIF IF curve"
+  caption="Firing rate as a function of tonic input."
+  captionLabel="Figure 1"
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`lif/rhythmicity_lif_*.png`]}
+  title="LIF rhythmicity vs input"
+  caption="Synchrony index across tonic input levels."
+  captionLabel="Figure 2"
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={[`lif/raster_lif_I_E_*.png`]}
+  title="LIF rasters vs tonic input"
+  caption="Spike rasters at selected tonic input values."
+  captionLabel="Figure 3"
+/>
+
 # Hodgkin-Huxley (HH)
 
 The Hodgkin-Huxley dynamics used in pinglab are:
@@ -59,11 +92,77 @@ $$ \alpha_h(V) = 0.07 e^{-(V + 65)/20}, \quad \beta_h(V) = \frac{1}{1 + e^{-(V +
 
 $$ \alpha_n(V) = 0.01 \frac{V + 55}{1 - e^{-(V + 55)/10}}, \quad \beta_n(V) = 0.125 e^{-(V + 65)/80} $$
 
+<VeslxGallery
+  path={`${path}`}
+  globs={[`hh/voltage_hh_*.gif`]}
+  title="HH voltage traces across tonic input"
+  caption="Light and dark renders of the voltage GIF."
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`hh/if_curve_hh_*.png`]}
+  title="HH IF curve"
+  caption="Firing rate as a function of tonic input."
+  captionLabel="Figure 4"
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`hh/rhythmicity_hh_*.png`]}
+  title="HH rhythmicity vs input"
+  caption="Synchrony index across tonic input levels."
+  captionLabel="Figure 5"
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={[`hh/raster_hh_I_E_*.png`]}
+  title="HH rasters vs tonic input"
+  caption="Spike rasters at selected tonic input values."
+  captionLabel="Figure 6"
+/>
+
 # Adaptive Exponential Integrate-and-Fire (AdEx) Brette and Gerstner
 
 The AdEx dynamics used in pinglab are:
 
 $$ C_m \frac{dV}{dt} = g_L (E_L - V) + g_L \Delta_T e^{(V - V_T)/\Delta_T} - w + I_{ext} + g_e (E_e - V) + g_i (E_i - V) $$
+
+<VeslxGallery
+  path={`${path}`}
+  globs={[`adex/voltage_adex_*.gif`]}
+  title="AdEx voltage traces across tonic input"
+  caption="Light and dark renders of the voltage GIF."
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`adex/if_curve_adex_*.png`]}
+  title="AdEx IF curve"
+  caption="Firing rate as a function of tonic input."
+  captionLabel="Figure 7"
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`adex/rhythmicity_adex_*.png`]}
+  title="AdEx rhythmicity vs input"
+  caption="Synchrony index across tonic input levels."
+  captionLabel="Figure 8"
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={[`adex/raster_adex_I_E_*.png`]}
+  title="AdEx rasters vs tonic input"
+  caption="Spike rasters at selected tonic input values."
+  captionLabel="Figure 9"
+/>
 
 # Connor-Stevens Neuron
 
@@ -71,11 +170,77 @@ The Connor-Stevens dynamics used in pinglab are:
 
 $$ C_m \frac{dV}{dt} = I_{ext} + g_e (E_e - V) + g_i (E_i - V) - I_{Na} - I_K - I_A - I_L $$
 
+<VeslxGallery
+  path={`${path}`}
+  globs={[`connor_stevens/voltage_connor_stevens_*.gif`]}
+  title="Connor-Stevens voltage traces across tonic input"
+  caption="Light and dark renders of the voltage GIF."
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`connor_stevens/if_curve_connor_stevens_*.png`]}
+  title="Connor-Stevens IF curve"
+  caption="Firing rate as a function of tonic input."
+  captionLabel="Figure 10"
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`connor_stevens/rhythmicity_connor_stevens_*.png`]}
+  title="Connor-Stevens rhythmicity vs input"
+  caption="Synchrony index across tonic input levels."
+  captionLabel="Figure 11"
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={[`connor_stevens/raster_connor_stevens_I_E_*.png`]}
+  title="Connor-Stevens rasters vs tonic input"
+  caption="Spike rasters at selected tonic input values."
+  captionLabel="Figure 12"
+/>
+
 # FitzHugh Neuron
 
 The FitzHugh dynamics used in pinglab are:
 
 $$ \frac{dV}{dt} = V - \frac{V^3}{3} - W + I_{ext} + g_e (E_e - V) + g_i (E_i - V) $$
+
+<VeslxGallery
+  path={`${path}`}
+  globs={[`fitzhugh/voltage_fitzhugh_*.gif`]}
+  title="FitzHugh voltage traces across tonic input"
+  caption="Light and dark renders of the voltage GIF."
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`fitzhugh/if_curve_fitzhugh_*.png`]}
+  title="FitzHugh IF curve"
+  caption="Firing rate as a function of tonic input."
+  captionLabel="Figure 13"
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`fitzhugh/rhythmicity_fitzhugh_*.png`]}
+  title="FitzHugh rhythmicity vs input"
+  caption="Synchrony index across tonic input levels."
+  captionLabel="Figure 14"
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={[`fitzhugh/raster_fitzhugh_I_E_*.png`]}
+  title="FitzHugh rasters vs tonic input"
+  caption="Spike rasters at selected tonic input values."
+  captionLabel="Figure 15"
+/>
 
 # MQIF - Multi-Quadratic Integrate-and-Fire - Burgers
 
@@ -83,8 +248,74 @@ The MQIF dynamics used in pinglab are:
 
 $$ C_m \frac{dV}{dt} = g_L (E_L - V) + \sum_{i} a_i (V - V_{r,i})^2 + I_{ext} + g_e (E_e - V) + g_i (E_i - V) $$
 
+<VeslxGallery
+  path={`${path}`}
+  globs={[`mqif/voltage_mqif_*.gif`]}
+  title="MQIF voltage traces across tonic input"
+  caption="Light and dark renders of the voltage GIF."
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`mqif/if_curve_mqif_*.png`]}
+  title="MQIF IF curve"
+  caption="Firing rate as a function of tonic input."
+  captionLabel="Figure 16"
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`mqif/rhythmicity_mqif_*.png`]}
+  title="MQIF rhythmicity vs input"
+  caption="Synchrony index across tonic input levels."
+  captionLabel="Figure 17"
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={[`mqif/raster_mqif_I_E_*.png`]}
+  title="MQIF rasters vs tonic input"
+  caption="Spike rasters at selected tonic input values."
+  captionLabel="Figure 18"
+/>
+
 # Izhikevich Neuron
 
 The Izhikevich dynamics used in pinglab are:
 
 $$ \frac{dV}{dt} = 0.04V^2 + 5V + 140 - U + I_{ext} + g_e (E_e - V) + g_i (E_i - V) $$
+
+<VeslxGallery
+  path={`${path}`}
+  globs={[`izhikevich/voltage_izhikevich_*.gif`]}
+  title="Izhikevich voltage traces across tonic input"
+  caption="Light and dark renders of the voltage GIF."
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`izhikevich/if_curve_izhikevich_*.png`]}
+  title="Izhikevich IF curve"
+  caption="Firing rate as a function of tonic input."
+  captionLabel="Figure 19"
+/>
+
+<VeslxGallery
+  single
+  path={`${path}`}
+  globs={[`izhikevich/rhythmicity_izhikevich_*.png`]}
+  title="Izhikevich rhythmicity vs input"
+  caption="Synchrony index across tonic input levels."
+  captionLabel="Figure 20"
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={[`izhikevich/raster_izhikevich_I_E_*.png`]}
+  title="Izhikevich rasters vs tonic input"
+  caption="Spike rasters at selected tonic input values."
+  captionLabel="Figure 21"
+/>
