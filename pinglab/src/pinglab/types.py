@@ -49,6 +49,7 @@ class NetworkConfig(BaseModel):
         "connor_stevens",
         "fitzhugh",
         "mqif",
+        "qif",
         "izhikevich",
     ] = "lif"
     dt: float
@@ -99,6 +100,10 @@ class NetworkConfig(BaseModel):
     # MQIF parameters
     mqif_a: list[float] = []
     mqif_Vr: list[float] = []
+    # QIF parameters
+    qif_a: float = 1.0
+    qif_Vr: float = -60.0
+    qif_Vt: float = -45.0
     # Izhikevich parameters
     izh_a: float = 0.02
     izh_b: float = 0.2

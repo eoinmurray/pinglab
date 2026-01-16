@@ -13,6 +13,7 @@ from pinglab.lib import (
     izh_step,
     izh_init_u,
     mqif_step,
+    qif_step,
 )
 
 
@@ -191,6 +192,31 @@ class TestMQIF:
             E_i=-80.0,
             a_terms=np.array([1.0]),
             V_r_terms=np.array([-50.0]),
+            V_th=-40.0,
+            V_reset=-65.0,
+        )
+        assert spiked[0]
+        assert V_new[0] == -65.0
+
+
+class TestQIF:
+    def test_qif_spike_resets(self):
+        V = np.array([-39.0])
+        zeros = np.zeros_like(V)
+        V_new, spiked = qif_step(
+            V,
+            zeros,
+            zeros,
+            np.array([50.0]),
+            0.1,
+            C_m=1.0,
+            g_L=0.1,
+            E_L=-65.0,
+            E_e=0.0,
+            E_i=-80.0,
+            a=0.02,
+            V_r=-60.0,
+            V_t=-45.0,
             V_th=-40.0,
             V_reset=-65.0,
         )

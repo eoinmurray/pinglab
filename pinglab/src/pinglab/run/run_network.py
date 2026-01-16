@@ -13,6 +13,7 @@ from pinglab.lib import (
     izh_step,
     izh_init_u,
     mqif_step,
+    qif_step,
     decay_exponential,
 )
 from pinglab.types import Spikes, InstrumentsResults, NetworkConfig, NetworkResult
@@ -366,6 +367,25 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
                 V_reset=v.V_reset,
                 can_spike=can_spike,
             )
+        elif v.neuron_model == "qif":
+            V, spiked = qif_step(
+                V,
+                g_e,
+                g_i,
+                I_ext,
+                v.dt,
+                C_m=C_m_arr,
+                g_L=g_L_arr,
+                E_L=v.E_L,
+                E_e=v.E_e,
+                E_i=v.E_i,
+                a=v.qif_a,
+                V_r=v.qif_Vr,
+                V_t=v.qif_Vt,
+                V_th=V_th_arr,
+                V_reset=v.V_reset,
+                can_spike=can_spike,
+            )
         elif v.neuron_model == "izhikevich":
             V, izh_u, spiked = izh_step(
                 V,
@@ -392,7 +412,7 @@ def run_network(config: NetworkConfig, external_input: np.ndarray) -> NetworkRes
             # Set refractory period for spiked neurons (per-neuron)
             refractory_countdown[idxs] = ref_steps_arr[idxs]
             # Reset voltage only for integrate-and-fire style neurons
-            if v.neuron_model in {"lif", "adex", "mqif"}:
+            if v.neuron_model in {"lif", "adex", "mqif", "qif"}:
                 V[idxs] = v.V_reset
             # Record all spikes (filtering by burn_in_ms happens during analysis)
             # Spike types: 0=E (excitatory), 1=I (inhibitory)

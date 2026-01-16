@@ -1,0 +1,62 @@
+---
+title: Neuron Selection
+description: Selecting neurons for targeted input in a PING network
+date: "01-10-2026"
+---
+
+export const path = "_artifacts/exp.4-neuron-selection";
+
+<VeslxFrontMatter />
+
+We aim to identify a suitable neuron type for PING models. It should:
+
+- Be easily excitable with intrinsic excitation properties.
+- Have a large range of parameters which keep the network in the PING regime.
+- Be as easily to understand and simulate as possible.
+- Not add to much time complexity to large scale simulations.
+- We want input current to trigger neuron spikes, not drive them.
+
+Candidate Neuron Types (phased rollout):
+
+- Leaky Integrate-and-Fire (LIF) — active in this experiment
+- Hodgkin-Huxley (HH)
+- Adaptive Exponential Integrate-and-Fire (AdEx) Brette and Gerstner
+- Connor-Stevens Neuron
+- FitzHugh Neuron
+- MQIF - Multi-Quadratic Integrate-and-Fire - Burgers
+- Izhikevich Neuron
+
+For each neuron we will generate the following artifacts:
+
+- Gif of Voltage vs time for various tonic input current levels
+- IF curve
+- Rhythmicity vs Tonic Input Current plot
+- Rasters vs Tonic Input Current plot
+
+# Leaky Integrate-and-Fire (LIF)
+
+The LIF dynamics used in pinglab are:
+
+$$ C_m \frac{dV}{dt} = g_L (E_L - V) + g_e (E_e - V) + g_i (E_i - V) + I_{ext} $$
+
+<VeslxGallery
+  globs={[
+    `${path}/lif/voltage_lif*`,
+    `${path}/lif/if_curve_lif*`,
+    `${path}/lif/rhythmicity_lif*`
+  ]}
+/>
+
+Note: voltage animation is the first E neuron.
+
+<VeslxGallery
+  globs={[
+    `${path}/lif/raster*`
+  ]}
+/>
+
+<VeslxGallery
+  globs={[
+    `${path}/lif/psd*`
+  ]}
+/>

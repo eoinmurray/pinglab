@@ -1,0 +1,74 @@
+plotting:
+  raster:
+    start_time: 0.0
+    stop_time: 1000.0
+
+default_inputs:
+  I_E: 1.0
+  I_I: 0.8
+  noise: 0.0
+
+sweep:
+  weight_sigma:
+    start: 0.0
+    stop: 0.5
+    num: 6
+
+weights:
+  dist: "normal"
+  sample_size: 20000
+  clamp_min: 0.0
+  sigma_relative: true
+  g_ee: 0.3
+  g_ei: 1.5
+  g_ie: 2.5
+  g_ii: 0.3
+
+base:
+  neuron_model: mqif
+  dt: 0.1
+  T: 1000.0
+  seed: 0
+  N_E: 800
+  N_I: 200
+
+  g_ei: 1.5
+  g_ie: 2.5
+  g_ee: 0.3
+  g_ii: 0.3
+
+  p_ee: 0.04
+  p_ei: 0.12
+  p_ie: 0.04
+  p_ii: 0.04
+
+  delay_ei: 0.5
+  delay_ie: 1.2
+  delay_ee: 0.5
+  delay_ii: 0.5
+
+  V_init: -65.0
+  E_L: -65.0
+  E_e: 0.0
+  E_i: -80.0
+  C_m_E: 1.0
+  g_L_E: 0.05
+  C_m_I: 1.0
+  g_L_I: 0.1
+  V_th: -40.0
+  V_reset: -65.0
+  t_ref_E: 3.0
+  t_ref_I: 1.5
+
+  mqif_a: [0.11]
+  mqif_Vr: [-55.0]
+
+  tau_ampa: 2.0
+  tau_gaba: 6.5
+
+  connectivity_scaling: "one_over_N_src"
+
+  V_th_heterogeneity_sd: 0.15
+  g_L_heterogeneity_sd: 0.05
+  C_m_heterogeneity_sd: 0.05
+  t_ref_heterogeneity_sd: 0.1

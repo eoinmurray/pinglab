@@ -1,0 +1,20 @@
+phase_portrait:
+  V_min: -80.0
+  V_max: 20.0
+  w_min: -200.0
+  w_max: 400.0
+  V_points: 200
+  w_points: 200
+  I_ext: 200.0
+
+adex:
+  C_m: 200.0
+  g_L: 10.0
+  E_L: -70.0
+  V_T: -50.0
+  Delta_T: 2.0
+  tau_w: 100.0
+  a: 2.0
+  b: 60.0
+  V_reset: -58.0
+  V_peak: 20.0

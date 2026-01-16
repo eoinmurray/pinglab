@@ -16,6 +16,8 @@ def save_raster(
     vertical_lines: list[float] | None = None,
     external_input: np.ndarray | None = None,
     dt: float | None = None,
+    xlim: tuple[float, float] | None = None,
+    ylim: tuple[float, float] | None = None,
 ) -> None:
     """
     Save spike raster plot with optional external input overlay.
@@ -91,6 +93,10 @@ def save_raster(
 
         if time is not None:
             ax_ras.set_xlim(time[0], time[-1])
+        if xlim is not None:
+            ax_ras.set_xlim(xlim[0], xlim[1])
+        if ylim is not None:
+            ax_ras.set_ylim(ylim[0], ylim[1])
 
         ax_ras.set_xlabel("Time (ms)")
         ax_ras.set_ylabel("Neuron id")

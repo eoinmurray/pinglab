@@ -8,6 +8,7 @@ from .connor_stevens import cs_step, cs_init_gating
 from .fhn import fhn_step
 from .izhikevich import izh_step, izh_init_u
 from .mqif import mqif_step
+from .qif import qif_step
 from .synapse import decay_exponential
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "izh_step",
     "izh_init_u",
     "mqif_step",
+    "qif_step",
     "decay_exponential",
 ]

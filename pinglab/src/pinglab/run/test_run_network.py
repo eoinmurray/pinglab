@@ -101,6 +101,7 @@ class TestRunNetwork:
             ("adex", {"adex_V_T": -50.0, "adex_V_peak": 20.0}, {"I_E": 200.0, "I_I": 200.0}, True),
             ("connor_stevens", {"g_A": 47.7}, {"I_E": 10.0, "I_I": 10.0}, False),
             ("mqif", {"mqif_a": [1.0], "mqif_Vr": [-50.0]}, {"I_E": 20.0, "I_I": 20.0}, True),
+            ("qif", {"qif_a": 0.02, "qif_Vr": -60.0, "qif_Vt": -45.0}, {"I_E": 20.0, "I_I": 20.0}, True),
             ("izhikevich", {"V_th": 30.0}, {"I_E": 10.0, "I_I": 10.0}, True),
             (
                 "fitzhugh",

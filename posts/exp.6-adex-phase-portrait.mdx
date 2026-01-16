@@ -1,0 +1,48 @@
+---
+title: "AdEx Phase Portrait"
+description: "Phase portrait and nullclines for the AdEx neuron model"
+date: "2026-01-19"
+---
+
+export const path = "_artifacts/exp.6-adex-phase-portrait";
+
+<VeslxFrontMatter />
+
+# Overview
+
+We plot the AdEx phase portrait using standard Brette & Gerstner-style parameters
+and a constant external current. The plot shows the vector field together with
+nullclines for $dV/dt = 0$ and $dw/dt = 0$.
+
+**AdEx equations**
+
+$$
+C_m \frac{dV}{dt} =
+g_L (E_L - V) + g_L \Delta_T \exp\left(\frac{V - V_T}{\Delta_T}\right) - w + I_{ext}
+$$
+
+$$
+\frac{dw}{dt} = \frac{a (V - E_L) - w}{\tau_w}
+$$
+
+**Parameters used**
+
+- $C_m = 200$
+- $g_L = 10$
+- $E_L = -70$
+- $V_T = -50$
+- $\Delta_T = 2$
+- $\tau_w = 100$
+- $a = 2$
+- $b = 60$
+- $V_{reset} = -58$
+- $V_{peak} = 20$
+- $I_{ext} = 400$
+
+# Results
+
+<VeslxGallery
+  globs={[
+    `${path}/adex_phase_portrait*`,
+  ]}
+/>
