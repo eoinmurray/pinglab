@@ -10,6 +10,21 @@ default_inputs:
   I_I: 0.9       # Input to I neurons (slightly lower)
   noise: 0.4  # Strong noise (0.5-1.0 range) creates irregularity and breaks synchrony
 
+weights:
+  mean_ee: 0.3
+  mean_ei: 1.5
+  mean_ie: 2.5
+  mean_ii: 0.3
+  std_ee: 0.0
+  std_ei: 0.0
+  std_ie: 0.0
+  std_ii: 0.0
+  p_ee: 0.04
+  p_ei: 0.12
+  p_ie: 0.04
+  p_ii: 0.04
+  clamp_min: 0.0
+
 pulse:
   width_ms: 5.0
   amp: 0.5
@@ -39,18 +54,6 @@ base:
   N_E: 800       # Excitatory neurons (4:1 ratio standard)
   N_I: 200       # Inhibitory neurons
 
-  # Synaptic weights: Balanced E-I for asynchronous regime
-  g_ei: 1.5      # E→I (moderate excitation to interneurons)
-  g_ie: 2.5      # I→E (strong inhibitory feedback to suppress synchrony)
-  g_ee: 0.3      # E→E (weak recurrent excitation)
-  g_ii: 0.3      # I→I (weak recurrent inhibition)
-
-  # Connection probabilities: Moderately sparse (not too sparse)
-  p_ee: 0.04      # Moderate E→E connections
-  p_ei: 0.12      # Moderate E→I connections
-  p_ie: 0.04      # Moderate I→E connections
-  p_ii: 0.04      # Moderate I→I connections
-
   # Synaptic delays
   delay_ei: 0.5  # E→I delay (ms)
   delay_ie: 1.2  # I→E delay (ms)
@@ -74,9 +77,6 @@ base:
   # Synaptic time constants: Critical for PING oscillation timing
   tau_ampa: 2.0  # AMPA (excitatory) - fast, ~2ms
   tau_gaba: 6.5  # GABA (inhibitory) - slower, ~6.5ms
-
-  # Connectivity scaling
-  connectivity_scaling: "one_over_N_src"
 
   # Heterogeneity parameters: Add heterogeneity for more irregularity
   V_th_heterogeneity_sd: 1.5   # Threshold variability (±1.5 mV)

@@ -1,23 +1,42 @@
 from pydantic import BaseModel
 
-from pinglab.types import ExperimentConfig, LinspaceConfig
+from pinglab.types import ExperimentConfig, LinspaceConfig, WeightSpec
 
 
 class WeightSweepConfig(BaseModel):
     weight_sigma: LinspaceConfig
 
 
-class WeightConfig(BaseModel):
-    dist: str = "normal"
-    sample_size: int = 10000
-    clamp_min: float | None = 0.0
-    sigma_relative: bool = True
-    g_ee: float
-    g_ei: float
-    g_ie: float
-    g_ii: float
+class HeatmapConfig(BaseModel):
+    mean_scale: LinspaceConfig
+    std_scale: LinspaceConfig
+    bin_ms: float
+    burn_in_ms: float
+    tau_min_ms: float
+    tau_max_ms: float
+
+
+class GEISweepConfig(BaseModel):
+    g_ei: LinspaceConfig
+
+
+class GIESweepConfig(BaseModel):
+    g_ie: LinspaceConfig
+
+
+class GEESweepConfig(BaseModel):
+    g_ee: LinspaceConfig
+
+
+class GIISweepConfig(BaseModel):
+    g_ii: LinspaceConfig
 
 
 class LocalConfig(ExperimentConfig):
     sweep: WeightSweepConfig
-    weights: WeightConfig
+    gei_sweep: GEISweepConfig
+    gie_sweep: GIESweepConfig
+    gee_sweep: GEESweepConfig
+    gii_sweep: GIISweepConfig
+    heatmap: HeatmapConfig
+    weights: WeightSpec

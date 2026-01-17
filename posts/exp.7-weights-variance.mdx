@@ -1,6 +1,6 @@
 ---
-title: "Weights Variance"
-description: "Scaffold for exploring variance in synaptic weights."
+title: "exp.7-weights-variance"
+description: "Exploring variance in synaptic weights."
 date: "2026-01-20"
 ---
 
@@ -14,11 +14,45 @@ weights the network can handle and still be in a PING regime.
 First we make some sanity plots of voltages vs and spikes vs time for MQIF
 neurons:
 
-<VeslxGallery globs={[ 
-  `${path}/voltage_map_E*`, 
-  `${path}/voltage_trace_E0*`,
-  `${path}/raster*`, ]} 
+<VeslxGallery 
+  globs={[ 
+    `${path}/voltage_map_E*`, 
+    `${path}/voltage_trace_E0*`,
+  ]} 
 />
+
+# g_ei raster sweep
+
+<VeslxGallery 
+  globs={[ 
+    `${path}/raster_g_ei_*`,
+  ]} 
+/>
+
+# g_ie raster sweep
+
+<VeslxGallery 
+  globs={[ 
+    `${path}/raster_g_ie_*`,
+  ]} 
+/>
+
+# g_ee raster sweep
+
+<VeslxGallery 
+  globs={[ 
+    `${path}/raster_g_ee_*`,
+  ]} 
+/>
+
+# g_ii raster sweep
+
+<VeslxGallery 
+  globs={[ 
+    `${path}/raster_g_ii_*`,
+  ]} 
+/>
+
 
 Then we aim to make a heatmaps with the following properties:
 
@@ -34,3 +68,17 @@ where each time step applies the expected conductance from population spike
 counts to every target neuron, scaled by `p_ee`, `p_ei`, `p_ie`, `p_ii` and
 (by default) `1/N_src`. There is no explicit adjacency matrix or per-connection
 sampling.
+
+<VeslxGallery 
+  globs={[ 
+    `${path}/adjacency_matrix*`,
+  ]} 
+/>
+
+## Rhythmicity heatmaps
+
+<VeslxGallery 
+  globs={[ 
+    `${path}/rhythmicity_heatmap_*`,
+  ]} 
+/>

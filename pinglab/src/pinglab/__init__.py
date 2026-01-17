@@ -6,7 +6,7 @@ excitatory and inhibitory populations, synaptic delays, and heterogeneous
 neural parameters.
 """
 
-from .run.run_network import run_network
+from .run import run_network, build_model_from_config
 from . import types
 from . import inputs
 from . import utils
@@ -18,6 +18,7 @@ __version__ = "0.1.0"
 
 __all__ = [
     "run_network",
+    "build_model_from_config",
     "types",
     "inputs",
     "utils",

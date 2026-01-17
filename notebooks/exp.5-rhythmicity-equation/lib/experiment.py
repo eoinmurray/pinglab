@@ -9,7 +9,8 @@ from pinglab.analysis import population_mean_rate, population_rate, rate_psd
 from pinglab.inputs import tonic
 from pinglab.plots.raster import save_raster
 from pinglab.plots.styles import save_both, figsize
-from pinglab.run import run_network
+from pinglab.lib.weights_builder import build_adjacency_matrices
+from pinglab.run import run_network, build_model_from_config
 from pinglab.types import Spikes
 from pinglab.utils import slice_spikes
 
@@ -95,6 +96,9 @@ def run_experiment(config: LocalConfig, data_path: Path) -> None:
     combined_rhythmicity: dict[str, tuple[np.ndarray, list[float]]] = {}
     combined_psd_peaks: dict[str, tuple[np.ndarray, list[float]]] = {}
 
+    if config.weights is None:
+        raise ValueError("weights must be provided in config for adjacency-only runs.")
+
     for model in config.models:
         model_path = data_path / model.name
         model_path.mkdir(parents=True, exist_ok=True)
@@ -130,6 +134,25 @@ def run_experiment(config: LocalConfig, data_path: Path) -> None:
             f"bin_ms={sweep_cfg.bin_ms} burn_in_ms={sweep_cfg.burn_in_ms}"
         )
 
+        matrices = build_adjacency_matrices(
+            N_E=run_cfg.N_E,
+            N_I=run_cfg.N_I,
+            mean_ee=config.weights.mean_ee,
+            mean_ei=config.weights.mean_ei,
+            mean_ie=config.weights.mean_ie,
+            mean_ii=config.weights.mean_ii,
+            std_ee=config.weights.std_ee,
+            std_ei=config.weights.std_ei,
+            std_ie=config.weights.std_ie,
+            std_ii=config.weights.std_ii,
+            p_ee=config.weights.p_ee,
+            p_ei=config.weights.p_ei,
+            p_ie=config.weights.p_ie,
+            p_ii=config.weights.p_ii,
+            clamp_min=config.weights.clamp_min,
+            seed=run_cfg.seed,
+        )
+
         for I_E in sweep:
             external_input = tonic(
                 N_E=run_cfg.N_E,
@@ -140,7 +163,13 @@ def run_experiment(config: LocalConfig, data_path: Path) -> None:
                 num_steps=num_steps,
                 seed=run_cfg.seed or 0,
             )
-            result = run_network(run_cfg, external_input=external_input)
+            neuron_model = build_model_from_config(run_cfg)
+            result = run_network(
+                run_cfg,
+                external_input=external_input,
+                model=neuron_model,
+                weights=matrices.W,
+            )
 
             sliced = slice_spikes(result.spikes, start_ms, stop_ms)
             shifted = _shift_spikes(sliced, start_ms)

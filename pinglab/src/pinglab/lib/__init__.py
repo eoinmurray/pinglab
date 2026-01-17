@@ -10,6 +10,12 @@ from .izhikevich import izh_step, izh_init_u
 from .mqif import mqif_step
 from .qif import qif_step
 from .synapse import decay_exponential
+from .weights_builder import (
+    build_adjacency_matrices,
+    split_weight_matrix,
+    assemble_weight_matrix,
+    WeightMatrices,
+)
 
 __all__ = [
     "lif_step",
@@ -24,4 +30,8 @@ __all__ = [
     "mqif_step",
     "qif_step",
     "decay_exponential",
+    "build_adjacency_matrices",
+    "split_weight_matrix",
+    "assemble_weight_matrix",
+    "WeightMatrices",
 ]

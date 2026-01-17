@@ -4,8 +4,8 @@ plotting:
     stop_time: 1000.0
 
 default_inputs:
-  I_E: 1.0
-  I_I: 0.8
+  I_E: 0.5
+  I_I: 0.9375
   noise: 0.0
 
 sweep:
@@ -14,15 +14,58 @@ sweep:
     stop: 0.5
     num: 6
 
+gei_sweep:
+  g_ei:
+    start: 0.0
+    stop: 4.0
+    num: 41
+
+gie_sweep:
+  g_ie:
+    start: 0.0
+    stop: 4.0
+    num: 41
+
+gee_sweep:
+  g_ee:
+    start: 0.0
+    stop: 1.0
+    num: 21
+
+gii_sweep:
+  g_ii:
+    start: 0.0
+    stop: 1.0
+    num: 21
+
+heatmap:
+  mean_scale:
+    start: 0.25
+    stop: 2.0
+    num: 9
+  std_scale:
+    start: 0.0
+    stop: 1.0
+    num: 9
+  bin_ms: 5.0
+  burn_in_ms: 200.0
+  tau_min_ms: 5.0
+  tau_max_ms: 200.0
+
 weights:
-  dist: "normal"
-  sample_size: 20000
+  mean_ee: 0.3
+  mean_ei: 1.5
+  mean_ie: 2.5
+  mean_ii: 0.3
+  std_ee: 0.06
+  std_ei: 0.3
+  std_ie: 0.5
+  std_ii: 0.06
+  p_ee: 0.04
+  p_ei: 0.12
+  p_ie: 0.04
+  p_ii: 0.04
   clamp_min: 0.0
-  sigma_relative: true
-  g_ee: 0.3
-  g_ei: 1.5
-  g_ie: 2.5
-  g_ii: 0.3
 
 base:
   neuron_model: mqif
@@ -32,15 +75,6 @@ base:
   N_E: 800
   N_I: 200
 
-  g_ei: 1.5
-  g_ie: 2.5
-  g_ee: 0.3
-  g_ii: 0.3
-
-  p_ee: 0.04
-  p_ei: 0.12
-  p_ie: 0.04
-  p_ii: 0.04
 
   delay_ei: 0.5
   delay_ie: 1.2
@@ -66,7 +100,6 @@ base:
   tau_ampa: 2.0
   tau_gaba: 6.5
 
-  connectivity_scaling: "one_over_N_src"
 
   V_th_heterogeneity_sd: 0.15
   g_L_heterogeneity_sd: 0.05

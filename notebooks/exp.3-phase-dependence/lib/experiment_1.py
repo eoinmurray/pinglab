@@ -9,7 +9,8 @@ from pinglab.plots import save_raster, save_instrument_traces
 from pinglab.inputs import tonic, add_pulse_to_input, compute_spike_delta
 from pinglab.utils import slice_spikes
 from pinglab.multiprocessing import parallel
-from pinglab import run_network
+from pinglab.lib.weights_builder import build_adjacency_matrices
+from pinglab.run import run_network, build_model_from_config
 
 from .model import LocalConfig
 
@@ -19,6 +20,7 @@ def hotloop(cfg: dict):
     baseline_input = cfg["baseline_input"]
     pulse_t = cfg["pulse_t"]
     target_E = cfg["target_E"]
+    weights = cfg["weights"]
 
     pulse_input = add_pulse_to_input(# copies
         baseline_input,
@@ -30,7 +32,8 @@ def hotloop(cfg: dict):
         num_steps=int(np.ceil(config.base.T / config.base.dt)),
     )
 
-    result = run_network(config.base, pulse_input)
+    model = build_model_from_config(config.base)
+    result = run_network(config.base, pulse_input, model=model, weights=weights)
     
     return {
         "spikes": result.spikes,
@@ -51,11 +54,35 @@ def experiment_1(config: LocalConfig, data_path: Path) -> None:
         seed=config.base.seed or 0,
     )
 
-    print("Run baseline")
-    baseline_results = run_network(config.base, baseline_input)
+    if config.weights is None:
+        raise RuntimeError("weights must be provided for adjacency-only runs.")
+    weights = build_adjacency_matrices(
+        N_E=config.base.N_E,
+        N_I=config.base.N_I,
+        mean_ee=config.weights.mean_ee,
+        mean_ei=config.weights.mean_ei,
+        mean_ie=config.weights.mean_ie,
+        mean_ii=config.weights.mean_ii,
+        std_ee=config.weights.std_ee,
+        std_ei=config.weights.std_ei,
+        std_ie=config.weights.std_ie,
+        std_ii=config.weights.std_ii,
+        p_ee=config.weights.p_ee,
+        p_ei=config.weights.p_ei,
+        p_ie=config.weights.p_ie,
+        p_ii=config.weights.p_ii,
+        clamp_min=config.weights.clamp_min,
+        seed=config.base.seed,
+    )
 
-    if not baseline_results.instruments:
-        raise RuntimeError("No baseline_results.instruments recorded in baseline")
+    print("Run baseline")
+    baseline_model = build_model_from_config(config.base)
+    baseline_results = run_network(
+        config.base,
+        baseline_input,
+        model=baseline_model,
+        weights=weights.W,
+    )
 
     save_instrument_traces(baseline_results.instruments, data_path)
     save_raster(
@@ -82,6 +109,7 @@ def experiment_1(config: LocalConfig, data_path: Path) -> None:
         "pulse_t": value,
         "baseline_input": baseline_input,
         "target_E": target_E,
+        "weights": weights.W,
     } for value in pulses]
 
     results = parallel(hotloop, cfgs)

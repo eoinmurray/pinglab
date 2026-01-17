@@ -1,6 +1,7 @@
 from typing import Literal
 import numpy as np
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
 
 
 class Spikes(BaseModel):
@@ -38,7 +39,12 @@ class InstrumentsResults(BaseModel):
 
 class NetworkConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    instruments: InstrumentsConfig | None = None
+    instruments: InstrumentsConfig = Field(
+        default_factory=lambda: InstrumentsConfig(
+            variables=["V", "g_e", "g_i"],
+            all_neurons=True,
+        )
+    )
     external_input: np.ndarray | None = (
         None  # Required at runtime. Shape: (num_steps, N_E + N_I) or (num_steps,) for uniform
     )
@@ -56,8 +62,6 @@ class NetworkConfig(BaseModel):
     T: float
     N_E: int
     N_I: int
-    g_ei: float
-    g_ie: float
     pulse_onset_ms: float = 0.0
     pulse_duration_ms: float = 0.0
     pulse_interval_ms: float = 0.0
@@ -114,25 +118,16 @@ class NetworkConfig(BaseModel):
     tau_gaba: float = 10.0
     t_ref_E: float = 3.0
     t_ref_I: float = 1.5
-    # Connectivity scaling
-    connectivity_scaling: str = "one_over_N_src"
     # Heterogeneity parameters
     V_th_heterogeneity_sd: float = 0.0
     g_L_heterogeneity_sd: float = 0.0
     C_m_heterogeneity_sd: float = 0.0
     t_ref_heterogeneity_sd: float = 0.0
-    # Intra-population coupling strengths
-    g_ee: float = 0.0
-    g_ii: float = 0.0
-    p_ee: float = 1.0
-    p_ei: float = 1.0
-    p_ie: float = 1.0
-    p_ii: float = 1.0
 
 
 class NetworkResult(BaseModel):
     spikes: Spikes
-    instruments: InstrumentsResults | None = None
+    instruments: InstrumentsResults
 
 
 class DictModel(BaseModel):
@@ -165,6 +160,22 @@ class Inputs(BaseModel):
     I_I: float
     noise: float
 
+
+class WeightSpec(BaseModel):
+    mean_ee: float
+    mean_ei: float
+    mean_ie: float
+    mean_ii: float
+    std_ee: float = 0.0
+    std_ei: float = 0.0
+    std_ie: float = 0.0
+    std_ii: float = 0.0
+    p_ee: float = 1.0
+    p_ei: float = 1.0
+    p_ie: float = 1.0
+    p_ii: float = 1.0
+    clamp_min: float | None = 0.0
+
 class PlottingConfig(BaseModel):
     raster: 'RasterConfig'
 
@@ -181,3 +192,4 @@ class ExperimentConfig(DictModel):
     base: NetworkConfig
     plotting: PlottingConfig | None = None
     default_inputs: Inputs
+    weights: WeightSpec | None = None

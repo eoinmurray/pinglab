@@ -2,7 +2,8 @@
 
 import numpy as np
 import pytest
-from pinglab.run import run_network
+from pinglab.lib.weights_builder import build_adjacency_matrices
+from pinglab.run import run_network, build_model_from_config
 from pinglab.types import NetworkConfig
 from pinglab.inputs import tonic
 
@@ -17,8 +18,6 @@ class TestRunNetwork:
             "T": 100.0,  # 100ms simulation
             "N_E": 10,
             "N_I": 5,
-            "g_ei": 0.5,
-            "g_ie": 1.0,
             "seed": 42,
             # LIF parameters
             "V_init": -65.0,
@@ -44,6 +43,31 @@ class TestRunNetwork:
         defaults.update(overrides)
         return NetworkConfig(**defaults)
 
+    def build_weights(self, config: NetworkConfig):
+        return build_adjacency_matrices(
+            N_E=config.N_E,
+            N_I=config.N_I,
+            mean_ee=0.1,
+            mean_ei=0.5,
+            mean_ie=1.0,
+            mean_ii=0.1,
+            std_ee=0.0,
+            std_ei=0.0,
+            std_ie=0.0,
+            std_ii=0.0,
+            p_ee=1.0,
+            p_ei=1.0,
+            p_ie=1.0,
+            p_ii=1.0,
+            clamp_min=0.0,
+            seed=config.seed,
+        )
+
+    def run(self, config: NetworkConfig, external_input: np.ndarray):
+        model = build_model_from_config(config)
+        weights = self.build_weights(config)
+        return run_network(config, external_input, model=model, weights=weights.W)
+
     def test_no_spikes_with_subthreshold_input(self):
         """With very low input, neurons should not spike."""
         config = self.make_config()
@@ -53,7 +77,7 @@ class TestRunNetwork:
             I_E=0.0, I_I=0.0, noise_std=0.0, num_steps=num_steps, seed=42
         )
 
-        result = run_network(config, external_input)
+        result = self.run(config, external_input)
 
         assert len(result.spikes.times) == 0, "No spikes expected with zero input"
 
@@ -66,7 +90,7 @@ class TestRunNetwork:
             I_E=5.0, I_I=5.0, noise_std=0.5, num_steps=num_steps, seed=42
         )
 
-        result = run_network(config, external_input)
+        result = self.run(config, external_input)
 
         assert len(result.spikes.times) > 0, "Spikes expected with strong input"
         assert len(result.spikes.ids) == len(result.spikes.times)
@@ -91,7 +115,7 @@ class TestRunNetwork:
             I_E=10.0, I_I=10.0, noise_std=0.5, num_steps=num_steps, seed=42
         )
 
-        result = run_network(config, external_input)
+        result = self.run(config, external_input)
 
         assert len(result.spikes.times) > 0, "HH neurons should spike with strong input"
 
@@ -118,7 +142,7 @@ class TestRunNetwork:
                 N_E=config.N_E, N_I=config.N_I,
                 I_E=inputs["I_E"], I_I=inputs["I_I"], noise_std=0.0, num_steps=num_steps, seed=42
             )
-            result = run_network(config, external_input)
+            result = self.run(config, external_input)
 
             assert len(result.spikes.times) == len(result.spikes.ids)
             if expect_spikes:
@@ -134,7 +158,7 @@ class TestRunNetwork:
                 N_E=config.N_E, N_I=config.N_I,
                 I_E=3.0, I_I=3.0, noise_std=0.5, num_steps=num_steps, seed=456
             )
-            result = run_network(config, external_input)
+            result = self.run(config, external_input)
             results.append(result)
 
         np.testing.assert_array_equal(
@@ -156,7 +180,7 @@ class TestRunNetwork:
                 N_E=config.N_E, N_I=config.N_I,
                 I_E=3.0, I_I=3.0, noise_std=0.5, num_steps=num_steps, seed=seed
             )
-            result = run_network(config, external_input)
+            result = self.run(config, external_input)
             results.append(result)
 
         # Should have different spike trains (very unlikely to be identical)
@@ -181,7 +205,7 @@ class TestRunNetwork:
             I_E=20.0, I_I=20.0, noise_std=0.0, num_steps=num_steps, seed=42
         )
 
-        result = run_network(config, external_input)
+        result = self.run(config, external_input)
 
         if len(result.spikes.times) > 0:
             # Check each neuron's ISIs
@@ -207,7 +231,7 @@ class TestRunNetwork:
         )
 
         with pytest.raises(ValueError, match="too large for numerical stability"):
-            run_network(config, external_input)
+            self.run(config, external_input)
 
     def test_spike_types_are_correct(self):
         """Spike types should correctly identify E (0) and I (1) neurons."""
@@ -218,7 +242,7 @@ class TestRunNetwork:
             I_E=5.0, I_I=5.0, noise_std=0.5, num_steps=num_steps, seed=42
         )
 
-        result = run_network(config, external_input)
+        result = self.run(config, external_input)
 
         if len(result.spikes.times) > 0:
             for spike_id, spike_type in zip(result.spikes.ids, result.spikes.types):
@@ -233,7 +257,7 @@ class TestRunNetwork:
         # 1D input (same for all neurons)
         external_input = np.full(num_steps, 3.0)
 
-        result = run_network(config, external_input)
+        result = self.run(config, external_input)
 
         # Should run without error and produce spikes
         assert len(result.spikes.times) > 0, "Should produce spikes with broadcast input"
@@ -246,7 +270,7 @@ class TestRunNetwork:
         # 2D input (different per neuron)
         external_input = np.random.RandomState(42).uniform(2.0, 4.0, (num_steps, N))
 
-        result = run_network(config, external_input)
+        result = self.run(config, external_input)
 
         # Should run without error
         assert result.spikes is not None
@@ -260,7 +284,7 @@ class TestRunNetwork:
             I_E=5.0, I_I=5.0, noise_std=0.5, num_steps=num_steps, seed=42
         )
 
-        result = run_network(config, external_input)
+        result = self.run(config, external_input)
 
         if len(result.spikes.times) > 0:
             assert np.all(result.spikes.times >= 0), "Spike times should be >= 0"
@@ -276,7 +300,7 @@ class TestRunNetwork:
             I_E=5.0, I_I=5.0, noise_std=0.5, num_steps=num_steps, seed=42
         )
 
-        result = run_network(config, external_input)
+        result = self.run(config, external_input)
 
         if len(result.spikes.ids) > 0:
             assert np.all(result.spikes.ids >= 0), "Spike IDs should be >= 0"

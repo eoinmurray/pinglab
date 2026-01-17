@@ -48,14 +48,6 @@ base:
   T: 10.0
   N_E: 1
   N_I: 1
-  g_ei: 0.5
-  g_ie: 1.0
-  g_ee: 0.0
-  g_ii: 0.0
-  p_ee: 1.0
-  p_ei: 1.0
-  p_ie: 1.0
-  p_ii: 1.0
   delay_ei: 1.0
   delay_ie: 1.0
   delay_ee: 1.0
@@ -74,12 +66,26 @@ base:
   tau_gaba: 10.0
   t_ref_E: 2.0
   t_ref_I: 1.0
-  connectivity_scaling: one_over_N_src
 
 default_inputs:
   I_E: 1.0
   I_I: 1.0
   noise: 0.0
+
+weights:
+  mean_ee: 0.0
+  mean_ei: 0.5
+  mean_ie: 1.0
+  mean_ii: 0.0
+  std_ee: 0.0
+  std_ei: 0.0
+  std_ie: 0.0
+  std_ii: 0.0
+  p_ee: 1.0
+  p_ei: 1.0
+  p_ie: 1.0
+  p_ii: 1.0
+  clamp_min: 0.0
 """
     )
     loaded = load_config(config)

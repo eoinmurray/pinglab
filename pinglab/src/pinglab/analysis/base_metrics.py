@@ -178,9 +178,6 @@ def base_metrics(
   metrics["synchrony"] = si
 
   # === Conductance statistics ===
-  if run_result.instruments is None:
-      raise RuntimeError("Conductance traces not available; skipping conductance statistics and regime classification.")
-
   # Try population means first (more efficient), fall back to per-neuron traces
   g_e_mean_E = getattr(run_result.instruments, "g_e_mean_E", None)
   g_i_mean_E = getattr(run_result.instruments, "g_i_mean_E", None)

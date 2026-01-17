@@ -1,7 +1,8 @@
 
 import numpy as np
 
-from pinglab import run_network
+from pinglab.lib.weights_builder import build_adjacency_matrices
+from pinglab.run import run_network, build_model_from_config
 from pinglab.inputs import tonic
 from pinglab.types import NetworkResult
 
@@ -23,8 +24,34 @@ def hotloop(cfg):
         seed=config.base.seed if config.base.seed is not None else 0,
     )
 
-    run_cfg = config.base.model_copy(update={ "I_E": I_E, "g_ei": g_ei })
+    run_cfg = config.base
+    if config.weights is None:
+        raise ValueError("weights must be provided for adjacency-only runs.")
+    matrices = build_adjacency_matrices(
+        N_E=run_cfg.N_E,
+        N_I=run_cfg.N_I,
+        mean_ee=config.weights.mean_ee,
+        mean_ei=float(g_ei),
+        mean_ie=config.weights.mean_ie,
+        mean_ii=config.weights.mean_ii,
+        std_ee=config.weights.std_ee,
+        std_ei=config.weights.std_ei,
+        std_ie=config.weights.std_ie,
+        std_ii=config.weights.std_ii,
+        p_ee=config.weights.p_ee,
+        p_ei=config.weights.p_ei,
+        p_ie=config.weights.p_ie,
+        p_ii=config.weights.p_ii,
+        clamp_min=config.weights.clamp_min,
+        seed=run_cfg.seed,
+    )
 
-    result: NetworkResult = run_network(run_cfg, external_input=external_input) 
+    model = build_model_from_config(run_cfg)
+    result: NetworkResult = run_network(
+        run_cfg,
+        external_input=external_input,
+        model=model,
+        weights=matrices.W,
+    )
 
     return result
