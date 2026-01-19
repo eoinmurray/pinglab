@@ -68,6 +68,19 @@ class TestRunNetwork:
         weights = self.build_weights(config)
         return run_network(config, external_input, model=model, weights=weights.W)
 
+    def run_with_backend(
+        self, config: NetworkConfig, external_input: np.ndarray, backend: str
+    ):
+        model = build_model_from_config(config)
+        weights = self.build_weights(config)
+        return run_network(
+            config,
+            external_input,
+            model=model,
+            weights=weights.W,
+            connectivity_backend=backend,
+        )
+
     def test_no_spikes_with_subthreshold_input(self):
         """With very low input, neurons should not spike."""
         config = self.make_config()
@@ -261,6 +274,21 @@ class TestRunNetwork:
 
         # Should run without error and produce spikes
         assert len(result.spikes.times) > 0, "Should produce spikes with broadcast input"
+
+    def test_event_backend_matches_dense(self):
+        """Event-based connectivity should match dense results for fixed inputs."""
+        config = self.make_config()
+        num_steps = int(config.T / config.dt)
+        external_input = tonic(
+            N_E=config.N_E, N_I=config.N_I,
+            I_E=3.0, I_I=3.0, noise_std=0.0, num_steps=num_steps, seed=42
+        )
+
+        dense = self.run_with_backend(config, external_input, "dense")
+        event = self.run_with_backend(config, external_input, "event")
+
+        np.testing.assert_array_equal(dense.spikes.times, event.spikes.times)
+        np.testing.assert_array_equal(dense.spikes.ids, event.spikes.ids)
 
     def test_per_neuron_external_input(self):
         """2D external input should work correctly."""

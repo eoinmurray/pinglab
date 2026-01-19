@@ -1,0 +1,68 @@
+---
+title: exp.2-conductance-scans
+description: Scan inhibitory coupling strength in a baseline PING network.
+---
+
+export const path = "_artifacts/exp.2-conductance-scans";
+
+<VeslxFrontMatter />
+
+# Scan over $g_{ei}$
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["gei_scan_raster_rates*.png"]}
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["gei_scan_rhythmicity*.png"]}
+/>
+
+Some notes:
+- Increasing $g_{ei}$ (excitatory to inhibitory coupling) tends to decrease the
+  excitatory firing rate due to increased inhibitory input.
+- Some complex dynamics appear at intermediate $g_{ei}$
+  values, leading to irregular firing patterns.
+- Eyeballing it, rhythmicity would start high and decrease as $g_{ei}$ increases.
+- we should make rhythmicity vs $g_{ei}$ plot to confirm this.
+
+# Scan over $g_{ie}$
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["gie_scan_raster_rates*.png"]}
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["gie_scan_rhythmicity*.png"]}
+/>
+
+Some notes:
+- Increasing $g_{ie}$ (inhibitory to excitatory coupling) tends to suppress
+  excitatory firing rates more strongly, but the ping rhythm remains intact.
+
+# Scan over $g_{ee}$
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["gee_scan_raster_rates*.png"]}
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["gee_scan_rhythmicity*.png"]}
+/>
+
+# Scan over $g_{ii}$
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["gii_scan_raster_rates*.png"]}
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["gii_scan_rhythmicity*.png"]}
+/>

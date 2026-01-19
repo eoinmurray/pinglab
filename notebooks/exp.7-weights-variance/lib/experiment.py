@@ -1,368 +1,226 @@
-from __future__ import annotations
-
+import logging
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import colors, ticker
 
+from pinglab.analysis import population_plv, population_rate, rate_psd
 from pinglab.inputs import tonic
-from pinglab.analysis import population_rate
 from pinglab.lib.weights_builder import build_adjacency_matrices
-from pinglab.plots.raster import save_raster
-from pinglab.plots.styles import figsize, save_both
-from pinglab.run import run_network, build_model_from_config
-from pinglab.types import InstrumentsConfig, Spikes
+from pinglab.plots.styles import save_both, figsize
+from pinglab.run import build_model_from_config, run_network
 from pinglab.utils import slice_spikes
 
 from .model import LocalConfig
 
+logger = logging.getLogger(__name__)
+
+
+def _autocorr_rhythmicity(
+    rate_hz: np.ndarray,
+    dt_ms: float,
+    tau_min_ms: float = 5.0,
+    tau_max_ms: float = 200.0,
+) -> float:
+    if rate_hz.size == 0:
+        return 0.0
+    mean = float(np.mean(rate_hz))
+    std = float(np.std(rate_hz))
+    if std == 0.0:
+        return 0.0
+
+    x = (rate_hz - mean) / std
+    n = x.size
+    corr = np.correlate(x, x, mode="full")[n - 1 :]
+    norm = np.arange(n, 0, -1, dtype=float)
+    C = corr / norm
+
+    lag_min = max(1, int(np.ceil(tau_min_ms / dt_ms)))
+    lag_max = min(n - 1, int(np.floor(tau_max_ms / dt_ms)))
+    if lag_max < lag_min:
+        return 0.0
+
+    window = C[lag_min : lag_max + 1]
+    peak_idx = int(np.argmax(window))
+    lag_idx = lag_min + peak_idx
+    return float(C[lag_idx])
+
+
+def _shift_spikes(spikes, offset_ms: float):
+    return spikes.__class__(
+        times=spikes.times - offset_ms,
+        ids=spikes.ids,
+        types=spikes.types,
+        populations=spikes.populations,
+    )
+
 
 def run_experiment(config: LocalConfig, data_path: Path) -> None:
-    data_path.mkdir(parents=True, exist_ok=True)
-
-    run_cfg = config.base.model_copy(
-        update={
-            "instruments": InstrumentsConfig(
-                variables=["V"],
-                neuron_ids=list(range(config.base.N_E)),
-            )
-        }
-    )
-
-    external_input = tonic(
-        N_E=run_cfg.N_E,
-        N_I=run_cfg.N_I,
-        I_E=config.default_inputs.I_E,
-        I_I=config.default_inputs.I_I,
-        noise_std=config.default_inputs.noise,
-        num_steps=int(np.ceil(run_cfg.T / run_cfg.dt)),
-        seed=run_cfg.seed if run_cfg.seed is not None else 0,
-    )
-
-    model = build_model_from_config(run_cfg)
-    result = run_network(
-        run_cfg,
-        external_input=external_input,
-        model=model,
-        weights=matrices.W,
-    )
-    V = result.instruments.V
-    times = result.instruments.times
-    if V is None:
-        raise ValueError("Voltage recording missing from instruments output.")
-    if V.size == 0 or times.size == 0:
-        raise ValueError("Voltage recording is empty.")
-
-    def plot_voltage_map() -> None:
-        plt.figure(figsize=figsize)
-        extent = (float(times[0]), float(times[-1]), 0.0, float(run_cfg.N_E))
-        norm = colors.SymLogNorm(linthresh=1.0, linscale=1.0, vmin=float(np.min(V)), vmax=float(np.max(V)))
-        img = plt.imshow(
-            V.T,
-            aspect="auto",
-            origin="lower",
-            extent=extent,
-            cmap="viridis",
-            norm=norm,
-        )
-        plt.xlabel("Time (ms)")
-        plt.ylabel("Neuron ID (E)")
-        plt.title("Voltage Map (E Population)")
-        cbar = plt.colorbar(img, label="Membrane potential (mV)")
-        vmin = float(np.min(V))
-        vmax = float(np.max(V))
-        candidate_ticks = [-100, -50, -20, -10, -5, -1, 0, 1, 5, 10, 20, 50, 100]
-        ticks = [t for t in candidate_ticks if vmin <= t <= vmax]
-        if ticks:
-            cbar.set_ticks(ticks)
-        else:
-            cbar.locator = ticker.SymmetricalLogLocator(
-                base=10,
-                linthresh=1.0,
-                subs=[1.0, 2.0, 5.0],
-            )
-            cbar.update_ticks()
-        cbar.ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%g"))
-        plt.tight_layout()
-
-    save_both(data_path / "voltage_map_E.png", plot_voltage_map)
-
-    def plot_single_neuron() -> None:
-        plt.figure(figsize=figsize)
-        plt.plot(times, V[:, 0], linewidth=1.2)
-        plt.xlabel("Time (ms)")
-        plt.ylabel("Membrane potential (mV)")
-        plt.title("Voltage Trace (E neuron 0)")
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-
-    save_both(data_path / "voltage_trace_E0.png", plot_single_neuron)
-
-    # Skip baseline raster; only plot sweep rasters for now.
-
+    run_cfg = config.base
     if config.weights is None:
-        raise ValueError("weights must be provided in config for adjacency-only runs.")
+        raise ValueError("weights must be provided for this experiment.")
 
-    matrices = build_adjacency_matrices(
-        N_E=run_cfg.N_E,
-        N_I=run_cfg.N_I,
-        mean_ee=config.weights.mean_ee,
-        mean_ei=config.weights.mean_ei,
-        mean_ie=config.weights.mean_ie,
-        mean_ii=config.weights.mean_ii,
-        std_ee=config.weights.std_ee,
-        std_ei=config.weights.std_ei,
-        std_ie=config.weights.std_ie,
-        std_ii=config.weights.std_ii,
-        p_ee=config.weights.p_ee,
-        p_ei=config.weights.p_ei,
-        p_ie=config.weights.p_ie,
-        p_ii=config.weights.p_ii,
-        clamp_min=config.weights.clamp_min,
-        seed=run_cfg.seed,
+    scan_cfg = config.scan.std_ei
+    std_values = np.linspace(
+        scan_cfg.start,
+        scan_cfg.stop,
+        scan_cfg.num,
     )
+    logger.info("std_ei scan: %d values from %.3f to %.3f", std_values.size, std_values[0], std_values[-1])
 
-    def plot_adjacency_matrix() -> None:
-        plt.figure(figsize=figsize)
-        plt.imshow(matrices.W, aspect="auto", origin="lower", cmap="Greys")
-        plt.xlabel("Source neuron")
-        plt.ylabel("Target neuron")
-        plt.title("Adjacency Matrix (Weights)")
-        plt.colorbar(label="Weight")
-        plt.tight_layout()
-
-    save_both(data_path / "adjacency_matrix.png", plot_adjacency_matrix)
-
-    def _autocorr_rhythmicity(
-        rate_hz: np.ndarray,
-        dt_ms: float,
-        tau_min_ms: float,
-        tau_max_ms: float,
-    ) -> float:
-        if rate_hz.size == 0:
-            return 0.0
-
-        mean = float(np.mean(rate_hz))
-        std = float(np.std(rate_hz))
-        if std == 0.0:
-            return 0.0
-
-        x = (rate_hz - mean) / std
-        n = x.size
-        corr = np.correlate(x, x, mode="full")[n - 1 :]
-        norm = np.arange(n, 0, -1, dtype=float)
-        C = corr / norm
-
-        lag_min = max(1, int(np.ceil(tau_min_ms / dt_ms)))
-        lag_max = min(n - 1, int(np.floor(tau_max_ms / dt_ms)))
-        if lag_max < lag_min:
-            return 0.0
-
-        window = C[lag_min : lag_max + 1]
-        peak_idx = int(np.argmax(window))
-        lag_idx = lag_min + peak_idx
-        return float(C[lag_idx])
-
-    def _shift_spikes(spikes: Spikes, offset_ms: float) -> Spikes:
-        return Spikes(
-            times=spikes.times - offset_ms,
-            ids=spikes.ids,
-            types=spikes.types,
-            populations=spikes.populations,
+    rhythmicity_vals: list[float] = []
+    gamma_snr_vals: list[float] = []
+    plv_vals: list[float] = []
+    for idx, std_ei in enumerate(std_values, start=1):
+        logger.info("running std_ei=%.4f (%d/%d)", std_ei, idx, std_values.size)
+        external_input = tonic(
+            N_E=int(run_cfg.N_E),
+            N_I=int(run_cfg.N_I),
+            I_E=float(config.default_inputs.I_E),
+            I_I=float(config.default_inputs.I_I),
+            noise_std=float(config.default_inputs.noise),
+            num_steps=int(np.ceil(run_cfg.T / run_cfg.dt)),
+            seed=run_cfg.seed if run_cfg.seed is not None else 0,
         )
 
-    mean_scales = np.linspace(
-        config.heatmap.mean_scale.start,
-        config.heatmap.mean_scale.stop,
-        config.heatmap.mean_scale.num,
-    )
-    std_scales = np.linspace(
-        config.heatmap.std_scale.start,
-        config.heatmap.std_scale.stop,
-        config.heatmap.std_scale.num,
-    )
+        matrices = build_adjacency_matrices(
+            N_E=run_cfg.N_E,
+            N_I=run_cfg.N_I,
+            mean_ee=config.weights.mean_ee,
+            mean_ei=config.weights.mean_ei,
+            mean_ie=config.weights.mean_ie,
+            mean_ii=config.weights.mean_ii,
+            std_ee=config.weights.std_ee,
+            std_ei=float(std_ei),
+            std_ie=config.weights.std_ie,
+            std_ii=config.weights.std_ii,
+            p_ee=config.weights.p_ee,
+            p_ei=config.weights.p_ei,
+            p_ie=config.weights.p_ie,
+            p_ii=config.weights.p_ii,
+            clamp_min=config.weights.clamp_min,
+            seed=run_cfg.seed,
+        )
 
-    baseline_means = {
-        "gee": config.weights.mean_ee,
-        "gei": config.weights.mean_ei,
-        "gie": config.weights.mean_ie,
-        "gii": config.weights.mean_ii,
-    }
-    baseline_stds = {
-        "gee": config.weights.std_ee,
-        "gei": config.weights.std_ei,
-        "gie": config.weights.std_ie,
-        "gii": config.weights.std_ii,
-    }
+        model = build_model_from_config(run_cfg)
+        result = run_network(
+            run_cfg,
+            external_input=external_input,
+            model=model,
+            weights=matrices.W,
+        )
 
-    num_steps = int(np.ceil(run_cfg.T / run_cfg.dt))
-    base_external_input = tonic(
-        N_E=run_cfg.N_E,
-        N_I=run_cfg.N_I,
-        I_E=config.default_inputs.I_E,
-        I_I=config.default_inputs.I_I,
-        noise_std=config.default_inputs.noise,
-        num_steps=num_steps,
-        seed=run_cfg.seed if run_cfg.seed is not None else 0,
-    )
+        start_time = float(config.plotting.raster.start_time)
+        stop_time = float(config.plotting.raster.stop_time)
+        sliced = slice_spikes(result.spikes, start_time=start_time, stop_time=stop_time)
 
-    sweeps = [
-        ("g_ei", config.gei_sweep.g_ei),
-        ("g_ie", config.gie_sweep.g_ie),
-        ("g_ee", config.gee_sweep.g_ee),
-        ("g_ii", config.gii_sweep.g_ii),
-    ]
+        dt_ms = 5.0
+        _, rate_hz = population_rate(
+            sliced,
+            T_ms=run_cfg.T,
+            dt_ms=dt_ms,
+            pop="E",
+            N_E=int(run_cfg.N_E),
+            N_I=int(run_cfg.N_I),
+        )
+        rhythmicity_vals.append(_autocorr_rhythmicity(rate_hz, dt_ms))
 
-    for sweep_name, sweep_cfg in sweeps:
-        values = np.linspace(sweep_cfg.start, sweep_cfg.stop, sweep_cfg.num)
-        print(f"[exp.7] {sweep_name} sweep {values[0]:.2f}..{values[-1]:.2f} ({len(values)})")
-        for idx, value in enumerate(values):
-            means = baseline_means.copy()
-            means[sweep_name.replace("g_", "g")] = float(value)
-            matrices = build_adjacency_matrices(
-                N_E=run_cfg.N_E,
-                N_I=run_cfg.N_I,
-                mean_ee=means["gee"],
-                mean_ei=means["gei"],
-                mean_ie=means["gie"],
-                mean_ii=means["gii"],
-                std_ee=baseline_stds["gee"],
-                std_ei=baseline_stds["gei"],
-                std_ie=baseline_stds["gie"],
-                std_ii=baseline_stds["gii"],
-                p_ee=config.weights.p_ee,
-                p_ei=config.weights.p_ei,
-                p_ie=config.weights.p_ie,
-                p_ii=config.weights.p_ii,
-                clamp_min=config.weights.clamp_min,
-                seed=run_cfg.seed,
+        rate_centered = rate_hz - float(np.mean(rate_hz)) if rate_hz.size else rate_hz
+        freqs, psd = rate_psd(rate_centered, dt_ms)
+        band_mask = (freqs >= 30.0) & (freqs <= 100.0)
+        total_mask = (freqs > 0.0) & (freqs <= 200.0)
+        band_power = float(np.trapz(psd[band_mask], freqs[band_mask])) if np.any(band_mask) else 0.0
+        total_power = float(np.trapz(psd[total_mask], freqs[total_mask])) if np.any(total_mask) else 0.0
+        gamma_snr = band_power / (total_power - band_power) if total_power > band_power else 0.0
+        gamma_snr_vals.append(gamma_snr)
+
+        shifted = _shift_spikes(sliced, start_time)
+        analysis_T = stop_time - start_time
+        plv = population_plv(
+            spikes=shifted,
+            T_ms=analysis_T,
+            dt_ms=5.0,
+            fmin=30.0,
+            fmax=90.0,
+            pop="E",
+            N_E=int(run_cfg.N_E),
+            N_I=int(run_cfg.N_I),
+        )
+        plv_vals.append(float(plv))
+
+        label = f"std_ei={std_ei:.3f} (g_ei mean={config.weights.mean_ei:.3f})"
+
+        def plot_raster_with_psd() -> None:
+            fig, (ax_ras, ax_psd) = plt.subplots(
+                2,
+                1,
+                figsize=figsize,
+                height_ratios=[3, 1],
+                gridspec_kw={"hspace": 0.2},
+                constrained_layout=True,
             )
-            model = build_model_from_config(run_cfg)
-            result = run_network(
-                run_cfg,
-                external_input=base_external_input,
-                model=model,
-                weights=matrices.W,
-            )
-            raster_label = f"{sweep_name}={value:.2f} ({idx + 1}/{len(values)})"
-            save_raster(
-                slice_spikes(
-                    result.spikes,
-                    config.plotting.raster.start_time,
-                    config.plotting.raster.stop_time,
-                ),
-                data_path / f"raster_{sweep_name}_{idx:03d}_val_{value:.2f}.png",
-                label=raster_label,
-                xlim=(config.plotting.raster.start_time, config.plotting.raster.stop_time),
-                ylim=(0.0, float(run_cfg.N_E + run_cfg.N_I)),
-            )
-            print(f"[exp.7] {sweep_name} {value:.2f} ({idx + 1}/{len(values)}) done")
 
-    # TODO: re-enable full heatmap sweep once g_ei scans look right.
-    return
+            times = sliced.times
+            ids = sliced.ids
+            types = getattr(sliced, "types", None)
+            if types is not None:
+                mask_E = types == 0
+                mask_I = types == 1
+                ax_ras.scatter(times[mask_E], ids[mask_E], s=0.5, marker=".")
+                ax_ras.scatter(times[mask_I], ids[mask_I], s=0.5, marker=".", alpha=0.7)
+            else:
+                ax_ras.scatter(times, ids, s=0.5, marker=".")
 
-    analysis_start = min(config.heatmap.burn_in_ms, max(0.0, run_cfg.T - run_cfg.dt))
-    analysis_stop = run_cfg.T
-    analysis_T = analysis_stop - analysis_start
+            ax_ras.set_xlim(start_time, stop_time)
+            ax_ras.set_ylim(0.0, float(run_cfg.N_E + run_cfg.N_I))
+            ax_ras.set_xlabel("Time (ms)")
+            ax_ras.set_ylabel("Neuron id")
+            ax_ras.set_title(label)
 
-    for weight_name in ("gee", "gei", "gie", "gii"):
-        print(f"[exp.7] heatmap {weight_name}: {len(mean_scales)}x{len(std_scales)}")
-        heatmap = np.zeros((len(mean_scales), len(std_scales)), dtype=float)
-        for i, mean_scale in enumerate(mean_scales):
-            print(
-                f"[exp.7] {weight_name} mean_scale {mean_scale:.2f} "
-                f"({i + 1}/{len(mean_scales)})"
-            )
-            for j, std_scale in enumerate(std_scales):
-                means = baseline_means.copy()
-                stds = baseline_stds.copy()
-                means[weight_name] = baseline_means[weight_name] * float(mean_scale)
-                stds[weight_name] = baseline_means[weight_name] * float(std_scale)
+            rate_centered = rate_hz - float(np.mean(rate_hz)) if rate_hz.size else rate_hz
+            freqs, psd = rate_psd(rate_centered, dt_ms)
+            psd_mask = (freqs >= 5.0) & (freqs <= 150.0)
+            ax_psd.plot(freqs[psd_mask], psd[psd_mask])
+            ax_psd.set_xlabel("Frequency (Hz)")
+            ax_psd.set_ylabel("PSD")
+            ax_psd.grid(True, alpha=0.3)
 
-                matrices = build_adjacency_matrices(
-                    N_E=run_cfg.N_E,
-                    N_I=run_cfg.N_I,
-                    mean_ee=means["gee"],
-                    mean_ei=means["gei"],
-                    mean_ie=means["gie"],
-                    mean_ii=means["gii"],
-                    std_ee=stds["gee"],
-                    std_ei=stds["gei"],
-                    std_ie=stds["gie"],
-                    std_ii=stds["gii"],
-                    p_ee=config.weights.p_ee,
-                    p_ei=config.weights.p_ei,
-                    p_ie=config.weights.p_ie,
-                    p_ii=config.weights.p_ii,
-                    clamp_min=config.weights.clamp_min,
-                    seed=run_cfg.seed,
-                )
+        save_both(
+            data_path / f"raster_std_ei_{idx:02d}",
+            plot_raster_with_psd,
+        )
 
-                model = build_model_from_config(run_cfg)
-                result = run_network(
-                    run_cfg,
-                    external_input=base_external_input,
-                    model=model,
-                    weights=matrices.W,
-                )
+    def plot_rhythmicity() -> None:
+        _, ax = plt.subplots(1, 1, figsize=figsize)
+        ax.plot(std_values, rhythmicity_vals, marker="o")
+        ax.set_xlabel("std_g_ei")
+        ax.set_ylabel("Rhythmicity (Autocorr Peak)")
+        ax.set_title("Rhythmicity vs g_ei stddev")
+        ax.set_ylim(0.0, 1.0)
+        ax.grid(True)
+        plt.tight_layout()
 
-                sliced = slice_spikes(result.spikes, analysis_start, analysis_stop)
-                shifted = _shift_spikes(sliced, analysis_start)
-                t_ms, rate_hz = population_rate(
-                    shifted,
-                    T_ms=analysis_T,
-                    dt_ms=config.heatmap.bin_ms,
-                    pop="E",
-                    N_E=run_cfg.N_E,
-                    N_I=run_cfg.N_I,
-                )
-                rho = _autocorr_rhythmicity(
-                    rate_hz,
-                    dt_ms=config.heatmap.bin_ms,
-                    tau_min_ms=config.heatmap.tau_min_ms,
-                    tau_max_ms=config.heatmap.tau_max_ms,
-                )
-                heatmap[i, j] = rho
-                print(
-                    f"[exp.7] {weight_name} std_scale {std_scale:.2f} "
-                    f"({j + 1}/{len(std_scales)}) rho={rho:.3f}"
-                )
+    save_both(data_path / "rhythmicity_vs_g_ei_stddev", plot_rhythmicity)
 
-                raster_label = (
-                    f"{weight_name} mean={means[weight_name]:.3f} std={stds[weight_name]:.3f}"
-                )
-                save_raster(
-                    slice_spikes(
-                        result.spikes,
-                        config.plotting.raster.start_time,
-                        config.plotting.raster.stop_time,
-                    ),
-                    data_path / f"raster_{weight_name}_m{i:02d}_s{j:02d}.png",
-                    label=raster_label,
-                    xlim=(config.plotting.raster.start_time, config.plotting.raster.stop_time),
-                    ylim=(0.0, float(run_cfg.N_E + run_cfg.N_I)),
-                )
+    def plot_gamma_snr() -> None:
+        _, ax = plt.subplots(1, 1, figsize=figsize)
+        ax.plot(std_values, gamma_snr_vals, marker="o")
+        ax.set_xlabel("std_g_ei")
+        ax.set_ylabel("Gamma SNR")
+        ax.set_title("Gamma SNR vs g_ei stddev")
+        ax.grid(True)
+        plt.tight_layout()
 
-        def plot_heatmap() -> None:
-            plt.figure(figsize=figsize)
-            extent = (
-                float(std_scales[0] * baseline_means[weight_name]),
-                float(std_scales[-1] * baseline_means[weight_name]),
-                float(mean_scales[0] * baseline_means[weight_name]),
-                float(mean_scales[-1] * baseline_means[weight_name]),
-            )
-            plt.imshow(
-                heatmap,
-                origin="lower",
-                aspect="auto",
-                extent=extent,
-                cmap="Greys",
-            )
-            plt.xlabel("Weight std")
-            plt.ylabel("Weight mean")
-            plt.title(f"Rhythmicity heatmap ({weight_name})")
-            plt.colorbar(label="Rhythmicity")
-            plt.tight_layout()
+    save_both(data_path / "gamma_snr_vs_g_ei_stddev", plot_gamma_snr)
 
-        save_both(data_path / f"rhythmicity_heatmap_{weight_name}.png", plot_heatmap)
+    def plot_plv() -> None:
+        _, ax = plt.subplots(1, 1, figsize=figsize)
+        ax.plot(std_values, plv_vals, marker="o")
+        ax.set_xlabel("std_g_ei")
+        ax.set_ylabel("PLV")
+        ax.set_title("PLV vs g_ei stddev")
+        ax.set_ylim(0.0, 1.0)
+        ax.grid(True)
+        plt.tight_layout()
+
+    save_both(data_path / "plv_vs_g_ei_stddev", plot_plv)

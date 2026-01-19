@@ -13,6 +13,9 @@ def save_raster(
     spikes: Spikes,
     path: Path | str,
     label: str | None = None,
+    show_labels: bool = True,
+    show_legend: bool = True,
+    show_title: bool = True,
     vertical_lines: list[float] | None = None,
     external_input: np.ndarray | None = None,
     dt: float | None = None,
@@ -58,10 +61,19 @@ def save_raster(
         if ax_in is not None and external_input is not None:
             # --- Top: external input for one neuron (0) ---
             ax_in.plot(time, external_input[:, 0], lw=0.3)
-            ax_in.set_ylabel("I_ext (neuron 0)")
-            ax_in.set_title(f"External input and spikes ({label})" if label is not None else "External input and spikes")
+            if show_labels:
+                ax_in.set_ylabel("I_ext (neuron 0)")
+            if show_title:
+                ax_in.set_title(
+                    f"External input and spikes ({label})"
+                    if label is not None
+                    else "External input and spikes"
+                )
         else:
-            ax_ras.set_title(f"Spike raster ({label})" if label is not None else "Spike raster")
+            if show_title:
+                ax_ras.set_title(
+                    f"Spike raster ({label})" if label is not None else "Spike raster"
+                )
 
         # --- Bottom: spike raster ---
         times = spikes.times
@@ -72,9 +84,7 @@ def save_raster(
             # 0 = E, 1 = I by convention
             mask_E = types == 0
             mask_I = types == 1
-            ax_ras.scatter(
-                times[mask_E], ids[mask_E], s=0.5, marker=".", label="E"
-            )
+            ax_ras.scatter(times[mask_E], ids[mask_E], s=0.5, marker=".", label="E")
             ax_ras.scatter(
                 times[mask_I],
                 ids[mask_I],
@@ -83,7 +93,8 @@ def save_raster(
                 alpha=0.7,
                 label="I",
             )
-            ax_ras.legend(loc="upper right", fontsize=8)
+            if show_legend:
+                ax_ras.legend(loc="upper right", fontsize=8)
         else:
             ax_ras.scatter(times, ids, s=1, marker=".")
 
@@ -98,8 +109,9 @@ def save_raster(
         if ylim is not None:
             ax_ras.set_ylim(ylim[0], ylim[1])
 
-        ax_ras.set_xlabel("Time (ms)")
-        ax_ras.set_ylabel("Neuron id")
+        if show_labels:
+            ax_ras.set_xlabel("Time (ms)")
+            ax_ras.set_ylabel("Neuron id")
 
         plt.tight_layout()
 

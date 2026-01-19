@@ -1,4 +1,6 @@
 
-- write into to piece on neuron selection, aim is to 
-  find a neuron that oscillates with low drive, probably MQIF
-  but we want to reach that conclusion with backup
+- make sure to save config per experiment run.
+- make sure to save metrics per experiment run.
+- rhythmicity metric article should be improved
+- psd article should be made
+- plv article should be made

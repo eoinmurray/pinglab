@@ -5,7 +5,7 @@ import numpy as np
 
 from pinglab.lib import decay_exponential, WeightMatrices
 from pinglab.run.apply_heterogeneity import apply_heterogeneity
-from pinglab.run.connectivity import build_connectivity
+from pinglab.run.connectivity import build_connectivity, build_event_connectivity
 from pinglab.run.instruments import init_instruments, record_instruments, finalize_instruments
 from pinglab.run.neuron_models import BaseNeuronModel
 from pinglab.run.validation import validate_external_input, validate_dt
@@ -75,6 +75,7 @@ def run_network(
     *,
     model: BaseNeuronModel,
     weights: WeightMatrices | np.ndarray,
+    connectivity_backend: str = "event",
 ) -> NetworkResult:
     """
     Run a conductance-based E/I network simulation.
@@ -85,6 +86,7 @@ def run_network(
         external_input: External input current array of shape (num_steps, N) or (num_steps,)
         model: Initialized neuron model with step() and get_state()
         weights: Adjacency matrices (full N x N or block) for explicit connectivity
+        connectivity_backend: "event" (spike-driven) or "dense" (matrix multiply)
 
     Returns:
         NetworkResult containing spike data and instrument recordings
@@ -126,7 +128,12 @@ def run_network(
     refractory_countdown = np.zeros(N, dtype=int)
 
     model.initialize(V)
-    connectivity = build_connectivity(v, weights)
+    if connectivity_backend == "dense":
+        connectivity = build_connectivity(v, weights)
+    elif connectivity_backend == "event":
+        connectivity = build_event_connectivity(v, weights)
+    else:
+        raise ValueError(f"Unknown connectivity_backend: {connectivity_backend}")
     instruments = init_instruments(v.instruments, N)
 
     spike_times: list[float] = []

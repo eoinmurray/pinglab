@@ -4,16 +4,18 @@ import pytest
 from pinglab.types import Spikes, InstrumentsResults, NetworkResult
 from pinglab.analysis import (
     population_rate,
-    population_mean_rate,
     population_isi_cv,
     population_fano_factor,
     mean_firing_rates,
+    plv_from_phase_series,
+    population_plv,
     synchrony_index,
     ei_lag_stats,
     crosscorr,
     conductance_stats,
     energy_metrics,
     pairwise_spike_count_corr,
+    rate_coherence,
     base_metrics,
 )
 
@@ -35,13 +37,6 @@ def test_population_rate_basic():
     np.testing.assert_allclose(rate_e, [100.0, 0.0])
     np.testing.assert_allclose(rate_i, [0.0, 100.0])
     np.testing.assert_allclose(rate_all, [66.6666667, 33.3333333], rtol=1e-6)
-
-
-def test_population_mean_rate_counts():
-    spikes = make_spikes([1, 2, 11], [0, 1, 2])
-    mean_e, mean_i = population_mean_rate(spikes, T=20.0, N_E=2, N_I=1)
-    np.testing.assert_allclose(mean_e, 50.0)
-    np.testing.assert_allclose(mean_i, 50.0)
 
 
 def test_population_isi_cv_zero():
@@ -66,10 +61,32 @@ def test_population_fano_factor_constant_counts():
 
 
 def test_mean_firing_rates_basic():
-    spikes = make_spikes([0, 1000], [0, 1])
+    spikes = make_spikes([0, 1000, 0, 500], [0, 0, 1, 1])
     e_rate, i_rate = mean_firing_rates(spikes, N_E=1, N_I=1)
     assert e_rate == 1.0
-    assert i_rate == 1.0
+    assert i_rate == 2.0
+
+
+def test_mean_firing_rates_population_mean():
+    spikes = make_spikes([0, 1000, 2000, 0, 500, 1000], [0, 0, 0, 1, 1, 1])
+    e_rate, i_rate = mean_firing_rates(spikes, N_E=2, N_I=1)
+    assert e_rate == 1.5
+    assert i_rate == 0.0
+
+
+def test_plv_from_phase_series_locked():
+    t_ms = np.arange(0.0, 1000.0, 1.0)
+    freq = 40.0
+    phase = 2.0 * np.pi * freq * t_ms / 1000.0
+    spike_times = np.arange(0.0, 1000.0, 25.0)
+    plv = plv_from_phase_series(t_ms, phase, spike_times)
+    assert plv == pytest.approx(1.0, rel=1e-3)
+
+
+def test_population_plv_empty():
+    spikes = make_spikes([], [])
+    plv = population_plv(spikes, T_ms=100.0, dt_ms=5.0, fmin=30.0, fmax=80.0, pop="all", N_E=1, N_I=1)
+    assert plv == 0.0
 
 
 def test_synchrony_index_constant_counts():
@@ -91,6 +108,22 @@ def test_crosscorr_peak_bin():
     peak_idx = int(np.argmax(hist))
     assert centers[peak_idx] == 2.5
     assert hist[peak_idx] == 3
+
+
+def test_rate_coherence_pairs():
+    spikes = make_spikes(
+        [5, 25, 45, 65, 85, 15, 35, 55, 75, 95],
+        [0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+    )
+    coh = rate_coherence(spikes, T=100.0, bin_ms=10.0, N_E=2, N_I=0)
+    assert coh == pytest.approx(-1.0)
+
+    spikes_same = make_spikes(
+        [5, 25, 45, 65, 85, 5, 25, 45, 65, 85],
+        [0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+    )
+    coh_same = rate_coherence(spikes_same, T=100.0, bin_ms=10.0, N_E=2, N_I=0)
+    assert coh_same == pytest.approx(1.0)
 
 
 def test_conductance_stats_basic():

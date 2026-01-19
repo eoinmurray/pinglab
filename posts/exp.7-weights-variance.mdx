@@ -1,84 +1,200 @@
 ---
 title: "exp.7-weights-variance"
-description: "Exploring variance in synaptic weights."
-date: "2026-01-20"
+description: "PINGness vs variance in synaptic weights."
 ---
 
 export const path = "_artifacts/exp.7-weights-variance";
 
 <VeslxFrontMatter />
 
-The goal of this post is to investigate how much variance in the synaptics
-weights the network can handle and still be in a PING regime.
+## Goal
 
-First we make some sanity plots of voltages vs and spikes vs time for MQIF
-neurons:
+Explore how mean and variance in synaptic weights affects the emergence PING rhythms.
 
-<VeslxGallery 
-  globs={[ 
-    `${path}/voltage_map_E*`, 
-    `${path}/voltage_trace_E0*`,
-  ]} 
+We will do this by creating a heatmap of $\mu$ vs $\sigma$ vs PINGness metrics.
+
+## Prior work
+
+> Variance in the strength of I → E synapses has little effect on the resulting
+> rhythm, while E → I variance reduces coherence by a factor of 0.5. In some
+> cases, strong variance in both sets of synapses degrades the rhythm entirely.
+> — Byrne 2024, p. 5.
+
+Rory Byrne's report *"Stable and flexible computation in rhythmic spiking
+networks"* found that variance in the $I \to E$ weights had little effect on the
+PING rhythms, while variance in the $E \to I$ weights had a stronger effect.
+Thus for our initial pass we will focus on $E \to I$ weights. In future we can
+repeat the study on all weight types.
+
+## Neuron Selection
+
+For now we will use MQIF neurons, we have as of yet not done a full study of
+which neuron type (LIF, MQIF, QIF, AdEx, HH) is best for PING rhythms. MQIF is a
+reasonable starting point, given it’s proposed in Thomas Burgers thesis in the
+context of PING networks.
+
+## Base parameters
+
+We will keep all other weights other than $g_{ei}$ fixed at a good baseline for
+rhythmicity. By choosing from
+[exp.1-conductance-scans](./exp.1-conductance-scans.mdx).
+
+| Variable    | Value   |
+| ----------- | ------- |
+| $g_{ei}$    | to be scanned |
+| $g_{ie}$    | 0.02 nS |
+| $g_{ee}$    | 0.05 nS |
+| $g_{ii}$    | 0.04 nS |
+
+## De-counfounding
+
+I believe we need to firing rate match all scans. This is because increasing
+variance in weights can affect firing rates, which in turn affects oscillation
+metrics. To isolate the effect of weight variance on oscillation quality, we
+need to ensure firing rates are held constant.
+
+We will do this by adjusting the external drive (input current) to the E and I
+populations such that their firing rates remain at a target level. 
+
+## Metrics
+
+### 1. Gamma PSD SNR (signal-to-noise ratio)
+
+$$
+\rm{Gamma\ SNR} = \frac{ \sum_{f \in \Tau } PSD(f) df }{ \sum_{f \notin \Tau} PSD(f) df } \ with \ \Tau = [30, 100] Hz
+$$
+
+By comparing power in the gamma band (30–100 Hz) to power outside the gamma
+band, the gamma signal-to-noise ratio of the population E-rate (or synaptic
+current) answers the question: *Does gamma-band activity stand out from
+background fluctuations?*
+
+**Strengths:**
+
+* Normalises against broadband power, reducing firing-rate confounds.
+* Detects oscillations that are spectrally distinct, not just strong.
+* Retains information about dominant frequency via the gamma band peak.
+
+**Weaknesses:**
+
+* Insensitive to cycle-to-cycle regularity.
+* Does not capture spike timing or phase structure.
+
+**Fails at catching:** Unstable or bursty rhythms with strong but irregular
+gamma power.
+
+### 2. Autocorrelation Rhythmicity Index (RI)
+
+Definition as in [exp.3-rhythmicity-metric](./exp.3-rhythmicity-metric.mdx).
+
+By taking the ratio of largest non-zero-lag peak (in gamma-lag window) to
+zero-lag peak from the autocorrelation of the mean-subtracted population rate we
+answer the question: *Does the rhythm repeat cleanly from cycle to cycle?*
+
+**Strengths:**
+
+* Captures temporal regularity.
+* Detects stable oscillators vs noisy bursts.
+
+**Weaknesses:**
+
+* Sensitive to rate and silence if not normalized.
+* Population-level only.
+
+**Fails at catching:**
+
+* Bursty, unstable “fake gamma”.
+
+### 3. Phase-Locking Value (PLV)
+
+Definition as in [exp.5-plv-metric](./exp.5-plv-metric.mdx).
+
+By extracting instantaneous phase of population rhythm (Hilbert) and computing
+vector strength of spike phases we answer the question *are spikes actually
+riding the rhythm?*
+
+**Strengths:**
+
+* Rate-independent spike timing structure.
+* Distinguishing true coordination from rate bumps.
+
+**Weaknesses:**
+
+* Noisy at very low spike counts.
+* Needs decent phase estimation.
+
+**Failure mode it catches:**
+
+* High PSD / RI with uncoordinated spikes.
+
+### 4. How the metrics work together
+
+| Case | Gamma SNR | RI | PLV | Interpretation                        |
+| ---- | --------- | -- | --- | ------------------------------------- |
+| 1    | ↑         | ↑  | ↑   | **True PING rhythm**                  |
+| 2    | ↑         | ↓  | ↓   | Broadband / burst-driven gamma        |
+| 3    | ↑         | ↑  | ↓   | Population rhythm, weak spike locking |
+| 4    | ↓         | ↓  | ↓   | Asynchronous regime                   |
+| 5    | ↓         | ↑  | ↓   | Pathological bursting / silence       |
+
+**Gamma SNR** tells us whether gamma-band activity stands out from background
+fluctuations, **RI** tells us how stable the rhythm is across cycles, and
+**PLV** tells us whether spikes are actually coordinated with the rhythm.
+
+What raster looks like in each case:
+
+1. **↑ SNR, ↑ RI, ↑ PLV:** tight, repeating spike bands with clear phase locking.
+2. **↑ SNR, ↓ RI, ↓ PLV:** bursty packets with a PSD peak but jittered timing.
+3. **↑ SNR, ↑ RI, ↓ PLV:** clean population rhythm but diffuse spike phases.
+4. **↓ SNR, ↓ RI, ↓ PLV:** scattered spikes with no clear banding.
+5. **↓ SNR, ↑ RI, ↓ PLV:** sparse or locked bursts with large silent gaps.
+
+### 5. Metric notes
+
+PSD (which is used for Gamma SNR) and autocorrelation are Fourier pairs, so in
+theory they contain the same information, but they highlight different
+structures. PSD tells us whether there is oscillatory energy, while
+autocorrelation tells us whether the rhythm repeats cleanly in time. 
+
+## Plots to generate:
+
+1. Rasters of each scan point for visual inspection.
+2. Heatmaps of each metric (Gamma SNR, RI, PLV) across $\mu$ vs $\sigma$ of
+   $g_{ei}$ weights.
+
+## Pseudocode outline
+
+```python
+for mu in mu_values:
+  for sigma in sigma_values:
+    # Generate weights
+    g_ei_weights = sample_weights(mu, sigma, size=(N_e, N_i))
+    # Rate match external drive
+    I_ext_e, I_ext_i = rate_match(g_ei_weights, target_rates)
+    # Run simulation
+    sim_data = run_simulation(g_ei_weights, I_ext_e, I_ext_i, other_params)
+    # Compute metrics
+    gamma_snr = compute_gamma_snr(sim_data)
+    ri = compute_rhythmicity_index(sim_data)
+    plv = compute_phase_locking_value(sim_data)
+    # Plot results
+    plot_results(mu, sigma, gamma_snr, ri, plv, sim_data)
+```
+
+## Results
+
+## Variance Scan Rasters
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["raster_std_ei_*.png"]}
 />
 
-# g_ei raster sweep
-
-<VeslxGallery 
-  globs={[ 
-    `${path}/raster_g_ei_*`,
-  ]} 
-/>
-
-# g_ie raster sweep
-
-<VeslxGallery 
-  globs={[ 
-    `${path}/raster_g_ie_*`,
-  ]} 
-/>
-
-# g_ee raster sweep
-
-<VeslxGallery 
-  globs={[ 
-    `${path}/raster_g_ee_*`,
-  ]} 
-/>
-
-# g_ii raster sweep
-
-<VeslxGallery 
-  globs={[ 
-    `${path}/raster_g_ii_*`,
-  ]} 
-/>
-
-
-Then we aim to make a heatmaps with the following properties:
-
-1. x-axis: weight variance (stddev)
-2. y-axis: mean weight
-3. color: some measure of PING-ness
-
-Our measure if PING-ness will be the Rhythmicity Index (RI) as used in the
-[previous post on rhythmicity](./exp.5-rhythmicity-equation.mdx).
-
-First a note on network connectivity: pinglab uses a mean-field style coupling
-where each time step applies the expected conductance from population spike
-counts to every target neuron, scaled by `p_ee`, `p_ei`, `p_ie`, `p_ii` and
-(by default) `1/N_src`. There is no explicit adjacency matrix or per-connection
-sampling.
-
-<VeslxGallery 
-  globs={[ 
-    `${path}/adjacency_matrix*`,
-  ]} 
-/>
-
-## Rhythmicity heatmaps
-
-<VeslxGallery 
-  globs={[ 
-    `${path}/rhythmicity_heatmap_*`,
-  ]} 
+<VeslxGallery
+  path={`${path}`}
+  globs={[
+    "rhythmicity_vs_g_ei_stddev*.png",
+    "gamma_snr_vs_g_ei_stddev*.png",
+    "plv_vs_g_ei_stddev*.png",
+  ]}
 />

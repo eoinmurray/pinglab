@@ -5,30 +5,11 @@ version: '3'
 silent: true
 
 tasks:
-  default:
-    desc: Show help
-    cmds:
-      - task --list
-
-  test:
-    desc: Run tests
-    cmds:
-      - uv run pytest -s # -s to see print statements
-
-  execute:
-    desc: Execute cathedral with the specified config file
-    cmds:
-      - touch content/.running
-      - defer: rm content/.running
-      - uv run python {{.CLI_ARGS}}
-
   execute:all:
-    desc: Execute all experiment.py files in content/**
+    desc: Execute all experiment.py files in notebooks/**
     cmds:
-      - touch content/.running
       - |
-        find content -name "experiment.py" -type f | while read -r exp_file; do
+        find notebooks -name "experiment.py" -type f | while read -r exp_file; do
           echo "Executing $exp_file..."
           uv run python "$exp_file"
         done
-      - rm content/.running

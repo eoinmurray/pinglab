@@ -1,0 +1,50 @@
+---
+title: exp.1-input-current-scan
+description: Drive a network from AI to PING by increasing input current.
+---
+
+export const path = "_artifacts/exp.1-input-current-scan";
+
+<VeslxFrontMatter />
+
+# Scan over input current $I_E$
+
+This is to show the basic working principle of PING. As we sweep the input current
+the network goes from quiescent to asynchronous irregular (AI) to PING oscillations.
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["input_scan_raster_rates*.png"]}
+/>
+
+<VeslxGallery
+  path={`${path}`}
+  globs={["input_scan_firing_rates*.png"]}
+/>
+
+<VeslxParameterTable 
+  path={`${path}/config.yaml`}
+  keys={[
+    "input_scan.I_I",
+    "weights.mean_ee",
+    "weights.mean_ei",
+    "weights.mean_ie",
+    "weights.mean_ii",
+  ]}
+/>
+
+<VeslxParameterTable 
+  path={`${path}/metrics.yaml`}
+  keys={[
+    "[0].rate_E_hz",
+    "[1].rate_E_hz",
+    "[2].rate_E_hz",
+    "[3].rate_E_hz",
+    "[4].rate_E_hz",
+    "[5].rate_E_hz",
+    "[6].rate_E_hz",
+    "[7].rate_E_hz",
+    "[8].rate_E_hz",
+    "[9].rate_E_hz",
+  ]}
+/>

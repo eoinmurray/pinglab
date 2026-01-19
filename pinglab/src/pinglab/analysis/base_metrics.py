@@ -6,7 +6,7 @@ from pinglab.types import NetworkResult
 import yaml
 
 from pinglab.analysis import (
-    population_mean_rate,
+    mean_firing_rates,
     population_isi_cv,
     pairwise_spike_count_corr,
     ei_lag_stats,
@@ -101,9 +101,8 @@ def base_metrics(
   metrics: dict[str, float | int | str | None] = {}
 
   # === Mean firing rates ===
-  mean_rate_E, mean_rate_I = population_mean_rate(
+  mean_rate_E, mean_rate_I = mean_firing_rates(
       run_result.spikes,
-      T=T,
       N_E=N_E,
       N_I=N_I,
   )
