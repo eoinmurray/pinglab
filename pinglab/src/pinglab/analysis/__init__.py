@@ -9,6 +9,7 @@ from .pairwise_spike_count_corr import pairwise_spike_count_corr
 from .rate_coherence import rate_coherence
 from .ei_lag_stats import ei_lag_stats
 from .gamma_metrics import gamma_metrics
+from .rhythmicity_metric import autocorr_rhythmicity
 from .population_fano_factor import population_fano_factor
 from .synchrony_index import synchrony_index
 from .plv_metric import plv_from_phase_series, plv_phase_series, population_plv
@@ -28,6 +29,7 @@ __all__ = [
     "rate_coherence",
     "ei_lag_stats",
     "gamma_metrics",
+    "autocorr_rhythmicity",
     "population_fano_factor",
     "synchrony_index",
     "plv_from_phase_series",

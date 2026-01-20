@@ -4,15 +4,53 @@ plotting:
     stop_time: 1000.0
 
 scan:
+  mean_ei:
+    start: 0.01
+    stop: 0.06
+    num: 3
   std_ei:
+    start: 0.0
+    stop: 0.15
+    num: 4
+  mean_ie:
+    start: 0.0
+    stop: 0.12
+    num: 10
+  std_ie:
+    start: 0.0
+    stop: 0.3
+    num: 10
+  mean_ee:
+    start: 0.0
+    stop: 0.12
+    num: 10
+  std_ee:
+    start: 0.0
+    stop: 0.3
+    num: 10
+  mean_ii:
+    start: 0.0
+    stop: 0.12
+    num: 10
+  std_ii:
     start: 0.0
     stop: 0.3
     num: 10
 
 default_inputs:
-  I_E: 1.0
-  I_I: 0.8
+  I_E: 0.9
+  I_I: 1.1
   noise: 0.0
+
+rate_match:
+  I_E:
+    start: 0.5
+    stop: 4.0
+    num: 21
+  window_ms:
+    start: 100.0
+    stop: 300.0
+  sim_T: 300.0
 
 weights:
   mean_ee: 0.02
