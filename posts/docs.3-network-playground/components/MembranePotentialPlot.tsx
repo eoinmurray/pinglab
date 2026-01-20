@@ -10,8 +10,8 @@ type MembranePotentialPlotProps = {
   innerWidth: number;
   innerHeight: number;
   tMs: number[];
-  vE: number[];
-  vI: number[];
+  vE?: number[];
+  vI?: number[];
   maxTMs?: number;
 };
 
@@ -36,7 +36,7 @@ export default function MembranePotentialPlot({
   }, [tMs, innerWidth, maxTMs]);
 
   const yScale = useMemo(() => {
-    const values = [...vE, ...vI];
+    const values = [...(vE ?? []), ...(vI ?? [])];
     const minV = values.length ? Math.min(...values) : -80;
     const maxV = values.length ? Math.max(...values) : 40;
     return scaleLinear({
@@ -46,27 +46,41 @@ export default function MembranePotentialPlot({
     });
   }, [vE, vI, innerHeight]);
 
-  const pointsE = useMemo(() => tMs.map((t, i) => ({ t, v: vE[i] ?? 0 })), [tMs, vE]);
-  const pointsI = useMemo(() => tMs.map((t, i) => ({ t, v: vI[i] ?? 0 })), [tMs, vI]);
+  const pointsE = useMemo(() => {
+    if (!vE || vE.length !== tMs.length) {
+      return [];
+    }
+    return tMs.map((t, i) => ({ t, v: vE[i] ?? 0 }));
+  }, [tMs, vE]);
+  const pointsI = useMemo(() => {
+    if (!vI || vI.length !== tMs.length) {
+      return [];
+    }
+    return tMs.map((t, i) => ({ t, v: vI[i] ?? 0 }));
+  }, [tMs, vI]);
 
   return (
     <div className="relative" style={{ width, height }}>
       <svg width={width} height={height} role="img" aria-label="Membrane potential">
         <g transform={`translate(${margin.left},${margin.top})`}>
-          <LinePath
-            data={pointsE}
-            x={(d) => xScale(d.t) ?? 0}
-            y={(d) => yScale(d.v) ?? 0}
-            stroke="currentColor"
-            strokeWidth={1.2}
-          />
-          <LinePath
-            data={pointsI}
-            x={(d) => xScale(d.t) ?? 0}
-            y={(d) => yScale(d.v) ?? 0}
-            stroke="#dc2626"
-            strokeWidth={1.2}
-          />
+          {pointsE.length ? (
+            <LinePath
+              data={pointsE}
+              x={(d) => xScale(d.t) ?? 0}
+              y={(d) => yScale(d.v) ?? 0}
+              stroke="currentColor"
+              strokeWidth={1.2}
+            />
+          ) : null}
+          {pointsI.length ? (
+            <LinePath
+              data={pointsI}
+              x={(d) => xScale(d.t) ?? 0}
+              y={(d) => yScale(d.v) ?? 0}
+              stroke="#dc2626"
+              strokeWidth={1.2}
+            />
+          ) : null}
           <AxisBottom
             top={innerHeight}
             scale={xScale}

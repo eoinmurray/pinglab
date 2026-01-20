@@ -138,8 +138,13 @@ export default function Component() {
     width: defaultWidth,
     height: 192,
   });
-  const membranePlotRef = useRef<HTMLDivElement | null>(null);
-  const [membranePlotSize, setMembranePlotSize] = useState({
+  const membraneEPlotRef = useRef<HTMLDivElement | null>(null);
+  const membraneIPlotRef = useRef<HTMLDivElement | null>(null);
+  const [membraneEPlotSize, setMembraneEPlotSize] = useState({
+    width: defaultWidth,
+    height: 192,
+  });
+  const [membraneIPlotSize, setMembraneIPlotSize] = useState({
     width: defaultWidth,
     height: 192,
   });
@@ -185,17 +190,36 @@ export default function Component() {
   }, []);
 
   useEffect(() => {
-    if (!membranePlotRef.current) {
+    if (!membraneEPlotRef.current) {
       return;
     }
-    const target = membranePlotRef.current;
+    const target = membraneEPlotRef.current;
     const observer = new ResizeObserver((entries) => {
       if (!entries.length) {
         return;
       }
       const { width: nextWidth, height: nextHeight } = entries[0].contentRect;
-      setMembranePlotSize({
-        width: Math.max(320, Math.floor(nextWidth)),
+      setMembraneEPlotSize({
+        width: Math.max(240, Math.floor(nextWidth)),
+        height: Math.max(120, Math.floor(nextHeight)),
+      });
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!membraneIPlotRef.current) {
+      return;
+    }
+    const target = membraneIPlotRef.current;
+    const observer = new ResizeObserver((entries) => {
+      if (!entries.length) {
+        return;
+      }
+      const { width: nextWidth, height: nextHeight } = entries[0].contentRect;
+      setMembraneIPlotSize({
+        width: Math.max(240, Math.floor(nextWidth)),
         height: Math.max(120, Math.floor(nextHeight)),
       });
     });
@@ -400,8 +424,10 @@ export default function Component() {
   const innerHeight = plotSize.height - margin.top - margin.bottom;
   const rateInnerWidth = ratePlotSize.width - rateMargin.left - rateMargin.right;
   const rateInnerHeight = ratePlotSize.height - rateMargin.top - rateMargin.bottom;
-  const membraneInnerWidth = membranePlotSize.width - rateMargin.left - rateMargin.right;
-  const membraneInnerHeight = membranePlotSize.height - rateMargin.top - rateMargin.bottom;
+  const membraneEInnerWidth = membraneEPlotSize.width - rateMargin.left - rateMargin.right;
+  const membraneEInnerHeight = membraneEPlotSize.height - rateMargin.top - rateMargin.bottom;
+  const membraneIInnerWidth = membraneIPlotSize.width - rateMargin.left - rateMargin.right;
+  const membraneIInnerHeight = membraneIPlotSize.height - rateMargin.top - rateMargin.bottom;
 
   const xScale = useMemo(
     () =>
@@ -673,24 +699,43 @@ export default function Component() {
                 </div>
               )}
             </div>
-            <div ref={membranePlotRef} className="h-48 w-full rounded-lg bg-white/70 p-3 dark:bg-white/5">
-              {data && data.membrane_t_ms.length > 0 ? (
-                <MembranePotentialPlot
-                  width={membranePlotSize.width}
-                  height={membranePlotSize.height}
-                  margin={rateMargin}
-                  innerWidth={membraneInnerWidth}
-                  innerHeight={membraneInnerHeight}
-                  tMs={data.membrane_t_ms}
-                  vE={data.membrane_V_E}
-                  vI={data.membrane_V_I}
-                  maxTMs={T}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                  Membrane potential (mV)
-                </div>
-              )}
+            <div className="grid h-48 w-full gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
+              <div ref={membraneEPlotRef} className="h-full w-full rounded-lg bg-white/70 p-3 dark:bg-white/5">
+                {data && data.membrane_t_ms.length > 0 ? (
+                  <MembranePotentialPlot
+                    width={membraneEPlotSize.width}
+                    height={membraneEPlotSize.height}
+                    margin={rateMargin}
+                    innerWidth={membraneEInnerWidth}
+                    innerHeight={membraneEInnerHeight}
+                    tMs={data.membrane_t_ms}
+                    vE={data.membrane_V_E}
+                    maxTMs={T}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
+                    Membrane potential E (mV)
+                  </div>
+                )}
+              </div>
+              <div ref={membraneIPlotRef} className="h-full w-full rounded-lg bg-white/70 p-3 dark:bg-white/5">
+                {data && data.membrane_t_ms.length > 0 ? (
+                  <MembranePotentialPlot
+                    width={membraneIPlotSize.width}
+                    height={membraneIPlotSize.height}
+                    margin={rateMargin}
+                    innerWidth={membraneIInnerWidth}
+                    innerHeight={membraneIInnerHeight}
+                    tMs={data.membrane_t_ms}
+                    vI={data.membrane_V_I}
+                    maxTMs={T}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
+                    Membrane potential I (mV)
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </main>
