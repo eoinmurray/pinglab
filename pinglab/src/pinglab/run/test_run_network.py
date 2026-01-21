@@ -5,7 +5,7 @@ import pytest
 from pinglab.lib.weights_builder import build_adjacency_matrices
 from pinglab.run import run_network, build_model_from_config
 from pinglab.types import NetworkConfig
-from pinglab.inputs import tonic
+from pinglab.inputs.tonic import tonic
 
 
 class TestRunNetwork:
@@ -289,6 +289,33 @@ class TestRunNetwork:
 
         np.testing.assert_array_equal(dense.spikes.times, event.spikes.times)
         np.testing.assert_array_equal(dense.spikes.ids, event.spikes.ids)
+
+    def test_negative_weights_raise_error(self):
+        """Negative weights should be rejected by connectivity guards."""
+        config = self.make_config()
+        num_steps = int(config.T / config.dt)
+        external_input = tonic(
+            N_E=config.N_E,
+            N_I=config.N_I,
+            I_E=3.0,
+            I_I=3.0,
+            noise_std=0.0,
+            num_steps=num_steps,
+            seed=42,
+        )
+        model = build_model_from_config(config)
+        weights = self.build_weights(config)
+        weights.W[0, 0] = -0.1
+
+        for backend in ["dense", "event"]:
+            with pytest.raises(ValueError, match="non-negative"):
+                run_network(
+                    config,
+                    external_input,
+                    model=model,
+                    weights=weights.W,
+                    connectivity_backend=backend,
+                )
 
     def test_per_neuron_external_input(self):
         """2D external input should work correctly."""

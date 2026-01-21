@@ -9,9 +9,12 @@ export const path = "_artifacts/exp.7-weights-variance";
 
 ## Goal
 
-Explore how mean and variance in synaptic weights affects the emergence PING rhythms.
+Explore how mean and variance in synaptic weights affects the emergence PING
+rhythms.
 
-We will do this by creating a heatmap of $\mu$ vs $\sigma$ vs PINGness metrics.
+We will do this by creating a heatmap of $\mu_{g_{ei}}$ vs $\sigma_{g_{ei}}$ vs
+our Rhythmicity metric, once we have settled on an analysis we will do the same
+treatment for the other weight matrices ($g_{ee}$, $g_{ie}$, $g_{ii}$).
 
 ## Prior work
 
@@ -33,51 +36,84 @@ which neuron type (LIF, MQIF, QIF, AdEx, HH) is best for PING rhythms. MQIF is a
 reasonable starting point, given it’s proposed in Thomas Burgers thesis in the
 context of PING networks.
 
-## Rate matching
+TODO: add MQIF equations.
 
-I believe we need to firing rate match all scans. This is because increasing
-variance in weights can affect firing rates, which in turn affects oscillation
-metrics. To isolate the effect of weight variance on oscillation quality, we
-need to ensure firing rates are held constant.
+TODO: add conductance-based synapses equations.
 
-First we run a short baseline simulation with the
-default weights to measure the target $E$ firing rate. Then, for each $(\mu,
-\sigma)$ pair in the scan, we do a coarse grid search over $I_E$ (holding $I_I$
-fixed) to minimize the squared error between the observed $E$ rate and the
-target. Finally we refine around the best $I_E$ with a tighter local search to
-lock the rate in before running the full simulation for plots and metrics.
+TODO: relate synapse equations to the weights matrix.
+
+## Neuron Connectivity
+
+Connectivity is sampled independently for each E/I block. For a given block, we
+draw weights from a Gaussian distribution with mean $\mu$ and standard deviation
+$\sigma$, apply a Bernoulli mask with connection probability $p$, and clip
+weights to be non-negative. Rows are targets and columns are sources. In this
+experiment we scan the $E \to I$ block ($g_{ei}$) while keeping the other blocks
+fixed to their baseline means/variances and connection probabilities
+($p_{ei}=0.12$, $p_{ee}=p_{ie}=p_{ii}=0.04$ in the config).
 
 ## Autocorrelation Rhythmicity Index (RI)
 
-Definition as in [exp.3-rhythmicity-metric](./exp.3-rhythmicity-metric.mdx).
+We measure rhythmicity using the same autocorrelation-based index from
+[exp.5-rhythmicity-metric](./exp.5-rhythmicity-metric.mdx). In short:
 
-By taking the ratio of largest non-zero-lag peak (in gamma-lag window) to
-zero-lag peak from the autocorrelation of the mean-subtracted population rate we
-answer the question: *Does the rhythm repeat cleanly from cycle to cycle?*
+1. Run the simulation for $T=1000$ ms.
+2. Discard the first 200 ms (burn-in); analyze the remaining 800 ms.
+3. Bin excitatory spikes into 5 ms bins to form a population rate $r(t)$.
+4. Normalize the rate to zero mean and unit variance:
+   $x_n=(r_n-\bar{r})/\sigma_r$.
+5. Compute the normalized autocorrelation over positive lags.
+6. Search lags $\tau \in [5,200]$ ms and take the largest peak.
 
-**Strengths:**
+Formally, with bin width $\Delta t = 5$ ms and discrete samples $x_n$:
 
-* Captures temporal regularity.
-* Detects stable oscillators vs noisy bursts.
+$$ C_k = \frac{1}{n - k} \sum_{m=0}^{n-k-1} x_m \, x_{m+k}, $$
 
-**Weaknesses:**
+where $k$ maps to $\tau = k \Delta t$ and $n$ is the number of bins. The
+rhythmicity index is
 
-* Sensitive to rate and silence if not normalized.
-* Population-level only.
+$$ \rho = \max_{\tau \in [\tau_{min}, \tau_{max}]} C(\tau), $$
 
-**Fails at catching:**
+with $\tau_{min}=5$ ms and $\tau_{max}=200$ ms. If the rate series is empty or
+has zero variance, we set $\rho=0$.
 
-* Bursty, unstable “fake gamma”.
+## Confounds: firing rate matching
 
-| Case | RI | Interpretation                        |
-| ---- | -- | ------------------------------------- |
-| 1    | ↑  | Stable, repeatable rhythm             |
-| 2    | ↓  | Irregular or burst-driven oscillation |
+Changing $g_{ei}$ without rate-matching confounds rhythmicity because the metric
+depends on firing rate and population activity level. As $g_{ei}$ shifts
+inhibition strength, it can suppress or boost E‑rates, which changes
+autocorrelation amplitude, PSD power, and apparent coherence. So differences
+in “rhythmicity” may mostly reflect rate changes (and altered spike density)
+rather than variance effects on oscillatory structure.
 
-What raster looks like in each case:
+We should control firing rate across conditions. The most defensible approach is
+explicit rate matching by adjusting external drive $I_E$ (holding $I_I$ fixed)
+so that each $(\mu_{g_{ei}}, \sigma_{g_{ei}})$ run hits a common target E-rate.
+That keeps spike density and baseline activity comparable, letting the scan
+reflect rhythm quality rather than simple gain changes.
 
-1. **↑ RI:** tight, repeating spike bands with clear cycle timing.
-2. **↓ RI:** bursty or smeared bands with inconsistent timing.
+Mathematically, for each condition $\theta = (\mu_{g_{ei}}, \sigma_{g_{ei}})$
+we choose $I_E$ to minimize the squared error between the observed E‑rate and a
+target rate $r^*$:
+
+$$
+I_E^*(\theta) = \arg\min_{I_E \in [I_{\min}, I_{\max}]} \left(r_E(I_E, \theta) - r^*\right)^2.
+$$
+
+Here $r_E(I_E, \theta)$ is the mean E‑rate measured over a fixed window
+after burn‑in in a short simulation (e.g., 300 ms total, analyze a window
+[$t_0, t_1$]). We estimate $r_E$ from spike counts:
+
+$$
+r_E = \frac{1}{N_E (t_1 - t_0)} \sum_{i=1}^{N_E} \sum_k \mathbf{1}\{t_0 \le t_k^{(i)} < t_1\}.
+$$
+
+In practice: (1) coarse grid search over $I_E$ to locate the minimum, then
+(2) a small refinement sweep around the best value. The matched $I_E^*(\theta)$
+is then used for the full simulation that produces rasters, PSDs, and rhythmicity.
+We do this for every raster (every $\theta$), prioritizing integrity over runtime.
+
+Target: fix E around a chosen rate (e.g., 20–40 Hz) and let I vary naturally.
 
 ## Pseudocode outline
 
@@ -86,8 +122,8 @@ for mu in mu_values:
   for sigma in sigma_values:
     # Generate weights
     g_ei_weights = sample_weights(mu, sigma, size=(N_e, N_i))
-    # Rate match external drive
-    I_ext_e, I_ext_i = rate_match(g_ei_weights, target_rates)
+    # Use default external drive
+    I_ext_e, I_ext_i = default_inputs()
     # Run simulation
     sim_data = run_simulation(g_ei_weights, I_ext_e, I_ext_i, other_params)
     # Compute metrics
@@ -98,114 +134,43 @@ for mu in mu_values:
 
 ## Results
 
-## Variance Scan Rasters (g_ei)
+We scan $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$ on a grid (20 means from 0.01 to
+0.03, 20 std values from 0.0 to 0.04). The heatmaps below show the rhythmicity
+index and the mean $E$ firing rate across the grid, with example rasters for
+each mean row.
 
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ei_mean_01_*.png"]}
-/>
+## Heatmaps (g_ei)
 
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ei_mean_02_*.png"]}
-/>
+<VeslxGallery path={`${path}`} globs={["rhythmicity_heatmap_ei*.png",
+  "rate_e_heatmap_ei*.png"]} />
 
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ei_mean_03_*.png"]}
-/>
+## Appendix 1
 
-<VeslxGallery
-  path={`${path}`}
-  globs={["rhythmicity_vs_g_ei_stddev_mean_*.png"]}
-/>
+Scan $\mu_{g_{ei}}$ while holding $\sigma_{g_{ei}} = 0$ (raster row).
 
-<VeslxGallery
-  path={`${path}`}
-  globs={[
-    "rhythmicity_heatmap_ei*.png",
-    "rate_e_heatmap_ei*.png"
-  ]}
-/>
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_*_std_01_*.png"]} />
 
+## Appendix 2
 
-{/* ## Variance Scan Rasters (g_ie)
+All the rasters!
 
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ie_mean_01_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ie_mean_02_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ie_mean_03_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["rhythmicity_vs_g_ie_stddev_mean_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["rhythmicity_heatmap_ie*.png"]}
-/>
-
-## Variance Scan Rasters (g_ee)
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ee_mean_01_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ee_mean_02_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ee_mean_03_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["rhythmicity_vs_g_ee_stddev_mean_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["rhythmicity_heatmap_ee*.png"]}
-/>
-
-## Variance Scan Rasters (g_ii)
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ii_mean_01_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ii_mean_02_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["raster_ii_mean_03_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["rhythmicity_vs_g_ii_stddev_mean_*.png"]}
-/>
-
-<VeslxGallery
-  path={`${path}`}
-  globs={["rhythmicity_heatmap_ii*.png"]}
-/> */}
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_20_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_19_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_18_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_17_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_16_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_15_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_14_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_13_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_12_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_11_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_10_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_09_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_08_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_07_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_06_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_05_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_04_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_03_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_02_*.png"]} />
+<VeslxGallery path={`${path}`} globs={["raster_ei_mean_01_*.png"]} />

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { scaleLinear } from "@visx/scale";
 import ParameterPanel, { type NeuronModel } from "./components/ParameterPanel";
 import MembranePotentialPlot from "./components/MembranePotentialPlot";
+import InputTracePlot from "./components/InputTracePlot";
 import PopulationRatePlot from "./components/PopulationRatePlot";
 import RasterPlot from "./components/RasterPlot";
 
@@ -25,6 +26,9 @@ type RunResponse = {
   membrane_t_ms: number[];
   membrane_V_E: number[];
   membrane_V_I: number[];
+  input_t_ms: number[];
+  input_mean_E: number[];
+  input_mean_I: number[];
 };
 
 const API_URL = "http://localhost:8000/run";
@@ -47,10 +51,20 @@ export default function Component() {
   const [nI, setNI] = useState(200);
   const [seed, setSeed] = useState(0);
 
-  const [iE, setIE] = useState(0.7);
-  const [iI, setII] = useState(0.7);
-  const [noiseStd, setNoiseStd] = useState(2.0);
+  const [noiseStd, setNoiseStd] = useState(0.5);
   const [inputSeed, setInputSeed] = useState(0);
+  const [inputType, setInputType] = useState<"ramp" | "pulse" | "pulses">("ramp");
+  const [iEStart, setIEStart] = useState(0.7);
+  const [iEEnd, setIEEnd] = useState(0.7);
+  const [iIStart, setIIStart] = useState(0.7);
+  const [iIEnd, setIIEnd] = useState(0.7);
+  const [iEBase, setIEBase] = useState(0.7);
+  const [iIBase, setIIBase] = useState(0.7);
+  const [inputPulseT, setInputPulseT] = useState(200.0);
+  const [inputPulseWidth, setInputPulseWidth] = useState(20.0);
+  const [inputPulseInterval, setInputPulseInterval] = useState(100.0);
+  const [inputPulseAmpE, setInputPulseAmpE] = useState(1.0);
+  const [inputPulseAmpI, setInputPulseAmpI] = useState(1.0);
 
   const [gEeMean, setGEeMean] = useState(0.02);
   const [gEiMean, setGEiMean] = useState(0.015);
@@ -140,11 +154,16 @@ export default function Component() {
   });
   const membraneEPlotRef = useRef<HTMLDivElement | null>(null);
   const membraneIPlotRef = useRef<HTMLDivElement | null>(null);
+  const inputPlotRef = useRef<HTMLDivElement | null>(null);
   const [membraneEPlotSize, setMembraneEPlotSize] = useState({
     width: defaultWidth,
     height: 192,
   });
   const [membraneIPlotSize, setMembraneIPlotSize] = useState({
+    width: defaultWidth,
+    height: 192,
+  });
+  const [inputPlotSize, setInputPlotSize] = useState({
     width: defaultWidth,
     height: 192,
   });
@@ -228,12 +247,31 @@ export default function Component() {
   }, []);
 
   useEffect(() => {
+    if (!inputPlotRef.current) {
+      return;
+    }
+    const target = inputPlotRef.current;
+    const observer = new ResizeObserver((entries) => {
+      if (!entries.length) {
+        return;
+      }
+      const { width: nextWidth, height: nextHeight } = entries[0].contentRect;
+      setInputPlotSize({
+        width: Math.max(240, Math.floor(nextWidth)),
+        height: Math.max(120, Math.floor(nextHeight)),
+      });
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     let ignore = false;
     const timer = setTimeout(() => {
       const run = async () => {
         try {
           setLoading(true);
-          const response = await fetch(API_URL, {
+            const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -296,10 +334,20 @@ export default function Component() {
                 t_ref_heterogeneity_sd: tRefHet,
               },
               inputs: {
-                I_E: iE,
-                I_I: iI,
+                input_type: inputType,
+                I_E_start: iEStart,
+                I_E_end: iEEnd,
+                I_I_start: iIStart,
+                I_I_end: iIEnd,
+                I_E_base: iEBase,
+                I_I_base: iIBase,
                 noise_std: noiseStd,
                 seed: inputSeed,
+                pulse_t_ms: inputPulseT,
+                pulse_width_ms: inputPulseWidth,
+                pulse_interval_ms: inputPulseInterval,
+                pulse_amp_E: inputPulseAmpE,
+                pulse_amp_I: inputPulseAmpI,
               },
               weights: {
                 mean_ee: gEeMean,
@@ -400,10 +448,20 @@ export default function Component() {
     cMHet,
     vThHet,
     tRefHet,
-    iE,
-    iI,
     noiseStd,
     inputSeed,
+    inputType,
+    iEStart,
+    iEEnd,
+    iIStart,
+    iIEnd,
+    iEBase,
+    iIBase,
+    inputPulseT,
+    inputPulseWidth,
+    inputPulseInterval,
+    inputPulseAmpE,
+    inputPulseAmpI,
     gEeMean,
     gEiMean,
     gIeMean,
@@ -428,6 +486,8 @@ export default function Component() {
   const membraneEInnerHeight = membraneEPlotSize.height - rateMargin.top - rateMargin.bottom;
   const membraneIInnerWidth = membraneIPlotSize.width - rateMargin.left - rateMargin.right;
   const membraneIInnerHeight = membraneIPlotSize.height - rateMargin.top - rateMargin.bottom;
+  const inputInnerWidth = inputPlotSize.width - rateMargin.left - rateMargin.right;
+  const inputInnerHeight = inputPlotSize.height - rateMargin.top - rateMargin.bottom;
 
   const xScale = useMemo(
     () =>
@@ -476,14 +536,34 @@ export default function Component() {
     setNI={setNI}
     seed={seed}
     setSeed={setSeed}
-    iE={iE}
-    setIE={setIE}
-    iI={iI}
-    setII={setII}
-    noiseStd={noiseStd}
-    setNoiseStd={setNoiseStd}
-    inputSeed={inputSeed}
-    setInputSeed={setInputSeed}
+          noiseStd={noiseStd}
+          setNoiseStd={setNoiseStd}
+          inputSeed={inputSeed}
+          setInputSeed={setInputSeed}
+          inputType={inputType}
+          setInputType={setInputType}
+          iEStart={iEStart}
+          setIEStart={setIEStart}
+          iEEnd={iEEnd}
+          setIEEnd={setIEEnd}
+          iIStart={iIStart}
+          setIIStart={setIIStart}
+          iIEnd={iIEnd}
+          setIIEnd={setIIEnd}
+          iEBase={iEBase}
+          setIEBase={setIEBase}
+          iIBase={iIBase}
+          setIIBase={setIIBase}
+          inputPulseT={inputPulseT}
+          setInputPulseT={setInputPulseT}
+          inputPulseWidth={inputPulseWidth}
+          setInputPulseWidth={setInputPulseWidth}
+          inputPulseInterval={inputPulseInterval}
+          setInputPulseInterval={setInputPulseInterval}
+          inputPulseAmpE={inputPulseAmpE}
+          setInputPulseAmpE={setInputPulseAmpE}
+          inputPulseAmpI={inputPulseAmpI}
+          setInputPulseAmpI={setInputPulseAmpI}
     gEeMean={gEeMean}
     setGEeMean={setGEeMean}
     gEiMean={gEiMean}
@@ -639,7 +719,7 @@ export default function Component() {
           style={{ height: "100%" }}
         >
           <div className="flex h-full w-full flex-col gap-3 p-3">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-zinc-400">
               <div className="flex flex-wrap items-center gap-2 text-sm font-mono text-slate-700 dark:text-zinc-200">
                 <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
                   {loading
@@ -659,82 +739,136 @@ export default function Component() {
                     : "Rates --"}
                 </span>
               </div>
+              <div className="flex items-center gap-3 rounded-xl bg-white/70 px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:bg-white/5 dark:text-zinc-300">
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-3 w-3 rounded-sm bg-current" />
+                  E
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: "#d9480f" }} />
+                  I
+                </span>
+              </div>
             </div>
             <div className="min-h-0 flex-[2]">
-              <div ref={plotRef} className="h-full w-full">
-              {error ? (
-                <div className="flex h-full items-center justify-center rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-6 text-sm text-red-600 dark:border-red-400/60 dark:text-red-300">
-                  Cannot connect to simulation api, is the server running?
+              <div className="flex h-full w-full flex-col gap-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                  Raster plot
                 </div>
-              ) : (
-                <RasterPlot
-                  width={plotSize.width}
-                  height={plotSize.height}
-                  margin={margin}
-                  innerWidth={innerWidth}
-                  innerHeight={innerHeight}
-                  xScale={xScale}
-                  yScale={yScale}
-                  spikes={data?.spikes ?? null}
-                />
-              )}
+                <div ref={plotRef} className="min-h-0 flex-1">
+                  {error ? (
+                    <div className="flex h-full items-center justify-center rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-6 text-sm text-red-600 dark:border-red-400/60 dark:text-red-300">
+                      Cannot connect to simulation api, is the server running?
+                    </div>
+                  ) : (
+                    <RasterPlot
+                      width={plotSize.width}
+                      height={plotSize.height}
+                      margin={margin}
+                      innerWidth={innerWidth}
+                      innerHeight={innerHeight}
+                      xScale={xScale}
+                      yScale={yScale}
+                      spikes={data?.spikes ?? null}
+                    />
+                  )}
+                </div>
               </div>
             </div>
-            <div ref={ratePlotRef} className="h-48 w-full rounded-lg bg-white/70 p-3 dark:bg-white/5">
-              {data && data.population_rate_hz_E.length > 0 ? (
-                <PopulationRatePlot
-                  width={ratePlotSize.width}
-                  height={ratePlotSize.height}
-                  margin={rateMargin}
-                  innerWidth={rateInnerWidth}
-                  innerHeight={rateInnerHeight}
-                  tMs={data.population_rate_t_ms}
-                  rateHzE={data.population_rate_hz_E}
-                  rateHzI={data.population_rate_hz_I}
-                  maxTMs={T}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                  Population rate (Hz)
-                </div>
-              )}
-            </div>
-            <div className="grid h-48 w-full gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
-              <div ref={membraneEPlotRef} className="h-full w-full rounded-lg bg-white/70 p-3 dark:bg-white/5">
-                {data && data.membrane_t_ms.length > 0 ? (
-                  <MembranePotentialPlot
-                    width={membraneEPlotSize.width}
-                    height={membraneEPlotSize.height}
+            <div className="flex h-48 w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                Population rate (Hz)
+              </div>
+              <div ref={ratePlotRef} className="min-h-0 flex-1">
+                {data && data.population_rate_hz_E.length > 0 ? (
+                  <PopulationRatePlot
+                    width={ratePlotSize.width}
+                    height={ratePlotSize.height}
                     margin={rateMargin}
-                    innerWidth={membraneEInnerWidth}
-                    innerHeight={membraneEInnerHeight}
-                    tMs={data.membrane_t_ms}
-                    vE={data.membrane_V_E}
+                    innerWidth={rateInnerWidth}
+                    innerHeight={rateInnerHeight}
+                    tMs={data.population_rate_t_ms}
+                    rateHzE={data.population_rate_hz_E}
+                    rateHzI={data.population_rate_hz_I}
                     maxTMs={T}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                    Membrane potential E (mV)
+                    No population rate data yet.
                   </div>
                 )}
               </div>
-              <div ref={membraneIPlotRef} className="h-full w-full rounded-lg bg-white/70 p-3 dark:bg-white/5">
-                {data && data.membrane_t_ms.length > 0 ? (
-                  <MembranePotentialPlot
-                    width={membraneIPlotSize.width}
-                    height={membraneIPlotSize.height}
-                    margin={rateMargin}
-                    innerWidth={membraneIInnerWidth}
-                    innerHeight={membraneIInnerHeight}
-                    tMs={data.membrane_t_ms}
-                    vI={data.membrane_V_I}
-                    maxTMs={T}
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                    Membrane potential I (mV)
-                  </div>
-                )}
+            </div>
+            <div className="flex h-[32rem] w-full flex-col gap-3">
+              <div className="flex h-full w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                  Membrane potential E (mV)
+                </div>
+                <div ref={membraneEPlotRef} className="min-h-0 flex-1">
+                  {data && data.membrane_t_ms.length > 0 ? (
+                    <MembranePotentialPlot
+                      width={membraneEPlotSize.width}
+                      height={membraneEPlotSize.height}
+                      margin={rateMargin}
+                      innerWidth={membraneEInnerWidth}
+                      innerHeight={membraneEInnerHeight}
+                      tMs={data.membrane_t_ms}
+                      vE={data.membrane_V_E}
+                      maxTMs={T}
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
+                      No membrane E data yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex h-full w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                  Membrane potential I (mV)
+                </div>
+                <div ref={membraneIPlotRef} className="min-h-0 flex-1">
+                  {data && data.membrane_t_ms.length > 0 ? (
+                    <MembranePotentialPlot
+                      width={membraneIPlotSize.width}
+                      height={membraneIPlotSize.height}
+                      margin={rateMargin}
+                      innerWidth={membraneIInnerWidth}
+                      innerHeight={membraneIInnerHeight}
+                      tMs={data.membrane_t_ms}
+                      vI={data.membrane_V_I}
+                      maxTMs={T}
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
+                      No membrane I data yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex h-full w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
+                  Input current
+                </div>
+                <div ref={inputPlotRef} className="min-h-0 flex-1">
+                  {data && data.input_t_ms.length > 0 ? (
+                    <InputTracePlot
+                      width={inputPlotSize.width}
+                      height={inputPlotSize.height}
+                      margin={rateMargin}
+                      innerWidth={inputInnerWidth}
+                      innerHeight={inputInnerHeight}
+                      tMs={data.input_t_ms}
+                      inputE={data.input_mean_E}
+                      inputI={data.input_mean_I}
+                      maxTMs={T}
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
+                      No input data yet.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

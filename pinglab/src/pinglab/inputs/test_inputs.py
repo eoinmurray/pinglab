@@ -1,26 +1,79 @@
 import numpy as np
 import pytest
 
-from pinglab.inputs import tonic, oscillating, pulse
+from pinglab.inputs import oscillating, pulse, ramp, add_pulse_train_to_input
 from pinglab.types import Spikes
 
 
-def test_tonic_shape_and_seed():
-    out1 = tonic(N_E=2, N_I=1, I_E=1.0, I_I=2.0, noise_std=0.1, num_steps=5, seed=123)
-    out2 = tonic(N_E=2, N_I=1, I_E=1.0, I_I=2.0, noise_std=0.1, num_steps=5, seed=123)
+def test_ramp_shape_and_seed():
+    out1 = ramp(
+        N_E=2,
+        N_I=1,
+        I_E_start=0.5,
+        I_E_end=1.0,
+        I_I_start=0.2,
+        I_I_end=0.8,
+        noise_std=0.1,
+        num_steps=5,
+        dt=1.0,
+        seed=123,
+    )
+    out2 = ramp(
+        N_E=2,
+        N_I=1,
+        I_E_start=0.5,
+        I_E_end=1.0,
+        I_I_start=0.2,
+        I_I_end=0.8,
+        noise_std=0.1,
+        num_steps=5,
+        dt=1.0,
+        seed=123,
+    )
     assert out1.shape == (5, 3)
     np.testing.assert_allclose(out1, out2)
 
 
-def test_tonic_invalid_args():
+def test_ramp_invalid_args():
     with pytest.raises(ValueError):
-        tonic(N_E=-1, N_I=1, I_E=0.0, I_I=0.0, noise_std=0.0, num_steps=1, seed=0)
+        ramp(
+            N_E=-1,
+            N_I=1,
+            I_E_start=0.0,
+            I_E_end=0.0,
+            I_I_start=0.0,
+            I_I_end=0.0,
+            noise_std=0.0,
+            num_steps=1,
+            dt=1.0,
+            seed=0,
+        )
     with pytest.raises(ValueError):
-        tonic(N_E=1, N_I=-1, I_E=0.0, I_I=0.0, noise_std=0.0, num_steps=1, seed=0)
+        ramp(
+            N_E=1,
+            N_I=1,
+            I_E_start=0.0,
+            I_E_end=0.0,
+            I_I_start=0.0,
+            I_I_end=0.0,
+            noise_std=-0.1,
+            num_steps=1,
+            dt=1.0,
+            seed=0,
+        )
     with pytest.raises(ValueError):
-        tonic(N_E=1, N_I=1, I_E=0.0, I_I=0.0, noise_std=-0.1, num_steps=1, seed=0)
-    with pytest.raises(ValueError):
-        tonic(N_E=1, N_I=1, I_E=0.0, I_I=0.0, noise_std=0.0, num_steps=0, seed=0)
+        ramp(
+            N_E=1,
+            N_I=1,
+            I_E_start=0.0,
+            I_E_end=0.0,
+            I_I_start=0.0,
+            I_I_end=0.0,
+            noise_std=0.0,
+            num_steps=0,
+            dt=1.0,
+            seed=0,
+        )
 
 
 def test_oscillating_phase_offset():
@@ -73,3 +126,18 @@ def test_add_pulse_to_input_and_spike_delta():
         post_window_ms=2.0,
     )
     assert delta == 1
+
+
+def test_add_pulse_train_to_input():
+    base = np.zeros((12, 4))
+    out = add_pulse_train_to_input(
+        base,
+        target_neurons=np.array([0, 1]),
+        pulse_t=2.0,
+        pulse_width_ms=2.0,
+        pulse_amp=3.0,
+        pulse_interval_ms=4.0,
+        dt=1.0,
+    )
+    assert np.all(out[2:4, 0:2] == 3.0)
+    assert np.all(out[6:8, 0:2] == 3.0)

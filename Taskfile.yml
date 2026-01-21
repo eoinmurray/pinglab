@@ -5,10 +5,23 @@ version: '3'
 silent: true
 
 tasks:
+
+  dev:
+    desc: Start development environment
+    cmds:
+      - task ui & 
+      - task api
+
+  ui:
+    desc: Run the Veslx server
+    cmds:
+      - bun run dev
+
   api:
     desc: Run the FastAPI server
     cmds:
       - uv run uvicorn api.app:app --reload
+
   execute:all:
     desc: Execute all experiment.py files in notebooks/**
     cmds:

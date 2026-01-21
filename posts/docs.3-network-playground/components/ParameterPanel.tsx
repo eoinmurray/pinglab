@@ -36,14 +36,34 @@ type ParameterPanelProps = {
   setNI: (value: number) => void;
   seed: number;
   setSeed: (value: number) => void;
-  iE: number;
-  setIE: (value: number) => void;
-  iI: number;
-  setII: (value: number) => void;
   noiseStd: number;
   setNoiseStd: (value: number) => void;
   inputSeed: number;
   setInputSeed: (value: number) => void;
+  inputType: "ramp" | "pulse" | "pulses";
+  setInputType: (value: "ramp" | "pulse" | "pulses") => void;
+  iEStart: number;
+  setIEStart: (value: number) => void;
+  iEEnd: number;
+  setIEEnd: (value: number) => void;
+  iIStart: number;
+  setIIStart: (value: number) => void;
+  iIEnd: number;
+  setIIEnd: (value: number) => void;
+  iEBase: number;
+  setIEBase: (value: number) => void;
+  iIBase: number;
+  setIIBase: (value: number) => void;
+  inputPulseT: number;
+  setInputPulseT: (value: number) => void;
+  inputPulseWidth: number;
+  setInputPulseWidth: (value: number) => void;
+  inputPulseInterval: number;
+  setInputPulseInterval: (value: number) => void;
+  inputPulseAmpE: number;
+  setInputPulseAmpE: (value: number) => void;
+  inputPulseAmpI: number;
+  setInputPulseAmpI: (value: number) => void;
   gEeMean: number;
   setGEeMean: (value: number) => void;
   gEiMean: number;
@@ -187,14 +207,34 @@ export default function ParameterPanel({
   setNI,
   seed,
   setSeed,
-  iE,
-  setIE,
-  iI,
-  setII,
   noiseStd,
   setNoiseStd,
   inputSeed,
   setInputSeed,
+  inputType,
+  setInputType,
+  iEStart,
+  setIEStart,
+  iEEnd,
+  setIEEnd,
+  iIStart,
+  setIIStart,
+  iIEnd,
+  setIIEnd,
+  iEBase,
+  setIEBase,
+  iIBase,
+  setIIBase,
+  inputPulseT,
+  setInputPulseT,
+  inputPulseWidth,
+  setInputPulseWidth,
+  inputPulseInterval,
+  setInputPulseInterval,
+  inputPulseAmpE,
+  setInputPulseAmpE,
+  inputPulseAmpI,
+  setInputPulseAmpI,
   gEeMean,
   setGEeMean,
   gEiMean,
@@ -349,8 +389,18 @@ export default function ParameterPanel({
             Inputs
           </div>
           <div className="mt-3 space-y-3">
-            <Slider label="I_E" value={iE} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIE} />
-            <Slider label="I_I" value={iI} min={0.0} max={2.0} step={0.01} precision={2} onChange={setII} />
+            <Select
+              label="input type"
+              value={inputType}
+              options={["ramp", "pulse", "pulses"]}
+              onChange={(value) => setInputType(value as "ramp" | "pulse" | "pulses")}
+            />
+            <Slider label="I_E start" value={iEStart} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIEStart} />
+            <Slider label="I_E end" value={iEEnd} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIEEnd} />
+            <Slider label="I_I start" value={iIStart} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIIStart} />
+            <Slider label="I_I end" value={iIEnd} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIIEnd} />
+            <Slider label="I_E base" value={iEBase} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIEBase} />
+            <Slider label="I_I base" value={iIBase} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIIBase} />
             <Slider
               label="noise std"
               value={noiseStd}
@@ -361,6 +411,11 @@ export default function ParameterPanel({
               onChange={setNoiseStd}
             />
             <Slider label="input seed" value={inputSeed} min={0} max={20} step={1} precision={0} onChange={setInputSeed} />
+            <Slider label="pulse t" value={inputPulseT} min={0} max={1000} step={10} precision={0} onChange={setInputPulseT} />
+            <Slider label="pulse width" value={inputPulseWidth} min={1} max={200} step={5} precision={0} onChange={setInputPulseWidth} />
+            <Slider label="pulse interval" value={inputPulseInterval} min={10} max={1000} step={10} precision={0} onChange={setInputPulseInterval} />
+            <Slider label="pulse amp E" value={inputPulseAmpE} min={0} max={5} step={0.1} precision={1} onChange={setInputPulseAmpE} />
+            <Slider label="pulse amp I" value={inputPulseAmpI} min={0} max={5} step={0.1} precision={1} onChange={setInputPulseAmpI} />
           </div>
         </div>
 

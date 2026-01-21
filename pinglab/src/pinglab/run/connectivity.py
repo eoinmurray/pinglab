@@ -176,6 +176,11 @@ def _delay_steps(config: NetworkConfig) -> tuple[int, int, int, int]:
     return delay_ei_steps, delay_ie_steps, delay_ee_steps, delay_ii_steps
 
 
+def _ensure_nonnegative_weights(weights: WeightMatrices) -> None:
+    if np.min(weights.W) < 0.0:
+        raise ValueError("Weights must be non-negative.")
+
+
 def build_connectivity(config: NetworkConfig, weights: WeightMatrices | np.ndarray):
     delay_ei_steps, delay_ie_steps, delay_ee_steps, delay_ii_steps = _delay_steps(config)
     buf_len = max(delay_ei_steps, delay_ie_steps, delay_ee_steps, delay_ii_steps) + 1
@@ -186,6 +191,8 @@ def build_connectivity(config: NetworkConfig, weights: WeightMatrices | np.ndarr
         if weights.shape[0] != config.N_E + config.N_I:
             raise ValueError("Weights matrix size must match N_E + N_I.")
         weights = split_weight_matrix(weights, config.N_E)
+
+    _ensure_nonnegative_weights(weights)
 
     return AdjacencyConnectivity(
         buffer_e_to_i=np.zeros((buf_len, config.N_E), dtype=float),
@@ -224,6 +231,8 @@ def build_event_connectivity(
         if weights.shape[0] != config.N_E + config.N_I:
             raise ValueError("Weights matrix size must match N_E + N_I.")
         weights = split_weight_matrix(weights, config.N_E)
+
+    _ensure_nonnegative_weights(weights)
 
     ee_targets, ee_weights = _outgoing_lists(weights.W_ee)
     ei_targets, ei_weights = _outgoing_lists(weights.W_ei)

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 from pinglab.analysis import autocorr_rhythmicity, mean_firing_rates, population_rate
-from pinglab.inputs.tonic import tonic
+from pinglab.inputs import add_pulse_to_input, add_pulse_train_to_input, ramp
 from pinglab.lib import build_adjacency_matrices
 from pinglab.run.neuron_models import build_model_from_config
 from pinglab.run.run_network import run_network
@@ -90,10 +90,20 @@ class ConfigOverrides(BaseModel):
 class InputsSpec(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    I_E: float | None = None
-    I_I: float | None = None
+    input_type: Literal["ramp", "pulse", "pulses"] = "ramp"
+    I_E_start: float | None = None
+    I_E_end: float | None = None
+    I_I_start: float | None = None
+    I_I_end: float | None = None
+    I_E_base: float | None = None
+    I_I_base: float | None = None
     noise_std: float | None = None
     seed: int | None = None
+    pulse_t_ms: float | None = None
+    pulse_width_ms: float | None = None
+    pulse_interval_ms: float | None = None
+    pulse_amp_E: float | None = None
+    pulse_amp_I: float | None = None
 
 
 class WeightsSpec(BaseModel):
@@ -142,6 +152,9 @@ class RunResponse(BaseModel):
     membrane_t_ms: list[float]
     membrane_V_E: list[float]
     membrane_V_I: list[float]
+    input_t_ms: list[float]
+    input_mean_E: list[float]
+    input_mean_I: list[float]
 
 
 DEFAULT_CONFIG = NetworkConfig(
@@ -183,10 +196,20 @@ DEFAULT_CONFIG = NetworkConfig(
 )
 
 DEFAULT_INPUTS = {
-    "I_E": 0.7,
-    "I_I": 0.7,
-    "noise_std": 2.0,
+    "input_type": "ramp",
+    "I_E_start": 0.7,
+    "I_E_end": 0.7,
+    "I_I_start": 0.7,
+    "I_I_end": 0.7,
+    "I_E_base": 0.7,
+    "I_I_base": 0.7,
+    "noise_std": 0.5,
     "seed": 0,
+    "pulse_t_ms": 200.0,
+    "pulse_width_ms": 20.0,
+    "pulse_interval_ms": 100.0,
+    "pulse_amp_E": 1.0,
+    "pulse_amp_I": 1.0,
 }
 
 DEFAULT_WEIGHTS = {
@@ -260,15 +283,87 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
     input_seed = inputs["seed"] if inputs["seed"] is not None else config.seed
     weights_seed = weights["seed"] if weights["seed"] is not None else config.seed
 
-    external_input = tonic(
-        config.N_E,
-        config.N_I,
-        inputs["I_E"],
-        inputs["I_I"],
-        inputs["noise_std"],
-        num_steps,
-        int(input_seed) if input_seed is not None else 0,
-    )
+    input_type = inputs.get("input_type", "ramp")
+    if input_type == "ramp":
+        external_input = ramp(
+            config.N_E,
+            config.N_I,
+            inputs["I_E_start"],
+            inputs["I_E_end"],
+            inputs["I_I_start"],
+            inputs["I_I_end"],
+            inputs["noise_std"],
+            num_steps,
+            config.dt,
+            int(input_seed) if input_seed is not None else 0,
+        )
+    else:
+        baseline = ramp(
+            config.N_E,
+            config.N_I,
+            inputs["I_E_base"],
+            inputs["I_E_base"],
+            inputs["I_I_base"],
+            inputs["I_I_base"],
+            inputs["noise_std"],
+            num_steps,
+            config.dt,
+            int(input_seed) if input_seed is not None else 0,
+        )
+        e_ids = np.arange(config.N_E)
+        i_ids = np.arange(config.N_E, config.N_E + config.N_I)
+        pulse_t_ms = inputs["pulse_t_ms"]
+        pulse_width_ms = inputs["pulse_width_ms"]
+        pulse_amp_E = inputs["pulse_amp_E"]
+        pulse_amp_I = inputs["pulse_amp_I"]
+        if input_type == "pulse":
+            if config.N_E > 0:
+                baseline = add_pulse_to_input(
+                    baseline,
+                    target_neurons=e_ids,
+                    pulse_t=pulse_t_ms,
+                    pulse_width_ms=pulse_width_ms,
+                    pulse_amp=pulse_amp_E,
+                    dt=config.dt,
+                    num_steps=num_steps,
+                )
+            if config.N_I > 0:
+                baseline = add_pulse_to_input(
+                    baseline,
+                    target_neurons=i_ids,
+                    pulse_t=pulse_t_ms,
+                    pulse_width_ms=pulse_width_ms,
+                    pulse_amp=pulse_amp_I,
+                    dt=config.dt,
+                    num_steps=num_steps,
+                )
+            external_input = baseline
+        elif input_type == "pulses":
+            if config.N_E > 0:
+                baseline = add_pulse_train_to_input(
+                    baseline,
+                    target_neurons=e_ids,
+                    pulse_t=pulse_t_ms,
+                    pulse_width_ms=pulse_width_ms,
+                    pulse_amp=pulse_amp_E,
+                    pulse_interval_ms=inputs["pulse_interval_ms"],
+                    dt=config.dt,
+                    num_steps=num_steps,
+                )
+            if config.N_I > 0:
+                baseline = add_pulse_train_to_input(
+                    baseline,
+                    target_neurons=i_ids,
+                    pulse_t=pulse_t_ms,
+                    pulse_width_ms=pulse_width_ms,
+                    pulse_amp=pulse_amp_I,
+                    pulse_interval_ms=inputs["pulse_interval_ms"],
+                    dt=config.dt,
+                    num_steps=num_steps,
+                )
+            external_input = baseline
+        else:
+            raise ValueError(f"Unsupported input_type: {input_type}")
 
     weight_mats = build_adjacency_matrices(
         N_E=config.N_E,
@@ -320,6 +415,9 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
     membrane_t_ms: list[float] = []
     membrane_V_E: list[float] = []
     membrane_V_I: list[float] = []
+    input_t_ms: list[float] = []
+    input_mean_E: list[float] = []
+    input_mean_I: list[float] = []
     if analysis_T > 0:
         sliced = slice_spikes(spikes, analysis_start, analysis_stop)
         shifted = Spikes(
@@ -367,6 +465,15 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
     population_rate_hz_E = rate_hz_full_E.tolist()
     population_rate_hz_I = rate_hz_full_I.tolist()
 
+    if external_input.ndim == 1:
+        input_t_ms = (np.arange(num_steps) * config.dt).tolist()
+        input_mean_E = external_input.tolist()
+        input_mean_I = external_input.tolist()
+    else:
+        input_t_ms = (np.arange(num_steps) * config.dt).tolist()
+        input_mean_E = np.mean(external_input[:, : config.N_E], axis=1).tolist()
+        input_mean_I = np.mean(external_input[:, config.N_E :], axis=1).tolist()
+
     instruments = result.instruments
     if instruments.V is not None and instruments.times.size > 0:
         membrane_t_ms = instruments.times.tolist()
@@ -394,4 +501,7 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         membrane_t_ms=membrane_t_ms,
         membrane_V_E=membrane_V_E,
         membrane_V_I=membrane_V_I,
+        input_t_ms=input_t_ms,
+        input_mean_E=input_mean_E,
+        input_mean_I=input_mean_I,
     )
