@@ -6,11 +6,11 @@ plotting:
 scan:
   mean_ei:
     start: 0.01
-    stop: 0.03
+    stop: 0.05
     num: 20
   std_ei:
     start: 0.0
-    stop: 0.04
+    stop: 0.08
     num: 20
   mean_ie:
     start: 0.0
@@ -41,6 +41,17 @@ default_inputs:
   I_E: 0.7
   I_I: 0.7
   noise: 0.5
+
+rate_match:
+  I_E:
+    start: 0.2
+    stop: 2.0
+    num: 21
+  window_ms:
+    start: 100.0
+    stop: 300.0
+  sim_T: 300.0
+  target_rate_e: 20.0
 
 weights:
   mean_ee: 0.02

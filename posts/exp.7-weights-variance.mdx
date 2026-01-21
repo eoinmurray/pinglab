@@ -12,7 +12,7 @@ export const path = "_artifacts/exp.7-weights-variance";
 Explore how mean and variance in synaptic weights affects the emergence PING
 rhythms.
 
-We will do this by creating a heatmap of $\mu_{g_{ei}}$ vs $\sigma_{g_{ei}}$ vs
+We do this by creating a heatmap of $\mu_{g_{ei}}$ vs $\sigma_{g_{ei}}$ vs
 our Rhythmicity metric, once we have settled on an analysis we will do the same
 treatment for the other weight matrices ($g_{ee}$, $g_{ie}$, $g_{ii}$).
 
@@ -113,7 +113,7 @@ In practice: (1) coarse grid search over $I_E$ to locate the minimum, then
 is then used for the full simulation that produces rasters, PSDs, and rhythmicity.
 We do this for every raster (every $\theta$), prioritizing integrity over runtime.
 
-Target: fix E around a chosen rate (e.g., 20–40 Hz) and let I vary naturally.
+Target: fix E around a chosen rate (e.g., 20Hz) and let I vary naturally.
 
 ## Pseudocode outline
 
@@ -135,24 +135,42 @@ for mu in mu_values:
 ## Results
 
 We scan $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$ on a grid (20 means from 0.01 to
-0.03, 20 std values from 0.0 to 0.04). The heatmaps below show the rhythmicity
+0.05, 20 std values from 0.0 to 0.08). The heatmaps below show the rhythmicity
 index and the mean $E$ firing rate across the grid, with example rasters for
 each mean row.
 
 ## Heatmaps (g_ei)
 
-<VeslxGallery path={`${path}`} globs={["rhythmicity_heatmap_ei*.png",
-  "rate_e_heatmap_ei*.png"]} />
+Heatmap of Rhythmicity Index vs $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$.
+
+<VeslxGallery 
+  path={`${path}`} 
+  globs={[
+    "rhythmicity_heatmap_ei*.png",
+  ]} 
+/>
+
+Firing rate heatmap vs $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$.
+
+<VeslxGallery 
+  path={`${path}`} 
+  globs={[
+    "rate_e_heatmap_ei*.png"
+  ]} 
+/>
 
 ## Appendix 1
 
-Scan $\mu_{g_{ei}}$ while holding $\sigma_{g_{ei}} = 0$ (raster row).
+Scan $\mu_{g_{ei}}$ while holding $\sigma_{g_{ei}} = 0$ (the left most column of
+the heatmap).
 
 <VeslxGallery path={`${path}`} globs={["raster_ei_mean_*_std_01_*.png"]} />
 
 ## Appendix 2
 
-All the rasters!
+All the rasters! Note, they are in the same layout as the heatmap, with
+$\mu_{g_{ei}}$ increasing from 0.01 to 0.05 (bottom to top) and
+$\sigma_{g_{ei}}$ increasing from 0.0 to 0.08 (left to right).
 
 <VeslxGallery path={`${path}`} globs={["raster_ei_mean_20_*.png"]} />
 <VeslxGallery path={`${path}`} globs={["raster_ei_mean_19_*.png"]} />

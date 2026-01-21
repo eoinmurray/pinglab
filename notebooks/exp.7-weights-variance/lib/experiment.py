@@ -67,6 +67,92 @@ def _build_matrices(run_cfg, weights, mean_vals, std_vals):
     )
 
 
+def _rate_for_inputs(
+    config: LocalConfig,
+    run_cfg,
+    weights,
+    mean_vals: dict[str, float],
+    std_vals: dict[str, float],
+    I_E: float,
+) -> float:
+    rate_cfg = config.rate_match
+    match_cfg = run_cfg.model_copy(update={"T": rate_cfg.sim_T})
+    I_I = float(config.default_inputs.I_I)
+    external_input = tonic(
+        N_E=int(match_cfg.N_E),
+        N_I=int(match_cfg.N_I),
+        I_E=float(I_E),
+        I_I=I_I,
+        noise_std=float(config.default_inputs.noise),
+        num_steps=int(np.ceil(match_cfg.T / match_cfg.dt)),
+        seed=match_cfg.seed if match_cfg.seed is not None else 0,
+    )
+    matrices = _build_matrices(match_cfg, weights, mean_vals, std_vals)
+    model = build_model_from_config(match_cfg)
+    result = run_network(
+        match_cfg,
+        external_input=external_input,
+        model=model,
+        weights=matrices.W,
+    )
+    sliced = slice_spikes(
+        result.spikes,
+        start_time=rate_cfg.window_ms.start,
+        stop_time=rate_cfg.window_ms.stop,
+    )
+    rate_e, _ = mean_firing_rates(
+        sliced,
+        N_E=int(match_cfg.N_E),
+        N_I=int(match_cfg.N_I),
+    )
+    return rate_e
+
+
+def _rate_match_drive(
+    config: LocalConfig,
+    run_cfg,
+    weights,
+    mean_vals: dict[str, float],
+    std_vals: dict[str, float],
+) -> float:
+    rate_cfg = config.rate_match
+    target = float(rate_cfg.target_rate_e)
+
+    def score_I_E(I_E: float) -> float:
+        rate_e = _rate_for_inputs(
+            config,
+            run_cfg,
+            weights,
+            mean_vals,
+            std_vals,
+            I_E,
+        )
+        return (rate_e - target) ** 2
+
+    values_e = np.linspace(rate_cfg.I_E.start, rate_cfg.I_E.stop, rate_cfg.I_E.num)
+    best_score = float("inf")
+    best_I_E = float(config.default_inputs.I_E)
+    for I_E in values_e:
+        score = score_I_E(float(I_E))
+        if score < best_score:
+            best_score = score
+            best_I_E = float(I_E)
+
+    refine_half_widths = (0.3, 0.12)
+    refine_points = 9
+    for half_width in refine_half_widths:
+        refine_start = max(rate_cfg.I_E.start, best_I_E - half_width)
+        refine_stop = min(rate_cfg.I_E.stop, best_I_E + half_width)
+        refine_values = np.linspace(refine_start, refine_stop, refine_points)
+        for I_E in refine_values:
+            score = score_I_E(float(I_E))
+            if score < best_score:
+                best_score = score
+                best_I_E = float(I_E)
+
+    return best_I_E
+
+
 def run_experiment(config: LocalConfig, data_path: Path) -> None:
     run_cfg = config.base
     if config.weights is None:
@@ -159,8 +245,20 @@ def run_experiment(config: LocalConfig, data_path: Path) -> None:
                     "ie": std_ie,
                     "ii": std_ii,
                 }
-                I_E = float(config.default_inputs.I_E)
+                I_E = _rate_match_drive(
+                    config,
+                    run_cfg,
+                    config.weights,
+                    mean_vals,
+                    std_vals,
+                )
                 I_I = float(config.default_inputs.I_I)
+                logger.info(
+                    "matched drive I_E=%.3f (I_I=%.3f) target_E=%.2f",
+                    I_E,
+                    I_I,
+                    float(config.rate_match.target_rate_e),
+                )
                 external_input = tonic(
                     N_E=int(run_cfg.N_E),
                     N_I=int(run_cfg.N_I),
@@ -324,6 +422,8 @@ def run_experiment(config: LocalConfig, data_path: Path) -> None:
                 aspect="auto",
                 interpolation="nearest",
                 cmap="gray_r",
+                vmin=0.0,
+                vmax=50.0,
             )
             ax.set_title(f"E rate heatmap (g_{scan_key})", fontsize=18)
             ax.set_xlabel(f"std_g_{scan_key}")
