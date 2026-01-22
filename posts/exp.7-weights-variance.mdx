@@ -7,6 +7,14 @@ export const path = "_artifacts/exp.7-weights-variance";
 
 <VeslxFrontMatter />
 
+# Todos
+
+- [ ] run variance tests on other weight matrices ($g_{ee}$, $g_{ie}$,
+  $g_{ii}$)
+- [ ] insert example rasters for high and low RI points in the heatmap
+- [ ] diagonal walk of heatmaps instead of first column in appendix 1.
+- [ ] rasters should have RI in the title.
+
 # Goal
 
 Explore how mean and variance in synaptic weights affects the emergence PING
@@ -249,7 +257,6 @@ While the firing rates are held mostly constant circa 20Hz, the rate does
 decrease to circa 10Hz at higher $\mu_{g_{ei}}$ values, which may be a confound 
 in interpreting the rhythmicity index heatmap.
 
-
 # Appendix 1
 
 Scan $\mu_{g_{ei}}$ while holding $\sigma_{g_{ei}} = 0$ (the left most column of
@@ -265,7 +272,7 @@ $\sigma_{g_{ei}}$ increasing from 0.0 to 0.08 (left to right).
 
 !Rasters ommitted because github pages couldn't handle it.
 
-{/* 
+
 <VeslxGallery path={`${path}`} globs={["raster_ei_mean_20_*.png"]} />
 <VeslxGallery path={`${path}`} globs={["raster_ei_mean_19_*.png"]} />
 <VeslxGallery path={`${path}`} globs={["raster_ei_mean_18_*.png"]} />
@@ -286,4 +293,4 @@ $\sigma_{g_{ei}}$ increasing from 0.0 to 0.08 (left to right).
 <VeslxGallery path={`${path}`} globs={["raster_ei_mean_03_*.png"]} />
 <VeslxGallery path={`${path}`} globs={["raster_ei_mean_02_*.png"]} />
 <VeslxGallery path={`${path}`} globs={["raster_ei_mean_01_*.png"]} /> 
-*/}
+
