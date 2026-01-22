@@ -97,6 +97,9 @@ base:
 
   mqif_a: [0.02]
   mqif_Vr: [-55.0]
+  mqif_w_a: [0.02]
+  mqif_w_Vr: [-55.0]
+  mqif_w_tau: [100.0]
 
   g_Na: 120.0
   g_K: 36.0

@@ -174,16 +174,12 @@ type ParameterPanelProps = {
   setMqifA: (value: number) => void;
   mqifVr: number;
   setMqifVr: (value: number) => void;
-  pulseOnset: number;
-  setPulseOnset: (value: number) => void;
-  pulseDuration: number;
-  setPulseDuration: (value: number) => void;
-  pulseInterval: number;
-  setPulseInterval: (value: number) => void;
-  pulseAmpE: number;
-  setPulseAmpE: (value: number) => void;
-  pulseAmpI: number;
-  setPulseAmpI: (value: number) => void;
+  mqifWA: number;
+  setMqifWA: (value: number) => void;
+  mqifWVr: number;
+  setMqifWVr: (value: number) => void;
+  mqifWTau: number;
+  setMqifWTau: (value: number) => void;
   gLHet: number;
   setGLHet: (value: number) => void;
   cMHet: number;
@@ -345,16 +341,12 @@ export default function ParameterPanel({
   setMqifA,
   mqifVr,
   setMqifVr,
-  pulseOnset,
-  setPulseOnset,
-  pulseDuration,
-  setPulseDuration,
-  pulseInterval,
-  setPulseInterval,
-  pulseAmpE,
-  setPulseAmpE,
-  pulseAmpI,
-  setPulseAmpI,
+  mqifWA,
+  setMqifWA,
+  mqifWVr,
+  setMqifWVr,
+  mqifWTau,
+  setMqifWTau,
   gLHet,
   setGLHet,
   cMHet,
@@ -530,16 +522,14 @@ export default function ParameterPanel({
 
         <div className="border-t border-black/10 pt-4 dark:border-zinc-800">
           <div className="text-[11px] uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
-            MQIF and pulse
+            MQIF
           </div>
           <div className="mt-3 space-y-3">
             <Slider label="MQIF a" value={mqifA} min={0.0} max={0.2} step={0.005} precision={3} onChange={setMqifA} />
             <Slider label="MQIF V_r" value={mqifVr} min={-70} max={-40} step={1} precision={0} onChange={setMqifVr} />
-            <Slider label="pulse onset" value={pulseOnset} min={0} max={1000} step={10} precision={0} onChange={setPulseOnset} />
-            <Slider label="pulse duration" value={pulseDuration} min={0} max={1000} step={10} precision={0} onChange={setPulseDuration} />
-            <Slider label="pulse interval" value={pulseInterval} min={0} max={1000} step={10} precision={0} onChange={setPulseInterval} />
-            <Slider label="pulse amp E" value={pulseAmpE} min={0} max={5} step={0.1} precision={1} onChange={setPulseAmpE} />
-            <Slider label="pulse amp I" value={pulseAmpI} min={0} max={5} step={0.1} precision={1} onChange={setPulseAmpI} />
+            <Slider label="MQIF w a" value={mqifWA} min={0.0} max={0.2} step={0.005} precision={3} onChange={setMqifWA} />
+            <Slider label="MQIF w V_r" value={mqifWVr} min={-70} max={-40} step={1} precision={0} onChange={setMqifWVr} />
+            <Slider label="MQIF w tau" value={mqifWTau} min={1} max={300} step={1} precision={0} onChange={setMqifWTau} />
           </div>
         </div>
 

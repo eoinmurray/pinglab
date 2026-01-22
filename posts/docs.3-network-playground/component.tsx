@@ -121,6 +121,9 @@ export default function Component() {
 
   const [mqifA, setMqifA] = useState(0.02);
   const [mqifVr, setMqifVr] = useState(-55.0);
+  const [mqifWA, setMqifWA] = useState(0.02);
+  const [mqifWVr, setMqifWVr] = useState(-55.0);
+  const [mqifWTau, setMqifWTau] = useState(100.0);
 
   const [qifA, setQifA] = useState(1.0);
   const [qifVr, setQifVr] = useState(-60.0);
@@ -130,12 +133,6 @@ export default function Component() {
   const [izhB, setIzhB] = useState(0.2);
   const [izhC, setIzhC] = useState(-65.0);
   const [izhD, setIzhD] = useState(8.0);
-
-  const [pulseOnset, setPulseOnset] = useState(0.0);
-  const [pulseDuration, setPulseDuration] = useState(0.0);
-  const [pulseInterval, setPulseInterval] = useState(0.0);
-  const [pulseAmpE, setPulseAmpE] = useState(0.0);
-  const [pulseAmpI, setPulseAmpI] = useState(0.0);
 
   const [gLHet, setGLHet] = useState(0.15);
   const [cMHet, setCMHet] = useState(0.1);
@@ -316,6 +313,9 @@ export default function Component() {
                 fhn_tau_w: fhnTauW,
                 mqif_a: [mqifA],
                 mqif_Vr: [mqifVr],
+                mqif_w_a: [mqifWA],
+                mqif_w_Vr: [mqifWVr],
+                mqif_w_tau: [mqifWTau],
                 qif_a: qifA,
                 qif_Vr: qifVr,
                 qif_Vt: qifVt,
@@ -323,11 +323,6 @@ export default function Component() {
                 izh_b: izhB,
                 izh_c: izhC,
                 izh_d: izhD,
-                pulse_onset_ms: pulseOnset,
-                pulse_duration_ms: pulseDuration,
-                pulse_interval_ms: pulseInterval,
-                pulse_amplitude_E: pulseAmpE,
-                pulse_amplitude_I: pulseAmpI,
                 g_L_heterogeneity_sd: gLHet,
                 C_m_heterogeneity_sd: cMHet,
                 V_th_heterogeneity_sd: vThHet,
@@ -432,6 +427,9 @@ export default function Component() {
     fhnTauW,
     mqifA,
     mqifVr,
+    mqifWA,
+    mqifWVr,
+    mqifWTau,
     qifA,
     qifVr,
     qifVt,
@@ -439,11 +437,6 @@ export default function Component() {
     izhB,
     izhC,
     izhD,
-    pulseOnset,
-    pulseDuration,
-    pulseInterval,
-    pulseAmpE,
-    pulseAmpI,
     gLHet,
     cMHet,
     vThHet,
@@ -674,16 +667,12 @@ export default function Component() {
     setMqifA={setMqifA}
     mqifVr={mqifVr}
     setMqifVr={setMqifVr}
-    pulseOnset={pulseOnset}
-    setPulseOnset={setPulseOnset}
-    pulseDuration={pulseDuration}
-    setPulseDuration={setPulseDuration}
-    pulseInterval={pulseInterval}
-    setPulseInterval={setPulseInterval}
-    pulseAmpE={pulseAmpE}
-    setPulseAmpE={setPulseAmpE}
-    pulseAmpI={pulseAmpI}
-    setPulseAmpI={setPulseAmpI}
+    mqifWA={mqifWA}
+    setMqifWA={setMqifWA}
+    mqifWVr={mqifWVr}
+    setMqifWVr={setMqifWVr}
+    mqifWTau={mqifWTau}
+    setMqifWTau={setMqifWTau}
     gLHet={gLHet}
     setGLHet={setGLHet}
     cMHet={cMHet}

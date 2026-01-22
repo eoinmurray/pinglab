@@ -251,8 +251,16 @@ class MQIFModel(BaseNeuronModel):
     def initialize(self, V: np.ndarray) -> None:
         self.a_terms = np.asarray(self.config.mqif_a, dtype=float)
         self.vr_terms = np.asarray(self.config.mqif_Vr, dtype=float)
+        self.w_a_terms = np.asarray(self.config.mqif_w_a, dtype=float)
+        self.w_vr_terms = np.asarray(self.config.mqif_w_Vr, dtype=float)
+        self.w_tau = np.asarray(self.config.mqif_w_tau, dtype=float)
         if self.a_terms.size != self.vr_terms.size:
             raise ValueError("mqif_a and mqif_Vr must have the same length")
+        if self.w_a_terms.size != self.w_vr_terms.size:
+            raise ValueError("mqif_w_a and mqif_w_Vr must have the same length")
+        if self.w_a_terms.size != self.w_tau.size:
+            raise ValueError("mqif_w_a and mqif_w_tau must have the same length")
+        self.w = np.zeros((V.shape[0], self.w_a_terms.size), dtype=float)
 
     def step(
         self,
@@ -265,8 +273,9 @@ class MQIFModel(BaseNeuronModel):
         V_th: np.ndarray,
         can_spike: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray]:
-        V, spiked = mqif_step(
+        V, self.w, spiked = mqif_step(
             V,
+            self.w,
             g_e,
             g_i,
             I_ext,
@@ -278,6 +287,9 @@ class MQIFModel(BaseNeuronModel):
             E_i=self.config.E_i,
             a_terms=self.a_terms,
             V_r_terms=self.vr_terms,
+            w_a_terms=self.w_a_terms,
+            w_Vr_terms=self.w_vr_terms,
+            w_tau=self.w_tau,
             V_th=V_th,
             V_reset=self.config.V_reset,
             can_spike=can_spike,
@@ -285,7 +297,14 @@ class MQIFModel(BaseNeuronModel):
         return V, spiked
 
     def get_state(self) -> dict[str, np.ndarray | float | int | None]:
-        return {"a_terms": self.a_terms, "V_r_terms": self.vr_terms}
+        return {
+            "a_terms": self.a_terms,
+            "V_r_terms": self.vr_terms,
+            "w_a_terms": self.w_a_terms,
+            "w_Vr_terms": self.w_vr_terms,
+            "w_tau": self.w_tau,
+            "w": self.w,
+        }
 
 
 class QIFModel(BaseNeuronModel):

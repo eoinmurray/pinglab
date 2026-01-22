@@ -161,6 +161,7 @@ class TestMQIF:
         with pytest.raises(ValueError, match="same length"):
             mqif_step(
                 V,
+                np.zeros((V.size, 0)),
                 zeros,
                 zeros,
                 np.array([1.0]),
@@ -172,6 +173,34 @@ class TestMQIF:
                 E_i=-80.0,
                 a_terms=np.array([1.0, 2.0]),
                 V_r_terms=np.array([-50.0]),
+                w_a_terms=np.array([]),
+                w_Vr_terms=np.array([]),
+                w_tau=np.array([]),
+                V_th=-40.0,
+                V_reset=-65.0,
+            )
+
+    def test_mqif_mismatched_slow_terms(self):
+        V = np.array([-60.0])
+        zeros = np.zeros_like(V)
+        with pytest.raises(ValueError, match="w_a_terms"):
+            mqif_step(
+                V,
+                np.zeros((V.size, 1)),
+                zeros,
+                zeros,
+                np.array([1.0]),
+                0.1,
+                C_m=1.0,
+                g_L=0.1,
+                E_L=-65.0,
+                E_e=0.0,
+                E_i=-80.0,
+                a_terms=np.array([1.0]),
+                V_r_terms=np.array([-50.0]),
+                w_a_terms=np.array([1.0, 2.0]),
+                w_Vr_terms=np.array([-40.0]),
+                w_tau=np.array([100.0]),
                 V_th=-40.0,
                 V_reset=-65.0,
             )
@@ -179,8 +208,9 @@ class TestMQIF:
     def test_mqif_spike_resets(self):
         V = np.array([-39.0])
         zeros = np.zeros_like(V)
-        V_new, spiked = mqif_step(
+        V_new, w_new, spiked = mqif_step(
             V,
+            np.zeros((V.size, 0)),
             zeros,
             zeros,
             np.array([50.0]),
@@ -192,11 +222,15 @@ class TestMQIF:
             E_i=-80.0,
             a_terms=np.array([1.0]),
             V_r_terms=np.array([-50.0]),
+            w_a_terms=np.array([]),
+            w_Vr_terms=np.array([]),
+            w_tau=np.array([]),
             V_th=-40.0,
             V_reset=-65.0,
         )
         assert spiked[0]
         assert V_new[0] == -65.0
+        assert w_new.shape == (V.size, 0)
 
 
 class TestQIF:

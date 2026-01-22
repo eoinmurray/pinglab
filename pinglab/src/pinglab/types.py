@@ -104,6 +104,9 @@ class NetworkConfig(BaseModel):
     # MQIF parameters
     mqif_a: list[float] = []
     mqif_Vr: list[float] = []
+    mqif_w_a: list[float] = []
+    mqif_w_Vr: list[float] = []
+    mqif_w_tau: list[float] = []
     # QIF parameters
     qif_a: float = 1.0
     qif_Vr: float = -60.0
