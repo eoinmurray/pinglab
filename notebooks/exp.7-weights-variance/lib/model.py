@@ -35,7 +35,12 @@ class PlottingConfig(BaseModel):
     raster: PlottingRasterConfig
 
 
+class ParallelConfig(BaseModel):
+    n_jobs: int = 1
+
+
 class LocalConfig(ExperimentConfig):
     plotting: PlottingConfig
     scan: VarianceScanConfig
     rate_match: RateMatchConfig
+    parallel: ParallelConfig = ParallelConfig()

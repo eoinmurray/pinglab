@@ -3,6 +3,9 @@ plotting:
     start_time: 0.0
     stop_time: 1000.0
 
+parallel:
+  n_jobs: 8
+
 scan:
   mean_ei:
     start: 0.01
@@ -10,7 +13,7 @@ scan:
     num: 20
   std_ei:
     start: 0.0
-    stop: 0.08
+    stop: 0.1
     num: 20
   mean_ie:
     start: 0.0

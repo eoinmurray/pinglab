@@ -7,12 +7,14 @@ export const path = "_artifacts/exp.7-weights-variance";
 
 <VeslxFrontMatter />
 
+# Work in progress!
+
 # Todos
 
 - [ ] run variance tests on other weight matrices ($g_{ee}$, $g_{ie}$,
   $g_{ii}$)
-- [ ] insert example rasters for high and low RI points in the heatmap
-- [ ] diagonal walk of heatmaps instead of first column in appendix 1.
+- [x] insert example rasters for high and low RI points in the heatmap
+- [x] diagonal walk of heatmaps instead of first column in appendix 1.
 - [ ] rasters should have RI in the title.
 
 # Goal
@@ -259,38 +261,32 @@ in interpreting the rhythmicity index heatmap.
 
 # Appendix 1
 
-Scan $\mu_{g_{ei}}$ while holding $\sigma_{g_{ei}} = 0$ (the left most column of
-the heatmap).
+*Readers note:* You can horizontally scroll on this row to see all images.
 
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_*_std_01_*.png"]} />
-
-# Appendix 2
-
-All the rasters! Note, they are in the same layout as the heatmap, with
-$\mu_{g_{ei}}$ increasing from 0.01 to 0.05 (bottom to top) and
-$\sigma_{g_{ei}}$ increasing from 0.0 to 0.08 (left to right).
-
-!Rasters ommitted because github pages couldn't handle it.
-
-
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_20_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_19_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_18_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_17_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_16_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_15_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_14_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_13_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_12_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_11_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_10_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_09_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_08_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_07_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_06_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_05_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_04_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_03_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_02_*.png"]} />
-<VeslxGallery path={`${path}`} globs={["raster_ei_mean_01_*.png"]} /> 
-
+<VeslxGallery 
+  path={`${path}`} 
+  globs={[
+    "raster_ei_mean_01_std_01*.png",
+    "raster_ei_mean_02_std_02*.png",
+    "raster_ei_mean_03_std_03*.png",
+    "raster_ei_mean_04_std_04*.png",
+    "raster_ei_mean_05_std_05*.png",
+    "raster_ei_mean_06_std_06*.png",
+    "raster_ei_mean_07_std_07*.png",
+    "raster_ei_mean_08_std_08*.png",
+    "raster_ei_mean_09_std_09*.png",
+    "raster_ei_mean_10_std_10*.png",
+    "raster_ei_mean_11_std_11*.png",
+    "raster_ei_mean_12_std_12*.png",
+    "raster_ei_mean_13_std_13*.png",
+    "raster_ei_mean_14_std_14*.png",
+    "raster_ei_mean_15_std_15*.png",
+    "raster_ei_mean_16_std_16*.png",
+    "raster_ei_mean_17_std_17*.png",
+    "raster_ei_mean_18_std_18*.png",
+    "raster_ei_mean_19_std_19*.png",
+  ]} 
+  title="Example Rasters along Heatmap Diagonal"
+  captionLabel="Figure 3"
+  caption="Example rasters for $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$ along the heatmap diagonal. Starting from bottom left to top right."
+/>

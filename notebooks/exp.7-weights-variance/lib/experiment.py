@@ -3,6 +3,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from joblib import Parallel, delayed
 
 from pinglab.analysis import mean_firing_rates, population_rate, rate_psd
 from pinglab.inputs.tonic import tonic
@@ -153,6 +154,172 @@ def _rate_match_drive(
     return best_I_E
 
 
+def _run_scan_cell(
+    config: LocalConfig,
+    run_cfg,
+    weights,
+    scan_key: str,
+    mean_idx: int,
+    std_idx: int,
+    mean_val: float,
+    std_val: float,
+    data_path: Path,
+) -> tuple[int, int, float, float]:
+    mean_ee = weights.mean_ee
+    mean_ei = weights.mean_ei
+    mean_ie = weights.mean_ie
+    mean_ii = weights.mean_ii
+    std_ee = weights.std_ee
+    std_ei = weights.std_ei
+    std_ie = weights.std_ie
+    std_ii = weights.std_ii
+
+    if scan_key == "ei":
+        mean_ei = float(mean_val)
+        std_ei = float(std_val)
+    elif scan_key == "ie":
+        mean_ie = float(mean_val)
+        std_ie = float(std_val)
+    elif scan_key == "ee":
+        mean_ee = float(mean_val)
+        std_ee = float(std_val)
+    elif scan_key == "ii":
+        mean_ii = float(mean_val)
+        std_ii = float(std_val)
+
+    mean_vals = {
+        "ee": mean_ee,
+        "ei": mean_ei,
+        "ie": mean_ie,
+        "ii": mean_ii,
+    }
+    std_vals = {
+        "ee": std_ee,
+        "ei": std_ei,
+        "ie": std_ie,
+        "ii": std_ii,
+    }
+
+    I_E = _rate_match_drive(
+        config,
+        run_cfg,
+        weights,
+        mean_vals,
+        std_vals,
+    )
+    I_I = float(config.default_inputs.I_I)
+    logger.info(
+        "matched drive I_E=%.3f (I_I=%.3f) target_E=%.2f",
+        I_E,
+        I_I,
+        float(config.rate_match.target_rate_e),
+    )
+    external_input = tonic(
+        N_E=int(run_cfg.N_E),
+        N_I=int(run_cfg.N_I),
+        I_E=float(I_E),
+        I_I=I_I,
+        noise_std=float(config.default_inputs.noise),
+        num_steps=int(np.ceil(run_cfg.T / run_cfg.dt)),
+        seed=run_cfg.seed if run_cfg.seed is not None else 0,
+    )
+    matrices = _build_matrices(run_cfg, weights, mean_vals, std_vals)
+
+    model = build_model_from_config(run_cfg)
+    result = run_network(
+        run_cfg,
+        external_input=external_input,
+        model=model,
+        weights=matrices.W,
+    )
+
+    start_time = float(config.plotting.raster.start_time)
+    stop_time = float(config.plotting.raster.stop_time)
+    sliced = slice_spikes(
+        result.spikes,
+        start_time=start_time,
+        stop_time=stop_time,
+    )
+
+    dt_ms = 5.0
+    _, rate_hz = population_rate(
+        sliced,
+        T_ms=run_cfg.T,
+        dt_ms=dt_ms,
+        pop="E",
+        N_E=int(run_cfg.N_E),
+        N_I=int(run_cfg.N_I),
+    )
+    rhythmicity = _autocorr_rhythmicity(rate_hz, dt_ms)
+
+    rate_e, _ = mean_firing_rates(
+        sliced,
+        N_E=int(run_cfg.N_E),
+        N_I=int(run_cfg.N_I),
+    )
+    logger.info(
+        "rate_E=%.2f Hz for mean_%s=%.4f std_%s=%.4f",
+        rate_e,
+        scan_key,
+        mean_val,
+        scan_key,
+        std_val,
+    )
+    label = (
+        f"$\\mu_{{g_{{{scan_key}}}}}={mean_val:.3f}$, "
+        f"$\\sigma_{{g_{{{scan_key}}}}}={std_val:.3f}$, "
+        f"E rate={rate_e:.2f} Hz, RI={rhythmicity:.3f}"
+    )
+
+    def plot_raster_with_psd() -> None:
+        fig, (ax_ras, ax_psd) = plt.subplots(
+            2,
+            1,
+            figsize=figsize,
+            height_ratios=[3, 1],
+            gridspec_kw={"hspace": 0.2},
+            constrained_layout=True,
+        )
+
+        times = sliced.times
+        ids = sliced.ids
+        types = getattr(sliced, "types", None)
+        if types is not None:
+            mask_E = types == 0
+            mask_I = types == 1
+            ax_ras.scatter(times[mask_E], ids[mask_E], s=0.5, marker=".")
+            ax_ras.scatter(
+                times[mask_I],
+                ids[mask_I],
+                s=0.5,
+                marker=".",
+                alpha=0.7,
+            )
+        else:
+            ax_ras.scatter(times, ids, s=0.5, marker=".")
+
+        ax_ras.set_xlim(start_time, stop_time)
+        ax_ras.set_ylim(0.0, float(run_cfg.N_E + run_cfg.N_I))
+        ax_ras.set_xlabel("Time (ms)")
+        ax_ras.set_ylabel("Neuron id")
+        ax_ras.set_title(label, fontsize=18)
+
+        rate_centered = rate_hz - float(np.mean(rate_hz)) if rate_hz.size else rate_hz
+        freqs, psd = rate_psd(rate_centered, dt_ms)
+        psd_mask = (freqs >= 5.0) & (freqs <= 150.0)
+        ax_psd.plot(freqs[psd_mask], psd[psd_mask])
+        ax_psd.set_xlabel("Frequency (Hz)")
+        ax_psd.set_ylabel("PSD")
+        ax_psd.grid(True, alpha=0.3)
+
+    save_both(
+        data_path / f"raster_{scan_key}_mean_{mean_idx:02d}_std_{std_idx:02d}",
+        plot_raster_with_psd,
+    )
+
+    return mean_idx - 1, std_idx - 1, float(rhythmicity), float(rate_e)
+
+
 def run_experiment(config: LocalConfig, data_path: Path) -> None:
     run_cfg = config.base
     if config.weights is None:
@@ -194,8 +361,11 @@ def run_experiment(config: LocalConfig, data_path: Path) -> None:
         rhythmicity_grid = np.zeros((mean_values.size, std_values.size), dtype=float)
         rate_e_grid = np.zeros((mean_values.size, std_values.size), dtype=float)
 
+        n_jobs = int(config.parallel.n_jobs)
+        if n_jobs == 0:
+            n_jobs = 1
+        tasks = []
         for mean_idx, mean_val in enumerate(mean_values, start=1):
-            rhythmicity_vals: list[float] = []
             logger.info(
                 "mean_%s=%.4f (%d/%d)",
                 scan_key,
@@ -211,162 +381,29 @@ def run_experiment(config: LocalConfig, data_path: Path) -> None:
                     std_idx,
                     std_values.size,
                 )
-                mean_ee = config.weights.mean_ee
-                mean_ei = config.weights.mean_ei
-                mean_ie = config.weights.mean_ie
-                mean_ii = config.weights.mean_ii
-                std_ee = config.weights.std_ee
-                std_ei = config.weights.std_ei
-                std_ie = config.weights.std_ie
-                std_ii = config.weights.std_ii
+                tasks.append((mean_idx, std_idx, mean_val, std_val))
 
-                if scan_key == "ei":
-                    mean_ei = float(mean_val)
-                    std_ei = float(std_val)
-                elif scan_key == "ie":
-                    mean_ie = float(mean_val)
-                    std_ie = float(std_val)
-                elif scan_key == "ee":
-                    mean_ee = float(mean_val)
-                    std_ee = float(std_val)
-                elif scan_key == "ii":
-                    mean_ii = float(mean_val)
-                    std_ii = float(std_val)
+        results = Parallel(n_jobs=n_jobs, prefer="processes")(
+            delayed(_run_scan_cell)(
+                config,
+                run_cfg,
+                config.weights,
+                scan_key,
+                mean_idx,
+                std_idx,
+                mean_val,
+                std_val,
+                data_path,
+            )
+            for mean_idx, std_idx, mean_val, std_val in tasks
+        )
 
-                mean_vals = {
-                    "ee": mean_ee,
-                    "ei": mean_ei,
-                    "ie": mean_ie,
-                    "ii": mean_ii,
-                }
-                std_vals = {
-                    "ee": std_ee,
-                    "ei": std_ei,
-                    "ie": std_ie,
-                    "ii": std_ii,
-                }
-                I_E = _rate_match_drive(
-                    config,
-                    run_cfg,
-                    config.weights,
-                    mean_vals,
-                    std_vals,
-                )
-                I_I = float(config.default_inputs.I_I)
-                logger.info(
-                    "matched drive I_E=%.3f (I_I=%.3f) target_E=%.2f",
-                    I_E,
-                    I_I,
-                    float(config.rate_match.target_rate_e),
-                )
-                external_input = tonic(
-                    N_E=int(run_cfg.N_E),
-                    N_I=int(run_cfg.N_I),
-                    I_E=float(I_E),
-                    I_I=I_I,
-                    noise_std=float(config.default_inputs.noise),
-                    num_steps=int(np.ceil(run_cfg.T / run_cfg.dt)),
-                    seed=run_cfg.seed if run_cfg.seed is not None else 0,
-                )
-                matrices = _build_matrices(run_cfg, config.weights, mean_vals, std_vals)
+        for mean_idx, std_idx, rhythmicity, rate_e in results:
+            rhythmicity_grid[mean_idx, std_idx] = rhythmicity
+            rate_e_grid[mean_idx, std_idx] = rate_e
 
-                model = build_model_from_config(run_cfg)
-                result = run_network(
-                    run_cfg,
-                    external_input=external_input,
-                    model=model,
-                    weights=matrices.W,
-                )
-
-                start_time = float(config.plotting.raster.start_time)
-                stop_time = float(config.plotting.raster.stop_time)
-                sliced = slice_spikes(
-                    result.spikes,
-                    start_time=start_time,
-                    stop_time=stop_time,
-                )
-
-                dt_ms = 5.0
-                _, rate_hz = population_rate(
-                    sliced,
-                    T_ms=run_cfg.T,
-                    dt_ms=dt_ms,
-                    pop="E",
-                    N_E=int(run_cfg.N_E),
-                    N_I=int(run_cfg.N_I),
-                )
-                rhythmicity = _autocorr_rhythmicity(rate_hz, dt_ms)
-                rhythmicity_vals.append(rhythmicity)
-                rhythmicity_grid[mean_idx - 1, std_idx - 1] = rhythmicity
-
-                rate_e, _ = mean_firing_rates(
-                    sliced,
-                    N_E=int(run_cfg.N_E),
-                    N_I=int(run_cfg.N_I),
-                )
-                rate_e_grid[mean_idx - 1, std_idx - 1] = rate_e
-                logger.info(
-                    "rate_E=%.2f Hz for mean_%s=%.4f std_%s=%.4f",
-                    rate_e,
-                    scan_key,
-                    mean_val,
-                    scan_key,
-                    std_val,
-                )
-                label = (
-                    f"mean_{scan_key}={mean_val:.3f} std_{scan_key}={std_val:.3f}"
-                    f"\nI_E={I_E:.2f} I_I={I_I:.2f}"
-                    f"\nrate_E={rate_e:.2f} Hz"
-                )
-
-                def plot_raster_with_psd() -> None:
-                    fig, (ax_ras, ax_psd) = plt.subplots(
-                        2,
-                        1,
-                        figsize=figsize,
-                        height_ratios=[3, 1],
-                        gridspec_kw={"hspace": 0.2},
-                        constrained_layout=True,
-                    )
-
-                    times = sliced.times
-                    ids = sliced.ids
-                    types = getattr(sliced, "types", None)
-                    if types is not None:
-                        mask_E = types == 0
-                        mask_I = types == 1
-                        ax_ras.scatter(times[mask_E], ids[mask_E], s=0.5, marker=".")
-                        ax_ras.scatter(
-                            times[mask_I],
-                            ids[mask_I],
-                            s=0.5,
-                            marker=".",
-                            alpha=0.7,
-                        )
-                    else:
-                        ax_ras.scatter(times, ids, s=0.5, marker=".")
-
-                    ax_ras.set_xlim(start_time, stop_time)
-                    ax_ras.set_ylim(0.0, float(run_cfg.N_E + run_cfg.N_I))
-                    ax_ras.set_xlabel("Time (ms)")
-                    ax_ras.set_ylabel("Neuron id")
-                    ax_ras.set_title(label, fontsize=18)
-
-                    rate_centered = (
-                        rate_hz - float(np.mean(rate_hz)) if rate_hz.size else rate_hz
-                    )
-                    freqs, psd = rate_psd(rate_centered, dt_ms)
-                    psd_mask = (freqs >= 5.0) & (freqs <= 150.0)
-                    ax_psd.plot(freqs[psd_mask], psd[psd_mask])
-                    ax_psd.set_xlabel("Frequency (Hz)")
-                    ax_psd.set_ylabel("PSD")
-                    ax_psd.grid(True, alpha=0.3)
-
-                save_both(
-                    data_path
-                    / f"raster_{scan_key}_mean_{mean_idx:02d}_std_{std_idx:02d}",
-                    plot_raster_with_psd,
-                )
+        for mean_idx, mean_val in enumerate(mean_values, start=1):
+            rhythmicity_vals = rhythmicity_grid[mean_idx - 1, :]
 
             def plot_rhythmicity() -> None:
                 _, ax = plt.subplots(1, 1, figsize=figsize)
