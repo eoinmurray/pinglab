@@ -243,8 +243,8 @@ def _run_scan_cell(
     )
 
     dt_ms = 5.0
-    ri_burn_in_ms = float(config.ri_burn_in_ms)
-    ri_start = max(0.0, ri_burn_in_ms)
+    ri_window_ms = float(config.ri_window_ms)
+    ri_start = max(0.0, float(run_cfg.T) - ri_window_ms)
     ri_end = float(run_cfg.T)
     ri_window_ms = max(0.0, ri_end - ri_start)
     ri_spikes = slice_spikes(

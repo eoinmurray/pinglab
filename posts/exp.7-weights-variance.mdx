@@ -10,7 +10,6 @@ export const path = "_artifacts/exp.7-weights-variance";
 # Note: this is a work in progress.
 
 # TODO
-
 - [x] insert example rasters for high and low RI points in the heatmap
 - [x] diagonal walk of heatmaps instead of first column in appendix 1.
 - [x] rasters should have RI in the title.
@@ -19,6 +18,18 @@ export const path = "_artifacts/exp.7-weights-variance";
       operate on the metric to make it a bit more discriminative.
 - [ ] run variance tests on other weight matrices ($g_{ee}$, $g_{ie}$,
   $g_{ii}$)
+- [ ] add a single E and I voltage trace for the diagonal walk rasters.
+- [ ] we've added heterogeneity to neuron parameters, this was an arbitrary decision
+      and maybe should be removed for now.
+- [ ] add heatmap of weights matrix
+
+# TL'DR
+We explore how mean and variance in synaptic weights affects the emergence of PING
+rhythms. We create a heatmap of $\mu_{g_{ei}}$ vs $\sigma_{g_{ei}}$ vs our Rhythmicity
+metric, using MQIF neurons with conductance-based synapses and weight
+heterogeneity. We find that increasing variance in E→I weights generally decreases rhythmicity,
+especially at higher mean weights, while firing rates are partially controlled via
+external drive adjustments.
 
 # Goal
 
@@ -44,7 +55,7 @@ repeat the study on all weight types.
 
 For now we will use **MQIF neurons**, we have as of yet not done a full study of
 which neuron type (LIF, MQIF, QIF, AdEx, HH) is best for PING rhythms. MQIF is a
-reasonable starting point, given it’s proposition in Thomas Burgers thesis in the
+reasonable starting point given it’s proposition in Thomas Burgers thesis in the
 context of PING networks.
 
 **MQIF dynamics (implemented form).** In our code, MQIF is implemented with a
@@ -159,9 +170,9 @@ $$ \rho = \max_{\tau \in [\tau_{min}, \tau_{max}]} C(\tau), $$
 with $\tau_{min}=5$ ms and $\tau_{max}=200$ ms. If the rate series is empty or
 has zero variance, we set $\rho=0$.
 
-**Note:** In this experiment we compute RI after a 200 ms burn‑in (i.e., we
-slice spikes to $[200,\,T]$ ms before forming the rate), so the metric reflects
-the settled dynamics rather than early transients.
+**Note:** In this experiment we compute RI using only the final 500 ms of the
+simulation (i.e., we slice spikes to $[T-500,\,T]$ ms before forming the rate),
+so the metric reflects the settled dynamics rather than early transients.
 
 # Firing rate matching
 
@@ -208,12 +219,14 @@ for mu in mu_values:
   for sigma in sigma_values:
     # Generate weights
     g_ei_weights = sample_weights(mu, sigma, size=(N_e, N_i))
-    # Use default external drive
-    I_ext_e, I_ext_i = default_inputs()
-    # Run simulation
-    sim_data = run_simulation(g_ei_weights, I_ext_e, I_ext_i, other_params)
-    # Compute metrics
-    ri = compute_rhythmicity_index(sim_data)
+    # Rate-match: search I_E to hit target E-rate (short sims)
+    I_E_star = argmin_I_E(
+        lambda I_E: (rate_E(run_short_sim(I_E, g_ei_weights)) - r_target)**2
+    )
+    # Run full simulation with matched drive (I_I fixed)
+    sim_data = run_simulation(g_ei_weights, I_E_star, I_I_default, other_params)
+    # Compute metrics (RI on last window)
+    ri = compute_rhythmicity_index(sim_data, window="last_500ms")
     # Plot results
     plot_results(mu, sigma, ri, sim_data)
 ```
@@ -247,9 +260,28 @@ We can use this graph to identify regions of PING stability and instability and
 use this as a guide for parameter range selection for training experiments down
 the line.
 
-*Note* this simulation is time intensive, so we believe that the scan would be
-more useful if we increase the range of $\sigma_{g_{ei}}$ investigated, which we
-may do down the line.
+**Interpreting the variance heatmap**
+
+Two intuitive ways RI changes across the $(\mu_{g_{ei}}, \sigma_{g_{ei}})$ scan:
+
+**As $\mu_{g_{ei}}$ increases (mean E→I strength):** Mean rate of E cells
+decreases while I rate stays roughly (very roughly) constant. This is because we
+need less E cells overall to drive the same I activity due to higher E→I
+weights. I cells mush out because they are driven harder by fewer E cells.
+
+**As $\sigma_{g_{ei}}$ increases (variance in E→I strength):** Similar arguments
+apply. Higher variance means some E→I synapses are very strong, so fewer E cells
+are needed to drive I activity. This again leads to lower E rates and higher I
+rates, which degrades rhythmicity.
+
+The bands of rhythmic and unrhythmic activity as seen in the appendix are
+unexplored for now.
+
+The variance in the RI values for similar rasters is disturbing for now, and
+needs to be explored, this might be done by running multiple sims per
+parameter set and averaging the RI values, or by modifying the RI metric to be
+more robust. We could run the same sim with different random seeds to see how
+much the RI varies for the same parameters.
 
 <VeslxGallery 
   path={`${path}`} 
@@ -261,10 +293,10 @@ may do down the line.
   caption="Mean E firing rate heatmap vs $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$."
 />
 
-In the **Figure 2** we can see the mean E firing rate across the parameter space. 
-While the firing rates are held mostly constant circa 20Hz, the rate does 
-decrease to circa 10Hz at higher $\mu_{g_{ei}}$ values, which may be a confound 
-in interpreting the rhythmicity index heatmap.
+In the **Figure 2** we can see the mean E firing rate across the parameter
+space. The firing rate matching is partially working, while the firing rates are
+held in the 5-20Hz range, which may not be enough to remove a confound in
+interpreting the rhythmicity index heatmap.
 
 # Appendix 1
 
