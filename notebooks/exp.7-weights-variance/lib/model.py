@@ -44,3 +44,4 @@ class LocalConfig(ExperimentConfig):
     scan: VarianceScanConfig
     rate_match: RateMatchConfig
     parallel: ParallelConfig = ParallelConfig()
+    ri_burn_in_ms: float = 200.0

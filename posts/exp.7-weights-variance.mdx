@@ -7,15 +7,18 @@ export const path = "_artifacts/exp.7-weights-variance";
 
 <VeslxFrontMatter />
 
-# Work in progress!
+# Note: this is a work in progress.
 
-# Todos
+# TODO
 
-- [ ] run variance tests on other weight matrices ($g_{ee}$, $g_{ie}$,
-  $g_{ii}$)
 - [x] insert example rasters for high and low RI points in the heatmap
 - [x] diagonal walk of heatmaps instead of first column in appendix 1.
-- [ ] rasters should have RI in the title.
+- [x] rasters should have RI in the title.
+- [ ] rhythmicity isn't as definite as I expect, rasters showing clear PING rhythms
+      have RI of ~0.8, and rasters clearly without PING have RI ~0.2-0.5, we should 
+      operate on the metric to make it a bit more discriminative.
+- [ ] run variance tests on other weight matrices ($g_{ee}$, $g_{ie}$,
+  $g_{ii}$)
 
 # Goal
 
@@ -156,6 +159,10 @@ $$ \rho = \max_{\tau \in [\tau_{min}, \tau_{max}]} C(\tau), $$
 with $\tau_{min}=5$ ms and $\tau_{max}=200$ ms. If the rate series is empty or
 has zero variance, we set $\rho=0$.
 
+**Note:** In this experiment we compute RI after a 200 ms burn‑in (i.e., we
+slice spikes to $[200,\,T]$ ms before forming the rate), so the metric reflects
+the settled dynamics rather than early transients.
+
 # Firing rate matching
 
 Changing $g_{ei}$ without rate-matching confounds rhythmicity because the metric
@@ -262,6 +269,8 @@ in interpreting the rhythmicity index heatmap.
 # Appendix 1
 
 *Readers note:* You can horizontally scroll on this row to see all images.
+
+By scrolling you see example rasters with higher and lower RI values.
 
 <VeslxGallery 
   path={`${path}`} 

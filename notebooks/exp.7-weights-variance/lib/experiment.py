@@ -10,6 +10,7 @@ from pinglab.inputs.tonic import tonic
 from pinglab.lib.weights_builder import build_adjacency_matrices
 from pinglab.plots.styles import save_both, figsize
 from pinglab.run import build_model_from_config, run_network
+from pinglab.types import Spikes
 from pinglab.utils import slice_spikes
 
 from .model import LocalConfig
@@ -242,9 +243,23 @@ def _run_scan_cell(
     )
 
     dt_ms = 5.0
+    ri_burn_in_ms = float(config.ri_burn_in_ms)
+    ri_start = max(0.0, ri_burn_in_ms)
+    ri_end = float(run_cfg.T)
+    ri_window_ms = max(0.0, ri_end - ri_start)
+    ri_spikes = slice_spikes(
+        result.spikes,
+        start_time=ri_start,
+        stop_time=ri_end,
+    )
+    ri_spikes = Spikes(
+        times=ri_spikes.times - ri_start,
+        ids=ri_spikes.ids,
+        types=getattr(ri_spikes, "types", None),
+    )
     _, rate_hz = population_rate(
-        sliced,
-        T_ms=run_cfg.T,
+        ri_spikes,
+        T_ms=ri_window_ms,
         dt_ms=dt_ms,
         pop="E",
         N_E=int(run_cfg.N_E),
@@ -459,8 +474,6 @@ def run_experiment(config: LocalConfig, data_path: Path) -> None:
                 aspect="auto",
                 interpolation="nearest",
                 cmap="gray_r",
-                vmin=0.0,
-                vmax=50.0,
             )
             ax.set_title(f"E rate heatmap (g_{scan_key})", fontsize=18)
             ax.set_xlabel(f"std_g_{scan_key}")

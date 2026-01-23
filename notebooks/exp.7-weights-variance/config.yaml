@@ -6,14 +6,16 @@ plotting:
 parallel:
   n_jobs: 8
 
+ri_burn_in_ms: 200.0
+
 scan:
   mean_ei:
     start: 0.01
-    stop: 0.05
+    stop: 0.12
     num: 20
   std_ei:
     start: 0.0
-    stop: 0.1
+    stop: 0.25
     num: 20
   mean_ie:
     start: 0.0
