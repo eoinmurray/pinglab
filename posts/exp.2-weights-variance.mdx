@@ -1,0 +1,349 @@
+---
+title: "exp.2-weights-variance"
+description: "PINGness vs variance in synaptic weights."
+---
+
+export const path = "_artifacts/exp.2-weights-variance";
+
+<VeslxFrontMatter />
+
+# Note: this is a work in progress.
+
+# TODO
+- [x] insert example rasters for high and low RI points in the heatmap
+- [x] diagonal walk of heatmaps instead of first column in appendix 1.
+- [x] rasters should have RI in the title.
+- [ ] rhythmicity isn't as definite as I expect, rasters showing clear PING
+      rhythms have RI of ~0.8, and rasters clearly without PING have RI
+      ~0.2-0.5, we should operate on the metric to make it a bit more
+      discriminative, might look at RI vs seed.
+- [ ] run variance tests on other weight matrices ($g_{ee}$, $g_{ie}$,
+  $g_{ii}$)
+- [ ] add a single E and I voltage trace for the diagonal walk rasters.
+- [ ] we've added heterogeneity to neuron parameters, this was an arbitrary decision
+      and maybe should be removed for now.
+- [ ] add heatmap of weights matrix
+
+# TL'DR
+We explore how mean and variance in synaptic weights affects the emergence of PING
+rhythms. We create a heatmap of $\mu_{g_{ei}}$ vs $\sigma_{g_{ei}}$ vs our Rhythmicity
+metric, using MQIF neurons with conductance-based synapses and weight
+heterogeneity. We find that increasing variance in E→I weights generally decreases rhythmicity,
+especially at higher mean weights, while firing rates are partially controlled via
+external drive adjustments.
+
+# Goal
+
+Explore how mean and variance in synaptic weights affects the emergence PING
+rhythms. To do this we create a heatmap of $\mu_{g_{ei}}$ vs $\sigma_{g_{ei}}$ vs
+our Rhythmicity metric, once we have settled on an analysis we will do the same
+treatment for the other weight matrices ($g_{ee}$, $g_{ie}$, $g_{ii}$).
+
+# Prior work
+
+> Variance in the strength of I → E synapses has little effect on the resulting
+> rhythm, while E → I variance reduces coherence by a factor of 0.5. In some
+> cases, strong variance in both sets of synapses degrades the rhythm entirely.
+> — Byrne 2024, p. 5.
+
+Rory Byrne's report *"Stable and flexible computation in rhythmic spiking
+networks"* found that variance in the $I \to E$ weights had little effect on the
+PING rhythms, while variance in the $E \to I$ weights had a stronger effect.
+Thus for our initial pass we will focus on $E \to I$ weights. In future we can
+repeat the study on all weight types.
+
+# Neuron Parameters and Connectivity
+
+For now we will use **MQIF neurons**, we have as of yet not done a full study of
+which neuron type (LIF, MQIF, QIF, AdEx, HH) is best for PING rhythms. MQIF is a
+reasonable starting point given it’s proposition in Thomas Burgers thesis in the
+context of PING networks.
+
+**MQIF dynamics (implemented form).** In our code, MQIF is implemented with a
+configurable number of quadratic voltage terms and a configurable number of
+slow variables. The exact update is:
+
+$$
+C_m \, \dot V
+  = g_L (E_L - V)
+  + \sum_{k=1}^{K} a_k (V - V_{r,k})^2
+  - \sum_{s=1}^{S} w_s
+  + I_{syn} + I_{ext},
+$$
+
+$$
+\tau_s \, \dot w_s = b_s (V - V_{w,s})^2 - w_s.
+$$
+
+with synaptic currents defined below. Here $K = \text{len}(\text{mqif\_a})$ and
+$S = \text{len}(\text{mqif\_w\_a})$. For this experiment, `mqif_a: [0.02]` and
+`mqif_w_a: [0.02]`, so **$K=1$ quadratic term** and **$S=1$ slow variable**
+with `mqif_w_tau: [100.0]` ms. When $V$ reaches a threshold $V_{th}$, a spike
+is emitted, $V$ is reset to $V_{reset}$, and a refractory period $t_{ref}$ is
+applied. 
+
+**Conductance‑based synapses.** For each synapse type $x \in \{E,I\}$ the
+synaptic current into neuron $i$ is:
+
+$$
+I_{syn,i} = \sum_{j} g_{ij}^{(E)} (E_E - V_i) + \sum_{j} g_{ij}^{(I)} (E_I - V_i),
+$$
+
+with conductances updated on presynaptic spikes and decaying exponentially:
+
+$$
+\tau_x \, \dot g_{ij}^{(x)} = -g_{ij}^{(x)} + w_{ij}^{(x)} \sum_k \delta(t - t_k^{(j)}).
+$$
+
+Here $w_{ij}^{(x)}$ is the synaptic weight (peak conductance increment) from
+presynaptic neuron $j$ to postsynaptic neuron $i$.
+
+**Weights × connection probability.** For each block (E→E, E→I, I→E, I→I) we
+sample a dense weight matrix $G$ from a Gaussian with mean $\mu$ and standard
+deviation $\sigma$, then apply a Bernoulli mask $A$ with connection
+probability $p$:
+
+$$
+W = A \odot G,\quad A_{ij} \sim \text{Bernoulli}(p),
+$$
+
+where $\odot$ denotes the element‑wise (Hadamard) product.
+
+This is equivalent to drawing $W_{ij}=0$ with probability $1-p$ and
+$W_{ij} \sim \mathcal{N}(\mu,\sigma)$ with probability $p$ (then clipped to
+be non‑negative). The expected effective weight is $E[W_{ij}] = p \mu$, and
+the total synaptic drive therefore scales with both $\mu$ and $p$.
+
+If we dont apply the Bernoulli mask to create sparse connectivity then the
+network blows up, and firing rates become extreme.
+
+**Neuron heterogeneity.** To avoid unrealistically identical neurons we add
+independent Gaussian heterogeneity to select parameters per neuron. In the
+sim, each neuron draws
+
+$$
+V_{th,i} \sim \mathcal{N}(V_{th}, \sigma_{V_{th}})
+$$
+$$
+g_{L,i} \sim \mathcal{N}(g_L, \sigma_{g_L})
+$$
+$$
+C_{m,i} \sim \mathcal{N}(C_m, \sigma_{C_m})
+$$
+$$
+t_{ref,i} \sim \mathcal{N}(t_{ref}, \sigma_{t_{ref}})
+$$
+
+with separate E/I baselines ($g_L$, $C_m$, $t_{ref}$) and shared standard
+deviations. For this experiment we use
+`V_th_heterogeneity_sd = 1.2`, `g_L_heterogeneity_sd = 0.15`,
+`C_m_heterogeneity_sd = 0.1`, `t_ref_heterogeneity_sd = 0.3`.
+
+Here $t_{ref}$ is the absolute refractory period applied after a spike: once
+$V$ crosses $V_{th}$ and is reset, the neuron is held non‑spiking for
+$t_{ref}$ ms (implemented as a per‑neuron countdown that masks spikes and holds
+$V$ at $V_{reset}$ during the refractory window). This is why $t_{ref}$ appears
+in the heterogeneity list even though it is not part of the continuous‑time
+voltage ODE.
+
+# Autocorrelation Rhythmicity Index (RI)
+
+We measure rhythmicity using the same autocorrelation-based index from
+[exp.5-rhythmicity-metric](./exp.5-rhythmicity-metric.mdx). In short:
+
+1. Run the simulation for $T=1000$ ms.
+2. Discard the first 200 ms (burn-in); analyze the remaining 800 ms.
+3. Bin excitatory spikes into 5 ms bins to form a population rate $r(t)$.
+4. Normalize the rate to zero mean and unit variance:
+   $x_n=(r_n-\bar{r})/\sigma_r$.
+5. Compute the normalized autocorrelation over positive lags.
+6. Search lags $\tau \in [5,200]$ ms and take the largest peak.
+
+Formally, with bin width $\Delta t = 5$ ms and discrete samples $x_n$:
+
+$$ C_k = \frac{1}{n - k} \sum_{m=0}^{n-k-1} x_m \, x_{m+k}, $$
+
+where $k$ maps to $\tau = k \Delta t$ and $n$ is the number of bins. The
+rhythmicity index is
+
+$$ \rho = \max_{\tau \in [\tau_{min}, \tau_{max}]} C(\tau), $$
+
+with $\tau_{min}=5$ ms and $\tau_{max}=200$ ms. If the rate series is empty or
+has zero variance, we set $\rho=0$.
+
+**Note:** In this experiment we compute RI using only the final 500 ms of the
+simulation (i.e., we slice spikes to $[T-500,\,T]$ ms before forming the rate),
+so the metric reflects the settled dynamics rather than early transients.
+
+# Firing rate matching
+
+Changing $g_{ei}$ without rate-matching confounds rhythmicity because the metric
+depends on firing rate and population activity level. As $g_{ei}$ shifts
+inhibition strength, it can suppress or boost E‑rates, which changes
+autocorrelation amplitude, PSD power, and apparent coherence. So differences
+in “rhythmicity” may mostly reflect rate changes (and altered spike density)
+rather than variance effects on oscillatory structure.
+
+We should control firing rate across conditions. The most defensible approach is
+explicit rate matching by adjusting external drive $I_E$ (holding $I_I$ fixed)
+so that each $(\mu_{g_{ei}}, \sigma_{g_{ei}})$ run hits a common target E-rate.
+That keeps spike density and baseline activity comparable, letting the scan
+reflect rhythm quality rather than simple gain changes.
+
+Mathematically, for each condition $\theta = (\mu_{g_{ei}}, \sigma_{g_{ei}})$
+we choose $I_E$ to minimize the squared error between the observed E‑rate and a
+target rate $r^*$:
+
+$$
+I_E^*(\theta) = \arg\min_{I_E \in [I_{\min}, I_{\max}]} \left(r_E(I_E, \theta) - r^*\right)^2.
+$$
+
+Here $r_E(I_E, \theta)$ is the mean E‑rate measured over a fixed window
+after burn‑in in a short simulation (e.g., 300 ms total, analyze a window
+[$t_0, t_1$]). We estimate $r_E$ from spike counts:
+
+$$
+r_E = \frac{1}{N_E (t_1 - t_0)} \sum_{i=1}^{N_E} \sum_k \mathbf{1}\{t_0 \le t_k^{(i)} < t_1\}.
+$$
+
+In practice: (1) coarse grid search over $I_E$ to locate the minimum, then
+(2) a small refinement sweep around the best value. The matched $I_E^*(\theta)$
+is then used for the full simulation that produces rasters, PSDs, and rhythmicity.
+We do this for every raster (every $\theta$).
+
+Target: fix E around a chosen rate (e.g., 20Hz) and let I vary naturally.
+
+# Pseudocode outline
+
+```python
+for mu in mu_values:
+  for sigma in sigma_values:
+    # Generate weights
+    g_ei_weights = sample_weights(mu, sigma, size=(N_e, N_i))
+    # Rate-match: search I_E to hit target E-rate (short sims)
+    I_E_star = argmin_I_E(
+        lambda I_E: (rate_E(run_short_sim(I_E, g_ei_weights)) - r_target)**2
+    )
+    # Run full simulation with matched drive (I_I fixed)
+    sim_data = run_simulation(g_ei_weights, I_E_star, I_I_default, other_params)
+    # Compute metrics (RI on last window)
+    ri = compute_rhythmicity_index(sim_data, window="last_500ms")
+    # Plot results
+    plot_results(mu, sigma, ri, sim_data)
+```
+
+# Results
+
+We scan $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$ on a grid (20 means from 0.01 to
+0.05, 20 std values from 0.0 to 0.08). The heatmaps below show the rhythmicity
+index and the mean $E$ firing rate across the grid, with example rasters for
+each mean row.
+
+# Heatmaps (g_ei)
+
+Heatmap of Rhythmicity Index vs $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$.
+
+<VeslxGallery 
+  path={`${path}`} 
+  globs={[
+    "rhythmicity_heatmap_ei*.png",
+  ]}
+  title="Rhythmicity Index Heatmap"
+  captionLabel="Figure 1"
+  caption="Rhythmicity Index heatmap vs $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$."
+/>
+
+In the **Figure 1** we can see the range of rhythmicity values across the
+parameter grid. There is a trend of decreasing rhythmicity as
+$\sigma_{g_{ei}}$ increases, particularly at higher $\mu_{g_{ei}}$ values. 
+
+We can use this graph to identify regions of PING stability and instability and
+use this as a guide for parameter range selection for training experiments down
+the line.
+
+**Interpreting the variance heatmap**
+
+Two intuitive ways RI changes across the $(\mu_{g_{ei}}, \sigma_{g_{ei}})$ scan:
+
+**As $\mu_{g_{ei}}$ increases (mean E→I strength):** Mean rate of E cells
+decreases while I rate stays roughly (very roughly) constant. This is because we
+need less E cells overall to drive the same I activity due to higher E→I
+weights. I cells mush out because they are driven harder by fewer E cells.
+
+**As $\sigma_{g_{ei}}$ increases (variance in E→I strength):** Similar arguments
+apply. Higher variance means some E→I synapses are very strong, so fewer E cells
+are needed to drive I activity. This again leads to lower E rates and higher I
+rates, which degrades rhythmicity.
+
+The bands of rhythmic and unrhythmic activity as seen in the appendix are
+unexplored for now.
+
+The variance in the RI values for similar rasters is disturbing for now, and
+needs to be explored, this might be done by running multiple sims per
+parameter set and averaging the RI values, or by modifying the RI metric to be
+more robust. We could run the same sim with different random seeds to see how
+much the RI varies for the same parameters.
+
+<VeslxGallery 
+  path={`${path}`} 
+  globs={[
+    "rate_e_heatmap_ei*.png"
+  ]} 
+  title="Mean E Firing Rate Heatmap"
+  captionLabel="Figure 2"
+  caption="Mean E firing rate heatmap vs $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$."
+/>
+
+In the **Figure 2** we can see the mean E firing rate across the parameter
+space. The firing rate matching is partially working, while the firing rates are
+held in the 5-20Hz range, which may not be enough to remove a confound in
+interpreting the rhythmicity index heatmap.
+
+# Appendix 1
+
+*Readers note:* You can horizontally scroll on this row to see all images.
+
+By scrolling you see example rasters with higher and lower RI values.
+
+<VeslxGallery 
+  path={`${path}`} 
+  globs={[
+    "raster_ei_mean_01_std_01*.png",
+    "raster_ei_mean_02_std_02*.png",
+    "raster_ei_mean_03_std_03*.png",
+    "raster_ei_mean_04_std_04*.png",
+    "raster_ei_mean_05_std_05*.png",
+    "raster_ei_mean_06_std_06*.png",
+    "raster_ei_mean_07_std_07*.png",
+    "raster_ei_mean_08_std_08*.png",
+    "raster_ei_mean_09_std_09*.png",
+    "raster_ei_mean_10_std_10*.png",
+    "raster_ei_mean_11_std_11*.png",
+    "raster_ei_mean_12_std_12*.png",
+    "raster_ei_mean_13_std_13*.png",
+    "raster_ei_mean_14_std_14*.png",
+    "raster_ei_mean_15_std_15*.png",
+    "raster_ei_mean_16_std_16*.png",
+    "raster_ei_mean_17_std_17*.png",
+    "raster_ei_mean_18_std_18*.png",
+    "raster_ei_mean_19_std_19*.png",
+  ]} 
+  title="Example Rasters along Heatmap Diagonal"
+  captionLabel="Figure 3"
+  caption="Example rasters for $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$ along the heatmap diagonal. Starting from bottom left to top right."
+/>
+
+# Appendix 2
+
+Seed-variance check at a fixed middle-ground $(\mu_{g_{ei}}, \sigma_{g_{ei}})$.
+
+<VeslxGallery 
+  path={`${path}`} 
+  globs={[
+    "ri_vs_seed*.png",
+    "rate_e_vs_seed*.png",
+  ]} 
+  title="RI and Rate vs Seed"
+  captionLabel="Figure 4"
+  caption="Rhythmicity Index and mean E-rate versus random seed at fixed $\mu_{g_{ei}}$ and $\sigma_{g_{ei}}$."
+/>

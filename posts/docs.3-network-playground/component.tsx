@@ -51,33 +51,33 @@ export default function Component() {
   const [nI, setNI] = useState(200);
   const [seed, setSeed] = useState(0);
 
-  const [noiseStd, setNoiseStd] = useState(0.5);
+  const [noiseStd, setNoiseStd] = useState(0.0);
   const [inputSeed, setInputSeed] = useState(0);
   const [inputType, setInputType] = useState<"ramp" | "pulse" | "pulses">("ramp");
-  const [iEStart, setIEStart] = useState(0.7);
-  const [iEEnd, setIEEnd] = useState(0.7);
-  const [iIStart, setIIStart] = useState(0.7);
-  const [iIEnd, setIIEnd] = useState(0.7);
-  const [iEBase, setIEBase] = useState(0.7);
-  const [iIBase, setIIBase] = useState(0.7);
+  const [iEStart, setIEStart] = useState(2.0);
+  const [iEEnd, setIEEnd] = useState(2.0);
+  const [iIStart, setIIStart] = useState(2.0);
+  const [iIEnd, setIIEnd] = useState(2.0);
+  const [iEBase, setIEBase] = useState(0.0);
+  const [iIBase, setIIBase] = useState(0.0);
   const [inputPulseT, setInputPulseT] = useState(200.0);
   const [inputPulseWidth, setInputPulseWidth] = useState(20.0);
   const [inputPulseInterval, setInputPulseInterval] = useState(100.0);
   const [inputPulseAmpE, setInputPulseAmpE] = useState(1.0);
   const [inputPulseAmpI, setInputPulseAmpI] = useState(1.0);
 
-  const [gEeMean, setGEeMean] = useState(0.02);
-  const [gEiMean, setGEiMean] = useState(0.015);
-  const [gIeMean, setGIeMean] = useState(0.015);
-  const [gIiMean, setGIiMean] = useState(0.02);
-  const [gEeStd, setGEeStd] = useState(0.0);
-  const [gEiStd, setGEiStd] = useState(0.0);
-  const [gIeStd, setGIeStd] = useState(0.0);
-  const [gIiStd, setGIiStd] = useState(0.0);
-  const [pEe, setPEe] = useState(0.02);
-  const [pEi, setPEi] = useState(0.18);
-  const [pIe, setPIe] = useState(0.04);
-  const [pIi, setPIi] = useState(0.06);
+  const [gEeMean, setGEeMean] = useState(0.003);
+  const [gEiMean, setGEiMean] = useState(0.005);
+  const [gIeMean, setGIeMean] = useState(0.005);
+  const [gIiMean, setGIiMean] = useState(0.005);
+  const [gEeStd, setGEeStd] = useState(0.002);
+  const [gEiStd, setGEiStd] = useState(0.002);
+  const [gIeStd, setGIeStd] = useState(0.002);
+  const [gIiStd, setGIiStd] = useState(0.002);
+  const [pEe, setPEe] = useState(1.0);
+  const [pEi, setPEi] = useState(1.0);
+  const [pIe, setPIe] = useState(1.0);
+  const [pIi, setPIi] = useState(1.0);
   const [clampMin, setClampMin] = useState(0.0);
   const [weightsSeed, setWeightsSeed] = useState(0);
 
@@ -134,10 +134,10 @@ export default function Component() {
   const [izhC, setIzhC] = useState(-65.0);
   const [izhD, setIzhD] = useState(8.0);
 
-  const [gLHet, setGLHet] = useState(0.15);
-  const [cMHet, setCMHet] = useState(0.1);
-  const [vThHet, setVThHet] = useState(1.2);
-  const [tRefHet, setTRefHet] = useState(0.3);
+  const [gLHet, setGLHet] = useState(0.0);
+  const [cMHet, setCMHet] = useState(0.0);
+  const [vThHet, setVThHet] = useState(0.0);
+  const [tRefHet, setTRefHet] = useState(0.0);
 
   const plotRef = useRef<HTMLDivElement | null>(null);
   const [plotSize, setPlotSize] = useState({
@@ -529,34 +529,34 @@ export default function Component() {
     setNI={setNI}
     seed={seed}
     setSeed={setSeed}
-          noiseStd={noiseStd}
-          setNoiseStd={setNoiseStd}
-          inputSeed={inputSeed}
-          setInputSeed={setInputSeed}
-          inputType={inputType}
-          setInputType={setInputType}
-          iEStart={iEStart}
-          setIEStart={setIEStart}
-          iEEnd={iEEnd}
-          setIEEnd={setIEEnd}
-          iIStart={iIStart}
-          setIIStart={setIIStart}
-          iIEnd={iIEnd}
-          setIIEnd={setIIEnd}
-          iEBase={iEBase}
-          setIEBase={setIEBase}
-          iIBase={iIBase}
-          setIIBase={setIIBase}
-          inputPulseT={inputPulseT}
-          setInputPulseT={setInputPulseT}
-          inputPulseWidth={inputPulseWidth}
-          setInputPulseWidth={setInputPulseWidth}
-          inputPulseInterval={inputPulseInterval}
-          setInputPulseInterval={setInputPulseInterval}
-          inputPulseAmpE={inputPulseAmpE}
-          setInputPulseAmpE={setInputPulseAmpE}
-          inputPulseAmpI={inputPulseAmpI}
-          setInputPulseAmpI={setInputPulseAmpI}
+    noiseStd={noiseStd}
+    setNoiseStd={setNoiseStd}
+    inputSeed={inputSeed}
+    setInputSeed={setInputSeed}
+    inputType={inputType}
+    setInputType={setInputType}
+    iEStart={iEStart}
+    setIEStart={setIEStart}
+    iEEnd={iEEnd}
+    setIEEnd={setIEEnd}
+    iIStart={iIStart}
+    setIIStart={setIIStart}
+    iIEnd={iIEnd}
+    setIIEnd={setIIEnd}
+    iEBase={iEBase}
+    setIEBase={setIEBase}
+    iIBase={iIBase}
+    setIIBase={setIIBase}
+    inputPulseT={inputPulseT}
+    setInputPulseT={setInputPulseT}
+    inputPulseWidth={inputPulseWidth}
+    setInputPulseWidth={setInputPulseWidth}
+    inputPulseInterval={inputPulseInterval}
+    setInputPulseInterval={setInputPulseInterval}
+    inputPulseAmpE={inputPulseAmpE}
+    setInputPulseAmpE={setInputPulseAmpE}
+    inputPulseAmpI={inputPulseAmpI}
+    setInputPulseAmpI={setInputPulseAmpI}
     gEeMean={gEeMean}
     setGEeMean={setGEeMean}
     gEiMean={gEiMean}
@@ -692,22 +692,11 @@ export default function Component() {
         className="flex min-h-0 gap-3 overflow-hidden rounded-2xl bg-slate-100 p-3 dark:bg-[#0f1015]"
         style={{ height: "100%", width: "100%" }}
       >
-        <aside
-          className="flex min-h-0 w-[320px] shrink-0 flex-col overflow-hidden rounded-xl bg-white/70 dark:border-white/10 dark:bg-white/5"
-          style={{ height: "100%" }}
-        >
-          <div
-            className="min-h-0 flex-1 text-sm text-slate-600 dark:text-zinc-300"
-            style={{ overflowY: "auto" }}
-          >
-            {Panel}
-          </div>
-        </aside>
         <main
-          className="flex-1 overflow-hidden rounded-xl border border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-white/5"
+          className="flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-white/5"
           style={{ height: "100%" }}
         >
-          <div className="flex h-full w-full flex-col gap-3 p-3">
+          <div className="grid h-full w-full min-h-0 grid-rows-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2 p-2">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-zinc-400">
               <div className="flex flex-wrap items-center gap-2 text-sm font-mono text-slate-700 dark:text-zinc-200">
                 <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
@@ -739,7 +728,7 @@ export default function Component() {
                 </span>
               </div>
             </div>
-            <div className="min-h-0 flex-[2]">
+            <div className="min-h-0">
               <div className="flex h-full w-full flex-col gap-2">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
                   Raster plot
@@ -764,7 +753,7 @@ export default function Component() {
                 </div>
               </div>
             </div>
-            <div className="flex h-48 w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
+            <div className="flex min-h-0 w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
                 Population rate (Hz)
               </div>
@@ -788,8 +777,8 @@ export default function Component() {
                 )}
               </div>
             </div>
-            <div className="flex h-[32rem] w-full flex-col gap-3">
-              <div className="flex h-full w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
+            <div className="flex min-h-0 w-full flex-col gap-2">
+              <div className="flex min-h-0 flex-1 w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
                   Membrane potential E (mV)
                 </div>
@@ -812,7 +801,7 @@ export default function Component() {
                   )}
                 </div>
               </div>
-              <div className="flex h-full w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
+              <div className="flex min-h-0 flex-1 w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
                   Membrane potential I (mV)
                 </div>
@@ -835,7 +824,7 @@ export default function Component() {
                   )}
                 </div>
               </div>
-              <div className="flex h-full w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
+              <div className="flex min-h-0 flex-1 w-full flex-col gap-2 rounded-lg bg-white/70 p-3 dark:bg-white/5">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
                   Input current
                 </div>
@@ -862,6 +851,17 @@ export default function Component() {
             </div>
           </div>
         </main>
+        <aside
+          className="flex min-h-0 w-[320px] shrink-0 flex-col overflow-hidden rounded-xl bg-white/70 dark:border-white/10 dark:bg-white/5"
+          style={{ height: "100%" }}
+        >
+          <div
+            className="min-h-0 flex-1 text-sm text-slate-600 dark:text-zinc-300"
+            style={{ overflowY: "auto" }}
+          >
+            {Panel}
+          </div>
+        </aside>
       </div>
     </div>
   );

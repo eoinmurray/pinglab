@@ -8,7 +8,7 @@ from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
-from pinglab.analysis import autocorr_rhythmicity, mean_firing_rates, population_rate
+from pinglab.analysis import mean_firing_rates, population_rate
 from pinglab.inputs import add_pulse_to_input, add_pulse_train_to_input, ramp
 from pinglab.lib import build_adjacency_matrices
 from pinglab.run.neuron_models import build_model_from_config
@@ -250,6 +250,37 @@ RHYTHM_TAU_MIN_MS = 5.0
 RHYTHM_TAU_MAX_MS = 200.0
 
 
+def _autocorr_rhythmicity(
+    rate_hz: np.ndarray,
+    dt_ms: float,
+    tau_min_ms: float,
+    tau_max_ms: float,
+) -> float:
+    if rate_hz.size == 0:
+        return 0.0
+
+    mean = float(np.mean(rate_hz))
+    std = float(np.std(rate_hz))
+    if std == 0.0:
+        return 0.0
+
+    x = (rate_hz - mean) / std
+    n = x.size
+    corr = np.correlate(x, x, mode="full")[n - 1 :]
+    norm = np.arange(n, 0, -1, dtype=float)
+    C = corr / norm
+
+    lag_min = max(1, int(np.ceil(tau_min_ms / dt_ms)))
+    lag_max = min(n - 1, int(np.floor(tau_max_ms / dt_ms)))
+    if lag_max < lag_min:
+        return 0.0
+
+    window = C[lag_min : lag_max + 1]
+    peak_idx = int(np.argmax(window))
+    lag_idx = lag_min + peak_idx
+    return float(C[lag_idx])
+
+
 def _merge_defaults(defaults: dict, overrides: BaseModel | None) -> dict:
     merged = defaults.copy()
     if overrides is None:
@@ -444,7 +475,7 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
             N_E=config.N_E,
             N_I=config.N_I,
         )
-        rhythmicity = autocorr_rhythmicity(
+        rhythmicity = _autocorr_rhythmicity(
             rate_hz_rhythm,
             dt_ms=RHYTHM_BIN_MS,
             tau_min_ms=RHYTHM_TAU_MIN_MS,

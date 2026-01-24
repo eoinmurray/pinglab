@@ -387,12 +387,12 @@ export default function ParameterPanel({
               options={["ramp", "pulse", "pulses"]}
               onChange={(value) => setInputType(value as "ramp" | "pulse" | "pulses")}
             />
-            <Slider label="I_E start" value={iEStart} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIEStart} />
-            <Slider label="I_E end" value={iEEnd} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIEEnd} />
-            <Slider label="I_I start" value={iIStart} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIIStart} />
-            <Slider label="I_I end" value={iIEnd} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIIEnd} />
-            <Slider label="I_E base" value={iEBase} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIEBase} />
-            <Slider label="I_I base" value={iIBase} min={0.0} max={2.0} step={0.01} precision={2} onChange={setIIBase} />
+            <Slider label="I_E start" value={iEStart} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIEStart} />
+            <Slider label="I_E end" value={iEEnd} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIEEnd} />
+            <Slider label="I_I start" value={iIStart} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIIStart} />
+            <Slider label="I_I end" value={iIEnd} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIIEnd} />
+            <Slider label="I_E base" value={iEBase} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIEBase} />
+            <Slider label="I_I base" value={iIBase} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIIBase} />
             <Slider
               label="noise std"
               value={noiseStd}
@@ -416,14 +416,14 @@ export default function ParameterPanel({
             Weights
           </div>
           <div className="mt-3 space-y-3">
-            <Slider label="g_ee mean" value={gEeMean} min={0.0} max={0.2} step={0.001} onChange={setGEeMean} />
-            <Slider label="g_ei mean" value={gEiMean} min={0.005} max={0.2} step={0.001} onChange={setGEiMean} />
-            <Slider label="g_ie mean" value={gIeMean} min={0.005} max={0.2} step={0.001} onChange={setGIeMean} />
-            <Slider label="g_ii mean" value={gIiMean} min={0.0} max={0.2} step={0.001} onChange={setGIiMean} />
-            <Slider label="g_ee stddev" value={gEeStd} min={0.0} max={0.2} step={0.001} onChange={setGEeStd} />
-            <Slider label="g_ei stddev" value={gEiStd} min={0.0} max={0.2} step={0.001} onChange={setGEiStd} />
-            <Slider label="g_ie stddev" value={gIeStd} min={0.0} max={0.2} step={0.001} onChange={setGIeStd} />
-            <Slider label="g_ii stddev" value={gIiStd} min={0.0} max={0.2} step={0.001} onChange={setGIiStd} />
+            <Slider label="g_ee mean" value={gEeMean} min={0.0} max={0.01} step={0.0001} onChange={setGEeMean} />
+            <Slider label="g_ei mean" value={gEiMean} min={0.005} max={0.01} step={0.0001} onChange={setGEiMean} />
+            <Slider label="g_ie mean" value={gIeMean} min={0.005} max={0.01} step={0.0001} onChange={setGIeMean} />
+            <Slider label="g_ii mean" value={gIiMean} min={0.0} max={0.01} step={0.0001} onChange={setGIiMean} />
+            <Slider label="g_ee stddev" value={gEeStd} min={0.0} max={0.01} step={0.0001} onChange={setGEeStd} />
+            <Slider label="g_ei stddev" value={gEiStd} min={0.0} max={0.01} step={0.0001} onChange={setGEiStd} />
+            <Slider label="g_ie stddev" value={gIeStd} min={0.0} max={0.01} step={0.0001} onChange={setGIeStd} />
+            <Slider label="g_ii stddev" value={gIiStd} min={0.0} max={0.01} step={0.0001} onChange={setGIiStd} />
             <Slider label="p_ee" value={pEe} min={0.0} max={1.0} step={0.01} precision={2} onChange={setPEe} />
             <Slider label="p_ei" value={pEi} min={0.0} max={1.0} step={0.01} precision={2} onChange={setPEi} />
             <Slider label="p_ie" value={pIe} min={0.0} max={1.0} step={0.01} precision={2} onChange={setPIe} />

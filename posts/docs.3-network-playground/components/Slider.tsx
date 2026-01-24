@@ -16,7 +16,7 @@ export default function Slider({
   min,
   max,
   step,
-  precision = 3,
+  precision = 5,
   onChange,
 }: SliderProps) {
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
