@@ -64,19 +64,74 @@ def assemble_weight_matrix(
     return W
 
 
+def _parse_dist_params(dist_params: dict | None) -> dict[str, float]:
+    if not dist_params:
+        return {}
+    return {str(k): float(v) for k, v in dist_params.items()}
+
+
+def _block_spec(block: object) -> tuple[str, dict[str, float], float]:
+    if hasattr(block, "dist"):
+        dist = getattr(block, "dist")
+        dist_name = getattr(dist, "name", "normal")
+        dist_params = getattr(dist, "params", None)
+        p = getattr(block, "p", 1.0)
+    elif isinstance(block, dict):
+        dist = block.get("dist", {})
+        dist_name = dist.get("name", "normal")
+        dist_params = dist.get("params", None)
+        p = block.get("p", 1.0)
+    else:
+        raise ValueError("Weight block must be a WeightBlockSpec or dict.")
+    return str(dist_name), _parse_dist_params(dist_params), float(p)
+
+
+def _sample_distribution(
+    rng: np.random.RandomState,
+    dist_name: str,
+    dist_params: dict[str, float],
+    shape: tuple[int, int],
+) -> np.ndarray:
+    if dist_name == "normal":
+        mean = float(dist_params.get("mean", 0.0))
+        std = float(dist_params.get("std", 1.0))
+        return rng.normal(loc=mean, scale=std, size=shape)
+    if dist_name == "lognormal":
+        mean = float(dist_params.get("mean", 0.0))
+        sigma = float(dist_params.get("sigma", 1.0))
+        return rng.lognormal(mean=mean, sigma=sigma, size=shape)
+    if dist_name == "gamma":
+        shape_k = float(dist_params.get("shape", 1.0))
+        if "rate" in dist_params:
+            scale = 1.0 / float(dist_params["rate"])
+        else:
+            scale = float(dist_params.get("scale", 1.0))
+        return rng.gamma(shape=shape_k, scale=scale, size=shape)
+    if dist_name == "exponential":
+        if "rate" in dist_params:
+            scale = 1.0 / float(dist_params["rate"])
+        else:
+            scale = float(dist_params.get("scale", 1.0))
+        return rng.exponential(scale=scale, size=shape)
+    raise ValueError(f"Unknown weight distribution '{dist_name}'")
+
+
 def _sample_block(
     rng: np.random.RandomState,
-    mean: float,
-    std: float,
     shape: tuple[int, int],
     p: float,
     clamp_min: float | None,
+    dist_name: str,
+    dist_params: dict[str, float] | None,
 ) -> np.ndarray:
     mask = rng.random_sample(shape) < p
-    if std == 0.0:
-        weights = np.full(shape, mean, dtype=float)
-    else:
-        weights = rng.normal(loc=mean, scale=std, size=shape)
+    dist_params = _parse_dist_params(dist_params)
+    weights = _sample_distribution(
+        rng,
+        dist_name,
+        dist_params,
+        shape,
+    )
     if clamp_min is not None:
         weights = np.clip(weights, clamp_min, None)
     return weights * mask
@@ -86,32 +141,37 @@ def build_adjacency_matrices(
     *,
     N_E: int,
     N_I: int,
-    mean_ee: float,
-    mean_ei: float,
-    mean_ie: float,
-    mean_ii: float,
-    std_ee: float,
-    std_ei: float,
-    std_ie: float,
-    std_ii: float,
-    p_ee: float,
-    p_ei: float,
-    p_ie: float,
-    p_ii: float,
+    ee: object,
+    ei: object,
+    ie: object,
+    ii: object,
     clamp_min: float | None = 0.0,
     seed: int | None = None,
 ) -> WeightMatrices:
     """
-    Build block adjacency matrices with independent Gaussian weights.
+    Build block adjacency matrices with independent per-block distributions.
 
     Rows are targets, columns are sources. Blocks are ordered E then I.
     """
     rng = np.random.RandomState(seed)
 
-    W_ee = _sample_block(rng, mean_ee, std_ee, (N_E, N_E), p_ee, clamp_min)
-    W_ei = _sample_block(rng, mean_ei, std_ei, (N_I, N_E), p_ei, clamp_min)
-    W_ie = _sample_block(rng, mean_ie, std_ie, (N_E, N_I), p_ie, clamp_min)
-    W_ii = _sample_block(rng, mean_ii, std_ii, (N_I, N_I), p_ii, clamp_min)
+    ee_name, ee_params, ee_p = _block_spec(ee)
+    ei_name, ei_params, ei_p = _block_spec(ei)
+    ie_name, ie_params, ie_p = _block_spec(ie)
+    ii_name, ii_params, ii_p = _block_spec(ii)
+
+    W_ee = _sample_block(
+        rng, (N_E, N_E), ee_p, clamp_min, ee_name, ee_params
+    )
+    W_ei = _sample_block(
+        rng, (N_I, N_E), ei_p, clamp_min, ei_name, ei_params
+    )
+    W_ie = _sample_block(
+        rng, (N_E, N_I), ie_p, clamp_min, ie_name, ie_params
+    )
+    W_ii = _sample_block(
+        rng, (N_I, N_I), ii_p, clamp_min, ii_name, ii_params
+    )
 
     N = N_E + N_I
     W = np.zeros((N, N), dtype=float)

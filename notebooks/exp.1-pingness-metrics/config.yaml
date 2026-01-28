@@ -1,64 +1,63 @@
 plotting:
   raster:
     start_time: 0.0
-    stop_time: 1000.0
+    stop_time: 2000.0
 default_inputs:
-  I_E: 2.0
-  I_I: 2.0
-  noise: 0.5
+  I_E: 1.2
+  I_I: 1.2
+  noise: 0.1
 weights:
-  mean_ee: 0.002
-  mean_ei: 0.002
-  mean_ie: 0.002
-  mean_ii: 0.002
-  std_ee: 0.01
-  std_ei: 0.01
-  std_ie: 0.01
-  std_ii: 0.01
-  p_ee: 1.0
-  p_ei: 1.0
-  p_ie: 1.0
-  p_ii: 1.0
   clamp_min: 0.0
+  ee:
+    p: 0.2
+    dist:
+      name: normal
+      params:
+        mean: 0.00
+        std: 0.01
+  ei:
+    p: 0.2
+    dist:
+      name: normal
+      params:
+        mean: 0.00
+        std: 0.01
+  ie:
+    p: 0.2
+    dist:
+      name: normal
+      params:
+        mean: 0.00
+        std: 0.01
+  ii:
+    p: 0.2
+    dist:
+      name: normal
+      params:
+        mean: 0.00
+        std: 0.01
 scan:
   mean_ei:
     start: 0.01
     stop: 0.1
-    num: 5
+    num: 3
   std_ei: 0.01
   bin_ms: 5.0
   burn_in_ms: 200.0
   tau_min_ms: 5.0
   tau_max_ms: 200.0
-seed_scan:
-  - 0
-  - 1
-  - 2
-  - 3
-  - 4
-  - 5
-  - 6
-  - 7
-  - 8
-  - 9
-  - 10
-  - 11
-  - 12
-  - 13
-  - 14
-  - 15
-  - 16
-  - 17
-  - 18
-  - 19
-seed_scan_mean_ei:
-  - 0.01
-  - 0.05
-seed_scan_std_ei: 0.005
+analysis:
+  autocorr_max_lag_ms: 400.0
+  xcorr_max_lag_ms: 400.0
+  xcorr_bin_ms: 5.0
+  corr_min_lag_ms: 50.0
+  corr_max_lag_ms: 250.0
+  corr_peak_min: 0.1
+  corr_peak_prominence: 0.02
 base:
   neuron_model: mqif
   dt: 0.1
-  T: 1000.0
+  T: 2000.0
   seed: 0
   N_E: 800
   N_I: 200
@@ -94,7 +93,7 @@ base:
   E_K: -77.0
   tau_ampa: 2.0
   tau_gaba: 6.5
-  V_th_heterogeneity_sd: 1.2
-  g_L_heterogeneity_sd: 0.15
-  C_m_heterogeneity_sd: 0.1
-  t_ref_heterogeneity_sd: 0.3
+  V_th_heterogeneity_sd: 0.0
+  g_L_heterogeneity_sd: 0.0
+  C_m_heterogeneity_sd: 0.0
+  t_ref_heterogeneity_sd: 0.0

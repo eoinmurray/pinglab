@@ -7,9 +7,162 @@ export const path = "_artifacts/exp.1-pingness-metrics";
 
 <VeslxFrontMatter />
 
+In this post we will investigate and compare three metris of "PINGness".
+
+1. Autocorrelation peak of the E population rate.
+2. Mean pairwise E spike cross-correlation peak.
+3. Lagged Coherence.
+
+The lagged coherence metrics comes from this paper:
+
+> Fransen, A. M. M., van Ede, F., & Maris, E. (2015). *Identifying neuronal
+> oscillations using rhythmicity*. NeuroImage, 118, 256–267.
+> https://doi.org/10.1016/j.neuroimage.2015.06.003
+
+The main comparison will be metrics vs seed of mild input noise so very similar
+rasters are generated and we will see how consistent the metrics are across
+seeds.
+
 # TODO
-- [ ] Pick representitive rasters, for normal PING, complex behaviour emerging,
-  complex behaviour dominant.
-- [ ] Calculate firing rate from ISI for these rasters, plot them.
-- [ ] Calculate population rate without smoothing for these rasters, plot them.
-- [ ] Calculate population rate with smoothing for these rasters, plot them.
+
+- [x] insert histogram of weights blocks
+- [x] Generate similar rasters across three seeds.
+- [x] Plot population rate.
+- [x] Plot PSD.
+- [x] Calculate autocorrelation peak, and plot autocorrelation with windows and
+  peak marked across seeds.
+- [x] Calculate mean pairwise E spike cross-correlation, and plot with windows
+  and peak marked across seeds.
+- [x] Calculate lagged coherence, and plot with windows across seeds.
+- [x] Plot all metrics across seeds.
+
+# Weights histograms
+
+<VeslxGallery
+  path={path}
+  globs={[["weights_hist_blocks_g_ei_mean_*.png"]]}
+  captionLabel="Figure 0.1"
+  caption="Weight histograms per block across $\mu_{g_{ei}}$."
+/>
+
+# Rasters by seed
+
+We generate these rasters by only varying the random seed for mild input noise,
+the weights share a seed. The goal is to generate very similar rasters with
+slightly different qualitative levels of rhythmicity for comparison of the
+metrics.
+
+<VeslxGallery
+  path={path}
+  globs={
+    [
+      ["raster_g_ei_mean_*_seed_00*.png"],
+      ["raster_g_ei_mean_*_seed_01*.png"],
+      ["raster_g_ei_mean_*_seed_02*.png"],
+    ]
+  }
+  captionLabel="Figure 1.1"
+  caption="Rasters for seed across $\mu_{g_{ei}}$. Each row is a different seed."
+/>
+
+# PSD by seed
+
+<VeslxGallery
+  path={path}
+  globs={[
+    ["psd_e_g_ei_mean_*_seed_00*.png"],
+    ["psd_e_g_ei_mean_*_seed_01*.png"],
+    ["psd_e_g_ei_mean_*_seed_02*.png"],
+  ]}
+  captionLabel="Figure 1.2"
+  caption="Smoothed E population rate PSD across seeds. Each row is a different seed."
+/>
+
+# Population rate by seed
+
+Here we plot the unsmoothed population rate for the E population across seeds.
+
+<VeslxGallery
+  path={path}
+  globs={[
+    ["pop_rate_e_g_ei_mean_*_seed_00*.png"],
+    ["pop_rate_e_g_ei_mean_*_seed_01*.png"],
+    ["pop_rate_e_g_ei_mean_*_seed_02*.png"],
+  ]}
+  captionLabel="Figure 2.1"
+  caption="E population rate across seeds. Each row is a different seed."
+/>
+
+# Autocorrelation of E population by seed
+
+<VeslxGallery
+  path={path}
+  globs={[
+    ["autocorr_e_g_ei_mean_*_seed_00*.png"],
+    ["autocorr_e_g_ei_mean_*_seed_01*.png"],
+    ["autocorr_e_g_ei_mean_*_seed_02*.png"],
+  ]}
+  captionLabel="Figure 3.1"
+  caption="E population rate autocorrelation across seeds. Each row is a different seed."
+/>
+
+# Mean pairwise E spike cross-correlation by seed
+
+<VeslxGallery
+  path={path}
+  globs={[
+    ["pairwise_xcorr_e_g_ei_mean_*_seed_00*.png"],
+    ["pairwise_xcorr_e_g_ei_mean_*_seed_01*.png"],
+    ["pairwise_xcorr_e_g_ei_mean_*_seed_02*.png"],
+  ]}
+  captionLabel="Figure 4.1"
+  caption="Mean pairwise cross-correlation across seeds. Each row is a different seed."
+/>
+
+# Coherence by seed
+
+<VeslxGallery
+  path={path}
+  globs={[
+    ["coherence_e_g_ei_mean_*_seed_00*.png"],
+    ["coherence_e_g_ei_mean_*_seed_01*.png"],
+    ["coherence_e_g_ei_mean_*_seed_02*.png"],
+  ]}
+  captionLabel="Figure 4.2"
+  caption="Pairwise rate coherence across seeds. Each row is a different seed."
+/>
+
+# Lagged coherence windows by seed
+
+<VeslxGallery
+  path={path}
+  globs={[
+    ["lagged_windows_e_g_ei_mean_*_seed_00*.png"],
+    ["lagged_windows_e_g_ei_mean_*_seed_01*.png"],
+    ["lagged_windows_e_g_ei_mean_*_seed_02*.png"],
+  ]}
+  captionLabel="Figure 5.1"
+  caption="Lagged coherence windowing across seeds. Each row is a different seed."
+/>
+
+# Lagged coherence spectrum by seed
+
+<VeslxGallery
+  path={path}
+  globs={[
+    ["lagged_lambda_spectrum_e_g_ei_mean_*_seed_00*.png"],
+    ["lagged_lambda_spectrum_e_g_ei_mean_*_seed_01*.png"],
+    ["lagged_lambda_spectrum_e_g_ei_mean_*_seed_02*.png"],
+  ]}
+  captionLabel="Figure 5.2"
+  caption="Lagged coherence spectrum across seeds. Each row is a different seed."
+/>
+
+# Metrics vs $\mu_{g_{ei}}$
+
+<VeslxGallery
+  path={path}
+  globs={["metrics_vs_mu*.png", "metric_std_vs_mu*.png"]}
+  captionLabel="Figure 6.1"
+  caption="Metric values and std dev vs $\mu_{g_{ei}}$ with per-seed points and mean traces."
+/>

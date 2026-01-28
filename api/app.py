@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
+import yaml
 from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 from pinglab.analysis import mean_firing_rates, population_rate
+from pinglab.analysis.autocorr_peak import autocorr_peak
+from pinglab.analysis.coherence import coherence_peak
+from pinglab.analysis.mean_pairwise_xcorr_peak import mean_pairwise_xcorr_peak
 from pinglab.inputs import add_pulse_to_input, add_pulse_train_to_input, ramp
 from pinglab.lib import build_adjacency_matrices
 from pinglab.run.neuron_models import build_model_from_config
@@ -112,18 +117,10 @@ class InputsSpec(BaseModel):
 class WeightsSpec(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    mean_ee: float | None = None
-    mean_ei: float | None = None
-    mean_ie: float | None = None
-    mean_ii: float | None = None
-    std_ee: float | None = None
-    std_ei: float | None = None
-    std_ie: float | None = None
-    std_ii: float | None = None
-    p_ee: float | None = None
-    p_ei: float | None = None
-    p_ie: float | None = None
-    p_ii: float | None = None
+    ee: dict | None = None
+    ei: dict | None = None
+    ie: dict | None = None
+    ii: dict | None = None
     clamp_min: float | None = None
     seed: int | None = None
 
@@ -155,6 +152,17 @@ class RunResponse(BaseModel):
     membrane_t_ms: list[float]
     membrane_V_E: list[float]
     membrane_V_I: list[float]
+    autocorr_lags_ms: list[float]
+    autocorr_corr: list[float]
+    xcorr_lags_ms: list[float]
+    xcorr_corr: list[float]
+    coherence_lags_ms: list[float]
+    coherence_corr: list[float]
+    weights_hist_bins: list[float]
+    weights_hist_counts_ee: list[float]
+    weights_hist_counts_ei: list[float]
+    weights_hist_counts_ie: list[float]
+    weights_hist_counts_ii: list[float]
     input_t_ms: list[float]
     input_mean_E: list[float]
     input_mean_I: list[float]
@@ -219,21 +227,39 @@ DEFAULT_INPUTS = {
 }
 
 DEFAULT_WEIGHTS = {
-    "mean_ee": 0.02,
-    "mean_ei": 0.015,
-    "mean_ie": 0.015,
-    "mean_ii": 0.02,
-    "std_ee": 0.0,
-    "std_ei": 0.0,
-    "std_ie": 0.0,
-    "std_ii": 0.0,
-    "p_ee": 0.02,
-    "p_ei": 0.18,
-    "p_ie": 0.04,
-    "p_ii": 0.06,
+    "ee": {"p": 0.02, "dist": {"name": "normal", "params": {"mean": 0.02, "std": 0.0}}},
+    "ei": {"p": 0.18, "dist": {"name": "normal", "params": {"mean": 0.015, "std": 0.0}}},
+    "ie": {"p": 0.04, "dist": {"name": "normal", "params": {"mean": 0.015, "std": 0.0}}},
+    "ii": {"p": 0.06, "dist": {"name": "normal", "params": {"mean": 0.02, "std": 0.0}}},
     "clamp_min": 0.0,
     "seed": 0,
 }
+
+
+def _weights_histograms(
+    weights: WeightMatrices, bins: int = 40
+) -> tuple[list[float], list[float], list[float], list[float], list[float]]:
+    ee = weights.W_ee.ravel()
+    ei = weights.W_ei.ravel()
+    ie = weights.W_ie.ravel()
+    ii = weights.W_ii.ravel()
+    max_val = 0.0
+    for arr in (ee, ei, ie, ii):
+        if arr.size:
+            max_val = max(max_val, float(np.max(arr)))
+    if max_val <= 0:
+        return [0.0, 1.0], [0.0], [0.0], [0.0], [0.0]
+
+    edges = np.linspace(0.0, max_val, bins + 1)
+    centers = ((edges[:-1] + edges[1:]) / 2.0).tolist()
+
+    def _hist(arr: np.ndarray) -> list[float]:
+        if arr.size == 0:
+            return [0.0] * len(centers)
+        counts, _ = np.histogram(arr, bins=edges)
+        return counts.astype(float).tolist()
+
+    return centers, _hist(ee), _hist(ei), _hist(ie), _hist(ii)
 
 app = FastAPI()
 app.add_middleware(
@@ -244,10 +270,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/configs")
+def list_configs() -> dict[str, list[str]]:
+    configs = sorted([p.name for p in CONFIG_DIR.glob("*.yaml")])
+    return {"configs": configs}
+
+
+@app.get("/configs/{name}")
+def load_config(name: str) -> dict:
+    filename = _safe_config_filename(name)
+    path = CONFIG_DIR / filename
+    if not path.exists():
+        return {"error": "Config not found"}
+    with path.open("r") as f:
+        data = yaml.safe_load(f) or {}
+    return {"name": filename, "config": data}
+
+
+@app.post("/configs/{name}")
+def save_config(name: str, payload: dict = Body(...)) -> dict:
+    filename = _safe_config_filename(name)
+    path = CONFIG_DIR / filename
+    with path.open("w") as f:
+        yaml.safe_dump(payload, f, sort_keys=False)
+    return {"ok": True, "name": filename}
+
 RHYTHM_BIN_MS = 5.0
 RHYTHM_BURN_IN_MS = 200.0
 RHYTHM_TAU_MIN_MS = 5.0
 RHYTHM_TAU_MAX_MS = 200.0
+
+CONFIG_DIR = Path(__file__).resolve().parents[1] / "configs"
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _safe_config_filename(name: str) -> str:
+    clean = Path(name).name
+    if clean != name:
+        raise ValueError("Invalid config name")
+    if not clean:
+        raise ValueError("Config name cannot be empty")
+    if not clean.endswith(".yaml"):
+        clean = f"{clean}.yaml"
+    if clean.startswith(".") or ".." in clean or "/" in clean or "\\" in clean:
+        raise ValueError("Invalid config name")
+    return clean
 
 
 def _autocorr_rhythmicity(
@@ -281,12 +349,21 @@ def _autocorr_rhythmicity(
     return float(C[lag_idx])
 
 
-def _merge_defaults(defaults: dict, overrides: BaseModel | None) -> dict:
-    merged = defaults.copy()
-    if overrides is None:
-        return merged
-    merged.update(overrides.model_dump(exclude_none=True))
+def _deep_merge(base: dict, update: dict) -> dict:
+    merged = dict(base)
+    for key, value in update.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
     return merged
+
+
+def _merge_defaults(defaults: dict, overrides: BaseModel | None) -> dict:
+    if overrides is None:
+        return defaults.copy()
+    update = overrides.model_dump(exclude_none=True)
+    return _deep_merge(defaults, update)
 
 
 @app.post("/run", response_model=RunResponse)
@@ -405,21 +482,20 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
     weight_mats = build_adjacency_matrices(
         N_E=config.N_E,
         N_I=config.N_I,
-        mean_ee=weights["mean_ee"],
-        mean_ei=weights["mean_ei"],
-        mean_ie=weights["mean_ie"],
-        mean_ii=weights["mean_ii"],
-        std_ee=weights["std_ee"],
-        std_ei=weights["std_ei"],
-        std_ie=weights["std_ie"],
-        std_ii=weights["std_ii"],
-        p_ee=weights["p_ee"],
-        p_ei=weights["p_ei"],
-        p_ie=weights["p_ie"],
-        p_ii=weights["p_ii"],
+        ee=weights["ee"],
+        ei=weights["ei"],
+        ie=weights["ie"],
+        ii=weights["ii"],
         clamp_min=weights["clamp_min"],
         seed=int(weights_seed) if weights_seed is not None else None,
     )
+    (
+        weights_hist_bins,
+        weights_hist_counts_ee,
+        weights_hist_counts_ei,
+        weights_hist_counts_ie,
+        weights_hist_counts_ii,
+    ) = _weights_histograms(weight_mats)
 
     model = build_model_from_config(config)
 
@@ -452,6 +528,12 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
     membrane_t_ms: list[float] = []
     membrane_V_E: list[float] = []
     membrane_V_I: list[float] = []
+    autocorr_lags_ms: list[float] = []
+    autocorr_corr: list[float] = []
+    xcorr_lags_ms: list[float] = []
+    xcorr_corr: list[float] = []
+    coherence_lags_ms: list[float] = []
+    coherence_corr: list[float] = []
     input_t_ms: list[float] = []
     input_mean_E: list[float] = []
     input_mean_I: list[float] = []
@@ -481,6 +563,32 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
             tau_min_ms=RHYTHM_TAU_MIN_MS,
             tau_max_ms=RHYTHM_TAU_MAX_MS,
         )
+        _, _, _, auto_lags, auto_corr = autocorr_peak(
+            shifted,
+            T_ms=analysis_T,
+            dt_ms=RHYTHM_BIN_MS,
+            pop="E",
+            N_E=config.N_E,
+            N_I=config.N_I,
+        )
+        _, xcorr_lags, xcorr_corr_vals = mean_pairwise_xcorr_peak(
+            shifted,
+            T_ms=analysis_T,
+            N_E=config.N_E,
+            dt_ms=RHYTHM_BIN_MS,
+        )
+        _, coh_lags, coh_vals = coherence_peak(
+            shifted,
+            T_ms=analysis_T,
+            N_E=config.N_E,
+            dt_ms=RHYTHM_BIN_MS,
+        )
+        autocorr_lags_ms = auto_lags.tolist()
+        autocorr_corr = auto_corr.tolist()
+        xcorr_lags_ms = xcorr_lags.tolist()
+        xcorr_corr = xcorr_corr_vals.tolist()
+        coherence_lags_ms = coh_lags.tolist()
+        coherence_corr = coh_vals.tolist()
 
     t_ms_full, rate_hz_full_E = population_rate(
         spikes,
@@ -538,6 +646,17 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         membrane_t_ms=membrane_t_ms,
         membrane_V_E=membrane_V_E,
         membrane_V_I=membrane_V_I,
+        autocorr_lags_ms=autocorr_lags_ms,
+        autocorr_corr=autocorr_corr,
+        xcorr_lags_ms=xcorr_lags_ms,
+        xcorr_corr=xcorr_corr,
+        coherence_lags_ms=coherence_lags_ms,
+        coherence_corr=coherence_corr,
+        weights_hist_bins=weights_hist_bins,
+        weights_hist_counts_ee=weights_hist_counts_ee,
+        weights_hist_counts_ei=weights_hist_counts_ei,
+        weights_hist_counts_ie=weights_hist_counts_ie,
+        weights_hist_counts_ii=weights_hist_counts_ii,
         input_t_ms=input_t_ms,
         input_mean_E=input_mean_E,
         input_mean_I=input_mean_I,

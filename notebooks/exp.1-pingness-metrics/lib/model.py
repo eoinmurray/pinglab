@@ -12,8 +12,16 @@ class ScanConfig(BaseModel):
     tau_max_ms: float
 
 
+class AnalysisConfig(BaseModel):
+    autocorr_max_lag_ms: float = 200.0
+    xcorr_max_lag_ms: float = 200.0
+    xcorr_bin_ms: float = 5.0
+    corr_min_lag_ms: float = 10.0
+    corr_max_lag_ms: float = 150.0
+    corr_peak_min: float = 0.1
+    corr_peak_prominence: float = 0.02
+
+
 class LocalConfig(ExperimentConfig):
     scan: ScanConfig
-    seed_scan: list[int] = []
-    seed_scan_mean_ei: list[float] = [0.01]
-    seed_scan_std_ei: float = 0.005
+    analysis: AnalysisConfig = AnalysisConfig()

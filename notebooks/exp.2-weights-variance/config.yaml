@@ -53,19 +53,35 @@ rate_match:
   sim_T: 300.0
   target_rate_e: 20.0
 weights:
-  mean_ee: 0.002
-  mean_ei: 0.002
-  mean_ie: 0.002
-  mean_ii: 0.002
-  std_ee: 0.01
-  std_ei: 0.01
-  std_ie: 0.01
-  std_ii: 0.01
-  p_ee: 1.0
-  p_ei: 1.0
-  p_ie: 1.0
-  p_ii: 1.0
   clamp_min: 0.0
+  ee:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.002
+        std: 0.01
+  ei:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.002
+        std: 0.01
+  ie:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.002
+        std: 0.01
+  ii:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.002
+        std: 0.01
 base:
   neuron_model: mqif
   dt: 0.1

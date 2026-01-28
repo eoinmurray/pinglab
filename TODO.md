@@ -1,6 +1,10 @@
-# TODO in order of priority
-- Migrate PING-ness metric from autocorrelation to cross-correlation from the population average with a smoothing kernel.
-- Do a literature review of oscillation metrics in spiking neural networks
+
+# TODO
+
+- [ ] analyse rasters for different weights configurations
+
+
+
 - Other reading to put on the list:
 	- Van Vries and Sopalinski: https://pubmed.ncbi.nlm.nih.gov/8939866/
 	- Renart

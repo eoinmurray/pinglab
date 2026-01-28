@@ -48,23 +48,27 @@ def _autocorr_rhythmicity(
     return float(C[lag_idx])
 
 
+def _weights_with_params(weights, mean_vals, std_vals):
+    updated = weights.model_copy(deep=True)
+    for key in ("ee", "ei", "ie", "ii"):
+        block = getattr(updated, key)
+        params = dict(block.dist.params or {})
+        params["mean"] = float(mean_vals[key])
+        params["std"] = float(std_vals[key])
+        block.dist.params = params
+    return updated
+
+
 def _build_matrices(run_cfg, weights, mean_vals, std_vals):
+    updated = _weights_with_params(weights, mean_vals, std_vals)
     return build_adjacency_matrices(
         N_E=run_cfg.N_E,
         N_I=run_cfg.N_I,
-        mean_ee=mean_vals["ee"],
-        mean_ei=mean_vals["ei"],
-        mean_ie=mean_vals["ie"],
-        mean_ii=mean_vals["ii"],
-        std_ee=std_vals["ee"],
-        std_ei=std_vals["ei"],
-        std_ie=std_vals["ie"],
-        std_ii=std_vals["ii"],
-        p_ee=weights.p_ee,
-        p_ei=weights.p_ei,
-        p_ie=weights.p_ie,
-        p_ii=weights.p_ii,
-        clamp_min=weights.clamp_min,
+        ee=updated.ee,
+        ei=updated.ei,
+        ie=updated.ie,
+        ii=updated.ii,
+        clamp_min=updated.clamp_min,
         seed=run_cfg.seed,
     )
 
@@ -166,14 +170,14 @@ def _run_scan_cell(
     std_val: float,
     data_path: Path,
 ) -> tuple[int, int, float, float]:
-    mean_ee = weights.mean_ee
-    mean_ei = weights.mean_ei
-    mean_ie = weights.mean_ie
-    mean_ii = weights.mean_ii
-    std_ee = weights.std_ee
-    std_ei = weights.std_ei
-    std_ie = weights.std_ie
-    std_ii = weights.std_ii
+    mean_ee = float(weights.ee.dist.params.get("mean", 0.0))
+    mean_ei = float(weights.ei.dist.params.get("mean", 0.0))
+    mean_ie = float(weights.ie.dist.params.get("mean", 0.0))
+    mean_ii = float(weights.ii.dist.params.get("mean", 0.0))
+    std_ee = float(weights.ee.dist.params.get("std", 1.0))
+    std_ei = float(weights.ei.dist.params.get("std", 1.0))
+    std_ie = float(weights.ie.dist.params.get("std", 1.0))
+    std_ii = float(weights.ii.dist.params.get("std", 1.0))
 
     if scan_key == "ei":
         mean_ei = float(mean_val)

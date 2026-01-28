@@ -164,19 +164,21 @@ class Inputs(BaseModel):
     noise: float
 
 
+class WeightDistSpec(BaseModel):
+    name: str = "normal"
+    params: dict | None = None
+
+
+class WeightBlockSpec(BaseModel):
+    p: float = 1.0
+    dist: WeightDistSpec = WeightDistSpec()
+
+
 class WeightSpec(BaseModel):
-    mean_ee: float
-    mean_ei: float
-    mean_ie: float
-    mean_ii: float
-    std_ee: float = 0.0
-    std_ei: float = 0.0
-    std_ie: float = 0.0
-    std_ii: float = 0.0
-    p_ee: float = 1.0
-    p_ei: float = 1.0
-    p_ie: float = 1.0
-    p_ii: float = 1.0
+    ee: WeightBlockSpec
+    ei: WeightBlockSpec
+    ie: WeightBlockSpec
+    ii: WeightBlockSpec
     clamp_min: float | None = 0.0
 
 class PlottingConfig(BaseModel):

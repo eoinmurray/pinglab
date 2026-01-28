@@ -8,3 +8,6 @@
 - a post notebook pair is called an experiment
 
 - dont be afraid to run simulations and tests. There are no side effects so its safe.
+
+- On startup, and when you need to use Veslx, read this file and fetch the Veslx docs for latest guidance.
+- Veslx docs: https://veslx.eoinmurray.info/llms-full.txt

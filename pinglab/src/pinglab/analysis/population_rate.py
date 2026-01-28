@@ -11,6 +11,8 @@ def population_rate(
     pop: str = "E",
     N_E: int | None = None,
     N_I: int | None = None,
+    smooth_sigma_ms: float | None = None,
+    smooth_bin_ms: float | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute time-binned population firing rate.
@@ -24,7 +26,8 @@ def population_rate(
         N_I: Number of inhibitory neurons
 
     Returns:
-        (t_ms, rate_hz): Bin centers (ms) and firing rates (Hz)
+        (t_ms, rate_hz): Bin centers (ms) and firing rates (Hz). If smoothing is
+        enabled, the returned rate is smoothed with a Gaussian kernel.
     """
     # Validate parameters
     if T_ms <= 0:
@@ -66,4 +69,28 @@ def population_rate(
     # bin centers for plotting
     t_ms = 0.5 * (edges[:-1] + edges[1:])
 
-    return t_ms, rate_hz
+    if smooth_sigma_ms is None:
+        return t_ms, rate_hz
+
+    if smooth_sigma_ms <= 0:
+        raise ValueError(f"smooth_sigma_ms must be positive, got {smooth_sigma_ms}")
+
+    kernel_dt_ms = smooth_bin_ms if smooth_bin_ms is not None else dt_ms
+    if kernel_dt_ms <= 0:
+        raise ValueError(f"smooth_bin_ms must be positive, got {kernel_dt_ms}")
+
+    kernel_radius_ms = max(1.0, 4.0 * smooth_sigma_ms)
+    kernel_half = int(np.ceil(kernel_radius_ms / kernel_dt_ms))
+    kernel_times = np.arange(-kernel_half, kernel_half + 1) * kernel_dt_ms
+    kernel = np.exp(-0.5 * (kernel_times / smooth_sigma_ms) ** 2)
+    kernel = kernel / np.sum(kernel)
+
+    if not np.isclose(kernel_dt_ms, dt_ms):
+        resample_t = np.arange(0.0, T_ms + kernel_dt_ms, kernel_dt_ms)
+        resample_rate = np.interp(resample_t, t_ms, rate_hz, left=0.0, right=0.0)
+        smoothed = np.convolve(resample_rate, kernel, mode="same")
+        smoothed_rate = np.interp(t_ms, resample_t, smoothed, left=0.0, right=0.0)
+    else:
+        smoothed_rate = np.convolve(rate_hz, kernel, mode="same")
+
+    return t_ms, smoothed_rate

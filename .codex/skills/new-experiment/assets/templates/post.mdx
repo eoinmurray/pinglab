@@ -1,0 +1,27 @@
+---
+title: {{title}}
+description: {{description}}
+---
+
+export const path = "_artifacts/{{slug}}";
+
+<VeslxFrontMatter />
+
+# TODO
+
+- [ ] Fill in experiment summary
+- [ ] Add plots
+- [ ] Add conclusions
+
+# Summary
+
+TODO: Write a short summary of the experiment.
+
+# Results
+
+<VeslxGallery
+  path={path}
+  globs={["*.png"]}
+  captionLabel="Figure 1.1"
+  caption="TODO: describe the figure(s)."
+/>

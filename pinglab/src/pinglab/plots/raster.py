@@ -16,6 +16,7 @@ def save_raster(
     show_labels: bool = True,
     show_legend: bool = True,
     show_title: bool = True,
+    info_lines: list[str] | None = None,
     vertical_lines: list[float] | None = None,
     external_input: np.ndarray | None = None,
     dt: float | None = None,
@@ -101,6 +102,29 @@ def save_raster(
         if vertical_lines is not None:
             for vline in vertical_lines:
                 ax_ras.axvline(vline, linestyle="--", lw=0.7)
+
+        if info_lines:
+            info_text = "\n".join(info_lines)
+            face = ax_ras.get_facecolor()
+            # Relative luminance for contrast decision
+            luminance = 0.2126 * face[0] + 0.7152 * face[1] + 0.0722 * face[2]
+            text_color = "white" if luminance < 0.5 else "black"
+            ax_ras.text(
+                0.98,
+                0.02,
+                info_text,
+                transform=ax_ras.transAxes,
+                va="bottom",
+                ha="right",
+                fontsize=10,
+                color=text_color,
+                bbox=dict(
+                    facecolor=face,
+                    edgecolor=face,
+                    boxstyle="round,pad=0.5",
+                    alpha=1.0,
+                ),
+            )
 
         if time is not None:
             ax_ras.set_xlim(time[0], time[-1])

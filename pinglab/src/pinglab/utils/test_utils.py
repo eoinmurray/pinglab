@@ -73,19 +73,35 @@ default_inputs:
   noise: 0.0
 
 weights:
-  mean_ee: 0.0
-  mean_ei: 0.5
-  mean_ie: 1.0
-  mean_ii: 0.0
-  std_ee: 0.0
-  std_ei: 0.0
-  std_ie: 0.0
-  std_ii: 0.0
-  p_ee: 1.0
-  p_ei: 1.0
-  p_ie: 1.0
-  p_ii: 1.0
   clamp_min: 0.0
+  ee:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.0
+        std: 0.0
+  ei:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.5
+        std: 0.0
+  ie:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 1.0
+        std: 0.0
+  ii:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.0
+        std: 0.0
 """
     )
     loaded = load_config(config)
