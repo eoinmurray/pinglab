@@ -61,6 +61,7 @@ export default function Component() {
   const [selectedConfig, setSelectedConfig] = useState("");
   const [saveName, setSaveName] = useState("");
   const [configStatus, setConfigStatus] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"single" | "scans">("single");
 
   const [neuronModel, setNeuronModel] = useState<NeuronModel>("mqif");
 
@@ -1168,259 +1169,181 @@ export default function Component() {
                 </span>
               </div>
             </div>
-            <div
-              className="grid min-h-0 flex-1 gap-2"
-              style={{
-                gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)",
-                gridTemplateRows: "minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)",
-              }}
-            >
-              <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-slate-200/70 bg-white/60 p-2 dark:border-white/10 dark:bg-white/5">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-                    Raster plot
-                  </div>
-                  <div ref={plotRef} className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                    {error ? (
-                      <div className="flex h-full items-center justify-center rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-6 text-sm text-red-600 dark:border-red-400/60 dark:text-red-300">
-                        Cannot connect to simulation api, is the server running?
-                      </div>
-                    ) : (
-                      <RasterPlot
-                        width={plotSize.width}
-                        height={plotSize.height}
-                        margin={margin}
-                        innerWidth={innerWidth}
-                        innerHeight={innerHeight}
-                        xScale={xScale}
-                        yScale={yScale}
-                        spikes={data?.spikes ?? null}
-                      />
-                    )}
-                  </div>
+            {error ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
+                {error}
               </div>
-              <div className="flex min-h-0 flex-col rounded-lg border border-slate-200/70 bg-white/60 p-2 dark:border-white/10 dark:bg-white/5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-                  Membrane E (neuron 0)
-                </div>
-                <div ref={membraneEPlotRef} className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                  {data && data.membrane_t_ms.length > 0 ? (
-                    <MembranePotentialPlot
-                      width={membraneEPlotSize.width}
-                      height={membraneEPlotSize.height}
-                      margin={rateMargin}
-                      innerWidth={membraneEInnerWidth}
-                      innerHeight={membraneEInnerHeight}
-                      tMs={data.membrane_t_ms}
-                      vE={data.membrane_V_E}
-                      maxTMs={T}
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                      No membrane E data yet.
-                    </div>
-                  )}
+            ) : null}
+            <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                <div ref={plotRef} className="h-full w-full">
+                  <RasterPlot
+                    width={plotSize.width}
+                    height={plotSize.height}
+                    margin={margin}
+                    innerWidth={innerWidth}
+                    innerHeight={innerHeight}
+                    xScale={xScale}
+                    yScale={yScale}
+                    spikes={data?.spikes ?? null}
+                  />
                 </div>
               </div>
-              <div className="flex min-h-0 flex-col rounded-lg border border-slate-200/70 bg-white/60 p-2 dark:border-white/10 dark:bg-white/5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-                  Population rate (Hz)
-                </div>
-                <div ref={ratePlotRef} className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                  {data && data.population_rate_hz_E.length > 0 ? (
-                    <PopulationRatePlot
-                      width={ratePlotSize.width}
-                      height={ratePlotSize.height}
-                      margin={rateMargin}
-                      innerWidth={rateInnerWidth}
-                      innerHeight={rateInnerHeight}
-                      tMs={data.population_rate_t_ms}
-                      rateHzE={data.population_rate_hz_E}
-                      rateHzI={data.population_rate_hz_I}
-                      maxTMs={T}
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                      No population rate data yet.
-                    </div>
-                  )}
+              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                <div ref={membraneEPlotRef} className="h-full w-full">
+                  <MembranePotentialPlot
+                    width={membraneEPlotSize.width}
+                    height={membraneEPlotSize.height}
+                    margin={rateMargin}
+                    innerWidth={membraneEInnerWidth}
+                    innerHeight={membraneEInnerHeight}
+                    tMs={data?.membrane_t_ms ?? []}
+                    vE={data?.membrane_V_E ?? []}
+                    maxTMs={T}
+                  />
                 </div>
               </div>
-              <div className="flex min-h-0 flex-col rounded-lg border border-slate-200/70 bg-white/60 p-2 dark:border-white/10 dark:bg-white/5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-                  Membrane I (neuron 0)
-                </div>
-                <div ref={membraneIPlotRef} className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                  {data && data.membrane_t_ms.length > 0 ? (
-                    <MembranePotentialPlot
-                      width={membraneIPlotSize.width}
-                      height={membraneIPlotSize.height}
-                      margin={rateMargin}
-                      innerWidth={membraneIInnerWidth}
-                      innerHeight={membraneIInnerHeight}
-                      tMs={data.membrane_t_ms}
-                      vI={data.membrane_V_I}
-                      maxTMs={T}
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                      No membrane I data yet.
-                    </div>
-                  )}
+              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                <div ref={ratePlotRef} className="h-full w-full">
+                  <PopulationRatePlot
+                    width={ratePlotSize.width}
+                    height={ratePlotSize.height}
+                    margin={rateMargin}
+                    innerWidth={rateInnerWidth}
+                    innerHeight={rateInnerHeight}
+                    tMs={data?.population_rate_t_ms ?? []}
+                    rateHzE={data?.population_rate_hz_E ?? []}
+                    rateHzI={data?.population_rate_hz_I ?? []}
+                    maxTMs={T}
+                  />
                 </div>
               </div>
-              <div className="flex min-h-0 flex-col rounded-lg border border-slate-200/70 bg-white/60 p-2 dark:border-white/10 dark:bg-white/5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-                  Autocorr (E rate)
-                </div>
-                <div ref={autocorrRef} className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                  {data && data.autocorr_lags_ms.length > 0 ? (
-                    <CorrelationPlot
-                      width={autocorrSize.width}
-                      height={autocorrSize.height}
-                      margin={rateMargin}
-                      innerWidth={autocorrInnerWidth}
-                      innerHeight={autocorrInnerHeight}
-                      lagsMs={data.autocorr_lags_ms}
-                      values={data.autocorr_corr}
-                      xLabel="Lag (ms)"
-                      yLabel="Autocorr"
-                      yMin={-1}
-                      yMax={1}
-                      color="#38bdf8"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                      No autocorr data yet.
-                    </div>
-                  )}
+              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                <div ref={membraneIPlotRef} className="h-full w-full">
+                  <MembranePotentialPlot
+                    width={membraneIPlotSize.width}
+                    height={membraneIPlotSize.height}
+                    margin={rateMargin}
+                    innerWidth={membraneIInnerWidth}
+                    innerHeight={membraneIInnerHeight}
+                    tMs={data?.membrane_t_ms ?? []}
+                    vI={data?.membrane_V_I ?? []}
+                    maxTMs={T}
+                  />
                 </div>
               </div>
-              <div className="flex min-h-0 flex-col rounded-lg border border-slate-200/70 bg-white/60 p-2 dark:border-white/10 dark:bg-white/5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-                  Mean pairwise xcorr
+              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                <div ref={autocorrRef} className="h-full w-full">
+                  <CorrelationPlot
+                    width={autocorrSize.width}
+                    height={autocorrSize.height}
+                    margin={rateMargin}
+                    innerWidth={autocorrInnerWidth}
+                    innerHeight={autocorrInnerHeight}
+                    lagsMs={data?.autocorr_lags_ms ?? []}
+                    values={data?.autocorr_corr ?? []}
+                    xLabel="Lag (ms)"
+                    yLabel="Autocorr"
+                    color="#0f172a"
+                    yMin={-1}
+                    yMax={1}
+                  />
                 </div>
-                <div ref={xcorrRef} className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                  {data && data.xcorr_lags_ms.length > 0 ? (
-                    <CorrelationPlot
-                      width={xcorrSize.width}
-                      height={xcorrSize.height}
-                      margin={rateMargin}
-                      innerWidth={xcorrInnerWidth}
-                      innerHeight={xcorrInnerHeight}
-                      lagsMs={data.xcorr_lags_ms}
-                      values={data.xcorr_corr}
-                      xLabel="Lag (ms)"
-                      yLabel="Xcorr"
-                      yMin={-1}
-                      yMax={1}
-                      color="#f59e0b"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                      No crosscorr data yet.
-                    </div>
-                  )}
+              </div>
+              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                <div ref={xcorrRef} className="h-full w-full">
+                  <CorrelationPlot
+                    width={xcorrSize.width}
+                    height={xcorrSize.height}
+                    margin={rateMargin}
+                    innerWidth={xcorrInnerWidth}
+                    innerHeight={xcorrInnerHeight}
+                    lagsMs={data?.xcorr_lags_ms ?? []}
+                    values={data?.xcorr_corr ?? []}
+                    xLabel="Lag (ms)"
+                    yLabel="Xcorr"
+                    color="#d9480f"
+                    yMin={-1}
+                    yMax={1}
+                  />
                 </div>
               </div>
               <div
-                className="grid min-h-0 gap-2"
-                style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gridColumn: "1 / -1" }}
+                className="min-h-0"
+                style={{
+                  gridColumn: "1 / -1",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: "8px",
+                }}
               >
-                <div className="flex min-h-0 flex-col rounded-lg border border-slate-200/70 bg-white/60 p-2 dark:border-white/10 dark:bg-white/5">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-                    E→E weights
-                  </div>
-                  <div ref={histEeRef} className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                    {data && data.weights_hist_bins.length > 0 ? (
-                      <WeightsHistogramPlot
-                        width={histEeSize.width}
-                        height={histEeSize.height}
-                        margin={histMargin}
-                        innerWidth={histEeInnerWidth}
-                        innerHeight={histEeInnerHeight}
-                        bins={data.weights_hist_bins}
-                        counts={data.weights_hist_counts_ee}
-                        color="#94a3b8"
-                        label="EE"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                        No weights data yet.
-                      </div>
-                    )}
-                  </div>
+                <div
+                  ref={histEeRef}
+                  className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
+                  style={{ height: "100%" }}
+                >
+                  <WeightsHistogramPlot
+                    width={histEeSize.width}
+                    height={histEeSize.height}
+                    margin={histMargin}
+                    innerWidth={histEeInnerWidth}
+                    innerHeight={histEeInnerHeight}
+                    bins={data?.weights_hist_bins ?? []}
+                    counts={data?.weights_hist_counts_ee ?? []}
+                    color="#0f172a"
+                    label="EE"
+                  />
                 </div>
-                <div className="flex min-h-0 flex-col rounded-lg border border-slate-200/70 bg-white/60 p-2 dark:border-white/10 dark:bg-white/5">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-                    E→I weights
-                  </div>
-                  <div ref={histEiRef} className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                    {data && data.weights_hist_bins.length > 0 ? (
-                      <WeightsHistogramPlot
-                        width={histEiSize.width}
-                        height={histEiSize.height}
-                        margin={histMargin}
-                        innerWidth={histEiInnerWidth}
-                        innerHeight={histEiInnerHeight}
-                        bins={data.weights_hist_bins}
-                        counts={data.weights_hist_counts_ei}
-                        color="#f97316"
-                        label="EI"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                        No weights data yet.
-                      </div>
-                    )}
-                  </div>
+                <div
+                  ref={histEiRef}
+                  className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
+                  style={{ height: "100%" }}
+                >
+                  <WeightsHistogramPlot
+                    width={histEiSize.width}
+                    height={histEiSize.height}
+                    margin={histMargin}
+                    innerWidth={histEiInnerWidth}
+                    innerHeight={histEiInnerHeight}
+                    bins={data?.weights_hist_bins ?? []}
+                    counts={data?.weights_hist_counts_ei ?? []}
+                    color="#2563eb"
+                    label="EI"
+                  />
                 </div>
-                <div className="flex min-h-0 flex-col rounded-lg border border-slate-200/70 bg-white/60 p-2 dark:border-white/10 dark:bg-white/5">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-                    I→E weights
-                  </div>
-                  <div ref={histIeRef} className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                    {data && data.weights_hist_bins.length > 0 ? (
-                      <WeightsHistogramPlot
-                        width={histIeSize.width}
-                        height={histIeSize.height}
-                        margin={histMargin}
-                        innerWidth={histIeInnerWidth}
-                        innerHeight={histIeInnerHeight}
-                        bins={data.weights_hist_bins}
-                        counts={data.weights_hist_counts_ie}
-                        color="#eab308"
-                        label="IE"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                        No weights data yet.
-                      </div>
-                    )}
-                  </div>
+                <div
+                  ref={histIeRef}
+                  className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
+                  style={{ height: "100%" }}
+                >
+                  <WeightsHistogramPlot
+                    width={histIeSize.width}
+                    height={histIeSize.height}
+                    margin={histMargin}
+                    innerWidth={histIeInnerWidth}
+                    innerHeight={histIeInnerHeight}
+                    bins={data?.weights_hist_bins ?? []}
+                    counts={data?.weights_hist_counts_ie ?? []}
+                    color="#e11d48"
+                    label="IE"
+                  />
                 </div>
-                <div className="flex min-h-0 flex-col rounded-lg border border-slate-200/70 bg-white/60 p-2 dark:border-white/10 dark:bg-white/5">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
-                    I→I weights
-                  </div>
-                  <div ref={histIiRef} className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                    {data && data.weights_hist_bins.length > 0 ? (
-                      <WeightsHistogramPlot
-                        width={histIiSize.width}
-                        height={histIiSize.height}
-                        margin={histMargin}
-                        innerWidth={histIiInnerWidth}
-                        innerHeight={histIiInnerHeight}
-                        bins={data.weights_hist_bins}
-                        counts={data.weights_hist_counts_ii}
-                        color="#64748b"
-                        label="II"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-slate-500 dark:text-zinc-400">
-                        No weights data yet.
-                      </div>
-                    )}
-                  </div>
+                <div
+                  ref={histIiRef}
+                  className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
+                  style={{ height: "100%" }}
+                >
+                  <WeightsHistogramPlot
+                    width={histIiSize.width}
+                    height={histIiSize.height}
+                    margin={histMargin}
+                    innerWidth={histIiInnerWidth}
+                    innerHeight={histIiInnerHeight}
+                    bins={data?.weights_hist_bins ?? []}
+                    counts={data?.weights_hist_counts_ii ?? []}
+                    color="#f97316"
+                    label="II"
+                  />
                 </div>
               </div>
             </div>

@@ -62,8 +62,8 @@ inputs:
   input_type: ramp
   I_E_start: 2
   I_E_end: 2
-  I_I_start: 2
-  I_I_end: 2
+  I_I_start: 0
+  I_I_end: 0
   I_E_base: 0
   I_I_base: 0
   noise_std: 0
