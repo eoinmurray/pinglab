@@ -146,6 +146,7 @@ class RunResponse(BaseModel):
     rhythmicity: float
     mean_rate_E: float
     mean_rate_I: float
+    isi_cv_E: float
     population_rate_t_ms: list[float]
     population_rate_hz_E: list[float]
     population_rate_hz_I: list[float]
@@ -349,6 +350,32 @@ def _autocorr_rhythmicity(
     return float(C[lag_idx])
 
 
+def _isi_cv(spikes: Spikes, N_E: int, N_I: int, pop: Literal["E", "I"] = "E") -> float:
+    if spikes.times.size == 0:
+        return 0.0
+    if pop == "E":
+        neuron_ids = np.arange(N_E)
+    else:
+        neuron_ids = np.arange(N_E, N_E + N_I)
+    cvs: list[float] = []
+    for nid in neuron_ids:
+        t = spikes.times[spikes.ids == nid]
+        if t.size < 2:
+            continue
+        t = np.sort(t)
+        isis = np.diff(t)
+        if isis.size == 0:
+            continue
+        mean_isi = float(np.mean(isis))
+        if mean_isi <= 0.0:
+            continue
+        cv = float(np.std(isis) / mean_isi)
+        cvs.append(cv)
+    if not cvs:
+        return 0.0
+    return float(np.mean(cvs))
+
+
 def _deep_merge(base: dict, update: dict) -> dict:
     merged = dict(base)
     for key, value in update.items():
@@ -522,6 +549,7 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
     rhythmicity = 0.0
     mean_rate_E = 0.0
     mean_rate_I = 0.0
+    isi_cv_E = 0.0
     population_rate_t_ms: list[float] = []
     population_rate_hz_E: list[float] = []
     population_rate_hz_I: list[float] = []
@@ -549,6 +577,7 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
             config.N_E,
             config.N_I,
         )
+        isi_cv_E = _isi_cv(shifted, config.N_E, config.N_I, pop="E")
         t_ms_rhythm, rate_hz_rhythm = population_rate(
             shifted,
             T_ms=analysis_T,
@@ -640,6 +669,7 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         rhythmicity=rhythmicity,
         mean_rate_E=mean_rate_E,
         mean_rate_I=mean_rate_I,
+        isi_cv_E=isi_cv_E,
         population_rate_t_ms=population_rate_t_ms,
         population_rate_hz_E=population_rate_hz_E,
         population_rate_hz_I=population_rate_hz_I,

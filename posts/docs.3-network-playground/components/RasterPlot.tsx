@@ -101,18 +101,7 @@ export default function RasterPlot({
             scale={yScale}
             stroke="currentColor"
             tickStroke="currentColor"
-            tickLabelProps={() => ({
-              fill: "currentColor",
-              fontSize: 11,
-              textAnchor: "end",
-              dx: "-0.25em",
-            })}
-            label="Neuron ID"
-            labelProps={{
-              fill: "currentColor",
-              fontSize: 12,
-              textAnchor: "middle",
-            }}
+            tickFormat={() => ""}
           />
         </g>
       </svg>

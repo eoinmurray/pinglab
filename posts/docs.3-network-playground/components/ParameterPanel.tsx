@@ -11,6 +11,8 @@ export type NeuronModel =
   | "qif"
   | "izhikevich";
 
+type WeightDistName = "normal" | "lognormal" | "gamma" | "exponential";
+
 const NEURON_MODELS: NeuronModel[] = [
   "lif",
   "hh",
@@ -22,8 +24,16 @@ const NEURON_MODELS: NeuronModel[] = [
   "izhikevich",
 ];
 
+const WEIGHT_DISTS: WeightDistName[] = ["normal", "lognormal", "gamma", "exponential"];
 
 type ParameterPanelProps = {
+  configList: string[];
+  selectedConfig: string;
+  onSelectConfig: (value: string) => void;
+  saveName: string;
+  setSaveName: (value: string) => void;
+  onSaveConfig: () => void;
+  configStatus: string | null;
   neuronModel: NeuronModel;
   setNeuronModel: (value: NeuronModel) => void;
   dt: number;
@@ -64,22 +74,54 @@ type ParameterPanelProps = {
   setInputPulseAmpE: (value: number) => void;
   inputPulseAmpI: number;
   setInputPulseAmpI: (value: number) => void;
-  gEeMean: number;
-  setGEeMean: (value: number) => void;
-  gEiMean: number;
-  setGEiMean: (value: number) => void;
-  gIeMean: number;
-  setGIeMean: (value: number) => void;
-  gIiMean: number;
-  setGIiMean: (value: number) => void;
-  gEeStd: number;
-  setGEeStd: (value: number) => void;
-  gEiStd: number;
-  setGEiStd: (value: number) => void;
-  gIeStd: number;
-  setGIeStd: (value: number) => void;
-  gIiStd: number;
-  setGIiStd: (value: number) => void;
+  eeDist: WeightDistName;
+  setEeDist: (value: WeightDistName) => void;
+  eiDist: WeightDistName;
+  setEiDist: (value: WeightDistName) => void;
+  ieDist: WeightDistName;
+  setIeDist: (value: WeightDistName) => void;
+  iiDist: WeightDistName;
+  setIiDist: (value: WeightDistName) => void;
+  eeMean: number;
+  setEeMean: (value: number) => void;
+  eiMean: number;
+  setEiMean: (value: number) => void;
+  ieMean: number;
+  setIeMean: (value: number) => void;
+  iiMean: number;
+  setIiMean: (value: number) => void;
+  eeStd: number;
+  setEeStd: (value: number) => void;
+  eiStd: number;
+  setEiStd: (value: number) => void;
+  ieStd: number;
+  setIeStd: (value: number) => void;
+  iiStd: number;
+  setIiStd: (value: number) => void;
+  eeSigma: number;
+  setEeSigma: (value: number) => void;
+  eiSigma: number;
+  setEiSigma: (value: number) => void;
+  ieSigma: number;
+  setIeSigma: (value: number) => void;
+  iiSigma: number;
+  setIiSigma: (value: number) => void;
+  eeShape: number;
+  setEeShape: (value: number) => void;
+  eiShape: number;
+  setEiShape: (value: number) => void;
+  ieShape: number;
+  setIeShape: (value: number) => void;
+  iiShape: number;
+  setIiShape: (value: number) => void;
+  eeScale: number;
+  setEeScale: (value: number) => void;
+  eiScale: number;
+  setEiScale: (value: number) => void;
+  ieScale: number;
+  setIeScale: (value: number) => void;
+  iiScale: number;
+  setIiScale: (value: number) => void;
   pEe: number;
   setPEe: (value: number) => void;
   pEi: number;
@@ -191,6 +233,13 @@ type ParameterPanelProps = {
 };
 
 export default function ParameterPanel({
+  configList,
+  selectedConfig,
+  onSelectConfig,
+  saveName,
+  setSaveName,
+  onSaveConfig,
+  configStatus,
   neuronModel,
   setNeuronModel,
   dt,
@@ -231,22 +280,54 @@ export default function ParameterPanel({
   setInputPulseAmpE,
   inputPulseAmpI,
   setInputPulseAmpI,
-  gEeMean,
-  setGEeMean,
-  gEiMean,
-  setGEiMean,
-  gIeMean,
-  setGIeMean,
-  gIiMean,
-  setGIiMean,
-  gEeStd,
-  setGEeStd,
-  gEiStd,
-  setGEiStd,
-  gIeStd,
-  setGIeStd,
-  gIiStd,
-  setGIiStd,
+  eeDist,
+  setEeDist,
+  eiDist,
+  setEiDist,
+  ieDist,
+  setIeDist,
+  iiDist,
+  setIiDist,
+  eeMean,
+  setEeMean,
+  eiMean,
+  setEiMean,
+  ieMean,
+  setIeMean,
+  iiMean,
+  setIiMean,
+  eeStd,
+  setEeStd,
+  eiStd,
+  setEiStd,
+  ieStd,
+  setIeStd,
+  iiStd,
+  setIiStd,
+  eeSigma,
+  setEeSigma,
+  eiSigma,
+  setEiSigma,
+  ieSigma,
+  setIeSigma,
+  iiSigma,
+  setIiSigma,
+  eeShape,
+  setEeShape,
+  eiShape,
+  setEiShape,
+  ieShape,
+  setIeShape,
+  iiShape,
+  setIiShape,
+  eeScale,
+  setEeScale,
+  eiScale,
+  setEiScale,
+  ieScale,
+  setIeScale,
+  iiScale,
+  setIiScale,
   pEe,
   setPEe,
   pEi,
@@ -356,12 +437,105 @@ export default function ParameterPanel({
   tRefHet,
   setTRefHet,
 }: ParameterPanelProps) {
+  const renderWeightBlock = (
+    label: string,
+    dist: WeightDistName,
+    setDist: (value: WeightDistName) => void,
+    mean: number,
+    setMean: (value: number) => void,
+    std: number,
+    setStd: (value: number) => void,
+    sigma: number,
+    setSigma: (value: number) => void,
+    shape: number,
+    setShape: (value: number) => void,
+    scale: number,
+    setScale: (value: number) => void,
+    p: number,
+    setP: (value: number) => void
+  ) => (
+    <div className="space-y-2 rounded-md border border-black/10 p-2 dark:border-zinc-800">
+      <div className="text-[10px] uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+        {label}
+      </div>
+      <Select
+        label="dist"
+        value={dist}
+        options={WEIGHT_DISTS}
+        onChange={(value) => setDist(value as WeightDistName)}
+      />
+      {(dist === "normal" || dist === "lognormal") && (
+        <Slider label="mean" value={mean} min={0.0} max={0.05} step={0.0005} precision={4} onChange={setMean} />
+      )}
+      {dist === "normal" && (
+        <Slider label="std" value={std} min={0.0} max={0.02} step={0.0005} precision={4} onChange={setStd} />
+      )}
+      {dist === "lognormal" && (
+        <Slider label="sigma" value={sigma} min={0.1} max={2.0} step={0.05} precision={2} onChange={setSigma} />
+      )}
+      {dist === "gamma" && (
+        <>
+          <Slider label="shape" value={shape} min={0.1} max={5.0} step={0.1} precision={2} onChange={setShape} />
+          <Slider label="scale" value={scale} min={0.0001} max={0.05} step={0.0005} precision={4} onChange={setScale} />
+        </>
+      )}
+      {dist === "exponential" && (
+        <Slider label="scale" value={scale} min={0.0001} max={0.05} step={0.0005} precision={4} onChange={setScale} />
+      )}
+      <Slider label="p" value={p} min={0.0} max={1.0} step={0.01} precision={2} onChange={setP} />
+    </div>
+  );
+
+  const configOptions = configList.length ? configList : ["(no configs)"];
+  const handleConfigSelect = (value: string) => {
+    if (value === "(no configs)") {
+      onSelectConfig("");
+    } else {
+      onSelectConfig(value);
+    }
+  };
+
   return (
     <div className="h-full w-72 rounded-lg p-3 text-xs">
       <div className="text-[11px] uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
         Parameters
       </div>
       <div className="mt-4 h-[calc(100%-24px)] space-y-4 overflow-y-auto pr-1">
+        <div className="rounded-lg border border-black/10 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="text-[11px] uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+            Configs
+          </div>
+          <div className="mt-3 space-y-2">
+            <Select
+              label="load config"
+              value={selectedConfig || configOptions[0]}
+              options={configOptions}
+              onChange={handleConfigSelect}
+            />
+            <label className="flex flex-col gap-2">
+              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">save as</span>
+              <input
+                value={saveName}
+                onChange={(event) => setSaveName(event.target.value)}
+                placeholder="config-name"
+                className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs text-black placeholder:text-zinc-400 dark:border-zinc-800 dark:bg-black dark:text-zinc-100 dark:placeholder:text-zinc-500"
+              />
+            </label>
+            <button
+              type="button"
+              className="w-full rounded-md border border-black/10 bg-black px-2 py-1 text-xs text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+              onClick={onSaveConfig}
+              disabled={!saveName.trim()}
+            >
+              Save
+            </button>
+            {configStatus && (
+              <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                {configStatus}
+              </div>
+            )}
+          </div>
+        </div>
         <div className="space-y-3">
           <Select
             label="neuron model"
@@ -416,18 +590,74 @@ export default function ParameterPanel({
             Weights
           </div>
           <div className="mt-3 space-y-3">
-            <Slider label="g_ee mean" value={gEeMean} min={0.0} max={0.01} step={0.0001} onChange={setGEeMean} />
-            <Slider label="g_ei mean" value={gEiMean} min={0.005} max={0.01} step={0.0001} onChange={setGEiMean} />
-            <Slider label="g_ie mean" value={gIeMean} min={0.005} max={0.01} step={0.0001} onChange={setGIeMean} />
-            <Slider label="g_ii mean" value={gIiMean} min={0.0} max={0.01} step={0.0001} onChange={setGIiMean} />
-            <Slider label="g_ee stddev" value={gEeStd} min={0.0} max={0.01} step={0.0001} onChange={setGEeStd} />
-            <Slider label="g_ei stddev" value={gEiStd} min={0.0} max={0.01} step={0.0001} onChange={setGEiStd} />
-            <Slider label="g_ie stddev" value={gIeStd} min={0.0} max={0.01} step={0.0001} onChange={setGIeStd} />
-            <Slider label="g_ii stddev" value={gIiStd} min={0.0} max={0.01} step={0.0001} onChange={setGIiStd} />
-            <Slider label="p_ee" value={pEe} min={0.0} max={1.0} step={0.01} precision={2} onChange={setPEe} />
-            <Slider label="p_ei" value={pEi} min={0.0} max={1.0} step={0.01} precision={2} onChange={setPEi} />
-            <Slider label="p_ie" value={pIe} min={0.0} max={1.0} step={0.01} precision={2} onChange={setPIe} />
-            <Slider label="p_ii" value={pIi} min={0.0} max={1.0} step={0.01} precision={2} onChange={setPIi} />
+            {renderWeightBlock(
+              "E→E",
+              eeDist,
+              setEeDist,
+              eeMean,
+              setEeMean,
+              eeStd,
+              setEeStd,
+              eeSigma,
+              setEeSigma,
+              eeShape,
+              setEeShape,
+              eeScale,
+              setEeScale,
+              pEe,
+              setPEe
+            )}
+            {renderWeightBlock(
+              "E→I",
+              eiDist,
+              setEiDist,
+              eiMean,
+              setEiMean,
+              eiStd,
+              setEiStd,
+              eiSigma,
+              setEiSigma,
+              eiShape,
+              setEiShape,
+              eiScale,
+              setEiScale,
+              pEi,
+              setPEi
+            )}
+            {renderWeightBlock(
+              "I→E",
+              ieDist,
+              setIeDist,
+              ieMean,
+              setIeMean,
+              ieStd,
+              setIeStd,
+              ieSigma,
+              setIeSigma,
+              ieShape,
+              setIeShape,
+              ieScale,
+              setIeScale,
+              pIe,
+              setPIe
+            )}
+            {renderWeightBlock(
+              "I→I",
+              iiDist,
+              setIiDist,
+              iiMean,
+              setIiMean,
+              iiStd,
+              setIiStd,
+              iiSigma,
+              setIiSigma,
+              iiShape,
+              setIiShape,
+              iiScale,
+              setIiScale,
+              pIi,
+              setPIi
+            )}
             <Slider label="clamp min" value={clampMin} min={0.0} max={0.1} step={0.005} precision={3} onChange={setClampMin} />
             <Slider label="weights seed" value={weightsSeed} min={0} max={20} step={1} precision={0} onChange={setWeightsSeed} />
           </div>

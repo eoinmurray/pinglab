@@ -2,8 +2,7 @@
 # TODO
 
 - [ ] analyse rasters for different weights configurations
-
-
+- [ ] compare with papers
 
 - Other reading to put on the list:
 	- Van Vries and Sopalinski: https://pubmed.ncbi.nlm.nih.gov/8939866/
