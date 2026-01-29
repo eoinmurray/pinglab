@@ -617,6 +617,9 @@ export default function Component() {
   };
 
   useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!plotRef.current) {
       return;
     }
@@ -633,9 +636,12 @@ export default function Component() {
     });
     observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!ratePlotRef.current) {
       return;
     }
@@ -652,9 +658,12 @@ export default function Component() {
     });
     observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!membraneEPlotRef.current) {
       return;
     }
@@ -671,9 +680,12 @@ export default function Component() {
     });
     observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!membraneIPlotRef.current) {
       return;
     }
@@ -690,9 +702,12 @@ export default function Component() {
     });
     observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!autocorrRef.current) {
       return;
     }
@@ -709,9 +724,12 @@ export default function Component() {
     });
     observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!xcorrRef.current) {
       return;
     }
@@ -728,9 +746,12 @@ export default function Component() {
     });
     observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!histEeRef.current) {
       return;
     }
@@ -747,9 +768,12 @@ export default function Component() {
     });
     observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!histEiRef.current) {
       return;
     }
@@ -766,9 +790,12 @@ export default function Component() {
     });
     observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!histIeRef.current) {
       return;
     }
@@ -785,9 +812,12 @@ export default function Component() {
     });
     observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!histIiRef.current) {
       return;
     }
@@ -804,7 +834,7 @@ export default function Component() {
     });
     observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     let ignore = false;
@@ -1138,35 +1168,33 @@ export default function Component() {
           style={{ height: "100%" }}
         >
           <div className="flex h-full w-full min-h-0 flex-col gap-2 p-2">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-zinc-400">
-              <div className="flex flex-wrap items-center gap-2 text-sm font-mono text-slate-700 dark:text-zinc-200">
-                <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
-                  {loading
-                    ? "Running..."
-                    : data
-                    ? `${spikeCounts.eCount} E / ${spikeCounts.iCount} I`
-                    : "No data"}
-                </span>
-                <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
-                  {data
-                    ? `Rates ${data.mean_rate_E.toFixed(2)} Hz E / ${data.mean_rate_I.toFixed(2)} Hz I`
-                    : "Rates --"}
-                </span>
-                <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
-                  {data
-                    ? `ISI CV (E) ${data.isi_cv_E.toFixed(3)}`
-                    : "ISI CV (E) --"}
-                </span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-1 rounded-full border border-slate-200/70 bg-white/70 p-1 text-xs font-medium text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("single")}
+                  className={`rounded-full px-3 py-1.5 transition ${
+                    activeTab === "single"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                      : "text-slate-600 hover:bg-slate-200/60 dark:text-zinc-300 dark:hover:bg-white/10"
+                  }`}
+                >
+                  Single
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("scans")}
+                  className={`rounded-full px-3 py-1.5 transition ${
+                    activeTab === "scans"
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                      : "text-slate-600 hover:bg-slate-200/60 dark:text-zinc-300 dark:hover:bg-white/10"
+                  }`}
+                >
+                  Scans
+                </button>
               </div>
-              <div className="flex items-center gap-3 rounded-xl bg-white/70 px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:bg-white/5 dark:text-zinc-300">
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm bg-current" />
-                  E
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: "#d9480f" }} />
-                  I
-                </span>
+              <div className="text-xs text-slate-500 dark:text-zinc-400">
+                {activeTab === "single" ? "Live sim" : "Scan workspace"}
               </div>
             </div>
             {error ? (
@@ -1174,179 +1202,218 @@ export default function Component() {
                 {error}
               </div>
             ) : null}
-            <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
-              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                <div ref={plotRef} className="h-full w-full">
-                  <RasterPlot
-                    width={plotSize.width}
-                    height={plotSize.height}
-                    margin={margin}
-                    innerWidth={innerWidth}
-                    innerHeight={innerHeight}
-                    xScale={xScale}
-                    yScale={yScale}
-                    spikes={data?.spikes ?? null}
-                  />
+            {activeTab === "single" ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-zinc-400">
+                  <div className="flex flex-wrap items-center gap-2 text-sm font-mono text-slate-700 dark:text-zinc-200">
+                    <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
+                      {loading
+                        ? "Running..."
+                        : data
+                        ? `${spikeCounts.eCount} E / ${spikeCounts.iCount} I`
+                        : "No data"}
+                    </span>
+                    <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
+                      {data
+                        ? `Rates ${data.mean_rate_E.toFixed(2)} Hz E / ${data.mean_rate_I.toFixed(2)} Hz I`
+                        : "Rates --"}
+                    </span>
+                    <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
+                      {data
+                        ? `ISI CV (E) ${data.isi_cv_E.toFixed(3)}`
+                        : "ISI CV (E) --"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-xl bg-white/70 px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:bg-white/5 dark:text-zinc-300">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-3 w-3 rounded-sm bg-current" />
+                      E
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: "#d9480f" }} />
+                      I
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                <div ref={membraneEPlotRef} className="h-full w-full">
-                  <MembranePotentialPlot
-                    width={membraneEPlotSize.width}
-                    height={membraneEPlotSize.height}
-                    margin={rateMargin}
-                    innerWidth={membraneEInnerWidth}
-                    innerHeight={membraneEInnerHeight}
-                    tMs={data?.membrane_t_ms ?? []}
-                    vE={data?.membrane_V_E ?? []}
-                    maxTMs={T}
-                  />
+                <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                  <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                  <div ref={plotRef} className="h-full w-full">
+                    <RasterPlot
+                      width={plotSize.width}
+                      height={plotSize.height}
+                      margin={margin}
+                      innerWidth={innerWidth}
+                      innerHeight={innerHeight}
+                      xScale={xScale}
+                      yScale={yScale}
+                      spikes={data?.spikes ?? null}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                <div ref={ratePlotRef} className="h-full w-full">
-                  <PopulationRatePlot
-                    width={ratePlotSize.width}
-                    height={ratePlotSize.height}
-                    margin={rateMargin}
-                    innerWidth={rateInnerWidth}
-                    innerHeight={rateInnerHeight}
-                    tMs={data?.population_rate_t_ms ?? []}
-                    rateHzE={data?.population_rate_hz_E ?? []}
-                    rateHzI={data?.population_rate_hz_I ?? []}
-                    maxTMs={T}
-                  />
+                <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                  <div ref={membraneEPlotRef} className="h-full w-full">
+                    <MembranePotentialPlot
+                      width={membraneEPlotSize.width}
+                      height={membraneEPlotSize.height}
+                      margin={rateMargin}
+                      innerWidth={membraneEInnerWidth}
+                      innerHeight={membraneEInnerHeight}
+                      tMs={data?.membrane_t_ms ?? []}
+                      vE={data?.membrane_V_E ?? []}
+                      maxTMs={T}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                <div ref={membraneIPlotRef} className="h-full w-full">
-                  <MembranePotentialPlot
-                    width={membraneIPlotSize.width}
-                    height={membraneIPlotSize.height}
-                    margin={rateMargin}
-                    innerWidth={membraneIInnerWidth}
-                    innerHeight={membraneIInnerHeight}
-                    tMs={data?.membrane_t_ms ?? []}
-                    vI={data?.membrane_V_I ?? []}
-                    maxTMs={T}
-                  />
+                <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                  <div ref={ratePlotRef} className="h-full w-full">
+                    <PopulationRatePlot
+                      width={ratePlotSize.width}
+                      height={ratePlotSize.height}
+                      margin={rateMargin}
+                      innerWidth={rateInnerWidth}
+                      innerHeight={rateInnerHeight}
+                      tMs={data?.population_rate_t_ms ?? []}
+                      rateHzE={data?.population_rate_hz_E ?? []}
+                      rateHzI={data?.population_rate_hz_I ?? []}
+                      maxTMs={T}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                <div ref={autocorrRef} className="h-full w-full">
-                  <CorrelationPlot
-                    width={autocorrSize.width}
-                    height={autocorrSize.height}
-                    margin={rateMargin}
-                    innerWidth={autocorrInnerWidth}
-                    innerHeight={autocorrInnerHeight}
-                    lagsMs={data?.autocorr_lags_ms ?? []}
-                    values={data?.autocorr_corr ?? []}
-                    xLabel="Lag (ms)"
-                    yLabel="Autocorr"
-                    color="#0f172a"
-                    yMin={-1}
-                    yMax={1}
-                  />
+                <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                  <div ref={membraneIPlotRef} className="h-full w-full">
+                    <MembranePotentialPlot
+                      width={membraneIPlotSize.width}
+                      height={membraneIPlotSize.height}
+                      margin={rateMargin}
+                      innerWidth={membraneIInnerWidth}
+                      innerHeight={membraneIInnerHeight}
+                      tMs={data?.membrane_t_ms ?? []}
+                      vI={data?.membrane_V_I ?? []}
+                      maxTMs={T}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                <div ref={xcorrRef} className="h-full w-full">
-                  <CorrelationPlot
-                    width={xcorrSize.width}
-                    height={xcorrSize.height}
-                    margin={rateMargin}
-                    innerWidth={xcorrInnerWidth}
-                    innerHeight={xcorrInnerHeight}
-                    lagsMs={data?.xcorr_lags_ms ?? []}
-                    values={data?.xcorr_corr ?? []}
-                    xLabel="Lag (ms)"
-                    yLabel="Xcorr"
-                    color="#d9480f"
-                    yMin={-1}
-                    yMax={1}
-                  />
+                <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                  <div ref={autocorrRef} className="h-full w-full">
+                    <CorrelationPlot
+                      width={autocorrSize.width}
+                      height={autocorrSize.height}
+                      margin={rateMargin}
+                      innerWidth={autocorrInnerWidth}
+                      innerHeight={autocorrInnerHeight}
+                      lagsMs={data?.autocorr_lags_ms ?? []}
+                      values={data?.autocorr_corr ?? []}
+                      xLabel="Lag (ms)"
+                      yLabel="Autocorr"
+                      color="#0f172a"
+                      yMin={-1}
+                      yMax={1}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div
-                className="min-h-0"
-                style={{
-                  gridColumn: "1 / -1",
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                  gap: "8px",
-                }}
-              >
-                <div
-                  ref={histEeRef}
-                  className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
-                  style={{ height: "100%" }}
-                >
-                  <WeightsHistogramPlot
-                    width={histEeSize.width}
-                    height={histEeSize.height}
-                    margin={histMargin}
-                    innerWidth={histEeInnerWidth}
-                    innerHeight={histEeInnerHeight}
-                    bins={data?.weights_hist_bins ?? []}
-                    counts={data?.weights_hist_counts_ee ?? []}
-                    color="#0f172a"
-                    label="EE"
-                  />
-                </div>
-                <div
-                  ref={histEiRef}
-                  className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
-                  style={{ height: "100%" }}
-                >
-                  <WeightsHistogramPlot
-                    width={histEiSize.width}
-                    height={histEiSize.height}
-                    margin={histMargin}
-                    innerWidth={histEiInnerWidth}
-                    innerHeight={histEiInnerHeight}
-                    bins={data?.weights_hist_bins ?? []}
-                    counts={data?.weights_hist_counts_ei ?? []}
-                    color="#2563eb"
-                    label="EI"
-                  />
+                <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                  <div ref={xcorrRef} className="h-full w-full">
+                    <CorrelationPlot
+                      width={xcorrSize.width}
+                      height={xcorrSize.height}
+                      margin={rateMargin}
+                      innerWidth={xcorrInnerWidth}
+                      innerHeight={xcorrInnerHeight}
+                      lagsMs={data?.xcorr_lags_ms ?? []}
+                      values={data?.xcorr_corr ?? []}
+                      xLabel="Lag (ms)"
+                      yLabel="Xcorr"
+                      color="#d9480f"
+                      yMin={-1}
+                      yMax={1}
+                    />
+                  </div>
                 </div>
                 <div
-                  ref={histIeRef}
-                  className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
-                  style={{ height: "100%" }}
+                  className="min-h-0"
+                  style={{
+                    gridColumn: "1 / -1",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                    gap: "8px",
+                  }}
                 >
-                  <WeightsHistogramPlot
-                    width={histIeSize.width}
-                    height={histIeSize.height}
-                    margin={histMargin}
-                    innerWidth={histIeInnerWidth}
-                    innerHeight={histIeInnerHeight}
-                    bins={data?.weights_hist_bins ?? []}
-                    counts={data?.weights_hist_counts_ie ?? []}
-                    color="#e11d48"
-                    label="IE"
-                  />
-                </div>
-                <div
-                  ref={histIiRef}
-                  className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
-                  style={{ height: "100%" }}
-                >
-                  <WeightsHistogramPlot
-                    width={histIiSize.width}
-                    height={histIiSize.height}
-                    margin={histMargin}
-                    innerWidth={histIiInnerWidth}
-                    innerHeight={histIiInnerHeight}
-                    bins={data?.weights_hist_bins ?? []}
-                    counts={data?.weights_hist_counts_ii ?? []}
-                    color="#f97316"
-                    label="II"
-                  />
+                  <div
+                    ref={histEeRef}
+                    className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
+                    style={{ height: "100%" }}
+                  >
+                    <WeightsHistogramPlot
+                      width={histEeSize.width}
+                      height={histEeSize.height}
+                      margin={histMargin}
+                      innerWidth={histEeInnerWidth}
+                      innerHeight={histEeInnerHeight}
+                      bins={data?.weights_hist_bins ?? []}
+                      counts={data?.weights_hist_counts_ee ?? []}
+                      color="#0f172a"
+                      label="EE"
+                    />
+                  </div>
+                  <div
+                    ref={histEiRef}
+                    className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
+                    style={{ height: "100%" }}
+                  >
+                    <WeightsHistogramPlot
+                      width={histEiSize.width}
+                      height={histEiSize.height}
+                      margin={histMargin}
+                      innerWidth={histEiInnerWidth}
+                      innerHeight={histEiInnerHeight}
+                      bins={data?.weights_hist_bins ?? []}
+                      counts={data?.weights_hist_counts_ei ?? []}
+                      color="#2563eb"
+                      label="EI"
+                    />
+                  </div>
+                  <div
+                    ref={histIeRef}
+                    className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
+                    style={{ height: "100%" }}
+                  >
+                    <WeightsHistogramPlot
+                      width={histIeSize.width}
+                      height={histIeSize.height}
+                      margin={histMargin}
+                      innerWidth={histIeInnerWidth}
+                      innerHeight={histIeInnerHeight}
+                      bins={data?.weights_hist_bins ?? []}
+                      counts={data?.weights_hist_counts_ie ?? []}
+                      color="#e11d48"
+                      label="IE"
+                    />
+                  </div>
+                  <div
+                    ref={histIiRef}
+                    className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
+                    style={{ height: "100%" }}
+                  >
+                    <WeightsHistogramPlot
+                      width={histIiSize.width}
+                      height={histIiSize.height}
+                      margin={histMargin}
+                      innerWidth={histIiInnerWidth}
+                      innerHeight={histIiInnerHeight}
+                      bins={data?.weights_hist_bins ?? []}
+                      counts={data?.weights_hist_counts_ii ?? []}
+                      color="#f97316"
+                      label="II"
+                    />
+                  </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-dashed border-slate-300/70 bg-white/40 text-sm text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
+                Scan plots will appear here.
+              </div>
+            )}
           </div>
         </main>
       </div>
