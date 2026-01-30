@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { scaleLinear } from "@visx/scale";
+import { LinePath } from "@visx/shape";
+import { AxisBottom, AxisLeft } from "@visx/axis";
 import ParameterPanel, { type NeuronModel } from "./components/ParameterPanel";
 import CorrelationPlot from "./components/CorrelationPlot";
 import MembranePotentialPlot from "./components/MembranePotentialPlot";
 import PopulationRatePlot from "./components/PopulationRatePlot";
 import RasterPlot from "./components/RasterPlot";
 import WeightsHistogramPlot from "./components/WeightsHistogramPlot";
+import PsdPlot from "./components/PsdPlot";
 
 type WeightDistName = "normal" | "lognormal" | "gamma" | "exponential";
 
@@ -20,7 +23,7 @@ type RunResponse = {
   runtime_ms: number;
   num_steps: number;
   num_spikes: number;
-  rhythmicity: number;
+  spikes_truncated?: boolean;
   mean_rate_E: number;
   mean_rate_I: number;
   population_rate_t_ms: number[];
@@ -38,14 +41,37 @@ type RunResponse = {
   weights_hist_counts_ei: number[];
   weights_hist_counts_ie: number[];
   weights_hist_counts_ii: number[];
+  psd_freqs_hz: number[];
+  psd_power: number[];
   autocorr_lags_ms: number[];
   autocorr_corr: number[];
   xcorr_lags_ms: number[];
   xcorr_corr: number[];
+  autocorr_peak: number;
+  xcorr_peak: number;
+  coherence_peak: number;
+  lagged_coherence: number;
+};
+
+type ScanMetricName =
+  | "mean_rate_E"
+  | "mean_rate_I"
+  | "isi_cv_E"
+  | "autocorr_peak"
+  | "xcorr_peak"
+  | "coherence_peak"
+  | "lagged_coherence";
+
+type ScanResponse = {
+  param_path: string;
+  metric_name: ScanMetricName;
+  values: number[];
+  metrics: number[];
 };
 
 const API_URL = "http://localhost:8000/run";
 const CONFIG_API = "http://localhost:8000/configs";
+const SCAN_API = "http://localhost:8000/scan";
 
 const defaultWidth = 760;
 const defaultHeight = 420;
@@ -62,8 +88,24 @@ export default function Component() {
   const [saveName, setSaveName] = useState("");
   const [configStatus, setConfigStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"single" | "scans">("single");
+  const [scanParam, setScanParam] = useState("inputs.I_E_start");
+  const [scanStart, setScanStart] = useState(0.0);
+  const [scanEnd, setScanEnd] = useState(4.0);
+  const [scanSteps, setScanSteps] = useState(8);
+  const [scanMode, setScanMode] = useState<"linear" | "log">("linear");
+  const [scanMetric, setScanMetric] = useState<ScanMetricName>("mean_rate_E");
+  const [scanSeedStrategy, setScanSeedStrategy] = useState<"fixed" | "per-step">("fixed");
+  const [scanValues, setScanValues] = useState<number[]>([]);
+  const [scanMetrics, setScanMetrics] = useState<number[]>([]);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanSelectedIndex, setScanSelectedIndex] = useState(0);
+  const [scanRaster, setScanRaster] = useState<RunResponse | null>(null);
+  const [scanRasterLoading, setScanRasterLoading] = useState(false);
 
   const [neuronModel, setNeuronModel] = useState<NeuronModel>("mqif");
+  const [downsampleEnabled, setDownsampleEnabled] = useState(true);
+  const [burnInMs, setBurnInMs] = useState(200);
 
   const [dt, setDt] = useState(0.1);
   const [T, setT] = useState(1000);
@@ -71,7 +113,8 @@ export default function Component() {
   const [nI, setNI] = useState(200);
   const [seed, setSeed] = useState(0);
 
-  const [noiseStd, setNoiseStd] = useState(0.0);
+  const [noiseStdE, setNoiseStdE] = useState(0.0);
+  const [noiseStdI, setNoiseStdI] = useState(0.0);
   const [inputSeed, setInputSeed] = useState(0);
   const [inputType, setInputType] = useState<"ramp" | "pulse" | "pulses">("ramp");
   const [iEStart, setIEStart] = useState(2.0);
@@ -197,8 +240,10 @@ export default function Component() {
   });
   const autocorrRef = useRef<HTMLDivElement | null>(null);
   const xcorrRef = useRef<HTMLDivElement | null>(null);
+  const psdRef = useRef<HTMLDivElement | null>(null);
   const [autocorrSize, setAutocorrSize] = useState({ width: defaultWidth, height: 192 });
   const [xcorrSize, setXcorrSize] = useState({ width: defaultWidth, height: 192 });
+  const [psdSize, setPsdSize] = useState({ width: defaultWidth, height: 192 });
   const histEeRef = useRef<HTMLDivElement | null>(null);
   const histEiRef = useRef<HTMLDivElement | null>(null);
   const histIeRef = useRef<HTMLDivElement | null>(null);
@@ -207,6 +252,10 @@ export default function Component() {
   const [histEiSize, setHistEiSize] = useState({ width: 200, height: 120 });
   const [histIeSize, setHistIeSize] = useState({ width: 200, height: 120 });
   const [histIiSize, setHistIiSize] = useState({ width: 200, height: 120 });
+  const scanPlotRef = useRef<HTMLDivElement | null>(null);
+  const [scanPlotSize, setScanPlotSize] = useState({ width: defaultWidth, height: 280 });
+  const scanRasterRef = useRef<HTMLDivElement | null>(null);
+  const [scanRasterSize, setScanRasterSize] = useState({ width: defaultWidth, height: 260 });
   const totalN = nE + nI;
 
   const buildWeightParams = (
@@ -230,6 +279,48 @@ export default function Component() {
         return { mean, std };
     }
   };
+
+  const scanOptions = useMemo(() => {
+    const weightPath = (block: "ee" | "ei" | "ie" | "ii", param: "mean" | "std") => {
+      const dist =
+        block === "ee"
+          ? eeDist
+          : block === "ei"
+          ? eiDist
+          : block === "ie"
+          ? ieDist
+          : iiDist;
+      if (param === "std" && dist === "lognormal") {
+        return `weights.${block}.dist.params.sigma`;
+      }
+      return `weights.${block}.dist.params.${param}`;
+    };
+    return [
+      { label: "I_E start", path: "inputs.I_E_start" },
+      { label: "I_E end", path: "inputs.I_E_end" },
+      { label: "I_I start", path: "inputs.I_I_start" },
+      { label: "I_I end", path: "inputs.I_I_end" },
+      { label: "Noise std", path: "inputs.noise_std" },
+      { label: "EE mean", path: weightPath("ee", "mean") },
+      { label: "EE std", path: weightPath("ee", "std") },
+      { label: "EI mean", path: weightPath("ei", "mean") },
+      { label: "EI std", path: weightPath("ei", "std") },
+      { label: "IE mean", path: weightPath("ie", "mean") },
+      { label: "IE std", path: weightPath("ie", "std") },
+      { label: "II mean", path: weightPath("ii", "mean") },
+      { label: "II std", path: weightPath("ii", "std") },
+    ];
+  }, [eeDist, eiDist, ieDist, iiDist]);
+
+  useEffect(() => {
+    if (!scanOptions.length) {
+      return;
+    }
+    const exists = scanOptions.some((opt) => opt.path === scanParam);
+    if (!exists) {
+      setScanParam(scanOptions[0].path);
+    }
+  }, [scanOptions, scanParam]);
 
   const requestPayload = useMemo(
     () => ({
@@ -297,7 +388,8 @@ export default function Component() {
         I_I_end: iIEnd,
         I_E_base: iEBase,
         I_I_base: iIBase,
-        noise_std: noiseStd,
+        noise_std_E: noiseStdE,
+        noise_std_I: noiseStdI,
         seed: inputSeed,
         pulse_t_ms: inputPulseT,
         pulse_width_ms: inputPulseWidth,
@@ -305,15 +397,17 @@ export default function Component() {
         pulse_amp_E: inputPulseAmpE,
         pulse_amp_I: inputPulseAmpI,
       },
-      weights: {
-        ee: { p: pEe, dist: { name: eeDist, params: buildWeightParams(eeDist, eeMean, eeStd, eeSigma, eeShape, eeScale) } },
-        ei: { p: pEi, dist: { name: eiDist, params: buildWeightParams(eiDist, eiMean, eiStd, eiSigma, eiShape, eiScale) } },
-        ie: { p: pIe, dist: { name: ieDist, params: buildWeightParams(ieDist, ieMean, ieStd, ieSigma, ieShape, ieScale) } },
-        ii: { p: pIi, dist: { name: iiDist, params: buildWeightParams(iiDist, iiMean, iiStd, iiSigma, iiShape, iiScale) } },
-        clamp_min: clampMin,
-        seed: weightsSeed,
-      },
-    }),
+        weights: {
+          ee: { p: pEe, dist: { name: eeDist, params: buildWeightParams(eeDist, eeMean, eeStd, eeSigma, eeShape, eeScale) } },
+          ei: { p: pEi, dist: { name: eiDist, params: buildWeightParams(eiDist, eiMean, eiStd, eiSigma, eiShape, eiScale) } },
+          ie: { p: pIe, dist: { name: ieDist, params: buildWeightParams(ieDist, ieMean, ieStd, ieSigma, ieShape, ieScale) } },
+          ii: { p: pIi, dist: { name: iiDist, params: buildWeightParams(iiDist, iiMean, iiStd, iiSigma, iiShape, iiScale) } },
+          clamp_min: clampMin,
+          seed: weightsSeed,
+        },
+        max_spikes: downsampleEnabled ? 30000 : null,
+        burn_in_ms: burnInMs,
+      }),
     [
       dt,
       T,
@@ -376,7 +470,8 @@ export default function Component() {
       iIEnd,
       iEBase,
       iIBase,
-      noiseStd,
+      noiseStdE,
+      noiseStdI,
       inputSeed,
       inputPulseT,
       inputPulseWidth,
@@ -413,8 +508,37 @@ export default function Component() {
       pIi,
       clampMin,
       weightsSeed,
+      downsampleEnabled,
+      burnInMs,
     ]
   );
+
+  const setNestedValue = (target: any, path: string, value: number) => {
+    const parts = path.split(".");
+    if (!parts.length) return;
+    let obj = target;
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      const key = parts[i];
+      if (!obj[key] || typeof obj[key] !== "object") {
+        obj[key] = {};
+      }
+      obj = obj[key];
+    }
+    obj[parts[parts.length - 1]] = value;
+  };
+
+  const buildScanPayload = (value: number, index: number) => {
+    const payload = JSON.parse(JSON.stringify(requestPayload));
+    setNestedValue(payload, scanParam, value);
+    if (scanSeedStrategy === "per-step") {
+      const baseSeed =
+        payload.inputs && typeof payload.inputs.seed === "number"
+          ? payload.inputs.seed
+          : 0;
+      setNestedValue(payload, "inputs.seed", baseSeed + index);
+    }
+    return payload;
+  };
 
   const applyConfig = (payload: any) => {
     if (!payload) {
@@ -486,7 +610,12 @@ export default function Component() {
     if (inputs.I_I_end !== undefined) setIIEnd(inputs.I_I_end);
     if (inputs.I_E_base !== undefined) setIEBase(inputs.I_E_base);
     if (inputs.I_I_base !== undefined) setIIBase(inputs.I_I_base);
-    if (inputs.noise_std !== undefined) setNoiseStd(inputs.noise_std);
+    if (inputs.noise_std_E !== undefined) setNoiseStdE(inputs.noise_std_E);
+    if (inputs.noise_std_I !== undefined) setNoiseStdI(inputs.noise_std_I);
+    if (inputs.noise_std !== undefined) {
+      setNoiseStdE(inputs.noise_std);
+      setNoiseStdI(inputs.noise_std);
+    }
     if (inputs.I_E !== undefined) {
       setInputType("ramp");
       setIEStart(inputs.I_E);
@@ -613,6 +742,67 @@ export default function Component() {
       setConfigStatus(`Loaded ${name}`);
     } catch (err) {
       setConfigStatus(err instanceof Error ? err.message : "Load failed");
+    }
+  };
+
+  const handleRunScan = async () => {
+    setScanLoading(true);
+    setScanError(null);
+    try {
+      const response = await fetch(SCAN_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          base: requestPayload,
+          scan: {
+            param_path: scanParam,
+            start: scanStart,
+            end: scanEnd,
+            steps: scanSteps,
+            mode: scanMode,
+            metric: scanMetric,
+            seed_strategy: scanSeedStrategy,
+          },
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Scan failed (${response.status})`);
+      }
+      const json = (await response.json()) as ScanResponse;
+      setScanValues(json.values ?? []);
+      setScanMetrics(json.metrics ?? []);
+      setScanSelectedIndex(0);
+      setScanRaster(null);
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : "Scan failed");
+    } finally {
+      setScanLoading(false);
+    }
+  };
+
+  const handleLoadScanRaster = async (index: number) => {
+    if (!scanValues.length) {
+      return;
+    }
+    const safeIndex = Math.max(0, Math.min(index, scanValues.length - 1));
+    setScanSelectedIndex(safeIndex);
+    setScanRasterLoading(true);
+    try {
+      const payload = buildScanPayload(scanValues[safeIndex], safeIndex);
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error(`Raster load failed (${response.status})`);
+      }
+      const json = (await response.json()) as RunResponse;
+      setScanRaster(json);
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : "Raster load failed");
+    } finally {
+      setScanRasterLoading(false);
     }
   };
 
@@ -752,6 +942,28 @@ export default function Component() {
     if (activeTab !== "single") {
       return;
     }
+    if (!psdRef.current) {
+      return;
+    }
+    const target = psdRef.current;
+    const observer = new ResizeObserver((entries) => {
+      if (!entries.length) {
+        return;
+      }
+      const { width: nextWidth, height: nextHeight } = entries[0].contentRect;
+      setPsdSize({
+        width: Math.max(240, Math.floor(nextWidth)),
+        height: Math.max(120, Math.floor(nextHeight)),
+      });
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "single") {
+      return;
+    }
     if (!histEeRef.current) {
       return;
     }
@@ -837,6 +1049,50 @@ export default function Component() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "scans") {
+      return;
+    }
+    if (!scanPlotRef.current) {
+      return;
+    }
+    const target = scanPlotRef.current;
+    const observer = new ResizeObserver((entries) => {
+      if (!entries.length) {
+        return;
+      }
+      const { width: nextWidth, height: nextHeight } = entries[0].contentRect;
+      setScanPlotSize({
+        width: Math.max(320, Math.floor(nextWidth)),
+        height: Math.max(200, Math.floor(nextHeight)),
+      });
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "scans") {
+      return;
+    }
+    if (!scanRasterRef.current) {
+      return;
+    }
+    const target = scanRasterRef.current;
+    const observer = new ResizeObserver((entries) => {
+      if (!entries.length) {
+        return;
+      }
+      const { width: nextWidth, height: nextHeight } = entries[0].contentRect;
+      setScanRasterSize({
+        width: Math.max(320, Math.floor(nextWidth)),
+        height: Math.max(200, Math.floor(nextHeight)),
+      });
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [activeTab]);
+
+  useEffect(() => {
     let ignore = false;
     const timer = setTimeout(() => {
       const run = async () => {
@@ -876,15 +1132,19 @@ export default function Component() {
   const innerWidth = plotSize.width - margin.left - margin.right;
   const innerHeight = plotSize.height - margin.top - margin.bottom;
   const rateInnerWidth = ratePlotSize.width - rateMargin.left - rateMargin.right;
-  const rateInnerHeight = ratePlotSize.height - rateMargin.top - rateMargin.bottom;
+  const rateSplitHeight = Math.max(120, Math.floor((ratePlotSize.height - 8) / 2));
+  const rateInnerHeight = rateSplitHeight - rateMargin.top - rateMargin.bottom;
+  const membraneSplitHeight = Math.max(120, Math.floor((membraneEPlotSize.height - 8) / 2));
   const membraneEInnerWidth = membraneEPlotSize.width - rateMargin.left - rateMargin.right;
-  const membraneEInnerHeight = membraneEPlotSize.height - rateMargin.top - rateMargin.bottom;
-  const membraneIInnerWidth = membraneIPlotSize.width - rateMargin.left - rateMargin.right;
-  const membraneIInnerHeight = membraneIPlotSize.height - rateMargin.top - rateMargin.bottom;
+  const membraneEInnerHeight = membraneSplitHeight - rateMargin.top - rateMargin.bottom;
+  const membraneIInnerWidth = membraneEInnerWidth;
+  const membraneIInnerHeight = membraneEInnerHeight;
   const autocorrInnerWidth = autocorrSize.width - rateMargin.left - rateMargin.right;
   const autocorrInnerHeight = autocorrSize.height - rateMargin.top - rateMargin.bottom;
   const xcorrInnerWidth = xcorrSize.width - rateMargin.left - rateMargin.right;
   const xcorrInnerHeight = xcorrSize.height - rateMargin.top - rateMargin.bottom;
+  const psdInnerWidth = psdSize.width - rateMargin.left - rateMargin.right;
+  const psdInnerHeight = psdSize.height - rateMargin.top - rateMargin.bottom;
   const histEeInnerWidth = histEeSize.width - histMargin.left - histMargin.right;
   const histEeInnerHeight = histEeSize.height - histMargin.top - histMargin.bottom;
   const histEiInnerWidth = histEiSize.width - histMargin.left - histMargin.right;
@@ -893,6 +1153,11 @@ export default function Component() {
   const histIeInnerHeight = histIeSize.height - histMargin.top - histMargin.bottom;
   const histIiInnerWidth = histIiSize.width - histMargin.left - histMargin.right;
   const histIiInnerHeight = histIiSize.height - histMargin.top - histMargin.bottom;
+  const scanPlotMargin = { top: 12, right: 16, bottom: 44, left: 54 };
+  const scanPlotInnerWidth = scanPlotSize.width - scanPlotMargin.left - scanPlotMargin.right;
+  const scanPlotInnerHeight = scanPlotSize.height - scanPlotMargin.top - scanPlotMargin.bottom;
+  const scanRasterInnerWidth = scanRasterSize.width - margin.left - margin.right;
+  const scanRasterInnerHeight = scanRasterSize.height - margin.top - margin.bottom;
 
   const xScale = useMemo(
     () =>
@@ -909,6 +1174,55 @@ export default function Component() {
         range: [innerHeight, 0],
       }),
     [totalN, innerHeight]
+  );
+  const scanRasterXScale = useMemo(
+    () =>
+      scaleLinear({
+        domain: [0, T],
+        range: [0, scanRasterInnerWidth],
+      }),
+    [T, scanRasterInnerWidth]
+  );
+  const scanRasterYScale = useMemo(
+    () =>
+      scaleLinear({
+        domain: [0, totalN],
+        range: [scanRasterInnerHeight, 0],
+      }),
+    [totalN, scanRasterInnerHeight]
+  );
+
+  const scanXScale = useMemo(() => {
+    if (!scanValues.length) {
+      return scaleLinear({ domain: [0, 1], range: [0, scanPlotInnerWidth] });
+    }
+    const min = Math.min(...scanValues);
+    const max = Math.max(...scanValues);
+    const span = min === max ? min + 1 : max;
+    return scaleLinear({
+      domain: [min, span],
+      range: [0, scanPlotInnerWidth],
+      nice: true,
+    });
+  }, [scanValues, scanPlotInnerWidth]);
+
+  const scanYScale = useMemo(() => {
+    if (!scanMetrics.length) {
+      return scaleLinear({ domain: [0, 1], range: [scanPlotInnerHeight, 0] });
+    }
+    const min = Math.min(...scanMetrics);
+    const max = Math.max(...scanMetrics);
+    const pad = (max - min) * 0.05;
+    return scaleLinear({
+      domain: [min - pad, max + pad],
+      range: [scanPlotInnerHeight, 0],
+      nice: true,
+    });
+  }, [scanMetrics, scanPlotInnerHeight]);
+
+  const scanPoints = useMemo(
+    () => scanValues.map((x, i) => ({ x, y: scanMetrics[i] ?? 0 })),
+    [scanValues, scanMetrics]
   );
 
   const spikeCounts = useMemo(() => {
@@ -957,8 +1271,14 @@ export default function Component() {
     setNI={setNI}
     seed={seed}
     setSeed={setSeed}
-    noiseStd={noiseStd}
-    setNoiseStd={setNoiseStd}
+    burnInMs={burnInMs}
+    setBurnInMs={setBurnInMs}
+    downsampleEnabled={downsampleEnabled}
+    setDownsampleEnabled={setDownsampleEnabled}
+    noiseStdE={noiseStdE}
+    setNoiseStdE={setNoiseStdE}
+    noiseStdI={noiseStdI}
+    setNoiseStdI={setNoiseStdI}
     inputSeed={inputSeed}
     setInputSeed={setInputSeed}
     inputType={inputType}
@@ -1169,14 +1489,14 @@ export default function Component() {
         >
           <div className="flex h-full w-full min-h-0 flex-col gap-2 p-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-1 rounded-full border border-slate-200/70 bg-white/70 p-1 text-xs font-medium text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+              <div className="inline-flex items-center gap-1 rounded-md border border-slate-200/70 bg-slate-50/80 p-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 shadow-inner dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
                 <button
                   type="button"
                   onClick={() => setActiveTab("single")}
-                  className={`rounded-full px-3 py-1.5 transition ${
+                  className={`rounded-md px-3 py-1.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white/80 active:translate-y-[1px] dark:focus-visible:ring-slate-200/60 dark:focus-visible:ring-offset-white/5 ${
                     activeTab === "single"
-                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                      : "text-slate-600 hover:bg-slate-200/60 dark:text-zinc-300 dark:hover:bg-white/10"
+                      ? "bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm shadow-black/20 dark:from-white dark:to-zinc-200 dark:text-slate-900 dark:shadow-none"
+                      : "text-slate-500 hover:bg-slate-200/60 hover:text-slate-800 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
                   }`}
                 >
                   Single
@@ -1184,16 +1504,16 @@ export default function Component() {
                 <button
                   type="button"
                   onClick={() => setActiveTab("scans")}
-                  className={`rounded-full px-3 py-1.5 transition ${
+                  className={`rounded-md px-3 py-1.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white/80 active:translate-y-[1px] dark:focus-visible:ring-slate-200/60 dark:focus-visible:ring-offset-white/5 ${
                     activeTab === "scans"
-                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                      : "text-slate-600 hover:bg-slate-200/60 dark:text-zinc-300 dark:hover:bg-white/10"
+                      ? "bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm shadow-black/20 dark:from-white dark:to-zinc-200 dark:text-slate-900 dark:shadow-none"
+                      : "text-slate-500 hover:bg-slate-200/60 hover:text-slate-800 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
                   }`}
                 >
                   Scans
                 </button>
               </div>
-              <div className="text-xs text-slate-500 dark:text-zinc-400">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
                 {activeTab === "single" ? "Live sim" : "Scan workspace"}
               </div>
             </div>
@@ -1223,6 +1543,14 @@ export default function Component() {
                         ? `ISI CV (E) ${data.isi_cv_E.toFixed(3)}`
                         : "ISI CV (E) --"}
                     </span>
+                    <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
+                      {data ? `Total spikes ${data.num_spikes}` : "Total spikes --"}
+                    </span>
+                    {data?.spikes_truncated ? (
+                      <span className="rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-2 text-sm text-amber-700 dark:border-amber-300/30 dark:bg-amber-400/10 dark:text-amber-200">
+                        Downsampled for UI
+                      </span>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-3 rounded-xl bg-white/70 px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:bg-white/5 dark:text-zinc-300">
                     <span className="inline-flex items-center gap-1">
@@ -1235,9 +1563,12 @@ export default function Component() {
                     </span>
                   </div>
                 </div>
-                <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
-                  <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                  <div ref={plotRef} className="h-full w-full">
+                <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                  <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                    Raster
+                  </div>
+                  <div ref={plotRef} className="min-h-0 flex-1">
                     <RasterPlot
                       width={plotSize.width}
                       height={plotSize.height}
@@ -1250,168 +1581,462 @@ export default function Component() {
                     />
                   </div>
                 </div>
-                <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                  <div ref={membraneEPlotRef} className="h-full w-full">
-                    <MembranePotentialPlot
-                      width={membraneEPlotSize.width}
-                      height={membraneEPlotSize.height}
+                <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                    Membrane V (E0 / I0)
+                  </div>
+                  <div ref={membraneEPlotRef} className="min-h-0 flex-1">
+                    <div className="flex h-full flex-col gap-2">
+                      <div className="min-h-0 flex-1">
+                        <MembranePotentialPlot
+                          width={membraneEPlotSize.width}
+                          height={membraneSplitHeight}
+                          margin={rateMargin}
+                          innerWidth={membraneEInnerWidth}
+                          innerHeight={membraneEInnerHeight}
+                          tMs={data?.membrane_t_ms ?? []}
+                          vE={data?.membrane_V_E ?? []}
+                          maxTMs={T}
+                        />
+                      </div>
+                      <div className="min-h-0 flex-1 text-[#d9480f]">
+                        <MembranePotentialPlot
+                          width={membraneEPlotSize.width}
+                          height={membraneSplitHeight}
+                          margin={rateMargin}
+                          innerWidth={membraneIInnerWidth}
+                          innerHeight={membraneIInnerHeight}
+                          tMs={data?.membrane_t_ms ?? []}
+                          vI={data?.membrane_V_I ?? []}
+                          maxTMs={T}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                    Population rate
+                  </div>
+                  <div ref={ratePlotRef} className="min-h-0 flex-1">
+                    <div className="flex h-full flex-col gap-2">
+                      <div className="min-h-0 flex-1 text-slate-900 dark:text-zinc-200">
+                        <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                          E rate
+                        </div>
+                        <PopulationRatePlot
+                          width={ratePlotSize.width}
+                          height={rateSplitHeight}
+                          margin={rateMargin}
+                          innerWidth={rateInnerWidth}
+                          innerHeight={rateInnerHeight}
+                          tMs={data?.population_rate_t_ms ?? []}
+                          rateHzE={data?.population_rate_hz_E ?? []}
+                          maxTMs={T}
+                          lineColor="currentColor"
+                        />
+                      </div>
+                      <div className="min-h-0 flex-1 text-[#dc2626]">
+                        <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                          I rate
+                        </div>
+                        <PopulationRatePlot
+                          width={ratePlotSize.width}
+                          height={rateSplitHeight}
+                          margin={rateMargin}
+                          innerWidth={rateInnerWidth}
+                          innerHeight={rateInnerHeight}
+                          tMs={data?.population_rate_t_ms ?? []}
+                          rateHzE={data?.population_rate_hz_I ?? []}
+                          maxTMs={T}
+                          lineColor="#dc2626"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                    PSD
+                  </div>
+                  <div ref={psdRef} className="min-h-0 flex-1">
+                    <PsdPlot
+                      width={psdSize.width}
+                      height={psdSize.height}
                       margin={rateMargin}
-                      innerWidth={membraneEInnerWidth}
-                      innerHeight={membraneEInnerHeight}
-                      tMs={data?.membrane_t_ms ?? []}
-                      vE={data?.membrane_V_E ?? []}
-                      maxTMs={T}
+                      innerWidth={psdInnerWidth}
+                      innerHeight={psdInnerHeight}
+                      freqsHz={data?.psd_freqs_hz ?? []}
+                      power={data?.psd_power ?? []}
                     />
                   </div>
                 </div>
-                <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                  <div ref={ratePlotRef} className="h-full w-full">
-                    <PopulationRatePlot
-                      width={ratePlotSize.width}
-                      height={ratePlotSize.height}
-                      margin={rateMargin}
-                      innerWidth={rateInnerWidth}
-                      innerHeight={rateInnerHeight}
-                      tMs={data?.population_rate_t_ms ?? []}
-                      rateHzE={data?.population_rate_hz_E ?? []}
-                      rateHzI={data?.population_rate_hz_I ?? []}
-                      maxTMs={T}
-                    />
+                <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                    Correlations
+                  </div>
+                  <div className="min-h-0 flex-1">
+                    <div className="flex h-full flex-col gap-2">
+                      <div ref={autocorrRef} className="min-h-0 flex-1">
+                        <CorrelationPlot
+                          width={autocorrSize.width}
+                          height={Math.max(120, Math.floor((autocorrSize.height - 8) / 2))}
+                          margin={rateMargin}
+                          innerWidth={autocorrInnerWidth}
+                          innerHeight={Math.max(120, Math.floor((autocorrSize.height - 8) / 2)) - rateMargin.top - rateMargin.bottom}
+                          lagsMs={data?.autocorr_lags_ms ?? []}
+                          values={data?.autocorr_corr ?? []}
+                          xLabel="Lag (ms)"
+                          yLabel="Autocorr"
+                          color="currentColor"
+                          yMin={-1}
+                          yMax={1}
+                        />
+                      </div>
+                      <div ref={xcorrRef} className="min-h-0 flex-1">
+                        <CorrelationPlot
+                          width={xcorrSize.width}
+                          height={Math.max(120, Math.floor((xcorrSize.height - 8) / 2))}
+                          margin={rateMargin}
+                          innerWidth={xcorrInnerWidth}
+                          innerHeight={Math.max(120, Math.floor((xcorrSize.height - 8) / 2)) - rateMargin.top - rateMargin.bottom}
+                          lagsMs={data?.xcorr_lags_ms ?? []}
+                          values={data?.xcorr_corr ?? []}
+                          xLabel="Lag (ms)"
+                          yLabel="Xcorr"
+                          color="currentColor"
+                          yMin={-1}
+                          yMax={1}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                  <div ref={membraneIPlotRef} className="h-full w-full">
-                    <MembranePotentialPlot
-                      width={membraneIPlotSize.width}
-                      height={membraneIPlotSize.height}
-                      margin={rateMargin}
-                      innerWidth={membraneIInnerWidth}
-                      innerHeight={membraneIInnerHeight}
-                      tMs={data?.membrane_t_ms ?? []}
-                      vI={data?.membrane_V_I ?? []}
-                      maxTMs={T}
-                    />
-                  </div>
-                </div>
-                <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                  <div ref={autocorrRef} className="h-full w-full">
-                    <CorrelationPlot
-                      width={autocorrSize.width}
-                      height={autocorrSize.height}
-                      margin={rateMargin}
-                      innerWidth={autocorrInnerWidth}
-                      innerHeight={autocorrInnerHeight}
-                      lagsMs={data?.autocorr_lags_ms ?? []}
-                      values={data?.autocorr_corr ?? []}
-                      xLabel="Lag (ms)"
-                      yLabel="Autocorr"
-                      color="#0f172a"
-                      yMin={-1}
-                      yMax={1}
-                    />
-                  </div>
-                </div>
-                <div className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                  <div ref={xcorrRef} className="h-full w-full">
-                    <CorrelationPlot
-                      width={xcorrSize.width}
-                      height={xcorrSize.height}
-                      margin={rateMargin}
-                      innerWidth={xcorrInnerWidth}
-                      innerHeight={xcorrInnerHeight}
-                      lagsMs={data?.xcorr_lags_ms ?? []}
-                      values={data?.xcorr_corr ?? []}
-                      xLabel="Lag (ms)"
-                      yLabel="Xcorr"
-                      color="#d9480f"
-                      yMin={-1}
-                      yMax={1}
-                    />
-                  </div>
-                </div>
-                <div
-                  className="min-h-0"
-                  style={{
-                    gridColumn: "1 / -1",
-                    display: "grid",
-                    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                    gap: "8px",
-                  }}
-                >
-                  <div
-                    ref={histEeRef}
-                    className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
-                    style={{ height: "100%" }}
-                  >
-                    <WeightsHistogramPlot
-                      width={histEeSize.width}
-                      height={histEeSize.height}
-                      margin={histMargin}
-                      innerWidth={histEeInnerWidth}
-                      innerHeight={histEeInnerHeight}
-                      bins={data?.weights_hist_bins ?? []}
-                      counts={data?.weights_hist_counts_ee ?? []}
-                      color="#0f172a"
-                      label="EE"
-                    />
-                  </div>
-                  <div
-                    ref={histEiRef}
-                    className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
-                    style={{ height: "100%" }}
-                  >
-                    <WeightsHistogramPlot
-                      width={histEiSize.width}
-                      height={histEiSize.height}
-                      margin={histMargin}
-                      innerWidth={histEiInnerWidth}
-                      innerHeight={histEiInnerHeight}
-                      bins={data?.weights_hist_bins ?? []}
-                      counts={data?.weights_hist_counts_ei ?? []}
-                      color="#2563eb"
-                      label="EI"
-                    />
-                  </div>
-                  <div
-                    ref={histIeRef}
-                    className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
-                    style={{ height: "100%" }}
-                  >
-                    <WeightsHistogramPlot
-                      width={histIeSize.width}
-                      height={histIeSize.height}
-                      margin={histMargin}
-                      innerWidth={histIeInnerWidth}
-                      innerHeight={histIeInnerHeight}
-                      bins={data?.weights_hist_bins ?? []}
-                      counts={data?.weights_hist_counts_ie ?? []}
-                      color="#e11d48"
-                      label="IE"
-                    />
-                  </div>
-                  <div
-                    ref={histIiRef}
-                    className="min-h-0 rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5"
-                    style={{ height: "100%" }}
-                  >
-                    <WeightsHistogramPlot
-                      width={histIiSize.width}
-                      height={histIiSize.height}
-                      margin={histMargin}
-                      innerWidth={histIiInnerWidth}
-                      innerHeight={histIiInnerHeight}
-                      bins={data?.weights_hist_bins ?? []}
-                      counts={data?.weights_hist_counts_ii ?? []}
-                      color="#f97316"
-                      label="II"
-                    />
-                  </div>
+                <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                  <div className="min-h-0 flex-1">
+                    <div
+                      className="h-full w-full"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                        gridTemplateRows: "repeat(2, minmax(0, 1fr))",
+                        gap: "0.5rem",
+                      }}
+                    >
+                      <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                        <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                          EE weights
+                        </div>
+                        <div ref={histEeRef} className="min-h-0 flex-1">
+                          <WeightsHistogramPlot
+                            width={histEeSize.width}
+                            height={histEeSize.height}
+                            margin={histMargin}
+                            innerWidth={histEeInnerWidth}
+                            innerHeight={histEeInnerHeight}
+                            bins={data?.weights_hist_bins ?? []}
+                            counts={data?.weights_hist_counts_ee ?? []}
+                            color="currentColor"
+                            label="EE"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                        <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                          EI weights
+                        </div>
+                        <div ref={histEiRef} className="min-h-0 flex-1">
+                          <WeightsHistogramPlot
+                            width={histEiSize.width}
+                            height={histEiSize.height}
+                            margin={histMargin}
+                            innerWidth={histEiInnerWidth}
+                            innerHeight={histEiInnerHeight}
+                            bins={data?.weights_hist_bins ?? []}
+                            counts={data?.weights_hist_counts_ei ?? []}
+                            color="currentColor"
+                            label="EI"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                        <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                          IE weights
+                        </div>
+                        <div ref={histIeRef} className="min-h-0 flex-1">
+                          <WeightsHistogramPlot
+                            width={histIeSize.width}
+                            height={histIeSize.height}
+                            margin={histMargin}
+                            innerWidth={histIeInnerWidth}
+                            innerHeight={histIeInnerHeight}
+                            bins={data?.weights_hist_bins ?? []}
+                            counts={data?.weights_hist_counts_ie ?? []}
+                            color="currentColor"
+                            label="IE"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                        <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                          II weights
+                        </div>
+                        <div ref={histIiRef} className="min-h-0 flex-1">
+                          <WeightsHistogramPlot
+                            width={histIiSize.width}
+                            height={histIiSize.height}
+                            margin={histMargin}
+                            innerWidth={histIiInnerWidth}
+                            innerHeight={histIiInnerHeight}
+                            bins={data?.weights_hist_bins ?? []}
+                            counts={data?.weights_hist_counts_ii ?? []}
+                            color="currentColor"
+                            label="II"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
             ) : (
-              <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-dashed border-slate-300/70 bg-white/40 text-sm text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
-                Scan plots will appear here.
+              <div className="flex min-h-0 flex-1 flex-col gap-2">
+                <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200/70 bg-white/60 p-2 text-xs text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wide">param</span>
+                    <select
+                      value={scanParam}
+                      onChange={(e) => setScanParam(e.target.value)}
+                      className="rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
+                    >
+                      {scanOptions.map((opt) => (
+                        <option key={opt.path} value={opt.path}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wide">start</span>
+                    <input
+                      type="number"
+                      value={scanStart}
+                      onChange={(e) => setScanStart(Number(e.target.value))}
+                      className="w-24 rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wide">end</span>
+                    <input
+                      type="number"
+                      value={scanEnd}
+                      onChange={(e) => setScanEnd(Number(e.target.value))}
+                      className="w-24 rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wide">steps</span>
+                    <input
+                      type="number"
+                      min={2}
+                      max={200}
+                      value={scanSteps}
+                      onChange={(e) => setScanSteps(Number(e.target.value))}
+                      className="w-20 rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wide">mode</span>
+                    <select
+                      value={scanMode}
+                      onChange={(e) => setScanMode(e.target.value as "linear" | "log")}
+                      className="rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
+                    >
+                      <option value="linear">linear</option>
+                      <option value="log">log</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wide">metric</span>
+                    <select
+                      value={scanMetric}
+                      onChange={(e) => setScanMetric(e.target.value as ScanMetricName)}
+                      className="rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
+                    >
+                      <option value="mean_rate_E">mean_rate_E</option>
+                      <option value="mean_rate_I">mean_rate_I</option>
+                      <option value="isi_cv_E">isi_cv_E</option>
+                      <option value="autocorr_peak">autocorr_peak</option>
+                      <option value="xcorr_peak">xcorr_peak</option>
+                      <option value="coherence_peak">coherence_peak</option>
+                      <option value="lagged_coherence">lagged_coherence</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] uppercase tracking-wide">seed</span>
+                    <select
+                      value={scanSeedStrategy}
+                      onChange={(e) =>
+                        setScanSeedStrategy(e.target.value as "fixed" | "per-step")
+                      }
+                      className="rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
+                    >
+                      <option value="fixed">fixed</option>
+                      <option value="per-step">per-step</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleRunScan}
+                    disabled={scanLoading}
+                    className="ml-auto rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+                  >
+                    {scanLoading ? "Running..." : "Run scan"}
+                  </button>
+                </div>
+                {scanError ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
+                    {scanError}
+                  </div>
+                ) : null}
+                <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-2">
+                  <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                    <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                      Scan metric
+                    </div>
+                    <div ref={scanPlotRef} className="min-h-0 flex-1">
+                      <svg width={scanPlotSize.width} height={scanPlotSize.height} role="img" aria-label="Scan metric">
+                        <g transform={`translate(${scanPlotMargin.left},${scanPlotMargin.top})`}>
+                          <g>
+                            {scanYScale.ticks(4).map((tick) => {
+                              const y = scanYScale(tick) ?? 0;
+                              return (
+                                <line
+                                  key={`scan-grid-y-${tick}`}
+                                  x1={0}
+                                  x2={scanPlotInnerWidth}
+                                  y1={y}
+                                  y2={y}
+                                  stroke="currentColor"
+                                  opacity={0.08}
+                                />
+                              );
+                            })}
+                            {scanXScale.ticks(5).map((tick) => {
+                              const x = scanXScale(tick) ?? 0;
+                              return (
+                                <line
+                                  key={`scan-grid-x-${tick}`}
+                                  x1={x}
+                                  x2={x}
+                                  y1={0}
+                                  y2={scanPlotInnerHeight}
+                                  stroke="currentColor"
+                                  opacity={0.06}
+                                />
+                              );
+                            })}
+                          </g>
+                          <LinePath
+                            data={scanPoints}
+                            x={(d) => scanXScale(d.x) ?? 0}
+                            y={(d) => scanYScale(d.y) ?? 0}
+                            stroke="currentColor"
+                            strokeWidth={1.4}
+                          />
+                          {scanPoints.map((pt, i) => (
+                            <circle
+                              key={`scan-point-${i}`}
+                              cx={scanXScale(pt.x) ?? 0}
+                              cy={scanYScale(pt.y) ?? 0}
+                              r={i === scanSelectedIndex ? 4 : 2.5}
+                              fill={i === scanSelectedIndex ? "#f97316" : "currentColor"}
+                              opacity={0.8}
+                              onClick={() => handleLoadScanRaster(i)}
+                              style={{ cursor: "pointer" }}
+                            />
+                          ))}
+                          <AxisBottom
+                            top={scanPlotInnerHeight}
+                            scale={scanXScale}
+                            stroke="currentColor"
+                            tickStroke="currentColor"
+                            tickLabelProps={() => ({
+                              fill: "currentColor",
+                              fontSize: 10,
+                              textAnchor: "middle",
+                            })}
+                            label="Scan value"
+                            labelProps={{
+                              fill: "currentColor",
+                              fontSize: 11,
+                              textAnchor: "middle",
+                            }}
+                          />
+                          <AxisLeft
+                            scale={scanYScale}
+                            stroke="currentColor"
+                            tickStroke="currentColor"
+                            tickLabelProps={() => ({
+                              fill: "currentColor",
+                              fontSize: 10,
+                              textAnchor: "end",
+                              dx: "-0.25em",
+                            })}
+                            label={scanMetric}
+                            labelProps={{
+                              fill: "currentColor",
+                              fontSize: 11,
+                              textAnchor: "middle",
+                            }}
+                          />
+                        </g>
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                    <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                      Scan raster
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 dark:text-zinc-300">
+                      <span>step</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={Math.max(0, scanValues.length - 1)}
+                        value={Math.min(scanSelectedIndex, Math.max(0, scanValues.length - 1))}
+                        onChange={(e) => setScanSelectedIndex(Number(e.target.value))}
+                        className="flex-1"
+                      />
+                      <span className="tabular-nums">
+                        {scanValues.length
+                          ? scanValues[Math.min(scanSelectedIndex, scanValues.length - 1)].toFixed(5)
+                          : "--"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleLoadScanRaster(scanSelectedIndex)}
+                        disabled={!scanValues.length || scanRasterLoading}
+                        className="rounded-md border border-slate-200/70 px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200/70 disabled:opacity-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/10"
+                      >
+                        {scanRasterLoading ? "Loading..." : "Load raster"}
+                      </button>
+                    </div>
+                    <div ref={scanRasterRef} className="min-h-0 flex-1">
+                      <RasterPlot
+                        width={scanRasterSize.width}
+                        height={scanRasterSize.height}
+                        margin={margin}
+                        innerWidth={scanRasterInnerWidth}
+                        innerHeight={scanRasterInnerHeight}
+                        xScale={scanRasterXScale}
+                        yScale={scanRasterYScale}
+                        spikes={scanRaster?.spikes ?? null}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

@@ -1,0 +1,107 @@
+config:
+  dt: 0.1
+  T: 950
+  N_E: 100
+  N_I: 50
+  seed: 0
+  neuron_model: mqif
+  delay_ee: 0.1
+  delay_ei: 0.1
+  delay_ie: 0.1
+  delay_ii: 0.1
+  V_init: -65
+  E_L: -65
+  E_e: 0
+  E_i: -80
+  C_m_E: 1
+  g_L_E: 0.05
+  C_m_I: 1
+  g_L_I: 0.1
+  V_th: -50
+  V_reset: -65
+  t_ref_E: 0.1
+  t_ref_I: 0.1
+  tau_ampa: 0.5
+  tau_gaba: 0.5
+  g_Na: 120
+  g_K: 36
+  E_Na: 50
+  E_K: -77
+  adex_V_T: -50
+  adex_delta_T: 2
+  adex_tau_w: 100
+  adex_a: 2
+  adex_b: 60
+  adex_V_peak: 20
+  g_A: 47.7
+  fhn_a: 0.7
+  fhn_b: 0.8
+  fhn_tau_w: 12.5
+  mqif_a:
+  - 0.02
+  mqif_Vr:
+  - -55
+  mqif_w_a:
+  - 0.02
+  mqif_w_Vr:
+  - -55
+  mqif_w_tau:
+  - 100
+  qif_a: 1
+  qif_Vr: -60
+  qif_Vt: -45
+  izh_a: 0.02
+  izh_b: 0.2
+  izh_c: -65
+  izh_d: 8
+  g_L_heterogeneity_sd: 0
+  C_m_heterogeneity_sd: 0
+  V_th_heterogeneity_sd: 0
+  t_ref_heterogeneity_sd: 0
+inputs:
+  input_type: ramp
+  I_E_start: 0
+  I_E_end: 0
+  I_I_start: 0
+  I_I_end: 0
+  I_E_base: 0
+  I_I_base: 0
+  noise_std_E: 0
+  noise_std_I: 0
+  seed: 0
+  pulse_t_ms: 200
+  pulse_width_ms: 20
+  pulse_interval_ms: 100
+  pulse_amp_E: 1
+  pulse_amp_I: 1
+weights:
+  ee:
+    p: 1
+    dist:
+      name: normal
+      params:
+        mean: 0
+        std: 0
+  ei:
+    p: 1
+    dist:
+      name: normal
+      params:
+        mean: 0
+        std: 0
+  ie:
+    p: 1
+    dist:
+      name: normal
+      params:
+        mean: 0
+        std: 0
+  ii:
+    p: 1
+    dist:
+      name: normal
+      params:
+        mean: 0
+        std: 0
+  clamp_min: 0
+  seed: 0

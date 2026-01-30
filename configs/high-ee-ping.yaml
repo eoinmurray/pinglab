@@ -1,14 +1,14 @@
 config:
   dt: 0.1
-  T: 950
-  N_E: 800
-  N_I: 200
+  T: 300
+  N_E: 200
+  N_I: 50
   seed: 0
-  neuron_model: mqif
-  delay_ee: 0.5
-  delay_ei: 0.5
-  delay_ie: 1.2
-  delay_ii: 0.5
+  neuron_model: lif
+  delay_ee: 2.6
+  delay_ei: 1.2
+  delay_ie: 0.8
+  delay_ii: 0.7
   V_init: -65
   E_L: -65
   E_e: 0
@@ -19,10 +19,10 @@ config:
   g_L_I: 0.1
   V_th: -50
   V_reset: -65
-  t_ref_E: 3
-  t_ref_I: 1.5
-  tau_ampa: 2
-  tau_gaba: 6.5
+  t_ref_E: 0.1
+  t_ref_I: 0.1
+  tau_ampa: 1
+  tau_gaba: 3
   g_Na: 120
   g_K: 36
   E_Na: 50
@@ -60,13 +60,14 @@ config:
   t_ref_heterogeneity_sd: 0
 inputs:
   input_type: ramp
-  I_E_start: 2
-  I_E_end: 2
+  I_E_start: 0
+  I_E_end: 0
   I_I_start: 0
   I_I_end: 0
   I_E_base: 0
   I_I_base: 0
-  noise_std: 0
+  noise_std_E: 2.15
+  noise_std_I: 0
   seed: 0
   pulse_t_ms: 200
   pulse_width_ms: 20
@@ -79,28 +80,30 @@ weights:
     dist:
       name: normal
       params:
-        mean: 0.0005
-        std: 0.0034
+        mean: 0.05
+        std: 0.02
   ei:
     p: 1
     dist:
       name: normal
       params:
-        mean: 0.043
-        std: 0.0377
+        mean: 0.033
+        std: 0.005
   ie:
     p: 1
     dist:
       name: normal
       params:
-        mean: 0.005
-        std: 0.005
+        mean: 0.021
+        std: 0.009
   ii:
     p: 1
     dist:
       name: normal
       params:
         mean: 0
-        std: 0.0175
+        std: 0
   clamp_min: 0
   seed: 0
+max_spikes: 30000
+burn_in_ms: 200

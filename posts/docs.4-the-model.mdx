@@ -1,0 +1,148 @@
+---
+title: docs.4-the-model
+description: The model and its parameters
+---
+
+<VeslxFrontMatter />
+
+# The model
+
+## MQIF neuron model (as implemented)
+
+The Multi‑Quadratic Integrate‑and‑Fire (MQIF) model is implemented in `pinglab/src/pinglab/lib/mqif.py` and wrapped by `MQIFModel` in `pinglab/src/pinglab/run/neuron_models.py`.
+
+Dynamics (per neuron):
+
+- **Voltage**
+  $$
+  C_m \frac{dV}{dt} = g_L(E_L - V) + \sum_k a_k (V - V_{r,k})^2 - \sum_j w_j + I_{ext} + g_e(E_e - V) + g_i(E_i - V)
+  $$
+
+- **Slow variables**
+  $$
+  \frac{dw_j}{dt} = \frac{w_{a,j}(V - w_{V_r,j})^2 - w_j}{\tau_{w,j}}
+  $$
+
+Spike and reset:
+
+- A spike is detected when `V_new >= V_th` **and** the neuron is not refractory.
+- After a spike (or if refractory), `V` is reset to `V_reset`.
+- Refractory handling is enforced in `run_network` via a per‑neuron `refractory_countdown` using `t_ref_E`/`t_ref_I`.
+
+All MQIF parameters (`mqif_a`, `mqif_Vr`, `mqif_w_a`, `mqif_w_Vr`, `mqif_w_tau`) are **vectorized** terms. The code enforces equal lengths for paired arrays.
+
+## Conductance‑based synapses (as implemented)
+
+The network uses conductance‑based synapses with separate **excitatory** and **inhibitory** conductances (`g_e`, `g_i`):
+
+- Conductance updates are applied by the connectivity layer each step.
+- **AMPA** corresponds to excitatory (E→E, E→I) conductances; **GABA** corresponds to inhibitory (I→E, I→I) conductances.
+- Conductances decay exponentially each step:
+  $$
+  g_e \leftarrow g_e \cdot e^{-\Delta t / \tau_{ampa}},\quad
+  g_i \leftarrow g_i \cdot e^{-\Delta t / \tau_{gaba}}
+  $$
+- Synaptic currents are injected into each neuron model via:
+  $$
+  g_e(E_e - V) + g_i(E_i - V)
+  $$
+
+Synaptic delays (`delay_ee`, `delay_ei`, `delay_ie`, `delay_ii`) are implemented in the connectivity backend and shift the effect of spikes between population blocks.
+
+### Synaptic delays (mathematical view)
+
+Delays are applied **per connection block** (E→E, E→I, I→E, I→I). If neuron *j* spikes at time $t_k$, its effect on neuron *i* is delivered to the corresponding conductance *after* the block delay:
+
+$$
+g_{e,i}(t) \; \leftarrow \; g_{e,i}(t) + w_{ij}\,\delta(t - (t_k + d_{ee/ei}))
+$$
+
+$$
+g_{i,i}(t) \; \leftarrow \; g_{i,i}(t) + w_{ij}\,\delta(t - (t_k + d_{ie/ii}))
+$$
+
+In discrete time (dt = $\Delta t$) the implementation schedules the update at a **future step**:
+
+$$
+g_{e,i}[n + \Delta n] \; {+}{=}\; w_{ij}, \quad \Delta n = \left\lfloor \frac{d}{\Delta t} \right\rceil
+$$
+
+where $d$ is the relevant block delay in ms. This means the synaptic effect is a time‑shifted input that then decays with $\tau_{ampa}$ or $\tau_{gaba}$ after it lands. The delays do **not** change the decay; they only shift when the conductance bump is injected.
+
+Why include delays? They capture axonal/dendritic transmission time and synaptic processing latency, and they materially shape network timing. Even small delays can shift phase relationships between E and I populations and affect whether oscillations stabilize or collapse.
+
+## Parameters and defaults
+
+**Note:** `dt`, `T`, `N_E`, and `N_I` are required in `NetworkConfig` (no class defaults). The API uses its own defaults in `api/app.py` when no config is provided.
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `neuron_model` | Neuron model type | `lif` |
+| `dt` | Simulation time step (ms) | required |
+| `T` | Simulation duration (ms) | required |
+| `N_E` | Number of excitatory neurons | required |
+| `N_I` | Number of inhibitory neurons | required |
+| `seed` | RNG seed (network/heterogeneity) | `None` |
+| `delay_ee` | E→E delay (ms) | `1.5` |
+| `delay_ei` | E→I delay (ms) | `1.5` |
+| `delay_ie` | I→E delay (ms) | `1.5` |
+| `delay_ii` | I→I delay (ms) | `1.5` |
+| `V_init` | Initial membrane potential (mV) | `-65.0` |
+| `E_L` | Leak reversal potential (mV) | `-65.0` |
+| `E_e` | Excitatory reversal potential (mV) | `0.0` |
+| `E_i` | Inhibitory reversal potential (mV) | `-80.0` |
+| `C_m_E` | E membrane capacitance | `1.0` |
+| `g_L_E` | E leak conductance | `0.1` |
+| `C_m_I` | I membrane capacitance | `1.0` |
+| `g_L_I` | I leak conductance | `0.1` |
+| `V_th` | Spike threshold (mV) | `-50.0` |
+| `V_reset` | Reset potential (mV) | `-65.0` |
+| `t_ref_E` | E refractory period (ms) | `3.0` |
+| `t_ref_I` | I refractory period (ms) | `1.5` |
+| `tau_ampa` | AMPA decay time constant (ms) | `5.0` |
+| `tau_gaba` | GABA decay time constant (ms) | `10.0` |
+| `g_Na` | HH sodium conductance | `120.0` |
+| `g_K` | HH potassium conductance | `36.0` |
+| `E_Na` | HH sodium reversal (mV) | `50.0` |
+| `E_K` | HH potassium reversal (mV) | `-77.0` |
+| `adex_V_T` | AdEx threshold (mV) | `-50.0` |
+| `adex_delta_T` | AdEx slope factor | `2.0` |
+| `adex_tau_w` | AdEx adaptation time constant | `100.0` |
+| `adex_a` | AdEx subthreshold adaptation | `2.0` |
+| `adex_b` | AdEx spike‑triggered adaptation | `60.0` |
+| `adex_V_peak` | AdEx spike cutoff (mV) | `20.0` |
+| `g_A` | Connor‑Stevens A‑current conductance | `47.7` |
+| `fhn_a` | FitzHugh‑Nagumo `a` | `0.7` |
+| `fhn_b` | FitzHugh‑Nagumo `b` | `0.8` |
+| `fhn_tau_w` | FitzHugh‑Nagumo `tau_w` | `12.5` |
+| `mqif_a` | MQIF quadratic coefficients | `[]` |
+| `mqif_Vr` | MQIF quadratic centers | `[]` |
+| `mqif_w_a` | MQIF slow term coefficients | `[]` |
+| `mqif_w_Vr` | MQIF slow term centers | `[]` |
+| `mqif_w_tau` | MQIF slow term time constants | `[]` |
+| `qif_a` | QIF quadratic gain | `1.0` |
+| `qif_Vr` | QIF resting potential (mV) | `-60.0` |
+| `qif_Vt` | QIF threshold (mV) | `-45.0` |
+| `izh_a` | Izhikevich `a` | `0.02` |
+| `izh_b` | Izhikevich `b` | `0.2` |
+| `izh_c` | Izhikevich `c` (mV) | `-65.0` |
+| `izh_d` | Izhikevich `d` | `8.0` |
+| `V_th_heterogeneity_sd` | Threshold SD (relative) | `0.0` |
+| `g_L_heterogeneity_sd` | Leak conductance SD (relative) | `0.0` |
+| `C_m_heterogeneity_sd` | Capacitance SD (relative) | `0.0` |
+| `t_ref_heterogeneity_sd` | Refractory SD (relative) | `0.0` |
+| `pulse_onset_ms` | Pulse onset time (ms) | `0.0` |
+| `pulse_duration_ms` | Pulse duration (ms) | `0.0` |
+| `pulse_interval_ms` | Pulse interval (ms) | `0.0` |
+| `pulse_amplitude_E` | Pulse amplitude (E) | `0.0` |
+| `pulse_amplitude_I` | Pulse amplitude (I) | `0.0` |
+
+### InstrumentsConfig defaults
+
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `variables` | Recorded variables | `["V", "g_e", "g_i"]` |
+| `neuron_ids` | Specific neuron IDs to record | `None` |
+| `downsample` | Recording downsample factor | `1` |
+| `population_means` | Record E/I means | `False` |
+| `all_neurons` | Record all neurons | `True` |

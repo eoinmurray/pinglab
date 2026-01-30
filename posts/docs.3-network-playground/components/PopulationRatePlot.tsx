@@ -13,6 +13,7 @@ type PopulationRatePlotProps = {
   rateHzE: number[];
   rateHzI?: number[];
   maxTMs?: number;
+  lineColor?: string;
 };
 
 export default function PopulationRatePlot({
@@ -25,6 +26,7 @@ export default function PopulationRatePlot({
   rateHzE,
   rateHzI,
   maxTMs,
+  lineColor,
 }: PopulationRatePlotProps) {
   const xScale = useMemo(() => {
     const inferredMax = tMs.length ? Math.max(...tMs) : 1;
@@ -65,7 +67,7 @@ export default function PopulationRatePlot({
             data={pointsE}
             x={(d) => xScale(d.t) ?? 0}
             y={(d) => yScale(d.r) ?? 0}
-            stroke="currentColor"
+            stroke={lineColor ?? "currentColor"}
             strokeWidth={1.4}
           />
           {pointsI.length ? (

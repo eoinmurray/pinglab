@@ -46,8 +46,14 @@ type ParameterPanelProps = {
   setNI: (value: number) => void;
   seed: number;
   setSeed: (value: number) => void;
-  noiseStd: number;
-  setNoiseStd: (value: number) => void;
+  burnInMs: number;
+  setBurnInMs: (value: number) => void;
+  downsampleEnabled: boolean;
+  setDownsampleEnabled: (value: boolean) => void;
+  noiseStdE: number;
+  setNoiseStdE: (value: number) => void;
+  noiseStdI: number;
+  setNoiseStdI: (value: number) => void;
   inputSeed: number;
   setInputSeed: (value: number) => void;
   inputType: "ramp" | "pulse" | "pulses";
@@ -252,8 +258,14 @@ export default function ParameterPanel({
   setNI,
   seed,
   setSeed,
-  noiseStd,
-  setNoiseStd,
+  burnInMs,
+  setBurnInMs,
+  downsampleEnabled,
+  setDownsampleEnabled,
+  noiseStdE,
+  setNoiseStdE,
+  noiseStdI,
+  setNoiseStdI,
   inputSeed,
   setInputSeed,
   inputType,
@@ -465,24 +477,24 @@ export default function ParameterPanel({
         onChange={(value) => setDist(value as WeightDistName)}
       />
       {(dist === "normal" || dist === "lognormal") && (
-        <Slider label="mean" value={mean} min={0.0} max={0.05} step={0.0005} precision={4} onChange={setMean} />
+        <Slider label="mean [nS]" value={mean} min={0.0} max={0.05} step={0.0005} precision={4} onChange={setMean} />
       )}
       {dist === "normal" && (
-        <Slider label="std" value={std} min={0.0} max={0.02} step={0.0005} precision={4} onChange={setStd} />
+        <Slider label="std [nS]" value={std} min={0.0} max={0.02} step={0.0005} precision={4} onChange={setStd} />
       )}
       {dist === "lognormal" && (
-        <Slider label="sigma" value={sigma} min={0.1} max={2.0} step={0.05} precision={2} onChange={setSigma} />
+        <Slider label="sigma [unitless]" value={sigma} min={0.1} max={2.0} step={0.05} precision={2} onChange={setSigma} />
       )}
       {dist === "gamma" && (
         <>
-          <Slider label="shape" value={shape} min={0.1} max={5.0} step={0.1} precision={2} onChange={setShape} />
-          <Slider label="scale" value={scale} min={0.0001} max={0.05} step={0.0005} precision={4} onChange={setScale} />
+          <Slider label="shape [unitless]" value={shape} min={0.1} max={5.0} step={0.1} precision={2} onChange={setShape} />
+          <Slider label="scale [nS]" value={scale} min={0.0001} max={0.05} step={0.0005} precision={4} onChange={setScale} />
         </>
       )}
       {dist === "exponential" && (
-        <Slider label="scale" value={scale} min={0.0001} max={0.05} step={0.0005} precision={4} onChange={setScale} />
+        <Slider label="scale [nS]" value={scale} min={0.0001} max={0.05} step={0.0005} precision={4} onChange={setScale} />
       )}
-      <Slider label="p" value={p} min={0.0} max={1.0} step={0.01} precision={2} onChange={setP} />
+      <Slider label="p [0-1]" value={p} min={0.0} max={1.0} step={0.01} precision={2} onChange={setP} />
     </div>
   );
 
@@ -543,11 +555,21 @@ export default function ParameterPanel({
             options={NEURON_MODELS}
             onChange={(value) => setNeuronModel(value as NeuronModel)}
           />
-          <Slider label="dt" value={dt} min={0.05} max={1.0} step={0.05} precision={2} onChange={setDt} />
-          <Slider label="T" value={T} min={200} max={5000} step={50} precision={0} onChange={setT} />
-          <Slider label="N_E" value={nE} min={100} max={2000} step={50} precision={0} onChange={setNE} />
-          <Slider label="N_I" value={nI} min={50} max={1000} step={50} precision={0} onChange={setNI} />
+          <Slider label="dt [ms]" value={dt} min={0.05} max={1.0} step={0.05} precision={2} onChange={setDt} />
+          <Slider label="T [ms]" value={T} min={200} max={5000} step={50} precision={0} onChange={setT} />
+          <Slider label="N_E [count]" value={nE} min={100} max={2000} step={50} precision={0} onChange={setNE} />
+          <Slider label="N_I [count]" value={nI} min={50} max={1000} step={50} precision={0} onChange={setNI} />
           <Slider label="seed" value={seed} min={0} max={20} step={1} precision={0} onChange={setSeed} />
+          <Slider label="burn-in [ms]" value={burnInMs} min={0} max={1000} step={25} precision={0} onChange={setBurnInMs} />
+          <label className="flex items-center justify-between rounded-md border border-black/10 bg-white px-2 py-1 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-black dark:text-zinc-200">
+            <span>downsample spikes</span>
+            <input
+              type="checkbox"
+              checked={downsampleEnabled}
+              onChange={(event) => setDownsampleEnabled(event.target.checked)}
+              className="h-4 w-4 accent-black dark:accent-white"
+            />
+          </label>
         </div>
 
         <div className="border-t border-black/10 pt-4 dark:border-zinc-800">
@@ -561,27 +583,36 @@ export default function ParameterPanel({
               options={["ramp", "pulse", "pulses"]}
               onChange={(value) => setInputType(value as "ramp" | "pulse" | "pulses")}
             />
-            <Slider label="I_E start" value={iEStart} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIEStart} />
-            <Slider label="I_E end" value={iEEnd} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIEEnd} />
-            <Slider label="I_I start" value={iIStart} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIIStart} />
-            <Slider label="I_I end" value={iIEnd} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIIEnd} />
-            <Slider label="I_E base" value={iEBase} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIEBase} />
-            <Slider label="I_I base" value={iIBase} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIIBase} />
+            <Slider label="I_E start [nA]" value={iEStart} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIEStart} />
+            <Slider label="I_E end [nA]" value={iEEnd} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIEEnd} />
+            <Slider label="I_I start [nA]" value={iIStart} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIIStart} />
+            <Slider label="I_I end [nA]" value={iIEnd} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIIEnd} />
+            <Slider label="I_E base [nA]" value={iEBase} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIEBase} />
+            <Slider label="I_I base [nA]" value={iIBase} min={0.0} max={4.0} step={0.01} precision={2} onChange={setIIBase} />
             <Slider
-              label="noise std"
-              value={noiseStd}
+              label="noise std E [nA]"
+              value={noiseStdE}
               min={0.0}
               max={5.0}
               step={0.05}
               precision={2}
-              onChange={setNoiseStd}
+              onChange={setNoiseStdE}
+            />
+            <Slider
+              label="noise std I [nA]"
+              value={noiseStdI}
+              min={0.0}
+              max={5.0}
+              step={0.05}
+              precision={2}
+              onChange={setNoiseStdI}
             />
             <Slider label="input seed" value={inputSeed} min={0} max={20} step={1} precision={0} onChange={setInputSeed} />
-            <Slider label="pulse t" value={inputPulseT} min={0} max={1000} step={10} precision={0} onChange={setInputPulseT} />
-            <Slider label="pulse width" value={inputPulseWidth} min={1} max={200} step={5} precision={0} onChange={setInputPulseWidth} />
-            <Slider label="pulse interval" value={inputPulseInterval} min={10} max={1000} step={10} precision={0} onChange={setInputPulseInterval} />
-            <Slider label="pulse amp E" value={inputPulseAmpE} min={0} max={5} step={0.1} precision={1} onChange={setInputPulseAmpE} />
-            <Slider label="pulse amp I" value={inputPulseAmpI} min={0} max={5} step={0.1} precision={1} onChange={setInputPulseAmpI} />
+            <Slider label="pulse t [ms]" value={inputPulseT} min={0} max={1000} step={10} precision={0} onChange={setInputPulseT} />
+            <Slider label="pulse width [ms]" value={inputPulseWidth} min={1} max={200} step={5} precision={0} onChange={setInputPulseWidth} />
+            <Slider label="pulse interval [ms]" value={inputPulseInterval} min={10} max={1000} step={10} precision={0} onChange={setInputPulseInterval} />
+            <Slider label="pulse amp E [nA]" value={inputPulseAmpE} min={0} max={5} step={0.1} precision={1} onChange={setInputPulseAmpE} />
+            <Slider label="pulse amp I [nA]" value={inputPulseAmpI} min={0} max={5} step={0.1} precision={1} onChange={setInputPulseAmpI} />
           </div>
         </div>
 
@@ -658,7 +689,7 @@ export default function ParameterPanel({
               pIi,
               setPIi
             )}
-            <Slider label="clamp min" value={clampMin} min={0.0} max={0.1} step={0.005} precision={3} onChange={setClampMin} />
+            <Slider label="clamp min [nS]" value={clampMin} min={0.0} max={0.1} step={0.005} precision={3} onChange={setClampMin} />
             <Slider label="weights seed" value={weightsSeed} min={0} max={20} step={1} precision={0} onChange={setWeightsSeed} />
           </div>
         </div>
@@ -668,12 +699,12 @@ export default function ParameterPanel({
             Synapse and delays
           </div>
           <div className="mt-3 space-y-3">
-            <Slider label="tau AMPA" value={tauAmpa} min={1} max={10} step={0.5} precision={1} onChange={setTauAmpa} />
-            <Slider label="tau GABA" value={tauGaba} min={1} max={15} step={0.5} precision={1} onChange={setTauGaba} />
-            <Slider label="delay EE" value={delayEe} min={0.0} max={5.0} step={0.1} precision={1} onChange={setDelayEe} />
-            <Slider label="delay EI" value={delayEi} min={0.0} max={5.0} step={0.1} precision={1} onChange={setDelayEi} />
-            <Slider label="delay IE" value={delayIe} min={0.0} max={5.0} step={0.1} precision={1} onChange={setDelayIe} />
-            <Slider label="delay II" value={delayIi} min={0.0} max={5.0} step={0.1} precision={1} onChange={setDelayIi} />
+            <Slider label="tau AMPA [ms]" value={tauAmpa} min={0} max={10} step={0.5} precision={1} onChange={setTauAmpa} />
+            <Slider label="tau GABA [ms]" value={tauGaba} min={0} max={15} step={0.5} precision={1} onChange={setTauGaba} />
+            <Slider label="delay EE [ms]" value={delayEe} min={0.0} max={5.0} step={0.1} precision={1} onChange={setDelayEe} />
+            <Slider label="delay EI [ms]" value={delayEi} min={0.0} max={5.0} step={0.1} precision={1} onChange={setDelayEi} />
+            <Slider label="delay IE [ms]" value={delayIe} min={0.0} max={5.0} step={0.1} precision={1} onChange={setDelayIe} />
+            <Slider label="delay II [ms]" value={delayIi} min={0.0} max={5.0} step={0.1} precision={1} onChange={setDelayIi} />
           </div>
         </div>
 
@@ -682,18 +713,18 @@ export default function ParameterPanel({
             Membrane
           </div>
           <div className="mt-3 space-y-3">
-            <Slider label="V_init" value={VInit} min={-80} max={-50} step={1} precision={0} onChange={setVInit} />
-            <Slider label="V_th" value={VTh} min={-70} max={-40} step={1} precision={0} onChange={setVTh} />
-            <Slider label="V_reset" value={VReset} min={-80} max={-50} step={1} precision={0} onChange={setVReset} />
-            <Slider label="E_L" value={EL} min={-80} max={-50} step={1} precision={0} onChange={setEL} />
-            <Slider label="E_e" value={Ee} min={-10} max={10} step={1} precision={0} onChange={setEe} />
-            <Slider label="E_i" value={Ei} min={-100} max={-60} step={1} precision={0} onChange={setEi} />
-            <Slider label="C_m E" value={CmE} min={0.2} max={2.0} step={0.1} precision={2} onChange={setCmE} />
-            <Slider label="g_L E" value={gLE} min={0.01} max={0.2} step={0.005} precision={3} onChange={setGLE} />
-            <Slider label="C_m I" value={CmI} min={0.2} max={2.0} step={0.1} precision={2} onChange={setCmI} />
-            <Slider label="g_L I" value={gLI} min={0.01} max={0.2} step={0.005} precision={3} onChange={setGLI} />
-            <Slider label="t_ref E" value={tRefE} min={0.5} max={5.0} step={0.1} precision={1} onChange={setTRefE} />
-            <Slider label="t_ref I" value={tRefI} min={0.5} max={5.0} step={0.1} precision={1} onChange={setTRefI} />
+            <Slider label="V_init [mV]" value={VInit} min={-80} max={-50} step={1} precision={0} onChange={setVInit} />
+            <Slider label="V_th [mV]" value={VTh} min={-70} max={-40} step={1} precision={0} onChange={setVTh} />
+            <Slider label="V_reset [mV]" value={VReset} min={-80} max={-50} step={1} precision={0} onChange={setVReset} />
+            <Slider label="E_L [mV]" value={EL} min={-80} max={-50} step={1} precision={0} onChange={setEL} />
+            <Slider label="E_e [mV]" value={Ee} min={-10} max={10} step={1} precision={0} onChange={setEe} />
+            <Slider label="E_i [mV]" value={Ei} min={-100} max={-60} step={1} precision={0} onChange={setEi} />
+            <Slider label="C_m E [nF]" value={CmE} min={0.2} max={2.0} step={0.1} precision={2} onChange={setCmE} />
+            <Slider label="g_L E [nS]" value={gLE} min={0.01} max={0.2} step={0.005} precision={3} onChange={setGLE} />
+            <Slider label="C_m I [nF]" value={CmI} min={0.2} max={2.0} step={0.1} precision={2} onChange={setCmI} />
+            <Slider label="g_L I [nS]" value={gLI} min={0.01} max={0.2} step={0.005} precision={3} onChange={setGLI} />
+            <Slider label="t_ref E [ms]" value={tRefE} min={0.0} max={5.0} step={0.1} precision={1} onChange={setTRefE} />
+            <Slider label="t_ref I [ms]" value={tRefI} min={0.0} max={5.0} step={0.1} precision={1} onChange={setTRefI} />
           </div>
         </div>
 
@@ -702,13 +733,13 @@ export default function ParameterPanel({
             HH and AdEx
           </div>
           <div className="mt-3 space-y-3">
-            <Slider label="g_Na" value={gNa} min={50} max={200} step={5} precision={0} onChange={setGNa} />
-            <Slider label="g_K" value={gK} min={10} max={80} step={2} precision={0} onChange={setGK} />
-            <Slider label="E_Na" value={ENa} min={30} max={70} step={1} precision={0} onChange={setENa} />
-            <Slider label="E_K" value={EK} min={-100} max={-60} step={1} precision={0} onChange={setEK} />
-            <Slider label="AdEx V_T" value={adexVT} min={-70} max={-30} step={1} precision={0} onChange={setAdexVT} />
+            <Slider label="g_Na [nS]" value={gNa} min={50} max={200} step={5} precision={0} onChange={setGNa} />
+            <Slider label="g_K [nS]" value={gK} min={10} max={80} step={2} precision={0} onChange={setGK} />
+            <Slider label="E_Na [mV]" value={ENa} min={30} max={70} step={1} precision={0} onChange={setENa} />
+            <Slider label="E_K [mV]" value={EK} min={-100} max={-60} step={1} precision={0} onChange={setEK} />
+            <Slider label="AdEx V_T [mV]" value={adexVT} min={-70} max={-30} step={1} precision={0} onChange={setAdexVT} />
             <Slider
-              label="AdEx Delta_T"
+              label="AdEx Delta_T [mV]"
               value={adexDeltaT}
               min={0.5}
               max={5.0}
@@ -716,10 +747,10 @@ export default function ParameterPanel({
               precision={1}
               onChange={setAdexDeltaT}
             />
-            <Slider label="AdEx tau_w" value={adexTauW} min={10} max={300} step={5} precision={0} onChange={setAdexTauW} />
-            <Slider label="AdEx a" value={adexA} min={0} max={10} step={0.5} precision={1} onChange={setAdexA} />
-            <Slider label="AdEx b" value={adexB} min={0} max={100} step={2} precision={0} onChange={setAdexB} />
-            <Slider label="AdEx V_peak" value={adexVPeak} min={0} max={40} step={1} precision={0} onChange={setAdexVPeak} />
+            <Slider label="AdEx tau_w [ms]" value={adexTauW} min={10} max={300} step={5} precision={0} onChange={setAdexTauW} />
+            <Slider label="AdEx a [nS]" value={adexA} min={0} max={10} step={0.5} precision={1} onChange={setAdexA} />
+            <Slider label="AdEx b [nA]" value={adexB} min={0} max={100} step={2} precision={0} onChange={setAdexB} />
+            <Slider label="AdEx V_peak [mV]" value={adexVPeak} min={0} max={40} step={1} precision={0} onChange={setAdexVPeak} />
           </div>
         </div>
 
@@ -728,10 +759,10 @@ export default function ParameterPanel({
             Connor-Stevens and FitzHugh
           </div>
           <div className="mt-3 space-y-3">
-            <Slider label="g_A" value={gA} min={0} max={80} step={2} precision={0} onChange={setGA} />
-            <Slider label="FHN a" value={fhnA} min={0.0} max={1.5} step={0.05} precision={2} onChange={setFhnA} />
-            <Slider label="FHN b" value={fhnB} min={0.0} max={2.0} step={0.05} precision={2} onChange={setFhnB} />
-            <Slider label="FHN tau_w" value={fhnTauW} min={1} max={30} step={1} precision={0} onChange={setFhnTauW} />
+            <Slider label="g_A [nS]" value={gA} min={0} max={80} step={2} precision={0} onChange={setGA} />
+            <Slider label="FHN a [unitless]" value={fhnA} min={0.0} max={1.5} step={0.05} precision={2} onChange={setFhnA} />
+            <Slider label="FHN b [unitless]" value={fhnB} min={0.0} max={2.0} step={0.05} precision={2} onChange={setFhnB} />
+            <Slider label="FHN tau_w [ms]" value={fhnTauW} min={1} max={30} step={1} precision={0} onChange={setFhnTauW} />
           </div>
         </div>
 
@@ -740,13 +771,13 @@ export default function ParameterPanel({
             QIF and Izhikevich
           </div>
           <div className="mt-3 space-y-3">
-            <Slider label="QIF a" value={qifA} min={0.2} max={3.0} step={0.1} precision={1} onChange={setQifA} />
-            <Slider label="QIF V_r" value={qifVr} min={-80} max={-40} step={1} precision={0} onChange={setQifVr} />
-            <Slider label="QIF V_t" value={qifVt} min={-60} max={-30} step={1} precision={0} onChange={setQifVt} />
-            <Slider label="Izh a" value={izhA} min={0.0} max={0.2} step={0.01} precision={2} onChange={setIzhA} />
-            <Slider label="Izh b" value={izhB} min={0.0} max={0.4} step={0.01} precision={2} onChange={setIzhB} />
-            <Slider label="Izh c" value={izhC} min={-80} max={-40} step={1} precision={0} onChange={setIzhC} />
-            <Slider label="Izh d" value={izhD} min={0} max={20} step={1} precision={0} onChange={setIzhD} />
+            <Slider label="QIF a [nA/mV^2]" value={qifA} min={0.2} max={3.0} step={0.1} precision={1} onChange={setQifA} />
+            <Slider label="QIF V_r [mV]" value={qifVr} min={-80} max={-40} step={1} precision={0} onChange={setQifVr} />
+            <Slider label="QIF V_t [mV]" value={qifVt} min={-60} max={-30} step={1} precision={0} onChange={setQifVt} />
+            <Slider label="Izh a [1/ms]" value={izhA} min={0.0} max={0.2} step={0.01} precision={2} onChange={setIzhA} />
+            <Slider label="Izh b [nA/mV]" value={izhB} min={0.0} max={0.4} step={0.01} precision={2} onChange={setIzhB} />
+            <Slider label="Izh c [mV]" value={izhC} min={-80} max={-40} step={1} precision={0} onChange={setIzhC} />
+            <Slider label="Izh d [nA]" value={izhD} min={0} max={20} step={1} precision={0} onChange={setIzhD} />
           </div>
         </div>
 
@@ -755,11 +786,11 @@ export default function ParameterPanel({
             MQIF
           </div>
           <div className="mt-3 space-y-3">
-            <Slider label="MQIF a" value={mqifA} min={0.0} max={0.2} step={0.005} precision={3} onChange={setMqifA} />
-            <Slider label="MQIF V_r" value={mqifVr} min={-70} max={-40} step={1} precision={0} onChange={setMqifVr} />
-            <Slider label="MQIF w a" value={mqifWA} min={0.0} max={0.2} step={0.005} precision={3} onChange={setMqifWA} />
-            <Slider label="MQIF w V_r" value={mqifWVr} min={-70} max={-40} step={1} precision={0} onChange={setMqifWVr} />
-            <Slider label="MQIF w tau" value={mqifWTau} min={1} max={300} step={1} precision={0} onChange={setMqifWTau} />
+            <Slider label="MQIF a [nA/mV^2]" value={mqifA} min={0.0} max={0.2} step={0.005} precision={3} onChange={setMqifA} />
+            <Slider label="MQIF V_r [mV]" value={mqifVr} min={-70} max={-40} step={1} precision={0} onChange={setMqifVr} />
+            <Slider label="MQIF w a [nA/mV^2]" value={mqifWA} min={0.0} max={0.2} step={0.005} precision={3} onChange={setMqifWA} />
+            <Slider label="MQIF w V_r [mV]" value={mqifWVr} min={-70} max={-40} step={1} precision={0} onChange={setMqifWVr} />
+            <Slider label="MQIF w tau [ms]" value={mqifWTau} min={1} max={300} step={1} precision={0} onChange={setMqifWTau} />
           </div>
         </div>
 
@@ -768,10 +799,10 @@ export default function ParameterPanel({
             Heterogeneity
           </div>
           <div className="mt-3 space-y-3">
-            <Slider label="g_L sd" value={gLHet} min={0.0} max={1.0} step={0.05} precision={2} onChange={setGLHet} />
-            <Slider label="C_m sd" value={cMHet} min={0.0} max={1.0} step={0.05} precision={2} onChange={setCMHet} />
-            <Slider label="V_th sd" value={vThHet} min={0.0} max={3.0} step={0.1} precision={1} onChange={setVThHet} />
-            <Slider label="t_ref sd" value={tRefHet} min={0.0} max={2.0} step={0.1} precision={1} onChange={setTRefHet} />
+            <Slider label="g_L sd [rel]" value={gLHet} min={0.0} max={1.0} step={0.05} precision={2} onChange={setGLHet} />
+            <Slider label="C_m sd [rel]" value={cMHet} min={0.0} max={1.0} step={0.05} precision={2} onChange={setCMHet} />
+            <Slider label="V_th sd [mV]" value={vThHet} min={0.0} max={3.0} step={0.1} precision={1} onChange={setVThHet} />
+            <Slider label="t_ref sd [ms]" value={tRefHet} min={0.0} max={2.0} step={0.1} precision={1} onChange={setTRefHet} />
           </div>
         </div>
       </div>

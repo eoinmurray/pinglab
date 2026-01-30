@@ -56,6 +56,7 @@ export default function WeightsHistogramPlot({
     () => bins.map((b, i) => ({ x: b, y: counts[i] ?? 0 })),
     [bins, counts]
   );
+  const seriesColor = color || "currentColor";
 
   return (
     <div className="relative" style={{ width, height }}>
@@ -65,7 +66,7 @@ export default function WeightsHistogramPlot({
             data={series}
             x={(d) => xScale(d.x) ?? 0}
             y={(d) => yScale(d.y) ?? 0}
-            stroke={color}
+            stroke={seriesColor}
             strokeWidth={1.2}
           />
           <AxisBottom
@@ -115,10 +116,10 @@ export default function WeightsHistogramPlot({
           alignItems: "center",
           gap: "6px",
           fontSize: "10px",
-          color: "#475569",
+          color: "currentColor",
         }}
       >
-        <span style={{ width: 10, height: 10, backgroundColor: color }} />
+        <span style={{ width: 10, height: 10, backgroundColor: seriesColor }} />
         {label}
       </div>
     </div>

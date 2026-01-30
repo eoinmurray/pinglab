@@ -10,9 +10,10 @@ from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
-from pinglab.analysis import mean_firing_rates, population_rate
+from pinglab.analysis import mean_firing_rates, population_rate, rate_psd
 from pinglab.analysis.autocorr_peak import autocorr_peak
 from pinglab.analysis.coherence import coherence_peak
+from pinglab.analysis.lagged_coherence import lagged_coherence
 from pinglab.analysis.mean_pairwise_xcorr_peak import mean_pairwise_xcorr_peak
 from pinglab.inputs import add_pulse_to_input, add_pulse_train_to_input, ramp
 from pinglab.lib import build_adjacency_matrices
@@ -106,6 +107,8 @@ class InputsSpec(BaseModel):
     I_E_base: float | None = None
     I_I_base: float | None = None
     noise_std: float | None = None
+    noise_std_E: float | None = None
+    noise_std_I: float | None = None
     seed: int | None = None
     pulse_t_ms: float | None = None
     pulse_width_ms: float | None = None
@@ -130,6 +133,8 @@ class RunRequest(BaseModel):
     inputs: InputsSpec | None = None
     weights: WeightsSpec | None = None
     connectivity_backend: Literal["event", "dense"] = "event"
+    max_spikes: int | None = Field(default=30000, ge=1000)
+    burn_in_ms: float | None = Field(default=None, ge=0.0)
 
 
 class SpikesResponse(BaseModel):
@@ -143,10 +148,14 @@ class RunResponse(BaseModel):
     runtime_ms: float
     num_steps: int
     num_spikes: int
-    rhythmicity: float
+    spikes_truncated: bool = False
     mean_rate_E: float
     mean_rate_I: float
     isi_cv_E: float
+    autocorr_peak: float
+    xcorr_peak: float
+    coherence_peak: float
+    lagged_coherence: float
     population_rate_t_ms: list[float]
     population_rate_hz_E: list[float]
     population_rate_hz_I: list[float]
@@ -164,9 +173,41 @@ class RunResponse(BaseModel):
     weights_hist_counts_ei: list[float]
     weights_hist_counts_ie: list[float]
     weights_hist_counts_ii: list[float]
+    psd_freqs_hz: list[float]
+    psd_power: list[float]
     input_t_ms: list[float]
     input_mean_E: list[float]
     input_mean_I: list[float]
+
+
+class ScanSpec(BaseModel):
+    param_path: str
+    start: float
+    end: float
+    steps: int = Field(ge=2, le=200)
+    mode: Literal["linear", "log"] = "linear"
+    metric: Literal[
+        "mean_rate_E",
+        "mean_rate_I",
+        "isi_cv_E",
+        "autocorr_peak",
+        "xcorr_peak",
+        "coherence_peak",
+        "lagged_coherence",
+    ] = "mean_rate_E"
+    seed_strategy: Literal["fixed", "per-step"] = "fixed"
+
+
+class ScanRequest(BaseModel):
+    base: RunRequest | None = None
+    scan: ScanSpec
+
+
+class ScanResponse(BaseModel):
+    param_path: str
+    metric_name: str
+    values: list[float]
+    metrics: list[float]
 
 
 DEFAULT_CONFIG = NetworkConfig(
@@ -219,6 +260,8 @@ DEFAULT_INPUTS = {
     "I_E_base": 0.7,
     "I_I_base": 0.7,
     "noise_std": 0.5,
+    "noise_std_E": None,
+    "noise_std_I": None,
     "seed": 0,
     "pulse_t_ms": 200.0,
     "pulse_width_ms": 20.0,
@@ -299,8 +342,6 @@ def save_config(name: str, payload: dict = Body(...)) -> dict:
 
 RHYTHM_BIN_MS = 5.0
 RHYTHM_BURN_IN_MS = 200.0
-RHYTHM_TAU_MIN_MS = 5.0
-RHYTHM_TAU_MAX_MS = 200.0
 
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "configs"
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -317,37 +358,6 @@ def _safe_config_filename(name: str) -> str:
     if clean.startswith(".") or ".." in clean or "/" in clean or "\\" in clean:
         raise ValueError("Invalid config name")
     return clean
-
-
-def _autocorr_rhythmicity(
-    rate_hz: np.ndarray,
-    dt_ms: float,
-    tau_min_ms: float,
-    tau_max_ms: float,
-) -> float:
-    if rate_hz.size == 0:
-        return 0.0
-
-    mean = float(np.mean(rate_hz))
-    std = float(np.std(rate_hz))
-    if std == 0.0:
-        return 0.0
-
-    x = (rate_hz - mean) / std
-    n = x.size
-    corr = np.correlate(x, x, mode="full")[n - 1 :]
-    norm = np.arange(n, 0, -1, dtype=float)
-    C = corr / norm
-
-    lag_min = max(1, int(np.ceil(tau_min_ms / dt_ms)))
-    lag_max = min(n - 1, int(np.floor(tau_max_ms / dt_ms)))
-    if lag_max < lag_min:
-        return 0.0
-
-    window = C[lag_min : lag_max + 1]
-    peak_idx = int(np.argmax(window))
-    lag_idx = lag_min + peak_idx
-    return float(C[lag_idx])
 
 
 def _isi_cv(spikes: Spikes, N_E: int, N_I: int, pop: Literal["E", "I"] = "E") -> float:
@@ -393,6 +403,20 @@ def _merge_defaults(defaults: dict, overrides: BaseModel | None) -> dict:
     return _deep_merge(defaults, update)
 
 
+def _set_nested_value(target: dict, path: str, value: float) -> None:
+    parts = path.split(".")
+    if not parts:
+        raise ValueError("Scan path cannot be empty")
+    if parts[0] not in {"config", "inputs", "weights"}:
+        raise ValueError("Scan path must start with config, inputs, or weights")
+    obj = target.setdefault(parts[0], {})
+    for key in parts[1:-1]:
+        if key not in obj or not isinstance(obj[key], dict):
+            obj[key] = {}
+        obj = obj[key]
+    obj[parts[-1]] = value
+
+
 @app.post("/run", response_model=RunResponse)
 def run_simulation(request: RunRequest | None = Body(default=None)) -> RunResponse:
     if request is None:
@@ -425,6 +449,13 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
     weights_seed = weights["seed"] if weights["seed"] is not None else config.seed
 
     input_type = inputs.get("input_type", "ramp")
+    noise_std_E = inputs.get("noise_std_E")
+    noise_std_I = inputs.get("noise_std_I")
+    if noise_std_E is None:
+        noise_std_E = inputs.get("noise_std", 0.0)
+    if noise_std_I is None:
+        noise_std_I = inputs.get("noise_std", 0.0)
+
     if input_type == "ramp":
         external_input = ramp(
             config.N_E,
@@ -433,7 +464,8 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
             inputs["I_E_end"],
             inputs["I_I_start"],
             inputs["I_I_end"],
-            inputs["noise_std"],
+            noise_std_E,
+            noise_std_I,
             num_steps,
             config.dt,
             int(input_seed) if input_seed is not None else 0,
@@ -446,7 +478,8 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
             inputs["I_E_base"],
             inputs["I_I_base"],
             inputs["I_I_base"],
-            inputs["noise_std"],
+            noise_std_E,
+            noise_std_I,
             num_steps,
             config.dt,
             int(input_seed) if input_seed is not None else 0,
@@ -537,19 +570,36 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
     runtime_ms = (time.perf_counter() - t0) * 1000.0
 
     spikes = result.spikes
+    max_spikes = request.max_spikes if request is not None else 30000
+    spikes_truncated = False
+    spikes_for_response = spikes
+    if max_spikes is not None and spikes.times.size > max_spikes:
+        spikes_truncated = True
+        idx = np.linspace(0, spikes.times.size - 1, num=max_spikes, dtype=int)
+        spikes_for_response = Spikes(
+            times=spikes.times[idx],
+            ids=spikes.ids[idx],
+            types=spikes.types[idx] if spikes.types is not None else None,
+        )
     spikes_response = SpikesResponse(
-        times=spikes.times.tolist(),
-        ids=spikes.ids.tolist(),
-        types=(spikes.types.tolist() if spikes.types is not None else []),
+        times=spikes_for_response.times.tolist(),
+        ids=spikes_for_response.ids.tolist(),
+        types=(spikes_for_response.types.tolist() if spikes_for_response.types is not None else []),
     )
 
-    analysis_start = min(RHYTHM_BURN_IN_MS, max(0.0, config.T - config.dt))
+    burn_in_ms = request.burn_in_ms if request is not None else None
+    if burn_in_ms is None:
+        burn_in_ms = RHYTHM_BURN_IN_MS
+    analysis_start = min(burn_in_ms, max(0.0, config.T - config.dt))
     analysis_stop = config.T
     analysis_T = analysis_stop - analysis_start
-    rhythmicity = 0.0
     mean_rate_E = 0.0
     mean_rate_I = 0.0
     isi_cv_E = 0.0
+    autocorr_peak_val = 0.0
+    xcorr_peak_val = 0.0
+    coherence_peak_val = 0.0
+    lagged_coherence_val = 0.0
     population_rate_t_ms: list[float] = []
     population_rate_hz_E: list[float] = []
     population_rate_hz_I: list[float] = []
@@ -562,6 +612,8 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
     xcorr_corr: list[float] = []
     coherence_lags_ms: list[float] = []
     coherence_corr: list[float] = []
+    psd_freqs_hz: list[float] = []
+    psd_power: list[float] = []
     input_t_ms: list[float] = []
     input_mean_E: list[float] = []
     input_mean_I: list[float] = []
@@ -578,7 +630,7 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
             config.N_I,
         )
         isi_cv_E = _isi_cv(shifted, config.N_E, config.N_I, pop="E")
-        t_ms_rhythm, rate_hz_rhythm = population_rate(
+        lagged_coherence_val, _, _, _, _, _ = lagged_coherence(
             shifted,
             T_ms=analysis_T,
             dt_ms=RHYTHM_BIN_MS,
@@ -586,13 +638,7 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
             N_E=config.N_E,
             N_I=config.N_I,
         )
-        rhythmicity = _autocorr_rhythmicity(
-            rate_hz_rhythm,
-            dt_ms=RHYTHM_BIN_MS,
-            tau_min_ms=RHYTHM_TAU_MIN_MS,
-            tau_max_ms=RHYTHM_TAU_MAX_MS,
-        )
-        _, _, _, auto_lags, auto_corr = autocorr_peak(
+        autocorr_peak_val, _, _, auto_lags, auto_corr = autocorr_peak(
             shifted,
             T_ms=analysis_T,
             dt_ms=RHYTHM_BIN_MS,
@@ -600,13 +646,13 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
             N_E=config.N_E,
             N_I=config.N_I,
         )
-        _, xcorr_lags, xcorr_corr_vals = mean_pairwise_xcorr_peak(
+        xcorr_peak_val, xcorr_lags, xcorr_corr_vals = mean_pairwise_xcorr_peak(
             shifted,
             T_ms=analysis_T,
             N_E=config.N_E,
             dt_ms=RHYTHM_BIN_MS,
         )
-        _, coh_lags, coh_vals = coherence_peak(
+        coherence_peak_val, coh_lags, coh_vals = coherence_peak(
             shifted,
             T_ms=analysis_T,
             N_E=config.N_E,
@@ -618,6 +664,18 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         xcorr_corr = xcorr_corr_vals.tolist()
         coherence_lags_ms = coh_lags.tolist()
         coherence_corr = coh_vals.tolist()
+        psd_t_ms, psd_rate_hz = population_rate(
+            shifted,
+            T_ms=analysis_T,
+            dt_ms=RHYTHM_BIN_MS,
+            pop="E",
+            N_E=config.N_E,
+            N_I=config.N_I,
+        )
+        if psd_rate_hz.size > 0:
+            psd_freqs, psd_vals = rate_psd(psd_rate_hz, dt_ms=RHYTHM_BIN_MS)
+            psd_freqs_hz = psd_freqs.tolist()
+            psd_power = psd_vals.tolist()
 
     t_ms_full, rate_hz_full_E = population_rate(
         spikes,
@@ -666,10 +724,14 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         runtime_ms=runtime_ms,
         num_steps=num_steps,
         num_spikes=len(spikes.times),
-        rhythmicity=rhythmicity,
+        spikes_truncated=spikes_truncated,
         mean_rate_E=mean_rate_E,
         mean_rate_I=mean_rate_I,
         isi_cv_E=isi_cv_E,
+        autocorr_peak=autocorr_peak_val,
+        xcorr_peak=xcorr_peak_val,
+        coherence_peak=coherence_peak_val,
+        lagged_coherence=lagged_coherence_val,
         population_rate_t_ms=population_rate_t_ms,
         population_rate_hz_E=population_rate_hz_E,
         population_rate_hz_I=population_rate_hz_I,
@@ -687,7 +749,50 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         weights_hist_counts_ei=weights_hist_counts_ei,
         weights_hist_counts_ie=weights_hist_counts_ie,
         weights_hist_counts_ii=weights_hist_counts_ii,
+        psd_freqs_hz=psd_freqs_hz,
+        psd_power=psd_power,
         input_t_ms=input_t_ms,
         input_mean_E=input_mean_E,
         input_mean_I=input_mean_I,
+    )
+
+
+@app.post("/scan", response_model=ScanResponse)
+def run_scan(request: ScanRequest = Body(...)) -> ScanResponse:
+    base_request = request.base or RunRequest()
+    base_payload = base_request.model_dump(exclude_none=True)
+    scan = request.scan
+
+    if scan.mode == "log":
+        if scan.start <= 0 or scan.end <= 0:
+            raise ValueError("Log scan requires positive start/end")
+        values = np.logspace(
+            np.log10(scan.start),
+            np.log10(scan.end),
+            num=scan.steps,
+        )
+    else:
+        values = np.linspace(scan.start, scan.end, num=scan.steps)
+
+    metrics: list[float] = []
+    base_input_seed = None
+    if isinstance(base_payload.get("inputs"), dict):
+        base_input_seed = base_payload["inputs"].get("seed")
+
+    for idx, value in enumerate(values):
+        payload = _deep_merge({}, base_payload)
+        _set_nested_value(payload, scan.param_path, float(value))
+        if scan.seed_strategy == "per-step":
+            seed_val = base_input_seed if base_input_seed is not None else 0
+            _set_nested_value(payload, "inputs.seed", int(seed_val) + idx)
+        req = RunRequest.model_validate(payload)
+        response = run_simulation(req)
+        metric_value = getattr(response, scan.metric)
+        metrics.append(float(metric_value))
+
+    return ScanResponse(
+        param_path=scan.param_path,
+        metric_name=scan.metric,
+        values=[float(v) for v in values],
+        metrics=metrics,
     )

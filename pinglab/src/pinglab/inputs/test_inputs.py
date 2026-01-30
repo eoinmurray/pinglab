@@ -13,7 +13,8 @@ def test_ramp_shape_and_seed():
         I_E_end=1.0,
         I_I_start=0.2,
         I_I_end=0.8,
-        noise_std=0.1,
+        noise_std_E=0.1,
+        noise_std_I=0.1,
         num_steps=5,
         dt=1.0,
         seed=123,
@@ -25,13 +26,15 @@ def test_ramp_shape_and_seed():
         I_E_end=1.0,
         I_I_start=0.2,
         I_I_end=0.8,
-        noise_std=0.1,
+        noise_std_E=0.1,
+        noise_std_I=0.1,
         num_steps=5,
         dt=1.0,
         seed=123,
     )
     assert out1.shape == (5, 3)
     np.testing.assert_allclose(out1, out2)
+    assert np.all(out1 >= 0.0), "Ramp input should be clamped to non-negative values"
 
 
 def test_ramp_invalid_args():
@@ -43,7 +46,8 @@ def test_ramp_invalid_args():
             I_E_end=0.0,
             I_I_start=0.0,
             I_I_end=0.0,
-            noise_std=0.0,
+            noise_std_E=0.0,
+            noise_std_I=0.0,
             num_steps=1,
             dt=1.0,
             seed=0,
@@ -56,7 +60,8 @@ def test_ramp_invalid_args():
             I_E_end=0.0,
             I_I_start=0.0,
             I_I_end=0.0,
-            noise_std=-0.1,
+            noise_std_E=-0.1,
+            noise_std_I=0.0,
             num_steps=1,
             dt=1.0,
             seed=0,
@@ -69,7 +74,8 @@ def test_ramp_invalid_args():
             I_E_end=0.0,
             I_I_start=0.0,
             I_I_end=0.0,
-            noise_std=0.0,
+            noise_std_E=0.0,
+            noise_std_I=0.0,
             num_steps=0,
             dt=1.0,
             seed=0,
