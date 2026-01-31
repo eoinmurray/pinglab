@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { scaleLinear } from "@visx/scale";
-import { LinePath } from "@visx/shape";
-import { AxisBottom, AxisLeft } from "@visx/axis";
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string";
 import ParameterPanel, { type NeuronModel } from "./components/ParameterPanel";
 import CorrelationPlot from "./components/CorrelationPlot";
@@ -66,21 +64,6 @@ type WeightsResponse = {
   weights_heatmap: number[][];
 };
 
-type ScanMetricName =
-  | "mean_rate_E"
-  | "mean_rate_I"
-  | "isi_cv_E"
-  | "autocorr_peak"
-  | "xcorr_peak"
-  | "coherence_peak"
-  | "lagged_coherence";
-
-type ScanResponse = {
-  param_path: string;
-  metric_name: ScanMetricName;
-  values: number[];
-  metrics: number[];
-};
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -121,7 +104,6 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 const API_URL = `${API_BASE}/run`;
 const CONFIG_API = `${API_BASE}/configs`;
-const SCAN_API = `${API_BASE}/scan`;
 const WEIGHTS_API = `${API_BASE}/weights`;
 
 const defaultWidth = 760;
@@ -139,21 +121,7 @@ export default function Component() {
   const [selectedConfig, setSelectedConfig] = useState("");
   const [saveName, setSaveName] = useState("");
   const [configStatus, setConfigStatus] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"single" | "scans" | "weights">("single");
-  const [scanParam, setScanParam] = useState("inputs.I_E_start");
-  const [scanStart, setScanStart] = useState(0.0);
-  const [scanEnd, setScanEnd] = useState(4.0);
-  const [scanSteps, setScanSteps] = useState(8);
-  const [scanMode, setScanMode] = useState<"linear" | "log">("linear");
-  const [scanMetric, setScanMetric] = useState<ScanMetricName>("mean_rate_E");
-  const [scanSeedStrategy, setScanSeedStrategy] = useState<"fixed" | "per-step">("fixed");
-  const [scanValues, setScanValues] = useState<number[]>([]);
-  const [scanMetrics, setScanMetrics] = useState<number[]>([]);
-  const [scanLoading, setScanLoading] = useState(false);
-  const [scanError, setScanError] = useState<string | null>(null);
-  const [scanSelectedIndex, setScanSelectedIndex] = useState(0);
-  const [scanRaster, setScanRaster] = useState<RunResponse | null>(null);
-  const [scanRasterLoading, setScanRasterLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"single" | "weights">("single");
 
   const [neuronModel, setNeuronModel] = useState<NeuronModel>("mqif");
   const [downsampleEnabled, setDownsampleEnabled] = useState(true);
@@ -272,6 +240,12 @@ export default function Component() {
   const [vThHet, setVThHet] = useState(0.0);
   const [tRefHet, setTRefHet] = useState(0.0);
 
+  const [scanParamKey, setScanParamKey] = useState("dt");
+  const [scanMin, setScanMin] = useState(0.0);
+  const [scanMax, setScanMax] = useState(1.0);
+  const [scanSteps, setScanSteps] = useState(5);
+  const [scanIndex, setScanIndex] = useState(0);
+
   const plotRef = useRef<HTMLDivElement | null>(null);
   const [plotSize, setPlotSize] = useState({
     width: defaultWidth,
@@ -306,10 +280,6 @@ export default function Component() {
   const [histEiSize, setHistEiSize] = useState({ width: 200, height: 120 });
   const [histIeSize, setHistIeSize] = useState({ width: 200, height: 120 });
   const [histIiSize, setHistIiSize] = useState({ width: 200, height: 120 });
-  const scanPlotRef = useRef<HTMLDivElement | null>(null);
-  const [scanPlotSize, setScanPlotSize] = useState({ width: defaultWidth, height: 280 });
-  const scanRasterRef = useRef<HTMLDivElement | null>(null);
-  const [scanRasterSize, setScanRasterSize] = useState({ width: defaultWidth, height: 260 });
   const weightsHeatmapRef = useRef<HTMLDivElement | null>(null);
   const [weightsHeatmapSize, setWeightsHeatmapSize] = useState({ width: defaultWidth, height: 400 });
   const totalN = nE + nI;
@@ -336,47 +306,6 @@ export default function Component() {
     }
   };
 
-  const scanOptions = useMemo(() => {
-    const weightPath = (block: "ee" | "ei" | "ie" | "ii", param: "mean" | "std") => {
-      const dist =
-        block === "ee"
-          ? eeDist
-          : block === "ei"
-          ? eiDist
-          : block === "ie"
-          ? ieDist
-          : iiDist;
-      if (param === "std" && dist === "lognormal") {
-        return `weights.${block}.dist.params.sigma`;
-      }
-      return `weights.${block}.dist.params.${param}`;
-    };
-    return [
-      { label: "I_E start", path: "inputs.I_E_start" },
-      { label: "I_E end", path: "inputs.I_E_end" },
-      { label: "I_I start", path: "inputs.I_I_start" },
-      { label: "I_I end", path: "inputs.I_I_end" },
-      { label: "Noise std", path: "inputs.noise_std" },
-      { label: "EE mean", path: weightPath("ee", "mean") },
-      { label: "EE std", path: weightPath("ee", "std") },
-      { label: "EI mean", path: weightPath("ei", "mean") },
-      { label: "EI std", path: weightPath("ei", "std") },
-      { label: "IE mean", path: weightPath("ie", "mean") },
-      { label: "IE std", path: weightPath("ie", "std") },
-      { label: "II mean", path: weightPath("ii", "mean") },
-      { label: "II std", path: weightPath("ii", "std") },
-    ];
-  }, [eeDist, eiDist, ieDist, iiDist]);
-
-  useEffect(() => {
-    if (!scanOptions.length) {
-      return;
-    }
-    const exists = scanOptions.some((opt) => opt.path === scanParam);
-    if (!exists) {
-      setScanParam(scanOptions[0].path);
-    }
-  }, [scanOptions, scanParam]);
 
   const requestPayload = useMemo(
     () => ({
@@ -580,32 +509,6 @@ export default function Component() {
     [requestPayload.config, requestPayload.weights]
   );
 
-  const setNestedValue = (target: any, path: string, value: number) => {
-    const parts = path.split(".");
-    if (!parts.length) return;
-    let obj = target;
-    for (let i = 0; i < parts.length - 1; i += 1) {
-      const key = parts[i];
-      if (!obj[key] || typeof obj[key] !== "object") {
-        obj[key] = {};
-      }
-      obj = obj[key];
-    }
-    obj[parts[parts.length - 1]] = value;
-  };
-
-  const buildScanPayload = (value: number, index: number) => {
-    const payload = JSON.parse(JSON.stringify(requestPayload));
-    setNestedValue(payload, scanParam, value);
-    if (scanSeedStrategy === "per-step") {
-      const baseSeed =
-        payload.inputs && typeof payload.inputs.seed === "number"
-          ? payload.inputs.seed
-          : 0;
-      setNestedValue(payload, "inputs.seed", baseSeed + index);
-    }
-    return payload;
-  };
 
   const applyConfig = (payload: any) => {
     if (!payload) {
@@ -882,76 +785,6 @@ export default function Component() {
     }
   };
 
-  const handleRunScan = async () => {
-    setScanLoading(true);
-    setScanError(null);
-    try {
-      const response = await fetch(SCAN_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          base: requestPayload,
-          scan: {
-            param_path: scanParam,
-            start: scanStart,
-            end: scanEnd,
-            steps: scanSteps,
-            mode: scanMode,
-            metric: scanMetric,
-            seed_strategy: scanSeedStrategy,
-          },
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`Scan failed (${response.status})`);
-      }
-      const json = (await response.json()) as ScanResponse;
-      setScanValues(json.values ?? []);
-      setScanMetrics(json.metrics ?? []);
-      setScanSelectedIndex(0);
-      setScanRaster(null);
-    } catch (err) {
-      setScanError(err instanceof Error ? err.message : "Scan failed");
-    } finally {
-      setScanLoading(false);
-    }
-  };
-
-  const handleLoadScanRaster = async (index: number) => {
-    if (!scanValues.length) {
-      return;
-    }
-    const safeIndex = Math.max(0, Math.min(index, scanValues.length - 1));
-    setScanSelectedIndex(safeIndex);
-    setScanRasterLoading(true);
-    try {
-      const payload = buildScanPayload(scanValues[safeIndex], safeIndex);
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        throw new Error(`Raster load failed (${response.status})`);
-      }
-      const json = (await response.json()) as RunResponse;
-      setScanRaster(json);
-    } catch (err) {
-      setScanError(err instanceof Error ? err.message : "Raster load failed");
-    } finally {
-      setScanRasterLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab !== "scans") {
-      return;
-    }
-    if (!scanValues.length) {
-      return;
-    }
-    handleLoadScanRaster(scanSelectedIndex);
-  }, [activeTab, scanSelectedIndex, scanValues]);
 
   useEffect(() => {
     if (activeTab !== "weights") {
@@ -1245,49 +1078,6 @@ export default function Component() {
     return () => observer.disconnect();
   }, [activeTab]);
 
-  useEffect(() => {
-    if (activeTab !== "scans") {
-      return;
-    }
-    if (!scanPlotRef.current) {
-      return;
-    }
-    const target = scanPlotRef.current;
-    const observer = new ResizeObserver((entries) => {
-      if (!entries.length) {
-        return;
-      }
-      const { width: nextWidth, height: nextHeight } = entries[0].contentRect;
-      setScanPlotSize({
-        width: Math.max(320, Math.floor(nextWidth)),
-        height: Math.max(200, Math.floor(nextHeight)),
-      });
-    });
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab !== "scans") {
-      return;
-    }
-    if (!scanRasterRef.current) {
-      return;
-    }
-    const target = scanRasterRef.current;
-    const observer = new ResizeObserver((entries) => {
-      if (!entries.length) {
-        return;
-      }
-      const { width: nextWidth, height: nextHeight } = entries[0].contentRect;
-      setScanRasterSize({
-        width: Math.max(320, Math.floor(nextWidth)),
-        height: Math.max(200, Math.floor(nextHeight)),
-      });
-    });
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [activeTab]);
 
   useEffect(() => {
     let ignore = false;
@@ -1352,11 +1142,6 @@ export default function Component() {
   const histIeInnerHeight = histIeSize.height - histMargin.top - histMargin.bottom;
   const histIiInnerWidth = histIiSize.width - histMargin.left - histMargin.right;
   const histIiInnerHeight = histIiSize.height - histMargin.top - histMargin.bottom;
-  const scanPlotMargin = { top: 12, right: 16, bottom: 44, left: 54 };
-  const scanPlotInnerWidth = scanPlotSize.width - scanPlotMargin.left - scanPlotMargin.right;
-  const scanPlotInnerHeight = scanPlotSize.height - scanPlotMargin.top - scanPlotMargin.bottom;
-  const scanRasterInnerWidth = scanRasterSize.width - margin.left - margin.right;
-  const scanRasterInnerHeight = scanRasterSize.height - margin.top - margin.bottom;
 
   const xScale = useMemo(
     () =>
@@ -1373,55 +1158,6 @@ export default function Component() {
         range: [innerHeight, 0],
       }),
     [totalN, innerHeight]
-  );
-  const scanRasterXScale = useMemo(
-    () =>
-      scaleLinear({
-        domain: [0, T],
-        range: [0, scanRasterInnerWidth],
-      }),
-    [T, scanRasterInnerWidth]
-  );
-  const scanRasterYScale = useMemo(
-    () =>
-      scaleLinear({
-        domain: [0, totalN],
-        range: [scanRasterInnerHeight, 0],
-      }),
-    [totalN, scanRasterInnerHeight]
-  );
-
-  const scanXScale = useMemo(() => {
-    if (!scanValues.length) {
-      return scaleLinear({ domain: [0, 1], range: [0, scanPlotInnerWidth] });
-    }
-    const min = Math.min(...scanValues);
-    const max = Math.max(...scanValues);
-    const span = min === max ? min + 1 : max;
-    return scaleLinear({
-      domain: [min, span],
-      range: [0, scanPlotInnerWidth],
-      nice: true,
-    });
-  }, [scanValues, scanPlotInnerWidth]);
-
-  const scanYScale = useMemo(() => {
-    if (!scanMetrics.length) {
-      return scaleLinear({ domain: [0, 1], range: [scanPlotInnerHeight, 0] });
-    }
-    const min = Math.min(...scanMetrics);
-    const max = Math.max(...scanMetrics);
-    const pad = (max - min) * 0.05;
-    return scaleLinear({
-      domain: [min - pad, max + pad],
-      range: [scanPlotInnerHeight, 0],
-      nice: true,
-    });
-  }, [scanMetrics, scanPlotInnerHeight]);
-
-  const scanPoints = useMemo(
-    () => scanValues.map((x, i) => ({ x, y: scanMetrics[i] ?? 0 })),
-    [scanValues, scanMetrics]
   );
 
   const spikeCounts = useMemo(() => {
@@ -1440,6 +1176,248 @@ export default function Component() {
     }
     return { eCount, iCount };
   }, [data]);
+
+  const scanOptions = useMemo(
+    () => [
+      { key: "dt", label: "dt [ms]", get: () => dt, set: (v: number) => setDt(v) },
+      { key: "T", label: "T [ms]", get: () => T, set: (v: number) => setT(v) },
+      { key: "nE", label: "N_E [count]", get: () => nE, set: (v: number) => setNE(Math.round(v)) },
+      { key: "nI", label: "N_I [count]", get: () => nI, set: (v: number) => setNI(Math.round(v)) },
+      { key: "seed", label: "seed", get: () => seed, set: (v: number) => setSeed(Math.round(v)) },
+      { key: "burnInMs", label: "burn-in [ms]", get: () => burnInMs, set: (v: number) => setBurnInMs(v) },
+      { key: "inputSeed", label: "input seed", get: () => inputSeed, set: (v: number) => setInputSeed(Math.round(v)) },
+      { key: "iEStart", label: "I_E start [nA]", get: () => iEStart, set: (v: number) => setIEStart(v) },
+      { key: "iEEnd", label: "I_E end [nA]", get: () => iEEnd, set: (v: number) => setIEEnd(v) },
+      { key: "iIStart", label: "I_I start [nA]", get: () => iIStart, set: (v: number) => setIIStart(v) },
+      { key: "iIEnd", label: "I_I end [nA]", get: () => iIEnd, set: (v: number) => setIIEnd(v) },
+      { key: "iEBase", label: "I_E base [nA]", get: () => iEBase, set: (v: number) => setIEBase(v) },
+      { key: "iIBase", label: "I_I base [nA]", get: () => iIBase, set: (v: number) => setIIBase(v) },
+      { key: "noiseStdE", label: "noise std E [nA]", get: () => noiseStdE, set: (v: number) => setNoiseStdE(v) },
+      { key: "noiseStdI", label: "noise std I [nA]", get: () => noiseStdI, set: (v: number) => setNoiseStdI(v) },
+      { key: "inputPulseT", label: "pulse t [ms]", get: () => inputPulseT, set: (v: number) => setInputPulseT(v) },
+      { key: "inputPulseWidth", label: "pulse width [ms]", get: () => inputPulseWidth, set: (v: number) => setInputPulseWidth(v) },
+      { key: "inputPulseInterval", label: "pulse interval [ms]", get: () => inputPulseInterval, set: (v: number) => setInputPulseInterval(v) },
+      { key: "inputPulseAmpE", label: "pulse amp E [nA]", get: () => inputPulseAmpE, set: (v: number) => setInputPulseAmpE(v) },
+      { key: "inputPulseAmpI", label: "pulse amp I [nA]", get: () => inputPulseAmpI, set: (v: number) => setInputPulseAmpI(v) },
+      { key: "eeTemplateBlocks", label: "EE template blocks", get: () => eeTemplateBlocks, set: (v: number) => setEeTemplateBlocks(Math.max(1, Math.round(v))) },
+      { key: "eeMean", label: "EE mean [nS]", get: () => eeMean, set: (v: number) => setEeMean(v) },
+      { key: "eiMean", label: "EI mean [nS]", get: () => eiMean, set: (v: number) => setEiMean(v) },
+      { key: "ieMean", label: "IE mean [nS]", get: () => ieMean, set: (v: number) => setIeMean(v) },
+      { key: "iiMean", label: "II mean [nS]", get: () => iiMean, set: (v: number) => setIiMean(v) },
+      { key: "eeStd", label: "EE std [nS]", get: () => eeStd, set: (v: number) => setEeStd(v) },
+      { key: "eiStd", label: "EI std [nS]", get: () => eiStd, set: (v: number) => setEiStd(v) },
+      { key: "ieStd", label: "IE std [nS]", get: () => ieStd, set: (v: number) => setIeStd(v) },
+      { key: "iiStd", label: "II std [nS]", get: () => iiStd, set: (v: number) => setIiStd(v) },
+      { key: "eeSigma", label: "EE sigma", get: () => eeSigma, set: (v: number) => setEeSigma(v) },
+      { key: "eiSigma", label: "EI sigma", get: () => eiSigma, set: (v: number) => setEiSigma(v) },
+      { key: "ieSigma", label: "IE sigma", get: () => ieSigma, set: (v: number) => setIeSigma(v) },
+      { key: "iiSigma", label: "II sigma", get: () => iiSigma, set: (v: number) => setIiSigma(v) },
+      { key: "eeShape", label: "EE shape", get: () => eeShape, set: (v: number) => setEeShape(v) },
+      { key: "eiShape", label: "EI shape", get: () => eiShape, set: (v: number) => setEiShape(v) },
+      { key: "ieShape", label: "IE shape", get: () => ieShape, set: (v: number) => setIeShape(v) },
+      { key: "iiShape", label: "II shape", get: () => iiShape, set: (v: number) => setIiShape(v) },
+      { key: "eeScale", label: "EE scale", get: () => eeScale, set: (v: number) => setEeScale(v) },
+      { key: "eiScale", label: "EI scale", get: () => eiScale, set: (v: number) => setEiScale(v) },
+      { key: "ieScale", label: "IE scale", get: () => ieScale, set: (v: number) => setIeScale(v) },
+      { key: "iiScale", label: "II scale", get: () => iiScale, set: (v: number) => setIiScale(v) },
+      { key: "pEe", label: "p_EE", get: () => pEe, set: (v: number) => setPEe(v) },
+      { key: "pEi", label: "p_EI", get: () => pEi, set: (v: number) => setPEi(v) },
+      { key: "pIe", label: "p_IE", get: () => pIe, set: (v: number) => setPIe(v) },
+      { key: "pIi", label: "p_II", get: () => pIi, set: (v: number) => setPIi(v) },
+      { key: "clampMin", label: "min weight", get: () => clampMin, set: (v: number) => setClampMin(v) },
+      { key: "weightsSeed", label: "weights seed", get: () => weightsSeed, set: (v: number) => setWeightsSeed(Math.round(v)) },
+      { key: "delayEe", label: "delay EE [ms]", get: () => delayEe, set: (v: number) => setDelayEe(v) },
+      { key: "delayEi", label: "delay EI [ms]", get: () => delayEi, set: (v: number) => setDelayEi(v) },
+      { key: "delayIe", label: "delay IE [ms]", get: () => delayIe, set: (v: number) => setDelayIe(v) },
+      { key: "delayIi", label: "delay II [ms]", get: () => delayIi, set: (v: number) => setDelayIi(v) },
+      { key: "VInit", label: "V_init [mV]", get: () => VInit, set: (v: number) => setVInit(v) },
+      { key: "VTh", label: "V_th [mV]", get: () => VTh, set: (v: number) => setVTh(v) },
+      { key: "VReset", label: "V_reset [mV]", get: () => VReset, set: (v: number) => setVReset(v) },
+      { key: "EL", label: "E_L [mV]", get: () => EL, set: (v: number) => setEL(v) },
+      { key: "Ee", label: "E_e [mV]", get: () => Ee, set: (v: number) => setEe(v) },
+      { key: "Ei", label: "E_i [mV]", get: () => Ei, set: (v: number) => setEi(v) },
+      { key: "CmE", label: "C_m E", get: () => CmE, set: (v: number) => setCmE(v) },
+      { key: "gLE", label: "g_L E", get: () => gLE, set: (v: number) => setGLE(v) },
+      { key: "CmI", label: "C_m I", get: () => CmI, set: (v: number) => setCmI(v) },
+      { key: "gLI", label: "g_L I", get: () => gLI, set: (v: number) => setGLI(v) },
+      { key: "tRefE", label: "t_ref E [ms]", get: () => tRefE, set: (v: number) => setTRefE(v) },
+      { key: "tRefI", label: "t_ref I [ms]", get: () => tRefI, set: (v: number) => setTRefI(v) },
+      { key: "tauAmpa", label: "tau AMPA [ms]", get: () => tauAmpa, set: (v: number) => setTauAmpa(v) },
+      { key: "tauGaba", label: "tau GABA [ms]", get: () => tauGaba, set: (v: number) => setTauGaba(v) },
+      { key: "gNa", label: "g_Na", get: () => gNa, set: (v: number) => setGNa(v) },
+      { key: "gK", label: "g_K", get: () => gK, set: (v: number) => setGK(v) },
+      { key: "ENa", label: "E_Na [mV]", get: () => ENa, set: (v: number) => setENa(v) },
+      { key: "EK", label: "E_K [mV]", get: () => EK, set: (v: number) => setEK(v) },
+      { key: "adexVT", label: "AdEx V_T", get: () => adexVT, set: (v: number) => setAdexVT(v) },
+      { key: "adexDeltaT", label: "AdEx ΔT", get: () => adexDeltaT, set: (v: number) => setAdexDeltaT(v) },
+      { key: "adexTauW", label: "AdEx τw", get: () => adexTauW, set: (v: number) => setAdexTauW(v) },
+      { key: "adexA", label: "AdEx a", get: () => adexA, set: (v: number) => setAdexA(v) },
+      { key: "adexB", label: "AdEx b", get: () => adexB, set: (v: number) => setAdexB(v) },
+      { key: "adexVPeak", label: "AdEx V_peak", get: () => adexVPeak, set: (v: number) => setAdexVPeak(v) },
+      { key: "gA", label: "g_A", get: () => gA, set: (v: number) => setGA(v) },
+      { key: "fhnA", label: "FHN a", get: () => fhnA, set: (v: number) => setFhnA(v) },
+      { key: "fhnB", label: "FHN b", get: () => fhnB, set: (v: number) => setFhnB(v) },
+      { key: "fhnTauW", label: "FHN τw", get: () => fhnTauW, set: (v: number) => setFhnTauW(v) },
+      { key: "mqifA", label: "mQIF a", get: () => mqifA, set: (v: number) => setMqifA(v) },
+      { key: "mqifVr", label: "mQIF V_r", get: () => mqifVr, set: (v: number) => setMqifVr(v) },
+      { key: "mqifWA", label: "mQIF w_a", get: () => mqifWA, set: (v: number) => setMqifWA(v) },
+      { key: "mqifWVr", label: "mQIF w_vr", get: () => mqifWVr, set: (v: number) => setMqifWVr(v) },
+      { key: "mqifWTau", label: "mQIF w_tau", get: () => mqifWTau, set: (v: number) => setMqifWTau(v) },
+      { key: "qifA", label: "QIF a", get: () => qifA, set: (v: number) => setQifA(v) },
+      { key: "qifVr", label: "QIF V_r", get: () => qifVr, set: (v: number) => setQifVr(v) },
+      { key: "qifVt", label: "QIF V_t", get: () => qifVt, set: (v: number) => setQifVt(v) },
+      { key: "izhA", label: "Izh a", get: () => izhA, set: (v: number) => setIzhA(v) },
+      { key: "izhB", label: "Izh b", get: () => izhB, set: (v: number) => setIzhB(v) },
+      { key: "izhC", label: "Izh c", get: () => izhC, set: (v: number) => setIzhC(v) },
+      { key: "izhD", label: "Izh d", get: () => izhD, set: (v: number) => setIzhD(v) },
+      { key: "gLHet", label: "g_L het", get: () => gLHet, set: (v: number) => setGLHet(v) },
+      { key: "cMHet", label: "C_m het", get: () => cMHet, set: (v: number) => setCMHet(v) },
+      { key: "vThHet", label: "V_th het", get: () => vThHet, set: (v: number) => setVThHet(v) },
+      { key: "tRefHet", label: "t_ref het", get: () => tRefHet, set: (v: number) => setTRefHet(v) },
+    ],
+    [
+      T,
+      VInit,
+      VReset,
+      VTh,
+      Ee,
+      Ei,
+      EK,
+      EL,
+      ENa,
+      adexA,
+      adexB,
+      adexDeltaT,
+      adexTauW,
+      adexVPeak,
+      adexVT,
+      burnInMs,
+      cMHet,
+      clampMin,
+      dt,
+      eeMean,
+      eeScale,
+      eeShape,
+      eeSigma,
+      eeStd,
+      eeTemplateBlocks,
+      eiMean,
+      eiScale,
+      eiShape,
+      eiSigma,
+      eiStd,
+      fhnA,
+      fhnB,
+      fhnTauW,
+      gA,
+      gK,
+      gLE,
+      gLI,
+      gLHet,
+      gNa,
+      iEBase,
+      iEEnd,
+      iEStart,
+      iIBase,
+      iIEnd,
+      iIStart,
+      ieMean,
+      ieScale,
+      ieShape,
+      ieSigma,
+      ieStd,
+      iiMean,
+      iiScale,
+      iiShape,
+      iiSigma,
+      iiStd,
+      inputPulseAmpE,
+      inputPulseAmpI,
+      inputPulseInterval,
+      inputPulseT,
+      inputPulseWidth,
+      inputSeed,
+      izhA,
+      izhB,
+      izhC,
+      izhD,
+      mqifA,
+      mqifVr,
+      mqifWA,
+      mqifWTau,
+      mqifWVr,
+      nE,
+      nI,
+      noiseStdE,
+      noiseStdI,
+      pEe,
+      pEi,
+      pIe,
+      pIi,
+      qifA,
+      qifVr,
+      qifVt,
+      seed,
+      tRefE,
+      tRefHet,
+      tRefI,
+      tauAmpa,
+      tauGaba,
+      vThHet,
+      weightsSeed,
+      delayEe,
+      delayEi,
+      delayIe,
+      delayIi,
+    ]
+  );
+
+  const scanOption = scanOptions.find((opt) => opt.key === scanParamKey) ?? scanOptions[0];
+  const scanStepsSafe = Math.max(2, Math.round(scanSteps));
+  const scanMinValue = Math.min(scanMin, scanMax);
+  const scanMaxValue = Math.max(scanMin, scanMax);
+  const scanValues = useMemo(() => {
+    if (scanStepsSafe <= 1) {
+      return [scanMinValue];
+    }
+    const values = Array.from({ length: scanStepsSafe }, (_, i) => {
+      const t = scanStepsSafe === 1 ? 0 : i / (scanStepsSafe - 1);
+      return scanMinValue + (scanMaxValue - scanMinValue) * t;
+    });
+    return values;
+  }, [scanMinValue, scanMaxValue, scanStepsSafe]);
+
+  useEffect(() => {
+    if (!scanOption) {
+      return;
+    }
+    const current = scanOption.get();
+    setScanMin(current);
+    setScanMax(current);
+    setScanSteps(5);
+    setScanIndex(0);
+  }, [scanParamKey]);
+
+  useEffect(() => {
+    if (!scanOption || !scanValues.length) {
+      return;
+    }
+    const clampedIndex = Math.min(Math.max(scanIndex, 0), scanValues.length - 1);
+    if (clampedIndex !== scanIndex) {
+      setScanIndex(clampedIndex);
+      return;
+    }
+    scanOption.set(scanValues[clampedIndex]);
+  }, [scanIndex, scanValues, scanOption]);
+
+  const scanCurrentValue = scanValues.length
+    ? scanValues[Math.min(Math.max(scanIndex, 0), scanValues.length - 1)]
+    : scanOption?.get() ?? 0;
+  const scanValueDisplay = Number.isFinite(scanCurrentValue)
+    ? Number.isInteger(scanCurrentValue)
+      ? scanCurrentValue.toString()
+      : scanCurrentValue.toFixed(4)
+    : "--";
 
   const Panel = <ParameterPanel
     configList={configList}
@@ -1706,17 +1684,6 @@ export default function Component() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveTab("scans")}
-                  className={`rounded-md px-3 py-1.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white/80 active:translate-y-[1px] dark:focus-visible:ring-slate-200/60 dark:focus-visible:ring-offset-white/5 ${
-                    activeTab === "scans"
-                      ? "bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm shadow-black/20 dark:from-white dark:to-zinc-200 dark:text-slate-900 dark:shadow-none"
-                      : "text-slate-500 hover:bg-slate-200/60 hover:text-slate-800 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
-                  }`}
-                >
-                  Scans
-                </button>
-                <button
-                  type="button"
                   onClick={() => setActiveTab("weights")}
                   className={`rounded-md px-3 py-1.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white/80 active:translate-y-[1px] dark:focus-visible:ring-slate-200/60 dark:focus-visible:ring-offset-white/5 ${
                     activeTab === "weights"
@@ -1728,11 +1695,7 @@ export default function Component() {
                 </button>
               </div>
               <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                {activeTab === "single"
-                  ? "Live sim"
-                  : activeTab === "scans"
-                  ? "Scan workspace"
-                  : "Weights"}
+                {activeTab === "single" ? "Live sim" : "Weights"}
               </div>
             </div>
             {error ? (
@@ -1742,6 +1705,78 @@ export default function Component() {
             ) : null}
             {activeTab === "single" ? (
               <div className="flex min-h-0 flex-1 flex-col gap-2">
+                <div className="rounded-xl border border-slate-200/70 bg-white/60 p-2 text-[11px] text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                      Scan
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] uppercase tracking-[0.18em] text-slate-400 dark:text-zinc-500">
+                        Param
+                      </label>
+                      <select
+                        value={scanParamKey}
+                        onChange={(event) => setScanParamKey(event.target.value)}
+                        className="rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-[11px] text-slate-700 shadow-sm outline-none focus:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
+                      >
+                        {scanOptions.map((option) => (
+                          <option key={option.key} value={option.key}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] uppercase tracking-[0.18em] text-slate-400 dark:text-zinc-500">
+                        Min
+                      </label>
+                      <input
+                        type="number"
+                        value={scanMin}
+                        onChange={(event) => setScanMin(Number(event.target.value))}
+                        className="w-24 rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-[11px] text-slate-700 shadow-sm outline-none focus:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] uppercase tracking-[0.18em] text-slate-400 dark:text-zinc-500">
+                        Max
+                      </label>
+                      <input
+                        type="number"
+                        value={scanMax}
+                        onChange={(event) => setScanMax(Number(event.target.value))}
+                        className="w-24 rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-[11px] text-slate-700 shadow-sm outline-none focus:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] uppercase tracking-[0.18em] text-slate-400 dark:text-zinc-500">
+                        Steps
+                      </label>
+                      <input
+                        type="number"
+                        min={2}
+                        step={1}
+                        value={scanSteps}
+                        onChange={(event) => setScanSteps(Number(event.target.value))}
+                        className="w-20 rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-[11px] text-slate-700 shadow-sm outline-none focus:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
+                      />
+                    </div>
+                    <div className="flex min-w-[200px] flex-1 items-center gap-3">
+                      <input
+                        type="range"
+                        min={0}
+                        max={Math.max(scanValues.length - 1, 0)}
+                        step={1}
+                        value={Math.min(scanIndex, Math.max(scanValues.length - 1, 0))}
+                        onChange={(event) => setScanIndex(Number(event.target.value))}
+                        className="h-2 w-full cursor-pointer accent-slate-600 dark:accent-zinc-200"
+                      />
+                      <span className="min-w-[72px] text-right font-mono text-[11px] text-slate-700 dark:text-zinc-200">
+                        {scanValueDisplay}
+                      </span>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-zinc-400">
                   <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-slate-700 dark:text-zinc-200">
                     {loading ? (
@@ -1788,476 +1823,243 @@ export default function Component() {
                 </div>
                 <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
                   <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                    Raster
-                  </div>
-                  <div ref={plotRef} className="min-h-0 flex-1">
-                    <RasterPlot
-                      width={plotSize.width}
-                      height={plotSize.height}
-                      margin={margin}
-                      innerWidth={innerWidth}
-                      innerHeight={innerHeight}
-                      xScale={xScale}
-                      yScale={yScale}
-                      spikes={data?.spikes ?? null}
-                    />
-                  </div>
-                </div>
-                <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                    Membrane V (E0 / I0)
-                  </div>
-                  <div ref={membraneEPlotRef} className="min-h-0 flex-1">
-                    <div className="flex h-full flex-col gap-2">
-                      <div className="min-h-0 flex-1">
-                        <MembranePotentialPlot
-                          width={membraneEPlotSize.width}
-                          height={membraneSplitHeight}
-                          margin={rateMargin}
-                          innerWidth={membraneEInnerWidth}
-                          innerHeight={membraneEInnerHeight}
-                          tMs={data?.membrane_t_ms ?? []}
-                          vE={data?.membrane_V_E ?? []}
-                          maxTMs={T}
-                        />
-                      </div>
-                      <div className="min-h-0 flex-1 text-[#d9480f]">
-                        <MembranePotentialPlot
-                          width={membraneEPlotSize.width}
-                          height={membraneSplitHeight}
-                          margin={rateMargin}
-                          innerWidth={membraneIInnerWidth}
-                          innerHeight={membraneIInnerHeight}
-                          tMs={data?.membrane_t_ms ?? []}
-                          vI={data?.membrane_V_I ?? []}
-                          maxTMs={T}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                    Population rate
-                  </div>
-                  <div ref={ratePlotRef} className="min-h-0 flex-1">
-                    <div className="flex h-full flex-col gap-2">
-                      <div className="min-h-0 flex-1 text-slate-900 dark:text-zinc-200">
-                        <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                          E rate
-                        </div>
-                        <PopulationRatePlot
-                          width={ratePlotSize.width}
-                          height={rateSplitHeight}
-                          margin={rateMargin}
-                          innerWidth={rateInnerWidth}
-                          innerHeight={rateInnerHeight}
-                          tMs={data?.population_rate_t_ms ?? []}
-                          rateHzE={data?.population_rate_hz_E ?? []}
-                          maxTMs={T}
-                          lineColor="currentColor"
-                        />
-                      </div>
-                      <div className="min-h-0 flex-1 text-[#dc2626]">
-                        <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                          I rate
-                        </div>
-                        <PopulationRatePlot
-                          width={ratePlotSize.width}
-                          height={rateSplitHeight}
-                          margin={rateMargin}
-                          innerWidth={rateInnerWidth}
-                          innerHeight={rateInnerHeight}
-                          tMs={data?.population_rate_t_ms ?? []}
-                          rateHzE={data?.population_rate_hz_I ?? []}
-                          maxTMs={T}
-                          lineColor="#dc2626"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
-                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                    PSD
-                  </div>
-                  <div ref={psdRef} className="min-h-0 flex-1">
-                    <PsdPlot
-                      width={psdSize.width}
-                      height={psdSize.height}
-                      margin={rateMargin}
-                      innerWidth={psdInnerWidth}
-                      innerHeight={psdInnerHeight}
-                      freqsHz={data?.psd_freqs_hz ?? []}
-                      power={data?.psd_power ?? []}
-                    />
-                  </div>
-                </div>
-                <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                    Correlations
-                  </div>
-                  <div className="min-h-0 flex-1">
-                    <div className="flex h-full flex-col gap-2">
-                      <div ref={autocorrRef} className="min-h-0 flex-1">
-                        <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                          Autocorrelation
-                        </div>
-                        <CorrelationPlot
-                          width={autocorrSize.width}
-                          height={Math.max(120, Math.floor((autocorrSize.height - 8) / 2))}
-                          margin={rateMargin}
-                          innerWidth={autocorrInnerWidth}
-                          innerHeight={Math.max(120, Math.floor((autocorrSize.height - 8) / 2)) - rateMargin.top - rateMargin.bottom}
-                          lagsMs={data?.autocorr_lags_ms ?? []}
-                          values={data?.autocorr_corr ?? []}
-                          xLabel="Lag (ms)"
-                          yLabel="Autocorr"
-                          color="currentColor"
-                          yMin={-1}
-                          yMax={1}
-                        />
-                      </div>
-                      <div ref={xcorrRef} className="min-h-0 flex-1">
-                        <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                          Cross-correlation
-                        </div>
-                        <CorrelationPlot
-                          width={xcorrSize.width}
-                          height={Math.max(120, Math.floor((xcorrSize.height - 8) / 2))}
-                          margin={rateMargin}
-                          innerWidth={xcorrInnerWidth}
-                          innerHeight={Math.max(120, Math.floor((xcorrSize.height - 8) / 2)) - rateMargin.top - rateMargin.bottom}
-                          lagsMs={data?.xcorr_lags_ms ?? []}
-                          values={data?.xcorr_corr ?? []}
-                          xLabel="Lag (ms)"
-                          yLabel="Xcorr"
-                          color="currentColor"
-                          yMin={-1}
-                          yMax={1}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                  <div className="min-h-0 flex-1">
-                    <div
-                      className="h-full w-full"
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                        gridTemplateRows: "repeat(2, minmax(0, 1fr))",
-                        gap: "0.5rem",
-                      }}
-                    >
-                      <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
-                        <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                          EE weights
-                        </div>
-                        <div ref={histEeRef} className="min-h-0 flex-1">
-                          <WeightsHistogramPlot
-                            width={histEeSize.width}
-                            height={histEeSize.height}
-                            margin={histMargin}
-                            innerWidth={histEeInnerWidth}
-                            innerHeight={histEeInnerHeight}
-                            bins={data?.weights_hist_bins ?? []}
-                            counts={data?.weights_hist_counts_ee ?? []}
-                            color="currentColor"
-                            label="EE"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
-                        <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                          EI weights
-                        </div>
-                        <div ref={histEiRef} className="min-h-0 flex-1">
-                          <WeightsHistogramPlot
-                            width={histEiSize.width}
-                            height={histEiSize.height}
-                            margin={histMargin}
-                            innerWidth={histEiInnerWidth}
-                            innerHeight={histEiInnerHeight}
-                            bins={data?.weights_hist_bins ?? []}
-                            counts={data?.weights_hist_counts_ei ?? []}
-                            color="currentColor"
-                            label="EI"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
-                        <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                          IE weights
-                        </div>
-                        <div ref={histIeRef} className="min-h-0 flex-1">
-                          <WeightsHistogramPlot
-                            width={histIeSize.width}
-                            height={histIeSize.height}
-                            margin={histMargin}
-                            innerWidth={histIeInnerWidth}
-                            innerHeight={histIeInnerHeight}
-                            bins={data?.weights_hist_bins ?? []}
-                            counts={data?.weights_hist_counts_ie ?? []}
-                            color="currentColor"
-                            label="IE"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
-                        <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                          II weights
-                        </div>
-                        <div ref={histIiRef} className="min-h-0 flex-1">
-                          <WeightsHistogramPlot
-                            width={histIiSize.width}
-                            height={histIiSize.height}
-                            margin={histMargin}
-                            innerWidth={histIiInnerWidth}
-                            innerHeight={histIiInnerHeight}
-                            bins={data?.weights_hist_bins ?? []}
-                            counts={data?.weights_hist_counts_ii ?? []}
-                            color="currentColor"
-                            label="II"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            ) : activeTab === "scans" ? (
-              <div className="flex min-h-0 flex-1 flex-col gap-2">
-                <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200/70 bg-white/60 p-2 text-xs text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-                  <label className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wide">param</span>
-                    <select
-                      value={scanParam}
-                      onChange={(e) => setScanParam(e.target.value)}
-                      className="rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
-                    >
-                      {scanOptions.map((opt) => (
-                        <option key={opt.path} value={opt.path}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wide">start</span>
-                    <input
-                      type="number"
-                      value={scanStart}
-                      onChange={(e) => setScanStart(Number(e.target.value))}
-                      className="w-24 rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wide">end</span>
-                    <input
-                      type="number"
-                      value={scanEnd}
-                      onChange={(e) => setScanEnd(Number(e.target.value))}
-                      className="w-24 rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wide">steps</span>
-                    <input
-                      type="number"
-                      min={2}
-                      max={200}
-                      value={scanSteps}
-                      onChange={(e) => setScanSteps(Number(e.target.value))}
-                      className="w-20 rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wide">mode</span>
-                    <select
-                      value={scanMode}
-                      onChange={(e) => setScanMode(e.target.value as "linear" | "log")}
-                      className="rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
-                    >
-                      <option value="linear">linear</option>
-                      <option value="log">log</option>
-                    </select>
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wide">metric</span>
-                    <select
-                      value={scanMetric}
-                      onChange={(e) => setScanMetric(e.target.value as ScanMetricName)}
-                      className="rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
-                    >
-                      <option value="mean_rate_E">mean_rate_E</option>
-                      <option value="mean_rate_I">mean_rate_I</option>
-                      <option value="isi_cv_E">isi_cv_E</option>
-                      <option value="autocorr_peak">autocorr_peak</option>
-                      <option value="xcorr_peak">xcorr_peak</option>
-                      <option value="coherence_peak">coherence_peak</option>
-                      <option value="lagged_coherence">lagged_coherence</option>
-                    </select>
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase tracking-wide">seed</span>
-                    <select
-                      value={scanSeedStrategy}
-                      onChange={(e) =>
-                        setScanSeedStrategy(e.target.value as "fixed" | "per-step")
-                      }
-                      className="rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
-                    >
-                      <option value="fixed">fixed</option>
-                      <option value="per-step">per-step</option>
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleRunScan}
-                    disabled={scanLoading}
-                    className="ml-auto rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
-                  >
-                    {scanLoading ? "Running..." : "Run scan"}
-                  </button>
-                </div>
-                {scanError ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
-                    {scanError}
-                  </div>
-                ) : null}
-                <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-2">
-                  <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
                     <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                      Scan metric
+                      Raster
                     </div>
-                    <div ref={scanPlotRef} className="min-h-0 flex-1">
-                      <svg width={scanPlotSize.width} height={scanPlotSize.height} role="img" aria-label="Scan metric">
-                        <g transform={`translate(${scanPlotMargin.left},${scanPlotMargin.top})`}>
-                          <g>
-                            {scanYScale.ticks(4).map((tick) => {
-                              const y = scanYScale(tick) ?? 0;
-                              return (
-                                <line
-                                  key={`scan-grid-y-${tick}`}
-                                  x1={0}
-                                  x2={scanPlotInnerWidth}
-                                  y1={y}
-                                  y2={y}
-                                  stroke="currentColor"
-                                  opacity={0.08}
-                                />
-                              );
-                            })}
-                            {scanXScale.ticks(5).map((tick) => {
-                              const x = scanXScale(tick) ?? 0;
-                              return (
-                                <line
-                                  key={`scan-grid-x-${tick}`}
-                                  x1={x}
-                                  x2={x}
-                                  y1={0}
-                                  y2={scanPlotInnerHeight}
-                                  stroke="currentColor"
-                                  opacity={0.06}
-                                />
-                              );
-                            })}
-                          </g>
-                          <LinePath
-                            data={scanPoints}
-                            x={(d) => scanXScale(d.x) ?? 0}
-                            y={(d) => scanYScale(d.y) ?? 0}
-                            stroke="currentColor"
-                            strokeWidth={1.4}
-                          />
-                          {scanPoints.map((pt, i) => (
-                            <circle
-                              key={`scan-point-${i}`}
-                              cx={scanXScale(pt.x) ?? 0}
-                              cy={scanYScale(pt.y) ?? 0}
-                              r={i === scanSelectedIndex ? 4 : 2.5}
-                              fill={i === scanSelectedIndex ? "#f97316" : "currentColor"}
-                              opacity={0.8}
-                              onClick={() => handleLoadScanRaster(i)}
-                              style={{ cursor: "pointer" }}
-                            />
-                          ))}
-                          <AxisBottom
-                            top={scanPlotInnerHeight}
-                            scale={scanXScale}
-                            stroke="currentColor"
-                            tickStroke="currentColor"
-                            tickLabelProps={() => ({
-                              fill: "currentColor",
-                              fontSize: 10,
-                              textAnchor: "middle",
-                            })}
-                            label="Scan value"
-                            labelProps={{
-                              fill: "currentColor",
-                              fontSize: 11,
-                              textAnchor: "middle",
-                            }}
-                          />
-                          <AxisLeft
-                            scale={scanYScale}
-                            stroke="currentColor"
-                            tickStroke="currentColor"
-                            tickLabelProps={() => ({
-                              fill: "currentColor",
-                              fontSize: 10,
-                              textAnchor: "end",
-                              dx: "-0.25em",
-                            })}
-                            label={scanMetric}
-                            labelProps={{
-                              fill: "currentColor",
-                              fontSize: 11,
-                              textAnchor: "middle",
-                            }}
-                          />
-                        </g>
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
-                    <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                      Scan raster
-                    </div>
-                    <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-600 dark:text-zinc-300">
-                      <span>step</span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={Math.max(0, scanValues.length - 1)}
-                        value={Math.min(scanSelectedIndex, Math.max(0, scanValues.length - 1))}
-                        onChange={(e) => setScanSelectedIndex(Number(e.target.value))}
-                        className="flex-1"
-                      />
-                      <span className="tabular-nums">
-                        {scanValues.length
-                          ? scanValues[Math.min(scanSelectedIndex, scanValues.length - 1)].toFixed(5)
-                          : "--"}
-                      </span>
-                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">
-                        {scanRasterLoading ? "Loading…" : "Auto"}
-                      </span>
-                    </div>
-                    <div ref={scanRasterRef} className="min-h-0 flex-1">
+                    <div ref={plotRef} className="min-h-0 flex-1">
                       <RasterPlot
-                        width={scanRasterSize.width}
-                        height={scanRasterSize.height}
+                        width={plotSize.width}
+                        height={plotSize.height}
                         margin={margin}
-                        innerWidth={scanRasterInnerWidth}
-                        innerHeight={scanRasterInnerHeight}
-                        xScale={scanRasterXScale}
-                        yScale={scanRasterYScale}
-                        spikes={scanRaster?.spikes ?? null}
+                        innerWidth={innerWidth}
+                        innerHeight={innerHeight}
+                        xScale={xScale}
+                        yScale={yScale}
+                        spikes={data?.spikes ?? null}
                       />
+                    </div>
+                  </div>
+                  <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                    <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                      Membrane V (E0 / I0)
+                    </div>
+                    <div ref={membraneEPlotRef} className="min-h-0 flex-1">
+                      <div className="flex h-full flex-col gap-2">
+                        <div className="min-h-0 flex-1">
+                          <MembranePotentialPlot
+                            width={membraneEPlotSize.width}
+                            height={membraneSplitHeight}
+                            margin={rateMargin}
+                            innerWidth={membraneEInnerWidth}
+                            innerHeight={membraneEInnerHeight}
+                            tMs={data?.membrane_t_ms ?? []}
+                            vE={data?.membrane_V_E ?? []}
+                            maxTMs={T}
+                          />
+                        </div>
+                        <div className="min-h-0 flex-1 text-[#d9480f]">
+                          <MembranePotentialPlot
+                            width={membraneEPlotSize.width}
+                            height={membraneSplitHeight}
+                            margin={rateMargin}
+                            innerWidth={membraneIInnerWidth}
+                            innerHeight={membraneIInnerHeight}
+                            tMs={data?.membrane_t_ms ?? []}
+                            vI={data?.membrane_V_I ?? []}
+                            maxTMs={T}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                    <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                      Population rate
+                    </div>
+                    <div ref={ratePlotRef} className="min-h-0 flex-1">
+                      <div className="flex h-full flex-col gap-2">
+                        <div className="min-h-0 flex-1 text-slate-900 dark:text-zinc-200">
+                          <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                            E rate
+                          </div>
+                          <PopulationRatePlot
+                            width={ratePlotSize.width}
+                            height={rateSplitHeight}
+                            margin={rateMargin}
+                            innerWidth={rateInnerWidth}
+                            innerHeight={rateInnerHeight}
+                            tMs={data?.population_rate_t_ms ?? []}
+                            rateHzE={data?.population_rate_hz_E ?? []}
+                            maxTMs={T}
+                            lineColor="currentColor"
+                          />
+                        </div>
+                        <div className="min-h-0 flex-1 text-[#dc2626]">
+                          <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                            I rate
+                          </div>
+                          <PopulationRatePlot
+                            width={ratePlotSize.width}
+                            height={rateSplitHeight}
+                            margin={rateMargin}
+                            innerWidth={rateInnerWidth}
+                            innerHeight={rateInnerHeight}
+                            tMs={data?.population_rate_t_ms ?? []}
+                            rateHzE={data?.population_rate_hz_I ?? []}
+                            maxTMs={T}
+                            lineColor="#dc2626"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                    <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                      PSD
+                    </div>
+                    <div ref={psdRef} className="min-h-0 flex-1">
+                      <PsdPlot
+                        width={psdSize.width}
+                        height={psdSize.height}
+                        margin={rateMargin}
+                        innerWidth={psdInnerWidth}
+                        innerHeight={psdInnerHeight}
+                        freqsHz={data?.psd_freqs_hz ?? []}
+                        power={data?.psd_power ?? []}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+                    <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                      Correlations
+                    </div>
+                    <div className="min-h-0 flex-1">
+                      <div className="flex h-full flex-col gap-2">
+                        <div ref={autocorrRef} className="min-h-0 flex-1">
+                          <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                            Autocorrelation
+                          </div>
+                          <CorrelationPlot
+                            width={autocorrSize.width}
+                            height={Math.max(120, Math.floor((autocorrSize.height - 8) / 2))}
+                            margin={rateMargin}
+                            innerWidth={autocorrInnerWidth}
+                            innerHeight={Math.max(120, Math.floor((autocorrSize.height - 8) / 2)) - rateMargin.top - rateMargin.bottom}
+                            lagsMs={data?.autocorr_lags_ms ?? []}
+                            values={data?.autocorr_corr ?? []}
+                            xLabel="Lag (ms)"
+                            yLabel="Autocorr"
+                            color="currentColor"
+                            yMin={-1}
+                            yMax={1}
+                          />
+                        </div>
+                        <div ref={xcorrRef} className="min-h-0 flex-1">
+                          <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                            Cross-correlation
+                          </div>
+                          <CorrelationPlot
+                            width={xcorrSize.width}
+                            height={Math.max(120, Math.floor((xcorrSize.height - 8) / 2))}
+                            margin={rateMargin}
+                            innerWidth={xcorrInnerWidth}
+                            innerHeight={Math.max(120, Math.floor((xcorrSize.height - 8) / 2)) - rateMargin.top - rateMargin.bottom}
+                            lagsMs={data?.xcorr_lags_ms ?? []}
+                            values={data?.xcorr_corr ?? []}
+                            xLabel="Lag (ms)"
+                            yLabel="Xcorr"
+                            color="currentColor"
+                            yMin={-1}
+                            yMax={1}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 dark:border-white/10 dark:bg-white/5">
+                    <div className="min-h-0 flex-1">
+                      <div
+                        className="h-full w-full"
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                          gridTemplateRows: "repeat(2, minmax(0, 1fr))",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                          <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                            EE weights
+                          </div>
+                          <div ref={histEeRef} className="min-h-0 flex-1">
+                            <WeightsHistogramPlot
+                              width={histEeSize.width}
+                              height={histEeSize.height}
+                              margin={histMargin}
+                              innerWidth={histEeInnerWidth}
+                              innerHeight={histEeInnerHeight}
+                              bins={data?.weights_hist_bins ?? []}
+                              counts={data?.weights_hist_counts_ee ?? []}
+                              color="currentColor"
+                              label="EE"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                          <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                            EI weights
+                          </div>
+                          <div ref={histEiRef} className="min-h-0 flex-1">
+                            <WeightsHistogramPlot
+                              width={histEiSize.width}
+                              height={histEiSize.height}
+                              margin={histMargin}
+                              innerWidth={histEiInnerWidth}
+                              innerHeight={histEiInnerHeight}
+                              bins={data?.weights_hist_bins ?? []}
+                              counts={data?.weights_hist_counts_ei ?? []}
+                              color="currentColor"
+                              label="EI"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                          <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                            IE weights
+                          </div>
+                          <div ref={histIeRef} className="min-h-0 flex-1">
+                            <WeightsHistogramPlot
+                              width={histIeSize.width}
+                              height={histIeSize.height}
+                              margin={histMargin}
+                              innerWidth={histIeInnerWidth}
+                              innerHeight={histIeInnerHeight}
+                              bins={data?.weights_hist_bins ?? []}
+                              counts={data?.weights_hist_counts_ie ?? []}
+                              color="currentColor"
+                              label="IE"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                          <div className="px-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                            II weights
+                          </div>
+                          <div ref={histIiRef} className="min-h-0 flex-1">
+                            <WeightsHistogramPlot
+                              width={histIiSize.width}
+                              height={histIiSize.height}
+                              margin={histMargin}
+                              innerWidth={histIiInnerWidth}
+                              innerHeight={histIiInnerHeight}
+                              bins={data?.weights_hist_bins ?? []}
+                              counts={data?.weights_hist_counts_ii ?? []}
+                              color="currentColor"
+                              label="II"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
