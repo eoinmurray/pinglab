@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { scaleLinear } from "@visx/scale";
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string";
 import ParameterPanel, { type NeuronModel } from "./components/ParameterPanel";
@@ -650,18 +650,50 @@ export default function Component() {
     if (weights.seed !== undefined) setWeightsSeed(weights.seed);
     if (payload.burn_in_ms !== undefined) setBurnInMs(payload.burn_in_ms);
     if (payload.max_spikes !== undefined) setDownsampleEnabled(payload.max_spikes !== null);
+    const scanPayload = payload.ui?.scan ?? payload.scan ?? {};
+    if (
+      scanPayload.param !== undefined ||
+      scanPayload.min !== undefined ||
+      scanPayload.max !== undefined ||
+      scanPayload.steps !== undefined ||
+      scanPayload.index !== undefined
+    ) {
+      skipScanResetRef.current = true;
+      scanRangeLockedRef.current = true;
+    }
+    if (scanPayload.param !== undefined) setScanParamKey(scanPayload.param);
+    if (scanPayload.min !== undefined) setScanMin(scanPayload.min);
+    if (scanPayload.max !== undefined) setScanMax(scanPayload.max);
+    if (scanPayload.steps !== undefined) setScanSteps(scanPayload.steps);
+    if (scanPayload.index !== undefined) setScanIndex(scanPayload.index);
   };
 
   const defaultPayloadRef = useRef<any | null>(null);
   const urlHydratedRef = useRef(false);
   const hasUrlConfigRef = useRef(false);
   const urlUpdateTimer = useRef<number | null>(null);
+  const skipScanResetRef = useRef(false);
+  const scanRangeLockedRef = useRef(false);
+  const buildUrlPayload = useCallback(() => {
+    return {
+      ...requestPayload,
+      ui: {
+        scan: {
+          param: scanParamKey,
+          min: scanMin,
+          max: scanMax,
+          steps: scanSteps,
+          index: scanIndex,
+        },
+      },
+    };
+  }, [requestPayload, scanParamKey, scanMin, scanMax, scanSteps, scanIndex]);
 
   useEffect(() => {
     if (!defaultPayloadRef.current) {
-      defaultPayloadRef.current = requestPayload;
+      defaultPayloadRef.current = buildUrlPayload();
     }
-  }, [requestPayload]);
+  }, [buildUrlPayload]);
 
   useEffect(() => {
     if (urlHydratedRef.current) {
@@ -697,7 +729,19 @@ export default function Component() {
       window.clearTimeout(urlUpdateTimer.current);
     }
     urlUpdateTimer.current = window.setTimeout(() => {
-      const diff = diffValues(defaultPayloadRef.current, requestPayload);
+      const nextPayload = buildUrlPayload();
+      let diff = diffValues(defaultPayloadRef.current, nextPayload);
+      const scanDiff = diffValues(
+        defaultPayloadRef.current?.ui?.scan ?? {},
+        nextPayload.ui?.scan ?? {}
+      );
+      if (scanDiff !== undefined) {
+        const diffObj = isPlainObject(diff) ? { ...diff } : {};
+        const uiObj = isPlainObject(diffObj.ui) ? { ...diffObj.ui } : {};
+        uiObj.scan = scanDiff;
+        diffObj.ui = uiObj;
+        diff = diffObj;
+      }
       const params = new URLSearchParams(window.location.search);
       if (!diff || (isPlainObject(diff) && Object.keys(diff).length === 0)) {
         params.delete("cfg");
@@ -716,7 +760,42 @@ export default function Component() {
         window.clearTimeout(urlUpdateTimer.current);
       }
     };
-  }, [requestPayload]);
+  }, [buildUrlPayload]);
+
+  useEffect(() => {
+    if (!urlHydratedRef.current) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const cfgParam = params.get("cfg");
+    let payload: Record<string, unknown> = {};
+    if (cfgParam) {
+      const decoded = decompressFromEncodedURIComponent(cfgParam);
+      if (decoded) {
+        try {
+          payload = JSON.parse(decoded) as Record<string, unknown>;
+        } catch {
+          payload = {};
+        }
+      }
+    }
+    const ui = isPlainObject(payload.ui) ? { ...payload.ui } : {};
+    ui.scan = {
+      param: scanParamKey,
+      min: scanMin,
+      max: scanMax,
+      steps: scanSteps,
+      index: scanIndex,
+    };
+    payload.ui = ui;
+    const encoded = compressToEncodedURIComponent(JSON.stringify(payload));
+    params.set("cfg", encoded);
+    const query = params.toString();
+    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+    if (window.location.href !== nextUrl) {
+      window.history.replaceState(null, "", nextUrl);
+    }
+  }, [scanParamKey, scanMin, scanMax, scanSteps, scanIndex]);
 
   const refreshConfigs = async () => {
     try {
@@ -1177,10 +1256,27 @@ export default function Component() {
     return { eCount, iCount };
   }, [data]);
 
+  const clampPositive = (value: number, fallback: number) => {
+    if (!Number.isFinite(value)) {
+      return fallback;
+    }
+    return value > 0 ? value : fallback;
+  };
+
   const scanOptions = useMemo(
     () => [
-      { key: "dt", label: "dt [ms]", get: () => dt, set: (v: number) => setDt(v) },
-      { key: "T", label: "T [ms]", get: () => T, set: (v: number) => setT(v) },
+      {
+        key: "dt",
+        label: "dt [ms]",
+        get: () => dt,
+        set: (v: number) => setDt(clampPositive(v, dt || 0.1)),
+      },
+      {
+        key: "T",
+        label: "T [ms]",
+        get: () => T,
+        set: (v: number) => setT(clampPositive(v, T || 1)),
+      },
       { key: "nE", label: "N_E [count]", get: () => nE, set: (v: number) => setNE(Math.round(v)) },
       { key: "nI", label: "N_I [count]", get: () => nI, set: (v: number) => setNI(Math.round(v)) },
       { key: "seed", label: "seed", get: () => seed, set: (v: number) => setSeed(Math.round(v)) },
@@ -1388,6 +1484,13 @@ export default function Component() {
   }, [scanMinValue, scanMaxValue, scanStepsSafe]);
 
   useEffect(() => {
+    if (skipScanResetRef.current) {
+      skipScanResetRef.current = false;
+      return;
+    }
+    if (scanRangeLockedRef.current) {
+      return;
+    }
     if (!scanOption) {
       return;
     }
@@ -1419,7 +1522,8 @@ export default function Component() {
       : scanCurrentValue.toFixed(4)
     : "--";
 
-  const Panel = <ParameterPanel
+  const Panel = (
+    <ParameterPanel
     configList={configList}
     selectedConfig={selectedConfig}
     onSelectConfig={(value) => {
@@ -1643,6 +1747,7 @@ export default function Component() {
     tRefHet={tRefHet}
     setTRefHet={setTRefHet}
   />
+  );
 
   return (
     <div
@@ -1716,7 +1821,10 @@ export default function Component() {
                       </label>
                       <select
                         value={scanParamKey}
-                        onChange={(event) => setScanParamKey(event.target.value)}
+                        onChange={(event) => {
+                          scanRangeLockedRef.current = false;
+                          setScanParamKey(event.target.value);
+                        }}
                         className="rounded-md border border-slate-200/70 bg-white/80 px-2 py-1 text-[11px] text-slate-700 shadow-sm outline-none focus:border-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
                       >
                         {scanOptions.map((option) => (
