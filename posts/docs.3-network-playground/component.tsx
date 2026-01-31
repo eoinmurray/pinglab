@@ -751,6 +751,7 @@ export default function Component() {
 
   const defaultPayloadRef = useRef<any | null>(null);
   const urlHydratedRef = useRef(false);
+  const hasUrlConfigRef = useRef(false);
   const urlUpdateTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -769,6 +770,7 @@ export default function Component() {
     if (!cfgParam) {
       return;
     }
+    hasUrlConfigRef.current = true;
     const decoded = decompressFromEncodedURIComponent(cfgParam);
     if (!decoded) {
       return;
@@ -831,7 +833,7 @@ export default function Component() {
   }, []);
 
   useEffect(() => {
-    if (!configList.length || selectedConfig) {
+    if (!configList.length || selectedConfig || hasUrlConfigRef.current) {
       return;
     }
     const first = configList[0];
