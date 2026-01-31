@@ -207,10 +207,10 @@ export default function Component() {
   const [eiScale, setEiScale] = useState(0.01);
   const [ieScale, setIeScale] = useState(0.01);
   const [iiScale, setIiScale] = useState(0.01);
-  const [pEe, setPEe] = useState(0.0);
-  const [pEi, setPEi] = useState(0.0);
-  const [pIe, setPIe] = useState(0.0);
-  const [pIi, setPIi] = useState(0.0);
+  const [pEe, setPEe] = useState(1.0);
+  const [pEi, setPEi] = useState(1.0);
+  const [pIe, setPIe] = useState(1.0);
+  const [pIi, setPIi] = useState(1.0);
   const [clampMin, setClampMin] = useState(0.0);
   const [weightsSeed, setWeightsSeed] = useState(0);
 
