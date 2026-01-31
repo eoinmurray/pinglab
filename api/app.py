@@ -768,9 +768,17 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         N_E=config.N_E,
         N_I=config.N_I,
     )
+    def _finite_list(values: list[float]) -> list[float]:
+        arr = np.array(values, dtype=float)
+        arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+        return arr.tolist()
+
+    def _finite_scalar(value: float) -> float:
+        return float(value) if np.isfinite(value) else 0.0
+
     population_rate_t_ms = t_ms_full.tolist()
-    population_rate_hz_E = rate_hz_full_E.tolist()
-    population_rate_hz_I = rate_hz_full_I.tolist()
+    population_rate_hz_E = _finite_list(rate_hz_full_E.tolist())
+    population_rate_hz_I = _finite_list(rate_hz_full_I.tolist())
 
     if external_input.ndim == 1:
         input_t_ms = (np.arange(num_steps) * config.dt).tolist()
@@ -778,8 +786,14 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         input_mean_I = external_input.tolist()
     else:
         input_t_ms = (np.arange(num_steps) * config.dt).tolist()
-        input_mean_E = np.mean(external_input[:, : config.N_E], axis=1).tolist()
-        input_mean_I = np.mean(external_input[:, config.N_E :], axis=1).tolist()
+        if config.N_E > 0:
+            input_mean_E = np.mean(external_input[:, : config.N_E], axis=1).tolist()
+        else:
+            input_mean_E = [0.0] * num_steps
+        if config.N_I > 0:
+            input_mean_I = np.mean(external_input[:, config.N_E :], axis=1).tolist()
+        else:
+            input_mean_I = [0.0] * num_steps
 
     instruments = result.instruments
     if instruments.V is not None and instruments.times.size > 0:
@@ -800,13 +814,13 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         num_steps=num_steps,
         num_spikes=len(spikes.times),
         spikes_truncated=spikes_truncated,
-        mean_rate_E=mean_rate_E,
-        mean_rate_I=mean_rate_I,
-        isi_cv_E=isi_cv_E,
-        autocorr_peak=autocorr_peak_val,
-        xcorr_peak=xcorr_peak_val,
-        coherence_peak=coherence_peak_val,
-        lagged_coherence=lagged_coherence_val,
+        mean_rate_E=_finite_scalar(mean_rate_E),
+        mean_rate_I=_finite_scalar(mean_rate_I),
+        isi_cv_E=_finite_scalar(isi_cv_E),
+        autocorr_peak=_finite_scalar(autocorr_peak_val),
+        xcorr_peak=_finite_scalar(xcorr_peak_val),
+        coherence_peak=_finite_scalar(coherence_peak_val),
+        lagged_coherence=_finite_scalar(lagged_coherence_val),
         population_rate_t_ms=population_rate_t_ms,
         population_rate_hz_E=population_rate_hz_E,
         population_rate_hz_I=population_rate_hz_I,
@@ -814,11 +828,11 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         membrane_V_E=membrane_V_E,
         membrane_V_I=membrane_V_I,
         autocorr_lags_ms=autocorr_lags_ms,
-        autocorr_corr=autocorr_corr,
+        autocorr_corr=_finite_list(autocorr_corr),
         xcorr_lags_ms=xcorr_lags_ms,
-        xcorr_corr=xcorr_corr,
+        xcorr_corr=_finite_list(xcorr_corr),
         coherence_lags_ms=coherence_lags_ms,
-        coherence_corr=coherence_corr,
+        coherence_corr=_finite_list(coherence_corr),
         weights_hist_bins=weights_hist_bins,
         weights_hist_counts_ee=weights_hist_counts_ee,
         weights_hist_counts_ei=weights_hist_counts_ei,
@@ -826,7 +840,7 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         weights_hist_counts_ii=weights_hist_counts_ii,
         weights_heatmap=_downsample_matrix(weight_mats.W, max_size=200),
         psd_freqs_hz=psd_freqs_hz,
-        psd_power=psd_power,
+        psd_power=_finite_list(psd_power),
         input_t_ms=input_t_ms,
         input_mean_E=input_mean_E,
         input_mean_I=input_mean_I,

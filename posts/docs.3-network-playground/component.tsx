@@ -944,6 +944,16 @@ export default function Component() {
   };
 
   useEffect(() => {
+    if (activeTab !== "scans") {
+      return;
+    }
+    if (!scanValues.length) {
+      return;
+    }
+    handleLoadScanRaster(scanSelectedIndex);
+  }, [activeTab, scanSelectedIndex, scanValues]);
+
+  useEffect(() => {
     if (activeTab !== "weights") {
       return;
     }
@@ -1891,6 +1901,9 @@ export default function Component() {
                   <div className="min-h-0 flex-1">
                     <div className="flex h-full flex-col gap-2">
                       <div ref={autocorrRef} className="min-h-0 flex-1">
+                        <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                          Autocorrelation
+                        </div>
                         <CorrelationPlot
                           width={autocorrSize.width}
                           height={Math.max(120, Math.floor((autocorrSize.height - 8) / 2))}
@@ -1907,6 +1920,9 @@ export default function Component() {
                         />
                       </div>
                       <div ref={xcorrRef} className="min-h-0 flex-1">
+                        <div className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                          Cross-correlation
+                        </div>
                         <CorrelationPlot
                           width={xcorrSize.width}
                           height={Math.max(120, Math.floor((xcorrSize.height - 8) / 2))}
@@ -2227,14 +2243,9 @@ export default function Component() {
                           ? scanValues[Math.min(scanSelectedIndex, scanValues.length - 1)].toFixed(5)
                           : "--"}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleLoadScanRaster(scanSelectedIndex)}
-                        disabled={!scanValues.length || scanRasterLoading}
-                        className="rounded-md border border-slate-200/70 px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200/70 disabled:opacity-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/10"
-                      >
-                        {scanRasterLoading ? "Loading..." : "Load raster"}
-                      </button>
+                      <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                        {scanRasterLoading ? "Loading…" : "Auto"}
+                      </span>
                     </div>
                     <div ref={scanRasterRef} className="min-h-0 flex-1">
                       <RasterPlot
