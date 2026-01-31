@@ -187,10 +187,10 @@ export default function Component() {
   const [eiDist, setEiDist] = useState<WeightDistName>("normal");
   const [ieDist, setIeDist] = useState<WeightDistName>("normal");
   const [iiDist, setIiDist] = useState<WeightDistName>("normal");
-  const [eeMean, setEeMean] = useState(0.02);
-  const [eiMean, setEiMean] = useState(0.015);
-  const [ieMean, setIeMean] = useState(0.015);
-  const [iiMean, setIiMean] = useState(0.02);
+  const [eeMean, setEeMean] = useState(0.0);
+  const [eiMean, setEiMean] = useState(0.0);
+  const [ieMean, setIeMean] = useState(0.0);
+  const [iiMean, setIiMean] = useState(0.0);
   const [eeStd, setEeStd] = useState(0.0);
   const [eiStd, setEiStd] = useState(0.0);
   const [ieStd, setIeStd] = useState(0.0);
@@ -207,10 +207,10 @@ export default function Component() {
   const [eiScale, setEiScale] = useState(0.01);
   const [ieScale, setIeScale] = useState(0.01);
   const [iiScale, setIiScale] = useState(0.01);
-  const [pEe, setPEe] = useState(0.02);
-  const [pEi, setPEi] = useState(0.18);
-  const [pIe, setPIe] = useState(0.04);
-  const [pIi, setPIi] = useState(0.06);
+  const [pEe, setPEe] = useState(0.0);
+  const [pEi, setPEi] = useState(0.0);
+  const [pIe, setPIe] = useState(0.0);
+  const [pIi, setPIi] = useState(0.0);
   const [clampMin, setClampMin] = useState(0.0);
   const [weightsSeed, setWeightsSeed] = useState(0);
 
