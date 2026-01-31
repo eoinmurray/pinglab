@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { scaleLinear } from "@visx/scale";
 import { LinePath } from "@visx/shape";
 import { AxisBottom, AxisLeft } from "@visx/axis";
+import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from "lz-string";
 import ParameterPanel, { type NeuronModel } from "./components/ParameterPanel";
 import CorrelationPlot from "./components/CorrelationPlot";
 import MembranePotentialPlot from "./components/MembranePotentialPlot";
@@ -79,6 +80,41 @@ type ScanResponse = {
   metric_name: ScanMetricName;
   values: number[];
   metrics: number[];
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const diffValues = (base: unknown, current: unknown): unknown => {
+  if (Array.isArray(base) || Array.isArray(current)) {
+    if (!Array.isArray(base) || !Array.isArray(current)) {
+      return current;
+    }
+    if (base.length !== current.length) {
+      return current;
+    }
+    for (let i = 0; i < base.length; i += 1) {
+      if (base[i] !== current[i]) {
+        return current;
+      }
+    }
+    return undefined;
+  }
+  if (isPlainObject(base) && isPlainObject(current)) {
+    const out: Record<string, unknown> = {};
+    const keys = new Set([...Object.keys(base), ...Object.keys(current)]);
+    keys.forEach((key) => {
+      const diff = diffValues(base[key], current[key]);
+      if (diff !== undefined) {
+        out[key] = diff;
+      }
+    });
+    return Object.keys(out).length ? out : undefined;
+  }
+  if (base !== current) {
+    return current;
+  }
+  return undefined;
 };
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -709,7 +745,73 @@ export default function Component() {
     if (ii.p !== undefined) setPIi(ii.p);
     if (weights.clamp_min !== undefined) setClampMin(weights.clamp_min);
     if (weights.seed !== undefined) setWeightsSeed(weights.seed);
+    if (payload.burn_in_ms !== undefined) setBurnInMs(payload.burn_in_ms);
+    if (payload.max_spikes !== undefined) setDownsampleEnabled(payload.max_spikes !== null);
   };
+
+  const defaultPayloadRef = useRef<any | null>(null);
+  const urlHydratedRef = useRef(false);
+  const urlUpdateTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!defaultPayloadRef.current) {
+      defaultPayloadRef.current = requestPayload;
+    }
+  }, [requestPayload]);
+
+  useEffect(() => {
+    if (urlHydratedRef.current) {
+      return;
+    }
+    urlHydratedRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const cfgParam = params.get("cfg");
+    if (!cfgParam) {
+      return;
+    }
+    const decoded = decompressFromEncodedURIComponent(cfgParam);
+    if (!decoded) {
+      return;
+    }
+    try {
+      const payload = JSON.parse(decoded);
+      applyConfig(payload);
+      if (payload?.burn_in_ms !== undefined) setBurnInMs(payload.burn_in_ms);
+      if (payload?.max_spikes !== undefined) setDownsampleEnabled(payload.max_spikes !== null);
+      setConfigStatus("Loaded from URL");
+    } catch (err) {
+      setConfigStatus("Invalid URL config");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!defaultPayloadRef.current || !urlHydratedRef.current) {
+      return;
+    }
+    if (urlUpdateTimer.current) {
+      window.clearTimeout(urlUpdateTimer.current);
+    }
+    urlUpdateTimer.current = window.setTimeout(() => {
+      const diff = diffValues(defaultPayloadRef.current, requestPayload);
+      const params = new URLSearchParams(window.location.search);
+      if (!diff || (isPlainObject(diff) && Object.keys(diff).length === 0)) {
+        params.delete("cfg");
+      } else {
+        const encoded = compressToEncodedURIComponent(JSON.stringify(diff));
+        params.set("cfg", encoded);
+      }
+      const query = params.toString();
+      const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+      if (window.location.href !== nextUrl) {
+        window.history.replaceState(null, "", nextUrl);
+      }
+    }, 300);
+    return () => {
+      if (urlUpdateTimer.current) {
+        window.clearTimeout(urlUpdateTimer.current);
+      }
+    };
+  }, [requestPayload]);
 
   const refreshConfigs = async () => {
     try {
@@ -1630,6 +1732,11 @@ export default function Component() {
               <div className="flex min-h-0 flex-1 flex-col gap-2">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-zinc-400">
                   <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-slate-700 dark:text-zinc-200">
+                    {loading ? (
+                      <span className="inline-flex items-center rounded-lg bg-white/80 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-red-600 dark:bg-white/5 dark:text-red-400">
+                        Running
+                      </span>
+                    ) : null}
                     <span className="rounded-lg bg-white/70 px-3 py-1.5 text-[11px] dark:bg-white/5">
                       {loading
                         ? "Running..."
