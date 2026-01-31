@@ -9,6 +9,7 @@ import PopulationRatePlot from "./components/PopulationRatePlot";
 import RasterPlot from "./components/RasterPlot";
 import WeightsHistogramPlot from "./components/WeightsHistogramPlot";
 import PsdPlot from "./components/PsdPlot";
+import WeightsHeatmap from "./components/WeightsHeatmap";
 
 type WeightDistName = "normal" | "lognormal" | "gamma" | "exponential";
 
@@ -41,6 +42,7 @@ type RunResponse = {
   weights_hist_counts_ei: number[];
   weights_hist_counts_ie: number[];
   weights_hist_counts_ii: number[];
+  weights_heatmap: number[][];
   psd_freqs_hz: number[];
   psd_power: number[];
   autocorr_lags_ms: number[];
@@ -87,7 +89,7 @@ export default function Component() {
   const [selectedConfig, setSelectedConfig] = useState("");
   const [saveName, setSaveName] = useState("");
   const [configStatus, setConfigStatus] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"single" | "scans">("single");
+  const [activeTab, setActiveTab] = useState<"single" | "scans" | "weights">("single");
   const [scanParam, setScanParam] = useState("inputs.I_E_start");
   const [scanStart, setScanStart] = useState(0.0);
   const [scanEnd, setScanEnd] = useState(4.0);
@@ -109,8 +111,8 @@ export default function Component() {
 
   const [dt, setDt] = useState(0.1);
   const [T, setT] = useState(1000);
-  const [nE, setNE] = useState(800);
-  const [nI, setNI] = useState(200);
+  const [nE, setNE] = useState(400);
+  const [nI, setNI] = useState(100);
   const [seed, setSeed] = useState(0);
 
   const [noiseStdE, setNoiseStdE] = useState(0.0);
@@ -256,6 +258,8 @@ export default function Component() {
   const [scanPlotSize, setScanPlotSize] = useState({ width: defaultWidth, height: 280 });
   const scanRasterRef = useRef<HTMLDivElement | null>(null);
   const [scanRasterSize, setScanRasterSize] = useState({ width: defaultWidth, height: 260 });
+  const weightsHeatmapRef = useRef<HTMLDivElement | null>(null);
+  const [weightsHeatmapSize, setWeightsHeatmapSize] = useState({ width: defaultWidth, height: 400 });
   const totalN = nE + nI;
 
   const buildWeightParams = (
@@ -829,6 +833,28 @@ export default function Component() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== "weights") {
+      return;
+    }
+    if (!weightsHeatmapRef.current) {
+      return;
+    }
+    const target = weightsHeatmapRef.current;
+    const observer = new ResizeObserver((entries) => {
+      if (!entries.length) {
+        return;
+      }
+      const { width: nextWidth, height: nextHeight } = entries[0].contentRect;
+      setWeightsHeatmapSize({
+        width: Math.max(240, Math.floor(nextWidth)),
+        height: Math.max(240, Math.floor(nextHeight)),
+      });
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [activeTab]);
+
+  useEffect(() => {
     if (activeTab !== "single") {
       return;
     }
@@ -1145,6 +1171,8 @@ export default function Component() {
   const xcorrInnerHeight = xcorrSize.height - rateMargin.top - rateMargin.bottom;
   const psdInnerWidth = psdSize.width - rateMargin.left - rateMargin.right;
   const psdInnerHeight = psdSize.height - rateMargin.top - rateMargin.bottom;
+  const weightsHeatmapWidth = Math.max(240, weightsHeatmapSize.width);
+  const weightsHeatmapHeight = Math.max(240, weightsHeatmapSize.height);
   const histEeInnerWidth = histEeSize.width - histMargin.left - histMargin.right;
   const histEeInnerHeight = histEeSize.height - histMargin.top - histMargin.bottom;
   const histEiInnerWidth = histEiSize.width - histMargin.left - histMargin.right;
@@ -1512,9 +1540,24 @@ export default function Component() {
                 >
                   Scans
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("weights")}
+                  className={`rounded-md px-3 py-1.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white/80 active:translate-y-[1px] dark:focus-visible:ring-slate-200/60 dark:focus-visible:ring-offset-white/5 ${
+                    activeTab === "weights"
+                      ? "bg-gradient-to-r from-slate-900 to-slate-700 text-white shadow-sm shadow-black/20 dark:from-white dark:to-zinc-200 dark:text-slate-900 dark:shadow-none"
+                      : "text-slate-500 hover:bg-slate-200/60 hover:text-slate-800 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
+                  }`}
+                >
+                  Weights
+                </button>
               </div>
               <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
-                {activeTab === "single" ? "Live sim" : "Scan workspace"}
+                {activeTab === "single"
+                  ? "Live sim"
+                  : activeTab === "scans"
+                  ? "Scan workspace"
+                  : "Weights"}
               </div>
             </div>
             {error ? (
@@ -1524,41 +1567,41 @@ export default function Component() {
             ) : null}
             {activeTab === "single" ? (
               <div className="flex min-h-0 flex-1 flex-col gap-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-zinc-400">
-                  <div className="flex flex-wrap items-center gap-2 text-sm font-mono text-slate-700 dark:text-zinc-200">
-                    <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-zinc-400">
+                  <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-slate-700 dark:text-zinc-200">
+                    <span className="rounded-lg bg-white/70 px-3 py-1.5 text-[11px] dark:bg-white/5">
                       {loading
                         ? "Running..."
                         : data
                         ? `${spikeCounts.eCount} E / ${spikeCounts.iCount} I`
                         : "No data"}
                     </span>
-                    <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
+                    <span className="rounded-lg bg-white/70 px-3 py-1.5 text-[11px] dark:bg-white/5">
                       {data
                         ? `Rates ${data.mean_rate_E.toFixed(2)} Hz E / ${data.mean_rate_I.toFixed(2)} Hz I`
                         : "Rates --"}
                     </span>
-                    <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
+                    <span className="rounded-lg bg-white/70 px-3 py-1.5 text-[11px] dark:bg-white/5">
                       {data
                         ? `ISI CV (E) ${data.isi_cv_E.toFixed(3)}`
                         : "ISI CV (E) --"}
                     </span>
-                    <span className="rounded-xl bg-white/70 px-4 py-2 text-sm dark:bg-white/5">
+                    <span className="rounded-lg bg-white/70 px-3 py-1.5 text-[11px] dark:bg-white/5">
                       {data ? `Total spikes ${data.num_spikes}` : "Total spikes --"}
                     </span>
                     {data?.spikes_truncated ? (
-                      <span className="rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-2 text-sm text-amber-700 dark:border-amber-300/30 dark:bg-amber-400/10 dark:text-amber-200">
+                      <span className="rounded-lg border border-amber-300/70 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-700 dark:border-amber-300/30 dark:bg-amber-400/10 dark:text-amber-200">
                         Downsampled for UI
                       </span>
                     ) : null}
                   </div>
-                  <div className="flex items-center gap-3 rounded-xl bg-white/70 px-4 py-2.5 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:bg-white/5 dark:text-zinc-300">
+                  <div className="flex items-center gap-2 rounded-lg bg-white/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:bg-white/5 dark:text-zinc-300">
                     <span className="inline-flex items-center gap-1">
-                      <span className="h-3 w-3 rounded-sm bg-current" />
+                      <span className="h-2.5 w-2.5 rounded-sm bg-current" />
                       E
                     </span>
                     <span className="inline-flex items-center gap-1">
-                      <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: "#d9480f" }} />
+                      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: "#d9480f" }} />
                       I
                     </span>
                   </div>
@@ -1800,7 +1843,7 @@ export default function Component() {
                 </div>
               </div>
             </div>
-            ) : (
+            ) : activeTab === "scans" ? (
               <div className="flex min-h-0 flex-1 flex-col gap-2">
                 <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200/70 bg-white/60 p-2 text-xs text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
                   <label className="flex flex-col gap-1">
@@ -2035,6 +2078,21 @@ export default function Component() {
                         spikes={scanRaster?.spikes ?? null}
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex min-h-0 flex-1 flex-col gap-2">
+                <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200/70 bg-white/60 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                  <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-zinc-400">
+                    Weights heatmap
+                  </div>
+                  <div ref={weightsHeatmapRef} className="min-h-0 flex-1">
+                    <WeightsHeatmap
+                      width={weightsHeatmapWidth}
+                      height={weightsHeatmapHeight}
+                      matrix={data?.weights_heatmap ?? []}
+                    />
                   </div>
                 </div>
               </div>

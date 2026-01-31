@@ -1,8 +1,8 @@
 config:
   dt: 0.1
   T: 950
-  N_E: 100
-  N_I: 50
+  N_E: 400
+  N_I: 100
   seed: 0
   neuron_model: mqif
   delay_ee: 0.1
@@ -66,7 +66,7 @@ inputs:
   I_I_end: 0
   I_E_base: 0
   I_I_base: 0
-  noise_std_E: 0
+  noise_std_E: 2
   noise_std_I: 0
   seed: 0
   pulse_t_ms: 200
@@ -105,3 +105,5 @@ weights:
         std: 0
   clamp_min: 0
   seed: 0
+max_spikes: 30000
+burn_in_ms: 200

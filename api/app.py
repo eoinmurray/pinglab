@@ -173,6 +173,7 @@ class RunResponse(BaseModel):
     weights_hist_counts_ei: list[float]
     weights_hist_counts_ie: list[float]
     weights_hist_counts_ii: list[float]
+    weights_heatmap: list[list[float]]
     psd_freqs_hz: list[float]
     psd_power: list[float]
     input_t_ms: list[float]
@@ -304,6 +305,29 @@ def _weights_histograms(
         return counts.astype(float).tolist()
 
     return centers, _hist(ee), _hist(ei), _hist(ie), _hist(ii)
+
+
+def _downsample_matrix(matrix: np.ndarray, max_size: int = 200) -> list[list[float]]:
+    rows, cols = matrix.shape
+    if rows == 0 or cols == 0:
+        return []
+    row_step = max(1, int(np.ceil(rows / max_size)))
+    col_step = max(1, int(np.ceil(cols / max_size)))
+    out_rows = int(np.ceil(rows / row_step))
+    out_cols = int(np.ceil(cols / col_step))
+    out = np.zeros((out_rows, out_cols), dtype=float)
+    for i in range(out_rows):
+        r0 = i * row_step
+        r1 = min(rows, r0 + row_step)
+        for j in range(out_cols):
+            c0 = j * col_step
+            c1 = min(cols, c0 + col_step)
+            block = matrix[r0:r1, c0:c1]
+            if block.size == 0:
+                out[i, j] = 0.0
+            else:
+                out[i, j] = float(np.mean(block))
+    return out.tolist()
 
 app = FastAPI()
 app.add_middleware(
@@ -749,6 +773,7 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         weights_hist_counts_ei=weights_hist_counts_ei,
         weights_hist_counts_ie=weights_hist_counts_ie,
         weights_hist_counts_ii=weights_hist_counts_ii,
+        weights_heatmap=_downsample_matrix(weight_mats.W, max_size=200),
         psd_freqs_hz=psd_freqs_hz,
         psd_power=psd_power,
         input_t_ms=input_t_ms,

@@ -477,24 +477,24 @@ export default function ParameterPanel({
         onChange={(value) => setDist(value as WeightDistName)}
       />
       {(dist === "normal" || dist === "lognormal") && (
-        <Slider label="mean [nS]" value={mean} min={0.0} max={0.05} step={0.0005} precision={4} onChange={setMean} />
+        <Slider label="mean [nS]" value={mean} min={0.0} max={1.0} step={0.0002} precision={4} onChange={setMean} showNudge />
       )}
       {dist === "normal" && (
-        <Slider label="std [nS]" value={std} min={0.0} max={0.02} step={0.0005} precision={4} onChange={setStd} />
+        <Slider label="std [nS]" value={std} min={0.0} max={0.5} step={0.0002} precision={4} onChange={setStd} showNudge />
       )}
       {dist === "lognormal" && (
-        <Slider label="sigma [unitless]" value={sigma} min={0.1} max={2.0} step={0.05} precision={2} onChange={setSigma} />
+        <Slider label="sigma [unitless]" value={sigma} min={0.1} max={4.0} step={0.005} precision={2} onChange={setSigma} showNudge />
       )}
       {dist === "gamma" && (
         <>
-          <Slider label="shape [unitless]" value={shape} min={0.1} max={5.0} step={0.1} precision={2} onChange={setShape} />
-          <Slider label="scale [nS]" value={scale} min={0.0001} max={0.05} step={0.0005} precision={4} onChange={setScale} />
+          <Slider label="shape [unitless]" value={shape} min={0.1} max={10.0} step={0.01} precision={2} onChange={setShape} showNudge />
+          <Slider label="scale [nS]" value={scale} min={0.0001} max={0.4} step={0.0001} precision={4} onChange={setScale} showNudge />
         </>
       )}
       {dist === "exponential" && (
-        <Slider label="scale [nS]" value={scale} min={0.0001} max={0.05} step={0.0005} precision={4} onChange={setScale} />
+        <Slider label="scale [nS]" value={scale} min={0.0001} max={0.4} step={0.0001} precision={4} onChange={setScale} showNudge />
       )}
-      <Slider label="p [0-1]" value={p} min={0.0} max={1.0} step={0.01} precision={2} onChange={setP} />
+      <Slider label="p [0-1]" value={p} min={0.0} max={1.0} step={0.001} precision={3} onChange={setP} showNudge />
     </div>
   );
 
@@ -689,7 +689,7 @@ export default function ParameterPanel({
               pIi,
               setPIi
             )}
-            <Slider label="clamp min [nS]" value={clampMin} min={0.0} max={0.1} step={0.005} precision={3} onChange={setClampMin} />
+            <Slider label="clamp min [nS]" value={clampMin} min={0.0} max={0.2} step={0.005} precision={3} onChange={setClampMin} showNudge />
             <Slider label="weights seed" value={weightsSeed} min={0} max={20} step={1} precision={0} onChange={setWeightsSeed} />
           </div>
         </div>

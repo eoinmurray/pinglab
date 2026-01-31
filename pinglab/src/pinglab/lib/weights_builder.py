@@ -173,6 +173,16 @@ def build_adjacency_matrices(
         rng, (N_I, N_I), ii_p, clamp_min, ii_name, ii_params
     )
 
+    # Scale by 1/sqrt(N_src) to keep input variance stable across sizes.
+    if N_E > 0:
+        scale_e = 1.0 / np.sqrt(N_E)
+        W_ee *= scale_e
+        W_ei *= scale_e
+    if N_I > 0:
+        scale_i = 1.0 / np.sqrt(N_I)
+        W_ie *= scale_i
+        W_ii *= scale_i
+
     N = N_E + N_I
     W = np.zeros((N, N), dtype=float)
     W[:N_E, :N_E] = W_ee
