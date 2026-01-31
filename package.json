@@ -1,4 +1,6 @@
 {
+  "name": "pinglab",
+  "version": "0.0.1",
   "scripts": {
     "dev": "veslx serve posts",
     "build": "veslx build posts",
@@ -11,6 +13,6 @@
     "@visx/axis": "^3.8.0",
     "@visx/scale": "^3.8.0",
     "@visx/shape": "^3.8.0",
-    "veslx": "^0.1.60"
+    "veslx": "^0.1.62"
   }
 }

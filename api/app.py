@@ -124,6 +124,7 @@ class WeightsSpec(BaseModel):
     ei: dict | None = None
     ie: dict | None = None
     ii: dict | None = None
+    ee_template: dict | None = None
     clamp_min: float | None = None
     seed: int | None = None
 
@@ -179,6 +180,20 @@ class RunResponse(BaseModel):
     input_t_ms: list[float]
     input_mean_E: list[float]
     input_mean_I: list[float]
+
+
+class WeightsRequest(BaseModel):
+    config: ConfigOverrides | None = None
+    weights: WeightsSpec | None = None
+
+
+class WeightsResponse(BaseModel):
+    weights_hist_bins: list[float]
+    weights_hist_counts_ee: list[float]
+    weights_hist_counts_ei: list[float]
+    weights_hist_counts_ie: list[float]
+    weights_hist_counts_ii: list[float]
+    weights_heatmap: list[list[float]]
 
 
 class ScanSpec(BaseModel):
@@ -276,6 +291,7 @@ DEFAULT_WEIGHTS = {
     "ei": {"p": 0.18, "dist": {"name": "normal", "params": {"mean": 0.015, "std": 0.0}}},
     "ie": {"p": 0.04, "dist": {"name": "normal", "params": {"mean": 0.015, "std": 0.0}}},
     "ii": {"p": 0.06, "dist": {"name": "normal", "params": {"mean": 0.02, "std": 0.0}}},
+    "ee_template": {"name": "none", "blocks": 3},
     "clamp_min": 0.0,
     "seed": 0,
 }
@@ -337,6 +353,40 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.post("/weights", response_model=WeightsResponse)
+def build_weights_preview(request: WeightsRequest | None = Body(default=None)) -> WeightsResponse:
+    config_dict = _merge_defaults(DEFAULT_CONFIG.model_dump(), request.config if request else None)
+    config = NetworkConfig.model_validate(config_dict)
+    weights = _merge_defaults(DEFAULT_WEIGHTS, request.weights if request else None)
+    weights_seed = weights["seed"] if weights["seed"] is not None else config.seed
+    weight_mats = build_adjacency_matrices(
+        N_E=config.N_E,
+        N_I=config.N_I,
+        ee=weights["ee"],
+        ei=weights["ei"],
+        ie=weights["ie"],
+        ii=weights["ii"],
+        clamp_min=weights["clamp_min"],
+        seed=int(weights_seed) if weights_seed is not None else None,
+        ee_template=weights.get("ee_template"),
+    )
+    (
+        weights_hist_bins,
+        weights_hist_counts_ee,
+        weights_hist_counts_ei,
+        weights_hist_counts_ie,
+        weights_hist_counts_ii,
+    ) = _weights_histograms(weight_mats)
+    return WeightsResponse(
+        weights_hist_bins=weights_hist_bins,
+        weights_hist_counts_ee=weights_hist_counts_ee,
+        weights_hist_counts_ei=weights_hist_counts_ei,
+        weights_hist_counts_ie=weights_hist_counts_ie,
+        weights_hist_counts_ii=weights_hist_counts_ii,
+        weights_heatmap=_downsample_matrix(weight_mats.W, max_size=200),
+    )
 
 
 @app.get("/configs")
@@ -572,6 +622,7 @@ def run_simulation(request: RunRequest | None = Body(default=None)) -> RunRespon
         ii=weights["ii"],
         clamp_min=weights["clamp_min"],
         seed=int(weights_seed) if weights_seed is not None else None,
+        ee_template=weights.get("ee_template"),
     )
     (
         weights_hist_bins,

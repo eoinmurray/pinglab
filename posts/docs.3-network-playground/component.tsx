@@ -12,6 +12,7 @@ import PsdPlot from "./components/PsdPlot";
 import WeightsHeatmap from "./components/WeightsHeatmap";
 
 type WeightDistName = "normal" | "lognormal" | "gamma" | "exponential";
+type WeightTemplateName = "none" | "feedforward_blocks";
 
 type SpikesResponse = {
   times: number[];
@@ -55,6 +56,15 @@ type RunResponse = {
   lagged_coherence: number;
 };
 
+type WeightsResponse = {
+  weights_hist_bins: number[];
+  weights_hist_counts_ee: number[];
+  weights_hist_counts_ei: number[];
+  weights_hist_counts_ie: number[];
+  weights_hist_counts_ii: number[];
+  weights_heatmap: number[][];
+};
+
 type ScanMetricName =
   | "mean_rate_E"
   | "mean_rate_I"
@@ -71,9 +81,12 @@ type ScanResponse = {
   metrics: number[];
 };
 
-const API_URL = "http://localhost:8000/run";
-const CONFIG_API = "http://localhost:8000/configs";
-const SCAN_API = "http://localhost:8000/scan";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+
+const API_URL = `${API_BASE}/run`;
+const CONFIG_API = `${API_BASE}/configs`;
+const SCAN_API = `${API_BASE}/scan`;
+const WEIGHTS_API = `${API_BASE}/weights`;
 
 const defaultWidth = 760;
 const defaultHeight = 420;
@@ -83,6 +96,7 @@ const histMargin = { top: 10, right: 10, bottom: 20, left: 28 };
 
 export default function Component() {
   const [data, setData] = useState<RunResponse | null>(null);
+  const [weightsPreview, setWeightsPreview] = useState<WeightsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [configList, setConfigList] = useState<string[]>([]);
@@ -132,6 +146,8 @@ export default function Component() {
   const [inputPulseAmpI, setInputPulseAmpI] = useState(1.0);
 
   const [eeDist, setEeDist] = useState<WeightDistName>("normal");
+  const [eeTemplate, setEeTemplate] = useState<WeightTemplateName>("none");
+  const [eeTemplateBlocks, setEeTemplateBlocks] = useState(3);
   const [eiDist, setEiDist] = useState<WeightDistName>("normal");
   const [ieDist, setIeDist] = useState<WeightDistName>("normal");
   const [iiDist, setIiDist] = useState<WeightDistName>("normal");
@@ -401,17 +417,18 @@ export default function Component() {
         pulse_amp_E: inputPulseAmpE,
         pulse_amp_I: inputPulseAmpI,
       },
-        weights: {
-          ee: { p: pEe, dist: { name: eeDist, params: buildWeightParams(eeDist, eeMean, eeStd, eeSigma, eeShape, eeScale) } },
-          ei: { p: pEi, dist: { name: eiDist, params: buildWeightParams(eiDist, eiMean, eiStd, eiSigma, eiShape, eiScale) } },
-          ie: { p: pIe, dist: { name: ieDist, params: buildWeightParams(ieDist, ieMean, ieStd, ieSigma, ieShape, ieScale) } },
-          ii: { p: pIi, dist: { name: iiDist, params: buildWeightParams(iiDist, iiMean, iiStd, iiSigma, iiShape, iiScale) } },
-          clamp_min: clampMin,
-          seed: weightsSeed,
-        },
-        max_spikes: downsampleEnabled ? 30000 : null,
-        burn_in_ms: burnInMs,
-      }),
+      weights: {
+        ee: { p: pEe, dist: { name: eeDist, params: buildWeightParams(eeDist, eeMean, eeStd, eeSigma, eeShape, eeScale) } },
+        ei: { p: pEi, dist: { name: eiDist, params: buildWeightParams(eiDist, eiMean, eiStd, eiSigma, eiShape, eiScale) } },
+        ie: { p: pIe, dist: { name: ieDist, params: buildWeightParams(ieDist, ieMean, ieStd, ieSigma, ieShape, ieScale) } },
+        ii: { p: pIi, dist: { name: iiDist, params: buildWeightParams(iiDist, iiMean, iiStd, iiSigma, iiShape, iiScale) } },
+        ee_template: { name: eeTemplate, blocks: eeTemplateBlocks },
+        clamp_min: clampMin,
+        seed: weightsSeed,
+      },
+      max_spikes: downsampleEnabled ? 30000 : null,
+      burn_in_ms: burnInMs,
+    }),
     [
       dt,
       T,
@@ -483,6 +500,8 @@ export default function Component() {
       inputPulseAmpE,
       inputPulseAmpI,
       eeDist,
+      eeTemplate,
+      eeTemplateBlocks,
       eiDist,
       ieDist,
       iiDist,
@@ -515,6 +534,14 @@ export default function Component() {
       downsampleEnabled,
       burnInMs,
     ]
+  );
+
+  const weightsPayload = useMemo(
+    () => ({
+      config: requestPayload.config,
+      weights: requestPayload.weights,
+    }),
+    [requestPayload.config, requestPayload.weights]
   );
 
   const setNestedValue = (target: any, path: string, value: number) => {
@@ -645,6 +672,8 @@ export default function Component() {
     const ie = weights.ie ?? {};
     const ii = weights.ii ?? {};
     if (ee.dist?.name !== undefined) setEeDist(ee.dist.name);
+    if (weights.ee_template?.name !== undefined) setEeTemplate(weights.ee_template.name);
+    if (weights.ee_template?.blocks !== undefined) setEeTemplateBlocks(weights.ee_template.blocks);
     if (ei.dist?.name !== undefined) setEiDist(ei.dist.name);
     if (ie.dist?.name !== undefined) setIeDist(ie.dist.name);
     if (ii.dist?.name !== undefined) setIiDist(ii.dist.name);
@@ -809,6 +838,34 @@ export default function Component() {
       setScanRasterLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab !== "weights") {
+      return;
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      try {
+        const response = await fetch(WEIGHTS_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(weightsPayload),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          return;
+        }
+        const json = (await response.json()) as WeightsResponse;
+        setWeightsPreview(json);
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+      }
+    }, 200);
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [activeTab, weightsPayload]);
 
   useEffect(() => {
     if (activeTab !== "single") {
@@ -1335,6 +1392,10 @@ export default function Component() {
     setInputPulseAmpI={setInputPulseAmpI}
     eeDist={eeDist}
     setEeDist={setEeDist}
+    eeTemplate={eeTemplate}
+    setEeTemplate={setEeTemplate}
+    eeTemplateBlocks={eeTemplateBlocks}
+    setEeTemplateBlocks={setEeTemplateBlocks}
     eiDist={eiDist}
     setEiDist={setEiDist}
     ieDist={ieDist}
@@ -2091,7 +2152,7 @@ export default function Component() {
                     <WeightsHeatmap
                       width={weightsHeatmapWidth}
                       height={weightsHeatmapHeight}
-                      matrix={data?.weights_heatmap ?? []}
+                      matrix={(weightsPreview ?? data)?.weights_heatmap ?? []}
                     />
                   </div>
                 </div>

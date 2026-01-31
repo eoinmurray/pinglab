@@ -12,6 +12,7 @@ export type NeuronModel =
   | "izhikevich";
 
 type WeightDistName = "normal" | "lognormal" | "gamma" | "exponential";
+type WeightTemplateName = "none" | "feedforward_blocks";
 
 const NEURON_MODELS: NeuronModel[] = [
   "lif",
@@ -25,6 +26,7 @@ const NEURON_MODELS: NeuronModel[] = [
 ];
 
 const WEIGHT_DISTS: WeightDistName[] = ["normal", "lognormal", "gamma", "exponential"];
+const EE_TEMPLATES: WeightTemplateName[] = ["none", "feedforward_blocks"];
 
 type ParameterPanelProps = {
   configList: string[];
@@ -82,6 +84,10 @@ type ParameterPanelProps = {
   setInputPulseAmpI: (value: number) => void;
   eeDist: WeightDistName;
   setEeDist: (value: WeightDistName) => void;
+  eeTemplate: WeightTemplateName;
+  setEeTemplate: (value: WeightTemplateName) => void;
+  eeTemplateBlocks: number;
+  setEeTemplateBlocks: (value: number) => void;
   eiDist: WeightDistName;
   setEiDist: (value: WeightDistName) => void;
   ieDist: WeightDistName;
@@ -294,6 +300,10 @@ export default function ParameterPanel({
   setInputPulseAmpI,
   eeDist,
   setEeDist,
+  eeTemplate,
+  setEeTemplate,
+  eeTemplateBlocks,
+  setEeTemplateBlocks,
   eiDist,
   setEiDist,
   ieDist,
@@ -464,7 +474,8 @@ export default function ParameterPanel({
     scale: number,
     setScale: (value: number) => void,
     p: number,
-    setP: (value: number) => void
+    setP: (value: number) => void,
+    extra?: React.ReactNode
   ) => (
     <div className="space-y-2 rounded-md border border-black/10 p-2 dark:border-zinc-800">
       <div className="text-[10px] uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
@@ -495,6 +506,7 @@ export default function ParameterPanel({
         <Slider label="scale [nS]" value={scale} min={0.0001} max={0.4} step={0.0001} precision={4} onChange={setScale} showNudge />
       )}
       <Slider label="p [0-1]" value={p} min={0.0} max={1.0} step={0.001} precision={3} onChange={setP} showNudge />
+      {extra}
     </div>
   );
 
@@ -636,7 +648,21 @@ export default function ParameterPanel({
               eeScale,
               setEeScale,
               pEe,
-              setPEe
+              setPEe,
+              <>
+                <Select label="EE template" value={eeTemplate} options={EE_TEMPLATES} onChange={setEeTemplate} />
+                {eeTemplate === "feedforward_blocks" ? (
+                  <Slider
+                    label="EE template blocks [count]"
+                    value={eeTemplateBlocks}
+                    min={1}
+                    max={8}
+                    step={1}
+                    precision={0}
+                    onChange={setEeTemplateBlocks}
+                  />
+                ) : null}
+              </>
             )}
             {renderWeightBlock(
               "E→I",

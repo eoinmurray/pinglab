@@ -174,11 +174,17 @@ class WeightBlockSpec(BaseModel):
     dist: WeightDistSpec = WeightDistSpec()
 
 
+class WeightTemplateSpec(BaseModel):
+    name: str = "none"
+    blocks: int = 3
+
+
 class WeightSpec(BaseModel):
     ee: WeightBlockSpec
     ei: WeightBlockSpec
     ie: WeightBlockSpec
     ii: WeightBlockSpec
+    ee_template: WeightTemplateSpec | None = None
     clamp_min: float | None = 0.0
 
 class PlottingConfig(BaseModel):

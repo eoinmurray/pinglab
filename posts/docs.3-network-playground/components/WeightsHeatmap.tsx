@@ -61,7 +61,7 @@ export default function WeightsHeatmap({ width, height, matrix }: WeightsHeatmap
         const t = Math.max(0, Math.min(1, raw));
         const gamma = 0.35;
         const eased = Math.pow(t, gamma);
-        const shade = Math.round(20 + eased * 235);
+        const shade = Math.round(35 + eased * 220);
         const idx = (i * cols + j) * 4;
         image.data[idx] = shade;
         image.data[idx + 1] = shade;

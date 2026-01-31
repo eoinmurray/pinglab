@@ -137,6 +137,43 @@ def _sample_block(
     return weights * mask
 
 
+def _parse_ee_template(template: object | None) -> tuple[str, int]:
+    if template is None:
+        return "none", 0
+    if hasattr(template, "name"):
+        name = getattr(template, "name", "none")
+        blocks = getattr(template, "blocks", 0)
+    elif isinstance(template, dict):
+        name = template.get("name", "none")
+        blocks = template.get("blocks", 0)
+    else:
+        raise ValueError("EE template must be a WeightTemplateSpec or dict.")
+    return str(name), int(blocks)
+
+
+def _apply_ee_template(W_ee: np.ndarray, template: object | None) -> np.ndarray:
+    name, blocks = _parse_ee_template(template)
+    if name == "none" or blocks <= 0:
+        return W_ee
+    if name != "feedforward_blocks":
+        raise ValueError(f"Unknown EE template '{name}'")
+    N_E = W_ee.shape[0]
+    blocks = max(1, blocks)
+    base = N_E // blocks
+    remainder = N_E % blocks
+    mask = np.zeros((N_E, N_E), dtype=bool)
+    start = 0
+    for b in range(blocks):
+        size = base + (1 if b < remainder else 0)
+        if size <= 0:
+            continue
+        end = start + size
+        block_mask = np.triu(np.ones((size, size), dtype=bool))
+        mask[start:end, start:end] = block_mask
+        start = end
+    return W_ee * mask
+
+
 def build_adjacency_matrices(
     *,
     N_E: int,
@@ -147,6 +184,7 @@ def build_adjacency_matrices(
     ii: object,
     clamp_min: float | None = 0.0,
     seed: int | None = None,
+    ee_template: object | None = None,
 ) -> WeightMatrices:
     """
     Build block adjacency matrices with independent per-block distributions.
@@ -182,6 +220,8 @@ def build_adjacency_matrices(
         scale_i = 1.0 / np.sqrt(N_I)
         W_ie *= scale_i
         W_ii *= scale_i
+
+    W_ee = _apply_ee_template(W_ee, ee_template)
 
     N = N_E + N_I
     W = np.zeros((N, N), dtype=float)
