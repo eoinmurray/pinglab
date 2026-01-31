@@ -569,7 +569,7 @@ export default function ParameterPanel({
           />
           <Slider label="dt [ms]" value={dt} min={0.05} max={1.0} step={0.05} precision={2} onChange={setDt} />
           <Slider label="T [ms]" value={T} min={200} max={5000} step={50} precision={0} onChange={setT} />
-          <Slider label="N_E [count]" value={nE} min={100} max={800} step={50} precision={0} onChange={setNE} />
+          <Slider label="N_E [count]" value={nE} min={0} max={800} step={50} precision={0} onChange={setNE} />
           <Slider label="N_I [count]" value={nI} min={50} max={200} step={50} precision={0} onChange={setNI} />
           <Slider label="seed" value={seed} min={0} max={20} step={1} precision={0} onChange={setSeed} />
           <Slider label="burn-in [ms]" value={burnInMs} min={0} max={1000} step={25} precision={0} onChange={setBurnInMs} />
