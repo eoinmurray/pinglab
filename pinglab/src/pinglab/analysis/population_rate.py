@@ -62,12 +62,15 @@ def population_rate(
 
     counts, _ = np.histogram(spike_times, bins=edges)
 
-    # convert counts → firing rate (Hz)
-    dt_s = dt_ms / 1000.0
-    rate_hz = counts / (N_pop * dt_s)
-
     # bin centers for plotting
     t_ms = 0.5 * (edges[:-1] + edges[1:])
+
+    if N_pop <= 0:
+        rate_hz = np.zeros_like(t_ms, dtype=float)
+    else:
+        # convert counts → firing rate (Hz)
+        dt_s = dt_ms / 1000.0
+        rate_hz = counts / (N_pop * dt_s)
 
     if smooth_sigma_ms is None:
         return t_ms, rate_hz
