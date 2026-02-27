@@ -2,7 +2,9 @@
   "schema_version": "pinglab-graph.v1",
   "meta": {
     "scan_id": "pingloop",
-    "input_gradient": {"min_rate_hz": 5.0, "max_rate_hz": 50.0, "input_amp": 3.0}
+    "min_rate_hz": 5.0,
+    "max_rate_hz": 50.0,
+    "input_amp": 3.0
   },
   "sim": {
     "dt_ms": 0.1,
@@ -40,8 +42,18 @@
     "t_ref_heterogeneity_sd": 0.0
   },
   "nodes": [
-    {"id": "input_1", "kind": "input", "type": "tonic", "size": 0},
-    {"id": "E", "kind": "population", "type": "E", "size": 10}
+    {
+      "id": "input_1",
+      "kind": "input",
+      "type": "tonic",
+      "size": 0
+    },
+    {
+      "id": "E",
+      "kind": "population",
+      "type": "E",
+      "size": 10
+    }
   ],
   "edges": [
     {

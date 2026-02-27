@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import streamlit as st
 
 try:
@@ -65,6 +66,9 @@ def _init_state() -> None:
     st.session_state.setdefault("calibrator_config_path", "")
     st.session_state.setdefault("calibrator_validation_msg", "")
     st.session_state.setdefault("calibrator_validation_ok", None)
+    st.session_state.setdefault("calibrator_nodes_df", pd.DataFrame())
+    st.session_state.setdefault("calibrator_edges_df", pd.DataFrame())
+    st.session_state.setdefault("calibrator_meta_df", pd.DataFrame())
 
 
 def _load_config(path: Path) -> None:
@@ -73,6 +77,7 @@ def _load_config(path: Path) -> None:
     st.session_state["calibrator_config_path"] = str(path)
     st.session_state["calibrator_validation_msg"] = ""
     st.session_state["calibrator_validation_ok"] = None
+    _sync_tables_from_spec(spec)
 
 
 def _validate_config(spec: dict[str, Any]) -> tuple[bool, str]:
@@ -83,6 +88,133 @@ def _validate_config(spec: dict[str, Any]) -> tuple[bool, str]:
     except Exception as exc:
         return False, str(exc)
     return True, "Config is valid."
+
+
+def _sync_tables_from_spec(spec: dict[str, Any]) -> None:
+    node_rows: list[dict[str, Any]] = []
+    for node in spec.get("nodes", []):
+        if not isinstance(node, dict):
+            continue
+        node_rows.append(
+            {
+                "id": str(node.get("id", "")),
+                "kind": str(node.get("kind", "")),
+                "type": str(node.get("type", "")),
+                "size": int(node.get("size", 0)),
+            }
+        )
+    edge_rows: list[dict[str, Any]] = []
+    for edge in spec.get("edges", []):
+        if not isinstance(edge, dict):
+            continue
+        w = edge.get("w", {}) if isinstance(edge.get("w", {}), dict) else {}
+        edge_rows.append(
+            {
+                "id": str(edge.get("id", "")),
+                "from": str(edge.get("from", "")),
+                "to": str(edge.get("to", "")),
+                "kind": str(edge.get("kind", "")),
+                "w_mean": float(w.get("mean", 0.0)),
+                "w_std": float(w.get("std", 0.0)),
+                "delay_ms": float(edge.get("delay_ms", 0.0)) if edge.get("delay_ms") is not None else 0.0,
+                "enabled": bool(edge.get("enabled", True)),
+            }
+        )
+
+    st.session_state["calibrator_nodes_df"] = pd.DataFrame(
+        node_rows, columns=["id", "kind", "type", "size"]
+    )
+    st.session_state["calibrator_edges_df"] = pd.DataFrame(
+        edge_rows,
+        columns=["id", "from", "to", "kind", "w_mean", "w_std", "delay_ms", "enabled"],
+    )
+
+    meta_rows: list[dict[str, Any]] = []
+    for key, value in (spec.get("meta", {}) or {}).items():
+        if isinstance(value, (dict, list)):
+            value_repr = json.dumps(value)
+        else:
+            value_repr = str(value)
+        meta_rows.append({"key": str(key), "value": value_repr})
+    st.session_state["calibrator_meta_df"] = pd.DataFrame(
+        meta_rows, columns=["key", "value"]
+    )
+
+
+def _apply_tables_to_spec(spec: dict[str, Any], nodes_df: pd.DataFrame, edges_df: pd.DataFrame) -> None:
+    nodes: list[dict[str, Any]] = []
+    for _, row in nodes_df.iterrows():
+        node_id = str(row.get("id", "")).strip()
+        if not node_id:
+            continue
+        kind = str(row.get("kind", "")).strip()
+        node = {
+            "id": node_id,
+            "kind": kind,
+            "type": str(row.get("type", "")).strip(),
+            "size": int(row.get("size", 0)),
+        }
+        nodes.append(node)
+
+    edges: list[dict[str, Any]] = []
+    for _, row in edges_df.iterrows():
+        edge_id = str(row.get("id", "")).strip()
+        if not edge_id:
+            continue
+        edge = {
+            "id": edge_id,
+            "from": str(row.get("from", "")).strip(),
+            "to": str(row.get("to", "")).strip(),
+            "kind": str(row.get("kind", "")).strip(),
+            "w": {
+                "mean": float(row.get("w_mean", 0.0)),
+                "std": float(row.get("w_std", 0.0)),
+            },
+        }
+        delay_ms = float(row.get("delay_ms", 0.0))
+        if delay_ms > 0.0:
+            edge["delay_ms"] = delay_ms
+        enabled = bool(row.get("enabled", True))
+        if not enabled:
+            edge["enabled"] = False
+        edges.append(edge)
+
+    spec["nodes"] = nodes
+    spec["edges"] = edges
+
+
+def _coerce_meta_value(raw: str) -> Any:
+    text = raw.strip()
+    if text == "":
+        return ""
+    lowered = text.lower()
+    if lowered in {"true", "false"}:
+        return lowered == "true"
+    if lowered == "null":
+        return None
+    try:
+        if any(ch in text for ch in [".", "e", "E"]):
+            return float(text)
+        return int(text)
+    except ValueError:
+        pass
+    if (text.startswith("{") and text.endswith("}")) or (text.startswith("[") and text.endswith("]")):
+        try:
+            return json.loads(text)
+        except Exception:
+            return text
+    return text
+
+
+def _apply_meta_table_to_spec(spec: dict[str, Any], meta_df: pd.DataFrame) -> None:
+    meta: dict[str, Any] = {}
+    for _, row in meta_df.iterrows():
+        key = str(row.get("key", "")).strip()
+        if not key:
+            continue
+        value = _coerce_meta_value(str(row.get("value", "")))
+        meta[key] = value
+    spec["meta"] = meta
 
 
 def render_calibrator_form() -> None:
@@ -178,20 +310,6 @@ def render_calibrator_form() -> None:
             step=10.0,
         )
 
-        st.markdown("**Population Sizes**")
-        n_e = st.number_input(
-            "E.size",
-            value=int(_get_node_size(spec, "E", 0)),
-            min_value=0,
-            step=1,
-        )
-        n_i = st.number_input(
-            "I.size",
-            value=int(_get_node_size(spec, "I", 0)),
-            min_value=0,
-            step=1,
-        )
-
         st.markdown("**First Input Program**")
         first_input = _first_input_key(spec)
         if first_input is None:
@@ -238,9 +356,6 @@ def render_calibrator_form() -> None:
             execution["max_spikes"] = int(max_spikes)
             execution["burn_in_ms"] = float(burn_in_ms)
 
-            _set_node_size(spec, "E", int(n_e))
-            _set_node_size(spec, "I", int(n_i))
-
             if first_input is not None:
                 inputs[first_input]["mode"] = str(input_mode)
                 inputs[first_input]["mean"] = float(input_mean)
@@ -249,6 +364,65 @@ def render_calibrator_form() -> None:
             st.session_state["calibrator_config"] = spec
             st.session_state["calibrator_validation_ok"] = None
             st.session_state["calibrator_validation_msg"] = "Applied in-memory changes."
+
+    st.markdown("**Nodes (CRUD)**")
+    nodes_df = st.data_editor(
+        st.session_state["calibrator_nodes_df"],
+        key="calibrator_nodes_editor",
+        num_rows="dynamic",
+        use_container_width=True,
+        column_config={
+            "id": st.column_config.TextColumn(required=True),
+            "kind": st.column_config.SelectboxColumn(options=["input", "population"], required=True),
+            "type": st.column_config.TextColumn(),
+            "size": st.column_config.NumberColumn(min_value=0, step=1),
+        },
+    )
+
+    st.markdown("**Edges (CRUD)**")
+    edges_df = st.data_editor(
+        st.session_state["calibrator_edges_df"],
+        key="calibrator_edges_editor",
+        num_rows="dynamic",
+        use_container_width=True,
+        column_config={
+            "id": st.column_config.TextColumn(required=True),
+            "from": st.column_config.TextColumn(required=True),
+            "to": st.column_config.TextColumn(required=True),
+            "kind": st.column_config.TextColumn(required=True),
+            "w_mean": st.column_config.NumberColumn(step=0.01),
+            "w_std": st.column_config.NumberColumn(step=0.01, min_value=0.0),
+            "delay_ms": st.column_config.NumberColumn(step=0.1, min_value=0.0),
+            "enabled": st.column_config.CheckboxColumn(),
+        },
+    )
+
+    if st.button("Apply node/edge table changes", use_container_width=True):
+        _apply_tables_to_spec(spec, nodes_df, edges_df)
+        st.session_state["calibrator_config"] = spec
+        st.session_state["calibrator_nodes_df"] = nodes_df
+        st.session_state["calibrator_edges_df"] = edges_df
+        st.session_state["calibrator_validation_ok"] = None
+        st.session_state["calibrator_validation_msg"] = "Applied node/edge CRUD changes in-memory."
+
+    st.markdown("**Meta (CRUD)**")
+    meta_df = st.data_editor(
+        st.session_state["calibrator_meta_df"],
+        key="calibrator_meta_editor",
+        num_rows="dynamic",
+        use_container_width=True,
+        column_config={
+            "key": st.column_config.TextColumn(required=True),
+            "value": st.column_config.TextColumn(),
+        },
+    )
+
+    if st.button("Apply meta changes", use_container_width=True):
+        _apply_meta_table_to_spec(spec, meta_df)
+        st.session_state["calibrator_config"] = spec
+        st.session_state["calibrator_meta_df"] = meta_df
+        st.session_state["calibrator_validation_ok"] = None
+        st.session_state["calibrator_validation_msg"] = "Applied meta CRUD changes in-memory."
 
     with st.expander("Raw JSON (read-only preview)", expanded=False):
         st.code(json.dumps(spec, indent=2), language="json")

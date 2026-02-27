@@ -64,10 +64,10 @@ def main() -> None:
     seed = int(runtime.config.seed or 0)
     n_e = int(runtime.config.N_E)
     n_i = int(runtime.config.N_I)
-    input_meta = spec.get("meta", {}).get("input_gradient", {})
-    min_rate_hz = float(input_meta.get("min_rate_hz", 5.0))
-    max_rate_hz = float(input_meta.get("max_rate_hz", 50.0))
-    input_amp = float(input_meta.get("input_amp", 3.0))
+    meta = spec.get("meta", {})
+    min_rate_hz = float(meta.get("min_rate_hz", 5.0))
+    max_rate_hz = float(meta.get("max_rate_hz", 50.0))
+    input_amp = float(meta.get("input_amp", 3.0))
     rates_hz = np.linspace(min_rate_hz, max_rate_hz, n_e, dtype=np.float64)
 
     poisson_mask = generate_poisson_input(
