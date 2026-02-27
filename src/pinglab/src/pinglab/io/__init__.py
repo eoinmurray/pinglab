@@ -9,6 +9,7 @@ from .ramp import ramp
 from .overrides import overwrite_spec_value, overwrite_spec_value_inplace, spec_with_overwrite
 from .scans import collect_scans, linspace_from_scan, scan_variant
 from .slice_spikes import slice_spikes
+from .renderer import build_graphviz_from_spec, render_graphviz_config, render_graphviz_spec
 
 __all__ = [
     "compile_graph",
@@ -29,4 +30,7 @@ __all__ = [
     "linspace_from_scan",
     "scan_variant",
     "slice_spikes",
+    "build_graphviz_from_spec",
+    "render_graphviz_spec",
+    "render_graphviz_config",
 ]

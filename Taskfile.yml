@@ -162,6 +162,18 @@ tasks:
     cmds:
       - uv run --package pinglab python src/pinglab/src/pinglab/io/compiler.py {{.CLI_ARGS}}
 
+  graph-render:
+    desc: Render a graph config.json with Graphviz (e.g. task graph-render -- src/experiments/study.1-rhythmicity-index/config.json)
+    cmds:
+      - |
+        set -euo pipefail
+        CONFIG_PATH="{{.CLI_ARGS}}"
+        if [ -z "${CONFIG_PATH}" ]; then
+          echo "Usage: task graph-render -- <path/to/config.json>"
+          exit 1
+        fi
+        uv run --package pinglab python -c "from pathlib import Path; from pinglab.io import render_graphviz_config; p=Path('${CONFIG_PATH}'); study_name=p.parent.name; out=Path('src/posts/_assets')/study_name/'graph_render.png'; out.parent.mkdir(parents=True, exist_ok=True); r=render_graphviz_config(p, out); print(r)"
+
   delete:
     desc: Interactively delete a study and its paired post
     cmds:
