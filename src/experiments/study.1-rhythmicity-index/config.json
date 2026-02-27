@@ -1,0 +1,129 @@
+{
+  "schema_version": "pinglab-graph.v1",
+  "meta": {
+    "scan_1": {
+      "parameter": "e_to_e.w.std",
+      "start": 0.00,
+      "stop": 0.008,
+      "steps": 10
+    },
+    "scan_2": {
+      "parameter": "e_to_e.w.mean",
+      "start": 0.00,
+      "stop": 0.004,
+      "steps": 10
+    }
+  },
+  "sim": {
+    "dt_ms": 0.1,
+    "T_ms": 1000,
+    "seed": 0,
+    "neuron_model": "lif"
+  },
+  "execution": {
+    "performance_mode": false,
+    "max_spikes": 30000,
+    "burn_in_ms": 200
+  },
+  "constraints": {
+    "nonnegative_weights": true,
+    "nonnegative_input": true
+  },
+  "biophysics": {
+    "V_init": -65,
+    "E_L": -65,
+    "E_e": 0,
+    "E_i": -80,
+    "C_m_E": 1,
+    "g_L_E": 0.05,
+    "C_m_I": 1,
+    "g_L_I": 0.1,
+    "V_th": -50,
+    "V_reset": -65,
+    "t_ref_E": 3,
+    "t_ref_I": 1.5,
+    "tau_ampa": 2,
+    "tau_gaba": 6.5,
+    "g_L_heterogeneity_sd": 0.15,
+    "C_m_heterogeneity_sd": 0.1,
+    "V_th_heterogeneity_sd": 1.2,
+    "t_ref_heterogeneity_sd": 0.3
+  },
+  "nodes": [
+    {
+      "id": "input_1",
+      "kind": "input",
+      "type": "tonic",
+      "size": 0
+    },
+    {
+      "id": "E",
+      "kind": "population",
+      "type": "E",
+      "size": 400
+    },
+    {
+      "id": "I",
+      "kind": "population",
+      "type": "I",
+      "size": 100
+    }
+  ],
+  "edges": [
+    {
+      "id": "in_to_e",
+      "kind": "input",
+      "from": "input_1",
+      "to": "E",
+      "w": {
+        "mean": 1,
+        "std": 0
+      }
+    },
+    {
+      "id": "e_to_e",
+      "kind": "EE",
+      "from": "E",
+      "to": "E",
+      "w": {
+        "mean": 0,
+        "std": 0.0
+      },
+      "delay_ms": 0.5
+    },
+    {
+      "id": "e_to_i",
+      "kind": "EI",
+      "from": "E",
+      "to": "I",
+      "w": {
+        "mean": 0.0,
+        "std": 0.1
+      },
+      "delay_ms": 0.5
+    },
+    {
+      "id": "i_to_e",
+      "kind": "IE",
+      "from": "I",
+      "to": "E",
+      "w": {
+        "mean": 0.0,
+        "std": 0.02
+      },
+      "delay_ms": 1.2
+    }
+  ],
+  "inputs": {
+    "input_1": {
+      "mode": "tonic",
+      "input_population": "e",
+      "I_E_base": 0,
+      "I_I_base": 0,
+      "std": 2,
+      "noise_std_E": 2,
+      "noise_std_I": 0,
+      "seed": 0
+    }
+  }
+}

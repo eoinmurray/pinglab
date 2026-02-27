@@ -1,0 +1,66 @@
+{
+  "schema_version": "pinglab-graph.v1",
+  "meta": {
+    "scan_id": "pingloop",
+    "input_gradient": {"min_rate_hz": 5.0, "max_rate_hz": 50.0, "input_amp": 3.0}
+  },
+  "sim": {
+    "dt_ms": 0.1,
+    "T_ms": 1000.0,
+    "seed": 0,
+    "neuron_model": "lif"
+  },
+  "execution": {
+    "performance_mode": false,
+    "max_spikes": 30000,
+    "burn_in_ms": 200
+  },
+  "constraints": {
+    "nonnegative_weights": true,
+    "nonnegative_input": true
+  },
+  "biophysics": {
+    "V_init": -65,
+    "E_L": -65,
+    "E_e": 0,
+    "E_i": -80,
+    "C_m_E": 1,
+    "g_L_E": 0.05,
+    "C_m_I": 1,
+    "g_L_I": 0.1,
+    "V_th": -50,
+    "V_reset": -65,
+    "t_ref_E": 3,
+    "t_ref_I": 1.5,
+    "tau_ampa": 2,
+    "tau_gaba": 6.5,
+    "g_L_heterogeneity_sd": 0.0,
+    "C_m_heterogeneity_sd": 0.0,
+    "V_th_heterogeneity_sd": 0.0,
+    "t_ref_heterogeneity_sd": 0.0
+  },
+  "nodes": [
+    {"id": "input_1", "kind": "input", "type": "tonic", "size": 0},
+    {"id": "E", "kind": "population", "type": "E", "size": 10}
+  ],
+  "edges": [
+    {
+      "id": "in_to_e",
+      "kind": "input",
+      "from": "input_1",
+      "to": "E",
+      "w": {
+        "mean": 1.0,
+        "std": 0.0
+      }
+    }
+  ],
+  "inputs": {
+    "input_1": {
+      "mode": "tonic",
+      "mean": 1.5,
+      "std": 0.0,
+      "seed": 0
+    }
+  }
+}

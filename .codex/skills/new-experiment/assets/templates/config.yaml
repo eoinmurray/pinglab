@@ -1,0 +1,97 @@
+plotting:
+  raster:
+    start_time: 0.0
+    stop_time: 1000.0
+default_inputs:
+  I_E: 1.2
+  I_I: 1.2
+  noise: 0.1
+weights:
+  clamp_min: 0.0
+  ee:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.002
+        std: 0.01
+  ei:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.002
+        std: 0.01
+  ie:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.002
+        std: 0.01
+  ii:
+    p: 1.0
+    dist:
+      name: normal
+      params:
+        mean: 0.002
+        std: 0.01
+scan:
+  mean_ei:
+    start: 0.01
+    stop: 0.1
+    num: 3
+  std_ei: 0.01
+  bin_ms: 5.0
+  burn_in_ms: 200.0
+analysis:
+  autocorr_max_lag_ms: 400.0
+  xcorr_max_lag_ms: 400.0
+  xcorr_bin_ms: 5.0
+  corr_min_lag_ms: 50.0
+  corr_max_lag_ms: 250.0
+  corr_peak_min: 0.1
+  corr_peak_prominence: 0.02
+base:
+  neuron_model: mqif
+  dt: 0.1
+  T: 2000.0
+  seed: 0
+  N_E: 800
+  N_I: 200
+  delay_ei: 0.5
+  delay_ie: 1.2
+  delay_ee: 0.5
+  delay_ii: 0.5
+  V_init: -65.0
+  E_L: -65.0
+  E_e: 0.0
+  E_i: -80.0
+  C_m_E: 1.0
+  g_L_E: 0.05
+  C_m_I: 1.0
+  g_L_I: 0.1
+  V_th: -50.0
+  V_reset: -65.0
+  t_ref_E: 3.0
+  t_ref_I: 1.5
+  mqif_a:
+    - 0.02
+  mqif_Vr:
+    - -55.0
+  mqif_w_a:
+    - 0.02
+  mqif_w_Vr:
+    - -55.0
+  mqif_w_tau:
+    - 100.0
+  g_Na: 120.0
+  g_K: 36.0
+  E_Na: 50.0
+  E_K: -77.0
+  tau_ampa: 2.0
+  tau_gaba: 6.5
+  V_th_heterogeneity_sd: 0.0
+  g_L_heterogeneity_sd: 0.0
+  C_m_heterogeneity_sd: 0.0
+  t_ref_heterogeneity_sd: 0.0

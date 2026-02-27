@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+node_modules
+dist
+posts
+notebooks
+papers
+scripts
+.pytest_cache
+.vscode
+.DS_Store

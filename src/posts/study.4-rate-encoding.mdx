@@ -1,0 +1,67 @@
+---
+title: study.4-rate-encoding
+description: "Signal propagation baseline and limits"
+---
+
+export const path = "_artifacts/study.4-rate-encoding";
+
+import config from "./_artifacts/study.4-rate-encoding/config.json";
+
+<VeslxFrontMatter />
+
+# Summary
+
+This study starts with a simple message source only (no carrier). The first
+step is to verify and visualize the injected message signal before running
+propagation/decoding metrics across layers.
+
+# Config Snapshot
+
+| Key | Value |
+| --- | --- |
+| `sim.neuron_model` | {String(config?.sim?.neuron_model ?? "n/a")} |
+| `sim.dt_ms` | {String(config?.sim?.dt_ms ?? "n/a")} |
+| `sim.T_ms` | {String(config?.sim?.T_ms ?? "n/a")} |
+| `meta.message.message_freq_hz` | {String(config?.meta?.message?.message_freq_hz ?? "n/a")} |
+
+# Results
+
+<VeslxGallery
+  path={path}
+  globs={[
+    "input_row-1_ff_sweep_signal-components*.png",
+  ]}
+  captionLabel="Figure 4.1"
+  caption="Message envelope and resulting injected current (carrier removed)."
+  size="md"
+/>
+
+<VeslxGallery
+  path={path}
+  globs={[
+    "raster_row-2_ff_sweep_layers*.png",
+  ]}
+  captionLabel="Figure 4.2"
+  caption="Layer-delineated raster with message input injected into E1."
+  size="md"
+/>
+
+<VeslxGallery
+  path={path}
+  globs={[
+    "rate_row-3_ff_sweep_layers*.png",
+  ]}
+  captionLabel="Figure 4.3"
+  caption="Population rates for E1, E2, and E3."
+  size="md"
+/>
+
+<VeslxGallery
+  path={path}
+  globs={[
+    "decode_row-4_ff_sweep_envelopes*.png",
+  ]}
+  captionLabel="Figure 4.4"
+  caption="Decoded envelopes from E1/E2/E3 rates against message reference."
+  size="md"
+/>

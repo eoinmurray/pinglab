@@ -1,0 +1,72 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Veslx deps
+        run: bun install --frozen-lockfile
+
+      - name: Build Veslx site
+        run: bun run build
+        env:
+          VITE_STREAMLIT_URL: ${{ vars.VITE_STREAMLIT_URL }}
+
+      - name: Install simulator UI deps
+        run: bun install --frozen-lockfile
+        working-directory: src/simulator
+
+      - name: Build simulator UI for /simulator
+        run: bun run build:pages
+        working-directory: src/simulator
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_API_RUN_URL: ${{ secrets.VITE_API_RUN_URL }}
+          VITE_API_WEIGHTS_URL: ${{ secrets.VITE_API_WEIGHTS_URL }}
+
+      - name: Assemble Pages artifact
+        run: |
+          mkdir -p dist/simulator
+          cp -R src/simulator/dist/. dist/simulator/
+          cp dist/simulator/index.html dist/simulator/404.html
+
+      - name: Add CNAME
+        run: echo "pl.eoinmurray.info" > dist/CNAME
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

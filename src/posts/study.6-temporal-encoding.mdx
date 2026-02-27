@@ -1,0 +1,39 @@
+---
+title: study.6-temporal-encoding
+description: "UNFINISHED"
+---
+
+export const path = "_artifacts/study.6-temporal-encoding";
+
+import config from "./_artifacts/study.6-temporal-encoding/config.json";
+
+<VeslxFrontMatter />
+
+# TODO
+
+- [ ] Fill in experiment summary
+- [ ] Add plots
+- [ ] Add conclusions
+
+# Summary
+
+TODO: Write a short summary of the experiment.
+
+# Config Snapshot
+
+Example parameters loaded from `./_artifacts/study.6-temporal-encoding/config.json`:
+
+| Key | Value |
+| --- | --- |
+| `sim.neuron_model` | {String(config?.sim?.neuron_model ?? "n/a")} |
+| `nodes.E.size` | {String(config?.nodes?.find((n) => n.id === "E")?.size ?? "n/a")} |
+| `nodes.I.size` | {String(config?.nodes?.find((n) => n.id === "I")?.size ?? "n/a")} |
+
+# Results
+
+<VeslxGallery
+  path={path}
+  globs={["raster_row-2_pingloop_main*.png"]}
+  captionLabel="Figure 1.2"
+  caption="Raster after applying the same temporal input to every E neuron."
+/>

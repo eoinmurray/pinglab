@@ -1,0 +1,111 @@
+---
+title: study.3-selective-routing
+description: "Study: simplest selective routing"
+---
+
+export const path = "_artifacts/study.3-selective-routing";
+
+import config from "./_artifacts/study.3-selective-routing/config.json";
+
+<VeslxFrontMatter />
+
+__Readers note:__ click images to make them larger, you can then use arrow keys
+to scroll through them.
+
+# Introduction
+
+<VeslxGallery
+  path={"_assets/study.3-selective-routing"}
+  globs={["ping-switch.png"]}
+  captionLabel="Figure 1.1"
+  caption="Switch Topology."
+  size="md"
+/>
+
+This experiment uses the minimal routing switch:
+
+1. Rhythmic drive excites `E_src`.
+2. `E_src` sends to both targets (`E1`, `E2`).
+3. A shared inhibitory population `I` receives from both targets and projects
+   back to both targets.
+4. We scan only `delay_ms` on `E_src -> E2`.
+
+Why rhythmic input is required:
+
+1. Delay only matters for routing when there is a phase reference.
+2. Rhythmic drive creates repeating excitable/inhibitory windows in the shared
+   gate-target system.
+3. Scanning delay then moves `E2` arrivals across those windows, which enables
+   branch selection.
+4. Without rhythm, delay mostly changes latency, not which branch wins.
+
+The idea is simple: as `E_src -> E2` delay moves through the oscillation cycle,
+the arrival time into `E2` alternates between favorable and unfavorable phases
+relative to shared inhibition, which changes which target dominates.
+
+The baseline (with source feedforward removed) confirms that the targets are not
+independently driven by `E_src`; the switching effect appears only when
+feedforward is enabled and delay is scanned.
+
+Mechanism in simple terms:
+
+1. `I` is a shared inhibitory gate for both targets, so `E1` and `E2` compete
+   through the same inhibitory rhythm.
+2. `E_src -> E1` timing is fixed, but `E_src -> E2` timing is shifted by the
+   scanned delay.
+3. When `E_src` input arrives at `E2` during an excitable part of the shared
+   cycle, `E2` wins and contributes strongly to `I`.
+4. When it arrives during the inhibitory/refractory part, `E2` is suppressed,
+   and `E1` dominates.
+5. As delay keeps increasing, this phase relation wraps around, producing
+   repeating selection regimes.
+
+`I` does not need a different qualitative rhythm in each scan point. The key is
+that the relative phase of `E2` input against the shared inhibitory cycle
+changes with delay, which is enough to switch the dominant output branch.
+
+# Results
+
+<VeslxGallery
+  path={path}
+  globs={[
+    "raster_row-1_delay_scan*.png",
+  ]}
+  captionLabel="Figure 1.3"
+  size="md"
+/>
+
+The raster scan shows clear switching windows:
+
+1. Low delays: both targets can be active.
+2. Mid delays: `E2` is strongly suppressed while `E1` remains active.
+3. Later delays: the preference flips and `E2` dominates while `E1` drops.
+4. Near the end of the scan, behavior wraps back toward the initial regime.
+
+This is the expected phase-selection behavior from a delay-controlled gate.
+
+<VeslxGallery
+  path={path}
+  globs={[
+    "spikes_row-2_delay_scan*.png",
+  ]}
+  captionLabel="Figure 1.4"
+  size="md"
+/>
+
+The spike-count plot confirms the same pattern quantitatively:
+
+1. A broad region where `E1` is high and `E2` is near zero.
+2. A transition band where both are comparable.
+3. A second region where `E2` is high and `E1` is low.
+
+Why `E1` is also suppressed:
+
+1. `I` is shared, so inhibition is coupled across both targets.
+2. When `E2` becomes well-timed and starts winning, it drives `I` more strongly.
+3. That stronger shared inhibition feeds back to both `E2` and `E1`.
+4. In that regime, `E1` gets pushed into less excitable phases more often, so
+   its spike count drops even though its source delay is fixed.
+
+So this setup gives a simple, interpretable selective-routing mechanism: scan
+one delay and the preferred output population changes.

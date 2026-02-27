@@ -1,0 +1,171 @@
+{
+  "schema_version": "pinglab-graph.v1",
+  "meta": {
+    "scan": {
+      "scan_id": "ff_sweep",
+      "parameter": "e1_to_e2.w.mean",
+      "start": 0.02,
+      "stop": 0.10,
+      "steps": 9
+    },
+    "message": {
+      "message_freq_hz": 3.0,
+      "message_offset": 1.0,
+      "message_amplitude": 0.5
+    }
+  },
+  "sim": {
+    "dt_ms": 0.1,
+    "T_ms": 1000.0,
+    "seed": 0,
+    "neuron_model": "lif"
+  },
+  "execution": {
+    "performance_mode": false,
+    "max_spikes": 120000,
+    "burn_in_ms": 200.0
+  },
+  "constraints": {
+    "nonnegative_weights": true,
+    "nonnegative_input": true
+  },
+  "biophysics": {
+    "V_init": -65,
+    "E_L": -65,
+    "E_e": 0,
+    "E_i": -80,
+    "C_m_E": 1,
+    "g_L_E": 0.05,
+    "C_m_I": 1,
+    "g_L_I": 0.1,
+    "V_th": -50,
+    "V_reset": -65,
+    "t_ref_E": 3,
+    "t_ref_I": 1.5,
+    "tau_ampa": 2,
+    "tau_gaba": 6.5,
+    "g_L_heterogeneity_sd": 0.15,
+    "C_m_heterogeneity_sd": 0.1,
+    "V_th_heterogeneity_sd": 1.2,
+    "t_ref_heterogeneity_sd": 0.3
+  },
+  "nodes": [
+    {"id": "input_1", "kind": "input", "type": "tonic", "size": 0},
+    {"id": "E1", "kind": "population", "type": "E", "size": 250},
+    {"id": "E2", "kind": "population", "type": "E", "size": 250},
+    {"id": "E3", "kind": "population", "type": "E", "size": 250},
+    {"id": "I1", "kind": "population", "type": "I", "size": 80},
+    {"id": "I2", "kind": "population", "type": "I", "size": 80},
+    {"id": "I3", "kind": "population", "type": "I", "size": 80}
+  ],
+  "edges": [
+    {
+      "id": "in_to_e1",
+      "kind": "input",
+      "from": "input_1",
+      "to": "E1",
+      "w": {"mean": 1.0, "std": 0.0}
+    },
+
+    {
+      "id": "e1_to_i1",
+      "kind": "EI",
+      "from": "E1",
+      "to": "I1",
+      "w": {"mean": 0.10, "std": 0.01},
+      "delay_ms": 0.5
+    },
+    {
+      "id": "i1_to_e1",
+      "kind": "IE",
+      "from": "I1",
+      "to": "E1",
+      "w": {"mean": 0.08, "std": 0.01},
+      "delay_ms": 1.2
+    },
+
+    {
+      "id": "e2_to_i2",
+      "kind": "EI",
+      "from": "E2",
+      "to": "I2",
+      "w": {"mean": 0.10, "std": 0.01},
+      "delay_ms": 0.5
+    },
+    {
+      "id": "i2_to_e2",
+      "kind": "IE",
+      "from": "I2",
+      "to": "E2",
+      "w": {"mean": 0.08, "std": 0.01},
+      "delay_ms": 1.2
+    },
+
+    {
+      "id": "e3_to_i3",
+      "kind": "EI",
+      "from": "E3",
+      "to": "I3",
+      "w": {"mean": 0.10, "std": 0.01},
+      "delay_ms": 0.5
+    },
+    {
+      "id": "i3_to_e3",
+      "kind": "IE",
+      "from": "I3",
+      "to": "E3",
+      "w": {"mean": 0.08, "std": 0.01},
+      "delay_ms": 1.2
+    },
+
+    {
+      "id": "e1_to_e1",
+      "kind": "EE",
+      "from": "E1",
+      "to": "E1",
+      "w": {"mean": 0.0020, "std": 0.0008},
+      "delay_ms": 0.5
+    },
+    {
+      "id": "e2_to_e2",
+      "kind": "EE",
+      "from": "E2",
+      "to": "E2",
+      "w": {"mean": 0.0020, "std": 0.0008},
+      "delay_ms": 0.5
+    },
+    {
+      "id": "e3_to_e3",
+      "kind": "EE",
+      "from": "E3",
+      "to": "E3",
+      "w": {"mean": 0.0020, "std": 0.0008},
+      "delay_ms": 0.5
+    },
+
+    {
+      "id": "e1_to_e2",
+      "kind": "EE",
+      "from": "E1",
+      "to": "E2",
+      "w": {"mean": 0.0600, "std": 0.0100},
+      "delay_ms": 0.8
+    },
+    {
+      "id": "e2_to_e3",
+      "kind": "EE",
+      "from": "E2",
+      "to": "E3",
+      "w": {"mean": 0.0600, "std": 0.0100},
+      "delay_ms": 0.8
+    }
+  ],
+  "inputs": {
+    "input_1": {
+      "mode": "tonic",
+      "mean": 0.0,
+      "std": 0.0,
+      "seed": 0
+    }
+  }
+}

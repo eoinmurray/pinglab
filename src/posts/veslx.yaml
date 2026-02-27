@@ -1,0 +1,9 @@
+dir: .
+site:
+  name: pinglab
+  description: "Note: some of these experiment codefiles are written by AI."
+  github: "eoinmurray/pinglab"
+  llmsTxt: true
+
+posts:
+  sort: date

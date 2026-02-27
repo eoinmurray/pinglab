@@ -1,0 +1,41 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.pyd
+.Python
+.env
+.env.local
+.env.*.local
+.export
+.playwright-mcp
+.latest
+.db
+.uv-cache
+.vscode
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.ruff_cache/
+
+# Results system (new architecture)
+# Track: runs/, sweeps/, reports/, catalog/ (with manifests, configs, plots)
+# Ignore: blobs/ (large files handled by Git LFS or pointers)
+results/blobs/
+
+# Binary data files in old .db/ system (deprecated)
+.db/**/*.npz
+.db/**/*.h5
+.db/**/*.hdf5
+
+node_modules
+
+# Frontend builds are handled by src/cathedral/.gitignore
+
+# Avoid committing full-text PDFs of papers (link out instead)
+content/paper.*/*.pdf

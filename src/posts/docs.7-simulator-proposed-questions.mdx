@@ -1,0 +1,92 @@
+---
+title: docs.7-simulator-proposed-questions
+description: "Proposed questions we can answer with the simulator"
+---
+
+export const path = "_assets/docs.7-simulator-proposed-questions";
+
+<VeslxFrontMatter />
+
+# TODO
+- [ ] Get intial feedback from Tim on direction of questions.
+- [ ] Literature review to find out SOTA on questions.
+- [ ] Simulations to implement answers to questions.
+- [ ] Finalise report with plots.
+
+# Scaffold of a Lent Term Report
+
+Since we have now built the simulator, its time to use it to investigate
+phenomena.
+
+## Report structure
+
+1. Introduction
+2. Phenomena
+
+## 1. Introduction
+
+### 1.1 Neuron Model
+
+Introduct LIF neurons, derived from RC circuit equations.
+
+### 1.2 Network Model
+
+Introduce time dependant conductance based synapses and network architectures.
+
+### 1.3 PING and Gamma
+
+Introduct interplay between E and I neurons and how it moves network from AI
+state to PING state.
+
+_TODO Figure 1.2: Show waterfall plot of population rate of E neurons changes as we
+go from AI to PING state as we slightly scan EE self connection stddev._
+
+## Results
+
+### Calibrating the model to get PING dynamics.
+
+_TODO Figure 1.3: Show heatmap of EE mean vs std vs autocorrelation rhythmicity index._
+
+### Tightening of bands as number of layers grows.
+
+As we add more feedforward layers, we typically see the PING bands get tighter
+in the deeper layers. 
+
+This is likely due to two reasons First, each layer recieves input from the
+previous layer, which is already oscillating, so the input to each layer is more
+and more oscillatory as we go deeper. Second, each layer is PING connected to
+the I layer so has a native oscillation anyway.
+
+This could be an interesting phenomenon to explore, as tight PING bands are
+typically not seen in brain experiments, but we could discuss how this is an
+experimental artifact given that experiments would be measuring from non-FF
+disparate subpopulations. We could study this by measuring LFP aggregated from
+cross-section of subpopulations and see if PSD broadens.
+
+_TODO Figure 1.3: Show raster with layers showing band tightening._
+
+_TODO Figure 1.4: Show population rate peak tightening vs
+progressive E layers._
+
+### Selective routing with one I pop.
+To be done first with one I population, then with an I population per E layer.
+Layer 1 connected to Layer 2 FF. Layer 1 connected to Layer 3 FF. See if we can
+selectively route to Layer 2 or Layer 3 by changing PING phases.
+
+Question: how change PING phase between layers if only one I pop?
+
+### Selective routing with I pop for each E pop.
+I population per E layer. Layer 1 connected to Layer 2 FF. Layer 1 connected to
+Layer 3 FF. See if we can selectively route to Layer 2 or Layer 3 by changing
+PING phases.
+
+Question: how offset PING phases?
+
+### Chasing inhibition.
+Create an AI E layer and AI I layer, connected them FF to a PING E layer and
+PING I layer. See if we can get the AI layers to chase the PING layers by
+changing the strength of the FF connections.
+
+### Jitter robustness.
+Do all above experiments but with jitter in the input and see if we can
+reconstruct input signals.

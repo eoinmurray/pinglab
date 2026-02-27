@@ -1,0 +1,198 @@
+# https://taskfile.dev
+
+version: "3"
+
+silent: true
+
+vars:
+  API_LOCAL_BASE_URL: http://localhost:8000
+  API_LOCAL_RUN_URL: http://localhost:8000/run
+  API_LOCAL_WEIGHTS_URL: http://localhost:8000/weights
+
+tasks:
+  default:
+    desc: Show all tasks
+    cmds:
+      - task --list-all
+
+  kill:
+    desc: Force kill listeners on :3000, :3002, and :8000
+    cmds:
+      - lsof -ti tcp:3000 | xargs -r kill -9
+      - lsof -ti tcp:3002 | xargs -r kill -9
+      - lsof -ti tcp:8000 | xargs -r kill -9
+
+  install:
+    desc: Install all workspace dependencies (python + js)
+    cmds:
+      - uv sync
+      - bun install
+      - cd src/simulator && bun install
+
+  dev:
+    desc: Run local API + simulator UI + Veslx posts UI
+    cmds:
+      - task --parallel api:dev sim:ui:local veslx:dev streamlit:dev
+
+  dev:modal:
+    desc: Run both UIs against remote/Modal API (env-driven)
+    cmds:
+      - task --parallel sim:ui:modal veslx:dev
+
+  api:dev:
+    desc: Run FastAPI app (local, reload)
+    cmds:
+      - uv run --package pinglab-api uvicorn api.api:app --reload
+
+  api:test:
+    desc: Run API tests
+    cmds:
+      - uv run pytest -q src/api
+
+  api:deploy:
+    desc: Deploy Modal API
+    cmds:
+      - uv run --package pinglab-api modal deploy -m api.model_api
+
+  sim:ui:local:
+    desc: Run simulator UI (./src/simulator) against local API
+    dir: src/simulator
+    env:
+      VITE_API_BASE_URL: "{{.API_LOCAL_BASE_URL}}"
+      VITE_API_RUN_URL: "{{.API_LOCAL_RUN_URL}}"
+      VITE_API_WEIGHTS_URL: "{{.API_LOCAL_WEIGHTS_URL}}"
+    cmds:
+      - bun run dev
+
+  sim:ui:modal:
+    desc: Run simulator UI (./src/simulator) against remote API (from env/.env)
+    dir: src/simulator
+    cmds:
+      - |
+        set -euo pipefail
+        MODAL_BASE_URL="${VITE_API_BASE_URL:-}"
+        if [ -z "${MODAL_BASE_URL}" ]; then
+          MODAL_BASE_URL="$(uv run --package pinglab-api python -c 'import modal; print(modal.Function.from_name("pinglab-api", "modal_api").get_web_url().rstrip("/"))')"
+        fi
+        if [ -z "${MODAL_BASE_URL}" ]; then
+          echo "Unable to resolve Modal API URL. Set VITE_API_BASE_URL and retry."
+          exit 1
+        fi
+        echo "Simulator API base: ${MODAL_BASE_URL}"
+        VITE_API_BASE_URL="${MODAL_BASE_URL}" \
+        VITE_API_RUN_URL="${MODAL_BASE_URL}/run" \
+        VITE_API_WEIGHTS_URL="${MODAL_BASE_URL}/weights" \
+        bun run dev
+
+  sim:ui:build:
+    desc: Build simulator UI (./src/simulator)
+    dir: src/simulator
+    cmds:
+      - bun run build
+
+  sim:ui:lint:
+    desc: Lint simulator UI (./src/simulator)
+    dir: src/simulator
+    cmds:
+      - bun run lint
+
+  veslx:dev:
+    desc: Run Veslx UI serving ./src/posts on :3001 (proxied by simulator Vite)
+    cmds:
+      - lsof -ti tcp:3001 | xargs -r kill
+      - PORT=3001 bun run dev
+
+  streamlit:dev:
+    desc: Run Streamlit example app on :3002 (proxied at /streamlit)
+    cmds:
+      - lsof -ti tcp:3002 | xargs -r kill
+      - uv run --with streamlit --with matplotlib streamlit run src/streamlit_app/app.py --server.port 3002 --server.baseUrlPath streamlit --server.headless true --server.enableCORS false --server.enableXsrfProtection false
+
+  streamlit:deploy:
+    desc: Deploy Streamlit app to Modal
+    cmds:
+      - uv run modal deploy src/streamlit_app/modal_app.py
+
+  veslx:build:
+    desc: Build Veslx static site from ./src/posts
+    cmds:
+      - bun run build
+
+  veslx:start:
+    desc: Start built Veslx site
+    cmds:
+      - bun run start
+
+  veslx:stop:
+    desc: Stop Veslx server
+    cmds:
+      - bun run stop
+
+  pages:build:
+    desc: Build a single GitHub Pages artifact (Veslx at /, simulator at /simulator/)
+    cmds:
+      - bun run build
+      - cd src/simulator && bun run build:pages
+      - mkdir -p dist/simulator
+      - cp -R src/simulator/dist/. dist/simulator/
+      - cp dist/simulator/index.html dist/simulator/404.html
+
+  test:
+    desc: Run API and core library tests
+    cmds:
+      - uv run pytest -q src/api src/pinglab/src/pinglab
+
+  new:
+    desc: Interactively scaffold a new study (post + study files)
+    cmds:
+      - uv run python src/scripts/scaffold_experiment.py
+
+  list:
+    desc: List available studies
+    cmds:
+      - uv run python src/scripts/list_experiments.py
+
+  run:
+    desc: Run a study by selector (e.g. task run -- study.1)
+    cmds:
+      - uv run python src/scripts/run_experiment.py {{.CLI_ARGS}}
+
+  validate:
+    desc: Validate a graph config.json path (e.g. task validate -- src/experiments/study.1-rhythmicity-index/config.json)
+    cmds:
+      - uv run --package pinglab python src/pinglab/src/pinglab/io/compiler.py {{.CLI_ARGS}}
+
+  delete:
+    desc: Interactively delete a study and its paired post
+    cmds:
+      - uv run python src/scripts/delete_experiment.py
+
+  rename:
+    desc: Interactively rename a study and update related paths/references
+    cmds:
+      - uv run python src/scripts/rename_experiment.py
+
+  study:new:
+    desc: Alias for task new
+    cmds:
+      - task new
+
+  study:list:
+    desc: Alias for task list
+    cmds:
+      - task list
+
+  study:run:
+    desc: Alias for task run
+    cmds:
+      - task run -- {{.CLI_ARGS}}
+
+  study:delete:
+    desc: Alias for task delete
+    cmds:
+      - task delete
+
+  study:rename:
+    desc: Alias for task rename
+    cmds:
+      - task rename

@@ -1,0 +1,31 @@
+# Pinglab
+
+export const streamlitHref = import.meta.env.VITE_STREAMLIT_URL ?? '/streamlit'
+
+<div className="text-muted-foreground">
+AI generated documentation on research into Pyramidal-Interneuron Network Gamma (PING) Spiking Neural Networks.
+</div>
+
+# Links
+
+<div className="space-y-4">
+  <a href="/simulator">Simulator</a>
+  <div className="text-sm text-muted-foreground line-clamp-1">
+    The vite simulator
+  </div>
+
+  <a href={streamlitHref}>Streamlit</a>
+  <div className="text-sm text-muted-foreground line-clamp-1">
+    The streamlit server
+  </div>
+</div>
+
+# Studies
+
+<VeslxPostList globs={["study.*"]} />
+
+# Docs
+
+<VeslxPostList globs={["docs.*"]} />
+
+<div className="mb-64" />

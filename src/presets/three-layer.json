@@ -1,0 +1,56 @@
+{
+  "schema_version": "pinglab-graph.v1",
+  "sim": { "dt_ms": 0.1, "T_ms": 1000, "seed": 3, "neuron_model": "lif" },
+  "execution": { "performance_mode": false, "max_spikes": 30000, "burn_in_ms": 200 },
+  "constraints": { "nonnegative_weights": true, "nonnegative_input": true },
+  "biophysics": {
+    "V_init": -65,
+    "E_L": -65,
+    "E_e": 0,
+    "E_i": -80,
+    "C_m_E": 1,
+    "g_L_E": 0.05,
+    "C_m_I": 1,
+    "g_L_I": 0.1,
+    "V_th": -50,
+    "V_reset": -65,
+    "t_ref_E": 3,
+    "t_ref_I": 1.5,
+    "tau_ampa": 2,
+    "tau_gaba": 6.5,
+    "g_L_heterogeneity_sd": 0.15,
+    "C_m_heterogeneity_sd": 0.1,
+    "V_th_heterogeneity_sd": 1.2,
+    "t_ref_heterogeneity_sd": 0.3
+  },
+  "nodes": [
+    { "id": "input_1", "kind": "input", "type": "tonic", "size": 0 },
+    { "id": "E1", "kind": "population", "type": "E", "size": 180 },
+    { "id": "I1", "kind": "population", "type": "I", "size": 45 },
+    { "id": "E2", "kind": "population", "type": "E", "size": 140 },
+    { "id": "E3", "kind": "population", "type": "E", "size": 140 }
+  ],
+  "edges": [
+    { "id": "in_to_e1", "kind": "input", "from": "input_1", "to": "E1", "w": { "mean": 1, "std": 0 }, "delay_ms": 0.5 },
+    { "id": "e1_to_e2", "kind": "EE", "from": "E1", "to": "E2", "w": { "mean": 0.0006, "std": 0.05 }, "delay_ms": 1.0 },
+    { "id": "e2_to_e3", "kind": "EE", "from": "E2", "to": "E3", "w": { "mean": 0.0006, "std": 0.05 }, "delay_ms": 1.0 },
+    { "id": "e1_to_i1", "kind": "EI", "from": "E1", "to": "I1", "w": { "mean": 0.0008, "std": 0.08 }, "delay_ms": 0.5 },
+    { "id": "i1_to_e1", "kind": "IE", "from": "I1", "to": "E1", "w": { "mean": 0.0008, "std": 0.06 }, "delay_ms": 1.2 },
+    { "id": "e2_to_i1", "kind": "EI", "from": "E2", "to": "I1", "w": { "mean": 0.0007, "std": 0.08 }, "delay_ms": 0.5 },
+    { "id": "i1_to_e2", "kind": "IE", "from": "I1", "to": "E2", "w": { "mean": 0.0007, "std": 0.06 }, "delay_ms": 1.2 },
+    { "id": "e3_to_i1", "kind": "EI", "from": "E3", "to": "I1", "w": { "mean": 0.0007, "std": 0.08 }, "delay_ms": 0.5 },
+    { "id": "i1_to_e3", "kind": "IE", "from": "I1", "to": "E3", "w": { "mean": 0.0007, "std": 0.06 }, "delay_ms": 1.2 }
+  ],
+  "inputs": {
+    "input_1": {
+      "mode": "tonic",
+      "input_population": "e",
+      "mean": 0.1,
+      "std": 1.6,
+      "I_E_base": 0.1,
+      "noise_std_E": 1.6,
+      "noise_std_I": 0,
+      "seed": 0
+    }
+  }
+}
