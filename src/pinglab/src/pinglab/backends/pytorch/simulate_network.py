@@ -95,6 +95,12 @@ class SimulationState:
     spike_ids: list[int] = field(default_factory=list)
     spike_types: list[int] = field(default_factory=list)
 
+    # Per-step neuron traces (shape: [num_steps, N])
+    voltage_trace: np.ndarray | None = None
+    syn_current_trace: np.ndarray | None = None
+    ext_current_trace: np.ndarray | None = None
+    total_current_trace: np.ndarray | None = None
+
     # Delay/buffer path
     delay_ei_steps: int = 1
     delay_ie_steps: int = 1
@@ -130,6 +136,11 @@ class SimulationState:
 @dataclass(frozen=True)
 class SimulationResult:
     spikes: Spikes
+    t_ms: np.ndarray
+    voltage_trace: np.ndarray
+    syn_current_trace: np.ndarray
+    ext_current_trace: np.ndarray
+    total_current_trace: np.ndarray
 
 
 def validate_runtime(runtime: Any) -> None:
@@ -410,6 +421,10 @@ def build_initial_state(runtime: Any) -> SimulationState:
         ii_targets=ii_targets,
         ii_weights=ii_weights,
         ii_delays=ii_delays,
+        voltage_trace=np.zeros((num_steps, n_total), dtype=np.float32),
+        syn_current_trace=np.zeros((num_steps, n_total), dtype=np.float32),
+        ext_current_trace=np.zeros((num_steps, n_total), dtype=np.float32),
+        total_current_trace=np.zeros((num_steps, n_total), dtype=np.float32),
     )
 
 
@@ -533,6 +548,19 @@ def integrate_step(state: SimulationState, runtime: Any, *, step: int) -> "torch
     state.refractory_countdown = (state.refractory_countdown - 1).clamp(min=0)
     can_spike = state.refractory_countdown == 0
     I_ext = state.external_input[step]
+    I_syn = state.g_e * (float(runtime.config.E_e) - state.V) + state.g_i * (
+        float(runtime.config.E_i) - state.V
+    )
+    I_total = I_syn + I_ext
+
+    # Persist full neuron traces for downstream analysis/plotting.
+    assert state.voltage_trace is not None
+    assert state.syn_current_trace is not None
+    assert state.ext_current_trace is not None
+    assert state.total_current_trace is not None
+    state.syn_current_trace[step, :] = I_syn.detach().cpu().numpy()
+    state.ext_current_trace[step, :] = I_ext.detach().cpu().numpy()
+    state.total_current_trace[step, :] = I_total.detach().cpu().numpy()
 
     V_new, spiked = runtime.model(
         state.V,
@@ -550,6 +578,7 @@ def integrate_step(state: SimulationState, runtime: Any, *, step: int) -> "torch
         can_spike=can_spike,
     )
     state.V = V_new
+    state.voltage_trace[step, :] = V_new.detach().cpu().numpy()
     if bool(spiked.any()):
         state.refractory_countdown = state.refractory_countdown.clone()
         state.refractory_countdown[spiked] = state.ref_steps_arr[spiked]
@@ -579,4 +608,11 @@ def simulate_network(runtime: Any, *, max_spikes: int | None = None) -> Simulati
         ids=np.asarray(state.spike_ids, dtype=int),
         types=np.asarray(state.spike_types, dtype=int),
     )
-    return SimulationResult(spikes=spikes)
+    return SimulationResult(
+        spikes=spikes,
+        t_ms=np.arange(state.num_steps, dtype=np.float32) * float(state.dt),
+        voltage_trace=np.asarray(state.voltage_trace, dtype=np.float32),
+        syn_current_trace=np.asarray(state.syn_current_trace, dtype=np.float32),
+        ext_current_trace=np.asarray(state.ext_current_trace, dtype=np.float32),
+        total_current_trace=np.asarray(state.total_current_trace, dtype=np.float32),
+    )

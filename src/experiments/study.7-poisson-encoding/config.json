@@ -52,7 +52,7 @@
       "id": "E",
       "kind": "population",
       "type": "E",
-      "size": 10
+      "size": 100
     }
   ],
   "edges": [
@@ -70,7 +70,7 @@
   "inputs": {
     "input_1": {
       "mode": "tonic",
-      "mean": 1.5,
+      "mean": 0.73,
       "std": 0.0,
       "seed": 0
     }

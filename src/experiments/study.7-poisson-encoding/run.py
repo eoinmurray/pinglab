@@ -13,7 +13,9 @@ from pinglab.backends.types import Spikes
 from pinglab.io import RuntimeBundle, compile_graph_to_runtime, layer_bounds_from_spec
 from pinglab.backends.pytorch import simulate_network
 from pinglab.plots.raster import save_raster
-from plots import save_total_spikes_vs_neuron_id
+from plots import (
+    save_total_spikes_vs_neuron_id,
+)
 
 
 def generate_poisson_input(
@@ -55,7 +57,7 @@ def main() -> None:
         spec = json.load(f)
     shutil.copy2(config_path, data_path / "config.json")
 
-    # Experiment: inject 10 linearly spaced Poisson trains into 10 E neurons
+    # Experiment: inject linearly spaced Poisson trains into E neurons
     scan_id = str(spec.get("meta", {}).get("scan_id", "poisson"))
     runtime = compile_graph_to_runtime(spec, backend="pytorch")
 

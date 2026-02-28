@@ -42,8 +42,18 @@
     "t_ref_heterogeneity_sd": 0.0
   },
   "nodes": [
-    {"id": "input_1", "kind": "input", "type": "tonic", "size": 0},
-    {"id": "E", "kind": "population", "type": "E", "size": 10}
+    {
+      "id": "input_1",
+      "kind": "input",
+      "type": "tonic",
+      "size": 0
+    },
+    {
+      "id": "E",
+      "kind": "population",
+      "type": "E",
+      "size": 100
+    }
   ],
   "edges": [
     {
@@ -60,7 +70,7 @@
   "inputs": {
     "input_1": {
       "mode": "tonic",
-      "mean": 1.5,
+      "mean": 0.73,
       "std": 0.0,
       "seed": 0
     }
