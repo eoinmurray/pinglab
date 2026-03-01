@@ -2,14 +2,11 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
+import sys
 from pathlib import Path
 
-
-def _render(template: str, values: dict[str, str]) -> str:
-    out = template
-    for key, value in values.items():
-        out = out.replace("{{" + key + "}}", value)
-    return out
+TEMPLATE_SLUG = "study.0-template"
 
 
 def _slugify(text: str) -> str:
@@ -27,13 +24,13 @@ def _existing_experiment_numbers(posts_dir: Path, experiments_dir: Path) -> list
     numbers: list[int] = []
     for path in posts_dir.glob("*.mdx"):
         m = re.match(r"(?:study|exp)\.(\d+)-", path.stem)
-        if m:
+        if m and path.stem != TEMPLATE_SLUG:
             numbers.append(int(m.group(1)))
     for path in experiments_dir.iterdir():
         if not path.is_dir():
             continue
         m = re.match(r"(?:study|exp)\.(\d+)-", path.name)
-        if m:
+        if m and path.name != TEMPLATE_SLUG:
             numbers.append(int(m.group(1)))
     return numbers
 
@@ -59,7 +56,27 @@ def _resolve_slug(name: str, next_num: int) -> str:
     return f"study.{next_num}-{_slugify(value)}"
 
 
-def _copy_templates(template_root: Path, destination_root: Path, values: dict[str, str]) -> list[Path]:
+def _render(content: str, slug: str, title: str, description: str) -> str:
+    """Replace all study.0-template references and update MDX frontmatter fields."""
+    content = content.replace(TEMPLATE_SLUG, slug)
+    # Update frontmatter title and description (MDX/YAML front matter lines)
+    content = re.sub(r"^title:.*$", f"title: {title}", content, flags=re.MULTILINE)
+    content = re.sub(
+        r'^description:.*$',
+        f'description: "{_escape_yaml_double_quoted(description)}"',
+        content,
+        flags=re.MULTILINE,
+    )
+    return content
+
+
+def _copy_template(
+    template_root: Path,
+    destination_root: Path,
+    slug: str,
+    title: str,
+    description: str,
+) -> list[Path]:
     created: list[Path] = []
     for source in sorted(template_root.rglob("*")):
         if source.is_dir():
@@ -71,15 +88,15 @@ def _copy_templates(template_root: Path, destination_root: Path, values: dict[st
         rel = source.relative_to(template_root)
         target = destination_root / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        rendered = _render(source.read_text(encoding="utf-8"), values)
-        target.write_text(rendered)
+        rendered = _render(source.read_text(encoding="utf-8"), slug, title, description)
+        target.write_text(rendered, encoding="utf-8")
         created.append(target)
     return created
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Interactively scaffold a study (post + code) from src/template."
+        description=f"Scaffold a new study from {TEMPLATE_SLUG}."
     )
     parser.add_argument("--name", default=None, help="Study name; if omitted prompts interactively.")
     parser.add_argument(
@@ -92,14 +109,13 @@ def main() -> None:
     root = Path(__file__).resolve().parents[2]
     posts_dir = root / "src" / "posts"
     experiments_dir = root / "src" / "experiments"
-    post_template_dir = root / "src" / "template" / "post"
-    experiment_template_dir = root / "src" / "template" / "experiment"
+    post_template = posts_dir / f"{TEMPLATE_SLUG}.mdx"
+    experiment_template_dir = experiments_dir / TEMPLATE_SLUG
 
-    post_template = post_template_dir / "post.mdx"
     if not post_template.exists():
         raise SystemExit(f"Missing post template: {post_template}")
     if not experiment_template_dir.exists():
-        raise SystemExit(f"Missing study template dir: {experiment_template_dir}")
+        raise SystemExit(f"Missing experiment template: {experiment_template_dir}")
 
     next_num = _next_experiment_number(posts_dir, experiments_dir)
     prefill = f"study.{next_num}-"
@@ -131,25 +147,26 @@ def main() -> None:
     if experiment_path.exists():
         raise SystemExit(f"Experiment already exists: {experiment_path}")
 
-    values = {
-        "slug": slug,
-        "title": title,
-        "description": _escape_yaml_double_quoted(description),
-    }
-
+    # Write post
     post_path.parent.mkdir(parents=True, exist_ok=True)
-    post_content = _render(post_template.read_text(), values)
-    post_path.write_text(post_content)
+    post_path.write_text(
+        _render(post_template.read_text(encoding="utf-8"), slug, title, description),
+        encoding="utf-8",
+    )
 
-    created_exp_files = _copy_templates(experiment_template_dir, experiment_path, values)
+    # Write experiment files
+    created_exp_files = _copy_template(experiment_template_dir, experiment_path, slug, title, description)
 
-    print(f"Created post: {post_path.relative_to(root)}")
+    print(f"Created post:  {post_path.relative_to(root)}")
     for p in created_exp_files:
-        print(f"Created study file: {p.relative_to(root)}")
-    print(f"Study slug: {slug}")
-    short_selector = slug.split("-", 1)[0]
-    print(f"Run study: task run -- {short_selector}")
-    print(f"Run study (exact): task run -- {slug}")
+        print(f"Created file:  {p.relative_to(root)}")
+    print(f"Slug: {slug}")
+
+    run_file = experiment_path / "run.py"
+    print(f"\nRunning {run_file.relative_to(root)} ...")
+    completed = subprocess.run(["uv", "run", "python", str(run_file)], cwd=root)
+    if completed.returncode != 0:
+        sys.exit(completed.returncode)
 
 
 if __name__ == "__main__":

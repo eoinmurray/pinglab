@@ -1,0 +1,15 @@
+
+- use `uv` for python
+- use `bun` for javascript
+- make sure all images/gifs are square
+- posts live in src/posts/
+- experiments are paired with posts and live in src/experiments/ - and are where unique code lives
+- experiments consume src/pinglab/ which is where reusable code lives
+- src/pinglab/ should have tests for everything
+- a post notebook pair is called an experiment
+- dont be afraid to run simulations and tests. There are no side effects so its safe.
+- on startup, and when you need to use Veslx, read this file and fetch the Veslx docs for latest guidance.
+- Veslx docs: https://veslx.eoinmurray.info/llms-full.txt
+- wrap latex in $ and $$, and only one backslash for latex syntax not two.
+- there is a simulator api in ./src/api and a simulator ui in src/posts/exp.1-network-playground, we refer to this combined app as the simulator
+- Prefix every generated artifact as <group>_<scanBucket>_<scanId>_...: <group> identifies the plot family (used by post globs), <scanBucket> is a stable short label for the scan cohort you want grouped together in the post (e.g., row-1/row-2 or param aliases), and <scanId> is the concrete scan key; keep this convention consistent across all outputs so grouped globs can reliably separate rows independent of parameter names.
