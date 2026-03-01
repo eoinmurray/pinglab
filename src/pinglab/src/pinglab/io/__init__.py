@@ -8,7 +8,7 @@ from .pulse import add_pulse_to_input, add_pulse_train_to_input, compute_spike_d
 from .ramp import ramp
 from .overrides import overwrite_spec_value, overwrite_spec_value_inplace, spec_with_overwrite
 from .scans import collect_scans, linspace_from_scan, scan_variant
-from .renderer import save_graph_diagram
+from .graph_renderer import save_graph_diagram
 from .slice_spikes import slice_spikes
 
 __all__ = [
