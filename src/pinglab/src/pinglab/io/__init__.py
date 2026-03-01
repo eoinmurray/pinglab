@@ -10,6 +10,7 @@ from .overrides import overwrite_spec_value, overwrite_spec_value_inplace, spec_
 from .scans import collect_scans, linspace_from_scan, scan_variant
 from .graph_renderer import save_graph_diagram
 from .slice_spikes import slice_spikes
+from .training import encode_rate, train_epoch, eval_epoch
 
 __all__ = [
     "compile_graph",
@@ -31,4 +32,7 @@ __all__ = [
     "scan_variant",
     "save_graph_diagram",
     "slice_spikes",
+    "encode_rate",
+    "train_epoch",
+    "eval_epoch",
 ]

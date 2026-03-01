@@ -17,6 +17,10 @@ class ResolvedWeightMatrices:
     D_ei: Any
     D_ie: Any
     D_ii: Any
+    M_ee: Any = None  # Optional structural mask [N_E, N_E] — 1 where edge exists
+    M_ei: Any = None
+    M_ie: Any = None
+    M_ii: Any = None
 
     def __getitem__(self, key: str) -> Any:
         return getattr(self, key)
@@ -152,6 +156,7 @@ def resolve_weight_matrices_from_full(
     W: np.ndarray,
     D: np.ndarray,
     n_e: int,
+    M: np.ndarray | None = None,
 ) -> ResolvedWeightMatrices:
     n_total = int(W.shape[0])
     n_i = n_total - int(n_e)
@@ -167,6 +172,10 @@ def resolve_weight_matrices_from_full(
         D_ei=D[n_e:, :n_e],
         D_ie=D[:n_e, n_e:],
         D_ii=D[n_e:, n_e:],
+        M_ee=M[:n_e, :n_e] if M is not None else None,
+        M_ei=M[n_e:, :n_e] if M is not None else None,
+        M_ie=M[:n_e, n_e:] if M is not None else None,
+        M_ii=M[n_e:, n_e:] if M is not None else None,
     )
 
 
@@ -199,4 +208,8 @@ def to_torch_weights(
         D_ei=_to_torch(weights.D_ei),
         D_ie=_to_torch(weights.D_ie),
         D_ii=_to_torch(weights.D_ii),
+        M_ee=_to_torch(weights.M_ee),
+        M_ei=_to_torch(weights.M_ei),
+        M_ie=_to_torch(weights.M_ie),
+        M_ii=_to_torch(weights.M_ii),
     )

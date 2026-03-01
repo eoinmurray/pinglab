@@ -484,11 +484,18 @@ def compile_graph_to_runtime(
     *,
     backend: Literal["pytorch"] = "pytorch",
     device: str | None = None,
+    trainable: bool = False,
 ) -> RuntimeBundle:
     """
     Compile graph spec to runtime objects directly consumable by run_network.
 
-    Compile graph spec to runtime objects directly consumable by run_network.
+    Args:
+        spec: pinglab-graph.v1 spec dict.
+        backend: Simulation backend (currently only "pytorch").
+        device: Target device string, e.g. "cpu" or "cuda".
+        trainable: If True, return weight matrices with requires_grad=True so
+            the runtime can be used directly with an optimizer and surrogate-
+            gradient training via simulate_network(spike_fn=...).
     """
     plan = compile_graph(spec)
 
@@ -521,6 +528,7 @@ def compile_graph_to_runtime(
     n_total = config.N_E + config.N_I
 
     W = np.zeros((n_total, n_total), dtype=float)
+    M = np.zeros((n_total, n_total), dtype=float)  # structural mask: 1 where edge exists
     D = np.full((n_total, n_total), np.nan, dtype=float)
     weights_seed = int(sim["seed"])
     default_weights = copy.deepcopy(DEFAULT_WEIGHTS)
@@ -583,6 +591,7 @@ def compile_graph_to_runtime(
         if src_size > 0:
             block *= 1.0 / np.sqrt(float(src_size))
         W[int(dst["start"]) : int(dst["stop"]), int(src["start"]) : int(src["stop"])] += block
+        M[int(dst["start"]) : int(dst["stop"]), int(src["start"]) : int(src["stop"])] = 1.0
         if params.get("delay_ms") is not None:
             delay_ms = float(params["delay_ms"])
             D[int(dst["start"]) : int(dst["stop"]), int(src["start"]) : int(src["stop"])] = delay_ms
@@ -734,7 +743,7 @@ def compile_graph_to_runtime(
         raise ImportError(
             "PyTorch backend requested but torch is not installed."
         ) from exc
-    weight_mats = resolve_weight_matrices_from_full(W=W, D=D, n_e=config.N_E)
+    weight_mats = resolve_weight_matrices_from_full(W=W, D=D, M=M, n_e=config.N_E)
     target_device = torch.device(device) if device else torch.device("cpu")
     weights_tensors = to_torch_weights(
         weight_mats,
@@ -743,7 +752,7 @@ def compile_graph_to_runtime(
     )
     from pinglab.backends.pytorch import lif_step
 
-    return RuntimeBundle(
+    bundle = RuntimeBundle(
         config=config,
         external_input=torch.as_tensor(external_input, dtype=torch.float32, device=target_device),
         weights=weights_tensors,
@@ -751,6 +760,51 @@ def compile_graph_to_runtime(
         backend="pytorch",
         device=str(target_device),
     )
+
+    if trainable:
+        from dataclasses import replace as _replace
+        from pinglab.io.weights import ResolvedWeightMatrices
+
+        def _grad(t: Any) -> Any:
+            return t.detach().clone().float().requires_grad_(True) if t is not None else None
+
+        def _register_mask_hook(param: Any, mask: Any) -> None:
+            """Zero gradients outside the structural mask so the optimizer
+            never creates weights where no edge exists in the graph."""
+            if param is not None and mask is not None:
+                param.register_hook(lambda grad, m=mask: grad * m)
+
+        w = bundle.weights
+        new_W_ee = _grad(w.W_ee)
+        new_W_ei = _grad(w.W_ei)
+        new_W_ie = _grad(w.W_ie)
+        new_W_ii = _grad(w.W_ii)
+
+        _register_mask_hook(new_W_ee, w.M_ee)
+        _register_mask_hook(new_W_ei, w.M_ei)
+        _register_mask_hook(new_W_ie, w.M_ie)
+        _register_mask_hook(new_W_ii, w.M_ii)
+
+        bundle = _replace(
+            bundle,
+            weights=ResolvedWeightMatrices(
+                W=_grad(w.W),
+                W_ee=new_W_ee,
+                W_ei=new_W_ei,
+                W_ie=new_W_ie,
+                W_ii=new_W_ii,
+                D_ee=w.D_ee,
+                D_ei=w.D_ei,
+                D_ie=w.D_ie,
+                D_ii=w.D_ii,
+                M_ee=w.M_ee,
+                M_ei=w.M_ei,
+                M_ie=w.M_ie,
+                M_ii=w.M_ii,
+            ),
+        )
+
+    return bundle
 
 
 def _main() -> None:
