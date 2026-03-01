@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from settings import ARTIFACTS_ROOT
 
-from pinglab.io import compile_graph_to_runtime, layer_bounds_from_spec
+from pinglab.io import compile_graph_to_runtime, layer_bounds_from_spec, save_graph_diagram
 from pinglab.backends.pytorch import simulate_network
 from pinglab.plots.raster import save_raster
 
@@ -23,6 +23,9 @@ def main() -> None:
     with config_path.open(encoding="utf-8") as f:
         spec = json.load(f)
     shutil.copy2(config_path, data_path / "config.json")
+
+    # Graph diagram
+    save_graph_diagram(spec, data_path / "graph_main_main_00")
 
     # Run
     scan_id = str(spec.get("meta", {}).get("scan_id", "main"))
