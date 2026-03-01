@@ -1,12 +1,10 @@
 """Graphviz-based network topology diagram renderer."""
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from typing import Any
 
 import graphviz
-from PIL import Image
 
 # ── palettes ─────────────────────────────────────────────────────────────────
 
@@ -126,25 +124,9 @@ def _build(spec: dict[str, Any], theme: dict[str, str]) -> graphviz.Digraph:
     return dot
 
 
-def _render_square(dot: graphviz.Digraph, out_path: Path, bg_hex: str) -> None:
-    """Render dot graph to a square PNG, padding with bg colour as needed."""
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-        tmp_path = Path(tmp.name)
-
-    dot.render(filename=str(tmp_path.with_suffix("")), format="png", cleanup=True)
-
-    img = Image.open(tmp_path).convert("RGBA")
-    w, h = img.size
-    size  = max(w, h)
-    r, g, b = int(bg_hex[1:3], 16), int(bg_hex[3:5], 16), int(bg_hex[5:7], 16)
-    canvas = Image.new("RGBA", (size, size), (r, g, b, 255))
-    canvas.paste(img, ((size - w) // 2, (size - h) // 2), img)
-    canvas.convert("RGB").save(out_path, "PNG")
-    tmp_path.unlink(missing_ok=True)
-
-
 def save_graph_diagram(spec: dict[str, Any], path: Path) -> None:
-    """Render network topology to <path>_light.png and <path>_dark.png (square)."""
+    """Render network topology to <path>_light.png and <path>_dark.png."""
     base = str(Path(path)).removesuffix(".png")
     for suffix, theme in (("_light", _LIGHT), ("_dark", _DARK)):
-        _render_square(_build(spec, theme), Path(base + suffix + ".png"), theme["bg"])
+        dot = _build(spec, theme)
+        dot.render(filename=base + suffix, format="png", cleanup=True)
