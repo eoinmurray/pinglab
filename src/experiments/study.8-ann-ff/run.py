@@ -122,15 +122,21 @@ def main() -> None:
         accuracies.append(acc)
 
     save_line(
-        data_path / f"loss",
+        data_path / "loss",
         x=list(range(1, epochs+1)),
         y=losses,
+        title="Test Loss",
+        xlabel="Epoch",
+        ylabel="Loss",
     )
 
     save_line(
-        data_path / f"accuracy",
+        data_path / "accuracy",
         x=list(range(1, epochs+1)),
-        y=accuracies,
+        y=[a * 100 for a in accuracies],
+        title="Test Accuracy",
+        xlabel="Epoch",
+        ylabel="Accuracy (%)",
     )
 
     print("Done!")
@@ -141,26 +147,13 @@ def main() -> None:
     model = NeuralNetwork().to(device)
     model.load_state_dict(torch.load(experiment_dir / "data" / "model.pth", weights_only=True))
 
-    classes = [
-        "T-shirt/top",
-        "Trouser",
-        "Pullover",
-        "Dress",
-        "Coat",
-        "Sandal",
-        "Shirt",
-        "Sneaker",
-        "Bag",
-        "Ankle boot",
-    ]
-
     model.eval()
     x, y = test_data[0][0], test_data[0][1]
     with torch.no_grad():
         x = x.to(device)
         pred = model(x)
-        predicted, actual = classes[pred[0].argmax(0)], classes[y]
-        print(f'Predicted: "{predicted}", Actual: "{actual}"')
+        predicted, actual = pred[0].argmax(0).item(), y
+        print(f'Predicted: {predicted}, Actual: {actual}')
 
 
 if __name__ == "__main__":

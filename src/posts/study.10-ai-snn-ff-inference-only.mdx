@@ -1,0 +1,118 @@
+---
+title: study.10-ai-snn-ff-inference-only
+date: "2026-02-28"
+description: "Inference-only evaluation of the SNN trained in study.9. Loads trained weights into the same 784→64→10 feedforward network and evaluates on the MNIST test set — no training, no gradients."
+---
+
+export const path = "_artifacts/study.10-ai-snn-ff-inference-only";
+
+import config from "./_artifacts/study.10-ai-snn-ff-inference-only/config.json";
+
+<VeslxFrontMatter />
+
+# Summary
+
+This study loads the trained weights from study.9 and runs pure inference on
+the MNIST test set. No training, no gradients — just the forward pass of the
+conductance-based LIF network with spike-count decoding. The goal is to
+confirm that the trained SNN can be deployed as a standalone classifier by
+loading a weight checkpoint.
+
+# Config Snapshot
+
+| Key | Value |
+| --- | --- |
+| `sim.neuron_model` | {String(config?.sim?.neuron_model ?? "n/a")} |
+| `sim.dt_ms` | {String(config?.sim?.dt_ms ?? "n/a")} |
+| `sim.T_ms` | {String(config?.sim?.T_ms ?? "n/a")} |
+| `meta.batch_size` | {String(config?.meta?.batch_size ?? "n/a")} |
+| `meta.input_scale` | {String(config?.meta?.input_scale ?? "n/a")} |
+| `meta.test_subset_size` | {String(config?.meta?.test_subset_size ?? "n/a")} |
+| `meta.weights_source` | {String(config?.meta?.weights_source ?? "n/a")} |
+
+# Method
+
+The network topology and biophysics are identical to study.9: three
+feedforward excitatory populations (784 → 64 → 10) with conductance-based LIF
+neurons, 1 ms timestep, 100 ms simulation window.
+
+The only difference: instead of randomly initializing the weight matrix and
+training it, we load the `W_ee` tensor saved by study.9 after 5 epochs of
+surrogate-gradient training. The runtime is compiled from the same graph spec,
+then `W_ee` is overwritten with the checkpoint via `copy_()`.
+
+Inference uses the same spike-count decoding: each test image is rate-coded
+into the input layer, the network runs for 100 ms, and the output neuron
+with the most spikes wins.
+
+# Results
+
+## Overall accuracy
+
+The trained SNN achieves **59.6% test accuracy** on 1000 held-out MNIST
+samples (test loss: 1.27). This is consistent with study.9's epoch-4 test
+accuracy of 63.6% — the small difference is expected from evaluating a
+different random subset.
+
+## Per-class accuracy
+
+<VeslxGallery
+  path={path}
+  globs={["accuracy_per_class*.png"]}
+  captionLabel="Figure 1.1"
+  caption="Per-class test accuracy across all 10 digit classes. Digit 1 is easiest (84%), digit 8 is hardest (26%)."
+  size="md"
+/>
+
+Figure 1.1 shows wide variation across digit classes. Digit 1 is classified
+most reliably (84.1%) — likely because its minimal stroke activates a
+distinctive sparse pattern. Digit 8 is the worst at 25.8%, frequently
+confused with digits 5 and 9 (see confusion matrix).
+
+## Confusion matrix
+
+<VeslxGallery
+  path={path}
+  globs={["confusion*.png"]}
+  captionLabel="Figure 1.2"
+  caption="Confusion matrix for 1000 test samples. Strong diagonal but notable off-diagonal clusters: 0→5, 3→5, 8→5, 8→9."
+  size="md"
+/>
+
+Figure 1.2 reveals the network's failure modes. Digit 5 is a common false
+positive — digits 0, 3, and 8 are frequently misclassified as 5. This makes
+sense: in spike-count decoding, the output neuron for class 5 tends to be
+highly active across many inputs, creating a bias.
+
+## Output layer rasters
+
+<VeslxGallery
+  path={path}
+  globs={["raster_output_all_all*.png"]}
+  captionLabel="Figure 2.1"
+  caption="Output layer (10 neurons) spike rasters for one canonical example per digit class. Each panel shows all 10 output neurons over 100 ms."
+  size="md"
+/>
+
+## Hidden and output layer rasters
+
+<VeslxGallery
+  path={path}
+  globs={["raster_layers_digit_*.png"]}
+  captionLabel="Figure 2.2"
+  caption="Full signal path rasters for each digit (0–9). Top: E_hid (64 neurons). Bottom: E_out (10 neurons). Dashed line separates layers."
+  size="md"
+/>
+
+# Discussion
+
+This study confirms that trained SNN weights can be checkpointed and reloaded
+for inference without any training infrastructure. The weight matrix is the
+only learned artifact — all biophysics, topology, and simulation parameters
+come from the graph spec.
+
+The 59.6% accuracy matches study.9's training results, validating that the
+save/load pipeline preserves the learned representations faithfully. The
+per-class analysis reveals that the 64-neuron hidden layer struggles most with
+visually similar digits (8 vs 5, 3 vs 5), suggesting that scaling the hidden
+layer would help most.

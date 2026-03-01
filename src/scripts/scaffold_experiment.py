@@ -4,6 +4,7 @@ import argparse
 import re
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 TEMPLATE_SLUG = "study.0-template"
@@ -61,6 +62,12 @@ def _render(content: str, slug: str, title: str, description: str) -> str:
     content = content.replace(TEMPLATE_SLUG, slug)
     # Update frontmatter title and description (MDX/YAML front matter lines)
     content = re.sub(r"^title:.*$", f"title: {title}", content, flags=re.MULTILINE)
+    content = re.sub(
+        r'^date:.*$',
+        f'date: "{date.today().isoformat()}"',
+        content,
+        flags=re.MULTILINE,
+    )
     content = re.sub(
         r'^description:.*$',
         f'description: "{_escape_yaml_double_quoted(description)}"',
