@@ -12,8 +12,6 @@ from pinglab.plots.raster import save_raster
 
 
 def main() -> None:
-    # Boilerplate
-
     # Resolve artifacts path
     data_path = ARTIFACTS_ROOT / Path(__file__).parent.name
     if data_path.exists():
@@ -26,7 +24,7 @@ def main() -> None:
         spec = json.load(f)
     shutil.copy2(config_path, data_path / "config.json")
 
-    # Experiment
+    # Run
     scan_id = str(spec.get("meta", {}).get("scan_id", "main"))
     runtime = compile_graph_to_runtime(spec, backend="pytorch")
     result = simulate_network(runtime)
@@ -34,14 +32,15 @@ def main() -> None:
 
     save_raster(
         result.spikes,
-        data_path / f"raster_{scan_id}_main",
-        external_input=runtime.external_input.detach().cpu().numpy(),
+        data_path / f"raster_main_{scan_id}_00",
         dt=float(runtime.config.dt),
-        label="Raster | temporal encoding",
+        label="Raster",
         xlim=(0.0, float(runtime.config.T)),
         layer_bounds=layer_bounds,
         layer_order=["I", "E"],
     )
+
+    print(f"Saved artifacts to {data_path}")
 
 
 if __name__ == "__main__":

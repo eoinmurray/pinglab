@@ -1,0 +1,21 @@
+---
+title: study.0-template
+description: "Template experiment"
+---
+
+export const path = "_artifacts/study.0-template";
+
+import config from "./_artifacts/study.0-template/config.json";
+
+<VeslxFrontMatter />
+
+<VeslxGallery
+  path={path}
+  globs={["raster_*.png"]}
+  captionLabel="Figure 1.1"
+  caption="Raster plot."
+/>
+
+<pre className="bg-zinc-100 dark:bg-zinc-900 p-4 rounded">
+  {JSON.stringify(config, null, 2)}
+</pre>
