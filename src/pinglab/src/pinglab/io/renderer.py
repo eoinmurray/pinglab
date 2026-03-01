@@ -74,6 +74,7 @@ def _build(spec: dict[str, Any], theme: dict[str, str]) -> graphviz.Digraph:
             "ranksep":   "0.8",
             "margin":    "0.2",
             "pad":       "0.2",
+            "dpi":       "300",
             "fontname":  _FONT,
             "fontcolor": theme["fg"],
         },
