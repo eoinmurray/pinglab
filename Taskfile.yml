@@ -172,6 +172,11 @@ tasks:
     cmds:
       - uv run python src/scripts/rename_experiment.py
 
+  fork:
+    desc: Interactively fork an existing study into a new named study
+    cmds:
+      - uv run python src/scripts/fork_experiment.py
+
   study:new:
     desc: Alias for task new
     cmds:

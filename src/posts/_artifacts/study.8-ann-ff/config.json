@@ -1,0 +1,7 @@
+{
+  "schema_version": "custom",
+  "meta": {
+    "batch_size": 64,
+    "epochs": 5
+  }
+}

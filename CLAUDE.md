@@ -13,3 +13,4 @@
 - wrap latex in $ and $$, and only one backslash for latex syntax not two.
 - there is a simulator api in ./src/api and a simulator ui in src/posts/exp.1-network-playground, we refer to this combined app as the simulator
 - Prefix every generated artifact as <group>_<scanBucket>_<scanId>_...: <group> identifies the plot family (used by post globs), <scanBucket> is a stable short label for the scan cohort you want grouped together in the post (e.g., row-1/row-2 or param aliases), and <scanId> is the concrete scan key; keep this convention consistent across all outputs so grouped globs can reliably separate rows independent of parameter names.
+- Use the taskfile as much as possible, especially for bootstrapping new studies.

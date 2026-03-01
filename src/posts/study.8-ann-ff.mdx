@@ -1,0 +1,27 @@
+---
+title: study.8-ann-ff
+description: "Template experiment"
+---
+
+export const path = "_artifacts/study.8-ann-ff";
+
+import config from "./_artifacts/study.8-ann-ff/config.json";
+
+<VeslxFrontMatter />
+
+<VeslxGallery
+  path={path}
+  globs={["loss*.png"]}
+  captionLabel="Figure 1.1"
+  caption="Network loss."
+  size="md"
+/>
+
+<VeslxGallery
+  path={path}
+  globs={["accuracy*.png"]}
+  captionLabel="Figure 1.2"
+  caption="Network accuracy."
+  size="md"
+/>
+

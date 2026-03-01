@@ -3,27 +3,27 @@
   "meta": {
     "scan_1": {
       "parameter": "e_to_e.w.std",
-      "start": 0.00,
+      "start": 0.0,
       "stop": 0.008,
       "steps": 10
     },
     "scan_2": {
       "parameter": "e_to_e.w.mean",
-      "start": 0.00,
+      "start": 0.0,
       "stop": 0.004,
       "steps": 10
     }
   },
   "sim": {
     "dt_ms": 0.1,
-    "T_ms": 1000,
+    "T_ms": 1000.0,
     "seed": 0,
     "neuron_model": "lif"
   },
   "execution": {
     "performance_mode": false,
     "max_spikes": 30000,
-    "burn_in_ms": 200
+    "burn_in_ms": 200.0
   },
   "constraints": {
     "nonnegative_weights": true,
@@ -72,30 +72,30 @@
   "edges": [
     {
       "id": "in_to_e",
-      "kind": "input",
       "from": "input_1",
       "to": "E",
+      "kind": "input",
       "w": {
-        "mean": 1,
-        "std": 0
+        "mean": 1.0,
+        "std": 0.0
       }
     },
     {
       "id": "e_to_e",
-      "kind": "EE",
       "from": "E",
       "to": "E",
+      "kind": "EE",
       "w": {
-        "mean": 0,
+        "mean": 0.0,
         "std": 0.0
       },
       "delay_ms": 0.5
     },
     {
       "id": "e_to_i",
-      "kind": "EI",
       "from": "E",
       "to": "I",
+      "kind": "EI",
       "w": {
         "mean": 0.0,
         "std": 0.1
@@ -104,9 +104,9 @@
     },
     {
       "id": "i_to_e",
-      "kind": "IE",
       "from": "I",
       "to": "E",
+      "kind": "IE",
       "w": {
         "mean": 0.0,
         "std": 0.02
@@ -120,10 +120,11 @@
       "input_population": "e",
       "I_E_base": 0,
       "I_I_base": 0,
-      "std": 2,
+      "std": 2.0,
       "noise_std_E": 2,
       "noise_std_I": 0,
-      "seed": 0
+      "seed": 0,
+      "mean": 0.0
     }
   }
 }

@@ -115,19 +115,3 @@ For the spectrum, evaluate $\lambda(f)$ over a grid of frequencies.
 
 **Output:** $\lambda$ (or $\lambda(f)$) plus rate and window metadata.
 
-## Firing Rate Matching (exp.2)
-
-**Goal:** for each parameter scan cell, find an external drive $I_E$ that matches a target excitatory rate $r_E^\star$.
-
-1) Use a short simulation time $T_{\text{sim}}$ and a rate-estimation window $[t_0, t_1]$.  
-2) Evaluate a grid of $I_E$ values and compute
-
-$$
-\text{score}(I_E) = \left(r_E(I_E) - r_E^\star\right)^2,
-$$
-
-where $r_E$ is the mean excitatory firing rate computed from the spikes in $[t_0, t_1]$.  
-3) Pick the best $I_E$ and refine with two narrower searches around it.  
-4) Use the matched $I_E$ for the full simulation of that scan cell.
-
-**Output:** the matched drive $I_E$ and the resulting $r_E$ per scan cell.
