@@ -31,6 +31,7 @@ def run_batch(
     out_stop: int,
     input_scale: float,
     sim_state: object = None,
+    burn_in_steps: int = 0,
 ) -> "torch.Tensor":
     """Run a batch of images through the SNN; return logits [B, C].
 
@@ -53,6 +54,9 @@ def run_batch(
         sim_state: Pre-built :class:`SimulationState` (optional).  When provided
             its ``batch_size`` is used for padding; it is passed directly to
             :func:`simulate_network`.
+        burn_in_steps: Number of initial timesteps to exclude from spike-count
+            decoding.  The full simulation (including burn-in) still runs so
+            membrane state can settle; only the readout window is shortened.
 
     Returns:
         Logits tensor of shape [B, C] where C = out_stop - out_start.
@@ -92,6 +96,6 @@ def run_batch(
         return_spike_tensor=True,
         state=sim_state,
     )
-    # spikes: [B_state, T, N_E] — sum over T, slice to actual batch size
-    logits = spikes[:B_actual, :, out_start:out_stop].sum(dim=1)  # [B_actual, C]
+    # spikes: [B_state, T, N_E] — sum over readout window, slice to actual batch size
+    logits = spikes[:B_actual, burn_in_steps:, out_start:out_stop].sum(dim=1)  # [B_actual, C]
     return logits

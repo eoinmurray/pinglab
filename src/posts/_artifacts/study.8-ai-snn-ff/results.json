@@ -1,0 +1,28 @@
+{
+  "epochs": 5,
+  "train_samples": 5000,
+  "test_samples": 1000,
+  "final_train_loss": 0.6322,
+  "final_test_loss": 1.2525,
+  "best_test_loss": 1.1898,
+  "best_test_loss_epoch": 3,
+  "final_test_accuracy": 62.4,
+  "best_test_accuracy": 62.4,
+  "best_test_accuracy_epoch": 5,
+  "test_losses_per_epoch": [
+    1.7434,
+    1.7302,
+    1.1898,
+    1.2646,
+    1.2525
+  ],
+  "test_accuracies_per_epoch": [
+    42.8,
+    45.8,
+    61.7,
+    58.1,
+    62.4
+  ],
+  "trainable_params": 736164,
+  "elapsed_seconds": 341.6
+}

@@ -25,11 +25,12 @@ def main() -> None:
     shutil.copy2(config_path, data_path / "config.json")
 
     # Graph diagram
-    save_graph_diagram(spec, data_path / "graph_main_main_00")
+    save_graph_diagram(spec, data_path / "graph")
 
     # Run
     scan_id = str(spec.get("meta", {}).get("scan_id", "main"))
     runtime = compile_graph_to_runtime(spec, backend="pytorch")
+
     result = simulate_network(runtime)
     layer_bounds = layer_bounds_from_spec(spec)
 

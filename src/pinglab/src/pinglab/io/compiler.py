@@ -37,7 +37,7 @@ ALLOWED_TOP_LEVEL_KEYS = frozenset(
         "meta",
     }
 )
-ALLOWED_SIM_KEYS = frozenset({"dt_ms", "T_ms", "seed", "neuron_model"})
+ALLOWED_SIM_KEYS = frozenset({"dt_ms", "T_ms", "seed", "neuron_model", "burn_in_ms"})
 ALLOWED_EXECUTION_KEYS = frozenset({"performance_mode", "max_spikes", "burn_in_ms"})
 ALLOWED_CONSTRAINT_KEYS = frozenset({"nonnegative_weights", "nonnegative_input"})
 ALLOWED_NODE_KEYS = frozenset({"id", "kind", "type", "size"})
