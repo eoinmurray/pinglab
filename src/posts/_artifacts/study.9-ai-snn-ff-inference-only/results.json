@@ -1,0 +1,19 @@
+{
+  "test_samples": 1000,
+  "test_loss": 1.373,
+  "test_accuracy": 57.5,
+  "per_class_accuracy": [
+    62.4,
+    85.7,
+    24.1,
+    41.1,
+    82.7,
+    52.9,
+    78.2,
+    53.5,
+    76.4,
+    17.0
+  ],
+  "weights_source": "study.8-ai-snn-ff",
+  "elapsed_seconds": 10.5
+}

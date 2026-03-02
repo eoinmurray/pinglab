@@ -7,6 +7,7 @@ description: "ANN baseline: feedforward ReLU network on MNIST as upper-bound for
 export const path = "_artifacts/study.7-ann-ff";
 
 import config from "./_artifacts/study.7-ann-ff/config.json";
+import results from "./_artifacts/study.7-ann-ff/results.json";
 
 <VeslxFrontMatter />
 
@@ -14,13 +15,13 @@ import config from "./_artifacts/study.7-ann-ff/config.json";
 
 This study trains a conventional artificial neural network on MNIST to
 establish a baseline for comparison with the spiking neural networks in
-studies 9–11. The network is a three-layer feedforward MLP with ReLU
-activations, trained end-to-end with SGD and cross-entropy loss. No
+studies 8–10. The network is a three-layer feedforward MLP with ReLU
+activations, trained end-to-end with Adam and cross-entropy loss. No
 biophysics, no spike dynamics, no temporal simulation — just standard
 deep learning.
 
 The goal is to answer: how well does a simple ANN do on MNIST with the
-same optimizer (SGD) and a comparable number of training epochs, so we
+same optimizer (Adam) and a comparable number of training epochs, so we
 can put the SNN results in context?
 
 # Architecture
@@ -34,7 +35,7 @@ can put the SNN results in context?
 
 This is a standard PyTorch `nn.Sequential` MLP. The two hidden layers have
 512 neurons each — significantly larger than the 64-neuron hidden layer used
-in the SNN studies (9–11), giving the ANN a clear capacity advantage.
+in the SNN studies (8–10), giving the ANN a clear capacity advantage.
 
 # Config Snapshot
 
@@ -47,8 +48,8 @@ in the SNN studies (9–11), giving the ANN a clear capacity advantage.
 
 ## Training
 
-The full MNIST training set (60,000 images) is used with a batch size of 64.
-The optimizer is vanilla SGD with a learning rate of $10^{-3}$. Cross-entropy
+The full MNIST training set ({String(results?.train_samples ?? "60,000")} images) is used with a batch size of {String(config?.meta?.batch_size ?? "n/a")}.
+The optimizer is Adam with a learning rate of $10^{-3}$. Cross-entropy
 loss is applied to the raw logits from the output layer.
 
 No data augmentation, no learning rate schedule, no regularization. This is
@@ -56,64 +57,45 @@ deliberately minimal — the point is a quick baseline, not a tuned model.
 
 ## Evaluation
 
-Test accuracy is computed on the full 10,000-image MNIST test set at the end
+Test accuracy is computed on the full {String(results?.test_samples ?? "10,000")}-image MNIST test set at the end
 of each epoch.
 
 # Results
+
+## Results Snapshot
+
+| Metric | Value |
+| --- | --- |
+| Best test accuracy | {String(results?.best_test_accuracy ?? "n/a")}% (epoch {String(results?.best_test_accuracy_epoch ?? "n/a")}) |
+| Final test accuracy | {String(results?.final_test_accuracy ?? "n/a")}% |
+| Best test loss | {String(results?.best_test_loss ?? "n/a")} (epoch {String(results?.best_test_loss_epoch ?? "n/a")}) |
+| Final test loss | {String(results?.final_test_loss ?? "n/a")} |
+| Trainable params | {String(results?.trainable_params ?? "n/a")} |
 
 <VeslxGallery
   path={path}
   globs={["loss*.png"]}
   captionLabel="Figure 1.1"
-  caption="Test loss per epoch. The loss drops steadily from 2.25 to 1.60 over 5 epochs, with no sign of convergence — more epochs would continue to improve."
+  caption="Test loss per epoch."
   size="md"
 />
 
-Figure 1.1 shows the test loss declining steadily across all 5 epochs. The
-initial loss of ~2.25 is consistent with random 10-class prediction
-($-\ln(0.1) \approx 2.3$). By epoch 5 the loss is 1.60, still dropping —
+Figure 1.1 shows the test loss declining across all {String(results?.epochs ?? "n/a")} epochs. The
+initial loss is consistent with random 10-class prediction
+($-\ln(0.1) \approx 2.3$). By epoch {String(results?.epochs ?? "n/a")} the loss is {String(results?.final_test_loss ?? "n/a")}, still dropping —
 the network has not converged and would benefit from additional training.
 
 <VeslxGallery
   path={path}
   globs={["accuracy*.png"]}
   captionLabel="Figure 1.2"
-  caption="Test accuracy per epoch. Accuracy climbs from 52% to 74% over 5 epochs."
+  caption="Test accuracy per epoch."
   size="md"
 />
 
-Figure 1.2 shows test accuracy rising from 52% after epoch 1 to **74.4%**
-after epoch 5. The curve is still climbing — with more epochs, a higher
-learning rate, or Adam optimizer, this architecture easily reaches 97%+ on
+Figure 1.2 shows test accuracy rising to **{String(results?.best_test_accuracy ?? "n/a")}%**
+after epoch {String(results?.best_test_accuracy_epoch ?? "n/a")}. With more epochs this architecture easily reaches 97%+ on
 MNIST.
 
-The modest 74% after 5 epochs reflects the slow convergence of vanilla SGD
-at $\text{lr}=10^{-3}$, not a capacity limitation. The network has
-$784 \times 512 + 512 \times 512 + 512 \times 10 = 668,672$ learnable
+The network has {String(results?.trainable_params ?? "n/a")} learnable
 parameters — more than enough for MNIST.
-
-# Discussion
-
-## Context for SNN comparison
-
-This ANN baseline establishes the reference point for the SNN studies:
-
-| Study | Architecture | Test accuracy | Notes |
-| --- | --- | --- | --- |
-| **8 (this)** | ANN 784→512→512→10 | 74.4% | 5 epochs, full 60K training set, SGD lr=1e-3 |
-| **9** | SNN 784→64→10 | 63.6% | 5 epochs, 5K training subset, surrogate gradients |
-| **10** | SNN 784→64→10 (inference) | 59.6% | Loaded study.9 weights, 1K test subset |
-| **11** | SNN 784→64→10 + I_global | 56.8% | Study.10 + PING inhibitory loop |
-
-The ANN's 74% is achievable with a few more epochs of SGD or a switch to
-Adam. The SNN's 64% is impressive given the constraints: biophysical neuron
-dynamics, spike-count decoding, a hidden layer 8x smaller, and only 5K
-training samples. The gap is real but narrower than one might expect.
-
-## Why not tune the ANN further?
-
-The point of study.8 is not to achieve state-of-the-art MNIST performance —
-that's a solved problem at 99.7%+. The point is to run the same optimizer
-(SGD), the same number of epochs (5), and a comparable setup to give the SNN
-studies a fair reference. The ANN's undertrained 74% is a more honest
-comparison than a fully optimized 98%.

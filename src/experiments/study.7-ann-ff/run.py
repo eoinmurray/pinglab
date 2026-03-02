@@ -9,7 +9,7 @@ from torch.accelerator import current_accelerator, is_available
 from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
 from torchvision.transforms import ToTensor
-from torch.optim import SGD
+from torch.optim import Adam
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from settings import ARTIFACTS_ROOT
@@ -110,7 +110,7 @@ def main() -> None:
 
     model = NeuralNetwork().to(device)
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = SGD(model.parameters(), lr=1e-3)
+    optimizer = Adam(model.parameters(), lr=1e-3)
 
     epochs = int(meta.get("epochs", 5))
     losses, accuracies = [], []
@@ -138,6 +138,25 @@ def main() -> None:
         xlabel="Epoch",
         ylabel="Accuracy (%)",
     )
+
+    # ── save results ──────────────────────────────────────────────────────
+    trainable_params = sum(p.numel() for p in model.parameters())
+    results = {
+        "epochs": epochs,
+        "train_samples": len(training_data),
+        "test_samples": len(test_data),
+        "final_test_loss": round(losses[-1], 4),
+        "best_test_loss": round(min(losses), 4),
+        "best_test_loss_epoch": int(losses.index(min(losses)) + 1),
+        "final_test_accuracy": round(100 * accuracies[-1], 1),
+        "best_test_accuracy": round(100 * max(accuracies), 1),
+        "best_test_accuracy_epoch": int(accuracies.index(max(accuracies)) + 1),
+        "test_losses_per_epoch": [round(x, 4) for x in losses],
+        "test_accuracies_per_epoch": [round(100 * x, 1) for x in accuracies],
+        "trainable_params": trainable_params,
+    }
+    with open(data_path / "results.json", "w") as f:
+        json.dump(results, f, indent=2)
 
     print("Done!")
 

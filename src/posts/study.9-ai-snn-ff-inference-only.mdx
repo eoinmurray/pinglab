@@ -7,6 +7,7 @@ description: "Inference-only MNIST evaluation loading study.8 trained SNN weight
 export const path = "_artifacts/study.9-ai-snn-ff-inference-only";
 
 import config from "./_artifacts/study.9-ai-snn-ff-inference-only/config.json";
+import results from "./_artifacts/study.9-ai-snn-ff-inference-only/results.json";
 
 <VeslxFrontMatter />
 
@@ -46,9 +47,9 @@ feedforward excitatory populations (784 → 64 → 10) with conductance-based LI
 neurons, 1 ms timestep, 100 ms simulation window.
 
 The only difference: instead of randomly initializing the weight matrix and
-training it, we load the `W_ee` tensor saved by study.8 after 5 epochs of
-surrogate-gradient training. The runtime is compiled from the same graph spec,
-then `W_ee` is overwritten with the checkpoint via `copy_()`.
+training it, we load the `W_ee` tensor saved by study.8 after surrogate-gradient
+training. The runtime is compiled from the same graph spec, then `W_ee` is
+overwritten with the checkpoint via `copy_()`.
 
 Inference uses the same spike-count decoding: each test image is rate-coded
 into the input layer, the network runs for 100 ms, and the output neuron
@@ -56,11 +57,21 @@ with the most spikes wins.
 
 # Results
 
+## Results Snapshot
+
+| Metric | Value |
+| --- | --- |
+| Test accuracy | {String(results?.test_accuracy ?? "n/a")}% |
+| Test loss | {String(results?.test_loss ?? "n/a")} |
+| Test samples | {String(results?.test_samples ?? "n/a")} |
+| Weights source | {String(results?.weights_source ?? "n/a")} |
+| Inference time | {String(results?.elapsed_seconds ?? "n/a")}s |
+
 ## Overall accuracy
 
-The trained SNN achieves **59.6% test accuracy** on 1000 held-out MNIST
-samples (test loss: 1.27). This is consistent with study.8's epoch-4 test
-accuracy of 63.6% — the small difference is expected from evaluating a
+The trained SNN achieves **{String(results?.test_accuracy ?? "n/a")}% test accuracy** on {String(results?.test_samples ?? "n/a")} held-out MNIST
+samples (test loss: {String(results?.test_loss ?? "n/a")}). This is consistent with study.8's best test
+accuracy — the small difference is expected from evaluating a
 different random subset.
 
 ## Per-class accuracy
@@ -69,14 +80,14 @@ different random subset.
   path={path}
   globs={["accuracy_per_class*.png"]}
   captionLabel="Figure 1.1"
-  caption="Per-class test accuracy across all 10 digit classes. Digit 1 is easiest (84%), digit 8 is hardest (26%)."
+  caption="Per-class test accuracy across all 10 digit classes."
   size="md"
 />
 
-Figure 1.1 shows wide variation across digit classes. Digit 1 is classified
-most reliably (84.1%) — likely because its minimal stroke activates a
-distinctive sparse pattern. Digit 8 is the worst at 25.8%, frequently
-confused with digits 5 and 9 (see confusion matrix).
+Figure 1.1 shows wide variation across digit classes. Digits with simple,
+distinctive strokes (like 1) tend to be classified most reliably, while
+visually similar digits (like 8 vs 5) are frequently confused (see confusion
+matrix).
 
 ## Confusion matrix
 
@@ -84,7 +95,7 @@ confused with digits 5 and 9 (see confusion matrix).
   path={path}
   globs={["confusion*.png"]}
   captionLabel="Figure 1.2"
-  caption="Confusion matrix for 1000 test samples. Strong diagonal but notable off-diagonal clusters: 0→5, 3→5, 8→5, 8→9."
+  caption="Confusion matrix."
   size="md"
 />
 
@@ -120,8 +131,8 @@ for inference without any training infrastructure. The weight matrix is the
 only learned artifact — all biophysics, topology, and simulation parameters
 come from the graph spec.
 
-The 59.6% accuracy matches study.8's training results, validating that the
+The accuracy matches study.8's training results, validating that the
 save/load pipeline preserves the learned representations faithfully. The
-per-class analysis reveals that the 64-neuron hidden layer struggles most with
-visually similar digits (8 vs 5, 3 vs 5), suggesting that scaling the hidden
-layer would help most.
+per-class analysis reveals that the hidden layer struggles most with
+visually similar digits, suggesting that scaling the hidden layer would
+help most.

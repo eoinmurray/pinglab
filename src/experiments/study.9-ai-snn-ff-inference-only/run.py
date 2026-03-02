@@ -208,6 +208,18 @@ def main() -> None:
         title="Confusion Matrix",
     )
 
+    # ── save results ──────────────────────────────────────────────────────
+    results = {
+        "test_samples": len(test_data),
+        "test_loss": round(test_loss, 4),
+        "test_accuracy": round(100 * test_acc, 1),
+        "per_class_accuracy": [round(a, 1) for a in class_accs],
+        "weights_source": weights_source,
+        "elapsed_seconds": round(elapsed, 1),
+    }
+    with open(data_path / "results.json", "w") as f:
+        json.dump(results, f, indent=2)
+
     print(f"\nSaved artifacts to {data_path}")
     print("Done!")
 
