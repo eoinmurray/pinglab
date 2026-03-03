@@ -157,6 +157,31 @@ tasks:
     cmds:
       - uv run python src/scripts/run_experiment.py {{.CLI_ARGS}}
 
+  run:modal:
+    desc: Run a study on Modal GPU (e.g. task run:modal -- study.15)
+    cmds:
+      - |
+        set -euo pipefail
+        selector="{{.CLI_ARGS}}"
+        dir="src/experiments/${selector}"
+        if [ -d "$dir" ] && [ -f "$dir/modal_run.py" ]; then
+          uv run modal run "$dir/modal_run.py"
+          exit 0
+        fi
+        matches=(src/experiments/${selector}-*/modal_run.py)
+        if [ ${#matches[@]} -eq 1 ] && [ -f "${matches[0]}" ]; then
+          echo "Resolved: ${matches[0]%/modal_run.py}"
+          uv run modal run "${matches[0]}"
+          exit 0
+        fi
+        if [ ${#matches[@]} -gt 1 ]; then
+          echo "Ambiguous selector '${selector}'. Matches:" >&2
+          printf '  %s\n' "${matches[@]%/modal_run.py}" >&2
+          exit 1
+        fi
+        echo "No study with modal_run.py matching '${selector}'." >&2
+        exit 1
+
   validate:
     desc: Validate a graph config.json path (e.g. task validate -- src/experiments/study.1-rhythmicity-index/config.json)
     cmds:
