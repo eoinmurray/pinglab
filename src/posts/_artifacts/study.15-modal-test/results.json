@@ -1,0 +1,33 @@
+{
+  "epochs": 3,
+  "train_samples": 60000,
+  "test_samples": 10000,
+  "final_train_loss": 1.0411,
+  "final_test_loss": 0.8398,
+  "best_test_loss": 0.8398,
+  "best_test_loss_epoch": 3,
+  "final_test_accuracy": 72.5,
+  "best_test_accuracy": 72.5,
+  "best_test_accuracy_epoch": 3,
+  "test_losses_per_epoch": [
+    0.8524,
+    0.8728,
+    0.8398
+  ],
+  "test_accuracies_per_epoch": [
+    72.3,
+    72.1,
+    72.5
+  ],
+  "encoding": "poisson",
+  "readout": "voltage",
+  "trainable_params": 758472,
+  "trainable_params_breakdown": {
+    "W_ee": 736164,
+    "W_ei": 11154,
+    "W_ie": 11154
+  },
+  "elapsed_seconds": 935.2,
+  "device": "cuda",
+  "runtime": "modal"
+}
