@@ -6,6 +6,7 @@ and on Modal serverless GPU.  Tiny subset by default for fast round-trip.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -434,6 +435,8 @@ def main(
         "trainable_params": total_params,
         "trainable_params_breakdown": param_counts,
         "elapsed_seconds": round(total_elapsed, 1),
+        "device": str(device),
+        "runtime": "modal" if os.environ.get("MODAL_IS_REMOTE") else "local",
     }
     with open(data_path / "results.json", "w") as f:
         json.dump(results, f, indent=2)
