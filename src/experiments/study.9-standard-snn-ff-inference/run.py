@@ -4,6 +4,8 @@ Loads the W_ee weights saved by study.8, compiles the same 784→64→10
 feedforward network, and evaluates on the MNIST test set without any training.
 """
 
+from __future__ import annotations
+import os
 import json
 import shutil
 import sys
@@ -27,13 +29,20 @@ from pinglab.io.training import encode_rate_to_tonic, eval_epoch
 from plots import save_line, save_raster_grid, save_raster_layers, save_confusion_matrix
 
 
-def main() -> None:
+def main(
+    artifacts_dir: Path | str | None = None,
+    data_dir: Path | str | None = None,
+) -> dict:
     device = get_device()
     print(f"Using {device} device")
 
     experiment_dir = Path(__file__).parent.resolve()
-    data_path = ARTIFACTS_ROOT / Path(__file__).parent.name
-    if data_path.exists():
+    if artifacts_dir is None:
+        data_path = ARTIFACTS_ROOT / Path(__file__).parent.name
+    else:
+        data_path = Path(artifacts_dir)
+
+    if data_path.exists() and not data_path.is_symlink():
         shutil.rmtree(data_path)
     data_path.mkdir(parents=True, exist_ok=True)
 
@@ -91,9 +100,12 @@ def main() -> None:
 
     # ── data ────────────────────────────────────────────────────────────────
     # Use study.8's cached MNIST data if available, otherwise download fresh.
-    mnist_dir = experiment_dir.parent / weights_source / "data"
-    if not (mnist_dir / "MNIST").exists():
-        mnist_dir = experiment_dir / "data"
+    if data_dir is not None:
+        mnist_dir = Path(data_dir)
+    else:
+        mnist_dir = experiment_dir.parent / weights_source / "data"
+        if not (mnist_dir / "MNIST").exists():
+            mnist_dir = experiment_dir / "data"
     test_data = MNIST(root=mnist_dir, train=False, download=True, transform=ToTensor())
     if test_subset_size is not None:
         test_data = Subset(test_data, list(range(min(test_subset_size, len(test_data)))))
@@ -216,12 +228,15 @@ def main() -> None:
         "per_class_accuracy": [round(a, 1) for a in class_accs],
         "weights_source": weights_source,
         "elapsed_seconds": round(elapsed, 1),
+        "device": str(device),
+        "runtime": "modal" if os.environ.get("MODAL_IS_REMOTE") else "local",
     }
     with open(data_path / "results.json", "w") as f:
         json.dump(results, f, indent=2)
 
     print(f"\nSaved artifacts to {data_path}")
     print("Done!")
+    return results
 
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@ This lets the optimizer learn both the classification pathway and the
 optimal inhibitory dynamics.
 """
 
+from __future__ import annotations
+import os
 import json
 import shutil
 import sys
@@ -32,14 +34,27 @@ from pinglab.io.training import encode_rate_to_tonic, train_epoch, eval_epoch
 from plots import save_line, save_raster_grid, save_raster_layers, save_confusion_matrix
 
 
-def main() -> None:
+def main(
+    artifacts_dir: Path | str | None = None,
+    data_dir: Path | str | None = None,
+    checkpoint_dir: Path | str | None = None,
+    on_epoch_end: callable | None = None,
+) -> dict:
     device = get_device()
     print(f"Using {device} device")
 
     experiment_dir = Path(__file__).parent.resolve()
-    data_path = ARTIFACTS_ROOT / Path(__file__).parent.name
-    if data_path.exists():
-        shutil.rmtree(data_path)
+    if artifacts_dir is None:
+        data_path = ARTIFACTS_ROOT / Path(__file__).parent.name
+    else:
+        data_path = Path(artifacts_dir)
+
+    ckpt_path = Path(checkpoint_dir) / "checkpoint.pt" if checkpoint_dir else None
+    resuming = ckpt_path is not None and ckpt_path.exists()
+
+    if not resuming:
+        if data_path.exists() and not data_path.is_symlink():
+            shutil.rmtree(data_path)
     data_path.mkdir(parents=True, exist_ok=True)
 
     config_path = experiment_dir / "config.json"
@@ -100,8 +115,9 @@ def main() -> None:
     print(f"State pre-built: N={sim_state.N}  B={sim_state.batch_size}  buf_len={sim_state.buf_len}  device={device}")
 
     # ── data ────────────────────────────────────────────────────────────────
-    train_data = MNIST(root=experiment_dir / "data", train=True,  download=True, transform=ToTensor())
-    test_data  = MNIST(root=experiment_dir / "data", train=False, download=True, transform=ToTensor())
+    mnist_root = Path(data_dir) if data_dir else experiment_dir / "data"
+    train_data = MNIST(root=mnist_root, train=True,  download=True, transform=ToTensor())
+    test_data  = MNIST(root=mnist_root, train=False, download=True, transform=ToTensor())
 
     if subset_size is not None:
         train_data = Subset(train_data, list(range(min(subset_size, len(train_data)))))
@@ -133,9 +149,29 @@ def main() -> None:
     test_losses, test_accuracies = [], []
     all_iter_losses: list[float] = []
     all_iter_accs: list[float] = []
+    start_epoch = 0
+    prior_elapsed = 0.0
+
+    if resuming:
+        print(f"\nResuming from checkpoint: {ckpt_path}")
+        ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+        runtime.weights.W_ee.data.copy_(ckpt["W_ee"])
+        if "W_ei" in ckpt and runtime.weights.W_ei is not None:
+            runtime.weights.W_ei.data.copy_(ckpt["W_ei"])
+        if "W_ie" in ckpt and runtime.weights.W_ie is not None:
+            runtime.weights.W_ie.data.copy_(ckpt["W_ie"])
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        start_epoch = ckpt["epoch"]
+        test_losses = ckpt.get("test_losses", [])
+        test_accuracies = ckpt.get("test_accuracies", [])
+        all_iter_losses = ckpt.get("all_iter_losses", [])
+        all_iter_accs = ckpt.get("all_iter_accs", [])
+        prior_elapsed = ckpt.get("elapsed_seconds", 0.0)
+        print(f"  Restored epoch {start_epoch}/{epochs}")
+
     run_start = time.perf_counter()
 
-    for epoch in range(epochs):
+    for epoch in range(start_epoch, epochs):
         epoch_start = time.perf_counter()
         print(f"\n{'='*60}")
         print(f"Epoch {epoch + 1}/{epochs}", flush=True)
@@ -165,15 +201,40 @@ def main() -> None:
             f"  epoch_time={epoch_elapsed:.0f}s  ETA={eta:.0f}s  total={total_elapsed:.0f}s",
             flush=True,
         )
+        if ckpt_path is not None:
+            ckpt_data = {
+                "epoch": epoch + 1,
+                "W_ee": runtime.weights.W_ee.detach().cpu(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "test_losses": test_losses,
+                "test_accuracies": test_accuracies,
+                "all_iter_losses": all_iter_losses,
+                "all_iter_accs": all_iter_accs,
+                "elapsed_seconds": prior_elapsed + (time.perf_counter() - run_start),
+            }
+            if runtime.weights.W_ei is not None:
+                ckpt_data["W_ei"] = runtime.weights.W_ei.detach().cpu()
+            if runtime.weights.W_ie is not None:
+                ckpt_data["W_ie"] = runtime.weights.W_ie.detach().cpu()
+            tmp_ckpt = ckpt_path.with_suffix(".pt.tmp")
+            torch.save(ckpt_data, tmp_ckpt)
+            tmp_ckpt.rename(ckpt_path)
+            print(f"  Checkpoint saved → {ckpt_path}", flush=True)
+            if on_epoch_end is not None:
+                on_epoch_end()
+
+    if ckpt_path is not None and ckpt_path.exists():
+        ckpt_path.unlink()
+        print("Checkpoint removed (training complete).")
 
     # ── save weights ────────────────────────────────────────────────────────
-    (experiment_dir / "data").mkdir(exist_ok=True)
+    mnist_root.mkdir(parents=True, exist_ok=True)
     checkpoint = {"W_ee": runtime.weights.W_ee.detach()}
     if runtime.weights.W_ei is not None:
         checkpoint["W_ei"] = runtime.weights.W_ei.detach()
     if runtime.weights.W_ie is not None:
         checkpoint["W_ie"] = runtime.weights.W_ie.detach()
-    torch.save(checkpoint, experiment_dir / "data" / "weights.pth")
+    torch.save(checkpoint, mnist_root / "weights.pth")
 
     # ── per-class accuracy (on final weights) ────────────────────────────────
     class_correct = [0] * 10
@@ -284,7 +345,7 @@ def main() -> None:
     )
 
     # ── save results ──────────────────────────────────────────────────────
-    total_elapsed = time.perf_counter() - run_start
+    total_elapsed = prior_elapsed + (time.perf_counter() - run_start)
     results = {
         "epochs": epochs,
         "train_samples": len(train_data),
@@ -301,11 +362,14 @@ def main() -> None:
         "trainable_params": total_params,
         "trainable_params_breakdown": param_counts,
         "elapsed_seconds": round(total_elapsed, 1),
+        "device": str(device),
+        "runtime": "modal" if os.environ.get("MODAL_IS_REMOTE") else "local",
     }
     with open(data_path / "results.json", "w") as f:
         json.dump(results, f, indent=2)
 
     print("Done!")
+    return results
 
 
 if __name__ == "__main__":

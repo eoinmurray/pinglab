@@ -163,69 +163,13 @@ tasks:
       - |
         set -euo pipefail
         selector="{{.CLI_ARGS}}"
-        dir="src/experiments/${selector}"
-        if [ -d "$dir" ] && [ -f "$dir/modal_run.py" ]; then
-          uv run modal run "$dir/modal_run.py"
-          exit 0
-        fi
-        matches=(src/experiments/${selector}-*/modal_run.py)
-        if [ ${#matches[@]} -eq 1 ] && [ -f "${matches[0]}" ]; then
-          echo "Resolved: ${matches[0]%/modal_run.py}"
-          uv run modal run "${matches[0]}"
-          exit 0
-        fi
-        if [ ${#matches[@]} -gt 1 ]; then
-          echo "Ambiguous selector '${selector}'. Matches:" >&2
-          printf '  %s\n' "${matches[@]%/modal_run.py}" >&2
-          exit 1
-        fi
-        echo "No study with modal_run.py matching '${selector}'." >&2
-        exit 1
-
-  run:modal:detach:
-    desc: Run a study on Modal GPU in detached mode (survives laptop close). e.g. task run:modal:detach -- study.15
-    cmds:
-      - |
-        set -euo pipefail
-        selector="{{.CLI_ARGS}}"
-        dir="src/experiments/${selector}"
-        if [ -d "$dir" ] && [ -f "$dir/modal_run.py" ]; then
-          uv run modal run --detach "$dir/modal_run.py"
-          exit 0
-        fi
-        matches=(src/experiments/${selector}-*/modal_run.py)
-        if [ ${#matches[@]} -eq 1 ] && [ -f "${matches[0]}" ]; then
-          echo "Resolved: ${matches[0]%/modal_run.py}"
-          uv run modal run --detach "${matches[0]}"
-          exit 0
-        fi
-        if [ ${#matches[@]} -gt 1 ]; then
-          echo "Ambiguous selector '${selector}'. Matches:" >&2
-          printf '  %s\n' "${matches[@]%/modal_run.py}" >&2
-          exit 1
-        fi
-        echo "No study with modal_run.py matching '${selector}'." >&2
-        exit 1
-
-  modal:logs:
-    desc: Tail logs from the most recent Modal app run
-    cmds:
-      - uv run modal app logs
-
-  modal:download:
-    desc: Download artifacts from Modal volume (e.g. task modal:download -- study.15-modal-test)
-    cmds:
-      - |
-        set -euo pipefail
-        selector="{{.CLI_ARGS}}"
-        # Resolve short names like "study.15" to full "study.15-modal-test"
+        # Resolve full study name for the PINGLAB_STUDY env var
         if [ -d "src/experiments/${selector}" ]; then
           study="${selector}"
         else
           matches=(src/experiments/${selector}-*/)
           if [ ${#matches[@]} -eq 1 ] && [ -d "${matches[0]}" ]; then
             study="$(basename "${matches[0]}")"
-            echo "Resolved: ${study}"
           elif [ ${#matches[@]} -gt 1 ]; then
             echo "Ambiguous selector '${selector}'. Matches:" >&2
             printf '  %s\n' "${matches[@]}" >&2
@@ -235,20 +179,42 @@ tasks:
             exit 1
           fi
         fi
-        dest="src/posts/_artifacts/${study}"
-        rm -rf "$dest"
-        mkdir -p "$dest"
-        tmpdir=$(mktemp -d)
-        trap 'rm -rf "$tmpdir"' EXIT
-        echo "Downloading ${study} from Modal volume..."
-        uv run modal volume get pinglab-artifacts "${study}" "$tmpdir" --force
-        downloaded="${tmpdir}/${study}"
-        if [ -d "$downloaded" ]; then
-          mv "$downloaded"/* "$dest/"
+        echo "Running ${study} on Modal..."
+        PINGLAB_STUDY="${study}" uv run modal run src/scripts/modal_run.py --study "${study}"
+
+  run:modal:detach:
+    desc: Run a study on Modal GPU in detached mode (survives laptop close). e.g. task run:modal:detach -- study.15
+    cmds:
+      - |
+        set -euo pipefail
+        selector="{{.CLI_ARGS}}"
+        if [ -d "src/experiments/${selector}" ]; then
+          study="${selector}"
         else
-          mv "$tmpdir"/* "$dest/"
+          matches=(src/experiments/${selector}-*/)
+          if [ ${#matches[@]} -eq 1 ] && [ -d "${matches[0]}" ]; then
+            study="$(basename "${matches[0]}")"
+          elif [ ${#matches[@]} -gt 1 ]; then
+            echo "Ambiguous selector '${selector}'. Matches:" >&2
+            printf '  %s\n' "${matches[@]}" >&2
+            exit 1
+          else
+            echo "No study matching '${selector}'." >&2
+            exit 1
+          fi
         fi
-        echo "Artifacts downloaded to ${dest}"
+        echo "Running ${study} on Modal (detached)..."
+        PINGLAB_STUDY="${study}" uv run modal run --detach src/scripts/modal_run.py --study "${study}"
+
+  modal:logs:
+    desc: Tail logs from the most recent Modal app run
+    cmds:
+      - uv run modal app logs
+
+  modal:download:
+    desc: Download artifacts from Modal volume (e.g. task modal:download -- study.14)
+    cmds:
+      - uv run python src/scripts/download_artifacts.py {{.CLI_ARGS}}
 
   validate:
     desc: Validate a graph config.json path (e.g. task validate -- src/experiments/study.1-rhythmicity-index/config.json)

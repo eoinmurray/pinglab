@@ -6,6 +6,11 @@
     "input_scale": 3.0,
     "lr": 1e-3
   },
+  "modal": {
+    "gpu": "T4",
+    "cpu": 2,
+    "timeout": 14400
+  },
   "sim": {
     "dt_ms": 1.0,
     "T_ms": 100.0,

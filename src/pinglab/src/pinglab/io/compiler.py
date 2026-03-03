@@ -35,6 +35,7 @@ ALLOWED_TOP_LEVEL_KEYS = frozenset(
         "biophysics",
         "constraints",
         "meta",
+        "modal",
     }
 )
 ALLOWED_SIM_KEYS = frozenset({"dt_ms", "T_ms", "seed", "neuron_model", "burn_in_ms"})
