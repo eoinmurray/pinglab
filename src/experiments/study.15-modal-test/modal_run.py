@@ -39,7 +39,7 @@ image = (
     image=image,
     gpu="T4",
     volumes={VOLUME_PATH: volume},
-    timeout=7200,
+    timeout=14400,
 )
 def train():
     import json

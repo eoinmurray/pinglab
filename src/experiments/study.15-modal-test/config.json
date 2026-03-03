@@ -2,7 +2,7 @@
   "schema_version": "pinglab-graph.v1",
   "meta": {
     "batch_size": 64,
-    "epochs": 10,
+    "epochs": 3,
     "input_scale": 3.0,
     "lr": 1e-3
   },
