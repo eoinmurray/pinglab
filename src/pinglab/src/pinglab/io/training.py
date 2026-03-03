@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     import torch
 
 
-def encode_rate(
+def encode_rate_to_tonic(
     image: "torch.Tensor",
     *,
     T_steps: int,
@@ -48,6 +48,51 @@ def encode_rate(
 
     ext = torch.zeros(T_steps, n_total, dtype=torch.float32)
     ext[:, :n_input] = (pixels * scale).unsqueeze(0).expand(T_steps, -1)
+    return ext
+
+
+def encode_poisson(
+    image: "torch.Tensor",
+    *,
+    T_steps: int,
+    n_total: int,
+    n_input: int,
+    scale: float = 1.0,
+) -> "torch.Tensor":
+    """Encode a single image as Poisson spike trains injected as current pulses.
+
+    At each timestep, each input neuron fires a spike (current pulse = scale)
+    with probability equal to the pixel intensity (clamped to [0, 1]).
+    Non-input neurons receive zero input.
+
+    Args:
+        image: Tensor of shape [1, H, W] or [H, W] or [N] (already flat).
+        T_steps: Number of simulation timesteps.
+        n_total: Total number of neurons in the network (N_E + N_I).
+        n_input: Number of input neurons (must be <= n_total).
+        scale: Amplitude of each current pulse when a spike occurs.
+
+    Returns:
+        Tensor of shape [T_steps, n_total] with stochastic current pulses
+        in [:, :n_input] and zeros in [:, n_input:].
+    """
+    try:
+        import torch
+    except Exception as exc:  # pragma: no cover
+        raise ImportError("PyTorch backend requires torch to be installed") from exc
+
+    pixels = image.detach().float().reshape(-1)  # [n_input]
+    if pixels.shape[0] != n_input:
+        raise ValueError(
+            f"image flattens to {pixels.shape[0]} values but n_input={n_input}"
+        )
+
+    rates = pixels.clamp(0.0, 1.0)  # [n_input]
+    # Draw independent Bernoulli samples: spike with prob = pixel intensity
+    spikes = torch.bernoulli(rates.unsqueeze(0).expand(T_steps, -1))  # [T, n_input]
+
+    ext = torch.zeros(T_steps, n_total, dtype=torch.float32)
+    ext[:, :n_input] = spikes * scale
     return ext
 
 

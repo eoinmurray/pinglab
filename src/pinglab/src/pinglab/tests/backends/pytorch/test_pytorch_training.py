@@ -194,14 +194,14 @@ class TestWeightMaskFF:
     def test_no_gradient_leak_after_backward(self):
         """After backward, gradients outside the mask must be exactly zero."""
         from pinglab.backends.pytorch import simulate_network, surrogate_lif_step
-        from pinglab.io.training import encode_rate
+        from pinglab.io.training import encode_rate_to_tonic
 
         rt = _make_runtime(n_in=16, n_hidden=8, n_out=4, trainable=True)
         n_total, n_input, out_start, out_stop = _pop_bounds(
             _make_ff_spec(n_in=16, n_hidden=8, n_out=4)
         )
         img = torch.rand(1, n_input)
-        ext = encode_rate(img, T_steps=10, n_total=n_total, n_input=n_input, scale=1.0)
+        ext = encode_rate_to_tonic(img, T_steps=10, n_total=n_total, n_input=n_input, scale=1.0)
         ext = ext.unsqueeze(0)  # [1, T, N]
         _, spikes = simulate_network(
             rt, external_input=ext, spike_fn=surrogate_lif_step, return_spike_tensor=True,

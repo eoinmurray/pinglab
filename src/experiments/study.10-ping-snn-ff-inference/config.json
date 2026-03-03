@@ -1,0 +1,64 @@
+{
+  "schema_version": "pinglab-graph.v1",
+  "meta": {
+    "batch_size": 16,
+    "input_scale": 3.0,
+    "test_subset_size": 1000,
+    "weights_source": "study.8-standard-snn-ff-training"
+  },
+  "sim": {
+    "dt_ms": 1.0,
+    "T_ms": 100.0,
+    "seed": 42,
+    "neuron_model": "lif"
+  },
+  "execution": {
+    "performance_mode": false,
+    "max_spikes": 10000000,
+    "burn_in_ms": 0
+  },
+  "constraints": {
+    "nonnegative_weights": true,
+    "nonnegative_input": false
+  },
+  "biophysics": {
+    "V_init": -65, "E_L": -65, "E_e": 0, "E_i": -80,
+    "C_m_E": 1, "g_L_E": 0.05, "C_m_I": 1, "g_L_I": 0.1,
+    "V_th": -50, "V_reset": -65, "t_ref_E": 3, "t_ref_I": 1.5,
+    "tau_ampa": 2, "tau_gaba": 6.5,
+    "g_L_heterogeneity_sd": 0.0, "C_m_heterogeneity_sd": 0.0,
+    "V_th_heterogeneity_sd": 0.0, "t_ref_heterogeneity_sd": 0.0
+  },
+  "nodes": [
+    {"id": "inp", "kind": "input", "type": "tonic", "size": 0},
+    {"id": "E_in",  "kind": "population", "type": "E", "size": 784},
+    {"id": "E_hid", "kind": "population", "type": "E", "size": 64},
+    {"id": "E_out", "kind": "population", "type": "E", "size": 10},
+    {"id": "I_global", "kind": "population", "type": "I", "size": 13}
+  ],
+  "edges": [
+    {
+      "id": "in_ein", "kind": "input", "from": "inp", "to": "E_in",
+      "w": {"mean": 0.0, "std": 0.0}
+    },
+    {
+      "id": "ein_ehid", "kind": "EE", "from": "E_in", "to": "E_hid",
+      "w": {"mean": 0.01, "std": 0.1}, "delay_ms": 1.0
+    },
+    {
+      "id": "ehid_eout", "kind": "EE", "from": "E_hid", "to": "E_out",
+      "w": {"mean": 0.01, "std": 0.1}, "delay_ms": 1.0
+    },
+    {
+      "id": "ehid_i", "kind": "EI", "from": "E_hid", "to": "I_global",
+      "w": {"mean": 0.3, "std": 0.1}, "delay_ms": 1.0
+    },
+    {
+      "id": "i_ehid", "kind": "IE", "from": "I_global", "to": "E_hid",
+      "w": {"mean": 0.15, "std": 0.05}, "delay_ms": 1.0
+    }
+  ],
+  "inputs": {
+    "inp": {"mode": "tonic", "mean": 0.0, "std": 0.0, "seed": 0}
+  }
+}

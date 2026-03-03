@@ -1,0 +1,35 @@
+{
+  "epochs": 5,
+  "train_samples": 5000,
+  "test_samples": 1000,
+  "final_train_loss": 0.7467,
+  "final_test_loss": 1.2021,
+  "best_test_loss": 1.0719,
+  "best_test_loss_epoch": 4,
+  "final_test_accuracy": 62.4,
+  "best_test_accuracy": 65.8,
+  "best_test_accuracy_epoch": 2,
+  "test_losses_per_epoch": [
+    1.185,
+    1.075,
+    1.1478,
+    1.0719,
+    1.2021
+  ],
+  "test_accuracies_per_epoch": [
+    61.3,
+    65.8,
+    62.3,
+    65.5,
+    62.4
+  ],
+  "encoding": "poisson",
+  "readout": "voltage",
+  "trainable_params": 758472,
+  "trainable_params_breakdown": {
+    "W_ee": 736164,
+    "W_ei": 11154,
+    "W_ie": 11154
+  },
+  "elapsed_seconds": 475.8
+}

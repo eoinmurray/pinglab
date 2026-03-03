@@ -1,0 +1,231 @@
+---
+title: study.13-ping-snn-training-voltage-readout
+date: "2026-03-04"
+description: "Training a PING-SNN on MNIST with voltage readout instead of spike counts, eliminating argmax tie-breaking bias."
+---
+
+export const path = "_artifacts/study.13-ping-snn-training-voltage-readout";
+
+import config from "./_artifacts/study.13-ping-snn-training-voltage-readout/config.json";
+import results from "./_artifacts/study.13-ping-snn-training-voltage-readout/results.json";
+
+<VeslxFrontMatter />
+
+# Summary
+
+This study uses the same architecture and training setup as study.12 (all
+weights trained via surrogate gradient BPTT) but changes the readout
+mechanism. Instead of counting output spikes and taking argmax, we use the
+mean membrane voltage of the output neurons as logits.
+
+The motivation: in spike-count decoding, when two output neurons fire the
+same number of spikes, `argmax` returns the lowest index — systematically
+disadvantaging higher-numbered digit classes. Voltage readout produces
+continuous-valued logits, eliminating ties entirely.
+
+# Architecture
+
+<VeslxGallery
+  path={path}
+  globs={["graph_*.png"]}
+  captionLabel="Figure 1.1"
+  caption="Network topology with initialization parameters."
+/>
+
+The architecture is identical to study.12:
+
+| Layer | Population | Size | Role |
+| --- | --- | --- | --- |
+| Input | `E_in` | 784 | One neuron per pixel, driven by rate-coded image |
+| Hidden | `E_hid` | {String(config?.nodes?.[2]?.size ?? "n/a")} | Learned feature extraction |
+| Output | `E_out` | 10 | One neuron per digit class |
+| Inhibitory | `I_global` | {String(config?.nodes?.[4]?.size ?? "n/a")} | PING feedback inhibition on E\_hid |
+
+# Config Snapshot
+
+| Key | Value |
+| --- | --- |
+| `sim.neuron_model` | {String(config?.sim?.neuron_model ?? "n/a")} |
+| `sim.dt_ms` | {String(config?.sim?.dt_ms ?? "n/a")} |
+| `sim.T_ms` | {String(config?.sim?.T_ms ?? "n/a")} |
+| `meta.epochs` | {String(config?.meta?.epochs ?? "n/a")} |
+| `meta.batch_size` | {String(config?.meta?.batch_size ?? "n/a")} |
+| `meta.lr` | {String(config?.meta?.lr ?? "n/a")} |
+| `meta.input_scale` | {String(config?.meta?.input_scale ?? "n/a")} |
+| `meta.subset_size` | {String(config?.meta?.subset_size ?? "n/a")} |
+| `readout` | {String(results?.readout ?? "n/a")} |
+
+# Method
+
+## Readout change
+
+In studies 8–12, the forward pass decoded output neuron activity via spike
+counts:
+
+$$
+\text{logits}_c = \sum_{t=t_\text{burn-in}}^{T} s_{c}(t)
+$$
+
+where $s_c(t) \in \{0, 1\}$ is the spike indicator for output neuron $c$ at
+timestep $t$. This produces integer-valued logits. When two classes have
+equal spike counts, `torch.argmax` returns the lowest index — biasing
+classification toward digit 0 and against digit 9.
+
+Study.13 replaces this with voltage readout:
+
+$$
+\text{logits}_c = \frac{1}{T - t_\text{burn-in}} \sum_{t=t_\text{burn-in}}^{T} V_{c}(t)
+$$
+
+where $V_c(t)$ is the membrane voltage of output neuron $c$. Because
+voltage is continuous, ties are vanishingly unlikely and all classes
+compete on equal footing.
+
+## What is trained
+
+Same as study.12 — all three weight matrices receive gradient updates:
+
+| Matrix | Params | Connection |
+| --- | --- | --- |
+| `W_ee` | {String(results?.trainable_params_breakdown?.W_ee ?? "n/a")} | E\_in→E\_hid and E\_hid→E\_out (structural mask) |
+| `W_ei` | {String(results?.trainable_params_breakdown?.W_ei ?? "n/a")} | E\_hid→I\_global |
+| `W_ie` | {String(results?.trainable_params_breakdown?.W_ie ?? "n/a")} | I\_global→E\_hid |
+| **Total** | **{String(results?.trainable_params ?? "n/a")}** | |
+
+# Results
+
+## Results Snapshot
+
+| Metric | Value |
+| --- | --- |
+| Best test accuracy | {String(results?.best_test_accuracy ?? "n/a")}% (epoch {String(results?.best_test_accuracy_epoch ?? "n/a")}) |
+| Final test accuracy | {String(results?.final_test_accuracy ?? "n/a")}% |
+| Best test loss | {String(results?.best_test_loss ?? "n/a")} (epoch {String(results?.best_test_loss_epoch ?? "n/a")}) |
+| Final test loss | {String(results?.final_test_loss ?? "n/a")} |
+| Readout | {String(results?.readout ?? "n/a")} |
+| Trainable params | {String(results?.trainable_params ?? "n/a")} |
+| Training time | {String(results?.elapsed_seconds ?? "n/a")}s |
+
+## Comparison across studies
+
+| Study | Readout | Trained weights | Best Accuracy |
+| --- | --- | --- | --- |
+| study.8 (standard SNN) | spike count | W\_ee | 64.2% |
+| study.10 (PING inference) | spike count | None (loaded) | 55.3% |
+| study.11 (PING, W\_ee only) | spike count | W\_ee | 61.9% |
+| study.12 (PING, all weights) | spike count | W\_ee + W\_ei + W\_ie | 62.9% |
+| **study.13 (voltage readout)** | **voltage** | **W\_ee + W\_ei + W\_ie** | **{String(results?.best_test_accuracy ?? "n/a")}%** |
+
+## Training dynamics
+
+<VeslxGallery
+  path={path}
+  globs={["loss_train*.png"]}
+  captionLabel="Figure 2.1"
+  caption="Per-iteration training loss over 5 epochs."
+  size="md"
+/>
+
+<VeslxGallery
+  path={path}
+  globs={["loss_test*.png"]}
+  captionLabel="Figure 2.2"
+  caption="Test loss evaluated at the end of each epoch on 1000 held-out samples."
+  size="md"
+/>
+
+Test loss decreases from
+{String(results?.test_losses_per_epoch?.[0] ?? "n/a")} to a minimum of {String(results?.best_test_loss ?? "n/a")} at
+epoch {String(results?.best_test_loss_epoch ?? "n/a")}, then rises slightly — suggesting mild overfitting
+in later epochs.
+
+<VeslxGallery
+  path={path}
+  globs={["accuracy_dark.png", "accuracy_light.png"]}
+  captionLabel="Figure 2.3"
+  caption="Per-iteration training accuracy."
+  size="md"
+/>
+
+## Per-class accuracy
+
+<VeslxGallery
+  path={path}
+  globs={["accuracy_per_class*.png"]}
+  captionLabel="Figure 3.1"
+  caption="Per-class test accuracy with voltage readout."
+  size="md"
+/>
+
+This is the key result. With spike-count readout (study.12), per-class
+accuracy showed a strong bias toward low-index digits: digit 0 reached
+~80% while digit 9 scored just 25.5%. With voltage readout, the
+distribution is dramatically more balanced — all classes compete on
+continuous-valued logits with no tie-breaking advantage.
+
+## Confusion matrix
+
+<VeslxGallery
+  path={path}
+  globs={["confusion*.png"]}
+  captionLabel="Figure 3.2"
+  caption="Confusion matrix on 1000 test samples."
+  size="md"
+/>
+
+## Output layer rasters
+
+<VeslxGallery
+  path={path}
+  globs={["raster_output_all_all*.png"]}
+  captionLabel="Figure 4.1"
+  caption="Output layer (10 neurons) spike rasters for one canonical example per digit class."
+  size="md"
+/>
+
+## Hidden, inhibitory, and output layer rasters
+
+<VeslxGallery
+  path={path}
+  globs={["raster_layers_digit_*.png"]}
+  captionLabel="Figure 4.2"
+  caption="Full signal path rasters for each digit (0–9). Top: I_global. Middle: E_hid. Bottom: E_out. Dashed lines separate layers."
+  size="md"
+/>
+
+# Discussion
+
+## Voltage readout fixes per-class bias
+
+The headline result is not overall accuracy (62.0% vs 62.9%) but the
+per-class distribution. Spike-count decoding with argmax creates a
+systematic bias: when output neurons fire at similar rates, the lowest
+index wins. This makes digit 0 easy and digit 9 hard. Voltage readout
+eliminates this artifact by providing continuous logits — the network
+must actually learn to differentiate classes rather than relying on
+tie-breaking luck.
+
+## Overall accuracy is comparable
+
+At {String(results?.best_test_accuracy ?? "n/a")}%, study.13 performs similarly to study.12 (62.9%).
+The slight decrease is expected: spike-count argmax artificially inflated
+accuracy for low-index digits. With fairer decoding, the network's true
+discriminative ability is revealed — and it is consistent across all 10
+classes rather than concentrated in a few.
+
+## Voltage readout as default
+
+Going forward, voltage readout should be the default for PING-SNN
+classification experiments. It provides a more honest evaluation of
+network performance and gives the optimizer a smoother loss landscape
+(continuous logits vs integer spike counts).
+
+## Next steps
+
+- **Voltage readout + more data**: Run with full 60K MNIST to see if
+  the fairer decoding translates to higher absolute accuracy at scale.
+- **Burn-in period**: The first few milliseconds of voltage may be
+  dominated by transient dynamics. A burn-in window could improve
+  signal quality.
+- **Scale up**: Larger hidden layer and I population to see if PING
+  dynamics contribute to classification when properly decoded.

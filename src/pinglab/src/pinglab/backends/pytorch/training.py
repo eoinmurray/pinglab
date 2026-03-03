@@ -32,15 +32,13 @@ def run_batch(
     input_scale: float,
     sim_state: object = None,
     burn_in_steps: int = 0,
+    readout: str = "spike_count",
+    encoding: str = "tonic",
 ) -> "torch.Tensor":
     """Run a batch of images through the SNN; return logits [B, C].
 
-    Encodes each image to [T, N] via rate coding, stacks into [B, T, N] for a
-    single batched simulation call.  The spike tensor returned is [B, T, N_E];
-    summing over T gives per-sample output spike counts used as logits.
-
-    If the last mini-batch is smaller than the pre-built *sim_state* batch size,
-    the input is zero-padded to match and the extra rows are discarded afterwards.
+    Encodes each image to [T, N] via the chosen encoding, stacks into
+    [B, T, N] for a single batched simulation call.
 
     Args:
         runtime: Compiled network runtime (``compile_graph_to_runtime`` output).
@@ -54,9 +52,15 @@ def run_batch(
         sim_state: Pre-built :class:`SimulationState` (optional).  When provided
             its ``batch_size`` is used for padding; it is passed directly to
             :func:`simulate_network`.
-        burn_in_steps: Number of initial timesteps to exclude from spike-count
-            decoding.  The full simulation (including burn-in) still runs so
-            membrane state can settle; only the readout window is shortened.
+        burn_in_steps: Number of initial timesteps to exclude from readout decoding.
+            The full simulation (including burn-in) still runs so membrane state
+            can settle; only the readout window is shortened.
+        readout: Decoding strategy for producing logits from the simulation.
+            ``"spike_count"`` (default): sum output spike counts over readout window.
+            ``"voltage"``: mean membrane voltage of output neurons over readout window.
+        encoding: Input encoding strategy.
+            ``"tonic"`` (default): constant current injection (pixel * scale each step).
+            ``"poisson"``: stochastic Poisson spike trains (Bernoulli per step).
 
     Returns:
         Logits tensor of shape [B, C] where C = out_stop - out_start.
@@ -66,14 +70,19 @@ def run_batch(
     except Exception as exc:  # pragma: no cover
         raise ImportError("PyTorch backend requires torch to be installed") from exc
 
-    from pinglab.io.training import encode_rate
+    from pinglab.io.training import encode_rate_to_tonic, encode_poisson
     from pinglab.backends.pytorch.simulate_network import simulate_network
     from pinglab.backends.pytorch.surrogate import surrogate_lif_step
+
+    if encoding == "poisson":
+        encode_fn = encode_poisson
+    else:
+        encode_fn = encode_rate_to_tonic
 
     B_actual = images.shape[0]
     ext_batch = torch.stack(
         [
-            encode_rate(img, T_steps=T_steps, n_total=n_total, n_input=n_input, scale=input_scale)
+            encode_fn(img, T_steps=T_steps, n_total=n_total, n_input=n_input, scale=input_scale)
             for img in images
         ],
         dim=0,
@@ -89,13 +98,23 @@ def run_batch(
         )
         ext_batch = torch.cat([ext_batch, pad], dim=0)  # [B_state, T, N]
 
-    _, spikes = simulate_network(
+    use_voltage = readout == "voltage"
+    sim_returns = simulate_network(
         runtime,
         external_input=ext_batch,
         spike_fn=surrogate_lif_step,
         return_spike_tensor=True,
+        return_voltage_tensor=use_voltage,
         state=sim_state,
     )
-    # spikes: [B_state, T, N_E] — sum over readout window, slice to actual batch size
-    logits = spikes[:B_actual, burn_in_steps:, out_start:out_stop].sum(dim=1)  # [B_actual, C]
+
+    if use_voltage:
+        _result, spikes, voltages = sim_returns
+        # voltages: [B_state, T, N_E] — mean over readout window
+        logits = voltages[:B_actual, burn_in_steps:, out_start:out_stop].mean(dim=1)
+    else:
+        _result, spikes = sim_returns
+        # spikes: [B_state, T, N_E] — sum over readout window
+        logits = spikes[:B_actual, burn_in_steps:, out_start:out_stop].sum(dim=1)
+
     return logits

@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from pinglab.io.training import encode_rate, train_epoch, eval_epoch
+from pinglab.io.training import encode_rate_to_tonic, encode_poisson, train_epoch, eval_epoch
 
 
 # ---------------------------------------------------------------------------
@@ -123,47 +123,103 @@ class TestTrainableWeights:
 
 
 # ---------------------------------------------------------------------------
-# encode_rate
+# encode_rate_to_tonic
 # ---------------------------------------------------------------------------
 
 class TestEncodeRate:
     def test_output_shape(self):
         img = torch.rand(1, 28, 28)
-        ext = encode_rate(img, T_steps=100, n_total=800, n_input=784)
+        ext = encode_rate_to_tonic(img, T_steps=100, n_total=800, n_input=784)
         assert ext.shape == (100, 800)
 
     def test_input_slice_matches_pixels(self):
         img = torch.rand(1, 28, 28)
         scale = 3.0
-        ext = encode_rate(img, T_steps=50, n_total=784, n_input=784, scale=scale)
+        ext = encode_rate_to_tonic(img, T_steps=50, n_total=784, n_input=784, scale=scale)
         pixels = img.reshape(-1)
         for t in range(50):
             assert torch.allclose(ext[t], pixels * scale)
 
     def test_padding_zeros(self):
         img = torch.rand(1, 4, 4)  # 16 pixels
-        ext = encode_rate(img, T_steps=10, n_total=32, n_input=16)
+        ext = encode_rate_to_tonic(img, T_steps=10, n_total=32, n_input=16)
         assert torch.all(ext[:, 16:] == 0.0)
 
     def test_constant_across_timesteps(self):
         img = torch.rand(1, 4, 4)
-        ext = encode_rate(img, T_steps=20, n_total=16, n_input=16)
+        ext = encode_rate_to_tonic(img, T_steps=20, n_total=16, n_input=16)
         # Each row should be identical
         assert torch.allclose(ext[0], ext[-1])
 
     def test_scale_applied(self):
         img = torch.ones(1, 2, 2)
-        ext = encode_rate(img, T_steps=5, n_total=4, n_input=4, scale=7.5)
+        ext = encode_rate_to_tonic(img, T_steps=5, n_total=4, n_input=4, scale=7.5)
         assert torch.allclose(ext, torch.full((5, 4), 7.5))
 
     def test_wrong_input_size_raises(self):
         img = torch.rand(1, 4, 4)  # 16 pixels
         with pytest.raises(ValueError, match="n_input"):
-            encode_rate(img, T_steps=10, n_total=32, n_input=20)
+            encode_rate_to_tonic(img, T_steps=10, n_total=32, n_input=20)
 
     def test_flat_input_accepted(self):
         img = torch.rand(784)
-        ext = encode_rate(img, T_steps=10, n_total=784, n_input=784)
+        ext = encode_rate_to_tonic(img, T_steps=10, n_total=784, n_input=784)
+        assert ext.shape == (10, 784)
+
+
+# ---------------------------------------------------------------------------
+# encode_poisson
+# ---------------------------------------------------------------------------
+
+class TestEncodePoisson:
+    def test_output_shape(self):
+        img = torch.rand(1, 28, 28)
+        ext = encode_poisson(img, T_steps=100, n_total=800, n_input=784)
+        assert ext.shape == (100, 800)
+
+    def test_padding_zeros(self):
+        img = torch.rand(1, 4, 4)  # 16 pixels
+        ext = encode_poisson(img, T_steps=10, n_total=32, n_input=16)
+        assert torch.all(ext[:, 16:] == 0.0)
+
+    def test_values_are_zero_or_scale(self):
+        img = torch.rand(1, 4, 4)
+        scale = 5.0
+        ext = encode_poisson(img, T_steps=50, n_total=16, n_input=16, scale=scale)
+        unique = ext[:, :16].unique()
+        assert all(v in (0.0, scale) for v in unique.tolist())
+
+    def test_not_constant_across_timesteps(self):
+        """Poisson encoding should vary across timesteps (with high probability)."""
+        torch.manual_seed(0)
+        img = 0.5 * torch.ones(1, 4, 4)  # 50% spike rate
+        ext = encode_poisson(img, T_steps=100, n_total=16, n_input=16)
+        # With 16 neurons at 50% rate over 100 steps, rows will almost certainly differ
+        all_same = all(torch.equal(ext[0, :16], ext[t, :16]) for t in range(1, 100))
+        assert not all_same, "Poisson encoding should produce different patterns per timestep"
+
+    def test_mean_rate_approximates_pixel(self):
+        """Average spike rate should approximate pixel intensity."""
+        torch.manual_seed(42)
+        rate = 0.7
+        img = torch.full((1, 4, 4), rate)
+        ext = encode_poisson(img, T_steps=10000, n_total=16, n_input=16, scale=1.0)
+        empirical_rate = ext[:, :16].mean().item()
+        assert abs(empirical_rate - rate) < 0.05, f"expected ~{rate}, got {empirical_rate}"
+
+    def test_zero_pixels_never_spike(self):
+        img = torch.zeros(1, 4, 4)
+        ext = encode_poisson(img, T_steps=100, n_total=16, n_input=16, scale=3.0)
+        assert torch.all(ext == 0.0)
+
+    def test_wrong_input_size_raises(self):
+        img = torch.rand(1, 4, 4)  # 16 pixels
+        with pytest.raises(ValueError, match="n_input"):
+            encode_poisson(img, T_steps=10, n_total=32, n_input=20)
+
+    def test_flat_input_accepted(self):
+        img = torch.rand(784)
+        ext = encode_poisson(img, T_steps=10, n_total=784, n_input=784)
         assert ext.shape == (10, 784)
 
 

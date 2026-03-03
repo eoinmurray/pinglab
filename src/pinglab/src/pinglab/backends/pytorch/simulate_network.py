@@ -779,8 +779,9 @@ def simulate_network(
     external_input: "torch.Tensor | None" = None,
     spike_fn: Any = None,
     return_spike_tensor: bool = False,
+    return_voltage_tensor: bool = False,
     state: "SimulationState | None" = None,
-) -> "SimulationResult | tuple[SimulationResult, torch.Tensor]":
+) -> "SimulationResult | tuple":
     """Run the network simulation.
 
     Args:
@@ -792,10 +793,13 @@ def simulate_network(
             decision. Pass surrogate_lif_step here for gradient-based training.
         return_spike_tensor: If True, also returns a Tensor[T, N_E] of spike values
             with gradients attached (for use as classifier logits).
+        return_voltage_tensor: If True, also returns a Tensor[T, N_E] of membrane
+            voltages with gradients attached (for voltage-based readout).
 
     Returns:
-        SimulationResult, or (SimulationResult, spike_tensor) when
-        return_spike_tensor=True.
+        SimulationResult, or tuple of (SimulationResult, spike_tensor, voltage_tensor)
+        depending on which return flags are set. Order: result, then spike_tensor
+        (if requested), then voltage_tensor (if requested).
     """
     try:
         import torch
@@ -836,6 +840,7 @@ def simulate_network(
         state.external_input = ext
 
     spike_frames: list[Any] = []
+    voltage_frames: list[Any] = []
 
     for step in range(state.num_steps):
         if max_spikes is not None and len(state.spike_times) >= int(max_spikes):
@@ -843,6 +848,8 @@ def simulate_network(
         spiked = _step_once(state, runtime, step=step, spike_fn=spike_fn)
         if return_spike_tensor:
             spike_frames.append(spiked[:, : state.N_E].float())  # [B, N_E]
+        if return_voltage_tensor:
+            voltage_frames.append(state.V[:, : state.N_E])  # [B, N_E]
 
     spikes = Spikes(
         times=np.asarray(state.spike_times, dtype=float),
@@ -859,16 +866,36 @@ def simulate_network(
         total_current_trace=np.asarray(state.total_current_trace, dtype=np.float32) if state.total_current_trace is not None else _empty,
     )
 
+    # Build optional tensors
+    spike_tensor = None
     if return_spike_tensor:
         if spike_frames:
-            # Stack T frames of [B, N_E] → [B, T, N_E]
-            spike_tensor = torch.stack(spike_frames, dim=1)
+            spike_tensor = torch.stack(spike_frames, dim=1)  # [B, T, N_E]
         else:
             spike_tensor = torch.zeros(
                 (state.batch_size, 0, state.N_E), dtype=torch.float32
             )
         if was_unbatched:
-            spike_tensor = spike_tensor.squeeze(0)  # [T, N_E] — backward compat
-        return result, spike_tensor
+            spike_tensor = spike_tensor.squeeze(0)  # [T, N_E]
 
+    voltage_tensor = None
+    if return_voltage_tensor:
+        if voltage_frames:
+            voltage_tensor = torch.stack(voltage_frames, dim=1)  # [B, T, N_E]
+        else:
+            voltage_tensor = torch.zeros(
+                (state.batch_size, 0, state.N_E), dtype=torch.float32
+            )
+        if was_unbatched:
+            voltage_tensor = voltage_tensor.squeeze(0)  # [T, N_E]
+
+    # Return based on what was requested (preserve backward compat)
+    extras = []
+    if return_spike_tensor:
+        extras.append(spike_tensor)
+    if return_voltage_tensor:
+        extras.append(voltage_tensor)
+
+    if extras:
+        return (result, *extras)
     return result
