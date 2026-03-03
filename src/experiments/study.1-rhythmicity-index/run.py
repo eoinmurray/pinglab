@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import shutil
 import sys
 import json
@@ -31,12 +33,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from settings import ARTIFACTS_ROOT
 
 
-def main() -> None:
+def main(
+    artifacts_dir: Path | str | None = None,
+) -> dict | None:
     corr_min_lag_ms = 20.0
     corr_max_lag_ms = 150.0
 
-    data_path = ARTIFACTS_ROOT / Path(__file__).parent.name
-    if data_path.exists():
+    if artifacts_dir is None:
+        data_path = ARTIFACTS_ROOT / Path(__file__).parent.name
+    else:
+        data_path = Path(artifacts_dir)
+
+    if data_path.exists() and not data_path.is_symlink():
         shutil.rmtree(data_path)
     data_path.mkdir(parents=True, exist_ok=True)
 

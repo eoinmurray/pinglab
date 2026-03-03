@@ -89,18 +89,19 @@ if _STUDY_NAME:
     except (FileNotFoundError, ValueError):
         pass
 
-_GPU = _MODAL_CFG.get("gpu", "T4")
+_GPU = _MODAL_CFG.get("gpu", "T4")      # set to null/None in config to skip GPU
 _CPU = float(_MODAL_CFG.get("cpu", 2))
 _MEMORY = int(_MODAL_CFG["memory"]) if "memory" in _MODAL_CFG else None
 _TIMEOUT = int(_MODAL_CFG.get("timeout", 14400))
 
 _func_kwargs: dict = dict(
     image=image,
-    gpu=_GPU,
     cpu=_CPU,
     volumes={VOLUME_PATH: volume},
     timeout=_TIMEOUT,
 )
+if _GPU is not None:
+    _func_kwargs["gpu"] = _GPU
 if _MEMORY is not None:
     _func_kwargs["memory"] = _MEMORY
 

@@ -1,5 +1,10 @@
 {
   "schema_version": "pinglab-graph.v1",
+  "modal": {
+    "gpu": null,
+    "cpu": 8,
+    "timeout": 7200
+  },
   "meta": {
     "scan_1": {
       "parameter": "e_to_e.w.std",
