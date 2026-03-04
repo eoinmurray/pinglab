@@ -5,6 +5,32 @@ import matplotlib.pyplot as plt
 from pinglab.plots.styles import save_both
 
 
+def save_stacked_lines(
+    path: Path,
+    x,
+    series: dict[str, list],
+    *,
+    suptitle: str,
+    xlabel: str,
+    ylabel: str,
+) -> None:
+    """Save vertically stacked subplots, one per series, sharing the x-axis."""
+    n = len(series)
+    def _plot() -> None:
+        fig, axes = plt.subplots(n, 1, figsize=(6, 2.5 * n), sharex=True)
+        if n == 1:
+            axes = [axes]
+        for ax, (label, y) in zip(axes, series.items()):
+            ax.plot(x, y, linewidth=1.0)
+            ax.set_ylabel(ylabel)
+            ax.set_title(label)
+        axes[-1].set_xlabel(xlabel)
+        fig.suptitle(suptitle, y=1.01)
+        fig.tight_layout()
+
+    save_both(path, _plot)
+
+
 def save_line(path: Path, x, y, *, title: str, xlabel: str, ylabel: str) -> None:
     def _plot() -> None:
         fig, ax = plt.subplots(figsize=(6, 6))
@@ -69,13 +95,22 @@ def save_raster_layers(
     dt: float,
     pop_idx: dict,
     title: str | None = None,
-    n_hid_sample: int = 80,
+    n_hid_sample: int = 0,
+    n_input_sample: int = 0,
+    input_ext: np.ndarray | None = None,
+    n_input: int = 0,
 ) -> None:
-    """Raster showing E_hid, I_global (if present), and E_out activity."""
+    """Raster showing spike activity across layers.
+
+    Order (top to bottom): E_in, E_hid, E_out, I_global.
+    E_in is shown only when ``input_ext`` is provided (Poisson current array).
+    """
     arr = spikes.numpy() if hasattr(spikes, "numpy") else np.asarray(spikes)
     T = arr.shape[0]
     t_ms = np.arange(T) * dt
 
+    in_start = int(pop_idx["E_in"]["start"])
+    in_stop  = int(pop_idx["E_in"]["stop"])
     hid_start = int(pop_idx["E_hid"]["start"])
     hid_stop  = int(pop_idx["E_hid"]["stop"])
     out_start = int(pop_idx["E_out"]["start"])
@@ -87,11 +122,14 @@ def save_raster_layers(
         i_stop  = int(pop_idx["I_global"]["stop"])
         n_i = i_stop - i_start
 
+    n_in = in_stop - in_start
     n_hid = hid_stop - hid_start
     n_out = out_stop - out_start
 
-    hid_sample = np.linspace(hid_start, hid_stop - 1, min(n_hid_sample, n_hid), dtype=int)
-    n_hid_shown = len(hid_sample)
+    in_sample = np.arange(n_in)
+    hid_sample = np.arange(hid_start, hid_stop)
+    n_in_shown = n_in
+    n_hid_shown = n_hid
 
     def _plot() -> None:
         fig, ax = plt.subplots(figsize=(6, 6))
@@ -99,21 +137,22 @@ def save_raster_layers(
         cursor = 0
         label_positions = {}
 
-        # I_global on top (if present)
-        if has_i:
-            i_arr = arr[:, i_start:i_stop]
-            t_idx, n_idx = np.nonzero(i_arr)
-            ax.scatter(t_ms[t_idx], cursor + n_idx, s=2, marker=".", rasterized=True,
-                       color="red", label=f"I_global (n={n_i})")
-            label_positions["I_global"] = cursor + n_i / 2
-            cursor += n_i
+        # E_in (input spikes from external current array)
+        if input_ext is not None and n_input > 0:
+            in_arr = (input_ext[:, :n_input] != 0).astype(np.float32)
+            in_arr = in_arr[:, in_sample]
+            t_idx, n_idx = np.nonzero(in_arr)
+            ax.scatter(t_ms[t_idx], cursor + n_idx, s=0.5, marker=".", rasterized=True,
+                       color="C2", label=f"E_in (n={n_in})")
+            label_positions["E_in"] = cursor + n_in_shown / 2
+            cursor += n_in_shown
             ax.axhline(cursor, linewidth=0.7, linestyle="--", alpha=0.4)
 
         # E_hid
         hid_arr = arr[:, hid_sample]
         t_idx, n_idx = np.nonzero(hid_arr)
         ax.scatter(t_ms[t_idx], cursor + n_idx, s=2, marker=".", rasterized=True,
-                   color="C0", label=f"E_hid (n={n_hid_shown}/{n_hid})")
+                   color="C0", label=f"E_hid (n={n_hid})")
         label_positions["E_hid"] = cursor + n_hid_shown / 2
         cursor += n_hid_shown
 
@@ -131,6 +170,17 @@ def save_raster_layers(
 
         label_positions["E_out"] = cursor + n_out / 2
         cursor += n_out
+
+        ax.axhline(cursor, linewidth=0.7, linestyle="--", alpha=0.4)
+
+        # I_global at bottom (if present)
+        if has_i:
+            i_arr = arr[:, i_start:i_stop]
+            t_idx, n_idx = np.nonzero(i_arr)
+            ax.scatter(t_ms[t_idx], cursor + n_idx, s=2, marker=".", rasterized=True,
+                       color="red", label=f"I_global (n={n_i})")
+            label_positions["I_global"] = cursor + n_i / 2
+            cursor += n_i
 
         for lbl, y_pos in label_positions.items():
             ax.text(-t_ms[-1] * 0.02, y_pos, lbl,

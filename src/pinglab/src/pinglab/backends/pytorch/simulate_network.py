@@ -35,6 +35,7 @@ def lif_step(
     V_th: float | "torch.Tensor",
     V_reset: float,
     can_spike: "torch.Tensor | None" = None,
+    V_floor: float | None = None,
 ) -> tuple["torch.Tensor", "torch.Tensor"]:
     try:
         import torch
@@ -50,6 +51,10 @@ def lif_step(
 
     dVdt = (g_L_t * (E_L - V) + g_e * (E_e - V) + g_i * (E_i - V) + I_ext) / C_m_t
     V_new = V + float(dt) * dVdt
+
+    if V_floor is not None:
+        V_new = V_new.clamp(min=V_floor)
+
     spiked = (V_new >= V_th_t) & can_spike
 
     V_new = V_new.clone()
@@ -106,10 +111,14 @@ class SimulationState:
     delay_ii_steps: int = 1
     buf_len: int = 2
     buf_idx: int = 0
-    buffer_e_to_i: "torch.Tensor | None" = None
-    buffer_e_to_e: "torch.Tensor | None" = None
-    buffer_i_to_e: "torch.Tensor | None" = None
-    buffer_i_to_i: "torch.Tensor | None" = None
+    # Simple-buffer path: lists of [B, N_E] or [B, N_I] tensors (one per buffer slot).
+    # Using lists (not a single pre-allocated tensor) so that each slot is an
+    # independent tensor — this keeps in-place slot replacement autograd-safe and
+    # enables full BPTT when gradient-tracked spike values are stored.
+    buffer_e_to_i: "list | None" = None
+    buffer_e_to_e: "list | None" = None
+    buffer_i_to_e: "list | None" = None
+    buffer_i_to_i: "list | None" = None
     use_delay_overrides: bool = False
     buffer_g_e: "torch.Tensor | None" = None
     buffer_g_i: "torch.Tensor | None" = None
@@ -130,6 +139,7 @@ class SimulationState:
     step: int = 0
     t_ms: float = 0.0
     training_mode: bool = False
+    detach_spikes: bool = True
 
 
 @dataclass(frozen=True)
@@ -376,12 +386,13 @@ def build_initial_state(runtime: Any, *, training_mode: bool = False, batch_size
         buffer_g_i = torch.zeros((buf_len, n_total), dtype=torch.float32, device=dev)
     else:
         buf_len = max(delay_ei_steps, delay_ie_steps, delay_ee_steps, delay_ii_steps) + 1
-        # Buffers are [buf_len, B, N_E/N_I] so each batch sample's spike history
-        # is stored independently, enabling parallel forward passes.
-        buffer_e_to_i = torch.zeros((buf_len, B, n_e), dtype=torch.float32, device=dev)
-        buffer_e_to_e = torch.zeros((buf_len, B, n_e), dtype=torch.float32, device=dev)
-        buffer_i_to_e = torch.zeros((buf_len, B, n_i), dtype=torch.float32, device=dev)
-        buffer_i_to_i = torch.zeros((buf_len, B, n_i), dtype=torch.float32, device=dev)
+        # Buffers are lists of [B, N_E/N_I] tensors (one per delay slot).
+        # Using lists keeps each slot independent in the autograd graph, enabling
+        # full BPTT when gradient-tracked spike values are stored during training.
+        buffer_e_to_i = [torch.zeros(B, n_e, dtype=torch.float32, device=dev) for _ in range(buf_len)]
+        buffer_e_to_e = [torch.zeros(B, n_e, dtype=torch.float32, device=dev) for _ in range(buf_len)]
+        buffer_i_to_e = [torch.zeros(B, n_i, dtype=torch.float32, device=dev) for _ in range(buf_len)]
+        buffer_i_to_i = [torch.zeros(B, n_i, dtype=torch.float32, device=dev) for _ in range(buf_len)]
 
     ext = runtime.external_input
     if ext.ndim == 1:
@@ -470,15 +481,15 @@ def reset_simulation_state(state: SimulationState, runtime: Any) -> None:
     state.g_i = torch.zeros(B, state.N, dtype=torch.float32, device=dev)
     # refractory_countdown is int64 — not tracked by autograd, safe to zero in-place.
     state.refractory_countdown.zero_()
-    # Spike buffers hold detached bool data, safe to zero in-place.
+    # Reset spike buffer lists — replace each slot with a fresh zero tensor.
     if state.buffer_e_to_e is not None:
-        state.buffer_e_to_e.zero_()
-    if state.buffer_e_to_i is not None:
-        state.buffer_e_to_i.zero_()
+        for i in range(state.buf_len):
+            state.buffer_e_to_e[i] = torch.zeros(B, state.N_E, dtype=torch.float32, device=dev)
+            state.buffer_e_to_i[i] = torch.zeros(B, state.N_E, dtype=torch.float32, device=dev)
     if state.buffer_i_to_e is not None:
-        state.buffer_i_to_e.zero_()
-    if state.buffer_i_to_i is not None:
-        state.buffer_i_to_i.zero_()
+        for i in range(state.buf_len):
+            state.buffer_i_to_e[i] = torch.zeros(B, state.N_I, dtype=torch.float32, device=dev)
+            state.buffer_i_to_i[i] = torch.zeros(B, state.N_I, dtype=torch.float32, device=dev)
     if state.buffer_g_e is not None:
         state.buffer_g_e.zero_()
     if state.buffer_g_i is not None:
@@ -513,13 +524,12 @@ def apply_delayed_events(state: SimulationState, runtime: Any) -> None:
     assert state.buffer_i_to_e is not None and state.buffer_i_to_i is not None
     w = runtime.weights
 
-    # Clone buffer slices so that the subsequent in-place zero_() doesn't
-    # invalidate tensors saved by autograd for the backward pass.
-    # Slices are [B, N_E] or [B, N_I] for batched state.
-    spikes_ee = state.buffer_e_to_e[state.buf_idx].clone()  # [B, N_E]
-    spikes_ei = state.buffer_e_to_i[state.buf_idx].clone()  # [B, N_E]
-    spikes_ie = state.buffer_i_to_e[state.buf_idx].clone()  # [B, N_I]
-    spikes_ii = state.buffer_i_to_i[state.buf_idx].clone()  # [B, N_I]
+    # Read spike values from buffer lists.  Each slot is an independent tensor
+    # (possibly gradient-tracked for BPTT during training).
+    spikes_ee = state.buffer_e_to_e[state.buf_idx]  # [B, N_E]
+    spikes_ei = state.buffer_e_to_i[state.buf_idx]  # [B, N_E]
+    spikes_ie = state.buffer_i_to_e[state.buf_idx]  # [B, N_I]
+    spikes_ii = state.buffer_i_to_i[state.buf_idx]  # [B, N_I]
 
     # E->* contributes excitatory conductance g_e.
     # Batched matmul: spikes [B, N_pre] @ W.T [N_pre, N_post] = [B, N_post].
@@ -539,16 +549,26 @@ def apply_delayed_events(state: SimulationState, runtime: Any) -> None:
         else:
             state.g_i = state.g_i + ii_contrib
 
-    state.buffer_e_to_e[state.buf_idx].zero_()
-    state.buffer_e_to_i[state.buf_idx].zero_()
-    state.buffer_i_to_e[state.buf_idx].zero_()
-    state.buffer_i_to_i[state.buf_idx].zero_()
+    # Clear consumed slots by replacing with fresh zero tensors (autograd-safe).
+    dev = state.V.device
+    B = state.batch_size
+    state.buffer_e_to_e[state.buf_idx] = torch.zeros(B, state.N_E, dtype=torch.float32, device=dev)
+    state.buffer_e_to_i[state.buf_idx] = torch.zeros(B, state.N_E, dtype=torch.float32, device=dev)
+    state.buffer_i_to_e[state.buf_idx] = torch.zeros(B, state.N_I, dtype=torch.float32, device=dev)
+    state.buffer_i_to_i[state.buf_idx] = torch.zeros(B, state.N_I, dtype=torch.float32, device=dev)
 
 
 def emit_and_schedule_spikes(state: SimulationState, spiked: "torch.Tensor") -> None:
-    # Use a detached bool view for routing — spike routing doesn't need grads.
-    # spiked is [B, N]; for the delay-override path use only first sample (B=1 only).
-    spiked_bool = spiked.detach().bool()
+    # By default, detach spikes for routing — gradient flows through W at read
+    # time, not through the temporal spike chain.  Full BPTT through the spike
+    # buffer is unstable for conductance-based LIF unless a surrogate Jacobian
+    # (e.g. cm_backward_scale) tames the driving-force gradient.
+    # When detach_spikes=False, gradient-tracked float spikes are stored in the
+    # buffer, enabling temporal credit assignment through the spike chain.
+    if state.detach_spikes:
+        spiked_bool = spiked.detach().bool()
+    else:
+        spiked_bool = spiked  # keep gradient-tracked float values
 
     if state.use_delay_overrides:
         assert state.buffer_g_e is not None and state.buffer_g_i is not None
@@ -598,13 +618,13 @@ def emit_and_schedule_spikes(state: SimulationState, spiked: "torch.Tensor") -> 
     assert state.buffer_i_to_e is not None and state.buffer_i_to_i is not None
 
     # spiked_bool is [B, N]; slice along neuron dim (dim=1).
-    spiked_e = spiked_bool[:, : state.N_E].to(dtype=state.buffer_e_to_e.dtype)  # [B, N_E]
+    spiked_e = spiked_bool[:, : state.N_E].float()  # [B, N_E]
     tgt_ei = (state.buf_idx + state.delay_ei_steps) % state.buf_len
     tgt_ee = (state.buf_idx + state.delay_ee_steps) % state.buf_len
-    state.buffer_e_to_i[tgt_ei] = spiked_e  # writes [B, N_E] to buffer slot
+    state.buffer_e_to_i[tgt_ei] = spiked_e  # replaces list entry (autograd-safe)
     state.buffer_e_to_e[tgt_ee] = spiked_e
     if state.N_I > 0:
-        spiked_i = spiked_bool[:, state.N_E :].to(dtype=state.buffer_i_to_e.dtype)  # [B, N_I]
+        spiked_i = spiked_bool[:, state.N_E :].float()  # [B, N_I]
         tgt_ie = (state.buf_idx + state.delay_ie_steps) % state.buf_len
         tgt_ii = (state.buf_idx + state.delay_ii_steps) % state.buf_len
         state.buffer_i_to_e[tgt_ie] = spiked_i
@@ -659,6 +679,7 @@ def integrate_step(
 
     # spike_fn overrides runtime.model (e.g. pass surrogate_lif_step for training).
     _spike_fn = spike_fn if spike_fn is not None else runtime.model
+    V_floor = getattr(runtime.config, "V_floor", None)
     V_new, spiked = _spike_fn(
         state.V,
         state.g_e,
@@ -673,6 +694,7 @@ def integrate_step(
         V_th=state.V_th_arr,
         V_reset=float(runtime.config.V_reset),
         can_spike=can_spike,
+        V_floor=float(V_floor) if V_floor is not None else None,
     )
     state.V = V_new
     if not state.training_mode:
@@ -754,10 +776,10 @@ def _downgrade_to_simple_buffers(state: SimulationState, runtime: Any) -> None:
     state.buf_idx = 0
     state.buffer_g_e = None
     state.buffer_g_i = None
-    state.buffer_e_to_e = torch.zeros((buf_len, B, n_e), dtype=torch.float32, device=dev)
-    state.buffer_e_to_i = torch.zeros((buf_len, B, n_e), dtype=torch.float32, device=dev)
-    state.buffer_i_to_e = torch.zeros((buf_len, B, n_i), dtype=torch.float32, device=dev)
-    state.buffer_i_to_i = torch.zeros((buf_len, B, n_i), dtype=torch.float32, device=dev)
+    state.buffer_e_to_e = [torch.zeros(B, n_e, dtype=torch.float32, device=dev) for _ in range(buf_len)]
+    state.buffer_e_to_i = [torch.zeros(B, n_e, dtype=torch.float32, device=dev) for _ in range(buf_len)]
+    state.buffer_i_to_e = [torch.zeros(B, n_i, dtype=torch.float32, device=dev) for _ in range(buf_len)]
+    state.buffer_i_to_i = [torch.zeros(B, n_i, dtype=torch.float32, device=dev) for _ in range(buf_len)]
     state.ee_targets = []
     state.ee_weights = []
     state.ee_delays = []
@@ -781,6 +803,8 @@ def simulate_network(
     return_spike_tensor: bool = False,
     return_voltage_tensor: bool = False,
     state: "SimulationState | None" = None,
+    bptt_steps: int | None = None,
+    detach_spikes: bool = True,
 ) -> "SimulationResult | tuple":
     """Run the network simulation.
 
@@ -795,6 +819,8 @@ def simulate_network(
             with gradients attached (for use as classifier logits).
         return_voltage_tensor: If True, also returns a Tensor[T, N_E] of membrane
             voltages with gradients attached (for voltage-based readout).
+        bptt_steps: If set, truncated BPTT — detach V, g_e, g_i every this many
+            steps to limit gradient depth and prevent gradient explosion.
 
     Returns:
         SimulationResult, or tuple of (SimulationResult, spike_tensor, voltage_tensor)
@@ -829,6 +855,8 @@ def simulate_network(
         reset_simulation_state(state, runtime)
         if state.batch_size == 1:
             was_unbatched = True
+
+    state.detach_spikes = detach_spikes
 
     if external_input is not None:
         dev = state.V.device

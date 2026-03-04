@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch.optim import Adam
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from torch.utils.data import Subset
 from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
@@ -30,8 +31,8 @@ from pinglab.io.graph_renderer import save_graph_diagram
 from pinglab.io.training import encode_poisson, train_epoch, eval_epoch
 
 from plots import (
-    save_line, save_raster_grid, save_raster_layers, save_confusion_matrix,
-    save_input_raster, save_voltage_traces,
+    save_line, save_stacked_lines, save_raster_grid, save_raster_layers,
+    save_confusion_matrix, save_input_raster, save_voltage_traces,
 )
 
 
@@ -76,6 +77,31 @@ def main(
             shutil.rmtree(data_path)
     data_path.mkdir(parents=True, exist_ok=True)
 
+    # ── tee stdout to a log file ──────────────────────────────────────────
+    import io
+
+    class Tee(io.TextIOBase):
+        """Write to both a file and the original stream."""
+        def __init__(self, stream, path):
+            self._stream = stream
+            self._file = open(path, "a")
+        def write(self, data):
+            self._stream.write(data)
+            self._file.write(data)
+            self._file.flush()
+            return len(data)
+        def flush(self):
+            self._stream.flush()
+            self._file.flush()
+        def close(self):
+            self._file.close()
+
+    log_path = data_path / "train.log"
+    if not resuming:
+        log_path.unlink(missing_ok=True)
+    sys.stdout = Tee(sys.__stdout__, log_path)
+    sys.stderr = Tee(sys.__stderr__, log_path)
+
     if data_dir is None:
         mnist_root = experiment_dir / "data"
     else:
@@ -94,6 +120,8 @@ def main(
     epochs            = int(meta.get("epochs", 5))
     lr                = float(meta.get("lr", 1e-3))
     input_scale       = float(meta.get("input_scale", 1.5))
+    readout_mode      = str(meta.get("readout", "hybrid"))
+    readout_alpha     = float(meta.get("readout_alpha", 0.01))
     subset_size       = meta.get("subset_size")       # None = full MNIST (60K)
     test_subset_size  = meta.get("test_subset_size")  # None = full test set (10K)
     if subset_size is not None:
@@ -107,6 +135,7 @@ def main(
     T_steps = int(T_ms / dt)
     burn_in_ms    = float(sim_cfg.get("burn_in_ms", 0.0))
     burn_in_steps = int(burn_in_ms / dt)
+    cm_backward_scale = float(meta.get("cm_backward_scale", 1.0))
 
     # ── compile graph ───────────────────────────────────────────────────────
     plan    = compile_graph(spec)
@@ -122,17 +151,30 @@ def main(
     print(f"Sim: T={T_ms}ms  dt={dt}ms  steps={T_steps}  burn_in={burn_in_ms}ms ({burn_in_steps} steps)")
 
     runtime = compile_graph_to_runtime(spec, backend="pytorch", trainable=True, device=device)
-    # Collect all trainable weight matrices
+
+    # With cm_backward_scale > 1, the surrogate Jacobian tames the explosive
+    # driving-force gradient, allowing BPTT through the spike buffer.  All
+    # weight matrices can then receive gradient.
+    use_surrogate_cm = cm_backward_scale > 1.0
     trainable_params = [runtime.weights.W_ee]
     param_counts = {"W_ee": runtime.weights.W_ee.numel()}
     if runtime.weights.W_ei is not None:
-        trainable_params.append(runtime.weights.W_ei)
-        param_counts["W_ei"] = runtime.weights.W_ei.numel()
+        if use_surrogate_cm:
+            trainable_params.append(runtime.weights.W_ei)
+            param_counts["W_ei"] = runtime.weights.W_ei.numel()
+        else:
+            param_counts["W_ei (frozen)"] = runtime.weights.W_ei.numel()
     if runtime.weights.W_ie is not None:
-        trainable_params.append(runtime.weights.W_ie)
-        param_counts["W_ie"] = runtime.weights.W_ie.numel()
+        if use_surrogate_cm:
+            trainable_params.append(runtime.weights.W_ie)
+            param_counts["W_ie"] = runtime.weights.W_ie.numel()
+        else:
+            param_counts["W_ie (frozen)"] = runtime.weights.W_ie.numel()
     total_params = sum(param_counts.values())
-    print(f"Trainable params: {total_params:,}  ({param_counts})")
+    n_trainable = sum(p.numel() for p in trainable_params)
+    detach_spikes = not use_surrogate_cm
+    print(f"Trainable params: {n_trainable:,}  total: {total_params:,}"
+          f"  cm_backward_scale={cm_backward_scale}  detach_spikes={detach_spikes}")
 
     # Pre-build simulation state once — reset cheaply between batches.
     sim_state = prepare_runtime_tensors(runtime, training_mode=True, batch_size=batch_size)
@@ -152,21 +194,64 @@ def main(
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     test_loader  = DataLoader(test_data,  batch_size=batch_size, shuffle=False)
 
-    # ── optimizer (all weights: W_ee, W_ei, W_ie) ──────────────────────────
+    # ── optimizer ────────────────────────────────────────────────────────
     optimizer = Adam(trainable_params, lr=lr)
+    warmup_scheduler = LinearLR(optimizer, start_factor=0.01, total_iters=1)
+    cosine_scheduler = CosineAnnealingLR(optimizer, T_max=epochs - 1)
+    scheduler = SequentialLR(optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[1])
 
-    # ── forward closure (Poisson encoding + voltage readout) ───────────────
+    # ── gradient norm tracking via hooks ─────────────────────────────────
+    _grad_norms: dict[str, list[float]] = {"W_ee": []}
+
+    def _make_hook(name):
+        def _hook(grad):
+            _grad_norms[name].append(grad.norm().item())
+        return _hook
+    runtime.weights.W_ee.register_hook(_make_hook("W_ee"))
+    if use_surrogate_cm:
+        if runtime.weights.W_ei is not None:
+            _grad_norms["W_ei"] = []
+            runtime.weights.W_ei.register_hook(_make_hook("W_ei"))
+        if runtime.weights.W_ie is not None:
+            _grad_norms["W_ie"] = []
+            runtime.weights.W_ie.register_hook(_make_hook("W_ie"))
+
+    # ── forward closure (Poisson encoding + hybrid readout) ─────────────
+    _batch_kwargs = dict(
+        T_steps=T_steps, n_total=n_total, n_input=n_input,
+        out_start=out_start, out_stop=out_stop,
+        input_scale=input_scale, sim_state=sim_state,
+        burn_in_steps=burn_in_steps, readout=readout_mode,
+        readout_alpha=readout_alpha, encoding="poisson",
+        cm_backward_scale=cm_backward_scale,
+        detach_spikes=detach_spikes,
+    )
+
     def forward(X: torch.Tensor) -> torch.Tensor:
-        return run_batch(
-            runtime, X,
-            T_steps=T_steps, n_total=n_total, n_input=n_input,
-            out_start=out_start, out_stop=out_stop,
-            input_scale=input_scale,
-            sim_state=sim_state,
-            burn_in_steps=burn_in_steps,
-            readout="voltage",
-            encoding="poisson",
-        )
+        return run_batch(runtime, X, **_batch_kwargs)
+
+    # Per-iteration firing rate tracking.  forward_with_rates() is used
+    # during training; it stashes per-layer Hz after each batch.
+    _iter_rates: dict[str, list[float]] = {
+        "E_in": [], "E_hid": [], "E_out": [],
+    }
+    # Layer boundaries in the spike tensor [B, T, N_E] (E neurons only).
+    _layer_slices = {
+        "E_in":  (int(pop_idx["E_in"]["start"]),  int(pop_idx["E_in"]["stop"])),
+        "E_hid": (int(pop_idx["E_hid"]["start"]), int(pop_idx["E_hid"]["stop"])),
+        "E_out": (int(pop_idx["E_out"]["start"]), int(pop_idx["E_out"]["stop"])),
+    }
+    T_sec = T_steps * dt / 1000.0  # simulation window in seconds
+
+    def forward_with_rates(X: torch.Tensor) -> torch.Tensor:
+        logits, spikes = run_batch(runtime, X, **_batch_kwargs, return_spikes=True)
+        # spikes: [B, T, N_E] — compute mean firing rate per layer
+        with torch.no_grad():
+            for name, (s, e) in _layer_slices.items():
+                # mean spikes per neuron per sample, converted to Hz
+                rate = spikes[:, burn_in_steps:, s:e].sum(dim=1).mean().item() / T_sec
+                _iter_rates[name].append(rate)
+        return logits
 
     # ── training loop ───────────────────────────────────────────────────────
     import time
@@ -187,11 +272,17 @@ def main(
         if "W_ie" in ckpt and runtime.weights.W_ie is not None:
             runtime.weights.W_ie.data.copy_(ckpt["W_ie"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        if "scheduler_state_dict" in ckpt:
+            scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         start_epoch = ckpt["epoch"]
         test_losses = ckpt.get("test_losses", [])
         test_accuracies = ckpt.get("test_accuracies", [])
         all_iter_losses = ckpt.get("all_iter_losses", [])
         all_iter_accs = ckpt.get("all_iter_accs", [])
+        for name in _iter_rates:
+            _iter_rates[name] = ckpt.get(f"rates_{name}", [])
+        for name in _grad_norms:
+            _grad_norms[name] = ckpt.get(f"grad_norm_{name}", [])
         prior_elapsed = ckpt.get("elapsed_seconds", 0.0)
         print(f"  Restored epoch {start_epoch}/{epochs}, "
               f"{len(all_iter_losses)} iter metrics, "
@@ -205,12 +296,15 @@ def main(
         print(f"\n{'='*60}")
         print(f"Epoch {epoch + 1}/{epochs}", flush=True)
         train_loss, iter_losses, iter_accs = train_epoch(
-            train_loader, optimizer, forward,
+            train_loader, optimizer, forward_with_rates,
             n_total_samples=len(train_data),
             device=device,
+            max_grad_norm=float(meta.get("max_grad_norm", 1.0)),
+            per_param_clip=use_surrogate_cm,
         )
         all_iter_losses.extend(iter_losses)
         all_iter_accs.extend(iter_accs)
+
         train_elapsed = time.perf_counter() - epoch_start
         print(f"  train done in {train_elapsed:.1f}s  avg loss: {train_loss:.4f}", flush=True)
 
@@ -220,13 +314,16 @@ def main(
         )
         test_losses.append(test_loss)
         test_accuracies.append(acc)
+        scheduler.step()
         epoch_elapsed = time.perf_counter() - epoch_start
         total_elapsed = time.perf_counter() - run_start
         epochs_left = epochs - (epoch + 1)
         eta = epochs_left * epoch_elapsed
+        current_lr = optimizer.param_groups[0]["lr"]
         print(
             f"  EPOCH {epoch+1}/{epochs}  train_loss={train_loss:.4f}"
             f"  test_loss={test_loss:.4f}  acc={100*acc:.1f}%"
+            f"  lr={current_lr:.2e}"
             f"  epoch_time={epoch_elapsed:.0f}s  ETA={eta:.0f}s  total={total_elapsed:.0f}s",
             flush=True,
         )
@@ -237,10 +334,13 @@ def main(
                 "epoch": epoch + 1,
                 "W_ee": runtime.weights.W_ee.detach().cpu(),
                 "optimizer_state_dict": optimizer.state_dict(),
+                "scheduler_state_dict": scheduler.state_dict(),
                 "test_losses": test_losses,
                 "test_accuracies": test_accuracies,
                 "all_iter_losses": all_iter_losses,
                 "all_iter_accs": all_iter_accs,
+                **{f"rates_{k}": v for k, v in _iter_rates.items()},
+                **{f"grad_norm_{k}": v for k, v in _grad_norms.items()},
                 "elapsed_seconds": prior_elapsed + (time.perf_counter() - run_start),
             }
             if runtime.weights.W_ei is not None:
@@ -261,7 +361,9 @@ def main(
 
     # ── save weights ────────────────────────────────────────────────────────
     mnist_root.mkdir(parents=True, exist_ok=True)
-    checkpoint = {"W_ee": runtime.weights.W_ee.detach()}
+    checkpoint = {
+        "W_ee": runtime.weights.W_ee.detach(),
+    }
     if runtime.weights.W_ei is not None:
         checkpoint["W_ei"] = runtime.weights.W_ei.detach()
     if runtime.weights.W_ie is not None:
@@ -325,6 +427,8 @@ def main(
     if len(available_digits) < 10:
         print(f"  Warning: only found canonical samples for digits {available_digits}")
 
+    print(f"\nInput scale: {input_scale:.1f} (fixed)")
+
     with torch.no_grad():
         for d in available_digits:
             img = canonical[d]
@@ -363,7 +467,9 @@ def main(
             full_spike_arrays[d],
             dt=dt,
             pop_idx=pop_idx,
-            title=f"E_hid + I_global + E_out — digit {d}",
+            input_ext=input_arrays[d],
+            n_input=n_input,
+            title=f"All layers — digit {d}",
         )
 
     # 3. Input rasters — Poisson spike trains for each digit
@@ -399,6 +505,28 @@ def main(
     save_line(data_path / "accuracy",   x=iters_x, y=[a * 100 for a in all_iter_accs],
               title="Train Accuracy", xlabel="Iteration", ylabel="Accuracy (%)")
 
+    # Firing rates per layer over iterations
+    if _iter_rates["E_in"]:
+        save_stacked_lines(
+            data_path / "firing_rates",
+            x=iters_x,
+            series={k: v for k, v in _iter_rates.items() if v},
+            suptitle="Mean Firing Rate per Layer",
+            xlabel="Iteration",
+            ylabel="Hz",
+        )
+
+    # Gradient norms per weight matrix over iterations
+    if _grad_norms.get("W_ee"):
+        save_stacked_lines(
+            data_path / "grad_norms",
+            x=iters_x,
+            series={k: v for k, v in _grad_norms.items() if v},
+            suptitle="Gradient Norm per Weight Matrix",
+            xlabel="Iteration",
+            ylabel="||grad||",
+        )
+
     save_line(
         data_path / "accuracy_per_class",
         x=list(range(10)),
@@ -416,8 +544,10 @@ def main(
     )
 
     # ── save results ──────────────────────────────────────────────────────
+    import uuid
     total_elapsed = prior_elapsed + (time.perf_counter() - run_start)
     results = {
+        "run_id": uuid.uuid4().hex[:8],
         "epochs": epochs,
         "train_samples": len(train_data),
         "test_samples": len(test_data),
@@ -431,9 +561,13 @@ def main(
         "test_losses_per_epoch": [round(x, 4) for x in test_losses],
         "test_accuracies_per_epoch": [round(100 * x, 1) for x in test_accuracies],
         "encoding": "poisson",
-        "readout": "voltage",
-        "trainable_params": total_params,
+        "readout": readout_mode,
+        "readout_alpha": readout_alpha,
+        "input_scale": input_scale,
+        "trainable_params": n_trainable,
         "trainable_params_breakdown": param_counts,
+        "cm_backward_scale": cm_backward_scale,
+        "detach_spikes": detach_spikes,
         "elapsed_seconds": round(total_elapsed, 1),
         "device": str(device),
         "runtime": "modal" if os.environ.get("MODAL_IS_REMOTE") else "local",

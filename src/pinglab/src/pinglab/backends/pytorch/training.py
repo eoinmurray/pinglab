@@ -29,13 +29,21 @@ def run_batch(
     n_input: int,
     out_start: int,
     out_stop: int,
-    input_scale: float,
+    input_scale: "float | torch.Tensor",
     sim_state: object = None,
     burn_in_steps: int = 0,
     readout: str = "spike_count",
+    readout_alpha: float = 0.01,
     encoding: str = "tonic",
-) -> "torch.Tensor":
+    return_spikes: bool = False,
+    bptt_steps: int | None = None,
+    cm_backward_scale: float = 1.0,
+    detach_spikes: bool = True,
+) -> "torch.Tensor | tuple[torch.Tensor, torch.Tensor]":
     """Run a batch of images through the SNN; return logits [B, C].
+
+    If ``return_spikes`` is True, returns ``(logits, spikes)`` where
+    spikes is ``[B, T, N_E]`` (the full E-neuron spike tensor).
 
     Encodes each image to [T, N] via the chosen encoding, stacks into
     [B, T, N] for a single batched simulation call.
@@ -58,6 +66,11 @@ def run_batch(
         readout: Decoding strategy for producing logits from the simulation.
             ``"spike_count"`` (default): sum output spike counts over readout window.
             ``"voltage"``: mean membrane voltage of output neurons over readout window.
+            ``"hybrid"``: spike counts + alpha * mean voltage.  Provides smooth
+            gradient signal while encouraging spiking output.
+        readout_alpha: Mixing weight for the voltage component in hybrid readout.
+        bptt_steps: If set, truncated BPTT — detach simulation state every this many
+            steps to limit gradient depth.
         encoding: Input encoding strategy.
             ``"tonic"`` (default): constant current injection (pixel * scale each step).
             ``"poisson"``: stochastic Poisson spike trains (Bernoulli per step).
@@ -70,9 +83,17 @@ def run_batch(
     except Exception as exc:  # pragma: no cover
         raise ImportError("PyTorch backend requires torch to be installed") from exc
 
+    from functools import partial
     from pinglab.io.training import encode_rate_to_tonic, encode_poisson
     from pinglab.backends.pytorch.simulate_network import simulate_network
     from pinglab.backends.pytorch.surrogate import surrogate_lif_step
+
+    # Bind cm_backward_scale into the surrogate spike function so the
+    # simulate_network call site doesn't need to know about it.
+    if cm_backward_scale != 1.0:
+        spike_fn = partial(surrogate_lif_step, cm_backward_scale=cm_backward_scale)
+    else:
+        spike_fn = surrogate_lif_step
 
     if encoding == "poisson":
         encode_fn = encode_poisson
@@ -80,13 +101,19 @@ def run_batch(
         encode_fn = encode_rate_to_tonic
 
     B_actual = images.shape[0]
+    # Encode with unit amplitude, then apply scale.
+    # This allows input_scale to be a learnable tensor (gradient flows through the multiply).
     ext_batch = torch.stack(
         [
-            encode_fn(img, T_steps=T_steps, n_total=n_total, n_input=n_input, scale=input_scale)
+            encode_fn(img, T_steps=T_steps, n_total=n_total, n_input=n_input, scale=1.0)
             for img in images
         ],
         dim=0,
     )  # [B_actual, T, N]
+    if isinstance(input_scale, torch.Tensor):
+        ext_batch = ext_batch.to(device=input_scale.device) * input_scale
+    else:
+        ext_batch = ext_batch * input_scale
 
     # If the pre-built state has a larger batch dim (e.g. last mini-batch),
     # pad with zeros so the state tensor shapes match.
@@ -94,27 +121,38 @@ def run_batch(
     if B_actual < B_state:
         pad = torch.zeros(
             B_state - B_actual, ext_batch.shape[1], ext_batch.shape[2],
-            dtype=ext_batch.dtype,
+            dtype=ext_batch.dtype, device=ext_batch.device,
         )
         ext_batch = torch.cat([ext_batch, pad], dim=0)  # [B_state, T, N]
 
-    use_voltage = readout == "voltage"
+    need_voltage = readout in ("voltage", "hybrid")
     sim_returns = simulate_network(
         runtime,
         external_input=ext_batch,
-        spike_fn=surrogate_lif_step,
+        spike_fn=spike_fn,
         return_spike_tensor=True,
-        return_voltage_tensor=use_voltage,
+        return_voltage_tensor=need_voltage,
         state=sim_state,
+        bptt_steps=bptt_steps,
+        detach_spikes=detach_spikes,
     )
 
-    if use_voltage:
+    if need_voltage:
         _result, spikes, voltages = sim_returns
-        # voltages: [B_state, T, N_E] — mean over readout window
-        logits = voltages[:B_actual, burn_in_steps:, out_start:out_stop].mean(dim=1)
     else:
         _result, spikes = sim_returns
-        # spikes: [B_state, T, N_E] — sum over readout window
-        logits = spikes[:B_actual, burn_in_steps:, out_start:out_stop].sum(dim=1)
 
+    out_spikes = spikes[:B_actual, burn_in_steps:, out_start:out_stop]
+
+    if readout == "voltage":
+        logits = voltages[:B_actual, burn_in_steps:, out_start:out_stop].mean(dim=1)
+    elif readout == "hybrid":
+        spike_counts = out_spikes.sum(dim=1)
+        mean_voltage = voltages[:B_actual, burn_in_steps:, out_start:out_stop].mean(dim=1)
+        logits = spike_counts + readout_alpha * mean_voltage
+    else:
+        logits = out_spikes.sum(dim=1)
+
+    if return_spikes:
+        return logits, spikes[:B_actual]
     return logits

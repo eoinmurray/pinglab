@@ -2,13 +2,24 @@
   "schema_version": "pinglab-graph.v1",
   "meta": {
     "batch_size": 64,
-    "epochs": 3,
+    "epochs": 10,
     "input_scale": 3.0,
-    "lr": 1e-3
+    "lr": 1e-4,
+    "readout": "hybrid",
+    "readout_alpha": 0.01,
+    "cm_backward_scale": 100,
+    "max_grad_norm": 1.0,
+    "subset_size": 20000,
+    "test_subset_size": 5000
+  },
+  "modal": {
+    "gpu": "T4",
+    "cpu": 2,
+    "timeout": 21600
   },
   "sim": {
     "dt_ms": 1.0,
-    "T_ms": 100.0,
+    "T_ms": 200.0,
     "seed": 42,
     "neuron_model": "lif",
     "burn_in_ms": 0.0
@@ -27,15 +38,16 @@
     "C_m_E": 1, "g_L_E": 0.05, "C_m_I": 1, "g_L_I": 0.1,
     "V_th": -50, "V_reset": -65, "t_ref_E": 3, "t_ref_I": 1.5,
     "tau_ampa": 2, "tau_gaba": 6.5,
+    "V_floor": -200,
     "g_L_heterogeneity_sd": 0.0, "C_m_heterogeneity_sd": 0.0,
     "V_th_heterogeneity_sd": 0.0, "t_ref_heterogeneity_sd": 0.0
   },
   "nodes": [
     {"id": "inp", "kind": "input", "type": "tonic", "size": 0},
     {"id": "E_in",  "kind": "population", "type": "E", "size": 784},
-    {"id": "E_hid", "kind": "population", "type": "E", "size": 64},
+    {"id": "E_hid", "kind": "population", "type": "E", "size": 256},
     {"id": "E_out", "kind": "population", "type": "E", "size": 10},
-    {"id": "I_global", "kind": "population", "type": "I", "size": 13}
+    {"id": "I_global", "kind": "population", "type": "I", "size": 64}
   ],
   "edges": [
     {

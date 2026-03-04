@@ -103,6 +103,8 @@ def train_epoch(
     *,
     n_total_samples: int,
     device: str = "cpu",
+    max_grad_norm: float | None = None,
+    per_param_clip: bool = False,
 ) -> "tuple[float, list[float], list[float]]":
     """One training epoch with cross-entropy classification loss.
 
@@ -139,6 +141,14 @@ def train_epoch(
         pred = forward_fn(X)  # [B, C]
         loss = F.cross_entropy(pred, y)
         loss.backward()
+        if max_grad_norm is not None:
+            all_params = [p for group in optimizer.param_groups for p in group["params"] if p.grad is not None]
+            if all_params:
+                if per_param_clip:
+                    for p in all_params:
+                        torch.nn.utils.clip_grad_norm_([p], max_grad_norm)
+                else:
+                    torch.nn.utils.clip_grad_norm_(all_params, max_grad_norm)
         optimizer.step()
         optimizer.zero_grad()
 

@@ -71,6 +71,15 @@ class SpikeFunction:  # type: ignore[no-redef]  # noqa: F811
         return _get_autograd_fn().apply(u)
 
 
+def _scale_grad(x: "torch.Tensor", scale: float) -> "torch.Tensor":
+    """Return x unchanged in forward, but multiply its gradient by ``scale`` in backward.
+
+    Uses the identity: x * scale + x.detach() * (1 - scale) == x in forward,
+    but autograd sees only the x * scale term, so grad is scaled by ``scale``.
+    """
+    return x * scale + x.detach() * (1.0 - scale)
+
+
 def surrogate_lif_step(
     V: "torch.Tensor",
     g_e: "torch.Tensor",
@@ -86,12 +95,21 @@ def surrogate_lif_step(
     V_th: float | "torch.Tensor",
     V_reset: float,
     can_spike: "torch.Tensor | None" = None,
+    V_floor: float | None = None,
+    cm_backward_scale: float = 1.0,
 ) -> tuple["torch.Tensor", "torch.Tensor"]:
     """LIF step with surrogate gradient spike function.
 
     Identical signature to lif_step. The only difference is the spike
     decision uses SpikeFunction (differentiable) instead of a hard boolean
     comparison, allowing gradients to flow back through the threshold.
+
+    Args:
+        cm_backward_scale: If > 1, the backward pass pretends C_m is this
+            many times larger, shrinking dV/dg_e from ~65 to ~65/scale.
+            Forward dynamics are unchanged.  This is a "surrogate Jacobian"
+            that tames the explosive gradient from the conductance-based
+            driving force (E_e - V).
 
     Pass this as the spike_fn argument to simulate_network for training.
     """
@@ -110,7 +128,17 @@ def surrogate_lif_step(
     V_th_t = _as_tensor(V_th, V)
 
     dVdt = (g_L_t * (E_L - V) + g_e * (E_e - V) + g_i * (E_i - V) + I_ext) / C_m_t
+
+    # Surrogate Jacobian: scale gradient of dVdt as if C_m were larger.
+    # Forward value is unchanged; backward gradient is divided by cm_backward_scale.
+    if cm_backward_scale != 1.0:
+        dVdt = _scale_grad(dVdt, 1.0 / cm_backward_scale)
+
     V_new = V + float(dt) * dVdt
+
+    # Clamp voltage to a biophysical floor to prevent runaway inhibition.
+    if V_floor is not None:
+        V_new = V_new.clamp(min=V_floor)
 
     # Surrogate spike: gradient-aware threshold via fast-sigmoid approximation.
     spiked = SpikeFunction.apply(V_new - V_th_t) * can_spike.float()

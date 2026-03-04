@@ -74,6 +74,7 @@ class NetworkConfig(BaseModel):
     g_L_I: float = 0.1
     V_th: float = -50.0
     V_reset: float = -65.0
+    V_floor: float | None = None
     # MQIF parameters
     mqif_a: list[float] = []
     mqif_Vr: list[float] = []
