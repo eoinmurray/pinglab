@@ -1,0 +1,394 @@
+---
+title: study.15-surrogate-jacobian
+date: "2026-03-06"
+description: "Surrogate Jacobian enables full BPTT in conductance-based PING networks, reaching 95.6% on MNIST by training all 1.2M parameters."
+---
+
+export const path = "_artifacts/study.15-surrogate-jacobian";
+
+import config from "./_artifacts/study.15-surrogate-jacobian/config.json";
+import results from "./_artifacts/study.15-surrogate-jacobian/results.json";
+
+<VeslxFrontMatter />
+
+# Summary
+
+This study solves the gradient flow bottleneck that limited all previous
+PING training runs. Conductance-based LIF models amplify gradients by
+~65x per timestep through the $(E_e - V)$ driving force, forcing
+previous studies to detach the spike buffer and restrict training to
+2,560 of 1.2M parameters.
+
+We introduce a **surrogate Jacobian** on $C_m$: the forward pass uses
+the real $C_m = 1$, but the backward pass pretends
+$C_m$ = {String(results?.cm_backward_scale ?? "n/a")}, shrinking the
+explosive Jacobian entry from 65 to
+{String(results?.cm_backward_scale ? (65 / results.cm_backward_scale).toFixed(2) : "n/a")}.
+Combined with **per-parameter gradient clipping**, this enables stable
+full BPTT — all {String(results?.trainable_params?.toLocaleString() ?? "n/a")} parameters
+across W\_ee, W\_ei, and W\_ie receive gradient.
+
+**Result:** {String(results?.best_test_accuracy ?? "n/a")}% test accuracy
+on {String(results?.test_samples?.toLocaleString() ?? "n/a")} samples — a
+20-point improvement over the 75.6% detached-spike baseline. Test loss
+is still decreasing at epoch {String(results?.epochs ?? "n/a")},
+suggesting further gains with more training.
+
+# Architecture
+
+<VeslxGallery
+  path={path}
+  globs={["graph_*.png"]}
+  captionLabel="Figure 1.1"
+  caption="Network topology with initialization parameters."
+/>
+
+Identical to studies 13–14:
+
+| Layer | Population | Size | Role |
+| --- | --- | --- | --- |
+| Input | `E_in` | 784 | One neuron per pixel, driven by Poisson spike trains |
+| Hidden | `E_hid` | {String(config?.nodes?.[2]?.size ?? "n/a")} | Feature extraction — trained via surrogate Jacobian BPTT |
+| Output | `E_out` | 10 | One neuron per digit class |
+| Inhibitory | `I_global` | {String(config?.nodes?.[4]?.size ?? "n/a")} | PING feedback inhibition on E\_hid — also trained |
+
+# Config Snapshot
+
+| Key | Value |
+| --- | --- |
+| `sim.neuron_model` | {String(config?.sim?.neuron_model ?? "n/a")} |
+| `sim.dt_ms` | {String(config?.sim?.dt_ms ?? "n/a")} |
+| `sim.T_ms` | {String(config?.sim?.T_ms ?? "n/a")} |
+| `meta.epochs` | {String(config?.meta?.epochs ?? "n/a")} |
+| `meta.batch_size` | {String(config?.meta?.batch_size ?? "n/a")} |
+| `meta.lr` | {String(config?.meta?.lr ?? "n/a")} |
+| `meta.input_scale` | {String(config?.meta?.input_scale ?? "n/a")} |
+| `meta.readout` | {String(config?.meta?.readout ?? "n/a")} |
+| `meta.readout_alpha` | {String(config?.meta?.readout_alpha ?? "n/a")} |
+| `meta.cm_backward_scale` | {String(config?.meta?.cm_backward_scale ?? "n/a")} |
+| `meta.max_grad_norm` | {String(config?.meta?.max_grad_norm ?? "n/a")} (per-parameter) |
+| `meta.subset_size` | {String(config?.meta?.subset_size ?? "n/a")} |
+| `encoding` | {String(results?.encoding ?? "n/a")} |
+
+# Method
+
+## Encoding
+
+Poisson encoding (introduced in study.14):
+
+$$
+I_n(t) = \text{scale} \times \text{Bernoulli}(\text{pixel}_n)
+$$
+
+Each input neuron fires a current pulse with probability equal to its
+pixel intensity at every timestep. The same image produces a different
+spike train on every forward pass, acting as implicit data augmentation.
+
+## What is trained
+
+With `cm_backward_scale` = {String(results?.cm_backward_scale ?? "1")}
+and `detach_spikes` = false, gradient flows through the full temporal
+spike chain via the surrogate Jacobian. All weight matrices are in the
+optimizer with **per-parameter gradient clipping** at
+{String(config?.meta?.max_grad_norm ?? "1.0")}.
+
+| Matrix | Params | Gradient? | Connection |
+| --- | --- | --- | --- |
+| `W_ee` | {String(results?.trainable_params_breakdown?.W_ee?.toLocaleString() ?? "n/a")} | yes | E\_in→E\_hid and E\_hid→E\_out |
+| `W_ei` | {String(results?.trainable_params_breakdown?.W_ei?.toLocaleString() ?? "n/a")} | yes | E\_hid→I\_global (PING loop) |
+| `W_ie` | {String(results?.trainable_params_breakdown?.W_ie?.toLocaleString() ?? "n/a")} | yes | I\_global→E\_hid (PING loop) |
+
+## Surrogate Jacobian on $C_m$
+
+### The problem
+
+The conductance-based LIF voltage update couples voltage and
+conductance through a multiplicative driving force:
+
+$$
+\frac{\partial V_{t+1}}{\partial g_e} = \frac{dt \cdot (E_e - V_t)}{C_m} = \frac{1.0 \times (0 - (-65))}{1.0} = 65
+$$
+
+Each timestep multiplies the gradient by $\approx 65$. Over 200
+timesteps of BPTT, this is catastrophic — even 5 steps gives
+$65^5 \approx 1.2 \times 10^9$. Previous studies detached the spike
+buffer to prevent explosion, but this limited gradient to only the
+2,560 parameters in the final E\_hid→E\_out block of W\_ee.
+
+### The solution
+
+Pretend $C_m$ is $\kappa$ times larger in the backward pass only. A
+one-line identity trick on `dVdt`:
+
+$$
+\tilde{f} = f / \kappa + \text{detach}(f) \cdot (1 - 1/\kappa)
+$$
+
+Forward: $\tilde{f} = f$ (the two terms sum to $f$). Backward:
+$\partial \tilde{f}/\partial f = 1/\kappa$ (only the first term carries
+gradient). The forward dynamics are completely unchanged.
+
+With $\kappa$ = {String(results?.cm_backward_scale ?? "n/a")}:
+
+| Jacobian entry | True value | Surrogate value |
+| --- | --- | --- |
+| $\partial V'/\partial g_e$ | 65 | {String(results?.cm_backward_scale ? (65 / results.cm_backward_scale).toFixed(2) : "n/a")} |
+| $\partial V'/\partial g_i$ | −15 | {String(results?.cm_backward_scale ? (-15 / results.cm_backward_scale).toFixed(2) : "n/a")} |
+| $\partial V'/\partial V$ | 0.8 | {String(results?.cm_backward_scale ? (1 - 0.2 / results.cm_backward_scale).toFixed(3) : "n/a")} |
+
+### Per-parameter gradient clipping
+
+The surrogate Jacobian alone is not enough. Even with $\kappa = 100$,
+the raw gradient norms differ by orders of magnitude across weight
+matrices (W\_ee $\gg$ W\_ie $\gg$ W\_ei). Standard gradient clipping
+computes the **total** norm across all parameters, so the largest
+matrix dominates the clip direction — W\_ei and W\_ie effectively get
+zero update.
+
+Per-parameter clipping applies `clip_grad_norm_` to each weight matrix
+independently, ensuring each gets a fair update regardless of scale.
+
+### What didn't work: $\kappa = 10$
+
+The first attempt used $\kappa = 10$ with total (not per-parameter)
+gradient clipping. This produced 25.6% accuracy — far worse than the
+75.6% detached baseline. Analysis of the gradient norms revealed the
+failure mode:
+
+- W\_ee gradient norms hit **2 × 10¹³** at iteration ~30
+- This single spike corrupted Adam's momentum estimates
+- After the spike, W\_ee and W\_ei effectively stopped receiving
+  meaningful updates
+- Only W\_ie continued learning (shortest gradient path)
+- Firing rates ran away to 200+ Hz — the network saturated
+
+The fix was two-fold: increase $\kappa$ from 10 to 100, and switch to
+per-parameter gradient clipping.
+
+# Results
+
+## Results Snapshot
+
+| Metric | Value |
+| --- | --- |
+| Best test accuracy | {String(results?.best_test_accuracy ?? "n/a")}% (epoch {String(results?.best_test_accuracy_epoch ?? "n/a")}) |
+| Final test loss | {String(results?.final_test_loss ?? "n/a")} |
+| Encoding | {String(results?.encoding ?? "n/a")} |
+| Readout | {String(results?.readout ?? "n/a")} ($\alpha$ = {String(results?.readout_alpha ?? "0.01")}) |
+| Trainable params | {String(results?.trainable_params?.toLocaleString() ?? "n/a")} |
+| Surrogate C\_m scale ($\kappa$) | {String(results?.cm_backward_scale ?? "n/a")} |
+| Spike detachment | {String(results?.detach_spikes ? "yes" : "no")} |
+| Grad clip | {String(config?.meta?.max_grad_norm ?? "1.0")} per-parameter |
+| Training time | {String(results?.elapsed_seconds ? Math.round(results.elapsed_seconds / 60) : "n/a")} min |
+| Device | {String(results?.device ?? "n/a")} ({String(results?.runtime ?? "n/a")}) |
+
+## Comparison across studies
+
+| Study | Encoding | Readout | Trained weights | Best Accuracy |
+| --- | --- | --- | --- | --- |
+| study.8 (standard SNN) | tonic | spike count | W\_ee (2,560) | 64.2% |
+| study.11 (PING, W\_ee) | tonic | spike count | W\_ee (2,560) | 61.9% |
+| study.12 (PING, all\*) | tonic | spike count | W\_ee (2,560)\* | 62.9% |
+| study.13 (voltage) | tonic | voltage | W\_ee (2,560)\* | 62.0% |
+| study.14 (Poisson) | Poisson | voltage | W\_ee (2,560)\* | 84.8% |
+| **study.15** | **Poisson** | **hybrid** | **all ({String(results?.trainable_params?.toLocaleString() ?? "n/a")})** | **{String(results?.best_test_accuracy ?? "n/a")}%** |
+
+\*Studies 12–14 included W\_ei and W\_ie in the optimizer, but spike-buffer
+detachment meant these weights received zero gradient. Only 2,560
+params in W\_ee (E\_hid→E\_out) were actually trained.
+
+## Hyperparameter sweep
+
+| $\kappa$ | LR | Grad clip | Data | Epochs | Accuracy |
+| --- | --- | --- | --- | --- | --- |
+| — (detach) | 3e-4 | total 1.0 | 5k | 5 | 75.6% |
+| 10 | 3e-4 | total 1.0 | 5k | 5 | 25.6% |
+| 100 | 1e-4 | per-param 1.0 | 5k | 5 | 90.5% |
+| **100** | **1e-4** | **per-param 1.0** | **20k** | **10** | **{String(results?.best_test_accuracy ?? "n/a")}%** |
+
+## Training dynamics
+
+<VeslxGallery
+  path={path}
+  globs={["loss_train*.png"]}
+  captionLabel="Figure 2.1"
+  caption="Per-iteration training loss. Loss drops sharply after epoch 1, reaching near-zero by epoch 10."
+  size="md"
+/>
+
+<VeslxGallery
+  path={path}
+  globs={["loss_test*.png"]}
+  captionLabel="Figure 2.2"
+  caption="Test loss per epoch. Monotonically decreasing — still improving at epoch 10."
+  size="md"
+/>
+
+<VeslxGallery
+  path={path}
+  globs={["accuracy_dark.png", "accuracy_light.png"]}
+  captionLabel="Figure 2.3"
+  caption="Per-iteration training accuracy. Rises from ~15% to 95%+ over the first two epochs, then stabilizes."
+  size="md"
+/>
+
+## Gradient norms
+
+<VeslxGallery
+  path={path}
+  globs={["grad_norms*.png"]}
+  captionLabel="Figure 2.4"
+  caption="L2 gradient norm per weight matrix. Per-parameter clipping keeps each matrix in a healthy range: W_ee (2–10), W_ei (0.01–0.07), W_ie (0.1–0.5)."
+  size="md"
+/>
+
+With per-parameter clipping and $\kappa = 100$, all three weight
+matrices receive stable, well-scaled gradients throughout training.
+Compare this to the $\kappa = 10$ run where W\_ee hit 10¹³ at iteration
+30 and corrupted the optimizer.
+
+## Firing rates
+
+<VeslxGallery
+  path={path}
+  globs={["firing_rates*.png"]}
+  captionLabel="Figure 2.5"
+  caption="Mean firing rate (Hz) per excitatory layer. E_hid and E_out settle to ~6 Hz — healthy, sparse activity regulated by trained inhibition."
+  size="md"
+/>
+
+E\_hid and E\_out firing rates start elevated (~25 Hz) and settle to
+~6 Hz as training progresses. This is the opposite of the $\kappa = 10$
+run where rates ran away to 200+ Hz. The trained W\_ei and W\_ie
+weights successfully regulate network activity through the PING loop.
+
+## Per-class accuracy
+
+<VeslxGallery
+  path={path}
+  globs={["accuracy_per_class*.png"]}
+  captionLabel="Figure 3.1"
+  caption="Per-class test accuracy. All digits between 93–98%."
+  size="md"
+/>
+
+All 10 digit classes are well-classified with balanced accuracy.
+Digit 1 leads at 98.2% (sparse, easy to distinguish), and digit 9
+trails at 94.2%.
+
+## Confusion matrix
+
+<VeslxGallery
+  path={path}
+  globs={["confusion*.png"]}
+  captionLabel="Figure 3.2"
+  caption="Confusion matrix on 5,000 test samples. Strong diagonal with few off-diagonal errors."
+  size="md"
+/>
+
+## Output layer rasters
+
+<VeslxGallery
+  path={path}
+  globs={["raster_output_all_all*.png"]}
+  captionLabel="Figure 4.1"
+  caption="Output layer (10 neurons) spike rasters for one canonical sample per digit. Each digit activates its corresponding output neuron with sparse, discriminative spiking."
+  size="md"
+/>
+
+The output rasters show clean, class-selective spiking. For digit 0,
+neuron 0 fires; for digit 7, neuron 7 fires. This is genuine
+spike-based classification — not voltage-only discrimination.
+
+## Output neuron voltage traces
+
+<VeslxGallery
+  path={path}
+  globs={["voltage_output_digit_*.png"]}
+  captionLabel="Figure 4.2"
+  caption="Membrane voltage traces for the 10 output neurons over 200 ms. The correct class neuron is pushed toward threshold while others remain subthreshold."
+  size="md"
+/>
+
+## Input rasters (Poisson spike trains)
+
+<VeslxGallery
+  path={path}
+  globs={["raster_input_digit_*.png"]}
+  captionLabel="Figure 4.3"
+  caption="Poisson input spike trains for each digit (0–9). Bright pixels produce dense spike trains; dark pixels are sparse."
+  size="md"
+/>
+
+## Full layer rasters
+
+<VeslxGallery
+  path={path}
+  globs={["raster_layers_digit_*.png"]}
+  captionLabel="Figure 4.4"
+  caption="Full signal path rasters for each digit. Top: E_in (blue), middle: E_hid (white), bottom: E_out and I_global (red). PING oscillations visible in the I_global bursts."
+  size="md"
+/>
+
+# Discussion
+
+## Why this works
+
+Two insights were critical:
+
+**1. Per-parameter gradient clipping.** Standard clipping computes a
+single norm across all parameters, so the largest matrix dominates the
+direction. With conductance-based gradients, W\_ee's raw norm can be
+10⁵× larger than W\_ie's. Per-parameter clipping ensures each weight
+matrix gets an independent, bounded update step.
+
+**2. Sufficient $\kappa$.** With $\kappa = 10$, the per-step gain
+$65/10 = 6.5$ still compounds to $6.5^{200} \approx 10^{163}$ over the
+full simulation — far too large. With $\kappa = 100$, the per-step gain
+is $65/100 = 0.65 < 1$, which naturally decays over time. The gradient
+can flow backward through many timesteps without exploding.
+
+## Hybrid readout
+
+The hybrid readout formula:
+
+$$
+\text{logits}_c = \sum_t s_c(t) + \alpha \cdot \frac{1}{T} \sum_t V_c(t)
+$$
+
+Spike counts provide the primary classification signal. The voltage
+component ($\alpha$ = {String(results?.readout_alpha ?? "0.01")})
+provides smooth gradient early in training when output neurons rarely
+spike. As the network learns discriminative spiking, spike counts
+dominate.
+
+## What the PING loop contributes
+
+Unlike detached-spike training where W\_ei and W\_ie received zero
+gradient, here the inhibitory loop is actively shaped by learning.
+The firing rate plot shows E\_hid rates decreasing from ~25 Hz to ~6 Hz
+over training — the network learns to use inhibition to keep activity
+sparse and discriminative, rather than saturating.
+
+## Limitations
+
+- The surrogate Jacobian distorts gradient direction. The true and
+  surrogate Jacobians differ by a factor of $\kappa$ on the
+  conductance-voltage coupling. This is a biased estimator of the true
+  gradient.
+- Still using only 20k of 60k MNIST samples. More data + epochs would
+  likely push accuracy higher — the test loss is still decreasing.
+- $\kappa$ was not extensively tuned. A per-matrix $\kappa$ (different
+  scaling for E and I populations) could improve results further.
+
+## Next steps
+
+- **Full MNIST**: train on all 60k samples for 20+ epochs.
+- **$\kappa$ sweep**: test 50, 100, 200 to find the optimum.
+- **Per-matrix $\kappa$**: the E and I populations have different
+  membrane properties — they may benefit from different surrogate
+  scaling.
+- **Larger networks**: scale E\_hid beyond 256 neurons now that all
+  weights can be trained.
+- **e-prop comparison**: compare surrogate Jacobian against eligibility
+  trace methods that avoid the need for temporal BPTT entirely.

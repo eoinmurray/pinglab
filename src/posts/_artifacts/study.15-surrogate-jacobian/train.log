@@ -1,0 +1,222 @@
+Network: N_E=1050  N_I=64  n_total=1114  E_in=[0,784)  E_out=[1040,1050)
+Sim: T=200.0ms  dt=1.0ms  steps=200  burn_in=0.0ms (0 steps)
+Trainable params: 1,236,900  total: 1,236,900  cm_backward_scale=100.0  detach_spikes=False
+State pre-built: N=1114  B=64  buf_len=2  device=mps
+Training on 20000 samples, evaluating on 5000 samples
+
+============================================================
+Epoch 1/10
+  [  0.3%] batch    0/312  loss: 3.3261  acc: 6.2%  82.5 samp/s  12 ms/samp  ETA: 242s
+  [ 10.2%] batch   31/312  loss: 2.8995  acc: 15.6%  125.6 samp/s  8 ms/samp  ETA: 143s
+  [ 20.2%] batch   62/312  loss: 2.5188  acc: 17.2%  124.5 samp/s  8 ms/samp  ETA: 128s
+  [ 30.1%] batch   93/312  loss: 2.5203  acc: 20.3%  124.4 samp/s  8 ms/samp  ETA: 112s
+  [ 40.0%] batch  124/312  loss: 2.3095  acc: 28.1%  124.5 samp/s  8 ms/samp  ETA: 96s
+  [ 49.9%] batch  155/312  loss: 2.3980  acc: 31.2%  125.0 samp/s  8 ms/samp  ETA: 80s
+  [ 59.8%] batch  186/312  loss: 2.1012  acc: 42.2%  125.3 samp/s  8 ms/samp  ETA: 64s
+  [ 69.8%] batch  217/312  loss: 2.0681  acc: 54.7%  125.3 samp/s  8 ms/samp  ETA: 48s
+  [ 79.7%] batch  248/312  loss: 2.1346  acc: 40.6%  125.4 samp/s  8 ms/samp  ETA: 32s
+  [ 89.6%] batch  279/312  loss: 1.9856  acc: 50.0%  125.6 samp/s  8 ms/samp  ETA: 17s
+  [ 99.5%] batch  310/312  loss: 2.0405  acc: 57.8%  125.3 samp/s  8 ms/samp  ETA: 1s
+  [100.0%] batch  312/312  loss: 1.8468  acc: 65.6%  124.8 samp/s  25 ms/samp  ETA: 0s
+  train done in 160.3s  avg loss: 2.3322
+  evaluating 5000 samples...
+  eval done in 34.3s  (145.8 samp/s)
+  EPOCH 1/10  train_loss=2.3322  test_loss=2.0027  acc=51.6%  lr=1.00e-04  epoch_time=195s  ETA=1751s  total=195s
+
+============================================================
+Epoch 2/10
+  [  0.3%] batch    0/312  loss: 2.0331  acc: 40.6%  122.1 samp/s  8 ms/samp  ETA: 163s
+  [ 10.2%] batch   31/312  loss: 0.6520  acc: 87.5%  123.5 samp/s  8 ms/samp  ETA: 145s
+  [ 20.2%] batch   62/312  loss: 0.3969  acc: 89.1%  123.2 samp/s  8 ms/samp  ETA: 130s
+  [ 30.1%] batch   93/312  loss: 0.7061  acc: 84.4%  122.7 samp/s  8 ms/samp  ETA: 114s
+  [ 40.0%] batch  124/312  loss: 0.3728  acc: 89.1%  122.4 samp/s  8 ms/samp  ETA: 98s
+  [ 49.9%] batch  155/312  loss: 0.2155  acc: 95.3%  122.3 samp/s  8 ms/samp  ETA: 82s
+  [ 59.8%] batch  186/312  loss: 0.3075  acc: 90.6%  122.4 samp/s  9 ms/samp  ETA: 66s
+  [ 69.8%] batch  217/312  loss: 0.2348  acc: 93.8%  122.5 samp/s  8 ms/samp  ETA: 49s
+  [ 79.7%] batch  248/312  loss: 0.3125  acc: 92.2%  122.7 samp/s  8 ms/samp  ETA: 33s
+  [ 89.6%] batch  279/312  loss: 0.5427  acc: 90.6%  122.7 samp/s  8 ms/samp  ETA: 17s
+  [ 99.5%] batch  310/312  loss: 0.2281  acc: 93.8%  122.7 samp/s  8 ms/samp  ETA: 1s
+  [100.0%] batch  312/312  loss: 0.2697  acc: 96.9%  122.6 samp/s  16 ms/samp  ETA: 0s
+  train done in 163.2s  avg loss: 0.4900
+  evaluating 5000 samples...
+  eval done in 33.8s  (148.1 samp/s)
+  EPOCH 2/10  train_loss=0.4900  test_loss=0.3410  acc=91.1%  lr=9.70e-05  epoch_time=197s  ETA=1576s  total=391s
+
+============================================================
+Epoch 3/10
+  [  0.3%] batch    0/312  loss: 0.1704  acc: 98.4%  122.9 samp/s  8 ms/samp  ETA: 162s
+  [ 10.2%] batch   31/312  loss: 0.3771  acc: 87.5%  122.9 samp/s  8 ms/samp  ETA: 146s
+  [ 20.2%] batch   62/312  loss: 0.2104  acc: 95.3%  123.0 samp/s  8 ms/samp  ETA: 130s
+  [ 30.1%] batch   93/312  loss: 0.2525  acc: 95.3%  123.0 samp/s  8 ms/samp  ETA: 114s
+  [ 40.0%] batch  124/312  loss: 0.1881  acc: 93.8%  123.0 samp/s  8 ms/samp  ETA: 98s
+  [ 49.9%] batch  155/312  loss: 0.2281  acc: 93.8%  123.1 samp/s  8 ms/samp  ETA: 81s
+  [ 59.8%] batch  186/312  loss: 0.1528  acc: 96.9%  123.2 samp/s  8 ms/samp  ETA: 65s
+  [ 69.8%] batch  217/312  loss: 0.2072  acc: 93.8%  123.2 samp/s  8 ms/samp  ETA: 49s
+  [ 79.7%] batch  248/312  loss: 0.1776  acc: 96.9%  123.2 samp/s  8 ms/samp  ETA: 33s
+  [ 89.6%] batch  279/312  loss: 0.2709  acc: 92.2%  123.1 samp/s  8 ms/samp  ETA: 17s
+  [ 99.5%] batch  310/312  loss: 0.2826  acc: 93.8%  123.1 samp/s  8 ms/samp  ETA: 1s
+  [100.0%] batch  312/312  loss: 0.6636  acc: 75.0%  122.9 samp/s  16 ms/samp  ETA: 0s
+  train done in 162.8s  avg loss: 0.2261
+  evaluating 5000 samples...
+  eval done in 33.9s  (147.7 samp/s)
+  EPOCH 3/10  train_loss=0.2261  test_loss=0.2973  acc=92.2%  lr=8.83e-05  epoch_time=197s  ETA=1376s  total=588s
+
+============================================================
+Epoch 4/10
+  [  0.3%] batch    0/312  loss: 0.2241  acc: 95.3%  122.4 samp/s  8 ms/samp  ETA: 163s
+  [ 10.2%] batch   31/312  loss: 0.1722  acc: 95.3%  122.5 samp/s  8 ms/samp  ETA: 147s
+  [ 20.2%] batch   62/312  loss: 0.1391  acc: 98.4%  124.7 samp/s  8 ms/samp  ETA: 128s
+  [ 30.1%] batch   93/312  loss: 0.0616  acc: 96.9%  123.7 samp/s  8 ms/samp  ETA: 113s
+  [ 40.0%] batch  124/312  loss: 0.2122  acc: 92.2%  123.4 samp/s  8 ms/samp  ETA: 97s
+  [ 49.9%] batch  155/312  loss: 0.1307  acc: 98.4%  123.2 samp/s  8 ms/samp  ETA: 81s
+  [ 59.8%] batch  186/312  loss: 0.1302  acc: 96.9%  123.2 samp/s  8 ms/samp  ETA: 65s
+  [ 69.8%] batch  217/312  loss: 0.0907  acc: 98.4%  123.1 samp/s  8 ms/samp  ETA: 49s
+  [ 79.7%] batch  248/312  loss: 0.0391  acc: 100.0%  123.0 samp/s  8 ms/samp  ETA: 33s
+  [ 89.6%] batch  279/312  loss: 0.0945  acc: 98.4%  123.0 samp/s  8 ms/samp  ETA: 17s
+  [ 99.5%] batch  310/312  loss: 0.0541  acc: 96.9%  122.9 samp/s  8 ms/samp  ETA: 1s
+  [100.0%] batch  312/312  loss: 0.0179  acc: 100.0%  122.7 samp/s  16 ms/samp  ETA: 0s
+  train done in 163.0s  avg loss: 0.1521
+  evaluating 5000 samples...
+  eval done in 33.6s  (148.8 samp/s)
+  EPOCH 4/10  train_loss=0.1521  test_loss=0.2381  acc=93.5%  lr=7.50e-05  epoch_time=197s  ETA=1179s  total=785s
+
+============================================================
+Epoch 5/10
+  [  0.3%] batch    0/312  loss: 0.0894  acc: 96.9%  122.6 samp/s  8 ms/samp  ETA: 163s
+  [ 10.2%] batch   31/312  loss: 0.0556  acc: 96.9%  123.8 samp/s  8 ms/samp  ETA: 145s
+  [ 20.2%] batch   62/312  loss: 0.1084  acc: 96.9%  123.6 samp/s  8 ms/samp  ETA: 129s
+  [ 30.1%] batch   93/312  loss: 0.1270  acc: 96.9%  123.2 samp/s  8 ms/samp  ETA: 113s
+  [ 40.0%] batch  124/312  loss: 0.0649  acc: 98.4%  123.9 samp/s  8 ms/samp  ETA: 97s
+  [ 49.9%] batch  155/312  loss: 0.0540  acc: 98.4%  124.7 samp/s  8 ms/samp  ETA: 80s
+  [ 59.8%] batch  186/312  loss: 0.0840  acc: 95.3%  125.2 samp/s  8 ms/samp  ETA: 64s
+  [ 69.8%] batch  217/312  loss: 0.0091  acc: 100.0%  125.7 samp/s  8 ms/samp  ETA: 48s
+  [ 79.7%] batch  248/312  loss: 0.1116  acc: 95.3%  126.2 samp/s  8 ms/samp  ETA: 32s
+  [ 89.6%] batch  279/312  loss: 0.2143  acc: 96.9%  126.6 samp/s  8 ms/samp  ETA: 16s
+  [ 99.5%] batch  310/312  loss: 0.0729  acc: 98.4%  126.5 samp/s  8 ms/samp  ETA: 1s
+  [100.0%] batch  312/312  loss: 0.1208  acc: 93.8%  126.2 samp/s  16 ms/samp  ETA: 0s
+  train done in 158.4s  avg loss: 0.1077
+  evaluating 5000 samples...
+  eval done in 33.3s  (150.1 samp/s)
+  EPOCH 5/10  train_loss=0.1077  test_loss=0.2235  acc=94.5%  lr=5.87e-05  epoch_time=192s  ETA=959s  total=976s
+
+============================================================
+Epoch 6/10
+  [  0.3%] batch    0/312  loss: 0.1631  acc: 95.3%  121.9 samp/s  8 ms/samp  ETA: 164s
+  [ 10.2%] batch   31/312  loss: 0.1572  acc: 95.3%  124.1 samp/s  8 ms/samp  ETA: 145s
+  [ 20.2%] batch   62/312  loss: 0.0337  acc: 98.4%  123.7 samp/s  8 ms/samp  ETA: 129s
+  [ 30.1%] batch   93/312  loss: 0.0257  acc: 100.0%  123.5 samp/s  8 ms/samp  ETA: 113s
+  [ 40.0%] batch  124/312  loss: 0.0190  acc: 100.0%  123.3 samp/s  8 ms/samp  ETA: 97s
+  [ 49.9%] batch  155/312  loss: 0.0811  acc: 98.4%  123.2 samp/s  8 ms/samp  ETA: 81s
+  [ 59.8%] batch  186/312  loss: 0.0626  acc: 96.9%  123.5 samp/s  8 ms/samp  ETA: 65s
+  [ 69.8%] batch  217/312  loss: 0.1576  acc: 98.4%  124.1 samp/s  8 ms/samp  ETA: 49s
+  [ 79.7%] batch  248/312  loss: 0.0253  acc: 98.4%  124.6 samp/s  8 ms/samp  ETA: 33s
+  [ 89.6%] batch  279/312  loss: 0.0283  acc: 98.4%  125.1 samp/s  8 ms/samp  ETA: 17s
+  [ 99.5%] batch  310/312  loss: 0.0131  acc: 100.0%  125.5 samp/s  8 ms/samp  ETA: 1s
+  [100.0%] batch  312/312  loss: 0.0032  acc: 100.0%  125.3 samp/s  15 ms/samp  ETA: 0s
+  train done in 159.6s  avg loss: 0.0767
+  evaluating 5000 samples...
+  eval done in 31.8s  (157.2 samp/s)
+  EPOCH 6/10  train_loss=0.0767  test_loss=0.2054  acc=95.1%  lr=4.13e-05  epoch_time=191s  ETA=766s  total=1168s
+
+============================================================
+Epoch 7/10
+  [  0.3%] batch    0/312  loss: 0.0151  acc: 100.0%  130.6 samp/s  8 ms/samp  ETA: 153s
+  [ 10.2%] batch   31/312  loss: 0.0688  acc: 96.9%  130.0 samp/s  8 ms/samp  ETA: 138s
+  [ 20.2%] batch   62/312  loss: 0.0703  acc: 96.9%  130.1 samp/s  8 ms/samp  ETA: 123s
+  [ 30.1%] batch   93/312  loss: 0.0072  acc: 100.0%  130.0 samp/s  8 ms/samp  ETA: 108s
+  [ 40.0%] batch  124/312  loss: 0.0421  acc: 100.0%  130.0 samp/s  8 ms/samp  ETA: 92s
+  [ 49.9%] batch  155/312  loss: 0.0219  acc: 98.4%  129.9 samp/s  8 ms/samp  ETA: 77s
+  [ 59.8%] batch  186/312  loss: 0.0340  acc: 100.0%  129.9 samp/s  8 ms/samp  ETA: 62s
+  [ 69.8%] batch  217/312  loss: 0.0648  acc: 96.9%  129.9 samp/s  8 ms/samp  ETA: 47s
+  [ 79.7%] batch  248/312  loss: 0.0328  acc: 98.4%  129.9 samp/s  8 ms/samp  ETA: 31s
+  [ 89.6%] batch  279/312  loss: 0.1498  acc: 95.3%  129.9 samp/s  8 ms/samp  ETA: 16s
+  [ 99.5%] batch  310/312  loss: 0.0128  acc: 100.0%  129.9 samp/s  8 ms/samp  ETA: 1s
+  [100.0%] batch  312/312  loss: 0.0054  acc: 100.0%  129.7 samp/s  15 ms/samp  ETA: 0s
+  train done in 154.2s  avg loss: 0.0491
+  evaluating 5000 samples...
+  eval done in 31.8s  (157.3 samp/s)
+  EPOCH 7/10  train_loss=0.0491  test_loss=0.1957  acc=95.1%  lr=2.50e-05  epoch_time=186s  ETA=558s  total=1354s
+
+============================================================
+Epoch 8/10
+  [  0.3%] batch    0/312  loss: 0.0326  acc: 100.0%  122.8 samp/s  8 ms/samp  ETA: 162s
+  [ 10.2%] batch   31/312  loss: 0.0022  acc: 100.0%  129.8 samp/s  8 ms/samp  ETA: 138s
+  [ 20.2%] batch   62/312  loss: 0.0105  acc: 100.0%  129.9 samp/s  8 ms/samp  ETA: 123s
+  [ 30.1%] batch   93/312  loss: 0.0959  acc: 96.9%  129.9 samp/s  8 ms/samp  ETA: 108s
+  [ 40.0%] batch  124/312  loss: 0.0296  acc: 100.0%  129.9 samp/s  8 ms/samp  ETA: 92s
+  [ 49.9%] batch  155/312  loss: 0.0289  acc: 98.4%  129.0 samp/s  8 ms/samp  ETA: 78s
+  [ 59.8%] batch  186/312  loss: 0.1112  acc: 96.9%  127.8 samp/s  9 ms/samp  ETA: 63s
+  [ 69.8%] batch  217/312  loss: 0.0468  acc: 98.4%  127.0 samp/s  8 ms/samp  ETA: 48s
+  [ 79.7%] batch  248/312  loss: 0.0093  acc: 100.0%  126.5 samp/s  8 ms/samp  ETA: 32s
+  [ 89.6%] batch  279/312  loss: 0.0429  acc: 96.9%  126.1 samp/s  8 ms/samp  ETA: 16s
+  [ 99.5%] batch  310/312  loss: 0.0991  acc: 96.9%  125.8 samp/s  8 ms/samp  ETA: 1s
+  [100.0%] batch  312/312  loss: 0.0696  acc: 96.9%  125.6 samp/s  16 ms/samp  ETA: 0s
+  train done in 159.3s  avg loss: 0.0355
+  evaluating 5000 samples...
+  eval done in 33.4s  (149.6 samp/s)
+  EPOCH 8/10  train_loss=0.0355  test_loss=0.2084  acc=95.2%  lr=1.17e-05  epoch_time=193s  ETA=385s  total=1547s
+
+============================================================
+Epoch 9/10
+  [  0.3%] batch    0/312  loss: 0.0118  acc: 100.0%  123.0 samp/s  8 ms/samp  ETA: 162s
+  [ 10.2%] batch   31/312  loss: 0.0037  acc: 100.0%  125.0 samp/s  8 ms/samp  ETA: 144s
+  [ 20.2%] batch   62/312  loss: 0.0123  acc: 100.0%  126.8 samp/s  8 ms/samp  ETA: 126s
+  [ 30.1%] batch   93/312  loss: 0.1767  acc: 96.9%  127.4 samp/s  8 ms/samp  ETA: 110s
+  [ 40.0%] batch  124/312  loss: 0.0084  acc: 100.0%  127.8 samp/s  8 ms/samp  ETA: 94s
+  [ 49.9%] batch  155/312  loss: 0.0100  acc: 100.0%  128.2 samp/s  8 ms/samp  ETA: 78s
+  [ 59.8%] batch  186/312  loss: 0.0041  acc: 100.0%  128.5 samp/s  8 ms/samp  ETA: 63s
+  [ 69.8%] batch  217/312  loss: 0.0121  acc: 100.0%  128.7 samp/s  8 ms/samp  ETA: 47s
+  [ 79.7%] batch  248/312  loss: 0.0099  acc: 100.0%  128.8 samp/s  8 ms/samp  ETA: 32s
+  [ 89.6%] batch  279/312  loss: 0.0375  acc: 96.9%  128.9 samp/s  8 ms/samp  ETA: 16s
+  [ 99.5%] batch  310/312  loss: 0.0192  acc: 100.0%  129.0 samp/s  8 ms/samp  ETA: 1s
+  [100.0%] batch  312/312  loss: 0.0650  acc: 93.8%  128.8 samp/s  15 ms/samp  ETA: 0s
+  train done in 155.3s  avg loss: 0.0253
+  evaluating 5000 samples...
+  eval done in 31.9s  (156.8 samp/s)
+  EPOCH 9/10  train_loss=0.0253  test_loss=0.1957  acc=95.5%  lr=3.02e-06  epoch_time=187s  ETA=187s  total=1734s
+
+============================================================
+Epoch 10/10
+  [  0.3%] batch    0/312  loss: 0.0098  acc: 100.0%  131.0 samp/s  8 ms/samp  ETA: 152s
+  [ 10.2%] batch   31/312  loss: 0.0030  acc: 100.0%  130.7 samp/s  8 ms/samp  ETA: 137s
+  [ 20.2%] batch   62/312  loss: 0.0218  acc: 100.0%  130.4 samp/s  8 ms/samp  ETA: 122s
+  [ 30.1%] batch   93/312  loss: 0.0030  acc: 100.0%  130.4 samp/s  8 ms/samp  ETA: 107s
+  [ 40.0%] batch  124/312  loss: 0.0422  acc: 98.4%  130.3 samp/s  8 ms/samp  ETA: 92s
+  [ 49.9%] batch  155/312  loss: 0.0116  acc: 100.0%  130.3 samp/s  8 ms/samp  ETA: 77s
+  [ 59.8%] batch  186/312  loss: 0.0149  acc: 100.0%  130.2 samp/s  8 ms/samp  ETA: 62s
+  [ 69.8%] batch  217/312  loss: 0.0090  acc: 100.0%  130.3 samp/s  8 ms/samp  ETA: 46s
+  [ 79.7%] batch  248/312  loss: 0.0027  acc: 100.0%  130.3 samp/s  8 ms/samp  ETA: 31s
+  [ 89.6%] batch  279/312  loss: 0.0092  acc: 100.0%  130.2 samp/s  8 ms/samp  ETA: 16s
+  [ 99.5%] batch  310/312  loss: 0.0187  acc: 98.4%  130.2 samp/s  8 ms/samp  ETA: 1s
+  [100.0%] batch  312/312  loss: 0.0007  acc: 100.0%  130.0 samp/s  15 ms/samp  ETA: 0s
+  train done in 153.9s  avg loss: 0.0214
+  evaluating 5000 samples...
+  eval done in 31.9s  (156.9 samp/s)
+  EPOCH 10/10  train_loss=0.0214  test_loss=0.1903  acc=95.6%  lr=0.00e+00  epoch_time=186s  ETA=0s  total=1919s
+
+Per-class accuracy:
+  digit 0:  98.5%  (453/460)
+  digit 1:  98.2%  (561/571)
+  digit 2:  95.3%  (505/530)
+  digit 3:  96.6%  (483/500)
+  digit 4:  95.4%  (477/500)
+  digit 5:  93.0%  (424/456)
+  digit 6:  94.8%  (438/462)
+  digit 7:  94.5%  (484/512)
+  digit 8:  94.7%  (463/489)
+  digit 9:  94.2%  (490/520)
+
+Collecting canonical samples for raster plots...
+
+Input scale: 3.0 (fixed)
+  digit 0: input_spikes=86946  E_hid_spikes=941  E_out_spikes=12
+  digit 1: input_spikes=23337  E_hid_spikes=428  E_out_spikes=10
+  digit 2: input_spikes=68031  E_hid_spikes=954  E_out_spikes=38
+  digit 3: input_spikes=83160  E_hid_spikes=932  E_out_spikes=14
+  digit 4: input_spikes=44865  E_hid_spikes=475  E_out_spikes=16
+  digit 5: input_spikes=72411  E_hid_spikes=880  E_out_spikes=19
+  digit 6: input_spikes=65316  E_hid_spikes=542  E_out_spikes=15
+  digit 7: input_spikes=43437  E_hid_spikes=574  E_out_spikes=20
+  digit 8: input_spikes=75618  E_hid_spikes=955  E_out_spikes=18
+  digit 9: input_spikes=49677  E_hid_spikes=715  E_out_spikes=16
+Done!

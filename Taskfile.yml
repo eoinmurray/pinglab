@@ -207,9 +207,22 @@ tasks:
         PINGLAB_STUDY="${study}" uv run modal run --detach src/scripts/modal_run.py --study "${study}"
 
   modal:logs:
-    desc: Tail logs from the most recent Modal app run
+    desc: Tail logs from the latest Modal study run (e.g. task modal:logs)
     cmds:
-      - uv run modal app logs
+      - |
+        set -euo pipefail
+        app_id=$(uv run modal app list --json 2>/dev/null | uv run python -c "
+        import json, sys
+        apps = json.load(sys.stdin)
+        for app in apps:
+            if app.get('Description') == 'pinglab-study':
+                print(app['App ID'])
+                sys.exit(0)
+        print('pinglab-study', file=sys.stderr)
+        sys.exit(1)
+        ")
+        echo "Tailing logs for ${app_id}..."
+        uv run modal app logs "${app_id}"
 
   modal:download:
     desc: Download artifacts from Modal volume (e.g. task modal:download -- study.14)

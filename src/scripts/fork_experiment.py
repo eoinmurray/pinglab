@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import re
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
+
+import questionary
 
 
 def _slugify(text: str) -> str:
@@ -38,6 +41,12 @@ def _render(content: str, old_slug: str, new_slug: str, new_title: str) -> str:
     content = content.replace(old_slug, new_slug)
     content = re.sub(r"^title:.*$", f"title: {new_title}", content, flags=re.MULTILINE)
     content = re.sub(
+        r'^date:.*$',
+        f'date: "{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}"',
+        content,
+        flags=re.MULTILINE,
+    )
+    content = re.sub(
         r'^description:.*$',
         f'description: "{_escape_yaml_double_quoted(new_title)}"',
         content,
@@ -55,24 +64,21 @@ def main() -> None:
     if not studies:
         raise SystemExit("No studies found to fork.")
 
-    print("Available studies:")
-    for i, slug in enumerate(studies, 1):
-        print(f"  {i}) {slug}")
-
-    raw = input("\nSelect study to fork (number or name): ").strip()
-    if raw.isdigit():
-        idx = int(raw) - 1
-        if not (0 <= idx < len(studies)):
-            raise SystemExit("Invalid selection.")
-        source_slug = studies[idx]
-    else:
-        if raw not in studies:
-            raise SystemExit(f"Study not found: {raw!r}")
-        source_slug = raw
+    source_slug = questionary.select(
+        "Select study to fork:",
+        choices=studies,
+    ).ask()
+    if source_slug is None:
+        raise SystemExit("Cancelled.")
 
     next_num = _next_experiment_number(posts_dir, experiments_dir)
     prefill = f"study.{next_num}-"
-    entered = input(f"New study name [{prefill}]: ").strip()
+    entered = questionary.text(
+        "New study name:",
+        default=prefill,
+    ).ask()
+    if entered is None:
+        raise SystemExit("Cancelled.")
     if not entered:
         entered = prefill
     if entered.startswith(prefill):

@@ -10,6 +10,7 @@ from .simulate_network import (
 )
 from .surrogate import SpikeFunction, surrogate_lif_step
 from .training import get_device, run_batch
+from .e_prop import run_batch_eprop, compute_eprop_gradients, train_epoch_eprop
 
 __all__ = [
     "lif_step",
@@ -22,4 +23,7 @@ __all__ = [
     "surrogate_lif_step",
     "get_device",
     "run_batch",
+    "run_batch_eprop",
+    "compute_eprop_gradients",
+    "train_epoch_eprop",
 ]

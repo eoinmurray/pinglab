@@ -1,0 +1,52 @@
+{
+  "run_id": "26f66e85",
+  "epochs": 10,
+  "train_samples": 20000,
+  "test_samples": 5000,
+  "final_train_loss": 0.0007,
+  "final_test_loss": 0.1903,
+  "best_test_loss": 0.1903,
+  "best_test_loss_epoch": 10,
+  "final_test_accuracy": 95.6,
+  "best_test_accuracy": 95.6,
+  "best_test_accuracy_epoch": 10,
+  "test_losses_per_epoch": [
+    2.0027,
+    0.341,
+    0.2973,
+    0.2381,
+    0.2235,
+    0.2054,
+    0.1957,
+    0.2084,
+    0.1957,
+    0.1903
+  ],
+  "test_accuracies_per_epoch": [
+    51.6,
+    91.1,
+    92.2,
+    93.5,
+    94.5,
+    95.1,
+    95.1,
+    95.2,
+    95.5,
+    95.6
+  ],
+  "encoding": "poisson",
+  "readout": "hybrid",
+  "readout_alpha": 0.01,
+  "input_scale": 3.0,
+  "trainable_params": 1236900,
+  "trainable_params_breakdown": {
+    "W_ee": 1102500,
+    "W_ei": 67200,
+    "W_ie": 67200
+  },
+  "cm_backward_scale": 100.0,
+  "detach_spikes": false,
+  "elapsed_seconds": 1976.5,
+  "device": "mps",
+  "runtime": "local"
+}

@@ -4,8 +4,10 @@ import argparse
 import re
 import subprocess
 import sys
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
+
+import questionary
 
 TEMPLATE_SLUG = "study.0-template"
 
@@ -64,7 +66,7 @@ def _render(content: str, slug: str, title: str, description: str) -> str:
     content = re.sub(r"^title:.*$", f"title: {title}", content, flags=re.MULTILINE)
     content = re.sub(
         r'^date:.*$',
-        f'date: "{date.today().isoformat()}"',
+        f'date: "{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}"',
         content,
         flags=re.MULTILINE,
     )
@@ -129,7 +131,10 @@ def main() -> None:
     if args.name:
         name = args.name.strip()
     else:
-        entered = _prompt_with_default(f"Study name [{prefill}]: ", prefill)
+        entered = questionary.text("Study name:", default=prefill).ask()
+        if entered is None:
+            raise SystemExit("Cancelled.")
+        entered = entered.strip()
         if entered.startswith(prefill):
             name = entered
         elif entered.lower().startswith("study.") or entered.lower().startswith("exp."):
@@ -139,7 +144,7 @@ def main() -> None:
     description = (
         args.description.strip()
         if args.description is not None
-        else input("Description (optional): ").strip()
+        else (questionary.text("Description (optional):").ask() or "").strip()
     )
 
     slug = _resolve_slug(name, next_num)

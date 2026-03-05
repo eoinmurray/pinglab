@@ -4,6 +4,8 @@ import re
 import shutil
 from pathlib import Path
 
+import questionary
+
 
 IGNORE_DIRS = {
     ".git",
@@ -48,16 +50,6 @@ def _slugify(text: str) -> str:
     return s or "untitled"
 
 
-def _prompt_index(max_index: int) -> int | None:
-    while True:
-        raw = input(f"Select study [1-{max_index}] (or q to cancel): ").strip().lower()
-        if raw in {"q", "quit", "exit"}:
-            return None
-        if raw.isdigit():
-            idx = int(raw)
-            if 1 <= idx <= max_index:
-                return idx - 1
-        print("Invalid selection.")
 
 
 def _resolve_new_slug(old_slug: str, raw_name: str) -> str:
@@ -110,11 +102,6 @@ def _replace_slug_references(repo_root: Path, old_slug: str, new_slug: str) -> i
     return changed
 
 
-def _prompt_confirm(old_slug: str, new_slug: str) -> bool:
-    answer = input(
-        f"Rename '{old_slug}' -> '{new_slug}' and update references? Type 'r' to confirm: "
-    ).strip().lower()
-    return answer == "r"
 
 
 def main() -> None:
@@ -131,22 +118,27 @@ def main() -> None:
         print("No studies found.")
         return
 
-    print("Studies:")
-    for i, exp in enumerate(experiments, start=1):
+    choices = []
+    for exp in experiments:
         post_mdx = posts_root / f"{exp.name}.mdx"
         post_md = posts_root / f"{exp.name}.md"
         has_post = post_mdx.exists() or post_md.exists()
         status = "post:yes" if has_post else "post:no"
-        print(f"{i}. {exp.name} ({status})")
+        choices.append(questionary.Choice(f"{exp.name} ({status})", value=exp.name))
 
-    selected_idx = _prompt_index(len(experiments))
-    if selected_idx is None:
+    old_slug = questionary.select(
+        "Select study to rename:",
+        choices=choices,
+    ).ask()
+    if old_slug is None:
         print("Cancelled.")
         return
 
-    selected = experiments[selected_idx]
-    old_slug = selected.name
-    entered = input("New study name (full slug or new suffix): ").strip()
+    selected = experiments_root / old_slug
+    entered = questionary.text("New study name (full slug or new suffix):").ask()
+    if entered is None:
+        raise SystemExit("Cancelled.")
+    entered = entered.strip()
     try:
         new_slug = _resolve_new_slug(old_slug, entered)
     except ValueError as exc:
@@ -192,7 +184,11 @@ def main() -> None:
         print(f"Artifacts: {old_artifacts_dir.relative_to(root)} (missing)")
     print("")
 
-    if not _prompt_confirm(old_slug, new_slug):
+    confirmed = questionary.confirm(
+        f"Rename '{old_slug}' -> '{new_slug}' and update references?",
+        default=False,
+    ).ask()
+    if not confirmed:
         print("Cancelled.")
         return
 

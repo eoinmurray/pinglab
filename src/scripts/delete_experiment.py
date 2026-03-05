@@ -4,31 +4,14 @@ import re
 import shutil
 from pathlib import Path
 
+import questionary
+
 
 def _sort_key(name: str) -> tuple[int, str]:
-    match = re.match(r"exp\.(\d+)-", name)
+    match = re.match(r"(?:study|exp)\.(\d+)-", name)
     if match:
         return int(match.group(1)), name
     return 10**9, name
-
-
-def _prompt_index(max_index: int) -> int | None:
-    while True:
-        raw = input(f"Select study [1-{max_index}] (or q to cancel): ").strip().lower()
-        if raw in {"q", "quit", "exit"}:
-            return None
-        if raw.isdigit():
-            idx = int(raw)
-            if 1 <= idx <= max_index:
-                return idx - 1
-        print("Invalid selection.")
-
-
-def _prompt_confirm(slug: str) -> bool:
-    answer = input(
-        f"Delete '{slug}' study + post + artifacts? Type 'd' to confirm: "
-    ).strip().lower()
-    return answer == "d"
 
 
 def main() -> None:
@@ -44,18 +27,20 @@ def main() -> None:
         print("No studies found.")
         return
 
-    print("Studies:")
-    for i, exp in enumerate(experiments, start=1):
+    choices = []
+    for exp in experiments:
         post_path = posts_root / f"{exp.name}.mdx"
         status = "post:yes" if post_path.exists() else "post:no"
-        print(f"{i}. {exp.name} ({status})")
+        choices.append(questionary.Choice(f"{exp.name} ({status})", value=exp.name))
 
-    selected_idx = _prompt_index(len(experiments))
-    if selected_idx is None:
+    slug = questionary.select(
+        "Select study to delete:",
+        choices=choices,
+    ).ask()
+    if slug is None:
         print("Cancelled.")
         return
-    selected = experiments[selected_idx]
-    slug = selected.name
+    selected = experiments_root / slug
     post_file = posts_root / f"{slug}.mdx"
     artifacts_dir = posts_root / "_artifacts" / slug
 
@@ -75,7 +60,11 @@ def main() -> None:
     )
     print("")
 
-    if not _prompt_confirm(slug):
+    confirmed = questionary.confirm(
+        f"Delete '{slug}' study + post + artifacts?",
+        default=False,
+    ).ask()
+    if not confirmed:
         print("Cancelled.")
         return
 

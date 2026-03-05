@@ -1,0 +1,51 @@
+{
+  "run_id": "56601984",
+  "epochs": 10,
+  "train_samples": 20000,
+  "test_samples": 5000,
+  "final_train_loss": 0.1766,
+  "final_test_loss": 0.5724,
+  "best_test_loss": 0.5724,
+  "best_test_loss_epoch": 10,
+  "final_test_accuracy": 88.5,
+  "best_test_accuracy": 88.7,
+  "best_test_accuracy_epoch": 8,
+  "test_losses_per_epoch": [
+    2.3034,
+    0.6531,
+    0.8269,
+    0.795,
+    0.7001,
+    0.6765,
+    0.6241,
+    0.6102,
+    0.5782,
+    0.5724
+  ],
+  "test_accuracies_per_epoch": [
+    28.6,
+    84.6,
+    86.6,
+    86.3,
+    87.2,
+    88.0,
+    88.3,
+    88.7,
+    88.3,
+    88.5
+  ],
+  "encoding": "poisson",
+  "readout": "hybrid",
+  "readout_alpha": 0.01,
+  "input_scale": 3.0,
+  "trainable_params": 1236900,
+  "trainable_params_breakdown": {
+    "W_ee": 1102500,
+    "W_ei": 67200,
+    "W_ie": 67200
+  },
+  "training_method": "eprop",
+  "elapsed_seconds": 3412.0,
+  "device": "cuda",
+  "runtime": "modal"
+}

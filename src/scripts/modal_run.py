@@ -1,7 +1,7 @@
 """Shared Modal GPU runner for any pinglab study.
 
 Usage:
-    uv run modal run src/scripts/modal_run.py --study study.15-modal-test
+    uv run modal run src/scripts/modal_run.py --study study.15-surrogate-jacobian
     uv run modal run --detach src/scripts/modal_run.py --study study.14-ping-snn-poisson-input
 """
 from __future__ import annotations
@@ -40,7 +40,7 @@ def _resolve_study_dir(study_name: str) -> str:
     candidate = os.path.join(base, study_name)
     if os.path.isdir(candidate):
         return os.path.abspath(candidate)
-    # Try prefix match (e.g. "study.15" -> "study.15-modal-test")
+    # Try prefix match (e.g. "study.15" -> "study.15-surrogate-jacobian")
     import glob
     matches = glob.glob(os.path.join(base, f"{study_name}-*"))
     dirs = [m for m in matches if os.path.isdir(m)]
