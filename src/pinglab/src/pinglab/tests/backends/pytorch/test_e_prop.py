@@ -82,7 +82,7 @@ class TestRunBatchEprop:
         T_steps = 10
 
         images = torch.rand(4, 1, 4, 4)  # 16 pixels = n_in
-        logits, spikes_E, traces = run_batch_eprop(
+        logits, spikes_E, spikes_I, traces = run_batch_eprop(
             runtime, images,
             T_steps=T_steps, n_total=n_total, n_input=n_in,
             out_start=int(pop_idx["E_out"]["start"]),
@@ -105,7 +105,7 @@ class TestRunBatchEprop:
         n_total = int(plan["totals"]["N_E"]) + int(plan["totals"]["N_I"])
 
         images = torch.rand(4, 1, 4, 4)
-        logits, spikes_E, traces = run_batch_eprop(
+        logits, spikes_E, spikes_I, traces = run_batch_eprop(
             runtime, images,
             T_steps=10, n_total=n_total, n_input=16,
             out_start=int(pop_idx["E_out"]["start"]),
@@ -128,7 +128,7 @@ class TestComputeEpropGradients:
         n_total = int(plan["totals"]["N_E"]) + int(plan["totals"]["N_I"])
 
         images = torch.rand(4, 1, 4, 4)
-        logits, spikes_E, traces = run_batch_eprop(
+        logits, spikes_E, spikes_I, traces = run_batch_eprop(
             runtime, images,
             T_steps=10, n_total=n_total, n_input=16,
             out_start=int(pop_idx["E_out"]["start"]),
@@ -172,7 +172,7 @@ class TestComputeEpropGradients:
         n_total = int(plan["totals"]["N_E"]) + int(plan["totals"]["N_I"])
 
         images = torch.rand(4, 1, 4, 4)
-        logits, _, traces = run_batch_eprop(
+        logits, _, _, traces = run_batch_eprop(
             runtime, images,
             T_steps=10, n_total=n_total, n_input=16,
             out_start=int(pop_idx["E_out"]["start"]),
@@ -225,7 +225,7 @@ class TestTrainingReducesLoss:
 
         losses = []
         for step in range(5):
-            logits, _, traces = run_batch_eprop(
+            logits, _, _, traces = run_batch_eprop(
                 runtime, images[:8], pop_idx=pop_idx, **batch_kwargs,
             )
             loss = compute_eprop_gradients(
@@ -253,7 +253,7 @@ class TestPaddedBatch:
 
         # Only 2 images but batch_size=4
         images = torch.rand(2, 1, 4, 4)
-        logits, spikes_E, traces = run_batch_eprop(
+        logits, spikes_E, spikes_I, traces = run_batch_eprop(
             runtime, images,
             T_steps=10, n_total=n_total, n_input=16,
             out_start=int(pop_idx["E_out"]["start"]),

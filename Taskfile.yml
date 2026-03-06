@@ -157,6 +157,11 @@ tasks:
     cmds:
       - uv run python src/scripts/run_experiment.py {{.CLI_ARGS}}
 
+  plot:
+    desc: Regenerate plots from saved run data (e.g. task plot -- study.16 [run_id])
+    cmds:
+      - uv run python src/scripts/plot_experiment.py {{.CLI_ARGS}}
+
   run:modal:
     desc: Run a study on Modal GPU (e.g. task run:modal -- study.15)
     cmds:

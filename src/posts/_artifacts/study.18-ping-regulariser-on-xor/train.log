@@ -1,0 +1,422 @@
+Network: N_E=36  N_I=8  n_total=44  E_in=[0,2)  E_out=[34,36)
+Sim: T=200.0ms  dt=1.0ms  steps=200  burn_in=0.0ms (0 steps)
+Trainable params: 1,872  total: 1,872  cm_backward_scale=100.0  detach_spikes=False
+State pre-built: N=44  B=4  buf_len=2  device=mps
+Training on 4 XOR samples, evaluating on 4 samples
+
+============================================================
+Epoch 1/50
+/Users/eoin/pinglab/src/pinglab/src/pinglab/losses/ping_loss.py:55: UserWarning: An output with one or more elements was resized since it had shape [], which does not match the required output shape [21]. This behavior is deprecated, and in a future PyTorch release outputs will not be resized unless they have zero elements. You can explicitly reuse an out tensor t by resizing it, inplace, to zero elements with t.resize_(0). (Triggered internally at /Users/runner/work/pytorch/pytorch/pytorch/aten/src/ATen/native/Resize.cpp:38.)
+  spectrum = torch.fft.rfft(rate, n=rate.shape[0])
+  [1/1]  ce=1.4298  ping=6.1728  acc=0.500
+  train done in 0.6s  avg loss: 1.4298
+  evaluating 4 samples...
+  eval done in 0.3s  (12.3 samp/s)
+  EPOCH 1/50  train_loss=1.4298  test_loss=1.4298  acc=50.0%  lr=1.00e-03  epoch_time=1s  ETA=43s  total=1s
+
+============================================================
+Epoch 2/50
+  [1/1]  ce=1.4298  ping=6.1728  acc=0.500
+  train done in 0.4s  avg loss: 1.4298
+  evaluating 4 samples...
+  eval done in 0.3s  (12.8 samp/s)
+  EPOCH 2/50  train_loss=1.4298  test_loss=1.2022  acc=50.0%  lr=9.99e-04  epoch_time=1s  ETA=33s  total=2s
+
+============================================================
+Epoch 3/50
+  [1/1]  ce=1.2022  ping=13.9695  acc=0.500
+  train done in 0.4s  avg loss: 1.2022
+  evaluating 4 samples...
+  eval done in 0.3s  (13.0 samp/s)
+  EPOCH 3/50  train_loss=1.2022  test_loss=1.0515  acc=50.0%  lr=9.96e-04  epoch_time=1s  ETA=32s  total=2s
+
+============================================================
+Epoch 4/50
+  [1/1]  ce=1.0515  ping=10.6119  acc=0.500
+  train done in 0.4s  avg loss: 1.0515
+  evaluating 4 samples...
+  eval done in 0.4s  (10.2 samp/s)
+  EPOCH 4/50  train_loss=1.0515  test_loss=0.6943  acc=50.0%  lr=9.91e-04  epoch_time=1s  ETA=35s  total=3s
+
+============================================================
+Epoch 5/50
+  [1/1]  ce=0.6943  ping=28.1459  acc=0.500
+  train done in 0.4s  avg loss: 0.6943
+  evaluating 4 samples...
+  eval done in 0.3s  (13.3 samp/s)
+  EPOCH 5/50  train_loss=0.6943  test_loss=0.8469  acc=50.0%  lr=9.84e-04  epoch_time=1s  ETA=30s  total=4s
+
+============================================================
+Epoch 6/50
+  [1/1]  ce=0.8469  ping=4.8455  acc=0.500
+  train done in 0.4s  avg loss: 0.8469
+  evaluating 4 samples...
+  eval done in 0.3s  (13.2 samp/s)
+  EPOCH 6/50  train_loss=0.8469  test_loss=1.0475  acc=75.0%  lr=9.75e-04  epoch_time=1s  ETA=29s  total=4s
+
+============================================================
+Epoch 7/50
+  [1/1]  ce=1.0475  ping=8.7886  acc=0.750
+  train done in 0.4s  avg loss: 1.0475
+  evaluating 4 samples...
+  eval done in 0.3s  (13.1 samp/s)
+  EPOCH 7/50  train_loss=1.0475  test_loss=0.7518  acc=75.0%  lr=9.63e-04  epoch_time=1s  ETA=29s  total=5s
+
+============================================================
+Epoch 8/50
+  [1/1]  ce=0.7518  ping=17.1070  acc=0.750
+  train done in 0.4s  avg loss: 0.7518
+  evaluating 4 samples...
+  eval done in 0.3s  (13.2 samp/s)
+  EPOCH 8/50  train_loss=0.7518  test_loss=0.7517  acc=75.0%  lr=9.50e-04  epoch_time=1s  ETA=28s  total=6s
+
+============================================================
+Epoch 9/50
+  [1/1]  ce=0.7517  ping=7.9426  acc=0.750
+  train done in 0.4s  avg loss: 0.7517
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 9/50  train_loss=0.7517  test_loss=0.6765  acc=75.0%  lr=9.36e-04  epoch_time=1s  ETA=28s  total=6s
+
+============================================================
+Epoch 10/50
+  [1/1]  ce=0.6765  ping=9.0830  acc=0.750
+  train done in 0.4s  avg loss: 0.6765
+  evaluating 4 samples...
+  eval done in 0.3s  (13.1 samp/s)
+  EPOCH 10/50  train_loss=0.6765  test_loss=0.6849  acc=75.0%  lr=9.19e-04  epoch_time=1s  ETA=27s  total=7s
+
+============================================================
+Epoch 11/50
+  [1/1]  ce=0.6849  ping=10.6015  acc=0.750
+  train done in 0.4s  avg loss: 0.6849
+  evaluating 4 samples...
+  eval done in 0.3s  (12.5 samp/s)
+  EPOCH 11/50  train_loss=0.6849  test_loss=0.5308  acc=100.0%  lr=9.01e-04  epoch_time=1s  ETA=27s  total=8s
+
+============================================================
+Epoch 12/50
+  [1/1]  ce=0.5308  ping=7.5125  acc=1.000
+  train done in 0.4s  avg loss: 0.5308
+  evaluating 4 samples...
+  eval done in 0.3s  (12.8 samp/s)
+  EPOCH 12/50  train_loss=0.5308  test_loss=0.4370  acc=100.0%  lr=8.81e-04  epoch_time=1s  ETA=26s  total=8s
+
+============================================================
+Epoch 13/50
+  [1/1]  ce=0.4370  ping=12.0808  acc=1.000
+  train done in 0.4s  avg loss: 0.4370
+  evaluating 4 samples...
+  eval done in 0.3s  (12.7 samp/s)
+  EPOCH 13/50  train_loss=0.4370  test_loss=0.5031  acc=75.0%  lr=8.59e-04  epoch_time=1s  ETA=25s  total=9s
+
+============================================================
+Epoch 14/50
+  [1/1]  ce=0.5031  ping=17.6964  acc=0.750
+  train done in 0.4s  avg loss: 0.5031
+  evaluating 4 samples...
+  eval done in 0.3s  (12.8 samp/s)
+  EPOCH 14/50  train_loss=0.5031  test_loss=0.4093  acc=100.0%  lr=8.36e-04  epoch_time=1s  ETA=24s  total=10s
+
+============================================================
+Epoch 15/50
+  [1/1]  ce=0.4093  ping=17.8072  acc=1.000
+  train done in 0.4s  avg loss: 0.4093
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 15/50  train_loss=0.4093  test_loss=0.3892  acc=100.0%  lr=8.12e-04  epoch_time=1s  ETA=24s  total=10s
+
+============================================================
+Epoch 16/50
+  [1/1]  ce=0.3892  ping=14.3701  acc=1.000
+  train done in 0.4s  avg loss: 0.3892
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 16/50  train_loss=0.3892  test_loss=0.3610  acc=100.0%  lr=7.86e-04  epoch_time=1s  ETA=23s  total=11s
+
+============================================================
+Epoch 17/50
+  [1/1]  ce=0.3610  ping=7.1396  acc=1.000
+  train done in 0.4s  avg loss: 0.3610
+  evaluating 4 samples...
+  eval done in 0.3s  (13.1 samp/s)
+  EPOCH 17/50  train_loss=0.3610  test_loss=0.3793  acc=100.0%  lr=7.59e-04  epoch_time=1s  ETA=22s  total=12s
+
+============================================================
+Epoch 18/50
+  [1/1]  ce=0.3793  ping=7.3879  acc=1.000
+  train done in 0.4s  avg loss: 0.3793
+  evaluating 4 samples...
+  eval done in 0.3s  (13.0 samp/s)
+  EPOCH 18/50  train_loss=0.3793  test_loss=0.4253  acc=100.0%  lr=7.31e-04  epoch_time=1s  ETA=22s  total=12s
+
+============================================================
+Epoch 19/50
+  [1/1]  ce=0.4253  ping=7.1902  acc=1.000
+  train done in 0.4s  avg loss: 0.4253
+  evaluating 4 samples...
+  eval done in 0.3s  (13.3 samp/s)
+  EPOCH 19/50  train_loss=0.4253  test_loss=0.3517  acc=100.0%  lr=7.02e-04  epoch_time=1s  ETA=21s  total=13s
+
+============================================================
+Epoch 20/50
+  [1/1]  ce=0.3517  ping=7.3161  acc=1.000
+  train done in 0.4s  avg loss: 0.3517
+  evaluating 4 samples...
+  eval done in 0.3s  (13.2 samp/s)
+  EPOCH 20/50  train_loss=0.3517  test_loss=0.3506  acc=100.0%  lr=6.73e-04  epoch_time=1s  ETA=20s  total=14s
+
+============================================================
+Epoch 21/50
+  [1/1]  ce=0.3506  ping=7.2837  acc=1.000
+  train done in 0.4s  avg loss: 0.3506
+  evaluating 4 samples...
+  eval done in 0.3s  (13.2 samp/s)
+  EPOCH 21/50  train_loss=0.3506  test_loss=0.3576  acc=100.0%  lr=6.42e-04  epoch_time=1s  ETA=19s  total=14s
+
+============================================================
+Epoch 22/50
+  [1/1]  ce=0.3576  ping=7.8277  acc=1.000
+  train done in 0.4s  avg loss: 0.3576
+  evaluating 4 samples...
+  eval done in 0.3s  (13.2 samp/s)
+  EPOCH 22/50  train_loss=0.3576  test_loss=0.2658  acc=100.0%  lr=6.11e-04  epoch_time=1s  ETA=19s  total=15s
+
+============================================================
+Epoch 23/50
+  [1/1]  ce=0.2658  ping=8.2642  acc=1.000
+  train done in 0.4s  avg loss: 0.2658
+  evaluating 4 samples...
+  eval done in 0.3s  (12.8 samp/s)
+  EPOCH 23/50  train_loss=0.2658  test_loss=0.3565  acc=100.0%  lr=5.80e-04  epoch_time=1s  ETA=18s  total=16s
+
+============================================================
+Epoch 24/50
+  [1/1]  ce=0.3565  ping=6.8732  acc=1.000
+  train done in 0.4s  avg loss: 0.3565
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 24/50  train_loss=0.3565  test_loss=0.2850  acc=100.0%  lr=5.48e-04  epoch_time=1s  ETA=18s  total=16s
+
+============================================================
+Epoch 25/50
+  [1/1]  ce=0.2850  ping=7.6235  acc=1.000
+  train done in 0.4s  avg loss: 0.2850
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 25/50  train_loss=0.2850  test_loss=0.2845  acc=100.0%  lr=5.16e-04  epoch_time=1s  ETA=17s  total=17s
+
+============================================================
+Epoch 26/50
+  [1/1]  ce=0.2845  ping=7.2254  acc=1.000
+  train done in 0.4s  avg loss: 0.2845
+  evaluating 4 samples...
+  eval done in 0.3s  (12.8 samp/s)
+  EPOCH 26/50  train_loss=0.2845  test_loss=0.3106  acc=100.0%  lr=4.84e-04  epoch_time=1s  ETA=16s  total=18s
+
+============================================================
+Epoch 27/50
+  [1/1]  ce=0.3106  ping=11.3963  acc=1.000
+  train done in 0.4s  avg loss: 0.3106
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 27/50  train_loss=0.3106  test_loss=0.2288  acc=100.0%  lr=4.52e-04  epoch_time=1s  ETA=16s  total=19s
+
+============================================================
+Epoch 28/50
+  [1/1]  ce=0.2288  ping=8.0536  acc=1.000
+  train done in 0.4s  avg loss: 0.2288
+  evaluating 4 samples...
+  eval done in 0.3s  (12.7 samp/s)
+  EPOCH 28/50  train_loss=0.2288  test_loss=0.2289  acc=100.0%  lr=4.20e-04  epoch_time=1s  ETA=15s  total=19s
+
+============================================================
+Epoch 29/50
+  [1/1]  ce=0.2289  ping=7.8014  acc=1.000
+  train done in 0.4s  avg loss: 0.2289
+  evaluating 4 samples...
+  eval done in 0.3s  (13.0 samp/s)
+  EPOCH 29/50  train_loss=0.2289  test_loss=0.2289  acc=100.0%  lr=3.89e-04  epoch_time=1s  ETA=14s  total=20s
+
+============================================================
+Epoch 30/50
+  [1/1]  ce=0.2289  ping=7.8917  acc=1.000
+  train done in 0.4s  avg loss: 0.2289
+  evaluating 4 samples...
+  eval done in 0.3s  (12.8 samp/s)
+  EPOCH 30/50  train_loss=0.2289  test_loss=0.2288  acc=100.0%  lr=3.58e-04  epoch_time=1s  ETA=14s  total=21s
+
+============================================================
+Epoch 31/50
+  [1/1]  ce=0.2288  ping=7.1884  acc=1.000
+  train done in 0.4s  avg loss: 0.2288
+  evaluating 4 samples...
+  eval done in 0.3s  (13.0 samp/s)
+  EPOCH 31/50  train_loss=0.2288  test_loss=0.2287  acc=100.0%  lr=3.27e-04  epoch_time=1s  ETA=13s  total=21s
+
+============================================================
+Epoch 32/50
+  [1/1]  ce=0.2287  ping=7.2510  acc=1.000
+  train done in 0.4s  avg loss: 0.2287
+  evaluating 4 samples...
+  eval done in 0.3s  (12.6 samp/s)
+  EPOCH 32/50  train_loss=0.2287  test_loss=0.1987  acc=100.0%  lr=2.98e-04  epoch_time=1s  ETA=12s  total=22s
+
+============================================================
+Epoch 33/50
+  [1/1]  ce=0.1987  ping=7.8119  acc=1.000
+  train done in 0.4s  avg loss: 0.1987
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 33/50  train_loss=0.1987  test_loss=0.2092  acc=100.0%  lr=2.69e-04  epoch_time=1s  ETA=12s  total=23s
+
+============================================================
+Epoch 34/50
+  [1/1]  ce=0.2092  ping=13.7516  acc=1.000
+  train done in 0.4s  avg loss: 0.2092
+  evaluating 4 samples...
+  eval done in 0.3s  (12.8 samp/s)
+  EPOCH 34/50  train_loss=0.2092  test_loss=0.2283  acc=100.0%  lr=2.41e-04  epoch_time=1s  ETA=11s  total=23s
+
+============================================================
+Epoch 35/50
+  [1/1]  ce=0.2283  ping=10.3036  acc=1.000
+  train done in 0.4s  avg loss: 0.2283
+  evaluating 4 samples...
+  eval done in 0.3s  (12.8 samp/s)
+  EPOCH 35/50  train_loss=0.2283  test_loss=0.2478  acc=100.0%  lr=2.14e-04  epoch_time=1s  ETA=10s  total=24s
+
+============================================================
+Epoch 36/50
+  [1/1]  ce=0.2478  ping=10.4320  acc=1.000
+  train done in 0.4s  avg loss: 0.2478
+  evaluating 4 samples...
+  eval done in 0.3s  (13.0 samp/s)
+  EPOCH 36/50  train_loss=0.2478  test_loss=0.2283  acc=100.0%  lr=1.88e-04  epoch_time=1s  ETA=10s  total=25s
+
+============================================================
+Epoch 37/50
+  [1/1]  ce=0.2283  ping=10.6393  acc=1.000
+  train done in 0.4s  avg loss: 0.2283
+  evaluating 4 samples...
+  eval done in 0.3s  (13.0 samp/s)
+  EPOCH 37/50  train_loss=0.2283  test_loss=0.2283  acc=100.0%  lr=1.64e-04  epoch_time=1s  ETA=9s  total=25s
+
+============================================================
+Epoch 38/50
+  [1/1]  ce=0.2283  ping=10.6393  acc=1.000
+  train done in 0.4s  avg loss: 0.2283
+  evaluating 4 samples...
+  eval done in 0.3s  (12.7 samp/s)
+  EPOCH 38/50  train_loss=0.2283  test_loss=0.2285  acc=100.0%  lr=1.41e-04  epoch_time=1s  ETA=8s  total=26s
+
+============================================================
+Epoch 39/50
+  [1/1]  ce=0.2285  ping=13.9761  acc=1.000
+  train done in 0.4s  avg loss: 0.2285
+  evaluating 4 samples...
+  eval done in 0.3s  (12.6 samp/s)
+  EPOCH 39/50  train_loss=0.2285  test_loss=0.2284  acc=100.0%  lr=1.19e-04  epoch_time=1s  ETA=8s  total=27s
+
+============================================================
+Epoch 40/50
+  [1/1]  ce=0.2284  ping=14.0984  acc=1.000
+  train done in 0.4s  avg loss: 0.2284
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 40/50  train_loss=0.2284  test_loss=0.2284  acc=100.0%  lr=9.93e-05  epoch_time=1s  ETA=7s  total=27s
+
+============================================================
+Epoch 41/50
+  [1/1]  ce=0.2284  ping=14.1022  acc=1.000
+  train done in 0.4s  avg loss: 0.2284
+  evaluating 4 samples...
+  eval done in 0.3s  (12.8 samp/s)
+  EPOCH 41/50  train_loss=0.2284  test_loss=0.2480  acc=100.0%  lr=8.10e-05  epoch_time=1s  ETA=6s  total=28s
+
+============================================================
+Epoch 42/50
+  [1/1]  ce=0.2480  ping=13.7357  acc=1.000
+  train done in 0.4s  avg loss: 0.2480
+  evaluating 4 samples...
+  eval done in 0.3s  (12.7 samp/s)
+  EPOCH 42/50  train_loss=0.2480  test_loss=0.2283  acc=100.0%  lr=6.43e-05  epoch_time=1s  ETA=5s  total=29s
+
+============================================================
+Epoch 43/50
+  [1/1]  ce=0.2283  ping=13.8887  acc=1.000
+  train done in 0.4s  avg loss: 0.2283
+  evaluating 4 samples...
+  eval done in 0.3s  (12.7 samp/s)
+  EPOCH 43/50  train_loss=0.2283  test_loss=0.2283  acc=100.0%  lr=4.95e-05  epoch_time=1s  ETA=5s  total=29s
+
+============================================================
+Epoch 44/50
+  [1/1]  ce=0.2283  ping=13.8887  acc=1.000
+  train done in 0.4s  avg loss: 0.2283
+  evaluating 4 samples...
+  eval done in 0.3s  (13.0 samp/s)
+  EPOCH 44/50  train_loss=0.2283  test_loss=0.2479  acc=100.0%  lr=3.65e-05  epoch_time=1s  ETA=4s  total=30s
+
+============================================================
+Epoch 45/50
+  [1/1]  ce=0.2479  ping=13.7357  acc=1.000
+  train done in 0.4s  avg loss: 0.2479
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 45/50  train_loss=0.2479  test_loss=0.2479  acc=100.0%  lr=2.55e-05  epoch_time=1s  ETA=3s  total=31s
+
+============================================================
+Epoch 46/50
+  [1/1]  ce=0.2479  ping=13.7357  acc=1.000
+  train done in 0.4s  avg loss: 0.2479
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 46/50  train_loss=0.2479  test_loss=0.2479  acc=100.0%  lr=1.64e-05  epoch_time=1s  ETA=3s  total=31s
+
+============================================================
+Epoch 47/50
+  [1/1]  ce=0.2479  ping=13.7357  acc=1.000
+  train done in 0.4s  avg loss: 0.2479
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 47/50  train_loss=0.2479  test_loss=0.2479  acc=100.0%  lr=9.22e-06  epoch_time=1s  ETA=2s  total=32s
+
+============================================================
+Epoch 48/50
+  [1/1]  ce=0.2479  ping=13.7357  acc=1.000
+  train done in 0.4s  avg loss: 0.2479
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 48/50  train_loss=0.2479  test_loss=0.2479  acc=100.0%  lr=4.10e-06  epoch_time=1s  ETA=1s  total=33s
+
+============================================================
+Epoch 49/50
+  [1/1]  ce=0.2479  ping=13.7357  acc=1.000
+  train done in 0.4s  avg loss: 0.2479
+  evaluating 4 samples...
+  eval done in 0.3s  (12.8 samp/s)
+  EPOCH 49/50  train_loss=0.2479  test_loss=0.2479  acc=100.0%  lr=1.03e-06  epoch_time=1s  ETA=1s  total=33s
+
+============================================================
+Epoch 50/50
+  [1/1]  ce=0.2479  ping=13.7357  acc=1.000
+  train done in 0.4s  avg loss: 0.2479
+  evaluating 4 samples...
+  eval done in 0.3s  (12.9 samp/s)
+  EPOCH 50/50  train_loss=0.2479  test_loss=0.2479  acc=100.0%  lr=0.00e+00  epoch_time=1s  ETA=0s  total=34s
+
+Per-sample accuracy:
+  0⊕0=0: pred=0  [OK]
+  0⊕1=1: pred=1  [OK]
+  1⊕0=1: pred=1  [OK]
+  1⊕1=0: pred=0  [OK]
+
+Collecting XOR samples for raster plots...
+
+Input scale: 10.0 (fixed)
+  0⊕0=0: input_spikes=0  E_hid_spikes=0  E_out_spikes=0
+  0⊕1=1: input_spikes=2000  E_hid_spikes=78  E_out_spikes=2
+  1⊕0=1: input_spikes=2000  E_hid_spikes=78  E_out_spikes=3
+  1⊕1=0: input_spikes=4000  E_hid_spikes=108  E_out_spikes=4
+Done!

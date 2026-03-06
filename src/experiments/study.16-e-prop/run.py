@@ -30,13 +30,7 @@ from pinglab.backends.pytorch import (
 from pinglab.backends.pytorch.e_prop import (
     run_batch_eprop, train_epoch_eprop,
 )
-from pinglab.io.graph_renderer import save_graph_diagram
 from pinglab.io.training import encode_poisson, eval_epoch
-
-from plots import (
-    save_line, save_stacked_lines, save_raster_grid, save_raster_layers,
-    save_confusion_matrix, save_input_raster, save_voltage_traces,
-)
 
 
 def main(
@@ -44,6 +38,8 @@ def main(
     data_dir: Path | str | None = None,
     checkpoint_dir: Path | str | None = None,
     on_epoch_end: callable | None = None,
+    raw_data_dir: Path | str | None = None,
+    run_id: str | None = None,
 ) -> dict:
     """Run e-prop training.  Returns the results dict."""
     device = get_device()
@@ -97,10 +93,6 @@ def main(
     config_path = experiment_dir / "config.json"
     with config_path.open(encoding="utf-8") as f:
         spec = json.load(f)
-    shutil.copy2(config_path, data_path / "config.json")
-
-    save_graph_diagram(spec, data_path / "graph")
-
     # ── network config ──────────────────────────────────────────────────────
     meta = spec.get("meta", {})
     batch_size        = int(meta.get("batch_size", 16))
@@ -185,7 +177,7 @@ def main(
 
     # ── firing rate tracking ──────────────────────────────────────────────
     _iter_rates: dict[str, list[float]] = {
-        "E_in": [], "E_hid": [], "E_out": [],
+        "E_in": [], "E_hid": [], "E_out": [], "I_global": [],
     }
     _layer_slices = {
         "E_in":  (int(pop_idx["E_in"]["start"]),  int(pop_idx["E_in"]["stop"])),
@@ -363,7 +355,7 @@ def main(
     for d in range(10):
         print(f"  digit {d}: {class_accs[d]:5.1f}%  ({class_correct[d]}/{class_total[d]})")
 
-    # ── raster plots ─────────────────────────────────────────────────────────
+    # ── canonical digit inference (needs GPU) ────────────────────────────────
     print("\nCollecting canonical samples for raster plots...", flush=True)
     canonical: dict[int, torch.Tensor] = {}
     for X_batch, y_batch in test_loader:
@@ -374,7 +366,6 @@ def main(
         if len(canonical) == 10:
             break
 
-    out_spike_tensors = []
     full_spike_arrays = {}
     voltage_traces = {}
     input_arrays = {}
@@ -407,7 +398,6 @@ def main(
                 external_input=ext,
             )
             full_arr = _spikes_to_array(result, T_steps, n_total, dt)
-            out_spike_tensors.append(full_arr[:, out_start:out_stop])
             full_spike_arrays[d] = full_arr
             voltage_traces[d] = result.voltage_trace
 
@@ -416,97 +406,13 @@ def main(
             n_in_spikes = int(input_arrays[d][:, :n_input].sum())
             print(f"  digit {d}: input_spikes={n_in_spikes}  E_hid_spikes={n_hid_spikes}  E_out_spikes={n_out_spikes}")
 
-    save_raster_grid(
-        data_path / "raster_output_all_all",
-        out_spike_tensors,
-        dt=dt,
-        digit_labels=available_digits,
-        suptitle="Output layer spikes per digit class (trained PING, e-prop)",
-    )
-
-    for d in available_digits:
-        save_raster_layers(
-            data_path / f"raster_layers_digit_{d:02d}",
-            full_spike_arrays[d],
-            dt=dt,
-            pop_idx=pop_idx,
-            input_ext=input_arrays[d],
-            n_input=n_input,
-            title=f"All layers — digit {d}",
-        )
-
-    for d in available_digits:
-        save_input_raster(
-            data_path / f"raster_input_digit_{d:02d}",
-            input_arrays[d],
-            dt=dt,
-            n_input=n_input,
-            title=f"Poisson input — digit {d}",
-        )
-
-    v_th = float(spec.get("biophysics", {}).get("V_th", -50.0))
-    for d in available_digits:
-        save_voltage_traces(
-            data_path / f"voltage_output_digit_{d:02d}",
-            voltage_traces[d],
-            dt=dt,
-            out_start=out_start,
-            out_stop=out_stop,
-            title=f"Output neuron voltages — digit {d}",
-            v_th=v_th,
-        )
-
-    # ── plots ────────────────────────────────────────────────────────────────
-    iters_x = list(range(1, len(all_iter_losses) + 1))
-    epochs_x = list(range(1, epochs + 1))
-    save_line(data_path / "loss_train", x=iters_x, y=all_iter_losses,
-              title="Train Loss", xlabel="Iteration", ylabel="Cross-entropy loss")
-    save_line(data_path / "loss_test",  x=epochs_x, y=test_losses,
-              title="Test Loss", xlabel="Epoch", ylabel="Cross-entropy loss")
-    save_line(data_path / "accuracy",   x=iters_x, y=[a * 100 for a in all_iter_accs],
-              title="Train Accuracy", xlabel="Iteration", ylabel="Accuracy (%)")
-
-    if _iter_rates["E_in"]:
-        save_stacked_lines(
-            data_path / "firing_rates",
-            x=iters_x,
-            series={k: v for k, v in _iter_rates.items() if v},
-            suptitle="Mean Firing Rate per Layer",
-            xlabel="Iteration",
-            ylabel="Hz",
-        )
-
-    if _grad_norms.get("W_ee"):
-        save_stacked_lines(
-            data_path / "grad_norms",
-            x=iters_x,
-            series={k: v for k, v in _grad_norms.items() if v},
-            suptitle="Gradient Norm per Weight Matrix",
-            xlabel="Iteration",
-            ylabel="||grad||",
-        )
-
-    save_line(
-        data_path / "accuracy_per_class",
-        x=list(range(10)),
-        y=class_accs,
-        title="Per-class Test Accuracy",
-        xlabel="Digit",
-        ylabel="Accuracy (%)",
-    )
-
-    save_confusion_matrix(
-        data_path / "confusion",
-        all_labels,
-        all_preds,
-        title="Confusion Matrix",
-    )
-
     # ── save results ──────────────────────────────────────────────────────
     import uuid
     total_elapsed = prior_elapsed + (time.perf_counter() - run_start)
+    if run_id is None:
+        run_id = uuid.uuid4().hex[:8]
     results = {
-        "run_id": uuid.uuid4().hex[:8],
+        "run_id": run_id,
         "epochs": epochs,
         "train_samples": len(train_data),
         "test_samples": len(test_data),
@@ -530,8 +436,55 @@ def main(
         "device": str(device),
         "runtime": "modal" if os.environ.get("MODAL_IS_REMOTE") else "local",
     }
-    with open(data_path / "results.json", "w") as f:
+
+    # ── save raw data to run directory ────────────────────────────────────
+    if raw_data_dir is not None:
+        run_data_dir = Path(raw_data_dir)
+    else:
+        run_data_dir = experiment_dir / "data" / run_id
+    run_data_dir.mkdir(parents=True, exist_ok=True)
+
+    # training_metrics.npz
+    np.savez(
+        run_data_dir / "training_metrics.npz",
+        all_iter_losses=np.array(all_iter_losses, dtype=np.float64),
+        all_iter_accs=np.array(all_iter_accs, dtype=np.float64),
+        test_losses=np.array(test_losses, dtype=np.float64),
+        test_accuracies=np.array(test_accuracies, dtype=np.float64),
+        rates_E_in=np.array(_iter_rates["E_in"], dtype=np.float64),
+        rates_E_hid=np.array(_iter_rates["E_hid"], dtype=np.float64),
+        rates_E_out=np.array(_iter_rates["E_out"], dtype=np.float64),
+        rates_I_global=np.array(_iter_rates["I_global"], dtype=np.float64),
+        grad_norms_W_ee=np.array(_grad_norms.get("W_ee", []), dtype=np.float64),
+        grad_norms_W_ei=np.array(_grad_norms.get("W_ei", []), dtype=np.float64),
+        grad_norms_W_ie=np.array(_grad_norms.get("W_ie", []), dtype=np.float64),
+    )
+
+    # inference_data.npz
+    inference_kwargs = {
+        "all_preds": np.array(all_preds, dtype=np.int64),
+        "all_labels": np.array(all_labels, dtype=np.int64),
+        "class_accs": np.array(class_accs, dtype=np.float64),
+        "available_digits": np.array(available_digits, dtype=np.int64),
+    }
+    for d in available_digits:
+        inference_kwargs[f"full_spikes_{d:02d}"] = full_spike_arrays[d]
+        inference_kwargs[f"input_{d:02d}"] = input_arrays[d]
+        inference_kwargs[f"voltage_{d:02d}"] = voltage_traces[d]
+    np.savez(run_data_dir / "inference_data.npz", **inference_kwargs)
+
+    # weights, config, results, log
+    torch.save(checkpoint, run_data_dir / "weights.pth")
+    shutil.copy2(config_path, run_data_dir / "config.json")
+    with open(run_data_dir / "results.json", "w") as f:
         json.dump(results, f, indent=2)
+    shutil.copy2(log_path, run_data_dir / "train.log")
+
+    print(f"Raw data saved to {run_data_dir}")
+
+    # ── generate plots ────────────────────────────────────────────────────
+    from plots import main as plots_main
+    plots_main(data_dir=run_data_dir, artifacts_dir=data_path)
 
     print("Done!")
     return results

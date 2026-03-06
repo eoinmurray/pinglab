@@ -36,6 +36,9 @@ results/blobs/
 # Cached datasets (MNIST, etc.) in experiment data dirs
 **/data/MNIST/
 
+# Run data dirs (NPZ, weights, logs) — one per training run
+src/experiments/*/data/*/
+
 node_modules
 
 # Frontend builds are handled by src/cathedral/.gitignore

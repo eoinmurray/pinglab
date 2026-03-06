@@ -13,12 +13,12 @@
     "test_subset_size": 5000
   },
   "modal": {
-    "gpu": "T4",
+    "gpu": "A100",
     "cpu": 2,
     "timeout": 21600
   },
   "sim": {
-    "dt_ms": 1.0,
+    "dt_ms": 0.1,
     "T_ms": 200.0,
     "seed": 42,
     "neuron_model": "lif",

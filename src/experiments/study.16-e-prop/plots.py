@@ -1,8 +1,21 @@
+"""Plot generation for study.16 — loads NPZ data, produces all artifacts.
+
+Can be run standalone:
+    uv run python plots.py --data-dir data/<run_id>
+    uv run python plots.py  # auto-discovers latest run
+"""
+from __future__ import annotations
+
+import json
+import shutil
 from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
 from pinglab.plots.styles import save_both
+
+
+# ── individual plot functions ─────────────────────────────────────────────
 
 
 def save_stacked_lines(
@@ -17,7 +30,7 @@ def save_stacked_lines(
     """Save vertically stacked subplots, one per series, sharing the x-axis."""
     n = len(series)
     def _plot() -> None:
-        fig, axes = plt.subplots(n, 1, figsize=(6, 2.5 * n), sharex=True)
+        fig, axes = plt.subplots(n, 1, figsize=(6, 2.5 * n + 0.5), sharex=True)
         if n == 1:
             axes = [axes]
         for ax, (label, y) in zip(axes, series.items()):
@@ -25,8 +38,8 @@ def save_stacked_lines(
             ax.set_ylabel(ylabel)
             ax.set_title(label)
         axes[-1].set_xlabel(xlabel)
-        fig.suptitle(suptitle, y=1.01)
-        fig.tight_layout()
+        fig.suptitle(suptitle)
+        fig.tight_layout(rect=[0, 0, 1, 0.96])
 
     save_both(path, _plot)
 
@@ -295,3 +308,207 @@ def save_confusion_matrix(
         fig.tight_layout()
 
     save_both(path, _plot)
+
+
+# ── main entry point ──────────────────────────────────────────────────────
+
+
+def main(
+    data_dir: Path | str,
+    artifacts_dir: Path | str | None = None,
+) -> None:
+    """Generate all plots from saved NPZ data.
+
+    Args:
+        data_dir: Path to a run data directory containing NPZ files + config.
+        artifacts_dir: Where to write plot PNGs. Defaults to the standard
+            ``_artifacts/study.16-e-prop/`` location.
+    """
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    from pinglab.io.compiler import compile_graph
+    from pinglab.io.graph_renderer import save_graph_diagram
+
+    data_dir = Path(data_dir)
+    if artifacts_dir is None:
+        from settings import ARTIFACTS_ROOT
+        artifacts_dir = ARTIFACTS_ROOT / Path(__file__).parent.name
+    artifacts_dir = Path(artifacts_dir)
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load config
+    config_path = data_dir / "config.json"
+    with config_path.open(encoding="utf-8") as f:
+        spec = json.load(f)
+
+    plan = compile_graph(spec)
+    pop_idx = plan["population_index"]
+    out_start = int(pop_idx["E_out"]["start"])
+    out_stop = int(pop_idx["E_out"]["stop"])
+    n_input = int(pop_idx["E_in"]["stop"] - pop_idx["E_in"]["start"])
+    sim_cfg = spec.get("sim", {})
+    dt = float(sim_cfg.get("dt_ms", 1.0))
+    v_th = float(spec.get("biophysics", {}).get("V_th", -50.0))
+    epochs = int(spec.get("meta", {}).get("epochs", 5))
+
+    # Graph diagram
+    save_graph_diagram(spec, artifacts_dir / "graph")
+
+    # Load training metrics
+    tm = np.load(data_dir / "training_metrics.npz")
+    all_iter_losses = tm["all_iter_losses"]
+    all_iter_accs = tm["all_iter_accs"]
+    test_losses = tm["test_losses"]
+    test_accuracies = tm["test_accuracies"]
+
+    iters_x = list(range(1, len(all_iter_losses) + 1))
+    epochs_x = list(range(1, len(test_losses) + 1))
+
+    save_line(artifacts_dir / "loss_train", x=iters_x, y=all_iter_losses.tolist(),
+              title="Train Loss", xlabel="Iteration", ylabel="Cross-entropy loss")
+    save_line(artifacts_dir / "loss_test", x=epochs_x, y=test_losses.tolist(),
+              title="Test Loss", xlabel="Epoch", ylabel="Cross-entropy loss")
+    save_line(artifacts_dir / "accuracy", x=iters_x, y=(all_iter_accs * 100).tolist(),
+              title="Train Accuracy", xlabel="Iteration", ylabel="Accuracy (%)")
+
+    # Firing rates
+    rates_series = {}
+    for name in ("E_in", "E_hid", "E_out", "I_global"):
+        key = f"rates_{name}"
+        if key in tm and len(tm[key]) > 0:
+            rates_series[name] = tm[key].tolist()
+    if rates_series:
+        save_stacked_lines(
+            artifacts_dir / "firing_rates",
+            x=iters_x,
+            series=rates_series,
+            suptitle="Mean Firing Rate per Layer",
+            xlabel="Iteration",
+            ylabel="Hz",
+        )
+
+    # Grad norms
+    grad_series = {}
+    for name in ("W_ee", "W_ei", "W_ie"):
+        key = f"grad_norms_{name}"
+        if key in tm and len(tm[key]) > 0:
+            grad_series[name] = tm[key].tolist()
+    if grad_series:
+        save_stacked_lines(
+            artifacts_dir / "grad_norms",
+            x=iters_x,
+            series=grad_series,
+            suptitle="Gradient Norm per Weight Matrix",
+            xlabel="Iteration",
+            ylabel="||grad||",
+        )
+
+    # Load inference data
+    inf = np.load(data_dir / "inference_data.npz")
+    all_preds = inf["all_preds"]
+    all_labels = inf["all_labels"]
+    class_accs = inf["class_accs"]
+    available_digits = inf["available_digits"]
+
+    # Per-class accuracy
+    save_line(
+        artifacts_dir / "accuracy_per_class",
+        x=list(range(10)),
+        y=class_accs.tolist(),
+        title="Per-class Test Accuracy",
+        xlabel="Digit",
+        ylabel="Accuracy (%)",
+    )
+
+    # Confusion matrix
+    save_confusion_matrix(
+        artifacts_dir / "confusion",
+        all_labels.tolist(),
+        all_preds.tolist(),
+        title="Confusion Matrix",
+    )
+
+    # Raster plots
+    out_spike_tensors = []
+    for d in available_digits:
+        full_spikes = inf[f"full_spikes_{d:02d}"]
+        out_spike_tensors.append(full_spikes[:, out_start:out_stop])
+
+    save_raster_grid(
+        artifacts_dir / "raster_output_all_all",
+        out_spike_tensors,
+        dt=dt,
+        digit_labels=available_digits.tolist(),
+        suptitle="Output layer spikes per digit class (trained PING, e-prop)",
+    )
+
+    for d in available_digits:
+        save_raster_layers(
+            artifacts_dir / f"raster_layers_digit_{d:02d}",
+            inf[f"full_spikes_{d:02d}"],
+            dt=dt,
+            pop_idx=pop_idx,
+            input_ext=inf[f"input_{d:02d}"],
+            n_input=n_input,
+            title=f"All layers — digit {d}",
+        )
+
+    for d in available_digits:
+        save_input_raster(
+            artifacts_dir / f"raster_input_digit_{d:02d}",
+            inf[f"input_{d:02d}"],
+            dt=dt,
+            n_input=n_input,
+            title=f"Poisson input — digit {d}",
+        )
+
+    for d in available_digits:
+        save_voltage_traces(
+            artifacts_dir / f"voltage_output_digit_{d:02d}",
+            inf[f"voltage_{d:02d}"],
+            dt=dt,
+            out_start=out_start,
+            out_stop=out_stop,
+            title=f"Output neuron voltages — digit {d}",
+            v_th=v_th,
+        )
+
+    # Copy metadata files to artifacts
+    for name in ("config.json", "results.json", "train.log"):
+        src = data_dir / name
+        if src.exists():
+            shutil.copy2(src, artifacts_dir / name)
+
+    print(f"Plots saved to {artifacts_dir}")
+
+
+def _find_latest_run(experiment_dir: Path) -> Path:
+    """Find the most recently modified run data directory."""
+    data_root = experiment_dir / "data"
+    if not data_root.exists():
+        raise FileNotFoundError(f"No data directory at {data_root}")
+    runs = [d for d in data_root.iterdir() if d.is_dir() and d.name != "MNIST"]
+    if not runs:
+        raise FileNotFoundError(f"No run directories in {data_root}")
+    return max(runs, key=lambda d: d.stat().st_mtime)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Generate plots from saved run data")
+    parser.add_argument("--data-dir", type=Path, default=None,
+                        help="Path to run data dir (default: auto-discover latest)")
+    parser.add_argument("--artifacts-dir", type=Path, default=None,
+                        help="Where to write plots (default: _artifacts/study.16-e-prop/)")
+    args = parser.parse_args()
+
+    experiment_dir = Path(__file__).parent.resolve()
+    if args.data_dir is None:
+        data_dir = _find_latest_run(experiment_dir)
+        print(f"Auto-discovered latest run: {data_dir}")
+    else:
+        data_dir = args.data_dir
+
+    main(data_dir=data_dir, artifacts_dir=args.artifacts_dir)

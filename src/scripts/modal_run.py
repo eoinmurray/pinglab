@@ -112,6 +112,7 @@ def run_study(study_name: str):
     import json
     import shutil
     import sys
+    import uuid
     from pathlib import Path
 
     # Write a stub settings module so `from settings import ARTIFACTS_ROOT` resolves.
@@ -142,7 +143,9 @@ def run_study(study_name: str):
     sig = inspect.signature(run_module.main)
     params = set(sig.parameters.keys())
 
-    artifacts_dir = Path(VOLUME_PATH) / study_name
+    # Generate run_id upfront to namespace volume paths
+    run_id = uuid.uuid4().hex[:8]
+    artifacts_dir = Path(VOLUME_PATH) / study_name / run_id
     data_dir = Path("/tmp/data")
 
     kwargs: dict = {}
@@ -154,6 +157,10 @@ def run_study(study_name: str):
         kwargs["checkpoint_dir"] = artifacts_dir
     if "on_epoch_end" in params:
         kwargs["on_epoch_end"] = volume.commit
+    if "raw_data_dir" in params:
+        kwargs["raw_data_dir"] = artifacts_dir / "raw"
+    if "run_id" in params:
+        kwargs["run_id"] = run_id
 
     results = run_module.main(**kwargs)
 
@@ -192,6 +199,10 @@ def main(study: str = ""):
         print("\n=== Remote results ===")
         print(json.dumps(results, indent=2))
 
+    # Get run_id from results to locate the namespaced volume path
+    run_id = results.get("run_id", "unknown") if results else "unknown"
+    volume_prefix = f"{study_name}/{run_id}"
+
     # Download artifacts from Volume to local _artifacts dir
     local_dest.mkdir(parents=True, exist_ok=True)
 
@@ -199,19 +210,36 @@ def main(study: str = ""):
         cmd = [
             sys.executable, "-m", "modal", "volume", "get",
             "pinglab-artifacts",
-            study_name,
+            volume_prefix,
             tmp,
             "--force",
         ]
-        print(f"\nDownloading artifacts to {local_dest} ...")
+        print(f"\nDownloading artifacts from {volume_prefix} to {local_dest} ...")
         subprocess.run(cmd, check=True)
 
-        downloaded = Path(tmp) / study_name
-        if downloaded.is_dir():
-            for item in downloaded.iterdir():
-                shutil.move(str(item), str(local_dest / item.name))
-        else:
-            for item in Path(tmp).iterdir():
-                shutil.move(str(item), str(local_dest / item.name))
+        # modal volume get creates {tmp}/{study_name}/{run_id}/...
+        downloaded = Path(tmp) / study_name / run_id
+        if not downloaded.is_dir():
+            downloaded = Path(tmp) / run_id
+        if not downloaded.is_dir():
+            downloaded = Path(tmp)
+        for item in downloaded.iterdir():
+            dest_item = local_dest / item.name
+            if dest_item.exists():
+                if dest_item.is_dir():
+                    shutil.rmtree(dest_item)
+                else:
+                    dest_item.unlink()
+            shutil.move(str(item), str(dest_item))
+
+    # Relocate raw run data from artifacts to experiment data dir
+    raw_dir = local_dest / "raw"
+    if raw_dir.is_dir():
+        experiment_data_dir = Path(study_dir) / "data" / run_id
+        experiment_data_dir.mkdir(parents=True, exist_ok=True)
+        for item in raw_dir.iterdir():
+            shutil.move(str(item), str(experiment_data_dir / item.name))
+        raw_dir.rmdir()
+        print(f"Run data relocated to {experiment_data_dir}")
 
     print("Artifacts downloaded.")

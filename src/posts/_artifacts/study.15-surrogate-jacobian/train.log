@@ -1,222 +1,291 @@
 Network: N_E=1050  N_I=64  n_total=1114  E_in=[0,784)  E_out=[1040,1050)
-Sim: T=200.0ms  dt=1.0ms  steps=200  burn_in=0.0ms (0 steps)
+Sim: T=200.0ms  dt=0.1ms  steps=2000  burn_in=0.0ms (0 steps)
 Trainable params: 1,236,900  total: 1,236,900  cm_backward_scale=100.0  detach_spikes=False
-State pre-built: N=1114  B=64  buf_len=2  device=mps
+State pre-built: N=1114  B=64  buf_len=11  device=cuda
+  0%|          | 0.00/9.91M [00:00<?, ?B/s] 83%|########3 | 8.26M/9.91M [00:00<00:00, 82.5MB/s]100%|##########| 9.91M/9.91M [00:00<00:00, 84.6MB/s]
+  0%|          | 0.00/28.9k [00:00<?, ?B/s]100%|##########| 28.9k/28.9k [00:00<00:00, 23.9MB/s]
+  0%|          | 0.00/1.65M [00:00<?, ?B/s]100%|##########| 1.65M/1.65M [00:00<00:00, 47.5MB/s]
+  0%|          | 0.00/4.54k [00:00<?, ?B/s]100%|##########| 4.54k/4.54k [00:00<00:00, 2.16MB/s]
 Training on 20000 samples, evaluating on 5000 samples
 
 ============================================================
 Epoch 1/10
-  [  0.3%] batch    0/312  loss: 3.3261  acc: 6.2%  82.5 samp/s  12 ms/samp  ETA: 242s
-  [ 10.2%] batch   31/312  loss: 2.8995  acc: 15.6%  125.6 samp/s  8 ms/samp  ETA: 143s
-  [ 20.2%] batch   62/312  loss: 2.5188  acc: 17.2%  124.5 samp/s  8 ms/samp  ETA: 128s
-  [ 30.1%] batch   93/312  loss: 2.5203  acc: 20.3%  124.4 samp/s  8 ms/samp  ETA: 112s
-  [ 40.0%] batch  124/312  loss: 2.3095  acc: 28.1%  124.5 samp/s  8 ms/samp  ETA: 96s
-  [ 49.9%] batch  155/312  loss: 2.3980  acc: 31.2%  125.0 samp/s  8 ms/samp  ETA: 80s
-  [ 59.8%] batch  186/312  loss: 2.1012  acc: 42.2%  125.3 samp/s  8 ms/samp  ETA: 64s
-  [ 69.8%] batch  217/312  loss: 2.0681  acc: 54.7%  125.3 samp/s  8 ms/samp  ETA: 48s
-  [ 79.7%] batch  248/312  loss: 2.1346  acc: 40.6%  125.4 samp/s  8 ms/samp  ETA: 32s
-  [ 89.6%] batch  279/312  loss: 1.9856  acc: 50.0%  125.6 samp/s  8 ms/samp  ETA: 17s
-  [ 99.5%] batch  310/312  loss: 2.0405  acc: 57.8%  125.3 samp/s  8 ms/samp  ETA: 1s
-  [100.0%] batch  312/312  loss: 1.8468  acc: 65.6%  124.8 samp/s  25 ms/samp  ETA: 0s
-  train done in 160.3s  avg loss: 2.3322
+  [  0.3%] batch    0/312  loss: 2.3082  acc: 14.1%  7.4 samp/s  136 ms/samp  ETA: 2709s
+  [ 10.2%] batch   31/312  loss: 2.3403  acc: 12.5%  12.4 samp/s  76 ms/samp  ETA: 1452s
+  [ 20.2%] batch   62/312  loss: 2.2695  acc: 9.4%  12.8 samp/s  73 ms/samp  ETA: 1248s
+  [ 30.1%] batch   93/312  loss: 2.3508  acc: 9.4%  13.0 samp/s  71 ms/samp  ETA: 1075s
+  [ 40.0%] batch  124/312  loss: 2.4504  acc: 4.7%  13.1 samp/s  73 ms/samp  ETA: 915s
+  [ 49.9%] batch  155/312  loss: 2.4300  acc: 4.7%  13.0 samp/s  78 ms/samp  ETA: 770s
+  [ 59.8%] batch  186/312  loss: 2.2817  acc: 12.5%  13.0 samp/s  76 ms/samp  ETA: 616s
+  [ 69.8%] batch  217/312  loss: 2.3040  acc: 10.9%  13.1 samp/s  81 ms/samp  ETA: 462s
+  [ 79.7%] batch  248/312  loss: 2.2909  acc: 17.2%  13.1 samp/s  75 ms/samp  ETA: 311s
+  [ 89.6%] batch  279/312  loss: 2.3588  acc: 18.8%  13.1 samp/s  75 ms/samp  ETA: 159s
+  [ 99.5%] batch  310/312  loss: 2.3544  acc: 17.2%  13.1 samp/s  75 ms/samp  ETA: 7s
+  [100.0%] batch  312/312  loss: 2.3748  acc: 12.5%  13.1 samp/s  148 ms/samp  ETA: 0s
+  train done in 1527.2s  avg loss: 2.3630
   evaluating 5000 samples...
-  eval done in 34.3s  (145.8 samp/s)
-  EPOCH 1/10  train_loss=2.3322  test_loss=2.0027  acc=51.6%  lr=1.00e-04  epoch_time=195s  ETA=1751s  total=195s
+  eval done in 207.5s  (24.1 samp/s)
+  EPOCH 1/10  train_loss=2.3630  test_loss=2.3702  acc=11.7%  lr=1.00e-04  epoch_time=1735s  ETA=15612s  total=1735s
+  Checkpoint saved → /root/artifacts/study.15-surrogate-jacobian/4a54b8d3/checkpoint.pt
 
 ============================================================
 Epoch 2/10
-  [  0.3%] batch    0/312  loss: 2.0331  acc: 40.6%  122.1 samp/s  8 ms/samp  ETA: 163s
-  [ 10.2%] batch   31/312  loss: 0.6520  acc: 87.5%  123.5 samp/s  8 ms/samp  ETA: 145s
-  [ 20.2%] batch   62/312  loss: 0.3969  acc: 89.1%  123.2 samp/s  8 ms/samp  ETA: 130s
-  [ 30.1%] batch   93/312  loss: 0.7061  acc: 84.4%  122.7 samp/s  8 ms/samp  ETA: 114s
-  [ 40.0%] batch  124/312  loss: 0.3728  acc: 89.1%  122.4 samp/s  8 ms/samp  ETA: 98s
-  [ 49.9%] batch  155/312  loss: 0.2155  acc: 95.3%  122.3 samp/s  8 ms/samp  ETA: 82s
-  [ 59.8%] batch  186/312  loss: 0.3075  acc: 90.6%  122.4 samp/s  9 ms/samp  ETA: 66s
-  [ 69.8%] batch  217/312  loss: 0.2348  acc: 93.8%  122.5 samp/s  8 ms/samp  ETA: 49s
-  [ 79.7%] batch  248/312  loss: 0.3125  acc: 92.2%  122.7 samp/s  8 ms/samp  ETA: 33s
-  [ 89.6%] batch  279/312  loss: 0.5427  acc: 90.6%  122.7 samp/s  8 ms/samp  ETA: 17s
-  [ 99.5%] batch  310/312  loss: 0.2281  acc: 93.8%  122.7 samp/s  8 ms/samp  ETA: 1s
-  [100.0%] batch  312/312  loss: 0.2697  acc: 96.9%  122.6 samp/s  16 ms/samp  ETA: 0s
-  train done in 163.2s  avg loss: 0.4900
+  [  0.3%] batch    0/312  loss: 2.3553  acc: 7.8%  13.9 samp/s  72 ms/samp  ETA: 1438s
+  [ 10.2%] batch   31/312  loss: 2.3185  acc: 18.8%  13.5 samp/s  72 ms/samp  ETA: 1330s
+  [ 20.2%] batch   62/312  loss: 2.1733  acc: 35.9%  13.4 samp/s  73 ms/samp  ETA: 1189s
+  [ 30.1%] batch   93/312  loss: 2.1000  acc: 35.9%  13.4 samp/s  79 ms/samp  ETA: 1046s
+  [ 40.0%] batch  124/312  loss: 1.8747  acc: 45.3%  13.1 samp/s  73 ms/samp  ETA: 916s
+  [ 49.9%] batch  155/312  loss: 1.9926  acc: 43.8%  13.2 samp/s  72 ms/samp  ETA: 760s
+  [ 59.8%] batch  186/312  loss: 2.1407  acc: 29.7%  13.3 samp/s  75 ms/samp  ETA: 606s
+  [ 69.8%] batch  217/312  loss: 2.1477  acc: 28.1%  13.3 samp/s  77 ms/samp  ETA: 455s
+  [ 79.7%] batch  248/312  loss: 2.0588  acc: 34.4%  13.3 samp/s  76 ms/samp  ETA: 305s
+  [ 89.6%] batch  279/312  loss: 2.0588  acc: 31.2%  13.3 samp/s  71 ms/samp  ETA: 156s
+  [ 99.5%] batch  310/312  loss: 2.0323  acc: 34.4%  13.4 samp/s  72 ms/samp  ETA: 7s
+  [100.0%] batch  312/312  loss: 2.1181  acc: 37.5%  13.3 samp/s  133 ms/samp  ETA: 0s
+  train done in 1498.9s  avg loss: 2.0862
   evaluating 5000 samples...
-  eval done in 33.8s  (148.1 samp/s)
-  EPOCH 2/10  train_loss=0.4900  test_loss=0.3410  acc=91.1%  lr=9.70e-05  epoch_time=197s  ETA=1576s  total=391s
+  eval done in 206.0s  (24.3 samp/s)
+  EPOCH 2/10  train_loss=2.0862  test_loss=2.1236  acc=28.4%  lr=9.70e-05  epoch_time=1705s  ETA=13640s  total=3442s
+  Checkpoint saved → /root/artifacts/study.15-surrogate-jacobian/4a54b8d3/checkpoint.pt
 
 ============================================================
 Epoch 3/10
-  [  0.3%] batch    0/312  loss: 0.1704  acc: 98.4%  122.9 samp/s  8 ms/samp  ETA: 162s
-  [ 10.2%] batch   31/312  loss: 0.3771  acc: 87.5%  122.9 samp/s  8 ms/samp  ETA: 146s
-  [ 20.2%] batch   62/312  loss: 0.2104  acc: 95.3%  123.0 samp/s  8 ms/samp  ETA: 130s
-  [ 30.1%] batch   93/312  loss: 0.2525  acc: 95.3%  123.0 samp/s  8 ms/samp  ETA: 114s
-  [ 40.0%] batch  124/312  loss: 0.1881  acc: 93.8%  123.0 samp/s  8 ms/samp  ETA: 98s
-  [ 49.9%] batch  155/312  loss: 0.2281  acc: 93.8%  123.1 samp/s  8 ms/samp  ETA: 81s
-  [ 59.8%] batch  186/312  loss: 0.1528  acc: 96.9%  123.2 samp/s  8 ms/samp  ETA: 65s
-  [ 69.8%] batch  217/312  loss: 0.2072  acc: 93.8%  123.2 samp/s  8 ms/samp  ETA: 49s
-  [ 79.7%] batch  248/312  loss: 0.1776  acc: 96.9%  123.2 samp/s  8 ms/samp  ETA: 33s
-  [ 89.6%] batch  279/312  loss: 0.2709  acc: 92.2%  123.1 samp/s  8 ms/samp  ETA: 17s
-  [ 99.5%] batch  310/312  loss: 0.2826  acc: 93.8%  123.1 samp/s  8 ms/samp  ETA: 1s
-  [100.0%] batch  312/312  loss: 0.6636  acc: 75.0%  122.9 samp/s  16 ms/samp  ETA: 0s
-  train done in 162.8s  avg loss: 0.2261
+  [  0.3%] batch    0/312  loss: 2.1122  acc: 29.7%  14.0 samp/s  71 ms/samp  ETA: 1424s
+  [ 10.2%] batch   31/312  loss: 2.1319  acc: 37.5%  13.4 samp/s  72 ms/samp  ETA: 1342s
+  [ 20.2%] batch   62/312  loss: 2.1210  acc: 29.7%  13.3 samp/s  73 ms/samp  ETA: 1197s
+  [ 30.1%] batch   93/312  loss: 2.1085  acc: 25.0%  13.3 samp/s  73 ms/samp  ETA: 1049s
+  [ 40.0%] batch  124/312  loss: 2.0841  acc: 21.9%  13.3 samp/s  78 ms/samp  ETA: 902s
+  [ 49.9%] batch  155/312  loss: 2.0949  acc: 32.8%  13.3 samp/s  77 ms/samp  ETA: 751s
+  [ 59.8%] batch  186/312  loss: 2.1101  acc: 37.5%  13.1 samp/s  89 ms/samp  ETA: 612s
+  [ 69.8%] batch  217/312  loss: 2.0936  acc: 32.8%  13.0 samp/s  75 ms/samp  ETA: 465s
+  [ 79.7%] batch  248/312  loss: 2.2179  acc: 20.3%  13.0 samp/s  74 ms/samp  ETA: 312s
+  [ 89.6%] batch  279/312  loss: 1.9410  acc: 40.6%  13.1 samp/s  73 ms/samp  ETA: 159s
+  [ 99.5%] batch  310/312  loss: 1.9731  acc: 34.4%  13.1 samp/s  82 ms/samp  ETA: 7s
+  [100.0%] batch  312/312  loss: 1.9732  acc: 37.5%  13.1 samp/s  140 ms/samp  ETA: 0s
+  train done in 1530.2s  avg loss: 2.0865
   evaluating 5000 samples...
-  eval done in 33.9s  (147.7 samp/s)
-  EPOCH 3/10  train_loss=0.2261  test_loss=0.2973  acc=92.2%  lr=8.83e-05  epoch_time=197s  ETA=1376s  total=588s
+  eval done in 232.3s  (21.5 samp/s)
+  EPOCH 3/10  train_loss=2.0865  test_loss=2.0084  acc=38.0%  lr=8.83e-05  epoch_time=1762s  ETA=12337s  total=5206s
+  Checkpoint saved → /root/artifacts/study.15-surrogate-jacobian/4a54b8d3/checkpoint.pt
 
 ============================================================
 Epoch 4/10
-  [  0.3%] batch    0/312  loss: 0.2241  acc: 95.3%  122.4 samp/s  8 ms/samp  ETA: 163s
-  [ 10.2%] batch   31/312  loss: 0.1722  acc: 95.3%  122.5 samp/s  8 ms/samp  ETA: 147s
-  [ 20.2%] batch   62/312  loss: 0.1391  acc: 98.4%  124.7 samp/s  8 ms/samp  ETA: 128s
-  [ 30.1%] batch   93/312  loss: 0.0616  acc: 96.9%  123.7 samp/s  8 ms/samp  ETA: 113s
-  [ 40.0%] batch  124/312  loss: 0.2122  acc: 92.2%  123.4 samp/s  8 ms/samp  ETA: 97s
-  [ 49.9%] batch  155/312  loss: 0.1307  acc: 98.4%  123.2 samp/s  8 ms/samp  ETA: 81s
-  [ 59.8%] batch  186/312  loss: 0.1302  acc: 96.9%  123.2 samp/s  8 ms/samp  ETA: 65s
-  [ 69.8%] batch  217/312  loss: 0.0907  acc: 98.4%  123.1 samp/s  8 ms/samp  ETA: 49s
-  [ 79.7%] batch  248/312  loss: 0.0391  acc: 100.0%  123.0 samp/s  8 ms/samp  ETA: 33s
-  [ 89.6%] batch  279/312  loss: 0.0945  acc: 98.4%  123.0 samp/s  8 ms/samp  ETA: 17s
-  [ 99.5%] batch  310/312  loss: 0.0541  acc: 96.9%  122.9 samp/s  8 ms/samp  ETA: 1s
-  [100.0%] batch  312/312  loss: 0.0179  acc: 100.0%  122.7 samp/s  16 ms/samp  ETA: 0s
-  train done in 163.0s  avg loss: 0.1521
+  [  0.3%] batch    0/312  loss: 2.0806  acc: 37.5%  13.0 samp/s  77 ms/samp  ETA: 1536s
+  [ 10.2%] batch   31/312  loss: 2.0277  acc: 39.1%  12.2 samp/s  80 ms/samp  ETA: 1469s
+  [ 20.2%] batch   62/312  loss: 1.7759  acc: 43.8%  12.1 samp/s  82 ms/samp  ETA: 1314s
+  [ 30.1%] batch   93/312  loss: 1.9736  acc: 34.4%  12.4 samp/s  72 ms/samp  ETA: 1126s
+  [ 40.0%] batch  124/312  loss: 1.9846  acc: 26.6%  12.7 samp/s  74 ms/samp  ETA: 944s
+  [ 49.9%] batch  155/312  loss: 1.8705  acc: 31.2%  12.9 samp/s  76 ms/samp  ETA: 777s
+  [ 59.8%] batch  186/312  loss: 2.0442  acc: 32.8%  13.0 samp/s  75 ms/samp  ETA: 617s
+  [ 69.8%] batch  217/312  loss: 1.7568  acc: 45.3%  13.1 samp/s  76 ms/samp  ETA: 462s
+  [ 79.7%] batch  248/312  loss: 1.8442  acc: 53.1%  13.2 samp/s  71 ms/samp  ETA: 309s
+  [ 89.6%] batch  279/312  loss: 1.9742  acc: 40.6%  13.2 samp/s  72 ms/samp  ETA: 157s
+  [ 99.5%] batch  310/312  loss: 1.9857  acc: 35.9%  13.3 samp/s  72 ms/samp  ETA: 7s
+  [100.0%] batch  312/312  loss: 2.0273  acc: 21.9%  13.2 samp/s  138 ms/samp  ETA: 0s
+  train done in 1510.9s  avg loss: 1.8547
   evaluating 5000 samples...
-  eval done in 33.6s  (148.8 samp/s)
-  EPOCH 4/10  train_loss=0.1521  test_loss=0.2381  acc=93.5%  lr=7.50e-05  epoch_time=197s  ETA=1179s  total=785s
+  eval done in 206.5s  (24.2 samp/s)
+  EPOCH 4/10  train_loss=1.8547  test_loss=1.9452  acc=42.7%  lr=7.50e-05  epoch_time=1717s  ETA=10304s  total=6926s
+  Checkpoint saved → /root/artifacts/study.15-surrogate-jacobian/4a54b8d3/checkpoint.pt
 
 ============================================================
 Epoch 5/10
-  [  0.3%] batch    0/312  loss: 0.0894  acc: 96.9%  122.6 samp/s  8 ms/samp  ETA: 163s
-  [ 10.2%] batch   31/312  loss: 0.0556  acc: 96.9%  123.8 samp/s  8 ms/samp  ETA: 145s
-  [ 20.2%] batch   62/312  loss: 0.1084  acc: 96.9%  123.6 samp/s  8 ms/samp  ETA: 129s
-  [ 30.1%] batch   93/312  loss: 0.1270  acc: 96.9%  123.2 samp/s  8 ms/samp  ETA: 113s
-  [ 40.0%] batch  124/312  loss: 0.0649  acc: 98.4%  123.9 samp/s  8 ms/samp  ETA: 97s
-  [ 49.9%] batch  155/312  loss: 0.0540  acc: 98.4%  124.7 samp/s  8 ms/samp  ETA: 80s
-  [ 59.8%] batch  186/312  loss: 0.0840  acc: 95.3%  125.2 samp/s  8 ms/samp  ETA: 64s
-  [ 69.8%] batch  217/312  loss: 0.0091  acc: 100.0%  125.7 samp/s  8 ms/samp  ETA: 48s
-  [ 79.7%] batch  248/312  loss: 0.1116  acc: 95.3%  126.2 samp/s  8 ms/samp  ETA: 32s
-  [ 89.6%] batch  279/312  loss: 0.2143  acc: 96.9%  126.6 samp/s  8 ms/samp  ETA: 16s
-  [ 99.5%] batch  310/312  loss: 0.0729  acc: 98.4%  126.5 samp/s  8 ms/samp  ETA: 1s
-  [100.0%] batch  312/312  loss: 0.1208  acc: 93.8%  126.2 samp/s  16 ms/samp  ETA: 0s
-  train done in 158.4s  avg loss: 0.1077
+  [  0.3%] batch    0/312  loss: 1.9486  acc: 45.3%  14.1 samp/s  71 ms/samp  ETA: 1409s
+  [ 10.2%] batch   31/312  loss: 1.9528  acc: 46.9%  13.6 samp/s  75 ms/samp  ETA: 1322s
+  [ 20.2%] batch   62/312  loss: 1.9234  acc: 43.8%  13.5 samp/s  74 ms/samp  ETA: 1185s
+  [ 30.1%] batch   93/312  loss: 1.8571  acc: 42.2%  13.4 samp/s  83 ms/samp  ETA: 1046s
+  [ 40.0%] batch  124/312  loss: 1.9248  acc: 43.8%  13.3 samp/s  71 ms/samp  ETA: 903s
+  [ 49.9%] batch  155/312  loss: 1.9220  acc: 46.9%  13.3 samp/s  76 ms/samp  ETA: 750s
+  [ 59.8%] batch  186/312  loss: 1.9172  acc: 43.8%  13.4 samp/s  71 ms/samp  ETA: 599s
+  [ 69.8%] batch  217/312  loss: 1.7813  acc: 43.8%  13.4 samp/s  74 ms/samp  ETA: 450s
+  [ 79.7%] batch  248/312  loss: 1.8853  acc: 48.4%  13.5 samp/s  72 ms/samp  ETA: 302s
+  [ 89.6%] batch  279/312  loss: 1.8130  acc: 53.1%  13.5 samp/s  71 ms/samp  ETA: 154s
+  [ 99.5%] batch  310/312  loss: 1.9185  acc: 40.6%  13.5 samp/s  72 ms/samp  ETA: 7s
+  [100.0%] batch  312/312  loss: 1.8824  acc: 56.2%  13.5 samp/s  132 ms/samp  ETA: 0s
+  train done in 1485.8s  avg loss: 1.9013
   evaluating 5000 samples...
-  eval done in 33.3s  (150.1 samp/s)
-  EPOCH 5/10  train_loss=0.1077  test_loss=0.2235  acc=94.5%  lr=5.87e-05  epoch_time=192s  ETA=959s  total=976s
+  eval done in 205.2s  (24.4 samp/s)
+  EPOCH 5/10  train_loss=1.9013  test_loss=1.9879  acc=43.5%  lr=5.87e-05  epoch_time=1691s  ETA=8455s  total=8619s
+  Checkpoint saved → /root/artifacts/study.15-surrogate-jacobian/4a54b8d3/checkpoint.pt
 
 ============================================================
 Epoch 6/10
-  [  0.3%] batch    0/312  loss: 0.1631  acc: 95.3%  121.9 samp/s  8 ms/samp  ETA: 164s
-  [ 10.2%] batch   31/312  loss: 0.1572  acc: 95.3%  124.1 samp/s  8 ms/samp  ETA: 145s
-  [ 20.2%] batch   62/312  loss: 0.0337  acc: 98.4%  123.7 samp/s  8 ms/samp  ETA: 129s
-  [ 30.1%] batch   93/312  loss: 0.0257  acc: 100.0%  123.5 samp/s  8 ms/samp  ETA: 113s
-  [ 40.0%] batch  124/312  loss: 0.0190  acc: 100.0%  123.3 samp/s  8 ms/samp  ETA: 97s
-  [ 49.9%] batch  155/312  loss: 0.0811  acc: 98.4%  123.2 samp/s  8 ms/samp  ETA: 81s
-  [ 59.8%] batch  186/312  loss: 0.0626  acc: 96.9%  123.5 samp/s  8 ms/samp  ETA: 65s
-  [ 69.8%] batch  217/312  loss: 0.1576  acc: 98.4%  124.1 samp/s  8 ms/samp  ETA: 49s
-  [ 79.7%] batch  248/312  loss: 0.0253  acc: 98.4%  124.6 samp/s  8 ms/samp  ETA: 33s
-  [ 89.6%] batch  279/312  loss: 0.0283  acc: 98.4%  125.1 samp/s  8 ms/samp  ETA: 17s
-  [ 99.5%] batch  310/312  loss: 0.0131  acc: 100.0%  125.5 samp/s  8 ms/samp  ETA: 1s
-  [100.0%] batch  312/312  loss: 0.0032  acc: 100.0%  125.3 samp/s  15 ms/samp  ETA: 0s
-  train done in 159.6s  avg loss: 0.0767
+  [  0.3%] batch    0/312  loss: 1.9746  acc: 54.7%  14.0 samp/s  71 ms/samp  ETA: 1421s
+  [ 10.2%] batch   31/312  loss: 1.9546  acc: 51.6%  13.6 samp/s  75 ms/samp  ETA: 1320s
+  [ 20.2%] batch   62/312  loss: 1.8961  acc: 51.6%  13.6 samp/s  76 ms/samp  ETA: 1174s
+  [ 30.1%] batch   93/312  loss: 1.9674  acc: 48.4%  13.4 samp/s  76 ms/samp  ETA: 1041s
+  [ 40.0%] batch  124/312  loss: 1.9289  acc: 40.6%  13.5 samp/s  71 ms/samp  ETA: 891s
+  [ 49.9%] batch  155/312  loss: 1.8983  acc: 43.8%  13.5 samp/s  72 ms/samp  ETA: 742s
+  [ 59.8%] batch  186/312  loss: 1.9420  acc: 50.0%  13.5 samp/s  75 ms/samp  ETA: 597s
+  [ 69.8%] batch  217/312  loss: 1.7605  acc: 42.2%  13.5 samp/s  73 ms/samp  ETA: 449s
+  [ 79.7%] batch  248/312  loss: 1.9486  acc: 42.2%  13.5 samp/s  72 ms/samp  ETA: 301s
+  [ 89.6%] batch  279/312  loss: 1.7699  acc: 51.6%  13.5 samp/s  72 ms/samp  ETA: 154s
+  [ 99.5%] batch  310/312  loss: 1.8456  acc: 43.8%  13.5 samp/s  73 ms/samp  ETA: 7s
+  [100.0%] batch  312/312  loss: 1.6286  acc: 50.0%  13.5 samp/s  135 ms/samp  ETA: 0s
+  train done in 1486.7s  avg loss: 1.8610
   evaluating 5000 samples...
-  eval done in 31.8s  (157.2 samp/s)
-  EPOCH 6/10  train_loss=0.0767  test_loss=0.2054  acc=95.1%  lr=4.13e-05  epoch_time=191s  ETA=766s  total=1168s
+  eval done in 206.5s  (24.2 samp/s)
+  EPOCH 6/10  train_loss=1.8610  test_loss=1.9067  acc=46.6%  lr=4.13e-05  epoch_time=1693s  ETA=6773s  total=10315s
+  Checkpoint saved → /root/artifacts/study.15-surrogate-jacobian/4a54b8d3/checkpoint.pt
 
 ============================================================
 Epoch 7/10
-  [  0.3%] batch    0/312  loss: 0.0151  acc: 100.0%  130.6 samp/s  8 ms/samp  ETA: 153s
-  [ 10.2%] batch   31/312  loss: 0.0688  acc: 96.9%  130.0 samp/s  8 ms/samp  ETA: 138s
-  [ 20.2%] batch   62/312  loss: 0.0703  acc: 96.9%  130.1 samp/s  8 ms/samp  ETA: 123s
-  [ 30.1%] batch   93/312  loss: 0.0072  acc: 100.0%  130.0 samp/s  8 ms/samp  ETA: 108s
-  [ 40.0%] batch  124/312  loss: 0.0421  acc: 100.0%  130.0 samp/s  8 ms/samp  ETA: 92s
-  [ 49.9%] batch  155/312  loss: 0.0219  acc: 98.4%  129.9 samp/s  8 ms/samp  ETA: 77s
-  [ 59.8%] batch  186/312  loss: 0.0340  acc: 100.0%  129.9 samp/s  8 ms/samp  ETA: 62s
-  [ 69.8%] batch  217/312  loss: 0.0648  acc: 96.9%  129.9 samp/s  8 ms/samp  ETA: 47s
-  [ 79.7%] batch  248/312  loss: 0.0328  acc: 98.4%  129.9 samp/s  8 ms/samp  ETA: 31s
-  [ 89.6%] batch  279/312  loss: 0.1498  acc: 95.3%  129.9 samp/s  8 ms/samp  ETA: 16s
-  [ 99.5%] batch  310/312  loss: 0.0128  acc: 100.0%  129.9 samp/s  8 ms/samp  ETA: 1s
-  [100.0%] batch  312/312  loss: 0.0054  acc: 100.0%  129.7 samp/s  15 ms/samp  ETA: 0s
-  train done in 154.2s  avg loss: 0.0491
+  [  0.3%] batch    0/312  loss: 1.8164  acc: 53.1%  13.9 samp/s  72 ms/samp  ETA: 1436s
+  [ 10.2%] batch   31/312  loss: 1.5270  acc: 59.4%  13.2 samp/s  74 ms/samp  ETA: 1363s
+  [ 20.2%] batch   62/312  loss: 1.7814  acc: 43.8%  13.1 samp/s  81 ms/samp  ETA: 1216s
+  [ 30.1%] batch   93/312  loss: 1.8447  acc: 48.4%  12.7 samp/s  84 ms/samp  ETA: 1101s
+  [ 40.0%] batch  124/312  loss: 1.7033  acc: 54.7%  12.6 samp/s  83 ms/samp  ETA: 955s
+  [ 49.9%] batch  155/312  loss: 1.6243  acc: 50.0%  12.7 samp/s  71 ms/samp  ETA: 787s
+  [ 59.8%] batch  186/312  loss: 1.5616  acc: 51.6%  12.9 samp/s  73 ms/samp  ETA: 624s
+  [ 69.8%] batch  217/312  loss: 1.8347  acc: 54.7%  13.0 samp/s  73 ms/samp  ETA: 467s
+  [ 79.7%] batch  248/312  loss: 1.7926  acc: 50.0%  13.0 samp/s  71 ms/samp  ETA: 312s
+  [ 89.6%] batch  279/312  loss: 1.8650  acc: 48.4%  13.1 samp/s  72 ms/samp  ETA: 159s
+  [ 99.5%] batch  310/312  loss: 1.6217  acc: 50.0%  13.1 samp/s  73 ms/samp  ETA: 7s
+  [100.0%] batch  312/312  loss: 1.5136  acc: 59.4%  13.1 samp/s  141 ms/samp  ETA: 0s
+  train done in 1525.3s  avg loss: 1.7449
   evaluating 5000 samples...
-  eval done in 31.8s  (157.3 samp/s)
-  EPOCH 7/10  train_loss=0.0491  test_loss=0.1957  acc=95.1%  lr=2.50e-05  epoch_time=186s  ETA=558s  total=1354s
+  eval done in 220.5s  (22.7 samp/s)
+  EPOCH 7/10  train_loss=1.7449  test_loss=1.8156  acc=50.7%  lr=2.50e-05  epoch_time=1746s  ETA=5237s  total=12063s
+  Checkpoint saved → /root/artifacts/study.15-surrogate-jacobian/4a54b8d3/checkpoint.pt
 
 ============================================================
 Epoch 8/10
-  [  0.3%] batch    0/312  loss: 0.0326  acc: 100.0%  122.8 samp/s  8 ms/samp  ETA: 162s
-  [ 10.2%] batch   31/312  loss: 0.0022  acc: 100.0%  129.8 samp/s  8 ms/samp  ETA: 138s
-  [ 20.2%] batch   62/312  loss: 0.0105  acc: 100.0%  129.9 samp/s  8 ms/samp  ETA: 123s
-  [ 30.1%] batch   93/312  loss: 0.0959  acc: 96.9%  129.9 samp/s  8 ms/samp  ETA: 108s
-  [ 40.0%] batch  124/312  loss: 0.0296  acc: 100.0%  129.9 samp/s  8 ms/samp  ETA: 92s
-  [ 49.9%] batch  155/312  loss: 0.0289  acc: 98.4%  129.0 samp/s  8 ms/samp  ETA: 78s
-  [ 59.8%] batch  186/312  loss: 0.1112  acc: 96.9%  127.8 samp/s  9 ms/samp  ETA: 63s
-  [ 69.8%] batch  217/312  loss: 0.0468  acc: 98.4%  127.0 samp/s  8 ms/samp  ETA: 48s
-  [ 79.7%] batch  248/312  loss: 0.0093  acc: 100.0%  126.5 samp/s  8 ms/samp  ETA: 32s
-  [ 89.6%] batch  279/312  loss: 0.0429  acc: 96.9%  126.1 samp/s  8 ms/samp  ETA: 16s
-  [ 99.5%] batch  310/312  loss: 0.0991  acc: 96.9%  125.8 samp/s  8 ms/samp  ETA: 1s
-  [100.0%] batch  312/312  loss: 0.0696  acc: 96.9%  125.6 samp/s  16 ms/samp  ETA: 0s
-  train done in 159.3s  avg loss: 0.0355
+  [  0.3%] batch    0/312  loss: 1.7088  acc: 54.7%  13.1 samp/s  76 ms/samp  ETA: 1516s
+  [ 10.2%] batch   31/312  loss: 1.5530  acc: 45.3%  13.5 samp/s  72 ms/samp  ETA: 1331s
+  [ 20.2%] batch   62/312  loss: 1.6134  acc: 60.9%  13.5 samp/s  73 ms/samp  ETA: 1179s
+  [ 30.1%] batch   93/312  loss: 1.4439  acc: 53.1%  13.6 samp/s  70 ms/samp  ETA: 1032s
+  [ 40.0%] batch  124/312  loss: 1.6749  acc: 54.7%  13.6 samp/s  74 ms/samp  ETA: 885s
+  [ 49.9%] batch  155/312  loss: 1.9168  acc: 40.6%  13.4 samp/s  72 ms/samp  ETA: 747s
+  [ 59.8%] batch  186/312  loss: 1.6197  acc: 56.2%  13.3 samp/s  78 ms/samp  ETA: 605s
+  [ 69.8%] batch  217/312  loss: 1.6794  acc: 43.8%  13.2 samp/s  72 ms/samp  ETA: 457s
+  [ 79.7%] batch  248/312  loss: 1.7091  acc: 54.7%  13.2 samp/s  79 ms/samp  ETA: 307s
+  [ 89.6%] batch  279/312  loss: 1.6027  acc: 53.1%  13.1 samp/s  75 ms/samp  ETA: 159s
+  [ 99.5%] batch  310/312  loss: 1.6934  acc: 48.4%  13.0 samp/s  84 ms/samp  ETA: 7s
+  [100.0%] batch  312/312  loss: 1.5566  acc: 50.0%  13.0 samp/s  153 ms/samp  ETA: 0s
+  train done in 1538.6s  avg loss: 1.6584
   evaluating 5000 samples...
-  eval done in 33.4s  (149.6 samp/s)
-  EPOCH 8/10  train_loss=0.0355  test_loss=0.2084  acc=95.2%  lr=1.17e-05  epoch_time=193s  ETA=385s  total=1547s
+  eval done in 236.9s  (21.1 samp/s)
+  EPOCH 8/10  train_loss=1.6584  test_loss=1.7621  acc=52.9%  lr=1.17e-05  epoch_time=1776s  ETA=3551s  total=13841s
+  Checkpoint saved → /root/artifacts/study.15-surrogate-jacobian/4a54b8d3/checkpoint.pt
 
 ============================================================
 Epoch 9/10
-  [  0.3%] batch    0/312  loss: 0.0118  acc: 100.0%  123.0 samp/s  8 ms/samp  ETA: 162s
-  [ 10.2%] batch   31/312  loss: 0.0037  acc: 100.0%  125.0 samp/s  8 ms/samp  ETA: 144s
-  [ 20.2%] batch   62/312  loss: 0.0123  acc: 100.0%  126.8 samp/s  8 ms/samp  ETA: 126s
-  [ 30.1%] batch   93/312  loss: 0.1767  acc: 96.9%  127.4 samp/s  8 ms/samp  ETA: 110s
-  [ 40.0%] batch  124/312  loss: 0.0084  acc: 100.0%  127.8 samp/s  8 ms/samp  ETA: 94s
-  [ 49.9%] batch  155/312  loss: 0.0100  acc: 100.0%  128.2 samp/s  8 ms/samp  ETA: 78s
-  [ 59.8%] batch  186/312  loss: 0.0041  acc: 100.0%  128.5 samp/s  8 ms/samp  ETA: 63s
-  [ 69.8%] batch  217/312  loss: 0.0121  acc: 100.0%  128.7 samp/s  8 ms/samp  ETA: 47s
-  [ 79.7%] batch  248/312  loss: 0.0099  acc: 100.0%  128.8 samp/s  8 ms/samp  ETA: 32s
-  [ 89.6%] batch  279/312  loss: 0.0375  acc: 96.9%  128.9 samp/s  8 ms/samp  ETA: 16s
-  [ 99.5%] batch  310/312  loss: 0.0192  acc: 100.0%  129.0 samp/s  8 ms/samp  ETA: 1s
-  [100.0%] batch  312/312  loss: 0.0650  acc: 93.8%  128.8 samp/s  15 ms/samp  ETA: 0s
-  train done in 155.3s  avg loss: 0.0253
+  [  0.3%] batch    0/312  loss: 1.5153  acc: 65.6%  13.0 samp/s  77 ms/samp  ETA: 1539s
+  [ 10.2%] batch   31/312  loss: 1.5535  acc: 51.6%  12.4 samp/s  80 ms/samp  ETA: 1445s
+  [ 20.2%] batch   62/312  loss: 1.6198  acc: 48.4%  12.3 samp/s  83 ms/samp  ETA: 1295s
+  [ 30.1%] batch   93/312  loss: 1.6678  acc: 53.1%  12.3 samp/s  82 ms/samp  ETA: 1137s
+  [ 40.0%] batch  124/312  loss: 1.6100  acc: 62.5%  12.3 samp/s  81 ms/samp  ETA: 979s
+  [ 49.9%] batch  155/312  loss: 1.7448  acc: 59.4%  12.3 samp/s  83 ms/samp  ETA: 817s
+  [ 59.8%] batch  186/312  loss: 1.4943  acc: 53.1%  12.2 samp/s  82 ms/samp  ETA: 656s
+  [ 69.8%] batch  217/312  loss: 1.5224  acc: 56.2%  12.2 samp/s  85 ms/samp  ETA: 494s
+  [ 79.7%] batch  248/312  loss: 1.5461  acc: 65.6%  12.2 samp/s  83 ms/samp  ETA: 332s
+  [ 89.6%] batch  279/312  loss: 1.8168  acc: 43.8%  12.2 samp/s  83 ms/samp  ETA: 170s
+  [ 99.5%] batch  310/312  loss: 1.5419  acc: 53.1%  12.3 samp/s  82 ms/samp  ETA: 8s
+  [100.0%] batch  312/312  loss: 1.4170  acc: 65.6%  12.2 samp/s  147 ms/samp  ETA: 0s
+  train done in 1633.6s  avg loss: 1.6255
   evaluating 5000 samples...
-  eval done in 31.9s  (156.8 samp/s)
-  EPOCH 9/10  train_loss=0.0253  test_loss=0.1957  acc=95.5%  lr=3.02e-06  epoch_time=187s  ETA=187s  total=1734s
+  eval done in 246.1s  (20.3 samp/s)
+  EPOCH 9/10  train_loss=1.6255  test_loss=1.7456  acc=54.1%  lr=3.02e-06  epoch_time=1880s  ETA=1880s  total=15726s
+  Checkpoint saved → /root/artifacts/study.15-surrogate-jacobian/4a54b8d3/checkpoint.pt
 
 ============================================================
 Epoch 10/10
-  [  0.3%] batch    0/312  loss: 0.0098  acc: 100.0%  131.0 samp/s  8 ms/samp  ETA: 152s
-  [ 10.2%] batch   31/312  loss: 0.0030  acc: 100.0%  130.7 samp/s  8 ms/samp  ETA: 137s
-  [ 20.2%] batch   62/312  loss: 0.0218  acc: 100.0%  130.4 samp/s  8 ms/samp  ETA: 122s
-  [ 30.1%] batch   93/312  loss: 0.0030  acc: 100.0%  130.4 samp/s  8 ms/samp  ETA: 107s
-  [ 40.0%] batch  124/312  loss: 0.0422  acc: 98.4%  130.3 samp/s  8 ms/samp  ETA: 92s
-  [ 49.9%] batch  155/312  loss: 0.0116  acc: 100.0%  130.3 samp/s  8 ms/samp  ETA: 77s
-  [ 59.8%] batch  186/312  loss: 0.0149  acc: 100.0%  130.2 samp/s  8 ms/samp  ETA: 62s
-  [ 69.8%] batch  217/312  loss: 0.0090  acc: 100.0%  130.3 samp/s  8 ms/samp  ETA: 46s
-  [ 79.7%] batch  248/312  loss: 0.0027  acc: 100.0%  130.3 samp/s  8 ms/samp  ETA: 31s
-  [ 89.6%] batch  279/312  loss: 0.0092  acc: 100.0%  130.2 samp/s  8 ms/samp  ETA: 16s
-  [ 99.5%] batch  310/312  loss: 0.0187  acc: 98.4%  130.2 samp/s  8 ms/samp  ETA: 1s
-  [100.0%] batch  312/312  loss: 0.0007  acc: 100.0%  130.0 samp/s  15 ms/samp  ETA: 0s
-  train done in 153.9s  avg loss: 0.0214
+  [  0.3%] batch    0/312  loss: 1.7527  acc: 56.2%  12.8 samp/s  78 ms/samp  ETA: 1555s
+  [ 10.2%] batch   31/312  loss: 1.5492  acc: 54.7%  12.8 samp/s  75 ms/samp  ETA: 1398s
+  [ 20.2%] batch   62/312  loss: 1.6256  acc: 50.0%  12.6 samp/s  81 ms/samp  ETA: 1270s
+  [ 30.1%] batch   93/312  loss: 1.6518  acc: 57.8%  12.4 samp/s  76 ms/samp  ETA: 1123s
+  [ 40.0%] batch  124/312  loss: 1.7474  acc: 59.4%  12.5 samp/s  78 ms/samp  ETA: 963s
+  [ 49.9%] batch  155/312  loss: 1.6093  acc: 56.2%  12.4 samp/s  79 ms/samp  ETA: 806s
+  [ 59.8%] batch  186/312  loss: 1.6720  acc: 54.7%  12.4 samp/s  81 ms/samp  ETA: 645s
+  [ 69.8%] batch  217/312  loss: 1.3951  acc: 65.6%  12.5 samp/s  79 ms/samp  ETA: 484s
+  [ 79.7%] batch  248/312  loss: 1.6285  acc: 43.8%  12.6 samp/s  76 ms/samp  ETA: 323s
+  [ 89.6%] batch  279/312  loss: 1.8331  acc: 35.9%  12.6 samp/s  75 ms/samp  ETA: 164s
+  [ 99.5%] batch  310/312  loss: 1.6293  acc: 51.6%  12.7 samp/s  75 ms/samp  ETA: 8s
+  [100.0%] batch  312/312  loss: 1.4299  acc: 56.2%  12.7 samp/s  133 ms/samp  ETA: 0s
+  train done in 1572.0s  avg loss: 1.6066
   evaluating 5000 samples...
-  eval done in 31.9s  (156.9 samp/s)
-  EPOCH 10/10  train_loss=0.0214  test_loss=0.1903  acc=95.6%  lr=0.00e+00  epoch_time=186s  ETA=0s  total=1919s
+  eval done in 245.2s  (20.4 samp/s)
+  EPOCH 10/10  train_loss=1.6066  test_loss=1.7265  acc=54.4%  lr=0.00e+00  epoch_time=1817s  ETA=0s  total=17546s
+  Checkpoint saved → /root/artifacts/study.15-surrogate-jacobian/4a54b8d3/checkpoint.pt
+Checkpoint removed (training complete).
 
 Per-class accuracy:
-  digit 0:  98.5%  (453/460)
-  digit 1:  98.2%  (561/571)
-  digit 2:  95.3%  (505/530)
-  digit 3:  96.6%  (483/500)
-  digit 4:  95.4%  (477/500)
-  digit 5:  93.0%  (424/456)
-  digit 6:  94.8%  (438/462)
-  digit 7:  94.5%  (484/512)
-  digit 8:  94.7%  (463/489)
-  digit 9:  94.2%  (490/520)
+  digit 0:  70.4%  (324/460)
+  digit 1:  86.3%  (493/571)
+  digit 2:  63.8%  (338/530)
+  digit 3:  62.4%  (312/500)
+  digit 4:  35.6%  (178/500)
+  digit 5:  23.5%  (107/456)
+  digit 6:  63.9%  (295/462)
+  digit 7:  60.0%  (307/512)
+  digit 8:  37.2%  (182/489)
+  digit 9:  34.8%  (181/520)
 
 Collecting canonical samples for raster plots...
 
 Input scale: 3.0 (fixed)
-  digit 0: input_spikes=86946  E_hid_spikes=941  E_out_spikes=12
-  digit 1: input_spikes=23337  E_hid_spikes=428  E_out_spikes=10
-  digit 2: input_spikes=68031  E_hid_spikes=954  E_out_spikes=38
-  digit 3: input_spikes=83160  E_hid_spikes=932  E_out_spikes=14
-  digit 4: input_spikes=44865  E_hid_spikes=475  E_out_spikes=16
-  digit 5: input_spikes=72411  E_hid_spikes=880  E_out_spikes=19
-  digit 6: input_spikes=65316  E_hid_spikes=542  E_out_spikes=15
-  digit 7: input_spikes=43437  E_hid_spikes=574  E_out_spikes=20
-  digit 8: input_spikes=75618  E_hid_spikes=955  E_out_spikes=18
-  digit 9: input_spikes=49677  E_hid_spikes=715  E_out_spikes=16
+  digit 0: input_spikes=871290  E_hid_spikes=192  E_out_spikes=40
+  digit 1: input_spikes=232854  E_hid_spikes=26  E_out_spikes=0
+  digit 2: input_spikes=679224  E_hid_spikes=152  E_out_spikes=10
+  digit 3: input_spikes=833802  E_hid_spikes=161  E_out_spikes=20
+  digit 4: input_spikes=452985  E_hid_spikes=153  E_out_spikes=18
+  digit 5: input_spikes=722784  E_hid_spikes=249  E_out_spikes=65
+  digit 6: input_spikes=653121  E_hid_spikes=151  E_out_spikes=10
+  digit 7: input_spikes=434400  E_hid_spikes=127  E_out_spikes=3
+  digit 8: input_spikes=754032  E_hid_spikes=236  E_out_spikes=57
+  digit 9: input_spikes=495537  E_hid_spikes=140  E_out_spikes=16
 Done!
+
+=== Results ===
+{
+  "run_id": "621fca03",
+  "epochs": 10,
+  "train_samples": 20000,
+  "test_samples": 5000,
+  "final_train_loss": 1.4299,
+  "final_test_loss": 1.7265,
+  "best_test_loss": 1.7265,
+  "best_test_loss_epoch": 10,
+  "final_test_accuracy": 54.4,
+  "best_test_accuracy": 54.4,
+  "best_test_accuracy_epoch": 10,
+  "test_losses_per_epoch": [
+    2.3702,
+    2.1236,
+    2.0084,
+    1.9452,
+    1.9879,
+    1.9067,
+    1.8156,
+    1.7621,
+    1.7456,
+    1.7265
+  ],
+  "test_accuracies_per_epoch": [
+    11.7,
+    28.4,
+    38.0,
+    42.7,
+    43.5,
+    46.6,
+    50.7,
+    52.9,
+    54.1,
+    54.4
+  ],
+  "encoding": "poisson",
+  "readout": "hybrid",
+  "readout_alpha": 0.01,
+  "input_scale": 3.0,
+  "trainable_params": 1236900,
+  "trainable_params_breakdown": {
+    "W_ee": 1102500,
+    "W_ei": 67200,
+    "W_ie": 67200
+  },
+  "cm_backward_scale": 100.0,
+  "detach_spikes": false,
+  "elapsed_seconds": 17845.8,
+  "device": "cuda",
+  "runtime": "modal"
+}

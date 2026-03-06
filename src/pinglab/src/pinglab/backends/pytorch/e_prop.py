@@ -152,6 +152,7 @@ def run_batch_eprop(
 
     # For firing rate tracking
     all_spikes_E = []
+    all_spikes_I = []
 
     # ── Forward loop (no autograd) ────────────────────────────────────────
     with torch.no_grad():
@@ -169,6 +170,9 @@ def run_batch_eprop(
 
             spiked_E = spiked[:, :N_E].float()  # [B, N_E]
             all_spikes_E.append(spiked_E[:B_actual].clone())
+            if N_I > 0:
+                spiked_I = spiked[:, N_E:].float()  # [B, N_I]
+                all_spikes_I.append(spiked_I[:B_actual].clone())
 
             # ── Surrogate derivative ψ for all neurons ────────────────────
             V_E = sim_state.V[:, :N_E]  # [B, N_E]
@@ -243,8 +247,9 @@ def run_batch_eprop(
 
     # Stack spikes for return
     spikes_E = torch.stack(all_spikes_E, dim=1)  # [B_actual, T, N_E]
+    spikes_I = torch.stack(all_spikes_I, dim=1) if all_spikes_I else None  # [B_actual, T, N_I]
 
-    return logits, spikes_E, (
+    return logits, spikes_E, spikes_I, (
         E_in_hid[:B_actual], E_hid_out[:B_actual],
         E_ei[:B_actual], E_ie[:B_actual],
     )
@@ -458,7 +463,7 @@ def train_epoch_eprop(
         batch_start = time.perf_counter()
 
         # Forward pass with e-prop trace accumulation
-        logits, spikes_E, traces = run_batch_eprop(
+        logits, spikes_E, spikes_I, traces = run_batch_eprop(
             runtime, X, pop_idx=pop_idx, **batch_kwargs,
         )
 
@@ -499,6 +504,9 @@ def train_epoch_eprop(
                 for name, (s, e) in layer_slices.items():
                     rate = spikes_E[:, burn_in_steps:, s:e].sum(dim=1).mean().item() / T_sec
                     iter_rates[name].append(rate)
+                if "I_global" in iter_rates and spikes_I is not None:
+                    rate = spikes_I[:, burn_in_steps:, :].sum(dim=1).mean().item() / T_sec
+                    iter_rates["I_global"].append(rate)
 
         if batch_idx % log_every == 0 or batch_idx == len(dataloader) - 1:
             elapsed = time.perf_counter() - epoch_start
