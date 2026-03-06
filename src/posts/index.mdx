@@ -6,15 +6,7 @@ export const streamlitHref = import.meta.env.VITE_STREAMLIT_URL ?? '/streamlit'
 AI generated documentation on research into Pyramidal-Interneuron Network Gamma (PING) Spiking Neural Networks.
 </div>
 
-# Studies
-
-<VeslxPostList globs={["study.*"]} />
-
-# Docs
-
-<VeslxPostList globs={["docs.*"]} />
-
-# Pdfs
+# Reports
 
 <VeslxPostListItem
   title="pdf.1-journal-club"
@@ -29,6 +21,22 @@ AI generated documentation on research into Pyramidal-Interneuron Network Gamma 
   href="/raw/pdf.2-ann-to-snn-conversion.pdf"
   date={new Date("2026-02-23")}
 />
+
+<VeslxPostListItem
+  title="report.1-ping-bptt"
+  description="PING network Back Propagation Through Time (BPTT)"
+  href="/raw/report.1-ping-bptt/main.pdf"
+  date={new Date("2026-02-23")}
+/>
+
+
+# Studies
+
+<VeslxPostList globs={["study.*"]} />
+
+# Docs
+
+<VeslxPostList globs={["docs.*"]} />
 
 # Links
 

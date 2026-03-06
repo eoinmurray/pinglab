@@ -1,0 +1,231 @@
+Network: N_E=1050  N_I=64  n_total=1114  E_in=[0,784)  E_out=[1040,1050)
+Sim: T=200.0ms  dt=0.25ms  steps=800  burn_in=0.0ms (0 steps)
+Trainable params: 1,236,900  total: 1,236,900  cm_backward_scale=100.0  detach_spikes=False
+State pre-built: N=1114  B=64  buf_len=5  device=cuda
+  0%|          | 0.00/9.91M [00:00<?, ?B/s]  1%|          | 65.5k/9.91M [00:00<00:24, 394kB/s]  3%|2         | 295k/9.91M [00:00<00:10, 952kB/s]  12%|#1        | 1.15M/9.91M [00:00<00:03, 2.78MB/s] 37%|###7      | 3.70M/9.91M [00:00<00:00, 7.53MB/s] 65%|######5   | 6.49M/9.91M [00:00<00:00, 10.6MB/s] 96%|#########5| 9.47M/9.91M [00:00<00:00, 15.0MB/s]100%|##########| 9.91M/9.91M [00:01<00:00, 9.56MB/s]
+  0%|          | 0.00/28.9k [00:00<?, ?B/s]100%|##########| 28.9k/28.9k [00:00<00:00, 333kB/s]
+  0%|          | 0.00/1.65M [00:00<?, ?B/s]  4%|3         | 65.5k/1.65M [00:00<00:04, 382kB/s] 16%|#5        | 262k/1.65M [00:00<00:01, 827kB/s]  68%|######7   | 1.11M/1.65M [00:00<00:00, 2.70MB/s]100%|##########| 1.65M/1.65M [00:00<00:00, 3.14MB/s]
+  0%|          | 0.00/4.54k [00:00<?, ?B/s]100%|##########| 4.54k/4.54k [00:00<00:00, 3.16MB/s]
+Training on 20000 samples, evaluating on 5000 samples
+
+============================================================
+Epoch 1/10
+  [62/313]  ce=2.3455  ping=1.6864  acc=0.125
+  [124/313]  ce=2.3295  ping=1.8341  acc=0.172
+  [186/313]  ce=2.3168  ping=1.6856  acc=0.156
+  [248/313]  ce=2.2435  ping=1.6425  acc=0.188
+  [310/313]  ce=2.1723  ping=1.4324  acc=0.359
+  [313/313]  ce=2.2833  ping=1.3777  acc=0.281
+  train done in 786.5s  avg loss: 2.2913
+  evaluating 5000 samples...
+  eval done in 132.0s  (37.9 samp/s)
+  EPOCH 1/10  train_loss=2.2913  test_loss=2.2303  acc=28.2%  lr=7.00e-05  epoch_time=919s  ETA=8267s  total=919s
+  Checkpoint saved → /root/artifacts/study.19-ping-regulariser-on-mnist/53b879e4/checkpoint.pt
+
+============================================================
+Epoch 2/10
+  [62/313]  ce=1.0433  ping=0.7310  acc=0.812
+  [124/313]  ce=0.5534  ping=0.9894  acc=0.859
+  [186/313]  ce=0.5931  ping=7.9422  acc=0.781
+  [248/313]  ce=0.4041  ping=5.1797  acc=0.875
+  [310/313]  ce=0.4403  ping=1.3009  acc=0.844
+  [313/313]  ce=0.1534  ping=8.8032  acc=1.000
+  train done in 761.9s  avg loss: 0.7492
+  evaluating 5000 samples...
+  eval done in 137.1s  (36.5 samp/s)
+  EPOCH 2/10  train_loss=0.7492  test_loss=0.4916  acc=87.1%  lr=6.79e-05  epoch_time=899s  ETA=7192s  total=1822s
+  Checkpoint saved → /root/artifacts/study.19-ping-regulariser-on-mnist/53b879e4/checkpoint.pt
+
+============================================================
+Epoch 3/10
+  [62/313]  ce=0.2282  ping=4.4225  acc=0.953
+  [124/313]  ce=0.5594  ping=4.7099  acc=0.859
+  [186/313]  ce=0.3206  ping=3.7308  acc=0.922
+  [248/313]  ce=0.2171  ping=2.9889  acc=0.953
+  [310/313]  ce=0.3677  ping=2.7682  acc=0.906
+  [313/313]  ce=0.2573  ping=5.1680  acc=0.906
+  train done in 778.9s  avg loss: 0.3470
+  evaluating 5000 samples...
+  eval done in 126.2s  (39.6 samp/s)
+  EPOCH 3/10  train_loss=0.3470  test_loss=0.3770  acc=89.6%  lr=6.18e-05  epoch_time=905s  ETA=6336s  total=2732s
+  Checkpoint saved → /root/artifacts/study.19-ping-regulariser-on-mnist/53b879e4/checkpoint.pt
+
+============================================================
+Epoch 4/10
+  [62/313]  ce=0.1723  ping=4.2905  acc=0.969
+  [124/313]  ce=0.3172  ping=1.9364  acc=0.891
+  [186/313]  ce=0.2319  ping=3.1861  acc=0.938
+  [248/313]  ce=0.2551  ping=3.4736  acc=0.875
+  [310/313]  ce=0.1908  ping=2.8260  acc=0.969
+  [313/313]  ce=0.3012  ping=2.8373  acc=0.938
+  train done in 781.3s  avg loss: 0.2560
+  evaluating 5000 samples...
+  eval done in 143.5s  (34.8 samp/s)
+  EPOCH 4/10  train_loss=0.2560  test_loss=0.3271  acc=91.2%  lr=5.25e-05  epoch_time=925s  ETA=5549s  total=3661s
+  Checkpoint saved → /root/artifacts/study.19-ping-regulariser-on-mnist/53b879e4/checkpoint.pt
+
+============================================================
+Epoch 5/10
+  [62/313]  ce=0.2259  ping=3.0278  acc=0.922
+  [124/313]  ce=0.3449  ping=3.0143  acc=0.922
+  [186/313]  ce=0.2809  ping=2.4869  acc=0.938
+  [248/313]  ce=0.0568  ping=2.6635  acc=1.000
+  [310/313]  ce=0.0610  ping=3.1462  acc=0.984
+  [313/313]  ce=0.0939  ping=3.3107  acc=1.000
+  train done in 753.8s  avg loss: 0.2078
+  evaluating 5000 samples...
+  eval done in 123.8s  (40.4 samp/s)
+  EPOCH 5/10  train_loss=0.2078  test_loss=0.2994  acc=91.6%  lr=4.11e-05  epoch_time=878s  ETA=4388s  total=4543s
+  Checkpoint saved → /root/artifacts/study.19-ping-regulariser-on-mnist/53b879e4/checkpoint.pt
+
+============================================================
+Epoch 6/10
+  [62/313]  ce=0.1265  ping=2.9908  acc=0.969
+  [124/313]  ce=0.2235  ping=4.4986  acc=0.969
+  [186/313]  ce=0.1750  ping=3.7320  acc=0.969
+  [248/313]  ce=0.1477  ping=3.1119  acc=0.953
+  [310/313]  ce=0.1511  ping=3.2901  acc=0.906
+  [313/313]  ce=0.2110  ping=3.8875  acc=0.938
+  train done in 747.5s  avg loss: 0.1686
+  evaluating 5000 samples...
+  eval done in 123.5s  (40.5 samp/s)
+  EPOCH 6/10  train_loss=0.1686  test_loss=0.2763  acc=92.3%  lr=2.89e-05  epoch_time=871s  ETA=3484s  total=5417s
+  Checkpoint saved → /root/artifacts/study.19-ping-regulariser-on-mnist/53b879e4/checkpoint.pt
+
+============================================================
+Epoch 7/10
+  [62/313]  ce=0.1115  ping=4.8417  acc=0.969
+  [124/313]  ce=0.1890  ping=3.3898  acc=0.953
+  [186/313]  ce=0.0821  ping=4.6851  acc=0.984
+  [248/313]  ce=0.0664  ping=3.3273  acc=0.984
+  [310/313]  ce=0.1138  ping=4.9942  acc=0.953
+  [313/313]  ce=0.1808  ping=4.3868  acc=0.969
+  train done in 744.9s  avg loss: 0.1508
+  evaluating 5000 samples...
+  eval done in 123.1s  (40.6 samp/s)
+  EPOCH 7/10  train_loss=0.1508  test_loss=0.2437  acc=93.1%  lr=1.75e-05  epoch_time=868s  ETA=2604s  total=6289s
+  Checkpoint saved → /root/artifacts/study.19-ping-regulariser-on-mnist/53b879e4/checkpoint.pt
+
+============================================================
+Epoch 8/10
+  [62/313]  ce=0.0600  ping=4.8566  acc=0.984
+  [124/313]  ce=0.0409  ping=3.0722  acc=1.000
+  [186/313]  ce=0.1693  ping=3.9935  acc=0.953
+  [248/313]  ce=0.0821  ping=3.3089  acc=0.984
+  [310/313]  ce=0.2313  ping=4.5798  acc=0.938
+  [313/313]  ce=0.2015  ping=4.4327  acc=0.938
+  train done in 745.9s  avg loss: 0.1355
+  evaluating 5000 samples...
+  eval done in 123.5s  (40.5 samp/s)
+  EPOCH 8/10  train_loss=0.1355  test_loss=0.2493  acc=93.0%  lr=8.19e-06  epoch_time=869s  ETA=1739s  total=7162s
+  Checkpoint saved → /root/artifacts/study.19-ping-regulariser-on-mnist/53b879e4/checkpoint.pt
+
+============================================================
+Epoch 9/10
+  [62/313]  ce=0.1250  ping=3.3058  acc=0.938
+  [124/313]  ce=0.0654  ping=3.0226  acc=0.969
+  [186/313]  ce=0.1480  ping=5.0235  acc=0.953
+  [248/313]  ce=0.0713  ping=3.1865  acc=0.984
+  [310/313]  ce=0.0975  ping=3.0429  acc=0.969
+  [313/313]  ce=0.3139  ping=9.9194  acc=0.906
+  train done in 747.8s  avg loss: 0.1254
+  evaluating 5000 samples...
+  eval done in 123.4s  (40.5 samp/s)
+  EPOCH 9/10  train_loss=0.1254  test_loss=0.2350  acc=93.3%  lr=2.11e-06  epoch_time=871s  ETA=871s  total=8037s
+  Checkpoint saved → /root/artifacts/study.19-ping-regulariser-on-mnist/53b879e4/checkpoint.pt
+
+============================================================
+Epoch 10/10
+  [62/313]  ce=0.1073  ping=4.0969  acc=0.969
+  [124/313]  ce=0.0792  ping=3.2348  acc=0.938
+  [186/313]  ce=0.1169  ping=3.5562  acc=0.953
+  [248/313]  ce=0.1687  ping=5.3353  acc=0.938
+  [310/313]  ce=0.1481  ping=4.0177  acc=0.953
+  [313/313]  ce=0.1357  ping=2.8841  acc=0.906
+  train done in 747.5s  avg loss: 0.1205
+  evaluating 5000 samples...
+  eval done in 123.5s  (40.5 samp/s)
+  EPOCH 10/10  train_loss=0.1205  test_loss=0.2343  acc=93.5%  lr=0.00e+00  epoch_time=871s  ETA=0s  total=8912s
+  Checkpoint saved → /root/artifacts/study.19-ping-regulariser-on-mnist/53b879e4/checkpoint.pt
+Checkpoint removed (training complete).
+
+Per-class accuracy:
+  digit 0:  96.7%  (445/460)
+  digit 1:  98.6%  (563/571)
+  digit 2:  93.6%  (496/530)
+  digit 3:  92.2%  (461/500)
+  digit 4:  94.0%  (470/500)
+  digit 5:  89.9%  (410/456)
+  digit 6:  93.1%  (430/462)
+  digit 7:  89.3%  (457/512)
+  digit 8:  92.4%  (452/489)
+  digit 9:  91.7%  (477/520)
+
+Collecting canonical samples for raster plots...
+
+Input scale: 3.0 (fixed)
+  digit 0: input_spikes=348573  E_hid_spikes=704  E_out_spikes=45
+  digit 1: input_spikes=92718  E_hid_spikes=132  E_out_spikes=7
+  digit 2: input_spikes=271371  E_hid_spikes=553  E_out_spikes=46
+  digit 3: input_spikes=333813  E_hid_spikes=545  E_out_spikes=42
+  digit 4: input_spikes=181104  E_hid_spikes=317  E_out_spikes=16
+  digit 5: input_spikes=289260  E_hid_spikes=292  E_out_spikes=17
+  digit 6: input_spikes=261018  E_hid_spikes=400  E_out_spikes=28
+  digit 7: input_spikes=173688  E_hid_spikes=226  E_out_spikes=15
+  digit 8: input_spikes=301158  E_hid_spikes=567  E_out_spikes=36
+  digit 9: input_spikes=198234  E_hid_spikes=302  E_out_spikes=16
+Done!
+
+=== Results ===
+{
+  "run_id": "5f26d1ba",
+  "epochs": 10,
+  "train_samples": 20000,
+  "test_samples": 5000,
+  "final_train_loss": 0.1357,
+  "final_test_loss": 0.2343,
+  "best_test_loss": 0.2343,
+  "best_test_loss_epoch": 10,
+  "final_test_accuracy": 93.5,
+  "best_test_accuracy": 93.5,
+  "best_test_accuracy_epoch": 10,
+  "test_losses_per_epoch": [
+    2.2303,
+    0.4916,
+    0.377,
+    0.3271,
+    0.2994,
+    0.2763,
+    0.2437,
+    0.2493,
+    0.235,
+    0.2343
+  ],
+  "test_accuracies_per_epoch": [
+    28.2,
+    87.1,
+    89.6,
+    91.2,
+    91.6,
+    92.3,
+    93.1,
+    93.0,
+    93.3,
+    93.5
+  ],
+  "encoding": "poisson",
+  "readout": "hybrid",
+  "readout_alpha": 0.01,
+  "input_scale": 3.0,
+  "trainable_params": 1236900,
+  "trainable_params_breakdown": {
+    "W_ee": 1102500,
+    "W_ei": 67200,
+    "W_ie": 67200
+  },
+  "cm_backward_scale": 100.0,
+  "detach_spikes": false,
+  "elapsed_seconds": 9102.4,
+  "device": "cuda",
+  "runtime": "modal"
+}
