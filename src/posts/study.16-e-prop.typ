@@ -88,24 +88,24 @@ Same PING network as studies 13–15:
 
 
 E-prop (Bellec et al. 2020) replaces backpropagation through time with
-three forward-running quantities per synapse $W_(ij)$:
+three forward-running quantities per synapse $W_("ij")$:
 
-*1. Eligibility vector* $epsilon_(ij)(t)$ — tracks how postsynaptic
-voltage $V_j$ depends on $W_(ij)$:
+*1. Eligibility vector* $epsilon_("ij")(t)$ — tracks how postsynaptic
+voltage $V_j$ depends on $W_("ij")$:
 
 $
-  epsilon_(ij)(t+1) = alpha dot epsilon_(ij)(t) + frac(dt, C_m) (E_"syn" - V_j(t)) dot s_i(t-d)
+  epsilon_("ij")(t+1) = alpha dot epsilon_("ij")(t) + frac(d t, C_m) (E_"syn" - V_j(t)) dot s_i(t-d)
 $
 
 
-where $alpha = 1 - dt dot g_L / C_m$ is the membrane leak factor and
+where $alpha = 1 - d t dot g_L / C_m$ is the membrane leak factor and
 $s_i(t-d)$ is the delayed presynaptic spike.
 
-*2. Eligibility trace* $e_(ij)(t) = psi_j(t) dot epsilon_(ij)(t)$,
+*2. Eligibility trace* $e_("ij")(t) = psi_j(t) dot epsilon_("ij")(t)$,
 gated by the surrogate derivative:
 
 $
-  psi_j(t) = \frac{1}{(1 + |V_j(t) - V_"th"|)^2}
+  psi_j(t) = frac(1, (1 + |V_j(t) - V_"th"|)^2)
 $
 
 
@@ -121,14 +121,14 @@ Hidden neurons receive the signal via symmetric feedback (transpose of
 the feedforward weights):
 
 $
-  L_j^"hid" = sum_k W_(jk)^("hid" \to "out") dot L_k^"out"
+  L_j^"hid" = sum_k W_("jk")^("hid" \to "out") dot L_k^"out"
 $
 
 
 The final weight gradient is:
 
 $
-  nabla W_(ij) = frac(1, B) sum_b L_j^((b)) sum_t e_(ij)^((b))(t)
+  nabla W_("ij") = frac(1, B) sum_b L_j^((b)) sum_t e_("ij")^((b))(t)
 $
 
 

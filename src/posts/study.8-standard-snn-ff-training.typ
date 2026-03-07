@@ -118,7 +118,7 @@ fires the most. Cross-entropy loss is applied to these spike-count logits.
 All excitatory-to-excitatory weights are clamped to be non-negative
 (`nonnegative_weights: true`), consistent with Dale's law — excitatory
 synapses can only excite. Initial weights are drawn from
-$\mathcal{N}(mu=0.01, sigma=0.1)$, then clamped and scaled by $1/sqrt(N_(src))$ to
+$cal(N)(mu=0.01, sigma=0.1)$, then clamped and scaled by $1/sqrt(N_"src")$ to
 normalize total synaptic drive.
 
 
@@ -137,7 +137,7 @@ normalize total synaptic drive.
   [Best test loss], [#results.best_test_loss (epoch #results.best_test_loss_epoch)],
   [Final test loss], [#results.final_test_loss],
   [Trainable params], [#results.trainable_params],
-  [Training time], [#results.elapsed_secondss],
+  [Training time], [#results.elapsed_seconds],
 )
 
 
@@ -168,7 +168,7 @@ logits.
 
 Figure 1.2 shows the test loss per epoch. It drops to a
 minimum of #results.best_test_loss at epoch #results.best_test_loss_epoch, ending at #results.final_test_loss at epoch #results.epochs — an
-early sign of overfitting on the #results.train_samples-sample training subset.
+early sign of overfitting on the #str(results.train_samples)-sample training subset.
 
 #figure(
   image("_artifacts/study.8-standard-snn-ff-training/accuracy_dark.png"),
@@ -255,9 +255,9 @@ weaker drive through the network.
 *Temporal structure emerges.* The hidden layer shows quasi-periodic bursting
 at roughly 8–12 ms intervals across many digit classes. This rhythm is not
 imposed by the input (which is constant-rate) — it arises from the interplay
-of membrane time constants, refractory periods ($t_(ref) = 3$ ms for E
+of membrane time constants, refractory periods ($t_("ref") = 3$ ms for E
 cells), and the recurrent feedback through the synaptic conductance dynamics
-($tau_(ampa) = 2$ ms).
+($tau_("ampa") = 2$ ms).
 
 *Output sparsity varies dramatically.* Digit 0 drives ~15–20 output spikes
 across multiple neurons, while digit 1 produces only 2–3. This large dynamic
@@ -278,7 +278,7 @@ biophysical simulation — membrane dynamics, synaptic conductances, delays,
 refractory periods — and produces meaningful weight updates. The structural
 mask correctly prevents gradient leaking through undefined connections.
 
-The #results.best_test_accuracy% test accuracy on a #results.train_samples-sample subset confirms the network is
+The #results.best_test_accuracy% test accuracy on a #str(results.train_samples)-sample subset confirms the network is
 learning real digit features, not memorizing. The hidden layer develops
 digit-specific activation patterns visible in the rasters.
 

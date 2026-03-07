@@ -75,7 +75,6 @@ Identical to studies 13–14:
   [`meta.readout_alpha`], [#config.meta.readout_alpha],
   [`meta.cm_backward_scale`], [#config.meta.cm_backward_scale],
   [`meta.max_grad_norm`], [#config.meta.max_grad_norm (per-parameter)],
-  [`meta.subset_size`], [#config.meta.subset_size],
   [`encoding`], [#results.encoding],
 )
 
@@ -130,7 +129,7 @@ The conductance-based LIF voltage update couples voltage and
 conductance through a multiplicative driving force:
 
 $
-  frac(partial V_(t+1), partial g_e) = frac(dt dot (E_e - V_t), C_m) = frac(1.0 times (0 - (-65)), 1.0) = 65
+  frac(partial V_(t+1), partial g_e) = frac(d t dot (E_e - V_t), C_m) = frac(1.0 times (0 - (-65)), 1.0) = 65
 $
 
 
@@ -233,14 +232,14 @@ per-parameter gradient clipping.
   [Study], [Encoding], [Readout], [Trained weights], [Best Accuracy],
   [study.8 (standard SNN)], [tonic], [spike count], [W\_ee (2,560)], [64.2%],
   [study.11 (PING, W\_ee)], [tonic], [spike count], [W\_ee (2,560)], [61.9%],
-  [study.12 (PING, all*)], [tonic], [spike count], [W\_ee (2,560)*], [62.9%],
-  [study.13 (voltage)], [tonic], [voltage], [W\_ee (2,560)*], [62.0%],
-  [study.14 (Poisson)], [Poisson], [voltage], [W\_ee (2,560)*], [84.8%],
+  [study.12 (PING, all\*)], [tonic], [spike count], [W\_ee (2,560)\*], [62.9%],
+  [study.13 (voltage)], [tonic], [voltage], [W\_ee (2,560)\*], [62.0%],
+  [study.14 (Poisson)], [Poisson], [voltage], [W\_ee (2,560)\*], [84.8%],
   [*study.15*], [*Poisson*], [*hybrid*], [*all (#results.trainable_params)*], [*#results.best_test_accuracy%*],
 )
 
 
-*Studies 12–14 included W\_ei and W\_ie in the optimizer, but spike-buffer
+Studies 12–14 included W\_ei and W\_ie in the optimizer, but spike-buffer
 detachment meant these weights received zero gradient. Only 2,560
 params in W\_ee (E\_hid→E\_out) were actually trained.
 

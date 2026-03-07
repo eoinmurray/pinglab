@@ -73,7 +73,7 @@ deliberately minimal — the point is a quick baseline, not a tuned model.
 == Evaluation
 
 
-Test accuracy is computed on the full #results.test_samples-image MNIST test set at the end
+Test accuracy is computed on the full #str(results.test_samples)-image MNIST test set at the end
 of each epoch.
 
 

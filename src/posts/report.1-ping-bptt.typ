@@ -182,7 +182,7 @@ To characterise whether a network is exhibiting healthy PING oscillations, we ne
 The most direct way to inspect network activity is the _spike raster plot_, where each row corresponds to a neuron and each dot marks the time at which that neuron fired. Neurons are grouped by population, so spatial structure in the plot reflects the network architecture.
 
 #figure(
-  image("../_artifacts/study.17-ping-metrics/raster_main_main_00_light.png", width: 60%),
+  image("_artifacts/study.17-ping-metrics/raster_main_main_00_light.png", width: 60%),
   caption: [Spike raster from a PING network. Each row is a neuron, each dot a spike. Colours indicate neuron type (blue: E, red: I). The alternating bursts of E and I activity reflect the characteristic PING rhythm.],
 ) <example-raster>
 
@@ -201,7 +201,7 @@ $ <eq:pop-rate>
 where $n_k$ is the spike count in the $k$-th bin, $N_"pop"$ is the number of neurons in the population, and $Delta t_"bin"$ is expressed in seconds so that $r$ has units of Hz. If the time series is noisy, it can optionally be smoothed with a Gaussian kernel of width $sigma$ ms.
 
 #figure(
-  image("../_artifacts/study.17-ping-metrics/pop_rates_main_main_00_light.png", width: 60%),
+  image("_artifacts/study.17-ping-metrics/pop_rates_main_main_00_light.png", width: 60%),
   caption: [Population firing rates for each layer. The oscillatory modulation of the E population rate reflects the PING rhythm.],
 ) <example-pop-rate>
 
@@ -226,7 +226,7 @@ $ <eq:psd>
 where $n_"bins"$ is the number of time bins. The frequency axis ranges from 0 to $f_s\/2$ (the Nyquist frequency) with resolution $Delta f = f_s \/ n_"bins"$, where $f_s = 1000 \/ Delta t_"bin"$ Hz is the sampling frequency determined by the bin width.
 
 #figure(
-  image("../_artifacts/study.17-ping-metrics/psd_main_main_00_light.png", width: 60%),
+  image("_artifacts/study.17-ping-metrics/psd_main_main_00_light.png", width: 60%),
   caption: [Power spectral density of the E population rate. The dominant peak at $approx$ 30 Hz corresponds to the fundamental PING frequency $f_0$; peaks at $2 f_0$, $3 f_0$, etc.~are harmonics.],
 ) <example-psd>
 
@@ -247,7 +247,7 @@ $ <eq:comb>
 Each tooth is a Gaussian with width $sigma_"Hz"$ (default 1.75 Hz), so it captures power in a narrow band around each harmonic. The $min(1, dots)$ ensures the mask stays between 0 and 1 even where teeth overlap. @example-gaussian-comb shows the resulting comb overlaid on the PSD.
 
 #figure(
-  image("../_artifacts/study.17-ping-metrics/psd_comb_main_main_00_light.png", width: 60%),
+  image("_artifacts/study.17-ping-metrics/psd_comb_main_main_00_light.png", width: 60%),
   caption: [PSD with Gaussian comb overlay. The comb teeth (shaded) capture power at the fundamental and harmonics; the remaining power is classified as noise.],
 ) <example-gaussian-comb>
 
@@ -260,7 +260,7 @@ $
 The signal-to-noise ratio $"SNR"_"PSD" = P_S \/ P_N$ provides a single number summarising oscillatory health: a high SNR means most of the network's activity is concentrated at the PING frequency and its harmonics, while a low SNR indicates diffuse, irregular activity. The resulting decomposition is shown in @example-psd-decomp.
 
 #figure(
-  image("../_artifacts/study.17-ping-metrics/psd_decomp_main_main_00_light.png", width: 60%),
+  image("_artifacts/study.17-ping-metrics/psd_decomp_main_main_00_light.png", width: 60%),
   caption: [Signal--noise decomposition of the PSD. Power under the comb mask (green) is classified as signal; the remainder (red) as noise.],
 ) <example-psd-decomp>
 
@@ -454,7 +454,7 @@ The weight $lambda$ (typically 0.01) is chosen to be small enough that the PING 
 We trained the PING network on a 20,000-sample subset of MNIST for 10 epochs using the full pipeline described above: Poisson encoding ($kappa = 3.0$), BPTT with surrogate gradients, surrogate Jacobian scaling ($xi = 100$), and PING health regularisation ($lambda = 0.01$, $f_"target" = 30$ Hz). The simulation used $Delta t = 0.25$ ms with a 200 ms presentation window (800 timesteps per sample), yielding a computation graph of 800 steps unrolled through BPTT. Training used the Adam optimiser with a cosine learning rate schedule from $7 times 10^(-5)$ to 0, and gradient clipping at max norm 1.0. The network had 1,236,900 trainable parameters across three weight matrices: $bold(W)_(E E)$ (1,102,500), $bold(W)_(E I)$ (67,200), and $bold(W)_(I E)$ (67,200).
 
 #figure(
-  image("../_artifacts/study.19-ping-regulariser-on-mnist/graph_light.png", width: 80%),
+  image("_artifacts/study.19-ping-regulariser-on-mnist/graph_light.png", width: 80%),
   caption: [Network architecture. Excitatory populations (red) $E_"in"$ (784), $E_"hid"$ (256), and $E_"out"$ (10) form the feedforward path. A global inhibitory population $I_"global"$ (64, blue) participates in the E $arrow.r$ I $arrow.r$ E PING loop with $E_"hid"$. All synaptic delays are 1.0 ms. Edge annotations show initial weight distribution parameters.],
 ) <fig-graph>
 
@@ -463,21 +463,21 @@ We trained the PING network on a 20,000-sample subset of MNIST for 10 epochs usi
 @fig-loss-train shows the training loss decomposed into its two components. The cross-entropy loss drops sharply during the first epoch (iterations 0--313), falling from $approx 2.3$ (chance level for 10 classes) to below 0.5. It continues to decrease steadily, reaching a final training loss of 0.14 by epoch 10. The PING health loss (scaled by $lambda = 0.01$) remains small throughout --- typically $0.01$--$0.05$ --- confirming that the regularisation does not dominate the classification objective. Occasional spikes in the PING loss correspond to batches where the network's oscillatory structure is temporarily disrupted, but these are quickly corrected.
 
 #figure(
-  image("../_artifacts/study.19-ping-regulariser-on-mnist/loss_train_light.png", width: 55%),
+  image("_artifacts/study.19-ping-regulariser-on-mnist/loss_train_light.png", width: 55%),
   caption: [Training loss breakdown over 3,130 iterations (10 epochs). Top: total loss. Middle: cross-entropy loss. Bottom: PING health loss scaled by $lambda = 0.01$.],
 ) <fig-loss-train>
 
 The test loss (@fig-loss-test) shows a smooth, monotonic decrease from 2.23 after epoch 1 to 0.23 after epoch 10, with no sign of overfitting. The train--test gap is small (0.14 vs 0.23), suggesting the network generalises well despite the stochastic Poisson encoding providing natural regularisation.
 
 #figure(
-  image("../_artifacts/study.19-ping-regulariser-on-mnist/loss_test_light.png", width: 55%),
+  image("_artifacts/study.19-ping-regulariser-on-mnist/loss_test_light.png", width: 55%),
   caption: [Test cross-entropy loss per epoch. The smooth decline with no uptick indicates stable generalisation.],
 ) <fig-loss-test>
 
 Training accuracy (@fig-accuracy) rises rapidly from chance ($approx 10%$) to $approx 90%$ within the first 500 iterations, then plateaus in the 90--100% range for the remainder of training. The high batch-to-batch variance is expected: each batch contains only 64 samples, and the stochastic Poisson encoding means the same image produces different spike trains on each presentation. The final test accuracy is *93.5%*.
 
 #figure(
-  image("../_artifacts/study.19-ping-regulariser-on-mnist/accuracy_light.png", width: 55%),
+  image("_artifacts/study.19-ping-regulariser-on-mnist/accuracy_light.png", width: 55%),
   caption: [Per-batch training accuracy over 10 epochs. The rapid rise and high-variance plateau reflect the stochastic Poisson encoding.],
 ) <fig-accuracy>
 
@@ -486,7 +486,7 @@ Training accuracy (@fig-accuracy) rises rapidly from chance ($approx 10%$) to $a
 The confusion matrix (@fig-confusion) shows strong diagonal dominance across all 10 digit classes. The best-recognised digits are 1 (98.6%) and 0 (96.7%), which have distinctive visual structure. The most confused digits are 7 (89.3%) and 5 (89.9%), with 7 frequently misclassified as 9 (21 samples) and 2 (12 samples) --- visually similar digits whose distinguishing features (the crossbar of 7, the curves of 2) may be difficult to resolve through Poisson-encoded spike trains.
 
 #figure(
-  image("../_artifacts/study.19-ping-regulariser-on-mnist/confusion_light.png", width: 55%),
+  image("_artifacts/study.19-ping-regulariser-on-mnist/confusion_light.png", width: 55%),
   caption: [Confusion matrix on the 5,000-sample test set. Strong diagonal indicates good performance across all classes. Notable off-diagonal entries: 7$arrow.r$9 (21) and 4$arrow.r$9 (19).],
 ) <fig-confusion>
 
@@ -495,14 +495,14 @@ The confusion matrix (@fig-confusion) shows strong diagonal dominance across all
 The firing rate trajectories (@fig-firing-rates) reveal how the network self-organises during training. The input layer $E_"in"$ maintains a stable rate of $approx 15$ Hz, set by the Poisson encoding and input scale. The hidden layer $E_"hid"$ undergoes a transient increase early in training (peaking at $approx 12$ Hz during the first epoch as weights are rapidly adjusted), then settles to $approx 7$--8 Hz --- a biologically plausible rate that the PING regulariser helps maintain. The output layer $E_"out"$ shows the most dramatic evolution: it initially fires at $approx 17$ Hz, drops to $approx 8$ Hz as the network learns selective responses, then recovers to $approx 12$ Hz as the winning output neurons learn to fire reliably for their corresponding digit classes.
 
 #figure(
-  image("../_artifacts/study.19-ping-regulariser-on-mnist/firing_rates_light.png", width: 55%),
+  image("_artifacts/study.19-ping-regulariser-on-mnist/firing_rates_light.png", width: 55%),
   caption: [Mean firing rate per excitatory layer across training. $E_"in"$ remains stable; $E_"hid"$ settles to $approx 7$--8 Hz; $E_"out"$ shows a characteristic dip-and-recovery pattern.],
 ) <fig-firing-rates>
 
 The gradient norm history (@fig-grad-norms) illustrates the challenge of training conductance-based spiking networks. During the first 600 iterations, gradient norms exhibit large transient spikes --- up to $1.6 times 10^6$ for $bold(W)_(E E)$, $2.5 times 10^4$ for $bold(W)_(E I)$, and $3.3 times 10^3$ for $bold(W)_(I E)$. These correspond to epochs where the network dynamics are still unstable and small weight changes produce large shifts in spike timing. The surrogate Jacobian scaling ($xi = 100$) and gradient clipping (max norm 1.0) prevent these spikes from destabilising training. After iteration $approx 1000$, gradient norms settle to near zero, indicating that the network has found a stable operating regime.
 
 #figure(
-  image("../_artifacts/study.19-ping-regulariser-on-mnist/grad_norms_light.png", width: 55%),
+  image("_artifacts/study.19-ping-regulariser-on-mnist/grad_norms_light.png", width: 55%),
   caption: [Gradient norms per weight matrix. Large transient spikes in the first 600 iterations are tamed by surrogate Jacobian scaling and gradient clipping; the network stabilises thereafter.],
 ) <fig-grad-norms>
 
@@ -511,21 +511,21 @@ The gradient norm history (@fig-grad-norms) illustrates the challenge of trainin
 @fig-raster-3 shows the full spike raster for a digit 3 presentation after training. The input layer $E_"in"$ (blue, top) fires continuously in a pattern reflecting the pixel intensities of the digit. Below, the hidden layer $E_"hid"$ shows clear rhythmic bursting: clusters of spikes appear at regular intervals of $approx 30$--40 ms, consistent with a PING oscillation in the gamma band. The inhibitory population $I_"global"$ (red, bottom) fires in short, synchronised bursts that follow each $E_"hid"$ burst by a few milliseconds --- the hallmark E$arrow.r$I$arrow.r$E PING cycle. The output layer $E_"out"$ shows sparse but selective firing, with the correct output neuron producing more spikes than the others.
 
 #figure(
-  image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_03_light.png", width: 55%),
+  image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_03_light.png", width: 55%),
   caption: [Spike raster for digit 3 across all layers. $E_"in"$ (blue) provides continuous input. $E_"hid"$ shows rhythmic bursting at $approx 30$ Hz. $I_"global"$ (red) fires in synchronised bursts following each $E_"hid"$ burst, maintaining the PING rhythm.],
 ) <fig-raster-3>
 
 The output neuron voltage traces (@fig-voltage-3) provide a complementary view. Each of the 10 output neurons (one per class) is plotted over the 200 ms simulation window. The voltage dynamics show clear oscillatory modulation driven by the PING rhythm in the hidden layer. Neuron 3 (the correct class) repeatedly reaches threshold and fires, while other neurons are driven below rest by inhibition or remain subthreshold. This separation between the winning neuron's voltage trajectory and the others is what the hybrid readout (@eq:readout) converts into a classification decision.
 
 #figure(
-  image("../_artifacts/study.19-ping-regulariser-on-mnist/voltage_output_digit_03_light.png", width: 55%),
+  image("_artifacts/study.19-ping-regulariser-on-mnist/voltage_output_digit_03_light.png", width: 55%),
   caption: [Output neuron membrane voltages for digit 3. Neuron 3 (correct class) repeatedly reaches threshold ($-50$ mV, dashed red), while other neurons remain mostly subthreshold. The oscillatory envelope reflects the PING rhythm from the hidden layer.],
 ) <fig-voltage-3>
 
 @fig-raster-1 shows the raster for digit 1, which has far fewer active input pixels. Despite the sparse input ($approx 93{,}000$ input spikes vs $approx 334{,}000$ for digit 3), the network still produces clear PING oscillations in $E_"hid"$ and $I_"global"$, and the correct output neuron fires selectively. This demonstrates that the PING rhythm is robust to variations in input drive. The complete set of spike rasters for all 10 digit classes is provided in @appendix-rasters.
 
 #figure(
-  image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_01_light.png", width: 55%),
+  image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_01_light.png", width: 55%),
   caption: [Spike raster for digit 1. Despite the sparser input (digit 1 has fewer lit pixels), the PING oscillation in $E_"hid"$ and $I_"global"$ remains intact.],
 ) <fig-raster-1>
 
@@ -546,8 +546,8 @@ The following pages show the full spike rasters for each of the 10 MNIST digit c
   grid(
     columns: 2,
     gutter: 10pt,
-    image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_00_light.png"),
-    image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_01_light.png"),
+    image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_00_light.png"),
+    image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_01_light.png"),
   ),
   caption: [Spike rasters for digits 0 and 1.],
 ) <fig-rasters-0-1>
@@ -556,8 +556,8 @@ The following pages show the full spike rasters for each of the 10 MNIST digit c
   grid(
     columns: 2,
     gutter: 10pt,
-    image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_02_light.png"),
-    image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_03_light.png"),
+    image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_02_light.png"),
+    image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_03_light.png"),
   ),
   caption: [Spike rasters for digits 2 and 3.],
 ) <fig-rasters-2-3>
@@ -566,8 +566,8 @@ The following pages show the full spike rasters for each of the 10 MNIST digit c
   grid(
     columns: 2,
     gutter: 10pt,
-    image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_04_light.png"),
-    image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_05_light.png"),
+    image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_04_light.png"),
+    image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_05_light.png"),
   ),
   caption: [Spike rasters for digits 4 and 5.],
 ) <fig-rasters-4-5>
@@ -576,8 +576,8 @@ The following pages show the full spike rasters for each of the 10 MNIST digit c
   grid(
     columns: 2,
     gutter: 10pt,
-    image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_06_light.png"),
-    image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_07_light.png"),
+    image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_06_light.png"),
+    image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_07_light.png"),
   ),
   caption: [Spike rasters for digits 6 and 7.],
 ) <fig-rasters-6-7>
@@ -586,8 +586,8 @@ The following pages show the full spike rasters for each of the 10 MNIST digit c
   grid(
     columns: 2,
     gutter: 10pt,
-    image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_08_light.png"),
-    image("../_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_09_light.png"),
+    image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_08_light.png"),
+    image("_artifacts/study.19-ping-regulariser-on-mnist/raster_layers_digit_09_light.png"),
   ),
   caption: [Spike rasters for digits 8 and 9.],
 ) <fig-rasters-8-9>

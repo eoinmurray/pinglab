@@ -45,3 +45,4 @@ node_modules
 
 # Avoid committing full-text PDFs of papers (link out instead)
 content/paper.*/*.pdf
+src/posts/*.pdf

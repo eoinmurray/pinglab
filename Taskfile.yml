@@ -278,3 +278,34 @@ tasks:
     desc: Alias for task rename
     cmds:
       - task rename
+
+  posts:compile:
+    desc: Compile all .typ post files to PDF
+    cmds:
+      - |
+        set -euo pipefail
+        count=0
+        fails=0
+        for f in src/posts/*.typ; do
+          name="$(basename "$f" .typ)"
+          out="src/posts/${name}.pdf"
+          printf "Compiling %-50s" "$name"
+          # report needs parent as root for ../_artifacts paths
+          if [ "$name" = "report.1-ping-bptt" ]; then
+            root="src"
+          else
+            root="src/posts"
+          fi
+          if uv run typst compile "$f" "$out" --root "$root" 2>/tmp/typst-err-$$; then
+            echo "✓"
+            count=$((count + 1))
+          else
+            echo "✗"
+            cat /tmp/typst-err-$$ | head -5
+            fails=$((fails + 1))
+          fi
+        done
+        echo ""
+        echo "Done: ${count} compiled, ${fails} failed."
+        rm -f /tmp/typst-err-$$
+        [ "$fails" -eq 0 ]

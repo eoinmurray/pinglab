@@ -125,7 +125,7 @@ account for the inhibitory feedback.
   [Best test loss], [#results.best_test_loss (epoch #results.best_test_loss_epoch)],
   [Final test loss], [#results.final_test_loss],
   [Trainable params], [#results.trainable_params],
-  [Training time], [#results.elapsed_secondss],
+  [Training time], [#results.elapsed_seconds],
 )
 
 

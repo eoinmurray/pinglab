@@ -81,7 +81,7 @@ In studies 8–13, each input neuron received a constant (tonic) current at
 every timestep:
 
 $
-  I_n(t) = "pixel"_n times "scale"   \forall t
+  I_n(t) = "pixel"_n times "scale"   forall t
 $
 
 
@@ -145,7 +145,7 @@ Same as studies 12–13 — all three weight matrices:
   [Encoding], [#results.encoding],
   [Readout], [#results.readout],
   [Trainable params], [#results.trainable_params],
-  [Training time], [#results.elapsed_secondss],
+  [Training time], [#results.elapsed_seconds],
 )
 
 
@@ -284,7 +284,7 @@ while digit 0 produces the densest (~44K spikes).
 
 
 The voltage traces reveal how the network actually classifies: **output
-neurons never reach spike threshold** ($V_(th)$ = -50 mV). Instead, the
+neurons never reach spike threshold** ($V_("th")$ = -50 mV). Instead, the
 network has learned to produce different mean voltages across the 10
 output neurons. The class with the highest mean voltage wins. This is a
 direct consequence of voltage readout — the cross-entropy loss on mean

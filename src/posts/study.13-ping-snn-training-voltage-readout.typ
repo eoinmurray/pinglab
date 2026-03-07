@@ -89,7 +89,7 @@ classification toward digit 0 and against digit 9.
 Study.13 replaces this with voltage readout:
 
 $
-  "logits"_c = \frac{1}{T - t_"burn-in"} sum_(t=t_"burn-in")^(T) V_(c)(t)
+  "logits"_c = frac(1, T - t_"burn-in") sum_(t=t_"burn-in")^(T) V_(c)(t)
 $
 
 
@@ -130,7 +130,7 @@ Same as study.12 — all three weight matrices receive gradient updates:
   [Final test loss], [#results.final_test_loss],
   [Readout], [#results.readout],
   [Trainable params], [#results.trainable_params],
-  [Training time], [#results.elapsed_secondss],
+  [Training time], [#results.elapsed_seconds],
 )
 
 

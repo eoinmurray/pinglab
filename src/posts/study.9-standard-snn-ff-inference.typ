@@ -79,7 +79,7 @@ with the most spikes wins.
   [Test loss], [#results.test_loss],
   [Test samples], [#results.test_samples],
   [Weights source], [#results.weights_source],
-  [Inference time], [#results.elapsed_secondss],
+  [Inference time], [#results.elapsed_seconds],
 )
 
 

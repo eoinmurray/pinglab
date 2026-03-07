@@ -9,10 +9,10 @@
 The MQIF update in code is:
 
 $
-  C_m frac(dV, dt) =
+  C_m frac(d V, d t) =
   g_L (E_L - V)
   +  sum_k a_k (V - V_(r,k))^2
-  +  I_(ext)
+  +  I_("ext")
   +  g_e (E_e - V)
   +  g_i (E_i - V).
 $
@@ -21,17 +21,17 @@ $
 To keep units consistent, we pick a unit system and stick to it. A simple choice
 matching the defaults in config is:
 
-- $V, E_L, E_e, E_i, V_r, V_(th)$: mV
-- $t, dt, tau$: ms
+- $V, E_L, E_e, E_i, V_r, V_("th")$: mV
+- $t, d t, tau$: ms
 - $C_m$: nF (or a unitless scale factor)
 - $g_L, g_e, g_i$: nS (conductance)
-- $I_(ext)$: nA (current)
+- $I_("ext")$: nA (current)
 
 Then each term on the right is a current (nA). Implying:
 
-- $g_L (E_L - V)$: nS * mV = nA
-- $g_e (E_e - V), g_i (E_i - V)$: nS * mV = nA
-- $I_(ext)$: nA
+- $g_L (E_L - V)$: nS \* mV = nA
+- $g_e (E_e - V), g_i (E_i - V)$: nS \* mV = nA
+- $I_("ext")$: nA
 - $a_k (V - V_(r,k))^2$: nA -> so $a_k$ has units nA / mV^2
 
 
@@ -69,14 +69,14 @@ $E_i approx -80$ mV, $|E_e - V|$ and $|E_i - V|$ are roughly 10-30 mV near
 threshold. That gives a back-of-envelope target:
 
 $
-  g_(syn) dot 20 "mV" tilde 1 "nA" arrow.r.double g_(syn) tilde 0.05 "nS".
+  g_("syn") dot 20 "mV" tilde 1 "nA" arrow.r.double g_("syn") tilde 0.05 "nS".
 $
 
 
 So for MQIF scans, we dial the mean weights down if we add strong
 quadratic terms, e.g.:
 
-- keep $g_(ee)$ and $g_(ii)$ small (0.05 to 0.3)
-- tune $g_(ei)$ and $g_(ie)$ so their synaptic currents stay in the 0.5-5 nA
+- keep $g_("ee")$ and $g_("ii")$ small (0.05 to 0.3)
+- tune $g_("ei")$ and $g_("ie")$ so their synaptic currents stay in the 0.5-5 nA
   band (roughly 0.02 to 0.2 nS if we use the 20 mV rule of thumb)
 

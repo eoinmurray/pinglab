@@ -66,8 +66,7 @@ network this corresponds to the gamma cycle period. Here $T$ =
 #results.E.oscillation_period_ms ms gives a frequency of {(1000 /
 results.E.oscillation_period_ms).toFixed(1)} Hz, squarely in the gamma band.
 
-*Decay time constant $tau$* — time constant of an exponential envelope $A
-e^{-t/\tau}$ fitted to the autocorrelation peak heights. Measures how long the
+*Decay time constant $tau$* — time constant of an exponential envelope $A e^(-t/tau)$ fitted to the autocorrelation peak heights. Measures how long the
 oscillation persists. Large $tau$ means sustained rhythmicity; small $tau$
 means the oscillation damps quickly. E cells show $tau$ =
 #results.E.decay_tau_ms ms and I cells $tau$ = #results.I.decay_tau_ms ms.
@@ -119,7 +118,7 @@ The PSD of the binned population rate reveals the harmonic structure of the osci
 Rather than finding the spectral peak (a non-differentiable argmax), compute the center-of-mass frequency over a plausible range (e.g. 5–80 Hz):
 
 $
-  f_0 = frac(\sum_(f) f dot S(f), \sum_(f) S(f))
+  f_0 = frac(sum_(f) f dot S(f), sum_(f) S(f))
 $
 
 
@@ -134,7 +133,7 @@ A subtlety: the center-of-mass gives the power-weighted *average* frequency, not
 A clean PING oscillation has power at the fundamental and its harmonics ($f_0, 2f_0, 3f_0, dots$). To separate signal from noise in a differentiable way, build a soft comb mask:
 
 $
-  W(f) = \sum_(k=1)^(K) exp(-frac((f - k f_0)^2, 2sigma^2))
+  W(f) = sum_(k=1)^(K) exp(-frac((f - k f_0)^2, 2 sigma^2))
 $
 
 
@@ -191,7 +190,7 @@ As training shifts the oscillation frequency, $f_0$ moves smoothly via the soft 
 
 
 $
-  L_"ping" = -alpha log\frac{P_"signal"}{P_"total"} + beta(f_0 - f_"target")^2 + gamma \frac{P_"noise"}{P_"signal"}
+  L_"ping" = -alpha log frac(P_"signal", P_"total") + beta(f_0 - f_"target")^2 + gamma frac(P_"noise", P_"signal")
 $
 
 
