@@ -14,7 +14,7 @@ def _sort_key(name: str) -> tuple[int, str]:
 def main() -> None:
     root = Path(__file__).resolve().parents[2]
     experiments_root = root / "src" / "experiments"
-    posts_root = root / "src" / "posts"
+    typst_root = root / "src" / "typst"
 
     if not experiments_root.exists():
         print("No studies directory found.")
@@ -30,7 +30,7 @@ def main() -> None:
 
     print("Studies:")
     for exp in entries:
-        post = posts_root / f"{exp.name}.mdx"
+        post = typst_root / f"{exp.name}.typ"
         post_mark = "post:yes" if post.exists() else "post:no"
         print(f"- {exp.name} ({post_mark})")
 

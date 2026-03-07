@@ -15,52 +15,62 @@ def _slugify(text: str) -> str:
     return s or "untitled"
 
 
-def _escape_yaml_double_quoted(text: str) -> str:
-    return text.replace("\\", "\\\\").replace('"', '\\"')
-
-
-def _list_studies(posts_dir: Path) -> list[str]:
+def _list_studies(typst_dir: Path) -> list[str]:
     slugs = []
-    for path in sorted(posts_dir.glob("*.mdx")):
+    for path in sorted(typst_dir.glob("*.typ")):
         if path.stem == "study.0-template":
             continue
         slugs.append(path.stem)
     return slugs
 
 
-def _next_experiment_number(posts_dir: Path, experiments_dir: Path) -> int:
+def _next_experiment_number(typst_dir: Path, experiments_dir: Path) -> int:
     numbers: list[int] = []
-    for path in list(posts_dir.glob("*.mdx")) + list(experiments_dir.iterdir()):
+    for path in list(typst_dir.glob("*.typ")) + list(experiments_dir.iterdir()):
         m = re.match(r"(?:study|exp)\.(\d+)-", path.stem if path.is_file() else path.name)
         if m and path.stem not in ("study.0-template",):
             numbers.append(int(m.group(1)))
     return 1 if not numbers else (max(numbers) + 1)
 
 
-def _render(content: str, old_slug: str, new_slug: str, new_title: str) -> str:
+def _render_typ(content: str, old_slug: str, new_slug: str) -> str:
+    """Replace old slug with new slug and update metadata date."""
+    now = datetime.now(timezone.utc)
+    date_str = now.strftime("%Y-%m-%d")
+
     content = content.replace(old_slug, new_slug)
-    content = re.sub(r"^title:.*$", f"title: {new_title}", content, flags=re.MULTILINE)
+
+    # Update #set document(date: datetime(...))
     content = re.sub(
-        r'^date:.*$',
-        f'date: "{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}"',
+        r'date:\s*datetime\(year:\s*\d+,\s*month:\s*\d+,\s*day:\s*\d+\)',
+        f'date: datetime(year: {now.year}, month: {now.month}, day: {now.day})',
         content,
-        flags=re.MULTILINE,
     )
+    # Update #metadata date string
     content = re.sub(
-        r'^description:.*$',
-        f'description: "{_escape_yaml_double_quoted(new_title)}"',
+        r'(date:\s*)"[^"]*"(,\s*\n\s*description:)',
+        rf'\1"{date_str}"\2',
         content,
-        flags=re.MULTILINE,
+    )
+    # Update #metadata description to new slug
+    content = re.sub(
+        r'(description:\s*)"[^"]*"',
+        rf'\1"{new_slug}"',
+        content,
     )
     return content
 
 
+def _render_py(content: str, old_slug: str, new_slug: str) -> str:
+    return content.replace(old_slug, new_slug)
+
+
 def main() -> None:
     root = Path(__file__).resolve().parents[2]
-    posts_dir = root / "src" / "posts"
+    typst_dir = root / "src" / "typst"
     experiments_dir = root / "src" / "experiments"
 
-    studies = _list_studies(posts_dir)
+    studies = _list_studies(typst_dir)
     if not studies:
         raise SystemExit("No studies found to fork.")
 
@@ -71,7 +81,7 @@ def main() -> None:
     if source_slug is None:
         raise SystemExit("Cancelled.")
 
-    next_num = _next_experiment_number(posts_dir, experiments_dir)
+    next_num = _next_experiment_number(typst_dir, experiments_dir)
     prefill = f"study.{next_num}-"
     entered = questionary.text(
         "New study name:",
@@ -90,11 +100,10 @@ def main() -> None:
 
     m = re.fullmatch(r"(?:study|exp)\.(\d+)-([a-z0-9-]+)", name.lower())
     new_slug = f"study.{m.group(1)}-{m.group(2)}" if m else f"study.{next_num}-{_slugify(name)}"
-    new_title = name
 
-    src_post = posts_dir / f"{source_slug}.mdx"
+    src_post = typst_dir / f"{source_slug}.typ"
     src_exp = experiments_dir / source_slug
-    dst_post = posts_dir / f"{new_slug}.mdx"
+    dst_post = typst_dir / f"{new_slug}.typ"
     dst_exp = experiments_dir / new_slug
 
     if dst_post.exists():
@@ -102,9 +111,9 @@ def main() -> None:
     if dst_exp.exists():
         raise SystemExit(f"Experiment already exists: {dst_exp}")
 
-    # Copy and rewrite post
+    # Copy and rewrite post (.typ)
     dst_post.write_text(
-        _render(src_post.read_text(encoding="utf-8"), source_slug, new_slug, new_title),
+        _render_typ(src_post.read_text(encoding="utf-8"), source_slug, new_slug),
         encoding="utf-8",
     )
 
@@ -117,9 +126,9 @@ def main() -> None:
             try:
                 text = f.read_text(encoding="utf-8")
             except (UnicodeDecodeError, ValueError):
-                continue  # skip binary files
+                continue
             f.write_text(
-                _render(text, source_slug, new_slug, new_title),
+                _render_py(text, source_slug, new_slug),
                 encoding="utf-8",
             )
 

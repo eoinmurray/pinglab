@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+}
+
+:root {
+  --color-surface: #fafafa;
+  --color-surface-raised: #f0f0f0;
+  --color-border-dim: #e4e4e4;
+  --color-border: #d4d4d4;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #6b6b6b;
+  --color-text-tertiary: #a0a0a0;
+  --color-accent: #4a6342;
+  --color-accent-dim: #c2d4bb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-surface: #0c0c0c;
+    --color-surface-raised: #141414;
+    --color-border-dim: #1e1e1e;
+    --color-border: #2a2a2a;
+    --color-text-primary: #c8c8c8;
+    --color-text-secondary: #6b6b6b;
+    --color-text-tertiary: #3d3d3d;
+    --color-accent: #7a9f6e;
+    --color-accent-dim: #4a6342;
+  }
+}
+
+html {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  color-scheme: light dark;
+}
+
+body {
+  font-family: var(--font-mono);
+  margin: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--color-accent-dim);
+  color: var(--color-text-primary);
+}

@@ -19,13 +19,9 @@ def _slugify(text: str) -> str:
     return s or "untitled"
 
 
-def _escape_yaml_double_quoted(text: str) -> str:
-    return text.replace("\\", "\\\\").replace('"', '\\"')
-
-
-def _existing_experiment_numbers(posts_dir: Path, experiments_dir: Path) -> list[int]:
+def _existing_experiment_numbers(typst_dir: Path, experiments_dir: Path) -> list[int]:
     numbers: list[int] = []
-    for path in posts_dir.glob("*.mdx"):
+    for path in typst_dir.glob("*.typ"):
         m = re.match(r"(?:study|exp)\.(\d+)-", path.stem)
         if m and path.stem != TEMPLATE_SLUG:
             numbers.append(int(m.group(1)))
@@ -38,14 +34,9 @@ def _existing_experiment_numbers(posts_dir: Path, experiments_dir: Path) -> list
     return numbers
 
 
-def _next_experiment_number(posts_dir: Path, experiments_dir: Path) -> int:
-    numbers = _existing_experiment_numbers(posts_dir, experiments_dir)
+def _next_experiment_number(typst_dir: Path, experiments_dir: Path) -> int:
+    numbers = _existing_experiment_numbers(typst_dir, experiments_dir)
     return 1 if not numbers else (max(numbers) + 1)
-
-
-def _prompt_with_default(label: str, default_value: str) -> str:
-    value = input(label).strip()
-    return value if value else default_value
 
 
 def _resolve_slug(name: str, next_num: int) -> str:
@@ -59,24 +50,49 @@ def _resolve_slug(name: str, next_num: int) -> str:
     return f"study.{next_num}-{_slugify(value)}"
 
 
-def _render(content: str, slug: str, title: str, description: str) -> str:
-    """Replace all study.0-template references and update MDX frontmatter fields."""
+def _render_typ(content: str, slug: str, title: str, description: str) -> str:
+    """Replace template slug and update #set document / #metadata in .typ files."""
+    now = datetime.now(timezone.utc)
+    date_str = now.strftime("%Y-%m-%d")
+
     content = content.replace(TEMPLATE_SLUG, slug)
-    # Update frontmatter title and description (MDX/YAML front matter lines)
-    content = re.sub(r"^title:.*$", f"title: {title}", content, flags=re.MULTILINE)
+
+    # Update #set document(title: ...)
     content = re.sub(
-        r'^date:.*$',
-        f'date: "{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}"',
+        r'(#set document\(\s*title:\s*)"[^"]*"',
+        rf'\1"{slug}"',
         content,
-        flags=re.MULTILINE,
     )
+    # Update #set document(date: datetime(...))
     content = re.sub(
-        r'^description:.*$',
-        f'description: "{_escape_yaml_double_quoted(description)}"',
+        r'date:\s*datetime\(year:\s*\d+,\s*month:\s*\d+,\s*day:\s*\d+\)',
+        f'date: datetime(year: {now.year}, month: {now.month}, day: {now.day})',
         content,
-        flags=re.MULTILINE,
+    )
+    # Update #metadata title
+    content = re.sub(
+        r'(#metadata\(\(\s*title:\s*)"[^"]*"',
+        rf'\1"{slug}"',
+        content,
+    )
+    # Update #metadata date
+    content = re.sub(
+        r'(date:\s*)"[^"]*"(,\s*\n\s*description:)',
+        rf'\1"{date_str}"\2',
+        content,
+    )
+    # Update #metadata description
+    content = re.sub(
+        r'(description:\s*)"[^"]*"',
+        rf'\1"{description}"',
+        content,
     )
     return content
+
+
+def _render_py(content: str, slug: str) -> str:
+    """Replace template slug in Python files."""
+    return content.replace(TEMPLATE_SLUG, slug)
 
 
 def _copy_template(
@@ -97,7 +113,8 @@ def _copy_template(
         rel = source.relative_to(template_root)
         target = destination_root / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        rendered = _render(source.read_text(encoding="utf-8"), slug, title, description)
+        text = source.read_text(encoding="utf-8")
+        rendered = _render_py(text, slug)
         target.write_text(rendered, encoding="utf-8")
         created.append(target)
     return created
@@ -116,9 +133,9 @@ def main() -> None:
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[2]
-    posts_dir = root / "src" / "posts"
+    typst_dir = root / "src" / "typst"
     experiments_dir = root / "src" / "experiments"
-    post_template = posts_dir / f"{TEMPLATE_SLUG}.mdx"
+    post_template = typst_dir / f"{TEMPLATE_SLUG}.typ"
     experiment_template_dir = experiments_dir / TEMPLATE_SLUG
 
     if not post_template.exists():
@@ -126,7 +143,7 @@ def main() -> None:
     if not experiment_template_dir.exists():
         raise SystemExit(f"Missing experiment template: {experiment_template_dir}")
 
-    next_num = _next_experiment_number(posts_dir, experiments_dir)
+    next_num = _next_experiment_number(typst_dir, experiments_dir)
     prefill = f"study.{next_num}-"
     if args.name:
         name = args.name.strip()
@@ -150,19 +167,19 @@ def main() -> None:
     slug = _resolve_slug(name, next_num)
     title = name
     if not description:
-        description = f"Study: {slug}"
+        description = slug
 
-    post_path = posts_dir / f"{slug}.mdx"
+    post_path = typst_dir / f"{slug}.typ"
     experiment_path = experiments_dir / slug
     if post_path.exists():
         raise SystemExit(f"Post already exists: {post_path}")
     if experiment_path.exists():
         raise SystemExit(f"Experiment already exists: {experiment_path}")
 
-    # Write post
+    # Write post (.typ)
     post_path.parent.mkdir(parents=True, exist_ok=True)
     post_path.write_text(
-        _render(post_template.read_text(encoding="utf-8"), slug, title, description),
+        _render_typ(post_template.read_text(encoding="utf-8"), slug, title, description),
         encoding="utf-8",
     )
 

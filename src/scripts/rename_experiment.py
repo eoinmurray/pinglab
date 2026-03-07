@@ -20,6 +20,7 @@ TEXT_SUFFIXES = {
     ".py",
     ".md",
     ".mdx",
+    ".typ",
     ".json",
     ".toml",
     ".yaml",
@@ -50,8 +51,6 @@ def _slugify(text: str) -> str:
     return s or "untitled"
 
 
-
-
 def _resolve_new_slug(old_slug: str, raw_name: str) -> str:
     value = raw_name.strip().lower()
     if not value:
@@ -71,7 +70,6 @@ def _resolve_new_slug(old_slug: str, raw_name: str) -> str:
 def _is_text_file(path: Path) -> bool:
     if path.suffix.lower() in TEXT_SUFFIXES:
         return True
-    # Also catch extensionless text files like Taskfile.
     return path.suffix == ""
 
 
@@ -102,13 +100,11 @@ def _replace_slug_references(repo_root: Path, old_slug: str, new_slug: str) -> i
     return changed
 
 
-
-
 def main() -> None:
     root = Path(__file__).resolve().parents[2]
     experiments_root = root / "src" / "experiments"
-    posts_root = root / "src" / "posts"
-    artifacts_root = posts_root / "_artifacts"
+    typst_root = root / "src" / "typst"
+    artifacts_root = typst_root / "_artifacts"
 
     experiments = sorted(
         [p for p in experiments_root.iterdir() if p.is_dir() and p.name != "__pycache__"],
@@ -120,10 +116,8 @@ def main() -> None:
 
     choices = []
     for exp in experiments:
-        post_mdx = posts_root / f"{exp.name}.mdx"
-        post_md = posts_root / f"{exp.name}.md"
-        has_post = post_mdx.exists() or post_md.exists()
-        status = "post:yes" if has_post else "post:no"
+        post = typst_root / f"{exp.name}.typ"
+        status = "post:yes" if post.exists() else "post:no"
         choices.append(questionary.Choice(f"{exp.name} ({status})", value=exp.name))
 
     old_slug = questionary.select(
@@ -134,7 +128,6 @@ def main() -> None:
         print("Cancelled.")
         return
 
-    selected = experiments_root / old_slug
     entered = questionary.text("New study name (full slug or new suffix):").ask()
     if entered is None:
         raise SystemExit("Cancelled.")
@@ -150,19 +143,15 @@ def main() -> None:
 
     old_exp_dir = experiments_root / old_slug
     new_exp_dir = experiments_root / new_slug
-    old_post_mdx = posts_root / f"{old_slug}.mdx"
-    old_post_md = posts_root / f"{old_slug}.md"
-    new_post_mdx = posts_root / f"{new_slug}.mdx"
-    new_post_md = posts_root / f"{new_slug}.md"
+    old_post = typst_root / f"{old_slug}.typ"
+    new_post = typst_root / f"{new_slug}.typ"
     old_artifacts_dir = artifacts_root / old_slug
     new_artifacts_dir = artifacts_root / new_slug
 
     if new_exp_dir.exists():
         raise SystemExit(f"Target experiment already exists: {new_exp_dir.relative_to(root)}")
-    if old_post_mdx.exists() and new_post_mdx.exists():
-        raise SystemExit(f"Target post already exists: {new_post_mdx.relative_to(root)}")
-    if old_post_md.exists() and new_post_md.exists():
-        raise SystemExit(f"Target post already exists: {new_post_md.relative_to(root)}")
+    if old_post.exists() and new_post.exists():
+        raise SystemExit(f"Target post already exists: {new_post.relative_to(root)}")
     if old_artifacts_dir.exists() and new_artifacts_dir.exists():
         raise SystemExit(f"Target artifacts already exists: {new_artifacts_dir.relative_to(root)}")
 
@@ -170,12 +159,10 @@ def main() -> None:
     print(f"Selected: {old_slug}")
     print(f"New slug: {new_slug}")
     print(f"Experiment: {old_exp_dir.relative_to(root)} -> {new_exp_dir.relative_to(root)}")
-    if old_post_mdx.exists():
-        print(f"Post: {old_post_mdx.relative_to(root)} -> {new_post_mdx.relative_to(root)}")
-    elif old_post_md.exists():
-        print(f"Post: {old_post_md.relative_to(root)} -> {new_post_md.relative_to(root)}")
+    if old_post.exists():
+        print(f"Post: {old_post.relative_to(root)} -> {new_post.relative_to(root)}")
     else:
-        print(f"Post: src/posts/{old_slug}.mdx (missing)")
+        print(f"Post: src/typst/{old_slug}.typ (missing)")
     if old_artifacts_dir.exists():
         print(
             f"Artifacts: {old_artifacts_dir.relative_to(root)} -> {new_artifacts_dir.relative_to(root)}"
@@ -193,10 +180,8 @@ def main() -> None:
         return
 
     shutil.move(str(old_exp_dir), str(new_exp_dir))
-    if old_post_mdx.exists():
-        shutil.move(str(old_post_mdx), str(new_post_mdx))
-    if old_post_md.exists():
-        shutil.move(str(old_post_md), str(new_post_md))
+    if old_post.exists():
+        shutil.move(str(old_post), str(new_post))
     if old_artifacts_dir.exists():
         shutil.move(str(old_artifacts_dir), str(new_artifacts_dir))
 

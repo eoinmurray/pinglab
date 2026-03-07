@@ -17,7 +17,8 @@ def _sort_key(name: str) -> tuple[int, str]:
 def main() -> None:
     root = Path(__file__).resolve().parents[2]
     experiments_root = root / "src" / "experiments"
-    posts_root = root / "src" / "posts"
+    typst_root = root / "src" / "typst"
+    artifacts_root = typst_root / "_artifacts"
 
     experiments = sorted(
         [p for p in experiments_root.iterdir() if p.is_dir() and p.name != "__pycache__"],
@@ -29,7 +30,7 @@ def main() -> None:
 
     choices = []
     for exp in experiments:
-        post_path = posts_root / f"{exp.name}.mdx"
+        post_path = typst_root / f"{exp.name}.typ"
         status = "post:yes" if post_path.exists() else "post:no"
         choices.append(questionary.Choice(f"{exp.name} ({status})", value=exp.name))
 
@@ -41,8 +42,8 @@ def main() -> None:
         print("Cancelled.")
         return
     selected = experiments_root / slug
-    post_file = posts_root / f"{slug}.mdx"
-    artifacts_dir = posts_root / "_artifacts" / slug
+    post_file = typst_root / f"{slug}.typ"
+    artifacts_dir = artifacts_root / slug
 
     print("")
     print(f"Selected: {slug}")
