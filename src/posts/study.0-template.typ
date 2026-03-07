@@ -8,10 +8,16 @@
 
 
 
-// Gallery: graph_*.png
-// #figure(image("_artifacts/study.0-template/graph_dark.png"), caption: [Network topology.])
+#figure(
+  image("_artifacts/study.0-template/graph_dark.png"),
+  caption: [Network topology.],
+)
 
 
-// Gallery: raster_*.png
-// #figure(image("_artifacts/study.0-template/raster_dark.png"), caption: [Raster plot.])
+
+#figure(
+  image("_artifacts/study.0-template/raster_main_main_00_dark.png"),
+  caption: [Raster plot.],
+)
+
 

@@ -292,10 +292,11 @@ def extract_gallery_props(text: str) -> dict:
         raw = m.group(1)
         props['globs'] = [g.strip().strip('"').strip("'") for g in raw.split(',')]
 
-    # caption
-    m = re.search(r'caption="([^"]*)"', text)
+    # caption (may span multiple lines)
+    m = re.search(r'caption="([^"]*)"', text, re.DOTALL)
     if m:
-        props['caption'] = m.group(1)
+        # Collapse newlines to spaces
+        props['caption'] = re.sub(r'\s+', ' ', m.group(1)).strip()
 
     # captionLabel
     m = re.search(r'captionLabel="([^"]*)"', text)

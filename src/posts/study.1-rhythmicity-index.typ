@@ -30,9 +30,11 @@ weights, and plot:
 == Network architecture
 
 
-// Gallery: ping-simple.png
-// Path: _assets/study.1-rhythmicity-index
-// #figure(image("_assets/study.1-rhythmicity-index/ping-simple.png"), caption: [Simple PING architecture with coupling between E and I populations with E self connections.])
+#figure(
+  image("_assets/study.1-rhythmicity-index/ping-simple.png"),
+  caption: [Simple PING architecture with coupling between E and I populations with E self connections.],
+)
+
 
 
 The network is setup as follows:
@@ -57,16 +59,28 @@ We run two scans:
 == Rasters
 
 
-// Gallery: raster_mean_scan_2_00*.png, raster_mean_scan_2_02*.png, raster_mean_scan_2_06*.png, 
-// #figure(image("_artifacts/study.1-rhythmicity-index/raster_mean_scan_2_00dark.png"), caption: [Rasters while scanning over $\mu_{ee}$ and keeping $\sigma_{ee}$
-zeroed. Left: No PING rhythm in the E population. Middle: Weak PING rhythm
-emerging. Right: Strong PING rhythm with clear bursts in the E population.])
+#figure(
+  grid(
+    columns: 3,
+    gutter: 4pt,
+    image("_artifacts/study.1-rhythmicity-index/raster_mean_scan_2_00_e_to_e_w_mean_0.000000_dark.png"),
+    image("_artifacts/study.1-rhythmicity-index/raster_mean_scan_2_02_e_to_e_w_mean_0.000889_dark.png"),
+    image("_artifacts/study.1-rhythmicity-index/raster_mean_scan_2_06_e_to_e_w_mean_0.002667_dark.png"),
+  ),
+  caption: [Rasters scanning over $mu_(e e)$ with $sigma_(e e)$ zeroed. Left: No PING rhythm. Middle: Weak PING rhythm emerging. Right: Strong PING rhythm with clear bursts.],
+)
 
 
-// Gallery: raster_std_scan_1_00*.png, raster_std_scan_1_03*.png, raster_std_scan_1_07*.png, 
-// #figure(image("_artifacts/study.1-rhythmicity-index/raster_std_scan_1_00dark.png"), caption: [Rasters while scanning over $\sigma_{ee}$ and keeping $\mu_{ee}$
-zeroed. Left: No PING rhythm in the E population. Middle: Weak PING rhythm
-emerging. Right: Strong PING rhythm with clear bursts in the E population.])
+#figure(
+  grid(
+    columns: 3,
+    gutter: 4pt,
+    image("_artifacts/study.1-rhythmicity-index/raster_std_scan_1_00_e_to_e_w_std_0.000000_dark.png"),
+    image("_artifacts/study.1-rhythmicity-index/raster_std_scan_1_03_e_to_e_w_std_0.002667_dark.png"),
+    image("_artifacts/study.1-rhythmicity-index/raster_std_scan_1_07_e_to_e_w_std_0.006222_dark.png"),
+  ),
+  caption: [Rasters scanning over $sigma_(e e)$ with $mu_(e e)$ zeroed. Left: No PING rhythm. Middle: Weak PING rhythm emerging. Right: Strong PING rhythm with clear bursts.],
+)
 
 
 With low $W_(ei)$ and $W_(ie)$, the E-I loop is too weak to rhythmically
@@ -86,9 +100,10 @@ $arrow.r$ rebound E burst.
 == Population rates vs $mu_(ee)$ 
 
 
-// Gallery: stacked_rate_e_mean_*.png
-// #figure(image("_artifacts/study.1-rhythmicity-index/stacked_rate_e_mean_dark.png"), caption: [E Population rate while scanning over $\mu_{ee}$ and keeping $\sigma_{ee}$
-zeroed. Bottom: Non-zero oscillatory behaviour, but no PING rhythm in the E population. Middle: Weak PING rhythm emerging. Right: Strong PING rhythm with clear bursts in the E population.])
+#figure(
+  image("_artifacts/study.1-rhythmicity-index/stacked_rate_e_mean_scan_2_e_to_e_w_mean_dark.png"),
+  caption: [E Population rate scanning over $mu_(e e)$ with $sigma_(e e)$ zeroed. Bottom: Noisy, no PING rhythm. Middle: Weak PING rhythm emerging. Top: Strong PING rhythm with clear bursts.],
+)
 
 
 In Figure 1.3 we can see at low $W_(ee)$ (bottom) that the E population rate is
@@ -101,8 +116,11 @@ and noisy.
 == E Spikes vs $mu_(ee)$ 
 
 
-// Gallery: e_spikes_vs_mean_*.png
-// #figure(image("_artifacts/study.1-rhythmicity-index/e_spikes_vs_mean_dark.png"), caption: [The total E spikes plotted as a function of $\mu_{ee}$.])
+#figure(
+  image("_artifacts/study.1-rhythmicity-index/e_spikes_vs_mean_scan_2_e_to_e_w_mean_dark.png"),
+  caption: [The total E spikes plotted as a function of $\mu_{ee}$.],
+)
+
 
 
 In Figure 1.4 we can see that the total E spikes increases has an interesting
@@ -115,8 +133,11 @@ be explored.
 == Autocorrelations vs $mu_(ee)$ 
 
 
-// Gallery: stacked_autocorr_mean_*.png
-// #figure(image("_artifacts/study.1-rhythmicity-index/stacked_autocorr_mean_dark.png"), caption: [Autocorrelations as a function of increasing $\mu_{ee}$ with $\sigma_{ee}$ zeroed.])
+#figure(
+  image("_artifacts/study.1-rhythmicity-index/stacked_autocorr_mean_scan_2_e_to_e_w_mean_dark.png"),
+  caption: [Autocorrelations as a function of increasing $\mu_{ee}$ with $\sigma_{ee}$ zeroed.],
+)
+
 
 
 Given the E-population rate trace $r(t)$, we center it vertically by subtracting the mean rate $overline(r)$:
@@ -153,8 +174,11 @@ zero lag peak.
 == Rhythmicity metric vs $mu_(ee)$ 
 
 
-// Gallery: metrics_vs_mean_*.png
-// #figure(image("_artifacts/study.1-rhythmicity-index/metrics_vs_mean_dark.png"), caption: [Rhythmicity metric as a function of increasing $\mu_{ee}$ with $\sigma_{ee}$ zeroed.])
+#figure(
+  image("_artifacts/study.1-rhythmicity-index/metrics_vs_mean_scan_2_e_to_e_w_mean_dark.png"),
+  caption: [Rhythmicity metric as a function of increasing $\mu_{ee}$ with $\sigma_{ee}$ zeroed.],
+)
+
 
 
 We can clearly see that the rhythmicity metric increases with increasing
@@ -164,8 +188,11 @@ $mu_(ee)$, which is consistent with the emergence of a stronger PING rhythm.
 == Rhythmicity heatmap
 
 
-// Gallery: heatmap_*.png
-// #figure(image("_artifacts/study.1-rhythmicity-index/heatmap_dark.png"), caption: [Rhythmicity heatmap as a function of increasing $\mu_{ee}$ and $\sigma_{ee}$.])
+#figure(
+  image("_artifacts/study.1-rhythmicity-index/heatmap_ee_mean_std_autocorr_peak_dark.png"),
+  caption: [Rhythmicity heatmap as a function of increasing $\mu_{ee}$ and $\sigma_{ee}$.],
+)
+
 
 
 We run the same rhythmicity metric across the whole $mu_(ee)$ and $sigma_(ee)$

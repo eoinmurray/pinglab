@@ -38,8 +38,11 @@ suggesting further gains with more training.
 = Architecture
 
 
-// Gallery: graph_*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/graph_dark.png"), caption: [Network topology with initialization parameters.])
+#figure(
+  image("_artifacts/study.18-ping-regulariser-on-xor/graph_dark.png"),
+  caption: [Network topology with initialization parameters.],
+)
+
 
 
 Identical to studies 13–14:
@@ -259,24 +262,41 @@ params in W\_ee (E\_hid→E\_out) were actually trained.
 == Training dynamics
 
 
-// Gallery: loss_train*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/loss_traindark.png"), caption: [Per-iteration training loss. Loss drops sharply after epoch 1, reaching near-zero by epoch 10.])
+#figure(
+  image("_artifacts/study.18-ping-regulariser-on-xor/loss_train_dark.png"),
+  caption: [Per-iteration training loss. Loss drops sharply after epoch 1, reaching near-zero by epoch 10.],
+)
 
 
-// Gallery: loss_test*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/loss_testdark.png"), caption: [Test loss per epoch. Monotonically decreasing — still improving at epoch 10.])
+
+#figure(
+  image("_artifacts/study.18-ping-regulariser-on-xor/loss_test_dark.png"),
+  caption: [Test loss per epoch. Monotonically decreasing — still improving at epoch 10.],
+)
 
 
-// Gallery: accuracy_dark.png, accuracy_light.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/accuracy_dark.png"), caption: [Per-iteration training accuracy. Rises from ~15% to 95%+ over the first two epochs, then stabilizes.])
+
+#figure(
+  grid(
+    columns: 2,
+    gutter: 4pt,
+    image("_artifacts/study.18-ping-regulariser-on-xor/accuracy_dark.png"),
+    image("_artifacts/study.18-ping-regulariser-on-xor/accuracy_light.png"),
+  ),
+  caption: [Per-iteration training accuracy. Rises from ~15% to 95%+ over the first two epochs, then stabilizes.],
+)
+
 
 
 
 == Gradient norms
 
 
-// Gallery: grad_norms*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/grad_normsdark.png"), caption: [L2 gradient norm per weight matrix. Per-parameter clipping keeps each matrix in a healthy range: W_ee (2–10), W_ei (0.01–0.07), W_ie (0.1–0.5).])
+#figure(
+  image("_artifacts/study.18-ping-regulariser-on-xor/grad_norms_dark.png"),
+  caption: [L2 gradient norm per weight matrix. Per-parameter clipping keeps each matrix in a healthy range: W_ee (2–10), W_ei (0.01–0.07), W_ie (0.1–0.5).],
+)
+
 
 
 With per-parameter clipping and $kappa = 100$, all three weight
@@ -288,8 +308,11 @@ Compare this to the $kappa = 10$ run where W\_ee hit 10¹³ at iteration
 == Firing rates
 
 
-// Gallery: firing_rates*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/firing_ratesdark.png"), caption: [Mean firing rate (Hz) per excitatory layer. E_hid and E_out settle to ~6 Hz — healthy, sparse activity regulated by trained inhibition.])
+#figure(
+  image("_artifacts/study.18-ping-regulariser-on-xor/firing_rates_dark.png"),
+  caption: [Mean firing rate (Hz) per excitatory layer. E_hid and E_out settle to ~6 Hz — healthy, sparse activity regulated by trained inhibition.],
+)
+
 
 
 E\_hid and E\_out firing rates start elevated (~25 Hz) and settle to
@@ -301,8 +324,11 @@ weights successfully regulate network activity through the PING loop.
 == Per-class accuracy
 
 
-// Gallery: accuracy_per_class*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/accuracy_per_classdark.png"), caption: [Per-class test accuracy. All digits between 93–98%.])
+#figure(
+  image("_artifacts/study.18-ping-regulariser-on-xor/accuracy_per_class_dark.png"),
+  caption: [Per-class test accuracy. All digits between 93–98%.],
+)
+
 
 
 All 10 digit classes are well-classified with balanced accuracy.
@@ -313,16 +339,22 @@ trails at 94.2%.
 == Confusion matrix
 
 
-// Gallery: confusion*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/confusiondark.png"), caption: [Confusion matrix on 5,000 test samples. Strong diagonal with few off-diagonal errors.])
+#figure(
+  image("_artifacts/study.18-ping-regulariser-on-xor/confusion_dark.png"),
+  caption: [Confusion matrix on 5,000 test samples. Strong diagonal with few off-diagonal errors.],
+)
+
 
 
 
 == Output layer rasters
 
 
-// Gallery: raster_output_all_all*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/raster_output_all_alldark.png"), caption: [Output layer (10 neurons) spike rasters for one canonical sample per digit. Each digit activates its corresponding output neuron with sparse, discriminative spiking.])
+#figure(
+  image("_artifacts/study.18-ping-regulariser-on-xor/raster_output_all_all_dark.png"),
+  caption: [Output layer (10 neurons) spike rasters for one canonical sample per digit. Each digit activates its corresponding output neuron with sparse, discriminative spiking.],
+)
+
 
 
 The output rasters show clean, class-selective spiking. For digit 0,
@@ -333,24 +365,54 @@ spike-based classification — not voltage-only discrimination.
 == Output neuron voltage traces
 
 
-// Gallery: voltage_output_digit_*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/voltage_output_digit_dark.png"), caption: [Membrane voltage traces for the 10 output neurons over 200 ms. The correct class neuron is pushed toward threshold while others remain subthreshold.])
+#figure(
+  grid(
+    columns: 3,
+    gutter: 4pt,
+    image("_artifacts/study.18-ping-regulariser-on-xor/voltage_output_digit_00_dark.png"),
+    image("_artifacts/study.18-ping-regulariser-on-xor/voltage_output_digit_01_dark.png"),
+    image("_artifacts/study.18-ping-regulariser-on-xor/voltage_output_digit_02_dark.png"),
+    image("_artifacts/study.18-ping-regulariser-on-xor/voltage_output_digit_03_dark.png"),
+  ),
+  caption: [Membrane voltage traces for the 10 output neurons over 200 ms. The correct class neuron is pushed toward threshold while others remain subthreshold.],
+)
+
 
 
 
 == Input rasters (Poisson spike trains)
 
 
-// Gallery: raster_input_digit_*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/raster_input_digit_dark.png"), caption: [Poisson input spike trains for each digit (0–9). Bright pixels produce dense spike trains; dark pixels are sparse.])
+#figure(
+  grid(
+    columns: 3,
+    gutter: 4pt,
+    image("_artifacts/study.18-ping-regulariser-on-xor/raster_input_digit_00_dark.png"),
+    image("_artifacts/study.18-ping-regulariser-on-xor/raster_input_digit_01_dark.png"),
+    image("_artifacts/study.18-ping-regulariser-on-xor/raster_input_digit_02_dark.png"),
+    image("_artifacts/study.18-ping-regulariser-on-xor/raster_input_digit_03_dark.png"),
+  ),
+  caption: [Poisson input spike trains for each digit (0–9). Bright pixels produce dense spike trains; dark pixels are sparse.],
+)
+
 
 
 
 == Full layer rasters
 
 
-// Gallery: raster_layers_digit_*.png
-// #figure(image("_artifacts/study.18-ping-regulariser-on-xor/raster_layers_digit_dark.png"), caption: [Full signal path rasters for each digit. Top: E_in (blue), middle: E_hid (white), bottom: E_out and I_global (red). PING oscillations visible in the I_global bursts.])
+#figure(
+  grid(
+    columns: 3,
+    gutter: 4pt,
+    image("_artifacts/study.18-ping-regulariser-on-xor/raster_layers_digit_00_dark.png"),
+    image("_artifacts/study.18-ping-regulariser-on-xor/raster_layers_digit_01_dark.png"),
+    image("_artifacts/study.18-ping-regulariser-on-xor/raster_layers_digit_02_dark.png"),
+    image("_artifacts/study.18-ping-regulariser-on-xor/raster_layers_digit_03_dark.png"),
+  ),
+  caption: [Full signal path rasters for each digit. Top: E_in (blue), middle: E_hid (white), bottom: E_out and I_global (red). PING oscillations visible in the I_global bursts.],
+)
+
 
 
 

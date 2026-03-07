@@ -30,8 +30,11 @@ classification?
 = Architecture
 
 
-// Gallery: graph_*.png
-// #figure(image("_artifacts/study.14-ping-snn-poisson-input/graph_dark.png"), caption: [Network topology with initialization parameters.])
+#figure(
+  image("_artifacts/study.14-ping-snn-poisson-input/graph_dark.png"),
+  caption: [Network topology with initialization parameters.],
+)
+
 
 
 Identical to study.13:
@@ -165,8 +168,11 @@ Same as studies 12–13 — all three weight matrices:
 == Training dynamics
 
 
-// Gallery: loss_train*.png
-// #figure(image("_artifacts/study.14-ping-snn-poisson-input/loss_traindark.png"), caption: [Per-iteration training loss over 5 epochs.])
+#figure(
+  image("_artifacts/study.14-ping-snn-poisson-input/loss_train_dark.png"),
+  caption: [Per-iteration training loss over 5 epochs.],
+)
+
 
 
 Training loss is noticeably noisier than study.13 — expected because each
@@ -174,8 +180,11 @@ forward pass draws a different Poisson realization of the same image. The
 optimizer never sees the same input twice, which acts as stochastic
 regularization.
 
-// Gallery: loss_test*.png
-// #figure(image("_artifacts/study.14-ping-snn-poisson-input/loss_testdark.png"), caption: [Test loss evaluated at the end of each epoch on 1000 held-out samples.])
+#figure(
+  image("_artifacts/study.14-ping-snn-poisson-input/loss_test_dark.png"),
+  caption: [Test loss evaluated at the end of each epoch on 1000 held-out samples.],
+)
+
 
 
 Test loss reaches its minimum of #results.best_test_loss at
@@ -183,16 +192,27 @@ epoch #results.best_test_loss_epoch, then oscillates in later
 epochs. The non-monotonic pattern reflects the stochastic nature of both
 training and evaluation under Poisson encoding.
 
-// Gallery: accuracy_dark.png, accuracy_light.png
-// #figure(image("_artifacts/study.14-ping-snn-poisson-input/accuracy_dark.png"), caption: [Per-iteration training accuracy.])
+#figure(
+  grid(
+    columns: 2,
+    gutter: 4pt,
+    image("_artifacts/study.14-ping-snn-poisson-input/accuracy_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/accuracy_light.png"),
+  ),
+  caption: [Per-iteration training accuracy.],
+)
+
 
 
 
 == Per-class accuracy
 
 
-// Gallery: accuracy_per_class*.png
-// #figure(image("_artifacts/study.14-ping-snn-poisson-input/accuracy_per_classdark.png"), caption: [Per-class test accuracy with Poisson input encoding.])
+#figure(
+  image("_artifacts/study.14-ping-snn-poisson-input/accuracy_per_class_dark.png"),
+  caption: [Per-class test accuracy with Poisson input encoding.],
+)
+
 
 
 Per-class accuracy remains balanced (no argmax bias from voltage readout),
@@ -202,16 +222,35 @@ with the overall distribution shifted upward compared to study.13.
 == Confusion matrix
 
 
-// Gallery: confusion*.png
-// #figure(image("_artifacts/study.14-ping-snn-poisson-input/confusiondark.png"), caption: [Confusion matrix on 1000 test samples.])
+#figure(
+  image("_artifacts/study.14-ping-snn-poisson-input/confusion_dark.png"),
+  caption: [Confusion matrix on 1000 test samples.],
+)
+
 
 
 
 == Input rasters (Poisson spike trains)
 
 
-// Gallery: raster_input_digit_*.png
-// #figure(image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_dark.png"), caption: [Poisson input spike trains for each digit (0–9). Each dot is a current pulse injected into an input neuron. Bright pixels produce dense spike trains; dark pixels are sparse.])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_00_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_01_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_02_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_03_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_04_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_05_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_06_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_07_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_08_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_input_digit_09_dark.png"),
+  ),
+  caption: [Poisson input spike trains for each digit (0–9). Each dot is a current pulse injected into an input neuron. Bright pixels produce dense spike trains; dark pixels are sparse.],
+)
+
 
 
 The input rasters show the stochastic nature of Poisson encoding. Unlike
@@ -224,8 +263,24 @@ while digit 0 produces the densest (~44K spikes).
 == Output neuron voltage traces
 
 
-// Gallery: voltage_output_digit_*.png
-// #figure(image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_dark.png"), caption: [Membrane voltage traces for the 10 output neurons over 100 ms. Dashed grey line is the spike threshold (V_th = -50 mV). The network classifies via sub-threshold voltage separation.])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_00_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_01_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_02_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_03_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_04_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_05_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_06_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_07_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_08_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/voltage_output_digit_09_dark.png"),
+  ),
+  caption: [Membrane voltage traces for the 10 output neurons over 100 ms. Dashed grey line is the spike threshold (V_th = -50 mV). The network classifies via sub-threshold voltage separation.],
+)
+
 
 
 The voltage traces reveal how the network actually classifies: **output
@@ -239,8 +294,11 @@ voltage has no incentive to push neurons above threshold.
 == Output layer rasters
 
 
-// Gallery: raster_output_all_all*.png
-// #figure(image("_artifacts/study.14-ping-snn-poisson-input/raster_output_all_alldark.png"), caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class. Mostly empty — the network classifies via voltage, not spikes.])
+#figure(
+  image("_artifacts/study.14-ping-snn-poisson-input/raster_output_all_all_dark.png"),
+  caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class. Mostly empty — the network classifies via voltage, not spikes.],
+)
+
 
 
 The output rasters are nearly empty, confirming the voltage trace
@@ -253,8 +311,24 @@ mean membrane voltage.
 == Hidden, inhibitory, and output layer rasters
 
 
-// Gallery: raster_layers_digit_*.png
-// #figure(image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_dark.png"), caption: [Full signal path rasters for each digit (0–9). Top: I_global. Middle: E_hid. Bottom: E_out. Dashed lines separate layers.])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_00_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_01_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_02_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_03_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_04_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_05_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_06_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_07_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_08_dark.png"),
+    image("_artifacts/study.14-ping-snn-poisson-input/raster_layers_digit_09_dark.png"),
+  ),
+  caption: [Full signal path rasters for each digit (0–9). Top: I_global. Middle: E_hid. Bottom: E_out. Dashed lines separate layers.],
+)
+
 
 
 The hidden layer (E\_hid) and inhibitory layer (I\_global) are both

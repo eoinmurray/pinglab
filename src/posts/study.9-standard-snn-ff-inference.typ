@@ -23,8 +23,11 @@ loading a weight checkpoint.
 = Architecture
 
 
-// Gallery: graph_*.png
-// #figure(image("_artifacts/study.9-standard-snn-ff-inference/graph_dark.png"), caption: [Network topology with initialization parameters.])
+#figure(
+  image("_artifacts/study.9-standard-snn-ff-inference/graph_dark.png"),
+  caption: [Network topology with initialization parameters.],
+)
+
 
 
 
@@ -93,8 +96,11 @@ different random subset.
 == Per-class accuracy
 
 
-// Gallery: accuracy_per_class*.png
-// #figure(image("_artifacts/study.9-standard-snn-ff-inference/accuracy_per_classdark.png"), caption: [Per-class test accuracy across all 10 digit classes.])
+#figure(
+  image("_artifacts/study.9-standard-snn-ff-inference/accuracy_per_class_dark.png"),
+  caption: [Per-class test accuracy across all 10 digit classes.],
+)
+
 
 
 Figure 1.1 shows wide variation across digit classes. Digits with simple,
@@ -106,8 +112,11 @@ matrix).
 == Confusion matrix
 
 
-// Gallery: confusion*.png
-// #figure(image("_artifacts/study.9-standard-snn-ff-inference/confusiondark.png"), caption: [Confusion matrix.])
+#figure(
+  image("_artifacts/study.9-standard-snn-ff-inference/confusion_dark.png"),
+  caption: [Confusion matrix.],
+)
+
 
 
 Figure 1.2 reveals the network's failure modes. Digit 5 is a common false
@@ -119,16 +128,35 @@ highly active across many inputs, creating a bias.
 == Output layer rasters
 
 
-// Gallery: raster_output_all_all*.png
-// #figure(image("_artifacts/study.9-standard-snn-ff-inference/raster_output_all_alldark.png"), caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class. Each panel shows all 10 output neurons over 100 ms.])
+#figure(
+  image("_artifacts/study.9-standard-snn-ff-inference/raster_output_all_all_dark.png"),
+  caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class. Each panel shows all 10 output neurons over 100 ms.],
+)
+
 
 
 
 == Hidden and output layer rasters
 
 
-// Gallery: raster_layers_digit_*.png
-// #figure(image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_dark.png"), caption: [Full signal path rasters for each digit (0–9). Top: E_hid (64 neurons). Bottom: E_out (10 neurons). Dashed line separates layers.])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_00_dark.png"),
+    image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_01_dark.png"),
+    image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_02_dark.png"),
+    image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_03_dark.png"),
+    image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_04_dark.png"),
+    image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_05_dark.png"),
+    image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_06_dark.png"),
+    image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_07_dark.png"),
+    image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_08_dark.png"),
+    image("_artifacts/study.9-standard-snn-ff-inference/raster_layers_digit_09_dark.png"),
+  ),
+  caption: [Full signal path rasters for each digit (0–9). Top: E_hid (64 neurons). Bottom: E_out (10 neurons). Dashed line separates layers.],
+)
+
 
 
 

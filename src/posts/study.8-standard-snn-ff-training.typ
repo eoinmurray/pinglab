@@ -28,8 +28,11 @@ end-to-end?
 = Architecture
 
 
-// Gallery: graph_*.png
-// #figure(image("_artifacts/study.8-standard-snn-ff-training/graph_dark.png"), caption: [Network topology with initialization parameters.])
+#figure(
+  image("_artifacts/study.8-standard-snn-ff-training/graph_dark.png"),
+  caption: [Network topology with initialization parameters.],
+)
+
 
 
 
@@ -142,8 +145,11 @@ normalize total synaptic drive.
 == Training dynamics
 
 
-// Gallery: loss_train*.png
-// #figure(image("_artifacts/study.8-standard-snn-ff-training/loss_traindark.png"), caption: [Per-iteration training loss over 5 epochs (~1560 batches of 16). The loss drops from ~2.3 (chance) to ~1.0 with high per-batch variance typical of small-batch SNN training.])
+#figure(
+  image("_artifacts/study.8-standard-snn-ff-training/loss_train_dark.png"),
+  caption: [Per-iteration training loss over 5 epochs (~1560 batches of 16). The loss drops from ~2.3 (chance) to ~1.0 with high per-batch variance typical of small-batch SNN training.],
+)
+
 
 
 Figure 1.1 shows the training loss across all iterations. The initial
@@ -153,16 +159,22 @@ around #results.final_train_loss, though individual batches still show large swi
 of the small batch size (#config.meta.batch_size) and the discrete, noisy nature of spike-count
 logits.
 
-// Gallery: loss_test*.png
-// #figure(image("_artifacts/study.8-standard-snn-ff-training/loss_testdark.png"), caption: [Test loss evaluated at the end of each epoch on 1000 held-out samples.])
+#figure(
+  image("_artifacts/study.8-standard-snn-ff-training/loss_test_dark.png"),
+  caption: [Test loss evaluated at the end of each epoch on 1000 held-out samples.],
+)
+
 
 
 Figure 1.2 shows the test loss per epoch. It drops to a
 minimum of #results.best_test_loss at epoch #results.best_test_loss_epoch, ending at #results.final_test_loss at epoch #results.epochs — an
 early sign of overfitting on the #results.train_samples-sample training subset.
 
-// Gallery: accuracy*.png
-// #figure(image("_artifacts/study.8-standard-snn-ff-training/accuracydark.png"), caption: [Per-iteration training accuracy. Batch-level accuracy is noisy (batch size 16) but the trend clearly rises from ~10% to a median around 60–70%.])
+#figure(
+  image("_artifacts/study.8-standard-snn-ff-training/accuracy_dark.png"),
+  caption: [Per-iteration training accuracy. Batch-level accuracy is noisy (batch size 16) but the trend clearly rises from ~10% to a median around 60–70%.],
+)
+
 
 
 Figure 1.3 plots per-batch training accuracy. The trend rises from chance
@@ -176,8 +188,11 @@ constraint of spike-count decoding.
 == Output layer rasters
 
 
-// Gallery: raster_output_all_all*.png
-// #figure(image("_artifacts/study.8-standard-snn-ff-training/raster_output_all_alldark.png"), caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class. Each panel shows all 10 output neurons over 100 ms. The y-axis is the output neuron index (0–9).])
+#figure(
+  image("_artifacts/study.8-standard-snn-ff-training/raster_output_all_all_dark.png"),
+  caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class. Each panel shows all 10 output neurons over 100 ms. The y-axis is the output neuron index (0–9).],
+)
+
 
 
 Figure 2.1 shows the output layer response to one canonical test image per
@@ -200,8 +215,24 @@ digit class. Several patterns are visible:
 == Hidden and output layer rasters
 
 
-// Gallery: raster_layers_digit_*.png
-// #figure(image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_dark.png"), caption: [Full signal path rasters for each digit (0–9). Top region: E_hid (64 neurons, subsampled to 64 for display). Bottom region: E_out (10 neurons, labeled 0–9 on the right margin). Dashed line separates layers.])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_00_dark.png"),
+    image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_01_dark.png"),
+    image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_02_dark.png"),
+    image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_03_dark.png"),
+    image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_04_dark.png"),
+    image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_05_dark.png"),
+    image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_06_dark.png"),
+    image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_07_dark.png"),
+    image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_08_dark.png"),
+    image("_artifacts/study.8-standard-snn-ff-training/raster_layers_digit_09_dark.png"),
+  ),
+  caption: [Full signal path rasters for each digit (0–9). Top region: E_hid (64 neurons, subsampled to 64 for display). Bottom region: E_out (10 neurons, labeled 0–9 on the right margin). Dashed line separates layers.],
+)
+
 
 
 Figure 2.2 shows the complete hidden + output layer activity for each

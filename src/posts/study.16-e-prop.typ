@@ -35,8 +35,11 @@ without) for dramatically lower rates (down from 65–220 Hz).
 = Architecture
 
 
-// Gallery: graph_*.png
-// #figure(image("_artifacts/study.16-e-prop/graph_dark.png"), caption: [Network topology — identical to study.15.])
+#figure(
+  image("_artifacts/study.16-e-prop/graph_dark.png"),
+  caption: [Network topology — identical to study.15.],
+)
+
 
 
 Same PING network as studies 13–15:
@@ -251,24 +254,41 @@ accuracy plateau by epoch 8.
 == Training dynamics
 
 
-// Gallery: loss_train*.png
-// #figure(image("_artifacts/study.16-e-prop/loss_traindark.png"), caption: [Per-iteration training loss. Noisy early on (epochs 1–2), then settles to 0.2–0.8 range. The high variance is characteristic of e-prop — each batch gets a single trial-end learning signal rather than per-timestep gradient.])
+#figure(
+  image("_artifacts/study.16-e-prop/loss_train_dark.png"),
+  caption: [Per-iteration training loss. Noisy early on (epochs 1–2), then settles to 0.2–0.8 range. The high variance is characteristic of e-prop — each batch gets a single trial-end learning signal rather than per-timestep gradient.],
+)
 
 
-// Gallery: loss_test*.png
-// #figure(image("_artifacts/study.16-e-prop/loss_testdark.png"), caption: [Test loss per epoch. Decreasing from 2.30 to 0.57 — still improving at epoch 10. The rate regularization term contributes to the higher absolute loss values.])
+
+#figure(
+  image("_artifacts/study.16-e-prop/loss_test_dark.png"),
+  caption: [Test loss per epoch. Decreasing from 2.30 to 0.57 — still improving at epoch 10. The rate regularization term contributes to the higher absolute loss values.],
+)
 
 
-// Gallery: accuracy_dark.png, accuracy_light.png
-// #figure(image("_artifacts/study.16-e-prop/accuracy_dark.png"), caption: [Per-iteration training accuracy. Rises from ~10% to ~85% over the first 3 epochs, then oscillates in the 80–95% range.])
+
+#figure(
+  grid(
+    columns: 2,
+    gutter: 4pt,
+    image("_artifacts/study.16-e-prop/accuracy_dark.png"),
+    image("_artifacts/study.16-e-prop/accuracy_light.png"),
+  ),
+  caption: [Per-iteration training accuracy. Rises from ~10% to ~85% over the first 3 epochs, then oscillates in the 80–95% range.],
+)
+
 
 
 
 == Gradient norms
 
 
-// Gallery: grad_norms*.png
-// #figure(image("_artifacts/study.16-e-prop/grad_normsdark.png"), caption: [L2 gradient norm per weight matrix over training. W_ee dominates (500–2000), W_ie receives moderate gradient (50–100), and W_ei receives small but non-zero gradient (5–15) — confirming the buffer bug fix restored gradient flow to the E→I pathway.])
+#figure(
+  image("_artifacts/study.16-e-prop/grad_norms_dark.png"),
+  caption: [L2 gradient norm per weight matrix over training. W_ee dominates (500–2000), W_ie receives moderate gradient (50–100), and W_ei receives small but non-zero gradient (5–15) — confirming the buffer bug fix restored gradient flow to the E→I pathway.],
+)
+
 
 
 W\_ee receives strong gradient throughout training. W\_ie (I→E\_hid) and
@@ -285,8 +305,11 @@ to 90.0%.
 == Firing rates
 
 
-// Gallery: firing_rates*.png
-// #figure(image("_artifacts/study.16-e-prop/firing_ratesdark.png"), caption: [Mean firing rate (Hz) per excitatory layer over training. E_hid and E_out both converge to ~10 Hz — right at the regularization target.])
+#figure(
+  image("_artifacts/study.16-e-prop/firing_rates_dark.png"),
+  caption: [Mean firing rate (Hz) per excitatory layer over training. E_hid and E_out both converge to ~10 Hz — right at the regularization target.],
+)
+
 
 
 The firing rate regularizer adds a homeostatic learning signal
@@ -305,8 +328,11 @@ could not.
 == Per-class accuracy
 
 
-// Gallery: accuracy_per_class*.png
-// #figure(image("_artifacts/study.16-e-prop/accuracy_per_classdark.png"), caption: [Per-class test accuracy. Digits 0 and 1 lead at ~96%, while 8 is the hardest at ~81%.])
+#figure(
+  image("_artifacts/study.16-e-prop/accuracy_per_class_dark.png"),
+  caption: [Per-class test accuracy. Digits 0 and 1 lead at ~96%, while 8 is the hardest at ~81%.],
+)
+
 
 
 #table(
@@ -334,8 +360,11 @@ constraint forcing sparser representations.
 == Confusion matrix
 
 
-// Gallery: confusion*.png
-// #figure(image("_artifacts/study.16-e-prop/confusiondark.png"), caption: [Confusion matrix on 5,000 test samples. Strong diagonal with residual confusion on visually similar digit pairs.])
+#figure(
+  image("_artifacts/study.16-e-prop/confusion_dark.png"),
+  caption: [Confusion matrix on 5,000 test samples. Strong diagonal with residual confusion on visually similar digit pairs.],
+)
+
 
 
 The remaining confusion involves visually similar digits — the same
@@ -345,8 +374,11 @@ pairs that are typically hardest for spike-based classifiers.
 == Output layer rasters
 
 
-// Gallery: raster_output_all_all*.png
-// #figure(image("_artifacts/study.16-e-prop/raster_output_all_alldark.png"), caption: [Output layer (10 neurons) spike rasters for one canonical sample per digit. Multiple neurons fire densely — less selective than study.15's sparse, class-specific spiking.])
+#figure(
+  image("_artifacts/study.16-e-prop/raster_output_all_all_dark.png"),
+  caption: [Output layer (10 neurons) spike rasters for one canonical sample per digit. Multiple neurons fire densely — less selective than study.15's sparse, class-specific spiking.],
+)
+
 
 
 The output rasters show a key difference from study.15: multiple output
@@ -360,24 +392,72 @@ total spike counts but not temporal selectivity.
 == Output neuron voltage traces
 
 
-// Gallery: voltage_output_digit_*.png
-// #figure(image("_artifacts/study.16-e-prop/voltage_output_digit_dark.png"), caption: [Membrane voltage traces for the 10 output neurons over 200 ms.])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.16-e-prop/voltage_output_digit_00_dark.png"),
+    image("_artifacts/study.16-e-prop/voltage_output_digit_01_dark.png"),
+    image("_artifacts/study.16-e-prop/voltage_output_digit_02_dark.png"),
+    image("_artifacts/study.16-e-prop/voltage_output_digit_03_dark.png"),
+    image("_artifacts/study.16-e-prop/voltage_output_digit_04_dark.png"),
+    image("_artifacts/study.16-e-prop/voltage_output_digit_05_dark.png"),
+    image("_artifacts/study.16-e-prop/voltage_output_digit_06_dark.png"),
+    image("_artifacts/study.16-e-prop/voltage_output_digit_07_dark.png"),
+    image("_artifacts/study.16-e-prop/voltage_output_digit_08_dark.png"),
+    image("_artifacts/study.16-e-prop/voltage_output_digit_09_dark.png"),
+  ),
+  caption: [Membrane voltage traces for the 10 output neurons over 200 ms.],
+)
+
 
 
 
 == Input rasters (Poisson spike trains)
 
 
-// Gallery: raster_input_digit_*.png
-// #figure(image("_artifacts/study.16-e-prop/raster_input_digit_dark.png"), caption: [Poisson input spike trains for each digit (0–9).])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.16-e-prop/raster_input_digit_00_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_input_digit_01_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_input_digit_02_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_input_digit_03_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_input_digit_04_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_input_digit_05_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_input_digit_06_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_input_digit_07_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_input_digit_08_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_input_digit_09_dark.png"),
+  ),
+  caption: [Poisson input spike trains for each digit (0–9).],
+)
+
 
 
 
 == Full layer rasters
 
 
-// Gallery: raster_layers_digit_*.png
-// #figure(image("_artifacts/study.16-e-prop/raster_layers_digit_dark.png"), caption: [Full signal path rasters for each digit.])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.16-e-prop/raster_layers_digit_00_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_layers_digit_01_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_layers_digit_02_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_layers_digit_03_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_layers_digit_04_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_layers_digit_05_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_layers_digit_06_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_layers_digit_07_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_layers_digit_08_dark.png"),
+    image("_artifacts/study.16-e-prop/raster_layers_digit_09_dark.png"),
+  ),
+  caption: [Full signal path rasters for each digit.],
+)
+
 
 
 

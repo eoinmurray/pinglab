@@ -27,8 +27,11 @@ continuous-valued logits, eliminating ties entirely.
 = Architecture
 
 
-// Gallery: graph_*.png
-// #figure(image("_artifacts/study.13-ping-snn-training-voltage-readout/graph_dark.png"), caption: [Network topology with initialization parameters.])
+#figure(
+  image("_artifacts/study.13-ping-snn-training-voltage-readout/graph_dark.png"),
+  caption: [Network topology with initialization parameters.],
+)
+
 
 
 The architecture is identical to study.12:
@@ -150,12 +153,18 @@ Same as study.12 — all three weight matrices receive gradient updates:
 == Training dynamics
 
 
-// Gallery: loss_train*.png
-// #figure(image("_artifacts/study.13-ping-snn-training-voltage-readout/loss_traindark.png"), caption: [Per-iteration training loss over 5 epochs.])
+#figure(
+  image("_artifacts/study.13-ping-snn-training-voltage-readout/loss_train_dark.png"),
+  caption: [Per-iteration training loss over 5 epochs.],
+)
 
 
-// Gallery: loss_test*.png
-// #figure(image("_artifacts/study.13-ping-snn-training-voltage-readout/loss_testdark.png"), caption: [Test loss evaluated at the end of each epoch on 1000 held-out samples.])
+
+#figure(
+  image("_artifacts/study.13-ping-snn-training-voltage-readout/loss_test_dark.png"),
+  caption: [Test loss evaluated at the end of each epoch on 1000 held-out samples.],
+)
+
 
 
 Test loss decreases from
@@ -163,16 +172,27 @@ Test loss decreases from
 epoch #results.best_test_loss_epoch, then rises slightly — suggesting mild overfitting
 in later epochs.
 
-// Gallery: accuracy_dark.png, accuracy_light.png
-// #figure(image("_artifacts/study.13-ping-snn-training-voltage-readout/accuracy_dark.png"), caption: [Per-iteration training accuracy.])
+#figure(
+  grid(
+    columns: 2,
+    gutter: 4pt,
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/accuracy_dark.png"),
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/accuracy_light.png"),
+  ),
+  caption: [Per-iteration training accuracy.],
+)
+
 
 
 
 == Per-class accuracy
 
 
-// Gallery: accuracy_per_class*.png
-// #figure(image("_artifacts/study.13-ping-snn-training-voltage-readout/accuracy_per_classdark.png"), caption: [Per-class test accuracy with voltage readout.])
+#figure(
+  image("_artifacts/study.13-ping-snn-training-voltage-readout/accuracy_per_class_dark.png"),
+  caption: [Per-class test accuracy with voltage readout.],
+)
+
 
 
 This is the key result. With spike-count readout (study.12), per-class
@@ -185,24 +205,46 @@ continuous-valued logits with no tie-breaking advantage.
 == Confusion matrix
 
 
-// Gallery: confusion*.png
-// #figure(image("_artifacts/study.13-ping-snn-training-voltage-readout/confusiondark.png"), caption: [Confusion matrix on 1000 test samples.])
+#figure(
+  image("_artifacts/study.13-ping-snn-training-voltage-readout/confusion_dark.png"),
+  caption: [Confusion matrix on 1000 test samples.],
+)
+
 
 
 
 == Output layer rasters
 
 
-// Gallery: raster_output_all_all*.png
-// #figure(image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_output_all_alldark.png"), caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class.])
+#figure(
+  image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_output_all_all_dark.png"),
+  caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class.],
+)
+
 
 
 
 == Hidden, inhibitory, and output layer rasters
 
 
-// Gallery: raster_layers_digit_*.png
-// #figure(image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_dark.png"), caption: [Full signal path rasters for each digit (0–9). Top: I_global. Middle: E_hid. Bottom: E_out. Dashed lines separate layers.])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_00_dark.png"),
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_01_dark.png"),
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_02_dark.png"),
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_03_dark.png"),
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_04_dark.png"),
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_05_dark.png"),
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_06_dark.png"),
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_07_dark.png"),
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_08_dark.png"),
+    image("_artifacts/study.13-ping-snn-training-voltage-readout/raster_layers_digit_09_dark.png"),
+  ),
+  caption: [Full signal path rasters for each digit (0–9). Top: I_global. Middle: E_hid. Bottom: E_out. Dashed lines separate layers.],
+)
+
 
 
 

@@ -95,8 +95,11 @@ of each epoch.
 )
 
 
-// Gallery: loss*.png
-// #figure(image("_artifacts/study.7-ann-ff/lossdark.png"), caption: [Test loss per epoch.])
+#figure(
+  image("_artifacts/study.7-ann-ff/loss_dark.png"),
+  caption: [Test loss per epoch.],
+)
+
 
 
 Figure 1.1 shows the test loss declining across all #results.epochs epochs. The
@@ -104,8 +107,11 @@ initial loss is consistent with random 10-class prediction
 ($-ln(0.1) approx 2.3$). By epoch #results.epochs the loss is #results.final_test_loss, still dropping —
 the network has not converged and would benefit from additional training.
 
-// Gallery: accuracy*.png
-// #figure(image("_artifacts/study.7-ann-ff/accuracydark.png"), caption: [Test accuracy per epoch.])
+#figure(
+  image("_artifacts/study.7-ann-ff/accuracy_dark.png"),
+  caption: [Test accuracy per epoch.],
+)
+
 
 
 Figure 1.2 shows test accuracy rising to *#results.best_test_accuracy%*

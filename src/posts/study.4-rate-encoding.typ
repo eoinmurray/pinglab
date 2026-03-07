@@ -34,18 +34,30 @@ propagation/decoding metrics across layers.
 = Results
 
 
-// Gallery: input_row-1_ff_sweep_signal-components*.png, 
-// #figure(image("_artifacts/study.4-rate-encoding/input_row-1_ff_sweep_signal-componentsdark.png"), caption: [Message envelope and resulting injected current (carrier removed).])
+#figure(
+  image("_artifacts/study.4-rate-encoding/input_row-1_ff_sweep_signal-components_dark.png"),
+  caption: [Message envelope and resulting injected current (carrier removed).],
+)
 
 
-// Gallery: raster_row-2_ff_sweep_layers*.png, 
-// #figure(image("_artifacts/study.4-rate-encoding/raster_row-2_ff_sweep_layersdark.png"), caption: [Layer-delineated raster with message input injected into E1.])
+
+#figure(
+  image("_artifacts/study.4-rate-encoding/raster_row-2_ff_sweep_layers_dark.png"),
+  caption: [Layer-delineated raster with message input injected into E1.],
+)
 
 
-// Gallery: rate_row-3_ff_sweep_layers*.png, 
-// #figure(image("_artifacts/study.4-rate-encoding/rate_row-3_ff_sweep_layersdark.png"), caption: [Population rates for E1, E2, and E3.])
+
+#figure(
+  image("_artifacts/study.4-rate-encoding/rate_row-3_ff_sweep_layers_dark.png"),
+  caption: [Population rates for E1, E2, and E3.],
+)
 
 
-// Gallery: decode_row-4_ff_sweep_envelopes*.png, 
-// #figure(image("_artifacts/study.4-rate-encoding/decode_row-4_ff_sweep_envelopesdark.png"), caption: [Decoded envelopes from E1/E2/E3 rates against message reference.])
+
+#figure(
+  image("_artifacts/study.4-rate-encoding/decode_row-4_ff_sweep_envelopes_dark.png"),
+  caption: [Decoded envelopes from E1/E2/E3 rates against message reference.],
+)
+
 

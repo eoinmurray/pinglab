@@ -27,8 +27,11 @@ the additional flexibility lead to instability?
 = Architecture
 
 
-// Gallery: graph_*.png
-// #figure(image("_artifacts/study.12-ping-snn-all-training/graph_dark.png"), caption: [Network topology with initialization parameters.])
+#figure(
+  image("_artifacts/study.12-ping-snn-all-training/graph_dark.png"),
+  caption: [Network topology with initialization parameters.],
+)
+
 
 
 The architecture is identical to study.11:
@@ -134,52 +137,91 @@ hidden representations) rather than treating it as fixed interference.
 == Training dynamics
 
 
-// Gallery: loss_train*.png
-// #figure(image("_artifacts/study.12-ping-snn-all-training/loss_traindark.png"), caption: [Per-iteration training loss over 5 epochs.])
+#figure(
+  image("_artifacts/study.12-ping-snn-all-training/loss_train_dark.png"),
+  caption: [Per-iteration training loss over 5 epochs.],
+)
 
 
-// Gallery: loss_test*.png
-// #figure(image("_artifacts/study.12-ping-snn-all-training/loss_testdark.png"), caption: [Test loss evaluated at the end of each epoch on 1000 held-out samples.])
+
+#figure(
+  image("_artifacts/study.12-ping-snn-all-training/loss_test_dark.png"),
+  caption: [Test loss evaluated at the end of each epoch on 1000 held-out samples.],
+)
+
 
 
 Like study.11, the test loss decreases monotonically from
 #results.test_losses_per_epoch.at(0) to #results.final_test_loss across all
 #results.epochs epochs with no overfitting.
 
-// Gallery: accuracy_dark.png, accuracy_light.png
-// #figure(image("_artifacts/study.12-ping-snn-all-training/accuracy_dark.png"), caption: [Per-iteration training accuracy.])
+#figure(
+  grid(
+    columns: 2,
+    gutter: 4pt,
+    image("_artifacts/study.12-ping-snn-all-training/accuracy_dark.png"),
+    image("_artifacts/study.12-ping-snn-all-training/accuracy_light.png"),
+  ),
+  caption: [Per-iteration training accuracy.],
+)
+
 
 
 
 == Per-class accuracy
 
 
-// Gallery: accuracy_per_class*.png
-// #figure(image("_artifacts/study.12-ping-snn-all-training/accuracy_per_classdark.png"), caption: [Per-class test accuracy with all weights trained.])
+#figure(
+  image("_artifacts/study.12-ping-snn-all-training/accuracy_per_class_dark.png"),
+  caption: [Per-class test accuracy with all weights trained.],
+)
+
 
 
 
 == Confusion matrix
 
 
-// Gallery: confusion*.png
-// #figure(image("_artifacts/study.12-ping-snn-all-training/confusiondark.png"), caption: [Confusion matrix on 1000 test samples.])
+#figure(
+  image("_artifacts/study.12-ping-snn-all-training/confusion_dark.png"),
+  caption: [Confusion matrix on 1000 test samples.],
+)
+
 
 
 
 == Output layer rasters
 
 
-// Gallery: raster_output_all_all*.png
-// #figure(image("_artifacts/study.12-ping-snn-all-training/raster_output_all_alldark.png"), caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class.])
+#figure(
+  image("_artifacts/study.12-ping-snn-all-training/raster_output_all_all_dark.png"),
+  caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class.],
+)
+
 
 
 
 == Hidden, inhibitory, and output layer rasters
 
 
-// Gallery: raster_layers_digit_*.png
-// #figure(image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_dark.png"), caption: [Full signal path rasters for each digit (0–9). Top: I_global. Middle: E_hid. Bottom: E_out. Dashed lines separate layers.])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_00_dark.png"),
+    image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_01_dark.png"),
+    image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_02_dark.png"),
+    image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_03_dark.png"),
+    image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_04_dark.png"),
+    image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_05_dark.png"),
+    image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_06_dark.png"),
+    image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_07_dark.png"),
+    image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_08_dark.png"),
+    image("_artifacts/study.12-ping-snn-all-training/raster_layers_digit_09_dark.png"),
+  ),
+  caption: [Full signal path rasters for each digit (0–9). Top: I_global. Middle: E_hid. Bottom: E_out. Dashed lines separate layers.],
+)
+
 
 
 

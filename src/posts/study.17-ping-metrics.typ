@@ -13,32 +13,44 @@
 = Topology
 
 
-// Gallery: graph_*.png
-// #figure(image("_artifacts/study.17-ping-metrics/graph_dark.png"), caption: [Network topology.])
+#figure(
+  image("_artifacts/study.17-ping-metrics/graph_dark.png"),
+  caption: [Network topology.],
+)
+
 
 
 
 = Raster
 
 
-// Gallery: raster_*.png
-// #figure(image("_artifacts/study.17-ping-metrics/raster_dark.png"), caption: [Raster plot.])
+#figure(
+  image("_artifacts/study.17-ping-metrics/raster_main_main_00_dark.png"),
+  caption: [Raster plot.],
+)
+
 
 
 
 = Population Firing Rates
 
 
-// Gallery: pop_rates_*.png
-// #figure(image("_artifacts/study.17-ping-metrics/pop_rates_dark.png"), caption: [Population firing rate for E and I neurons.])
+#figure(
+  image("_artifacts/study.17-ping-metrics/pop_rates_main_main_00_dark.png"),
+  caption: [Population firing rate for E and I neurons.],
+)
+
 
 
 
 == Non-differentiable Autocorrelation Metrics
 
 
-// Gallery: autocorr_*.png
-// #figure(image("_artifacts/study.17-ping-metrics/autocorr_dark.png"), caption: [Autocorrelation of population firing rate with annotated metrics.])
+#figure(
+  image("_artifacts/study.17-ping-metrics/autocorr_main_main_00_dark.png"),
+  caption: [Autocorrelation of population firing rate with annotated metrics.],
+)
+
 
 
 We extract five metrics from the population rate autocorrelation to characterize
@@ -93,8 +105,11 @@ By the Wiener-Khinchin theorem the autocorrelation and power spectral density (P
 
 The PSD of the binned population rate reveals the harmonic structure of the oscillation. The fundamental $f_0 = #results.E.f0_hz$ Hz (period $= #results.E.oscillation_period_ms$ ms) and its harmonics at $2f_0, 3f_0, dots$ are clearly visible.
 
-// Gallery: psd_main_main_00_*.png
-// #figure(image("_artifacts/study.17-ping-metrics/psd_main_main_00_dark.png"), caption: [Power spectral density of population firing rate. Vertical lines mark the fundamental and its harmonics.])
+#figure(
+  image("_artifacts/study.17-ping-metrics/psd_main_main_00_dark.png"),
+  caption: [Power spectral density of population firing rate. Vertical lines mark the fundamental and its harmonics.],
+)
+
 
 
 
@@ -125,8 +140,11 @@ $
 
 with $sigma approx 1.75$ Hz and $K = 5$ harmonics. This produces a smooth weight $in [0, 1]$ at every frequency bin. Because $f_0$ is a differentiable function of $S(f)$, and $W$ is a smooth function of $f_0$, gradients flow through the entire computation.
 
-// Gallery: psd_comb_main_main_00_*.png
-// #figure(image("_artifacts/study.17-ping-metrics/psd_comb_main_main_00_dark.png"), caption: [PSD with Gaussian comb mask W(f) overlaid (red fill). Each comb tooth is a Gaussian centered on a harmonic of f0.])
+#figure(
+  image("_artifacts/study.17-ping-metrics/psd_comb_main_main_00_dark.png"),
+  caption: [PSD with Gaussian comb mask W(f) overlaid (red fill). Each comb tooth is a Gaussian centered on a harmonic of f0.],
+)
+
 
 
 The comb teeth align with the spectral peaks. Power captured under the comb is classified as signal; everything between the teeth is noise.
@@ -140,8 +158,11 @@ $
 $
 
 
-// Gallery: psd_decomp_main_main_00_*.png
-// #figure(image("_artifacts/study.17-ping-metrics/psd_decomp_main_main_00_dark.png"), caption: [Signal (blue) vs noise (red) decomposition of the PSD using the Gaussian comb mask.])
+#figure(
+  image("_artifacts/study.17-ping-metrics/psd_decomp_main_main_00_dark.png"),
+  caption: [Signal (blue) vs noise (red) decomposition of the PSD using the Gaussian comb mask.],
+)
+
 
 
 The comb correctly attributes harmonic power to the signal rather than noise. A plain bandpass at $[25, 45]$ Hz would miss power at $2f_0, 3f_0$ and incorrectly treat it as noise. The spectral SNR is #results.E.snr_psd for E and #results.I.snr_psd for I — the I population has cleaner oscillations with less inter-harmonic noise.

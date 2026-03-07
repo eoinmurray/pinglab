@@ -15,9 +15,11 @@ to scroll through them.
 = Introduction
 
 
-// Gallery: ping-switch.png
-// Path: _assets/study.3-selective-routing
-// #figure(image("_assets/study.3-selective-routing/ping-switch.png"), caption: [Switch Topology.])
+#figure(
+  image("_assets/study.3-selective-routing/ping-switch.png"),
+  caption: [Switch Topology.],
+)
+
 
 
 This experiment uses the minimal routing switch:
@@ -66,8 +68,53 @@ changes with delay, which is enough to switch the dominant output branch.
 = Results
 
 
-// Gallery: raster_row-1_delay_scan*.png, 
-// #figure(image("_artifacts/study.3-selective-routing/raster_row-1_delay_scandark.png"), caption: [])
+#figure(
+  grid(
+    columns: 5,
+    gutter: 4pt,
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_00_delay-0.000_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_01_delay-0.769_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_02_delay-1.538_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_03_delay-2.308_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_04_delay-3.077_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_05_delay-3.846_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_06_delay-4.615_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_07_delay-5.385_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_08_delay-6.154_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_09_delay-6.923_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_10_delay-7.692_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_11_delay-8.462_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_12_delay-9.231_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_13_delay-10.000_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_14_delay-10.769_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_15_delay-11.538_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_16_delay-12.308_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_17_delay-13.077_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_18_delay-13.846_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_19_delay-14.615_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_20_delay-15.385_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_21_delay-16.154_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_22_delay-16.923_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_23_delay-17.692_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_24_delay-18.462_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_25_delay-19.231_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_26_delay-20.000_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_27_delay-20.769_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_28_delay-21.538_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_29_delay-22.308_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_30_delay-23.077_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_31_delay-23.846_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_32_delay-24.615_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_33_delay-25.385_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_34_delay-26.154_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_35_delay-26.923_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_36_delay-27.692_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_37_delay-28.462_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_38_delay-29.231_dark.png"),
+    image("_artifacts/study.3-selective-routing/raster_row-1_delay_scan_39_delay-30.000_dark.png"),
+  ),
+)
+
 
 
 The raster scan shows clear switching windows:
@@ -79,8 +126,10 @@ The raster scan shows clear switching windows:
 
 This is the expected phase-selection behavior from a delay-controlled gate.
 
-// Gallery: spikes_row-2_delay_scan*.png, 
-// #figure(image("_artifacts/study.3-selective-routing/spikes_row-2_delay_scandark.png"), caption: [])
+#figure(
+  image("_artifacts/study.3-selective-routing/spikes_row-2_delay_scan_targets-vs-delay_dark.png"),
+)
+
 
 
 The spike-count plot confirms the same pattern quantitatively:

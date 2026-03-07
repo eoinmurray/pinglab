@@ -52,29 +52,39 @@ We compare:
 == Partially connected
 
 
-// Gallery: ping-ff-partially-connected.png
-// Path: _assets/study.2-pingness-and-layers
-// #figure(image("_assets/study.2-pingness-and-layers/ping-ff-partially-connected.png"), caption: [PING architecture with feedforward connections between E populations.])
+#figure(
+  image("_assets/study.2-pingness-and-layers/ping-ff-partially-connected.png"),
+  caption: [PING architecture with feedforward connections between E populations.],
+)
+
 
 
 In this one there is no E2-I coupling, so E2 is not oscillating on its own.
 The PING bands are broad in layer E2.
 
-// Gallery: raster_row-1_raster_partially_connected*.png, 
-// #figure(image("_artifacts/study.2-pingness-and-layers/raster_row-1_raster_partially_connecteddark.png"), caption: [Layer-delineated rasters for partially connected variant.])
+#figure(
+  image("_artifacts/study.2-pingness-and-layers/raster_row-1_raster_partially_connected_dark.png"),
+  caption: [Layer-delineated rasters for partially connected variant.],
+)
+
 
 
 
 == Fully connected
 
 
-// Gallery: ping-ff-fully-connected.png
-// Path: _assets/study.2-pingness-and-layers
-// #figure(image("_assets/study.2-pingness-and-layers/ping-ff-fully-connected.png"), caption: [PING architecture with feedforward connections between E populations.])
+#figure(
+  image("_assets/study.2-pingness-and-layers/ping-ff-fully-connected.png"),
+  caption: [PING architecture with feedforward connections between E populations.],
+)
 
 
-// Gallery: raster_row-1_raster_fully_connected*.png, 
-// #figure(image("_artifacts/study.2-pingness-and-layers/raster_row-1_raster_fully_connecteddark.png"), caption: [Layer-delineated rasters for fully connected variant.])
+
+#figure(
+  image("_artifacts/study.2-pingness-and-layers/raster_row-1_raster_fully_connected_dark.png"),
+  caption: [Layer-delineated rasters for fully connected variant.],
+)
+
 
 
 We see that the PING bands are much stronger and tighter in layer E2 than in
@@ -94,11 +104,16 @@ feedforward input from E1 can further enhance these oscillations.
 == Independently Connected
 
 
-// Gallery: ping-ff-independently-connected.png
-// Path: _assets/study.2-pingness-and-layers
-// #figure(image("_assets/study.2-pingness-and-layers/ping-ff-independently-connected.png"), caption: [PING architecture with feedforward connections between E populations, this time E2 has its own I population.])
+#figure(
+  image("_assets/study.2-pingness-and-layers/ping-ff-independently-connected.png"),
+  caption: [PING architecture with feedforward connections between E populations, this time E2 has its own I population.],
+)
 
 
-// Gallery: raster_row-1_raster_independently_connected*.png, 
-// #figure(image("_artifacts/study.2-pingness-and-layers/raster_row-1_raster_independently_connecteddark.png"), caption: [Layer-delineated rasters for independently connected variant.])
+
+#figure(
+  image("_artifacts/study.2-pingness-and-layers/raster_row-1_raster_independently_connected_dark.png"),
+  caption: [Layer-delineated rasters for independently connected variant.],
+)
+
 

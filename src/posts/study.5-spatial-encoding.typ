@@ -29,14 +29,20 @@ The only manipulation is a per-neuron tonic gradient:
 
 No temporal pattern is injected into the input. Any phase structure comes from recurrent E/I dynamics.
 
-// Gallery: input_row-2_pingloop_tonic-mean-vs-neuron*.png
-// #figure(image("_artifacts/study.5-spatial-encoding/input_row-2_pingloop_tonic-mean-vs-neurondark.png"), caption: [Input construction: tonic mean increases with E neuron id.])
+#figure(
+  image("_artifacts/study.5-spatial-encoding/input_row-2_pingloop_tonic-mean-vs-neuron_dark.png"),
+  caption: [Input construction: tonic mean increases with E neuron id.],
+)
+
 
 
 Figure 5.1 is the ground-truth signal we want to recover from timing.
 
-// Gallery: raster_row-1_pingloop_single-loop*.png
-// #figure(image("_artifacts/study.5-spatial-encoding/raster_row-1_pingloop_single-loopdark.png"), caption: [Single-loop raster. Faint vertical lines are detected I-band centers used as cycle references.])
+#figure(
+  image("_artifacts/study.5-spatial-encoding/raster_row-1_pingloop_single-loop_dark.png"),
+  caption: [Single-loop raster. Faint vertical lines are detected I-band centers used as cycle references.],
+)
+
 
 
 Figure 5.2 shows the key effect: E spikes form diagonal bands across neuron id relative to I-cycle lines, indicating phase ordering.
@@ -67,16 +73,22 @@ $
 
 Implementation detail: neurons with spikes that straddle cycle boundaries can appear as outliers if phase wraps across adjacent cycles. Those are visible in the detached clusters in Figure 5.3.
 
-// Gallery: phase_row-3_pingloop_e-neuron-vs-mean-phase*.png
-// #figure(image("_artifacts/study.5-spatial-encoding/phase_row-3_pingloop_e-neuron-vs-mean-phasedark.png"), caption: [Per-neuron mean phase from I-peak-to-I-peak windows. Dot size scales with tonic mean input.])
+#figure(
+  image("_artifacts/study.5-spatial-encoding/phase_row-3_pingloop_e-neuron-vs-mean-phase_dark.png"),
+  caption: [Per-neuron mean phase from I-peak-to-I-peak windows. Dot size scales with tonic mean input.],
+)
+
 
 
 Figure 5.3 turns the raster geometry into a statistic. Larger markers (higher tonic mean) cluster at earlier phase positions, while lower-drive neurons appear later. 
 
 *Note:* the detached points are likely those that arrived _before_ the first detected I peak, so their phase is in the next cycle. *This is to be investigated*.
 
-// Gallery: decode_row-4_pingloop_true-vs-decoded-tonic*.png
-// #figure(image("_artifacts/study.5-spatial-encoding/decode_row-4_pingloop_true-vs-decoded-tonicdark.png"), caption: [Decoded tonic from phase-only readout versus true tonic input.])
+#figure(
+  image("_artifacts/study.5-spatial-encoding/decode_row-4_pingloop_true-vs-decoded-tonic_dark.png"),
+  caption: [Decoded tonic from phase-only readout versus true tonic input.],
+)
+
 
 
 Figure 5.4 closes the loop: timing alone recovers tonic ranking and approximate magnitude with a strong positive mapping.

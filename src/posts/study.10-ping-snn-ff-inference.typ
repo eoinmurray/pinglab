@@ -23,8 +23,11 @@ reciprocal E\_hid↔I\_global connections.
 = Architecture
 
 
-// Gallery: graph_*.png
-// #figure(image("_artifacts/study.10-ping-snn-ff-inference/graph_dark.png"), caption: [Network topology with initialization parameters.])
+#figure(
+  image("_artifacts/study.10-ping-snn-ff-inference/graph_dark.png"),
+  caption: [Network topology with initialization parameters.],
+)
+
 
 
 
@@ -87,32 +90,57 @@ W\_ee block is [N\_E, N\_E] and loads unchanged regardless of N\_I.
 == Overall accuracy
 
 
-// Gallery: accuracy_per_class*.png
-// #figure(image("_artifacts/study.10-ping-snn-ff-inference/accuracy_per_classdark.png"), caption: [Per-class test accuracy with the I_global PING loop active.])
+#figure(
+  image("_artifacts/study.10-ping-snn-ff-inference/accuracy_per_class_dark.png"),
+  caption: [Per-class test accuracy with the I_global PING loop active.],
+)
+
 
 
 
 == Confusion matrix
 
 
-// Gallery: confusion*.png
-// #figure(image("_artifacts/study.10-ping-snn-ff-inference/confusiondark.png"), caption: [Confusion matrix with PING inhibition.])
+#figure(
+  image("_artifacts/study.10-ping-snn-ff-inference/confusion_dark.png"),
+  caption: [Confusion matrix with PING inhibition.],
+)
+
 
 
 
 == Output layer rasters
 
 
-// Gallery: raster_output_all_all*.png
-// #figure(image("_artifacts/study.10-ping-snn-ff-inference/raster_output_all_alldark.png"), caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class.])
+#figure(
+  image("_artifacts/study.10-ping-snn-ff-inference/raster_output_all_all_dark.png"),
+  caption: [Output layer (10 neurons) spike rasters for one canonical example per digit class.],
+)
+
 
 
 
 == Hidden, inhibitory, and output layer rasters
 
 
-// Gallery: raster_layers_digit_*.png
-// #figure(image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_dark.png"), caption: [Full signal path rasters for each digit (0–9). Top: E_hid. Middle: I_global. Bottom: E_out. Dashed lines separate layers.])
+#figure(
+  grid(
+    columns: 4,
+    gutter: 4pt,
+    image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_00_dark.png"),
+    image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_01_dark.png"),
+    image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_02_dark.png"),
+    image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_03_dark.png"),
+    image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_04_dark.png"),
+    image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_05_dark.png"),
+    image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_06_dark.png"),
+    image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_07_dark.png"),
+    image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_08_dark.png"),
+    image("_artifacts/study.10-ping-snn-ff-inference/raster_layers_digit_09_dark.png"),
+  ),
+  caption: [Full signal path rasters for each digit (0–9). Top: E_hid. Middle: I_global. Bottom: E_out. Dashed lines separate layers.],
+)
+
 
 
 
