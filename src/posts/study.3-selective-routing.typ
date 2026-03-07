@@ -1,27 +1,24 @@
----
-title: study.3-selective-routing
-date: "2026-02-21"
-description: "Selective routing via axonal delay scanning across PING-gated excitability windows."
----
+// title: study.3-selective-routing
+// date: 2026-02-21
+// description: Selective routing via axonal delay scanning across PING-gated excitability windows.
 
-export const path = "_artifacts/study.3-selective-routing";
+#let config = json("_artifacts/study.3-selective-routing/config.json")
 
-import config from "./_artifacts/study.3-selective-routing/config.json";
 
-<VeslxFrontMatter />
 
-__Readers note:__ click images to make them larger, you can then use arrow keys
+
+
+*Readers note:* click images to make them larger, you can then use arrow keys
 to scroll through them.
 
-# Introduction
 
-<VeslxGallery
-  path={"_assets/study.3-selective-routing"}
-  globs={["ping-switch.png"]}
-  captionLabel="Figure 1.1"
-  caption="Switch Topology."
-  size="md"
-/>
+= Introduction
+
+
+// Gallery: ping-switch.png
+// Path: _assets/study.3-selective-routing
+// #figure(image("_assets/study.3-selective-routing/ping-switch.png"), caption: [Switch Topology.])
+
 
 This experiment uses the minimal routing switch:
 
@@ -65,16 +62,13 @@ Mechanism in simple terms:
 that the relative phase of `E2` input against the shared inhibitory cycle
 changes with delay, which is enough to switch the dominant output branch.
 
-# Results
 
-<VeslxGallery
-  path={path}
-  globs={[
-    "raster_row-1_delay_scan*.png",
-  ]}
-  captionLabel="Figure 1.3"
-  size="md"
-/>
+= Results
+
+
+// Gallery: raster_row-1_delay_scan*.png, 
+// #figure(image("_artifacts/study.3-selective-routing/raster_row-1_delay_scandark.png"), caption: [])
+
 
 The raster scan shows clear switching windows:
 
@@ -85,14 +79,9 @@ The raster scan shows clear switching windows:
 
 This is the expected phase-selection behavior from a delay-controlled gate.
 
-<VeslxGallery
-  path={path}
-  globs={[
-    "spikes_row-2_delay_scan*.png",
-  ]}
-  captionLabel="Figure 1.4"
-  size="md"
-/>
+// Gallery: spikes_row-2_delay_scan*.png, 
+// #figure(image("_artifacts/study.3-selective-routing/spikes_row-2_delay_scandark.png"), caption: [])
+
 
 The spike-count plot confirms the same pattern quantitatively:
 

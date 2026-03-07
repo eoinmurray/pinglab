@@ -1,94 +1,83 @@
----
-title: study.5-spatial-encoding
-date: "2026-02-23"
-description: "Graded spatial input producing phase-aligned spike patterns in a PING loop."
----
+// title: study.5-spatial-encoding
+// date: 2026-02-23
+// description: Graded spatial input producing phase-aligned spike patterns in a PING loop.
 
-export const path = "_artifacts/study.5-spatial-encoding";
+#let config = json("_artifacts/study.5-spatial-encoding/config.json")
 
-import config from "./_artifacts/study.5-spatial-encoding/config.json";
 
-<VeslxFrontMatter />
 
-# Study Question
+
+
+
+= Study Question
+
 
 Can a static spatial bias in tonic E-drive be recovered from spike timing alone in a single PING loop?
 
 We keep the network minimal:
 
-1. `E` size = {String(config?.nodes?.find((n) => n.id === "E")?.size ?? "n/a")}
-2. `I` size = {String(config?.nodes?.find((n) => n.id === "I")?.size ?? "n/a")}
+1. `E` size = n/a
+2. `I` size = n/a
 3. reciprocal `E -> I` and `I -> E`
 4. tonic input to `E` only
 
 The only manipulation is a per-neuron tonic gradient:
 
 1. zero input noise (`std=0`)
-2. added offset from min_add={String(config?.meta?.input_gradient?.min_add ?? "n/a")} to max_add={String(config?.meta?.input_gradient?.max_add ?? "n/a")}
+2. added offset from min_add=#config.meta.input_gradient.min_add to max_add=#config.meta.input_gradient.max_add
 3. higher E neuron id means higher tonic mean
 
 No temporal pattern is injected into the input. Any phase structure comes from recurrent E/I dynamics.
 
-<VeslxGallery
-  path={path}
-  globs={["input_row-2_pingloop_tonic-mean-vs-neuron*.png"]}
-  captionLabel="Figure 5.1"
-  caption="Input construction: tonic mean increases with E neuron id."
-  size="md"
-/>
+// Gallery: input_row-2_pingloop_tonic-mean-vs-neuron*.png
+// #figure(image("_artifacts/study.5-spatial-encoding/input_row-2_pingloop_tonic-mean-vs-neurondark.png"), caption: [Input construction: tonic mean increases with E neuron id.])
+
 
 Figure 5.1 is the ground-truth signal we want to recover from timing.
 
-<VeslxGallery
-  path={path}
-  globs={["raster_row-1_pingloop_single-loop*.png"]}
-  captionLabel="Figure 5.2"
-  caption="Single-loop raster. Faint vertical lines are detected I-band centers used as cycle references."
-  size="md"
-/>
+// Gallery: raster_row-1_pingloop_single-loop*.png
+// #figure(image("_artifacts/study.5-spatial-encoding/raster_row-1_pingloop_single-loopdark.png"), caption: [Single-loop raster. Faint vertical lines are detected I-band centers used as cycle references.])
+
 
 Figure 5.2 shows the key effect: E spikes form diagonal bands across neuron id relative to I-cycle lines, indicating phase ordering.
 
-# Decoding Procedure
+
+= Decoding Procedure
+
 
 The decoder is intentionally simple and fully phase-based.
 
 1. Detect cycle anchors from the inhibitory population:
    1. Compute I-population rate in fixed bins.
    2. Find I-band centers (peak times) $\{t_k\}$.
-   3. Treat each interval $[t_k, t_{k+1})$ as one cycle.
+   3. Treat each interval $[t_k, t_(k+1))$ as one cycle.
 2. Convert E spikes to cycle phase:
-   1. For each E spike at time $s \in [t_k, t_{k+1})$, compute
-      $$\phi = \frac{s - t_k}{t_{k+1} - t_k}, \quad \phi \in [0,1)$$
-   2. Aggregate by neuron id and take mean phase $\bar{\phi}_i$ over cycles.
+   1. For each E spike at time $s in [t_k, t_(k+1))$, compute
+$
+  phi = frac(s - t_k, t_(k+1) - t_k),   phi in [0,1)
+$
+
+   2. Aggregate by neuron id and take mean phase $overline(phi)_i$ over cycles.
 3. Turn phase into rank:
    1. Earlier spikes in-cycle imply stronger effective drive in this setup.
-   2. Sort neurons by $\bar{\phi}_i$ (ascending) to get decoded order.
+   2. Sort neurons by $overline(phi)_i$ (ascending) to get decoded order.
 4. Map rank back to tonic magnitude:
    1. Use linear scaling from decoded rank to the known tonic range. TODO add more detailed on linear scaling.
    2. Compare decoded tonic vs true tonic per neuron.
 
 Implementation detail: neurons with spikes that straddle cycle boundaries can appear as outliers if phase wraps across adjacent cycles. Those are visible in the detached clusters in Figure 5.3.
 
-<VeslxGallery
-  path={path}
-  globs={["phase_row-3_pingloop_e-neuron-vs-mean-phase*.png"]}
-  captionLabel="Figure 5.3"
-  caption="Per-neuron mean phase from I-peak-to-I-peak windows. Dot size scales with tonic mean input."
-  size="md"
-/>
+// Gallery: phase_row-3_pingloop_e-neuron-vs-mean-phase*.png
+// #figure(image("_artifacts/study.5-spatial-encoding/phase_row-3_pingloop_e-neuron-vs-mean-phasedark.png"), caption: [Per-neuron mean phase from I-peak-to-I-peak windows. Dot size scales with tonic mean input.])
+
 
 Figure 5.3 turns the raster geometry into a statistic. Larger markers (higher tonic mean) cluster at earlier phase positions, while lower-drive neurons appear later. 
 
-__Note:__ the detached points are likely those that arrived _before_ the first detected I peak, so their phase is in the next cycle. __This is to be investigated__.
+*Note:* the detached points are likely those that arrived _before_ the first detected I peak, so their phase is in the next cycle. *This is to be investigated*.
 
-<VeslxGallery
-  path={path}
-  globs={["decode_row-4_pingloop_true-vs-decoded-tonic*.png"]}
-  captionLabel="Figure 5.4"
-  caption="Decoded tonic from phase-only readout versus true tonic input."
-  size="md"
-/>
+// Gallery: decode_row-4_pingloop_true-vs-decoded-tonic*.png
+// #figure(image("_artifacts/study.5-spatial-encoding/decode_row-4_pingloop_true-vs-decoded-tonicdark.png"), caption: [Decoded tonic from phase-only readout versus true tonic input.])
+
 
 Figure 5.4 closes the loop: timing alone recovers tonic ranking and approximate magnitude with a strong positive mapping.
 
@@ -100,7 +89,9 @@ How to read Figure 5.4:
 4. Points near the diagonal indicate accurate recovery.
 5. Vertical clusters indicate rank ties or boundary effects where multiple neurons collapse to similar decoded values.
 
-# Conclusion
+
+= Conclusion
+
 
 This baseline is now explicit and testable:
 
