@@ -26,11 +26,8 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Install Python deps
-        run: uv sync
+      - name: Setup Typst
+        uses: typst-community/setup-typst@v4
 
       - name: Compile Typst to PDF
         run: |
@@ -44,11 +41,11 @@ jobs:
             else
               root="src/typst"
             fi
-            uv run typst compile "$f" "$out" --root "$root"
+            typst compile "$f" "$out" --root "$root"
           done
 
       - name: Generate PDF manifest
-        run: uv run python src/scripts/generate_manifest.py
+        run: python src/scripts/generate_manifest.py
 
       - name: Install Vite deps
         run: bun install --frozen-lockfile

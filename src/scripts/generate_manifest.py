@@ -12,7 +12,7 @@ def query_metadata(typ_file: Path) -> dict:
     name = typ_file.stem
     root = "src" if name == "report.1-ping-bptt" else "src/typst"
     result = subprocess.run(
-        ["uv", "run", "typst", "query", str(typ_file), "<meta>",
+        ["typst", "query", str(typ_file), "<meta>",
          "--root", root, "--one", "--field", "value"],
         capture_output=True, text=True,
     )
