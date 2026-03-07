@@ -338,13 +338,42 @@ To update the synaptic weight matrices $bold(W)$, we need the gradient $partial 
 
 Concretely, the forward pass builds a computation graph that spans $T$ timesteps. At each step $t$, the voltage $V(t)$ depends on $V(t-1)$, the conductances $g_e(t)$ and $g_i(t)$ depend on their previous values and any incoming spikes, and the spikes $bold(s)(t)$ depend on $V(t)$. The loss at the end depends on all the output spikes and voltages. BPTT traverses this graph in reverse, accumulating gradients from timestep $T$ back to timestep 1.
 
-The gradient of the loss with respect to a weight $W_(i j)$ accumulates contributions from every timestep at which that weight influenced the computation:
+To make the gradient computation precise, we introduce compact notation. Collect each neuron's dynamical variables into a state vector:
 
 $
-  (partial cal(L)) / (partial W_(i j)) = sum_(t=1)^T (partial cal(L)) / (partial g_e^j (t)) dot s_i (t - d)
+  bold(h)(t) = (V(t), thin g_e (t), thin g_i (t))
+$
+
+The forward pass is then a recurrence $bold(h)(t+1) = f(bold(h)(t), bold(s)(t), bold(W))$, where the components expand to the update rules used in our simulator:
+
+$
+  V(t+1) &= V(t) + (Delta t) / C_m [-g_L (V - E_L) + g_e (E_e - V) + g_i (E_i - V) + I_"ext"] \
+  g_e (t+1) &= g_e (t) dot e^(-Delta t \/ tau_"AMPA") + bold(s)_E (t - d)^top bold(W) \
+  g_i (t+1) &= g_i (t) dot e^(-Delta t \/ tau_"GABA") + bold(s)_I (t - d)^top bold(W)_("IE")
+$ <eq:state-update>
+
+BPTT traverses this recurrence in reverse. Define the _adjoint_ (error signal) $bold(delta)(t) = partial cal(L) \/ partial bold(h)(t)$. Applying the chain rule one step at a time gives the adjoint recursion:
+
+$
+  bold(delta)(t) = (partial ell(t)) / (partial bold(h)(t)) + bold(delta)(t+1) dot bold(J)(t)
+$ <eq:adjoint>
+
+where $bold(J)(t) = partial bold(h)(t+1) \/ partial bold(h)(t)$ is the one-step Jacobian and $ell(t)$ is any per-timestep loss contribution. The key Jacobian entries are:
+
+$
+  (partial V(t+1)) / (partial V(t)) &= 1 + (Delta t) / C_m (-g_L - g_e - g_i) + "surrogate spike term" \
+  (partial V(t+1)) / (partial g_e (t)) &= (Delta t) / C_m (E_e - V)
+$ <eq:jacobian-entries>
+
+The second entry is the excitatory driving force $(E_e - V) approx 65 "mV"$, which acts as a natural gain factor that amplifies the gradient signal flowing from voltage back through the conductance pathway. This structure is what makes the surrogate Jacobian approach (Section 3.3) effective.
+
+Finally, the gradient of the loss with respect to a weight $W_(i j)$ accumulates contributions from every timestep, expressed in terms of the adjoint:
+
+$
+  (partial cal(L)) / (partial W_(i j)) = sum_(t=1)^T delta_(g_e)^j (t) dot s_i (t - d)
 $ <eq:bptt-grad>
 
-where $d$ is the synaptic delay and $s_i(t-d)$ is the presynaptic spike that was delivered at time $t$. The gradient $partial cal(L) \/ partial g_e^j (t)$ is itself computed by back-propagating through the voltage dynamics, spike function, and conductance decay at each subsequent timestep.
+where $delta_(g_e)^j (t)$ is the conductance component of the adjoint for neuron $j$, $d$ is the synaptic delay, and $s_i(t-d)$ is the presynaptic spike delivered at time $t$.
 
 In practice, PyTorch handles this automatically: the forward pass records all operations in a dynamic computation graph, and calling `loss.backward()` traverses the graph to compute all weight gradients via BPTT.
 
@@ -370,17 +399,41 @@ With surrogate gradients, the full back-propagation chain becomes: loss $arrow.r
 
 == Surrogate Jacobian scaling
 
-Even with surrogate gradients enabling gradient flow, training conductance-based spiking networks presents an additional challenge: the gradients can be extremely large.
+Even with surrogate gradients enabling gradient flow, training conductance-based spiking networks presents an additional challenge: the gradients can be extremely large. The source of the problem is visible in the Jacobian entries (@eq:jacobian-entries).
 
-Consider the voltage dynamics (@eq:exc). The excitatory synaptic current is $g_e (E_e - V)$, where $E_e = 0$ mV is the excitatory reversal potential and $V approx -65$ mV near rest. The driving force $(E_e - V) approx 65$ mV acts as a large multiplicative factor: a small change in $g_e$ produces a 65-fold larger change in current, and hence in $d V \/ d t$. After dividing by $C_m$ and accumulating across hundreds of timesteps, the resulting gradients can be orders of magnitude too large for stable learning.
+Consider the voltage row of the one-step Jacobian $bold(J)(t)$. The entries that govern how the adjoint $bold(delta)(t)$ propagates through the voltage state are:
 
-We address this with a _surrogate Jacobian_ technique. The idea is analogous to the surrogate gradient for spikes: we leave the forward dynamics unchanged but modify the backward pass to produce better-behaved gradients. Specifically, we scale the gradient of $d V \/ d t$ as if the membrane capacitance $C_m$ were larger by a factor $xi$ (the `cm_backward_scale` parameter):
+$
+  bold(J)_V (t) = mat(
+    underbrace(1 + (Delta t) / C_m (-g_L - g_e - g_i), approx 0.99),
+    underbrace((Delta t) / C_m (E_e - V), approx 16),
+    underbrace((Delta t) / C_m (E_i - V), approx -2.5)
+  )
+$ <eq:jacobian-row>
+
+The scale mismatch is stark. Plugging in typical resting-state values ($Delta t = 0.25$ ms, $C_m = 1$ nF, $V approx -65$ mV, $E_e = 0$ mV, $E_i = -75$ mV):
+
+$
+  (partial V(t+1)) / (partial V(t)) approx 0.99, quad quad (partial V(t+1)) / (partial g_e (t)) = (0.25 times 65) / 1 = 16.25
+$
+
+The off-diagonal $g_e$ entry is over 16$times$ larger than the diagonal. In the adjoint recursion (@eq:adjoint), $bold(delta)(t) = dots + bold(delta)(t+1) dot bold(J)(t)$, this amplification compounds at every timestep. Over $T = 800$ steps, even modest adjoint signals flowing through the voltage$arrow.r$conductance pathway can grow by many orders of magnitude.
+
+We address this with a _surrogate Jacobian_ technique. The idea is analogous to the surrogate gradient for spikes: we leave the forward dynamics unchanged but modify the backward pass to produce better-behaved gradients. Specifically, we scale the gradient of $d V \/ d t$ by $1 \/ xi$ (the `cm_backward_scale` parameter), as if the membrane capacitance were larger by a factor $xi$:
 
 $
   "forward:" quad (d V)/(d t) = (dots) / C_m, quad quad "backward:" quad (partial cal(L))/(partial (d V \/ d t)) arrow.r 1/xi dot (partial cal(L))/(partial (d V \/ d t))
 $ <eq:cm-scale>
 
-With $xi = 100$ (our default), the backward pass sees gradients as if $C_m$ were 100x larger, reducing them by a factor of 100. This is implemented using a gradient scaling trick: $f(x) = x dot xi^(-1) + "detach"(x) dot (1 - xi^(-1))$ evaluates to $x$ in the forward pass but has gradient scaled by $xi^(-1)$ in the backward pass.
+This uniformly scales the voltage row of the Jacobian:
+
+$
+  tilde(bold(J))_V (t) = 1/xi dot bold(J)_V (t)
+$ <eq:scaled-jacobian>
+
+With $xi = 100$, the effective $partial V \/ partial g_e$ drops from 16.25 to 0.16 --- now comparable to the diagonal entry rather than dominating it. The adjoint recursion (@eq:adjoint) with $tilde(bold(J))$ in place of $bold(J)$ no longer amplifies exponentially through the voltage channel, while the conductance rows of $bold(J)(t)$ (simple exponential decays) remain unscaled.
+
+This is implemented using a gradient scaling trick: $f(x) = x dot xi^(-1) + "detach"(x) dot (1 - xi^(-1))$ evaluates to $x$ in the forward pass but has gradient scaled by $xi^(-1)$ in the backward pass.
 
 Combined with per-parameter gradient clipping (max norm 1.0), the surrogate Jacobian makes training stable even at fine timesteps ($Delta t = 0.25$--$0.5$ ms) where the computation graph spans hundreds of steps.
 
