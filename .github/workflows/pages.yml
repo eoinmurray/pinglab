@@ -36,12 +36,7 @@ jobs:
           for f in src/typst/*.typ; do
             name="$(basename "$f" .typ)"
             out="src/vite/public/${name}.pdf"
-            if [ "$name" = "report.1-ping-bptt" ]; then
-              root="src"
-            else
-              root="src/typst"
-            fi
-            typst compile "$f" "$out" --root "$root"
+            typst compile "$f" "$out" --root "src/typst"
           done
 
       - name: Generate PDF manifest

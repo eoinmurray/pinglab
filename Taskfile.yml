@@ -150,12 +150,7 @@ tasks:
           name="$(basename "$f" .typ)"
           out="src/vite/public/${name}.pdf"
           printf "Compiling %-50s" "$name"
-          if [ "$name" = "report.1-ping-bptt" ]; then
-            root="src"
-          else
-            root="src/typst"
-          fi
-          if uv run typst compile "$f" "$out" --root "$root" 2>/tmp/typst-err-$$; then
+          if uv run typst compile "$f" "$out" --root "src/typst" 2>/tmp/typst-err-$$; then
             echo "✓"
             count=$((count + 1))
           else
@@ -178,12 +173,7 @@ tasks:
         for f in src/typst/*.typ; do
           name="$(basename "$f" .typ)"
           out="src/vite/public/${name}.pdf"
-          if [ "$name" = "report.1-ping-bptt" ]; then
-            root="src"
-          else
-            root="src/typst"
-          fi
-          uv run typst watch "$f" "$out" --root "$root" &
+          uv run typst watch "$f" "$out" --root "src/typst" &
         done
         echo "Watching $(ls src/typst/*.typ | wc -l | tr -d ' ') .typ files for changes..."
         # Generate manifest initially, then watch for .typ changes
