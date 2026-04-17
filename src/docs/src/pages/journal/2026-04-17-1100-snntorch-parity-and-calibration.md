@@ -1,11 +1,11 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "Friday 2026-04-17 11:00 — snntorch vs snntorch-library parity, and the snntorch calibration ladder"
+title: "Friday, April 17 2026 — snnTorch calibration"
 date: 2026-04-17
 ---
 
-# snntorch vs snntorch-library parity, and the snntorch calibration ladder
+# snnTorch calibration
 
-*Friday 2026-04-17 11:00 CEST*
+*Friday, April 17 2026*
 
 *Stub — not yet drafted.*
