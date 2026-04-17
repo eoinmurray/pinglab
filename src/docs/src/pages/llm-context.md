@@ -169,9 +169,11 @@ Visible dates use the long-form, day-of-week-first format: *DayName, Month D YYY
 
 Three places per entry combine these:
 
-1. Frontmatter title — *title: "Entry 001 — &lt;title&gt;"* (number only; date omitted here so tabs stay compact)
-2. Italic byline under H1 — *Entry 001 · Thursday, April 16 2026*
-3. Home-page Notebook list in *src/docs/src/pages/index.astro* — *&lt;strong&gt;Entry 001&lt;/strong&gt; · Thursday, April 16 2026 — &lt;link to title&gt;*, pointing at */notebook/&lt;NNN-entry-slug&gt;/*
+1. Frontmatter title — *title: "001 — &lt;title&gt;"* (number only; date omitted here so tabs stay compact)
+2. Italic byline under H1 — *001 · Thursday, April 16 2026*
+3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · Thursday, April 16 2026 — &lt;link to title&gt;*, pointing at */notebook/&lt;NNN-entry-slug&gt;/*
+
+The word "Entry" is never written — the zero-padded number carries the meaning on its own.
 
 Filenames and URL slugs are *NNN-descriptive-name* (e.g. *001-snntorch-calibration.mdx*). The canonical ISO date lives in frontmatter (*date: YYYY-MM-DD*) alongside *entry: &lt;N&gt;*. Day-name only appears in human-visible text. Compute on macOS with *date -j -f "%Y-%m-%d" &lt;YYYY-MM-DD&gt; "+%A"*; Linux: *date -d &lt;YYYY-MM-DD&gt; +%A*.
 
