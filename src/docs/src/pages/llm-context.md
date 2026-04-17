@@ -26,9 +26,9 @@ Code writes only to *src/artifacts/*. It never touches *src/docs/*. Figures ente
 
 ## Journal
 
-All writeups are journal entries at *src/docs/src/pages/journal/&lt;slug&gt;.md*, listed chronologically at *src/docs/src/pages/journal/index.md*. There is no separate per-experiment page or paper layer — when a paper-shaped writeup is appropriate, it is a journal entry like any other.
+All writeups are journal entries at *src/docs/src/pages/journal/&lt;slug&gt;.md*, listed chronologically on the home page at *src/docs/src/pages/index.astro*. There is no separate per-experiment page or paper layer — when a paper-shaped writeup is appropriate, it is a journal entry like any other.
 
-**Slug.** Descriptive, no date prefix — e.g. *snntorch-calibration*, not *2026-04-17-1100-snntorch-parity-and-calibration*. The slug is the filename, the URL, and the key for the parallel repro and figures directories. The canonical date lives in the entry's frontmatter (*date: YYYY-MM-DD*) and in its visible long-form byline; the filename stays date-free so the slug can read as prose. Chronological ordering in *journal/index.md* is human-maintained.
+**Slug.** Descriptive, no date prefix — e.g. *snntorch-calibration*, not *2026-04-17-1100-snntorch-parity-and-calibration*. The slug is the filename, the URL, and the key for the parallel repro and figures directories. The canonical date lives in the entry's frontmatter (*date: YYYY-MM-DD*) and in its visible long-form byline; the filename stays date-free so the slug can read as prose. Chronological ordering in the home page's Journal list is human-maintained.
 
 Most entries follow a fixed structure: Introduction, Method, Findings, Implications, Next steps. Longer paper-style drafts keep their own section numbering.
 
@@ -169,7 +169,7 @@ Three places per entry use this:
 
 1. Frontmatter title — *title: "Thursday, April 16 2026 — &lt;slug&gt;"*
 2. Italic byline under H1 — *Thursday, April 16 2026*
-3. Index link in *src/docs/src/pages/journal/index.md* — bold date prefix *Thursday, April 16 2026* followed by *— &lt;title&gt;*, pointing at */journal/&lt;entry-slug&gt;/*
+3. Home-page Journal list in *src/docs/src/pages/index.astro* — bold date prefix *Thursday, April 16 2026* followed by *— &lt;title&gt;*, pointing at */journal/&lt;entry-slug&gt;/*
 
 Filenames and URL slugs are date-free (e.g. *snntorch-calibration.md*); the canonical date lives in frontmatter (*date: YYYY-MM-DD*). Day-name only appears in human-visible text. Compute on macOS with *date -j -f "%Y-%m-%d" &lt;YYYY-MM-DD&gt; "+%A"*; Linux: *date -d &lt;YYYY-MM-DD&gt; +%A*.
 
