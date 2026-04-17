@@ -1,9 +1,11 @@
 [project]
-name = "pinglab-root"
+name = "pinglab"
 version = "0.1.0"
-description = "Add your description here"
+description = "Spiking neural networks with explicit E/I and PING dynamics, trained with surrogate gradients and diagnosed via Δt-stability."
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Eoin Murray" }]
 dependencies = [
     "numpy>=2.2.6",
     "scipy>=1.15.3",
@@ -29,6 +31,10 @@ dependencies = [
     "typer>=0.12.0",
     "sh>=2.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/eoinmurray/pinglab"
+Repository = "https://github.com/eoinmurray/pinglab"
 
 [build-system]
 requires = ["hatchling"]
