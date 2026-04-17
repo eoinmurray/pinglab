@@ -1,5 +1,7 @@
 # Pinglab
 
+Site: [pl.eoinmurray.info](https://pl.eoinmurray.info)
+
 Spiking neural networks with explicit excitatory/inhibitory populations and PING (pyramidal–interneuron gamma) dynamics, trained with surrogate gradients and measured against simpler recurrent baselines.
 
 The shared diagnostic is **Δt-stability**: train at one integration timestep, evaluate at another. Models grounded in continuous-time dynamics generalise across Δt; models that overfit their training step do not.
