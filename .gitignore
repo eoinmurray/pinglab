@@ -1,0 +1,63 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.pyd
+.task
+.Python
+*.pt
+*.pth
+.env
+src/data/**
+worktrees/
+src/datasets/**
+.env.local
+.env.*.local
+.export
+.playwright-mcp
+.latest
+PLAN.md
+.db
+.uv-cache
+.vscode
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.ruff_cache/
+
+# Results system (new architecture)
+# Track: runs/, sweeps/, reports/, catalog/ (with manifests, configs, plots)
+# Ignore: blobs/ (large files handled by Git LFS or pointers)
+results/blobs/
+
+# Binary data files in old .db/ system (deprecated)
+.db/**/*.npz
+.db/**/*.h5
+.db/**/*.hdf5
+
+# Cached datasets (MNIST, etc.) in experiment data dirs
+**/data/MNIST/
+
+# Run data dirs (NPZ, weights, logs) — one per training run
+src/experiments/*/data/*/
+
+node_modules
+
+# Harness run outputs — reproducible from code + config + seed
+src/artifacts/
+
+# Astro build output
+src/docs/dist/
+
+# Frontend builds are handled by src/cathedral/.gitignore
+
+# Avoid committing full-text PDFs of papers (link out instead)
+content/paper.*/*.pdf
+src/posts/*.pdf
+src/vite/public/*.pdf
+src/vite/public/manifest.json
