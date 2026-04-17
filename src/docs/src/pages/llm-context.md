@@ -208,6 +208,22 @@ If a "finding" in a journal entry turns out to be a bug about to be fixed, remov
 
 When a journal entry's narrative gets invalidated by a fix (e.g., an "accuracy gap" that was actually a device-specific bug), the entry needs rewriting against the post-fix baseline — not a new subsection documenting the debugging trail. Durable profilers added mid-investigation get removed with the journal subsection unless they have standalone value beyond the fixed bug.
 
+### 8. Run sizing tiers
+
+Journal entry runs pick from a fixed set of tiers. Tiers are size-named so the expected wall-clock cost is legible from the config alone. ETAs below are per model on MPS at dt 0.25 ms, post the MPS fast-path fix:
+
+| tier | max-samples | epochs | t-ms | steps | ~ETA/model |
+| ---- | ----------: | -----: | ---: | ----: | ---------: |
+| tiny   |   200 |  3 | 600 | 2400 |  ~15 s |
+| small  |   500 |  5 | 600 | 2400 |  ~50 s |
+| medium |  2000 | 10 | 600 | 2400 |  ~7 min |
+| large  |  5000 | 40 | 200 |  800 | ~20 min |
+| huge   | 10000 | 40 | 600 | 2400 |  ~4 hr |
+
+Cost scales linearly in *max-samples × epochs × t-ms* (≈3.3 × 10⁻⁵ s per unit per model on MPS). Multi-model comparisons multiply: an N-model head-to-head at *medium* is N × ~7 min. *observe video* with per-epoch frames adds ≲10% at *medium* and above.
+
+Each journal entry names the tier it ran at — either in Method prose or implicitly via its repro script's *MAX_SAMPLES / EPOCHS / T_MS* constants. If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
+
 ## Maintaining this page
 
 When a convention changes, update this page and propagate to persistent memory under *~/.claude/projects/-Users-eoin-pinglab/memory/*. Conventions are enforced by reading and care, not by automation.
