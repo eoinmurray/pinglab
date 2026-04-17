@@ -1,0 +1,24 @@
+{
+  "config": {
+    "dataset": "mnist",
+    "max_samples": 200,
+    "epochs": 3,
+    "kaiming_init": true
+  },
+  "runs": {
+    "snntorch": {
+      "best_acc": 27.5,
+      "best_epoch": 3,
+      "final_acc": 27.5,
+      "final_loss": 39.1541862487793,
+      "total_elapsed_s": 411.73213116731495
+    },
+    "snntorch-library": {
+      "best_acc": 10.0,
+      "best_epoch": 1,
+      "final_acc": 10.0,
+      "final_loss": 136.90862019856772,
+      "total_elapsed_s": 10.882983833085746
+    }
+  }
+}
