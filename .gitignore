@@ -61,3 +61,9 @@ content/paper.*/*.pdf
 src/posts/*.pdf
 src/vite/public/*.pdf
 src/vite/public/manifest.json
+
+# Third-party reading-list PDFs — copyright, not redistributed
+src/papers/*.pdf
+
+# Keynote source files — large binaries, not useful in source
+src/keynote/*.key
