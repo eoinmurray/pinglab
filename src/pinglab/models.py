@@ -379,11 +379,14 @@ class SNNTorchNet(SNNBase):
             bias_scale = 1.0
 
         # Pre-compute input drive for all timesteps as one big matmul.
-        # Only on GPU where big matmuls are efficient. On CPU, the (T, B, N_hid)
-        # intermediate blows the cache and swaps — per-step is faster.
+        # Only on CUDA where big matmuls are efficient. On CPU, the (T, B, N_hid)
+        # intermediate blows the cache and swaps — per-step is faster. On MPS,
+        # holding a (T, B, N_hid) tensor (hundreds of MB) in the autograd graph
+        # triggers a per-step .item() sync storm on backward — per-step matmul
+        # mirrors what the snntorch library path does and stays fast.
         # Exp-synapse path needs raw (W·s) to accumulate into g; skip fast-path.
         input_drive_all = None
-        if (has_input_spikes and device.type != "cpu"
+        if (has_input_spikes and device.type == "cuda"
                 and not self.exponential_synapse):
             input_drive_all = (spike_scale * (input_spikes @ W_ff[0])
                                + bias_scale * b_ff[0])
@@ -499,7 +502,10 @@ class SNNTorchNet(SNNBase):
                 prev_spk = s
 
                 hk = self._hid_key(i + 1)
-                n_spk_tensors[hk] += s.sum()
+                # Detach: spike counts are metadata, not training signal.
+                # Without detach, this += chains a 2400-step grad graph that
+                # makes any later .item() stall on graph traversal.
+                n_spk_tensors[hk] += s.detach().sum()
                 if rec_buf is not None:
                     rec_buf[hk][t] = s
 
@@ -701,7 +707,7 @@ class SNNTorchLibraryNet(SNNBase):
                 prev_spk = spk
 
                 hk = self._hid_key(i + 1)
-                n_spk_tensors[hk] = n_spk_tensors[hk] + spk.sum()
+                n_spk_tensors[hk] = n_spk_tensors[hk] + spk.detach().sum()
                 if rec_buf is not None:
                     rec_buf[hk][t] = spk
 
@@ -806,9 +812,12 @@ class PINGNet(SNNBase):
             W_ff = [W.clamp(min=0) for W in self.W_ff]
         g_noise = noise_std / (E_e - E_L) if noise_std > 0 else 0.0
 
-        # Pre-compute input drive for all timesteps — GPU only (CPU hurts from it)
+        # Pre-compute input drive for all timesteps — CUDA only. On MPS the
+        # (T, B, N_hid) intermediate inflates the autograd graph and triggers
+        # a per-step .item() sync storm on backward. On CPU the big matmul
+        # blows the cache.
         input_drive_all = None
-        if has_input_spikes and device.type != "cpu":
+        if has_input_spikes and device.type == "cuda":
             input_drive_all = input_spikes @ W_ff[0]
 
         # Per-layer state
@@ -916,12 +925,12 @@ class PINGNet(SNNBase):
                 prev_spk = s_e[k]
 
                 hk = self._hid_key(i)
-                n_spk_tensors[hk] += s_e[k].sum()
+                n_spk_tensors[hk] += s_e[k].detach().sum()
                 if rec_buf is not None:
                     rec_buf[hk][t] = s_e[k]
                 if is_ei:
                     ik = self._inh_key(i)
-                    n_spk_tensors[ik] += s_i[k].sum()
+                    n_spk_tensors[ik] += s_i[k].detach().sum()
                     if rec_buf is not None:
                         rec_buf[ik][t] = s_i[k]
 
