@@ -9,24 +9,27 @@
     "n_hidden": 1024,
     "batch_size": 64,
     "lr": 0.01,
-    "kaiming_init": true
+    "kaiming_init": true,
+    "seed": 42
   },
   "runs": {
     "snntorch": {
       "label": "pinglab snntorch",
-      "best_acc": 32.5,
-      "best_epoch": 2,
-      "final_acc": 25.0,
-      "final_loss": 42.54721260070801,
-      "total_elapsed_s": 8.178325208369642
+      "run_date": "Friday, April 17 2026",
+      "best_acc": 22.5,
+      "best_epoch": 1,
+      "final_acc": 22.5,
+      "final_loss": 11.847390492757162,
+      "total_elapsed_s": 8.02451870823279
     },
     "snntorch-library": {
       "label": "snnTorch library",
-      "best_acc": 20.0,
+      "run_date": "Friday, April 17 2026",
+      "best_acc": 10.0,
       "best_epoch": 1,
       "final_acc": 10.0,
-      "final_loss": 166.8827921549479,
-      "total_elapsed_s": 11.015711875166744
+      "final_loss": 162.9092814127604,
+      "total_elapsed_s": 10.799202791880816
     }
   }
 }
