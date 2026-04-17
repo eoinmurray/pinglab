@@ -32,6 +32,12 @@ Both models were trained on a {cfg.max_samples}-sample subset of MNIST for {cfg.
 
 At matched config, the two implementations diverge sharply. Pinglab's *snntorch* reached {snn.best_acc}% test accuracy at epoch {snn.best_epoch}, while *snntorch-library* peaked at {lib.best_acc}% at epoch {lib.best_epoch} — a {(snn.best_acc / lib.best_acc).toFixed(1)}× accuracy ratio. Final-epoch training loss runs in the opposite direction: {snn.final_loss.toFixed(1)} for the pinglab path against {lib.final_loss.toFixed(1)} for the library path, a {(lib.final_loss / snn.final_loss).toFixed(1)}× gap with the library sitting higher.
 
+### Firing rate across training
+
+![Hidden-layer firing rate vs epoch](/figures/notebook/001-snntorch-calibration/firing_rates.png)
+
+*Mean hidden-layer firing rate (Hz) at the end of each epoch. Same matched config as the accuracy figure; rate is measured on the test set.*
+
 ### Training dynamics
 
 <video controls loop muted playsinline width="100%" src="/figures/notebook/001-snntorch-calibration/training_snntorch.mp4" />
@@ -87,3 +93,5 @@ Audit *cm_back_scale* and any loss-scale differences between the tutorial path (
 | lr | {cfg.lr} |
 | Elapsed — {snn.label} | {snn.total_elapsed_s.toFixed(0)} s |
 | Elapsed — {lib.label} | {lib.total_elapsed_s.toFixed(0)} s |
+| Run date — {snn.label} | {snn.run_date} |
+| Run date — {lib.label} | {lib.run_date} |
