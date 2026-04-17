@@ -22,7 +22,7 @@ The project is organised in six layers. Each layer has one job; they are connect
 - **Reference literature** — *src/papers/*. Bibliography for the project (PDFs themselves are not redistributed; see *src/papers/README.md* for citations).
 - **Collaboration meta** — *CLAUDE.md* at the repo root, this LLM Context page, and a persistent memory directory under *~/.claude/projects/-Users-eoin-pinglab/memory/*. The agreed-upon rules for how the human and AI work on this project.
 
-Code writes only to *src/artifacts/*. It never touches *src/docs/*. Figures enter the docs site via an explicit freeze step.
+Raw run outputs go to *src/artifacts/* (gitignored). Published figures live under *src/docs/public/figures/notebook/&lt;slug&gt;/* and are written there directly by the entry's repro script — that script *is* the promotion gate.
 
 ## Notebook
 
@@ -68,19 +68,11 @@ The entry follows.
 
 ## Figures
 
-Figures produced by *oscilloscope.py* and notebook repro scripts land under *src/artifacts/*. When one is ready to publish, freeze it:
+Raw outputs from *oscilloscope.py* land under *src/artifacts/* (gitignored). Figures shown in a notebook entry are written by that entry's repro script at *src/pinglab/notebook/&lt;slug&gt;.py* directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. The repro script is the promotion gate — running it reads the latest run's metrics and writes the published PNG, MP4, and *numbers.json* into place.
 
-```sh
-uv run python src/scripts/freeze-figure.py <source> <dest>
-```
+Provenance lives in the repro script plus git history: the script's *SLUG*, *MAX_SAMPLES*, *EPOCHS*, and *TIER* constants pin the run config; the commit pins the model code. Every published figure belongs to exactly one notebook entry under *src/docs/public/figures/notebook/&lt;slug&gt;/*. Reference from markdown via the web path, e.g. */figures/notebook/&lt;slug&gt;/&lt;figure-name&gt;.png*.
 
-The script copies the PNG and writes a sidecar JSON with the git SHA at freeze time and the run config (run_id, model, dt, samples, epochs). Every frozen figure belongs to exactly one notebook entry:
-
-- Destination — *src/docs/public/figures/notebook/&lt;entry-slug&gt;/&lt;name&gt;.png*
-
-Reference from markdown via the web path, e.g. */figures/notebook/&lt;entry-slug&gt;/&lt;figure-name&gt;.png*.
-
-Commit the PNG, the sidecar JSON, and the markdown edit together. Figures use 16:9 aspect ratio.
+Commit the PNG, the *numbers.json* update, and the markdown edit together. Figures use 16:9 aspect ratio.
 
 ## Running
 
@@ -139,7 +131,7 @@ Facts about this repo that are load-bearing and easy to get wrong.
 
 - **Δt is in milliseconds.** Everywhere. Config fields carry the *_ms* suffix (*sim_ms*, *burn_in_ms*, *step_on_ms*); CLI flags follow the same convention (*--t-ms*). A "Δt of 1" means 1 ms, not 1 s.
 - **Trial length defaults to 600 ms** (*--t-ms 600*). Shorter trials emit a warning — the harness will let you run them but flags that the transient window is too short.
-- **Code writes only to src/artifacts/.** *oscilloscope.py* and notebook repro scripts never touch *src/docs/*. Figures enter the docs site exclusively through *src/scripts/freeze-figure.py*.
+- **Raw run outputs go to src/artifacts/; published figures go to src/docs/public/figures/notebook/&lt;slug&gt;/.** *oscilloscope.py* writes only to its *--out-dir* (typically under *src/artifacts/*). The notebook repro script reads from those run dirs and writes published figures directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. There is no separate freeze step.
 - **src/artifacts/ is gitignored.** Nothing under it is part of the repo; it is reproducible from code + config + seed.
 - **PING recurrent weights are frozen.** Set analytically at init, not trained. Only input and output weights are trainable across the ladder. This is a deliberate control — it isolates the effect of the E–I architecture from learning of internal weights.
 - **Poisson input encoding is frozen across Δt-sweeps.** Each image is encoded once at the finest sweep Δt, then OR-pooled to the target Δt. This eliminates Poisson resampling as a confound.

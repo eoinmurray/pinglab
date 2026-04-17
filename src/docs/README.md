@@ -10,12 +10,6 @@ bun run build    # static build to dist/
 
 See `src/pages/llm-context.md` for the docs conventions (notebook structure, figure namespacing, date format, captions, etc.).
 
-## Figure freeze flow
+## Figures
 
-Figures produced by `src/pinglab/oscilloscope.py` or by a notebook repro script at `src/pinglab/notebook/<slug>.py` land under `src/artifacts/` (gitignored). To publish, freeze into the docs tree:
-
-```sh
-uv run python src/scripts/freeze-figure.py <source> src/docs/public/figures/notebook/<entry-slug>/<name>.png
-```
-
-The script copies the PNG and writes a sidecar JSON with the git SHA at freeze time and the run config. Every frozen figure belongs to exactly one notebook entry — reference from markdown via the web path `/figures/notebook/<entry-slug>/<name>.png`.
+Raw outputs from `src/pinglab/oscilloscope.py` land under `src/artifacts/` (gitignored). Figures shown in a notebook entry are written by that entry's repro script at `src/pinglab/notebook/<slug>.py` directly into `src/docs/public/figures/notebook/<slug>/`. The repro script is the promotion gate — running it regenerates every figure and `numbers.json` the entry cites. Every published figure belongs to exactly one entry; reference from markdown via the web path `/figures/notebook/<slug>/<name>.png`.
