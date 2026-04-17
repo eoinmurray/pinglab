@@ -1,0 +1,58 @@
+{
+  "parity_sweep_train_dt_1.0_size_500x10": {
+    "snntorch": {
+      "0.1": 44.0,
+      "0.25": 74.0,
+      "0.5": 85.0,
+      "1.0": 85.0,
+      "2.0": 83.0
+    },
+    "snntorch-library": {
+      "0.1": 19.0,
+      "0.25": 51.0,
+      "0.5": 76.0,
+      "1.0": 86.0,
+      "2.0": 82.0
+    }
+  },
+  "calibration_ladder_snntorch": {
+    "train_dt_0.1": {
+      "100": 40.0,
+      "1000": 85.5,
+      "15000": 92.1
+    },
+    "train_dt_1.0": {
+      "50": 40.0,
+      "100": 75.0,
+      "500": 85.0,
+      "1000": 88.0,
+      "15000": 95.67
+    }
+  },
+  "rasters_one_sample_sample_idx_0": {
+    "snntorch_dt1.0": {
+      "label": 1,
+      "pred": 1,
+      "rate_hz": 0.12,
+      "active_frac": 0.0234
+    },
+    "snntorch_dt0.1": {
+      "label": 1,
+      "pred": 1,
+      "rate_hz": 0.3,
+      "active_frac": 0.0059
+    },
+    "snntorch-library_dt1.0": {
+      "label": 1,
+      "pred": 1,
+      "rate_hz": 0.27,
+      "active_frac": 0.0312
+    },
+    "snntorch-library_dt0.1": {
+      "label": 1,
+      "pred": 7,
+      "rate_hz": 45.72,
+      "active_frac": 0.1904
+    }
+  }
+}
