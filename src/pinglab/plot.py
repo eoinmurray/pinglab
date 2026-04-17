@@ -238,6 +238,12 @@ def make_fig(panels=None):
     """
     panels = panels or ACTIVE_PANELS
 
+    # Sidebar panels are placed via a sub-gridspec in column 2; exclude
+    # them from main-row building so they don't create empty rows.
+    sidebar_panels = [(name, "sidebar") for name in panels
+                      if name in PANEL_CATALOG
+                      and PANEL_CATALOG[name][0] == "sidebar"]
+
     # Group panels into rows: full-width panels get their own row,
     # left/center/right panels accumulate into shared rows.
     rows = []         # list of (height, [(name, span), ...])
@@ -248,6 +254,9 @@ def make_fig(panels=None):
         if name not in PANEL_CATALOG:
             continue
         span, height = PANEL_CATALOG[name]
+
+        if span == "sidebar":
+            continue  # handled separately below
 
         if span == "full":
             # Flush any pending partial row
@@ -275,17 +284,11 @@ def make_fig(panels=None):
         return fig, {}
 
     height_ratios = [r[0] for r in rows]
-    total_h = sum(height_ratios)
-    fig_h = max(6, min(22, total_h * 2.5 + 1))
 
     fig_w = 22
     fig_h = fig_w * 9 / 16  # 16:9 aspect ratio
     fig = plt.figure(figsize=(fig_w, fig_h))
     fig.subplots_adjust(left=0.05, right=0.97, top=0.97, bottom=0.04)
-    # Separate sidebar panels from main layout
-    sidebar_panels = [(name, span) for _, items in rows for name, span in items if span == "sidebar"]
-    rows = [(h, [(n, s) for n, s in items if s != "sidebar"]) for h, items in rows]
-    rows = [(h, items) for h, items in rows if items]  # remove empty rows
 
     has_sidebar = len(sidebar_panels) > 0
 
@@ -333,14 +336,21 @@ def make_fig(panels=None):
 
             panel_dict[name] = ax
 
-    # Place sidebar panels in column 2 using a sub-gridspec
-    # with fixed height slots (1 unit each) + spacer at bottom
+    # Place sidebar panels in column 2 using a sub-gridspec.
+    # Match each sidebar slot to a main content row below the header so
+    # the sidebars align visually and no empty spacer is left at the bottom.
     if has_sidebar:
         n_sidebar = len(sidebar_panels)
-        # Each panel gets 1 unit, spacer gets remaining
-        sidebar_ratios = [1] * n_sidebar + [max(1, n_rows - 1 - n_sidebar)]
+        main_heights = height_ratios[1:]  # skip header row
+        if len(main_heights) >= n_sidebar:
+            sidebar_h = list(main_heights[:n_sidebar])
+            trailing = sum(main_heights[n_sidebar:])
+            if trailing > 0:
+                sidebar_h.append(trailing)
+        else:
+            sidebar_h = [1] * n_sidebar
         gs_sidebar = gs[1:, 2].subgridspec(
-            n_sidebar + 1, 1, height_ratios=sidebar_ratios, hspace=0.3)
+            len(sidebar_h), 1, height_ratios=sidebar_h, hspace=0.3)
         for i, (name, _) in enumerate(sidebar_panels):
             ax = fig.add_subplot(gs_sidebar[i, 0])
             panel_dict[name] = ax
