@@ -2,7 +2,7 @@
 
 Reading list for this project. The PDFs themselves are third-party copyrighted material and are **not redistributed** in this repo — the filenames below match the cached PDFs a local checkout may drop alongside this file (gitignored). Follow the links to fetch them.
 
-Keys are `firstauthor[-et-al]` and match the citation keys used in the journal.
+Keys are `firstauthor[-et-al]` and match the citation keys used in the notebook.
 
 ## Surrogate-gradient SNN training
 - **eshraghain-et-al** — Eshraghian et al., *Training Spiking Neural Networks Using Lessons From Deep Learning*, Proc. IEEE 2023. https://arxiv.org/abs/2109.12894 (snnTorch reference)

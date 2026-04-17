@@ -3,7 +3,7 @@ layout: ../../layouts/MarkdownLayout.astro
 title: "Friday, April 17 2026 — snnTorch calibration"
 date: 2026-04-17
 ---
-import numbers from "../../../public/figures/journal/snntorch-calibration/numbers.json";
+import numbers from "../../../public/figures/notebook/snntorch-calibration/numbers.json";
 
 export const snn = numbers.runs.snntorch;
 export const lib = numbers.runs["snntorch-library"];
@@ -12,8 +12,6 @@ export const cfg = numbers.config;
 # snnTorch calibration
 
 *Friday, April 17 2026*
-
-*Run tier: **{cfg.tier}** — {cfg.max_samples} samples · {cfg.epochs} epochs · {cfg.t_ms} ms T · dt {cfg.dt} ms · {cfg.n_hidden} hidden · batch {cfg.batch_size} · lr {cfg.lr}. Elapsed: {snn.total_elapsed_s.toFixed(0)} s ({snn.label}) / {lib.total_elapsed_s.toFixed(0)} s ({lib.label}).*
 
 ## Introduction
 
@@ -27,7 +25,7 @@ Both models were trained on a {cfg.max_samples}-sample subset of MNIST for {cfg.
 
 ### Matched-config accuracy gap
 
-![Training curves: pinglab snntorch vs snnTorch library](/figures/journal/snntorch-calibration/training_curves.png)
+![Training curves: pinglab snntorch vs snnTorch library](/figures/notebook/snntorch-calibration/training_curves.png)
 
 *Training loss and test accuracy for both implementations over {cfg.epochs} epochs. Same data, same optimizer, same init family, same 1024-unit single-layer architecture; only the LIF step and surrogate differ.*
 
@@ -35,11 +33,11 @@ At matched config, the two implementations diverge sharply. Pinglab's *snntorch*
 
 ### Training dynamics
 
-<video controls loop muted playsinline width="100%" src="/figures/journal/snntorch-calibration/training_snntorch.mp4" />
+<video controls loop muted playsinline width="100%" src="/figures/notebook/snntorch-calibration/training_snntorch.mp4" />
 
 *Pinglab snntorch, one frame per epoch. Sidebars accumulate training history: accuracy curve, per-layer gradient flow, and E/I rate trace.*
 
-<video controls loop muted playsinline width="100%" src="/figures/journal/snntorch-calibration/training_snntorch-library.mp4" />
+<video controls loop muted playsinline width="100%" src="/figures/notebook/snntorch-calibration/training_snntorch-library.mp4" />
 
 *snnTorch library, same matched config. Compare the raster density, the population-rate spectrum, and the output-logit raster between the two as the weights evolve.*
 
@@ -55,20 +53,36 @@ The two networks are *not* calibrated yet. Claiming that the in-repo LIF is a dr
 
 Each paragraph below is a standalone prompt — select and paste it into Claude Code as-is to execute the step.
 
-Add a *--seed* flag to *src/pinglab/oscilloscope.py* that seeds Python, NumPy, and torch RNGs (including CUDA) before dataset construction and model init. Thread the seed through *train()* and *infer()*, persist it to the run's *config.json*, and add it to *src/pinglab/journal/snntorch-calibration.py* so both matched runs use the same seed. Verify bit-level reproducibility by running the same seed twice and diffing *metrics.json*.
+Add a *--seed* flag to *src/pinglab/oscilloscope.py* that seeds Python, NumPy, and torch RNGs (including CUDA) before dataset construction and model init. Thread the seed through *train()* and *infer()*, persist it to the run's *config.json*, and add it to *src/pinglab/notebook/snntorch-calibration.py* so both matched runs use the same seed. Verify bit-level reproducibility by running the same seed twice and diffing *metrics.json*.
 
-Audit *cm_back_scale* and any loss-scale differences between the tutorial path (*SNNTorchNet*) and the *snntorch-library* path in *src/pinglab/models.py*. Cross-check the adjoint scaling against Burghi et al. 2026 (see *src/papers/burghi-et-al.pdf*). Append findings as a new H3 subsection under "Findings" in *src/docs/src/pages/journal/snntorch-calibration.mdx*.
+Audit *cm_back_scale* and any loss-scale differences between the tutorial path (*SNNTorchNet*) and the *snntorch-library* path in *src/pinglab/models.py*. Cross-check the adjoint scaling against Burghi et al. 2026 (see *src/papers/burghi-et-al.pdf*). Append findings as a new H3 subsection under "Findings" in *src/docs/src/pages/notebook/snntorch-calibration.mdx*.
 
 ## References
 
 **Source files** — everything that produced the numbers and figures above:
 
-- [*src/pinglab/journal/snntorch-calibration.py*](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/journal/snntorch-calibration.py) — repro script driving both training runs, the training-curves figure, and *numbers.json*.
-- [*src/docs/public/figures/journal/snntorch-calibration/numbers.json*](https://github.com/eoinmurray/pinglab/blob/main/src/docs/public/figures/journal/snntorch-calibration/numbers.json) — the exact metrics interpolated into this entry.
-- [*src/docs/public/figures/journal/snntorch-calibration/training_curves.png*](https://github.com/eoinmurray/pinglab/blob/main/src/docs/public/figures/journal/snntorch-calibration/training_curves.png), *training_snntorch.mp4*, *training_snntorch-library.mp4* — frozen figures and videos shown above.
+- [*src/pinglab/notebook/snntorch-calibration.py*](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/notebook/snntorch-calibration.py) — repro script driving both training runs, the training-curves figure, and *numbers.json*.
+- [*src/docs/public/figures/notebook/snntorch-calibration/numbers.json*](https://github.com/eoinmurray/pinglab/blob/main/src/docs/public/figures/notebook/snntorch-calibration/numbers.json) — the exact metrics interpolated into this entry.
+- [*src/docs/public/figures/notebook/snntorch-calibration/training_curves.png*](https://github.com/eoinmurray/pinglab/blob/main/src/docs/public/figures/notebook/snntorch-calibration/training_curves.png), *training_snntorch.mp4*, *training_snntorch-library.mp4* — frozen figures and videos shown above.
 
 **Papers** — third-party PDFs are not redistributed in the repo; follow the links to fetch them:
 
 - Eshraghian, J. K. et al. *Training Spiking Neural Networks Using Lessons From Deep Learning.* Proc. IEEE 2023. [arxiv.org/abs/2109.12894](https://arxiv.org/abs/2109.12894). Reference implementation for the *snnTorch* library path.
 - Neftci, E. O., Mostafa, H. & Zenke, F. *Surrogate Gradient Learning in Spiking Neural Networks.* IEEE Signal Processing Magazine 2019. [arxiv.org/abs/1901.09948](https://arxiv.org/abs/1901.09948). Framework behind the fast-sigmoid surrogate used on both paths.
 - Burghi, T. et al. *Costate-based SNN training* (2026 draft; *src/papers/burghi-et-al.pdf*). Principled adjoint scaling — relevant to the *cm_back_scale* audit in the next-steps list.
+
+## Appendix: Run details
+
+| Setting | Value |
+|---|---|
+| Tier | **{cfg.tier}** |
+| Dataset | {cfg.dataset} |
+| Samples | {cfg.max_samples} |
+| Epochs | {cfg.epochs} |
+| T | {cfg.t_ms} ms |
+| dt | {cfg.dt} ms |
+| Hidden | {cfg.n_hidden} |
+| Batch | {cfg.batch_size} |
+| lr | {cfg.lr} |
+| Elapsed — {snn.label} | {snn.total_elapsed_s.toFixed(0)} s |
+| Elapsed — {lib.label} | {lib.total_elapsed_s.toFixed(0)} s |

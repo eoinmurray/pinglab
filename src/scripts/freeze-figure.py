@@ -7,7 +7,7 @@ Usage:
 Example:
     src/scripts/freeze-figure.py \\
         src/artifacts/mnist-dt-stability/figures/parity_sweep_dt1.0.500.10.png \\
-        src/docs/public/figures/journal/2026-04-16-1200-library-parity/parity_sweep_dt1.0.500.10.png
+        src/docs/public/figures/notebook/2026-04-16-1200-library-parity/parity_sweep_dt1.0.500.10.png
 
 Effect:
     1. Copies the source PNG to dest.
