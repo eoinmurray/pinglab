@@ -202,6 +202,12 @@ Every image in docs — journal entry or background page — carries a caption o
 
 The alt text describes the image for accessibility. The caption interprets it for the reader. An image without a caption beneath it is a bug.
 
+### 7. Bug findings belong in PRs, not journals
+
+If a "finding" in a journal entry turns out to be a bug about to be fixed, remove it from the journal. The evidence, root cause, and reproducer belong in the PR that fixes it. The journal records findings about how the system behaves; PRs record what changed and why.
+
+When a journal entry's narrative gets invalidated by a fix (e.g., an "accuracy gap" that was actually a device-specific bug), the entry needs rewriting against the post-fix baseline — not a new subsection documenting the debugging trail. Durable profilers added mid-investigation get removed with the journal subsection unless they have standalone value beyond the fixed bug.
+
 ## Maintaining this page
 
 When a convention changes, update this page and propagate to persistent memory under *~/.claude/projects/-Users-eoin-pinglab/memory/*. Conventions are enforced by reading and care, not by automation.
