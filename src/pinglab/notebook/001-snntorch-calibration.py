@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import sh
@@ -27,6 +28,7 @@ OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 MODELS = ["snntorch", "snntorch-library"]
 MAX_SAMPLES = 200
 EPOCHS = 3
+SEED = 42
 TIER = "tiny"  # see src/docs/src/pages/llm-context.md § 8 Run sizing tiers
 
 MODEL_LABELS = {
@@ -57,6 +59,7 @@ def train_model(model: str) -> Path:
         "--dataset", "mnist",
         "--max-samples", str(MAX_SAMPLES),
         "--epochs", str(EPOCHS),
+        "--seed", str(SEED),
         "--observe", "video",
         "--frame-rate", "1",
         "--out-dir", str(out_dir),
@@ -78,6 +81,36 @@ def load_metrics(run_dir: Path) -> dict:
 
 def load_config(run_dir: Path) -> dict:
     return json.loads((run_dir / "config.json").read_text())
+
+
+def run_date(run_dir: Path) -> str:
+    """Long-form date the training run produced its metrics.json.
+
+    Uses the file mtime, which is set when the training harness writes the
+    file at the end of a run. Cached runs (training skipped) still report
+    their original date — which is what we want.
+    """
+    mtime = (run_dir / "metrics.json").stat().st_mtime
+    return datetime.fromtimestamp(mtime).strftime("%A, %B %-d %Y")
+
+
+def plot_firing_rates(run_dirs: dict[str, Path], out_path: Path) -> None:
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    for model, run_dir in run_dirs.items():
+        metrics = load_metrics(run_dir)
+        epochs = [e["ep"] for e in metrics["epochs"]]
+        rate_e = [e["rate_e"] for e in metrics["epochs"]]
+        ax.plot(epochs, rate_e, marker="o",
+                color=MODEL_COLORS[model], label=MODEL_LABELS[model])
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("hidden-layer firing rate (Hz)")
+    ax.set_title("Firing rate vs epoch")
+    ax.grid(alpha=0.3)
+    ax.legend(frameon=False)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
 
 
 def plot_training_curves(run_dirs: dict[str, Path], out_path: Path) -> None:
@@ -122,6 +155,7 @@ def write_numbers(run_dirs: dict[str, Path], out_path: Path) -> dict:
             "batch_size": first_cfg["batch_size"],
             "lr": first_cfg["lr"],
             "kaiming_init": True,
+            "seed": SEED,
         },
         "runs": {},
     }
@@ -129,6 +163,7 @@ def write_numbers(run_dirs: dict[str, Path], out_path: Path) -> dict:
         metrics = load_metrics(run_dir)
         summary["runs"][model] = {
             "label": MODEL_LABELS[model],
+            "run_date": run_date(run_dir),
             "best_acc": metrics["best_acc"],
             "best_epoch": metrics["best_epoch"],
             "final_acc": metrics["epochs"][-1]["acc"],
@@ -161,6 +196,9 @@ def main() -> None:
     fig_path = FIGURES / "training_curves.png"
     plot_training_curves(run_dirs, fig_path)
     print(f"wrote {fig_path.relative_to(REPO)}")
+    rates_path = FIGURES / "firing_rates.png"
+    plot_firing_rates(run_dirs, rates_path)
+    print(f"wrote {rates_path.relative_to(REPO)}")
     copy_training_videos(run_dirs, FIGURES)
     numbers_path = FIGURES / "numbers.json"
     summary = write_numbers(run_dirs, numbers_path)
