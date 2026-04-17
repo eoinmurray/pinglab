@@ -32,7 +32,7 @@ Run outputs land under `src/artifacts/` (gitignored — reproducible from code +
 
 ## Docs site
 
-Findings, method notes, and archived drafts live in the journal inside `src/docs/`.
+Findings, method notes, and archived drafts live in the notebook inside `src/docs/`.
 
 ```sh
 cd src/docs
@@ -45,8 +45,8 @@ Deployed via GitHub Pages (see `.github/workflows/pages.yml`).
 
 ## Layout
 
-- `src/pinglab/` — Python package: models, training harness, plotting, journal repro scripts
-- `src/docs/` — Astro site (journal entries, method reference, LLM context)
+- `src/pinglab/` — Python package: models, training harness, plotting, notebook repro scripts
+- `src/docs/` — Astro site (notebook entries, method reference, LLM context)
 - `src/papers/` — third-party reading list (PDFs gitignored; see `src/papers/README.md` for citations)
 - `src/scripts/` — misc one-off scripts
 

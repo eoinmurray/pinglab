@@ -15,33 +15,33 @@ Pinglab treats the human–AI collaboration driving it as an experimental method
 
 The project is organised in six layers. Each layer has one job; they are connected by manual promotion gates.
 
-- **Code** — *src/pinglab/*. Models, training/inference CLI (*oscilloscope.py*), metrics, plotting, journal repro scripts. Pure Python under [uv](https://docs.astral.sh/uv/).
-- **Run outputs** — *src/artifacts/*. Raw figures, videos, logs produced by *oscilloscope.py* and journal repro scripts. Gitignored.
-- **Frozen figures** — *src/docs/public/figures/journal/&lt;entry-slug&gt;/*. Published figures with sidecar JSONs carrying the git SHA and run config that produced them. One directory per journal entry.
-- **Documentation** — *src/docs/src/pages/*. This Astro site. The substantive content lives under *journal/* — dated entries, newest first. Repro scripts for entries live at *src/pinglab/journal/&lt;entry-slug&gt;.py*.
+- **Code** — *src/pinglab/*. Models, training/inference CLI (*oscilloscope.py*), metrics, plotting, notebook repro scripts. Pure Python under [uv](https://docs.astral.sh/uv/).
+- **Run outputs** — *src/artifacts/*. Raw figures, videos, logs produced by *oscilloscope.py* and notebook repro scripts. Gitignored.
+- **Frozen figures** — *src/docs/public/figures/notebook/&lt;entry-slug&gt;/*. Published figures with sidecar JSONs carrying the git SHA and run config that produced them. One directory per notebook entry.
+- **Documentation** — *src/docs/src/pages/*. This Astro site. The substantive content lives under *notebook/* — dated entries, newest first. Repro scripts for entries live at *src/pinglab/notebook/&lt;entry-slug&gt;.py*.
 - **Reference literature** — *src/papers/*. Bibliography for the project (PDFs themselves are not redistributed; see *src/papers/README.md* for citations).
 - **Collaboration meta** — *CLAUDE.md* at the repo root, this LLM Context page, and a persistent memory directory under *~/.claude/projects/-Users-eoin-pinglab/memory/*. The agreed-upon rules for how the human and AI work on this project.
 
 Code writes only to *src/artifacts/*. It never touches *src/docs/*. Figures enter the docs site via an explicit freeze step.
 
-## Journal
+## Notebook
 
-All writeups are journal entries at *src/docs/src/pages/journal/&lt;slug&gt;.md*, listed chronologically on the home page at *src/docs/src/pages/index.astro*. There is no separate per-experiment page or paper layer — when a paper-shaped writeup is appropriate, it is a journal entry like any other.
+All writeups are notebook entries at *src/docs/src/pages/notebook/&lt;slug&gt;.md*, listed chronologically on the home page at *src/docs/src/pages/index.astro*. There is no separate per-experiment page or paper layer — when a paper-shaped writeup is appropriate, it is a notebook entry like any other. The notebook is a lab notebook: dated, bench-driven, with numbers pulled live from each entry's repro script.
 
-**Slug.** Descriptive, no date prefix — e.g. *snntorch-calibration*, not *2026-04-17-1100-snntorch-parity-and-calibration*. The slug is the filename, the URL, and the key for the parallel repro and figures directories. The canonical date lives in the entry's frontmatter (*date: YYYY-MM-DD*) and in its visible long-form byline; the filename stays date-free so the slug can read as prose. Chronological ordering in the home page's Journal list is human-maintained.
+**Slug.** Descriptive, no date prefix — e.g. *snntorch-calibration*, not *2026-04-17-1100-snntorch-parity-and-calibration*. The slug is the filename, the URL, and the key for the parallel repro and figures directories. The canonical date lives in the entry's frontmatter (*date: YYYY-MM-DD*) and in its visible long-form byline; the filename stays date-free so the slug can read as prose. Chronological ordering in the home page's Notebook list is human-maintained.
 
 Most entries follow a fixed structure: Introduction, Method, Findings, Implications, Next steps. Longer paper-style drafts keep their own section numbering.
 
-Each entry that cites generated figures or numbers gets a repro script at *src/pinglab/journal/&lt;slug&gt;.py* — one command regenerates every figure and dumps a *numbers.json* next to them under *src/docs/public/figures/journal/&lt;slug&gt;/*.
+Each entry that cites generated figures or numbers gets a repro script at *src/pinglab/notebook/&lt;slug&gt;.py* — one command regenerates every figure and dumps a *numbers.json* next to them under *src/docs/public/figures/notebook/&lt;slug&gt;/*.
 
-## Journal entry review
+## Notebook entry review
 
-Before a finding in a journal entry is considered load-bearing, run the entry past an adversarial reviewer in a fresh Claude session — no shared context with the session that wrote it. The reviewer reads the entry cold and challenges the framing. Its output is a critique to incorporate, not a veto: add the reviewer's findings (and how each was addressed or argued down) as a *Reviewer-agent critique* H3 subsection at the end of the entry's *Findings*.
+Before a finding in a notebook entry is considered load-bearing, run the entry past an adversarial reviewer in a fresh Claude session — no shared context with the session that wrote it. The reviewer reads the entry cold and challenges the framing. Its output is a critique to incorporate, not a veto: add the reviewer's findings (and how each was addressed or argued down) as a *Reviewer-agent critique* H3 subsection at the end of the entry's *Findings*.
 
 The prompt to paste into the fresh session, followed by the entry text:
 
 ```text
-You are an adversarial reviewer for a research journal entry. The entry below is a draft finding that may be promoted into a longer-form paper. Your job is to read the entry cold — assume nothing about the surrounding project, the author's intentions, or unstated context — and challenge the framing.
+You are an adversarial reviewer for a research notebook entry. The entry below is a draft finding that may be promoted into a longer-form paper. Your job is to read the entry cold — assume nothing about the surrounding project, the author's intentions, or unstated context — and challenge the framing.
 
 Look for:
 
@@ -68,17 +68,17 @@ The entry follows.
 
 ## Figures
 
-Figures produced by *oscilloscope.py* and journal repro scripts land under *src/artifacts/*. When one is ready to publish, freeze it:
+Figures produced by *oscilloscope.py* and notebook repro scripts land under *src/artifacts/*. When one is ready to publish, freeze it:
 
 ```sh
 uv run python src/scripts/freeze-figure.py <source> <dest>
 ```
 
-The script copies the PNG and writes a sidecar JSON with the git SHA at freeze time and the run config (run_id, model, dt, samples, epochs). Every frozen figure belongs to exactly one journal entry:
+The script copies the PNG and writes a sidecar JSON with the git SHA at freeze time and the run config (run_id, model, dt, samples, epochs). Every frozen figure belongs to exactly one notebook entry:
 
-- Destination — *src/docs/public/figures/journal/&lt;entry-slug&gt;/&lt;name&gt;.png*
+- Destination — *src/docs/public/figures/notebook/&lt;entry-slug&gt;/&lt;name&gt;.png*
 
-Reference from markdown via the web path, e.g. */figures/journal/&lt;entry-slug&gt;/&lt;figure-name&gt;.png*.
+Reference from markdown via the web path, e.g. */figures/notebook/&lt;entry-slug&gt;/&lt;figure-name&gt;.png*.
 
 Commit the PNG, the sidecar JSON, and the markdown edit together. Figures use 16:9 aspect ratio.
 
@@ -93,10 +93,10 @@ uv run python src/pinglab/oscilloscope.py --help
 uv run python src/pinglab/oscilloscope.py train --model snntorch --dataset mnist --max-samples 1000 --epochs 3
 ```
 
-**Reproduce a journal entry:**
+**Reproduce a notebook entry:**
 
 ```sh
-uv run python src/pinglab/journal/<entry-slug>.py
+uv run python src/pinglab/notebook/<entry-slug>.py
 ```
 
 Each script is argument-free and regenerates every figure and number its entry cites.
@@ -123,9 +123,9 @@ Tests live in *src/pinglab/tests/unit/*. Markers *slow* and *regression* gate th
 
 Project-specific terms. Definitions here are load-bearing — if something elsewhere contradicts a definition, this page wins.
 
-- **Oscilloscope** — the training / inference / inspection CLI at *src/pinglab/oscilloscope.py*. Training and evaluation runs go through its *train* and *infer* subcommands; all other invocation patterns drive it (journal repro scripts shell out to it via *sh*).
+- **Oscilloscope** — the training / inference / inspection CLI at *src/pinglab/oscilloscope.py*. Training and evaluation runs go through its *train* and *infer* subcommands; all other invocation patterns drive it (notebook repro scripts shell out to it via *sh*).
 - **Ladder** — the feature-incremental set of models stepping from a vanilla SNN to full PING: *snntorch → cuba → cuba-exp → coba → ping*. Each rung adds one biophysical feature.
-- **Promotion gate** — a manual step that moves content between layers: run output → frozen figure, journal entry → paper section, ad-hoc preference → persistent memory. Code does not cross these gates.
+- **Promotion gate** — a manual step that moves content between layers: run output → frozen figure, notebook entry → paper section, ad-hoc preference → persistent memory. Code does not cross these gates.
 - **Calibration** — tuning hyperparameters (weight scales, thresholds, input drive) so models on the ladder are comparable before an experiment runs.
 - **Frozen figure** — a published PNG under *src/docs/public/figures/…* copied from *src/artifacts/…* with a sidecar JSON carrying the git SHA at freeze time and the run config.
 - **Trainable surface** — what optimisation actually updates. Across the ladder it is input + output weights; recurrent weights in *ping* are frozen at init, not trained.
@@ -139,7 +139,7 @@ Facts about this repo that are load-bearing and easy to get wrong.
 
 - **Δt is in milliseconds.** Everywhere. Config fields carry the *_ms* suffix (*sim_ms*, *burn_in_ms*, *step_on_ms*); CLI flags follow the same convention (*--t-ms*). A "Δt of 1" means 1 ms, not 1 s.
 - **Trial length defaults to 600 ms** (*--t-ms 600*). Shorter trials emit a warning — the harness will let you run them but flags that the transient window is too short.
-- **Code writes only to src/artifacts/.** *oscilloscope.py* and journal repro scripts never touch *src/docs/*. Figures enter the docs site exclusively through *src/scripts/freeze-figure.py*.
+- **Code writes only to src/artifacts/.** *oscilloscope.py* and notebook repro scripts never touch *src/docs/*. Figures enter the docs site exclusively through *src/scripts/freeze-figure.py*.
 - **src/artifacts/ is gitignored.** Nothing under it is part of the repo; it is reproducible from code + config + seed.
 - **PING recurrent weights are frozen.** Set analytically at init, not trained. Only input and output weights are trainable across the ladder. This is a deliberate control — it isolates the effect of the E–I architecture from learning of internal weights.
 - **Poisson input encoding is frozen across Δt-sweeps.** Each image is encoded once at the finest sweep Δt, then OR-pooled to the target Δt. This eliminates Poisson resampling as a confound.
@@ -147,11 +147,11 @@ Facts about this repo that are load-bearing and easy to get wrong.
 
 ## Conventions
 
-These rules apply when editing the docs and journal. They are the source of truth — if anything above them conflicts, these win.
+These rules apply when editing the docs and notebook. They are the source of truth — if anything above them conflicts, these win.
 
-### 1. Journal-entry H2 skeleton
+### 1. Notebook-entry H2 skeleton
 
-Every journal entry under *src/docs/src/pages/journal/* uses the same five H2 headings, in this order:
+Every notebook entry under *src/docs/src/pages/notebook/* uses the same five H2 headings, in this order:
 
 1. **Introduction** — what was built, wired, or changed, and why
 2. **Method** — how the experiment was run, including methodological notes
@@ -159,17 +159,17 @@ Every journal entry under *src/docs/src/pages/journal/* uses the same five H2 he
 4. **Implications** — what it means for the paper or project
 5. **Next steps** — what is still to do
 
-The H1 stays entry-specific (the entry title). The skeleton is for H2s only. *Why:* journal-entry navigation should be predictable across the site.
+The H1 stays entry-specific (the entry title). The skeleton is for H2s only. *Why:* notebook-entry navigation should be predictable across the site.
 
 ### 2. Date format includes day of week
 
-Visible journal dates start with the full day-of-week name. Format: *DayName, Month D YYYY*.
+Visible notebook dates start with the full day-of-week name. Format: *DayName, Month D YYYY*.
 
 Three places per entry use this:
 
 1. Frontmatter title — *title: "Thursday, April 16 2026 — &lt;slug&gt;"*
 2. Italic byline under H1 — *Thursday, April 16 2026*
-3. Home-page Journal list in *src/docs/src/pages/index.astro* — bold date prefix *Thursday, April 16 2026* followed by *— &lt;title&gt;*, pointing at */journal/&lt;entry-slug&gt;/*
+3. Home-page Notebook list in *src/docs/src/pages/index.astro* — bold date prefix *Thursday, April 16 2026* followed by *— &lt;title&gt;*, pointing at */notebook/&lt;entry-slug&gt;/*
 
 Filenames and URL slugs are date-free (e.g. *snntorch-calibration.md*); the canonical date lives in frontmatter (*date: YYYY-MM-DD*). Day-name only appears in human-visible text. Compute on macOS with *date -j -f "%Y-%m-%d" &lt;YYYY-MM-DD&gt; "+%A"*; Linux: *date -d &lt;YYYY-MM-DD&gt; +%A*.
 
@@ -177,9 +177,9 @@ Filenames and URL slugs are date-free (e.g. *snntorch-calibration.md*); the cano
 
 All figures and plots in *src/docs/* and *src/artifacts/* use 16:9 (width:height ≈ 1.778:1). Use matplotlib *figsize=(8.0, 4.5)*, *(9.0, 5.0625)*, or *(10.0, 5.625)*. Multi-panel figures should respect 16:9 for the overall figure, even if each panel is squarer. GIFs and MP4s recorded by the harness should also be 16:9.
 
-### 4. Figures are namespaced by journal entry
+### 4. Figures are namespaced by notebook entry
 
-Every frozen figure under *src/docs/public/figures/* belongs to exactly one journal entry, under *src/docs/public/figures/journal/&lt;entry-slug&gt;/*, where *&lt;entry-slug&gt;* matches the entry's markdown filename. There is no separate paper-level figures tier. If a later entry wants to reference an earlier entry's figure, it does so by URL — figures are not copied.
+Every frozen figure under *src/docs/public/figures/* belongs to exactly one notebook entry, under *src/docs/public/figures/notebook/&lt;entry-slug&gt;/*, where *&lt;entry-slug&gt;* matches the entry's markdown filename. There is no separate paper-level figures tier. If a later entry wants to reference an earlier entry's figure, it does so by URL — figures are not copied.
 
 ### 5. No inline backtick code in docs
 
@@ -193,24 +193,24 @@ Fenced code blocks for actual multi-line samples can stay. Doesn't apply to *REA
 
 ### 6. Images need captions
 
-Every image in docs — journal entry or background page — carries a caption on the line directly beneath it, in italics:
+Every image in docs — notebook entry or background page — carries a caption on the line directly beneath it, in italics:
 
 ```markdown
-![short alt text](/figures/journal/<entry-slug>/example.png)
+![short alt text](/figures/notebook/<entry-slug>/example.png)
 *Caption interpreting the figure. Self-contained — a reader scrolling to the image should understand what it shows without reading the surrounding prose.*
 ```
 
 The alt text describes the image for accessibility. The caption interprets it for the reader. An image without a caption beneath it is a bug.
 
-### 7. Bug findings belong in PRs, not journals
+### 7. Bug findings belong in PRs, not notebook entries
 
-If a "finding" in a journal entry turns out to be a bug about to be fixed, remove it from the journal. The evidence, root cause, and reproducer belong in the PR that fixes it. The journal records findings about how the system behaves; PRs record what changed and why.
+If a "finding" in a notebook entry turns out to be a bug about to be fixed, remove it from the notebook. The evidence, root cause, and reproducer belong in the PR that fixes it. The notebook records findings about how the system behaves; PRs record what changed and why.
 
-When a journal entry's narrative gets invalidated by a fix (e.g., an "accuracy gap" that was actually a device-specific bug), the entry needs rewriting against the post-fix baseline — not a new subsection documenting the debugging trail. Durable profilers added mid-investigation get removed with the journal subsection unless they have standalone value beyond the fixed bug.
+When a notebook entry's narrative gets invalidated by a fix (e.g., an "accuracy gap" that was actually a device-specific bug), the entry needs rewriting against the post-fix baseline — not a new subsection documenting the debugging trail. Durable profilers added mid-investigation get removed with the notebook subsection unless they have standalone value beyond the fixed bug.
 
 ### 8. Run sizing tiers
 
-Journal entry runs pick from a fixed set of tiers. Tiers are size-named so the expected wall-clock cost is legible from the config alone. ETAs below are per model on MPS at dt 0.25 ms, post the MPS fast-path fix:
+Notebook entry runs pick from a fixed set of tiers. Tiers are size-named so the expected wall-clock cost is legible from the config alone. ETAs below are per model on MPS at dt 0.25 ms, post the MPS fast-path fix:
 
 | tier | max-samples | epochs | t-ms | steps | ~ETA/model |
 | ---- | ----------: | -----: | ---: | ----: | ---------: |
@@ -222,7 +222,7 @@ Journal entry runs pick from a fixed set of tiers. Tiers are size-named so the e
 
 Cost scales linearly in *max-samples × epochs × t-ms* (≈3.3 × 10⁻⁵ s per unit per model on MPS). Multi-model comparisons multiply: an N-model head-to-head at *medium* is N × ~7 min. *observe video* with per-epoch frames adds ≲10% at *medium* and above.
 
-Each journal entry names the tier it ran at — either in Method prose or implicitly via its repro script's *MAX_SAMPLES / EPOCHS / T_MS* constants. If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
+Each notebook entry names the tier it ran at — either in Method prose or implicitly via its repro script's *MAX_SAMPLES / EPOCHS / T_MS* constants. If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
 
 ## Maintaining this page
 

@@ -1,10 +1,10 @@
-"""Repro for the snnTorch calibration journal entry.
+"""Repro for the snnTorch calibration notebook entry.
 
 Runs a small, matched training of the in-repo `snntorch` model and the
 `snntorch-library` parity reference, then writes a training-curve comparison
-figure and a numbers.json summary into the journal's figures dir.
+figure and a numbers.json summary into the notebook's figures dir.
 
-Journal entry: src/docs/src/pages/journal/snntorch-calibration.md
+Notebook entry: src/docs/src/pages/notebook/snntorch-calibration.md
 """
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ sys.path.insert(0, str(REPO / "src" / "pinglab"))
 import matplotlib.pyplot as plt  # noqa: E402
 
 SLUG = "snntorch-calibration"
-ARTIFACTS = REPO / "src" / "artifacts" / "journal" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "journal" / SLUG
+ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
+FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
 MODELS = ["snntorch", "snntorch-library"]
