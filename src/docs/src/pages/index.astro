@@ -1,0 +1,62 @@
+---
+import "../styles/global.css";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Pinglab</title>
+  </head>
+  <body>
+    <main class="px-6 py-16 lg:pl-[15%] lg:pr-16">
+      <div class="max-w-[46rem]">
+        <div class="flex items-baseline justify-between gap-4">
+          <h1 class="text-2xl font-bold">Pinglab</h1>
+          <a
+            href="https://github.com/eoinmurray/pinglab"
+            class="text-sm text-[color:var(--muted)] hover:text-[color:var(--ink)]"
+            target="_blank"
+            rel="noopener"
+          >github</a>
+        </div>
+        <p class="mt-1 text-sm text-[color:var(--muted)]">
+          Spiking neural networks with explicit E/I and PING dynamics.
+        </p>
+
+        <section class="mt-10 space-y-4 text-[color:var(--ink)]">
+          <p>
+            A PING network has explicit excitatory and inhibitory populations wired in a feedback
+            loop that produces gamma rhythms. This site trains them on classification tasks and
+            measures them against simpler recurrent baselines.
+          </p>
+          <p>
+            The shared diagnostic is Δt-stability: train at one integration timestep, evaluate at
+            another. Models grounded in continuous-time dynamics generalise across Δt; models that
+            overfit their training step do not.
+          </p>
+          <p>
+            Findings, method changes, and archived drafts all live in one
+            <a href="/journal/">journal</a> — dated entries, newest first.
+          </p>
+        </section>
+
+        <p class="mt-10 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]">Start here</p>
+        <ul class="pl-0 list-none space-y-1">
+          <li><a href="/motivation/">Motivation</a></li>
+          <li><a href="/models/">Models</a></li>
+          <li><a href="/journal/">Journal</a></li>
+        </ul>
+
+        <p class="mt-8 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]">References</p>
+        <ul class="pl-0 list-none space-y-1">
+          <li><a href="/training/">Training</a></li>
+          <li><a href="/metrics/">Metrics</a></li>
+          <li><a href="/llm-context/">LLM Context</a></li>
+        </ul>
+      </div>
+    </main>
+  </body>
+</html>
