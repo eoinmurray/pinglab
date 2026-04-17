@@ -1118,6 +1118,24 @@ def encode_batch(X_b, dt, use_smnist, generator=None):
 EVAL_SEED = 20260415
 
 
+def seed_everything(seed):
+    """Seed Python, NumPy, and torch RNGs for reproducible runs.
+
+    Seeds cover: Python `random`, NumPy global, torch CPU, torch CUDA
+    (all devices), and torch MPS (via torch.manual_seed, which fans out
+    to the active backend). Call before dataset load and model init.
+    """
+    if seed is None:
+        return
+    import random
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    log.info(f"  seed={seed} (Python, NumPy, torch)")
+
+
 def downsample_spikes_or(spikes_ref, dt_ref, dt_target):
     """OR-pool reference spikes from dt_ref resolution to dt_target."""
     k = round(dt_target / dt_ref)
@@ -1217,10 +1235,14 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
           hidden_sizes=None, max_samples=None,
           cm_back_scale=80.0, early_stopping=None, observe_every=1,
           adaptive_lr=False, kaiming_init=False, dales_law=True,
-          w_rec=None, rec_layers=None, ei_layers=None, batch_size=None):
+          w_rec=None, rec_layers=None, ei_layers=None, batch_size=None,
+          seed=None):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
     from torch.utils.data import DataLoader, TensorDataset
+
+    # Seed before any RNG use (dataset split, shuffle, model init, Poisson encoding).
+    seed_everything(seed)
 
     # Setup dt and all derived constants
     M.T_ms = t_ms
@@ -1311,6 +1333,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         "hidden_sizes": hidden_sizes, "w_rec": w_rec,
         "rec_layers": list(rec_layers) if rec_layers else None,
         "ei_layers": list(ei_layers) if ei_layers else None,
+        "seed": seed,
     }
     with open(out_dir / "config.json", "w") as f:
         json.dump(config, f, indent=2)
@@ -1474,9 +1497,11 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             loss = loss_fn(logits, y_b)
             opt.zero_grad()
             loss.backward()
-            # Per-layer ‖grad‖/‖W‖ ratio (weights only, skip biases) before clip
+            # Per-layer ‖grad‖/‖W‖ ratio (weights only, skip biases) before clip.
+            # SNNTorchNet names biases b_ff.*; SNNTorchLibraryNet exposes biases
+            # via nn.Linear as fc_ff.*.bias. Filter both naming conventions.
             for pname, p in net.named_parameters():
-                if p.grad is None or pname.startswith("b_"):
+                if p.grad is None or pname.startswith("b_") or pname.endswith(".bias"):
                     continue
                 wn = p.norm().item()
                 if wn > 0:
@@ -1848,9 +1873,14 @@ def infer(model_name="ping", dt=0.25, load_weights=None,
           w_in=None, ei_strength=0.5, ei_ratio=2.0,
           sparsity=0.0, w_in_sparsity=0.0,
           hidden_sizes=None, out_dir=None, kaiming_init=False, dales_law=True,
-          encode_fn=None, w_rec=None, rec_layers=None, ei_layers=None):
+          encode_fn=None, w_rec=None, rec_layers=None, ei_layers=None,
+          seed=None):
     """Run inference with saved weights at a given dt."""
     import config as C
+
+    # Seed before dataset load and model init (matters when load_weights is None
+    # and any randomness remains in the path).
+    seed_everything(seed)
 
     # Setup dt and all derived constants
     M.T_ms = t_ms
@@ -1996,6 +2026,7 @@ def _apply_from_dir(args, argv):
         "w_rec": "w_rec",
         "rec_layers": "rec_layers",
         "ei_layers": "ei_layers",
+        "seed": "seed",
     }
     # Backwards compat: old config.json has "n_hidden" as int
     if "n_hidden" in cfg and "hidden_sizes" not in cfg:
@@ -2022,6 +2053,7 @@ def _apply_from_dir(args, argv):
         "dales_law": "--dales-law",
         "w_rec": "--w-rec", "hidden_sizes": "--n-hidden",
         "rec_layers": "--rec-layers", "ei_layers": "--ei-layers",
+        "seed": "--seed",
     }
 
     inherited = []
@@ -2229,6 +2261,10 @@ Models:
                            help="Comma-separated panel names")
 
     exec_group = parent.add_argument_group("Execution")
+    exec_group.add_argument("--seed", type=int, default=None,
+                            help="RNG seed. Seeds Python, NumPy, and torch "
+                                 "(CPU + CUDA + MPS) before dataset load and "
+                                 "model init. Persisted to config.json.")
     exec_group.add_argument("--modal", action="store_true",
                             help="Run on Modal.com instead of locally. "
                                  "Artifacts sync back to --out-dir after completion.")
@@ -2701,7 +2737,8 @@ if __name__ == "__main__":
               w_rec=args.w_rec,
               rec_layers=args.rec_layers,
               ei_layers=args.ei_layers,
-              batch_size=args.batch_size)
+              batch_size=args.batch_size,
+              seed=args.seed)
 
     elif mode == "infer":
         w_in = args.w_in or [0.3, 0.06]
@@ -2724,6 +2761,7 @@ if __name__ == "__main__":
             w_rec=args.w_rec,
             rec_layers=args.rec_layers,
             ei_layers=args.ei_layers,
+            seed=args.seed,
         )
         if args.dt_sweep:
             dt_values = sorted(args.dt_sweep)
