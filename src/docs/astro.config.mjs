@@ -14,7 +14,7 @@ export default defineConfig({
   devToolbar: { enabled: false },
 
   redirects: {
-    '/journal': '/',
+    '/notebook': '/',
   },
 
   integrations: [mdx()],
