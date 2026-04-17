@@ -27,6 +27,7 @@ OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 MODELS = ["snntorch", "snntorch-library"]
 MAX_SAMPLES = 200
 EPOCHS = 3
+TIER = "tiny"  # see src/docs/src/pages/llm-context.md § 8 Run sizing tiers
 
 MODEL_LABELS = {
     "snntorch": "pinglab snntorch",
@@ -75,6 +76,10 @@ def load_metrics(run_dir: Path) -> dict:
     return json.loads((run_dir / "metrics.json").read_text())
 
 
+def load_config(run_dir: Path) -> dict:
+    return json.loads((run_dir / "config.json").read_text())
+
+
 def plot_training_curves(run_dirs: dict[str, Path], out_path: Path) -> None:
     fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(8, 4.5))
     for model, run_dir in run_dirs.items():
@@ -103,11 +108,19 @@ def plot_training_curves(run_dirs: dict[str, Path], out_path: Path) -> None:
 
 
 def write_numbers(run_dirs: dict[str, Path], out_path: Path) -> dict:
+    # Pull shared hyperparameters from the first run's config.json (matched across models).
+    first_cfg = load_config(next(iter(run_dirs.values())))
     summary: dict[str, dict] = {
         "config": {
+            "tier": TIER,
             "dataset": "mnist",
             "max_samples": MAX_SAMPLES,
             "epochs": EPOCHS,
+            "t_ms": first_cfg["t_ms"],
+            "dt": first_cfg["dt"],
+            "n_hidden": first_cfg["n_hidden"],
+            "batch_size": first_cfg["batch_size"],
+            "lr": first_cfg["lr"],
             "kaiming_init": True,
         },
         "runs": {},
@@ -115,6 +128,7 @@ def write_numbers(run_dirs: dict[str, Path], out_path: Path) -> dict:
     for model, run_dir in run_dirs.items():
         metrics = load_metrics(run_dir)
         summary["runs"][model] = {
+            "label": MODEL_LABELS[model],
             "best_acc": metrics["best_acc"],
             "best_epoch": metrics["best_epoch"],
             "final_acc": metrics["epochs"][-1]["acc"],

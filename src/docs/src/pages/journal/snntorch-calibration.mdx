@@ -13,6 +13,8 @@ export const cfg = numbers.config;
 
 *Friday, April 17 2026*
 
+*Run tier: **{cfg.tier}** — {cfg.max_samples} samples · {cfg.epochs} epochs · {cfg.t_ms} ms T · dt {cfg.dt} ms · {cfg.n_hidden} hidden · batch {cfg.batch_size} · lr {cfg.lr}. Elapsed: {snn.total_elapsed_s.toFixed(0)} s ({snn.label}) / {lib.total_elapsed_s.toFixed(0)} s ({lib.label}).*
+
 ## Introduction
 
 The repo ships two variants of a snnTorch-style network: the in-repo *snntorch* model and *snntorch-library*, which swaps in snnTorch's own *snn.Leaky* + fast-sigmoid surrogate as a parity reference ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894); [Neftci et al. 2019](https://arxiv.org/abs/1901.09948)). They are meant to be behaviourally equivalent at matched config — any residual gap localises to the LIF update and the surrogate-gradient details. This entry is the first head-to-head run under matched hyperparameters.
