@@ -1,6 +1,6 @@
 # docs
 
-Astro site for pinglab. Built with bun, deployed via GitHub Pages.
+Astro site for pinglab. Built with bun, deployed via GitHub Pages to [pl.eoinmurray.info](https://pl.eoinmurray.info).
 
 ```sh
 bun install
