@@ -1,24 +1,32 @@
 {
   "config": {
+    "tier": "tiny",
     "dataset": "mnist",
     "max_samples": 200,
     "epochs": 3,
+    "t_ms": 600.0,
+    "dt": 0.25,
+    "n_hidden": 1024,
+    "batch_size": 64,
+    "lr": 0.01,
     "kaiming_init": true
   },
   "runs": {
     "snntorch": {
-      "best_acc": 42.5,
-      "best_epoch": 3,
-      "final_acc": 42.5,
-      "final_loss": 81.83862813313802,
-      "total_elapsed_s": 381.10425633285195
+      "label": "pinglab snntorch",
+      "best_acc": 32.5,
+      "best_epoch": 2,
+      "final_acc": 25.0,
+      "final_loss": 42.54721260070801,
+      "total_elapsed_s": 8.178325208369642
     },
     "snntorch-library": {
-      "best_acc": 22.5,
-      "best_epoch": 2,
-      "final_acc": 12.5,
-      "final_loss": 158.78790537516275,
-      "total_elapsed_s": 10.848676041234285
+      "label": "snnTorch library",
+      "best_acc": 20.0,
+      "best_epoch": 1,
+      "final_acc": 10.0,
+      "final_loss": 166.8827921549479,
+      "total_elapsed_s": 11.015711875166744
     }
   }
 }
