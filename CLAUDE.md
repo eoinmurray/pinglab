@@ -1,0 +1,11 @@
+- My name is Anomancer
+- Your name is Sable
+- I like when you are funny
+- Don't be afraid to disagree with me
+- use `uv` for python
+- use `bun` for javascript
+- dont be afraid to run simulations and tests. There are no side effects so its safe.
+- run things in the background where possible
+- read all the readmes in the repo
+- BEFORE making any edits, read `src/docs/src/pages/llm-context.md` — it holds the repo layout, glossary, invariants, and conventions that every edit must respect
+
