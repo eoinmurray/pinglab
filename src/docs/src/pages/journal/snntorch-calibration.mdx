@@ -45,14 +45,6 @@ At matched config, the two implementations diverge sharply. Pinglab's *snntorch*
 
 The pinglab path took {snn.total_elapsed_s.toFixed(0)} s for {cfg.epochs} epochs; the library path took {lib.total_elapsed_s.toFixed(0)} s — a ~{(snn.total_elapsed_s / lib.total_elapsed_s).toFixed(0)}× ratio. This is far larger than the LIF-step difference alone can explain; the in-repo forward pass also records per-step membrane and firing traces that the library path skips. Part of what calibration has to disentangle is how much of the accuracy gap is genuinely the LIF step versus side-effects of recording.
 
-### .item() bottleneck in the train loop
-
-Profiling the real *train()* loop with *cProfile* (128 samples, 1 epoch, matched config) isolates the runtime gap to a handful of *.item()* scalar reads in the inner loop rather than the forward or backward pass itself. The library path issues 124 *.item()* calls attributed to *train()* and spends 0.100 s cumulative in them (~0.8 ms/call). The in-repo path issues 116 *.item()* calls from the same sites and spends 9.691 s cumulative (~83 ms/call) — a per-call slowdown of two orders of magnitude. Forward and forward+backward timings on synthetic inputs are comparable between the two paths, which rules out the LIF step and the surrogate as the primary cause.
-
-The two prime suspects are both in *SNNTorchNet*: the custom *SurrogateSpike.Function.save_for_backward(u)* that retains one membrane tensor per timestep (T = 2400 steps at dt = 0.25 ms, T = 600 ms), and the per-step *n_spk_tensors[hk] += s.sum()* metadata accumulator that threads a second graph dependency across the full trajectory. When the train loop later calls *loss.item()* or *p.grad.norm().item()*, it forces a sync on a tensor whose grad graph transitively depends on those 2400-link chains, and the scalar read stalls on graph traversal.
-
-See *src/pinglab/journal/snntorch-calibration-profile.py* for the standalone reproducer. The fix needs to either detach the metadata accumulator or stop saving the full *u* trajectory when recording is off; both changes belong to the *cm_back_scale* audit in the next-steps list since they touch the same tutorial-mode code path.
-
 ## Implications
 
 The two networks are *not* calibrated yet. Claiming that the in-repo LIF is a drop-in equivalent of snnTorch's requires matching behaviour within a small tolerance, not the {(snn.best_acc / lib.best_acc).toFixed(1)}× accuracy gap observed here. A plausible suspect list: (a) the membrane-update convention (β, decay timing, or a subtle double-integration), (b) spike-reset mechanics, (c) surrogate slope and centering, (d) *cm_back_scale* gradient-dampening interacting with the tutorial-mode path. The next pass has to localise which of these carries the bulk of the discrepancy.
