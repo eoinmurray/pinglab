@@ -15,24 +15,24 @@ Pinglab treats the human–AI collaboration driving it as an experimental method
 
 The project is organised in six layers. Each layer has one job; they are connected by manual promotion gates.
 
-- **Code** — *src/pinglab/*. Models, training/inference CLI (*oscilloscope.py*), metrics, plotting, notebook repro scripts. Pure Python under [uv](https://docs.astral.sh/uv/).
-- **Run outputs** — *src/artifacts/*. Raw figures, videos, logs produced by *oscilloscope.py* and notebook repro scripts. Gitignored.
+- **Code** — *src/pinglab/*. Models, training/inference CLI (*oscilloscope.py*), metrics, plotting, notebook notebook runners. Pure Python under [uv](https://docs.astral.sh/uv/).
+- **Run outputs** — *src/artifacts/*. Raw figures, videos, logs produced by *oscilloscope.py* and notebook notebook runners. Gitignored.
 - **Frozen figures** — *src/docs/public/figures/notebook/&lt;entry-slug&gt;/*. Published figures with sidecar JSONs carrying the git SHA and run config that produced them. One directory per notebook entry.
 - **Documentation** — *src/docs/src/pages/*. This Astro site. The substantive content lives under *notebook/* — dated entries, newest first. Repro scripts for entries live at *src/pinglab/notebook/&lt;entry-slug&gt;.py*.
 - **Reference literature** — *src/papers/*. Bibliography for the project (PDFs themselves are not redistributed; see *src/papers/README.md* for citations).
 - **Collaboration meta** — *CLAUDE.md* at the repo root, this LLM Context page, and a persistent memory directory under *~/.claude/projects/-Users-eoin-pinglab/memory/*. The agreed-upon rules for how the human and AI work on this project.
 
-Raw run outputs go to *src/artifacts/* (gitignored). Published figures live under *src/docs/public/figures/notebook/&lt;slug&gt;/* and are written there directly by the entry's repro script — that script *is* the promotion gate.
+Raw run outputs go to *src/artifacts/* (gitignored). Published figures live under *src/docs/public/figures/notebook/&lt;slug&gt;/* and are written there directly by the entry's notebook runner — that script *is* the promotion gate.
 
 ## Notebook
 
-All writeups are notebook entries at *src/docs/src/pages/notebook/&lt;slug&gt;.md*, listed chronologically on the home page at *src/docs/src/pages/index.astro*. There is no separate per-experiment page or paper layer — when a paper-shaped writeup is appropriate, it is a notebook entry like any other. The notebook is a lab notebook: dated, bench-driven, with numbers pulled live from each entry's repro script.
+All writeups are notebook entries at *src/docs/src/pages/notebook/&lt;slug&gt;.md*, listed chronologically on the home page at *src/docs/src/pages/index.astro*. There is no separate per-experiment page or paper layer — when a paper-shaped writeup is appropriate, it is a notebook entry like any other. The notebook is a lab notebook: dated, bench-driven, with numbers pulled live from each entry's notebook runner.
 
 **Slug.** *nb* prefix + zero-padded entry number — e.g. *nb001*, *nb002*. Numbers are global, sequential, and assigned in order of creation; they are the entry's primary identifier and the key for the parallel repro and figures directories. The slug is the filename and the URL. The descriptive name lives in the frontmatter *title* field, not the slug. No date in the slug — the canonical date lives in the entry's frontmatter (*date: YYYY-MM-DD*) and in its visible long-form byline. Next entry number: one more than the highest under *src/pinglab/notebook/*.
 
 Most entries follow a fixed structure: Introduction, Method, Findings, Implications, Next steps. Longer paper-style drafts keep their own section numbering.
 
-Each entry that cites generated figures or numbers gets a repro script at *src/pinglab/notebook/&lt;slug&gt;.py* (e.g. *nb001.py*) — one command regenerates every figure and dumps a *numbers.json* next to them under *src/docs/public/figures/notebook/&lt;slug&gt;/*.
+Each entry that cites generated figures or numbers gets a notebook runner at *src/pinglab/notebook/&lt;slug&gt;.py* (e.g. *nb001.py*) — one command regenerates every figure and dumps a *numbers.json* next to them under *src/docs/public/figures/notebook/&lt;slug&gt;/*.
 
 ## Notebook entry review
 
@@ -68,9 +68,9 @@ The entry follows.
 
 ## Figures
 
-Raw outputs from *oscilloscope.py* land under *src/artifacts/* (gitignored). Figures shown in a notebook entry are written by that entry's repro script at *src/pinglab/notebook/&lt;slug&gt;.py* directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. The repro script is the promotion gate — running it reads the latest run's metrics and writes the published PNG, MP4, and *numbers.json* into place.
+Raw outputs from *oscilloscope.py* land under *src/artifacts/* (gitignored). Figures shown in a notebook entry are written by that entry's notebook runner at *src/pinglab/notebook/&lt;slug&gt;.py* directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. The notebook runner is the promotion gate — running it reads the latest run's metrics and writes the published PNG, MP4, and *numbers.json* into place.
 
-Provenance lives in the repro script plus git history: the script's *SLUG*, *MAX_SAMPLES*, *EPOCHS*, and *TIER* constants pin the run config; the commit pins the model code. Every published figure belongs to exactly one notebook entry under *src/docs/public/figures/notebook/&lt;slug&gt;/*. Reference from markdown via the web path, e.g. */figures/notebook/&lt;slug&gt;/&lt;figure-name&gt;.png*.
+Provenance lives in the notebook runner plus git history: the script's *SLUG*, *MAX_SAMPLES*, *EPOCHS*, and *TIER* constants pin the run config; the commit pins the model code. Every published figure belongs to exactly one notebook entry under *src/docs/public/figures/notebook/&lt;slug&gt;/*. Reference from markdown via the web path, e.g. */figures/notebook/&lt;slug&gt;/&lt;figure-name&gt;.png*.
 
 Commit the PNG, the *numbers.json* update, and the markdown edit together. Figures use 16:9 aspect ratio.
 
@@ -115,7 +115,7 @@ Tests live in *src/pinglab/tests/unit/*. Markers *slow* and *regression* gate th
 
 Project-specific terms. Definitions here are load-bearing — if something elsewhere contradicts a definition, this page wins.
 
-- **Oscilloscope** — the training / inference / inspection CLI at *src/pinglab/oscilloscope.py*. Training and evaluation runs go through its *train* and *infer* subcommands; all other invocation patterns drive it (notebook repro scripts shell out to it via *sh*).
+- **Oscilloscope** — the training / inference / inspection CLI at *src/pinglab/oscilloscope.py*. Training and evaluation runs go through its *train* and *infer* subcommands; all other invocation patterns drive it (notebook notebook runners shell out to it via *sh*).
 - **Ladder** — the feature-incremental set of models stepping from a vanilla SNN to full PING: *snntorch → cuba → cuba-exp → coba → ping*. Each rung adds one biophysical feature.
 - **Promotion gate** — a manual step that moves content between layers: run output → frozen figure, notebook entry → paper section, ad-hoc preference → persistent memory. Code does not cross these gates.
 - **Calibration** — tuning hyperparameters (weight scales, thresholds, input drive) so models on the ladder are comparable before an experiment runs.
@@ -131,7 +131,7 @@ Facts about this repo that are load-bearing and easy to get wrong.
 
 - **Δt is in milliseconds.** Everywhere. Config fields carry the *_ms* suffix (*sim_ms*, *burn_in_ms*, *step_on_ms*); CLI flags follow the same convention (*--t-ms*). A "Δt of 1" means 1 ms, not 1 s.
 - **Trial length defaults to 600 ms** (*--t-ms 600*). Shorter trials emit a warning — the harness will let you run them but flags that the transient window is too short.
-- **Raw run outputs go to src/artifacts/; published figures go to src/docs/public/figures/notebook/&lt;slug&gt;/.** *oscilloscope.py* writes only to its *--out-dir* (typically under *src/artifacts/*). The notebook repro script reads from those run dirs and writes published figures directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. There is no separate freeze step.
+- **Raw run outputs go to src/artifacts/; published figures go to src/docs/public/figures/notebook/&lt;slug&gt;/.** *oscilloscope.py* writes only to its *--out-dir* (typically under *src/artifacts/*). The notebook notebook runner reads from those run dirs and writes published figures directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. There is no separate freeze step.
 - **src/artifacts/ is gitignored.** Nothing under it is part of the repo; it is reproducible from code + config + seed.
 - **PING recurrent weights are frozen.** Set analytically at init, not trained. Only input and output weights are trainable across the ladder. This is a deliberate control — it isolates the effect of the E–I architecture from learning of internal weights.
 - **Poisson input encoding is frozen across Δt-sweeps.** Each image is encoded once at the finest sweep Δt, then OR-pooled to the target Δt. This eliminates Poisson resampling as a confound.
@@ -220,7 +220,7 @@ Notebook entry runs pick from a fixed set of tiers. Tiers are size-named so the 
 
 Cost scales linearly in *max-samples × epochs × t-ms* ($\approx$3.3 × 10⁻⁵ s per unit per model on MPS). Multi-model comparisons multiply: an N-model head-to-head at *medium* is N × $\sim$7 min. *observe video* with per-epoch frames adds $\lesssim$10% at *medium* and above.
 
-Each notebook entry names the tier it ran at — either in Method prose or implicitly via its repro script's *MAX_SAMPLES / EPOCHS / T_MS* constants. If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
+Each notebook entry names the tier it ran at — either in Method prose or implicitly via its notebook runner's *MAX_SAMPLES / EPOCHS / T_MS* constants. If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
 
 ## Maintaining this page
 

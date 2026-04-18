@@ -3,103 +3,93 @@ layout: ../../layouts/MarkdownLayout.astro
 title: "001 — snnTorch calibration"
 date: 2026-04-17
 entry: 1
+structure: paper
 ---
-import numbers from "../../../public/figures/notebook/nb001/numbers.json";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebook/nb001/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const snn = numbers.runs?.snntorch ?? {};
+export const lib = numbers.runs?.["snntorch-library"] ?? {};
+export const cfg = numbers.config ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const runDuration = numbers.duration ?? "?";
+export const latestRun = snn.run_date && lib.run_date
+  ? (snn.run_date === lib.run_date ? snn.run_date : `${snn.run_date} / ${lib.run_date}`)
+  : (snn.run_date ?? lib.run_date ?? "?");
+export const ratio = (a, b) => (typeof a === "number" && typeof b === "number" && b !== 0 ? (a / b).toFixed(1) : "?");
+export const sec = (v) => (typeof v === "number" ? v.toFixed(0) : "?");
+export const num = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
-export const snn = numbers.runs.snntorch;
-export const lib = numbers.runs["snntorch-library"];
-export const cfg = numbers.config;
-export const nbRunId = numbers.notebook_run_id;
-export const latestRun = snn.run_date === lib.run_date
-  ? snn.run_date
-  : `${snn.run_date} / ${lib.run_date}`;
+export const figGlob = import.meta.glob("../../../public/figures/notebook/nb001/*.{png,mp4}", { eager: true, query: "?url", import: "default" });
+export const hasTrainingCurves = Object.keys(figGlob).some((k) => k.endsWith("/training_curves.png"));
+export const hasFiringRates = Object.keys(figGlob).some((k) => k.endsWith("/firing_rates.png"));
+export const hasSnnVideo = Object.keys(figGlob).some((k) => k.endsWith("/training_snntorch.mp4"));
+export const hasLibVideo = Object.keys(figGlob).some((k) => k.endsWith("/training_snntorch-library.mp4"));
 
 # snnTorch calibration
 
-*001 · authored Friday, April 17 2026 · latest run {latestRun} (seed {cfg.seed}, {cfg.tier}) · <span class="font-mono not-italic">{nbRunId}</span>*
+<p><span class="font-mono">nb001</span> · Friday, 17<sup>th</sup> April 26</p>
 
-## Introduction
+| Run ID | Date | Size | Duration |
+|---|---|---|---|
+| <span class="font-mono">{nbRunId}</span> | {latestRun} | {cfg.tier ?? "?"} | {runDuration} |
 
-The repo ships two variants of a snnTorch-style network: the in-repo *snntorch* model and *snntorch-library*, which swaps in snnTorch's own *snn.Leaky* + fast-sigmoid surrogate as a parity reference ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894); [Neftci et al. 2019](https://arxiv.org/abs/1901.09948)). They are meant to be behaviourally equivalent at matched config — any residual gap localises to the LIF update and the surrogate-gradient details. This entry is the first head-to-head run under matched hyperparameters.
+The repo ships two variants of a snnTorch-style network: the in-repo *snntorch* model and *snntorch-library*, which swaps in snnTorch's own *snn.Leaky* + fast-sigmoid surrogate as a parity reference ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894); [Neftci et al. 2019](https://arxiv.org/abs/1901.09948)). They are meant to be behaviourally equivalent at matched config — any residual gap localises to the LIF update and the surrogate-gradient details. Both models were trained on a {cfg.max_samples ?? "?"}-sample subset of MNIST for {cfg.epochs ?? "?"} epochs, batch size {cfg.batch_size ?? "?"}, lr {cfg.lr ?? "?"}, using signed Kaiming-uniform feedforward init (*--kaiming-init*), dt {cfg.dt ?? "?"} ms, T {cfg.t_ms ?? "?"} ms, {cfg.n_hidden ?? "?"} hidden units; only the *--model* flag differs between the two runs.
 
-## Method
+## *training_curves.png*
 
-Both models were trained on a {cfg.max_samples}-sample subset of MNIST for {cfg.epochs} epochs, batch size 64, lr 0.01, using signed Kaiming-uniform feedforward init (*--kaiming-init*), dt 0.25 ms, T 600 ms, 1024 hidden units, all other flags at defaults. The only configuration difference between the two runs is the *--model* flag. Seed control in the CLI is not yet wired, so the runs draw fresh RNG state but otherwise see identical data, optimizer, and architecture.
+{hasTrainingCurves && <img src="/figures/notebook/nb001/training_curves.png" alt="Training curves: pinglab snntorch vs snnTorch library" />}
 
-## Findings
+At matched config, the two implementations diverge sharply. Pinglab's *snntorch* reached {snn.best_acc ?? "?"}% test accuracy at epoch {snn.best_epoch ?? "?"}, while *snntorch-library* peaked at {lib.best_acc ?? "?"}% at epoch {lib.best_epoch ?? "?"} — a {ratio(snn.best_acc, lib.best_acc)}× accuracy ratio. Final-epoch training loss runs in the opposite direction: {num(snn.final_loss)} for the pinglab path against {num(lib.final_loss)} for the library path, a {ratio(lib.final_loss, snn.final_loss)}× gap with the library sitting higher. The two networks are not calibrated yet — a drop-in claim requires matching behaviour within a small tolerance, not the gap shown here.
 
-### Matched-config accuracy gap
+## *firing_rates.png*
 
-![Training curves: pinglab snntorch vs snnTorch library](/figures/notebook/nb001/training_curves.png)
+{hasFiringRates && <img src="/figures/notebook/nb001/firing_rates.png" alt="Hidden-layer firing rate vs epoch" />}
 
-*Training loss and test accuracy for both implementations over {cfg.epochs} epochs. Same data, same optimizer, same init family, same 1024-unit single-layer architecture; only the LIF step and surrogate differ.*
+Mean hidden-layer firing rate (Hz) at the end of each epoch, measured on the test set under the matched config above. Reading the rate side-by-side with the accuracy curve localises whether the gap tracks a simple rate mismatch or something deeper in the spike timing.
 
-At matched config, the two implementations diverge sharply. Pinglab's *snntorch* reached {snn.best_acc}% test accuracy at epoch {snn.best_epoch}, while *snntorch-library* peaked at {lib.best_acc}% at epoch {lib.best_epoch} — a {(snn.best_acc / lib.best_acc).toFixed(1)}× accuracy ratio. Final-epoch training loss runs in the opposite direction: {snn.final_loss.toFixed(1)} for the pinglab path against {lib.final_loss.toFixed(1)} for the library path, a {(lib.final_loss / snn.final_loss).toFixed(1)}× gap with the library sitting higher.
+## *training_snntorch.mp4*
 
-### Firing rate across training
+{hasSnnVideo && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb001/training_snntorch.mp4" />}
 
-![Hidden-layer firing rate vs epoch](/figures/notebook/nb001/firing_rates.png)
+Pinglab *snntorch*, one frame per epoch. Sidebars accumulate training history: accuracy curve, per-layer gradient flow, and E/I rate trace. The pinglab path took {sec(snn.total_elapsed_s)} s for {cfg.epochs ?? "?"} epochs — the forward pass records per-step membrane and firing traces that the library path skips, so part of the wall-time gap is instrumentation rather than the LIF step itself.
 
-*Mean hidden-layer firing rate (Hz) at the end of each epoch. Same matched config as the accuracy figure; rate is measured on the test set.*
+## *training_snntorch-library.mp4*
 
-### Training dynamics
+{hasLibVideo && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb001/training_snntorch-library.mp4" />}
 
-<video controls loop muted playsinline width="100%" src="/figures/notebook/nb001/training_snntorch.mp4" />
-
-*Pinglab snntorch, one frame per epoch. Sidebars accumulate training history: accuracy curve, per-layer gradient flow, and E/I rate trace.*
-
-<video controls loop muted playsinline width="100%" src="/figures/notebook/nb001/training_snntorch-library.mp4" />
-
-*snnTorch library, same matched config. Compare the raster density, the population-rate spectrum, and the output-logit raster between the two as the weights evolve.*
-
-### Runtime gap
-
-The pinglab path took {snn.total_elapsed_s.toFixed(0)} s for {cfg.epochs} epochs; the library path took {lib.total_elapsed_s.toFixed(0)} s — a ~{(snn.total_elapsed_s / lib.total_elapsed_s).toFixed(0)}× ratio. This is far larger than the LIF-step difference alone can explain; the in-repo forward pass also records per-step membrane and firing traces that the library path skips. Part of what calibration has to disentangle is how much of the accuracy gap is genuinely the LIF step versus side-effects of recording.
-
-## Implications
-
-The two networks are *not* calibrated yet. Claiming that the in-repo LIF is a drop-in equivalent of snnTorch's requires matching behaviour within a small tolerance, not the {(snn.best_acc / lib.best_acc).toFixed(1)}× accuracy gap observed here. A plausible suspect list: (a) the membrane-update convention (β, decay timing, or a subtle double-integration), (b) spike-reset mechanics, (c) surrogate slope and centering, (d) *cm_back_scale* gradient-dampening interacting with the tutorial-mode path. The next pass has to localise which of these carries the bulk of the discrepancy.
+snnTorch library, same matched config. Compare the raster density, the population-rate spectrum, and the output-logit raster between the two as the weights evolve. The library path took {sec(lib.total_elapsed_s)} s — a $\sim${ratio(snn.total_elapsed_s, lib.total_elapsed_s)}× ratio against the pinglab path, far larger than the LIF-step difference alone can explain.
 
 ## Next steps
 
-Each paragraph below is a standalone prompt — select and paste it into Claude Code as-is to execute the step.
+Add a *--seed* flag to *src/pinglab/oscilloscope.py* that seeds Python, NumPy, and torch RNGs (including CUDA) before dataset construction and model init. Verify bit-level reproducibility by running the same seed twice and diffing *metrics.json*.
 
-Add a *--seed* flag to *src/pinglab/oscilloscope.py* that seeds Python, NumPy, and torch RNGs (including CUDA) before dataset construction and model init. Thread the seed through *train()* and *infer()*, persist it to the run's *config.json*, and add it to *src/pinglab/notebook/nb001.py* so both matched runs use the same seed. Verify bit-level reproducibility by running the same seed twice and diffing *metrics.json*.
+Audit *cm_back_scale* and any loss-scale differences between the tutorial path (*SNNTorchNet*) and the *snntorch-library* path in *src/pinglab/models.py*. Cross-check the adjoint scaling against Burghi et al. 2026 (see *src/papers/burghi-et-al.pdf*).
 
-Audit *cm_back_scale* and any loss-scale differences between the tutorial path (*SNNTorchNet*) and the *snntorch-library* path in *src/pinglab/models.py*. Cross-check the adjoint scaling against Burghi et al. 2026 (see *src/papers/burghi-et-al.pdf*). Append findings as a new H3 subsection under "Findings" in *src/docs/src/pages/notebook/nb001.mdx*.
+Localise which of (a) membrane-update convention, (b) spike-reset mechanics, (c) surrogate slope and centering, (d) *cm_back_scale* gradient-dampening carries the bulk of the discrepancy.
 
-## References
+## Parameters
 
-**Source files** — everything that produced the numbers and figures above:
+| Parameter | Value | Meaning |
+|---|---|---|
+| Model | {snn.label ?? "?"} / {lib.label ?? "?"} | matched pair — only *--model* differs |
+| Dataset | {cfg.dataset ?? "?"} | training set |
+| Samples | {cfg.max_samples ?? "?"} | subset size |
+| Epochs | {cfg.epochs ?? "?"} | training epochs |
+| T | {cfg.t_ms ?? "?"} ms | total simulated time per sample |
+| dt | {cfg.dt ?? "?"} ms | simulation time step |
+| Hidden | {cfg.n_hidden ?? "?"} | single hidden-layer size |
+| Batch | {cfg.batch_size ?? "?"} | mini-batch size |
+| lr | {cfg.lr ?? "?"} | learning rate |
+| Seed | {cfg.seed ?? "?"} | RNG seed for reproducibility |
+| Tier | **{cfg.tier ?? "?"}** | run size bucket (see LLM Context § 8) |
+| Elapsed — {snn.label ?? "snntorch"} | {sec(snn.total_elapsed_s)} s | pinglab path wall time |
+| Elapsed — {lib.label ?? "snntorch-library"} | {sec(lib.total_elapsed_s)} s | library path wall time |
+| Run ID — {snn.label ?? "snntorch"} | {snn.run_id ?? "?"} | pinglab per-run id |
+| Run ID — {lib.label ?? "snntorch-library"} | {lib.run_id ?? "?"} | library per-run id |
+| Git SHA — {snn.label ?? "snntorch"} | {snn.git_sha ?? "?"} | pinglab path commit |
+| Git SHA — {lib.label ?? "snntorch-library"} | {lib.git_sha ?? "?"} | library path commit |
 
-- [*src/pinglab/notebook/nb001.py*](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/notebook/nb001.py) — repro script driving both training runs, the training-curves figure, and *numbers.json*.
-- [*src/docs/public/figures/notebook/nb001/numbers.json*](https://github.com/eoinmurray/pinglab/blob/main/src/docs/public/figures/notebook/nb001/numbers.json) — the exact metrics interpolated into this entry.
-- [*src/docs/public/figures/notebook/nb001/training_curves.png*](https://github.com/eoinmurray/pinglab/blob/main/src/docs/public/figures/notebook/nb001/training_curves.png), *training_snntorch.mp4*, *training_snntorch-library.mp4* — frozen figures and videos shown above.
+## Appendix
 
-**Papers** — third-party PDFs are not redistributed in the repo; follow the links to fetch them:
-
-- Eshraghian, J. K. et al. *Training Spiking Neural Networks Using Lessons From Deep Learning.* Proc. IEEE 2023. [arxiv.org/abs/2109.12894](https://arxiv.org/abs/2109.12894). Reference implementation for the *snnTorch* library path.
-- Neftci, E. O., Mostafa, H. & Zenke, F. *Surrogate Gradient Learning in Spiking Neural Networks.* IEEE Signal Processing Magazine 2019. [arxiv.org/abs/1901.09948](https://arxiv.org/abs/1901.09948). Framework behind the fast-sigmoid surrogate used on both paths.
-- Burghi, T. et al. *Costate-based SNN training* (2026 draft; *src/papers/burghi-et-al.pdf*). Principled adjoint scaling — relevant to the *cm_back_scale* audit in the next-steps list.
-
-## Appendix: Run details
-
-| Setting | Value |
-|---|---|
-| Tier | **{cfg.tier}** |
-| Dataset | {cfg.dataset} |
-| Samples | {cfg.max_samples} |
-| Epochs | {cfg.epochs} |
-| T | {cfg.t_ms} ms |
-| dt | {cfg.dt} ms |
-| Hidden | {cfg.n_hidden} |
-| Batch | {cfg.batch_size} |
-| lr | {cfg.lr} |
-| Elapsed — {snn.label} | {snn.total_elapsed_s.toFixed(0)} s |
-| Elapsed — {lib.label} | {lib.total_elapsed_s.toFixed(0)} s |
-| Run date — {snn.label} | {snn.run_date} |
-| Run date — {lib.label} | {lib.run_date} |
-| Run ID — {snn.label} | {snn.run_id} |
-| Run ID — {lib.label} | {lib.run_id} |
-| Git SHA — {snn.label} | {snn.git_sha} |
-| Git SHA — {lib.label} | {lib.git_sha} |
+Repro: *src/pinglab/notebook/nb001.py* · renderer: *src/pinglab/oscilloscope.py*. Papers — Eshraghian et al. *Training Spiking Neural Networks Using Lessons From Deep Learning* (Proc. IEEE 2023, [arxiv.org/abs/2109.12894](https://arxiv.org/abs/2109.12894)); Neftci, Mostafa & Zenke *Surrogate Gradient Learning in Spiking Neural Networks* (IEEE SPM 2019, [arxiv.org/abs/1901.09948](https://arxiv.org/abs/1901.09948)); Burghi et al. *Costate-based SNN training* (2026 draft; *src/papers/burghi-et-al.pdf*).
