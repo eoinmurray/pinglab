@@ -82,7 +82,7 @@ Install [uv](https://docs.astral.sh/uv/) and [bun](https://bun.sh/).
 
 ```sh
 uv run python src/pinglab/oscilloscope.py --help
-uv run python src/pinglab/oscilloscope.py train --model snntorch --dataset mnist --max-samples 1000 --epochs 3
+uv run python src/pinglab/oscilloscope.py train --model snntorch-clone --dataset mnist --max-samples 1000 --epochs 3
 ```
 
 **Reproduce a notebook entry:**
@@ -116,7 +116,7 @@ Tests live in *src/pinglab/tests/unit/*. Markers *slow* and *regression* gate th
 Project-specific terms. Definitions here are load-bearing — if something elsewhere contradicts a definition, this page wins.
 
 - **Oscilloscope** — the training / inference / inspection CLI at *src/pinglab/oscilloscope.py*. Training and evaluation runs go through its *train* and *infer* subcommands; all other invocation patterns drive it (notebook notebook runners shell out to it via *sh*).
-- **Ladder** — the feature-incremental set of models stepping from a vanilla SNN to full PING: *snntorch → cuba → cuba-exp → coba → ping*. Each rung adds one biophysical feature.
+- **Ladder** — the feature-incremental set of models stepping from a vanilla SNN to full PING: *snntorch-clone → cuba → cuba-exp → coba → ping*. Each rung adds one biophysical feature.
 - **Promotion gate** — a manual step that moves content between layers: run output → frozen figure, notebook entry → paper section, ad-hoc preference → persistent memory. Code does not cross these gates.
 - **Calibration** — tuning hyperparameters (weight scales, thresholds, input drive) so models on the ladder are comparable before an experiment runs.
 - **Frozen figure** — a published PNG under *src/docs/public/figures/…* copied from *src/artifacts/…* with a sidecar JSON carrying the git SHA at freeze time and the run config.
@@ -208,19 +208,31 @@ When a notebook entry's narrative gets invalidated by a fix (e.g., an "accuracy 
 
 ### 8. Run sizing tiers
 
-Notebook entry runs pick from a fixed set of tiers. Tiers are size-named so the expected wall-clock cost is legible from the config alone. ETAs below are per model on MPS at dt 0.25 ms, post the MPS fast-path fix:
+Notebook entry runs pick from a fixed set of tiers. Tiers are size-named so the expected wall-clock cost is legible from the config alone. Notebooks come in two flavours — **training** (gradient descent over samples × epochs) and **video-render** (forward-pass sim per frame + matplotlib render). Both use the same tier names so an entry labeled *small* is an iteration-speed run regardless of flavour, but the underlying budgets differ.
+
+**Training tiers.** ETA per model on MPS at dt 0.25 ms, post the MPS fast-path fix:
 
 | tier | max-samples | epochs | t-ms | steps | $\sim$ETA/model |
 | ---- | ----------: | -----: | ---: | ----: | ---------: |
-| tiny   |   200 |  3 | 600 | 2400 |  $\sim$15 s |
-| small  |   500 |  5 | 600 | 2400 |  $\sim$50 s |
-| medium |  2000 | 10 | 600 | 2400 |  $\sim$7 min |
-| large  |  5000 | 40 | 200 |  800 | $\sim$20 min |
-| huge   | 10000 | 40 | 600 | 2400 |  $\sim$4 hr |
+| extra small |   200 |  3 | 600 | 2400 |  $\sim$15 s |
+| small       |   500 |  5 | 600 | 2400 |  $\sim$50 s |
+| medium      |  2000 | 10 | 600 | 2400 |  $\sim$7 min |
+| large       |  5000 | 40 | 200 |  800 | $\sim$20 min |
+| extra large | 10000 | 40 | 600 | 2400 |  $\sim$4 hr |
 
-Cost scales linearly in *max-samples × epochs × t-ms* ($\approx$3.3 × 10⁻⁵ s per unit per model on MPS). Multi-model comparisons multiply: an N-model head-to-head at *medium* is N × $\sim$7 min. *observe video* with per-epoch frames adds $\lesssim$10% at *medium* and above.
+Training cost scales linearly in *max-samples × epochs × t-ms* ($\approx$3.3 × 10⁻⁵ s per unit per model on MPS). Multi-model comparisons multiply: an N-model head-to-head at *medium* is N × $\sim$7 min. *observe video* with per-epoch frames adds $\lesssim$10% at *medium* and above.
 
-Each notebook entry names the tier it ran at — either in Method prose or implicitly via its notebook runner's *MAX_SAMPLES / EPOCHS / T_MS* constants. If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
+**Video-render tiers.** ETA per 3-scan nb002-style run (one 600 ms PING forward pass + full SCOPE_FRAME render per frame). Per-frame wall-clock is $\sim$1.3 s, dominated by matplotlib:
+
+| tier | frames/scan | $\sim$ETA |
+| ---- | ----------: | --------: |
+| extra small |   5 | $\sim$20 s |
+| small       |  15 | $\sim$1 min |
+| medium      | 100 | $\sim$6 min |
+| large       | 300 | $\sim$20 min |
+| extra large | 600 | $\sim$40 min |
+
+Each notebook entry names the tier it ran at — either in Method prose or implicitly via its notebook runner's *MAX_SAMPLES / EPOCHS / T_MS* constants (training) or *TIER_FRAMES* lookup (video). If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
 
 ## Maintaining this page
 

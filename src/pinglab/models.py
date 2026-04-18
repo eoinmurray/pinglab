@@ -164,7 +164,7 @@ def snn_lif_step(mem, I, beta, spike_fn, reset="zero", can_fire=None):
     """snnTorch-style LIF step: decay + input, spike, reset. Returns (mem, s).
 
     Caller is responsible for dt-scaling of the input. Same primitive for
-    snntorch and cuba; what differs is how I is constructed.
+    snntorch-clone and cuba; what differs is how I is constructed.
 
     can_fire: optional bool mask. Where False, neuron is refractory — mem is
               clamped to V_reset=0 (no integration), spike output is 0.
@@ -293,7 +293,11 @@ class SNNTorchNet(SNNBase):
 
         if tutorial_mode:
             self.signed_weights = True
-            self.beta_override = 0.95
+            # β falls through to module-level beta_snn (dt-aware, τ=tau_snn).
+            # The snnTorch tutorial's hardcoded 0.95 assumes dt=1ms; using it
+            # at dt≠1 gives an inconsistent τ_mem vs SNNTorchLibraryNet which
+            # also uses beta_snn. Leaving beta_override=None keeps both paths
+            # calibrated to the same τ_mem at every dt.
             self.reset_mode = self._reset_mode_override or "subtract"
             self.tutorial_readout = True
             self._init_tutorial_weights(all_sizes, w_rec)
@@ -606,7 +610,7 @@ class SNNTorchLibraryNet(SNNBase):
     Same Kaiming-uniform feedforward init + linear-decoder readout as
     SNNTorchNet(tutorial_mode=True), but the LIF step and surrogate gradient
     come from snntorch.snn.Leaky + snntorch.surrogate.fast_sigmoid. The only
-    thing that can differ between this model and `snntorch` at
+    thing that can differ between this model and `snntorch-clone` at
     matched config is the LIF update + surrogate — so accuracy gaps
     localise the difference.
 

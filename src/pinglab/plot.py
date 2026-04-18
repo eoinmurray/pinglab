@@ -724,12 +724,15 @@ def _draw_sweep_progress(ax, values, frame_idx, title, title_kw):
 
 
 def _draw_acc_curve(ax, acc, total_epochs, loss=None, lr=None):
-    """Draw accuracy curve with optional loss on twin axis and LR (% of max)."""
+    """Draw accuracy, loss, and LR on a single 0-100% axis.
+
+    Loss and LR are normalized to their running maxima and plotted as
+    percentages, so a single y-axis carries all three curves without a
+    twin axis (which clipped against the cell's right inset)."""
     if not hasattr(ax, '_acc_history'):
         ax._acc_history = []
         ax._loss_history = []
         ax._lr_history = []
-        ax._twin = ax.twinx()
     ax._acc_history.append(acc)
     if loss is not None:
         ax._loss_history.append(loss)
@@ -737,45 +740,34 @@ def _draw_acc_curve(ax, acc, total_epochs, loss=None, lr=None):
         ax._lr_history.append(lr)
 
     ax.clear()
-    ax._twin.clear()
 
     epochs = list(range(len(ax._acc_history)))
-    ax.plot(epochs, ax._acc_history, color=CLR, linewidth=1.5, label="acc")
+    ax.plot(epochs, ax._acc_history, color=CLR, linewidth=1.5, label="acc %")
     ax.plot(len(epochs) - 1, acc, "o",
             color=CLR, markersize=6, zorder=5)
 
-    # LR as dashed grey on left axis, normalized to % of max LR seen so far.
-    # This makes scheduler step-downs visually obvious without a third axis.
+    if ax._loss_history:
+        loss_max = max(ax._loss_history) or 1.0
+        loss_pct = [100.0 * v / loss_max for v in ax._loss_history]
+        loss_epochs = list(range(len(loss_pct)))
+        ax.plot(loss_epochs, loss_pct, color=CLR_ACCENT, linewidth=1.5,
+                alpha=0.85, label="loss %")
+        ax.plot(loss_epochs[-1], loss_pct[-1], "o",
+                color=CLR_ACCENT, markersize=6, zorder=5)
+
     if ax._lr_history:
-        lr_max = max(ax._lr_history)
+        lr_max = max(ax._lr_history) or 1.0
         lr_pct = [100.0 * v / lr_max for v in ax._lr_history]
         lr_epochs = list(range(len(lr_pct)))
         ax.plot(lr_epochs, lr_pct, color=CLR_LIGHT, linewidth=1.2,
-                linestyle="--", alpha=0.85, label="lr%")
+                linestyle="--", alpha=0.85, label="lr %")
 
     ax.set_xlim(0, max(total_epochs - 1, 1))
     ax.set_ylim(0, 105)
     ax.set_xlabel("epoch", **LABEL_KW)
-    ax.set_ylabel("acc % / lr%", **LABEL_KW)
+    ax.set_ylabel("% of max", **LABEL_KW)
     ax.set_title("Acc + Loss + LR", **TITLE_KW)
     ax.tick_params(**TICK_KW)
-
-    if ax._loss_history:
-        loss_epochs = list(range(len(ax._loss_history)))
-        ax._twin.plot(loss_epochs, ax._loss_history,
-                      color=CLR_ACCENT, linewidth=1.5, alpha=0.85)
-        ax._twin.plot(loss_epochs[-1], ax._loss_history[-1], "o",
-                      color=CLR_ACCENT, markersize=6, zorder=5)
-        ax._twin.set_ylabel("loss",
-                            fontsize=LABEL_KW["fontsize"], color=CLR_ACCENT)
-        ax._twin.tick_params(labelsize=TICK_KW["labelsize"],
-                             colors=CLR_ACCENT,
-                             length=TICK_KW["length"], width=TICK_KW["width"])
-        for spine in ax._twin.spines.values():
-            spine.set_linewidth(2)
-            spine.set_color("black")
-            spine.set_visible(True)
-    ax._twin.set_xlim(0, max(total_epochs - 1, 1))
 
 
 _GRAD_LAYER_COLORS = {
@@ -1043,7 +1035,7 @@ def _draw_header(ax_header, title, ratio, dt, rate_e_hz, rate_i_hz,
     f0_val = f"{f0:.0f}" if f0 > 0 else "-"
     i_val = f"{rate_i_hz:.0f}" if has_inh else "-"
 
-    _display_names = {"snntorch": "snnTorch", "cuba": "CUBA"}
+    _display_names = {"snntorch-clone": "snnTorch", "cuba": "CUBA"}
     display_model = _display_names.get(model_name, model_name.upper())
     # Fall back to the module-level input rate (set from --input-rate) when
     # the caller did not thread input_rate through — keeps every call site

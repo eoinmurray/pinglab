@@ -1,7 +1,7 @@
 """Notebook runner for entry 002 — basic PING videos.
 
 Invokes `oscilloscope.py video` three times to produce:
-  * scan.mp4    — stim-overdrive sweep 1×–10× (fixed dt, fixed ei_strength)
+  * scan_overdrive.mp4 — stim-overdrive sweep 1×–10× (fixed dt, fixed ei_strength)
   * scan_dt.mp4 — dt sweep 0.05–2 ms (fixed overdrive=5×, fixed ei_strength)
   * scan_ei.mp4 — ei_strength sweep 0→1.5 (fixed dt, fixed overdrive=5×) —
                   walks from async baseline (no E→I coupling) to PING
@@ -47,7 +47,9 @@ OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 # Input is MNIST digit 0 sample 0, Poisson-encoded. base_rate comes from
 # M.max_rate_hz; during the stim window rate = base_rate * overdrive.
 SEED           = 42
-TIER           = "large"  # see src/docs/src/pages/llm-context.md § 8
+TIER           = "medium"  # see src/docs/src/pages/llm-context.md § 8
+# Per-scan frame count by tier. nb002 runs 3 scans, so wall-clock ≈ 3 × frames × ~1.3 s.
+TIER_FRAMES    = {"extra small": 5, "small": 15, "medium": 100, "large": 300, "extra large": 600}
 N_HIDDEN       = 512     # → N_E=512, N_I=128 (n_i = n_e//4)
 DT_MS          = 0.1
 SIM_MS         = 600.0
@@ -63,7 +65,7 @@ SAMPLE_IDX     = 0
 # ── Scan config ───────────────────────────────────────────────────────────
 SCAN_MIN       = 1.0     # overdrive=1 → no elevation (control)
 SCAN_MAX       = 10.0    # overdrive=10 → strong elevation
-SCAN_FRAMES    = 720
+SCAN_FRAMES    = TIER_FRAMES[TIER]
 SCAN_FPS       = 30
 
 # dt-scan: fix overdrive high so PING is robustly on, sweep integration
@@ -72,7 +74,7 @@ SCAN_FPS       = 30
 DT_SCAN_OVERDRIVE = 10.0
 DT_SCAN_MIN    = 0.05    # ms — fine temporal resolution
 DT_SCAN_MAX    = 2.0     # ms — coarse (likely unstable)
-DT_SCAN_FRAMES = 720
+DT_SCAN_FRAMES = TIER_FRAMES[TIER]
 DT_SCAN_FPS    = 30
 
 # ei-scan: overdrive pinned at 1× (no stim-window boost), sweep E→I coupling
@@ -85,7 +87,7 @@ EI_SCAN_INPUT_RATE_HZ = 2 * INPUT_RATE_HZ
 EI_SCAN_W_IN_OVERDRIVE = 3.0
 EI_SCAN_MIN    = 0.0
 EI_SCAN_MAX    = 1.0     # sweep up to the default ei_strength — past 1 the E rate is already saturated-low
-EI_SCAN_FRAMES = 720
+EI_SCAN_FRAMES = TIER_FRAMES[TIER]
 EI_SCAN_FPS    = 30
 
 
@@ -338,13 +340,6 @@ def write_numbers(rates: dict, out_path: Path, notebook_run_id: str,
 
 
 def main() -> None:
-    global SCAN_FRAMES, SCAN_FPS, DT_SCAN_FRAMES, DT_SCAN_FPS
-    global EI_SCAN_FRAMES, EI_SCAN_FPS
-    if "--tiny" in sys.argv:
-        SCAN_FRAMES = DT_SCAN_FRAMES = EI_SCAN_FRAMES = 20
-        SCAN_FPS = DT_SCAN_FPS = EI_SCAN_FPS = 10
-        print("[tiny] 20 frames/scan @ 10fps — for quick iteration")
-
     wipe_dir = "--no-wipe-dir" not in sys.argv
 
     t_start = time.monotonic()
@@ -365,7 +360,7 @@ def main() -> None:
     # 1. Oscilloscope-rendered scan video (stim-overdrive sweep).
     scan_dir = ARTIFACTS / "scan"
     scan_src = render_scan(scan_dir)
-    _overlay_stamp_video(scan_src, FIGURES / "scan.mp4", stamp)
+    _overlay_stamp_video(scan_src, FIGURES / "scan_overdrive.mp4", stamp)
 
     # 2. Oscilloscope-rendered dt sweep at fixed overdrive=5×.
     dt_scan_dir = ARTIFACTS / "dt_scan"

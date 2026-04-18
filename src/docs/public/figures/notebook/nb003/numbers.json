@@ -1,11 +1,13 @@
 {
-  "notebook_run_id": "nb001-20260418-063609",
+  "notebook_run_id": "r012",
+  "duration_s": 1310.1,
+  "duration": "21m 50s",
   "config": {
-    "tier": "medium",
+    "tier": "large",
     "dataset": "mnist",
-    "max_samples": 2000,
-    "epochs": 10,
-    "t_ms": 600.0,
+    "max_samples": 5000,
+    "epochs": 40,
+    "t_ms": 200.0,
     "dt": 0.25,
     "n_hidden": 1024,
     "batch_size": 64,
@@ -14,27 +16,27 @@
     "seed": 42
   },
   "runs": {
-    "snntorch": {
-      "label": "pinglab snntorch",
-      "run_date": "Saturday, April 18 2026 at 08:38",
-      "run_id": null,
-      "git_sha": null,
-      "best_acc": 85.0,
-      "best_epoch": 10,
-      "final_acc": 85.0,
-      "final_loss": 0.5969299423694611,
-      "total_elapsed_s": 166.37696895794943
+    "snntorch-clone": {
+      "label": "pinglab snntorch-clone",
+      "run_date": "Saturday, April 18 2026 at 18:30",
+      "run_id": "r-20260418-182119",
+      "git_sha": "35acc22 (dirty)",
+      "best_acc": 88.4,
+      "best_epoch": 40,
+      "final_acc": 88.4,
+      "final_loss": 0.41148800945412073,
+      "total_elapsed_s": 537.7609446248971
     },
     "snntorch-library": {
       "label": "snnTorch library",
-      "run_date": "Saturday, April 18 2026 at 08:43",
-      "run_id": null,
-      "git_sha": null,
-      "best_acc": 86.0,
-      "best_epoch": 8,
-      "final_acc": 86.0,
-      "final_loss": 0.5640387612581254,
-      "total_elapsed_s": 235.3551464579068
+      "run_date": "Saturday, April 18 2026 at 18:43",
+      "run_id": "r-20260418-183022",
+      "git_sha": "35acc22 (dirty)",
+      "best_acc": 90.7,
+      "best_epoch": 40,
+      "final_acc": 90.7,
+      "final_loss": 0.20977187326680574,
+      "total_elapsed_s": 757.233949333895
     }
   }
 }

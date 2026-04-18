@@ -37,7 +37,7 @@ OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 
 # ── Frame config — matches nb002's canonical PING working point ──────────
 SEED            = 42
-TIER            = "tiny"    # single forward pass — no sweep cost
+TIER            = "extra small"    # single forward pass — no sweep cost
 N_HIDDEN        = 512
 DT_MS           = 0.1
 SIM_MS          = 600.0
