@@ -5,25 +5,34 @@ title: "Models"
 
 # Models
 
-The shared five-model ladder used across experiments. Each step adds one axis of biophysical realism or time-discretisation rigour. For the project-level "why," see [Introduction](/introduction/).
+The shared model ladder used across experiments. Each step adds one axis of biophysical realism or time-discretisation rigour. For the project-level "why," see [Introduction](/introduction/).
 
 ## The model ladder
 
-Five models, ordered by increasing biophysical realism and time-discretisation rigour. All take MNIST Poisson spikes as input and output digit-class logits.
+The ladder: six models, ordered by increasing biophysical realism and time-discretisation rigour. All take MNIST Poisson spikes as input and output digit-class logits. The first two (snnTorch-library, snnTorch) share the same update rule — snnTorch-library is the reference, snnTorch is pinglab's in-repo version — and serve as a calibration pair.
 
 | Model | Update rule | Description | E-I |
 | ----- | ----------- | ----------- | --- |
-| snnTorch | $U_{t+1} = \beta U_t + W s + b$ | snnTorch-library form: $\beta$ a dimensionless hyperparameter. No dt semantics. Not dt-stable. | no |
+| snnTorch-library | $U_{t+1} = \beta U_t + W s - S \theta$ | Thin wrapper around snnTorch's *snn.Leaky* + fast-sigmoid surrogate. Parity reference for the pinglab path. | no |
+| snnTorch | $U_{t+1} = \beta U_t + W s + b$ | snnTorch-library form, pinglab implementation: $\beta$ a dimensionless hyperparameter. No dt semantics. Not dt-stable. | no |
 | CUBA | $U_{t+1} = \beta U_t + \frac{1-\beta}{\Delta t} W s + (1-\beta) b$ | Exact Euler discretisation of $\tau\,dV/dt = -V + I$. Dt-stable in mean; breaks under discrete-spike variance. | no |
 | CUBA-exp | $g \leftarrow e^{-\Delta t/\tau_{\text{AMPA}}} g + W s$; $U_{t+1} = \beta U_t + (1-\beta) g + (1-\beta) b$ | CUBA + exponential synapse. **The feature that delivers dt-stability.** | no |
 | COBA | $g \leftarrow g(1-\Delta t/\tau) + W s$; $C\,dV/dt = -g_L(V-V_L) - g(V-V_e)$ | Full biophysical: exp synapse + hard reset + refractory + conductance-$V$. | no |
 | PING | COBA with frozen recurrent $W^{EE}, W^{EI}, W^{IE}$ | COBA + E→I→E loop producing gamma oscillation. Dt-stable below $\tau_{\text{GABA}}$ ceiling. | yes |
+
+### snnTorch-library
+
+A thin wrapper around snnTorch's own *snn.Leaky* module with the library's fast-sigmoid surrogate ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894)). The update rule is $U_{t+1} = \beta U_t + W s - S \theta$ with reset by subtraction; $\beta$ is a dimensionless hyperparameter and there are no $\Delta t$ semantics.
+
+Its purpose is calibration, not experimentation. At matched config, snnTorch-library and pinglab's snnTorch should train to within a small tolerance — any residual gap localises to the LIF-step implementation or surrogate-gradient details, not to the architecture. See [notebook 003](/notebook/nb003/) for the side-by-side training comparison.
 
 ### snnTorch
 
 The reference model — matches the snnTorch library's snn.Leaky update exactly. $\beta$ is a dimensionless hyperparameter in $[0, 1)$, treated on par with weights. **No $\Delta t$ exists in the model** — simulation runs for t in range(num_steps) and time is abstract, step-indexed. A spike from neuron $i$ in step $t$ adds exactly $W_i$ to the membrane; bias is added every step. Reset on spike: subtract threshold (preserves overshoot).
 
 This is the deep-learning framing of an SNN: a recurrent network with binary activations and a leaky scalar state, parameterised by $\beta$. It has no $\Delta t$-invariance because there is no $\Delta t$ in its spec.
+
+**Compared to snnTorch-library:** identical update rule, different implementation — any numeric gap between the two localises to the LIF step or surrogate-gradient code, not to the model spec.
 
 ### CUBA
 
@@ -33,6 +42,8 @@ Proper continuous-time discretisation of the physicist's LIF: $\tau\,dV/dt = -V 
 - **Per-ms bias contribution** $= b$ at any $\Delta t$ — dt-invariant.
 
 Same parameters, learning rate, and training cost as snnTorch — only the forward rule differs. Empirically $\Delta t$-invariant **in expectation** across $\Delta t \in [0.05, 2.0]$ ms, but breaks under discrete-spike variance at extreme $\Delta t$ when trained at fine $\Delta t$.
+
+**Compared to snnTorch:** same LIF neuron class, but the forward rule derives from proper Euler integration with explicit $\Delta t$ semantics — this isolates whether dt-sensitivity is a property of the model or of the discretisation.
 
 ### CUBA-exp
 
@@ -44,7 +55,7 @@ $$
 
 The exp synapse resolves CUBA's residual variance issue: at large $\Delta t$, many input spikes pile up into a single step, but $g$ smooths them over $\tau_{\text{AMPA}}$ before they reach $V$. Per-step $V$-drive variance stays low at every $\Delta t$.
 
-**This is the feature that delivers $\Delta t$-stability.** Empirical ablation shows CUBA-exp recovers 65 percentage points of the 69pp $\Delta t$-stability gap between CUBA and COBA. Every further biophysical feature contributes baseline accuracy but not $\Delta t$-stability.
+**Compared to CUBA:** same discretisation philosophy, plus an exponential synapse that low-passes presynaptic drive before it reaches the membrane — this isolates whether the synaptic low-pass alone carries dt-stability.
 
 ### COBA
 
@@ -52,16 +63,21 @@ Conductance-based LIF with exponential synapses — the simplest biophysical mod
 
 In our code, COBA is PINGNet with ei_strength = 0 — same dynamics, no inhibitory population. Rate-integrating by construction, so naturally dt-invariant.
 
+**Compared to CUBA-exp:** adds hard reset, refractory period, and a conductance-based membrane driven by $g(V - V_e)$ — this isolates whether the remaining biophysical features contribute beyond what the exp synapse alone already delivers.
+
 ### PING
 
 Full E-I network with frozen recurrent weights, producing gamma oscillations. Excitatory and inhibitory populations (E:I ratio 4:1) share COBA-style dynamics; recurrent $W^{EE}, W^{EI}, W^{IE}$ connect them into the standard PING loop. The recurrent matrices are **frozen at init** — only $W_{\text{in}}$ and $W_{\text{out}}$ train, matching the trainable surface area of the other three models so the ladder is apples-to-apples.
 
 With default parameters and input rate 50 Hz, the network locks at $f_0 \approx 40$ Hz with $\text{CV} \approx 0.4$ and $\sim 80\%$ activity — the intended gamma regime, not saturation. PING has a hard $\Delta t$ ceiling at $\Delta t \geq 1.5$ ms: once $\Delta t$ approaches $\tau_{\text{GABA}}$, the E→I→E loop cannot complete within one step, inhibition lags, and the network saturates.
 
-### Why this ladder
+**Compared to COBA:** adds an inhibitory population (E:I = 4:1) and the frozen E→I→E recurrent loop that produces gamma oscillations — this isolates what the gamma rhythm contributes on top of a purely feedforward conductance-based model.
+
+### The Ladder
 
 Each step up adds one axis of realism or rigour:
 
+- **snnTorch-library → snnTorch**: same update rule, different implementation. Isolates *"does the pinglab LIF step and surrogate-gradient code match the library's numerics?"*
 - **snnTorch → CUBA**: same neuron class, cleaner discretisation. Isolates *"does proper Euler fix CUBA's dt-sensitivity?"*
 - **CUBA → CUBA-exp**: same discretisation philosophy, add exponential synapse. Isolates *"is the synaptic low-pass what's carrying stability?"*
 - **CUBA-exp → COBA**: add hard reset, refractory, conductance-based membrane. Isolates *"do the remaining biophysical features add anything?"*

@@ -1,6 +1,6 @@
 """Notebook runner for entry 003 — snnTorch calibration.
 
-Runs a small, matched training of the in-repo `snntorch` model and the
+Runs a small, matched training of the in-repo `snntorch-clone` model and the
 `snntorch-library` parity reference, then writes a training-curve comparison
 figure and a numbers.json summary into the notebook's figures dir.
 
@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import shutil
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,18 +29,19 @@ ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
-MODELS = ["snntorch", "snntorch-library"]
-MAX_SAMPLES = 2000
-EPOCHS = 10
+MODELS = ["snntorch-clone", "snntorch-library"]
+MAX_SAMPLES = 5000
+EPOCHS = 40
+T_MS = 200.0
 SEED = 42
-TIER = "medium"  # see src/docs/src/pages/llm-context.md § 8 Run sizing tiers
+TIER = "large"  # see src/docs/src/pages/llm-context.md § 8 Run sizing tiers
 
 MODEL_LABELS = {
-    "snntorch": "pinglab snntorch",
+    "snntorch-clone": "pinglab snntorch-clone",
     "snntorch-library": "snnTorch library",
 }
 MODEL_COLORS = {
-    "snntorch": "#1f77b4",
+    "snntorch-clone": "#1f77b4",
     "snntorch-library": "#d62728",
 }
 
@@ -67,6 +69,7 @@ def train_model(model: str) -> Path:
         "--dataset", "mnist",
         "--max-samples", str(MAX_SAMPLES),
         "--epochs", str(EPOCHS),
+        "--t-ms", str(T_MS),
         "--seed", str(SEED),
         "--observe", "video",
         "--frame-rate", "1",
@@ -166,12 +169,23 @@ def plot_training_curves(run_dirs: dict[str, Path], out_path: Path,
     plt.close(fig)
 
 
+def _format_duration(seconds: float) -> str:
+    s = int(round(seconds))
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60:02d}s"
+    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
+
+
 def write_numbers(run_dirs: dict[str, Path], out_path: Path,
-                  notebook_run_id: str) -> dict:
+                  notebook_run_id: str, duration_s: float) -> dict:
     # Pull shared hyperparameters from the first run's config.json (matched across models).
     first_cfg = load_config(next(iter(run_dirs.values())))
     summary: dict[str, dict] = {
         "notebook_run_id": notebook_run_id,
+        "duration_s": round(duration_s, 1),
+        "duration": _format_duration(duration_s),
         "config": {
             "tier": TIER,
             "dataset": "mnist",
@@ -250,6 +264,7 @@ def copy_training_videos(run_dirs: dict[str, Path], out_dir: Path,
 
 def main() -> None:
     wipe_dir = "--no-wipe-dir" not in sys.argv
+    t_start = time.monotonic()
     # Notebook-level run id stamps this repro invocation (spans all model runs).
     notebook_run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {notebook_run_id}")
@@ -269,11 +284,13 @@ def main() -> None:
     print(f"wrote {rates_path.relative_to(REPO)}")
     copy_training_videos(run_dirs, FIGURES, notebook_run_id)
     numbers_path = FIGURES / "numbers.json"
-    summary = write_numbers(run_dirs, numbers_path, notebook_run_id)
+    duration_s = time.monotonic() - t_start
+    summary = write_numbers(run_dirs, numbers_path, notebook_run_id, duration_s)
     print(f"wrote {numbers_path.relative_to(REPO)}")
     for model, s in summary["runs"].items():
         print(f"  {model}: best={s['best_acc']}%  final={s['final_acc']}%  "
               f"elapsed={s['total_elapsed_s']:.0f}s")
+    print(f"  total duration: {summary['duration']}")
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
   "duration_s": 2.6,
   "duration": "3s",
   "config": {
-    "tier": "tiny",
+    "tier": "extra small",
     "model": "ping",
     "n_e": 512,
     "n_i": 128,
