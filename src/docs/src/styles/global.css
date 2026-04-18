@@ -72,6 +72,22 @@ code, pre, kbd, samp {
   font-weight: normal;
 }
 
+/* Shiki output: keep code blocks quiet — paper-tinted background, hairline
+   border, no heavy shadow. Shiki inlines its own colors via inline styles;
+   we only override the block chrome. */
+pre.astro-code {
+  background: #fafaf7 !important;
+  border: 1px solid #e7e5df;
+  border-radius: 2px;
+  padding: 0.9rem 1.1rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+pre.astro-code code {
+  background: transparent;
+  font-size: 0.88em;
+}
+
 /* Inline math matches surrounding text size; block math renders centered
    at KaTeX's default display size. text-align and font-weight are set
    explicitly because the prose plugin overrides KaTeX's own values. */
