@@ -42,7 +42,7 @@ tau_ampa      = 2.0       # ms — AMPA decay
 tau_gaba      = 9.0       # ms — GABA decay (Börgers: 9 ms; Buzsaki & Wang: 8-12 ms)
 
 # ── Input encoding ────────────────────────────────────────────────────────
-max_rate_hz   = 10.0      # Hz — max Poisson rate for fully-on pixel
+max_rate_hz   = 25.0      # Hz — max Poisson rate for fully-on pixel (sensory-input scale, LGN-ish)
 input_scale   = 20.0      # nA per input spike (CUBA only)
 
 # ── snnTorch ──────────────────────────────────────────────────────────────

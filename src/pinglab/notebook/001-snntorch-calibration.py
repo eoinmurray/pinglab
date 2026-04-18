@@ -9,6 +9,7 @@ Notebook entry: src/docs/src/pages/notebook/001-snntorch-calibration.mdx
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -246,9 +247,15 @@ def copy_training_videos(run_dirs: dict[str, Path], out_dir: Path,
 
 
 def main() -> None:
+    wipe_dir = "--no-wipe-dir" not in sys.argv
     # Notebook-level run id stamps this repro invocation (spans all model runs).
     notebook_run_id = f"nb{SLUG.split('-')[0]}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
     print(f"notebook_run_id = {notebook_run_id}")
+    if wipe_dir:
+        for d in (ARTIFACTS, FIGURES):
+            if d.exists():
+                print(f"[wipe] {d.relative_to(REPO)}")
+                shutil.rmtree(d)
     run_dirs = {m: train_model(m) for m in MODELS}
     fig_path = FIGURES / "training_curves.png"
     plot_training_curves(run_dirs, fig_path, notebook_run_id)
