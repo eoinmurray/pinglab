@@ -1,6 +1,11 @@
 """All matplotlib plotting code for the oscilloscope.
 
 Contains panel layout, figure builders, draw functions, and profiler.
+
+The composed figure has a canonical name — **SCOPE_FRAME** — used in docs,
+notebooks, and PR descriptions to refer to this specific multi-panel layout
+(raster + PSD + sidebars + headers). Built by `make_fig` / `make_transient_fig`,
+drawn one frame at a time by `draw_transient_frame`.
 """
 from __future__ import annotations
 
@@ -105,31 +110,61 @@ plt.rcParams.update({
 CLR = "#1a1a1a"
 CLR_LIGHT = "#999999"
 CLR_ACCENT = "#FF2020"
+# Single faded tone for titles, axis labels, and ticks — lets the data
+# dominate visually while chrome recedes.
+CLR_CHROME = "#9a9a9a"
+
+# Canonical title style for every SCOPE_FRAME panel.
+TITLE_KW = dict(fontsize=16, fontweight="bold", loc="left", pad=12, color=CLR_CHROME)
+# Secondary title style used only for the weight-histogram sub-row, where
+# five titles share one cell and the full TITLE_KW would overlap.
+SUBTITLE_KW = dict(fontsize=13, fontweight="bold", loc="left", pad=8, color=CLR_CHROME)
+# Canonical axis-label and tick-label styles. All panels use these — no
+# per-panel overrides — so every axis reads the same size/weight/color.
+LABEL_KW = dict(fontsize=14, color=CLR_CHROME)
+TICK_KW = dict(labelsize=12, colors=CLR_CHROME, length=4, width=1)
 
 
 # =============================================================================
-# Panel layout engine
+# Panel layout engine — uniform cell grid
 # =============================================================================
+#
+# SCOPE_FRAME sits on a flexible uniform grid. All panels occupy integer
+# numbers of cells; every panel is one cell (1×1) except the E raster,
+# which takes 2 columns × 2 rows. Internal subdivision (e.g. weights as
+# 8 histograms in one cell) stays inside its cell.
+#
+# A thin header strip sits above the main grid when a "header" panel is
+# present.
 
-# Each panel: (span, height_ratio)
-# span: "full" = full width, "left"/"right" = half width
+# Each panel: (colspan, rowspan) in cell units.
 PANEL_CATALOG = {
-    "header":        ("full",    0.5),
-    "e_raster":      ("full",    3.0),
-    "drive":         ("left",    0.8),
-    "weights":       ("right",   0.8),
-    "i_raster":      ("left",    0.6),
-    "participation": ("right",   0.6),
-    "output":        ("left",    0.6),
-    "psd":           ("right",   0.6),
-    "sweep":         ("sidebar", 0.8),
-    "digit_image":   ("sidebar", 0.8),
-    "acc_curve":     ("sidebar", 0.8),
-    "grad_flow":     ("sidebar", 0.8),
-    "rate_curve":    ("sidebar", 0.8),
-    "sweep_rates":   ("sidebar", 0.8),
-    "sweep_f0":      ("sidebar", 0.8),
+    "header":        (1, 1),    # special — placed in the top header strip
+    "e_raster":      (2, 2),
+    "drive":         (1, 1),
+    "weights":       (1, 1),    # internally subdivided into 8 histograms
+    "i_raster":      (1, 1),
+    "participation": (1, 1),
+    "output":        (1, 1),
+    "psd":           (1, 1),
+    "sweep":         (1, 1),
+    "digit_image":   (1, 1),
+    "acc_curve":     (1, 1),
+    "grad_flow":     (1, 1),
+    "rate_curve":    (1, 1),
+    "sweep_rates":   (1, 1),
+    "sweep_f0":      (1, 1),
 }
+
+GRID_COLS = 3              # main-grid width in cells
+GRID_ROWS = 5              # main-grid height in cells (extended if more panels are requested)
+HEADER_HEIGHT_RATIO = 0.35  # header strip height relative to one main-grid cell row
+
+# Every panel's plot interior occupies the same fractional inset within
+# its cell, so gridlines from adjacent panels line up exactly. Ticks and
+# labels live in the inset margins.
+# (left, bottom, right, top) — fractions of each cell.
+CELL_INSET = (0.09, 0.20, 0.05, 0.16)
 
 # Named presets
 LAYOUT_PRESETS = {
@@ -140,8 +175,8 @@ LAYOUT_PRESETS = {
               "drive", "weights", "i_raster", "participation",
               "output", "psd", "sweep"],
     "dataset": ["header", "e_raster",
-                "drive", "weights", "i_raster", "participation",
-                "output", "psd", "digit_image"],
+                "digit_image", "weights", "drive", "i_raster",
+                "output", "psd", "participation"],
     "dataset_video": ["header", "e_raster",
                       "drive", "weights", "i_raster", "participation",
                       "output", "psd", "sweep", "digit_image"],
@@ -193,11 +228,11 @@ def plot_raster(ax, spikes, color, n_neurons, dt, x_max=None):
     if x_max is not None:
         ax.set_xlim(0, x_max)
     ax.set_ylim(-0.5, n_neurons - 0.5)
-    ax.tick_params(labelsize=13)
+    ax.tick_params(**TICK_KW)
     if x_max is not None:
         ax.set_xlim(0, x_max)
     ax.set_ylim(-0.5, n_neurons - 0.5)
-    ax.tick_params(labelsize=13)
+    ax.tick_params(**TICK_KW)
 
 
 # =============================================================================
@@ -229,143 +264,159 @@ def _style_all_axes(axes):
     for ax in axes:
         if ax is None or isinstance(ax, list):
             continue
-        ax.tick_params(labelsize=13, colors=CLR, length=4, width=1)
+        ax.tick_params(**TICK_KW)
 
 
 # =============================================================================
-# Figure builders
+# Figure builders — SCOPE_FRAME layout
 # =============================================================================
+
+def _place_panels(panels):
+    """Assign (row, col, rowspan, colspan) to each non-header panel.
+
+    E raster reserves its 2×2 block at (0, 0); every other panel is a
+    single cell, filling remaining cells in row-major order. Rows extend
+    downward as needed to fit all requested panels.
+    """
+    placements = {}
+    occupied = set()
+
+    main_panels = [p for p in panels
+                   if p in PANEL_CATALOG and p != "header"]
+
+    if "e_raster" in main_panels:
+        placements["e_raster"] = (0, 0, 2, 2)
+        for r in range(2):
+            for c in range(2):
+                occupied.add((r, c))
+
+    row, col = 0, 0
+    for name in main_panels:
+        if name == "e_raster":
+            continue
+        while (row, col) in occupied:
+            col += 1
+            if col >= GRID_COLS:
+                col = 0
+                row += 1
+        placements[name] = (row, col, 1, 1)
+        occupied.add((row, col))
+        col += 1
+        if col >= GRID_COLS:
+            col = 0
+            row += 1
+
+    if placements:
+        n_rows_used = max(r + rs for r, _c, rs, _cs in placements.values())
+    else:
+        n_rows_used = 0
+    # Grid height follows actual panel count — no empty trailing rows.
+    return placements, n_rows_used
+
 
 def make_fig(panels=None):
-    """Build a figure with the requested panels.
+    """Build a SCOPE_FRAME figure on a uniform cell grid.
 
-    Supports full/left/center/right spans across a 3-column grid.
+    Layout: an optional thin header strip on top, then a ``GRID_COLS``-wide
+    grid where every panel is one cell except the E raster (2×2). Panels
+    fill cells in the order they appear in ``panels``, skipping those
+    reserved by the E raster.
+
     Returns (fig, panel_dict) where panel_dict maps panel names to axes.
     """
     panels = panels or ACTIVE_PANELS
 
-    # Sidebar panels are placed via a sub-gridspec in column 2; exclude
-    # them from main-row building so they don't create empty rows.
-    sidebar_panels = [(name, "sidebar") for name in panels
-                      if name in PANEL_CATALOG
-                      and PANEL_CATALOG[name][0] == "sidebar"]
+    has_header = "header" in panels
+    placements, n_rows = _place_panels(panels)
 
-    # Group panels into rows: full-width panels get their own row,
-    # left/center/right panels accumulate into shared rows.
-    rows = []         # list of (height, [(name, span), ...])
-    pending = []      # accumulate left/center/right panels
-    pending_h = 0
-
-    for name in panels:
-        if name not in PANEL_CATALOG:
-            continue
-        span, height = PANEL_CATALOG[name]
-
-        if span == "sidebar":
-            continue  # handled separately below
-
-        if span == "full":
-            # Flush any pending partial row
-            if pending:
-                rows.append((pending_h, list(pending)))
-                pending = []
-                pending_h = 0
-            rows.append((height, [(name, "full")]))
-        else:
-            pending.append((name, span))
-            pending_h = max(pending_h, height)
-            # Flush when we hit 3 panels or right panel
-            if span == "right" or len(pending) >= 3:
-                rows.append((pending_h, list(pending)))
-                pending = []
-                pending_h = 0
-
-    # Flush any remaining partial row
-    if pending:
-        rows.append((pending_h, list(pending)))
-
-    n_rows = len(rows)
-    if n_rows == 0:
+    if n_rows == 0 and not has_header:
         fig = plt.figure(figsize=(22, 4))
         return fig, {}
 
-    height_ratios = [r[0] for r in rows]
-
     fig_w = 22
-    fig_h = fig_w * 9 / 16  # 16:9 aspect ratio
+    fig_h = fig_w * 9 / 16  # 16:9
     fig = plt.figure(figsize=(fig_w, fig_h))
-    fig.subplots_adjust(left=0.05, right=0.97, top=0.97, bottom=0.07)
+    fig.subplots_adjust(left=0.03, right=0.97, top=0.97, bottom=0.05)
 
-    has_sidebar = len(sidebar_panels) > 0
-
-    if has_sidebar:
-        n_cols = 3
-        width_ratios = [1, 1, 0.8]
+    # Cells pack edge-to-edge (no wspace/hspace) — the per-cell inset below
+    # provides the space for ticks / tick labels, and guarantees aligned
+    # plot interiors across panels.
+    if has_header and n_rows > 0:
+        outer = fig.add_gridspec(
+            2, 1, height_ratios=[HEADER_HEIGHT_RATIO, float(n_rows)],
+            hspace=0.08)
+        header_ax = fig.add_subplot(outer[0])
+        header_ax.axis("off")
+        main_gs = outer[1].subgridspec(
+            n_rows, GRID_COLS, hspace=0.0, wspace=0.0)
+    elif has_header:
+        main_gs = None
+        header_ax = fig.add_subplot(1, 1, 1)
+        header_ax.axis("off")
     else:
-        n_cols = 2
-        width_ratios = [1, 1]
-
-    gs = fig.add_gridspec(n_rows, n_cols, height_ratios=height_ratios,
-                          hspace=0.7, wspace=0.15, width_ratios=width_ratios)
+        main_gs = fig.add_gridspec(
+            n_rows, GRID_COLS, hspace=0.0, wspace=0.0)
+        header_ax = None
 
     panel_dict = {}
-    col_map = {"left": 0, "center": 1, "right": 2}
-    for row_idx, (_, items) in enumerate(rows):
-        for name, span in items:
-            if span == "full":
-                if has_sidebar:
-                    ax = fig.add_subplot(gs[row_idx, 0:2])
-                else:
-                    ax = fig.add_subplot(gs[row_idx, :])
-            elif span == "left":
-                ax = fig.add_subplot(gs[row_idx, 0])
-            elif span == "right":
-                ax = fig.add_subplot(gs[row_idx, 1])
-            elif span == "sidebar":
-                ax = fig.add_subplot(gs[row_idx, 2])
-            else:
-                col = col_map.get(span, 0)
-                ax = fig.add_subplot(gs[row_idx, col])
+    if has_header:
+        panel_dict["header"] = header_ax
 
+    if main_gs is not None:
+        for name, (row, col, rowspan, colspan) in placements.items():
+            slot = main_gs[row:row + rowspan, col:col + colspan]
             if name == "weights":
-                # Weights sub-axes — 8 slots to accommodate multi-layer models
-                ax.remove()
-                gs_w = gs[row_idx, 1].subgridspec(1, 8, wspace=0.3)
+                gs_w = slot.subgridspec(1, 8, wspace=0.3)
                 ax = [fig.add_subplot(gs_w[0, i]) for i in range(8)]
-
-            if name in ("header", "progress"):
-                if isinstance(ax, list):
-                    for a in ax:
-                        a.axis("off")
-                else:
-                    ax.axis("off")
-
+            else:
+                ax = fig.add_subplot(slot)
             panel_dict[name] = ax
 
-    # Place sidebar panels in column 2 using a sub-gridspec.
-    # Match each sidebar slot to a main content row below the header so
-    # the sidebars align visually and no empty spacer is left at the bottom.
-    if has_sidebar:
-        n_sidebar = len(sidebar_panels)
-        main_heights = height_ratios[1:]  # skip header row
-        if len(main_heights) >= n_sidebar:
-            sidebar_h = list(main_heights[:n_sidebar])
-            trailing = sum(main_heights[n_sidebar:])
-            if trailing > 0:
-                sidebar_h.append(trailing)
-        else:
-            sidebar_h = [1] * n_sidebar
-        gs_sidebar = gs[1:, 2].subgridspec(
-            len(sidebar_h), 1, height_ratios=sidebar_h, hspace=0.3)
-        for i, (name, _) in enumerate(sidebar_panels):
-            ax = fig.add_subplot(gs_sidebar[i, 0])
-            panel_dict[name] = ax
+        _apply_cell_insets(fig, main_gs, placements, panel_dict)
 
     return fig, panel_dict
 
 
+def _apply_cell_insets(fig, main_gs, placements, panel_dict):
+    """Pin every axes' plot interior to the same fractional inset within
+    its grid cell so gridlines align across panels. Ticks and labels
+    render in the inset margin (effectively the gutter between cells).
+    """
+    inset_l, inset_b, inset_r, inset_t = CELL_INSET
+    # Anchor cell — a single 1×1 cell — gives us one cell's figure-coord bbox.
+    cell0 = main_gs[0, 0].get_position(fig)
+    cell_w = cell0.width
+    cell_h = cell0.height
+
+    for name, (row, col, rowspan, colspan) in placements.items():
+        ax = panel_dict.get(name)
+        if ax is None:
+            continue
+        span = main_gs[row:row + rowspan, col:col + colspan].get_position(fig)
+        # Inset is applied relative to a single cell's size even for panels
+        # that span multiple cells (e.g. the 2×2 E raster) — so a spanning
+        # panel's interior has the same margin as a 1×1 panel.
+        x0 = span.x0 + inset_l * cell_w
+        y0 = span.y0 + inset_b * cell_h
+        w = span.width - (inset_l + inset_r) * cell_w
+        h = span.height - (inset_b + inset_t) * cell_h
+        if isinstance(ax, list):
+            # Weights — reposition the 8-wide subrow to span the cell's
+            # inset region edge-to-edge: first hist flush-left with x0,
+            # last hist flush-right with x0+w. Even gap between hists.
+            n = len(ax)
+            gap_frac = 0.18
+            n_gaps = max(n - 1, 1)
+            gap_w = gap_frac * w / n_gaps
+            box_w = (1 - gap_frac) * w / n
+            for i, a in enumerate(ax):
+                a.set_position([x0 + i * (box_w + gap_w), y0, box_w, h])
+        else:
+            ax.set_position([x0, y0, w, h])
+
+
 def make_transient_fig(layout=None):
-    """Create the transient sweep figure layout (backward compat wrapper)."""
+    """Create a SCOPE_FRAME figure for transient sweeps (backward-compat wrapper)."""
     panels = list(LAYOUT_PRESETS[layout]) if layout else None
     fig, pd = make_fig(panels)
     # Build the old-style axes list for draw_transient_frame
@@ -392,7 +443,7 @@ def make_transient_fig(layout=None):
 
 
 # =============================================================================
-# Draw functions
+# Draw functions — SCOPE_FRAME per-frame rendering
 # =============================================================================
 
 _SPINNER = "|/-\\"
@@ -411,7 +462,11 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
                          total_epochs=None, input_rate=None,
                          spk_h1=None,
                          sweep_xlabel=None, sweep_xscale="linear"):
-    """Draw one transient PING frame onto the given axes.
+    """Draw one SCOPE_FRAME onto the given axes.
+
+    This is the single canonical rendering entry point for the oscilloscope
+    layout — all videos (training, stim-overdrive sweeps, dt sweeps, ei
+    sweeps) go through here one frame at a time.
 
     axes is a list where entries may be None (panel not present).
     """
@@ -420,7 +475,7 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
         is_coba = model_name in IS_COBA
 
     _clear_axes(axes)
-    _title_kw = dict(fontsize=20, fontweight="bold", loc="left", pad=4, color=CLR)
+    _title_kw = TITLE_KW
     vis_ms = len(spk_e) * dt  # derive from actual data, not global
 
     # -- Input drive panel --
@@ -436,14 +491,14 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
             axes[1].set_title("Input Drive Conductance", **_title_kw)
         axes[1].set_ylabel("")
         axes[1].set_xlim(0, vis_ms)
-        axes[1].set_xticklabels([])
+        axes[1].set_xlabel("Time (ms)", **LABEL_KW)
 
     # -- E raster --
     if axes[2] is not None:
         plot_raster(axes[2], spk_e, CLR, n_e, dt, vis_ms)
         axes[2].set_title("E Neurons", **_title_kw)
         axes[2].set_ylabel("")
-        axes[2].set_xticklabels([])
+        axes[2].set_xlabel("Time (ms)", **LABEL_KW)
 
     # -- I raster (or H1 raster for multi-layer without E-I) --
     if axes[3] is not None:
@@ -455,7 +510,7 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
             plot_raster(axes[3], spk_h1, CLR, _n_h1, dt, vis_ms)
             axes[3].set_title("H1 Neurons", **_title_kw)
         axes[3].set_ylabel("")
-        axes[3].set_xticklabels([])
+        axes[3].set_xlabel("Time (ms)", **LABEL_KW)
 
     # -- Threshold panel / sweep progress --
     if len(axes) > 10 and axes[10] is not None:
@@ -481,7 +536,7 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
         axes[4].set_ylabel("")
         axes[4].set_ylim(0, 0.5)
         axes[4].set_xlim(0, vis_ms)
-        axes[4].set_xlabel("Time (ms)", color=CLR)
+        axes[4].set_xlabel("Time (ms)", **LABEL_KW)
 
     # -- PSD --
     freqs, psd = compute_psd(spk_e, n_e, dt,
@@ -500,7 +555,7 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
                              color=CLR_ACCENT, fontsize=22, fontweight="bold")
         axes[5].set_title("PSD", **_title_kw)
         axes[5].set_ylabel("")
-        axes[5].set_xlabel("Frequency (Hz)", color=CLR)
+        axes[5].set_xlabel("Frequency (Hz)", **LABEL_KW)
         axes[5].set_xlim(5, 200)
         axes[5].set_ylim(0, 1.1)
 
@@ -520,18 +575,20 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
                 final_logits = final_logits[0]
             n_classes = len(final_logits)
             pred = int(np.argmax(final_logits))
-            colors = [CLR_ACCENT if i == pred else CLR for i in range(n_classes)]
-            ax_o.barh(range(n_classes), final_logits, color=colors,
-                      edgecolor="white", linewidth=0.3)
+            # Predicted class: solid accent fill. All others: outlined only.
+            face_colors = [CLR_ACCENT if i == pred else "none"
+                           for i in range(n_classes)]
+            edge_colors = [CLR_ACCENT if i == pred else CLR
+                           for i in range(n_classes)]
+            ax_o.barh(range(n_classes), final_logits, color=face_colors,
+                      edgecolor=edge_colors, linewidth=1.2)
             ax_o.set_yticks(range(n_classes))
             ax_o.set_yticklabels([str(i) for i in range(n_classes)],
-                                 fontsize=14, color=CLR)
+                                 fontsize=LABEL_KW["fontsize"], color=CLR)
             ax_o.invert_yaxis()
-            for spine_side in ("top", "right"):
-                ax_o.spines[spine_side].set_visible(False)
         ax_o.set_title("Output (logits)", **_title_kw)
-        ax_o.set_xlabel("", color=CLR)
-        ax_o.tick_params(labelsize=8, colors=CLR, length=3)
+        ax_o.set_xlabel("", **LABEL_KW)
+        ax_o.tick_params(**TICK_KW)
 
     # -- Weight histograms --
     if len(axes) > 9 and axes[9] is not None and weights is not None:
@@ -661,9 +718,9 @@ def _draw_sweep_progress(ax, values, frame_idx, title, title_kw):
     ax.set_xlim(0, len(values) - 1)
     ax.set_ylim(0, max(values) * 1.05)
     ax.set_title(title, **title_kw)
-    ax.set_xlabel("frame", fontsize=11, color=CLR)
-    ax.set_ylabel("value", fontsize=11, color=CLR)
-    ax.tick_params(labelsize=10, colors=CLR)
+    ax.set_xlabel("frame", **LABEL_KW)
+    ax.set_ylabel("value", **LABEL_KW)
+    ax.tick_params(**TICK_KW)
 
 
 def _draw_acc_curve(ax, acc, total_epochs, loss=None, lr=None):
@@ -698,11 +755,10 @@ def _draw_acc_curve(ax, acc, total_epochs, loss=None, lr=None):
 
     ax.set_xlim(0, max(total_epochs - 1, 1))
     ax.set_ylim(0, 105)
-    ax.set_xlabel("epoch", fontsize=11, color=CLR)
-    ax.set_ylabel("acc % / lr%", fontsize=11, color=CLR)
-    ax.set_title("Acc + Loss + LR", fontsize=13, fontweight="bold", loc="left",
-                 pad=4, color=CLR)
-    ax.tick_params(labelsize=10, colors=CLR)
+    ax.set_xlabel("epoch", **LABEL_KW)
+    ax.set_ylabel("acc % / lr%", **LABEL_KW)
+    ax.set_title("Acc + Loss + LR", **TITLE_KW)
+    ax.tick_params(**TICK_KW)
 
     if ax._loss_history:
         loss_epochs = list(range(len(ax._loss_history)))
@@ -710,8 +766,11 @@ def _draw_acc_curve(ax, acc, total_epochs, loss=None, lr=None):
                       color=CLR_ACCENT, linewidth=1.5, alpha=0.85)
         ax._twin.plot(loss_epochs[-1], ax._loss_history[-1], "o",
                       color=CLR_ACCENT, markersize=6, zorder=5)
-        ax._twin.set_ylabel("loss", fontsize=11, color=CLR_ACCENT)
-        ax._twin.tick_params(labelsize=10, colors=CLR_ACCENT)
+        ax._twin.set_ylabel("loss",
+                            fontsize=LABEL_KW["fontsize"], color=CLR_ACCENT)
+        ax._twin.tick_params(labelsize=TICK_KW["labelsize"],
+                             colors=CLR_ACCENT,
+                             length=TICK_KW["length"], width=TICK_KW["width"])
         for spine in ax._twin.spines.values():
             spine.set_linewidth(2)
             spine.set_color("black")
@@ -749,11 +808,10 @@ def _draw_rate_curve(ax, rate_e, rate_i, has_inh, total_epochs):
                 color=CLR_ACCENT, markersize=6, zorder=5)
     ax.set_xlim(0, max(total_epochs - 1, 1))
     ax.set_ylim(bottom=0)
-    ax.set_xlabel("epoch", fontsize=11, color=CLR)
-    ax.set_ylabel("Hz", fontsize=11, color=CLR)
-    ax.set_title("E/I Rates", fontsize=13, fontweight="bold", loc="left",
-                 pad=4, color=CLR)
-    ax.tick_params(labelsize=10, colors=CLR)
+    ax.set_xlabel("epoch", **LABEL_KW)
+    ax.set_ylabel("Hz", **LABEL_KW)
+    ax.set_title("E/I Rates", **TITLE_KW)
+    ax.tick_params(**TICK_KW)
 
 
 def _draw_sweep_rates_ladder(ax, sweep_values, frame_idx, rate_e, rate_i,
@@ -787,11 +845,10 @@ def _draw_sweep_rates_ladder(ax, sweep_values, frame_idx, rate_e, rate_i,
     ax.set_xscale(xscale)
     ax.set_xlim(min(full_xs), max(full_xs))
     ax.set_ylim(bottom=0)
-    ax.set_xlabel(xlabel, fontsize=11, color=CLR)
-    ax.set_ylabel("Hz", fontsize=11, color=CLR)
-    ax.set_title("E/I Rates", fontsize=13, fontweight="bold", loc="left",
-                 pad=4, color=CLR)
-    ax.tick_params(labelsize=10, colors=CLR)
+    ax.set_xlabel(xlabel, **LABEL_KW)
+    ax.set_ylabel("Hz", **LABEL_KW)
+    ax.set_title("E/I Rates", **TITLE_KW)
+    ax.tick_params(**TICK_KW)
     if has_inh:
         ax.legend(fontsize=9, loc="best", frameon=False, handlelength=1.2)
 
@@ -815,11 +872,10 @@ def _draw_sweep_f0_ladder(ax, sweep_values, frame_idx, f0,
     ax.set_xscale(xscale)
     ax.set_xlim(min(full_xs), max(full_xs))
     ax.set_ylim(0, 120)
-    ax.set_xlabel(xlabel, fontsize=11, color=CLR)
-    ax.set_ylabel("Hz", fontsize=11, color=CLR)
-    ax.set_title("Gamma f0", fontsize=13, fontweight="bold", loc="left",
-                 pad=4, color=CLR)
-    ax.tick_params(labelsize=10, colors=CLR)
+    ax.set_xlabel(xlabel, **LABEL_KW)
+    ax.set_ylabel("Hz", **LABEL_KW)
+    ax.set_title("Gamma f0", **TITLE_KW)
+    ax.tick_params(**TICK_KW)
 
 
 def _draw_grad_flow(ax, grad_ratios, total_epochs):
@@ -842,11 +898,10 @@ def _draw_grad_flow(ax, grad_ratios, total_epochs):
         ax.plot(epochs, hist, color=color, linewidth=1.3, label=name, alpha=0.9)
     ax.set_yscale("log")
     ax.set_xlim(0, max(total_epochs - 1, 1))
-    ax.set_xlabel("epoch", fontsize=11, color=CLR)
-    ax.set_ylabel("‖∇‖/‖W‖", fontsize=11, color=CLR)
-    ax.set_title("Grad Flow", fontsize=13, fontweight="bold", loc="left",
-                 pad=4, color=CLR)
-    ax.tick_params(labelsize=10, colors=CLR)
+    ax.set_xlabel("epoch", **LABEL_KW)
+    ax.set_ylabel("‖∇‖/‖W‖", **LABEL_KW)
+    ax.set_title("Grad Flow", **TITLE_KW)
+    ax.tick_params(**TICK_KW)
     if ax._grad_flow_history:
         ax.legend(fontsize=8, loc="best", frameon=False, ncol=2,
                   handlelength=1.2, columnspacing=0.8, labelspacing=0.2)
@@ -866,8 +921,7 @@ def _draw_digit_image(ax, digit_image):
                      aspect="equal")
         inset.set_xticks([])
         inset.set_yticks([])
-        inset.set_title("Input", fontsize=13, fontweight="bold", loc="left",
-                        pad=4, color=CLR)
+        inset.set_title("Input", **TITLE_KW)
         for spine in inset.spines.values():
             spine.set_linewidth(2)
             spine.set_color(CLR)
@@ -931,26 +985,25 @@ def _draw_weight_histograms(ax_ws, weights):
                 used.add(k)
 
     # Redistribute visible axes to fill the full row width, regardless of
-    # how many weight items the model has. The gridspec reserves 8 slots;
-    # when fewer weights exist we'd otherwise leave empty gaps and squish
-    # the visible histograms. Reads the original gridspec bbox (not the
-    # current position) so repeated calls keep the same outer span.
+    # how many weight items the model has. Reads the *current* axes
+    # positions (set by make_fig's cell-inset logic) so the outer span
+    # matches the inset region of the weights cell — first hist flush
+    # with the cell's left inset, last flush with the right.
     n_items = len(items)
     if n_items > 0 and len(ax_ws) > 0:
-        fig = ax_ws[0].figure
-        bbox_first = ax_ws[0].get_subplotspec().get_position(fig)
-        bbox_last = ax_ws[-1].get_subplotspec().get_position(fig)
+        bbox_first = ax_ws[0].get_position()
+        bbox_last = ax_ws[-1].get_position()
         x0 = bbox_first.x0
         x1 = bbox_last.x1
         y0 = bbox_first.y0
         h = bbox_first.height
         total_w = x1 - x0
-        # Keep a wspace-like gap between slots (0.3 matches make_fig).
-        wspace_frac = 0.3
-        slot_w = total_w / n_items
-        inner_w = slot_w / (1.0 + wspace_frac)
+        gap_frac = 0.18
+        n_gaps = max(n_items - 1, 1)
+        gap_w = gap_frac * total_w / n_gaps
+        box_w = (1 - gap_frac) * total_w / n_items
         for i in range(n_items):
-            ax_ws[i].set_position([x0 + i * slot_w, y0, inner_w, h])
+            ax_ws[i].set_position([x0 + i * (box_w + gap_w), y0, box_w, h])
 
     # Draw into available axes
     for i, ax_w in enumerate(ax_ws):
@@ -968,11 +1021,11 @@ def _draw_weight_histograms(ax_ws, weights):
                           edgecolor="white", linewidth=0.3)
             if (w_data < 0).any():
                 ax_w.axvline(0, color=CLR, linewidth=0.5, alpha=0.4)
-            ax_w.set_title(label, fontsize=16, fontweight="bold", pad=2, color=CLR)
+            ax_w.set_title(label, **SUBTITLE_KW)
         else:
             ax_w.set_visible(False)
         ax_w.set_yticks([])
-        ax_w.tick_params(labelsize=11, colors=CLR, length=3)
+        ax_w.tick_params(**TICK_KW)
 
 
 def _draw_header(ax_header, title, ratio, dt, rate_e_hz, rate_i_hz,
@@ -983,55 +1036,70 @@ def _draw_header(ax_header, title, ratio, dt, rate_e_hz, rate_i_hz,
     ax_header.clear()
     ax_header.axis("off")
 
-    # Fixed-width metric table — label bold, value next to it
+    # Header is a flat two-row stream of metrics, left-aligned with the
+    # leftmost column of the main grid (cell-0 plot-interior left edge).
+    # No per-column grouping — metrics flow continuously left-to-right.
     spinner = f"{_SPINNER[frame_idx % len(_SPINNER)]} " if frame_idx is not None else ""
     f0_val = f"{f0:.0f}" if f0 > 0 else "-"
     i_val = f"{rate_i_hz:.0f}" if has_inh else "-"
 
-    # Fixed grid columns — each col has (x_start, label_width)
-    # 7 columns, same x positions for both rows. Spacing tuned for fs=26
-    # header text so columns stay separated across the row's full width.
-    col_x = [0.00, 0.20, 0.36, 0.49, 0.62, 0.76, 0.88]
-    lw = 0.045  # label width offset
-
-    # Short display names so col 0 doesn't overflow
     _display_names = {"snntorch": "snnTorch", "cuba": "CUBA"}
     display_model = _display_names.get(model_name, model_name.upper())
+    # Fall back to the module-level input rate (set from --input-rate) when
+    # the caller did not thread input_rate through — keeps every call site
+    # from having to pass M.max_rate_hz explicitly.
+    if input_rate is None:
+        input_rate = getattr(M, "max_rate_hz", None)
+    in_str = f"{input_rate:.0f}Hz" if input_rate else "-"
 
-    in_str = f"{input_rate:.0f}Hz" if input_rate is not None else "-"
+    # row 1: static config  |  row 2: dynamic stats. Each item is (label, value);
+    # empty label means the value is rendered as a standalone bold token.
     row1 = [
-        ("", f"{spinner}{display_model}"),
+        ("",   f"{spinner}{display_model}"),
         ("dt", f"{dt:.2f}ms"),
-        ("N", f"{n_e}"),
+        ("N",  f"{n_e}"),
         ("in", in_str),
     ]
     row2 = [
-        ("E", f"{rate_e_hz:.0f}Hz"),
-        ("I", f"{i_val}Hz"),
-        ("f\u2080", f"{f0_val}Hz"),
-        ("CV", f"{pop_cv:.2f}"),
-        ("I/E", f"{ie_ratio:.1f}"),
-        ("act", f"{active_frac:.0%}"),
+        ("E",        f"{rate_e_hz:.0f}Hz"),
+        ("I",        f"{i_val}Hz"),
+        ("f\u2080",  f"{f0_val}Hz"),
+        ("CV",       f"{pop_cv:.2f}"),
+        ("I/E",      f"{ie_ratio:.1f}"),
+        ("act",      f"{active_frac:.0%}"),
     ]
 
-    fs = 26
-    for row, y in [(row1, 0.90), (row2, 0.10)]:
-        for i, (label, val) in enumerate(row):
-            if i >= len(col_x):
-                break
-            x = col_x[i]
+    # Left anchor matches the leftmost grid column's plot-interior left edge.
+    inset_l, _inset_b, _inset_r, _inset_t = CELL_INSET
+    col_w = 1.0 / GRID_COLS
+    x_start = inset_l * col_w
+
+    fs = 23
+    char_w = 0.0125       # bold label char
+    val_char_w = 0.0115   # normal value char
+    label_val_gap = 0.007  # gap between label and its value
+    metric_gap = 0.025     # gap between one metric and the next
+
+    for items, y in [(row1, 0.90), (row2, 0.10)]:
+        x = x_start
+        for (label, val) in items:
             if label:
                 ax_header.text(x, y, label, fontsize=fs, fontweight="bold",
-                               ha="left", va="center", transform=ax_header.transAxes,
+                               ha="left", va="center",
+                               transform=ax_header.transAxes,
                                color=CLR, fontfamily="monospace")
-                ax_header.text(x + len(label) * 0.022 + 0.020, y, val,
-                               fontsize=fs, fontweight="normal",
-                               ha="left", va="center", transform=ax_header.transAxes,
+                x += len(label) * char_w + label_val_gap
+                ax_header.text(x, y, val, fontsize=fs, fontweight="normal",
+                               ha="left", va="center",
+                               transform=ax_header.transAxes,
                                color=CLR, fontfamily="monospace")
+                x += len(val) * val_char_w + metric_gap
             else:
                 ax_header.text(x, y, val, fontsize=fs, fontweight="bold",
-                               ha="left", va="center", transform=ax_header.transAxes,
+                               ha="left", va="center",
+                               transform=ax_header.transAxes,
                                color=CLR, fontfamily="monospace")
+                x += len(val) * char_w + metric_gap
 
 
 def _draw_progress_bar(ax_prog, ratio, sweep_var, sweep_range, sweep_progress):

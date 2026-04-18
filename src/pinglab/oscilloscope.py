@@ -1068,7 +1068,7 @@ def generate_image_snapshot(digit_class=0, sample_idx=0, dataset="scikit",
     else:
         ext_g = np.zeros_like(spk_e)
 
-    fig, axes = make_transient_fig(layout="train")
+    fig, axes = make_transient_fig(layout="dataset")
     if pred is not None:
         correct = pred == digit_class
         title = f"digit={digit_class}  pred={pred}  {chr(10003) if correct else chr(10007)}"

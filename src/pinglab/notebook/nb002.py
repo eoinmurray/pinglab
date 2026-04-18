@@ -1,4 +1,4 @@
-"""Repro for notebook entry 002 — basic PING videos.
+"""Notebook runner for entry 002 — basic PING videos.
 
 Invokes `oscilloscope.py video` three times to produce:
   * scan.mp4    — stim-overdrive sweep 1×–10× (fixed dt, fixed ei_strength)
@@ -47,7 +47,7 @@ OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 # Input is MNIST digit 0 sample 0, Poisson-encoded. base_rate comes from
 # M.max_rate_hz; during the stim window rate = base_rate * overdrive.
 SEED           = 42
-TIER           = "medium"  # see src/docs/src/pages/llm-context.md § 8
+TIER           = "large"  # see src/docs/src/pages/llm-context.md § 8
 N_HIDDEN       = 512     # → N_E=512, N_I=128 (n_i = n_e//4)
 DT_MS          = 0.1
 SIM_MS         = 600.0
@@ -63,7 +63,7 @@ SAMPLE_IDX     = 0
 # ── Scan config ───────────────────────────────────────────────────────────
 SCAN_MIN       = 1.0     # overdrive=1 → no elevation (control)
 SCAN_MAX       = 10.0    # overdrive=10 → strong elevation
-SCAN_FRAMES    = 360
+SCAN_FRAMES    = 720
 SCAN_FPS       = 30
 
 # dt-scan: fix overdrive high so PING is robustly on, sweep integration
@@ -72,7 +72,7 @@ SCAN_FPS       = 30
 DT_SCAN_OVERDRIVE = 10.0
 DT_SCAN_MIN    = 0.05    # ms — fine temporal resolution
 DT_SCAN_MAX    = 2.0     # ms — coarse (likely unstable)
-DT_SCAN_FRAMES = 360
+DT_SCAN_FRAMES = 720
 DT_SCAN_FPS    = 30
 
 # ei-scan: overdrive pinned at 1× (no stim-window boost), sweep E→I coupling
@@ -85,7 +85,7 @@ EI_SCAN_INPUT_RATE_HZ = 2 * INPUT_RATE_HZ
 EI_SCAN_W_IN_OVERDRIVE = 3.0
 EI_SCAN_MIN    = 0.0
 EI_SCAN_MAX    = 1.0     # sweep up to the default ei_strength — past 1 the E rate is already saturated-low
-EI_SCAN_FRAMES = 360
+EI_SCAN_FRAMES = 720
 EI_SCAN_FPS    = 30
 
 

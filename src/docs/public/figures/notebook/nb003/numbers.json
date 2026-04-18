@@ -1,0 +1,26 @@
+{
+  "notebook_run_id": "r026",
+  "run_datetime": "Saturday, 18th April 26 at 14:59",
+  "duration_s": 2.6,
+  "duration": "3s",
+  "config": {
+    "tier": "tiny",
+    "model": "ping",
+    "n_e": 512,
+    "n_i": 128,
+    "dt_ms": 0.1,
+    "sim_ms": 600.0,
+    "step_on_ms": 200.0,
+    "step_off_ms": 300.0,
+    "stim_overdrive": 5.0,
+    "input_rate_hz": 50.0,
+    "w_in_overdrive": 1.8,
+    "ei_strength": 0.5,
+    "input": {
+      "dataset": "mnist",
+      "digit": 0,
+      "sample": 0
+    },
+    "seed": 42
+  }
+}
