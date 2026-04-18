@@ -1,0 +1,38 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "003 — Scope Frame"
+date: 2026-04-18
+entry: 3
+structure: paper
+---
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebook/nb003/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const runDatetime = numbers.run_datetime ?? "?";
+export const runDuration = numbers.duration ?? "?";
+export const imageGlob = import.meta.glob("../../../public/figures/notebook/nb003/scope_frame.png", { eager: true, query: "?url", import: "default" });
+export const hasFrame = Object.keys(imageGlob).length > 0;
+
+# Scope Frame
+
+<p><span class="font-mono">nb003</span> · Saturday, 18<sup>th</sup> April 26</p>
+
+| Run ID | Date | Size | Duration |
+|---|---|---|---|
+| <span class="font-mono">{nbRunId}</span> | {runDatetime} | {cfg.tier ?? "?"} | {runDuration} |
+
+**SCOPE_FRAME** is the canonical oscilloscope layout (see *src/pinglab/plot.py*) — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content.
+
+The frame below is one 600 ms PING simulation on MNIST digit {cfg.input?.digit} sample {cfg.input?.sample}, at stim overdrive {cfg.stim_overdrive}×, ei-strength {cfg.ei_strength}, w-in overdrive {cfg.w_in_overdrive}× — the same knob positions that light up PING in *002*.
+
+{hasFrame && <img src="/figures/notebook/nb003/scope_frame.png" alt="A single SCOPE_FRAME rendering" style={{ width: "100%" }} />}
+
+## Aesthetic notes
+
+Placeholder — iterate here on typography, panel spacing, colour, axis labels, header layout, and any other visual choices that land on this one frame before they get baked into every video.
+
+## Appendix
+
+Repro: *src/pinglab/notebook/nb003.py* · renderer: *src/pinglab/oscilloscope.py image* → *src/pinglab/plot.py* (SCOPE_FRAME).

@@ -1,4 +1,4 @@
-"""Repro for notebook entry 001 — snnTorch calibration.
+"""Notebook runner for entry 001 — snnTorch calibration.
 
 Runs a small, matched training of the in-repo `snntorch` model and the
 `snntorch-library` parity reference, then writes a training-curve comparison
