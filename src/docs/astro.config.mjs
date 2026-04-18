@@ -22,6 +22,9 @@ export default defineConfig({
   markdown: {
     remarkPlugins: [remarkMath],
     rehypePlugins: [rehypeKatex],
+    shikiConfig: {
+      theme: 'min-light',
+    },
   },
 
   vite: {
