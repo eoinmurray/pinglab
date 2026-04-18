@@ -96,23 +96,41 @@ delay_ie_steps = max(1, int(round(delay_ie_ms / dt)))
 # ── Surrogate gradient ───────────────────────────────────────────────────
 
 class SurrogateSpike(torch.autograd.Function):
-    """Fast sigmoid surrogate: grad = 1/(1+|x|)^2."""
+    """Fast sigmoid surrogate: grad = slope / (1 + slope·|x|)^2.
+
+    Matches snntorch.surrogate.FastSigmoid: slope controls how sharply the
+    pseudo-derivative peaks around u=0. slope=25 (snntorch default) yields a
+    narrow window of active gradient (~±0.04 around threshold); slope=1 gives
+    a much broader window (~±1). The biophysical path operates on mV-scale
+    membrane potentials and needs slope=1; the snn/tutorial path matches the
+    snntorch default of slope=25 to keep the parity reference honest.
+    """
     @staticmethod
-    def forward(ctx, u):
+    def forward(ctx, u, slope):
         ctx.save_for_backward(u)
+        ctx.slope = slope
         return (u >= 0).float()
 
     @staticmethod
     def backward(ctx, grad_out):
         (u,) = ctx.saved_tensors
-        grad = 1.0 / (1.0 + u.abs()) ** 2
-        return grad_out * grad
+        slope = ctx.slope
+        grad = slope / (1.0 + slope * u.abs()) ** 2
+        return grad_out * grad, None
 
 def spike_biophysical(v):
-    return SurrogateSpike.apply(v - V_th)
+    # mV-scale membrane: slope=1 keeps gradient support at the ~mV width of
+    # typical threshold crossings.
+    return SurrogateSpike.apply(v - V_th, 1.0)
 
 def spike_snn(v):
-    return SurrogateSpike.apply(v - thr_snn)
+    # Dimensionless membrane (threshold=1). NOTE: slope=1 (not snntorch's default
+    # 25) — slope=25 starves gradients from silent neurons (|u|>>0), and pinglab's
+    # init can land in a silent regime at some seeds, preventing training from
+    # bootstrapping. The permissive slope=1 surrogate reliably escapes. The
+    # snntorch-library parity path keeps slope=25 internally; part of what
+    # calibration has to explain is this slope asymmetry.
+    return SurrogateSpike.apply(v - thr_snn, 1.0)
 
 
 def _scale_grad(x, scale):
