@@ -1,9 +1,10 @@
 {
+  "notebook_run_id": "nb001-20260418-063609",
   "config": {
-    "tier": "tiny",
+    "tier": "medium",
     "dataset": "mnist",
-    "max_samples": 200,
-    "epochs": 3,
+    "max_samples": 2000,
+    "epochs": 10,
     "t_ms": 600.0,
     "dt": 0.25,
     "n_hidden": 1024,
@@ -15,21 +16,25 @@
   "runs": {
     "snntorch": {
       "label": "pinglab snntorch",
-      "run_date": "Friday, April 17 2026",
-      "best_acc": 22.5,
-      "best_epoch": 1,
-      "final_acc": 22.5,
-      "final_loss": 11.847390492757162,
-      "total_elapsed_s": 8.02451870823279
+      "run_date": "Saturday, April 18 2026 at 08:38",
+      "run_id": null,
+      "git_sha": null,
+      "best_acc": 85.0,
+      "best_epoch": 10,
+      "final_acc": 85.0,
+      "final_loss": 0.5969299423694611,
+      "total_elapsed_s": 166.37696895794943
     },
     "snntorch-library": {
       "label": "snnTorch library",
-      "run_date": "Friday, April 17 2026",
-      "best_acc": 10.0,
-      "best_epoch": 1,
-      "final_acc": 10.0,
-      "final_loss": 162.9092814127604,
-      "total_elapsed_s": 10.799202791880816
+      "run_date": "Saturday, April 18 2026 at 08:43",
+      "run_id": null,
+      "git_sha": null,
+      "best_acc": 86.0,
+      "best_epoch": 8,
+      "final_acc": 86.0,
+      "final_loss": 0.5640387612581254,
+      "total_elapsed_s": 235.3551464579068
     }
   }
 }
