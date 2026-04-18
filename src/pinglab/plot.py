@@ -127,6 +127,8 @@ PANEL_CATALOG = {
     "acc_curve":     ("sidebar", 0.8),
     "grad_flow":     ("sidebar", 0.8),
     "rate_curve":    ("sidebar", 0.8),
+    "sweep_rates":   ("sidebar", 0.8),
+    "sweep_f0":      ("sidebar", 0.8),
 }
 
 # Named presets
@@ -143,6 +145,10 @@ LAYOUT_PRESETS = {
     "dataset_video": ["header", "e_raster",
                       "drive", "weights", "i_raster", "participation",
                       "output", "psd", "sweep", "digit_image"],
+    "sweep_video": ["header", "e_raster",
+                    "drive", "weights", "i_raster", "participation",
+                    "output", "psd",
+                    "digit_image", "sweep_rates", "sweep_f0", "sweep"],
     "train": ["header", "e_raster",
               "drive", "weights", "i_raster", "participation",
               "output", "psd",
@@ -379,6 +385,8 @@ def make_transient_fig(layout=None):
         pd.get("acc_curve"),            # 12: accuracy curve sidebar
         pd.get("grad_flow"),            # 13: per-layer grad flow sidebar
         pd.get("rate_curve"),           # 14: E/I rate curve sidebar
+        pd.get("sweep_rates"),          # 15: E/I rate vs sweep value
+        pd.get("sweep_f0"),             # 16: PSD peak freq vs sweep value
     ]
     return fig, axes
 
@@ -401,7 +409,8 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
                          is_coba=None, digit_image=None,
                          acc=None, loss=None, grad_ratios=None, lr=None,
                          total_epochs=None, input_rate=None,
-                         spk_h1=None):
+                         spk_h1=None,
+                         sweep_xlabel=None, sweep_xscale="linear"):
     """Draw one transient PING frame onto the given axes.
 
     axes is a list where entries may be None (panel not present).
@@ -581,6 +590,23 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
     if len(axes) > 11 and axes[11] is not None:
         _draw_digit_image(axes[11], digit_image)
 
+    # -- Sweep-indexed ladder panels: E/I rate and gamma f0 vs sweep value --
+    if (len(axes) > 15 and axes[15] is not None
+            and sweep_levels is not None and sweep_frame_idx is not None):
+        _draw_sweep_rates_ladder(
+            axes[15], list(sweep_levels), sweep_frame_idx,
+            rate_e_hz, rate_i_hz, spk_i is not None,
+            xlabel=sweep_xlabel or (sweep_var or "sweep"),
+            xscale=sweep_xscale,
+        )
+    if (len(axes) > 16 and axes[16] is not None
+            and sweep_levels is not None and sweep_frame_idx is not None):
+        _draw_sweep_f0_ladder(
+            axes[16], list(sweep_levels), sweep_frame_idx, f0,
+            xlabel=sweep_xlabel or (sweep_var or "sweep"),
+            xscale=sweep_xscale,
+        )
+
 
 
 
@@ -726,6 +752,72 @@ def _draw_rate_curve(ax, rate_e, rate_i, has_inh, total_epochs):
     ax.set_xlabel("epoch", fontsize=11, color=CLR)
     ax.set_ylabel("Hz", fontsize=11, color=CLR)
     ax.set_title("E/I Rates", fontsize=13, fontweight="bold", loc="left",
+                 pad=4, color=CLR)
+    ax.tick_params(labelsize=10, colors=CLR)
+
+
+def _draw_sweep_rates_ladder(ax, sweep_values, frame_idx, rate_e, rate_i,
+                             has_inh, xlabel="sweep", xscale="linear"):
+    """E (black) / I (red) population rate ladder vs sweep value.
+
+    Accumulates across frames — each call appends the new point, then redraws
+    the full trace up to frame_idx with a red cursor dot on the latest value.
+    """
+    if not hasattr(ax, '_sweep_rates_init'):
+        ax._sweep_rate_e_history = []
+        ax._sweep_rate_i_history = []
+        ax._sweep_rates_init = True
+    ax._sweep_rate_e_history.append(rate_e)
+    ax._sweep_rate_i_history.append(rate_i if has_inh else 0.0)
+
+    ax.clear()
+    n = len(ax._sweep_rate_e_history)
+    xs = sweep_values[:n]
+    full_xs = sweep_values
+    # Faint full span in background
+    ax.axvspan(min(full_xs), max(full_xs), color=CLR_LIGHT, alpha=0.05, zorder=0)
+    ax.plot(xs, ax._sweep_rate_e_history, color=CLR, linewidth=1.5, label="E")
+    ax.plot(xs[-1], ax._sweep_rate_e_history[-1], "o",
+            color=CLR, markersize=6, zorder=5)
+    if has_inh:
+        ax.plot(xs, ax._sweep_rate_i_history, color=CLR_ACCENT,
+                linewidth=1.5, alpha=0.85, label="I")
+        ax.plot(xs[-1], ax._sweep_rate_i_history[-1], "o",
+                color=CLR_ACCENT, markersize=6, zorder=5)
+    ax.set_xscale(xscale)
+    ax.set_xlim(min(full_xs), max(full_xs))
+    ax.set_ylim(bottom=0)
+    ax.set_xlabel(xlabel, fontsize=11, color=CLR)
+    ax.set_ylabel("Hz", fontsize=11, color=CLR)
+    ax.set_title("E/I Rates", fontsize=13, fontweight="bold", loc="left",
+                 pad=4, color=CLR)
+    ax.tick_params(labelsize=10, colors=CLR)
+    if has_inh:
+        ax.legend(fontsize=9, loc="best", frameon=False, handlelength=1.2)
+
+
+def _draw_sweep_f0_ladder(ax, sweep_values, frame_idx, f0,
+                          xlabel="sweep", xscale="linear"):
+    """Gamma peak frequency (Hz) vs sweep value — builds up across frames."""
+    if not hasattr(ax, '_sweep_f0_init'):
+        ax._sweep_f0_history = []
+        ax._sweep_f0_init = True
+    ax._sweep_f0_history.append(float(f0))
+
+    ax.clear()
+    n = len(ax._sweep_f0_history)
+    xs = sweep_values[:n]
+    full_xs = sweep_values
+    ax.axhspan(30, 80, color=CLR_LIGHT, alpha=0.18, zorder=0)  # gamma band
+    ax.plot(xs, ax._sweep_f0_history, color=CLR, linewidth=1.5)
+    ax.plot(xs[-1], ax._sweep_f0_history[-1], "o",
+            color=CLR_ACCENT, markersize=6, zorder=5)
+    ax.set_xscale(xscale)
+    ax.set_xlim(min(full_xs), max(full_xs))
+    ax.set_ylim(0, 120)
+    ax.set_xlabel(xlabel, fontsize=11, color=CLR)
+    ax.set_ylabel("Hz", fontsize=11, color=CLR)
+    ax.set_title("Gamma f0", fontsize=13, fontweight="bold", loc="left",
                  pad=4, color=CLR)
     ax.tick_params(labelsize=10, colors=CLR)
 
