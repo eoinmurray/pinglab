@@ -1,19 +1,26 @@
-"""Repro for notebook entry 002 — PING stimulus window.
+"""Repro for notebook entry 002 — basic PING videos.
 
-Invokes `oscilloscope.py video --scan-var stim-overdrive` to produce
-scan.mp4, where each frame is a fresh 600 ms PING simulation at a different
-stim-overdrive value. The sweep animates PING intensifying as the stim
-drive grows.
+Invokes `oscilloscope.py video` three times to produce:
+  * scan.mp4    — stim-overdrive sweep 1×–10× (fixed dt, fixed ei_strength)
+  * scan_dt.mp4 — dt sweep 0.05–2 ms (fixed overdrive=5×, fixed ei_strength)
+  * scan_ei.mp4 — ei_strength sweep 0→1.5 (fixed dt, fixed overdrive=5×) —
+                  walks from async baseline (no E→I coupling) to PING
+
+Input is MNIST digit 0 sample 0, Poisson-encoded into the input layer
+with per-pixel rate ∝ pixel intensity. During the stim window the rate
+is multiplied by the overdrive factor; outside the window it's the
+baseline.
 
 Also writes numbers.json with the notebook_run_id, config snapshot, and
 pre/stim/post population rates from an in-Python replay of the canonical
-overdrive=5 sim (so the MDX can interpolate exact values).
+overdrive=5 run (so the MDX can interpolate exact values).
 
-Notebook entry: src/docs/src/pages/notebook/002-ping-stimulus-window.mdx
+Notebook entry: src/docs/src/pages/notebook/002-basic-ping-videos.mdx
 """
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,25 +34,28 @@ sys.path.insert(0, str(PINGLAB))
 import numpy as np  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
-SLUG = "002-ping-stimulus-window"
+SLUG = "002-basic-ping-videos"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 
 # ── Simulation config ─────────────────────────────────────────────────────
-# Defaults in config.py: sim_ms=600, step_on_ms=200, step_off_ms=300,
-# t_e_async=0.0006. We override n_e/n_i via --n-hidden and keep everything
-# else at repo defaults so the scan video matches the oscilloscope archive
-# style (same renderer, same stim window).
+# Defaults in config.py: sim_ms=600, step_on_ms=200, step_off_ms=300.
+# Input is MNIST digit 0 sample 0, Poisson-encoded. base_rate comes from
+# M.max_rate_hz; during the stim window rate = base_rate * overdrive.
 SEED           = 42
-TIER           = "tiny"  # see src/docs/src/pages/llm-context.md § 8
+TIER           = "small"  # see src/docs/src/pages/llm-context.md § 8
 N_HIDDEN       = 512     # → N_E=512, N_I=128 (n_i = n_e//4)
 DT_MS          = 0.1
 SIM_MS         = 600.0
 STEP_ON_MS     = 200.0
 STEP_OFF_MS    = 300.0
-T_E_ASYNC      = 0.0006  # μS — baseline (sub-threshold) drive
-CANON_OVERDRIVE = 5.0    # t_e_ping = t_e_async * 5 = 0.003 μS (strong PING)
+CANON_OVERDRIVE = 5.0    # canonical in-window rate multiplier
+INPUT_RATE_HZ  = 50.0    # max per-pixel Poisson rate (fully-on pixel, baseline)
+W_IN_OVERDRIVE = 1.8     # multiplier on W_in weights — pushes net closer to PING threshold
+DATASET        = "mnist"
+DIGIT_CLASS    = 0
+SAMPLE_IDX     = 0
 
 # ── Scan config ───────────────────────────────────────────────────────────
 SCAN_MIN       = 1.0     # overdrive=1 → no elevation (control)
@@ -58,6 +68,14 @@ DT_SCAN_MIN    = 0.05    # ms — fine temporal resolution
 DT_SCAN_MAX    = 2.0     # ms — coarse (likely unstable)
 DT_SCAN_FRAMES = 180
 DT_SCAN_FPS    = 30
+
+# ei-scan: fix overdrive at canonical 5×, sweep E→I coupling strength.
+# At 0, I-cells don't hear E-cells → no feedback → async baseline.
+# As strength grows, the E→I→E feedback loop closes and gamma emerges.
+EI_SCAN_MIN    = 0.0
+EI_SCAN_MAX    = 1.5     # default ei_strength is 1.0; go a bit past to saturate
+EI_SCAN_FRAMES = 180
+EI_SCAN_FPS    = 30
 
 
 def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
@@ -86,16 +104,25 @@ def _overlay_stamp_video(src: Path, dst: Path, stamp: Path) -> None:
     print(f"wrote {dst.relative_to(REPO)}")
 
 
+_DATASET_ARGS = (
+    "--input", "dataset",
+    "--dataset", DATASET,
+    "--digit", str(DIGIT_CLASS),
+    "--sample", str(SAMPLE_IDX),
+    "--input-rate", str(INPUT_RATE_HZ),
+    "--w-in-overdrive", str(W_IN_OVERDRIVE),
+)
+
+
 def render_scan(out_dir: Path) -> Path:
-    """Invoke `oscilloscope.py video` sweeping stim-overdrive from 1×→10×.
-    Each frame is a separate simulation; PING grows in with the sweep."""
+    """Sweep stim-overdrive 1×→10× with MNIST d0s0 input. Each frame
+    re-runs the sim with a different in-window rate multiplier."""
     print(f"[scan] → {out_dir.relative_to(REPO)}")
     sh.uv(
         "run", "python", str(OSCILLOSCOPE), "video",
         "--model", "ping",
         "--n-hidden", str(N_HIDDEN),
-        "--input", "synthetic-conductance",
-        "--drive", str(T_E_ASYNC),
+        *_DATASET_ARGS,
         "--scan-var", "stim-overdrive",
         "--scan-min", str(SCAN_MIN),
         "--scan-max", str(SCAN_MAX),
@@ -114,15 +141,14 @@ def render_scan(out_dir: Path) -> Path:
 
 
 def render_dt_scan(out_dir: Path) -> Path:
-    """Sweep integration dt at fixed overdrive=5×. Each frame re-runs the sim
-    with a different dt; fine dt is stable, coarse dt blows up."""
+    """Sweep integration dt at fixed overdrive=5× with MNIST d0s0 input.
+    Fine dt is stable, coarse dt distorts or diverges."""
     print(f"[dt-scan] → {out_dir.relative_to(REPO)}")
     sh.uv(
         "run", "python", str(OSCILLOSCOPE), "video",
         "--model", "ping",
         "--n-hidden", str(N_HIDDEN),
-        "--input", "synthetic-conductance",
-        "--drive", str(T_E_ASYNC),
+        *_DATASET_ARGS,
         "--stim-overdrive", str(CANON_OVERDRIVE),
         "--scan-var", "dt",
         "--scan-min", str(DT_SCAN_MIN),
@@ -140,27 +166,83 @@ def render_dt_scan(out_dir: Path) -> Path:
     return mp4
 
 
+def render_ei_scan(out_dir: Path) -> Path:
+    """Sweep E→I coupling strength with *no* stim-window overdrive (input
+    rate flat through the trial). At strength=0 the E/I populations
+    decouple → async; raising the strength closes the E→I→E feedback loop
+    → gamma — isolating coupling as the knob that lights up PING."""
+    print(f"[ei-scan] → {out_dir.relative_to(REPO)}")
+    sh.uv(
+        "run", "python", str(OSCILLOSCOPE), "video",
+        "--model", "ping",
+        "--n-hidden", str(N_HIDDEN),
+        *_DATASET_ARGS,
+        "--stim-overdrive", "1.0",
+        "--scan-var", "ei_strength",
+        "--scan-min", str(EI_SCAN_MIN),
+        "--scan-max", str(EI_SCAN_MAX),
+        "--frames", str(EI_SCAN_FRAMES),
+        "--frame-rate", str(EI_SCAN_FPS),
+        "--dt", str(DT_MS),
+        "--out-dir", str(out_dir),
+        "--wipe-dir",
+        _cwd=str(REPO),
+        _out=sys.stdout, _err=sys.stderr,
+    )
+    mp4 = out_dir / "scan.mp4"
+    if not mp4.exists():
+        raise SystemExit(f"ei-scan video run did not produce {mp4}")
+    return mp4
+
+
 def compute_summary_rates() -> dict:
-    """Run the canonical-overdrive single sim in-process to extract
-    pre/stim/post E and I population rates for numbers.json."""
+    """Replay one canonical-overdrive forward pass in-process with MNIST
+    d0s0 spike input, then extract pre/stim/post E/I population rates."""
     # Lazy imports so the shell-out steps above don't get polluted by the
     # module-level import of config.py (which seeds globals on import).
+    import torch  # noqa: E402
     import config as C  # noqa: E402
-    from config import run_sim  # noqa: E402
+    import models as M  # noqa: E402
+    from config import make_net, patch_dt  # noqa: E402
+    from oscilloscope import (
+        _extract_records, _load_dataset_image, encode_image_spikes, primary_hid_key,
+    )  # noqa: E402
 
-    # Ensure the in-process sim matches the CLI invocation.
+    # Align in-process config with CLI invocation.
     C.cfg.n_e = N_HIDDEN
     C.cfg.n_i = N_HIDDEN // 4
     C.cfg.sim_ms = SIM_MS
     C.cfg.step_on_ms = STEP_ON_MS
     C.cfg.step_off_ms = STEP_OFF_MS
-    C.cfg.t_e_async = T_E_ASYNC
     C.cfg.seed = SEED
     C._sync_globals_from_cfg(C.cfg)
 
-    t_e_ping = T_E_ASYNC * CANON_OVERDRIVE
-    rec, _, _ = run_sim(DT_MS, t_e_ping, model_name="ping")
-    spk_e = rec["hid"]
+    pixel_vec, _ = _load_dataset_image(DATASET, DIGIT_CLASS, SAMPLE_IDX)
+    M.N_IN = len(pixel_vec)
+    M.N_HID = C.N_E
+    M.N_INH = C.N_I
+    M.max_rate_hz = INPUT_RATE_HZ
+    patch_dt(DT_MS)
+
+    base_rate = M.max_rate_hz
+    stim_rate = base_rate * CANON_OVERDRIVE
+    input_spikes = encode_image_spikes(
+        pixel_vec, M.T_steps, DT_MS, base_rate, stim_rate,
+        C.STEP_ON_MS, C.STEP_OFF_MS, C.SEED,
+    ).to(C.DEVICE)
+
+    net = make_net(C.cfg,
+                   w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY),
+                   model_name="ping")
+    if W_IN_OVERDRIVE != 1.0:
+        with torch.no_grad():
+            net.W_ff[0].mul_(W_IN_OVERDRIVE)
+    net.recording = True
+    with torch.no_grad():
+        net.forward(input_spikes=input_spikes)
+    rec = _extract_records(net)
+
+    spk_e = rec[primary_hid_key(rec)]
     spk_i = rec["inh"]
     T_steps = spk_e.shape[0]
     t_ms = np.arange(T_steps) * DT_MS
@@ -176,6 +258,8 @@ def compute_summary_rates() -> dict:
         "pre":  {"e": mean_rate(spk_e, pre),  "i": mean_rate(spk_i, pre)},
         "stim": {"e": mean_rate(spk_e, stim), "i": mean_rate(spk_i, stim)},
         "post": {"e": mean_rate(spk_e, post), "i": mean_rate(spk_i, post)},
+        "base_rate_hz": float(base_rate),
+        "stim_rate_hz": float(stim_rate),
     }
 
 
@@ -188,8 +272,11 @@ def write_numbers(rates: dict, out_path: Path, notebook_run_id: str) -> dict:
             "n_e": N_HIDDEN, "n_i": N_HIDDEN // 4,
             "dt_ms": DT_MS, "sim_ms": SIM_MS,
             "step_on_ms": STEP_ON_MS, "step_off_ms": STEP_OFF_MS,
-            "t_e_async": T_E_ASYNC,
-            "t_e_ping": T_E_ASYNC * CANON_OVERDRIVE,
+            "input": {"mode": "dataset", "dataset": DATASET,
+                      "digit": DIGIT_CLASS, "sample": SAMPLE_IDX,
+                      "base_rate_hz": rates.get("base_rate_hz"),
+                      "stim_rate_hz": rates.get("stim_rate_hz"),
+                      "w_in_overdrive": W_IN_OVERDRIVE},
             "canonical_overdrive": CANON_OVERDRIVE,
             "scan": {"var": "stim-overdrive",
                      "min": SCAN_MIN, "max": SCAN_MAX,
@@ -198,6 +285,10 @@ def write_numbers(rates: dict, out_path: Path, notebook_run_id: str) -> dict:
                         "min": DT_SCAN_MIN, "max": DT_SCAN_MAX,
                         "frames": DT_SCAN_FRAMES, "fps": DT_SCAN_FPS,
                         "fixed_overdrive": CANON_OVERDRIVE},
+            "ei_scan": {"var": "ei_strength",
+                        "min": EI_SCAN_MIN, "max": EI_SCAN_MAX,
+                        "frames": EI_SCAN_FRAMES, "fps": EI_SCAN_FPS,
+                        "fixed_overdrive": 1.0},
             "seed": SEED,
         },
         "rates_hz": rates,
@@ -209,12 +300,26 @@ def write_numbers(rates: dict, out_path: Path, notebook_run_id: str) -> dict:
 
 
 def main() -> None:
+    global SCAN_FRAMES, SCAN_FPS, DT_SCAN_FRAMES, DT_SCAN_FPS
+    global EI_SCAN_FRAMES, EI_SCAN_FPS
+    if "--tiny" in sys.argv:
+        SCAN_FRAMES = DT_SCAN_FRAMES = EI_SCAN_FRAMES = 20
+        SCAN_FPS = DT_SCAN_FPS = EI_SCAN_FPS = 10
+        print("[tiny] 20 frames/scan @ 10fps — for quick iteration")
+
+    wipe_dir = "--no-wipe-dir" not in sys.argv
+
     notebook_run_id = (
         f"nb{SLUG.split('-')[0]}-"
         f"{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
     )
     print(f"notebook_run_id = {notebook_run_id}")
 
+    if wipe_dir:
+        for d in (ARTIFACTS, FIGURES):
+            if d.exists():
+                print(f"[wipe] {d.relative_to(REPO)}")
+                shutil.rmtree(d)
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     FIGURES.mkdir(parents=True, exist_ok=True)
     stamp = FIGURES / "_stamp.png"
@@ -229,6 +334,11 @@ def main() -> None:
     dt_scan_dir = ARTIFACTS / "dt_scan"
     dt_scan_src = render_dt_scan(dt_scan_dir)
     _overlay_stamp_video(dt_scan_src, FIGURES / "scan_dt.mp4", stamp)
+
+    # 3. Oscilloscope-rendered ei_strength sweep — async → PING.
+    ei_scan_dir = ARTIFACTS / "ei_scan"
+    ei_scan_src = render_ei_scan(ei_scan_dir)
+    _overlay_stamp_video(ei_scan_src, FIGURES / "scan_ei.mp4", stamp)
 
     stamp.unlink(missing_ok=True)
 
