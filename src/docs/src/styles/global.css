@@ -72,7 +72,9 @@ code, pre, kbd, samp {
   font-weight: normal;
 }
 
-/* KaTeX ships at 1.21em and its glyphs are chunkier than web CM —
-   pull inline math down visually to match the surrounding serif. */
-.katex { font-size: 0.92em; font-weight: 400; }
-.katex-display > .katex { font-size: 1.05em; }
+/* Inline math matches surrounding text size; block math renders centered
+   at KaTeX's default display size. text-align and font-weight are set
+   explicitly because the prose plugin overrides KaTeX's own values. */
+.katex { font-size: 1em; font-weight: normal; }
+.katex-display { text-align: center; font-weight: normal; }
+.katex-display > .katex { font-size: 1.21em; }
