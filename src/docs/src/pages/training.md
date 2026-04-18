@@ -11,7 +11,9 @@ All models are trained with the same procedure: cross-entropy loss, Adam optimis
 
 The forward pass emits $s = 1$ if $u \geq \theta$ else $0$; the backward pass substitutes
 
-$$\partial s / \partial u \approx 1 / (1 + |u - \theta|)^2$$
+$$
+\partial s / \partial u \approx 1 / (1 + |u - \theta|)^2
+$$
 
 This keeps the forward dynamics exact while giving BPTT a usable gradient through the otherwise-discontinuous spike function.
 
@@ -19,7 +21,9 @@ This keeps the forward dynamics exact while giving BPTT a usable gradient throug
 
 At each training step, a batch of images is converted to Poisson spike trains on the fly. Each pixel $x_j \in [0,1]$ independently generates spikes at each of $T$ timesteps:
 
-$$s_j^t \sim \text{Bernoulli}(x_j \cdot r_{\max} \cdot \Delta t / 1000)$$
+$$
+s_j^t \sim \text{Bernoulli}(x_j \cdot r_{\max} \cdot \Delta t / 1000)
+$$
 
 The spike tensor has shape $(T, B, N_{\text{in}})$. Because encoding is stochastic, the network sees a different spike realisation of the same image every epoch — a form of data augmentation intrinsic to the rate code. At evaluation time, a seeded torch.Generator is threaded through the encoder so train-time eval and standalone infer on the same weights produce identical spike trains.
 
@@ -33,7 +37,9 @@ The biophysical models face a gradient scale mismatch: voltage updates involve m
 
 To stabilise training, the backward pass through each voltage update is scaled by $1/\alpha$ where $\alpha$ is a dampening factor (CM_BACK_SCALE, typically 80 for the unitless models and 1000 for COBA/PING). In the forward pass nothing changes — the gradient is simply attenuated:
 
-$$\frac{\partial \mathcal{L}}{\partial V_i^t} \leftarrow \frac{1}{\alpha} \frac{\partial \mathcal{L}}{\partial V_i^t}$$
+$$
+\frac{\partial \mathcal{L}}{\partial V_i^t} \leftarrow \frac{1}{\alpha} \frac{\partial \mathcal{L}}{\partial V_i^t}
+$$
 
 This keeps the biophysical forward dynamics exact while bringing gradient magnitudes into a range compatible with Adam's learning rate.
 
@@ -62,7 +68,9 @@ The models are exercised against three classes of input and a small family of ta
 
 *Synthetic-conductance.* Direct conductance injection into layer-1 E neurons, used for baseline oscillation studies where we want to study PING dynamics in isolation from any encoding stage. Drive is generated Börgers-style as a step function with per-neuron heterogeneity $X_i$ plus an Ornstein–Uhlenbeck noise process:
 
-$$g_i^{\text{ext}}(t) = T_E(t)(1 + \sigma_e X_i) + \eta_i(t)$$
+$$
+g_i^{\text{ext}}(t) = T_E(t)(1 + \sigma_e X_i) + \eta_i(t)
+$$
 
 where $T_E$ switches between async and PING-regime values during a stimulus window, $X_i \sim \mathcal{N}(0, 1)$ is per-neuron heterogeneity, and $\eta$ is a discrete Ornstein–Uhlenbeck process with $\tau_\eta = 3$ ms. Drive is calibrated at $\Delta t_{\text{cal}} = 0.1$ ms and rescaled at runtime so that the steady-state AMPA conductance is invariant across $\Delta t$.
 
@@ -78,7 +86,9 @@ sMNIST presents each $28 \times 28$ image row-by-row: at each moment only the 28
 
 Each model is trained at a reference $\Delta t_{\text{train}}$ (typically 0.1 ms or 1.0 ms) and then evaluated on a range of inference timesteps $\Delta t_{\text{infer}} \in [0.05, 2.0]$ ms without retraining. Poisson input encoding is itself $\Delta t$-dependent, so naively re-encoding at each inference $\Delta t$ introduces noise unrelated to the network's internal dynamics. To control for this, a FrozenEncoder generates a reference spike train at the finest $\Delta t_{\text{ref}}$ of the sweep and OR-pool downsamples it by blocks of size $k = \Delta t_{\text{target}}/\Delta t_{\text{ref}}$:
 
-$$s^{\text{target}}_{b, i} = \max_{t \in [kb, k(b+1))} s^{\text{ref}}_{t, i}$$
+$$
+s^{\text{target}}_{b, i} = \max_{t \in [kb, k(b+1))} s^{\text{ref}}_{t, i}
+$$
 
 This guarantees that the spike pattern seen by the network at $\Delta t_{\text{target}}$ is **provably** the OR-pool of the pattern at $\Delta t_{\text{ref}}$ — any accuracy difference across $\Delta t$ reflects the network, not the encoder.
 
@@ -118,7 +128,9 @@ Backpropagation Through Time (BPTT) is how gradients are computed in any network
 
 Consider a recurrent system with hidden state $h^t$ that evolves according to:
 
-$$h^t = f(h^{t-1}, x^t; \theta), \quad y^t = g(h^t; \theta)$$
+$$
+h^t = f(h^{t-1}, x^t; \theta), \quad y^t = g(h^t; \theta)
+$$
 
 where $x^t$ is the input, $y^t$ is the output, and $\theta$ are the parameters (shared across time). Iterating for $T$ steps produces a chain $h^0 \to h^1 \to \cdots \to h^T$. For gradient computation, we treat this chain as a deep feedforward network of depth $T$ where layer $t$'s weights are tied to layer $t-1$'s.
 
@@ -126,11 +138,15 @@ where $x^t$ is the input, $y^t$ is the output, and $\theta$ are the parameters (
 
 The gradient of the loss with respect to a parameter $\theta_k$ is a sum over all timesteps at which $\theta$ influenced the computation:
 
-$$\frac{\partial \mathcal{L}}{\partial \theta_k} = \sum_{t=1}^T \frac{\partial \mathcal{L}}{\partial h^t} \cdot \frac{\partial h^t}{\partial \theta_k}$$
+$$
+\frac{\partial \mathcal{L}}{\partial \theta_k} = \sum_{t=1}^T \frac{\partial \mathcal{L}}{\partial h^t} \cdot \frac{\partial h^t}{\partial \theta_k}
+$$
 
 Each $\partial \mathcal{L}/\partial h^t$ is itself recursive:
 
-$$\frac{\partial \mathcal{L}}{\partial h^t} = \frac{\partial \mathcal{L}}{\partial h^{t+1}} \cdot \frac{\partial h^{t+1}}{\partial h^t} + \frac{\partial \mathcal{L}}{\partial y^t} \cdot \frac{\partial y^t}{\partial h^t}$$
+$$
+\frac{\partial \mathcal{L}}{\partial h^t} = \frac{\partial \mathcal{L}}{\partial h^{t+1}} \cdot \frac{\partial h^{t+1}}{\partial h^t} + \frac{\partial \mathcal{L}}{\partial y^t} \cdot \frac{\partial y^t}{\partial h^t}
+$$
 
 The backward pass marches from $t = T$ down to $t = 1$, accumulating gradient contributions at each step.
 
@@ -138,7 +154,9 @@ The backward pass marches from $t = T$ down to $t = 1$, accumulating gradient co
 
 The BPTT recursion contains a product of Jacobians $\partial h^{t+1}/\partial h^t$ across every timestep:
 
-$$\frac{\partial h^T}{\partial h^1} = \prod_{t=1}^{T-1} \frac{\partial h^{t+1}}{\partial h^t}$$
+$$
+\frac{\partial h^T}{\partial h^1} = \prod_{t=1}^{T-1} \frac{\partial h^{t+1}}{\partial h^t}
+$$
 
 If the Jacobian norms are consistently greater than 1, this product explodes exponentially in $T$; if consistently less than 1, it vanishes. Standard mitigations include gradient clipping, architectural choices that stabilise the Jacobian, and in the SNN setting, surrogate gradients that smooth the otherwise-discontinuous spike function.
 
