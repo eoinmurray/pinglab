@@ -55,7 +55,7 @@ The best model state (by test accuracy) is saved at each epoch. Training termina
 
 ## Known hyperparameter pitfalls
 
-- **smnist encoding is row-by-row.** encode_smnist presents each MNIST row as a 28-pixel input vector for 10 ms, so N_IN = 28 and T_ms = 280. --w-in-sparsity 0.9 leaves ~3 inbound connections per hidden neuron — the network goes silent. Use sparsity $\leq 0.5$ for smnist.
+- **smnist encoding is row-by-row.** encode_smnist presents each MNIST row as a 28-pixel input vector for 10 ms, so N_IN = 28 and T_ms = 280. --w-in-sparsity 0.9 leaves $\sim$3 inbound connections per hidden neuron — the network goes silent. Use sparsity $\leq 0.5$ for smnist.
 - **Biophysical models need --cm-back-scale 1000.** Without it, voltage gradients blow up in epoch 1. Only affects lif_step (coba, ping), not snn_lif_step (cuba-family).
 - **Refractory rounding uses round, not ceil.** int(round(ref_ms/dt)) with min 1 step. Ceiling caused a step-jump at $\Delta t = 2$ ms that biased the dt-sweep against fine resolutions.
 - **Warning tracker fires under joint conditions only.** ⚠ dead / ⚠ saturated require paired activity extremes **and** no-progress windows.
