@@ -1,38 +1,100 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "003 — Scope Frame"
-date: 2026-04-18
+title: "003 — snnTorch calibration"
+date: 2026-04-17
 entry: 3
 structure: paper
 ---
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb003/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
+export const snn = numbers.runs?.snntorch ?? {};
+export const lib = numbers.runs?.["snntorch-library"] ?? {};
 export const cfg = numbers.config ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
-export const runDatetime = numbers.run_datetime ?? "?";
 export const runDuration = numbers.duration ?? "?";
-export const imageGlob = import.meta.glob("../../../public/figures/notebook/nb003/scope_frame.png", { eager: true, query: "?url", import: "default" });
-export const hasFrame = Object.keys(imageGlob).length > 0;
+export const latestRun = snn.run_date && lib.run_date
+  ? (snn.run_date === lib.run_date ? snn.run_date : `${snn.run_date} / ${lib.run_date}`)
+  : (snn.run_date ?? lib.run_date ?? "?");
+export const ratio = (a, b) => (typeof a === "number" && typeof b === "number" && b !== 0 ? (a / b).toFixed(1) : "?");
+export const sec = (v) => (typeof v === "number" ? v.toFixed(0) : "?");
+export const num = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
-# Scope Frame
+export const figGlob = import.meta.glob("../../../public/figures/notebook/nb003/*.{png,mp4}", { eager: true, query: "?url", import: "default" });
+export const hasTrainingCurves = Object.keys(figGlob).some((k) => k.endsWith("/training_curves.png"));
+export const hasFiringRates = Object.keys(figGlob).some((k) => k.endsWith("/firing_rates.png"));
+export const hasSnnVideo = Object.keys(figGlob).some((k) => k.endsWith("/training_snntorch.mp4"));
+export const hasLibVideo = Object.keys(figGlob).some((k) => k.endsWith("/training_snntorch-library.mp4"));
 
-<p><span class="font-mono">nb003</span> · Saturday, 18<sup>th</sup> April 26</p>
+# snnTorch calibration
+
+<p><span class="font-mono">nb003</span> · Friday, 17<sup>th</sup> April 26</p>
 
 | Run ID | Date | Size | Duration |
 |---|---|---|---|
-| <span class="font-mono">{nbRunId}</span> | {runDatetime} | {cfg.tier ?? "?"} | {runDuration} |
+| <span class="font-mono">{nbRunId}</span> | {latestRun} | {cfg.tier ?? "?"} | {runDuration} |
 
-**SCOPE_FRAME** is the canonical oscilloscope layout (see *src/pinglab/plot.py*) — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content.
+The repo ships two variants of a snnTorch-style network: the in-repo *snntorch* model and *snntorch-library*, which swaps in snnTorch's own *snn.Leaky* + fast-sigmoid surrogate as a parity reference ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894); [Neftci et al. 2019](https://arxiv.org/abs/1901.09948)). They are meant to be behaviourally equivalent at matched config — any residual gap localises to the LIF update and the surrogate-gradient details. Both models were trained on a {cfg.max_samples ?? "?"}-sample subset of MNIST for {cfg.epochs ?? "?"} epochs, batch size {cfg.batch_size ?? "?"}, lr {cfg.lr ?? "?"}, using signed Kaiming-uniform feedforward init (*--kaiming-init*), dt {cfg.dt ?? "?"} ms, T {cfg.t_ms ?? "?"} ms, {cfg.n_hidden ?? "?"} hidden units; only the *--model* flag differs between the two runs.
 
-The frame below is one 600 ms PING simulation on MNIST digit {cfg.input?.digit} sample {cfg.input?.sample}, at stim overdrive {cfg.stim_overdrive}×, ei-strength {cfg.ei_strength}, w-in overdrive {cfg.w_in_overdrive}× — the same knob positions that light up PING in *002*.
+## *training_curves.png*
 
-{hasFrame && <img src="/figures/notebook/nb003/scope_frame.png" alt="A single SCOPE_FRAME rendering" style={{ width: "100%" }} />}
+{hasTrainingCurves && <img src="/figures/notebook/nb003/training_curves.png" alt="Training curves: pinglab snntorch vs snnTorch library" />}
 
-## Aesthetic notes
+At matched config, the two implementations diverge sharply. Pinglab's *snntorch* reached {snn.best_acc ?? "?"}% test accuracy at epoch {snn.best_epoch ?? "?"}, while *snntorch-library* peaked at {lib.best_acc ?? "?"}% at epoch {lib.best_epoch ?? "?"} — a {ratio(snn.best_acc, lib.best_acc)}× accuracy ratio. Final-epoch training loss runs in the opposite direction: {num(snn.final_loss)} for the pinglab path against {num(lib.final_loss)} for the library path, a {ratio(lib.final_loss, snn.final_loss)}× gap with the library sitting higher. The two networks are not calibrated yet — a drop-in claim requires matching behaviour within a small tolerance, not the gap shown here.
 
-Placeholder — iterate here on typography, panel spacing, colour, axis labels, header layout, and any other visual choices that land on this one frame before they get baked into every video.
+## *firing_rates.png*
 
-## Appendix
+{hasFiringRates && <img src="/figures/notebook/nb003/firing_rates.png" alt="Hidden-layer firing rate vs epoch" />}
 
-Repro: *src/pinglab/notebook/nb003.py* · renderer: *src/pinglab/oscilloscope.py image* → *src/pinglab/plot.py* (SCOPE_FRAME).
+Mean hidden-layer firing rate (Hz) at the end of each epoch, measured on the test set under the matched config above. Reading the rate side-by-side with the accuracy curve localises whether the gap tracks a simple rate mismatch or something deeper in the spike timing.
+
+## *training_snntorch.mp4*
+
+{hasSnnVideo && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb003/training_snntorch.mp4" />}
+
+Pinglab *snntorch*, one frame per epoch. Sidebars accumulate training history: accuracy curve, per-layer gradient flow, and E/I rate trace. The pinglab path took {sec(snn.total_elapsed_s)} s for {cfg.epochs ?? "?"} epochs — the forward pass records per-step membrane and firing traces that the library path skips, so part of the wall-time gap is instrumentation rather than the LIF step itself.
+
+## *training_snntorch-library.mp4*
+
+{hasLibVideo && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb003/training_snntorch-library.mp4" />}
+
+snnTorch library, same matched config. Compare the raster density, the population-rate spectrum, and the output-logit raster between the two as the weights evolve. The library path took {sec(lib.total_elapsed_s)} s — a $\sim${ratio(snn.total_elapsed_s, lib.total_elapsed_s)}× ratio against the pinglab path, far larger than the LIF-step difference alone can explain.
+
+## Next steps
+
+Add a *--seed* flag to *src/pinglab/oscilloscope.py* that seeds Python, NumPy, and torch RNGs (including CUDA) before dataset construction and model init. Verify bit-level reproducibility by running the same seed twice and diffing *metrics.json*.
+
+Audit *cm_back_scale* and any loss-scale differences between the tutorial path (*SNNTorchNet*) and the *snntorch-library* path in *src/pinglab/models.py*. Cross-check the adjoint scaling against Burghi et al. 2026 (see *src/papers/burghi-et-al.pdf*).
+
+Localise which of (a) membrane-update convention, (b) spike-reset mechanics, (c) surrogate slope and centering, (d) *cm_back_scale* gradient-dampening carries the bulk of the discrepancy.
+
+## Parameters
+
+| Parameter | Value | Meaning |
+|---|---|---|
+| Model | {snn.label ?? "?"} / {lib.label ?? "?"} | matched pair — only *--model* differs |
+| Dataset | {cfg.dataset ?? "?"} | training set |
+| Samples | {cfg.max_samples ?? "?"} | subset size |
+| Epochs | {cfg.epochs ?? "?"} | training epochs |
+| T | {cfg.t_ms ?? "?"} ms | total simulated time per sample |
+| dt | {cfg.dt ?? "?"} ms | simulation time step |
+| Hidden | {cfg.n_hidden ?? "?"} | single hidden-layer size |
+| Batch | {cfg.batch_size ?? "?"} | mini-batch size |
+| lr | {cfg.lr ?? "?"} | learning rate |
+| Seed | {cfg.seed ?? "?"} | RNG seed for reproducibility |
+| Tier | **{cfg.tier ?? "?"}** | run size bucket (see LLM Context § 8) |
+| Elapsed — {snn.label ?? "snntorch"} | {sec(snn.total_elapsed_s)} s | pinglab path wall time |
+| Elapsed — {lib.label ?? "snntorch-library"} | {sec(lib.total_elapsed_s)} s | library path wall time |
+| Run ID — {snn.label ?? "snntorch"} | {snn.run_id ?? "?"} | pinglab per-run id |
+| Run ID — {lib.label ?? "snntorch-library"} | {lib.run_id ?? "?"} | library per-run id |
+| Git SHA — {snn.label ?? "snntorch"} | {snn.git_sha ?? "?"} | pinglab path commit |
+| Git SHA — {lib.label ?? "snntorch-library"} | {lib.git_sha ?? "?"} | library path commit |
+
+## Reproduction
+
+From the repo root:
+
+```
+uv run src/pinglab/notebook/nb003.py
+```
+
