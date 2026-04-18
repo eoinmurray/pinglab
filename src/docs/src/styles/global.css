@@ -88,9 +88,10 @@ pre.astro-code code {
   font-size: 0.88em;
 }
 
-/* Inline math matches surrounding text size; block math renders centered
-   at KaTeX's default display size. text-align and font-weight are set
-   explicitly because the prose plugin overrides KaTeX's own values. */
+/* Inline and block math both render at body text size and regular weight.
+   font-weight is set explicitly because the prose plugin overrides KaTeX's
+   own values, and oversized display math next to CM Serif body text reads
+   as bolded. */
 .katex { font-size: 1em; font-weight: normal; }
 .katex-display { text-align: center; font-weight: normal; }
-.katex-display > .katex { font-size: 1.21em; }
+.katex-display > .katex { font-size: 1em; }
