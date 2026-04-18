@@ -1,0 +1,63 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "002 — PING stimulus window"
+date: 2026-04-18
+entry: 2
+structure: paper
+---
+import numbers from "../../../public/figures/notebook/002-ping-stimulus-window/numbers.json";
+
+export const cfg = numbers.config;
+export const r = numbers.rates_hz;
+export const nbRunId = numbers.notebook_run_id;
+export const dtScan = cfg.dt_scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?" };
+
+# PING stimulus window
+
+*002 · Saturday, April 18 2026 · {nbRunId} (seed {cfg.seed}, {cfg.tier})*
+
+**PING** — Pyramidal-Interneuron Network Gamma — is a rhythm that emerges when a population of excitatory (**E**) neurons and inhibitory (**I**) neurons drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at ~30–80 Hz ("gamma"). But it only runs when E gets enough external drive; below threshold the network sits in uncorrelated background firing.
+
+This entry maps that threshold. Each frame of the video below is a fresh {cfg.sim_ms} ms simulation. The "stim window" is {cfg.step_on_ms}–{cfg.step_off_ms} ms — before and after the window, E receives a baseline drive; during the window, that drive is multiplied by the **overdrive** factor shown on the frame. The sweep walks overdrive from {cfg.scan.min}× (no boost) to {cfg.scan.max}× (strong boost) over {cfg.scan.frames} frames.
+
+<video controls loop muted playsinline width="100%" src="/figures/notebook/002-ping-stimulus-window/scan.mp4" />
+
+What to watch: the top raster is E spikes, the smaller raster below is I spikes. At low overdrive the stim window looks the same as the rest of the trial. As overdrive grows past threshold, vertical bands appear inside the window — that's gamma: E firing in near-synchrony, I firing in the gaps between E bursts.
+
+At the canonical overdrive of {cfg.canonical_overdrive}×, E fires at {r.pre.e.toFixed(1)} Hz before the window with I silent. Inside the window I wakes to {r.stim.i.toFixed(1)} Hz and E's time-averaged rate drops to {r.stim.e.toFixed(1)} Hz — the bursts are higher, but I-dominated gaps pull the mean down. After the window: {r.post.e.toFixed(1)} / {r.post.i.toFixed(1)} Hz. The onset is sharp: below threshold nothing happens, above it the rhythm snaps on.
+
+## Time-step sensitivity
+
+Gamma has a period of ~15–30 ms; if the integration step *dt* is too coarse, the simulator can't resolve the E→I→E round-trip and the rhythm distorts or diverges. Here overdrive is held at {dtScan.fixed_overdrive}× and *dt* is swept from {dtScan.min} ms to {dtScan.max} ms over {dtScan.frames} frames.
+
+<video controls loop muted playsinline width="100%" src="/figures/notebook/002-ping-stimulus-window/scan_dt.mp4" />
+
+At fine *dt* the rhythm is clean. As *dt* grows past a few tenths of a millisecond the gamma bands smear, then the sim becomes unstable. This is the upper bound on how coarsely you can step the solver while still getting PING — a practical rule for picking *dt* when scaling up the network.
+
+## Next steps
+
+Zoom in on the gamma-onset threshold (overdrive 2×–5×) and pin down where the rhythm first appears.
+
+Widen the window to 800 ms and count gamma cycles inside it — confirm the cycle period is set by the I-cell decay constant, not the window length.
+
+## Parameters
+
+| Parameter | Value | Meaning |
+|---|---|---|
+| Model | {cfg.model} | PING network — E and I populations with conductance-based synapses |
+| N_E | {cfg.n_e} | excitatory neuron count |
+| N_I | {cfg.n_i} | inhibitory neuron count |
+| dt | {cfg.dt_ms} ms | simulation time step |
+| T | {cfg.sim_ms} ms | total simulated time per frame |
+| Stim window | {cfg.step_on_ms}–{cfg.step_off_ms} ms | interval where drive is multiplied by overdrive |
+| Baseline drive | {cfg.t_e_async} μS | external conductance to E outside the window |
+| Stim drive | {cfg.t_e_ping.toFixed(4)} μS | conductance inside the window at {cfg.canonical_overdrive}× |
+| Overdrive scan | {cfg.scan.min}×–{cfg.scan.max}× | overdrive values swept in the first video |
+| dt scan | {dtScan.min}–{dtScan.max} ms | dt values swept in the second video (overdrive fixed at {dtScan.fixed_overdrive}×) |
+| Frames / FPS | {cfg.scan.frames} / {cfg.scan.fps} | per video |
+| Seed | {cfg.seed} | RNG seed for reproducibility |
+| Tier | **{cfg.tier}** | run size bucket (see LLM Context § 8) |
+
+## Appendix
+
+Repro: *src/pinglab/notebook/002-ping-stimulus-window.py* · renderer: *src/pinglab/oscilloscope.py*.

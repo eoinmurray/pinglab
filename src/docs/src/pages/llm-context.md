@@ -153,6 +153,8 @@ Every notebook entry under *src/docs/src/pages/notebook/* uses the same five H2 
 
 The H1 stays entry-specific (the entry title). The skeleton is for H2s only. *Why:* notebook-entry navigation should be predictable across the site.
 
+Paper-style drafts with custom sectioning can opt out by setting *structure: paper* in frontmatter. That flag also exempts the entry from convention 6 (caption-after-image), since paper-style drafts often use surrounding prose rather than italic captions.
+
 ### 2. Entry numbering and date format
 
 Every notebook entry has a **global sequential number**, zero-padded to 3 digits (*001*, *002*, …). It is the entry's primary identifier and appears in the filename, URL, frontmatter (*entry: &lt;N&gt;*), byline, and home-page list. Numbers never change once assigned. Reserve the next number by *ls src/pinglab/notebook/* and adding 1 to the highest.
@@ -163,7 +165,7 @@ Three places per entry combine these:
 
 1. Frontmatter title — *title: "001 — &lt;title&gt;"* (number only; date omitted here so tabs stay compact)
 2. Italic byline under H1 — *001 · Thursday, April 16 2026*
-3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · Thursday, April 16 2026 — &lt;link to title&gt;*, pointing at */notebook/&lt;NNN-entry-slug&gt;/*
+3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · &lt;link to title&gt; — Thursday, April 16 2026*, pointing at */notebook/&lt;NNN-entry-slug&gt;/*
 
 The word "Entry" is never written — the zero-padded number carries the meaning on its own.
 
@@ -196,7 +198,7 @@ Every image in docs — notebook entry or background page — carries a caption 
 *Caption interpreting the figure. Self-contained — a reader scrolling to the image should understand what it shows without reading the surrounding prose.*
 ```
 
-The alt text describes the image for accessibility. The caption interprets it for the reader. An image without a caption beneath it is a bug.
+The alt text describes the image for accessibility. The caption interprets it for the reader. An image without a caption beneath it is a bug — except in entries with *structure: paper* in frontmatter, where surrounding prose stands in for the italic caption.
 
 ### 7. Bug findings belong in PRs, not notebook entries
 
