@@ -1,9 +1,9 @@
 ---
 layout: ../layouts/MarkdownLayout.astro
-title: "Motivation"
+title: "Introduction"
 ---
 
-# Motivation
+# Introduction
 
 The PING (Pyramidal-Interneuron Gamma) network is a biophysical model of cortical gamma oscillations: excitatory pyramidal neurons and fast inhibitory interneurons form a feedback loop that produces rhythmic activity in the 30–80 Hz band. This project trains PING networks for classification using surrogate gradients — an investigation that sits at the intersection of three fields.
 
