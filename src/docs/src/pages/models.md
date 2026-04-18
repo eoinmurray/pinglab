@@ -38,7 +38,9 @@ Same parameters, learning rate, and training cost as snntorch — only the forwa
 
 cuba augmented with an **exponential synapse**: incoming presynaptic spikes deposit charge into a synaptic conductance $g$ that decays with time constant $\tau_{\text{AMPA}} \approx 5$ ms, rather than depositing directly into $V$. The membrane then sees a smoothly-varying $g$ instead of sharp per-step impulses:
 
-$$g(t + \Delta t) = e^{-\Delta t/\tau_{\text{AMPA}}} g(t) + W s(t), \quad U(t+\Delta t) = \beta U(t) + (1 - \beta) g(t) + (1-\beta) b$$
+$$
+g(t + \Delta t) = e^{-\Delta t/\tau_{\text{AMPA}}} g(t) + W s(t), \quad U(t+\Delta t) = \beta U(t) + (1 - \beta) g(t) + (1-\beta) b
+$$
 
 The exp synapse resolves cuba's residual variance issue: at large $\Delta t$, many input spikes pile up into a single step, but $g$ smooths them over $\tau_{\text{AMPA}}$ before they reach $V$. Per-step $V$-drive variance stays low at every $\Delta t$.
 
