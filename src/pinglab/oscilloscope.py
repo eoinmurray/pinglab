@@ -1317,6 +1317,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
 
     # Save config for reproducibility
     import json
+    import run_log
     config = {
         "model": model_name, "lr": lr, "epochs": epochs, "dt": dt,
         "t_ms": M.T_ms, "dataset": dataset,
@@ -1334,6 +1335,10 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         "rec_layers": list(rec_layers) if rec_layers else None,
         "ei_layers": list(ei_layers) if ei_layers else None,
         "seed": seed,
+        # Provenance (git SHA, run_id, started_at, device, torch version,
+        # python env hash) — keeps train-mode config.json at parity with
+        # sim/image/video modes.
+        **run_log.provenance(),
     }
     with open(out_dir / "config.json", "w") as f:
         json.dump(config, f, indent=2)
@@ -1404,9 +1409,11 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         log.info(f"  epochs=0, use --epochs N to train")
         # Even in probe mode, write a minimal metrics.json so callers can
         # inspect init state without parsing logs.
+        from datetime import datetime, timezone
         metrics_blob = {
             "mode": "train",
             "model": model_name,
+            "run_finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "config": {
                 "dt": dt, "t_ms": M.T_ms, "epochs": 0, "lr": lr,
                 "input_rate": M.max_rate_hz,
@@ -1666,11 +1673,16 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
     if best_state is not None:
         torch.save(best_state, out_dir / "weights.pth")
 
-    # Write structured metrics for tests/analysis (parallels output.log)
+    # Write structured metrics for tests/analysis (parallels output.log).
+    # run_finished_at is the canonical "when did this run actually produce
+    # its numbers" timestamp — consumers should prefer it over file mtime,
+    # which gets clobbered by git checkout, file copies, etc.
+    from datetime import datetime, timezone
     metrics_path = out_dir / "metrics.json"
     metrics_blob = {
         "mode": "train",
         "model": model_name,
+        "run_finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "config": {
             "dt": dt, "t_ms": M.T_ms, "epochs": epochs, "lr": lr,
             "input_rate": M.max_rate_hz,
@@ -1951,9 +1963,11 @@ def infer(model_name="ping", dt=0.25, load_weights=None,
     # Structured metrics artifact for tests/analysis (parallels train's metrics.json)
     out_dir_path = Path(out_dir) if out_dir else None
     if out_dir_path and out_dir_path.exists():
+        from datetime import datetime, timezone
         metrics_blob = {
             "mode": "infer",
             "model": model_name,
+            "run_finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "config": {
                 "dt": dt, "t_ms": M.T_ms,
                 "w_in": list(w_in) if w_in else None,

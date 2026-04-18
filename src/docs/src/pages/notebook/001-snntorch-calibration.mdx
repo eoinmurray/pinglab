@@ -9,10 +9,14 @@ import numbers from "../../../public/figures/notebook/001-snntorch-calibration/n
 export const snn = numbers.runs.snntorch;
 export const lib = numbers.runs["snntorch-library"];
 export const cfg = numbers.config;
+export const nbRunId = numbers.notebook_run_id;
+export const latestRun = snn.run_date === lib.run_date
+  ? snn.run_date
+  : `${snn.run_date} / ${lib.run_date}`;
 
 # snnTorch calibration
 
-*001 · Friday, April 17 2026*
+*001 · authored Friday, April 17 2026 · latest run {latestRun} (seed {cfg.seed}, {cfg.tier}) · {nbRunId}*
 
 ## Introduction
 
@@ -95,3 +99,7 @@ Audit *cm_back_scale* and any loss-scale differences between the tutorial path (
 | Elapsed — {lib.label} | {lib.total_elapsed_s.toFixed(0)} s |
 | Run date — {snn.label} | {snn.run_date} |
 | Run date — {lib.label} | {lib.run_date} |
+| Run ID — {snn.label} | {snn.run_id} |
+| Run ID — {lib.label} | {lib.run_id} |
+| Git SHA — {snn.label} | {snn.git_sha} |
+| Git SHA — {lib.label} | {lib.git_sha} |
