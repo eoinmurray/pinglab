@@ -15,14 +15,15 @@ Also writes numbers.json with the notebook_run_id, config snapshot, and
 pre/stim/post population rates from an in-Python replay of the canonical
 overdrive=5 run (so the MDX can interpolate exact values).
 
-Notebook entry: src/docs/src/pages/notebook/002-basic-ping-videos.mdx
+Notebook entry: src/docs/src/pages/notebook/nb002.mdx
 """
 from __future__ import annotations
 
 import json
 import shutil
 import sys
-from datetime import datetime, timezone
+import time
+from datetime import datetime
 from pathlib import Path
 
 import sh
@@ -34,7 +35,9 @@ sys.path.insert(0, str(PINGLAB))
 import numpy as np  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
-SLUG = "002-basic-ping-videos"
+from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
+
+SLUG = "nb002"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
@@ -44,7 +47,7 @@ OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 # Input is MNIST digit 0 sample 0, Poisson-encoded. base_rate comes from
 # M.max_rate_hz; during the stim window rate = base_rate * overdrive.
 SEED           = 42
-TIER           = "small"  # see src/docs/src/pages/llm-context.md § 8
+TIER           = "medium"  # see src/docs/src/pages/llm-context.md § 8
 N_HIDDEN       = 512     # → N_E=512, N_I=128 (n_i = n_e//4)
 DT_MS          = 0.1
 SIM_MS         = 600.0
@@ -60,21 +63,29 @@ SAMPLE_IDX     = 0
 # ── Scan config ───────────────────────────────────────────────────────────
 SCAN_MIN       = 1.0     # overdrive=1 → no elevation (control)
 SCAN_MAX       = 10.0    # overdrive=10 → strong elevation
-SCAN_FRAMES    = 180
+SCAN_FRAMES    = 360
 SCAN_FPS       = 30
 
-# dt-scan: fix overdrive at canonical 5×, sweep integration time step
+# dt-scan: fix overdrive high so PING is robustly on, sweep integration
+# time step. We want any rhythm distortion to come from dt alone, not
+# from being near the drive threshold — so drive higher than the canonical 5×.
+DT_SCAN_OVERDRIVE = 10.0
 DT_SCAN_MIN    = 0.05    # ms — fine temporal resolution
 DT_SCAN_MAX    = 2.0     # ms — coarse (likely unstable)
-DT_SCAN_FRAMES = 180
+DT_SCAN_FRAMES = 360
 DT_SCAN_FPS    = 30
 
-# ei-scan: fix overdrive at canonical 5×, sweep E→I coupling strength.
-# At 0, I-cells don't hear E-cells → no feedback → async baseline.
+# ei-scan: overdrive pinned at 1× (no stim-window boost), sweep E→I coupling
+# strength. At 0, I-cells don't hear E-cells → no feedback → async baseline.
 # As strength grows, the E→I→E feedback loop closes and gamma emerges.
+# Because there's no overdrive to push E firing, input rate and W_in are
+# both boosted relative to the other scans so E has enough baseline drive
+# to recruit I at all.
+EI_SCAN_INPUT_RATE_HZ = 2 * INPUT_RATE_HZ
+EI_SCAN_W_IN_OVERDRIVE = 3.0
 EI_SCAN_MIN    = 0.0
-EI_SCAN_MAX    = 1.5     # default ei_strength is 1.0; go a bit past to saturate
-EI_SCAN_FRAMES = 180
+EI_SCAN_MAX    = 1.0     # sweep up to the default ei_strength — past 1 the E rate is already saturated-low
+EI_SCAN_FRAMES = 360
 EI_SCAN_FPS    = 30
 
 
@@ -109,8 +120,6 @@ _DATASET_ARGS = (
     "--dataset", DATASET,
     "--digit", str(DIGIT_CLASS),
     "--sample", str(SAMPLE_IDX),
-    "--input-rate", str(INPUT_RATE_HZ),
-    "--w-in-overdrive", str(W_IN_OVERDRIVE),
 )
 
 
@@ -123,6 +132,8 @@ def render_scan(out_dir: Path) -> Path:
         "--model", "ping",
         "--n-hidden", str(N_HIDDEN),
         *_DATASET_ARGS,
+        "--input-rate", str(INPUT_RATE_HZ),
+        "--w-in-overdrive", str(W_IN_OVERDRIVE),
         "--scan-var", "stim-overdrive",
         "--scan-min", str(SCAN_MIN),
         "--scan-max", str(SCAN_MAX),
@@ -141,15 +152,19 @@ def render_scan(out_dir: Path) -> Path:
 
 
 def render_dt_scan(out_dir: Path) -> Path:
-    """Sweep integration dt at fixed overdrive=5× with MNIST d0s0 input.
-    Fine dt is stable, coarse dt distorts or diverges."""
+    """Sweep integration dt at high fixed overdrive with MNIST d0s0 input.
+    Fine dt is stable, coarse dt distorts or diverges. Overdrive is held
+    well past the PING threshold so dt is the only variable breaking
+    the rhythm."""
     print(f"[dt-scan] → {out_dir.relative_to(REPO)}")
     sh.uv(
         "run", "python", str(OSCILLOSCOPE), "video",
         "--model", "ping",
         "--n-hidden", str(N_HIDDEN),
         *_DATASET_ARGS,
-        "--stim-overdrive", str(CANON_OVERDRIVE),
+        "--input-rate", str(INPUT_RATE_HZ),
+        "--w-in-overdrive", str(W_IN_OVERDRIVE),
+        "--stim-overdrive", str(DT_SCAN_OVERDRIVE),
         "--scan-var", "dt",
         "--scan-min", str(DT_SCAN_MIN),
         "--scan-max", str(DT_SCAN_MAX),
@@ -177,6 +192,8 @@ def render_ei_scan(out_dir: Path) -> Path:
         "--model", "ping",
         "--n-hidden", str(N_HIDDEN),
         *_DATASET_ARGS,
+        "--input-rate", str(EI_SCAN_INPUT_RATE_HZ),
+        "--w-in-overdrive", str(EI_SCAN_W_IN_OVERDRIVE),
         "--stim-overdrive", "1.0",
         "--scan-var", "ei_strength",
         "--scan-min", str(EI_SCAN_MIN),
@@ -263,9 +280,30 @@ def compute_summary_rates() -> dict:
     }
 
 
-def write_numbers(rates: dict, out_path: Path, notebook_run_id: str) -> dict:
+def _format_run_datetime(dt: datetime) -> str:
+    """Long-form British-style datetime: 'Saturday, 18th April 26 at 14:30'."""
+    day = dt.day
+    suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    return dt.strftime(f"%A, {day}{suffix} %B %y at %H:%M")
+
+
+def _format_duration(seconds: float) -> str:
+    """Compact duration: '42s', '12m 08s', '1h 23m'."""
+    s = int(round(seconds))
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60:02d}s"
+    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
+
+
+def write_numbers(rates: dict, out_path: Path, notebook_run_id: str,
+                  duration_s: float) -> dict:
     summary = {
         "notebook_run_id": notebook_run_id,
+        "run_datetime": _format_run_datetime(datetime.now().astimezone()),
+        "duration_s": round(duration_s, 1),
+        "duration": _format_duration(duration_s),
         "config": {
             "tier": TIER,
             "model": "ping",
@@ -284,7 +322,7 @@ def write_numbers(rates: dict, out_path: Path, notebook_run_id: str) -> dict:
             "dt_scan": {"var": "dt",
                         "min": DT_SCAN_MIN, "max": DT_SCAN_MAX,
                         "frames": DT_SCAN_FRAMES, "fps": DT_SCAN_FPS,
-                        "fixed_overdrive": CANON_OVERDRIVE},
+                        "fixed_overdrive": DT_SCAN_OVERDRIVE},
             "ei_scan": {"var": "ei_strength",
                         "min": EI_SCAN_MIN, "max": EI_SCAN_MAX,
                         "frames": EI_SCAN_FRAMES, "fps": EI_SCAN_FPS,
@@ -309,10 +347,8 @@ def main() -> None:
 
     wipe_dir = "--no-wipe-dir" not in sys.argv
 
-    notebook_run_id = (
-        f"nb{SLUG.split('-')[0]}-"
-        f"{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
-    )
+    t_start = time.monotonic()
+    notebook_run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {notebook_run_id}")
 
     if wipe_dir:
@@ -322,6 +358,7 @@ def main() -> None:
                 shutil.rmtree(d)
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     FIGURES.mkdir(parents=True, exist_ok=True)
+    persist_run_id(SLUG, notebook_run_id)
     stamp = FIGURES / "_stamp.png"
     _render_stamp_png(notebook_run_id, stamp)
 
@@ -344,7 +381,10 @@ def main() -> None:
 
     # 3. Numbers for the MDX.
     rates = compute_summary_rates()
-    summary = write_numbers(rates, FIGURES / "numbers.json", notebook_run_id)
+    duration_s = time.monotonic() - t_start
+    summary = write_numbers(rates, FIGURES / "numbers.json",
+                            notebook_run_id, duration_s)
+    print(f"  total duration: {summary['duration']}")
 
     r = summary["rates_hz"]
     print(f"  E rate  pre={r['pre']['e']:.1f} Hz  "

@@ -4,7 +4,7 @@ Runs a small, matched training of the in-repo `snntorch` model and the
 `snntorch-library` parity reference, then writes a training-curve comparison
 figure and a numbers.json summary into the notebook's figures dir.
 
-Notebook entry: src/docs/src/pages/notebook/001-snntorch-calibration.mdx
+Notebook entry: src/docs/src/pages/notebook/nb001.mdx
 """
 from __future__ import annotations
 
@@ -21,7 +21,9 @@ sys.path.insert(0, str(REPO / "src" / "pinglab"))
 
 import matplotlib.pyplot as plt  # noqa: E402
 
-SLUG = "001-snntorch-calibration"
+from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
+
+SLUG = "nb001"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
@@ -249,13 +251,15 @@ def copy_training_videos(run_dirs: dict[str, Path], out_dir: Path,
 def main() -> None:
     wipe_dir = "--no-wipe-dir" not in sys.argv
     # Notebook-level run id stamps this repro invocation (spans all model runs).
-    notebook_run_id = f"nb{SLUG.split('-')[0]}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
+    notebook_run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {notebook_run_id}")
     if wipe_dir:
         for d in (ARTIFACTS, FIGURES):
             if d.exists():
                 print(f"[wipe] {d.relative_to(REPO)}")
                 shutil.rmtree(d)
+    FIGURES.mkdir(parents=True, exist_ok=True)
+    persist_run_id(SLUG, notebook_run_id)
     run_dirs = {m: train_model(m) for m in MODELS}
     fig_path = FIGURES / "training_curves.png"
     plot_training_curves(run_dirs, fig_path, notebook_run_id)

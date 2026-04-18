@@ -28,11 +28,11 @@ Raw run outputs go to *src/artifacts/* (gitignored). Published figures live unde
 
 All writeups are notebook entries at *src/docs/src/pages/notebook/&lt;slug&gt;.md*, listed chronologically on the home page at *src/docs/src/pages/index.astro*. There is no separate per-experiment page or paper layer — when a paper-shaped writeup is appropriate, it is a notebook entry like any other. The notebook is a lab notebook: dated, bench-driven, with numbers pulled live from each entry's repro script.
 
-**Slug.** Zero-padded entry number prefix + descriptive name — e.g. *001-snntorch-calibration*. Numbers are global, sequential, and assigned in order of creation; they are the entry's primary identifier and the key for the parallel repro and figures directories. The slug is the filename and the URL. No date in the slug — the canonical date lives in the entry's frontmatter (*date: YYYY-MM-DD*) and in its visible long-form byline. Next entry number: one more than the highest under *src/pinglab/notebook/*.
+**Slug.** *nb* prefix + zero-padded entry number — e.g. *nb001*, *nb002*. Numbers are global, sequential, and assigned in order of creation; they are the entry's primary identifier and the key for the parallel repro and figures directories. The slug is the filename and the URL. The descriptive name lives in the frontmatter *title* field, not the slug. No date in the slug — the canonical date lives in the entry's frontmatter (*date: YYYY-MM-DD*) and in its visible long-form byline. Next entry number: one more than the highest under *src/pinglab/notebook/*.
 
 Most entries follow a fixed structure: Introduction, Method, Findings, Implications, Next steps. Longer paper-style drafts keep their own section numbering.
 
-Each entry that cites generated figures or numbers gets a repro script at *src/pinglab/notebook/&lt;NNN-slug&gt;.py* — one command regenerates every figure and dumps a *numbers.json* next to them under *src/docs/public/figures/notebook/&lt;NNN-slug&gt;/*.
+Each entry that cites generated figures or numbers gets a repro script at *src/pinglab/notebook/&lt;slug&gt;.py* (e.g. *nb001.py*) — one command regenerates every figure and dumps a *numbers.json* next to them under *src/docs/public/figures/notebook/&lt;slug&gt;/*.
 
 ## Notebook entry review
 
@@ -165,11 +165,11 @@ Three places per entry combine these:
 
 1. Frontmatter title — *title: "001 — &lt;title&gt;"* (number only; date omitted here so tabs stay compact)
 2. Italic byline under H1 — *001 · Thursday, April 16 2026*
-3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · &lt;link to title&gt; — Thursday, April 16 2026*, pointing at */notebook/&lt;NNN-entry-slug&gt;/*
+3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · &lt;link to title&gt; — Thursday, April 16 2026*, pointing at */notebook/&lt;slug&gt;/* (e.g. */notebook/nb001/*)
 
 The word "Entry" is never written — the zero-padded number carries the meaning on its own.
 
-Filenames and URL slugs are *NNN-descriptive-name* (e.g. *001-snntorch-calibration.mdx*). The canonical ISO date lives in frontmatter (*date: YYYY-MM-DD*) alongside *entry: &lt;N&gt;*. Day-name only appears in human-visible text. Compute on macOS with *date -j -f "%Y-%m-%d" &lt;YYYY-MM-DD&gt; "+%A"*; Linux: *date -d &lt;YYYY-MM-DD&gt; +%A*.
+Filenames and URL slugs are *nbNNN* (e.g. *nb001.mdx*). The descriptive name lives in the frontmatter *title*, not the slug. The canonical ISO date lives in frontmatter (*date: YYYY-MM-DD*) alongside *entry: &lt;N&gt;*. Day-name only appears in human-visible text. Compute on macOS with *date -j -f "%Y-%m-%d" &lt;YYYY-MM-DD&gt; "+%A"*; Linux: *date -d &lt;YYYY-MM-DD&gt; +%A*.
 
 ### 3. Figure aspect ratio is 16:9
 
