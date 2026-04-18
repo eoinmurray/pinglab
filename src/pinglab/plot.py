@@ -91,14 +91,14 @@ prof = _Profiler()
 
 plt.rcParams.update({
     "font.family": "monospace",
-    "font.size": 14,
+    "font.size": 22,
     "font.weight": "normal",
-    "axes.labelsize": 14,
+    "axes.labelsize": 22,
     "axes.labelweight": "normal",
-    "xtick.labelsize": 13,
-    "ytick.labelsize": 13,
-    "axes.titlesize": 14,
-    "figure.titlesize": 18,
+    "xtick.labelsize": 20,
+    "ytick.labelsize": 20,
+    "axes.titlesize": 22,
+    "figure.titlesize": 28,
     "savefig.dpi": 200,
 })
 
@@ -114,7 +114,7 @@ CLR_ACCENT = "#FF2020"
 # Each panel: (span, height_ratio)
 # span: "full" = full width, "left"/"right" = half width
 PANEL_CATALOG = {
-    "header":        ("full",    0.25),
+    "header":        ("full",    0.5),
     "e_raster":      ("full",    3.0),
     "drive":         ("left",    0.8),
     "weights":       ("right",   0.8),
@@ -288,7 +288,7 @@ def make_fig(panels=None):
     fig_w = 22
     fig_h = fig_w * 9 / 16  # 16:9 aspect ratio
     fig = plt.figure(figsize=(fig_w, fig_h))
-    fig.subplots_adjust(left=0.05, right=0.97, top=0.97, bottom=0.04)
+    fig.subplots_adjust(left=0.05, right=0.97, top=0.97, bottom=0.07)
 
     has_sidebar = len(sidebar_panels) > 0
 
@@ -300,7 +300,7 @@ def make_fig(panels=None):
         width_ratios = [1, 1]
 
     gs = fig.add_gridspec(n_rows, n_cols, height_ratios=height_ratios,
-                          hspace=0.3, wspace=0.12, width_ratios=width_ratios)
+                          hspace=0.7, wspace=0.15, width_ratios=width_ratios)
 
     panel_dict = {}
     col_map = {"left": 0, "center": 1, "right": 2}
@@ -411,7 +411,7 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
         is_coba = model_name in IS_COBA
 
     _clear_axes(axes)
-    _title_kw = dict(fontsize=13, fontweight="bold", loc="left", pad=4, color=CLR)
+    _title_kw = dict(fontsize=20, fontweight="bold", loc="left", pad=4, color=CLR)
     vis_ms = len(spk_e) * dt  # derive from actual data, not global
 
     # -- Input drive panel --
@@ -488,7 +488,7 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
             if psd[mask][peak_idx] > 0.3:
                 axes[5].axvline(peak_f, color=CLR_ACCENT, linewidth=1.5, alpha=0.8)
                 axes[5].text(peak_f + 3, 0.9, f"{peak_f:.0f} Hz",
-                             color=CLR_ACCENT, fontsize=14, fontweight="bold")
+                             color=CLR_ACCENT, fontsize=22, fontweight="bold")
         axes[5].set_title("PSD", **_title_kw)
         axes[5].set_ylabel("")
         axes[5].set_xlabel("Frequency (Hz)", color=CLR)
@@ -516,7 +516,7 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
                       edgecolor="white", linewidth=0.3)
             ax_o.set_yticks(range(n_classes))
             ax_o.set_yticklabels([str(i) for i in range(n_classes)],
-                                 fontsize=8, color=CLR)
+                                 fontsize=14, color=CLR)
             ax_o.invert_yaxis()
             for spine_side in ("top", "right"):
                 ax_o.spines[spine_side].set_visible(False)
@@ -838,6 +838,28 @@ def _draw_weight_histograms(ax_ws, weights):
                 items.append((lbl, weights[k]))
                 used.add(k)
 
+    # Redistribute visible axes to fill the full row width, regardless of
+    # how many weight items the model has. The gridspec reserves 8 slots;
+    # when fewer weights exist we'd otherwise leave empty gaps and squish
+    # the visible histograms. Reads the original gridspec bbox (not the
+    # current position) so repeated calls keep the same outer span.
+    n_items = len(items)
+    if n_items > 0 and len(ax_ws) > 0:
+        fig = ax_ws[0].figure
+        bbox_first = ax_ws[0].get_subplotspec().get_position(fig)
+        bbox_last = ax_ws[-1].get_subplotspec().get_position(fig)
+        x0 = bbox_first.x0
+        x1 = bbox_last.x1
+        y0 = bbox_first.y0
+        h = bbox_first.height
+        total_w = x1 - x0
+        # Keep a wspace-like gap between slots (0.3 matches make_fig).
+        wspace_frac = 0.3
+        slot_w = total_w / n_items
+        inner_w = slot_w / (1.0 + wspace_frac)
+        for i in range(n_items):
+            ax_ws[i].set_position([x0 + i * slot_w, y0, inner_w, h])
+
     # Draw into available axes
     for i, ax_w in enumerate(ax_ws):
         ax_w.clear()
@@ -845,6 +867,7 @@ def _draw_weight_histograms(ax_ws, weights):
             spine.set_linewidth(1.5)
             spine.set_color(CLR)
         if i < len(items):
+            ax_w.set_visible(True)
             label, w_data = items[i]
             vals = w_data.ravel()
             vals = vals[np.isfinite(vals)]
@@ -853,11 +876,11 @@ def _draw_weight_histograms(ax_ws, weights):
                           edgecolor="white", linewidth=0.3)
             if (w_data < 0).any():
                 ax_w.axvline(0, color=CLR, linewidth=0.5, alpha=0.4)
-            ax_w.set_title(label, fontsize=10, fontweight="bold", pad=2, color=CLR)
+            ax_w.set_title(label, fontsize=16, fontweight="bold", pad=2, color=CLR)
         else:
             ax_w.set_visible(False)
         ax_w.set_yticks([])
-        ax_w.tick_params(labelsize=8, colors=CLR, length=3)
+        ax_w.tick_params(labelsize=11, colors=CLR, length=3)
 
 
 def _draw_header(ax_header, title, ratio, dt, rate_e_hz, rate_i_hz,
@@ -874,9 +897,9 @@ def _draw_header(ax_header, title, ratio, dt, rate_e_hz, rate_i_hz,
     i_val = f"{rate_i_hz:.0f}" if has_inh else "-"
 
     # Fixed grid columns — each col has (x_start, label_width)
-    # 7 columns, same x positions for both rows.
-    # Col 0 is widened to fit longer model names like SNNTORCH / SNN-EXP.
-    col_x = [0.00, 0.14, 0.25, 0.34, 0.44, 0.54, 0.64]
+    # 7 columns, same x positions for both rows. Spacing tuned for fs=26
+    # header text so columns stay separated across the row's full width.
+    col_x = [0.00, 0.20, 0.36, 0.49, 0.62, 0.76, 0.88]
     lw = 0.045  # label width offset
 
     # Short display names so col 0 doesn't overflow
@@ -899,8 +922,8 @@ def _draw_header(ax_header, title, ratio, dt, rate_e_hz, rate_i_hz,
         ("act", f"{active_frac:.0%}"),
     ]
 
-    fs = 19
-    for row, y in [(row1, 0.82), (row2, 0.18)]:
+    fs = 26
+    for row, y in [(row1, 0.90), (row2, 0.10)]:
         for i, (label, val) in enumerate(row):
             if i >= len(col_x):
                 break
@@ -909,7 +932,7 @@ def _draw_header(ax_header, title, ratio, dt, rate_e_hz, rate_i_hz,
                 ax_header.text(x, y, label, fontsize=fs, fontweight="bold",
                                ha="left", va="center", transform=ax_header.transAxes,
                                color=CLR, fontfamily="monospace")
-                ax_header.text(x + len(label) * 0.013 + 0.005, y, val,
+                ax_header.text(x + len(label) * 0.022 + 0.020, y, val,
                                fontsize=fs, fontweight="normal",
                                ha="left", va="center", transform=ax_header.transAxes,
                                color=CLR, fontfamily="monospace")
@@ -941,10 +964,10 @@ def _draw_progress_bar(ax_prog, ratio, sweep_var, sweep_range, sweep_progress):
         range_str = f"{lo:.3g} \u2192 {hi:.3g} ms"
 
     ax_prog.text(0.0, 0.95, f"{sweep_var}  {range_str}",
-                 fontsize=12, va="bottom", ha="left",
+                 fontsize=19, va="bottom", ha="left",
                  transform=ax_prog.transAxes, color=CLR)
     ax_prog.text(1.0, 0.95, current_val,
-                 fontsize=14, va="bottom", ha="right",
+                 fontsize=22, va="bottom", ha="right",
                  transform=ax_prog.transAxes, fontweight="bold", color=CLR)
 
     ax_prog.barh(0.2, 1.0, height=0.3, color="#e8e8e8", left=0)
