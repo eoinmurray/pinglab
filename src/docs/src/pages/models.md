@@ -137,11 +137,13 @@ $$
 C_m\, \frac{dV}{dt} = -g_L\,(V - E_L) - g_e\,(V - E_e) - g_i\,(V - E_i) \tag{8}
 $$
 
-Euler-discretised with explicit $\Delta t$:
+Discretised with **exponential Euler under a zero-order hold** on $g_e, g_i$ over each step — the closed-form solution when conductances are treated as constant across $\Delta t$:
 
 $$
-V_{t+1} = V_t + \frac{\Delta t}{C_m}\Bigl[-g_L(V_t - E_L) + g_e(E_e - V_t) + g_i(E_i - V_t)\Bigr] \tag{9}
+V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp(-\Delta t / \tau_{\text{eff}}) \tag{9}
 $$
+
+with $\tau_{\text{eff}} = C_m / (g_L + g_e + g_i)$ and $V_\infty = (g_L E_L + g_e E_e + g_i E_i) / (g_L + g_e + g_i)$. This matches CUBA's treatment of its homogeneous part, so CUBA → COBA on the ladder isolates the biophysical additions rather than an integrator swap. A forward-Euler variant is still available via *--coba-integrator fwd* for parity studies — see [nb004](/notebook/nb004/).
 
 Each synaptic conductance evolves as an exponential synapse: $g_{t+1} = e^{-\Delta t/\tau_{\text{syn}}}(g_t + W\,s_t)$, with $\tau_{\text{AMPA}} = 2$ ms for excitation and $\tau_{\text{GABA}} = 9$ ms for inhibition. In feedforward-only COBA ($ei\text{-}strength = 0$), the inhibitory term drops: $g_i \equiv 0$. On crossing threshold the voltage is hard-reset, $V \leftarrow V_{\text{reset}}$, and the neuron is refractory for $\tau_{\text{ref}}^{E} = 3$ ms (E) or $\tau_{\text{ref}}^{I} = 1.5$ ms (I). Dale's law on: weights non-negative (half-normal init, clamped in forward).
 
