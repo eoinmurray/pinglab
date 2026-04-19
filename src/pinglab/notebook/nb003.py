@@ -46,8 +46,8 @@ FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
 MODELS = ["snntorch-clone", "snntorch-library", "cuba"]
-MAX_SAMPLES = 200
-EPOCHS = 3
+MAX_SAMPLES = 500
+EPOCHS = 5
 T_MS = 600.0
 # Two training regimes: fine dt (canonical research setting) and coarse dt
 # (near τ_mem, where canonical models typically saturate). Same eval-dt
@@ -58,7 +58,7 @@ DT_TRAINS = [0.1, 1.0]
 # Integer ratios only, so FrozenEncoder OR-pool downsampling stays valid.
 DT_SWEEP = [0.05, 0.1, 0.25, 0.5, 1.0, 2.0]
 SEED = 42
-TIER = "extra small"  # see src/docs/src/pages/llm-conventions.md § 8 Run sizing tiers
+TIER = "small"  # see src/docs/src/pages/llm-conventions.md § 8 Run sizing tiers
 TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 
 # Per-step drive compensation for cuba at training dt. cuba's update is
@@ -102,7 +102,7 @@ def training_video_path(out_dir: Path) -> Path:
     return out_dir / "training.mp4"
 
 
-# Models sharing the SNNTorchNet class — within this family, matched seed +
+# Models sharing the CUBANet class — within this family, matched seed +
 # --kaiming-init produces bit-identical raw weights because every parameter is
 # allocated in the same order. snntorch-library goes through nn.Linear, which
 # uses a different kaiming_uniform_ convention, so only biases coincidentally
@@ -112,9 +112,9 @@ SNNTORCHNET_FAMILY = {"snntorch-clone", "cuba"}
 
 def verify_init_match(models: list[str], seed: int,
                       dt_trains: list[float]) -> dict:
-    """Preflight: SNNTorchNet-family models must start from the same random
+    """Preflight: CUBANet-family models must start from the same random
     weights, modulo each model's per-step drive scaling. snntorch-clone and
-    cuba share the SNNTorchNet class and with matched seed allocate every
+    cuba share the CUBANet class and with matched seed allocate every
     tensor in the same order, giving bit-identical raw weights. cuba then
     gets a one-shot multiplier (init_scales_for) per training dt so its
     per-step drive matches snntorch-clone at that dt. snntorch-library

@@ -5,6 +5,7 @@ date: 2026-04-19
 entry: 3
 structure: paper
 ---
+import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb003/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -52,7 +53,7 @@ First rung-to-rung ablation on the [CUBA ladder](/models/#the-ladder). *cuba* sc
 
 Train each model at *dt* ∈ \{{dt1}, {dt2}\} ms, then sweep inference over *dt* ∈ \{{(cfg.dt_sweep ?? []).join(", ")}\} ms with weights frozen. Two regimes let us separate absolute eval-*dt* effects from ratio (eval/train) effects.
 
-**Matched init.** *snntorch-clone* and *cuba* share the *SNNTorchNet* class and allocate every parameter in the same order at matched seed; *cuba* then receives a one-shot init-scale (*W* × $dt/(1-\beta)$, *b* × $1/(1-\beta)$, recomputed per regime) that cancels its per-step drive factors at training *dt*. *snntorch-library* uses its own *kaiming_uniform_* — independent init, parity probe only. Preflight asserts pre-scale bit-equality for the *SNNTorchNet* family. 
+**Matched init.** *snntorch-clone* and *cuba* share the *CUBANet* class and allocate every parameter in the same order at matched seed; *cuba* then receives a one-shot init-scale (*W* × $dt/(1-\beta)$, *b* × $1/(1-\beta)$, recomputed per regime) that cancels its per-step drive factors at training *dt*. *snntorch-library* uses its own *kaiming_uniform_* — independent init, parity probe only. Preflight asserts pre-scale bit-equality for the *CUBANet* family. 
 
 **Frozen inputs**: encoded once at the finest *dt* and OR-pooled to coarser ones, so only the LIF update changes across the sweep.
 
@@ -60,13 +61,21 @@ Train each model at *dt* ∈ \{{dt1}, {dt2}\} ms, then sweep inference over *dt*
 
 ### Accuracy vs eval-*dt*
 
-{hasFig("dt_sweep.png") && <img src="/figures/notebook/nb003/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime" />}
+{hasFig("dt_sweep.png") && (
+  <Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebook/nb003/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
+    Test accuracy after training, swept across eval-*dt* with weights frozen. One panel per training-*dt* regime; the red dashed vertical marks train-*dt*.
+  </Figure>
+)}
 
 Canonical models agree at train-*dt* (red dashed) and diverge as eval-*dt* moves away; the sag-point tracks train-*dt*, consistent with the ratio-driven story, and the clone/library pair track each other — so the spread is update-rule, not implementation. *cuba* at dt={dt1} is narrow ({(cuba1.sweep_min_acc ?? "?")}–{(cuba1.sweep_max_acc ?? "?")}%); at dt={dt2} it trains to a silent network at the **{cfg.tier ?? "?"}** tier, so that panel's flatness is degenerate — the cuba claim rests on the dt={dt1} regime pending a larger-tier rerun.
 
 ### Hidden firing rate vs eval-*dt*
 
-{hasFig("firing_rates.png") && <img src="/figures/notebook/nb003/firing_rates.png" alt="Mean hidden firing rate vs eval-dt, one panel per training-dt regime" />}
+{hasFig("firing_rates.png") && (
+  <Figure id="Figure 2" title="Hidden firing rate vs eval-dt" src="/figures/notebook/nb003/firing_rates.png" alt="Mean hidden firing rate vs eval-dt, one panel per training-dt regime">
+    Mean hidden-layer firing rate under frozen weights as eval-*dt* is swept (log-log). Rate-flatness is the mechanistic signature of accuracy-stability.
+  </Figure>
+)}
 
 Mechanistic companion to the accuracy plot (log-log). The canonical paths fan out 1–2 orders of magnitude across the sweep in both regimes; *cuba* at dt={dt1} holds ~55 Hz flat. Rate-flatness is the *cause* of accuracy-stability: the network sees the same activity distribution at eval that it saw at training.
 
@@ -91,7 +100,11 @@ Canonical paths exceed the pure 1/*dt* prediction: once membrane passes threshol
 
 ### Training-time parity
 
-{hasFig("training_curves.png") && <img src="/figures/notebook/nb003/training_curves.png" alt="Training curves, one row per train-dt regime" />}
+{hasFig("training_curves.png") && (
+  <Figure id="Figure 3" title="Training curves" src="/figures/notebook/nb003/training_curves.png" alt="Training curves, one row per train-dt regime">
+    Per-epoch train loss and test accuracy for each model. Rows are training-*dt* regimes; columns are loss and accuracy.
+  </Figure>
+)}
 
 At dt={dt1} all three land in a 15–20% tier-ceiling band (best: clone {snn1.best_acc ?? "?"}%, library {lib1.best_acc ?? "?"}%, cuba {cuba1.best_acc ?? "?"}%). At dt={dt2} the canonical paths jump clear (clone {snn2.best_acc ?? "?"}%, library {lib2.best_acc ?? "?"}%) while *cuba*'s bias-scaled init leaves it too quiet to learn in {cfg.epochs ?? "?"} epochs × {cfg.max_samples ?? "?"} samples — {cuba2.best_acc ?? "?"}% silent. At this tier the result is a plumbing sanity-check, not a ladder-invariance test at coarse train-*dt*.
 
@@ -101,19 +114,79 @@ Two videos per (model, regime): one frame per training epoch, one frame per swee
 
 #### Train at *dt* = {dt1} ms
 
-**snntorch-clone.** {hasFig(`training_${rk1}_snntorch-clone.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/training_${rk1}_snntorch-clone.mp4`} />} {hasFig(`dt_sweep_${rk1}_snntorch-clone.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/dt_sweep_${rk1}_snntorch-clone.mp4`} />}
+{hasFig(`training_${rk1}_snntorch-clone.mp4`) && (
+  <Figure type="video" id="Figure 4" title={`Training — snntorch-clone @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_snntorch-clone.mp4`}>
+    One scope frame per training epoch; weights evolve, eval-*dt* fixed at train-*dt*.
+  </Figure>
+)}
 
-**snntorch-library.** {hasFig(`training_${rk1}_snntorch-library.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/training_${rk1}_snntorch-library.mp4`} />} {hasFig(`dt_sweep_${rk1}_snntorch-library.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/dt_sweep_${rk1}_snntorch-library.mp4`} />}
+{hasFig(`dt_sweep_${rk1}_snntorch-clone.mp4`) && (
+  <Figure type="video" id="Figure 5" title={`dt-sweep — snntorch-clone @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk1}_snntorch-clone.mp4`}>
+    One scope frame per eval-*dt* with weights frozen at end of training.
+  </Figure>
+)}
 
-**cuba.** {hasFig(`training_${rk1}_cuba.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/training_${rk1}_cuba.mp4`} />} {hasFig(`dt_sweep_${rk1}_cuba.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/dt_sweep_${rk1}_cuba.mp4`} />}
+{hasFig(`training_${rk1}_snntorch-library.mp4`) && (
+  <Figure type="video" id="Figure 6" title={`Training — snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_snntorch-library.mp4`}>
+    One scope frame per training epoch for the *snn.Leaky* parity reference.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk1}_snntorch-library.mp4`) && (
+  <Figure type="video" id="Figure 7" title={`dt-sweep — snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk1}_snntorch-library.mp4`}>
+    Frozen-weight sweep across eval-*dt* for the *snn.Leaky* parity reference.
+  </Figure>
+)}
+
+{hasFig(`training_${rk1}_cuba.mp4`) && (
+  <Figure type="video" id="Figure 8" title={`Training — cuba @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_cuba.mp4`}>
+    One scope frame per training epoch for the continuous-time *cuba* model.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk1}_cuba.mp4`) && (
+  <Figure type="video" id="Figure 9" title={`dt-sweep — cuba @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk1}_cuba.mp4`}>
+    Frozen-weight sweep across eval-*dt* — the flat-rate signature, or its absence at this tier.
+  </Figure>
+)}
 
 #### Train at *dt* = {dt2} ms
 
-**snntorch-clone.** {hasFig(`training_${rk2}_snntorch-clone.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/training_${rk2}_snntorch-clone.mp4`} />} {hasFig(`dt_sweep_${rk2}_snntorch-clone.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/dt_sweep_${rk2}_snntorch-clone.mp4`} />}
+{hasFig(`training_${rk2}_snntorch-clone.mp4`) && (
+  <Figure type="video" id="Figure 10" title={`Training — snntorch-clone @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_snntorch-clone.mp4`}>
+    One scope frame per training epoch at coarse train-*dt*.
+  </Figure>
+)}
 
-**snntorch-library.** {hasFig(`training_${rk2}_snntorch-library.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/training_${rk2}_snntorch-library.mp4`} />} {hasFig(`dt_sweep_${rk2}_snntorch-library.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/dt_sweep_${rk2}_snntorch-library.mp4`} />}
+{hasFig(`dt_sweep_${rk2}_snntorch-clone.mp4`) && (
+  <Figure type="video" id="Figure 11" title={`dt-sweep — snntorch-clone @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk2}_snntorch-clone.mp4`}>
+    Frozen-weight sweep across eval-*dt* from the coarse-*dt* training weights.
+  </Figure>
+)}
 
-**cuba.** {hasFig(`training_${rk2}_cuba.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/training_${rk2}_cuba.mp4`} />} {hasFig(`dt_sweep_${rk2}_cuba.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb003/dt_sweep_${rk2}_cuba.mp4`} />}
+{hasFig(`training_${rk2}_snntorch-library.mp4`) && (
+  <Figure type="video" id="Figure 12" title={`Training — snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_snntorch-library.mp4`}>
+    Parity-reference training at coarse train-*dt*.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk2}_snntorch-library.mp4`) && (
+  <Figure type="video" id="Figure 13" title={`dt-sweep — snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk2}_snntorch-library.mp4`}>
+    Parity-reference frozen-weight sweep across eval-*dt*.
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_cuba.mp4`) && (
+  <Figure type="video" id="Figure 14" title={`Training — cuba @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_cuba.mp4`}>
+    *cuba* training at coarse train-*dt* where the balanced init scale lets it learn.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk2}_cuba.mp4`) && (
+  <Figure type="video" id="Figure 15" title={`dt-sweep — cuba @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk2}_cuba.mp4`}>
+    *cuba* frozen-weight sweep across eval-*dt* — the flat-rate target signature.
+  </Figure>
+)}
 
 ## Implications
 
