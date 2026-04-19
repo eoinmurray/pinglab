@@ -11,20 +11,20 @@ The shared model ladder used across experiments. Each step adds one axis of biop
 
 The ladder: six models, ordered by increasing biophysical realism and time-discretisation rigour. All take MNIST Poisson spikes as input and output digit-class logits. The first two (snnTorch-library, snnTorch) share the same update rule — snnTorch-library is the reference, snnTorch is pinglab's in-repo version — and serve as a calibration pair.
 
-| Model | Update rule | Description | E-I |
-| ----- | ----------- | ----------- | --- |
-| snnTorch-library | $U_{t+1} = \beta U_t + W s - S \theta$ | Thin wrapper around snnTorch's *snn.Leaky* + fast-sigmoid surrogate. Parity reference for the pinglab path. | no |
-| snnTorch | $U_{t+1} = \beta U_t + W s + b$ | snnTorch-library form, pinglab implementation: $\beta$ a dimensionless hyperparameter. No dt semantics. Not dt-stable. | no |
-| CUBA | $U_{t+1} = \beta U_t + \frac{1-\beta}{\Delta t} W s + (1-\beta) b$ | Exact Euler discretisation of $\tau\,dV/dt = -V + I$. Dt-stable in mean; breaks under discrete-spike variance. | no |
-| CUBA-exp | $g \leftarrow e^{-\Delta t/\tau_{\text{AMPA}}} g + W s$; $U_{t+1} = \beta U_t + (1-\beta) g + (1-\beta) b$ | CUBA + exponential synapse. **The feature that delivers dt-stability.** | no |
-| COBA | $g \leftarrow g(1-\Delta t/\tau) + W s$; $C\,dV/dt = -g_L(V-V_L) - g(V-V_e)$ | Full biophysical: exp synapse + hard reset + refractory + conductance-$V$. | no |
-| PING | COBA with frozen recurrent $W^{EE}, W^{EI}, W^{IE}$ | COBA + E→I→E loop producing gamma oscillation. Dt-stable below $\tau_{\text{GABA}}$ ceiling. | yes |
+| Model | Description |
+| ----- | ----------- |
+| snnTorch-library | Thin wrapper around snnTorch's *snn.Leaky* + fast-sigmoid surrogate. Parity reference for the pinglab path. |
+| snnTorch | snnTorch-library form, pinglab implementation: $\beta$ a dimensionless hyperparameter. No dt semantics. Not dt-stable. |
+| CUBA | Exact Euler discretisation of $\tau\,dV/dt = -V + I$. |
+| CUBA-exp | CUBA + exponential synapse. |
+| COBA | Full biophysical: exp synapse + hard reset + refractory + conductance-$V$. |
+| PING | COBA + E→I→E loop producing gamma oscillation. Dt-stable below $\tau_{\text{GABA}}$ ceiling. |
 
 ### snnTorch-library
 
 A thin wrapper around snnTorch's own *snn.Leaky* module with the library's fast-sigmoid surrogate ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894)). The update rule is $U_{t+1} = \beta U_t + W s - S \theta$ with reset by subtraction; $\beta$ is a dimensionless hyperparameter and there are no $\Delta t$ semantics.
 
-Its purpose is calibration, not experimentation. At matched config, snnTorch-library and pinglab's snnTorch should train to within a small tolerance — any residual gap localises to the LIF-step implementation or surrogate-gradient details, not to the architecture. See [notebook 003](/notebook/nb003/) for the side-by-side training comparison.
+Its purpose is calibration, not experimentation. At matched config, snnTorch-library and pinglab's snnTorch should train to within a small tolerance — any residual gap localises to the LIF-step implementation or surrogate-gradient details, not to the architecture. See [notebook 004](/notebook/nb004/) for the side-by-side training comparison and Δt-stability sweep.
 
 ### snnTorch
 
@@ -94,10 +94,3 @@ The snnTorch vs CUBA split isolates what part of "CUBA is $\Delta t$-sensitive" 
 **Proper Euler (CUBA).** Integrating $\tau\,dV/dt = -V + I(t)$ exactly over one step yields per-spike kick $(1-\beta)/\Delta t \cdot W \approx W/\tau$ and per-ms bias contribution $b$ — both $\Delta t$-invariant **in expectation**.
 
 **What CUBA still doesn't fix.** Variance, not mean. At coarse $\Delta t$ many coincident input spikes land in one step, hard reset discards the overshoot, and accuracy collapses. COBA dodges this because its exponential synapse integrates input through $\tau_{\text{AMPA}} \approx 5$ ms before it reaches the membrane.
-
-## Architecture conventions
-
-- **Depth via --n-hidden.** Single int = 1 layer (back-compat); multiple = stacked layers. E.g. --n-hidden 128 256 builds Input → H1 → H2 → Output.
-- **Recurrence is inferred.** Presence of --w-rec MEAN STD enables hidden-to-hidden recurrence on all hidden layers by default. Restrict with --rec-layers 2. There is no --recurrent flag.
-- **E-I is inferred.** Presence of --ei-strength > 0 enables E-I split on all hidden layers by default. Restrict with --ei-layers 2.
-- **Linear decoder produces signed logits.** Output head is logit = spike_counts @ W_out + b with signed Kaiming $W_{\text{out}}$ — negative logits are expected.
