@@ -22,19 +22,23 @@ The ladder: six models, ordered by increasing biophysical realism and time-discr
 
 ### snnTorch-library
 
-A thin wrapper around snnTorch's own *snn.Leaky* module with the library's fast-sigmoid surrogate ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894)). Per-step update for one hidden layer:
+Implementation: [SNNTorchLibraryNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L607) in *src/pinglab/models.py*.
+
+A thin wrapper around snnTorch's own [*snn.Leaky*](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html) module with the library's [fast-sigmoid surrogate](https://snntorch.readthedocs.io/en/latest/snntorch.surrogate.html) ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894); see also [snnTorch Tutorial 3](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html) for the *snn.Leaky* walkthrough and [Tutorial 5](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html) for the feedforward SNN reference pattern). Per-step update for one hidden layer:
 
 $$
 U_{t+1} = \beta\, U_t + W\, s_t + b \;-\; \theta\, S_t, \qquad S_t = \mathbf{1}[U_t \geq \theta]
 $$
 
-with reset-by-subtraction on spike. The canonical snnTorch spec treats $\beta \in [0, 1)$ as a dimensionless hyperparameter and has no $\Delta t$ in the update. Pinglab's usage injects continuous-time semantics by plugging $\beta = e^{-\Delta t/\tau_{\text{snn}}}$ with $\tau_{\text{snn}} = 10$ ms every time $\Delta t$ changes, so both paths see the same $\tau_{\text{mem}}$ when compared.
+with reset-by-subtraction on spike — snnTorch's *reset_mechanism="subtract"* option, one of *subtract*, *zero*, or *none* ([*snn.Leaky* API](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html)). The canonical snnTorch spec treats $\beta \in [0, 1)$ as a dimensionless hyperparameter and has no $\Delta t$ in the update (see [Tutorial 3 § The Decay Rate: beta](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#the-decay-rate-beta), where β is introduced as a step-indexed scalar). Pinglab's usage injects continuous-time semantics by plugging $\beta = e^{-\Delta t/\tau_{\text{snn}}}$ with $\tau_{\text{snn}} = 10$ ms every time $\Delta t$ changes, so both paths see the same $\tau_{\text{mem}}$ when compared.
 
 Its purpose is calibration, not experimentation. At matched config, snnTorch-library and pinglab's snnTorch should train to within a small tolerance — any residual gap localises to the LIF-step implementation or surrogate-gradient details, not to the architecture. See [notebook 003](/notebook/nb003/) for the side-by-side training comparison and Δt-stability sweep.
 
 ### snnTorch
 
-Pinglab's in-repo reimplementation of the same forward rule:
+Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L251) in *src/pinglab/models.py*. Selected by the default constructor args — *discretisation="snntorch"* and *exponential_synapse=False* — which is what distinguishes this path from its CUBA siblings on the same class.
+
+Pinglab's in-repo reimplementation of the same forward rule as [*snn.Leaky*](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html):
 
 $$
 U_{t+1} = \beta\, U_t + W\, s_t + b, \qquad S_t = \sigma_{\text{surr}}(U_t - \theta)
@@ -46,11 +50,13 @@ $$
 
 In its canonical spec $\beta$ is dimensionless and there is no $\Delta t$ — simulation runs for $t = 0, \dots, T_{\text{steps}}-1$ and time is step-indexed. A spike from neuron $i$ in step $t$ adds exactly $W_i$ to the membrane; bias is added every step. Threshold $\theta = 1$.
 
-This is the deep-learning framing of an SNN: a recurrent network with binary activations and a leaky scalar state, parameterised by $\beta$. It has no $\Delta t$-invariance because there is no $\Delta t$ in its spec — the dt-dependence comes from pinglab's decision to plug in $\beta = e^{-\Delta t/\tau_{\text{snn}}}$ while leaving $W$ and $b$ unscaled (see [Discretisation](#discretisation-snntorch-vs-cuba) below).
+This is the deep-learning framing of an SNN: a recurrent network with binary activations and a leaky scalar state, parameterised by $\beta$. It has no $\Delta t$-invariance because there is no $\Delta t$ in its spec — the dt-dependence comes from pinglab's decision to plug in $\beta = e^{-\Delta t/\tau_{\text{snn}}}$ while leaving $W$ and $b$ unscaled. A bias $b$ is added once per step, so over fixed real time it fires $T_{\text{ms}}/\Delta t$ times — 10× more often at fine $\Delta t$. That residual $\Delta t$-dependence is the asymmetric bias-balloon failure.
 
 **Compared to snnTorch-library:** identical update rule, different implementation — any numeric gap between the two localises to the LIF step or surrogate-gradient code, not to the model spec.
 
 ### CUBA
+
+Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L251) in *src/pinglab/models.py*. Selected by *discretisation="continuous"* (snnTorch leaves it at "snntorch"), still with *exponential_synapse=False* (CUBA-exp flips that to True).
 
 Proper continuous-time discretisation of the physicist's LIF:
 
@@ -69,11 +75,13 @@ followed by the same spike / reset rule as snnTorch. Two key consequences:
 - **Per-spike kick** $= (1-\beta)/\Delta t \cdot W \approx W/\tau$ as $\Delta t \to 0$ — neither $\Delta t$ nor $\beta$ appears in the limit. Dt-invariant in magnitude.
 - **Per-ms bias contribution** $= (1-\beta)/\Delta t \cdot b \approx b/\tau$ per ms — dt-invariant, whereas the snnTorch path injects $b$ once per step and grows bias drive by $1/\Delta t$.
 
-Same parameters, learning rate, and training cost as snnTorch — only the forward rule differs. Empirically $\Delta t$-invariant **in expectation** across $\Delta t \in [0.05, 2.0]$ ms, but breaks under discrete-spike variance at extreme $\Delta t$ when trained at fine $\Delta t$.
+Same parameters, learning rate, and training cost as snnTorch — only the forward rule differs. Empirically $\Delta t$-invariant **in expectation** across $\Delta t \in [0.05, 2.0]$ ms, but breaks under discrete-spike variance at extreme $\Delta t$ when trained at fine $\Delta t$: at coarse $\Delta t$ many coincident input spikes land in one step, hard reset discards the overshoot, and accuracy collapses. CUBA-exp dodges this because its exponential synapse integrates input through $\tau_{\text{AMPA}}$ before it reaches the membrane.
 
 **Compared to snnTorch:** same LIF neuron class, but the forward rule derives from proper Euler integration with explicit $\Delta t$ semantics — this isolates whether dt-sensitivity is a property of the model or of the discretisation.
 
 ### CUBA-exp
+
+Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L251) in *src/pinglab/models.py*. CUBA plus *exponential_synapse=True*; the *discretisation="continuous"* flag carries over from CUBA.
 
 CUBA augmented with an **exponential synapse**: incoming presynaptic spikes deposit charge into a synaptic conductance $g$ that decays with time constant $\tau_{\text{AMPA}} = 2$ ms, rather than depositing directly into $V$. The membrane then sees a smoothly-varying $g$ instead of sharp per-step impulses. Per-step update, with $\beta = e^{-\Delta t/\tau_{\text{mem}}}$ and $\alpha = e^{-\Delta t/\tau_{\text{AMPA}}}$:
 
@@ -92,6 +100,8 @@ The exp synapse resolves CUBA's residual variance issue: at large $\Delta t$, ma
 **Compared to CUBA:** same discretisation philosophy, plus an exponential synapse that low-passes presynaptic drive before it reaches the membrane — this isolates whether the synaptic low-pass alone carries dt-stability.
 
 ### COBA
+
+Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L759) in *src/pinglab/models.py*. Selected via *ei_strength=0*, which zeroes the inhibitory population's weights — leaving a feedforward-only COBA. PING keeps *ei_strength* nonzero to turn on the E→I→E loop.
 
 Conductance-based LIF with exponential synapses — the simplest biophysical model. The membrane follows
 
@@ -129,6 +139,8 @@ COBA is not a separate CLI model — run it as PINGNet with the inhibitory popul
 
 ### PING
 
+Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L759) in *src/pinglab/models.py*. Uses the default nonzero *ei_strength* (with *w_ei* and *w_ie* supplied from CLI config) to activate the E→I→E recurrent loop; COBA zeros these to collapse to the feedforward case.
+
 Full E-I network with frozen recurrent weights, producing gamma oscillations. Excitatory and inhibitory populations (E:I ratio 4:1) share COBA-style membrane dynamics; three frozen recurrent matrices $W^{EE}, W^{EI}, W^{IE}$ connect them into the standard PING loop. Per-step synaptic updates (kick-then-decay with $\alpha = e^{-\Delta t/\tau_{\text{AMPA}}}$, $\gamma = e^{-\Delta t/\tau_{\text{GABA}}}$):
 
 $$
@@ -158,18 +170,6 @@ Each step up adds one axis of realism or rigour:
 - **CUBA → CUBA-exp**: same discretisation philosophy, add exponential synapse. Isolates *"is the synaptic low-pass what's carrying stability?"*
 - **CUBA-exp → COBA**: add hard reset, refractory, conductance-based membrane. Isolates *"do the remaining biophysical features add anything?"*
 - **COBA → PING**: add inhibitory population and E→I→E coupling. Isolates *"what does the gamma oscillation contribute?"*
-
-## Discretisation: snnTorch vs CUBA
-
-The snnTorch vs CUBA split isolates what part of "CUBA is $\Delta t$-sensitive" is a property of the **model** and what part is a property of the **discretisation**.
-
-**snnTorch's canonical form.** snn.Leaky runs $U_{t+1} = \beta U_t + W X - S \theta$ with $\beta$ a dimensionless hyperparameter and no $\Delta t$ anywhere in the spec.
-
-**pinglab's hybrid (snnTorch).** We layer continuous-time semantics by setting $\beta = e^{-\Delta t/\tau_{\text{snn}}}$ via patch_dt, but weights and biases stay unscaled. A bias $b$ is added once per step, so over fixed real time it fires $T_{\text{ms}}/\Delta t$ times — 10× more often at fine $\Delta t$. That residual $\Delta t$-dependence is the asymmetric bias-balloon failure.
-
-**Proper Euler (CUBA).** Integrating $\tau\,dV/dt = -V + I(t)$ exactly over one step yields per-spike kick $(1-\beta)/\Delta t \cdot W \approx W/\tau$ and per-ms bias contribution $b$ — both $\Delta t$-invariant **in expectation**.
-
-**What CUBA still doesn't fix.** Variance, not mean. At coarse $\Delta t$ many coincident input spikes land in one step, hard reset discards the overshoot, and accuracy collapses. COBA dodges this because its exponential synapse integrates input through $\tau_{\text{AMPA}} = 2$ ms before it reaches the membrane.
 
 ## Common primitives
 
