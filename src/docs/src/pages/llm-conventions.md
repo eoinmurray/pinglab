@@ -12,9 +12,11 @@ Hard rules for editing the docs and notebook. For repo layout, workflow narrativ
 Facts about this repo that are load-bearing and easy to get wrong.
 
 - **Trial length defaults to 600 ms** (*--t-ms 600*). Shorter trials emit a warning — the harness will let you run them but flags that the transient window is too short.
-- **Raw run outputs go to src/artifacts/; published figures go to src/docs/public/figures/notebook/&lt;slug&gt;/.** *oscilloscope.py* writes only to its *--out-dir* (typically under *src/artifacts/*). The notebook notebook runner reads from those run dirs and writes published figures directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. There is no separate freeze step.
+- **Raw run outputs go to src/artifacts/; published figures go to src/docs/public/figures/notebook/&lt;slug&gt;/.** *oscilloscope.py* writes only to its *--out-dir* (typically under *src/artifacts/*). The notebook runner reads from those run dirs and writes published figures directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. There is no separate freeze step.
+- **Notebook runners wipe by default.** Each notebook script clears its ARTIFACTS and FIGURES dirs on start; opt out with *--no-wipe-dir*. This keeps every run a clean regeneration from config + seed.
 - **src/artifacts/ is gitignored.** Nothing under it is part of the repo; it is reproducible from code + config + seed.
 - **Poisson input encoding is frozen across Δt-sweeps.** Each image is encoded once at the finest sweep Δt, then OR-pooled to the target Δt. This eliminates Poisson resampling as a confound.
+- **sMNIST needs ≥2 hidden layers.** The 28-pixel-per-step bottleneck is too narrow to classify from a single hidden layer. Any sMNIST run configures a depth-2+ stack with recurrence on at least one layer.
 - **uv for Python, bun for JavaScript.** No *pip install*, no *npm install*. Lock files are *uv.lock* and *bun.lock*.
 
 ## Conventions
@@ -33,7 +35,7 @@ Every notebook entry under *src/docs/src/pages/notebook/* uses the same five H2 
 
 The H1 stays entry-specific (the entry title). The skeleton is for H2s only. *Why:* notebook-entry navigation should be predictable across the site.
 
-Paper-style drafts with custom sectioning can opt out by setting *structure: paper* in frontmatter. That flag also exempts the entry from convention 6 (caption-after-image), since paper-style drafts often use surrounding prose rather than italic captions.
+Entries may append appendix H2s after *Next steps* — typical ones are *Parameters* (a table of the config used) and *Reproduction* (the exact *uv run* command). Paper-style drafts with custom sectioning can opt out of the skeleton entirely by setting *structure: paper* in frontmatter.
 
 ### 2. Entry numbering and date format
 
@@ -61,24 +63,28 @@ Every frozen figure under *src/docs/public/figures/* belongs to exactly one note
 
 ### 5. No inline backtick code in docs
 
-In *src/docs/* markdown, do not use backtick inline-code formatting.
+In *src/docs/* markdown, do not use backtick inline-code formatting. Replace each case with the right alternative:
 
-- **Identifier names** (models, files, functions) — plain text or italics
-- **Equations** previously written as inline code — convert to math markup ($...$)
-- **Flag/parameter names** like *reset_delay=True* or *--w-in 0.15* — write plain
+- **Identifier names** (models, files, functions) — plain text or italics. `oscilloscope.py` → *oscilloscope.py*.
+- **Flag and parameter names** — italics, no backticks. `--w-in 0.15` → *--w-in 0.15*; `reset_delay=True` → *reset_delay=True*.
+- **Equations written as inline code** — convert to math markup. `beta = exp(-dt/tau)` → $\beta = e^{-\Delta t / \tau}$.
+- **Numeric values with units** — plain prose. `1.5 ms` stays as 1.5 ms.
 
-Fenced code blocks for actual multi-line samples can stay. Doesn't apply to *README.md* files outside *src/docs/*, memory files, or commit messages.
+Fenced code blocks for actual multi-line samples (CLI invocations, config snippets) can stay. Doesn't apply to *README.md* files outside *src/docs/*, memory files, or commit messages.
 
-### 6. Images need captions
+### 6. Figures use the Figure component
 
-Every image in docs — notebook entry or background page — carries a caption on the line directly beneath it, in italics:
+Every image and video in docs — notebook entry or background page — is rendered with the shared `<Figure>` component in *src/docs/src/components/Figure.astro*, not raw markdown `![]()`. A figure carries an *id* (displayed label, e.g. *Figure 1*), *title* (short heading), *alt* (accessibility text for images), and a slotted caption body.
 
-```markdown
-![short alt text](/figures/notebook/<entry-slug>/example.png)
-*Caption interpreting the figure. Self-contained — a reader scrolling to the image should understand what it shows without reading the surrounding prose.*
+```mdx
+import Figure from "../../components/Figure.astro";
+
+<Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebook/nb003/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
+  Caption interpreting the figure. Self-contained — a reader scrolling to the image should understand what it shows without reading the surrounding prose.
+</Figure>
 ```
 
-The alt text describes the image for accessibility. The caption interprets it for the reader. An image without a caption beneath it is a bug — except in entries with *structure: paper* in frontmatter, where surrounding prose stands in for the italic caption.
+For MP4s, pass *type="video"*. The component handles borders, spacing, and caption typography uniformly. A raw `<img>` or markdown image without a surrounding `<Figure>` is a bug.
 
 ### 7. Bug findings belong in PRs, not notebook entries
 
