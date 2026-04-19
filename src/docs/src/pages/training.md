@@ -103,9 +103,9 @@ This guarantees that the spike pattern seen by the network at $\Delta t_{\text{t
 
 ### Differences between models
 
-| Flag | snntorch | cuba | coba | ping |
+| Flag | snntorch-clone | cuba | coba | ping |
 | ---- | ------------------ | ---- | ---- | ---- |
-| --model | snntorch | cuba | ping | ping |
+| --model | snntorch-clone | cuba | ping | ping |
 | --kaiming-init | ✓ | ✓ | — | — |
 | --lr | 0.01 | 0.01 | 0.0001 | 0.0001 |
 | --no-dales-law | ✓ | ✓ | — | — |

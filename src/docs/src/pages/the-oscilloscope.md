@@ -1,9 +1,9 @@
 ---
 layout: ../layouts/MarkdownLayout.astro
-title: "Oscilloscope"
+title: "The Oscilloscope"
 ---
 
-# Oscilloscope
+# The Oscilloscope
 
 *src/pinglab/oscilloscope.py* is the single CLI that drives every model in the repo. The name is literal: most subcommands end by rendering a multi-panel figure — spike rasters, weight histograms, population rate, PSD, optionally training curves — laid out like an instrument face. One command runs a simulation, probes the network with a parameter sweep, trains it, or evaluates a trained checkpoint; every run writes its own self-contained directory with the config and weights needed to reproduce the result.
 
@@ -90,4 +90,4 @@ See [Training](/training/) for the surrogate-gradient, loss, encoding, and BPTT 
 - *inputs.py* — synthetic drive generators and Poisson encoders.
 - *config.py* — shared defaults and the *Config* / *patch_dt* plumbing that keeps *dt*-invariant quantities invariant when *--dt* changes.
 
-Notebook runners under *src/pinglab/notebook/* invoke *oscilloscope.py* internally — they are the promotion gate from raw artifacts into *src/docs/public/figures/notebook/&lt;slug&gt;/*. See [LLM Context § Notebook](/llm-context/#notebook) for the entry/runner pairing.
+Notebook runners under *src/pinglab/notebook/* invoke *oscilloscope.py* internally — they are the promotion gate from raw artifacts into *src/docs/public/figures/notebook/&lt;slug&gt;/*. See [LLM Conventions § Notebook](/llm-conventions/#notebook) for the entry/runner pairing.

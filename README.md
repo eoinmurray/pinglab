@@ -48,11 +48,11 @@ Deployed via GitHub Pages (see `.github/workflows/pages.yml`).
 ## Layout
 
 - `src/pinglab/` — Python package: models, training harness, plotting, notebook repro scripts
-- `src/docs/` — Astro site (notebook entries, method reference, LLM context)
+- `src/docs/` — Astro site (notebook entries, method reference, LLM conventions)
 - `src/papers/` — third-party reading list (PDFs gitignored; see `src/papers/README.md` for citations)
 - `src/scripts/` — misc one-off scripts
 
-Before making any edits, read `src/docs/src/pages/llm-context.md` — it holds the repo layout, glossary, invariants, and conventions every edit must respect.
+Before making any edits, read `src/docs/src/pages/llm-conventions.md` — it holds the repo layout, glossary, invariants, and conventions every edit must respect.
 
 ## License
 

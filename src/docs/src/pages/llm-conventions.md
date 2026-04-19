@@ -1,9 +1,9 @@
 ---
 layout: ../layouts/MarkdownLayout.astro
-title: "LLM Context"
+title: "LLM Conventions"
 ---
 
-# LLM Context
+# LLM Conventions
 
 Pinglab is a research project on spiking neural networks and PING dynamics. This page orients a new agent or collaborator to the repo layout, conventions, and how to run things.
 
@@ -20,13 +20,13 @@ The project is organised in six layers. Each layer has one job; they are connect
 - **Frozen figures** — *src/docs/public/figures/notebook/&lt;entry-slug&gt;/*. Published figures with sidecar JSONs carrying the git SHA and run config that produced them. One directory per notebook entry.
 - **Documentation** — *src/docs/src/pages/*. This Astro site. The substantive content lives under *notebook/* — dated entries, newest first. Repro scripts for entries live at *src/pinglab/notebook/&lt;entry-slug&gt;.py*.
 - **Reference literature** — *src/papers/*. Bibliography for the project (PDFs themselves are not redistributed; see *src/papers/README.md* for citations).
-- **Collaboration meta** — *CLAUDE.md* at the repo root, this LLM Context page, and a persistent memory directory under *~/.claude/projects/-Users-eoin-pinglab/memory/*. The agreed-upon rules for how the human and AI work on this project.
+- **Collaboration meta** — *CLAUDE.md* at the repo root, this LLM Conventions page, and a persistent memory directory under *~/.claude/projects/-Users-eoin-pinglab/memory/*. The agreed-upon rules for how the human and AI work on this project.
 
 Raw run outputs go to *src/artifacts/* (gitignored). Published figures live under *src/docs/public/figures/notebook/&lt;slug&gt;/* and are written there directly by the entry's notebook runner — that script *is* the promotion gate.
 
 ## Notebook
 
-All writeups are notebook entries at *src/docs/src/pages/notebook/&lt;slug&gt;.md*, listed chronologically on the home page at *src/docs/src/pages/index.astro*. There is no separate per-experiment page or paper layer — when a paper-shaped writeup is appropriate, it is a notebook entry like any other. The notebook is a lab notebook: dated, bench-driven, with numbers pulled live from each entry's notebook runner.
+All writeups are notebook entries at *src/docs/src/pages/notebook/&lt;slug&gt;.mdx*, listed chronologically on the home page at *src/docs/src/pages/index.astro*. There is no separate per-experiment page or paper layer — when a paper-shaped writeup is appropriate, it is a notebook entry like any other. The notebook is a lab notebook: dated, bench-driven, with numbers pulled live from each entry's notebook runner.
 
 **Slug.** *nb* prefix + zero-padded entry number — e.g. *nb001*, *nb002*. Numbers are global, sequential, and assigned in order of creation; they are the entry's primary identifier and the key for the parallel repro and figures directories. The slug is the filename and the URL. The descriptive name lives in the frontmatter *title* field, not the slug. No date in the slug — the canonical date lives in the entry's frontmatter (*date: YYYY-MM-DD*) and in its visible long-form byline. Next entry number: one more than the highest under *src/pinglab/notebook/*.
 
