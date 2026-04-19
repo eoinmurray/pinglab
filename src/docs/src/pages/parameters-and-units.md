@@ -1,9 +1,9 @@
 ---
 layout: ../layouts/MarkdownLayout.astro
-title: "Units"
+title: "Parameters & Units"
 ---
 
-# Units
+# Parameters & Units
 
 All physical quantities in the codebase use the same unit system: **ms for time, mV for voltage, nF for capacitance, μS for conductance, nA for current, Hz for rates**. Time fields carry an explicit *_ms* suffix (*sim_ms*, *ref_ms_E*, *tau_gaba*); CLI flags follow the same convention (*--t-ms 600*). A Δt of 1 means 1 ms, not 1 s.
 
@@ -31,6 +31,24 @@ All physical quantities in the codebase use the same unit system: **ms for time,
 | Max input rate | Hz | 25 | *max_rate_hz* |
 | Population firing rate | Hz | 20–80 | *r_E*, *r_I* |
 | Gamma frequency | Hz | 30–80 | *f_0* |
+
+## COBA / PING biophysical constants
+
+Used by [COBA](/models/#coba) and [PING](/models/#ping) on the [model ladder](/models/). Values follow neuroscience conventions (cf. Dayan & Abbott, Gerstner *Neuronal Dynamics*); the E:I asymmetry in $\tau_m, C_m, g_L, \tau_{\text{ref}}$ produces the timescale separation that makes PING dynamics possible.
+
+| Parameter | E population | I population |
+| --------- | ------------ | ------------ |
+| $\tau_m$ (ms) | 20 | 5 |
+| $C_m$ (nF) | 1.0 | 0.5 |
+| $g_L$ (µS) | 0.05 | 0.1 |
+| $\tau_{\text{ref}}$ (ms) | 3 | 1.5 |
+| $E_L$ (mV) | −65 | −65 |
+| $V_{\text{th}}$ (mV) | −50 | −50 |
+| $V_{\text{reset}}$ (mV) | −65 | −65 |
+| $E_e$ (mV, reversal) | 0 | 0 |
+| $E_i$ (mV, reversal) | −80 | −80 |
+
+Synapse time constants: $\tau_{\text{AMPA}} = 2$ ms (excitation), $\tau_{\text{GABA}} = 9$ ms (inhibition). These set the ceiling on PING's Δt-stability: once $\Delta t \gtrsim \tau_{\text{GABA}}$ the E→I→E loop cannot complete within one step.
 
 ## Internal consistency
 

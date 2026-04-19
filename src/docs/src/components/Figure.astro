@@ -14,7 +14,13 @@ const {
 const anchor = id ? `fig-${String(id).toLowerCase().replace(/\s+/g, "-")}` : undefined;
 ---
 
-<figure class="figure-block my-12 not-prose" id={anchor}>
+<figure class="figure-block my-4 not-prose" id={anchor}>
+  {(id || title) && (
+    <div class="figure-heading">
+      {id && <span class="figure-label">{id}.</span>}
+      {title && <span class="figure-title">{title}</span>}
+    </div>
+  )}
   {type === "video" ? (
     <video
       src={src}
@@ -26,12 +32,6 @@ const anchor = id ? `fig-${String(id).toLowerCase().replace(/\s+/g, "-")}` : und
     />
   ) : (
     <img src={src} alt={alt} class="figure-media" />
-  )}
-  {(id || title) && (
-    <div class="figure-heading">
-      {id && <span class="figure-label">{id}.</span>}
-      {title && <span class="figure-title">{title}</span>}
-    </div>
   )}
   <figcaption class="figure-caption"><slot /></figcaption>
 </figure>
@@ -59,7 +59,7 @@ const anchor = id ? `fig-${String(id).toLowerCase().replace(/\s+/g, "-")}` : und
     font-size: 0.95rem;
     line-height: 1.4;
     color: var(--ink);
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.5rem;
   }
   .figure-label {
     font-weight: 700;

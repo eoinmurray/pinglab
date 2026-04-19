@@ -4,7 +4,7 @@ Astro site for pinglab. Built with bun, deployed via GitHub Pages to [pl.eoinmur
 
 ```sh
 bun install
-bun run dev      # localhost:4321
+bun run dev      # localhost:3000
 bun run build    # static build to dist/
 ```
 

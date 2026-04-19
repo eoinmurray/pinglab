@@ -1,7 +1,7 @@
 {
-  "notebook_run_id": "r016",
-  "duration_s": 658.5,
-  "duration": "10m 59s",
+  "notebook_run_id": "r017",
+  "duration_s": 3028.4,
+  "duration": "50m 28s",
   "init_match": {
     "family": [
       "cuba",
@@ -60,10 +60,10 @@
     "ref": "snntorch-clone"
   },
   "config": {
-    "tier": "small",
+    "tier": "medium",
     "dataset": "mnist",
-    "max_samples": 500,
-    "epochs": 5,
+    "max_samples": 2000,
+    "epochs": 10,
     "t_ms": 600.0,
     "dt_trains": [
       0.1,
@@ -90,54 +90,135 @@
       "runs": {
         "snntorch-clone": {
           "label": "snntorch-clone",
-          "run_date": "Sunday, April 19 2026 at 15:05",
-          "run_id": "r-20260419-150421",
-          "git_sha": "0f23e5c (dirty)",
+          "run_date": "Sunday, April 19 2026 at 15:51",
+          "run_id": "r-20260419-154445",
+          "git_sha": "884ffd9 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
-          "best_acc": 61.0,
-          "best_epoch": 5,
-          "final_acc": 61.0,
-          "final_loss": 1.3945675577436174,
-          "total_elapsed_s": 61.03509679110721,
+          "best_acc": 85.5,
+          "best_epoch": 8,
+          "final_acc": 81.5,
+          "final_loss": 0.9897174215316773,
+          "total_elapsed_s": 419.2294999579899,
           "sweep": [
             {
               "dt": 0.05,
-              "acc": 40.0,
+              "acc": 54.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 0.16775716145833336,
+              "hid_rate_hz": 0.04184163411458334,
               "rates_hz": {
-                "hid": 0.16775716145833336,
+                "hid": 0.04184163411458334,
                 "out": 0.0
               }
             },
             {
               "dt": 0.1,
-              "acc": 61.0,
+              "acc": 85.75,
               "input_rate": 25.0,
-              "hid_rate_hz": 0.42003580729166673,
+              "hid_rate_hz": 0.74193115234375,
               "rates_hz": {
-                "hid": 0.42003580729166673,
+                "hid": 0.74193115234375,
                 "out": 0.0
               }
             },
             {
               "dt": 0.25,
-              "acc": 70.0,
+              "acc": 83.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 2.385563151041667,
+              "hid_rate_hz": 6.45299072265625,
               "rates_hz": {
-                "hid": 2.385563151041667,
+                "hid": 6.45299072265625,
                 "out": 0.0
               }
             },
             {
               "dt": 0.5,
-              "acc": 67.0,
+              "acc": 74.75,
               "input_rate": 25.0,
-              "hid_rate_hz": 4.86484375,
+              "hid_rate_hz": 13.505891927083333,
               "rates_hz": {
-                "hid": 4.86484375,
+                "hid": 13.505891927083333,
+                "out": 0.0
+              }
+            },
+            {
+              "dt": 1.0,
+              "acc": 69.25,
+              "input_rate": 25.0,
+              "hid_rate_hz": 19.287654622395838,
+              "rates_hz": {
+                "hid": 19.287654622395838,
+                "out": 0.0
+              }
+            },
+            {
+              "dt": 2.0,
+              "acc": 67.25,
+              "input_rate": 25.0,
+              "hid_rate_hz": 22.261214192708334,
+              "rates_hz": {
+                "hid": 22.261214192708334,
+                "out": 0.0
+              }
+            }
+          ],
+          "ref_acc": 85.75,
+          "sweep_min_acc": 54.5,
+          "sweep_max_acc": 85.75,
+          "ref_hid_rate_hz": 0.74193115234375,
+          "sweep_min_hid_rate_hz": 0.04184163411458334,
+          "sweep_max_hid_rate_hz": 22.261214192708334
+        },
+        "snntorch-library": {
+          "label": "snntorch-library",
+          "run_date": "Sunday, April 19 2026 at 16:01",
+          "run_id": "r-20260419-155154",
+          "git_sha": "884ffd9 (dirty)",
+          "init_scale_weight": 1.0,
+          "init_scale_bias": 1.0,
+          "best_acc": 85.5,
+          "best_epoch": 8,
+          "final_acc": 66.5,
+          "final_loss": 0.8582908332347869,
+          "total_elapsed_s": 558.9020572500303,
+          "sweep": [
+            {
+              "dt": 0.05,
+              "acc": 67.25,
+              "input_rate": 25.0,
+              "hid_rate_hz": 0.21620686848958337,
+              "rates_hz": {
+                "hid": 0.21620686848958337,
+                "out": 0.0
+              }
+            },
+            {
+              "dt": 0.1,
+              "acc": 86.0,
+              "input_rate": 25.0,
+              "hid_rate_hz": 0.2748697916666667,
+              "rates_hz": {
+                "hid": 0.2748697916666667,
+                "out": 0.0
+              }
+            },
+            {
+              "dt": 0.25,
+              "acc": 82.5,
+              "input_rate": 25.0,
+              "hid_rate_hz": 0.84793701171875,
+              "rates_hz": {
+                "hid": 0.84793701171875,
+                "out": 0.0
+              }
+            },
+            {
+              "dt": 0.5,
+              "acc": 69.0,
+              "input_rate": 25.0,
+              "hid_rate_hz": 1.8503011067708335,
+              "rates_hz": {
+                "hid": 1.8503011067708335,
                 "out": 0.0
               }
             },
@@ -145,191 +226,110 @@
               "dt": 1.0,
               "acc": 64.0,
               "input_rate": 25.0,
-              "hid_rate_hz": 7.067643229166667,
+              "hid_rate_hz": 3.023673502604167,
               "rates_hz": {
-                "hid": 7.067643229166667,
+                "hid": 3.023673502604167,
                 "out": 0.0
               }
             },
             {
               "dt": 2.0,
-              "acc": 61.0,
-              "input_rate": 25.0,
-              "hid_rate_hz": 8.579964192708333,
-              "rates_hz": {
-                "hid": 8.579964192708333,
-                "out": 0.0
-              }
-            }
-          ],
-          "ref_acc": 61.0,
-          "sweep_min_acc": 40.0,
-          "sweep_max_acc": 70.0,
-          "ref_hid_rate_hz": 0.42003580729166673,
-          "sweep_min_hid_rate_hz": 0.16775716145833336,
-          "sweep_max_hid_rate_hz": 8.579964192708333
-        },
-        "snntorch-library": {
-          "label": "snntorch-library",
-          "run_date": "Sunday, April 19 2026 at 15:06",
-          "run_id": "r-20260419-150527",
-          "git_sha": "6d1367e (dirty)",
-          "init_scale_weight": 1.0,
-          "init_scale_bias": 1.0,
-          "best_acc": 60.0,
-          "best_epoch": 4,
-          "final_acc": 56.0,
-          "final_loss": 1.59263357094356,
-          "total_elapsed_s": 83.18967995792627,
-          "sweep": [
-            {
-              "dt": 0.05,
-              "acc": 41.0,
-              "input_rate": 25.0,
-              "hid_rate_hz": 1.5486490885416668,
-              "rates_hz": {
-                "hid": 1.5486490885416668,
-                "out": 0.0
-              }
-            },
-            {
-              "dt": 0.1,
-              "acc": 60.0,
-              "input_rate": 25.0,
-              "hid_rate_hz": 0.5061197916666668,
-              "rates_hz": {
-                "hid": 0.5061197916666668,
-                "out": 0.0
-              }
-            },
-            {
-              "dt": 0.25,
               "acc": 59.0,
               "input_rate": 25.0,
-              "hid_rate_hz": 0.27874348958333334,
+              "hid_rate_hz": 3.8169270833333333,
               "rates_hz": {
-                "hid": 0.27874348958333334,
-                "out": 0.0
-              }
-            },
-            {
-              "dt": 0.5,
-              "acc": 58.0,
-              "input_rate": 25.0,
-              "hid_rate_hz": 0.311279296875,
-              "rates_hz": {
-                "hid": 0.311279296875,
-                "out": 0.0
-              }
-            },
-            {
-              "dt": 1.0,
-              "acc": 55.0,
-              "input_rate": 25.0,
-              "hid_rate_hz": 0.39453125,
-              "rates_hz": {
-                "hid": 0.39453125,
-                "out": 0.0
-              }
-            },
-            {
-              "dt": 2.0,
-              "acc": 56.0,
-              "input_rate": 25.0,
-              "hid_rate_hz": 0.4920084635416667,
-              "rates_hz": {
-                "hid": 0.4920084635416667,
+                "hid": 3.8169270833333333,
                 "out": 0.0
               }
             }
           ],
-          "ref_acc": 60.0,
-          "sweep_min_acc": 41.0,
-          "sweep_max_acc": 60.0,
-          "ref_hid_rate_hz": 0.5061197916666668,
-          "sweep_min_hid_rate_hz": 0.27874348958333334,
-          "sweep_max_hid_rate_hz": 1.5486490885416668
+          "ref_acc": 86.0,
+          "sweep_min_acc": 59.0,
+          "sweep_max_acc": 86.0,
+          "ref_hid_rate_hz": 0.2748697916666667,
+          "sweep_min_hid_rate_hz": 0.21620686848958337,
+          "sweep_max_hid_rate_hz": 3.8169270833333333
         },
         "cuba": {
           "label": "cuba",
-          "run_date": "Sunday, April 19 2026 at 15:08",
-          "run_id": "r-20260419-150659",
-          "git_sha": "6d1367e (dirty)",
+          "run_date": "Sunday, April 19 2026 at 16:08",
+          "run_id": "r-20260419-160128",
+          "git_sha": "884ffd9 (dirty)",
           "init_scale_weight": 10.050083333194499,
           "init_scale_bias": 100.50083333194499,
-          "best_acc": 30.0,
-          "best_epoch": 5,
-          "final_acc": 30.0,
-          "final_loss": 98.14861406598773,
-          "total_elapsed_s": 62.88606987474486,
+          "best_acc": 85.75,
+          "best_epoch": 8,
+          "final_acc": 84.25,
+          "final_loss": 9.77924331665039,
+          "total_elapsed_s": 407.9872608333826,
           "sweep": [
             {
               "dt": 0.05,
-              "acc": 29.0,
+              "acc": 84.75,
               "input_rate": 25.0,
-              "hid_rate_hz": 53.88567708333334,
+              "hid_rate_hz": 49.66911214192709,
               "rates_hz": {
-                "hid": 53.88567708333334,
+                "hid": 49.66911214192709,
                 "out": 0.0
               }
             },
             {
               "dt": 0.1,
-              "acc": 29.0,
+              "acc": 84.75,
               "input_rate": 25.0,
-              "hid_rate_hz": 53.76095377604167,
+              "hid_rate_hz": 49.54957275390626,
               "rates_hz": {
-                "hid": 53.76095377604167,
+                "hid": 49.54957275390626,
                 "out": 0.0
               }
             },
             {
               "dt": 0.25,
-              "acc": 29.0,
+              "acc": 84.75,
               "input_rate": 25.0,
-              "hid_rate_hz": 53.407080078125,
+              "hid_rate_hz": 49.21107991536458,
               "rates_hz": {
-                "hid": 53.407080078125,
+                "hid": 49.21107991536458,
                 "out": 0.0
               }
             },
             {
               "dt": 0.5,
-              "acc": 29.0,
+              "acc": 84.75,
               "input_rate": 25.0,
-              "hid_rate_hz": 52.856005859375,
+              "hid_rate_hz": 48.69407145182292,
               "rates_hz": {
-                "hid": 52.856005859375,
+                "hid": 48.69407145182292,
                 "out": 0.0
               }
             },
             {
               "dt": 1.0,
-              "acc": 29.0,
+              "acc": 84.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 51.80377604166667,
+              "hid_rate_hz": 47.72554931640625,
               "rates_hz": {
-                "hid": 51.80377604166667,
+                "hid": 47.72554931640625,
                 "out": 0.0
               }
             },
             {
               "dt": 2.0,
-              "acc": 29.0,
+              "acc": 84.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 49.88045247395834,
+              "hid_rate_hz": 46.0053955078125,
               "rates_hz": {
-                "hid": 49.88045247395834,
+                "hid": 46.0053955078125,
                 "out": 0.0
               }
             }
           ],
-          "ref_acc": 29.0,
-          "sweep_min_acc": 29.0,
-          "sweep_max_acc": 29.0,
-          "ref_hid_rate_hz": 53.76095377604167,
-          "sweep_min_hid_rate_hz": 49.88045247395834,
-          "sweep_max_hid_rate_hz": 53.88567708333334
+          "ref_acc": 84.75,
+          "sweep_min_acc": 84.5,
+          "sweep_max_acc": 84.75,
+          "ref_hid_rate_hz": 49.54957275390626,
+          "sweep_min_hid_rate_hz": 46.0053955078125,
+          "sweep_max_hid_rate_hz": 49.66911214192709
         }
       }
     },
@@ -339,246 +339,246 @@
       "runs": {
         "snntorch-clone": {
           "label": "snntorch-clone",
-          "run_date": "Sunday, April 19 2026 at 15:11",
-          "run_id": "r-20260419-151121",
-          "git_sha": "6d1367e (dirty)",
+          "run_date": "Sunday, April 19 2026 at 16:21",
+          "run_id": "r-20260419-162020",
+          "git_sha": "884ffd9 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
-          "best_acc": 84.0,
-          "best_epoch": 5,
-          "final_acc": 84.0,
-          "final_loss": 0.1882076204887458,
-          "total_elapsed_s": 8.160837916191667,
+          "best_acc": 86.5,
+          "best_epoch": 4,
+          "final_acc": 84.5,
+          "final_loss": 0.643303105533123,
+          "total_elapsed_s": 44.95869762497023,
           "sweep": [
             {
               "dt": 0.05,
-              "acc": 26.0,
+              "acc": 23.0,
               "input_rate": 25.0,
-              "hid_rate_hz": 85.34212239583334,
+              "hid_rate_hz": 41.83315022786459,
               "rates_hz": {
-                "hid": 85.34212239583334,
+                "hid": 41.83315022786459,
                 "out": 0.0
               }
             },
             {
               "dt": 0.1,
-              "acc": 45.0,
+              "acc": 35.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 31.193701171875,
+              "hid_rate_hz": 14.397957356770835,
               "rates_hz": {
-                "hid": 31.193701171875,
+                "hid": 14.397957356770835,
                 "out": 0.0
               }
             },
             {
               "dt": 0.25,
-              "acc": 64.0,
+              "acc": 62.25,
               "input_rate": 25.0,
-              "hid_rate_hz": 5.703694661458334,
+              "hid_rate_hz": 2.546822102864584,
               "rates_hz": {
-                "hid": 5.703694661458334,
+                "hid": 2.546822102864584,
                 "out": 0.0
               }
             },
             {
               "dt": 0.5,
-              "acc": 77.0,
+              "acc": 79.75,
               "input_rate": 25.0,
-              "hid_rate_hz": 1.8862630208333335,
+              "hid_rate_hz": 1.0023844401041668,
               "rates_hz": {
-                "hid": 1.8862630208333335,
+                "hid": 1.0023844401041668,
                 "out": 0.0
               }
             },
             {
               "dt": 1.0,
-              "acc": 84.0,
+              "acc": 88.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 1.434049479166667,
+              "hid_rate_hz": 0.9745686848958335,
               "rates_hz": {
-                "hid": 1.434049479166667,
+                "hid": 0.9745686848958335,
                 "out": 0.0
               }
             },
             {
               "dt": 2.0,
-              "acc": 74.0,
+              "acc": 82.75,
               "input_rate": 25.0,
-              "hid_rate_hz": 1.6920247395833334,
+              "hid_rate_hz": 1.295682779947917,
               "rates_hz": {
-                "hid": 1.6920247395833334,
+                "hid": 1.295682779947917,
                 "out": 0.0
               }
             }
           ],
-          "ref_acc": 84.0,
-          "sweep_min_acc": 26.0,
-          "sweep_max_acc": 84.0,
-          "ref_hid_rate_hz": 1.434049479166667,
-          "sweep_min_hid_rate_hz": 1.434049479166667,
-          "sweep_max_hid_rate_hz": 85.34212239583334
+          "ref_acc": 88.5,
+          "sweep_min_acc": 23.0,
+          "sweep_max_acc": 88.5,
+          "ref_hid_rate_hz": 0.9745686848958335,
+          "sweep_min_hid_rate_hz": 0.9745686848958335,
+          "sweep_max_hid_rate_hz": 41.83315022786459
         },
         "snntorch-library": {
           "label": "snntorch-library",
-          "run_date": "Sunday, April 19 2026 at 15:11",
-          "run_id": "r-20260419-151132",
-          "git_sha": "6d1367e (dirty)",
+          "run_date": "Sunday, April 19 2026 at 16:22",
+          "run_id": "r-20260419-162109",
+          "git_sha": "884ffd9 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
-          "best_acc": 82.0,
-          "best_epoch": 2,
-          "final_acc": 81.0,
-          "final_loss": 0.3295334130525589,
-          "total_elapsed_s": 10.58319441601634,
+          "best_acc": 90.0,
+          "best_epoch": 9,
+          "final_acc": 88.25,
+          "final_loss": 0.25120606023818254,
+          "total_elapsed_s": 60.54997887508944,
           "sweep": [
             {
               "dt": 0.05,
-              "acc": 12.0,
+              "acc": 15.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 211.6375,
+              "hid_rate_hz": 32.53930664062501,
               "rates_hz": {
-                "hid": 211.6375,
+                "hid": 32.53930664062501,
                 "out": 0.0
               }
             },
             {
               "dt": 0.1,
-              "acc": 15.0,
+              "acc": 34.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 93.20130208333335,
+              "hid_rate_hz": 12.104475911458335,
               "rates_hz": {
-                "hid": 93.20130208333335,
+                "hid": 12.104475911458335,
                 "out": 0.0
               }
             },
             {
               "dt": 0.25,
-              "acc": 22.0,
+              "acc": 58.0,
               "input_rate": 25.0,
-              "hid_rate_hz": 25.174544270833334,
+              "hid_rate_hz": 2.6679443359375,
               "rates_hz": {
-                "hid": 25.174544270833334,
+                "hid": 2.6679443359375,
                 "out": 0.0
               }
             },
             {
               "dt": 0.5,
-              "acc": 61.0,
+              "acc": 84.0,
               "input_rate": 25.0,
-              "hid_rate_hz": 7.276025390625,
+              "hid_rate_hz": 1.05478515625,
               "rates_hz": {
-                "hid": 7.276025390625,
+                "hid": 1.05478515625,
                 "out": 0.0
               }
             },
             {
               "dt": 1.0,
-              "acc": 82.0,
+              "acc": 90.25,
               "input_rate": 25.0,
-              "hid_rate_hz": 2.7001790364583336,
+              "hid_rate_hz": 0.68074951171875,
               "rates_hz": {
-                "hid": 2.7001790364583336,
+                "hid": 0.68074951171875,
                 "out": 0.0
               }
             },
             {
               "dt": 2.0,
-              "acc": 81.0,
+              "acc": 88.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 1.87802734375,
+              "hid_rate_hz": 0.5975423177083333,
               "rates_hz": {
-                "hid": 1.87802734375,
+                "hid": 0.5975423177083333,
                 "out": 0.0
               }
             }
           ],
-          "ref_acc": 82.0,
-          "sweep_min_acc": 12.0,
-          "sweep_max_acc": 82.0,
-          "ref_hid_rate_hz": 2.7001790364583336,
-          "sweep_min_hid_rate_hz": 1.87802734375,
-          "sweep_max_hid_rate_hz": 211.6375
+          "ref_acc": 90.25,
+          "sweep_min_acc": 15.5,
+          "sweep_max_acc": 90.25,
+          "ref_hid_rate_hz": 0.68074951171875,
+          "sweep_min_hid_rate_hz": 0.5975423177083333,
+          "sweep_max_hid_rate_hz": 32.53930664062501
         },
         "cuba": {
           "label": "cuba",
-          "run_date": "Sunday, April 19 2026 at 15:11",
-          "run_id": "r-20260419-151145",
-          "git_sha": "6d1367e (dirty)",
+          "run_date": "Sunday, April 19 2026 at 16:22",
+          "run_id": "r-20260419-162213",
+          "git_sha": "884ffd9 (dirty)",
           "init_scale_weight": 10.508331944775044,
           "init_scale_bias": 10.508331944775044,
-          "best_acc": 67.0,
-          "best_epoch": 5,
-          "final_acc": 67.0,
-          "final_loss": 1.510823403085981,
-          "total_elapsed_s": 8.333469082601368,
+          "best_acc": 87.25,
+          "best_epoch": 8,
+          "final_acc": 87.25,
+          "final_loss": 0.4482658019661903,
+          "total_elapsed_s": 45.08141162479296,
           "sweep": [
             {
               "dt": 0.05,
-              "acc": 72.0,
+              "acc": 89.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 0.062890625,
+              "hid_rate_hz": 0.5164591471354167,
               "rates_hz": {
-                "hid": 0.062890625,
+                "hid": 0.5164591471354167,
                 "out": 0.0
               }
             },
             {
               "dt": 0.1,
-              "acc": 72.0,
+              "acc": 89.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 0.06097005208333334,
+              "hid_rate_hz": 0.5058024088541667,
               "rates_hz": {
-                "hid": 0.06097005208333334,
+                "hid": 0.5058024088541667,
                 "out": 0.0
               }
             },
             {
               "dt": 0.25,
-              "acc": 72.0,
+              "acc": 88.5,
               "input_rate": 25.0,
-              "hid_rate_hz": 0.05623372395833334,
+              "hid_rate_hz": 0.47709960937500007,
               "rates_hz": {
-                "hid": 0.05623372395833334,
+                "hid": 0.47709960937500007,
                 "out": 0.0
               }
             },
             {
               "dt": 0.5,
-              "acc": 70.0,
+              "acc": 89.75,
               "input_rate": 25.0,
-              "hid_rate_hz": 0.05022786458333334,
+              "hid_rate_hz": 0.4375284830729167,
               "rates_hz": {
-                "hid": 0.05022786458333334,
+                "hid": 0.4375284830729167,
                 "out": 0.0
               }
             },
             {
               "dt": 1.0,
-              "acc": 64.0,
+              "acc": 89.25,
               "input_rate": 25.0,
-              "hid_rate_hz": 0.04226888020833334,
+              "hid_rate_hz": 0.37884114583333334,
               "rates_hz": {
-                "hid": 0.04226888020833334,
+                "hid": 0.37884114583333334,
                 "out": 0.0
               }
             },
             {
               "dt": 2.0,
-              "acc": 60.0,
+              "acc": 87.75,
               "input_rate": 25.0,
-              "hid_rate_hz": 0.031233723958333334,
+              "hid_rate_hz": 0.30177408854166665,
               "rates_hz": {
-                "hid": 0.031233723958333334,
+                "hid": 0.30177408854166665,
                 "out": 0.0
               }
             }
           ],
-          "ref_acc": 64.0,
-          "sweep_min_acc": 60.0,
-          "sweep_max_acc": 72.0,
-          "ref_hid_rate_hz": 0.04226888020833334,
-          "sweep_min_hid_rate_hz": 0.031233723958333334,
-          "sweep_max_hid_rate_hz": 0.062890625
+          "ref_acc": 89.25,
+          "sweep_min_acc": 87.75,
+          "sweep_max_acc": 89.75,
+          "ref_hid_rate_hz": 0.37884114583333334,
+          "sweep_min_hid_rate_hz": 0.30177408854166665,
+          "sweep_max_hid_rate_hz": 0.5164591471354167
         }
       }
     }

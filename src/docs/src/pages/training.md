@@ -9,23 +9,23 @@ All models are trained with the same procedure: cross-entropy loss, Adam optimis
 
 ## Surrogate gradients
 
-The forward pass emits $s = 1$ if $u \geq \theta$ else $0$; the backward pass substitutes
+The spike function $S = \mathbf{1}[U \geq \theta]$ has zero gradient almost everywhere, so backward passes use a surrogate. Pinglab uses fast-sigmoid (matching [snntorch.surrogate.fast_sigmoid](https://snntorch.readthedocs.io/en/latest/snntorch.surrogate.html); motivation and alternatives discussed in [Tutorial 5 § The Surrogate Gradient Approach](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html)) with pseudo-derivative
 
 $$
-\partial s / \partial u \approx 1 / (1 + |u - \theta|)^2
+\frac{\partial \tilde S}{\partial U}\bigg|_{U} = \frac{k}{(1 + k\,|U - \theta|)^2}
 $$
 
-This keeps the forward dynamics exact while giving BPTT a usable gradient through the otherwise-discontinuous spike function.
+with slope $k = 1$ on both the biophysical path (mV-scale membrane) and the snnTorch-clone path (dimensionless membrane). The snnTorch-library path uses the library default $k = 25$ — the asymmetry is deliberate and is part of what the parity test exposes. This keeps the forward dynamics exact while giving BPTT a usable gradient through the otherwise-discontinuous spike function.
 
 ## Input encoding
 
-At each training step, a batch of images is converted to Poisson spike trains on the fly. Each pixel $x_j \in [0,1]$ independently generates spikes at each of $T$ timesteps:
+Pixels become Poisson spike trains. For a pixel with normalised intensity $x \in [0, 1]$, input neuron $i$ fires a Bernoulli spike at each step with probability
 
 $$
-s_j^t \sim \text{Bernoulli}(x_j \cdot r_{\max} \cdot \Delta t / 1000)
+p_i(t) = x_i \cdot r_{\max} \cdot \Delta t / 1000, \qquad r_{\max} = 25 \text{ Hz}
 $$
 
-The spike tensor has shape $(T, B, N_{\text{in}})$. Because encoding is stochastic, the network sees a different spike realisation of the same image every epoch — a form of data augmentation intrinsic to the rate code. At evaluation time, a seeded torch.Generator is threaded through the encoder so train-time eval and standalone infer on the same weights produce identical spike trains.
+so the per-neuron firing rate is $x_i \cdot r_{\max}$ Hz, independent of $\Delta t$. The resulting $(T, B, N_{\text{in}})$ binary tensor is the model's only input; stimulus duration is $T_{\text{ms}} = 1000$ ms for image tasks. Because encoding is stochastic, the network sees a different spike realisation of the same image every epoch — a form of data augmentation intrinsic to the rate code. At evaluation time, a seeded torch.Generator is threaded through the encoder so train-time eval and standalone infer on the same weights produce identical spike trains.
 
 ## Loss and optimisation
 

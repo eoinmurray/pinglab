@@ -13,7 +13,7 @@ The CLI has five subcommands; flags are shared via a *parent* parser so every mo
 
 | Mode | What it does | Typical output |
 | ---- | ------------ | -------------- |
-| *sim* | One forward pass, print firing-rate metrics, no plot. | *metrics.json*, *metrics.jsonl* |
+| *sim* | One forward pass, print firing-rate [metrics](/metrics/), no plot. | *metrics.json*, *metrics.jsonl* |
 | *image* | One forward pass, render a still oscilloscope figure. | *oscilloscope.png* |
 | *video* | Sweep one parameter linearly over *--frames*, render one frame per value. | *oscilloscope.mp4* |
 | *train* | Surrogate-gradient BPTT training loop. | *weights.pth*, per-epoch metrics, optional training video |
@@ -61,7 +61,7 @@ By default a scan reuses the same Poisson seed on every frame so the input patte
 
 ## Layouts and panels
 
-The oscilloscope figure is a grid of panels assembled from a catalog — *header*, *e_raster*, *i_raster*, *weights*, *drive*, *output*, *psd*, *participation*, plus training-only *acc_curve*, *grad_flow*, *rate_curve*, *digit_image*, and sweep-only *sweep*, *sweep_rates*, *sweep_f0*. *--layout* picks a named preset.
+The oscilloscope figure is a grid of panels assembled from a catalog — [*header*](/metrics/#header), [*e_raster*](/metrics/#e_raster), [*i_raster*](/metrics/#i_raster), [*weights*](/metrics/#weights), [*drive*](/metrics/#drive), [*output*](/metrics/#output), [*psd*](/metrics/#psd), [*participation*](/metrics/#participation), plus training-only [*acc_curve*](/metrics/#acc_curve), [*grad_flow*](/metrics/#grad_flow), [*rate_curve*](/metrics/#rate_curve), [*digit_image*](/metrics/#digit_image), and sweep-only [*sweep*](/metrics/#sweep), [*sweep_rates*](/metrics/#sweep_rates), [*sweep_f0*](/metrics/#sweep_f0). *--layout* picks a named preset. See [Metrics](/metrics/) for what each panel shows and how to read it.
 
 | *--layout* | Panels | Used for |
 | ---------- | ------ | -------- |
@@ -90,4 +90,4 @@ See [Training](/training/) for the surrogate-gradient, loss, encoding, and BPTT 
 - *inputs.py* — synthetic drive generators and Poisson encoders.
 - *config.py* — shared defaults and the *Config* / *patch_dt* plumbing that keeps *dt*-invariant quantities invariant when *--dt* changes.
 
-Notebook runners under *src/pinglab/notebook/* invoke *oscilloscope.py* internally — they are the promotion gate from raw artifacts into *src/docs/public/figures/notebook/&lt;slug&gt;/*. See [LLM Conventions § Notebook](/llm-conventions/#notebook) for the entry/runner pairing.
+Notebook runners under *src/pinglab/notebook/* invoke *oscilloscope.py* internally — they are the promotion gate from raw artifacts into *src/docs/public/figures/notebook/&lt;slug&gt;/*. See [Introduction § Notebook](/introduction/#notebook) for the entry/runner pairing.
