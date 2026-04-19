@@ -24,7 +24,7 @@ The ladder: six models, ordered by increasing biophysical realism and time-discr
 
 A thin wrapper around snnTorch's own *snn.Leaky* module with the library's fast-sigmoid surrogate ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894)). The update rule is $U_{t+1} = \beta U_t + W s - S \theta$ with reset by subtraction; $\beta$ is a dimensionless hyperparameter and there are no $\Delta t$ semantics.
 
-Its purpose is calibration, not experimentation. At matched config, snnTorch-library and pinglab's snnTorch should train to within a small tolerance — any residual gap localises to the LIF-step implementation or surrogate-gradient details, not to the architecture. See [notebook 004](/notebook/nb004/) for the side-by-side training comparison and Δt-stability sweep.
+Its purpose is calibration, not experimentation. At matched config, snnTorch-library and pinglab's snnTorch should train to within a small tolerance — any residual gap localises to the LIF-step implementation or surrogate-gradient details, not to the architecture. See [notebook 003](/notebook/nb003/) for the side-by-side training comparison and Δt-stability sweep.
 
 ### snnTorch
 
