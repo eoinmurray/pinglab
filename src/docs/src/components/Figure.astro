@@ -1,0 +1,88 @@
+---
+const {
+  src,
+  alt = "",
+  type = "image",
+  id,
+  title,
+  controls = true,
+  loop = true,
+  muted = true,
+  playsinline = true,
+} = Astro.props;
+
+const anchor = id ? `fig-${String(id).toLowerCase().replace(/\s+/g, "-")}` : undefined;
+---
+
+<figure class="figure-block my-12 not-prose" id={anchor}>
+  {type === "video" ? (
+    <video
+      src={src}
+      controls={controls}
+      loop={loop}
+      muted={muted}
+      playsinline={playsinline}
+      class="figure-media"
+    />
+  ) : (
+    <img src={src} alt={alt} class="figure-media" />
+  )}
+  {(id || title) && (
+    <div class="figure-heading">
+      {id && <span class="figure-label">{id}.</span>}
+      {title && <span class="figure-title">{title}</span>}
+    </div>
+  )}
+  <figcaption class="figure-caption"><slot /></figcaption>
+</figure>
+
+<style>
+  .figure-block {
+    width: 100%;
+    margin-inline: auto;
+    border: 1px solid #d9d5c8;
+    background: #fafaf7;
+    border-radius: 2px;
+    padding: 0.85rem 1rem 0.9rem;
+  }
+  .figure-media {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 0 0.8rem;
+    border: 1px solid #e7e5df;
+    border-radius: 1px;
+    background: #fff;
+  }
+  .figure-heading {
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: var(--ink);
+    margin-bottom: 0.3rem;
+  }
+  .figure-label {
+    font-weight: 700;
+    margin-right: 0.35rem;
+  }
+  .figure-title {
+    font-weight: 700;
+  }
+  .figure-caption {
+    font-family: var(--font-serif);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: #333;
+    text-align: left;
+  }
+  .figure-caption :global(p) {
+    margin: 0;
+  }
+  .figure-caption :global(p + p) {
+    margin-top: 0.45rem;
+  }
+  .figure-caption :global(a) {
+    color: inherit;
+    text-decoration-thickness: 1px;
+  }
+</style>
