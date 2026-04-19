@@ -1639,7 +1639,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             opt.zero_grad()
             loss.backward()
             # Per-layer ‖grad‖/‖W‖ ratio (weights only, skip biases) before clip.
-            # SNNTorchNet names biases b_ff.*; SNNTorchLibraryNet exposes biases
+            # CUBANet names biases b_ff.*; SNNTorchLibraryNet exposes biases
             # via nn.Linear as fc_ff.*.bias. Filter both naming conventions.
             for pname, p in net.named_parameters():
                 if p.grad is None or pname.startswith("b_") or pname.endswith(".bias"):

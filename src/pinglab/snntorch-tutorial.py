@@ -3,7 +3,7 @@
 Reference: https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html
 
 This is a standalone script that uses the snntorch library directly — no
-pinglab code in the path. Used to ground-truth our SNNTorchNet behaviour
+pinglab code in the path. Used to ground-truth our CUBANet behaviour
 against the canonical tutorial setup (plain nn.Linear + snn.Leaky +
 Kaiming init + Poisson rate coding + CE on summed output spikes).
 
