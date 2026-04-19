@@ -2450,6 +2450,11 @@ Models:
                             choices=["none", "T4", "A10G", "A100", "H100"],
                             help="GPU type for Modal runs (default: T4). "
                                  "Use 'none' for CPU-only.")
+    exec_group.add_argument("--coba-integrator", type=str, default="expeuler",
+                            choices=["expeuler", "fwd"],
+                            help="Membrane ODE integrator for COBA/PING "
+                                 "(default: expeuler). 'fwd' falls back to "
+                                 "forward Euler for parity comparisons.")
 
     subparsers = parser.add_subparsers(
         dest="mode",
@@ -2627,6 +2632,10 @@ Models:
     if args.mode is None:
         parser.print_help()
         sys.exit(0)
+
+    # Apply global model knobs as early as possible so every downstream
+    # entrypoint (train, sim, image, video, infer) sees the right integrator.
+    M.COBA_INTEGRATOR = args.coba_integrator
 
     # --from-dir: inherit training params from config.json, fill unset values
     if args.mode in ("infer", "video", "image") and getattr(args, "from_dir", None):
