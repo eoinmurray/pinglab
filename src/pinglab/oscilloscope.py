@@ -1351,7 +1351,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
           cm_back_scale=80.0, early_stopping=None, observe_every=1,
           adaptive_lr=False, kaiming_init=False, dales_law=True,
           w_rec=None, rec_layers=None, ei_layers=None, batch_size=None,
-          seed=None):
+          seed=None, init_scale_weight=1.0, init_scale_bias=1.0):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
     from torch.utils.data import DataLoader, TensorDataset
@@ -1420,6 +1420,23 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         log.info("  randomize_init=True (symmetry breaking for snntorch-clone)")
     if kaiming_init:
         log.info("  kaiming_init=True (signed Kaiming weights, canonical snnTorch)")
+    if init_scale_weight != 1.0 or init_scale_bias != 1.0:
+        # Weight params = 2D tensors (W_ff, W_rec, W_ee/W_ei/W_ie).
+        # Bias params = 1D tensors (b_ff). Split lets cuba pre-compensate
+        # its separate spike_scale vs bias_scale drive factors.
+        with torch.no_grad():
+            n_w = n_b = 0
+            for name, p in net.named_parameters():
+                if not p.requires_grad:
+                    continue
+                if p.dim() >= 2:
+                    p.mul_(init_scale_weight)
+                    n_w += 1
+                else:
+                    p.mul_(init_scale_bias)
+                    n_b += 1
+        log.info(f"  init_scale_weight={init_scale_weight:g} ({n_w} tensors) "
+                 f"init_scale_bias={init_scale_bias:g} ({n_b} tensors)")
     if w_rec is not None:
         log.info("  recurrent=True (hidden→hidden connections)")
     if not dales_law:
@@ -1446,6 +1463,8 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         "max_samples": max_samples,
         "n_params": n_params, "n_trainable": n_trainable,
         "kaiming_init": kaiming_init, "dales_law": dales_law,
+        "init_scale_weight": init_scale_weight,
+        "init_scale_bias": init_scale_bias,
         "hidden_sizes": hidden_sizes, "w_rec": w_rec,
         "rec_layers": list(rec_layers) if rec_layers else None,
         "ei_layers": list(ei_layers) if ei_layers else None,
@@ -2064,6 +2083,10 @@ def infer(model_name="ping", dt=0.25, load_weights=None,
     net.eval()
     correct = total = 0
     eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+    # Accumulate per-population firing rate (Hz) across batches, weighted by
+    # batch size. net.rates is set by _set_meta after each forward as Hz
+    # per population averaged over the batch.
+    rate_sums: dict[str, float] = {}
     with torch.no_grad():
         for X_b, y_b in test_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
@@ -2071,9 +2094,18 @@ def infer(model_name="ping", dt=0.25, load_weights=None,
             logits = net(input_spikes=spk)
             correct += (logits.argmax(1) == y_b).sum().item()
             total += y_b.size(0)
+            batch_rates = getattr(net, "rates", None) or {}
+            B = y_b.size(0)
+            for k, v in batch_rates.items():
+                rate_sums[k] = rate_sums.get(k, 0.0) + float(v) * B
 
     acc = 100.0 * correct / total
-    log.info(f"  dt={dt:.3f}ms  acc={acc:.1f}%  ({correct}/{total})")
+    rates_hz = {k: v / total for k, v in rate_sums.items()} if total else {}
+    hid_key = max((k for k in rates_hz if k.startswith("hid")),
+                  default=None)
+    hid_rate_hz = rates_hz.get(hid_key) if hid_key else None
+    rate_str = f"  hid={hid_rate_hz:.1f}Hz" if hid_rate_hz is not None else ""
+    log.info(f"  dt={dt:.3f}ms  acc={acc:.1f}%  ({correct}/{total}){rate_str}")
 
     # Structured metrics artifact for tests/analysis (parallels train's metrics.json)
     out_dir_path = Path(out_dir) if out_dir else None
@@ -2097,11 +2129,13 @@ def infer(model_name="ping", dt=0.25, load_weights=None,
             "n_correct": correct,
             "n_total": total,
         }
+        metrics_blob["rates_hz"] = rates_hz
+        metrics_blob["hid_rate_hz"] = hid_rate_hz
         with open(out_dir_path / "metrics.json", "w") as f:
             json.dump(metrics_blob, f, indent=2, default=float)
         log.info(f"  → {out_dir_path / 'metrics.json'}")
 
-    return acc
+    return {"acc": acc, "rates_hz": rates_hz, "hid_rate_hz": hid_rate_hz}
 
 
 def _apply_from_dir(args, argv):
@@ -2302,6 +2336,21 @@ Models:
                                 "Matches canonical snnTorch tutorial setup. "
                                 "Only applies to snntorch-clone / cuba; "
                                 "--w-in is ignored when this is set.")
+    net_group.add_argument("--init-scale-weight", type=float, default=1.0,
+                           help="Multiply init weight matrices (W_ff, W_rec, "
+                                "W_ee/W_ei/W_ie) by this scalar after "
+                                "build_net (train mode only). Biases are "
+                                "untouched — use --init-scale-bias for those. "
+                                "For cuba at training-dt, pass dt/(1-exp(-dt/"
+                                "tau_mem)) to match snntorch-clone's per-step "
+                                "spike drive from matched random weights. "
+                                "Default: 1.0 (no scaling).")
+    net_group.add_argument("--init-scale-bias", type=float, default=1.0,
+                           help="Multiply init bias vectors (b_ff) by this "
+                                "scalar after build_net (train mode only). "
+                                "For cuba at training-dt, pass 1/(1-exp(-dt/"
+                                "tau_mem)) to match snntorch-clone's per-step "
+                                "bias drive. Default: 1.0 (no scaling).")
     net_group.add_argument("--dales-law", action="store_true", default=True,
                            help="Enforce Dale's law: clamp weights to non-negative "
                                 "(default: True)")
@@ -2868,7 +2917,9 @@ if __name__ == "__main__":
               rec_layers=args.rec_layers,
               ei_layers=args.ei_layers,
               batch_size=args.batch_size,
-              seed=args.seed)
+              seed=args.seed,
+              init_scale_weight=args.init_scale_weight,
+              init_scale_bias=args.init_scale_bias)
 
     elif mode == "infer":
         w_in = args.w_in or [0.3, 0.06]
@@ -2917,10 +2968,12 @@ if __name__ == "__main__":
             for sweep_dt in dt_values:
                 if encoder is not None:
                     encoder.reset()
-                acc = infer(dt=sweep_dt, out_dir=None, encode_fn=encoder,
+                res = infer(dt=sweep_dt, out_dir=None, encode_fn=encoder,
                             **infer_kwargs)
-                sweep_results.append({"dt": sweep_dt, "acc": acc,
-                                      "input_rate": base_rate})
+                sweep_results.append({"dt": sweep_dt, "acc": res["acc"],
+                                      "input_rate": base_rate,
+                                      "hid_rate_hz": res.get("hid_rate_hz"),
+                                      "rates_hz": res.get("rates_hz", {})})
             ref = next((r for r in sweep_results if r["dt"] == train_dt), None)
             ref_acc = ref["acc"] if ref else None
 
@@ -2965,7 +3018,7 @@ if __name__ == "__main__":
                     frozen_inputs=frozen)
                 log.info(f"  → {out_dir / 'dt_sweep.mp4'}")
         else:
-            acc = infer(dt=args.dt, out_dir=str(out_dir), **infer_kwargs)
+            acc = infer(dt=args.dt, out_dir=str(out_dir), **infer_kwargs)["acc"]
             if args.observe:
                 import config as C
                 C.N_E = M.N_HID
