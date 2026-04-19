@@ -3,7 +3,7 @@
 All constants are hardcoded defaults. Override via module-level assignment
 or by passing arguments to model constructors.
 
-Models: SNNTorchNet, PINGNet.
+Models: CUBANet, PINGNet.
 Layer primitives: exp_synapse, lif_step, snn_lif_step.
 """
 from __future__ import annotations
@@ -248,7 +248,7 @@ class SNNBase(nn.Module):
 
 # ── Model classes ────────────────────────────────────────────────────────
 
-class SNNTorchNet(SNNBase):
+class CUBANet(SNNBase):
     # Biophysical defaults (Dale's law + hard reset + membrane readout).
     # Tutorial mode overrides every one of these.
     signed_weights = False
@@ -257,7 +257,7 @@ class SNNTorchNet(SNNBase):
     tutorial_readout = False
     randomize_init = False
 
-    def __init__(self, discretisation="canonical",
+    def __init__(self, discretisation="snntorch",
                  w_in=None, w_hid=None, w_rec=None,
                  dist="normal", sparsity=0.0,
                  tutorial_mode=False, dales_law=True,
@@ -266,9 +266,9 @@ class SNNTorchNet(SNNBase):
                  ref_ms=0.0,
                  reset_mode=None):
         super().__init__()
-        if discretisation not in ("canonical", "continuous"):
+        if discretisation not in ("snntorch", "continuous"):
             raise ValueError(
-                f"discretisation must be 'canonical' or 'continuous', "
+                f"discretisation must be 'snntorch' or 'continuous', "
                 f"got {discretisation!r}")
         self.discretisation = discretisation
         self.exponential_synapse = exponential_synapse
@@ -608,7 +608,7 @@ class SNNTorchLibraryNet(SNNBase):
     """Parity reference using snn.Leaky from the snnTorch package directly.
 
     Same Kaiming-uniform feedforward init + linear-decoder readout as
-    SNNTorchNet(tutorial_mode=True), but the LIF step and surrogate gradient
+    CUBANet(tutorial_mode=True), but the LIF step and surrogate gradient
     come from snntorch.snn.Leaky + snntorch.surrogate.fast_sigmoid. The only
     thing that can differ between this model and `snntorch-clone` at
     matched config is the LIF update + surrogate — so accuracy gaps
@@ -689,7 +689,7 @@ class SNNTorchLibraryNet(SNNBase):
         for lif in lifs:
             lif.to(device)
         mems = [torch.zeros(B, n, device=device) for n in self.hidden_sizes]
-        # Randomised init matches SNNTorchNet's option for symmetry breaking.
+        # Randomised init matches CUBANet's option for symmetry breaking.
         if self.randomize_init:
             mems[0] = thr_snn * torch.rand(B, self.hidden_sizes[0], device=device)
 
@@ -872,7 +872,7 @@ class PINGNet(SNNBase):
                     B, n_e, device=device)).clamp(min=0)
 
         # Output: cumulative last-hidden-layer spikes → linear decoder
-        # (Same readout as SNNTorchNet — no output spiking neurons, no
+        # (Same readout as CUBANet — no output spiking neurons, no
         # per-model confound at the output.)
         hidden_accum = init_conductance(B, self.hidden_sizes[-1], device)
 

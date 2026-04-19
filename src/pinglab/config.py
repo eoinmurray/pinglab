@@ -22,7 +22,7 @@ import torch
 from torch import nn
 
 import models as M
-from models import PINGNet, SNNTorchNet, SNNTorchLibraryNet
+from models import PINGNet, CUBANet, SNNTorchLibraryNet
 from inputs import (
     make_spike_drive,
     patch_dt as _patch_dt,
@@ -88,17 +88,17 @@ MODEL_REGISTRY = {
                                                   w_ei=(*cfg.w_ei, "normal", cfg.sparsity),
                                                   w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
                                                   **kw),
-    "snntorch-clone":       lambda **kw: SNNTorchNet(w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba":                 lambda **kw: SNNTorchNet(discretisation="continuous",
+    "snntorch-clone":       lambda **kw: CUBANet(w_in=(0, 0), w_hid=(0, 0.1), **kw),
+    "cuba":                 lambda **kw: CUBANet(discretisation="continuous",
                                                       w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba-exp":             lambda **kw: SNNTorchNet(discretisation="continuous",
+    "cuba-exp":             lambda **kw: CUBANet(discretisation="continuous",
                                                       exponential_synapse=True,
                                                       w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba-exp-hard":        lambda **kw: SNNTorchNet(discretisation="continuous",
+    "cuba-exp-hard":        lambda **kw: CUBANet(discretisation="continuous",
                                                       exponential_synapse=True,
                                                       reset_mode="zero",
                                                       w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba-exp-hard-refrac": lambda **kw: SNNTorchNet(discretisation="continuous",
+    "cuba-exp-hard-refrac": lambda **kw: CUBANet(discretisation="continuous",
                                                       exponential_synapse=True,
                                                       reset_mode="zero",
                                                       ref_ms=2.0,
@@ -109,7 +109,7 @@ MODEL_REGISTRY = {
 HAS_INH = {"ping"}
 IS_COBA = {"ping"}
 
-# All CUBA-family variants (shared SNNTorchNet class, distinct discretisation
+# All CUBA-family variants (shared CUBANet class, distinct discretisation
 # / synaptic / reset / refractory settings). Used by build_net guards.
 # The headline 5-model ladder is {snntorch-clone, cuba, cuba-exp, coba, ping};
 # cuba-exp-hard and cuba-exp-hard-refrac are retained in the registry only
@@ -137,14 +137,14 @@ HEADLINE_LADDER = [
 
 _MODEL_CLASSES = {
     "ping":                 (PINGNet,     {}),
-    "snntorch-clone":       (SNNTorchNet, {}),
-    "cuba":                 (SNNTorchNet, {"discretisation": "continuous"}),
-    "cuba-exp":             (SNNTorchNet, {"discretisation": "continuous",
+    "snntorch-clone":       (CUBANet, {}),
+    "cuba":                 (CUBANet, {"discretisation": "continuous"}),
+    "cuba-exp":             (CUBANet, {"discretisation": "continuous",
                                             "exponential_synapse": True}),
-    "cuba-exp-hard":        (SNNTorchNet, {"discretisation": "continuous",
+    "cuba-exp-hard":        (CUBANet, {"discretisation": "continuous",
                                             "exponential_synapse": True,
                                             "reset_mode": "zero"}),
-    "cuba-exp-hard-refrac": (SNNTorchNet, {"discretisation": "continuous",
+    "cuba-exp-hard-refrac": (CUBANet, {"discretisation": "continuous",
                                             "exponential_synapse": True,
                                             "reset_mode": "zero",
                                             "ref_ms": 2.0}),
