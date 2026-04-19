@@ -5,6 +5,7 @@ date: 2026-04-18
 entry: 1
 structure: paper
 ---
+import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb001/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -23,11 +24,15 @@ export const hasFrame = Object.keys(imageGlob).length > 0;
 |---|---|---|---|
 | <span class="font-mono">{nbRunId}</span> | {runDatetime} | {cfg.tier ?? "?"} | {runDuration} |
 
-SCOPE_FRAME is the canonical oscilloscope layout — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content.
+A scope frame is the canonical oscilloscope layout — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content.
 
 The frame below is one 600 ms PING simulation on MNIST digit {cfg.input?.digit} sample {cfg.input?.sample}, at stim overdrive {cfg.stim_overdrive}×, ei-strength {cfg.ei_strength}, w-in overdrive {cfg.w_in_overdrive}× — the same knob positions that light up PING in *002*.
 
-{hasFrame && <img src="/figures/notebook/nb001/scope_frame.png" alt="A single SCOPE_FRAME rendering" style={{ width: "100%" }} />}
+{hasFrame && (
+  <Figure id="Figure 1" title="The scope frame at the canonical working point" src="/figures/notebook/nb001/scope_frame.png" alt="A single SCOPE_FRAME rendering">
+    The E-population raster fills the 2×2 block because rhythm is the primary observable; the I raster sits beside it at 1/4 the height, phase-offset from E to close the PING loop. Header readouts, weight histograms, input digit and spike train, output logits, PSD, and population rate flank the central raster — every panel shares the same 600 ms time axis so the network's drive, spikes, and output are read off in one glance.
+  </Figure>
+)}
 
 ## Panels
 
