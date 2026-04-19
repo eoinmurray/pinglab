@@ -8,41 +8,47 @@ structure: paper
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb004/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
-export const snn = numbers.runs?.["snntorch-clone"] ?? {};
-export const lib = numbers.runs?.["snntorch-library"] ?? {};
-export const cuba = numbers.runs?.cuba ?? {};
 export const cfg = numbers.config ?? {};
+export const regimes = numbers.regimes ?? {};
+export const regimeKeys = Object.keys(regimes).sort((a, b) => parseFloat(a) - parseFloat(b));
+export const r1 = regimes[regimeKeys[0]] ?? {};
+export const r2 = regimes[regimeKeys[1]] ?? {};
+export const dt1 = r1.dt_train ?? regimeKeys[0];
+export const dt2 = r2.dt_train ?? regimeKeys[1];
+export const rk1 = r1.regime_key ?? "dt?";
+export const rk2 = r2.regime_key ?? "dt?";
+export const snn1 = r1.runs?.["snntorch-clone"] ?? {};
+export const lib1 = r1.runs?.["snntorch-library"] ?? {};
+export const cuba1 = r1.runs?.cuba ?? {};
+export const snn2 = r2.runs?.["snntorch-clone"] ?? {};
+export const lib2 = r2.runs?.["snntorch-library"] ?? {};
+export const cuba2 = r2.runs?.cuba ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const runDuration = numbers.duration ?? "?";
-export const latestRun = snn.run_date ?? lib.run_date ?? cuba.run_date ?? "?";
+export const latestRun = snn1.run_date ?? lib1.run_date ?? cuba1.run_date ?? "?";
 export const sec = (v) => (typeof v === "number" ? v.toFixed(0) : "?");
 export const num = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
-export const pct = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 export const spread = (r) => (r && typeof r.sweep_min_acc === "number" && typeof r.sweep_max_acc === "number"
   ? `${r.sweep_min_acc.toFixed(1)}–${r.sweep_max_acc.toFixed(1)}`
   : "?");
 export const rateSpread = (r) => (r && typeof r.sweep_min_hid_rate_hz === "number" && typeof r.sweep_max_hid_rate_hz === "number"
   ? `${r.sweep_min_hid_rate_hz.toFixed(1)}–${r.sweep_max_hid_rate_hz.toFixed(1)}`
   : "?");
+export const rateRatio = (r) => (r && typeof r.sweep_max_hid_rate_hz === "number" && typeof r.sweep_min_hid_rate_hz === "number" && r.sweep_min_hid_rate_hz > 0
+  ? r.sweep_max_hid_rate_hz / r.sweep_min_hid_rate_hz
+  : null);
+export const ratioFmt = (x, digits = 0) => (typeof x === "number" ? (digits === 0 ? Math.round(x) : x.toFixed(digits)) : "?");
 
 export const figGlob = import.meta.glob("../../../public/figures/notebook/nb004/*.{png,mp4}", { eager: true, query: "?url", import: "default" });
-export const hasTrainingCurves = Object.keys(figGlob).some((k) => k.endsWith("/training_curves.png"));
-export const hasDtSweep = Object.keys(figGlob).some((k) => k.endsWith("/dt_sweep.png"));
-export const hasFiringRates = Object.keys(figGlob).some((k) => k.endsWith("/firing_rates.png"));
-export const hasSnnVideo = Object.keys(figGlob).some((k) => k.endsWith("/training_snntorch-clone.mp4"));
-export const hasLibVideo = Object.keys(figGlob).some((k) => k.endsWith("/training_snntorch-library.mp4"));
-export const hasCubaVideo = Object.keys(figGlob).some((k) => k.endsWith("/training_cuba.mp4"));
-export const hasSnnSweepVideo = Object.keys(figGlob).some((k) => k.endsWith("/dt_sweep_snntorch-clone.mp4"));
-export const hasLibSweepVideo = Object.keys(figGlob).some((k) => k.endsWith("/dt_sweep_snntorch-library.mp4"));
-export const hasCubaSweepVideo = Object.keys(figGlob).some((k) => k.endsWith("/dt_sweep_cuba.mp4"));
+export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" + name));
 
 # CUBA vs snntorch-clone Δt-stability
 
 <p><span class="font-mono">nb004</span> · Sunday, 19<sup>th</sup> April 26</p>
 
-| Run ID | Date | Size | Train *dt* | Duration |
-|---|---|---|---|---|
-| <span class="font-mono">{nbRunId}</span> | {latestRun} | {cfg.tier ?? "?"} | {cfg.dt_train ?? "?"} ms | {runDuration} |
+| Run ID | Date | Size | Train *dt* (ms) | Eval *dt* sweep (ms) | Duration |
+|---|---|---|---|---|---|
+| <span class="font-mono">{nbRunId}</span> | {latestRun} | {cfg.tier ?? "?"} | {(cfg.dt_trains ?? []).join(", ")} | \{{(cfg.dt_sweep ?? []).join(", ")}\} | {runDuration} |
 
 ## Introduction
 
@@ -52,9 +58,9 @@ At training *dt* the canonical and continuous update rules are numerically close
 
 ## Method
 
-All three models train once at *dt* = {cfg.dt_train ?? "?"} ms, then run inference across *dt* ∈ \{{(cfg.dt_sweep ?? []).join(", ")}\} ms with the trained weights frozen.
+All three models are trained twice — once at a fine training *dt* = {dt1} ms, once at a coarse training *dt* = {dt2} ms — then for each regime we run inference across *dt* ∈ \{{(cfg.dt_sweep ?? []).join(", ")}\} ms with the trained weights frozen. The two regimes let us separate *absolute* eval-*dt* effects from *ratio* (eval/train) effects: if the Δt-stability story is driven by the ratio, the canonical curves should shift horizontally with train-*dt* while *cuba* stays flat in both panels.
 
-**Matched init.** *snntorch-clone* and *cuba* share the *SNNTorchNet* class and differ only in a runtime *discretisation* flag, so with matched seed they allocate every parameter in the same order. *cuba* additionally receives a one-shot init-scale (*W* × $dt/(1-\beta)$, *b* × $1/(1-\beta)$) that cancels the per-step drive factors at training *dt*, leaving both models at the same init firing rate from the same random realisation. *snntorch-library* wraps *nn.Linear* with *snnTorch*'s own *kaiming_uniform_* convention, so its init is independent — it is not in the single-variable bit-match claim and is instead a parity probe on the discretisation itself. The preflight asserts bit-equal init across the *SNNTorchNet* family and records the library's independent init separately.
+**Matched init.** *snntorch-clone* and *cuba* share the *SNNTorchNet* class and differ only in a runtime *discretisation* flag, so with matched seed they allocate every parameter in the same order. *cuba* additionally receives a one-shot init-scale (*W* × $dt/(1-\beta)$, *b* × $1/(1-\beta)$) that cancels the per-step drive factors at training *dt* — a different scale per regime, recorded in *numbers.json*. *snntorch-library* wraps *nn.Linear* with *snnTorch*'s own *kaiming_uniform_* convention, so its init is independent — parity probe on the discretisation, not a bit-match. The preflight asserts bit-equal pre-scale init across the *SNNTorchNet* family.
 
 **Frozen inputs.** The spike pattern is encoded once at the finest *dt* and OR-pooled down to coarser ones, so the only thing changing between sweep points is the LIF update at eval time — not the Poisson realisation.
 
@@ -62,15 +68,15 @@ All three models train once at *dt* = {cfg.dt_train ?? "?"} ms, then run inferen
 
 ### Accuracy vs eval-*dt*
 
-{hasDtSweep && <img src="/figures/notebook/nb004/dt_sweep.png" alt="Accuracy vs eval-dt for snntorch-clone, snntorch-library, and cuba" />}
+{hasFig("dt_sweep.png") && <img src="/figures/notebook/nb004/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime" />}
 
-All three models agree at the training *dt* (red dashed line) and diverge as *dt* moves away. *cuba* spread {spread(cuba)}%; *snntorch-clone* spread {spread(snn)}%; *snntorch-library* spread {spread(lib)}%. The two canonical-discretisation paths (*snntorch-clone* and *snntorch-library*) track each other, confirming that the spread is a property of the canonical update rule rather than of pinglab's implementation. The wider the spread, the more the model's in-training behaviour is tied to the specific step size it saw — the narrow-spread model is the one that learned LIF dynamics rather than step-count dynamics.
+Each panel is one training regime. Canonical models agree at the training *dt* (red dashed line) and diverge as eval-*dt* moves away; the sag-point tracks train-*dt*, consistent with the ratio-driven story. *cuba* spread at dt={dt1}: {spread(cuba1)}%; at dt={dt2}: {spread(cuba2)}%. *snntorch-clone* spread at dt={dt1}: {spread(snn1)}%; at dt={dt2}: {spread(snn2)}%. *snntorch-library* spread at dt={dt1}: {spread(lib1)}%; at dt={dt2}: {spread(lib2)}%. The two canonical-discretisation paths track each other in both regimes, confirming the spread is a property of the canonical update rule rather than of pinglab's implementation. At the **{cfg.tier ?? "?"}** tier the training signal is thin; dt={dt2} *cuba* in particular does not converge above chance in {cfg.epochs ?? "?"} epochs of {cfg.max_samples ?? "?"} samples, so its "flat" line is a trivial silent-network flatness. The ladder-invariance claim for *cuba* rests on the dt={dt1} panel, where it learns and the sweep is narrow; confirming dt={dt2} *cuba* is a next-steps follow-up at a bigger tier.
 
 ### Hidden firing rate vs eval-*dt*
 
-{hasFiringRates && <img src="/figures/notebook/nb004/firing_rates.png" alt="Mean hidden firing rate vs eval-dt for snntorch-clone, snntorch-library, and cuba" />}
+{hasFig("firing_rates.png") && <img src="/figures/notebook/nb004/firing_rates.png" alt="Mean hidden firing rate vs eval-dt, one panel per training-dt regime" />}
 
-Mean hidden-layer firing rate, log-log. This is the mechanistic companion to the accuracy plot. *snntorch-clone* rate spread {rateSpread(snn)} Hz; *snntorch-library* spread {rateSpread(lib)} Hz; *cuba* spread {rateSpread(cuba)} Hz. The two canonical-discretisation paths drop by 60–100× across the sweep; *cuba* stays flat. Rate-flatness is the *cause* of accuracy-stability: the network sees the same activity distribution at eval that it saw at training.
+Mean hidden-layer firing rate, log-log. This is the mechanistic companion to the accuracy plot. Canonical-path rate spread at dt={dt1}: {rateSpread(snn1)} Hz (clone), {rateSpread(lib1)} Hz (library); at dt={dt2}: {rateSpread(snn2)} Hz (clone), {rateSpread(lib2)} Hz (library). *cuba* spread at dt={dt1}: {rateSpread(cuba1)} Hz (flat, ~55 Hz across the sweep — the healthy case). At dt={dt2} *cuba* trained to a silent network at this tier, so its "flat" rate is degenerate and does not test the invariance claim. The canonical paths fan out by 1–2 orders of magnitude across the sweep in both regimes. Rate-flatness is the *cause* of accuracy-stability in the dt={dt1} panel: the network sees the same activity distribution at eval that it saw at training.
 
 ### Why the canonical rate drops as *dt* grows
 
@@ -82,15 +88,18 @@ the steady-state membrane under a Poisson drive of rate $r$ is
 
 $$\text{mem}_{ss} = \frac{W \cdot \mathbb{E}[s_{step}]}{1-\beta} + \frac{b}{1-\beta}.$$
 
-With frozen inputs $\mathbb{E}[s_{step}] \approx r\,dt$ (Poisson binning at matched rate) and for small $dt/\tau$, $1-\beta \approx dt/\tau$. So the spike contribution is $W\,r\,\tau$ — *dt-invariant* — while the bias contribution is $b\,\tau/dt$, scaling as **1/dt**. The spike drive is already dt-stable; the bias drive is not. Biases were trained at *dt* = {cfg.dt_train ?? "?"} ms to push membrane to threshold; at coarser eval-*dt* they contribute proportionally less per ms, at finer eval-*dt* proportionally more.
+With frozen inputs $\mathbb{E}[s_{step}] \approx r\,dt$ (Poisson binning at matched rate) and for small $dt/\tau$, $1-\beta \approx dt/\tau$. So the spike contribution is $W\,r\,\tau$ — *dt-invariant* — while the bias contribution is $b\,\tau/dt$, scaling as **1/dt**. The spike drive is already dt-stable; the bias drive is not. Biases were trained to push membrane to threshold *at training-dt*; at coarser eval-*dt* they contribute proportionally less per ms, at finer eval-*dt* proportionally more. The ratio is the same regardless of the training *dt* — eval-*dt* sweeping over 0.05–2.0 ms spans a 40× range, so the 1/*dt* prediction is 40× in both regimes.
 
-The observed rate ratios line up with that prediction:
+Observed rate ratios across the eval sweep:
 
-| model | rate @ *dt*=0.05 | rate @ *dt*=2.0 | observed ratio | 1/*dt* prediction |
-|---|---|---|---|---|
-| snntorch-clone   | {num(snn.sweep_max_hid_rate_hz)} Hz | {num(snn.sweep_min_hid_rate_hz)} Hz | ~{typeof snn.sweep_max_hid_rate_hz === "number" && typeof snn.sweep_min_hid_rate_hz === "number" && snn.sweep_min_hid_rate_hz > 0 ? Math.round(snn.sweep_max_hid_rate_hz / snn.sweep_min_hid_rate_hz) : "?"}× | 40× |
-| snntorch-library | {num(lib.sweep_max_hid_rate_hz)} Hz | {num(lib.sweep_min_hid_rate_hz)} Hz | ~{typeof lib.sweep_max_hid_rate_hz === "number" && typeof lib.sweep_min_hid_rate_hz === "number" && lib.sweep_min_hid_rate_hz > 0 ? Math.round(lib.sweep_max_hid_rate_hz / lib.sweep_min_hid_rate_hz) : "?"}× | 40× |
-| cuba             | {num(cuba.sweep_max_hid_rate_hz)} Hz | {num(cuba.sweep_min_hid_rate_hz)} Hz | ~{typeof cuba.sweep_max_hid_rate_hz === "number" && typeof cuba.sweep_min_hid_rate_hz === "number" && cuba.sweep_min_hid_rate_hz > 0 ? (cuba.sweep_max_hid_rate_hz / cuba.sweep_min_hid_rate_hz).toFixed(2) : "?"}× | 1× |
+| train *dt* | model | max rate | min rate | observed ratio | 1/*dt* prediction |
+|---|---|---|---|---|---|
+| {dt1} ms | snntorch-clone   | {num(snn1.sweep_max_hid_rate_hz)} Hz  | {num(snn1.sweep_min_hid_rate_hz)} Hz  | ~{ratioFmt(rateRatio(snn1))}× | 40× |
+| {dt1} ms | snntorch-library | {num(lib1.sweep_max_hid_rate_hz)} Hz  | {num(lib1.sweep_min_hid_rate_hz)} Hz  | ~{ratioFmt(rateRatio(lib1))}× | 40× |
+| {dt1} ms | cuba             | {num(cuba1.sweep_max_hid_rate_hz)} Hz | {num(cuba1.sweep_min_hid_rate_hz)} Hz | ~{ratioFmt(rateRatio(cuba1), 2)}× | 1× |
+| {dt2} ms | snntorch-clone   | {num(snn2.sweep_max_hid_rate_hz)} Hz  | {num(snn2.sweep_min_hid_rate_hz)} Hz  | ~{ratioFmt(rateRatio(snn2))}× | 40× |
+| {dt2} ms | snntorch-library | {num(lib2.sweep_max_hid_rate_hz)} Hz  | {num(lib2.sweep_min_hid_rate_hz)} Hz  | ~{ratioFmt(rateRatio(lib2))}× | 40× |
+| {dt2} ms | cuba             | {num(cuba2.sweep_max_hid_rate_hz)} Hz | {num(cuba2.sweep_min_hid_rate_hz)} Hz | ~{ratioFmt(rateRatio(cuba2), 2)}× | 1× |
 
 Both canonical paths come in above the pure 1/*dt* prediction. The excess comes from the LIF threshold nonlinearity: once membrane depolarises past threshold, spike rate rises super-linearly with drive, amplifying the 1/*dt* bias swing.
 
@@ -98,60 +107,46 @@ Both canonical paths come in above the pure 1/*dt* prediction. The excess comes 
 
 $$\text{mem} = \beta \cdot \text{mem} + \frac{1-\beta}{dt} W{\cdot}s + (1-\beta)\, b,$$
 
-so the $(1-\beta)$ prefactor on $b$ cancels the $1/(1-\beta)$ in steady-state — bias contribution becomes just $b$, *dt*-invariant. The $(1-\beta)/dt$ prefactor on $W{\cdot}s$ does the same for the spike term. That's the entire mechanism.
+so the $(1-\beta)$ prefactor on $b$ cancels the $1/(1-\beta)$ in steady-state — bias contribution becomes just $b$, *dt*-invariant. The $(1-\beta)/dt$ prefactor on $W{\cdot}s$ does the same for the spike term. That's the entire mechanism, and it applies identically whether the network was trained at {dt1} ms or {dt2} ms.
 
 ### Training-time parity
 
-{hasTrainingCurves && <img src="/figures/notebook/nb004/training_curves.png" alt="Training curves: snntorch-clone, snntorch-library, cuba" />}
+{hasFig("training_curves.png") && <img src="/figures/notebook/nb004/training_curves.png" alt="Training curves, one row per train-dt regime" />}
 
-*snntorch-clone* best {snn.best_acc ?? "?"}% @ ep {snn.best_epoch ?? "?"}; *snntorch-library* best {lib.best_acc ?? "?"}% @ ep {lib.best_epoch ?? "?"}; *cuba* best {cuba.best_acc ?? "?"}% @ ep {cuba.best_epoch ?? "?"}. Final training losses: {num(snn.final_loss)} / {num(lib.final_loss)} / {num(cuba.final_loss)}. Training-time behaviour is near-identical across all three — the Δt-stability gap above is not an accuracy-ceiling effect.
+At *dt* = {dt1}: *snntorch-clone* best {snn1.best_acc ?? "?"}% @ ep {snn1.best_epoch ?? "?"}; *snntorch-library* best {lib1.best_acc ?? "?"}% @ ep {lib1.best_epoch ?? "?"}; *cuba* best {cuba1.best_acc ?? "?"}% @ ep {cuba1.best_epoch ?? "?"} — all three land in the same 15–20% band, tier-ceiling behaviour. At *dt* = {dt2}: *snntorch-clone* best {snn2.best_acc ?? "?"}% @ ep {snn2.best_epoch ?? "?"}; *snntorch-library* best {lib2.best_acc ?? "?"}% @ ep {lib2.best_epoch ?? "?"}; *cuba* best {cuba2.best_acc ?? "?"}% @ ep {cuba2.best_epoch ?? "?"}. At dt={dt2} the canonical paths jump clear of tier-ceiling (~70–78%) while *cuba*'s bias-scaled init leaves it too-quiet-to-learn at {cfg.epochs ?? "?"} epochs — it trains to a silent network. The {cfg.epochs ?? "?"}-epoch / {cfg.max_samples ?? "?"}-sample tier is therefore a sanity-check of the plumbing, not of the ladder-invariance claim at coarse train-*dt*.
 
 ### Scope videos
 
-Two videos per model: one frame per training epoch (sidebars accumulate accuracy, gradient flow, E/I rate), and one frame per sweep *dt* at frozen weights (E raster and accuracy sidebar drift as *dt* moves off training).
+Two videos per (model, regime): one frame per training epoch (sidebars accumulate accuracy, gradient flow, E/I rate), and one frame per sweep *dt* at frozen weights (E raster and accuracy sidebar drift as *dt* moves off training).
 
-#### snntorch-clone
+#### Train at *dt* = {dt1} ms
 
-{hasSnnVideo && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb004/training_snntorch-clone.mp4" />}
+**snntorch-clone.** {hasFig(`training_${rk1}_snntorch-clone.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/training_${rk1}_snntorch-clone.mp4`} />} {hasFig(`dt_sweep_${rk1}_snntorch-clone.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/dt_sweep_${rk1}_snntorch-clone.mp4`} />}
 
-*training_snntorch-clone.mp4* — training, elapsed {sec(snn.total_elapsed_s)} s.
+**snntorch-library.** {hasFig(`training_${rk1}_snntorch-library.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/training_${rk1}_snntorch-library.mp4`} />} {hasFig(`dt_sweep_${rk1}_snntorch-library.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/dt_sweep_${rk1}_snntorch-library.mp4`} />}
 
-{hasSnnSweepVideo && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb004/dt_sweep_snntorch-clone.mp4" />}
+**cuba.** {hasFig(`training_${rk1}_cuba.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/training_${rk1}_cuba.mp4`} />} {hasFig(`dt_sweep_${rk1}_cuba.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/dt_sweep_${rk1}_cuba.mp4`} />}
 
-*dt_sweep_snntorch-clone.mp4* — frozen-input Δt-sweep at trained weights.
+#### Train at *dt* = {dt2} ms
 
-#### snntorch-library
+**snntorch-clone.** {hasFig(`training_${rk2}_snntorch-clone.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/training_${rk2}_snntorch-clone.mp4`} />} {hasFig(`dt_sweep_${rk2}_snntorch-clone.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/dt_sweep_${rk2}_snntorch-clone.mp4`} />}
 
-{hasLibVideo && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb004/training_snntorch-library.mp4" />}
+**snntorch-library.** {hasFig(`training_${rk2}_snntorch-library.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/training_${rk2}_snntorch-library.mp4`} />} {hasFig(`dt_sweep_${rk2}_snntorch-library.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/dt_sweep_${rk2}_snntorch-library.mp4`} />}
 
-*training_snntorch-library.mp4* — external *snn.Leaky* reference, elapsed {sec(lib.total_elapsed_s)} s.
-
-{hasLibSweepVideo && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb004/dt_sweep_snntorch-library.mp4" />}
-
-*dt_sweep_snntorch-library.mp4* — independent init, same canonical discretisation; sidebar accuracy should track *snntorch-clone*'s.
-
-#### cuba
-
-{hasCubaVideo && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb004/training_cuba.mp4" />}
-
-*training_cuba.mp4* — matched config, elapsed {sec(cuba.total_elapsed_s)} s.
-
-{hasCubaSweepVideo && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb004/dt_sweep_cuba.mp4" />}
-
-*dt_sweep_cuba.mp4* — $(1-\beta)/dt$ scaling keeps the raster and accuracy roughly fixed across eval-*dt*.
+**cuba.** {hasFig(`training_${rk2}_cuba.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/training_${rk2}_cuba.mp4`} />} {hasFig(`dt_sweep_${rk2}_cuba.mp4`) && <video controls loop muted playsinline width="100%" src={`/figures/notebook/nb004/dt_sweep_${rk2}_cuba.mp4`} />}
 
 ## Implications
 
-The canonical snnTorch discretisation is fundamentally tied to the *dt* it trained under: moving eval-*dt* changes the effective per-ms bias drive by a factor of *dt_train*/*dt_eval*, and the network — having learned to balance against its training-time drive — spikes a 60–100× range of rates across a 40× *dt* range. The $(1-\beta)/dt$ and $(1-\beta)$ scalings in *cuba*'s update are the minimum correction to un-break this: both are required, one per drive term. That is, *cuba* is not "canonical plus a nicer prefactor" — it is the unique per-step scaling that makes the steady-state membrane *dt*-invariant.
+The canonical snnTorch discretisation is fundamentally tied to the *dt* it trained under: moving eval-*dt* changes the effective per-ms bias drive by a factor of *dt_train*/*dt_eval*, regardless of whether training happened at {dt1} ms or {dt2} ms. Networks — having learned to balance against their training-time drive — spike across 1–2 orders of magnitude of rates across the 40× eval-*dt* range, and this pattern reproduces in both regimes for the canonical paths. The $(1-\beta)/dt$ and $(1-\beta)$ scalings in *cuba*'s update are the minimum correction to un-break this: both are required, one per drive term. At train-*dt* = {dt1} ms *cuba* learns and holds a flat rate across the sweep — the steady-state membrane is *dt*-invariant as predicted. At train-*dt* = {dt2} ms the **extra small** tier is too thin for *cuba* to train at all (see *Next steps*), so the dt={dt2} panel presently tests only the canonical paths.
 
 For the CUBA ladder, this matters because every subsequent rung (cuba-exp, coba, ping) inherits the continuous discretisation. The Δt-stability property is therefore a *ladder invariant* — each rung should retain it. If a later rung breaks it, that is a defect in the rung, not a property of biophysics.
 
 ## Next steps
 
-- **cuba → cuba-exp**: add an exponential synaptic kernel and repeat the same Δt-stability sweep. Expected: flat rate and accuracy, matching *cuba*.
+- **cuba → cuba-exp**: add an exponential synaptic kernel and repeat the same Δt-stability sweep across both regimes. Expected: flat rate and accuracy, matching *cuba*.
 - **cuba-exp → coba**: swap current-based drive for conductance-based. Biggest single jump in biophysical realism; also the first point where E/I separation enters.
 - **coba → ping**: add recurrence + I-to-E delays to produce γ oscillations. Δt-stability test becomes: does the oscillation frequency shift with eval-*dt*?
-- Sanity: re-run nb004 at larger tier (small / medium) so the accuracy spreads above are not noise-limited at {cfg.max_samples ?? "?"} samples / {cfg.epochs ?? "?"} epochs.
+- Sanity: re-run nb004 at a larger tier (small / medium) so the accuracy spreads above are not noise-limited at {cfg.max_samples ?? "?"} samples / {cfg.epochs ?? "?"} epochs per regime — and so *cuba* at train-*dt* = {dt2} ms trains past the silent-network regime and confirms the flat-rate claim there as well.
 
 ## Parameters
 
@@ -159,15 +154,18 @@ For the CUBA ladder, this matters because every subsequent rung (cuba-exp, coba,
 |---|---|
 | Dataset | {cfg.dataset ?? "?"} |
 | Samples / Epochs | {cfg.max_samples ?? "?"} / {cfg.epochs ?? "?"} |
-| T / train-dt | {cfg.t_ms ?? "?"} ms / {cfg.dt_train ?? "?"} ms |
-| Eval dt sweep | \{{(cfg.dt_sweep ?? []).join(", ")}\} ms |
+| T / train-*dt*s | {cfg.t_ms ?? "?"} ms / \{{(cfg.dt_trains ?? []).join(", ")}\} ms |
+| Eval *dt* sweep | \{{(cfg.dt_sweep ?? []).join(", ")}\} ms |
 | Hidden | {cfg.n_hidden ?? "?"} |
 | Batch / lr | {cfg.batch_size ?? "?"} / {cfg.lr ?? "?"} |
 | Seed | {cfg.seed ?? "?"} |
 | Tier | **{cfg.tier ?? "?"}** — see [LLM Conventions § Run sizing tiers](/llm-conventions#8-run-sizing-tiers) |
-| Elapsed (snntorch-clone / library / cuba) | {sec(snn.total_elapsed_s)} s / {sec(lib.total_elapsed_s)} s / {sec(cuba.total_elapsed_s)} s |
-| Run ID (snntorch-clone / library / cuba) | {snn.run_id ?? "?"} / {lib.run_id ?? "?"} / {cuba.run_id ?? "?"} |
-| Git SHA (snntorch-clone / library / cuba) | {snn.git_sha ?? "?"} / {lib.git_sha ?? "?"} / {cuba.git_sha ?? "?"} |
+| Elapsed @ dt={dt1} (clone / lib / cuba) | {sec(snn1.total_elapsed_s)} s / {sec(lib1.total_elapsed_s)} s / {sec(cuba1.total_elapsed_s)} s |
+| Elapsed @ dt={dt2} (clone / lib / cuba) | {sec(snn2.total_elapsed_s)} s / {sec(lib2.total_elapsed_s)} s / {sec(cuba2.total_elapsed_s)} s |
+| Run ID @ dt={dt1} (clone / lib / cuba) | {snn1.run_id ?? "?"} / {lib1.run_id ?? "?"} / {cuba1.run_id ?? "?"} |
+| Run ID @ dt={dt2} (clone / lib / cuba) | {snn2.run_id ?? "?"} / {lib2.run_id ?? "?"} / {cuba2.run_id ?? "?"} |
+| Git SHA @ dt={dt1} (clone / lib / cuba) | {snn1.git_sha ?? "?"} / {lib1.git_sha ?? "?"} / {cuba1.git_sha ?? "?"} |
+| Git SHA @ dt={dt2} (clone / lib / cuba) | {snn2.git_sha ?? "?"} / {lib2.git_sha ?? "?"} / {cuba2.git_sha ?? "?"} |
 
 ## Reproduction
 
