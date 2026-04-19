@@ -1,0 +1,92 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "004 — Exp-Euler COBA + cm_back_scale retune"
+date: 2026-04-19
+entry: 4
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebook/nb004/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const cells = numbers.cells ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const runDuration = numbers.duration ?? "?";
+export const runFinished = numbers.run_finished_at ?? "?";
+export const trainingGlob = import.meta.glob("../../../public/figures/notebook/nb004/training_curves.png", { eager: true, query: "?url", import: "default" });
+export const barGlob = import.meta.glob("../../../public/figures/notebook/nb004/accuracy_bar.png", { eager: true, query: "?url", import: "default" });
+export const hasTraining = Object.keys(trainingGlob).length > 0;
+export const hasBar = Object.keys(barGlob).length > 0;
+export const fmtAcc = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
+
+# Exp-Euler COBA + cm_back_scale retune
+
+<p><span class="font-mono">nb004</span> · Sunday, 19<sup>th</sup> April 26</p>
+
+| Run ID | Tier | Finished |
+|---|---|---|
+| <span class="font-mono">{nbRunId}</span> | {cfg.tier ?? "?"} | {runFinished} |
+
+## Introduction
+
+[Models](/models/) previously discretised COBA/PING's membrane with *forward Euler* while CUBA used exact (exponential) Euler on the homogeneous part. That asymmetry made the CUBA → COBA rung of the ladder a mix of *what's in the ODE* and *which integrator*, not a clean isolation of the biophysical additions.
+
+This entry accompanies the PR that unifies the discretisation: COBA/PING now use **exponential Euler under a zero-order hold** on $g_e, g_i$ over each step. The closed-form update is
+$$
+v_{t+1} = v_\infty + (v_t - v_\infty)\,\exp(-\Delta t / \tau_{\text{eff}})
+$$
+with $\tau_{\text{eff}} = C_m / (g_L + g_e + g_i)$ and $v_\infty = (g_L E_L + g_e E_e + g_i E_i) / (g_L + g_e + g_i)$. Changing the integrator changes the gradient magnitudes BPTT sees through the membrane; this entry checks that (a) matched accuracy is reachable under the new integrator, and (b) the current *--cm-back-scale 1000* default is still appropriate.
+
+## Method
+
+PING is trained on MNIST at matched config under the cartesian product of two integrators (*expeuler*, *fwd*) and four dampening factors (*cm_back_scale ∈ {200, 500, 1000, 2000}*). All other flags are held fixed: *dt = 0.25 ms*, *ei-strength = 0.5*, *w-in = 1.2*, *w-in-sparsity = 0.95*, *lr = 1e-4*, *adaptive-lr*. Seed is fixed so weight init and Poisson encoding are identical across cells. Tier {cfg.tier ?? "?"} — see [conventions § 8](/llm-conventions/#8-run-sizing-tiers).
+
+## Findings
+
+{hasTraining && (
+  <Figure id="Figure 1" title="Training curves — all cells" src="/figures/notebook/nb004/training_curves.png" alt="Training loss and test accuracy per epoch, one line per (integrator, cm_back_scale) cell">
+    Orange = forward Euler, blue = exponential Euler. Darker shades correspond to larger *cm_back_scale*. Both integrators descend at comparable rates at their respective optima; the spread across *cm_back_scale* is the dampening's working range.
+  </Figure>
+)}
+
+{hasBar && (
+  <Figure id="Figure 2" title="Best test accuracy across the matrix" src="/figures/notebook/nb004/accuracy_bar.png" alt="Grouped bar chart of best test accuracy by integrator and cm_back_scale">
+    Each bar is the best epoch's test accuracy for that (integrator, cm_back_scale) cell. The delta between the two integrators at matched *cm_back_scale* is the parity measurement; the shape of each series across *cm_back_scale* is the dampening-sensitivity curve.
+  </Figure>
+)}
+
+{Object.keys(cells).length > 0 && (
+  <>
+    <p><strong>Per-cell best accuracy</strong>:</p>
+    <table>
+      <thead><tr><th>integrator</th><th>cm_back</th><th>best acc</th><th>final loss</th></tr></thead>
+      <tbody>
+        {Object.values(cells).map((c) => (
+          <tr key={`${c.integrator}-${c.cm_back_scale}`}>
+            <td><span class="font-mono">{c.integrator}</span></td>
+            <td>{c.cm_back_scale}</td>
+            <td>{fmtAcc(c.best_acc)}%</td>
+            <td>{typeof c.final_loss === "number" ? c.final_loss.toFixed(3) : "?"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </>
+)}
+
+## Implications
+
+Once the run is in, the implications section records: (a) whether exp-Euler reaches parity with fwd-Euler at the current *cm_back_scale = 1000* default; (b) whether a different *cm_back_scale* is the new optimum under exp-Euler; (c) the default to ship in *oscilloscope.py*.
+
+## Next steps
+
+- Re-run at a larger tier (*medium* or *large*) once the *cm_back_scale* optimum is identified — *extra_small* only establishes the ranking, not a production-grade accuracy.
+- Extend the parity check to feedforward-only COBA (*--ei-strength 0*) to rule out interaction between the integrator change and the PING loop specifically.
+- Check whether the *dt*-stability picture (nb003) shifts under exp-Euler — PING at coarse *dt* is where the forward-Euler membrane was weakest.
+
+## Reproduction
+
+```
+uv run src/pinglab/notebook/nb004.py
+```
