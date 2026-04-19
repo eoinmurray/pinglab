@@ -48,9 +48,9 @@ $$
 U_{t+1} \leftarrow \begin{cases} 0 & \text{if reset}=\text{zero and } S_t = 1 \\ U_{t+1} - \theta\, S_t & \text{if reset}=\text{subtract} \end{cases}
 $$
 
-In its canonical spec $\beta$ is dimensionless and there is no $\Delta t$ — simulation runs for $t = 0, \dots, T_{\text{steps}}-1$ and time is step-indexed. A spike from neuron $i$ in step $t$ adds exactly $W_i$ to the membrane; bias is added every step. Threshold $\theta = 1$.
+In its canonical spec $\beta$ is dimensionless and there is no $\Delta t$ — simulation runs for $t = 0, \dots, T_{\text{steps}}-1$ and time is step-indexed (cf. [Tutorial 3 § Lapicque's LIF Neuron Model](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html), where $\beta$ is fitted for a fixed step-size and the update is iterated step-by-step). A spike from neuron $i$ in step $t$ adds exactly $W_i$ to the membrane; bias is added every step. Threshold $\theta = 1$.
 
-This is the deep-learning framing of an SNN: a recurrent network with binary activations and a leaky scalar state, parameterised by $\beta$. It has no $\Delta t$-invariance because there is no $\Delta t$ in its spec — the dt-dependence comes from pinglab's decision to plug in $\beta = e^{-\Delta t/\tau_{\text{snn}}}$ while leaving $W$ and $b$ unscaled. A bias $b$ is added once per step, so over fixed real time it fires $T_{\text{ms}}/\Delta t$ times — 10× more often at fine $\Delta t$. That residual $\Delta t$-dependence is the asymmetric bias-balloon failure.
+This is the deep-learning framing of an SNN: a recurrent network with binary activations and a leaky scalar state, parameterised by $\beta$ — the canonical BPTT-through-surrogate setup detailed in [snnTorch Tutorial 5](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html). It has no $\Delta t$-invariance because there is no $\Delta t$ in its spec — the dt-dependence comes from pinglab's decision to plug in $\beta = e^{-\Delta t/\tau_{\text{snn}}}$ while leaving $W$ and $b$ unscaled. A bias $b$ is added once per step, so over fixed real time it fires $T_{\text{ms}}/\Delta t$ times — 10× more often at fine $\Delta t$. That residual $\Delta t$-dependence is the asymmetric bias-balloon failure.
 
 **Compared to snnTorch-library:** identical update rule, different implementation — any numeric gap between the two localises to the LIF step or surrogate-gradient code, not to the model spec.
 
@@ -187,7 +187,7 @@ so the per-neuron firing rate is $x_i \cdot r_{\max}$ Hz, independent of $\Delta
 
 ### Surrogate gradient
 
-The spike function $S = \mathbf{1}[U \geq \theta]$ has zero gradient almost everywhere, so backward passes use a surrogate. Pinglab uses fast-sigmoid with pseudo-derivative
+The spike function $S = \mathbf{1}[U \geq \theta]$ has zero gradient almost everywhere, so backward passes use a surrogate. Pinglab uses fast-sigmoid (matching [snntorch.surrogate.fast_sigmoid](https://snntorch.readthedocs.io/en/latest/snntorch.surrogate.html); motivation and alternatives discussed in [Tutorial 5 § The Surrogate Gradient Approach](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html)) with pseudo-derivative
 
 $$
 \frac{\partial \tilde S}{\partial U}\bigg|_{U} = \frac{k}{(1 + k\,|U - \theta|)^2}
