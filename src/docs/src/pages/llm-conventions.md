@@ -5,141 +5,21 @@ title: "LLM Conventions"
 
 # LLM Conventions
 
-Pinglab is a research project on spiking neural networks and PING dynamics. This page orients a new agent or collaborator to the repo layout, conventions, and how to run things.
-
-## How this project is run
-
-Pinglab treats the human–AI collaboration driving it as an experimental method, not as scaffolding. The position is between *AI runs the experiments* (aspirational) and *AI helps you write* (surface polish): the AI participates across code, analysis, framing, and writing, while a six-layer architecture with explicit promotion gates keeps contributions reviewable.
-
-## Repo layout
-
-The project is organised in six layers. Each layer has one job; they are connected by manual promotion gates.
-
-- **Code** — *src/pinglab/*. Models, training/inference CLI (*oscilloscope.py*), metrics, plotting, notebook notebook runners. Pure Python under [uv](https://docs.astral.sh/uv/).
-- **Run outputs** — *src/artifacts/*. Raw figures, videos, logs produced by *oscilloscope.py* and notebook notebook runners. Gitignored.
-- **Frozen figures** — *src/docs/public/figures/notebook/&lt;entry-slug&gt;/*. Published figures with sidecar JSONs carrying the git SHA and run config that produced them. One directory per notebook entry.
-- **Documentation** — *src/docs/src/pages/*. This Astro site. The substantive content lives under *notebook/* — dated entries, newest first. Repro scripts for entries live at *src/pinglab/notebook/&lt;entry-slug&gt;.py*.
-- **Reference literature** — *src/papers/*. Bibliography for the project (PDFs themselves are not redistributed; see *src/papers/README.md* for citations).
-- **Collaboration meta** — *CLAUDE.md* at the repo root, this LLM Conventions page, and a persistent memory directory under *~/.claude/projects/-Users-eoin-pinglab/memory/*. The agreed-upon rules for how the human and AI work on this project.
-
-Raw run outputs go to *src/artifacts/* (gitignored). Published figures live under *src/docs/public/figures/notebook/&lt;slug&gt;/* and are written there directly by the entry's notebook runner — that script *is* the promotion gate.
-
-## Notebook
-
-All writeups are notebook entries at *src/docs/src/pages/notebook/&lt;slug&gt;.mdx*, listed chronologically on the home page at *src/docs/src/pages/index.astro*. There is no separate per-experiment page or paper layer — when a paper-shaped writeup is appropriate, it is a notebook entry like any other. The notebook is a lab notebook: dated, bench-driven, with numbers pulled live from each entry's notebook runner.
-
-**Slug.** *nb* prefix + zero-padded entry number — e.g. *nb001*, *nb002*. Numbers are global, sequential, and assigned in order of creation; they are the entry's primary identifier and the key for the parallel repro and figures directories. The slug is the filename and the URL. The descriptive name lives in the frontmatter *title* field, not the slug. No date in the slug — the canonical date lives in the entry's frontmatter (*date: YYYY-MM-DD*) and in its visible long-form byline. Next entry number: one more than the highest under *src/pinglab/notebook/*.
-
-Most entries follow a fixed structure: Introduction, Method, Findings, Implications, Next steps. Longer paper-style drafts keep their own section numbering.
-
-Each entry that cites generated figures or numbers gets a notebook runner at *src/pinglab/notebook/&lt;slug&gt;.py* (e.g. *nb001.py*) — one command regenerates every figure and dumps a *numbers.json* next to them under *src/docs/public/figures/notebook/&lt;slug&gt;/*.
-
-## Notebook entry review
-
-Before a finding in a notebook entry is considered load-bearing, run the entry past an adversarial reviewer in a fresh Claude session — no shared context with the session that wrote it. The reviewer reads the entry cold and challenges the framing. Its output is a critique to incorporate, not a veto: add the reviewer's findings (and how each was addressed or argued down) as a *Reviewer-agent critique* H3 subsection at the end of the entry's *Findings*.
-
-The prompt to paste into the fresh session, followed by the entry text:
-
-```text
-You are an adversarial reviewer for a research notebook entry. The entry below is a draft finding that may be promoted into a longer-form paper. Your job is to read the entry cold — assume nothing about the surrounding project, the author's intentions, or unstated context — and challenge the framing.
-
-Look for:
-
-1. Single-cause framings. Does the entry attribute an effect to one mechanism when multiple plausible mechanisms could explain it? Name each alternative.
-2. Unstated assumptions. Are there premises being treated as obvious that a sceptical reader would question? List them.
-3. Sample-size or statistical-power issues. If numbers are reported, are they robust to seed noise, repetition, or sample-size scaling? Would the conclusion survive a reasonable replication?
-4. Methodology gaps. Is the experiment described in enough detail that a reader could reproduce it? Is the comparison fair? Are confounds controlled?
-5. Overreach. Does the entry's headline claim exceed what the data shows? Is the claim worded more strongly than the evidence supports?
-6. Missing alternatives. Are there obvious alternative experiments that would either falsify or strengthen the claim, and are they acknowledged in the next-steps?
-7. Internal consistency. Do the Findings, Implications, and Next steps cohere? Does the Implications section match the strength of the Findings?
-
-For each issue you raise, give:
-
-- A one-line statement of the issue.
-- The specific text in the entry it applies to (quote it).
-- A concrete suggestion for what would address it (an experiment, a rewording, a caveat, an alternative explanation).
-
-Be concrete and falsifiable. Avoid generic critiques ("could be more rigorous", "needs more data"). If the entry passes a particular check cleanly, say so explicitly — don't manufacture concerns.
-
-End with a one-paragraph summary judgement: is this finding ready to promote into the paper as-is, ready with caveats (list them), or not ready (state why).
-
-The entry follows.
-```
-
-## Figures
-
-Raw outputs from *oscilloscope.py* land under *src/artifacts/* (gitignored). Figures shown in a notebook entry are written by that entry's notebook runner at *src/pinglab/notebook/&lt;slug&gt;.py* directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. The notebook runner is the promotion gate — running it reads the latest run's metrics and writes the published PNG, MP4, and *numbers.json* into place.
-
-Provenance lives in the notebook runner plus git history: the script's *SLUG*, *MAX_SAMPLES*, *EPOCHS*, and *TIER* constants pin the run config; the commit pins the model code. Every published figure belongs to exactly one notebook entry under *src/docs/public/figures/notebook/&lt;slug&gt;/*. Reference from markdown via the web path, e.g. */figures/notebook/&lt;slug&gt;/&lt;figure-name&gt;.png*.
-
-Commit the PNG, the *numbers.json* update, and the markdown edit together. Figures use 16:9 aspect ratio.
-
-## Running
-
-Install [uv](https://docs.astral.sh/uv/) and [bun](https://bun.sh/).
-
-**Train or inspect a model:**
-
-```sh
-uv run python src/pinglab/oscilloscope.py --help
-uv run python src/pinglab/oscilloscope.py train --model snntorch-clone --dataset mnist --max-samples 1000 --epochs 3
-```
-
-**Reproduce a notebook entry:**
-
-```sh
-uv run python src/pinglab/notebook/<entry-slug>.py
-```
-
-Each script is argument-free and regenerates every figure and number its entry cites.
-
-**Run the docs site:**
-
-```sh
-cd src/docs
-bun install
-bun dev
-```
-
-The site is served at *localhost:4321*.
-
-**Run the tests:**
-
-```sh
-uv run pytest
-```
-
-Tests live in *src/pinglab/tests/unit/*. Markers *slow* and *regression* gate the slower subset.
-
-## Glossary
-
-Project-specific terms. Definitions here are load-bearing — if something elsewhere contradicts a definition, this page wins.
-
-- **Oscilloscope** — the training / inference / inspection CLI at *src/pinglab/oscilloscope.py*. Training and evaluation runs go through its *train* and *infer* subcommands; all other invocation patterns drive it (notebook notebook runners shell out to it via *sh*).
-- **Ladder** — the feature-incremental set of models stepping from a vanilla SNN to full PING: *snntorch-clone → cuba → cuba-exp → coba → ping*. Each rung adds one biophysical feature.
-- **Promotion gate** — a manual step that moves content between layers: run output → frozen figure, notebook entry → paper section, ad-hoc preference → persistent memory. Code does not cross these gates.
-- **Calibration** — tuning hyperparameters (weight scales, thresholds, input drive) so models on the ladder are comparable before an experiment runs.
-- **Frozen figure** — a published PNG under *src/docs/public/figures/…* copied from *src/artifacts/…* with a sidecar JSON carrying the git SHA at freeze time and the run config.
-- **Trainable surface** — what optimisation actually updates. Across the ladder it is input + output weights; recurrent weights in *ping* are frozen at init, not trained.
-- **Δt-stability** — the diagnostic of training at one integration timestep and evaluating at another. The shared lens across pinglab experiments.
-- **PING** — Pyramidal-Interneuron Gamma. The E→I→E feedback loop that produces gamma oscillations (30–80 Hz).
-- **CUBA / COBA** — current-based vs conductance-based synapses. The axis the Δt-stability experiment decomposes.
+Hard rules for editing the docs and notebook. For repo layout, workflow narrative, and how to run things, see [Introduction](/introduction/).
 
 ## Invariants and gotchas
 
 Facts about this repo that are load-bearing and easy to get wrong.
 
-- **Δt is in milliseconds.** Everywhere. Config fields carry the *_ms* suffix (*sim_ms*, *burn_in_ms*, *step_on_ms*); CLI flags follow the same convention (*--t-ms*). A "Δt of 1" means 1 ms, not 1 s.
 - **Trial length defaults to 600 ms** (*--t-ms 600*). Shorter trials emit a warning — the harness will let you run them but flags that the transient window is too short.
 - **Raw run outputs go to src/artifacts/; published figures go to src/docs/public/figures/notebook/&lt;slug&gt;/.** *oscilloscope.py* writes only to its *--out-dir* (typically under *src/artifacts/*). The notebook notebook runner reads from those run dirs and writes published figures directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. There is no separate freeze step.
 - **src/artifacts/ is gitignored.** Nothing under it is part of the repo; it is reproducible from code + config + seed.
-- **PING recurrent weights are frozen.** Set analytically at init, not trained. Only input and output weights are trainable across the ladder. This is a deliberate control — it isolates the effect of the E–I architecture from learning of internal weights.
 - **Poisson input encoding is frozen across Δt-sweeps.** Each image is encoded once at the finest sweep Δt, then OR-pooled to the target Δt. This eliminates Poisson resampling as a confound.
 - **uv for Python, bun for JavaScript.** No *pip install*, no *npm install*. Lock files are *uv.lock* and *bun.lock*.
 
 ## Conventions
 
-These rules apply when editing the docs and notebook. They are the source of truth — if anything above them conflicts, these win.
+These rules apply when editing the docs and notebook. They are the source of truth — if anything on the [Introduction](/introduction/) page conflicts, these win.
 
 ### 1. Notebook-entry H2 skeleton
 
@@ -236,4 +116,4 @@ Each notebook entry names the tier it ran at — either in Method prose or impli
 
 ## Maintaining this page
 
-When a convention changes, update this page and propagate to persistent memory under *~/.claude/projects/-Users-eoin-pinglab/memory/*. Conventions are enforced by reading and care, not by automation.
+When a convention changes, update this page and propagate to the project's persistent memory store. Conventions are enforced by reading and care, not by automation.

@@ -4,7 +4,7 @@ Trains *snntorch-clone*, *snntorch-library*, and *cuba* at two training
 *dt* regimes (DT_TRAINS), then for each regime runs inference across the
 same eval-*dt* grid (DT_SWEEP) with weights frozen. *cuba* applies
 $(1-\beta)/dt$ drive scaling and should hold accuracy flat across
-eval-*dt* regardless of train-*dt*; the canonical paths sag as eval-*dt*
+eval-*dt* regardless of train-*dt*; the snnTorch paths sag as eval-*dt*
 departs from train-*dt*, and the sag-point moves with train-*dt*. This
 is the first rung-to-rung ablation on the [CUBA
 ladder](/models/#the-ladder).
@@ -46,11 +46,11 @@ FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
 MODELS = ["snntorch-clone", "snntorch-library", "cuba"]
-MAX_SAMPLES = 500
-EPOCHS = 5
+MAX_SAMPLES = 2000
+EPOCHS = 10
 T_MS = 600.0
-# Two training regimes: fine dt (canonical research setting) and coarse dt
-# (near τ_mem, where canonical models typically saturate). Same eval-dt
+# Two training regimes: fine dt (snnTorch research setting) and coarse dt
+# (near τ_mem, where snnTorch models typically saturate). Same eval-dt
 # sweep for both — lets us see whether the 1/dt bias-term story depends on
 # the eval/train ratio (it does) or the absolute eval-dt (it shouldn't).
 DT_TRAINS = [0.1, 1.0]
@@ -58,7 +58,7 @@ DT_TRAINS = [0.1, 1.0]
 # Integer ratios only, so FrozenEncoder OR-pool downsampling stays valid.
 DT_SWEEP = [0.05, 0.1, 0.25, 0.5, 1.0, 2.0]
 SEED = 42
-TIER = "small"  # see src/docs/src/pages/llm-conventions.md § 8 Run sizing tiers
+TIER = "medium"  # see src/docs/src/pages/llm-conventions.md § 8 Run sizing tiers
 TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 
 # Per-step drive compensation for cuba at training dt. cuba's update is
@@ -78,7 +78,7 @@ def cuba_init_scales(dt: float, tau: float = TAU_MEM_MS) -> tuple[float, float]:
 
 
 def init_scales_for(model: str, dt_train: float) -> tuple[float, float]:
-    """Per-step drive compensation is (1.0, 1.0) for both canonical paths;
+    """Per-step drive compensation is (1.0, 1.0) for both snnTorch paths;
     cuba gets dt-dependent (W-scale, b-scale) derived from cuba_init_scales
     so it starts at the same per-step effective drive as snntorch-clone at
     training-dt."""
@@ -300,7 +300,7 @@ def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, Path]],
                       out_path: Path, notebook_run_id: str) -> None:
     """Mean hidden-layer firing rate vs eval-dt, one panel per training
     regime (shared y-axis). Reveals whether the Δt-stability gap in
-    *dt_sweep.png* corresponds to a change in mean activity level (canonical
+    *dt_sweep.png* corresponds to a change in mean activity level (snnTorch
     path: drive scales with 1/dt) or stays flat (cuba: per-ms drive
     invariant)."""
     dt_trains = sorted(regime_sweep_dirs.keys())
