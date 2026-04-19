@@ -256,14 +256,22 @@ def init_conductance(B, N, device):
 
 # ── E-step and I-step composites ─────────────────────────────────────────
 
+COBA_INTEGRATOR = "expeuler"  # "expeuler" | "fwd"  — parity toggle for nb004
+
 def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None):
     """One E-neuron LIF step with COBA driving force."""
     if ref_steps is None:
         ref_steps = ref_steps_E
+    if COBA_INTEGRATOR == "expeuler":
+        return lif_step_expeuler(v, ref, g_e, g_i, C_m_E, g_L_E, ref_steps,
+                                 spike_biophysical, cm_back=CM_BACK_SCALE)
     return lif_step(v, coba_current(g_e, v, g_i), ref, C_m_E, g_L_E, ref_steps, spike_biophysical, cm_back=CM_BACK_SCALE)
 
 def i_step_coba(v, ref, g_e):
     """One I-neuron LIF step with COBA driving force."""
+    if COBA_INTEGRATOR == "expeuler":
+        return lif_step_expeuler(v, ref, g_e, None, C_m_I, g_L_I, ref_steps_I,
+                                 spike_biophysical, cm_back=CM_BACK_SCALE)
     return lif_step(v, coba_current(g_e, v), ref, C_m_I, g_L_I, ref_steps_I, spike_biophysical, cm_back=CM_BACK_SCALE)
 
 
