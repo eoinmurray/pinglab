@@ -160,6 +160,44 @@ def lif_step(v, I_total, ref, C_m, g_L, ref_steps, spike_fn, V_floor=V_floor, V_
     ref = torch.where(s.bool(), torch.full_like(ref, ref_steps), ref)
     return v, s, ref
 
+
+def lif_step_expeuler(v, ref, g_e, g_i, C_m, g_L, ref_steps, spike_fn,
+                      cm_back=1.0, dt=None, V_floor=V_floor, V_max=None):
+    """COBA LIF step under exponential Euler with a zero-order hold on g_e, g_i.
+
+    Closed-form integration of
+        C_m dv/dt = -g_L (v - E_L) - g_e (v - E_e) - g_i (v - E_i)
+    over one step of length `dt`, holding g_e and g_i constant. Yields
+        g_tot   = g_L + g_e + g_i
+        tau_eff = C_m / g_tot
+        v_inf   = (g_L*E_L + g_e*E_e + g_i*E_i) / g_tot
+        v_{t+1} = v_inf + (v_t - v_inf) * exp(-dt / tau_eff)
+    which is dt-invariant under N-vs-1 step in the passive case, unlike the
+    forward-Euler `lif_step` above. Returns (v, s, ref).
+    """
+    dt_step = globals()['dt'] if dt is None else dt
+    if g_i is None:
+        g_sum = g_e
+        g_E_drive = g_e * E_e
+    else:
+        g_sum = g_e + g_i
+        g_E_drive = g_e * E_e + g_i * E_i
+    g_tot = g_L + g_sum
+    v_inf = (g_L * E_L + g_E_drive) / g_tot
+    decay = torch.exp(-dt_step / (C_m / g_tot))
+    dv = (v_inf - v) * (1.0 - decay)
+    if cm_back != 1.0:
+        dv = _scale_grad(dv, 1.0 / cm_back)
+    v = v + dv
+    v = v.clamp(min=V_floor) if V_max is None else v.clamp(min=V_floor, max=V_max)
+    ref = (ref - 1).clamp(min=0)
+    can_spike = ref == 0
+    s = spike_fn(v) * can_spike.float()
+    spiked_or_ref = s.bool() | (~can_spike)
+    v = torch.where(spiked_or_ref, torch.full_like(v, V_reset), v)
+    ref = torch.where(s.bool(), torch.full_like(ref, ref_steps), ref)
+    return v, s, ref
+
 def snn_lif_step(mem, I, beta, spike_fn, reset="zero", can_fire=None):
     """snnTorch-style LIF step: decay + input, spike, reset. Returns (mem, s).
 
@@ -218,14 +256,22 @@ def init_conductance(B, N, device):
 
 # ── E-step and I-step composites ─────────────────────────────────────────
 
+COBA_INTEGRATOR = "expeuler"  # "expeuler" | "fwd"  — parity toggle for nb004
+
 def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None):
     """One E-neuron LIF step with COBA driving force."""
     if ref_steps is None:
         ref_steps = ref_steps_E
+    if COBA_INTEGRATOR == "expeuler":
+        return lif_step_expeuler(v, ref, g_e, g_i, C_m_E, g_L_E, ref_steps,
+                                 spike_biophysical, cm_back=CM_BACK_SCALE)
     return lif_step(v, coba_current(g_e, v, g_i), ref, C_m_E, g_L_E, ref_steps, spike_biophysical, cm_back=CM_BACK_SCALE)
 
 def i_step_coba(v, ref, g_e):
     """One I-neuron LIF step with COBA driving force."""
+    if COBA_INTEGRATOR == "expeuler":
+        return lif_step_expeuler(v, ref, g_e, None, C_m_I, g_L_I, ref_steps_I,
+                                 spike_biophysical, cm_back=CM_BACK_SCALE)
     return lif_step(v, coba_current(g_e, v), ref, C_m_I, g_L_I, ref_steps_I, spike_biophysical, cm_back=CM_BACK_SCALE)
 
 
