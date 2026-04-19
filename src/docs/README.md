@@ -8,7 +8,7 @@ bun run dev      # localhost:4321
 bun run build    # static build to dist/
 ```
 
-See `src/pages/llm-context.md` for the docs conventions (notebook structure, figure namespacing, date format, captions, etc.).
+See `src/pages/llm-conventions.md` for the docs conventions (notebook structure, figure namespacing, date format, captions, etc.).
 
 ## Figures
 

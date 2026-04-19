@@ -47,7 +47,7 @@ OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 # Input is MNIST digit 0 sample 0, Poisson-encoded. base_rate comes from
 # M.max_rate_hz; during the stim window rate = base_rate * overdrive.
 SEED           = 42
-TIER           = "medium"  # see src/docs/src/pages/llm-context.md § 8
+TIER           = "medium"  # see src/docs/src/pages/llm-conventions.md § 8
 # Per-scan frame count by tier. nb002 runs 3 scans, so wall-clock ≈ 3 × frames × ~1.3 s.
 TIER_FRAMES    = {"extra small": 5, "small": 15, "medium": 100, "large": 300, "extra large": 600}
 N_HIDDEN       = 512     # → N_E=512, N_I=128 (n_i = n_e//4)
