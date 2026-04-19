@@ -5,6 +5,7 @@ date: 2026-04-18
 entry: 2
 structure: paper
 ---
+import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb002/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -38,33 +39,29 @@ export const hasScanEi = Object.keys(videoGlob).some((k) => k.endsWith("/scan_ei
 
 **PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz. It only runs when E gets enough external drive; below threshold the network sits in background firing.
 
-## *scan_overdrive.mp4*
+{hasScan && (
+  <Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebook/nb002/scan_overdrive.mp4">
+    Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
 
-Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
+    Three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
+  </Figure>
+)}
 
-{hasScan && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb002/scan_overdrive.mp4" />}
+{hasScanDt && (
+  <Figure type="video" id="Figure 2" title="Integration-step sweep (scan_dt.mp4)" src="/figures/notebook/nb002/scan_dt.mp4">
+    Gamma has a period of $\sim$15–30 ms; a coarse integration step *dt* can't resolve the E→I→E round-trip. Overdrive held at {dtScan.fixed_overdrive}×, *dt* swept {dtScan.min} → {dtScan.max} ms over {dtScan.frames} frames.
 
-Three regimes over the sweep:
+    Stable until about *dt* 1.65 ms, then full saturation of all neurons after the PING onset.
+  </Figure>
+)}
 
-- Async baseline (1–1.2×).
-- Unstable PING onset (1.2–6×).
-- Stable PING (6×–onwards).
+{hasScanEi && (
+  <Figure type="video" id="Figure 3" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebook/nb002/scan_ei.mp4">
+    External drive is one knob; internal E→I→E coupling strength is the other. Overdrive held at {eiScan.fixed_overdrive}× (flat input, no stim-window boost); **E→I strength** swept {eiScan.min} → {eiScan.max} over {eiScan.frames} frames.
 
-## *scan_dt.mp4*
-
-Gamma has a period of $\sim$15–30 ms; a coarse integration step *dt* can't resolve the E→I→E round-trip. Overdrive held at {dtScan.fixed_overdrive}×, *dt* swept {dtScan.min} → {dtScan.max} ms over {dtScan.frames} frames.
-
-{hasScanDt && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb002/scan_dt.mp4" />}
-
-Stable until about *dt* 1.65ms, then full saturation of all neurons after the PING onset.
-
-## *scan_ei.mp4*
-
-External drive is one knob; internal E→I→E coupling strength is the other. Overdrive held at {eiScan.fixed_overdrive}× (flat input, no stim-window boost); **E→I strength** swept {eiScan.min} → {eiScan.max} over {eiScan.frames} frames.
-
-{hasScanEi && <video controls loop muted playsinline width="100%" src="/figures/notebook/nb002/scan_ei.mp4" />}
-
-No PING until about E-I strength 1.6; then unstable onset of PING from 1.6 onwards.
+    No PING until about E→I strength 1.6; then unstable onset of PING from 1.6 onwards.
+  </Figure>
+)}
 
 ## Parameters
 
