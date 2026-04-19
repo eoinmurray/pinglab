@@ -77,7 +77,7 @@ PING is trained on MNIST at matched config under the cartesian product of two in
 
 ## Implications
 
-Once the run is in, the implications section records: (a) whether exp-Euler reaches parity with fwd-Euler at the current *cm_back_scale = 1000* default; (b) whether a different *cm_back_scale* is the new optimum under exp-Euler; (c) the default to ship in *oscilloscope.py*.
+At the *extra_small* tier (3 epochs, 200 samples) the two integrators reach parity from *cm_back_scale = 500* upward, with exp-Euler holding 55% across 500–2000 while fwd-Euler slips to 50% above 500. Both collapse to ~20% at *cm_back_scale = 200*, confirming the dampening's lower working edge is somewhere between 200 and 500 for this config. The existing *cm_back_scale = 1000* default remains a reasonable choice under the new integrator — exp-Euler is flat across the upper three cells, so the ranking gives no reason to change the shipped default. These numbers rank cells; they don't resolve small accuracy deltas. A medium/large tier run would be needed to decide whether exp-Euler offers a meaningful accuracy gain beyond the robustness-across-*cm_back_scale* observation.
 
 ## Next steps
 

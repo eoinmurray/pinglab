@@ -200,8 +200,8 @@ def main() -> None:
         wipe_default(ARTIFACTS)
         wipe_default(FIGURES)
 
-    run_id = next_run_id()
-    persist_run_id(run_id)
+    run_id = next_run_id(SLUG)
+    persist_run_id(SLUG, run_id)
     print(f"[nb004] run_id={run_id} tier={TIER}")
 
     cells: dict[tuple[str, float], Path] = {}
