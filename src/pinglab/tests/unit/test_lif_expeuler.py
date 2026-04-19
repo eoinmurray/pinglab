@@ -33,8 +33,8 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _fresh_state(v0=None, B=1, N=1):
-    v = torch.full((B, N), v0 if v0 is not None else M.E_L)
+def _fresh_state(v0=None, B=1, N=1, dtype=torch.float32):
+    v = torch.full((B, N), v0 if v0 is not None else M.E_L, dtype=dtype)
     ref = torch.zeros((B, N), dtype=torch.long)
     return v, ref
 
@@ -79,16 +79,15 @@ class TestPassiveDecay:
         """The headline win: N steps at dt equal 1 step at N*dt, exactly.
         Forward Euler does not satisfy this; exp-Euler does."""
         v0 = -55.0
-        # Fine: N steps at small dt
-        v_fine, ref = _fresh_state(v0=v0)
+        # Fine: N steps at small dt (float64 to see exact-integrator equality).
+        v_fine, ref = _fresh_state(v0=v0, dtype=torch.float64)
         N = 10
         dt_fine = 0.1
         for _ in range(N):
             v_fine, _, ref = _step(v_fine, ref, dt=dt_fine)
-        # Coarse: 1 step at N*dt_fine
-        v_coarse, ref_c = _fresh_state(v0=v0)
+        v_coarse, ref_c = _fresh_state(v0=v0, dtype=torch.float64)
         v_coarse, _, _ = _step(v_coarse, ref_c, dt=N * dt_fine)
-        assert v_fine.item() == pytest.approx(v_coarse.item(), abs=1e-6)
+        assert v_fine.item() == pytest.approx(v_coarse.item(), abs=1e-10)
 
 
 class TestConductanceDrive:
@@ -112,10 +111,10 @@ class TestConductanceDrive:
         g_tot = M.g_L_E + g_e
         tau_eff = M.C_m_E / g_tot
         v_inf = (M.g_L_E * M.E_L + g_e * M.E_e) / g_tot
-        v, ref = _fresh_state()
+        v, ref = _fresh_state(dtype=torch.float64)
         v2, _, _ = _step(v, ref, g_e=g_e)
         expected = v_inf + (M.E_L - v_inf) * math.exp(-M.dt / tau_eff)
-        assert v2.item() == pytest.approx(expected, abs=1e-6)
+        assert v2.item() == pytest.approx(expected, abs=1e-10)
 
     def test_inhibition_pulls_v_below_E_L(self):
         """With only g_i active, v_inf < E_L — the exp-Euler step must reflect
@@ -133,27 +132,24 @@ class TestConductanceDrive:
 class TestLimits:
     def test_dt_to_zero_matches_forward_euler(self):
         """In the dt → 0 limit, exp-Euler and forward Euler agree to O(dt^2).
-        Pick dt small enough that relative error is below 1e-4."""
-        from models import lif_step as lif_step_fwd
+        The *dv* predicted by each integrator has relative error
+        ≈ (dt/tau_eff)/2; pick dt small enough that this is tiny."""
         g_e = 0.01
         v0 = -55.0
-        v_e, ref_e = _fresh_state(v0=v0)
-        v_f = torch.full_like(v_e, v0)
-        ref_f = ref_e.clone()
-        dt_tiny = 0.001  # ms — forward and exp Euler agree at this scale
-
+        dt_tiny = 0.001  # ms
+        v_e, ref_e = _fresh_state(v0=v0, dtype=torch.float64)
         v_e, _, _ = _step(v_e, ref_e, g_e=g_e, dt=dt_tiny)
 
-        # Forward Euler reference via the old lif_step signature
-        I_total = torch.tensor(
-            [[g_e * (M.E_e - v0)]])  # COBA current at v0
-        # old lif_step uses module-level M.dt — too coarse for this check, so
-        # we reconstruct the forward-Euler increment directly:
+        # Forward-Euler reference reconstructed directly (old lif_step is
+        # hard-wired to module-level M.dt):
         expected_fwd = v0 + (dt_tiny / M.C_m_E) * (
             -M.g_L_E * (v0 - M.E_L) + g_e * (M.E_e - v0))
 
-        rel = abs(v_e.item() - expected_fwd) / abs(expected_fwd - v0)
-        assert rel < 1e-3, f"exp-Euler diverged from fwd-Euler at dt={dt_tiny}"
+        dv_exp = v_e.item() - v0
+        dv_fwd = expected_fwd - v0
+        rel = abs(dv_exp - dv_fwd) / abs(dv_fwd)
+        # Leading error is (dt/tau_eff)/2 ≈ 3e-5 at dt=0.001, tau_eff≈17 ms
+        assert rel < 1e-4, f"exp-Euler diverged from fwd-Euler at dt={dt_tiny}"
 
 
 class TestRefractory:
