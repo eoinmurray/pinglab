@@ -33,12 +33,12 @@ figure isn't published. No figures are produced by other means.
 ## Size tiers
 
 Runners pick from fixed size buckets (extra small / small / medium / large / extra large)
-defined in `src/docs/src/pages/llm-context.md` § 8. The tier is recorded in
+defined in `src/docs/src/pages/llm-conventions.md` § 8. The tier is recorded in
 `numbers.json` and surfaced in the MDX.
 
 ## Files
 
 - `nb001.py` — scope-frame aesthetic reference (canonical SCOPE_FRAME still).
 - `nb002.py` — basic PING videos (stim-overdrive, dt, ei_strength sweeps).
-- `nb003.py` — snnTorch calibration (matched snntorch-clone / snntorch-library training runs).
+- `nb004.py` — cuba vs snntorch-clone Δt-stability (train at one dt, sweep eval-dt; includes snntorch-library as external parity reference).
 - `_run_id.py` — per-runner monotonic counter helper.
