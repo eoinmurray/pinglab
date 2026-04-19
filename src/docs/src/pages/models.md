@@ -177,34 +177,23 @@ With default parameters and input rate 50 Hz, the network locks at $f_0 \approx 
 
 **Compared to COBA:** adds an inhibitory population (E:I = 4:1) and the frozen E→I→E recurrent loop that produces gamma oscillations — this isolates what the gamma rhythm contributes on top of a purely feedforward conductance-based model.
 
-## Common primitives
+## Model training
 
-Shared machinery under every model in the ladder.
+| Flag | snntorch-clone | cuba | coba | ping |
+| ---- | ------------------ | ---- | ---- | ---- |
+| --model | snntorch-clone | cuba | ping | ping |
+| --dataset | mnist | mnist | mnist | mnist |
+| --dt | {0.1\|1.0} | {0.1\|1.0} | {0.1\|1.0} | {0.1\|1.0} |
+| --t-ms | 200 | 200 | 200 | 200 |
+| --epochs | 40 | 40 | 40 | 40 |
+| --adaptive-lr | ✓ | ✓ | ✓ | ✓ |
+| --observe | video | video | video | video |
+| --input-rate | 50 | 50 | 50 | 50 |
+| --kaiming-init | ✓ | ✓ | — | — |
+| --lr | 0.01 | 0.01 | 0.0001 | 0.0001 |
+| --no-dales-law | ✓ | ✓ | — | — |
+| --ei-strength | 0 | 0 | 0 | 0.5 |
+| --cm-back-scale | — | — | 1000 | 1000 |
+| --w-in | (kaiming) | (kaiming) | 0.3 | 1.2 |
+| --w-in-sparsity | (kaiming) | (kaiming) | 0.95 | 0.95 |
 
-### Poisson input encoding
-
-Pixels become Poisson spike trains driving the model's input neurons. See [Training § Input encoding](/training/#input-encoding) for the Bernoulli formula and rate calibration.
-
-### Surrogate gradient
-
-The spike function is non-differentiable, so the backward pass substitutes a fast-sigmoid pseudo-derivative. See [Training § Surrogate gradients](/training/#surrogate-gradients) for the formula and the deliberate $k = 1$ vs $k = 25$ asymmetry between the biophysical path, snntorch-clone, and snntorch-library.
-
-### Linear readout
-
-Every model in the ladder uses the same output head: accumulate last-hidden-layer spikes over the trial and project through a trained linear layer.
-
-$$
-\hat y_t = \Bigl(\sum_{s \leq t} s^{\text{hid}}_s\Bigr) W_{\text{out}} + b_{\text{out}} \tag{15}
-$$
-
-No output-layer spiking dynamics, no softmax — logits are read out at each step and the final $\hat y_{T}$ is used for cross-entropy loss. Shared readout means any accuracy gap across the ladder cannot localise to the output.
-
-### Weight init
-
-Feedforward weights are sampled from a fan-in-normalised half-normal (Dale's law) or normal (signed):
-
-$$
-W \sim \mathcal{N}(\mu, \sigma^2), \qquad W \leftarrow W / N_{\text{pre}} \tag{16}
-$$
-
-with optional sparsity $s \in [0, 1)$: a fraction $s$ of entries are zeroed, and surviving entries are rescaled by $1/(1-s)$ so that total expected synaptic input per post-neuron is preserved. Under Dale's law ($\mu \geq 0$, clamp $< 0$ to $0$), signs are fixed at init and the forward pass re-clamps on every step.
