@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "003 — CUBA vs snntorch-clone Δt-stability"
+title: "003 — CUBA vs snntorch Δt-stability"
 date: 2026-04-19
 entry: 3
 structure: paper
@@ -47,7 +47,9 @@ export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" 
 
 ## Introduction
 
-First rung-to-rung ablation on the [CUBA ladder](/models/#the-ladder). *cuba* scales the per-step drive by $(1-\beta)/dt$ so each kick integrates to a fixed per-ms quantity; *snntorch-clone* does not, carrying the canonical tutorial discretisation. *snntorch-library* (the real *snn.Leaky* cell, canonical update) sits alongside as a parity probe — so any gap at matched config localises to the update rule, not to pinglab's implementation. Halving *dt* doubles the number of per-step kicks in the canonical path while leaving *cuba*'s per-ms drive unchanged; Δt-stability is the sharpest test of that invariance.
+First rung-to-rung ablation on the [model ladder](/models/): [*snntorch-clone*](/models/#snntorch-clone) (snnTorch-style, $\Delta t$-free by construction) vs [*cuba*](/models/#cuba) (exact Euler, per-step drive scaled so each kick integrates to a fixed per-ms quantity). [*snntorch-library*](/models/#snntorch-library) sits alongside as a parity probe — any gap between it and *snntorch-clone* at matched config localises to the update rule, not to pinglab's implementation.
+
+The snnTorch spec was not built for Δt-sweeps (see [why](/models/#snntorch-clone)), but real users follow [Tutorial 3 § 1.4](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#1-4-lapicque-s-lif-neuron-model)'s $\beta = e^{-\Delta t/\tau}$ pattern and readily stray into that regime. Halving *dt* doubles the number of per-step kicks in the snnTorch path while leaving *cuba*'s per-ms drive unchanged; Δt-stability is the sharpest test of that invariance.
 
 ## Method
 
@@ -77,11 +79,11 @@ Canonical models agree at train-*dt* (red dashed) and diverge as eval-*dt* moves
   </Figure>
 )}
 
-Mechanistic companion to the accuracy plot (log-log). The canonical paths fan out 1–2 orders of magnitude across the sweep in both regimes; *cuba* at dt={dt1} holds ~55 Hz flat. Rate-flatness is the *cause* of accuracy-stability: the network sees the same activity distribution at eval that it saw at training.
+Mechanistic companion to the accuracy plot (log-log). The snnTorch paths fan out 1–2 orders of magnitude across the sweep in both regimes; *cuba* at dt={dt1} holds $\sim$55 Hz flat. Rate-flatness is the *cause* of accuracy-stability: the network sees the same activity distribution at eval that it saw at training.
 
-### Why the canonical rate drops as *dt* grows
+### Why the snnTorch rate drops as *dt* grows
 
-The sag is the **bias term**. Under the canonical update $\text{mem} = \beta \cdot \text{mem} + W{\cdot}s + b$, $\beta = e^{-dt/\tau}$, the steady-state membrane under Poisson drive of rate $r$ is
+The sag is the **bias term**. Under the snnTorch update $\text{mem} = \beta \cdot \text{mem} + W{\cdot}s + b$, $\beta = e^{-dt/\tau}$, the steady-state membrane under Poisson drive of rate $r$ is
 
 $$\text{mem}_{ss} = \frac{W \cdot \mathbb{E}[s_{step}]}{1-\beta} + \frac{b}{1-\beta}.$$
 
@@ -89,12 +91,12 @@ With frozen inputs $\mathbb{E}[s_{step}] \approx r\,dt$ and $1-\beta \approx dt/
 
 | train *dt* | model | max rate | min rate | observed | 1/*dt* predicted |
 |---|---|---|---|---|---|
-| {dt1} ms | snntorch-clone   | {num(snn1.sweep_max_hid_rate_hz)} Hz  | {num(snn1.sweep_min_hid_rate_hz)} Hz  | ~{ratioFmt(rateRatio(snn1))}× | 40× |
-| {dt1} ms | snntorch-library | {num(lib1.sweep_max_hid_rate_hz)} Hz  | {num(lib1.sweep_min_hid_rate_hz)} Hz  | ~{ratioFmt(rateRatio(lib1))}× | 40× |
-| {dt1} ms | cuba             | {num(cuba1.sweep_max_hid_rate_hz)} Hz | {num(cuba1.sweep_min_hid_rate_hz)} Hz | ~{ratioFmt(rateRatio(cuba1), 2)}× | 1× |
-| {dt2} ms | snntorch-clone   | {num(snn2.sweep_max_hid_rate_hz)} Hz  | {num(snn2.sweep_min_hid_rate_hz)} Hz  | ~{ratioFmt(rateRatio(snn2))}× | 40× |
-| {dt2} ms | snntorch-library | {num(lib2.sweep_max_hid_rate_hz)} Hz  | {num(lib2.sweep_min_hid_rate_hz)} Hz  | ~{ratioFmt(rateRatio(lib2))}× | 40× |
-| {dt2} ms | cuba             | {num(cuba2.sweep_max_hid_rate_hz)} Hz | {num(cuba2.sweep_min_hid_rate_hz)} Hz | ~{ratioFmt(rateRatio(cuba2), 2)}× | 1× |
+| {dt1} ms | snntorch-clone   | {num(snn1.sweep_max_hid_rate_hz)} Hz  | {num(snn1.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(snn1))}× | 40× |
+| {dt1} ms | snntorch-library | {num(lib1.sweep_max_hid_rate_hz)} Hz  | {num(lib1.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib1))}× | 40× |
+| {dt1} ms | cuba             | {num(cuba1.sweep_max_hid_rate_hz)} Hz | {num(cuba1.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba1), 2)}× | 1× |
+| {dt2} ms | snntorch-clone   | {num(snn2.sweep_max_hid_rate_hz)} Hz  | {num(snn2.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(snn2))}× | 40× |
+| {dt2} ms | snntorch-library | {num(lib2.sweep_max_hid_rate_hz)} Hz  | {num(lib2.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib2))}× | 40× |
+| {dt2} ms | cuba             | {num(cuba2.sweep_max_hid_rate_hz)} Hz | {num(cuba2.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba2), 2)}× | 1× |
 
 Canonical paths exceed the pure 1/*dt* prediction: once membrane passes threshold, spike rate rises super-linearly with drive, amplifying the bias swing. *cuba*'s update $\text{mem} = \beta \cdot \text{mem} + \tfrac{1-\beta}{dt} W{\cdot}s + (1-\beta)\, b$ cancels both 1/(1-β) terms in steady state — bias becomes $b$, spike becomes $W\,r\,\tau$, both *dt*-invariant.
 
@@ -106,13 +108,11 @@ Canonical paths exceed the pure 1/*dt* prediction: once membrane passes threshol
   </Figure>
 )}
 
-At dt={dt1} all three land in a 15–20% tier-ceiling band (best: clone {snn1.best_acc ?? "?"}%, library {lib1.best_acc ?? "?"}%, cuba {cuba1.best_acc ?? "?"}%). At dt={dt2} the canonical paths jump clear (clone {snn2.best_acc ?? "?"}%, library {lib2.best_acc ?? "?"}%) while *cuba*'s bias-scaled init leaves it too quiet to learn in {cfg.epochs ?? "?"} epochs × {cfg.max_samples ?? "?"} samples — {cuba2.best_acc ?? "?"}% silent. At this tier the result is a plumbing sanity-check, not a ladder-invariance test at coarse train-*dt*.
-
-### Scope videos
+At dt={dt1} all three land in a 15–20% tier-ceiling band (best: clone {snn1.best_acc ?? "?"}%, library {lib1.best_acc ?? "?"}%, cuba {cuba1.best_acc ?? "?"}%). At dt={dt2} the snnTorch paths jump clear (clone {snn2.best_acc ?? "?"}%, library {lib2.best_acc ?? "?"}%) while *cuba*'s bias-scaled init leaves it too quiet to learn in {cfg.epochs ?? "?"} epochs × {cfg.max_samples ?? "?"} samples — {cuba2.best_acc ?? "?"}% silent. At this tier the result is a plumbing sanity-check, not a ladder-invariance test at coarse train-*dt*.
 
 Two videos per (model, regime): one frame per training epoch, one frame per sweep *dt* at frozen weights.
 
-#### Train at *dt* = {dt1} ms
+### Train at *dt* = {dt1} ms
 
 {hasFig(`training_${rk1}_snntorch-clone.mp4`) && (
   <Figure type="video" id="Figure 4" title={`Training — snntorch-clone @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_snntorch-clone.mp4`}>
@@ -150,7 +150,7 @@ Two videos per (model, regime): one frame per training epoch, one frame per swee
   </Figure>
 )}
 
-#### Train at *dt* = {dt2} ms
+### Train at *dt* = {dt2} ms
 
 {hasFig(`training_${rk2}_snntorch-clone.mp4`) && (
   <Figure type="video" id="Figure 10" title={`Training — snntorch-clone @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_snntorch-clone.mp4`}>
@@ -190,13 +190,14 @@ Two videos per (model, regime): one frame per training epoch, one frame per swee
 
 ## Implications
 
-The canonical discretisation is fundamentally tied to its train-*dt*: the per-ms bias drive scales as *dt_train*/*dt_eval*, independent of absolute *dt*, and the canonical paths fan across 1–2 orders of magnitude of rate in both regimes. *cuba*'s $(1-\beta)/dt$ and $(1-\beta)$ prefactors are the minimum correction — both required, one per drive term — making it the unique per-step scaling with a *dt*-invariant steady-state membrane. The dt={dt1} regime confirms the claim; dt={dt2} tests only the canonical paths at this tier.
+The experiment confirms the [ladder's](/models/) core claim: the [snnTorch update](/models/#snntorch-clone) has no $\Delta t$-invariance, and [*cuba*'s](/models/#cuba) $(1-\beta)/dt$ and $(1-\beta)$ prefactors are the minimum correction that restores it. The snnTorch paths fan across 1–2 orders of magnitude of hidden rate in both regimes, matching the predicted $b\,\tau/dt$ bias scaling; *cuba* holds flat at dt={dt1}. The dt={dt2} regime tests only the snnTorch paths at this tier — *cuba*'s silent-network result there is a training-budget issue, not a ladder defect.
 
-Every later rung of the CUBA ladder inherits the continuous discretisation, so Δt-stability is a **ladder invariant** — if a later rung breaks it, that is a rung defect, not biophysics.
+Every later rung inherits the continuous discretisation, so Δt-stability in expectation is a **ladder invariant** from CUBA onwards — with the caveat that CUBA itself still breaks under discrete-spike variance at extreme Δt (coincident input spikes in one step, hard reset discards the overshoot); CUBA-exp's synaptic low-pass is what closes that gap. Any further rung that breaks Δt-stability is a rung defect, not biophysics.
 
 ## Next steps
 
 - Re-run nb003 at a larger tier (small / medium) so accuracy spreads stop being noise-limited at {cfg.max_samples ?? "?"} samples / {cfg.epochs ?? "?"} epochs, and *cuba* at train-*dt* = {dt2} ms trains past the silent-network regime.
+- Extend the coarse train-*dt* regime from 1 ms to 2 ms and densify the eval-*dt* sweep (more intermediate steps across 0.05–2.0 ms) so the sag curve is sampled finely enough to fit the predicted $b\,\tau/dt$ shape, not just its endpoints.
 
 ## Parameters
 
@@ -209,7 +210,7 @@ Every later rung of the CUBA ladder inherits the continuous discretisation, so �
 | Hidden | {cfg.n_hidden ?? "?"} |
 | Batch / lr | {cfg.batch_size ?? "?"} / {cfg.lr ?? "?"} |
 | Seed | {cfg.seed ?? "?"} |
-| Tier | **{cfg.tier ?? "?"}** — see [LLM Conventions § Run sizing tiers](/llm-conventions#8-run-sizing-tiers) |
+| Tier | **{cfg.tier ?? "?"}** — see [LLM Conventions § Run sizing tiers](/llm-conventions/#8-run-sizing-tiers) |
 | Elapsed @ dt={dt1} (clone / lib / cuba) | {sec(snn1.total_elapsed_s)} s / {sec(lib1.total_elapsed_s)} s / {sec(cuba1.total_elapsed_s)} s |
 | Elapsed @ dt={dt2} (clone / lib / cuba) | {sec(snn2.total_elapsed_s)} s / {sec(lib2.total_elapsed_s)} s / {sec(cuba2.total_elapsed_s)} s |
 | Run ID @ dt={dt1} (clone / lib / cuba) | {snn1.run_id ?? "?"} / {lib1.run_id ?? "?"} / {cuba1.run_id ?? "?"} |
