@@ -1,4 +1,4 @@
-"""Notebook runner for entry 004 — cuba vs snntorch-clone Δt-stability.
+"""Notebook runner for entry 003 — cuba vs snntorch-clone Δt-stability.
 
 Trains *snntorch-clone*, *snntorch-library*, and *cuba* at two training
 *dt* regimes (DT_TRAINS), then for each regime runs inference across the
@@ -17,7 +17,7 @@ Writes (per regime figures have panels for each dt_train):
   * dt_sweep_dt{dt}_{model}.mp4 — per-sweep-dt inference videos
   * numbers.json — config + per-regime/per-model best/final + sweep results
 
-Notebook entry: src/docs/src/pages/notebook/nb004.mdx
+Notebook entry: src/docs/src/pages/notebook/nb003.mdx
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ import torch  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from config import build_net  # noqa: E402
 
-SLUG = "nb004"
+SLUG = "nb003"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
