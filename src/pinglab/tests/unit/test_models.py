@@ -26,7 +26,7 @@ class TestBuildNetRegistry:
         with pytest.raises(ValueError, match="Unknown model"):
             build_net("nonexistent")
 
-    @pytest.mark.parametrize("name", ["ping", "snntorch-clone", "cuba"])
+    @pytest.mark.parametrize("name", ["ping", "standard-snn", "cuba"])
     def test_each_registered_model_instantiates(self, name):
         net = build_net(name, hidden_sizes=[32])
         assert isinstance(net, nn.Module)
@@ -65,7 +65,7 @@ class TestPINGNetFrozenWeights:
 
 
 class TestSeedReproducibility:
-    @pytest.mark.parametrize("name", ["ping", "snntorch-clone"])
+    @pytest.mark.parametrize("name", ["ping", "standard-snn"])
     def test_same_seed_gives_same_weights(self, name):
         def _weights(net):
             return [p.detach().clone() for p in net.parameters()]
@@ -79,15 +79,15 @@ class TestSeedReproducibility:
 
     def test_different_seeds_give_different_weights(self):
         torch.manual_seed(1)
-        a = [p.detach().clone() for p in build_net("snntorch-clone", hidden_sizes=[32]).parameters()]
+        a = [p.detach().clone() for p in build_net("standard-snn", hidden_sizes=[32]).parameters()]
         torch.manual_seed(2)
-        b = [p.detach().clone() for p in build_net("snntorch-clone", hidden_sizes=[32]).parameters()]
+        b = [p.detach().clone() for p in build_net("standard-snn", hidden_sizes=[32]).parameters()]
         # At least one parameter tensor must differ
         assert any(not torch.equal(pa, pb) for pa, pb in zip(a, b))
 
 
 class TestKaimingMode:
     def test_kaiming_flag_switches_snntorch_canonical_to_tutorial(self):
-        net = build_net("snntorch-clone", kaiming_init=True, hidden_sizes=[32])
+        net = build_net("standard-snn", kaiming_init=True, hidden_sizes=[32])
         assert net.tutorial_readout is True
         assert net.reset_mode == "subtract"

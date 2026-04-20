@@ -1,16 +1,16 @@
 {
-  "notebook_run_id": "r021",
-  "duration_s": 479.4,
-  "duration": "7m 59s",
+  "notebook_run_id": "r022",
+  "duration_s": 464.4,
+  "duration": "7m 44s",
   "init_match": {
     "family": [
       "cuba",
-      "snntorch-clone"
+      "standard-snn"
     ],
     "seed": 42,
     "scales_per_regime": {
       "0.1": {
-        "snntorch-clone": {
+        "standard-snn": {
           "weight": 1.0,
           "bias": 1.0
         },
@@ -24,7 +24,7 @@
         }
       },
       "1.0": {
-        "snntorch-clone": {
+        "standard-snn": {
           "weight": 1.0,
           "bias": 1.0
         },
@@ -57,7 +57,7 @@
     "independent": [
       "snntorch-library"
     ],
-    "ref": "snntorch-clone"
+    "ref": "standard-snn"
   },
   "config": {
     "tier": "small",
@@ -142,18 +142,18 @@
       "dt_train": 0.1,
       "regime_key": "dt0.1",
       "runs": {
-        "snntorch-clone": {
-          "label": "snntorch-clone",
-          "run_date": "Monday, April 20 2026 at 13:56",
-          "run_id": "r-20260420-135553",
-          "git_sha": "4a155da (dirty)",
+        "standard-snn": {
+          "label": "standard-snn",
+          "run_date": "Monday, April 20 2026 at 14:19",
+          "run_id": "r-20260420-141841",
+          "git_sha": "0d99336 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
           "best_acc": 61.0,
           "best_epoch": 5,
           "final_acc": 61.0,
           "final_loss": 1.3945675577436174,
-          "total_elapsed_s": 62.453619916923344,
+          "total_elapsed_s": 63.27280612522736,
           "encoder_modes": {
             "zero-pad": {
               "sweep": [
@@ -599,16 +599,16 @@
         },
         "snntorch-library": {
           "label": "snntorch-library",
-          "run_date": "Monday, April 20 2026 at 13:58",
-          "run_id": "r-20260420-135702",
-          "git_sha": "4a155da (dirty)",
+          "run_date": "Monday, April 20 2026 at 14:21",
+          "run_id": "r-20260420-141950",
+          "git_sha": "0d99336 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
           "best_acc": 66.0,
           "best_epoch": 5,
           "final_acc": 66.0,
           "final_loss": 1.1481253249304635,
-          "total_elapsed_s": 87.09774466697127,
+          "total_elapsed_s": 82.72241899976507,
           "encoder_modes": {
             "zero-pad": {
               "sweep": [
@@ -1054,16 +1054,16 @@
         },
         "cuba": {
           "label": "cuba",
-          "run_date": "Monday, April 20 2026 at 13:59",
-          "run_id": "r-20260420-135838",
-          "git_sha": "4a155da (dirty)",
+          "run_date": "Monday, April 20 2026 at 14:22",
+          "run_id": "r-20260420-142121",
+          "git_sha": "0d99336 (dirty)",
           "init_scale_weight": 10.050083333194499,
           "init_scale_bias": 100.50083333194499,
           "best_acc": 30.0,
           "best_epoch": 5,
           "final_acc": 30.0,
           "final_loss": 98.14861406598773,
-          "total_elapsed_s": 64.40388016682118,
+          "total_elapsed_s": 58.642131458967924,
           "encoder_modes": {
             "zero-pad": {
               "sweep": [
@@ -1513,18 +1513,18 @@
       "dt_train": 1.0,
       "regime_key": "dt1",
       "runs": {
-        "snntorch-clone": {
-          "label": "snntorch-clone",
-          "run_date": "Monday, April 20 2026 at 14:02",
-          "run_id": "r-20260420-140208",
-          "git_sha": "4a155da (dirty)",
+        "standard-snn": {
+          "label": "standard-snn",
+          "run_date": "Monday, April 20 2026 at 14:24",
+          "run_id": "r-20260420-142441",
+          "git_sha": "0d99336 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
           "best_acc": 84.0,
           "best_epoch": 5,
           "final_acc": 84.0,
           "final_loss": 0.1882076204887458,
-          "total_elapsed_s": 8.161679457873106,
+          "total_elapsed_s": 8.110027291812003,
           "encoder_modes": {
             "zero-pad": {
               "sweep": [
@@ -1690,16 +1690,16 @@
         },
         "snntorch-library": {
           "label": "snntorch-library",
-          "run_date": "Monday, April 20 2026 at 14:02",
-          "run_id": "r-20260420-140219",
-          "git_sha": "4a155da (dirty)",
+          "run_date": "Monday, April 20 2026 at 14:25",
+          "run_id": "r-20260420-142452",
+          "git_sha": "0d99336 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
           "best_acc": 81.0,
           "best_epoch": 3,
           "final_acc": 79.0,
           "final_loss": 0.5263698665159089,
-          "total_elapsed_s": 10.410264375153929,
+          "total_elapsed_s": 10.383933375123888,
           "encoder_modes": {
             "zero-pad": {
               "sweep": [
@@ -1865,16 +1865,16 @@
         },
         "cuba": {
           "label": "cuba",
-          "run_date": "Monday, April 20 2026 at 14:02",
-          "run_id": "r-20260420-140232",
-          "git_sha": "4a155da (dirty)",
+          "run_date": "Monday, April 20 2026 at 14:25",
+          "run_id": "r-20260420-142505",
+          "git_sha": "0d99336 (dirty)",
           "init_scale_weight": 10.508331944775044,
           "init_scale_bias": 10.508331944775044,
           "best_acc": 67.0,
           "best_epoch": 5,
           "final_acc": 67.0,
           "final_loss": 1.510823403085981,
-          "total_elapsed_s": 8.149928499944508,
+          "total_elapsed_s": 8.137461083009839,
           "encoder_modes": {
             "zero-pad": {
               "sweep": [

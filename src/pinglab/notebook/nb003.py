@@ -1,6 +1,6 @@
-"""Notebook runner for entry 003 — cuba vs snntorch-clone Δt-stability.
+"""Notebook runner for entry 003 — cuba vs standard-snn Δt-stability.
 
-Trains *snntorch-clone*, *snntorch-library*, and *cuba* at two training
+Trains *standard-snn*, *snntorch-library*, and *cuba* at two training
 *dt* regimes (DT_TRAINS), then for each regime runs inference across the
 same eval-*dt* grid (DT_SWEEP) with weights frozen. *cuba* applies
 $(1-\beta)/dt$ drive scaling and should hold accuracy flat across
@@ -45,7 +45,7 @@ ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
-MODELS = ["snntorch-clone", "snntorch-library", "cuba"]
+MODELS = ["standard-snn", "snntorch-library", "cuba"]
 # Two input-transport modes for the dt sweep, matching the paper
 # (Parthasarathy et al. §2.1 / Fig 1B / §2.3). The FrozenEncoder anchors
 # at train-dt and transports count-preservingly under `zero-pad` (zeros
@@ -75,7 +75,7 @@ TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 #   mem = β·mem + (1-β)/dt · (W·s) + (1-β) · b      (β = exp(-dt/τ_mem))
 # so at training-dt the spike drive is scaled by (1-β)/dt ≈ 0.099 and the
 # bias drive by (1-β) ≈ 0.025, both ≪ 1. Starting cuba from the same random
-# weights as snntorch-clone leaves it ~10× below threshold for spike drive
+# weights as standard-snn leaves it ~10× below threshold for spike drive
 # and ~40× below for bias drive — silent at init, no gradient, no learning.
 # Scaling cuba's W by dt/(1-β) and b by 1/(1-β) cancels those factors at
 # training-dt so both models start with the same per-step effective drive
@@ -90,19 +90,19 @@ def cuba_init_scales(dt: float, tau: float = TAU_MEM_MS) -> tuple[float, float]:
 def init_scales_for(model: str, dt_train: float) -> tuple[float, float]:
     """Per-step drive compensation is (1.0, 1.0) for both snnTorch paths;
     cuba gets dt-dependent (W-scale, b-scale) derived from cuba_init_scales
-    so it starts at the same per-step effective drive as snntorch-clone at
+    so it starts at the same per-step effective drive as standard-snn at
     training-dt."""
     if model == "cuba":
         return cuba_init_scales(dt_train)
     return (1.0, 1.0)
 
 MODEL_LABELS = {
-    "snntorch-clone":   "snntorch-clone",
+    "standard-snn":   "standard-snn",
     "snntorch-library": "snntorch-library",
     "cuba":             "cuba",
 }
 MODEL_COLORS = {
-    "snntorch-clone":   "#1f77b4",
+    "standard-snn":   "#1f77b4",
     "snntorch-library": "#ff7f0e",
     "cuba":             "#2ca02c",
 }
@@ -117,17 +117,17 @@ def training_video_path(out_dir: Path) -> Path:
 # allocated in the same order. snntorch-library goes through nn.Linear, which
 # uses a different kaiming_uniform_ convention, so only biases coincidentally
 # match. Treat library's init as independent and parity-tested at run time.
-SNNTORCHNET_FAMILY = {"snntorch-clone", "cuba"}
+SNNTORCHNET_FAMILY = {"standard-snn", "cuba"}
 
 
 def verify_init_match(models: list[str], seed: int,
                       dt_trains: list[float]) -> dict:
     """Preflight: CUBANet-family models must start from the same random
-    weights, modulo each model's per-step drive scaling. snntorch-clone and
+    weights, modulo each model's per-step drive scaling. standard-snn and
     cuba share the CUBANet class and with matched seed allocate every
     tensor in the same order, giving bit-identical raw weights. cuba then
     gets a one-shot multiplier (init_scales_for) per training dt so its
-    per-step drive matches snntorch-clone at that dt. snntorch-library
+    per-step drive matches standard-snn at that dt. snntorch-library
     uses nn.Linear's own kaiming_uniform_ and is reported but not asserted
     — its role is an external parity reference, not a bit-match."""
     nets: dict[str, object] = {}
