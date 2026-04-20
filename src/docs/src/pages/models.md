@@ -11,7 +11,7 @@ The shared model ladder used across experiments: six models, ordered by increasi
 | ----- | ----------- |
 | snnTorch-library | Thin wrapper around snnTorch's *snn.Leaky* + fast-sigmoid surrogate. Parity reference for the pinglab path. |
 | snnTorch-clone | snnTorch-library form, pinglab implementation: $\beta$ a dimensionless hyperparameter. No dt semantics. Not dt-stable. |
-| CUBA | Exact Euler discretisation of $\tau\,dV/dt = -V + I$. |
+| CUBA | Exact Euler discretisation of $\tau\,dV/dt = -V + I$. Dt-stable across $\Delta t \in [0.05, 2.0]$ ms. |
 | CUBA-exp | CUBA + exponential synapse. |
 | COBA | Full biophysical: exp synapse + hard reset + refractory + conductance-$V$. Not a separate CLI model — run as *--model ping --ei-strength 0*. |
 | PING | COBA + E→I→E loop producing gamma oscillation. Dt-stable below $\tau_{\text{GABA}}$ ceiling. |
@@ -19,7 +19,7 @@ The shared model ladder used across experiments: six models, ordered by increasi
 Each step up the ladder adds one axis of realism or rigour:
 
 - **snnTorch-library → snnTorch-clone**: same update rule, different implementation. Isolates *"does the pinglab LIF step and surrogate-gradient code match the library's numerics?"*
-- **snnTorch-clone → CUBA**: same neuron class, cleaner discretisation. Isolates *"does proper Euler fix CUBA's dt-sensitivity?"*
+- **snnTorch-clone → CUBA**: same neuron class, cleaner discretisation. Isolates the dt-sensitivity question — *proper Euler fixes it* ([nb003](/notebook/nb003/)).
 - **CUBA → CUBA-exp**: same discretisation philosophy, add exponential synapse. Isolates *"is the synaptic low-pass what's carrying stability?"*
 - **CUBA-exp → COBA**: add hard reset, refractory, conductance-based membrane. Isolates *"do the remaining biophysical features add anything?"*
 - **COBA → PING**: add inhibitory population and E→I→E coupling. Isolates *"what does the gamma oscillation contribute?"*
@@ -103,7 +103,7 @@ followed by the same spike / reset rule as snnTorch-clone. Two key consequences:
 - **Per-spike kick** $= (1-\beta)/\Delta t \cdot W \approx W/\tau$ as $\Delta t \to 0$ — neither $\Delta t$ nor $\beta$ appears in the limit. Dt-invariant in magnitude.
 - **Per-ms bias contribution** $= (1-\beta)/\Delta t \cdot b \approx b/\tau$ per ms — dt-invariant, whereas the snnTorch-clone path injects $b$ once per step and grows bias drive by $1/\Delta t$.
 
-Same parameters, learning rate, and training cost as snnTorch-clone — only the forward rule differs. Empirically $\Delta t$-invariant **in expectation** across $\Delta t \in [0.05, 2.0]$ ms, but breaks under discrete-spike variance at extreme $\Delta t$ when trained at fine $\Delta t$: at coarse $\Delta t$ many coincident input spikes land in one step, hard reset discards the overshoot, and accuracy collapses. CUBA-exp dodges this because its exponential synapse integrates input through $\tau_{\text{AMPA}}$ before it reaches the membrane.
+Same parameters, learning rate, and training cost as snnTorch-clone — only the forward rule differs. Empirically $\Delta t$-stable across the full $\Delta t \in [0.05, 2.0]$ ms sweep: [notebook 003](/notebook/nb003/) trains CUBA at $\Delta t = 0.1$ and $\Delta t = 1.0$ and finds test accuracy stays within ~1% of the training-$\Delta t$ reference across every evaluation $\Delta t$, whereas snntorch-clone and snntorch-library collapse by 20–60 percentage points outside a narrow band around their training $\Delta t$. Proper discretisation, not the synaptic low-pass, is what carries CUBA's stability — CUBA-exp adds robustness under extra-coincident input but is not required for dt-stability on its own.
 
 **Compared to snnTorch-clone:** same LIF neuron class, but the forward rule derives from proper Euler integration with explicit $\Delta t$ semantics — this isolates whether dt-sensitivity is a property of the model or of the discretisation.
 
