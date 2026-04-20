@@ -103,7 +103,7 @@ followed by the same spike / reset rule as standard-snn. Two key consequences:
 
 Same parameters, learning rate, and training cost as standard-snn — only the forward rule differs. Empirically $\Delta t$-stable across the full $\Delta t \in [0.05, 2.0]$ ms sweep: [notebook 003](/notebook/nb003/) trains CUBA at $\Delta t = 0.1$ and $\Delta t = 1.0$ and finds test accuracy stays within $\sim$1% of the training-$\Delta t$ reference across every evaluation $\Delta t$, whereas standard-snn and snntorch-library collapse by 20–60 percentage points outside a narrow band around their training $\Delta t$. Proper discretisation is what carries CUBA's stability, independent of any synapse model.
 
-**Weight rescaling across $\Delta t$.** The ZOH prefactor $(1-\beta)$ depends on $\Delta t$, so a weight trained at $\Delta t_{\text{ref}}$ must be rescaled to stay equivalent at $\Delta t'$. [Parthasarathy, Burghi & O'Leary](/papers/#temporal-discretisation) (their Eq 27) give the rescaling in closed form:
+**Weight rescaling across $\Delta t$.** The ZOH prefactor $(1-\beta)$ depends on $\Delta t$, so a weight trained at $\Delta t_{\text{ref}}$ must be rescaled to stay equivalent at $\Delta t'$. [Parthasarathy, Burghi & O'Leary](/references/#temporal-discretisation) (their Eq 27) give the rescaling in closed form:
 
 $$
 \frac{W(\Delta t')}{W(\Delta t_{\text{ref}})} = \frac{1 - e^{-\Delta t' / \tau_m}}{1 - e^{-\Delta t_{\text{ref}} / \tau_m}} \tag{9}

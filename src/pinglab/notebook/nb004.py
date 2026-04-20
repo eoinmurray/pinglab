@@ -32,7 +32,7 @@ ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
-# Tier config — see src/docs/src/pages/llm-conventions.md § 8 Run sizing tiers
+# Tier config — see src/docs/src/pages/styleguide.md § 8 Run sizing tiers
 TIER = "extra_small"
 TIER_CONFIG = {
     "extra_small": dict(max_samples=200, epochs=3),

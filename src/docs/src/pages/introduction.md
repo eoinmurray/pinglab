@@ -31,7 +31,7 @@ Pinglab is organised around one CLI and one lab notebook. Every result on this s
 
 **Repro scripts** — each entry that cites generated figures gets a runner at *src/pinglab/notebook/&lt;slug&gt;.py*. One command regenerates every figure the entry references and writes a *numbers.json* alongside them under *src/docs/public/figures/notebook/&lt;slug&gt;/*. The script is the promotion gate between *src/artifacts/* (raw, gitignored) and *src/docs/public/figures/* (published). Provenance is the script plus the commit: the script's *SLUG*, *MAX_SAMPLES*, *EPOCHS*, *TIER* constants pin the run config; git history pins the model code.
 
-Beyond those three: *src/pinglab/* is the code (pure Python under [uv](https://docs.astral.sh/uv/)), *src/papers/* is the bibliography, and *CLAUDE.md* + [LLM Conventions](/llm-conventions/) + project-scoped memory hold the collaboration rules for how the human and AI work on this together.
+Beyond those three: *src/pinglab/* is the code (pure Python under [uv](https://docs.astral.sh/uv/)), *src/papers/* is the bibliography, and *CLAUDE.md* + [Style guide](/styleguide/) + project-scoped memory hold the collaboration rules for how the human and AI work on this together.
 
 ## Running
 

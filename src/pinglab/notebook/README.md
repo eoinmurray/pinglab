@@ -33,7 +33,7 @@ figure isn't published. No figures are produced by other means.
 ## Size tiers
 
 Runners pick from fixed size buckets (extra small / small / medium / large / extra large)
-defined in `src/docs/src/pages/llm-conventions.md` § 8. The tier is recorded in
+defined in `src/docs/src/pages/styleguide.md` § 8. The tier is recorded in
 `numbers.json` and surfaced in the MDX.
 
 ## Files

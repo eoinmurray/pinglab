@@ -37,17 +37,7 @@ const toc: Heading[] = headings.filter((h: Heading) => h.depth >= 2 && h.depth <
 
     <main class="px-6 pt-16 pb-48 lg:pl-[25%] lg:pr-16">
       <div class="max-w-[46rem]">
-        <div class="flex items-baseline justify-between gap-4 text-sm text-[color:var(--muted)]">
-          <a href="/">Pinglab</a>
-          <a
-            href="https://github.com/eoinmurray/pinglab"
-            class="hover:text-[color:var(--ink)]"
-            target="_blank"
-            rel="noopener"
-          >github</a>
-        </div>
-
-        <article class="prose max-w-none mt-8" style="font-family: var(--font-serif);">
+        <article class="prose max-w-none" style="font-family: var(--font-serif);">
           <slot />
         </article>
       </div>

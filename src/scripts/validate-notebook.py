@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate notebook entries against conventions in src/docs/src/pages/llm-conventions.md.
+"""Validate notebook entries against conventions in src/docs/src/pages/styleguide.md.
 
 Checks:
     1. Triple-existence — every notebook slug has all three legs:
