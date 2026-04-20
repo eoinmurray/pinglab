@@ -1,7 +1,7 @@
 {
-  "notebook_run_id": "r019",
-  "duration_s": 1542.6,
-  "duration": "25m 43s",
+  "notebook_run_id": "r020",
+  "duration_s": 1550.8,
+  "duration": "25m 51s",
   "init_match": {
     "family": [
       "cuba",
@@ -109,16 +109,16 @@
       "runs": {
         "snntorch-clone": {
           "label": "snntorch-clone",
-          "run_date": "Monday, April 20 2026 at 12:06",
-          "run_id": "r-20260420-120522",
-          "git_sha": "9233874 (dirty)",
+          "run_date": "Monday, April 20 2026 at 12:55",
+          "run_id": "r-20260420-125423",
+          "git_sha": "3617722 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
           "best_acc": 61.0,
           "best_epoch": 5,
           "final_acc": 61.0,
           "final_loss": 1.3945675577436174,
-          "total_elapsed_s": 59.29009370878339,
+          "total_elapsed_s": 59.86707433313131,
           "encoder_modes": {
             "or-pool": {
               "sweep": [
@@ -754,16 +754,16 @@
         },
         "snntorch-library": {
           "label": "snntorch-library",
-          "run_date": "Monday, April 20 2026 at 12:07",
-          "run_id": "r-20260420-120627",
-          "git_sha": "9233874 (dirty)",
+          "run_date": "Monday, April 20 2026 at 12:56",
+          "run_id": "r-20260420-125529",
+          "git_sha": "3617722 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
-          "best_acc": 60.0,
-          "best_epoch": 4,
-          "final_acc": 56.0,
-          "final_loss": 1.59263357094356,
-          "total_elapsed_s": 80.82042262516916,
+          "best_acc": 66.0,
+          "best_epoch": 5,
+          "final_acc": 66.0,
+          "final_loss": 1.1481253249304635,
+          "total_elapsed_s": 80.25537658389658,
           "encoder_modes": {
             "or-pool": {
               "sweep": [
@@ -771,209 +771,209 @@
                   "dt": 0.05,
                   "acc": 41.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 1.5486490885416668,
+                  "hid_rate_hz": 1.738720703125,
                   "rates_hz": {
-                    "hid": 1.5486490885416668,
+                    "hid": 1.738720703125,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.1,
-                  "acc": 60.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.5061197916666668,
+                  "hid_rate_hz": 0.999560546875,
                   "rates_hz": {
-                    "hid": 0.5061197916666668,
+                    "hid": 0.999560546875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.15,
-                  "acc": 62.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.33538411458333334,
+                  "hid_rate_hz": 1.028759765625,
                   "rates_hz": {
-                    "hid": 0.33538411458333334,
+                    "hid": 1.028759765625,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.2,
-                  "acc": 63.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.28990885416666673,
+                  "hid_rate_hz": 1.1770345052083335,
                   "rates_hz": {
-                    "hid": 0.28990885416666673,
+                    "hid": 1.1770345052083335,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.25,
-                  "acc": 59.0,
+                  "acc": 70.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.27874348958333334,
+                  "hid_rate_hz": 1.347574869791667,
                   "rates_hz": {
-                    "hid": 0.27874348958333334,
+                    "hid": 1.347574869791667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.3,
-                  "acc": 60.0,
+                  "acc": 73.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.27962239583333337,
+                  "hid_rate_hz": 1.5151692708333335,
                   "rates_hz": {
-                    "hid": 0.27962239583333337,
+                    "hid": 1.5151692708333335,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.4,
-                  "acc": 58.0,
+                  "acc": 74.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.2931803385416667,
+                  "hid_rate_hz": 1.8062662760416668,
                   "rates_hz": {
-                    "hid": 0.2931803385416667,
+                    "hid": 1.8062662760416668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.5,
-                  "acc": 58.0,
+                  "acc": 73.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.311279296875,
+                  "hid_rate_hz": 2.039860026041667,
                   "rates_hz": {
-                    "hid": 0.311279296875,
+                    "hid": 2.039860026041667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.6,
-                  "acc": 58.0,
+                  "acc": 75.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.330322265625,
+                  "hid_rate_hz": 2.234749348958333,
                   "rates_hz": {
-                    "hid": 0.330322265625,
+                    "hid": 2.234749348958333,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.75,
-                  "acc": 56.0,
+                  "acc": 74.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.35611979166666674,
+                  "hid_rate_hz": 2.4621256510416667,
                   "rates_hz": {
-                    "hid": 0.35611979166666674,
+                    "hid": 2.4621256510416667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.85,
-                  "acc": 56.0,
+                  "acc": 73.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.3715494791666667,
+                  "hid_rate_hz": 2.5796223958333337,
                   "rates_hz": {
-                    "hid": 0.3715494791666667,
+                    "hid": 2.5796223958333337,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.0,
-                  "acc": 55.0,
+                  "acc": 72.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.39453125,
+                  "hid_rate_hz": 2.726985677083334,
                   "rates_hz": {
-                    "hid": 0.39453125,
+                    "hid": 2.726985677083334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.15,
-                  "acc": 54.0,
+                  "acc": 72.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.41227213541666674,
+                  "hid_rate_hz": 2.838297526041667,
                   "rates_hz": {
-                    "hid": 0.41227213541666674,
+                    "hid": 2.838297526041667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.25,
-                  "acc": 54.0,
+                  "acc": 72.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.425537109375,
+                  "hid_rate_hz": 2.9023274739583336,
                   "rates_hz": {
-                    "hid": 0.425537109375,
+                    "hid": 2.9023274739583336,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.4,
-                  "acc": 57.0,
+                  "acc": 73.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.44127604166666673,
+                  "hid_rate_hz": 2.979020182291667,
                   "rates_hz": {
-                    "hid": 0.44127604166666673,
+                    "hid": 2.979020182291667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.55,
-                  "acc": 56.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.45467122395833337,
+                  "hid_rate_hz": 3.039176432291667,
                   "rates_hz": {
-                    "hid": 0.45467122395833337,
+                    "hid": 3.039176432291667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.7,
-                  "acc": 57.0,
+                  "acc": 70.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.466796875,
+                  "hid_rate_hz": 3.082210286458334,
                   "rates_hz": {
-                    "hid": 0.466796875,
+                    "hid": 3.082210286458334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.8,
-                  "acc": 58.0,
+                  "acc": 70.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.473974609375,
+                  "hid_rate_hz": 3.114908854166667,
                   "rates_hz": {
-                    "hid": 0.473974609375,
+                    "hid": 3.114908854166667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.9,
-                  "acc": 58.0,
+                  "acc": 68.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.4814453125,
+                  "hid_rate_hz": 3.131608072916667,
                   "rates_hz": {
-                    "hid": 0.4814453125,
+                    "hid": 3.131608072916667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 2.0,
-                  "acc": 56.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.4920084635416667,
+                  "hid_rate_hz": 3.163004557291667,
                   "rates_hz": {
-                    "hid": 0.4920084635416667,
+                    "hid": 3.163004557291667,
                     "out": 0.0
                   }
                 }
               ],
-              "ref_acc": 60.0,
+              "ref_acc": 69.0,
               "sweep_min_acc": 41.0,
-              "sweep_max_acc": 63.0,
-              "ref_hid_rate_hz": 0.5061197916666668,
-              "sweep_min_hid_rate_hz": 0.27874348958333334,
-              "sweep_max_hid_rate_hz": 1.5486490885416668
+              "sweep_max_acc": 75.0,
+              "ref_hid_rate_hz": 0.999560546875,
+              "sweep_min_hid_rate_hz": 0.999560546875,
+              "sweep_max_hid_rate_hz": 3.163004557291667
             },
             "count-pool": {
               "sweep": [
@@ -981,209 +981,209 @@
                   "dt": 0.05,
                   "acc": 41.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 1.5486490885416668,
+                  "hid_rate_hz": 1.738720703125,
                   "rates_hz": {
-                    "hid": 1.5486490885416668,
+                    "hid": 1.738720703125,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.1,
-                  "acc": 60.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.5067545572916667,
+                  "hid_rate_hz": 1.0003580729166668,
                   "rates_hz": {
-                    "hid": 0.5067545572916667,
+                    "hid": 1.0003580729166668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.15,
-                  "acc": 62.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.33629557291666673,
+                  "hid_rate_hz": 1.0312825520833335,
                   "rates_hz": {
-                    "hid": 0.33629557291666673,
+                    "hid": 1.0312825520833335,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.2,
-                  "acc": 64.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.2916015625,
+                  "hid_rate_hz": 1.183935546875,
                   "rates_hz": {
-                    "hid": 0.2916015625,
+                    "hid": 1.183935546875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.25,
-                  "acc": 60.0,
+                  "acc": 70.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.28144531250000004,
+                  "hid_rate_hz": 1.358837890625,
                   "rates_hz": {
-                    "hid": 0.28144531250000004,
+                    "hid": 1.358837890625,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.3,
-                  "acc": 60.0,
+                  "acc": 73.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.2828125,
+                  "hid_rate_hz": 1.5288248697916669,
                   "rates_hz": {
-                    "hid": 0.2828125,
+                    "hid": 1.5288248697916669,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.4,
-                  "acc": 57.0,
+                  "acc": 74.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.29840494791666666,
+                  "hid_rate_hz": 1.8300944010416669,
                   "rates_hz": {
-                    "hid": 0.29840494791666666,
+                    "hid": 1.8300944010416669,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.5,
-                  "acc": 58.0,
+                  "acc": 73.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.3187337239583334,
+                  "hid_rate_hz": 2.074104817708333,
                   "rates_hz": {
-                    "hid": 0.3187337239583334,
+                    "hid": 2.074104817708333,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.6,
-                  "acc": 60.0,
+                  "acc": 74.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.33938802083333336,
+                  "hid_rate_hz": 2.2755696614583334,
                   "rates_hz": {
-                    "hid": 0.33938802083333336,
+                    "hid": 2.2755696614583334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.75,
-                  "acc": 57.0,
+                  "acc": 73.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.3679850260416667,
+                  "hid_rate_hz": 2.519596354166667,
                   "rates_hz": {
-                    "hid": 0.3679850260416667,
+                    "hid": 2.519596354166667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.85,
-                  "acc": 56.0,
+                  "acc": 72.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.3857584635416667,
+                  "hid_rate_hz": 2.6458821614583337,
                   "rates_hz": {
-                    "hid": 0.3857584635416667,
+                    "hid": 2.6458821614583337,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.0,
-                  "acc": 55.0,
+                  "acc": 73.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.41298828125,
+                  "hid_rate_hz": 2.812158203125,
                   "rates_hz": {
-                    "hid": 0.41298828125,
+                    "hid": 2.812158203125,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.15,
-                  "acc": 56.0,
+                  "acc": 72.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.43523763020833334,
+                  "hid_rate_hz": 2.935563151041667,
                   "rates_hz": {
-                    "hid": 0.43523763020833334,
+                    "hid": 2.935563151041667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.25,
-                  "acc": 60.0,
+                  "acc": 70.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.45115559895833335,
+                  "hid_rate_hz": 3.012288411458334,
                   "rates_hz": {
-                    "hid": 0.45115559895833335,
+                    "hid": 3.012288411458334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.4,
-                  "acc": 59.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.4696126302083334,
+                  "hid_rate_hz": 3.097281901041667,
                   "rates_hz": {
-                    "hid": 0.4696126302083334,
+                    "hid": 3.097281901041667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.55,
-                  "acc": 58.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.4873697916666667,
+                  "hid_rate_hz": 3.177734375,
                   "rates_hz": {
-                    "hid": 0.4873697916666667,
+                    "hid": 3.177734375,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.7,
-                  "acc": 61.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.50390625,
+                  "hid_rate_hz": 3.229850260416667,
                   "rates_hz": {
-                    "hid": 0.50390625,
+                    "hid": 3.229850260416667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.8,
-                  "acc": 58.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.5147135416666667,
+                  "hid_rate_hz": 3.274609375,
                   "rates_hz": {
-                    "hid": 0.5147135416666667,
+                    "hid": 3.274609375,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.9,
-                  "acc": 60.0,
+                  "acc": 68.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.5243001302083334,
+                  "hid_rate_hz": 3.3017252604166667,
                   "rates_hz": {
-                    "hid": 0.5243001302083334,
+                    "hid": 3.3017252604166667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 2.0,
-                  "acc": 60.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.5366048177083333,
+                  "hid_rate_hz": 3.3391438802083337,
                   "rates_hz": {
-                    "hid": 0.5366048177083333,
+                    "hid": 3.3391438802083337,
                     "out": 0.0
                   }
                 }
               ],
-              "ref_acc": 60.0,
+              "ref_acc": 69.0,
               "sweep_min_acc": 41.0,
-              "sweep_max_acc": 64.0,
-              "ref_hid_rate_hz": 0.5067545572916667,
-              "sweep_min_hid_rate_hz": 0.28144531250000004,
-              "sweep_max_hid_rate_hz": 1.5486490885416668
+              "sweep_max_acc": 74.0,
+              "ref_hid_rate_hz": 1.0003580729166668,
+              "sweep_min_hid_rate_hz": 1.0003580729166668,
+              "sweep_max_hid_rate_hz": 3.3391438802083337
             },
             "resample": {
               "sweep": [
@@ -1191,224 +1191,224 @@
                   "dt": 0.05,
                   "acc": 41.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 1.5486490885416668,
+                  "hid_rate_hz": 1.738720703125,
                   "rates_hz": {
-                    "hid": 1.5486490885416668,
+                    "hid": 1.738720703125,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.1,
-                  "acc": 60.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.50478515625,
+                  "hid_rate_hz": 0.9942708333333334,
                   "rates_hz": {
-                    "hid": 0.50478515625,
+                    "hid": 0.9942708333333334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.15,
-                  "acc": 59.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.332568359375,
+                  "hid_rate_hz": 1.0218424479166668,
                   "rates_hz": {
-                    "hid": 0.332568359375,
+                    "hid": 1.0218424479166668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.2,
-                  "acc": 62.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.29264322916666674,
+                  "hid_rate_hz": 1.1895833333333334,
                   "rates_hz": {
-                    "hid": 0.29264322916666674,
+                    "hid": 1.1895833333333334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.25,
-                  "acc": 59.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.283056640625,
+                  "hid_rate_hz": 1.3721354166666668,
                   "rates_hz": {
-                    "hid": 0.283056640625,
+                    "hid": 1.3721354166666668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.3,
-                  "acc": 55.0,
+                  "acc": 72.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.289208984375,
+                  "hid_rate_hz": 1.549951171875,
                   "rates_hz": {
-                    "hid": 0.289208984375,
+                    "hid": 1.549951171875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.4,
-                  "acc": 54.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.30662434895833335,
+                  "hid_rate_hz": 1.8578125,
                   "rates_hz": {
-                    "hid": 0.30662434895833335,
+                    "hid": 1.8578125,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.5,
-                  "acc": 54.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.3263020833333334,
+                  "hid_rate_hz": 2.1097981770833334,
                   "rates_hz": {
-                    "hid": 0.3263020833333334,
+                    "hid": 2.1097981770833334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.6,
-                  "acc": 52.0,
+                  "acc": 74.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.347900390625,
+                  "hid_rate_hz": 2.313151041666667,
                   "rates_hz": {
-                    "hid": 0.347900390625,
+                    "hid": 2.313151041666667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.75,
-                  "acc": 53.0,
+                  "acc": 70.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.3764322916666667,
+                  "hid_rate_hz": 2.562890625,
                   "rates_hz": {
-                    "hid": 0.3764322916666667,
+                    "hid": 2.562890625,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.85,
-                  "acc": 54.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.39716796875,
+                  "hid_rate_hz": 2.711246744791667,
                   "rates_hz": {
-                    "hid": 0.39716796875,
+                    "hid": 2.711246744791667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.0,
-                  "acc": 56.0,
+                  "acc": 70.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.42180989583333334,
+                  "hid_rate_hz": 2.8586751302083337,
                   "rates_hz": {
-                    "hid": 0.42180989583333334,
+                    "hid": 2.8586751302083337,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.15,
-                  "acc": 55.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.44108072916666674,
+                  "hid_rate_hz": 2.972184244791667,
                   "rates_hz": {
-                    "hid": 0.44108072916666674,
+                    "hid": 2.972184244791667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.25,
-                  "acc": 56.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.45730794270833336,
+                  "hid_rate_hz": 3.049674479166667,
                   "rates_hz": {
-                    "hid": 0.45730794270833336,
+                    "hid": 3.049674479166667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.4,
-                  "acc": 57.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.47556966145833335,
+                  "hid_rate_hz": 3.1279296875,
                   "rates_hz": {
-                    "hid": 0.47556966145833335,
+                    "hid": 3.1279296875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.55,
-                  "acc": 55.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.491064453125,
+                  "hid_rate_hz": 3.196435546875,
                   "rates_hz": {
-                    "hid": 0.491064453125,
+                    "hid": 3.196435546875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.7,
-                  "acc": 57.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.5029622395833333,
+                  "hid_rate_hz": 3.233577473958334,
                   "rates_hz": {
-                    "hid": 0.5029622395833333,
+                    "hid": 3.233577473958334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.8,
-                  "acc": 57.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.5116861979166667,
+                  "hid_rate_hz": 3.2623372395833337,
                   "rates_hz": {
-                    "hid": 0.5116861979166667,
+                    "hid": 3.2623372395833337,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.9,
-                  "acc": 55.0,
+                  "acc": 70.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.5212239583333333,
+                  "hid_rate_hz": 3.286800130208334,
                   "rates_hz": {
-                    "hid": 0.5212239583333333,
+                    "hid": 3.286800130208334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 2.0,
-                  "acc": 56.0,
+                  "acc": 67.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 0.5344075520833335,
+                  "hid_rate_hz": 3.3383463541666667,
                   "rates_hz": {
-                    "hid": 0.5344075520833335,
+                    "hid": 3.3383463541666667,
                     "out": 0.0
                   }
                 }
               ],
-              "ref_acc": 60.0,
+              "ref_acc": 69.0,
               "sweep_min_acc": 41.0,
-              "sweep_max_acc": 62.0,
-              "ref_hid_rate_hz": 0.50478515625,
-              "sweep_min_hid_rate_hz": 0.283056640625,
-              "sweep_max_hid_rate_hz": 1.5486490885416668
+              "sweep_max_acc": 74.0,
+              "ref_hid_rate_hz": 0.9942708333333334,
+              "sweep_min_hid_rate_hz": 0.9942708333333334,
+              "sweep_max_hid_rate_hz": 3.3383463541666667
             }
           }
         },
         "cuba": {
           "label": "cuba",
-          "run_date": "Monday, April 20 2026 at 12:08",
-          "run_id": "r-20260420-120756",
-          "git_sha": "9233874 (dirty)",
+          "run_date": "Monday, April 20 2026 at 12:57",
+          "run_id": "r-20260420-125657",
+          "git_sha": "3617722 (dirty)",
           "init_scale_weight": 10.050083333194499,
           "init_scale_bias": 100.50083333194499,
           "best_acc": 30.0,
           "best_epoch": 5,
           "final_acc": 30.0,
           "final_loss": 98.14861406598773,
-          "total_elapsed_s": 58.477100333664566,
+          "total_elapsed_s": 58.43384766718373,
           "encoder_modes": {
             "or-pool": {
               "sweep": [
@@ -2050,16 +2050,16 @@
       "runs": {
         "snntorch-clone": {
           "label": "snntorch-clone",
-          "run_date": "Monday, April 20 2026 at 12:19",
-          "run_id": "r-20260420-121942",
-          "git_sha": "9233874 (dirty)",
+          "run_date": "Monday, April 20 2026 at 13:09",
+          "run_id": "r-20260420-130852",
+          "git_sha": "3617722 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
           "best_acc": 84.0,
           "best_epoch": 5,
           "final_acc": 84.0,
           "final_loss": 0.1882076204887458,
-          "total_elapsed_s": 8.153471250087023,
+          "total_elapsed_s": 8.117992124985904,
           "encoder_modes": {
             "or-pool": {
               "sweep": [
@@ -2695,16 +2695,16 @@
         },
         "snntorch-library": {
           "label": "snntorch-library",
-          "run_date": "Monday, April 20 2026 at 12:20",
-          "run_id": "r-20260420-121953",
-          "git_sha": "9233874 (dirty)",
+          "run_date": "Monday, April 20 2026 at 13:09",
+          "run_id": "r-20260420-130903",
+          "git_sha": "3617722 (dirty)",
           "init_scale_weight": 1.0,
           "init_scale_bias": 1.0,
-          "best_acc": 82.0,
-          "best_epoch": 2,
-          "final_acc": 81.0,
-          "final_loss": 0.3295334130525589,
-          "total_elapsed_s": 10.408263792283833,
+          "best_acc": 81.0,
+          "best_epoch": 3,
+          "final_acc": 79.0,
+          "final_loss": 0.5263698665159089,
+          "total_elapsed_s": 10.430514832958579,
           "encoder_modes": {
             "or-pool": {
               "sweep": [
@@ -2712,99 +2712,99 @@
                   "dt": 0.05,
                   "acc": 12.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 211.6375,
+                  "hid_rate_hz": 162.29013671875,
                   "rates_hz": {
-                    "hid": 211.6375,
+                    "hid": 162.29013671875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.1,
-                  "acc": 15.0,
+                  "acc": 12.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 93.20130208333335,
+                  "hid_rate_hz": 67.03819986979167,
                   "rates_hz": {
-                    "hid": 93.20130208333335,
+                    "hid": 67.03819986979167,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.15,
-                  "acc": 16.0,
+                  "acc": 12.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 54.539892578125,
+                  "hid_rate_hz": 36.89527994791667,
                   "rates_hz": {
-                    "hid": 54.539892578125,
+                    "hid": 36.89527994791667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.2,
-                  "acc": 17.0,
+                  "acc": 15.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 35.8673828125,
+                  "hid_rate_hz": 22.964827473958334,
                   "rates_hz": {
-                    "hid": 35.8673828125,
+                    "hid": 22.964827473958334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.25,
-                  "acc": 22.0,
+                  "acc": 26.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 25.174544270833334,
+                  "hid_rate_hz": 15.395556640625,
                   "rates_hz": {
-                    "hid": 25.174544270833334,
+                    "hid": 15.395556640625,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.3,
-                  "acc": 30.0,
+                  "acc": 37.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 18.457421875,
+                  "hid_rate_hz": 10.894091796875,
                   "rates_hz": {
-                    "hid": 18.457421875,
+                    "hid": 10.894091796875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.4,
-                  "acc": 47.0,
+                  "acc": 58.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 10.965511067708334,
+                  "hid_rate_hz": 6.247298177083334,
                   "rates_hz": {
-                    "hid": 10.965511067708334,
+                    "hid": 6.247298177083334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.5,
-                  "acc": 61.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 7.276025390625,
+                  "hid_rate_hz": 4.179541015625,
                   "rates_hz": {
-                    "hid": 7.276025390625,
+                    "hid": 4.179541015625,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.6,
-                  "acc": 69.0,
+                  "acc": 76.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 5.299820963541667,
+                  "hid_rate_hz": 3.1504231770833337,
                   "rates_hz": {
-                    "hid": 5.299820963541667,
+                    "hid": 3.1504231770833337,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.75,
-                  "acc": 76.0,
+                  "acc": 81.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 3.76787109375,
+                  "hid_rate_hz": 2.4198079427083337,
                   "rates_hz": {
-                    "hid": 3.76787109375,
+                    "hid": 2.4198079427083337,
                     "out": 0.0
                   }
                 },
@@ -2812,109 +2812,109 @@
                   "dt": 0.85,
                   "acc": 80.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 3.210514322916667,
+                  "hid_rate_hz": 2.1723470052083336,
                   "rates_hz": {
-                    "hid": 3.210514322916667,
+                    "hid": 2.1723470052083336,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.0,
-                  "acc": 82.0,
+                  "acc": 80.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.7001790364583336,
+                  "hid_rate_hz": 1.9625325520833334,
                   "rates_hz": {
-                    "hid": 2.7001790364583336,
+                    "hid": 1.9625325520833334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.15,
-                  "acc": 81.0,
+                  "acc": 79.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.3994140625,
+                  "hid_rate_hz": 1.8488932291666669,
                   "rates_hz": {
-                    "hid": 2.3994140625,
+                    "hid": 1.8488932291666669,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.25,
-                  "acc": 80.0,
+                  "acc": 79.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.2665852864583336,
+                  "hid_rate_hz": 1.8077311197916668,
                   "rates_hz": {
-                    "hid": 2.2665852864583336,
+                    "hid": 1.8077311197916668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.4,
-                  "acc": 81.0,
+                  "acc": 79.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.124560546875,
+                  "hid_rate_hz": 1.7758626302083333,
                   "rates_hz": {
-                    "hid": 2.124560546875,
+                    "hid": 1.7758626302083333,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.55,
-                  "acc": 79.0,
+                  "acc": 78.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.027913411458334,
+                  "hid_rate_hz": 1.7537923177083334,
                   "rates_hz": {
-                    "hid": 2.027913411458334,
+                    "hid": 1.7537923177083334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.7,
-                  "acc": 80.0,
+                  "acc": 77.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 1.9537923177083334,
+                  "hid_rate_hz": 1.7427408854166668,
                   "rates_hz": {
-                    "hid": 1.9537923177083334,
+                    "hid": 1.7427408854166668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.8,
-                  "acc": 81.0,
+                  "acc": 75.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 1.9210123697916668,
+                  "hid_rate_hz": 1.7405110677083337,
                   "rates_hz": {
-                    "hid": 1.9210123697916668,
+                    "hid": 1.7405110677083337,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.9,
-                  "acc": 82.0,
+                  "acc": 77.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 1.8930989583333337,
+                  "hid_rate_hz": 1.7386393229166668,
                   "rates_hz": {
-                    "hid": 1.8930989583333337,
+                    "hid": 1.7386393229166668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 2.0,
-                  "acc": 81.0,
+                  "acc": 75.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 1.87802734375,
+                  "hid_rate_hz": 1.755029296875,
                   "rates_hz": {
-                    "hid": 1.87802734375,
+                    "hid": 1.755029296875,
                     "out": 0.0
                   }
                 }
               ],
-              "ref_acc": 82.0,
+              "ref_acc": 80.0,
               "sweep_min_acc": 12.0,
-              "sweep_max_acc": 82.0,
-              "ref_hid_rate_hz": 2.7001790364583336,
-              "sweep_min_hid_rate_hz": 1.87802734375,
-              "sweep_max_hid_rate_hz": 211.6375
+              "sweep_max_acc": 81.0,
+              "ref_hid_rate_hz": 1.9625325520833334,
+              "sweep_min_hid_rate_hz": 1.7386393229166668,
+              "sweep_max_hid_rate_hz": 162.29013671875
             },
             "count-pool": {
               "sweep": [
@@ -2922,209 +2922,209 @@
                   "dt": 0.05,
                   "acc": 12.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 211.6375,
+                  "hid_rate_hz": 162.29013671875,
                   "rates_hz": {
-                    "hid": 211.6375,
+                    "hid": 162.29013671875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.1,
-                  "acc": 15.0,
+                  "acc": 12.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 93.203076171875,
+                  "hid_rate_hz": 67.037646484375,
                   "rates_hz": {
-                    "hid": 93.203076171875,
+                    "hid": 67.037646484375,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.15,
-                  "acc": 16.0,
+                  "acc": 12.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 54.54523111979167,
+                  "hid_rate_hz": 36.898583984375,
                   "rates_hz": {
-                    "hid": 54.54523111979167,
+                    "hid": 36.898583984375,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.2,
-                  "acc": 17.0,
+                  "acc": 15.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 35.879817708333334,
+                  "hid_rate_hz": 22.97325846354167,
                   "rates_hz": {
-                    "hid": 35.879817708333334,
+                    "hid": 22.97325846354167,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.25,
-                  "acc": 22.0,
+                  "acc": 26.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 25.194563802083334,
+                  "hid_rate_hz": 15.409554036458335,
                   "rates_hz": {
-                    "hid": 25.194563802083334,
+                    "hid": 15.409554036458335,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.3,
-                  "acc": 30.0,
+                  "acc": 37.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 18.48644205729167,
+                  "hid_rate_hz": 10.916520182291668,
                   "rates_hz": {
-                    "hid": 18.48644205729167,
+                    "hid": 10.916520182291668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.4,
-                  "acc": 47.0,
+                  "acc": 58.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 11.008072916666668,
+                  "hid_rate_hz": 6.282210286458334,
                   "rates_hz": {
-                    "hid": 11.008072916666668,
+                    "hid": 6.282210286458334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.5,
-                  "acc": 62.0,
+                  "acc": 71.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 7.332958984375,
+                  "hid_rate_hz": 4.223600260416667,
                   "rates_hz": {
-                    "hid": 7.332958984375,
+                    "hid": 4.223600260416667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.6,
-                  "acc": 69.0,
+                  "acc": 76.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 5.368489583333334,
+                  "hid_rate_hz": 3.207568359375,
                   "rates_hz": {
-                    "hid": 5.368489583333334,
+                    "hid": 3.207568359375,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.75,
-                  "acc": 76.0,
+                  "acc": 81.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 3.851009114583334,
+                  "hid_rate_hz": 2.4876790364583337,
                   "rates_hz": {
-                    "hid": 3.851009114583334,
+                    "hid": 2.4876790364583337,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.85,
-                  "acc": 80.0,
+                  "acc": 81.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 3.299332682291667,
+                  "hid_rate_hz": 2.247151692708334,
                   "rates_hz": {
-                    "hid": 3.299332682291667,
+                    "hid": 2.247151692708334,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.0,
-                  "acc": 81.0,
+                  "acc": 80.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.8033203125,
+                  "hid_rate_hz": 2.0527180989583336,
                   "rates_hz": {
-                    "hid": 2.8033203125,
+                    "hid": 2.0527180989583336,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.15,
-                  "acc": 82.0,
+                  "acc": 80.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.5099772135416667,
+                  "hid_rate_hz": 1.9509765625,
                   "rates_hz": {
-                    "hid": 2.5099772135416667,
+                    "hid": 1.9509765625,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.25,
-                  "acc": 82.0,
+                  "acc": 80.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.390152994791667,
+                  "hid_rate_hz": 1.9227213541666668,
                   "rates_hz": {
-                    "hid": 2.390152994791667,
+                    "hid": 1.9227213541666668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.4,
-                  "acc": 81.0,
+                  "acc": 78.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.2565592447916667,
+                  "hid_rate_hz": 1.900113932291667,
                   "rates_hz": {
-                    "hid": 2.2565592447916667,
+                    "hid": 1.900113932291667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.55,
-                  "acc": 80.0,
+                  "acc": 78.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.1757486979166667,
+                  "hid_rate_hz": 1.8966796875,
                   "rates_hz": {
-                    "hid": 2.1757486979166667,
+                    "hid": 1.8966796875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.7,
-                  "acc": 81.0,
+                  "acc": 76.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.114404296875,
+                  "hid_rate_hz": 1.8950520833333337,
                   "rates_hz": {
-                    "hid": 2.114404296875,
+                    "hid": 1.8950520833333337,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.8,
-                  "acc": 81.0,
+                  "acc": 76.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.091422526041667,
+                  "hid_rate_hz": 1.9077311197916669,
                   "rates_hz": {
-                    "hid": 2.091422526041667,
+                    "hid": 1.9077311197916669,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.9,
-                  "acc": 81.0,
+                  "acc": 77.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.0701660156250004,
+                  "hid_rate_hz": 1.9152669270833338,
                   "rates_hz": {
-                    "hid": 2.0701660156250004,
+                    "hid": 1.9152669270833338,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 2.0,
-                  "acc": 80.0,
+                  "acc": 77.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.0640462239583335,
+                  "hid_rate_hz": 1.939615885416667,
                   "rates_hz": {
-                    "hid": 2.0640462239583335,
+                    "hid": 1.939615885416667,
                     "out": 0.0
                   }
                 }
               ],
-              "ref_acc": 81.0,
+              "ref_acc": 80.0,
               "sweep_min_acc": 12.0,
-              "sweep_max_acc": 82.0,
-              "ref_hid_rate_hz": 2.8033203125,
-              "sweep_min_hid_rate_hz": 2.0640462239583335,
-              "sweep_max_hid_rate_hz": 211.6375
+              "sweep_max_acc": 81.0,
+              "ref_hid_rate_hz": 2.0527180989583336,
+              "sweep_min_hid_rate_hz": 1.8950520833333337,
+              "sweep_max_hid_rate_hz": 162.29013671875
             },
             "resample": {
               "sweep": [
@@ -3132,224 +3132,224 @@
                   "dt": 0.05,
                   "acc": 12.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 211.6375,
+                  "hid_rate_hz": 162.29013671875,
                   "rates_hz": {
-                    "hid": 211.6375,
+                    "hid": 162.29013671875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.1,
-                  "acc": 14.0,
+                  "acc": 12.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 93.19578450520834,
+                  "hid_rate_hz": 67.045361328125,
                   "rates_hz": {
-                    "hid": 93.19578450520834,
+                    "hid": 67.045361328125,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.15,
-                  "acc": 16.0,
+                  "acc": 12.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 54.55236002604167,
+                  "hid_rate_hz": 36.921533203125,
                   "rates_hz": {
-                    "hid": 54.55236002604167,
+                    "hid": 36.921533203125,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.2,
-                  "acc": 18.0,
+                  "acc": 14.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 35.88084309895834,
+                  "hid_rate_hz": 22.97438151041667,
                   "rates_hz": {
-                    "hid": 35.88084309895834,
+                    "hid": 22.97438151041667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.25,
-                  "acc": 23.0,
+                  "acc": 28.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 25.15587565104167,
+                  "hid_rate_hz": 15.397493489583335,
                   "rates_hz": {
-                    "hid": 25.15587565104167,
+                    "hid": 15.397493489583335,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.3,
-                  "acc": 29.0,
+                  "acc": 37.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 18.495068359375,
+                  "hid_rate_hz": 10.926497395833335,
                   "rates_hz": {
-                    "hid": 18.495068359375,
+                    "hid": 10.926497395833335,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.4,
-                  "acc": 46.0,
+                  "acc": 59.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 11.023795572916667,
+                  "hid_rate_hz": 6.29892578125,
                   "rates_hz": {
-                    "hid": 11.023795572916667,
+                    "hid": 6.29892578125,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.5,
-                  "acc": 58.0,
+                  "acc": 69.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 7.35205078125,
+                  "hid_rate_hz": 4.238932291666668,
                   "rates_hz": {
-                    "hid": 7.35205078125,
+                    "hid": 4.238932291666668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.6,
-                  "acc": 69.0,
+                  "acc": 75.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 5.366243489583334,
+                  "hid_rate_hz": 3.210221354166667,
                   "rates_hz": {
-                    "hid": 5.366243489583334,
+                    "hid": 3.210221354166667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.75,
-                  "acc": 75.0,
+                  "acc": 79.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 3.8442220052083336,
+                  "hid_rate_hz": 2.4855631510416667,
                   "rates_hz": {
-                    "hid": 3.8442220052083336,
+                    "hid": 2.4855631510416667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 0.85,
-                  "acc": 78.0,
+                  "acc": 81.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 3.2970214843750005,
+                  "hid_rate_hz": 2.2592285156250003,
                   "rates_hz": {
-                    "hid": 3.2970214843750005,
+                    "hid": 2.2592285156250003,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.0,
-                  "acc": 81.0,
+                  "acc": 82.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.795817057291667,
+                  "hid_rate_hz": 2.055582682291667,
                   "rates_hz": {
-                    "hid": 2.795817057291667,
+                    "hid": 2.055582682291667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.15,
-                  "acc": 80.0,
+                  "acc": 78.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.5053548177083336,
+                  "hid_rate_hz": 1.9437825520833332,
                   "rates_hz": {
-                    "hid": 2.5053548177083336,
+                    "hid": 1.9437825520833332,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.25,
-                  "acc": 83.0,
+                  "acc": 79.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.38310546875,
+                  "hid_rate_hz": 1.90888671875,
                   "rates_hz": {
-                    "hid": 2.38310546875,
+                    "hid": 1.90888671875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.4,
-                  "acc": 82.0,
+                  "acc": 79.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.246630859375,
+                  "hid_rate_hz": 1.869059244791667,
                   "rates_hz": {
-                    "hid": 2.246630859375,
+                    "hid": 1.869059244791667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.55,
-                  "acc": 81.0,
+                  "acc": 76.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.1626953125000004,
+                  "hid_rate_hz": 1.866748046875,
                   "rates_hz": {
-                    "hid": 2.1626953125000004,
+                    "hid": 1.866748046875,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.7,
-                  "acc": 78.0,
+                  "acc": 76.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.0873697916666667,
+                  "hid_rate_hz": 1.8558268229166668,
                   "rates_hz": {
-                    "hid": 2.0873697916666667,
+                    "hid": 1.8558268229166668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.8,
-                  "acc": 80.0,
+                  "acc": 77.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.0539225260416667,
+                  "hid_rate_hz": 1.8538736979166668,
                   "rates_hz": {
-                    "hid": 2.0539225260416667,
+                    "hid": 1.8538736979166668,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 1.9,
-                  "acc": 79.0,
+                  "acc": 76.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.029833984375,
+                  "hid_rate_hz": 1.864713541666667,
                   "rates_hz": {
-                    "hid": 2.029833984375,
+                    "hid": 1.864713541666667,
                     "out": 0.0
                   }
                 },
                 {
                   "dt": 2.0,
-                  "acc": 78.0,
+                  "acc": 77.0,
                   "input_rate": 25.0,
-                  "hid_rate_hz": 2.02734375,
+                  "hid_rate_hz": 1.886279296875,
                   "rates_hz": {
-                    "hid": 2.02734375,
+                    "hid": 1.886279296875,
                     "out": 0.0
                   }
                 }
               ],
-              "ref_acc": 81.0,
+              "ref_acc": 82.0,
               "sweep_min_acc": 12.0,
-              "sweep_max_acc": 83.0,
-              "ref_hid_rate_hz": 2.795817057291667,
-              "sweep_min_hid_rate_hz": 2.02734375,
-              "sweep_max_hid_rate_hz": 211.6375
+              "sweep_max_acc": 82.0,
+              "ref_hid_rate_hz": 2.055582682291667,
+              "sweep_min_hid_rate_hz": 1.8538736979166668,
+              "sweep_max_hid_rate_hz": 162.29013671875
             }
           }
         },
         "cuba": {
           "label": "cuba",
-          "run_date": "Monday, April 20 2026 at 12:20",
-          "run_id": "r-20260420-122006",
-          "git_sha": "9233874 (dirty)",
+          "run_date": "Monday, April 20 2026 at 13:09",
+          "run_id": "r-20260420-130917",
+          "git_sha": "3617722 (dirty)",
           "init_scale_weight": 10.508331944775044,
           "init_scale_bias": 10.508331944775044,
           "best_acc": 67.0,
           "best_epoch": 5,
           "final_acc": 67.0,
           "final_loss": 1.510823403085981,
-          "total_elapsed_s": 8.143268208950758,
+          "total_elapsed_s": 8.195868041832,
           "encoder_modes": {
             "or-pool": {
               "sweep": [
