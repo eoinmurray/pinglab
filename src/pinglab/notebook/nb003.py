@@ -46,8 +46,13 @@ FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
 MODELS = ["snntorch-clone", "snntorch-library", "cuba"]
-MAX_SAMPLES = 2000
-EPOCHS = 10
+# Three input-transport modes for the dt sweep (Parthasarathy et al. §2.1).
+# or-pool: logical-OR of reference Poisson (saturates at coarse dt).
+# count-pool: sum-pool, preserves per-ms rate exactly (no saturation).
+# resample: fresh Poisson at target dt (sampling noise re-introduced).
+ENCODER_MODES = ["or-pool", "count-pool", "resample"]
+MAX_SAMPLES = 500
+EPOCHS = 5
 T_MS = 600.0
 # Two training regimes: fine dt (snnTorch research setting) and coarse dt
 # (near τ_mem, where snnTorch models typically saturate). Same eval-dt
@@ -60,7 +65,7 @@ DT_TRAINS = [0.1, 1.0]
 DT_SWEEP = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.75,
             0.85, 1.00, 1.15, 1.25, 1.40, 1.55, 1.70, 1.80, 1.90, 2.00]
 SEED = 42
-TIER = "medium"  # see src/docs/src/pages/llm-conventions.md § 8 Run sizing tiers
+TIER = "small"  # see src/docs/src/pages/llm-conventions.md § 8 Run sizing tiers
 TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 
 # Per-step drive compensation for cuba at training dt. cuba's update is
@@ -209,27 +214,36 @@ def train_model(model: str, dt_train: float) -> Path:
     return out_dir
 
 
-def sweep_model(model: str, dt_train: float, train_dir: Path) -> Path:
-    """Run dt-sweep inference against trained weights. Frozen-inputs so every
-    dt sees the same underlying spike pattern (OR-pooled to coarser dt), which
-    isolates the LIF dynamics as the only thing changing across the sweep.
-    --observe video emits dt_sweep.mp4 — one SCOPE_FRAME per dt, the same
-    network rendered across timesteps sizes."""
-    sweep_dir = ARTIFACTS / _regime_key(dt_train) / model / "sweep"
-    print(f"[{model} @ dt={dt_train}] dt-sweep → {sweep_dir.relative_to(REPO)}")
-    sh.uv(
+def _mode_key(encoder_mode: str) -> str:
+    """Filesystem-safe label for an encoder mode (e.g. 'count-pool' → 'count_pool')."""
+    return encoder_mode.replace("-", "_")
+
+
+def sweep_model(model: str, dt_train: float, train_dir: Path,
+                encoder_mode: str) -> Path:
+    """Run dt-sweep inference against trained weights with a chosen frozen-input
+    transport mode. Same underlying spike pattern across dt values (how it's
+    transported to coarser dt depends on mode) so the LIF dynamics are the
+    only thing that differs between sweep points."""
+    sweep_dir = ARTIFACTS / _regime_key(dt_train) / model / f"sweep_{_mode_key(encoder_mode)}"
+    print(f"[{model} @ dt={dt_train}, mode={encoder_mode}] dt-sweep → "
+          f"{sweep_dir.relative_to(REPO)}")
+    # Videos are only emitted for the or-pool mode to keep wall-clock and disk
+    # within a small-tier budget for the 3-mode matrix. The other modes share
+    # identical accuracy/firing-rate plotting paths so the videos add no
+    # additional scientific content.
+    cmd = [
         "run", "python", str(OSCILLOSCOPE), "infer",
         "--from-dir", str(train_dir),
         "--dt-sweep", *[str(d) for d in DT_SWEEP],
-        "--frozen-inputs",
+        "--frozen-inputs-mode", encoder_mode,
         "--max-samples", str(MAX_SAMPLES),
-        "--observe", "video",
         "--out-dir", str(sweep_dir),
         "--wipe-dir",
-        _cwd=str(REPO),
-        _out=sys.stdout,
-        _err=sys.stderr,
-    )
+    ]
+    if encoder_mode == "or-pool":
+        cmd += ["--observe", "video"]
+    sh.uv(*cmd, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     results_path = sweep_dir / "results.json"
     if not results_path.exists():
         raise SystemExit(f"dt-sweep did not produce {results_path}")
@@ -298,45 +312,58 @@ def plot_training_curves(regime_train_dirs: dict[float, dict[str, Path]],
     plt.close(fig)
 
 
-def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, Path]],
-                      out_path: Path, notebook_run_id: str) -> None:
-    """Mean hidden-layer firing rate vs eval-dt, one panel per training
-    regime (shared y-axis). Reveals whether the Δt-stability gap in
-    *dt_sweep.png* corresponds to a change in mean activity level (snnTorch
-    path: drive scales with 1/dt) or stays flat (cuba: per-ms drive
-    invariant)."""
-    dt_trains = sorted(regime_sweep_dirs.keys())
-    fig, axes = plt.subplots(1, len(dt_trains), figsize=(8, 4.5),
+def _matrix_axes(n_rows: int, n_cols: int):
+    """Grid: one row per encoder mode, one column per training regime. Shared
+    y across all panels (accuracy or firing-rate, both unitful)."""
+    fig, axes = plt.subplots(n_rows, n_cols,
+                             figsize=(8, 4.5 * n_rows / 2),
                              sharey=True, squeeze=False)
-    axes = axes[0]
+    return fig, axes
+
+
+def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
+                      out_path: Path, notebook_run_id: str) -> None:
+    """Mean hidden-layer firing rate vs eval-dt, matrix layout:
+    rows = encoder mode, cols = training regime."""
+    dt_trains = sorted(regime_sweep_dirs.keys())
+    fig, axes = _matrix_axes(len(ENCODER_MODES), len(dt_trains))
     any_data = False
-    for ax, dt_train in zip(axes, dt_trains):
-        for model, sweep_dir in regime_sweep_dirs[dt_train].items():
-            blob = load_sweep(sweep_dir)
-            dts, rates = [], []
-            for r in blob["sweep"]:
-                rate = r.get("hid_rate_hz")
-                if rate is None:
+    for i, mode in enumerate(ENCODER_MODES):
+        for j, dt_train in enumerate(dt_trains):
+            ax = axes[i, j]
+            for model, mode_dirs in regime_sweep_dirs[dt_train].items():
+                sweep_dir = mode_dirs.get(mode)
+                if sweep_dir is None:
                     continue
-                dts.append(r["dt"])
-                rates.append(rate)
-            if not dts:
-                continue
-            any_data = True
-            ax.plot(dts, rates, marker="o",
-                    color=MODEL_COLORS[model], label=MODEL_LABELS[model])
-        ax.axvline(dt_train, color="#cc4444", linestyle="--", linewidth=1,
-                   label=f"train dt={dt_train}")
-        ax.set_xlabel("eval dt (ms)")
-        ax.set_title(f"train dt = {dt_train} ms")
-        ax.grid(alpha=0.3)
-        ax.legend(frameon=False, fontsize=8)
+                blob = load_sweep(sweep_dir)
+                dts, rates = [], []
+                for r in blob["sweep"]:
+                    rate = r.get("hid_rate_hz")
+                    if rate is None:
+                        continue
+                    dts.append(r["dt"])
+                    rates.append(rate)
+                if not dts:
+                    continue
+                any_data = True
+                ax.plot(dts, rates, marker="o",
+                        color=MODEL_COLORS[model], label=MODEL_LABELS[model])
+            ax.axvline(dt_train, color="#cc4444", linestyle="--", linewidth=1,
+                       label=f"train dt={dt_train}")
+            if i == 0:
+                ax.set_title(f"train dt = {dt_train} ms")
+            if i == len(ENCODER_MODES) - 1:
+                ax.set_xlabel("eval dt (ms)")
+            if j == 0:
+                ax.set_ylabel(f"{mode}\nhidden rate (Hz)")
+            ax.grid(alpha=0.3)
+            if i == 0 and j == 0:
+                ax.legend(frameon=False, fontsize=7)
     if not any_data:
         print("[warn] no firing-rate data in sweep results; skipping firing_rates.png")
         plt.close(fig)
         return
-    axes[0].set_ylabel("mean hidden firing rate (Hz)")
-    fig.suptitle("Δt-stability: hidden firing rate vs eval-dt (frozen inputs)")
+    fig.suptitle("Δt-stability: hidden firing rate vs eval-dt (per encoder mode)")
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -344,30 +371,37 @@ def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, Path]],
     plt.close(fig)
 
 
-def plot_dt_sweep(regime_sweep_dirs: dict[float, dict[str, Path]],
+def plot_dt_sweep(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
                   out_path: Path, notebook_run_id: str) -> None:
-    """Money plot — accuracy vs eval-dt, one panel per training regime
-    (shared y-axis), with each panel's training dt marked."""
+    """Money plot — accuracy vs eval-dt, matrix layout: rows = encoder mode,
+    cols = training regime. Each panel marks its training dt."""
     dt_trains = sorted(regime_sweep_dirs.keys())
-    fig, axes = plt.subplots(1, len(dt_trains), figsize=(8, 4.5),
-                             sharey=True, squeeze=False)
-    axes = axes[0]
-    for ax, dt_train in zip(axes, dt_trains):
-        for model, sweep_dir in regime_sweep_dirs[dt_train].items():
-            blob = load_sweep(sweep_dir)
-            dts = [r["dt"] for r in blob["sweep"]]
-            accs = [r["acc"] for r in blob["sweep"]]
-            ax.plot(dts, accs, marker="o",
-                    color=MODEL_COLORS[model], label=MODEL_LABELS[model])
-        ax.axvline(dt_train, color="#cc4444", linestyle="--", linewidth=1,
-                   label=f"train dt={dt_train}")
-        ax.set_xlabel("eval dt (ms)")
-        ax.set_title(f"train dt = {dt_train} ms")
-        ax.set_ylim(0, 100)
-        ax.grid(alpha=0.3)
-        ax.legend(frameon=False, fontsize=8)
-    axes[0].set_ylabel("test accuracy (%)")
-    fig.suptitle("Δt-stability: accuracy vs eval-dt (frozen inputs)")
+    fig, axes = _matrix_axes(len(ENCODER_MODES), len(dt_trains))
+    for i, mode in enumerate(ENCODER_MODES):
+        for j, dt_train in enumerate(dt_trains):
+            ax = axes[i, j]
+            for model, mode_dirs in regime_sweep_dirs[dt_train].items():
+                sweep_dir = mode_dirs.get(mode)
+                if sweep_dir is None:
+                    continue
+                blob = load_sweep(sweep_dir)
+                dts = [r["dt"] for r in blob["sweep"]]
+                accs = [r["acc"] for r in blob["sweep"]]
+                ax.plot(dts, accs, marker="o",
+                        color=MODEL_COLORS[model], label=MODEL_LABELS[model])
+            ax.axvline(dt_train, color="#cc4444", linestyle="--", linewidth=1,
+                       label=f"train dt={dt_train}")
+            ax.set_ylim(0, 100)
+            if i == 0:
+                ax.set_title(f"train dt = {dt_train} ms")
+            if i == len(ENCODER_MODES) - 1:
+                ax.set_xlabel("eval dt (ms)")
+            if j == 0:
+                ax.set_ylabel(f"{mode}\ntest acc (%)")
+            ax.grid(alpha=0.3)
+            if i == 0 and j == 0:
+                ax.legend(frameon=False, fontsize=7)
+    fig.suptitle("Δt-stability: accuracy vs eval-dt (per encoder mode)")
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -409,7 +443,7 @@ def _copy_with_stamp(src: Path, dst: Path, stamp_path: Path) -> None:
 
 
 def copy_videos(regime_train_dirs: dict[float, dict[str, Path]],
-                regime_sweep_dirs: dict[float, dict[str, Path]],
+                regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
                 out_dir: Path, notebook_run_id: str) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp_path = out_dir / "_stamp.png"
@@ -421,11 +455,14 @@ def copy_videos(regime_train_dirs: dict[float, dict[str, Path]],
                 raise SystemExit(f"missing training video: {src}")
             dst = out_dir / f"training_{_regime_key(dt_train)}_{model}.mp4"
             _copy_with_stamp(src, dst, stamp_path)
-    for dt_train, sweep_dirs in regime_sweep_dirs.items():
-        for model, sweep_dir in sweep_dirs.items():
+    # Only or-pool emits sweep videos (see sweep_model).
+    for dt_train, model_modes in regime_sweep_dirs.items():
+        for model, mode_dirs in model_modes.items():
+            sweep_dir = mode_dirs.get("or-pool")
+            if sweep_dir is None:
+                continue
             src = sweep_dir / "dt_sweep.mp4"
             if not src.exists():
-                # --observe video may have been skipped; don't hard-fail.
                 print(f"[warn] missing sweep video: {src}")
                 continue
             dst = out_dir / f"dt_sweep_{_regime_key(dt_train)}_{model}.mp4"
@@ -434,7 +471,7 @@ def copy_videos(regime_train_dirs: dict[float, dict[str, Path]],
 
 
 def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
-                  regime_sweep_dirs: dict[float, dict[str, Path]],
+                  regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
                   out_path: Path, notebook_run_id: str,
                   duration_s: float, init_match: dict | None = None) -> dict:
     first_regime = next(iter(regime_train_dirs.values()))
@@ -452,6 +489,7 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
             "t_ms": first_cfg["t_ms"],
             "dt_trains": DT_TRAINS,
             "dt_sweep": DT_SWEEP,
+            "encoder_modes": ENCODER_MODES,
             "n_hidden": first_cfg["n_hidden"],
             "batch_size": first_cfg["batch_size"],
             "lr": first_cfg["lr"],
@@ -462,17 +500,28 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
     }
     for dt_train in sorted(regime_train_dirs.keys()):
         train_dirs = regime_train_dirs[dt_train]
-        sweep_dirs = regime_sweep_dirs[dt_train]
+        model_modes = regime_sweep_dirs[dt_train]
         runs: dict[str, dict] = {}
         for model in train_dirs:
             metrics = load_metrics(train_dirs[model])
             cfg = load_config(train_dirs[model])
-            sweep = load_sweep(sweep_dirs[model])
-            ref = next((r for r in sweep["sweep"] if r["dt"] == dt_train), None)
-            accs = [r["acc"] for r in sweep["sweep"]]
-            rates = [r["hid_rate_hz"] for r in sweep["sweep"]
-                     if r.get("hid_rate_hz") is not None]
             sw, sb = init_scales_for(model, dt_train)
+            per_mode: dict[str, dict] = {}
+            for mode, sweep_dir in model_modes[model].items():
+                sweep = load_sweep(sweep_dir)
+                ref = next((r for r in sweep["sweep"] if r["dt"] == dt_train), None)
+                accs = [r["acc"] for r in sweep["sweep"]]
+                rates = [r["hid_rate_hz"] for r in sweep["sweep"]
+                         if r.get("hid_rate_hz") is not None]
+                per_mode[mode] = {
+                    "sweep": sweep["sweep"],
+                    "ref_acc": ref["acc"] if ref else None,
+                    "sweep_min_acc": min(accs) if accs else None,
+                    "sweep_max_acc": max(accs) if accs else None,
+                    "ref_hid_rate_hz": ref.get("hid_rate_hz") if ref else None,
+                    "sweep_min_hid_rate_hz": min(rates) if rates else None,
+                    "sweep_max_hid_rate_hz": max(rates) if rates else None,
+                }
             runs[model] = {
                 "label": MODEL_LABELS[model],
                 "run_date": run_date(train_dirs[model]),
@@ -485,13 +534,7 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
                 "final_acc": metrics["epochs"][-1]["acc"],
                 "final_loss": metrics["epochs"][-1]["loss"],
                 "total_elapsed_s": metrics["total_elapsed_s"],
-                "sweep": sweep["sweep"],
-                "ref_acc": ref["acc"] if ref else None,
-                "sweep_min_acc": min(accs) if accs else None,
-                "sweep_max_acc": max(accs) if accs else None,
-                "ref_hid_rate_hz": ref.get("hid_rate_hz") if ref else None,
-                "sweep_min_hid_rate_hz": min(rates) if rates else None,
-                "sweep_max_hid_rate_hz": max(rates) if rates else None,
+                "encoder_modes": per_mode,
             }
         summary["regimes"][str(dt_train)] = {
             "dt_train": dt_train,
@@ -515,10 +558,11 @@ def main() -> None:
             # Preserve train dirs; wipe sweep subdirs + figures so they regenerate.
             for dt_train in DT_TRAINS:
                 for model in MODELS:
-                    sd = ARTIFACTS / _regime_key(dt_train) / model / "sweep"
-                    if sd.exists():
-                        print(f"[wipe] {sd.relative_to(REPO)}")
-                        shutil.rmtree(sd)
+                    for mode in ENCODER_MODES:
+                        sd = ARTIFACTS / _regime_key(dt_train) / model / f"sweep_{_mode_key(mode)}"
+                        if sd.exists():
+                            print(f"[wipe] {sd.relative_to(REPO)}")
+                            shutil.rmtree(sd)
             if FIGURES.exists():
                 print(f"[wipe] {FIGURES.relative_to(REPO)}")
                 shutil.rmtree(FIGURES)
@@ -533,7 +577,8 @@ def main() -> None:
     init_match = verify_init_match(MODELS, SEED, DT_TRAINS)
 
     regime_train_dirs: dict[float, dict[str, Path]] = {}
-    regime_sweep_dirs: dict[float, dict[str, Path]] = {}
+    # regime_sweep_dirs[dt_train][model][encoder_mode] = sweep_dir
+    regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]] = {}
     for dt_train in DT_TRAINS:
         print(f"\n=== regime: train dt = {dt_train} ms ===")
         if sweep_only:
@@ -544,7 +589,10 @@ def main() -> None:
                         f"--sweep-only requires existing train weights at {d}")
         else:
             td = {m: train_model(m, dt_train) for m in MODELS}
-        sd = {m: sweep_model(m, dt_train, td[m]) for m in MODELS}
+        sd: dict[str, dict[str, Path]] = {}
+        for m in MODELS:
+            sd[m] = {mode: sweep_model(m, dt_train, td[m], mode)
+                     for mode in ENCODER_MODES}
         regime_train_dirs[dt_train] = td
         regime_sweep_dirs[dt_train] = sd
 
@@ -570,9 +618,11 @@ def main() -> None:
         print(f"  regime dt={dt_train_s}:")
         for model, s in regime["runs"].items():
             print(f"    {model}: best={s['best_acc']}%  "
-                  f"final={s['final_acc']}%  ref={s['ref_acc']}%  "
-                  f"sweep=[{s['sweep_min_acc']}..{s['sweep_max_acc']}]%  "
+                  f"final={s['final_acc']}%  "
                   f"elapsed={s['total_elapsed_s']:.0f}s")
+            for mode, m in s["encoder_modes"].items():
+                print(f"      [{mode}] ref={m['ref_acc']}%  "
+                      f"sweep=[{m['sweep_min_acc']}..{m['sweep_max_acc']}]%")
     print(f"  total duration: {summary['duration']}")
 
 
