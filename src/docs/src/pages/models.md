@@ -11,14 +11,14 @@ The shared model ladder used across experiments: five models, ordered by increas
 | ----- | ----------- |
 | snnTorch-library | Thin wrapper around snnTorch's *snn.Leaky* + fast-sigmoid surrogate. Parity reference for the pinglab path. |
 | snnTorch-clone | snnTorch-library form, pinglab implementation: $\beta$ a dimensionless hyperparameter. No dt semantics. Not dt-stable. |
-| CUBA | Exact Euler discretisation of $\tau\,dV/dt = -V + I$. Dt-stable across $\Delta t \in [0.05, 2.0]$ ms. |
+| CUBA | Exact (exponential-Euler + zero-order hold) discretisation of $\tau\,dV/dt = -V + I$. Dt-stable across $\Delta t \in [0.05, 2.0]$ ms. |
 | COBA | Full biophysical: exp synapse + hard reset + refractory + conductance-$V$. Not a separate CLI model — run as *--model ping --ei-strength 0*. |
 | PING | COBA + E→I→E loop producing gamma oscillation. Dt-stable below $\tau_{\text{GABA}}$ ceiling. |
 
 Each step up the ladder adds one axis of realism or rigour:
 
 - **snnTorch-library → snnTorch-clone**: same update rule, different implementation. Isolates *"does the pinglab LIF step and surrogate-gradient code match the library's numerics?"*
-- **snnTorch-clone → CUBA**: same neuron class, cleaner discretisation. Isolates the dt-sensitivity question — *proper Euler fixes it* ([nb003](/notebook/nb003/)).
+- **snnTorch-clone → CUBA**: same neuron class, cleaner discretisation. Isolates the dt-sensitivity question — *the exp-Euler + ZOH form fixes it* ([nb003](/notebook/nb003/)).
 - **CUBA → COBA**: add hard reset, refractory, conductance-based membrane, and exponential synapses. Isolates *"do the biophysical features add anything beyond the CUBA baseline?"*
 - **COBA → PING**: add inhibitory population and E→I→E coupling. Isolates *"what does the gamma oscillation contribute?"*
 
@@ -111,7 +111,7 @@ $$
 
 This is exactly the one-shot balance step CUBA applies at init: weights are drawn bit-identical to snntorch-clone, then scaled by (9) so that at training-$\Delta t$ both models produce the same initial firing rate. Once CUBA is trained, evaluating at a different $\Delta t$ with the *same* frozen weights works because the $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors in the update absorb the rescaling in the forward pass — there's no need to re-rescale *W* post-hoc.
 
-**Compared to snnTorch-clone:** same LIF neuron class, but the forward rule derives from proper Euler integration with explicit $\Delta t$ semantics — this isolates whether dt-sensitivity is a property of the model or of the discretisation.
+**Compared to snnTorch-clone:** same LIF neuron class, but the forward rule derives from exp-Euler integration with a zero-order hold on the input, keeping explicit $\Delta t$ semantics — this isolates whether dt-sensitivity is a property of the model or of the discretisation.
 
 ### COBA
 
