@@ -5,20 +5,20 @@ title: "Models"
 
 # Models
 
-The shared model ladder used across experiments: five models, ordered by increasing biophysical realism and time-discretisation rigour. All take MNIST Poisson spikes as input and output digit-class logits. The first two (snnTorch-library, snnTorch-clone) share the same update rule — snnTorch-library is the reference, snnTorch-clone is pinglab's in-repo version — and serve as a calibration pair. For the project-level "why," see [Introduction](/introduction/).
+The shared model ladder used across experiments: five models, ordered by increasing biophysical realism and time-discretisation rigour. All take MNIST Poisson spikes as input and output digit-class logits. The first two (snnTorch-library, standard-snn) share the same update rule — snnTorch-library is the reference, standard-snn is pinglab's in-repo version — and serve as a calibration pair. For the project-level "why," see [Introduction](/introduction/).
 
 | Model | Description |
 | ----- | ----------- |
 | snnTorch-library | Thin wrapper around snnTorch's *snn.Leaky* + fast-sigmoid surrogate. Parity reference for the pinglab path. |
-| snnTorch-clone | snnTorch-library form, pinglab implementation: $\beta$ a dimensionless hyperparameter. No dt semantics. Not dt-stable. |
+| standard-snn | snnTorch-library form, pinglab implementation: $\beta$ a dimensionless hyperparameter. No dt semantics. Not dt-stable. |
 | CUBA | Exact (exponential-Euler + zero-order hold) discretisation of $\tau\,dV/dt = -V + I$. Dt-stable across $\Delta t \in [0.05, 2.0]$ ms. |
 | COBA | Full biophysical: exp synapse + hard reset + refractory + conductance-$V$. Not a separate CLI model — run as *--model ping --ei-strength 0*. |
 | PING | COBA + E→I→E loop producing gamma oscillation. Dt-stable below $\tau_{\text{GABA}}$ ceiling. |
 
 Each step up the ladder adds one axis of realism or rigour:
 
-- **snnTorch-library → snnTorch-clone**: same update rule, different implementation. Isolates *"does the pinglab LIF step and surrogate-gradient code match the library's numerics?"*
-- **snnTorch-clone → CUBA**: same neuron class, cleaner discretisation. Isolates the dt-sensitivity question — *the exp-Euler + ZOH form fixes it* ([nb003](/notebook/nb003/)).
+- **snnTorch-library → standard-snn**: same update rule, different implementation. Isolates *"does the pinglab LIF step and surrogate-gradient code match the library's numerics?"*
+- **standard-snn → CUBA**: same neuron class, cleaner discretisation. Isolates the dt-sensitivity question — *the exp-Euler + ZOH form fixes it* ([nb003](/notebook/nb003/)).
 - **CUBA → COBA**: add hard reset, refractory, conductance-based membrane, and exponential synapses. Isolates *"do the biophysical features add anything beyond the CUBA baseline?"*
 - **COBA → PING**: add inhibitory population and E→I→E coupling. Isolates *"what does the gamma oscillation contribute?"*
 
@@ -36,11 +36,11 @@ $$
 
 with reset-by-subtraction on spike — snnTorch's *reset_mechanism="subtract"* option, one of *subtract*, *zero*, or *none* ([*snn.Leaky* API](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html)). The canonical snnTorch spec treats $\beta \in [0, 1)$ as a dimensionless hyperparameter and has no $\Delta t$ in the update (see [Tutorial 3 § The Decay Rate: beta](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#the-decay-rate-beta), where β is introduced as a step-indexed scalar).
 
-snnTorch does, however, recommend a way to reintroduce a timestep: [Tutorial 3 § 1.4](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#1-4-lapicque-s-lif-neuron-model) writes *beta = torch.exp(-delta_t / tau)* at a fixed $(\Delta t, \tau)$ (e.g. $\Delta t = 1$ ms, $\tau = 5$ ms, giving $\beta = 0.819$). Pinglab uses exactly this pattern with $\tau_{\text{snn}} = 10$ ms, recomputing β whenever Δt changes so snnTorch-library and snnTorch-clone share the same $\tau_{\text{mem}}$. Note that this is a **partial discretisation**: β tracks Δt, but $W$ and $b$ — which already absorbed the Tutorial 3 § 1.2 $(1-\beta)$ prefactor — do not. A full Euler step would restore $(1-\beta)/\Delta t$ on the spike drive and $(1-\beta)$ on the bias; that's the CUBA rung. Consequently a $\Delta t$-sweep probes a regime the canonical spec never promised to support, and [notebook 003](/notebook/nb003/) documents what happens when users take it there anyway.
+snnTorch does, however, recommend a way to reintroduce a timestep: [Tutorial 3 § 1.4](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#1-4-lapicque-s-lif-neuron-model) writes *beta = torch.exp(-delta_t / tau)* at a fixed $(\Delta t, \tau)$ (e.g. $\Delta t = 1$ ms, $\tau = 5$ ms, giving $\beta = 0.819$). Pinglab uses exactly this pattern with $\tau_{\text{snn}} = 10$ ms, recomputing β whenever Δt changes so snnTorch-library and standard-snn share the same $\tau_{\text{mem}}$. Note that this is a **partial discretisation**: β tracks Δt, but $W$ and $b$ — which already absorbed the Tutorial 3 § 1.2 $(1-\beta)$ prefactor — do not. A full Euler step would restore $(1-\beta)/\Delta t$ on the spike drive and $(1-\beta)$ on the bias; that's the CUBA rung. Consequently a $\Delta t$-sweep probes a regime the canonical spec never promised to support, and [notebook 003](/notebook/nb003/) documents what happens when users take it there anyway.
 
-Its purpose is calibration, not experimentation. At matched config, snnTorch-library and pinglab's snnTorch-clone should train to within a small tolerance — any residual gap localises to the LIF-step implementation or surrogate-gradient details, not to the architecture. See [notebook 003](/notebook/nb003/) for the side-by-side training comparison and Δt-stability sweep.
+Its purpose is calibration, not experimentation. At matched config, snnTorch-library and pinglab's standard-snn should train to within a small tolerance — any residual gap localises to the LIF-step implementation or surrogate-gradient details, not to the architecture. See [notebook 003](/notebook/nb003/) for the side-by-side training comparison and Δt-stability sweep.
 
-### snnTorch-clone
+### standard-snn
 
 Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Selected by the default constructor args — *discretisation="snntorch"* and *exponential_synapse=False* — which is what distinguishes this path from its CUBA siblings on the same class.
 
@@ -64,7 +64,7 @@ This is the deep-learning framing of an SNN: a recurrent network with binary act
 
 ### CUBA
 
-Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Selected by *discretisation="continuous"* (snnTorch-clone leaves it at "snntorch"), with *exponential_synapse=False*.
+Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Selected by *discretisation="continuous"* (standard-snn leaves it at "snntorch"), with *exponential_synapse=False*.
 
 Proper continuous-time discretisation of the physicist's LIF:
 
@@ -96,12 +96,12 @@ $$
 U_{t+1} = \beta\, U_t + \frac{1 - \beta}{\Delta t}\, W\, s_t + (1 - \beta)\, b \tag{8}
 $$
 
-followed by the same spike / reset rule as snnTorch-clone. Two key consequences:
+followed by the same spike / reset rule as standard-snn. Two key consequences:
 
 - **Per-spike kick** $= (1-\beta)/\Delta t \cdot W \approx W/\tau$ as $\Delta t \to 0$ — neither $\Delta t$ nor $\beta$ appears in the limit. Dt-invariant in magnitude.
-- **Per-ms bias contribution** $= (1-\beta)/\Delta t \cdot b \approx b/\tau$ per ms — dt-invariant, whereas the snnTorch-clone path injects $b$ once per step and grows bias drive by $1/\Delta t$.
+- **Per-ms bias contribution** $= (1-\beta)/\Delta t \cdot b \approx b/\tau$ per ms — dt-invariant, whereas the standard-snn path injects $b$ once per step and grows bias drive by $1/\Delta t$.
 
-Same parameters, learning rate, and training cost as snnTorch-clone — only the forward rule differs. Empirically $\Delta t$-stable across the full $\Delta t \in [0.05, 2.0]$ ms sweep: [notebook 003](/notebook/nb003/) trains CUBA at $\Delta t = 0.1$ and $\Delta t = 1.0$ and finds test accuracy stays within $\sim$1% of the training-$\Delta t$ reference across every evaluation $\Delta t$, whereas snntorch-clone and snntorch-library collapse by 20–60 percentage points outside a narrow band around their training $\Delta t$. Proper discretisation is what carries CUBA's stability, independent of any synapse model.
+Same parameters, learning rate, and training cost as standard-snn — only the forward rule differs. Empirically $\Delta t$-stable across the full $\Delta t \in [0.05, 2.0]$ ms sweep: [notebook 003](/notebook/nb003/) trains CUBA at $\Delta t = 0.1$ and $\Delta t = 1.0$ and finds test accuracy stays within $\sim$1% of the training-$\Delta t$ reference across every evaluation $\Delta t$, whereas standard-snn and snntorch-library collapse by 20–60 percentage points outside a narrow band around their training $\Delta t$. Proper discretisation is what carries CUBA's stability, independent of any synapse model.
 
 **Weight rescaling across $\Delta t$.** The ZOH prefactor $(1-\beta)$ depends on $\Delta t$, so a weight trained at $\Delta t_{\text{ref}}$ must be rescaled to stay equivalent at $\Delta t'$. [Parthasarathy, Burghi & O'Leary](/papers/#temporal-discretisation) (their Eq 27) give the rescaling in closed form:
 
@@ -109,9 +109,9 @@ $$
 \frac{W(\Delta t')}{W(\Delta t_{\text{ref}})} = \frac{1 - e^{-\Delta t' / \tau_m}}{1 - e^{-\Delta t_{\text{ref}} / \tau_m}} \tag{9}
 $$
 
-This is exactly the one-shot balance step CUBA applies at init: weights are drawn bit-identical to snntorch-clone, then scaled by (9) so that at training-$\Delta t$ both models produce the same initial firing rate. Once CUBA is trained, evaluating at a different $\Delta t$ with the *same* frozen weights works because the $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors in the update absorb the rescaling in the forward pass — there's no need to re-rescale *W* post-hoc.
+This is exactly the one-shot balance step CUBA applies at init: weights are drawn bit-identical to standard-snn, then scaled by (9) so that at training-$\Delta t$ both models produce the same initial firing rate. Once CUBA is trained, evaluating at a different $\Delta t$ with the *same* frozen weights works because the $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors in the update absorb the rescaling in the forward pass — there's no need to re-rescale *W* post-hoc.
 
-**Compared to snnTorch-clone:** same LIF neuron class, but the forward rule derives from exp-Euler integration with a zero-order hold on the input, keeping explicit $\Delta t$ semantics — this isolates whether dt-sensitivity is a property of the model or of the discretisation.
+**Compared to standard-snn:** same LIF neuron class, but the forward rule derives from exp-Euler integration with a zero-order hold on the input, keeping explicit $\Delta t$ semantics — this isolates whether dt-sensitivity is a property of the model or of the discretisation.
 
 ### COBA
 
@@ -179,9 +179,9 @@ With default parameters and input rate 50 Hz, the network locks at $f_0 \approx 
 
 ## Model training
 
-| Flag | snntorch-clone | cuba | coba | ping |
+| Flag | standard-snn | cuba | coba | ping |
 | ---- | ------------------ | ---- | ---- | ---- |
-| --model | snntorch-clone | cuba | ping | ping |
+| --model | standard-snn | cuba | ping | ping |
 | --dataset | mnist | mnist | mnist | mnist |
 | --dt | {0.1\|1.0} | {0.1\|1.0} | {0.1\|1.0} | {0.1\|1.0} |
 | --t-ms | 200 | 200 | 200 | 200 |

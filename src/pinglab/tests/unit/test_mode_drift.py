@@ -24,9 +24,9 @@ def _equal_state_dicts(a, b):
 def test_build_net_deterministic_snntorch_canonical():
     from config import build_net
     torch.manual_seed(0)
-    a = build_net("snntorch-clone", w_in=(10.0, 1.0), w_in_sparsity=0.0)
+    a = build_net("standard-snn", w_in=(10.0, 1.0), w_in_sparsity=0.0)
     torch.manual_seed(0)
-    b = build_net("snntorch-clone", w_in=(10.0, 1.0), w_in_sparsity=0.0)
+    b = build_net("standard-snn", w_in=(10.0, 1.0), w_in_sparsity=0.0)
     assert _equal_state_dicts(a, b)
 
 
@@ -80,7 +80,7 @@ def _run_cli(*args, timeout=180):
 
 
 def _train_probe(tmp_dir, **extra):
-    args = ["train", "--model", "snntorch-clone",
+    args = ["train", "--model", "standard-snn",
             "--dataset", "mnist", "--max-samples", "100",
             "--epochs", "0", "--dt", "0.25",
             "--w-in", "10", "--w-in-sparsity", "0",
@@ -111,7 +111,7 @@ def test_input_rate_propagates_train(tmp_path):
 def test_input_rate_propagates_image(tmp_path):
     expected = 33.0
     out = tmp_path / "ir-image"
-    rc, _, _ = _run_cli("image", "--model", "snntorch-clone",
+    rc, _, _ = _run_cli("image", "--model", "standard-snn",
                         "--dataset", "mnist", "--digit", "0",
                         "--dt", "0.25", "--w-in", "0.1",
                         "--input-rate", str(expected),
@@ -124,7 +124,7 @@ def test_input_rate_propagates_image(tmp_path):
 def test_input_rate_propagates_video(tmp_path):
     expected = 33.0
     out = tmp_path / "ir-video"
-    rc, _, _ = _run_cli("video", "--model", "snntorch-clone",
+    rc, _, _ = _run_cli("video", "--model", "standard-snn",
                         "--dataset", "mnist", "--digit", "0",
                         "--scan-var", "stim-overdrive",
                         "--scan-min", "1", "--scan-max", "2",
@@ -147,7 +147,7 @@ def test_t_ms_propagates_train(tmp_path):
 def test_t_ms_propagates_image(tmp_path):
     expected = 150.0
     out = tmp_path / "tms-image"
-    rc, _, _ = _run_cli("image", "--model", "snntorch-clone",
+    rc, _, _ = _run_cli("image", "--model", "standard-snn",
                         "--dataset", "mnist", "--digit", "0",
                         "--dt", "0.25", "--w-in", "0.1",
                         "--t-ms", str(expected),
@@ -160,7 +160,7 @@ def test_t_ms_propagates_image(tmp_path):
 def test_t_ms_propagates_video(tmp_path):
     expected = 150.0
     out = tmp_path / "tms-video"
-    rc, _, _ = _run_cli("video", "--model", "snntorch-clone",
+    rc, _, _ = _run_cli("video", "--model", "standard-snn",
                         "--dataset", "mnist", "--digit", "0",
                         "--scan-var", "stim-overdrive",
                         "--scan-min", "1", "--scan-max", "2",
@@ -176,7 +176,7 @@ def test_t_ms_propagates_video(tmp_path):
 def test_train_then_infer_match(tmp_path):
     """infer accuracy on a freshly trained checkpoint == train's last-epoch eval."""
     train_dir = tmp_path / "match-train"
-    rc, _, _ = _run_cli("train", "--model", "snntorch-clone",
+    rc, _, _ = _run_cli("train", "--model", "standard-snn",
                         "--dataset", "mnist", "--max-samples", "200",
                         "--epochs", "2", "--dt", "0.25",
                         "--w-in", "10", "--w-in-sparsity", "0",
@@ -190,7 +190,7 @@ def test_train_then_infer_match(tmp_path):
     assert train_best_acc is not None
 
     infer_dir = tmp_path / "match-infer"
-    rc, _, _ = _run_cli("infer", "--model", "snntorch-clone",
+    rc, _, _ = _run_cli("infer", "--model", "standard-snn",
                         "--dataset", "mnist", "--max-samples", "200",
                         "--dt", "0.25",
                         "--w-in", "10", "--w-in-sparsity", "0",
