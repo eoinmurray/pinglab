@@ -1,25 +1,11 @@
 ---
 layout: ../layouts/MarkdownLayout.astro
-title: "LLM Conventions"
+title: "Style guide"
 ---
 
-# LLM Conventions
+# Style guide
 
 Hard rules for editing the docs and notebook. For repo layout, workflow narrative, and how to run things, see [Introduction](/introduction/).
-
-## Invariants and gotchas
-
-Facts about this repo that are load-bearing and easy to get wrong.
-
-- **Trial length defaults to 600 ms** (*--t-ms 600*). Shorter trials emit a warning — the harness will let you run them but flags that the transient window is too short.
-- **Raw run outputs go to src/artifacts/; published figures go to src/docs/public/figures/notebook/&lt;slug&gt;/.** *oscilloscope.py* writes only to its *--out-dir* (typically under *src/artifacts/*). The notebook runner reads from those run dirs and writes published figures directly into *src/docs/public/figures/notebook/&lt;slug&gt;/*. There is no separate freeze step.
-- **Notebook runners wipe by default.** Each notebook script clears its ARTIFACTS and FIGURES dirs on start; opt out with *--no-wipe-dir*. This keeps every run a clean regeneration from config + seed.
-- **src/artifacts/ is gitignored.** Nothing under it is part of the repo; it is reproducible from code + config + seed.
-- **Poisson input encoding is frozen across Δt-sweeps.** Each image is encoded once at the finest sweep Δt, then OR-pooled to the target Δt. This eliminates Poisson resampling as a confound.
-- **sMNIST needs ≥2 hidden layers.** The 28-pixel-per-step bottleneck is too narrow to classify from a single hidden layer. Any sMNIST run configures a depth-2+ stack with recurrence on at least one layer.
-- **uv for Python, bun for JavaScript.** No *pip install*, no *npm install*. Lock files are *uv.lock* and *bun.lock*.
-
-## Conventions
 
 These rules apply when editing the docs and notebook. They are the source of truth — if anything on the [Introduction](/introduction/) page conflicts, these win.
 
@@ -35,7 +21,7 @@ Every notebook entry under *src/docs/src/pages/notebook/* uses the same five H2 
 
 The H1 stays entry-specific (the entry title). The skeleton is for H2s only. *Why:* notebook-entry navigation should be predictable across the site.
 
-Entries may append appendix H2s after *Next steps* — typical ones are *Parameters* (a table of the config used) and *Reproduction* (the exact *uv run* command). Paper-style drafts with custom sectioning can opt out of the skeleton entirely by setting *structure: paper* in frontmatter.
+Entries may append appendix H2s after *Next steps* — typical ones are *Run parameters* (a table of the config used) and *Reproduction* (the exact *uv run* command). Paper-style drafts with custom sectioning can opt out of the skeleton entirely by setting *structure: paper* in frontmatter.
 
 ### 2. Entry numbering and date format
 

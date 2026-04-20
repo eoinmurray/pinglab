@@ -4,7 +4,7 @@ One-off utilities that support the repo but aren't part of the core Python packa
 
 ## validate-notebook.py
 
-Checks every notebook entry against the conventions in `src/docs/src/pages/llm-conventions.md`.
+Checks every notebook entry against the conventions in `src/docs/src/pages/styleguide.md`.
 
 ```sh
 uv run python src/scripts/validate-notebook.py

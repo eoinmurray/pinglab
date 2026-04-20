@@ -1,9 +1,9 @@
 ---
 layout: ../layouts/MarkdownLayout.astro
-title: "Papers"
+title: "References"
 ---
 
-# Papers
+# References
 
 Reading list for this project. PDFs themselves are third-party copyrighted material and are not redistributed; follow the links to fetch them. Citation keys match the filenames under *src/papers/*.
 
