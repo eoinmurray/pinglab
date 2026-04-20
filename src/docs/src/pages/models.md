@@ -77,25 +77,25 @@ $$
 with presynaptic spikes as Dirac deltas plus a constant bias current. Derivation to the discrete update via **exact / exponential-Euler integration**: solve the homogeneous part of (4) in closed form over one step — giving the exponential decay factor $\beta = e^{-\Delta t/\tau}$ that characterises this scheme, and distinguishing it from forward Euler, which would approximate the decay as $(1 - \Delta t/\tau)$. The inhomogeneous (input-driven) part is integrated under a **zero-order hold** on the input — i.e. the input is held piecewise-constant across each step — which is where the $(1-\beta)$ prefactors on the drive terms originate:
 
 $$
-V(t + \Delta t) = e^{-\Delta t/\tau}\, V(t) + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - u)/\tau}\, I(t + u)\, du
+V(t + \Delta t) = e^{-\Delta t/\tau}\, V(t) + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - u)/\tau}\, I(t + u)\, du \tag{5}
 $$
 
 Split $I$ into spike and bias parts. The bias $b$ is already constant. The spike part is where the zero-order hold does work: rather than integrate literal Dirac deltas — which would make each kick depend on *where in the step* the spike lands, an unpleasant within-step dependence — the within-step spike count $s_t$ is treated as a rectangular current pulse of height $W\, s_t / \Delta t$ spread uniformly across the step. That is the explicit ZOH approximation, and it is the honest source of the $1/\Delta t$ factor in the spike drive:
 
 $$
-V_{t+1} = \beta\, V_t + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - u)/\tau} \left[\frac{W\, s_t}{\Delta t} + b\right] du, \qquad \beta = e^{-\Delta t/\tau}
+V_{t+1} = \beta\, V_t + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - u)/\tau} \left[\frac{W\, s_t}{\Delta t} + b\right] du, \qquad \beta = e^{-\Delta t/\tau} \tag{6}
 $$
 
 The integrand's $u$-dependence is purely in the exponential, so
 
 $$
-\frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - u)/\tau}\, du = 1 - e^{-\Delta t/\tau} = 1 - \beta
+\frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - u)/\tau}\, du = 1 - e^{-\Delta t/\tau} = 1 - \beta \tag{7}
 $$
 
 Pulling that factor out of both terms yields the update:
 
 $$
-U_{t+1} = \beta\, U_t + \frac{1 - \beta}{\Delta t}\, W\, s_t + (1 - \beta)\, b \tag{5}
+U_{t+1} = \beta\, U_t + \frac{1 - \beta}{\Delta t}\, W\, s_t + (1 - \beta)\, b \tag{8}
 $$
 
 followed by the same spike / reset rule as snnTorch-clone. Two key consequences:
@@ -114,11 +114,11 @@ Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pi
 CUBA augmented with an **exponential synapse**: incoming presynaptic spikes deposit charge into a synaptic conductance $g$ that decays with time constant $\tau_{\text{AMPA}} = 2$ ms, rather than depositing directly into $V$. The membrane then sees a smoothly-varying $g$ instead of sharp per-step impulses. Per-step update, with $\beta = e^{-\Delta t/\tau_{\text{mem}}}$ and $\alpha = e^{-\Delta t/\tau_{\text{AMPA}}}$:
 
 $$
-g_{t+1} = \alpha \bigl(g_t + W\, s_t\bigr) \tag{6}
+g_{t+1} = \alpha \bigl(g_t + W\, s_t\bigr) \tag{9}
 $$
 
 $$
-U_{t+1} = \beta\, U_t + (1 - \beta)\, g_{t+1} + (1 - \beta)\, b \tag{7}
+U_{t+1} = \beta\, U_t + (1 - \beta)\, g_{t+1} + (1 - \beta)\, b \tag{10}
 $$
 
 followed by the same spike / reset rule. The synapse is updated "kick then decay": spikes add to $g$, then the whole conductance decays one step. The bias path is unchanged from CUBA (per-ms contribution $\approx b/\tau$).
@@ -134,16 +134,28 @@ Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pi
 Conductance-based LIF with exponential synapses — the simplest biophysical model. The membrane follows
 
 $$
-C_m\, \frac{dV}{dt} = -g_L\,(V - E_L) - g_e\,(V - E_e) - g_i\,(V - E_i) \tag{8}
+C_m\, \frac{dV}{dt} = -g_L\,(V - E_L) - g_e\,(V - E_e) - g_i\,(V - E_i) \tag{11}
 $$
 
-Discretised with **exponential Euler under a zero-order hold** on $g_e, g_i$ over each step — the closed-form solution when conductances are treated as constant across $\Delta t$:
+Derivation to the discrete update via **exponential Euler under a zero-order hold** on the conductances. Collect coefficients on $V$ on the right-hand side of (11):
 
 $$
-V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp(-\Delta t / \tau_{\text{eff}}) \tag{9}
+C_m\, \frac{dV}{dt} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{12}
 $$
 
-with $\tau_{\text{eff}} = C_m / (g_L + g_e + g_i)$ and $V_\infty = (g_L E_L + g_e E_e + g_i E_i) / (g_L + g_e + g_i)$. This matches CUBA's treatment of its homogeneous part, so CUBA → COBA on the ladder isolates the biophysical additions rather than an integrator swap. A forward-Euler variant is still available via *--coba-integrator fwd* for parity studies — see [nb004](/notebook/nb004/).
+Define $g_{\text{tot}} = g_L + g_e + g_i$, $\tau_{\text{eff}} = C_m / g_{\text{tot}}$, and $V_\infty = (g_L E_L + g_e E_e + g_i E_i) / g_{\text{tot}}$. Dividing (12) by $g_{\text{tot}}$ puts it in canonical first-order form:
+
+$$
+\tau_{\text{eff}}\, \frac{dV}{dt} = -(V - V_\infty) \tag{13}
+$$
+
+Under a zero-order hold on $g_e, g_i$ across the step, $\tau_{\text{eff}}$ and $V_\infty$ are constant, so (13) is a first-order linear ODE with the familiar closed form:
+
+$$
+V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp(-\Delta t / \tau_{\text{eff}}) \tag{14}
+$$
+
+This matches CUBA's treatment of its homogeneous part, so CUBA → COBA on the ladder isolates the biophysical additions rather than an integrator swap. A forward-Euler variant is still available via *--coba-integrator fwd* for parity studies — see [nb004](/notebook/nb004/).
 
 Each synaptic conductance evolves as an exponential synapse: $g_{t+1} = e^{-\Delta t/\tau_{\text{syn}}}(g_t + W\,s_t)$, with $\tau_{\text{AMPA}} = 2$ ms for excitation and $\tau_{\text{GABA}} = 9$ ms for inhibition. In feedforward-only COBA ($ei\text{-}strength = 0$), the inhibitory term drops: $g_i \equiv 0$. On crossing threshold the voltage is hard-reset, $V \leftarrow V_{\text{reset}}$, and the neuron is refractory for $\tau_{\text{ref}}^{E} = 3$ ms (E) or $\tau_{\text{ref}}^{I} = 1.5$ ms (I). Dale's law on: weights non-negative (half-normal init, clamped in forward).
 
@@ -162,15 +174,15 @@ Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pi
 Full E-I network with frozen recurrent weights, producing gamma oscillations. Excitatory and inhibitory populations (E:I ratio 4:1) share COBA-style membrane dynamics; three frozen recurrent matrices $W^{EE}, W^{EI}, W^{IE}$ connect them into the standard PING loop. Per-step synaptic updates (kick-then-decay with $\alpha = e^{-\Delta t/\tau_{\text{AMPA}}}$, $\gamma = e^{-\Delta t/\tau_{\text{GABA}}}$):
 
 $$
-g^{E \to E}_{t+1} = \alpha\bigl(g^{E \to E}_t + W^{EE}\, s^{E}_t\bigr) + W_{\text{in}}\, s^{\text{inp}}_t \tag{10}
+g^{E \to E}_{t+1} = \alpha\bigl(g^{E \to E}_t + W^{EE}\, s^{E}_t\bigr) + W_{\text{in}}\, s^{\text{inp}}_t \tag{15}
 $$
 
 $$
-g^{E \to I}_{t+1} = \alpha\bigl(g^{E \to I}_t + W^{EI}\, s^{E}_t\bigr) \tag{11}
+g^{E \to I}_{t+1} = \alpha\bigl(g^{E \to I}_t + W^{EI}\, s^{E}_t\bigr) \tag{16}
 $$
 
 $$
-g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{12}
+g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{17}
 $$
 
 Feedforward input is added post-decay (i.e. as an instantaneous conductance kick that the next membrane step integrates once). Recurrent components go through kick-then-decay as usual. The E population integrates $g^{E \to E}$ excitation + $g^{I \to E}$ inhibition via COBA; the I population integrates $g^{E \to I}$ only. Both use the COBA membrane equation above with their respective $(C_m, g_L, \tau_{\text{ref}})$. Pinglab defaults use $W^{EE} = 0$ (Börgers: PING needs no E→E), $W^{EI} \approx 1$ µS (just suprathreshold), $W^{IE} \approx 3$ µS (2–3× $W^{EI}$, Viriyopase et al.). The recurrent matrices are **frozen at init** — only $W_{\text{in}}$ and $W_{\text{out}}$ train, matching the trainable surface area of the other three models so the ladder is apples-to-apples.
