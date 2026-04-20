@@ -13,7 +13,7 @@ This page is the reference for every number and every panel the scope shows. It 
 
 *Calculated.* Read from the *--model* CLI flag. A spinner character prefixes the name on live runs so the eye can tell a frozen frame from one that's still updating.
 
-*Common values.* *snnTorch*, *CUBA*, *CUBA-exp*, *COBA*, *PING*.
+*Common values.* *snnTorch*, *CUBA*, *COBA*, *PING*.
 
 ## dt
 

@@ -192,7 +192,7 @@ Two videos per (model, regime): one frame per training epoch, one frame per swee
 
 The experiment confirms the [ladder's](/models/) core claim: the [snnTorch update](/models/#snntorch-clone) has no $\Delta t$-invariance, and [*cuba*'s](/models/#cuba) $(1-\beta)/dt$ and $(1-\beta)$ prefactors are the minimum correction that restores it. The snnTorch paths fan across 1–2 orders of magnitude of hidden rate in both regimes, matching the predicted $b\,\tau/dt$ bias scaling; *cuba* holds flat at dt={dt1}. The dt={dt2} regime tests only the snnTorch paths at this tier — *cuba*'s silent-network result there is a training-budget issue, not a ladder defect.
 
-Every later rung inherits the continuous discretisation, so Δt-stability in expectation is a **ladder invariant** from CUBA onwards — with the caveat that CUBA itself still breaks under discrete-spike variance at extreme Δt (coincident input spikes in one step, hard reset discards the overshoot); CUBA-exp's synaptic low-pass is what closes that gap. Any further rung that breaks Δt-stability is a rung defect, not biophysics.
+Every later rung inherits the continuous discretisation, so Δt-stability is a **ladder invariant** from CUBA onwards. Any further rung that breaks Δt-stability is a rung defect, not biophysics.
 
 ## Next steps
 
