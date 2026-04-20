@@ -46,7 +46,7 @@ Train or inspect a model:
 
 ```sh
 uv run python src/pinglab/oscilloscope.py --help
-uv run python src/pinglab/oscilloscope.py train --model snntorch-clone \
+uv run python src/pinglab/oscilloscope.py train --model standard-snn \
   --dataset mnist --max-samples 1000 --epochs 3
 ```
 
@@ -72,7 +72,7 @@ uv run pytest
 
 Project-specific terms. Definitions here are load-bearing — if something elsewhere contradicts a definition, this page wins.
 
-- **Ladder** — the feature-incremental set of models stepping from a vanilla SNN to full PING: *snntorch-clone → cuba → coba → ping*. Each rung adds one biophysical feature.
+- **Ladder** — the feature-incremental set of models stepping from a vanilla SNN to full PING: *standard-snn → cuba → coba → ping*. Each rung adds one biophysical feature.
 - **CUBA / COBA** — current-based vs conductance-based synapses. The axis the Δt-stability experiment decomposes.
 - **PING** — Pyramidal-Interneuron Gamma. The E→I→E feedback loop that produces gamma oscillations (30–80 Hz).
 - **Δt-stability** — the diagnostic of training at one integration timestep and evaluating at another. The shared lens across pinglab experiments.

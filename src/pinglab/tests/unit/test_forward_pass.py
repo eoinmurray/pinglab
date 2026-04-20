@@ -24,7 +24,7 @@ def _tiny_model_sizes():
     (M.N_IN, M.N_HID, M.N_INH, M.N_OUT, M.HIDDEN_SIZES, M.T_ms, M.T_steps) = old
 
 
-@pytest.mark.parametrize("model_name", ["snntorch-clone", "cuba", "ping"])
+@pytest.mark.parametrize("model_name", ["standard-snn", "cuba", "ping"])
 def test_forward_returns_finite_logits(model_name):
     net = build_net(model_name, hidden_sizes=[16])
     B = 2
@@ -39,7 +39,7 @@ def test_forward_returns_finite_logits(model_name):
     assert torch.isfinite(out).all(), f"{model_name} produced non-finite logits"
 
 
-@pytest.mark.parametrize("model_name", ["snntorch-clone", "cuba", "ping"])
+@pytest.mark.parametrize("model_name", ["standard-snn", "cuba", "ping"])
 def test_forward_zero_input_is_finite(model_name):
     """Zero input shouldn't blow up (no NaNs from div-by-zero, etc.)."""
     net = build_net(model_name, hidden_sizes=[16])

@@ -1470,7 +1470,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
         batch_size=bs)
 
-    # Model — symmetry-break snntorch-clone (dense W_in needs heterogeneous init phases).
+    # Model — symmetry-break standard-snn (dense W_in needs heterogeneous init phases).
     # Skip randomize_init when Kaiming init is used: Kaiming already gives
     # heterogeneous per-neuron tuning, so scattering mem phases is redundant.
     # Uniform randomize_init across all models — symmetry breaking matters
@@ -1484,7 +1484,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         w_rec=w_rec, hidden_sizes=hidden_sizes,
         rec_layers=rec_layers, ei_layers=ei_layers)
     if randomize:
-        log.info("  randomize_init=True (symmetry breaking for snntorch-clone)")
+        log.info("  randomize_init=True (symmetry breaking for standard-snn)")
     if kaiming_init:
         log.info("  kaiming_init=True (signed Kaiming weights, canonical snnTorch)")
     if init_scale_weight != 1.0 or init_scale_bias != 1.0:
@@ -2314,7 +2314,7 @@ def parse_args():
 
     _examples = """\
 Network:
-  --model MODEL             ping|snntorch-clone|cuba (default: ping)
+  --model MODEL             ping|standard-snn|cuba (default: ping)
   --n-hidden N              N_E neurons, N_I=N_E//4 (default: 1024)
   --n-input N               N_IN input neurons (default: N_E)
   --ei-strength S           E-I coupling, W_EI=s W_IE=s*ratio (default: 0.5)
@@ -2333,7 +2333,7 @@ Input:
   --digit D                 digit class 0-9 (default: 0)
 
 Weights (advanced):
-  --w-in MEAN STD           W_in init (default: 0.3 0.06; snntorch-clone needs ~10 2)
+  --w-in MEAN STD           W_in init (default: 0.3 0.06; standard-snn needs ~10 2)
   --w-ei MEAN STD           W_EI init (overrides --ei-strength)
   --w-ie MEAN STD           W_IE init (overrides --ei-strength)
 
@@ -2370,10 +2370,10 @@ Models:
   oscilloscope.py image --ei-strength 0.5          # PING on
   oscilloscope.py image --ei-strength 0            # PING off (E-only COBA)
 
-  snntorch-clone      snnTorch-library form: mem = β·mem + I. β is a
+  standard-snn      snnTorch-library form: mem = β·mem + I. β is a
                       dimensionless hyperparameter, no dt semantics. Not
                       dt-invariant.
-  oscilloscope.py image --model snntorch-clone --kaiming-init
+  oscilloscope.py image --model standard-snn --kaiming-init
 
   cuba                Proper continuous-time exp-Euler CUBA: mem = β·mem + (1-β)·I,
                       β = exp(-dt/τ). Bias and weights have per-ms semantics.
@@ -2401,7 +2401,7 @@ Models:
                            help="Use plain nn.Linear Kaiming uniform init "
                                 "(signed weights, no fan-in normalization). "
                                 "Matches canonical snnTorch tutorial setup. "
-                                "Only applies to snntorch-clone / cuba; "
+                                "Only applies to standard-snn / cuba; "
                                 "--w-in is ignored when this is set.")
     net_group.add_argument("--init-scale-weight", type=float, default=1.0,
                            help="Multiply init weight matrices (W_ff, W_rec, "
@@ -2409,21 +2409,21 @@ Models:
                                 "build_net (train mode only). Biases are "
                                 "untouched — use --init-scale-bias for those. "
                                 "For cuba at training-dt, pass dt/(1-exp(-dt/"
-                                "tau_mem)) to match snntorch-clone's per-step "
+                                "tau_mem)) to match standard-snn's per-step "
                                 "spike drive from matched random weights. "
                                 "Default: 1.0 (no scaling).")
     net_group.add_argument("--init-scale-bias", type=float, default=1.0,
                            help="Multiply init bias vectors (b_ff) by this "
                                 "scalar after build_net (train mode only). "
                                 "For cuba at training-dt, pass 1/(1-exp(-dt/"
-                                "tau_mem)) to match snntorch-clone's per-step "
+                                "tau_mem)) to match standard-snn's per-step "
                                 "bias drive. Default: 1.0 (no scaling).")
     net_group.add_argument("--dales-law", action="store_true", default=True,
                            help="Enforce Dale's law: clamp weights to non-negative "
                                 "(default: True)")
     net_group.add_argument("--no-dales-law", dest="dales_law", action="store_false",
                            help="Allow signed (positive + negative) weights "
-                                "(snntorch-clone / cuba only)")
+                                "(standard-snn / cuba only)")
     net_group.add_argument("--rec-layers", type=int, nargs='+', default=None,
                            help="Which hidden layers get recurrence (1-indexed). "
                                 "Default: all layers when --w-rec is set.")
@@ -2478,7 +2478,7 @@ Models:
     wt_group = parent.add_argument_group("Weights (advanced)")
     wt_group.add_argument("--w-in", type=float, nargs='+', default=None,
                           metavar=("MEAN", "STD"),
-                          help="W_in init mean std (default: 0.3 0.06; snntorch-clone needs ~10 2 dense)")
+                          help="W_in init mean std (default: 0.3 0.06; standard-snn needs ~10 2 dense)")
     wt_group.add_argument("--w-ei", type=float, nargs=2, default=None,
                           metavar=("MEAN", "STD"),
                           help="W_EI init (mean std)")
@@ -2536,7 +2536,7 @@ Models:
                     "without generating plots or video.",
         epilog="Examples:\n"
                "  oscilloscope.py sim --model ping --ei-strength 0.5\n"
-               "  oscilloscope.py sim --model snntorch-clone --dt 0.1",
+               "  oscilloscope.py sim --model standard-snn --dt 0.1",
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
     # -- image subcommand --
@@ -2618,8 +2618,8 @@ Models:
                     "surrogate-gradient BPTT. Writes weights.pth, metrics.json, "
                     "metrics.jsonl, test_predictions.json plus optional video.",
         epilog="Examples:\n"
-               "  # snntorch-clone canonical tutorial mode (full MNIST)\n"
-               "  oscilloscope.py train --model snntorch-clone --kaiming-init \\\n"
+               "  # standard-snn canonical tutorial mode (full MNIST)\n"
+               "  oscilloscope.py train --model standard-snn --kaiming-init \\\n"
                "    --dataset mnist --epochs 40 --lr 0.01 --adaptive-lr\n\n"
                "  # proper continuous-time CUBA LIF\n"
                "  oscilloscope.py train --model cuba --kaiming-init \\\n"

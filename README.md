@@ -21,7 +21,7 @@ uv run python src/pinglab/oscilloscope.py --help
 
 # Quick smoke run: single-layer snnTorch on MNIST
 uv run python src/pinglab/oscilloscope.py train \
-  --model snntorch-clone --n-hidden 256 --dataset mnist \
+  --model standard-snn --n-hidden 256 --dataset mnist \
   --max-samples 1000 --epochs 3
 
 # PING network with explicit E/I

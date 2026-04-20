@@ -203,7 +203,7 @@ def snn_lif_step(mem, I, beta, spike_fn, reset="zero", can_fire=None):
     """snnTorch-style LIF step: decay + input, spike, reset. Returns (mem, s).
 
     Caller is responsible for dt-scaling of the input. Same primitive for
-    snntorch-clone and cuba; what differs is how I is constructed.
+    standard-snn and cuba; what differs is how I is constructed.
 
     can_fire: optional bool mask. Where False, neuron is refractory — mem is
               clamped to V_reset=0 (no integration), spike output is 0.
@@ -657,7 +657,7 @@ class SNNTorchLibraryNet(SNNBase):
     Same Kaiming-uniform feedforward init + linear-decoder readout as
     CUBANet(tutorial_mode=True), but the LIF step and surrogate gradient
     come from snntorch.snn.Leaky + snntorch.surrogate.fast_sigmoid. The only
-    thing that can differ between this model and `snntorch-clone` at
+    thing that can differ between this model and `standard-snn` at
     matched config is the LIF update + surrogate — so accuracy gaps
     localise the difference.
 
@@ -673,9 +673,9 @@ class SNNTorchLibraryNet(SNNBase):
         import snntorch as snn
         from snntorch import surrogate
         self._snn = snn
-        # slope=1 matches pinglab's SurrogateSpike (used by snntorch-clone and
+        # slope=1 matches pinglab's SurrogateSpike (used by standard-snn and
         # cuba); snnTorch's default is slope=25. Unifying here makes
-        # snntorch-library a pure update-rule parity probe vs snntorch-clone.
+        # snntorch-library a pure update-rule parity probe vs standard-snn.
         self._surrogate = surrogate.fast_sigmoid(slope=1)
 
         sizes = hidden_sizes if hidden_sizes is not None else HIDDEN_SIZES
