@@ -59,6 +59,10 @@ export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" 
 - [*snntorch-library*](/models/#snntorch-library) — snnTorch itself, via *snn.Leaky*. Parity probe: any gap vs *snntorch-clone* would mean a pinglab implementation bug.
 - [*cuba*](/models/#cuba) — same LIF neuron, discretised by integrating the ODE over a step without the $\Delta t = 1$ substitution, so *dt* appears explicitly in the update.
 
+### Prior work
+
+[Parthasarathy, Burghi & O'Leary (Cambridge)](/papers/#temporal-discretisation) study exactly the update rule we call *snntorch-clone* — they name it "Standard SNN" and note it's the form used by snnTorch, Nengo, Rockpool, and SpiNNaker2. They show, for a Poisson-coded feedforward MNIST, that (i) input spike statistics *depend* on how the Poisson stream is transported across *dts* (zero-pad vs resample vs downsample), (ii) matched train/test *dt* still degrades as *dt* → 0 because gradient variance rises, and (iii) weights learned at train-*dt* encode *dt*-specific dynamics, so transferring to a different eval-*dt* collapses accuracy. nb003's accuracy-vs-eval-*dt* sag panel reproduces (iii) on the same Standard-SNN update. What this entry adds is the *remedy*: replacing the $\Delta t = 1$ substitution with the proper Euler discretisation (*cuba*'s $(1-\beta)/dt$ and $(1-\beta)$ prefactors) closes the gap — under the same inputs, weights, and training budget, *cuba* stays flat where Standard SNN sags. The paper diagnoses the pathology; *cuba* shows the minimal update-rule correction that fixes it.
+
 ## Method
 
 1. **Train** each model at two timesteps: *dt* = {dt1} ms (fine) and *dt* = {dt2} ms (coarse).
@@ -138,9 +142,70 @@ Net effect: each snnTorch training regime picks its own operating point, and whe
 
 Best test accuracy during training (all at this tier's budget of {cfg.epochs ?? "?"} epochs × {cfg.max_samples ?? "?"} samples): at dt={dt1} ms, clone {snn1.best_acc ?? "?"}%, library {lib1.best_acc ?? "?"}%, cuba {cuba1.best_acc ?? "?"}%; at dt={dt2} ms, clone {snn2.best_acc ?? "?"}%, library {lib2.best_acc ?? "?"}%, cuba {cuba2.best_acc ?? "?"}%. All three models train to comparable accuracy in each regime, so the gap seen in the sweeps above is a pure *dt*-stability effect, not a training-budget artefact.
 
+Full per-(model, regime) scope videos for training and frozen-weight sweeps are in [the appendix](#videos).
+
+## Implications
+
+The experiment matches the [ladder's](/models/) core prediction: the Tutorial-3 update has no *dt*-invariance by construction, and *cuba*'s $(1-\beta)/dt$ and $(1-\beta)$ prefactors are the minimum correction that restores it. The snnTorch paths fan across 1–2 orders of magnitude of hidden rate in both training regimes, matching the predicted $b\,\tau/dt$ bias scaling; *cuba* holds flat in both. Take-away for a newcomer: if you're staying at one fixed *dt*, the Tutorial-3 update is a fine, battle-tested choice. If you need your network to transfer across *dt*s — changing sampling rate, porting to hardware with a different clock, comparing to continuous-time biology — reintroduce the $(1-\beta)/dt$ and $(1-\beta)$ prefactors and the problem goes away.
+
+Every later rung of the model ladder inherits CUBA's ODE-derived discretisation, so *dt*-stability is a **ladder invariant** from CUBA onwards. Any further rung that breaks *dt*-stability is a rung defect, not biophysics.
+
+## Next steps
+
+### Unify the surrogate-gradient slope
+
+Pass *slope=1* into snnTorch's *fast_sigmoid* at the library call site (*snntorch-library*), so *snntorch-clone* and *snntorch-library* run with identical surrogates and the parity probe becomes a pure implementation comparison. Confirm training accuracy is unchanged after the switch.
+
+### Audit the frozen-input OR-pool
+
+It's pooled to train-*dt*, so *dt* = 1 ms steps see $\sim$10× more input spikes per step than *dt* = 0.1 ms steps. The optimiser picks *W* to match that step-scale drive, so the input encoding is silently baking train-*dt* into the weights. Options to investigate, roughly in order of cost:
+
+#### Count-pool, not OR-pool
+
+Replace the OR with a sum across sub-steps (input becomes an integer count per step rather than a 0/1 spike). Under Poisson, the expected count per step is exactly $r \cdot dt / 1000$, which *is* *dt*-invariant in per-ms rate — no saturation. Cheapest change, but it means hidden-layer inputs are no longer binary, which breaks any downstream code that assumes spikes.
+
+#### Resample Poisson at each *dt*
+
+Draw a fresh Poisson stream per eval-*dt* with the same per-ms rate. Clean semantics (per-ms rate held fixed by construction), but re-introduces the sampling-noise confound that freezing was meant to remove. Need to average over seeds to separate encoder effect from noise.
+
+#### Rescale per-step probability
+
+Keep OR-pool but scale the source rate so that, after saturation, the per-step spike probability equals $r \cdot dt / 1000$ exactly. Preserves frozen-pattern semantics and binary inputs at the cost of a small analytic correction.
+
+## Appendix
+
+### Reproduction
+
+From the repo root:
+
+```
+uv run src/pinglab/notebook/nb003.py
+```
+
+### Parameters
+
+| Parameter | Value |
+|---|---|
+| Dataset | {cfg.dataset ?? "?"} |
+| Samples / Epochs | {cfg.max_samples ?? "?"} / {cfg.epochs ?? "?"} |
+| T / train-*dt*s | {cfg.t_ms ?? "?"} ms / \{{(cfg.dt_trains ?? []).join(", ")}\} ms |
+| Eval *dt* sweep | \{{(cfg.dt_sweep ?? []).join(", ")}\} ms |
+| Hidden | {cfg.n_hidden ?? "?"} |
+| Batch / lr | {cfg.batch_size ?? "?"} / {cfg.lr ?? "?"} |
+| Seed | {cfg.seed ?? "?"} |
+| Tier | **{cfg.tier ?? "?"}** — see [LLM Conventions § Run sizing tiers](/llm-conventions/#8-run-sizing-tiers) |
+| Elapsed @ dt={dt1} (clone / lib / cuba) | {sec(snn1.total_elapsed_s)} s / {sec(lib1.total_elapsed_s)} s / {sec(cuba1.total_elapsed_s)} s |
+| Elapsed @ dt={dt2} (clone / lib / cuba) | {sec(snn2.total_elapsed_s)} s / {sec(lib2.total_elapsed_s)} s / {sec(cuba2.total_elapsed_s)} s |
+| Run ID @ dt={dt1} (clone / lib / cuba) | {snn1.run_id ?? "?"} / {lib1.run_id ?? "?"} / {cuba1.run_id ?? "?"} |
+| Run ID @ dt={dt2} (clone / lib / cuba) | {snn2.run_id ?? "?"} / {lib2.run_id ?? "?"} / {cuba2.run_id ?? "?"} |
+| Git SHA @ dt={dt1} (clone / lib / cuba) | {snn1.git_sha ?? "?"} / {lib1.git_sha ?? "?"} / {cuba1.git_sha ?? "?"} |
+| Git SHA @ dt={dt2} (clone / lib / cuba) | {snn2.git_sha ?? "?"} / {lib2.git_sha ?? "?"} / {cuba2.git_sha ?? "?"} |
+
+### Videos
+
 Two videos per (model, regime): one frame per training epoch, one frame per sweep *dt* at frozen weights.
 
-### Train at *dt* = {dt1} ms
+#### Train at *dt* = {dt1} ms
 
 {hasFig(`training_${rk1}_snntorch-clone.mp4`) && (
   <Figure type="video" id="Figure 4" title={`Training — snntorch-clone @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_snntorch-clone.mp4`}>
@@ -178,7 +243,7 @@ Two videos per (model, regime): one frame per training epoch, one frame per swee
   </Figure>
 )}
 
-### Train at *dt* = {dt2} ms
+#### Train at *dt* = {dt2} ms
 
 {hasFig(`training_${rk2}_snntorch-clone.mp4`) && (
   <Figure type="video" id="Figure 10" title={`Training — snntorch-clone @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_snntorch-clone.mp4`}>
@@ -215,47 +280,3 @@ Two videos per (model, regime): one frame per training epoch, one frame per swee
     *cuba* frozen-weight sweep across eval-*dt* — the flat-rate target signature.
   </Figure>
 )}
-
-## Implications
-
-The experiment matches the [ladder's](/models/) core prediction: the Tutorial-3 update has no *dt*-invariance by construction, and *cuba*'s $(1-\beta)/dt$ and $(1-\beta)$ prefactors are the minimum correction that restores it. The snnTorch paths fan across 1–2 orders of magnitude of hidden rate in both training regimes, matching the predicted $b\,\tau/dt$ bias scaling; *cuba* holds flat in both. Take-away for a newcomer: if you're staying at one fixed *dt*, the Tutorial-3 update is a fine, battle-tested choice. If you need your network to transfer across *dt*s — changing sampling rate, porting to hardware with a different clock, comparing to continuous-time biology — reintroduce the $(1-\beta)/dt$ and $(1-\beta)$ prefactors and the problem goes away.
-
-Every later rung of the model ladder inherits CUBA's ODE-derived discretisation, so *dt*-stability is a **ladder invariant** from CUBA onwards. Any further rung that breaks *dt*-stability is a rung defect, not biophysics.
-
-## Next steps
-
-1. **Audit the per-*dt* scope videos.** Look through the training and frozen-weight sweep videos to work out what actually drives snnTorch's firing-rate and accuracy curves across eval-*dt* — the two training regimes behave qualitatively differently and the bias-scaling story above only explains part of that.
-2. **Unify the surrogate-gradient slope.** Pass *slope=1* into snnTorch's *fast_sigmoid* at the library call site (*snntorch-library*), so *snntorch-clone* and *snntorch-library* run with identical surrogates and the parity probe becomes a pure implementation comparison. Confirm training accuracy is unchanged after the switch.
-3. **Audit the frozen-input OR-pool.** It's pooled to train-*dt*, so *dt* = 1 ms steps see $\sim$10× more input spikes per step than *dt* = 0.1 ms steps. The optimiser picks *W* to match that step-scale drive, so the input encoding is silently baking train-*dt* into the weights. Options to investigate, roughly in order of cost:
-
-   - **Count-pool, not OR-pool.** Replace the OR with a sum across sub-steps (input becomes an integer count per step rather than a 0/1 spike). Under Poisson, the expected count per step is exactly $r \cdot dt / 1000$, which *is* *dt*-invariant in per-ms rate — no saturation. Cheapest change, but it means hidden-layer inputs are no longer binary, which breaks any downstream code that assumes spikes.
-   - **Resample Poisson at each *dt*.** Draw a fresh Poisson stream per eval-*dt* with the same per-ms rate. Clean semantics (per-ms rate held fixed by construction), but re-introduces the sampling-noise confound that freezing was meant to remove. Need to average over seeds to separate encoder effect from noise.
-   - **Rescale per-step probability.** Keep OR-pool but scale the source rate so that, after saturation, the per-step spike probability equals $r \cdot dt / 1000$ exactly. Preserves frozen-pattern semantics and binary inputs at the cost of a small analytic correction.
-   - **Sweep encoder as an experimental variable.** Run the full *dt*-sweep under each of the above encoders and compare. This is the definitive answer: if *cuba* stays flat under every encoder and snnTorch still sags, the *dt*-stability finding is robust to the encoding; if the curves move with encoder, the finding is partly an encoder artefact.
-
-## Parameters
-
-| Parameter | Value |
-|---|---|
-| Dataset | {cfg.dataset ?? "?"} |
-| Samples / Epochs | {cfg.max_samples ?? "?"} / {cfg.epochs ?? "?"} |
-| T / train-*dt*s | {cfg.t_ms ?? "?"} ms / \{{(cfg.dt_trains ?? []).join(", ")}\} ms |
-| Eval *dt* sweep | \{{(cfg.dt_sweep ?? []).join(", ")}\} ms |
-| Hidden | {cfg.n_hidden ?? "?"} |
-| Batch / lr | {cfg.batch_size ?? "?"} / {cfg.lr ?? "?"} |
-| Seed | {cfg.seed ?? "?"} |
-| Tier | **{cfg.tier ?? "?"}** — see [LLM Conventions § Run sizing tiers](/llm-conventions/#8-run-sizing-tiers) |
-| Elapsed @ dt={dt1} (clone / lib / cuba) | {sec(snn1.total_elapsed_s)} s / {sec(lib1.total_elapsed_s)} s / {sec(cuba1.total_elapsed_s)} s |
-| Elapsed @ dt={dt2} (clone / lib / cuba) | {sec(snn2.total_elapsed_s)} s / {sec(lib2.total_elapsed_s)} s / {sec(cuba2.total_elapsed_s)} s |
-| Run ID @ dt={dt1} (clone / lib / cuba) | {snn1.run_id ?? "?"} / {lib1.run_id ?? "?"} / {cuba1.run_id ?? "?"} |
-| Run ID @ dt={dt2} (clone / lib / cuba) | {snn2.run_id ?? "?"} / {lib2.run_id ?? "?"} / {cuba2.run_id ?? "?"} |
-| Git SHA @ dt={dt1} (clone / lib / cuba) | {snn1.git_sha ?? "?"} / {lib1.git_sha ?? "?"} / {cuba1.git_sha ?? "?"} |
-| Git SHA @ dt={dt2} (clone / lib / cuba) | {snn2.git_sha ?? "?"} / {lib2.git_sha ?? "?"} / {cuba2.git_sha ?? "?"} |
-
-## Reproduction
-
-From the repo root:
-
-```
-uv run src/pinglab/notebook/nb003.py
-```
