@@ -26,7 +26,7 @@ Each step up the ladder adds one axis of realism or rigour:
 
 ### snnTorch-library
 
-Implementation: [SNNTorchLibraryNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L607) in *src/pinglab/models.py*.
+Implementation: [SNNTorchLibraryNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*.
 
 A thin wrapper around snnTorch's own [*snn.Leaky*](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html) module with the library's [fast-sigmoid surrogate](https://snntorch.readthedocs.io/en/latest/snntorch.surrogate.html) ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894); see also [snnTorch Tutorial 3](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html) for the *snn.Leaky* walkthrough and [Tutorial 5](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html) for the feedforward SNN reference pattern). Per-step update for one hidden layer:
 
@@ -42,7 +42,7 @@ Its purpose is calibration, not experimentation. At matched config, snnTorch-lib
 
 ### snnTorch-clone
 
-Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L251) in *src/pinglab/models.py*. Selected by the default constructor args — *discretisation="snntorch"* and *exponential_synapse=False* — which is what distinguishes this path from its CUBA siblings on the same class.
+Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Selected by the default constructor args — *discretisation="snntorch"* and *exponential_synapse=False* — which is what distinguishes this path from its CUBA siblings on the same class.
 
 Pinglab's in-repo reimplementation of the same forward rule as [*snn.Leaky*](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html):
 
@@ -64,7 +64,7 @@ This is the deep-learning framing of an SNN: a recurrent network with binary act
 
 ### CUBA
 
-Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L251) in *src/pinglab/models.py*. Selected by *discretisation="continuous"* (snnTorch-clone leaves it at "snntorch"), with *exponential_synapse=False*.
+Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Selected by *discretisation="continuous"* (snnTorch-clone leaves it at "snntorch"), with *exponential_synapse=False*.
 
 Proper continuous-time discretisation of the physicist's LIF:
 
@@ -101,13 +101,13 @@ followed by the same spike / reset rule as snnTorch-clone. Two key consequences:
 - **Per-spike kick** $= (1-\beta)/\Delta t \cdot W \approx W/\tau$ as $\Delta t \to 0$ — neither $\Delta t$ nor $\beta$ appears in the limit. Dt-invariant in magnitude.
 - **Per-ms bias contribution** $= (1-\beta)/\Delta t \cdot b \approx b/\tau$ per ms — dt-invariant, whereas the snnTorch-clone path injects $b$ once per step and grows bias drive by $1/\Delta t$.
 
-Same parameters, learning rate, and training cost as snnTorch-clone — only the forward rule differs. Empirically $\Delta t$-stable across the full $\Delta t \in [0.05, 2.0]$ ms sweep: [notebook 003](/notebook/nb003/) trains CUBA at $\Delta t = 0.1$ and $\Delta t = 1.0$ and finds test accuracy stays within ~1% of the training-$\Delta t$ reference across every evaluation $\Delta t$, whereas snntorch-clone and snntorch-library collapse by 20–60 percentage points outside a narrow band around their training $\Delta t$. Proper discretisation is what carries CUBA's stability, independent of any synapse model.
+Same parameters, learning rate, and training cost as snnTorch-clone — only the forward rule differs. Empirically $\Delta t$-stable across the full $\Delta t \in [0.05, 2.0]$ ms sweep: [notebook 003](/notebook/nb003/) trains CUBA at $\Delta t = 0.1$ and $\Delta t = 1.0$ and finds test accuracy stays within $\sim$1% of the training-$\Delta t$ reference across every evaluation $\Delta t$, whereas snntorch-clone and snntorch-library collapse by 20–60 percentage points outside a narrow band around their training $\Delta t$. Proper discretisation is what carries CUBA's stability, independent of any synapse model.
 
 **Compared to snnTorch-clone:** same LIF neuron class, but the forward rule derives from proper Euler integration with explicit $\Delta t$ semantics — this isolates whether dt-sensitivity is a property of the model or of the discretisation.
 
 ### COBA
 
-Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L759) in *src/pinglab/models.py*. Selected via *ei_strength=0*, which zeroes the inhibitory population's weights — leaving a feedforward-only COBA. PING keeps *ei_strength* nonzero to turn on the E→I→E loop.
+Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Selected via *ei_strength=0*, which zeroes the inhibitory population's weights — leaving a feedforward-only COBA. PING keeps *ei_strength* nonzero to turn on the E→I→E loop.
 
 Conductance-based LIF with exponential synapses — the simplest biophysical model. The membrane follows
 
@@ -147,7 +147,7 @@ COBA is not a separate CLI model — run it as PINGNet with the inhibitory popul
 
 ### PING
 
-Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L759) in *src/pinglab/models.py*. Uses the default nonzero *ei_strength* (with *w_ei* and *w_ie* supplied from CLI config) to activate the E→I→E recurrent loop; COBA zeros these to collapse to the feedforward case.
+Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Uses the default nonzero *ei_strength* (with *w_ei* and *w_ie* supplied from CLI config) to activate the E→I→E recurrent loop; COBA zeros these to collapse to the feedforward case.
 
 Full E-I network with frozen recurrent weights, producing gamma oscillations. Excitatory and inhibitory populations (E:I ratio 4:1) share COBA-style membrane dynamics; three frozen recurrent matrices $W^{EE}, W^{EI}, W^{IE}$ connect them into the standard PING loop. Per-step synaptic updates (kick-then-decay with $\alpha = e^{-\Delta t/\tau_{\text{AMPA}}}$, $\gamma = e^{-\Delta t/\tau_{\text{GABA}}}$):
 
