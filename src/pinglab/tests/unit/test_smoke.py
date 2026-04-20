@@ -56,7 +56,7 @@ def test_scan(out_dir, scan_var, lo, hi):
 
 
 def test_sim_snntorch_canonical(out_dir):
-    _run(f"{OSC} sim --model snntorch-clone --out-dir {out_dir}")
+    _run(f"{OSC} sim --model standard-snn --out-dir {out_dir}")
 
 
 # ── Training modes ───────────────────────────────────────────────────────

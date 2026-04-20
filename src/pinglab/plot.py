@@ -1035,7 +1035,7 @@ def _draw_header(ax_header, title, ratio, dt, rate_e_hz, rate_i_hz,
     f0_val = f"{f0:.0f}" if f0 > 0 else "-"
     i_val = f"{rate_i_hz:.0f}" if has_inh else "-"
 
-    _display_names = {"snntorch-clone": "snnTorch", "cuba": "CUBA"}
+    _display_names = {"standard-snn": "snnTorch", "cuba": "CUBA"}
     display_model = _display_names.get(model_name, model_name.upper())
     # Fall back to the module-level input rate (set from --input-rate) when
     # the caller did not thread input_rate through — keeps every call site

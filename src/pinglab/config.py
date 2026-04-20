@@ -88,7 +88,7 @@ MODEL_REGISTRY = {
                                                   w_ei=(*cfg.w_ei, "normal", cfg.sparsity),
                                                   w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
                                                   **kw),
-    "snntorch-clone":       lambda **kw: CUBANet(w_in=(0, 0), w_hid=(0, 0.1), **kw),
+    "standard-snn":       lambda **kw: CUBANet(w_in=(0, 0), w_hid=(0, 0.1), **kw),
     "cuba":                 lambda **kw: CUBANet(discretisation="continuous",
                                                       w_in=(0, 0), w_hid=(0, 0.1), **kw),
     "cuba-exp":             lambda **kw: CUBANet(discretisation="continuous",
@@ -111,11 +111,11 @@ IS_COBA = {"ping"}
 
 # All CUBA-family variants (shared CUBANet class, distinct discretisation
 # / synaptic / reset / refractory settings). Used by build_net guards.
-# The headline 5-model ladder is {snntorch-clone, cuba, cuba-exp, coba, ping};
+# The headline 5-model ladder is {standard-snn, cuba, cuba-exp, coba, ping};
 # cuba-exp-hard and cuba-exp-hard-refrac are retained in the registry only
 # to load legacy artifacts (they are no longer dispatched by any experiment).
 CUBA_MODELS = {
-    "snntorch-clone",
+    "standard-snn",
     "snntorch-library",
     "cuba",
     "cuba-exp",
@@ -124,11 +124,11 @@ CUBA_MODELS = {
 }
 
 # Headline ladder: the 5 models that appear in the main dt-sweep figure and
-# the ablation waterfall. snntorch-library is a parity reference for snntorch-clone
+# the ablation waterfall. snntorch-library is a parity reference for standard-snn
 # and deliberately *not* in the ladder. cuba-exp-hard and cuba-exp-hard-refrac
 # stay in MODEL_REGISTRY for loading legacy artifacts but are not dispatched.
 HEADLINE_LADDER = [
-    "snntorch-clone",
+    "standard-snn",
     "cuba",
     "cuba-exp",
     "coba",
@@ -137,7 +137,7 @@ HEADLINE_LADDER = [
 
 _MODEL_CLASSES = {
     "ping":                 (PINGNet,     {}),
-    "snntorch-clone":       (CUBANet, {}),
+    "standard-snn":       (CUBANet, {}),
     "cuba":                 (CUBANet, {"discretisation": "continuous"}),
     "cuba-exp":             (CUBANet, {"discretisation": "continuous",
                                             "exponential_synapse": True}),
@@ -154,9 +154,9 @@ _MODEL_CLASSES = {
 # Back-compat aliases: older config.json files record legacy model names.
 # Resolved to current primary key before lookup in MODEL_REGISTRY / build_net.
 LEGACY_MODEL_ALIASES = {
-    "snntorch":           "snntorch-clone",   # renamed 2026-04-18
-    "snntorch-canonical": "snntorch-clone",   # renamed 2026-04-17
-    "snntorch-exp":       "snntorch-clone",   # exp removed; loads as canonical
+    "snntorch":           "standard-snn",   # renamed 2026-04-18
+    "snntorch-canonical": "standard-snn",   # renamed 2026-04-17
+    "snntorch-exp":       "standard-snn",   # exp removed; loads as canonical
 }
 
 

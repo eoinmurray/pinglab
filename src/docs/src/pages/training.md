@@ -51,7 +51,7 @@ $$
 \frac{\partial \tilde S}{\partial U}\bigg|_{U} = \frac{k}{(1 + k\,|U - \theta|)^2}
 $$
 
-with slope $k = 1$ on both the biophysical path (mV-scale membrane) and the snnTorch-clone path (dimensionless membrane). The snnTorch-library path uses the library default $k = 25$ — the asymmetry is deliberate and is part of what the parity test exposes. This keeps the forward dynamics exact while giving BPTT a usable gradient through the otherwise-discontinuous spike function.
+with slope $k = 1$ on both the biophysical path (mV-scale membrane) and the standard-snn path (dimensionless membrane). The snnTorch-library path uses the library default $k = 25$ — the asymmetry is deliberate and is part of what the parity test exposes. This keeps the forward dynamics exact while giving BPTT a usable gradient through the otherwise-discontinuous spike function.
 
 ## Gradient dampening for biophysical models
 
