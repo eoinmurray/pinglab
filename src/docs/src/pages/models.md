@@ -103,6 +103,14 @@ followed by the same spike / reset rule as snnTorch-clone. Two key consequences:
 
 Same parameters, learning rate, and training cost as snnTorch-clone — only the forward rule differs. Empirically $\Delta t$-stable across the full $\Delta t \in [0.05, 2.0]$ ms sweep: [notebook 003](/notebook/nb003/) trains CUBA at $\Delta t = 0.1$ and $\Delta t = 1.0$ and finds test accuracy stays within $\sim$1% of the training-$\Delta t$ reference across every evaluation $\Delta t$, whereas snntorch-clone and snntorch-library collapse by 20–60 percentage points outside a narrow band around their training $\Delta t$. Proper discretisation is what carries CUBA's stability, independent of any synapse model.
 
+**Weight rescaling across $\Delta t$.** The ZOH prefactor $(1-\beta)$ depends on $\Delta t$, so a weight trained at $\Delta t_{\text{ref}}$ must be rescaled to stay equivalent at $\Delta t'$. [Parthasarathy, Burghi & O'Leary](/papers/#temporal-discretisation) (their Eq 27) give the rescaling in closed form:
+
+$$
+\frac{W(\Delta t')}{W(\Delta t_{\text{ref}})} = \frac{1 - e^{-\Delta t' / \tau_m}}{1 - e^{-\Delta t_{\text{ref}} / \tau_m}} \tag{9}
+$$
+
+This is exactly the one-shot balance step CUBA applies at init: weights are drawn bit-identical to snntorch-clone, then scaled by (9) so that at training-$\Delta t$ both models produce the same initial firing rate. Once CUBA is trained, evaluating at a different $\Delta t$ with the *same* frozen weights works because the $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors in the update absorb the rescaling in the forward pass — there's no need to re-rescale *W* post-hoc.
+
 **Compared to snnTorch-clone:** same LIF neuron class, but the forward rule derives from proper Euler integration with explicit $\Delta t$ semantics — this isolates whether dt-sensitivity is a property of the model or of the discretisation.
 
 ### COBA
@@ -112,25 +120,25 @@ Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pi
 Conductance-based LIF with exponential synapses — the simplest biophysical model. The membrane follows
 
 $$
-C_m\, \frac{dV}{dt} = -g_L\,(V - E_L) - g_e\,(V - E_e) - g_i\,(V - E_i) \tag{9}
+C_m\, \frac{dV}{dt} = -g_L\,(V - E_L) - g_e\,(V - E_e) - g_i\,(V - E_i) \tag{10}
 $$
 
 Derivation to the discrete update via **exponential Euler under a zero-order hold** on the conductances. Collect coefficients on $V$ on the right-hand side of (9):
 
 $$
-C_m\, \frac{dV}{dt} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{10}
+C_m\, \frac{dV}{dt} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{11}
 $$
 
 Define $g_{\text{tot}} = g_L + g_e + g_i$, $\tau_{\text{eff}} = C_m / g_{\text{tot}}$, and $V_\infty = (g_L E_L + g_e E_e + g_i E_i) / g_{\text{tot}}$. Dividing (12) by $g_{\text{tot}}$ puts it in canonical first-order form:
 
 $$
-\tau_{\text{eff}}\, \frac{dV}{dt} = -(V - V_\infty) \tag{11}
+\tau_{\text{eff}}\, \frac{dV}{dt} = -(V - V_\infty) \tag{12}
 $$
 
 Under a zero-order hold on $g_e, g_i$ across the step, $\tau_{\text{eff}}$ and $V_\infty$ are constant, so (13) is a first-order linear ODE with the familiar closed form:
 
 $$
-V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp(-\Delta t / \tau_{\text{eff}}) \tag{12}
+V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp(-\Delta t / \tau_{\text{eff}}) \tag{13}
 $$
 
 This matches CUBA's treatment of its homogeneous part, so CUBA → COBA on the ladder isolates the biophysical additions rather than an integrator swap. A forward-Euler variant is still available via *--coba-integrator fwd* for parity studies.
@@ -152,15 +160,15 @@ Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pi
 Full E-I network with frozen recurrent weights, producing gamma oscillations. Excitatory and inhibitory populations (E:I ratio 4:1) share COBA-style membrane dynamics; three frozen recurrent matrices $W^{EE}, W^{EI}, W^{IE}$ connect them into the standard PING loop. Per-step synaptic updates (kick-then-decay with $\alpha = e^{-\Delta t/\tau_{\text{AMPA}}}$, $\gamma = e^{-\Delta t/\tau_{\text{GABA}}}$):
 
 $$
-g^{E \to E}_{t+1} = \alpha\bigl(g^{E \to E}_t + W^{EE}\, s^{E}_t\bigr) + W_{\text{in}}\, s^{\text{inp}}_t \tag{13}
+g^{E \to E}_{t+1} = \alpha\bigl(g^{E \to E}_t + W^{EE}\, s^{E}_t\bigr) + W_{\text{in}}\, s^{\text{inp}}_t \tag{14}
 $$
 
 $$
-g^{E \to I}_{t+1} = \alpha\bigl(g^{E \to I}_t + W^{EI}\, s^{E}_t\bigr) \tag{14}
+g^{E \to I}_{t+1} = \alpha\bigl(g^{E \to I}_t + W^{EI}\, s^{E}_t\bigr) \tag{15}
 $$
 
 $$
-g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{15}
+g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{16}
 $$
 
 Feedforward input is added post-decay (i.e. as an instantaneous conductance kick that the next membrane step integrates once). Recurrent components go through kick-then-decay as usual. The E population integrates $g^{E \to E}$ excitation + $g^{I \to E}$ inhibition via COBA; the I population integrates $g^{E \to I}$ only. Both use the COBA membrane equation above with their respective $(C_m, g_L, \tau_{\text{ref}})$. Pinglab defaults use $W^{EE} = 0$ (Börgers: PING needs no E→E), $W^{EI} \approx 1$ µS (just suprathreshold), $W^{IE} \approx 3$ µS (2–3× $W^{EI}$, Viriyopase et al.). The recurrent matrices are **frozen at init** — only $W_{\text{in}}$ and $W_{\text{out}}$ train, matching the trainable surface area of the other three models so the ladder is apples-to-apples.
