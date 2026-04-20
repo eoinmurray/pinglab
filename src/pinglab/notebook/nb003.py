@@ -68,7 +68,7 @@ DT_SWEEPS: dict[float, list[float]] = {
 }
 DT_SWEEP = sorted({d for grid in DT_SWEEPS.values() for d in grid})
 SEED = 42
-TIER = "small"  # see src/docs/src/pages/llm-conventions.md § 8 Run sizing tiers
+TIER = "small"  # see src/docs/src/pages/styleguide.md § 8 Run sizing tiers
 TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 
 # Per-step drive compensation for cuba at training dt. cuba's update is

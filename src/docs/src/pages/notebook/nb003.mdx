@@ -74,7 +74,7 @@ export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" 
 
 ### Prior work
 
-[Parthasarathy et. al.](/papers/#temporal-discretisation) study exactly the update rule we call *standard-snn* — they name it "Standard SNN" and note it's the form used by snnTorch, Nengo, Rockpool, and SpiNNaker2. They show, for a Poisson-coded feedforward MNIST, that (i) input spike statistics *depend* on how the Poisson stream is transported across *dts* (zero-pad vs resample vs downsample), (ii) matched train/test *dt* still degrades as *dt* → 0 because gradient variance rises, and (iii) weights learned at train-*dt* encode *dt*-specific dynamics, so transferring to a different eval-*dt* collapses accuracy. nb003's accuracy-vs-eval-*dt* sag panel reproduces (iii) on the same Standard-SNN update. The paper derives the ZOH weight-rescaling formula in its Appendix 1C (Eq 27, $W(dt')/W(dt_{\text{ref}}) = (1-e^{-dt'/\tau_m})/(1-e^{-dt_{\text{ref}}/\tau_m})$) as a *weight-transport* rule for moving trained weights between *dt*s, but its empirical remedy (§2.5) is an average-loss regulariser applied on top of the Standard SNN update. What this entry adds is the *complementary* approach: bake the ZOH prefactors into the update rule itself (*cuba*'s $(1-\beta)/dt$ on the spike drive and $(1-\beta)$ on the bias, matching Paper Eq 25 rather than Eq 38's $\Delta t = 1$ shortcut) so no rescaling is needed at transport time. Under the same inputs, weights, and training budget, *cuba* stays flat where Standard SNN sags.
+[Parthasarathy et. al.](/references/#temporal-discretisation) study exactly the update rule we call *standard-snn* — they name it "Standard SNN" and note it's the form used by snnTorch, Nengo, Rockpool, and SpiNNaker2. They show, for a Poisson-coded feedforward MNIST, that (i) input spike statistics *depend* on how the Poisson stream is transported across *dts* (zero-pad vs resample vs downsample), (ii) matched train/test *dt* still degrades as *dt* → 0 because gradient variance rises, and (iii) weights learned at train-*dt* encode *dt*-specific dynamics, so transferring to a different eval-*dt* collapses accuracy. nb003's accuracy-vs-eval-*dt* sag panel reproduces (iii) on the same Standard-SNN update. The paper derives the ZOH weight-rescaling formula in its Appendix 1C (Eq 27, $W(dt')/W(dt_{\text{ref}}) = (1-e^{-dt'/\tau_m})/(1-e^{-dt_{\text{ref}}/\tau_m})$) as a *weight-transport* rule for moving trained weights between *dt*s, but its empirical remedy (§2.5) is an average-loss regulariser applied on top of the Standard SNN update. What this entry adds is the *complementary* approach: bake the ZOH prefactors into the update rule itself (*cuba*'s $(1-\beta)/dt$ on the spike drive and $(1-\beta)$ on the bias, matching Paper Eq 25 rather than Eq 38's $\Delta t = 1$ shortcut) so no rescaling is needed at transport time. Under the same inputs, weights, and training budget, *cuba* stays flat where Standard SNN sags.
 
 ## Method
 
@@ -90,7 +90,7 @@ Two extra controls to keep the comparison honest.
 
 ### Frozen input spike pattern, paper-style transports
 
-The MNIST Poisson encoding is generated *once*, at training-*dt* (the anchor [Parthasarathy et al.](/papers/#temporal-discretisation) use when sweeping eval-*dt* away from a trained network), and then transported to every other sweep *dt* in one of two paper-matched ways:
+The MNIST Poisson encoding is generated *once*, at training-*dt* (the anchor [Parthasarathy et al.](/references/#temporal-discretisation) use when sweeping eval-*dt* away from a trained network), and then transported to every other sweep *dt* in one of two paper-matched ways:
 
 - **Zero-pad** — count-preserving transport. For eval-*dt* < train-*dt*, place each reference spike at the first sub-step of its finer block and zero-fill the rest (Paper §2.1 / Fig 1B). For eval-*dt* > train-*dt*, sum-pool the reference stream into integer bins (Paper §2.3). Total spike count is preserved exactly in either direction; per-step input rate scales with *dt*.
 - **Resample** — draw a fresh Poisson stream at the target *dt* with the same per-ms rate (Paper §2.1 alternative to zero-pad). Binary, per-ms rate held fixed by construction, but re-introduces sampling noise.
@@ -214,7 +214,7 @@ uv run src/pinglab/notebook/nb003.py
 | Hidden | {cfg.n_hidden ?? "?"} |
 | Batch / lr | {cfg.batch_size ?? "?"} / {cfg.lr ?? "?"} |
 | Seed | {cfg.seed ?? "?"} |
-| Tier | **{cfg.tier ?? "?"}** — see [LLM Conventions § Run sizing tiers](/llm-conventions/#8-run-sizing-tiers) |
+| Tier | **{cfg.tier ?? "?"}** — see [Style guide § Run sizing tiers](/styleguide/#8-run-sizing-tiers) |
 | Elapsed @ dt={dt1} (clone / lib / cuba) | {sec(snn1.total_elapsed_s)} s / {sec(lib1.total_elapsed_s)} s / {sec(cuba1.total_elapsed_s)} s |
 | Elapsed @ dt={dt2} (clone / lib / cuba) | {sec(snn2.total_elapsed_s)} s / {sec(lib2.total_elapsed_s)} s / {sec(cuba2.total_elapsed_s)} s |
 | Run ID @ dt={dt1} (clone / lib / cuba) | {snn1.run_id ?? "?"} / {lib1.run_id ?? "?"} / {cuba1.run_id ?? "?"} |
