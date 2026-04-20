@@ -69,6 +69,7 @@ In *src/docs/* markdown, do not use backtick inline-code formatting. Replace eac
 - **Flag and parameter names** — italics, no backticks. `--w-in 0.15` → *--w-in 0.15*; `reset_delay=True` → *reset_delay=True*.
 - **Equations written as inline code** — convert to math markup. `beta = exp(-dt/tau)` → $\beta = e^{-\Delta t / \tau}$.
 - **Numeric values with units** — plain prose. `1.5 ms` stays as 1.5 ms.
+- **Approximation tildes** — never write a bare `~` in front of a number in prose. The serif body font renders it as a raised spacing-tilde, not a math "approximately." Use `$\sim$10×` (math-mode tilde, what the rest of this repo uses) or spell it as *about 10×* / "roughly 10×". Same rule for `~±0.04` → `$\sim$±0.04`.
 
 Fenced code blocks for actual multi-line samples (CLI invocations, config snippets) can stay. Doesn't apply to *README.md* files outside *src/docs/*, memory files, or commit messages.
 
