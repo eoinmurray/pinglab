@@ -1,0 +1,50 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "004 — sMNIST"
+date: 2026-04-20
+entry: 4
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebook/nb004/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const runFinished = numbers.run_finished_at ?? "?";
+
+# sMNIST
+
+<p><span class="font-mono">nb004</span> · Monday, 20<sup>th</sup> April 26</p>
+
+| Run ID | Tier | Finished |
+|---|---|---|
+| <span class="font-mono">{nbRunId}</span> | {cfg.tier ?? "?"} | {runFinished} |
+
+## Introduction
+
+Stub entry for sequential MNIST (sMNIST). MNIST is presented one pixel (or one row) at a time over the trial window rather than as a full image, so the network has to integrate information across time to classify — a memory/dynamics test rather than an input-encoding test.
+
+## Method
+
+First-cell baseline to validate the pipeline: one [*cuba*](/models/#cuba) model with two hidden layers (64, 64), trained on sMNIST at *extra_small* tier (200 samples × 3 epochs). Each MNIST digit is presented one row at a time over 280 ms (28 rows × 10 ms/row) at *dt* = 1 ms. Depth ≥ 2 is required: single-hidden-layer networks bottleneck at the 28-input interface and fail to learn on sMNIST. This cell exists to prove end-to-end correctness of the dataset loader + row-by-row encoder + depth-2 ladder config, not to measure anything specific — the cell matrix comes after.
+
+## Findings
+
+To be filled in once the baseline cell runs.
+
+## Implications
+
+To be filled in.
+
+## Next steps
+
+1. Run the baseline and confirm non-trivial accuracy (well above chance) — this is a pipeline check, not a performance target.
+2. Decide the cell matrix (which ladder models, depth sweep, *dt* regime) and expand *src/pinglab/notebook/nb004.py*.
+3. Once the matrix runs at *extra_small*, bump to a larger tier if the ranking looks worth locking in.
+
+## Reproduction
+
+```
+uv run src/pinglab/notebook/nb004.py
+```
