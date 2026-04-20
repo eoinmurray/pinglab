@@ -68,7 +68,11 @@ export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" 
 Two extra controls to keep the comparison honest:
 
 - **Matched init.** *snntorch-clone* and *cuba* start from bit-identical random weights (same class, same seed, same allocation order). *cuba* then gets a one-shot rescaling that cancels its per-step drive factors at training-*dt*, so both models produce the same initial firing rate. Without this, *cuba* would start silent and never learn.
-- **Frozen input spike pattern.** The MNIST Poisson encoding happens once at the finest *dt* and is OR-pooled down to coarser ones. So across the sweep each model sees *the same* spike train — just sampled at different temporal resolutions — and the only thing changing is the LIF update itself.
+- **Frozen input spike pattern.** The MNIST Poisson encoding is generated *once*, at the finest *dt* in the sweep (0.05 ms), and then OR-pooled down to every coarser *dt* by taking the logical-OR of the sub-steps that fall inside each coarse step (any spike in the window counts as one spike at the coarse step). This way, across the sweep each model sees *the same* spike train — just sampled at different temporal resolutions — and the only thing changing is the LIF update itself.
+
+  The reason to freeze the pattern is that regenerating a fresh Poisson stream at every eval-*dt* would confound two effects: the LIF update's response to *dt*, and the noise in the input sampling. Freezing collapses that to a single variable.
+
+  But OR-pooling is not a neutral operation. If a pixel fires at rate $r$, the probability of a spike in a coarse window of width $dt$ is, in the fine-grained source, $1 - (1 - r \cdot dt_{\text{fine}}/1000)^{dt/dt_{\text{fine}}}$, which is *not* equal to $r \cdot dt / 1000$ — the coarse-window spike probability saturates at 1 as the window grows. Practically: at *dt* = 1 ms each coarse step OR-pools twenty 0.05 ms sub-steps, and the fraction of coarse steps that contain at least one spike is roughly 10× the fine-step fraction. So the per-step input rate the network sees is *train-dt-dependent* — coarser training means more input spikes per step — and the optimiser bakes that step-scale into the weights. This is the right call for a "same inputs, different update" read on the LIF step, but it means the *inputs seen during training* are not *dt*-invariant, even though the underlying analog stimulus is. Next step 3 is to check whether a per-ms Poisson encoder (resampled at each *dt* so per-ms rate is held fixed) changes the story.
 
 One caveat we have *not* yet unified: the surrogate-gradient slope. *snntorch-library* uses snnTorch's default fast-sigmoid slope of 25, which gives a narrow (~±0.04) window of active gradient around threshold; *snntorch-clone* and *cuba* use pinglab's *SurrogateSpike* with slope=1, a much wider window that reliably bootstraps silent networks out of zero-gradient regions. The slope asymmetry is deliberate (pinglab's dimensionless membranes starve under slope=25 at init) but it means *snntorch-library* vs *snntorch-clone* is not a pure implementation parity probe — any small training-accuracy gap between them could be slope, not bug. The *dt*-stability finding itself is unaffected, since both snnTorch paths sag and *cuba* stays flat regardless of slope.
 
@@ -88,11 +92,11 @@ The snnTorch models agree with each other at train-*dt* (red dashed) and their a
 
 {hasFig("firing_rates.png") && (
   <Figure id="Figure 2" title="Hidden firing rate vs eval-dt" src="/figures/notebook/nb003/firing_rates.png" alt="Mean hidden firing rate vs eval-dt, one panel per training-dt regime">
-    Mean hidden-layer firing rate under frozen weights as eval-*dt* is swept (log-log). Rate-flatness is the mechanistic signature of accuracy-stability.
+    Mean hidden-layer firing rate under frozen weights as eval-*dt* is swept. Rate-flatness is the mechanistic signature of accuracy-stability.
   </Figure>
 )}
 
-Mechanistic companion to the accuracy plot (log-log). The snnTorch paths fan out 1–2 orders of magnitude across the sweep in both regimes, and the *shape* of the fan — where rate is highest, how it moves across eval-*dt* — is visibly different between the two training regimes. *cuba* by contrast holds roughly flat. Intuitively, rate-flatness should track accuracy-stability: the network sees the same activity distribution at eval that it saw at training. But the snnTorch curves don't collapse into a single scaling, so "rate changes with *dt*" is better read as a *symptom* here than as a fully-explained cause.
+Mechanistic companion to the accuracy plot. The snnTorch paths fan out across the sweep in both regimes, and the *shape* of the fan — where rate is highest, how it moves across eval-*dt* — is visibly different between the two training regimes. *cuba* by contrast holds roughly flat. Intuitively, rate-flatness should track accuracy-stability: the network sees the same activity distribution at eval that it saw at training. But the snnTorch curves don't collapse into a single scaling, so "rate changes with *dt*" is better read as a *symptom* here than as a fully-explained cause.
 
 ### A partial mechanism: the bias term
 
@@ -112,6 +116,17 @@ With frozen inputs $\mathbb{E}[s_{step}] \approx r\,dt$ and $1-\beta \approx dt/
 | {dt2} ms | cuba             | {num(cuba2.sweep_max_hid_rate_hz)} Hz | {num(cuba2.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba2), 2)}× | 1× |
 
 The prediction only partially matches the data. The two snnTorch training regimes respond to an eval-*dt* sweep in qualitatively *different* ways — the direction and shape of the curves change with train-*dt*, not just the magnitude — which a pure bias-scaling story cannot account for on its own. Non-linearities once the membrane passes threshold, interactions with the frozen-inputs OR-pool, and the fact that weights themselves are shaped by the training-*dt* all plausibly contribute. Pinning this down properly needs a careful look at the per-*dt* scope frames, not just the endpoint ratios. *cuba*'s update $\text{mem} = \beta \cdot \text{mem} + \tfrac{1-\beta}{dt} W{\cdot}s + (1-\beta)\, b$ cancels both 1/(1-β) terms in steady state — bias becomes $b$, spike becomes $W\,r\,\tau$, both *dt*-invariant — which is consistent with its observed flatness across both regimes.
+
+### Why the two snnTorch regimes settle at different firing rates
+
+Even with matched init and a frozen input pattern, training at *dt*=0.1 and *dt*=1 lands the optimiser on *different* weights and biases, because the snnTorch update is not *dt*-invariant to begin with — each training run is effectively a different optimisation problem. Four things pull in this direction:
+
+1. **Different effective drive per step.** The frozen input pattern is OR-pooled to the train-*dt*, so each step at *dt* = 1 ms packs ~10× more input spikes than at *dt* = 0.1 ms. The optimiser picks *W* to match that step-scale drive.
+2. **Different decay per step.** $\beta = e^{-dt/\tau}$ is $\sim$0.99 at *dt* = 0.1 and $\sim$0.9 at *dt* = 1 ms, so memory length per step is entirely different.
+3. **Bias steady state scales 1/*dt*.** A fixed $b$ contributes $b\,\tau/dt$ to the steady-state membrane, so the optimiser selects a $b$ roughly 10× smaller at *dt* = 1 than at *dt* = 0.1 to hit a given baseline drive.
+4. **Different loss landscape.** 280 vs 2800 BPTT steps, different $\beta$, different surrogate-gradient propagation — the optimiser lands at a different minimum.
+
+Net effect: each snnTorch training regime picks its own operating point, and when you sweep eval-*dt* those points shift differently because the anchoring *dt* is different. *cuba* doesn't show this because its $(1-\beta)/dt$ and $(1-\beta)$ prefactors remove *dt* from the per-step drive and bias, so the weights encode a *dt*-invariant operating point regardless of train-*dt*.
 
 ### Training-time parity
 
@@ -211,6 +226,7 @@ Every later rung of the model ladder inherits CUBA's ODE-derived discretisation,
 
 1. Investigate the per-*dt* scope videos (training and frozen-weight sweeps) to work out what actually drives snnTorch's firing-rate and accuracy curves across eval-*dt* — the two training regimes behave qualitatively differently and the bias-scaling story above only explains part of that.
 2. Unify the surrogate-gradient slope across models by passing *slope=1* into snnTorch's *fast_sigmoid* at the library call site (*snntorch-library*), so *snntorch-clone* and *snntorch-library* run with identical surrogates and the parity probe becomes a pure implementation comparison. Confirm training accuracy is unchanged after the switch.
+3. Investigate the frozen-input OR-pool: it's pooled to train-*dt*, so dt = 1 ms steps see ~10× more input spikes per step than dt = 0.1 ms steps. The optimiser picks *W* to match that step-scale drive, so the input encoding is silently baking train-*dt* into the weights. Check whether that confounds the *dt*-stability read — and if so, move to an encoder that delivers the same per-ms Poisson rate regardless of step size.
 
 ## Parameters
 
