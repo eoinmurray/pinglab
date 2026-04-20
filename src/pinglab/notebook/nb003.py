@@ -54,9 +54,11 @@ T_MS = 600.0
 # sweep for both — lets us see whether the 1/dt bias-term story depends on
 # the eval/train ratio (it does) or the absolute eval-dt (it shouldn't).
 DT_TRAINS = [0.1, 1.0]
-# Sweep grid: below train-dt (finer), at train-dt (control), and above (coarser).
-# Integer ratios only, so FrozenEncoder OR-pool downsampling stays valid.
-DT_SWEEP = [0.05, 0.1, 0.25, 0.5, 1.0, 2.0]
+# Sweep grid: 20 points spanning [0.05, 2.0] ms, all integer multiples of 0.05
+# so FrozenEncoder OR-pool downsampling stays valid. Both training dts
+# (0.10, 1.00) are on the grid so each regime has its own control point.
+DT_SWEEP = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.75,
+            0.85, 1.00, 1.15, 1.25, 1.40, 1.55, 1.70, 1.80, 1.90, 2.00]
 SEED = 42
 TIER = "medium"  # see src/docs/src/pages/llm-conventions.md § 8 Run sizing tiers
 TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
@@ -505,15 +507,29 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
 
 
 def main() -> None:
+    sweep_only = "--sweep-only" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id}")
+    print(f"notebook_run_id = {notebook_run_id}"
+          + ("  [sweep-only]" if sweep_only else ""))
     if wipe_dir:
-        for d in (ARTIFACTS, FIGURES):
-            if d.exists():
-                print(f"[wipe] {d.relative_to(REPO)}")
-                shutil.rmtree(d)
+        if sweep_only:
+            # Preserve train dirs; wipe sweep subdirs + figures so they regenerate.
+            for dt_train in DT_TRAINS:
+                for model in MODELS:
+                    sd = ARTIFACTS / _regime_key(dt_train) / model / "sweep"
+                    if sd.exists():
+                        print(f"[wipe] {sd.relative_to(REPO)}")
+                        shutil.rmtree(sd)
+            if FIGURES.exists():
+                print(f"[wipe] {FIGURES.relative_to(REPO)}")
+                shutil.rmtree(FIGURES)
+        else:
+            for d in (ARTIFACTS, FIGURES):
+                if d.exists():
+                    print(f"[wipe] {d.relative_to(REPO)}")
+                    shutil.rmtree(d)
     FIGURES.mkdir(parents=True, exist_ok=True)
     persist_run_id(SLUG, notebook_run_id)
 
@@ -523,7 +539,14 @@ def main() -> None:
     regime_sweep_dirs: dict[float, dict[str, Path]] = {}
     for dt_train in DT_TRAINS:
         print(f"\n=== regime: train dt = {dt_train} ms ===")
-        td = {m: train_model(m, dt_train) for m in MODELS}
+        if sweep_only:
+            td = {m: ARTIFACTS / _regime_key(dt_train) / m / "train" for m in MODELS}
+            for m, d in td.items():
+                if not (d / "weights.pth").exists():
+                    raise SystemExit(
+                        f"--sweep-only requires existing train weights at {d}")
+        else:
+            td = {m: train_model(m, dt_train) for m in MODELS}
         sd = {m: sweep_model(m, dt_train, td[m]) for m in MODELS}
         regime_train_dirs[dt_train] = td
         regime_sweep_dirs[dt_train] = sd

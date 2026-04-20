@@ -47,17 +47,28 @@ export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" 
 
 ## Introduction
 
-First rung-to-rung ablation on the [model ladder](/models/): [*snntorch-clone*](/models/#snntorch-clone) (snnTorch-style, $\Delta t$-free by construction) vs [*cuba*](/models/#cuba) (exact Euler, per-step drive scaled so each kick integrates to a fixed per-ms quantity). [*snntorch-library*](/models/#snntorch-library) sits alongside as a parity probe — any gap between it and *snntorch-clone* at matched config localises to the update rule, not to pinglab's implementation.
+**The question.** A spiking neural network has a simulation timestep *dt* — the interval between "frames" of the neuron's voltage. If you train a network at one *dt* and then run it at another, should it still work?
 
-The snnTorch spec was not built for Δt-sweeps (see [why](/models/#snntorch-clone)), but real users follow [Tutorial 3 § 1.4](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#1-4-lapicque-s-lif-neuron-model)'s $\beta = e^{-\Delta t/\tau}$ pattern and readily stray into that regime. Halving *dt* doubles the number of per-step kicks in the snnTorch path while leaving *cuba*'s per-ms drive unchanged; Δt-stability is the sharpest test of that invariance.
+*In principle,* yes: the neuron models a physical process (a leaky membrane integrating input over real milliseconds), so halving *dt* should change nothing meaningful — you just take twice as many half-size steps. In practice, whether this holds depends on how the continuous equation gets discretised into a step.
+
+[snnTorch](https://snntorch.readthedocs.io)'s [Tutorial 3 § 1.2](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#the-decay-rate-beta) is explicit about this: it derives the full Euler form, then deliberately sets $\Delta t = 1$ and absorbs the $(1-\beta)$ prefactor into a learnable weight to give the clean $U_{t+1} = \beta\,U_t + W\,s_t$ update. It's a clean, pragmatic choice for fixed-*dt* research — and snnTorch is the standard library the field uses every day. But the simplification does drop *dt* out of the spec, so a *dt*-sweep is outside what the tutorial promises. This entry measures what happens when you sweep anyway, and compares it against a version that keeps *dt* in the update rule.
+
+**Models.** See [the ladder](/models/) for full descriptions.
+
+- [*snntorch-clone*](/models/#snntorch-clone) — pinglab's reimplementation of snnTorch's *snn.Leaky*. The Tutorial-3 update rule, *dt*-free by design.
+- [*snntorch-library*](/models/#snntorch-library) — snnTorch itself, via *snn.Leaky*. Parity probe: any gap vs *snntorch-clone* would mean a pinglab implementation bug.
+- [*cuba*](/models/#cuba) — same LIF neuron, discretised by integrating the ODE over a step without the $\Delta t = 1$ substitution, so *dt* appears explicitly in the update.
 
 ## Method
 
-Train each model at *dt* ∈ \{{dt1}, {dt2}\} ms, then sweep inference over *dt* ∈ \{{(cfg.dt_sweep ?? []).join(", ")}\} ms with weights frozen. Two regimes let us separate absolute eval-*dt* effects from ratio (eval/train) effects.
+1. **Train** each model at two timesteps: *dt* = {dt1} ms (fine) and *dt* = {dt2} ms (coarse).
+2. **Freeze weights** and **evaluate** at a grid of *dt* values: \{{(cfg.dt_sweep ?? []).join(", ")}\} ms.
+3. Plot accuracy and hidden-layer firing rate vs eval-*dt*. A *dt*-stable model stays flat; an unstable one sags as eval-*dt* departs from train-*dt*.
 
-**Matched init.** *snntorch-clone* and *cuba* share the *CUBANet* class and allocate every parameter in the same order at matched seed; *cuba* then receives a one-shot init-scale (*W* × $dt/(1-\beta)$, *b* × $1/(1-\beta)$, recomputed per regime) that cancels its per-step drive factors at training *dt*. *snntorch-library* uses its own *kaiming_uniform_* — independent init, parity probe only. Preflight asserts pre-scale bit-equality for the *CUBANet* family. 
+Two extra controls to keep the comparison honest:
 
-**Frozen inputs**: encoded once at the finest *dt* and OR-pooled to coarser ones, so only the LIF update changes across the sweep.
+- **Matched init.** *snntorch-clone* and *cuba* start from bit-identical random weights (same class, same seed, same allocation order). *cuba* then gets a one-shot rescaling that cancels its per-step drive factors at training-*dt*, so both models produce the same initial firing rate. Without this, *cuba* would start silent and never learn.
+- **Frozen input spike pattern.** The MNIST Poisson encoding happens once at the finest *dt* and is OR-pooled down to coarser ones. So across the sweep each model sees *the same* spike train — just sampled at different temporal resolutions — and the only thing changing is the LIF update itself.
 
 ## Findings
 
@@ -69,7 +80,7 @@ Train each model at *dt* ∈ \{{dt1}, {dt2}\} ms, then sweep inference over *dt*
   </Figure>
 )}
 
-Canonical models agree at train-*dt* (red dashed) and diverge as eval-*dt* moves away; the sag-point tracks train-*dt*, consistent with the ratio-driven story, and the clone/library pair track each other — so the spread is update-rule, not implementation. *cuba* at dt={dt1} is narrow ({(cuba1.sweep_min_acc ?? "?")}–{(cuba1.sweep_max_acc ?? "?")}%); at dt={dt2} it trains to a silent network at the **{cfg.tier ?? "?"}** tier, so that panel's flatness is degenerate — the cuba claim rests on the dt={dt1} regime pending a larger-tier rerun.
+The snnTorch models agree with each other at train-*dt* (red dashed) and their accuracy rolls off as eval-*dt* moves away — the sag-point tracks train-*dt*, and *snntorch-clone* tracks *snntorch-library*, so the behaviour is the update-rule, not a pinglab implementation bug. *cuba* stays flat: at dt={dt1} its accuracy spread across the whole sweep is {(cuba1.sweep_min_acc ?? "?")}–{(cuba1.sweep_max_acc ?? "?")}%, and at dt={dt2} it's {(cuba2.sweep_min_acc ?? "?")}–{(cuba2.sweep_max_acc ?? "?")}%. Keeping *dt* in the update rule is what carries *dt*-stability.
 
 ### Hidden firing rate vs eval-*dt*
 
@@ -79,15 +90,15 @@ Canonical models agree at train-*dt* (red dashed) and diverge as eval-*dt* moves
   </Figure>
 )}
 
-Mechanistic companion to the accuracy plot (log-log). The snnTorch paths fan out 1–2 orders of magnitude across the sweep in both regimes; *cuba* at dt={dt1} holds $\sim$55 Hz flat. Rate-flatness is the *cause* of accuracy-stability: the network sees the same activity distribution at eval that it saw at training.
+Mechanistic companion to the accuracy plot (log-log). The snnTorch paths fan out 1–2 orders of magnitude across the sweep in both regimes, and the *shape* of the fan — where rate is highest, how it moves across eval-*dt* — is visibly different between the two training regimes. *cuba* by contrast holds roughly flat. Intuitively, rate-flatness should track accuracy-stability: the network sees the same activity distribution at eval that it saw at training. But the snnTorch curves don't collapse into a single scaling, so "rate changes with *dt*" is better read as a *symptom* here than as a fully-explained cause.
 
-### Why the snnTorch rate drops as *dt* grows
+### A partial mechanism: the bias term
 
-The sag is the **bias term**. Under the snnTorch update $\text{mem} = \beta \cdot \text{mem} + W{\cdot}s + b$, $\beta = e^{-dt/\tau}$, the steady-state membrane under Poisson drive of rate $r$ is
+A natural first-order explanation looks at the steady-state membrane. Under the snnTorch update $\text{mem} = \beta \cdot \text{mem} + W{\cdot}s + b$, $\beta = e^{-dt/\tau}$, Poisson drive of rate $r$ gives
 
 $$\text{mem}_{ss} = \frac{W \cdot \mathbb{E}[s_{step}]}{1-\beta} + \frac{b}{1-\beta}.$$
 
-With frozen inputs $\mathbb{E}[s_{step}] \approx r\,dt$ and $1-\beta \approx dt/\tau$ for small $dt/\tau$, the spike contribution is $W\,r\,\tau$ — *dt-invariant* — while the bias contribution is $b\,\tau/dt$, scaling as **1/dt**. Eval-*dt* spans 0.05–2.0 ms (40×) in both regimes, so the prediction is 40× in both.
+With frozen inputs $\mathbb{E}[s_{step}] \approx r\,dt$ and $1-\beta \approx dt/\tau$ for small $dt/\tau$, the spike contribution is $W\,r\,\tau$ — *dt*-invariant — while the bias contribution is $b\,\tau/dt$, scaling as **1/*dt***. This would predict a monotone fall in rate as eval-*dt* rises, by the same 40× factor in both regimes.
 
 | train *dt* | model | max rate | min rate | observed | 1/*dt* predicted |
 |---|---|---|---|---|---|
@@ -98,7 +109,7 @@ With frozen inputs $\mathbb{E}[s_{step}] \approx r\,dt$ and $1-\beta \approx dt/
 | {dt2} ms | snntorch-library | {num(lib2.sweep_max_hid_rate_hz)} Hz  | {num(lib2.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib2))}× | 40× |
 | {dt2} ms | cuba             | {num(cuba2.sweep_max_hid_rate_hz)} Hz | {num(cuba2.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba2), 2)}× | 1× |
 
-Canonical paths exceed the pure 1/*dt* prediction: once membrane passes threshold, spike rate rises super-linearly with drive, amplifying the bias swing. *cuba*'s update $\text{mem} = \beta \cdot \text{mem} + \tfrac{1-\beta}{dt} W{\cdot}s + (1-\beta)\, b$ cancels both 1/(1-β) terms in steady state — bias becomes $b$, spike becomes $W\,r\,\tau$, both *dt*-invariant.
+The prediction only partially matches the data. The two snnTorch training regimes respond to an eval-*dt* sweep in qualitatively *different* ways — the direction and shape of the curves change with train-*dt*, not just the magnitude — which a pure bias-scaling story cannot account for on its own. Non-linearities once the membrane passes threshold, interactions with the frozen-inputs OR-pool, and the fact that weights themselves are shaped by the training-*dt* all plausibly contribute. Pinning this down properly needs a careful look at the per-*dt* scope frames, not just the endpoint ratios. *cuba*'s update $\text{mem} = \beta \cdot \text{mem} + \tfrac{1-\beta}{dt} W{\cdot}s + (1-\beta)\, b$ cancels both 1/(1-β) terms in steady state — bias becomes $b$, spike becomes $W\,r\,\tau$, both *dt*-invariant — which is consistent with its observed flatness across both regimes.
 
 ### Training-time parity
 
@@ -108,7 +119,7 @@ Canonical paths exceed the pure 1/*dt* prediction: once membrane passes threshol
   </Figure>
 )}
 
-At dt={dt1} all three land in a 15–20% tier-ceiling band (best: clone {snn1.best_acc ?? "?"}%, library {lib1.best_acc ?? "?"}%, cuba {cuba1.best_acc ?? "?"}%). At dt={dt2} the snnTorch paths jump clear (clone {snn2.best_acc ?? "?"}%, library {lib2.best_acc ?? "?"}%) while *cuba*'s bias-scaled init leaves it too quiet to learn in {cfg.epochs ?? "?"} epochs × {cfg.max_samples ?? "?"} samples — {cuba2.best_acc ?? "?"}% silent. At this tier the result is a plumbing sanity-check, not a ladder-invariance test at coarse train-*dt*.
+Best test accuracy during training (all at this tier's budget of {cfg.epochs ?? "?"} epochs × {cfg.max_samples ?? "?"} samples): at dt={dt1} ms, clone {snn1.best_acc ?? "?"}%, library {lib1.best_acc ?? "?"}%, cuba {cuba1.best_acc ?? "?"}%; at dt={dt2} ms, clone {snn2.best_acc ?? "?"}%, library {lib2.best_acc ?? "?"}%, cuba {cuba2.best_acc ?? "?"}%. All three models train to comparable accuracy in each regime, so the gap seen in the sweeps above is a pure *dt*-stability effect, not a training-budget artefact.
 
 Two videos per (model, regime): one frame per training epoch, one frame per sweep *dt* at frozen weights.
 
@@ -190,14 +201,15 @@ Two videos per (model, regime): one frame per training epoch, one frame per swee
 
 ## Implications
 
-The experiment confirms the [ladder's](/models/) core claim: the [snnTorch update](/models/#snntorch-clone) has no $\Delta t$-invariance, and [*cuba*'s](/models/#cuba) $(1-\beta)/dt$ and $(1-\beta)$ prefactors are the minimum correction that restores it. The snnTorch paths fan across 1–2 orders of magnitude of hidden rate in both regimes, matching the predicted $b\,\tau/dt$ bias scaling; *cuba* holds flat at dt={dt1}. The dt={dt2} regime tests only the snnTorch paths at this tier — *cuba*'s silent-network result there is a training-budget issue, not a ladder defect.
+The experiment matches the [ladder's](/models/) core prediction: the Tutorial-3 update has no *dt*-invariance by construction, and *cuba*'s $(1-\beta)/dt$ and $(1-\beta)$ prefactors are the minimum correction that restores it. The snnTorch paths fan across 1–2 orders of magnitude of hidden rate in both training regimes, matching the predicted $b\,\tau/dt$ bias scaling; *cuba* holds flat in both. Take-away for a newcomer: if you're staying at one fixed *dt*, the Tutorial-3 update is a fine, battle-tested choice. If you need your network to transfer across *dt*s — changing sampling rate, porting to hardware with a different clock, comparing to continuous-time biology — reintroduce the $(1-\beta)/dt$ and $(1-\beta)$ prefactors and the problem goes away.
 
-Every later rung inherits the continuous discretisation, so Δt-stability is a **ladder invariant** from CUBA onwards. Any further rung that breaks Δt-stability is a rung defect, not biophysics.
+Every later rung of the model ladder inherits CUBA's ODE-derived discretisation, so *dt*-stability is a **ladder invariant** from CUBA onwards. Any further rung that breaks *dt*-stability is a rung defect, not biophysics.
 
 ## Next steps
 
-- Re-run nb003 at a larger tier (small / medium) so accuracy spreads stop being noise-limited at {cfg.max_samples ?? "?"} samples / {cfg.epochs ?? "?"} epochs, and *cuba* at train-*dt* = {dt2} ms trains past the silent-network regime.
-- Extend the coarse train-*dt* regime from 1 ms to 2 ms and densify the eval-*dt* sweep (more intermediate steps across 0.05–2.0 ms) so the sag curve is sampled finely enough to fit the predicted $b\,\tau/dt$ shape, not just its endpoints.
+1. Investigate the per-*dt* scope videos (training and frozen-weight sweeps) to work out what actually drives snnTorch's firing-rate and accuracy curves across eval-*dt* — the two training regimes behave qualitatively differently and the bias-scaling story above only explains part of that.
+2. Extend the coarse train-*dt* regime from 1 ms to 2 ms so both endpoints of the eval-*dt* sweep are covered by a matching training regime.
+3. Re-run at a larger tier to confirm the sag curve holds its $b\,\tau/dt$ shape out of noise.
 
 ## Parameters
 
