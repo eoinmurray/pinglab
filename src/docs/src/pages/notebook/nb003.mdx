@@ -191,9 +191,6 @@ The current numbers are at the **small** tier ({cfg.max_samples ?? "?"} samples 
 
 Pass *slope=1* into snnTorch's *fast_sigmoid* at the library call site (*snntorch-library*), so *snntorch-clone* and *snntorch-library* run with identical surrogates and the parity probe becomes a pure implementation comparison. Confirm training accuracy is unchanged after the switch.
 
-### Vary the training-time encoder, not just the eval-time transport
-
-This entry's encoder-mode sweep only varies how a single frozen pattern is *transported* across eval-*dt*; training still uses a fresh-draw Poisson encoder at train-*dt*, so the training-time per-step input rate is still train-*dt*-dependent (twenty sub-steps worth of expected count at *dt* = 1 vs two at *dt* = 0.1). A natural follow-up is to hold training-time per-ms rate fixed instead — e.g. train with a count-pool or per-ms-rate-matched encoder — and see whether the snnTorch sag persists. The current data says the encoder is not the driver of the sag at eval time; this would test the same claim at train time.
 
 ## Appendix
 
