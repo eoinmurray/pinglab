@@ -155,7 +155,7 @@ $$
 V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp(-\Delta t / \tau_{\text{eff}}) \tag{14}
 $$
 
-This matches CUBA's treatment of its homogeneous part, so CUBA → COBA on the ladder isolates the biophysical additions rather than an integrator swap. A forward-Euler variant is still available via *--coba-integrator fwd* for parity studies — see [nb004](/notebook/nb004/).
+This matches CUBA's treatment of its homogeneous part, so CUBA → COBA on the ladder isolates the biophysical additions rather than an integrator swap. A forward-Euler variant is still available via *--coba-integrator fwd* for parity studies.
 
 Each synaptic conductance evolves as an exponential synapse: $g_{t+1} = e^{-\Delta t/\tau_{\text{syn}}}(g_t + W\,s_t)$, with $\tau_{\text{AMPA}} = 2$ ms for excitation and $\tau_{\text{GABA}} = 9$ ms for inhibition. In feedforward-only COBA ($ei\text{-}strength = 0$), the inhibitory term drops: $g_i \equiv 0$. On crossing threshold the voltage is hard-reset, $V \leftarrow V_{\text{reset}}$, and the neuron is refractory for $\tau_{\text{ref}}^{E} = 3$ ms (E) or $\tau_{\text{ref}}^{I} = 1.5$ ms (I). Dale's law on: weights non-negative (half-normal init, clamped in forward).
 
