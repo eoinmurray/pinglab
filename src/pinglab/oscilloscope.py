@@ -2348,7 +2348,7 @@ Models:
                       dt-invariant.
   oscilloscope.py image --model snntorch-clone --kaiming-init
 
-  cuba                Proper continuous-time Euler CUBA: mem = β·mem + (1-β)·I,
+  cuba                Proper continuous-time exp-Euler CUBA: mem = β·mem + (1-β)·I,
                       β = exp(-dt/τ). Bias and weights have per-ms semantics.
                       dt-invariant by construction.
   oscilloscope.py image --model cuba --kaiming-init
