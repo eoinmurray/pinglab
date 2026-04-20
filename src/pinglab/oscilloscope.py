@@ -1262,18 +1262,49 @@ def downsample_spikes_or(spikes_ref, dt_ref, dt_target):
     return blocks.max(dim=1).values
 
 
-class FrozenEncoder:
-    """Deterministic encoder that produces identical spike patterns across dt values.
+def downsample_spikes_count(spikes_ref, dt_ref, dt_target):
+    """Sum-pool: integer count of spikes per coarse step. Unlike OR-pool, the
+    per-ms rate is preserved exactly (no saturation), so the per-step input
+    magnitude stays proportional to dt and the encoder does not silently
+    bake a step-scale into the weights. Output is not binary."""
+    k = round(dt_target / dt_ref)
+    if k == 1:
+        return spikes_ref
+    T_target = spikes_ref.shape[0] // k
+    trimmed = spikes_ref[:T_target * k]
+    blocks = trimmed.reshape(T_target, k, *spikes_ref.shape[1:])
+    return blocks.sum(dim=1)
 
-    Encodes each batch at dt_ref with a per-batch seed, then OR-pools down to
-    the target dt.  Call reset() before each new sweep dt so batch indices
-    line up across iterations.
+
+FROZEN_MODES = ("or-pool", "count-pool", "resample")
+
+
+class FrozenEncoder:
+    """Deterministic encoder that controls how spike patterns are transported
+    across dt values during a sweep.
+
+    Modes (see Parthasarathy, Burghi & O'Leary, §2.1):
+      * or-pool    — reference Poisson at dt_ref, logical-OR down to target
+                     dt.  Binary output; saturates as dt grows (per-step rate
+                     not dt-invariant in per-ms terms).
+      * count-pool — reference Poisson at dt_ref, sum-pool down to target dt.
+                     Integer-count output; per-ms rate preserved by
+                     construction (no saturation).  Non-binary.
+      * resample   — draw a fresh Poisson stream at the *target* dt with the
+                     same per-ms rate.  Binary; sampling noise re-introduced.
+
+    Call reset() before each new sweep dt so batch indices line up across
+    iterations.
     """
 
-    def __init__(self, dt_ref, t_ms, base_seed=42):
+    def __init__(self, dt_ref, t_ms, base_seed=42, mode="or-pool"):
+        if mode not in FROZEN_MODES:
+            raise ValueError(f"unknown frozen-encoder mode {mode!r}; "
+                             f"expected one of {FROZEN_MODES}")
         self.dt_ref = dt_ref
         self.t_ms = t_ms
         self.base_seed = base_seed
+        self.mode = mode
         self.batch_idx = 0
 
     def reset(self):
@@ -1285,11 +1316,20 @@ class FrozenEncoder:
         g.manual_seed(self.base_seed + self.batch_idx)
         self.batch_idx += 1
 
+        if self.mode == "resample":
+            if use_smnist:
+                return encode_smnist(X_b, dt, M.max_rate_hz, generator=g)
+            T_target = int(self.t_ms / dt)
+            return encode_images_poisson(X_b, T_target, dt, M.max_rate_hz, generator=g)
+
         if use_smnist:
             spk_ref = encode_smnist(X_b, self.dt_ref, M.max_rate_hz, generator=g)
         else:
             T_ref = int(self.t_ms / self.dt_ref)
             spk_ref = encode_images_poisson(X_b, T_ref, self.dt_ref, M.max_rate_hz, generator=g)
+
+        if self.mode == "count-pool":
+            return downsample_spikes_count(spk_ref, self.dt_ref, dt)
         return downsample_spikes_or(spk_ref, self.dt_ref, dt)
 
 
@@ -2626,7 +2666,14 @@ Models:
                                    "Without: image = single snapshot.")
     infer_parser.add_argument("--frozen-inputs", action="store_true", default=False,
                               help="Freeze input spike patterns across dt sweep. "
-                                   "Encodes at finest dt, then OR-pools for coarser values.")
+                                   "Shorthand for --frozen-inputs-mode or-pool.")
+    infer_parser.add_argument("--frozen-inputs-mode", type=str, default=None,
+                              choices=list(FROZEN_MODES),
+                              help="How input spikes are transported across dt: "
+                                   "or-pool (binary, saturates), count-pool "
+                                   "(integer count, per-ms rate preserved), or "
+                                   "resample (fresh Poisson per dt, re-introduces "
+                                   "sampling noise). See FrozenEncoder docstring.")
 
     args = parser.parse_args()
     if args.mode is None:
@@ -2958,17 +3005,21 @@ if __name__ == "__main__":
             log.info(f"dt sweep: {dt_values}")
 
             encoder = None
-            frozen = getattr(args, "frozen_inputs", False)
-            if frozen:
+            frozen_mode = getattr(args, "frozen_inputs_mode", None)
+            if frozen_mode is None and getattr(args, "frozen_inputs", False):
+                frozen_mode = "or-pool"
+            if frozen_mode is not None:
                 dt_ref = dt_values[0]
-                for d in dt_values[1:]:
-                    ratio = d / dt_ref
-                    if abs(ratio - round(ratio)) > 1e-6:
-                        raise ValueError(
-                            f"--frozen-inputs requires integer dt ratios; "
-                            f"dt={d} / dt_ref={dt_ref} = {ratio:.4f}")
-                encoder = FrozenEncoder(dt_ref, t_ms=args.t_ms)
-                log.info(f"  frozen inputs: ref dt={dt_ref}, OR-pool downsampling")
+                if frozen_mode != "resample":
+                    for d in dt_values[1:]:
+                        ratio = d / dt_ref
+                        if abs(ratio - round(ratio)) > 1e-6:
+                            raise ValueError(
+                                f"--frozen-inputs-mode {frozen_mode} requires "
+                                f"integer dt ratios; dt={d} / dt_ref={dt_ref} "
+                                f"= {ratio:.4f}")
+                encoder = FrozenEncoder(dt_ref, t_ms=args.t_ms, mode=frozen_mode)
+                log.info(f"  frozen inputs: ref dt={dt_ref}, mode={frozen_mode}")
 
             train_dt = float(args.dt)
             base_rate = float(args.spike_rate)
@@ -2998,7 +3049,7 @@ if __name__ == "__main__":
                           "input_rate": args.spike_rate,
                           "t_ms": args.t_ms, "dataset": args.dataset,
                           "load_weights": args.load_weights,
-                          "frozen_inputs": frozen,
+                          "frozen_inputs_mode": frozen_mode,
                           "sweep": sweep_results}
             results_path = out_dir / "results.json"
             with open(results_path, "w") as f:
@@ -3024,7 +3075,7 @@ if __name__ == "__main__":
                 _render_dt_sweep_video(
                     vid_net, dt_values, sweep_results, train_dt,
                     args.model, args.dataset, out_dir,
-                    frozen_inputs=frozen)
+                    frozen_inputs=bool(frozen_mode))
                 log.info(f"  → {out_dir / 'dt_sweep.mp4'}")
         else:
             acc = infer(dt=args.dt, out_dir=str(out_dir), **infer_kwargs)["acc"]
