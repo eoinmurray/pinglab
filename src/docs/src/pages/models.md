@@ -5,14 +5,13 @@ title: "Models"
 
 # Models
 
-The shared model ladder used across experiments: six models, ordered by increasing biophysical realism and time-discretisation rigour. All take MNIST Poisson spikes as input and output digit-class logits. The first two (snnTorch-library, snnTorch-clone) share the same update rule — snnTorch-library is the reference, snnTorch-clone is pinglab's in-repo version — and serve as a calibration pair. For the project-level "why," see [Introduction](/introduction/).
+The shared model ladder used across experiments: five models, ordered by increasing biophysical realism and time-discretisation rigour. All take MNIST Poisson spikes as input and output digit-class logits. The first two (snnTorch-library, snnTorch-clone) share the same update rule — snnTorch-library is the reference, snnTorch-clone is pinglab's in-repo version — and serve as a calibration pair. For the project-level "why," see [Introduction](/introduction/).
 
 | Model | Description |
 | ----- | ----------- |
 | snnTorch-library | Thin wrapper around snnTorch's *snn.Leaky* + fast-sigmoid surrogate. Parity reference for the pinglab path. |
 | snnTorch-clone | snnTorch-library form, pinglab implementation: $\beta$ a dimensionless hyperparameter. No dt semantics. Not dt-stable. |
 | CUBA | Exact Euler discretisation of $\tau\,dV/dt = -V + I$. Dt-stable across $\Delta t \in [0.05, 2.0]$ ms. |
-| CUBA-exp | CUBA + exponential synapse. |
 | COBA | Full biophysical: exp synapse + hard reset + refractory + conductance-$V$. Not a separate CLI model — run as *--model ping --ei-strength 0*. |
 | PING | COBA + E→I→E loop producing gamma oscillation. Dt-stable below $\tau_{\text{GABA}}$ ceiling. |
 
@@ -20,8 +19,7 @@ Each step up the ladder adds one axis of realism or rigour:
 
 - **snnTorch-library → snnTorch-clone**: same update rule, different implementation. Isolates *"does the pinglab LIF step and surrogate-gradient code match the library's numerics?"*
 - **snnTorch-clone → CUBA**: same neuron class, cleaner discretisation. Isolates the dt-sensitivity question — *proper Euler fixes it* ([nb003](/notebook/nb003/)).
-- **CUBA → CUBA-exp**: same discretisation philosophy, add exponential synapse. Isolates *"is the synaptic low-pass what's carrying stability?"*
-- **CUBA-exp → COBA**: add hard reset, refractory, conductance-based membrane. Isolates *"do the remaining biophysical features add anything?"*
+- **CUBA → COBA**: add hard reset, refractory, conductance-based membrane, and exponential synapses. Isolates *"do the biophysical features add anything beyond the CUBA baseline?"*
 - **COBA → PING**: add inhibitory population and E→I→E coupling. Isolates *"what does the gamma oscillation contribute?"*
 
 ## The model ladder
@@ -66,7 +64,7 @@ This is the deep-learning framing of an SNN: a recurrent network with binary act
 
 ### CUBA
 
-Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L251) in *src/pinglab/models.py*. Selected by *discretisation="continuous"* (snnTorch-clone leaves it at "snntorch"), still with *exponential_synapse=False* (CUBA-exp flips that to True).
+Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L251) in *src/pinglab/models.py*. Selected by *discretisation="continuous"* (snnTorch-clone leaves it at "snntorch"), with *exponential_synapse=False*.
 
 Proper continuous-time discretisation of the physicist's LIF:
 
@@ -103,29 +101,9 @@ followed by the same spike / reset rule as snnTorch-clone. Two key consequences:
 - **Per-spike kick** $= (1-\beta)/\Delta t \cdot W \approx W/\tau$ as $\Delta t \to 0$ — neither $\Delta t$ nor $\beta$ appears in the limit. Dt-invariant in magnitude.
 - **Per-ms bias contribution** $= (1-\beta)/\Delta t \cdot b \approx b/\tau$ per ms — dt-invariant, whereas the snnTorch-clone path injects $b$ once per step and grows bias drive by $1/\Delta t$.
 
-Same parameters, learning rate, and training cost as snnTorch-clone — only the forward rule differs. Empirically $\Delta t$-stable across the full $\Delta t \in [0.05, 2.0]$ ms sweep: [notebook 003](/notebook/nb003/) trains CUBA at $\Delta t = 0.1$ and $\Delta t = 1.0$ and finds test accuracy stays within ~1% of the training-$\Delta t$ reference across every evaluation $\Delta t$, whereas snntorch-clone and snntorch-library collapse by 20–60 percentage points outside a narrow band around their training $\Delta t$. Proper discretisation, not the synaptic low-pass, is what carries CUBA's stability — CUBA-exp adds robustness under extra-coincident input but is not required for dt-stability on its own.
+Same parameters, learning rate, and training cost as snnTorch-clone — only the forward rule differs. Empirically $\Delta t$-stable across the full $\Delta t \in [0.05, 2.0]$ ms sweep: [notebook 003](/notebook/nb003/) trains CUBA at $\Delta t = 0.1$ and $\Delta t = 1.0$ and finds test accuracy stays within ~1% of the training-$\Delta t$ reference across every evaluation $\Delta t$, whereas snntorch-clone and snntorch-library collapse by 20–60 percentage points outside a narrow band around their training $\Delta t$. Proper discretisation is what carries CUBA's stability, independent of any synapse model.
 
 **Compared to snnTorch-clone:** same LIF neuron class, but the forward rule derives from proper Euler integration with explicit $\Delta t$ semantics — this isolates whether dt-sensitivity is a property of the model or of the discretisation.
-
-### CUBA-exp
-
-Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L251) in *src/pinglab/models.py*. CUBA plus *exponential_synapse=True*; the *discretisation="continuous"* flag carries over from CUBA.
-
-CUBA augmented with an **exponential synapse**: incoming presynaptic spikes deposit charge into a synaptic conductance $g$ that decays with time constant $\tau_{\text{AMPA}} = 2$ ms, rather than depositing directly into $V$. The membrane then sees a smoothly-varying $g$ instead of sharp per-step impulses. Per-step update, with $\beta = e^{-\Delta t/\tau_{\text{mem}}}$ and $\alpha = e^{-\Delta t/\tau_{\text{AMPA}}}$:
-
-$$
-g_{t+1} = \alpha \bigl(g_t + W\, s_t\bigr) \tag{9}
-$$
-
-$$
-U_{t+1} = \beta\, U_t + (1 - \beta)\, g_{t+1} + (1 - \beta)\, b \tag{10}
-$$
-
-followed by the same spike / reset rule. The synapse is updated "kick then decay": spikes add to $g$, then the whole conductance decays one step. The bias path is unchanged from CUBA (per-ms contribution $\approx b/\tau$).
-
-The exp synapse resolves CUBA's residual variance issue: at large $\Delta t$, many input spikes pile up into a single step, but $g$ smooths them over $\tau_{\text{AMPA}}$ before they reach $V$. Per-step $V$-drive variance stays low at every $\Delta t$.
-
-**Compared to CUBA:** same discretisation philosophy, plus an exponential synapse that low-passes presynaptic drive before it reaches the membrane — this isolates whether the synaptic low-pass alone carries dt-stability.
 
 ### COBA
 
@@ -134,25 +112,25 @@ Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pi
 Conductance-based LIF with exponential synapses — the simplest biophysical model. The membrane follows
 
 $$
-C_m\, \frac{dV}{dt} = -g_L\,(V - E_L) - g_e\,(V - E_e) - g_i\,(V - E_i) \tag{11}
+C_m\, \frac{dV}{dt} = -g_L\,(V - E_L) - g_e\,(V - E_e) - g_i\,(V - E_i) \tag{9}
 $$
 
-Derivation to the discrete update via **exponential Euler under a zero-order hold** on the conductances. Collect coefficients on $V$ on the right-hand side of (11):
+Derivation to the discrete update via **exponential Euler under a zero-order hold** on the conductances. Collect coefficients on $V$ on the right-hand side of (9):
 
 $$
-C_m\, \frac{dV}{dt} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{12}
+C_m\, \frac{dV}{dt} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{10}
 $$
 
 Define $g_{\text{tot}} = g_L + g_e + g_i$, $\tau_{\text{eff}} = C_m / g_{\text{tot}}$, and $V_\infty = (g_L E_L + g_e E_e + g_i E_i) / g_{\text{tot}}$. Dividing (12) by $g_{\text{tot}}$ puts it in canonical first-order form:
 
 $$
-\tau_{\text{eff}}\, \frac{dV}{dt} = -(V - V_\infty) \tag{13}
+\tau_{\text{eff}}\, \frac{dV}{dt} = -(V - V_\infty) \tag{11}
 $$
 
 Under a zero-order hold on $g_e, g_i$ across the step, $\tau_{\text{eff}}$ and $V_\infty$ are constant, so (13) is a first-order linear ODE with the familiar closed form:
 
 $$
-V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp(-\Delta t / \tau_{\text{eff}}) \tag{14}
+V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp(-\Delta t / \tau_{\text{eff}}) \tag{12}
 $$
 
 This matches CUBA's treatment of its homogeneous part, so CUBA → COBA on the ladder isolates the biophysical additions rather than an integrator swap. A forward-Euler variant is still available via *--coba-integrator fwd* for parity studies.
@@ -165,7 +143,7 @@ Training needs a lower learning rate ($10^{-4}$ vs $10^{-2}$ for CUBA) because B
 
 COBA is not a separate CLI model — run it as PINGNet with the inhibitory population switched off: *--model ping --ei-strength 0*. Same dynamics, no E→I→E loop. Rate-integrating by construction, so naturally dt-invariant.
 
-**Compared to CUBA-exp:** adds hard reset, refractory period, and a conductance-based membrane driven by $g(V - V_e)$ — this isolates whether the remaining biophysical features contribute beyond what the exp synapse alone already delivers.
+**Compared to CUBA:** adds exponential synapses ($\tau_{\text{AMPA}}$, $\tau_{\text{GABA}}$), hard reset, refractory period, and a conductance-based membrane driven by $g(V - V_e)$ — this isolates whether the biophysical features contribute beyond the CUBA baseline.
 
 ### PING
 
@@ -174,15 +152,15 @@ Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pi
 Full E-I network with frozen recurrent weights, producing gamma oscillations. Excitatory and inhibitory populations (E:I ratio 4:1) share COBA-style membrane dynamics; three frozen recurrent matrices $W^{EE}, W^{EI}, W^{IE}$ connect them into the standard PING loop. Per-step synaptic updates (kick-then-decay with $\alpha = e^{-\Delta t/\tau_{\text{AMPA}}}$, $\gamma = e^{-\Delta t/\tau_{\text{GABA}}}$):
 
 $$
-g^{E \to E}_{t+1} = \alpha\bigl(g^{E \to E}_t + W^{EE}\, s^{E}_t\bigr) + W_{\text{in}}\, s^{\text{inp}}_t \tag{15}
+g^{E \to E}_{t+1} = \alpha\bigl(g^{E \to E}_t + W^{EE}\, s^{E}_t\bigr) + W_{\text{in}}\, s^{\text{inp}}_t \tag{13}
 $$
 
 $$
-g^{E \to I}_{t+1} = \alpha\bigl(g^{E \to I}_t + W^{EI}\, s^{E}_t\bigr) \tag{16}
+g^{E \to I}_{t+1} = \alpha\bigl(g^{E \to I}_t + W^{EI}\, s^{E}_t\bigr) \tag{14}
 $$
 
 $$
-g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{17}
+g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{15}
 $$
 
 Feedforward input is added post-decay (i.e. as an instantaneous conductance kick that the next membrane step integrates once). Recurrent components go through kick-then-decay as usual. The E population integrates $g^{E \to E}$ excitation + $g^{I \to E}$ inhibition via COBA; the I population integrates $g^{E \to I}$ only. Both use the COBA membrane equation above with their respective $(C_m, g_L, \tau_{\text{ref}})$. Pinglab defaults use $W^{EE} = 0$ (Börgers: PING needs no E→E), $W^{EI} \approx 1$ µS (just suprathreshold), $W^{IE} \approx 3$ µS (2–3× $W^{EI}$, Viriyopase et al.). The recurrent matrices are **frozen at init** — only $W_{\text{in}}$ and $W_{\text{out}}$ train, matching the trainable surface area of the other three models so the ladder is apples-to-apples.
