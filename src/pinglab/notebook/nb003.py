@@ -46,24 +46,27 @@ FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
 MODELS = ["snntorch-clone", "snntorch-library", "cuba"]
-# Three input-transport modes for the dt sweep (Parthasarathy et al. §2.1).
-# or-pool: logical-OR of reference Poisson (saturates at coarse dt).
-# count-pool: sum-pool, preserves per-ms rate exactly (no saturation).
-# resample: fresh Poisson at target dt (sampling noise re-introduced).
-ENCODER_MODES = ["or-pool", "count-pool", "resample"]
+# Two input-transport modes for the dt sweep, matching the paper
+# (Parthasarathy et al. §2.1 / Fig 1B / §2.3). The FrozenEncoder anchors
+# at train-dt and transports count-preservingly under `zero-pad` (zeros
+# between spikes to finer eval-dt per Fig 1B, sum-pool to coarser per
+# §2.3) or draws fresh per target under `resample`.
+ENCODER_MODES = ["zero-pad", "resample"]
 MAX_SAMPLES = 500
 EPOCHS = 5
 T_MS = 600.0
 # Two training regimes: fine dt (snnTorch research setting) and coarse dt
-# (near τ_mem, where snnTorch models typically saturate). Same eval-dt
-# sweep for both — lets us see whether the 1/dt bias-term story depends on
-# the eval/train ratio (it does) or the absolute eval-dt (it shouldn't).
+# (near τ_mem, where snnTorch models typically saturate).
 DT_TRAINS = [0.1, 1.0]
-# Sweep grid: 20 points spanning [0.05, 2.0] ms, all integer multiples of 0.05
-# so FrozenEncoder OR-pool downsampling stays valid. Both training dts
-# (0.10, 1.00) are on the grid so each regime has its own control point.
-DT_SWEEP = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.75,
-            0.85, 1.00, 1.15, 1.25, 1.40, 1.55, 1.70, 1.80, 1.90, 2.00]
+# Per-regime sweep grid. Every point is an integer divisor or multiple of
+# its regime's train-dt so the paper-style zero-pad transport is exact in
+# both directions.
+DT_SWEEPS: dict[float, list[float]] = {
+    0.1: [0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90,
+          1.00, 1.10, 1.20, 1.30, 1.40, 1.50, 1.60, 1.70, 1.80, 1.90, 2.00],
+    1.0: [0.05, 0.10, 0.20, 0.25, 0.50, 1.00, 2.00],
+}
+DT_SWEEP = sorted({d for grid in DT_SWEEPS.values() for d in grid})
 SEED = 42
 TIER = "small"  # see src/docs/src/pages/llm-conventions.md § 8 Run sizing tiers
 TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
@@ -226,22 +229,22 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
     transported to coarser dt depends on mode) so the LIF dynamics are the
     only thing that differs between sweep points."""
     sweep_dir = ARTIFACTS / _regime_key(dt_train) / model / f"sweep_{_mode_key(encoder_mode)}"
+    sweep_grid = DT_SWEEPS[dt_train]
     print(f"[{model} @ dt={dt_train}, mode={encoder_mode}] dt-sweep → "
           f"{sweep_dir.relative_to(REPO)}")
-    # Videos are only emitted for the or-pool mode to keep wall-clock and disk
-    # within a small-tier budget for the 3-mode matrix. The other modes share
-    # identical accuracy/firing-rate plotting paths so the videos add no
-    # additional scientific content.
+    # Videos are only emitted for the zero-pad mode to keep wall-clock and
+    # disk within a small-tier budget; resample shares identical plotting
+    # paths so its videos add no additional scientific content.
     cmd = [
         "run", "python", str(OSCILLOSCOPE), "infer",
         "--from-dir", str(train_dir),
-        "--dt-sweep", *[str(d) for d in DT_SWEEP],
+        "--dt-sweep", *[str(d) for d in sweep_grid],
         "--frozen-inputs-mode", encoder_mode,
         "--max-samples", str(MAX_SAMPLES),
         "--out-dir", str(sweep_dir),
         "--wipe-dir",
     ]
-    if encoder_mode == "or-pool":
+    if encoder_mode == "zero-pad":
         cmd += ["--observe", "video"]
     sh.uv(*cmd, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     results_path = sweep_dir / "results.json"
@@ -455,10 +458,10 @@ def copy_videos(regime_train_dirs: dict[float, dict[str, Path]],
                 raise SystemExit(f"missing training video: {src}")
             dst = out_dir / f"training_{_regime_key(dt_train)}_{model}.mp4"
             _copy_with_stamp(src, dst, stamp_path)
-    # Only or-pool emits sweep videos (see sweep_model).
+    # Only zero-pad emits sweep videos (see sweep_model).
     for dt_train, model_modes in regime_sweep_dirs.items():
         for model, mode_dirs in model_modes.items():
-            sweep_dir = mode_dirs.get("or-pool")
+            sweep_dir = mode_dirs.get("zero-pad")
             if sweep_dir is None:
                 continue
             src = sweep_dir / "dt_sweep.mp4"
@@ -489,6 +492,7 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
             "t_ms": first_cfg["t_ms"],
             "dt_trains": DT_TRAINS,
             "dt_sweep": DT_SWEEP,
+            "dt_sweeps": {str(k): v for k, v in DT_SWEEPS.items()},
             "encoder_modes": ENCODER_MODES,
             "n_hidden": first_cfg["n_hidden"],
             "batch_size": first_cfg["batch_size"],
