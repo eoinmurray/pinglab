@@ -70,6 +70,8 @@ Two extra controls to keep the comparison honest:
 - **Matched init.** *snntorch-clone* and *cuba* start from bit-identical random weights (same class, same seed, same allocation order). *cuba* then gets a one-shot rescaling that cancels its per-step drive factors at training-*dt*, so both models produce the same initial firing rate. Without this, *cuba* would start silent and never learn.
 - **Frozen input spike pattern.** The MNIST Poisson encoding happens once at the finest *dt* and is OR-pooled down to coarser ones. So across the sweep each model sees *the same* spike train — just sampled at different temporal resolutions — and the only thing changing is the LIF update itself.
 
+One caveat we have *not* yet unified: the surrogate-gradient slope. *snntorch-library* uses snnTorch's default fast-sigmoid slope of 25, which gives a narrow (~±0.04) window of active gradient around threshold; *snntorch-clone* and *cuba* use pinglab's *SurrogateSpike* with slope=1, a much wider window that reliably bootstraps silent networks out of zero-gradient regions. The slope asymmetry is deliberate (pinglab's dimensionless membranes starve under slope=25 at init) but it means *snntorch-library* vs *snntorch-clone* is not a pure implementation parity probe — any small training-accuracy gap between them could be slope, not bug. The *dt*-stability finding itself is unaffected, since both snnTorch paths sag and *cuba* stays flat regardless of slope.
+
 ## Findings
 
 ### Accuracy vs eval-*dt*
@@ -208,8 +210,7 @@ Every later rung of the model ladder inherits CUBA's ODE-derived discretisation,
 ## Next steps
 
 1. Investigate the per-*dt* scope videos (training and frozen-weight sweeps) to work out what actually drives snnTorch's firing-rate and accuracy curves across eval-*dt* — the two training regimes behave qualitatively differently and the bias-scaling story above only explains part of that.
-2. Extend the coarse train-*dt* regime from 1 ms to 2 ms so both endpoints of the eval-*dt* sweep are covered by a matching training regime.
-3. Re-run at a larger tier to confirm the sag curve holds its $b\,\tau/dt$ shape out of noise.
+2. Unify the surrogate-gradient slope across models by passing *slope=1* into snnTorch's *fast_sigmoid* at the library call site (*snntorch-library*), so *snntorch-clone* and *snntorch-library* run with identical surrogates and the parity probe becomes a pure implementation comparison. Confirm training accuracy is unchanged after the switch.
 
 ## Parameters
 
