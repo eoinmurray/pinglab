@@ -24,13 +24,13 @@ export const cuba1 = r1.runs?.cuba ?? {};
 export const snn2 = r2.runs?.["snntorch-clone"] ?? {};
 export const lib2 = r2.runs?.["snntorch-library"] ?? {};
 export const cuba2 = r2.runs?.cuba ?? {};
-export const mode = (run, m = "or-pool") => (run?.encoder_modes?.[m] ?? {});
-export const snn1Or = mode(snn1);
-export const lib1Or = mode(lib1);
-export const cuba1Or = mode(cuba1);
-export const snn2Or = mode(snn2);
-export const lib2Or = mode(lib2);
-export const cuba2Or = mode(cuba2);
+export const mode = (run, m = "zero-pad") => (run?.encoder_modes?.[m] ?? {});
+export const snn1Zp = mode(snn1);
+export const lib1Zp = mode(lib1);
+export const cuba1Zp = mode(cuba1);
+export const snn2Zp = mode(snn2);
+export const lib2Zp = mode(lib2);
+export const cuba2Zp = mode(cuba2);
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const runDuration = numbers.duration ?? "?";
 export const latestRun = snn1.run_date ?? lib1.run_date ?? cuba1.run_date ?? "?";
@@ -40,12 +40,12 @@ export const rateRatio = (r) => (r && typeof r.sweep_max_hid_rate_hz === "number
   ? r.sweep_max_hid_rate_hz / r.sweep_min_hid_rate_hz
   : null);
 export const ratioFmt = (x, digits = 0) => (typeof x === "number" ? (digits === 0 ? Math.round(x) : x.toFixed(digits)) : "?");
-export const accRange = (run, m = "or-pool") => {
+export const accRange = (run, m = "zero-pad") => {
   const e = mode(run, m);
   return (typeof e.sweep_min_acc === "number" && typeof e.sweep_max_acc === "number")
     ? `${e.sweep_min_acc}–${e.sweep_max_acc}%` : "?";
 };
-export const encoderModes = cfg.encoder_modes ?? ["or-pool", "count-pool", "resample"];
+export const encoderModes = cfg.encoder_modes ?? ["zero-pad", "resample"];
 
 export const figGlob = import.meta.glob("../../../public/figures/notebook/nb003/*.{png,mp4}", { eager: true, query: "?url", import: "default" });
 export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" + name));
@@ -85,12 +85,11 @@ export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" 
 Two extra controls to keep the comparison honest:
 
 - **Matched init.** *snntorch-clone* and *cuba* start from bit-identical random weights (same class, same seed, same allocation order). *cuba* then gets a one-shot rescaling that cancels its per-step drive factors at training-*dt*, so both models produce the same initial firing rate. Without this, *cuba* would start silent and never learn.
-- **Frozen input spike pattern, three transports.** The MNIST Poisson encoding is generated *once*, at the finest *dt* in the sweep (0.05 ms), and then transported to every coarser *dt* in one of three ways. Only one of these — *resample* — is a direct match for a mode in [Parthasarathy et al.](/papers/#temporal-discretisation) (§2.1, the fresh-draw-at-target-*dt* path); *count-pool* is close in spirit to the integer-bin downsample the paper mentions in §2.3; *or-pool* is pinglab-specific and included as a binary-preserving contrast.
-  - **OR-pool** — logical-OR of the sub-steps that fall inside each coarse step (any spike in the window counts as one spike at the coarse step). Binary output. Saturates: the coarse-window spike probability is $1 - (1 - r\,dt_{\text{fine}}/1000)^{dt/dt_{\text{fine}}}$, not $r\,dt/1000$.
-  - **Count-pool** — sum of the sub-steps (integer count per coarse step). Non-binary, but the expected count per step is exactly $r\,dt/1000$, so the per-ms rate is *dt*-invariant by construction.
-  - **Resample** — draw a fresh Poisson stream at the target *dt* with the same per-ms rate. Binary, per-ms rate held fixed by construction, but re-introduces sampling noise.
+- **Frozen input spike pattern, paper-style transports.** The MNIST Poisson encoding is generated *once*, at training-*dt* (the anchor [Parthasarathy et al.](/papers/#temporal-discretisation) use when sweeping eval-*dt* away from a trained network), and then transported to every other sweep *dt* in one of two paper-matched ways:
+  - **Zero-pad** — count-preserving transport. For eval-*dt* < train-*dt*, place each reference spike at the first sub-step of its finer block and zero-fill the rest (Paper §2.1 / Fig 1B). For eval-*dt* > train-*dt*, sum-pool the reference stream into integer bins (Paper §2.3). Total spike count is preserved exactly in either direction; per-step input rate scales with *dt*.
+  - **Resample** — draw a fresh Poisson stream at the target *dt* with the same per-ms rate (Paper §2.1 alternative to zero-pad). Binary, per-ms rate held fixed by construction, but re-introduces sampling noise.
 
-  Each sweep is run under all three modes (so each (model, train-*dt*) cell in the data has three eval-*dt* curves). See the [encoder-mode audit](#encoder-mode-is-not-the-driver) for the result; short version: it makes almost no difference. All three curves track each other, so the OR-pool saturation is not the driver of the snnTorch sag.
+  Each sweep is run under both modes. See the [encoder-mode audit](#encoder-mode-is-not-the-driver) for the result; short version: the qualitative picture — snnTorch paths sag, *cuba* stays flat — is the same under either transport.
 
 All three models use the same surrogate-gradient slope of 1 — pinglab's *SurrogateSpike* for *snntorch-clone* and *cuba*, and snnTorch's *surrogate.fast_sigmoid(slope=1)* for *snntorch-library* (overriding snnTorch's slope-25 default). With the surrogate unified, *snntorch-clone* vs *snntorch-library* is a pure update-rule + init parity probe: any training-accuracy gap localises to the LIF step or nn.Linear init, not the surrogate.
 
@@ -104,7 +103,7 @@ All three models use the same surrogate-gradient slope of 1 — pinglab's *Surro
   </Figure>
 )}
 
-The snnTorch models agree with each other at train-*dt* (red dashed) and their accuracy rolls off as eval-*dt* moves away — the sag-point tracks train-*dt*, and *snntorch-clone* tracks *snntorch-library*, so the behaviour is the update-rule, not a pinglab implementation bug. *cuba* stays flat: at dt={dt1} its accuracy spread across the whole sweep is {accRange(cuba1)}, and at dt={dt2} it's {accRange(cuba2)}. Keeping *dt* in the update rule is what carries *dt*-stability. The three rows of the figure show the same sweep under three different input-transport modes (OR-pool, count-pool, resample — see the [encoder-mode audit](#encoder-mode-is-not-the-driver) below); the qualitative picture is the same in every row.
+The snnTorch models agree with each other at train-*dt* (red dashed) and their accuracy rolls off as eval-*dt* moves away — the sag-point tracks train-*dt*, and *snntorch-clone* tracks *snntorch-library*, so the behaviour is the update-rule, not a pinglab implementation bug. *cuba* stays flat: at dt={dt1} its accuracy spread across the whole sweep is {accRange(cuba1)}, and at dt={dt2} it's {accRange(cuba2)}. Keeping *dt* in the update rule is what carries *dt*-stability. The two rows of the figure show the same sweep under the paper's two input-transport modes (zero-pad, resample — see the [encoder-mode audit](#encoder-mode-is-not-the-driver) below); the qualitative picture is the same in both rows.
 
 ### Hidden firing rate vs eval-*dt*
 
@@ -126,14 +125,14 @@ With frozen inputs $\mathbb{E}[s_{step}] \approx r\,dt$ and $1-\beta \approx dt/
 
 | train *dt* | model | max rate | min rate | observed | 1/*dt* predicted |
 |---|---|---|---|---|---|
-| {dt1} ms | snntorch-clone   | {num(snn1Or.sweep_max_hid_rate_hz)} Hz  | {num(snn1Or.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(snn1Or))}× | 40× |
-| {dt1} ms | snntorch-library | {num(lib1Or.sweep_max_hid_rate_hz)} Hz  | {num(lib1Or.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib1Or))}× | 40× |
-| {dt1} ms | cuba             | {num(cuba1Or.sweep_max_hid_rate_hz)} Hz | {num(cuba1Or.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba1Or), 2)}× | 1× |
-| {dt2} ms | snntorch-clone   | {num(snn2Or.sweep_max_hid_rate_hz)} Hz  | {num(snn2Or.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(snn2Or))}× | 40× |
-| {dt2} ms | snntorch-library | {num(lib2Or.sweep_max_hid_rate_hz)} Hz  | {num(lib2Or.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib2Or))}× | 40× |
-| {dt2} ms | cuba             | {num(cuba2Or.sweep_max_hid_rate_hz)} Hz | {num(cuba2Or.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba2Or), 2)}× | 1× |
+| {dt1} ms | snntorch-clone   | {num(snn1Zp.sweep_max_hid_rate_hz)} Hz  | {num(snn1Zp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(snn1Zp))}× | 40× |
+| {dt1} ms | snntorch-library | {num(lib1Zp.sweep_max_hid_rate_hz)} Hz  | {num(lib1Zp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib1Zp))}× | 40× |
+| {dt1} ms | cuba             | {num(cuba1Zp.sweep_max_hid_rate_hz)} Hz | {num(cuba1Zp.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba1Zp), 2)}× | 1× |
+| {dt2} ms | snntorch-clone   | {num(snn2Zp.sweep_max_hid_rate_hz)} Hz  | {num(snn2Zp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(snn2Zp))}× | 40× |
+| {dt2} ms | snntorch-library | {num(lib2Zp.sweep_max_hid_rate_hz)} Hz  | {num(lib2Zp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib2Zp))}× | 40× |
+| {dt2} ms | cuba             | {num(cuba2Zp.sweep_max_hid_rate_hz)} Hz | {num(cuba2Zp.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba2Zp), 2)}× | 1× |
 
-The prediction only partially matches the data. The two snnTorch training regimes respond to an eval-*dt* sweep in qualitatively *different* ways — the direction and shape of the curves change with train-*dt*, not just the magnitude — which a pure bias-scaling story cannot account for on its own. Non-linearities once the membrane passes threshold, interactions with the frozen-inputs OR-pool, and the fact that weights themselves are shaped by the training-*dt* all plausibly contribute. Pinning this down properly needs a careful look at the per-*dt* scope frames, not just the endpoint ratios. *cuba*'s update $\text{mem} = \beta \cdot \text{mem} + \tfrac{1-\beta}{dt} W{\cdot}s + (1-\beta)\, b$ cancels both 1/(1-β) terms in steady state — bias becomes $b$, spike becomes $W\,r\,\tau$, both *dt*-invariant — which is consistent with its observed flatness across both regimes.
+The prediction only partially matches the data. The two snnTorch training regimes respond to an eval-*dt* sweep in qualitatively *different* ways — the direction and shape of the curves change with train-*dt*, not just the magnitude — which a pure bias-scaling story cannot account for on its own. Non-linearities once the membrane passes threshold and the fact that weights themselves are shaped by the training-*dt* both plausibly contribute. Pinning this down properly needs a careful look at the per-*dt* scope frames, not just the endpoint ratios. *cuba*'s update $\text{mem} = \beta \cdot \text{mem} + \tfrac{1-\beta}{dt} W{\cdot}s + (1-\beta)\, b$ cancels both 1/(1-β) terms in steady state — bias becomes $b$, spike becomes $W\,r\,\tau$, both *dt*-invariant — which is consistent with its observed flatness across both regimes.
 
 ### Why the two snnTorch regimes settle at different firing rates
 
@@ -148,20 +147,20 @@ Net effect: each snnTorch training regime picks its own operating point, and whe
 
 ### Encoder mode is not the driver
 
-The Method bullet flagged a concern — the frozen-input OR-pool saturates, so the per-step input rate is *dt*-dependent, and that might be what the snnTorch paths are actually reacting to. Sweeping all three input-transport modes ({encoderModes.join(", ")}) resolves it. The accuracy spread across eval-*dt*, per (model, train-*dt*, encoder mode):
+The paper (Parthasarathy et al. §2.1) flags that the choice of input-transport — whether spikes are count-preserved (zero-pad / sum-pool) or rate-preserved (resample) — can shift the learned weights and the measured sweep. We run both paper-matched transports to check whether either one is secretly carrying the result. The accuracy spread across eval-*dt*, per (model, train-*dt*, encoder mode):
 
-| train *dt* | model | {encoderModes[0]} | {encoderModes[1]} | {encoderModes[2]} |
-|---|---|---|---|---|
-| {dt1} ms | snntorch-clone   | {accRange(snn1, encoderModes[0])}  | {accRange(snn1, encoderModes[1])}  | {accRange(snn1, encoderModes[2])}  |
-| {dt1} ms | snntorch-library | {accRange(lib1, encoderModes[0])}  | {accRange(lib1, encoderModes[1])}  | {accRange(lib1, encoderModes[2])}  |
-| {dt1} ms | cuba             | {accRange(cuba1, encoderModes[0])} | {accRange(cuba1, encoderModes[1])} | {accRange(cuba1, encoderModes[2])} |
-| {dt2} ms | snntorch-clone   | {accRange(snn2, encoderModes[0])}  | {accRange(snn2, encoderModes[1])}  | {accRange(snn2, encoderModes[2])}  |
-| {dt2} ms | snntorch-library | {accRange(lib2, encoderModes[0])}  | {accRange(lib2, encoderModes[1])}  | {accRange(lib2, encoderModes[2])}  |
-| {dt2} ms | cuba             | {accRange(cuba2, encoderModes[0])} | {accRange(cuba2, encoderModes[1])} | {accRange(cuba2, encoderModes[2])} |
+| train *dt* | model | {encoderModes[0]} | {encoderModes[1]} |
+|---|---|---|---|
+| {dt1} ms | snntorch-clone   | {accRange(snn1, encoderModes[0])}  | {accRange(snn1, encoderModes[1])}  |
+| {dt1} ms | snntorch-library | {accRange(lib1, encoderModes[0])}  | {accRange(lib1, encoderModes[1])}  |
+| {dt1} ms | cuba             | {accRange(cuba1, encoderModes[0])} | {accRange(cuba1, encoderModes[1])} |
+| {dt2} ms | snntorch-clone   | {accRange(snn2, encoderModes[0])}  | {accRange(snn2, encoderModes[1])}  |
+| {dt2} ms | snntorch-library | {accRange(lib2, encoderModes[0])}  | {accRange(lib2, encoderModes[1])}  |
+| {dt2} ms | cuba             | {accRange(cuba2, encoderModes[0])} | {accRange(cuba2, encoderModes[1])} |
 
-Across all three transports the snnTorch paths still sag away from train-*dt*, and *cuba* still stays flat — neither the sag nor the flatness moves appreciably with encoder mode. Swapping OR-pool for count-pool (which kills the saturation by construction) or for resample (which draws per-ms-rate-correct fresh Poisson) leaves the qualitative picture unchanged. The OR-pool was a worry; it isn't the driver. The driver is the LIF update rule — the step we set out to isolate.
+Under both transports the snnTorch paths still sag away from train-*dt*, and *cuba* still stays flat — neither the sag nor the flatness moves appreciably with encoder mode. Swapping count-preserving zero-pad for per-ms-rate-preserving resample leaves the qualitative picture unchanged. The driver is the LIF update rule — the step we set out to isolate.
 
-The matrix in *dt_sweep.png* and *firing_rates.png* shows this visually: each row is one encoder mode, and the three rows look near-identical within each training regime.
+The matrix in *dt_sweep.png* and *firing_rates.png* shows this visually: each row is one encoder mode, and the two rows look near-identical within each training regime.
 
 ### Training-time parity
 

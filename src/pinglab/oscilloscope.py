@@ -1251,22 +1251,12 @@ def seed_everything(seed):
     log.info(f"  seed={seed} (Python, NumPy, torch)")
 
 
-def downsample_spikes_or(spikes_ref, dt_ref, dt_target):
-    """OR-pool reference spikes from dt_ref resolution to dt_target."""
-    k = round(dt_target / dt_ref)
-    if k == 1:
-        return spikes_ref
-    T_target = spikes_ref.shape[0] // k
-    trimmed = spikes_ref[:T_target * k]
-    blocks = trimmed.reshape(T_target, k, *spikes_ref.shape[1:])
-    return blocks.max(dim=1).values
-
-
 def downsample_spikes_count(spikes_ref, dt_ref, dt_target):
-    """Sum-pool: integer count of spikes per coarse step. Unlike OR-pool, the
-    per-ms rate is preserved exactly (no saturation), so the per-step input
-    magnitude stays proportional to dt and the encoder does not silently
-    bake a step-scale into the weights. Output is not binary."""
+    """Sum-pool fine→coarse: integer count of spikes per coarse step
+    (Parthasarathy et al. §2.3 integer-bin downsample). Per-ms rate is
+    preserved exactly; total spike count is preserved up to leftover steps
+    trimmed at the end when T_ref is not divisible by k. Output is not
+    binary."""
     k = round(dt_target / dt_ref)
     if k == 1:
         return spikes_ref
@@ -1276,28 +1266,67 @@ def downsample_spikes_count(spikes_ref, dt_ref, dt_target):
     return blocks.sum(dim=1)
 
 
-FROZEN_MODES = ("or-pool", "count-pool", "resample")
+def upsample_spikes_zeropad(spikes_ref, dt_ref, dt_target):
+    """Zero-pad coarse→fine: expand T axis by k = dt_ref / dt_target and
+    place each reference spike at the *first* fine sub-step of its block
+    (Parthasarathy et al. §2.1 / Fig 1B). Total spike count is preserved
+    exactly; per-ms rate is preserved; per-step rate drops by 1/k."""
+    k = round(dt_ref / dt_target)
+    if k == 1:
+        return spikes_ref
+    T_ref = spikes_ref.shape[0]
+    T_target = T_ref * k
+    out = torch.zeros((T_target, *spikes_ref.shape[1:]),
+                      dtype=spikes_ref.dtype, device=spikes_ref.device)
+    out[::k] = spikes_ref
+    return out
+
+
+def transport_spikes_bin(spikes_ref, dt_ref, dt_target):
+    """Paper count-preserving transport: identity at dt_target == dt_ref,
+    zero-pad when dt_target < dt_ref (§2.1 Fig 1B), sum-pool when
+    dt_target > dt_ref (§2.3). Requires an integer ratio in either
+    direction."""
+    if abs(dt_target - dt_ref) < 1e-9:
+        return spikes_ref
+    if dt_target < dt_ref:
+        ratio = dt_ref / dt_target
+        if abs(ratio - round(ratio)) > 1e-6:
+            raise ValueError(f"zero-pad requires integer dt_ref/dt_target; "
+                             f"got {dt_ref}/{dt_target}={ratio:.4f}")
+        return upsample_spikes_zeropad(spikes_ref, dt_ref, dt_target)
+    ratio = dt_target / dt_ref
+    if abs(ratio - round(ratio)) > 1e-6:
+        raise ValueError(f"downsample requires integer dt_target/dt_ref; "
+                         f"got {dt_target}/{dt_ref}={ratio:.4f}")
+    return downsample_spikes_count(spikes_ref, dt_ref, dt_target)
+
+
+FROZEN_MODES = ("zero-pad", "resample")
 
 
 class FrozenEncoder:
-    """Deterministic encoder that controls how spike patterns are transported
-    across dt values during a sweep.
+    """Deterministic encoder that controls how input spike patterns are
+    transported across dt values during a sweep.
 
-    Modes (see Parthasarathy, Burghi & O'Leary, §2.1):
-      * or-pool    — reference Poisson at dt_ref, logical-OR down to target
-                     dt.  Binary output; saturates as dt grows (per-step rate
-                     not dt-invariant in per-ms terms).
-      * count-pool — reference Poisson at dt_ref, sum-pool down to target dt.
-                     Integer-count output; per-ms rate preserved by
-                     construction (no saturation).  Non-binary.
-      * resample   — draw a fresh Poisson stream at the *target* dt with the
-                     same per-ms rate.  Binary; sampling noise re-introduced.
+    dt_ref is the *training* dt — the anchor the paper describes when a
+    network trained at dt_ref is evaluated at a sweep of other dts
+    (Parthasarathy, Burghi & O'Leary 2024, Fig 1B / §2.1, §2.3).
+
+    Modes:
+      * zero-pad  — generate Poisson at dt_ref, then transport count-
+                    preservingly: zero-pad when eval-dt < dt_ref (§2.1),
+                    sum-pool when eval-dt > dt_ref (§2.3). Non-binary on
+                    the coarser side (integer counts per bin).
+      * resample  — draw a fresh Poisson stream at the *target* dt with
+                    the same per-ms rate (§2.1 alternative to zero-pad).
+                    Binary; sampling noise re-introduced.
 
     Call reset() before each new sweep dt so batch indices line up across
     iterations.
     """
 
-    def __init__(self, dt_ref, t_ms, base_seed=42, mode="or-pool"):
+    def __init__(self, dt_ref, t_ms, base_seed=42, mode="zero-pad"):
         if mode not in FROZEN_MODES:
             raise ValueError(f"unknown frozen-encoder mode {mode!r}; "
                              f"expected one of {FROZEN_MODES}")
@@ -1328,9 +1357,7 @@ class FrozenEncoder:
             T_ref = int(self.t_ms / self.dt_ref)
             spk_ref = encode_images_poisson(X_b, T_ref, self.dt_ref, M.max_rate_hz, generator=g)
 
-        if self.mode == "count-pool":
-            return downsample_spikes_count(spk_ref, self.dt_ref, dt)
-        return downsample_spikes_or(spk_ref, self.dt_ref, dt)
+        return transport_spikes_bin(spk_ref, self.dt_ref, dt)
 
 
 def observe_epoch(net, ref_spikes, epoch, acc, train_loss, dt, model_name,
@@ -2008,7 +2035,7 @@ def _render_dt_sweep_video(net, dt_values, sweep_results, train_dt,
     for i, sweep_dt in enumerate(dt_values):
         patch_dt(sweep_dt)
         if frozen_ref is not None:
-            spk = downsample_spikes_or(frozen_ref, dt_values[0], sweep_dt)
+            spk = transport_spikes_bin(frozen_ref, dt_values[0], sweep_dt)
         else:
             spk = encode_batch(ref_input, sweep_dt, use_smnist)
 
@@ -2666,14 +2693,16 @@ Models:
                                    "Without: image = single snapshot.")
     infer_parser.add_argument("--frozen-inputs", action="store_true", default=False,
                               help="Freeze input spike patterns across dt sweep. "
-                                   "Shorthand for --frozen-inputs-mode or-pool.")
+                                   "Shorthand for --frozen-inputs-mode zero-pad.")
     infer_parser.add_argument("--frozen-inputs-mode", type=str, default=None,
                               choices=list(FROZEN_MODES),
-                              help="How input spikes are transported across dt: "
-                                   "or-pool (binary, saturates), count-pool "
-                                   "(integer count, per-ms rate preserved), or "
-                                   "resample (fresh Poisson per dt, re-introduces "
-                                   "sampling noise). See FrozenEncoder docstring.")
+                              help="How input spikes are transported across dt, "
+                                   "anchored at train-dt (Parthasarathy et al. "
+                                   "§2.1, §2.3): zero-pad (count-preserving: "
+                                   "zero-pad to finer eval-dt per Fig 1B, "
+                                   "sum-pool to coarser eval-dt per §2.3), or "
+                                   "resample (fresh Poisson at each eval-dt, "
+                                   "re-introduces sampling noise).")
 
     args = parser.parse_args()
     if args.mode is None:
@@ -3007,19 +3036,25 @@ if __name__ == "__main__":
             encoder = None
             frozen_mode = getattr(args, "frozen_inputs_mode", None)
             if frozen_mode is None and getattr(args, "frozen_inputs", False):
-                frozen_mode = "or-pool"
+                frozen_mode = "zero-pad"
             if frozen_mode is not None:
-                dt_ref = dt_values[0]
+                # Anchor the reference at the training dt (paper's framing):
+                # spikes are generated at dt_ref = args.dt once, then
+                # transported to each sweep dt via zero-pad (finer) or
+                # sum-pool (coarser). resample draws fresh at the target.
+                dt_ref = float(args.dt)
                 if frozen_mode != "resample":
-                    for d in dt_values[1:]:
-                        ratio = d / dt_ref
+                    for d in dt_values:
+                        if abs(d - dt_ref) < 1e-9:
+                            continue
+                        ratio = max(d, dt_ref) / min(d, dt_ref)
                         if abs(ratio - round(ratio)) > 1e-6:
                             raise ValueError(
                                 f"--frozen-inputs-mode {frozen_mode} requires "
-                                f"integer dt ratios; dt={d} / dt_ref={dt_ref} "
-                                f"= {ratio:.4f}")
+                                f"integer dt ratios vs train-dt; "
+                                f"dt={d}, dt_ref={dt_ref}, ratio={ratio:.4f}")
                 encoder = FrozenEncoder(dt_ref, t_ms=args.t_ms, mode=frozen_mode)
-                log.info(f"  frozen inputs: ref dt={dt_ref}, mode={frozen_mode}")
+                log.info(f"  frozen inputs: ref dt={dt_ref} (train-dt), mode={frozen_mode}")
 
             train_dt = float(args.dt)
             base_rate = float(args.spike_rate)
