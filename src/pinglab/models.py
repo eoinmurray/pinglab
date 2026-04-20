@@ -101,9 +101,10 @@ class SurrogateSpike(torch.autograd.Function):
     Matches snntorch.surrogate.FastSigmoid: slope controls how sharply the
     pseudo-derivative peaks around u=0. slope=25 (snntorch default) yields a
     narrow window of active gradient (~±0.04 around threshold); slope=1 gives
-    a much broader window (~±1). The biophysical path operates on mV-scale
-    membrane potentials and needs slope=1; the snn/tutorial path matches the
-    snntorch default of slope=25 to keep the parity reference honest.
+    a much broader window (~±1). pinglab uses slope=1 everywhere — biophysical
+    and snn/tutorial paths both — and snntorch-library now passes slope=1 into
+    surrogate.fast_sigmoid so the library parity probe is a pure update-rule
+    comparison, not a surrogate comparison.
     """
     @staticmethod
     def forward(ctx, u, slope):
@@ -124,12 +125,12 @@ def spike_biophysical(v):
     return SurrogateSpike.apply(v - V_th, 1.0)
 
 def spike_snn(v):
-    # Dimensionless membrane (threshold=1). NOTE: slope=1 (not snntorch's default
-    # 25) — slope=25 starves gradients from silent neurons (|u|>>0), and pinglab's
+    # Dimensionless membrane (threshold=1). slope=1 (not snntorch's default 25):
+    # slope=25 starves gradients from silent neurons (|u|>>0), and pinglab's
     # init can land in a silent regime at some seeds, preventing training from
-    # bootstrapping. The permissive slope=1 surrogate reliably escapes. The
-    # snntorch-library parity path keeps slope=25 internally; part of what
-    # calibration has to explain is this slope asymmetry.
+    # bootstrapping. slope=1 gives a much wider active window. snntorch-library
+    # is configured to match (surrogate.fast_sigmoid(slope=1)), so the parity
+    # probe is update-rule only.
     return SurrogateSpike.apply(v - thr_snn, 1.0)
 
 
@@ -672,7 +673,10 @@ class SNNTorchLibraryNet(SNNBase):
         import snntorch as snn
         from snntorch import surrogate
         self._snn = snn
-        self._surrogate = surrogate.fast_sigmoid()
+        # slope=1 matches pinglab's SurrogateSpike (used by snntorch-clone and
+        # cuba); snnTorch's default is slope=25. Unifying here makes
+        # snntorch-library a pure update-rule parity probe vs snntorch-clone.
+        self._surrogate = surrogate.fast_sigmoid(slope=1)
 
         sizes = hidden_sizes if hidden_sizes is not None else HIDDEN_SIZES
         self.hidden_sizes = list(sizes)
