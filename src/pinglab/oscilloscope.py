@@ -2514,7 +2514,7 @@ Models:
                             help="Run on Modal.com instead of locally. "
                                  "Artifacts sync back to --out-dir after completion.")
     exec_group.add_argument("--modal-gpu", type=str, default="T4",
-                            choices=["none", "T4", "A10G", "A100", "H100"],
+                            choices=["none", "T4", "L4", "A10G", "A100", "H100"],
                             help="GPU type for Modal runs (default: T4). "
                                  "Use 'none' for CPU-only.")
     exec_group.add_argument("--coba-integrator", type=str, default="expeuler",
