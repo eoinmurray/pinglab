@@ -52,8 +52,8 @@ MODELS = ["standard-snn", "snntorch-library", "cuba"]
 # between spikes to finer eval-dt per Fig 1B, sum-pool to coarser per
 # §2.3) or draws fresh per target under `resample`.
 ENCODER_MODES = ["zero-pad", "resample"]
-MAX_SAMPLES = 500
-EPOCHS = 5
+MAX_SAMPLES = 2000
+EPOCHS = 10
 T_MS = 600.0
 # Two training regimes: fine dt (snnTorch research setting) and coarse dt
 # (near τ_mem, where snnTorch models typically saturate).
@@ -68,7 +68,7 @@ DT_SWEEPS: dict[float, list[float]] = {
 }
 DT_SWEEP = sorted({d for grid in DT_SWEEPS.values() for d in grid})
 SEED = 42
-TIER = "small"  # see src/docs/src/pages/styleguide.md § 8 Run sizing tiers
+TIER = "medium"  # see src/docs/src/pages/styleguide.md § 8 Run sizing tiers
 TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 
 # Per-step drive compensation for cuba at training dt. cuba's update is
