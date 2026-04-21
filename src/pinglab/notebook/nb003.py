@@ -183,13 +183,14 @@ def _regime_key(dt_train: float) -> str:
     return f"dt{dt_train:g}"
 
 
-def train_model(model: str, dt_train: float) -> Path:
+def train_model(model: str, dt_train: float, modal_gpu: str | None = None) -> Path:
     """Train at dt_train with per-epoch video observation."""
     out_dir = ARTIFACTS / _regime_key(dt_train) / model / "train"
     sw, sb = init_scales_for(model, dt_train)
     print(f"[{model} @ dt={dt_train}] training → {out_dir.relative_to(REPO)} "
-          f"(init_scale W×{sw:.3f} b×{sb:.3f})")
-    sh.uv(
+          f"(init_scale W×{sw:.3f} b×{sb:.3f})"
+          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
+    args = [
         "run", "python", str(OSCILLOSCOPE), "train",
         "--model", model,
         "--kaiming-init",
@@ -205,10 +206,10 @@ def train_model(model: str, dt_train: float) -> Path:
         "--frame-rate", "1",
         "--out-dir", str(out_dir),
         "--wipe-dir",
-        _cwd=str(REPO),
-        _out=sys.stdout,
-        _err=sys.stderr,
-    )
+    ]
+    if modal_gpu:
+        args += ["--modal", "--modal-gpu", modal_gpu]
+    sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     metrics_path = out_dir / "metrics.json"
     if not metrics_path.exists():
         raise SystemExit(f"training did not produce {metrics_path}")
@@ -223,7 +224,7 @@ def _mode_key(encoder_mode: str) -> str:
 
 
 def sweep_model(model: str, dt_train: float, train_dir: Path,
-                encoder_mode: str) -> Path:
+                encoder_mode: str, modal_gpu: str | None = None) -> Path:
     """Run dt-sweep inference against trained weights with a chosen frozen-input
     transport mode. Same underlying spike pattern across dt values (how it's
     transported to coarser dt depends on mode) so the LIF dynamics are the
@@ -246,6 +247,8 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
     ]
     if encoder_mode == "zero-pad":
         cmd += ["--observe", "video"]
+    if modal_gpu:
+        cmd += ["--modal", "--modal-gpu", modal_gpu]
     sh.uv(*cmd, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     results_path = sweep_dir / "results.json"
     if not results_path.exists():
@@ -550,9 +553,24 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
     return summary
 
 
+def _parse_modal_gpu(argv: list[str]) -> str | None:
+    """Parse --modal-gpu <T4|L4|A10G|A100|H100|none> out of sys.argv.
+    Returns None if not provided (local run)."""
+    if "--modal-gpu" not in argv:
+        return None
+    idx = argv.index("--modal-gpu")
+    if idx + 1 >= len(argv):
+        raise SystemExit("--modal-gpu requires a value")
+    gpu = argv[idx + 1]
+    if gpu not in {"none", "T4", "L4", "A10G", "A100", "H100"}:
+        raise SystemExit(f"--modal-gpu: unknown GPU {gpu!r}")
+    return gpu
+
+
 def main() -> None:
     sweep_only = "--sweep-only" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
+    modal_gpu = _parse_modal_gpu(sys.argv)
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {notebook_run_id}"
@@ -592,10 +610,11 @@ def main() -> None:
                     raise SystemExit(
                         f"--sweep-only requires existing train weights at {d}")
         else:
-            td = {m: train_model(m, dt_train) for m in MODELS}
+            td = {m: train_model(m, dt_train, modal_gpu=modal_gpu) for m in MODELS}
         sd: dict[str, dict[str, Path]] = {}
         for m in MODELS:
-            sd[m] = {mode: sweep_model(m, dt_train, td[m], mode)
+            sd[m] = {mode: sweep_model(m, dt_train, td[m], mode,
+                                       modal_gpu=modal_gpu)
                      for mode in ENCODER_MODES}
         regime_train_dirs[dt_train] = td
         regime_sweep_dirs[dt_train] = sd
