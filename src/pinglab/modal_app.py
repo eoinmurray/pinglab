@@ -115,6 +115,16 @@ def run_gpu_a10g(cli_args: list[str]) -> str:
     image=image,
     volumes={REMOTE_ARTIFACTS: volume},
     timeout=43200,
+    gpu="L4",
+)
+def run_gpu_l4(cli_args: list[str]) -> str:
+    return _run_oscilloscope_impl(cli_args)
+
+
+@app.function(
+    image=image,
+    volumes={REMOTE_ARTIFACTS: volume},
+    timeout=43200,
     gpu="A100-80GB",
 )
 def run_gpu_a100(cli_args: list[str]) -> str:
@@ -134,6 +144,7 @@ def run_gpu_h100(cli_args: list[str]) -> str:
 _GPU_DISPATCH = {
     "none": run_cpu,
     "T4": run_gpu_t4,
+    "L4": run_gpu_l4,
     "A10G": run_gpu_a10g,
     "A100": run_gpu_a100,
     "H100": run_gpu_h100,
