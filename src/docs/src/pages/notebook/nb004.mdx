@@ -31,15 +31,15 @@ First-cell baseline to validate the pipeline: one [*cuba*](/models/#cuba) model 
 
 ## Findings
 
-To be filled in once the baseline cell runs.
+Baseline reaches 26% accuracy at medium tier (2000 samples × 10 epochs, *init_scale_weight* = 3.0, *init_scale_bias* ≈ 10.5) — well above 10% chance, monotonic climb, no collapse. Pipeline and depth-2 ladder are confirmed working. Excitatory rate decays from 6 Hz to 2 Hz over training while accuracy still rises, so the readout is learning despite quieter dynamics.
 
 ## Implications
 
-To be filled in.
+The row-by-row sMNIST setup works, but this entry is being parked at the baseline rather than built out into a full cell matrix. The 28-pixel row bottleneck is an artificial temporal signal, and the input-encoding question studied in entry [003](/notebook/nb003/) barely applies when rows are already pixel values. A natively event-based dataset is a stronger fit for the dt/discretisation/encoding comparisons this notebook is built around.
 
 ## Next steps
 
-1. Run the baseline and confirm non-trivial accuracy (well above chance) — this is a pipeline check, not a performance target.
+1. Pivot to a natively-spiking dataset in entry 005 — likely SHD (Spiking Heidelberg Digits) as the de-facto SNN benchmark, with N-MNIST as a cheaper stepping stone if the SHD loader is heavy.
 
 ## Reproduction
 

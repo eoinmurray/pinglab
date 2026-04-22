@@ -179,9 +179,9 @@ Every later rung of the [ladder](/models/) inherits CUBA's ODE-derived discretis
 
 ## Next steps
 
-### Promote to a medium-tier run
+### Promote to a large-tier run
 
-The current numbers are at the **small** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) — enough for the qualitative story (sag vs flat, encoder-mode invariance), but *cuba* at dt={dt1} ms only reaches {cuba1.best_acc ?? "?"}% and the absolute accuracies are noisier than they need to be. A medium-tier rerun (2000 samples × 10 epochs, $\sim$2–3 hr locally) would let the accuracy numbers in the sweep tables stand on their own, and make the encoder-mode invariance claim quantitatively tight rather than just visually apparent.
+The current numbers are at the **medium** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs). A large-tier rerun (5000 samples × 40 epochs) would push absolute accuracies higher and confirm the sag-vs-flat picture holds at a training budget where the snnTorch paths stop being budget-limited.
 
 
 ## Appendix
