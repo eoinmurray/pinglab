@@ -26,9 +26,17 @@ image = (
         "matplotlib",
         "snntorch>=0.9.4",
         "imageio",
+        "h5py",
     )
-    .apt_install("ffmpeg")
+    .apt_install("ffmpeg", "curl")
     .run_commands("python -c \"from torchvision import datasets; datasets.MNIST('/tmp/mnist', train=True, download=True); datasets.MNIST('/tmp/mnist', train=False, download=True)\"")
+    .run_commands(
+        "mkdir -p /tmp/shd/SHD && "
+        "curl -fL https://zenkelab.org/datasets/shd_train.h5.gz -o /tmp/shd/SHD/shd_train.h5.gz && "
+        "curl -fL https://zenkelab.org/datasets/shd_test.h5.gz -o /tmp/shd/SHD/shd_test.h5.gz && "
+        "gunzip /tmp/shd/SHD/shd_train.h5.gz && "
+        "gunzip /tmp/shd/SHD/shd_test.h5.gz"
+    )
     .add_local_dir("src/pinglab", remote_path="/root/pinglab")
 )
 

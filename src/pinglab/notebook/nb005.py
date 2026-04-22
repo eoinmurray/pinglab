@@ -6,15 +6,18 @@ Unlike sMNIST (nb004), there is no artificial temporal encoding — each
 trial *is* a spike train, which lines up directly with the dt and
 encoding questions this notebook is built around.
 
-This is the first-cell baseline: one *cuba* model, two hidden layers,
-at *extra_small* tier, to validate the SHD pipeline + depth-2 ladder
-train end-to-end and reach non-trivial accuracy. The cell matrix (more
-models, depth sweeps, dt regimes) comes after.
+Two invocation modes:
+
+  * default — single baseline cell (cuba + li readout), as before
+  * --sweep — 3×3 grid over (lr, init_scale_weight) at the same tier,
+    cuba + rate readout, one cell per grid point. Winner is picked by
+    best_acc and promoted as numbers["winner"].
 
 Writes:
-  * training_curves.png — train loss & test accuracy per epoch
-  * training_cuba.mp4 — per-epoch snapshot video
-  * numbers.json — config + baseline cell results
+  * training_curves.png — winner cell (or baseline in default mode)
+  * training_cuba.mp4 — winner cell (or baseline)
+  * sweep_lr_isw.png — heatmap (sweep mode only)
+  * numbers.json — config + cells dict + winner
 
 Notebook entry: src/docs/src/pages/notebook/nb005.mdx
 """
@@ -25,6 +28,7 @@ import math
 import shutil
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -34,6 +38,7 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src" / "pinglab"))
 
 import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
 from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
@@ -43,8 +48,8 @@ ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
-# Tier config — see src/docs/src/pages/styleguide.md § 9 Run sizing tiers
-TIER = "medium"
+DEFAULT_TIER = "medium"
+TIER = DEFAULT_TIER  # overridable via --tier <name>
 TIER_CONFIG = {
     "extra_small": dict(max_samples=200, epochs=3),
     "small":       dict(max_samples=500, epochs=5),
@@ -52,17 +57,18 @@ TIER_CONFIG = {
     "large":       dict(max_samples=5000, epochs=40),
 }
 
-# SHD trials are ~1 s; at dt=1 ms that's 1000 steps.
 T_MS = 1000.0
 DT = 1.0
 SEED = 42
-# ≥2 hidden layers — matches nb004 sMNIST rationale for depth on
-# classification tasks with many input channels.
 HIDDEN = [128, 128]
-TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
+TAU_MEM_MS = 10.0
 
 MODEL = "cuba"
 MODEL_COLOR = "#2ca02c"
+
+# Sweep axes — 3×3 grid over (lr, init_scale_weight), cuba + rate readout.
+SWEEP_LRS = [3e-3, 1e-2, 3e-2]
+SWEEP_ISWS = [1.0, 3.0, 5.0]
 
 
 def cuba_init_scales(dt: float, tau: float = TAU_MEM_MS) -> tuple[float, float]:
@@ -71,43 +77,66 @@ def cuba_init_scales(dt: float, tau: float = TAU_MEM_MS) -> tuple[float, float]:
     return dt / (1.0 - beta), 1.0 / (1.0 - beta)
 
 
-def train_baseline(modal_gpu: str | None = None) -> Path:
+def train_cell(
+    name: str,
+    lr: float,
+    isw: float,
+    isb: float,
+    hidden: list[int],
+    readout: str,
+    observe_video: bool,
+    modal_gpu: str | None = None,
+) -> Path:
+    """Train one cell. Returns the run dir containing metrics.json."""
     tier = TIER_CONFIG[TIER]
-    out_dir = ARTIFACTS / MODEL
-    sw, sb = cuba_init_scales(DT)
-    print(f"[cuba SHD] training → {out_dir.relative_to(REPO)} "
-          f"(init_scale W×{sw:.3f} b×{sb:.3f})"
+    out_dir = ARTIFACTS / name
+    print(f"[cell {name}] lr={lr} isw={isw} isb={isb:.3f} hidden={hidden} "
+          f"readout={readout} → {out_dir.relative_to(REPO)}"
           + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
     args = [
         "run", "python", str(OSCILLOSCOPE), "train",
         "--model", MODEL,
         "--dataset", "shd",
-        "--n-hidden", *[str(h) for h in HIDDEN],
+        "--n-hidden", *[str(h) for h in hidden],
         "--max-samples", str(tier["max_samples"]),
         "--epochs", str(tier["epochs"]),
         "--t-ms", str(T_MS),
         "--dt", str(DT),
-        "--lr", "0.01",
+        "--lr", str(lr),
         "--kaiming-init",
-        "--init-scale-weight", "3.0",
-        "--init-scale-bias", f"{sb}",
+        "--init-scale-weight", str(isw),
+        "--init-scale-bias", f"{isb}",
         "--no-dales-law",
-        "--readout", "li",
+        "--readout", readout,
         "--seed", str(SEED),
-        "--observe", "video",
-        "--frame-rate", "1",
         "--out-dir", str(out_dir),
         "--wipe-dir",
     ]
+    if observe_video:
+        args += ["--observe", "video", "--frame-rate", "1"]
     args = append_modal_args(args, modal_gpu)
     sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     metrics_path = out_dir / "metrics.json"
     if not metrics_path.exists():
         raise SystemExit(f"training did not produce {metrics_path}")
-    video_path = out_dir / "training.mp4"
-    if not video_path.exists():
-        raise SystemExit(f"training did not produce {video_path}")
+    if observe_video and not (out_dir / "training.mp4").exists():
+        raise SystemExit(f"training did not produce {out_dir / 'training.mp4'}")
     return out_dir
+
+
+def _cell_summary(name: str, spec: dict, run_dir: Path) -> dict:
+    metrics = json.loads((run_dir / "metrics.json").read_text())
+    best_acc = metrics.get("best_acc", max(e["acc"] for e in metrics["epochs"]))
+    final = metrics["epochs"][-1]
+    return {
+        "name": name,
+        "model": MODEL,
+        **spec,
+        "best_acc": best_acc,
+        "final_acc": final["acc"],
+        "final_loss": final["loss"],
+        "run_dir": str(run_dir.relative_to(REPO)),
+    }
 
 
 def _stamp_figure(fig, run_id: str) -> None:
@@ -166,6 +195,41 @@ def plot_training_curves(metrics: dict, out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def plot_lr_isw_heatmap(cells: list[dict], out_path: Path, run_id: str) -> None:
+    """3×3 best-acc heatmap over (lr, init_scale_weight)."""
+    acc = np.full((len(SWEEP_ISWS), len(SWEEP_LRS)), np.nan)
+    for c in cells:
+        try:
+            i = SWEEP_ISWS.index(c["isw"])
+            j = SWEEP_LRS.index(c["lr"])
+        except ValueError:
+            continue
+        acc[i, j] = c["best_acc"]
+
+    fig, ax = plt.subplots(figsize=(8.0, 4.5))
+    im = ax.imshow(acc, origin="lower", aspect="auto", cmap="viridis")
+    ax.set_xticks(range(len(SWEEP_LRS)))
+    ax.set_xticklabels([f"{lr:g}" for lr in SWEEP_LRS])
+    ax.set_yticks(range(len(SWEEP_ISWS)))
+    ax.set_yticklabels([f"{w:g}" for w in SWEEP_ISWS])
+    ax.set_xlabel("learning rate")
+    ax.set_ylabel("init_scale_weight")
+    ax.set_title(f"cuba + rate on SHD — best test accuracy (%), {TIER} tier")
+    for i in range(acc.shape[0]):
+        for j in range(acc.shape[1]):
+            v = acc[i, j]
+            if not np.isnan(v):
+                ax.text(j, i, f"{v:.1f}", ha="center", va="center",
+                        color="white" if v < np.nanmean(acc) else "black",
+                        fontsize=10)
+    fig.colorbar(im, ax=ax, label="best acc (%)")
+    fig.tight_layout()
+    _stamp_figure(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def _format_duration(seconds: float) -> str:
     s = int(round(seconds))
     if s < 60:
@@ -175,12 +239,117 @@ def _format_duration(seconds: float) -> str:
     return f"{s // 3600}h {(s % 3600) // 60:02d}m"
 
 
+def _parse_tier(argv: list[str], default: str = DEFAULT_TIER) -> str:
+    if "--tier" not in argv:
+        return default
+    idx = argv.index("--tier")
+    if idx + 1 >= len(argv):
+        raise SystemExit("--tier requires a value")
+    tier = argv[idx + 1]
+    if tier not in TIER_CONFIG:
+        raise SystemExit(f"--tier: unknown tier {tier!r}, choose from {list(TIER_CONFIG)}")
+    return tier
+
+
+def _parse_max_workers(argv: list[str], default: int = 4) -> int:
+    if "--max-workers" not in argv:
+        return default
+    idx = argv.index("--max-workers")
+    if idx + 1 >= len(argv):
+        raise SystemExit("--max-workers requires a value")
+    return int(argv[idx + 1])
+
+
+def run_baseline(run_id: str, modal_gpu: str | None) -> dict:
+    """Single cuba + li cell, matches the original entry baseline."""
+    _, isb = cuba_init_scales(DT)
+    spec = dict(lr=0.01, isw=3.0, isb=isb, hidden=HIDDEN, readout="li")
+    run_dir = train_cell("cuba_baseline", **spec,
+                         observe_video=True, modal_gpu=modal_gpu)
+    summary = _cell_summary("cuba_baseline", spec, run_dir)
+
+    metrics = json.loads((run_dir / "metrics.json").read_text())
+    plot_training_curves(metrics, FIGURES / "training_curves.png", run_id)
+    print(f"wrote {(FIGURES / 'training_curves.png').relative_to(REPO)}")
+
+    stamp_path = FIGURES / "_stamp.png"
+    _render_stamp_png(run_id, stamp_path)
+    _copy_with_stamp(run_dir / "training.mp4",
+                     FIGURES / f"training_{MODEL}.mp4", stamp_path)
+    stamp_path.unlink(missing_ok=True)
+    return summary
+
+
+def run_sweep(run_id: str, modal_gpu: str | None, max_workers: int) -> tuple[list[dict], dict]:
+    """3×3 grid over (lr, isw); cuba + rate readout. Returns (cells, winner)."""
+    _, isb = cuba_init_scales(DT)
+    specs = []
+    for isw in SWEEP_ISWS:
+        for lr in SWEEP_LRS:
+            name = f"sweep_lr{lr:g}_isw{isw:g}".replace(".", "p")
+            specs.append((name, dict(lr=lr, isw=isw, isb=isb,
+                                     hidden=HIDDEN, readout="rate")))
+
+    def _run(item):
+        name, spec = item
+        run_dir = train_cell(name, **spec, observe_video=False,
+                             modal_gpu=modal_gpu)
+        return _cell_summary(name, spec, run_dir)
+
+    cells: list[dict] = []
+    if modal_gpu and max_workers > 1:
+        print(f"[sweep] fan-out {len(specs)} cells on {max_workers} workers "
+              f"(modal:{modal_gpu})")
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            for summary in ex.map(_run, specs):
+                cells.append(summary)
+                print(f"[sweep] {summary['name']}: best_acc={summary['best_acc']}")
+    else:
+        print(f"[sweep] sequential {len(specs)} cells")
+        for item in specs:
+            summary = _run(item)
+            cells.append(summary)
+            print(f"[sweep] {summary['name']}: best_acc={summary['best_acc']}")
+
+    winner = max(cells, key=lambda c: c["best_acc"])
+    print(f"[sweep] winner: {winner['name']} best_acc={winner['best_acc']}")
+
+    # Heatmap + training curves from winner.
+    plot_lr_isw_heatmap(cells, FIGURES / "sweep_lr_isw.png", run_id)
+    print(f"wrote {(FIGURES / 'sweep_lr_isw.png').relative_to(REPO)}")
+
+    winner_dir = REPO / winner["run_dir"]
+    metrics = json.loads((winner_dir / "metrics.json").read_text())
+    plot_training_curves(metrics, FIGURES / "training_curves.png", run_id)
+    print(f"wrote {(FIGURES / 'training_curves.png').relative_to(REPO)}")
+
+    # Winner doesn't have a video (sweep cells skip --observe video) —
+    # rerun the winner once with video on so the entry's Figure in
+    # Appendix › Videos stays populated.
+    winner_video_spec = {k: winner[k] for k in ("lr", "isw", "isb", "hidden", "readout")}
+    winner_dir = train_cell(winner["name"] + "_video", **winner_video_spec,
+                            observe_video=True, modal_gpu=modal_gpu)
+    stamp_path = FIGURES / "_stamp.png"
+    _render_stamp_png(run_id, stamp_path)
+    _copy_with_stamp(winner_dir / "training.mp4",
+                     FIGURES / f"training_{MODEL}.mp4", stamp_path)
+    stamp_path.unlink(missing_ok=True)
+
+    return cells, winner
+
+
 def main() -> None:
+    global TIER
     wipe_dir = "--no-wipe-dir" not in sys.argv
+    sweep = "--sweep" in sys.argv
     modal_gpu = parse_modal_gpu(sys.argv)
+    TIER = _parse_tier(sys.argv)
+    max_workers = _parse_max_workers(sys.argv, default=9 if sweep else 1)
+
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    print(f"[nb005] run_id={run_id} tier={TIER}"
+    mode = "sweep" if sweep else "baseline"
+    print(f"[nb005] run_id={run_id} tier={TIER} mode={mode}"
           + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
     if wipe_dir:
         for d in (ARTIFACTS, FIGURES):
@@ -190,27 +359,26 @@ def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     persist_run_id(SLUG, run_id)
 
-    run_dir = train_baseline(modal_gpu=modal_gpu)
-    metrics = json.loads((run_dir / "metrics.json").read_text())
-    cfg = json.loads((run_dir / "config.json").read_text())
+    cells_dict: dict = {}
+    winner: dict | None = None
+    if sweep:
+        cells, winner = run_sweep(run_id, modal_gpu, max_workers)
+        for c in cells:
+            cells_dict[c["name"]] = c
+    else:
+        summary = run_baseline(run_id, modal_gpu)
+        cells_dict["cuba_baseline"] = summary
+        winner = summary
 
-    plot_training_curves(metrics, FIGURES / "training_curves.png", run_id)
-    print(f"wrote {(FIGURES / 'training_curves.png').relative_to(REPO)}")
+    # Pull git_sha from any cell's config.json (all commits same SHA).
+    any_run_dir = REPO / next(iter(cells_dict.values()))["run_dir"]
+    cfg = json.loads((any_run_dir / "config.json").read_text())
 
-    stamp_path = FIGURES / "_stamp.png"
-    _render_stamp_png(run_id, stamp_path)
-    _copy_with_stamp(run_dir / "training.mp4",
-                     FIGURES / f"training_{MODEL}.mp4", stamp_path)
-    stamp_path.unlink(missing_ok=True)
-
-    best_acc = metrics.get("best_acc", max(e["acc"] for e in metrics["epochs"]))
-    final_acc = metrics["epochs"][-1]["acc"]
-    final_loss = metrics["epochs"][-1]["loss"]
     duration_s = time.monotonic() - t_start
-
     numbers = {
         "notebook_run_id": run_id,
         "git_sha": cfg.get("git_sha"),
+        "mode": mode,
         "tier": TIER,
         "duration_s": round(duration_s, 1),
         "duration": _format_duration(duration_s),
@@ -222,22 +390,17 @@ def main() -> None:
             "dt": DT,
             "seed": SEED,
             **TIER_CONFIG[TIER],
+            "sweep_lrs": SWEEP_LRS if sweep else None,
+            "sweep_isws": SWEEP_ISWS if sweep else None,
         },
-        "cells": {
-            "cuba_baseline": {
-                "model": MODEL,
-                "hidden": HIDDEN,
-                "best_acc": best_acc,
-                "final_acc": final_acc,
-                "final_loss": final_loss,
-                "run_dir": str(run_dir.relative_to(REPO)),
-            },
-        },
+        "cells": cells_dict,
+        "winner": winner,
         "run_finished_at": datetime.utcnow().isoformat() + "Z",
     }
     (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2) + "\n")
-    print(f"[nb005] best_acc={best_acc} final_acc={final_acc} "
-          f"final_loss={final_loss:.4f}")
+    print(f"[nb005] winner best_acc={winner['best_acc']} "
+          f"final_acc={winner['final_acc']} "
+          f"final_loss={winner['final_loss']:.4f}")
     print(f"[nb005] wrote numbers.json → {FIGURES.relative_to(REPO)}")
     print(f"[nb005] duration: {_format_duration(duration_s)}")
 

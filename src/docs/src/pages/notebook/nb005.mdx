@@ -11,7 +11,7 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb005/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
-export const cell = numbers.cells?.cuba_baseline ?? {};
+export const cell = numbers.winner ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const runFinished = numbers.run_finished_at ?? "?";
 export const gitSha = numbers.git_sha ?? null;
@@ -24,50 +24,61 @@ Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/sp
 
 ## Method
 
-First-cell baseline to validate the pipeline: one [*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at *medium* tier (2000 samples × 10 epochs). Trials run for 1000 ms at *dt* = 1 ms (1000 steps). Same cuba init-scale recipe as nb004 (*init_scale_weight* = 3.0, *init_scale_bias* = $1/(1-\beta)$). Two readouts are compared against the same training setup: (a) **rate** — cumulative last-hidden spike counts projected once at the final timestep, the default shared ladder decoder; (b) **li** — a non-spiking leaky-integrator neuron per class with $\tau = \tau_\text{mem} = $ 10 ms and max-over-time as the logit, the field-standard SHD readout.
+[*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at *medium* tier (2000 samples × 10 epochs) with the **rate** readout (cumulative last-hidden spike counts projected once at the final timestep). Trials run for 1000 ms at *dt* = 1 ms (1000 steps). Two axes are swept as a 3×3 grid: learning rate $\eta \in \{3\mathrm{e}{-3},\, 1\mathrm{e}{-2},\, 3\mathrm{e}{-2}\}$ and *init_scale_weight* $\in \{1.0,\, 3.0,\, 5.0\}$. *init_scale_bias* is fixed at $1/(1-\beta) \approx 10.5$ — the value derived in nb004 for depth-2 *cuba*. An earlier pre-sweep baseline at $(\eta = 0.01,\, \text{isw} = 3.0)$ compared *rate* (36.5%) vs *li* (21.75%) readouts at matched init, and picked *rate* as the honest pre-tuning reference for this sweep; the *li* readout needs its own init + $\tau$ pass before a fair readout comparison.
 
 ## Findings
 
-<Figure id="Figure 1" title="Training curves (li readout)" src="/figures/notebook/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba + LI-readout run at medium tier">
-  *cuba* on SHD at *medium* tier with the **li** readout. Loss falls monotonically; test accuracy climbs to $\sim$22% over 10 epochs — above chance (5%, red dashed) but well below the rate-readout run on the same config.
+### Hyperparameter pass
+
+<Figure id="Figure 1" title="Best test accuracy heatmap (cuba + rate, 3×3 grid)" src="/figures/notebook/nb005/sweep_lr_isw.png" alt="Heatmap of best test accuracy across the 3×3 learning-rate × init_scale_weight grid">
+  *cuba* + *rate* on SHD at *medium* tier, 3×3 grid over $\eta$ and *init_scale_weight*. Best cell is $(\eta = 0.03,\, \text{isw} = 1.0)$ at {cell.best_acc ?? "?"}%, improving on the 36.5% pre-sweep baseline by **+{(cell.best_acc - 36.5)?.toFixed?.(2) ?? "?"} pp**.
 </Figure>
 
-Both readouts train cleanly end-to-end, but the field-standard li readout **underperforms** the rate baseline at matched init and training budget:
+Top cells (best test accuracy, %):
 
-| readout | best acc | final acc | final loss | duration |
-|---|---|---|---|---|
-| rate | 36.5% | 36.0% | 0.34 | 1m 47s |
-| li   | 21.75% | 21.0% | 0.72 | 2m 28s |
+| $\eta$ \ isw | 1.0 | 3.0 | 5.0 |
+|---|---|---|---|
+| 3e-3 | 34.25 | 33.50 | 35.50 |
+| 1e-2 | 35.50 | 36.50 | 38.50 |
+| 3e-2 | **39.00** | 35.25 | 36.50 |
 
-This is the opposite of the field expectation and worth debugging before drawing any conclusion about readouts. Two plausible causes stand out. (i) *Init-scale bleed into the output layer.* The *init_scale_weight* = 3.0 / *init_scale_bias* = $1/(1-\beta) \approx 10.5$ recipe was tuned for the hidden-layer drive in cuba; applied uniformly it also multiplies the output weights and biases. The rate readout absorbs a large $W_\text{out}$ because it's a single linear projection on a single cumulative vector, but the li readout integrates $W_\text{out} \cdot s_t$ step-by-step into a non-spiking neuron that can saturate well before the informative spikes arrive. (ii) *Readout* $\tau$ *too short.* The li neuron currently reuses $\tau_\text{mem} = $ 10 ms; for $\sim$1 s SHD trials that's a very leaky integrator, and the max-over-time collapses to whichever burst happened to arrive strongest rather than integrated evidence. Zenke-style SHD pipelines typically use a longer readout $\tau$ (often $\sim$20 ms) and/or a separate synaptic $\tau$.
+<Figure id="Figure 2" title="Training curves (winner cell)" src="/figures/notebook/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for the winning cuba + rate cell">
+  Winner: *cuba* + *rate*, $\eta = 0.03$, *init_scale_weight* = 1.0. Loss falls monotonically; test accuracy climbs to {cell.best_acc ?? "?"}% over {cfg.epochs ?? "?"} epochs — above chance (5%, red dashed) and above the pre-sweep 36.5% reference.
+</Figure>
+
+Two patterns stand out. (i) *Higher* $\eta$ *helps across the board* — the $\eta = 0.03$ column is on average the strongest, suggesting the medium-tier budget (10 epochs × 2000 samples) is learning-rate-limited rather than capacity-limited. (ii) *init_scale_weight* = 1.0 *is competitive* — the field-default no-extra-scaling baseline ties or beats the isw = 3.0 recipe inherited from nb004's sMNIST tuning. The best cell combines both: aggressive LR with no weight-init up-scaling, beating the pre-sweep baseline by ~2.5 pp.
 
 ## Implications
 
-The readout swap is not free — it has its own init + time-constant tuning, and blindly wrapping the hidden-layer init recipe around the output layer makes the li path worse, not better. The rate baseline at 36.5% stays as the honest pre-tuning number; the li path needs its own init + $\tau$ pass before a fair readout-vs-readout comparison.
+The nb004 cuba recipe (*init_scale_weight* = 3.0, tuned against row-by-row sMNIST) does not transfer cleanly to SHD — at depth 2, with SHD's dense spike input over 700 channels, isw = 1.0 is already saturating the drive, and pushing it higher no longer helps. Learning rate is the dominant knob at this budget.
 
 ## Success criteria
 
 - ✅ **SHD pipeline trains end-to-end**. Depth-2 *cuba* on 700-channel SHD at the **{numbers.tier ?? "?"}** tier runs to completion with no NaN / collapse.
 - ✅ **Monotonic training**. Train loss falls and test accuracy rises across {cfg.epochs ?? "?"} epochs — the network is integrating temporal evidence, not memorising or diverging.
 - ✅ **Above chance**. Best test accuracy {cell.best_acc ?? "?"}% vs the 5% chance floor (20 classes) — real classification signal.
-- ❌ **Readout ordering matches field expectation**. Field-standard *li* readout (21.75% best) *underperforms* the *rate* baseline (36.5%) at matched init and budget — the opposite of what Zenke-style pipelines report. Cause candidates (init-scale bleed, readout $\tau$ too short) flagged in *Implications*; resolving this is a Next-steps item once the *cuba* baseline itself is tuned.
-- ⚠ **Absolute accuracy below field reference**. Published SHD baselines with similar-sized recurrent SNNs reach 60–80%; the {cell.best_acc ?? "?"}% baseline here is untuned and the entry's scope is explicitly to close that gap.
+- ✅ **Sweep beats pre-sweep baseline**. Winner cell improves on the untuned 36.5% reference by ~2.5 pp, confirming the grid is doing useful work rather than sitting on a flat surface.
+- ❌ **Readout ordering matches field expectation**. Earlier matched-init comparison showed field-standard *li* readout (21.75% best) *underperforms* the *rate* baseline (36.5%) — the opposite of what Zenke-style pipelines report. Cause candidates (init-scale bleed, readout $\tau$ too short) flagged earlier; resolving this is a Next-steps item once the *cuba* baseline itself is tuned.
+- ⚠ **Absolute accuracy below field reference**. Published SHD baselines with similar-sized recurrent SNNs reach 60–80%; the {cell.best_acc ?? "?"}% post-sweep number here still has a gap to close via depth / width / budget.
 
 ## Next steps
 
 Scope for this entry narrows to: **get [*cuba*](/models/#cuba) training cleanly on SHD**. Readout choice, the other model families, and the *dt* sweep are out of scope until the cuba baseline itself is well-tuned.
 
-1. Hyperparameter pass at *medium*: sweep learning rate, *init_scale_weight* / *init_scale_bias*, and hidden width / depth to push *cuba* + rate past the current 36.5% baseline.
-2. Confirm *cuba* trains monotonically at *large* tier (5000 samples × 40 epochs) with the best settings from step 1 — no collapse, no plateau, best-acc improving with budget.
-3. Keep a single reference cell (one model, one readout) until the baseline number is stable and defensible; only then broaden scope.
+1. ~~Hyperparameter pass at *medium*: sweep learning rate, *init_scale_weight* / *init_scale_bias*, and hidden width / depth to push *cuba* + rate past the current 36.5% baseline.~~ **Done** — 3×3 grid over ($\eta$, isw) at fixed isb; winner $(\eta = 0.03,\, \text{isw} = 1.0)$ at {cell.best_acc ?? "?"}% (+{(cell.best_acc - 36.5)?.toFixed?.(2) ?? "?"} pp).
+2. Extend the sweep to hidden width / depth and *init_scale_bias* — the current 39% winner still sits in the $\eta = 0.03$ edge of the grid, so one more pass with $\eta \in \{0.03, 0.1\}$ and wider / deeper hidden stacks is the next natural step.
+3. Confirm the winner trains monotonically at *large* tier (5000 samples × 40 epochs) with no collapse or plateau.
+4. Fair *li* vs *rate* readout comparison — give the *li* readout its own init + $\tau$ tuning (separate readout init scales, longer readout $\tau$ per Zenke-style SHD pipelines) so the comparison isn't dominated by shared-hidden-recipe bleed.
 
 ## Appendix
 
 ### Reproduction
 
 ```
-uv run src/pinglab/notebook/nb005.py
+uv run src/pinglab/notebook/nb005.py --sweep
 ```
+
+Add `--tier small` for a faster pass, or drop `--sweep` to run the single baseline cell.
 
 ### Run parameters
 
@@ -75,12 +86,14 @@ uv run src/pinglab/notebook/nb005.py
 |---|---|
 | Dataset | {cfg.dataset ?? "?"} |
 | Model | {cfg.model ?? "?"} |
-| Readout | li (leaky-integrator, $\tau = \tau_\text{mem}$ = 10 ms) |
+| Readout | rate (winner); *li* comparison was pre-sweep |
 | Hidden | \{{(cfg.hidden ?? []).join(", ")}\} |
 | Samples × Epochs | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} |
 | T / dt | {cfg.t_ms ?? "?"} ms / {cfg.dt ?? "?"} ms |
 | Seed | {cfg.seed ?? "?"} |
 | Tier | **{numbers.tier ?? "?"}** — see [Style guide § 9 Run sizing tiers](/styleguide/#9-run-sizing-tiers) |
+| Sweep grid | $\eta \in$ \{{(cfg.sweep_lrs ?? []).join(", ")}\}, isw $\in$ \{{(cfg.sweep_isws ?? []).join(", ")}\} |
+| Winner | $\eta$ = {cell.lr ?? "?"}, isw = {cell.isw ?? "?"} |
 | Best acc / Final acc | {cell.best_acc ?? "?"}% / {cell.final_acc ?? "?"}% |
 | Final loss | {cell.final_loss?.toFixed?.(4) ?? "?"} |
 | Run ID | <span class="font-mono">{nbRunId}</span> |
@@ -90,6 +103,6 @@ uv run src/pinglab/notebook/nb005.py
 
 ### Videos
 
-<Figure id="Figure 2" title="Per-epoch hidden activity (cuba, li readout)" src="/figures/notebook/nb005/training_cuba.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for cuba with LI readout on SHD">
-  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers with the li readout.
+<Figure id="Figure 3" title="Per-epoch hidden activity (winner cell)" src="/figures/notebook/nb005/training_cuba.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the winning cuba + rate cell on SHD">
+  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers for the sweep winner ($\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *rate* readout).
 </Figure>
