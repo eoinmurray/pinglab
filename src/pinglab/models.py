@@ -257,7 +257,7 @@ def init_conductance(B, N, device):
 
 # ── E-step and I-step composites ─────────────────────────────────────────
 
-COBA_INTEGRATOR = "expeuler"  # "expeuler" | "fwd"  — parity toggle for nb004
+COBA_INTEGRATOR = "expeuler"  # "expeuler" | "fwd"  — parity toggle for COBA integration
 
 def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None):
     """One E-neuron LIF step with COBA driving force."""

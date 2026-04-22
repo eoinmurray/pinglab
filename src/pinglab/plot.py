@@ -478,6 +478,13 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
     _title_kw = TITLE_KW
     vis_ms = len(spk_e) * dt  # derive from actual data, not global
 
+    # Feedforward multi-layer models (no E/I split) → relabel raster panels
+    # as "Hidden 1", "Hidden 2", ... instead of the E/I oscilloscope defaults.
+    is_feedforward_multilayer = spk_i is None and spk_h1 is not None
+    layer0_title = "Hidden 1" if is_feedforward_multilayer else "E Neurons"
+    layer1_title = "Hidden 2" if is_feedforward_multilayer else "H1 Neurons"
+    poprate_title = "Hidden 1 Rate" if is_feedforward_multilayer else "E Population Rate"
+
     # -- Input drive panel --
     if axes[1] is not None:
         is_spikes = set(np.unique(ext_g)).issubset({0, 0.0, 1, 1.0})
@@ -496,7 +503,7 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
     # -- E raster --
     if axes[2] is not None:
         plot_raster(axes[2], spk_e, CLR, n_e, dt, vis_ms)
-        axes[2].set_title("E Neurons", **_title_kw)
+        axes[2].set_title(layer0_title, **_title_kw)
         axes[2].set_ylabel("")
         axes[2].set_xlabel("Time (ms)", **LABEL_KW)
 
@@ -508,7 +515,7 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
         elif spk_h1 is not None:
             _n_h1 = n_h1 if n_h1 is not None else spk_h1.shape[1]
             plot_raster(axes[3], spk_h1, CLR, _n_h1, dt, vis_ms)
-            axes[3].set_title("H1 Neurons", **_title_kw)
+            axes[3].set_title(layer1_title, **_title_kw)
         axes[3].set_ylabel("")
         axes[3].set_xlabel("Time (ms)", **LABEL_KW)
 
@@ -532,7 +539,7 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
         max_rate = 1000.0 / bin_ms
         participation = rate_hz / max_rate
         axes[4].plot(t_bins, participation, color=CLR, linewidth=0.8)
-        axes[4].set_title("E Population Rate", **_title_kw)
+        axes[4].set_title(poprate_title, **_title_kw)
         axes[4].set_ylabel("")
         axes[4].set_ylim(0, 0.5)
         axes[4].set_xlim(0, vis_ms)
