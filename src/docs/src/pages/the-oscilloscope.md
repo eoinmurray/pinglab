@@ -78,6 +78,17 @@ Pass *--panels* with a comma-separated list to override any preset — useful wh
 
 See [Training](/training/) for the surrogate-gradient, loss, encoding, and BPTT details. On the CLI side, *train* adds the optimiser flags (*--lr*, *--epochs*, *--batch-size*, *--adaptive-lr*, *--cm-back-scale*, *--early-stopping*) plus *--observe video* which renders one oscilloscope frame per epoch into a training MP4. *infer* adds *--dt-sweep* for the dt-stability protocol and *--frozen-inputs* to OR-pool a reference spike train (see [Training → dt stability sweep](/training/#dt-stability-sweep)).
 
+## Readouts
+
+*--readout* picks how the last-hidden layer is reduced to class logits. The choice is orthogonal to the model family — any of [*cuba*](/models/#cuba), [*standard-snn*](/models/#standard-snn), [*ping*](/models/#ping), [*snntorch-library*](/models/#snntorch-library) can be paired with either readout.
+
+| *--readout* | How it reads out | When to use |
+| ----------- | ---------------- | ----------- |
+| *rate* (default) | Accumulate last-hidden spike counts across all timesteps, one linear projection $W_\text{out}\cdot\sum_t s_t + b_\text{out}$ at the final step. | Default ladder decoder, matched across models. No temporal structure in the decoder — the hidden dynamics carry all the temporal work. |
+| *li* | Non-spiking leaky integrator per class: $v_\text{out} \leftarrow \beta\,v_\text{out} + (1-\beta)(W_\text{out}\cdot s_t + b_\text{out})$, logits are $\max_t v_\text{out}$. | Field-standard SHD readout (Zenke-style). Makes the decoder itself temporal — useful when the classification signal is localised in time rather than cumulative. |
+
+Both use the same $W_\text{out}, b_\text{out}$ shape so the learnable parameter count is identical; only the reduction over time differs. The *li* path currently reuses $\tau_\text{mem}$ as its time constant — see [notebook 005](/notebook/nb005/) for how this interacts with init scaling.
+
 ## Reproducibility
 
 *--seed* threads through Python, NumPy, and torch RNGs before dataset construction and model init, and is persisted in the run's *config.json* alongside the git SHA. A fixed seed plus a fixed git SHA is the reproducibility contract — same *config.json* plus same SHA should regenerate the same *metrics.json*. When *--seed* is omitted the run draws fresh RNG state and the config records *seed: null*, so unseeded runs are visible as such.
