@@ -11,15 +11,16 @@ These rules apply when editing the docs and notebook. They are the source of tru
 
 ### 1. Notebook-entry H2 skeleton
 
-Every notebook entry under *src/docs/src/pages/notebook/* uses the same five H2 headings, in this order:
+Every notebook entry under *src/docs/src/pages/notebook/* uses the same six H2 headings, in this order:
 
 1. **Introduction** — what was built, wired, or changed, and why
 2. **Method** — how the experiment was run, including methodological notes
 3. **Findings** — results (use H3 subsections for multiple results); mechanism analysis nests here, not as its own H2
 4. **Implications** — what it means for the paper or project
-5. **Next steps** — what is still to do
+5. **Success criteria** — the pass/fail conditions the entry sets for itself, stated as a short checklist (each item ✅ met / ❌ not met / ⚠ partial, with the relevant number from *numbers.json* cited inline). Written *before* the run and checked against its results; every criterion is a line the next iteration can aim at.
+6. **Next steps** — what is still to do, keyed to any ❌/⚠ items above
 
-The H1 stays entry-specific (the entry title). The skeleton is for H2s only. *Why:* notebook-entry navigation should be predictable across the site.
+The H1 stays entry-specific (the entry title). The skeleton is for H2s only. *Why:* notebook-entry navigation should be predictable across the site, and separating success criteria from next steps makes regressions visible without reading prose.
 
 Every entry ends with a single *Appendix* H2 after *Next steps*, holding at minimum the two required H3 subsections below (plus an optional *Videos*):
 
@@ -124,6 +125,8 @@ Training cost scales linearly in *max-samples × epochs × t-ms* ($\approx$3.3 �
 | extra large | 600 | $\sim$40 min |
 
 Each notebook entry names the tier it ran at — either in Method prose or implicitly via its notebook runner's *MAX_SAMPLES / EPOCHS / T_MS* constants (training) or *TIER_FRAMES* lookup (video). If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
+
+Every notebook runner accepts *--modal-gpu {none, T4, L4, A10G, A100, H100}* to dispatch its oscilloscope invocations to Modal.com (see [The oscilloscope § Modal dispatch](/the-oscilloscope/#modal-dispatch)). Default is local.
 
 ## Maintaining this page
 

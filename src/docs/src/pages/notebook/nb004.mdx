@@ -34,6 +34,13 @@ Baseline reaches 26% accuracy at medium tier (2000 samples × 10 epochs, *init_s
 
 The row-by-row sMNIST setup works, but this entry is being parked at the baseline rather than built out into a full cell matrix. The 28-pixel row bottleneck is an artificial temporal signal, and the input-encoding question studied in entry [003](/notebook/nb003/) barely applies when rows are already pixel values. A natively event-based dataset is a stronger fit for the dt/discretisation/encoding comparisons this notebook is built around.
 
+## Success criteria
+
+- ✅ **End-to-end pipeline runs**. sMNIST loader + row-by-row encoder + depth-2 *cuba* trains to completion at the **{numbers.tier ?? "?"}** tier with no collapse or NaN.
+- ✅ **Above chance**. Best test accuracy {cell.best_acc ?? "?"}%, well above the 10% chance floor — the depth-2 network is learning.
+- ✅ **Monotonic climb**. Loss falls and accuracy rises over {cfg.epochs ?? "?"} epochs without regression (see *metrics.json* in the run dir).
+- ⚠ **Absolute accuracy**. {cell.best_acc ?? "?"}% is far below SOTA sMNIST (90%+) — the entry does not claim otherwise, and is parked rather than tuned. The sMNIST baseline is a correctness probe, not a performance result.
+
 ## Next steps
 
 1. Pivot to a natively-spiking dataset in entry 005 — likely SHD (Spiking Heidelberg Digits) as the de-facto SNN benchmark, with N-MNIST as a cheaper stepping stone if the SHD loader is heavy.

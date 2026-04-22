@@ -45,6 +45,14 @@ This is the opposite of the field expectation and worth debugging before drawing
 
 The readout swap is not free — it has its own init + time-constant tuning, and blindly wrapping the hidden-layer init recipe around the output layer makes the li path worse, not better. The rate baseline at 36.5% stays as the honest pre-tuning number; the li path needs its own init + $\tau$ pass before a fair readout-vs-readout comparison.
 
+## Success criteria
+
+- ✅ **SHD pipeline trains end-to-end**. Depth-2 *cuba* on 700-channel SHD at the **{numbers.tier ?? "?"}** tier runs to completion with no NaN / collapse.
+- ✅ **Monotonic training**. Train loss falls and test accuracy rises across {cfg.epochs ?? "?"} epochs — the network is integrating temporal evidence, not memorising or diverging.
+- ✅ **Above chance**. Best test accuracy {cell.best_acc ?? "?"}% vs the 5% chance floor (20 classes) — real classification signal.
+- ❌ **Readout ordering matches field expectation**. Field-standard *li* readout (21.75% best) *underperforms* the *rate* baseline (36.5%) at matched init and budget — the opposite of what Zenke-style pipelines report. Cause candidates (init-scale bleed, readout $\tau$ too short) flagged in *Implications*; resolving this is a Next-steps item once the *cuba* baseline itself is tuned.
+- ⚠ **Absolute accuracy below field reference**. Published SHD baselines with similar-sized recurrent SNNs reach 60–80%; the {cell.best_acc ?? "?"}% baseline here is untuned and the entry's scope is explicitly to close that gap.
+
 ## Next steps
 
 Scope for this entry narrows to: **get [*cuba*](/models/#cuba) training cleanly on SHD**. Readout choice, the other model families, and the *dt* sweep are out of scope until the cuba baseline itself is well-tuned.

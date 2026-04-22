@@ -37,6 +37,7 @@ sys.path.insert(0, str(REPO / "src" / "pinglab"))
 import matplotlib.pyplot as plt  # noqa: E402
 import torch  # noqa: E402
 
+from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from config import build_net  # noqa: E402
 
@@ -207,8 +208,7 @@ def train_model(model: str, dt_train: float, modal_gpu: str | None = None) -> Pa
         "--out-dir", str(out_dir),
         "--wipe-dir",
     ]
-    if modal_gpu:
-        args += ["--modal", "--modal-gpu", modal_gpu]
+    args = append_modal_args(args, modal_gpu)
     sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     metrics_path = out_dir / "metrics.json"
     if not metrics_path.exists():
@@ -247,8 +247,7 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
     ]
     if encoder_mode == "zero-pad":
         cmd += ["--observe", "video"]
-    if modal_gpu:
-        cmd += ["--modal", "--modal-gpu", modal_gpu]
+    cmd = append_modal_args(cmd, modal_gpu)
     sh.uv(*cmd, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     results_path = sweep_dir / "results.json"
     if not results_path.exists():
@@ -554,24 +553,10 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
     return summary
 
 
-def _parse_modal_gpu(argv: list[str]) -> str | None:
-    """Parse --modal-gpu <T4|L4|A10G|A100|H100|none> out of sys.argv.
-    Returns None if not provided (local run)."""
-    if "--modal-gpu" not in argv:
-        return None
-    idx = argv.index("--modal-gpu")
-    if idx + 1 >= len(argv):
-        raise SystemExit("--modal-gpu requires a value")
-    gpu = argv[idx + 1]
-    if gpu not in {"none", "T4", "L4", "A10G", "A100", "H100"}:
-        raise SystemExit(f"--modal-gpu: unknown GPU {gpu!r}")
-    return gpu
-
-
 def main() -> None:
     sweep_only = "--sweep-only" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
-    modal_gpu = _parse_modal_gpu(sys.argv)
+    modal_gpu = parse_modal_gpu(sys.argv)
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {notebook_run_id}"

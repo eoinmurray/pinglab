@@ -35,6 +35,7 @@ sys.path.insert(0, str(REPO / "src" / "pinglab"))
 
 import matplotlib.pyplot as plt  # noqa: E402
 
+from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 
 SLUG = "nb005"
@@ -70,13 +71,14 @@ def cuba_init_scales(dt: float, tau: float = TAU_MEM_MS) -> tuple[float, float]:
     return dt / (1.0 - beta), 1.0 / (1.0 - beta)
 
 
-def train_baseline() -> Path:
+def train_baseline(modal_gpu: str | None = None) -> Path:
     tier = TIER_CONFIG[TIER]
     out_dir = ARTIFACTS / MODEL
     sw, sb = cuba_init_scales(DT)
     print(f"[cuba SHD] training → {out_dir.relative_to(REPO)} "
-          f"(init_scale W×{sw:.3f} b×{sb:.3f})")
-    sh.uv(
+          f"(init_scale W×{sw:.3f} b×{sb:.3f})"
+          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
+    args = [
         "run", "python", str(OSCILLOSCOPE), "train",
         "--model", MODEL,
         "--dataset", "shd",
@@ -96,10 +98,9 @@ def train_baseline() -> Path:
         "--frame-rate", "1",
         "--out-dir", str(out_dir),
         "--wipe-dir",
-        _cwd=str(REPO),
-        _out=sys.stdout,
-        _err=sys.stderr,
-    )
+    ]
+    args = append_modal_args(args, modal_gpu)
+    sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     metrics_path = out_dir / "metrics.json"
     if not metrics_path.exists():
         raise SystemExit(f"training did not produce {metrics_path}")
@@ -176,9 +177,11 @@ def _format_duration(seconds: float) -> str:
 
 def main() -> None:
     wipe_dir = "--no-wipe-dir" not in sys.argv
+    modal_gpu = parse_modal_gpu(sys.argv)
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    print(f"[nb005] run_id={run_id} tier={TIER}")
+    print(f"[nb005] run_id={run_id} tier={TIER}"
+          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
     if wipe_dir:
         for d in (ARTIFACTS, FIGURES):
             if d.exists():
@@ -187,7 +190,7 @@ def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     persist_run_id(SLUG, run_id)
 
-    run_dir = train_baseline()
+    run_dir = train_baseline(modal_gpu=modal_gpu)
     metrics = json.loads((run_dir / "metrics.json").read_text())
     cfg = json.loads((run_dir / "config.json").read_text())
 
