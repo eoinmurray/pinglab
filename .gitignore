@@ -22,6 +22,7 @@ TODO.md
 .db
 .uv-cache
 .vscode
+.claude/
 build/
 dist/
 *.egg-info/
