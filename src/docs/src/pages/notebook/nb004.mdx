@@ -6,24 +6,17 @@ entry: 4
 structure: paper
 ---
 import Figure from "../../components/Figure.astro";
-import ReproBadge from "../../components/ReproBadge.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb004/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
+export const cell = numbers.cells?.cuba_baseline ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const runFinished = numbers.run_finished_at ?? "?";
 export const gitSha = numbers.git_sha ?? null;
 
-# sMNIST
-
-<p><span class="font-mono">nb004</span> · Monday, 20<sup>th</sup> April 26</p>
-
-<ReproBadge sha={gitSha} runId={nbRunId} finished={runFinished} />
-
-| Tier | Samples × Epochs |
-|---|---|
-| {cfg.tier ?? "?"} | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} |
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
@@ -45,8 +38,28 @@ The row-by-row sMNIST setup works, but this entry is being parked at the baselin
 
 1. Pivot to a natively-spiking dataset in entry 005 — likely SHD (Spiking Heidelberg Digits) as the de-facto SNN benchmark, with N-MNIST as a cheaper stepping stone if the SHD loader is heavy.
 
-## Reproduction
+## Appendix
+
+### Reproduction
 
 ```
 uv run src/pinglab/notebook/nb004.py
 ```
+
+### Run parameters
+
+| Parameter | Value |
+|---|---|
+| Dataset | {cfg.dataset ?? "?"} |
+| Model | {cfg.model ?? "?"} |
+| Hidden | \{{(cfg.hidden ?? []).join(", ")}\} |
+| Samples × Epochs | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} |
+| T / dt | {cfg.t_ms ?? "?"} ms / {cfg.dt ?? "?"} ms |
+| Seed | {cfg.seed ?? "?"} |
+| Tier | **{numbers.tier ?? "?"}** — see [Style guide § 9 Run sizing tiers](/styleguide/#9-run-sizing-tiers) |
+| Best acc / Final acc | {cell.best_acc ?? "?"}% / {cell.final_acc ?? "?"}% |
+| Final loss | {cell.final_loss?.toFixed?.(4) ?? "?"} |
+| Run ID | <span class="font-mono">{nbRunId}</span> |
+| Git SHA | <span class="font-mono">{gitSha ?? "?"}</span> |
+| Finished | {runFinished} |
+

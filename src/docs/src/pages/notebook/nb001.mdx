@@ -6,6 +6,7 @@ entry: 1
 structure: paper
 ---
 import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb001/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -16,13 +17,7 @@ export const runDuration = numbers.duration ?? "?";
 export const imageGlob = import.meta.glob("../../../public/figures/notebook/nb001/scope_frame.png", { eager: true, query: "?url", import: "default" });
 export const hasFrame = Object.keys(imageGlob).length > 0;
 
-# Scope Frame
-
-<p><span class="font-mono">nb001</span> · Saturday, 18<sup>th</sup> April 26</p>
-
-| Run ID | Date | Size | Duration |
-|---|---|---|---|
-| <span class="font-mono">{nbRunId}</span> | {runDatetime} | {cfg.tier ?? "?"} | {runDuration} |
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 A scope frame is the canonical oscilloscope layout — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content.
 
@@ -46,11 +41,31 @@ The frame below is one 600 ms PING simulation on MNIST digit {cfg.input?.digit} 
 - **PSD** — power spectral density of the E-population rate, restricted to 5–200 Hz. The red vertical marker is the gamma peak frequency f₀.
 - **E Population Rate** — binned firing-rate trace of the E population over time (2 ms bins). The envelope that the PSD is computed from.
 
-## Reproduction
+## Appendix
+
+### Reproduction
 
 From the repo root:
 
 ```
 uv run src/pinglab/notebook/nb001.py
 ```
+
+### Run parameters
+
+| Parameter | Value |
+|---|---|
+| Model | {cfg.model ?? "?"} |
+| N_E / N_I | {cfg.n_e ?? "?"} / {cfg.n_i ?? "?"} |
+| dt / T | {cfg.dt_ms ?? "?"} / {cfg.sim_ms ?? "?"} ms |
+| Stim window | {cfg.step_on_ms ?? "?"}–{cfg.step_off_ms ?? "?"} ms |
+| Stim overdrive | {cfg.stim_overdrive ?? "?"}× |
+| Input rate | {cfg.input_rate_hz ?? "?"} Hz |
+| W-in overdrive | {cfg.w_in_overdrive ?? "?"}× |
+| E→I strength | {cfg.ei_strength ?? "?"} |
+| Input | {cfg.input?.dataset ?? "?"} d{cfg.input?.digit ?? "?"} s{cfg.input?.sample ?? "?"} |
+| Seed | {cfg.seed ?? "?"} |
+| Tier | **{cfg.tier ?? "?"}** — see [Style guide § 9 Run sizing tiers](/styleguide/#9-run-sizing-tiers) |
+| Run ID | <span class="font-mono">{nbRunId}</span> |
+| Elapsed | {runDuration} |
 

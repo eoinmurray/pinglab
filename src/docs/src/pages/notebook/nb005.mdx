@@ -6,7 +6,7 @@ entry: 5
 structure: paper
 ---
 import Figure from "../../components/Figure.astro";
-import ReproBadge from "../../components/ReproBadge.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb005/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -16,15 +16,7 @@ export const nbRunId = numbers.notebook_run_id ?? "?";
 export const runFinished = numbers.run_finished_at ?? "?";
 export const gitSha = numbers.git_sha ?? null;
 
-# SHD — Spiking Heidelberg Digits
-
-<p><span class="font-mono">nb005</span> · Wednesday, 22<sup>nd</sup> April 26</p>
-
-<ReproBadge sha={gitSha} runId={nbRunId} finished={runFinished} />
-
-| Tier | Samples × Epochs | Best acc | Final acc | Duration |
-|---|---|---|---|---|
-| {numbers.tier ?? "?"} | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} | {cell.best_acc ?? "?"}% | {cell.final_acc ?? "?"}% | {numbers.duration ?? "?"} |
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
@@ -38,10 +30,6 @@ First-cell baseline to validate the pipeline: one [*cuba*](/models/#cuba) model 
 
 <Figure id="Figure 1" title="Training curves (li readout)" src="/figures/notebook/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba + LI-readout run at medium tier">
   *cuba* on SHD at *medium* tier with the **li** readout. Loss falls monotonically; test accuracy climbs to $\sim$22% over 10 epochs — above chance (5%, red dashed) but well below the rate-readout run on the same config.
-</Figure>
-
-<Figure id="Figure 2" title="Per-epoch hidden activity (cuba, li readout)" src="/figures/notebook/nb005/training_cuba.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for cuba with LI readout on SHD">
-  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers with the li readout.
 </Figure>
 
 Both readouts train cleanly end-to-end, but the field-standard li readout **underperforms** the rate baseline at matched init and training budget:
@@ -64,8 +52,35 @@ The readout swap is not free — it has its own init + time-constant tuning, and
 3. Once li is at or above rate, broaden the cell matrix across the four model families ([*cuba*](/models/#cuba), [*standard-snn*](/models/#standard-snn), [*ping*](/models/#ping), [*snntorch-library*](/models/#snntorch-library)) at matched init.
 4. Sweep training *dt* (0.25 / 0.5 / 1.0 ms) to reprise the nb003 discretisation comparison on a natively-spiking task.
 
-## Reproduction
+## Appendix
+
+### Reproduction
 
 ```
 uv run src/pinglab/notebook/nb005.py
 ```
+
+### Run parameters
+
+| Parameter | Value |
+|---|---|
+| Dataset | {cfg.dataset ?? "?"} |
+| Model | {cfg.model ?? "?"} |
+| Readout | li (leaky-integrator, $\tau = \tau_\text{mem}$ = 10 ms) |
+| Hidden | \{{(cfg.hidden ?? []).join(", ")}\} |
+| Samples × Epochs | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} |
+| T / dt | {cfg.t_ms ?? "?"} ms / {cfg.dt ?? "?"} ms |
+| Seed | {cfg.seed ?? "?"} |
+| Tier | **{numbers.tier ?? "?"}** — see [Style guide § 9 Run sizing tiers](/styleguide/#9-run-sizing-tiers) |
+| Best acc / Final acc | {cell.best_acc ?? "?"}% / {cell.final_acc ?? "?"}% |
+| Final loss | {cell.final_loss?.toFixed?.(4) ?? "?"} |
+| Run ID | <span class="font-mono">{nbRunId}</span> |
+| Git SHA | <span class="font-mono">{gitSha ?? "?"}</span> |
+| Elapsed | {numbers.duration ?? "?"} |
+| Finished | {runFinished} |
+
+### Videos
+
+<Figure id="Figure 2" title="Per-epoch hidden activity (cuba, li readout)" src="/figures/notebook/nb005/training_cuba.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for cuba with LI readout on SHD">
+  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers with the li readout.
+</Figure>

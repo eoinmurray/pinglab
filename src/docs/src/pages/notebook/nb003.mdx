@@ -6,7 +6,7 @@ entry: 3
 structure: paper
 ---
 import Figure from "../../components/Figure.astro";
-import ReproBadge from "../../components/ReproBadge.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb003/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -52,19 +52,11 @@ export const encoderModes = cfg.encoder_modes ?? ["zero-pad", "resample"];
 export const figGlob = import.meta.glob("../../../public/figures/notebook/nb003/*.{png,mp4}", { eager: true, query: "?url", import: "default" });
 export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" + name));
 
-# CUBA vs standard-snn Δt-stability
-
-<p><span class="font-mono">nb003</span> · Sunday, 19<sup>th</sup> April 26</p>
-
-<ReproBadge sha={gitSha} runId={nbRunId} finished={latestRun} />
-
-| Size | Train *dt* (ms) | Eval *dt* sweep (ms) | Duration |
-|---|---|---|---|
-| {cfg.tier ?? "?"} | {(cfg.dt_trains ?? []).join(", ")} | \{{(cfg.dt_sweep ?? []).join(", ")}\} | {runDuration} |
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-**The question.** A spiking neural network has a simulation timestep *dt* — the interval between "frames" of the neuron's voltage. If you train a network at one *dt* and then run it at another, should it still work?
+A spiking neural network has a simulation timestep *dt* — the interval between "frames" of the neuron's voltage. If you train a network at one *dt* and then run it at another, should it still work?
 
 *In principle,* yes: the neuron models a physical process (a leaky membrane integrating input over real milliseconds), so halving *dt* should change nothing meaningful — you just take twice as many half-size steps. In practice, whether this holds depends on how the continuous equation gets discretised into a step.
 
