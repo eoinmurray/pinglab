@@ -34,6 +34,7 @@ Reading list for this project. PDFs themselves are third-party copyrighted mater
 
 ## Spiking MNIST / benchmarks
 
+- **cramer-et-al** — Cramer, Stradmann, Schemmel & Zenke, *The Heidelberg spiking datasets for the systematic evaluation of spiking neural networks*, IEEE TNNLS 2022 (preprint Oct 2020). [arXiv:1910.07407](https://arxiv.org/abs/1910.07407). Source of the SHD dataset used in [notebook 004](/notebook/nb004/) — 10,420 high-quality recordings of spoken digits 0–9 in English and German, converted through a biologically-motivated cochlea model into 700-channel spike rasters of roughly 1 s per trial.
 - **yan-et-al** — Yan et al., sequential-MNIST SNN architectures (2025). Depth precedent for sMNIST.
 - **yan-et-al-supplementary** — Yan et al. supplementary material.
 - **xing-et-al** — Xing et al., SNN classification benchmarks.
