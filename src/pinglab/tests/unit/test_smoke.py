@@ -67,6 +67,22 @@ def test_train_one_epoch(out_dir, dataset):
          f"--max-samples 50 --out-dir {out_dir}/train-{dataset}")
 
 
+def test_train_one_epoch_shd(out_dir):
+    # SHD needs the HDF5 cache on disk (no auto-download hook yet) and
+    # enough samples for a stratified 80/20 split across 20 classes.
+    import os
+    from pathlib import Path
+    cache = Path(os.environ.get("PINGLAB_SHD_DIR", "/tmp/shd/SHD"))
+    if not (cache / "shd_train.h5").exists() or not (cache / "shd_test.h5").exists():
+        pytest.skip(f"SHD HDF5 files not cached at {cache}")
+    _run(
+        f"{OSC} train --epochs 1 --dataset shd --n-hidden 64 "
+        f"--t-ms 1000 --dt 1.0 --max-samples 120 "
+        f"--out-dir {out_dir}/train-shd",
+        timeout=240,
+    )
+
+
 def test_train_epochs_zero_probe(out_dir):
     _run(f"{OSC} train --epochs 0 --n-hidden 64 --out-dir {out_dir}/train-init")
 
