@@ -28,6 +28,7 @@ sys.path.insert(0, str(PINGLAB))
 
 import matplotlib.pyplot as plt  # noqa: E402
 
+from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 
 SLUG = "nb001"
@@ -76,11 +77,12 @@ def _overlay_stamp_image(src: Path, dst: Path, stamp: Path) -> None:
     print(f"wrote {dst.relative_to(REPO)}")
 
 
-def render_frame(out_dir: Path) -> Path:
+def render_frame(out_dir: Path, modal_gpu: str | None = None) -> Path:
     """One forward pass, one SCOPE_FRAME rendered to snapshot.png."""
-    print(f"[frame] → {out_dir.relative_to(REPO)}")
+    print(f"[frame] → {out_dir.relative_to(REPO)}"
+          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
     out_dir.mkdir(parents=True, exist_ok=True)
-    sh.uv(
+    args = [
         "run", "python", str(OSCILLOSCOPE), "image",
         "--model", "ping",
         "--n-hidden", str(N_HIDDEN),
@@ -95,9 +97,9 @@ def render_frame(out_dir: Path) -> Path:
         "--dt", str(DT_MS),
         "--out-dir", str(out_dir),
         "--wipe-dir",
-        _cwd=str(REPO),
-        _out=sys.stdout, _err=sys.stderr,
-    )
+    ]
+    args = append_modal_args(args, modal_gpu)
+    sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     png = out_dir / "snapshot.png"
     if not png.exists():
         raise SystemExit(f"image run did not produce {png}")
@@ -149,10 +151,12 @@ def write_numbers(out_path: Path, notebook_run_id: str,
 
 def main() -> None:
     wipe_dir = "--no-wipe-dir" not in sys.argv
+    modal_gpu = parse_modal_gpu(sys.argv)
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id}")
+    print(f"notebook_run_id = {notebook_run_id}"
+          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
 
     if wipe_dir:
         for d in (ARTIFACTS, FIGURES):
@@ -166,7 +170,7 @@ def main() -> None:
     _render_stamp_png(notebook_run_id, stamp)
 
     frame_dir = ARTIFACTS / "frame"
-    frame_src = render_frame(frame_dir)
+    frame_src = render_frame(frame_dir, modal_gpu=modal_gpu)
     _overlay_stamp_image(frame_src, FIGURES / "scope_frame.png", stamp)
 
     stamp.unlink(missing_ok=True)

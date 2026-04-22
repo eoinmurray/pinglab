@@ -93,6 +93,12 @@ Both use the same $W_\text{out}, b_\text{out}$ shape so the learnable parameter 
 
 *--seed* threads through Python, NumPy, and torch RNGs before dataset construction and model init, and is persisted in the run's *config.json* alongside the git SHA. A fixed seed plus a fixed git SHA is the reproducibility contract — same *config.json* plus same SHA should regenerate the same *metrics.json*. When *--seed* is omitted the run draws fresh RNG state and the config records *seed: null*, so unseeded runs are visible as such.
 
+## Modal dispatch
+
+Any oscilloscope subcommand can run on [Modal.com](https://modal.com) serverless compute by adding *--modal --modal-gpu {none, T4, L4, A10G, A100, H100}* — *none* runs on Modal CPU, the others pick the listed GPU. Local output paths resolve the same way on either side; the wrapper syncs the Modal volume back to *src/artifacts/* when the job finishes.
+
+Every notebook runner under *src/pinglab/notebook/* forwards a top-level *--modal-gpu* argument through to the oscilloscope invocations it makes, so an entire notebook entry (e.g. *uv run src/pinglab/notebook/nb005.py --modal-gpu T4*) dispatches to Modal with one flag. Omit the flag and the run stays local.
+
 ## Where things live in the source
 
 - *oscilloscope.py* — argument parsing, subcommand dispatch, scan drivers, training and inference loops, run-artifact bookkeeping.
