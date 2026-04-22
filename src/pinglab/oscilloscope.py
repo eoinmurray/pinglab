@@ -1482,7 +1482,8 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
           cm_back_scale=80.0, early_stopping=None, observe_every=1,
           adaptive_lr=False, kaiming_init=False, dales_law=True,
           w_rec=None, rec_layers=None, ei_layers=None, batch_size=None,
-          seed=None, init_scale_weight=1.0, init_scale_bias=1.0):
+          seed=None, init_scale_weight=1.0, init_scale_bias=1.0,
+          readout_mode="rate"):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
     from torch.utils.data import DataLoader, TensorDataset
@@ -1555,11 +1556,14 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         device=device, randomize_init=randomize,
         kaiming_init=kaiming_init, dales_law=dales_law,
         w_rec=w_rec, hidden_sizes=hidden_sizes,
-        rec_layers=rec_layers, ei_layers=ei_layers)
+        rec_layers=rec_layers, ei_layers=ei_layers,
+        readout_mode=readout_mode)
     if randomize:
         log.info("  randomize_init=True (symmetry breaking for standard-snn)")
     if kaiming_init:
         log.info("  kaiming_init=True (signed Kaiming weights, canonical snnTorch)")
+    if readout_mode != "rate":
+        log.info(f"  readout_mode={readout_mode}")
     if init_scale_weight != 1.0 or init_scale_bias != 1.0:
         # Weight params = 2D tensors (W_ff, W_rec, W_ee/W_ei/W_ie).
         # Bias params = 1D tensors (b_ff). Split lets cuba pre-compensate
@@ -1605,6 +1609,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         "kaiming_init": kaiming_init, "dales_law": dales_law,
         "init_scale_weight": init_scale_weight,
         "init_scale_bias": init_scale_bias,
+        "readout_mode": readout_mode,
         "hidden_sizes": hidden_sizes, "w_rec": w_rec,
         "rec_layers": list(rec_layers) if rec_layers else None,
         "ei_layers": list(ei_layers) if ei_layers else None,
@@ -2501,6 +2506,13 @@ Models:
                                 "For cuba at training-dt, pass 1/(1-exp(-dt/"
                                 "tau_mem)) to match standard-snn's per-step "
                                 "bias drive. Default: 1.0 (no scaling).")
+    net_group.add_argument("--readout", choices=["rate", "li"], default="rate",
+                           dest="readout_mode",
+                           help="Output layer: 'rate' sums last-hidden spikes "
+                                "and projects linearly at the final timestep "
+                                "(default); 'li' uses a non-spiking leaky "
+                                "integrator per class with max-over-time, the "
+                                "standard SHD-style readout.")
     net_group.add_argument("--dales-law", action="store_true", default=True,
                            help="Enforce Dale's law: clamp weights to non-negative "
                                 "(default: True)")
@@ -3087,7 +3099,8 @@ if __name__ == "__main__":
               batch_size=args.batch_size,
               seed=args.seed,
               init_scale_weight=args.init_scale_weight,
-              init_scale_bias=args.init_scale_bias)
+              init_scale_bias=args.init_scale_bias,
+              readout_mode=args.readout_mode)
 
     elif mode == "infer":
         w_in = args.w_in or [0.3, 0.06]
