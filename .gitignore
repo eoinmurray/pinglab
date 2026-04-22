@@ -18,7 +18,7 @@ src/datasets/**
 .export
 .playwright-mcp
 .latest
-PLAN.md
+TODO.md
 .db
 .uv-cache
 .vscode

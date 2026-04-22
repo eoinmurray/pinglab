@@ -1317,6 +1317,9 @@ def downsample_spikes_count(spikes_ref, dt_ref, dt_target):
     preserved exactly; total spike count is preserved up to leftover steps
     trimmed at the end when T_ref is not divisible by k. Output is not
     binary."""
+    if dt_target < dt_ref - 1e-9:
+        raise ValueError(f"downsample requires dt_target >= dt_ref; "
+                         f"got dt_target={dt_target}, dt_ref={dt_ref}")
     k = round(dt_target / dt_ref)
     if k == 1:
         return spikes_ref
@@ -1331,6 +1334,9 @@ def upsample_spikes_zeropad(spikes_ref, dt_ref, dt_target):
     place each reference spike at the *first* fine sub-step of its block
     (Parthasarathy et al. §2.1 / Fig 1B). Total spike count is preserved
     exactly; per-ms rate is preserved; per-step rate drops by 1/k."""
+    if dt_target > dt_ref + 1e-9:
+        raise ValueError(f"upsample requires dt_target <= dt_ref; "
+                         f"got dt_target={dt_target}, dt_ref={dt_ref}")
     k = round(dt_ref / dt_target)
     if k == 1:
         return spikes_ref
@@ -1362,7 +1368,7 @@ def transport_spikes_bin(spikes_ref, dt_ref, dt_target):
     return downsample_spikes_count(spikes_ref, dt_ref, dt_target)
 
 
-FROZEN_MODES = ("zero-pad", "resample")
+FROZEN_MODES = ("upsample", "downsample", "resample")
 
 
 class FrozenEncoder:
@@ -1373,20 +1379,25 @@ class FrozenEncoder:
     network trained at dt_ref is evaluated at a sweep of other dts
     (Parthasarathy, Burghi & O'Leary 2024, Fig 1B / §2.1, §2.3).
 
-    Modes:
-      * zero-pad  — generate Poisson at dt_ref, then transport count-
-                    preservingly: zero-pad when eval-dt < dt_ref (§2.1),
-                    sum-pool when eval-dt > dt_ref (§2.3). Non-binary on
-                    the coarser side (integer counts per bin).
-      * resample  — draw a fresh Poisson stream at the *target* dt with
-                    the same per-ms rate (§2.1 alternative to zero-pad).
-                    Binary; sampling noise re-introduced.
+    Modes (one transport per paper-named case):
+      * upsample    — generate Poisson at dt_ref, then zero-pad to finer
+                      eval-dt (§2.1 / Fig 1B). Each reference spike lands
+                      at the first fine sub-step of its block. Requires
+                      eval-dt <= dt_ref. Binary.
+      * downsample  — generate Poisson at dt_ref, then sum-pool to coarser
+                      eval-dt (§2.3). Requires eval-dt >= dt_ref. Output
+                      is non-binary (integer counts per coarse bin).
+      * resample    — draw a fresh Poisson stream at the *target* dt with
+                      the same per-ms rate (§2.1 alternative). Binary;
+                      sampling noise re-introduced. Works in both
+                      directions.
 
-    Call reset() before each new sweep dt so batch indices line up across
-    iterations.
+    At eval-dt == dt_ref all three modes produce the same Poisson stream
+    (identity transport). Call reset() before each new sweep dt so batch
+    indices line up across iterations.
     """
 
-    def __init__(self, dt_ref, t_ms, base_seed=42, mode="zero-pad"):
+    def __init__(self, dt_ref, t_ms, base_seed=42, mode="upsample"):
         if mode not in FROZEN_MODES:
             raise ValueError(f"unknown frozen-encoder mode {mode!r}; "
                              f"expected one of {FROZEN_MODES}")
@@ -1421,7 +1432,13 @@ class FrozenEncoder:
             T_ref = int(self.t_ms / self.dt_ref)
             spk_ref = encode_images_poisson(X_b, T_ref, self.dt_ref, M.max_rate_hz, generator=g)
 
-        return transport_spikes_bin(spk_ref, self.dt_ref, dt)
+        if abs(dt - self.dt_ref) < 1e-9:
+            return spk_ref
+        if self.mode == "upsample":
+            return upsample_spikes_zeropad(spk_ref, self.dt_ref, dt)
+        if self.mode == "downsample":
+            return downsample_spikes_count(spk_ref, self.dt_ref, dt)
+        raise AssertionError(f"unhandled frozen-encoder mode {self.mode!r}")
 
 
 def observe_epoch(net, ref_spikes, epoch, acc, train_loss, dt, model_name,
@@ -1483,7 +1500,9 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
           adaptive_lr=False, kaiming_init=False, dales_law=True,
           w_rec=None, rec_layers=None, ei_layers=None, batch_size=None,
           seed=None, init_scale_weight=1.0, init_scale_bias=1.0,
-          readout_mode="rate"):
+          readout_mode="rate",
+          fr_reg_lower_theta=0.0, fr_reg_lower_strength=0.0,
+          fr_reg_upper_theta=0.0, fr_reg_upper_strength=0.0):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
     from torch.utils.data import DataLoader, TensorDataset
@@ -1602,7 +1621,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         "ei_strength": ei_strength, "ei_ratio": ei_ratio,
         "sparsity": sparsity, "w_in_sparsity": w_in_sparsity,
         "input_rate": M.max_rate_hz, "cm_back_scale": cm_back_scale,
-        "burn_in_ms": burn_in_ms, "batch_size": BATCH_SIZE,
+        "burn_in_ms": burn_in_ms, "batch_size": bs,
         "grad_clip": GRAD_CLIP, "early_stopping": early_stopping,
         "max_samples": max_samples,
         "n_params": n_params, "n_trainable": n_trainable,
@@ -1791,6 +1810,21 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
                 opt.zero_grad()
                 continue
             loss = loss_fn(logits, y_b)
+            # Firing-rate regularisation (Cramer et al. 2022): penalise
+            # per-neuron trial spike counts outside [θ_l, θ_u]. Off by default
+            # (all strengths 0). Uses CUBANet.last_spike_counts when present.
+            if ((fr_reg_lower_strength > 0 or fr_reg_upper_strength > 0)
+                    and getattr(net, "last_spike_counts", None) is not None):
+                reg = 0.0
+                for sc in net.last_spike_counts:
+                    mean_z = sc.mean(dim=0)  # (n_hidden,)
+                    if fr_reg_lower_strength > 0:
+                        reg = reg + fr_reg_lower_strength * (
+                            torch.relu(fr_reg_lower_theta - mean_z) ** 2).sum()
+                    if fr_reg_upper_strength > 0:
+                        reg = reg + fr_reg_upper_strength * (
+                            torch.relu(mean_z - fr_reg_upper_theta) ** 2).sum()
+                loss = loss + reg
             opt.zero_grad()
             loss.backward()
             # Per-layer ‖grad‖/‖W‖ ratio (weights only, skip biases) before clip.
@@ -1982,7 +2016,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             "n_hidden": M.N_HID, "n_inh": M.N_INH, "n_in": M.N_IN,
             "max_samples": max_samples, "dataset": dataset,
             "cm_back_scale": cm_back_scale, "adaptive_lr": adaptive_lr,
-            "burn_in_ms": burn_in_ms, "batch_size": BATCH_SIZE,
+            "burn_in_ms": burn_in_ms, "batch_size": bs,
             "grad_clip": GRAD_CLIP, "early_stopping": early_stopping,
             "n_params": n_params, "n_trainable": n_trainable,
         },
@@ -2545,6 +2579,23 @@ Models:
                                 "Must exceed STEP_ON_MS (default 200) so the "
                                 "stimulus window is reached; values <= STEP_ON_MS "
                                 "leave the trial in flat baseline.")
+    net_group.add_argument("--tau-mem", type=float, default=None,
+                           help="Membrane time constant τ_mem in ms "
+                                "(default: 10 ms, module-level `tau_snn`). "
+                                "Cramer et al. SHD: 20 ms.")
+    net_group.add_argument("--tau-syn", type=float, default=None,
+                           help="Synaptic time constant τ_syn in ms for the "
+                                "exponential synapse (default: 2 ms, "
+                                "module-level `tau_ampa`). Cramer et al. SHD: "
+                                "10 ms. Only affects models with "
+                                "exponential_synapse=True (e.g. cuba-exp).")
+    net_group.add_argument("--surrogate-slope", type=float, default=None,
+                           help="Fast-sigmoid surrogate-gradient slope β. "
+                                "Larger = narrower active window around "
+                                "threshold. pinglab default 1.0; Cramer et al. "
+                                "use 40 for SHD RSNNs. Applies to "
+                                "SurrogateSpike (cuba / standard-snn / ping) "
+                                "and snntorch-library's fast_sigmoid.")
     net_group.add_argument("--device", type=str, default=None,
                            choices=["cpu", "mps", "cuda"],
                            help="Compute device. If unset, auto-detects: "
@@ -2751,6 +2802,26 @@ Models:
                                    "(factor=0.5, patience=5)")
     train_parser.add_argument("--frame-rate", type=int, default=10,
                               help="Video fps for observe (default: 10)")
+    train_parser.add_argument("--fr-reg-lower-theta", type=float, default=0.0,
+                              help="Firing-rate reg: lower-bound target spike "
+                                   "count per neuron per trial (θ_l). "
+                                   "Penalty s_l · Σ relu(θ_l − <z_i>)² is "
+                                   "added to the loss. Default 0 = off. "
+                                   "Cramer et al. SHD RSNN: 0.01.")
+    train_parser.add_argument("--fr-reg-lower-strength", type=float, default=0.0,
+                              help="Strength s_l on the lower-bound firing-"
+                                   "rate regulariser (default 0 = off). "
+                                   "Cramer et al.: 1.0.")
+    train_parser.add_argument("--fr-reg-upper-theta", type=float, default=0.0,
+                              help="Firing-rate reg: upper-bound target spike "
+                                   "count per neuron per trial (θ_u). "
+                                   "Penalty s_u · Σ relu(<z_i> − θ_u)² is "
+                                   "added to the loss. Default 0 = off. "
+                                   "Cramer et al. SHD RSNN: 100.")
+    train_parser.add_argument("--fr-reg-upper-strength", type=float, default=0.0,
+                              help="Strength s_u on the upper-bound firing-"
+                                   "rate regulariser (default 0 = off). "
+                                   "Cramer et al.: 0.06.")
 
     # -- infer subcommand --
     infer_parser = subparsers.add_parser(
@@ -2764,8 +2835,8 @@ Models:
                "  oscilloscope.py infer --from-dir path/to/trained --dt 0.1\n\n"
                "  # frozen-input dt-stability sweep\n"
                "  oscilloscope.py infer --from-dir path/to/trained \\\n"
-               "    --dt-sweep 0.05 0.1 0.25 0.5 1.0 2.0 --frozen-inputs \\\n"
-               "    --observe video",
+               "    --dt-sweep 0.05 0.1 0.25 0.5 1.0 2.0 \\\n"
+               "    --frozen-inputs-mode upsample --observe video",
         formatter_class=argparse.RawDescriptionHelpFormatter)
     infer_parser.add_argument("--from-dir", type=str, default=None,
                               help="Inherit params from a training run directory "
@@ -2788,15 +2859,18 @@ Models:
                                    "Without: image = single snapshot.")
     infer_parser.add_argument("--frozen-inputs", action="store_true", default=False,
                               help="Freeze input spike patterns across dt sweep. "
-                                   "Shorthand for --frozen-inputs-mode zero-pad.")
+                                   "Shorthand for --frozen-inputs-mode upsample.")
     infer_parser.add_argument("--frozen-inputs-mode", type=str, default=None,
                               choices=list(FROZEN_MODES),
                               help="How input spikes are transported across dt, "
                                    "anchored at train-dt (Parthasarathy et al. "
-                                   "§2.1, §2.3): zero-pad (count-preserving: "
+                                   "§2.1, §2.3): upsample (count-preserving "
                                    "zero-pad to finer eval-dt per Fig 1B, "
-                                   "sum-pool to coarser eval-dt per §2.3), or "
-                                   "resample (fresh Poisson at each eval-dt, "
+                                   "requires eval-dt <= train-dt); downsample "
+                                   "(count-preserving sum-pool to coarser "
+                                   "eval-dt per §2.3, requires eval-dt >= "
+                                   "train-dt); resample (fresh Poisson at each "
+                                   "eval-dt, works in both directions but "
                                    "re-introduces sampling noise).")
 
     args = parser.parse_args()
@@ -2807,6 +2881,13 @@ Models:
     # Apply global model knobs as early as possible so every downstream
     # entrypoint (train, sim, image, video, infer) sees the right integrator.
     M.COBA_INTEGRATOR = args.coba_integrator
+    if getattr(args, "surrogate_slope", None) is not None:
+        M.SURROGATE_SLOPE = float(args.surrogate_slope)
+    # Override τ_mem / τ_syn before patch_dt() re-derives β_snn and decay_ampa.
+    if getattr(args, "tau_mem", None) is not None:
+        M.tau_snn = float(args.tau_mem)
+    if getattr(args, "tau_syn", None) is not None:
+        M.tau_ampa = float(args.tau_syn)
 
     # --from-dir: inherit training params from config.json, fill unset values
     if args.mode in ("infer", "video", "image") and getattr(args, "from_dir", None):
@@ -3100,7 +3181,11 @@ if __name__ == "__main__":
               seed=args.seed,
               init_scale_weight=args.init_scale_weight,
               init_scale_bias=args.init_scale_bias,
-              readout_mode=args.readout_mode)
+              readout_mode=args.readout_mode,
+              fr_reg_lower_theta=args.fr_reg_lower_theta,
+              fr_reg_lower_strength=args.fr_reg_lower_strength,
+              fr_reg_upper_theta=args.fr_reg_upper_theta,
+              fr_reg_upper_strength=args.fr_reg_upper_strength)
 
     elif mode == "infer":
         w_in = args.w_in or [0.3, 0.06]
@@ -3132,17 +3217,28 @@ if __name__ == "__main__":
             encoder = None
             frozen_mode = getattr(args, "frozen_inputs_mode", None)
             if frozen_mode is None and getattr(args, "frozen_inputs", False):
-                frozen_mode = "zero-pad"
+                frozen_mode = "upsample"
             if frozen_mode is not None:
                 # Anchor the reference at the training dt (paper's framing):
                 # spikes are generated at dt_ref = args.dt once, then
-                # transported to each sweep dt via zero-pad (finer) or
-                # sum-pool (coarser). resample draws fresh at the target.
+                # transported to each sweep dt via upsample zero-pad (finer,
+                # §2.1 Fig 1B) or downsample sum-pool (coarser, §2.3).
+                # resample draws fresh at the target.
                 dt_ref = float(args.dt)
                 if frozen_mode != "resample":
                     for d in dt_values:
                         if abs(d - dt_ref) < 1e-9:
                             continue
+                        if frozen_mode == "upsample" and d > dt_ref + 1e-9:
+                            raise ValueError(
+                                f"--frozen-inputs-mode upsample requires "
+                                f"eval-dt <= train-dt; got dt={d}, "
+                                f"dt_ref={dt_ref}")
+                        if frozen_mode == "downsample" and d < dt_ref - 1e-9:
+                            raise ValueError(
+                                f"--frozen-inputs-mode downsample requires "
+                                f"eval-dt >= train-dt; got dt={d}, "
+                                f"dt_ref={dt_ref}")
                         ratio = max(d, dt_ref) / min(d, dt_ref)
                         if abs(ratio - round(ratio)) > 1e-6:
                             raise ValueError(
