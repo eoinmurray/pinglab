@@ -84,27 +84,31 @@ const ddMono = "font-mono text-[0.85rem]";
 
   <h1 class="mb-4 text-[2rem] font-bold leading-[1.15] text-ink-strong">{entryName}</h1>
 
-  {stats.length > 0 && (
-    <dl class="m-0 flex flex-wrap gap-x-6 gap-y-0 border rounded-[2px] border-rule bg-paper-tint px-[0.9rem] py-[0.7rem]">
-      {stats.map((s) => (
-        <div class="flex min-w-0 flex-col py-[0.15rem]">
-          <dt class="mb-[0.1rem] text-[0.72rem] font-medium uppercase tracking-wider text-label">{s.label}</dt>
-          <dd class={`m-0 text-[0.95rem] font-medium text-ink-strong ${s.mono ? ddMono : ""}`}>{s.value}</dd>
-        </div>
-      ))}
-      {short && (
-        <div class="flex min-w-0 flex-col py-[0.15rem]">
-          <dt class="mb-[0.1rem] text-[0.72rem] font-medium uppercase tracking-wider text-label">commit</dt>
-          <dd class={`m-0 text-[0.95rem] font-medium text-ink-strong ${ddMono}`}>
-            {commitHref ? (
-              <a href={commitHref} class="text-ink-strong underline decoration-underline" target="_blank" rel="noopener">{short}</a>
-            ) : (
-              <span>{short}</span>
-            )}
-            {dirty && <span class="ml-[0.3rem] font-serif text-[0.78rem] text-danger" title="figures generated from uncommitted changes">(dirty)</span>}
-          </dd>
-        </div>
-      )}
-    </dl>
-  )}
+  <dl class="m-0 flex flex-wrap gap-x-6 gap-y-0 border rounded-[2px] border-rule bg-paper-tint px-[0.9rem] py-[0.7rem]">
+    {stats.length === 0 && !short && (
+      <div class="flex min-w-0 flex-col py-[0.15rem]">
+        <dt class="mb-[0.1rem] text-[0.72rem] font-medium uppercase tracking-wider text-label">status</dt>
+        <dd class="m-0 text-[0.95rem] font-medium italic text-muted-soft">no run yet</dd>
+      </div>
+    )}
+    {stats.map((s) => (
+      <div class="flex min-w-0 flex-col py-[0.15rem]">
+        <dt class="mb-[0.1rem] text-[0.72rem] font-medium uppercase tracking-wider text-label">{s.label}</dt>
+        <dd class={`m-0 text-[0.95rem] font-medium text-ink-strong ${s.mono ? ddMono : ""}`}>{s.value}</dd>
+      </div>
+    ))}
+    {short && (
+      <div class="flex min-w-0 flex-col py-[0.15rem]">
+        <dt class="mb-[0.1rem] text-[0.72rem] font-medium uppercase tracking-wider text-label">commit</dt>
+        <dd class={`m-0 text-[0.95rem] font-medium text-ink-strong ${ddMono}`}>
+          {commitHref ? (
+            <a href={commitHref} class="text-ink-strong underline decoration-underline" target="_blank" rel="noopener">{short}</a>
+          ) : (
+            <span>{short}</span>
+          )}
+          {dirty && <span class="ml-[0.3rem] font-serif text-[0.78rem] text-danger" title="figures generated from uncommitted changes">(dirty)</span>}
+        </dd>
+      </div>
+    )}
+  </dl>
 </header>
