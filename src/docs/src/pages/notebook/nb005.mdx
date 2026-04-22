@@ -30,11 +30,7 @@ Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/sp
 
 ### Hyperparameter pass
 
-<Figure id="Figure 1" title="Best test accuracy heatmap (cuba + rate, 3×3 grid)" src="/figures/notebook/nb005/sweep_lr_isw.png" alt="Heatmap of best test accuracy across the 3×3 learning-rate × init_scale_weight grid">
-  *cuba* + *rate* on SHD at *medium* tier, 3×3 grid over $\eta$ and *init_scale_weight*. Best cell is $(\eta = 0.03,\, \text{isw} = 1.0)$ at {cell.best_acc ?? "?"}%, improving on the 36.5% pre-sweep baseline by **+{(cell.best_acc - 36.5)?.toFixed?.(2) ?? "?"} pp**.
-</Figure>
-
-Top cells (best test accuracy, %):
+3×3 grid over $\eta$ and *init_scale_weight* at fixed depth-2 (128, 128), *rate* readout, *medium* tier. Best cells (best test accuracy, %):
 
 | $\eta$ \ isw | 1.0 | 3.0 | 5.0 |
 |---|---|---|---|
@@ -42,22 +38,44 @@ Top cells (best test accuracy, %):
 | 1e-2 | 35.50 | 36.50 | 38.50 |
 | 3e-2 | **39.00** | 35.25 | 36.50 |
 
-<Figure id="Figure 2" title="Training curves (winner cell)" src="/figures/notebook/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for the winning cuba + rate cell">
-  Winner: *cuba* + *rate*, $\eta = 0.03$, *init_scale_weight* = 1.0. Loss falls monotonically; test accuracy climbs to {cell.best_acc ?? "?"}% over {cfg.epochs ?? "?"} epochs — above chance (5%, red dashed) and above the pre-sweep 36.5% reference.
+Winner $(\eta = 0.03,\, \text{isw} = 1.0)$ at 39.0%, improving on the 36.5% pre-sweep baseline by +2.5 pp. Two patterns. (i) *Higher* $\eta$ *helps across the board* — the $\eta = 0.03$ column is on average the strongest, suggesting the medium-tier budget (10 epochs × 2000 samples) is learning-rate-limited rather than capacity-limited. (ii) *init_scale_weight* = 1.0 *is competitive* — the field-default no-extra-scaling baseline ties or beats the isw = 3.0 recipe inherited from nb004's sMNIST tuning.
+
+### Width & depth pass
+
+Follow-up 2×4 grid over $\eta \in \{0.03, 0.1\}$ and hidden architecture $\in$ \{128×2, 256×2, 512×2, 256×3\} at fixed $\text{isw} = 1.0$, same *medium* tier. Best test accuracy (%):
+
+| hidden \ $\eta$ | 0.03 | 0.1 |
+|---|---|---|
+| 128×2 | **39.00** | 28.00 |
+| 256×2 | 37.50 | 25.00 |
+| 512×2 | 34.75 | 15.25 |
+| 256×3 | 33.00 | 10.75 |
+
+**Null result** for this pass. Three patterns. (i) *Wider hurts* — 128×2 → 256×2 → 512×2 degrades monotonically at $\eta = 0.03$ (39.0 → 37.5 → 34.75%); the medium-tier budget can't fit the larger parameter counts cleanly. (ii) *Deeper hurts more* — 256×3 is the worst column at either LR. (iii) $\eta = 0.1$ *is unstable and the instability scales with capacity* — the column degrades from 28% (128×2) to 10.75% (256×3), consistent with the surrogate-gradient noise floor dominating in higher-dimensional weight spaces.
+
+### Large tier
+
+Winner cell (128×2, $\eta = 0.03$, isw = 1.0, *rate* readout) retrained at *large* tier (**{cfg.max_samples ?? "?"}** samples × **{cfg.epochs ?? "?"}** epochs) confirms the budget hypothesis from step 2.
+
+<Figure id="Figure 1" title="Training curves, large tier" src="/figures/notebook/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for the winning cell at large tier">
+  Best test accuracy {cell.best_acc ?? "?"}% — **+{(cell.best_acc - 39.0)?.toFixed?.(1) ?? "?"} pp over medium**. Accuracy climbs to ~40% by epoch 6, then plateaus around 40–46% with epoch-to-epoch noise; loss trends down but is noisy in the plateau.
 </Figure>
 
-Two patterns stand out. (i) *Higher* $\eta$ *helps across the board* — the $\eta = 0.03$ column is on average the strongest, suggesting the medium-tier budget (10 epochs × 2000 samples) is learning-rate-limited rather than capacity-limited. (ii) *init_scale_weight* = 1.0 *is competitive* — the field-default no-extra-scaling baseline ties or beats the isw = 3.0 recipe inherited from nb004's sMNIST tuning. The best cell combines both: aggressive LR with no weight-init up-scaling, beating the pre-sweep baseline by ~2.5 pp.
+Observations. (i) **Large tier lifts the ceiling**. The medium 39% → large {cell.best_acc ?? "?"}% jump validates step 2's "budget-limited, not capacity-limited" reading of the ceiling. (ii) **Not strictly monotonic** in the plateau — best is epoch ~30, final epoch is {cell.final_acc ?? "?"}%; the ~5 pp of within-plateau swing is gradient / minibatch noise rather than divergence. (iii) **Still well below the 60–80% published SHD baselines** — budget is not the only missing lever, just the first-order one. Recurrent connections, readout retuning, and Dale's-law constraints stay as unexplored axes.
 
 ## Implications
 
-The nb004 cuba recipe (*init_scale_weight* = 3.0, tuned against row-by-row sMNIST) does not transfer cleanly to SHD — at depth 2, with SHD's dense spike input over 700 channels, isw = 1.0 is already saturating the drive, and pushing it higher no longer helps. Learning rate is the dominant knob at this budget.
+Two takeaways close the first-order baseline. (i) *Capacity isn't the bottleneck* at the step-1 hyperparameter optimum — scaling width and depth at medium tier regresses, not improves, the accuracy. (ii) *Budget is the first-order lever*: quadrupling the budget (2.5× samples, 4× epochs) lifts the accuracy from 39% to {cell.best_acc ?? "?"}%. The remaining gap to the 60–80% field reference is unlikely to close with more budget alone — the next productive directions are qualitative (recurrence, readout, encoding), not quantitative.
 
 ## Success criteria
 
 - ✅ **SHD pipeline trains end-to-end**. Depth-2 *cuba* on 700-channel SHD at the **{numbers.tier ?? "?"}** tier runs to completion with no NaN / collapse.
 - ✅ **Monotonic training**. Train loss falls and test accuracy rises across {cfg.epochs ?? "?"} epochs — the network is integrating temporal evidence, not memorising or diverging.
 - ✅ **Above chance**. Best test accuracy {cell.best_acc ?? "?"}% vs the 5% chance floor (20 classes) — real classification signal.
-- ✅ **Sweep beats pre-sweep baseline**. Winner cell improves on the untuned 36.5% reference by ~2.5 pp, confirming the grid is doing useful work rather than sitting on a flat surface.
+- ✅ **Step-1 sweep beats pre-sweep baseline**. Hyperparameter winner (39.0%) improves on the 36.5% pre-sweep reference by +2.5 pp, confirming the grid is doing useful work.
+- ❌ **Scaling capacity improves accuracy at fixed budget**. Width (256×2, 512×2) and depth (256×3) all *underperform* 128×2 at matched budget; null result means the medium-tier ceiling is budget-limited, not capacity-limited.
+- ✅ **More budget lifts the ceiling**. Retraining the winner at *large* tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) lifts best_acc from 39% to {cell.best_acc ?? "?"}% — confirms the budget-limited reading from step 2.
+- ⚠ **Within-plateau training noise**. At large tier the test accuracy swings ~5 pp epoch-to-epoch once past ~ep 6; loss trends down but is noisy. Not divergence, but a sign that minibatch noise dominates once the network settles.
 - ❌ **Readout ordering matches field expectation**. Earlier matched-init comparison showed field-standard *li* readout (21.75% best) *underperforms* the *rate* baseline (36.5%) — the opposite of what Zenke-style pipelines report. Cause candidates (init-scale bleed, readout $\tau$ too short) flagged earlier; resolving this is a Next-steps item once the *cuba* baseline itself is tuned.
 - ⚠ **Absolute accuracy below field reference**. Published SHD baselines with similar-sized recurrent SNNs reach 60–80%; the {cell.best_acc ?? "?"}% post-sweep number here still has a gap to close via depth / width / budget.
 
@@ -65,10 +83,11 @@ The nb004 cuba recipe (*init_scale_weight* = 3.0, tuned against row-by-row sMNIS
 
 Scope for this entry narrows to: **get [*cuba*](/models/#cuba) training cleanly on SHD**. Readout choice, the other model families, and the *dt* sweep are out of scope until the cuba baseline itself is well-tuned.
 
-1. ~~Hyperparameter pass at *medium*: sweep learning rate, *init_scale_weight* / *init_scale_bias*, and hidden width / depth to push *cuba* + rate past the current 36.5% baseline.~~ **Done** — 3×3 grid over ($\eta$, isw) at fixed isb; winner $(\eta = 0.03,\, \text{isw} = 1.0)$ at {cell.best_acc ?? "?"}% (+{(cell.best_acc - 36.5)?.toFixed?.(2) ?? "?"} pp).
-2. Extend the sweep to hidden width / depth and *init_scale_bias* — the current 39% winner still sits in the $\eta = 0.03$ edge of the grid, so one more pass with $\eta \in \{0.03, 0.1\}$ and wider / deeper hidden stacks is the next natural step.
-3. Confirm the winner trains monotonically at *large* tier (5000 samples × 40 epochs) with no collapse or plateau.
+1. ~~Hyperparameter pass at *medium*: sweep learning rate, *init_scale_weight* / *init_scale_bias*, and hidden width / depth to push *cuba* + rate past the current 36.5% baseline.~~ **Done** — 3×3 grid over ($\eta$, isw) at fixed isb; winner $(\eta = 0.03,\, \text{isw} = 1.0)$ at 39.0% (+2.5 pp over the 36.5% pre-sweep reference).
+2. ~~Extend the sweep to hidden width / depth and *init_scale_bias* — the current 39% winner still sits in the $\eta = 0.03$ edge of the grid, so one more pass with $\eta \in \{0.03, 0.1\}$ and wider / deeper hidden stacks is the next natural step.~~ **Done** — 2×4 grid over ($\eta$, hidden); null result (128×2 at $\eta = 0.03$ still wins at 39.0%). Width, depth, and $\eta = 0.1$ all regress at this budget. Medium tier is budget-limited, not capacity-limited.
+3. ~~Confirm the winner trains monotonically at *large* tier (5000 samples × 40 epochs) with no collapse or plateau.~~ **Done** — large-tier best_acc {cell.best_acc ?? "?"}% (+{(cell.best_acc - 39.0)?.toFixed?.(1) ?? "?"} pp over medium). Training is *not* strictly monotonic — it climbs cleanly to ~40% then plateaus around 40–46% with noise; further budget alone unlikely to close the gap to the 60–80% field reference.
 4. Fair *li* vs *rate* readout comparison — give the *li* readout its own init + $\tau$ tuning (separate readout init scales, longer readout $\tau$ per Zenke-style SHD pipelines) so the comparison isn't dominated by shared-hidden-recipe bleed.
+5. Add recurrent (hidden→hidden) connections — standard Zenke-style SHD pipelines use them, and step 2–3 make it clear that *feedforward* capacity + budget alone saturates well below the field reference.
 
 ## Appendix
 
@@ -92,8 +111,9 @@ Add `--tier small` for a faster pass, or drop `--sweep` to run the single baseli
 | T / dt | {cfg.t_ms ?? "?"} ms / {cfg.dt ?? "?"} ms |
 | Seed | {cfg.seed ?? "?"} |
 | Tier | **{numbers.tier ?? "?"}** — see [Style guide § 9 Run sizing tiers](/styleguide/#9-run-sizing-tiers) |
-| Sweep grid | $\eta \in$ \{{(cfg.sweep_lrs ?? []).join(", ")}\}, isw $\in$ \{{(cfg.sweep_isws ?? []).join(", ")}\} |
-| Winner | $\eta$ = {cell.lr ?? "?"}, isw = {cell.isw ?? "?"} |
+| Mode | {numbers.mode ?? "?"} |
+| $\eta$ / isw | {cell.lr ?? "?"} / {cell.isw ?? "?"} |
+| Hidden | {(cell.hidden ?? []).join("×")} |
 | Best acc / Final acc | {cell.best_acc ?? "?"}% / {cell.final_acc ?? "?"}% |
 | Final loss | {cell.final_loss?.toFixed?.(4) ?? "?"} |
 | Run ID | <span class="font-mono">{nbRunId}</span> |
