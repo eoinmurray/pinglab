@@ -47,12 +47,15 @@ FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
 MODELS = ["standard-snn", "snntorch-library", "cuba"]
-# Two input-transport modes for the dt sweep, matching the paper
-# (Parthasarathy et al. §2.1 / Fig 1B / §2.3). The FrozenEncoder anchors
-# at train-dt and transports count-preservingly under `zero-pad` (zeros
-# between spikes to finer eval-dt per Fig 1B, sum-pool to coarser per
-# §2.3) or draws fresh per target under `resample`.
-ENCODER_MODES = ["zero-pad", "resample"]
+# Three input-transport modes, one per paper-named case (Parthasarathy
+# et al. §2.1 / Fig 1B / §2.3). The FrozenEncoder anchors at train-dt:
+#   * upsample   — zero-pad the reference stream to finer eval-dt
+#                  (§2.1 / Fig 1B); eval-dt <= train-dt only.
+#   * downsample — sum-pool the reference stream to coarser eval-dt
+#                  (§2.3); eval-dt >= train-dt only.
+#   * resample   — fresh Poisson at the target dt (§2.1 alternative);
+#                  works in both directions.
+ENCODER_MODES = ["upsample", "downsample", "resample"]
 MAX_SAMPLES = 2000
 EPOCHS = 10
 T_MS = 600.0
@@ -223,19 +226,35 @@ def _mode_key(encoder_mode: str) -> str:
     return encoder_mode.replace("-", "_")
 
 
+def _sweep_grid_for(dt_train: float, encoder_mode: str) -> list[float]:
+    """Per-mode eval-dt grid. The count-preserving modes only cover their
+    paper-valid direction (upsample: eval-dt <= train-dt, §2.1 Fig 1B;
+    downsample: eval-dt >= train-dt, §2.3). Resample covers both
+    directions. All three include eval-dt == train-dt as the identity
+    anchor."""
+    full = DT_SWEEPS[dt_train]
+    if encoder_mode == "upsample":
+        return [d for d in full if d <= dt_train + 1e-9]
+    if encoder_mode == "downsample":
+        return [d for d in full if d >= dt_train - 1e-9]
+    if encoder_mode == "resample":
+        return list(full)
+    raise ValueError(f"unknown encoder mode {encoder_mode!r}")
+
+
 def sweep_model(model: str, dt_train: float, train_dir: Path,
                 encoder_mode: str, modal_gpu: str | None = None) -> Path:
     """Run dt-sweep inference against trained weights with a chosen frozen-input
     transport mode. Same underlying spike pattern across dt values (how it's
-    transported to coarser dt depends on mode) so the LIF dynamics are the
+    transported to each eval-dt depends on mode) so the LIF dynamics are the
     only thing that differs between sweep points."""
     sweep_dir = ARTIFACTS / _regime_key(dt_train) / model / f"sweep_{_mode_key(encoder_mode)}"
-    sweep_grid = DT_SWEEPS[dt_train]
+    sweep_grid = _sweep_grid_for(dt_train, encoder_mode)
     print(f"[{model} @ dt={dt_train}, mode={encoder_mode}] dt-sweep → "
           f"{sweep_dir.relative_to(REPO)}")
-    # Videos are only emitted for the zero-pad mode to keep wall-clock and
-    # disk within a small-tier budget; resample shares identical plotting
-    # paths so its videos add no additional scientific content.
+    # Sweep videos are only emitted for upsample mode to keep wall-clock
+    # and disk within a medium-tier budget; the other modes share
+    # identical plotting paths so their videos add no scientific content.
     cmd = [
         "run", "python", str(OSCILLOSCOPE), "infer",
         "--from-dir", str(train_dir),
@@ -245,7 +264,7 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
         "--out-dir", str(sweep_dir),
         "--wipe-dir",
     ]
-    if encoder_mode == "zero-pad":
+    if encoder_mode == "upsample":
         cmd += ["--observe", "video"]
     cmd = append_modal_args(cmd, modal_gpu)
     sh.uv(*cmd, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
@@ -460,10 +479,10 @@ def copy_videos(regime_train_dirs: dict[float, dict[str, Path]],
                 raise SystemExit(f"missing training video: {src}")
             dst = out_dir / f"training_{_regime_key(dt_train)}_{model}.mp4"
             _copy_with_stamp(src, dst, stamp_path)
-    # Only zero-pad emits sweep videos (see sweep_model).
+    # Only upsample emits sweep videos (see sweep_model).
     for dt_train, model_modes in regime_sweep_dirs.items():
         for model, mode_dirs in model_modes.items():
-            sweep_dir = mode_dirs.get("zero-pad")
+            sweep_dir = mode_dirs.get("upsample")
             if sweep_dir is None:
                 continue
             src = sweep_dir / "dt_sweep.mp4"
