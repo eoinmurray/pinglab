@@ -73,13 +73,25 @@ import Figure from "../../components/Figure.astro";
 
 For MP4s, pass *type="video"*. The component handles borders, spacing, and caption typography uniformly. A raw `<img>` or markdown image without a surrounding `<Figure>` is a bug.
 
-### 7. Bug findings belong in PRs, not notebook entries
+### 7. Code pointers and reproduction are pinned to commit SHA
+
+Notebook entries describe a point-in-time run, so any link from an entry to code should resolve to the code *as it was at that run*, not whatever is on *main* today. Three shared pieces make this work:
+
+- *src/docs/src/config/repo.ts* — central repo URL plus helpers *blobUrl*, *commitUrl*, *treeUrl*, *shortSha*, *isDirty*. All URL building flows through here; nothing else hard-codes *github.com/eoinmurray/pinglab*. The helpers strip a *(dirty)* suffix before building a link, so a dirty SHA still resolves to its parent commit.
+- `<ReproBadge>` (*src/docs/src/components/ReproBadge.astro*) — renders the per-entry metadata strip (run id, commit link, finished timestamp). Every notebook entry places one at the top of the page, fed from the entry's *numbers.json*. The *(dirty)* flag renders visibly so a reader can tell when figures came from uncommitted code.
+- `<Code>` (*src/docs/src/components/Code.astro*) — reusable code permalink; takes *path*, optional *line* or *range*, optional *sha*. Inline code references in notebook prose should use this rather than raw links, and should pass *sha={gitSha}* (the entry's *git_sha* export) so the pointer pins to the run.
+
+Every notebook entry must export *gitSha* from its *numbers.json* and pass it into the *ReproBadge*. Background pages (models, metrics, the oscilloscope) don't have a run SHA, so they use `<Code>` without *sha* and the link defaults to *main*.
+
+The notebook driver scripts (*src/pinglab/notebook/<slug>.py*) are responsible for lifting *git_sha* from the training *config.json* into the top-level of *numbers.json* — the *ReproBadge* reads it from there. Every layout also gets an "Edit this page on GitHub" footer for free via *MarkdownLayout.astro*, derived from the source file path; no per-page work.
+
+### 8. Bug findings belong in PRs, not notebook entries
 
 If a "finding" in a notebook entry turns out to be a bug about to be fixed, remove it from the notebook. The evidence, root cause, and reproducer belong in the PR that fixes it. The notebook records findings about how the system behaves; PRs record what changed and why.
 
 When a notebook entry's narrative gets invalidated by a fix (e.g., an "accuracy gap" that was actually a device-specific bug), the entry needs rewriting against the post-fix baseline — not a new subsection documenting the debugging trail. Durable profilers added mid-investigation get removed with the notebook subsection unless they have standalone value beyond the fixed bug.
 
-### 8. Run sizing tiers
+### 9. Run sizing tiers
 
 Notebook entry runs pick from a fixed set of tiers. Tiers are size-named so the expected wall-clock cost is legible from the config alone. Notebooks come in two flavours — **training** (gradient descent over samples × epochs) and **video-render** (forward-pass sim per frame + matplotlib render). Both use the same tier names so an entry labeled *small* is an iteration-speed run regardless of flavour, but the underlying budgets differ.
 

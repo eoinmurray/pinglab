@@ -1,0 +1,32 @@
+{
+  "notebook_run_id": "r007",
+  "git_sha": "879c128 (dirty)",
+  "tier": "medium",
+  "config": {
+    "model": "cuba",
+    "dataset": "smnist",
+    "hidden": [
+      64,
+      64
+    ],
+    "t_ms": 280.0,
+    "dt": 1.0,
+    "seed": 42,
+    "max_samples": 2000,
+    "epochs": 10
+  },
+  "cells": {
+    "cuba_baseline": {
+      "model": "cuba",
+      "hidden": [
+        64,
+        64
+      ],
+      "best_acc": 25.75,
+      "final_acc": 25.75,
+      "final_loss": 2.1230204820632936,
+      "run_dir": "src/artifacts/notebook/nb004/cuba"
+    }
+  },
+  "run_finished_at": "2026-04-22T10:15:01.224493Z"
+}

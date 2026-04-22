@@ -484,6 +484,7 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
     first_cfg = load_config(next(iter(first_regime.values())))
     summary: dict[str, dict] = {
         "notebook_run_id": notebook_run_id,
+        "git_sha": first_cfg.get("git_sha"),
         "duration_s": round(duration_s, 1),
         "duration": _format_duration(duration_s),
         "init_match": init_match or {},

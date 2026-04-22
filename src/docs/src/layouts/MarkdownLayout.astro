@@ -1,10 +1,26 @@
 ---
 import "katex/dist/katex.min.css";
 import "../styles/global.css";
-const { frontmatter, headings = [] } = Astro.props;
+import { blobUrl } from "../config/repo";
+const { frontmatter, headings = [], file } = Astro.props as {
+  frontmatter: any;
+  headings?: any;
+  file?: string;
+};
 
 type Heading = { depth: number; slug: string; text: string };
 const toc: Heading[] = headings.filter((h: Heading) => h.depth >= 2 && h.depth <= 3);
+
+// `file` is an absolute filesystem path to the source .md/.mdx. Strip the
+// repo prefix so the "Edit on GitHub" link points at the file in-tree.
+let editHref: string | null = null;
+if (file) {
+  const idx = file.indexOf("/src/docs/");
+  if (idx !== -1) {
+    const relPath = file.slice(idx + 1); // drop leading "/"
+    editHref = blobUrl(relPath);
+  }
+}
 ---
 
 <html lang="en">
@@ -40,7 +56,26 @@ const toc: Heading[] = headings.filter((h: Heading) => h.depth >= 2 && h.depth <
         <article class="prose max-w-none" style="font-family: var(--font-serif);">
           <slot />
         </article>
+        {editHref && (
+          <footer class="page-source not-prose">
+            <a href={editHref} target="_blank" rel="noopener">Edit this page on GitHub →</a>
+          </footer>
+        )}
       </div>
     </main>
   </body>
 </html>
+
+<style>
+  .page-source {
+    margin-top: 3rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e7e5df;
+    font-family: var(--font-serif);
+    font-size: 0.85rem;
+    color: #777;
+  }
+  .page-source a {
+    color: #555;
+  }
+</style>

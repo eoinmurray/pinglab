@@ -1,0 +1,84 @@
+---
+import { commitUrl, isDirty, shortSha } from "../config/repo";
+
+interface Props {
+  sha?: string | null;
+  runId?: string | null;
+  finished?: string | null;
+}
+
+const { sha, runId, finished } = Astro.props as Props;
+const dirty = isDirty(sha);
+const short = shortSha(sha);
+const href = sha ? commitUrl(sha) : null;
+---
+
+<aside class="repro-badge not-prose">
+  <span class="repro-label">Reproduction</span>
+  {runId && (
+    <>
+      <span class="repro-sep">·</span>
+      <span class="repro-kv"><span class="k">run</span> <span class="v">{runId}</span></span>
+    </>
+  )}
+  {short && (
+    <>
+      <span class="repro-sep">·</span>
+      <span class="repro-kv">
+        <span class="k">commit</span>{" "}
+        {href ? (
+          <a class="v mono" href={href} target="_blank" rel="noopener">{short}</a>
+        ) : (
+          <span class="v mono">{short}</span>
+        )}
+        {dirty && <span class="dirty" title="figures generated from uncommitted changes">(dirty)</span>}
+      </span>
+    </>
+  )}
+  {finished && (
+    <>
+      <span class="repro-sep">·</span>
+      <span class="repro-kv"><span class="k">finished</span> <span class="v">{finished}</span></span>
+    </>
+  )}
+</aside>
+
+<style>
+  .repro-badge {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
+    align-items: baseline;
+    font-family: var(--font-serif);
+    font-size: 0.85rem;
+    color: #555;
+    padding: 0.45rem 0.7rem;
+    margin: 0.75rem 0 1.25rem;
+    border: 1px solid #d9d5c8;
+    background: #fafaf7;
+    border-radius: 2px;
+  }
+  .repro-label {
+    font-weight: 600;
+    color: #333;
+    letter-spacing: 0.02em;
+  }
+  .repro-sep {
+    color: #bbb;
+  }
+  .repro-kv .k {
+    color: #777;
+    margin-right: 0.25rem;
+  }
+  .repro-kv .v {
+    color: #222;
+  }
+  .repro-kv .mono {
+    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  }
+  .repro-kv .dirty {
+    color: #a33;
+    margin-left: 0.3rem;
+    font-size: 0.8em;
+  }
+</style>
