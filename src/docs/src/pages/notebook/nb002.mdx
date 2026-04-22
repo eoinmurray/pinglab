@@ -6,6 +6,7 @@ entry: 2
 structure: paper
 ---
 import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb002/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -29,13 +30,7 @@ export const hasScan = Object.keys(videoGlob).some((k) => k.endsWith("/scan_over
 export const hasScanDt = Object.keys(videoGlob).some((k) => k.endsWith("/scan_dt.mp4"));
 export const hasScanEi = Object.keys(videoGlob).some((k) => k.endsWith("/scan_ei.mp4"));
 
-# Basic PING videos
-
-<p><span class="font-mono">nb002</span> · Saturday, 18<sup>th</sup> April 26</p>
-
-| Run ID | Date | Size | Duration |
-|---|---|---|---|
-| <span class="font-mono">{nbRunId}</span> | {runDatetime} | {cfg.tier ?? "?"} | {runDuration} |
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 **PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz. It only runs when E gets enough external drive; below threshold the network sits in background firing.
 
@@ -63,7 +58,17 @@ export const hasScanEi = Object.keys(videoGlob).some((k) => k.endsWith("/scan_ei
   </Figure>
 )}
 
-## Parameters
+## Appendix
+
+### Reproduction
+
+From the repo root:
+
+```
+uv run src/pinglab/notebook/nb002.py
+```
+
+### Run parameters
 
 | Parameter | Value | Meaning |
 |---|---|---|
@@ -77,13 +82,7 @@ export const hasScanEi = Object.keys(videoGlob).some((k) => k.endsWith("/scan_ei
 | E→I strength scan | {eiScan.min}–{eiScan.max} | *scan_ei.mp4* at overdrive {eiScan.fixed_overdrive}× |
 | Frames / FPS | {scan.frames} / {scan.fps} | per video |
 | Seed | {cfg.seed} | RNG seed |
-| Tier | **{cfg.tier}** | see Style guide § 8 |
-
-## Reproduction
-
-From the repo root:
-
-```
-uv run src/pinglab/notebook/nb002.py
-```
+| Tier | **{cfg.tier}** | see [Style guide § 9 Run sizing tiers](/styleguide/#9-run-sizing-tiers) |
+| Run ID | <span class="font-mono">{nbRunId}</span> | |
+| Elapsed | {runDuration} | |
 
