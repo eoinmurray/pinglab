@@ -15,10 +15,18 @@ const href = sha ? commitUrl(sha) : null;
 const kv = "inline-flex items-baseline gap-1";
 const k = "text-muted-soft";
 const v = "text-ink";
+const hasAny = Boolean(runId || short || finished);
 ---
 
 <aside class="not-prose mt-3 mb-5 flex flex-wrap items-baseline gap-x-2 gap-y-1.5 rounded-[2px] border border-rule-warm bg-paper-tint px-[0.7rem] py-[0.45rem] font-serif text-[0.85rem] text-dim">
   <span class="font-semibold tracking-wide text-ink-soft">Reproduction</span>
+
+  {!hasAny && (
+    <>
+      <span class="text-faint">·</span>
+      <span class="italic text-muted-soft">no run yet</span>
+    </>
+  )}
 
   {runId && (
     <>
