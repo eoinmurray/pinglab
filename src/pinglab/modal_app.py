@@ -43,8 +43,14 @@ def _run_oscilloscope_impl(cli_args: list[str]) -> str:
     args = list(cli_args)
 
     def _remap_to_volume(path: str) -> str:
-        """Translate a local src/artifacts/... path to the Modal volume mount."""
-        for prefix in ("src/artifacts/", "src/artifacts", "artifacts/", "artifacts"):
+        """Translate a local src/artifacts/... path to the Modal volume mount.
+        Handles both relative (src/artifacts/...) and absolute
+        (/Users/.../src/artifacts/...) paths."""
+        marker = "src/artifacts/"
+        idx = path.find(marker)
+        if idx != -1:
+            return f"{REMOTE_ARTIFACTS}/{path[idx + len(marker):]}"
+        for prefix in ("artifacts/", "artifacts"):
             if path.startswith(prefix):
                 return f"{REMOTE_ARTIFACTS}/{path[len(prefix):]}"
         return path
