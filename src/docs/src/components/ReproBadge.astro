@@ -11,74 +11,43 @@ const { sha, runId, finished } = Astro.props as Props;
 const dirty = isDirty(sha);
 const short = shortSha(sha);
 const href = sha ? commitUrl(sha) : null;
+
+const kv = "inline-flex items-baseline gap-1";
+const k = "text-muted-soft";
+const v = "text-ink";
 ---
 
-<aside class="repro-badge not-prose">
-  <span class="repro-label">Reproduction</span>
+<aside class="not-prose mt-3 mb-5 flex flex-wrap items-baseline gap-x-2 gap-y-1.5 rounded-[2px] border border-rule-warm bg-paper-tint px-[0.7rem] py-[0.45rem] font-serif text-[0.85rem] text-dim">
+  <span class="font-semibold tracking-wide text-ink-soft">Reproduction</span>
+
   {runId && (
     <>
-      <span class="repro-sep">·</span>
-      <span class="repro-kv"><span class="k">run</span> <span class="v">{runId}</span></span>
+      <span class="text-faint">·</span>
+      <span class={kv}><span class={k}>run</span><span class={v}>{runId}</span></span>
     </>
   )}
+
   {short && (
     <>
-      <span class="repro-sep">·</span>
-      <span class="repro-kv">
-        <span class="k">commit</span>{" "}
+      <span class="text-faint">·</span>
+      <span class={kv}>
+        <span class={k}>commit</span>
         {href ? (
-          <a class="v mono" href={href} target="_blank" rel="noopener">{short}</a>
+          <a class={`${v} font-mono`} href={href} target="_blank" rel="noopener">{short}</a>
         ) : (
-          <span class="v mono">{short}</span>
+          <span class={`${v} font-mono`}>{short}</span>
         )}
-        {dirty && <span class="dirty" title="figures generated from uncommitted changes">(dirty)</span>}
+        {dirty && (
+          <span class="ml-[0.3rem] text-[0.8em] text-danger" title="figures generated from uncommitted changes">(dirty)</span>
+        )}
       </span>
     </>
   )}
+
   {finished && (
     <>
-      <span class="repro-sep">·</span>
-      <span class="repro-kv"><span class="k">finished</span> <span class="v">{finished}</span></span>
+      <span class="text-faint">·</span>
+      <span class={kv}><span class={k}>finished</span><span class={v}>{finished}</span></span>
     </>
   )}
 </aside>
-
-<style>
-  .repro-badge {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem 0.5rem;
-    align-items: baseline;
-    font-family: var(--font-serif);
-    font-size: 0.85rem;
-    color: #555;
-    padding: 0.45rem 0.7rem;
-    margin: 0.75rem 0 1.25rem;
-    border: 1px solid #d9d5c8;
-    background: #fafaf7;
-    border-radius: 2px;
-  }
-  .repro-label {
-    font-weight: 600;
-    color: #333;
-    letter-spacing: 0.02em;
-  }
-  .repro-sep {
-    color: #bbb;
-  }
-  .repro-kv .k {
-    color: #777;
-    margin-right: 0.25rem;
-  }
-  .repro-kv .v {
-    color: #222;
-  }
-  .repro-kv .mono {
-    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
-  }
-  .repro-kv .dirty {
-    color: #a33;
-    margin-left: 0.3rem;
-    font-size: 0.8em;
-  }
-</style>

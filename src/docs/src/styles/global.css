@@ -40,12 +40,25 @@
 @theme {
   --font-serif: 'Computer Modern Serif', 'New Computer Modern', 'Latin Modern Roman', Georgia, serif;
   --font-mono: 'Computer Modern Typewriter', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-ink-strong: #1a1a1a;
+  --color-ink: #222;
+  --color-ink-soft: #333;
+  --color-dim: #555;
+  --color-muted: #666;
+  --color-muted-soft: #777;
+  --color-faint: #bbb;
+  --color-rule: #e7e5df;
+  --color-rule-warm: #d9d5c8;
+  --color-paper: #fff;
+  --color-paper-tint: #fafaf7;
+  --color-danger: #a33;
 }
 
 :root {
-  --ink: #222;
-  --paper: #fff;
-  --muted: #666;
+  --ink: var(--color-ink);
+  --paper: var(--color-paper);
+  --muted: var(--color-muted);
 }
 
 html, body {
@@ -76,8 +89,8 @@ code, pre, kbd, samp {
    border, no heavy shadow. Shiki inlines its own colors via inline styles;
    we only override the block chrome. */
 pre.astro-code {
-  background: #fafaf7 !important;
-  border: 1px solid #e7e5df;
+  background: var(--color-paper-tint) !important;
+  border: 1px solid var(--color-rule);
   border-radius: 2px;
   padding: 0.9rem 1.1rem;
   line-height: 1.5;
