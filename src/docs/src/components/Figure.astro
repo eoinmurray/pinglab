@@ -12,6 +12,7 @@ const {
 } = Astro.props;
 
 const anchor = id ? `fig-${String(id).toLowerCase().replace(/\s+/g, "-")}` : undefined;
+const hasMedia = typeof src === "string" && src.length > 0;
 ---
 
 <figure class="not-prose mx-auto my-4 w-full rounded-[2px] border border-rule-warm bg-paper-tint px-4 pt-[0.85rem] pb-[0.9rem]" id={anchor}>
@@ -21,17 +22,27 @@ const anchor = id ? `fig-${String(id).toLowerCase().replace(/\s+/g, "-")}` : und
       {title && <span class="font-bold">{title}</span>}
     </div>
   )}
-  {type === "video" ? (
-    <video
-      src={src}
-      controls={controls}
-      loop={loop}
-      muted={muted}
-      playsinline={playsinline}
-      class="mb-[0.8rem] block h-auto w-full rounded-[1px] border border-rule bg-paper"
-    />
+  {hasMedia ? (
+    type === "video" ? (
+      <video
+        src={src}
+        controls={controls}
+        loop={loop}
+        muted={muted}
+        playsinline={playsinline}
+        class="mb-[0.8rem] block h-auto w-full rounded-[1px] border border-rule bg-paper"
+      />
+    ) : (
+      <img src={src} alt={alt} class="mb-[0.8rem] block h-auto w-full rounded-[1px] border border-rule bg-paper" />
+    )
   ) : (
-    <img src={src} alt={alt} class="mb-[0.8rem] block h-auto w-full rounded-[1px] border border-rule bg-paper" />
+    <div
+      role="img"
+      aria-label={alt || "No figure yet"}
+      class="mb-[0.8rem] flex aspect-[16/9] w-full items-center justify-center rounded-[1px] border border-dashed border-rule bg-paper font-serif text-[0.9rem] italic text-muted-soft"
+    >
+      No figure yet — run the notebook to generate.
+    </div>
   )}
   <figcaption class="figure-caption text-left font-serif text-[0.88rem] leading-[1.55] text-ink-soft"><slot /></figcaption>
 </figure>

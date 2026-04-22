@@ -10,15 +10,22 @@ interface Props {
 }
 
 const { path, line, range, sha } = Astro.props as Props;
-const href = blobUrl(path, { sha, line, range });
+const hasPath = typeof path === "string" && path.length > 0;
+const href = hasPath ? blobUrl(path, { sha, line, range }) : null;
 
 const lineSuffix = range
   ? `:${range[0]}-${range[1]}`
   : line != null
     ? `:${line}`
     : "";
-const defaultLabel = `${path}${lineSuffix}`;
+const defaultLabel = hasPath ? `${path}${lineSuffix}` : "no source yet";
 ---
-<a href={href} class="font-mono text-[0.92em] decoration-1 underline-offset-[0.2em]" target="_blank" rel="noopener">
-  <slot>{defaultLabel}</slot>
-</a>
+{hasPath ? (
+  <a href={href} class="font-mono text-[0.92em] decoration-1 underline-offset-[0.2em]" target="_blank" rel="noopener">
+    <slot>{defaultLabel}</slot>
+  </a>
+) : (
+  <span class="font-mono text-[0.92em] italic text-muted-soft" title="no source path provided">
+    <slot>{defaultLabel}</slot>
+  </span>
+)}
