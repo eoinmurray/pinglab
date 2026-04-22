@@ -35,6 +35,7 @@ sys.path.insert(0, str(PINGLAB))
 import numpy as np  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
+from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 
 SLUG = "nb002"
@@ -47,7 +48,7 @@ OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 # Input is MNIST digit 0 sample 0, Poisson-encoded. base_rate comes from
 # M.max_rate_hz; during the stim window rate = base_rate * overdrive.
 SEED           = 42
-TIER           = "medium"  # see src/docs/src/pages/styleguide.md § 8
+TIER           = "small"  # see src/docs/src/pages/styleguide.md § 8
 # Per-scan frame count by tier. nb002 runs 3 scans, so wall-clock ≈ 3 × frames × ~1.3 s.
 TIER_FRAMES    = {"extra small": 5, "small": 15, "medium": 100, "large": 300, "extra large": 600}
 N_HIDDEN       = 512     # → N_E=512, N_I=128 (n_i = n_e//4)
@@ -125,11 +126,12 @@ _DATASET_ARGS = (
 )
 
 
-def render_scan(out_dir: Path) -> Path:
+def render_scan(out_dir: Path, modal_gpu: str | None = None) -> Path:
     """Sweep stim-overdrive 1×→10× with MNIST d0s0 input. Each frame
     re-runs the sim with a different in-window rate multiplier."""
-    print(f"[scan] → {out_dir.relative_to(REPO)}")
-    sh.uv(
+    print(f"[scan] → {out_dir.relative_to(REPO)}"
+          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
+    args = [
         "run", "python", str(OSCILLOSCOPE), "video",
         "--model", "ping",
         "--n-hidden", str(N_HIDDEN),
@@ -144,22 +146,23 @@ def render_scan(out_dir: Path) -> Path:
         "--dt", str(DT_MS),
         "--out-dir", str(out_dir),
         "--wipe-dir",
-        _cwd=str(REPO),
-        _out=sys.stdout, _err=sys.stderr,
-    )
+    ]
+    args = append_modal_args(args, modal_gpu)
+    sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     mp4 = out_dir / "scan.mp4"
     if not mp4.exists():
         raise SystemExit(f"video run did not produce {mp4}")
     return mp4
 
 
-def render_dt_scan(out_dir: Path) -> Path:
+def render_dt_scan(out_dir: Path, modal_gpu: str | None = None) -> Path:
     """Sweep integration dt at high fixed overdrive with MNIST d0s0 input.
     Fine dt is stable, coarse dt distorts or diverges. Overdrive is held
     well past the PING threshold so dt is the only variable breaking
     the rhythm."""
-    print(f"[dt-scan] → {out_dir.relative_to(REPO)}")
-    sh.uv(
+    print(f"[dt-scan] → {out_dir.relative_to(REPO)}"
+          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
+    args = [
         "run", "python", str(OSCILLOSCOPE), "video",
         "--model", "ping",
         "--n-hidden", str(N_HIDDEN),
@@ -174,22 +177,23 @@ def render_dt_scan(out_dir: Path) -> Path:
         "--frame-rate", str(DT_SCAN_FPS),
         "--out-dir", str(out_dir),
         "--wipe-dir",
-        _cwd=str(REPO),
-        _out=sys.stdout, _err=sys.stderr,
-    )
+    ]
+    args = append_modal_args(args, modal_gpu)
+    sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     mp4 = out_dir / "scan.mp4"
     if not mp4.exists():
         raise SystemExit(f"dt-scan video run did not produce {mp4}")
     return mp4
 
 
-def render_ei_scan(out_dir: Path) -> Path:
+def render_ei_scan(out_dir: Path, modal_gpu: str | None = None) -> Path:
     """Sweep E→I coupling strength with *no* stim-window overdrive (input
     rate flat through the trial). At strength=0 the E/I populations
     decouple → async; raising the strength closes the E→I→E feedback loop
     → gamma — isolating coupling as the knob that lights up PING."""
-    print(f"[ei-scan] → {out_dir.relative_to(REPO)}")
-    sh.uv(
+    print(f"[ei-scan] → {out_dir.relative_to(REPO)}"
+          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
+    args = [
         "run", "python", str(OSCILLOSCOPE), "video",
         "--model", "ping",
         "--n-hidden", str(N_HIDDEN),
@@ -205,9 +209,9 @@ def render_ei_scan(out_dir: Path) -> Path:
         "--dt", str(DT_MS),
         "--out-dir", str(out_dir),
         "--wipe-dir",
-        _cwd=str(REPO),
-        _out=sys.stdout, _err=sys.stderr,
-    )
+    ]
+    args = append_modal_args(args, modal_gpu)
+    sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     mp4 = out_dir / "scan.mp4"
     if not mp4.exists():
         raise SystemExit(f"ei-scan video run did not produce {mp4}")
@@ -341,10 +345,12 @@ def write_numbers(rates: dict, out_path: Path, notebook_run_id: str,
 
 def main() -> None:
     wipe_dir = "--no-wipe-dir" not in sys.argv
+    modal_gpu = parse_modal_gpu(sys.argv)
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id}")
+    print(f"notebook_run_id = {notebook_run_id}"
+          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
 
     if wipe_dir:
         for d in (ARTIFACTS, FIGURES):
@@ -359,17 +365,17 @@ def main() -> None:
 
     # 1. Oscilloscope-rendered scan video (stim-overdrive sweep).
     scan_dir = ARTIFACTS / "scan"
-    scan_src = render_scan(scan_dir)
+    scan_src = render_scan(scan_dir, modal_gpu=modal_gpu)
     _overlay_stamp_video(scan_src, FIGURES / "scan_overdrive.mp4", stamp)
 
     # 2. Oscilloscope-rendered dt sweep at fixed overdrive=5×.
     dt_scan_dir = ARTIFACTS / "dt_scan"
-    dt_scan_src = render_dt_scan(dt_scan_dir)
+    dt_scan_src = render_dt_scan(dt_scan_dir, modal_gpu=modal_gpu)
     _overlay_stamp_video(dt_scan_src, FIGURES / "scan_dt.mp4", stamp)
 
     # 3. Oscilloscope-rendered ei_strength sweep — async → PING.
     ei_scan_dir = ARTIFACTS / "ei_scan"
-    ei_scan_src = render_ei_scan(ei_scan_dir)
+    ei_scan_src = render_ei_scan(ei_scan_dir, modal_gpu=modal_gpu)
     _overlay_stamp_video(ei_scan_src, FIGURES / "scan_ei.mp4", stamp)
 
     stamp.unlink(missing_ok=True)

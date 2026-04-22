@@ -173,6 +173,14 @@ The Tutorial-3 update has no *dt*-invariance by construction; *cuba*'s $(1-\beta
 
 Every later rung of the [ladder](/models/) inherits CUBA's ODE-derived discretisation, so *dt*-stability is a **ladder invariant** from CUBA onwards. Any rung that breaks it is a rung defect, not biophysics.
 
+## Success criteria
+
+- ✅ ***cuba* rate-flat across eval-*dt***. Max/min hidden-rate ratio across the sweep: ∼{ratioFmt(rateRatio(cuba1Zp), 2)}× at train-*dt* = {dt1} ms, ∼{ratioFmt(rateRatio(cuba2Zp), 2)}× at {dt2} ms. Criterion: ≤ 2×.
+- ✅ **snnTorch paths sag**. Rate ratios: standard-snn ∼{ratioFmt(rateRatio(snn1Zp))}× / {ratioFmt(rateRatio(snn2Zp))}×, snntorch-library ∼{ratioFmt(rateRatio(lib1Zp))}× / {ratioFmt(rateRatio(lib2Zp))}× (criterion: ≥ 10× — the expected 1/*dt* signature).
+- ✅ **Pinglab parity with snnTorch**. *standard-snn* tracks *snntorch-library* within a few percent across the sweep in both regimes, so the sag is the update rule rather than a pinglab bug.
+- ✅ **Encoder-mode neutrality**. Neither zero-pad nor resample changes the qualitative picture in either regime (see the [encoder-mode table](#encoder-mode-is-not-the-driver)) — the driver is the LIF update rule, not the input transport.
+- ⚠ **Training-budget headroom**. All three models train to comparable best-acc at each train-*dt* at the **{cfg.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs), but absolute accuracy is budget-limited; a large-tier rerun is the next-steps item.
+
 ## Next steps
 
 ### Promote to a large-tier run

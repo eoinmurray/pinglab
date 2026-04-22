@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r026",
-  "run_datetime": "Saturday, 18th April 26 at 14:59",
-  "duration_s": 2.6,
-  "duration": "3s",
+  "notebook_run_id": "r027",
+  "run_datetime": "Wednesday, 22nd April 26 at 16:48",
+  "duration_s": 2.4,
+  "duration": "2s",
   "config": {
     "tier": "extra small",
     "model": "ping",

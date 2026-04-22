@@ -23,13 +23,13 @@ For neuromorphic hardware, the angle is timing. Chips typically rely on a global
 
 ## How the repo works
 
-Pinglab is organised around one CLI and one lab notebook. Every result on this site traces back to a [notebook entry](/) whose repro script drives the same CLI the experiments were developed in.
+Pinglab is organised around one CLI and one lab notebook. Every result on this site traces back to a notebook **entry** whose **runner** drives the same CLI the experiments were developed in.
 
 **Oscilloscope** — the training / inference / inspection CLI at *src/pinglab/oscilloscope.py*. *train* and *infer* subcommands cover every run; notebook runners shell out to it.
 
-**Notebook entries** — dated writeups at *src/docs/src/pages/notebook/&lt;slug&gt;.mdx*, listed newest-first on the home page. There is no separate paper layer — a paper-shaped writeup is still a notebook entry. Slugs are *nb* + zero-padded global number (*nb001*, *nb002*, …); the date lives in the frontmatter and the long-form byline, not the slug. Most entries follow Introduction / Method / Findings / Implications / Next steps.
+**Entries** — dated writeups at *src/docs/src/pages/notebook/&lt;slug&gt;.mdx*, listed newest-first on the home page. There is no separate paper layer — a paper-shaped writeup is still an entry. Slugs are *nb* + zero-padded global number (*nb001*, *nb002*, …); the date lives in the frontmatter and the long-form byline, not the slug. Most entries follow Introduction / Method / Findings / Implications / Next steps.
 
-**Repro scripts** — each entry that cites generated figures gets a runner at *src/pinglab/notebook/&lt;slug&gt;.py*. One command regenerates every figure the entry references and writes a *numbers.json* alongside them under *src/docs/public/figures/notebook/&lt;slug&gt;/*. The script is the promotion gate between *src/artifacts/* (raw, gitignored) and *src/docs/public/figures/* (published). Provenance is the script plus the commit: the script's *SLUG*, *MAX_SAMPLES*, *EPOCHS*, *TIER* constants pin the run config; git history pins the model code.
+**Runners** — each entry that cites generated figures gets a runner at *src/pinglab/notebook/&lt;slug&gt;.py*. One command regenerates every figure the entry references and writes a *numbers.json* alongside them under *src/docs/public/figures/notebook/&lt;slug&gt;/*. The runner is the promotion gate between *src/artifacts/* (raw, gitignored) and *src/docs/public/figures/* (published). Provenance is the runner plus the commit: the runner's *SLUG*, *MAX_SAMPLES*, *EPOCHS*, *TIER* constants pin the run config; git history pins the model code.
 
 Beyond those three: *src/pinglab/* is the code (pure Python under [uv](https://docs.astral.sh/uv/)), *src/papers/* is the bibliography, and *CLAUDE.md* + [Style guide](/styleguide/) + project-scoped memory hold the collaboration rules for how the human and AI work on this together.
 
@@ -50,10 +50,10 @@ uv run python src/pinglab/oscilloscope.py train --model standard-snn \
   --dataset mnist --max-samples 1000 --epochs 3
 ```
 
-Reproduce a notebook entry (argument-free; regenerates every figure and number it cites):
+Reproduce a notebook entry — invoke its runner (argument-free; regenerates every figure and number the entry cites):
 
 ```sh
-uv run python src/pinglab/notebook/<entry-slug>.py
+uv run python src/pinglab/notebook/<slug>.py
 ```
 
 Run the docs site (served at *localhost:3000*):
@@ -72,6 +72,8 @@ uv run pytest
 
 Project-specific terms. Definitions here are load-bearing — if something elsewhere contradicts a definition, this page wins.
 
+- **Entry** — the published writeup for a notebook investigation, at *src/docs/src/pages/notebook/&lt;slug&gt;.mdx*. The permanent, dated document that readers see.
+- **Runner** — the Python script that produces every figure and number an entry cites, at *src/pinglab/notebook/&lt;slug&gt;.py*. Shells out to the oscilloscope and writes to *src/docs/public/figures/notebook/&lt;slug&gt;/*. Entry and runner share a slug and are always paired 1:1.
 - **Ladder** — the feature-incremental set of models stepping from a vanilla SNN to full PING: *standard-snn → cuba → coba → ping*. Each rung adds one biophysical feature.
 - **CUBA / COBA** — current-based vs conductance-based synapses. The axis the Δt-stability experiment decomposes.
 - **PING** — Pyramidal-Interneuron Gamma. The E→I→E feedback loop that produces gamma oscillations (30–80 Hz).
