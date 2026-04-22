@@ -47,10 +47,11 @@ The readout swap is not free — it has its own init + time-constant tuning, and
 
 ## Next steps
 
-1. Separate the readout init from the hidden init: add an *init-scale-readout* knob (default 1.0) so the 3.0× hidden scaling doesn't bleed into $W_\text{out}$, and rerun *cuba* + li at *medium*.
-2. Expose the li readout's time constant as a separate param (e.g. $\tau_\text{out}$), default $\sim$20 ms to match Zenke-style SHD pipelines, and sweep it ($\tau_\text{out} \in $ \{10, 20, 40\} ms) at the best init from step 1.
-3. Once li is at or above rate, broaden the cell matrix across the four model families ([*cuba*](/models/#cuba), [*standard-snn*](/models/#standard-snn), [*ping*](/models/#ping), [*snntorch-library*](/models/#snntorch-library)) at matched init.
-4. Sweep training *dt* (0.25 / 0.5 / 1.0 ms) to reprise the nb003 discretisation comparison on a natively-spiking task.
+Scope for this entry narrows to: **get [*cuba*](/models/#cuba) training cleanly on SHD**. Readout choice, the other model families, and the *dt* sweep are out of scope until the cuba baseline itself is well-tuned.
+
+1. Hyperparameter pass at *medium*: sweep learning rate, *init_scale_weight* / *init_scale_bias*, and hidden width / depth to push *cuba* + rate past the current 36.5% baseline.
+2. Confirm *cuba* trains monotonically at *large* tier (5000 samples × 40 epochs) with the best settings from step 1 — no collapse, no plateau, best-acc improving with budget.
+3. Keep a single reference cell (one model, one readout) until the baseline number is stable and defensible; only then broaden scope.
 
 ## Appendix
 
