@@ -25,13 +25,16 @@ export const cuba1 = r1.runs?.cuba ?? {};
 export const snn2 = r2.runs?.["standard-snn"] ?? {};
 export const lib2 = r2.runs?.["snntorch-library"] ?? {};
 export const cuba2 = r2.runs?.cuba ?? {};
-export const mode = (run, m = "zero-pad") => (run?.encoder_modes?.[m] ?? {});
-export const snn1Zp = mode(snn1);
-export const lib1Zp = mode(lib1);
-export const cuba1Zp = mode(cuba1);
-export const snn2Zp = mode(snn2);
-export const lib2Zp = mode(lib2);
-export const cuba2Zp = mode(cuba2);
+export const mode = (run, m = "upsample") => (run?.encoder_modes?.[m] ?? {});
+// Use each regime's count-preserving mode that covers most of its sweep:
+// at fine train-dt (0.1), eval-dt mostly extends coarser → downsample;
+// at coarse train-dt (1.0), eval-dt mostly extends finer → upsample.
+export const snn1Cp = mode(snn1, "downsample");
+export const lib1Cp = mode(lib1, "downsample");
+export const cuba1Cp = mode(cuba1, "downsample");
+export const snn2Cp = mode(snn2, "upsample");
+export const lib2Cp = mode(lib2, "upsample");
+export const cuba2Cp = mode(cuba2, "upsample");
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const gitSha = numbers.git_sha ?? null;
 export const runDuration = numbers.duration ?? "?";
@@ -42,12 +45,17 @@ export const rateRatio = (r) => (r && typeof r.sweep_max_hid_rate_hz === "number
   ? r.sweep_max_hid_rate_hz / r.sweep_min_hid_rate_hz
   : null);
 export const ratioFmt = (x, digits = 0) => (typeof x === "number" ? (digits === 0 ? Math.round(x) : x.toFixed(digits)) : "?");
-export const accRange = (run, m = "zero-pad") => {
+export const accRange = (run, m = "upsample") => {
   const e = mode(run, m);
   return (typeof e.sweep_min_acc === "number" && typeof e.sweep_max_acc === "number")
     ? `${e.sweep_min_acc}–${e.sweep_max_acc}%` : "?";
 };
-export const encoderModes = cfg.encoder_modes ?? ["zero-pad", "resample"];
+export const encoderModes = cfg.encoder_modes ?? ["upsample", "downsample", "resample"];
+export const accSpread = (run, m = "upsample") => {
+  const e = mode(run, m);
+  return (typeof e.sweep_min_acc === "number" && typeof e.sweep_max_acc === "number")
+    ? `${Math.round(e.sweep_max_acc - e.sweep_min_acc)}%` : "?";
+};
 
 export const figGlob = import.meta.glob("../../../public/figures/notebook/nb003/*.{png,mp4}", { eager: true, query: "?url", import: "default" });
 export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" + name));
@@ -56,21 +64,17 @@ export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" 
 
 ## Introduction
 
-A spiking neural network has a simulation timestep *dt* — the interval between "frames" of the neuron's voltage. If you train a network at one *dt* and then run it at another, should it still work?
+Train an SNN at one simulation timestep *dt*, run it at another — does it still work? Depends on how the LIF ODE gets discretised.
 
-*In principle,* yes: the neuron models a physical process (a leaky membrane integrating input over real milliseconds), so halving *dt* should change nothing meaningful — you just take twice as many half-size steps. In practice, whether this holds depends on how the continuous equation gets discretised into a step.
+[snnTorch](https://snntorch.readthedocs.io)'s [Tutorial 3 § 1.2](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#the-decay-rate-beta) sets $\Delta t = 1$ and absorbs the $(1-\beta)$ prefactor into the weight, giving the clean $U_{t+1} = \beta\,U_t + W\,s_t$ update — pragmatic for fixed-*dt*, but *dt* drops out of the spec. This entry sweeps eval-*dt* anyway, and compares against a version that keeps *dt* in the update.
 
-[snnTorch](https://snntorch.readthedocs.io)'s [Tutorial 3 § 1.2](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#the-decay-rate-beta) is explicit about this: it derives the full Euler form, then deliberately sets $\Delta t = 1$ and absorbs the $(1-\beta)$ prefactor into a learnable weight to give the clean $U_{t+1} = \beta\,U_t + W\,s_t$ update. It's a clean, pragmatic choice for fixed-*dt* research — and snnTorch is the standard library the field uses every day. But the simplification does drop *dt* out of the spec, so a *dt*-sweep is outside what the tutorial promises. This entry measures what happens when you sweep anyway, and compares it against a version that keeps *dt* in the update rule.
+**Models** (see [the ladder](/models/)):
 
-**Models.** See [the ladder](/models/) for full descriptions.
+- [*standard-snn*](/models/#standard-snn) — pinglab's reimplementation of snnTorch's *snn.Leaky*. Tutorial-3 rule, *dt*-free by design.
+- [*snntorch-library*](/models/#snntorch-library) — snnTorch itself. Parity probe against *standard-snn*.
+- [*cuba*](/models/#cuba) — same LIF, ZOH-integrated over a step without the $\Delta t = 1$ substitution, so *dt* appears explicitly.
 
-- [*standard-snn*](/models/#standard-snn) — pinglab's reimplementation of snnTorch's *snn.Leaky*. The Tutorial-3 update rule, *dt*-free by design.
-- [*snntorch-library*](/models/#snntorch-library) — snnTorch itself, via *snn.Leaky*. Parity probe: any gap vs *standard-snn* would mean a pinglab implementation bug.
-- [*cuba*](/models/#cuba) — same LIF neuron, discretised by integrating the ODE over a step without the $\Delta t = 1$ substitution, so *dt* appears explicitly in the update.
-
-### Prior work
-
-[Parthasarathy et al.](/references/#temporal-discretisation) study exactly this update rule — they call it "Standard SNN" — and show that weights trained at one *dt* encode *dt*-specific dynamics, so transferring to a different eval-*dt* collapses accuracy. Their remedy (§2.5) is an average-loss regulariser applied on top of the Standard SNN update; their Appendix 1C (Eq 27) also derives a ZOH weight-rescaling rule $W(dt')/W(dt_{\text{ref}}) = (1-e^{-dt'/\tau_m})/(1-e^{-dt_{\text{ref}}/\tau_m})$ for transporting trained weights between *dt*s. nb003 takes the complementary route: bake the ZOH prefactors into the update rule itself (*cuba*'s $(1-\beta)/dt$ on the spike drive and $(1-\beta)$ on the bias, matching Paper Eq 25 rather than Eq 38's $\Delta t = 1$ shortcut) so no rescaling is needed at transport time.
+[Parthasarathy et al.](/references/#temporal-discretisation) document the same failure for the Tutorial-3 rule and propose a regulariser (§2.5) plus a ZOH weight-rescaling transport (App. 1C, Eq 27). nb003 takes the complementary route: bake the ZOH prefactors into the update rule itself — *cuba*'s $(1-\beta)/dt$ on drive and $(1-\beta)$ on bias, matching Paper Eq 25 — so no rescaling is needed.
 
 ## Method
 
@@ -78,114 +82,153 @@ A spiking neural network has a simulation timestep *dt* — the interval between
 2. **Freeze weights** and **evaluate** at a grid of *dt* values: \{{(cfg.dt_sweep ?? []).join(", ")}\} ms.
 3. Plot accuracy and hidden-layer firing rate vs eval-*dt*. A *dt*-stable model stays flat; an unstable one sags as eval-*dt* departs from train-*dt*.
 
-Two extra controls to keep the comparison honest.
+**Controls.** (i) *Matched init*: *standard-snn* and *cuba* start from bit-identical random weights; *cuba* gets a one-shot rescaling that cancels its per-step drive factors at train-*dt* so both models produce the same initial firing rate (otherwise *cuba* would start silent). (ii) *Frozen input + paper-matched transports*: the MNIST Poisson encoding is generated once at train-*dt* and transported to each sweep *dt* via one of the three transports the paper defines — **upsample** (zero-pad to finer eval-*dt*, §2.1 Fig 1B), **downsample** (sum-pool to coarser eval-*dt*, §2.3), or **resample** (fresh Poisson at the target *dt*, §2.1 alternative). All three are run per regime; see the [encoder-mode audit](#4-encoder-mode-does-not-change-the-picture). (iii) All three models share surrogate-gradient slope 1 (overriding snnTorch's slope-25 default) so *standard-snn* vs *snntorch-library* is a pure update-rule + init parity probe.
 
-### Matched init
+## Results
 
-*standard-snn* and *cuba* start from bit-identical random weights (same class, same seed, same allocation order). *cuba* then gets a one-shot rescaling that cancels its per-step drive factors at training-*dt*, so both models produce the same initial firing rate. Without this, *cuba* would start silent and never learn.
+### 1. Models train end-to-end
 
-### Frozen input spike pattern, paper-style transports
+Before asking about *dt*-stability, check that each model actually learns in each regime.
 
-The MNIST Poisson encoding is generated *once*, at training-*dt* (the anchor [Parthasarathy et al.](/references/#temporal-discretisation) use when sweeping eval-*dt* away from a trained network), and then transported to every other sweep *dt* in one of two paper-matched ways:
+{hasFig("training_curves.png") && (
+  <Figure id="Figure 1" title="Training curves" src="/figures/notebook/nb003/training_curves.png" alt="Training curves, 2x2 grid (rows: train-dt regime, columns: loss and accuracy)">
+    Per-epoch train loss (left) and test accuracy (right) for each model; rows are training-*dt* regimes.
+  </Figure>
+)}
 
-- **Zero-pad** — count-preserving transport. For eval-*dt* < train-*dt*, place each reference spike at the first sub-step of its finer block and zero-fill the rest (Paper §2.1 / Fig 1B). For eval-*dt* > train-*dt*, sum-pool the reference stream into integer bins (Paper §2.3). Total spike count is preserved exactly in either direction; per-step input rate scales with *dt*.
-- **Resample** — draw a fresh Poisson stream at the target *dt* with the same per-ms rate (Paper §2.1 alternative to zero-pad). Binary, per-ms rate held fixed by construction, but re-introduces sampling noise.
+Best test accuracy per regime:
 
-Each sweep is run under both modes. See the [encoder-mode audit](#encoder-mode-is-not-the-driver) for the result; short version: the qualitative picture — snnTorch paths sag, *cuba* stays flat — is the same under either transport.
+| model | train *dt* = {dt1} ms | train *dt* = {dt2} ms |
+|---|---|---|
+| standard-snn | {snn1.best_acc ?? "?"}% | {snn2.best_acc ?? "?"}% |
+| snntorch-library | {lib1.best_acc ?? "?"}% | {lib2.best_acc ?? "?"}% |
+| cuba | {cuba1.best_acc ?? "?"}% | {cuba2.best_acc ?? "?"}% |
 
-All three models use the same surrogate-gradient slope of 1 (overriding snnTorch's slope-25 default) so *standard-snn* vs *snntorch-library* is a pure update-rule + init parity probe.
+*cuba* starts from a substantially higher initial loss in both regimes (e.g. $\sim$500 vs $\sim$180–250 at train-*dt* = {dt1} ms) and takes 2–3 epochs to catch up.
 
-## Findings
+Per-epoch scope videos for each model at each train-*dt*:
 
-### Accuracy vs eval-*dt*
+#### Train at *dt* = {dt1} ms
+
+{hasFig(`training_${rk1}_standard-snn.mp4`) && (
+  <Figure type="video" id="Figure 2" title={`standard-snn @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_standard-snn.mp4`}>
+    One scope frame per training epoch.
+  </Figure>
+)}
+
+{hasFig(`training_${rk1}_snntorch-library.mp4`) && (
+  <Figure type="video" id="Figure 3" title={`snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_snntorch-library.mp4`}>
+    Parity reference (*snn.Leaky*).
+  </Figure>
+)}
+
+{hasFig(`training_${rk1}_cuba.mp4`) && (
+  <Figure type="video" id="Figure 4" title={`cuba @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_cuba.mp4`}>
+    Continuous-time *cuba* at fine train-*dt*.
+  </Figure>
+)}
+
+#### Train at *dt* = {dt2} ms
+
+{hasFig(`training_${rk2}_standard-snn.mp4`) && (
+  <Figure type="video" id="Figure 5" title={`standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_standard-snn.mp4`}>
+    One scope frame per training epoch.
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_snntorch-library.mp4`) && (
+  <Figure type="video" id="Figure 6" title={`snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_snntorch-library.mp4`}>
+    Parity reference (*snn.Leaky*).
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_cuba.mp4`) && (
+  <Figure type="video" id="Figure 7" title={`cuba @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_cuba.mp4`}>
+    Continuous-time *cuba* at coarse train-*dt*.
+  </Figure>
+)}
+
+### 2. Accuracy vs eval-*dt*
 
 {hasFig("dt_sweep.png") && (
-  <Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebook/nb003/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
-    Test accuracy after training, swept across eval-*dt* with weights frozen. One panel per training-*dt* regime; the red dashed vertical marks train-*dt*.
+  <Figure id="Figure 8" title="Accuracy vs eval-dt" src="/figures/notebook/nb003/dt_sweep.png" alt="Accuracy vs eval-dt, 3x2 grid (rows: encoder mode, columns: train-dt)">
+    Test accuracy swept across eval-*dt* with frozen weights. Columns are training-*dt* regimes ({dt1} ms, {dt2} ms); rows are the three paper-matched input transports (upsample, downsample, resample — the count-preserving modes cover only their valid direction, so those panels are half-populated relative to the red train-*dt* line). Red dashed vertical marks train-*dt*.
   </Figure>
 )}
 
-The snnTorch models agree at train-*dt* (red dashed) and their accuracy rolls off as eval-*dt* moves away; *standard-snn* tracks *snntorch-library*, so the sag is the update rule, not a pinglab bug. *cuba* stays flat: spread across the whole sweep is {accRange(cuba1)} at dt={dt1} and {accRange(cuba2)} at dt={dt2}. The two figure rows are the paper's two input-transport modes (see the [encoder-mode audit](#encoder-mode-is-not-the-driver)); the qualitative picture is the same in both.
+Three things to read off Figure 8. (i) *cuba* (green) holds flat across the full eval-*dt* grid — spread {accRange(cuba1)} at train-dt={dt1}, {accRange(cuba2)} at train-dt={dt2}. (ii) *standard-snn* and *snntorch-library* overlap nearly point-for-point in every panel. (iii) The two snnTorch regimes fail *asymmetrically*: at train-*dt* = {dt1} ms (left column) accuracy sags gently as eval-*dt* rises ($\sim$85% → $\sim$67%); at train-*dt* = {dt2} ms (right column) it craters at fine eval-*dt*, collapsing toward chance ($\sim$22% at eval-*dt* = 0.05 ms) before climbing back to the train-*dt* peak. All three encoder rows show the same shape within their valid eval-*dt* range.
 
-### Hidden firing rate vs eval-*dt*
+### 3. Hidden firing rate vs eval-*dt*
 
 {hasFig("firing_rates.png") && (
-  <Figure id="Figure 2" title="Hidden firing rate vs eval-dt" src="/figures/notebook/nb003/firing_rates.png" alt="Mean hidden firing rate vs eval-dt, one panel per training-dt regime">
-    Mean hidden-layer firing rate under frozen weights as eval-*dt* is swept. Rate-flatness is the mechanistic signature of accuracy-stability.
+  <Figure id="Figure 9" title="Hidden firing rate vs eval-dt" src="/figures/notebook/nb003/firing_rates.png" alt="Mean hidden firing rate vs eval-dt, 3x2 grid (rows: encoder mode, columns: train-dt)">
+    Mean hidden-layer firing rate under frozen weights as eval-*dt* is swept. Same 3×2 layout as Figure 8 (columns: train-*dt*, rows: encoder transport). Rate-flatness is the mechanistic signature of accuracy-stability.
   </Figure>
 )}
 
-Mechanistic companion to the accuracy plot. The snnTorch paths fan across the sweep in both regimes, and the *shape* of the fan differs between regimes; *cuba* holds roughly flat. Rate-flatness tracks accuracy-stability — the network sees the activity distribution it trained under. The snnTorch curves don't collapse to a single scaling, so "rate changes with *dt*" is a symptom, not a full explanation.
+The direction of the snnTorch fan **flips between regimes**: at train-*dt* = {dt1} ms the rate *rises* with eval-*dt* (standard-snn $\sim$0 → 22 Hz, library $\sim$0 → 5 Hz); at train-*dt* = {dt2} ms it *falls* with eval-*dt* (standard-snn 42 → $\sim$0 Hz at fine eval-*dt*). *cuba* holds roughly flat ($\sim$48 Hz at train-*dt* = {dt1}; near-baseline at {dt2}). At train-*dt* = {dt1} ms the two snnTorch curves share shape but not magnitude — standard-snn sits above library across the sweep.
 
-### A partial mechanism: the bias term
+Sweep min/max hidden rates per (train-*dt*, model), taken from each regime's primary direction — downsample at fine train-*dt* (most of the sweep extends to coarser eval-*dt*), upsample at coarse train-*dt* (most of the sweep extends to finer eval-*dt*):
 
-A natural first-order explanation looks at the steady-state membrane. Under the snnTorch update $\text{mem} = \beta \cdot \text{mem} + W{\cdot}s + b$, $\beta = e^{-dt/\tau}$, Poisson drive of rate $r$ gives
+| train *dt* | encoder | model | max rate | min rate | ratio |
+|---|---|---|---|---|---|
+| {dt1} ms | downsample | standard-snn     | {num(snn1Cp.sweep_max_hid_rate_hz)} Hz  | {num(snn1Cp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(snn1Cp))}× |
+| {dt1} ms | downsample | snntorch-library | {num(lib1Cp.sweep_max_hid_rate_hz)} Hz  | {num(lib1Cp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib1Cp))}× |
+| {dt1} ms | downsample | cuba             | {num(cuba1Cp.sweep_max_hid_rate_hz)} Hz | {num(cuba1Cp.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba1Cp), 2)}× |
+| {dt2} ms | upsample   | standard-snn     | {num(snn2Cp.sweep_max_hid_rate_hz)} Hz  | {num(snn2Cp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(snn2Cp))}× |
+| {dt2} ms | upsample   | snntorch-library | {num(lib2Cp.sweep_max_hid_rate_hz)} Hz  | {num(lib2Cp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib2Cp))}× |
+| {dt2} ms | upsample   | cuba             | {num(cuba2Cp.sweep_max_hid_rate_hz)} Hz | {num(cuba2Cp.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba2Cp), 2)}× |
+
+### 4. Encoder mode does not change the picture
+
+Each eval-*dt* point needs an input spike train at that *dt*. We try three ways to produce it, one per paper-named case (all from [Parthasarathy et al.](/references/#temporal-discretisation) §2.1 and §2.3):
+
+- **upsample** (§2.1 Fig 1B) — generate the spike train once at train-*dt*, then *zero-pad* to finer eval-*dt*: each reference spike lands at the first fine sub-step of its block, the rest of the block is zero. Count-preserving; per-ms rate preserved. Paper's primary transport for fine eval-*dt*. Only makes sense for eval-*dt* ≤ train-*dt*.
+- **downsample** (§2.3) — generate the spike train once at train-*dt*, then *sum-pool* into integer bins at coarser eval-*dt*. Count-preserving (up to trimmed leftover steps); per-ms rate preserved; output is non-binary (integer counts per bin). Paper's primary transport for coarse eval-*dt*. Only makes sense for eval-*dt* ≥ train-*dt*.
+- **resample** — draw a fresh Poisson spike train at the target *dt* with the same per-ms rate. Covers both directions but re-introduces sampling noise.
+
+The three rows of Figure 8 are these three transports. If the sag were really about how the input gets rebinned, the rows would disagree. They don't — here is how much test accuracy moves across each mode's valid eval-*dt* range (max − min) for each model:
+
+| train *dt* | model | upsample | downsample | resample |
+|---|---|---|---|---|
+| {dt1} ms | standard-snn     | {accSpread(snn1, "upsample")}  | {accSpread(snn1, "downsample")}  | {accSpread(snn1, "resample")}  |
+| {dt1} ms | snntorch-library | {accSpread(lib1, "upsample")}  | {accSpread(lib1, "downsample")}  | {accSpread(lib1, "resample")}  |
+| {dt1} ms | cuba             | {accSpread(cuba1, "upsample")} | {accSpread(cuba1, "downsample")} | {accSpread(cuba1, "resample")} |
+| {dt2} ms | standard-snn     | {accSpread(snn2, "upsample")}  | {accSpread(snn2, "downsample")}  | {accSpread(snn2, "resample")}  |
+| {dt2} ms | snntorch-library | {accSpread(lib2, "upsample")}  | {accSpread(lib2, "downsample")}  | {accSpread(lib2, "resample")}  |
+| {dt2} ms | cuba             | {accSpread(cuba2, "upsample")} | {accSpread(cuba2, "downsample")} | {accSpread(cuba2, "resample")} |
+
+A big number means the sweep accuracy swings a lot (unstable); a small number means it barely moves (stable). Each mode covers only its valid direction, so the three columns aren't directly comparable in raw magnitude — but the *pattern* is the point: snnTorch rows are all large, *cuba* rows are all small, in every encoder column.
+
+## Discussion
+
+**Parity rules out a pinglab bug.** In Results §2 and §3 the *standard-snn* and *snntorch-library* curves overlap in accuracy and share shape in rate. That matches enough of the reference implementation to attribute the sag to the Tutorial-3 update rule rather than something local to pinglab.
+
+**The input transport is not the driver.** The encoder-mode table (Results §4) shows snnTorch sags and *cuba* stays flat under all three paper-named transports — count-preserving zero-pad (upsample), count-preserving sum-pool (downsample), and rate-preserving fresh Poisson (resample). Whatever carries the *dt*-dependence, it lives in the LIF update, not in how spikes are reshaped to the target *dt*.
+
+**Training-budget is not the driver either.** All three models reach comparable best-acc per regime (Results §1), so the eval-*dt* sweep gap is a frozen-weight *dt*-stability effect, not a capacity or budget artefact.
+
+**A partial mechanism: the bias term.** A steady-state analysis explains the *magnitude* of the snnTorch fan but not its *direction*. Under the snnTorch update $\text{mem} = \beta \cdot \text{mem} + W{\cdot}s + b$ with $\beta = e^{-dt/\tau}$ and Poisson drive of rate $r$,
 
 $$\text{mem}_{ss} = \frac{W \cdot \mathbb{E}[s_{step}]}{1-\beta} + \frac{b}{1-\beta}.$$
 
-With frozen inputs $\mathbb{E}[s_{step}] \approx r\,dt$ and $1-\beta \approx dt/\tau$ for small $dt/\tau$, the spike contribution is $W\,r\,\tau$ — *dt*-invariant — while the bias contribution is $b\,\tau/dt$, scaling as **1/*dt***. This would predict a monotone fall in rate as eval-*dt* rises, by the same 40× factor in both regimes.
+With frozen inputs $\mathbb{E}[s_{step}] \approx r\,dt$ and $1-\beta \approx dt/\tau$ for small $dt/\tau$, the spike contribution is $W\,r\,\tau$ — *dt*-invariant — while the bias contribution scales as $b\,\tau/dt$, i.e. **1/*dt***. The rate-ratio column in Results §3 matches this magnitude (30–100× for snnTorch, consistent with 40×), but Figure 9 shows the fan flips *direction* between train-*dt* regimes, which a bias-only story can't explain. Each regime solves a different optimisation problem (drive/step, $\beta$, bias steady-state, and BPTT depth all change with train-*dt*) and lands on its own operating point; the bias term is the piece of that point whose sensitivity is easiest to read off.
 
-| train *dt* | model | max rate | min rate | observed | 1/*dt* predicted |
-|---|---|---|---|---|---|
-| {dt1} ms | standard-snn   | {num(snn1Zp.sweep_max_hid_rate_hz)} Hz  | {num(snn1Zp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(snn1Zp))}× | 40× |
-| {dt1} ms | snntorch-library | {num(lib1Zp.sweep_max_hid_rate_hz)} Hz  | {num(lib1Zp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib1Zp))}× | 40× |
-| {dt1} ms | cuba             | {num(cuba1Zp.sweep_max_hid_rate_hz)} Hz | {num(cuba1Zp.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba1Zp), 2)}× | 1× |
-| {dt2} ms | standard-snn   | {num(snn2Zp.sweep_max_hid_rate_hz)} Hz  | {num(snn2Zp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(snn2Zp))}× | 40× |
-| {dt2} ms | snntorch-library | {num(lib2Zp.sweep_max_hid_rate_hz)} Hz  | {num(lib2Zp.sweep_min_hid_rate_hz)} Hz  | $\sim${ratioFmt(rateRatio(lib2Zp))}× | 40× |
-| {dt2} ms | cuba             | {num(cuba2Zp.sweep_max_hid_rate_hz)} Hz | {num(cuba2Zp.sweep_min_hid_rate_hz)} Hz | $\sim${ratioFmt(rateRatio(cuba2Zp), 2)}× | 1× |
+**Why *cuba* is flat.** *cuba*'s update $\text{mem} = \beta \cdot \text{mem} + \tfrac{1-\beta}{dt} W{\cdot}s + (1-\beta)\, b$ cancels both $1/(1-\beta)$ terms in steady state — bias → $b$, spike → $W\,r\,\tau$, both *dt*-invariant — which is the formal explanation for the direction-insensitive asymmetric cliff (Results §2 (iii)) showing up only in the snnTorch paths.
 
-The prediction only partially matches: the two snnTorch regimes respond in qualitatively *different* ways — direction and shape of the curves change with train-*dt*, not just magnitude — which a pure bias-scaling story can't account for. Threshold non-linearities and *dt*-shaped weights both plausibly contribute. *cuba*'s update $\text{mem} = \beta \cdot \text{mem} + \tfrac{1-\beta}{dt} W{\cdot}s + (1-\beta)\, b$ cancels both 1/(1-β) terms in steady state — bias becomes $b$, spike becomes $W\,r\,\tau$, both *dt*-invariant — consistent with its observed flatness.
-
-### Why the two snnTorch regimes settle at different firing rates
-
-Even with matched init and frozen inputs, each snnTorch training regime solves a different optimisation problem: drive per step scales with *dt* ($\sim$10× more spikes/step at 1 ms than 0.1 ms), decay per step changes ($\beta$ from 0.99 to 0.9), bias steady-state scales as $b\,\tau/dt$, and BPTT depth is 10× different. Each regime lands on its own operating point; sweeping eval-*dt* from there moves the two regimes differently. *cuba*'s $(1-\beta)/dt$ and $(1-\beta)$ prefactors remove *dt* from the per-step drive, so its learned weights encode a *dt*-invariant operating point regardless of train-*dt*.
-
-### Encoder mode is not the driver
-
-The paper (Parthasarathy et al. §2.1) flags that the choice of input-transport — whether spikes are count-preserved (zero-pad / sum-pool) or rate-preserved (resample) — can shift the learned weights and the measured sweep. We run both paper-matched transports to check whether either one is secretly carrying the result. The accuracy spread across eval-*dt*, per (model, train-*dt*, encoder mode):
-
-| train *dt* | model | {encoderModes[0]} | {encoderModes[1]} |
-|---|---|---|---|
-| {dt1} ms | standard-snn   | {accRange(snn1, encoderModes[0])}  | {accRange(snn1, encoderModes[1])}  |
-| {dt1} ms | snntorch-library | {accRange(lib1, encoderModes[0])}  | {accRange(lib1, encoderModes[1])}  |
-| {dt1} ms | cuba             | {accRange(cuba1, encoderModes[0])} | {accRange(cuba1, encoderModes[1])} |
-| {dt2} ms | standard-snn   | {accRange(snn2, encoderModes[0])}  | {accRange(snn2, encoderModes[1])}  |
-| {dt2} ms | snntorch-library | {accRange(lib2, encoderModes[0])}  | {accRange(lib2, encoderModes[1])}  |
-| {dt2} ms | cuba             | {accRange(cuba2, encoderModes[0])} | {accRange(cuba2, encoderModes[1])} |
-
-Under both transports the snnTorch paths still sag and *cuba* still stays flat — neither moves appreciably with encoder mode. The driver is the LIF update rule, not the input transport.
-
-### Training-time parity
-
-{hasFig("training_curves.png") && (
-  <Figure id="Figure 3" title="Training curves" src="/figures/notebook/nb003/training_curves.png" alt="Training curves, one row per train-dt regime">
-    Per-epoch train loss and test accuracy for each model. Rows are training-*dt* regimes; columns are loss and accuracy.
-  </Figure>
-)}
-
-Best test accuracy ({cfg.epochs ?? "?"} epochs × {cfg.max_samples ?? "?"} samples): dt={dt1} ms — standard-snn {snn1.best_acc ?? "?"}%, library {lib1.best_acc ?? "?"}%, cuba {cuba1.best_acc ?? "?"}%; dt={dt2} ms — standard-snn {snn2.best_acc ?? "?"}%, library {lib2.best_acc ?? "?"}%, cuba {cuba2.best_acc ?? "?"}%. All three train to comparable accuracy in each regime, so the sweep gap is a pure *dt*-stability effect, not a training-budget artefact.
-
-Per-(model, regime) scope videos are in [the appendix](#videos).
-
-## Implications
-
-The Tutorial-3 update has no *dt*-invariance by construction; *cuba*'s $(1-\beta)/dt$ and $(1-\beta)$ prefactors are the minimum correction that restores it. If you stay at one fixed *dt*, the Tutorial-3 update is a fine, battle-tested choice. If you need to transfer across *dt*s — sampling rate changes, hardware with a different clock, comparison to continuous-time biology — reintroduce the prefactors and the problem goes away.
-
-Every later rung of the [ladder](/models/) inherits CUBA's ODE-derived discretisation, so *dt*-stability is a **ladder invariant** from CUBA onwards. Any rung that breaks it is a rung defect, not biophysics.
+**Practical upshot.** Fixed-*dt* research: Tutorial-3 is a fine, battle-tested choice. Cross-*dt* transfer — sampling-rate changes, hardware with a different clock, comparison to continuous-time biology — reintroduce the prefactors and the problem goes away. Every later rung of the [ladder](/models/) inherits CUBA's ODE-derived discretisation, so *dt*-stability is a **ladder invariant from CUBA onwards** — any rung that breaks it is a rung defect, not biophysics.
 
 ## Success criteria
 
-- ✅ ***cuba* rate-flat across eval-*dt***. Max/min hidden-rate ratio across the sweep: ∼{ratioFmt(rateRatio(cuba1Zp), 2)}× at train-*dt* = {dt1} ms, ∼{ratioFmt(rateRatio(cuba2Zp), 2)}× at {dt2} ms. Criterion: ≤ 2×.
-- ✅ **snnTorch paths sag**. Rate ratios: standard-snn ∼{ratioFmt(rateRatio(snn1Zp))}× / {ratioFmt(rateRatio(snn2Zp))}×, snntorch-library ∼{ratioFmt(rateRatio(lib1Zp))}× / {ratioFmt(rateRatio(lib2Zp))}× (criterion: ≥ 10× — the expected 1/*dt* signature).
-- ✅ **Pinglab parity with snnTorch**. *standard-snn* tracks *snntorch-library* within a few percent across the sweep in both regimes, so the sag is the update rule rather than a pinglab bug.
-- ✅ **Encoder-mode neutrality**. Neither zero-pad nor resample changes the qualitative picture in either regime (see the [encoder-mode table](#encoder-mode-is-not-the-driver)) — the driver is the LIF update rule, not the input transport.
-- ⚠ **Training-budget headroom**. All three models train to comparable best-acc at each train-*dt* at the **{cfg.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs), but absolute accuracy is budget-limited; a large-tier rerun is the next-steps item.
+- ✅ ***cuba* rate-flat across eval-*dt***. Ratio $\sim${ratioFmt(rateRatio(cuba1Cp), 2)}× / $\sim${ratioFmt(rateRatio(cuba2Cp), 2)}× (criterion ≤ 2×).
+- ✅ **snnTorch paths sag**. Rate ratios $\sim${ratioFmt(rateRatio(snn1Cp))}–{ratioFmt(rateRatio(lib2Cp))}× (criterion ≥ 10×, the 1/*dt* signature).
+- ✅ **Pinglab parity with snnTorch**. *standard-snn* tracks *snntorch-library* — sag is the update rule, not a bug.
+- ✅ **Encoder-mode neutrality**. Qualitative picture unchanged under either transport.
+- ⚠ **Training-budget headroom**. Comparable best-acc per regime but budget-limited at **{cfg.tier ?? "?"}** tier; large-tier rerun in Next steps.
 
 ## Next steps
 
-### Promote to a large-tier run
-
-The current numbers are at the **medium** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs). A large-tier rerun (5000 samples × 40 epochs) would push absolute accuracies higher and confirm the sag-vs-flat picture holds at a training budget where the snnTorch paths stop being budget-limited.
+Promote to a large-tier rerun (5000 × 40) to push absolute accuracies higher and confirm the sag-vs-flat picture at a budget where the snnTorch paths stop being budget-limited. Current run is **medium** ({cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"}).
 
 
 ## Appendix
@@ -217,82 +260,46 @@ uv run src/pinglab/notebook/nb003.py
 | Git SHA @ dt={dt1} (clone / lib / cuba) | {snn1.git_sha ?? "?"} / {lib1.git_sha ?? "?"} / {cuba1.git_sha ?? "?"} |
 | Git SHA @ dt={dt2} (clone / lib / cuba) | {snn2.git_sha ?? "?"} / {lib2.git_sha ?? "?"} / {cuba2.git_sha ?? "?"} |
 
-### Videos
+### Videos — frozen-weight eval-*dt* sweeps
 
-Two videos per (model, regime): one frame per training epoch, one frame per sweep *dt* at frozen weights.
+One scope frame per eval-*dt* with weights frozen at end of training; one video per (model, train-*dt*). Training-time videos are hoisted into [§ 1 Models train end-to-end](#1-models-train-end-to-end).
 
 #### Train at *dt* = {dt1} ms
 
-{hasFig(`training_${rk1}_standard-snn.mp4`) && (
-  <Figure type="video" id="Figure 4" title={`Training — standard-snn @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_standard-snn.mp4`}>
-    One scope frame per training epoch; weights evolve, eval-*dt* fixed at train-*dt*.
-  </Figure>
-)}
-
 {hasFig(`dt_sweep_${rk1}_standard-snn.mp4`) && (
-  <Figure type="video" id="Figure 5" title={`dt-sweep — standard-snn @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk1}_standard-snn.mp4`}>
-    One scope frame per eval-*dt* with weights frozen at end of training.
-  </Figure>
-)}
-
-{hasFig(`training_${rk1}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 6" title={`Training — snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_snntorch-library.mp4`}>
-    One scope frame per training epoch for the *snn.Leaky* parity reference.
+  <Figure type="video" id="Figure 10" title={`dt-sweep — standard-snn @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk1}_standard-snn.mp4`}>
+    Frozen weights, one frame per eval-*dt*.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk1}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 7" title={`dt-sweep — snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk1}_snntorch-library.mp4`}>
-    Frozen-weight sweep across eval-*dt* for the *snn.Leaky* parity reference.
-  </Figure>
-)}
-
-{hasFig(`training_${rk1}_cuba.mp4`) && (
-  <Figure type="video" id="Figure 8" title={`Training — cuba @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/training_${rk1}_cuba.mp4`}>
-    One scope frame per training epoch for the continuous-time *cuba* model.
+  <Figure type="video" id="Figure 11" title={`dt-sweep — snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk1}_snntorch-library.mp4`}>
+    Parity reference (*snn.Leaky*).
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk1}_cuba.mp4`) && (
-  <Figure type="video" id="Figure 9" title={`dt-sweep — cuba @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk1}_cuba.mp4`}>
-    Frozen-weight sweep across eval-*dt* — the flat-rate signature, or its absence at this tier.
+  <Figure type="video" id="Figure 12" title={`dt-sweep — cuba @ train-dt = ${dt1} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk1}_cuba.mp4`}>
+    Continuous-time *cuba* — the flat-rate signature.
   </Figure>
 )}
 
 #### Train at *dt* = {dt2} ms
 
-{hasFig(`training_${rk2}_standard-snn.mp4`) && (
-  <Figure type="video" id="Figure 10" title={`Training — standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_standard-snn.mp4`}>
-    One scope frame per training epoch at coarse train-*dt*.
-  </Figure>
-)}
-
 {hasFig(`dt_sweep_${rk2}_standard-snn.mp4`) && (
-  <Figure type="video" id="Figure 11" title={`dt-sweep — standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk2}_standard-snn.mp4`}>
-    Frozen-weight sweep across eval-*dt* from the coarse-*dt* training weights.
-  </Figure>
-)}
-
-{hasFig(`training_${rk2}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 12" title={`Training — snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_snntorch-library.mp4`}>
-    Parity-reference training at coarse train-*dt*.
+  <Figure type="video" id="Figure 13" title={`dt-sweep — standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk2}_standard-snn.mp4`}>
+    Sweep from coarse-*dt* training weights.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk2}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 13" title={`dt-sweep — snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk2}_snntorch-library.mp4`}>
-    Parity-reference frozen-weight sweep across eval-*dt*.
-  </Figure>
-)}
-
-{hasFig(`training_${rk2}_cuba.mp4`) && (
-  <Figure type="video" id="Figure 14" title={`Training — cuba @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/training_${rk2}_cuba.mp4`}>
-    *cuba* training at coarse train-*dt* where the balanced init scale lets it learn.
+  <Figure type="video" id="Figure 14" title={`dt-sweep — snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk2}_snntorch-library.mp4`}>
+    Parity reference.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk2}_cuba.mp4`) && (
   <Figure type="video" id="Figure 15" title={`dt-sweep — cuba @ train-dt = ${dt2} ms`} src={`/figures/notebook/nb003/dt_sweep_${rk2}_cuba.mp4`}>
-    *cuba* frozen-weight sweep across eval-*dt* — the flat-rate target signature.
+    *cuba* — the flat-rate target signature.
   </Figure>
 )}

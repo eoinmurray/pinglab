@@ -110,12 +110,12 @@ class TestFrozenEncoder:
         assert a.shape == (expected_T, X.shape[0], X.shape[1])
 
     @pytest.mark.parametrize("dt_target", [0.2, 0.5, 1.0])
-    def test_zero_pad_mode_sum_pools_to_coarser(self, dt_target):
-        """When eval-dt is coarser than train-dt, zero-pad mode must sum-pool
+    def test_downsample_mode_sum_pools_to_coarser(self, dt_target):
+        """When eval-dt is coarser than train-dt, downsample mode must sum-pool
         the reference stream — matches downsample_spikes_count."""
         dt_ref = 0.1
         t_ms = 100.0
-        enc = FrozenEncoder(dt_ref=dt_ref, t_ms=t_ms, base_seed=42)
+        enc = FrozenEncoder(dt_ref=dt_ref, t_ms=t_ms, base_seed=42, mode="downsample")
         X = _same_batch()
 
         spk_ref = enc(X, dt=dt_ref, use_smnist=False)
@@ -126,12 +126,12 @@ class TestFrozenEncoder:
         assert torch.equal(spk_target, pooled)
 
     @pytest.mark.parametrize("dt_target", [0.1, 0.05])
-    def test_zero_pad_mode_expands_to_finer(self, dt_target):
-        """When eval-dt is finer than train-dt, zero-pad mode must expand the
+    def test_upsample_mode_expands_to_finer(self, dt_target):
+        """When eval-dt is finer than train-dt, upsample mode must expand the
         reference stream with zeros between spikes."""
         dt_ref = 0.2
         t_ms = 50.0
-        enc = FrozenEncoder(dt_ref=dt_ref, t_ms=t_ms, base_seed=42)
+        enc = FrozenEncoder(dt_ref=dt_ref, t_ms=t_ms, base_seed=42, mode="upsample")
         X = _same_batch()
 
         spk_ref = enc(X, dt=dt_ref, use_smnist=False)
@@ -141,6 +141,18 @@ class TestFrozenEncoder:
         expanded = upsample_spikes_zeropad(spk_ref, dt_ref, dt_target)
         assert torch.equal(spk_target, expanded)
         assert spk_target.sum().item() == spk_ref.sum().item()
+
+    def test_upsample_rejects_coarser_eval_dt(self):
+        enc = FrozenEncoder(dt_ref=0.1, t_ms=50.0, base_seed=1, mode="upsample")
+        X = _same_batch()
+        with pytest.raises(ValueError):
+            enc(X, dt=0.5, use_smnist=False)
+
+    def test_downsample_rejects_finer_eval_dt(self):
+        enc = FrozenEncoder(dt_ref=0.5, t_ms=50.0, base_seed=1, mode="downsample")
+        X = _same_batch()
+        with pytest.raises(ValueError):
+            enc(X, dt=0.1, use_smnist=False)
 
     def test_reset_rewinds_batch_index(self):
         enc = FrozenEncoder(dt_ref=0.1, t_ms=50.0, base_seed=42)
@@ -169,7 +181,7 @@ class TestFrozenEncoder:
             FrozenEncoder(dt_ref=0.1, t_ms=10.0, mode="nonsense")
 
     def test_modes_registered(self):
-        assert set(FROZEN_MODES) == {"zero-pad", "resample"}
+        assert set(FROZEN_MODES) == {"upsample", "downsample", "resample"}
 
 
 class TestFrozenEncoderResample:
@@ -181,15 +193,15 @@ class TestFrozenEncoderResample:
         expected_T = int(t_ms / dt_target)
         assert spk.shape == (expected_T, X.shape[0], X.shape[1])
 
-    def test_not_equal_to_zero_pad(self):
+    def test_not_equal_to_count_preserving(self):
         """resample draws fresh noise at target dt; it should diverge from the
-        zero-pad path that reuses the reference stream."""
+        count-preserving transport that reuses the reference stream."""
         dt_ref, dt_target, t_ms = 0.1, 0.5, 100.0
         enc_re = FrozenEncoder(dt_ref=dt_ref, t_ms=t_ms, base_seed=42, mode="resample")
-        enc_zp = FrozenEncoder(dt_ref=dt_ref, t_ms=t_ms, base_seed=42, mode="zero-pad")
+        enc_ds = FrozenEncoder(dt_ref=dt_ref, t_ms=t_ms, base_seed=42, mode="downsample")
         X = _same_batch()
         a = enc_re(X, dt=dt_target, use_smnist=False)
-        b = enc_zp(X, dt=dt_target, use_smnist=False)
+        b = enc_ds(X, dt=dt_target, use_smnist=False)
         assert not torch.equal(a, b)
 
     def test_reset_reproduces_stream(self):

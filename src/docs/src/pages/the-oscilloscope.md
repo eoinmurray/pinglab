@@ -7,9 +7,11 @@ title: "The Oscilloscope"
 
 *src/pinglab/oscilloscope.py* is the single CLI that drives every model in the repo. The name is literal: most subcommands end by rendering a multi-panel figure — spike rasters, weight histograms, population rate, PSD, optionally training curves — laid out like an instrument face. One command runs a simulation, probes the network with a parameter sweep, trains it, or evaluates a trained checkpoint; every run writes its own self-contained directory with the config and weights needed to reproduce the result.
 
+This page is the full flag reference. Conceptual context for individual knobs lives in the linked background pages ([Models](/models/), [Training](/training/), [Metrics](/metrics/)); here every flag is listed with its default, units, and scope.
+
 ## Subcommands
 
-The CLI has five subcommands; flags are shared via a *parent* parser so every mode understands the full network/input/weight/output/execution vocabulary.
+The CLI has five subcommands. Shared flags live on a *parent* parser so every mode understands the full network/input/weight/output/execution vocabulary; each subcommand then adds its own mode-specific flags.
 
 | Mode | What it does | Typical output |
 | ---- | ------------ | -------------- |
@@ -23,25 +25,115 @@ The CLI has five subcommands; flags are shared via a *parent* parser so every mo
 
 ## The run directory
 
-Every run writes a directory containing *config.json* (full argv + derived params + git SHA), *run.sh* (the command that produced it), *metrics.json*, *metrics.jsonl*, and whatever figures/videos/weights that mode emits. Two flags govern where and how that directory is used.
+Every run writes a directory containing *config.json* (full argv + derived params + git SHA), *run.sh* (the command that produced it), *metrics.json*, *metrics.jsonl*, and whatever figures/videos/weights that mode emits. Three flags govern where and how that directory is used.
 
-- *--out-dir* picks where to write. Defaults to *src/artifacts/&lt;mode&gt;/&lt;model&gt;-&lt;dataset&gt;*.
-- *--wipe-dir* clears the target first. Off by default; notebook runners override this — see the *feedback_notebook_wipe_dir* convention.
-- *--from-dir* (image / video / infer) inherits every param from an earlier *train* run's *config.json*, then lets explicit CLI flags override. This is how you reload a trained network for probing.
+| Flag | Default | What it does |
+| ---- | ------- | ------------ |
+| *--out-dir DIR* | *src/artifacts/&lt;mode&gt;/&lt;model&gt;-&lt;dataset&gt;* | Where to write artifacts. |
+| *--wipe-dir* | off | Clear the target directory first. Notebook runners override to on — see the *feedback_notebook_wipe_dir* convention. |
+| *--from-dir DIR* | — | (*image* / *video* / *infer*) Inherit every param from an earlier *train* run's *config.json*, then let explicit CLI flags override. This is how you reload a trained network for probing. *infer* auto-picks *weights.pth* from the same dir. |
 
 The *--from-dir* inheritance is what makes trained-network probing a one-liner. A training run directory is a complete specification of the network and data pipeline; image/video/infer can re-enter it without the caller having to restate the matching flags.
 
-## Input modes
+## Network flags (shared)
 
-Three input modes select how the network is driven. See [Training → Input modes](/training/#input-modes-and-tasks) for the dynamics.
+These are on the shared parent parser and apply to every subcommand.
 
-- *synthetic-conductance* — Börgers-style step drive injected directly into layer-1 E neurons. For baseline oscillation studies where encoding should not confound the drive.
-- *synthetic-spikes* — Poisson spike trains at *--input-rate* with a stimulus window where the rate is multiplied by *--stim-overdrive*.
-- *dataset* — real images (scikit-digits, mnist, smnist) Poisson-encoded per-pixel. The CLI auto-flips to *dataset* mode when *--digit*, *--sample*, or *--dataset* is set explicitly (so *--input* usually does not need to be passed by hand).
+| Flag | Default | Meaning |
+| ---- | ------- | ------- |
+| *--model* | *ping* | Model family: [*ping*](/models/#ping), [*cuba*](/models/#cuba), [*standard-snn*](/models/#standard-snn), [*snntorch-library*](/models/#snntorch-library). |
+| *--n-hidden N ...* | dataset-aware (scikit 64, mnist 1024, smnist 32) | Hidden layer sizes. Single value = one layer, multiple = stacked (e.g. *--n-hidden 128 256*). $N_I = N_E / 4$ per layer. |
+| *--n-input N* | *N_E* | Number of input neurons. |
+| *--ei-strength S* | 0.5 | E-I coupling: sets $W_{EI} = s$, $W_{IE} = s \cdot \text{ratio}$. |
+| *--ei-ratio R* | 2.0 | $W_{IE} / W_{EI}$ ratio. |
+| *--ei-sparsity F* | 0.2 | E-I connection sparsity. |
+| *--w-in-sparsity F* | 0.95 | Input-weight sparsity. |
+| *--bias B* | 0.0002 | Background conductance to E neurons, μS. |
+| *--dt DT* | 0.25 | Integration timestep, ms. |
+| *--t-ms T* | 600.0 | Total simulation duration, ms. Must exceed *STEP_ON_MS* (default 200) so the stimulus window is reached. |
+| *--kaiming-init* | off | Use plain Kaiming-uniform init (signed weights, no fan-in normalisation), matching the canonical snnTorch tutorial. Applies to *standard-snn* / *cuba* only; *--w-in* is ignored when set. |
+| *--init-scale-weight X* | 1.0 | Multiply initial weight matrices by X after *build_net* (train mode). For *cuba* at training-dt, pass $\Delta t / (1 - e^{-\Delta t / \tau_\text{mem}})$ to match *standard-snn*'s per-step spike drive. |
+| *--init-scale-bias X* | 1.0 | Multiply initial bias vectors by X. For *cuba*, pass $1 / (1 - e^{-\Delta t / \tau_\text{mem}})$ for matched bias drive. |
+| *--readout* | *rate* | Output reduction: *rate* (sum spike counts, project at final step) or *li* (non-spiking leaky integrator, max-over-time). See [Readouts](#readouts). |
+| *--dales-law* / *--no-dales-law* | on | Clamp weights to non-negative (default) or allow signed weights (*standard-snn* / *cuba* only). |
+| *--rec-layers L ...* | all when *--w-rec* set | Which hidden layers (1-indexed) get recurrence. |
+| *--ei-layers L ...* | all | Which hidden layers (1-indexed) get E-I structure (PING only). |
+| *--surrogate-slope β* | 1.0 | Fast-sigmoid surrogate-gradient slope. Larger = narrower active window. Cramer et al. SHD RSNNs use 40. Applies to *SurrogateSpike* and snnTorch's *fast_sigmoid*. |
+| *--device* | auto (cuda > mps > cpu) | Compute device: *cpu* / *mps* / *cuda*. |
 
-## Scans
+## Input flags (shared)
 
-The *video* subcommand sweeps one variable linearly between *--scan-min* and *--scan-max* over *--frames*. Each frame is a fresh simulation at one value of the scan variable; the rendered MP4 plays the parameter axis as time.
+| Flag | Default | Meaning |
+| ---- | ------- | ------- |
+| *--input* | *synthetic-spikes* | Input mode: *synthetic-conductance*, *synthetic-spikes*, *dataset*. Auto-flips to *dataset* if *--digit* / *--sample* / *--dataset* is passed. |
+| *--input-rate HZ* | 25.0 | Baseline Poisson rate for *synthetic-spikes*. |
+| *--stim-overdrive X* | 1.0 | Multiplier on the stimulus-window input rate. |
+| *--drive D* | — | Baseline tonic conductance for *synthetic-conductance*. |
+| *--dataset* | *scikit* | *scikit* / *mnist* / *smnist* / *shd*. |
+| *--digit D* | 0 | Digit class (0–9) for dataset input. |
+| *--sample I* | 0 | Sample index within the dataset class. |
+
+Three input modes select how the network is driven (see [Training → Input modes](/training/#input-modes-and-tasks) for the dynamics): *synthetic-conductance* is Börgers-style step drive injected directly into layer-1 E neurons — used for baseline oscillation studies where encoding should not confound the drive. *synthetic-spikes* is Poisson spike trains at *--input-rate* with a stimulus window where the rate is multiplied by *--stim-overdrive*. *dataset* is real images (scikit-digits, mnist, smnist) or audio (shd) Poisson-encoded per-pixel / per-channel.
+
+## Weight flags (shared, advanced)
+
+Overrides for the init distributions. Leave unset unless you know why you need them.
+
+| Flag | Default | Meaning |
+| ---- | ------- | ------- |
+| *--w-in MEAN STD* | 0.3 0.06 | Input-weight init. *standard-snn* dense needs roughly 10 2. |
+| *--w-ei MEAN STD* | from *--ei-strength* | E→I init (overrides *--ei-strength*). |
+| *--w-ie MEAN STD* | from *--ei-strength* | I→E init. |
+| *--w-rec MEAN STD* | 0 0.1 | Recurrent-weight init. |
+| *--w-in-overdrive X* | 1.0 | Multiplier on input weights applied on top of the init. |
+
+## Output flags (shared)
+
+| Flag | Default | Meaning |
+| ---- | ------- | ------- |
+| *--out-dir DIR* | auto | Output directory (see [The run directory](#the-run-directory)). |
+| *--wipe-dir* | off | Clear target directory before the run. |
+| *--raster* | *scatter* | Raster style: *scatter* or *imshow*. |
+| *--layout* | *full* | Panel layout preset (see [Layouts and panels](#layouts-and-panels)). |
+| *--panels NAMES* | — | Comma-separated panel list — overrides the preset. |
+
+## Execution flags (shared)
+
+| Flag | Default | Meaning |
+| ---- | ------- | ------- |
+| *--seed N* | unseeded | RNG seed. Seeds Python, NumPy, and torch (CPU + CUDA + MPS) before dataset load and model init. Persisted to *config.json*. Unseeded runs record *seed: null*. |
+| *--modal* | off | Run on Modal.com instead of locally; artifacts sync back to *--out-dir*. See [Modal dispatch](#modal-dispatch). |
+| *--modal-gpu* | *T4* | GPU type for Modal runs: *none* (CPU), *T4*, *L4*, *A10G*, *A100*, *H100*. |
+| *--coba-integrator* | *expeuler* | Membrane ODE integrator for COBA/PING: *expeuler* (dt-invariant) or *fwd* (forward Euler, for parity comparisons). |
+
+## Subcommand: *sim*
+
+No additional flags. Runs one forward pass and prints firing-rate metrics to *metrics.json* / *metrics.jsonl* without rendering a plot.
+
+## Subcommand: *image*
+
+| Flag | Default | Meaning |
+| ---- | ------- | ------- |
+| *--from-dir DIR* | — | Inherit params + weights from a training run. |
+| *--load-weights PATH* | — | Load a *weights.pth* directly (alternative to *--from-dir*). |
+| *--fake-progress X* | off | Overlay a progress-bar indicator at level 0–1 (demo / teaching). |
+
+## Subcommand: *video*
+
+Sweeps one parameter linearly between *--scan-min* and *--scan-max* over *--frames*. Each frame is a fresh simulation at one scan value; the rendered MP4 plays the parameter axis as time.
+
+| Flag | Default | Meaning |
+| ---- | ------- | ------- |
+| *--scan-var* | *stim-overdrive* | Parameter to sweep (see table below). |
+| *--scan-min* | 1.0 | Sweep start, in the variable's units. For *digit*: integer class. |
+| *--scan-max* | 50.0 | Sweep end. For *digit*: integer class. |
+| *--frames N* | 10 | Number of frames. Overridden by scan range for *digit*. |
+| *--frame-rate FPS* | 10 | Output video frame rate. |
+| *--resample-input* | off | Fresh Poisson seed per frame (default: same seed for all frames). |
+| *--from-dir DIR* | — | Inherit from a training run. |
+| *--load-weights PATH* | — | Load weights directly. |
+
+Scan variables:
 
 | *--scan-var* | Unit | What it controls |
 | ------------ | ---- | ---------------- |
@@ -57,7 +149,45 @@ The *video* subcommand sweeps one variable linearly between *--scan-min* and *--
 | *digit* | — | iterates dataset class 0–9 — for trained-network digit tours |
 | *noise* | Hz | adds Poisson noise to the input layer |
 
-By default a scan reuses the same Poisson seed on every frame so the input pattern is identical and only the scan variable varies. Pass *--resample-input* to draw a fresh seed per frame (useful when the question is about ensemble behaviour rather than one realisation).
+By default the scan reuses the same Poisson seed on every frame so the input pattern is identical and only the scan variable varies. Pass *--resample-input* to draw a fresh seed per frame (useful when the question is about ensemble behaviour rather than one realisation).
+
+## Subcommand: *train*
+
+Surrogate-gradient BPTT. See [Training](/training/) for loss, encoding, and BPTT details.
+
+| Flag | Default | Meaning |
+| ---- | ------- | ------- |
+| *--epochs N* | 0 | Training epochs. 0 = probe only (init snapshot, no training). |
+| *--lr RATE* | 0.01 | Adam learning rate. Biophysical models typically want $10^{-4}$. |
+| *--batch-size B* | 64 | DataLoader mini-batch size. |
+| *--burn-in MS* | 20.0 | Burn-in period in ms. |
+| *--max-samples N* | — | Limit dataset to N samples (smoke-test). |
+| *--adaptive-lr* | off | Enable *ReduceLROnPlateau* (factor 0.5, patience 5). |
+| *--early-stopping N* | — | Stop after N epochs without improvement. |
+| *--cm-back-scale S* | 80.0 | Gradient dampening for the COBA membrane. |
+| *--observe* | — | Save oscilloscope per epoch: *video* (MP4) or *images* (one PNG per epoch). |
+| *--observe-every N* | 1 | Observe every Nth epoch. |
+| *--frame-rate FPS* | 10 | Video fps for *--observe video*. |
+| *--fr-reg-lower-theta* $\theta_l$ | 0.0 | Firing-rate regulariser lower target (spikes/neuron/trial). Penalty $s_l \sum_i \text{relu}(\theta_l - \langle z_i \rangle)^2$. 0 disables. Cramer et al. SHD RSNN: 0.01. |
+| *--fr-reg-lower-strength* $s_l$ | 0.0 | Strength on the lower-bound FR regulariser. Cramer et al.: 1.0. |
+| *--fr-reg-upper-theta* $\theta_u$ | 0.0 | Upper target. Penalty $s_u \sum_i \text{relu}(\langle z_i \rangle - \theta_u)^2$. Cramer et al.: 100. |
+| *--fr-reg-upper-strength* $s_u$ | 0.0 | Strength on the upper-bound FR regulariser. Cramer et al.: 0.06. |
+
+## Subcommand: *infer*
+
+Evaluate a trained checkpoint. Requires *--from-dir* or *--load-weights*.
+
+| Flag | Default | Meaning |
+| ---- | ------- | ------- |
+| *--from-dir DIR* | — | Inherit params + weights from a training run. |
+| *--load-weights PATH* | — | Load *weights.pth* directly (auto-detected from *--from-dir*). |
+| *--max-samples N* | — | Limit dataset to N samples. |
+| *--dt-sweep DT ...* | — | Run inference at each dt and produce a sweep summary (e.g. *0.05 0.1 0.25 0.5 1.0*). Overrides *--dt*. |
+| *--observe* | — | Save oscilloscope: with *--dt-sweep*, *video* renders one frame per dt; without, *image* is a single snapshot. |
+| *--frozen-inputs* | off | Freeze input spike patterns across the dt sweep. Shorthand for *--frozen-inputs-mode upsample*. |
+| *--frozen-inputs-mode* | — | How input spikes are transported across dt, anchored at train-dt (Parthasarathy et al. §2.1, §2.3): *upsample* (count-preserving zero-pad to finer eval-dt, requires eval-dt ≤ train-dt), *downsample* (count-preserving sum-pool to coarser eval-dt, requires eval-dt ≥ train-dt), *resample* (fresh Poisson at each eval-dt). |
+
+See [Training → dt stability sweep](/training/#dt-stability-sweep) for the protocol.
 
 ## Layouts and panels
 
@@ -73,10 +203,6 @@ The oscilloscope figure is a grid of panels assembled from a catalog — [*heade
 | *train* | *full* + *acc_curve*, *grad_flow*, *rate_curve* | one frame per epoch during *train --observe video* |
 
 Pass *--panels* with a comma-separated list to override any preset — useful when you want a minimal raster-only snapshot.
-
-## Training and inference
-
-See [Training](/training/) for the surrogate-gradient, loss, encoding, and BPTT details. On the CLI side, *train* adds the optimiser flags (*--lr*, *--epochs*, *--batch-size*, *--adaptive-lr*, *--cm-back-scale*, *--early-stopping*) plus *--observe video* which renders one oscilloscope frame per epoch into a training MP4. *infer* adds *--dt-sweep* for the dt-stability protocol and *--frozen-inputs* to OR-pool a reference spike train (see [Training → dt stability sweep](/training/#dt-stability-sweep)).
 
 ## Readouts
 

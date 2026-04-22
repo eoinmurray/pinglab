@@ -1,59 +1,52 @@
 {
-  "notebook_run_id": "r015",
-  "git_sha": "2a2af1e (dirty)",
-  "mode": "baseline",
-  "tier": "large",
-  "duration_s": 1047.7,
-  "duration": "17m 28s",
+  "notebook_run_id": "r024",
+  "git_sha": "8f1a28a (dirty)",
+  "tier": "small",
+  "duration_s": 11.0,
+  "duration": "11s",
   "config": {
-    "model": "cuba",
+    "model": "cuba-exp",
     "dataset": "shd",
     "hidden": [
-      128,
       128
     ],
     "t_ms": 1000.0,
-    "dt": 1.0,
+    "dt": 2.0,
     "seed": 42,
-    "max_samples": 5000,
-    "epochs": 40,
-    "sweep_lrs": null,
-    "sweep_hiddens": null,
-    "sweep_isw": null
+    "max_samples": 500,
+    "epochs": 5
   },
   "cells": {
     "cuba_baseline": {
       "name": "cuba_baseline",
-      "model": "cuba",
-      "lr": 0.03,
-      "isw": 1.0,
+      "model": "cuba-exp",
+      "lr": 0.001,
+      "isw": 6.0,
       "isb": 10.508331944775044,
       "hidden": [
-        128,
         128
       ],
-      "readout": "rate",
-      "best_acc": 45.9,
-      "final_acc": 44.4,
-      "final_loss": 0.23616343460005412,
+      "readout": "li",
+      "best_acc": 7.0,
+      "final_acc": 7.0,
+      "final_loss": 1.1960791945457458,
       "run_dir": "src/artifacts/notebook/nb004/cuba_baseline"
     }
   },
   "winner": {
     "name": "cuba_baseline",
-    "model": "cuba",
-    "lr": 0.03,
-    "isw": 1.0,
+    "model": "cuba-exp",
+    "lr": 0.001,
+    "isw": 6.0,
     "isb": 10.508331944775044,
     "hidden": [
-      128,
       128
     ],
-    "readout": "rate",
-    "best_acc": 45.9,
-    "final_acc": 44.4,
-    "final_loss": 0.23616343460005412,
+    "readout": "li",
+    "best_acc": 7.0,
+    "final_acc": 7.0,
+    "final_loss": 1.1960791945457458,
     "run_dir": "src/artifacts/notebook/nb004/cuba_baseline"
   },
-  "run_finished_at": "2026-04-22T18:32:15.783675Z"
+  "run_finished_at": "2026-04-22T21:10:20.239209Z"
 }
