@@ -1,9 +1,9 @@
 ---
 layout: ../layouts/MarkdownLayout.astro
-title: "Style guide"
+title: "Styleguide"
 ---
 
-# Style guide
+# Styleguide
 
 Hard rules for editing the docs and notebook. For repo layout, workflow narrative, and how to run things, see [Introduction](/introduction/).
 
@@ -15,8 +15,8 @@ Every notebook entry under *src/docs/src/pages/notebook/* uses the same six H2 h
 
 1. **Introduction** — what was built, wired, or changed, and why
 2. **Method** — how the experiment was run, including methodological notes
-3. **Findings** — results (use H3 subsections for multiple results); mechanism analysis nests here, not as its own H2
-4. **Implications** — what it means for the paper or project
+3. **Results** — results (use H3 subsections for multiple results); mechanism analysis nests here, not as its own H2
+4. **Discussion** — what it means for the paper or project
 5. **Success criteria** — the pass/fail conditions the entry sets for itself, stated as a short checklist (each item ✅ met / ❌ not met / ⚠ partial, with the relevant number from *numbers.json* cited inline). Written *before* the run and checked against its results; every criterion is a line the next iteration can aim at.
 6. **Next steps** — what is still to do, keyed to any ❌/⚠ items above
 
@@ -26,7 +26,7 @@ Every entry ends with a single *Appendix* H2 after *Next steps*, holding at mini
 
 1. **Reproduction** — the exact *uv run src/pinglab/notebook/nbNNN.py* command that regenerates every artifact in the entry
 2. **Run parameters** — a table of the config used (dataset, samples / epochs, *dt*, hidden sizes, batch / lr, seed, tier, elapsed, run ID, git SHA). Use values pulled from *numbers.json* via the *cfg* / *numbers* exports rather than hard-coding
-3. **Videos** *(optional)* — per-epoch or per-sweep MP4s that would be too noisy in the body. Use when the entry produces videos that are supporting material rather than headline findings
+3. **Videos** *(optional)* — per-epoch or per-sweep MP4s that would be too noisy in the body. Use when the entry produces videos that are supporting material rather than headline results
 
 *Why:* every entry is a reproducible artefact, and the appendix is where the reader goes when they want to re-run the experiment or look up the numerical config — keeping this consistent across entries means that contract is visible at a predictable URL fragment (*#appendix*). Paper-style drafts with custom sectioning can opt out of the main-body skeleton by setting *structure: paper* in frontmatter, but the Appendix still applies.
 
@@ -127,6 +127,29 @@ Training cost scales linearly in *max-samples × epochs × t-ms* ($\approx$3.3 �
 Each notebook entry names the tier it ran at — either in Method prose or implicitly via its notebook runner's *MAX_SAMPLES / EPOCHS / T_MS* constants (training) or *TIER_FRAMES* lookup (video). If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
 
 Every notebook runner accepts *--modal-gpu {none, T4, L4, A10G, A100, H100}* to dispatch its oscilloscope invocations to Modal.com (see [The oscilloscope § Modal dispatch](/the-oscilloscope/#modal-dispatch)). Default is local.
+
+### 10. Color palette
+
+All colors come from the *@theme* tokens in *src/styles/global.css* — never hardcode hex values in components or pages. Tailwind utilities resolve against these tokens (*text-ink*, *bg-paper-tint*, *border-rule*, etc.); raw CSS reaches them via *var(--color-…)*. The palette is deliberately narrow: warm off-white paper, a short ink ramp for text hierarchy, two rule weights, and a single danger accent.
+
+<div style="display:grid;grid-template-columns:auto 1fr auto;gap:0.35rem 0.9rem;align-items:center;margin:1rem 0;">
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#1a1a1a;border:1px solid #ccc;"></span><span><em>--color-ink-strong</em></span><span style="color:#666;">#1a1a1a — headings, strongest text</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#222;border:1px solid #ccc;"></span><span><em>--color-ink</em></span><span style="color:#666;">#222 — body text default</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#333;border:1px solid #ccc;"></span><span><em>--color-ink-soft</em></span><span style="color:#666;">#333 — secondary text</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#555;border:1px solid #ccc;"></span><span><em>--color-dim</em></span><span style="color:#666;">#555 — de-emphasised prose</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#666;border:1px solid #ccc;"></span><span><em>--color-muted</em></span><span style="color:#666;">#666 — captions, metadata</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#777;border:1px solid #ccc;"></span><span><em>--color-muted-soft</em></span><span style="color:#666;">#777 — quieter metadata</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#888;border:1px solid #ccc;"></span><span><em>--color-label</em></span><span style="color:#666;">#888 — axis labels, small caps</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#bbb;border:1px solid #ccc;"></span><span><em>--color-faint</em></span><span style="color:#666;">#bbb — disabled / placeholder</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#ccc;border:1px solid #ccc;"></span><span><em>--color-underline</em></span><span style="color:#666;">#ccc — link underlines, swatch borders</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#e7e5df;border:1px solid #ccc;"></span><span><em>--color-rule</em></span><span style="color:#666;">#e7e5df — hairline rules, code-block border</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#d9d5c8;border:1px solid #ccc;"></span><span><em>--color-rule-warm</em></span><span style="color:#666;">#d9d5c8 — warmer rule for figure frames</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#fafaf7;border:1px solid #ccc;"></span><span><em>--color-paper-tint</em></span><span style="color:#666;">#fafaf7 — code block / inset background</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#fff;border:1px solid #ccc;"></span><span><em>--color-paper</em></span><span style="color:#666;">#fff — page background</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#a33;border:1px solid #ccc;"></span><span><em>--color-danger</em></span><span style="color:#666;">#a33 — dirty-SHA flag, error states</span>
+</div>
+
+New colors go in *global.css* under *@theme* with a *--color-* prefix so Tailwind picks them up; update this table in the same change. *Why:* the palette drift that a one-off *#999* starts is hard to reverse — every color should be namable.
 
 ## Maintaining this page
 
