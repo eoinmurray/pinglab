@@ -21,7 +21,13 @@ Every notebook entry under *src/docs/src/pages/notebook/* uses the same five H2 
 
 The H1 stays entry-specific (the entry title). The skeleton is for H2s only. *Why:* notebook-entry navigation should be predictable across the site.
 
-Entries may append appendix H2s after *Next steps* — typical ones are *Run parameters* (a table of the config used) and *Reproduction* (the exact *uv run* command). Paper-style drafts with custom sectioning can opt out of the skeleton entirely by setting *structure: paper* in frontmatter.
+Every entry ends with a single *Appendix* H2 after *Next steps*, holding at minimum the two required H3 subsections below (plus an optional *Videos*):
+
+1. **Reproduction** — the exact *uv run src/pinglab/notebook/nbNNN.py* command that regenerates every artifact in the entry
+2. **Run parameters** — a table of the config used (dataset, samples / epochs, *dt*, hidden sizes, batch / lr, seed, tier, elapsed, run ID, git SHA). Use values pulled from *numbers.json* via the *cfg* / *numbers* exports rather than hard-coding
+3. **Videos** *(optional)* — per-epoch or per-sweep MP4s that would be too noisy in the body. Use when the entry produces videos that are supporting material rather than headline findings
+
+*Why:* every entry is a reproducible artefact, and the appendix is where the reader goes when they want to re-run the experiment or look up the numerical config — keeping this consistent across entries means that contract is visible at a predictable URL fragment (*#appendix*). Paper-style drafts with custom sectioning can opt out of the main-body skeleton by setting *structure: paper* in frontmatter, but the Appendix still applies.
 
 ### 2. Entry numbering and date format
 
