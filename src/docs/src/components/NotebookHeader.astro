@@ -14,7 +14,6 @@ const { frontmatter, numbers = {} } = Astro.props as Props;
 
 const slug = "nb" + String(frontmatter.entry).padStart(3, "0");
 
-// Accept either a Date (Astro often parses frontmatter YAML dates) or an ISO string.
 function toDate(v: string | Date): Date | null {
   if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
   if (typeof v === "string") {
@@ -68,119 +67,44 @@ if (isTraining) {
 }
 if (numbers.duration) stats.push({ label: "duration", value: numbers.duration });
 if (runId) stats.push({ label: "run", value: runId, mono: true });
+
+const ddMono = "font-mono text-[0.85rem]";
 ---
 
-<header class="nb-header not-prose">
-  <div class="nb-meta-top">
-    <span class="nb-slug">{slug}</span>
+<header class="not-prose mb-8 font-serif">
+  <div class="mb-[0.4rem] flex flex-wrap items-baseline gap-[0.4rem] text-[0.85rem] text-muted-soft">
+    <span class="font-mono text-dim">{slug}</span>
     {dateStr && (
       <>
-        <span class="nb-sep">·</span>
-        <span class="nb-date">{dateStr}</span>
+        <span class="text-faint">·</span>
+        <span>{dateStr}</span>
       </>
     )}
   </div>
 
-  <h1 class="nb-title">{entryName}</h1>
+  <h1 class="mb-4 text-[2rem] font-bold leading-[1.15] text-ink-strong">{entryName}</h1>
 
   {stats.length > 0 && (
-    <dl class="nb-stats">
+    <dl class="m-0 flex flex-wrap gap-x-6 gap-y-0 border rounded-[2px] border-rule bg-paper-tint px-[0.9rem] py-[0.7rem]">
       {stats.map((s) => (
-        <div class="nb-stat">
-          <dt>{s.label}</dt>
-          <dd class={s.mono ? "mono" : ""}>{s.value}</dd>
+        <div class="flex min-w-0 flex-col py-[0.15rem]">
+          <dt class="mb-[0.1rem] text-[0.72rem] font-medium uppercase tracking-wider text-label">{s.label}</dt>
+          <dd class={`m-0 text-[0.95rem] font-medium text-ink-strong ${s.mono ? ddMono : ""}`}>{s.value}</dd>
         </div>
       ))}
       {short && (
-        <div class="nb-stat">
-          <dt>commit</dt>
-          <dd class="mono">
+        <div class="flex min-w-0 flex-col py-[0.15rem]">
+          <dt class="mb-[0.1rem] text-[0.72rem] font-medium uppercase tracking-wider text-label">commit</dt>
+          <dd class={`m-0 text-[0.95rem] font-medium text-ink-strong ${ddMono}`}>
             {commitHref ? (
-              <a href={commitHref} target="_blank" rel="noopener">{short}</a>
+              <a href={commitHref} class="text-ink-strong underline decoration-underline" target="_blank" rel="noopener">{short}</a>
             ) : (
               <span>{short}</span>
             )}
-            {dirty && <span class="nb-dirty" title="figures generated from uncommitted changes">(dirty)</span>}
+            {dirty && <span class="ml-[0.3rem] font-serif text-[0.78rem] text-danger" title="figures generated from uncommitted changes">(dirty)</span>}
           </dd>
         </div>
       )}
     </dl>
   )}
 </header>
-
-<style>
-  .nb-header {
-    margin: 0 0 2rem;
-    font-family: var(--font-serif);
-  }
-  .nb-meta-top {
-    font-size: 0.85rem;
-    color: #777;
-    margin-bottom: 0.4rem;
-    display: flex;
-    gap: 0.4rem;
-    align-items: baseline;
-    flex-wrap: wrap;
-  }
-  .nb-slug {
-    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
-    color: #555;
-  }
-  .nb-sep {
-    color: #bbb;
-  }
-  .nb-title {
-    margin: 0 0 1rem;
-    font-size: 2rem;
-    line-height: 1.15;
-    font-weight: 700;
-    color: var(--ink, #1a1a1a);
-  }
-  .nb-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 1.5rem;
-    margin: 0;
-    padding: 0.7rem 0.9rem;
-    border-top: 1px solid #e7e5df;
-    border-bottom: 1px solid #e7e5df;
-    background: #fafaf7;
-  }
-  .nb-stat {
-    display: flex;
-    flex-direction: column;
-    padding: 0.15rem 0;
-    min-width: 0;
-  }
-  .nb-stat dt {
-    font-size: 0.72rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #888;
-    margin: 0 0 0.1rem;
-    font-weight: 500;
-  }
-  .nb-stat dd {
-    margin: 0;
-    font-size: 0.95rem;
-    color: #1a1a1a;
-    font-weight: 500;
-  }
-  .nb-stat dd.mono,
-  .nb-stat dd .mono,
-  .nb-stat dd a {
-    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
-    font-size: 0.85rem;
-  }
-  .nb-stat dd a {
-    color: #1a1a1a;
-    text-decoration: underline;
-    text-decoration-color: #ccc;
-  }
-  .nb-dirty {
-    color: #a33;
-    margin-left: 0.3rem;
-    font-size: 0.78rem;
-    font-family: var(--font-serif);
-  }
-</style>

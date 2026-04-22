@@ -19,15 +19,6 @@ const lineSuffix = range
     : "";
 const defaultLabel = `${path}${lineSuffix}`;
 ---
-<a href={href} class="code-link" target="_blank" rel="noopener">
+<a href={href} class="font-mono text-[0.92em] decoration-1 underline-offset-[0.2em]" target="_blank" rel="noopener">
   <slot>{defaultLabel}</slot>
 </a>
-
-<style>
-  .code-link {
-    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
-    font-size: 0.92em;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 0.2em;
-  }
-</style>
