@@ -78,6 +78,10 @@ delay_ie_ms   = 1.0       # ms — I→E synaptic delay
 # ── Training ──────────────────────────────────────────────────────────────
 BATCH_SIZE    = 64
 GRAD_CLIP     = 1.0
+# Surrogate-gradient steepness (fast-sigmoid slope). Cramer et al. use β=40 for
+# SHD RSNNs; pinglab's historical default is 1.0 (wider active window). Set via
+# the oscilloscope --surrogate-slope flag before model construction.
+SURROGATE_SLOPE = 1.0
 READOUT_SCALE = 0.0
 PATIENCE      = 15
 CM_BACK_SCALE = 80.0
@@ -122,16 +126,14 @@ class SurrogateSpike(torch.autograd.Function):
 def spike_biophysical(v):
     # mV-scale membrane: slope=1 keeps gradient support at the ~mV width of
     # typical threshold crossings.
-    return SurrogateSpike.apply(v - V_th, 1.0)
+    return SurrogateSpike.apply(v - V_th, SURROGATE_SLOPE)
 
 def spike_snn(v):
-    # Dimensionless membrane (threshold=1). slope=1 (not snntorch's default 25):
-    # slope=25 starves gradients from silent neurons (|u|>>0), and pinglab's
-    # init can land in a silent regime at some seeds, preventing training from
-    # bootstrapping. slope=1 gives a much wider active window. snntorch-library
-    # is configured to match (surrogate.fast_sigmoid(slope=1)), so the parity
-    # probe is update-rule only.
-    return SurrogateSpike.apply(v - thr_snn, 1.0)
+    # Dimensionless membrane (threshold=1). slope=1 (pinglab default; not
+    # snntorch's 25) gives a wide active window so silent neurons keep gradient
+    # support. Override via SURROGATE_SLOPE (oscilloscope --surrogate-slope) to
+    # match a specific reference (e.g. Cramer β=40).
+    return SurrogateSpike.apply(v - thr_snn, SURROGATE_SLOPE)
 
 
 def _scale_grad(x, scale):
@@ -510,6 +512,10 @@ class CUBANet(SNNBase):
         # Spike counts accumulated as GPU tensors (avoid .item() per step)
         n_spk_tensors = {self._hid_key(i + 1): torch.zeros(1, device=device)
                          for i in range(self.n_layers)}
+        # Per-layer, per-neuron spike counts over the trial (no detach) so the
+        # trainer can build a firing-rate regularisation loss from them.
+        rate_counts = [torch.zeros(B, n, device=device)
+                       for n in self.hidden_sizes]
         n_spk_tensors["out"] = torch.zeros(1, device=device)
 
         for t in range(T_steps):
@@ -548,10 +554,12 @@ class CUBANet(SNNBase):
                     spike_kick = prev_spk @ W
                     drive = spike_scale * spike_kick + bias_scale * b
 
-                # Recurrent drive (detached to prevent gradient explosion)
+                # Recurrent drive — full BPTT through the surrogate
+                # gradient; W_rec is trained with gradients flowing back
+                # through prior timesteps.
                 rec_key = str(i + 1)
                 if rec_key in W_rec:
-                    rec_drive = s_prevs[i].detach() @ W_rec[rec_key]
+                    rec_drive = s_prevs[i] @ W_rec[rec_key]
                     drive = drive + spike_scale * rec_drive
                     if spike_kick is not None:
                         spike_kick = spike_kick + rec_drive
@@ -585,6 +593,7 @@ class CUBANet(SNNBase):
 
                 s_prevs[i] = s
                 prev_spk = s
+                rate_counts[i] = rate_counts[i] + s
 
                 hk = self._hid_key(i + 1)
                 # Detach: spike counts are metadata, not training signal.
@@ -619,6 +628,9 @@ class CUBANet(SNNBase):
             rec = {k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
                    for k, v in rec_buf.items()}
         self._set_meta(B, n_spk, rec, sizes)
+        # Per-layer spike counts (B, n_hidden_i) summed over time, gradients
+        # still attached — trainer uses these for firing-rate regularisation.
+        self.last_spike_counts = rate_counts
         return logits_max if self.readout_mode == "li" else logits_t
 
 
@@ -698,7 +710,7 @@ class SNNTorchLibraryNet(SNNBase):
         # slope=1 matches pinglab's SurrogateSpike (used by standard-snn and
         # cuba); snnTorch's default is slope=25. Unifying here makes
         # snntorch-library a pure update-rule parity probe vs standard-snn.
-        self._surrogate = surrogate.fast_sigmoid(slope=1)
+        self._surrogate = surrogate.fast_sigmoid(slope=SURROGATE_SLOPE)
 
         sizes = hidden_sizes if hidden_sizes is not None else HIDDEN_SIZES
         self.hidden_sizes = list(sizes)
