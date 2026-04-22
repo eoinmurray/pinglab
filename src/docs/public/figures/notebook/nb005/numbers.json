@@ -1,9 +1,10 @@
 {
-  "notebook_run_id": "r008",
-  "git_sha": "8cdd510 (dirty)",
+  "notebook_run_id": "r013",
+  "git_sha": "b704a81 (dirty)",
+  "mode": "sweep",
   "tier": "medium",
-  "duration_s": 142.3,
-  "duration": "2m 22s",
+  "duration_s": 1004.8,
+  "duration": "16m 45s",
   "config": {
     "model": "cuba",
     "dataset": "shd",
@@ -15,20 +16,179 @@
     "dt": 1.0,
     "seed": 42,
     "max_samples": 2000,
-    "epochs": 10
+    "epochs": 10,
+    "sweep_lrs": [
+      0.003,
+      0.01,
+      0.03
+    ],
+    "sweep_isws": [
+      1.0,
+      3.0,
+      5.0
+    ]
   },
   "cells": {
-    "cuba_baseline": {
+    "sweep_lr0p003_isw1": {
+      "name": "sweep_lr0p003_isw1",
       "model": "cuba",
+      "lr": 0.003,
+      "isw": 1.0,
+      "isb": 10.508331944775044,
       "hidden": [
         128,
         128
       ],
-      "best_acc": 21.75,
-      "final_acc": 21.0,
-      "final_loss": 0.7175688171386718,
-      "run_dir": "src/artifacts/notebook/nb005/cuba"
+      "readout": "rate",
+      "best_acc": 34.25,
+      "final_acc": 34.25,
+      "final_loss": 0.44729609429836276,
+      "run_dir": "src/artifacts/notebook/nb005/sweep_lr0p003_isw1"
+    },
+    "sweep_lr0p01_isw1": {
+      "name": "sweep_lr0p01_isw1",
+      "model": "cuba",
+      "lr": 0.01,
+      "isw": 1.0,
+      "isb": 10.508331944775044,
+      "hidden": [
+        128,
+        128
+      ],
+      "readout": "rate",
+      "best_acc": 35.5,
+      "final_acc": 33.25,
+      "final_loss": 0.2969760912656784,
+      "run_dir": "src/artifacts/notebook/nb005/sweep_lr0p01_isw1"
+    },
+    "sweep_lr0p03_isw1": {
+      "name": "sweep_lr0p03_isw1",
+      "model": "cuba",
+      "lr": 0.03,
+      "isw": 1.0,
+      "isb": 10.508331944775044,
+      "hidden": [
+        128,
+        128
+      ],
+      "readout": "rate",
+      "best_acc": 39.0,
+      "final_acc": 39.0,
+      "final_loss": 0.38547291338443757,
+      "run_dir": "src/artifacts/notebook/nb005/sweep_lr0p03_isw1"
+    },
+    "sweep_lr0p003_isw3": {
+      "name": "sweep_lr0p003_isw3",
+      "model": "cuba",
+      "lr": 0.003,
+      "isw": 3.0,
+      "isb": 10.508331944775044,
+      "hidden": [
+        128,
+        128
+      ],
+      "readout": "rate",
+      "best_acc": 33.5,
+      "final_acc": 33.5,
+      "final_loss": 0.419496945142746,
+      "run_dir": "src/artifacts/notebook/nb005/sweep_lr0p003_isw3"
+    },
+    "sweep_lr0p01_isw3": {
+      "name": "sweep_lr0p01_isw3",
+      "model": "cuba",
+      "lr": 0.01,
+      "isw": 3.0,
+      "isb": 10.508331944775044,
+      "hidden": [
+        128,
+        128
+      ],
+      "readout": "rate",
+      "best_acc": 36.5,
+      "final_acc": 36.0,
+      "final_loss": 0.34216665267944335,
+      "run_dir": "src/artifacts/notebook/nb005/sweep_lr0p01_isw3"
+    },
+    "sweep_lr0p03_isw3": {
+      "name": "sweep_lr0p03_isw3",
+      "model": "cuba",
+      "lr": 0.03,
+      "isw": 3.0,
+      "isb": 10.508331944775044,
+      "hidden": [
+        128,
+        128
+      ],
+      "readout": "rate",
+      "best_acc": 35.25,
+      "final_acc": 33.0,
+      "final_loss": 0.6080267450213432,
+      "run_dir": "src/artifacts/notebook/nb005/sweep_lr0p03_isw3"
+    },
+    "sweep_lr0p003_isw5": {
+      "name": "sweep_lr0p003_isw5",
+      "model": "cuba",
+      "lr": 0.003,
+      "isw": 5.0,
+      "isb": 10.508331944775044,
+      "hidden": [
+        128,
+        128
+      ],
+      "readout": "rate",
+      "best_acc": 35.5,
+      "final_acc": 35.5,
+      "final_loss": 0.44380737900733946,
+      "run_dir": "src/artifacts/notebook/nb005/sweep_lr0p003_isw5"
+    },
+    "sweep_lr0p01_isw5": {
+      "name": "sweep_lr0p01_isw5",
+      "model": "cuba",
+      "lr": 0.01,
+      "isw": 5.0,
+      "isb": 10.508331944775044,
+      "hidden": [
+        128,
+        128
+      ],
+      "readout": "rate",
+      "best_acc": 38.5,
+      "final_acc": 38.5,
+      "final_loss": 0.3945929181575775,
+      "run_dir": "src/artifacts/notebook/nb005/sweep_lr0p01_isw5"
+    },
+    "sweep_lr0p03_isw5": {
+      "name": "sweep_lr0p03_isw5",
+      "model": "cuba",
+      "lr": 0.03,
+      "isw": 5.0,
+      "isb": 10.508331944775044,
+      "hidden": [
+        128,
+        128
+      ],
+      "readout": "rate",
+      "best_acc": 36.5,
+      "final_acc": 36.0,
+      "final_loss": 0.4561733067035675,
+      "run_dir": "src/artifacts/notebook/nb005/sweep_lr0p03_isw5"
     }
   },
-  "run_finished_at": "2026-04-22T13:34:27.020501Z"
+  "winner": {
+    "name": "sweep_lr0p03_isw1",
+    "model": "cuba",
+    "lr": 0.03,
+    "isw": 1.0,
+    "isb": 10.508331944775044,
+    "hidden": [
+      128,
+      128
+    ],
+    "readout": "rate",
+    "best_acc": 39.0,
+    "final_acc": 39.0,
+    "final_loss": 0.38547291338443757,
+    "run_dir": "src/artifacts/notebook/nb005/sweep_lr0p03_isw1"
+  },
+  "run_finished_at": "2026-04-22T17:10:26.084347Z"
 }
