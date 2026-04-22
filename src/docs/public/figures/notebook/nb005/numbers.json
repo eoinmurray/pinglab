@@ -1,9 +1,9 @@
 {
-  "notebook_run_id": "r004",
-  "git_sha": "2093bfd",
+  "notebook_run_id": "r007",
+  "git_sha": "bf37465 (dirty)",
   "tier": "medium",
-  "duration_s": 107.1,
-  "duration": "1m 47s",
+  "duration_s": 148.2,
+  "duration": "2m 28s",
   "config": {
     "model": "cuba",
     "dataset": "shd",
@@ -24,11 +24,11 @@
         128,
         128
       ],
-      "best_acc": 36.5,
-      "final_acc": 36.0,
-      "final_loss": 0.34216665267944335,
+      "best_acc": 21.75,
+      "final_acc": 21.0,
+      "final_loss": 0.7175688171386718,
       "run_dir": "src/artifacts/notebook/nb005/cuba"
     }
   },
-  "run_finished_at": "2026-04-22T11:51:20.602187Z"
+  "run_finished_at": "2026-04-22T12:27:37.831031Z"
 }
