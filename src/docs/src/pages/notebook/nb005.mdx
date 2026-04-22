@@ -1,0 +1,63 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "005 — SHD"
+date: 2026-04-22
+entry: 5
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+import ReproBadge from "../../components/ReproBadge.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebook/nb005/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const cell = numbers.cells?.cuba_baseline ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const runFinished = numbers.run_finished_at ?? "?";
+export const gitSha = numbers.git_sha ?? null;
+
+# SHD — Spiking Heidelberg Digits
+
+<p><span class="font-mono">nb005</span> · Wednesday, 22<sup>nd</sup> April 26</p>
+
+<ReproBadge sha={gitSha} runId={nbRunId} finished={runFinished} />
+
+| Tier | Samples × Epochs | Best acc | Final acc | Duration |
+|---|---|---|---|---|
+| {cfg.tier ?? "?"} | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} | {cell.best_acc ?? "?"}% | {cell.final_acc ?? "?"}% | {numbers.duration ?? "?"} |
+
+## Introduction
+
+Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/spiking-heidelberg-datasets-shd/) dataset — 20 classes of spoken digits (English + German) encoded as cochleogram spike trains over 700 input channels and $\sim$1 s per trial. Picked up after entry [004](/notebook/nb004/) parked sMNIST: SHD is natively event-based, so the dt / discretisation / encoding questions the earlier notebooks studied apply directly rather than being mediated by an artificial row-by-row encoding.
+
+## Method
+
+First-cell baseline to validate the pipeline: one [*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at *medium* tier (2000 samples × 10 epochs). Trials run for 1000 ms at *dt* = 1 ms (1000 steps). Same cuba init-scale recipe as nb004 (*init_scale_weight* = 3.0, *init_scale_bias* = $1/(1-\beta)$). Readout is the shared ladder decoder — cumulative last-hidden spike counts projected via a single linear layer at the final timestep. This cell exists to prove end-to-end correctness of the SHD loader + 700-channel input + depth-2 ladder, not to match the SHD field benchmark — the cell matrix and readout upgrade come after.
+
+## Findings
+
+<Figure id="Figure 1" title="Baseline training curves" src="/figures/notebook/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba baseline at medium tier">
+  *cuba* on SHD at *medium* tier (2000 samples × 10 epochs, depth-2 ladder 128-128, *dt* = 1 ms). Loss falls monotonically; test accuracy climbs from chance (5%) to $\sim$36% over 10 epochs. Chance shown as red dashed reference.
+</Figure>
+
+<Figure id="Figure 2" title="Per-epoch hidden activity (cuba)" src="/figures/notebook/nb005/training_cuba.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the cuba baseline on SHD">
+  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers. 700-channel cochleogram input driving the depth-2 ladder, with spiking activity stabilising as the classifier learns.
+</Figure>
+
+The end-to-end path runs cleanly and learns: best 36.5% / final 36.0% / loss 0.34 in 1m 47s. Well above 5% chance on a 20-class task, so *cuba* + the depth-2 ladder is genuinely classifying spoken digits — but short of the $\sim$65–75% range typical SHD benchmarks sit at with comparable-size networks. The gap is at least partly the readout: SHD's informative structure is spread across $\sim$1 s of spikes, and a cumulative-count decoder collapses that to a single rate vector at the final timestep.
+
+## Implications
+
+Baseline is a *pipeline green-light* plus an honest cuba/rate-readout ceiling, not a field-competitive benchmark. The readout is the next thing to fix: swapping the cumulative-spike linear decoder for a leaky-integrator (LI) non-spiking output layer is the standard SHD upgrade and is expected to close most of the gap before the cell matrix runs.
+
+## Next steps
+
+1. Add a leaky-integrator (LI) non-spiking output readout as an option across the ladder, and rerun *cuba* at *medium* on SHD — field expectation is a large accuracy jump over the rate readout.
+2. Broaden the cell matrix across the four model families ([*cuba*](/models/#cuba), [*standard-snn*](/models/#standard-snn), [*ping*](/models/#ping), [*snntorch-library*](/models/#snntorch-library)) at matched init.
+3. Sweep training *dt* (0.25 / 0.5 / 1.0 ms) to reprise the nb003 discretisation comparison on a natively-spiking task.
+
+## Reproduction
+
+```
+uv run src/pinglab/notebook/nb005.py
+```
