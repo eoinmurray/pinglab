@@ -32,29 +32,37 @@ Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/sp
 
 ## Method
 
-First-cell baseline to validate the pipeline: one [*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at *medium* tier (2000 samples × 10 epochs). Trials run for 1000 ms at *dt* = 1 ms (1000 steps). Same cuba init-scale recipe as nb004 (*init_scale_weight* = 3.0, *init_scale_bias* = $1/(1-\beta)$). Readout is the shared ladder decoder — cumulative last-hidden spike counts projected via a single linear layer at the final timestep. This cell exists to prove end-to-end correctness of the SHD loader + 700-channel input + depth-2 ladder, not to match the SHD field benchmark — the cell matrix and readout upgrade come after.
+First-cell baseline to validate the pipeline: one [*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at *medium* tier (2000 samples × 10 epochs). Trials run for 1000 ms at *dt* = 1 ms (1000 steps). Same cuba init-scale recipe as nb004 (*init_scale_weight* = 3.0, *init_scale_bias* = $1/(1-\beta)$). Two readouts are compared against the same training setup: (a) **rate** — cumulative last-hidden spike counts projected once at the final timestep, the default shared ladder decoder; (b) **li** — a non-spiking leaky-integrator neuron per class with $\tau = \tau_\text{mem} = $ 10 ms and max-over-time as the logit, the field-standard SHD readout.
 
 ## Findings
 
-<Figure id="Figure 1" title="Baseline training curves" src="/figures/notebook/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba baseline at medium tier">
-  *cuba* on SHD at *medium* tier (2000 samples × 10 epochs, depth-2 ladder 128-128, *dt* = 1 ms). Loss falls monotonically; test accuracy climbs from chance (5%) to $\sim$36% over 10 epochs. Chance shown as red dashed reference.
+<Figure id="Figure 1" title="Training curves (li readout)" src="/figures/notebook/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba + LI-readout run at medium tier">
+  *cuba* on SHD at *medium* tier with the **li** readout. Loss falls monotonically; test accuracy climbs to $\sim$22% over 10 epochs — above chance (5%, red dashed) but well below the rate-readout run on the same config.
 </Figure>
 
-<Figure id="Figure 2" title="Per-epoch hidden activity (cuba)" src="/figures/notebook/nb005/training_cuba.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the cuba baseline on SHD">
-  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers. 700-channel cochleogram input driving the depth-2 ladder, with spiking activity stabilising as the classifier learns.
+<Figure id="Figure 2" title="Per-epoch hidden activity (cuba, li readout)" src="/figures/notebook/nb005/training_cuba.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for cuba with LI readout on SHD">
+  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers with the li readout.
 </Figure>
 
-The end-to-end path runs cleanly and learns: best 36.5% / final 36.0% / loss 0.34 in 1m 47s. Well above 5% chance on a 20-class task, so *cuba* + the depth-2 ladder is genuinely classifying spoken digits — but short of the $\sim$65–75% range typical SHD benchmarks sit at with comparable-size networks. The gap is at least partly the readout: SHD's informative structure is spread across $\sim$1 s of spikes, and a cumulative-count decoder collapses that to a single rate vector at the final timestep.
+Both readouts train cleanly end-to-end, but the field-standard li readout **underperforms** the rate baseline at matched init and training budget:
+
+| readout | best acc | final acc | final loss | duration |
+|---|---|---|---|---|
+| rate | 36.5% | 36.0% | 0.34 | 1m 47s |
+| li   | 21.75% | 21.0% | 0.72 | 2m 28s |
+
+This is the opposite of the field expectation and worth debugging before drawing any conclusion about readouts. Two plausible causes stand out. (i) *Init-scale bleed into the output layer.* The *init_scale_weight* = 3.0 / *init_scale_bias* = $1/(1-\beta) \approx 10.5$ recipe was tuned for the hidden-layer drive in cuba; applied uniformly it also multiplies the output weights and biases. The rate readout absorbs a large $W_\text{out}$ because it's a single linear projection on a single cumulative vector, but the li readout integrates $W_\text{out} \cdot s_t$ step-by-step into a non-spiking neuron that can saturate well before the informative spikes arrive. (ii) *Readout* $\tau$ *too short.* The li neuron currently reuses $\tau_\text{mem} = $ 10 ms; for $\sim$1 s SHD trials that's a very leaky integrator, and the max-over-time collapses to whichever burst happened to arrive strongest rather than integrated evidence. Zenke-style SHD pipelines typically use a longer readout $\tau$ (often $\sim$20 ms) and/or a separate synaptic $\tau$.
 
 ## Implications
 
-Baseline is a *pipeline green-light* plus an honest cuba/rate-readout ceiling, not a field-competitive benchmark. The readout is the next thing to fix: swapping the cumulative-spike linear decoder for a leaky-integrator (LI) non-spiking output layer is the standard SHD upgrade and is expected to close most of the gap before the cell matrix runs.
+The readout swap is not free — it has its own init + time-constant tuning, and blindly wrapping the hidden-layer init recipe around the output layer makes the li path worse, not better. The rate baseline at 36.5% stays as the honest pre-tuning number; the li path needs its own init + $\tau$ pass before a fair readout-vs-readout comparison.
 
 ## Next steps
 
-1. Add a leaky-integrator (LI) non-spiking output readout as an option across the ladder, and rerun *cuba* at *medium* on SHD — field expectation is a large accuracy jump over the rate readout.
-2. Broaden the cell matrix across the four model families ([*cuba*](/models/#cuba), [*standard-snn*](/models/#standard-snn), [*ping*](/models/#ping), [*snntorch-library*](/models/#snntorch-library)) at matched init.
-3. Sweep training *dt* (0.25 / 0.5 / 1.0 ms) to reprise the nb003 discretisation comparison on a natively-spiking task.
+1. Separate the readout init from the hidden init: add an *init-scale-readout* knob (default 1.0) so the 3.0× hidden scaling doesn't bleed into $W_\text{out}$, and rerun *cuba* + li at *medium*.
+2. Expose the li readout's time constant as a separate param (e.g. $\tau_\text{out}$), default $\sim$20 ms to match Zenke-style SHD pipelines, and sweep it ($\tau_\text{out} \in $ \{10, 20, 40\} ms) at the best init from step 1.
+3. Once li is at or above rate, broaden the cell matrix across the four model families ([*cuba*](/models/#cuba), [*standard-snn*](/models/#standard-snn), [*ping*](/models/#ping), [*snntorch-library*](/models/#snntorch-library)) at matched init.
+4. Sweep training *dt* (0.25 / 0.5 / 1.0 ms) to reprise the nb003 discretisation comparison on a natively-spiking task.
 
 ## Reproduction
 

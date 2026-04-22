@@ -166,7 +166,8 @@ def build_net(model_name, w_in=None, w_in_sparsity=0.0,
               device=None, randomize_init=False,
               kaiming_init=False, dales_law=True,
               w_rec=None, hidden_sizes=None,
-              rec_layers=None, ei_layers=None):
+              rec_layers=None, ei_layers=None,
+              readout_mode="rate"):
     """Construct a network with the given config.
 
     Single canonical builder used by every mode. Same args produce the same
@@ -182,6 +183,7 @@ def build_net(model_name, w_in=None, w_in_sparsity=0.0,
                          f"choose from {list(_MODEL_CLASSES)}")
     cls, base_kwargs = _MODEL_CLASSES[model_name]
     kwargs = {**base_kwargs}
+    kwargs["readout_mode"] = readout_mode
 
     # Set module-level hidden sizes
     if hidden_sizes is not None:
