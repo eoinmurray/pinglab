@@ -105,12 +105,14 @@ def main() -> None:
 
     run_dir = train_baseline()
     metrics = json.loads((run_dir / "metrics.json").read_text())
+    cfg = json.loads((run_dir / "config.json").read_text())
     best_acc = metrics.get("best_acc", max(e["acc"] for e in metrics["epochs"]))
     final_acc = metrics["epochs"][-1]["acc"]
     final_loss = metrics["epochs"][-1]["loss"]
 
     numbers = {
         "notebook_run_id": run_id,
+        "git_sha": cfg.get("git_sha"),
         "tier": TIER,
         "config": {
             "model": "cuba",

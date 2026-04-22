@@ -6,6 +6,7 @@ entry: 3
 structure: paper
 ---
 import Figure from "../../components/Figure.astro";
+import ReproBadge from "../../components/ReproBadge.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebook/nb003/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -32,6 +33,7 @@ export const snn2Zp = mode(snn2);
 export const lib2Zp = mode(lib2);
 export const cuba2Zp = mode(cuba2);
 export const nbRunId = numbers.notebook_run_id ?? "?";
+export const gitSha = numbers.git_sha ?? null;
 export const runDuration = numbers.duration ?? "?";
 export const latestRun = snn1.run_date ?? lib1.run_date ?? cuba1.run_date ?? "?";
 export const sec = (v) => (typeof v === "number" ? v.toFixed(0) : "?");
@@ -54,9 +56,11 @@ export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" 
 
 <p><span class="font-mono">nb003</span> · Sunday, 19<sup>th</sup> April 26</p>
 
-| Run ID | Date | Size | Train *dt* (ms) | Eval *dt* sweep (ms) | Duration |
-|---|---|---|---|---|---|
-| <span class="font-mono">{nbRunId}</span> | {latestRun} | {cfg.tier ?? "?"} | {(cfg.dt_trains ?? []).join(", ")} | \{{(cfg.dt_sweep ?? []).join(", ")}\} | {runDuration} |
+<ReproBadge sha={gitSha} runId={nbRunId} finished={latestRun} />
+
+| Size | Train *dt* (ms) | Eval *dt* sweep (ms) | Duration |
+|---|---|---|---|
+| {cfg.tier ?? "?"} | {(cfg.dt_trains ?? []).join(", ")} | \{{(cfg.dt_sweep ?? []).join(", ")}\} | {runDuration} |
 
 ## Introduction
 

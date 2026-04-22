@@ -1,5 +1,6 @@
 {
   "notebook_run_id": "r007",
+  "git_sha": "879c128 (dirty)",
   "tier": "medium",
   "config": {
     "model": "cuba",
