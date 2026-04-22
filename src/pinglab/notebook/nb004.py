@@ -15,6 +15,7 @@ Notebook entry: src/docs/src/pages/notebook/nb004.mdx
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import sys
 from datetime import datetime
@@ -33,7 +34,7 @@ FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
 # Tier config — see src/docs/src/pages/styleguide.md § 8 Run sizing tiers
-TIER = "extra_small"
+TIER = "medium"
 TIER_CONFIG = {
     "extra_small": dict(max_samples=200, epochs=3),
     "small":       dict(max_samples=500, epochs=5),
@@ -48,12 +49,21 @@ SEED = 42
 # ≥2 hidden layers required: single-hidden-layer SNNs bottleneck at the
 # 28-input interface on sMNIST and fail to learn.
 HIDDEN = [64, 64]
+TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
+
+
+def cuba_init_scales(dt: float, tau: float = TAU_MEM_MS) -> tuple[float, float]:
+    """Per-step drive compensation for cuba — see nb003."""
+    beta = math.exp(-dt / tau)
+    return dt / (1.0 - beta), 1.0 / (1.0 - beta)
 
 
 def train_baseline() -> Path:
     tier = TIER_CONFIG[TIER]
     out_dir = ARTIFACTS / "cuba"
-    print(f"[cuba sMNIST] training → {out_dir.relative_to(REPO)}")
+    sw, sb = cuba_init_scales(DT)
+    print(f"[cuba sMNIST] training → {out_dir.relative_to(REPO)} "
+          f"(init_scale W×{sw:.3f} b×{sb:.3f})")
     sh.uv(
         "run", "python", str(OSCILLOSCOPE), "train",
         "--model", "cuba",
@@ -64,8 +74,9 @@ def train_baseline() -> Path:
         "--t-ms", str(T_MS),
         "--dt", str(DT),
         "--lr", "0.01",
-        "--adaptive-lr",
         "--kaiming-init",
+        "--init-scale-weight", "3.0",
+        "--init-scale-bias", f"{sb}",
         "--no-dales-law",
         "--seed", str(SEED),
         "--out-dir", str(out_dir),
@@ -94,12 +105,14 @@ def main() -> None:
 
     run_dir = train_baseline()
     metrics = json.loads((run_dir / "metrics.json").read_text())
+    cfg = json.loads((run_dir / "config.json").read_text())
     best_acc = metrics.get("best_acc", max(e["acc"] for e in metrics["epochs"]))
     final_acc = metrics["epochs"][-1]["acc"]
     final_loss = metrics["epochs"][-1]["loss"]
 
     numbers = {
         "notebook_run_id": run_id,
+        "git_sha": cfg.get("git_sha"),
         "tier": TIER,
         "config": {
             "model": "cuba",

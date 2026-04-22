@@ -2,6 +2,7 @@
 layout: ../layouts/MarkdownLayout.astro
 title: "Models"
 ---
+import Code from "../components/Code.astro";
 
 # Models
 
@@ -26,7 +27,7 @@ Each step up the ladder adds one axis of realism or rigour:
 
 ### snnTorch-library
 
-Implementation: [SNNTorchLibraryNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*.
+Implementation: <Code path="src/pinglab/models.py">SNNTorchLibraryNet</Code> in *src/pinglab/models.py*.
 
 A thin wrapper around snnTorch's own [*snn.Leaky*](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html) module with the library's [fast-sigmoid surrogate](https://snntorch.readthedocs.io/en/latest/snntorch.surrogate.html) ([Eshraghian et al. 2023](https://arxiv.org/abs/2109.12894); see also [snnTorch Tutorial 3](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html) for the *snn.Leaky* walkthrough and [Tutorial 5](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html) for the feedforward SNN reference pattern). Per-step update for one hidden layer:
 
@@ -42,7 +43,7 @@ Its purpose is calibration, not experimentation. At matched config, snnTorch-lib
 
 ### standard-snn
 
-Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Selected by the default constructor args — *discretisation="snntorch"* and *exponential_synapse=False* — which is what distinguishes this path from its CUBA siblings on the same class.
+Implementation: <Code path="src/pinglab/models.py">CUBANet</Code> in *src/pinglab/models.py*. Selected by the default constructor args — *discretisation="snntorch"* and *exponential_synapse=False* — which is what distinguishes this path from its CUBA siblings on the same class.
 
 Pinglab's in-repo reimplementation of the same forward rule as [*snn.Leaky*](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html):
 
@@ -64,7 +65,7 @@ This is the deep-learning framing of an SNN: a recurrent network with binary act
 
 ### CUBA
 
-Implementation: [CUBANet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Selected by *discretisation="continuous"* (standard-snn leaves it at "snntorch"), with *exponential_synapse=False*.
+Implementation: <Code path="src/pinglab/models.py">CUBANet</Code> in *src/pinglab/models.py*. Selected by *discretisation="continuous"* (standard-snn leaves it at "snntorch"), with *exponential_synapse=False*.
 
 Proper continuous-time discretisation of the physicist's LIF:
 
@@ -115,7 +116,7 @@ This is exactly the one-shot balance step CUBA applies at init: weights are draw
 
 ### COBA
 
-Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Selected via *ei_strength=0*, which zeroes the inhibitory population's weights — leaving a feedforward-only COBA. PING keeps *ei_strength* nonzero to turn on the E→I→E loop.
+Implementation: <Code path="src/pinglab/models.py">PINGNet</Code> in *src/pinglab/models.py*. Selected via *ei_strength=0*, which zeroes the inhibitory population's weights — leaving a feedforward-only COBA. PING keeps *ei_strength* nonzero to turn on the E→I→E loop.
 
 Conductance-based LIF with exponential synapses — the simplest biophysical model. The membrane follows
 
@@ -155,7 +156,7 @@ COBA is not a separate CLI model — run it as PINGNet with the inhibitory popul
 
 ### PING
 
-Implementation: [PINGNet](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py) in *src/pinglab/models.py*. Uses the default nonzero *ei_strength* (with *w_ei* and *w_ie* supplied from CLI config) to activate the E→I→E recurrent loop; COBA zeros these to collapse to the feedforward case.
+Implementation: <Code path="src/pinglab/models.py">PINGNet</Code> in *src/pinglab/models.py*. Uses the default nonzero *ei_strength* (with *w_ei* and *w_ie* supplied from CLI config) to activate the E→I→E recurrent loop; COBA zeros these to collapse to the feedforward case.
 
 Full E-I network with frozen recurrent weights, producing gamma oscillations. Excitatory and inhibitory populations (E:I ratio 4:1) share COBA-style membrane dynamics; three frozen recurrent matrices $W^{EE}, W^{EI}, W^{IE}$ connect them into the standard PING loop. Per-step synaptic updates (kick-then-decay with $\alpha = e^{-\Delta t/\tau_{\text{AMPA}}}$, $\gamma = e^{-\Delta t/\tau_{\text{GABA}}}$):
 
@@ -183,7 +184,7 @@ With default parameters and input rate 50 Hz, the network locks at $f_0 \approx 
 | ---- | ------------------ | ---- | ---- | ---- |
 | --model | standard-snn | cuba | ping | ping |
 | --dataset | mnist | mnist | mnist | mnist |
-| --dt | {0.1\|1.0} | {0.1\|1.0} | {0.1\|1.0} | {0.1\|1.0} |
+| --dt | \{0.1\|1.0\} | \{0.1\|1.0\} | \{0.1\|1.0\} | \{0.1\|1.0\} |
 | --t-ms | 200 | 200 | 200 | 200 |
 | --epochs | 40 | 40 | 40 | 40 |
 | --adaptive-lr | ✓ | ✓ | ✓ | ✓ |
