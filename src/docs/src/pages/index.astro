@@ -4,7 +4,10 @@ import "../styles/global.css";
 const notebookModules = import.meta.glob("./notebook/*.mdx", { eager: true });
 const notebooks = Object.entries(notebookModules)
   .map(([path, mod]) => {
-    const slug = path.split("/").pop().replace(/\.mdx$/, "");
+    const slug = path
+      .split("/")
+      .pop()
+      .replace(/\.mdx$/, "");
     const fm = mod.frontmatter;
     return {
       slug,
@@ -13,7 +16,7 @@ const notebooks = Object.entries(notebookModules)
       date: fm.date,
     };
   })
-  .sort((a, b) => b.entry - a.entry);
+  .sort((a, b) => - b.entry + a.entry);
 
 const formatDate = (raw) => {
   const s = raw instanceof Date ? raw.toISOString() : String(raw);
@@ -30,7 +33,9 @@ const formatDate = (raw) => {
     <title>Pinglab</title>
   </head>
   <body>
-    <main class="px-6 py-16 lg:pl-[25%] lg:pr-16">
+    <main
+      class="px-6 py-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!"
+    >
       <div class="max-w-[46rem]">
         <div class="flex items-baseline justify-between gap-4">
           <h1 class="text-2xl font-bold">Pinglab</h1>
@@ -38,14 +43,18 @@ const formatDate = (raw) => {
             href="https://github.com/eoinmurray/pinglab"
             class="text-sm text-[color:var(--muted)] hover:text-[color:var(--ink)]"
             target="_blank"
-            rel="noopener"
-          >github</a>
+            rel="noopener">github</a
+          >
         </div>
         <p class="mt-1 text-sm text-[color:var(--muted)]">
           Exploring the PING mod for spiking neural networks
         </p>
 
-        <p class="mt-10 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]">Pages</p>
+        <p
+          class="mt-10 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]"
+        >
+          Pages
+        </p>
         <ul class="pl-0 list-none space-y-1">
           <li><a href="/introduction/">Introduction</a></li>
           <li><a href="/models/">Models</a></li>
@@ -57,15 +66,27 @@ const formatDate = (raw) => {
           <li><a href="/styleguide/">Style guide</a></li>
         </ul>
 
-        <p class="mt-8 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]">Notebooks</p>
+        <p
+          class="mt-8 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]"
+        >
+          Notebooks
+        </p>
         <ul class="pl-0 list-none space-y-1.5">
-          {notebooks.map((nb) => (
-            <li class="grid grid-cols-[auto_1fr_auto] gap-x-6 items-baseline">
-              <span class="text-[0.9em] tabular-nums text-[color:var(--muted)]">{String(nb.entry).padStart(3, "0")}</span>
-              <a href={`/notebook/${nb.slug}/`}>{nb.title}</a>
-              <span class="text-[0.9em] tabular-nums text-[color:var(--muted)]">{formatDate(nb.date)}</span>
-            </li>
-          ))}
+          {
+            notebooks.map((nb) => (
+              <li class="grid grid-cols-[auto_1fr_auto] gap-x-4 items-baseline">
+                {/* <span class="text-[0.9em] tabular-nums text-[color:var(--muted)]">
+                  {String(nb.entry).padStart(3, "0")}
+                </span> */}
+                <a href={`/notebook/${nb.slug}/`}>
+                  {String(nb.entry).padStart(1, "0")}. {nb.title}
+                </a>
+                <span class="text-[0.9em] tabular-nums text-[color:var(--muted)]">
+                  {formatDate(nb.date)}
+                </span>
+              </li>
+            ))
+          }
         </ul>
       </div>
     </main>
