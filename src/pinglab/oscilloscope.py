@@ -930,15 +930,66 @@ def primary_inh_key(rec):
     return inh_keys[-1] if inh_keys else None
 
 
-def load_dataset(name, max_samples=None, split=False):
+SHD_N_CHANNELS = 700
+
+
+def _shd_cache_dir():
+    """Root dir for SHD HDF5 files. Override with $PINGLAB_SHD_DIR."""
+    import os
+    return os.environ.get("PINGLAB_SHD_DIR", "/tmp/shd/SHD")
+
+
+def _load_shd(dt_ms, t_ms, max_samples=None):
+    """Load SHD as a dense (N, T_steps, 700) float32 spike tensor + int64 labels.
+
+    Reads the official train+test H5 files, concatenates them, then bins
+    each sample's (time, unit) events into the grid at dt. `max_samples`
+    is a per-file cap applied before binning — keeps the smoke-test cost
+    bounded without reading the full 10k-sample set.
+    """
+    import h5py
+    from pathlib import Path
+    root = Path(_shd_cache_dir())
+    train_path = root / "shd_train.h5"
+    test_path = root / "shd_test.h5"
+    if not train_path.exists() or not test_path.exists():
+        raise FileNotFoundError(
+            f"SHD HDF5 files not found at {root}. Download shd_train.h5 + "
+            f"shd_test.h5 from https://zenkelab.org/datasets/ or set "
+            f"$PINGLAB_SHD_DIR to an existing cache."
+        )
+    T_steps = int(round(t_ms / dt_ms))
+    dt_s = dt_ms / 1000.0
+    xs, ys = [], []
+    per_file_cap = max_samples if max_samples is not None else None
+    for path in (train_path, test_path):
+        with h5py.File(path, "r") as f:
+            labels = f["labels"][:].astype(np.int64)
+            n = len(labels) if per_file_cap is None else min(per_file_cap, len(labels))
+            times_ds = f["spikes/times"]
+            units_ds = f["spikes/units"]
+            X = np.zeros((n, T_steps, SHD_N_CHANNELS), dtype=np.float32)
+            for i in range(n):
+                t_idx = np.clip((times_ds[i] / dt_s).astype(np.int64), 0, T_steps - 1)
+                u_idx = np.clip(units_ds[i].astype(np.int64), 0, SHD_N_CHANNELS - 1)
+                # multiple events per cell → clip to 1 spike (dense binary raster)
+                X[i, t_idx, u_idx] = 1.0
+            xs.append(X)
+            ys.append(labels[:n])
+    return np.concatenate(xs, axis=0), np.concatenate(ys, axis=0)
+
+
+def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
     """Load full dataset as (X, y) numpy arrays in [0, 1] / int64.
 
     Args:
-        name: "scikit" | "mnist" | "smnist" (smnist is mnist data, encoded
-              row-by-row at run time — same X/y here)
+        name: "scikit" | "mnist" | "smnist" | "shd"
+              - smnist is mnist data, encoded row-by-row at run time
+              - shd is natively event-based; X shape is (N, T_steps, 700)
         max_samples: optional cap; deterministic random subset (seed 42)
         split: if True, return (X_tr, X_te, y_tr, y_te) via stratified 80/20
                train_test_split(seed 42); otherwise return (X, y)
+        dt_ms, t_ms: required for "shd" (event binning grid); ignored otherwise
 
     Single canonical loader used by train, infer, and image/video paths so
     "first digit-0 sample" means the same physical sample everywhere.
@@ -962,6 +1013,10 @@ def load_dataset(name, max_samples=None, split=False):
         digits = load_digits()
         X = digits.data.astype(np.float32) / 16.0
         y = digits.target.astype(np.int64)
+    elif name == "shd":
+        if dt_ms is None or t_ms is None:
+            raise ValueError("load_dataset('shd', ...) requires dt_ms and t_ms")
+        X, y = _load_shd(dt_ms=dt_ms, t_ms=t_ms, max_samples=max_samples)
     else:
         raise ValueError(f"Unknown dataset: {name}")
 
@@ -1161,6 +1216,7 @@ DATASET_N_HIDDEN_DEFAULTS = {
     "scikit": 64,    # n_in = 64
     "mnist":  1024,  # n_in = 784, next pow2
     "smnist": 32,    # n_in = 28, next pow2
+    "shd":    256,   # n_in = 700; 256 keeps the ladder tractable locally
 }
 
 
@@ -1219,12 +1275,16 @@ def encode_batch(X_b, dt, use_smnist, generator=None):
     """Encode a pre-moved pixel batch as spikes using the canonical scheme.
 
     Shared by train, infer, and calibration loops so the three paths can't
-    drift. Routes smnist through the row-by-row sequential encoder and
+    drift. Routes smnist through the row-by-row sequential encoder, 3-d
+    already-spiked tensors (e.g. SHD) through a transpose passthrough, and
     everything else through vanilla Poisson rate coding. Output is always
     returned on X_b.device. Pass `generator` (typically a CPU torch.Generator
     with a fixed seed) for deterministic eval — same weights + same split +
     same generator seed → identical spike trains → identical accuracy.
     """
+    if X_b.ndim == 3:
+        # (B, T, N_in) pre-spiked → (T, B, N_in); ignore dt/generator.
+        return X_b.permute(1, 0, 2).contiguous()
     if use_smnist:
         return encode_smnist(X_b, dt, M.max_rate_hz, generator=generator).to(X_b.device)
     return encode_images_poisson(X_b, M.T_steps, dt, M.max_rate_hz, generator=generator)
@@ -1341,6 +1401,10 @@ class FrozenEncoder:
 
     def __call__(self, X_b, dt, use_smnist, generator=None):
         # generator arg ignored — FrozenEncoder seeds per-batch deterministically
+        if X_b.ndim == 3:
+            # Already-spiked inputs (e.g. SHD) — passthrough; dt-transport on
+            # event-based data would need a rebinning path we haven't built yet.
+            return X_b.permute(1, 0, 2).contiguous()
         g = torch.Generator()
         g.manual_seed(self.base_seed + self.batch_idx)
         self.batch_idx += 1
@@ -1451,7 +1515,12 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
 
     # Data — single canonical loader; smnist uses mnist data, encoded row-by-row
     use_smnist = dataset == "smnist"
-    X_tr, X_te, y_tr, y_te = load_dataset(dataset, max_samples=max_samples, split=True)
+    if dataset == "shd":
+        X_tr, X_te, y_tr, y_te = load_dataset(
+            dataset, max_samples=max_samples, split=True, dt_ms=dt, t_ms=t_ms)
+    else:
+        X_tr, X_te, y_tr, y_te = load_dataset(
+            dataset, max_samples=max_samples, split=True)
     if dataset in ("mnist", "smnist"):
         if use_smnist:
             M.N_IN = 28
@@ -1460,6 +1529,10 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             M.T_steps = int(t_ms / dt)
         else:
             M.N_IN = 784
+    elif dataset == "shd":
+        # X_tr shape is (N, T_steps, 700) — source n_in and T from the data.
+        M.N_IN = SHD_N_CHANNELS
+        M.T_steps = X_tr.shape[1]
     else:
         M.N_IN = 64
     bs = batch_size if batch_size is not None else BATCH_SIZE
@@ -1553,17 +1626,27 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
     # Pre-generate fixed reference spike train using the canonical loader
     # (same as image mode) so init/end snapshots use the same digit-0 sample
     # regardless of train/test split shuffling.
-    loader_dataset = "mnist" if dataset in ("mnist", "smnist") else dataset
-    ref_pixel_vec, ref_image = _load_dataset_image(
-        loader_dataset, digit_class=0, sample_idx=0)
-    ref_input = torch.from_numpy(ref_pixel_vec).float().unsqueeze(0).to(device)
-    if use_smnist:
-        ref_spikes = encode_smnist(ref_input, dt, M.max_rate_hz).to(device)
+    if dataset == "shd":
+        # SHD has no canonical "digit image" — skip the image snapshot PNGs
+        # (the input-raster snapshot panel is a deferred follow-up). Per-epoch
+        # firing-rate metrics still want a fixed reference input, so use the
+        # first train sample — already-spiked, shape (T, 700), ready for forward.
+        snapshot_init = False
+        snapshot_end = False
+        ref_image = None
+        ref_spikes = torch.from_numpy(X_tr[0]).float().to(device)
     else:
-        torch.manual_seed(0)
-        pixels = ref_input.clamp(0, 1)
-        p = M.max_rate_hz * dt / 1000.0
-        ref_spikes = (torch.rand(M.T_steps, 1, M.N_IN, device=device) < pixels * p).float().squeeze(1)
+        loader_dataset = "mnist" if dataset in ("mnist", "smnist") else dataset
+        ref_pixel_vec, ref_image = _load_dataset_image(
+            loader_dataset, digit_class=0, sample_idx=0)
+        ref_input = torch.from_numpy(ref_pixel_vec).float().unsqueeze(0).to(device)
+        if use_smnist:
+            ref_spikes = encode_smnist(ref_input, dt, M.max_rate_hz).to(device)
+        else:
+            torch.manual_seed(0)
+            pixels = ref_input.clamp(0, 1)
+            p = M.max_rate_hz * dt / 1000.0
+            ref_spikes = (torch.rand(M.T_steps, 1, M.N_IN, device=device) < pixels * p).float().squeeze(1)
 
     if snapshot_init:
         import config as C
@@ -2472,7 +2555,7 @@ Models:
     inp_group.add_argument("--sample", type=int, default=0,
                            help="Sample index for dataset input")
     inp_group.add_argument("--dataset", type=str, default="scikit",
-                           choices=["scikit", "mnist", "smnist"],
+                           choices=["scikit", "mnist", "smnist", "shd"],
                            help="Dataset (default: scikit)")
 
     wt_group = parent.add_argument_group("Weights (advanced)")
