@@ -9,14 +9,14 @@ encoding questions this notebook is built around.
 Two invocation modes:
 
   * default — single baseline cell (cuba + li readout), as before
-  * --sweep — 3×3 grid over (lr, init_scale_weight) at the same tier,
-    cuba + rate readout, one cell per grid point. Winner is picked by
-    best_acc and promoted as numbers["winner"].
+  * --sweep — grid over (lr, hidden architecture) at fixed
+    init_scale_weight, cuba + rate readout. Winner picked by best_acc
+    and promoted as numbers["winner"].
 
 Writes:
   * training_curves.png — winner cell (or baseline in default mode)
   * training_cuba.mp4 — winner cell (or baseline)
-  * sweep_lr_isw.png — heatmap (sweep mode only)
+  * sweep_lr_hidden.png — heatmap (sweep mode only)
   * numbers.json — config + cells dict + winner
 
 Notebook entry: src/docs/src/pages/notebook/nb005.mdx
@@ -66,9 +66,11 @@ TAU_MEM_MS = 10.0
 MODEL = "cuba"
 MODEL_COLOR = "#2ca02c"
 
-# Sweep axes — 3×3 grid over (lr, init_scale_weight), cuba + rate readout.
-SWEEP_LRS = [3e-3, 1e-2, 3e-2]
-SWEEP_ISWS = [1.0, 3.0, 5.0]
+# Sweep axes — grid over (lr, hidden architecture), cuba + rate readout.
+# isw fixed at 1.0 (step 1 winner); isb = 1/(1-β) from nb004.
+SWEEP_LRS = [3e-2, 1e-1]
+SWEEP_HIDDENS = [[128, 128], [256, 256], [512, 512], [256, 256, 256]]
+SWEEP_ISW = 1.0
 
 
 def cuba_init_scales(dt: float, tau: float = TAU_MEM_MS) -> tuple[float, float]:
@@ -195,12 +197,20 @@ def plot_training_curves(metrics: dict, out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
-def plot_lr_isw_heatmap(cells: list[dict], out_path: Path, run_id: str) -> None:
-    """3×3 best-acc heatmap over (lr, init_scale_weight)."""
-    acc = np.full((len(SWEEP_ISWS), len(SWEEP_LRS)), np.nan)
+def _hidden_label(hidden: list[int]) -> str:
+    """'128×2', '256×3' when layers are uniform, else '128-256-128'."""
+    if len(set(hidden)) == 1:
+        return f"{hidden[0]}×{len(hidden)}"
+    return "-".join(str(h) for h in hidden)
+
+
+def plot_lr_hidden_heatmap(cells: list[dict], out_path: Path, run_id: str) -> None:
+    """Best-acc heatmap over (lr, hidden architecture)."""
+    hidden_keys = [tuple(h) for h in SWEEP_HIDDENS]
+    acc = np.full((len(hidden_keys), len(SWEEP_LRS)), np.nan)
     for c in cells:
         try:
-            i = SWEEP_ISWS.index(c["isw"])
+            i = hidden_keys.index(tuple(c["hidden"]))
             j = SWEEP_LRS.index(c["lr"])
         except ValueError:
             continue
@@ -210,10 +220,10 @@ def plot_lr_isw_heatmap(cells: list[dict], out_path: Path, run_id: str) -> None:
     im = ax.imshow(acc, origin="lower", aspect="auto", cmap="viridis")
     ax.set_xticks(range(len(SWEEP_LRS)))
     ax.set_xticklabels([f"{lr:g}" for lr in SWEEP_LRS])
-    ax.set_yticks(range(len(SWEEP_ISWS)))
-    ax.set_yticklabels([f"{w:g}" for w in SWEEP_ISWS])
+    ax.set_yticks(range(len(hidden_keys)))
+    ax.set_yticklabels([_hidden_label(list(h)) for h in hidden_keys])
     ax.set_xlabel("learning rate")
-    ax.set_ylabel("init_scale_weight")
+    ax.set_ylabel("hidden architecture")
     ax.set_title(f"cuba + rate on SHD — best test accuracy (%), {TIER} tier")
     for i in range(acc.shape[0]):
         for j in range(acc.shape[1]):
@@ -261,9 +271,9 @@ def _parse_max_workers(argv: list[str], default: int = 4) -> int:
 
 
 def run_baseline(run_id: str, modal_gpu: str | None) -> dict:
-    """Single cuba + li cell, matches the original entry baseline."""
+    """Single cell at the current best-known config (post-sweep winner)."""
     _, isb = cuba_init_scales(DT)
-    spec = dict(lr=0.01, isw=3.0, isb=isb, hidden=HIDDEN, readout="li")
+    spec = dict(lr=0.03, isw=1.0, isb=isb, hidden=HIDDEN, readout="rate")
     run_dir = train_cell("cuba_baseline", **spec,
                          observe_video=True, modal_gpu=modal_gpu)
     summary = _cell_summary("cuba_baseline", spec, run_dir)
@@ -281,14 +291,15 @@ def run_baseline(run_id: str, modal_gpu: str | None) -> dict:
 
 
 def run_sweep(run_id: str, modal_gpu: str | None, max_workers: int) -> tuple[list[dict], dict]:
-    """3×3 grid over (lr, isw); cuba + rate readout. Returns (cells, winner)."""
+    """Grid over (lr, hidden architecture); cuba + rate readout. Returns (cells, winner)."""
     _, isb = cuba_init_scales(DT)
     specs = []
-    for isw in SWEEP_ISWS:
+    for hidden in SWEEP_HIDDENS:
         for lr in SWEEP_LRS:
-            name = f"sweep_lr{lr:g}_isw{isw:g}".replace(".", "p")
-            specs.append((name, dict(lr=lr, isw=isw, isb=isb,
-                                     hidden=HIDDEN, readout="rate")))
+            hlabel = _hidden_label(hidden).replace("×", "x")
+            name = f"sweep_lr{lr:g}_h{hlabel}".replace(".", "p")
+            specs.append((name, dict(lr=lr, isw=SWEEP_ISW, isb=isb,
+                                     hidden=list(hidden), readout="rate")))
 
     def _run(item):
         name, spec = item
@@ -315,8 +326,8 @@ def run_sweep(run_id: str, modal_gpu: str | None, max_workers: int) -> tuple[lis
     print(f"[sweep] winner: {winner['name']} best_acc={winner['best_acc']}")
 
     # Heatmap + training curves from winner.
-    plot_lr_isw_heatmap(cells, FIGURES / "sweep_lr_isw.png", run_id)
-    print(f"wrote {(FIGURES / 'sweep_lr_isw.png').relative_to(REPO)}")
+    plot_lr_hidden_heatmap(cells, FIGURES / "sweep_lr_hidden.png", run_id)
+    print(f"wrote {(FIGURES / 'sweep_lr_hidden.png').relative_to(REPO)}")
 
     winner_dir = REPO / winner["run_dir"]
     metrics = json.loads((winner_dir / "metrics.json").read_text())
@@ -344,7 +355,7 @@ def main() -> None:
     sweep = "--sweep" in sys.argv
     modal_gpu = parse_modal_gpu(sys.argv)
     TIER = _parse_tier(sys.argv)
-    max_workers = _parse_max_workers(sys.argv, default=9 if sweep else 1)
+    max_workers = _parse_max_workers(sys.argv, default=len(SWEEP_LRS) * len(SWEEP_HIDDENS) if sweep else 1)
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
@@ -391,7 +402,8 @@ def main() -> None:
             "seed": SEED,
             **TIER_CONFIG[TIER],
             "sweep_lrs": SWEEP_LRS if sweep else None,
-            "sweep_isws": SWEEP_ISWS if sweep else None,
+            "sweep_hiddens": SWEEP_HIDDENS if sweep else None,
+            "sweep_isw": SWEEP_ISW if sweep else None,
         },
         "cells": cells_dict,
         "winner": winner,
