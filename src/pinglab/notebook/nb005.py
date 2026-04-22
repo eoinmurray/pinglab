@@ -90,6 +90,7 @@ def train_baseline() -> Path:
         "--init-scale-weight", "3.0",
         "--init-scale-bias", f"{sb}",
         "--no-dales-law",
+        "--readout", "li",
         "--seed", str(SEED),
         "--observe", "video",
         "--frame-rate", "1",

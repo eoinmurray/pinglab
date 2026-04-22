@@ -311,16 +311,21 @@ class CUBANet(SNNBase):
                  hidden_sizes=None, rec_layers=None,
                  exponential_synapse=False,
                  ref_ms=0.0,
-                 reset_mode=None):
+                 reset_mode=None,
+                 readout_mode="rate"):
         super().__init__()
         if discretisation not in ("snntorch", "continuous"):
             raise ValueError(
                 f"discretisation must be 'snntorch' or 'continuous', "
                 f"got {discretisation!r}")
+        if readout_mode not in ("rate", "li"):
+            raise ValueError(
+                f"readout_mode must be 'rate' or 'li', got {readout_mode!r}")
         self.discretisation = discretisation
         self.exponential_synapse = exponential_synapse
         self.ref_ms = ref_ms
         self._reset_mode_override = reset_mode
+        self.readout_mode = readout_mode
         self.signed_weights = not dales_law
 
         # Layer sizes: [N_IN, H1, H2, ..., HN, N_OUT]
@@ -484,8 +489,13 @@ class CUBANet(SNNBase):
             if refs is not None:
                 refs.append(torch.zeros(B, n, device=device))
 
-        # Output: cumulative last-hidden-layer spikes → linear decoder
+        # Output: readout layer. "rate" mode accumulates last-hidden spikes
+        # and projects once at the final timestep (cumulative-count decoder);
+        # "li" mode runs a non-spiking leaky-integrator neuron per class with
+        # the same β as hidden, returning max-over-time of v_out as logits.
         hidden_accum = init_conductance(B, self.hidden_sizes[-1], device)
+        v_out = torch.zeros(B, N_OUT, device=device)
+        logits_max = torch.full((B, N_OUT), float("-inf"), device=device)
 
         # Recording — pre-allocate GPU buffers to avoid per-step CPU transfers
         rec_buf = None
@@ -584,11 +594,19 @@ class CUBANet(SNNBase):
                 if rec_buf is not None:
                     rec_buf[hk][t] = s
 
-            # Linear decoder: accumulate last-hidden spikes, project via W_out.
-            # Same readout across all models in the ladder — no output-layer
-            # spiking dynamics, no model-specific confound at the output.
-            hidden_accum = hidden_accum + prev_spk
-            logits_t = hidden_accum @ W_ff[-1] + b_ff[-1]
+            # Readout. rate: accumulate last-hidden spikes and project once.
+            # li: integrate v_out = β·v_out + (1-β)·(prev_spk @ W_out + b_out)
+            # — non-spiking leaky integrator, one neuron per class. Track
+            # max-over-time so the final logits reflect the best response
+            # across the trial rather than just the last timestep.
+            if self.readout_mode == "li":
+                I_out = prev_spk @ W_ff[-1] + b_ff[-1]
+                v_out = beta * v_out + (1.0 - beta) * I_out
+                logits_max = torch.maximum(logits_max, v_out)
+                logits_t = v_out
+            else:
+                hidden_accum = hidden_accum + prev_spk
+                logits_t = hidden_accum @ W_ff[-1] + b_ff[-1]
             if rec_buf is not None:
                 rec_buf["out"][t] = logits_t
 
@@ -601,7 +619,7 @@ class CUBANet(SNNBase):
             rec = {k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
                    for k, v in rec_buf.items()}
         self._set_meta(B, n_spk, rec, sizes)
-        return logits_t
+        return logits_max if self.readout_mode == "li" else logits_t
 
 
 
@@ -668,8 +686,12 @@ class SNNTorchLibraryNet(SNNBase):
     randomize_init = False
 
     def __init__(self, hidden_sizes=None, w_rec=None, rec_layers=None,
-                 **_ignored):
+                 readout_mode="rate", **_ignored):
         super().__init__()
+        if readout_mode not in ("rate", "li"):
+            raise ValueError(
+                f"readout_mode must be 'rate' or 'li', got {readout_mode!r}")
+        self.readout_mode = readout_mode
         import snntorch as snn
         from snntorch import surrogate
         self._snn = snn
@@ -745,6 +767,8 @@ class SNNTorchLibraryNet(SNNBase):
 
         s_prevs = [torch.zeros(B, n, device=device) for n in self.hidden_sizes]
         hidden_accum = torch.zeros(B, self.hidden_sizes[-1], device=device)
+        v_out = torch.zeros(B, N_OUT, device=device)
+        logits_max = torch.full((B, N_OUT), float("-inf"), device=device)
 
         rec_buf = None
         if self.recording:
@@ -789,8 +813,14 @@ class SNNTorchLibraryNet(SNNBase):
                 if rec_buf is not None:
                     rec_buf[hk][t] = spk
 
-            hidden_accum = hidden_accum + prev_spk
-            logits_t = self.fc_ff[-1](hidden_accum)
+            if self.readout_mode == "li":
+                I_out = self.fc_ff[-1](prev_spk)
+                v_out = float(beta_snn) * v_out + (1.0 - float(beta_snn)) * I_out
+                logits_max = torch.maximum(logits_max, v_out)
+                logits_t = v_out
+            else:
+                hidden_accum = hidden_accum + prev_spk
+                logits_t = self.fc_ff[-1](hidden_accum)
             if rec_buf is not None:
                 rec_buf["out"][t] = logits_t
 
@@ -803,7 +833,7 @@ class SNNTorchLibraryNet(SNNBase):
             rec = {k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
                    for k, v in rec_buf.items()}
         self._set_meta(B, n_spk, rec, sizes)
-        return logits_t
+        return logits_max if self.readout_mode == "li" else logits_t
 
 
 class PINGNet(SNNBase):
@@ -812,8 +842,13 @@ class PINGNet(SNNBase):
     def __init__(self, w_in=(W_IN_MEAN, W_IN_STD), w_hid=(W_HID_MEAN, W_HID_STD),
                  w_ee=(W_EE_MEAN, W_EE_STD), w_ei=(W_EI_MEAN, W_EI_STD),
                  w_ie=(W_IE_MEAN, W_IE_STD), dist="normal", sparsity=0.0,
-                 dales_law=True, hidden_sizes=None, ei_layers=None):
+                 dales_law=True, hidden_sizes=None, ei_layers=None,
+                 readout_mode="rate"):
         super().__init__()
+        if readout_mode not in ("rate", "li"):
+            raise ValueError(
+                f"readout_mode must be 'rate' or 'li', got {readout_mode!r}")
+        self.readout_mode = readout_mode
         self.signed_weights = not dales_law
 
         sizes = hidden_sizes if hidden_sizes is not None else HIDDEN_SIZES
@@ -925,6 +960,8 @@ class PINGNet(SNNBase):
         # (Same readout as CUBANet — no output spiking neurons, no
         # per-model confound at the output.)
         hidden_accum = init_conductance(B, self.hidden_sizes[-1], device)
+        v_out = torch.zeros(B, N_OUT, device=device)
+        logits_max = torch.full((B, N_OUT), float("-inf"), device=device)
 
         # Pre-allocate recording buffers on GPU
         rec_buf = None
@@ -1012,9 +1049,15 @@ class PINGNet(SNNBase):
                     if rec_buf is not None:
                         rec_buf[ik][t] = s_i[k]
 
-            # Linear decoder on cumulative last-hidden spikes
-            hidden_accum = hidden_accum + prev_spk
-            logits_t = hidden_accum @ W_ff[-1]
+            # Readout (rate vs li — see CUBANet for shared rationale).
+            if self.readout_mode == "li":
+                I_out = prev_spk @ W_ff[-1]
+                v_out = beta_snn * v_out + (1.0 - beta_snn) * I_out
+                logits_max = torch.maximum(logits_max, v_out)
+                logits_t = v_out
+            else:
+                hidden_accum = hidden_accum + prev_spk
+                logits_t = hidden_accum @ W_ff[-1]
             if rec_buf is not None:
                 rec_buf["out"][t] = logits_t
 
@@ -1030,6 +1073,6 @@ class PINGNet(SNNBase):
             rec = {k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
                    for k, v in rec_buf.items()}
         self._set_meta(B, n_spk, rec, sizes)
-        return logits_t
+        return logits_max if self.readout_mode == "li" else logits_t
 
 
