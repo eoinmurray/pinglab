@@ -54,7 +54,16 @@
   --color-rule-warm: #d9d5c8;
   --color-paper: #fff;
   --color-paper-tint: #fafaf7;
-  --color-danger: #a33;
+  --color-danger: #cc4444;
+
+  /* Categorical ramp for multi-series plots (also available to the web).
+     Mirrors matplotlib's tab10 for familiarity. Keep in sync with
+     src/pinglab/theme.py. */
+  --color-cat-blue:   #1f77b4;
+  --color-cat-green:  #2ca02c;
+  --color-cat-purple: #9467bd;
+  --color-cat-red:    #d62728;
+  --color-cat-orange: #ff7f0e;
 }
 
 :root {
