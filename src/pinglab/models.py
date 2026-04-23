@@ -80,8 +80,8 @@ BATCH_SIZE    = 64
 GRAD_CLIP     = 1.0
 # Surrogate-gradient steepness (fast-sigmoid slope). 5 is the stable
 # end-to-end value at pinglab's current BPTT depth / clip / optimizer
-# config; tune up (10 canonical, 40 Cramer) once a stable backbone is
-# established. Override via --surrogate-slope before model construction.
+# config — slope=10 (Neftci canonical) and slope=40 (Cramer) both blow
+# up to gn 1e10+ even with --optimizer adamax + --grad-clip 100.
 SURROGATE_SLOPE = 5.0
 READOUT_SCALE = 0.0
 PATIENCE      = 15
