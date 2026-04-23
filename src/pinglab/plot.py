@@ -518,6 +518,10 @@ def draw_transient_frame(axes, ratio, spk_e, spk_i, ext_g, dt, title=None,
             _n_h1 = n_h1 if n_h1 is not None else spk_h1.shape[1]
             plot_raster(axes[3], spk_h1, CLR, _n_h1, dt, vis_ms)
             axes[3].set_title(layer1_title, **_title_kw)
+        else:
+            axes[3].set_title("I Neurons (none — Dale's law off)",
+                              **_title_kw)
+            axes[3].set_xlim(0, vis_ms)
         axes[3].set_ylabel("")
         axes[3].set_xlabel("Time (ms)", **LABEL_KW)
 
