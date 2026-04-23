@@ -14,7 +14,7 @@ Writes:
   * training_cuba.mp4 — per-epoch hidden-activity video
   * numbers.json — config + cell summary
 
-Notebook entry: src/docs/src/pages/notebooks/nb004.mdx
+Notebook entry: src/docs/src/pages/notebooks/shd.mdx
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _tier import parse_tier  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 
-SLUG = "nb004"
+SLUG = "shd"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
@@ -64,7 +64,7 @@ MODEL = "cuba-exp"
 MODEL_COLOR = "#2ca02c"
 
 def cuba_init_scales(dt: float, tau: float = TAU_MEM_MS) -> tuple[float, float]:
-    """Per-step drive compensation for cuba — see nb003."""
+    """Per-step drive compensation for cuba — see dt-stability."""
     beta = math.exp(-dt / tau)
     return dt / (1.0 - beta), 1.0 / (1.0 - beta)
 
@@ -345,7 +345,7 @@ def main() -> None:
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    print(f"[nb004] run_id={run_id} tier={TIER}"
+    print(f"[shd] run_id={run_id} tier={TIER}"
           + ("  [skip-training]" if skip_training else "")
           + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
     if wipe_dir:
@@ -389,11 +389,11 @@ def main() -> None:
         "run_finished_at": datetime.utcnow().isoformat() + "Z",
     }
     (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2) + "\n")
-    print(f"[nb004] best_acc={winner['best_acc']} "
+    print(f"[shd] best_acc={winner['best_acc']} "
           f"final_acc={winner['final_acc']} "
           f"final_loss={winner['final_loss']:.4f}")
-    print(f"[nb004] wrote numbers.json → {FIGURES.relative_to(REPO)}")
-    print(f"[nb004] duration: {_format_duration(duration_s)}")
+    print(f"[shd] wrote numbers.json → {FIGURES.relative_to(REPO)}")
+    print(f"[shd] duration: {_format_duration(duration_s)}")
 
 
 if __name__ == "__main__":
