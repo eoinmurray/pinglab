@@ -106,9 +106,8 @@ def train_cell(
         # baseline hits the Cramer 47–49% band.
         "--w-rec", "0.0", "0.0",
         "--readout", readout,
-        # Cramer et al. (2022) SHD RSNN recipe — surrogate steepness + a
-        # two-sided firing-rate regulariser on per-neuron trial spike counts.
-        "--surrogate-slope", "5",
+        # Cramer et al. (2022) SHD RSNN recipe — two-sided firing-rate
+        # regulariser on per-neuron trial spike counts.
         # grad-clip: loosen from M.GRAD_CLIP=1.0 default. At τ_syn=10 ms with
         # 500-step BPTT the raw grad_norm lands 50k–1.5M; global-norm=1.0
         # projects every update onto the unit ball, destroying Adam's
