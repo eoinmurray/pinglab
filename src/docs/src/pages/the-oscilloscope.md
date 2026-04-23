@@ -158,13 +158,16 @@ Surrogate-gradient BPTT. See [Training](/training/) for loss, encoding, and BPTT
 | Flag | Default | Meaning |
 | ---- | ------- | ------- |
 | *--epochs N* | 0 | Training epochs. 0 = probe only (init snapshot, no training). |
-| *--lr RATE* | 0.01 | Adam learning rate. Biophysical models typically want $10^{-4}$. |
+| *--lr RATE* | 0.01 | Optimizer learning rate. Biophysical models typically want $10^{-4}$. |
+| *--optimizer* | *adam* | *adam* or *adamax*. Adamax uses the $L_\infty$ norm for the second moment instead of an EMA of squared grads, so a single pathological batch cannot poison the preconditioner. Canonical SNN choice (Cramer et al. 2022, Zenke Spytorch). |
 | *--batch-size B* | 64 | DataLoader mini-batch size. |
 | *--burn-in MS* | 20.0 | Burn-in period in ms. |
 | *--max-samples N* | — | Limit dataset to N samples (smoke-test). |
 | *--adaptive-lr* | off | Enable *ReduceLROnPlateau* (factor 0.5, patience 5). |
 | *--early-stopping N* | — | Stop after N epochs without improvement. |
-| *--cm-back-scale S* | 80.0 | Gradient dampening for the COBA membrane. |
+| *--grad-clip X* | 1.0 | Global gradient-norm clip passed to *clip_grad_norm_*. Overrides *models.GRAD_CLIP*. |
+| *--skip-bad-grad-threshold X* | — | Skip the optimizer step (and zero grads) whenever the clipped gradient norm is NaN, inf, or exceeds X. Band-aid against single exploded batches poisoning Adam's second-moment estimate; prefer *--optimizer adamax* as the principled fix. |
+| *--v-grad-dampen S* | 80.0 | Gradient dampening for the COBA membrane. |
 | *--observe* | — | Save oscilloscope per epoch: *video* (MP4) or *images* (one PNG per epoch). |
 | *--observe-every N* | 1 | Observe every Nth epoch. |
 | *--frame-rate FPS* | 10 | Video fps for *--observe video*. |

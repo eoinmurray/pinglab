@@ -129,7 +129,7 @@ MODEL_COLORS = {
 # + Dale's law-off pipeline; cuba additionally gets the (1-β)/dt
 # init-scale compensation at train-dt. coba and ping are dispatched
 # through PINGNet (coba is ping with ei_strength=0) with lr=1e-4,
-# explicit --w-in / --w-in-sparsity, and --cm-back-scale from
+# explicit --w-in / --w-in-sparsity, and --v-grad-dampen from
 # models.mdx. See src/docs/src/pages/models.mdx "Model training" table.
 #
 # Keys in each entry become --flag value pairs on the oscilloscope CLI.
@@ -161,7 +161,7 @@ MODEL_CONFIG: dict[str, dict] = {
         "__build_as": "ping",
         "__init_scale": False,
         "--ei-strength": "0",
-        "--cm-back-scale": "1000",
+        "--v-grad-dampen": "1000",
         "--w-in": "0.3",
         "--w-in-sparsity": "0.95",
         "--lr": "0.0001",
@@ -170,7 +170,7 @@ MODEL_CONFIG: dict[str, dict] = {
         "__build_as": "ping",
         "__init_scale": False,
         "--ei-strength": "0.5",
-        "--cm-back-scale": "1000",
+        "--v-grad-dampen": "1000",
         "--w-in": "1.2",
         "--w-in-sparsity": "0.95",
         "--lr": "0.0001",
@@ -347,7 +347,7 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
         "--from-dir", str(train_dir),
         "--dt-sweep", *[str(d) for d in sweep_grid],
         "--frozen-inputs-mode", encoder_mode,
-        "--max-samples", str(MAX_SAMPLES),
+        "--max-samples", str(TIER_CONFIG[TIER]["max_samples"]),
         "--out-dir", str(sweep_dir),
         "--wipe-dir",
     ]
@@ -669,8 +669,8 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
         "config": {
             "tier": TIER,
             "dataset": "mnist",
-            "max_samples": MAX_SAMPLES,
-            "epochs": EPOCHS,
+            "max_samples": TIER_CONFIG[TIER]["max_samples"],
+            "epochs": TIER_CONFIG[TIER]["epochs"],
             "t_ms": first_cfg["t_ms"],
             "dt_trains": DT_TRAINS,
             "dt_sweep": DT_SWEEP,

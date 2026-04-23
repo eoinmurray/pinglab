@@ -140,13 +140,13 @@ def test_readout_changes_model_forward():
     assert n_rate == n_li, f"rate={n_rate} li={n_li}"
 
 
-# ── --cm-back-scale ──────────────────────────────────────────────────────
+# ── --v-grad-dampen ──────────────────────────────────────────────────────
 
 @pytest.mark.slow
-def test_cm_back_scale_propagates(tmp_path):
+def test_v_grad_dampen_propagates(tmp_path):
     out = tmp_path / "cmbs"
-    _train_probe(out, "--cm-back-scale", "1234.0")
-    assert _read_config(out)["cm_back_scale"] == 1234.0
+    _train_probe(out, "--v-grad-dampen", "1234.0")
+    assert _read_config(out)["v_grad_dampen"] == 1234.0
 
 
 # ── --ei-strength / --ei-ratio (in-process, fast) ────────────────────────

@@ -1497,14 +1497,14 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
           sparsity=0.0, w_in_sparsity=0.0, dataset="scikit",
           snapshot_init=True, snapshot_end=True, t_ms=200.0, burn_in_ms=20.0,
           hidden_sizes=None, max_samples=None,
-          cm_back_scale=80.0, early_stopping=None, observe_every=1,
+          v_grad_dampen=80.0, early_stopping=None, observe_every=1,
           adaptive_lr=False, kaiming_init=False, dales_law=True,
           w_rec=None, rec_layers=None, ei_layers=None, batch_size=None,
           seed=None, init_scale_weight=1.0, init_scale_bias=1.0,
           readout_mode="rate",
           fr_reg_lower_theta=0.0, fr_reg_lower_strength=0.0,
           fr_reg_upper_theta=0.0, fr_reg_upper_strength=0.0,
-          skip_bad_grad_threshold=None):
+          skip_bad_grad_threshold=None, optimizer="adam"):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
     from torch.utils.data import DataLoader, TensorDataset
@@ -1523,7 +1523,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
     M.N_HID = hidden_sizes[-1]
     M.N_INH = hidden_sizes[-1] // 4
     M.HIDDEN_SIZES = list(hidden_sizes)
-    M.CM_BACK_SCALE = cm_back_scale
+    M.V_GRAD_DAMPEN = v_grad_dampen
     if batch_size is not None:
         M.BATCH_SIZE = batch_size
 
@@ -1622,7 +1622,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         "w_in": list(w_in) if w_in else None,
         "ei_strength": ei_strength, "ei_ratio": ei_ratio,
         "sparsity": sparsity, "w_in_sparsity": w_in_sparsity,
-        "input_rate": M.max_rate_hz, "cm_back_scale": cm_back_scale,
+        "input_rate": M.max_rate_hz, "v_grad_dampen": v_grad_dampen,
         "burn_in_ms": burn_in_ms, "batch_size": bs,
         "grad_clip": GRAD_CLIP, "early_stopping": early_stopping,
         "max_samples": max_samples,
@@ -1733,7 +1733,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
                 "sparsity": sparsity,
                 "n_hidden": M.N_HID, "n_inh": M.N_INH, "n_in": M.N_IN,
                 "max_samples": max_samples, "dataset": dataset,
-                "cm_back_scale": cm_back_scale, "adaptive_lr": adaptive_lr,
+                "v_grad_dampen": v_grad_dampen, "adaptive_lr": adaptive_lr,
                 "burn_in_ms": burn_in_ms, "n_params": n_params,
                 "n_trainable": n_trainable,
             },
@@ -1753,8 +1753,16 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
     if observe:
         log.info(f"  observe → {out_dir / 'frames/'}")
 
-    # Optimizer
-    opt = torch.optim.Adam(net.parameters(), lr=lr)
+    # Optimizer. Adamax uses the L∞ norm for the second moment instead of
+    # the EMA of squared grads, so a single pathological batch can't poison
+    # the preconditioner the way it does in Adam — the canonical SNN choice
+    # (Cramer, Zenke Spytorch).
+    if optimizer == "adamax":
+        opt = torch.optim.Adamax(net.parameters(), lr=lr)
+    elif optimizer == "adam":
+        opt = torch.optim.Adam(net.parameters(), lr=lr)
+    else:
+        raise ValueError(f"unknown optimizer: {optimizer!r}")
     scheduler = None
     if adaptive_lr:
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -2029,7 +2037,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             "sparsity": sparsity,
             "n_hidden": M.N_HID, "n_inh": M.N_INH, "n_in": M.N_IN,
             "max_samples": max_samples, "dataset": dataset,
-            "cm_back_scale": cm_back_scale, "adaptive_lr": adaptive_lr,
+            "v_grad_dampen": v_grad_dampen, "adaptive_lr": adaptive_lr,
             "burn_in_ms": burn_in_ms, "batch_size": bs,
             "grad_clip": GRAD_CLIP, "early_stopping": early_stopping,
             "n_params": n_params, "n_trainable": n_trainable,
@@ -2484,7 +2492,7 @@ Train:
   --lr RATE                 learning rate (default: 0.01)
   --observe video|images    save oscilloscope per epoch
   --max-samples N           limit dataset size
-  --cm-back-scale S         COBA gradient dampening (default: 80)
+  --v-grad-dampen S         COBA gradient dampening (default: 80)
   --early-stopping N        stop after N epochs without improvement
 
 Output:
@@ -2792,7 +2800,7 @@ Models:
                "    --dataset mnist --epochs 40 --lr 0.01 --adaptive-lr\n\n"
                "  # PING with gamma oscillation on MNIST\n"
                "  oscilloscope.py train --model ping --dataset mnist \\\n"
-               "    --ei-strength 0.5 --cm-back-scale 1000 --lr 0.0001",
+               "    --ei-strength 0.5 --v-grad-dampen 1000 --lr 0.0001",
         formatter_class=argparse.RawDescriptionHelpFormatter)
     train_parser.add_argument("--lr", type=float, default=0.01,
                               help="Adam learning rate. Biophysical models "
@@ -2813,7 +2821,7 @@ Models:
                               help="Observe every Nth epoch (default: 1)")
     train_parser.add_argument("--max-samples", type=int, default=None,
                               help="Limit dataset to N samples (smoke test)")
-    train_parser.add_argument("--cm-back-scale", type=float, default=80.0,
+    train_parser.add_argument("--v-grad-dampen", type=float, default=80.0,
                               help="Gradient dampening for COBA membrane")
     train_parser.add_argument("--early-stopping", type=int, default=None,
                               help="Stop after N epochs without improvement")
@@ -2849,6 +2857,13 @@ Models:
                                    "against single exploded batches poisoning "
                                    "Adam's second-moment estimate mid-run. "
                                    "Default off.")
+    train_parser.add_argument("--optimizer", choices=["adam", "adamax"],
+                              default="adam",
+                              help="Optimizer. Adamax uses the L∞ norm for "
+                                   "the second moment instead of an EMA of "
+                                   "squared grads, so a single pathological "
+                                   "batch cannot poison the preconditioner. "
+                                   "Canonical SNN choice (Cramer, Zenke).")
 
     # -- infer subcommand --
     infer_parser = subparsers.add_parser(
@@ -3030,7 +3045,7 @@ def _print_intro(log, config, args, mode):
         },
         "Weights": g("w_in", "w_in_sparsity", "w_ei", "w_ie", "w_rec",
                      "w_in_overdrive"),
-        "Training": g("epochs", "lr", "adaptive_lr", "cm_back_scale") if
+        "Training": g("epochs", "lr", "adaptive_lr", "v_grad_dampen") if
                     mode == "train" else {},
         "Scan": g("scan_var", "scan_min", "scan_max", "frames", "frame_rate") if
                 mode == "video" else {},
@@ -3199,7 +3214,7 @@ if __name__ == "__main__":
               burn_in_ms=args.burn_in,
               hidden_sizes=args.n_hidden,
               max_samples=args.max_samples,
-              cm_back_scale=args.cm_back_scale,
+              v_grad_dampen=args.v_grad_dampen,
               early_stopping=args.early_stopping,
               observe_every=args.observe_every,
               adaptive_lr=args.adaptive_lr,
@@ -3217,7 +3232,8 @@ if __name__ == "__main__":
               fr_reg_lower_strength=args.fr_reg_lower_strength,
               fr_reg_upper_theta=args.fr_reg_upper_theta,
               fr_reg_upper_strength=args.fr_reg_upper_strength,
-              skip_bad_grad_threshold=args.skip_bad_grad_threshold)
+              skip_bad_grad_threshold=args.skip_bad_grad_threshold,
+              optimizer=args.optimizer)
 
     elif mode == "infer":
         w_in = args.w_in or [0.3, 0.06]

@@ -50,6 +50,7 @@ TIER_CONFIG = {
     "small":       dict(max_samples=500, epochs=5),
     "medium":      dict(max_samples=2000, epochs=10),
     "large":       dict(max_samples=5000, epochs=40),
+    "huge":        dict(max_samples=10000, epochs=80),
 }
 
 T_MS = 1000.0
@@ -96,6 +97,11 @@ def train_cell(
         "--tau-mem", str(TAU_MEM_MS),
         "--tau-syn", str(TAU_SYN_MS),
         "--lr", str(lr),
+        # Adamax (Cramer 2022, Zenke Spytorch). L∞-norm second moment
+        # makes the preconditioner robust to single outlier batches —
+        # directly addresses the "one bad grad poisons Adam" failure
+        # mode that produced the huge-tier one-way-door at ep 38.
+        "--optimizer", "adamax",
         # ReduceLROnPlateau (factor 0.5, patience 5). Large tier plateaued
         # around ep 20 then diverged at ep 28 with a constant 1e-3 lr; the
         # scheduler should halve the step once acc stops climbing and keep
