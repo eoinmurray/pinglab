@@ -3,6 +3,8 @@
 - there are no side effects — running simulations and tests locally is safe
 - run things in the background where possible
 - read all the READMEs in the repo
+- when making runs always report an eta.
+- when making runs on modal always report estimated cost.
 - BEFORE making any edits, read `src/docs/src/pages/styleguide.md` — it holds the repo layout, glossary, invariants, and conventions that every edit must respect
 - do NOT create branches or open PRs unless I explicitly ask — commit to the current branch (usually `main`) and stop. "commit and push" means commit + push, not branch + PR.
 - do NOT dispatch jobs to Modal (`--modal-gpu ...`) without my explicit permission — Modal spends real money. Default to local runs; only use `--modal-gpu` when I say so.

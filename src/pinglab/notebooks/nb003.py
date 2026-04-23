@@ -37,7 +37,7 @@ sys.path.insert(0, str(REPO / "src" / "pinglab"))
 import matplotlib.pyplot as plt  # noqa: E402
 import torch  # noqa: E402
 
-from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
+from _modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from _tier import parse_tier  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from config import build_net  # noqa: E402
@@ -264,15 +264,17 @@ def _regime_key(dt_train: float) -> str:
     return f"dt{dt_train:g}"
 
 
-def train_model(model: str, dt_train: float, modal_gpu: str | None = None) -> Path:
-    """Train at dt_train with per-epoch video observation."""
+def train_model(model: str, dt_train: float,
+                dispatcher: BatchDispatcher) -> Path:
+    """Queue a train cell at dt_train. Runs immediately for local, batched
+    on drain() for Modal."""
     out_dir = ARTIFACTS / _regime_key(dt_train) / model / "train"
     config = MODEL_CONFIG[model]
     build_as = config["__build_as"]
     print(f"[{model} @ dt={dt_train}] training → {out_dir.relative_to(REPO)}"
-          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
-    args = [
-        "run", "python", str(OSCILLOSCOPE), "train",
+          + (f"  [modal:{dispatcher.modal_gpu}]" if dispatcher.modal_gpu else ""))
+    osc_args = [
+        "train",
         "--model", build_as,
         "--dataset", "mnist",
         "--max-samples", str(TIER_CONFIG[TIER]["max_samples"]),
@@ -287,23 +289,25 @@ def train_model(model: str, dt_train: float, modal_gpu: str | None = None) -> Pa
     ]
     if config["__init_scale"]:
         sw, sb = init_scales_for(model, dt_train)
-        args += ["--init-scale-weight", f"{sw}",
-                 "--init-scale-bias", f"{sb}"]
+        osc_args += ["--init-scale-weight", f"{sw}",
+                     "--init-scale-bias", f"{sb}"]
         print(f"  init_scale W×{sw:.3f} b×{sb:.3f}")
     for k, v in config.items():
         if k.startswith("__"):
             continue
         if v is True:
-            args.append(k)
+            osc_args.append(k)
         elif v is not None:
-            args += [k, v]
-    args = append_modal_args(args, modal_gpu)
-    sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
-    metrics_path = out_dir / "metrics.json"
-    if not metrics_path.exists():
-        raise SystemExit(f"training did not produce {metrics_path}")
-    if not training_video_path(out_dir).exists():
-        raise SystemExit(f"training did not produce {training_video_path(out_dir)}")
+            osc_args += [k, v]
+    # ping at dt=0.1 (6000 BPTT steps × 1024 hidden × COBA state) needs
+    # >14 GiB; T4 OOMs. Upgrade this one cell to A10G (24 GiB) when
+    # dispatching to Modal on a smaller GPU.
+    gpu_override = None
+    if dispatcher.modal_gpu in ("T4", "L4") and model == "ping" and dt_train <= 0.25:
+        gpu_override = "A10G"
+        print(f"  [modal] upgrading ping@dt={dt_train} from "
+              f"{dispatcher.modal_gpu} to A10G (memory)")
+    dispatcher.submit(osc_args, out_dir, gpu_override=gpu_override)
     return out_dir
 
 
@@ -329,11 +333,9 @@ def _sweep_grid_for(dt_train: float, encoder_mode: str) -> list[float]:
 
 
 def sweep_model(model: str, dt_train: float, train_dir: Path,
-                encoder_mode: str, modal_gpu: str | None = None) -> Path:
-    """Run dt-sweep inference against trained weights with a chosen frozen-input
-    transport mode. Same underlying spike pattern across dt values (how it's
-    transported to each eval-dt depends on mode) so the LIF dynamics are the
-    only thing that differs between sweep points."""
+                encoder_mode: str, dispatcher: BatchDispatcher) -> Path:
+    """Queue a dt-sweep cell. Runs immediately for local, batched on drain()
+    for Modal. The train_dir must already exist (drain the train phase first)."""
     sweep_dir = ARTIFACTS / _regime_key(dt_train) / model / f"sweep_{_mode_key(encoder_mode)}"
     sweep_grid = _sweep_grid_for(dt_train, encoder_mode)
     print(f"[{model} @ dt={dt_train}, mode={encoder_mode}] dt-sweep → "
@@ -342,8 +344,8 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
     # only transport that covers the full eval-dt grid in every regime;
     # upsample and downsample each cover half and would produce
     # degenerate 2-frame videos at one of the train-dt settings.
-    cmd = [
-        "run", "python", str(OSCILLOSCOPE), "infer",
+    osc_args = [
+        "infer",
         "--from-dir", str(train_dir),
         "--dt-sweep", *[str(d) for d in sweep_grid],
         "--frozen-inputs-mode", encoder_mode,
@@ -352,12 +354,12 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
         "--wipe-dir",
     ]
     if encoder_mode == "resample":
-        cmd += ["--observe", "video"]
-    cmd = append_modal_args(cmd, modal_gpu)
-    sh.uv(*cmd, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
-    results_path = sweep_dir / "results.json"
-    if not results_path.exists():
-        raise SystemExit(f"dt-sweep did not produce {results_path}")
+        osc_args += ["--observe", "video"]
+    # ping inference at small dt hits the same memory wall as training.
+    gpu_override = None
+    if dispatcher.modal_gpu in ("T4", "L4") and model == "ping" and dt_train <= 0.25:
+        gpu_override = "A10G"
+    dispatcher.submit(osc_args, sweep_dir, gpu_override=gpu_override)
     return sweep_dir
 
 
@@ -765,9 +767,16 @@ def main() -> None:
 
     init_match = verify_init_match(MODELS, SEED, DT_TRAINS)
 
+    dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
+
     regime_train_dirs: dict[float, dict[str, Path]] = {}
     # regime_sweep_dirs[dt_train][model][encoder_mode] = sweep_dir
     regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]] = {}
+
+    # Phase 1: enqueue every train cell across all dt regimes, then
+    # drain once so Modal runs them all in parallel under a single
+    # app.run() lifecycle. (Local mode runs each submit() synchronously
+    # so drain() is a no-op.)
     for dt_train in DT_TRAINS:
         print(f"\n=== regime: train dt = {dt_train} ms ===")
         if skip_training:
@@ -777,14 +786,32 @@ def main() -> None:
                     raise SystemExit(
                         f"--skip-training requires existing train weights at {d}")
         else:
-            td = {m: train_model(m, dt_train, modal_gpu=modal_gpu) for m in MODELS}
+            td = {m: train_model(m, dt_train, dispatcher) for m in MODELS}
+        regime_train_dirs[dt_train] = td
+    dispatcher.drain()
+
+    for dt_train, td in regime_train_dirs.items():
+        for m, d in td.items():
+            if not (d / "metrics.json").exists():
+                raise SystemExit(f"training did not produce {d / 'metrics.json'}")
+            if not training_video_path(d).exists():
+                raise SystemExit(f"training did not produce {training_video_path(d)}")
+
+    # Phase 2: enqueue every dt-sweep cell, then drain.
+    for dt_train in DT_TRAINS:
+        td = regime_train_dirs[dt_train]
         sd: dict[str, dict[str, Path]] = {}
         for m in MODELS:
-            sd[m] = {mode: sweep_model(m, dt_train, td[m], mode,
-                                       modal_gpu=modal_gpu)
+            sd[m] = {mode: sweep_model(m, dt_train, td[m], mode, dispatcher)
                      for mode in ENCODER_MODES}
-        regime_train_dirs[dt_train] = td
         regime_sweep_dirs[dt_train] = sd
+    dispatcher.drain()
+
+    for dt_train, sd in regime_sweep_dirs.items():
+        for m, modes in sd.items():
+            for mode, d in modes.items():
+                if not (d / "results.json").exists():
+                    raise SystemExit(f"dt-sweep did not produce {d / 'results.json'}")
 
     plot_training_curves(regime_train_dirs, FIGURES / "training_curves.png",
                          notebook_run_id)
