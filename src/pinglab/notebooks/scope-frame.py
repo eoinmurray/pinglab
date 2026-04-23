@@ -5,11 +5,11 @@ iteration. No sweep, no video — one forward pass at a canonical working
 point, saved as a PNG plus a stamped copy into the entry's figures dir.
 
 Invokes `oscilloscope.py image` once with MNIST d0 s0, ping model, at the
-same working point that lights up PING in nb002 (overdrive 5×, w_in 1.8×),
+same working point that lights up PING in ping-regimes (overdrive 5×, w_in 1.8×),
 then copies the produced snapshot.png into the figures dir with the
 notebook_run_id stamped in the corner.
 
-Notebook entry: src/docs/src/pages/notebooks/nb001.mdx
+Notebook entry: src/docs/src/pages/notebooks/scope-frame.mdx
 """
 from __future__ import annotations
 
@@ -32,12 +32,12 @@ from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from _tier import parse_tier  # noqa: E402
 
-SLUG = "nb001"
+SLUG = "scope-frame"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 
-# ── Frame config — matches nb002's canonical PING working point ──────────
+# ── Frame config — matches ping-regimes's canonical PING working point ──────────
 SEED            = 42
 DEFAULT_TIER    = "extra small"    # single forward pass — no sweep cost
 TIER_CHOICES    = ["extra small", "small", "medium", "large", "extra large"]
