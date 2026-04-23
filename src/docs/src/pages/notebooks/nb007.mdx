@@ -1,0 +1,69 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "007 — cuba"
+date: 2026-04-23
+entry: 7
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb007/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const cell = numbers.run ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const gitSha = numbers.git_sha ?? null;
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+Single-model companion to [nb003](/notebooks/nb003/). Trains only the [*cuba*](/models/#cuba) model — current-based synapses, the first rung on the CUBA → PING ladder that adds the $(1-\beta)/dt$ drive compensation — at *dt* = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video. No Δt sweep.
+
+## Method
+
+*cuba* with 1024 hidden units, Kaiming init, learning rate $\eta$ = {cell.lr ?? "?"}, and the one-shot $(1-\beta)/dt$ init-scale compensation applied at train-*dt* so the initial per-step drive matches *standard-snn* at this *dt*. Trained at *dt* = {cfg.dt ?? "?"} ms for *T* = {cfg.t_ms ?? "?"} ms per trial, on {cfg.max_samples ?? "?"} MNIST samples × {cfg.epochs ?? "?"} epochs. All hyperparameters are literals in *src/pinglab/notebooks/nb007.py*.
+
+## Results
+
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb007/training_curves.png" alt="Train loss and test accuracy per epoch for cuba">
+  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
+</Figure>
+
+<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb007/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for cuba">
+  Mean hidden firing rate across the training schedule.
+</Figure>
+
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb007/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the cuba hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *cuba*'s hidden layer.
+</Figure>
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb007.py
+```
+
+Add *--tier extra small* for a faster pass.
+
+### Run parameters
+
+| Parameter | Value |
+|---|---|
+| Dataset | {cfg.dataset ?? "?"} |
+| Model | {cfg.model ?? "?"} |
+| Hidden | {cfg.n_hidden ?? "?"} |
+| Samples × Epochs | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} |
+| T | {cfg.t_ms ?? "?"} ms |
+| dt | {cfg.dt ?? "?"} ms |
+| Seed | {cfg.seed ?? "?"} |
+| Tier | **{numbers.tier ?? "?"}** — see [Style guide § 10 Run sizing tiers](/styleguide/#10-run-sizing-tiers) |
+| $\eta$ | {cell.lr ?? "?"} |
+| Best acc / Final acc | {cell.best_acc ?? "?"}% / {cell.final_acc ?? "?"}% |
+| Final loss | {cell.final_loss?.toFixed?.(4) ?? "?"} |
+| Run ID | <span class="font-mono">{nbRunId}</span> |
+| Git SHA | <span class="font-mono">{gitSha ?? "?"}</span> |
+| Elapsed | {numbers.duration ?? "?"} |
