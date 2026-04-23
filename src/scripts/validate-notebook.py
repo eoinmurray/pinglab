@@ -3,10 +3,10 @@
 
 Checks:
     1. Triple-existence — every notebook slug has all three legs:
-         - src/docs/src/pages/notebook/<slug>.{md,mdx}
-         - src/pinglab/notebook/<slug>.py
-         - src/docs/public/figures/notebook/<slug>/
-    2. Figure references resolve — every /figures/notebook/<slug>/<file> path
+         - src/docs/src/pages/notebooks/<slug>.{md,mdx}
+         - src/pinglab/notebooks/<slug>.py
+         - src/docs/public/figures/notebooks/<slug>/
+    2. Figure references resolve — every /figures/notebooks/<slug>/<file> path
        referenced from an entry exists on disk; every file in an entry's figure
        dir is referenced by that entry (orphan warning); references outside the
        entry's own slug are flagged (convention 4).
@@ -32,11 +32,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-ENTRIES_DIR = ROOT / "docs" / "src" / "pages" / "notebook"
-REPROS_DIR = ROOT / "pinglab" / "notebook"
-FIGURES_DIR = ROOT / "docs" / "public" / "figures" / "notebook"
+ENTRIES_DIR = ROOT / "docs" / "src" / "pages" / "notebooks"
+REPROS_DIR = ROOT / "pinglab" / "notebooks"
+FIGURES_DIR = ROOT / "docs" / "public" / "figures" / "notebooks"
 
-FIGURE_URL_RE = re.compile(r"/figures/notebook/([A-Za-z0-9._\-]+)/([A-Za-z0-9._\-]+)")
+FIGURE_URL_RE = re.compile(r"/figures/notebooks/([A-Za-z0-9._\-]+)/([A-Za-z0-9._\-]+)")
 H2_RE = re.compile(r"^##\s+(.+?)\s*$")
 IMAGE_LINE_RE = re.compile(r"^!\[[^\]]*\]\([^)]+\)\s*$")
 VIDEO_LINE_RE = re.compile(r"<video\b")
@@ -76,11 +76,11 @@ def entry_path(slug: str) -> Path | None:
 def check_triple(slug: str) -> list[str]:
     issues: list[str] = []
     if entry_path(slug) is None:
-        issues.append(f"missing entry: src/docs/src/pages/notebook/{slug}.{{md,mdx}}")
+        issues.append(f"missing entry: src/docs/src/pages/notebooks/{slug}.{{md,mdx}}")
     if not (REPROS_DIR / f"{slug}.py").exists():
-        issues.append(f"missing repro script: src/pinglab/notebook/{slug}.py")
+        issues.append(f"missing repro script: src/pinglab/notebooks/{slug}.py")
     if not (FIGURES_DIR / slug).is_dir():
-        issues.append(f"missing figure dir: src/docs/public/figures/notebook/{slug}/")
+        issues.append(f"missing figure dir: src/docs/public/figures/notebooks/{slug}/")
     return issues
 
 
@@ -201,13 +201,13 @@ def check_figures(slug: str) -> tuple[list[str], list[str]]:
         if ref_slug != slug:
             errors.append(
                 f"cross-slug reference (line {lineno}): "
-                f"/figures/notebook/{ref_slug}/{name} — entry slug is {slug}"
+                f"/figures/notebooks/{ref_slug}/{name} — entry slug is {slug}"
             )
             continue
         target = FIGURES_DIR / ref_slug / name
         if not target.exists():
             errors.append(
-                f"broken reference (line {lineno}): /figures/notebook/{ref_slug}/{name}"
+                f"broken reference (line {lineno}): /figures/notebooks/{ref_slug}/{name}"
             )
         else:
             referenced_in_own_dir.add(name)

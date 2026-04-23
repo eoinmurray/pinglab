@@ -9,7 +9,7 @@ same working point that lights up PING in nb002 (overdrive 5×, w_in 1.8×),
 then copies the produced snapshot.png into the figures dir with the
 notebook_run_id stamped in the corner.
 
-Notebook entry: src/docs/src/pages/notebook/nb001.mdx
+Notebook entry: src/docs/src/pages/notebooks/nb001.mdx
 """
 from __future__ import annotations
 
@@ -30,15 +30,18 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from _tier import parse_tier  # noqa: E402
 
 SLUG = "nb001"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
+ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
+FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 
 # ── Frame config — matches nb002's canonical PING working point ──────────
 SEED            = 42
-TIER            = "extra small"    # single forward pass — no sweep cost
+DEFAULT_TIER    = "extra small"    # single forward pass — no sweep cost
+TIER_CHOICES    = ["extra small", "small", "medium", "large", "extra large"]
+TIER            = DEFAULT_TIER     # overridable via --tier <name>; label only
 N_HIDDEN        = 512
 DT_MS           = 0.1
 SIM_MS          = 600.0
@@ -150,16 +153,21 @@ def write_numbers(out_path: Path, notebook_run_id: str,
 
 
 def main() -> None:
+    global TIER
     wipe_dir = "--no-wipe-dir" not in sys.argv
+    skip_training = "--skip-training" in sys.argv
     modal_gpu = parse_modal_gpu(sys.argv)
+    TIER = parse_tier(sys.argv, choices=TIER_CHOICES, default=DEFAULT_TIER)
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id}"
+    print(f"notebook_run_id = {notebook_run_id} tier={TIER}"
+          + ("  [skip-training]" if skip_training else "")
           + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
 
     if wipe_dir:
-        for d in (ARTIFACTS, FIGURES):
+        wipe_targets = (FIGURES,) if skip_training else (ARTIFACTS, FIGURES)
+        for d in wipe_targets:
             if d.exists():
                 print(f"[wipe] {d.relative_to(REPO)}")
                 shutil.rmtree(d)
@@ -170,7 +178,12 @@ def main() -> None:
     _render_stamp_png(notebook_run_id, stamp)
 
     frame_dir = ARTIFACTS / "frame"
-    frame_src = render_frame(frame_dir, modal_gpu=modal_gpu)
+    if skip_training:
+        frame_src = frame_dir / "snapshot.png"
+        if not frame_src.exists():
+            raise SystemExit(f"--skip-training requires existing frame at {frame_src}")
+    else:
+        frame_src = render_frame(frame_dir, modal_gpu=modal_gpu)
     _overlay_stamp_image(frame_src, FIGURES / "scope_frame.png", stamp)
 
     stamp.unlink(missing_ok=True)
