@@ -216,7 +216,7 @@ Pass *--panels* with a comma-separated list to override any preset — useful wh
 | *rate* (default) | Accumulate last-hidden spike counts across all timesteps, one linear projection $W_\text{out}\cdot\sum_t s_t + b_\text{out}$ at the final step. | Default ladder decoder, matched across models. No temporal structure in the decoder — the hidden dynamics carry all the temporal work. |
 | *li* | Non-spiking leaky integrator per class: $v_\text{out} \leftarrow \beta\,v_\text{out} + (1-\beta)(W_\text{out}\cdot s_t + b_\text{out})$, logits are $\max_t v_\text{out}$. | Field-standard SHD readout (Zenke-style). Makes the decoder itself temporal — useful when the classification signal is localised in time rather than cumulative. |
 
-Both use the same $W_\text{out}, b_\text{out}$ shape so the learnable parameter count is identical; only the reduction over time differs. The *li* path currently reuses $\tau_\text{mem}$ as its time constant — see [notebook 004](/notebooks/nb004/) for how this interacts with init scaling.
+Both use the same $W_\text{out}, b_\text{out}$ shape so the learnable parameter count is identical; only the reduction over time differs. The *li* path currently reuses $\tau_\text{mem}$ as its time constant — see [shd](/notebooks/shd/) for how this interacts with init scaling.
 
 ## Reproducibility
 
@@ -226,7 +226,7 @@ Both use the same $W_\text{out}, b_\text{out}$ shape so the learnable parameter 
 
 Any oscilloscope subcommand can run on [Modal.com](https://modal.com) serverless compute by adding *--modal --modal-gpu {none, T4, L4, A10G, A100, H100}* — *none* runs on Modal CPU, the others pick the listed GPU. Local output paths resolve the same way on either side; the wrapper syncs the Modal volume back to *src/artifacts/* when the job finishes.
 
-Every notebook runner under *src/pinglab/notebooks/* forwards a top-level *--modal-gpu* argument through to the oscilloscope invocations it makes, so an entire notebook entry (e.g. *uv run src/pinglab/notebooks/nb004.py --modal-gpu T4*) dispatches to Modal with one flag. Omit the flag and the run stays local.
+Every notebook runner under *src/pinglab/notebooks/* forwards a top-level *--modal-gpu* argument through to the oscilloscope invocations it makes, so an entire notebook entry (e.g. *uv run src/pinglab/notebooks/shd.py --modal-gpu T4*) dispatches to Modal with one flag. Omit the flag and the run stays local.
 
 ## Where things live in the source
 

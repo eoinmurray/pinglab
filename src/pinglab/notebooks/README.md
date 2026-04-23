@@ -6,17 +6,18 @@ number cited by that entry.
 
 ## Naming
 
-Runners are named `nbNNN.py`, matching the entry slug (`nbNNN.mdx`). The
-descriptive title lives in the MDX frontmatter and in the runner's module
-docstring, not in the filename.
+Runners are named `<slug>.py`, matching the entry slug (`<slug>.mdx`). The
+slug is a short topic kebab-case name (e.g. `dt-stability`, `shd`), not a
+numeric ID. The descriptive title lives in the MDX frontmatter and in the
+runner's module docstring, not in the filename.
 
 ## Contract
 
 Each runner:
 
-- Takes no required arguments. Running `uv run python src/pinglab/notebooks/nbNNN.py`
+- Takes no required arguments. Running `uv run python src/pinglab/notebooks/<slug>.py`
   regenerates everything the entry cites.
-- Sets `SLUG = "nbNNN"` at module scope. Drives artifact and figure paths.
+- Sets `SLUG = "<slug>"` at module scope. Drives artifact and figure paths.
 - Writes raw run outputs to `src/artifacts/notebooks/<SLUG>/` (gitignored).
 - Writes published figures, videos, and `numbers.json` to
   `src/docs/public/figures/notebooks/<SLUG>/` (committed). The MDX imports
@@ -38,7 +39,8 @@ defined in `src/docs/src/pages/styleguide.md` § 8. The tier is recorded in
 
 ## Files
 
-- `nb001.py` — scope-frame aesthetic reference (canonical SCOPE_FRAME still).
-- `nb002.py` — basic PING videos (stim-overdrive, dt, ei_strength sweeps).
-- `nb003.py` — cuba vs standard-snn Δt-stability (train at one dt, sweep eval-dt; includes snntorch-library as external parity reference).
+- `scope-frame.py` — scope-frame aesthetic reference (canonical SCOPE_FRAME still).
+- `ping-regimes.py` — basic PING videos (stim-overdrive, dt, ei_strength sweeps).
+- `dt-stability.py` — cuba vs standard-snn Δt-stability (train at one dt, sweep eval-dt; includes snntorch-library as external parity reference).
+- `shd.py` — SHD (Heidelberg spoken digits) classification baseline.
 - `_run_id.py` — per-runner monotonic counter helper.

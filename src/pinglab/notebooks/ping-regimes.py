@@ -15,7 +15,7 @@ Also writes numbers.json with the notebook_run_id, config snapshot, and
 pre/stim/post population rates from an in-Python replay of the canonical
 overdrive=5 run (so the MDX can interpolate exact values).
 
-Notebook entry: src/docs/src/pages/notebooks/nb002.mdx
+Notebook entry: src/docs/src/pages/notebooks/ping-regimes.mdx
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from _tier import parse_tier  # noqa: E402
 
-SLUG = "nb002"
+SLUG = "ping-regimes"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
@@ -50,7 +50,7 @@ OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 # M.max_rate_hz; during the stim window rate = base_rate * overdrive.
 SEED           = 42
 DEFAULT_TIER   = "small"  # see src/docs/src/pages/styleguide.md § 8
-# Per-scan frame count by tier. nb002 runs 3 scans, so wall-clock ≈ 3 × frames × ~1.3 s.
+# Per-scan frame count by tier. ping-regimes runs 3 scans, so wall-clock ≈ 3 × frames × ~1.3 s.
 TIER_FRAMES    = {"extra small": 5, "small": 15, "medium": 100, "large": 300, "extra large": 600}
 TIER           = DEFAULT_TIER  # overridable via --tier <name>
 N_HIDDEN       = 512     # → N_E=512, N_I=128 (n_i = n_e//4)

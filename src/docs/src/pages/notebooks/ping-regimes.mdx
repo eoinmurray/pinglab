@@ -8,7 +8,7 @@ structure: paper
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb002/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../../public/figures/notebooks/ping-regimes/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const r = {
@@ -25,7 +25,7 @@ export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample:
 export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?" };
 export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
-export const videoGlob = import.meta.glob("../../../public/figures/notebooks/nb002/*.mp4", { eager: true, query: "?url", import: "default" });
+export const videoGlob = import.meta.glob("../../../public/figures/notebooks/ping-regimes/*.mp4", { eager: true, query: "?url", import: "default" });
 export const hasScan = Object.keys(videoGlob).some((k) => k.endsWith("/scan_overdrive.mp4"));
 export const hasScanDt = Object.keys(videoGlob).some((k) => k.endsWith("/scan_dt.mp4"));
 export const hasScanEi = Object.keys(videoGlob).some((k) => k.endsWith("/scan_ei.mp4"));
@@ -35,7 +35,7 @@ export const hasScanEi = Object.keys(videoGlob).some((k) => k.endsWith("/scan_ei
 **PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz. It only runs when E gets enough external drive; below threshold the network sits in background firing.
 
 {hasScan && (
-  <Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/nb002/scan_overdrive.mp4">
+  <Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/ping-regimes/scan_overdrive.mp4">
     Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
 
     Three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
@@ -43,7 +43,7 @@ export const hasScanEi = Object.keys(videoGlob).some((k) => k.endsWith("/scan_ei
 )}
 
 {hasScanDt && (
-  <Figure type="video" id="Figure 2" title="Integration-step sweep (scan_dt.mp4)" src="/figures/notebooks/nb002/scan_dt.mp4">
+  <Figure type="video" id="Figure 2" title="Integration-step sweep (scan_dt.mp4)" src="/figures/notebooks/ping-regimes/scan_dt.mp4">
     Gamma has a period of $\sim$15–30 ms; a coarse integration step *dt* can't resolve the E→I→E round-trip. Overdrive held at {dtScan.fixed_overdrive}×, *dt* swept {dtScan.min} → {dtScan.max} ms over {dtScan.frames} frames.
 
     Stable until about *dt* 1.65 ms, then full saturation of all neurons after the PING onset.
@@ -51,7 +51,7 @@ export const hasScanEi = Object.keys(videoGlob).some((k) => k.endsWith("/scan_ei
 )}
 
 {hasScanEi && (
-  <Figure type="video" id="Figure 3" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb002/scan_ei.mp4">
+  <Figure type="video" id="Figure 3" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/ping-regimes/scan_ei.mp4">
     External drive is one knob; internal E→I→E coupling strength is the other. Overdrive held at {eiScan.fixed_overdrive}× (flat input, no stim-window boost); **E→I strength** swept {eiScan.min} → {eiScan.max} over {eiScan.frames} frames.
 
     No PING until about E→I strength 1.6; then unstable onset of PING from 1.6 onwards.
@@ -65,7 +65,7 @@ export const hasScanEi = Object.keys(videoGlob).some((k) => k.endsWith("/scan_ei
 From the repo root:
 
 ```
-uv run src/pinglab/notebooks/nb002.py
+uv run src/pinglab/notebooks/ping-regimes.py
 ```
 
 ### Run parameters

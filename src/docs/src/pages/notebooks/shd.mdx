@@ -8,7 +8,7 @@ structure: paper
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb004/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../../public/figures/notebooks/shd/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const cell = numbers.winner ?? {};
@@ -24,11 +24,11 @@ Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/sp
 
 ## Method
 
-<Figure id="Figure 0" title="SHD at a glance — one example per class" src="/figures/notebooks/nb004/shd_digits.png" alt="Spike rasters for one trial from each of the 20 SHD classes, arranged as a 4×5 grid">
+<Figure id="Figure 0" title="SHD at a glance — one example per class" src="/figures/notebooks/shd/shd_digits.png" alt="Spike rasters for one trial from each of the 20 SHD classes, arranged as a 4×5 grid">
   One cochleogram spike raster per class, sampled from the train set (seed {cfg.seed ?? "?"}). Classes 0–9 are the English digits *zero*–*nine*; classes 10–19 are the German *null*–*neun*. Each panel is 700 channels × {cfg.t_ms ?? "?"} ms; density and temporal structure vary across speakers but the class-specific spectral signature is visible.
 </Figure>
 
-[*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **rate** readout (cumulative last-hidden spike counts projected once at the final timestep). Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *init_scale_bias* fixed at $1/(1-\beta) \approx 10.5$ — the value derived in [nb003](/notebooks/nb003/) for depth-2 *cuba*.
+[*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **rate** readout (cumulative last-hidden spike counts projected once at the final timestep). Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *init_scale_bias* fixed at $1/(1-\beta) \approx 10.5$ — the value derived in [dt-stability](/notebooks/dt-stability/) for depth-2 *cuba*.
 
 ### Comparison to the literature
 
@@ -83,11 +83,11 @@ Cramer's reference numbers (for context):
 
 ## Results
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb004/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba baseline">
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/shd/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba baseline">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%.
 </Figure>
 
-<Figure id="Figure 2" title="Per-epoch hidden activity" src="/figures/notebooks/nb004/training_cuba-exp.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the cuba baseline on SHD">
+<Figure id="Figure 2" title="Per-epoch hidden activity" src="/figures/notebooks/shd/training_cuba-exp.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the cuba baseline on SHD">
   Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers ($\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *rate* readout).
 </Figure>
 
@@ -111,7 +111,7 @@ $$
 
 with a bare weight init $W \sim \mathcal{N}(0, 0.2/\sqrt{N_\text{in}})$ — no $(1-\alpha)$ or $(1-\beta)$ factor on the drive. Our cuba-exp uses the dt-invariant low-pass form $\beta\,\text{mem} + (1-\beta)\,\text{drive}$, which forces a compensation multiplier on the init ($isw$, $isb$) to match Zenke's per-spike kick. The compensation is currently tuned to 6 × Kaiming, empirically sitting in the stable-but-undermatched middle; attempts to push slope past 5 blow up in ways Zenke's form does not.
 
-The cleanest path to the Cramer 47–49% feedforward band — and the only way to run at $\beta = 40$ like Cramer — is to match Zenke's update *form* directly, not to keep bisecting $isw$. Concretely: add a `--cuba-update-form {low-pass, direct}` flag on the oscilloscope, use `direct` ($\beta\,\text{mem} + \text{drive}$, $\alpha\,\text{syn} + W\!\cdot z$) for nb004, and initialise $W$ with weight_scale = 0.2 directly — not the Kaiming × compensation stack.
+The cleanest path to the Cramer 47–49% feedforward band — and the only way to run at $\beta = 40$ like Cramer — is to match Zenke's update *form* directly, not to keep bisecting $isw$. Concretely: add a `--cuba-update-form {low-pass, direct}` flag on the oscilloscope, use `direct` ($\beta\,\text{mem} + \text{drive}$, $\alpha\,\text{syn} + W\!\cdot z$) for shd, and initialise $W$ with weight_scale = 0.2 directly — not the Kaiming × compensation stack.
 
 **Re-enable recurrence.** The 71% RSNN target requires $W_\text{rec} \neq 0$. Feedforward $W_\text{rec} = 0$ with slope = 5 + adamax is stable; under the direct update form above, restoring $W_\text{rec} \sim \mathcal{N}(0, 0.2/\sqrt{N_\text{hidden}})$ should match Zenke's `v1`.
 
@@ -122,7 +122,7 @@ The cleanest path to the Cramer 47–49% feedforward band — and the only way t
 ### Reproduction
 
 ```
-uv run src/pinglab/notebooks/nb004.py
+uv run src/pinglab/notebooks/shd.py
 ```
 
 Add `--tier small` for a faster pass.
