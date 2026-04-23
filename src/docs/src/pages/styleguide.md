@@ -9,7 +9,37 @@ Hard rules for editing the docs and notebook. For repo layout, workflow narrativ
 
 These rules apply when editing the docs and notebook. They are the source of truth — if anything on the [Introduction](/introduction/) page conflicts, these win.
 
-### 1. Notebook-entry H2 skeleton
+### 1. Color palette
+
+All colors come from the *@theme* tokens in *src/styles/global.css* — never hardcode hex values in components or pages. Tailwind utilities resolve against these tokens (*text-ink*, *bg-paper-tint*, *border-rule*, etc.); raw CSS reaches them via *var(--color-…)*. The palette is deliberately narrow: warm off-white paper, a short ink ramp for text hierarchy, two rule weights, a single warning red, and a small categorical ramp for multi-series plots.
+
+The Python side mirrors the same tokens as named constants in *src/pinglab/theme.py*, which *plot.py* and *spectral.py* import from; no matplotlib call should carry an inline hex string. The two files are kept in sync by hand — any palette change must update both in the same commit.
+
+<div style="display:grid;grid-template-columns:auto 1fr auto;gap:0.35rem 0.9rem;align-items:center;margin:1rem 0;">
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#1a1a1a;border:1px solid #ccc;"></span><span><em>--color-ink-strong</em></span><span style="color:#666;">#1a1a1a — headings, strongest text</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#222;border:1px solid #ccc;"></span><span><em>--color-ink</em></span><span style="color:#666;">#222 — body text default</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#333;border:1px solid #ccc;"></span><span><em>--color-ink-soft</em></span><span style="color:#666;">#333 — secondary text</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#555;border:1px solid #ccc;"></span><span><em>--color-dim</em></span><span style="color:#666;">#555 — de-emphasised prose</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#666;border:1px solid #ccc;"></span><span><em>--color-muted</em></span><span style="color:#666;">#666 — captions, metadata</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#777;border:1px solid #ccc;"></span><span><em>--color-muted-soft</em></span><span style="color:#666;">#777 — quieter metadata</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#888;border:1px solid #ccc;"></span><span><em>--color-label</em></span><span style="color:#666;">#888 — axis labels, small caps</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#bbb;border:1px solid #ccc;"></span><span><em>--color-faint</em></span><span style="color:#666;">#bbb — disabled / placeholder</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#ccc;border:1px solid #ccc;"></span><span><em>--color-underline</em></span><span style="color:#666;">#ccc — link underlines, swatch borders</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#e7e5df;border:1px solid #ccc;"></span><span><em>--color-rule</em></span><span style="color:#666;">#e7e5df — hairline rules, code-block border</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#d9d5c8;border:1px solid #ccc;"></span><span><em>--color-rule-warm</em></span><span style="color:#666;">#d9d5c8 — warmer rule for figure frames</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#fafaf7;border:1px solid #ccc;"></span><span><em>--color-paper-tint</em></span><span style="color:#666;">#fafaf7 — code block / inset background</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#fff;border:1px solid #ccc;"></span><span><em>--color-paper</em></span><span style="color:#666;">#fff — page background</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#cc4444;border:1px solid #ccc;"></span><span><em>--color-danger</em></span><span style="color:#666;">#cc4444 — dirty-SHA flag, plot accent, error states</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#1f77b4;border:1px solid #ccc;"></span><span><em>--color-cat-blue</em></span><span style="color:#666;">#1f77b4 — categorical series 1</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#2ca02c;border:1px solid #ccc;"></span><span><em>--color-cat-green</em></span><span style="color:#666;">#2ca02c — categorical series 2</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#9467bd;border:1px solid #ccc;"></span><span><em>--color-cat-purple</em></span><span style="color:#666;">#9467bd — categorical series 3</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#d62728;border:1px solid #ccc;"></span><span><em>--color-cat-red</em></span><span style="color:#666;">#d62728 — categorical series 4</span>
+  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#ff7f0e;border:1px solid #ccc;"></span><span><em>--color-cat-orange</em></span><span style="color:#666;">#ff7f0e — categorical series 5</span>
+</div>
+
+New colors go in *global.css* under *@theme* with a *--color-* prefix (so Tailwind picks them up) and into *src/pinglab/theme.py* with the matching constant name — update both and this table in the same change. *Why:* the palette drift that a one-off *#999* starts is hard to reverse, and split-source drift between web and plots is worse.
+
+### 2. Notebook-entry H2 skeleton
 
 Every notebook entry under *src/docs/src/pages/notebook/* uses the same six H2 headings, in this order:
 
@@ -30,7 +60,7 @@ Every entry ends with a single *Appendix* H2 after *Next steps*, holding at mini
 
 *Why:* every entry is a reproducible artefact, and the appendix is where the reader goes when they want to re-run the experiment or look up the numerical config — keeping this consistent across entries means that contract is visible at a predictable URL fragment (*#appendix*). Paper-style drafts with custom sectioning can opt out of the main-body skeleton by setting *structure: paper* in frontmatter, but the Appendix still applies.
 
-### 2. Entry numbering and date format
+### 3. Entry numbering and date format
 
 Every notebook entry has a **global sequential number**, zero-padded to 3 digits (*001*, *002*, …). It is the entry's primary identifier and appears in the filename, URL, frontmatter (*entry: &lt;N&gt;*), byline, and home-page list. Numbers never change once assigned. Reserve the next number by *ls src/pinglab/notebook/* and adding 1 to the highest.
 
@@ -46,15 +76,15 @@ The word "Entry" is never written — the zero-padded number carries the meaning
 
 Filenames and URL slugs are *nbNNN* (e.g. *nb001.mdx*). The descriptive name lives in the frontmatter *title*, not the slug. The canonical ISO date lives in frontmatter (*date: YYYY-MM-DD*) alongside *entry: &lt;N&gt;*. Day-name only appears in human-visible text. Compute on macOS with *date -j -f "%Y-%m-%d" &lt;YYYY-MM-DD&gt; "+%A"*; Linux: *date -d &lt;YYYY-MM-DD&gt; +%A*.
 
-### 3. Figure aspect ratio is 16:9
+### 4. Figure aspect ratio is 16:9
 
 All figures and plots in *src/docs/* and *src/artifacts/* use 16:9 (width:height ≈ 1.778:1). Use matplotlib *figsize=(8.0, 4.5)*, *(9.0, 5.0625)*, or *(10.0, 5.625)*. Multi-panel figures should respect 16:9 for the overall figure, even if each panel is squarer. GIFs and MP4s recorded by the harness should also be 16:9.
 
-### 4. Figures are namespaced by notebook entry
+### 5. Figures are namespaced by notebook entry
 
 Every frozen figure under *src/docs/public/figures/* belongs to exactly one notebook entry, under *src/docs/public/figures/notebook/&lt;entry-slug&gt;/*, where *&lt;entry-slug&gt;* matches the entry's markdown filename. There is no separate paper-level figures tier. If a later entry wants to reference an earlier entry's figure, it does so by URL — figures are not copied.
 
-### 5. No inline backtick code in docs
+### 6. No inline backtick code in docs
 
 In *src/docs/* markdown, do not use backtick inline-code formatting. Replace each case with the right alternative:
 
@@ -66,7 +96,7 @@ In *src/docs/* markdown, do not use backtick inline-code formatting. Replace eac
 
 Fenced code blocks for actual multi-line samples (CLI invocations, config snippets) can stay. Doesn't apply to *README.md* files outside *src/docs/*, memory files, or commit messages.
 
-### 6. Figures use the Figure component
+### 7. Figures use the Figure component
 
 Every image and video in docs — notebook entry or background page — is rendered with the shared `<Figure>` component in *src/docs/src/components/Figure.astro*, not raw markdown `![]()`. A figure carries an *id* (displayed label, e.g. *Figure 1*), *title* (short heading), *alt* (accessibility text for images), and a slotted caption body.
 
@@ -80,7 +110,7 @@ import Figure from "../../components/Figure.astro";
 
 For MP4s, pass *type="video"*. The component handles borders, spacing, and caption typography uniformly. A raw `<img>` or markdown image without a surrounding `<Figure>` is a bug.
 
-### 7. Code pointers and reproduction are pinned to commit SHA
+### 8. Code pointers and reproduction are pinned to commit SHA
 
 Notebook entries describe a point-in-time run, so any link from an entry to code should resolve to the code *as it was at that run*, not whatever is on *main* today. Three shared pieces make this work:
 
@@ -92,13 +122,13 @@ Every notebook entry must export *gitSha* from its *numbers.json* and pass it in
 
 The notebook driver scripts (*src/pinglab/notebook/<slug>.py*) are responsible for lifting *git_sha* from the training *config.json* into the top-level of *numbers.json* — the *ReproBadge* reads it from there. Every layout also gets an "Edit this page on GitHub" footer for free via *MarkdownLayout.astro*, derived from the source file path; no per-page work.
 
-### 8. Bug findings belong in PRs, not notebook entries
+### 9. Bug findings belong in PRs, not notebook entries
 
 If a "finding" in a notebook entry turns out to be a bug about to be fixed, remove it from the notebook. The evidence, root cause, and reproducer belong in the PR that fixes it. The notebook records findings about how the system behaves; PRs record what changed and why.
 
 When a notebook entry's narrative gets invalidated by a fix (e.g., an "accuracy gap" that was actually a device-specific bug), the entry needs rewriting against the post-fix baseline — not a new subsection documenting the debugging trail. Durable profilers added mid-investigation get removed with the notebook subsection unless they have standalone value beyond the fixed bug.
 
-### 9. Run sizing tiers
+### 10. Run sizing tiers
 
 Notebook entry runs pick from a fixed set of tiers. Tiers are size-named so the expected wall-clock cost is legible from the config alone. Notebooks come in two flavours — **training** (gradient descent over samples × epochs) and **video-render** (forward-pass sim per frame + matplotlib render). Both use the same tier names so an entry labeled *small* is an iteration-speed run regardless of flavour, but the underlying budgets differ.
 
@@ -127,29 +157,6 @@ Training cost scales linearly in *max-samples × epochs × t-ms* ($\approx$3.3 �
 Each notebook entry names the tier it ran at — either in Method prose or implicitly via its notebook runner's *MAX_SAMPLES / EPOCHS / T_MS* constants (training) or *TIER_FRAMES* lookup (video). If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
 
 Every notebook runner accepts *--modal-gpu {none, T4, L4, A10G, A100, H100}* to dispatch its oscilloscope invocations to Modal.com (see [The oscilloscope § Modal dispatch](/the-oscilloscope/#modal-dispatch)). Default is local.
-
-### 10. Color palette
-
-All colors come from the *@theme* tokens in *src/styles/global.css* — never hardcode hex values in components or pages. Tailwind utilities resolve against these tokens (*text-ink*, *bg-paper-tint*, *border-rule*, etc.); raw CSS reaches them via *var(--color-…)*. The palette is deliberately narrow: warm off-white paper, a short ink ramp for text hierarchy, two rule weights, and a single danger accent.
-
-<div style="display:grid;grid-template-columns:auto 1fr auto;gap:0.35rem 0.9rem;align-items:center;margin:1rem 0;">
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#1a1a1a;border:1px solid #ccc;"></span><span><em>--color-ink-strong</em></span><span style="color:#666;">#1a1a1a — headings, strongest text</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#222;border:1px solid #ccc;"></span><span><em>--color-ink</em></span><span style="color:#666;">#222 — body text default</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#333;border:1px solid #ccc;"></span><span><em>--color-ink-soft</em></span><span style="color:#666;">#333 — secondary text</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#555;border:1px solid #ccc;"></span><span><em>--color-dim</em></span><span style="color:#666;">#555 — de-emphasised prose</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#666;border:1px solid #ccc;"></span><span><em>--color-muted</em></span><span style="color:#666;">#666 — captions, metadata</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#777;border:1px solid #ccc;"></span><span><em>--color-muted-soft</em></span><span style="color:#666;">#777 — quieter metadata</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#888;border:1px solid #ccc;"></span><span><em>--color-label</em></span><span style="color:#666;">#888 — axis labels, small caps</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#bbb;border:1px solid #ccc;"></span><span><em>--color-faint</em></span><span style="color:#666;">#bbb — disabled / placeholder</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#ccc;border:1px solid #ccc;"></span><span><em>--color-underline</em></span><span style="color:#666;">#ccc — link underlines, swatch borders</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#e7e5df;border:1px solid #ccc;"></span><span><em>--color-rule</em></span><span style="color:#666;">#e7e5df — hairline rules, code-block border</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#d9d5c8;border:1px solid #ccc;"></span><span><em>--color-rule-warm</em></span><span style="color:#666;">#d9d5c8 — warmer rule for figure frames</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#fafaf7;border:1px solid #ccc;"></span><span><em>--color-paper-tint</em></span><span style="color:#666;">#fafaf7 — code block / inset background</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#fff;border:1px solid #ccc;"></span><span><em>--color-paper</em></span><span style="color:#666;">#fff — page background</span>
-  <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#a33;border:1px solid #ccc;"></span><span><em>--color-danger</em></span><span style="color:#666;">#a33 — dirty-SHA flag, error states</span>
-</div>
-
-New colors go in *global.css* under *@theme* with a *--color-* prefix so Tailwind picks them up; update this table in the same change. *Why:* the palette drift that a one-off *#999* starts is hard to reverse — every color should be namable.
 
 ## Maintaining this page
 
