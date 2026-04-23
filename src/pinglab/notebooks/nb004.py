@@ -96,6 +96,11 @@ def train_cell(
         "--tau-mem", str(TAU_MEM_MS),
         "--tau-syn", str(TAU_SYN_MS),
         "--lr", str(lr),
+        # ReduceLROnPlateau (factor 0.5, patience 5). Large tier plateaued
+        # around ep 20 then diverged at ep 28 with a constant 1e-3 lr; the
+        # scheduler should halve the step once acc stops climbing and keep
+        # the network in the stable region.
+        "--adaptive-lr",
         "--batch-size", "256",
         "--kaiming-init",
         "--init-scale-weight", str(isw),
@@ -106,6 +111,11 @@ def train_cell(
         # baseline hits the Cramer 47–49% band.
         "--w-rec", "0.0", "0.0",
         "--readout", readout,
+        # Surrogate slope β. Cramer uses β=40 but at our current BPTT
+        # depth / clip / optimizer config that diverges; β=5 is the
+        # highest value that gives stable training end-to-end. Step back
+        # toward 40 only after a stable backbone is established.
+        "--surrogate-slope", "5",
         # Cramer et al. (2022) SHD RSNN recipe — two-sided firing-rate
         # regulariser on per-neuron trial spike counts.
         # grad-clip: loosen from M.GRAD_CLIP=1.0 default. At τ_syn=10 ms with
@@ -117,8 +127,9 @@ def train_cell(
         # Band-aid against single exploded batches mid-run: large-tier training
         # is stable for 20+ epochs, then one bad batch produces a 1e11+ grad
         # that poisons Adam's second-moment estimate. Skipping the step (with
-        # the clip still active as a safety net) lets the run recover. 1e4 is
-        # a couple orders above legitimate transient spikes.
+        # the clip still active as a safety net) lets the run recover. 1e4
+        # is a couple orders above legitimate slope=5 transients (0.5–100
+        # across 27 stable epochs previously).
         "--skip-bad-grad-threshold", "1e4",
         "--fr-reg-lower-theta", "0.01",
         "--fr-reg-lower-strength", "1.0",

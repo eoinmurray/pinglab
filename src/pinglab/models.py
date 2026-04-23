@@ -78,10 +78,11 @@ delay_ie_ms   = 1.0       # ms — I→E synaptic delay
 # ── Training ──────────────────────────────────────────────────────────────
 BATCH_SIZE    = 64
 GRAD_CLIP     = 1.0
-# Surrogate-gradient steepness (fast-sigmoid slope). 10 is the Neftci et al.
-# canonical reference; tune down (e.g. 5) for very long BPTT trials. Override
-# via the oscilloscope --surrogate-slope flag before model construction.
-SURROGATE_SLOPE = 10.0
+# Surrogate-gradient steepness (fast-sigmoid slope). 5 is the stable
+# end-to-end value at pinglab's current BPTT depth / clip / optimizer
+# config; tune up (10 canonical, 40 Cramer) once a stable backbone is
+# established. Override via --surrogate-slope before model construction.
+SURROGATE_SLOPE = 5.0
 READOUT_SCALE = 0.0
 PATIENCE      = 15
 CM_BACK_SCALE = 80.0
