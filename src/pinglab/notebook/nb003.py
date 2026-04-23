@@ -40,6 +40,7 @@ import torch  # noqa: E402
 from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from config import build_net  # noqa: E402
+from pinglab import theme  # noqa: E402
 
 SLUG = "nb003"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
@@ -106,9 +107,9 @@ MODEL_LABELS = {
     "cuba":             "cuba",
 }
 MODEL_COLORS = {
-    "standard-snn":   "#1f77b4",
-    "snntorch-library": "#ff7f0e",
-    "cuba":             "#2ca02c",
+    "standard-snn":     theme.CAT_BLUE,
+    "snntorch-library": theme.CAT_ORANGE,
+    "cuba":             theme.CAT_GREEN,
 }
 
 
@@ -252,9 +253,10 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
     sweep_grid = _sweep_grid_for(dt_train, encoder_mode)
     print(f"[{model} @ dt={dt_train}, mode={encoder_mode}] dt-sweep → "
           f"{sweep_dir.relative_to(REPO)}")
-    # Sweep videos are only emitted for upsample mode to keep wall-clock
-    # and disk within a medium-tier budget; the other modes share
-    # identical plotting paths so their videos add no scientific content.
+    # Sweep videos are only emitted for resample mode because it's the
+    # only transport that covers the full eval-dt grid in every regime;
+    # upsample and downsample each cover half and would produce
+    # degenerate 2-frame videos at one of the train-dt settings.
     cmd = [
         "run", "python", str(OSCILLOSCOPE), "infer",
         "--from-dir", str(train_dir),
@@ -264,7 +266,7 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
         "--out-dir", str(sweep_dir),
         "--wipe-dir",
     ]
-    if encoder_mode == "upsample":
+    if encoder_mode == "resample":
         cmd += ["--observe", "video"]
     cmd = append_modal_args(cmd, modal_gpu)
     sh.uv(*cmd, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
@@ -298,7 +300,7 @@ def run_date(run_dir: Path) -> str:
 
 def _stamp_figure(fig, notebook_run_id: str) -> None:
     fig.text(0.995, 0.005, notebook_run_id, ha="right", va="bottom",
-             fontsize=7, color="#888888", family="monospace")
+             fontsize=7, color=theme.LABEL, family="monospace")
 
 
 def plot_training_curves(regime_train_dirs: dict[float, dict[str, Path]],
@@ -338,56 +340,118 @@ def plot_training_curves(regime_train_dirs: dict[float, dict[str, Path]],
 
 def _matrix_axes(n_rows: int, n_cols: int):
     """Grid: one row per encoder mode, one column per training regime. Shared
-    y across all panels (accuracy or firing-rate, both unitful)."""
+    y across all panels (accuracy or firing-rate, both unitful) and shared x
+    per column so the three encoder-mode rows put their eval-dt points on the
+    same scale — upsample (eval-dt ≤ train-dt) and downsample (eval-dt ≥
+    train-dt) only populate half of their panel, but the reader can compare
+    positions across rows directly."""
     fig, axes = plt.subplots(n_rows, n_cols,
                              figsize=(8, 4.5 * n_rows / 2),
-                             sharey=True, squeeze=False)
+                             sharex="col", sharey=True, squeeze=False)
     return fig, axes
+
+
+ROW_MODES = ["count-preserving", "resample"]
+# Marker per encoder mode in the count-preserving row. Same silhouette
+# size, different geometry so upsample vs downsample is readable at a
+# glance without implying a direction via the glyph (that's what the
+# red train-dt line is for):
+#   "o" = upsample    (filled circle)
+#   "s" = downsample  (filled square)
+#   "o" = resample    (filled circle on its own row, no ambiguity)
+MODE_MARKERS = {"upsample": "o", "downsample": "s", "resample": "o"}
+
+
+def _plot_model_mode(ax, sweep_dir, color, label, marker, key="acc"):
+    """Plot one (model, encoder mode) series on ax; returns the list of
+    (dt, value) points actually plotted, skipping entries missing the key."""
+    if sweep_dir is None or not sweep_dir.exists():
+        return []
+    blob = load_sweep(sweep_dir)
+    dts, vals = [], []
+    for r in blob["sweep"]:
+        v = r.get(key) if key != "acc" else r["acc"]
+        if v is None:
+            continue
+        dts.append(r["dt"])
+        vals.append(v)
+    if not dts:
+        return []
+    ax.plot(dts, vals, marker=marker, color=color, label=label,
+            linewidth=1.4, markersize=6)
+    return list(zip(dts, vals))
+
+
+def _mode_legend_handles():
+    """Handles annotating which marker means which direction — drawn once
+    on the count-preserving row so the reader can decode circle vs square
+    without hunting for the caption."""
+    from matplotlib.lines import Line2D
+    return [
+        Line2D([0], [0], color=theme.DIM, marker=MODE_MARKERS["upsample"],
+               linestyle="-", markersize=6,
+               label="upsample (eval-dt ≤ train-dt)"),
+        Line2D([0], [0], color=theme.DIM, marker=MODE_MARKERS["downsample"],
+               linestyle="-", markersize=6,
+               label="downsample (eval-dt ≥ train-dt)"),
+    ]
 
 
 def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
                       out_path: Path, notebook_run_id: str) -> None:
-    """Mean hidden-layer firing rate vs eval-dt, matrix layout:
-    rows = encoder mode, cols = training regime."""
+    """Mean hidden-layer firing rate vs eval-dt, 2×N layout:
+    row 0 = count-preserving (upsample + downsample on one axis, marker
+    shape encodes direction), row 1 = resample."""
     dt_trains = sorted(regime_sweep_dirs.keys())
-    fig, axes = _matrix_axes(len(ENCODER_MODES), len(dt_trains))
+    fig, axes = _matrix_axes(len(ROW_MODES), len(dt_trains))
     any_data = False
-    for i, mode in enumerate(ENCODER_MODES):
-        for j, dt_train in enumerate(dt_trains):
-            ax = axes[i, j]
-            for model, mode_dirs in regime_sweep_dirs[dt_train].items():
-                sweep_dir = mode_dirs.get(mode)
-                if sweep_dir is None:
-                    continue
-                blob = load_sweep(sweep_dir)
-                dts, rates = [], []
-                for r in blob["sweep"]:
-                    rate = r.get("hid_rate_hz")
-                    if rate is None:
-                        continue
-                    dts.append(r["dt"])
-                    rates.append(rate)
-                if not dts:
-                    continue
+    for j, dt_train in enumerate(dt_trains):
+        # Row 0: count-preserving — upsample and downsample, per model,
+        # same colour and connected by the underlying line.
+        ax = axes[0, j]
+        for model in regime_sweep_dirs[dt_train]:
+            mode_dirs = regime_sweep_dirs[dt_train][model]
+            pts_up = _plot_model_mode(ax, mode_dirs.get("upsample"),
+                                      MODEL_COLORS[model], MODEL_LABELS[model],
+                                      MODE_MARKERS["upsample"], key="hid_rate_hz")
+            pts_dn = _plot_model_mode(ax, mode_dirs.get("downsample"),
+                                      MODEL_COLORS[model], None,
+                                      MODE_MARKERS["downsample"], key="hid_rate_hz")
+            if pts_up or pts_dn:
                 any_data = True
-                ax.plot(dts, rates, marker="o",
-                        color=MODEL_COLORS[model], label=MODEL_LABELS[model])
-            ax.axvline(dt_train, color="#cc4444", linestyle="--", linewidth=1,
-                       label=f"train dt={dt_train}")
-            if i == 0:
-                ax.set_title(f"train dt = {dt_train} ms")
-            if i == len(ENCODER_MODES) - 1:
-                ax.set_xlabel("eval dt (ms)")
-            if j == 0:
-                ax.set_ylabel(f"{mode}\nhidden rate (Hz)")
-            ax.grid(alpha=0.3)
-            if i == 0 and j == 0:
-                ax.legend(frameon=False, fontsize=7)
+        ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1,
+                   label=f"train dt={dt_train}")
+        ax.set_title(f"train dt = {dt_train} ms")
+        if j == 0:
+            ax.set_ylabel("count-preserving\nhidden rate (Hz)")
+            ax.legend(frameon=False, fontsize=7, loc="upper right")
+            # Direction-marker legend in a second slot so the < / > glyphs
+            # get their decoding without polluting the model legend.
+            ax.add_artist(ax.legend(handles=_mode_legend_handles(),
+                                    frameon=False, fontsize=6,
+                                    loc="lower right"))
+            ax.legend(frameon=False, fontsize=7, loc="upper right")
+        ax.grid(alpha=0.3)
+
+        # Row 1: resample — one circle marker per point.
+        ax = axes[1, j]
+        for model in regime_sweep_dirs[dt_train]:
+            pts = _plot_model_mode(ax,
+                                   regime_sweep_dirs[dt_train][model].get("resample"),
+                                   MODEL_COLORS[model], MODEL_LABELS[model],
+                                   MODE_MARKERS["resample"], key="hid_rate_hz")
+            if pts:
+                any_data = True
+        ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1)
+        ax.set_xlabel("eval dt (ms)")
+        if j == 0:
+            ax.set_ylabel("resample\nhidden rate (Hz)")
+        ax.grid(alpha=0.3)
     if not any_data:
         print("[warn] no firing-rate data in sweep results; skipping firing_rates.png")
         plt.close(fig)
         return
-    fig.suptitle("Δt-stability: hidden firing rate vs eval-dt (per encoder mode)")
+    fig.suptitle("Δt-stability: hidden firing rate vs eval-dt")
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -397,35 +461,46 @@ def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]]
 
 def plot_dt_sweep(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
                   out_path: Path, notebook_run_id: str) -> None:
-    """Money plot — accuracy vs eval-dt, matrix layout: rows = encoder mode,
-    cols = training regime. Each panel marks its training dt."""
+    """Money plot — accuracy vs eval-dt, 2×N layout: row 0 = count-preserving
+    (upsample < + downsample > on one axis), row 1 = resample."""
     dt_trains = sorted(regime_sweep_dirs.keys())
-    fig, axes = _matrix_axes(len(ENCODER_MODES), len(dt_trains))
-    for i, mode in enumerate(ENCODER_MODES):
-        for j, dt_train in enumerate(dt_trains):
-            ax = axes[i, j]
-            for model, mode_dirs in regime_sweep_dirs[dt_train].items():
-                sweep_dir = mode_dirs.get(mode)
-                if sweep_dir is None:
-                    continue
-                blob = load_sweep(sweep_dir)
-                dts = [r["dt"] for r in blob["sweep"]]
-                accs = [r["acc"] for r in blob["sweep"]]
-                ax.plot(dts, accs, marker="o",
-                        color=MODEL_COLORS[model], label=MODEL_LABELS[model])
-            ax.axvline(dt_train, color="#cc4444", linestyle="--", linewidth=1,
-                       label=f"train dt={dt_train}")
-            ax.set_ylim(0, 100)
-            if i == 0:
-                ax.set_title(f"train dt = {dt_train} ms")
-            if i == len(ENCODER_MODES) - 1:
-                ax.set_xlabel("eval dt (ms)")
-            if j == 0:
-                ax.set_ylabel(f"{mode}\ntest acc (%)")
-            ax.grid(alpha=0.3)
-            if i == 0 and j == 0:
-                ax.legend(frameon=False, fontsize=7)
-    fig.suptitle("Δt-stability: accuracy vs eval-dt (per encoder mode)")
+    fig, axes = _matrix_axes(len(ROW_MODES), len(dt_trains))
+    for j, dt_train in enumerate(dt_trains):
+        ax = axes[0, j]
+        for model in regime_sweep_dirs[dt_train]:
+            mode_dirs = regime_sweep_dirs[dt_train][model]
+            _plot_model_mode(ax, mode_dirs.get("upsample"),
+                             MODEL_COLORS[model], MODEL_LABELS[model],
+                             MODE_MARKERS["upsample"])
+            _plot_model_mode(ax, mode_dirs.get("downsample"),
+                             MODEL_COLORS[model], None,
+                             MODE_MARKERS["downsample"])
+        ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1,
+                   label=f"train dt={dt_train}")
+        ax.set_ylim(0, 100)
+        ax.set_title(f"train dt = {dt_train} ms")
+        if j == 0:
+            ax.set_ylabel("count-preserving\ntest acc (%)")
+            ax.legend(frameon=False, fontsize=7, loc="lower right")
+            ax.add_artist(ax.legend(handles=_mode_legend_handles(),
+                                    frameon=False, fontsize=6,
+                                    loc="lower left"))
+            ax.legend(frameon=False, fontsize=7, loc="lower right")
+        ax.grid(alpha=0.3)
+
+        ax = axes[1, j]
+        for model in regime_sweep_dirs[dt_train]:
+            _plot_model_mode(ax,
+                             regime_sweep_dirs[dt_train][model].get("resample"),
+                             MODEL_COLORS[model], MODEL_LABELS[model],
+                             MODE_MARKERS["resample"])
+        ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1)
+        ax.set_ylim(0, 100)
+        ax.set_xlabel("eval dt (ms)")
+        if j == 0:
+            ax.set_ylabel("resample\ntest acc (%)")
+        ax.grid(alpha=0.3)
+    fig.suptitle("Δt-stability: accuracy vs eval-dt")
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -479,10 +554,10 @@ def copy_videos(regime_train_dirs: dict[float, dict[str, Path]],
                 raise SystemExit(f"missing training video: {src}")
             dst = out_dir / f"training_{_regime_key(dt_train)}_{model}.mp4"
             _copy_with_stamp(src, dst, stamp_path)
-    # Only upsample emits sweep videos (see sweep_model).
+    # Only resample emits sweep videos (see sweep_model).
     for dt_train, model_modes in regime_sweep_dirs.items():
         for model, mode_dirs in model_modes.items():
-            sweep_dir = mode_dirs.get("upsample")
+            sweep_dir = mode_dirs.get("resample")
             if sweep_dir is None:
                 continue
             src = sweep_dir / "dt_sweep.mp4"

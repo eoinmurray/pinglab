@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
+from pinglab import theme
+
 sys.path.insert(0, str(Path(__file__).parent))
 
 
@@ -106,16 +108,16 @@ def plot_spectrum(result, N_E, N_I, title="", out_path=None, measured_f0=None):
 
     # Panel 1: Full spectrum in complex plane
     ax = axes[0]
-    ax.scatter(eigs.real, eigs.imag, s=8, c="#2a2a2a", alpha=0.6, zorder=2)
+    ax.scatter(eigs.real, eigs.imag, s=8, c=theme.INK, alpha=0.6, zorder=2)
     if dom is not None:
         ax.scatter([dom.real, dom.real], [dom.imag, -dom.imag],
-                   s=60, c="#cc4444", marker="*", zorder=3,
+                   s=60, c=theme.DANGER, marker="*", zorder=3,
                    label=f"dominant: {dom.real:.3f}±{abs(dom.imag):.3f}i")
-    circle = plt.Circle((0, 0), sr, fill=False, color="#888",
+    circle = plt.Circle((0, 0), sr, fill=False, color=theme.LABEL,
                          linestyle="--", linewidth=1)
     ax.add_patch(circle)
-    ax.axhline(0, color="#ccc", linewidth=0.5)
-    ax.axvline(0, color="#ccc", linewidth=0.5)
+    ax.axhline(0, color=theme.UNDERLINE, linewidth=0.5)
+    ax.axvline(0, color=theme.UNDERLINE, linewidth=0.5)
     ax.set_xlabel("Real")
     ax.set_ylabel("Imaginary")
     ax.set_title(f"Eigenvalue spectrum (ρ={sr:.3f})")
@@ -125,8 +127,8 @@ def plot_spectrum(result, N_E, N_I, title="", out_path=None, measured_f0=None):
     # Panel 2: Eigenvalue magnitudes sorted
     ax = axes[1]
     mags = np.sort(np.abs(eigs))[::-1]
-    ax.plot(mags, color="#2a2a2a", linewidth=1.5)
-    ax.axhline(1.0, color="#cc4444", linestyle="--", linewidth=1,
+    ax.plot(mags, color=theme.INK, linewidth=1.5)
+    ax.axhline(1.0, color=theme.DANGER, linestyle="--", linewidth=1,
                label="unit circle")
     ax.set_xlabel("Eigenvalue index (sorted)")
     ax.set_ylabel("|λ|")
@@ -139,16 +141,16 @@ def plot_spectrum(result, N_E, N_I, title="", out_path=None, measured_f0=None):
     freqs = np.abs(eigs.imag) / (2 * np.pi) * 1000
     freqs_nonzero = freqs[freqs > 0.1]
     if len(freqs_nonzero) > 0:
-        ax.hist(freqs_nonzero, bins=30, color="#2a2a2a", alpha=0.7,
+        ax.hist(freqs_nonzero, bins=30, color=theme.INK, alpha=0.7,
                 edgecolor="white", linewidth=0.3)
     if pred_f0_lin > 0:
-        ax.axvline(pred_f0_lin, color="#cc4444", linewidth=2, alpha=0.4,
+        ax.axvline(pred_f0_lin, color=theme.DANGER, linewidth=2, alpha=0.4,
                    label=f"linear f0={pred_f0_lin:.0f}Hz")
     if pred_f0_cor > 0:
-        ax.axvline(pred_f0_cor, color="#cc4444", linewidth=2,
+        ax.axvline(pred_f0_cor, color=theme.DANGER, linewidth=2,
                    label=f"corrected f0={pred_f0_cor:.0f}Hz")
     if measured_f0 is not None and measured_f0 > 0:
-        ax.axvline(measured_f0, color="#4444cc", linewidth=2, linestyle="--",
+        ax.axvline(measured_f0, color=theme.CAT_BLUE, linewidth=2, linestyle="--",
                    label=f"measured f0={measured_f0:.0f}Hz")
     ax.set_xlabel("Frequency (Hz)")
     ax.set_ylabel("Count")
@@ -210,9 +212,9 @@ def plot_eigenmodes(result, N_E, N_I, title="", out_path=None, n_modes=6):
 
         # Panel 1: Participation magnitude
         ax = axes[row, 0]
-        ax.bar(range(N_E), np.abs(e_part), color="#2a2a2a", alpha=0.7,
+        ax.bar(range(N_E), np.abs(e_part), color=theme.INK, alpha=0.7,
                width=1.0, label="E")
-        ax.bar(range(N_E, N_E + N_I), np.abs(i_part), color="#cc4444",
+        ax.bar(range(N_E, N_E + N_I), np.abs(i_part), color=theme.DANGER,
                alpha=0.7, width=1.0, label="I")
         ax.set_ylabel("|v|")
         if row == 0:
@@ -228,12 +230,12 @@ def plot_eigenmodes(result, N_E, N_I, title="", out_path=None, n_modes=6):
         if abs(lam.imag) > 1e-10:
             e_phase = np.angle(e_part)
             i_phase = np.angle(i_part)
-            ax.scatter(range(N_E), e_phase, s=3, c="#2a2a2a", alpha=0.5)
-            ax.scatter(range(N_E, N_E + N_I), i_phase, s=3, c="#cc4444",
+            ax.scatter(range(N_E), e_phase, s=3, c=theme.INK, alpha=0.5)
+            ax.scatter(range(N_E, N_E + N_I), i_phase, s=3, c=theme.DANGER,
                        alpha=0.5)
             ax.set_ylabel("Phase (rad)")
             ax.set_ylim(-np.pi, np.pi)
-            ax.axhline(0, color="#ccc", linewidth=0.5)
+            ax.axhline(0, color=theme.UNDERLINE, linewidth=0.5)
             # Mean phase difference
             e_mean = np.angle(np.mean(e_part))
             i_mean = np.angle(np.mean(i_part))
@@ -248,20 +250,20 @@ def plot_eigenmodes(result, N_E, N_I, title="", out_path=None, n_modes=6):
         # Panel 3: E vs I participation in complex plane
         ax = axes[row, 2]
         if abs(lam.imag) > 1e-10:
-            ax.scatter(e_part.real, e_part.imag, s=5, c="#2a2a2a",
+            ax.scatter(e_part.real, e_part.imag, s=5, c=theme.INK,
                        alpha=0.5, label="E")
-            ax.scatter(i_part.real, i_part.imag, s=5, c="#cc4444",
+            ax.scatter(i_part.real, i_part.imag, s=5, c=theme.DANGER,
                        alpha=0.5, label="I")
-            ax.axhline(0, color="#ccc", linewidth=0.5)
-            ax.axvline(0, color="#ccc", linewidth=0.5)
+            ax.axhline(0, color=theme.UNDERLINE, linewidth=0.5)
+            ax.axvline(0, color=theme.UNDERLINE, linewidth=0.5)
             ax.set_aspect("equal")
             ax.set_title("Eigenvector components", fontsize=9)
             if row == 0:
                 ax.legend(fontsize=8)
         else:
-            ax.bar(range(N_E), e_part.real, color="#2a2a2a", alpha=0.7,
+            ax.bar(range(N_E), e_part.real, color=theme.INK, alpha=0.7,
                    width=1.0)
-            ax.bar(range(N_E, N_E + N_I), i_part.real, color="#cc4444",
+            ax.bar(range(N_E, N_E + N_I), i_part.real, color=theme.DANGER,
                    alpha=0.7, width=1.0)
             ax.set_title("Eigenvector (real)", fontsize=9)
         if row == n - 1:

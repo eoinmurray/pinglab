@@ -30,47 +30,80 @@ Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/sp
 
 [*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **rate** readout (cumulative last-hidden spike counts projected once at the final timestep). Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *init_scale_bias* fixed at $1/(1-\beta) \approx 10.5$ — the value derived in [nb003](/notebook/nb003/) for depth-2 *cuba*.
 
-## Results
-
-<Figure id="Figure 1" title="Training curves" src="/figures/notebook/nb004/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba baseline">
-  Best test accuracy {cell.best_acc ?? "?"}%. Accuracy climbs to $\sim$40% by epoch 6, then plateaus around 40–46% with epoch-to-epoch noise; loss trends down but is noisy in the plateau.
-</Figure>
-
-Observations. (i) **Training is monotonic to the plateau** — accuracy climbs cleanly to $\sim$40% then flattens. (ii) **Not strictly monotonic within the plateau** — best is epoch $\sim$30, final epoch is {cell.final_acc ?? "?"}%; the $\sim$5 pp of within-plateau swing is gradient / minibatch noise rather than divergence.
-
 ### Comparison to the literature
 
-Cramer et al. ([*cramer-et-al*](/references/#spiking-mnist--benchmarks), Table 1) report the reference SHD baselines that most subsequent work is measured against. Reproduced here alongside this entry's result:
+Cramer et al. ([*cramer-et-al*](/references/#spiking-mnist--benchmarks)) set the reference SHD recipe that most subsequent work measures against: a current-based LIF with exponential synapse, LI (non-spiking) readout, full-BPTT with a fast-sigmoid surrogate, and a two-sided firing-rate regulariser. Their headline numbers are 48.1–48.6% for 1–2 layer feedforward SNNs and 71.4% for the recurrent variant at matched capacity.
+
+This entry deliberately tracks that recipe component-by-component so the gap to the reference number is interpretable. Below are the features of their setup and whether this entry matches.
+
+**Matching**
+
+| Feature | Cramer et al. | This entry |
+|---|---|---|
+| Neuron | current-based LIF (cuba) | *cuba-exp* |
+| Synapse | exponential low-pass on spikes | exponential low-pass on spikes |
+| $\tau_\text{mem}$ | 20 ms | 20 ms |
+| $\tau_\text{syn}$ | 10 ms | 10 ms |
+| Trial length $T$ | 1 s | {cfg.t_ms ?? "?"} ms |
+| Timestep $dt$ | 2 ms | {cfg.dt ?? "?"} ms |
+| Hidden width | 128 | 128 |
+| Readout | LI (non-spiking leaky integrator) | LI |
+| Input channels | 700 cochleogram | 700 cochleogram |
+| Batch size | 256 | 256 |
+| Learning rate | $10^{-3}$ | $10^{-3}$ |
+| Surrogate | fast-sigmoid | fast-sigmoid |
+| Firing-rate regulariser | two-sided, $\theta_l{=}0.01$, $s_l{=}1.0$, $\theta_u{=}100$, $s_u{=}0.06$ | same |
+| BPTT | full | full |
+
+**Not matching**
+
+| Feature | Cramer et al. | This entry | Notes |
+|---|---|---|---|
+| Architecture | recurrent (hidden→hidden) for the 71.4% row, feedforward for the 48% rows | feedforward only (*W_rec* = 0) | we're targeting the 48% feedforward band first; recurrence is the next step |
+| Hidden depth | 1 layer for the 48.1% row, 2 layers for 48.6% | 1 layer | width $\times$ depth budget not yet swept |
+| Epochs | 150 | {cfg.epochs ?? "?"} | our **{numbers.tier ?? "?"}** tier is much shorter for iteration speed |
+| Training samples | full SHD (8156 train) | {cfg.max_samples ?? "?"} | subsampled per tier; *huge* tier will restore full-set |
+| Surrogate slope $\beta$ | 40 | 10 | $\beta{=}40$ × 500-step BPTT explodes gradients in our current config; we'll revisit once a stable backbone is established |
+| Optimizer | Adamax | Adam | not yet wired as an oscilloscope flag |
+| Weight init | Kaiming uniform, $k{=}1/\text{fan-in}$ | Kaiming uniform, $k{=}2/\text{fan-in}$ (PyTorch default) | factor-2 difference in init scale |
+| Data augmentation | none for the 71.4% row; time-jitter/channel-shift for 83.2% | none | out of scope until the recurrent-SNN number is reproduced |
+
+Cramer's reference numbers (for context):
 
 | Architecture | SHD test acc (%) |
 |---|---|
-| SVM (RBF) | 60.0 ± 0.3 |
-| LSTM | 89.0 ± 0.2 |
-| CNN | 92.4 ± 0.7 |
 | Spiking, 1-layer feedforward | 48.1 ± 1.6 |
 | Spiking, 2-layer feedforward | 48.6 ± 0.9 |
 | Spiking, 3-layer feedforward | 47.5 ± 2.3 |
 | Spiking, recurrent | 71.4 ± 1.9 |
 | Spiking, recurrent (best effort, 1024 neurons + augmentation) | 83.2 ± 1.3 |
-| **This entry** — *cuba*, 2-layer feedforward (128, 128), *rate* | **{cell.best_acc ?? "?"}** |
+| SVM (RBF) | 60.0 ± 0.3 |
+| LSTM | 89.0 ± 0.2 |
+| CNN | 92.4 ± 0.7 |
 
-Two things line up and one stays open. (i) Our **{cell.best_acc ?? "?"}%** lands within the [*cramer-et-al*](/references/#spiking-mnist--benchmarks) **feedforward-SNN** band of 47.5–48.6% (slightly below the 2-layer 48.6% point, consistent with the width / depth / budget choices here not being tuned further) — i.e. the pipeline is reproducing the class of result it should be reproducing. (ii) The $\sim$25 pp gap to the **recurrent-SNN** 71.4% result is the field's well-documented feedforward-vs-recurrent gap on SHD, not a bug in this pipeline — Cramer et al. explicitly attribute it to the memory that recurrence provides at the 1 s trial length. (iii) The further $\sim$12 pp gap from 71.4% → 83.2% is data augmentation + larger hidden size (1024), orthogonal to the recurrence question.
+## Results
+
+<Figure id="Figure 1" title="Training curves" src="/figures/notebook/nb004/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba baseline">
+  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%.
+</Figure>
+
+<Figure id="Figure 2" title="Per-epoch hidden activity" src="/figures/notebook/nb004/training_cuba-exp.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the cuba baseline on SHD">
+  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers ($\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *rate* readout).
+</Figure>
 
 ## Discussion
 
-The pipeline trains cleanly end-to-end and lands inside the [*cramer-et-al*](/references/#spiking-mnist--benchmarks) feedforward-SNN band (47.5–48.6%); closing the gap to the $\sim$71% recurrent-SNN reference is a *qualitative* change (adding hidden→hidden recurrence), not a matter of more budget or more capacity in the feedforward setup.
+*To be written once results are analysed.*
 
 ## Success criteria
 
-- ✅ **SHD pipeline trains end-to-end**. Depth-2 *cuba* on 700-channel SHD at the **{numbers.tier ?? "?"}** tier runs to completion with no NaN / collapse.
-- ✅ **Monotonic training**. Train loss falls and test accuracy rises across {cfg.epochs ?? "?"} epochs — the network is integrating temporal evidence, not memorising or diverging.
-- ✅ **Above chance**. Best test accuracy {cell.best_acc ?? "?"}% vs the 5% chance floor (20 classes) — real classification signal.
-- ⚠ **Within-plateau training noise**. Test accuracy swings $\sim$5 pp epoch-to-epoch once past $\sim$ep 6; loss trends down but is noisy. Not divergence, but a sign that minibatch noise dominates once the network settles.
-- ✅ **Matches the feedforward-SNN reference**. {cell.best_acc ?? "?"}% lands inside Cramer et al.'s 47.5–48.6% feedforward-SNN band; the $\sim$25 pp gap to the 71.4% *recurrent*-SNN reference is the expected feedforward-vs-recurrent gap, not a pipeline bug.
+- **SHD pipeline trains end-to-end** on 700-channel cochleogram input at the **{numbers.tier ?? "?"}** tier without NaN / collapse.
+- **Above chance**. Test accuracy materially above the 5% floor (20 classes).
+- **Matches the feedforward-SNN reference**. Best accuracy lands inside Cramer et al.'s 47.5–48.6% feedforward-SNN band.
 
 ## Next steps
 
-1. Add recurrent (hidden→hidden) connections — standard Zenke-style SHD pipelines use them, and feedforward capacity + budget alone saturates well below the field reference.
+*To be written once results are analysed.*
 
 ## Appendix
 
@@ -102,9 +135,3 @@ Add `--tier small` for a faster pass.
 | Git SHA | <span class="font-mono">{gitSha ?? "?"}</span> |
 | Elapsed | {numbers.duration ?? "?"} |
 | Finished | {runFinished} |
-
-### Videos
-
-<Figure id="Figure 2" title="Per-epoch hidden activity" src="/figures/notebook/nb004/training_cuba.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the cuba baseline on SHD">
-  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers ($\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *rate* readout).
-</Figure>

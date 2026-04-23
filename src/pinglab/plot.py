@@ -107,12 +107,14 @@ plt.rcParams.update({
     "savefig.dpi": 200,
 })
 
-CLR = "#1a1a1a"
-CLR_LIGHT = "#999999"
-CLR_ACCENT = "#FF2020"
+from pinglab import theme
+
+CLR = theme.INK_STRONG
+CLR_LIGHT = theme.LABEL
+CLR_ACCENT = theme.DANGER
 # Single faded tone for titles, axis labels, and ticks — lets the data
 # dominate visually while chrome recedes.
-CLR_CHROME = "#9a9a9a"
+CLR_CHROME = theme.LABEL
 
 # Canonical title style for every SCOPE_FRAME panel.
 TITLE_KW = dict(fontsize=16, fontweight="bold", loc="left", pad=12, color=CLR_CHROME)
@@ -778,11 +780,11 @@ def _draw_acc_curve(ax, acc, total_epochs, loss=None, lr=None):
 
 
 _GRAD_LAYER_COLORS = {
-    "W_in":  "#1f77b4",  # blue
-    "W_hid": "#2ca02c",  # green (output projection)
-    "W_ee":  "#9467bd",  # purple
-    "W_ei":  "#d62728",  # red
-    "W_ie":  "#ff7f0e",  # orange
+    "W_in":  theme.CAT_BLUE,
+    "W_hid": theme.CAT_GREEN,   # output projection
+    "W_ee":  theme.CAT_PURPLE,
+    "W_ei":  theme.CAT_RED,
+    "W_ie":  theme.CAT_ORANGE,
 }
 
 
@@ -1129,7 +1131,7 @@ def _draw_progress_bar(ax_prog, ratio, sweep_var, sweep_range, sweep_progress):
                  fontsize=22, va="bottom", ha="right",
                  transform=ax_prog.transAxes, fontweight="bold", color=CLR)
 
-    ax_prog.barh(0.2, 1.0, height=0.3, color="#e8e8e8", left=0)
+    ax_prog.barh(0.2, 1.0, height=0.3, color=theme.RULE, left=0)
     ax_prog.barh(0.2, progress, height=0.3, color=CLR, left=0, alpha=0.3)
     ax_prog.plot([progress, progress], [0.0, 0.4], color=CLR_ACCENT, linewidth=2.5)
 

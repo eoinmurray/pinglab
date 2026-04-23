@@ -330,6 +330,128 @@ def test_wipe_dir_clears_existing(tmp_path):
     assert (out / "config.json").exists()
 
 
+# ── Tier 3: breadth (parametrised smoke) ─────────────────────────────────
+
+# All scan vars — "does the scan driver dispatch this variable without crashing?"
+
+# The three weight-indexing scan vars are currently broken: PINGNet stores
+# W_ei / W_ie / W_in as ParameterDicts (per-layer) but _scan_streaming still
+# does getattr(net, attr).clone() expecting a tensor. Flagging via xfail so
+# the tests stay on the radar until the scan driver is fixed.
+_BROKEN_SCAN_VARS = {"w_ei_mean", "w_ie_mean", "w_in_overdrive"}
+
+_IMAGE_SCAN_VARS = [
+    ("stim-overdrive", 1.0, 3.0, []),
+    ("tau_gaba", 5.0, 15.0, []),
+    ("tau_ampa", 1.0, 5.0, []),
+    ("w_ei_mean", 0.3, 0.6, []),
+    ("w_ie_mean", 0.6, 1.2, []),
+    ("w_in_overdrive", 0.5, 2.0, []),
+    ("ei_strength", 0.1, 0.5, []),
+    ("spike_rate", 5.0, 50.0, []),
+    ("bias", 0.0, 0.5, []),
+    ("dt", 0.1, 0.5, []),
+    ("noise", 0.0, 20.0, []),
+    ("digit", 0, 2, ["--input", "dataset", "--dataset", "scikit"]),
+]
+
+
+def _scan_marks(scan_var):
+    if scan_var in _BROKEN_SCAN_VARS:
+        return pytest.mark.xfail(reason="scan driver uses getattr for ParameterDict weights")
+    return ()
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("scan_var,lo,hi,extra", [
+    pytest.param(sv, lo, hi, extra, id=sv, marks=_scan_marks(sv))
+    for sv, lo, hi, extra in _IMAGE_SCAN_VARS
+])
+def test_scan_var_runs(tmp_path, scan_var, lo, hi, extra):
+    """Every --scan-var in the table runs video mode without crashing."""
+    out = tmp_path / f"scan-{scan_var}"
+    _run_cli("video", "--model", "ping", "--n-hidden", "32",
+             "--scan-var", scan_var,
+             "--scan-min", str(lo), "--scan-max", str(hi),
+             "--frames", "2", "--t-ms", "250",
+             "--out-dir", str(out), "--wipe-dir",
+             *extra)
+    assert any(out.glob("*.mp4")), f"no MP4 written for scan {scan_var}"
+
+
+# --layout presets — image-compatible layouts
+
+@pytest.mark.slow
+@pytest.mark.parametrize("layout", ["full", "dataset", "compact", "minimal"])
+def test_image_layout_preset(tmp_path, layout):
+    out = tmp_path / f"layout-{layout}"
+    extra = ["--input", "dataset", "--dataset", "scikit", "--digit", "0"] \
+        if layout == "dataset" else []
+    _run_cli("image", "--model", "ping", "--n-hidden", "32",
+             "--layout", layout, "--t-ms", "250",
+             "--out-dir", str(out), "--wipe-dir",
+             *extra)
+    # image mode writes snapshot.png, not oscilloscope.png
+    assert any(p.suffix == ".png" for p in out.iterdir()), \
+        f"no PNG written for layout {layout}"
+
+
+# --panels override
+
+@pytest.mark.slow
+def test_panels_override(tmp_path):
+    """--panels wins over --layout."""
+    out = tmp_path / "panels"
+    _run_cli("image", "--model", "ping", "--n-hidden", "32",
+             "--layout", "full",
+             "--panels", "header,e_raster,i_raster",
+             "--t-ms", "250",
+             "--out-dir", str(out), "--wipe-dir")
+    assert any(p.suffix == ".png" for p in out.iterdir())
+
+
+# --coba-integrator fwd vs expeuler parity
+
+@pytest.mark.slow
+@pytest.mark.parametrize("integrator", ["expeuler", "fwd"])
+def test_coba_integrator_runs(tmp_path, integrator):
+    out = tmp_path / f"int-{integrator}"
+    _run_cli("sim", "--model", "cuba", "--n-hidden", "32",
+             "--coba-integrator", integrator,
+             "--t-ms", "250",
+             "--out-dir", str(out), "--wipe-dir")
+    # sim writes config.json; metrics.json only when there's spiking data.
+    assert (out / "config.json").exists()
+
+
+# --resample-input / --observe-every smokes
+
+@pytest.mark.slow
+def test_resample_input_smoke(tmp_path):
+    out = tmp_path / "resample"
+    _run_cli("video", "--model", "ping", "--n-hidden", "32",
+             "--scan-var", "stim-overdrive",
+             "--scan-min", "1", "--scan-max", "2",
+             "--frames", "2", "--t-ms", "250",
+             "--resample-input",
+             "--out-dir", str(out), "--wipe-dir")
+    assert any(out.glob("*.mp4"))
+
+
+@pytest.mark.slow
+def test_observe_every_smoke(tmp_path):
+    """--observe-every 2 with --observe video over 4 epochs emits 2 frames."""
+    out = tmp_path / "obs-every"
+    _run_cli("train", "--model", "standard-snn",
+             "--dataset", "mnist", "--max-samples", "60",
+             "--epochs", "4", "--observe", "video", "--observe-every", "2",
+             "--dt", "0.25", "--w-in", "10", "--w-in-sparsity", "0",
+             "--n-hidden", "32",
+             "--out-dir", str(out), "--wipe-dir",
+             timeout=240)
+    assert any(out.glob("*.mp4"))
+
+
 @pytest.mark.slow
 def test_no_wipe_dir_preserves_existing(tmp_path):
     """Without --wipe-dir, unrelated files in the output dir survive."""
