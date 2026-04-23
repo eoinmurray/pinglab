@@ -236,21 +236,45 @@ One scope frame per training epoch, one video per (model, train-*dt*).
   </Figure>
 )}
 
+{hasFig(`training_${rk1}_coba.mp4`) && (
+  <Figure type="video" id="Figure 7" title={`coba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb003/training_${rk1}_coba.mp4`}>
+    *coba* at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk1}_ping.mp4`) && (
+  <Figure type="video" id="Figure 8" title={`ping @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb003/training_${rk1}_ping.mp4`}>
+    *ping* at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
 {hasFig(`training_${rk2}_standard-snn.mp4`) && (
-  <Figure type="video" id="Figure 7" title={`standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/training_${rk2}_standard-snn.mp4`}>
+  <Figure type="video" id="Figure 9" title={`standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/training_${rk2}_standard-snn.mp4`}>
     standard-snn at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
 {hasFig(`training_${rk2}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 8" title={`snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/training_${rk2}_snntorch-library.mp4`}>
+  <Figure type="video" id="Figure 10" title={`snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/training_${rk2}_snntorch-library.mp4`}>
     Parity reference.
   </Figure>
 )}
 
 {hasFig(`training_${rk2}_cuba.mp4`) && (
-  <Figure type="video" id="Figure 9" title={`cuba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/training_${rk2}_cuba.mp4`}>
+  <Figure type="video" id="Figure 11" title={`cuba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/training_${rk2}_cuba.mp4`}>
     *cuba* at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_coba.mp4`) && (
+  <Figure type="video" id="Figure 12" title={`coba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/training_${rk2}_coba.mp4`}>
+    *coba* at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_ping.mp4`) && (
+  <Figure type="video" id="Figure 13" title={`ping @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/training_${rk2}_ping.mp4`}>
+    *ping* at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
@@ -259,37 +283,61 @@ One scope frame per eval-*dt* with weights frozen at end of training; one video 
 #### Eval dt sweep
 
 {hasFig(`dt_sweep_${rk1}_standard-snn.mp4`) && (
-  <Figure type="video" id="Figure 10" title={`dt-sweep — standard-snn @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk1}_standard-snn.mp4`}>
+  <Figure type="video" id="Figure 14" title={`dt-sweep — standard-snn @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk1}_standard-snn.mp4`}>
     Frozen weights, one frame per eval-*dt*.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk1}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 11" title={`dt-sweep — snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk1}_snntorch-library.mp4`}>
+  <Figure type="video" id="Figure 15" title={`dt-sweep — snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk1}_snntorch-library.mp4`}>
     Parity reference (*snn.Leaky*).
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk1}_cuba.mp4`) && (
-  <Figure type="video" id="Figure 12" title={`dt-sweep — cuba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk1}_cuba.mp4`}>
+  <Figure type="video" id="Figure 16" title={`dt-sweep — cuba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk1}_cuba.mp4`}>
     *cuba* at train-*dt* = {dt1} ms.
   </Figure>
 )}
 
+{hasFig(`dt_sweep_${rk1}_coba.mp4`) && (
+  <Figure type="video" id="Figure 17" title={`dt-sweep — coba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk1}_coba.mp4`}>
+    *coba* at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk1}_ping.mp4`) && (
+  <Figure type="video" id="Figure 18" title={`dt-sweep — ping @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk1}_ping.mp4`}>
+    *ping* at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
 {hasFig(`dt_sweep_${rk2}_standard-snn.mp4`) && (
-  <Figure type="video" id="Figure 13" title={`dt-sweep — standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk2}_standard-snn.mp4`}>
+  <Figure type="video" id="Figure 19" title={`dt-sweep — standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk2}_standard-snn.mp4`}>
     standard-snn at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk2}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 14" title={`dt-sweep — snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk2}_snntorch-library.mp4`}>
+  <Figure type="video" id="Figure 20" title={`dt-sweep — snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk2}_snntorch-library.mp4`}>
     Parity reference.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk2}_cuba.mp4`) && (
-  <Figure type="video" id="Figure 15" title={`dt-sweep — cuba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk2}_cuba.mp4`}>
+  <Figure type="video" id="Figure 21" title={`dt-sweep — cuba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk2}_cuba.mp4`}>
     *cuba* at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk2}_coba.mp4`) && (
+  <Figure type="video" id="Figure 22" title={`dt-sweep — coba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk2}_coba.mp4`}>
+    *coba* at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk2}_ping.mp4`) && (
+  <Figure type="video" id="Figure 23" title={`dt-sweep — ping @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb003/dt_sweep_${rk2}_ping.mp4`}>
+    *ping* at train-*dt* = {dt2} ms.
   </Figure>
 )}

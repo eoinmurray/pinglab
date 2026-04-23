@@ -2596,11 +2596,11 @@ Models:
                            help="Background conductance to E neurons in uS")
     net_group.add_argument("--dt", type=float, default=0.25,
                            help="Integration timestep in ms (default: 0.25)")
-    net_group.add_argument("--t-ms", type=float, default=600.0,
-                           help="Total simulation duration in ms (default: 600). "
-                                "Must exceed STEP_ON_MS (default 200) so the "
-                                "stimulus window is reached; values <= STEP_ON_MS "
-                                "leave the trial in flat baseline.")
+    net_group.add_argument("--t-ms", type=float, default=200.0,
+                           help="Total simulation duration in ms (default: 200). "
+                                "For synthetic-step modes, must exceed STEP_ON_MS "
+                                "(default 200) so the stimulus window is reached; "
+                                "values <= STEP_ON_MS leave the trial in flat baseline.")
     net_group.add_argument("--tau-mem", type=float, default=None,
                            help="Membrane time constant τ_mem in ms "
                                 "(default: 10 ms, module-level `tau_snn`). "
