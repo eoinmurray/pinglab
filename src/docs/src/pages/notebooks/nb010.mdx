@@ -1,0 +1,51 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "003 — ping integration-step video"
+date: 2026-04-23
+entry: 3
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb010/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const runDuration = numbers.duration ?? "?";
+export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?" };
+export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?" };
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* from {scan.min} to {scan.max} ms — isolating the timestep as the only knob that can break the oscillation. Split out from [nb002](/notebooks/nb002/); companion dt-stability training experiment is [nb003](/notebooks/nb003/).
+
+<Figure type="video" id="Figure 1" title="Integration-step sweep (scan_dt.mp4)" src="/figures/notebooks/nb010/scan_dt.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample} with stim-overdrive held at {scan.fixed_overdrive}×. *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames.
+
+  Stable until about *dt* = 1.65 ms; beyond that the whole population saturates after PING onset.
+</Figure>
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb010.py
+```
+
+### Run parameters
+
+| Parameter | Value |
+|---|---|
+| Model | {cfg.model} |
+| N_E / N_I | {cfg.n_e} / {cfg.n_i} |
+| T | {cfg.sim_ms} ms |
+| Stim window | {cfg.step_on_ms}–{cfg.step_off_ms} ms, overdrive {scan.fixed_overdrive}× |
+| Input | {input.dataset} d{input.digit} s{input.sample} |
+| dt scan | {scan.min}–{scan.max} ms |
+| Frames / FPS | {scan.frames} / {scan.fps} |
+| Seed | {cfg.seed} |
+| Tier | **{numbers.tier ?? "?"}** — see [Style guide § 10 Run sizing tiers](/styleguide/#10-run-sizing-tiers) |
+| Run ID | <span class="font-mono">{nbRunId}</span> |
+| Elapsed | {runDuration} |
