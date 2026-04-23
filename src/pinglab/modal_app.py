@@ -165,6 +165,52 @@ _GPU_DISPATCH = {
 }
 
 
+def dispatch_batch_to_modal(jobs: list[dict]):
+    """Dispatch many oscilloscope invocations to Modal in parallel.
+
+    Each job: {"cli_args": list[str], "gpu": str, "local_out_dir": str}.
+
+    All jobs are spawned inside a single app.run() context via fn.spawn(),
+    so cold-start + app lifecycle is paid once for the batch instead of
+    once per call. Artifacts for each job are synced back after all jobs
+    complete.
+    """
+    import subprocess
+    from pathlib import Path
+
+    if not jobs:
+        return
+
+    print(f"Dispatching {len(jobs)} jobs to Modal in parallel...")
+    for i, j in enumerate(jobs):
+        print(f"  [{i}] gpu={j['gpu']} out={j['local_out_dir']}")
+
+    with modal.enable_output():
+        with app.run(detach=True):
+            calls = []
+            for j in jobs:
+                fn = _GPU_DISPATCH.get(j["gpu"])
+                if fn is None:
+                    raise ValueError(
+                        f"Unknown gpu {j['gpu']!r}, choose from {list(_GPU_DISPATCH)}")
+                calls.append(fn.spawn(j["cli_args"]))
+            remote_outs = [c.get() for c in calls]
+
+    print(f"\nSyncing {len(jobs)} artifact dirs from Modal Volume...")
+    for remote_out, j in zip(remote_outs, jobs):
+        volume_path = remote_out.removeprefix(REMOTE_ARTIFACTS + "/")
+        local_path = Path(j["local_out_dir"])
+        local_parent = local_path.parent
+        local_parent.mkdir(parents=True, exist_ok=True)
+        sync_cmd = [
+            "uv", "run", "modal", "volume", "get", VOLUME_NAME,
+            volume_path + "/", str(local_parent) + "/",
+            "--force",
+        ]
+        subprocess.run(sync_cmd, check=True)
+        print(f"  → {local_path}/")
+
+
 def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
     """Called from oscilloscope.py when --modal is set.
 
