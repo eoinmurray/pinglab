@@ -185,6 +185,7 @@ def dispatch_batch_to_modal(jobs: list[dict]):
     for i, j in enumerate(jobs):
         print(f"  [{i}] gpu={j['gpu']} out={j['local_out_dir']}")
 
+    results: list[tuple[dict, str | None, BaseException | None]] = []
     with modal.enable_output():
         with app.run(detach=True):
             calls = []
@@ -194,10 +195,17 @@ def dispatch_batch_to_modal(jobs: list[dict]):
                     raise ValueError(
                         f"Unknown gpu {j['gpu']!r}, choose from {list(_GPU_DISPATCH)}")
                 calls.append(fn.spawn(j["cli_args"]))
-            remote_outs = [c.get() for c in calls]
+            for j, c in zip(jobs, calls):
+                try:
+                    results.append((j, c.get(), None))
+                except BaseException as e:  # noqa: BLE001
+                    results.append((j, None, e))
 
-    print(f"\nSyncing {len(jobs)} artifact dirs from Modal Volume...")
-    for remote_out, j in zip(remote_outs, jobs):
+    successes = [(j, out) for j, out, err in results if err is None]
+    failures = [(j, err) for j, _, err in results if err is not None]
+
+    print(f"\n{len(successes)}/{len(jobs)} jobs succeeded; syncing artifacts...")
+    for remote_out, j in [(out, j) for j, out in successes]:
         volume_path = remote_out.removeprefix(REMOTE_ARTIFACTS + "/")
         local_path = Path(j["local_out_dir"])
         local_parent = local_path.parent
@@ -209,6 +217,16 @@ def dispatch_batch_to_modal(jobs: list[dict]):
         ]
         subprocess.run(sync_cmd, check=True)
         print(f"  → {local_path}/")
+
+    if failures:
+        print(f"\n{len(failures)} job(s) failed:")
+        for j, err in failures:
+            print(f"  ✗ gpu={j['gpu']} out={j['local_out_dir']}")
+            print(f"    cli: {' '.join(j['cli_args'])}")
+            print(f"    err: {type(err).__name__}: {err}")
+        raise RuntimeError(
+            f"{len(failures)}/{len(jobs)} Modal jobs failed (see above); "
+            f"{len(successes)} succeeded and were synced")
 
 
 def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
