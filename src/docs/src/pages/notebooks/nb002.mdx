@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "002 — Basic PING videos"
+title: "002 — ping stim-overdrive video"
 date: 2026-04-18
 entry: 2
 structure: paper
@@ -17,46 +17,20 @@ export const r = {
   post: numbers.rates_hz?.post ?? {},
 };
 export const nbRunId = numbers.notebook_run_id ?? "?";
-export const runDatetime = numbers.run_datetime ?? "?";
 export const runDuration = numbers.duration ?? "?";
-export const dtScan = cfg.dt_scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?" };
-export const eiScan = cfg.ei_scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?" };
-export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?", base_rate_hz: "?", stim_rate_hz: "?" };
+export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?", base_rate_hz: "?" };
 export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?" };
 export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
-export const videoGlob = import.meta.glob("../../../public/figures/notebooks/nb002/*.mp4", { eager: true, query: "?url", import: "default" });
-export const hasScan = Object.keys(videoGlob).some((k) => k.endsWith("/scan_overdrive.mp4"));
-export const hasScanDt = Object.keys(videoGlob).some((k) => k.endsWith("/scan_dt.mp4"));
-export const hasScanEi = Object.keys(videoGlob).some((k) => k.endsWith("/scan_ei.mp4"));
-
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
-**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz. It only runs when E gets enough external drive; below threshold the network sits in background firing.
+**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz. It only runs when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold video — companion scans live in [nb010](/notebooks/nb010/) (integration step) and [nb011](/notebooks/nb011/) (E→I coupling strength).
 
-{hasScan && (
-  <Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/nb002/scan_overdrive.mp4">
-    Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
+<Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/nb002/scan_overdrive.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
 
-    Three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
-  </Figure>
-)}
-
-{hasScanDt && (
-  <Figure type="video" id="Figure 2" title="Integration-step sweep (scan_dt.mp4)" src="/figures/notebooks/nb002/scan_dt.mp4">
-    Gamma has a period of $\sim$15–30 ms; a coarse integration step *dt* can't resolve the E→I→E round-trip. Overdrive held at {dtScan.fixed_overdrive}×, *dt* swept {dtScan.min} → {dtScan.max} ms over {dtScan.frames} frames.
-
-    Stable until about *dt* 1.65 ms, then full saturation of all neurons after the PING onset.
-  </Figure>
-)}
-
-{hasScanEi && (
-  <Figure type="video" id="Figure 3" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb002/scan_ei.mp4">
-    External drive is one knob; internal E→I→E coupling strength is the other. Overdrive held at {eiScan.fixed_overdrive}× (flat input, no stim-window boost); **E→I strength** swept {eiScan.min} → {eiScan.max} over {eiScan.frames} frames.
-
-    No PING until about E→I strength 1.6; then unstable onset of PING from 1.6 onwards.
-  </Figure>
-)}
+  Three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
+</Figure>
 
 ## Appendix
 
@@ -78,11 +52,16 @@ uv run src/pinglab/notebooks/nb002.py
 | Stim window | {cfg.step_on_ms}–{cfg.step_off_ms} ms | input rate × overdrive inside this interval |
 | Input | {input.dataset} d{input.digit} s{input.sample} | Poisson-encoded pixels, {input.base_rate_hz} Hz max |
 | Overdrive scan | {scan.min}×–{scan.max}× | *scan_overdrive.mp4* |
-| dt scan | {dtScan.min}–{dtScan.max} ms | *scan_dt.mp4* at overdrive {dtScan.fixed_overdrive}× |
-| E→I strength scan | {eiScan.min}–{eiScan.max} | *scan_ei.mp4* at overdrive {eiScan.fixed_overdrive}× |
-| Frames / FPS | {scan.frames} / {scan.fps} | per video |
+| Frames / FPS | {scan.frames} / {scan.fps} | |
 | Seed | {cfg.seed} | RNG seed |
-| Tier | **{cfg.tier}** | see [Style guide § 9 Run sizing tiers](/styleguide/#9-run-sizing-tiers) |
+| Tier | **{numbers.tier ?? "?"}** | see [Style guide § 10 Run sizing tiers](/styleguide/#10-run-sizing-tiers) |
 | Run ID | <span class="font-mono">{nbRunId}</span> | |
 | Elapsed | {runDuration} | |
 
+### Population rates (canonical overdrive = {numbers.canonical_overdrive ?? "?"}×)
+
+| Window | E (Hz) | I (Hz) |
+|---|---|---|
+| Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
+| In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
+| Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
