@@ -9,7 +9,7 @@ Reading list for this project. PDFs themselves are third-party copyrighted mater
 
 ## Temporal discretisation
 
-- **parthasarathy-et-al** — Parthasarathy, Burghi & O'Leary, *Temporal Discretisation Shapes Optimisation Landscape in Spiking Neural Networks*. The direct prior work for [notebook 003](/notebook/nb003/): shows that the Standard-SNN update (snnTorch / Nengo / Rockpool / SpiNNaker2 form) learns a *dt*-dependent discrete dynamical system, and that training at one *dt* and evaluating at another collapses accuracy. Also taxonomises three ways to transport a Poisson input across *dt*s (zero-pad, resample, downsample), which motivates the encoder next steps in nb003.
+- **parthasarathy-et-al** — Parthasarathy, Burghi & O'Leary, *Temporal Discretisation Shapes Optimisation Landscape in Spiking Neural Networks*. The direct prior work for [notebook 003](/notebooks/nb003/): shows that the Standard-SNN update (snnTorch / Nengo / Rockpool / SpiNNaker2 form) learns a *dt*-dependent discrete dynamical system, and that training at one *dt* and evaluating at another collapses accuracy. Also taxonomises three ways to transport a Poisson input across *dt*s (zero-pad, resample, downsample), which motivates the encoder next steps in nb003.
 
 ## Surrogate-gradient SNN training
 
@@ -34,7 +34,7 @@ Reading list for this project. PDFs themselves are third-party copyrighted mater
 
 ## Spiking MNIST / benchmarks
 
-- **cramer-et-al** — Cramer, Stradmann, Schemmel & Zenke, *The Heidelberg spiking datasets for the systematic evaluation of spiking neural networks*, IEEE TNNLS 2022 (preprint Oct 2020). [arXiv:1910.07407](https://arxiv.org/abs/1910.07407). Source of the SHD dataset used in [notebook 004](/notebook/nb004/) — 10,420 high-quality recordings of spoken digits 0–9 in English and German, converted through a biologically-motivated cochlea model into 700-channel spike rasters of roughly 1 s per trial.
+- **cramer-et-al** — Cramer, Stradmann, Schemmel & Zenke, *The Heidelberg spiking datasets for the systematic evaluation of spiking neural networks*, IEEE TNNLS 2022 (preprint Oct 2020). [arXiv:1910.07407](https://arxiv.org/abs/1910.07407). Source of the SHD dataset used in [notebook 004](/notebooks/nb004/) — 10,420 high-quality recordings of spoken digits 0–9 in English and German, converted through a biologically-motivated cochlea model into 700-channel spike rasters of roughly 1 s per trial.
 - **yan-et-al** — Yan et al., sequential-MNIST SNN architectures (2025). Depth precedent for sMNIST.
 - **yan-et-al-supplementary** — Yan et al. supplementary material.
 - **xing-et-al** — Xing et al., SNN classification benchmarks.

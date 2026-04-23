@@ -17,7 +17,7 @@ Writes (per regime figures have panels for each dt_train):
   * dt_sweep_dt{dt}_{model}.mp4 — per-sweep-dt inference videos
   * numbers.json — config + per-regime/per-model best/final + sweep results
 
-Notebook entry: src/docs/src/pages/notebook/nb003.mdx
+Notebook entry: src/docs/src/pages/notebooks/nb003.mdx
 """
 from __future__ import annotations
 
@@ -38,16 +38,17 @@ import matplotlib.pyplot as plt  # noqa: E402
 import torch  # noqa: E402
 
 from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
+from _tier import parse_tier  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from config import build_net  # noqa: E402
 from pinglab import theme  # noqa: E402
 
 SLUG = "nb003"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
+ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
+FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
-MODELS = ["standard-snn", "snntorch-library", "cuba"]
+MODELS = ["standard-snn", "snntorch-library", "cuba", "coba", "ping"]
 # Three input-transport modes, one per paper-named case (Parthasarathy
 # et al. §2.1 / Fig 1B / §2.3). The FrozenEncoder anchors at train-dt:
 #   * upsample   — zero-pad the reference stream to finer eval-dt
@@ -57,8 +58,6 @@ MODELS = ["standard-snn", "snntorch-library", "cuba"]
 #   * resample   — fresh Poisson at the target dt (§2.1 alternative);
 #                  works in both directions.
 ENCODER_MODES = ["upsample", "downsample", "resample"]
-MAX_SAMPLES = 2000
-EPOCHS = 10
 T_MS = 600.0
 # Two training regimes: fine dt (snnTorch research setting) and coarse dt
 # (near τ_mem, where snnTorch models typically saturate).
@@ -73,7 +72,16 @@ DT_SWEEPS: dict[float, list[float]] = {
 }
 DT_SWEEP = sorted({d for grid in DT_SWEEPS.values() for d in grid})
 SEED = 42
-TIER = "medium"  # see src/docs/src/pages/styleguide.md § 8 Run sizing tiers
+DEFAULT_TIER = "small"  # see src/docs/src/pages/styleguide.md § 10 Run sizing tiers
+# Per-tier (max-samples, epochs). t-ms is fixed by T_MS above.
+TIER_CONFIG = {
+    "extra small": dict(max_samples=200,   epochs=3),
+    "small":       dict(max_samples=500,   epochs=5),
+    "medium":      dict(max_samples=2000,  epochs=10),
+    "large":       dict(max_samples=5000,  epochs=40),
+    "extra large": dict(max_samples=10000, epochs=40),
+}
+TIER = DEFAULT_TIER  # overridable via --tier <name>
 TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 
 # Per-step drive compensation for cuba at training dt. cuba's update is
@@ -102,14 +110,71 @@ def init_scales_for(model: str, dt_train: float) -> tuple[float, float]:
     return (1.0, 1.0)
 
 MODEL_LABELS = {
-    "standard-snn":   "standard-snn",
+    "standard-snn":     "standard-snn",
     "snntorch-library": "snntorch-library",
     "cuba":             "cuba",
+    "coba":             "coba",
+    "ping":             "ping",
 }
 MODEL_COLORS = {
     "standard-snn":     theme.CAT_BLUE,
     "snntorch-library": theme.CAT_ORANGE,
     "cuba":             theme.CAT_GREEN,
+    "coba":             theme.CAT_PURPLE,
+    "ping":             theme.CAT_RED,
+}
+
+# Per-model CLI recipe for training. The CUBANet-family paths
+# (standard-snn, snntorch-library, cuba) share a lr=0.01 + kaiming-init
+# + Dale's law-off pipeline; cuba additionally gets the (1-β)/dt
+# init-scale compensation at train-dt. coba and ping are dispatched
+# through PINGNet (coba is ping with ei_strength=0) with lr=1e-4,
+# explicit --w-in / --w-in-sparsity, and --cm-back-scale from
+# models.mdx. See src/docs/src/pages/models.mdx "Model training" table.
+#
+# Keys in each entry become --flag value pairs on the oscilloscope CLI.
+# "--flag-only" keys with value True become bare flags. None values skip.
+# Extra keys:
+#   __build_as: name to pass as --model (coba dispatches via --model ping).
+#   __init_scale: if True, also pass --init-scale-weight/-bias from
+#                 init_scales_for(); skipped otherwise.
+MODEL_CONFIG: dict[str, dict] = {
+    "standard-snn": {
+        "__build_as": "standard-snn",
+        "__init_scale": True,
+        "--kaiming-init": True,
+        "--lr": "0.01",
+    },
+    "snntorch-library": {
+        "__build_as": "snntorch-library",
+        "__init_scale": True,
+        "--kaiming-init": True,
+        "--lr": "0.01",
+    },
+    "cuba": {
+        "__build_as": "cuba",
+        "__init_scale": True,
+        "--kaiming-init": True,
+        "--lr": "0.01",
+    },
+    "coba": {
+        "__build_as": "ping",
+        "__init_scale": False,
+        "--ei-strength": "0",
+        "--cm-back-scale": "1000",
+        "--w-in": "0.3",
+        "--w-in-sparsity": "0.95",
+        "--lr": "0.0001",
+    },
+    "ping": {
+        "__build_as": "ping",
+        "__init_scale": False,
+        "--ei-strength": "0.5",
+        "--cm-back-scale": "1000",
+        "--w-in": "1.2",
+        "--w-in-sparsity": "0.95",
+        "--lr": "0.0001",
+    },
 }
 
 
@@ -136,7 +201,13 @@ def verify_init_match(models: list[str], seed: int,
     uses nn.Linear's own kaiming_uniform_ and is reported but not asserted
     — its role is an external parity reference, not a bit-match."""
     nets: dict[str, object] = {}
-    for m in models:
+    # Only the CUBANet-family + snntorch-library go through the kaiming-init
+    # path this preflight inspects. coba / ping use --w-in / --w-in-sparsity
+    # and a different class (PINGNet) — independent by design; we don't build
+    # them here.
+    preflight_models = [m for m in models if m in SNNTORCHNET_FAMILY
+                        or m == "snntorch-library"]
+    for m in preflight_models:
         torch.manual_seed(seed)
         nets[m] = build_net(m, kaiming_init=True, hidden_sizes=[1024])
     report: dict[str, object] = {
@@ -175,10 +246,15 @@ def verify_init_match(models: list[str], seed: int,
         print(f"[init-match] independent init (nn.Linear kaiming): "
               f"{report['independent']}")
     for dt in dt_trains:
+        # init-scale compensation is only meaningful for the CUBANet-family
+        # models; coba/ping use --w-in / --w-in-sparsity instead.
+        scaled_models = [m for m in models if MODEL_CONFIG.get(m, {}).get("__init_scale")]
+        if not scaled_models:
+            continue
         scales = ", ".join(
             f"{m}(W×{init_scales_for(m, dt)[0]:.3f} "
             f"b×{init_scales_for(m, dt)[1]:.3f})"
-            for m in models)
+            for m in scaled_models)
         print(f"[init-match] dt={dt}: per-model init_scale: {scales}")
     return report
 
@@ -191,19 +267,16 @@ def _regime_key(dt_train: float) -> str:
 def train_model(model: str, dt_train: float, modal_gpu: str | None = None) -> Path:
     """Train at dt_train with per-epoch video observation."""
     out_dir = ARTIFACTS / _regime_key(dt_train) / model / "train"
-    sw, sb = init_scales_for(model, dt_train)
-    print(f"[{model} @ dt={dt_train}] training → {out_dir.relative_to(REPO)} "
-          f"(init_scale W×{sw:.3f} b×{sb:.3f})"
+    config = MODEL_CONFIG[model]
+    build_as = config["__build_as"]
+    print(f"[{model} @ dt={dt_train}] training → {out_dir.relative_to(REPO)}"
           + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
     args = [
         "run", "python", str(OSCILLOSCOPE), "train",
-        "--model", model,
-        "--kaiming-init",
-        "--init-scale-weight", f"{sw}",
-        "--init-scale-bias", f"{sb}",
+        "--model", build_as,
         "--dataset", "mnist",
-        "--max-samples", str(MAX_SAMPLES),
-        "--epochs", str(EPOCHS),
+        "--max-samples", str(TIER_CONFIG[TIER]["max_samples"]),
+        "--epochs", str(TIER_CONFIG[TIER]["epochs"]),
         "--t-ms", str(T_MS),
         "--dt", str(dt_train),
         "--seed", str(SEED),
@@ -212,6 +285,18 @@ def train_model(model: str, dt_train: float, modal_gpu: str | None = None) -> Pa
         "--out-dir", str(out_dir),
         "--wipe-dir",
     ]
+    if config["__init_scale"]:
+        sw, sb = init_scales_for(model, dt_train)
+        args += ["--init-scale-weight", f"{sw}",
+                 "--init-scale-bias", f"{sb}"]
+        print(f"  init_scale W×{sw:.3f} b×{sb:.3f}")
+    for k, v in config.items():
+        if k.startswith("__"):
+            continue
+        if v is True:
+            args.append(k)
+        elif v is not None:
+            args += [k, v]
     args = append_modal_args(args, modal_gpu)
     sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
     metrics_path = out_dir / "metrics.json"
@@ -648,15 +733,17 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
 
 
 def main() -> None:
-    sweep_only = "--sweep-only" in sys.argv
+    global TIER
+    skip_training = "--skip-training" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
     modal_gpu = parse_modal_gpu(sys.argv)
+    TIER = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id}"
-          + ("  [sweep-only]" if sweep_only else ""))
+    print(f"notebook_run_id = {notebook_run_id} tier={TIER}"
+          + ("  [skip-training]" if skip_training else ""))
     if wipe_dir:
-        if sweep_only:
+        if skip_training:
             # Preserve train dirs; wipe sweep subdirs + figures so they regenerate.
             for dt_train in DT_TRAINS:
                 for model in MODELS:
@@ -683,12 +770,12 @@ def main() -> None:
     regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]] = {}
     for dt_train in DT_TRAINS:
         print(f"\n=== regime: train dt = {dt_train} ms ===")
-        if sweep_only:
+        if skip_training:
             td = {m: ARTIFACTS / _regime_key(dt_train) / m / "train" for m in MODELS}
             for m, d in td.items():
                 if not (d / "weights.pth").exists():
                     raise SystemExit(
-                        f"--sweep-only requires existing train weights at {d}")
+                        f"--skip-training requires existing train weights at {d}")
         else:
             td = {m: train_model(m, dt_train, modal_gpu=modal_gpu) for m in MODELS}
         sd: dict[str, dict[str, Path]] = {}

@@ -41,7 +41,7 @@ New colors go in *global.css* under *@theme* with a *--color-* prefix (so Tailwi
 
 ### 2. Notebook-entry H2 skeleton
 
-Every notebook entry under *src/docs/src/pages/notebook/* uses the same six H2 headings, in this order:
+Every notebook entry under *src/docs/src/pages/notebooks/* uses the same six H2 headings, in this order:
 
 1. **Introduction** — what was built, wired, or changed, and why
 2. **Method** — how the experiment was run, including methodological notes
@@ -54,7 +54,7 @@ The H1 stays entry-specific (the entry title). The skeleton is for H2s only. *Wh
 
 Every entry ends with a single *Appendix* H2 after *Next steps*, holding at minimum the two required H3 subsections below (plus an optional *Videos*):
 
-1. **Reproduction** — the exact *uv run src/pinglab/notebook/nbNNN.py* command that regenerates every artifact in the entry
+1. **Reproduction** — the exact *uv run src/pinglab/notebooks/nbNNN.py* command that regenerates every artifact in the entry
 2. **Run parameters** — a table of the config used (dataset, samples / epochs, *dt*, hidden sizes, batch / lr, seed, tier, elapsed, run ID, git SHA). Use values pulled from *numbers.json* via the *cfg* / *numbers* exports rather than hard-coding
 3. **Videos** *(optional)* — per-epoch or per-sweep MP4s that would be too noisy in the body. Use when the entry produces videos that are supporting material rather than headline results
 
@@ -62,7 +62,7 @@ Every entry ends with a single *Appendix* H2 after *Next steps*, holding at mini
 
 ### 3. Entry numbering and date format
 
-Every notebook entry has a **global sequential number**, zero-padded to 3 digits (*001*, *002*, …). It is the entry's primary identifier and appears in the filename, URL, frontmatter (*entry: &lt;N&gt;*), byline, and home-page list. Numbers never change once assigned. Reserve the next number by *ls src/pinglab/notebook/* and adding 1 to the highest.
+Every notebook entry has a **global sequential number**, zero-padded to 3 digits (*001*, *002*, …). It is the entry's primary identifier and appears in the filename, URL, frontmatter (*entry: &lt;N&gt;*), byline, and home-page list. Numbers never change once assigned. Reserve the next number by *ls src/pinglab/notebooks/* and adding 1 to the highest.
 
 Visible dates use the long-form, day-of-week-first format: *DayName, Month D YYYY*.
 
@@ -70,7 +70,7 @@ Three places per entry combine these:
 
 1. Frontmatter title — *title: "001 — &lt;title&gt;"* (number only; date omitted here so tabs stay compact)
 2. Italic byline under H1 — *001 · Thursday, April 16 2026*
-3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · &lt;link to title&gt; — Thursday, April 16 2026*, pointing at */notebook/&lt;slug&gt;/* (e.g. */notebook/nb001/*)
+3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · &lt;link to title&gt; — Thursday, April 16 2026*, pointing at */notebooks/&lt;slug&gt;/* (e.g. */notebooks/nb001/*)
 
 The word "Entry" is never written — the zero-padded number carries the meaning on its own.
 
@@ -82,7 +82,7 @@ All figures and plots in *src/docs/* and *src/artifacts/* use 16:9 (width:height
 
 ### 5. Figures are namespaced by notebook entry
 
-Every frozen figure under *src/docs/public/figures/* belongs to exactly one notebook entry, under *src/docs/public/figures/notebook/&lt;entry-slug&gt;/*, where *&lt;entry-slug&gt;* matches the entry's markdown filename. There is no separate paper-level figures tier. If a later entry wants to reference an earlier entry's figure, it does so by URL — figures are not copied.
+Every frozen figure under *src/docs/public/figures/* belongs to exactly one notebook entry, under *src/docs/public/figures/notebooks/&lt;entry-slug&gt;/*, where *&lt;entry-slug&gt;* matches the entry's markdown filename. There is no separate paper-level figures tier. If a later entry wants to reference an earlier entry's figure, it does so by URL — figures are not copied.
 
 ### 6. No inline backtick code in docs
 
@@ -103,7 +103,7 @@ Every image and video in docs — notebook entry or background page — is rende
 ```mdx
 import Figure from "../../components/Figure.astro";
 
-<Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebook/nb003/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
+<Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebooks/nb003/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
   Caption interpreting the figure. Self-contained — a reader scrolling to the image should understand what it shows without reading the surrounding prose.
 </Figure>
 ```
@@ -120,7 +120,7 @@ Notebook entries describe a point-in-time run, so any link from an entry to code
 
 Every notebook entry must export *gitSha* from its *numbers.json* and pass it into the *ReproBadge*. Background pages (models, metrics, the oscilloscope) don't have a run SHA, so they use `<Code>` without *sha* and the link defaults to *main*.
 
-The notebook driver scripts (*src/pinglab/notebook/<slug>.py*) are responsible for lifting *git_sha* from the training *config.json* into the top-level of *numbers.json* — the *ReproBadge* reads it from there. Every layout also gets an "Edit this page on GitHub" footer for free via *MarkdownLayout.astro*, derived from the source file path; no per-page work.
+The notebook driver scripts (*src/pinglab/notebooks/<slug>.py*) are responsible for lifting *git_sha* from the training *config.json* into the top-level of *numbers.json* — the *ReproBadge* reads it from there. Every layout also gets an "Edit this page on GitHub" footer for free via *MarkdownLayout.astro*, derived from the source file path; no per-page work.
 
 ### 9. Bug findings belong in PRs, not notebook entries
 

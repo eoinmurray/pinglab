@@ -8,7 +8,7 @@ structure: paper
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebook/nb004/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../../public/figures/notebooks/nb004/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const cell = numbers.winner ?? {};
@@ -24,11 +24,11 @@ Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/sp
 
 ## Method
 
-<Figure id="Figure 0" title="SHD at a glance — one example per class" src="/figures/notebook/nb004/shd_digits.png" alt="Spike rasters for one trial from each of the 20 SHD classes, arranged as a 4×5 grid">
+<Figure id="Figure 0" title="SHD at a glance — one example per class" src="/figures/notebooks/nb004/shd_digits.png" alt="Spike rasters for one trial from each of the 20 SHD classes, arranged as a 4×5 grid">
   One cochleogram spike raster per class, sampled from the train set (seed {cfg.seed ?? "?"}). Classes 0–9 are the English digits *zero*–*nine*; classes 10–19 are the German *null*–*neun*. Each panel is 700 channels × {cfg.t_ms ?? "?"} ms; density and temporal structure vary across speakers but the class-specific spectral signature is visible.
 </Figure>
 
-[*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **rate** readout (cumulative last-hidden spike counts projected once at the final timestep). Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *init_scale_bias* fixed at $1/(1-\beta) \approx 10.5$ — the value derived in [nb003](/notebook/nb003/) for depth-2 *cuba*.
+[*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **rate** readout (cumulative last-hidden spike counts projected once at the final timestep). Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *init_scale_bias* fixed at $1/(1-\beta) \approx 10.5$ — the value derived in [nb003](/notebooks/nb003/) for depth-2 *cuba*.
 
 ### Comparison to the literature
 
@@ -83,11 +83,11 @@ Cramer's reference numbers (for context):
 
 ## Results
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebook/nb004/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba baseline">
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb004/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba baseline">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%.
 </Figure>
 
-<Figure id="Figure 2" title="Per-epoch hidden activity" src="/figures/notebook/nb004/training_cuba-exp.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the cuba baseline on SHD">
+<Figure id="Figure 2" title="Per-epoch hidden activity" src="/figures/notebooks/nb004/training_cuba-exp.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the cuba baseline on SHD">
   Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers ($\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *rate* readout).
 </Figure>
 
@@ -110,7 +110,7 @@ Cramer's reference numbers (for context):
 ### Reproduction
 
 ```
-uv run src/pinglab/notebook/nb004.py
+uv run src/pinglab/notebooks/nb004.py
 ```
 
 Add `--tier small` for a faster pass.
