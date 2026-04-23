@@ -54,7 +54,7 @@ The H1 stays entry-specific (the entry title). The skeleton is for H2s only. *Wh
 
 Every entry ends with a single *Appendix* H2 after *Next steps*, holding at minimum the two required H3 subsections below (plus an optional *Videos*):
 
-1. **Reproduction** — the exact *uv run src/pinglab/notebooks/&lt;slug&gt;.py* command that regenerates every artifact in the entry
+1. **Reproduction** — the exact *uv run src/pinglab/notebooks/nbNNN.py* command that regenerates every artifact in the entry
 2. **Run parameters** — a table of the config used (dataset, samples / epochs, *dt*, hidden sizes, batch / lr, seed, tier, elapsed, run ID, git SHA). Use values pulled from *numbers.json* via the *cfg* / *numbers* exports rather than hard-coding
 3. **Videos** *(optional)* — per-epoch or per-sweep MP4s that would be too noisy in the body. Use when the entry produces videos that are supporting material rather than headline results
 
@@ -62,7 +62,7 @@ Every entry ends with a single *Appendix* H2 after *Next steps*, holding at mini
 
 ### 3. Entry numbering and date format
 
-Every notebook entry has a **global sequential number**, zero-padded to 3 digits (*001*, *002*, …). It is the entry's primary identifier and appears in the frontmatter (*entry: &lt;N&gt;*), byline, and home-page list — but *not* in the filename or URL, which use a topic slug. Numbers never change once assigned. Reserve the next number by scanning *entry:* fronmatter values under *src/docs/src/pages/notebooks/* and adding 1 to the highest.
+Every notebook entry has a **global sequential number**, zero-padded to 3 digits (*001*, *002*, …). It is the entry's primary identifier and appears in the filename, URL, frontmatter (*entry: &lt;N&gt;*), byline, and home-page list. Numbers never change once assigned. Reserve the next number by *ls src/pinglab/notebooks/* and adding 1 to the highest.
 
 Visible dates use the long-form, day-of-week-first format: *DayName, Month D YYYY*.
 
@@ -70,11 +70,11 @@ Three places per entry combine these:
 
 1. Frontmatter title — *title: "001 — &lt;title&gt;"* (number only; date omitted here so tabs stay compact)
 2. Italic byline under H1 — *001 · Thursday, April 16 2026*
-3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · &lt;link to title&gt; — Thursday, April 16 2026*, pointing at */notebooks/&lt;slug&gt;/* (e.g. */notebooks/scope-frame/*)
+3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · &lt;link to title&gt; — Thursday, April 16 2026*, pointing at */notebooks/&lt;slug&gt;/* (e.g. */notebooks/nb001/*)
 
 The word "Entry" is never written — the zero-padded number carries the meaning on its own.
 
-Filenames and URL slugs are **short topic slugs in kebab-case** (e.g. *scope-frame.mdx*, *dt-stability.mdx*, *shd.mdx*), not numeric IDs. Pick a slug that will still make sense a year later — the topic, not the technique. The descriptive title lives in the frontmatter *title*, not the slug. The canonical ISO date lives in frontmatter (*date: YYYY-MM-DD*) alongside *entry: &lt;N&gt;*. Day-name only appears in human-visible text. Compute on macOS with *date -j -f "%Y-%m-%d" &lt;YYYY-MM-DD&gt; "+%A"*; Linux: *date -d &lt;YYYY-MM-DD&gt; +%A*.
+Filenames and URL slugs are *nbNNN* (e.g. *nb001.mdx*). The descriptive name lives in the frontmatter *title*, not the slug. The canonical ISO date lives in frontmatter (*date: YYYY-MM-DD*) alongside *entry: &lt;N&gt;*. Day-name only appears in human-visible text. Compute on macOS with *date -j -f "%Y-%m-%d" &lt;YYYY-MM-DD&gt; "+%A"*; Linux: *date -d &lt;YYYY-MM-DD&gt; +%A*.
 
 ### 4. Figure aspect ratio is 16:9
 
@@ -103,7 +103,7 @@ Every image and video in docs — notebook entry or background page — is rende
 ```mdx
 import Figure from "../../components/Figure.astro";
 
-<Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebooks/dt-stability/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
+<Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebooks/nb003/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
   Caption interpreting the figure. Self-contained — a reader scrolling to the image should understand what it shows without reading the surrounding prose.
 </Figure>
 ```
@@ -144,7 +144,7 @@ Notebook entry runs pick from a fixed set of tiers. Tiers are size-named so the 
 
 Training cost scales linearly in *max-samples × epochs × t-ms* ($\approx$3.3 × 10⁻⁵ s per unit per model on MPS). Multi-model comparisons multiply: an N-model head-to-head at *medium* is N × $\sim$7 min. *observe video* with per-epoch frames adds $\lesssim$10% at *medium* and above.
 
-**Video-render tiers.** ETA per 3-scan ping-regimes-style run (one 600 ms PING forward pass + full SCOPE_FRAME render per frame). Per-frame wall-clock is $\sim$1.3 s, dominated by matplotlib:
+**Video-render tiers.** ETA per 3-scan nb002-style run (one 600 ms PING forward pass + full SCOPE_FRAME render per frame). Per-frame wall-clock is $\sim$1.3 s, dominated by matplotlib:
 
 | tier | frames/scan | $\sim$ETA |
 | ---- | ----------: | --------: |
