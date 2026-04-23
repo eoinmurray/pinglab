@@ -1,7 +1,7 @@
 """Per-notebook incrementing run id.
 
 Each notebook entry has its own monotonic counter persisted at
-`src/docs/public/figures/notebook/<slug>/_run.txt`. `next_run_id(slug)`
+`src/docs/public/figures/notebooks/<slug>/_run.txt`. `next_run_id(slug)`
 returns the next id as "rNNN" without touching disk; `persist(slug, run_id)`
 writes the counter back and must be called after any wipe + re-creation of
 the figures dir so the count survives.
@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 REPO = Path(__file__).resolve().parents[3]
-FIGURES_ROOT = REPO / "src" / "docs" / "public" / "figures" / "notebook"
+FIGURES_ROOT = REPO / "src" / "docs" / "public" / "figures" / "notebooks"
 COUNTER_FILE = "_run.txt"
 
 

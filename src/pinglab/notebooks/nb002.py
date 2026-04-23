@@ -15,7 +15,7 @@ Also writes numbers.json with the notebook_run_id, config snapshot, and
 pre/stim/post population rates from an in-Python replay of the canonical
 overdrive=5 run (so the MDX can interpolate exact values).
 
-Notebook entry: src/docs/src/pages/notebook/nb002.mdx
+Notebook entry: src/docs/src/pages/notebooks/nb002.mdx
 """
 from __future__ import annotations
 
@@ -37,10 +37,11 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from _tier import parse_tier  # noqa: E402
 
 SLUG = "nb002"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
+ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
+FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 
 # ── Simulation config ─────────────────────────────────────────────────────
@@ -48,9 +49,10 @@ OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 # Input is MNIST digit 0 sample 0, Poisson-encoded. base_rate comes from
 # M.max_rate_hz; during the stim window rate = base_rate * overdrive.
 SEED           = 42
-TIER           = "small"  # see src/docs/src/pages/styleguide.md § 8
+DEFAULT_TIER   = "small"  # see src/docs/src/pages/styleguide.md § 8
 # Per-scan frame count by tier. nb002 runs 3 scans, so wall-clock ≈ 3 × frames × ~1.3 s.
 TIER_FRAMES    = {"extra small": 5, "small": 15, "medium": 100, "large": 300, "extra large": 600}
+TIER           = DEFAULT_TIER  # overridable via --tier <name>
 N_HIDDEN       = 512     # → N_E=512, N_I=128 (n_i = n_e//4)
 DT_MS          = 0.1
 SIM_MS         = 600.0
@@ -344,16 +346,22 @@ def write_numbers(rates: dict, out_path: Path, notebook_run_id: str,
 
 
 def main() -> None:
+    global TIER, SCAN_FRAMES, DT_SCAN_FRAMES, EI_SCAN_FRAMES
     wipe_dir = "--no-wipe-dir" not in sys.argv
+    skip_training = "--skip-training" in sys.argv
     modal_gpu = parse_modal_gpu(sys.argv)
+    TIER = parse_tier(sys.argv, choices=TIER_FRAMES.keys(), default=DEFAULT_TIER)
+    SCAN_FRAMES = DT_SCAN_FRAMES = EI_SCAN_FRAMES = TIER_FRAMES[TIER]
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id}"
+    print(f"notebook_run_id = {notebook_run_id} tier={TIER}"
+          + ("  [skip-training]" if skip_training else "")
           + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
 
     if wipe_dir:
-        for d in (ARTIFACTS, FIGURES):
+        wipe_targets = (FIGURES,) if skip_training else (ARTIFACTS, FIGURES)
+        for d in wipe_targets:
             if d.exists():
                 print(f"[wipe] {d.relative_to(REPO)}")
                 shutil.rmtree(d)
@@ -363,19 +371,24 @@ def main() -> None:
     stamp = FIGURES / "_stamp.png"
     _render_stamp_png(notebook_run_id, stamp)
 
+    def _reuse_or_render(out_dir: Path, render_fn) -> Path:
+        mp4 = out_dir / "scan.mp4"
+        if skip_training:
+            if not mp4.exists():
+                raise SystemExit(f"--skip-training requires existing {mp4}")
+            return mp4
+        return render_fn(out_dir, modal_gpu=modal_gpu)
+
     # 1. Oscilloscope-rendered scan video (stim-overdrive sweep).
-    scan_dir = ARTIFACTS / "scan"
-    scan_src = render_scan(scan_dir, modal_gpu=modal_gpu)
+    scan_src = _reuse_or_render(ARTIFACTS / "scan", render_scan)
     _overlay_stamp_video(scan_src, FIGURES / "scan_overdrive.mp4", stamp)
 
     # 2. Oscilloscope-rendered dt sweep at fixed overdrive=5×.
-    dt_scan_dir = ARTIFACTS / "dt_scan"
-    dt_scan_src = render_dt_scan(dt_scan_dir, modal_gpu=modal_gpu)
+    dt_scan_src = _reuse_or_render(ARTIFACTS / "dt_scan", render_dt_scan)
     _overlay_stamp_video(dt_scan_src, FIGURES / "scan_dt.mp4", stamp)
 
     # 3. Oscilloscope-rendered ei_strength sweep — async → PING.
-    ei_scan_dir = ARTIFACTS / "ei_scan"
-    ei_scan_src = render_ei_scan(ei_scan_dir, modal_gpu=modal_gpu)
+    ei_scan_src = _reuse_or_render(ARTIFACTS / "ei_scan", render_ei_scan)
     _overlay_stamp_video(ei_scan_src, FIGURES / "scan_ei.mp4", stamp)
 
     stamp.unlink(missing_ok=True)

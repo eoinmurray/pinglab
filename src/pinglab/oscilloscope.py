@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import math
 import sys
 import time as _time
 from pathlib import Path
@@ -1502,7 +1503,8 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
           seed=None, init_scale_weight=1.0, init_scale_bias=1.0,
           readout_mode="rate",
           fr_reg_lower_theta=0.0, fr_reg_lower_strength=0.0,
-          fr_reg_upper_theta=0.0, fr_reg_upper_strength=0.0):
+          fr_reg_upper_theta=0.0, fr_reg_upper_strength=0.0,
+          skip_bad_grad_threshold=None):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
     from torch.utils.data import DataLoader, TensorDataset
@@ -1801,6 +1803,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         n_batches = 0
         grad_sum = 0.0
         n_grad = 0
+        n_skipped_steps = 0
         layer_ratio_sum = {}
         for X_b, y_b in train_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
@@ -1840,11 +1843,21 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
                         + p.grad.norm().item() / wn
                     )
             gn = torch.nn.utils.clip_grad_norm_(net.parameters(), GRAD_CLIP)
-            opt.step()
-            total_loss += loss.item()
-            n_batches += 1
-            grad_sum += float(gn)
-            n_grad += 1
+            gn_f = float(gn)
+            bad_grad = (not math.isfinite(gn_f)) or (
+                skip_bad_grad_threshold is not None
+                and gn_f > skip_bad_grad_threshold)
+            if bad_grad:
+                # Skip the step: a single exploded batch would otherwise
+                # poison Adam's second-moment estimate and kill the run.
+                opt.zero_grad(set_to_none=True)
+                n_skipped_steps += 1
+            else:
+                opt.step()
+                total_loss += loss.item()
+                n_batches += 1
+                grad_sum += gn_f
+                n_grad += 1
         avg_grad = grad_sum / max(n_grad, 1)
         grad_ratios = {n: s / max(n_grad, 1) for n, s in layer_ratio_sum.items()}
 
@@ -1927,6 +1940,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             "elapsed_s": elapsed,
             "grad_norm": avg_grad,
             "grad_ratios": grad_ratios,
+            "skipped_steps": n_skipped_steps,
             "new_best": new_best,
         }
         if epoch_metrics:
@@ -2589,6 +2603,12 @@ Models:
                                 "module-level `tau_ampa`). Cramer et al. SHD: "
                                 "10 ms. Only affects models with "
                                 "exponential_synapse=True (e.g. cuba-exp).")
+    net_group.add_argument("--grad-clip", type=float, default=None,
+                           help="Global-norm gradient-clip threshold passed to "
+                                "torch.nn.utils.clip_grad_norm_. Default 1.0 "
+                                "(M.GRAD_CLIP). Set high (e.g. 100+) to let "
+                                "Adam handle wildly-scaled BPTT gradients via "
+                                "its second-moment preconditioner.")
     net_group.add_argument("--surrogate-slope", type=float, default=None,
                            help="Fast-sigmoid surrogate-gradient slope β. "
                                 "Larger = narrower active window around "
@@ -2822,6 +2842,13 @@ Models:
                               help="Strength s_u on the upper-bound firing-"
                                    "rate regulariser (default 0 = off). "
                                    "Cramer et al.: 0.06.")
+    train_parser.add_argument("--skip-bad-grad-threshold", type=float, default=None,
+                              help="Skip opt.step() (and zero grads) whenever "
+                                   "the batch's clipped gradient norm is NaN, "
+                                   "inf, or exceeds this threshold. Band-aid "
+                                   "against single exploded batches poisoning "
+                                   "Adam's second-moment estimate mid-run. "
+                                   "Default off.")
 
     # -- infer subcommand --
     infer_parser = subparsers.add_parser(
@@ -2883,6 +2910,10 @@ Models:
     M.COBA_INTEGRATOR = args.coba_integrator
     if getattr(args, "surrogate_slope", None) is not None:
         M.SURROGATE_SLOPE = float(args.surrogate_slope)
+    if getattr(args, "grad_clip", None) is not None:
+        global GRAD_CLIP
+        GRAD_CLIP = float(args.grad_clip)
+        M.GRAD_CLIP = GRAD_CLIP
     # Override τ_mem / τ_syn before patch_dt() re-derives β_snn and decay_ampa.
     if getattr(args, "tau_mem", None) is not None:
         M.tau_snn = float(args.tau_mem)
@@ -3185,7 +3216,8 @@ if __name__ == "__main__":
               fr_reg_lower_theta=args.fr_reg_lower_theta,
               fr_reg_lower_strength=args.fr_reg_lower_strength,
               fr_reg_upper_theta=args.fr_reg_upper_theta,
-              fr_reg_upper_strength=args.fr_reg_upper_strength)
+              fr_reg_upper_strength=args.fr_reg_upper_strength,
+              skip_bad_grad_threshold=args.skip_bad_grad_threshold)
 
     elif mode == "infer":
         w_in = args.w_in or [0.3, 0.06]

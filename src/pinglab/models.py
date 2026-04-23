@@ -814,7 +814,7 @@ class SNNTorchLibraryNet(SNNBase):
 
                 rec_key = str(i + 1)
                 if rec_key in self.W_rec:
-                    drive = drive + s_prevs[i].detach() @ self.W_rec[rec_key]
+                    drive = drive + s_prevs[i] @ self.W_rec[rec_key]
 
                 spk, mems[i] = lifs[i](drive, mems[i])
                 s_prevs[i] = spk
