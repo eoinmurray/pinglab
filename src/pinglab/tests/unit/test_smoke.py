@@ -94,4 +94,4 @@ def test_train_observe_video(out_dir):
 
 def test_train_ping(out_dir):
     _run(f"{OSC} train --epochs 2 --ei-strength 0.5 --n-hidden 64 "
-         f"--max-samples 50 --cm-back-scale 1000 --out-dir {out_dir}/train-ping")
+         f"--max-samples 50 --v-grad-dampen 1000 --out-dir {out_dir}/train-ping")

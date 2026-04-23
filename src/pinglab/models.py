@@ -85,7 +85,7 @@ GRAD_CLIP     = 1.0
 SURROGATE_SLOPE = 5.0
 READOUT_SCALE = 0.0
 PATIENCE      = 15
-CM_BACK_SCALE = 80.0
+V_GRAD_DAMPEN = 80.0
 
 # Derived
 decay_ampa   = np.exp(-dt / tau_ampa)
@@ -148,12 +148,12 @@ def exp_synapse(g, spikes, W, decay):
     """Exponential synapse: spike kicks first, then decay."""
     return (g + spikes @ W) * decay
 
-def lif_step(v, I_total, ref, C_m, g_L, ref_steps, spike_fn, V_floor=V_floor, V_max=None, cm_back=1.0):
+def lif_step(v, I_total, ref, C_m, g_L, ref_steps, spike_fn, V_floor=V_floor, V_max=None, v_grad_dampen=1.0):
     """One LIF timestep: voltage update, spike decision, then reset.
     Returns (v, s, ref)."""
     dv = (dt / C_m) * (-g_L * (v - E_L) + I_total)
-    if cm_back != 1.0:
-        dv = _scale_grad(dv, 1.0 / cm_back)
+    if v_grad_dampen != 1.0:
+        dv = _scale_grad(dv, 1.0 / v_grad_dampen)
     v = v + dv
     v = v.clamp(min=V_floor) if V_max is None else v.clamp(min=V_floor, max=V_max)
     ref = (ref - 1).clamp(min=0)
@@ -166,7 +166,7 @@ def lif_step(v, I_total, ref, C_m, g_L, ref_steps, spike_fn, V_floor=V_floor, V_
 
 
 def lif_step_expeuler(v, ref, g_e, g_i, C_m, g_L, ref_steps, spike_fn,
-                      cm_back=1.0, dt=None, V_floor=V_floor, V_max=None):
+                      v_grad_dampen=1.0, dt=None, V_floor=V_floor, V_max=None):
     """COBA LIF step under exponential Euler with a zero-order hold on g_e, g_i.
 
     Closed-form integration of
@@ -190,8 +190,8 @@ def lif_step_expeuler(v, ref, g_e, g_i, C_m, g_L, ref_steps, spike_fn,
     v_inf = (g_L * E_L + g_E_drive) / g_tot
     decay = torch.exp(-dt_step / (C_m / g_tot))
     dv = (v_inf - v) * (1.0 - decay)
-    if cm_back != 1.0:
-        dv = _scale_grad(dv, 1.0 / cm_back)
+    if v_grad_dampen != 1.0:
+        dv = _scale_grad(dv, 1.0 / v_grad_dampen)
     v = v + dv
     v = v.clamp(min=V_floor) if V_max is None else v.clamp(min=V_floor, max=V_max)
     ref = (ref - 1).clamp(min=0)
@@ -268,15 +268,15 @@ def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None):
         ref_steps = ref_steps_E
     if COBA_INTEGRATOR == "expeuler":
         return lif_step_expeuler(v, ref, g_e, g_i, C_m_E, g_L_E, ref_steps,
-                                 spike_biophysical, cm_back=CM_BACK_SCALE)
-    return lif_step(v, coba_current(g_e, v, g_i), ref, C_m_E, g_L_E, ref_steps, spike_biophysical, cm_back=CM_BACK_SCALE)
+                                 spike_biophysical, v_grad_dampen=V_GRAD_DAMPEN)
+    return lif_step(v, coba_current(g_e, v, g_i), ref, C_m_E, g_L_E, ref_steps, spike_biophysical, v_grad_dampen=V_GRAD_DAMPEN)
 
 def i_step_coba(v, ref, g_e):
     """One I-neuron LIF step with COBA driving force."""
     if COBA_INTEGRATOR == "expeuler":
         return lif_step_expeuler(v, ref, g_e, None, C_m_I, g_L_I, ref_steps_I,
-                                 spike_biophysical, cm_back=CM_BACK_SCALE)
-    return lif_step(v, coba_current(g_e, v), ref, C_m_I, g_L_I, ref_steps_I, spike_biophysical, cm_back=CM_BACK_SCALE)
+                                 spike_biophysical, v_grad_dampen=V_GRAD_DAMPEN)
+    return lif_step(v, coba_current(g_e, v), ref, C_m_I, g_L_I, ref_steps_I, spike_biophysical, v_grad_dampen=V_GRAD_DAMPEN)
 
 
 

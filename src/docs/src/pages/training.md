@@ -57,7 +57,7 @@ with slope $k = 1$ on both the biophysical path (mV-scale membrane) and the stan
 
 The biophysical models (COBA, PING) face a gradient scale mismatch: voltage updates involve multiplication by $\Delta t / C_m$, which can be very small, while the surrogate gradient through the spike function is $O(1)$. Naive backpropagation through the membrane ODE produces gradients that are either vanishingly small (through voltage) or discontinuously large (through spikes).
 
-To stabilise training, the backward pass through each voltage update is scaled by $1/\alpha$ where $\alpha$ is a dampening factor (CM_BACK_SCALE, typically 80 for the unitless models and 1000 for COBA/PING). In the forward pass nothing changes — the gradient is simply attenuated:
+To stabilise training, the backward pass through each voltage update is scaled by $1/\alpha$ where $\alpha$ is a dampening factor (V_GRAD_DAMPEN, typically 80 for the unitless models and 1000 for COBA/PING). In the forward pass nothing changes — the gradient is simply attenuated:
 
 $$
 \frac{\partial \mathcal{L}}{\partial V_i^t} \leftarrow \frac{1}{\alpha} \frac{\partial \mathcal{L}}{\partial V_i^t}
