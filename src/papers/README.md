@@ -5,7 +5,7 @@ Reading list for this project. The PDFs themselves are third-party copyrighted m
 Keys are `firstauthor[-et-al]` and match the citation keys used in the notebook.
 
 ## Surrogate-gradient SNN training
-- **eshraghain-et-al** — Eshraghian et al., *Training Spiking Neural Networks Using Lessons From Deep Learning*, Proc. IEEE 2023. https://arxiv.org/abs/2109.12894 (snnTorch reference)
+- **eshraghian-et-al** — Eshraghian et al., *Training Spiking Neural Networks Using Lessons From Deep Learning*, Proc. IEEE 2023. https://arxiv.org/abs/2109.12894 (snnTorch reference)
 - **neftci-et-al** — Neftci, Mostafa & Zenke, *Surrogate Gradient Learning in Spiking Neural Networks*, IEEE Signal Processing Magazine 2019. https://arxiv.org/abs/1901.09948
 - **burghi-et-al** — Burghi et al., costate-based SNN training (2026 draft). Cited in `training.md` for principled adjoint scaling.
 
@@ -21,7 +21,7 @@ Keys are `firstauthor[-et-al]` and match the citation keys used in the notebook.
 ## Balanced / asynchronous state
 - **renart** — Renart et al., *The asynchronous state in cortical circuits*, Science 2010. https://doi.org/10.1126/science.1179850
 - **shadlen** — Shadlen & Newsome, *The variable discharge of cortical neurons: implications for connectivity, computation, and information coding*, J. Neurosci. 1998.
-- **parthasarathy-et-all** — Parthasarathy et al., balanced E/I networks.
+- **parthasarathy-et-al** — Parthasarathy et al., balanced E/I networks.
 
 ## Spiking MNIST / benchmarks
 - **cramer-et-al** — Cramer, Stradmann, Schemmel & Zenke, *The Heidelberg spiking datasets for the systematic evaluation of spiking neural networks*, IEEE TNNLS 2022 (preprint Oct 2020). https://arxiv.org/abs/1910.07407 — source of the SHD dataset used in notebook 004.
