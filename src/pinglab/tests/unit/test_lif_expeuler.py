@@ -182,8 +182,8 @@ class TestGradientFlow:
         assert g_e.grad is not None
         assert g_e.grad.abs().item() > 0.0
 
-    def test_cm_back_scale_attenuates_grad(self):
-        """cm_back > 1 must reduce the gradient magnitude relative to the
+    def test_v_grad_dampen_attenuates_grad(self):
+        """v_grad_dampen > 1 must reduce the gradient magnitude relative to the
         identity-scale reference (the point of the dampening hook)."""
         v_ref, ref = _fresh_state()
         v_damp, ref2 = _fresh_state()
@@ -191,10 +191,10 @@ class TestGradientFlow:
         g_e_damp = torch.tensor([[0.01]], requires_grad=True)
         v2r, _, _ = lif_step_expeuler(
             v_ref, ref, g_e_ref, None, M.C_m_E, M.g_L_E, M.ref_steps_E,
-            spike_biophysical, cm_back=1.0)
+            spike_biophysical, v_grad_dampen=1.0)
         v2d, _, _ = lif_step_expeuler(
             v_damp, ref2, g_e_damp, None, M.C_m_E, M.g_L_E, M.ref_steps_E,
-            spike_biophysical, cm_back=1000.0)
+            spike_biophysical, v_grad_dampen=1000.0)
         v2r.sum().backward()
         v2d.sum().backward()
         assert g_e_damp.grad.abs().item() < g_e_ref.grad.abs().item()
