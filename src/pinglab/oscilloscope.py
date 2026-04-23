@@ -688,7 +688,7 @@ def _scan_dt(scan_values, n_frames, t_e_async, overdrive,
         dt so each frame is a dt-invariant re-sampling of the same process.
       * dataset: re-encodes the same MNIST pixel vector as Poisson spikes at
         each frame's dt (expected per-pixel rate is dt-invariant); drives a
-        PING net through W_in. Dataset mode is what ping-regimes uses so the
+        PING net through W_in. Dataset mode is what notebook 002 uses so the
         overdrive and dt videos share an input pipeline.
     """
     import config as C

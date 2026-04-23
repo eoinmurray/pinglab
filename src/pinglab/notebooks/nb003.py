@@ -17,7 +17,7 @@ Writes (per regime figures have panels for each dt_train):
   * dt_sweep_dt{dt}_{model}.mp4 — per-sweep-dt inference videos
   * numbers.json — config + per-regime/per-model best/final + sweep results
 
-Notebook entry: src/docs/src/pages/notebooks/dt-stability.mdx
+Notebook entry: src/docs/src/pages/notebooks/nb003.mdx
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from config import build_net  # noqa: E402
 from pinglab import theme  # noqa: E402
 
-SLUG = "dt-stability"
+SLUG = "nb003"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
