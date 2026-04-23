@@ -30,7 +30,7 @@
       "best_acc": 33.9,
       "final_acc": 33.9,
       "final_loss": 0.43989625945687294,
-      "run_dir": "src/artifacts/notebooks/nb004/cuba_baseline"
+      "run_dir": "src/artifacts/notebooks/shd/cuba_baseline"
     }
   },
   "winner": {
@@ -46,7 +46,7 @@
     "best_acc": 33.9,
     "final_acc": 33.9,
     "final_loss": 0.43989625945687294,
-    "run_dir": "src/artifacts/notebooks/nb004/cuba_baseline"
+    "run_dir": "src/artifacts/notebooks/shd/cuba_baseline"
   },
   "run_finished_at": "2026-04-23T07:06:21.460776Z"
 }
