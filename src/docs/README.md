@@ -12,4 +12,4 @@ See `src/pages/styleguide.md` for the docs conventions (notebook structure, figu
 
 ## Figures
 
-Raw outputs from `src/pinglab/oscilloscope.py` land under `src/artifacts/` (gitignored). Figures shown in a notebook entry are written by that entry's repro script at `src/pinglab/notebook/<slug>.py` directly into `src/docs/public/figures/notebook/<slug>/`. The repro script is the promotion gate — running it regenerates every figure and `numbers.json` the entry cites. Every published figure belongs to exactly one entry; reference from markdown via the web path `/figures/notebook/<slug>/<name>.png`.
+Raw outputs from `src/pinglab/oscilloscope.py` land under `src/artifacts/` (gitignored). Figures shown in a notebook entry are written by that entry's repro script at `src/pinglab/notebooks/<slug>.py` directly into `src/docs/public/figures/notebooks/<slug>/`. The repro script is the promotion gate — running it regenerates every figure and `numbers.json` the entry cites. Every published figure belongs to exactly one entry; reference from markdown via the web path `/figures/notebooks/<slug>/<name>.png`.

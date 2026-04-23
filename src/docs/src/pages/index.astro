@@ -1,7 +1,7 @@
 ---
 import "../styles/global.css";
 
-const notebookModules = import.meta.glob("./notebook/*.mdx", { eager: true });
+const notebookModules = import.meta.glob("./notebooks/*.mdx", { eager: true });
 const notebooks = Object.entries(notebookModules)
   .map(([path, mod]) => {
     const slug = path
@@ -60,6 +60,7 @@ const formatDate = (raw) => {
           <li><a href="/models/">Models</a></li>
           <li><a href="/training/">Training</a></li>
           <li><a href="/the-oscilloscope/">The Oscilloscope</a></li>
+          <li><a href="/the-notebooks/">The Notebooks</a></li>
           <li><a href="/metrics/">Metrics</a></li>
           <li><a href="/parameters-and-units/">Parameters & Units</a></li>
           <li><a href="/references/">References</a></li>
@@ -78,7 +79,7 @@ const formatDate = (raw) => {
                 {/* <span class="text-[0.9em] tabular-nums text-[color:var(--muted)]">
                   {String(nb.entry).padStart(3, "0")}
                 </span> */}
-                <a href={`/notebook/${nb.slug}/`}>
+                <a href={`/notebooks/${nb.slug}/`}>
                   {String(nb.entry).padStart(1, "0")}. {nb.title}
                 </a>
                 <span class="text-[0.9em] tabular-nums text-[color:var(--muted)]">

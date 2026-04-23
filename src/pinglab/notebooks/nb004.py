@@ -14,7 +14,7 @@ Writes:
   * training_cuba.mp4 — per-epoch hidden-activity video
   * numbers.json — config + cell summary
 
-Notebook entry: src/docs/src/pages/notebook/nb004.mdx
+Notebook entry: src/docs/src/pages/notebooks/nb004.mdx
 """
 from __future__ import annotations
 
@@ -35,11 +35,12 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
+from _tier import parse_tier  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 
 SLUG = "nb004"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebook" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebook" / SLUG
+ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
+FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
 DEFAULT_TIER = "medium"
@@ -107,7 +108,19 @@ def train_cell(
         "--readout", readout,
         # Cramer et al. (2022) SHD RSNN recipe — surrogate steepness + a
         # two-sided firing-rate regulariser on per-neuron trial spike counts.
-        "--surrogate-slope", "10",
+        "--surrogate-slope", "5",
+        # grad-clip: loosen from M.GRAD_CLIP=1.0 default. At τ_syn=10 ms with
+        # 500-step BPTT the raw grad_norm lands 50k–1.5M; global-norm=1.0
+        # projects every update onto the unit ball, destroying Adam's
+        # preconditioner. Setting clip to 100 lets Adam's second-moment
+        # estimate absorb the scale.
+        "--grad-clip", "100",
+        # Band-aid against single exploded batches mid-run: large-tier training
+        # is stable for 20+ epochs, then one bad batch produces a 1e11+ grad
+        # that poisons Adam's second-moment estimate. Skipping the step (with
+        # the clip still active as a safety net) lets the run recover. 1e4 is
+        # a couple orders above legitimate transient spikes.
+        "--skip-bad-grad-threshold", "1e4",
         "--fr-reg-lower-theta", "0.01",
         "--fr-reg-lower-strength", "1.0",
         "--fr-reg-upper-theta", "100",
@@ -292,28 +305,21 @@ def _format_duration(seconds: float) -> str:
     return f"{s // 3600}h {(s % 3600) // 60:02d}m"
 
 
-def _parse_tier(argv: list[str], default: str = DEFAULT_TIER) -> str:
-    if "--tier" not in argv:
-        return default
-    idx = argv.index("--tier")
-    if idx + 1 >= len(argv):
-        raise SystemExit("--tier requires a value")
-    tier = argv[idx + 1]
-    if tier not in TIER_CONFIG:
-        raise SystemExit(f"--tier: unknown tier {tier!r}, choose from {list(TIER_CONFIG)}")
-    return tier
-
-
-def run_baseline(run_id: str, modal_gpu: str | None) -> dict:
+def run_baseline(run_id: str, modal_gpu: str | None, skip_training: bool) -> dict:
     """Single cell at the current best-known config (post-sweep winner)."""
     # cuba-exp: effective per-spike drive is (1-β_mem) · isw · 1/(1-κ_syn).
     # Match the previously-stable per-spike drive (τ_mem=10, τ_syn=2, isw=11
     # at dt=2 → factor ≈ 3.15). With Cramer-aligned τ_mem=20, τ_syn=10 the
     # denominators change and isw ≈ 6 keeps the same effective factor.
     _, isb = cuba_init_scales(DT)
-    spec = dict(lr=0.001, isw=6.0, isb=isb, hidden=HIDDEN, readout="li")
-    run_dir = train_cell("cuba_baseline", **spec,
-                         observe_video=True, modal_gpu=modal_gpu)
+    spec = dict(lr=1e-3, isw=6.0, isb=isb, hidden=HIDDEN, readout="li")
+    if skip_training:
+        run_dir = ARTIFACTS / "cuba_baseline"
+        if not (run_dir / "metrics.json").exists():
+            raise SystemExit(f"--skip-training requires existing {run_dir}/metrics.json")
+    else:
+        run_dir = train_cell("cuba_baseline", **spec,
+                             observe_video=True, modal_gpu=modal_gpu)
     summary = _cell_summary("cuba_baseline", spec, run_dir)
 
     metrics = json.loads((run_dir / "metrics.json").read_text())
@@ -331,15 +337,18 @@ def run_baseline(run_id: str, modal_gpu: str | None) -> dict:
 def main() -> None:
     global TIER
     wipe_dir = "--no-wipe-dir" not in sys.argv
+    skip_training = "--skip-training" in sys.argv
     modal_gpu = parse_modal_gpu(sys.argv)
-    TIER = _parse_tier(sys.argv)
+    TIER = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
     print(f"[nb004] run_id={run_id} tier={TIER}"
+          + ("  [skip-training]" if skip_training else "")
           + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
     if wipe_dir:
-        for d in (ARTIFACTS, FIGURES):
+        wipe_targets = (FIGURES,) if skip_training else (ARTIFACTS, FIGURES)
+        for d in wipe_targets:
             if d.exists():
                 print(f"[wipe] {d.relative_to(REPO)}")
                 shutil.rmtree(d)
@@ -350,7 +359,7 @@ def main() -> None:
     plot_shd_digits(FIGURES / "shd_digits.png", run_id)
     print(f"wrote {(FIGURES / 'shd_digits.png').relative_to(REPO)}")
 
-    summary = run_baseline(run_id, modal_gpu)
+    summary = run_baseline(run_id, modal_gpu, skip_training)
     cells_dict = {"cuba_baseline": summary}
     winner = summary
 

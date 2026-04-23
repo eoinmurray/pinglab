@@ -1,6 +1,6 @@
 # notebook runners
 
-Every entry in `src/docs/src/pages/notebook/` has a matching **notebook runner**
+Every entry in `src/docs/src/pages/notebooks/` has a matching **notebook runner**
 here — a single-file Python script that regenerates every figure, video, and
 number cited by that entry.
 
@@ -14,12 +14,12 @@ docstring, not in the filename.
 
 Each runner:
 
-- Takes no required arguments. Running `uv run python src/pinglab/notebook/nbNNN.py`
+- Takes no required arguments. Running `uv run python src/pinglab/notebooks/nbNNN.py`
   regenerates everything the entry cites.
 - Sets `SLUG = "nbNNN"` at module scope. Drives artifact and figure paths.
-- Writes raw run outputs to `src/artifacts/notebook/<SLUG>/` (gitignored).
+- Writes raw run outputs to `src/artifacts/notebooks/<SLUG>/` (gitignored).
 - Writes published figures, videos, and `numbers.json` to
-  `src/docs/public/figures/notebook/<SLUG>/` (committed). The MDX imports
+  `src/docs/public/figures/notebooks/<SLUG>/` (committed). The MDX imports
   from that directory.
 - Wipes both directories by default on start. Pass `--no-wipe-dir` to keep
   stale artifacts (rarely useful — cache drift is how figures fall out of
