@@ -213,7 +213,7 @@ $$
 
 *What it is:* E and I firing rates accumulated across an inference sweep — one point per sweep frame, updated as the sweep progresses. Sweep-only.
 
-*How to read it:* If the trace is flat across the swept variable, the network is stable under that variable. If it fans out by one to two orders of magnitude, it is not — this is the signature read off in the Δt-stability experiment in [dt-stability](/notebooks/dt-stability/).
+*How to read it:* If the trace is flat across the swept variable, the network is stable under that variable. If it fans out by one to two orders of magnitude, it is not — this is the signature read off in the Δt-stability experiment in [notebook 003](/notebooks/nb003/).
 
 ## sweep_f0
 

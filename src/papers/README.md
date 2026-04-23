@@ -24,7 +24,7 @@ Keys are `firstauthor[-et-al]` and match the citation keys used in the notebook.
 - **parthasarathy-et-al** — Parthasarathy et al., balanced E/I networks.
 
 ## Spiking MNIST / benchmarks
-- **cramer-et-al** — Cramer, Stradmann, Schemmel & Zenke, *The Heidelberg spiking datasets for the systematic evaluation of spiking neural networks*, IEEE TNNLS 2022 (preprint Oct 2020). https://arxiv.org/abs/1910.07407 — source of the SHD dataset used in the shd notebook.
+- **cramer-et-al** — Cramer, Stradmann, Schemmel & Zenke, *The Heidelberg spiking datasets for the systematic evaluation of spiking neural networks*, IEEE TNNLS 2022 (preprint Oct 2020). https://arxiv.org/abs/1910.07407 — source of the SHD dataset used in notebook 004.
 - **yan-et-al** — Yan et al., sequential-MNIST SNN architectures (2025). Cited as the depth precedent for smnist.
 - **yan-et-al-supplementary** — Yan et al. supplementary material.
 - **xing-et-al** — Xing et al., SNN classification benchmarks.

@@ -9,18 +9,18 @@ A notebook entry is a reproducible unit of work. Each entry pairs a writeup with
 
 ## Anatomy of an entry
 
-Every entry is a triple, keyed by a short topic slug (kebab-case, e.g. *dt-stability*, *shd*):
+Every entry is a triple, keyed by a zero-padded slug *nbNNN*:
 
-1. **Runner** — *src/pinglab/notebooks/&lt;slug&gt;.py*. Single-file Python script; the promotion gate for the entry.
+1. **Runner** — *src/pinglab/notebooks/nbNNN.py*. Single-file Python script; the promotion gate for the entry.
 2. **Artifacts** — *src/artifacts/notebooks/&lt;slug&gt;/*. Raw run outputs (gitignored).
 3. **Published figures** — *src/docs/public/figures/notebooks/&lt;slug&gt;/*. Figures, videos, *numbers.json*, *_run.txt*. The MDX imports from here.
-4. **Entry** — *src/docs/src/pages/notebooks/&lt;slug&gt;.mdx*. Writeup with Introduction / Method / Findings / Implications / Next steps.
+4. **Entry** — *src/docs/src/pages/notebooks/nbNNN.mdx*. Writeup with Introduction / Method / Findings / Implications / Next steps.
 
 ## Runner contract
 
 Every runner:
 
-- Sets *SLUG = "&lt;slug&gt;"* at module scope, which drives the artifact and figure paths.
+- Sets *SLUG = "nbNNN"* at module scope, which drives the artifact and figure paths.
 - Wipes its output directories by default on start, so stale artifacts can't masquerade as current ones.
 - Records a per-notebook monotonic *rNNN* run identifier via *_run_id.py* and stamps it onto published videos.
 - Dispatches computation through *src/pinglab/oscilloscope.py* — the notebook script never touches models directly. All scientific knobs are hardcoded as literals in the runner's CLI args list, so reproducing a result never requires remembering flags.

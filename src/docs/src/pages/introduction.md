@@ -27,7 +27,7 @@ Pinglab is organised around one CLI and one lab notebook. Every result on this s
 
 **Oscilloscope** — the training / inference / inspection CLI at *src/pinglab/oscilloscope.py*. *train* and *infer* subcommands cover every run; notebook runners shell out to it.
 
-**Entries** — dated writeups at *src/docs/src/pages/notebooks/&lt;slug&gt;.mdx*, listed newest-first on the home page. There is no separate paper layer — a paper-shaped writeup is still an entry. Slugs are short topic kebab-case names (*scope-frame*, *ping-regimes*, *dt-stability*, *shd*); the date and global entry number live in the frontmatter and the long-form byline, not the slug. Most entries follow Introduction / Method / Results / Discussion / Next steps.
+**Entries** — dated writeups at *src/docs/src/pages/notebooks/&lt;slug&gt;.mdx*, listed newest-first on the home page. There is no separate paper layer — a paper-shaped writeup is still an entry. Slugs are *nb* + zero-padded global number (*nb001*, *nb002*, …); the date lives in the frontmatter and the long-form byline, not the slug. Most entries follow Introduction / Method / Results / Discussion / Next steps.
 
 **Runners** — each entry that cites generated figures gets a runner at *src/pinglab/notebooks/&lt;slug&gt;.py*. One command regenerates every figure the entry references and writes a *numbers.json* alongside them under *src/docs/public/figures/notebooks/&lt;slug&gt;/*. The runner is the promotion gate between *src/artifacts/* (raw, gitignored) and *src/docs/public/figures/* (published). Provenance is the runner plus the commit: the runner's *SLUG*, *MAX_SAMPLES*, *EPOCHS*, *TIER* constants pin the run config; git history pins the model code.
 
