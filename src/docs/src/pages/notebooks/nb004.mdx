@@ -103,7 +103,19 @@ Cramer's reference numbers (for context):
 
 ## Next steps
 
-*To be written once results are analysed.*
+**Align the cuba-exp update with Zenke's canonical SHD form.** The canonical SHD baseline (Zenke's Spytorch Tutorial 4, which Cramer et al. 2022 cite) uses
+
+$$
+\text{syn}_{t+1} = \alpha\,\text{syn}_t + W\!\cdot z_t, \qquad \text{mem}_{t+1} = \beta\,\text{mem}_t + \text{syn}_{t+1}
+$$
+
+with a bare weight init $W \sim \mathcal{N}(0, 0.2/\sqrt{N_\text{in}})$ — no $(1-\alpha)$ or $(1-\beta)$ factor on the drive. Our cuba-exp uses the dt-invariant low-pass form $\beta\,\text{mem} + (1-\beta)\,\text{drive}$, which forces a compensation multiplier on the init ($isw$, $isb$) to match Zenke's per-spike kick. The compensation is currently tuned to 6 × Kaiming, empirically sitting in the stable-but-undermatched middle; attempts to push slope past 5 blow up in ways Zenke's form does not.
+
+The cleanest path to the Cramer 47–49% feedforward band — and the only way to run at $\beta = 40$ like Cramer — is to match Zenke's update *form* directly, not to keep bisecting $isw$. Concretely: add a `--cuba-update-form {low-pass, direct}` flag on the oscilloscope, use `direct` ($\beta\,\text{mem} + \text{drive}$, $\alpha\,\text{syn} + W\!\cdot z$) for nb004, and initialise $W$ with weight_scale = 0.2 directly — not the Kaiming × compensation stack.
+
+**Re-enable recurrence.** The 71% RSNN target requires $W_\text{rec} \neq 0$. Feedforward $W_\text{rec} = 0$ with slope = 5 + adamax is stable; under the direct update form above, restoring $W_\text{rec} \sim \mathcal{N}(0, 0.2/\sqrt{N_\text{hidden}})$ should match Zenke's `v1`.
+
+**Remove the grad-skip band-aid.** Adamax reduces skipped batches from ~440 to ~3 across a 69-epoch run; the `--skip-bad-grad-threshold 1e4` flag is no longer load-bearing. Already dropped from the recipe.
 
 ## Appendix
 

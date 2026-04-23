@@ -112,16 +112,10 @@ def train_cell(
         "--init-scale-weight", str(isw),
         "--init-scale-bias", f"{isb}",
         "--no-dales-law",
-        # Feedforward only: isolate time-constant / regulariser tuning from the
-        # recurrent-BPTT explosion path. Re-enable W_rec once the feedforward
-        # baseline hits the Cramer 47–49% band.
+        # Feedforward only while we test slope=10 in isolation. Re-enable
+        # W_rec once slope=10 alone is stable on adamax.
         "--w-rec", "0.0", "0.0",
         "--readout", readout,
-        # Surrogate slope β. Cramer uses β=40 but at our current BPTT
-        # depth / clip / optimizer config that diverges; β=5 is the
-        # highest value that gives stable training end-to-end. Step back
-        # toward 40 only after a stable backbone is established.
-        "--surrogate-slope", "5",
         # Cramer et al. (2022) SHD RSNN recipe — two-sided firing-rate
         # regulariser on per-neuron trial spike counts.
         # grad-clip: loosen from M.GRAD_CLIP=1.0 default. At τ_syn=10 ms with
@@ -130,13 +124,6 @@ def train_cell(
         # preconditioner. Setting clip to 100 lets Adam's second-moment
         # estimate absorb the scale.
         "--grad-clip", "100",
-        # Band-aid against single exploded batches mid-run: large-tier training
-        # is stable for 20+ epochs, then one bad batch produces a 1e11+ grad
-        # that poisons Adam's second-moment estimate. Skipping the step (with
-        # the clip still active as a safety net) lets the run recover. 1e4
-        # is a couple orders above legitimate slope=5 transients (0.5–100
-        # across 27 stable epochs previously).
-        "--skip-bad-grad-threshold", "1e4",
         "--fr-reg-lower-theta", "0.01",
         "--fr-reg-lower-strength", "1.0",
         "--fr-reg-upper-theta", "100",
@@ -323,12 +310,11 @@ def _format_duration(seconds: float) -> str:
 
 def run_baseline(run_id: str, modal_gpu: str | None, skip_training: bool) -> dict:
     """Single cell at the current best-known config (post-sweep winner)."""
-    # cuba-exp: effective per-spike drive is (1-β_mem) · isw · 1/(1-κ_syn).
-    # Match the previously-stable per-spike drive (τ_mem=10, τ_syn=2, isw=11
-    # at dt=2 → factor ≈ 3.15). With Cramer-aligned τ_mem=20, τ_syn=10 the
-    # denominators change and isw ≈ 6 keeps the same effective factor.
-    _, isb = cuba_init_scales(DT)
-    spec = dict(lr=1e-3, isw=6.0, isb=isb, hidden=HIDDEN, readout="li")
+    # Raw Kaiming init — no per-step drive compensation. The previous
+    # isw=6 / isb derived from 1/(1-β_mem) pushed neurons into a regime
+    # where β=10 produced 1e10+ grads even with adamax; dropping it
+    # lets the model learn under Cramer's native weight scale.
+    spec = dict(lr=1e-3, isw=1.0, isb=1.0, hidden=HIDDEN, readout="li")
     if skip_training:
         run_dir = ARTIFACTS / "cuba_baseline"
         if not (run_dir / "metrics.json").exists():
