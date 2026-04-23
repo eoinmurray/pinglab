@@ -50,7 +50,7 @@ These are on the shared parent parser and apply to every subcommand.
 | *--w-in-sparsity F* | 0.95 | Input-weight sparsity. |
 | *--bias B* | 0.0002 | Background conductance to E neurons, μS. |
 | *--dt DT* | 0.25 | Integration timestep, ms. |
-| *--t-ms T* | 600.0 | Total simulation duration, ms. Must exceed *STEP_ON_MS* (default 200) so the stimulus window is reached. |
+| *--t-ms T* | 200.0 | Total simulation duration, ms. For synthetic-step modes, must exceed *STEP_ON_MS* (default 200) so the stimulus window is reached. |
 | *--kaiming-init* | off | Use plain Kaiming-uniform init (signed weights, no fan-in normalisation), matching the canonical snnTorch tutorial. Applies to *standard-snn* / *cuba* only; *--w-in* is ignored when set. |
 | *--init-scale-weight X* | 1.0 | Multiply initial weight matrices by X after *build_net* (train mode). For *cuba* at training-dt, pass $\Delta t / (1 - e^{-\Delta t / \tau_\text{mem}})$ to match *standard-snn*'s per-step spike drive. |
 | *--init-scale-bias X* | 1.0 | Multiply initial bias vectors by X. For *cuba*, pass $1 / (1 - e^{-\Delta t / \tau_\text{mem}})$ for matched bias drive. |
@@ -73,7 +73,7 @@ These are on the shared parent parser and apply to every subcommand.
 | *--digit D* | 0 | Digit class (0–9) for dataset input. |
 | *--sample I* | 0 | Sample index within the dataset class. |
 
-Three input modes select how the network is driven (see [Training → Input modes](/training/#input-modes-and-tasks) for the dynamics): *synthetic-conductance* is Börgers-style step drive injected directly into layer-1 E neurons — used for baseline oscillation studies where encoding should not confound the drive. *synthetic-spikes* is Poisson spike trains at *--input-rate* with a stimulus window where the rate is multiplied by *--stim-overdrive*. *dataset* is real images (scikit-digits, mnist, smnist) or audio (shd) Poisson-encoded per-pixel / per-channel.
+Three input modes select how the network is driven (see [Training → Input modes](/training/#tasks-and-inputs) for the dynamics): *synthetic-conductance* is Börgers-style step drive injected directly into layer-1 E neurons — used for baseline oscillation studies where encoding should not confound the drive. *synthetic-spikes* is Poisson spike trains at *--input-rate* with a stimulus window where the rate is multiplied by *--stim-overdrive*. *dataset* is real images (scikit-digits, mnist, smnist) or audio (shd) Poisson-encoded per-pixel / per-channel.
 
 ## Weight flags (shared, advanced)
 

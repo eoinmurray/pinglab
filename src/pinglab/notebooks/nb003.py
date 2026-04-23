@@ -58,7 +58,7 @@ MODELS = ["standard-snn", "snntorch-library", "cuba", "coba", "ping"]
 #   * resample   — fresh Poisson at the target dt (§2.1 alternative);
 #                  works in both directions.
 ENCODER_MODES = ["upsample", "downsample", "resample"]
-T_MS = 600.0
+T_MS = 200.0
 # Two training regimes: fine dt (snnTorch research setting) and coarse dt
 # (near τ_mem, where snnTorch models typically saturate).
 DT_TRAINS = [0.1, 1.0]
@@ -75,7 +75,7 @@ SEED = 42
 DEFAULT_TIER = "small"  # see src/docs/src/pages/styleguide.md § 10 Run sizing tiers
 # Per-tier (max-samples, epochs). t-ms is fixed by T_MS above.
 TIER_CONFIG = {
-    "extra small": dict(max_samples=200,   epochs=3),
+    "extra small": dict(max_samples=100,   epochs=1),
     "small":       dict(max_samples=500,   epochs=5),
     "medium":      dict(max_samples=2000,  epochs=10),
     "large":       dict(max_samples=5000,  epochs=40),
@@ -299,14 +299,15 @@ def train_model(model: str, dt_train: float,
             osc_args.append(k)
         elif v is not None:
             osc_args += [k, v]
-    # ping at dt=0.1 (6000 BPTT steps × 1024 hidden × COBA state) needs
-    # >14 GiB; T4 OOMs. Upgrade this one cell to A10G (24 GiB) when
-    # dispatching to Modal on a smaller GPU.
+    # PINGNet family (ping, coba) at dt=0.1 (6000 BPTT steps × 1024 hidden
+    # × COBA state) OOMs both T4 (14.56 GiB) and A10G (24 GiB); bump to
+    # A100 (80 GiB) when dispatching to Modal on a smaller GPU.
     gpu_override = None
-    if dispatcher.modal_gpu in ("T4", "L4") and model == "ping" and dt_train <= 0.25:
-        gpu_override = "A10G"
-        print(f"  [modal] upgrading ping@dt={dt_train} from "
-              f"{dispatcher.modal_gpu} to A10G (memory)")
+    if (dispatcher.modal_gpu in ("T4", "L4", "A10G")
+            and build_as == "ping" and dt_train <= 0.25):
+        gpu_override = "A100"
+        print(f"  [modal] upgrading {model}@dt={dt_train} from "
+              f"{dispatcher.modal_gpu} to A100 (memory)")
     dispatcher.submit(osc_args, out_dir, gpu_override=gpu_override)
     return out_dir
 
@@ -355,10 +356,13 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
     ]
     if encoder_mode == "resample":
         osc_args += ["--observe", "video"]
-    # ping inference at small dt hits the same memory wall as training.
+    # PINGNet family inference at small dt hits the same memory wall as
+    # training; see train_model above for the A100 rationale.
+    build_as = MODEL_CONFIG[model]["__build_as"]
     gpu_override = None
-    if dispatcher.modal_gpu in ("T4", "L4") and model == "ping" and dt_train <= 0.25:
-        gpu_override = "A10G"
+    if (dispatcher.modal_gpu in ("T4", "L4", "A10G")
+            and build_as == "ping" and dt_train <= 0.25):
+        gpu_override = "A100"
     dispatcher.submit(osc_args, sweep_dir, gpu_override=gpu_override)
     return sweep_dir
 
