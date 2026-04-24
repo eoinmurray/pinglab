@@ -1,0 +1,267 @@
+---
+import { commitUrl, shortSha } from "../config/repo";
+
+interface Row {
+  label: string;
+  value: any;
+  mono?: boolean;
+  /**
+   * Oscilloscope/runner default for this parameter. Used to populate the
+   * "Default?" column. Omit when the row has no natural default (results,
+   * provenance, etc.) — the cell renders as an em-dash in that case.
+   */
+  default?: any;
+}
+interface Group {
+  title: string;
+  rows: Row[];
+}
+interface Extra extends Row {
+  section?: "recipe" | "results" | "provenance";
+}
+
+interface Props {
+  numbers: any;
+  extras?: Extra[];
+  groups?: Group[];
+  /**
+   * "all" (default) — recipe + results + provenance in one table.
+   * "recipe"        — setup / architecture / training recipe only.
+   * "results"       — results + provenance only.
+   */
+  variant?: "all" | "recipe" | "results";
+}
+
+const { numbers = {}, extras = [], groups, variant = "all" } = Astro.props as Props;
+
+const cfg = numbers.config ?? {};
+const run =
+  numbers.run ??
+  numbers.winner ??
+  numbers.cells?.[Object.keys(numbers.cells ?? {})[0]] ??
+  {};
+
+const nbRunId = numbers.notebook_run_id ?? "?";
+const sha = numbers.git_sha ?? null;
+const short = sha ? shortSha(sha) : null;
+const commitHref = sha ? commitUrl(sha) : null;
+
+// Oscilloscope defaults — source of truth is src/pinglab/oscilloscope.py
+// argparse, mirrored in src/docs/src/pages/the-oscilloscope.md.
+const DATASET_HIDDEN_DEFAULTS: Record<string, string | number> = {
+  scikit: 64,
+  mnist: 1024,
+  smnist: 32,
+};
+const hiddenDefault = DATASET_HIDDEN_DEFAULTS[cfg.dataset] ?? null;
+
+function buildTrainingSections(): Group[] {
+  const hidden = Array.isArray(cfg.hidden)
+    ? `{${cfg.hidden.join(", ")}}`
+    : (cfg.n_hidden ?? cfg.hidden ?? "?");
+  const samplesEpochs =
+    cfg.max_samples != null && cfg.epochs != null
+      ? `${cfg.max_samples} × ${cfg.epochs}`
+      : "?";
+  const finalLoss = run.final_loss;
+  const finalLossStr =
+    typeof finalLoss === "number" ? finalLoss.toFixed(4) : "?";
+  const bestFinal =
+    run.best_acc != null && run.final_acc != null
+      ? `${run.best_acc}% / ${run.final_acc}%`
+      : "?";
+
+  const recipeExtras = extras.filter((e) => (e.section ?? "recipe") === "recipe");
+  const resultsExtras = extras.filter((e) => e.section === "results");
+
+  return [
+    {
+      title: "Setup",
+      rows: [
+        { label: "Tier", value: numbers.tier ?? cfg.tier ?? "?" },
+        { label: "Dataset", value: cfg.dataset ?? "?", default: "scikit" },
+        { label: "Model", value: cfg.model ?? "?", default: "ping" },
+      ],
+    },
+    {
+      title: "Architecture",
+      rows: [
+        { label: "Hidden", value: hidden, default: hiddenDefault ?? undefined },
+        { label: "T", value: cfg.t_ms != null ? `${cfg.t_ms} ms` : "?", default: "200 ms" },
+        { label: "dt", value: cfg.dt != null ? `${cfg.dt} ms` : "?", default: "0.25 ms" },
+        { label: "Seed", value: cfg.seed ?? "?", default: null },
+      ],
+    },
+    {
+      title: "Training recipe",
+      rows: [
+        { label: "Samples × Epochs", value: samplesEpochs },
+        { label: "Learning rate (η)", value: run.lr ?? "?", default: 0.01 },
+        ...recipeExtras,
+      ],
+    },
+    {
+      title: "Results",
+      rows: [
+        { label: "Best / Final acc", value: bestFinal },
+        { label: "Final loss", value: finalLossStr },
+        { label: "Elapsed", value: numbers.duration ?? "?" },
+        ...resultsExtras,
+      ],
+    },
+  ];
+}
+
+const allBodySections: Group[] = groups ?? buildTrainingSections();
+const provenanceExtras = extras.filter((e) => e.section === "provenance");
+
+const provenanceSection: Group = {
+  title: "Provenance",
+  rows: [
+    { label: "Run ID", value: nbRunId, mono: true },
+    { label: "Git SHA", value: short ?? "?", mono: true },
+    ...provenanceExtras,
+  ],
+};
+
+// Add Elapsed to provenance for custom groups (training mode already has it in Results).
+if (groups) {
+  provenanceSection.rows.splice(0, 0, { label: "Elapsed", value: numbers.duration ?? "?" });
+  provenanceSection.rows.splice(0, 0, {
+    label: "Tier",
+    value: numbers.tier ?? cfg.tier ?? "?",
+  });
+}
+
+// Split into recipe vs results buckets. "Results" is the only title treated
+// as a results-side group; everything else (Setup, Architecture, Training
+// recipe, or user-supplied custom groups) is recipe-side.
+const recipeBody = allBodySections.filter((s) => s.title !== "Results");
+const resultsBody = allBodySections.filter((s) => s.title === "Results");
+
+let sections: Group[];
+if (variant === "recipe") {
+  sections = recipeBody;
+} else if (variant === "results") {
+  sections = [...resultsBody, provenanceSection];
+} else {
+  sections = [...allBodySections, provenanceSection];
+}
+
+function normaliseForCompare(x: any): string {
+  if (x == null) return "";
+  if (typeof x === "string") return x.trim().toLowerCase();
+  return String(x).trim().toLowerCase();
+}
+
+function defaultState(row: Row): { state: "default" | "custom" | "unknown"; defaultText: string } {
+  if (!("default" in row)) return { state: "unknown", defaultText: "" };
+  const d = (row as any).default;
+  if (d == null) {
+    const v = row.value;
+    if (v == null || v === "?" || normaliseForCompare(v) === "null") {
+      return { state: "default", defaultText: "" };
+    }
+    return { state: "custom", defaultText: "—" };
+  }
+  if (normaliseForCompare(row.value) === normaliseForCompare(d)) {
+    return { state: "default", defaultText: String(d) };
+  }
+  return { state: "custom", defaultText: String(d) };
+}
+---
+
+<div class="run-parameters-wrap">
+  <table class="run-parameters">
+    <thead>
+      <tr>
+        <th>Parameter</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {sections.map((s) => (
+        <>
+          <tr class="section-header">
+            <th colspan="2" scope="colgroup">{s.title}</th>
+          </tr>
+          {s.rows.map((r) => {
+            const d = defaultState(r);
+            return (
+              <tr>
+                <td>{r.label}</td>
+                <td>
+                  {d.state === "custom" && <span class="value-bang" aria-label="non-default">!&nbsp;</span>}
+                  {r.label === "Git SHA" && commitHref ? (
+                    <a href={commitHref} class="font-mono" target="_blank" rel="noopener">{r.value}</a>
+                  ) : r.mono ? (
+                    <span class="font-mono">{r.value}</span>
+                  ) : (
+                    r.value
+                  )}
+                  {d.state === "custom" && (
+                    <span class="value-default-note"> (default: {d.defaultText})</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .run-parameters-wrap {
+    border: 1px solid var(--color-rule);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  table.run-parameters {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0;
+  }
+  table.run-parameters th,
+  table.run-parameters td {
+    border: 1px solid var(--color-rule);
+    padding: 0.35rem 0.7rem;
+  }
+  table.run-parameters tr:first-child th {
+    border-top: 0;
+  }
+  table.run-parameters tr:last-child td {
+    border-bottom: 0;
+  }
+  table.run-parameters th:first-child,
+  table.run-parameters td:first-child {
+    border-left: 0;
+  }
+  table.run-parameters th:last-child,
+  table.run-parameters td:last-child {
+    border-right: 0;
+  }
+  table.run-parameters tr.section-header th {
+    background: var(--color-paper-tint);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-label);
+    text-align: left;
+  }
+  table.run-parameters td:first-child {
+    color: var(--color-muted);
+    width: 40%;
+  }
+  table.run-parameters .value-bang {
+    color: var(--color-ink);
+    font-weight: 700;
+  }
+  table.run-parameters .value-default-note {
+    color: var(--color-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+</style>
