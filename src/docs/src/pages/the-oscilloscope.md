@@ -5,6 +5,8 @@ title: "The Oscilloscope"
 
 # The Oscilloscope
 
+**Last updated:** 2026-04-24 (sources at SHA *dd4d9db*).
+
 *src/pinglab/oscilloscope.py* is the single CLI that drives every model in the repo. The name is literal: most subcommands end by rendering a multi-panel figure — spike rasters, weight histograms, population rate, PSD, optionally training curves — laid out like an instrument face. One command runs a simulation, probes the network with a parameter sweep, trains it, or evaluates a trained checkpoint; every run writes its own self-contained directory with the config and weights needed to reproduce the result.
 
 This page is the full flag reference. Conceptual context for individual knobs lives in the linked background pages ([Models](/models/), [Training](/training/), [Metrics](/metrics/)); here every flag is listed with its default, units, and scope.
@@ -41,7 +43,7 @@ These are on the shared parent parser and apply to every subcommand.
 
 | Flag | Default | Meaning |
 | ---- | ------- | ------- |
-| *--model* | *ping* | Model family: [*ping*](/models/#ping), [*cuba*](/models/#cuba), [*standard-snn*](/models/#standard-snn), [*snntorch-library*](/models/#snntorch-library). |
+| *--model* | *ping* | Model family: [*ping*](/models/#ping), [*standard-snn*](/models/#standard-snn), [*cuba*](/models/#cuba), *cuba-exp*, *cuba-exp-hard*, *cuba-exp-hard-refrac*, [*snntorch-library*](/models/#snntorch-library). The *cuba-exp-hard\** variants are retained only for loading legacy artifacts and are not part of the headline ladder. |
 | *--n-hidden N ...* | dataset-aware (scikit 64, mnist 1024, smnist 32) | Hidden layer sizes. Single value = one layer, multiple = stacked (e.g. *--n-hidden 128 256*). $N_I = N_E / 4$ per layer. |
 | *--n-input N* | *N_E* | Number of input neurons. |
 | *--ei-strength S* | 0.5 | E-I coupling: sets $W_{EI} = s$, $W_{IE} = s \cdot \text{ratio}$. |
@@ -58,7 +60,10 @@ These are on the shared parent parser and apply to every subcommand.
 | *--dales-law* / *--no-dales-law* | on | Clamp weights to non-negative (default) or allow signed weights (*standard-snn* / *cuba* only). |
 | *--rec-layers L ...* | all when *--w-rec* set | Which hidden layers (1-indexed) get recurrence. |
 | *--ei-layers L ...* | all | Which hidden layers (1-indexed) get E-I structure (PING only). |
-| *--surrogate-slope β* | 1.0 | Fast-sigmoid surrogate-gradient slope. Larger = narrower active window. Cramer et al. SHD RSNNs use 40. Applies to *SurrogateSpike* and snnTorch's *fast_sigmoid*. |
+| *--surrogate-slope β* | 5.0 (*models.SURROGATE_SLOPE*) | Fast-sigmoid surrogate-gradient slope. Larger = narrower active window. Cramer et al. SHD RSNNs use 40. Applies to *SurrogateSpike* (*cuba* / *standard-snn* / *ping*) and snnTorch's *fast_sigmoid* (*snntorch-library*). |
+| *--grad-clip X* | 1.0 (*models.GRAD_CLIP*) | Global-norm gradient-clip threshold passed to *torch.nn.utils.clip_grad_norm\_*. Shared across every mode that runs a backward pass. Set high (e.g. 100+) to let Adam's preconditioner handle wildly-scaled BPTT gradients. |
+| *--tau-mem* τ | 10 ms (*models.tau_snn*) | Membrane time constant. Cramer et al. SHD: 20 ms. |
+| *--tau-syn* τ | 2 ms (*models.tau_ampa*) | Synaptic time constant for exponential-synapse models (e.g. *cuba-exp*). Cramer et al. SHD: 10 ms. Ignored when *exponential_synapse=False*. |
 | *--device* | auto (cuda > mps > cpu) | Compute device: *cpu* / *mps* / *cuda*. |
 
 ## Input flags (shared)
@@ -165,7 +170,6 @@ Surrogate-gradient BPTT. See [Training](/training/) for loss, encoding, and BPTT
 | *--max-samples N* | — | Limit dataset to N samples (smoke-test). |
 | *--adaptive-lr* | off | Enable *ReduceLROnPlateau* (factor 0.5, patience 5). |
 | *--early-stopping N* | — | Stop after N epochs without improvement. |
-| *--grad-clip X* | 1.0 | Global gradient-norm clip passed to *clip_grad_norm_*. Overrides *models.GRAD_CLIP*. |
 | *--skip-bad-grad-threshold X* | — | Skip the optimizer step (and zero grads) whenever the clipped gradient norm is NaN, inf, or exceeds X. Band-aid against single exploded batches poisoning Adam's second-moment estimate; prefer *--optimizer adamax* as the principled fix. |
 | *--v-grad-dampen S* | 80.0 | Gradient dampening for the COBA membrane. |
 | *--observe* | — | Save oscilloscope per epoch: *video* (MP4) or *images* (one PNG per epoch). |
@@ -203,7 +207,9 @@ The oscilloscope figure is a grid of panels assembled from a catalog — [*heade
 | *dataset* | *full* + *digit_image* | single-image dataset probe |
 | *dataset_video* | *video* + *digit_image* | digit/dataset scan |
 | *sweep_video* | rasters + PSD + per-frame *sweep_rates* / *sweep_f0* panels | long parameter sweeps with trend panels |
-| *train* | *full* + *acc_curve*, *grad_flow*, *rate_curve* | one frame per epoch during *train --observe video* |
+| *train* | *full* + *digit_image*, *acc_curve*, *grad_flow*, *rate_curve* | one frame per epoch during *train --observe video* |
+| *compact* | *header*, *e_raster*, *i_raster*, *psd* | minimal diagnostic strip |
+| *minimal* | *header*, *e_raster* | raster-only snapshot |
 
 Pass *--panels* with a comma-separated list to override any preset — useful when you want a minimal raster-only snapshot.
 
@@ -216,7 +222,7 @@ Pass *--panels* with a comma-separated list to override any preset — useful wh
 | *rate* (default) | Accumulate last-hidden spike counts across all timesteps, one linear projection $W_\text{out}\cdot\sum_t s_t + b_\text{out}$ at the final step. | Default ladder decoder, matched across models. No temporal structure in the decoder — the hidden dynamics carry all the temporal work. |
 | *li* | Non-spiking leaky integrator per class: $v_\text{out} \leftarrow \beta\,v_\text{out} + (1-\beta)(W_\text{out}\cdot s_t + b_\text{out})$, logits are $\max_t v_\text{out}$. | Field-standard SHD readout (Zenke-style). Makes the decoder itself temporal — useful when the classification signal is localised in time rather than cumulative. |
 
-Both use the same $W_\text{out}, b_\text{out}$ shape so the learnable parameter count is identical; only the reduction over time differs. The *li* path currently reuses $\tau_\text{mem}$ as its time constant — see [notebook 004](/notebooks/nb004/) for how this interacts with init scaling.
+Both use the same $W_\text{out}, b_\text{out}$ shape so the learnable parameter count is identical; only the reduction over time differs. The *li* path currently reuses $\tau_\text{mem}$ as its time constant — see [notebook 004](/notebooks/nb011/) for how this interacts with init scaling.
 
 ## Reproducibility
 
@@ -226,7 +232,7 @@ Both use the same $W_\text{out}, b_\text{out}$ shape so the learnable parameter 
 
 Any oscilloscope subcommand can run on [Modal.com](https://modal.com) serverless compute by adding *--modal --modal-gpu {none, T4, L4, A10G, A100, H100}* — *none* runs on Modal CPU, the others pick the listed GPU. Local output paths resolve the same way on either side; the wrapper syncs the Modal volume back to *src/artifacts/* when the job finishes.
 
-Every notebook runner under *src/pinglab/notebooks/* forwards a top-level *--modal-gpu* argument through to the oscilloscope invocations it makes, so an entire notebook entry (e.g. *uv run src/pinglab/notebooks/nb004.py --modal-gpu T4*) dispatches to Modal with one flag. Omit the flag and the run stays local.
+Every notebook runner under *src/pinglab/notebooks/* forwards a top-level *--modal-gpu* argument through to the oscilloscope invocations it makes, so an entire notebook entry (e.g. *uv run src/pinglab/notebooks/nb011.py --modal-gpu T4*) dispatches to Modal with one flag. Omit the flag and the run stays local.
 
 ## Where things live in the source
 
@@ -237,3 +243,29 @@ Every notebook runner under *src/pinglab/notebooks/* forwards a top-level *--mod
 - *config.py* — shared defaults and the *Config* / *patch_dt* plumbing that keeps *dt*-invariant quantities invariant when *--dt* changes.
 
 Notebook runners under *src/pinglab/notebooks/* invoke *oscilloscope.py* internally — they are the promotion gate from raw artifacts into *src/docs/public/figures/notebooks/&lt;slug&gt;/*. See [Introduction § Notebook](/introduction/#notebook) for the entry/runner pairing.
+
+## Appendix
+
+### Keeping this page in sync with the code
+
+This page is a hand-written reference — nothing regenerates it — so it drifts whenever *oscilloscope.py* or its neighbours grow a new flag, subcommand, panel, preset, or readout. The refresh is done by Claude Code on demand; the procedure below is the checklist it follows.
+
+### When to refresh
+
+Trigger a refresh whenever any of these change:
+
+- *src/pinglab/oscilloscope.py* — new subcommand, renamed/removed flag, changed default, new scan axis.
+- *src/pinglab/plot.py* — new panel key, renamed panel, new layout preset.
+- *src/pinglab/models.py* — new model family exposed via *--model*.
+- *src/pinglab/inputs.py* — new drive generator or encoder exposed via *--input* / *--dataset*.
+- *src/pinglab/config.py* — new field on *Config* or new *dt*-invariant quantity threaded through *patch_dt*.
+
+A quick signal: *git log --since="<last-updated date>" -- src/pinglab/oscilloscope.py src/pinglab/plot.py src/pinglab/models.py src/pinglab/inputs.py src/pinglab/config.py* returning anything means this page is potentially stale.
+
+### Refresh procedure (for Claude Code)
+
+1. Read the five source files listed above end-to-end — do not skim. The truth is the argparse block in *oscilloscope.py* and the panel/preset tables in *plot.py*.
+2. For every table on this page (subcommands, run-directory flags, network flags, input flags, weights, output, execution, train, infer, panels, presets, readouts), diff it against the code and update rows in place — add new ones, delete removed ones, correct defaults and units.
+3. Preserve the conventions declared in *src/docs/src/pages/styleguide.md*: no backtick inline code, italics for identifiers/flags, 16:9 for any new figures, math in *$…$*.
+4. Update the **Last updated** line above with today's date and the short SHA of *HEAD* at the time of the refresh (*git rev-parse --short HEAD*).
+5. Commit on the current branch with a message like *docs: refresh the-oscilloscope reference against &lt;sha&gt;* and stop — do not open a PR unless asked.
