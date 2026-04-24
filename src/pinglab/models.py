@@ -435,53 +435,55 @@ class CUBANet(SNNBase):
         state = self._init_hidden_state(cfg)
         readout = self._init_readout_state(cfg)
 
-        # Lazy-init a compiled time loop on CUDA — that's where the launch
-        # overhead we care about lives. MPS/CPU stay eager: compile there
-        # pays a multi-second trace cost per instance with no runtime win,
-        # which makes the test suite and notebook warmup painful. Stored in
-        # a dict so nn.Module.__setattr__ doesn't register it as a submodule.
-        if cfg["device"].type == "cuda":
-            if "loop" not in self._compiled_cache:
-                self._compiled_cache["loop"] = torch.compile(
-                    self._forward_loop, dynamic=False)
-            self._compiled_cache["loop"](cfg, state, readout)
-        else:
-            self._forward_loop(cfg, state, readout)
+        # Lazy-init a compiled per-timestep body on CUDA. Compile granularity
+        # matters: Dynamo unrolls Python for-loops, so compiling the full
+        # T_steps loop produced a ~2000-deep graph that took ~7 min to trace
+        # and Inductor-lower. Compiling one timestep instead traces a small
+        # graph once and the outer Python loop reuses it T_steps times.
+        # MPS/CPU stay eager (compile there pays trace cost for no fuse win).
+        if cfg["device"].type == "cuda" and "step" not in self._compiled_cache:
+            self._compiled_cache["step"] = torch.compile(
+                self._step_body, dynamic=False)
+
+        self._forward_loop(cfg, state, readout)
 
         self._finalise_meta(cfg, readout, state)
         return (readout["logits_max"] if self.readout_mode == "li"
                 else readout["logits_t"])
 
     def _forward_loop(self, cfg, state, readout):
-        """Inner time loop — the compile target.
+        """Eager outer time loop; dispatches to compiled step body on CUDA."""
+        step = self._compiled_cache.get("step", self._step_body)
+        for t in range(T_steps):
+            step(t, cfg, state, readout)
+
+    def _step_body(self, t, cfg, state, readout):
+        """One timestep: all hidden layers + readout. The compile target.
 
         Mutates cfg["rec_buf"], cfg["n_spk_tensors"], state, readout in place.
-        Kept separate from forward() so the trailing .item()/attribute-write
-        metadata step stays outside the compiled graph.
         """
-        for t in range(T_steps):
-            prev_spk = None
-            for i in range(self.n_layers):
-                drive, spike_kick, spk_t = self._compute_layer_drive(
-                    i, t, prev_spk, state, cfg)
-                if spk_t is not None and cfg["rec_buf"] is not None \
-                        and "input" in cfg["rec_buf"]:
-                    cfg["rec_buf"]["input"][t] = spk_t
+        prev_spk = None
+        for i in range(self.n_layers):
+            drive, spike_kick, spk_t = self._compute_layer_drive(
+                i, t, prev_spk, state, cfg)
+            if spk_t is not None and cfg["rec_buf"] is not None \
+                    and "input" in cfg["rec_buf"]:
+                cfg["rec_buf"]["input"][t] = spk_t
 
-                if self.exponential_synapse:
-                    if spike_kick is None:
-                        raise RuntimeError(
-                            "input_drive_all precomputed but exp_synapse is on")
-                    state["g_exps"][i] = (state["g_exps"][i] * decay_ampa
-                                           + spike_kick)
-                    drive = ((1.0 - cfg["beta"]) * state["g_exps"][i]
-                             + cfg["bias_scale"] * cfg["b_ff"][i])
+            if self.exponential_synapse:
+                if spike_kick is None:
+                    raise RuntimeError(
+                        "input_drive_all precomputed but exp_synapse is on")
+                state["g_exps"][i] = (state["g_exps"][i] * decay_ampa
+                                       + spike_kick)
+                drive = ((1.0 - cfg["beta"]) * state["g_exps"][i]
+                         + cfg["bias_scale"] * cfg["b_ff"][i])
 
-                s = self._hidden_lif_step(i, drive, state, cfg)
-                prev_spk = s
-                self._record_hidden(i, t, s, cfg)
+            s = self._hidden_lif_step(i, drive, state, cfg)
+            prev_spk = s
+            self._record_hidden(i, t, s, cfg)
 
-            self._readout_step(t, prev_spk, readout, cfg)
+        self._readout_step(t, prev_spk, readout, cfg)
 
     # -- forward helpers ---------------------------------------------------
 
