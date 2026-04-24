@@ -47,25 +47,7 @@ uv run src/pinglab/notebooks/nb005.py
 
 Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
 
-## Results
-
-<RunParameters numbers={numbers} variant="results" />
-
-At the **large** [tier](/the-notebooks/#cli) ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) the recipe reaches best-acc {cell.best_acc ?? "?"}% / final {cell.final_acc ?? "?"}% with no late-epoch collapse and hidden rate back inside the 1–200 Hz band — all six gate criteria pass. The intermediate **medium** tier (2000 × 10) had scraped to ~80% but overshot the rate ceiling at 205 Hz; the extra 30 epochs at the same $\eta$ let the readout pull the hidden population back down to ~125 Hz without losing accuracy, so the rate drift was a short-run transient rather than the recipe being genuinely unstable.
-
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for standard-snn">
-  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
-</Figure>
-
-<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb005/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for standard-snn">
-  Mean hidden firing rate across the training schedule.
-</Figure>
-
-<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb005/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the standard-snn hidden layer">
-  Per-epoch snapshot of the reference MNIST trial through *standard-snn*'s hidden layer.
-</Figure>
-
-## Success criteria
+### Success criteria
 
 {successCriteria.length > 0 ? (
   <table>
@@ -83,6 +65,24 @@ At the **large** [tier](/the-notebooks/#cli) ({cfg.max_samples ?? "?"} samples �
 ) : (
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
+
+## Results
+
+<RunParameters numbers={numbers} variant="results" />
+
+At the **large** [tier](/the-notebooks/#cli) ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) the recipe reaches best-acc {cell.best_acc ?? "?"}% / final {cell.final_acc ?? "?"}% with no late-epoch collapse and hidden rate back inside the 1–200 Hz band — all six gate criteria pass. The intermediate **medium** tier (2000 × 10) had scraped to ~80% but overshot the rate ceiling at 205 Hz; the extra 30 epochs at the same $\eta$ let the readout pull the hidden population back down to ~125 Hz without losing accuracy, so the rate drift was a short-run transient rather than the recipe being genuinely unstable.
+
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for standard-snn">
+  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
+</Figure>
+
+<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb005/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for standard-snn">
+  Mean hidden firing rate across the training schedule.
+</Figure>
+
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb005/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the standard-snn hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *standard-snn*'s hidden layer.
+</Figure>
 
 ## Next steps
 
