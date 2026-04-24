@@ -1,121 +1,57 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "011 — shd"
-date: 2026-04-22
-entry: 11
+title: "004 — ping e→i coupling video"
+date: 2026-04-23
+entry: 4
 structure: paper
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb004/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
-export const cell = numbers.winner ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
-export const runFinished = numbers.run_finished_at ?? "?";
-export const gitSha = numbers.git_sha ?? null;
+export const runDuration = numbers.duration ?? "?";
+export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?" };
+export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?", input_rate_hz: "?", w_in_overdrive: "?" };
+export const r = {
+  pre: numbers.rates_hz?.pre ?? {},
+  stim: numbers.rates_hz?.stim ?? {},
+  post: numbers.rates_hz?.post ?? {},
+};
+export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
+export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
-## Introduction
+External drive is one knob ([nb002](/notebooks/nb002/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength from {scan.min} to {scan.max} — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes. Input rate and $W_\text{in}$ are bumped relative to nb002 / nb003 so E has enough baseline drive to recruit I at all without a stim pulse.
 
-Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/spiking-heidelberg-datasets-shd/) dataset, introduced by Cramer et al. ([*cramer-et-al*](/references/#spiking-mnist--benchmarks)) for systematic SNN benchmarking — 20 classes of spoken digits (English + German) encoded as cochleogram spike trains over 700 input channels and $\sim$1 s per trial. SHD is natively event-based, so the dt / discretisation / encoding questions the earlier notebooks studied apply directly rather than being mediated by an artificial row-by-row encoding of an image dataset.
+<Figure type="video" id="Figure 1" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb004/scan_ei.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ overdrive {scan.w_in_overdrive}×.
 
-## Method
-
-<Figure id="Figure 0" title="SHD at a glance — one example per class" src="/figures/notebooks/nb004/shd_digits.png" alt="Spike rasters for one trial from each of the 20 SHD classes, arranged as a 4×5 grid">
-  One cochleogram spike raster per class, sampled from the train set (seed {cfg.seed ?? "?"}). Classes 0–9 are the English digits *zero*–*nine*; classes 10–19 are the German *null*–*neun*. Each panel is 700 channels × {cfg.t_ms ?? "?"} ms; density and temporal structure vary across speakers but the class-specific spectral signature is visible.
+  No PING until about E→I strength 1.6; then unstable onset of PING from 1.6 onwards.
 </Figure>
-
-[*cuba*](/models/#cuba) model with two hidden layers (128, 128), trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **rate** readout (cumulative last-hidden spike counts projected once at the final timestep). Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *init_scale_bias* fixed at $1/(1-\beta) \approx 10.5$ — the value derived in [nb003](/notebooks/nb003/) for depth-2 *cuba*.
-
-### Comparison to the literature
-
-Cramer et al. ([*cramer-et-al*](/references/#spiking-mnist--benchmarks)) set the reference SHD recipe that most subsequent work measures against: a current-based LIF with exponential synapse, LI (non-spiking) readout, full-BPTT with a fast-sigmoid surrogate, and a two-sided firing-rate regulariser. Their headline numbers are 48.1–48.6% for 1–2 layer feedforward SNNs and 71.4% for the recurrent variant at matched capacity.
-
-This entry deliberately tracks that recipe component-by-component so the gap to the reference number is interpretable. Below are the features of their setup and whether this entry matches.
-
-**Matching**
-
-| Feature | Cramer et al. | This entry |
-|---|---|---|
-| Neuron | current-based LIF (cuba) | *cuba-exp* |
-| Synapse | exponential low-pass on spikes | exponential low-pass on spikes |
-| $\tau_\text{mem}$ | 20 ms | 20 ms |
-| $\tau_\text{syn}$ | 10 ms | 10 ms |
-| Trial length $T$ | 1 s | {cfg.t_ms ?? "?"} ms |
-| Timestep $dt$ | 2 ms | {cfg.dt ?? "?"} ms |
-| Hidden width | 128 | 128 |
-| Readout | LI (non-spiking leaky integrator) | LI |
-| Input channels | 700 cochleogram | 700 cochleogram |
-| Batch size | 256 | 256 |
-| Learning rate | $10^{-3}$ | $10^{-3}$ |
-| Surrogate | fast-sigmoid | fast-sigmoid |
-| Firing-rate regulariser | two-sided, $\theta_l{=}0.01$, $s_l{=}1.0$, $\theta_u{=}100$, $s_u{=}0.06$ | same |
-| BPTT | full | full |
-
-**Not matching**
-
-| Feature | Cramer et al. | This entry | Notes |
-|---|---|---|---|
-| Architecture | recurrent (hidden→hidden) for the 71.4% row, feedforward for the 48% rows | feedforward only (*W_rec* = 0) | we're targeting the 48% feedforward band first; recurrence is the next step |
-| Hidden depth | 1 layer for the 48.1% row, 2 layers for 48.6% | 1 layer | width $\times$ depth budget not yet swept |
-| Epochs | 150 | {cfg.epochs ?? "?"} | our **{numbers.tier ?? "?"}** tier is much shorter for iteration speed |
-| Training samples | full SHD (8156 train) | {cfg.max_samples ?? "?"} | subsampled per tier; *huge* tier will restore full-set |
-| Surrogate slope $\beta$ | 40 | 10 | $\beta{=}40$ × 500-step BPTT explodes gradients in our current config; we'll revisit once a stable backbone is established |
-| Optimizer | Adamax | Adam | not yet wired as an oscilloscope flag |
-| Weight init | Kaiming uniform, $k{=}1/\text{fan-in}$ | Kaiming uniform, $k{=}2/\text{fan-in}$ (PyTorch default) | factor-2 difference in init scale |
-| Data augmentation | none for the 71.4% row; time-jitter/channel-shift for 83.2% | none | out of scope until the recurrent-SNN number is reproduced |
-
-Cramer's reference numbers (for context):
-
-| Architecture | SHD test acc (%) |
-|---|---|
-| Spiking, 1-layer feedforward | 48.1 ± 1.6 |
-| Spiking, 2-layer feedforward | 48.6 ± 0.9 |
-| Spiking, 3-layer feedforward | 47.5 ± 2.3 |
-| Spiking, recurrent | 71.4 ± 1.9 |
-| Spiking, recurrent (best effort, 1024 neurons + augmentation) | 83.2 ± 1.3 |
-| SVM (RBF) | 60.0 ± 0.3 |
-| LSTM | 89.0 ± 0.2 |
-| CNN | 92.4 ± 0.7 |
-
-## Results
-
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb004/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba baseline">
-  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%.
-</Figure>
-
-<Figure id="Figure 2" title="Per-epoch hidden activity" src="/figures/notebooks/nb004/training_cuba-exp.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the cuba baseline on SHD">
-  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layers ($\eta$ = {cell.lr ?? "?"}, *init_scale_weight* = {cell.isw ?? "?"}, *rate* readout).
-</Figure>
-
-## Discussion
-
-*To be written once results are analysed.*
 
 ## Success criteria
 
-- **SHD pipeline trains end-to-end** on 700-channel cochleogram input at the **{numbers.tier ?? "?"}** tier without NaN / collapse.
-- **Above chance**. Test accuracy materially above the 5% floor (20 classes).
-- **Matches the feedforward-SNN reference**. Best accuracy lands inside Cramer et al.'s 47.5–48.6% feedforward-SNN band.
-
-## Next steps
-
-**Align the cuba-exp update with Zenke's canonical SHD form.** The canonical SHD baseline (Zenke's Spytorch Tutorial 4, which Cramer et al. 2022 cite) uses
-
-$$
-\text{syn}_{t+1} = \alpha\,\text{syn}_t + W\!\cdot z_t, \qquad \text{mem}_{t+1} = \beta\,\text{mem}_t + \text{syn}_{t+1}
-$$
-
-with a bare weight init $W \sim \mathcal{N}(0, 0.2/\sqrt{N_\text{in}})$ — no $(1-\alpha)$ or $(1-\beta)$ factor on the drive. Our cuba-exp uses the dt-invariant low-pass form $\beta\,\text{mem} + (1-\beta)\,\text{drive}$, which forces a compensation multiplier on the init ($isw$, $isb$) to match Zenke's per-spike kick. The compensation is currently tuned to 6 × Kaiming, empirically sitting in the stable-but-undermatched middle; attempts to push slope past 5 blow up in ways Zenke's form does not.
-
-The cleanest path to the Cramer 47–49% feedforward band — and the only way to run at $\beta = 40$ like Cramer — is to match Zenke's update *form* directly, not to keep bisecting $isw$. Concretely: add a `--cuba-update-form {low-pass, direct}` flag on the oscilloscope, use `direct` ($\beta\,\text{mem} + \text{drive}$, $\alpha\,\text{syn} + W\!\cdot z$) for nb004, and initialise $W$ with weight_scale = 0.2 directly — not the Kaiming × compensation stack.
-
-**Re-enable recurrence.** The 71% RSNN target requires $W_\text{rec} \neq 0$. Feedforward $W_\text{rec} = 0$ with slope = 5 + adamax is stable; under the direct update form above, restoring $W_\text{rec} \sim \mathcal{N}(0, 0.2/\sqrt{N_\text{hidden}})$ should match Zenke's `v1`.
-
-**Remove the grad-skip band-aid.** Adamax reduces skipped batches from ~440 to ~3 across a 69-epoch run; the `--skip-bad-grad-threshold 1e4` flag is no longer load-bearing. Already dropped from the recipe.
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
 
 ## Appendix
 
@@ -125,25 +61,40 @@ The cleanest path to the Cramer 47–49% feedforward band — and the only way t
 uv run src/pinglab/notebooks/nb004.py
 ```
 
-Add `--tier small` for a faster pass.
-
 ### Run parameters
 
-| Parameter | Value |
-|---|---|
-| Dataset | {cfg.dataset ?? "?"} |
-| Model | {cfg.model ?? "?"} |
-| Readout | rate |
-| Hidden | \{{(cfg.hidden ?? []).join(", ")}\} |
-| Samples × Epochs | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} |
-| T | {cfg.t_ms ?? "?"} ms |
-| dt | {cfg.dt ?? "?"} ms |
-| Seed | {cfg.seed ?? "?"} |
-| Tier | **{numbers.tier ?? "?"}** — see [Style guide § 9 Run sizing tiers](/styleguide/#9-run-sizing-tiers) |
-| $\eta$ / isw | {cell.lr ?? "?"} / {cell.isw ?? "?"} |
-| Best acc / Final acc | {cell.best_acc ?? "?"}% / {cell.final_acc ?? "?"}% |
-| Final loss | {cell.final_loss?.toFixed?.(4) ?? "?"} |
-| Run ID | <span class="font-mono">{nbRunId}</span> |
-| Git SHA | <span class="font-mono">{gitSha ?? "?"}</span> |
-| Elapsed | {numbers.duration ?? "?"} |
-| Finished | {runFinished} |
+<RunParameters numbers={numbers} groups={[
+  {
+    title: "Setup",
+    rows: [
+      { label: "Model", value: cfg.model ?? "?" },
+      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample} @ ${scan.input_rate_hz} Hz` },
+      { label: "W_in overdrive", value: `${scan.w_in_overdrive}×` },
+      { label: "Seed", value: cfg.seed ?? "?" },
+    ],
+  },
+  {
+    title: "Architecture",
+    rows: [
+      { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
+      { label: "dt / T", value: `${cfg.dt_ms} / ${cfg.sim_ms} ms` },
+    ],
+  },
+  {
+    title: "Stimulus & scan",
+    rows: [
+      { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
+      { label: "Fixed overdrive", value: `${scan.fixed_overdrive}×` },
+      { label: "E→I strength scan", value: `${scan.min}–${scan.max}` },
+      { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
+    ],
+  },
+]} />
+
+### Population rates (canonical ei = {numbers.canonical_ei ?? "?"})
+
+| Window | E (Hz) | I (Hz) |
+|---|---|---|
+| Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
+| In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
+| Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |

@@ -1,6 +1,6 @@
 """Shared orchestration for single-scan PING-video notebooks.
 
-Each scan runner (nb002 stim-overdrive, nb010 dt, nb011 ei-strength)
+Each scan runner (nb002 stim-overdrive, nb003 dt, nb004 ei-strength)
 hands `run_scan` a ScanSpec and gets back the full notebook pipeline:
 per-tier frame counts, oscilloscope-video dispatch, run-id stamping,
 numbers.json, duration bookkeeping. Canonical-overdrive population-rate
@@ -70,6 +70,9 @@ class ScanSpec:
     config_payload: dict = field(default_factory=dict)
     # Optional hook: (tier, notebook_run_id) -> dict merged into numbers.json.
     extras_fn: Callable[[str, str], dict] | None = None
+    # Optional hook: (figures_dir, summary) -> list[{label, passed, detail, detail_href?}].
+    # Runs after extras_fn, so criteria can read the just-written numbers.
+    criteria_fn: Callable[[Path, dict], list[dict]] | None = None
 
 
 def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
@@ -120,6 +123,7 @@ def _render_video(spec: ScanSpec, out_dir: Path, frames: int,
         "run", "python", str(OSCILLOSCOPE), "video",
         "--model", "ping",
         "--n-hidden", str(N_HIDDEN),
+        "--t-ms", str(SIM_MS),
         *dataset_args(),
         "--scan-var", spec.scan_var,
         "--scan-min", str(spec.scan_min),
@@ -138,9 +142,38 @@ def _render_video(spec: ScanSpec, out_dir: Path, frames: int,
     return mp4
 
 
+def _print_and_gate(success_criteria: list[dict]) -> None:
+    """Print a [pass]/[FAIL] line per criterion; exit 1 if any failed."""
+    for c in success_criteria:
+        mark = "pass" if c["passed"] else "FAIL"
+        print(f"  [{mark}] {c['label']} — {c['detail']}")
+    if any(not c["passed"] for c in success_criteria):
+        sys.exit(1)
+
+
+def _evaluate_only(spec: ScanSpec) -> None:
+    """Re-run only the success-criteria check against the existing
+    numbers.json + published figures. No pipeline dispatch, no wipe."""
+    if spec.criteria_fn is None:
+        raise SystemExit(f"{spec.slug}: no criteria_fn registered on ScanSpec")
+    figures = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / spec.slug
+    numbers_path = figures / "numbers.json"
+    if not numbers_path.exists():
+        raise SystemExit(f"--evaluate-success-only requires existing "
+                         f"{numbers_path.relative_to(REPO)}")
+    summary = json.loads(numbers_path.read_text())
+    summary["success_criteria"] = spec.criteria_fn(figures, summary)
+    numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"rewrote {numbers_path.relative_to(REPO)} (success_criteria only)")
+    _print_and_gate(summary["success_criteria"])
+
+
 def run_scan(spec: ScanSpec) -> dict:
     """Run the scan end-to-end: parse CLI, dispatch oscilloscope video,
     overlay stamp, write numbers.json. Returns the summary dict."""
+    if "--evaluate-success-only" in sys.argv:
+        _evaluate_only(spec)
+        return {}
     artifacts = REPO / "src" / "artifacts" / "notebooks" / spec.slug
     figures = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / spec.slug
 
@@ -203,8 +236,13 @@ def run_scan(spec: ScanSpec) -> dict:
     if spec.extras_fn is not None:
         summary.update(spec.extras_fn(tier, notebook_run_id))
 
+    if spec.criteria_fn is not None:
+        summary["success_criteria"] = spec.criteria_fn(figures, summary)
+
     out_path = figures / "numbers.json"
     out_path.write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {out_path.relative_to(REPO)}")
     print(f"  total duration: {summary['duration']}")
+    if "success_criteria" in summary:
+        _print_and_gate(summary["success_criteria"])
     return summary

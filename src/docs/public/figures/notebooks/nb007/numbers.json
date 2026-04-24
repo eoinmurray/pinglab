@@ -1,0 +1,66 @@
+{
+  "notebook_run_id": "r001",
+  "git_sha": "dd4d9db (dirty)",
+  "duration_s": 33.9,
+  "duration": "34s",
+  "tier": "small",
+  "config": {
+    "tier": "small",
+    "dataset": "mnist",
+    "model": "cuba",
+    "max_samples": 500,
+    "epochs": 5,
+    "t_ms": 200.0,
+    "dt": 0.1,
+    "n_hidden": 1024,
+    "batch_size": 64,
+    "seed": 42
+  },
+  "run": {
+    "model": "cuba",
+    "run_date": "Thursday, April 23 2026 at 20:13",
+    "run_id": "r-20260423-201313",
+    "git_sha": "dd4d9db (dirty)",
+    "lr": 0.01,
+    "best_acc": 19.0,
+    "best_epoch": 5,
+    "final_acc": 19.0,
+    "final_loss": 2.365811654499599,
+    "total_elapsed_s": 29.831492125056684
+  },
+  "success_criteria": [
+    {
+      "label": "training curves rendered",
+      "passed": true,
+      "detail": "training_curves.png (63803 bytes)",
+      "detail_href": "/figures/notebooks/nb007/training_curves.png"
+    },
+    {
+      "label": "firing-rate trace rendered",
+      "passed": true,
+      "detail": "firing_rates.png (43981 bytes)",
+      "detail_href": "/figures/notebooks/nb007/firing_rates.png"
+    },
+    {
+      "label": "training video rendered",
+      "passed": true,
+      "detail": "training.mp4 (395647 bytes)",
+      "detail_href": "/figures/notebooks/nb007/training.mp4"
+    },
+    {
+      "label": "hidden rate in band (1.0\u2013200.0 Hz)",
+      "passed": true,
+      "detail": "rate_e=71.73 Hz"
+    },
+    {
+      "label": "final acc \u2265 30.0% (small tier floor)",
+      "passed": false,
+      "detail": "final=19.00%, best=19.00%"
+    },
+    {
+      "label": "no collapse (final \u2265 best \u2212 5pp)",
+      "passed": true,
+      "detail": "final=19.00%, best=19.00%, \u0394=0.00pp"
+    }
+  ]
+}

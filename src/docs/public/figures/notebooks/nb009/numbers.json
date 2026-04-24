@@ -1,0 +1,71 @@
+{
+  "notebook_run_id": "r001",
+  "git_sha": "dd4d9db (dirty)",
+  "duration_s": 92.5,
+  "duration": "1m 32s",
+  "tier": "small",
+  "config": {
+    "tier": "small",
+    "dataset": "mnist",
+    "model": "ping",
+    "max_samples": 500,
+    "epochs": 5,
+    "t_ms": 200.0,
+    "dt": 0.1,
+    "n_hidden": 1024,
+    "batch_size": 64,
+    "seed": 42
+  },
+  "run": {
+    "model": "ping",
+    "run_date": "Thursday, April 23 2026 at 20:19",
+    "run_id": "r-20260423-201807",
+    "git_sha": "dd4d9db (dirty)",
+    "lr": 0.0001,
+    "best_acc": 71.0,
+    "best_epoch": 5,
+    "final_acc": 71.0,
+    "final_loss": 1.3439876692635673,
+    "total_elapsed_s": 84.33428429206833
+  },
+  "success_criteria": [
+    {
+      "label": "training curves rendered",
+      "passed": true,
+      "detail": "training_curves.png (62967 bytes)",
+      "detail_href": "/figures/notebooks/nb009/training_curves.png"
+    },
+    {
+      "label": "firing-rate trace rendered",
+      "passed": true,
+      "detail": "firing_rates.png (43246 bytes)",
+      "detail_href": "/figures/notebooks/nb009/firing_rates.png"
+    },
+    {
+      "label": "training video rendered",
+      "passed": true,
+      "detail": "training.mp4 (195706 bytes)",
+      "detail_href": "/figures/notebooks/nb009/training.mp4"
+    },
+    {
+      "label": "hidden rate in band (1.0\u2013200.0 Hz)",
+      "passed": true,
+      "detail": "rate_e=19.41 Hz"
+    },
+    {
+      "label": "final acc \u2265 30.0% (small tier floor)",
+      "passed": true,
+      "detail": "final=71.00%, best=71.00%"
+    },
+    {
+      "label": "no collapse (final \u2265 best \u2212 5pp)",
+      "passed": true,
+      "detail": "final=71.00%, best=71.00%, \u0394=0.00pp"
+    },
+    {
+      "label": "PING forms (rate_i \u2265 1 Hz at final epoch)",
+      "passed": false,
+      "detail": "rate_e=19.41 Hz, rate_i=0.00 Hz"
+    }
+  ]
+}

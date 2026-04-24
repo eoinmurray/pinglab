@@ -7,6 +7,7 @@ structure: paper
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb002/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -21,16 +22,36 @@ export const runDuration = numbers.duration ?? "?";
 export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?", base_rate_hz: "?" };
 export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?" };
 export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
+export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
-**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz. It only runs when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold video — companion scans live in [nb010](/notebooks/nb010/) (integration step) and [nb011](/notebooks/nb011/) (E→I coupling strength).
+**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz. It only runs when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold video — companion scans live in [nb003](/notebooks/nb003/) (integration step) and [nb004](/notebooks/nb004/) (E→I coupling strength).
 
 <Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/nb002/scan_overdrive.mp4">
   Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
 
   Three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
 </Figure>
+
+## Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
 
 ## Appendix
 
@@ -44,19 +65,31 @@ uv run src/pinglab/notebooks/nb002.py
 
 ### Run parameters
 
-| Parameter | Value | Meaning |
-|---|---|---|
-| Model | {cfg.model} | E + I populations, conductance-based synapses |
-| N_E / N_I | {cfg.n_e} / {cfg.n_i} | excitatory / inhibitory neuron count |
-| dt / T | {cfg.dt_ms} / {cfg.sim_ms} ms | step / total time per frame |
-| Stim window | {cfg.step_on_ms}–{cfg.step_off_ms} ms | input rate × overdrive inside this interval |
-| Input | {input.dataset} d{input.digit} s{input.sample} | Poisson-encoded pixels, {input.base_rate_hz} Hz max |
-| Overdrive scan | {scan.min}×–{scan.max}× | *scan_overdrive.mp4* |
-| Frames / FPS | {scan.frames} / {scan.fps} | |
-| Seed | {cfg.seed} | RNG seed |
-| Tier | **{numbers.tier ?? "?"}** | see [Style guide § 10 Run sizing tiers](/styleguide/#10-run-sizing-tiers) |
-| Run ID | <span class="font-mono">{nbRunId}</span> | |
-| Elapsed | {runDuration} | |
+<RunParameters numbers={numbers} groups={[
+  {
+    title: "Setup",
+    rows: [
+      { label: "Model", value: cfg.model ?? "?" },
+      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample} @ ${input.base_rate_hz} Hz max` },
+      { label: "Seed", value: cfg.seed ?? "?" },
+    ],
+  },
+  {
+    title: "Architecture",
+    rows: [
+      { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
+      { label: "dt / T", value: `${cfg.dt_ms} / ${cfg.sim_ms} ms` },
+    ],
+  },
+  {
+    title: "Stimulus & scan",
+    rows: [
+      { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
+      { label: "Overdrive scan", value: `${scan.min}×–${scan.max}×` },
+      { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
+    ],
+  },
+]} />
 
 ### Population rates (canonical overdrive = {numbers.canonical_overdrive ?? "?"}×)
 
