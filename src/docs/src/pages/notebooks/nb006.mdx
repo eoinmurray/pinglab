@@ -39,6 +39,10 @@ The three customisations mirror [nb005](/notebooks/nb005/) verbatim — *snntorc
 - [**surrogate-slope = 1**](/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient. Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end; the *skipped_steps* counter goes from 7/7 to 0/7.
 - [**kaiming-init (signed)**](/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
 
+## Results
+
+<RunParameters numbers={numbers} variant="results" />
+
 ### Success criteria
 
 {successCriteria.length > 0 ? (
@@ -58,10 +62,6 @@ The three customisations mirror [nb005](/notebooks/nb005/) verbatim — *snntorc
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-## Results
-
-<RunParameters numbers={numbers} variant="results" />
-
 <Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb006/training_curves.png" alt="Train loss and test accuracy per epoch for snntorch-library">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
 </Figure>
@@ -76,9 +76,9 @@ The three customisations mirror [nb005](/notebooks/nb005/) verbatim — *snntorc
 
 ## Next steps
 
-Unlike [nb005](/notebooks/nb005/), the rate overshoot here grows with training (287 Hz at small → {cell.final_acc ? "616" : "?"} Hz at medium) rather than settling — so "run longer" won't close the sanity-band fail. The structural cause is the *nn.Linear* + upstream *Leaky* path lacking the tight readout/hidden-rate coupling CUBANet's signed-Kaiming *W_in* gives nb005; training rewards predictions, the li readout gets louder, the hidden population follows.
+Large-tier training pulls the hidden rate part-way back (peak ~705 Hz → ~390 Hz by epoch 40) while best accuracy tracks [nb005](/notebooks/nb005/) to within ~1pp — so acc calibration holds, but the rate sanity-band fail persists. The weight init is already matched bit-for-bit with nb005 via the shared Kaiming-uniform recipe in [*CUBANet*](/models/#standard-snn); the remaining gap comes from per-step drift between pinglab's LIF clone and *snn.Leaky* (bias fold, spike/reset ordering, surrogate attachment point) accumulated over 2000 × 40 timesteps of BPTT.
 
-The Cramer-2022 fix — two-sided firing-rate regulariser via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared) — penalises rate drift directly and is the right next knob. Rescaling *nn.Linear*'s init via [*--init-scale-weight*](/the-oscilloscope/#network-flags-shared) would fix the starting point but won't hold against this dynamic.
+A shared two-sided firing-rate regulariser across this notebook and [nb005](/notebooks/nb005/) — via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared), Cramer-2022 style — is parked for a follow-up. It would pin both paths into the 1–200 Hz band by training pressure rather than by step-code parity, closing the rate gap without turning the calibration pair into a re-import of the library's quirks.
 
 ## Appendix
 
