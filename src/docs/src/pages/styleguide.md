@@ -103,7 +103,7 @@ Every image and video in docs — notebook entry or background page — is rende
 ```mdx
 import Figure from "../../components/Figure.astro";
 
-<Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebooks/nb003/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
+<Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebooks/nb010/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
   Caption interpreting the figure. Self-contained — a reader scrolling to the image should understand what it shows without reading the surrounding prose.
 </Figure>
 ```

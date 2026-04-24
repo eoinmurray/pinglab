@@ -1,0 +1,77 @@
+{
+  "notebook_run_id": "r039",
+  "git_sha": "4d885d7 (dirty)",
+  "tier": "large",
+  "duration_s": 230.6,
+  "duration": "3m 51s",
+  "config": {
+    "model": "cuba-exp",
+    "dataset": "shd",
+    "hidden": [
+      128
+    ],
+    "t_ms": 1000.0,
+    "dt": 2.0,
+    "seed": 42,
+    "max_samples": 5000,
+    "epochs": 40
+  },
+  "cells": {
+    "cuba_baseline": {
+      "name": "cuba_baseline",
+      "model": "cuba-exp",
+      "lr": 0.001,
+      "isw": 6.0,
+      "isb": 10.508331944775044,
+      "hidden": [
+        128
+      ],
+      "readout": "li",
+      "best_acc": 33.9,
+      "final_acc": 33.9,
+      "final_loss": 0.43989625945687294,
+      "run_dir": "src/artifacts/notebooks/nb011/cuba_baseline"
+    }
+  },
+  "winner": {
+    "name": "cuba_baseline",
+    "model": "cuba-exp",
+    "lr": 0.001,
+    "isw": 6.0,
+    "isb": 10.508331944775044,
+    "hidden": [
+      128
+    ],
+    "readout": "li",
+    "best_acc": 33.9,
+    "final_acc": 33.9,
+    "final_loss": 0.43989625945687294,
+    "run_dir": "src/artifacts/notebooks/nb011/cuba_baseline"
+  },
+  "run_finished_at": "2026-04-23T07:06:21.460776Z",
+  "success_criteria": [
+    {
+      "label": "SHD dataset panel rendered",
+      "passed": true,
+      "detail": "shd_digits.png (140892 bytes)",
+      "detail_href": "/figures/notebooks/nb011/shd_digits.png"
+    },
+    {
+      "label": "training curves rendered",
+      "passed": true,
+      "detail": "training_curves.png (71687 bytes)",
+      "detail_href": "/figures/notebooks/nb011/training_curves.png"
+    },
+    {
+      "label": "training video rendered",
+      "passed": true,
+      "detail": "training_cuba-exp.mp4 (798907 bytes)",
+      "detail_href": "/figures/notebooks/nb011/training_cuba-exp.mp4"
+    },
+    {
+      "label": "training metrics present",
+      "passed": false,
+      "detail": "missing metrics.json"
+    }
+  ]
+}
