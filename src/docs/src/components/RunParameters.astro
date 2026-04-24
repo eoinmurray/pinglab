@@ -98,6 +98,7 @@ function buildTrainingSections(): Group[] {
       title: "Training recipe",
       rows: [
         { label: "Samples × Epochs", value: samplesEpochs, href: "/the-oscilloscope/#subcommand-train" },
+        { label: "Batch size", value: cfg.batch_size ?? run.batch_size ?? "?", default: 64, href: "/the-oscilloscope/#subcommand-train" },
         { label: "Learning rate (η)", value: run.lr ?? "?", default: 0.01, href: "/the-oscilloscope/#subcommand-train" },
         ...recipeExtras,
       ],
