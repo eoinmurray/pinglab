@@ -7,6 +7,7 @@ structure: paper
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb001/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -16,6 +17,7 @@ export const runDatetime = numbers.run_datetime ?? "?";
 export const runDuration = numbers.duration ?? "?";
 export const imageGlob = import.meta.glob("../../../public/figures/notebooks/nb001/scope_frame.png", { eager: true, query: "?url", import: "default" });
 export const hasFrame = Object.keys(imageGlob).length > 0;
+export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
@@ -41,6 +43,25 @@ The frame below is one 600 ms PING simulation on MNIST digit {cfg.input?.digit} 
 - **PSD** — power spectral density of the E-population rate, restricted to 5–200 Hz. The red vertical marker is the gamma peak frequency f₀.
 - **E Population Rate** — binned firing-rate trace of the E population over time (2 ms bins). The envelope that the PSD is computed from.
 
+## Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
 ## Appendix
 
 ### Reproduction
@@ -53,19 +74,31 @@ uv run src/pinglab/notebooks/nb001.py
 
 ### Run parameters
 
-| Parameter | Value |
-|---|---|
-| Model | {cfg.model ?? "?"} |
-| N_E / N_I | {cfg.n_e ?? "?"} / {cfg.n_i ?? "?"} |
-| dt / T | {cfg.dt_ms ?? "?"} / {cfg.sim_ms ?? "?"} ms |
-| Stim window | {cfg.step_on_ms ?? "?"}–{cfg.step_off_ms ?? "?"} ms |
-| Stim overdrive | {cfg.stim_overdrive ?? "?"}× |
-| Input rate | {cfg.input_rate_hz ?? "?"} Hz |
-| W-in overdrive | {cfg.w_in_overdrive ?? "?"}× |
-| E→I strength | {cfg.ei_strength ?? "?"} |
-| Input | {cfg.input?.dataset ?? "?"} d{cfg.input?.digit ?? "?"} s{cfg.input?.sample ?? "?"} |
-| Seed | {cfg.seed ?? "?"} |
-| Tier | **{cfg.tier ?? "?"}** — see [Style guide § 9 Run sizing tiers](/styleguide/#9-run-sizing-tiers) |
-| Run ID | <span class="font-mono">{nbRunId}</span> |
-| Elapsed | {runDuration} |
+<RunParameters numbers={numbers} groups={[
+  {
+    title: "Setup",
+    rows: [
+      { label: "Model", value: cfg.model ?? "?" },
+      { label: "Input", value: `${cfg.input?.dataset ?? "?"} d${cfg.input?.digit ?? "?"} s${cfg.input?.sample ?? "?"}` },
+      { label: "Seed", value: cfg.seed ?? "?" },
+    ],
+  },
+  {
+    title: "Architecture",
+    rows: [
+      { label: "N_E / N_I", value: `${cfg.n_e ?? "?"} / ${cfg.n_i ?? "?"}` },
+      { label: "dt / T", value: `${cfg.dt_ms ?? "?"} / ${cfg.sim_ms ?? "?"} ms` },
+    ],
+  },
+  {
+    title: "Stimulus",
+    rows: [
+      { label: "Window", value: `${cfg.step_on_ms ?? "?"}–${cfg.step_off_ms ?? "?"} ms` },
+      { label: "Overdrive", value: `${cfg.stim_overdrive ?? "?"}×` },
+      { label: "Input rate", value: `${cfg.input_rate_hz ?? "?"} Hz` },
+      { label: "W_in overdrive", value: `${cfg.w_in_overdrive ?? "?"}×` },
+      { label: "E→I strength", value: cfg.ei_strength ?? "?" },
+    ],
+  },
+]} />
 

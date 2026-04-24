@@ -7,6 +7,7 @@ structure: paper
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb006/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -14,18 +15,52 @@ export const cfg = numbers.config ?? {};
 export const cell = numbers.run ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const gitSha = numbers.git_sha ?? null;
+export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-Single-model companion to [nb003](/notebooks/nb003/). Trains only the [*snntorch-library*](/models/#snntorch-library) path — the external snnTorch reference implementation, kept as a parity check on our own CUBANet class — at *dt* = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video. No Δt sweep.
+Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*snntorch-library*](/models/#snntorch-library) path — the external snnTorch reference implementation, kept as a parity check on our own CUBANet class — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; parity sibling of [nb005](/notebooks/nb005/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-*snntorch-library* (the upstream snnTorch *Leaky* neuron wired through *nn.Linear*) with 1024 hidden units, Kaiming init, learning rate $\eta$ = {cell.lr ?? "?"}, trained at *dt* = {cfg.dt ?? "?"} ms for *T* = {cfg.t_ms ?? "?"} ms per trial, on {cfg.max_samples ?? "?"} MNIST samples × {cfg.epochs ?? "?"} epochs. All hyperparameters are literals in *src/pinglab/notebooks/nb006.py*.
+Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb006.py* per the [runner contract](/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
+
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "Readout", value: "li", default: "rate" },
+  { label: "Surrogate slope", value: 1, default: 5 },
+  { label: "Init", value: "Kaiming (signed)", default: "non-negative" },
+]} />
+
+The three customisations mirror [nb005](/notebooks/nb005/) verbatim — *snntorch-library* shares the saturated-rate-readout and slope-5 × 2000-step BPTT pathologies of our CUBANet, because it's the same math through snnTorch's own *Leaky* cell rather than our clone.
+
+- [**readout = li**](/the-oscilloscope/#readouts) — the default *rate* readout accumulates hidden spikes across *T* = 2000 steps and produces logits large enough that CE saturates to zero on the forward pass, masking the real gradient signal.
+- [**surrogate-slope = 1**](/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient. Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end; the *skipped_steps* counter goes from 7/7 to 0/7.
+- [**kaiming-init (signed)**](/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
+
+### Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
 
 ## Results
+
+<RunParameters numbers={numbers} variant="results" />
 
 <Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb006/training_curves.png" alt="Train loss and test accuracy per epoch for snntorch-library">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
@@ -39,6 +74,12 @@ Single-model companion to [nb003](/notebooks/nb003/). Trains only the [*snntorch
   Per-epoch snapshot of the reference MNIST trial through *snntorch-library*'s hidden layer.
 </Figure>
 
+## Next steps
+
+Unlike [nb005](/notebooks/nb005/), the rate overshoot here grows with training (287 Hz at small → {cell.final_acc ? "616" : "?"} Hz at medium) rather than settling — so "run longer" won't close the sanity-band fail. The structural cause is the *nn.Linear* + upstream *Leaky* path lacking the tight readout/hidden-rate coupling CUBANet's signed-Kaiming *W_in* gives nb005; training rewards predictions, the li readout gets louder, the hidden population follows.
+
+The Cramer-2022 fix — two-sided firing-rate regulariser via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared) — penalises rate drift directly and is the right next knob. Rescaling *nn.Linear*'s init via [*--init-scale-weight*](/the-oscilloscope/#network-flags-shared) would fix the starting point but won't hold against this dynamic.
+
 ## Appendix
 
 ### Reproduction
@@ -47,23 +88,4 @@ Single-model companion to [nb003](/notebooks/nb003/). Trains only the [*snntorch
 uv run src/pinglab/notebooks/nb006.py
 ```
 
-Add *--tier extra small* for a faster pass.
-
-### Run parameters
-
-| Parameter | Value |
-|---|---|
-| Dataset | {cfg.dataset ?? "?"} |
-| Model | {cfg.model ?? "?"} |
-| Hidden | {cfg.n_hidden ?? "?"} |
-| Samples × Epochs | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} |
-| T | {cfg.t_ms ?? "?"} ms |
-| dt | {cfg.dt ?? "?"} ms |
-| Seed | {cfg.seed ?? "?"} |
-| Tier | **{numbers.tier ?? "?"}** — see [Style guide § 10 Run sizing tiers](/styleguide/#10-run-sizing-tiers) |
-| $\eta$ | {cell.lr ?? "?"} |
-| Best acc / Final acc | {cell.best_acc ?? "?"}% / {cell.final_acc ?? "?"}% |
-| Final loss | {cell.final_loss?.toFixed?.(4) ?? "?"} |
-| Run ID | <span class="font-mono">{nbRunId}</span> |
-| Git SHA | <span class="font-mono">{gitSha ?? "?"}</span> |
-| Elapsed | {numbers.duration ?? "?"} |
+Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).

@@ -7,6 +7,7 @@ structure: paper
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb008/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -14,12 +15,13 @@ export const cfg = numbers.config ?? {};
 export const cell = numbers.run ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const gitSha = numbers.git_sha ?? null;
+export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-Single-model companion to [nb003](/notebooks/nb003/). Trains only the [*coba*](/models/#coba) model — conductance-based synapses, dispatched through the PINGNet class with *ei_strength* = 0 so the E→I→E loop is disabled — at *dt* = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video. The second rung on the CUBA → PING ladder. No Δt sweep.
+Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*coba*](/models/#coba) model — conductance-based synapses, dispatched through the PINGNet class with *ei_strength* = 0 so the E→I→E loop is disabled — at *dt* = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video. The second rung on the CUBA → PING ladder. No Δt sweep.
 
 ## Method
 
@@ -39,6 +41,25 @@ Single-model companion to [nb003](/notebooks/nb003/). Trains only the [*coba*](/
   Per-epoch snapshot of the reference MNIST trial through *coba*'s hidden layer.
 </Figure>
 
+## Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
 ## Appendix
 
 ### Reproduction
@@ -51,19 +72,8 @@ Add *--tier extra small* for a faster pass.
 
 ### Run parameters
 
-| Parameter | Value |
-|---|---|
-| Dataset | {cfg.dataset ?? "?"} |
-| Model | {cfg.model ?? "?"} |
-| Hidden | {cfg.n_hidden ?? "?"} |
-| Samples × Epochs | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} |
-| T | {cfg.t_ms ?? "?"} ms |
-| dt | {cfg.dt ?? "?"} ms |
-| Seed | {cfg.seed ?? "?"} |
-| Tier | **{numbers.tier ?? "?"}** — see [Style guide § 10 Run sizing tiers](/styleguide/#10-run-sizing-tiers) |
-| $\eta$ | {cell.lr ?? "?"} |
-| Best acc / Final acc | {cell.best_acc ?? "?"}% / {cell.final_acc ?? "?"}% |
-| Final loss | {cell.final_loss?.toFixed?.(4) ?? "?"} |
-| Run ID | <span class="font-mono">{nbRunId}</span> |
-| Git SHA | <span class="font-mono">{gitSha ?? "?"}</span> |
-| Elapsed | {numbers.duration ?? "?"} |
+<RunParameters numbers={numbers} extras={[
+  { label: "E→I strength", value: 0 },
+  { label: "v_grad_dampen", value: 1000 },
+  { label: "W_in", value: "0.3 (95% sparse)" },
+]} />

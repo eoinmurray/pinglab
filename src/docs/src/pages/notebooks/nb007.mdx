@@ -7,6 +7,7 @@ structure: paper
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb007/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
@@ -14,12 +15,13 @@ export const cfg = numbers.config ?? {};
 export const cell = numbers.run ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const gitSha = numbers.git_sha ?? null;
+export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-Single-model companion to [nb003](/notebooks/nb003/). Trains only the [*cuba*](/models/#cuba) model — current-based synapses, the first rung on the CUBA → PING ladder that adds the $(1-\beta)/dt$ drive compensation — at *dt* = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video. No Δt sweep.
+Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*cuba*](/models/#cuba) model — current-based synapses, the first rung on the CUBA → PING ladder that adds the $(1-\beta)/dt$ drive compensation — at *dt* = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video. No Δt sweep.
 
 ## Method
 
@@ -39,6 +41,29 @@ Single-model companion to [nb003](/notebooks/nb003/). Trains only the [*cuba*](/
   Per-epoch snapshot of the reference MNIST trial through *cuba*'s hidden layer.
 </Figure>
 
+## Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+## Next steps
+
+Training is healthy — loss falls monotonically (2.72 → 2.37 across five epochs), gradients stay finite, hidden rate climbs cleanly through the sanity band (59 → 72 Hz). The one failing criterion is the tier-floor accuracy: *cuba* lands at {cell.final_acc ?? "?"}%, below the 30% small-tier gate set by the shared runner. Compared to [nb005](/notebooks/nb005/) *standard-snn* at matched config (41% best / 34% final), *cuba* is learning the same problem but roughly 2× slower per epoch under the (1-β)/Δt init-scale compensation. Two plausible causes to chase: (a) the one-shot *init_scale_weight* factor is correct in the limit but off at finite Δt for *T* = 200 ms trials, so the starting per-step drive undershoots *standard-snn*'s; (b) *cuba*'s exponential-synapse forward path dilutes the surrogate gradient relative to *standard-snn*'s direct LIF. First diagnostic should be to bump the tier to *medium* (2000 samples × 10 epochs) and check whether *cuba* catches up given more passes — if yes, this is a pace mismatch rather than a ceiling, and nb007's small-tier floor should simply be lowered; if no, the init-scale scaling needs rederiving at finite *T*.
+
 ## Appendix
 
 ### Reproduction
@@ -51,19 +76,10 @@ Add *--tier extra small* for a faster pass.
 
 ### Run parameters
 
-| Parameter | Value |
-|---|---|
-| Dataset | {cfg.dataset ?? "?"} |
-| Model | {cfg.model ?? "?"} |
-| Hidden | {cfg.n_hidden ?? "?"} |
-| Samples × Epochs | {cfg.max_samples ?? "?"} × {cfg.epochs ?? "?"} |
-| T | {cfg.t_ms ?? "?"} ms |
-| dt | {cfg.dt ?? "?"} ms |
-| Seed | {cfg.seed ?? "?"} |
-| Tier | **{numbers.tier ?? "?"}** — see [Style guide § 10 Run sizing tiers](/styleguide/#10-run-sizing-tiers) |
-| $\eta$ | {cell.lr ?? "?"} |
-| Best acc / Final acc | {cell.best_acc ?? "?"}% / {cell.final_acc ?? "?"}% |
-| Final loss | {cell.final_loss?.toFixed?.(4) ?? "?"} |
-| Run ID | <span class="font-mono">{nbRunId}</span> |
-| Git SHA | <span class="font-mono">{gitSha ?? "?"}</span> |
-| Elapsed | {numbers.duration ?? "?"} |
+<RunParameters numbers={numbers} extras={[
+  { label: "Readout", value: "li" },
+  { label: "Surrogate slope", value: 1 },
+  { label: "Init", value: "Kaiming (signed) + isw/isb" },
+  { label: "init_scale_weight", value: "dt / (1−β)" },
+  { label: "init_scale_bias", value: "1 / (1−β)" },
+]} />
