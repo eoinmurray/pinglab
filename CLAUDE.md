@@ -11,3 +11,5 @@
 - notebook runners (`src/pinglab/notebooks/nbNNN.py`) accept ONLY two CLI args: `--tier` (size) and `--modal-gpu` (dispatch target). Every other hyperparameter — lr, epochs, readout, surrogate slope, regulariser strengths, etc. — must be hardcoded as a literal in the runner's `sh.uv(...)` args list. New scientific knobs go on `src/pinglab/oscilloscope.py` as flags; the notebook just passes the recipe value inline. The notebook *is* the recipe — reproducing a result must not require remembering flags.
 
 - src/docs/src/pages/the-notebooks.md and src/docs/src/pages/the-oscilloscope.md have update rules read them
+
+- when talking about runs always report start time, current time, eta and if on modal cost.

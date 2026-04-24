@@ -34,6 +34,13 @@ function badgeFor(slug: string) {
   return { total, passed, allPass: passed === total, running: false };
 }
 
+function tierFor(slug: string): string | null {
+  const nums = numbersBySlug[slug];
+  if (!nums) return null;
+  const t = nums.tier ?? nums.config?.tier ?? null;
+  return t ? String(t) : null;
+}
+
 const notebooks = Object.entries(notebookModules)
   .map(([path, mod]) => {
     const slug = path
@@ -47,13 +54,25 @@ const notebooks = Object.entries(notebookModules)
       title: String(fm.title).replace(/^\d+\s*[—–-]\s*/, ""),
       date: fm.date,
       badge: badgeFor(slug),
+      tier: tierFor(slug),
     };
   })
   .sort((a, b) => - b.entry + a.entry);
 
 const formatDate = (raw) => {
-  const s = raw instanceof Date ? raw.toISOString() : String(raw);
-  return s.split("T")[0];
+  const d = raw instanceof Date
+    ? raw
+    : new Date(String(raw).includes("T") ? String(raw) : String(raw) + "T00:00:00Z");
+  if (isNaN(d.getTime())) return String(raw);
+  const day = d.getUTCDate();
+  const suffix =
+    day % 100 >= 11 && day % 100 <= 13 ? "th" :
+    day % 10 === 1 ? "st" :
+    day % 10 === 2 ? "nd" :
+    day % 10 === 3 ? "rd" : "th";
+  const month = d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
+  const year = d.getUTCFullYear();
+  return `${day}${suffix} ${month} ${year}`;
 };
 ---
 
@@ -88,41 +107,62 @@ const formatDate = (raw) => {
         >
           Notebooks
         </p>
-        <ul class="pl-0 list-none space-y-1.5">
-          {
-            notebooks.map((nb) => (
-              <li class="flex flex-wrap items-baseline gap-x-2">
-                <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
-                  {String(nb.entry).padStart(1, "0")}.
-                </a>
-                {nb.badge && (
-                  nb.badge.running ? (
-                    <span
-                      class="inline-flex items-baseline gap-[0.3rem] rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider bg-[color:var(--color-rule)]/50 text-[color:var(--muted)]"
-                      title="run in progress"
-                    >
-                      <span class="run-dot" />
-                      <span>running</span>
-                    </span>
-                  ) : (
-                    <a
-                      href={`/notebooks/${nb.slug}/#success-criteria`}
-                      class={`inline-flex items-baseline gap-[0.25rem] rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider no-underline! ${nb.badge.allPass ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
-                      title={`${nb.badge.passed}/${nb.badge.total} success criteria passed`}
-                    >
-                      <span>{nb.badge.allPass ? "pass" : "fail"}</span>
-                      <span class="opacity-70">{nb.badge.passed}/{nb.badge.total}</span>
-                    </a>
-                  )
-                )}
-                <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
-                <span class="text-[0.9em] tabular-nums text-[color:var(--muted)]">
-                  {formatDate(nb.date)}
-                </span>
-              </li>
-            ))
-          }
-        </ul>
+        <div class="notebook-table-wrap">
+          <table class="notebook-table">
+            <thead>
+              <tr>
+                <th class="nb-num">#</th>
+                <th class="nb-title">Title</th>
+                <th class="nb-date">Date</th>
+                <th class="nb-tier">Tier</th>
+                <th class="nb-badge">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                notebooks.map((nb) => (
+                  <tr>
+                    <td class="nb-num">
+                      <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
+                        {String(nb.entry).padStart(1, "0")}.
+                      </a>
+                    </td>
+                    <td class="nb-title">
+                      <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
+                    </td>
+                    <td class="nb-date tabular-nums text-[color:var(--muted)]">
+                      {formatDate(nb.date)}
+                    </td>
+                    <td class="nb-tier text-[color:var(--muted)]">
+                      {nb.tier ?? ""}
+                    </td>
+                    <td class="nb-badge">
+                      {nb.badge && (
+                        nb.badge.running ? (
+                          <span
+                            class="inline-flex items-baseline rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider bg-[color:var(--color-rule)]/50 text-[color:var(--muted)]"
+                            title="run produced no success criteria"
+                          >
+                            no run
+                          </span>
+                        ) : (
+                          <a
+                            href={`/notebooks/${nb.slug}/#success-criteria`}
+                            class={`inline-flex items-baseline gap-[0.25rem] rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider no-underline! ${nb.badge.allPass ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
+                            title={`${nb.badge.passed}/${nb.badge.total} success criteria passed`}
+                          >
+                            <span>{nb.badge.allPass ? "pass" : "fail"}</span>
+                            <span class="opacity-70">{nb.badge.passed}/{nb.badge.total}</span>
+                          </a>
+                        )
+                      )}
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
 
         <p
           class="mt-8 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]"
@@ -146,6 +186,54 @@ const formatDate = (raw) => {
 </html>
 
 <style>
+  .notebook-table-wrap {
+    border: 1px solid var(--color-rule);
+    border-radius: 2px;
+    background: var(--color-paper-tint);
+    overflow: hidden;
+  }
+  table.notebook-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 0.95rem;
+  }
+  table.notebook-table th,
+  table.notebook-table td {
+    padding: 0.4rem 0.7rem;
+    border-top: 1px solid var(--color-rule);
+    vertical-align: baseline;
+  }
+  table.notebook-table thead th {
+    border-top: 0;
+    border-bottom: 1px solid var(--color-rule);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-label);
+    text-align: left;
+  }
+  table.notebook-table tbody tr:first-child td {
+    border-top: 1px solid var(--color-rule);
+  }
+  .nb-num {
+    width: 2.2rem;
+    color: var(--color-muted);
+  }
+  .nb-badge {
+    width: 4.8rem;
+    white-space: nowrap;
+  }
+  .nb-tier {
+    width: 5rem;
+    white-space: nowrap;
+    font-size: 0.85rem;
+  }
+  .nb-date {
+    width: 8rem;
+    white-space: nowrap;
+  }
   .run-dot {
     display: inline-block;
     width: 0.4rem;
