@@ -362,23 +362,27 @@ class CUBANet(SNNBase):
                 self.reset_mode = self._reset_mode_override
 
     def _init_tutorial_weights(self, all_sizes, w_rec=None):
-        # Kaiming-uniform with a=sqrt(5) reduces to uniform(-1/sqrt(fan_in),
-        # 1/sqrt(fan_in)). W is stored as (n_pre, n_post), but the semantic
-        # fan_in is n_pre (each post-neuron receives n_pre inputs). Torch's
-        # kaiming_uniform_ on a 2D tensor defaults to fan_in = size(1) = n_post,
-        # which mis-scales the output projection (1024→10: fan_in would become
-        # 10 and give a ~10× too-large init vs. nn.Linear's parity). Compute
-        # the bound explicitly from n_pre to match nn.Linear semantics.
+        # Match torch.nn.Linear.reset_parameters exactly so the same seed
+        # gives bit-identical weights here and in SNNTorchLibraryNet (which
+        # uses nn.Linear). nn.Linear stores weight as (n_post, n_pre) and
+        # calls kaiming_uniform_(weight, a=sqrt(5)) — equivalent to
+        # uniform(±1/sqrt(fan_in)) with fan_in=n_pre — then uniform_(bias,
+        # ±1/sqrt(fan_in)). Our storage convention is (n_pre, n_post), so
+        # we allocate a matching (n_post, n_pre) scratch tensor, run the
+        # same inits in the same order, and transpose. Without this the
+        # two paths draw the same *count* of samples but scatter them to
+        # different weight positions, and the trained firing rates drift
+        # apart even though accuracy calibrates.
         self.W_ff = nn.ParameterList()
         self.b_ff = nn.ParameterList()
         for n_pre, n_post in zip(all_sizes[:-1], all_sizes[1:]):
-            W = nn.Parameter(torch.empty(n_pre, n_post))
-            b = nn.Parameter(torch.empty(n_post))
+            W_t = torch.empty(n_post, n_pre)
+            b = torch.empty(n_post)
+            nn.init.kaiming_uniform_(W_t, a=math.sqrt(5))
             bound = 1.0 / math.sqrt(n_pre) if n_pre > 0 else 0
-            nn.init.uniform_(W, -bound, bound)
             nn.init.uniform_(b, -bound, bound)
-            self.W_ff.append(W)
-            self.b_ff.append(b)
+            self.W_ff.append(nn.Parameter(W_t.t().contiguous()))
+            self.b_ff.append(nn.Parameter(b))
         # Recurrent weights for selected layers
         self.W_rec = nn.ParameterDict()
         for i in self.rec_layers:
