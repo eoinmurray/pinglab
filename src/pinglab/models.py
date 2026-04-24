@@ -100,41 +100,40 @@ delay_ie_steps = max(1, int(round(delay_ie_ms / dt)))
 
 # ── Surrogate gradient ───────────────────────────────────────────────────
 
-class SurrogateSpike(torch.autograd.Function):
-    """Fast sigmoid surrogate: grad = slope / (1 + slope·|x|)^2.
+def fast_sigmoid_spike(u, slope):
+    """Fast-sigmoid surrogate spike.
 
-    Matches snntorch.surrogate.FastSigmoid: slope controls how sharply the
-    pseudo-derivative peaks around u=0. slope=25 (snntorch default) yields a
-    narrow window of active gradient (~±0.04 around threshold); slope=1 gives
-    a much broader window (~±1). pinglab uses slope=1 everywhere — biophysical
-    and snn/tutorial paths both — and snntorch-library now passes slope=1 into
-    surrogate.fast_sigmoid so the library parity probe is a pure update-rule
-    comparison, not a surrogate comparison.
+    Forward: Heaviside(u). Backward gradient: slope / (1 + slope·|u|)^2 —
+    equivalent to the snntorch FastSigmoid surrogate that the library path
+    uses, so slope=1 is a pure update-rule comparison against snntorch-library,
+    not a surrogate comparison.
+
+    Implementation is a detach-style straight-through estimator: the forward
+    value is the hard step, but the gradient flows through the smooth proxy
+    p(u) = slope·u / (1 + slope·|u|), whose derivative is exactly the
+    fast-sigmoid kernel. Pure tensor ops — torch.compile-friendly with no
+    custom autograd.Function graph break.
     """
-    @staticmethod
-    def forward(ctx, u, slope):
-        ctx.save_for_backward(u)
-        ctx.slope = slope
-        return (u >= 0).float()
+    hard = (u >= 0).float()
+    proxy = slope * u / (1.0 + slope * u.abs())
+    # Parenthesise so (proxy - proxy.detach()) collapses to bitwise zero
+    # in the forward pass; otherwise (hard + proxy) then - proxy.detach()
+    # loses fp32 precision when |proxy| is close to 1 (value drifts to
+    # 0.9999994), which poisons downstream int(s.item()) spike counts.
+    return hard.detach() + (proxy - proxy.detach())
 
-    @staticmethod
-    def backward(ctx, grad_out):
-        (u,) = ctx.saved_tensors
-        slope = ctx.slope
-        grad = slope / (1.0 + slope * u.abs()) ** 2
-        return grad_out * grad, None
 
 def spike_biophysical(v):
     # mV-scale membrane: slope=1 keeps gradient support at the ~mV width of
     # typical threshold crossings.
-    return SurrogateSpike.apply(v - V_th, SURROGATE_SLOPE)
+    return fast_sigmoid_spike(v - V_th, SURROGATE_SLOPE)
 
 def spike_snn(v):
     # Dimensionless membrane (threshold=1). slope=1 (pinglab default; not
     # snntorch's 25) gives a wide active window so silent neurons keep gradient
     # support. Override via SURROGATE_SLOPE (oscilloscope --surrogate-slope) to
     # match a specific reference (e.g. Cramer β=40).
-    return SurrogateSpike.apply(v - thr_snn, SURROGATE_SLOPE)
+    return fast_sigmoid_spike(v - thr_snn, SURROGATE_SLOPE)
 
 
 def _scale_grad(x, scale):
