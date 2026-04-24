@@ -2,6 +2,38 @@
 import "../styles/global.css";
 
 const notebookModules = import.meta.glob("./notebooks/*.mdx", { eager: true });
+const numbersModules = import.meta.glob(
+  "../../public/figures/notebooks/*/numbers.json",
+  { eager: true, import: "default" },
+);
+const numbersBySlug: Record<string, any> = {};
+for (const [path, data] of Object.entries(numbersModules)) {
+  const slug = path.split("/").slice(-2, -1)[0];
+  if (slug) numbersBySlug[slug] = data;
+}
+
+const runMarkers = import.meta.glob(
+  "../../public/figures/notebooks/*/_run.txt",
+  { eager: true, query: "?raw", import: "default" },
+);
+const hasRunDir = new Set<string>();
+for (const path of Object.keys(runMarkers)) {
+  const slug = path.split("/").slice(-2, -1)[0];
+  if (slug) hasRunDir.add(slug);
+}
+
+function badgeFor(slug: string) {
+  const nums = numbersBySlug[slug];
+  const criteria = Array.isArray(nums?.success_criteria) ? nums.success_criteria : [];
+  const total = criteria.length;
+  if (total === 0) {
+    if (hasRunDir.has(slug)) return { running: true };
+    return null;
+  }
+  const passed = criteria.filter((c: any) => c && c.passed).length;
+  return { total, passed, allPass: passed === total, running: false };
+}
+
 const notebooks = Object.entries(notebookModules)
   .map(([path, mod]) => {
     const slug = path
@@ -14,6 +46,7 @@ const notebooks = Object.entries(notebookModules)
       entry: fm.entry,
       title: String(fm.title).replace(/^\d+\s*[—–-]\s*/, ""),
       date: fm.date,
+      badge: badgeFor(slug),
     };
   })
   .sort((a, b) => - b.entry + a.entry);
@@ -53,6 +86,47 @@ const formatDate = (raw) => {
         <p
           class="mt-10 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]"
         >
+          Notebooks
+        </p>
+        <ul class="pl-0 list-none space-y-1.5">
+          {
+            notebooks.map((nb) => (
+              <li class="flex flex-wrap items-baseline gap-x-2">
+                <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
+                  {String(nb.entry).padStart(1, "0")}.
+                </a>
+                {nb.badge && (
+                  nb.badge.running ? (
+                    <span
+                      class="inline-flex items-baseline gap-[0.3rem] rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider bg-[color:var(--color-rule)]/50 text-[color:var(--muted)]"
+                      title="run in progress"
+                    >
+                      <span class="run-dot" />
+                      <span>running</span>
+                    </span>
+                  ) : (
+                    <a
+                      href={`/notebooks/${nb.slug}/#success-criteria`}
+                      class={`inline-flex items-baseline gap-[0.25rem] rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider no-underline! ${nb.badge.allPass ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
+                      title={`${nb.badge.passed}/${nb.badge.total} success criteria passed`}
+                    >
+                      <span>{nb.badge.allPass ? "pass" : "fail"}</span>
+                      <span class="opacity-70">{nb.badge.passed}/{nb.badge.total}</span>
+                    </a>
+                  )
+                )}
+                <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
+                <span class="text-[0.9em] tabular-nums text-[color:var(--muted)]">
+                  {formatDate(nb.date)}
+                </span>
+              </li>
+            ))
+          }
+        </ul>
+
+        <p
+          class="mt-8 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]"
+        >
           Pages
         </p>
         <ul class="pl-0 list-none space-y-1">
@@ -66,30 +140,22 @@ const formatDate = (raw) => {
           <li><a href="/references/">References</a></li>
           <li><a href="/styleguide/">Styleguide</a></li>
         </ul>
-
-        <p
-          class="mt-8 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]"
-        >
-          Notebooks
-        </p>
-        <ul class="pl-0 list-none space-y-1.5">
-          {
-            notebooks.map((nb) => (
-              <li class="grid grid-cols-[auto_1fr_auto] gap-x-4 items-baseline">
-                {/* <span class="text-[0.9em] tabular-nums text-[color:var(--muted)]">
-                  {String(nb.entry).padStart(3, "0")}
-                </span> */}
-                <a href={`/notebooks/${nb.slug}/`}>
-                  {String(nb.entry).padStart(1, "0")}. {nb.title}
-                </a>
-                <span class="text-[0.9em] tabular-nums text-[color:var(--muted)]">
-                  {formatDate(nb.date)}
-                </span>
-              </li>
-            ))
-          }
-        </ul>
       </div>
     </main>
   </body>
 </html>
+
+<style>
+  .run-dot {
+    display: inline-block;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: var(--color-muted);
+    animation: run-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes run-pulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 1; }
+  }
+</style>

@@ -35,6 +35,20 @@ T_MS = 200.0
 DT_TRAIN = 0.1
 SEED = 42
 
+# Per-tier accuracy floors (MNIST) — overridable per notebook.
+DEFAULT_MIN_ACC = {
+    "extra small": 15.0,
+    "small":       30.0,
+    "medium":      50.0,
+    "large":       70.0,
+    "extra large": 70.0,
+}
+# Hidden firing-rate sanity band (Hz). Below ⇒ dead init, above ⇒ saturated.
+RATE_MIN_HZ = 1.0
+RATE_MAX_HZ = 200.0
+# Training collapse tolerance (pp): final_acc must be within this of best_acc.
+COLLAPSE_TOL_PP = 5.0
+
 
 def load_metrics(run_dir: Path) -> dict:
     return json.loads((run_dir / "metrics.json").read_text())
@@ -139,8 +153,71 @@ def copy_training_video(run_dir: Path, out_dir: Path,
     stamp_path.unlink(missing_ok=True)
 
 
+def evaluate_success(figures: Path, run_dir: Path, tier: str,
+                     min_acc_by_tier: dict[str, float]) -> list[dict]:
+    """Four criteria: artifact existence, model actually spikes,
+    model actually learns, training did not collapse."""
+    crits: list[dict] = []
+    figs_root = figures.parents[2]  # src/docs/public/
+
+    def artifact(name: str, label: str) -> None:
+        path = figures / name
+        ok = path.exists() and path.stat().st_size > 0
+        href = "/" + str(path.relative_to(figs_root)) if ok else None
+        crits.append({
+            "label": label,
+            "passed": bool(ok),
+            "detail": f"{path.name} ({path.stat().st_size} bytes)" if ok
+                      else f"missing {path.name}",
+            "detail_href": href,
+        })
+
+    artifact("training_curves.png", "training curves rendered")
+    artifact("firing_rates.png", "firing-rate trace rendered")
+    artifact("training.mp4", "training video rendered")
+
+    metrics_path = run_dir / "metrics.json"
+    if not metrics_path.exists():
+        crits.append({"label": "training metrics present", "passed": False,
+                      "detail": f"missing {metrics_path.name}"})
+        return crits
+    metrics = json.loads(metrics_path.read_text())
+    last = metrics["epochs"][-1]
+    rate = float(last.get("rate_e") or 0.0)
+    best = float(metrics["best_acc"])
+    final = float(last["acc"])
+    floor = float(min_acc_by_tier.get(tier, DEFAULT_MIN_ACC.get(tier, 0.0)))
+
+    rate_ok = RATE_MIN_HZ <= rate <= RATE_MAX_HZ
+    crits.append({
+        "label": f"hidden rate in band ({RATE_MIN_HZ}–{RATE_MAX_HZ} Hz)",
+        "passed": bool(rate_ok),
+        "detail": f"rate_e={rate:.2f} Hz",
+    })
+    crits.append({
+        "label": f"final acc ≥ {floor:.1f}% ({tier} tier floor)",
+        "passed": bool(final >= floor),
+        "detail": f"final={final:.2f}%, best={best:.2f}%",
+    })
+    crits.append({
+        "label": f"no collapse (final ≥ best − {COLLAPSE_TOL_PP:.0f}pp)",
+        "passed": bool(final >= best - COLLAPSE_TOL_PP),
+        "detail": f"final={final:.2f}%, best={best:.2f}%, Δ={(best - final):.2f}pp",
+    })
+    return crits
+
+
+def _print_and_gate(success_criteria: list[dict]) -> None:
+    for c in success_criteria:
+        mark = "pass" if c["passed"] else "FAIL"
+        print(f"  [{mark}] {c['label']} — {c['detail']}")
+    if any(not c["passed"] for c in success_criteria):
+        sys.exit(1)
+
+
 def write_numbers(run_dir: Path, out_path: Path, model: str, tier: str,
-                  notebook_run_id: str, duration_s: float) -> dict:
+                  notebook_run_id: str, duration_s: float,
+                  success_criteria: list[dict] | None = None) -> dict:
     metrics = load_metrics(run_dir)
     cfg = load_config(run_dir)
     summary = {
@@ -174,15 +251,48 @@ def write_numbers(run_dir: Path, out_path: Path, model: str, tier: str,
             "total_elapsed_s": metrics["total_elapsed_s"],
         },
     }
+    if success_criteria is not None:
+        summary["success_criteria"] = success_criteria
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(summary, indent=2) + "\n")
     return summary
 
 
+def _evaluate_only(slug: str, model: str, tier_default: str,
+                   min_acc_by_tier: dict[str, float],
+                   extra_criteria_fn: Callable[[Path, Path], list[dict]] | None = None) -> None:
+    """Re-run only the success-criteria check against existing artifacts
+    + numbers.json — no training dispatch, no wipe."""
+    repo = Path(__file__).resolve().parents[3]
+    artifacts = repo / "src" / "artifacts" / "notebooks" / slug
+    figures = repo / "src" / "docs" / "public" / "figures" / "notebooks" / slug
+    numbers_path = figures / "numbers.json"
+    if not numbers_path.exists():
+        raise SystemExit(f"--evaluate-success-only requires existing "
+                         f"{numbers_path.relative_to(repo)}")
+    summary = json.loads(numbers_path.read_text())
+    tier = summary.get("tier", tier_default)
+    crits = evaluate_success(figures, artifacts / "train", tier, min_acc_by_tier)
+    if extra_criteria_fn is not None:
+        crits += extra_criteria_fn(figures, artifacts / "train")
+    summary["success_criteria"] = crits
+    numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"rewrote {numbers_path.relative_to(repo)} (success_criteria only)")
+    _print_and_gate(summary["success_criteria"])
+
+
 def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
-        gpu_needs_a100: bool = False) -> None:
+        gpu_needs_a100: bool = False,
+        min_acc_by_tier: dict[str, float] | None = None,
+        extra_criteria_fn: Callable[[Path, Path], list[dict]] | None = None) -> None:
     """Run one per-model notebook. build_osc_args(tier, out_dir) returns the
     full `oscilloscope train …` argument list for the given tier."""
+    thresholds = dict(DEFAULT_MIN_ACC)
+    if min_acc_by_tier is not None:
+        thresholds.update(min_acc_by_tier)
+    if "--evaluate-success-only" in sys.argv:
+        _evaluate_only(slug, model, DEFAULT_TIER, thresholds, extra_criteria_fn)
+        return
     repo = Path(__file__).resolve().parents[3]
     artifacts = repo / "src" / "artifacts" / "notebooks" / slug
     figures = repo / "src" / "docs" / "public" / "figures" / "notebooks" / slug
@@ -237,13 +347,18 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
     copy_training_video(run_dir, figures, notebook_run_id)
 
     duration_s = time.monotonic() - t_start
+    success_criteria = evaluate_success(figures, run_dir, tier, thresholds)
+    if extra_criteria_fn is not None:
+        success_criteria += extra_criteria_fn(figures, run_dir)
     summary = write_numbers(run_dir, figures / "numbers.json", model, tier,
-                            notebook_run_id, duration_s)
+                            notebook_run_id, duration_s,
+                            success_criteria=success_criteria)
     print(f"wrote {figures / 'numbers.json'}")
     s = summary["run"]
     print(f"  {model}: best={s['best_acc']}%  final={s['final_acc']}%  "
           f"elapsed={s['total_elapsed_s']:.0f}s")
     print(f"  total duration: {summary['duration']}")
+    _print_and_gate(success_criteria)
 
 
 def osc_base_args(out_dir: Path, tier: str, build_as: str) -> list[str]:

@@ -1,52 +1,64 @@
 {
-  "notebook_run_id": "r039",
-  "git_sha": "4d885d7 (dirty)",
-  "tier": "large",
-  "duration_s": 230.6,
-  "duration": "3m 51s",
+  "notebook_run_id": "r002",
+  "run_datetime": "Thursday, 23rd April 26 at 19:10",
+  "duration_s": 20.8,
+  "duration": "21s",
+  "tier": "small",
   "config": {
-    "model": "cuba-exp",
-    "dataset": "shd",
-    "hidden": [
-      128
-    ],
-    "t_ms": 1000.0,
-    "dt": 2.0,
+    "tier": "small",
+    "model": "ping",
+    "n_e": 512,
+    "n_i": 128,
+    "dt_ms": 0.1,
+    "sim_ms": 600.0,
+    "step_on_ms": 200.0,
+    "step_off_ms": 300.0,
+    "input": {
+      "mode": "dataset",
+      "dataset": "mnist",
+      "digit": 0,
+      "sample": 0,
+      "base_rate_hz": 50.0,
+      "w_in_overdrive": 1.8
+    },
     "seed": 42,
-    "max_samples": 5000,
-    "epochs": 40
-  },
-  "cells": {
-    "cuba_baseline": {
-      "name": "cuba_baseline",
-      "model": "cuba-exp",
-      "lr": 0.001,
-      "isw": 6.0,
-      "isb": 10.508331944775044,
-      "hidden": [
-        128
-      ],
-      "readout": "li",
-      "best_acc": 33.9,
-      "final_acc": 33.9,
-      "final_loss": 0.43989625945687294,
-      "run_dir": "src/artifacts/notebooks/nb004/cuba_baseline"
+    "scan": {
+      "var": "ei_strength",
+      "min": 0.0,
+      "max": 1.0,
+      "frames": 15,
+      "fps": 30,
+      "fixed_overdrive": 1.0,
+      "input_rate_hz": 100.0,
+      "w_in_overdrive": 3.0
     }
   },
-  "winner": {
-    "name": "cuba_baseline",
-    "model": "cuba-exp",
-    "lr": 0.001,
-    "isw": 6.0,
-    "isb": 10.508331944775044,
-    "hidden": [
-      128
-    ],
-    "readout": "li",
-    "best_acc": 33.9,
-    "final_acc": 33.9,
-    "final_loss": 0.43989625945687294,
-    "run_dir": "src/artifacts/notebooks/nb004/cuba_baseline"
+  "rates_hz": {
+    "pre": {
+      "e": 6.19140628259629,
+      "i": 22.96874998137355
+    },
+    "stim": {
+      "e": 6.19140628259629,
+      "i": 20.23437526077032
+    },
+    "post": {
+      "e": 6.293475162237883,
+      "i": 17.05160830169916
+    }
   },
-  "run_finished_at": "2026-04-23T07:06:21.460776Z"
+  "canonical_ei": 0.8,
+  "success_criteria": [
+    {
+      "label": "ei-strength scan video rendered",
+      "passed": true,
+      "detail": "scan_ei.mp4 (626404 bytes)",
+      "detail_href": "/figures/notebooks/nb004/scan_ei.mp4"
+    },
+    {
+      "label": "PING forms at canonical ei (0.8)",
+      "passed": true,
+      "detail": "E stim=6.2 Hz, I stim=20.2 Hz"
+    }
+  ]
 }

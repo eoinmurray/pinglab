@@ -5,7 +5,7 @@ PINGNet with ei_strength=0 so the E→I→E loop is disabled) on MNIST at
 dt=0.1 ms and publishes training curves, hidden firing rates, a
 training video, and numbers.json. Companion to the other per-model
 runners (nb005–nb007, nb009) and to the five-model Δt-stability sweep
-in nb003.
+in nb010.
 
 Notebook entry: src/docs/src/pages/notebooks/nb008.mdx
 """
@@ -24,7 +24,7 @@ MODEL = "coba"
 
 
 def build_osc_args(tier: str, out_dir: Path) -> list[str]:
-    # coba = ping with ei-strength=0; see models page and nb003 MODEL_CONFIG.
+    # coba = ping with ei-strength=0; see models page and nb010 MODEL_CONFIG.
     return osc_base_args(out_dir, tier, build_as="ping") + [
         "--ei-strength", "0",
         "--v-grad-dampen", "1000",
