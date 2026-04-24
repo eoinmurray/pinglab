@@ -11,6 +11,8 @@ interface Row {
    * provenance, etc.) — the cell renders as an em-dash in that case.
    */
   default?: any;
+  /** Optional reference link wrapped around the label (e.g. a flag's doc anchor). */
+  href?: string;
 }
 interface Group {
   title: string;
@@ -78,33 +80,33 @@ function buildTrainingSections(): Group[] {
     {
       title: "Setup",
       rows: [
-        { label: "Tier", value: numbers.tier ?? cfg.tier ?? "?" },
-        { label: "Dataset", value: cfg.dataset ?? "?", default: "scikit" },
-        { label: "Model", value: cfg.model ?? "?", default: "ping" },
+        { label: "Tier", value: numbers.tier ?? cfg.tier ?? "?", href: "/the-notebooks/#cli" },
+        { label: "Dataset", value: cfg.dataset ?? "?", default: "scikit", href: "/the-oscilloscope/#input-flags-shared" },
+        { label: "Model", value: cfg.model ?? "?", default: "ping", href: "/the-oscilloscope/#network-flags-shared" },
       ],
     },
     {
       title: "Architecture",
       rows: [
-        { label: "Hidden", value: hidden, default: hiddenDefault ?? undefined },
-        { label: "T", value: cfg.t_ms != null ? `${cfg.t_ms} ms` : "?", default: "200 ms" },
-        { label: "dt", value: cfg.dt != null ? `${cfg.dt} ms` : "?", default: "0.25 ms" },
-        { label: "Seed", value: cfg.seed ?? "?", default: null },
+        { label: "Hidden", value: hidden, default: hiddenDefault ?? undefined, href: "/the-oscilloscope/#network-flags-shared" },
+        { label: "T", value: cfg.t_ms != null ? `${cfg.t_ms} ms` : "?", default: "200 ms", href: "/the-oscilloscope/#network-flags-shared" },
+        { label: "dt", value: cfg.dt != null ? `${cfg.dt} ms` : "?", default: "0.25 ms", href: "/the-oscilloscope/#network-flags-shared" },
+        { label: "Seed", value: cfg.seed ?? "?", default: null, href: "/the-oscilloscope/#execution-flags-shared" },
       ],
     },
     {
       title: "Training recipe",
       rows: [
-        { label: "Samples × Epochs", value: samplesEpochs },
-        { label: "Learning rate (η)", value: run.lr ?? "?", default: 0.01 },
+        { label: "Samples × Epochs", value: samplesEpochs, href: "/the-oscilloscope/#subcommand-train" },
+        { label: "Learning rate (η)", value: run.lr ?? "?", default: 0.01, href: "/the-oscilloscope/#subcommand-train" },
         ...recipeExtras,
       ],
     },
     {
       title: "Results",
       rows: [
-        { label: "Best / Final acc", value: bestFinal },
-        { label: "Final loss", value: finalLossStr },
+        { label: "Best / Final acc", value: bestFinal, href: "/metrics/" },
+        { label: "Final loss", value: finalLossStr, href: "/training/" },
         { label: "Elapsed", value: numbers.duration ?? "?" },
         ...resultsExtras,
       ],
@@ -118,7 +120,7 @@ const provenanceExtras = extras.filter((e) => e.section === "provenance");
 const provenanceSection: Group = {
   title: "Provenance",
   rows: [
-    { label: "Run ID", value: nbRunId, mono: true },
+    { label: "Run ID", value: nbRunId, mono: true, href: "/the-notebooks/#runner-contract" },
     { label: "Git SHA", value: short ?? "?", mono: true },
     ...provenanceExtras,
   ],
@@ -130,6 +132,7 @@ if (groups) {
   provenanceSection.rows.splice(0, 0, {
     label: "Tier",
     value: numbers.tier ?? cfg.tier ?? "?",
+    href: "/the-notebooks/#cli",
   });
 }
 
@@ -189,7 +192,7 @@ function defaultState(row: Row): { state: "default" | "custom" | "unknown"; defa
             const d = defaultState(r);
             return (
               <tr>
-                <td>{r.label}</td>
+                <td>{r.href ? <a href={r.href}>{r.label}</a> : r.label}</td>
                 <td>
                   {d.state === "custom" && <span class="value-bang" aria-label="non-default">!&nbsp;</span>}
                   {r.label === "Git SHA" && commitHref ? (
