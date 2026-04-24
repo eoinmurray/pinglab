@@ -329,6 +329,7 @@ class CUBANet(SNNBase):
         self._reset_mode_override = reset_mode
         self.readout_mode = readout_mode
         self.signed_weights = not dales_law
+        self._compiled_cache = {}
 
         # Layer sizes: [N_IN, H1, H2, ..., HN, N_OUT]
         sizes = hidden_sizes if hidden_sizes is not None else HIDDEN_SIZES
@@ -434,6 +435,30 @@ class CUBANet(SNNBase):
         state = self._init_hidden_state(cfg)
         readout = self._init_readout_state(cfg)
 
+        # Lazy-init a compiled time loop on CUDA — that's where the launch
+        # overhead we care about lives. MPS/CPU stay eager: compile there
+        # pays a multi-second trace cost per instance with no runtime win,
+        # which makes the test suite and notebook warmup painful. Stored in
+        # a dict so nn.Module.__setattr__ doesn't register it as a submodule.
+        if cfg["device"].type == "cuda":
+            if "loop" not in self._compiled_cache:
+                self._compiled_cache["loop"] = torch.compile(
+                    self._forward_loop, dynamic=False)
+            self._compiled_cache["loop"](cfg, state, readout)
+        else:
+            self._forward_loop(cfg, state, readout)
+
+        self._finalise_meta(cfg, readout, state)
+        return (readout["logits_max"] if self.readout_mode == "li"
+                else readout["logits_t"])
+
+    def _forward_loop(self, cfg, state, readout):
+        """Inner time loop — the compile target.
+
+        Mutates cfg["rec_buf"], cfg["n_spk_tensors"], state, readout in place.
+        Kept separate from forward() so the trailing .item()/attribute-write
+        metadata step stays outside the compiled graph.
+        """
         for t in range(T_steps):
             prev_spk = None
             for i in range(self.n_layers):
@@ -457,10 +482,6 @@ class CUBANet(SNNBase):
                 self._record_hidden(i, t, s, cfg)
 
             self._readout_step(t, prev_spk, readout, cfg)
-
-        self._finalise_meta(cfg, readout, state)
-        return (readout["logits_max"] if self.readout_mode == "li"
-                else readout["logits_t"])
 
     # -- forward helpers ---------------------------------------------------
 
