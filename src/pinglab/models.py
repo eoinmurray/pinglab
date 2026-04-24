@@ -431,6 +431,42 @@ class CUBANet(SNNBase):
         return f"hid_{layer_idx}"
 
     def forward(self, ext_g=None, input_spikes=None):
+        cfg = self._prepare_forward(ext_g, input_spikes)
+        state = self._init_hidden_state(cfg)
+        readout = self._init_readout_state(cfg)
+
+        for t in range(T_steps):
+            prev_spk = None
+            for i in range(self.n_layers):
+                drive, spike_kick, spk_t = self._compute_layer_drive(
+                    i, t, prev_spk, state, cfg)
+                if spk_t is not None and cfg["rec_buf"] is not None \
+                        and "input" in cfg["rec_buf"]:
+                    cfg["rec_buf"]["input"][t] = spk_t
+
+                if self.exponential_synapse:
+                    if spike_kick is None:
+                        raise RuntimeError(
+                            "input_drive_all precomputed but exp_synapse is on")
+                    state["g_exps"][i] = (state["g_exps"][i] * decay_ampa
+                                           + spike_kick)
+                    drive = ((1.0 - cfg["beta"]) * state["g_exps"][i]
+                             + cfg["bias_scale"] * cfg["b_ff"][i])
+
+                s = self._hidden_lif_step(i, drive, state, cfg)
+                prev_spk = s
+                self._record_hidden(i, t, s, cfg)
+
+            self._readout_step(t, prev_spk, readout, cfg)
+
+        self._finalise_meta(cfg, readout, state)
+        return (readout["logits_max"] if self.readout_mode == "li"
+                else readout["logits_t"])
+
+    # -- forward helpers ---------------------------------------------------
+
+    def _prepare_forward(self, ext_g, input_spikes):
+        """Resolve shapes, weights, scales, recording buffers, spike counters."""
         has_ext_g = ext_g is not None
         has_input_spikes = input_spikes is not None
 
@@ -443,21 +479,17 @@ class CUBANet(SNNBase):
                             else input_spikes.device if has_input_spikes
                             else torch.device("cpu"))
 
-        # Resolve weights (clamp if Dale's law)
         W_ff = [W if self.signed_weights else W.clamp(min=0) for W in self.W_ff]
         b_ff = list(self.b_ff)
-        W_rec = {}
-        for k, W in self.W_rec.items():
-            W_rec[k] = W if self.signed_weights else W.clamp(min=0)
+        W_rec = {k: (W if self.signed_weights else W.clamp(min=0))
+                 for k, W in self.W_rec.items()}
 
         beta = self.beta_override if self.beta_override is not None else beta_snn
-        reset_mode = self.reset_mode
 
         # Continuous-time discretisation: exact integration of τ·dV/dt = -V + I
         # with delta-function spike inputs gives I_step = W·s/Δt + b, so the
-        # forward becomes  mem = β·mem + (1-β)·(W·s/Δt + b). This yields a
-        # per-spike kick of (1-β)/Δt · W ≈ W/τ — dt-invariant.
-        # Equivalent factorisation: spike_drive × (1-β)/Δt + bias × (1-β).
+        # forward becomes  mem = β·mem + (1-β)·(W·s/Δt + b). Per-spike kick
+        # is (1-β)/Δt · W ≈ W/τ — dt-invariant.
         if self.discretisation == "continuous":
             spike_scale = (1.0 - beta) / dt
             bias_scale = (1.0 - beta)
@@ -465,26 +497,47 @@ class CUBANet(SNNBase):
             spike_scale = 1.0
             bias_scale = 1.0
 
-        # Pre-compute input drive for all timesteps as one big matmul.
-        # Only on CUDA where big matmuls are efficient. On CPU, the (T, B, N_hid)
-        # intermediate blows the cache and swaps — per-step is faster. On MPS,
-        # holding a (T, B, N_hid) tensor (hundreds of MB) in the autograd graph
-        # triggers a per-step .item() sync storm on backward — per-step matmul
-        # mirrors what the snntorch library path does and stays fast.
-        # Exp-synapse path needs raw (W·s) to accumulate into g; skip fast-path.
+        # Big-matmul fast path: only on CUDA, only when no exp-synapse (needs
+        # raw W·s). On CPU the (T, B, N_hid) intermediate blows cache; on MPS
+        # it triggers a backward-time sync storm.
         input_drive_all = None
         if (has_input_spikes and device.type == "cuda"
                 and not self.exponential_synapse):
             input_drive_all = (spike_scale * (input_spikes @ W_ff[0])
                                + bias_scale * b_ff[0])
 
-        # Hidden layer state: membrane, prev spikes, optional exp-synapse g,
-        # optional refractory counter.
-        mems = []
-        s_prevs = []
+        rec_buf = None
+        if self.recording:
+            rec_buf = {"out": torch.zeros(T_steps, B, N_OUT, device=device)}
+            for i in range(self.n_layers):
+                rec_buf[self._hid_key(i + 1)] = torch.zeros(
+                    T_steps, B, self.hidden_sizes[i], device=device)
+            if has_input_spikes:
+                rec_buf["input"] = torch.zeros(
+                    T_steps, B, N_IN, device=device)
+
+        n_spk_tensors = {self._hid_key(i + 1): torch.zeros(1, device=device)
+                         for i in range(self.n_layers)}
+        n_spk_tensors["out"] = torch.zeros(1, device=device)
+
+        return {
+            "B": B, "device": device,
+            "has_ext_g": has_ext_g, "has_input_spikes": has_input_spikes,
+            "ext_g": ext_g, "input_spikes": input_spikes,
+            "input_drive_all": input_drive_all,
+            "W_ff": W_ff, "b_ff": b_ff, "W_rec": W_rec,
+            "beta": beta, "spike_scale": spike_scale, "bias_scale": bias_scale,
+            "reset_mode": self.reset_mode,
+            "ref_steps_snn": (max(1, int(round(self.ref_ms / dt)))
+                              if self.ref_ms > 0 else 0),
+            "rec_buf": rec_buf, "n_spk_tensors": n_spk_tensors,
+        }
+
+    def _init_hidden_state(self, cfg):
+        B, device = cfg["B"], cfg["device"]
+        mems, s_prevs = [], []
         g_exps = [] if self.exponential_synapse else None
         refs = [] if self.ref_ms > 0 else None
-        ref_steps_snn = max(1, int(round(self.ref_ms / dt))) if self.ref_ms > 0 else 0
         for i, n in enumerate(self.hidden_sizes):
             if self.randomize_init and i == 0:
                 mems.append(thr_snn * torch.rand(B, n, device=device))
@@ -495,148 +548,122 @@ class CUBANet(SNNBase):
                 g_exps.append(init_conductance(B, n, device))
             if refs is not None:
                 refs.append(torch.zeros(B, n, device=device))
-
-        # Output: readout layer. "rate" mode accumulates last-hidden spikes
-        # and projects once at the final timestep (cumulative-count decoder);
-        # "li" mode runs a non-spiking leaky-integrator neuron per class with
-        # the same β as hidden, returning max-over-time of v_out as logits.
-        hidden_accum = init_conductance(B, self.hidden_sizes[-1], device)
-        v_out = torch.zeros(B, N_OUT, device=device)
-        logits_max = torch.full((B, N_OUT), float("-inf"), device=device)
-
-        # Recording — pre-allocate GPU buffers to avoid per-step CPU transfers
-        rec_buf = None
-        if self.recording:
-            rec_buf = {"out": torch.zeros(T_steps, B, N_OUT, device=device)}
-            for i in range(self.n_layers):
-                rec_buf[self._hid_key(i + 1)] = torch.zeros(
-                    T_steps, B, self.hidden_sizes[i], device=device)
-            if has_input_spikes:
-                rec_buf["input"] = torch.zeros(
-                    T_steps, B, N_IN, device=device)
-        # Spike counts accumulated as GPU tensors (avoid .item() per step)
-        n_spk_tensors = {self._hid_key(i + 1): torch.zeros(1, device=device)
-                         for i in range(self.n_layers)}
-        # Per-layer, per-neuron spike counts over the trial (no detach) so the
-        # trainer can build a firing-rate regularisation loss from them.
         rate_counts = [torch.zeros(B, n, device=device)
                        for n in self.hidden_sizes]
-        n_spk_tensors["out"] = torch.zeros(1, device=device)
+        return {"mems": mems, "s_prevs": s_prevs, "g_exps": g_exps,
+                "refs": refs, "rate_counts": rate_counts}
 
-        for t in range(T_steps):
-            # Process each hidden layer
-            prev_spk = None  # output of previous layer for this timestep
-            for i in range(self.n_layers):
-                W, b = W_ff[i], b_ff[i]
-                n = self.hidden_sizes[i]
+    def _init_readout_state(self, cfg):
+        B, device = cfg["B"], cfg["device"]
+        return {
+            "hidden_accum": init_conductance(B, self.hidden_sizes[-1], device),
+            "v_out": torch.zeros(B, N_OUT, device=device),
+            "logits_max": torch.full((B, N_OUT), float("-inf"), device=device),
+            "logits_t": None,
+        }
 
-                # Compute per-step spike-derived input kick (unscaled, just W·s)
-                # and bias separately. spike_scale / bias_scale apply below.
-                if i == 0:
-                    if has_input_spikes:
-                        spk_t = (input_spikes[t].unsqueeze(0)
-                                 if input_spikes.dim() == 2 else input_spikes[t])
-                        if input_drive_all is not None:
-                            # Fast path: drive already includes spike-scale × (s @ W) + bias-scale × b
-                            drive = (input_drive_all[t].unsqueeze(0)
-                                     if input_drive_all.dim() == 2
-                                     else input_drive_all[t])
-                            spike_kick = None  # not used when fast-path active
-                        else:
-                            spike_kick = spk_t @ W
-                            drive = spike_scale * spike_kick + bias_scale * b
-                        if rec_buf is not None and "input" in rec_buf:
-                            rec_buf["input"][t] = spk_t
-                    else:
-                        spike_kick = torch.zeros(B, n, device=device)
-                        drive = spike_kick
-                    if has_ext_g:
-                        ext = ext_g[t].unsqueeze(0) if ext_g.dim() == 2 else ext_g[t]
-                        drive = drive + ext
-                        if spike_kick is not None:
-                            spike_kick = spike_kick + ext
+    def _compute_layer_drive(self, i, t, prev_spk, state, cfg):
+        """Return (drive, spike_kick, spk_t).
+
+        spike_kick is None on the CUDA big-matmul fast path (i=0 only);
+        spk_t is the raw input-layer spike slice, returned so the outer
+        loop can feed the rec_buf["input"] recorder.
+        """
+        B, device = cfg["B"], cfg["device"]
+        W, b = cfg["W_ff"][i], cfg["b_ff"][i]
+        n = self.hidden_sizes[i]
+        spike_scale, bias_scale = cfg["spike_scale"], cfg["bias_scale"]
+        spk_t = None
+
+        if i == 0:
+            if cfg["has_input_spikes"]:
+                input_spikes = cfg["input_spikes"]
+                spk_t = (input_spikes[t].unsqueeze(0)
+                         if input_spikes.dim() == 2 else input_spikes[t])
+                if cfg["input_drive_all"] is not None:
+                    ida = cfg["input_drive_all"]
+                    drive = (ida[t].unsqueeze(0)
+                             if ida.dim() == 2 else ida[t])
+                    spike_kick = None
                 else:
-                    spike_kick = prev_spk @ W
+                    spike_kick = spk_t @ W
                     drive = spike_scale * spike_kick + bias_scale * b
-
-                # Recurrent drive — full BPTT through the surrogate
-                # gradient; W_rec is trained with gradients flowing back
-                # through prior timesteps.
-                rec_key = str(i + 1)
-                if rec_key in W_rec:
-                    rec_drive = s_prevs[i] @ W_rec[rec_key]
-                    drive = drive + spike_scale * rec_drive
-                    if spike_kick is not None:
-                        spike_kick = spike_kick + rec_drive
-
-                # Exponential synapse: spikes feed a conductance g that decays
-                # with τ_AMPA; V is driven by (1-β)·g + bias. Overrides the
-                # normal drive computation. Bias path unchanged (still (1-β)·b).
-                if self.exponential_synapse:
-                    if spike_kick is None:
-                        # Fast-path was active but exp_synapse was requested —
-                        # we guarded against this earlier, so this shouldn't hit.
-                        raise RuntimeError(
-                            "input_drive_all precomputed but exp_synapse is on")
-                    g_exps[i] = g_exps[i] * decay_ampa + spike_kick
-                    drive = (1.0 - beta) * g_exps[i] + bias_scale * b
-
-                # Refractory mask
-                can_fire = (refs[i] == 0) if refs is not None else None
-
-                # LIF step
-                mems[i], s = snn_lif_step(mems[i], drive, beta,
-                                          spike_snn, reset=reset_mode,
-                                          can_fire=can_fire)
-
-                # Update refractory counter
-                if refs is not None:
-                    refs[i] = torch.where(
-                        s.bool(),
-                        torch.full_like(refs[i], float(ref_steps_snn)),
-                        torch.clamp(refs[i] - 1.0, min=0.0))
-
-                s_prevs[i] = s
-                prev_spk = s
-                rate_counts[i] = rate_counts[i] + s
-
-                hk = self._hid_key(i + 1)
-                # Detach: spike counts are metadata, not training signal.
-                # Without detach, this += chains a 2400-step grad graph that
-                # makes any later .item() stall on graph traversal.
-                n_spk_tensors[hk] += s.detach().sum()
-                if rec_buf is not None:
-                    rec_buf[hk][t] = s
-
-            # Readout. rate: accumulate last-hidden spikes and project once.
-            # li: integrate v_out = β·v_out + (1-β)·(prev_spk @ W_out + b_out)
-            # — non-spiking leaky integrator, one neuron per class. Track
-            # max-over-time so the final logits reflect the best response
-            # across the trial rather than just the last timestep.
-            if self.readout_mode == "li":
-                I_out = prev_spk @ W_ff[-1] + b_ff[-1]
-                v_out = beta * v_out + (1.0 - beta) * I_out
-                logits_max = torch.maximum(logits_max, v_out)
-                logits_t = v_out
             else:
-                hidden_accum = hidden_accum + prev_spk
-                logits_t = hidden_accum @ W_ff[-1] + b_ff[-1]
-            if rec_buf is not None:
-                rec_buf["out"][t] = logits_t
+                spike_kick = torch.zeros(B, n, device=device)
+                drive = spike_kick
+            if cfg["has_ext_g"]:
+                eg = cfg["ext_g"]
+                ext = eg[t].unsqueeze(0) if eg.dim() == 2 else eg[t]
+                drive = drive + ext
+                if spike_kick is not None:
+                    spike_kick = spike_kick + ext
+        else:
+            spike_kick = prev_spk @ W
+            drive = spike_scale * spike_kick + bias_scale * b
 
+        rec_key = str(i + 1)
+        if rec_key in cfg["W_rec"]:
+            rec_drive = state["s_prevs"][i] @ cfg["W_rec"][rec_key]
+            drive = drive + spike_scale * rec_drive
+            if spike_kick is not None:
+                spike_kick = spike_kick + rec_drive
+
+        return drive, spike_kick, spk_t
+
+    def _hidden_lif_step(self, i, drive, state, cfg):
+        """LIF step + refractory update + state book-keeping. Returns s."""
+        refs = state["refs"]
+        can_fire = (refs[i] == 0) if refs is not None else None
+        state["mems"][i], s = snn_lif_step(
+            state["mems"][i], drive, cfg["beta"], spike_snn,
+            reset=cfg["reset_mode"], can_fire=can_fire)
+        if refs is not None:
+            refs[i] = torch.where(
+                s.bool(),
+                torch.full_like(refs[i], float(cfg["ref_steps_snn"])),
+                torch.clamp(refs[i] - 1.0, min=0.0))
+        state["s_prevs"][i] = s
+        state["rate_counts"][i] = state["rate_counts"][i] + s
+        return s
+
+    def _record_hidden(self, i, t, s, cfg):
+        hk = self._hid_key(i + 1)
+        # Detach: spike counts are metadata, not training signal. Without
+        # detach, += chains the BPTT graph and any later .item() stalls.
+        cfg["n_spk_tensors"][hk] += s.detach().sum()
+        if cfg["rec_buf"] is not None:
+            cfg["rec_buf"][hk][t] = s
+
+    def _readout_step(self, t, prev_spk, readout, cfg):
+        """li: leaky-integrator per class, track max-over-time.
+        rate: accumulate last-hidden spikes and project once per step."""
+        W_out, b_out = cfg["W_ff"][-1], cfg["b_ff"][-1]
+        if self.readout_mode == "li":
+            I_out = prev_spk @ W_out + b_out
+            readout["v_out"] = (cfg["beta"] * readout["v_out"]
+                                + (1.0 - cfg["beta"]) * I_out)
+            readout["logits_max"] = torch.maximum(readout["logits_max"],
+                                                   readout["v_out"])
+            readout["logits_t"] = readout["v_out"]
+        else:
+            readout["hidden_accum"] = readout["hidden_accum"] + prev_spk
+            readout["logits_t"] = readout["hidden_accum"] @ W_out + b_out
+        if cfg["rec_buf"] is not None:
+            cfg["rec_buf"]["out"][t] = readout["logits_t"]
+
+    def _finalise_meta(self, cfg, readout, state):
         sizes = {self._hid_key(i + 1): self.hidden_sizes[i]
                  for i in range(self.n_layers)}
         sizes["out"] = N_OUT
-        n_spk = {k: v.item() for k, v in n_spk_tensors.items()}
+        n_spk = {k: v.item() for k, v in cfg["n_spk_tensors"].items()}
         rec = None
-        if rec_buf is not None:
-            rec = {k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
-                   for k, v in rec_buf.items()}
-        self._set_meta(B, n_spk, rec, sizes)
-        # Per-layer spike counts (B, n_hidden_i) summed over time, gradients
-        # still attached — trainer uses these for firing-rate regularisation.
-        self.last_spike_counts = rate_counts
-        return logits_max if self.readout_mode == "li" else logits_t
+        if cfg["rec_buf"] is not None:
+            rec = {k: (v.squeeze(1).cpu() if cfg["B"] == 1 else v.cpu())
+                   for k, v in cfg["rec_buf"].items()}
+        self._set_meta(cfg["B"], n_spk, rec, sizes)
+        # Gradients intentionally still attached — trainer uses these counts
+        # to build the firing-rate regularisation loss.
+        self.last_spike_counts = state["rate_counts"]
 
 
 
