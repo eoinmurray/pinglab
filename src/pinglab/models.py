@@ -452,23 +452,52 @@ class CUBANet(SNNBase):
                 else readout["logits_t"])
 
     def _forward_loop(self, cfg, state, readout):
-        """Eager outer time loop; dispatches to compiled step body on CUDA."""
-        step = self._compiled_cache.get("step", self._step_body)
-        for t in range(T_steps):
-            step(t, cfg, state, readout)
+        """Eager outer time loop; dispatches to compiled step body on CUDA.
 
-    def _step_body(self, t, cfg, state, readout):
+        Slicing of the per-timestep tensors happens here (Python side) so the
+        compiled _step_body never sees the Python int `t` — if it did, Dynamo
+        would guard on `t == N` and recompile 8× before blacklisting the
+        function and falling back to eager for the rest of the trial.
+        Similarly, all rec_buf[...][t] writes stay out here.
+        """
+        step = self._compiled_cache.get("step", self._step_body)
+        has_in = cfg["has_input_spikes"]
+        has_ext = cfg["has_ext_g"]
+        in_all = cfg["input_spikes"] if has_in else None
+        ida_all = cfg["input_drive_all"]
+        ext_all = cfg["ext_g"] if has_ext else None
+        rec_buf = cfg["rec_buf"]
+        for t in range(T_steps):
+            slc = {
+                "in_t": (in_all[t].unsqueeze(0) if has_in and in_all.dim() == 2
+                         else (in_all[t] if has_in else None)),
+                "drive0_t": (ida_all[t].unsqueeze(0)
+                             if ida_all is not None and ida_all.dim() == 2
+                             else (ida_all[t] if ida_all is not None else None)),
+                "ext_t": (ext_all[t].unsqueeze(0)
+                          if has_ext and ext_all.dim() == 2
+                          else (ext_all[t] if has_ext else None)),
+            }
+            step(slc, cfg, state, readout)
+
+            if rec_buf is not None:
+                if slc["in_t"] is not None and "input" in rec_buf:
+                    rec_buf["input"][t] = slc["in_t"]
+                for i in range(self.n_layers):
+                    rec_buf[self._hid_key(i + 1)][t] = state["s_prevs"][i]
+                rec_buf["out"][t] = readout["logits_t"]
+
+    def _step_body(self, slc, cfg, state, readout):
         """One timestep: all hidden layers + readout. The compile target.
 
-        Mutates cfg["rec_buf"], cfg["n_spk_tensors"], state, readout in place.
+        `slc` carries pre-sliced per-t tensors (in_t, drive0_t, ext_t) so the
+        Python int `t` never appears inside the compiled graph. Mutates
+        cfg["n_spk_tensors"], state, readout in place.
         """
         prev_spk = None
         for i in range(self.n_layers):
-            drive, spike_kick, spk_t = self._compute_layer_drive(
-                i, t, prev_spk, state, cfg)
-            if spk_t is not None and cfg["rec_buf"] is not None \
-                    and "input" in cfg["rec_buf"]:
-                cfg["rec_buf"]["input"][t] = spk_t
+            drive, spike_kick = self._compute_layer_drive(
+                i, prev_spk, slc, state, cfg)
 
             if self.exponential_synapse:
                 if spike_kick is None:
@@ -481,9 +510,11 @@ class CUBANet(SNNBase):
 
             s = self._hidden_lif_step(i, drive, state, cfg)
             prev_spk = s
-            self._record_hidden(i, t, s, cfg)
+            # n_spk accumulates (pure tensor op, compile-safe); rec_buf
+            # writes are keyed by t and live in _forward_loop.
+            cfg["n_spk_tensors"][self._hid_key(i + 1)] += s.detach().sum()
 
-        self._readout_step(t, prev_spk, readout, cfg)
+        self._readout_step(prev_spk, readout, cfg)
 
     # -- forward helpers ---------------------------------------------------
 
@@ -584,41 +615,33 @@ class CUBANet(SNNBase):
             "logits_t": None,
         }
 
-    def _compute_layer_drive(self, i, t, prev_spk, state, cfg):
-        """Return (drive, spike_kick, spk_t).
+    def _compute_layer_drive(self, i, prev_spk, slc, state, cfg):
+        """Return (drive, spike_kick).
 
-        spike_kick is None on the CUDA big-matmul fast path (i=0 only);
-        spk_t is the raw input-layer spike slice, returned so the outer
-        loop can feed the rec_buf["input"] recorder.
+        spike_kick is None on the CUDA big-matmul fast path (i=0 only).
+        Per-t tensors come in via `slc` so the Python int `t` never enters
+        this function (required for a stable compile guard).
         """
         B, device = cfg["B"], cfg["device"]
         W, b = cfg["W_ff"][i], cfg["b_ff"][i]
         n = self.hidden_sizes[i]
         spike_scale, bias_scale = cfg["spike_scale"], cfg["bias_scale"]
-        spk_t = None
 
         if i == 0:
-            if cfg["has_input_spikes"]:
-                input_spikes = cfg["input_spikes"]
-                spk_t = (input_spikes[t].unsqueeze(0)
-                         if input_spikes.dim() == 2 else input_spikes[t])
-                if cfg["input_drive_all"] is not None:
-                    ida = cfg["input_drive_all"]
-                    drive = (ida[t].unsqueeze(0)
-                             if ida.dim() == 2 else ida[t])
+            if slc["in_t"] is not None:
+                if slc["drive0_t"] is not None:
+                    drive = slc["drive0_t"]
                     spike_kick = None
                 else:
-                    spike_kick = spk_t @ W
+                    spike_kick = slc["in_t"] @ W
                     drive = spike_scale * spike_kick + bias_scale * b
             else:
                 spike_kick = torch.zeros(B, n, device=device)
                 drive = spike_kick
-            if cfg["has_ext_g"]:
-                eg = cfg["ext_g"]
-                ext = eg[t].unsqueeze(0) if eg.dim() == 2 else eg[t]
-                drive = drive + ext
+            if slc["ext_t"] is not None:
+                drive = drive + slc["ext_t"]
                 if spike_kick is not None:
-                    spike_kick = spike_kick + ext
+                    spike_kick = spike_kick + slc["ext_t"]
         else:
             spike_kick = prev_spk @ W
             drive = spike_scale * spike_kick + bias_scale * b
@@ -630,7 +653,7 @@ class CUBANet(SNNBase):
             if spike_kick is not None:
                 spike_kick = spike_kick + rec_drive
 
-        return drive, spike_kick, spk_t
+        return drive, spike_kick
 
     def _hidden_lif_step(self, i, drive, state, cfg):
         """LIF step + refractory update + state book-keeping. Returns s."""
@@ -648,17 +671,10 @@ class CUBANet(SNNBase):
         state["rate_counts"][i] = state["rate_counts"][i] + s
         return s
 
-    def _record_hidden(self, i, t, s, cfg):
-        hk = self._hid_key(i + 1)
-        # Detach: spike counts are metadata, not training signal. Without
-        # detach, += chains the BPTT graph and any later .item() stalls.
-        cfg["n_spk_tensors"][hk] += s.detach().sum()
-        if cfg["rec_buf"] is not None:
-            cfg["rec_buf"][hk][t] = s
-
-    def _readout_step(self, t, prev_spk, readout, cfg):
+    def _readout_step(self, prev_spk, readout, cfg):
         """li: leaky-integrator per class, track max-over-time.
-        rate: accumulate last-hidden spikes and project once per step."""
+        rate: accumulate last-hidden spikes and project once per step.
+        rec_buf writes are keyed by t so they happen in _forward_loop."""
         W_out, b_out = cfg["W_ff"][-1], cfg["b_ff"][-1]
         if self.readout_mode == "li":
             I_out = prev_spk @ W_out + b_out
@@ -670,8 +686,6 @@ class CUBANet(SNNBase):
         else:
             readout["hidden_accum"] = readout["hidden_accum"] + prev_spk
             readout["logits_t"] = readout["hidden_accum"] @ W_out + b_out
-        if cfg["rec_buf"] is not None:
-            cfg["rec_buf"]["out"][t] = readout["logits_t"]
 
     def _finalise_meta(self, cfg, readout, state):
         sizes = {self._hid_key(i + 1): self.hidden_sizes[i]
