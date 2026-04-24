@@ -28,9 +28,9 @@ Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*standard
 Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb005.py* per the [runner contract](/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "Readout", value: "li", default: "rate" },
-  { label: "Surrogate slope", value: 1, default: 5 },
-  { label: "Init", value: "Kaiming (signed)", default: "non-negative" },
+  { label: "Readout", value: "li", default: "rate", href: "/the-oscilloscope/#readouts" },
+  { label: "Surrogate slope", value: 1, default: 5, href: "/the-oscilloscope/#network-flags-shared" },
+  { label: "Init", value: "Kaiming (signed)", default: "non-negative", href: "/the-oscilloscope/#network-flags-shared" },
 ]} />
 
 Three of those customisations are what let *standard-snn* train at this *dt*/*T* combination; the others (model, dataset, hidden size, tier-driven schedule) are routine.
@@ -39,9 +39,19 @@ Three of those customisations are what let *standard-snn* train at this *dt*/*T*
 - [**surrogate-slope = 1**](/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient (*finite_max* ≈ 9 × 10³⁷ then NaN). Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end; the *skipped_steps* counter goes from 7/7 to 0/7.
 - [**kaiming-init (signed)**](/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* is what gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
 
+To reproduce:
+
+```
+uv run src/pinglab/notebooks/nb005.py
+```
+
+Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
+
 ## Results
 
 <RunParameters numbers={numbers} variant="results" />
+
+At the **large** [tier](/the-notebooks/#cli) ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) the recipe reaches best-acc {cell.best_acc ?? "?"}% / final {cell.final_acc ?? "?"}% with no late-epoch collapse and hidden rate back inside the 1–200 Hz band — all six gate criteria pass. The intermediate **medium** tier (2000 × 10) had scraped to ~80% but overshot the rate ceiling at 205 Hz; the extra 30 epochs at the same $\eta$ let the readout pull the hidden population back down to ~125 Hz without losing accuracy, so the rate drift was a short-run transient rather than the recipe being genuinely unstable.
 
 <Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for standard-snn">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
@@ -74,20 +84,6 @@ Three of those customisations are what let *standard-snn* train at this *dt*/*T*
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-## Findings
-
-At the **large** [tier](/the-notebooks/#cli) ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) the recipe reaches best-acc {cell.best_acc ?? "?"}% / final {cell.final_acc ?? "?"}% with no late-epoch collapse and hidden rate back inside the 1–200 Hz band — all six gate criteria pass. The intermediate **medium** tier (2000 × 10) had scraped to ~80% but overshot the rate ceiling at 205 Hz; the extra 30 epochs at the same $\eta$ let the readout pull the hidden population back down to ~125 Hz without losing accuracy, so the rate drift was a short-run transient rather than the recipe being genuinely unstable.
-
 ## Next steps
 
 Any future *dt* rescale of this notebook should revisit the three Method knobs — the surrogate slope in particular is a function of total trial-length, not *dt*. The large-tier run is the companion check for this recipe in the Δt-stability sweep of [nb010](/notebooks/nb010/).
-
-## Appendix
-
-### Reproduction
-
-```
-uv run src/pinglab/notebooks/nb005.py
-```
-
-Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
