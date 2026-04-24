@@ -47,6 +47,10 @@ uv run src/pinglab/notebooks/nb005.py
 
 Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
 
+## Results
+
+<RunParameters numbers={numbers} variant="results" />
+
 ### Success criteria
 
 {successCriteria.length > 0 ? (
@@ -66,10 +70,6 @@ Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier nam
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-## Results
-
-<RunParameters numbers={numbers} variant="results" />
-
 At the **large** [tier](/the-notebooks/#cli) ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) the recipe reaches best-acc {cell.best_acc ?? "?"}% / final {cell.final_acc ?? "?"}% with no late-epoch collapse and hidden rate back inside the 1–200 Hz band — all six gate criteria pass. The intermediate **medium** tier (2000 × 10) had scraped to ~80% but overshot the rate ceiling at 205 Hz; the extra 30 epochs at the same $\eta$ let the readout pull the hidden population back down to ~125 Hz without losing accuracy, so the rate drift was a short-run transient rather than the recipe being genuinely unstable.
 
 <Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb005/training_curves.png" alt="Train loss and test accuracy per epoch for standard-snn">
@@ -87,3 +87,5 @@ At the **large** [tier](/the-notebooks/#cli) ({cfg.max_samples ?? "?"} samples �
 ## Next steps
 
 Any future *dt* rescale of this notebook should revisit the three Method knobs — the surrogate slope in particular is a function of total trial-length, not *dt*. The large-tier run is the companion check for this recipe in the Δt-stability sweep of [nb010](/notebooks/nb010/).
+
+A shared two-sided firing-rate regulariser across this notebook and its parity sibling [nb006](/notebooks/nb006/) — via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared), Cramer-2022 style — is parked for a follow-up. It would pin both implementations into the 1–200 Hz band by training pressure rather than by step-code parity, closing the residual mid-training rate gap (nb005 ~250 Hz / nb006 ~630 Hz at medium) without making the two paths interact.
