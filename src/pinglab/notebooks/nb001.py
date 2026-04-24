@@ -98,6 +98,7 @@ def render_frame(out_dir: Path, modal_gpu: str | None = None) -> Path:
         "--stim-overdrive", str(STIM_OVERDRIVE),
         "--ei-strength", str(EI_STRENGTH),
         "--dt", str(DT_MS),
+        "--t-ms", str(SIM_MS),
         "--out-dir", str(out_dir),
         "--wipe-dir",
     ]
@@ -124,13 +125,33 @@ def _format_duration(seconds: float) -> str:
     return f"{s // 3600}h {(s % 3600) // 60:02d}m"
 
 
+def evaluate_success(figures_dir: Path) -> list[dict]:
+    """Check that the publishable artifact actually landed. Pattern: each
+    criterion is {label, passed, detail, detail_href?}. detail_href is an
+    optional site-relative URL the MDX renders the detail text as a link to."""
+    frame = figures_dir / "scope_frame.png"
+    exists = frame.exists() and frame.stat().st_size > 0
+    # figures live under src/docs/public/, which Astro serves at the site root.
+    href = "/" + str(frame.relative_to(figures_dir.parents[2]))
+    return [
+        {
+            "label": "scope frame rendered",
+            "passed": bool(exists),
+            "detail": f"{frame.name} ({frame.stat().st_size} bytes)" if exists
+                      else f"missing {frame.name}",
+            "detail_href": href if exists else None,
+        },
+    ]
+
+
 def write_numbers(out_path: Path, notebook_run_id: str,
-                  duration_s: float) -> dict:
+                  duration_s: float, success_criteria: list[dict]) -> dict:
     summary = {
         "notebook_run_id": notebook_run_id,
         "run_datetime": _format_run_datetime(datetime.now().astimezone()),
         "duration_s": round(duration_s, 1),
         "duration": _format_duration(duration_s),
+        "success_criteria": success_criteria,
         "config": {
             "tier": TIER,
             "model": "ping",
@@ -152,8 +173,35 @@ def write_numbers(out_path: Path, notebook_run_id: str,
     return summary
 
 
+def _print_and_gate(success_criteria: list[dict]) -> None:
+    """Print a [pass]/[FAIL] line per criterion; exit 1 if any failed."""
+    for c in success_criteria:
+        mark = "pass" if c["passed"] else "FAIL"
+        print(f"  [{mark}] {c['label']} — {c['detail']}")
+    if any(not c["passed"] for c in success_criteria):
+        sys.exit(1)
+
+
+def evaluate_only() -> None:
+    """Re-run only the success-criteria check against the existing
+    numbers.json + published figures. No pipeline dispatch, no wipe —
+    useful when only the criteria themselves have changed."""
+    numbers_path = FIGURES / "numbers.json"
+    if not numbers_path.exists():
+        raise SystemExit(f"--evaluate-success-only requires existing "
+                         f"{numbers_path.relative_to(REPO)}")
+    summary = json.loads(numbers_path.read_text())
+    summary["success_criteria"] = evaluate_success(FIGURES)
+    numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"rewrote {numbers_path.relative_to(REPO)} (success_criteria only)")
+    _print_and_gate(summary["success_criteria"])
+
+
 def main() -> None:
     global TIER
+    if "--evaluate-success-only" in sys.argv:
+        evaluate_only()
+        return
     wipe_dir = "--no-wipe-dir" not in sys.argv
     skip_training = "--skip-training" in sys.argv
     modal_gpu = parse_modal_gpu(sys.argv)
@@ -189,8 +237,11 @@ def main() -> None:
     stamp.unlink(missing_ok=True)
 
     duration_s = time.monotonic() - t_start
-    summary = write_numbers(FIGURES / "numbers.json", notebook_run_id, duration_s)
+    success_criteria = evaluate_success(FIGURES)
+    summary = write_numbers(FIGURES / "numbers.json", notebook_run_id,
+                            duration_s, success_criteria)
     print(f"  duration: {summary['duration']}")
+    _print_and_gate(success_criteria)
 
 
 if __name__ == "__main__":

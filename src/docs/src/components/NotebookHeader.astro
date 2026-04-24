@@ -1,5 +1,5 @@
 ---
-import { commitUrl, isDirty, shortSha } from "../config/repo";
+import { blobUrl, commitUrl, isDirty, shortSha } from "../config/repo";
 
 interface Props {
   frontmatter: {
@@ -49,6 +49,15 @@ const runId = numbers.notebook_run_id ?? null;
 const dirty = isDirty(sha);
 const short = shortSha(sha);
 const commitHref = sha ? commitUrl(sha) : null;
+const runnerPath = `src/pinglab/notebooks/${slug}.py`;
+const runnerHref = blobUrl(runnerPath, sha ? { sha } : {});
+
+const criteria = Array.isArray(numbers.success_criteria) ? numbers.success_criteria : [];
+const criteriaTotal = criteria.length;
+const criteriaPassed = criteria.filter((c: any) => c && c.passed).length;
+const criteriaFailed = criteriaTotal - criteriaPassed;
+const hasGate = criteriaTotal > 0;
+const allPass = hasGate && criteriaFailed === 0;
 
 type Stat = { label: string; value: any; mono?: boolean };
 const stats: Stat[] = [];
@@ -78,6 +87,19 @@ const ddMono = "font-mono text-[0.85rem]";
       <>
         <span class="text-faint">·</span>
         <span>{dateStr}</span>
+      </>
+    )}
+    {hasGate && (
+      <>
+        <span class="text-faint">·</span>
+        <a
+          href="#success-criteria"
+          class={`inline-flex items-baseline gap-[0.3rem] rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.72rem] font-medium uppercase tracking-wider no-underline! ${allPass ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
+          title={`${criteriaPassed}/${criteriaTotal} success criteria passed`}
+        >
+          <span>{allPass ? "pass" : "fail"}</span>
+          <span class="text-[0.7rem] opacity-70">{criteriaPassed}/{criteriaTotal}</span>
+        </a>
       </>
     )}
   </div>
@@ -110,5 +132,17 @@ const ddMono = "font-mono text-[0.85rem]";
         </dd>
       </div>
     )}
+    <div class="flex min-w-0 flex-col py-[0.15rem]">
+      <dt class="mb-[0.1rem] text-[0.72rem] font-medium uppercase tracking-wider text-label">runner</dt>
+      <dd class={`m-0 text-[0.95rem] font-medium text-ink-strong ${ddMono}`}>
+        <a
+          href={runnerHref}
+          class="text-ink-strong underline decoration-underline"
+          target="_blank"
+          rel="noopener"
+          title={sha ? `${runnerPath} @ ${short}` : `${runnerPath} @ main`}
+        >{slug}.py</a>
+      </dd>
+    </div>
   </dl>
 </header>
