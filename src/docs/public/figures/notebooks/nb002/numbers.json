@@ -1,11 +1,11 @@
 {
-  "notebook_run_id": "r011",
-  "run_datetime": "Thursday, 23rd April 26 at 18:10",
-  "duration_s": 47.6,
-  "duration": "48s",
-  "tier": "extra small",
+  "notebook_run_id": "r013",
+  "run_datetime": "Saturday, 25th April 26 at 01:04",
+  "duration_s": 2263.4,
+  "duration": "37m 43s",
+  "tier": "large",
   "config": {
-    "tier": "extra small",
+    "tier": "large",
     "model": "ping",
     "n_e": 512,
     "n_i": 128,
@@ -26,7 +26,7 @@
       "var": "stim-overdrive",
       "min": 1.0,
       "max": 10.0,
-      "frames": 5,
+      "frames": 300,
       "fps": 30
     }
   },
@@ -51,7 +51,7 @@
     {
       "label": "overdrive scan video rendered",
       "passed": true,
-      "detail": "scan_overdrive.mp4 (199705 bytes)",
+      "detail": "scan_overdrive.mp4 (3125171 bytes)",
       "detail_href": "/figures/notebooks/nb002/scan_overdrive.mp4"
     },
     {
