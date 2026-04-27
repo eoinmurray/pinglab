@@ -49,7 +49,8 @@ STEP_ON_MS      = 200.0
 STEP_OFF_MS     = 300.0
 STIM_OVERDRIVE  = 5.0
 INPUT_RATE_HZ   = 50.0
-W_IN_OVERDRIVE  = 1.8
+W_IN_MEAN       = 0.9      # 3× over the default 0.3 — pushes net firmly into PING
+W_IN_STD        = 0.18     # 3× over the default 0.06
 EI_STRENGTH     = 0.5
 DATASET         = "mnist"
 DIGIT_CLASS     = 0
@@ -94,7 +95,7 @@ def render_frame(out_dir: Path, modal_gpu: str | None = None) -> Path:
         "--digit", str(DIGIT_CLASS),
         "--sample", str(SAMPLE_IDX),
         "--input-rate", str(INPUT_RATE_HZ),
-        "--w-in-overdrive", str(W_IN_OVERDRIVE),
+        "--w-in", str(W_IN_MEAN), str(W_IN_STD),
         "--stim-overdrive", str(STIM_OVERDRIVE),
         "--ei-strength", str(EI_STRENGTH),
         "--dt", str(DT_MS),
@@ -160,7 +161,8 @@ def write_numbers(out_path: Path, notebook_run_id: str,
             "step_on_ms": STEP_ON_MS, "step_off_ms": STEP_OFF_MS,
             "stim_overdrive": STIM_OVERDRIVE,
             "input_rate_hz": INPUT_RATE_HZ,
-            "w_in_overdrive": W_IN_OVERDRIVE,
+            "w_in_mean": W_IN_MEAN,
+            "w_in_std": W_IN_STD,
             "ei_strength": EI_STRENGTH,
             "input": {"dataset": DATASET,
                       "digit": DIGIT_CLASS, "sample": SAMPLE_IDX},

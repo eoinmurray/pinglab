@@ -15,7 +15,7 @@ export const cfg = numbers.config ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const runDuration = numbers.duration ?? "?";
 export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?" };
-export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?", input_rate_hz: "?", w_in_overdrive: "?" };
+export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?", input_rate_hz: "?", w_in_mean: "?", w_in_std: "?" };
 export const r = {
   pre: numbers.rates_hz?.pre ?? {},
   stim: numbers.rates_hz?.stim ?? {},
@@ -32,7 +32,7 @@ External drive is one knob ([nb002](/notebooks/nb002/)); internal E→I→E coup
 
 ## Method
 
-A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× and **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ overdrive {scan.w_in_overdrive}×. All knobs are hardcoded literals in *src/pinglab/notebooks/nb004.py* per the [runner contract](/the-notebooks/#runner-contract).
+A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× and **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}). All knobs are hardcoded literals in *src/pinglab/notebooks/nb004.py* per the [runner contract](/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
@@ -40,7 +40,7 @@ A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subc
     rows: [
       { label: "Model", value: cfg.model ?? "?" },
       { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample} @ ${scan.input_rate_hz} Hz` },
-      { label: "W_in overdrive", value: `${scan.w_in_overdrive}×` },
+      { label: "W_in init (mean, std)", value: `${scan.w_in_mean}, ${scan.w_in_std}` },
       { label: "Seed", value: cfg.seed ?? "?" },
     ],
   },
@@ -84,7 +84,7 @@ A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subc
 )}
 
 <Figure type="video" id="Figure 1" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb004/scan_ei.mp4">
-  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ overdrive {scan.w_in_overdrive}×.
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}).
 
   No PING until about E→I strength 1.6; then unstable onset of PING from 1.6 onwards.
 </Figure>
