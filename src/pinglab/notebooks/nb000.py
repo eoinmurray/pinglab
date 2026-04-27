@@ -96,4 +96,5 @@ def perf_criteria(figures: Path, run_dir: Path, tier: str) -> list[dict]:
 
 
 if __name__ == "__main__":
-    run(SLUG, MODEL, build_osc_args, criteria_fn=perf_criteria)
+    run(SLUG, MODEL, build_osc_args,
+        criteria_fn=perf_criteria, track_baselines=True)
