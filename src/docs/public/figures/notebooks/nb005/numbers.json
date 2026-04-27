@@ -1,67 +1,66 @@
 {
-  "notebook_run_id": "r018",
-  "git_sha": "unknown",
-  "duration_s": 3227.6,
-  "duration": "53m 48s",
-  "tier": "large",
+  "notebook_run_id": "r007",
+  "run_datetime": "Monday, 27th April 26 at 13:26",
+  "duration_s": 141.2,
+  "duration": "2m 21s",
+  "tier": "medium",
   "config": {
-    "tier": "large",
-    "dataset": "mnist",
-    "model": "standard-snn",
-    "max_samples": 5000,
-    "epochs": 40,
-    "t_ms": 200.0,
-    "dt": 0.1,
-    "n_hidden": 1024,
-    "batch_size": 256,
+    "tier": "medium",
+    "model": "ping",
+    "n_e": 512,
+    "n_i": 128,
+    "dt_ms": 0.1,
+    "sim_ms": 600.0,
+    "step_on_ms": 200.0,
+    "step_off_ms": 300.0,
+    "input": {
+      "mode": "dataset",
+      "dataset": "mnist",
+      "digit": 0,
+      "sample": 0,
+      "base_rate_hz": 50.0,
+      "w_in_mean": 0.54,
+      "w_in_std": 0.108
+    },
     "seed": 42,
-    "input_rate_hz": 25.0
+    "scan": {
+      "var": "ei_strength",
+      "min": 0.0,
+      "max": 2.0,
+      "frames": 100,
+      "fps": 30,
+      "fixed_overdrive": 1.0,
+      "input_rate_hz": 200.0,
+      "w_in_mean": 1.8,
+      "w_in_std": 0.36
+    }
   },
-  "run": {
-    "model": "standard-snn",
-    "run_date": "Saturday, April 25 2026 at 17:19",
-    "run_id": "r-20260425-120617",
-    "git_sha": "unknown",
-    "lr": 0.01,
-    "best_acc": 87.0,
-    "best_epoch": 33,
-    "final_acc": 86.8,
-    "final_loss": 0.2915886268019676,
-    "total_elapsed_s": 11575.018600736
+  "rates_hz": {
+    "pre": {
+      "e": 12.73437519557774,
+      "i": 57.18749947845936
+    },
+    "stim": {
+      "e": 10.976562043651938,
+      "i": 49.4531262665987
+    },
+    "post": {
+      "e": 11.591188376769423,
+      "i": 53.0812656506896
+    }
   },
+  "canonical_ei": 0.8,
   "success_criteria": [
     {
-      "label": "training curves rendered",
+      "label": "ei-strength scan video rendered",
       "passed": true,
-      "detail": "training_curves.png (62928 bytes)",
-      "detail_href": "/figures/notebooks/nb005/training_curves.png"
+      "detail": "scan_ei.mp4 (3715080 bytes)",
+      "detail_href": "/figures/notebooks/nb005/scan_ei.mp4"
     },
     {
-      "label": "firing-rate trace rendered",
+      "label": "PING forms at canonical ei (0.8)",
       "passed": true,
-      "detail": "firing_rates.png (51667 bytes)",
-      "detail_href": "/figures/notebooks/nb005/firing_rates.png"
-    },
-    {
-      "label": "training video rendered",
-      "passed": true,
-      "detail": "training.mp4 (4397235 bytes)",
-      "detail_href": "/figures/notebooks/nb005/training.mp4"
-    },
-    {
-      "label": "hidden rate in band (1.0\u2013200.0 Hz)",
-      "passed": false,
-      "detail": "rate_e=284.38 Hz"
-    },
-    {
-      "label": "final acc \u2265 70.0% (large tier floor)",
-      "passed": true,
-      "detail": "final=86.80%, best=87.00%"
-    },
-    {
-      "label": "no collapse (final \u2265 best \u2212 5pp)",
-      "passed": true,
-      "detail": "final=86.80%, best=87.00%, \u0394=0.20pp"
+      "detail": "E stim=11.0 Hz, I stim=49.5 Hz"
     }
   ]
 }

@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "006 — snntorch-library"
+title: "006 — standard-snn"
 date: 2026-04-23
 entry: 6
 structure: paper
@@ -21,23 +21,31 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*snntorch-library*](/models/#snntorch-library) path — the external snnTorch reference implementation, kept as a parity check on our own CUBANet class — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; parity sibling of [nb005](/notebooks/nb005/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb011](/notebooks/nb011/). Trains only the [*standard-snn*](/models/#standard-snn) — the snnTorch research-baseline LIF classifier — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; this is the rung-zero training profile in isolation. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
 Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb006.py* per the [runner contract](/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "Readout", value: "li", default: "rate" },
-  { label: "Surrogate slope", value: 1, default: 5 },
-  { label: "Init", value: "Kaiming (signed)", default: "non-negative" },
+  { label: "Readout", value: "li", default: "rate", href: "/the-oscilloscope/#readouts" },
+  { label: "Surrogate slope", value: 1, default: 5, href: "/the-oscilloscope/#network-flags-shared" },
+  { label: "Init", value: "Kaiming (signed)", default: "non-negative", href: "/the-oscilloscope/#network-flags-shared" },
 ]} />
 
-The three customisations mirror [nb005](/notebooks/nb005/) verbatim — *snntorch-library* shares the saturated-rate-readout and slope-5 × 2000-step BPTT pathologies of our CUBANet, because it's the same math through snnTorch's own *Leaky* cell rather than our clone.
+Three of those customisations are what let *standard-snn* train at this *dt*/*T* combination; the others (model, dataset, hidden size, tier-driven schedule) are routine.
 
 - [**readout = li**](/the-oscilloscope/#readouts) — the default *rate* readout accumulates hidden spikes across *T* = 2000 steps and produces logits large enough that CE saturates to zero on the forward pass, masking the real gradient signal.
-- [**surrogate-slope = 1**](/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient. Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end; the *skipped_steps* counter goes from 7/7 to 0/7.
-- [**kaiming-init (signed)**](/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
+- [**surrogate-slope = 1**](/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient (*finite_max* ≈ 9 × 10³⁷ then NaN). Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end; the *skipped_steps* counter goes from 7/7 to 0/7.
+- [**kaiming-init (signed)**](/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* is what gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
+
+To reproduce:
+
+```
+uv run src/pinglab/notebooks/nb006.py
+```
+
+Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
 
 ## Results
 
@@ -62,30 +70,22 @@ The three customisations mirror [nb005](/notebooks/nb005/) verbatim — *snntorc
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb006/training_curves.png" alt="Train loss and test accuracy per epoch for snntorch-library">
+At the **large** [tier](/the-notebooks/#cli) ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) the recipe reaches best-acc {cell.best_acc ?? "?"}% / final {cell.final_acc ?? "?"}% with no late-epoch collapse and hidden rate back inside the 1–200 Hz band — all six gate criteria pass. The intermediate **medium** tier (2000 × 10) had scraped to ~80% but overshot the rate ceiling at 205 Hz; the extra 30 epochs at the same $\eta$ let the readout pull the hidden population back down to ~125 Hz without losing accuracy, so the rate drift was a short-run transient rather than the recipe being genuinely unstable.
+
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb006/training_curves.png" alt="Train loss and test accuracy per epoch for standard-snn">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
 </Figure>
 
-<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb006/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for snntorch-library">
+<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb006/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for standard-snn">
   Mean hidden firing rate across the training schedule.
 </Figure>
 
-<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb006/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the snntorch-library hidden layer">
-  Per-epoch snapshot of the reference MNIST trial through *snntorch-library*'s hidden layer.
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb006/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the standard-snn hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *standard-snn*'s hidden layer.
 </Figure>
 
 ## Next steps
 
-Large-tier training pulls the hidden rate part-way back (peak ~705 Hz → ~390 Hz by epoch 40) while best accuracy tracks [nb005](/notebooks/nb005/) to within ~1pp — so acc calibration holds, but the rate sanity-band fail persists. The weight init is already matched bit-for-bit with nb005 via the shared Kaiming-uniform recipe in [*CUBANet*](/models/#standard-snn); the remaining gap comes from per-step drift between pinglab's LIF clone and *snn.Leaky* (bias fold, spike/reset ordering, surrogate attachment point) accumulated over 2000 × 40 timesteps of BPTT.
+Any future *dt* rescale of this notebook should revisit the three Method knobs — the surrogate slope in particular is a function of total trial-length, not *dt*. The large-tier run is the companion check for this recipe in the Δt-stability sweep of [nb011](/notebooks/nb011/).
 
-A shared two-sided firing-rate regulariser across this notebook and [nb005](/notebooks/nb005/) — via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared), Cramer-2022 style — is parked for a follow-up. It would pin both paths into the 1–200 Hz band by training pressure rather than by step-code parity, closing the rate gap without turning the calibration pair into a re-import of the library's quirks.
-
-## Appendix
-
-### Reproduction
-
-```
-uv run src/pinglab/notebooks/nb006.py
-```
-
-Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
+A shared two-sided firing-rate regulariser across this notebook and its parity sibling [nb007](/notebooks/nb007/) — via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared), Cramer-2022 style — is parked for a follow-up. It would pin both implementations into the 1–200 Hz band by training pressure rather than by step-code parity, closing the residual mid-training rate gap (nb006 ~250 Hz / nb007 ~630 Hz at medium) without making the two paths interact.
