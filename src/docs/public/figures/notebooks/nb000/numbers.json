@@ -1,15 +1,15 @@
 {
-  "notebook_run_id": "r010",
-  "git_sha": "12bdedf (dirty)",
-  "duration_s": 108.9,
-  "duration": "1m 49s",
-  "tier": "medium",
+  "notebook_run_id": "r012",
+  "git_sha": "29f4462 (dirty)",
+  "duration_s": 18.8,
+  "duration": "19s",
+  "tier": "small",
   "config": {
-    "tier": "medium",
+    "tier": "small",
     "dataset": "mnist",
     "model": "standard-snn",
-    "max_samples": 2000,
-    "epochs": 10,
+    "max_samples": 500,
+    "epochs": 5,
     "t_ms": 200.0,
     "dt": 0.1,
     "n_hidden": 1024,
@@ -19,86 +19,90 @@
   },
   "run": {
     "model": "standard-snn",
-    "run_date": "Monday, April 27 2026 at 18:08",
-    "run_id": "r-20260427-180631",
-    "git_sha": "12bdedf (dirty)",
+    "run_date": "Monday, April 27 2026 at 19:04",
+    "run_id": "r-20260427-190402",
+    "git_sha": "29f4462 (dirty)",
     "lr": 0.01,
-    "best_acc": 57.0,
-    "best_epoch": 10,
-    "final_acc": 57.0,
-    "final_loss": 1.4378493172781808,
-    "total_elapsed_s": 102.85521354200318
+    "best_acc": 12.0,
+    "best_epoch": 1,
+    "final_acc": 12.0,
+    "final_loss": 2.2844420671463013,
+    "total_elapsed_s": 14.697014166973531
   },
   "perf": {
     "device": {
       "type": "mps"
     },
     "torch_version": "2.11.0",
-    "peak_memory_bytes": 430407936,
-    "epoch1_total_s": 10.529176666866988,
-    "epoch_warm_mean_s": 9.474108148055771,
-    "samples_per_sec_warm": 201.47014149838895
+    "peak_memory_bytes": 931710976,
+    "epoch1_total_s": 2.632686875294894,
+    "epoch_warm_mean_s": 2.2062042609322816,
+    "samples_per_sec_warm": 216.69874178076415
   },
   "success_criteria": [
     {
       "label": "training curves rendered",
       "passed": true,
-      "detail": "training_curves.png (59599 bytes)",
+      "detail": "training_curves.png (61853 bytes)",
       "detail_href": "/figures/notebooks/nb000/training_curves.png"
     },
     {
       "label": "firing-rate trace rendered",
       "passed": true,
-      "detail": "firing_rates.png (45065 bytes)",
+      "detail": "firing_rates.png (44171 bytes)",
       "detail_href": "/figures/notebooks/nb000/firing_rates.png"
     },
     {
       "label": "training video rendered",
       "passed": true,
-      "detail": "training.mp4 (1077000 bytes)",
+      "detail": "training.mp4 (351471 bytes)",
       "detail_href": "/figures/notebooks/nb000/training.mp4"
     },
     {
       "label": "hidden layer spiked (rate_e > 0)",
       "passed": true,
-      "detail": "rate_e=263.31 Hz"
+      "detail": "rate_e=42.90 Hz"
     },
     {
       "label": "forward/backward did something (acc > 1%)",
       "passed": true,
-      "detail": "final=57.00%"
+      "detail": "final=12.00%"
     },
     {
       "label": "perf block populated",
       "passed": true,
-      "detail": "samples_per_sec_warm=201.5"
+      "detail": "samples_per_sec_warm=216.7"
+    },
+    {
+      "label": "coba (PINGNet path) perf populated",
+      "passed": true,
+      "detail": "samples_per_sec_warm=53.2"
     }
   ],
   "perf_baselines": {
-    "local-mps": {
-      "tier": "medium",
-      "notebook_run_id": "r010",
+    "local-mps:standard-snn": {
+      "tier": "small",
+      "notebook_run_id": "r012",
       "device": {
         "type": "mps"
       },
       "torch_version": "2.11.0",
-      "peak_memory_bytes": 430407936,
-      "epoch1_total_s": 10.529176666866988,
-      "epoch_warm_mean_s": 9.474108148055771,
-      "samples_per_sec_warm": 201.47014149838895
+      "peak_memory_bytes": 931710976,
+      "epoch1_total_s": 2.632686875294894,
+      "epoch_warm_mean_s": 2.2062042609322816,
+      "samples_per_sec_warm": 216.69874178076415
     },
-    "modal-A100": {
-      "tier": "medium",
-      "notebook_run_id": "r010",
+    "local-mps:coba": {
+      "tier": "small",
+      "notebook_run_id": "r012",
       "device": {
-        "type": "cuda",
-        "name": "NVIDIA A100-SXM4-80GB"
+        "type": "mps"
       },
-      "torch_version": "2.11.0+cu130",
-      "peak_memory_bytes": 5892829184,
-      "epoch1_total_s": 29.578650512,
-      "epoch_warm_mean_s": 16.772104788666663,
-      "samples_per_sec_warm": 140.5540698717938
+      "torch_version": "2.11.0",
+      "peak_memory_bytes": 131059200,
+      "epoch1_total_s": 10.337293250020593,
+      "epoch_warm_mean_s": 9.868708583177067,
+      "samples_per_sec_warm": 53.206065828325
     }
   }
 }

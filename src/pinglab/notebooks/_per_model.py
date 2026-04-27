@@ -153,14 +153,19 @@ def copy_training_video(run_dir: Path, out_dir: Path,
     stamp_path.unlink(missing_ok=True)
 
 
-def _baseline_label(perf: dict, modal_gpu: str | None) -> str:
-    """Stable key for the perf_baselines map. Local runs key by device type
-    (local-mps, local-cpu, local-cuda); Modal runs key by GPU (modal-A100,
-    modal-T4, …) so concurrent A100/T4 baselines don't overwrite each other."""
+def _baseline_label(perf: dict, modal_gpu: str | None, model: str) -> str:
+    """Stable key for the perf_baselines map: `<backend>:<model>`.
+
+    Backend is local-{device.type} for local runs, modal-{GPU} for Modal
+    so concurrent A100/T4 baselines don't overwrite each other. Model is
+    appended so a notebook training multiple models (e.g. nb000 testing
+    both CUBANet via standard-snn and PINGNet via coba) can hold all four
+    rows of the (model × backend) matrix without collisions."""
     if modal_gpu:
-        return f"modal-{modal_gpu}"
-    device_type = (perf.get("device") or {}).get("type", "?")
-    return f"local-{device_type}"
+        backend = f"modal-{modal_gpu}"
+    else:
+        backend = f"local-{(perf.get('device') or {}).get('type', '?')}"
+    return f"{backend}:{model}"
 
 
 def evaluate_success(figures: Path, run_dir: Path, tier: str,
@@ -299,7 +304,8 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
         min_acc_by_tier: dict[str, float] | None = None,
         extra_criteria_fn: Callable[[Path, Path], list[dict]] | None = None,
         criteria_fn: Callable[[Path, Path, str], list[dict]] | None = None,
-        track_baselines: bool = False) -> None:
+        track_baselines: bool = False,
+        extra_train_models: "list[tuple[str, Callable[[str, Path], list[str]]]] | None" = None) -> None:
     """Run one per-model notebook. build_osc_args(tier, out_dir) returns the
     full `oscilloscope train …` argument list for the given tier.
 
@@ -371,6 +377,77 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
     copy_training_video(run_dir, figures, notebook_run_id)
 
     duration_s = time.monotonic() - t_start
+
+    # Build perf_baselines BEFORE criteria evaluation, so criteria_fn can
+    # gate on extras' artifacts (e.g. nb000 checks coba's metrics.json).
+    baselines: dict | None = None
+    if track_baselines:
+        primary_perf = json.loads(
+            (run_dir / "metrics.json").read_text()).get("perf")
+        if primary_perf:
+            baselines = {}
+            also_modal = parse_also_modal_gpu(sys.argv)
+
+            def _record_perf(perf: dict, used_modal: str | None, m_name: str) -> None:
+                label = _baseline_label(perf, used_modal, m_name)
+                baselines[label] = {
+                    "tier": tier,
+                    "notebook_run_id": notebook_run_id,
+                    **perf,
+                }
+
+            def _dispatch_modal_for(m_name: str, build_fn, sub_dir: Path) -> None:
+                """Run `build_fn` on Modal, write to sub_dir, fold its perf
+                into baselines. Called for both the primary and any extra
+                models when --also-modal-gpu is set."""
+                if not also_modal or skip_training:
+                    return
+                if sub_dir.exists():
+                    shutil.rmtree(sub_dir)
+                sec_args = build_fn(tier, sub_dir)
+                sec_disp = BatchDispatcher(also_modal, repo, oscilloscope)
+                sec_override = "A100" if (gpu_needs_a100 and
+                                          also_modal in ("T4", "L4", "A10G")) else None
+                print(f"  [also-modal] dispatching {m_name} to Modal {also_modal}"
+                      + (f" (upgraded from {also_modal} to A100)" if sec_override else ""))
+                sec_disp.submit(sec_args, sub_dir, gpu_override=sec_override)
+                sec_disp.drain()
+                sec_metrics_path = sub_dir / "metrics.json"
+                if not sec_metrics_path.exists():
+                    print(f"  [also-modal] warning: {m_name} produced no metrics.json at {sec_metrics_path}")
+                    return
+                sec_perf = json.loads(sec_metrics_path.read_text()).get("perf")
+                if sec_perf:
+                    _record_perf(sec_perf, sec_override or also_modal, m_name)
+
+            # Primary model: local already done, optional modal dispatch.
+            _record_perf(primary_perf, None, model)
+            _dispatch_modal_for(model, build_osc_args, artifacts / "train_also_modal")
+
+            # Extra models: train each locally to its own subdir (no figure
+            # / video rendering — perf-only secondaries), then optionally on
+            # Modal.
+            for extra_name, extra_build in (extra_train_models or []):
+                if skip_training:
+                    continue
+                extra_run_dir = artifacts / f"train_{extra_name}"
+                if extra_run_dir.exists():
+                    shutil.rmtree(extra_run_dir)
+                extra_args = extra_build(tier, extra_run_dir)
+                extra_disp = BatchDispatcher(modal_gpu, repo, oscilloscope)
+                extra_disp.submit(extra_args, extra_run_dir)
+                extra_disp.drain()
+                extra_metrics_path = extra_run_dir / "metrics.json"
+                if not extra_metrics_path.exists():
+                    print(f"  [extra-model] warning: {extra_name} produced no metrics.json")
+                    continue
+                extra_perf = json.loads(extra_metrics_path.read_text()).get("perf")
+                if extra_perf:
+                    _record_perf(extra_perf, modal_gpu, extra_name)
+                _dispatch_modal_for(extra_name, extra_build,
+                                    artifacts / f"train_{extra_name}_also_modal")
+
+    # Now criteria can see all artifacts (primary + extras).
     if criteria_fn is not None:
         success_criteria = criteria_fn(figures, run_dir, tier)
     else:
@@ -380,41 +457,7 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
     summary = write_numbers(run_dir, figures / "numbers.json", model, tier,
                             notebook_run_id, duration_s,
                             success_criteria=success_criteria)
-    if track_baselines and "perf" in summary:
-        baselines: dict = {}
-        primary_label = _baseline_label(summary["perf"], modal_gpu)
-        baselines[primary_label] = {
-            "tier": tier,
-            "notebook_run_id": notebook_run_id,
-            **summary["perf"],
-        }
-        also_modal = parse_also_modal_gpu(sys.argv)
-        if also_modal and not skip_training:
-            secondary_run_dir = artifacts / "train_also_modal"
-            if secondary_run_dir.exists():
-                shutil.rmtree(secondary_run_dir)
-            sec_args = build_osc_args(tier, secondary_run_dir)
-            sec_disp = BatchDispatcher(also_modal, repo, oscilloscope)
-            sec_override = "A100" if (gpu_needs_a100 and
-                                      also_modal in ("T4", "L4", "A10G")) else None
-            print(f"  [also-modal] dispatching {model} to Modal {also_modal}"
-                  + (f" (upgraded from {also_modal} to A100)" if sec_override else ""))
-            sec_disp.submit(sec_args, secondary_run_dir, gpu_override=sec_override)
-            sec_disp.drain()
-            sec_metrics_path = secondary_run_dir / "metrics.json"
-            if sec_metrics_path.exists():
-                sec_metrics = json.loads(sec_metrics_path.read_text())
-                sec_perf = sec_metrics.get("perf")
-                if sec_perf:
-                    sec_label = _baseline_label(sec_perf, sec_override or also_modal)
-                    baselines[sec_label] = {
-                        "tier": tier,
-                        "notebook_run_id": notebook_run_id,
-                        **sec_perf,
-                    }
-            else:
-                print(f"  [also-modal] warning: secondary run produced no "
-                      f"metrics.json at {sec_metrics_path}")
+    if baselines is not None:
         summary["perf_baselines"] = baselines
         (figures / "numbers.json").write_text(
             json.dumps(summary, indent=2) + "\n")
