@@ -1384,7 +1384,8 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
           readout_mode="rate",
           fr_reg_lower_theta=0.0, fr_reg_lower_strength=0.0,
           fr_reg_upper_theta=0.0, fr_reg_upper_strength=0.0,
-          skip_bad_grad_threshold=None, optimizer="adam"):
+          skip_bad_grad_threshold=None, optimizer="adam",
+          profile_path=None):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
     from torch.utils.data import DataLoader, TensorDataset
@@ -1700,7 +1701,24 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         layer_ratio_sum = {}
         n_samples_train = 0
         t_train_compute = _time.perf_counter()
-        for X_b, y_b in train_loader:
+        for batch_idx, (X_b, y_b) in enumerate(train_loader):
+            # Wrap the 3rd batch of epoch 0 in torch.profiler when --profile
+            # is set. Skip first two for allocator/JIT warmup. Trace overhead
+            # only hits this one batch; the rest of training is unprofiled.
+            # Manual __enter__/__exit__ avoids re-indenting the batch body.
+            do_profile = (profile_path is not None
+                          and epoch == 0 and batch_idx == 2)
+            _prof_handle = None
+            if do_profile:
+                from torch.profiler import profile as _prof, ProfilerActivity
+                _activities = [ProfilerActivity.CPU]
+                if device.type == "cuda":
+                    _activities.append(ProfilerActivity.CUDA)
+                elif device.type == "mps" and hasattr(ProfilerActivity, "MPS"):
+                    _activities.append(ProfilerActivity.MPS)
+                _prof_handle = _prof(activities=_activities, record_shapes=True,
+                                    with_stack=True)
+                _prof_handle.__enter__()
             X_b, y_b = X_b.to(device), y_b.to(device)
             spk = encode_batch(X_b, dt, use_smnist)
             logits = net(input_spikes=spk)
@@ -1754,6 +1772,43 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
                 grad_sum += gn_f
                 n_grad += 1
             n_samples_train += y_b.size(0)
+            if _prof_handle is not None:
+                _prof_handle.__exit__(None, None, None)
+                from pathlib import Path as _Path
+                _Path(profile_path).parent.mkdir(parents=True, exist_ok=True)
+                _prof_handle.export_chrome_trace(profile_path)
+                log.info(f"  → profiler trace {profile_path}")
+                # Top-15 ops by self CPU time (or self device time on cuda).
+                _sort_key = ("self_cuda_time_total" if device.type == "cuda"
+                             else "self_cpu_time_total")
+                log.info(f"  profiler top-15 ops by {_sort_key}:")
+                log.info(_prof_handle.key_averages().table(
+                    sort_by=_sort_key, row_limit=15))
+                # Per-call-site breakdown for the high-frequency ops we
+                # actually want to optimise. group_by_stack_n=8 gives a
+                # short-enough stack to read at a glance.
+                # Dump first few stacks per hot op to a debug file so we can
+                # see which Python lines are dispatching the kernel storm.
+                _dbg_path = profile_path + ".stacks.txt"
+                _hot_ops = ("aten::_local_scalar_dense", "aten::copy_",
+                            "aten::where", "aten::eq")
+                with open(_dbg_path, "w") as _dbg:
+                    for _op in _hot_ops:
+                        _dbg.write(f"\n=== {_op} ===\n")
+                        _seen = 0
+                        for _e in _prof_handle.events():
+                            if _e.name != _op:
+                                continue
+                            if _seen >= 3:
+                                break
+                            _dbg.write(f"--- event {_seen} ---\n")
+                            for _f in (_e.stack or []):
+                                _dbg.write(f"  {_f}\n")
+                            if not _e.stack:
+                                _dbg.write("  (no stack)\n")
+                            _seen += 1
+                log.info(f"  → stack debug {_dbg_path}")
+                _prof_handle = None
         train_compute_s = _time.perf_counter() - t_train_compute
         if device.type == "mps":
             peak_mem_mps = max(peak_mem_mps, torch.mps.current_allocated_memory())
@@ -2756,6 +2811,13 @@ Models:
                                    "(factor=0.5, patience=5)")
     train_parser.add_argument("--frame-rate", type=int, default=10,
                               help="Video fps for observe (default: 10)")
+    train_parser.add_argument("--profile", type=str, default=None,
+                              metavar="PATH",
+                              help="Wrap the 3rd batch of epoch 0 in "
+                                   "torch.profiler and write a Chrome-format "
+                                   "trace JSON to PATH. Skips the first two "
+                                   "batches to avoid allocator/JIT warmup "
+                                   "noise. Training continues normally after.")
     train_parser.add_argument("--fr-reg-lower-theta", type=float, default=0.0,
                               help="Firing-rate reg: lower-bound target spike "
                                    "count per neuron per trial (θ_l). "
@@ -3154,7 +3216,8 @@ if __name__ == "__main__":
               fr_reg_upper_theta=args.fr_reg_upper_theta,
               fr_reg_upper_strength=args.fr_reg_upper_strength,
               skip_bad_grad_threshold=args.skip_bad_grad_threshold,
-              optimizer=args.optimizer)
+              optimizer=args.optimizer,
+              profile_path=args.profile)
 
     elif mode == "infer":
         w_in = args.w_in or [0.3, 0.06]
