@@ -98,6 +98,14 @@ delay_ei_steps = max(1, int(round(delay_ei_ms / dt)))
 delay_ie_steps = max(1, int(round(delay_ie_ms / dt)))
 
 
+def _env_no_compile() -> bool:
+    """PINGLAB_NO_COMPILE=1 disables torch.compile in the model forward path.
+    Set this for ablation runs that want the eager baseline (e.g. comparing
+    compile vs eager wall time on the same hardware)."""
+    import os
+    return os.environ.get("PINGLAB_NO_COMPILE", "") == "1"
+
+
 # ── Surrogate gradient ───────────────────────────────────────────────────
 
 def fast_sigmoid_spike(u, slope):
@@ -329,6 +337,10 @@ class CUBANet(SNNBase):
         self._reset_mode_override = reset_mode
         self.readout_mode = readout_mode
         self.signed_weights = not dales_law
+        # Lazy-compiled per-timestep step body. Device-agnostic — tried on
+        # MPS, CUDA, CPU uniformly (no `if device.type == "cuda"` guard).
+        # Filled on first forward; reused across all subsequent timesteps.
+        self._compiled_cache: dict = {}
 
         # Layer sizes: [N_IN, H1, H2, ..., HN, N_OUT]
         sizes = hidden_sizes if hidden_sizes is not None else HIDDEN_SIZES
@@ -434,6 +446,23 @@ class CUBANet(SNNBase):
         state = self._init_hidden_state(cfg)
         readout = self._init_readout_state(cfg)
 
+        # Lazy-init torch.compile on the per-timestep body. Device-agnostic
+        # — runs on whatever backend the tensors live on. Compiling per
+        # timestep (not the full T-loop) traces a small graph once that the
+        # outer Python loop reuses T_steps times, avoiding the multi-minute
+        # trace cost of compiling a 2000-deep unrolled loop.
+        # Opt out via PINGLAB_NO_COMPILE=1 for ablation.
+        if ("step" not in self._compiled_cache
+                and not _env_no_compile()):
+            try:
+                self._compiled_cache["step"] = torch.compile(
+                    self._step_body, dynamic=False)
+            except Exception as exc:  # noqa: BLE001
+                # Compile is opportunistic: if Inductor can't lower for the
+                # current device we silently fall back to eager.
+                self._compiled_cache["step"] = self._step_body
+                self._compiled_cache["compile_error"] = str(exc)
+
         self._forward_loop(cfg, state, readout)
 
         self._finalise_meta(cfg, readout, state)
@@ -443,7 +472,7 @@ class CUBANet(SNNBase):
     def _forward_loop(self, cfg, state, readout):
         """Outer time loop. Per-t tensor slicing happens here; rec_buf writes
         stay here too. _step_body sees only tensors, no Python int `t`."""
-        step = self._step_body
+        step = self._compiled_cache.get("step", self._step_body)
         has_in = cfg["has_input_spikes"]
         has_ext = cfg["has_ext_g"]
         in_all = cfg["input_spikes"] if has_in else None
@@ -533,14 +562,12 @@ class CUBANet(SNNBase):
             spike_scale = 1.0
             bias_scale = 1.0
 
-        # Big-matmul fast path: only on CUDA, only when no exp-synapse (needs
-        # raw W·s). On CPU the (T, B, N_hid) intermediate blows cache; on MPS
-        # it triggers a backward-time sync storm.
+        # Per-step matmul on every device — single code path. The previous
+        # CUDA-only big-matmul fast-path is removed: it added ~2 GB autograd
+        # memory at T=2000 B=256 N_hid=1024, and the original MPS gradient
+        # bug it worked around (commit 6cee33e) is no longer the live issue
+        # — see the perf scope discussion in nb000 for context.
         input_drive_all = None
-        if (has_input_spikes and device.type == "cuda"
-                and not self.exponential_synapse):
-            input_drive_all = (spike_scale * (input_spikes @ W_ff[0])
-                               + bias_scale * b_ff[0])
 
         rec_buf = None
         if self.recording:
@@ -988,13 +1015,9 @@ class PINGNet(SNNBase):
             W_ff = [W.clamp(min=0) for W in self.W_ff]
         g_noise = noise_std / (E_e - E_L) if noise_std > 0 else 0.0
 
-        # Pre-compute input drive for all timesteps — CUDA only. On MPS the
-        # (T, B, N_hid) intermediate inflates the autograd graph and triggers
-        # a per-step .item() sync storm on backward. On CPU the big matmul
-        # blows the cache.
+        # Per-step matmul on every device — single code path (no CUDA-only
+        # fast-path). See CUBANet for the same change and rationale.
         input_drive_all = None
-        if has_input_spikes and device.type == "cuda":
-            input_drive_all = input_spikes @ W_ff[0]
 
         # Per-layer state
         v_e, ref_e, ge_e, gi_e, s_e = {}, {}, {}, {}, {}

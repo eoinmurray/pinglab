@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r005",
-  "git_sha": "58c1567 (dirty)",
-  "duration_s": 148.5,
-  "duration": "2m 28s",
+  "notebook_run_id": "r008",
+  "git_sha": "9f702a8 (dirty)",
+  "duration_s": 108.9,
+  "duration": "1m 49s",
   "tier": "medium",
   "config": {
     "tier": "medium",
@@ -19,86 +19,73 @@
   },
   "run": {
     "model": "standard-snn",
-    "run_date": "Monday, April 27 2026 at 16:49",
-    "run_id": "r-20260427-164724",
-    "git_sha": "58c1567 (dirty)",
+    "run_date": "Monday, April 27 2026 at 18:01",
+    "run_id": "r-20260427-180002",
+    "git_sha": "9f702a8 (dirty)",
     "lr": 0.01,
-    "best_acc": 54.25,
-    "best_epoch": 9,
-    "final_acc": 53.0,
-    "final_loss": 1.4945399590900965,
-    "total_elapsed_s": 142.01296741561964
+    "best_acc": 57.0,
+    "best_epoch": 10,
+    "final_acc": 57.0,
+    "final_loss": 1.4378493172781808,
+    "total_elapsed_s": 101.87400454143062
   },
   "perf": {
     "device": {
       "type": "mps"
     },
     "torch_version": "2.11.0",
-    "peak_memory_bytes": 430894080,
-    "epoch1_total_s": 14.179739833809435,
-    "epoch_warm_mean_s": 13.294194777703119,
-    "samples_per_sec_warm": 147.2200110520768
+    "peak_memory_bytes": 430407936,
+    "epoch1_total_s": 11.508009416051209,
+    "epoch_warm_mean_s": 9.105395588195986,
+    "samples_per_sec_warm": 221.88769669413193
   },
   "success_criteria": [
     {
       "label": "training curves rendered",
       "passed": true,
-      "detail": "training_curves.png (64120 bytes)",
+      "detail": "training_curves.png (59752 bytes)",
       "detail_href": "/figures/notebooks/nb000/training_curves.png"
     },
     {
       "label": "firing-rate trace rendered",
       "passed": true,
-      "detail": "firing_rates.png (45890 bytes)",
+      "detail": "firing_rates.png (45204 bytes)",
       "detail_href": "/figures/notebooks/nb000/firing_rates.png"
     },
     {
       "label": "training video rendered",
       "passed": true,
-      "detail": "training.mp4 (1105372 bytes)",
+      "detail": "training.mp4 (1077050 bytes)",
       "detail_href": "/figures/notebooks/nb000/training.mp4"
     },
     {
       "label": "hidden layer spiked (rate_e > 0)",
       "passed": true,
-      "detail": "rate_e=289.52 Hz"
+      "detail": "rate_e=263.31 Hz"
     },
     {
       "label": "forward/backward did something (acc > 1%)",
       "passed": true,
-      "detail": "final=53.00%"
+      "detail": "final=57.00%"
     },
     {
       "label": "perf block populated",
       "passed": true,
-      "detail": "samples_per_sec_warm=147.2"
+      "detail": "samples_per_sec_warm=221.9"
     }
   ],
   "perf_baselines": {
     "local-mps": {
       "tier": "medium",
-      "notebook_run_id": "r005",
+      "notebook_run_id": "r008",
       "device": {
         "type": "mps"
       },
       "torch_version": "2.11.0",
-      "peak_memory_bytes": 430894080,
-      "epoch1_total_s": 14.179739833809435,
-      "epoch_warm_mean_s": 13.294194777703119,
-      "samples_per_sec_warm": 147.2200110520768
-    },
-    "modal-A100": {
-      "tier": "medium",
-      "notebook_run_id": "r005",
-      "device": {
-        "type": "cuda",
-        "name": "NVIDIA A100 80GB PCIe"
-      },
-      "torch_version": "2.11.0+cu130",
-      "peak_memory_bytes": 14258980352,
-      "epoch1_total_s": 75.368108215,
-      "epoch_warm_mean_s": 72.57432004466668,
-      "samples_per_sec_warm": 23.396526464412048
+      "peak_memory_bytes": 430407936,
+      "epoch1_total_s": 11.508009416051209,
+      "epoch_warm_mean_s": 9.105395588195986,
+      "samples_per_sec_warm": 221.88769669413193
     }
   }
 }
