@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "008 — coba"
+title: "008 — cuba"
 date: 2026-04-23
 entry: 8
 structure: paper
@@ -21,21 +21,26 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*coba*](/models/#coba) path — conductance-based synapses, dispatched through the PINGNet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb007](/notebooks/nb007/) and [nb009](/notebooks/nb009/). No Δt sweep. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb011](/notebooks/nb011/). Trains only the [*cuba*](/models/#cuba) path — current-based synapses with the $(1-\beta)/dt$ init-scale compensation that matches initial per-step drive across *dt* — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; calibration sibling of [nb006](/notebooks/nb006/) and [nb007](/notebooks/nb007/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb008.py* per the [runner contract](/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path with the *ping* model dispatched at *ei_strength* = 0. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
+Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb008.py* per the [runner contract](/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "E→I strength", value: 0, default: 1.0 },
-  { label: "v_grad_dampen", value: 1000, default: 1.0 },
-  { label: "W_in", value: "0.3 (95% sparse)", default: "0.3 (dense)" },
+  { label: "Readout", value: "li", default: "rate" },
+  { label: "Surrogate slope", value: 1, default: 5 },
+  { label: "Init", value: "Kaiming (signed)", default: "non-negative" },
+  { label: "init_scale_weight", value: "dt / (1−β)", default: 1 },
+  { label: "init_scale_bias", value: "1 / (1−β)", default: 1 },
 ]} />
 
-- [**ei-strength = 0**](/the-oscilloscope/#network-flags-shared) — collapses the PINGNet dispatch into a pure conductance-based feedforward path by zeroing the E→I→E loop. The cell below in the ladder is [nb007](/notebooks/nb007/) (current-based synapses); the cell above is [nb009](/notebooks/nb009/) (full PING with the loop closed).
-- [**v-grad-dampen = 1000**](/the-oscilloscope/#network-flags-shared) — strong damping on the membrane-voltage gradient. Conductance synapses multiply the input by $(V - E_\text{rev})$, which makes BPTT through *V* far stiffer than *cuba*'s additive current; the high damping coefficient keeps gradients finite end-to-end.
-- [**w-in 0.3, w-in-sparsity 0.95**](/the-oscilloscope/#weight-flags-shared-advanced) — sparse $W_\text{in}$ (5% density) at the same scale as the dense default. Matches the *ping* working point used in [nb009](/notebooks/nb009/) so the two share an input distribution.
+The first three customisations mirror [nb006](/notebooks/nb006/)/[nb007](/notebooks/nb007/) verbatim; the last two are the *cuba*-specific compensation that makes this model the cleaner sibling on the same recipe.
+
+- [**readout = li**](/the-oscilloscope/#readouts) — the default *rate* readout accumulates hidden spikes across *T* = 2000 steps and produces logits large enough that CE saturates to zero on the forward pass, masking the real gradient signal.
+- [**surrogate-slope = 1**](/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient. Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end.
+- [**kaiming-init (signed)**](/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
+- [**init_scale_weight = dt / (1−β)**](/the-oscilloscope/#network-flags-shared) and [**init_scale_bias = 1 / (1−β)**](/the-oscilloscope/#network-flags-shared) — *cuba*'s exponential synapse attenuates per-step input drive by $(1-\beta)$ relative to *standard-snn*'s direct LIF. The one-shot init-scale factors restore the initial mean drive at the chosen *dt*, so *cuba* starts at the same operating point as nb006/nb007 instead of an order-of-magnitude below.
 
 ## Results
 
@@ -60,21 +65,23 @@ Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb008.py* 
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb008/training_curves.png" alt="Train loss and test accuracy per epoch for coba">
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb008/training_curves.png" alt="Train loss and test accuracy per epoch for cuba">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
 </Figure>
 
-<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb008/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for coba">
+<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb008/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for cuba">
   Mean hidden firing rate across the training schedule.
 </Figure>
 
-<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb008/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the coba hidden layer">
-  Per-epoch snapshot of the reference MNIST trial through *coba*'s hidden layer.
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb008/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the cuba hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *cuba*'s hidden layer.
 </Figure>
 
 ## Next steps
 
-The conductance-based synapse is the bridge between [nb007](/notebooks/nb007/)'s clean *cuba* baseline and [nb009](/notebooks/nb009/)'s full PING circuit; once *coba* is sitting in the same firing-rate band as *cuba*, closing the E→I→E loop in nb009 should be a one-knob change. Two follow-ups parked: (a) tune the *v_grad_dampen* coefficient downward and confirm the gradient-skip path stays empty — the current 1000 is conservative; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/the-oscilloscope/#subcommand-infer) path to test whether the conductance dynamics generalise off the trained *dt*, mirroring the analogous follow-up in [nb007](/notebooks/nb007/).
+Every check passes at large tier — best accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%, and crucially *rate_e* = 104 Hz lands inside the 1–200 Hz sanity band. *cuba* is the first model on this shared MNIST recipe without the saturation pathology that pushes [nb006](/notebooks/nb006/) (rate ≈ 284 Hz) and [nb007](/notebooks/nb007/) (rate ≈ 390 Hz) above the upper rail at matched config. The $(1-\beta)/dt$ init-scale compensation is doing its job: starting drive matches *standard-snn* at *dt* = 0.1 ms, but the exponential synapse low-passes the spike train into the readout, so the network can hit competitive accuracy without driving the hidden layer into rate saturation.
+
+Two follow-ups parked: (a) the same two-sided firing-rate regulariser proposed for nb006/nb007 (Cramer-2022 style via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared)) should be a no-op here — applying it to *cuba* and confirming rate stays inside the band would cheaply verify the regulariser is well-posed before turning it loose on the saturating siblings; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/the-oscilloscope/#subcommand-infer) path would test whether the init-scale compensation generalises off the trained *dt*, or whether it only buys the right operating point at exactly *dt* = 0.1 ms.
 
 ## Appendix
 

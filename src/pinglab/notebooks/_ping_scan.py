@@ -1,6 +1,6 @@
 """Shared orchestration for single-scan PING-video notebooks.
 
-Each scan runner (nb002 stim-overdrive, nb003 dt, nb004 ei-strength)
+Each scan runner (nb002 stim-overdrive, nb004 dt, nb005 ei-strength)
 hands `run_scan` a ScanSpec and gets back the full notebook pipeline:
 per-tier frame counts, oscilloscope-video dispatch, run-id stamping,
 numbers.json, duration bookkeeping. Canonical-overdrive population-rate

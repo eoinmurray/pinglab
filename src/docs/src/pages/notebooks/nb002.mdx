@@ -28,7 +28,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz, but only when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold scan — companion sweeps live in [nb003](/notebooks/nb003/) (integration step) and [nb004](/notebooks/nb004/) (E→I coupling strength). Single-still version of the same working point is [nb001](/notebooks/nb001/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz, but only when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold scan — companion sweeps live in [nb004](/notebooks/nb004/) (integration step) and [nb005](/notebooks/nb005/) (E→I coupling strength). Single-still version of the same working point is [nb001](/notebooks/nb001/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
@@ -83,9 +83,9 @@ A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subc
 
 <Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/nb002/scan_overdrive.mp4">
   Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
-
-  Three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
 </Figure>
+
+In Figure 1 three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
 
 ### Population rates
 
@@ -97,7 +97,7 @@ A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subc
 
 ## Next steps
 
-The threshold around overdrive ≈ 1.2× is sharp on this MNIST sample but the structure depends on input statistics; a sample-averaged version (mean rate envelope across many digits) would harden the regime boundaries. With the threshold map in hand, [nb003](/notebooks/nb003/) and [nb004](/notebooks/nb004/) hold drive fixed in stable-PING territory and sweep the other two knobs (*dt*, *ei-strength*) — together the three videos pin the working-point box for every training entry downstream.
+The threshold around overdrive ≈ 1.2× is sharp on this MNIST sample but the structure depends on input statistics; a sample-averaged version (mean rate envelope across many digits) would harden the regime boundaries. With the threshold map in hand, [nb004](/notebooks/nb004/) and [nb005](/notebooks/nb005/) hold drive fixed in stable-PING territory and sweep the other two knobs (*dt*, *ei-strength*) — together the three videos pin the working-point box for every training entry downstream.
 
 ## Appendix
 

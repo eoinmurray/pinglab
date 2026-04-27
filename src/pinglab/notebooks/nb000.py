@@ -1,6 +1,6 @@
 """Notebook runner for entry 000 — perf baseline.
 
-Profiling reference workload. Recipe-identical clone of nb005 (standard-snn
+Profiling reference workload. Recipe-identical clone of nb006 (standard-snn
 LIF classifier on MNIST at dt=0.1 ms): same model, same hyperparameters,
 same success criteria. Exists as a fixed reference point for performance
 work — measurements taken here over time should reflect optimisation /
@@ -25,8 +25,8 @@ MODEL = "standard-snn"
 
 
 def build_osc_args(tier: str, out_dir: Path) -> list[str]:
-    # Recipe is intentionally a verbatim copy of nb005 — see nb005.py for
-    # why each customisation is needed. nb000 must not drift from nb005;
+    # Recipe is intentionally a verbatim copy of nb006 — see nb006.py for
+    # why each customisation is needed. nb000 must not drift from nb006;
     # if the science recipe changes, change it there first and mirror.
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
         "--kaiming-init",
@@ -40,10 +40,10 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
 def perf_criteria(figures: Path, run_dir: Path, tier: str) -> list[dict]:
     """Perf-baseline gates: confirm the workload ran end-to-end and
     populated the perf block. Deliberately permissive on the science
-    side — nb000 inherits nb005's recipe at every tier (incl. ones the
+    side — nb000 inherits nb006's recipe at every tier (incl. ones the
     science is not calibrated for), so failing on rate-band overshoot
     or low accuracy at small/medium would just be noise. Science gates
-    live in nb005."""
+    live in nb006."""
     crits: list[dict] = []
     figs_root = figures.parents[2]
 

@@ -1,7 +1,7 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "003 — ping integration-step video"
-date: 2026-04-23
+title: "003 — ping input-rate video"
+date: 2026-04-27
 entry: 3
 structure: paper
 ---
@@ -12,15 +12,11 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb003/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
+export const r = numbers.rates_hz?.mean ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const runDuration = numbers.duration ?? "?";
-export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?" };
-export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?" };
-export const r = {
-  pre: numbers.rates_hz?.pre ?? {},
-  stim: numbers.rates_hz?.stim ?? {},
-  post: numbers.rates_hz?.post ?? {},
-};
+export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?", base_rate_hz: "?" };
+export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?" };
 export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 export const successCriteria = numbers.success_criteria ?? [];
 
@@ -28,11 +24,11 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb002](/notebooks/nb002/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb002](/notebooks/nb002/) (drive) and [nb004](/notebooks/nb004/) (E→I coupling); companion *dt*-stability training experiment is [nb010](/notebooks/nb010/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Companion to [nb002](/notebooks/nb002/). Where nb002 holds the input rate fixed and sweeps an in-window *overdrive* multiplier, this entry has **no stim window** — the Poisson input rate is flat over the whole simulation, and the sweep walks that single rate from low to high. The aim is to map PING onset as a function of constant input drive, with no transient stimulus to confound the picture.
 
 ## Method
 
-A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× (firmly inside the stable-PING regime mapped by [nb002](/notebooks/nb002/)) while *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb003.py* per the [runner contract](/the-notebooks/#runner-contract).
+A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}, with the Poisson input rate set per frame from the scan and held flat across the whole run (overdrive=1, no stim elevation). The sweep walks the rate from {scan.min} Hz → {scan.max} Hz over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb003.py* per the [runner contract](/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
@@ -47,15 +43,14 @@ A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subc
     title: "Architecture",
     rows: [
       { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
-      { label: "T", value: `${cfg.sim_ms} ms` },
+      { label: "dt / T", value: `${cfg.dt_ms} / ${cfg.sim_ms} ms` },
     ],
   },
   {
     title: "Stimulus & scan",
     rows: [
-      { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
-      { label: "Fixed overdrive", value: `${scan.fixed_overdrive}×` },
-      { label: "dt scan", value: `${scan.min}–${scan.max} ms` },
+      { label: "Envelope", value: `flat (no stim window, overdrive=1)` },
+      { label: "Input-rate scan", value: `${scan.min}–${scan.max} Hz` },
       { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
     ],
   },
@@ -82,23 +77,30 @@ A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subc
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure type="video" id="Figure 1" title="Integration-step sweep (scan_dt.mp4)" src="/figures/notebooks/nb003/scan_dt.mp4">
-  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample} with stim-overdrive held at {scan.fixed_overdrive}×. *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames.
-
-  Stable until about *dt* = 1.65 ms; beyond that the whole population saturates after PING onset.
+<Figure type="video" id="Figure 1" title="Input-rate sweep (scan_input_rate.mp4)" src="/figures/notebooks/nb003/scan_input_rate.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The Poisson input rate is held flat across the run at the value shown on the frame. Sweep walks the rate from {scan.min} Hz → {scan.max} Hz over {scan.frames} frames.
 </Figure>
 
 ### Population rates
 
-| Window | E (Hz) | I (Hz) |
-|---|---|---|
-| Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
-| In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
-| Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
+| Population | Mean rate (Hz) |
+|---|---|
+| E | {fmtHz(r.e)} |
+| I | {fmtHz(r.i)} |
+
+Rates above are from the canonical replay at input rate = {numbers.canonical_input_rate_hz ?? "?"} Hz.
+
+## Findings
+
+Filled in once the run produces a video.
+
+## Implications
+
+Filled in once findings are written.
 
 ## Next steps
 
-The breakdown around *dt* ≈ 1.65 ms sets a hard ceiling on the timestep any downstream training entry can use without losing the rhythm. [nb010](/notebooks/nb010/) tests whether this same ceiling holds end-to-end through training — i.e. whether a model trained at *dt* near the limit still produces PING at inference. The breakdown mode here (saturation, not collapse) suggests the failure is integrator instability rather than loss of the rhythm itself; a side-by-side with explicit-Euler vs the current scheme would isolate that.
+Cross-reference the input-rate threshold against nb002's overdrive threshold — together they parameterise the (base, in-window) drive plane and identify whether PING onset is dominated by total drive or by stim-window contrast.
 
 ## Appendix
 
