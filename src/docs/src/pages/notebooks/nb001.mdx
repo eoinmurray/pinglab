@@ -51,13 +51,13 @@ One forward pass via the [oscilloscope *image*](/the-oscilloscope/#subcommand-im
       { label: "Window", value: `${cfg.step_on_ms ?? "?"}–${cfg.step_off_ms ?? "?"} ms` },
       { label: "Overdrive", value: `${cfg.stim_overdrive ?? "?"}×` },
       { label: "Input rate", value: `${cfg.input_rate_hz ?? "?"} Hz` },
-      { label: "W_in overdrive", value: `${cfg.w_in_overdrive ?? "?"}×` },
+      { label: "W_in init (mean, std)", value: `${cfg.w_in_mean ?? "?"}, ${cfg.w_in_std ?? "?"}` },
       { label: "E→I strength", value: cfg.ei_strength ?? "?" },
     ],
   },
 ]} />
 
-The working-point knobs (overdrive 5×, *W_in* overdrive 1.8×, *ei-strength* 0.5) are the lowest combination from [nb002](/notebooks/nb002/)'s drive sweep that puts the network firmly past PING onset, so the figure is unambiguous.
+The working-point knobs (overdrive 5×, *W_in* init bumped 3× over default, *ei-strength* 0.5) put the network firmly past PING onset so the figure is unambiguous.
 
 ## Results
 
