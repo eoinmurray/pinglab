@@ -235,6 +235,7 @@ def write_numbers(run_dir: Path, out_path: Path, model: str, tier: str,
             "t_ms": cfg["t_ms"],
             "dt": DT_TRAIN,
             "n_hidden": cfg["n_hidden"],
+            "input_rate_hz": cfg.get("input_rate"),
             "batch_size": cfg["batch_size"],
             "seed": SEED,
         },
@@ -251,6 +252,8 @@ def write_numbers(run_dir: Path, out_path: Path, model: str, tier: str,
             "total_elapsed_s": metrics["total_elapsed_s"],
         },
     }
+    if "perf" in metrics:
+        summary["perf"] = metrics["perf"]
     if success_criteria is not None:
         summary["success_criteria"] = success_criteria
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -284,9 +287,13 @@ def _evaluate_only(slug: str, model: str, tier_default: str,
 def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
         gpu_needs_a100: bool = False,
         min_acc_by_tier: dict[str, float] | None = None,
-        extra_criteria_fn: Callable[[Path, Path], list[dict]] | None = None) -> None:
+        extra_criteria_fn: Callable[[Path, Path], list[dict]] | None = None,
+        criteria_fn: Callable[[Path, Path, str], list[dict]] | None = None) -> None:
     """Run one per-model notebook. build_osc_args(tier, out_dir) returns the
-    full `oscilloscope train …` argument list for the given tier."""
+    full `oscilloscope train …` argument list for the given tier.
+
+    criteria_fn replaces the default evaluate_success when provided — used by
+    nb000 to swap the science gates for a perf-baseline-friendly set."""
     thresholds = dict(DEFAULT_MIN_ACC)
     if min_acc_by_tier is not None:
         thresholds.update(min_acc_by_tier)
@@ -347,7 +354,10 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
     copy_training_video(run_dir, figures, notebook_run_id)
 
     duration_s = time.monotonic() - t_start
-    success_criteria = evaluate_success(figures, run_dir, tier, thresholds)
+    if criteria_fn is not None:
+        success_criteria = criteria_fn(figures, run_dir, tier)
+    else:
+        success_criteria = evaluate_success(figures, run_dir, tier, thresholds)
     if extra_criteria_fn is not None:
         success_criteria += extra_criteria_fn(figures, run_dir)
     summary = write_numbers(run_dir, figures / "numbers.json", model, tier,

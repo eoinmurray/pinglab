@@ -30,8 +30,9 @@ interface Props {
    * "all" (default) — recipe + results + provenance in one table.
    * "recipe"        — setup / architecture / training recipe only.
    * "results"       — results + provenance only.
+   * "perf"          — Tier 1 performance block from numbers.perf only.
    */
-  variant?: "all" | "recipe" | "results";
+  variant?: "all" | "recipe" | "results" | "perf";
 }
 
 const { numbers = {}, extras = [], groups, variant = "all" } = Astro.props as Props;
@@ -91,6 +92,7 @@ function buildTrainingSections(): Group[] {
         { label: "Hidden", value: hidden, default: hiddenDefault ?? undefined, href: "/the-oscilloscope/#network-flags-shared" },
         { label: "T", value: cfg.t_ms != null ? `${cfg.t_ms} ms` : "?", default: "200 ms", href: "/the-oscilloscope/#network-flags-shared" },
         { label: "dt", value: cfg.dt != null ? `${cfg.dt} ms` : "?", default: "0.25 ms", href: "/the-oscilloscope/#network-flags-shared" },
+        { label: "Input rate", value: cfg.input_rate_hz != null ? `${cfg.input_rate_hz} Hz` : "?", default: "25 Hz", href: "/the-oscilloscope/#input-flags-shared" },
         { label: "Seed", value: cfg.seed ?? "?", default: null, href: "/the-oscilloscope/#execution-flags-shared" },
       ],
     },
@@ -143,11 +145,45 @@ if (groups) {
 const recipeBody = allBodySections.filter((s) => s.title !== "Results");
 const resultsBody = allBodySections.filter((s) => s.title === "Results");
 
+function fmtBytes(n: number): string {
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + " GB";
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + " MB";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + " KB";
+  return n + " B";
+}
+
+function buildPerfSection(): Group | null {
+  const perf = (numbers as any).perf;
+  if (!perf) return null;
+  const dev = perf.device ?? {};
+  const rows: Row[] = [
+    { label: "Device", value: [dev.type, dev.name].filter(Boolean).join(" — ") || "?" },
+    { label: "torch", value: perf.torch_version ?? "?", mono: true },
+  ];
+  if (typeof perf.samples_per_sec_warm === "number") {
+    rows.push({ label: "Samples/sec (warm)", value: perf.samples_per_sec_warm.toFixed(1) });
+  }
+  if (typeof perf.epoch1_total_s === "number") {
+    rows.push({ label: "Epoch 1 wall-time", value: `${perf.epoch1_total_s.toFixed(2)} s` });
+  }
+  if (typeof perf.epoch_warm_mean_s === "number") {
+    rows.push({ label: "Epoch mean (warm)", value: `${perf.epoch_warm_mean_s.toFixed(2)} s` });
+  }
+  if (typeof perf.peak_memory_bytes === "number") {
+    rows.push({ label: "Peak memory", value: fmtBytes(perf.peak_memory_bytes) });
+  }
+  return { title: "Performance", rows };
+}
+
+const perfSection = buildPerfSection();
+
 let sections: Group[];
 if (variant === "recipe") {
   sections = recipeBody;
 } else if (variant === "results") {
   sections = [...resultsBody, provenanceSection];
+} else if (variant === "perf") {
+  sections = perfSection ? [perfSection] : [];
 } else {
   sections = [...allBodySections, provenanceSection];
 }
