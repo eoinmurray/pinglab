@@ -18,7 +18,7 @@ from typing import Callable
 import matplotlib.pyplot as plt
 import sh
 
-from _modal import BatchDispatcher, parse_modal_gpu
+from _modal import BatchDispatcher, parse_also_modal_gpu, parse_modal_gpu
 from _run_id import next_run_id, persist as persist_run_id
 from _tier import parse_tier
 from pinglab import theme
@@ -151,6 +151,16 @@ def copy_training_video(run_dir: Path, out_dir: Path,
     )
     print(f"wrote {dst}")
     stamp_path.unlink(missing_ok=True)
+
+
+def _baseline_label(perf: dict, modal_gpu: str | None) -> str:
+    """Stable key for the perf_baselines map. Local runs key by device type
+    (local-mps, local-cpu, local-cuda); Modal runs key by GPU (modal-A100,
+    modal-T4, …) so concurrent A100/T4 baselines don't overwrite each other."""
+    if modal_gpu:
+        return f"modal-{modal_gpu}"
+    device_type = (perf.get("device") or {}).get("type", "?")
+    return f"local-{device_type}"
 
 
 def evaluate_success(figures: Path, run_dir: Path, tier: str,
@@ -288,12 +298,19 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
         gpu_needs_a100: bool = False,
         min_acc_by_tier: dict[str, float] | None = None,
         extra_criteria_fn: Callable[[Path, Path], list[dict]] | None = None,
-        criteria_fn: Callable[[Path, Path, str], list[dict]] | None = None) -> None:
+        criteria_fn: Callable[[Path, Path, str], list[dict]] | None = None,
+        track_baselines: bool = False) -> None:
     """Run one per-model notebook. build_osc_args(tier, out_dir) returns the
     full `oscilloscope train …` argument list for the given tier.
 
     criteria_fn replaces the default evaluate_success when provided — used by
-    nb000 to swap the science gates for a perf-baseline-friendly set."""
+    nb000 to swap the science gates for a perf-baseline-friendly set.
+
+    track_baselines emits a perf_baselines map in numbers.json keyed by
+    backend label (e.g. local-mps, modal-A100). With --also-modal-gpu set
+    on the same invocation, the map gets a second entry from the secondary
+    Modal dispatch — used by nb000 so a single run produces both local
+    and Modal numbers atomically, no cross-run state."""
     thresholds = dict(DEFAULT_MIN_ACC)
     if min_acc_by_tier is not None:
         thresholds.update(min_acc_by_tier)
@@ -363,6 +380,44 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
     summary = write_numbers(run_dir, figures / "numbers.json", model, tier,
                             notebook_run_id, duration_s,
                             success_criteria=success_criteria)
+    if track_baselines and "perf" in summary:
+        baselines: dict = {}
+        primary_label = _baseline_label(summary["perf"], modal_gpu)
+        baselines[primary_label] = {
+            "tier": tier,
+            "notebook_run_id": notebook_run_id,
+            **summary["perf"],
+        }
+        also_modal = parse_also_modal_gpu(sys.argv)
+        if also_modal and not skip_training:
+            secondary_run_dir = artifacts / "train_also_modal"
+            if secondary_run_dir.exists():
+                shutil.rmtree(secondary_run_dir)
+            sec_args = build_osc_args(tier, secondary_run_dir)
+            sec_disp = BatchDispatcher(also_modal, repo, oscilloscope)
+            sec_override = "A100" if (gpu_needs_a100 and
+                                      also_modal in ("T4", "L4", "A10G")) else None
+            print(f"  [also-modal] dispatching {model} to Modal {also_modal}"
+                  + (f" (upgraded from {also_modal} to A100)" if sec_override else ""))
+            sec_disp.submit(sec_args, secondary_run_dir, gpu_override=sec_override)
+            sec_disp.drain()
+            sec_metrics_path = secondary_run_dir / "metrics.json"
+            if sec_metrics_path.exists():
+                sec_metrics = json.loads(sec_metrics_path.read_text())
+                sec_perf = sec_metrics.get("perf")
+                if sec_perf:
+                    sec_label = _baseline_label(sec_perf, sec_override or also_modal)
+                    baselines[sec_label] = {
+                        "tier": tier,
+                        "notebook_run_id": notebook_run_id,
+                        **sec_perf,
+                    }
+            else:
+                print(f"  [also-modal] warning: secondary run produced no "
+                      f"metrics.json at {sec_metrics_path}")
+        summary["perf_baselines"] = baselines
+        (figures / "numbers.json").write_text(
+            json.dumps(summary, indent=2) + "\n")
     print(f"wrote {figures / 'numbers.json'}")
     s = summary["run"]
     print(f"  {model}: best={s['best_acc']}%  final={s['final_acc']}%  "
