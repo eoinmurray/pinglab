@@ -1,72 +1,67 @@
 {
-  "notebook_run_id": "r003",
-  "git_sha": "ed1641c (dirty)",
-  "duration_s": 13.5,
-  "duration": "14s",
-  "tier": "extra small",
+  "notebook_run_id": "r004",
+  "git_sha": "a1d7b48 (dirty)",
+  "duration_s": 608.0,
+  "duration": "10m 08s",
+  "tier": "medium",
   "config": {
-    "tier": "extra small",
+    "tier": "medium",
     "dataset": "mnist",
-    "model": "ping",
-    "max_samples": 100,
-    "epochs": 1,
+    "model": "coba",
+    "max_samples": 2000,
+    "epochs": 10,
     "t_ms": 200.0,
     "dt": 0.1,
     "n_hidden": 1024,
+    "input_rate_hz": 25.0,
     "batch_size": 64,
-    "seed": 42,
-    "input_rate_hz": 25.0
+    "seed": 42
   },
   "run": {
-    "model": "ping",
-    "run_date": "Monday, April 27 2026 at 09:49",
-    "run_id": "r-20260427-094935",
-    "git_sha": "ed1641c (dirty)",
+    "model": "coba",
+    "run_date": "Monday, April 27 2026 at 14:10",
+    "run_id": "r-20260427-140059",
+    "git_sha": "a1d7b48 (dirty)",
     "lr": 0.0001,
-    "best_acc": 25.0,
-    "best_epoch": 1,
-    "final_acc": 25.0,
-    "final_loss": 2.2619627714157104,
-    "total_elapsed_s": 6.607287417165935
+    "best_acc": 84.5,
+    "best_epoch": 9,
+    "final_acc": 84.5,
+    "final_loss": 0.40476865172386167,
+    "total_elapsed_s": 593.788119582925
   },
   "success_criteria": [
     {
       "label": "training curves rendered",
       "passed": true,
-      "detail": "training_curves.png (37857 bytes)",
+      "detail": "training_curves.png (61498 bytes)",
       "detail_href": "/figures/notebooks/nb009/training_curves.png"
     },
     {
       "label": "firing-rate trace rendered",
       "passed": true,
-      "detail": "firing_rates.png (47517 bytes)",
+      "detail": "firing_rates.png (41399 bytes)",
       "detail_href": "/figures/notebooks/nb009/firing_rates.png"
     },
     {
       "label": "training video rendered",
       "passed": true,
-      "detail": "training.mp4 (90863 bytes)",
+      "detail": "training.mp4 (340706 bytes)",
       "detail_href": "/figures/notebooks/nb009/training.mp4"
     },
     {
       "label": "hidden rate in band (1.0\u2013200.0 Hz)",
       "passed": true,
-      "detail": "rate_e=5.66 Hz"
+      "detail": "rate_e=28.30 Hz"
     },
     {
-      "label": "final acc \u2265 15.0% (extra small tier floor)",
+      "label": "final acc \u2265 50.0% (medium tier floor)",
       "passed": true,
-      "detail": "final=25.00%, best=25.00%"
+      "detail": "final=84.50%, best=84.50%"
     },
     {
       "label": "no collapse (final \u2265 best \u2212 5pp)",
       "passed": true,
-      "detail": "final=25.00%, best=25.00%, \u0394=0.00pp"
-    },
-    {
-      "label": "PING forms (rate_i \u2265 1 Hz at final epoch)",
-      "passed": true,
-      "detail": "rate_e=5.66 Hz, rate_i=4.19 Hz"
+      "detail": "final=84.50%, best=84.50%, \u0394=0.00pp"
     }
   ]
 }

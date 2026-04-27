@@ -3,8 +3,8 @@
 Sweeps the Poisson-input overdrive factor (in-window rate multiplier)
 from 1× → 10× while everything else is held fixed, and produces the
 canonical *scan_overdrive.mp4* frame-by-frame video. Input is MNIST
-digit 0 sample 0. Companion dt and ei-strength scans live in nb003
-and nb004 respectively.
+digit 0 sample 0. Companion dt and ei-strength scans live in nb004
+and nb005 respectively.
 
 Also writes numbers.json with pre/stim/post E and I population rates
 from an in-Python replay of the canonical overdrive=5× run so the MDX

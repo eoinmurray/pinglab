@@ -40,5 +40,34 @@ defined in `src/docs/src/pages/styleguide.md` § 8. The tier is recorded in
 
 - `nb001.py` — scope-frame aesthetic reference (canonical SCOPE_FRAME still).
 - `nb002.py` — basic PING videos (stim-overdrive, dt, ei_strength sweeps).
-- `nb010.py` — cuba vs standard-snn Δt-stability (train at one dt, sweep eval-dt; includes snntorch-library as external parity reference).
+- `nb011.py` — cuba vs standard-snn Δt-stability (train at one dt, sweep eval-dt; includes snntorch-library as external parity reference).
 - `_run_id.py` — per-runner monotonic counter helper.
+- `_renumber.py` — atomic insert/delete of a notebook slot (see below).
+
+## Renumbering
+
+Notebook slugs `nbNNN` are positional — to insert a new entry between
+existing ones, every later notebook must shift up by one (and vice versa
+for deletion). Don't do this by hand; figure paths and cross-references
+will silently break.
+
+Use `_renumber.py`:
+
+```bash
+# preview
+uv run python -m pinglab.notebooks._renumber insert 5 --dry-run
+# open slot 5 (shifts entries >= 5 up by one)
+uv run python -m pinglab.notebooks._renumber insert 5
+# remove slot 5 (shifts entries > 5 down by one)
+uv run python -m pinglab.notebooks._renumber delete 5
+```
+
+It renames `nbNNN.mdx`, `nbNNN.py`, the figures dir, and the artifacts
+dir; rewrites every `nbNNN` slug reference across `src/`; and updates the
+moved MDX's `entry:` field and `"NNN — …"` title prefix. Free-text
+mentions like *"entry 002"* in docstrings are **not** auto-rewritten —
+fix those by hand.
+
+After insert, scaffold the new notebook in the freed slot manually
+(MDX frontmatter, runner, figures dir). After delete, remember the
+gap is closed — old links to the deleted slug will 404.

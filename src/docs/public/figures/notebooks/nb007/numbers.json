@@ -1,67 +1,67 @@
 {
-  "notebook_run_id": "r002",
+  "notebook_run_id": "r010",
   "git_sha": "ed1641c (dirty)",
-  "duration_s": 2064.2,
-  "duration": "34m 24s",
+  "duration_s": 1072.4,
+  "duration": "17m 52s",
   "tier": "large",
   "config": {
     "tier": "large",
     "dataset": "mnist",
-    "model": "cuba",
+    "model": "snntorch-library",
     "max_samples": 5000,
     "epochs": 40,
     "t_ms": 200.0,
     "dt": 0.1,
     "n_hidden": 1024,
-    "batch_size": 64,
+    "batch_size": 256,
     "seed": 42,
     "input_rate_hz": 25.0
   },
   "run": {
-    "model": "cuba",
-    "run_date": "Sunday, April 26 2026 at 19:58",
-    "run_id": "r-20260426-185918",
+    "model": "snntorch-library",
+    "run_date": "Sunday, April 26 2026 at 13:45",
+    "run_id": "r-20260426-130626",
     "git_sha": "ed1641c (dirty)",
     "lr": 0.01,
-    "best_acc": 87.5,
-    "best_epoch": 33,
-    "final_acc": 87.1,
-    "final_loss": 0.30876143607828355,
-    "total_elapsed_s": 2054.565884166863
+    "best_acc": 84.7,
+    "best_epoch": 37,
+    "final_acc": 83.4,
+    "final_loss": 0.32395432982593775,
+    "total_elapsed_s": 1060.5800177501515
   },
   "success_criteria": [
     {
       "label": "training curves rendered",
       "passed": true,
-      "detail": "training_curves.png (55695 bytes)",
+      "detail": "training_curves.png (64763 bytes)",
       "detail_href": "/figures/notebooks/nb007/training_curves.png"
     },
     {
       "label": "firing-rate trace rendered",
       "passed": true,
-      "detail": "firing_rates.png (44979 bytes)",
+      "detail": "firing_rates.png (47797 bytes)",
       "detail_href": "/figures/notebooks/nb007/firing_rates.png"
     },
     {
       "label": "training video rendered",
       "passed": true,
-      "detail": "training.mp4 (2573912 bytes)",
+      "detail": "training.mp4 (8158313 bytes)",
       "detail_href": "/figures/notebooks/nb007/training.mp4"
     },
     {
       "label": "hidden rate in band (1.0\u2013200.0 Hz)",
-      "passed": true,
-      "detail": "rate_e=104.53 Hz"
+      "passed": false,
+      "detail": "rate_e=780.08 Hz"
     },
     {
       "label": "final acc \u2265 70.0% (large tier floor)",
       "passed": true,
-      "detail": "final=87.10%, best=87.50%"
+      "detail": "final=83.40%, best=84.70%"
     },
     {
       "label": "no collapse (final \u2265 best \u2212 5pp)",
       "passed": true,
-      "detail": "final=87.10%, best=87.50%, \u0394=0.40pp"
+      "detail": "final=83.40%, best=84.70%, \u0394=1.30pp"
     }
   ]
 }

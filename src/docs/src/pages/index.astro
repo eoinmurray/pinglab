@@ -85,6 +85,23 @@ const formatDate = (raw) => {
     <title>Pinglab</title>
   </head>
   <body>
+    <aside
+      class="hidden lg:block fixed top-16 left-8 w-[calc(25%-4rem)] max-h-[calc(100vh-8rem)] overflow-y-auto text-sm pr-4"
+      aria-label="Pages"
+    >
+      <ol class="pl-0 list-none space-y-1.5">
+        <li><a href="/introduction/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Introduction</a></li>
+        <li><a href="/models/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Models</a></li>
+        <li><a href="/training/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Training</a></li>
+        <li><a href="/the-oscilloscope/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">The Oscilloscope</a></li>
+        <li><a href="/the-notebooks/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">The Notebooks</a></li>
+        <li><a href="/metrics/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Metrics</a></li>
+        <li><a href="/parameters-and-units/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Parameters &amp; Units</a></li>
+        <li><a href="/references/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">References</a></li>
+        <li><a href="/styleguide/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Styleguide</a></li>
+      </ol>
+    </aside>
+
     <main
       class="px-6 py-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!"
     >
@@ -164,22 +181,6 @@ const formatDate = (raw) => {
           </table>
         </div>
 
-        <p
-          class="mt-8 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]"
-        >
-          Pages
-        </p>
-        <ul class="pl-0 list-none space-y-1">
-          <li><a href="/introduction/">Introduction</a></li>
-          <li><a href="/models/">Models</a></li>
-          <li><a href="/training/">Training</a></li>
-          <li><a href="/the-oscilloscope/">The Oscilloscope</a></li>
-          <li><a href="/the-notebooks/">The Notebooks</a></li>
-          <li><a href="/metrics/">Metrics</a></li>
-          <li><a href="/parameters-and-units/">Parameters & Units</a></li>
-          <li><a href="/references/">References</a></li>
-          <li><a href="/styleguide/">Styleguide</a></li>
-        </ul>
       </div>
     </main>
   </body>
