@@ -40,7 +40,8 @@ SIM_MS         = 600.0
 STEP_ON_MS     = 200.0
 STEP_OFF_MS    = 300.0
 INPUT_RATE_HZ  = 50.0    # max per-pixel Poisson rate (fully-on pixel)
-W_IN_OVERDRIVE = 1.8     # W_in multiplier pushing net toward PING threshold
+W_IN_MEAN      = 0.54    # W_in init mean — pushes net toward PING threshold
+W_IN_STD       = 0.108   # W_in init std (proportional to mean)
 DATASET        = "mnist"
 DIGIT_CLASS    = 0
 SAMPLE_IDX     = 0
@@ -64,7 +65,7 @@ class ScanSpec:
     scan_max: float
     video_name: str      # e.g. "scan_overdrive.mp4"
     # Extra flags appended to the oscilloscope video invocation (e.g.
-    # --stim-overdrive, overridden --input-rate, --w-in-overdrive).
+    # --stim-overdrive, overridden --input-rate, --w-in MEAN STD).
     extra_osc_args: list[str] = field(default_factory=list)
     # Optional scan-level config payload copied into numbers.json['config'].
     config_payload: dict = field(default_factory=dict)
@@ -226,7 +227,7 @@ def run_scan(spec: ScanSpec) -> dict:
             "input": {"mode": "dataset", "dataset": DATASET,
                       "digit": DIGIT_CLASS, "sample": SAMPLE_IDX,
                       "base_rate_hz": INPUT_RATE_HZ,
-                      "w_in_overdrive": W_IN_OVERDRIVE},
+                      "w_in_mean": W_IN_MEAN, "w_in_std": W_IN_STD},
             "seed": SEED,
             "scan": {"var": spec.scan_var, "min": spec.scan_min,
                      "max": spec.scan_max, "frames": frames, "fps": SCAN_FPS,

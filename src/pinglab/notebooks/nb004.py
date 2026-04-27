@@ -34,7 +34,8 @@ from _ping_scan import (  # noqa: E402
 
 SLUG = "nb004"
 EI_SCAN_INPUT_RATE_HZ = 2 * INPUT_RATE_HZ
-EI_SCAN_W_IN_OVERDRIVE = 3.0
+EI_SCAN_W_IN_MEAN = 0.9       # 3× over the default 0.3 — bigger E baseline drive
+EI_SCAN_W_IN_STD  = 0.18      # 3× over the default 0.06
 EI_SCAN_MIN = 0.0
 EI_SCAN_MAX = 1.0   # past 1 the E rate is already saturated-low
 CANON_EI = 0.8      # well inside the PING-on regime for the replay
@@ -77,11 +78,8 @@ def compute_summary_rates() -> dict:
     ).to(C.DEVICE)
 
     net = make_net(C.cfg,
-                   w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY),
+                   w_in=(EI_SCAN_W_IN_MEAN, EI_SCAN_W_IN_STD, "normal", C.W_IN_SPARSITY),
                    model_name="ping")
-    if EI_SCAN_W_IN_OVERDRIVE != 1.0:
-        with torch.no_grad():
-            net.W_ff[0].mul_(EI_SCAN_W_IN_OVERDRIVE)
     net.recording = True
     with torch.no_grad():
         net.forward(input_spikes=input_spikes)
@@ -154,14 +152,15 @@ if __name__ == "__main__":
         video_name="scan_ei.mp4",
         extra_osc_args=[
             "--input-rate", str(EI_SCAN_INPUT_RATE_HZ),
-            "--w-in-overdrive", str(EI_SCAN_W_IN_OVERDRIVE),
+            "--w-in", str(EI_SCAN_W_IN_MEAN), str(EI_SCAN_W_IN_STD),
             "--stim-overdrive", "1.0",
             "--dt", str(DT_MS),
         ],
         config_payload={
             "fixed_overdrive": 1.0,
             "input_rate_hz": EI_SCAN_INPUT_RATE_HZ,
-            "w_in_overdrive": EI_SCAN_W_IN_OVERDRIVE,
+            "w_in_mean": EI_SCAN_W_IN_MEAN,
+            "w_in_std": EI_SCAN_W_IN_STD,
         },
         extras_fn=extras,
         criteria_fn=evaluate_success,

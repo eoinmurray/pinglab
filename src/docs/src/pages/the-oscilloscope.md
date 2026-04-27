@@ -49,15 +49,10 @@ These are on the shared parent parser and apply to every subcommand.
 | *--ei-strength S* | 0.5 | E-I coupling: sets $W_{EI} = s$, $W_{IE} = s \cdot \text{ratio}$. |
 | *--ei-ratio R* | 2.0 | $W_{IE} / W_{EI}$ ratio. |
 | *--ei-sparsity F* | 0.2 | E-I connection sparsity. |
-| *--w-in-sparsity F* | 0.95 | Input-weight sparsity. |
 | *--bias B* | 0.0002 | Background conductance to E neurons, μS. |
 | *--dt DT* | 0.25 | Integration timestep, ms. |
 | *--t-ms T* | 200.0 | Total simulation duration, ms. For synthetic-step modes, must exceed *STEP_ON_MS* (default 200) so the stimulus window is reached. |
-| *--kaiming-init* | off | Use plain Kaiming-uniform init (signed weights, no fan-in normalisation), matching the canonical snnTorch tutorial. Applies to *standard-snn* / *cuba* only; *--w-in* is ignored when set. |
-| *--init-scale-weight X* | 1.0 | Multiply initial weight matrices by X after *build_net* (train mode). For *cuba* at training-dt, pass $\Delta t / (1 - e^{-\Delta t / \tau_\text{mem}})$ to match *standard-snn*'s per-step spike drive. |
-| *--init-scale-bias X* | 1.0 | Multiply initial bias vectors by X. For *cuba*, pass $1 / (1 - e^{-\Delta t / \tau_\text{mem}})$ for matched bias drive. |
 | *--readout* | *rate* | Output reduction: *rate* (sum spike counts, project at final step) or *li* (non-spiking leaky integrator, max-over-time). See [Readouts](#readouts). |
-| *--dales-law* / *--no-dales-law* | on | Clamp weights to non-negative (default) or allow signed weights (*standard-snn* / *cuba* only). |
 | *--rec-layers L ...* | all when *--w-rec* set | Which hidden layers (1-indexed) get recurrence. |
 | *--ei-layers L ...* | all | Which hidden layers (1-indexed) get E-I structure (PING only). |
 | *--surrogate-slope β* | 5.0 (*models.SURROGATE_SLOPE*) | Fast-sigmoid surrogate-gradient slope. Larger = narrower active window. Cramer et al. SHD RSNNs use 40. Applies to *SurrogateSpike* (*cuba* / *standard-snn* / *ping*) and snnTorch's *fast_sigmoid* (*snntorch-library*). |
@@ -87,10 +82,14 @@ Overrides for the init distributions. Leave unset unless you know why you need t
 | Flag | Default | Meaning |
 | ---- | ------- | ------- |
 | *--w-in MEAN STD* | 0.3 0.06 | Input-weight init. *standard-snn* dense needs roughly 10 2. |
+| *--w-in-sparsity F* | 0.95 | Input-weight sparsity. |
 | *--w-ei MEAN STD* | from *--ei-strength* | E→I init (overrides *--ei-strength*). |
 | *--w-ie MEAN STD* | from *--ei-strength* | I→E init. |
 | *--w-rec MEAN STD* | 0 0.1 | Recurrent-weight init. |
-| *--w-in-overdrive X* | 1.0 | Multiplier on input weights applied on top of the init. |
+| *--kaiming-init* | off | Use plain Kaiming-uniform init (signed weights, no fan-in normalisation), matching the canonical snnTorch tutorial. Applies to *standard-snn* / *cuba* only; *--w-in* is ignored when set. |
+| *--init-scale-weight X* | 1.0 | Multiply initial weight matrices by X after *build_net* (train mode). For *cuba* at training-dt, pass $\Delta t / (1 - e^{-\Delta t / \tau_\text{mem}})$ to match *standard-snn*'s per-step spike drive. |
+| *--init-scale-bias X* | 1.0 | Multiply initial bias vectors by X. For *cuba*, pass $1 / (1 - e^{-\Delta t / \tau_\text{mem}})$ for matched bias drive. |
+| *--dales-law* / *--no-dales-law* | on | Clamp weights to non-negative (default) or allow signed weights (*standard-snn* / *cuba* only). |
 
 ## Output flags (shared)
 
@@ -146,7 +145,6 @@ Scan variables:
 | *tau_gaba* | ms | inhibitory synapse decay time constant |
 | *tau_ampa* | ms | excitatory synapse decay time constant |
 | *w_ei_mean*, *w_ie_mean* | μS | recurrent E→I and I→E weight means |
-| *w_in_overdrive* | × | multiplier on the input-layer weight |
 | *ei_strength* | — | scales $W^{EI}$ and $W^{IE}$ jointly — the internal PING loop gain |
 | *spike_rate* | Hz | baseline input spike rate |
 | *bias* | μS | tonic bias current |

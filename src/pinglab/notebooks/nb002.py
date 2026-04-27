@@ -24,7 +24,7 @@ import numpy as np  # noqa: E402
 
 from _ping_scan import (  # noqa: E402
     DATASET, DIGIT_CLASS, DT_MS, INPUT_RATE_HZ, N_HIDDEN,
-    SAMPLE_IDX, SEED, SIM_MS, STEP_OFF_MS, STEP_ON_MS, W_IN_OVERDRIVE,
+    SAMPLE_IDX, SEED, SIM_MS, STEP_OFF_MS, STEP_ON_MS, W_IN_MEAN, W_IN_STD,
     ScanSpec, run_scan,
 )
 
@@ -68,11 +68,8 @@ def compute_summary_rates() -> dict:
     ).to(C.DEVICE)
 
     net = make_net(C.cfg,
-                   w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY),
+                   w_in=(W_IN_MEAN, W_IN_STD, "normal", C.W_IN_SPARSITY),
                    model_name="ping")
-    if W_IN_OVERDRIVE != 1.0:
-        with torch.no_grad():
-            net.W_ff[0].mul_(W_IN_OVERDRIVE)
     net.recording = True
     with torch.no_grad():
         net.forward(input_spikes=input_spikes)
@@ -147,7 +144,7 @@ if __name__ == "__main__":
         video_name="scan_overdrive.mp4",
         extra_osc_args=[
             "--input-rate", str(INPUT_RATE_HZ),
-            "--w-in-overdrive", str(W_IN_OVERDRIVE),
+            "--w-in", str(W_IN_MEAN), str(W_IN_STD),
             "--dt", str(DT_MS),
         ],
         extras_fn=extras,

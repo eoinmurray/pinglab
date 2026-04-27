@@ -1,13 +1,13 @@
 {
-  "notebook_run_id": "r032",
-  "run_datetime": "Thursday, 23rd April 26 at 18:00",
-  "duration_s": 2.0,
+  "notebook_run_id": "r034",
+  "run_datetime": "Monday, 27th April 26 at 10:21",
+  "duration_s": 2.4,
   "duration": "2s",
   "success_criteria": [
     {
       "label": "scope frame rendered",
       "passed": true,
-      "detail": "scope_frame.png (119916 bytes)",
+      "detail": "scope_frame.png (183911 bytes)",
       "detail_href": "/figures/notebooks/nb001/scope_frame.png"
     }
   ],
@@ -22,7 +22,8 @@
     "step_off_ms": 300.0,
     "stim_overdrive": 5.0,
     "input_rate_hz": 50.0,
-    "w_in_overdrive": 1.8,
+    "w_in_mean": 0.9,
+    "w_in_std": 0.18,
     "ei_strength": 0.5,
     "input": {
       "dataset": "mnist",
