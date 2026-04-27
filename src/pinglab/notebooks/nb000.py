@@ -1,11 +1,19 @@
 """Notebook runner for entry 000 — perf baseline.
 
-Profiling reference workload. Recipe-identical clone of nb006 (standard-snn
-LIF classifier on MNIST at dt=0.1 ms): same model, same hyperparameters,
-same success criteria. Exists as a fixed reference point for performance
-work — measurements taken here over time should reflect optimisation /
-regression in the shared training stack, not recipe drift. Anchors the
-"one architecture that runs efficiently on local MPS and Modal" goal.
+Profiling reference workload. Trains two models per run so the perf
+matrix covers both training backbones used elsewhere in the lab:
+
+  - standard-snn (CUBANet path, recipe mirrors nb006)
+  - coba         (PINGNet path with ei_strength=0, recipe mirrors nb009)
+
+Both recipes are verbatim copies of their science-owner notebooks; if
+the science changes, change it there first and mirror here. The point
+of nb000 is that recipes are *fixed* so wall-time / throughput numbers
+reflect changes in the training stack itself (kernel launches, sync
+points, compile coverage, memory layout), not recipe drift.
+
+Anchors the "one architecture that runs efficiently on local MPS and
+Modal" goal.
 
 Notebook entry: src/docs/src/pages/notebooks/nb000.mdx
 """
@@ -34,6 +42,19 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
         "--surrogate-slope", "1",
         "--lr", "0.01",
         "--batch-size", "256",
+    ]
+
+
+def build_coba_osc_args(tier: str, out_dir: Path) -> list[str]:
+    """Mirrors nb009's coba recipe verbatim. coba is dispatched via PINGNet
+    with ei_strength=0, so this exercises the PINGNet compile path next to
+    standard-snn's CUBANet path — both backbones tested per nb000 run."""
+    return osc_base_args(out_dir, tier, build_as="ping") + [
+        "--ei-strength", "0",
+        "--v-grad-dampen", "1000",
+        "--w-in", "0.3",
+        "--w-in-sparsity", "0.95",
+        "--lr", "0.0001",
     ]
 
 
@@ -92,9 +113,27 @@ def perf_criteria(figures: Path, run_dir: Path, tier: str) -> list[dict]:
                    if isinstance(sps, (int, float))
                    else "samples_per_sec_warm missing"),
     })
+
+    # Extras-aware gate: confirm the coba secondary (PINGNet path) also
+    # produced metrics. run_dir is artifacts/nb000/train/; the secondary
+    # trainer writes to its sibling artifacts/nb000/train_coba/.
+    coba_metrics = run_dir.parent / "train_coba" / "metrics.json"
+    coba_ok = coba_metrics.exists()
+    coba_sps = None
+    if coba_ok:
+        coba_sps = (json.loads(coba_metrics.read_text())
+                    .get("perf", {}).get("samples_per_sec_warm"))
+    crits.append({
+        "label": "coba (PINGNet path) perf populated",
+        "passed": isinstance(coba_sps, (int, float)) and coba_sps > 0,
+        "detail": (f"samples_per_sec_warm={coba_sps:.1f}"
+                   if isinstance(coba_sps, (int, float))
+                   else f"missing {coba_metrics.name}"),
+    })
     return crits
 
 
 if __name__ == "__main__":
     run(SLUG, MODEL, build_osc_args,
-        criteria_fn=perf_criteria, track_baselines=True)
+        criteria_fn=perf_criteria, track_baselines=True,
+        extra_train_models=[("coba", build_coba_osc_args)])
