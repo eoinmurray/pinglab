@@ -100,6 +100,7 @@ def _run_oscilloscope_impl(cli_args: list[str]) -> str:
     volumes={REMOTE_ARTIFACTS: volume},
     timeout=43200,
     cpu=4,
+    memory=32768,
 )
 def run_cpu(cli_args: list[str]) -> str:
     return _run_oscilloscope_impl(cli_args)

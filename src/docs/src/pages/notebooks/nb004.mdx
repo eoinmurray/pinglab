@@ -26,42 +26,13 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
-External drive is one knob ([nb002](/notebooks/nb002/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength from {scan.min} to {scan.max} — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes. Input rate and $W_\text{in}$ are bumped relative to nb002 / nb003 so E has enough baseline drive to recruit I at all without a stim pulse.
+## Introduction
 
-<Figure type="video" id="Figure 1" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb004/scan_ei.mp4">
-  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ overdrive {scan.w_in_overdrive}×.
+External drive is one knob ([nb002](/notebooks/nb002/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes. Input rate and $W_\text{in}$ are bumped relative to [nb002](/notebooks/nb002/) / [nb003](/notebooks/nb003/) so E has enough baseline drive to recruit I at all without a stim pulse. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
-  No PING until about E→I strength 1.6; then unstable onset of PING from 1.6 onwards.
-</Figure>
+## Method
 
-## Success criteria
-
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
-
-## Appendix
-
-### Reproduction
-
-```
-uv run src/pinglab/notebooks/nb004.py
-```
-
-### Run parameters
+A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× and **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ overdrive {scan.w_in_overdrive}×. All knobs are hardcoded literals in *src/pinglab/notebooks/nb004.py* per the [runner contract](/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
@@ -91,6 +62,33 @@ uv run src/pinglab/notebooks/nb004.py
   },
 ]} />
 
+## Results
+
+### Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+<Figure type="video" id="Figure 1" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb004/scan_ei.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ overdrive {scan.w_in_overdrive}×.
+
+  No PING until about E→I strength 1.6; then unstable onset of PING from 1.6 onwards.
+</Figure>
+
 ### Population rates (canonical ei = {numbers.canonical_ei ?? "?"})
 
 | Window | E (Hz) | I (Hz) |
@@ -98,3 +96,15 @@ uv run src/pinglab/notebooks/nb004.py
 | Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
 | In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
 | Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
+
+## Next steps
+
+The recruitment threshold near *ei* ≈ 1.6 here is the practical floor for any *trained* PING circuit — and explains why [nb009](/notebooks/nb009/) at *ei* = 0.5 reports *rate_i* = 0 Hz, with the network silently degenerating into feedforward-E. A natural follow-up is an independent 2D sweep over (*ei-strength*, *input-rate*) rendered as a heatmap of *rate_i*, since the threshold here is conditional on the bumped input drive used in this entry. With that map in hand, the trained-PING entries can choose an *ei* / drive pair from inside a verified PING basin instead of guessing.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb004.py
+```

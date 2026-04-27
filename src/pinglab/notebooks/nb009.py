@@ -30,7 +30,7 @@ PING_I_RATE_MIN_HZ = 1.0
 
 def build_osc_args(tier: str, out_dir: Path) -> list[str]:
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
-        "--ei-strength", "0.5",
+        "--ei-strength", "1",
         "--v-grad-dampen", "1000",
         "--w-in", "1.2",
         "--w-in-sparsity", "0.95",
