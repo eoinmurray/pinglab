@@ -33,11 +33,11 @@ from _ping_scan import (  # noqa: E402
 )
 
 SLUG = "nb004"
-EI_SCAN_INPUT_RATE_HZ = 2 * INPUT_RATE_HZ
-EI_SCAN_W_IN_MEAN = 0.9       # 3× over the default 0.3 — bigger E baseline drive
-EI_SCAN_W_IN_STD  = 0.18      # 3× over the default 0.06
+EI_SCAN_INPUT_RATE_HZ = 200.0
+EI_SCAN_W_IN_MEAN = 1.8       # 6× over the default 0.3 — bigger E baseline drive
+EI_SCAN_W_IN_STD  = 0.36      # 6× over the default 0.06
 EI_SCAN_MIN = 0.0
-EI_SCAN_MAX = 1.0   # past 1 the E rate is already saturated-low
+EI_SCAN_MAX = 2.0
 CANON_EI = 0.8      # well inside the PING-on regime for the replay
 
 

@@ -14,7 +14,8 @@
     "dt": 0.1,
     "n_hidden": 1024,
     "batch_size": 64,
-    "seed": 42
+    "seed": 42,
+    "input_rate_hz": 25.0
   },
   "run": {
     "model": "cuba",

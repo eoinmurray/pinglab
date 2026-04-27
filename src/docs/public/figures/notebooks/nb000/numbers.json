@@ -1,0 +1,77 @@
+{
+  "notebook_run_id": "r003",
+  "git_sha": "a1d7b48 (dirty)",
+  "duration_s": 137.2,
+  "duration": "2m 17s",
+  "tier": "medium",
+  "config": {
+    "tier": "medium",
+    "dataset": "mnist",
+    "model": "standard-snn",
+    "max_samples": 2000,
+    "epochs": 10,
+    "t_ms": 200.0,
+    "dt": 0.1,
+    "n_hidden": 1024,
+    "input_rate_hz": 25.0,
+    "batch_size": 256,
+    "seed": 42
+  },
+  "run": {
+    "model": "standard-snn",
+    "run_date": "Monday, April 27 2026 at 15:00",
+    "run_id": "r-20260427-145830",
+    "git_sha": "a1d7b48 (dirty)",
+    "lr": 0.01,
+    "best_acc": 54.25,
+    "best_epoch": 9,
+    "final_acc": 53.0,
+    "final_loss": 1.4945399590900965,
+    "total_elapsed_s": 131.47976795816794
+  },
+  "perf": {
+    "device": {
+      "type": "mps"
+    },
+    "torch_version": "2.11.0",
+    "peak_memory_bytes": 430894080,
+    "epoch1_total_s": 12.252466917037964,
+    "epoch_warm_mean_s": 12.373917078754554,
+    "samples_per_sec_warm": 157.41110775717553
+  },
+  "success_criteria": [
+    {
+      "label": "training curves rendered",
+      "passed": true,
+      "detail": "training_curves.png (64149 bytes)",
+      "detail_href": "/figures/notebooks/nb000/training_curves.png"
+    },
+    {
+      "label": "firing-rate trace rendered",
+      "passed": true,
+      "detail": "firing_rates.png (45924 bytes)",
+      "detail_href": "/figures/notebooks/nb000/firing_rates.png"
+    },
+    {
+      "label": "training video rendered",
+      "passed": true,
+      "detail": "training.mp4 (1105386 bytes)",
+      "detail_href": "/figures/notebooks/nb000/training.mp4"
+    },
+    {
+      "label": "hidden layer spiked (rate_e > 0)",
+      "passed": true,
+      "detail": "rate_e=289.52 Hz"
+    },
+    {
+      "label": "forward/backward did something (acc > 1%)",
+      "passed": true,
+      "detail": "final=53.00%"
+    },
+    {
+      "label": "perf block populated",
+      "passed": true,
+      "detail": "samples_per_sec_warm=157.4"
+    }
+  ]
+}
