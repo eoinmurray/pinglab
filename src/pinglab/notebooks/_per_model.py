@@ -444,8 +444,15 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
                 extra_perf = json.loads(extra_metrics_path.read_text()).get("perf")
                 if extra_perf:
                     _record_perf(extra_perf, modal_gpu, extra_name)
-                _dispatch_modal_for(extra_name, extra_build,
-                                    artifacts / f"train_{extra_name}_also_modal")
+                # Cost control: PINGLAB_NO_EXTRA_MODAL=1 skips also-modal
+                # dispatch for the extras (keeps local baselines, drops
+                # the modal half). Useful when the extras are slow on
+                # Modal and the primary alone gives the answer being
+                # asked. Set per-invocation.
+                import os as _os
+                if _os.environ.get("PINGLAB_NO_EXTRA_MODAL", "") != "1":
+                    _dispatch_modal_for(extra_name, extra_build,
+                                        artifacts / f"train_{extra_name}_also_modal")
 
     # Now criteria can see all artifacts (primary + extras).
     if criteria_fn is not None:
