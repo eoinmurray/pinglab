@@ -1681,6 +1681,11 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
     wtracker = run_log.WarningTracker()
     jsonl = run_log.MetricsJsonl(out_dir / "metrics.jsonl")
     run_log.print_progress_header(log)
+    # MPS has no max_memory_allocated — sample per epoch and keep the peak.
+    # CUDA tracks peak natively (queried at end of run).
+    peak_mem_mps = 0
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)
 
     for epoch in range(epochs):
         t_epoch = _time.perf_counter()
@@ -1693,6 +1698,8 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         n_grad = 0
         n_skipped_steps = 0
         layer_ratio_sum = {}
+        n_samples_train = 0
+        t_train_compute = _time.perf_counter()
         for X_b, y_b in train_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
             spk = encode_batch(X_b, dt, use_smnist)
@@ -1746,10 +1753,15 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
                 n_batches += 1
                 grad_sum += gn_f
                 n_grad += 1
+            n_samples_train += y_b.size(0)
+        train_compute_s = _time.perf_counter() - t_train_compute
+        if device.type == "mps":
+            peak_mem_mps = max(peak_mem_mps, torch.mps.current_allocated_memory())
         avg_grad = grad_sum / max(n_grad, 1)
         grad_ratios = {n: s / max(n_grad, 1) for n, s in layer_ratio_sum.items()}
 
         # Eval — deterministic Poisson encoding so this matches infer()
+        t_eval = _time.perf_counter()
         net.eval()
         correct = total = 0
         test_loss_sum = 0.0
@@ -1764,6 +1776,8 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
                 test_batches += 1
                 correct += (logits_t.argmax(1) == y_b).sum().item()
                 total += y_b.size(0)
+
+        eval_s = _time.perf_counter() - t_eval
 
         acc = 100.0 * correct / total
         avg_train = total_loss / max(n_batches, 1)
@@ -1788,6 +1802,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             prev_lr = cur_lr
 
         # Oscilloscope frame (returns metrics dict; merged into epoch record)
+        t_observe = _time.perf_counter()
         epoch_metrics = None
         if observe and (epoch + 1) % observe_every == 0:
             epoch_metrics = observe_epoch(
@@ -1817,6 +1832,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             spk_i = _to_np(_rec[_ik])[burn:] if _ik else None
             epoch_metrics = compute_metrics(spk_e, spk_i, dt, model_name,
                                             n_e=M.N_HID, n_i=M.N_INH)
+        observe_s = _time.perf_counter() - t_observe
 
         # Record this epoch into the structured metrics history
         record = {
@@ -1826,6 +1842,10 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             "test_loss": avg_test,
             "lr": cur_lr,
             "elapsed_s": elapsed,
+            "train_compute_s": train_compute_s,
+            "eval_s": eval_s,
+            "observe_s": observe_s,
+            "samples": n_samples_train,
             "grad_norm": avg_grad,
             "grad_ratios": grad_ratios,
             "skipped_steps": n_skipped_steps,
@@ -1856,6 +1876,34 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             break
 
     total_time = _time.perf_counter() - t_start
+
+    # Tier 1 perf block — see nb000 for the why. Per-epoch breakdown is in
+    # epoch_records (train_compute_s / eval_s / observe_s); these are the
+    # whole-run aggregates the dashboards read.
+    perf_block = {
+        "device": {"type": device.type},
+        "torch_version": torch.__version__,
+    }
+    try:
+        if device.type == "cuda":
+            perf_block["device"]["name"] = torch.cuda.get_device_name(device)
+            perf_block["peak_memory_bytes"] = int(
+                torch.cuda.max_memory_allocated(device))
+        elif device.type == "mps" and peak_mem_mps > 0:
+            # current_allocated_memory sampled per-epoch (max). Reflects active
+            # tensor allocation, not the MPS driver's cached pool.
+            perf_block["peak_memory_bytes"] = int(peak_mem_mps)
+    except Exception:
+        pass
+    if epoch_records:
+        perf_block["epoch1_total_s"] = float(epoch_records[0]["elapsed_s"])
+        warm = epoch_records[1:] if len(epoch_records) > 1 else epoch_records
+        warm_total_s = sum(r["elapsed_s"] for r in warm)
+        warm_compute_s = sum(r.get("train_compute_s", 0.0) for r in warm)
+        warm_samples = sum(r.get("samples", 0) for r in warm)
+        perf_block["epoch_warm_mean_s"] = float(warm_total_s / max(len(warm), 1))
+        if warm_compute_s > 0:
+            perf_block["samples_per_sec_warm"] = float(warm_samples / warm_compute_s)
 
     # Snapshot end state
     end_state = None
@@ -1928,6 +1976,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         "best_acc": best_acc,
         "best_epoch": best_epoch,
         "total_elapsed_s": total_time,
+        "perf": perf_block,
     }
     with open(metrics_path, "w") as f:
         json.dump(metrics_blob, f, indent=2, default=float)

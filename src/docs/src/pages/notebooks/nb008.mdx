@@ -21,27 +21,27 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*coba*](/models/#coba) model — conductance-based synapses, dispatched through the PINGNet class with *ei_strength* = 0 so the E→I→E loop is disabled — at *dt* = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video. The second rung on the CUBA → PING ladder. No Δt sweep.
+Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*coba*](/models/#coba) path — conductance-based synapses, dispatched through the PINGNet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb007](/notebooks/nb007/) and [nb009](/notebooks/nb009/). No Δt sweep. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-*coba* (PINGNet with *ei_strength* = 0) with 1024 hidden units, sparse $W_\text{in}$ (density 0.05, scale 0.3), *v_grad_dampen* = 1000, learning rate $\eta$ = {cell.lr ?? "?"}. Trained at *dt* = {cfg.dt ?? "?"} ms for *T* = {cfg.t_ms ?? "?"} ms per trial, on {cfg.max_samples ?? "?"} MNIST samples × {cfg.epochs ?? "?"} epochs. All hyperparameters are literals in *src/pinglab/notebooks/nb008.py*.
+Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb008.py* per the [runner contract](/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path with the *ping* model dispatched at *ei_strength* = 0. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
+
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "E→I strength", value: 0, default: 1.0 },
+  { label: "v_grad_dampen", value: 1000, default: 1.0 },
+  { label: "W_in", value: "0.3 (95% sparse)", default: "0.3 (dense)" },
+]} />
+
+- [**ei-strength = 0**](/the-oscilloscope/#network-flags-shared) — collapses the PINGNet dispatch into a pure conductance-based feedforward path by zeroing the E→I→E loop. The cell below in the ladder is [nb007](/notebooks/nb007/) (current-based synapses); the cell above is [nb009](/notebooks/nb009/) (full PING with the loop closed).
+- [**v-grad-dampen = 1000**](/the-oscilloscope/#network-flags-shared) — strong damping on the membrane-voltage gradient. Conductance synapses multiply the input by $(V - E_\text{rev})$, which makes BPTT through *V* far stiffer than *cuba*'s additive current; the high damping coefficient keeps gradients finite end-to-end.
+- [**w-in 0.3, w-in-sparsity 0.95**](/the-oscilloscope/#weight-flags-shared-advanced) — sparse $W_\text{in}$ (5% density) at the same scale as the dense default. Matches the *ping* working point used in [nb009](/notebooks/nb009/) so the two share an input distribution.
 
 ## Results
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb008/training_curves.png" alt="Train loss and test accuracy per epoch for coba">
-  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
-</Figure>
+<RunParameters numbers={numbers} variant="results" />
 
-<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb008/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for coba">
-  Mean hidden firing rate across the training schedule.
-</Figure>
-
-<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb008/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the coba hidden layer">
-  Per-epoch snapshot of the reference MNIST trial through *coba*'s hidden layer.
-</Figure>
-
-## Success criteria
+### Success criteria
 
 {successCriteria.length > 0 ? (
   <table>
@@ -60,6 +60,22 @@ Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*coba*](/
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb008/training_curves.png" alt="Train loss and test accuracy per epoch for coba">
+  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
+</Figure>
+
+<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb008/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for coba">
+  Mean hidden firing rate across the training schedule.
+</Figure>
+
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb008/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the coba hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *coba*'s hidden layer.
+</Figure>
+
+## Next steps
+
+The conductance-based synapse is the bridge between [nb007](/notebooks/nb007/)'s clean *cuba* baseline and [nb009](/notebooks/nb009/)'s full PING circuit; once *coba* is sitting in the same firing-rate band as *cuba*, closing the E→I→E loop in nb009 should be a one-knob change. Two follow-ups parked: (a) tune the *v_grad_dampen* coefficient downward and confirm the gradient-skip path stays empty — the current 1000 is conservative; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/the-oscilloscope/#subcommand-infer) path to test whether the conductance dynamics generalise off the trained *dt*, mirroring the analogous follow-up in [nb007](/notebooks/nb007/).
+
 ## Appendix
 
 ### Reproduction
@@ -68,12 +84,4 @@ Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*coba*](/
 uv run src/pinglab/notebooks/nb008.py
 ```
 
-Add *--tier extra small* for a faster pass.
-
-### Run parameters
-
-<RunParameters numbers={numbers} extras={[
-  { label: "E→I strength", value: 0 },
-  { label: "v_grad_dampen", value: 1000 },
-  { label: "W_in", value: "0.3 (95% sparse)" },
-]} />
+Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
