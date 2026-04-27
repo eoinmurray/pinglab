@@ -1,11 +1,11 @@
 {
-  "notebook_run_id": "r001",
-  "run_datetime": "Thursday, 23rd April 26 at 18:57",
-  "duration_s": 15.4,
-  "duration": "15s",
-  "tier": "small",
+  "notebook_run_id": "r002",
+  "run_datetime": "Saturday, 25th April 26 at 10:34",
+  "duration_s": 1478.9,
+  "duration": "24m 39s",
+  "tier": "large",
   "config": {
-    "tier": "small",
+    "tier": "large",
     "model": "ping",
     "n_e": 512,
     "n_i": 128,
@@ -26,7 +26,7 @@
       "var": "dt",
       "min": 0.05,
       "max": 2.0,
-      "frames": 15,
+      "frames": 300,
       "fps": 30,
       "fixed_overdrive": 10.0
     }
@@ -50,7 +50,7 @@
     {
       "label": "dt scan video rendered",
       "passed": true,
-      "detail": "scan_dt.mp4 (607283 bytes)",
+      "detail": "scan_dt.mp4 (7953552 bytes)",
       "detail_href": "/figures/notebooks/nb003/scan_dt.mp4"
     },
     {

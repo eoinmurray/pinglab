@@ -329,7 +329,6 @@ class CUBANet(SNNBase):
         self._reset_mode_override = reset_mode
         self.readout_mode = readout_mode
         self.signed_weights = not dales_law
-        self._compiled_cache = {}
 
         # Layer sizes: [N_IN, H1, H2, ..., HN, N_OUT]
         sizes = hidden_sizes if hidden_sizes is not None else HIDDEN_SIZES
@@ -435,16 +434,6 @@ class CUBANet(SNNBase):
         state = self._init_hidden_state(cfg)
         readout = self._init_readout_state(cfg)
 
-        # Lazy-init a compiled per-timestep body on CUDA. Compile granularity
-        # matters: Dynamo unrolls Python for-loops, so compiling the full
-        # T_steps loop produced a ~2000-deep graph that took ~7 min to trace
-        # and Inductor-lower. Compiling one timestep instead traces a small
-        # graph once and the outer Python loop reuses it T_steps times.
-        # MPS/CPU stay eager (compile there pays trace cost for no fuse win).
-        if cfg["device"].type == "cuda" and "step" not in self._compiled_cache:
-            self._compiled_cache["step"] = torch.compile(
-                self._step_body, dynamic=False)
-
         self._forward_loop(cfg, state, readout)
 
         self._finalise_meta(cfg, readout, state)
@@ -452,15 +441,9 @@ class CUBANet(SNNBase):
                 else readout["logits_t"])
 
     def _forward_loop(self, cfg, state, readout):
-        """Eager outer time loop; dispatches to compiled step body on CUDA.
-
-        Slicing of the per-timestep tensors happens here (Python side) so the
-        compiled _step_body never sees the Python int `t` — if it did, Dynamo
-        would guard on `t == N` and recompile 8× before blacklisting the
-        function and falling back to eager for the rest of the trial.
-        Similarly, all rec_buf[...][t] writes stay out here.
-        """
-        step = self._compiled_cache.get("step", self._step_body)
+        """Outer time loop. Per-t tensor slicing happens here; rec_buf writes
+        stay here too. _step_body sees only tensors, no Python int `t`."""
+        step = self._step_body
         has_in = cfg["has_input_spikes"]
         has_ext = cfg["has_ext_g"]
         in_all = cfg["input_spikes"] if has_in else None

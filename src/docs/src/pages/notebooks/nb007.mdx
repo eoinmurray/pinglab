@@ -21,27 +21,32 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*cuba*](/models/#cuba) model — current-based synapses, the first rung on the CUBA → PING ladder that adds the $(1-\beta)/dt$ drive compensation — at *dt* = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video. No Δt sweep.
+Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*cuba*](/models/#cuba) path — current-based synapses with the $(1-\beta)/dt$ init-scale compensation that matches initial per-step drive across *dt* — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; calibration sibling of [nb005](/notebooks/nb005/) and [nb006](/notebooks/nb006/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-*cuba* with 1024 hidden units, Kaiming init, learning rate $\eta$ = {cell.lr ?? "?"}, and the one-shot $(1-\beta)/dt$ init-scale compensation applied at train-*dt* so the initial per-step drive matches *standard-snn* at this *dt*. Trained at *dt* = {cfg.dt ?? "?"} ms for *T* = {cfg.t_ms ?? "?"} ms per trial, on {cfg.max_samples ?? "?"} MNIST samples × {cfg.epochs ?? "?"} epochs. All hyperparameters are literals in *src/pinglab/notebooks/nb007.py*.
+Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb007.py* per the [runner contract](/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
+
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "Readout", value: "li", default: "rate" },
+  { label: "Surrogate slope", value: 1, default: 5 },
+  { label: "Init", value: "Kaiming (signed)", default: "non-negative" },
+  { label: "init_scale_weight", value: "dt / (1−β)", default: 1 },
+  { label: "init_scale_bias", value: "1 / (1−β)", default: 1 },
+]} />
+
+The first three customisations mirror [nb005](/notebooks/nb005/)/[nb006](/notebooks/nb006/) verbatim; the last two are the *cuba*-specific compensation that makes this model the cleaner sibling on the same recipe.
+
+- [**readout = li**](/the-oscilloscope/#readouts) — the default *rate* readout accumulates hidden spikes across *T* = 2000 steps and produces logits large enough that CE saturates to zero on the forward pass, masking the real gradient signal.
+- [**surrogate-slope = 1**](/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient. Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end.
+- [**kaiming-init (signed)**](/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
+- [**init_scale_weight = dt / (1−β)**](/the-oscilloscope/#network-flags-shared) and [**init_scale_bias = 1 / (1−β)**](/the-oscilloscope/#network-flags-shared) — *cuba*'s exponential synapse attenuates per-step input drive by $(1-\beta)$ relative to *standard-snn*'s direct LIF. The one-shot init-scale factors restore the initial mean drive at the chosen *dt*, so *cuba* starts at the same operating point as nb005/nb006 instead of an order-of-magnitude below.
 
 ## Results
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb007/training_curves.png" alt="Train loss and test accuracy per epoch for cuba">
-  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
-</Figure>
+<RunParameters numbers={numbers} variant="results" />
 
-<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb007/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for cuba">
-  Mean hidden firing rate across the training schedule.
-</Figure>
-
-<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb007/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the cuba hidden layer">
-  Per-epoch snapshot of the reference MNIST trial through *cuba*'s hidden layer.
-</Figure>
-
-## Success criteria
+### Success criteria
 
 {successCriteria.length > 0 ? (
   <table>
@@ -60,9 +65,23 @@ Single-model companion to [nb010](/notebooks/nb010/). Trains only the [*cuba*](/
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb007/training_curves.png" alt="Train loss and test accuracy per epoch for cuba">
+  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
+</Figure>
+
+<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb007/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for cuba">
+  Mean hidden firing rate across the training schedule.
+</Figure>
+
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb007/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the cuba hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *cuba*'s hidden layer.
+</Figure>
+
 ## Next steps
 
-Training is healthy — loss falls monotonically (2.72 → 2.37 across five epochs), gradients stay finite, hidden rate climbs cleanly through the sanity band (59 → 72 Hz). The one failing criterion is the tier-floor accuracy: *cuba* lands at {cell.final_acc ?? "?"}%, below the 30% small-tier gate set by the shared runner. Compared to [nb005](/notebooks/nb005/) *standard-snn* at matched config (41% best / 34% final), *cuba* is learning the same problem but roughly 2× slower per epoch under the (1-β)/Δt init-scale compensation. Two plausible causes to chase: (a) the one-shot *init_scale_weight* factor is correct in the limit but off at finite Δt for *T* = 200 ms trials, so the starting per-step drive undershoots *standard-snn*'s; (b) *cuba*'s exponential-synapse forward path dilutes the surrogate gradient relative to *standard-snn*'s direct LIF. First diagnostic should be to bump the tier to *medium* (2000 samples × 10 epochs) and check whether *cuba* catches up given more passes — if yes, this is a pace mismatch rather than a ceiling, and nb007's small-tier floor should simply be lowered; if no, the init-scale scaling needs rederiving at finite *T*.
+Every check passes at large tier — best accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%, and crucially *rate_e* = 104 Hz lands inside the 1–200 Hz sanity band. *cuba* is the first model on this shared MNIST recipe without the saturation pathology that pushes [nb005](/notebooks/nb005/) (rate ≈ 284 Hz) and [nb006](/notebooks/nb006/) (rate ≈ 390 Hz) above the upper rail at matched config. The $(1-\beta)/dt$ init-scale compensation is doing its job: starting drive matches *standard-snn* at *dt* = 0.1 ms, but the exponential synapse low-passes the spike train into the readout, so the network can hit competitive accuracy without driving the hidden layer into rate saturation.
+
+Two follow-ups parked: (a) the same two-sided firing-rate regulariser proposed for nb005/nb006 (Cramer-2022 style via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared)) should be a no-op here — applying it to *cuba* and confirming rate stays inside the band would cheaply verify the regulariser is well-posed before turning it loose on the saturating siblings; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/the-oscilloscope/#subcommand-infer) path would test whether the init-scale compensation generalises off the trained *dt*, or whether it only buys the right operating point at exactly *dt* = 0.1 ms.
 
 ## Appendix
 
@@ -72,14 +91,4 @@ Training is healthy — loss falls monotonically (2.72 → 2.37 across five epoc
 uv run src/pinglab/notebooks/nb007.py
 ```
 
-Add *--tier extra small* for a faster pass.
-
-### Run parameters
-
-<RunParameters numbers={numbers} extras={[
-  { label: "Readout", value: "li" },
-  { label: "Surrogate slope", value: 1 },
-  { label: "Init", value: "Kaiming (signed) + isw/isb" },
-  { label: "init_scale_weight", value: "dt / (1−β)" },
-  { label: "init_scale_bias", value: "1 / (1−β)" },
-]} />
+Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).

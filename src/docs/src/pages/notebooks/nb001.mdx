@@ -21,58 +21,13 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
-A scope frame is the canonical oscilloscope layout — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content.
+## Introduction
 
-The frame below is one 600 ms PING simulation on MNIST digit {cfg.input?.digit} sample {cfg.input?.sample}, at stim overdrive {cfg.stim_overdrive}×, ei-strength {cfg.ei_strength}, w-in overdrive {cfg.w_in_overdrive}× — the same knob positions that light up PING in *002*.
+A scope frame is the canonical [oscilloscope](/the-oscilloscope/) layout — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content. Sibling of the scan-video entries [nb002](/notebooks/nb002/) (drive sweep), [nb003](/notebooks/nb003/) (dt sweep) and [nb004](/notebooks/nb004/) (E→I sweep). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
-{hasFrame && (
-  <Figure id="Figure 1" title="The scope frame at the canonical working point" src="/figures/notebooks/nb001/scope_frame.png" alt="A single SCOPE_FRAME rendering">
-    The E-population raster fills the 2×2 block because rhythm is the primary observable; the I raster sits beside it at 1/4 the height, phase-offset from E to close the PING loop. Header readouts, weight histograms, input digit and spike train, output logits, PSD, and population rate flank the central raster — every panel shares the same 600 ms time axis so the network's drive, spikes, and output are read off in one glance.
-  </Figure>
-)}
+## Method
 
-## Panels
-
-- **Header** — model name, integration step, population size, input rate on the top row; live readouts (E/I firing rates, fundamental frequency f₀, population CV, I/E ratio, active-neuron fraction) on the second row.
-- **E Neurons** — raster of excitatory-population spike times over the full simulation window. The dominant 2×2 block of the figure because rhythm is the thing we're measuring.
-- **Input** — the MNIST digit being shown to the network, rendered at native pixel resolution.
-- **Weights** — histograms of every weight matrix the model owns (*In*, *Out*, *E→E*, *E→I*, *I→E*). Lets you see at a glance whether a matrix has collapsed, saturated, or drifted out of scale.
-- **Input Spikes** — raster of the Poisson-encoded spike train hitting the network. A dense band during the 200–300 ms stimulus window corresponds to the pixel intensities of the digit.
-- **I Neurons** — raster of inhibitory-population spike times, same axes as the E raster. The I population is 1/4 the size of E and fires on an offset phase from E, producing the gamma rhythm.
-- **Output (logits)** — horizontal bar chart of the 10 class logits at the final timestep. The predicted class (argmax) is filled red; the rest are outlined.
-- **PSD** — power spectral density of the E-population rate, restricted to 5–200 Hz. The red vertical marker is the gamma peak frequency f₀.
-- **E Population Rate** — binned firing-rate trace of the E population over time (2 ms bins). The envelope that the PSD is computed from.
-
-## Success criteria
-
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
-
-## Appendix
-
-### Reproduction
-
-From the repo root:
-
-```
-uv run src/pinglab/notebooks/nb001.py
-```
-
-### Run parameters
+One forward pass via the [oscilloscope *image*](/the-oscilloscope/#subcommand-image) subcommand on MNIST digit {cfg.input?.digit} sample {cfg.input?.sample}, at the working point that lights up PING in [nb002](/notebooks/nb002/). All knobs are hardcoded literals in *src/pinglab/notebooks/nb001.py* per the [runner contract](/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
@@ -102,3 +57,55 @@ uv run src/pinglab/notebooks/nb001.py
   },
 ]} />
 
+The working-point knobs (overdrive 5×, *W_in* overdrive 1.8×, *ei-strength* 0.5) are the lowest combination from [nb002](/notebooks/nb002/)'s drive sweep that puts the network firmly past PING onset, so the figure is unambiguous.
+
+## Results
+
+### Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+{hasFrame && (
+  <Figure id="Figure 1" title="The scope frame at the canonical working point" src="/figures/notebooks/nb001/scope_frame.png" alt="A single SCOPE_FRAME rendering">
+    The E-population raster fills the 2×2 block because rhythm is the primary observable; the I raster sits beside it at 1/4 the height, phase-offset from E to close the PING loop. Header readouts, weight histograms, input digit and spike train, output logits, PSD, and population rate flank the central raster — every panel shares the same 600 ms time axis so the network's drive, spikes, and output are read off in one glance.
+  </Figure>
+)}
+
+### Panels
+
+- **Header** — model name, integration step, population size, input rate on the top row; live readouts (E/I firing rates, fundamental frequency f₀, population CV, I/E ratio, active-neuron fraction) on the second row.
+- **E Neurons** — raster of excitatory-population spike times over the full simulation window. The dominant 2×2 block of the figure because rhythm is the thing we're measuring.
+- **Input** — the MNIST digit being shown to the network, rendered at native pixel resolution.
+- **Weights** — histograms of every weight matrix the model owns (*In*, *Out*, *E→E*, *E→I*, *I→E*). Lets you see at a glance whether a matrix has collapsed, saturated, or drifted out of scale.
+- **Input Spikes** — raster of the Poisson-encoded spike train hitting the network. A dense band during the 200–300 ms stimulus window corresponds to the pixel intensities of the digit.
+- **I Neurons** — raster of inhibitory-population spike times, same axes as the E raster. The I population is 1/4 the size of E and fires on an offset phase from E, producing the gamma rhythm.
+- **Output (logits)** — horizontal bar chart of the 10 class logits at the final timestep. The predicted class (argmax) is filled red; the rest are outlined.
+- **PSD** — power spectral density of the E-population rate, restricted to 5–200 Hz. The red vertical marker is the gamma peak frequency f₀.
+- **E Population Rate** — binned firing-rate trace of the E population over time (2 ms bins). The envelope that the PSD is computed from.
+
+## Next steps
+
+The frame is the layout reference for every scan video downstream — any panel rearrangement should be made here first and then propagated. The training entries ([nb005](/notebooks/nb005/)–[nb009](/notebooks/nb009/), [nb010](/notebooks/nb010/)) reuse the same panel skeleton at lower density, so changes that affect spike rasters or the PSD axes need to be checked against those too.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb001.py
+```

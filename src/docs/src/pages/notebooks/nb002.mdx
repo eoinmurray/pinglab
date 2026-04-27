@@ -26,44 +26,13 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
-**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz. It only runs when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold video — companion scans live in [nb003](/notebooks/nb003/) (integration step) and [nb004](/notebooks/nb004/) (E→I coupling strength).
+## Introduction
 
-<Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/nb002/scan_overdrive.mp4">
-  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
+**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz, but only when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold scan — companion sweeps live in [nb003](/notebooks/nb003/) (integration step) and [nb004](/notebooks/nb004/) (E→I coupling strength). Single-still version of the same working point is [nb001](/notebooks/nb001/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
-  Three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
-</Figure>
+## Method
 
-## Success criteria
-
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
-
-## Appendix
-
-### Reproduction
-
-From the repo root:
-
-```
-uv run src/pinglab/notebooks/nb002.py
-```
-
-### Run parameters
+A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb002.py* per the [runner contract](/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
@@ -91,6 +60,33 @@ uv run src/pinglab/notebooks/nb002.py
   },
 ]} />
 
+## Results
+
+### Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+<Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/nb002/scan_overdrive.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
+
+  Three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
+</Figure>
+
 ### Population rates (canonical overdrive = {numbers.canonical_overdrive ?? "?"}×)
 
 | Window | E (Hz) | I (Hz) |
@@ -98,3 +94,15 @@ uv run src/pinglab/notebooks/nb002.py
 | Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
 | In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
 | Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
+
+## Next steps
+
+The threshold around overdrive ≈ 1.2× is sharp on this MNIST sample but the structure depends on input statistics; a sample-averaged version (mean rate envelope across many digits) would harden the regime boundaries. With the threshold map in hand, [nb003](/notebooks/nb003/) and [nb004](/notebooks/nb004/) hold drive fixed in stable-PING territory and sweep the other two knobs (*dt*, *ei-strength*) — together the three videos pin the working-point box for every training entry downstream.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb002.py
+```

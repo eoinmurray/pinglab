@@ -26,42 +26,13 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
-Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* from {scan.min} to {scan.max} ms — isolating the timestep as the only knob that can break the oscillation. Split out from [nb002](/notebooks/nb002/); companion dt-stability training experiment is [nb010](/notebooks/nb010/).
+## Introduction
 
-<Figure type="video" id="Figure 1" title="Integration-step sweep (scan_dt.mp4)" src="/figures/notebooks/nb003/scan_dt.mp4">
-  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample} with stim-overdrive held at {scan.fixed_overdrive}×. *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames.
+Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb002](/notebooks/nb002/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb002](/notebooks/nb002/) (drive) and [nb004](/notebooks/nb004/) (E→I coupling); companion *dt*-stability training experiment is [nb010](/notebooks/nb010/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
-  Stable until about *dt* = 1.65 ms; beyond that the whole population saturates after PING onset.
-</Figure>
+## Method
 
-## Success criteria
-
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
-
-## Appendix
-
-### Reproduction
-
-```
-uv run src/pinglab/notebooks/nb003.py
-```
-
-### Run parameters
+A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× (firmly inside the stable-PING regime mapped by [nb002](/notebooks/nb002/)) while *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb003.py* per the [runner contract](/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
@@ -90,6 +61,33 @@ uv run src/pinglab/notebooks/nb003.py
   },
 ]} />
 
+## Results
+
+### Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+<Figure type="video" id="Figure 1" title="Integration-step sweep (scan_dt.mp4)" src="/figures/notebooks/nb003/scan_dt.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample} with stim-overdrive held at {scan.fixed_overdrive}×. *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames.
+
+  Stable until about *dt* = 1.65 ms; beyond that the whole population saturates after PING onset.
+</Figure>
+
 ### Population rates (canonical dt = {numbers.canonical_dt_ms ?? "?"} ms)
 
 | Window | E (Hz) | I (Hz) |
@@ -97,3 +95,15 @@ uv run src/pinglab/notebooks/nb003.py
 | Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
 | In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
 | Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
+
+## Next steps
+
+The breakdown around *dt* ≈ 1.65 ms sets a hard ceiling on the timestep any downstream training entry can use without losing the rhythm. [nb010](/notebooks/nb010/) tests whether this same ceiling holds end-to-end through training — i.e. whether a model trained at *dt* near the limit still produces PING at inference. The breakdown mode here (saturation, not collapse) suggests the failure is integrator instability rather than loss of the rhythm itself; a side-by-side with explicit-Euler vs the current scheme would isolate that.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb003.py
+```
