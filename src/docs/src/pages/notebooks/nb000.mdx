@@ -66,10 +66,16 @@ export const fmtMem = (v) => {
   return v + " B";
 };
 
+export const splitLabel = (label) => {
+  const i = label.indexOf(":");
+  return i < 0 ? { backend: label, model: "" } : { backend: label.slice(0, i), model: label.slice(i + 1) };
+};
+
 {baselineRows.length > 0 ? (
   <table>
     <thead>
       <tr>
+        <th>Model</th>
         <th>Backend</th>
         <th>Device</th>
         <th>Tier</th>
@@ -80,17 +86,21 @@ export const fmtMem = (v) => {
       </tr>
     </thead>
     <tbody>
-      {baselineRows.map(([label, b]) => (
-        <tr key={label}>
-          <td><strong>{label}</strong></td>
-          <td>{[b.device?.type, b.device?.name].filter(Boolean).join(" — ") || "?"}</td>
-          <td>{b.tier ?? "?"}</td>
-          <td>{fmtSps(b.samples_per_sec_warm)}</td>
-          <td>{fmtSec(b.epoch1_total_s)}</td>
-          <td>{fmtSec(b.epoch_warm_mean_s)}</td>
-          <td>{fmtMem(b.peak_memory_bytes)}</td>
-        </tr>
-      ))}
+      {baselineRows.map(([label, b]) => {
+        const { backend, model } = splitLabel(label);
+        return (
+          <tr key={label}>
+            <td><strong>{model || "?"}</strong></td>
+            <td>{backend}</td>
+            <td>{[b.device?.type, b.device?.name].filter(Boolean).join(" — ") || "?"}</td>
+            <td>{b.tier ?? "?"}</td>
+            <td>{fmtSps(b.samples_per_sec_warm)}</td>
+            <td>{fmtSec(b.epoch1_total_s)}</td>
+            <td>{fmtSec(b.epoch_warm_mean_s)}</td>
+            <td>{fmtMem(b.peak_memory_bytes)}</td>
+          </tr>
+        );
+      })}
     </tbody>
   </table>
 ) : (
