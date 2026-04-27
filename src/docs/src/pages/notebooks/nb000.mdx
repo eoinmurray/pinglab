@@ -55,9 +55,49 @@ Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier nam
 
 ### Performance
 
-<RunParameters numbers={numbers} variant="perf" />
+export const baselines = numbers.perf_baselines ?? (numbers.perf ? { current: numbers.perf } : {});
+export const baselineRows = Object.entries(baselines);
+export const fmtSps = (v) => (typeof v === "number" ? v.toFixed(1) : "—");
+export const fmtSec = (v) => (typeof v === "number" ? v.toFixed(2) + " s" : "—");
+export const fmtMem = (v) => {
+  if (typeof v !== "number") return "—";
+  if (v >= 1e9) return (v / 1e9).toFixed(2) + " GB";
+  if (v >= 1e6) return (v / 1e6).toFixed(1) + " MB";
+  return v + " B";
+};
 
-Per-epoch breakdown (train compute, eval, observe) is in *metrics.json*; aggregates above are computed across epochs 2..N (warm), excluding the cold first epoch where allocator/JIT one-shot costs land.
+{baselineRows.length > 0 ? (
+  <table>
+    <thead>
+      <tr>
+        <th>Backend</th>
+        <th>Device</th>
+        <th>Tier</th>
+        <th>Samples/sec (warm)</th>
+        <th>Epoch 1</th>
+        <th>Warm mean</th>
+        <th>Peak mem</th>
+      </tr>
+    </thead>
+    <tbody>
+      {baselineRows.map(([label, b]) => (
+        <tr key={label}>
+          <td><strong>{label}</strong></td>
+          <td>{[b.device?.type, b.device?.name].filter(Boolean).join(" — ") || "?"}</td>
+          <td>{b.tier ?? "?"}</td>
+          <td>{fmtSps(b.samples_per_sec_warm)}</td>
+          <td>{fmtSec(b.epoch1_total_s)}</td>
+          <td>{fmtSec(b.epoch_warm_mean_s)}</td>
+          <td>{fmtMem(b.peak_memory_bytes)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No baselines recorded — runner has not produced a perf block yet.</em></p>
+)}
+
+Each row is the most recent run on that backend; running again on the same backend updates that row, runs on a new backend append. Per-epoch breakdown (train compute, eval, observe) is in *metrics.json*; aggregates above are warm — they exclude the cold first epoch where allocator and one-shot JIT costs land.
 
 ### Success criteria
 

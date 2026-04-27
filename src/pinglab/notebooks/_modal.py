@@ -12,15 +12,29 @@ VALID_GPUS = ("none", "T4", "L4", "A10G", "A100", "H100")
 
 def parse_modal_gpu(argv: list[str]) -> str | None:
     """Parse --modal-gpu <GPU> out of argv; return None if absent."""
-    if "--modal-gpu" not in argv:
+    return _parse_gpu_flag(argv, "--modal-gpu")
+
+
+def parse_also_modal_gpu(argv: list[str]) -> str | None:
+    """Parse --also-modal-gpu <GPU> out of argv; return None if absent.
+
+    When set, the runner does its primary dispatch as usual (local or modal)
+    and then dispatches a secondary copy to Modal on this GPU, so a single
+    notebook invocation produces baselines for both backends side-by-side.
+    """
+    return _parse_gpu_flag(argv, "--also-modal-gpu")
+
+
+def _parse_gpu_flag(argv: list[str], flag: str) -> str | None:
+    if flag not in argv:
         return None
-    idx = argv.index("--modal-gpu")
+    idx = argv.index(flag)
     if idx + 1 >= len(argv):
-        raise SystemExit("--modal-gpu requires a value")
+        raise SystemExit(f"{flag} requires a value")
     gpu = argv[idx + 1]
     if gpu not in VALID_GPUS:
         raise SystemExit(
-            f"--modal-gpu: unknown GPU {gpu!r}, choose from {list(VALID_GPUS)}"
+            f"{flag}: unknown GPU {gpu!r}, choose from {list(VALID_GPUS)}"
         )
     return gpu
 
