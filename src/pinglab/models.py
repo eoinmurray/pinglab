@@ -106,6 +106,28 @@ def _env_no_compile() -> bool:
     return os.environ.get("PINGLAB_NO_COMPILE", "") == "1"
 
 
+# Dynamo config tuned for our model paths.
+#
+# force_parameter_static_shapes = False:
+#   PINGNet calls exp_synapse with three weight shapes per layer
+#   (W_ee n_e×n_e, W_ei n_e×n_i, W_ie n_i×n_e) plus W_ff input/output
+#   shapes. The default static-shape specialization re-traces the same
+#   function for every unique parameter shape and hits recompile_limit
+#   after 8 traces — at which point Dynamo silently falls back to eager
+#   for the rest of the forward, defeating compile entirely on the
+#   PINGNet path. Marking parameter shapes dynamic produces one trace
+#   that handles all shapes via dynamic-shape codegen. Slight per-step
+#   overhead vs static, but a single compiled graph beats fallback.
+#
+# recompile_limit = 32:
+#   Belt-and-braces. If some other shape variation we haven't accounted
+#   for trips a recompile, we want noisy logs rather than silent
+#   fallback. Bumped from default 8.
+import torch._dynamo  # noqa: E402
+torch._dynamo.config.force_parameter_static_shapes = False
+torch._dynamo.config.recompile_limit = 32
+
+
 # ── Surrogate gradient ───────────────────────────────────────────────────
 
 def fast_sigmoid_spike(u, slope):
