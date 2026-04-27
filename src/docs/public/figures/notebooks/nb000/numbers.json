@@ -73,5 +73,32 @@
       "passed": true,
       "detail": "samples_per_sec_warm=201.5"
     }
-  ]
+  ],
+  "perf_baselines": {
+    "local-mps": {
+      "tier": "medium",
+      "notebook_run_id": "r010",
+      "device": {
+        "type": "mps"
+      },
+      "torch_version": "2.11.0",
+      "peak_memory_bytes": 430407936,
+      "epoch1_total_s": 10.529176666866988,
+      "epoch_warm_mean_s": 9.474108148055771,
+      "samples_per_sec_warm": 201.47014149838895
+    },
+    "modal-A100": {
+      "tier": "medium",
+      "notebook_run_id": "r010",
+      "device": {
+        "type": "cuda",
+        "name": "NVIDIA A100-SXM4-80GB"
+      },
+      "torch_version": "2.11.0+cu130",
+      "peak_memory_bytes": 5892829184,
+      "epoch1_total_s": 29.578650512,
+      "epoch_warm_mean_s": 16.772104788666663,
+      "samples_per_sec_warm": 140.5540698717938
+    }
+  }
 }
