@@ -471,8 +471,7 @@ def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100,
     return results
 
 
-def run_sim_image(dt, image, model_name="ping", load_weights=None,
-                  w_in_overdrive=1.0):
+def run_sim_image(dt, image, model_name="ping", load_weights=None):
     """Run a simulation with image input using current config.
 
     Returns (rec, predicted_class, net).
@@ -486,13 +485,6 @@ def run_sim_image(dt, image, model_name="ping", load_weights=None,
         state = torch.load(load_weights, map_location=DEVICE)
         net.load_state_dict(state, strict=False)
         net.eval()
-    if w_in_overdrive != 1.0:
-        # Scale the input projection to amplify drive without retraining
-        with torch.no_grad():
-            if hasattr(net, "W_ff") and len(net.W_ff) > 0:
-                net.W_ff[0].mul_(w_in_overdrive)
-            elif hasattr(net, "W_in"):
-                net.W_in.mul_(w_in_overdrive)
 
     # Pre-encode image as Poisson spikes — same canonical path as train/infer
     img_tensor = torch.tensor(image, dtype=torch.float32).unsqueeze(0).to(DEVICE)

@@ -157,7 +157,6 @@ SCAN_DEFAULTS = {
     "tau_ampa":        (2.0,   "ms"),
     "w_ei_mean":       (W_EI[0], "\u03bcS"),
     "w_ie_mean":       (W_IE[0], "\u03bcS"),
-    "w_in_overdrive":  (1.0,   "x"),
     "ei_strength":     (1.0,   ""),
     "spike_rate":      (1.0,   "Hz"),
     "bias":            (1.0,   "\u03bcS"),
@@ -207,7 +206,6 @@ _SWEEP_XLABELS = {
     "bias":           "bias (\u03bcS)",
     "digit":          "digit class",
     "noise":          "noise rate (Hz)",
-    "w_in_overdrive": "W_in overdrive",
     "w_ei_mean":      "W_ei mean",
     "w_ie_mean":      "W_ie mean",
     "dt":             "dt (ms)",
@@ -219,7 +217,7 @@ def generate_scan(scan_var="stim-overdrive", scan_min=1.0, scan_max=50.0,
                   resample_input=False, spike_rate=None,
                   input_mode="synthetic-conductance",
                   dataset="scikit", digit_class=0, sample_idx=0,
-                  load_weights=None, w_in_overdrive=1.0):
+                  load_weights=None):
     """Video scanning a variable from scan_min to scan_max."""
     import config as C
     if t_e_async is None:
@@ -256,11 +254,6 @@ def generate_scan(scan_var="stim-overdrive", scan_min=1.0, scan_max=50.0,
     prof.reset()
     log.info(f"scan {scan_var} {scan_values[0]:.3g}\u2192{scan_values[-1]:.3g}{unit} | {n_frames}f")
 
-    if scan_var == "w_in_overdrive":
-        return _scan_w_in(scan_values, n_frames, dt, burn_steps,
-                          spike_rate, overdrive, out_dir, display_values,
-                          unit, resample_input=resample_input)
-
     if scan_var == "stim-overdrive" and not resample_input and input_mode not in ("synthetic-spikes", "dataset"):
         return _scan_od_batched(scan_values, n_frames, dt, burn_steps,
                                 t_e_async, out_dir, display_values, unit)
@@ -270,16 +263,14 @@ def generate_scan(scan_var="stim-overdrive", scan_min=1.0, scan_max=50.0,
                         out_dir, display_values, unit,
                         input_mode=input_mode, dataset=dataset,
                         digit_class=digit_class, sample_idx=sample_idx,
-                        spike_rate=spike_rate,
-                        w_in_overdrive=w_in_overdrive)
+                        spike_rate=spike_rate)
 
     _scan_streaming(scan_var, scan_values, n_frames, dt, burn_steps,
                     t_e_async, overdrive, out_dir, display_values, unit,
                     resample_input=resample_input, spike_rate=spike_rate,
                     input_mode=input_mode, dataset=dataset,
                     digit_class=digit_class, sample_idx=sample_idx,
-                    load_weights=load_weights,
-                    w_in_overdrive=w_in_overdrive)
+                    load_weights=load_weights)
 
 
 def _scan_od_batched(scan_values, n_frames, dt, burn_steps, t_e_async,
@@ -349,106 +340,12 @@ def _scan_od_batched(scan_values, n_frames, dt, burn_steps, t_e_async,
     prof.report(n_total)
 
 
-def _scan_w_in(scan_values, n_frames, dt, burn_steps, spike_rate,
-               overdrive, out_dir, display_values, unit,
-               resample_input=False):
-    """Scan W_in overdrive using synthetic spike input."""
-    import config as C
-    M.N_HID = C.N_E
-    M.N_INH = C.N_I
-    patch_dt(dt)
-    T_steps = M.T_steps
-
-    stim_rate = spike_rate * overdrive
-    input_spikes = make_spike_drive(
-        M.N_IN, T_steps, dt, spike_rate, stim_rate,
-        C.STEP_ON_MS, C.STEP_OFF_MS, C.SEED,
-    ).to(C.DEVICE)
-
-    net = make_ping_net(C.cfg, w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY))
-    w_in_base = net.W_in.data.clone()
-
-    sweep_weights = extract_weights(net)
-
-    fig, axes = make_transient_fig(layout="video")
-    n_total = len(scan_values)
-    lo, hi = display_values[0], display_values[-1]
-    fname = (f"scan_w_in_od_{lo:.2g}-{hi:.2g}x"
-             f"_{n_total}f_{C.FPS}fps_n{C.N_E}.mp4")
-
-    writer = FFMpegWriter(fps=C.FPS, metadata=dict(title="Scan w_in_overdrive"))
-    frames_dir = out_dir / "frames"
-    frames_dir.mkdir(parents=True, exist_ok=True)
-
-    log.info(f"  Simulating & rendering {n_total} frames "
-          f"(spike {spike_rate:.0f}\u2192{stim_rate:.0f} Hz)...")
-    with writer.saving(fig, str(out_dir / fname), dpi=120):
-        for i, w_in_od in enumerate(scan_values):
-            noise_seed = C.SEED + i if resample_input else None
-
-            with torch.no_grad():
-                net.W_in.data.copy_(w_in_base * w_in_od)
-
-            if resample_input and noise_seed is not None:
-                spk_input = make_spike_drive(
-                    M.N_IN, T_steps, dt, spike_rate, stim_rate,
-                    C.STEP_ON_MS, C.STEP_OFF_MS, noise_seed,
-                )
-            else:
-                spk_input = input_spikes
-
-            with prof.track_sim():
-                net.recording = True
-                for attr in ["rec_hid", "rec_inh", "rec_out", "rec_in"]:
-                    if hasattr(net, attr):
-                        setattr(net, attr, [])
-
-                with torch.no_grad():
-                    net.forward(input_spikes=spk_input)
-
-                rec = _extract_records(net)
-                spk_e = rec[primary_hid_key(rec)][burn_steps:]
-                spk_i = rec[primary_inh_key(rec)][burn_steps:] if primary_inh_key(rec) else None
-                spk_o = rec.get("out")
-                if spk_o is not None:
-                    spk_o = spk_o[burn_steps:]
-
-            frame_weights = dict(sweep_weights)
-            frame_weights["W_in"] = net.W_in.data.clamp(min=0).cpu().numpy().ravel()
-
-            with prof.track_render():
-                draw_transient_frame(
-                    axes, overdrive, spk_e, spk_i,
-                    spk_input.cpu().numpy()[burn_steps:], dt,
-                    "PING (spikes)", spk_o=spk_o, weights=frame_weights,
-                    sweep_var="w_in_overdrive",
-                    sweep_range=(lo, hi),
-                    sweep_progress=i / max(1, n_total - 1),
-                    model_name="ping", t_e_async=spike_rate,
-                    sweep_levels=display_values, sweep_frame_idx=i,
-                    n_e=C.N_E, n_i=C.N_I,
-                    step_on_ms=C.STEP_ON_MS, step_off_ms=C.STEP_OFF_MS,
-                    burn_in_ms=C.BURN_IN_MS, w_ie=C.W_IE,
-                )
-            with prof.track_encode():
-                fig.savefig(frames_dir / f"frame_{i + 1:04d}.png", dpi=120)
-                writer.grab_frame()
-
-            m = metrics_str(spk_e, spk_i, dt, n_e=C.N_E, n_i=C.N_I)
-            log.info(f"  {i+1}/{n_total} w_in_od={w_in_od:.2g}x | {m}")
-
-    plt.close(fig)
-    log.info(f"  \u2192 {out_dir / fname}")
-    log.info(f"  frames \u2192 {frames_dir}/")
-    prof.report(n_total)
-
-
 def _scan_streaming(scan_var, scan_values, n_frames, dt, burn_steps,
                     t_e_async, overdrive, out_dir, display_values, unit,
                     resample_input=False, spike_rate=None,
                     input_mode="synthetic-conductance",
                     dataset="scikit", digit_class=0, sample_idx=0,
-                    load_weights=None, w_in_overdrive=1.0):
+                    load_weights=None):
     """Generic scan -- stream frame-by-frame to keep memory bounded."""
     import config as C
     if spike_rate is None:
@@ -553,9 +450,6 @@ def _scan_streaming(scan_var, scan_values, n_frames, dt, burn_steps,
                     else:
                         net_frame = make_net(C.cfg,
                                             w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY))
-                        if w_in_overdrive != 1.0:
-                            with torch.no_grad():
-                                net_frame.W_ff[0].mul_(w_in_overdrive)
                     # Encode image as spikes with stimulus window
                     od_val = val if scan_var == "stim-overdrive" else overdrive
                     base_rate = M.max_rate_hz
@@ -681,8 +575,7 @@ def _scan_streaming(scan_var, scan_values, n_frames, dt, burn_steps,
 def _scan_dt(scan_values, n_frames, t_e_async, overdrive,
              out_dir, display_values, unit,
              input_mode="synthetic-conductance", dataset="scikit",
-             digit_class=0, sample_idx=0, spike_rate=None,
-             w_in_overdrive=1.0):
+             digit_class=0, sample_idx=0, spike_rate=None):
     """dt sweep. Two drive modes:
       * conductance (default): reference-noise step drive held fixed across
         dt so each frame is a dt-invariant re-sampling of the same process.
@@ -739,9 +632,6 @@ def _scan_dt(scan_values, n_frames, t_e_async, overdrive,
                     ).to(C.DEVICE)
                     net_frame = make_ping_net(C.cfg,
                                               w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY))
-                    if w_in_overdrive != 1.0:
-                        with torch.no_grad():
-                            net_frame.W_ff[0].mul_(w_in_overdrive)
                     with torch.no_grad():
                         logits = net_frame.forward(input_spikes=frame_spikes)
                     if logits is not None:
@@ -847,7 +737,7 @@ def generate_snapshot(drive_mult, dt=None, fake_progress=None, model_name="ping"
 
 
 def generate_spike_snapshot(spike_rate=None, overdrive=12.0,
-                            dt=None, model_name="ping", w_in_overdrive=1.0):
+                            dt=None, model_name="ping"):
     """Generate a snapshot with synthetic spike input."""
     import config as C
     if spike_rate is None:
@@ -873,10 +763,6 @@ def generate_spike_snapshot(spike_rate=None, overdrive=12.0,
     log.info(f"image | {model_name} spikes {spike_rate:.0f}\u2192{stim_rate:.0f}Hz")
 
     net = make_ping_net(C.cfg, w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY))
-
-    if w_in_overdrive != 1.0:
-        with torch.no_grad():
-            net.W_in.mul_(w_in_overdrive)
 
     input_spikes = input_spikes.to(C.DEVICE)
     tonic_g = None
@@ -1054,8 +940,7 @@ def _load_dataset_image(dataset="scikit", digit_class=0, sample_idx=0):
 
 def generate_image_snapshot(digit_class=0, sample_idx=0, dataset="scikit",
                             dt=None, overdrive=1.0, model_name="ping",
-                            out_filename="snapshot.png", load_weights=None,
-                            w_in_overdrive=1.0):
+                            out_filename="snapshot.png", load_weights=None):
     """Generate a snapshot with image input."""
     import config as C
     out_dir = Path(C.ARTIFACT_ROOT)
@@ -1100,8 +985,7 @@ def generate_image_snapshot(digit_class=0, sample_idx=0, dataset="scikit",
         pred = None
     else:
         rec, pred, net = run_sim_image(dt, pixel_vec, model_name=model_name,
-                                        load_weights=load_weights,
-                                        w_in_overdrive=w_in_overdrive)
+                                        load_weights=load_weights)
         spk_in = rec.get("input")
         spk_e = rec[primary_hid_key(rec)]
         spk_i = rec.get("inh")
@@ -1146,7 +1030,7 @@ def generate_image_snapshot(digit_class=0, sample_idx=0, dataset="scikit",
 
 
 def generate_sim_only(spike_rate=None, overdrive=12.0,
-                      dt=None, model_name="ping", w_in_overdrive=1.0,
+                      dt=None, model_name="ping",
                       input_mode="synthetic-conductance",
                       t_e_async=None):
     """Run simulation and report metrics, no plot output."""
@@ -1176,10 +1060,6 @@ def generate_sim_only(spike_rate=None, overdrive=12.0,
 
         net = make_net(C.cfg, w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY),
                        model_name=model_name)
-
-        if w_in_overdrive != 1.0:
-            with torch.no_grad():
-                net.W_in.mul_(w_in_overdrive)
 
         input_spikes = input_spikes.to(C.DEVICE)
         tonic_g = None
@@ -2662,9 +2542,6 @@ Models:
     wt_group.add_argument("--w-rec", type=float, nargs=2, default=None,
                           metavar=("MEAN", "STD"),
                           help="W_rec recurrent init (mean std, default: 0 0.1)")
-    wt_group.add_argument("--w-in-overdrive", type=float, default=1.0,
-                          help="Multiplier on W_in weights (default: 1.0)")
-
     out_group = parent.add_argument_group("Output")
     out_group.add_argument("--out-dir", type=str, default=None,
                            help="Output directory")
@@ -3043,8 +2920,7 @@ def _print_intro(log, config, args, mode):
             "ei_strength": config.get("ei_strength"),
             "ei_ratio": config.get("ei_ratio"),
         },
-        "Weights": g("w_in", "w_in_sparsity", "w_ei", "w_ie", "w_rec",
-                     "w_in_overdrive"),
+        "Weights": g("w_in", "w_in_sparsity", "w_ei", "w_ie", "w_rec"),
         "Training": g("epochs", "lr", "adaptive_lr", "v_grad_dampen") if
                     mode == "train" else {},
         "Scan": g("scan_var", "scan_min", "scan_max", "frames", "frame_rate") if
@@ -3146,7 +3022,6 @@ if __name__ == "__main__":
         generate_sim_only(spike_rate=args.spike_rate,
                           overdrive=args.overdrive,
                           dt=args.dt, model_name=args.model,
-                          w_in_overdrive=args.w_in_overdrive,
                           input_mode=args.input,
                           t_e_async=t_e_async)
 
@@ -3159,13 +3034,11 @@ if __name__ == "__main__":
                                     dataset=args.dataset,
                                     overdrive=args.overdrive,
                                     model_name=args.model,
-                                    load_weights=getattr(args, "load_weights", None),
-                                    w_in_overdrive=args.w_in_overdrive)
+                                    load_weights=getattr(args, "load_weights", None))
         elif args.input == "synthetic-spikes":
             generate_spike_snapshot(spike_rate=args.spike_rate,
                                     overdrive=args.overdrive,
-                                    dt=args.dt, model_name=args.model,
-                                    w_in_overdrive=args.w_in_overdrive)
+                                    dt=args.dt, model_name=args.model)
         else:
             generate_snapshot(args.overdrive, dt=args.dt,
                               fake_progress=args.fake_progress,
@@ -3192,8 +3065,7 @@ if __name__ == "__main__":
                       input_mode=args.input,
                       dataset=args.dataset, digit_class=args.digit,
                       sample_idx=args.sample,
-                      load_weights=getattr(args, "load_weights", None),
-                      w_in_overdrive=args.w_in_overdrive)
+                      load_weights=getattr(args, "load_weights", None))
 
     elif mode == "train":
         w_in = args.w_in or [0.3, 0.06]
