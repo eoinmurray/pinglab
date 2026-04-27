@@ -940,6 +940,8 @@ class PINGNet(SNNBase):
                 f"readout_mode must be 'rate' or 'li', got {readout_mode!r}")
         self.readout_mode = readout_mode
         self.signed_weights = not dales_law
+        # Same lazy-compile pattern as CUBANet — see CUBANet for rationale.
+        self._compiled_cache: dict = {}
 
         sizes = hidden_sizes if hidden_sizes is not None else HIDDEN_SIZES
         self.hidden_sizes = list(sizes)
@@ -1070,81 +1072,56 @@ class PINGNet(SNNBase):
                 n_spk_tensors[self._inh_key(i)] = torch.zeros(1, device=device)
         n_spk_tensors["out"] = torch.zeros(1, device=device)
 
+        # Bundle mutating state and per-call config so _step_body can be
+        # compiled per-timestep (the same boundary CUBANet uses). The Python
+        # int `t` and rec_buf writes stay in _forward_loop so the compiled
+        # graph never has to re-trace per-t.
+        state = {
+            "v_e": v_e, "ref_e": ref_e, "ge_e": ge_e, "gi_e": gi_e, "s_e": s_e,
+            "v_i": v_i, "ref_i": ref_i, "ge_i": ge_i, "s_i": s_i,
+            "hidden_accum": hidden_accum, "v_out": v_out,
+            "logits_max": logits_max,
+        }
+        cfg = {
+            "B": B, "device": device,
+            "W_ff": W_ff, "drive_gains": drive_gains,
+            "ei_layers": self.ei_layers,
+            "has_input_spikes": has_input_spikes, "has_ext_g": has_ext_g,
+            "readout_mode": self.readout_mode,
+            "g_noise": g_noise, "n_e0": self.hidden_sizes[0],
+            "n_spk_tensors": n_spk_tensors,
+        }
+
+        # Lazy-init torch.compile on the per-timestep body. Same pattern,
+        # rationale, and PINGLAB_NO_COMPILE escape hatch as CUBANet.
+        if ("step" not in self._compiled_cache
+                and not _env_no_compile()):
+            try:
+                self._compiled_cache["step"] = torch.compile(
+                    self._step_body, dynamic=False)
+            except Exception as exc:  # noqa: BLE001
+                self._compiled_cache["step"] = self._step_body
+                self._compiled_cache["compile_error"] = str(exc)
+        step = self._compiled_cache.get("step", self._step_body)
+
         for t in range(T_steps):
-            prev_spk = None
-            for i in range(1, self.n_layers + 1):
-                k = str(i)
-                W = W_ff[i - 1]
-                is_ei = i in self.ei_layers
-
-                # E-I recurrent dynamics (spike then decay)
-                if is_ei:
-                    ge_e[k] = exp_synapse(ge_e[k], s_e[k], self.W_ee[k], decay_ampa)
-                    ge_i[k] = exp_synapse(ge_i[k], s_e[k], self.W_ei[k], decay_ampa)
-                    gi_e[k] = exp_synapse(gi_e[k], s_i[k], self.W_ie[k], decay_gaba)
-                else:
-                    ge_e[k] = ge_e[k] * decay_ampa  # just decay, no recurrence
-
-                # Feedforward drive
-                if i == 1:
-                    if has_input_spikes:
-                        spk_t = (input_spikes[t].unsqueeze(0)
-                                 if input_spikes.dim() == 2 else input_spikes[t])
-                        if input_drive_all is not None:
-                            g_ext = (input_drive_all[t].unsqueeze(0)
-                                     if input_drive_all.dim() == 2
-                                     else input_drive_all[t])
-                        else:
-                            g_ext = spk_t @ W
-                        if k in drive_gains:
-                            g_ext = g_ext * drive_gains[k]
-                        ge_e[k] = ge_e[k] + g_ext
-                        if rec_buf is not None and "input" in rec_buf:
-                            rec_buf["input"][t] = spk_t
-                    if has_ext_g:
-                        ge_e[k] = ge_e[k] + (ext_g[t].unsqueeze(0)
-                                              if ext_g.dim() == 2 else ext_g[t])
-                else:
-                    ge_e[k] = ge_e[k] + prev_spk @ W
-
-                # Background noise (layer 1 only)
-                if g_noise > 0 and i == 1:
-                    n_e = self.hidden_sizes[0]
-                    ge_e[k] = ge_e[k] + (g_noise * torch.randn(
-                        B, n_e, device=device)).clamp(min=0)
-
-                # Voltage steps
-                if is_ei:
-                    v_e[k], s_e[k], ref_e[k] = e_step_coba(
-                        v_e[k], ref_e[k], ge_e[k], gi_e[k])
-                    v_i[k], s_i[k], ref_i[k] = i_step_coba(
-                        v_i[k], ref_i[k], ge_i[k])
-                else:
-                    v_e[k], s_e[k], ref_e[k] = e_step_coba(
-                        v_e[k], ref_e[k], ge_e[k])
-
-                prev_spk = s_e[k]
-
-                hk = self._hid_key(i)
-                n_spk_tensors[hk] += s_e[k].detach().sum()
-                if rec_buf is not None:
-                    rec_buf[hk][t] = s_e[k]
-                if is_ei:
-                    ik = self._inh_key(i)
-                    n_spk_tensors[ik] += s_i[k].detach().sum()
-                    if rec_buf is not None:
-                        rec_buf[ik][t] = s_i[k]
-
-            # Readout (rate vs li — see CUBANet for shared rationale).
-            if self.readout_mode == "li":
-                I_out = prev_spk @ W_ff[-1]
-                v_out = beta_snn * v_out + (1.0 - beta_snn) * I_out
-                logits_max = torch.maximum(logits_max, v_out)
-                logits_t = v_out
-            else:
-                hidden_accum = hidden_accum + prev_spk
-                logits_t = hidden_accum @ W_ff[-1]
+            slc = {
+                "in_t": (input_spikes[t].unsqueeze(0)
+                         if has_input_spikes and input_spikes.dim() == 2
+                         else (input_spikes[t] if has_input_spikes else None)),
+                "ext_t": (ext_g[t].unsqueeze(0)
+                          if has_ext_g and ext_g.dim() == 2
+                          else (ext_g[t] if has_ext_g else None)),
+            }
+            logits_t = step(slc, cfg, state)
             if rec_buf is not None:
+                if slc["in_t"] is not None and "input" in rec_buf:
+                    rec_buf["input"][t] = slc["in_t"]
+                for i in range(1, self.n_layers + 1):
+                    k = str(i)
+                    rec_buf[self._hid_key(i)][t] = state["s_e"][k]
+                    if i in self.ei_layers:
+                        rec_buf[self._inh_key(i)][t] = state["s_i"][k]
                 rec_buf["out"][t] = logits_t
 
         sizes = {}
@@ -1159,6 +1136,85 @@ class PINGNet(SNNBase):
             rec = {k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
                    for k, v in rec_buf.items()}
         self._set_meta(B, n_spk, rec, sizes)
-        return logits_max if self.readout_mode == "li" else logits_t
+        return state["logits_max"] if self.readout_mode == "li" else logits_t
+
+    def _step_body(self, slc, cfg, state):
+        """One timestep: all PING layers + readout. The compile target.
+
+        slc:    per-t inputs (in_t, ext_t) sliced in _forward_loop.
+        cfg:    per-call constants (W_ff, drive_gains, ei_layers, flags,
+                spike accumulators).
+        state:  per-call mutable dicts (membrane voltages, conductances,
+                spike outputs, readout accumulators). Mutated in place.
+
+        Returns logits_t for the rec_buf write in _forward_loop. Per-t
+        rec_buf writes and Python int `t` are kept out so the compiled
+        graph reuses across all T_steps invocations.
+        """
+        W_ff = cfg["W_ff"]
+        ei_layers = cfg["ei_layers"]
+        drive_gains = cfg["drive_gains"]
+        has_input_spikes = cfg["has_input_spikes"]
+        has_ext_g = cfg["has_ext_g"]
+        g_noise = cfg["g_noise"]
+        n_spk_tensors = cfg["n_spk_tensors"]
+
+        prev_spk = None
+        for i in range(1, self.n_layers + 1):
+            k = str(i)
+            W = W_ff[i - 1]
+            is_ei = i in ei_layers
+
+            if is_ei:
+                state["ge_e"][k] = exp_synapse(
+                    state["ge_e"][k], state["s_e"][k], self.W_ee[k], decay_ampa)
+                state["ge_i"][k] = exp_synapse(
+                    state["ge_i"][k], state["s_e"][k], self.W_ei[k], decay_ampa)
+                state["gi_e"][k] = exp_synapse(
+                    state["gi_e"][k], state["s_i"][k], self.W_ie[k], decay_gaba)
+            else:
+                state["ge_e"][k] = state["ge_e"][k] * decay_ampa
+
+            if i == 1:
+                if has_input_spikes:
+                    g_ext = slc["in_t"] @ W
+                    if k in drive_gains:
+                        g_ext = g_ext * drive_gains[k]
+                    state["ge_e"][k] = state["ge_e"][k] + g_ext
+                if has_ext_g:
+                    state["ge_e"][k] = state["ge_e"][k] + slc["ext_t"]
+            else:
+                state["ge_e"][k] = state["ge_e"][k] + prev_spk @ W
+
+            if g_noise > 0 and i == 1:
+                state["ge_e"][k] = state["ge_e"][k] + (g_noise * torch.randn(
+                    cfg["B"], cfg["n_e0"], device=cfg["device"])).clamp(min=0)
+
+            if is_ei:
+                state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
+                    state["v_e"][k], state["ref_e"][k],
+                    state["ge_e"][k], state["gi_e"][k])
+                state["v_i"][k], state["s_i"][k], state["ref_i"][k] = i_step_coba(
+                    state["v_i"][k], state["ref_i"][k], state["ge_i"][k])
+            else:
+                state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
+                    state["v_e"][k], state["ref_e"][k], state["ge_e"][k])
+
+            prev_spk = state["s_e"][k]
+
+            hk = self._hid_key(i)
+            n_spk_tensors[hk] += state["s_e"][k].detach().sum()
+            if is_ei:
+                ik = self._inh_key(i)
+                n_spk_tensors[ik] += state["s_i"][k].detach().sum()
+
+        if cfg["readout_mode"] == "li":
+            I_out = prev_spk @ W_ff[-1]
+            state["v_out"] = beta_snn * state["v_out"] + (1.0 - beta_snn) * I_out
+            state["logits_max"] = torch.maximum(state["logits_max"], state["v_out"])
+            return state["v_out"]
+        else:
+            state["hidden_accum"] = state["hidden_accum"] + prev_spk
+            return state["hidden_accum"] @ W_ff[-1]
 
 
