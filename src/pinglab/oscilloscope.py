@@ -452,7 +452,7 @@ def _scan_streaming(scan_var, scan_values, n_frames, dt, burn_steps,
                                             w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY))
                     # Encode image as spikes with stimulus window
                     od_val = val if scan_var == "stim-overdrive" else overdrive
-                    base_rate = M.max_rate_hz
+                    base_rate = val if scan_var == "spike_rate" else M.max_rate_hz
                     stim_rate = base_rate * od_val
                     frame_spikes = encode_image_spikes(
                         pixel_vec, T_steps, dt, base_rate, stim_rate,
