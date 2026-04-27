@@ -106,6 +106,20 @@ def _env_no_compile() -> bool:
     return os.environ.get("PINGLAB_NO_COMPILE", "") == "1"
 
 
+# Dynamo compile-cache size. Default 8 is exhausted by:
+#   - train vs eval (requires_grad differs on state tensors per forward call)
+#   - last partial batch in an epoch (smaller batch dim than 256)
+#   - any incidental shape variation in compiled functions
+# Bump to 32 so the cache holds a generous superset of distinct trace
+# variants without falling back to eager. Unlike force_parameter_static_shapes
+# (which we tried in 85cd304 and reverted: dynamic-shape codegen produced
+# slower kernels on CUDA), this knob only affects how many specialised
+# variants we keep around — each one is still a fully-static, shape-
+# specialised compiled graph.
+import torch._dynamo  # noqa: E402
+torch._dynamo.config.recompile_limit = 32
+
+
 # ── Surrogate gradient ───────────────────────────────────────────────────
 
 def fast_sigmoid_spike(u, slope):
@@ -173,7 +187,7 @@ def lif_step(v, I_total, ref, C_m, g_L, ref_steps, spike_fn, V_floor=V_floor, V_
 
 
 def lif_step_expeuler(v, ref, g_e, g_i, C_m, g_L, ref_steps, spike_fn,
-                      v_grad_dampen=1.0, dt=None, V_floor=V_floor, V_max=None):
+                      v_grad_dampen=1.0, dt_override=None, V_floor=V_floor, V_max=None):
     """COBA LIF step under exponential Euler with a zero-order hold on g_e, g_i.
 
     Closed-form integration of
@@ -185,8 +199,13 @@ def lif_step_expeuler(v, ref, g_e, g_i, C_m, g_L, ref_steps, spike_fn,
         v_{t+1} = v_inf + (v_t - v_inf) * exp(-dt / tau_eff)
     which is dt-invariant under N-vs-1 step in the passive case, unlike the
     forward-Euler `lif_step` above. Returns (v, s, ref).
+
+    The kwarg is `dt_override` (not `dt`) so the module-level `dt` is
+    accessible without `globals()['dt']`, which is a Dynamo graph-break.
+    The graph-break was forcing a per-call recompile cascade that defeated
+    torch.compile on PINGNet's CUDA path (recompile_limit hit silently).
     """
-    dt_step = globals()['dt'] if dt is None else dt
+    dt_step = dt if dt_override is None else dt_override
     if g_i is None:
         g_sum = g_e
         g_E_drive = g_e * E_e
@@ -1166,12 +1185,19 @@ class PINGNet(SNNBase):
             is_ei = i in ei_layers
 
             if is_ei:
-                state["ge_e"][k] = exp_synapse(
-                    state["ge_e"][k], state["s_e"][k], self.W_ee[k], decay_ampa)
-                state["ge_i"][k] = exp_synapse(
-                    state["ge_i"][k], state["s_e"][k], self.W_ei[k], decay_ampa)
-                state["gi_e"][k] = exp_synapse(
-                    state["gi_e"][k], state["s_i"][k], self.W_ie[k], decay_gaba)
+                # exp_synapse inlined: when called as a separate function
+                # Dynamo compiles it as its own trace boundary and hits the
+                # recompile limit (3 different W shapes × inner-loop call
+                # sites > recompile_limit=8), silently falling back to
+                # eager. Inlining keeps everything inside _step_body's
+                # single compiled graph where the three weight shapes are
+                # specialized once per (W_ee, W_ei, W_ie) tuple.
+                state["ge_e"][k] = (state["ge_e"][k]
+                                    + state["s_e"][k] @ self.W_ee[k]) * decay_ampa
+                state["ge_i"][k] = (state["ge_i"][k]
+                                    + state["s_e"][k] @ self.W_ei[k]) * decay_ampa
+                state["gi_e"][k] = (state["gi_e"][k]
+                                    + state["s_i"][k] @ self.W_ie[k]) * decay_gaba
             else:
                 state["ge_e"][k] = state["ge_e"][k] * decay_ampa
 
