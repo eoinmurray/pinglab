@@ -35,6 +35,7 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
         "--w-in", "1.2",
         "--w-in-sparsity", "0.95",
         "--lr", "0.0001",
+        "--batch-size", "256",
     ]
 
 

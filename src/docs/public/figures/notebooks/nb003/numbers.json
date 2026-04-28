@@ -1,11 +1,11 @@
 {
-  "notebook_run_id": "r006",
-  "run_datetime": "Monday, 27th April 26 at 18:05",
-  "duration_s": 554.5,
-  "duration": "9m 15s",
-  "tier": "large",
+  "notebook_run_id": "r011",
+  "run_datetime": "Tuesday, 28th April 26 at 06:08",
+  "duration_s": 21.3,
+  "duration": "21s",
+  "tier": "small",
   "config": {
-    "tier": "large",
+    "tier": "small",
     "model": "ping",
     "n_e": 512,
     "n_i": 128,
@@ -25,9 +25,9 @@
     "seed": 42,
     "scan": {
       "var": "spike_rate",
-      "min": 5.0,
-      "max": 200.0,
-      "frames": 300,
+      "min": 25.0,
+      "max": 1000.0,
+      "frames": 15,
       "fps": 30
     }
   },
@@ -39,12 +39,26 @@
     "input_rate_hz": 250.0
   },
   "canonical_input_rate_hz": 250.0,
+  "companion_scan": {
+    "video": "/notebooks/nb003/scan_constant.mp4",
+    "scan_var": "bias",
+    "scan_min": 0.0,
+    "scan_max": 0.05,
+    "input_mode": "synthetic-conductance",
+    "purpose": "constant-current control: isolates whether band-jumping at low Poisson rates is encoder noise or network dynamics"
+  },
   "success_criteria": [
     {
       "label": "input-rate scan video rendered",
       "passed": true,
-      "detail": "scan_input_rate.mp4 (7734446 bytes)",
+      "detail": "scan_input_rate.mp4 (768196 bytes)",
       "detail_href": "/figures/notebooks/nb003/scan_input_rate.mp4"
+    },
+    {
+      "label": "constant-current control video rendered",
+      "passed": true,
+      "detail": "scan_constant.mp4 (197031 bytes)",
+      "detail_href": "/figures/notebooks/nb003/scan_constant.mp4"
     },
     {
       "label": "PING forms at canonical input rate (250 Hz)",

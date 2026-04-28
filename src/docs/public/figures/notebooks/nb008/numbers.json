@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r002",
-  "git_sha": "ed1641c (dirty)",
-  "duration_s": 2064.2,
-  "duration": "34m 24s",
+  "notebook_run_id": "r005",
+  "git_sha": "unknown",
+  "duration_s": 1792.5,
+  "duration": "29m 52s",
   "tier": "large",
   "config": {
     "tier": "large",
@@ -13,55 +13,66 @@
     "t_ms": 200.0,
     "dt": 0.1,
     "n_hidden": 1024,
-    "batch_size": 64,
-    "seed": 42,
-    "input_rate_hz": 25.0
+    "input_rate_hz": 25.0,
+    "batch_size": 256,
+    "seed": 42
   },
   "run": {
     "model": "cuba",
-    "run_date": "Sunday, April 26 2026 at 19:58",
-    "run_id": "r-20260426-185918",
-    "git_sha": "ed1641c (dirty)",
-    "lr": 0.01,
-    "best_acc": 87.5,
-    "best_epoch": 33,
-    "final_acc": 87.1,
-    "final_loss": 0.30876143607828355,
-    "total_elapsed_s": 2054.565884166863
+    "run_date": "Tuesday, April 28 2026 at 06:10",
+    "run_id": "r-20260428-044105",
+    "git_sha": "unknown",
+    "lr": 0.04,
+    "best_acc": 86.3,
+    "best_epoch": 39,
+    "final_acc": 86.2,
+    "final_loss": 0.2617350472137332,
+    "total_elapsed_s": 1738.950751638
+  },
+  "perf": {
+    "device": {
+      "type": "cuda",
+      "name": "NVIDIA A100 80GB PCIe"
+    },
+    "torch_version": "2.11.0+cu130",
+    "peak_memory_bytes": 5892829184,
+    "epoch1_total_s": 53.576762218,
+    "epoch_warm_mean_s": 40.14298825010259,
+    "samples_per_sec_warm": 134.1214125347706
   },
   "success_criteria": [
     {
       "label": "training curves rendered",
       "passed": true,
-      "detail": "training_curves.png (55695 bytes)",
+      "detail": "training_curves.png (54921 bytes)",
       "detail_href": "/figures/notebooks/nb008/training_curves.png"
     },
     {
       "label": "firing-rate trace rendered",
       "passed": true,
-      "detail": "firing_rates.png (44979 bytes)",
+      "detail": "firing_rates.png (49785 bytes)",
       "detail_href": "/figures/notebooks/nb008/firing_rates.png"
     },
     {
       "label": "training video rendered",
       "passed": true,
-      "detail": "training.mp4 (2573912 bytes)",
+      "detail": "training.mp4 (2293775 bytes)",
       "detail_href": "/figures/notebooks/nb008/training.mp4"
     },
     {
       "label": "hidden rate in band (1.0\u2013200.0 Hz)",
       "passed": true,
-      "detail": "rate_e=104.53 Hz"
+      "detail": "rate_e=87.40 Hz"
     },
     {
       "label": "final acc \u2265 70.0% (large tier floor)",
       "passed": true,
-      "detail": "final=87.10%, best=87.50%"
+      "detail": "final=86.20%, best=86.30%"
     },
     {
       "label": "no collapse (final \u2265 best \u2212 5pp)",
       "passed": true,
-      "detail": "final=87.10%, best=87.50%, \u0394=0.40pp"
+      "detail": "final=86.20%, best=86.30%, \u0394=0.10pp"
     }
   ]
 }
