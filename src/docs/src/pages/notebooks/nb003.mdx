@@ -17,7 +17,6 @@ export const nbRunId = numbers.notebook_run_id ?? "?";
 export const runDuration = numbers.duration ?? "?";
 export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?", base_rate_hz: "?" };
 export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?" };
-export const companion = numbers.companion_scan ?? null;
 export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 export const successCriteria = numbers.success_criteria ?? [];
 
@@ -27,13 +26,9 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 Companion to [nb002](/notebooks/nb002/). Where nb002 holds the input rate fixed and sweeps an in-window *overdrive* multiplier, this entry has **no stim window** — the Poisson input rate is flat over the whole simulation, and the sweep walks that single rate from low to high. The aim is to map PING onset as a function of constant input drive, with no transient stimulus to confound the picture.
 
-This entry runs **two** scans per invocation. The primary scan (Figure 1) uses Poisson encoding of the MNIST digit at varying per-pixel rates. The control scan (Figure 2) uses uniform constant ext_g amplitude across all E neurons — no Poisson stochasticity, no image structure — sweeping that amplitude through the equivalent async→PING transition. Comparing the two isolates whether the PING bands jump around at low input rates because of encoder noise or because the network itself is in a near-bifurcation regime.
-
 ## Method
 
 A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}, with the Poisson input rate set per frame from the scan and held flat across the whole run (overdrive=1, no stim elevation). The sweep walks the rate from {scan.min} Hz → {scan.max} Hz over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb003.py* per the [runner contract](/the-notebooks/#runner-contract).
-
-The control scan dispatches the same oscilloscope path with `--input synthetic-conductance --scan-var bias`, sweeping a uniform tonic ext_g from {companion?.scan_min ?? "?"} to {companion?.scan_max ?? "?"} (in `cfg.bias` units, default ≈ 2 × 10⁻⁴) over the same number of frames. No image, no Poisson — same network dynamics, deterministic input.
 
 <RunParameters numbers={numbers} groups={[
   {
@@ -82,12 +77,8 @@ The control scan dispatches the same oscilloscope path with `--input synthetic-c
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure type="video" id="Figure 1" title="Input-rate sweep — Poisson encoding (scan_input_rate.mp4)" src="/figures/notebooks/nb003/scan_input_rate.mp4">
+<Figure type="video" id="Figure 1" title="Input-rate sweep (scan_input_rate.mp4)" src="/figures/notebooks/nb003/scan_input_rate.mp4">
   Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The Poisson input rate is held flat across the run at the value shown on the frame. Sweep walks the rate from {scan.min} Hz → {scan.max} Hz over {scan.frames} frames.
-</Figure>
-
-<Figure type="video" id="Figure 2" title="Control: constant-current sweep (scan_constant.mp4)" src="/figures/notebooks/nb003/scan_constant.mp4">
-  Same network, same dt/T, but the input is a uniform constant ext_g amplitude across all E neurons (no Poisson, no image). Sweep walks the amplitude from {companion?.scan_min ?? "?"} to {companion?.scan_max ?? "?"} over the same number of frames. If the PING bands jump around in Figure 1 but stay locked here, the encoder's stochasticity is the cause; if they jump in both, it's near-bifurcation network dynamics.
 </Figure>
 
 ### Population rates
