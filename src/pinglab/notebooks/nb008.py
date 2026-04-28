@@ -39,7 +39,8 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
         "--kaiming-init",
         "--readout", "li",
         "--surrogate-slope", "1",
-        "--lr", "0.01",
+        "--lr", "0.04",
+        "--batch-size", "256",
         "--init-scale-weight", f"{INIT_SCALE_WEIGHT}",
         "--init-scale-bias", f"{INIT_SCALE_BIAS}",
     ]
