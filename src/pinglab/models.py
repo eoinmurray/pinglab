@@ -466,19 +466,19 @@ class CUBANet(SNNBase):
         readout = self._init_readout_state(cfg)
 
         # Lazy-init torch.compile on the per-timestep body. Device-agnostic
-        # — runs on whatever backend the tensors live on. Compiling per
-        # timestep (not the full T-loop) traces a small graph once that the
-        # outer Python loop reuses T_steps times, avoiding the multi-minute
-        # trace cost of compiling a 2000-deep unrolled loop.
-        # Opt out via PINGLAB_NO_COMPILE=1 for ablation.
+        # for accelerators (MPS, CUDA); skipped on CPU because Inductor's
+        # cpp_builder fails on some hosts (no compatible toolchain) and the
+        # error only surfaces at first call, not at torch.compile() time —
+        # past our try/except. CPU forward passes are rare in practice
+        # (Mac→MPS, Modal→CUDA) so eager there has no real cost.
+        # Opt out entirely via PINGLAB_NO_COMPILE=1.
         if ("step" not in self._compiled_cache
-                and not _env_no_compile()):
+                and not _env_no_compile()
+                and cfg["device"].type != "cpu"):
             try:
                 self._compiled_cache["step"] = torch.compile(
                     self._step_body, dynamic=False)
             except Exception as exc:  # noqa: BLE001
-                # Compile is opportunistic: if Inductor can't lower for the
-                # current device we silently fall back to eager.
                 self._compiled_cache["step"] = self._step_body
                 self._compiled_cache["compile_error"] = str(exc)
 
@@ -1112,9 +1112,13 @@ class PINGNet(SNNBase):
         }
 
         # Lazy-init torch.compile on the per-timestep body. Same pattern,
-        # rationale, and PINGLAB_NO_COMPILE escape hatch as CUBANet.
+        # rationale, CPU-skip, and PINGLAB_NO_COMPILE escape hatch as
+        # CUBANet. CPU is skipped because Inductor's cpp build fails on
+        # some hosts and the error escapes the try/except (surfaces only
+        # at first compiled call, not at torch.compile() construction).
         if ("step" not in self._compiled_cache
-                and not _env_no_compile()):
+                and not _env_no_compile()
+                and device.type != "cpu"):
             try:
                 self._compiled_cache["step"] = torch.compile(
                     self._step_body, dynamic=False)
