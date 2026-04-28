@@ -44,7 +44,6 @@ def c(code: str, text: str) -> str:
     return f"\x1b[{code}m{text}\x1b[0m"
 
 
-def dim(text): return c("2", text)
 def bold(text): return c("1", text)
 def green(text): return c("32", text)
 def yellow(text): return c("33", text)

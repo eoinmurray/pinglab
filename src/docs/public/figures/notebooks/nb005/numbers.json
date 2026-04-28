@@ -1,11 +1,11 @@
 {
-  "notebook_run_id": "r007",
-  "run_datetime": "Monday, 27th April 26 at 13:26",
-  "duration_s": 141.2,
-  "duration": "2m 21s",
-  "tier": "medium",
+  "notebook_run_id": "r008",
+  "run_datetime": "Tuesday, 28th April 26 at 07:23",
+  "duration_s": 493.7,
+  "duration": "8m 14s",
+  "tier": "large",
   "config": {
-    "tier": "medium",
+    "tier": "large",
     "model": "ping",
     "n_e": 512,
     "n_i": 128,
@@ -27,7 +27,7 @@
       "var": "ei_strength",
       "min": 0.0,
       "max": 2.0,
-      "frames": 100,
+      "frames": 300,
       "fps": 30,
       "fixed_overdrive": 1.0,
       "input_rate_hz": 200.0,
@@ -54,7 +54,7 @@
     {
       "label": "ei-strength scan video rendered",
       "passed": true,
-      "detail": "scan_ei.mp4 (3715080 bytes)",
+      "detail": "scan_ei.mp4 (9442256 bytes)",
       "detail_href": "/figures/notebooks/nb005/scan_ei.mp4"
     },
     {
