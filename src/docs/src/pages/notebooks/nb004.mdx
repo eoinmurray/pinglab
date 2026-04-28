@@ -28,7 +28,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb002](/notebooks/nb002/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb002](/notebooks/nb002/) (drive) and [nb005](/notebooks/nb005/) (E→I coupling); companion *dt*-stability training experiment is [nb011](/notebooks/nb011/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb002](/notebooks/nb002/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb002](/notebooks/nb002/) (drive) and [nb005](/notebooks/nb005/) (E→I coupling); companion *dt*-stability training experiment is [nb012](/notebooks/nb012/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
@@ -98,7 +98,7 @@ A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subc
 
 ## Next steps
 
-The breakdown around *dt* ≈ 1.65 ms sets a hard ceiling on the timestep any downstream training entry can use without losing the rhythm. [nb011](/notebooks/nb011/) tests whether this same ceiling holds end-to-end through training — i.e. whether a model trained at *dt* near the limit still produces PING at inference. The breakdown mode here (saturation, not collapse) suggests the failure is integrator instability rather than loss of the rhythm itself; a side-by-side with explicit-Euler vs the current scheme would isolate that.
+The breakdown around *dt* ≈ 1.65 ms sets a hard ceiling on the timestep any downstream training entry can use without losing the rhythm. [nb012](/notebooks/nb012/) tests whether this same ceiling holds end-to-end through training — i.e. whether a model trained at *dt* near the limit still produces PING at inference. The breakdown mode here (saturation, not collapse) suggests the failure is integrator instability rather than loss of the rhythm itself; a side-by-side with explicit-Euler vs the current scheme would isolate that.
 
 ## Appendix
 

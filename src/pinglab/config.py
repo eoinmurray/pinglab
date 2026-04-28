@@ -89,6 +89,8 @@ MODEL_REGISTRY = {
                                                   w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
                                                   **kw),
     "standard-snn":       lambda **kw: CUBANet(w_in=(0, 0), w_hid=(0, 0.1), **kw),
+    "standard-snn-exp":   lambda **kw: CUBANet(exponential_synapse=True,
+                                                      w_in=(0, 0), w_hid=(0, 0.1), **kw),
     "cuba":                 lambda **kw: CUBANet(discretisation="continuous",
                                                       w_in=(0, 0), w_hid=(0, 0.1), **kw),
     "cuba-exp":             lambda **kw: CUBANet(discretisation="continuous",
@@ -116,6 +118,7 @@ IS_COBA = {"ping"}
 # to load legacy artifacts (they are no longer dispatched by any experiment).
 CUBA_MODELS = {
     "standard-snn",
+    "standard-snn-exp",
     "snntorch-library",
     "cuba",
     "cuba-exp",
@@ -138,6 +141,7 @@ HEADLINE_LADDER = [
 _MODEL_CLASSES = {
     "ping":                 (PINGNet,     {}),
     "standard-snn":       (CUBANet, {}),
+    "standard-snn-exp":   (CUBANet, {"exponential_synapse": True}),
     "cuba":                 (CUBANet, {"discretisation": "continuous"}),
     "cuba-exp":             (CUBANet, {"discretisation": "continuous",
                                             "exponential_synapse": True}),

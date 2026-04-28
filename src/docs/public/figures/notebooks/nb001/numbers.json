@@ -1,18 +1,18 @@
 {
-  "notebook_run_id": "r037",
-  "run_datetime": "Monday, 27th April 26 at 13:54",
-  "duration_s": 2.5,
-  "duration": "3s",
+  "notebook_run_id": "r038",
+  "run_datetime": "Tuesday, 28th April 26 at 07:32",
+  "duration_s": 2.3,
+  "duration": "2s",
   "success_criteria": [
     {
       "label": "scope frame rendered",
       "passed": true,
-      "detail": "scope_frame.png (176075 bytes)",
+      "detail": "scope_frame.png (176299 bytes)",
       "detail_href": "/figures/notebooks/nb001/scope_frame.png"
     }
   ],
   "config": {
-    "tier": "extra small",
+    "tier": "large",
     "model": "ping",
     "n_e": 512,
     "n_i": 128,

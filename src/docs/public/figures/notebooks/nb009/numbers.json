@@ -1,13 +1,13 @@
 {
-  "notebook_run_id": "r008",
+  "notebook_run_id": "r005",
   "git_sha": "unknown",
-  "duration_s": 1733.3,
-  "duration": "28m 53s",
+  "duration_s": 1792.5,
+  "duration": "29m 52s",
   "tier": "large",
   "config": {
     "tier": "large",
     "dataset": "mnist",
-    "model": "coba",
+    "model": "cuba",
     "max_samples": 5000,
     "epochs": 40,
     "t_ms": 200.0,
@@ -18,16 +18,16 @@
     "seed": 42
   },
   "run": {
-    "model": "coba",
-    "run_date": "Tuesday, April 28 2026 at 06:09",
-    "run_id": "r-20260428-044059",
+    "model": "cuba",
+    "run_date": "Tuesday, April 28 2026 at 06:10",
+    "run_id": "r-20260428-044105",
     "git_sha": "unknown",
-    "lr": 0.0004,
-    "best_acc": 90.1,
+    "lr": 0.04,
+    "best_acc": 86.3,
     "best_epoch": 39,
-    "final_acc": 89.2,
-    "final_loss": 0.126571673899889,
-    "total_elapsed_s": 1695.291225753
+    "final_acc": 86.2,
+    "final_loss": 0.2617350472137332,
+    "total_elapsed_s": 1738.950751638
   },
   "perf": {
     "device": {
@@ -35,44 +35,44 @@
       "name": "NVIDIA A100 80GB PCIe"
     },
     "torch_version": "2.11.0+cu130",
-    "peak_memory_bytes": 12440652800,
-    "epoch1_total_s": 61.014576477,
-    "epoch_warm_mean_s": 38.673862490307684,
-    "samples_per_sec_warm": 140.31794495230037
+    "peak_memory_bytes": 5892829184,
+    "epoch1_total_s": 53.576762218,
+    "epoch_warm_mean_s": 40.14298825010259,
+    "samples_per_sec_warm": 134.1214125347706
   },
   "success_criteria": [
     {
       "label": "training curves rendered",
       "passed": true,
-      "detail": "training_curves.png (66544 bytes)",
+      "detail": "training_curves.png (54921 bytes)",
       "detail_href": "/figures/notebooks/nb009/training_curves.png"
     },
     {
       "label": "firing-rate trace rendered",
       "passed": true,
-      "detail": "firing_rates.png (39745 bytes)",
+      "detail": "firing_rates.png (49785 bytes)",
       "detail_href": "/figures/notebooks/nb009/firing_rates.png"
     },
     {
       "label": "training video rendered",
       "passed": true,
-      "detail": "training.mp4 (1377209 bytes)",
+      "detail": "training.mp4 (2293775 bytes)",
       "detail_href": "/figures/notebooks/nb009/training.mp4"
     },
     {
       "label": "hidden rate in band (1.0\u2013200.0 Hz)",
       "passed": true,
-      "detail": "rate_e=39.12 Hz"
+      "detail": "rate_e=87.40 Hz"
     },
     {
       "label": "final acc \u2265 70.0% (large tier floor)",
       "passed": true,
-      "detail": "final=89.20%, best=90.10%"
+      "detail": "final=86.20%, best=86.30%"
     },
     {
       "label": "no collapse (final \u2265 best \u2212 5pp)",
       "passed": true,
-      "detail": "final=89.20%, best=90.10%, \u0394=0.90pp"
+      "detail": "final=86.20%, best=86.30%, \u0394=0.10pp"
     }
   ]
 }
