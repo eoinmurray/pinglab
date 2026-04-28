@@ -2595,6 +2595,12 @@ Models:
                                 "module-level `tau_ampa`). Cramer et al. SHD: "
                                 "10 ms. Only affects models with "
                                 "exponential_synapse=True (e.g. cuba-exp).")
+    net_group.add_argument("--exp-synapse", action="store_true",
+                           help="Promote --model standard-snn to its "
+                                "exponential-synapse variant (standard-snn-exp). "
+                                "No-op for any other model — cuba-exp / coba / "
+                                "ping already enable exp synapses by their "
+                                "registry definitions.")
     net_group.add_argument("--grad-clip", type=float, default=None,
                            help="Global-norm gradient-clip threshold passed to "
                                 "torch.nn.utils.clip_grad_norm_. Default 1.0 "
@@ -2907,6 +2913,12 @@ Models:
     if args.mode is None:
         parser.print_help()
         sys.exit(0)
+
+    # Promote --model standard-snn to standard-snn-exp when --exp-synapse is
+    # set. Other models already encode exponential_synapse via their registry
+    # entries (cuba-exp / coba / ping), so the flag is a no-op there.
+    if getattr(args, "exp_synapse", False) and args.model == "standard-snn":
+        args.model = "standard-snn-exp"
 
     # Apply global model knobs as early as possible so every downstream
     # entrypoint (train, sim, image, video, infer) sees the right integrator.

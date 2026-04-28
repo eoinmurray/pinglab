@@ -23,7 +23,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 Performance reference workload. The goal across the lab is **one architecture that runs efficiently on local Apple Silicon (MPS) and on Modal**, with a single code path — no device-specific branches, no CUDA-only fast paths, no MPS-only fallbacks. This notebook is the fixed point that work toward that goal is measured against: a recipe-identical clone of [nb006](/notebooks/nb006/) (standard-snn LIF classifier on MNIST at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms) trained through the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path. Holding the recipe constant means wall-time and throughput numbers reported here over successive runs reflect changes in the training stack itself — kernel launches, sync points, compile coverage, memory layout — not recipe drift.
 
-Sibling per-model trainers ([nb006](/notebooks/nb006/)–[nb010](/notebooks/nb010/)) own the science. This entry owns the profile.
+Sibling per-model trainers ([nb006](/notebooks/nb006/)–[nb011](/notebooks/nb011/)) own the science. This entry owns the profile.
 
 ## Method
 
