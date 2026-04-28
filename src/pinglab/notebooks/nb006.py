@@ -3,8 +3,8 @@
 Trains the standard-snn (LIF classifier, snntorch research baseline) at
 dt=0.1 ms on MNIST and publishes training curves, hidden firing rates,
 a training video, and numbers.json. Companion to the other per-model
-runners (nb007–nb010) and to the five-model Δt-stability sweep in
-nb011.
+runners (nb008–nb011) and to the five-model Δt-stability sweep in
+nb012.
 
 Notebook entry: src/docs/src/pages/notebooks/nb006.mdx
 """

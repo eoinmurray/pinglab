@@ -21,7 +21,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb011](/notebooks/nb011/). Trains only the [*standard-snn*](/models/#standard-snn) — the snnTorch research-baseline LIF classifier — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; this is the rung-zero training profile in isolation. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*standard-snn*](/models/#standard-snn) — the snnTorch research-baseline LIF classifier — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; this is the rung-zero training profile in isolation. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
@@ -86,6 +86,6 @@ At the **large** [tier](/the-notebooks/#cli) ({cfg.max_samples ?? "?"} samples �
 
 ## Next steps
 
-Any future *dt* rescale of this notebook should revisit the three Method knobs — the surrogate slope in particular is a function of total trial-length, not *dt*. The large-tier run is the companion check for this recipe in the Δt-stability sweep of [nb011](/notebooks/nb011/).
+Any future *dt* rescale of this notebook should revisit the three Method knobs — the surrogate slope in particular is a function of total trial-length, not *dt*. The large-tier run is the companion check for this recipe in the Δt-stability sweep of [nb012](/notebooks/nb012/).
 
-A shared two-sided firing-rate regulariser across this notebook and its parity sibling [nb007](/notebooks/nb007/) — via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared), Cramer-2022 style — is parked for a follow-up. It would pin both implementations into the 1–200 Hz band by training pressure rather than by step-code parity, closing the residual mid-training rate gap (nb006 ~250 Hz / nb007 ~630 Hz at medium) without making the two paths interact.
+A shared two-sided firing-rate regulariser across this notebook and its parity sibling [nb008](/notebooks/nb008/) — via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared), Cramer-2022 style — is parked for a follow-up. It would pin both implementations into the 1–200 Hz band by training pressure rather than by step-code parity, closing the residual mid-training rate gap (nb006 ~250 Hz / nb008 ~630 Hz at medium) without making the two paths interact.

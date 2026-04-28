@@ -4,7 +4,7 @@ Profiling reference workload. Trains two models per run so the perf
 matrix covers both training backbones used elsewhere in the lab:
 
   - standard-snn (CUBANet path, recipe mirrors nb006)
-  - coba         (PINGNet path with ei_strength=0, recipe mirrors nb009)
+  - coba         (PINGNet path with ei_strength=0, recipe mirrors nb010)
 
 Both recipes are verbatim copies of their science-owner notebooks; if
 the science changes, change it there first and mirror here. The point
@@ -46,7 +46,7 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
 
 
 def build_coba_osc_args(tier: str, out_dir: Path) -> list[str]:
-    """Mirrors nb009's coba recipe verbatim. coba is dispatched via PINGNet
+    """Mirrors nb010's coba recipe verbatim. coba is dispatched via PINGNet
     with ei_strength=0, so this exercises the PINGNet compile path next to
     standard-snn's CUBANet path — both backbones tested per nb000 run."""
     return osc_base_args(out_dir, tier, build_as="ping") + [
