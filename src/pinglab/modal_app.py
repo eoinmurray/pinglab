@@ -206,19 +206,29 @@ def dispatch_batch_to_modal(jobs: list[dict]):
     failures = [(j, err) for j, _, err in results if err is not None]
 
     print(f"\n{len(successes)}/{len(jobs)} jobs succeeded; syncing artifacts...")
-    for remote_out, j in [(out, j) for j, out in successes]:
-        assert remote_out is not None
-        volume_path = remote_out.removeprefix(REMOTE_ARTIFACTS + "/")
-        local_path = Path(j["local_out_dir"])
-        local_parent = local_path.parent
-        local_parent.mkdir(parents=True, exist_ok=True)
-        sync_cmd = [
-            "uv", "run", "modal", "volume", "get", VOLUME_NAME,
-            volume_path + "/", str(local_parent) + "/",
-            "--force",
-        ]
-        subprocess.run(sync_cmd, check=True)
-        print(f"  → {local_path}/")
+    # One `modal volume get` at the longest common prefix of the per-job
+    # paths instead of N. Each modal CLI invocation pays ~5–7 min of
+    # handshake/auth overhead before transferring; with N=12 jobs the
+    # serial loop bled ~80 min on a few hundred MB of artifacts. Modal
+    # creates the basename dir under the destination, so syncing the
+    # common-prefix dir into the parent of the common-local path
+    # reproduces the same on-disk layout in one call.
+    import os
+    remote_paths = [out.removeprefix(REMOTE_ARTIFACTS + "/")
+                    for _, out in successes]
+    local_dirs = [j["local_out_dir"] for j, _ in successes]
+    common_remote = os.path.commonpath(remote_paths)
+    common_local = os.path.commonpath(local_dirs)
+    local_parent = Path(common_local).parent
+    local_parent.mkdir(parents=True, exist_ok=True)
+    sync_cmd = [
+        "uv", "run", "modal", "volume", "get", VOLUME_NAME,
+        common_remote + "/", str(local_parent) + "/",
+        "--force",
+    ]
+    subprocess.run(sync_cmd, check=True)
+    print(f"  → synced {len(successes)} dirs from {common_remote}/ "
+          f"to {local_parent}/ (single transfer)")
 
     if failures:
         print(f"\n{len(failures)} job(s) failed:")
