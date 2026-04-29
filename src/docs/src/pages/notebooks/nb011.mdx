@@ -34,9 +34,9 @@ Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb011.py* 
   { label: "W_in sparsity", value: 0.95, default: 0 },
 ]} />
 
-Four customisations turn PINGNet from its degenerate feedforward configuration into an actual PING circuit, and keep BPTT through the conductance dynamics finite.
+Four customisations turn COBANet from its degenerate feedforward configuration into an actual PING circuit, and keep BPTT through the conductance dynamics finite.
 
-- [**ei-strength = 0.5**](/the-oscilloscope/#network-flags-shared) — the E→I→E coupling that distinguishes *ping* from [*coba*](/notebooks/nb010/). At zero, PINGNet collapses to coba (no feedback inhibition, no gamma); 0.5 is below the canonical 0.8 used in [nb005](/notebooks/nb005/) but matches the input-drive tier here.
+- [**ei-strength = 0.5**](/the-oscilloscope/#network-flags-shared) — the E→I→E coupling that distinguishes *ping* from [*coba*](/notebooks/nb010/). At zero, COBANet collapses to coba (no feedback inhibition, no gamma); 0.5 is below the canonical 0.8 used in [nb005](/notebooks/nb005/) but matches the input-drive tier here.
 - [**v_grad_dampen = 1000**](/the-oscilloscope/#network-flags-shared) — conductance-based voltage updates carry a $g \cdot (V - E_\text{rev})$ term whose gradient explodes through 2000 BPTT steps without dampening. The dampener clips the *V*-path Jacobian magnitude so input-layer grads stay finite.
 - [**W_in = 1.2 (95% sparse)**](/the-oscilloscope/#network-flags-shared) — sparse, large-magnitude input weights drive the E population strongly enough that the E→I coupling can recruit the I population at all; the dense default (*W_in* = 0.3, density 1.0) puts mean drive far below I's recruitment threshold.
 - [**lr = 0.0001**](/the-oscilloscope/#train-flags) — an order of magnitude below the 1e-3 default used by the LIF siblings. The recurrent E→I→E loop makes the loss surface stiffer; 1e-3 trips *v_grad_dampen* skip-step counters within the first epoch, 1e-4 sits in a stable regime.

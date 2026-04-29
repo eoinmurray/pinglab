@@ -166,9 +166,9 @@ def print_progress_header(log):
 
 
 def print_epoch(log, ep: int, total: int, acc: float, loss: float,
-                 e_rate: float, i_rate: float, cv: float, activity: float,
+                 e_rate: float, i_rate: float | None, cv: float, activity: float,
                  elapsed_s: float, eta_s: float,
-                 new_best: bool = False, warnings: list = None):
+                 new_best: bool = False, warnings: list | None = None):
     """One compact progress line per epoch. Fits in 80 cols."""
     arrow = green("↑") if new_best else " "
     i_str = f"{i_rate:3.0f}Hz" if i_rate is not None else "  -  "
@@ -205,7 +205,7 @@ class WarningTracker:
         self.grad_clip_frac_last = 0.0
         self.observed_warnings = []  # (ep_start, ep_end, kind) aggregated
 
-    def tick(self, ep: int, acc: float, activity: float, loss: float = None,
+    def tick(self, ep: int, acc: float, activity: float, loss: float | None = None,
              grad_clip_frac: float = 0.0):
         flags = []
         # Activity flags only trigger when paired with no improvement —
@@ -279,11 +279,12 @@ class WarningTracker:
 # ── Summary block ────────────────────────────────────────────────────────
 
 def format_bytes(n: int) -> str:
+    size: float = n
     for unit in ["B", "KB", "MB", "GB"]:
-        if n < 1024:
-            return f"{n:.1f} {unit}" if unit != "B" else f"{int(n)} B"
-        n /= 1024
-    return f"{n:.1f} TB"
+        if size < 1024:
+            return f"{size:.1f} {unit}" if unit != "B" else f"{int(size)} B"
+        size /= 1024
+    return f"{size:.1f} TB"
 
 
 def list_output_files(out_dir: Path) -> list:
@@ -299,10 +300,10 @@ def list_output_files(out_dir: Path) -> list:
     return files
 
 
-def print_summary(log, *, best_acc: float = None, final_acc: float = None,
-                   best_epoch: int = None, runtime_s: float = None,
-                   dynamics: dict = None, out_dir: Path = None,
-                   warnings: list = None):
+def print_summary(log, *, best_acc: float | None = None, final_acc: float | None = None,
+                   best_epoch: int | None = None, runtime_s: float | None = None,
+                   dynamics: dict | None = None, out_dir: Path | None = None,
+                   warnings: list | None = None):
     """Print the structured summary block."""
     log.info(DIVIDER)
     if best_acc is not None:

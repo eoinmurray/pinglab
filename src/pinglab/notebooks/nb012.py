@@ -147,7 +147,7 @@ MODEL_GROUPS = [
 # (standard-snn, snntorch-library, cuba) share a lr=0.01 + kaiming-init
 # + Dale's law-off pipeline; cuba additionally gets the (1-β)/dt
 # init-scale compensation at train-dt. coba and ping are dispatched
-# through PINGNet (coba is ping with ei_strength=0) with lr=1e-4,
+# through COBANet (coba is ping with ei_strength=0) with lr=1e-4,
 # explicit --w-in / --w-in-sparsity, and --v-grad-dampen from
 # models.mdx. See src/docs/src/pages/models.mdx "Model training" table.
 #
@@ -246,10 +246,10 @@ def verify_init_match(models: list[str], seed: int,
     per-step drive matches standard-snn at that dt. snntorch-library
     uses nn.Linear's own kaiming_uniform_ and is reported but not asserted
     — its role is an external parity reference, not a bit-match."""
-    nets: dict[str, object] = {}
+    nets: dict[str, "torch.nn.Module"] = {}
     # Only the CUBANet-family + snntorch-library go through the kaiming-init
     # path this preflight inspects. coba / ping use --w-in / --w-in-sparsity
-    # and a different class (PINGNet) — independent by design; we don't build
+    # and a different class (COBANet) — independent by design; we don't build
     # them here.
     preflight_models = [m for m in models if m in SNNTORCHNET_FAMILY
                         or m == "snntorch-library"]
@@ -345,7 +345,7 @@ def train_model(model: str, dt_train: float,
             osc_args.append(k)
         elif v is not None:
             osc_args += [k, v]
-    # PINGNet family (ping, coba) at dt=0.1 (6000 BPTT steps × 1024 hidden
+    # COBANet family (ping, coba) at dt=0.1 (6000 BPTT steps × 1024 hidden
     # × COBA state) OOMs both T4 (14.56 GiB) and A10G (24 GiB); bump to
     # A100 (80 GiB) when dispatching to Modal on a smaller GPU.
     gpu_override = None
@@ -402,7 +402,7 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
     ]
     if encoder_mode == "resample":
         osc_args += ["--observe", "video"]
-    # PINGNet family inference at small dt hits the same memory wall as
+    # COBANet family inference at small dt hits the same memory wall as
     # training; see train_model above for the A100 rationale.
     build_as = MODEL_CONFIG[model]["__build_as"]
     gpu_override = None
@@ -722,7 +722,7 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
                   duration_s: float, init_match: dict | None = None) -> dict:
     first_regime = next(iter(regime_train_dirs.values()))
     first_cfg = load_config(next(iter(first_regime.values())))
-    summary: dict[str, dict] = {
+    summary: dict = {
         "notebook_run_id": notebook_run_id,
         "git_sha": first_cfg.get("git_sha"),
         "duration_s": round(duration_s, 1),

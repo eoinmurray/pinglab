@@ -1,7 +1,7 @@
 """Notebook runner for entry 008 — coba single-model training.
 
 Trains the coba model (conductance-based synapses, dispatched via
-PINGNet with ei_strength=0 so the E→I→E loop is disabled) on MNIST at
+COBANet with ei_strength=0 so the E→I→E loop is disabled) on MNIST at
 dt=0.1 ms and publishes training curves, hidden firing rates, a
 training video, and numbers.json. Companion to the other per-model
 runners (nb006–nb009, nb011) and to the five-model Δt-stability sweep
