@@ -2,20 +2,21 @@
 import "../styles/global.css";
 
 const notebookModules = import.meta.glob("./notebooks/*.mdx", { eager: true });
-const numbersModules = import.meta.glob(
-  "../../public/figures/notebooks/*/numbers.json",
-  { eager: true, import: "default" },
-);
+const numbersModules = import.meta.glob("../../public/figures/notebooks/*/numbers.json", {
+  eager: true,
+  import: "default",
+});
 const numbersBySlug: Record<string, any> = {};
 for (const [path, data] of Object.entries(numbersModules)) {
   const slug = path.split("/").slice(-2, -1)[0];
   if (slug) numbersBySlug[slug] = data;
 }
 
-const runMarkers = import.meta.glob(
-  "../../public/figures/notebooks/*/_run.txt",
-  { eager: true, query: "?raw", import: "default" },
-);
+const runMarkers = import.meta.glob("../../public/figures/notebooks/*/_run.txt", {
+  eager: true,
+  query: "?raw",
+  import: "default",
+});
 const hasRunDir = new Set<string>();
 for (const path of Object.keys(runMarkers)) {
   const slug = path.split("/").slice(-2, -1)[0];
@@ -53,23 +54,46 @@ const notebooks = Object.entries(notebookModules)
       entry: fm.entry,
       title: String(fm.title).replace(/^\d+\s*[—–-]\s*/, ""),
       date: fm.date,
+      collections: Array.isArray(fm.collections) ? fm.collections : [],
       badge: badgeFor(slug),
       tier: tierFor(slug),
     };
   })
-  .sort((a, b) => - b.entry + a.entry);
+  .sort((a, b) => -b.entry + a.entry);
+
+// Group notebooks by collection. Each notebook appears under every
+// collection it belongs to. Collections are ordered by size desc,
+// then alphabetically.
+const collectionCounts = new Map<string, number>();
+for (const nb of notebooks) {
+  for (const c of nb.collections) collectionCounts.set(c, (collectionCounts.get(c) ?? 0) + 1);
+}
+const collectionOrder = [...collectionCounts.entries()]
+  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  .map(([c]) => c);
+const groupedByCollection = collectionOrder.map((collection) => ({
+  collection,
+  notebooks: notebooks.filter((nb) => nb.collections.includes(collection)),
+}));
+const uncollected = notebooks.filter((nb) => nb.collections.length === 0);
 
 const formatDate = (raw) => {
-  const d = raw instanceof Date
-    ? raw
-    : new Date(String(raw).includes("T") ? String(raw) : String(raw) + "T00:00:00Z");
+  const d =
+    raw instanceof Date
+      ? raw
+      : new Date(String(raw).includes("T") ? String(raw) : String(raw) + "T00:00:00Z");
   if (isNaN(d.getTime())) return String(raw);
   const day = d.getUTCDate();
   const suffix =
-    day % 100 >= 11 && day % 100 <= 13 ? "th" :
-    day % 10 === 1 ? "st" :
-    day % 10 === 2 ? "nd" :
-    day % 10 === 3 ? "rd" : "th";
+    day % 100 >= 11 && day % 100 <= 13
+      ? "th"
+      : day % 10 === 1
+        ? "st"
+        : day % 10 === 2
+          ? "nd"
+          : day % 10 === 3
+            ? "rd"
+            : "th";
   const month = d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
   const year = d.getUTCFullYear();
   return `${day}${suffix} ${month} ${year}`;
@@ -90,21 +114,62 @@ const formatDate = (raw) => {
       aria-label="Pages"
     >
       <ol class="pl-0 list-none space-y-1.5">
-        <li><a href="/introduction/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Introduction</a></li>
-        <li><a href="/models/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Models</a></li>
-        <li><a href="/training/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Training</a></li>
-        <li><a href="/the-oscilloscope/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">The Oscilloscope</a></li>
-        <li><a href="/the-notebooks/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">The Notebooks</a></li>
-        <li><a href="/metrics/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Metrics</a></li>
-        <li><a href="/parameters-and-units/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Parameters &amp; Units</a></li>
-        <li><a href="/references/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">References</a></li>
-        <li><a href="/styleguide/" class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Styleguide</a></li>
+        <li>
+          <a
+            href="/introduction/"
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
+            >Introduction</a>
+        </li>
+        <li>
+          <a
+            href="/models/"
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Models</a>
+        </li>
+        <li>
+          <a
+            href="/training/"
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
+            >Training</a>
+        </li>
+        <li>
+          <a
+            href="/the-oscilloscope/"
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
+            >The Oscilloscope</a>
+        </li>
+        <li>
+          <a
+            href="/the-notebooks/"
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
+            >The Notebooks</a>
+        </li>
+        <li>
+          <a
+            href="/metrics/"
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Metrics</a>
+        </li>
+        <li>
+          <a
+            href="/parameters-and-units/"
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
+            >Parameters &amp; Units</a>
+        </li>
+        <li>
+          <a
+            href="/references/"
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
+            >References</a>
+        </li>
+        <li>
+          <a
+            href="/styleguide/"
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
+            >Styleguide</a>
+        </li>
       </ol>
     </aside>
 
-    <main
-      class="px-6 py-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!"
-    >
+    <main class="px-6 py-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
       <div class="max-w-[46rem]">
         <div class="flex items-baseline justify-between gap-4">
           <h1 class="text-2xl font-bold">Pinglab</h1>
@@ -119,68 +184,99 @@ const formatDate = (raw) => {
           Exploring the PING mod for spiking neural networks
         </p>
 
-        <p
-          class="mt-10 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]"
-        >
+        <p class="mt-10 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]">
           Notebooks
         </p>
-        <div class="notebook-table-wrap">
-          <table class="notebook-table">
-            <thead>
-              <tr>
-                <th class="nb-num">#</th>
-                <th class="nb-title">Title</th>
-                <th class="nb-date">Date</th>
-                <th class="nb-tier">Tier</th>
-                <th class="nb-badge">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {
-                notebooks.map((nb) => (
-                  <tr>
-                    <td class="nb-num">
-                      <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
-                        {String(nb.entry).padStart(1, "0")}.
-                      </a>
-                    </td>
-                    <td class="nb-title">
-                      <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
-                    </td>
-                    <td class="nb-date tabular-nums text-[color:var(--muted)]">
-                      {formatDate(nb.date)}
-                    </td>
-                    <td class="nb-tier text-[color:var(--muted)]">
-                      {nb.tier ?? ""}
-                    </td>
-                    <td class="nb-badge">
-                      {nb.badge && (
-                        nb.badge.running ? (
-                          <span
-                            class="inline-flex items-baseline rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider bg-[color:var(--color-rule)]/50 text-[color:var(--muted)]"
-                            title="run produced no success criteria"
-                          >
-                            no run
-                          </span>
-                        ) : (
-                          <a
-                            href={`/notebooks/${nb.slug}/#success-criteria`}
-                            class={`inline-flex items-baseline gap-[0.25rem] rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider no-underline! ${nb.badge.allPass ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
-                            title={`${nb.badge.passed}/${nb.badge.total} success criteria passed`}
-                          >
-                            <span>{nb.badge.allPass ? "pass" : "fail"}</span>
-                            <span class="opacity-70">{nb.badge.passed}/{nb.badge.total}</span>
+        {
+          groupedByCollection.map((group) => (
+            <section class="mt-6">
+              <h2 class="mb-2 font-mono text-[0.78rem] uppercase tracking-wider text-[color:var(--muted)]">
+                <a
+                  href={`#collection-${group.collection}`}
+                  id={`collection-${group.collection}`}
+                  class="text-[color:var(--muted)] hover:text-[color:var(--ink)]"
+                >
+                  {group.collection}
+                  <span class="ml-2 normal-case opacity-60">({group.notebooks.length})</span>
+                </a>
+              </h2>
+              <div class="notebook-table-wrap">
+                <table class="notebook-table">
+                  <tbody>
+                    {group.notebooks.map((nb) => (
+                      <tr>
+                        <td class="nb-num">
+                          <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
+                            {String(nb.entry).padStart(1, "0")}.
                           </a>
-                        )
-                      )}
-                    </td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
-        </div>
-
+                        </td>
+                        <td class="nb-title">
+                          <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
+                        </td>
+                        <td class="nb-date tabular-nums text-[color:var(--muted)]">
+                          {formatDate(nb.date)}
+                        </td>
+                        <td class="nb-tier text-[color:var(--muted)]">{nb.tier ?? ""}</td>
+                        <td class="nb-badge">
+                          {nb.badge &&
+                            (nb.badge.running ? (
+                              <span
+                                class="inline-flex items-baseline rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider bg-[color:var(--color-rule)]/50 text-[color:var(--muted)]"
+                                title="run produced no success criteria"
+                              >
+                                no run
+                              </span>
+                            ) : (
+                              <a
+                                href={`/notebooks/${nb.slug}/#success-criteria`}
+                                class={`inline-flex items-baseline gap-[0.25rem] rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider no-underline! ${nb.badge.allPass ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
+                                title={`${nb.badge.passed}/${nb.badge.total} success criteria passed`}
+                              >
+                                <span>{nb.badge.allPass ? "pass" : "fail"}</span>
+                                <span class="opacity-70">
+                                  {nb.badge.passed}/{nb.badge.total}
+                                </span>
+                              </a>
+                            ))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ))
+        }
+        {
+          uncollected.length > 0 && (
+            <section class="mt-6">
+              <h2 class="mb-2 font-mono text-[0.78rem] uppercase tracking-wider text-[color:var(--muted)]">
+                uncollected ({uncollected.length})
+              </h2>
+              <div class="notebook-table-wrap">
+                <table class="notebook-table">
+                  <tbody>
+                    {uncollected.map((nb) => (
+                      <tr>
+                        <td class="nb-num">
+                          <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
+                            {String(nb.entry).padStart(1, "0")}.
+                          </a>
+                        </td>
+                        <td class="nb-title">
+                          <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
+                        </td>
+                        <td class="nb-date tabular-nums text-[color:var(--muted)]">
+                          {formatDate(nb.date)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )
+        }
       </div>
     </main>
   </body>
@@ -244,7 +340,12 @@ const formatDate = (raw) => {
     animation: run-pulse 1.2s ease-in-out infinite;
   }
   @keyframes run-pulse {
-    0%, 100% { opacity: 0.35; }
-    50% { opacity: 1; }
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 1;
+    }
   }
 </style>
