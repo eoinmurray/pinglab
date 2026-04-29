@@ -73,6 +73,8 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
+The simulator's *dt* is a numerical knob, not a feature of the network — but in spiking models it leaks into the dynamics: train at one *dt* and evaluate at another and hidden firing rates can shift by an order of magnitude with frozen weights. This notebook quantifies that leakage across six models at two training timesteps and traces it to a single steady-state expression — the bias contribution to the membrane scales as $1/\Delta t$ in the snnTorch-library family, while the cuba/coba/ping family is *dt*-invariant by construction.
+
 ## Method
 
 Six models trained at two *dt* regimes.
@@ -100,19 +102,27 @@ All cells in the recipe table show the resolved value used at training time. Par
 | [*--batch-size*](/the-oscilloscope/#subcommand-train) | 256 | 256 | 256 | 256 | 256 | 256 |
 | [*--observe*](/the-oscilloscope/#subcommand-train) | video | video | video | video | video | video |
 | [*--kaiming-init*](/the-oscilloscope/#weight-flags-shared-advanced) | True | True | True | True | False | False |
-| [*--readout*](/the-oscilloscope/#readouts) | *li* | *li* | *li* | *li* | *li* | *li* |
-| [*--surrogate-slope*](/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 1 | 1 |
+| [*--readout*](/the-oscilloscope/#readouts) | *li* | *li* | *li* | *li* | *rate* | *rate* |
+| [*--surrogate-slope*](/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 5 | 5 |
 | [*--lr*](/the-oscilloscope/#subcommand-train) | 0.01 | 0.01 | 0.01 | 0.04 | 0.0004 | 0.0004 |
 | [*--ei-strength*](/the-oscilloscope/#network-flags-shared) | n/a | n/a | n/a | n/a | 0 | 1 |
 | [*--v-grad-dampen*](/the-oscilloscope/#subcommand-train) | n/a | n/a | n/a | n/a | 1000 | 1000 |
 | [*--w-in*](/the-oscilloscope/#weight-flags-shared-advanced) (mean, std) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.03) | (1.2, 0.12) |
 | [*--w-in-sparsity*](/the-oscilloscope/#weight-flags-shared-advanced) | 0.0 | 0.0 | 0.0 | 0.0 | 0.95 | 0.95 |
 | integrator | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | exp-Euler ZOH (input) | exp-Euler ZOH (conductance) | exp-Euler ZOH (conductance) |
-| synapse | direct LIF | exponential | direct LIF | continuous | COBA | COBA + E→I→E |
+| synapse | direct | exponential | direct | direct | exponential (COBA) | exponential (COBA) + E→I→E |
 
 Train-*dt* sweeps over {dt1} ms and {dt2} ms — same recipe per regime, only *--dt* changes.
 
-The biggest cross-model confounds for treating *model* as the sole independent variable are *--lr* ($\sim$100× spread) and *--w-in* init (PING pair only). Both are inherited from the per-model recipes by design — the conductance-based dynamics of coba/ping with multiplicative $g \cdot (V - E_\text{rev})$ are far more LR-sensitive than the additive snnTorch update, so a uniform LR would either diverge the PING pair or undertrain the rest.
+Cross-model confounds for treating *model* as the sole independent variable: *--lr* ($\sim$100× spread), *--w-in* init (PING pair only), and *--readout* + *--surrogate-slope* (CUBANet family vs PING family). All are inherited from the per-model recipes by design — the conductance-based dynamics of coba/ping with multiplicative $g \cdot (V - E_\text{rev})$ are far more LR-sensitive than the additive snnTorch update; the CUBANet family needs *li* + slope=1 to avoid CE saturation and BPTT overflow at 2000 steps, while the PING family stays trainable on the *rate* + slope=5 defaults thanks to hard reset, refractory, and lower mean firing rate.
+
+### Eval-time *dt* transport
+
+With weights frozen, evaluating at a different *dt* needs a rule for how to rebin the input spike train. Three modes are run:
+
+- **Upsample** (count-preserving, eval-*dt* ≤ train-*dt*) — generate Poisson at train-*dt*, then expand the time axis by $k = \Delta t_\text{ref}/\Delta t_\text{target}$, placing each reference spike at the *first* fine sub-step of its block. Total spike count exact, per-ms rate exact, per-step rate drops by $1/k$.
+- **Downsample** (count-preserving, eval-*dt* ≥ train-*dt*) — generate Poisson at train-*dt*, then sum-pool blocks of $k$ steps (§2.3): split the time axis into non-overlapping windows of $k$ consecutive ref-steps, replacing each window with the sum of its values. Per-ms rate exact, total count preserved up to leftover steps trimmed when $T$ is not divisible by $k$. Output is non-binary (counts per coarse bin).
+- **Resample** — draw a fresh Poisson stream at the target *dt* with the same per-ms rate. Sampling noise re-enters; works in both directions.
 
 To reproduce:
 
@@ -200,6 +210,8 @@ construction.
 )}
 
 ## Next steps
+
+Here we ran a *medium* tier, next steps would be *large* or *huge* tier.
 
 ## Appendix
 

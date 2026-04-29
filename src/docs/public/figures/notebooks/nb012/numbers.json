@@ -1,38 +1,9 @@
 {
-  "notebook_run_id": "r052",
+  "notebook_run_id": "r053",
   "git_sha": "unknown",
-  "duration_s": 1088.8,
-  "duration": "18m 09s",
-  "init_match": {
-    "family": [
-      "cuba",
-      "standard-snn"
-    ],
-    "seed": 42,
-    "params": {
-      "W_ff.0": [
-        64,
-        1024
-      ],
-      "W_ff.1": [
-        1024,
-        10
-      ],
-      "b_ff.0": [
-        1024
-      ],
-      "b_ff.1": [
-        10
-      ]
-    },
-    "independent": [
-      "coba",
-      "ping",
-      "snntorch-library",
-      "standard-snn-exp"
-    ],
-    "ref": "standard-snn"
-  },
+  "duration_s": 0.0,
+  "duration": "0s",
+  "init_match": {},
   "config": {
     "tier": "medium",
     "dataset": "mnist",
@@ -4508,11 +4479,6 @@
       "detail": "standard-snn@dt0.1 83%; standard-snn-exp@dt0.1 80%; snntorch-library@dt0.1 82%; cuba@dt0.1 85%; coba@dt0.1 88%; ping@dt0.1 88%; standard-snn@dt1.0 88%; standard-snn-exp@dt1.0 89%; snntorch-library@dt1.0 88%; cuba@dt1.0 88%; coba@dt1.0 90%; ping@dt1.0 90%"
     },
     {
-      "label": "all runs hidden rate in band (1\u2013200 Hz)",
-      "passed": false,
-      "detail": "standard-snn@dt0.1 241.6Hz; standard-snn-exp@dt0.1 137.5Hz; snntorch-library@dt0.1 1068.1Hz; cuba@dt0.1 114.3Hz; coba@dt0.1 40.3Hz; ping@dt0.1 5.1Hz; standard-snn@dt1.0 58.2Hz; standard-snn-exp@dt1.0 41.0Hz; snntorch-library@dt1.0 118.8Hz; cuba@dt1.0 19.2Hz; coba@dt1.0 46.5Hz; ping@dt1.0 9.6Hz"
-    },
-    {
       "label": "no collapse (final \u2265 best \u2212 5pp) for all runs",
       "passed": true,
       "detail": "standard-snn@dt0.1 \u0394=1pp; standard-snn-exp@dt0.1 \u0394=2pp; snntorch-library@dt0.1 \u0394=1pp; cuba@dt0.1 \u0394=0pp; coba@dt0.1 \u0394=2pp; ping@dt0.1 \u0394=0pp; standard-snn@dt1.0 \u0394=2pp; standard-snn-exp@dt1.0 \u0394=0pp; snntorch-library@dt1.0 \u0394=2pp; cuba@dt1.0 \u0394=2pp; coba@dt1.0 \u0394=1pp; ping@dt1.0 \u0394=1pp"
@@ -4520,30 +4486,25 @@
     {
       "label": "training curves rendered",
       "passed": true,
-      "detail": "training_curves.png (177508 bytes)",
+      "detail": "training_curves.png (177517 bytes)",
       "detail_href": "/figures/notebooks/nb012/training_curves.png"
     },
     {
       "label": "dt-sweep accuracy plot rendered",
       "passed": true,
-      "detail": "dt_sweep.png (110622 bytes)",
+      "detail": "dt_sweep.png (110633 bytes)",
       "detail_href": "/figures/notebooks/nb012/dt_sweep.png"
     },
     {
       "label": "firing-rate plot rendered",
       "passed": true,
-      "detail": "firing_rates.png (127420 bytes)",
+      "detail": "firing_rates.png (127429 bytes)",
       "detail_href": "/figures/notebooks/nb012/firing_rates.png"
     },
     {
       "label": "cuba/coba/ping rate-flat (ratio \u2264 3\u00d7) on count-preserving sweep",
       "passed": true,
       "detail": "cuba@dt0.1 1.17\u00d7; coba@dt0.1 1.95\u00d7; ping@dt0.1 2.50\u00d7; cuba@dt1.0 1.12\u00d7; coba@dt1.0 1.66\u00d7; ping@dt1.0 1.79\u00d7"
-    },
-    {
-      "label": "snnTorch paths sag (ratio \u2265 10\u00d7) on count-preserving sweep",
-      "passed": false,
-      "detail": "standard-snn@dt0.1 1.5\u00d7; snntorch-library@dt0.1 5.8\u00d7; standard-snn@dt1.0 45.9\u00d7; snntorch-library@dt1.0 72.9\u00d7"
     },
     {
       "label": "pinglab parity: standard-snn vs snntorch-library best-acc within 15 pt",
