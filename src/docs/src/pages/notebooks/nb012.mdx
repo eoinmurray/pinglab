@@ -77,7 +77,7 @@ The simulator's *dt* is a numerical knob, not a feature of the network — but i
 
 ## Method
 
-Six models trained at two *dt* regimes.
+Six models are trained on MNIST at two *dt* regimes ({dt1} ms and {dt2} ms) with the per-model recipe inherited verbatim from each model's calibration sibling notebooks ([nb006](/notebooks/nb006/)–[nb011](/notebooks/nb011/)). After training, weights are frozen and accuracy is re-evaluated across a sweep of eval-*dt* values under three input-transport rules ([upsample / downsample / resample](#eval-time-dt-transport)). Identity transport (eval-*dt* = train-*dt*) anchors each sweep, so any change in accuracy or hidden firing rate as eval-*dt* moves is purely an *integrator-side* response of the trained network — the question this notebook is set up to answer.
 
 **Models** (see [the ladder](/models/)):
 
