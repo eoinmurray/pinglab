@@ -6,6 +6,7 @@ interface Props {
     title: string;
     date: string | Date;
     entry: number;
+    collections?: string[];
   };
   numbers: any;
 }
@@ -43,6 +44,7 @@ const isTraining = cells !== null;
 
 const entryName = frontmatter.title.replace(/^\d+\s*—\s*/, "");
 const dateStr = formatDate(frontmatter.date);
+const collections = Array.isArray(frontmatter.collections) ? frontmatter.collections : [];
 
 const sha = numbers.git_sha ?? null;
 const runId = numbers.notebook_run_id ?? null;
@@ -105,6 +107,14 @@ const ddMono = "font-mono text-[0.85rem]";
   </div>
 
   <h1 class="mb-4 text-[2rem] font-bold leading-[1.15] text-ink-strong">{entryName}</h1>
+
+  {collections.length > 0 && (
+    <div class="mb-4 flex flex-wrap gap-[0.3rem]">
+      {collections.map((c) => (
+        <span class="inline-block rounded-[2px] border border-rule bg-paper-tint px-[0.45rem] py-[0.05rem] font-mono text-[0.72rem] text-muted-soft">{c}</span>
+      ))}
+    </div>
+  )}
 
   <dl class="m-0 flex flex-wrap gap-x-6 gap-y-0 border rounded-[2px] border-rule bg-paper-tint px-[0.9rem] py-[0.7rem]">
     {stats.length === 0 && !short && (
