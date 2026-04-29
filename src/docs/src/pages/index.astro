@@ -200,24 +200,24 @@ const formatDate = (raw) => {
                   <span class="ml-2 normal-case opacity-60">({group.notebooks.length})</span>
                 </a>
               </h2>
-              <div class="notebook-table-wrap">
-                <table class="notebook-table">
+              <div class="border border-[color:var(--color-rule)] rounded-[2px] bg-[color:var(--color-paper-tint)] overflow-hidden">
+                <table class="w-full border-collapse m-0 text-[0.95rem]">
                   <tbody>
                     {group.notebooks.map((nb) => (
-                      <tr>
-                        <td class="nb-num">
+                      <tr class="[&>td]:px-[0.7rem] [&>td]:py-[0.4rem] [&>td]:border-t [&>td]:border-[color:var(--color-rule)] [&>td]:align-baseline">
+                        <td class="w-[2.2rem] text-[color:var(--color-muted)]">
                           <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
                             {String(nb.entry).padStart(1, "0")}.
                           </a>
                         </td>
-                        <td class="nb-title">
+                        <td>
                           <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
                         </td>
-                        <td class="nb-date tabular-nums text-[color:var(--muted)]">
+                        <td class="w-[8rem] whitespace-nowrap tabular-nums text-[color:var(--muted)]">
                           {formatDate(nb.date)}
                         </td>
-                        <td class="nb-tier text-[color:var(--muted)]">{nb.tier ?? ""}</td>
-                        <td class="nb-badge">
+                        <td class="w-[5rem] whitespace-nowrap text-[0.85rem] text-[color:var(--muted)]">{nb.tier ?? ""}</td>
+                        <td class="w-[4.8rem] whitespace-nowrap">
                           {nb.badge &&
                             (nb.badge.running ? (
                               <span
@@ -253,20 +253,20 @@ const formatDate = (raw) => {
               <h2 class="mb-2 font-mono text-[0.78rem] uppercase tracking-wider text-[color:var(--muted)]">
                 uncollected ({uncollected.length})
               </h2>
-              <div class="notebook-table-wrap">
-                <table class="notebook-table">
+              <div class="border border-[color:var(--color-rule)] rounded-[2px] bg-[color:var(--color-paper-tint)] overflow-hidden">
+                <table class="w-full border-collapse m-0 text-[0.95rem]">
                   <tbody>
                     {uncollected.map((nb) => (
-                      <tr>
-                        <td class="nb-num">
+                      <tr class="[&>td]:px-[0.7rem] [&>td]:py-[0.4rem] [&>td]:border-t [&>td]:border-[color:var(--color-rule)] [&>td]:align-baseline">
+                        <td class="w-[2.2rem] text-[color:var(--color-muted)]">
                           <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
                             {String(nb.entry).padStart(1, "0")}.
                           </a>
                         </td>
-                        <td class="nb-title">
+                        <td>
                           <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
                         </td>
-                        <td class="nb-date tabular-nums text-[color:var(--muted)]">
+                        <td class="w-[8rem] whitespace-nowrap tabular-nums text-[color:var(--muted)]">
                           {formatDate(nb.date)}
                         </td>
                       </tr>
@@ -281,71 +281,3 @@ const formatDate = (raw) => {
     </main>
   </body>
 </html>
-
-<style>
-  .notebook-table-wrap {
-    border: 1px solid var(--color-rule);
-    border-radius: 2px;
-    background: var(--color-paper-tint);
-    overflow: hidden;
-  }
-  table.notebook-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0;
-    font-size: 0.95rem;
-  }
-  table.notebook-table th,
-  table.notebook-table td {
-    padding: 0.4rem 0.7rem;
-    border-top: 1px solid var(--color-rule);
-    vertical-align: baseline;
-  }
-  table.notebook-table thead th {
-    border-top: 0;
-    border-bottom: 1px solid var(--color-rule);
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-label);
-    text-align: left;
-  }
-  table.notebook-table tbody tr:first-child td {
-    border-top: 1px solid var(--color-rule);
-  }
-  .nb-num {
-    width: 2.2rem;
-    color: var(--color-muted);
-  }
-  .nb-badge {
-    width: 4.8rem;
-    white-space: nowrap;
-  }
-  .nb-tier {
-    width: 5rem;
-    white-space: nowrap;
-    font-size: 0.85rem;
-  }
-  .nb-date {
-    width: 8rem;
-    white-space: nowrap;
-  }
-  .run-dot {
-    display: inline-block;
-    width: 0.4rem;
-    height: 0.4rem;
-    border-radius: 50%;
-    background: var(--color-muted);
-    animation: run-pulse 1.2s ease-in-out infinite;
-  }
-  @keyframes run-pulse {
-    0%,
-    100% {
-      opacity: 0.35;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
-</style>

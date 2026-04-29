@@ -114,7 +114,36 @@ All cells in the recipe table show the resolved value used at training time. Par
 
 Train-*dt* sweeps over {dt1} ms and {dt2} ms — same recipe per regime, only *--dt* changes.
 
-Cross-model confounds for treating *model* as the sole independent variable: *--lr* ($\sim$100× spread), *--w-in* init (PING pair only), and *--readout* + *--surrogate-slope* (CUBANet family vs PING family). All are inherited from the per-model recipes by design — the conductance-based dynamics of coba/ping with multiplicative $g \cdot (V - E_\text{rev})$ are far more LR-sensitive than the additive snnTorch update; the CUBANet family needs *li* + slope=1 to avoid CE saturation and BPTT overflow at 2000 steps, while the PING family stays trainable on the *rate* + slope=5 defaults thanks to hard reset, refractory, and lower mean firing rate.
+### Differences between CUBA and COBA
+
+The recipe table above shows seven flags differ between [*cuba*](/models/#cuba) and [*coba*](/models/#coba); the model classes themselves differ on a further six axes that are not exposed as flags. Each row below names the difference, what it changes in the forward/backward pass, and why it's set the way it is.
+
+**Recipe-level (visible in the table)**
+
+| Difference | cuba | coba | Effect | Justification |
+|---|---|---|---|---|
+| *--model* | *cuba* | *ping* (with *--ei-strength 0*) | Dispatches to [CUBANet](/models/#cubanet) vs [COBANet](/models/#cobanet) — different forward + integrator. | coba is feedforward COBANet; same class as ping with the recurrent loop disabled. |
+| *--readout* | *li* | *rate* | Logits read from leaky-integrator membrane vs cumulative spike count. | cuba's high firing rate × 2000-step window saturates CE on rate; coba's hard-reset + refractory cap rates so rate readout works (and *li* empirically collapses coba — see [commit d5c2f41](https://github.com/eoinmurray/pinglab/commit/d5c2f41)). |
+| *--surrogate-slope* | 1 | 5 | Width of the fast-sigmoid pseudo-derivative around threshold. | cuba's 2000-step BPTT × slope 5 overflows fp32 in $W_\text{ff}$ — slope 1 bounds it. coba's lower mean firing rate keeps slope 5 grads finite. |
+| *--lr* | 0.04 | 0.0004 | 100× spread. | The conductance form $g \cdot (V - E_\text{rev})$ is multiplicatively coupled — far more LR-sensitive than cuba's additive $+I$. A uniform LR would either diverge coba/ping or undertrain cuba. |
+| *--kaiming-init* | True (signed) | False | Signed Kaiming-uniform init on $W_\text{in}$ vs half-normal non-negative. | cuba goes through CUBANet which is Dale-off; signed init gives the hidden layer enough drive to spike at all. coba is Dale-on so init must be non-negative. |
+| *--w-in* (mean, std) | (0.3, 0.06) | (0.3, 0.03) | std halved. | Half-normal init on coba's *W_in* under Dale's law has positive mean already — narrower std avoids over-driving the hidden layer at *t* = 0. |
+| *--w-in-sparsity* | 0.0 | 0.95 | Dense vs 95% sparse $W_\text{in}$. | coba's biophysical conductance scale (µS) needs a small handful of strong inputs per hidden unit; dense Kaiming would saturate the membrane. |
+| *--v-grad-dampen* | n/a | 1000 | Voltage-gradient soft-clip on the COBA membrane backward. | The conductance Jacobian $\partial U / \partial g$ explodes near threshold; dampening keeps Adam's second moment estimable. cuba doesn't need it. |
+
+**Class-level (not exposed as flags)**
+
+| Difference | cuba | coba | Effect | Justification |
+|---|---|---|---|---|
+| Membrane equation | $\tau\, dV/dt = -V + I$ | $C_m\, dV/dt = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i)$ | Additive linear ODE vs multiplicative nonlinear ODE. Excitation can drive $V$ arbitrarily in cuba; coba clips at $E_e \approx 0$ mV. | The CUBA → COBA rung is the headline biophysical step on [the ladder](/models/) — everything else (reversal potentials, separate $g_e/g_i$, µS units) follows from this switch. |
+| Spike reset | subtract ($U \mathrel{{-}{=}} \theta$) | hard ($V \leftarrow V_\text{reset}$) | Subtract preserves cross-spike membrane momentum (high rates can run away); hard reset destroys it. | Hard reset matches biological after-hyperpolarisation. It's also what makes coba's *rate* readout viable — without it, repeated firing would inflate the running spike sum unboundedly. |
+| Refractory | none | $\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms | Caps single-neuron rate at $\sim 1/\tau_\text{ref}$ ($\approx 333$ / 667 Hz). | Required for biophysical realism and (combined with hard reset) prevents runaway firing on coba's slope-5 surrogate. |
+| Dale's law | off (signed weights) | on ($W \geq 0$, clamped in forward) | Restricts optimisation landscape; halves the signed-weight capacity. | Biophysical: real cortical synapses don't switch sign. Forces the network to use the inhibitory population (not yet wired in feedforward coba; carries through to ping). |
+| Synaptic kernel | direct LIF (Dirac $\delta$ in current) | exponential ($\tau_\text{AMPA} = 2$ ms on E, $\tau_\text{GABA} = 9$ ms on I) | Each presynaptic spike adds an instantaneous kick to $V$ in cuba; in coba it raises a conductance trace that decays exponentially. | Exponential kernel low-passes the spike train into the membrane drive and separates fast-E from slow-I — required for any oscillation, including PING's gamma. |
+| Bias term | trainable $b_\text{ff}$ per hidden unit | none (drive enters via $W_\text{in}$ on input spikes only) | cuba has a free DC offset on each neuron; coba doesn't. | A constant bias doesn't fit the biophysical form (you'd have to add a current source); coba's drive is purely synaptic. |
+| Units / scale | dimensionless ($\beta$, $W$, $b$) | mV / µS / ms biological constants ($C_m$, $g_L$, $E_L$, $E_e$, $E_i$, $V_\text{th}$, $V_\text{reset}$) | cuba's quantities are abstract; coba's match electrophysiology. | Computationally just a rescaling, but required for matching real neurons.   Constants are tabulated on [Parameters & Units](/parameters-and-units/). |
+
+**What's *not* different.** Both models share the exp-Euler + ZOH integrator (with the $(1-\beta)$ prefactors that make the per-step update *dt*-invariant — the whole point of this notebook), the fast-sigmoid surrogate-gradient primitive, and the same reset-by-subtraction-and-clamp for membrane numerics outside spikes. The integrator is *not* the cuba/coba boundary; it's what coba inherits unchanged from cuba.
 
 ### Eval-time *dt* transport
 
@@ -190,6 +219,16 @@ construction.
   </Figure>
 )}
 
+### Latency to correct answer
+
+{hasFig("latency_curves.png") && (
+  <Figure id="Figure 4" title="Latency to correct answer" src="/figures/notebooks/nb012/latency_curves.png" alt="P(correct) as a function of fraction of trial seen, per model, two panels for train-dt regimes">
+    Test accuracy on frozen weights as a function of how much of the trial the readout has integrated. For the rate readout (coba, ping) the running argmax is taken over cumulative spike-count logits at fraction $f$. For the *li* readout (standard-snn family, cuba) the argmax is over the running max of the readout LI membrane $V$ from $t = 0$ up to $f \cdot T$, mirroring the trained-time output. Dotted line at 10% is chance.
+  </Figure>
+)}
+
+The two readouts produce qualitatively different curves. *li* readouts settle within the first 10–20% of the trial — max-over-time saturates as soon as the membrane crosses its peak, so additional time mostly doesn't move the argmax. The *rate* readout is anytime-correct by construction (cumulative spike count) and climbs monotonically. *ping* commits slowest of all six (low firing rate × rate readout = the network needs the most evidence per spike) but reaches the same final accuracy as *coba*. At train-*dt* = 1.0 ms the absolute gap shrinks because the trial is only 200 timesteps — there's less room for an "early commit" to look different from a "late commit".
+
 ## Success criteria
 
 {successCriteria.length > 0 ? (
@@ -208,6 +247,28 @@ construction.
 ) : (
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
+
+## Discussion
+
+The difference between CUBA and COBA amounts to several changes at once — which ones are crucial?
+
+**Crucial — the ones that change network behaviour**
+
+1. **Conductance form $g \cdot (V - E_\text{rev})$ instead of additive $+I$.** Excitation saturates as $V \to E_e$ (can't drive past 0 mV); inhibition becomes shunting (raises $g_\text{tot}$, shortens effective $\tau$). CUBA has neither — additive currents drive $V$ arbitrarily, no shunting, no biophysical clipping. Everything downstream (reversal potentials, separate $g_e / g_i$ channels, units in µS) follows from this one switch.
+2. **Hard reset + refractory.** Hard reset to $V_\text{reset}$ destroys cross-spike membrane momentum; refractory ($\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms) puts a hard ceiling on firing rate at $\approx 1/\tau_\text{ref}$. Reset-by-subtraction (cuba's default) lets the membrane carry residual depolarisation forward, so high rates can run away. This is why cuba needs the *li* readout to avoid CE saturation, while coba/ping train fine on the *rate* readout default (see [the recipe table](#method)).
+3. **Exponential synapses.** $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms. Low-passes the presynaptic spike train into the membrane drive and separates fast-E from slow-I — required for any oscillation, including PING. cuba can opt in (*standard-snn-exp*), but it's standard in coba.
+
+**Secondary — change the *constraints*, not the dynamics**
+
+4. **Dale's law** ($W \geq 0$). A regulariser on the optimiser, not a dynamics change. Off in cuba, on in coba.
+5. **Biophysical units** (mV, µS, ms with realistic constants). Required for matching electrophysiology; computationally just a rescaling.
+
+**Not actually different**
+
+6. **Integrator.** Both cuba and coba use exp-Euler + ZOH with $(1 - \beta)$ prefactors built into the update — that's what makes both *dt*-invariant in this notebook. The integrator is *not* the cuba/coba boundary; it's what coba inherits unchanged from cuba.
+7. **Surrogate-gradient spike primitive.** Same fast-sigmoid in both.
+
+If you had to keep one when ablating: conductance form (1). Without it you don't have shunting and don't have biophysics — *cuba-with-hard-reset-and-refractory* is just a stiffer LIF. With it, hard reset and refractory follow naturally from the biophysical story.
 
 ## Next steps
 

@@ -347,9 +347,10 @@ class CUBANet(SNNBase):
             raise ValueError(
                 f"discretisation must be 'snntorch' or 'zoh', "
                 f"got {discretisation!r}")
-        if readout_mode not in ("rate", "li"):
+        if readout_mode not in ("rate", "li", "spike-count"):
             raise ValueError(
-                f"readout_mode must be 'rate' or 'li', got {readout_mode!r}")
+                f"readout_mode must be 'rate', 'li', or 'spike-count', "
+                f"got {readout_mode!r}")
         self.discretisation = discretisation
         self.exponential_synapse = exponential_synapse
         self.ref_ms = ref_ms
@@ -485,8 +486,11 @@ class CUBANet(SNNBase):
         self._forward_loop(cfg, state, readout)
 
         self._finalise_meta(cfg, readout, state)
-        return (readout["logits_max"] if self.readout_mode == "li"
-                else readout["logits_t"])
+        if self.readout_mode == "li":
+            return readout["logits_max"]
+        if self.readout_mode == "spike-count":
+            return readout["s_count"]
+        return readout["logits_t"]
 
     def _forward_loop(self, cfg, state, readout):
         """Outer time loop. Per-t tensor slicing happens here; rec_buf writes
@@ -643,6 +647,7 @@ class CUBANet(SNNBase):
             "hidden_accum": init_conductance(B, self.hidden_sizes[-1], device),
             "v_out": torch.zeros(B, N_OUT, device=device),
             "logits_max": torch.full((B, N_OUT), float("-inf"), device=device),
+            "s_count": torch.zeros(B, N_OUT, device=device),
             "logits_t": None,
         }
 
@@ -705,6 +710,8 @@ class CUBANet(SNNBase):
     def _readout_step(self, prev_spk, readout, cfg):
         """li: leaky-integrator per class, track max-over-time.
         rate: accumulate last-hidden spikes and project once per step.
+        spike-count: spiking output LIF, accumulate output spikes per class
+        (snnTorch tutorial 3 pattern).
         rec_buf writes are keyed by t so they happen in _forward_loop."""
         W_out, b_out = cfg["W_ff"][-1], cfg["b_ff"][-1]
         if self.readout_mode == "li":
@@ -714,6 +721,14 @@ class CUBANet(SNNBase):
             readout["logits_max"] = torch.maximum(readout["logits_max"],
                                                    readout["v_out"])
             readout["logits_t"] = readout["v_out"]
+        elif self.readout_mode == "spike-count":
+            I_out = prev_spk @ W_out + b_out
+            readout["v_out"] = cfg["beta"] * readout["v_out"] + I_out
+            s_out = fast_sigmoid_spike(readout["v_out"] - thr_snn,
+                                       SURROGATE_SLOPE)
+            readout["s_count"] = readout["s_count"] + s_out
+            readout["v_out"] = readout["v_out"] * (1.0 - s_out)
+            readout["logits_t"] = readout["s_count"]
         else:
             readout["hidden_accum"] = readout["hidden_accum"] + prev_spk
             readout["logits_t"] = readout["hidden_accum"] @ W_out + b_out
@@ -799,9 +814,10 @@ class SNNTorchLibraryNet(SNNBase):
     def __init__(self, hidden_sizes=None, w_rec=None, rec_layers=None,
                  readout_mode="rate", **_ignored):
         super().__init__()
-        if readout_mode not in ("rate", "li"):
+        if readout_mode not in ("rate", "li", "spike-count"):
             raise ValueError(
-                f"readout_mode must be 'rate' or 'li', got {readout_mode!r}")
+                f"readout_mode must be 'rate', 'li', or 'spike-count', "
+                f"got {readout_mode!r}")
         self.readout_mode = readout_mode
         import snntorch as snn
         from snntorch import surrogate
@@ -880,6 +896,7 @@ class SNNTorchLibraryNet(SNNBase):
         hidden_accum = torch.zeros(B, self.hidden_sizes[-1], device=device)
         v_out = torch.zeros(B, N_OUT, device=device)
         logits_max = torch.full((B, N_OUT), float("-inf"), device=device)
+        s_count = torch.zeros(B, N_OUT, device=device)
 
         rec_buf = None
         if self.recording:
@@ -929,6 +946,13 @@ class SNNTorchLibraryNet(SNNBase):
                 v_out = float(beta_snn) * v_out + (1.0 - float(beta_snn)) * I_out
                 logits_max = torch.maximum(logits_max, v_out)
                 logits_t = v_out
+            elif self.readout_mode == "spike-count":
+                I_out = self.fc_ff[-1](prev_spk)
+                v_out = float(beta_snn) * v_out + I_out
+                s_out = fast_sigmoid_spike(v_out - thr_snn, SURROGATE_SLOPE)
+                s_count = s_count + s_out
+                v_out = v_out * (1.0 - s_out)
+                logits_t = s_count
             else:
                 hidden_accum = hidden_accum + prev_spk
                 logits_t = self.fc_ff[-1](hidden_accum)
@@ -944,7 +968,11 @@ class SNNTorchLibraryNet(SNNBase):
             rec = {k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
                    for k, v in rec_buf.items()}
         self._set_meta(B, n_spk, rec, sizes)
-        return logits_max if self.readout_mode == "li" else logits_t
+        if self.readout_mode == "li":
+            return logits_max
+        if self.readout_mode == "spike-count":
+            return s_count
+        return logits_t
 
 
 class COBANet(SNNBase):
@@ -956,9 +984,10 @@ class COBANet(SNNBase):
                  dales_law=True, hidden_sizes=None, ei_layers=None,
                  readout_mode="rate"):
         super().__init__()
-        if readout_mode not in ("rate", "li"):
+        if readout_mode not in ("rate", "li", "spike-count"):
             raise ValueError(
-                f"readout_mode must be 'rate' or 'li', got {readout_mode!r}")
+                f"readout_mode must be 'rate', 'li', or 'spike-count', "
+                f"got {readout_mode!r}")
         self.readout_mode = readout_mode
         self.signed_weights = not dales_law
         # Same lazy-compile pattern as CUBANet — see CUBANet for rationale.
@@ -1071,6 +1100,7 @@ class COBANet(SNNBase):
         hidden_accum = init_conductance(B, self.hidden_sizes[-1], device)
         v_out = torch.zeros(B, N_OUT, device=device)
         logits_max = torch.full((B, N_OUT), float("-inf"), device=device)
+        s_count = torch.zeros(B, N_OUT, device=device)
 
         # Pre-allocate recording buffers on GPU
         rec_buf = None
@@ -1101,7 +1131,7 @@ class COBANet(SNNBase):
             "v_e": v_e, "ref_e": ref_e, "ge_e": ge_e, "gi_e": gi_e, "s_e": s_e,
             "v_i": v_i, "ref_i": ref_i, "ge_i": ge_i, "s_i": s_i,
             "hidden_accum": hidden_accum, "v_out": v_out,
-            "logits_max": logits_max,
+            "logits_max": logits_max, "s_count": s_count,
         }
         cfg = {
             "B": B, "device": device,
@@ -1161,7 +1191,11 @@ class COBANet(SNNBase):
             rec = {k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
                    for k, v in rec_buf.items()}
         self._set_meta(B, n_spk, rec, sizes)
-        return state["logits_max"] if self.readout_mode == "li" else logits_t
+        if self.readout_mode == "li":
+            return state["logits_max"]
+        if self.readout_mode == "spike-count":
+            return state["s_count"]
+        return logits_t
 
     def _step_body(self, slc, cfg, state):
         """One timestep: all PING layers + readout. The compile target.
@@ -1245,8 +1279,14 @@ class COBANet(SNNBase):
             state["v_out"] = beta_snn * state["v_out"] + (1.0 - beta_snn) * I_out
             state["logits_max"] = torch.maximum(state["logits_max"], state["v_out"])
             return state["v_out"]
-        else:
-            state["hidden_accum"] = state["hidden_accum"] + prev_spk
-            return state["hidden_accum"] @ W_ff[-1]
+        if cfg["readout_mode"] == "spike-count":
+            I_out = prev_spk @ W_ff[-1]
+            state["v_out"] = beta_snn * state["v_out"] + I_out
+            s_out = fast_sigmoid_spike(state["v_out"] - thr_snn, SURROGATE_SLOPE)
+            state["s_count"] = state["s_count"] + s_out
+            state["v_out"] = state["v_out"] * (1.0 - s_out)
+            return state["s_count"]
+        state["hidden_accum"] = state["hidden_accum"] + prev_spk
+        return state["hidden_accum"] @ W_ff[-1]
 
 
