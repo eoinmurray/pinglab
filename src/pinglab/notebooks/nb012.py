@@ -485,6 +485,207 @@ def _grouped_model_handles(linestyle: str = "-"):
     return handles
 
 
+LATENCY_FRACTIONS = [round(0.05 * i, 2) for i in range(1, 21)]  # 0.05 → 1.00
+LATENCY_BATCH_SIZE = 500
+
+
+def compute_latency_curves(
+    regime_train_dirs: dict[float, dict[str, Path]],
+) -> dict[float, dict[str, dict]]:
+    """For each (dt_train, model), reload the trained network, run forward
+    on a deterministic test batch with recording=True, and compute
+    P(correct) at a grid of time-fractions.
+
+    Returns {dt_train: {model: {"fractions": [...], "p_correct": [...]}}}.
+
+    Decoupled from training and the eval-dt sweep — only consumes the
+    train_dir/{config.json,weights.pth} pair already on disk. Runs locally
+    on whatever device _auto_device picks.
+    """
+    import os
+    os.environ.setdefault("PINGLAB_NO_COMPILE", "1")
+    import models as M
+    from oscilloscope import (
+        load_dataset, encode_batch, _auto_device, seed_everything,
+        EVAL_SEED,
+    )
+    from config import patch_dt
+
+    device = _auto_device()
+    out: dict[float, dict[str, dict]] = {}
+
+    for dt_train, train_dirs in regime_train_dirs.items():
+        out[dt_train] = {}
+        for model, train_dir in train_dirs.items():
+            cfg = json.loads((train_dir / "config.json").read_text())
+            print(f"[latency] {model} @ dt={dt_train}: building + loading "
+                  f"{train_dir.relative_to(REPO)}/weights.pth")
+
+            seed_everything(int(cfg.get("seed", SEED)))
+            patch_dt(float(cfg["dt"]))
+            M.T_ms = float(cfg["t_ms"])
+            M.T_steps = int(M.T_ms / M.dt)
+            M.N_IN = int(cfg["n_in"])
+            M.N_HID = int(cfg["n_hidden"])
+            M.N_INH = int(cfg.get("n_inh", M.N_HID // 4))
+            M.HIDDEN_SIZES = list(cfg.get("hidden_sizes") or [M.N_HID])
+
+            w_in = cfg.get("w_in")
+            if isinstance(w_in, list) and len(w_in) >= 2:
+                w_in_arg = (float(w_in[0]), float(w_in[1]))
+            else:
+                w_in_arg = None
+            net = build_net(
+                cfg["model"],
+                w_in=w_in_arg,
+                w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
+                ei_strength=float(cfg.get("ei_strength") or 0.0),
+                ei_ratio=float(cfg.get("ei_ratio") or 2.0),
+                sparsity=float(cfg.get("sparsity") or 0.0),
+                device=device,
+                randomize_init=not bool(cfg.get("kaiming_init", False)),
+                kaiming_init=bool(cfg.get("kaiming_init", False)),
+                dales_law=bool(cfg.get("dales_law", True)),
+                hidden_sizes=M.HIDDEN_SIZES,
+                w_rec=cfg.get("w_rec"),
+                rec_layers=cfg.get("rec_layers"),
+                ei_layers=cfg.get("ei_layers"),
+            )
+            if hasattr(net, "readout_mode"):
+                net.readout_mode = cfg.get("readout_mode", "rate")
+            state = torch.load(train_dir / "weights.pth", map_location=device)
+            net.load_state_dict(state, strict=False)
+            net.eval()
+            net.recording = True
+
+            _, X_te, _, y_te = load_dataset(
+                cfg.get("dataset", "mnist"),
+                max_samples=int(cfg.get("max_samples") or LATENCY_BATCH_SIZE),
+                split=True,
+            )
+            B = min(LATENCY_BATCH_SIZE, len(y_te))
+            X_b = torch.from_numpy(X_te[:B]).to(device)
+            y_b = torch.from_numpy(y_te[:B]).to(device)
+
+            eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+            with torch.no_grad():
+                spk = encode_batch(X_b, M.dt,
+                                   cfg.get("dataset") == "smnist",
+                                   generator=eval_gen)
+                _ = net(input_spikes=spk)
+
+            out_logits = net.spike_record["out"].to(device)  # (T, B, N_OUT)
+            T_steps = out_logits.shape[0]
+            readout = cfg.get("readout_mode", "rate")
+            curve: list[float] = []
+            for f in LATENCY_FRACTIONS:
+                t_cut = max(1, int(round(f * T_steps)))
+                if readout == "li":
+                    # LI's trained-time output is max-over-time, so the
+                    # any-time prediction at fraction f is argmax of the
+                    # running max from 0..t_cut.
+                    logits_at_f = out_logits[:t_cut].amax(dim=0)
+                else:
+                    # Rate's logits_t at step t already includes accumulated
+                    # spikes from 0..t (cumulative by construction).
+                    logits_at_f = out_logits[t_cut - 1]
+                preds = logits_at_f.argmax(dim=-1)
+                acc = (preds == y_b).float().mean().item() * 100.0
+                curve.append(acc)
+
+            out[dt_train][model] = {
+                "fractions": LATENCY_FRACTIONS,
+                "p_correct": curve,
+                "readout": readout,
+            }
+            net.recording = False
+            del net, out_logits
+    return out
+
+
+_LI_READOUT_MODELS = ["standard-snn", "standard-snn-exp", "snntorch-library", "cuba"]
+_RATE_READOUT_MODELS = ["coba", "ping"]
+
+
+def plot_latency(latency: dict[float, dict[str, dict]],
+                 out_path: Path, notebook_run_id: str) -> None:
+    """Latency to correct answer — P(correct) vs fraction of trial.
+    Layout mirrors firing_rates / dt_sweep: 2 rows × N cols. Rows split
+    by readout type (li / rate) so the qualitatively different curve
+    shapes — early-commit max-over-time vs cumulative rate — sit on
+    separate axes; cols are the two train-dt regimes."""
+    dt_trains = sorted(latency.keys())
+    # Smaller fonts than plot.py's global 22-pt monospace defaults so the
+    # dual-line y-labels and longer x-label fit without clipping.
+    rc_overrides = {
+        "font.size": 11,
+        "axes.labelsize": 11,
+        "axes.titlesize": 11,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+        "figure.titlesize": 13,
+        "savefig.dpi": 150,
+    }
+    saved = {k: plt.rcParams[k] for k in rc_overrides}
+    plt.rcParams.update(rc_overrides)
+    try:
+        return _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id)
+    finally:
+        plt.rcParams.update(saved)
+
+
+def _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id):
+    fig, axes = _matrix_axes(2, len(dt_trains))
+    for j, dt_train in enumerate(dt_trains):
+        # Row 0: li readout (max-over-time argmax).
+        ax = axes[0, j]
+        for model in _LI_READOUT_MODELS:
+            entry = latency.get(dt_train, {}).get(model)
+            if not entry:
+                continue
+            ax.plot(entry["fractions"], entry["p_correct"],
+                    color=MODEL_COLORS[model], label=MODEL_LABELS[model],
+                    linestyle="-")
+        ax.axhline(10.0, color=theme.LABEL, lw=0.7, ls=":")
+        ax.set_ylim(0, 100)
+        ax.set_xlim(0, 1)
+        ax.set_title(f"train dt = {dt_train} ms")
+        ax.grid(alpha=0.3)
+        if j == 0:
+            ax.set_ylabel("li readout\ntest acc (%)")
+            ax.legend(handles=[h for h in _grouped_model_handles()
+                               if h.get_label() in _LI_READOUT_MODELS],
+                      frameon=False, fontsize=6, loc="lower right",
+                      handlelength=2.0)
+
+        # Row 1: rate readout (cumulative argmax).
+        ax = axes[1, j]
+        for model in _RATE_READOUT_MODELS:
+            entry = latency.get(dt_train, {}).get(model)
+            if not entry:
+                continue
+            ax.plot(entry["fractions"], entry["p_correct"],
+                    color=MODEL_COLORS[model], label=MODEL_LABELS[model],
+                    linestyle="-")
+        ax.axhline(10.0, color=theme.LABEL, lw=0.7, ls=":")
+        ax.set_xlabel("fraction of trial seen")
+        ax.set_ylim(0, 100)
+        ax.set_xlim(0, 1)
+        ax.grid(alpha=0.3)
+        if j == 0:
+            ax.set_ylabel("rate readout\ntest acc (%)")
+            ax.legend(handles=[h for h in _grouped_model_handles()
+                               if h.get_label() in _RATE_READOUT_MODELS],
+                      frameon=False, fontsize=6, loc="lower right",
+                      handlelength=2.0)
+    fig.suptitle("Latency to correct answer")
+    fig.tight_layout()
+    _stamp_figure(fig, notebook_run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
                       out_path: Path, notebook_run_id: str) -> None:
     """Mean hidden-layer firing rate vs eval-dt, 2×N layout:
@@ -965,9 +1166,14 @@ def plots_only() -> None:
     if fr.exists():
         print(f"wrote {fr.relative_to(REPO)}")
 
+    latency = compute_latency_curves(regime_train_dirs)
+    plot_latency(latency, FIGURES / "latency_curves.png", notebook_run_id)
+    print(f"wrote {(FIGURES / 'latency_curves.png').relative_to(REPO)}")
+
     numbers_path = FIGURES / "numbers.json"
     summary = write_numbers(regime_train_dirs, regime_sweep_dirs, numbers_path,
                             notebook_run_id, 0.0)
+    summary["latency"] = latency
     summary["success_criteria"] = evaluate_success(FIGURES, summary)
     numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {numbers_path.relative_to(REPO)}")
@@ -1069,6 +1275,9 @@ def main() -> None:
     fr = FIGURES / "firing_rates.png"
     if fr.exists():
         print(f"wrote {fr.relative_to(REPO)}")
+    latency = compute_latency_curves(regime_train_dirs)
+    plot_latency(latency, FIGURES / "latency_curves.png", notebook_run_id)
+    print(f"wrote {(FIGURES / 'latency_curves.png').relative_to(REPO)}")
     copy_videos(regime_train_dirs, regime_sweep_dirs, FIGURES, notebook_run_id)
 
     numbers_path = FIGURES / "numbers.json"
@@ -1076,6 +1285,7 @@ def main() -> None:
     summary = write_numbers(regime_train_dirs, regime_sweep_dirs, numbers_path,
                             notebook_run_id, duration_s,
                             init_match=init_match)
+    summary["latency"] = latency
     summary["success_criteria"] = evaluate_success(FIGURES, summary)
     numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {numbers_path.relative_to(REPO)}")
