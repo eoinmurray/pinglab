@@ -69,3 +69,4 @@ src/papers/*.pdf
 
 # Keynote source files — large binaries, not useful in source
 src/keynote/*.key
+.coverage

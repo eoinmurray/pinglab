@@ -23,10 +23,19 @@ import math
 import shutil
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import TypedDict
 
 import sh
+
+
+class CellSpec(TypedDict):
+    lr: float
+    isw: float
+    isb: float
+    hidden: list[int]
+    readout: str
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src" / "pinglab"))
@@ -162,7 +171,7 @@ def train_cell(
     return out_dir
 
 
-def _cell_summary(name: str, spec: dict, run_dir: Path) -> dict:
+def _cell_summary(name: str, spec: CellSpec, run_dir: Path) -> dict:
     metrics = json.loads((run_dir / "metrics.json").read_text())
     best_acc = metrics.get("best_acc", max(e["acc"] for e in metrics["epochs"]))
     final = metrics["epochs"][-1]
@@ -332,13 +341,16 @@ def run_baseline(run_id: str, modal_gpu: str | None, skip_training: bool) -> dic
     # isw=6 / isb derived from 1/(1-β_mem) pushed neurons into a regime
     # where β=10 produced 1e10+ grads even with adamax; dropping it
     # lets the model learn under Cramer's native weight scale.
-    spec = dict(lr=1e-3, isw=1.0, isb=1.0, hidden=HIDDEN, readout="li")
+    spec: CellSpec = {"lr": 1e-3, "isw": 1.0, "isb": 1.0,
+                       "hidden": HIDDEN, "readout": "li"}
     if skip_training:
         run_dir = ARTIFACTS / "cuba_baseline"
         if not (run_dir / "metrics.json").exists():
             raise SystemExit(f"--skip-training requires existing {run_dir}/metrics.json")
     else:
-        run_dir = train_cell("cuba_baseline", **spec,
+        run_dir = train_cell("cuba_baseline",
+                             lr=spec["lr"], isw=spec["isw"], isb=spec["isb"],
+                             hidden=spec["hidden"], readout=spec["readout"],
                              observe_video=True, modal_gpu=modal_gpu)
     summary = _cell_summary("cuba_baseline", spec, run_dir)
 
@@ -492,7 +504,7 @@ def main() -> None:
         "cells": cells_dict,
         "winner": winner,
         "success_criteria": success_criteria,
-        "run_finished_at": datetime.utcnow().isoformat() + "Z",
+        "run_finished_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
     }
     (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2) + "\n")
     print(f"[nb013] best_acc={winner['best_acc']} "
