@@ -19,7 +19,6 @@ Notebook entry: src/docs/src/pages/notebooks/nb013.mdx
 from __future__ import annotations
 
 import json
-import math
 import shutil
 import sys
 import time
@@ -32,8 +31,6 @@ import sh
 
 class CellSpec(TypedDict):
     lr: float
-    isw: float
-    isb: float
     hidden: list[int]
     readout: str
 
@@ -90,17 +87,9 @@ RATE_MAX_HZ = 200.0
 # Training collapse tolerance (pp): final_acc must be within this of best_acc.
 COLLAPSE_TOL_PP = 5.0
 
-def cuba_init_scales(dt: float, tau: float = TAU_MEM_MS) -> tuple[float, float]:
-    """Per-step drive compensation for cuba — see nb012."""
-    beta = math.exp(-dt / tau)
-    return dt / (1.0 - beta), 1.0 / (1.0 - beta)
-
-
 def train_cell(
     name: str,
     lr: float,
-    isw: float,
-    isb: float,
     hidden: list[int],
     readout: str,
     observe_video: bool,
@@ -109,8 +98,8 @@ def train_cell(
     """Train one cell. Returns the run dir containing metrics.json."""
     tier = TIER_CONFIG[TIER]
     out_dir = ARTIFACTS / name
-    print(f"[cell {name}] lr={lr} isw={isw} isb={isb:.3f} hidden={hidden} "
-          f"readout={readout} → {out_dir.relative_to(REPO)}"
+    print(f"[cell {name}] lr={lr} hidden={hidden} readout={readout} "
+          f"→ {out_dir.relative_to(REPO)}"
           + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
     args = [
         "run", "python", str(OSCILLOSCOPE), "train",
@@ -136,8 +125,6 @@ def train_cell(
         "--adaptive-lr",
         "--batch-size", "256",
         "--kaiming-init",
-        "--init-scale-weight", str(isw),
-        "--init-scale-bias", f"{isb}",
         "--no-dales-law",
         # Feedforward only while we test slope=10 in isolation. Re-enable
         # W_rec once slope=10 alone is stable on adamax.
@@ -337,19 +324,14 @@ def _format_duration(seconds: float) -> str:
 
 def run_baseline(run_id: str, modal_gpu: str | None, skip_training: bool) -> dict:
     """Single cell at the current best-known config (post-sweep winner)."""
-    # Raw Kaiming init — no per-step drive compensation. The previous
-    # isw=6 / isb derived from 1/(1-β_mem) pushed neurons into a regime
-    # where β=10 produced 1e10+ grads even with adamax; dropping it
-    # lets the model learn under Cramer's native weight scale.
-    spec: CellSpec = {"lr": 1e-3, "isw": 1.0, "isb": 1.0,
-                       "hidden": HIDDEN, "readout": "li"}
+    spec: CellSpec = {"lr": 1e-3, "hidden": HIDDEN, "readout": "li"}
     if skip_training:
         run_dir = ARTIFACTS / "cuba_baseline"
         if not (run_dir / "metrics.json").exists():
             raise SystemExit(f"--skip-training requires existing {run_dir}/metrics.json")
     else:
         run_dir = train_cell("cuba_baseline",
-                             lr=spec["lr"], isw=spec["isw"], isb=spec["isb"],
+                             lr=spec["lr"],
                              hidden=spec["hidden"], readout=spec["readout"],
                              observe_video=True, modal_gpu=modal_gpu)
     summary = _cell_summary("cuba_baseline", spec, run_dir)

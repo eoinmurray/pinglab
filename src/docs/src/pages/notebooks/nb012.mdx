@@ -107,8 +107,6 @@ All cells in the recipe table show the resolved value used at training time. Par
 | [*--v-grad-dampen*](/the-oscilloscope/#subcommand-train) | n/a | n/a | n/a | n/a | 1000 | 1000 |
 | [*--w-in*](/the-oscilloscope/#weight-flags-shared-advanced) (mean, std) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.03) | (1.2, 0.12) |
 | [*--w-in-sparsity*](/the-oscilloscope/#weight-flags-shared-advanced) | 0.0 | 0.0 | 0.0 | 0.0 | 0.95 | 0.95 |
-| [*--init-scale-weight*](/the-oscilloscope/#weight-flags-shared-advanced) | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
-| [*--init-scale-bias*](/the-oscilloscope/#weight-flags-shared-advanced) | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
 | integrator | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | exp-Euler ZOH (input) | exp-Euler ZOH (conductance) | exp-Euler ZOH (conductance) |
 | synapse | direct LIF | exponential | direct LIF | continuous | COBA | COBA + E→I→E |
 
