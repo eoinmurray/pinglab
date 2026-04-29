@@ -3,7 +3,7 @@
 All constants are hardcoded defaults. Override via module-level assignment
 or by passing arguments to model constructors.
 
-Models: CUBANet, PINGNet.
+Models: CUBANet, COBANet.
 Layer primitives: exp_synapse, lif_step, snn_lif_step.
 """
 from __future__ import annotations
@@ -203,7 +203,7 @@ def lif_step_expeuler(v, ref, g_e, g_i, C_m, g_L, ref_steps, spike_fn,
     The kwarg is `dt_override` (not `dt`) so the module-level `dt` is
     accessible without `globals()['dt']`, which is a Dynamo graph-break.
     The graph-break was forcing a per-call recompile cascade that defeated
-    torch.compile on PINGNet's CUDA path (recompile_limit hit silently).
+    torch.compile on COBANet's CUDA path (recompile_limit hit silently).
     """
     dt_step = dt if dt_override is None else dt_override
     if g_i is None:
@@ -343,9 +343,9 @@ class CUBANet(SNNBase):
                  reset_mode=None,
                  readout_mode="rate"):
         super().__init__()
-        if discretisation not in ("snntorch", "continuous"):
+        if discretisation not in ("snntorch", "zoh"):
             raise ValueError(
-                f"discretisation must be 'snntorch' or 'continuous', "
+                f"discretisation must be 'snntorch' or 'zoh', "
                 f"got {discretisation!r}")
         if readout_mode not in ("rate", "li"):
             raise ValueError(
@@ -570,11 +570,12 @@ class CUBANet(SNNBase):
 
         beta = self.beta_override if self.beta_override is not None else beta_snn
 
-        # Continuous-time discretisation: exact integration of τ·dV/dt = -V + I
-        # with delta-function spike inputs gives I_step = W·s/Δt + b, so the
-        # forward becomes  mem = β·mem + (1-β)·(W·s/Δt + b). Per-spike kick
-        # is (1-β)/Δt · W ≈ W/τ — dt-invariant.
-        if self.discretisation == "continuous":
+        # ZOH (zero-order hold) discretisation: exact integration of
+        # τ·dV/dt = -V + I with delta-function spike inputs gives
+        # I_step = W·s/Δt + b, so the forward becomes
+        # mem = β·mem + (1-β)·(W·s/Δt + b). Per-spike kick is
+        # (1-β)/Δt · W ≈ W/τ — dt-invariant.
+        if self.discretisation == "zoh":
             spike_scale = (1.0 - beta) / dt
             bias_scale = (1.0 - beta)
         else:
@@ -945,7 +946,7 @@ class SNNTorchLibraryNet(SNNBase):
         return logits_max if self.readout_mode == "li" else logits_t
 
 
-class PINGNet(SNNBase):
+class COBANet(SNNBase):
     signed_weights = False
 
     def __init__(self, w_in=(W_IN_MEAN, W_IN_STD), w_hid=(W_HID_MEAN, W_HID_STD),

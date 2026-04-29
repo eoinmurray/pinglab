@@ -6,18 +6,6 @@ import Code from "../components/Code.astro";
 
 # Models
 
-Three classes in <Code path="src/pinglab/models.py">models.py</Code>: *SNNTorchLibraryNet*, *CUBANet*, *PINGNet*. CLI model names dispatch to one of these via constructor flags.
-
-| CLI name | Class | Flags |
-| -------- | ----- | ----- |
-| snntorch-library | SNNTorchLibraryNet | — |
-| standard-snn | CUBANet | *discretisation="snntorch"*, *exponential_synapse=False* |
-| standard-snn-exp | CUBANet | *discretisation="snntorch"*, *exponential_synapse=True* |
-| cuba | CUBANet | *discretisation="continuous"*, *exponential_synapse=False* |
-| ping | PINGNet | *ei_strength* ≥ 0 (set to 0 for feedforward COBA) |
-
-$\beta = e^{-\Delta t/\tau_{\text{mem}}}$ throughout.
-
 ## SNNTorchLibraryNet
 
 Wraps [*snn.Leaky*](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html) + fast-sigmoid surrogate.
@@ -30,7 +18,7 @@ Reset by subtraction. $\beta = e^{-\Delta t/\tau_{\text{snn}}}$ with $\tau_{\tex
 
 ## CUBANet
 
-One class, three CLI variants selected by *discretisation* ∈ \{snntorch, continuous\} and *exponential_synapse* ∈ \{False, True\}.
+One class, three CLI variants selected by *discretisation* ∈ \{snntorch, zoh\} and *exponential_synapse* ∈ \{False, True\}.
 
 ### *discretisation="snntorch"* (standard-snn, standard-snn-exp)
 
@@ -62,7 +50,7 @@ $$
 g_{t+1} = e^{-\Delta t / \tau_{\text{syn}}}\,(g_t + W\, s_t), \qquad U_{t+1} = \beta\, U_t + (1-\beta)\, g_t + b \tag{6}
 $$
 
-### *discretisation="continuous"* (cuba)
+### *discretisation="zoh"* (cuba)
 
 Continuous-time LIF:
 
@@ -96,7 +84,7 @@ $$
 
 Limits as $\Delta t \to 0$: per-spike kick $\to W/\tau$; per-ms bias $\to b/\tau$. Both $\Delta t$-invariant.
 
-## PINGNet
+## COBANet
 
 Conductance-based E + I populations (E:I = 4:1) with frozen recurrent matrices $W^{EE}, W^{EI}, W^{IE}$. With *ei_strength=0* the recurrent loop is off (feedforward COBA); otherwise PING.
 
@@ -139,19 +127,3 @@ g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{18}
 $$
 
 Hard reset $V \leftarrow V_{\text{reset}}$ on threshold; refractory $\tau_{\text{ref}}^E = 3$ ms, $\tau_{\text{ref}}^I = 1.5$ ms. Dale's law: $W \geq 0$. Defaults: $W^{EE} = 0$, $W^{EI} \approx 1$ µS, $W^{IE} \approx 3$ µS. Recurrent matrices frozen at init; only $W_{\text{in}}, W_{\text{out}}$ train. $\Delta t$ ceiling at $\sim \tau_{\text{GABA}}$. Constants on [Parameters & Units](/parameters-and-units/#coba--ping-biophysical-constants).
-
-## Training defaults
-
-| Flag | standard-snn | cuba | coba (ping ei=0) | ping |
-| ---- | ------------ | ---- | ---------------- | ---- |
-| --model | standard-snn | cuba | ping | ping |
-| --dt | \{0.1\|1.0\} | \{0.1\|1.0\} | \{0.1\|1.0\} | \{0.1\|1.0\} |
-| --t-ms | 200 | 200 | 200 | 200 |
-| --epochs | 40 | 40 | 40 | 40 |
-| --input-rate | 50 | 50 | 50 | 50 |
-| --kaiming-init | ✓ | ✓ | — | — |
-| --lr | 0.01 | 0.04 | 0.0004 | 0.0004 |
-| --ei-strength | 0 | 0 | 0 | 1 |
-| --v-grad-dampen | — | — | 1000 | 1000 |
-| --w-in | (kaiming) | (kaiming) | 0.3 | 1.2 |
-| --w-in-sparsity | (kaiming) | (kaiming) | 0.95 | 0.95 |

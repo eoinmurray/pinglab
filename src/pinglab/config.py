@@ -22,7 +22,7 @@ import torch
 from torch import nn
 
 import models as M
-from models import PINGNet, CUBANet, SNNTorchLibraryNet
+from models import COBANet, CUBANet, SNNTorchLibraryNet
 from inputs import (
     make_spike_drive,
     patch_dt as _patch_dt,
@@ -84,23 +84,23 @@ cfg = Config(artifact_root=str(Path(__file__).parent.parent / "artifacts" / "osc
 # =============================================================================
 
 MODEL_REGISTRY = {
-    "ping":                 lambda **kw: PINGNet(w_in=(0, 0), w_hid=(5.1, 3.8),
+    "ping":                 lambda **kw: COBANet(w_in=(0, 0), w_hid=(5.1, 3.8),
                                                   w_ei=(*cfg.w_ei, "normal", cfg.sparsity),
                                                   w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
                                                   **kw),
     "standard-snn":       lambda **kw: CUBANet(w_in=(0, 0), w_hid=(0, 0.1), **kw),
     "standard-snn-exp":   lambda **kw: CUBANet(exponential_synapse=True,
                                                       w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba":                 lambda **kw: CUBANet(discretisation="continuous",
+    "cuba":                 lambda **kw: CUBANet(discretisation="zoh",
                                                       w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba-exp":             lambda **kw: CUBANet(discretisation="continuous",
+    "cuba-exp":             lambda **kw: CUBANet(discretisation="zoh",
                                                       exponential_synapse=True,
                                                       w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba-exp-hard":        lambda **kw: CUBANet(discretisation="continuous",
+    "cuba-exp-hard":        lambda **kw: CUBANet(discretisation="zoh",
                                                       exponential_synapse=True,
                                                       reset_mode="zero",
                                                       w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba-exp-hard-refrac": lambda **kw: CUBANet(discretisation="continuous",
+    "cuba-exp-hard-refrac": lambda **kw: CUBANet(discretisation="zoh",
                                                       exponential_synapse=True,
                                                       reset_mode="zero",
                                                       ref_ms=2.0,
@@ -139,16 +139,16 @@ HEADLINE_LADDER = [
 ]
 
 _MODEL_CLASSES = {
-    "ping":                 (PINGNet,     {}),
+    "ping":                 (COBANet,     {}),
     "standard-snn":       (CUBANet, {}),
     "standard-snn-exp":   (CUBANet, {"exponential_synapse": True}),
-    "cuba":                 (CUBANet, {"discretisation": "continuous"}),
-    "cuba-exp":             (CUBANet, {"discretisation": "continuous",
+    "cuba":                 (CUBANet, {"discretisation": "zoh"}),
+    "cuba-exp":             (CUBANet, {"discretisation": "zoh",
                                             "exponential_synapse": True}),
-    "cuba-exp-hard":        (CUBANet, {"discretisation": "continuous",
+    "cuba-exp-hard":        (CUBANet, {"discretisation": "zoh",
                                             "exponential_synapse": True,
                                             "reset_mode": "zero"}),
-    "cuba-exp-hard-refrac": (CUBANet, {"discretisation": "continuous",
+    "cuba-exp-hard-refrac": (CUBANet, {"discretisation": "zoh",
                                             "exponential_synapse": True,
                                             "reset_mode": "zero",
                                             "ref_ms": 2.0}),
