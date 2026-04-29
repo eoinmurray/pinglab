@@ -1381,7 +1381,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
           v_grad_dampen=80.0, early_stopping=None, observe_every=1,
           adaptive_lr=False, kaiming_init=False, dales_law=True,
           w_rec=None, rec_layers=None, ei_layers=None, batch_size=None,
-          seed=None, init_scale_weight=1.0, init_scale_bias=1.0,
+          seed=None,
           readout_mode="rate",
           fr_reg_lower_theta=0.0, fr_reg_lower_strength=0.0,
           fr_reg_upper_theta=0.0, fr_reg_upper_strength=0.0,
@@ -1467,23 +1467,6 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         log.info("  kaiming_init=True (signed Kaiming weights, canonical snnTorch)")
     if readout_mode != "rate":
         log.info(f"  readout_mode={readout_mode}")
-    if init_scale_weight != 1.0 or init_scale_bias != 1.0:
-        # Weight params = 2D tensors (W_ff, W_rec, W_ee/W_ei/W_ie).
-        # Bias params = 1D tensors (b_ff). Split lets cuba pre-compensate
-        # its separate spike_scale vs bias_scale drive factors.
-        with torch.no_grad():
-            n_w = n_b = 0
-            for name, p in net.named_parameters():
-                if not p.requires_grad:
-                    continue
-                if p.dim() >= 2:
-                    p.mul_(init_scale_weight)
-                    n_w += 1
-                else:
-                    p.mul_(init_scale_bias)
-                    n_b += 1
-        log.info(f"  init_scale_weight={init_scale_weight:g} ({n_w} tensors) "
-                 f"init_scale_bias={init_scale_bias:g} ({n_b} tensors)")
     if w_rec is not None:
         log.info("  recurrent=True (hidden→hidden connections)")
     if not dales_law:
@@ -1510,8 +1493,6 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         "max_samples": max_samples,
         "n_params": n_params, "n_trainable": n_trainable,
         "kaiming_init": kaiming_init, "dales_law": dales_law,
-        "init_scale_weight": init_scale_weight,
-        "init_scale_bias": init_scale_bias,
         "readout_mode": readout_mode,
         "hidden_sizes": hidden_sizes, "w_rec": w_rec,
         "rec_layers": list(rec_layers) if rec_layers else None,
@@ -2538,21 +2519,6 @@ Models:
                                 "Matches canonical snnTorch tutorial setup. "
                                 "Only applies to standard-snn / cuba; "
                                 "--w-in is ignored when this is set.")
-    net_group.add_argument("--init-scale-weight", type=float, default=1.0,
-                           help="Multiply init weight matrices (W_ff, W_rec, "
-                                "W_ee/W_ei/W_ie) by this scalar after "
-                                "build_net (train mode only). Biases are "
-                                "untouched — use --init-scale-bias for those. "
-                                "For cuba at training-dt, pass dt/(1-exp(-dt/"
-                                "tau_mem)) to match standard-snn's per-step "
-                                "spike drive from matched random weights. "
-                                "Default: 1.0 (no scaling).")
-    net_group.add_argument("--init-scale-bias", type=float, default=1.0,
-                           help="Multiply init bias vectors (b_ff) by this "
-                                "scalar after build_net (train mode only). "
-                                "For cuba at training-dt, pass 1/(1-exp(-dt/"
-                                "tau_mem)) to match standard-snn's per-step "
-                                "bias drive. Default: 1.0 (no scaling).")
     net_group.add_argument("--readout", choices=["rate", "li"], default="rate",
                            dest="readout_mode",
                            help="Output layer: 'rate' sums last-hidden spikes "
@@ -3227,8 +3193,6 @@ if __name__ == "__main__":
               ei_layers=args.ei_layers,
               batch_size=args.batch_size,
               seed=args.seed,
-              init_scale_weight=args.init_scale_weight,
-              init_scale_bias=args.init_scale_bias,
               readout_mode=args.readout_mode,
               fr_reg_lower_theta=args.fr_reg_lower_theta,
               fr_reg_lower_strength=args.fr_reg_lower_strength,

@@ -92,25 +92,6 @@ TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 # bias drive by (1-β) ≈ 0.025, both ≪ 1. Starting cuba from the same random
 # weights as standard-snn leaves it ~10× below threshold for spike drive
 # and ~40× below for bias drive — silent at init, no gradient, no learning.
-# Scaling cuba's W by dt/(1-β) and b by 1/(1-β) cancels those factors at
-# training-dt so both models start with the same per-step effective drive
-# (and therefore the same init firing rate). The scaling is a one-shot
-# multiplier on init weights, not part of the update rule, so cuba's
-# dt-invariance across the eval sweep is preserved.
-def cuba_init_scales(dt: float, tau: float = TAU_MEM_MS) -> tuple[float, float]:
-    beta = math.exp(-dt / tau)
-    return dt / (1.0 - beta), 1.0 / (1.0 - beta)
-
-
-def init_scales_for(model: str, dt_train: float) -> tuple[float, float]:
-    """Per-step drive compensation is (1.0, 1.0) for both snnTorch paths;
-    cuba gets dt-dependent (W-scale, b-scale) derived from cuba_init_scales
-    so it starts at the same per-step effective drive as standard-snn at
-    training-dt."""
-    if model == "cuba":
-        return cuba_init_scales(dt_train)
-    return (1.0, 1.0)
-
 MODEL_LABELS = {
     "standard-snn":     "standard-snn",
     "standard-snn-exp": "standard-snn-exp",
@@ -145,25 +126,21 @@ MODEL_GROUPS = [
 
 # Per-model CLI recipe for training. The CUBANet-family paths
 # (standard-snn, snntorch-library, cuba) share a lr=0.01 + kaiming-init
-# + Dale's law-off pipeline; cuba additionally gets the (1-β)/dt
-# init-scale compensation at train-dt. coba and ping are dispatched
-# through COBANet (coba is ping with ei_strength=0) with lr=1e-4,
-# explicit --w-in / --w-in-sparsity, and --v-grad-dampen from
-# models.mdx. See src/docs/src/pages/models.mdx "Model training" table.
+# + Dale's law-off pipeline. coba and ping are dispatched through COBANet
+# (coba is ping with ei_strength=0) with lr=1e-4, explicit --w-in /
+# --w-in-sparsity, and --v-grad-dampen from models.mdx. See
+# src/docs/src/pages/models.mdx "Model training" table.
 #
 # Keys in each entry become --flag value pairs on the oscilloscope CLI.
 # "--flag-only" keys with value True become bare flags. None values skip.
 # Extra keys:
 #   __build_as: name to pass as --model (coba dispatches via --model ping).
-#   __init_scale: if True, also pass --init-scale-weight/-bias from
-#                 init_scales_for(); skipped otherwise.
 MODEL_CONFIG: dict[str, dict] = {
     # Recipes mirror the per-model trainers (nb006-nb011). Any drift here
     # would mean nb012's dt-stability sweep doesn't actually evaluate the
     # same recipe being baselined elsewhere.
     "standard-snn": {                       # mirrors nb006
         "__build_as": "standard-snn",
-        "__init_scale": True,                # no-op for non-cuba (returns 1,1)
         "--kaiming-init": True,
         "--readout": "li",
         "--surrogate-slope": "1",
@@ -172,7 +149,6 @@ MODEL_CONFIG: dict[str, dict] = {
     },
     "standard-snn-exp": {                   # mirrors nb007
         "__build_as": "standard-snn-exp",
-        "__init_scale": False,
         "--kaiming-init": True,
         "--readout": "li",
         "--surrogate-slope": "1",
@@ -181,7 +157,6 @@ MODEL_CONFIG: dict[str, dict] = {
     },
     "snntorch-library": {                   # mirrors nb008
         "__build_as": "snntorch-library",
-        "__init_scale": True,                # no-op
         "--kaiming-init": True,
         "--readout": "li",
         "--surrogate-slope": "1",
@@ -190,7 +165,6 @@ MODEL_CONFIG: dict[str, dict] = {
     },
     "cuba": {                               # mirrors nb009
         "__build_as": "cuba",
-        "__init_scale": False,
         "--kaiming-init": True,
         "--readout": "li",
         "--surrogate-slope": "1",
@@ -199,7 +173,6 @@ MODEL_CONFIG: dict[str, dict] = {
     },
     "coba": {                               # mirrors nb010
         "__build_as": "ping",
-        "__init_scale": False,
         "--ei-strength": "0",
         "--v-grad-dampen": "1000",
         "--w-in": "0.3",
@@ -211,7 +184,6 @@ MODEL_CONFIG: dict[str, dict] = {
     },
     "ping": {                               # mirrors nb011
         "__build_as": "ping",
-        "__init_scale": False,
         "--ei-strength": "1",                # bumped 0.5 → 1 to match nb011
         "--v-grad-dampen": "1000",
         "--w-in": "1.2",
@@ -236,16 +208,13 @@ def training_video_path(out_dir: Path) -> Path:
 SNNTORCHNET_FAMILY = {"standard-snn", "cuba"}
 
 
-def verify_init_match(models: list[str], seed: int,
-                      dt_trains: list[float]) -> dict:
+def verify_init_match(models: list[str], seed: int) -> dict:
     """Preflight: CUBANet-family models must start from the same random
-    weights, modulo each model's per-step drive scaling. standard-snn and
-    cuba share the CUBANet class and with matched seed allocate every
-    tensor in the same order, giving bit-identical raw weights. cuba then
-    gets a one-shot multiplier (init_scales_for) per training dt so its
-    per-step drive matches standard-snn at that dt. snntorch-library
-    uses nn.Linear's own kaiming_uniform_ and is reported but not asserted
-    — its role is an external parity reference, not a bit-match."""
+    weights. standard-snn and cuba share the CUBANet class and with matched
+    seed allocate every tensor in the same order, giving bit-identical raw
+    weights. snntorch-library uses nn.Linear's own kaiming_uniform_ and is
+    reported but not asserted — it's an external parity reference, not a
+    bit-match."""
     nets: dict[str, "torch.nn.Module"] = {}
     # Only the CUBANet-family + snntorch-library go through the kaiming-init
     # path this preflight inspects. coba / ping use --w-in / --w-in-sparsity
@@ -259,12 +228,6 @@ def verify_init_match(models: list[str], seed: int,
     report: dict[str, object] = {
         "family": sorted(SNNTORCHNET_FAMILY & set(models)),
         "seed": seed,
-        "scales_per_regime": {
-            str(dt): {m: {"weight": init_scales_for(m, dt)[0],
-                          "bias": init_scales_for(m, dt)[1]}
-                      for m in models}
-            for dt in dt_trains
-        },
         "params": {},
         "independent": sorted(set(models) - SNNTORCHNET_FAMILY),
     }
@@ -291,17 +254,6 @@ def verify_init_match(models: list[str], seed: int,
     if report["independent"]:
         print(f"[init-match] independent init (nn.Linear kaiming): "
               f"{report['independent']}")
-    for dt in dt_trains:
-        # init-scale compensation is only meaningful for the CUBANet-family
-        # models; coba/ping use --w-in / --w-in-sparsity instead.
-        scaled_models = [m for m in models if MODEL_CONFIG.get(m, {}).get("__init_scale")]
-        if not scaled_models:
-            continue
-        scales = ", ".join(
-            f"{m}(W×{init_scales_for(m, dt)[0]:.3f} "
-            f"b×{init_scales_for(m, dt)[1]:.3f})"
-            for m in scaled_models)
-        print(f"[init-match] dt={dt}: per-model init_scale: {scales}")
     return report
 
 
@@ -333,11 +285,6 @@ def train_model(model: str, dt_train: float,
         "--out-dir", str(out_dir),
         "--wipe-dir",
     ]
-    if config["__init_scale"]:
-        sw, sb = init_scales_for(model, dt_train)
-        osc_args += ["--init-scale-weight", f"{sw}",
-                     "--init-scale-bias", f"{sb}"]
-        print(f"  init_scale W×{sw:.3f} b×{sb:.3f}")
     for k, v in config.items():
         if k.startswith("__"):
             continue
@@ -753,7 +700,6 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
         for model in train_dirs:
             metrics = load_metrics(train_dirs[model])
             cfg = load_config(train_dirs[model])
-            sw, sb = init_scales_for(model, dt_train)
             per_mode: dict[str, dict] = {}
             for mode, sweep_dir in model_modes[model].items():
                 sweep = load_sweep(sweep_dir)
@@ -775,8 +721,6 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
                 "run_date": run_date(train_dirs[model]),
                 "run_id": cfg.get("run_id"),
                 "git_sha": cfg.get("git_sha"),
-                "init_scale_weight": sw,
-                "init_scale_bias": sb,
                 "best_acc": metrics["best_acc"],
                 "best_epoch": metrics["best_epoch"],
                 "final_acc": metrics["epochs"][-1]["acc"],
@@ -1109,7 +1053,7 @@ def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     persist_run_id(SLUG, notebook_run_id)
 
-    init_match = verify_init_match(MODELS, SEED, DT_TRAINS)
+    init_match = verify_init_match(MODELS, SEED)
 
     dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
 
