@@ -2519,7 +2519,7 @@ Models:
                                 "Matches canonical snnTorch tutorial setup. "
                                 "Only applies to standard-snn / cuba; "
                                 "--w-in is ignored when this is set.")
-    net_group.add_argument("--readout", choices=["rate", "li"], default="rate",
+    net_group.add_argument("--readout", choices=["rate", "li", "spike-count"], default="rate",
                            dest="readout_mode",
                            help="Output layer: 'rate' sums last-hidden spikes "
                                 "and projects linearly at the final timestep "
