@@ -87,8 +87,6 @@ Overrides for the init distributions. Leave unset unless you know why you need t
 | *--w-ie MEAN STD* | from *--ei-strength* | I→E init. |
 | *--w-rec MEAN STD* | 0 0.1 | Recurrent-weight init. |
 | *--kaiming-init* | off | Use plain Kaiming-uniform init (signed weights, no fan-in normalisation), matching the canonical snnTorch tutorial. Applies to *standard-snn* / *cuba* only; *--w-in* is ignored when set. |
-| *--init-scale-weight X* | 1.0 | Multiply initial weight matrices by X after *build_net* (train mode). For *cuba* at training-dt, pass $\Delta t / (1 - e^{-\Delta t / \tau_\text{mem}})$ to match *standard-snn*'s per-step spike drive. |
-| *--init-scale-bias X* | 1.0 | Multiply initial bias vectors by X. For *cuba*, pass $1 / (1 - e^{-\Delta t / \tau_\text{mem}})$ for matched bias drive. |
 | *--dales-law* / *--no-dales-law* | on | Clamp weights to non-negative (default) or allow signed weights (*standard-snn* / *cuba* only). |
 
 ## Output flags (shared)

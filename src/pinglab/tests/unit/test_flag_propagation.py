@@ -235,13 +235,11 @@ def test_adaptive_lr_smoke(tmp_path):
     assert all("lr" in r for r in rows)
 
 
-# --kaiming-init / --init-scale-* / --dales-law (config propagation)
+# --kaiming-init / --dales-law (config propagation)
 
 @pytest.mark.slow
 @pytest.mark.parametrize("flag,key,expected", [
     (["--kaiming-init"], "kaiming_init", True),
-    (["--init-scale-weight", "2.5"], "init_scale_weight", 2.5),
-    (["--init-scale-bias", "0.5"], "init_scale_bias", 0.5),
     (["--no-dales-law"], "dales_law", False),
 ])
 def test_train_flag_propagates_to_config(tmp_path, flag, key, expected):
