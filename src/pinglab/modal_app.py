@@ -207,6 +207,7 @@ def dispatch_batch_to_modal(jobs: list[dict]):
 
     print(f"\n{len(successes)}/{len(jobs)} jobs succeeded; syncing artifacts...")
     for remote_out, j in [(out, j) for j, out in successes]:
+        assert remote_out is not None
         volume_path = remote_out.removeprefix(REMOTE_ARTIFACTS + "/")
         local_path = Path(j["local_out_dir"])
         local_parent = local_path.parent

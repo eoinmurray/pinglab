@@ -6,7 +6,7 @@ from spectral import analyze_spectrum, build_recurrent_matrix
 
 
 class _FakeNet:
-    """Minimal stand-in for PINGNet exposing the three recurrent buffers."""
+    """Minimal stand-in for COBANet exposing the three recurrent buffers."""
     def __init__(self, W_ee, W_ei, W_ie):
         self.W_ee = torch.tensor(W_ee, dtype=torch.float32)
         self.W_ei = torch.tensor(W_ei, dtype=torch.float32)

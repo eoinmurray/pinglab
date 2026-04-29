@@ -16,9 +16,9 @@ import torch.nn.functional as F
 import numpy as np
 
 # ── Simulation ────────────────────────────────────────────────────────────
-dt            = 0.25      # ms — integration timestep
-T_ms          = 1000.0    # ms — total simulation time per sample
-T_steps       = int(T_ms / dt)
+dt: float     = 0.25      # ms — integration timestep
+T_ms: float   = 1000.0    # ms — total simulation time per sample
+T_steps: int  = int(T_ms / dt)
 
 # ── Biophysics ────────────────────────────────────────────────────────────
 tau_m_E       = 20.0      # ms — excitatory membrane time constant
@@ -50,11 +50,11 @@ tau_snn       = 10.0      # ms — membrane time constant
 thr_snn       = 1.0       # spike threshold
 
 # ── Architecture ──────────────────────────────────────────────────────────
-N_IN          = 64        # input neurons (8×8 scikit-digits)
-N_HID         = 64        # hidden excitatory neurons (last layer size for compat)
-N_INH         = 16        # inhibitory neurons (PING only, per E-I layer)
-N_OUT         = 10        # output neurons (one per digit class)
-HIDDEN_SIZES  = [64]      # list of hidden layer sizes (N_HID is always last entry)
+N_IN: int     = 64        # input neurons (8×8 scikit-digits)
+N_HID: int    = 64        # hidden excitatory neurons (last layer size for compat)
+N_INH: int    = 16        # inhibitory neurons (PING only, per E-I layer)
+N_OUT: int    = 10        # output neurons (one per digit class)
+HIDDEN_SIZES: list[int] = [64]  # hidden layer sizes (N_HID is always last entry)
 
 # ── Weight init ───────────────────────────────────────────────────────────
 # Weight init — p1/p2 are pre-fan-in values (init_weight divides by N_pre)
@@ -117,7 +117,7 @@ def _env_no_compile() -> bool:
 # variants we keep around — each one is still a fully-static, shape-
 # specialised compiled graph.
 import torch._dynamo  # noqa: E402
-torch._dynamo.config.recompile_limit = 32
+torch._dynamo.config.recompile_limit = 32  # ty: ignore[invalid-assignment]
 
 
 # ── Surrogate gradient ───────────────────────────────────────────────────
@@ -500,14 +500,15 @@ class CUBANet(SNNBase):
         rec_buf = cfg["rec_buf"]
         for t in range(T_steps):
             slc = {
-                "in_t": (in_all[t].unsqueeze(0) if has_in and in_all.dim() == 2
-                         else (in_all[t] if has_in else None)),
-                "drive0_t": (ida_all[t].unsqueeze(0)
-                             if ida_all is not None and ida_all.dim() == 2
-                             else (ida_all[t] if ida_all is not None else None)),
-                "ext_t": (ext_all[t].unsqueeze(0)
-                          if has_ext and ext_all.dim() == 2
-                          else (ext_all[t] if has_ext else None)),
+                "in_t": (None if in_all is None
+                         else in_all[t].unsqueeze(0) if in_all.dim() == 2
+                         else in_all[t]),
+                "drive0_t": (None if ida_all is None
+                             else ida_all[t].unsqueeze(0) if ida_all.dim() == 2
+                             else ida_all[t]),
+                "ext_t": (None if ext_all is None
+                          else ext_all[t].unsqueeze(0) if ext_all.dim() == 2
+                          else ext_all[t]),
             }
             step(slc, cfg, state, readout)
 
@@ -893,7 +894,7 @@ class SNNTorchLibraryNet(SNNBase):
         n_spk_tensors["out"] = torch.zeros(1, device=device)
 
         for t in range(T_steps):
-            prev_spk = None
+            prev_spk: torch.Tensor = torch.empty(0)
             for i in range(self.n_layers):
                 if i == 0:
                     if has_input_spikes:

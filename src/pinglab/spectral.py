@@ -1,7 +1,7 @@
 """Spectral analysis of the E-I recurrent connectivity matrix.
 
 Constructs the combined (N_E + N_I) × (N_E + N_I) recurrent matrix from
-a PINGNet's frozen buffers, computes eigenvalues, and predicts oscillation
+a COBANet's frozen buffers, computes eigenvalues, and predicts oscillation
 frequency from the dominant complex pair. Compares predicted vs measured f0.
 
 Usage:
@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 
 def build_recurrent_matrix(net):
-    """Extract the combined E-I recurrent matrix from a PINGNet.
+    """Extract the combined E-I recurrent matrix from a COBANet.
 
     Returns the (N_E + N_I) × (N_E + N_I) matrix J:
         J = [[W_ee,   -W_ie^T],
@@ -282,7 +282,7 @@ def main():
     ap = argparse.ArgumentParser(
         description="Spectral analysis of the PING E-I recurrent matrix.")
     ap.add_argument("--from-dir", type=str, default=None,
-                    help="Load trained PINGNet from this directory")
+                    help="Load trained COBANet from this directory")
     ap.add_argument("--ei-strength", type=float, default=0.5,
                     help="E-I coupling strength for untrained analysis (default: 0.5)")
     ap.add_argument("--ei-ratio", type=float, default=2.0)

@@ -21,7 +21,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*coba*](/models/#coba) path — conductance-based synapses, dispatched through the PINGNet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb009](/notebooks/nb009/) and [nb011](/notebooks/nb011/). No Δt sweep. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*coba*](/models/#coba) path — conductance-based synapses, dispatched through the COBANet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb009](/notebooks/nb009/) and [nb011](/notebooks/nb011/). No Δt sweep. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
@@ -33,7 +33,7 @@ Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb010.py* 
   { label: "W_in", value: "0.3 (95% sparse)", default: "0.3 (dense)" },
 ]} />
 
-- [**ei-strength = 0**](/the-oscilloscope/#network-flags-shared) — collapses the PINGNet dispatch into a pure conductance-based feedforward path by zeroing the E→I→E loop. The cell below in the ladder is [nb009](/notebooks/nb009/) (current-based synapses); the cell above is [nb011](/notebooks/nb011/) (full PING with the loop closed).
+- [**ei-strength = 0**](/the-oscilloscope/#network-flags-shared) — collapses the COBANet dispatch into a pure conductance-based feedforward path by zeroing the E→I→E loop. The cell below in the ladder is [nb009](/notebooks/nb009/) (current-based synapses); the cell above is [nb011](/notebooks/nb011/) (full PING with the loop closed).
 - [**v-grad-dampen = 1000**](/the-oscilloscope/#network-flags-shared) — strong damping on the membrane-voltage gradient. Conductance synapses multiply the input by $(V - E_\text{rev})$, which makes BPTT through *V* far stiffer than *cuba*'s additive current; the high damping coefficient keeps gradients finite end-to-end.
 - [**w-in 0.3, w-in-sparsity 0.95**](/the-oscilloscope/#weight-flags-shared-advanced) — sparse $W_\text{in}$ (5% density) at the same scale as the dense default. Matches the *ping* working point used in [nb011](/notebooks/nb011/) so the two share an input distribution.
 

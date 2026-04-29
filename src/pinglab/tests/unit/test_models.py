@@ -32,9 +32,9 @@ class TestBuildNetRegistry:
         assert isinstance(net, nn.Module)
 
 
-class TestPINGNetFrozenWeights:
+class TestCOBANetFrozenWeights:
     def test_recurrent_weights_are_frozen(self):
-        """PINGNet W_ee/W_ei/W_ie must have requires_grad=False after construction."""
+        """COBANet W_ee/W_ei/W_ie must have requires_grad=False after construction."""
         net = build_net("ping", hidden_sizes=[32])
         for name in ["W_ee", "W_ei", "W_ie"]:
             pdict = getattr(net, name)

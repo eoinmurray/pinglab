@@ -20,7 +20,7 @@ Reset by subtraction. $\beta = e^{-\Delta t/\tau_{\text{snn}}}$ with $\tau_{\tex
 
 One class, three CLI variants selected by *discretisation* ∈ \{snntorch, zoh\} and *exponential_synapse* ∈ \{False, True\}.
 
-### *discretisation="snntorch"* (standard-snn, standard-snn-exp)
+### snnTorch discretisation
 
 $$
 U_{t+1} = \beta\, U_t + W\, s_t + b, \qquad S_t = \sigma_{\text{surr}}(U_t - \theta) \tag{2}
@@ -50,7 +50,7 @@ $$
 g_{t+1} = e^{-\Delta t / \tau_{\text{syn}}}\,(g_t + W\, s_t), \qquad U_{t+1} = \beta\, U_t + (1-\beta)\, g_t + b \tag{6}
 $$
 
-### *discretisation="zoh"* (cuba)
+### ZOH discretisation
 
 Continuous-time LIF:
 

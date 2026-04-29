@@ -334,7 +334,7 @@ def test_wipe_dir_clears_existing(tmp_path):
 
 # All scan vars — "does the scan driver dispatch this variable without crashing?"
 
-# The three weight-indexing scan vars are currently broken: PINGNet stores
+# The three weight-indexing scan vars are currently broken: COBANet stores
 # W_ei / W_ie / W_in as ParameterDicts (per-layer) but _scan_streaming still
 # does getattr(net, attr).clone() expecting a tensor. Flagging via xfail so
 # the tests stay on the radar until the scan driver is fixed.

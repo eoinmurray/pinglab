@@ -4,7 +4,7 @@ Profiling reference workload. Trains two models per run so the perf
 matrix covers both training backbones used elsewhere in the lab:
 
   - standard-snn (CUBANet path, recipe mirrors nb006)
-  - coba         (PINGNet path with ei_strength=0, recipe mirrors nb010)
+  - coba         (COBANet path with ei_strength=0, recipe mirrors nb010)
 
 Both recipes are verbatim copies of their science-owner notebooks; if
 the science changes, change it there first and mirror here. The point
@@ -46,8 +46,8 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
 
 
 def build_coba_osc_args(tier: str, out_dir: Path) -> list[str]:
-    """Mirrors nb010's coba recipe verbatim. coba is dispatched via PINGNet
-    with ei_strength=0, so this exercises the PINGNet compile path next to
+    """Mirrors nb010's coba recipe verbatim. coba is dispatched via COBANet
+    with ei_strength=0, so this exercises the COBANet compile path next to
     standard-snn's CUBANet path — both backbones tested per nb000 run."""
     return osc_base_args(out_dir, tier, build_as="ping") + [
         "--ei-strength", "0",
@@ -114,7 +114,7 @@ def perf_criteria(figures: Path, run_dir: Path, tier: str) -> list[dict]:
                    else "samples_per_sec_warm missing"),
     })
 
-    # Extras-aware gate: confirm the coba secondary (PINGNet path) also
+    # Extras-aware gate: confirm the coba secondary (COBANet path) also
     # produced metrics. run_dir is artifacts/nb000/train/; the secondary
     # trainer writes to its sibling artifacts/nb000/train_coba/.
     coba_metrics = run_dir.parent / "train_coba" / "metrics.json"
@@ -124,7 +124,7 @@ def perf_criteria(figures: Path, run_dir: Path, tier: str) -> list[dict]:
         coba_sps = (json.loads(coba_metrics.read_text())
                     .get("perf", {}).get("samples_per_sec_warm"))
     crits.append({
-        "label": "coba (PINGNet path) perf populated",
+        "label": "coba (COBANet path) perf populated",
         "passed": isinstance(coba_sps, (int, float)) and coba_sps > 0,
         "detail": (f"samples_per_sec_warm={coba_sps:.1f}"
                    if isinstance(coba_sps, (int, float))

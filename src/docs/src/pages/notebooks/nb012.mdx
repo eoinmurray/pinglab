@@ -82,7 +82,7 @@ Six models trained at two *dt* regimes; per-model recipes mirror their sibling p
 - [*standard-snn-exp*](/models/#standard-snn) — *standard-snn* with an exponential synapse ($\tau_\text{syn} \approx 2$ ms) on the feedforward inputs to the hidden layer. Single-knob ablation isolating the synaptic kernel ([nb007](/notebooks/nb007/)).
 - [*snntorch-library*](/models/#snntorch-library) — snnTorch's *snn.Leaky* directly. Parity probe against *standard-snn*.
 - [*cuba*](/models/#cuba) — same LIF, exp-Euler + ZOH integration restoring the $(1-\beta)/dt$ and $(1-\beta)$ prefactors. *dt* is back in the update.
-- [*coba*](/models/#coba) — conductance-based LIF with exponential synapses, hard reset, refractory. PINGNet with *--ei-strength 0* (feedforward-only).
+- [*coba*](/models/#coba) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
 - [*ping*](/models/#ping) — COBA plus the frozen E→I→E recurrent loop that produces gamma.
 
 All cells in the recipe table show the resolved value used at training time. Parameters unused by the model class (e.g. *--ei-strength* for snnTorch-family models) are marked *n/a*.
@@ -128,7 +128,7 @@ Training videos are in [the appendix](#videos--training).
 
 {hasFig("training_curves.png") && (
   <Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb012/training_curves.png" alt="Training curves, 2x2 grid (rows: train-dt regime, columns: loss and accuracy)">
-    Per-epoch train loss (left) and test accuracy (right) for each model; rows are training-*dt* regimes.
+    Per-epoch train loss (left) and test accuracy (right) for each model; rows are training-dt regimes.
   </Figure>
 )}
 
@@ -147,13 +147,13 @@ Best test accuracy per regime:
 
 {hasFig("firing_rates.png") && (
   <Figure id="Figure 2" title="Hidden firing rate vs eval-dt" src="/figures/notebooks/nb012/firing_rates.png" alt="Mean hidden firing rate vs eval-dt, 2x2 grid (rows: count-preserving / resample, columns: train-dt)">
-    Mean hidden-layer firing rate under frozen weights as eval-*dt* is swept. Top row: count-preserving transports (solid = upsample, dashed = downsample); bottom row: resample. Red dashed vertical marks train-*dt*. Color groups family: blue gradient = snnTorch family, green = cuba, orange/red = PING family.
+    Mean hidden-layer firing rate under frozen weights as eval-dt is swept. Top row: count-preserving transports (solid = upsample, dashed = downsample); bottom row: resample. Red dashed vertical marks train-dt. Color groups family: blue gradient = snnTorch family, green = cuba, orange/red = PING family.
   </Figure>
 )}
 
 The snnTorch family (blue) increases as eval-*dt* shrinks below train-*dt*, while
 cuba/coba/ping (green/orange/red) stay roughly flat. The mechanism is visible
-directly in the steady-state membrane potential. 
+directly in the steady-state membrane potential.
 
 For the [Tutorial-3](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#the-decay-rate-beta)
 update used by [*standard-snn*](/models/#standard-snn) and
@@ -161,7 +161,7 @@ update used by [*standard-snn*](/models/#standard-snn) and
 b$, ($\beta = e^{-\Delta t / \tau_\text{mem}}$). Take the expectation under mean input spike rate $r$: $\mathbb{E}[s_t] =
 r\Delta t$, so each step adds $Wr\Delta t + b$ on average. At the fixed point
 $U_{ss} = \beta U_{ss} + Wr\Delta t + b$, giving $U_{ss} = (Wr\Delta t +
-b)/(1-\beta)$. Using $1-\beta \approx \Delta t/\tau$ for $\Delta t \ll \tau$ (because for very small $x$, $e^{-x} \approx 1 - x + x^2/2 - \ldots \approx 1 - x$), 
+b)/(1-\beta)$. Using $1-\beta \approx \Delta t/\tau$ for $\Delta t \ll \tau$ (because for very small $x$, $e^{-x} \approx 1 - x + x^2/2 - \ldots \approx 1 - x$),
 this is $U_{ss} \approx Wr\tau + b\tau/\Delta t$.
 
 The spike contribution $W r \tau$ is
@@ -176,7 +176,7 @@ construction.
 
 {hasFig("dt_sweep.png") && (
   <Figure id="Figure 3" title="Accuracy vs eval-dt" src="/figures/notebooks/nb012/dt_sweep.png" alt="Accuracy vs eval-dt, 2x2 grid (rows: count-preserving / resample, columns: train-dt)">
-    Test accuracy on frozen weights as eval-*dt* is swept. Same 2×2 layout as Figure 2.
+    Test accuracy on frozen weights as eval-dt is swept. Same 2×2 layout as Figure 2.
   </Figure>
 )}
 

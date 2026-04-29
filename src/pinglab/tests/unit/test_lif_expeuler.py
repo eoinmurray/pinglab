@@ -50,7 +50,7 @@ def _step(v, ref, *, g_e=0.0, g_i=None, C_m=None, g_L=None,
         g_i, dtype=v.dtype).broadcast_to(v.shape)
     kwargs = {}
     if dt is not None:
-        kwargs["dt"] = dt
+        kwargs["dt_override"] = dt
     return lif_step_expeuler(v, ref, g_e_t, g_i_t, C_m, g_L, ref_steps,
                              spike_biophysical, **kwargs)
 
@@ -197,6 +197,7 @@ class TestGradientFlow:
             spike_biophysical, v_grad_dampen=1000.0)
         v2r.sum().backward()
         v2d.sum().backward()
+        assert g_e_damp.grad is not None and g_e_ref.grad is not None
         assert g_e_damp.grad.abs().item() < g_e_ref.grad.abs().item()
 
 

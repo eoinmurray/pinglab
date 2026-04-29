@@ -505,6 +505,7 @@ def _scan_streaming(scan_var, scan_values, n_frames, dt, burn_steps,
                         net_frame.forward(input_spikes=frame_spikes,
                                           ext_g=frame_tonic)
                     rec = _extract_records(net_frame)
+                    assert frame_spikes is not None
                     ext_g_np = frame_spikes.cpu().numpy()
                     frame_weights = extract_weights(net_frame)
                 else:
@@ -1658,10 +1659,12 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         obs_fig, obs_axes = make_transient_fig(layout="train")
         obs_frames_dir = out_dir / "frames"
         obs_frames_dir.mkdir(parents=True, exist_ok=True)
+        assert obs_fig is not None and obs_frames_dir is not None
 
     # Epoch 0 frame (init state)
     init_state = None
     if observe:
+        assert obs_fig is not None and obs_frames_dir is not None
         init_state = observe_epoch(
             net, ref_spikes, -1, 0.0, 0.0, dt, model_name,
             obs_fig, obs_axes, None, burn_in_ms=burn_in_ms,
@@ -1774,6 +1777,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
             n_samples_train += y_b.size(0)
             if _prof_handle is not None:
                 _prof_handle.__exit__(None, None, None)
+                assert profile_path is not None
                 from pathlib import Path as _Path
                 _Path(profile_path).parent.mkdir(parents=True, exist_ok=True)
                 _prof_handle.export_chrome_trace(profile_path)
@@ -1860,6 +1864,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         t_observe = _time.perf_counter()
         epoch_metrics = None
         if observe and (epoch + 1) % observe_every == 0:
+            assert obs_fig is not None and obs_frames_dir is not None
             epoch_metrics = observe_epoch(
                 net, ref_spikes, epoch, acc, avg_train, dt, model_name,
                 obs_fig, obs_axes, None, burn_in_ms=burn_in_ms,
@@ -1935,7 +1940,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
     # Tier 1 perf block — see nb000 for the why. Per-epoch breakdown is in
     # epoch_records (train_compute_s / eval_s / observe_s); these are the
     # whole-run aggregates the dashboards read.
-    perf_block = {
+    perf_block: dict = {
         "device": {"type": device.type},
         "torch_version": torch.__version__,
     }
@@ -2042,6 +2047,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         log.info(f"  frames → {obs_frames_dir}/")
         if observe == "video":
             import subprocess as _sp
+            assert obs_frames_dir is not None
             mp4_path = out_dir / "training.mp4"
             ffmpeg_cmd = [
                 "ffmpeg", "-y", "-framerate", "10",
@@ -2268,6 +2274,7 @@ def infer(model_name="ping", dt=0.25, load_weights=None,
         rec_layers=rec_layers, ei_layers=ei_layers)
 
     # Load weights
+    assert load_weights is not None
     state = torch.load(load_weights, map_location=device)
     net.load_state_dict(state, strict=False)
     log.info(f"  loaded {load_weights}")

@@ -50,3 +50,6 @@ markers = [
     "slow: end-to-end tests that spawn subprocesses or hit the GPU",
     "regression: checks against calibrated artifacts; skipped if absent",
 ]
+
+[tool.ty.environment]
+extra-paths = ["typings", "src/pinglab/notebooks"]

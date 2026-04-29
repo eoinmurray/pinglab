@@ -24,6 +24,20 @@ import hashlib
 import os
 import sys
 from pathlib import Path
+from typing import TypedDict
+
+
+class _Cfg(TypedDict):
+    N_IN: int
+    N_HID: int
+    N_INH: int
+    N_OUT: int
+    HIDDEN_SIZES: list[int]
+    T_ms: float
+    B: int
+    SEED: int
+    LR: float
+    STEPS: int
 
 import pytest
 import torch
@@ -46,7 +60,7 @@ TOL_TRAJ = 1e-4
 
 # Pinned tiny config for the harness. Must stay stable — changing any of
 # these values invalidates every stored fixture.
-CFG = dict(
+CFG: _Cfg = dict(
     N_IN=8,
     N_HID=16,
     N_INH=4,
