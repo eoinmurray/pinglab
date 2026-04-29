@@ -13,7 +13,7 @@ These rules apply when editing the docs and notebook. They are the source of tru
 
 All colors come from the *@theme* tokens in *src/styles/global.css* — never hardcode hex values in components or pages. Tailwind utilities resolve against these tokens (*text-ink*, *bg-paper-tint*, *border-rule*, etc.); raw CSS reaches them via *var(--color-…)*. The palette is deliberately narrow: warm off-white paper, a short ink ramp for text hierarchy, two rule weights, a single warning red, and a small categorical ramp for multi-series plots.
 
-The Python side mirrors the same tokens as named constants in *src/pinglab/theme.py*, which *plot.py* and *spectral.py* import from; no matplotlib call should carry an inline hex string. The two files are kept in sync by hand — any palette change must update both in the same commit.
+The Python side mirrors the same tokens as named constants in *src/pinglab/theme.py*, which *plot.py* imports from; no matplotlib call should carry an inline hex string. The two files are kept in sync by hand — any palette change must update both in the same commit.
 
 <div style="display:grid;grid-template-columns:auto 1fr auto;gap:0.35rem 0.9rem;align-items:center;margin:1rem 0;">
   <span style="display:inline-block;width:2.25rem;height:1.25rem;background:#1a1a1a;border:1px solid #ccc;"></span><span><em>--color-ink-strong</em></span><span style="color:#666;">#1a1a1a — headings, strongest text</span>
