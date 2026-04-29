@@ -33,7 +33,12 @@ const hasMedia = typeof src === "string" && src.length > 0;
         class="mb-[0.8rem] block h-auto w-full rounded-[1px] border border-rule bg-paper"
       />
     ) : (
-      <img src={src} alt={alt} class="mb-[0.8rem] block h-auto w-full rounded-[1px] border border-rule bg-paper" />
+      <img
+        src={src}
+        alt={alt}
+        data-figure-zoom
+        class="mb-[0.8rem] block h-auto w-full cursor-zoom-in rounded-[1px] border border-rule bg-paper"
+      />
     )
   ) : (
     <div
@@ -59,3 +64,57 @@ const hasMedia = typeof src === "string" && src.length > 0;
     text-decoration-thickness: 1px;
   }
 </style>
+
+<script>
+  // Lightbox: click any img marked [data-figure-zoom] to expand to a full-
+  // viewport overlay; click the backdrop (or press Escape) to close. Image
+  // itself is also clickable to dismiss. One overlay element is created lazily
+  // on first use and reused across all figure clicks. Idempotent — safe to
+  // re-run on view transitions.
+  (() => {
+    if ((window as any).__figureZoomBound) return;
+    (window as any).__figureZoomBound = true;
+
+    const overlay = document.createElement("div");
+    overlay.style.cssText = [
+      "position:fixed",
+      "inset:0",
+      "background:rgba(0,0,0,0.85)",
+      "display:none",
+      "align-items:center",
+      "justify-content:center",
+      "z-index:9999",
+      "cursor:zoom-out",
+      "padding:2vmin",
+    ].join(";");
+    const big = document.createElement("img");
+    big.style.cssText = [
+      "max-width:100%",
+      "max-height:100%",
+      "object-fit:contain",
+      "box-shadow:0 4px 24px rgba(0,0,0,0.4)",
+    ].join(";");
+    overlay.appendChild(big);
+    document.body.appendChild(overlay);
+
+    const close = () => {
+      overlay.style.display = "none";
+      big.src = "";
+      document.body.style.overflow = "";
+    };
+    overlay.addEventListener("click", close);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && overlay.style.display === "flex") close();
+    });
+
+    document.addEventListener("click", (e) => {
+      const t = e.target as HTMLElement;
+      if (t && t.tagName === "IMG" && t.hasAttribute("data-figure-zoom")) {
+        big.src = (t as HTMLImageElement).src;
+        big.alt = (t as HTMLImageElement).alt;
+        overlay.style.display = "flex";
+        document.body.style.overflow = "hidden";
+      }
+    });
+  })();
+</script>

@@ -62,13 +62,15 @@ T_MS = 200.0
 # Two training regimes: fine dt (snnTorch research setting) and coarse dt
 # (near τ_mem, where snnTorch models typically saturate).
 DT_TRAINS = [0.1, 1.0]
-# Per-regime sweep grid. Every point is an integer divisor or multiple of
-# its regime's train-dt so the paper-style zero-pad transport is exact in
-# both directions.
+# Per-regime sweep grid. Every eval-dt is an integer divisor or multiple
+# of its regime's train-dt so the paper-style zero-pad transport is exact
+# in both directions. At train-dt = 0.1 ms there are plenty of integer
+# multiples in [0.01, 2] ms; at train-dt = 1.0 ms only integer divisors
+# (1/n) work below 1, so the grid is necessarily sparser there.
 DT_SWEEPS: dict[float, list[float]] = {
-    0.1: [0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90,
+    0.1: [0.01, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90,
           1.00, 1.10, 1.20, 1.30, 1.40, 1.50, 1.60, 1.70, 1.80, 1.90, 2.00],
-    1.0: [0.05, 0.10, 0.20, 0.25, 0.50, 1.00, 2.00],
+    1.0: [0.01, 0.05, 0.10, 0.20, 0.25, 0.50, 1.00, 2.00],
 }
 DT_SWEEP = sorted({d for grid in DT_SWEEPS.values() for d in grid})
 SEED = 42
@@ -77,7 +79,7 @@ DEFAULT_TIER = "small"  # see src/docs/src/pages/styleguide.md § 10 Run sizing 
 TIER_CONFIG = {
     "extra small": dict(max_samples=100,   epochs=1),
     "small":       dict(max_samples=500,   epochs=5),
-    "medium":      dict(max_samples=2000,  epochs=10),
+    "medium":      dict(max_samples=2000,  epochs=40),
     "large":       dict(max_samples=5000,  epochs=40),
     "extra large": dict(max_samples=10000, epochs=40),
 }
@@ -118,13 +120,28 @@ MODEL_LABELS = {
     "ping":             "ping",
 }
 MODEL_COLORS = {
+    # snnTorch family: blue gradient (light → dark by sophistication).
+    # standard-snn-exp is the lightest because it's the synapse-only ablation
+    # of standard-snn; snntorch-library is darkest as the external reference.
+    "standard-snn-exp": theme.CAT_BLUE_LIGHT,
     "standard-snn":     theme.CAT_BLUE,
-    "standard-snn-exp": theme.CAT_BROWN,
-    "snntorch-library": theme.CAT_ORANGE,
+    "snntorch-library": theme.CAT_BLUE_DARK,
+    # CUBA: distinct green, alone.
     "cuba":             theme.CAT_GREEN,
-    "coba":             theme.CAT_PURPLE,
+    # PING family: warm gradient (coba = feedforward, ping = + E→I→E loop).
+    "coba":             theme.CAT_ORANGE,
     "ping":             theme.CAT_RED,
 }
+
+# Visual groupings used by the legend builder.
+MODEL_GROUPS = [
+    ("snnTorch family",
+     ["standard-snn-exp", "standard-snn", "snntorch-library"]),
+    ("CUBA",
+     ["cuba"]),
+    ("PING family",
+     ["coba", "ping"]),
+]
 
 # Per-model CLI recipe for training. The CUBANet-family paths
 # (standard-snn, snntorch-library, cuba) share a lr=0.01 + kaiming-init
@@ -173,7 +190,7 @@ MODEL_CONFIG: dict[str, dict] = {
     },
     "cuba": {                               # mirrors nb009
         "__build_as": "cuba",
-        "__init_scale": True,                # cuba (1-β)/dt compensation
+        "__init_scale": False,
         "--kaiming-init": True,
         "--readout": "li",
         "--surrogate-slope": "1",
@@ -187,6 +204,8 @@ MODEL_CONFIG: dict[str, dict] = {
         "--v-grad-dampen": "1000",
         "--w-in": "0.3",
         "--w-in-sparsity": "0.95",
+        "--readout": "li",
+        "--surrogate-slope": "1",
         "--lr": "0.0004",                    # 4× scaled vs old 1e-4 for batch=256
         "--batch-size": "256",
     },
@@ -197,6 +216,8 @@ MODEL_CONFIG: dict[str, dict] = {
         "--v-grad-dampen": "1000",
         "--w-in": "1.2",
         "--w-in-sparsity": "0.95",
+        "--readout": "li",
+        "--surrogate-slope": "1",
         "--lr": "0.0004",                    # 4× scaled
         "--batch-size": "256",
     },
@@ -433,20 +454,22 @@ def plot_training_curves(regime_train_dirs: dict[float, dict[str, Path]],
             epochs = [e["ep"] for e in metrics["epochs"]]
             loss = [e["loss"] for e in metrics["epochs"]]
             acc = [e["acc"] for e in metrics["epochs"]]
-            ax_loss.plot(epochs, loss, marker="o",
+            ax_loss.plot(epochs, loss,
                          color=MODEL_COLORS[model], label=MODEL_LABELS[model])
-            ax_acc.plot(epochs, acc, marker="o",
+            ax_acc.plot(epochs, acc,
                         color=MODEL_COLORS[model], label=MODEL_LABELS[model])
         ax_loss.set_xlabel("epoch")
         ax_loss.set_ylabel("train loss")
         ax_loss.set_title(f"train loss (train dt = {dt_train} ms)")
         ax_loss.grid(alpha=0.3)
-        ax_loss.legend(frameon=False, fontsize=8)
+        ax_loss.legend(handles=_grouped_model_handles(), frameon=False,
+                       fontsize=7, handlelength=2.2)
         ax_acc.set_xlabel("epoch")
         ax_acc.set_ylabel("test accuracy (%)")
         ax_acc.set_title(f"test accuracy (train dt = {dt_train} ms)")
         ax_acc.grid(alpha=0.3)
-        ax_acc.legend(frameon=False, fontsize=8)
+        ax_acc.legend(handles=_grouped_model_handles(), frameon=False,
+                      fontsize=7, handlelength=2.2)
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -468,19 +491,13 @@ def _matrix_axes(n_rows: int, n_cols: int):
 
 
 ROW_MODES = ["count-preserving", "resample"]
-# Marker per encoder mode in the count-preserving row. Same silhouette
-# size, different geometry so upsample vs downsample is readable at a
-# glance without implying a direction via the glyph (that's what the
-# red train-dt line is for):
-#   "o" = upsample    (filled circle)
-#   "s" = downsample  (filled square)
-#   "o" = resample    (filled circle on its own row, no ambiguity)
-MODE_MARKERS = {"upsample": "o", "downsample": "s", "resample": "o"}
 
 
-def _plot_model_mode(ax, sweep_dir, color, label, marker, key="acc"):
+def _plot_model_mode(ax, sweep_dir, color, label, linestyle="-", key="acc"):
     """Plot one (model, encoder mode) series on ax; returns the list of
-    (dt, value) points actually plotted, skipping entries missing the key."""
+    (dt, value) points actually plotted, skipping entries missing the key.
+    linestyle distinguishes upsample (solid) vs downsample (dashed) on the
+    count-preserving row without using markers."""
     if sweep_dir is None or not sweep_dir.exists():
         return []
     blob = load_sweep(sweep_dir)
@@ -493,24 +510,36 @@ def _plot_model_mode(ax, sweep_dir, color, label, marker, key="acc"):
         vals.append(v)
     if not dts:
         return []
-    ax.plot(dts, vals, marker=marker, color=color, label=label,
-            linewidth=1.4, markersize=6)
+    ax.plot(dts, vals, color=color, label=label,
+            linestyle=linestyle, linewidth=1.4)
     return list(zip(dts, vals))
 
 
 def _mode_legend_handles():
-    """Handles annotating which marker means which direction — drawn once
-    on the count-preserving row so the reader can decode circle vs square
+    """Handles annotating which line style means which direction — drawn once
+    on the count-preserving row so the reader can decode solid vs dashed
     without hunting for the caption."""
     from matplotlib.lines import Line2D
     return [
-        Line2D([0], [0], color=theme.DIM, marker=MODE_MARKERS["upsample"],
-               linestyle="-", markersize=6,
+        Line2D([0], [0], color=theme.DIM, linestyle="-", linewidth=1.4,
                label="upsample (eval-dt ≤ train-dt)"),
-        Line2D([0], [0], color=theme.DIM, marker=MODE_MARKERS["downsample"],
-               linestyle="-", markersize=6,
+        Line2D([0], [0], color=theme.DIM, linestyle="--", linewidth=1.4,
                label="downsample (eval-dt ≥ train-dt)"),
     ]
+
+
+def _grouped_model_handles(linestyle: str = "-"):
+    """Legend handles ordered by model family. Family kinship is encoded by
+    color alone (snnTorch blues / CUBA green / PING warms); ordering keeps
+    related models adjacent in the legend without needing text headers."""
+    from matplotlib.lines import Line2D
+    handles = []
+    for _, models in MODEL_GROUPS:
+        for m in models:
+            handles.append(Line2D([0], [0], color=MODEL_COLORS[m],
+                                  linestyle=linestyle, linewidth=1.6,
+                                  label=MODEL_LABELS[m]))
+    return handles
 
 
 def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
@@ -529,36 +558,37 @@ def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]]
             mode_dirs = regime_sweep_dirs[dt_train][model]
             pts_up = _plot_model_mode(ax, mode_dirs.get("upsample"),
                                       MODEL_COLORS[model], MODEL_LABELS[model],
-                                      MODE_MARKERS["upsample"], key="hid_rate_hz")
+                                      linestyle="-", key="hid_rate_hz")
             pts_dn = _plot_model_mode(ax, mode_dirs.get("downsample"),
                                       MODEL_COLORS[model], None,
-                                      MODE_MARKERS["downsample"], key="hid_rate_hz")
+                                      linestyle="--", key="hid_rate_hz")
             if pts_up or pts_dn:
                 any_data = True
-        ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1,
-                   label=f"train dt={dt_train}")
+        ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1)
+        ax.set_ylim(0, 300)
         ax.set_title(f"train dt = {dt_train} ms")
         if j == 0:
             ax.set_ylabel("count-preserving\nhidden rate (Hz)")
-            ax.legend(frameon=False, fontsize=7, loc="upper right")
-            # Direction-marker legend in a second slot so the < / > glyphs
-            # get their decoding without polluting the model legend.
+            ax.legend(handles=_grouped_model_handles(), frameon=False,
+                      fontsize=6, loc="upper right", handlelength=2.0)
             ax.add_artist(ax.legend(handles=_mode_legend_handles(),
                                     frameon=False, fontsize=6,
                                     loc="lower right"))
-            ax.legend(frameon=False, fontsize=7, loc="upper right")
+            ax.legend(handles=_grouped_model_handles(), frameon=False,
+                      fontsize=6, loc="upper right", handlelength=2.0)
         ax.grid(alpha=0.3)
 
-        # Row 1: resample — one circle marker per point.
+        # Row 1: resample — solid lines.
         ax = axes[1, j]
         for model in regime_sweep_dirs[dt_train]:
             pts = _plot_model_mode(ax,
                                    regime_sweep_dirs[dt_train][model].get("resample"),
                                    MODEL_COLORS[model], MODEL_LABELS[model],
-                                   MODE_MARKERS["resample"], key="hid_rate_hz")
+                                   linestyle="-", key="hid_rate_hz")
             if pts:
                 any_data = True
         ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1)
+        ax.set_ylim(0, 300)
         ax.set_xlabel("eval dt (ms)")
         if j == 0:
             ax.set_ylabel("resample\nhidden rate (Hz)")
@@ -587,21 +617,22 @@ def plot_dt_sweep(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
             mode_dirs = regime_sweep_dirs[dt_train][model]
             _plot_model_mode(ax, mode_dirs.get("upsample"),
                              MODEL_COLORS[model], MODEL_LABELS[model],
-                             MODE_MARKERS["upsample"])
+                             linestyle="-")
             _plot_model_mode(ax, mode_dirs.get("downsample"),
                              MODEL_COLORS[model], None,
-                             MODE_MARKERS["downsample"])
-        ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1,
-                   label=f"train dt={dt_train}")
+                             linestyle="--")
+        ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1)
         ax.set_ylim(0, 100)
         ax.set_title(f"train dt = {dt_train} ms")
         if j == 0:
             ax.set_ylabel("count-preserving\ntest acc (%)")
-            ax.legend(frameon=False, fontsize=7, loc="lower right")
+            ax.legend(handles=_grouped_model_handles(), frameon=False,
+                      fontsize=6, loc="lower right", handlelength=2.0)
             ax.add_artist(ax.legend(handles=_mode_legend_handles(),
                                     frameon=False, fontsize=6,
                                     loc="lower left"))
-            ax.legend(frameon=False, fontsize=7, loc="lower right")
+            ax.legend(handles=_grouped_model_handles(), frameon=False,
+                      fontsize=6, loc="lower right", handlelength=2.0)
         ax.grid(alpha=0.3)
 
         ax = axes[1, j]
@@ -609,7 +640,7 @@ def plot_dt_sweep(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
             _plot_model_mode(ax,
                              regime_sweep_dirs[dt_train][model].get("resample"),
                              MODEL_COLORS[model], MODEL_LABELS[model],
-                             MODE_MARKERS["resample"])
+                             linestyle="-")
         ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1)
         ax.set_ylim(0, 100)
         ax.set_xlabel("eval dt (ms)")
@@ -978,10 +1009,76 @@ def evaluate_only() -> None:
     _print_and_gate(summary["success_criteria"])
 
 
+def plots_only() -> None:
+    """Re-render the four published figures + numbers.json from existing
+    artifacts on disk without dispatching any training or sweep. Reuses
+    artifacts/notebooks/nb012/{regime}/{model}/train/metrics.json and
+    artifacts/notebooks/nb012/{regime}/{model}/sweep_{mode}/results.json
+    laid down by a previous full run.
+
+    Useful when only the plot rendering code or the figure layout has
+    changed and we want to refresh the published assets without paying
+    for compute. Will hard-fail if any expected artifact is missing.
+
+    Pass --tier <name> to label numbers.json correctly (defaults to
+    DEFAULT_TIER otherwise).
+    """
+    global TIER
+    TIER = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+    notebook_run_id = next_run_id(SLUG)
+    print(f"notebook_run_id = {notebook_run_id} tier={TIER} [plots-only]")
+
+    regime_train_dirs: dict[float, dict[str, Path]] = {}
+    regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]] = {}
+    for dt_train in DT_TRAINS:
+        rk = _regime_key(dt_train)
+        td = {m: ARTIFACTS / rk / m / "train" for m in MODELS}
+        for m, d in td.items():
+            if not (d / "metrics.json").exists():
+                raise SystemExit(
+                    f"--plots-only requires existing {d / 'metrics.json'}")
+        regime_train_dirs[dt_train] = td
+        sd: dict[str, dict[str, Path]] = {}
+        for m in MODELS:
+            sd[m] = {}
+            for mode in ENCODER_MODES:
+                sub = ARTIFACTS / rk / m / f"sweep_{_mode_key(mode)}"
+                if not (sub / "results.json").exists():
+                    raise SystemExit(
+                        f"--plots-only requires existing {sub / 'results.json'}")
+                sd[m][mode] = sub
+        regime_sweep_dirs[dt_train] = sd
+
+    FIGURES.mkdir(parents=True, exist_ok=True)
+    persist_run_id(SLUG, notebook_run_id)
+
+    plot_training_curves(regime_train_dirs, FIGURES / "training_curves.png",
+                         notebook_run_id)
+    print(f"wrote {(FIGURES / 'training_curves.png').relative_to(REPO)}")
+    plot_dt_sweep(regime_sweep_dirs, FIGURES / "dt_sweep.png", notebook_run_id)
+    print(f"wrote {(FIGURES / 'dt_sweep.png').relative_to(REPO)}")
+    plot_firing_rates(regime_sweep_dirs, FIGURES / "firing_rates.png",
+                      notebook_run_id)
+    fr = FIGURES / "firing_rates.png"
+    if fr.exists():
+        print(f"wrote {fr.relative_to(REPO)}")
+
+    numbers_path = FIGURES / "numbers.json"
+    summary = write_numbers(regime_train_dirs, regime_sweep_dirs, numbers_path,
+                            notebook_run_id, 0.0)
+    summary["success_criteria"] = evaluate_success(FIGURES, summary)
+    numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"wrote {numbers_path.relative_to(REPO)}")
+    _print_and_gate(summary["success_criteria"])
+
+
 def main() -> None:
     global TIER
     if "--evaluate-success-only" in sys.argv:
         evaluate_only()
+        return
+    if "--plots-only" in sys.argv:
+        plots_only()
         return
     skip_training = "--skip-training" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
