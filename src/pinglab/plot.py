@@ -412,7 +412,7 @@ def _apply_cell_insets(fig, main_gs, placements, panel_dict):
             gap_w = gap_frac * w / n_gaps
             box_w = (1 - gap_frac) * w / n
             for i, a in enumerate(ax):
-                a.set_position([x0 + i * (box_w + gap_w), y0, box_w, h])
+                a.set_position([x0 + i * (box_w + gap_w), y0, box_w, h])  # ty: ignore[unresolved-attribute]
         else:
             ax.set_position([x0, y0, w, h])
 

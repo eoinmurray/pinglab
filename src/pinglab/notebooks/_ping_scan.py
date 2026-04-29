@@ -212,7 +212,7 @@ def run_scan(spec: ScanSpec) -> dict:
     stamp.unlink(missing_ok=True)
 
     duration_s = time.monotonic() - t_start
-    summary = {
+    summary: dict = {
         "notebook_run_id": notebook_run_id,
         "run_datetime": _format_run_datetime(datetime.now().astimezone()),
         "duration_s": round(duration_s, 1),

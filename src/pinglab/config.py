@@ -226,7 +226,7 @@ def build_net(model_name, w_in=None, w_in_sparsity=0.0,
     if device is not None:
         net = net.to(device)
     if randomize_init and hasattr(net, "randomize_init"):
-        net.randomize_init = True
+        setattr(net, "randomize_init", True)
     return net
 
 
@@ -428,8 +428,11 @@ def run_sim(dt, t_e_ping, *, ext_g_override=None, model_name="ping",
     rec = _extract_records(net)
     weights = extract_weights(net)
 
-    display = (input_spikes.cpu().numpy() if input_spikes is not None
-               else ext_g_tensor.cpu().numpy())
+    if input_spikes is not None:
+        display = input_spikes.cpu().numpy()
+    else:
+        assert ext_g_tensor is not None
+        display = ext_g_tensor.cpu().numpy()
     return rec, display, weights
 
 
@@ -459,12 +462,15 @@ def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100,
         net.recording = True
 
         with torch.no_grad():
-            net.forward(ext_g=ext_g_batch, randomize_init=False)
+            kwargs: dict = {"ext_g": ext_g_batch}
+            if model_name in HAS_INH:
+                kwargs["randomize_init"] = False
+            net.forward(**kwargs)
 
         rec_stacked = {}
         for k, v in net.spike_record.items():
             if isinstance(v, list):
-                rec_stacked[k] = torch.stack(v).cpu().numpy()
+                rec_stacked[k] = torch.stack(v).cpu().numpy()  # ty: ignore[invalid-argument-type]
             else:
                 rec_stacked[k] = v.cpu().numpy()
 
@@ -498,7 +504,7 @@ def run_sim_image(dt, image, model_name="ping", load_weights=None):
                     < pixels.unsqueeze(0) * p).float().squeeze(1)
 
     with torch.no_grad():
-        kwargs = {"input_spikes": input_spikes}
+        kwargs: dict = {"input_spikes": input_spikes}
         if model_name in HAS_INH:
             kwargs["randomize_init"] = True
         out = net.forward(**kwargs)
@@ -610,7 +616,7 @@ def _sync_globals_from_cfg(c):
     global T_E_ASYNC_DEFAULT, SIGMA_E, STEP_ON_MS, STEP_OFF_MS
     global W_EI, W_IE, SPARSITY, NOISE_SIGMA, NOISE_TAU
     global SPIKE_RATE_BASE, ARTIFACT_ROOT, DEVICE, EI_RATIO
-    global W_IN_SPIKES, W_IN_SPARSITY, BIAS, OUT_NAME
+    global W_IN_SPIKES, W_IN_SPARSITY, BIAS
     cfg = c
     N_E = c.n_e
     N_I = c.n_i
