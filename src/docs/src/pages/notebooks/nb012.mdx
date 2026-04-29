@@ -75,12 +75,12 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Method
 
-Six models trained at two *dt* regimes; per-model recipes mirror their sibling per-model trainer ([nb006](/notebooks/nb006/)–[nb011](/notebooks/nb011/)) verbatim.
+Six models trained at two *dt* regimes.
 
 **Models** (see [the ladder](/models/)):
 
 - [*standard-snn*](/models/#standard-snn) — pinglab reimplementation of snnTorch's *snn.Leaky*. [snnTorch Tutorial 3 § 1.2](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html#the-decay-rate-beta) derives the proper Euler form $U(t+\Delta t) = (1-\Delta t/\tau)\,U(t) + (\Delta t/\tau)\,I_\text{in}\,R$, then simplifies by setting $\Delta t = 1$, $R = 1$, and absorbing the $(1-\beta)$ prefactor into the learnable weight $W$. Here $\beta = e^{-\Delta t / \tau_\text{mem}}$ is the per-step membrane decay factor — exact under exponential-Euler integration of the homogeneous LIF equation. After the Tutorial-3 simplification $\Delta t$ no longer appears in the update — each input spike adds exactly $W_i$ to the membrane regardless of how fine the timestep is.
-- [*standard-snn-exp*](/models/#standard-snn) — *standard-snn* with an exponential synapse ($\tau_\text{syn} \approx 2$ ms) on the feedforward inputs to the hidden layer. Single-knob ablation isolating the synaptic kernel ([nb007](/notebooks/nb007/)).
+- [*standard-snn-exp*](/models/#standard-snn) — *standard-snn* with an exponential synapse ($\tau_\text{syn} \approx 2$ ms) on the feedforward inputs to the hidden layer.
 - [*snntorch-library*](/models/#snntorch-library) — snnTorch's *snn.Leaky* directly. Parity probe against *standard-snn*.
 - [*cuba*](/models/#cuba) — same LIF, exp-Euler + ZOH integration restoring the $(1-\beta)/dt$ and $(1-\beta)$ prefactors. *dt* is back in the update.
 - [*coba*](/models/#coba) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
@@ -92,6 +92,7 @@ All cells in the recipe table show the resolved value used at training time. Par
 |---|---|---|---|---|---|---|
 | [*--model*](/the-oscilloscope/#network-flags-shared) | standard-snn | standard-snn-exp | snntorch-library | cuba | ping | ping |
 | [*--dataset*](/the-oscilloscope/#input-flags-shared) | mnist | mnist | mnist | mnist | mnist | mnist |
+| [*--input-rate*](/the-oscilloscope/#input-flags-shared) (Hz) | 25 | 25 | 25 | 25 | 25 | 25 |
 | [*--t-ms*](/the-oscilloscope/#network-flags-shared) | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} |
 | [*--seed*](/the-oscilloscope/#execution-flags-shared) | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} |
 | [*--max-samples*](/the-oscilloscope/#subcommand-train) | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} |
@@ -152,7 +153,7 @@ Best test accuracy per regime:
   </Figure>
 )}
 
-The snnTorch family (blue) increases as eval-*dt* shrinks below train-*dt*, while
+The snnTorch family (blue) increases as eval-*dt* shrinks, while
 cuba/coba/ping (green/orange/red) stay roughly flat. The mechanism is visible
 directly in the steady-state membrane potential.
 
