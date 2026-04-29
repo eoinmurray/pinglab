@@ -177,8 +177,6 @@ MODEL_CONFIG: dict[str, dict] = {
         "--v-grad-dampen": "1000",
         "--w-in": "0.3",
         "--w-in-sparsity": "0.95",
-        "--readout": "li",
-        "--surrogate-slope": "1",
         "--lr": "0.0004",                    # 4× scaled vs old 1e-4 for batch=256
         "--batch-size": "256",
     },
@@ -188,8 +186,6 @@ MODEL_CONFIG: dict[str, dict] = {
         "--v-grad-dampen": "1000",
         "--w-in": "1.2",
         "--w-in-sparsity": "0.95",
-        "--readout": "li",
-        "--surrogate-slope": "1",
         "--lr": "0.0004",                    # 4× scaled
         "--batch-size": "256",
     },
