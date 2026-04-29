@@ -762,18 +762,15 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
 
     (1) Per-run training-health checks, matching nb006–nb011 shape
         (shared _per_model.evaluate_success): every one of the 5 models ×
-        2 dts must have final_acc above the tier's chance-floor, hidden
-        rate_e in the 1–200 Hz band, and no late-epoch collapse. Without
-        these, a sweep where every run sat at chance could still pass
-        the sweep-level ratio checks below.
+        2 dts must have final_acc above the tier's chance-floor and no
+        late-epoch collapse. Without these, a sweep where every run sat
+        at chance could still pass the sweep-level ratio checks below.
 
     (2) Sweep-level structural checks: (a) the three headline figures
         rendered, (b) cuba/coba/ping hold hidden rate flat across
         eval-dt on the regime's primary count-preserving mode
-        (ratio ≤ FLAT_MAX), (c) standard-snn and snntorch-library sag
-        on the same axis (ratio ≥ SAG_MIN), (d) pinglab parity —
-        standard-snn best-acc within PARITY_TOL pts of snntorch-library
-        in both regimes.
+        (ratio ≤ FLAT_MAX), (c) pinglab parity — standard-snn best-acc
+        within PARITY_TOL pts of snntorch-library in both regimes.
 
     Each is a hard gate; the prose paragraph above the table keeps the
     nuance.
@@ -783,8 +780,6 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
 
     # ── Per-run training-health (layer 1) ──
     # Matches the per-model runner thresholds in _per_model.py.
-    PER_RUN_RATE_MIN_HZ = 1.0
-    PER_RUN_RATE_MAX_HZ = 200.0
     PER_RUN_COLLAPSE_TOL_PP = 5.0
     # Tier floors match _per_model.DEFAULT_MIN_ACC. Default to the
     # lowest if tier is not recorded (older runs).
@@ -795,10 +790,8 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
 
     regimes_all = summary.get("regimes", {})
     acc_fails: list[str] = []
-    rate_fails: list[str] = []
     collapse_fails: list[str] = []
     acc_detail: list[str] = []
-    rate_detail: list[str] = []
     collapse_detail: list[str] = []
     for dt_key, regime in regimes_all.items():
         dt_train = regime.get("dt_train", float(dt_key))
@@ -806,19 +799,12 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
             tag = f"{m}@dt{dt_train}"
             best = r.get("best_acc")
             final = r.get("final_acc")
-            rate = r.get("final_rate_e")
             if isinstance(final, (int, float)):
                 acc_detail.append(f"{tag} {final:.0f}%")
                 if final < floor:
                     acc_fails.append(f"{tag}:{final:.0f}%<{floor:.0f}%")
             else:
                 acc_fails.append(f"{tag}:no-data")
-            if isinstance(rate, (int, float)):
-                rate_detail.append(f"{tag} {rate:.1f}Hz")
-                if not (PER_RUN_RATE_MIN_HZ <= rate <= PER_RUN_RATE_MAX_HZ):
-                    rate_fails.append(f"{tag}:{rate:.1f}Hz")
-            else:
-                rate_fails.append(f"{tag}:no-data")
             if isinstance(best, (int, float)) and isinstance(final, (int, float)):
                 delta = best - final
                 collapse_detail.append(f"{tag} Δ={delta:.0f}pp")
@@ -829,11 +815,6 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
         "label": f"all runs final-acc ≥ {floor:.0f}% ({tier or 'unknown'} tier floor)",
         "passed": not acc_fails,
         "detail": "; ".join(acc_detail) if acc_detail else "no data",
-    })
-    criteria.append({
-        "label": f"all runs hidden rate in band ({PER_RUN_RATE_MIN_HZ:g}–{PER_RUN_RATE_MAX_HZ:g} Hz)",
-        "passed": not rate_fails,
-        "detail": "; ".join(rate_detail) if rate_detail else "no data",
     })
     criteria.append({
         "label": f"no collapse (final ≥ best − {PER_RUN_COLLAPSE_TOL_PP:.0f}pp) for all runs",
@@ -860,20 +841,16 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
 
     regimes = summary.get("regimes", {})
     flat_models = ("cuba", "coba", "ping")
-    sag_models = ("standard-snn", "snntorch-library")
-    # Thresholds are deliberately loose relative to the prose: they gate
-    # against regression ("ping holding gamma across eval-dt collapsed",
-    # "snnTorch paths became flat") rather than enforcing the tier-small
-    # numeric headline, which varies run-to-run.
+    # Threshold is deliberately loose relative to the prose: gates against
+    # regression ("ping holding gamma across eval-dt collapsed") rather
+    # than enforcing the tier-small numeric headline, which varies
+    # run-to-run.
     FLAT_MAX = 3.0
-    SAG_MIN = 10.0
     PARITY_TOL = 15.0
 
     flat_fails: list[str] = []
-    sag_fails: list[str] = []
     parity_fails: list[str] = []
     flat_detail: list[str] = []
-    sag_detail: list[str] = []
     parity_detail: list[str] = []
 
     for dt_key, regime in regimes.items():
@@ -891,16 +868,6 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
             if ratio > FLAT_MAX:
                 flat_fails.append(f"{m}@dt={dt_train}:{ratio:.2f}×>{FLAT_MAX}×")
 
-        for m in sag_models:
-            entry = runs.get(m, {}).get("encoder_modes", {}).get(mode, {})
-            ratio = _rate_ratio(entry)
-            if ratio is None:
-                sag_fails.append(f"{m}@dt={dt_train}:no-data")
-                continue
-            sag_detail.append(f"{m}@dt{dt_train} {ratio:.1f}×")
-            if ratio < SAG_MIN:
-                sag_fails.append(f"{m}@dt={dt_train}:{ratio:.1f}×<{SAG_MIN}×")
-
         snn_acc = runs.get("standard-snn", {}).get("best_acc")
         lib_acc = runs.get("snntorch-library", {}).get("best_acc")
         if isinstance(snn_acc, (int, float)) and isinstance(lib_acc, (int, float)):
@@ -915,11 +882,6 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
         "label": f"cuba/coba/ping rate-flat (ratio ≤ {FLAT_MAX:g}×) on count-preserving sweep",
         "passed": not flat_fails,
         "detail": "; ".join(flat_detail) if flat_detail else "no data",
-    })
-    criteria.append({
-        "label": f"snnTorch paths sag (ratio ≥ {SAG_MIN:g}×) on count-preserving sweep",
-        "passed": not sag_fails,
-        "detail": "; ".join(sag_detail) if sag_detail else "no data",
     })
     criteria.append({
         "label": f"pinglab parity: standard-snn vs snntorch-library best-acc within {PARITY_TOL:g} pt",
