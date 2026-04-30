@@ -218,7 +218,7 @@ The snnTorch family (blue) rises as eval-*dt* shrinks; cuba/coba/ping stay flat.
 
 Update rule: $U_{t+1} = \beta U_t + W s_t + b$, $\beta = e^{-\Delta t / \tau_\text{mem}}$. Take the expectation at mean input rate $r$: $\mathbb{E}[s_t] = r\Delta t$, so each step adds $Wr\Delta t + b$. Fixed point: $U_{ss} = (Wr\Delta t + b)/(1-\beta) \approx Wr\tau + b\tau/\Delta t$ (using $1-\beta \approx \Delta t/\tau$).
 
-The spike contribution $Wr\tau$ is *dt*-invariant; the bias contribution $b\tau/\Delta t$ scales as $1/\Delta t$. Halving eval-*dt* doubles bias drive and the network fires harder to compensate. cuba/coba/ping restore the missing $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors at integration time, giving $U_{ss} = Wr + b$ — *dt*-invariant by construction.
+The spike contribution $Wr\tau$ is *dt*-invariant; the bias contribution $b\tau/\Delta t$ scales as $1/\Delta t$. Halving eval-*dt* doubles bias drive; firing rate rises with it. cuba/coba/ping restore the missing $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors at integration time, giving $U_{ss} = Wr + b$ — *dt*-invariant by construction.
 
 ### Accuracy vs eval-*dt*
 
