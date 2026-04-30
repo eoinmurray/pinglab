@@ -132,6 +132,7 @@ def patch_dt(dt_new, sim_ms):
     M.decay_ampa = np.exp(-dt_new / M.tau_ampa)
     M.decay_gaba = np.exp(-dt_new / M.tau_gaba)
     M.beta_snn = np.exp(-dt_new / M.tau_snn)
+    M.beta_out = np.exp(-dt_new / M.tau_out_ms)
     M.ref_steps_E = max(1, int(round(M.ref_ms_E / dt_new)))
     M.ref_steps_I = max(1, int(round(M.ref_ms_I / dt_new)))
     M.p_scale = M.max_rate_hz * dt_new / 1000.0

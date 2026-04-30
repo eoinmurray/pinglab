@@ -1,15 +1,15 @@
 {
-  "notebook_run_id": "r021",
-  "git_sha": "unknown",
-  "duration_s": 1615.5,
-  "duration": "26m 56s",
-  "tier": "large",
+  "notebook_run_id": "r026",
+  "git_sha": "9da1532 (dirty)",
+  "duration_s": 100.8,
+  "duration": "1m 41s",
+  "tier": "medium",
   "config": {
-    "tier": "large",
+    "tier": "medium",
     "dataset": "mnist",
     "model": "standard-snn",
-    "max_samples": 5000,
-    "epochs": 40,
+    "max_samples": 2000,
+    "epochs": 10,
     "t_ms": 200.0,
     "dt": 0.1,
     "n_hidden": 1024,
@@ -19,60 +19,59 @@
   },
   "run": {
     "model": "standard-snn",
-    "run_date": "Tuesday, April 28 2026 at 06:07",
-    "run_id": "r-20260428-044048",
-    "git_sha": "unknown",
+    "run_date": "Thursday, April 30 2026 at 09:12",
+    "run_id": "r-20260430-091055",
+    "git_sha": "9da1532 (dirty)",
     "lr": 0.01,
-    "best_acc": 86.8,
-    "best_epoch": 39,
-    "final_acc": 85.4,
-    "final_loss": 0.2934469887986779,
-    "total_elapsed_s": 1570.210034738
+    "best_acc": 85.5,
+    "best_epoch": 10,
+    "final_acc": 85.5,
+    "final_loss": 0.40744722315243315,
+    "total_elapsed_s": 94.78743749996647
   },
   "perf": {
     "device": {
-      "type": "cuda",
-      "name": "NVIDIA A100 80GB PCIe"
+      "type": "mps"
     },
-    "torch_version": "2.11.0+cu130",
-    "peak_memory_bytes": 5892829184,
-    "epoch1_total_s": 48.0872644,
-    "epoch_warm_mean_s": 36.11732382276924,
-    "samples_per_sec_warm": 151.99286743600234
+    "torch_version": "2.11.0",
+    "peak_memory_bytes": 429378048,
+    "epoch1_total_s": 9.564373959321529,
+    "epoch_warm_mean_s": 8.710452453802443,
+    "samples_per_sec_warm": 224.5630327981987
   },
   "success_criteria": [
     {
       "label": "training curves rendered",
       "passed": true,
-      "detail": "training_curves.png (62832 bytes)",
+      "detail": "training_curves.png (65914 bytes)",
       "detail_href": "/figures/notebooks/nb006/training_curves.png"
     },
     {
       "label": "firing-rate trace rendered",
       "passed": true,
-      "detail": "firing_rates.png (50704 bytes)",
+      "detail": "firing_rates.png (48661 bytes)",
       "detail_href": "/figures/notebooks/nb006/firing_rates.png"
     },
     {
       "label": "training video rendered",
       "passed": true,
-      "detail": "training.mp4 (3203971 bytes)",
+      "detail": "training.mp4 (1477696 bytes)",
       "detail_href": "/figures/notebooks/nb006/training.mp4"
     },
     {
       "label": "hidden rate in band (1.0\u2013200.0 Hz)",
-      "passed": true,
-      "detail": "rate_e=193.12 Hz"
+      "passed": false,
+      "detail": "rate_e=260.68 Hz"
     },
     {
-      "label": "final acc \u2265 70.0% (large tier floor)",
+      "label": "final acc \u2265 50.0% (medium tier floor)",
       "passed": true,
-      "detail": "final=85.40%, best=86.80%"
+      "detail": "final=85.50%, best=85.50%"
     },
     {
       "label": "no collapse (final \u2265 best \u2212 5pp)",
       "passed": true,
-      "detail": "final=85.40%, best=86.80%, \u0394=1.40pp"
+      "detail": "final=85.50%, best=85.50%, \u0394=0.00pp"
     }
   ]
 }

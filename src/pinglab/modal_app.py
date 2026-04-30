@@ -258,12 +258,28 @@ def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
     print(f"  args: {' '.join(cli_args)}")
     print(f"  local out-dir: {local_out_dir}")
 
-    with modal.enable_output():
-        # detach=True so the remote app keeps running even if the local
-        # client disconnects (e.g. Taskfile parallel dispatcher exits after
-        # all 8 deps are kicked off).
-        with app.run(detach=True):
-            remote_out = fn.remote(cli_args)
+    remote_out: str | None = None
+    try:
+        with modal.enable_output():
+            # detach=True so the remote app keeps running even if the local
+            # client disconnects (e.g. Taskfile parallel dispatcher exits after
+            # all 8 deps are kicked off).
+            with app.run(detach=True):
+                remote_out = fn.remote(cli_args)
+    except Exception as exc:  # noqa: BLE001
+        print(f"\n[modal] connection to detached app lost: {exc}")
+        print("       the run is still executing remotely; "
+              "fetch artifacts manually with:")
+        out_name = Path(local_out_dir).name
+        rel = str(Path(local_out_dir).relative_to(Path.cwd()))
+        print(f"         uv run modal volume get {VOLUME_NAME} "
+              f"{REMOTE_ARTIFACTS.lstrip('/')}{Path(local_out_dir).as_posix().split(REMOTE_ARTIFACTS, 1)[-1] if REMOTE_ARTIFACTS in local_out_dir else '/<remote-path>/'}/ "
+              f"{Path(local_out_dir).parent}/ --force")
+        return
+
+    if remote_out is None:
+        print("[modal] no remote_out returned; nothing to sync")
+        return
 
     volume_path = remote_out.removeprefix(REMOTE_ARTIFACTS + "/")
     local_path = Path(local_out_dir)
