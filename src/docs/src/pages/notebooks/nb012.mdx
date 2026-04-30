@@ -115,6 +115,19 @@ Recipe table cells are the resolved training values; *n/a* marks parameters the 
 | integrator | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | exp-Euler ZOH (input) | exp-Euler ZOH (conductance) | exp-Euler ZOH (conductance) |
 | synapse | direct | exponential | direct | direct | exponential (COBA) | exponential (COBA) + E→I→E |
 
+Trainable parameters (with $N_\text{in} = 784$, $N_\text{hid} = 1024$, $N_\text{out} = 10$):
+
+| Param | shape | snnTorch family | cuba | coba | ping |
+|---|---|---|---|---|---|
+| *W_ff[0]* (input → hidden) | $N_\text{in} \times N_\text{hid}$ | ✓ | ✓ | ✓ | ✓ |
+| *b_ff[0]* (hidden bias) | $N_\text{hid}$ | ✓ | ✓ | — | — |
+| *W_ff[-1]* (hidden → output) | $N_\text{hid} \times N_\text{out}$ | ✓ | ✓ | ✓ | ✓ |
+| *b_ff[-1]* (output bias) | $N_\text{out}$ | ✓ | ✓ | — | — |
+| *W_ee*, *W_ei*, *W_ie* | $N_\text{hid}^2$, $N_\text{hid} \times N_\text{i}$, $N_\text{i} \times N_\text{hid}$ | — | — | frozen | frozen |
+| **Total** | | **814,090** | **814,090** | **813,056** | **813,056** |
+
+The CUBANet family includes hidden + output biases; COBANet's biophysical formulation has no bias term, so $\sim$1k fewer params. PING's E↔I recurrent matrices are present but frozen at init — only the feedforward path trains, matching the trainable-parameter count of coba so the model-class comparison is apples-to-apples.
+
 ### Readout
 
 All six models use *mem-mean*: spiking output LIF, mean-of-membrane as logits. Architecture matches [snnTorch tutorial 3](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html) (leaky neuron after the final projection), training signal matches [tutorial 5](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html) (CE on the output membrane summed across timesteps — taken in mean form here for *dt*-invariance).
@@ -156,7 +169,7 @@ Five flags differ between [*cuba*](/models/#cuba) and [*coba*](/models/#coba); t
 | Difference | cuba | coba | Effect | Justification |
 |---|---|---|---|---|
 | Membrane equation | $\tau\, dV/dt = -V + I$ | $C_m\, dV/dt = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i)$ | Linear additive ODE vs nonlinear multiplicative; coba clips $V$ at $E_e$. | Headline biophysical step on [the ladder](/models/); reversal potentials, $g_e/g_i$, µS units all follow. |
-| Spike reset | subtract ($U \mathrel{{-}{=}} \theta$) | hard ($V \leftarrow V_\text{reset}$) | Subtract preserves cross-spike momentum; hard reset destroys it. | Matches biological AHP. |
+| Spike reset | subtract ($U \mathrel{{-}{=}} \theta$) | hard ($V \leftarrow V_\text{reset}$) | Subtract preserves cross-spike momentum; hard reset destroys it. | Matches biological after-hyperpolarisation (the brief K⁺-driven dip below rest after a spike). |
 | Refractory | none | $\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms | Caps single-neuron rate at $\sim 1/\tau_\text{ref}$. | Biophysical realism + prevents runaway firing. |
 | Dale's law | off | on ($W \geq 0$) | Restricts optimisation landscape. | Real cortical synapses don't switch sign. |
 | Synaptic kernel | direct LIF | exponential ($\tau_\text{AMPA} = 2$, $\tau_\text{GABA} = 9$ ms) | Each spike kicks instantaneously in cuba; in coba it raises a decaying conductance trace. | Required for any oscillation, including PING's gamma. |
@@ -304,10 +317,6 @@ uv run src/pinglab/notebooks/nb012.py --tier medium
 ```
 
 Add *--modal-gpu A100* to dispatch the 12 training jobs (and 36 sweep jobs) to Modal in parallel; default is local. *--plots-only* re-renders figures + numbers.json from existing artifacts without retraining.
-
-### Run parameters
-
-<RunParameters numbers={numbers} />
 
 ### Videos
 
