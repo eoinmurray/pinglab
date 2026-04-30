@@ -23,19 +23,14 @@ MODEL = "snntorch-library"
 
 
 def build_osc_args(tier: str, out_dir: Path) -> list[str]:
-    # --readout li: leaky-integrator readout (bounded logits) instead of
-    # the default "rate" readout, which accumulates spike counts over
-    # T_steps=2000 and saturates CE so hard that backward produces
-    # non-finite grads — every batch gets skipped, loss reports 0, and
-    # the video shows identical frames across all epochs.
-    # --surrogate-slope 1: default slope=5 × T_steps=2000 timesteps of
-    # BPTT through the LIF stack overflows fp32 in W_ff.0 / b_ff.0 grads
-    # (finite_max hits ~9e37, then NaN after further multiplies). slope=1
-    # keeps the surrogate pseudo-derivative ≤ 1 so the gradient stays
-    # bounded end-to-end; the grad-norm skip path no longer fires.
+    # --readout mem-mean: snnTorch tutorial 5 pattern (output spiking LIF
+    # with mean(v_out) loss). Dense per-step gradient signal vs the
+    # surrogate-gated spike-count alternative.
+    # --surrogate-slope 1: bounds fast-sigmoid pseudo-derivative through
+    # 2000 BPTT steps; slope=5 overflows fp32 in W_ff.0 grads.
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
         "--kaiming-init",
-        "--readout", "li",
+        "--readout", "mem-mean",
         "--surrogate-slope", "1",
         "--lr", "0.01",
         "--batch-size", "256",

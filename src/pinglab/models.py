@@ -47,6 +47,12 @@ input_scale   = 20.0      # nA per input spike (CUBA only)
 
 # ── snnTorch ──────────────────────────────────────────────────────────────
 tau_snn       = 10.0      # ms — membrane time constant
+# Output-LIF time constant for the spike-count readout. Smaller than
+# tau_snn means faster leak: the output membrane decays before saturating
+# under high-rate hidden drive, which is what was breaking the spike-count
+# readout for snnTorch-family models at coarse dt where hidden rates run
+# 60–1000 Hz. Override per-run via --readout-tau-out.
+tau_out_ms    = 2.0       # ms
 thr_snn       = 1.0       # spike threshold
 
 # ── Architecture ──────────────────────────────────────────────────────────
@@ -94,6 +100,7 @@ ref_steps_E  = max(1, int(round(ref_ms_E / dt)))
 ref_steps_I  = max(1, int(round(ref_ms_I / dt)))
 p_scale      = max_rate_hz * dt / 1000.0
 beta_snn     = np.exp(-dt / tau_snn)
+beta_out     = np.exp(-dt / tau_out_ms)
 delay_ei_steps = max(1, int(round(delay_ei_ms / dt)))
 delay_ie_steps = max(1, int(round(delay_ie_ms / dt)))
 
@@ -347,10 +354,10 @@ class CUBANet(SNNBase):
             raise ValueError(
                 f"discretisation must be 'snntorch' or 'zoh', "
                 f"got {discretisation!r}")
-        if readout_mode not in ("rate", "li", "spike-count"):
+        if readout_mode not in ("rate", "li", "spike-count", "mem-mean"):
             raise ValueError(
-                f"readout_mode must be 'rate', 'li', or 'spike-count', "
-                f"got {readout_mode!r}")
+                f"readout_mode must be 'rate', 'li', 'spike-count', or "
+                f"'mem-mean', got {readout_mode!r}")
         self.discretisation = discretisation
         self.exponential_synapse = exponential_synapse
         self.ref_ms = ref_ms
@@ -490,6 +497,8 @@ class CUBANet(SNNBase):
             return readout["logits_max"]
         if self.readout_mode == "spike-count":
             return readout["s_count"]
+        if self.readout_mode == "mem-mean":
+            return readout["mem_sum"] / float(T_steps)
         return readout["logits_t"]
 
     def _forward_loop(self, cfg, state, readout):
@@ -648,6 +657,7 @@ class CUBANet(SNNBase):
             "v_out": torch.zeros(B, N_OUT, device=device),
             "logits_max": torch.full((B, N_OUT), float("-inf"), device=device),
             "s_count": torch.zeros(B, N_OUT, device=device),
+            "mem_sum": torch.zeros(B, N_OUT, device=device),
             "logits_t": None,
         }
 
@@ -721,14 +731,27 @@ class CUBANet(SNNBase):
             readout["logits_max"] = torch.maximum(readout["logits_max"],
                                                    readout["v_out"])
             readout["logits_t"] = readout["v_out"]
-        elif self.readout_mode == "spike-count":
-            I_out = prev_spk @ W_out + b_out
-            readout["v_out"] = cfg["beta"] * readout["v_out"] + I_out
+        elif self.readout_mode in ("spike-count", "mem-mean"):
+            # Exp-Euler ZOH on the output LIF (per-spike kick to v_out is
+            # (1-β_out)/dt · W ≈ W/τ_out, dt-invariant). Subtract-reset on
+            # spike — multiplicative `v_out * (1-s_out)` produces a
+            # multiplicative gate in the backward path that overflows
+            # through 2000 BPTT steps; subtract is what cuba's hidden
+            # layers use and has clean linear backward.
+            one_minus_beta = 1.0 - beta_out
+            spike_scale = one_minus_beta / dt
+            bias_scale = one_minus_beta
+            I_out = spike_scale * (prev_spk @ W_out) + bias_scale * b_out
+            readout["v_out"] = beta_out * readout["v_out"] + I_out
             s_out = fast_sigmoid_spike(readout["v_out"] - thr_snn,
                                        SURROGATE_SLOPE)
             readout["s_count"] = readout["s_count"] + s_out
-            readout["v_out"] = readout["v_out"] * (1.0 - s_out)
-            readout["logits_t"] = readout["s_count"]
+            readout["mem_sum"] = readout["mem_sum"] + readout["v_out"]
+            readout["v_out"] = readout["v_out"] - s_out * thr_snn
+            if self.readout_mode == "mem-mean":
+                readout["logits_t"] = readout["mem_sum"] / float(T_steps)
+            else:
+                readout["logits_t"] = readout["s_count"]
         else:
             readout["hidden_accum"] = readout["hidden_accum"] + prev_spk
             readout["logits_t"] = readout["hidden_accum"] @ W_out + b_out
@@ -814,10 +837,10 @@ class SNNTorchLibraryNet(SNNBase):
     def __init__(self, hidden_sizes=None, w_rec=None, rec_layers=None,
                  readout_mode="rate", **_ignored):
         super().__init__()
-        if readout_mode not in ("rate", "li", "spike-count"):
+        if readout_mode not in ("rate", "li", "spike-count", "mem-mean"):
             raise ValueError(
-                f"readout_mode must be 'rate', 'li', or 'spike-count', "
-                f"got {readout_mode!r}")
+                f"readout_mode must be 'rate', 'li', 'spike-count', or "
+                f"'mem-mean', got {readout_mode!r}")
         self.readout_mode = readout_mode
         import snntorch as snn
         from snntorch import surrogate
@@ -897,6 +920,7 @@ class SNNTorchLibraryNet(SNNBase):
         v_out = torch.zeros(B, N_OUT, device=device)
         logits_max = torch.full((B, N_OUT), float("-inf"), device=device)
         s_count = torch.zeros(B, N_OUT, device=device)
+        mem_sum = torch.zeros(B, N_OUT, device=device)
 
         rec_buf = None
         if self.recording:
@@ -946,13 +970,23 @@ class SNNTorchLibraryNet(SNNBase):
                 v_out = float(beta_snn) * v_out + (1.0 - float(beta_snn)) * I_out
                 logits_max = torch.maximum(logits_max, v_out)
                 logits_t = v_out
-            elif self.readout_mode == "spike-count":
-                I_out = self.fc_ff[-1](prev_spk)
-                v_out = float(beta_snn) * v_out + I_out
+            elif self.readout_mode in ("spike-count", "mem-mean"):
+                # Exp-Euler ZOH on output LIF + subtract reset (see
+                # CUBANet._readout_step for rationale).
+                one_minus_beta = 1.0 - float(beta_out)
+                spike_scale = one_minus_beta / float(dt)
+                bias_scale = one_minus_beta
+                W_out, b_out = self.fc_ff[-1].weight, self.fc_ff[-1].bias
+                I_out = spike_scale * (prev_spk @ W_out.t()) + bias_scale * b_out
+                v_out = float(beta_out) * v_out + I_out
                 s_out = fast_sigmoid_spike(v_out - thr_snn, SURROGATE_SLOPE)
                 s_count = s_count + s_out
-                v_out = v_out * (1.0 - s_out)
-                logits_t = s_count
+                mem_sum = mem_sum + v_out
+                v_out = v_out - s_out * thr_snn
+                if self.readout_mode == "mem-mean":
+                    logits_t = mem_sum / float(T_steps)
+                else:
+                    logits_t = s_count
             else:
                 hidden_accum = hidden_accum + prev_spk
                 logits_t = self.fc_ff[-1](hidden_accum)
@@ -972,6 +1006,8 @@ class SNNTorchLibraryNet(SNNBase):
             return logits_max
         if self.readout_mode == "spike-count":
             return s_count
+        if self.readout_mode == "mem-mean":
+            return mem_sum / float(T_steps)
         return logits_t
 
 
@@ -984,10 +1020,10 @@ class COBANet(SNNBase):
                  dales_law=True, hidden_sizes=None, ei_layers=None,
                  readout_mode="rate"):
         super().__init__()
-        if readout_mode not in ("rate", "li", "spike-count"):
+        if readout_mode not in ("rate", "li", "spike-count", "mem-mean"):
             raise ValueError(
-                f"readout_mode must be 'rate', 'li', or 'spike-count', "
-                f"got {readout_mode!r}")
+                f"readout_mode must be 'rate', 'li', 'spike-count', or "
+                f"'mem-mean', got {readout_mode!r}")
         self.readout_mode = readout_mode
         self.signed_weights = not dales_law
         # Same lazy-compile pattern as CUBANet — see CUBANet for rationale.
@@ -1101,6 +1137,7 @@ class COBANet(SNNBase):
         v_out = torch.zeros(B, N_OUT, device=device)
         logits_max = torch.full((B, N_OUT), float("-inf"), device=device)
         s_count = torch.zeros(B, N_OUT, device=device)
+        mem_sum = torch.zeros(B, N_OUT, device=device)
 
         # Pre-allocate recording buffers on GPU
         rec_buf = None
@@ -1131,7 +1168,7 @@ class COBANet(SNNBase):
             "v_e": v_e, "ref_e": ref_e, "ge_e": ge_e, "gi_e": gi_e, "s_e": s_e,
             "v_i": v_i, "ref_i": ref_i, "ge_i": ge_i, "s_i": s_i,
             "hidden_accum": hidden_accum, "v_out": v_out,
-            "logits_max": logits_max, "s_count": s_count,
+            "logits_max": logits_max, "s_count": s_count, "mem_sum": mem_sum,
         }
         cfg = {
             "B": B, "device": device,
@@ -1195,6 +1232,8 @@ class COBANet(SNNBase):
             return state["logits_max"]
         if self.readout_mode == "spike-count":
             return state["s_count"]
+        if self.readout_mode == "mem-mean":
+            return state["mem_sum"] / float(T_steps)
         return logits_t
 
     def _step_body(self, slc, cfg, state):
@@ -1279,12 +1318,20 @@ class COBANet(SNNBase):
             state["v_out"] = beta_snn * state["v_out"] + (1.0 - beta_snn) * I_out
             state["logits_max"] = torch.maximum(state["logits_max"], state["v_out"])
             return state["v_out"]
-        if cfg["readout_mode"] == "spike-count":
-            I_out = prev_spk @ W_ff[-1]
-            state["v_out"] = beta_snn * state["v_out"] + I_out
+        if cfg["readout_mode"] in ("spike-count", "mem-mean"):
+            # Exp-Euler ZOH on output LIF + subtract reset (see
+            # CUBANet._readout_step for rationale). COBANet's W_ff has
+            # no bias term — bias scaling is moot here.
+            one_minus_beta = 1.0 - beta_out
+            spike_scale = one_minus_beta / dt
+            I_out = spike_scale * (prev_spk @ W_ff[-1])
+            state["v_out"] = beta_out * state["v_out"] + I_out
             s_out = fast_sigmoid_spike(state["v_out"] - thr_snn, SURROGATE_SLOPE)
             state["s_count"] = state["s_count"] + s_out
-            state["v_out"] = state["v_out"] * (1.0 - s_out)
+            state["mem_sum"] = state["mem_sum"] + state["v_out"]
+            state["v_out"] = state["v_out"] - s_out * thr_snn
+            if cfg["readout_mode"] == "mem-mean":
+                return state["mem_sum"] / float(T_steps)
             return state["s_count"]
         state["hidden_accum"] = state["hidden_accum"] + prev_spk
         return state["hidden_accum"] @ W_ff[-1]
