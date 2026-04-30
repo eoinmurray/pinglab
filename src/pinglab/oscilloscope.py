@@ -1381,7 +1381,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
           v_grad_dampen=80.0, early_stopping=None, observe_every=1,
           adaptive_lr=False, kaiming_init=False, dales_law=True,
           w_rec=None, rec_layers=None, ei_layers=None, batch_size=None,
-          seed=None,
+          seed=None, readout_w_out_scale=1.0,
           readout_mode="rate",
           fr_reg_lower_theta=0.0, fr_reg_lower_strength=0.0,
           fr_reg_upper_theta=0.0, fr_reg_upper_strength=0.0,
@@ -1467,6 +1467,13 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         log.info("  kaiming_init=True (signed Kaiming weights, canonical snnTorch)")
     if readout_mode != "rate":
         log.info(f"  readout_mode={readout_mode}")
+    if readout_w_out_scale != 1.0:
+        with torch.no_grad():
+            net.W_ff[-1].mul_(readout_w_out_scale)
+            if hasattr(net, "b_ff") and len(net.b_ff) > 0:
+                net.b_ff[-1].mul_(readout_w_out_scale)
+        log.info(f"  readout_w_out_scale={readout_w_out_scale:g} "
+                 f"(W_ff[-1] and b_ff[-1] scaled at init)")
     if w_rec is not None:
         log.info("  recurrent=True (hidden→hidden connections)")
     if not dales_law:
@@ -2576,6 +2583,16 @@ Models:
                                 "saturate under high-rate hidden drive — "
                                 "needed for snnTorch-family models at coarse "
                                 "dt. No-op for --readout rate or li.")
+    net_group.add_argument("--readout-w-out-scale", type=float, default=1.0,
+                           help="Multiply the readout matrix W_ff[-1] (and "
+                                "bias b_ff[-1] if present) by this scalar "
+                                "after build_net. Use to compensate for the "
+                                "10× lower hidden firing rate of COBANet "
+                                "models vs CUBANet under mem-mean / "
+                                "spike-count readouts: bumping W_out by ~10 "
+                                "equalises the trial-level drive into the "
+                                "output LIF and recovers gradient signal. "
+                                "Train-mode only. Default 1.0.")
     net_group.add_argument("--exp-synapse", action="store_true",
                            help="Promote --model standard-snn to its "
                                 "exponential-synapse variant (standard-snn-exp). "
@@ -3203,6 +3220,7 @@ if __name__ == "__main__":
               ei_layers=args.ei_layers,
               batch_size=args.batch_size,
               seed=args.seed,
+              readout_w_out_scale=args.readout_w_out_scale,
               readout_mode=args.readout_mode,
               fr_reg_lower_theta=args.fr_reg_lower_theta,
               fr_reg_lower_strength=args.fr_reg_lower_strength,
