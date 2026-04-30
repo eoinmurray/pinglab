@@ -102,8 +102,8 @@ All cells in the recipe table show the resolved value used at training time. Par
 | [*--batch-size*](/the-oscilloscope/#subcommand-train) | 256 | 256 | 256 | 256 | 256 | 256 |
 | [*--observe*](/the-oscilloscope/#subcommand-train) | video | video | video | video | video | video |
 | [*--kaiming-init*](/the-oscilloscope/#weight-flags-shared-advanced) | True | True | True | True | False | False |
-| [*--readout*](/the-oscilloscope/#readouts) | *li* | *li* | *li* | *li* | *rate* | *rate* |
-| [*--surrogate-slope*](/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 5 | 5 |
+| [*--readout*](/the-oscilloscope/#readouts) | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* |
+| [*--surrogate-slope*](/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 1 | 1 |
 | [*--lr*](/the-oscilloscope/#subcommand-train) | 0.01 | 0.01 | 0.01 | 0.04 | 0.0004 | 0.0004 |
 | [*--ei-strength*](/the-oscilloscope/#network-flags-shared) | n/a | n/a | n/a | n/a | 0 | 1 |
 | [*--v-grad-dampen*](/the-oscilloscope/#subcommand-train) | n/a | n/a | n/a | n/a | 1000 | 1000 |
@@ -116,15 +116,13 @@ Train-*dt* sweeps over {dt1} ms and {dt2} ms — same recipe per regime, only *-
 
 ### Differences between CUBA and COBA
 
-The recipe table above shows seven flags differ between [*cuba*](/models/#cuba) and [*coba*](/models/#coba); the model classes themselves differ on a further six axes that are not exposed as flags. Each row below names the difference, what it changes in the forward/backward pass, and why it's set the way it is.
+The recipe table above shows five flags still differ between [*cuba*](/models/#cuba) and [*coba*](/models/#coba) (readout, slope, batch-size, kaiming-init, w-in family are now uniform); the model classes themselves differ on a further six axes that are not exposed as flags. Each row below names the difference, what it changes in the forward/backward pass, and why it's set the way it is.
 
 **Recipe-level (visible in the table)**
 
 | Difference | cuba | coba | Effect | Justification |
 |---|---|---|---|---|
 | *--model* | *cuba* | *ping* (with *--ei-strength 0*) | Dispatches to [CUBANet](/models/#cubanet) vs [COBANet](/models/#cobanet) — different forward + integrator. | coba is feedforward COBANet; same class as ping with the recurrent loop disabled. |
-| *--readout* | *li* | *rate* | Logits read from leaky-integrator membrane vs cumulative spike count. | cuba's high firing rate × 2000-step window saturates CE on rate; coba's hard-reset + refractory cap rates so rate readout works (and *li* empirically collapses coba — see [commit d5c2f41](https://github.com/eoinmurray/pinglab/commit/d5c2f41)). |
-| *--surrogate-slope* | 1 | 5 | Width of the fast-sigmoid pseudo-derivative around threshold. | cuba's 2000-step BPTT × slope 5 overflows fp32 in $W_\text{ff}$ — slope 1 bounds it. coba's lower mean firing rate keeps slope 5 grads finite. |
 | *--lr* | 0.04 | 0.0004 | 100× spread. | The conductance form $g \cdot (V - E_\text{rev})$ is multiplicatively coupled — far more LR-sensitive than cuba's additive $+I$. A uniform LR would either diverge coba/ping or undertrain cuba. |
 | *--kaiming-init* | True (signed) | False | Signed Kaiming-uniform init on $W_\text{in}$ vs half-normal non-negative. | cuba goes through CUBANet which is Dale-off; signed init gives the hidden layer enough drive to spike at all. coba is Dale-on so init must be non-negative. |
 | *--w-in* (mean, std) | (0.3, 0.06) | (0.3, 0.03) | std halved. | Half-normal init on coba's *W_in* under Dale's law has positive mean already — narrower std avoids over-driving the hidden layer at *t* = 0. |
@@ -255,7 +253,7 @@ The difference between CUBA and COBA amounts to several changes at once — whic
 **Crucial — the ones that change network behaviour**
 
 1. **Conductance form $g \cdot (V - E_\text{rev})$ instead of additive $+I$.** Excitation saturates as $V \to E_e$ (can't drive past 0 mV); inhibition becomes shunting (raises $g_\text{tot}$, shortens effective $\tau$). CUBA has neither — additive currents drive $V$ arbitrarily, no shunting, no biophysical clipping. Everything downstream (reversal potentials, separate $g_e / g_i$ channels, units in µS) follows from this one switch.
-2. **Hard reset + refractory.** Hard reset to $V_\text{reset}$ destroys cross-spike membrane momentum; refractory ($\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms) puts a hard ceiling on firing rate at $\approx 1/\tau_\text{ref}$. Reset-by-subtraction (cuba's default) lets the membrane carry residual depolarisation forward, so high rates can run away. This is why cuba needs the *li* readout to avoid CE saturation, while coba/ping train fine on the *rate* readout default (see [the recipe table](#method)).
+2. **Hard reset + refractory.** Hard reset to $V_\text{reset}$ destroys cross-spike membrane momentum; refractory ($\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms) puts a hard ceiling on firing rate at $\approx 1/\tau_\text{ref}$. Reset-by-subtraction (cuba's default) lets the membrane carry residual depolarisation forward, so high rates can run away. Across our recipe (uniform *spike-count* readout) this difference shows up in how easily each network reaches a stable output spike count — coba's bounded firing makes the output-LIF threshold easy to satisfy, while cuba's high-rate hidden layer can over-drive it.
 3. **Exponential synapses.** $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms. Low-passes the presynaptic spike train into the membrane drive and separates fast-E from slow-I — required for any oscillation, including PING. cuba can opt in (*standard-snn-exp*), but it's standard in coba.
 
 **Secondary — change the *constraints*, not the dynamics**
