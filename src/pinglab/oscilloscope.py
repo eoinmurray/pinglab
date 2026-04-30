@@ -1386,7 +1386,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
           fr_reg_lower_theta=0.0, fr_reg_lower_strength=0.0,
           fr_reg_upper_theta=0.0, fr_reg_upper_strength=0.0,
           skip_bad_grad_threshold=None, optimizer="adam",
-          profile_path=None):
+          loss_mode="ce", profile_path=None):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
     from torch.utils.data import DataLoader, TensorDataset
@@ -1500,7 +1500,7 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
         "max_samples": max_samples,
         "n_params": n_params, "n_trainable": n_trainable,
         "kaiming_init": kaiming_init, "dales_law": dales_law,
-        "readout_mode": readout_mode,
+        "readout_mode": readout_mode, "loss_mode": loss_mode,
         "hidden_sizes": hidden_sizes, "w_rec": w_rec,
         "rec_layers": list(rec_layers) if rec_layers else None,
         "ei_layers": list(ei_layers) if ei_layers else None,
@@ -1637,7 +1637,23 @@ def train(model_name="ping", lr=0.01, epochs=100, dt=0.1, observe=False,
     if adaptive_lr:
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt, mode="max", factor=0.5, patience=5, min_lr=1e-5)
-    loss_fn = torch.nn.CrossEntropyLoss()
+    if loss_mode == "ce":
+        _ce = torch.nn.CrossEntropyLoss()
+        def loss_fn(logits, y):
+            return _ce(logits, y)
+    elif loss_mode == "mse":
+        # L2 loss on logits vs one-hot targets — standard SNN-paper
+        # alternative to CE (e.g. Bohte 2002, Lee 2016). No softmax;
+        # the network is trained to push the correct-class logit toward
+        # 1 and others toward 0. Useful when CE saturates because of
+        # the readout's logit scale.
+        _mse = torch.nn.MSELoss()
+        def loss_fn(logits, y):
+            target = torch.nn.functional.one_hot(y, num_classes=logits.shape[-1]).float()
+            return _mse(logits, target)
+    else:
+        raise ValueError(f"unknown loss_mode {loss_mode!r}")
+    log.info(f"  loss_mode={loss_mode}")
 
     # Observe setup
     obs_fig = obs_axes = None
@@ -2856,6 +2872,14 @@ Models:
                                    "squared grads, so a single pathological "
                                    "batch cannot poison the preconditioner. "
                                    "Canonical SNN choice (Cramer, Zenke).")
+    train_parser.add_argument("--loss", choices=["ce", "mse"], default="ce",
+                              dest="loss_mode",
+                              help="Training loss. 'ce' = cross-entropy on "
+                                   "logits (default; expects unnormalised "
+                                   "logits). 'mse' = L2 between logits and "
+                                   "one-hot targets — the SNN-paper standard "
+                                   "(Bohte 2002, Lee 2016) when the readout's "
+                                   "logit scale makes CE softmax saturate.")
 
     # -- infer subcommand --
     infer_parser = subparsers.add_parser(
@@ -3228,6 +3252,7 @@ if __name__ == "__main__":
               fr_reg_upper_strength=args.fr_reg_upper_strength,
               skip_bad_grad_threshold=args.skip_bad_grad_threshold,
               optimizer=args.optimizer,
+              loss_mode=args.loss_mode,
               profile_path=args.profile)
 
     elif mode == "infer":
