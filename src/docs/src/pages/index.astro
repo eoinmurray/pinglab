@@ -118,53 +118,61 @@ const formatDate = (raw) => {
           <a
             href="/introduction/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >Introduction</a>
+            >Introduction</a
+          >
         </li>
         <li>
           <a
             href="/models/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Models</a>
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Models</a
+          >
         </li>
         <li>
           <a
             href="/training/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >Training</a>
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Training</a
+          >
         </li>
         <li>
           <a
             href="/the-oscilloscope/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >The Oscilloscope</a>
+            >The Oscilloscope</a
+          >
         </li>
         <li>
           <a
             href="/the-notebooks/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >The Notebooks</a>
+            >The Notebooks</a
+          >
         </li>
         <li>
           <a
             href="/metrics/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Metrics</a>
+            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Metrics</a
+          >
         </li>
         <li>
           <a
             href="/parameters-and-units/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >Parameters &amp; Units</a>
+            >Parameters &amp; Units</a
+          >
         </li>
         <li>
           <a
             href="/references/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >References</a>
+            >References</a
+          >
         </li>
         <li>
           <a
             href="/styleguide/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >Styleguide</a>
+            >Styleguide</a
+          >
         </li>
       </ol>
     </aside>
@@ -201,7 +209,7 @@ const formatDate = (raw) => {
                 </a>
               </h2>
               <div class="border border-[color:var(--color-rule)] rounded-[2px] bg-[color:var(--color-paper-tint)] overflow-hidden">
-                <table class="w-full border-collapse m-0 text-[0.95rem]">
+                <table class="w-full border-collapse m-0 text-[0.95rem] [&_tr:first-child>td]:border-t-0">
                   <tbody>
                     {group.notebooks.map((nb) => (
                       <tr class="[&>td]:px-[0.7rem] [&>td]:py-[0.4rem] [&>td]:border-t [&>td]:border-[color:var(--color-rule)] [&>td]:align-baseline">
@@ -216,7 +224,9 @@ const formatDate = (raw) => {
                         <td class="w-[8rem] whitespace-nowrap tabular-nums text-[color:var(--muted)]">
                           {formatDate(nb.date)}
                         </td>
-                        <td class="w-[5rem] whitespace-nowrap text-[0.85rem] text-[color:var(--muted)]">{nb.tier ?? ""}</td>
+                        <td class="w-[5rem] whitespace-nowrap text-[0.85rem] text-[color:var(--muted)]">
+                          {nb.tier ?? ""}
+                        </td>
                         <td class="w-[4.8rem] whitespace-nowrap">
                           {nb.badge &&
                             (nb.badge.running ? (

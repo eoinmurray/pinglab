@@ -2519,7 +2519,7 @@ Models:
                                 "Matches canonical snnTorch tutorial setup. "
                                 "Only applies to standard-snn / cuba; "
                                 "--w-in is ignored when this is set.")
-    net_group.add_argument("--readout", choices=["rate", "li", "spike-count"], default="rate",
+    net_group.add_argument("--readout", choices=["rate", "li", "spike-count", "mem-mean"], default="rate",
                            dest="readout_mode",
                            help="Output layer: 'rate' sums last-hidden spikes "
                                 "and projects linearly at the final timestep "
@@ -2568,6 +2568,14 @@ Models:
                                 "module-level `tau_ampa`). Cramer et al. SHD: "
                                 "10 ms. Only affects models with "
                                 "exponential_synapse=True (e.g. cuba-exp).")
+    net_group.add_argument("--readout-tau-out", type=float, default=None,
+                           help="Output-LIF time constant τ_out in ms for "
+                                "the spike-count readout (default: 5 ms, "
+                                "module-level `tau_out_ms`). Smaller values "
+                                "speed up output-membrane leak so it doesn't "
+                                "saturate under high-rate hidden drive — "
+                                "needed for snnTorch-family models at coarse "
+                                "dt. No-op for --readout rate or li.")
     net_group.add_argument("--exp-synapse", action="store_true",
                            help="Promote --model standard-snn to its "
                                 "exponential-synapse variant (standard-snn-exp). "
@@ -2907,6 +2915,8 @@ Models:
         M.tau_snn = float(args.tau_mem)
     if getattr(args, "tau_syn", None) is not None:
         M.tau_ampa = float(args.tau_syn)
+    if getattr(args, "readout_tau_out", None) is not None:
+        M.tau_out_ms = float(args.readout_tau_out)
 
     # --from-dir: inherit training params from config.json, fill unset values
     if args.mode in ("infer", "video", "image") and getattr(args, "from_dir", None):

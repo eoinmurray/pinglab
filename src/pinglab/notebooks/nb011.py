@@ -34,6 +34,8 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
         "--v-grad-dampen", "1000",
         "--w-in", "1.2",
         "--w-in-sparsity", "0.95",
+        "--readout", "mem-mean",
+        "--surrogate-slope", "1",
         "--lr", "0.0004",
         "--batch-size", "256",
     ]

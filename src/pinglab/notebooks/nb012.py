@@ -142,7 +142,7 @@ MODEL_CONFIG: dict[str, dict] = {
     "standard-snn": {                       # mirrors nb006
         "__build_as": "standard-snn",
         "--kaiming-init": True,
-        "--readout": "li",
+        "--readout": "mem-mean",
         "--surrogate-slope": "1",
         "--lr": "0.01",
         "--batch-size": "256",
@@ -150,7 +150,7 @@ MODEL_CONFIG: dict[str, dict] = {
     "standard-snn-exp": {                   # mirrors nb007
         "__build_as": "standard-snn-exp",
         "--kaiming-init": True,
-        "--readout": "li",
+        "--readout": "mem-mean",
         "--surrogate-slope": "1",
         "--lr": "0.01",
         "--batch-size": "256",
@@ -158,7 +158,7 @@ MODEL_CONFIG: dict[str, dict] = {
     "snntorch-library": {                   # mirrors nb008
         "__build_as": "snntorch-library",
         "--kaiming-init": True,
-        "--readout": "li",
+        "--readout": "mem-mean",
         "--surrogate-slope": "1",
         "--lr": "0.01",
         "--batch-size": "256",
@@ -166,7 +166,7 @@ MODEL_CONFIG: dict[str, dict] = {
     "cuba": {                               # mirrors nb009
         "__build_as": "cuba",
         "--kaiming-init": True,
-        "--readout": "li",
+        "--readout": "mem-mean",
         "--surrogate-slope": "1",
         "--lr": "0.04",                      # 4× scaled vs old 0.01 for batch=256
         "--batch-size": "256",
@@ -177,6 +177,8 @@ MODEL_CONFIG: dict[str, dict] = {
         "--v-grad-dampen": "1000",
         "--w-in": "0.3",
         "--w-in-sparsity": "0.95",
+        "--readout": "mem-mean",
+        "--surrogate-slope": "1",
         "--lr": "0.0004",                    # 4× scaled vs old 1e-4 for batch=256
         "--batch-size": "256",
     },
@@ -186,6 +188,8 @@ MODEL_CONFIG: dict[str, dict] = {
         "--v-grad-dampen": "1000",
         "--w-in": "1.2",
         "--w-in-sparsity": "0.95",
+        "--readout": "mem-mean",
+        "--surrogate-slope": "1",
         "--lr": "0.0004",                    # 4× scaled
         "--batch-size": "256",
     },

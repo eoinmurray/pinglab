@@ -5,7 +5,7 @@ exponential synapse on the input layer. Companion to the other
 per-model runners; sits between nb006 (standard-snn, no exp synapse)
 and nb008 (snntorch-library reference) on the ladder.
 
-Recipe is otherwise identical to nb006 — readout=li, surrogate-slope=1,
+Recipe is otherwise identical to nb006 — readout=mem-mean, surrogate-slope=1,
 kaiming init, lr=0.01, batch=256 — so the only knob that differs is
 the synaptic kernel.
 
@@ -31,7 +31,7 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
     # exponential_synapse=True (see config.py MODEL_REGISTRY).
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
         "--kaiming-init",
-        "--readout", "li",
+        "--readout", "mem-mean",
         "--surrogate-slope", "1",
         "--lr", "0.01",
         "--batch-size", "256",

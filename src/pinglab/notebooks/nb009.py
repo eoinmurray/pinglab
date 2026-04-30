@@ -23,12 +23,10 @@ MODEL = "cuba"
 
 
 def build_osc_args(tier: str, out_dir: Path) -> list[str]:
-    # See nb006 for why --readout li + --surrogate-slope 1 are required —
-    # cuba shares the CUBANet class and therefore the saturated-rate-readout
-    # + slope-5×2000-step BPTT overflow pathologies with standard-snn.
+    # mem-mean readout + slope=1 — same rationale as nb006.
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
         "--kaiming-init",
-        "--readout", "li",
+        "--readout", "mem-mean",
         "--surrogate-slope", "1",
         "--lr", "0.04",
         "--batch-size", "256",

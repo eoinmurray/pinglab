@@ -25,11 +25,14 @@ MODEL = "coba"
 
 def build_osc_args(tier: str, out_dir: Path) -> list[str]:
     # coba = ping with ei-strength=0; see models page and nb012 MODEL_CONFIG.
+    # mem-mean readout + slope=1: snnTorch tutorial 5 pattern (see nb006).
     return osc_base_args(out_dir, tier, build_as="ping") + [
         "--ei-strength", "0",
         "--v-grad-dampen", "1000",
         "--w-in", "0.3",
         "--w-in-sparsity", "0.95",
+        "--readout", "mem-mean",
+        "--surrogate-slope", "1",
         "--lr", "0.0004",
         "--batch-size", "256",
     ]
