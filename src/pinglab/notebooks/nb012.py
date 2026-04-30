@@ -179,6 +179,10 @@ MODEL_CONFIG: dict[str, dict] = {
         "--w-in-sparsity": "0.95",
         "--readout": "mem-mean",
         "--surrogate-slope": "1",
+        # COBANet hidden firing rate ~10× lower than CUBANet under
+        # mem-mean — scale W_out at init to equalise output drive.
+        # See nb010 for sweep: 1→59%, 10→70%, 30→74%, 100→82%.
+        "--readout-w-out-scale": "100",
         "--lr": "0.0004",                    # 4× scaled vs old 1e-4 for batch=256
         "--batch-size": "256",
     },
@@ -190,6 +194,9 @@ MODEL_CONFIG: dict[str, dict] = {
         "--w-in-sparsity": "0.95",
         "--readout": "mem-mean",
         "--surrogate-slope": "1",
+        # ping's E firing rate is even lower than coba's (inhibitory
+        # loop suppresses E). 5× more W_out scaling needed.
+        "--readout-w-out-scale": "500",
         "--lr": "0.0004",                    # 4× scaled
         "--batch-size": "256",
     },

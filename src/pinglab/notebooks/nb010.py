@@ -33,6 +33,10 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
         "--w-in-sparsity", "0.95",
         "--readout", "mem-mean",
         "--surrogate-slope", "1",
+        # COBANet hidden firing rate is ~10× lower than CUBANet's
+        # under matched recipes, so the output LIF gets ~10× less
+        # drive. Scale W_out at init to compensate.
+        "--readout-w-out-scale", "100",
         "--lr", "0.0004",
         "--batch-size", "256",
     ]
