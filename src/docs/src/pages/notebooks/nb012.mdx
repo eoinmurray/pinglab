@@ -232,7 +232,7 @@ The spike contribution $Wr\tau$ is *dt*-invariant; the bias contribution $b\tau/
 
 {hasFig("latency_curves.png") && (
   <Figure id="Figure 4" title="Latency to correct answer" src="/figures/notebooks/nb012/latency_curves.png" alt="P(correct) as a function of fraction of trial seen, per model, two panels for train-dt regimes">
-    Test accuracy on frozen weights as a function of how much of the trial the *mem-mean* readout has integrated. The output LIF accumulates membrane $v_\mathrm o$ across timesteps; the running argmax at fraction $f$ picks the class with the highest cumulative $v_\mathrm o$ up to step $f \cdot T$, matching the trained-time output. Dotted line at 10% is chance.
+    Test accuracy on frozen weights as a function of how much of the trial the mem-mean readout has integrated. At each fraction the running argmax picks the class with the highest cumulative output membrane up to that step, matching the trained-time output. Dotted line at 10% is chance.
   </Figure>
 )}
 
