@@ -8,6 +8,7 @@ nb012.
 
 Notebook entry: src/docs/src/pages/notebooks/nb006.mdx
 """
+
 from __future__ import annotations
 
 import sys
@@ -34,10 +35,14 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
     # stays bounded end-to-end.
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
         "--kaiming-init",
-        "--readout", "mem-mean",
-        "--surrogate-slope", "1",
-        "--lr", "0.01",
-        "--batch-size", "256",
+        "--readout",
+        "mem-mean",
+        "--surrogate-slope",
+        "1",
+        "--lr",
+        "0.01",
+        "--batch-size",
+        "256",
     ]
 
 

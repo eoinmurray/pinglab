@@ -3,6 +3,7 @@
 Each runner passes its accepted tier names (keys of whatever per-tier config
 dict it carries) and a default. Returns the selected tier.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterable

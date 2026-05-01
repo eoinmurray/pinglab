@@ -3,13 +3,14 @@
 Provides dt-invariant drive generation with Börgers-style step + OU noise.
 All drive values are calibrated relative to DT_CAL=0.1 ms.
 """
+
 from __future__ import annotations
 
 import numpy as np
 import torch
 
 # ── Calibration reference ──
-DT_CAL = 0.1   # T_E values were calibrated at this dt
+DT_CAL = 0.1  # T_E values were calibrated at this dt
 DT_REF = 0.01  # reference resolution for noise generation (dt-stability)
 TAU_AMPA = 2.0  # AMPA decay for scaling
 
@@ -23,10 +24,20 @@ def drive_scale(dt):
     return (1 - np.exp(-dt / TAU_AMPA)) / (1 - np.exp(-DT_CAL / TAU_AMPA))
 
 
-def make_step_drive(n_e, t_steps, dt, t_e_async, t_e_ping,
-                    step_on_ms, step_off_ms,
-                    sigma_e=0.05, noise_sigma=0.001, noise_tau=3.0,
-                    seed=42, noise_seed=None):
+def make_step_drive(
+    n_e,
+    t_steps,
+    dt,
+    t_e_async,
+    t_e_ping,
+    step_on_ms,
+    step_off_ms,
+    sigma_e=0.05,
+    noise_sigma=0.001,
+    noise_tau=3.0,
+    seed=42,
+    noise_seed=None,
+):
     """Börgers-style tonic drive with step + independent OU noise per neuron.
 
     seed controls per-neuron heterogeneity (X_i).
@@ -79,9 +90,18 @@ def make_reference_noise(n_e, sim_ms, noise_sigma=0.001, noise_tau=3.0, seed=42)
     return X_i, eta
 
 
-def make_step_drive_from_ref(n_e, dt, t_e_async, t_e_ping,
-                              step_on_ms, step_off_ms, sim_ms,
-                              X_i, eta_ref, sigma_e=0.05):
+def make_step_drive_from_ref(
+    n_e,
+    dt,
+    t_e_async,
+    t_e_ping,
+    step_on_ms,
+    step_off_ms,
+    sim_ms,
+    X_i,
+    eta_ref,
+    sigma_e=0.05,
+):
     """Build drive at target dt by interpolating from reference noise.
 
     Used by dt-stability for dt-invariant noise across different dt values.
@@ -106,8 +126,9 @@ def make_step_drive_from_ref(n_e, dt, t_e_async, t_e_ping,
     return ext_g_sim, ext_g_raw
 
 
-def make_spike_drive(n_in, t_steps, dt, rate_base_hz, rate_stim_hz,
-                     step_on_ms, step_off_ms, seed=42):
+def make_spike_drive(
+    n_in, t_steps, dt, rate_base_hz, rate_stim_hz, step_on_ms, step_off_ms, seed=42
+):
     """Generate a Poisson spike train with a rate step for synthetic-spikes input.
 
     All input neurons fire at rate_base_hz, stepping to rate_stim_hz during
@@ -126,6 +147,7 @@ def make_spike_drive(n_in, t_steps, dt, rate_base_hz, rate_stim_hz,
 def patch_dt(dt_new, sim_ms):
     """Update global model constants for a new dt value."""
     import models as M
+
     M.dt = dt_new
     M.T_ms = sim_ms
     M.T_steps = int(sim_ms / dt_new)

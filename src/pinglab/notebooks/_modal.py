@@ -5,6 +5,7 @@ sh.uv. When the runner is given --modal-gpu <GPU>, each oscilloscope call gets
 --modal --modal-gpu <GPU> appended so the job runs on Modal instead of the
 local machine.
 """
+
 from __future__ import annotations
 
 VALID_GPUS = ("none", "T4", "L4", "A10G", "A100", "H100")
@@ -33,9 +34,7 @@ def _parse_gpu_flag(argv: list[str], flag: str) -> str | None:
         raise SystemExit(f"{flag} requires a value")
     gpu = argv[idx + 1]
     if gpu not in VALID_GPUS:
-        raise SystemExit(
-            f"{flag}: unknown GPU {gpu!r}, choose from {list(VALID_GPUS)}"
-        )
+        raise SystemExit(f"{flag}: unknown GPU {gpu!r}, choose from {list(VALID_GPUS)}")
     return gpu
 
 
@@ -74,21 +73,32 @@ class BatchDispatcher:
         """
         import sh
         import sys
+
         cell_gpu = gpu_override or self.modal_gpu
         if cell_gpu is None:
-            sh.uv("run", "python", str(self.oscilloscope_path), *osc_args,
-                  _cwd=str(self.repo_path), _out=sys.stdout, _err=sys.stderr)
+            sh.uv(
+                "run",
+                "python",
+                str(self.oscilloscope_path),
+                *osc_args,
+                _cwd=str(self.repo_path),
+                _out=sys.stdout,
+                _err=sys.stderr,
+            )
         else:
-            self.pending.append({
-                "cli_args": list(osc_args),
-                "gpu": cell_gpu,
-                "local_out_dir": str(local_out_dir),
-            })
+            self.pending.append(
+                {
+                    "cli_args": list(osc_args),
+                    "gpu": cell_gpu,
+                    "local_out_dir": str(local_out_dir),
+                }
+            )
 
     def drain(self):
         """Dispatch all queued jobs to Modal in parallel, wait, sync artifacts."""
         if not self.pending:
             return
         from pinglab.modal_app import dispatch_batch_to_modal
+
         dispatch_batch_to_modal(self.pending)
         self.pending.clear()

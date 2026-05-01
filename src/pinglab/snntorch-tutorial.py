@@ -15,6 +15,7 @@ against pinglab's end_d0s0.png outputs for the same configuration.
 Run:  uv run python src/pinglab/snntorch-tutorial.py
 Outputs:  src/artifacts/snntorch-tutorial/
 """
+
 from __future__ import annotations
 import sys
 import time
@@ -75,24 +76,32 @@ class Net(nn.Module):
             spk2_rec.append(spk2)
             mem2_rec.append(mem2)
 
-        return (torch.stack(spk1_rec, dim=0),
-                torch.stack(spk2_rec, dim=0),
-                torch.stack(mem2_rec, dim=0))
+        return (
+            torch.stack(spk1_rec, dim=0),
+            torch.stack(spk2_rec, dim=0),
+            torch.stack(mem2_rec, dim=0),
+        )
 
 
 def make_loaders():
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0,), (1,)),
-    ])
+    transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize((0,), (1,)),
+        ]
+    )
     train_set = datasets.MNIST(
-        root="/tmp/mnist", train=True, download=True, transform=transform)
+        root="/tmp/mnist", train=True, download=True, transform=transform
+    )
     test_set = datasets.MNIST(
-        root="/tmp/mnist", train=False, download=True, transform=transform)
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE,
-                              shuffle=True, drop_last=True)
-    test_loader = DataLoader(test_set, batch_size=BATCH_SIZE,
-                             shuffle=False, drop_last=True)
+        root="/tmp/mnist", train=False, download=True, transform=transform
+    )
+    train_loader = DataLoader(
+        train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=True
+    )
+    test_loader = DataLoader(
+        test_set, batch_size=BATCH_SIZE, shuffle=False, drop_last=True
+    )
     return train_loader, test_loader
 
 
@@ -125,7 +134,7 @@ def grab_hidden_raster(net, loader):
     data, targets = data.to(DEVICE), targets.to(DEVICE)
     zero_idx = (targets == 0).nonzero(as_tuple=True)[0]
     idx = zero_idx[0].item() if len(zero_idx) > 0 else 0
-    sample = data[idx:idx + 1]
+    sample = data[idx : idx + 1]
     spikes = encode(sample)
     with torch.no_grad():
         spk1_rec, _, _ = net(spikes)
@@ -135,8 +144,9 @@ def grab_hidden_raster(net, loader):
 
 def save_raster(spikes, image, fname, title):
     """Save a raster figure: hidden spike activity over time + the input digit."""
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4),
-                             gridspec_kw={"width_ratios": [4, 1]})
+    fig, axes = plt.subplots(
+        1, 2, figsize=(10, 4), gridspec_kw={"width_ratios": [4, 1]}
+    )
 
     T, N = spikes.shape
     times, neurons = np.where(spikes > 0)
@@ -147,8 +157,10 @@ def save_raster(spikes, image, fname, title):
     axes[0].set_ylabel("Hidden neuron index")
     active_frac = (spikes.any(axis=0)).mean()
     rate_per_step = spikes.sum() / (N * T)
-    axes[0].set_title(f"{title}  —  active {active_frac:.0%}, "
-                      f"mean rate {rate_per_step:.2f} spk/neuron/step")
+    axes[0].set_title(
+        f"{title}  —  active {active_frac:.0%}, "
+        f"mean rate {rate_per_step:.2f} spk/neuron/step"
+    )
 
     axes[1].imshow(image.squeeze(), cmap="gray_r")
     axes[1].set_xticks([])
@@ -178,15 +190,15 @@ def main():
     # Init raster (untrained)
     print("\nInit raster:")
     spikes_init, sample_img = grab_hidden_raster(net, test_loader)
-    save_raster(spikes_init, sample_img, OUT_DIR / "init_raster.png",
-                "Init (untrained)")
+    save_raster(
+        spikes_init, sample_img, OUT_DIR / "init_raster.png", "Init (untrained)"
+    )
 
     init_acc = evaluate(net, test_loader)
     print(f"  init test accuracy: {init_acc:.2f}%")
 
     # Train
-    optimizer = torch.optim.Adam(net.parameters(), lr=LEARNING_RATE,
-                                 betas=(0.9, 0.999))
+    optimizer = torch.optim.Adam(net.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.999))
     loss_fn = nn.CrossEntropyLoss()
     print(f"\nTraining for {NUM_EPOCHS} epoch(s)...")
     t0 = time.time()
@@ -208,8 +220,10 @@ def main():
                 with torch.no_grad():
                     pred = logits.argmax(dim=1)
                     batch_acc = (pred == targets).float().mean().item() * 100
-                print(f"  ep {epoch+1}  batch {i:4d}/{len(train_loader)}  "
-                      f"loss={loss.item():.3f}  batch_acc={batch_acc:.0f}%")
+                print(
+                    f"  ep {epoch + 1}  batch {i:4d}/{len(train_loader)}  "
+                    f"loss={loss.item():.3f}  batch_acc={batch_acc:.0f}%"
+                )
     elapsed = time.time() - t0
     print(f"  done in {elapsed:.0f}s")
 
@@ -218,10 +232,14 @@ def main():
     end_acc = evaluate(net, test_loader)
     print(f"  end test accuracy: {end_acc:.2f}%")
     spikes_end, sample_img = grab_hidden_raster(net, test_loader)
-    save_raster(spikes_end, sample_img, OUT_DIR / "end_raster.png",
-                f"End (trained, {end_acc:.1f}%)")
+    save_raster(
+        spikes_end,
+        sample_img,
+        OUT_DIR / "end_raster.png",
+        f"End (trained, {end_acc:.1f}%)",
+    )
 
-    print(f"\n{'='*40}")
+    print(f"\n{'=' * 40}")
     print(f"  init acc: {init_acc:.2f}%")
     print(f"  end  acc: {end_acc:.2f}%")
     print(f"  artifacts: {OUT_DIR}/")
