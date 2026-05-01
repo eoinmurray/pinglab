@@ -19,6 +19,7 @@ Writes (per regime figures have panels for each dt_train):
 
 Notebook entry: src/docs/src/pages/notebooks/nb012.mdx
 """
+
 from __future__ import annotations
 
 import json
@@ -48,7 +49,14 @@ ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
 
-MODELS = ["standard-snn", "standard-snn-exp", "snntorch-library", "cuba", "coba", "ping"]
+MODELS = [
+    "standard-snn",
+    "standard-snn-exp",
+    "snntorch-library",
+    "cuba",
+    "coba",
+    "ping",
+]
 # Three input-transport modes, one per paper-named case (Parthasarathy
 # et al. §2.1 / Fig 1B / §2.3). The FrozenEncoder anchors at train-dt:
 #   * upsample   — zero-pad the reference stream to finer eval-dt
@@ -68,8 +76,30 @@ DT_TRAINS = [0.1, 1.0]
 # multiples in [0.01, 2] ms; at train-dt = 1.0 ms only integer divisors
 # (1/n) work below 1, so the grid is necessarily sparser there.
 DT_SWEEPS: dict[float, list[float]] = {
-    0.1: [0.01, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90,
-          1.00, 1.10, 1.20, 1.30, 1.40, 1.50, 1.60, 1.70, 1.80, 1.90, 2.00],
+    0.1: [
+        0.01,
+        0.05,
+        0.10,
+        0.20,
+        0.30,
+        0.40,
+        0.50,
+        0.60,
+        0.70,
+        0.80,
+        0.90,
+        1.00,
+        1.10,
+        1.20,
+        1.30,
+        1.40,
+        1.50,
+        1.60,
+        1.70,
+        1.80,
+        1.90,
+        2.00,
+    ],
     1.0: [0.01, 0.05, 0.10, 0.20, 0.25, 0.50, 1.00, 2.00],
 }
 DT_SWEEP = sorted({d for grid in DT_SWEEPS.values() for d in grid})
@@ -77,10 +107,10 @@ SEED = 42
 DEFAULT_TIER = "small"  # see src/docs/src/pages/styleguide.md § 10 Run sizing tiers
 # Per-tier (max-samples, epochs). t-ms is fixed by T_MS above.
 TIER_CONFIG = {
-    "extra small": dict(max_samples=100,   epochs=1),
-    "small":       dict(max_samples=500,   epochs=5),
-    "medium":      dict(max_samples=2000,  epochs=40),
-    "large":       dict(max_samples=5000,  epochs=40),
+    "extra small": dict(max_samples=100, epochs=1),
+    "small": dict(max_samples=500, epochs=5),
+    "medium": dict(max_samples=2000, epochs=40),
+    "large": dict(max_samples=5000, epochs=40),
     "extra large": dict(max_samples=10000, epochs=40),
 }
 TIER = DEFAULT_TIER  # overridable via --tier <name>
@@ -93,35 +123,32 @@ TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 # weights as standard-snn leaves it ~10× below threshold for spike drive
 # and ~40× below for bias drive — silent at init, no gradient, no learning.
 MODEL_LABELS = {
-    "standard-snn":     "standard-snn",
+    "standard-snn": "standard-snn",
     "standard-snn-exp": "standard-snn-exp",
     "snntorch-library": "snntorch-library",
-    "cuba":             "cuba",
-    "coba":             "coba",
-    "ping":             "ping",
+    "cuba": "cuba",
+    "coba": "coba",
+    "ping": "ping",
 }
 MODEL_COLORS = {
     # snnTorch family: blue gradient (light → dark by sophistication).
     # standard-snn-exp is the lightest because it's the synapse-only ablation
     # of standard-snn; snntorch-library is darkest as the external reference.
     "standard-snn-exp": theme.CAT_BLUE_LIGHT,
-    "standard-snn":     theme.CAT_BLUE,
+    "standard-snn": theme.CAT_BLUE,
     "snntorch-library": theme.CAT_BLUE_DARK,
     # CUBA: distinct green, alone.
-    "cuba":             theme.CAT_GREEN,
+    "cuba": theme.CAT_GREEN,
     # PING family: warm gradient (coba = feedforward, ping = + E→I→E loop).
-    "coba":             theme.CAT_ORANGE,
-    "ping":             theme.CAT_RED,
+    "coba": theme.CAT_ORANGE,
+    "ping": theme.CAT_RED,
 }
 
 # Visual groupings used by the legend builder.
 MODEL_GROUPS = [
-    ("snnTorch family",
-     ["standard-snn-exp", "standard-snn", "snntorch-library"]),
-    ("CUBA",
-     ["cuba"]),
-    ("PING family",
-     ["coba", "ping"]),
+    ("snnTorch family", ["standard-snn-exp", "standard-snn", "snntorch-library"]),
+    ("CUBA", ["cuba"]),
+    ("PING family", ["coba", "ping"]),
 ]
 
 # Per-model CLI recipe for training. The CUBANet-family paths
@@ -139,7 +166,7 @@ MODEL_CONFIG: dict[str, dict] = {
     # Recipes mirror the per-model trainers (nb006-nb011). Any drift here
     # would mean nb012's dt-stability sweep doesn't actually evaluate the
     # same recipe being baselined elsewhere.
-    "standard-snn": {                       # mirrors nb006
+    "standard-snn": {  # mirrors nb006
         "__build_as": "standard-snn",
         "--kaiming-init": True,
         "--readout": "mem-mean",
@@ -147,7 +174,7 @@ MODEL_CONFIG: dict[str, dict] = {
         "--lr": "0.01",
         "--batch-size": "256",
     },
-    "standard-snn-exp": {                   # mirrors nb007
+    "standard-snn-exp": {  # mirrors nb007
         "__build_as": "standard-snn-exp",
         "--kaiming-init": True,
         "--readout": "mem-mean",
@@ -155,7 +182,7 @@ MODEL_CONFIG: dict[str, dict] = {
         "--lr": "0.01",
         "--batch-size": "256",
     },
-    "snntorch-library": {                   # mirrors nb008
+    "snntorch-library": {  # mirrors nb008
         "__build_as": "snntorch-library",
         "--kaiming-init": True,
         "--readout": "mem-mean",
@@ -163,15 +190,15 @@ MODEL_CONFIG: dict[str, dict] = {
         "--lr": "0.01",
         "--batch-size": "256",
     },
-    "cuba": {                               # mirrors nb009
+    "cuba": {  # mirrors nb009
         "__build_as": "cuba",
         "--kaiming-init": True,
         "--readout": "mem-mean",
         "--surrogate-slope": "1",
-        "--lr": "0.04",                      # 4× scaled vs old 0.01 for batch=256
+        "--lr": "0.04",  # 4× scaled vs old 0.01 for batch=256
         "--batch-size": "256",
     },
-    "coba": {                               # mirrors nb010
+    "coba": {  # mirrors nb010
         "__build_as": "ping",
         "--ei-strength": "0",
         "--v-grad-dampen": "1000",
@@ -183,12 +210,12 @@ MODEL_CONFIG: dict[str, dict] = {
         # mem-mean — scale W_out at init to equalise output drive.
         # See nb010 for sweep: 1→59%, 10→70%, 30→74%, 100→82%.
         "--readout-w-out-scale": "100",
-        "--lr": "0.0004",                    # 4× scaled vs old 1e-4 for batch=256
+        "--lr": "0.0004",  # 4× scaled vs old 1e-4 for batch=256
         "--batch-size": "256",
     },
-    "ping": {                               # mirrors nb011
+    "ping": {  # mirrors nb011
         "__build_as": "ping",
-        "--ei-strength": "1",                # bumped 0.5 → 1 to match nb011
+        "--ei-strength": "1",  # bumped 0.5 → 1 to match nb011
         "--v-grad-dampen": "1000",
         "--w-in": "1.2",
         "--w-in-sparsity": "0.95",
@@ -197,7 +224,7 @@ MODEL_CONFIG: dict[str, dict] = {
         # ping's E firing rate is even lower than coba's (inhibitory
         # loop suppresses E). 5× more W_out scaling needed.
         "--readout-w-out-scale": "500",
-        "--lr": "0.0004",                    # 4× scaled
+        "--lr": "0.0004",  # 4× scaled
         "--batch-size": "256",
     },
 }
@@ -227,8 +254,9 @@ def verify_init_match(models: list[str], seed: int) -> dict:
     # path this preflight inspects. coba / ping use --w-in / --w-in-sparsity
     # and a different class (COBANet) — independent by design; we don't build
     # them here.
-    preflight_models = [m for m in models if m in SNNTORCHNET_FAMILY
-                        or m == "snntorch-library"]
+    preflight_models = [
+        m for m in models if m in SNNTORCHNET_FAMILY or m == "snntorch-library"
+    ]
     for m in preflight_models:
         torch.manual_seed(seed)
         nets[m] = build_net(m, kaiming_init=True, hidden_sizes=[1024])
@@ -248,19 +276,23 @@ def verify_init_match(models: list[str], seed: int) -> dict:
             if set(sd.keys()) != set(ref_sd.keys()):
                 raise SystemExit(
                     f"init-match: state_dict keys differ between {ref_name!r} "
-                    f"and {m!r}: {set(sd.keys()) ^ set(ref_sd.keys())}")
+                    f"and {m!r}: {set(sd.keys()) ^ set(ref_sd.keys())}"
+                )
             for k, v in ref_sd.items():
                 if not torch.equal(v, sd[k]):
                     max_abs = (v - sd[k]).abs().max().item()
                     raise SystemExit(
                         f"init-match: parameter {k!r} differs between "
-                        f"{ref_name!r} and {m!r}: max_abs={max_abs:g}")
+                        f"{ref_name!r} and {m!r}: max_abs={max_abs:g}"
+                    )
         for k, v in ref_sd.items():
             report["params"][k] = list(v.shape)
         print(f"[init-match] pre-scale weights match across {family} at seed={seed}")
     if report["independent"]:
-        print(f"[init-match] independent init (nn.Linear kaiming): "
-              f"{report['independent']}")
+        print(
+            f"[init-match] independent init (nn.Linear kaiming): "
+            f"{report['independent']}"
+        )
     return report
 
 
@@ -269,27 +301,38 @@ def _regime_key(dt_train: float) -> str:
     return f"dt{dt_train:g}"
 
 
-def train_model(model: str, dt_train: float,
-                dispatcher: BatchDispatcher) -> Path:
+def train_model(model: str, dt_train: float, dispatcher: BatchDispatcher) -> Path:
     """Queue a train cell at dt_train. Runs immediately for local, batched
     on drain() for Modal."""
     out_dir = ARTIFACTS / _regime_key(dt_train) / model / "train"
     config = MODEL_CONFIG[model]
     build_as = config["__build_as"]
-    print(f"[{model} @ dt={dt_train}] training → {out_dir.relative_to(REPO)}"
-          + (f"  [modal:{dispatcher.modal_gpu}]" if dispatcher.modal_gpu else ""))
+    print(
+        f"[{model} @ dt={dt_train}] training → {out_dir.relative_to(REPO)}"
+        + (f"  [modal:{dispatcher.modal_gpu}]" if dispatcher.modal_gpu else "")
+    )
     osc_args = [
         "train",
-        "--model", build_as,
-        "--dataset", "mnist",
-        "--max-samples", str(TIER_CONFIG[TIER]["max_samples"]),
-        "--epochs", str(TIER_CONFIG[TIER]["epochs"]),
-        "--t-ms", str(T_MS),
-        "--dt", str(dt_train),
-        "--seed", str(SEED),
-        "--observe", "video",
-        "--frame-rate", "1",
-        "--out-dir", str(out_dir),
+        "--model",
+        build_as,
+        "--dataset",
+        "mnist",
+        "--max-samples",
+        str(TIER_CONFIG[TIER]["max_samples"]),
+        "--epochs",
+        str(TIER_CONFIG[TIER]["epochs"]),
+        "--t-ms",
+        str(T_MS),
+        "--dt",
+        str(dt_train),
+        "--seed",
+        str(SEED),
+        "--observe",
+        "video",
+        "--frame-rate",
+        "1",
+        "--out-dir",
+        str(out_dir),
         "--wipe-dir",
     ]
     for k, v in config.items():
@@ -303,11 +346,16 @@ def train_model(model: str, dt_train: float,
     # × COBA state) OOMs both T4 (14.56 GiB) and A10G (24 GiB); bump to
     # A100 (80 GiB) when dispatching to Modal on a smaller GPU.
     gpu_override = None
-    if (dispatcher.modal_gpu in ("T4", "L4", "A10G")
-            and build_as == "ping" and dt_train <= 0.25):
+    if (
+        dispatcher.modal_gpu in ("T4", "L4", "A10G")
+        and build_as == "ping"
+        and dt_train <= 0.25
+    ):
         gpu_override = "A100"
-        print(f"  [modal] upgrading {model}@dt={dt_train} from "
-              f"{dispatcher.modal_gpu} to A100 (memory)")
+        print(
+            f"  [modal] upgrading {model}@dt={dt_train} from "
+            f"{dispatcher.modal_gpu} to A100 (memory)"
+        )
     dispatcher.submit(osc_args, out_dir, gpu_override=gpu_override)
     return out_dir
 
@@ -333,25 +381,39 @@ def _sweep_grid_for(dt_train: float, encoder_mode: str) -> list[float]:
     raise ValueError(f"unknown encoder mode {encoder_mode!r}")
 
 
-def sweep_model(model: str, dt_train: float, train_dir: Path,
-                encoder_mode: str, dispatcher: BatchDispatcher) -> Path:
+def sweep_model(
+    model: str,
+    dt_train: float,
+    train_dir: Path,
+    encoder_mode: str,
+    dispatcher: BatchDispatcher,
+) -> Path:
     """Queue a dt-sweep cell. Runs immediately for local, batched on drain()
     for Modal. The train_dir must already exist (drain the train phase first)."""
-    sweep_dir = ARTIFACTS / _regime_key(dt_train) / model / f"sweep_{_mode_key(encoder_mode)}"
+    sweep_dir = (
+        ARTIFACTS / _regime_key(dt_train) / model / f"sweep_{_mode_key(encoder_mode)}"
+    )
     sweep_grid = _sweep_grid_for(dt_train, encoder_mode)
-    print(f"[{model} @ dt={dt_train}, mode={encoder_mode}] dt-sweep → "
-          f"{sweep_dir.relative_to(REPO)}")
+    print(
+        f"[{model} @ dt={dt_train}, mode={encoder_mode}] dt-sweep → "
+        f"{sweep_dir.relative_to(REPO)}"
+    )
     # Sweep videos are only emitted for resample mode because it's the
     # only transport that covers the full eval-dt grid in every regime;
     # upsample and downsample each cover half and would produce
     # degenerate 2-frame videos at one of the train-dt settings.
     osc_args = [
         "infer",
-        "--from-dir", str(train_dir),
-        "--dt-sweep", *[str(d) for d in sweep_grid],
-        "--frozen-inputs-mode", encoder_mode,
-        "--max-samples", str(TIER_CONFIG[TIER]["max_samples"]),
-        "--out-dir", str(sweep_dir),
+        "--from-dir",
+        str(train_dir),
+        "--dt-sweep",
+        *[str(d) for d in sweep_grid],
+        "--frozen-inputs-mode",
+        encoder_mode,
+        "--max-samples",
+        str(TIER_CONFIG[TIER]["max_samples"]),
+        "--out-dir",
+        str(sweep_dir),
         "--wipe-dir",
     ]
     if encoder_mode == "resample":
@@ -360,8 +422,11 @@ def sweep_model(model: str, dt_train: float, train_dir: Path,
     # training; see train_model above for the A100 rationale.
     build_as = MODEL_CONFIG[model]["__build_as"]
     gpu_override = None
-    if (dispatcher.modal_gpu in ("T4", "L4", "A10G")
-            and build_as == "ping" and dt_train <= 0.25):
+    if (
+        dispatcher.modal_gpu in ("T4", "L4", "A10G")
+        and build_as == "ping"
+        and dt_train <= 0.25
+    ):
         gpu_override = "A100"
     dispatcher.submit(osc_args, sweep_dir, gpu_override=gpu_override)
     return sweep_dir
@@ -390,17 +455,27 @@ def run_date(run_dir: Path) -> str:
 
 
 def _stamp_figure(fig, notebook_run_id: str) -> None:
-    fig.text(0.995, 0.005, notebook_run_id, ha="right", va="bottom",
-             fontsize=7, color=theme.LABEL, family="monospace")
+    fig.text(
+        0.995,
+        0.005,
+        notebook_run_id,
+        ha="right",
+        va="bottom",
+        fontsize=7,
+        color=theme.LABEL,
+        family="monospace",
+    )
 
 
-def plot_training_curves(regime_train_dirs: dict[float, dict[str, Path]],
-                         out_path: Path, notebook_run_id: str) -> None:
+def plot_training_curves(
+    regime_train_dirs: dict[float, dict[str, Path]],
+    out_path: Path,
+    notebook_run_id: str,
+) -> None:
     """Grid: one row per training regime, columns = (loss, accuracy)."""
     dt_trains = sorted(regime_train_dirs.keys())
     n = len(dt_trains)
-    fig, axes = plt.subplots(n, 2, figsize=(8, 4.5 * max(n, 1) / 2),
-                             squeeze=False)
+    fig, axes = plt.subplots(n, 2, figsize=(8, 4.5 * max(n, 1) / 2), squeeze=False)
     for i, dt_train in enumerate(dt_trains):
         ax_loss, ax_acc = axes[i]
         for model, run_dir in regime_train_dirs[dt_train].items():
@@ -408,22 +483,32 @@ def plot_training_curves(regime_train_dirs: dict[float, dict[str, Path]],
             epochs = [e["ep"] for e in metrics["epochs"]]
             loss = [e["loss"] for e in metrics["epochs"]]
             acc = [e["acc"] for e in metrics["epochs"]]
-            ax_loss.plot(epochs, loss,
-                         color=MODEL_COLORS[model], label=MODEL_LABELS[model])
-            ax_acc.plot(epochs, acc,
-                        color=MODEL_COLORS[model], label=MODEL_LABELS[model])
+            ax_loss.plot(
+                epochs, loss, color=MODEL_COLORS[model], label=MODEL_LABELS[model]
+            )
+            ax_acc.plot(
+                epochs, acc, color=MODEL_COLORS[model], label=MODEL_LABELS[model]
+            )
         ax_loss.set_xlabel("epoch")
         ax_loss.set_ylabel("train loss")
         ax_loss.set_title(f"train loss (train dt = {dt_train} ms)")
         ax_loss.grid(alpha=0.3)
-        ax_loss.legend(handles=_grouped_model_handles(), frameon=False,
-                       fontsize=7, handlelength=2.2)
+        ax_loss.legend(
+            handles=_grouped_model_handles(),
+            frameon=False,
+            fontsize=7,
+            handlelength=2.2,
+        )
         ax_acc.set_xlabel("epoch")
         ax_acc.set_ylabel("test accuracy (%)")
         ax_acc.set_title(f"test accuracy (train dt = {dt_train} ms)")
         ax_acc.grid(alpha=0.3)
-        ax_acc.legend(handles=_grouped_model_handles(), frameon=False,
-                      fontsize=7, handlelength=2.2)
+        ax_acc.legend(
+            handles=_grouped_model_handles(),
+            frameon=False,
+            fontsize=7,
+            handlelength=2.2,
+        )
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -438,9 +523,14 @@ def _matrix_axes(n_rows: int, n_cols: int):
     same scale — upsample (eval-dt ≤ train-dt) and downsample (eval-dt ≥
     train-dt) only populate half of their panel, but the reader can compare
     positions across rows directly."""
-    fig, axes = plt.subplots(n_rows, n_cols,
-                             figsize=(8, 4.5 * n_rows / 2),
-                             sharex="col", sharey=True, squeeze=False)
+    fig, axes = plt.subplots(
+        n_rows,
+        n_cols,
+        figsize=(8, 4.5 * n_rows / 2),
+        sharex="col",
+        sharey=True,
+        squeeze=False,
+    )
     return fig, axes
 
 
@@ -464,8 +554,7 @@ def _plot_model_mode(ax, sweep_dir, color, label, linestyle="-", key="acc"):
         vals.append(v)
     if not dts:
         return []
-    ax.plot(dts, vals, color=color, label=label,
-            linestyle=linestyle, linewidth=1.4)
+    ax.plot(dts, vals, color=color, label=label, linestyle=linestyle, linewidth=1.4)
     return list(zip(dts, vals))
 
 
@@ -474,11 +563,24 @@ def _mode_legend_handles():
     on the count-preserving row so the reader can decode solid vs dashed
     without hunting for the caption."""
     from matplotlib.lines import Line2D
+
     return [
-        Line2D([0], [0], color=theme.DIM, linestyle="-", linewidth=1.4,
-               label="upsample (eval-dt ≤ train-dt)"),
-        Line2D([0], [0], color=theme.DIM, linestyle="--", linewidth=1.4,
-               label="downsample (eval-dt ≥ train-dt)"),
+        Line2D(
+            [0],
+            [0],
+            color=theme.DIM,
+            linestyle="-",
+            linewidth=1.4,
+            label="upsample (eval-dt ≤ train-dt)",
+        ),
+        Line2D(
+            [0],
+            [0],
+            color=theme.DIM,
+            linestyle="--",
+            linewidth=1.4,
+            label="downsample (eval-dt ≥ train-dt)",
+        ),
     ]
 
 
@@ -487,12 +589,20 @@ def _grouped_model_handles(linestyle: str = "-"):
     color alone (snnTorch blues / CUBA green / PING warms); ordering keeps
     related models adjacent in the legend without needing text headers."""
     from matplotlib.lines import Line2D
+
     handles = []
     for _, models in MODEL_GROUPS:
         for m in models:
-            handles.append(Line2D([0], [0], color=MODEL_COLORS[m],
-                                  linestyle=linestyle, linewidth=1.6,
-                                  label=MODEL_LABELS[m]))
+            handles.append(
+                Line2D(
+                    [0],
+                    [0],
+                    color=MODEL_COLORS[m],
+                    linestyle=linestyle,
+                    linewidth=1.6,
+                    label=MODEL_LABELS[m],
+                )
+            )
     return handles
 
 
@@ -514,10 +624,14 @@ def compute_latency_curves(
     on whatever device _auto_device picks.
     """
     import os
+
     os.environ.setdefault("PINGLAB_NO_COMPILE", "1")
     import models as M
     from oscilloscope import (
-        load_dataset, encode_batch, _auto_device, seed_everything,
+        load_dataset,
+        encode_batch,
+        _auto_device,
+        seed_everything,
         EVAL_SEED,
     )
     from config import patch_dt
@@ -529,8 +643,10 @@ def compute_latency_curves(
         out[dt_train] = {}
         for model, train_dir in train_dirs.items():
             cfg = json.loads((train_dir / "config.json").read_text())
-            print(f"[latency] {model} @ dt={dt_train}: building + loading "
-                  f"{train_dir.relative_to(REPO)}/weights.pth")
+            print(
+                f"[latency] {model} @ dt={dt_train}: building + loading "
+                f"{train_dir.relative_to(REPO)}/weights.pth"
+            )
 
             seed_everything(int(cfg.get("seed", SEED)))
             patch_dt(float(cfg["dt"]))
@@ -580,9 +696,9 @@ def compute_latency_curves(
 
             eval_gen = torch.Generator().manual_seed(EVAL_SEED)
             with torch.no_grad():
-                spk = encode_batch(X_b, M.dt,
-                                   cfg.get("dataset") == "smnist",
-                                   generator=eval_gen)
+                spk = encode_batch(
+                    X_b, M.dt, cfg.get("dataset") == "smnist", generator=eval_gen
+                )
                 _ = net(input_spikes=spk)
 
             out_logits = net.spike_record["out"].to(device)  # (T, B, N_OUT)
@@ -618,8 +734,9 @@ _LI_READOUT_MODELS = ["standard-snn", "standard-snn-exp", "snntorch-library", "c
 _RATE_READOUT_MODELS = ["coba", "ping"]
 
 
-def plot_latency(latency: dict[float, dict[str, dict]],
-                 out_path: Path, notebook_run_id: str) -> None:
+def plot_latency(
+    latency: dict[float, dict[str, dict]], out_path: Path, notebook_run_id: str
+) -> None:
     """Latency to correct answer — P(correct) vs fraction of trial.
     Layout mirrors firing_rates / dt_sweep: 2 rows × N cols. Rows split
     by readout type (li / rate) so the qualitatively different curve
@@ -654,9 +771,13 @@ def _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id):
             entry = latency.get(dt_train, {}).get(model)
             if not entry:
                 continue
-            ax.plot(entry["fractions"], entry["p_correct"],
-                    color=MODEL_COLORS[model], label=MODEL_LABELS[model],
-                    linestyle="-")
+            ax.plot(
+                entry["fractions"],
+                entry["p_correct"],
+                color=MODEL_COLORS[model],
+                label=MODEL_LABELS[model],
+                linestyle="-",
+            )
         ax.axhline(10.0, color=theme.LABEL, lw=0.7, ls=":")
         ax.set_ylim(0, 100)
         ax.set_xlim(0, 1)
@@ -664,10 +785,17 @@ def _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id):
         ax.grid(alpha=0.3)
         if j == 0:
             ax.set_ylabel("li readout\ntest acc (%)")
-            ax.legend(handles=[h for h in _grouped_model_handles()
-                               if h.get_label() in _LI_READOUT_MODELS],
-                      frameon=False, fontsize=6, loc="lower right",
-                      handlelength=2.0)
+            ax.legend(
+                handles=[
+                    h
+                    for h in _grouped_model_handles()
+                    if h.get_label() in _LI_READOUT_MODELS
+                ],
+                frameon=False,
+                fontsize=6,
+                loc="lower right",
+                handlelength=2.0,
+            )
 
         # Row 1: rate readout (cumulative argmax).
         ax = axes[1, j]
@@ -675,9 +803,13 @@ def _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id):
             entry = latency.get(dt_train, {}).get(model)
             if not entry:
                 continue
-            ax.plot(entry["fractions"], entry["p_correct"],
-                    color=MODEL_COLORS[model], label=MODEL_LABELS[model],
-                    linestyle="-")
+            ax.plot(
+                entry["fractions"],
+                entry["p_correct"],
+                color=MODEL_COLORS[model],
+                label=MODEL_LABELS[model],
+                linestyle="-",
+            )
         ax.axhline(10.0, color=theme.LABEL, lw=0.7, ls=":")
         ax.set_xlabel("fraction of trial seen")
         ax.set_ylim(0, 100)
@@ -685,10 +817,17 @@ def _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id):
         ax.grid(alpha=0.3)
         if j == 0:
             ax.set_ylabel("rate readout\ntest acc (%)")
-            ax.legend(handles=[h for h in _grouped_model_handles()
-                               if h.get_label() in _RATE_READOUT_MODELS],
-                      frameon=False, fontsize=6, loc="lower right",
-                      handlelength=2.0)
+            ax.legend(
+                handles=[
+                    h
+                    for h in _grouped_model_handles()
+                    if h.get_label() in _RATE_READOUT_MODELS
+                ],
+                frameon=False,
+                fontsize=6,
+                loc="lower right",
+                handlelength=2.0,
+            )
     fig.suptitle("Latency to correct answer")
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
@@ -697,8 +836,11 @@ def _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id):
     plt.close(fig)
 
 
-def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
-                      out_path: Path, notebook_run_id: str) -> None:
+def plot_firing_rates(
+    regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
+    out_path: Path,
+    notebook_run_id: str,
+) -> None:
     """Mean hidden-layer firing rate vs eval-dt, 2×N layout:
     row 0 = count-preserving (upsample + downsample on one axis, marker
     shape encodes direction), row 1 = resample."""
@@ -711,12 +853,22 @@ def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]]
         ax = axes[0, j]
         for model in regime_sweep_dirs[dt_train]:
             mode_dirs = regime_sweep_dirs[dt_train][model]
-            pts_up = _plot_model_mode(ax, mode_dirs.get("upsample"),
-                                      MODEL_COLORS[model], MODEL_LABELS[model],
-                                      linestyle="-", key="hid_rate_hz")
-            pts_dn = _plot_model_mode(ax, mode_dirs.get("downsample"),
-                                      MODEL_COLORS[model], None,
-                                      linestyle="--", key="hid_rate_hz")
+            pts_up = _plot_model_mode(
+                ax,
+                mode_dirs.get("upsample"),
+                MODEL_COLORS[model],
+                MODEL_LABELS[model],
+                linestyle="-",
+                key="hid_rate_hz",
+            )
+            pts_dn = _plot_model_mode(
+                ax,
+                mode_dirs.get("downsample"),
+                MODEL_COLORS[model],
+                None,
+                linestyle="--",
+                key="hid_rate_hz",
+            )
             if pts_up or pts_dn:
                 any_data = True
         ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1)
@@ -724,22 +876,41 @@ def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]]
         ax.set_title(f"train dt = {dt_train} ms")
         if j == 0:
             ax.set_ylabel("count-preserving\nhidden rate (Hz)")
-            ax.legend(handles=_grouped_model_handles(), frameon=False,
-                      fontsize=6, loc="upper right", handlelength=2.0)
-            ax.add_artist(ax.legend(handles=_mode_legend_handles(),
-                                    frameon=False, fontsize=6,
-                                    loc="lower right"))
-            ax.legend(handles=_grouped_model_handles(), frameon=False,
-                      fontsize=6, loc="upper right", handlelength=2.0)
+            ax.legend(
+                handles=_grouped_model_handles(),
+                frameon=False,
+                fontsize=6,
+                loc="upper right",
+                handlelength=2.0,
+            )
+            ax.add_artist(
+                ax.legend(
+                    handles=_mode_legend_handles(),
+                    frameon=False,
+                    fontsize=6,
+                    loc="lower right",
+                )
+            )
+            ax.legend(
+                handles=_grouped_model_handles(),
+                frameon=False,
+                fontsize=6,
+                loc="upper right",
+                handlelength=2.0,
+            )
         ax.grid(alpha=0.3)
 
         # Row 1: resample — solid lines.
         ax = axes[1, j]
         for model in regime_sweep_dirs[dt_train]:
-            pts = _plot_model_mode(ax,
-                                   regime_sweep_dirs[dt_train][model].get("resample"),
-                                   MODEL_COLORS[model], MODEL_LABELS[model],
-                                   linestyle="-", key="hid_rate_hz")
+            pts = _plot_model_mode(
+                ax,
+                regime_sweep_dirs[dt_train][model].get("resample"),
+                MODEL_COLORS[model],
+                MODEL_LABELS[model],
+                linestyle="-",
+                key="hid_rate_hz",
+            )
             if pts:
                 any_data = True
         ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1)
@@ -760,8 +931,11 @@ def plot_firing_rates(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]]
     plt.close(fig)
 
 
-def plot_dt_sweep(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
-                  out_path: Path, notebook_run_id: str) -> None:
+def plot_dt_sweep(
+    regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
+    out_path: Path,
+    notebook_run_id: str,
+) -> None:
     """Money plot — accuracy vs eval-dt, 2×N layout: row 0 = count-preserving
     (upsample < + downsample > on one axis), row 1 = resample."""
     dt_trains = sorted(regime_sweep_dirs.keys())
@@ -770,32 +944,58 @@ def plot_dt_sweep(regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
         ax = axes[0, j]
         for model in regime_sweep_dirs[dt_train]:
             mode_dirs = regime_sweep_dirs[dt_train][model]
-            _plot_model_mode(ax, mode_dirs.get("upsample"),
-                             MODEL_COLORS[model], MODEL_LABELS[model],
-                             linestyle="-")
-            _plot_model_mode(ax, mode_dirs.get("downsample"),
-                             MODEL_COLORS[model], None,
-                             linestyle="--")
+            _plot_model_mode(
+                ax,
+                mode_dirs.get("upsample"),
+                MODEL_COLORS[model],
+                MODEL_LABELS[model],
+                linestyle="-",
+            )
+            _plot_model_mode(
+                ax,
+                mode_dirs.get("downsample"),
+                MODEL_COLORS[model],
+                None,
+                linestyle="--",
+            )
         ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1)
         ax.set_ylim(0, 100)
         ax.set_title(f"train dt = {dt_train} ms")
         if j == 0:
             ax.set_ylabel("count-preserving\ntest acc (%)")
-            ax.legend(handles=_grouped_model_handles(), frameon=False,
-                      fontsize=6, loc="lower right", handlelength=2.0)
-            ax.add_artist(ax.legend(handles=_mode_legend_handles(),
-                                    frameon=False, fontsize=6,
-                                    loc="lower left"))
-            ax.legend(handles=_grouped_model_handles(), frameon=False,
-                      fontsize=6, loc="lower right", handlelength=2.0)
+            ax.legend(
+                handles=_grouped_model_handles(),
+                frameon=False,
+                fontsize=6,
+                loc="lower right",
+                handlelength=2.0,
+            )
+            ax.add_artist(
+                ax.legend(
+                    handles=_mode_legend_handles(),
+                    frameon=False,
+                    fontsize=6,
+                    loc="lower left",
+                )
+            )
+            ax.legend(
+                handles=_grouped_model_handles(),
+                frameon=False,
+                fontsize=6,
+                loc="lower right",
+                handlelength=2.0,
+            )
         ax.grid(alpha=0.3)
 
         ax = axes[1, j]
         for model in regime_sweep_dirs[dt_train]:
-            _plot_model_mode(ax,
-                             regime_sweep_dirs[dt_train][model].get("resample"),
-                             MODEL_COLORS[model], MODEL_LABELS[model],
-                             linestyle="-")
+            _plot_model_mode(
+                ax,
+                regime_sweep_dirs[dt_train][model].get("resample"),
+                MODEL_COLORS[model],
+                MODEL_LABELS[model],
+                linestyle="-",
+            )
         ax.axvline(dt_train, color=theme.DANGER, linestyle="--", linewidth=1)
         ax.set_ylim(0, 100)
         ax.set_xlabel("eval dt (ms)")
@@ -822,9 +1022,17 @@ def _format_duration(seconds: float) -> str:
 def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
     fig = plt.figure(figsize=(2.8, 0.28), dpi=150)
     fig.patch.set_alpha(0.0)
-    fig.text(0.97, 0.5, notebook_run_id, ha="right", va="center",
-             fontsize=10, color="white", family="monospace",
-             bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"))
+    fig.text(
+        0.97,
+        0.5,
+        notebook_run_id,
+        ha="right",
+        va="center",
+        fontsize=10,
+        color="white",
+        family="monospace",
+        bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"),
+    )
     stamp_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(stamp_path, transparent=True, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
@@ -832,20 +1040,36 @@ def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
 
 def _copy_with_stamp(src: Path, dst: Path, stamp_path: Path) -> None:
     sh.ffmpeg(
-        "-y", "-i", str(src), "-i", str(stamp_path),
-        "-filter_complex", "[0:v][1:v]overlay=W-w-10:H-h-10",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        "-preset", "veryfast", "-crf", "20",
-        "-movflags", "+faststart",
+        "-y",
+        "-i",
+        str(src),
+        "-i",
+        str(stamp_path),
+        "-filter_complex",
+        "[0:v][1:v]overlay=W-w-10:H-h-10",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-movflags",
+        "+faststart",
         str(dst),
-        _out=sys.stdout, _err=sys.stderr,
+        _out=sys.stdout,
+        _err=sys.stderr,
     )
     print(f"wrote {dst.relative_to(REPO)}")
 
 
-def copy_videos(regime_train_dirs: dict[float, dict[str, Path]],
-                regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
-                out_dir: Path, notebook_run_id: str) -> None:
+def copy_videos(
+    regime_train_dirs: dict[float, dict[str, Path]],
+    regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
+    out_dir: Path,
+    notebook_run_id: str,
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp_path = out_dir / "_stamp.png"
     _render_stamp_png(notebook_run_id, stamp_path)
@@ -871,10 +1095,14 @@ def copy_videos(regime_train_dirs: dict[float, dict[str, Path]],
     stamp_path.unlink(missing_ok=True)
 
 
-def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
-                  regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
-                  out_path: Path, notebook_run_id: str,
-                  duration_s: float, init_match: dict | None = None) -> dict:
+def write_numbers(
+    regime_train_dirs: dict[float, dict[str, Path]],
+    regime_sweep_dirs: dict[float, dict[str, dict[str, Path]]],
+    out_path: Path,
+    notebook_run_id: str,
+    duration_s: float,
+    init_match: dict | None = None,
+) -> dict:
     first_regime = next(iter(regime_train_dirs.values()))
     first_cfg = load_config(next(iter(first_regime.values())))
     summary: dict = {
@@ -913,8 +1141,11 @@ def write_numbers(regime_train_dirs: dict[float, dict[str, Path]],
                 sweep = load_sweep(sweep_dir)
                 ref = next((r for r in sweep["sweep"] if r["dt"] == dt_train), None)
                 accs = [r["acc"] for r in sweep["sweep"]]
-                rates = [r["hid_rate_hz"] for r in sweep["sweep"]
-                         if r.get("hid_rate_hz") is not None]
+                rates = [
+                    r["hid_rate_hz"]
+                    for r in sweep["sweep"]
+                    if r.get("hid_rate_hz") is not None
+                ]
                 per_mode[mode] = {
                     "sweep": sweep["sweep"],
                     "ref_acc": ref["acc"] if ref else None,
@@ -995,8 +1226,13 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
     PER_RUN_COLLAPSE_TOL_PP = 5.0
     # Tier floors match _per_model.DEFAULT_MIN_ACC. Default to the
     # lowest if tier is not recorded (older runs).
-    TIER_FLOORS = {"extra small": 15.0, "small": 30.0, "medium": 50.0,
-                   "large": 70.0, "extra large": 70.0}
+    TIER_FLOORS = {
+        "extra small": 15.0,
+        "small": 30.0,
+        "medium": 50.0,
+        "large": 70.0,
+        "extra large": 70.0,
+    }
     tier = summary.get("tier") or summary.get("config", {}).get("tier")
     floor = TIER_FLOORS.get(tier, 15.0)
 
@@ -1023,16 +1259,20 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
                 if delta > PER_RUN_COLLAPSE_TOL_PP:
                     collapse_fails.append(f"{tag}:Δ={delta:.0f}pp")
 
-    criteria.append({
-        "label": f"all runs final-acc ≥ {floor:.0f}% ({tier or 'unknown'} tier floor)",
-        "passed": not acc_fails,
-        "detail": "; ".join(acc_detail) if acc_detail else "no data",
-    })
-    criteria.append({
-        "label": f"no collapse (final ≥ best − {PER_RUN_COLLAPSE_TOL_PP:.0f}pp) for all runs",
-        "passed": not collapse_fails,
-        "detail": "; ".join(collapse_detail) if collapse_detail else "no data",
-    })
+    criteria.append(
+        {
+            "label": f"all runs final-acc ≥ {floor:.0f}% ({tier or 'unknown'} tier floor)",
+            "passed": not acc_fails,
+            "detail": "; ".join(acc_detail) if acc_detail else "no data",
+        }
+    )
+    criteria.append(
+        {
+            "label": f"no collapse (final ≥ best − {PER_RUN_COLLAPSE_TOL_PP:.0f}pp) for all runs",
+            "passed": not collapse_fails,
+            "detail": "; ".join(collapse_detail) if collapse_detail else "no data",
+        }
+    )
 
     # ── Sweep-level structural checks (layer 2) ──
 
@@ -1043,13 +1283,16 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
     ):
         p = figures_dir / fname
         ok = p.exists() and p.stat().st_size > 0
-        criteria.append({
-            "label": label,
-            "passed": bool(ok),
-            "detail": f"{p.name} ({p.stat().st_size} bytes)" if ok
-                      else f"missing {p.name}",
-            "detail_href": "/" + str(p.relative_to(dataset_root)) if ok else None,
-        })
+        criteria.append(
+            {
+                "label": label,
+                "passed": bool(ok),
+                "detail": f"{p.name} ({p.stat().st_size} bytes)"
+                if ok
+                else f"missing {p.name}",
+                "detail_href": "/" + str(p.relative_to(dataset_root)) if ok else None,
+            }
+        )
 
     regimes = summary.get("regimes", {})
     flat_models = ("cuba", "coba", "ping")
@@ -1090,16 +1333,20 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
         else:
             parity_fails.append(f"dt={dt_train}:no-data")
 
-    criteria.append({
-        "label": f"cuba/coba/ping rate-flat (ratio ≤ {FLAT_MAX:g}×) on count-preserving sweep",
-        "passed": not flat_fails,
-        "detail": "; ".join(flat_detail) if flat_detail else "no data",
-    })
-    criteria.append({
-        "label": f"pinglab parity: standard-snn vs snntorch-library best-acc within {PARITY_TOL:g} pt",
-        "passed": not parity_fails,
-        "detail": "; ".join(parity_detail) if parity_detail else "no data",
-    })
+    criteria.append(
+        {
+            "label": f"cuba/coba/ping rate-flat (ratio ≤ {FLAT_MAX:g}×) on count-preserving sweep",
+            "passed": not flat_fails,
+            "detail": "; ".join(flat_detail) if flat_detail else "no data",
+        }
+    )
+    criteria.append(
+        {
+            "label": f"pinglab parity: standard-snn vs snntorch-library best-acc within {PARITY_TOL:g} pt",
+            "passed": not parity_fails,
+            "detail": "; ".join(parity_detail) if parity_detail else "no data",
+        }
+    )
     return criteria
 
 
@@ -1114,8 +1361,10 @@ def _print_and_gate(success_criteria: list[dict]) -> None:
 def evaluate_only() -> None:
     numbers_path = FIGURES / "numbers.json"
     if not numbers_path.exists():
-        raise SystemExit(f"--evaluate-success-only requires existing "
-                         f"{numbers_path.relative_to(REPO)}")
+        raise SystemExit(
+            f"--evaluate-success-only requires existing "
+            f"{numbers_path.relative_to(REPO)}"
+        )
     summary = json.loads(numbers_path.read_text())
     summary["success_criteria"] = evaluate_success(FIGURES, summary)
     numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
@@ -1149,8 +1398,7 @@ def plots_only() -> None:
         td = {m: ARTIFACTS / rk / m / "train" for m in MODELS}
         for m, d in td.items():
             if not (d / "metrics.json").exists():
-                raise SystemExit(
-                    f"--plots-only requires existing {d / 'metrics.json'}")
+                raise SystemExit(f"--plots-only requires existing {d / 'metrics.json'}")
         regime_train_dirs[dt_train] = td
         sd: dict[str, dict[str, Path]] = {}
         for m in MODELS:
@@ -1159,20 +1407,21 @@ def plots_only() -> None:
                 sub = ARTIFACTS / rk / m / f"sweep_{_mode_key(mode)}"
                 if not (sub / "results.json").exists():
                     raise SystemExit(
-                        f"--plots-only requires existing {sub / 'results.json'}")
+                        f"--plots-only requires existing {sub / 'results.json'}"
+                    )
                 sd[m][mode] = sub
         regime_sweep_dirs[dt_train] = sd
 
     FIGURES.mkdir(parents=True, exist_ok=True)
     persist_run_id(SLUG, notebook_run_id)
 
-    plot_training_curves(regime_train_dirs, FIGURES / "training_curves.png",
-                         notebook_run_id)
+    plot_training_curves(
+        regime_train_dirs, FIGURES / "training_curves.png", notebook_run_id
+    )
     print(f"wrote {(FIGURES / 'training_curves.png').relative_to(REPO)}")
     plot_dt_sweep(regime_sweep_dirs, FIGURES / "dt_sweep.png", notebook_run_id)
     print(f"wrote {(FIGURES / 'dt_sweep.png').relative_to(REPO)}")
-    plot_firing_rates(regime_sweep_dirs, FIGURES / "firing_rates.png",
-                      notebook_run_id)
+    plot_firing_rates(regime_sweep_dirs, FIGURES / "firing_rates.png", notebook_run_id)
     fr = FIGURES / "firing_rates.png"
     if fr.exists():
         print(f"wrote {fr.relative_to(REPO)}")
@@ -1182,8 +1431,9 @@ def plots_only() -> None:
     print(f"wrote {(FIGURES / 'latency_curves.png').relative_to(REPO)}")
 
     numbers_path = FIGURES / "numbers.json"
-    summary = write_numbers(regime_train_dirs, regime_sweep_dirs, numbers_path,
-                            notebook_run_id, 0.0)
+    summary = write_numbers(
+        regime_train_dirs, regime_sweep_dirs, numbers_path, notebook_run_id, 0.0
+    )
     summary["latency"] = latency
     summary["success_criteria"] = evaluate_success(FIGURES, summary)
     numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
@@ -1205,15 +1455,22 @@ def main() -> None:
     TIER = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id} tier={TIER}"
-          + ("  [skip-training]" if skip_training else ""))
+    print(
+        f"notebook_run_id = {notebook_run_id} tier={TIER}"
+        + ("  [skip-training]" if skip_training else "")
+    )
     if wipe_dir:
         if skip_training:
             # Preserve train dirs; wipe sweep subdirs + figures so they regenerate.
             for dt_train in DT_TRAINS:
                 for model in MODELS:
                     for mode in ENCODER_MODES:
-                        sd = ARTIFACTS / _regime_key(dt_train) / model / f"sweep_{_mode_key(mode)}"
+                        sd = (
+                            ARTIFACTS
+                            / _regime_key(dt_train)
+                            / model
+                            / f"sweep_{_mode_key(mode)}"
+                        )
                         if sd.exists():
                             print(f"[wipe] {sd.relative_to(REPO)}")
                             shutil.rmtree(sd)
@@ -1247,7 +1504,8 @@ def main() -> None:
             for m, d in td.items():
                 if not (d / "weights.pth").exists():
                     raise SystemExit(
-                        f"--skip-training requires existing train weights at {d}")
+                        f"--skip-training requires existing train weights at {d}"
+                    )
         else:
             td = {m: train_model(m, dt_train, dispatcher) for m in MODELS}
         regime_train_dirs[dt_train] = td
@@ -1265,8 +1523,10 @@ def main() -> None:
         td = regime_train_dirs[dt_train]
         sd: dict[str, dict[str, Path]] = {}
         for m in MODELS:
-            sd[m] = {mode: sweep_model(m, dt_train, td[m], mode, dispatcher)
-                     for mode in ENCODER_MODES}
+            sd[m] = {
+                mode: sweep_model(m, dt_train, td[m], mode, dispatcher)
+                for mode in ENCODER_MODES
+            }
         regime_sweep_dirs[dt_train] = sd
     dispatcher.drain()
 
@@ -1276,13 +1536,13 @@ def main() -> None:
                 if not (d / "results.json").exists():
                     raise SystemExit(f"dt-sweep did not produce {d / 'results.json'}")
 
-    plot_training_curves(regime_train_dirs, FIGURES / "training_curves.png",
-                         notebook_run_id)
+    plot_training_curves(
+        regime_train_dirs, FIGURES / "training_curves.png", notebook_run_id
+    )
     print(f"wrote {(FIGURES / 'training_curves.png').relative_to(REPO)}")
     plot_dt_sweep(regime_sweep_dirs, FIGURES / "dt_sweep.png", notebook_run_id)
     print(f"wrote {(FIGURES / 'dt_sweep.png').relative_to(REPO)}")
-    plot_firing_rates(regime_sweep_dirs, FIGURES / "firing_rates.png",
-                      notebook_run_id)
+    plot_firing_rates(regime_sweep_dirs, FIGURES / "firing_rates.png", notebook_run_id)
     fr = FIGURES / "firing_rates.png"
     if fr.exists():
         print(f"wrote {fr.relative_to(REPO)}")
@@ -1293,9 +1553,14 @@ def main() -> None:
 
     numbers_path = FIGURES / "numbers.json"
     duration_s = time.monotonic() - t_start
-    summary = write_numbers(regime_train_dirs, regime_sweep_dirs, numbers_path,
-                            notebook_run_id, duration_s,
-                            init_match=init_match)
+    summary = write_numbers(
+        regime_train_dirs,
+        regime_sweep_dirs,
+        numbers_path,
+        notebook_run_id,
+        duration_s,
+        init_match=init_match,
+    )
     summary["latency"] = latency
     summary["success_criteria"] = evaluate_success(FIGURES, summary)
     numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
@@ -1303,12 +1568,16 @@ def main() -> None:
     for dt_train_s, regime in summary["regimes"].items():
         print(f"  regime dt={dt_train_s}:")
         for model, s in regime["runs"].items():
-            print(f"    {model}: best={s['best_acc']}%  "
-                  f"final={s['final_acc']}%  "
-                  f"elapsed={s['total_elapsed_s']:.0f}s")
+            print(
+                f"    {model}: best={s['best_acc']}%  "
+                f"final={s['final_acc']}%  "
+                f"elapsed={s['total_elapsed_s']:.0f}s"
+            )
             for mode, m in s["encoder_modes"].items():
-                print(f"      [{mode}] ref={m['ref_acc']}%  "
-                      f"sweep=[{m['sweep_min_acc']}..{m['sweep_max_acc']}]%")
+                print(
+                    f"      [{mode}] ref={m['ref_acc']}%  "
+                    f"sweep=[{m['sweep_min_acc']}..{m['sweep_max_acc']}]%"
+                )
     print(f"  total duration: {summary['duration']}")
     _print_and_gate(summary["success_criteria"])
 

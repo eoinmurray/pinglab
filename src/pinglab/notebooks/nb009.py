@@ -8,6 +8,7 @@ to the five-model Δt-stability sweep in nb012.
 
 Notebook entry: src/docs/src/pages/notebooks/nb009.mdx
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,10 +27,14 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
     # mem-mean readout + slope=1 — same rationale as nb006.
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
         "--kaiming-init",
-        "--readout", "mem-mean",
-        "--surrogate-slope", "1",
-        "--lr", "0.04",
-        "--batch-size", "256",
+        "--readout",
+        "mem-mean",
+        "--surrogate-slope",
+        "1",
+        "--lr",
+        "0.04",
+        "--batch-size",
+        "256",
     ]
 
 

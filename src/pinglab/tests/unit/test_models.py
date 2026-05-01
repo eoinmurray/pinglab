@@ -40,8 +40,9 @@ class TestCOBANetFrozenWeights:
             pdict = getattr(net, name)
             assert isinstance(pdict, nn.ParameterDict)
             for key, param in pdict.items():
-                assert not param.requires_grad, \
+                assert not param.requires_grad, (
                     f"{name}[{key}] should be frozen (requires_grad=False)"
+                )
 
     def test_recurrent_weights_survive_optimizer_step(self):
         """Freezing means an optimizer.step() on all params leaves them unchanged."""
@@ -60,8 +61,9 @@ class TestCOBANetFrozenWeights:
         opt.step()
         for name in ["W_ee", "W_ei", "W_ie"]:
             for k, p in getattr(net, name).items():
-                assert torch.equal(p, snapshots[f"{name}_{k}"]), \
+                assert torch.equal(p, snapshots[f"{name}_{k}"]), (
                     f"{name}[{k}] changed after optimizer step"
+                )
 
 
 class TestSeedReproducibility:
@@ -69,6 +71,7 @@ class TestSeedReproducibility:
     def test_same_seed_gives_same_weights(self, name):
         def _weights(net):
             return [p.detach().clone() for p in net.parameters()]
+
         torch.manual_seed(123)
         a = _weights(build_net(name, hidden_sizes=[32]))
         torch.manual_seed(123)
@@ -79,9 +82,15 @@ class TestSeedReproducibility:
 
     def test_different_seeds_give_different_weights(self):
         torch.manual_seed(1)
-        a = [p.detach().clone() for p in build_net("standard-snn", hidden_sizes=[32]).parameters()]
+        a = [
+            p.detach().clone()
+            for p in build_net("standard-snn", hidden_sizes=[32]).parameters()
+        ]
         torch.manual_seed(2)
-        b = [p.detach().clone() for p in build_net("standard-snn", hidden_sizes=[32]).parameters()]
+        b = [
+            p.detach().clone()
+            for p in build_net("standard-snn", hidden_sizes=[32]).parameters()
+        ]
         # At least one parameter tensor must differ
         assert any(not torch.equal(pa, pb) for pa, pb in zip(a, b))
 

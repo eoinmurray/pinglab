@@ -18,6 +18,7 @@ Regenerate fixtures:
 
 Layer 3 (notebook smoke) lives in tests/integration/, not here.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -38,6 +39,7 @@ class _Cfg(TypedDict):
     SEED: int
     LR: float
     STEPS: int
+
 
 import pytest
 import torch
@@ -146,7 +148,7 @@ def _train_trajectory(model_name):
     for _ in range(CFG["STEPS"]):
         opt.zero_grad()
         logits = net(input_spikes=spikes)
-        loss = (logits ** 2).mean()
+        loss = (logits**2).mean()
         loss.backward()
         opt.step()
         losses.append(loss.detach().clone())
@@ -166,8 +168,13 @@ def test_forward_backward_parity(model_name):
     ref = torch.load(path, weights_only=False)
     cur = _forward_backward(model_name)
     for k in ("logits", "W0_before", "grad_W0", "loss"):
-        torch.testing.assert_close(cur[k], ref[k], atol=TOL_TENSOR, rtol=TOL_TENSOR,
-                                   msg=lambda m, k=k: f"{model_name}[{k}] drifted: {m}")
+        torch.testing.assert_close(
+            cur[k],
+            ref[k],
+            atol=TOL_TENSOR,
+            rtol=TOL_TENSOR,
+            msg=lambda m, k=k: f"{model_name}[{k}] drifted: {m}",
+        )
 
 
 @pytest.mark.parametrize("model_name", MODELS)
@@ -177,15 +184,21 @@ def test_training_trajectory_parity(model_name):
         pytest.skip(f"no fixture at {path}; run the file directly to regenerate")
     ref = torch.load(path, weights_only=False)
     cur = _train_trajectory(model_name)
-    torch.testing.assert_close(cur["losses"], ref["losses"],
-                               atol=TOL_TRAJ, rtol=TOL_TRAJ,
-                               msg=lambda m: f"{model_name} loss trajectory drifted: {m}")
+    torch.testing.assert_close(
+        cur["losses"],
+        ref["losses"],
+        atol=TOL_TRAJ,
+        rtol=TOL_TRAJ,
+        msg=lambda m: f"{model_name} loss trajectory drifted: {m}",
+    )
     # Weight hashes are an all-or-nothing check. If losses match within
     # TOL_TRAJ but hashes differ, the drift is below our tolerance — surface
     # it as a warning rather than a hard fail.
     if cur["hashes"] != ref["hashes"]:
-        pytest.skip(f"{model_name}: param hashes differ but losses within tol — "
-                    f"expected on non-bitwise-determinstic backends")
+        pytest.skip(
+            f"{model_name}: param hashes differ but losses within tol — "
+            f"expected on non-bitwise-determinstic backends"
+        )
 
 
 def _regenerate():

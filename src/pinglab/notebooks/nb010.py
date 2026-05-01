@@ -9,6 +9,7 @@ in nb012.
 
 Notebook entry: src/docs/src/pages/notebooks/nb010.mdx
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,18 +28,27 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
     # coba = ping with ei-strength=0; see models page and nb012 MODEL_CONFIG.
     # mem-mean readout + slope=1: snnTorch tutorial 5 pattern (see nb006).
     return osc_base_args(out_dir, tier, build_as="ping") + [
-        "--ei-strength", "0",
-        "--v-grad-dampen", "1000",
-        "--w-in", "0.3",
-        "--w-in-sparsity", "0.95",
-        "--readout", "mem-mean",
-        "--surrogate-slope", "1",
+        "--ei-strength",
+        "0",
+        "--v-grad-dampen",
+        "1000",
+        "--w-in",
+        "0.3",
+        "--w-in-sparsity",
+        "0.95",
+        "--readout",
+        "mem-mean",
+        "--surrogate-slope",
+        "1",
         # COBANet hidden firing rate is ~10× lower than CUBANet's
         # under matched recipes, so the output LIF gets ~10× less
         # drive. Scale W_out at init to compensate.
-        "--readout-w-out-scale", "100",
-        "--lr", "0.0004",
-        "--batch-size", "256",
+        "--readout-w-out-scale",
+        "100",
+        "--lr",
+        "0.0004",
+        "--batch-size",
+        "256",
     ]
 
 

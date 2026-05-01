@@ -3,6 +3,7 @@
 Contains the Config dataclass, make_net, extract_weights, run_sim,
 run_sim_batch, run_sim_image, and backward-compat module globals.
 """
+
 from __future__ import annotations
 
 import sys
@@ -37,6 +38,7 @@ from inputs import (
 # Config
 # =============================================================================
 
+
 @dataclass
 class Config:
     n_e: int = 1024
@@ -61,10 +63,20 @@ class Config:
     ei_ratio: float = 2.0
     device: str = "cpu"
     raster_mode: str = "scatter"
-    active_panels: list = field(default_factory=lambda: [
-        "header", "progress", "sweep", "e_raster",
-        "drive", "weights", "i_raster", "participation",
-        "output", "psd"])
+    active_panels: list = field(
+        default_factory=lambda: [
+            "header",
+            "progress",
+            "sweep",
+            "e_raster",
+            "drive",
+            "weights",
+            "i_raster",
+            "participation",
+            "output",
+            "psd",
+        ]
+    )
     artifact_root: str = ""
 
     @property
@@ -76,7 +88,9 @@ class Config:
         return torch.device(self.device)
 
 
-cfg = Config(artifact_root=str(Path(__file__).parent.parent / "artifacts" / "oscilloscope"))
+cfg = Config(
+    artifact_root=str(Path(__file__).parent.parent / "artifacts" / "oscilloscope")
+)
 
 
 # =============================================================================
@@ -84,28 +98,45 @@ cfg = Config(artifact_root=str(Path(__file__).parent.parent / "artifacts" / "osc
 # =============================================================================
 
 MODEL_REGISTRY = {
-    "ping":                 lambda **kw: COBANet(w_in=(0, 0), w_hid=(5.1, 3.8),
-                                                  w_ei=(*cfg.w_ei, "normal", cfg.sparsity),
-                                                  w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
-                                                  **kw),
-    "standard-snn":       lambda **kw: CUBANet(w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "standard-snn-exp":   lambda **kw: CUBANet(exponential_synapse=True,
-                                                      w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba":                 lambda **kw: CUBANet(discretisation="zoh",
-                                                      w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba-exp":             lambda **kw: CUBANet(discretisation="zoh",
-                                                      exponential_synapse=True,
-                                                      w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba-exp-hard":        lambda **kw: CUBANet(discretisation="zoh",
-                                                      exponential_synapse=True,
-                                                      reset_mode="zero",
-                                                      w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba-exp-hard-refrac": lambda **kw: CUBANet(discretisation="zoh",
-                                                      exponential_synapse=True,
-                                                      reset_mode="zero",
-                                                      ref_ms=2.0,
-                                                      w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "snntorch-library":     lambda **kw: SNNTorchLibraryNet(**kw),
+    "ping": lambda **kw: COBANet(
+        w_in=(0, 0),
+        w_hid=(5.1, 3.8),
+        w_ei=(*cfg.w_ei, "normal", cfg.sparsity),
+        w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
+        **kw,
+    ),
+    "standard-snn": lambda **kw: CUBANet(w_in=(0, 0), w_hid=(0, 0.1), **kw),
+    "standard-snn-exp": lambda **kw: CUBANet(
+        exponential_synapse=True, w_in=(0, 0), w_hid=(0, 0.1), **kw
+    ),
+    "cuba": lambda **kw: CUBANet(
+        discretisation="zoh", w_in=(0, 0), w_hid=(0, 0.1), **kw
+    ),
+    "cuba-exp": lambda **kw: CUBANet(
+        discretisation="zoh",
+        exponential_synapse=True,
+        w_in=(0, 0),
+        w_hid=(0, 0.1),
+        **kw,
+    ),
+    "cuba-exp-hard": lambda **kw: CUBANet(
+        discretisation="zoh",
+        exponential_synapse=True,
+        reset_mode="zero",
+        w_in=(0, 0),
+        w_hid=(0, 0.1),
+        **kw,
+    ),
+    "cuba-exp-hard-refrac": lambda **kw: CUBANet(
+        discretisation="zoh",
+        exponential_synapse=True,
+        reset_mode="zero",
+        ref_ms=2.0,
+        w_in=(0, 0),
+        w_hid=(0, 0.1),
+        **kw,
+    ),
+    "snntorch-library": lambda **kw: SNNTorchLibraryNet(**kw),
 }
 
 HAS_INH = {"ping"}
@@ -122,8 +153,8 @@ CUBA_MODELS = {
     "snntorch-library",
     "cuba",
     "cuba-exp",
-    "cuba-exp-hard",           # kept in registry for legacy-artifact loading
-    "cuba-exp-hard-refrac",    # kept in registry for legacy-artifact loading
+    "cuba-exp-hard",  # kept in registry for legacy-artifact loading
+    "cuba-exp-hard-refrac",  # kept in registry for legacy-artifact loading
 }
 
 # Headline ladder: the 5 models that appear in the main dt-sweep figure and
@@ -139,39 +170,55 @@ HEADLINE_LADDER = [
 ]
 
 _MODEL_CLASSES = {
-    "ping":                 (COBANet,     {}),
-    "standard-snn":       (CUBANet, {}),
-    "standard-snn-exp":   (CUBANet, {"exponential_synapse": True}),
-    "cuba":                 (CUBANet, {"discretisation": "zoh"}),
-    "cuba-exp":             (CUBANet, {"discretisation": "zoh",
-                                            "exponential_synapse": True}),
-    "cuba-exp-hard":        (CUBANet, {"discretisation": "zoh",
-                                            "exponential_synapse": True,
-                                            "reset_mode": "zero"}),
-    "cuba-exp-hard-refrac": (CUBANet, {"discretisation": "zoh",
-                                            "exponential_synapse": True,
-                                            "reset_mode": "zero",
-                                            "ref_ms": 2.0}),
-    "snntorch-library":     (SNNTorchLibraryNet, {}),
+    "ping": (COBANet, {}),
+    "standard-snn": (CUBANet, {}),
+    "standard-snn-exp": (CUBANet, {"exponential_synapse": True}),
+    "cuba": (CUBANet, {"discretisation": "zoh"}),
+    "cuba-exp": (CUBANet, {"discretisation": "zoh", "exponential_synapse": True}),
+    "cuba-exp-hard": (
+        CUBANet,
+        {"discretisation": "zoh", "exponential_synapse": True, "reset_mode": "zero"},
+    ),
+    "cuba-exp-hard-refrac": (
+        CUBANet,
+        {
+            "discretisation": "zoh",
+            "exponential_synapse": True,
+            "reset_mode": "zero",
+            "ref_ms": 2.0,
+        },
+    ),
+    "snntorch-library": (SNNTorchLibraryNet, {}),
 }
 
 # Back-compat aliases: older config.json files record legacy model names.
 # Resolved to current primary key before lookup in MODEL_REGISTRY / build_net.
 LEGACY_MODEL_ALIASES = {
-    "snntorch":           "standard-snn",   # renamed 2026-04-18
-    "snntorch-canonical": "standard-snn",   # renamed 2026-04-17
-    "snntorch-exp":       "standard-snn",   # exp removed; loads as canonical
+    "snntorch": "standard-snn",  # renamed 2026-04-18
+    "snntorch-canonical": "standard-snn",  # renamed 2026-04-17
+    "snntorch-exp": "standard-snn",  # exp removed; loads as canonical
 }
 
 
-def build_net(model_name, w_in=None, w_in_sparsity=0.0,
-              w_ei=None, w_ie=None,
-              ei_strength=None, ei_ratio=2.0, sparsity=0.0,
-              device=None, randomize_init=False,
-              kaiming_init=False, dales_law=True,
-              w_rec=None, hidden_sizes=None,
-              rec_layers=None, ei_layers=None,
-              readout_mode="rate"):
+def build_net(
+    model_name,
+    w_in=None,
+    w_in_sparsity=0.0,
+    w_ei=None,
+    w_ie=None,
+    ei_strength=None,
+    ei_ratio=2.0,
+    sparsity=0.0,
+    device=None,
+    randomize_init=False,
+    kaiming_init=False,
+    dales_law=True,
+    w_rec=None,
+    hidden_sizes=None,
+    rec_layers=None,
+    ei_layers=None,
+    readout_mode="rate",
+):
     """Construct a network with the given config.
 
     Single canonical builder used by every mode. Same args produce the same
@@ -183,8 +230,9 @@ def build_net(model_name, w_in=None, w_in_sparsity=0.0,
     """
     model_name = LEGACY_MODEL_ALIASES.get(model_name, model_name)
     if model_name not in _MODEL_CLASSES:
-        raise ValueError(f"Unknown model {model_name!r}; "
-                         f"choose from {list(_MODEL_CLASSES)}")
+        raise ValueError(
+            f"Unknown model {model_name!r}; choose from {list(_MODEL_CLASSES)}"
+        )
     cls, base_kwargs = _MODEL_CLASSES[model_name]
     kwargs = {**base_kwargs}
     kwargs["readout_mode"] = readout_mode
@@ -268,6 +316,7 @@ EI_RATIO = cfg.ei_ratio
 # Device
 # =============================================================================
 
+
 def _get_device():
     """Pick the best available device.
 
@@ -276,12 +325,14 @@ def _get_device():
     """
     return torch.device("cpu")
 
+
 DEVICE = _get_device()
 
 
 # =============================================================================
 # Simulation helpers
 # =============================================================================
+
 
 def patch_dt(dt_new):
     """Apply a new dt. Uses M.T_ms (set by dispatch from --t-ms)."""
@@ -320,7 +371,7 @@ def extract_weights(net):
             elif i == len(net.W_ff) - 1:
                 weights["W_out"] = _extract(w)
             else:
-                weights[f"W_ff_{i+1}"] = _extract(w)
+                weights[f"W_ff_{i + 1}"] = _extract(w)
 
     # New-style: ParameterDict W_rec, W_ee, W_ei, W_ie
     for dict_name in ["W_rec", "W_ee", "W_ei", "W_ie"]:
@@ -384,8 +435,15 @@ def make_net(cfg_obj, w_in=None, w_hid=(5.1, 3.8), model_name="ping"):
 make_ping_net = make_net
 
 
-def run_sim(dt, t_e_ping, *, ext_g_override=None, model_name="ping",
-            t_e_async=None, input_spikes=None):
+def run_sim(
+    dt,
+    t_e_ping,
+    *,
+    ext_g_override=None,
+    model_name="ping",
+    t_e_async=None,
+    input_spikes=None,
+):
     """Run a single simulation with any registered model.
 
     Returns (rec, ext_g_or_spikes_numpy, weights).
@@ -402,15 +460,25 @@ def run_sim(dt, t_e_ping, *, ext_g_override=None, model_name="ping",
         input_spikes = input_spikes.to(DEVICE)
         M.T_steps = min(M.T_steps, len(input_spikes))
     elif ext_g_override is not None:
-        ext_g_tensor = (ext_g_override.clone().detach()
-                        if isinstance(ext_g_override, torch.Tensor)
-                        else torch.tensor(ext_g_override, dtype=torch.float32)
-                        ).to(DEVICE)
+        ext_g_tensor = (
+            ext_g_override.clone().detach()
+            if isinstance(ext_g_override, torch.Tensor)
+            else torch.tensor(ext_g_override, dtype=torch.float32)
+        ).to(DEVICE)
         M.T_steps = min(M.T_steps, len(ext_g_tensor))
     else:
         ext_g_tensor, _ = make_step_drive(
-            N_E, T_steps, dt, t_e_async, t_e_ping,
-            STEP_ON_MS, STEP_OFF_MS, SIGMA_E, NOISE_SIGMA, NOISE_TAU, SEED,
+            N_E,
+            T_steps,
+            dt,
+            t_e_async,
+            t_e_ping,
+            STEP_ON_MS,
+            STEP_OFF_MS,
+            SIGMA_E,
+            NOISE_SIGMA,
+            NOISE_TAU,
+            SEED,
         )
         ext_g_tensor = ext_g_tensor.to(DEVICE)
 
@@ -436,8 +504,7 @@ def run_sim(dt, t_e_ping, *, ext_g_override=None, model_name="ping",
     return rec, display, weights
 
 
-def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100,
-                  model_name="ping"):
+def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100, model_name="ping"):
     """Run multiple simulations in one batched forward pass.
 
     Returns list of (rec, ext_g_raw) tuples, one per sim.
@@ -448,12 +515,13 @@ def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100,
 
     results = []
     for start in range(0, len(ext_g_list), chunk_size):
-        chunk = ext_g_list[start:start + chunk_size]
+        chunk = ext_g_list[start : start + chunk_size]
         B = len(chunk)
         T = len(chunk[0])
 
-        ext_g_batch = torch.tensor(np.stack(chunk, axis=1),
-                                    dtype=torch.float32).to(DEVICE)
+        ext_g_batch = torch.tensor(np.stack(chunk, axis=1), dtype=torch.float32).to(
+            DEVICE
+        )
         M.T_steps = min(M.T_steps, T)
 
         torch.manual_seed(SEED)
@@ -500,8 +568,11 @@ def run_sim_image(dt, image, model_name="ping", load_weights=None):
     img_tensor = torch.tensor(image, dtype=torch.float32).unsqueeze(0).to(DEVICE)
     pixels = img_tensor.clamp(0, 1)
     p = M.max_rate_hz * dt / 1000.0
-    input_spikes = (torch.rand(M.T_steps, 1, M.N_IN, device=DEVICE)
-                    < pixels.unsqueeze(0) * p).float().squeeze(1)
+    input_spikes = (
+        (torch.rand(M.T_steps, 1, M.N_IN, device=DEVICE) < pixels.unsqueeze(0) * p)
+        .float()
+        .squeeze(1)
+    )
 
     with torch.no_grad():
         kwargs: dict = {"input_spikes": input_spikes}
@@ -525,8 +596,17 @@ def _run_sim_with_net(net, dt, t_e_ping, t_e_async, noise_seed=None):
     T_steps = M.T_steps
 
     ext_g_tensor, _ = make_step_drive(
-        N_E, T_steps, dt, t_e_async, t_e_ping,
-        STEP_ON_MS, STEP_OFF_MS, SIGMA_E, NOISE_SIGMA, NOISE_TAU, SEED,
+        N_E,
+        T_steps,
+        dt,
+        t_e_async,
+        t_e_ping,
+        STEP_ON_MS,
+        STEP_OFF_MS,
+        SIGMA_E,
+        NOISE_SIGMA,
+        NOISE_TAU,
+        SEED,
         noise_seed=noise_seed,
     )
     ext_g_tensor = ext_g_tensor.to(DEVICE)
@@ -549,62 +629,66 @@ def _run_sim_with_net(net, dt, t_e_ping, t_e_async, noise_seed=None):
 # Config builder + globals sync
 # =============================================================================
 
+
 def build_config(args):
     """Build Config from CLI args."""
     from plot import LAYOUT_PRESETS  # late import to avoid circular
+
     c = Config()
-    if hasattr(args, 'out_dir') and args.out_dir is not None:
+    if hasattr(args, "out_dir") and args.out_dir is not None:
         c.artifact_root = args.out_dir
     else:
-        c.artifact_root = str(Path(__file__).parent.parent / "artifacts" / "oscilloscope")
-    c.fps = getattr(args, 'frame_rate', 10)
-    if hasattr(args, 'n_hidden') and args.n_hidden is not None:
+        c.artifact_root = str(
+            Path(__file__).parent.parent / "artifacts" / "oscilloscope"
+        )
+    c.fps = getattr(args, "frame_rate", 10)
+    if hasattr(args, "n_hidden") and args.n_hidden is not None:
         # args.n_hidden may be an int or a list (multi-layer). For legacy Config,
         # use the last hidden size (the E-I / output-feeding layer).
         n_e = args.n_hidden[-1] if isinstance(args.n_hidden, list) else args.n_hidden
         c.n_e = n_e
         c.n_i = n_e // 4
-    if hasattr(args, 'device') and args.device is not None:
+    if hasattr(args, "device") and args.device is not None:
         c.device = args.device
-    c.raster_mode = getattr(args, 'raster', 'scatter')
-    if hasattr(args, 'panels') and args.panels is not None:
+    c.raster_mode = getattr(args, "raster", "scatter")
+    if hasattr(args, "panels") and args.panels is not None:
         c.active_panels = [p.strip() for p in args.panels.split(",")]
     else:
-        c.active_panels = list(LAYOUT_PRESETS[getattr(args, 'layout', 'full')])
-    if hasattr(args, 'drive') and args.drive is not None:
+        c.active_panels = list(LAYOUT_PRESETS[getattr(args, "layout", "full")])
+    if hasattr(args, "drive") and args.drive is not None:
         c.t_e_async = args.drive
-    c.ei_ratio = getattr(args, 'ei_ratio', 2.0)
-    ei_strength = getattr(args, 'ei_strength', None)
+    c.ei_ratio = getattr(args, "ei_ratio", 2.0)
+    ei_strength = getattr(args, "ei_strength", None)
     if ei_strength is not None:
         s = ei_strength
         c.w_ei = (s, s * 0.1)
         c.w_ie = (s * c.ei_ratio, s * c.ei_ratio * 0.1)
-    if hasattr(args, 'w_ei') and args.w_ei is not None:
+    if hasattr(args, "w_ei") and args.w_ei is not None:
         c.w_ei = tuple(args.w_ei)
-    if hasattr(args, 'w_ie') and args.w_ie is not None:
+    if hasattr(args, "w_ie") and args.w_ie is not None:
         c.w_ie = tuple(args.w_ie)
-    if hasattr(args, 'w_in') and args.w_in is not None:
+    if hasattr(args, "w_in") and args.w_in is not None:
         w = args.w_in
         if len(w) == 1:
             w = [w[0], w[0] * 0.1]  # std = 10% of mean
         c.w_in_spikes = tuple(w[:2])
-    input_mode = getattr(args, 'input', 'synthetic-spikes')
-    if hasattr(args, 'n_input') and args.n_input is not None:
+    input_mode = getattr(args, "input", "synthetic-spikes")
+    if hasattr(args, "n_input") and args.n_input is not None:
         M.N_IN = args.n_input
     elif input_mode == "synthetic-spikes":
         M.N_IN = c.n_e
-    sparsity = getattr(args, 'sparsity', None)
+    sparsity = getattr(args, "sparsity", None)
     if sparsity is not None:
         c.sparsity = sparsity
-    w_in_sparsity = getattr(args, 'w_in_sparsity', None)
+    w_in_sparsity = getattr(args, "w_in_sparsity", None)
     if w_in_sparsity is not None:
         c.w_in_sparsity = w_in_sparsity
-    bias = getattr(args, 'bias', None)
+    bias = getattr(args, "bias", None)
     if bias is not None:
         c.bias = bias
     # For image input, --input-rate sets the max Poisson encoding rate
     if input_mode == "dataset":
-        spike_rate = getattr(args, 'spike_rate', M.max_rate_hz)
+        spike_rate = getattr(args, "spike_rate", M.max_rate_hz)
         M.max_rate_hz = spike_rate
         M.p_scale = M.max_rate_hz * M.dt / 1000.0
     return c

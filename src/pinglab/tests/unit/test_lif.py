@@ -1,4 +1,5 @@
 """LIF integrator + exp_synapse primitives: the math underwriting every run."""
+
 import math
 
 import pytest
@@ -18,9 +19,15 @@ class TestLifStep:
     def test_resting_with_zero_input_is_stationary(self):
         """At v=E_L with I=0, leak term is zero → voltage doesn't move, no spike."""
         v, ref = _fresh_state()
-        v2, s, ref2 = lif_step(v, torch.zeros_like(v), ref,
-                               M.C_m_E, M.g_L_E, M.ref_steps_E,
-                               spike_biophysical)
+        v2, s, ref2 = lif_step(
+            v,
+            torch.zeros_like(v),
+            ref,
+            M.C_m_E,
+            M.g_L_E,
+            M.ref_steps_E,
+            spike_biophysical,
+        )
         assert torch.allclose(v2, v)
         assert s.item() == 0.0
         assert ref2.item() == 0
@@ -29,8 +36,9 @@ class TestLifStep:
         """For a single Euler step dv = (dt/C) * (-g_L*(v-E_L) + I)."""
         v, ref = _fresh_state()
         I = torch.tensor([[0.5]])  # nA
-        v2, s, _ = lif_step(v, I, ref, M.C_m_E, M.g_L_E, M.ref_steps_E,
-                            spike_biophysical)
+        v2, s, _ = lif_step(
+            v, I, ref, M.C_m_E, M.g_L_E, M.ref_steps_E, spike_biophysical
+        )
         expected_dv = (M.dt / M.C_m_E) * (-M.g_L_E * (M.E_L - M.E_L) + 0.5)
         assert v2.item() == pytest.approx(M.E_L + expected_dv, abs=1e-5)
         assert s.item() == 0.0
@@ -43,7 +51,7 @@ class TestLifStep:
         100 ms matches 100 / T_spike within ±1 spike.
         """
         I_rheo = M.g_L_E * (M.V_th - M.E_L)  # threshold current
-        I_val = 3.0 * I_rheo                 # well above rheobase
+        I_val = 3.0 * I_rheo  # well above rheobase
         tau_m = M.C_m_E / M.g_L_E
         T_spike_ms = tau_m * math.log(I_val / (I_val - I_rheo))
 
@@ -52,15 +60,17 @@ class TestLifStep:
         steps = int(100.0 / M.dt)
         spikes = 0
         for _ in range(steps):
-            v, s, ref = lif_step(v, I, ref, M.C_m_E, M.g_L_E, M.ref_steps_E,
-                                 spike_biophysical)
+            v, s, ref = lif_step(
+                v, I, ref, M.C_m_E, M.g_L_E, M.ref_steps_E, spike_biophysical
+            )
             spikes += int(s.item())
 
         # With refractory, ISI is effectively T_spike + ref_ms_E
         expected_isi = T_spike_ms + M.ref_ms_E
         expected_count = 100.0 / expected_isi
-        assert abs(spikes - expected_count) <= 1, \
+        assert abs(spikes - expected_count) <= 1, (
             f"got {spikes} spikes, expected ≈ {expected_count:.1f}"
+        )
 
     def test_refractory_holds_v_at_reset(self):
         """After a spike, v is pinned to V_reset for ref_steps regardless of input."""
@@ -68,8 +78,9 @@ class TestLifStep:
         v = torch.full((1, 1), M.V_th - 0.01)
         ref = torch.zeros((1, 1), dtype=torch.long)
         big_I = torch.tensor([[1000.0]])
-        v, s, ref = lif_step(v, big_I, ref, M.C_m_E, M.g_L_E, M.ref_steps_E,
-                             spike_biophysical)
+        v, s, ref = lif_step(
+            v, big_I, ref, M.C_m_E, M.g_L_E, M.ref_steps_E, spike_biophysical
+        )
         assert s.item() == 1.0
         assert v.item() == pytest.approx(M.V_reset)
         assert ref.item() == M.ref_steps_E
@@ -77,8 +88,9 @@ class TestLifStep:
         # For the next ref_steps - 1 steps, massive input must not produce
         # spikes and v must remain at V_reset.
         for _ in range(M.ref_steps_E - 1):
-            v, s, ref = lif_step(v, big_I, ref, M.C_m_E, M.g_L_E, M.ref_steps_E,
-                                 spike_biophysical)
+            v, s, ref = lif_step(
+                v, big_I, ref, M.C_m_E, M.g_L_E, M.ref_steps_E, spike_biophysical
+            )
             assert s.item() == 0.0, "neuron spiked during refractory period"
             assert v.item() == pytest.approx(M.V_reset)
 
@@ -97,7 +109,7 @@ class TestExpSynapse:
         """With g=0 and an impulse spike through identity W, subsequent steps
         should decay as decay, decay^2, decay^3, ..."""
         g = torch.zeros((1, 3))
-        s = torch.ones((1, 3))            # single impulse, broadcast via I
+        s = torch.ones((1, 3))  # single impulse, broadcast via I
         W = torch.eye(3)
         decay = 0.8
 
@@ -108,5 +120,5 @@ class TestExpSynapse:
         s_zero = torch.zeros_like(s)
         g2 = exp_synapse(g1, s_zero, W, decay)
         g3 = exp_synapse(g2, s_zero, W, decay)
-        torch.testing.assert_close(g2, torch.full((1, 3), decay ** 2))
-        torch.testing.assert_close(g3, torch.full((1, 3), decay ** 3))
+        torch.testing.assert_close(g2, torch.full((1, 3), decay**2))
+        torch.testing.assert_close(g3, torch.full((1, 3), decay**3))

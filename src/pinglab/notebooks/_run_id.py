@@ -6,6 +6,7 @@ returns the next id as "rNNN" without touching disk; `persist(slug, run_id)`
 writes the counter back and must be called after any wipe + re-creation of
 the figures dir so the count survives.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

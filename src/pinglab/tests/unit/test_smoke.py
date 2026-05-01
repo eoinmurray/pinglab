@@ -3,6 +3,7 @@
 Marked `slow` because each test launches a fresh `uv run` process.
 Run with: `uv run pytest -m slow`
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -20,7 +21,9 @@ def out_dir(tmp_path_factory):
 
 
 def _run(cmd, timeout=120):
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    result = subprocess.run(
+        cmd, shell=True, capture_output=True, text=True, timeout=timeout
+    )
     assert result.returncode == 0, (
         f"cmd failed (exit {result.returncode}):\n  {cmd}\n"
         f"stderr: {result.stderr[-500:]}"
@@ -28,6 +31,7 @@ def _run(cmd, timeout=120):
 
 
 # ── Oscilloscope modes ───────────────────────────────────────────────────
+
 
 def test_sim_no_output(out_dir):
     _run(f"{OSC} sim --out-dir {out_dir}")
@@ -45,14 +49,19 @@ def test_dataset_input_scikit(out_dir):
     _run(f"{OSC} image --input dataset --dataset scikit --out-dir {out_dir}")
 
 
-@pytest.mark.parametrize("scan_var,lo,hi", [
-    ("ei_strength", 0, 0.5),
-    ("spike_rate", 5, 50),
-    ("dt", 0.05, 0.5),
-])
+@pytest.mark.parametrize(
+    "scan_var,lo,hi",
+    [
+        ("ei_strength", 0, 0.5),
+        ("spike_rate", 5, 50),
+        ("dt", 0.05, 0.5),
+    ],
+)
 def test_scan(out_dir, scan_var, lo, hi):
-    _run(f"{OSC} video --scan-var {scan_var} --scan-min {lo} --scan-max {hi} "
-         f"--frames 3 --frame-rate 10 --out-dir {out_dir}")
+    _run(
+        f"{OSC} video --scan-var {scan_var} --scan-min {lo} --scan-max {hi} "
+        f"--frames 3 --frame-rate 10 --out-dir {out_dir}"
+    )
 
 
 def test_sim_snntorch_canonical(out_dir):
@@ -61,10 +70,13 @@ def test_sim_snntorch_canonical(out_dir):
 
 # ── Training modes ───────────────────────────────────────────────────────
 
+
 @pytest.mark.parametrize("dataset", ["scikit", "mnist", "smnist"])
 def test_train_one_epoch(out_dir, dataset):
-    _run(f"{OSC} train --epochs 1 --dataset {dataset} --n-hidden 64 "
-         f"--max-samples 50 --out-dir {out_dir}/train-{dataset}")
+    _run(
+        f"{OSC} train --epochs 1 --dataset {dataset} --n-hidden 64 "
+        f"--max-samples 50 --out-dir {out_dir}/train-{dataset}"
+    )
 
 
 def test_train_one_epoch_shd(out_dir):
@@ -72,6 +84,7 @@ def test_train_one_epoch_shd(out_dir):
     # enough samples for a stratified 80/20 split across 20 classes.
     import os
     from pathlib import Path
+
     cache = Path(os.environ.get("PINGLAB_SHD_DIR", "/tmp/shd/SHD"))
     if not (cache / "shd_train.h5").exists() or not (cache / "shd_test.h5").exists():
         pytest.skip(f"SHD HDF5 files not cached at {cache}")
@@ -88,10 +101,14 @@ def test_train_epochs_zero_probe(out_dir):
 
 
 def test_train_observe_video(out_dir):
-    _run(f"{OSC} train --observe video --epochs 2 --n-hidden 64 "
-         f"--max-samples 50 --out-dir {out_dir}/train-obs")
+    _run(
+        f"{OSC} train --observe video --epochs 2 --n-hidden 64 "
+        f"--max-samples 50 --out-dir {out_dir}/train-obs"
+    )
 
 
 def test_train_ping(out_dir):
-    _run(f"{OSC} train --epochs 2 --ei-strength 0.5 --n-hidden 64 "
-         f"--max-samples 50 --v-grad-dampen 1000 --out-dir {out_dir}/train-ping")
+    _run(
+        f"{OSC} train --epochs 2 --ei-strength 0.5 --n-hidden 64 "
+        f"--max-samples 50 --v-grad-dampen 1000 --out-dir {out_dir}/train-ping"
+    )

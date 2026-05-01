@@ -1,6 +1,7 @@
 """encode_smnist: row-by-row sequential encoding. If the row→time mapping
 is wrong, sMNIST accuracy silently collapses but nothing crashes.
 """
+
 import pytest
 import torch
 
@@ -21,20 +22,25 @@ class TestEncodeSmnist:
         during that row's [r*steps_per_row, (r+1)*steps_per_row) window."""
         dt = 1.0
         t_ms_per_row = 10.0
-        steps_per_row = int(t_ms_per_row / dt)   # 10
+        steps_per_row = int(t_ms_per_row / dt)  # 10
         img = _row_pattern(active_row)
         # Very high firing rate so the active row reliably fires every step
-        spikes = encode_smnist(img, dt=dt, max_rate_hz=999.0,
-                               t_ms_per_row=t_ms_per_row,
-                               generator=torch.Generator().manual_seed(0))
+        spikes = encode_smnist(
+            img,
+            dt=dt,
+            max_rate_hz=999.0,
+            t_ms_per_row=t_ms_per_row,
+            generator=torch.Generator().manual_seed(0),
+        )
         # Shape: (T_steps, B, 28)
         assert spikes.shape == (28 * steps_per_row, 1, 28)
 
         # Active row's window should have ~all-ones
         s = active_row * steps_per_row
         e = s + steps_per_row
-        assert spikes[s:e].mean() > 0.95, \
+        assert spikes[s:e].mean() > 0.95, (
             f"row {active_row} window mean={spikes[s:e].mean():.2f}"
+        )
 
         # Every other window should be exactly zero
         mask = torch.ones(28 * steps_per_row, dtype=torch.bool)
@@ -50,8 +56,9 @@ class TestEncodeSmnist:
 
     def test_total_timesteps_matches_dt(self):
         for dt in [0.25, 0.5, 1.0]:
-            out = encode_smnist(torch.zeros(1, 784), dt=dt, max_rate_hz=10.0,
-                                t_ms_per_row=10.0)
+            out = encode_smnist(
+                torch.zeros(1, 784), dt=dt, max_rate_hz=10.0, t_ms_per_row=10.0
+            )
             expected = 28 * int(10.0 / dt)
             assert out.shape[0] == expected, f"dt={dt} shape={out.shape}"
 
@@ -62,11 +69,16 @@ class TestEncodeSmnist:
         rate_hz = 100.0
         dt = 0.5
         t_ms_per_row = 10.0
-        out = encode_smnist(img, dt=dt, max_rate_hz=rate_hz,
-                            t_ms_per_row=t_ms_per_row,
-                            generator=torch.Generator().manual_seed(0))
+        out = encode_smnist(
+            img,
+            dt=dt,
+            max_rate_hz=rate_hz,
+            t_ms_per_row=t_ms_per_row,
+            generator=torch.Generator().manual_seed(0),
+        )
         # Mean over all (T, B, cols) entries is per-step spike probability.
         # Convert to Hz: p * 1000/dt.
         emp_hz = out.mean().item() * 1000.0 / dt
-        assert emp_hz == pytest.approx(rate_hz, rel=0.1), \
+        assert emp_hz == pytest.approx(rate_hz, rel=0.1), (
             f"empirical={emp_hz:.1f} Hz target={rate_hz} Hz"
+        )

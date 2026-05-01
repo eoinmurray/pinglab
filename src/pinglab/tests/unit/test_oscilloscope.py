@@ -3,6 +3,7 @@
 Targets pure-ish functions that don't need a GPU or a full training loop:
 encoders, seed plumbing, key helpers, scan-var dispatch, CLI parsing.
 """
+
 import os
 
 import numpy as np
@@ -28,58 +29,85 @@ from oscilloscope import (
 class TestEncodeImageSpikes:
     def test_shape_and_binary(self):
         pixels = np.array([0.5, 1.0, 0.0], dtype=np.float32)
-        spikes = encode_image_spikes(pixels, T_steps=200, dt=1.0,
-                                     base_rate=10.0, stim_rate=100.0,
-                                     step_on_ms=50.0, step_off_ms=150.0,
-                                     seed=42)
+        spikes = encode_image_spikes(
+            pixels,
+            T_steps=200,
+            dt=1.0,
+            base_rate=10.0,
+            stim_rate=100.0,
+            step_on_ms=50.0,
+            step_off_ms=150.0,
+            seed=42,
+        )
         assert spikes.shape == (200, 3)
         assert spikes.dtype == torch.float32
         assert set(spikes.unique().tolist()) <= {0.0, 1.0}
 
     def test_zero_pixels_emit_no_spikes(self):
         pixels = np.zeros(5, dtype=np.float32)
-        spikes = encode_image_spikes(pixels, T_steps=100, dt=1.0,
-                                     base_rate=50.0, stim_rate=200.0,
-                                     step_on_ms=20.0, step_off_ms=80.0,
-                                     seed=1)
+        spikes = encode_image_spikes(
+            pixels,
+            T_steps=100,
+            dt=1.0,
+            base_rate=50.0,
+            stim_rate=200.0,
+            step_on_ms=20.0,
+            step_off_ms=80.0,
+            seed=1,
+        )
         assert spikes.sum() == 0.0
 
     def test_seed_determinism(self):
         pixels = np.array([0.5, 0.5], dtype=np.float32)
-        a = encode_image_spikes(pixels, 100, 1.0, 10.0, 80.0,
-                                step_on_ms=20.0, step_off_ms=80.0, seed=42)
-        b = encode_image_spikes(pixels, 100, 1.0, 10.0, 80.0,
-                                step_on_ms=20.0, step_off_ms=80.0, seed=42)
+        a = encode_image_spikes(
+            pixels, 100, 1.0, 10.0, 80.0, step_on_ms=20.0, step_off_ms=80.0, seed=42
+        )
+        b = encode_image_spikes(
+            pixels, 100, 1.0, 10.0, 80.0, step_on_ms=20.0, step_off_ms=80.0, seed=42
+        )
         assert torch.equal(a, b)
 
     def test_different_seeds_diverge(self):
         pixels = np.array([0.5], dtype=np.float32)
-        a = encode_image_spikes(pixels, 200, 1.0, 50.0, 200.0,
-                                step_on_ms=20.0, step_off_ms=180.0, seed=1)
-        b = encode_image_spikes(pixels, 200, 1.0, 50.0, 200.0,
-                                step_on_ms=20.0, step_off_ms=180.0, seed=2)
+        a = encode_image_spikes(
+            pixels, 200, 1.0, 50.0, 200.0, step_on_ms=20.0, step_off_ms=180.0, seed=1
+        )
+        b = encode_image_spikes(
+            pixels, 200, 1.0, 50.0, 200.0, step_on_ms=20.0, step_off_ms=180.0, seed=2
+        )
         assert not torch.equal(a, b)
 
     def test_dt_rebins_same_event_stream(self):
         # Same seed/rate at two dts → same total spike count (within ±1 from
         # boundary clipping) because spike *times* are dt-invariant.
         pixels = np.array([1.0], dtype=np.float32)
-        coarse = encode_image_spikes(pixels, T_steps=100, dt=1.0,
-                                     base_rate=50.0, stim_rate=50.0,
-                                     step_on_ms=0.0, step_off_ms=100.0,
-                                     seed=7)
-        fine = encode_image_spikes(pixels, T_steps=1000, dt=0.1,
-                                   base_rate=50.0, stim_rate=50.0,
-                                   step_on_ms=0.0, step_off_ms=100.0,
-                                   seed=7)
+        coarse = encode_image_spikes(
+            pixels,
+            T_steps=100,
+            dt=1.0,
+            base_rate=50.0,
+            stim_rate=50.0,
+            step_on_ms=0.0,
+            step_off_ms=100.0,
+            seed=7,
+        )
+        fine = encode_image_spikes(
+            pixels,
+            T_steps=1000,
+            dt=0.1,
+            base_rate=50.0,
+            stim_rate=50.0,
+            step_on_ms=0.0,
+            step_off_ms=100.0,
+            seed=7,
+        )
         assert abs(coarse.sum().item() - fine.sum().item()) <= 1
 
 
 class TestEncodeImagesPoisson:
     def test_shape_and_binary(self):
         images = torch.full((4, 16), 0.5)
-        out = encode_images_poisson(images, T_steps=50, dt=1.0,
-                                    max_rate_hz=100.0)
+        out = encode_images_poisson(images, T_steps=50, dt=1.0, max_rate_hz=100.0)
         assert out.shape == (50, 4, 16)
         assert set(out.unique().tolist()) <= {0.0, 1.0}
 
@@ -87,8 +115,7 @@ class TestEncodeImagesPoisson:
         # Mean firing rate over many steps ≈ pixel × max_rate × dt/1000.
         torch.manual_seed(0)
         images = torch.tensor([[0.0, 0.5, 1.0]])
-        out = encode_images_poisson(images, T_steps=20000, dt=1.0,
-                                    max_rate_hz=200.0)
+        out = encode_images_poisson(images, T_steps=20000, dt=1.0, max_rate_hz=200.0)
         rates = out.mean(dim=0).squeeze()  # per-pixel mean spike prob
         # p = pixel * max_rate * dt/1000 = pixel * 0.2
         assert rates[0].item() == 0.0
@@ -99,17 +126,18 @@ class TestEncodeImagesPoisson:
         images = torch.full((2, 8), 0.7)
         g1 = torch.Generator().manual_seed(123)
         g2 = torch.Generator().manual_seed(123)
-        a = encode_images_poisson(images, T_steps=30, dt=1.0,
-                                  max_rate_hz=50.0, generator=g1)
-        b = encode_images_poisson(images, T_steps=30, dt=1.0,
-                                  max_rate_hz=50.0, generator=g2)
+        a = encode_images_poisson(
+            images, T_steps=30, dt=1.0, max_rate_hz=50.0, generator=g1
+        )
+        b = encode_images_poisson(
+            images, T_steps=30, dt=1.0, max_rate_hz=50.0, generator=g2
+        )
         assert torch.equal(a, b)
 
     def test_clamps_above_one(self):
         # Pixels > 1 should be clamped, not throw or produce p > 1 weirdness.
         images = torch.full((1, 4), 5.0)
-        out = encode_images_poisson(images, T_steps=20, dt=1.0,
-                                    max_rate_hz=100.0)
+        out = encode_images_poisson(images, T_steps=20, dt=1.0, max_rate_hz=100.0)
         assert out.shape == (20, 1, 4)
         assert set(out.unique().tolist()) <= {0.0, 1.0}
 
@@ -118,8 +146,7 @@ class TestEncodeSmnist:
     def test_shape_with_t_ms_per_row(self):
         # 28 rows × 10 ms / dt=1.0 = 280 steps, 28 cols.
         images = torch.zeros(2, 784)
-        out = encode_smnist(images, dt=1.0, max_rate_hz=100.0,
-                            t_ms_per_row=10.0)
+        out = encode_smnist(images, dt=1.0, max_rate_hz=100.0, t_ms_per_row=10.0)
         assert out.shape == (280, 2, 28)
 
     def test_zero_image_no_spikes(self):
@@ -133,8 +160,9 @@ class TestEncodeSmnist:
         torch.manual_seed(0)
         img = torch.zeros(1, 28, 28)
         img[0, 5, :] = 1.0
-        out = encode_smnist(img.reshape(1, 784), dt=1.0,
-                            max_rate_hz=500.0, t_ms_per_row=10.0)
+        out = encode_smnist(
+            img.reshape(1, 784), dt=1.0, max_rate_hz=500.0, t_ms_per_row=10.0
+        )
         # Row 5 → timesteps 50..59. All other timesteps must be zero.
         before = out[:50].sum().item()
         during = out[50:60].sum().item()
@@ -248,9 +276,9 @@ class TestAutoDevice:
 
 class TestParseArgs:
     def test_train_subparser(self, monkeypatch):
-        monkeypatch.setattr("sys.argv",
-                            ["oscilloscope", "train", "--epochs", "3",
-                             "--lr", "0.05"])
+        monkeypatch.setattr(
+            "sys.argv", ["oscilloscope", "train", "--epochs", "3", "--lr", "0.05"]
+        )
         args = parse_args()
         assert args.epochs == 3
         assert args.lr == 0.05
@@ -262,10 +290,21 @@ class TestParseArgs:
         assert args.epochs == 0
 
     def test_video_subparser(self, monkeypatch):
-        monkeypatch.setattr("sys.argv",
-                            ["oscilloscope", "video", "--scan-var", "dt",
-                             "--scan-min", "0.1", "--scan-max", "2.0",
-                             "--frames", "5"])
+        monkeypatch.setattr(
+            "sys.argv",
+            [
+                "oscilloscope",
+                "video",
+                "--scan-var",
+                "dt",
+                "--scan-min",
+                "0.1",
+                "--scan-max",
+                "2.0",
+                "--frames",
+                "5",
+            ],
+        )
         args = parse_args()
         assert args.scan_var == "dt"
         assert args.scan_min == 0.1
@@ -273,8 +312,8 @@ class TestParseArgs:
         assert args.frames == 5
 
     def test_image_subparser_load_weights(self, monkeypatch):
-        monkeypatch.setattr("sys.argv",
-                            ["oscilloscope", "image",
-                             "--load-weights", "/tmp/w.pt"])
+        monkeypatch.setattr(
+            "sys.argv", ["oscilloscope", "image", "--load-weights", "/tmp/w.pt"]
+        )
         args = parse_args()
         assert args.load_weights == "/tmp/w.pt"

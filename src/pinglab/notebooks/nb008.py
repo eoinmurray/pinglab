@@ -8,6 +8,7 @@ in nb012.
 
 Notebook entry: src/docs/src/pages/notebooks/nb008.mdx
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,10 +31,14 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
     # 2000 BPTT steps; slope=5 overflows fp32 in W_ff.0 grads.
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
         "--kaiming-init",
-        "--readout", "mem-mean",
-        "--surrogate-slope", "1",
-        "--lr", "0.01",
-        "--batch-size", "256",
+        "--readout",
+        "mem-mean",
+        "--surrogate-slope",
+        "1",
+        "--lr",
+        "0.01",
+        "--batch-size",
+        "256",
     ]
 
 

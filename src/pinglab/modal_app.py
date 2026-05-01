@@ -8,6 +8,7 @@ Usage (via oscilloscope --modal flag):
     uv run python src/pinglab/oscilloscope.py train --modal --model cuba ...
     (oscilloscope intercepts --modal and calls this module)
 """
+
 from __future__ import annotations
 
 import modal
@@ -25,11 +26,12 @@ image = (
         "scikit-learn",
         "matplotlib",
         "snntorch>=0.9.4",
-        "imageio",
         "h5py",
     )
     .apt_install("ffmpeg", "curl")
-    .run_commands("python -c \"from torchvision import datasets; datasets.MNIST('/tmp/mnist', train=True, download=True); datasets.MNIST('/tmp/mnist', train=False, download=True)\"")
+    .run_commands(
+        "python -c \"from torchvision import datasets; datasets.MNIST('/tmp/mnist', train=True, download=True); datasets.MNIST('/tmp/mnist', train=False, download=True)\""
+    )
     .run_commands(
         "mkdir -p /tmp/shd/SHD && "
         "curl -fL https://zenkelab.org/datasets/shd_train.h5.gz -o /tmp/shd/SHD/shd_train.h5.gz && "
@@ -57,10 +59,10 @@ def _run_oscilloscope_impl(cli_args: list[str]) -> str:
         marker = "src/artifacts/"
         idx = path.find(marker)
         if idx != -1:
-            return f"{REMOTE_ARTIFACTS}/{path[idx + len(marker):]}"
+            return f"{REMOTE_ARTIFACTS}/{path[idx + len(marker) :]}"
         for prefix in ("artifacts/", "artifacts"):
             if path.startswith(prefix):
-                return f"{REMOTE_ARTIFACTS}/{path[len(prefix):]}"
+                return f"{REMOTE_ARTIFACTS}/{path[len(prefix) :]}"
         return path
 
     if "--out-dir" in args:
@@ -81,6 +83,7 @@ def _run_oscilloscope_impl(cli_args: list[str]) -> str:
     # Use CUDA if available
     if "--device" not in args:
         import torch
+
         if torch.cuda.is_available():
             args.extend(["--device", "cuda"])
 
@@ -194,7 +197,8 @@ def dispatch_batch_to_modal(jobs: list[dict]):
                 fn = _GPU_DISPATCH.get(j["gpu"])
                 if fn is None:
                     raise ValueError(
-                        f"Unknown gpu {j['gpu']!r}, choose from {list(_GPU_DISPATCH)}")
+                        f"Unknown gpu {j['gpu']!r}, choose from {list(_GPU_DISPATCH)}"
+                    )
                 calls.append(fn.spawn(j["cli_args"]))
             for j, c in zip(jobs, calls):
                 try:
@@ -214,21 +218,33 @@ def dispatch_batch_to_modal(jobs: list[dict]):
     # common-prefix dir into the parent of the common-local path
     # reproduces the same on-disk layout in one call.
     import os
-    remote_paths = [out.removeprefix(REMOTE_ARTIFACTS + "/")
-                    for _, out in successes]
+
+    remote_paths = [
+        out.removeprefix(REMOTE_ARTIFACTS + "/")
+        for _, out in successes
+        if out is not None
+    ]
     local_dirs = [j["local_out_dir"] for j, _ in successes]
     common_remote = os.path.commonpath(remote_paths)
     common_local = os.path.commonpath(local_dirs)
     local_parent = Path(common_local).parent
     local_parent.mkdir(parents=True, exist_ok=True)
     sync_cmd = [
-        "uv", "run", "modal", "volume", "get", VOLUME_NAME,
-        common_remote + "/", str(local_parent) + "/",
+        "uv",
+        "run",
+        "modal",
+        "volume",
+        "get",
+        VOLUME_NAME,
+        common_remote + "/",
+        str(local_parent) + "/",
         "--force",
     ]
     subprocess.run(sync_cmd, check=True)
-    print(f"  → synced {len(successes)} dirs from {common_remote}/ "
-          f"to {local_parent}/ (single transfer)")
+    print(
+        f"  → synced {len(successes)} dirs from {common_remote}/ "
+        f"to {local_parent}/ (single transfer)"
+    )
 
     if failures:
         print(f"\n{len(failures)} job(s) failed:")
@@ -238,7 +254,8 @@ def dispatch_batch_to_modal(jobs: list[dict]):
             print(f"    err: {type(err).__name__}: {err}")
         raise RuntimeError(
             f"{len(failures)}/{len(jobs)} Modal jobs failed (see above); "
-            f"{len(successes)} succeeded and were synced")
+            f"{len(successes)} succeeded and were synced"
+        )
 
 
 def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
@@ -252,7 +269,9 @@ def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
 
     fn = _GPU_DISPATCH.get(gpu)
     if fn is None:
-        raise ValueError(f"Unknown --modal-gpu {gpu!r}, choose from {list(_GPU_DISPATCH)}")
+        raise ValueError(
+            f"Unknown --modal-gpu {gpu!r}, choose from {list(_GPU_DISPATCH)}"
+        )
 
     print(f"Dispatching to Modal (gpu={gpu})...")
     print(f"  args: {' '.join(cli_args)}")
@@ -268,13 +287,16 @@ def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
                 remote_out = fn.remote(cli_args)
     except Exception as exc:  # noqa: BLE001
         print(f"\n[modal] connection to detached app lost: {exc}")
-        print("       the run is still executing remotely; "
-              "fetch artifacts manually with:")
+        print(
+            "       the run is still executing remotely; fetch artifacts manually with:"
+        )
         out_name = Path(local_out_dir).name
         rel = str(Path(local_out_dir).relative_to(Path.cwd()))
-        print(f"         uv run modal volume get {VOLUME_NAME} "
-              f"{REMOTE_ARTIFACTS.lstrip('/')}{Path(local_out_dir).as_posix().split(REMOTE_ARTIFACTS, 1)[-1] if REMOTE_ARTIFACTS in local_out_dir else '/<remote-path>/'}/ "
-              f"{Path(local_out_dir).parent}/ --force")
+        print(
+            f"         uv run modal volume get {VOLUME_NAME} "
+            f"{REMOTE_ARTIFACTS.lstrip('/')}{Path(local_out_dir).as_posix().split(REMOTE_ARTIFACTS, 1)[-1] if REMOTE_ARTIFACTS in local_out_dir else '/<remote-path>/'}/ "
+            f"{Path(local_out_dir).parent}/ --force"
+        )
         return
 
     if remote_out is None:
@@ -288,8 +310,14 @@ def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
 
     print(f"\nSyncing artifacts from Modal Volume...")
     sync_cmd = [
-        "uv", "run", "modal", "volume", "get", VOLUME_NAME,
-        volume_path + "/", str(local_parent) + "/",
+        "uv",
+        "run",
+        "modal",
+        "volume",
+        "get",
+        VOLUME_NAME,
+        volume_path + "/",
+        str(local_parent) + "/",
         "--force",
     ]
     subprocess.run(sync_cmd, check=True)
