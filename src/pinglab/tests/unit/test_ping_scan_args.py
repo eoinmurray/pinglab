@@ -4,6 +4,7 @@ which ends before the 200–300 ms stim window fires — every frame lands in
 flat baseline and the raster / PSD / I-population panels look identical
 across the whole sweep.
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,8 +31,13 @@ def test_render_video_forwards_t_ms(monkeypatch):
     # out_dir must sit under REPO because _render_video logs with .relative_to(REPO)
     out_dir = REPO / "src" / "artifacts" / "_ping_scan_test"
 
-    spec = ScanSpec(slug="nbTEST", scan_var="stim-overdrive",
-                    scan_min=1.0, scan_max=10.0, video_name="scan.mp4")
+    spec = ScanSpec(
+        slug="nbTEST",
+        scan_var="stim-overdrive",
+        scan_min=1.0,
+        scan_max=10.0,
+        video_name="scan.mp4",
+    )
 
     with pytest.raises(SystemExit):
         _render_video(spec, out_dir, frames=2, modal_gpu=None)

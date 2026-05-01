@@ -5,6 +5,7 @@ callable that returns the oscilloscope CLI argument list. This module
 handles the common plumbing: tier parsing, dir wipe, dispatcher, plots,
 video copy, numbers.json — identical across all five.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,10 +25,10 @@ from _tier import parse_tier
 from pinglab import theme
 
 TIER_CONFIG = {
-    "extra small": dict(max_samples=100,   epochs=1),
-    "small":       dict(max_samples=500,   epochs=5),
-    "medium":      dict(max_samples=2000,  epochs=10),
-    "large":       dict(max_samples=5000,  epochs=40),
+    "extra small": dict(max_samples=100, epochs=1),
+    "small": dict(max_samples=500, epochs=5),
+    "medium": dict(max_samples=2000, epochs=10),
+    "large": dict(max_samples=5000, epochs=40),
     "extra large": dict(max_samples=10000, epochs=40),
 }
 DEFAULT_TIER = "small"
@@ -38,9 +39,9 @@ SEED = 42
 # Per-tier accuracy floors (MNIST) — overridable per notebook.
 DEFAULT_MIN_ACC = {
     "extra small": 15.0,
-    "small":       30.0,
-    "medium":      50.0,
-    "large":       70.0,
+    "small": 30.0,
+    "medium": 50.0,
+    "large": 70.0,
     "extra large": 70.0,
 }
 # Hidden firing-rate sanity band (Hz). Below ⇒ dead init, above ⇒ saturated.
@@ -62,13 +63,27 @@ def run_date(run_dir: Path) -> str:
     fmt = "%A, %B %-d %Y at %H:%M"
     metrics = load_metrics(run_dir)
     if "run_finished_at" in metrics:
-        return datetime.fromisoformat(metrics["run_finished_at"]).astimezone().strftime(fmt)
-    return datetime.fromtimestamp((run_dir / "metrics.json").stat().st_mtime).strftime(fmt)
+        return (
+            datetime.fromisoformat(metrics["run_finished_at"])
+            .astimezone()
+            .strftime(fmt)
+        )
+    return datetime.fromtimestamp((run_dir / "metrics.json").stat().st_mtime).strftime(
+        fmt
+    )
 
 
 def _stamp_figure(fig, notebook_run_id: str) -> None:
-    fig.text(0.995, 0.005, notebook_run_id, ha="right", va="bottom",
-             fontsize=7, color=theme.LABEL, family="monospace")
+    fig.text(
+        0.995,
+        0.005,
+        notebook_run_id,
+        ha="right",
+        va="bottom",
+        fontsize=7,
+        color=theme.LABEL,
+        family="monospace",
+    )
 
 
 def _format_duration(seconds: float) -> str:
@@ -80,8 +95,9 @@ def _format_duration(seconds: float) -> str:
     return f"{s // 3600}h {(s % 3600) // 60:02d}m"
 
 
-def plot_training_curves(run_dir: Path, out_path: Path, model: str,
-                         notebook_run_id: str) -> None:
+def plot_training_curves(
+    run_dir: Path, out_path: Path, model: str, notebook_run_id: str
+) -> None:
     metrics = load_metrics(run_dir)
     epochs = [e["ep"] for e in metrics["epochs"]]
     loss = [e["loss"] for e in metrics["epochs"]]
@@ -89,11 +105,15 @@ def plot_training_curves(run_dir: Path, out_path: Path, model: str,
     fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(10, 4.5))
     ax_loss.plot(epochs, loss, marker="o", color=theme.CAT_BLUE, label=model)
     ax_acc.plot(epochs, acc, marker="o", color=theme.CAT_BLUE, label=model)
-    ax_loss.set_xlabel("epoch"); ax_loss.set_ylabel("train loss")
-    ax_loss.set_title(f"{model} — train loss"); ax_loss.grid(alpha=0.3)
+    ax_loss.set_xlabel("epoch")
+    ax_loss.set_ylabel("train loss")
+    ax_loss.set_title(f"{model} — train loss")
+    ax_loss.grid(alpha=0.3)
     ax_loss.legend(frameon=False, fontsize=8)
-    ax_acc.set_xlabel("epoch"); ax_acc.set_ylabel("test accuracy (%)")
-    ax_acc.set_title(f"{model} — test accuracy"); ax_acc.grid(alpha=0.3)
+    ax_acc.set_xlabel("epoch")
+    ax_acc.set_ylabel("test accuracy (%)")
+    ax_acc.set_title(f"{model} — test accuracy")
+    ax_acc.grid(alpha=0.3)
     ax_acc.legend(frameon=False, fontsize=8)
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
@@ -102,16 +122,19 @@ def plot_training_curves(run_dir: Path, out_path: Path, model: str,
     plt.close(fig)
 
 
-def plot_firing_rates(run_dir: Path, out_path: Path, model: str,
-                      notebook_run_id: str) -> None:
+def plot_firing_rates(
+    run_dir: Path, out_path: Path, model: str, notebook_run_id: str
+) -> None:
     metrics = load_metrics(run_dir)
     init_rate = metrics.get("init", {}).get("rate_e") or 0.0
     epochs = [0] + [e["ep"] for e in metrics["epochs"]]
     rates = [init_rate] + [e.get("rate_e", 0.0) for e in metrics["epochs"]]
     fig, ax = plt.subplots(1, 1, figsize=(8, 4.5))
     ax.plot(epochs, rates, marker="o", color=theme.CAT_GREEN, label=model)
-    ax.set_xlabel("epoch"); ax.set_ylabel("mean hidden firing rate (Hz)")
-    ax.set_title(f"{model} — hidden firing rate per epoch"); ax.grid(alpha=0.3)
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("mean hidden firing rate (Hz)")
+    ax.set_title(f"{model} — hidden firing rate per epoch")
+    ax.grid(alpha=0.3)
     ax.legend(frameon=False, fontsize=8)
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
@@ -123,16 +146,23 @@ def plot_firing_rates(run_dir: Path, out_path: Path, model: str,
 def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
     fig = plt.figure(figsize=(2.8, 0.28), dpi=150)
     fig.patch.set_alpha(0.0)
-    fig.text(0.97, 0.5, notebook_run_id, ha="right", va="center",
-             fontsize=10, color="white", family="monospace",
-             bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"))
+    fig.text(
+        0.97,
+        0.5,
+        notebook_run_id,
+        ha="right",
+        va="center",
+        fontsize=10,
+        color="white",
+        family="monospace",
+        bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"),
+    )
     stamp_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(stamp_path, transparent=True, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
 
 
-def copy_training_video(run_dir: Path, out_dir: Path,
-                        notebook_run_id: str) -> None:
+def copy_training_video(run_dir: Path, out_dir: Path, notebook_run_id: str) -> None:
     src = run_dir / "training.mp4"
     if not src.exists():
         raise SystemExit(f"missing training video: {src}")
@@ -141,13 +171,26 @@ def copy_training_video(run_dir: Path, out_dir: Path,
     _render_stamp_png(notebook_run_id, stamp_path)
     dst = out_dir / "training.mp4"
     sh.ffmpeg(
-        "-y", "-i", str(src), "-i", str(stamp_path),
-        "-filter_complex", "[0:v][1:v]overlay=W-w-10:H-h-10",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        "-preset", "veryfast", "-crf", "20",
-        "-movflags", "+faststart",
+        "-y",
+        "-i",
+        str(src),
+        "-i",
+        str(stamp_path),
+        "-filter_complex",
+        "[0:v][1:v]overlay=W-w-10:H-h-10",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-movflags",
+        "+faststart",
         str(dst),
-        _out=sys.stdout, _err=sys.stderr,
+        _out=sys.stdout,
+        _err=sys.stderr,
     )
     print(f"wrote {dst}")
     stamp_path.unlink(missing_ok=True)
@@ -168,8 +211,9 @@ def _baseline_label(perf: dict, modal_gpu: str | None, model: str) -> str:
     return f"{backend}:{model}"
 
 
-def evaluate_success(figures: Path, run_dir: Path, tier: str,
-                     min_acc_by_tier: dict[str, float]) -> list[dict]:
+def evaluate_success(
+    figures: Path, run_dir: Path, tier: str, min_acc_by_tier: dict[str, float]
+) -> list[dict]:
     """Four criteria: artifact existence, model actually spikes,
     model actually learns, training did not collapse."""
     crits: list[dict] = []
@@ -179,13 +223,16 @@ def evaluate_success(figures: Path, run_dir: Path, tier: str,
         path = figures / name
         ok = path.exists() and path.stat().st_size > 0
         href = "/" + str(path.relative_to(figs_root)) if ok else None
-        crits.append({
-            "label": label,
-            "passed": bool(ok),
-            "detail": f"{path.name} ({path.stat().st_size} bytes)" if ok
-                      else f"missing {path.name}",
-            "detail_href": href,
-        })
+        crits.append(
+            {
+                "label": label,
+                "passed": bool(ok),
+                "detail": f"{path.name} ({path.stat().st_size} bytes)"
+                if ok
+                else f"missing {path.name}",
+                "detail_href": href,
+            }
+        )
 
     artifact("training_curves.png", "training curves rendered")
     artifact("firing_rates.png", "firing-rate trace rendered")
@@ -193,8 +240,13 @@ def evaluate_success(figures: Path, run_dir: Path, tier: str,
 
     metrics_path = run_dir / "metrics.json"
     if not metrics_path.exists():
-        crits.append({"label": "training metrics present", "passed": False,
-                      "detail": f"missing {metrics_path.name}"})
+        crits.append(
+            {
+                "label": "training metrics present",
+                "passed": False,
+                "detail": f"missing {metrics_path.name}",
+            }
+        )
         return crits
     metrics = json.loads(metrics_path.read_text())
     last = metrics["epochs"][-1]
@@ -204,21 +256,27 @@ def evaluate_success(figures: Path, run_dir: Path, tier: str,
     floor = float(min_acc_by_tier.get(tier, DEFAULT_MIN_ACC.get(tier, 0.0)))
 
     rate_ok = RATE_MIN_HZ <= rate <= RATE_MAX_HZ
-    crits.append({
-        "label": f"hidden rate in band ({RATE_MIN_HZ}–{RATE_MAX_HZ} Hz)",
-        "passed": bool(rate_ok),
-        "detail": f"rate_e={rate:.2f} Hz",
-    })
-    crits.append({
-        "label": f"final acc ≥ {floor:.1f}% ({tier} tier floor)",
-        "passed": bool(final >= floor),
-        "detail": f"final={final:.2f}%, best={best:.2f}%",
-    })
-    crits.append({
-        "label": f"no collapse (final ≥ best − {COLLAPSE_TOL_PP:.0f}pp)",
-        "passed": bool(final >= best - COLLAPSE_TOL_PP),
-        "detail": f"final={final:.2f}%, best={best:.2f}%, Δ={(best - final):.2f}pp",
-    })
+    crits.append(
+        {
+            "label": f"hidden rate in band ({RATE_MIN_HZ}–{RATE_MAX_HZ} Hz)",
+            "passed": bool(rate_ok),
+            "detail": f"rate_e={rate:.2f} Hz",
+        }
+    )
+    crits.append(
+        {
+            "label": f"final acc ≥ {floor:.1f}% ({tier} tier floor)",
+            "passed": bool(final >= floor),
+            "detail": f"final={final:.2f}%, best={best:.2f}%",
+        }
+    )
+    crits.append(
+        {
+            "label": f"no collapse (final ≥ best − {COLLAPSE_TOL_PP:.0f}pp)",
+            "passed": bool(final >= best - COLLAPSE_TOL_PP),
+            "detail": f"final={final:.2f}%, best={best:.2f}%, Δ={(best - final):.2f}pp",
+        }
+    )
     return crits
 
 
@@ -230,9 +288,15 @@ def _print_and_gate(success_criteria: list[dict]) -> None:
         sys.exit(1)
 
 
-def write_numbers(run_dir: Path, out_path: Path, model: str, tier: str,
-                  notebook_run_id: str, duration_s: float,
-                  success_criteria: list[dict] | None = None) -> dict:
+def write_numbers(
+    run_dir: Path,
+    out_path: Path,
+    model: str,
+    tier: str,
+    notebook_run_id: str,
+    duration_s: float,
+    success_criteria: list[dict] | None = None,
+) -> dict:
     metrics = load_metrics(run_dir)
     cfg = load_config(run_dir)
     summary = {
@@ -276,9 +340,13 @@ def write_numbers(run_dir: Path, out_path: Path, model: str, tier: str,
     return summary
 
 
-def _evaluate_only(slug: str, model: str, tier_default: str,
-                   min_acc_by_tier: dict[str, float],
-                   extra_criteria_fn: Callable[[Path, Path], list[dict]] | None = None) -> None:
+def _evaluate_only(
+    slug: str,
+    model: str,
+    tier_default: str,
+    min_acc_by_tier: dict[str, float],
+    extra_criteria_fn: Callable[[Path, Path], list[dict]] | None = None,
+) -> None:
     """Re-run only the success-criteria check against existing artifacts
     + numbers.json — no training dispatch, no wipe."""
     repo = Path(__file__).resolve().parents[3]
@@ -286,8 +354,10 @@ def _evaluate_only(slug: str, model: str, tier_default: str,
     figures = repo / "src" / "docs" / "public" / "figures" / "notebooks" / slug
     numbers_path = figures / "numbers.json"
     if not numbers_path.exists():
-        raise SystemExit(f"--evaluate-success-only requires existing "
-                         f"{numbers_path.relative_to(repo)}")
+        raise SystemExit(
+            f"--evaluate-success-only requires existing "
+            f"{numbers_path.relative_to(repo)}"
+        )
     summary = json.loads(numbers_path.read_text())
     tier = summary.get("tier", tier_default)
     crits = evaluate_success(figures, artifacts / "train", tier, min_acc_by_tier)
@@ -299,13 +369,17 @@ def _evaluate_only(slug: str, model: str, tier_default: str,
     _print_and_gate(summary["success_criteria"])
 
 
-def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
-        gpu_needs_a100: bool = False,
-        min_acc_by_tier: dict[str, float] | None = None,
-        extra_criteria_fn: Callable[[Path, Path], list[dict]] | None = None,
-        criteria_fn: Callable[[Path, Path, str], list[dict]] | None = None,
-        track_baselines: bool = False,
-        extra_train_models: "list[tuple[str, Callable[[str, Path], list[str]]]] | None" = None) -> None:
+def run(
+    slug: str,
+    model: str,
+    build_osc_args: Callable[[str, Path], list[str]],
+    gpu_needs_a100: bool = False,
+    min_acc_by_tier: dict[str, float] | None = None,
+    extra_criteria_fn: Callable[[Path, Path], list[dict]] | None = None,
+    criteria_fn: Callable[[Path, Path, str], list[dict]] | None = None,
+    track_baselines: bool = False,
+    extra_train_models: "list[tuple[str, Callable[[str, Path], list[str]]]] | None" = None,
+) -> None:
     """Run one per-model notebook. build_osc_args(tier, out_dir) returns the
     full `oscilloscope train …` argument list for the given tier.
 
@@ -334,8 +408,10 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     t_start = time.monotonic()
     notebook_run_id = next_run_id(slug)
-    print(f"notebook_run_id = {notebook_run_id} tier={tier} model={model}"
-          + ("  [skip-training]" if skip_training else ""))
+    print(
+        f"notebook_run_id = {notebook_run_id} tier={tier} model={model}"
+        + ("  [skip-training]" if skip_training else "")
+    )
 
     if wipe_dir:
         if skip_training:
@@ -370,7 +446,9 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
     if not (run_dir / "training.mp4").exists():
         raise SystemExit(f"training did not produce {run_dir / 'training.mp4'}")
 
-    plot_training_curves(run_dir, figures / "training_curves.png", model, notebook_run_id)
+    plot_training_curves(
+        run_dir, figures / "training_curves.png", model, notebook_run_id
+    )
     print(f"wrote {figures / 'training_curves.png'}")
     plot_firing_rates(run_dir, figures / "firing_rates.png", model, notebook_run_id)
     print(f"wrote {figures / 'firing_rates.png'}")
@@ -382,8 +460,7 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
     # gate on extras' artifacts (e.g. nb000 checks coba's metrics.json).
     baselines: dict | None = None
     if track_baselines:
-        primary_perf = json.loads(
-            (run_dir / "metrics.json").read_text()).get("perf")
+        primary_perf = json.loads((run_dir / "metrics.json").read_text()).get("perf")
         if primary_perf:
             baselines = {}
             also_modal = parse_also_modal_gpu(sys.argv)
@@ -406,15 +483,22 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
                     shutil.rmtree(sub_dir)
                 sec_args = build_fn(tier, sub_dir)
                 sec_disp = BatchDispatcher(also_modal, repo, oscilloscope)
-                sec_override = "A100" if (gpu_needs_a100 and
-                                          also_modal in ("T4", "L4", "A10G")) else None
-                print(f"  [also-modal] dispatching {m_name} to Modal {also_modal}"
-                      + (f" (upgraded from {also_modal} to A100)" if sec_override else ""))
+                sec_override = (
+                    "A100"
+                    if (gpu_needs_a100 and also_modal in ("T4", "L4", "A10G"))
+                    else None
+                )
+                print(
+                    f"  [also-modal] dispatching {m_name} to Modal {also_modal}"
+                    + (f" (upgraded from {also_modal} to A100)" if sec_override else "")
+                )
                 sec_disp.submit(sec_args, sub_dir, gpu_override=sec_override)
                 sec_disp.drain()
                 sec_metrics_path = sub_dir / "metrics.json"
                 if not sec_metrics_path.exists():
-                    print(f"  [also-modal] warning: {m_name} produced no metrics.json at {sec_metrics_path}")
+                    print(
+                        f"  [also-modal] warning: {m_name} produced no metrics.json at {sec_metrics_path}"
+                    )
                     return
                 sec_perf = json.loads(sec_metrics_path.read_text()).get("perf")
                 if sec_perf:
@@ -427,7 +511,7 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
             # Extra models: train each locally to its own subdir (no figure
             # / video rendering — perf-only secondaries), then optionally on
             # Modal.
-            for extra_name, extra_build in (extra_train_models or []):
+            for extra_name, extra_build in extra_train_models or []:
                 if skip_training:
                     continue
                 extra_run_dir = artifacts / f"train_{extra_name}"
@@ -439,7 +523,9 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
                 extra_disp.drain()
                 extra_metrics_path = extra_run_dir / "metrics.json"
                 if not extra_metrics_path.exists():
-                    print(f"  [extra-model] warning: {extra_name} produced no metrics.json")
+                    print(
+                        f"  [extra-model] warning: {extra_name} produced no metrics.json"
+                    )
                     continue
                 extra_perf = json.loads(extra_metrics_path.read_text()).get("perf")
                 if extra_perf:
@@ -450,9 +536,13 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
                 # Modal and the primary alone gives the answer being
                 # asked. Set per-invocation.
                 import os as _os
+
                 if _os.environ.get("PINGLAB_NO_EXTRA_MODAL", "") != "1":
-                    _dispatch_modal_for(extra_name, extra_build,
-                                        artifacts / f"train_{extra_name}_also_modal")
+                    _dispatch_modal_for(
+                        extra_name,
+                        extra_build,
+                        artifacts / f"train_{extra_name}_also_modal",
+                    )
 
     # Now criteria can see all artifacts (primary + extras).
     if criteria_fn is not None:
@@ -461,17 +551,24 @@ def run(slug: str, model: str, build_osc_args: Callable[[str, Path], list[str]],
         success_criteria = evaluate_success(figures, run_dir, tier, thresholds)
     if extra_criteria_fn is not None:
         success_criteria += extra_criteria_fn(figures, run_dir)
-    summary = write_numbers(run_dir, figures / "numbers.json", model, tier,
-                            notebook_run_id, duration_s,
-                            success_criteria=success_criteria)
+    summary = write_numbers(
+        run_dir,
+        figures / "numbers.json",
+        model,
+        tier,
+        notebook_run_id,
+        duration_s,
+        success_criteria=success_criteria,
+    )
     if baselines is not None:
         summary["perf_baselines"] = baselines
-        (figures / "numbers.json").write_text(
-            json.dumps(summary, indent=2) + "\n")
+        (figures / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {figures / 'numbers.json'}")
     s = summary["run"]
-    print(f"  {model}: best={s['best_acc']}%  final={s['final_acc']}%  "
-          f"elapsed={s['total_elapsed_s']:.0f}s")
+    print(
+        f"  {model}: best={s['best_acc']}%  final={s['final_acc']}%  "
+        f"elapsed={s['total_elapsed_s']:.0f}s"
+    )
     print(f"  total duration: {summary['duration']}")
     _print_and_gate(success_criteria)
 
@@ -480,15 +577,25 @@ def osc_base_args(out_dir: Path, tier: str, build_as: str) -> list[str]:
     """Common prefix of every per-model train invocation."""
     return [
         "train",
-        "--model", build_as,
-        "--dataset", "mnist",
-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
-        "--t-ms", str(T_MS),
-        "--dt", str(DT_TRAIN),
-        "--seed", str(SEED),
-        "--observe", "video",
-        "--frame-rate", "1",
-        "--out-dir", str(out_dir),
+        "--model",
+        build_as,
+        "--dataset",
+        "mnist",
+        "--max-samples",
+        str(TIER_CONFIG[tier]["max_samples"]),
+        "--epochs",
+        str(TIER_CONFIG[tier]["epochs"]),
+        "--t-ms",
+        str(T_MS),
+        "--dt",
+        str(DT_TRAIN),
+        "--seed",
+        str(SEED),
+        "--observe",
+        "video",
+        "--frame-rate",
+        "1",
+        "--out-dir",
+        str(out_dir),
         "--wipe-dir",
     ]

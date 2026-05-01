@@ -3,6 +3,7 @@
 Catches NaN blow-ups and shape regressions that the training e2e can mask
 by retrying with different data.
 """
+
 import pytest
 import torch
 

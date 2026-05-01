@@ -37,8 +37,9 @@ class TestPopulationRate:
 
 
 class TestFindFundamental:
-    def _make_psd_with_peak(self, peak_hz, sub_ratio=0.0, snr=10.0,
-                            f_hi=80.0, n=257, bin_ms=2.0):
+    def _make_psd_with_peak(
+        self, peak_hz, sub_ratio=0.0, snr=10.0, f_hi=80.0, n=257, bin_ms=2.0
+    ):
         freqs = np.fft.rfftfreq(2 * (n - 1), d=bin_ms / 1000.0)
         # Background noise at median=1
         psd = np.ones_like(freqs)

@@ -43,9 +43,15 @@ class TestMakeStepDrive:
         t_async, t_ping = 0.5, 2.0
         step_on, step_off = 25.0, 75.0
         _, raw = make_step_drive(
-            n_e, t_steps, dt, t_async, t_ping,
-            step_on, step_off,
-            sigma_e=0.0, noise_sigma=0.0,  # disable heterogeneity + noise
+            n_e,
+            t_steps,
+            dt,
+            t_async,
+            t_ping,
+            step_on,
+            step_off,
+            sigma_e=0.0,
+            noise_sigma=0.0,  # disable heterogeneity + noise
         )
         t_ms = np.arange(t_steps) * dt
         pre = raw[t_ms < step_on].mean()
@@ -82,9 +88,15 @@ class TestMakeStepDrive:
             t_steps = int(sim_ms / dt)
             # Hold at t_ping the whole time (step covers entire sim).
             sim, _ = make_step_drive(
-                n_e, t_steps, dt, t_async, t_ping,
-                0.0, sim_ms + 1.0,
-                sigma_e=0.0, noise_sigma=0.0,
+                n_e,
+                t_steps,
+                dt,
+                t_async,
+                t_ping,
+                0.0,
+                sim_ms + 1.0,
+                sigma_e=0.0,
+                noise_sigma=0.0,
             )
             decay = np.exp(-dt / TAU_AMPA)
             inp = sim[-1, 0].item()  # steady-state input value
@@ -115,8 +127,14 @@ class TestMakeSpikeDrive:
         rate_base, rate_stim = 5.0, 50.0
         step_on, step_off = 500.0, 1500.0
         spikes = make_spike_drive(
-            n_in, t_steps, dt, rate_base, rate_stim,
-            step_on, step_off, seed=0,
+            n_in,
+            t_steps,
+            dt,
+            rate_base,
+            rate_stim,
+            step_on,
+            step_off,
+            seed=0,
         ).numpy()
 
         t_ms = np.arange(t_steps) * dt

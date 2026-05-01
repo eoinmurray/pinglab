@@ -12,6 +12,7 @@ one step of length dt:
 These tests are the acceptance contract for the new primitive; they fail
 until `lif_step_expeuler` is implemented.
 """
+
 import math
 
 import pytest
@@ -39,20 +40,23 @@ def _fresh_state(v0=None, B=1, N=1, dtype=torch.float32):
     return v, ref
 
 
-def _step(v, ref, *, g_e=0.0, g_i=None, C_m=None, g_L=None,
-          ref_steps=None, dt=None):
+def _step(v, ref, *, g_e=0.0, g_i=None, C_m=None, g_L=None, ref_steps=None, dt=None):
     """Thin adapter so tests don't carry the full call signature."""
     C_m = M.C_m_E if C_m is None else C_m
     g_L = M.g_L_E if g_L is None else g_L
     ref_steps = M.ref_steps_E if ref_steps is None else ref_steps
     g_e_t = torch.as_tensor(g_e, dtype=v.dtype).broadcast_to(v.shape)
-    g_i_t = None if g_i is None else torch.as_tensor(
-        g_i, dtype=v.dtype).broadcast_to(v.shape)
+    g_i_t = (
+        None
+        if g_i is None
+        else torch.as_tensor(g_i, dtype=v.dtype).broadcast_to(v.shape)
+    )
     kwargs = {}
     if dt is not None:
         kwargs["dt_override"] = dt
-    return lif_step_expeuler(v, ref, g_e_t, g_i_t, C_m, g_L, ref_steps,
-                             spike_biophysical, **kwargs)
+    return lif_step_expeuler(
+        v, ref, g_e_t, g_i_t, C_m, g_L, ref_steps, spike_biophysical, **kwargs
+    )
 
 
 class TestPassiveDecay:
@@ -143,7 +147,8 @@ class TestLimits:
         # Forward-Euler reference reconstructed directly (old lif_step is
         # hard-wired to module-level M.dt):
         expected_fwd = v0 + (dt_tiny / M.C_m_E) * (
-            -M.g_L_E * (v0 - M.E_L) + g_e * (M.E_e - v0))
+            -M.g_L_E * (v0 - M.E_L) + g_e * (M.E_e - v0)
+        )
 
         dv_exp = v_e.item() - v0
         dv_fwd = expected_fwd - v0
@@ -176,8 +181,8 @@ class TestGradientFlow:
         v, ref = _fresh_state()
         g_e = torch.tensor([[0.01]], requires_grad=True)
         v2, _, _ = lif_step_expeuler(
-            v, ref, g_e, None, M.C_m_E, M.g_L_E, M.ref_steps_E,
-            spike_biophysical)
+            v, ref, g_e, None, M.C_m_E, M.g_L_E, M.ref_steps_E, spike_biophysical
+        )
         v2.sum().backward()
         assert g_e.grad is not None
         assert g_e.grad.abs().item() > 0.0
@@ -190,11 +195,27 @@ class TestGradientFlow:
         g_e_ref = torch.tensor([[0.01]], requires_grad=True)
         g_e_damp = torch.tensor([[0.01]], requires_grad=True)
         v2r, _, _ = lif_step_expeuler(
-            v_ref, ref, g_e_ref, None, M.C_m_E, M.g_L_E, M.ref_steps_E,
-            spike_biophysical, v_grad_dampen=1.0)
+            v_ref,
+            ref,
+            g_e_ref,
+            None,
+            M.C_m_E,
+            M.g_L_E,
+            M.ref_steps_E,
+            spike_biophysical,
+            v_grad_dampen=1.0,
+        )
         v2d, _, _ = lif_step_expeuler(
-            v_damp, ref2, g_e_damp, None, M.C_m_E, M.g_L_E, M.ref_steps_E,
-            spike_biophysical, v_grad_dampen=1000.0)
+            v_damp,
+            ref2,
+            g_e_damp,
+            None,
+            M.C_m_E,
+            M.g_L_E,
+            M.ref_steps_E,
+            spike_biophysical,
+            v_grad_dampen=1000.0,
+        )
         v2r.sum().backward()
         v2d.sum().backward()
         assert g_e_damp.grad is not None and g_e_ref.grad is not None

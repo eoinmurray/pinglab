@@ -16,6 +16,7 @@ Writes:
 
 Notebook entry: src/docs/src/pages/notebooks/nb013.mdx
 """
+
 from __future__ import annotations
 
 import json
@@ -33,6 +34,7 @@ class CellSpec(TypedDict):
     lr: float
     hidden: list[int]
     readout: str
+
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src" / "pinglab"))
@@ -53,10 +55,10 @@ DEFAULT_TIER = "medium"
 TIER = DEFAULT_TIER  # overridable via --tier <name>
 TIER_CONFIG = {
     "extra_small": dict(max_samples=200, epochs=3),
-    "small":       dict(max_samples=500, epochs=5),
-    "medium":      dict(max_samples=2000, epochs=10),
-    "large":       dict(max_samples=5000, epochs=40),
-    "huge":        dict(max_samples=10000, epochs=80),
+    "small": dict(max_samples=500, epochs=5),
+    "medium": dict(max_samples=2000, epochs=10),
+    "large": dict(max_samples=5000, epochs=40),
+    "huge": dict(max_samples=10000, epochs=80),
 }
 
 T_MS = 1000.0
@@ -76,16 +78,17 @@ MODEL_COLOR = "#2ca02c"
 # feedforward-SNN band (Cramer 47.5–48.6%).
 TIER_FLOORS_ACC = {
     "extra_small": 8.0,
-    "small":       12.0,
-    "medium":      20.0,
-    "large":       35.0,
-    "huge":        45.0,
+    "small": 12.0,
+    "medium": 20.0,
+    "large": 35.0,
+    "huge": 45.0,
 }
 # Hidden firing-rate sanity band (Hz). Same as per-model notebooks.
 RATE_MIN_HZ = 1.0
 RATE_MAX_HZ = 200.0
 # Training collapse tolerance (pp): final_acc must be within this of best_acc.
 COLLAPSE_TOL_PP = 5.0
+
 
 def train_cell(
     name: str,
@@ -98,38 +101,58 @@ def train_cell(
     """Train one cell. Returns the run dir containing metrics.json."""
     tier = TIER_CONFIG[TIER]
     out_dir = ARTIFACTS / name
-    print(f"[cell {name}] lr={lr} hidden={hidden} readout={readout} "
-          f"→ {out_dir.relative_to(REPO)}"
-          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
+    print(
+        f"[cell {name}] lr={lr} hidden={hidden} readout={readout} "
+        f"→ {out_dir.relative_to(REPO)}"
+        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+    )
     args = [
-        "run", "python", str(OSCILLOSCOPE), "train",
-        "--model", MODEL,
-        "--dataset", "shd",
-        "--n-hidden", *[str(h) for h in hidden],
-        "--max-samples", str(tier["max_samples"]),
-        "--epochs", str(tier["epochs"]),
-        "--t-ms", str(T_MS),
-        "--dt", str(DT),
-        "--tau-mem", str(TAU_MEM_MS),
-        "--tau-syn", str(TAU_SYN_MS),
-        "--lr", str(lr),
+        "run",
+        "python",
+        str(OSCILLOSCOPE),
+        "train",
+        "--model",
+        MODEL,
+        "--dataset",
+        "shd",
+        "--n-hidden",
+        *[str(h) for h in hidden],
+        "--max-samples",
+        str(tier["max_samples"]),
+        "--epochs",
+        str(tier["epochs"]),
+        "--t-ms",
+        str(T_MS),
+        "--dt",
+        str(DT),
+        "--tau-mem",
+        str(TAU_MEM_MS),
+        "--tau-syn",
+        str(TAU_SYN_MS),
+        "--lr",
+        str(lr),
         # Adamax (Cramer 2022, Zenke Spytorch). L∞-norm second moment
         # makes the preconditioner robust to single outlier batches —
         # directly addresses the "one bad grad poisons Adam" failure
         # mode that produced the huge-tier one-way-door at ep 38.
-        "--optimizer", "adamax",
+        "--optimizer",
+        "adamax",
         # ReduceLROnPlateau (factor 0.5, patience 5). Large tier plateaued
         # around ep 20 then diverged at ep 28 with a constant 1e-3 lr; the
         # scheduler should halve the step once acc stops climbing and keep
         # the network in the stable region.
         "--adaptive-lr",
-        "--batch-size", "256",
+        "--batch-size",
+        "256",
         "--kaiming-init",
         "--no-dales-law",
         # Feedforward only while we test slope=10 in isolation. Re-enable
         # W_rec once slope=10 alone is stable on adamax.
-        "--w-rec", "0.0", "0.0",
-        "--readout", readout,
+        "--w-rec",
+        "0.0",
+        "0.0",
+        "--readout",
+        readout,
         # Cramer et al. (2022) SHD RSNN recipe — two-sided firing-rate
         # regulariser on per-neuron trial spike counts.
         # grad-clip: loosen from M.GRAD_CLIP=1.0 default. At τ_syn=10 ms with
@@ -137,13 +160,20 @@ def train_cell(
         # projects every update onto the unit ball, destroying Adam's
         # preconditioner. Setting clip to 100 lets Adam's second-moment
         # estimate absorb the scale.
-        "--grad-clip", "100",
-        "--fr-reg-lower-theta", "0.01",
-        "--fr-reg-lower-strength", "1.0",
-        "--fr-reg-upper-theta", "100",
-        "--fr-reg-upper-strength", "0.06",
-        "--seed", str(SEED),
-        "--out-dir", str(out_dir),
+        "--grad-clip",
+        "100",
+        "--fr-reg-lower-theta",
+        "0.01",
+        "--fr-reg-lower-strength",
+        "1.0",
+        "--fr-reg-upper-theta",
+        "100",
+        "--fr-reg-upper-strength",
+        "0.06",
+        "--seed",
+        str(SEED),
+        "--out-dir",
+        str(out_dir),
         "--wipe-dir",
     ]
     if observe_video:
@@ -174,16 +204,32 @@ def _cell_summary(name: str, spec: CellSpec, run_dir: Path) -> dict:
 
 
 def _stamp_figure(fig, run_id: str) -> None:
-    fig.text(0.995, 0.005, run_id, ha="right", va="bottom",
-             fontsize=7, color="#888888", family="monospace")
+    fig.text(
+        0.995,
+        0.005,
+        run_id,
+        ha="right",
+        va="bottom",
+        fontsize=7,
+        color="#888888",
+        family="monospace",
+    )
 
 
 def _render_stamp_png(run_id: str, stamp_path: Path) -> None:
     fig = plt.figure(figsize=(2.8, 0.28), dpi=150)
     fig.patch.set_alpha(0.0)
-    fig.text(0.97, 0.5, run_id, ha="right", va="center",
-             fontsize=10, color="white", family="monospace",
-             bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"))
+    fig.text(
+        0.97,
+        0.5,
+        run_id,
+        ha="right",
+        va="center",
+        fontsize=10,
+        color="white",
+        family="monospace",
+        bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"),
+    )
     stamp_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(stamp_path, transparent=True, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
@@ -191,20 +237,51 @@ def _render_stamp_png(run_id: str, stamp_path: Path) -> None:
 
 def _copy_with_stamp(src: Path, dst: Path, stamp_path: Path) -> None:
     sh.ffmpeg(
-        "-y", "-i", str(src), "-i", str(stamp_path),
-        "-filter_complex", "[0:v][1:v]overlay=W-w-10:H-h-10",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        "-preset", "veryfast", "-crf", "20",
-        "-movflags", "+faststart",
+        "-y",
+        "-i",
+        str(src),
+        "-i",
+        str(stamp_path),
+        "-filter_complex",
+        "[0:v][1:v]overlay=W-w-10:H-h-10",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-movflags",
+        "+faststart",
         str(dst),
-        _out=sys.stdout, _err=sys.stderr,
+        _out=sys.stdout,
+        _err=sys.stderr,
     )
     print(f"wrote {dst.relative_to(REPO)}")
 
 
 SHD_CLASS_NAMES = [
-    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-    "null", "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun",
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "null",
+    "eins",
+    "zwei",
+    "drei",
+    "vier",
+    "fünf",
+    "sechs",
+    "sieben",
+    "acht",
+    "neun",
 ]
 
 
@@ -254,11 +331,24 @@ def plot_shd_digits(out_path: Path, run_id: str, seed: int = SEED) -> None:
             cls = int(y[idx])
             raster = X[idx]
             t_spikes, ch_spikes = np.nonzero(raster)
-            ax.scatter(t_spikes * DT, ch_spikes, s=0.4, color=ink, marker=".",
-                       linewidths=0, rasterized=True, alpha=0.85)
-            ax.set_title(f"{SHD_CLASS_NAMES[cls]}  ·  {cls:02d}",
-                         fontsize=8, color=ink, loc="left", pad=3,
-                         fontfamily="serif")
+            ax.scatter(
+                t_spikes * DT,
+                ch_spikes,
+                s=0.4,
+                color=ink,
+                marker=".",
+                linewidths=0,
+                rasterized=True,
+                alpha=0.85,
+            )
+            ax.set_title(
+                f"{SHD_CLASS_NAMES[cls]}  ·  {cls:02d}",
+                fontsize=8,
+                color=ink,
+                loc="left",
+                pad=3,
+                fontfamily="serif",
+            )
             ax.set_xlim(0.0, x_hi)
             ax.set_ylim(y_lo, y_hi)
             ax.set_xticks([])
@@ -271,13 +361,17 @@ def plot_shd_digits(out_path: Path, run_id: str, seed: int = SEED) -> None:
     anchor = axes[-1, 0]
     anchor.set_xticks([0, int(x_hi)])
     anchor.set_yticks([int(y_lo), int(y_hi)])
-    anchor.tick_params(axis="both", labelsize=6, color=rule, length=2,
-                       width=0.5, pad=2)
+    anchor.tick_params(axis="both", labelsize=6, color=rule, length=2, width=0.5, pad=2)
     anchor.set_xlabel("time (ms)", fontsize=6, color=ink, labelpad=1)
     anchor.set_ylabel("channel", fontsize=6, color=ink, labelpad=2)
 
-    fig.suptitle("SHD · one example per class  (0–9 English, 10–19 German)",
-                 fontsize=9, color=ink, y=0.985, fontfamily="serif")
+    fig.suptitle(
+        "SHD · one example per class  (0–9 English, 10–19 German)",
+        fontsize=9,
+        color=ink,
+        y=0.985,
+        fontfamily="serif",
+    )
     fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.95), pad=0.2)
     fig.subplots_adjust(hspace=0.35, wspace=0.06)
     _stamp_figure(fig, run_id)
@@ -298,8 +392,9 @@ def plot_training_curves(metrics: dict, out_path: Path, run_id: str) -> None:
     ax_loss.grid(alpha=0.3)
     ax_loss.legend(frameon=False, fontsize=8)
     ax_acc.plot(epochs, acc, marker="o", color=MODEL_COLOR, label=MODEL)
-    ax_acc.axhline(5.0, color="#cc4444", linestyle="--", linewidth=1,
-                   label="chance (5%)")
+    ax_acc.axhline(
+        5.0, color="#cc4444", linestyle="--", linewidth=1, label="chance (5%)"
+    )
     ax_acc.set_xlabel("epoch")
     ax_acc.set_ylabel("test accuracy (%)")
     ax_acc.set_ylim(0, max(15.0, max(acc) * 1.2))
@@ -328,12 +423,18 @@ def run_baseline(run_id: str, modal_gpu: str | None, skip_training: bool) -> dic
     if skip_training:
         run_dir = ARTIFACTS / "cuba_baseline"
         if not (run_dir / "metrics.json").exists():
-            raise SystemExit(f"--skip-training requires existing {run_dir}/metrics.json")
+            raise SystemExit(
+                f"--skip-training requires existing {run_dir}/metrics.json"
+            )
     else:
-        run_dir = train_cell("cuba_baseline",
-                             lr=spec["lr"],
-                             hidden=spec["hidden"], readout=spec["readout"],
-                             observe_video=True, modal_gpu=modal_gpu)
+        run_dir = train_cell(
+            "cuba_baseline",
+            lr=spec["lr"],
+            hidden=spec["hidden"],
+            readout=spec["readout"],
+            observe_video=True,
+            modal_gpu=modal_gpu,
+        )
     summary = _cell_summary("cuba_baseline", spec, run_dir)
 
     metrics = json.loads((run_dir / "metrics.json").read_text())
@@ -342,8 +443,9 @@ def run_baseline(run_id: str, modal_gpu: str | None, skip_training: bool) -> dic
 
     stamp_path = FIGURES / "_stamp.png"
     _render_stamp_png(run_id, stamp_path)
-    _copy_with_stamp(run_dir / "training.mp4",
-                     FIGURES / f"training_{MODEL}.mp4", stamp_path)
+    _copy_with_stamp(
+        run_dir / "training.mp4", FIGURES / f"training_{MODEL}.mp4", stamp_path
+    )
     stamp_path.unlink(missing_ok=True)
     return summary
 
@@ -364,13 +466,16 @@ def evaluate_success(figures: Path, run_dir: Path, tier: str) -> list[dict]:
         path = figures / name
         ok = path.exists() and path.stat().st_size > 0
         href = "/" + str(path.relative_to(figs_root)) if ok else None
-        crits.append({
-            "label": label,
-            "passed": bool(ok),
-            "detail": f"{path.name} ({path.stat().st_size} bytes)" if ok
-                      else f"missing {path.name}",
-            "detail_href": href,
-        })
+        crits.append(
+            {
+                "label": label,
+                "passed": bool(ok),
+                "detail": f"{path.name} ({path.stat().st_size} bytes)"
+                if ok
+                else f"missing {path.name}",
+                "detail_href": href,
+            }
+        )
 
     artifact("shd_digits.png", "SHD dataset panel rendered")
     artifact("training_curves.png", "training curves rendered")
@@ -378,8 +483,13 @@ def evaluate_success(figures: Path, run_dir: Path, tier: str) -> list[dict]:
 
     metrics_path = run_dir / "metrics.json"
     if not metrics_path.exists():
-        crits.append({"label": "training metrics present", "passed": False,
-                      "detail": f"missing {metrics_path.name}"})
+        crits.append(
+            {
+                "label": "training metrics present",
+                "passed": False,
+                "detail": f"missing {metrics_path.name}",
+            }
+        )
         return crits
     metrics = json.loads(metrics_path.read_text())
     last = metrics["epochs"][-1]
@@ -388,21 +498,27 @@ def evaluate_success(figures: Path, run_dir: Path, tier: str) -> list[dict]:
     rate = float(last.get("rate_e") or 0.0)
     floor = float(TIER_FLOORS_ACC.get(tier, 8.0))
 
-    crits.append({
-        "label": f"final acc ≥ {floor:.1f}% ({tier} tier floor, chance=5%)",
-        "passed": bool(final >= floor),
-        "detail": f"final={final:.2f}%, best={best:.2f}%",
-    })
-    crits.append({
-        "label": f"hidden rate in band ({RATE_MIN_HZ:g}–{RATE_MAX_HZ:g} Hz)",
-        "passed": bool(RATE_MIN_HZ <= rate <= RATE_MAX_HZ),
-        "detail": f"rate_e={rate:.2f} Hz",
-    })
-    crits.append({
-        "label": f"no collapse (final ≥ best − {COLLAPSE_TOL_PP:.0f}pp)",
-        "passed": bool(final >= best - COLLAPSE_TOL_PP),
-        "detail": f"final={final:.2f}%, best={best:.2f}%, Δ={(best - final):.2f}pp",
-    })
+    crits.append(
+        {
+            "label": f"final acc ≥ {floor:.1f}% ({tier} tier floor, chance=5%)",
+            "passed": bool(final >= floor),
+            "detail": f"final={final:.2f}%, best={best:.2f}%",
+        }
+    )
+    crits.append(
+        {
+            "label": f"hidden rate in band ({RATE_MIN_HZ:g}–{RATE_MAX_HZ:g} Hz)",
+            "passed": bool(RATE_MIN_HZ <= rate <= RATE_MAX_HZ),
+            "detail": f"rate_e={rate:.2f} Hz",
+        }
+    )
+    crits.append(
+        {
+            "label": f"no collapse (final ≥ best − {COLLAPSE_TOL_PP:.0f}pp)",
+            "passed": bool(final >= best - COLLAPSE_TOL_PP),
+            "detail": f"final={final:.2f}%, best={best:.2f}%, Δ={(best - final):.2f}pp",
+        }
+    )
     return crits
 
 
@@ -417,8 +533,10 @@ def _print_and_gate(crits: list[dict]) -> None:
 def _evaluate_only() -> None:
     numbers_path = FIGURES / "numbers.json"
     if not numbers_path.exists():
-        raise SystemExit(f"--evaluate-success-only requires existing "
-                         f"{numbers_path.relative_to(REPO)}")
+        raise SystemExit(
+            f"--evaluate-success-only requires existing "
+            f"{numbers_path.relative_to(REPO)}"
+        )
     summary = json.loads(numbers_path.read_text())
     tier = summary.get("tier", DEFAULT_TIER)
     winner_run = summary.get("winner", {}).get("run_dir")
@@ -443,9 +561,11 @@ def main() -> None:
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    print(f"[nb013] run_id={run_id} tier={TIER}"
-          + ("  [skip-training]" if skip_training else "")
-          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
+    print(
+        f"[nb013] run_id={run_id} tier={TIER}"
+        + ("  [skip-training]" if skip_training else "")
+        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+    )
     if wipe_dir:
         wipe_targets = (FIGURES,) if skip_training else (ARTIFACTS, FIGURES)
         for d in wipe_targets:
@@ -486,12 +606,15 @@ def main() -> None:
         "cells": cells_dict,
         "winner": winner,
         "success_criteria": success_criteria,
-        "run_finished_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
+        "run_finished_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        + "Z",
     }
     (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2) + "\n")
-    print(f"[nb013] best_acc={winner['best_acc']} "
-          f"final_acc={winner['final_acc']} "
-          f"final_loss={winner['final_loss']:.4f}")
+    print(
+        f"[nb013] best_acc={winner['best_acc']} "
+        f"final_acc={winner['final_acc']} "
+        f"final_loss={winner['final_loss']:.4f}"
+    )
     print(f"[nb013] wrote numbers.json → {FIGURES.relative_to(REPO)}")
     print(f"[nb013] duration: {_format_duration(duration_s)}")
     _print_and_gate(success_criteria)

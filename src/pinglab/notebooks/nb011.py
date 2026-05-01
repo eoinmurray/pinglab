@@ -9,6 +9,7 @@ nb012.
 
 Notebook entry: src/docs/src/pages/notebooks/nb011.mdx
 """
+
 from __future__ import annotations
 
 import json
@@ -30,19 +31,28 @@ PING_I_RATE_MIN_HZ = 1.0
 
 def build_osc_args(tier: str, out_dir: Path) -> list[str]:
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
-        "--ei-strength", "1",
-        "--v-grad-dampen", "1000",
-        "--w-in", "1.2",
-        "--w-in-sparsity", "0.95",
-        "--readout", "mem-mean",
-        "--surrogate-slope", "1",
+        "--ei-strength",
+        "1",
+        "--v-grad-dampen",
+        "1000",
+        "--w-in",
+        "1.2",
+        "--w-in-sparsity",
+        "0.95",
+        "--readout",
+        "mem-mean",
+        "--surrogate-slope",
+        "1",
         # COBANet's low hidden firing rate vs CUBANet under matched
         # recipes underdrives the output LIF; scale W_out at init to
         # equalise trial-level drive (see nb010 for sweep: 1→59%,
         # 10→70%, 30→74%, 100→82%).
-        "--readout-w-out-scale", "500",
-        "--lr", "0.0004",
-        "--batch-size", "256",
+        "--readout-w-out-scale",
+        "500",
+        "--lr",
+        "0.0004",
+        "--batch-size",
+        "256",
     ]
 
 
@@ -53,18 +63,30 @@ def ping_criterion(figures: Path, run_dir: Path) -> list[dict]:
     not PING — the trained weights no longer represent a PING model."""
     metrics_path = run_dir / "metrics.json"
     if not metrics_path.exists():
-        return [{"label": "PING forms (rate_i > threshold at final epoch)",
-                 "passed": False, "detail": "no metrics.json"}]
+        return [
+            {
+                "label": "PING forms (rate_i > threshold at final epoch)",
+                "passed": False,
+                "detail": "no metrics.json",
+            }
+        ]
     metrics = json.loads(metrics_path.read_text())
     rate_i = float(metrics["epochs"][-1].get("rate_i") or 0.0)
     rate_e = float(metrics["epochs"][-1].get("rate_e") or 0.0)
-    return [{
-        "label": f"PING forms (rate_i ≥ {PING_I_RATE_MIN_HZ:g} Hz at final epoch)",
-        "passed": bool(rate_i >= PING_I_RATE_MIN_HZ),
-        "detail": f"rate_e={rate_e:.2f} Hz, rate_i={rate_i:.2f} Hz",
-    }]
+    return [
+        {
+            "label": f"PING forms (rate_i ≥ {PING_I_RATE_MIN_HZ:g} Hz at final epoch)",
+            "passed": bool(rate_i >= PING_I_RATE_MIN_HZ),
+            "detail": f"rate_e={rate_e:.2f} Hz, rate_i={rate_i:.2f} Hz",
+        }
+    ]
 
 
 if __name__ == "__main__":
-    run(SLUG, MODEL, build_osc_args, gpu_needs_a100=True,
-        extra_criteria_fn=ping_criterion)
+    run(
+        SLUG,
+        MODEL,
+        build_osc_args,
+        gpu_needs_a100=True,
+        extra_criteria_fn=ping_criterion,
+    )

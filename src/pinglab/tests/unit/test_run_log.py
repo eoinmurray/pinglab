@@ -19,8 +19,14 @@ class TestProvenance:
     def test_required_fields_present(self):
         """Provenance dict must carry every field that reproduces a run."""
         p = provenance()
-        required = {"git_sha", "torch_version", "device",
-                    "python_env_hash", "run_id", "started_at"}
+        required = {
+            "git_sha",
+            "torch_version",
+            "device",
+            "python_env_hash",
+            "run_id",
+            "started_at",
+        }
         assert required.issubset(p.keys())
         for k in required:
             assert p[k], f"{k} should be non-empty"
@@ -56,14 +62,19 @@ class TestMetricsJsonl:
 class TestTestPredictions:
     def test_roundtrip(self, tmp_path):
         import numpy as np
+
         path = tmp_path / "preds.json"
         preds = [
-            {"idx": 0, "true": 3, "pred": 3, "correct": True,
-             "logits": [0.1, 0.9]},
-            {"idx": 1, "true": 7, "pred": 2, "correct": False,
-             # numpy scalars land here from argmax/max on tensors; default=float
-             # coerces them.
-             "confidence": np.float32(0.87)},
+            {"idx": 0, "true": 3, "pred": 3, "correct": True, "logits": [0.1, 0.9]},
+            {
+                "idx": 1,
+                "true": 7,
+                "pred": 2,
+                "correct": False,
+                # numpy scalars land here from argmax/max on tensors; default=float
+                # coerces them.
+                "confidence": np.float32(0.87),
+            },
         ]
         write_test_predictions(path, preds)
         loaded = json.loads(path.read_text())
@@ -73,23 +84,29 @@ class TestTestPredictions:
 
 
 class TestFormatters:
-    @pytest.mark.parametrize("seconds,expected", [
-        (0, "0s"),
-        (45, "45s"),
-        (60, "1m00s"),
-        (510, "8m30s"),
-        (3600, "1h00m"),
-        (4320, "1h12m"),
-    ])
+    @pytest.mark.parametrize(
+        "seconds,expected",
+        [
+            (0, "0s"),
+            (45, "45s"),
+            (60, "1m00s"),
+            (510, "8m30s"),
+            (3600, "1h00m"),
+            (4320, "1h12m"),
+        ],
+    )
     def test_format_eta(self, seconds, expected):
         assert format_eta(seconds) == expected
 
-    @pytest.mark.parametrize("n,expected", [
-        (0, "0 B"),
-        (512, "512 B"),
-        (2048, "2.0 KB"),
-        (5 * 1024 * 1024, "5.0 MB"),
-    ])
+    @pytest.mark.parametrize(
+        "n,expected",
+        [
+            (0, "0 B"),
+            (512, "512 B"),
+            (2048, "2.0 KB"),
+            (5 * 1024 * 1024, "5.0 MB"),
+        ],
+    )
     def test_format_bytes(self, n, expected):
         assert format_bytes(n) == expected
 
@@ -117,8 +134,8 @@ class TestWarningTracker:
 
     def _warm_up_stuck(self, w, activity=30.0):
         """Prime the tracker: one good epoch, then 5 flat epochs so stuck=True."""
-        w.tick(ep=0, acc=50.0, activity=activity)       # best=50
-        for ep in range(1, 6):                          # 5 flat epochs
+        w.tick(ep=0, acc=50.0, activity=activity)  # best=50
+        for ep in range(1, 6):  # 5 flat epochs
             w.tick(ep=ep, acc=50.0, activity=activity)
         assert w.no_progress_since >= 5
 
@@ -129,7 +146,7 @@ class TestWarningTracker:
         flags = w.tick(ep=6, acc=50.0, activity=0.5)
         assert not any("dead" in str(f) for f in flags)
         w.tick(ep=7, acc=50.0, activity=0.5)
-        flags = w.tick(ep=8, acc=50.0, activity=0.5)    # streak reaches 3
+        flags = w.tick(ep=8, acc=50.0, activity=0.5)  # streak reaches 3
         assert any("dead" in str(f) for f in flags)
 
     def test_dead_not_flagged_while_still_improving(self):
