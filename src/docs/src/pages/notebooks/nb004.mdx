@@ -29,11 +29,11 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb002](/notebooks/nb002/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb002](/notebooks/nb002/) (drive) and [nb005](/notebooks/nb005/) (E→I coupling); companion *dt*-stability training experiment is [nb012](/notebooks/nb012/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb002](/notebooks/nb002/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb002](/notebooks/nb002/) (drive) and [nb005](/notebooks/nb005/) (E→I coupling); companion *dt*-stability training experiment is [nb012](/notebooks/nb012/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× (firmly inside the stable-PING regime mapped by [nb002](/notebooks/nb002/)) while *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb004.py* per the [runner contract](/the-notebooks/#runner-contract).
+A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× (firmly inside the stable-PING regime mapped by [nb002](/notebooks/nb002/)) while *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb004.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {

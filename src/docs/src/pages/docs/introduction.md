@@ -1,5 +1,5 @@
 ---
-layout: ../layouts/MarkdownLayout.astro
+layout: ../../layouts/MarkdownLayout.astro
 title: "Introduction"
 ---
 
@@ -31,7 +31,7 @@ Pinglab is organised around one CLI and one lab notebook. Every result on this s
 
 **Runners** — each entry that cites generated figures gets a runner at *src/pinglab/notebooks/&lt;slug&gt;.py*. One command regenerates every figure the entry references and writes a *numbers.json* alongside them under *src/docs/public/figures/notebooks/&lt;slug&gt;/*. The runner is the promotion gate between *src/artifacts/* (raw, gitignored) and *src/docs/public/figures/* (published). Provenance is the runner plus the commit: the runner's *SLUG*, *MAX_SAMPLES*, *EPOCHS*, *TIER* constants pin the run config; git history pins the model code.
 
-Beyond those three: *src/pinglab/* is the code (pure Python under [uv](https://docs.astral.sh/uv/)), *src/papers/* is the bibliography, and *CLAUDE.md* + [Style guide](/styleguide/) + project-scoped memory hold the collaboration rules for how the human and AI work on this together.
+Beyond those three: *src/pinglab/* is the code (pure Python under [uv](https://docs.astral.sh/uv/)), *src/papers/* is the bibliography, and *CLAUDE.md* + [Style guide](/docs/styleguide/) + project-scoped memory hold the collaboration rules for how the human and AI work on this together.
 
 ## Running
 

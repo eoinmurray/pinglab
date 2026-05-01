@@ -1,5 +1,5 @@
 ---
-layout: ../layouts/MarkdownLayout.astro
+layout: ../../layouts/MarkdownLayout.astro
 title: "The Oscilloscope"
 ---
 
@@ -9,7 +9,7 @@ title: "The Oscilloscope"
 
 *src/pinglab/oscilloscope.py* is the single CLI that drives every model in the repo. The name is literal: most subcommands end by rendering a multi-panel figure — spike rasters, weight histograms, population rate, PSD, optionally training curves — laid out like an instrument face. One command runs a simulation, probes the network with a parameter sweep, trains it, or evaluates a trained checkpoint; every run writes its own self-contained directory with the config and weights needed to reproduce the result.
 
-This page is the full flag reference. Conceptual context for individual knobs lives in the linked background pages ([Models](/models/), [Training](/training/), [Metrics](/metrics/)); here every flag is listed with its default, units, and scope.
+This page is the full flag reference. Conceptual context for individual knobs lives in the linked background pages ([Models](/docs/models/), [Training](/docs/training/), [Metrics](/docs/metrics/)); here every flag is listed with its default, units, and scope.
 
 ## Subcommands
 
@@ -17,7 +17,7 @@ The CLI has five subcommands. Shared flags live on a *parent* parser so every mo
 
 | Mode | What it does | Typical output |
 | ---- | ------------ | -------------- |
-| *sim* | One forward pass, print firing-rate [metrics](/metrics/), no plot. | *metrics.json*, *metrics.jsonl* |
+| *sim* | One forward pass, print firing-rate [metrics](/docs/metrics/), no plot. | *metrics.json*, *metrics.jsonl* |
 | *image* | One forward pass, render a still oscilloscope figure. | *oscilloscope.png* |
 | *video* | Sweep one parameter linearly over *--frames*, render one frame per value. | *oscilloscope.mp4* |
 | *train* | Surrogate-gradient BPTT training loop. | *weights.pth*, per-epoch metrics, optional training video |
@@ -43,7 +43,7 @@ These are on the shared parent parser and apply to every subcommand.
 
 | Flag | Default | Meaning |
 | ---- | ------- | ------- |
-| *--model* | *ping* | Model family: [*ping*](/models/#ping), [*standard-snn*](/models/#standard-snn), [*cuba*](/models/#cuba), *cuba-exp*, *cuba-exp-hard*, *cuba-exp-hard-refrac*, [*snntorch-library*](/models/#snntorch-library). The *cuba-exp-hard\** variants are retained only for loading legacy artifacts and are not part of the headline ladder. |
+| *--model* | *ping* | Model family: [*ping*](/docs/models/#ping), [*standard-snn*](/docs/models/#standard-snn), [*cuba*](/docs/models/#cuba), *cuba-exp*, *cuba-exp-hard*, *cuba-exp-hard-refrac*, [*snntorch-library*](/docs/models/#snntorch-library). The *cuba-exp-hard\** variants are retained only for loading legacy artifacts and are not part of the headline ladder. |
 | *--n-hidden N ...* | dataset-aware (scikit 64, mnist 1024, smnist 32) | Hidden layer sizes. Single value = one layer, multiple = stacked (e.g. *--n-hidden 128 256*). $N_I = N_E / 4$ per layer. |
 | *--n-input N* | *N_E* | Number of input neurons. |
 | *--ei-strength S* | 0.5 | E-I coupling: sets $W_{EI} = s$, $W_{IE} = s \cdot \text{ratio}$. |
@@ -73,7 +73,7 @@ These are on the shared parent parser and apply to every subcommand.
 | *--digit D* | 0 | Digit class (0–9) for dataset input. |
 | *--sample I* | 0 | Sample index within the dataset class. |
 
-Three input modes select how the network is driven (see [Training → Input modes](/training/#tasks-and-inputs) for the dynamics): *synthetic-conductance* is Börgers-style step drive injected directly into layer-1 E neurons — used for baseline oscillation studies where encoding should not confound the drive. *synthetic-spikes* is Poisson spike trains at *--input-rate* with a stimulus window where the rate is multiplied by *--stim-overdrive*. *dataset* is real images (scikit-digits, mnist, smnist) or audio (shd) Poisson-encoded per-pixel / per-channel.
+Three input modes select how the network is driven (see [Training → Input modes](/docs/training/#tasks-and-inputs) for the dynamics): *synthetic-conductance* is Börgers-style step drive injected directly into layer-1 E neurons — used for baseline oscillation studies where encoding should not confound the drive. *synthetic-spikes* is Poisson spike trains at *--input-rate* with a stimulus window where the rate is multiplied by *--stim-overdrive*. *dataset* is real images (scikit-digits, mnist, smnist) or audio (shd) Poisson-encoded per-pixel / per-channel.
 
 ## Weight flags (shared, advanced)
 
@@ -154,7 +154,7 @@ By default the scan reuses the same Poisson seed on every frame so the input pat
 
 ## Subcommand: *train*
 
-Surrogate-gradient BPTT. See [Training](/training/) for loss, encoding, and BPTT details.
+Surrogate-gradient BPTT. See [Training](/docs/training/) for loss, encoding, and BPTT details.
 
 | Flag | Default | Meaning |
 | ---- | ------- | ------- |
@@ -190,11 +190,11 @@ Evaluate a trained checkpoint. Requires *--from-dir* or *--load-weights*.
 | *--frozen-inputs* | off | Freeze input spike patterns across the dt sweep. Shorthand for *--frozen-inputs-mode upsample*. |
 | *--frozen-inputs-mode* | — | How input spikes are transported across dt, anchored at train-dt (Parthasarathy et al. §2.1, §2.3): *upsample* (count-preserving zero-pad to finer eval-dt, requires eval-dt ≤ train-dt), *downsample* (count-preserving sum-pool to coarser eval-dt, requires eval-dt ≥ train-dt), *resample* (fresh Poisson at each eval-dt). |
 
-See [Training → dt stability sweep](/training/#dt-stability-sweep) for the protocol.
+See [Training → dt stability sweep](/docs/training/#dt-stability-sweep) for the protocol.
 
 ## Layouts and panels
 
-The oscilloscope figure is a grid of panels assembled from a catalog — [*header*](/metrics/#header), [*e_raster*](/metrics/#e_raster), [*i_raster*](/metrics/#i_raster), [*weights*](/metrics/#weights), [*drive*](/metrics/#drive), [*output*](/metrics/#output), [*psd*](/metrics/#psd), [*participation*](/metrics/#participation), plus training-only [*acc_curve*](/metrics/#acc_curve), [*grad_flow*](/metrics/#grad_flow), [*rate_curve*](/metrics/#rate_curve), [*digit_image*](/metrics/#digit_image), and sweep-only [*sweep*](/metrics/#sweep), [*sweep_rates*](/metrics/#sweep_rates), [*sweep_f0*](/metrics/#sweep_f0). *--layout* picks a named preset. See [Metrics](/metrics/) for what each panel shows and how to read it.
+The oscilloscope figure is a grid of panels assembled from a catalog — [*header*](/docs/metrics/#header), [*e_raster*](/docs/metrics/#e_raster), [*i_raster*](/docs/metrics/#i_raster), [*weights*](/docs/metrics/#weights), [*drive*](/docs/metrics/#drive), [*output*](/docs/metrics/#output), [*psd*](/docs/metrics/#psd), [*participation*](/docs/metrics/#participation), plus training-only [*acc_curve*](/docs/metrics/#acc_curve), [*grad_flow*](/docs/metrics/#grad_flow), [*rate_curve*](/docs/metrics/#rate_curve), [*digit_image*](/docs/metrics/#digit_image), and sweep-only [*sweep*](/docs/metrics/#sweep), [*sweep_rates*](/docs/metrics/#sweep_rates), [*sweep_f0*](/docs/metrics/#sweep_f0). *--layout* picks a named preset. See [Metrics](/docs/metrics/) for what each panel shows and how to read it.
 
 | *--layout* | Panels | Used for |
 | ---------- | ------ | -------- |
@@ -211,7 +211,7 @@ Pass *--panels* with a comma-separated list to override any preset — useful wh
 
 ## Readouts
 
-*--readout* picks how the last-hidden layer is reduced to class logits. The choice is orthogonal to the model family — any of [*cuba*](/models/#cuba), [*standard-snn*](/models/#standard-snn), [*ping*](/models/#ping), [*snntorch-library*](/models/#snntorch-library) can be paired with either readout.
+*--readout* picks how the last-hidden layer is reduced to class logits. The choice is orthogonal to the model family — any of [*cuba*](/docs/models/#cuba), [*standard-snn*](/docs/models/#standard-snn), [*ping*](/docs/models/#ping), [*snntorch-library*](/docs/models/#snntorch-library) can be paired with either readout.
 
 | *--readout* | How it reads out | When to use |
 | ----------- | ---------------- | ----------- |
@@ -238,7 +238,7 @@ Every notebook runner under *src/pinglab/notebooks/* forwards a top-level *--mod
 - *inputs.py* — synthetic drive generators and Poisson encoders.
 - *config.py* — shared defaults and the *Config* / *patch_dt* plumbing that keeps *dt*-invariant quantities invariant when *--dt* changes.
 
-Notebook runners under *src/pinglab/notebooks/* invoke *oscilloscope.py* internally — they are the promotion gate from raw artifacts into *src/docs/public/figures/notebooks/&lt;slug&gt;/*. See [Introduction § Notebook](/introduction/#notebook) for the entry/runner pairing.
+Notebook runners under *src/pinglab/notebooks/* invoke *oscilloscope.py* internally — they are the promotion gate from raw artifacts into *src/docs/public/figures/notebooks/&lt;slug&gt;/*. See [Introduction § Notebook](/docs/introduction/#notebook) for the entry/runner pairing.
 
 ## Appendix
 

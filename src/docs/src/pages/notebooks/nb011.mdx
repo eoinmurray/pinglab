@@ -22,11 +22,11 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*ping*](/models/#ping) path — conductance-based synapses with the full E→I→E feedback loop that gives gamma oscillations — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. The top rung on the CUBA → PING ladder; sibling of [nb009](/notebooks/nb009/) (cuba) and [nb010](/notebooks/nb010/) (coba). No Δt sweep. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*ping*](/docs/models/#ping) path — conductance-based synapses with the full E→I→E feedback loop that gives gamma oscillations — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. The top rung on the CUBA → PING ladder; sibling of [nb009](/notebooks/nb009/) (cuba) and [nb010](/notebooks/nb010/) (coba). No Δt sweep. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb011.py* per the [runner contract](/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
+Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb011.py* per the [runner contract](/docs/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
   { label: "E→I strength", value: 0.5, default: 0 },
@@ -37,10 +37,10 @@ Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb011.py* 
 
 Four customisations turn COBANet from its degenerate feedforward configuration into an actual PING circuit, and keep BPTT through the conductance dynamics finite.
 
-- [**ei-strength = 0.5**](/the-oscilloscope/#network-flags-shared) — the E→I→E coupling that distinguishes *ping* from [*coba*](/notebooks/nb010/). At zero, COBANet collapses to coba (no feedback inhibition, no gamma); 0.5 is below the canonical 0.8 used in [nb005](/notebooks/nb005/) but matches the input-drive tier here.
-- [**v_grad_dampen = 1000**](/the-oscilloscope/#network-flags-shared) — conductance-based voltage updates carry a $g \cdot (V - E_\text{rev})$ term whose gradient explodes through 2000 BPTT steps without dampening. The dampener clips the *V*-path Jacobian magnitude so input-layer grads stay finite.
-- [**W_in = 1.2 (95% sparse)**](/the-oscilloscope/#network-flags-shared) — sparse, large-magnitude input weights drive the E population strongly enough that the E→I coupling can recruit the I population at all; the dense default (*W_in* = 0.3, density 1.0) puts mean drive far below I's recruitment threshold.
-- [**lr = 0.0001**](/the-oscilloscope/#train-flags) — an order of magnitude below the 1e-3 default used by the LIF siblings. The recurrent E→I→E loop makes the loss surface stiffer; 1e-3 trips *v_grad_dampen* skip-step counters within the first epoch, 1e-4 sits in a stable regime.
+- [**ei-strength = 0.5**](/docs/the-oscilloscope/#network-flags-shared) — the E→I→E coupling that distinguishes *ping* from [*coba*](/notebooks/nb010/). At zero, COBANet collapses to coba (no feedback inhibition, no gamma); 0.5 is below the canonical 0.8 used in [nb005](/notebooks/nb005/) but matches the input-drive tier here.
+- [**v_grad_dampen = 1000**](/docs/the-oscilloscope/#network-flags-shared) — conductance-based voltage updates carry a $g \cdot (V - E_\text{rev})$ term whose gradient explodes through 2000 BPTT steps without dampening. The dampener clips the *V*-path Jacobian magnitude so input-layer grads stay finite.
+- [**W_in = 1.2 (95% sparse)**](/docs/the-oscilloscope/#network-flags-shared) — sparse, large-magnitude input weights drive the E population strongly enough that the E→I coupling can recruit the I population at all; the dense default (*W_in* = 0.3, density 1.0) puts mean drive far below I's recruitment threshold.
+- [**lr = 0.0001**](/docs/the-oscilloscope/#train-flags) — an order of magnitude below the 1e-3 default used by the LIF siblings. The recurrent E→I→E loop makes the loss surface stiffer; 1e-3 trips *v_grad_dampen* skip-step counters within the first epoch, 1e-4 sits in a stable regime.
 
 ## Results
 
@@ -81,7 +81,7 @@ Four customisations turn COBANet from its degenerate feedforward configuration i
 
 The six shared training-health criteria pass at this tier — curves/rate/video render, *rate_e* = 12.6 Hz lands in the 1–200 Hz band, accuracy clears the floor, and there's no late-epoch collapse. But the seventh, *ping*-specific criterion **fails**: the inhibitory population is silent at the final epoch (*rate_i* = 0 Hz). The E→I→E feedback loop never closes, so *ping* is running as feedforward-E (i.e. as [*coba*](/notebooks/nb010/) with an unused inhibitory reservoir), not as PING. The trained weights no longer represent a PING circuit — accuracy here is a coba result wearing a ping label.
 
-The likely cause is that *--ei-strength 0.5* sits below the recruitment threshold for this input drive — [nb005](/notebooks/nb005/)'s ei-strength sweep showed I rates only rise at *ei* ≳ 0.3–0.4 with overdriven input, and this recipe runs at the default *input_rate_hz* without the 2× boost nb005 uses. Two candidate next moves to push *rate_i* off zero: (a) bump *--ei-strength* to the canonical 0.8 used in [nb005](/notebooks/nb005/) where PING is demonstrably formed, or (b) raise [*--input-rate*](/the-oscilloscope/#network-flags-shared) so E drives I above threshold. Either change should recruit I; the accuracy trade-off is open. A larger-tier rerun is also needed — extra-small is one epoch on 100 samples, so the headline accuracy is barely above chance even setting aside the PING-formation question.
+The likely cause is that *--ei-strength 0.5* sits below the recruitment threshold for this input drive — [nb005](/notebooks/nb005/)'s ei-strength sweep showed I rates only rise at *ei* ≳ 0.3–0.4 with overdriven input, and this recipe runs at the default *input_rate_hz* without the 2× boost nb005 uses. Two candidate next moves to push *rate_i* off zero: (a) bump *--ei-strength* to the canonical 0.8 used in [nb005](/notebooks/nb005/) where PING is demonstrably formed, or (b) raise [*--input-rate*](/docs/the-oscilloscope/#network-flags-shared) so E drives I above threshold. Either change should recruit I; the accuracy trade-off is open. A larger-tier rerun is also needed — extra-small is one epoch on 100 samples, so the headline accuracy is barely above chance even setting aside the PING-formation question.
 
 ## Appendix
 
@@ -91,4 +91,4 @@ The likely cause is that *--ei-strength 0.5* sits below the recruitment threshol
 uv run src/pinglab/notebooks/nb011.py
 ```
 
-Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
+Add [*--tier*](/docs/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/docs/the-notebooks/#cli).

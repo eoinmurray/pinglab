@@ -29,11 +29,11 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz, but only when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold scan — companion sweeps live in [nb004](/notebooks/nb004/) (integration step) and [nb005](/notebooks/nb005/) (E→I coupling strength). Single-still version of the same working point is [nb001](/notebooks/nb001/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz, but only when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold scan — companion sweeps live in [nb004](/notebooks/nb004/) (integration step) and [nb005](/notebooks/nb005/) (E→I coupling strength). Single-still version of the same working point is [nb001](/notebooks/nb001/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb002.py* per the [runner contract](/the-notebooks/#runner-contract).
+A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb002.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {

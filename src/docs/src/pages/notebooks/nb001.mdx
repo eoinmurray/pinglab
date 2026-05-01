@@ -24,11 +24,11 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-A scope frame is the canonical [oscilloscope](/the-oscilloscope/) layout — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content. Sibling of the scan-video entries [nb002](/notebooks/nb002/) (drive sweep), [nb004](/notebooks/nb004/) (dt sweep) and [nb005](/notebooks/nb005/) (E→I sweep). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+A scope frame is the canonical [oscilloscope](/docs/the-oscilloscope/) layout — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content. Sibling of the scan-video entries [nb002](/notebooks/nb002/) (drive sweep), [nb004](/notebooks/nb004/) (dt sweep) and [nb005](/notebooks/nb005/) (E→I sweep). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-One forward pass via the [oscilloscope *image*](/the-oscilloscope/#subcommand-image) subcommand on MNIST digit {cfg.input?.digit} sample {cfg.input?.sample}, at the working point that lights up PING in [nb002](/notebooks/nb002/). All knobs are hardcoded literals in *src/pinglab/notebooks/nb001.py* per the [runner contract](/the-notebooks/#runner-contract).
+One forward pass via the [oscilloscope *image*](/docs/the-oscilloscope/#subcommand-image) subcommand on MNIST digit {cfg.input?.digit} sample {cfg.input?.sample}, at the working point that lights up PING in [nb002](/notebooks/nb002/). All knobs are hardcoded literals in *src/pinglab/notebooks/nb001.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
