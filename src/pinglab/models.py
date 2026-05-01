@@ -13,7 +13,6 @@ import math
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
 
 # ── Simulation ────────────────────────────────────────────────────────────
@@ -300,11 +299,6 @@ def coba_current(g_e, v, g_i=None):
     return I
 
 
-def hybrid_readout(spike_counts, v_sum):
-    """Spike count + voltage readout."""
-    return spike_counts + READOUT_SCALE * v_sum / T_steps
-
-
 def init_lif_state(B, N, device, randomize=False, ref_mean=0.0, ref_std=0.0):
     """Initialise (v, ref) for a LIF population.
     If randomize=True, scatter initial voltages uniformly between E_L and V_th
@@ -415,7 +409,6 @@ class CUBANet(SNNBase):
     signed_weights = False
     beta_override = None
     reset_mode = "zero"
-    tutorial_readout = False
     randomize_init = False
 
     def __init__(
@@ -479,7 +472,6 @@ class CUBANet(SNNBase):
             # also uses beta_snn. Leaving beta_override=None keeps both paths
             # calibrated to the same τ_mem at every dt.
             self.reset_mode = self._reset_mode_override or "subtract"
-            self.tutorial_readout = True
             self._init_tutorial_weights(all_sizes, w_rec)
         else:
             self._init_biophysical_weights(
