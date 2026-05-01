@@ -96,7 +96,7 @@ def test_train_and_infer_share_test_split_mnist():
 
 
 def _run_cli(*args, timeout=180):
-    cmd = ["uv", "run", "python", "src/pinglab/oscilloscope.py", *args]
+    cmd = ["uv", "run", "python", "src/pinglab/oscilloscope/__main__.py", *args]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     return result.returncode, result.stdout, result.stderr
 
