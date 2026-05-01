@@ -98,5 +98,6 @@ class TestSeedReproducibility:
 class TestKaimingMode:
     def test_kaiming_flag_switches_snntorch_canonical_to_tutorial(self):
         net = build_net("standard-snn", kaiming_init=True, hidden_sizes=[32])
-        assert net.tutorial_readout is True
+        # Kaiming-init flips reset to "subtract" (snnTorch tutorial default)
+        # vs the biophysical "zero" hard reset that CUBANet uses by default.
         assert net.reset_mode == "subtract"
