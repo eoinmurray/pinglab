@@ -1,5 +1,5 @@
 ---
-layout: ../layouts/MarkdownLayout.astro
+layout: ../../layouts/MarkdownLayout.astro
 title: "Metrics"
 ---
 
@@ -9,7 +9,7 @@ This page is the reference for every number and every panel the scope shows. It 
 
 ## model
 
-*What it is:* The model variant driving the run. These sit on a ladder from simplest (snnTorch, a standard feedforward LIF network) to most biophysical (PING, with excitatory and inhibitory populations coupled into a gamma-producing loop). See [Models](/models/) for the full ladder.
+*What it is:* The model variant driving the run. These sit on a ladder from simplest (snnTorch, a standard feedforward LIF network) to most biophysical (PING, with excitatory and inhibitory populations coupled into a gamma-producing loop). See [Models](/docs/models/) for the full ladder.
 
 *How it's calculated:* Read from the *--model* CLI flag. A spinner character prefixes the name on live runs so the eye can tell a frozen frame from one that's still updating.
 
@@ -41,7 +41,7 @@ $$
 p = r \cdot \Delta t / 1000
 $$
 
-where $r$ is this per-pixel rate (Hz) scaled by pixel intensity. See [Training § Input encoding](/training/#input-encoding) for the full scheme.
+where $r$ is this per-pixel rate (Hz) scaled by pixel intensity. See [Training § Input encoding](/docs/training/#input-encoding) for the full scheme.
 
 *Common values:* 50 Hz for PING, 100 Hz for simpler models. `-` in the header when not set.
 
@@ -161,7 +161,7 @@ $$
 \hat y_t = \Bigl(\sum_{s \leq t} s^{\text{hid}}_s\Bigr) W_{\text{out}} + b_{\text{out}}
 $$
 
-The argmax at the final step is the model's prediction. See [Models § Linear readout](/models/#linear-readout).
+The argmax at the final step is the model's prediction. See [Models § Linear readout](/docs/models/#linear-readout).
 
 *How to read it:* For MNIST there are ten traces; if the network has learned, one trace pulls away from the pack as the trial progresses. If all traces stay flat, or one dominates from t=0, the run is pathological.
 
@@ -269,7 +269,7 @@ $$
 
 *What it is:* The current learning rate — the multiplier on each gradient step. Varies if *--adaptive-lr* is set; constant otherwise.
 
-*Common values:* $10^{-2}$ for snnTorch / CUBA; $10^{-4}$ for COBA / PING, whose conductance-based gradients are much steeper (see [Training § Gradient dampening](/training/#gradient-dampening-for-cobaping)).
+*Common values:* $10^{-2}$ for snnTorch / CUBA; $10^{-4}$ for COBA / PING, whose conductance-based gradients are much steeper (see [Training § Gradient dampening](/docs/training/#gradient-dampening-for-cobaping)).
 
 ## grad_norm
 

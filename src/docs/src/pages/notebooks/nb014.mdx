@@ -1,0 +1,119 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "014 — biophysical ladder"
+date: 2026-05-01
+entry: 14
+collections: [in-progress]
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb014/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const runs = numbers.runs ?? {};
+export const cuba = runs.cuba ?? {};
+export const coba = runs.coba ?? {};
+export const ping = runs.ping ?? {};
+
+export const figGlob = import.meta.glob("../../../public/figures/notebooks/nb014/*.{png,mp4}", { eager: true, query: "?url", import: "default" });
+export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" + name));
+export const successCriteria = numbers.success_criteria ?? [];
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+Side-by-side training of the three biophysical-rung models — [*cuba*](/docs/models/#cuba), [*coba*](/docs/models/#coba), [*ping*](/docs/models/#ping) — at matched recipe (mem-mean readout, slope = 1, dt = 0.1 ms). The dt-stability matrix in [nb012](/notebooks/nb012/) shows their accuracy and integrator-stability numerically; this entry shows them visually, one per-epoch training video per model.
+
+## Method
+
+Three models trained sequentially on MNIST at *dt* = {cfg.dt ?? "?"} ms over {cfg.t_ms ?? "?"} ms, each at the configured tier. Recipes are inherited verbatim from [nb009](/notebooks/nb009/) (cuba), [nb010](/notebooks/nb010/) (coba), [nb011](/notebooks/nb011/) (ping); the only thing that varies between cells is the model class and its associated hyperparameters.
+
+| Param | cuba | coba | ping |
+|---|---|---|---|
+| [*--model*](/docs/the-oscilloscope/#network-flags-shared) | cuba | ping | ping |
+| [*--ei-strength*](/docs/the-oscilloscope/#network-flags-shared) | n/a | 0 | 1 |
+| [*--readout*](/docs/the-oscilloscope/#readouts) | *mem-mean* | *mem-mean* | *mem-mean* |
+| [*--surrogate-slope*](/docs/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 |
+| [*--readout-w-out-scale*](/docs/the-oscilloscope/#network-flags-shared) | 1 | 100 | 500 |
+| [*--lr*](/docs/the-oscilloscope/#subcommand-train) | 0.04 | 0.0004 | 0.0004 |
+| [*--kaiming-init*](/docs/the-oscilloscope/#weight-flags-shared-advanced) | True | False | False |
+| [*--w-in*](/docs/the-oscilloscope/#weight-flags-shared-advanced) (mean, std) | (kaiming) | (0.3, 0.03) | (1.2, 0.12) |
+| [*--w-in-sparsity*](/docs/the-oscilloscope/#weight-flags-shared-advanced) | 0.0 | 0.95 | 0.95 |
+| [*--v-grad-dampen*](/docs/the-oscilloscope/#subcommand-train) | n/a | 1000 | 1000 |
+
+## Results
+
+Best test accuracy at training-dt:
+
+| model | best | final | rate_e (final) |
+|---|---|---|---|
+| cuba | {cuba.best_acc ?? "?"}% | {cuba.final_acc ?? "?"}% | {typeof cuba.rate_e === "number" ? cuba.rate_e.toFixed(1) : "?"} Hz |
+| coba | {coba.best_acc ?? "?"}% | {coba.final_acc ?? "?"}% | {typeof coba.rate_e === "number" ? coba.rate_e.toFixed(1) : "?"} Hz |
+| ping | {ping.best_acc ?? "?"}% | {ping.final_acc ?? "?"}% | {typeof ping.rate_e === "number" ? ping.rate_e.toFixed(1) : "?"} Hz |
+
+Per-epoch training videos:
+
+{hasFig("training_cuba.mp4") && (
+  <Figure id="Figure 1" type="video" title="cuba training" src="/figures/notebooks/nb014/training_cuba.mp4">
+    Per-epoch oscilloscope of the cuba training run on MNIST.
+  </Figure>
+)}
+
+{hasFig("training_coba.mp4") && (
+  <Figure id="Figure 2" type="video" title="coba training" src="/figures/notebooks/nb014/training_coba.mp4">
+    Per-epoch oscilloscope of the coba training run.
+  </Figure>
+)}
+
+{hasFig("training_ping.mp4") && (
+  <Figure id="Figure 3" type="video" title="ping training" src="/figures/notebooks/nb014/training_ping.mp4">
+    Per-epoch oscilloscope of the ping training run; the E→I→E loop is visible in the inhibitory raster.
+  </Figure>
+)}
+
+## Discussion
+
+*To be written once results land.*
+
+A side experiment swapped CE for L2 (MSE between mean output membrane and one-hot targets) at the same recipe. Cuba held (84% vs 87% under CE) but coba and ping collapsed: coba's hidden layer never bootstrapped firing (rate_e ≈ 0.3 Hz, accuracy 48%), and ping diverged with output magnitudes that overshot the one-hot target by an order of magnitude. Per-model retunes of *--readout-w-out-scale* and *--lr* didn't recover. The likely reason is structural: CE's softmax provides per-step "lower me / raise me" gradient to *every* output class; one-hot MSE only supplies non-zero gradient on the correct class when other outputs sit at zero, which the biophysical models do at init. Reverting to CE here.
+
+## Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+## Next steps
+
+- Populate Discussion once a *medium*-tier run lands.
+- Decide whether this entry stays as a videos-only counterpart to nb012 or grows into something else (e.g. an *ann-vs-snn* baseline).
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb014.py --tier small
+```
+
+Add *--modal-gpu A100* to dispatch the three trainings to Modal in turn.
+
+### Run parameters
+
+<RunParameters numbers={numbers} />

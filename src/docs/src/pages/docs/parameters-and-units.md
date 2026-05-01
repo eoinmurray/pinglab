@@ -1,5 +1,5 @@
 ---
-layout: ../layouts/MarkdownLayout.astro
+layout: ../../layouts/MarkdownLayout.astro
 title: "Parameters & Units"
 ---
 
@@ -34,7 +34,7 @@ All physical quantities in the codebase use the same unit system: **ms for time,
 
 ## COBA / PING biophysical constants
 
-Used by [COBA](/models/#coba) and [PING](/models/#ping) on the [model ladder](/models/). Values follow neuroscience conventions (cf. Dayan & Abbott, Gerstner *Neuronal Dynamics*); the E:I asymmetry in $\tau_m, C_m, g_L, \tau_{\text{ref}}$ produces the timescale separation that makes PING dynamics possible.
+Used by [COBA](/docs/models/#coba) and [PING](/docs/models/#ping) on the [model ladder](/docs/models/). Values follow neuroscience conventions (cf. Dayan & Abbott, Gerstner *Neuronal Dynamics*); the E:I asymmetry in $\tau_m, C_m, g_L, \tau_{\text{ref}}$ produces the timescale separation that makes PING dynamics possible.
 
 | Parameter | E population | I population |
 | --------- | ------------ | ------------ |

@@ -26,13 +26,13 @@ Same recipe as [nb006](/notebooks/nb006/) (snntorch-style direct-LIF) but with a
 
 ## Method
 
-Hyperparameters are a verbatim copy of [nb006](/notebooks/nb006/) per the [runner contract](/the-notebooks/#runner-contract); only the model name differs (`standard-snn-exp` vs `standard-snn`). The new model registry entry instantiates *CUBANet* with `exponential_synapse=True`.
+Hyperparameters are a verbatim copy of [nb006](/notebooks/nb006/) per the [runner contract](/docs/the-notebooks/#runner-contract); only the model name differs (`standard-snn-exp` vs `standard-snn`). The new model registry entry instantiates *CUBANet* with `exponential_synapse=True`.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "Synapse", value: "exponential", default: "direct LIF", href: "/the-oscilloscope/#network-flags-shared" },
-  { label: "Readout", value: "li", default: "rate", href: "/the-oscilloscope/#readouts" },
-  { label: "Surrogate slope", value: 1, default: 5, href: "/the-oscilloscope/#network-flags-shared" },
-  { label: "Init", value: "Kaiming (signed)", default: "non-negative", href: "/the-oscilloscope/#network-flags-shared" },
+  { label: "Synapse", value: "exponential", default: "direct LIF", href: "/docs/the-oscilloscope/#network-flags-shared" },
+  { label: "Readout", value: "li", default: "rate", href: "/docs/the-oscilloscope/#readouts" },
+  { label: "Surrogate slope", value: 1, default: 5, href: "/docs/the-oscilloscope/#network-flags-shared" },
+  { label: "Init", value: "Kaiming (signed)", default: "non-negative", href: "/docs/the-oscilloscope/#network-flags-shared" },
 ]} />
 
 The three shared customisations are explained in [nb006](/notebooks/nb006/). The fourth — exponential synapse — is the difference being measured here:
@@ -45,7 +45,7 @@ To reproduce:
 uv run src/pinglab/notebooks/nb007.py
 ```
 
-Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
+Add [*--tier*](/docs/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/docs/the-notebooks/#cli).
 
 ## Results
 

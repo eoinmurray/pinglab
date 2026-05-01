@@ -23,7 +23,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/spiking-heidelberg-datasets-shd/) dataset, introduced by Cramer et al. ([*cramer-et-al*](/references/#spiking-mnist--benchmarks)) for systematic SNN benchmarking — 20 classes of spoken digits (English + German) encoded as cochleogram spike trains over 700 input channels and $\sim$1 s per trial. SHD is natively event-based, so the dt / discretisation / encoding questions the earlier notebooks studied apply directly rather than being mediated by an artificial row-by-row encoding of an image dataset.
+Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/spiking-heidelberg-datasets-shd/) dataset, introduced by Cramer et al. ([*cramer-et-al*](/docs/references/#spiking-mnist--benchmarks)) for systematic SNN benchmarking — 20 classes of spoken digits (English + German) encoded as cochleogram spike trains over 700 input channels and $\sim$1 s per trial. SHD is natively event-based, so the dt / discretisation / encoding questions the earlier notebooks studied apply directly rather than being mediated by an artificial row-by-row encoding of an image dataset.
 
 ## Method
 
@@ -31,11 +31,11 @@ Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/sp
   One cochleogram spike raster per class, sampled from the train set (seed {cfg.seed ?? "?"}). Classes 0–9 are the English digits *zero*–*nine*; classes 10–19 are the German *null*–*neun*. Each panel is 700 channels × {cfg.t_ms ?? "?"} ms; density and temporal structure vary across speakers but the class-specific spectral signature is visible.
 </Figure>
 
-[*cuba*](/models/#cuba) model with one hidden layer of 128 units, trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **li** readout. Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}; raw Kaiming init, no per-init drive compensation.
+[*cuba*](/docs/models/#cuba) model with one hidden layer of 128 units, trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **li** readout. Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}; raw Kaiming init, no per-init drive compensation.
 
 ### Comparison to the literature
 
-Cramer et al. ([*cramer-et-al*](/references/#spiking-mnist--benchmarks)) set the reference SHD recipe that most subsequent work measures against: a current-based LIF with exponential synapse, LI (non-spiking) readout, full-BPTT with a fast-sigmoid surrogate, and a two-sided firing-rate regulariser. Their headline numbers are 48.1–48.6% for 1–2 layer feedforward SNNs and 71.4% for the recurrent variant at matched capacity.
+Cramer et al. ([*cramer-et-al*](/docs/references/#spiking-mnist--benchmarks)) set the reference SHD recipe that most subsequent work measures against: a current-based LIF with exponential synapse, LI (non-spiking) readout, full-BPTT with a fast-sigmoid surrogate, and a two-sided firing-rate regulariser. Their headline numbers are 48.1–48.6% for 1–2 layer feedforward SNNs and 71.4% for the recurrent variant at matched capacity.
 
 This entry deliberately tracks that recipe component-by-component so the gap to the reference number is interpretable. Below are the features of their setup and whether this entry matches.
 

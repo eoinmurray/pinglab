@@ -81,37 +81,37 @@ The simulator's *dt* is a numerical knob, not a feature of the network — but i
 
 Six models are trained on MNIST at two *dt* regimes ({dt1} ms and {dt2} ms), each with the per-model recipe from its calibration sibling ([nb006](/notebooks/nb006/)–[nb011](/notebooks/nb011/)). Weights are then frozen and accuracy is re-evaluated across a sweep of eval-*dt* values under three input-transport rules ([upsample / downsample / resample](#eval-time-dt-transport)). Identity transport (eval-*dt* = train-*dt*) anchors each sweep, so any change downstream is *integrator-side*.
 
-**Models** (see [the ladder](/models/)):
+**Models** (see [the ladder](/docs/models/)):
 
-- [*standard-snn*](/models/#standard-snn) — pinglab reimplementation of snnTorch's *snn.Leaky*. The Tutorial-3 simplification ($\Delta t = 1$, $R = 1$, $(1-\beta)$ absorbed into $W$) drops $\Delta t$ from the update, which is what produces the *dt*-leakage analysed below.
-- [*standard-snn-exp*](/models/#standard-snn) — *standard-snn* with an exponential synapse ($\tau_\text{syn} \approx 2$ ms) on the feedforward inputs.
-- [*snntorch-library*](/models/#snntorch-library) — snnTorch's *snn.Leaky* directly. Parity probe against *standard-snn*.
-- [*cuba*](/models/#cuba) — same LIF, exp-Euler + ZOH integration restoring the $(1-\beta)/dt$ and $(1-\beta)$ prefactors. *dt* is back in the update.
-- [*coba*](/models/#coba) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
-- [*ping*](/models/#ping) — COBA plus the frozen E→I→E recurrent loop that produces gamma.
+- [*standard-snn*](/docs/models/#standard-snn) — pinglab reimplementation of snnTorch's *snn.Leaky*. The Tutorial-3 simplification ($\Delta t = 1$, $R = 1$, $(1-\beta)$ absorbed into $W$) drops $\Delta t$ from the update, which is what produces the *dt*-leakage analysed below.
+- [*standard-snn-exp*](/docs/models/#standard-snn) — *standard-snn* with an exponential synapse ($\tau_\text{syn} \approx 2$ ms) on the feedforward inputs.
+- [*snntorch-library*](/docs/models/#snntorch-library) — snnTorch's *snn.Leaky* directly. Parity probe against *standard-snn*.
+- [*cuba*](/docs/models/#cuba) — same LIF, exp-Euler + ZOH integration restoring the $(1-\beta)/dt$ and $(1-\beta)$ prefactors. *dt* is back in the update.
+- [*coba*](/docs/models/#coba) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
+- [*ping*](/docs/models/#ping) — COBA plus the frozen E→I→E recurrent loop that produces gamma.
 
 Recipe table cells are the resolved training values; *n/a* marks parameters the model class doesn't use.
 
 | Param | standard-snn | standard-snn-exp | snntorch-library | cuba | coba | ping |
 |---|---|---|---|---|---|---|
-| [*--model*](/the-oscilloscope/#network-flags-shared) | standard-snn | standard-snn-exp | snntorch-library | cuba | ping | ping |
-| [*--dataset*](/the-oscilloscope/#input-flags-shared) | mnist | mnist | mnist | mnist | mnist | mnist |
-| [*--input-rate*](/the-oscilloscope/#input-flags-shared) (Hz) | 25 | 25 | 25 | 25 | 25 | 25 |
-| [*--t-ms*](/the-oscilloscope/#network-flags-shared) | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} |
-| [*--seed*](/the-oscilloscope/#execution-flags-shared) | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} |
-| [*--max-samples*](/the-oscilloscope/#subcommand-train) | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} |
-| [*--epochs*](/the-oscilloscope/#subcommand-train) | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} |
-| [*--batch-size*](/the-oscilloscope/#subcommand-train) | 256 | 256 | 256 | 256 | 256 | 256 |
-| [*--observe*](/the-oscilloscope/#subcommand-train) | video | video | video | video | video | video |
-| [*--kaiming-init*](/the-oscilloscope/#weight-flags-shared-advanced) | True | True | True | True | False | False |
-| [*--readout*](/the-oscilloscope/#readouts) | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* |
-| [*--surrogate-slope*](/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 1 | 1 |
-| [*--readout-w-out-scale*](/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 100 | 500 |
-| [*--lr*](/the-oscilloscope/#subcommand-train) | 0.01 | 0.01 | 0.01 | 0.04 | 0.0004 | 0.0004 |
-| [*--ei-strength*](/the-oscilloscope/#network-flags-shared) | n/a | n/a | n/a | n/a | 0 | 1 |
-| [*--v-grad-dampen*](/the-oscilloscope/#subcommand-train) | n/a | n/a | n/a | n/a | 1000 | 1000 |
-| [*--w-in*](/the-oscilloscope/#weight-flags-shared-advanced) (mean, std) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.03) | (1.2, 0.12) |
-| [*--w-in-sparsity*](/the-oscilloscope/#weight-flags-shared-advanced) | 0.0 | 0.0 | 0.0 | 0.0 | 0.95 | 0.95 |
+| [*--model*](/docs/the-oscilloscope/#network-flags-shared) | standard-snn | standard-snn-exp | snntorch-library | cuba | ping | ping |
+| [*--dataset*](/docs/the-oscilloscope/#input-flags-shared) | mnist | mnist | mnist | mnist | mnist | mnist |
+| [*--input-rate*](/docs/the-oscilloscope/#input-flags-shared) (Hz) | 25 | 25 | 25 | 25 | 25 | 25 |
+| [*--t-ms*](/docs/the-oscilloscope/#network-flags-shared) | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} |
+| [*--seed*](/docs/the-oscilloscope/#execution-flags-shared) | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} |
+| [*--max-samples*](/docs/the-oscilloscope/#subcommand-train) | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} |
+| [*--epochs*](/docs/the-oscilloscope/#subcommand-train) | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} |
+| [*--batch-size*](/docs/the-oscilloscope/#subcommand-train) | 256 | 256 | 256 | 256 | 256 | 256 |
+| [*--observe*](/docs/the-oscilloscope/#subcommand-train) | video | video | video | video | video | video |
+| [*--kaiming-init*](/docs/the-oscilloscope/#weight-flags-shared-advanced) | True | True | True | True | False | False |
+| [*--readout*](/docs/the-oscilloscope/#readouts) | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* |
+| [*--surrogate-slope*](/docs/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 1 | 1 |
+| [*--readout-w-out-scale*](/docs/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 100 | 500 |
+| [*--lr*](/docs/the-oscilloscope/#subcommand-train) | 0.01 | 0.01 | 0.01 | 0.04 | 0.0004 | 0.0004 |
+| [*--ei-strength*](/docs/the-oscilloscope/#network-flags-shared) | n/a | n/a | n/a | n/a | 0 | 1 |
+| [*--v-grad-dampen*](/docs/the-oscilloscope/#subcommand-train) | n/a | n/a | n/a | n/a | 1000 | 1000 |
+| [*--w-in*](/docs/the-oscilloscope/#weight-flags-shared-advanced) (mean, std) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.03) | (1.2, 0.12) |
+| [*--w-in-sparsity*](/docs/the-oscilloscope/#weight-flags-shared-advanced) | 0.0 | 0.0 | 0.0 | 0.0 | 0.95 | 0.95 |
 | integrator | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | exp-Euler ZOH (input) | exp-Euler ZOH (conductance) | exp-Euler ZOH (conductance) |
 | synapse | direct | exponential | direct | direct | exponential (COBA) | exponential (COBA) + E→I→E |
 
@@ -150,13 +150,13 @@ COBANet caveat: hidden firing rate ($\sim$5–30 Hz) is $\sim$10–100× lower t
 
 ### Differences between CUBA and COBA
 
-Five flags differ between [*cuba*](/models/#cuba) and [*coba*](/models/#coba); the classes themselves differ on six more not exposed as flags.
+Five flags differ between [*cuba*](/docs/models/#cuba) and [*coba*](/docs/models/#coba); the classes themselves differ on six more not exposed as flags.
 
 **Recipe-level (visible in the table)**
 
 | Difference | cuba | coba | Effect | Justification |
 |---|---|---|---|---|
-| *--model* | *cuba* | *ping* (with *--ei-strength 0*) | Dispatches [CUBANet](/models/#cubanet) vs [COBANet](/models/#cobanet). | coba is feedforward COBANet; ping with the recurrent loop off. |
+| *--model* | *cuba* | *ping* (with *--ei-strength 0*) | Dispatches [CUBANet](/docs/models/#cubanet) vs [COBANet](/docs/models/#cobanet). | coba is feedforward COBANet; ping with the recurrent loop off. |
 | *--lr* | 0.04 | 0.0004 | 100× spread. | $g(V - E_\text{rev})$ is far more LR-sensitive than cuba's $+I$. |
 | *--readout-w-out-scale* | 1 | 100 / 500 | Multiplies *W_ff[-1]* at init. | COBANet hidden rate $\sim$10–100× below CUBANet's, so output drive is correspondingly weak. nb010 sweep: 1→59%, 10→70%, 30→74%, 100→82%. ping's inhibitory loop wants 5× more. |
 | *--kaiming-init* | True | False | Signed vs half-normal init on $W_\text{in}$. | cuba is Dale-off; coba is Dale-on (non-negative). |
@@ -168,13 +168,13 @@ Five flags differ between [*cuba*](/models/#cuba) and [*coba*](/models/#coba); t
 
 | Difference | cuba | coba | Effect | Justification |
 |---|---|---|---|---|
-| Membrane equation | $\tau\, dV/dt = -V + I$ | $C_m\, dV/dt = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i)$ | Linear additive ODE vs nonlinear multiplicative; coba clips $V$ at $E_e$. | Headline biophysical step on [the ladder](/models/); reversal potentials, $g_e/g_i$, µS units all follow. |
+| Membrane equation | $\tau\, dV/dt = -V + I$ | $C_m\, dV/dt = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i)$ | Linear additive ODE vs nonlinear multiplicative; coba clips $V$ at $E_e$. | Headline biophysical step on [the ladder](/docs/models/); reversal potentials, $g_e/g_i$, µS units all follow. |
 | Spike reset | subtract ($U \mathrel{{-}{=}} \theta$) | hard ($V \leftarrow V_\text{reset}$) | Subtract preserves cross-spike momentum; hard reset destroys it. | Matches biological after-hyperpolarisation (the brief K⁺-driven dip below rest after a spike). |
 | Refractory | none | $\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms | Caps single-neuron rate at $\sim 1/\tau_\text{ref}$. | Biophysical realism + prevents runaway firing. |
 | Dale's law | off | on ($W \geq 0$) | Restricts optimisation landscape. | Real cortical synapses don't switch sign. |
 | Synaptic kernel | direct LIF | exponential ($\tau_\text{AMPA} = 2$, $\tau_\text{GABA} = 9$ ms) | Each spike kicks instantaneously in cuba; in coba it raises a decaying conductance trace. | Required for any oscillation, including PING's gamma. |
 | Bias term | trainable $b_\text{ff}$ | none | cuba has a free DC offset per neuron. | A constant bias doesn't fit the biophysical form (would need a current source). |
-| Units / scale | dimensionless | mV / µS / ms | Just a rescaling computationally. | Required for matching electrophysiology. Constants on [Parameters & Units](/parameters-and-units/). |
+| Units / scale | dimensionless | mV / µS / ms | Just a rescaling computationally. | Required for matching electrophysiology. Constants on [Parameters & Units](/docs/parameters-and-units/). |
 
 **What's *not* different.** Both models share the exp-Euler + ZOH integrator (with the $(1-\beta)$ prefactors that make the per-step update *dt*-invariant — the whole point of this notebook), the fast-sigmoid surrogate-gradient primitive, and the same reset-by-subtraction-and-clamp for membrane numerics outside spikes. The integrator is *not* the cuba/coba boundary; it's what coba inherits unchanged from cuba.
 

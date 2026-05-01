@@ -1,5 +1,5 @@
 ---
-layout: ../layouts/MarkdownLayout.astro
+layout: ../../layouts/MarkdownLayout.astro
 title: "The Notebooks"
 ---
 
@@ -31,7 +31,7 @@ Every runner:
 
 Runners accept this small, fixed flag set:
 
-- *--tier &lt;name&gt;* — run size. Tier names come from the [Run sizing tiers](/styleguide/#10-run-sizing-tiers) table in the styleguide. Smaller tiers are for iteration, larger tiers for published runs.
+- *--tier &lt;name&gt;* — run size. Tier names come from the [Run sizing tiers](/docs/styleguide/#10-run-sizing-tiers) table in the styleguide. Smaller tiers are for iteration, larger tiers for published runs.
 - *--modal-gpu &lt;spec&gt;* — dispatch the oscilloscope calls to Modal instead of running locally. Absent = local.
 - *--skip-training* — reuse existing artifacts and regenerate only the published figures. Useful when only the plotting code changed.
 - *--evaluate-success-only* — re-run the success-criteria gate against the existing *numbers.json* and published figures, without dispatching any training or wiping anything. Useful when only the criteria themselves have changed.
@@ -57,7 +57,7 @@ Trigger a refresh whenever any of these change:
 - The set of CLI flags a runner accepts (currently *--tier*, *--modal-gpu*, *--skip-training*, *--evaluate-success-only*, *--no-wipe-dir*).
 - The artifact / published-figure directory layout under *src/artifacts/notebooks/* or *src/docs/public/figures/notebooks/*.
 - The MDX entry skeleton (Introduction / Method / Findings / Implications / Next steps) — see the *feedback_notebook_entry_headings* convention.
-- Run-sizing tiers referenced from the [styleguide](/styleguide/#10-run-sizing-tiers).
+- Run-sizing tiers referenced from the [styleguide](/docs/styleguide/#10-run-sizing-tiers).
 
 A quick signal: *git log --since="&lt;last-updated date&gt;" -- src/pinglab/notebooks/ src/docs/src/pages/styleguide.md src/docs/src/pages/notebooks/* returning anything means this page is potentially stale.
 

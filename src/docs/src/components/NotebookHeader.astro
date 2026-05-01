@@ -60,6 +60,7 @@ const criteriaPassed = criteria.filter((c: any) => c && c.passed).length;
 const criteriaFailed = criteriaTotal - criteriaPassed;
 const hasGate = criteriaTotal > 0;
 const allPass = hasGate && criteriaFailed === 0;
+const hasRun = !hasGate && (numbers.notebook_run_id != null || numbers.run_finished_at != null || numbers.duration != null);
 
 type Stat = { label: string; value: any; mono?: boolean };
 const stats: Stat[] = [];
@@ -102,6 +103,15 @@ const ddMono = "font-mono text-[0.85rem]";
           <span>{allPass ? "pass" : "fail"}</span>
           <span class="text-[0.7rem] opacity-70">{criteriaPassed}/{criteriaTotal}</span>
         </a>
+      </>
+    )}
+    {hasRun && (
+      <>
+        <span class="text-faint">·</span>
+        <span
+          class="inline-flex items-baseline rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.72rem] font-medium uppercase tracking-wider bg-rule/50 text-muted-soft"
+          title="run produced no success criteria"
+        >no run</span>
       </>
     )}
   </div>

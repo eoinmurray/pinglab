@@ -22,11 +22,11 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*cuba*](/models/#cuba) path — current-based synapses with the $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors built into the integrator — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; calibration sibling of [nb006](/notebooks/nb006/) and [nb008](/notebooks/nb008/). See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*cuba*](/docs/models/#cuba) path — current-based synapses with the $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors built into the integrator — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; calibration sibling of [nb006](/notebooks/nb006/) and [nb008](/notebooks/nb008/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb009.py* per the [runner contract](/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
+Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb009.py* per the [runner contract](/docs/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
   { label: "Readout", value: "li", default: "rate" },
@@ -36,9 +36,9 @@ Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb009.py* 
 
 These three customisations mirror [nb006](/notebooks/nb006/)/[nb008](/notebooks/nb008/) verbatim. *cuba* relies on its integrator-level $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors for *dt*-invariance — no per-init compensation needed.
 
-- [**readout = li**](/the-oscilloscope/#readouts) — the default *rate* readout accumulates hidden spikes across *T* = 2000 steps and produces logits large enough that CE saturates to zero on the forward pass, masking the real gradient signal.
-- [**surrogate-slope = 1**](/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient. Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end.
-- [**kaiming-init (signed)**](/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
+- [**readout = li**](/docs/the-oscilloscope/#readouts) — the default *rate* readout accumulates hidden spikes across *T* = 2000 steps and produces logits large enough that CE saturates to zero on the forward pass, masking the real gradient signal.
+- [**surrogate-slope = 1**](/docs/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient. Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end.
+- [**kaiming-init (signed)**](/docs/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
 
 ## Results
 
@@ -79,7 +79,7 @@ These three customisations mirror [nb006](/notebooks/nb006/)/[nb008](/notebooks/
 
 Every check passes at large tier — best accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%, and crucially *rate_e* = 104 Hz lands inside the 1–200 Hz sanity band. *cuba* is the first model on this shared MNIST recipe without the saturation pathology that pushes [nb006](/notebooks/nb006/) (rate ≈ 284 Hz) and [nb008](/notebooks/nb008/) (rate ≈ 390 Hz) above the upper rail at matched config. The exp-Euler+ZOH integrator's $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors keep starting drive matched to *standard-snn* at *dt* = 0.1 ms while the exponential synapse low-passes the spike train into the readout, so the network can hit competitive accuracy without driving the hidden layer into rate saturation.
 
-Parked follow-up: the same two-sided firing-rate regulariser proposed for nb006/nb008 (Cramer-2022 style via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/the-oscilloscope/#network-flags-shared)) should be a no-op here — applying it to *cuba* and confirming rate stays inside the band would cheaply verify the regulariser is well-posed before turning it loose on the saturating siblings.
+Parked follow-up: the same two-sided firing-rate regulariser proposed for nb006/nb008 (Cramer-2022 style via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/docs/the-oscilloscope/#network-flags-shared)) should be a no-op here — applying it to *cuba* and confirming rate stays inside the band would cheaply verify the regulariser is well-posed before turning it loose on the saturating siblings.
 
 ## Appendix
 
@@ -89,4 +89,4 @@ Parked follow-up: the same two-sided firing-rate regulariser proposed for nb006/
 uv run src/pinglab/notebooks/nb009.py
 ```
 
-Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
+Add [*--tier*](/docs/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/docs/the-notebooks/#cli).
