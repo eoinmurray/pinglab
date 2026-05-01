@@ -16,6 +16,7 @@ PING actually forming once the feedback loop is closed.
 
 Notebook entry: src/docs/src/pages/notebooks/nb005.mdx
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,18 +28,27 @@ sys.path.insert(0, str(REPO / "src" / "pinglab"))
 import numpy as np  # noqa: E402
 
 from _ping_scan import (  # noqa: E402
-    DATASET, DIGIT_CLASS, DT_MS, INPUT_RATE_HZ, N_HIDDEN,
-    SAMPLE_IDX, SEED, SIM_MS, STEP_OFF_MS, STEP_ON_MS,
-    ScanSpec, run_scan,
+    DATASET,
+    DIGIT_CLASS,
+    DT_MS,
+    INPUT_RATE_HZ,
+    N_HIDDEN,
+    SAMPLE_IDX,
+    SEED,
+    SIM_MS,
+    STEP_OFF_MS,
+    STEP_ON_MS,
+    ScanSpec,
+    run_scan,
 )
 
 SLUG = "nb005"
 EI_SCAN_INPUT_RATE_HZ = 200.0
-EI_SCAN_W_IN_MEAN = 1.8       # 6× over the default 0.3 — bigger E baseline drive
-EI_SCAN_W_IN_STD  = 0.36      # 6× over the default 0.06
+EI_SCAN_W_IN_MEAN = 1.8  # 6× over the default 0.3 — bigger E baseline drive
+EI_SCAN_W_IN_STD = 0.36  # 6× over the default 0.06
 EI_SCAN_MIN = 0.0
 EI_SCAN_MAX = 2.0
-CANON_EI = 0.8      # well inside the PING-on regime for the replay
+CANON_EI = 0.8  # well inside the PING-on regime for the replay
 
 
 def compute_summary_rates() -> dict:
@@ -50,7 +60,10 @@ def compute_summary_rates() -> dict:
     import models as M  # noqa: E402
     from config import make_net, patch_dt  # noqa: E402
     from oscilloscope import (
-        _extract_records, _load_dataset_image, encode_image_spikes, primary_hid_key,
+        _extract_records,
+        _load_dataset_image,
+        encode_image_spikes,
+        primary_hid_key,
     )  # noqa: E402
 
     C.cfg.n_e = N_HIDDEN
@@ -73,13 +86,21 @@ def compute_summary_rates() -> dict:
 
     base_rate = M.max_rate_hz
     input_spikes = encode_image_spikes(
-        pixel_vec, M.T_steps, DT_MS, base_rate, base_rate,
-        C.STEP_ON_MS, C.STEP_OFF_MS, C.SEED,
+        pixel_vec,
+        M.T_steps,
+        DT_MS,
+        base_rate,
+        base_rate,
+        C.STEP_ON_MS,
+        C.STEP_OFF_MS,
+        C.SEED,
     ).to(C.DEVICE)
 
-    net = make_net(C.cfg,
-                   w_in=(EI_SCAN_W_IN_MEAN, EI_SCAN_W_IN_STD, "normal", C.W_IN_SPARSITY),
-                   model_name="ping")
+    net = make_net(
+        C.cfg,
+        w_in=(EI_SCAN_W_IN_MEAN, EI_SCAN_W_IN_STD, "normal", C.W_IN_SPARSITY),
+        model_name="ping",
+    )
     net.recording = True
     with torch.no_grad():
         net.forward(input_spikes=input_spikes)
@@ -90,15 +111,15 @@ def compute_summary_rates() -> dict:
     T_steps = spk_e.shape[0]
     t_ms = np.arange(T_steps) * DT_MS
 
-    pre  = (t_ms >= 0)           & (t_ms < STEP_ON_MS)
-    stim = (t_ms >= STEP_ON_MS)  & (t_ms < STEP_OFF_MS)
+    pre = (t_ms >= 0) & (t_ms < STEP_ON_MS)
+    stim = (t_ms >= STEP_ON_MS) & (t_ms < STEP_OFF_MS)
     post = (t_ms >= STEP_OFF_MS) & (t_ms <= SIM_MS)
 
     def mean_rate(spk, mask):
         return float(spk[mask].mean()) * 1000.0 / DT_MS
 
     return {
-        "pre":  {"e": mean_rate(spk_e, pre),  "i": mean_rate(spk_i, pre)},
+        "pre": {"e": mean_rate(spk_e, pre), "i": mean_rate(spk_i, pre)},
         "stim": {"e": mean_rate(spk_e, stim), "i": mean_rate(spk_i, stim)},
         "post": {"e": mean_rate(spk_e, post), "i": mean_rate(spk_i, post)},
     }
@@ -107,10 +128,14 @@ def compute_summary_rates() -> dict:
 def extras(tier: str, notebook_run_id: str) -> dict:
     rates = compute_summary_rates()
     r = rates
-    print(f"  E rate  pre={r['pre']['e']:.1f} Hz  "
-          f"stim={r['stim']['e']:.1f} Hz  post={r['post']['e']:.1f} Hz")
-    print(f"  I rate  pre={r['pre']['i']:.1f} Hz  "
-          f"stim={r['stim']['i']:.1f} Hz  post={r['post']['i']:.1f} Hz")
+    print(
+        f"  E rate  pre={r['pre']['e']:.1f} Hz  "
+        f"stim={r['stim']['e']:.1f} Hz  post={r['post']['e']:.1f} Hz"
+    )
+    print(
+        f"  I rate  pre={r['pre']['i']:.1f} Hz  "
+        f"stim={r['stim']['i']:.1f} Hz  post={r['post']['i']:.1f} Hz"
+    )
     return {"rates_hz": rates, "canonical_ei": CANON_EI}
 
 
@@ -131,8 +156,9 @@ def evaluate_success(figures_dir, summary):
         {
             "label": "ei-strength scan video rendered",
             "passed": bool(video_ok),
-            "detail": f"{video.name} ({video.stat().st_size} bytes)" if video_ok
-                      else f"missing {video.name}",
+            "detail": f"{video.name} ({video.stat().st_size} bytes)"
+            if video_ok
+            else f"missing {video.name}",
             "detail_href": href,
         },
         {
@@ -144,25 +170,32 @@ def evaluate_success(figures_dir, summary):
 
 
 if __name__ == "__main__":
-    run_scan(ScanSpec(
-        slug=SLUG,
-        scan_var="ei_strength",
-        scan_min=EI_SCAN_MIN,
-        scan_max=EI_SCAN_MAX,
-        video_name="scan_ei.mp4",
-        extra_osc_args=[
-            "--input-rate", str(EI_SCAN_INPUT_RATE_HZ),
-            "--w-in", str(EI_SCAN_W_IN_MEAN), str(EI_SCAN_W_IN_STD),
-            "--stim-overdrive", "1.0",
-            "--dt", str(DT_MS),
-        ],
-        config_payload={
-            "fixed_overdrive": 1.0,
-            "input_rate_hz": EI_SCAN_INPUT_RATE_HZ,
-            "w_in_mean": EI_SCAN_W_IN_MEAN,
-            "w_in_std": EI_SCAN_W_IN_STD,
-        },
-        extras_fn=extras,
-        criteria_fn=evaluate_success,
-    ))
+    run_scan(
+        ScanSpec(
+            slug=SLUG,
+            scan_var="ei_strength",
+            scan_min=EI_SCAN_MIN,
+            scan_max=EI_SCAN_MAX,
+            video_name="scan_ei.mp4",
+            extra_osc_args=[
+                "--input-rate",
+                str(EI_SCAN_INPUT_RATE_HZ),
+                "--w-in",
+                str(EI_SCAN_W_IN_MEAN),
+                str(EI_SCAN_W_IN_STD),
+                "--stim-overdrive",
+                "1.0",
+                "--dt",
+                str(DT_MS),
+            ],
+            config_payload={
+                "fixed_overdrive": 1.0,
+                "input_rate_hz": EI_SCAN_INPUT_RATE_HZ,
+                "w_in_mean": EI_SCAN_W_IN_MEAN,
+                "w_in_std": EI_SCAN_W_IN_STD,
+            },
+            extras_fn=extras,
+            criteria_fn=evaluate_success,
+        )
+    )
     sys.exit(0)

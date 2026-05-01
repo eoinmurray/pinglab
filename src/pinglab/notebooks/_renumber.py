@@ -20,6 +20,7 @@ MDX's `entry:` and `"NNN — ..."` title prefix. Free-text mentions like
 "entry 002" inside docstrings are NOT auto-rewritten — fix those by hand
 if you care.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,7 +36,12 @@ FIGURES_DIR = REPO / "src/docs/public/figures/notebooks"
 ARTIFACTS_DIR = REPO / "src/artifacts/notebooks"
 
 TEXT_EXTS = {".py", ".md", ".mdx", ".astro", ".ts", ".tsx", ".json", ".txt"}
-SCAN_ROOTS = [REPO / "src/docs/src", REPO / "src/docs/public", REPO / "src/pinglab", REPO / "src/artifacts"]
+SCAN_ROOTS = [
+    REPO / "src/docs/src",
+    REPO / "src/docs/public",
+    REPO / "src/pinglab",
+    REPO / "src/artifacts",
+]
 SKIP_DIR_NAMES = {"node_modules", "__pycache__", ".git", "dist", ".astro"}
 
 SLUG_RE = re.compile(r"nb(\d{3})")
@@ -83,8 +89,10 @@ def iter_text_files():
 
 def rewrite_text(content: str, slug_map: dict[str, str]) -> str:
     """Single-pass replace: nbXXX -> slug_map[nbXXX] when present."""
+
     def sub(m: re.Match) -> str:
         return slug_map.get(m.group(0), m.group(0))
+
     return SLUG_RE.sub(sub, content)
 
 
@@ -97,7 +105,7 @@ def rewrite_mdx_frontmatter(content: str, new_entry: int) -> str:
     fm = re.sub(r"^entry:\s*\d+\s*$", f"entry: {new_entry}", fm, count=1, flags=re.M)
     fm = re.sub(
         r'^(title:\s*")(\d{3})(\s*[—–-])',
-        lambda m: f'{m.group(1)}{new_entry:03d}{m.group(3)}',
+        lambda m: f"{m.group(1)}{new_entry:03d}{m.group(3)}",
         fm,
         count=1,
         flags=re.M,
@@ -154,18 +162,38 @@ def renumber(action: str, n: int, dry: bool) -> None:
     print("renaming paths (pass 1: -> tmp):")
     for old in rename_map:
         old_slug = slug(old)
-        safe_move(PAGES_DIR / f"{old_slug}.mdx", PAGES_DIR / f"{tmp_prefix}{old_slug}.mdx", dry)
-        safe_move(RUNNERS_DIR / f"{old_slug}.py", RUNNERS_DIR / f"{tmp_prefix}{old_slug}.py", dry)
+        safe_move(
+            PAGES_DIR / f"{old_slug}.mdx",
+            PAGES_DIR / f"{tmp_prefix}{old_slug}.mdx",
+            dry,
+        )
+        safe_move(
+            RUNNERS_DIR / f"{old_slug}.py",
+            RUNNERS_DIR / f"{tmp_prefix}{old_slug}.py",
+            dry,
+        )
         safe_move(FIGURES_DIR / old_slug, FIGURES_DIR / f"{tmp_prefix}{old_slug}", dry)
-        safe_move(ARTIFACTS_DIR / old_slug, ARTIFACTS_DIR / f"{tmp_prefix}{old_slug}", dry)
+        safe_move(
+            ARTIFACTS_DIR / old_slug, ARTIFACTS_DIR / f"{tmp_prefix}{old_slug}", dry
+        )
 
     print("renaming paths (pass 2: tmp -> final):")
     for old, new in rename_map.items():
         old_slug, new_slug = slug(old), slug(new)
-        safe_move(PAGES_DIR / f"{tmp_prefix}{old_slug}.mdx", PAGES_DIR / f"{new_slug}.mdx", dry)
-        safe_move(RUNNERS_DIR / f"{tmp_prefix}{old_slug}.py", RUNNERS_DIR / f"{new_slug}.py", dry)
+        safe_move(
+            PAGES_DIR / f"{tmp_prefix}{old_slug}.mdx",
+            PAGES_DIR / f"{new_slug}.mdx",
+            dry,
+        )
+        safe_move(
+            RUNNERS_DIR / f"{tmp_prefix}{old_slug}.py",
+            RUNNERS_DIR / f"{new_slug}.py",
+            dry,
+        )
         safe_move(FIGURES_DIR / f"{tmp_prefix}{old_slug}", FIGURES_DIR / new_slug, dry)
-        safe_move(ARTIFACTS_DIR / f"{tmp_prefix}{old_slug}", ARTIFACTS_DIR / new_slug, dry)
+        safe_move(
+            ARTIFACTS_DIR / f"{tmp_prefix}{old_slug}", ARTIFACTS_DIR / new_slug, dry
+        )
 
     # ── Step 3: rewrite text content across the tree ──────────────────────
     print("rewriting nbNNN references in text files:")
@@ -189,7 +217,9 @@ def renumber(action: str, n: int, dry: bool) -> None:
         mdx = PAGES_DIR / f"{slug(new)}.mdx"
         if not mdx.exists() and dry:
             # In dry-run paths haven't moved yet; skip the live read.
-            print(f"  (dry) would rewrite frontmatter in {mdx.relative_to(REPO)} -> entry: {new}")
+            print(
+                f"  (dry) would rewrite frontmatter in {mdx.relative_to(REPO)} -> entry: {new}"
+            )
             continue
         if not mdx.exists():
             continue
@@ -200,16 +230,27 @@ def renumber(action: str, n: int, dry: bool) -> None:
             if not dry:
                 mdx.write_text(updated, encoding="utf-8")
 
-    print("\ndone." + ("  (dry-run, nothing changed)" if dry else "  remember to git add -A and commit."))
+    print(
+        "\ndone."
+        + (
+            "  (dry-run, nothing changed)"
+            if dry
+            else "  remember to git add -A and commit."
+        )
+    )
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     sub = ap.add_subparsers(dest="action", required=True)
     p_ins = sub.add_parser("insert", help="open slot N (shift entries >= N up by one)")
     p_ins.add_argument("n", type=int)
     p_ins.add_argument("--dry-run", action="store_true")
-    p_del = sub.add_parser("delete", help="remove slot N (shift entries > N down by one)")
+    p_del = sub.add_parser(
+        "delete", help="remove slot N (shift entries > N down by one)"
+    )
     p_del.add_argument("n", type=int)
     p_del.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()

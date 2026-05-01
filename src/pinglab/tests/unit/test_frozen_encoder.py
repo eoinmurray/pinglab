@@ -2,6 +2,7 @@
 after the paper's count-preserving transport (Parthasarathy et al. §2.1 /
 Fig 1B / §2.3). If this drifts, dt-sweep calibration results are lying.
 """
+
 import pytest
 import torch
 
@@ -198,7 +199,9 @@ class TestFrozenEncoderResample:
         count-preserving transport that reuses the reference stream."""
         dt_ref, dt_target, t_ms = 0.1, 0.5, 100.0
         enc_re = FrozenEncoder(dt_ref=dt_ref, t_ms=t_ms, base_seed=42, mode="resample")
-        enc_ds = FrozenEncoder(dt_ref=dt_ref, t_ms=t_ms, base_seed=42, mode="downsample")
+        enc_ds = FrozenEncoder(
+            dt_ref=dt_ref, t_ms=t_ms, base_seed=42, mode="downsample"
+        )
         X = _same_batch()
         a = enc_re(X, dt=dt_target, use_smnist=False)
         b = enc_ds(X, dt=dt_target, use_smnist=False)

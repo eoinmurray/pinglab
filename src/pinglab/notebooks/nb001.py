@@ -11,6 +11,7 @@ notebook_run_id stamped in the corner.
 
 Notebook entry: src/docs/src/pages/notebooks/nb001.mdx
 """
+
 from __future__ import annotations
 
 import json
@@ -38,31 +39,39 @@ FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = PINGLAB / "oscilloscope.py"
 
 # ── Frame config — matches nb002's canonical PING working point ──────────
-SEED            = 42
-DEFAULT_TIER    = "extra small"    # single forward pass — no sweep cost
-TIER_CHOICES    = ["extra small", "small", "medium", "large", "extra large"]
-TIER            = DEFAULT_TIER     # overridable via --tier <name>; label only
-N_HIDDEN        = 512
-DT_MS           = 0.1
-SIM_MS          = 600.0
-STEP_ON_MS      = 200.0
-STEP_OFF_MS     = 300.0
-STIM_OVERDRIVE  = 1.0
-INPUT_RATE_HZ   = 100.0
-W_IN_MEAN       = 0.9      # 3× over the default 0.3 — pushes net firmly into PING
-W_IN_STD        = 0.18     # 3× over the default 0.06
-EI_STRENGTH     = 1.0
-DATASET         = "mnist"
-DIGIT_CLASS     = 0
-SAMPLE_IDX      = 0
+SEED = 42
+DEFAULT_TIER = "extra small"  # single forward pass — no sweep cost
+TIER_CHOICES = ["extra small", "small", "medium", "large", "extra large"]
+TIER = DEFAULT_TIER  # overridable via --tier <name>; label only
+N_HIDDEN = 512
+DT_MS = 0.1
+SIM_MS = 600.0
+STEP_ON_MS = 200.0
+STEP_OFF_MS = 300.0
+STIM_OVERDRIVE = 1.0
+INPUT_RATE_HZ = 100.0
+W_IN_MEAN = 0.9  # 3× over the default 0.3 — pushes net firmly into PING
+W_IN_STD = 0.18  # 3× over the default 0.06
+EI_STRENGTH = 1.0
+DATASET = "mnist"
+DIGIT_CLASS = 0
+SAMPLE_IDX = 0
 
 
 def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
     fig = plt.figure(figsize=(2.8, 0.28), dpi=150)
     fig.patch.set_alpha(0.0)
-    fig.text(0.97, 0.5, notebook_run_id, ha="right", va="center",
-             fontsize=10, color="white", family="monospace",
-             bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"))
+    fig.text(
+        0.97,
+        0.5,
+        notebook_run_id,
+        ha="right",
+        va="center",
+        fontsize=10,
+        color="white",
+        family="monospace",
+        bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"),
+    )
     stamp_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(stamp_path, transparent=True, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
@@ -72,35 +81,61 @@ def _overlay_stamp_image(src: Path, dst: Path, stamp: Path) -> None:
     """Copy src→dst, overlaying the notebook_run_id PNG in the bottom-right."""
     dst.parent.mkdir(parents=True, exist_ok=True)
     sh.ffmpeg(
-        "-y", "-i", str(src), "-i", str(stamp),
-        "-filter_complex", "[0:v][1:v]overlay=W-w-10:H-h-10",
-        "-frames:v", "1",
+        "-y",
+        "-i",
+        str(src),
+        "-i",
+        str(stamp),
+        "-filter_complex",
+        "[0:v][1:v]overlay=W-w-10:H-h-10",
+        "-frames:v",
+        "1",
         str(dst),
-        _out=sys.stdout, _err=sys.stderr,
+        _out=sys.stdout,
+        _err=sys.stderr,
     )
     print(f"wrote {dst.relative_to(REPO)}")
 
 
 def render_frame(out_dir: Path, modal_gpu: str | None = None) -> Path:
     """One forward pass, one SCOPE_FRAME rendered to snapshot.png."""
-    print(f"[frame] → {out_dir.relative_to(REPO)}"
-          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
+    print(
+        f"[frame] → {out_dir.relative_to(REPO)}"
+        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
     args = [
-        "run", "python", str(OSCILLOSCOPE), "image",
-        "--model", "ping",
-        "--n-hidden", str(N_HIDDEN),
-        "--input", "dataset",
-        "--dataset", DATASET,
-        "--digit", str(DIGIT_CLASS),
-        "--sample", str(SAMPLE_IDX),
-        "--input-rate", str(INPUT_RATE_HZ),
-        "--w-in", str(W_IN_MEAN), str(W_IN_STD),
-        "--stim-overdrive", str(STIM_OVERDRIVE),
-        "--ei-strength", str(EI_STRENGTH),
-        "--dt", str(DT_MS),
-        "--t-ms", str(SIM_MS),
-        "--out-dir", str(out_dir),
+        "run",
+        "python",
+        str(OSCILLOSCOPE),
+        "image",
+        "--model",
+        "ping",
+        "--n-hidden",
+        str(N_HIDDEN),
+        "--input",
+        "dataset",
+        "--dataset",
+        DATASET,
+        "--digit",
+        str(DIGIT_CLASS),
+        "--sample",
+        str(SAMPLE_IDX),
+        "--input-rate",
+        str(INPUT_RATE_HZ),
+        "--w-in",
+        str(W_IN_MEAN),
+        str(W_IN_STD),
+        "--stim-overdrive",
+        str(STIM_OVERDRIVE),
+        "--ei-strength",
+        str(EI_STRENGTH),
+        "--dt",
+        str(DT_MS),
+        "--t-ms",
+        str(SIM_MS),
+        "--out-dir",
+        str(out_dir),
         "--wipe-dir",
     ]
     args = append_modal_args(args, modal_gpu)
@@ -113,7 +148,9 @@ def render_frame(out_dir: Path, modal_gpu: str | None = None) -> Path:
 
 def _format_run_datetime(dt: datetime) -> str:
     day = dt.day
-    suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    suffix = (
+        "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    )
     return dt.strftime(f"%A, {day}{suffix} %B %y at %H:%M")
 
 
@@ -138,15 +175,20 @@ def evaluate_success(figures_dir: Path) -> list[dict]:
         {
             "label": "scope frame rendered",
             "passed": bool(exists),
-            "detail": f"{frame.name} ({frame.stat().st_size} bytes)" if exists
-                      else f"missing {frame.name}",
+            "detail": f"{frame.name} ({frame.stat().st_size} bytes)"
+            if exists
+            else f"missing {frame.name}",
             "detail_href": href if exists else None,
         },
     ]
 
 
-def write_numbers(out_path: Path, notebook_run_id: str,
-                  duration_s: float, success_criteria: list[dict]) -> dict:
+def write_numbers(
+    out_path: Path,
+    notebook_run_id: str,
+    duration_s: float,
+    success_criteria: list[dict],
+) -> dict:
     summary = {
         "notebook_run_id": notebook_run_id,
         "run_datetime": _format_run_datetime(datetime.now().astimezone()),
@@ -156,16 +198,18 @@ def write_numbers(out_path: Path, notebook_run_id: str,
         "config": {
             "tier": TIER,
             "model": "ping",
-            "n_e": N_HIDDEN, "n_i": N_HIDDEN // 4,
-            "dt_ms": DT_MS, "sim_ms": SIM_MS,
-            "step_on_ms": STEP_ON_MS, "step_off_ms": STEP_OFF_MS,
+            "n_e": N_HIDDEN,
+            "n_i": N_HIDDEN // 4,
+            "dt_ms": DT_MS,
+            "sim_ms": SIM_MS,
+            "step_on_ms": STEP_ON_MS,
+            "step_off_ms": STEP_OFF_MS,
             "stim_overdrive": STIM_OVERDRIVE,
             "input_rate_hz": INPUT_RATE_HZ,
             "w_in_mean": W_IN_MEAN,
             "w_in_std": W_IN_STD,
             "ei_strength": EI_STRENGTH,
-            "input": {"dataset": DATASET,
-                      "digit": DIGIT_CLASS, "sample": SAMPLE_IDX},
+            "input": {"dataset": DATASET, "digit": DIGIT_CLASS, "sample": SAMPLE_IDX},
             "seed": SEED,
         },
     }
@@ -190,8 +234,10 @@ def evaluate_only() -> None:
     useful when only the criteria themselves have changed."""
     numbers_path = FIGURES / "numbers.json"
     if not numbers_path.exists():
-        raise SystemExit(f"--evaluate-success-only requires existing "
-                         f"{numbers_path.relative_to(REPO)}")
+        raise SystemExit(
+            f"--evaluate-success-only requires existing "
+            f"{numbers_path.relative_to(REPO)}"
+        )
     summary = json.loads(numbers_path.read_text())
     summary["success_criteria"] = evaluate_success(FIGURES)
     numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
@@ -211,9 +257,11 @@ def main() -> None:
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id} tier={TIER}"
-          + ("  [skip-training]" if skip_training else "")
-          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
+    print(
+        f"notebook_run_id = {notebook_run_id} tier={TIER}"
+        + ("  [skip-training]" if skip_training else "")
+        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+    )
 
     if wipe_dir:
         wipe_targets = (FIGURES,) if skip_training else (ARTIFACTS, FIGURES)
@@ -240,8 +288,9 @@ def main() -> None:
 
     duration_s = time.monotonic() - t_start
     success_criteria = evaluate_success(FIGURES)
-    summary = write_numbers(FIGURES / "numbers.json", notebook_run_id,
-                            duration_s, success_criteria)
+    summary = write_numbers(
+        FIGURES / "numbers.json", notebook_run_id, duration_s, success_criteria
+    )
     print(f"  duration: {summary['duration']}")
     _print_and_gate(success_criteria)
 

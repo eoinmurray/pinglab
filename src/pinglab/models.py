@@ -6,6 +6,7 @@ or by passing arguments to model constructors.
 Models: CUBANet, COBANet.
 Layer primitives: exp_synapse, lif_step, snn_lif_step.
 """
+
 from __future__ import annotations
 
 import math
@@ -16,91 +17,93 @@ import torch.nn.functional as F
 import numpy as np
 
 # ── Simulation ────────────────────────────────────────────────────────────
-dt: float     = 0.25      # ms — integration timestep
-T_ms: float   = 1000.0    # ms — total simulation time per sample
-T_steps: int  = int(T_ms / dt)
+dt: float = 0.25  # ms — integration timestep
+T_ms: float = 1000.0  # ms — total simulation time per sample
+T_steps: int = int(T_ms / dt)
 
 # ── Biophysics ────────────────────────────────────────────────────────────
-tau_m_E       = 20.0      # ms — excitatory membrane time constant
-tau_m_ratio   = 4.0       # tau_m_E / tau_m_I (Börgers: 20ms / 5ms)
-C_m_E         = 1.0       # nF — excitatory capacitance (fixed reference)
-_CM_RATIO     = 2.0       # C_m_E / C_m_I (fixed)
-g_L_E         = C_m_E / tau_m_E           # 0.05 uS
-tau_m_I       = tau_m_E / tau_m_ratio     # 5.0 ms
-C_m_I         = C_m_E / _CM_RATIO        # 0.5 nF
-g_L_I         = C_m_I / tau_m_I           # 0.1 uS
-E_L           = -65.0     # mV — leak / resting potential
-E_e           = 0.0       # mV — excitatory (AMPA) reversal
-E_i           = -80.0     # mV — inhibitory (GABA) reversal
-V_th          = -50.0     # mV — spike threshold
-V_reset       = -65.0     # mV — post-spike reset voltage
-V_floor       = -200.0    # mV — hard lower clamp
-ref_ms_E      = 3.0       # ms — excitatory refractory period
-_REF_RATIO    = 2.0       # ref_ms_E / ref_ms_I (Börgers)
-ref_ms_I      = ref_ms_E / _REF_RATIO   # 1.5 ms
-tau_ampa      = 2.0       # ms — AMPA decay
-tau_gaba      = 9.0       # ms — GABA decay (Börgers: 9 ms; Buzsaki & Wang: 8-12 ms)
+tau_m_E = 20.0  # ms — excitatory membrane time constant
+tau_m_ratio = 4.0  # tau_m_E / tau_m_I (Börgers: 20ms / 5ms)
+C_m_E = 1.0  # nF — excitatory capacitance (fixed reference)
+_CM_RATIO = 2.0  # C_m_E / C_m_I (fixed)
+g_L_E = C_m_E / tau_m_E  # 0.05 uS
+tau_m_I = tau_m_E / tau_m_ratio  # 5.0 ms
+C_m_I = C_m_E / _CM_RATIO  # 0.5 nF
+g_L_I = C_m_I / tau_m_I  # 0.1 uS
+E_L = -65.0  # mV — leak / resting potential
+E_e = 0.0  # mV — excitatory (AMPA) reversal
+E_i = -80.0  # mV — inhibitory (GABA) reversal
+V_th = -50.0  # mV — spike threshold
+V_reset = -65.0  # mV — post-spike reset voltage
+V_floor = -200.0  # mV — hard lower clamp
+ref_ms_E = 3.0  # ms — excitatory refractory period
+_REF_RATIO = 2.0  # ref_ms_E / ref_ms_I (Börgers)
+ref_ms_I = ref_ms_E / _REF_RATIO  # 1.5 ms
+tau_ampa = 2.0  # ms — AMPA decay
+tau_gaba = 9.0  # ms — GABA decay (Börgers: 9 ms; Buzsaki & Wang: 8-12 ms)
 
 # ── Input encoding ────────────────────────────────────────────────────────
-max_rate_hz   = 25.0      # Hz — max Poisson rate for fully-on pixel (sensory-input scale, LGN-ish)
-input_scale   = 20.0      # nA per input spike (CUBA only)
+max_rate_hz = (
+    25.0  # Hz — max Poisson rate for fully-on pixel (sensory-input scale, LGN-ish)
+)
+input_scale = 20.0  # nA per input spike (CUBA only)
 
 # ── snnTorch ──────────────────────────────────────────────────────────────
-tau_snn       = 10.0      # ms — membrane time constant
+tau_snn = 10.0  # ms — membrane time constant
 # Output-LIF time constant for the spike-count readout. Smaller than
 # tau_snn means faster leak: the output membrane decays before saturating
 # under high-rate hidden drive, which is what was breaking the spike-count
 # readout for snnTorch-family models at coarse dt where hidden rates run
 # 60–1000 Hz. Override per-run via --readout-tau-out.
-tau_out_ms    = 2.0       # ms
-thr_snn       = 1.0       # spike threshold
+tau_out_ms = 2.0  # ms
+thr_snn = 1.0  # spike threshold
 
 # ── Architecture ──────────────────────────────────────────────────────────
-N_IN: int     = 64        # input neurons (8×8 scikit-digits)
-N_HID: int    = 64        # hidden excitatory neurons (last layer size for compat)
-N_INH: int    = 16        # inhibitory neurons (PING only, per E-I layer)
-N_OUT: int    = 10        # output neurons (one per digit class)
+N_IN: int = 64  # input neurons (8×8 scikit-digits)
+N_HID: int = 64  # hidden excitatory neurons (last layer size for compat)
+N_INH: int = 16  # inhibitory neurons (PING only, per E-I layer)
+N_OUT: int = 10  # output neurons (one per digit class)
 HIDDEN_SIZES: list[int] = [64]  # hidden layer sizes (N_HID is always last entry)
 
 # ── Weight init ───────────────────────────────────────────────────────────
 # Weight init — p1/p2 are pre-fan-in values (init_weight divides by N_pre)
-W_STD_CUBA    = 32.0      # nA — CUBA weight init std (pre-fan-in)
-W_STD_COBA    = 6.4       # uS — COBA weight init std (pre-fan-in)
-W_FF_MEAN     = 5.1       # uS — feedforward init mean (pre-fan-in)
-W_FF_STD      = 3.8       # uS — feedforward init std (pre-fan-in)
-W_IN_MEAN     = W_FF_MEAN  # alias
-W_IN_STD      = W_FF_STD   # alias
-W_HID_MEAN    = W_FF_MEAN  # alias
-W_HID_STD     = W_FF_STD   # alias
-W_EE_MEAN     = 0.0       # uS — E→E recurrent init mean (0 per Börgers: PING needs no E→E)
-W_EE_STD      = 0.0       # uS — E→E recurrent init std (0 per Börgers: PING needs no E→E)
-W_EI_MEAN     = 1.0       # uS — E→I init mean (just suprathreshold, Börgers)
-W_EI_STD      = 0.5       # uS — E→I init std (pre-fan-in)
-W_IE_MEAN     = 3.0       # uS — I→E init mean (2-3× E→I, Viriyopase et al.)
-W_IE_STD      = 1.5       # uS — I→E init std (pre-fan-in)
-delay_ei_ms   = 1.0       # ms — E→I synaptic delay
-delay_ie_ms   = 1.0       # ms — I→E synaptic delay
+W_STD_CUBA = 32.0  # nA — CUBA weight init std (pre-fan-in)
+W_STD_COBA = 6.4  # uS — COBA weight init std (pre-fan-in)
+W_FF_MEAN = 5.1  # uS — feedforward init mean (pre-fan-in)
+W_FF_STD = 3.8  # uS — feedforward init std (pre-fan-in)
+W_IN_MEAN = W_FF_MEAN  # alias
+W_IN_STD = W_FF_STD  # alias
+W_HID_MEAN = W_FF_MEAN  # alias
+W_HID_STD = W_FF_STD  # alias
+W_EE_MEAN = 0.0  # uS — E→E recurrent init mean (0 per Börgers: PING needs no E→E)
+W_EE_STD = 0.0  # uS — E→E recurrent init std (0 per Börgers: PING needs no E→E)
+W_EI_MEAN = 1.0  # uS — E→I init mean (just suprathreshold, Börgers)
+W_EI_STD = 0.5  # uS — E→I init std (pre-fan-in)
+W_IE_MEAN = 3.0  # uS — I→E init mean (2-3× E→I, Viriyopase et al.)
+W_IE_STD = 1.5  # uS — I→E init std (pre-fan-in)
+delay_ei_ms = 1.0  # ms — E→I synaptic delay
+delay_ie_ms = 1.0  # ms — I→E synaptic delay
 
 # ── Training ──────────────────────────────────────────────────────────────
-BATCH_SIZE    = 64
-GRAD_CLIP     = 1.0
+BATCH_SIZE = 64
+GRAD_CLIP = 1.0
 # Surrogate-gradient steepness (fast-sigmoid slope). 5 is the stable
 # end-to-end value at pinglab's current BPTT depth / clip / optimizer
 # config — slope=10 (Neftci canonical) and slope=40 (Cramer) both blow
 # up to gn 1e10+ even with --optimizer adamax + --grad-clip 100.
 SURROGATE_SLOPE = 5.0
 READOUT_SCALE = 0.0
-PATIENCE      = 15
+PATIENCE = 15
 V_GRAD_DAMPEN = 80.0
 
 # Derived
-decay_ampa   = np.exp(-dt / tau_ampa)
-decay_gaba   = np.exp(-dt / tau_gaba)
-ref_steps_E  = max(1, int(round(ref_ms_E / dt)))
-ref_steps_I  = max(1, int(round(ref_ms_I / dt)))
-p_scale      = max_rate_hz * dt / 1000.0
-beta_snn     = np.exp(-dt / tau_snn)
-beta_out     = np.exp(-dt / tau_out_ms)
+decay_ampa = np.exp(-dt / tau_ampa)
+decay_gaba = np.exp(-dt / tau_gaba)
+ref_steps_E = max(1, int(round(ref_ms_E / dt)))
+ref_steps_I = max(1, int(round(ref_ms_I / dt)))
+p_scale = max_rate_hz * dt / 1000.0
+beta_snn = np.exp(-dt / tau_snn)
+beta_out = np.exp(-dt / tau_out_ms)
 delay_ei_steps = max(1, int(round(delay_ei_ms / dt)))
 delay_ie_steps = max(1, int(round(delay_ie_ms / dt)))
 
@@ -110,6 +113,7 @@ def _env_no_compile() -> bool:
     Set this for ablation runs that want the eager baseline (e.g. comparing
     compile vs eager wall time on the same hardware)."""
     import os
+
     return os.environ.get("PINGLAB_NO_COMPILE", "") == "1"
 
 
@@ -124,10 +128,12 @@ def _env_no_compile() -> bool:
 # variants we keep around — each one is still a fully-static, shape-
 # specialised compiled graph.
 import torch._dynamo  # noqa: E402
+
 torch._dynamo.config.recompile_limit = 32  # ty: ignore[invalid-assignment]
 
 
 # ── Surrogate gradient ───────────────────────────────────────────────────
+
 
 def fast_sigmoid_spike(u, slope):
     """Fast-sigmoid surrogate spike.
@@ -157,6 +163,7 @@ def spike_biophysical(v):
     # typical threshold crossings.
     return fast_sigmoid_spike(v - V_th, SURROGATE_SLOPE)
 
+
 def spike_snn(v):
     # Dimensionless membrane (threshold=1). slope=1 (pinglab default; not
     # snntorch's 25) gives a wide active window so silent neurons keep gradient
@@ -172,11 +179,24 @@ def _scale_grad(x, scale):
 
 # ── Layer primitives ─────────────────────────────────────────────────────
 
+
 def exp_synapse(g, spikes, W, decay):
     """Exponential synapse: spike kicks first, then decay."""
     return (g + spikes @ W) * decay
 
-def lif_step(v, I_total, ref, C_m, g_L, ref_steps, spike_fn, V_floor=V_floor, V_max=None, v_grad_dampen=1.0):
+
+def lif_step(
+    v,
+    I_total,
+    ref,
+    C_m,
+    g_L,
+    ref_steps,
+    spike_fn,
+    V_floor=V_floor,
+    V_max=None,
+    v_grad_dampen=1.0,
+):
     """One LIF timestep: voltage update, spike decision, then reset.
     Returns (v, s, ref)."""
     dv = (dt / C_m) * (-g_L * (v - E_L) + I_total)
@@ -193,8 +213,20 @@ def lif_step(v, I_total, ref, C_m, g_L, ref_steps, spike_fn, V_floor=V_floor, V_
     return v, s, ref
 
 
-def lif_step_expeuler(v, ref, g_e, g_i, C_m, g_L, ref_steps, spike_fn,
-                      v_grad_dampen=1.0, dt_override=None, V_floor=V_floor, V_max=None):
+def lif_step_expeuler(
+    v,
+    ref,
+    g_e,
+    g_i,
+    C_m,
+    g_L,
+    ref_steps,
+    spike_fn,
+    v_grad_dampen=1.0,
+    dt_override=None,
+    V_floor=V_floor,
+    V_max=None,
+):
     """COBA LIF step under exponential Euler with a zero-order hold on g_e, g_i.
 
     Closed-form integration of
@@ -235,6 +267,7 @@ def lif_step_expeuler(v, ref, g_e, g_i, C_m, g_L, ref_steps, spike_fn,
     ref = torch.where(s.bool(), torch.full_like(ref, ref_steps), ref)
     return v, s, ref
 
+
 def snn_lif_step(mem, I, beta, spike_fn, reset="zero", can_fire=None):
     """snnTorch-style LIF step: decay + input, spike, reset. Returns (mem, s).
 
@@ -258,6 +291,7 @@ def snn_lif_step(mem, I, beta, spike_fn, reset="zero", can_fire=None):
         mem = torch.where(s.bool(), 0.0, mem)
     return mem, s
 
+
 def coba_current(g_e, v, g_i=None):
     """COBA synaptic current: g_e*(E_e - v) [+ g_i*(E_i - v)]."""
     I = g_e * (E_e - v)
@@ -265,9 +299,11 @@ def coba_current(g_e, v, g_i=None):
         I = I + g_i * (E_i - v)
     return I
 
+
 def hybrid_readout(spike_counts, v_sum):
     """Spike count + voltage readout."""
     return spike_counts + READOUT_SCALE * v_sum / T_steps
+
 
 def init_lif_state(B, N, device, randomize=False, ref_mean=0.0, ref_std=0.0):
     """Initialise (v, ref) for a LIF population.
@@ -281,10 +317,13 @@ def init_lif_state(B, N, device, randomize=False, ref_mean=0.0, ref_std=0.0):
     else:
         v = torch.full((B, N), E_L, device=device)
     if ref_std > 0:
-        ref = (torch.randn(B, N, device=device) * ref_std + ref_mean).clamp(min=0).long()
+        ref = (
+            (torch.randn(B, N, device=device) * ref_std + ref_mean).clamp(min=0).long()
+        )
     else:
         ref = torch.zeros(B, N, device=device, dtype=torch.long)
     return v, ref
+
 
 def init_conductance(B, N, device):
     """Initialise a conductance variable to zero."""
@@ -295,25 +334,63 @@ def init_conductance(B, N, device):
 
 COBA_INTEGRATOR = "expeuler"  # "expeuler" | "fwd"  — parity toggle for COBA integration
 
+
 def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None):
     """One E-neuron LIF step with COBA driving force."""
     if ref_steps is None:
         ref_steps = ref_steps_E
     if COBA_INTEGRATOR == "expeuler":
-        return lif_step_expeuler(v, ref, g_e, g_i, C_m_E, g_L_E, ref_steps,
-                                 spike_biophysical, v_grad_dampen=V_GRAD_DAMPEN)
-    return lif_step(v, coba_current(g_e, v, g_i), ref, C_m_E, g_L_E, ref_steps, spike_biophysical, v_grad_dampen=V_GRAD_DAMPEN)
+        return lif_step_expeuler(
+            v,
+            ref,
+            g_e,
+            g_i,
+            C_m_E,
+            g_L_E,
+            ref_steps,
+            spike_biophysical,
+            v_grad_dampen=V_GRAD_DAMPEN,
+        )
+    return lif_step(
+        v,
+        coba_current(g_e, v, g_i),
+        ref,
+        C_m_E,
+        g_L_E,
+        ref_steps,
+        spike_biophysical,
+        v_grad_dampen=V_GRAD_DAMPEN,
+    )
+
 
 def i_step_coba(v, ref, g_e):
     """One I-neuron LIF step with COBA driving force."""
     if COBA_INTEGRATOR == "expeuler":
-        return lif_step_expeuler(v, ref, g_e, None, C_m_I, g_L_I, ref_steps_I,
-                                 spike_biophysical, v_grad_dampen=V_GRAD_DAMPEN)
-    return lif_step(v, coba_current(g_e, v), ref, C_m_I, g_L_I, ref_steps_I, spike_biophysical, v_grad_dampen=V_GRAD_DAMPEN)
-
+        return lif_step_expeuler(
+            v,
+            ref,
+            g_e,
+            None,
+            C_m_I,
+            g_L_I,
+            ref_steps_I,
+            spike_biophysical,
+            v_grad_dampen=V_GRAD_DAMPEN,
+        )
+    return lif_step(
+        v,
+        coba_current(g_e, v),
+        ref,
+        C_m_I,
+        g_L_I,
+        ref_steps_I,
+        spike_biophysical,
+        v_grad_dampen=V_GRAD_DAMPEN,
+    )
 
 
 # ── Base class ───────────────────────────────────────────────────────────
+
 
 class SNNBase(nn.Module):
     recording = False
@@ -331,6 +408,7 @@ class SNNBase(nn.Module):
 
 # ── Model classes ────────────────────────────────────────────────────────
 
+
 class CUBANet(SNNBase):
     # Biophysical defaults (Dale's law + hard reset + membrane readout).
     # Tutorial mode overrides every one of these.
@@ -340,24 +418,33 @@ class CUBANet(SNNBase):
     tutorial_readout = False
     randomize_init = False
 
-    def __init__(self, discretisation="snntorch",
-                 w_in=None, w_hid=None, w_rec=None,
-                 dist="normal", sparsity=0.0,
-                 tutorial_mode=False, dales_law=True,
-                 hidden_sizes=None, rec_layers=None,
-                 exponential_synapse=False,
-                 ref_ms=0.0,
-                 reset_mode=None,
-                 readout_mode="rate"):
+    def __init__(
+        self,
+        discretisation="snntorch",
+        w_in=None,
+        w_hid=None,
+        w_rec=None,
+        dist="normal",
+        sparsity=0.0,
+        tutorial_mode=False,
+        dales_law=True,
+        hidden_sizes=None,
+        rec_layers=None,
+        exponential_synapse=False,
+        ref_ms=0.0,
+        reset_mode=None,
+        readout_mode="rate",
+    ):
         super().__init__()
         if discretisation not in ("snntorch", "zoh"):
             raise ValueError(
-                f"discretisation must be 'snntorch' or 'zoh', "
-                f"got {discretisation!r}")
+                f"discretisation must be 'snntorch' or 'zoh', got {discretisation!r}"
+            )
         if readout_mode not in ("rate", "li", "spike-count", "mem-mean"):
             raise ValueError(
                 f"readout_mode must be 'rate', 'li', 'spike-count', or "
-                f"'mem-mean', got {readout_mode!r}")
+                f"'mem-mean', got {readout_mode!r}"
+            )
         self.discretisation = discretisation
         self.exponential_synapse = exponential_synapse
         self.ref_ms = ref_ms
@@ -395,7 +482,9 @@ class CUBANet(SNNBase):
             self.tutorial_readout = True
             self._init_tutorial_weights(all_sizes, w_rec)
         else:
-            self._init_biophysical_weights(all_sizes, w_in, w_hid, w_rec, dist, sparsity)
+            self._init_biophysical_weights(
+                all_sizes, w_in, w_hid, w_rec, dist, sparsity
+            )
             if self._reset_mode_override is not None:
                 self.reset_mode = self._reset_mode_override
 
@@ -431,7 +520,8 @@ class CUBANet(SNNBase):
                 w_rec_spec = w_rec
             p1, p2, _, s = _parse_weight_spec(w_rec_spec, "signed_normal", 0.0)
             self.W_rec[str(i)] = nn.Parameter(
-                init_weight((n, n), "signed_normal", p1, p2, s))
+                init_weight((n, n), "signed_normal", p1, p2, s)
+            )
 
     def _init_biophysical_weights(self, all_sizes, w_in, w_hid, w_rec, dist, sparsity):
         default_std = W_STD_CUBA
@@ -459,8 +549,7 @@ class CUBANet(SNNBase):
                 w_rec_spec = w_rec
             rec_dist = "signed_normal" if self.signed_weights else dist
             p1, p2, d, s = _parse_weight_spec(w_rec_spec, rec_dist, sparsity)
-            self.W_rec[str(i)] = nn.Parameter(
-                init_weight((n, n), d, p1, p2, s))
+            self.W_rec[str(i)] = nn.Parameter(init_weight((n, n), d, p1, p2, s))
 
     def _hid_key(self, layer_idx):
         """Recording key for hidden layer (1-indexed). Single layer uses 'hid'."""
@@ -480,12 +569,15 @@ class CUBANet(SNNBase):
         # past our try/except. CPU forward passes are rare in practice
         # (Mac→MPS, Modal→CUDA) so eager there has no real cost.
         # Opt out entirely via PINGLAB_NO_COMPILE=1.
-        if ("step" not in self._compiled_cache
-                and not _env_no_compile()
-                and cfg["device"].type != "cpu"):
+        if (
+            "step" not in self._compiled_cache
+            and not _env_no_compile()
+            and cfg["device"].type != "cpu"
+        ):
             try:
                 self._compiled_cache["step"] = torch.compile(
-                    self._step_body, dynamic=False)
+                    self._step_body, dynamic=False
+                )
             except Exception as exc:  # noqa: BLE001
                 self._compiled_cache["step"] = self._step_body
                 self._compiled_cache["compile_error"] = str(exc)
@@ -513,15 +605,27 @@ class CUBANet(SNNBase):
         rec_buf = cfg["rec_buf"]
         for t in range(T_steps):
             slc = {
-                "in_t": (None if in_all is None
-                         else in_all[t].unsqueeze(0) if in_all.dim() == 2
-                         else in_all[t]),
-                "drive0_t": (None if ida_all is None
-                             else ida_all[t].unsqueeze(0) if ida_all.dim() == 2
-                             else ida_all[t]),
-                "ext_t": (None if ext_all is None
-                          else ext_all[t].unsqueeze(0) if ext_all.dim() == 2
-                          else ext_all[t]),
+                "in_t": (
+                    None
+                    if in_all is None
+                    else in_all[t].unsqueeze(0)
+                    if in_all.dim() == 2
+                    else in_all[t]
+                ),
+                "drive0_t": (
+                    None
+                    if ida_all is None
+                    else ida_all[t].unsqueeze(0)
+                    if ida_all.dim() == 2
+                    else ida_all[t]
+                ),
+                "ext_t": (
+                    None
+                    if ext_all is None
+                    else ext_all[t].unsqueeze(0)
+                    if ext_all.dim() == 2
+                    else ext_all[t]
+                ),
             }
             step(slc, cfg, state, readout)
 
@@ -541,17 +645,17 @@ class CUBANet(SNNBase):
         """
         prev_spk = None
         for i in range(self.n_layers):
-            drive, spike_kick = self._compute_layer_drive(
-                i, prev_spk, slc, state, cfg)
+            drive, spike_kick = self._compute_layer_drive(i, prev_spk, slc, state, cfg)
 
             if self.exponential_synapse:
                 if spike_kick is None:
                     raise RuntimeError(
-                        "input_drive_all precomputed but exp_synapse is on")
-                state["g_exps"][i] = (state["g_exps"][i] * decay_ampa
-                                       + spike_kick)
-                drive = ((1.0 - cfg["beta"]) * state["g_exps"][i]
-                         + cfg["bias_scale"] * cfg["b_ff"][i])
+                        "input_drive_all precomputed but exp_synapse is on"
+                    )
+                state["g_exps"][i] = state["g_exps"][i] * decay_ampa + spike_kick
+                drive = (1.0 - cfg["beta"]) * state["g_exps"][i] + cfg[
+                    "bias_scale"
+                ] * cfg["b_ff"][i]
 
             s = self._hidden_lif_step(i, drive, state, cfg)
             prev_spk = s
@@ -573,14 +677,23 @@ class CUBANet(SNNBase):
         elif has_ext_g and ext_g.dim() == 3:
             B, device = ext_g.shape[1], ext_g.device
         else:
-            B, device = 1, (ext_g.device if has_ext_g
-                            else input_spikes.device if has_input_spikes
-                            else torch.device("cpu"))
+            B, device = (
+                1,
+                (
+                    ext_g.device
+                    if has_ext_g
+                    else input_spikes.device
+                    if has_input_spikes
+                    else torch.device("cpu")
+                ),
+            )
 
         W_ff = [W if self.signed_weights else W.clamp(min=0) for W in self.W_ff]
         b_ff = list(self.b_ff)
-        W_rec = {k: (W if self.signed_weights else W.clamp(min=0))
-                 for k, W in self.W_rec.items()}
+        W_rec = {
+            k: (W if self.signed_weights else W.clamp(min=0))
+            for k, W in self.W_rec.items()
+        }
 
         beta = self.beta_override if self.beta_override is not None else beta_snn
 
@@ -591,7 +704,7 @@ class CUBANet(SNNBase):
         # (1-β)/Δt · W ≈ W/τ — dt-invariant.
         if self.discretisation == "zoh":
             spike_scale = (1.0 - beta) / dt
-            bias_scale = (1.0 - beta)
+            bias_scale = 1.0 - beta
         else:
             spike_scale = 1.0
             bias_scale = 1.0
@@ -608,26 +721,37 @@ class CUBANet(SNNBase):
             rec_buf = {"out": torch.zeros(T_steps, B, N_OUT, device=device)}
             for i in range(self.n_layers):
                 rec_buf[self._hid_key(i + 1)] = torch.zeros(
-                    T_steps, B, self.hidden_sizes[i], device=device)
+                    T_steps, B, self.hidden_sizes[i], device=device
+                )
             if has_input_spikes:
-                rec_buf["input"] = torch.zeros(
-                    T_steps, B, N_IN, device=device)
+                rec_buf["input"] = torch.zeros(T_steps, B, N_IN, device=device)
 
-        n_spk_tensors = {self._hid_key(i + 1): torch.zeros(1, device=device)
-                         for i in range(self.n_layers)}
+        n_spk_tensors = {
+            self._hid_key(i + 1): torch.zeros(1, device=device)
+            for i in range(self.n_layers)
+        }
         n_spk_tensors["out"] = torch.zeros(1, device=device)
 
         return {
-            "B": B, "device": device,
-            "has_ext_g": has_ext_g, "has_input_spikes": has_input_spikes,
-            "ext_g": ext_g, "input_spikes": input_spikes,
+            "B": B,
+            "device": device,
+            "has_ext_g": has_ext_g,
+            "has_input_spikes": has_input_spikes,
+            "ext_g": ext_g,
+            "input_spikes": input_spikes,
             "input_drive_all": input_drive_all,
-            "W_ff": W_ff, "b_ff": b_ff, "W_rec": W_rec,
-            "beta": beta, "spike_scale": spike_scale, "bias_scale": bias_scale,
+            "W_ff": W_ff,
+            "b_ff": b_ff,
+            "W_rec": W_rec,
+            "beta": beta,
+            "spike_scale": spike_scale,
+            "bias_scale": bias_scale,
             "reset_mode": self.reset_mode,
-            "ref_steps_snn": (max(1, int(round(self.ref_ms / dt)))
-                              if self.ref_ms > 0 else 0),
-            "rec_buf": rec_buf, "n_spk_tensors": n_spk_tensors,
+            "ref_steps_snn": (
+                max(1, int(round(self.ref_ms / dt))) if self.ref_ms > 0 else 0
+            ),
+            "rec_buf": rec_buf,
+            "n_spk_tensors": n_spk_tensors,
         }
 
     def _init_hidden_state(self, cfg):
@@ -645,10 +769,14 @@ class CUBANet(SNNBase):
                 g_exps.append(init_conductance(B, n, device))
             if refs is not None:
                 refs.append(torch.zeros(B, n, device=device))
-        rate_counts = [torch.zeros(B, n, device=device)
-                       for n in self.hidden_sizes]
-        return {"mems": mems, "s_prevs": s_prevs, "g_exps": g_exps,
-                "refs": refs, "rate_counts": rate_counts}
+        rate_counts = [torch.zeros(B, n, device=device) for n in self.hidden_sizes]
+        return {
+            "mems": mems,
+            "s_prevs": s_prevs,
+            "g_exps": g_exps,
+            "refs": refs,
+            "rate_counts": rate_counts,
+        }
 
     def _init_readout_state(self, cfg):
         B, device = cfg["B"], cfg["device"]
@@ -706,13 +834,19 @@ class CUBANet(SNNBase):
         refs = state["refs"]
         can_fire = (refs[i] == 0) if refs is not None else None
         state["mems"][i], s = snn_lif_step(
-            state["mems"][i], drive, cfg["beta"], spike_snn,
-            reset=cfg["reset_mode"], can_fire=can_fire)
+            state["mems"][i],
+            drive,
+            cfg["beta"],
+            spike_snn,
+            reset=cfg["reset_mode"],
+            can_fire=can_fire,
+        )
         if refs is not None:
             refs[i] = torch.where(
                 s.bool(),
                 torch.full_like(refs[i], float(cfg["ref_steps_snn"])),
-                torch.clamp(refs[i] - 1.0, min=0.0))
+                torch.clamp(refs[i] - 1.0, min=0.0),
+            )
         state["s_prevs"][i] = s
         state["rate_counts"][i] = state["rate_counts"][i] + s
         return s
@@ -726,10 +860,12 @@ class CUBANet(SNNBase):
         W_out, b_out = cfg["W_ff"][-1], cfg["b_ff"][-1]
         if self.readout_mode == "li":
             I_out = prev_spk @ W_out + b_out
-            readout["v_out"] = (cfg["beta"] * readout["v_out"]
-                                + (1.0 - cfg["beta"]) * I_out)
-            readout["logits_max"] = torch.maximum(readout["logits_max"],
-                                                   readout["v_out"])
+            readout["v_out"] = (
+                cfg["beta"] * readout["v_out"] + (1.0 - cfg["beta"]) * I_out
+            )
+            readout["logits_max"] = torch.maximum(
+                readout["logits_max"], readout["v_out"]
+            )
             readout["logits_t"] = readout["v_out"]
         elif self.readout_mode in ("spike-count", "mem-mean"):
             # Exp-Euler ZOH on the output LIF (per-spike kick to v_out is
@@ -743,8 +879,7 @@ class CUBANet(SNNBase):
             bias_scale = one_minus_beta
             I_out = spike_scale * (prev_spk @ W_out) + bias_scale * b_out
             readout["v_out"] = beta_out * readout["v_out"] + I_out
-            s_out = fast_sigmoid_spike(readout["v_out"] - thr_snn,
-                                       SURROGATE_SLOPE)
+            s_out = fast_sigmoid_spike(readout["v_out"] - thr_snn, SURROGATE_SLOPE)
             readout["s_count"] = readout["s_count"] + s_out
             readout["mem_sum"] = readout["mem_sum"] + readout["v_out"]
             readout["v_out"] = readout["v_out"] - s_out * thr_snn
@@ -757,19 +892,21 @@ class CUBANet(SNNBase):
             readout["logits_t"] = readout["hidden_accum"] @ W_out + b_out
 
     def _finalise_meta(self, cfg, readout, state):
-        sizes = {self._hid_key(i + 1): self.hidden_sizes[i]
-                 for i in range(self.n_layers)}
+        sizes = {
+            self._hid_key(i + 1): self.hidden_sizes[i] for i in range(self.n_layers)
+        }
         sizes["out"] = N_OUT
         n_spk = {k: v.item() for k, v in cfg["n_spk_tensors"].items()}
         rec = None
         if cfg["rec_buf"] is not None:
-            rec = {k: (v.squeeze(1).cpu() if cfg["B"] == 1 else v.cpu())
-                   for k, v in cfg["rec_buf"].items()}
+            rec = {
+                k: (v.squeeze(1).cpu() if cfg["B"] == 1 else v.cpu())
+                for k, v in cfg["rec_buf"].items()
+            }
         self._set_meta(cfg["B"], n_spk, rec, sizes)
         # Gradients intentionally still attached — trainer uses these counts
         # to build the firing-rate regularisation loss.
         self.last_spike_counts = state["rate_counts"]
-
 
 
 def _parse_weight_spec(w, default_dist, default_sparsity):
@@ -834,16 +971,24 @@ class SNNTorchLibraryNet(SNNBase):
 
     randomize_init = False
 
-    def __init__(self, hidden_sizes=None, w_rec=None, rec_layers=None,
-                 readout_mode="rate", **_ignored):
+    def __init__(
+        self,
+        hidden_sizes=None,
+        w_rec=None,
+        rec_layers=None,
+        readout_mode="rate",
+        **_ignored,
+    ):
         super().__init__()
         if readout_mode not in ("rate", "li", "spike-count", "mem-mean"):
             raise ValueError(
                 f"readout_mode must be 'rate', 'li', 'spike-count', or "
-                f"'mem-mean', got {readout_mode!r}")
+                f"'mem-mean', got {readout_mode!r}"
+            )
         self.readout_mode = readout_mode
         import snntorch as snn
         from snntorch import surrogate
+
         self._snn = snn
         # slope=1 matches pinglab's SurrogateSpike (used by standard-snn and
         # cuba); snnTorch's default is slope=25. Unifying here makes
@@ -865,10 +1010,12 @@ class SNNTorchLibraryNet(SNNBase):
             self.rec_layers = set()
 
         # Kaiming-uniform nn.Linear layers — matches snnTorch tutorial 5.
-        self.fc_ff = nn.ModuleList([
-            nn.Linear(n_pre, n_post)
-            for n_pre, n_post in zip(all_sizes[:-1], all_sizes[1:])
-        ])
+        self.fc_ff = nn.ModuleList(
+            [
+                nn.Linear(n_pre, n_post)
+                for n_pre, n_post in zip(all_sizes[:-1], all_sizes[1:])
+            ]
+        )
         # Mirror under W_ff/b_ff so extract_weights() and downstream consumers
         # that iterate net.W_ff work unchanged.
         self.W_ff = nn.ParameterList([lin.weight for lin in self.fc_ff])
@@ -880,7 +1027,8 @@ class SNNTorchLibraryNet(SNNBase):
             w_rec_spec = w_rec if w_rec is not None else (0, 0.1)
             p1, p2, _, s = _parse_weight_spec(w_rec_spec, "signed_normal", 0.0)
             self.W_rec[str(i)] = nn.Parameter(
-                init_weight((n, n), "signed_normal", p1, p2, s))
+                init_weight((n, n), "signed_normal", p1, p2, s)
+            )
 
     def _hid_key(self, layer_idx):
         if self.n_layers == 1:
@@ -896,17 +1044,29 @@ class SNNTorchLibraryNet(SNNBase):
         elif has_ext_g and ext_g.dim() == 3:
             B, device = ext_g.shape[1], ext_g.device
         else:
-            B, device = 1, (input_spikes.device if has_input_spikes
-                            else ext_g.device if has_ext_g
-                            else torch.device("cpu"))
+            B, device = (
+                1,
+                (
+                    input_spikes.device
+                    if has_input_spikes
+                    else ext_g.device
+                    if has_ext_g
+                    else torch.device("cpu")
+                ),
+            )
 
         # snn.Leaky wraps mem state per forward. Fresh modules each call so
         # there's no stale state across batches or infer passes. β honours
         # the current module-level value (patch_dt updates it).
-        lifs = [self._snn.Leaky(beta=float(beta_snn), threshold=float(thr_snn),
-                                spike_grad=self._surrogate,
-                                reset_mechanism="subtract")
-                for _ in range(self.n_layers)]
+        lifs = [
+            self._snn.Leaky(
+                beta=float(beta_snn),
+                threshold=float(thr_snn),
+                spike_grad=self._surrogate,
+                reset_mechanism="subtract",
+            )
+            for _ in range(self.n_layers)
+        ]
         # Move to target device once (snn.Leaky is otherwise state-free).
         for lif in lifs:
             lif.to(device)
@@ -927,11 +1087,14 @@ class SNNTorchLibraryNet(SNNBase):
             rec_buf = {"out": torch.zeros(T_steps, B, N_OUT, device=device)}
             for i in range(self.n_layers):
                 rec_buf[self._hid_key(i + 1)] = torch.zeros(
-                    T_steps, B, self.hidden_sizes[i], device=device)
+                    T_steps, B, self.hidden_sizes[i], device=device
+                )
             if has_input_spikes:
                 rec_buf["input"] = torch.zeros(T_steps, B, N_IN, device=device)
-        n_spk_tensors = {self._hid_key(i + 1): torch.zeros(1, device=device)
-                         for i in range(self.n_layers)}
+        n_spk_tensors = {
+            self._hid_key(i + 1): torch.zeros(1, device=device)
+            for i in range(self.n_layers)
+        }
         n_spk_tensors["out"] = torch.zeros(1, device=device)
 
         for t in range(T_steps):
@@ -939,15 +1102,18 @@ class SNNTorchLibraryNet(SNNBase):
             for i in range(self.n_layers):
                 if i == 0:
                     if has_input_spikes:
-                        spk_t = (input_spikes[t].unsqueeze(0)
-                                 if input_spikes.dim() == 2 else input_spikes[t])
+                        spk_t = (
+                            input_spikes[t].unsqueeze(0)
+                            if input_spikes.dim() == 2
+                            else input_spikes[t]
+                        )
                         drive = self.fc_ff[0](spk_t)
                         if rec_buf is not None and "input" in rec_buf:
                             rec_buf["input"][t] = spk_t
                     else:
                         drive = torch.zeros(B, self.hidden_sizes[0], device=device)
                     if has_ext_g:
-                        ext = (ext_g[t].unsqueeze(0) if ext_g.dim() == 2 else ext_g[t])
+                        ext = ext_g[t].unsqueeze(0) if ext_g.dim() == 2 else ext_g[t]
                         drive = drive + ext
                 else:
                     drive = self.fc_ff[i](prev_spk)
@@ -976,7 +1142,10 @@ class SNNTorchLibraryNet(SNNBase):
                 one_minus_beta = 1.0 - float(beta_out)
                 spike_scale = one_minus_beta / float(dt)
                 bias_scale = one_minus_beta
-                W_out, b_out = self.fc_ff[-1].weight, self.fc_ff[-1].bias
+                fc_out = self.fc_ff[-1]
+                assert isinstance(fc_out, nn.Linear)
+                W_out: torch.Tensor = fc_out.weight
+                b_out: torch.Tensor = fc_out.bias
                 I_out = spike_scale * (prev_spk @ W_out.t()) + bias_scale * b_out
                 v_out = float(beta_out) * v_out + I_out
                 s_out = fast_sigmoid_spike(v_out - thr_snn, SURROGATE_SLOPE)
@@ -993,14 +1162,17 @@ class SNNTorchLibraryNet(SNNBase):
             if rec_buf is not None:
                 rec_buf["out"][t] = logits_t
 
-        sizes = {self._hid_key(i + 1): self.hidden_sizes[i]
-                 for i in range(self.n_layers)}
+        sizes = {
+            self._hid_key(i + 1): self.hidden_sizes[i] for i in range(self.n_layers)
+        }
         sizes["out"] = N_OUT
         n_spk = {k: v.item() for k, v in n_spk_tensors.items()}
         rec = None
         if rec_buf is not None:
-            rec = {k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
-                   for k, v in rec_buf.items()}
+            rec = {
+                k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
+                for k, v in rec_buf.items()
+            }
         self._set_meta(B, n_spk, rec, sizes)
         if self.readout_mode == "li":
             return logits_max
@@ -1014,16 +1186,26 @@ class SNNTorchLibraryNet(SNNBase):
 class COBANet(SNNBase):
     signed_weights = False
 
-    def __init__(self, w_in=(W_IN_MEAN, W_IN_STD), w_hid=(W_HID_MEAN, W_HID_STD),
-                 w_ee=(W_EE_MEAN, W_EE_STD), w_ei=(W_EI_MEAN, W_EI_STD),
-                 w_ie=(W_IE_MEAN, W_IE_STD), dist="normal", sparsity=0.0,
-                 dales_law=True, hidden_sizes=None, ei_layers=None,
-                 readout_mode="rate"):
+    def __init__(
+        self,
+        w_in=(W_IN_MEAN, W_IN_STD),
+        w_hid=(W_HID_MEAN, W_HID_STD),
+        w_ee=(W_EE_MEAN, W_EE_STD),
+        w_ei=(W_EI_MEAN, W_EI_STD),
+        w_ie=(W_IE_MEAN, W_IE_STD),
+        dist="normal",
+        sparsity=0.0,
+        dales_law=True,
+        hidden_sizes=None,
+        ei_layers=None,
+        readout_mode="rate",
+    ):
         super().__init__()
         if readout_mode not in ("rate", "li", "spike-count", "mem-mean"):
             raise ValueError(
                 f"readout_mode must be 'rate', 'li', 'spike-count', or "
-                f"'mem-mean', got {readout_mode!r}")
+                f"'mem-mean', got {readout_mode!r}"
+            )
         self.readout_mode = readout_mode
         self.signed_weights = not dales_law
         # Same lazy-compile pattern as CUBANet — see CUBANet for rationale.
@@ -1060,14 +1242,17 @@ class COBANet(SNNBase):
             n_i = n_e // 4  # standard E:I ratio
             k = str(i)
             p1, p2, d, s = _parse_weight_spec(w_ee, dist, sparsity)
-            w_ee_t = nn.Parameter(init_weight((n_e, n_e), d, p1, p2, s),
-                                  requires_grad=False)
+            w_ee_t = nn.Parameter(
+                init_weight((n_e, n_e), d, p1, p2, s), requires_grad=False
+            )
             p1, p2, d, s = _parse_weight_spec(w_ei, dist, sparsity)
-            w_ei_t = nn.Parameter(init_weight((n_e, n_i), d, p1, p2, s),
-                                  requires_grad=False)
+            w_ei_t = nn.Parameter(
+                init_weight((n_e, n_i), d, p1, p2, s), requires_grad=False
+            )
             p1, p2, d, s = _parse_weight_spec(w_ie, dist, sparsity)
-            w_ie_t = nn.Parameter(init_weight((n_i, n_e), d, p1, p2, s),
-                                  requires_grad=False)
+            w_ie_t = nn.Parameter(
+                init_weight((n_i, n_e), d, p1, p2, s), requires_grad=False
+            )
             self.W_ee[k] = w_ee_t
             self.W_ei[k] = w_ei_t
             self.W_ie[k] = w_ie_t
@@ -1082,9 +1267,16 @@ class COBANet(SNNBase):
             return "inh"
         return f"inh_{layer_idx}"
 
-    def forward(self, noise_std=0.0, randomize_init=False,
-                ref_mean=0.0, ref_std=0.0, ext_g=None, drive_sigma=0.0,
-                input_spikes=None):
+    def forward(
+        self,
+        noise_std=0.0,
+        randomize_init=False,
+        ref_mean=0.0,
+        ref_std=0.0,
+        ext_g=None,
+        drive_sigma=0.0,
+        input_spikes=None,
+    ):
         has_ext_g = ext_g is not None
         has_input_spikes = input_spikes is not None
 
@@ -1093,9 +1285,16 @@ class COBANet(SNNBase):
         elif has_input_spikes and input_spikes.dim() == 3:
             B, device = input_spikes.shape[1], input_spikes.device
         else:
-            B, device = 1, (ext_g.device if has_ext_g
-                            else input_spikes.device if has_input_spikes
-                            else torch.device("cpu"))
+            B, device = (
+                1,
+                (
+                    ext_g.device
+                    if has_ext_g
+                    else input_spikes.device
+                    if has_input_spikes
+                    else torch.device("cpu")
+                ),
+            )
 
         if self.signed_weights:
             W_ff = list(self.W_ff)
@@ -1114,21 +1313,28 @@ class COBANet(SNNBase):
         for i in range(1, self.n_layers + 1):
             n_e = self.hidden_sizes[i - 1]
             k = str(i)
-            v_e[k], ref_e[k] = init_lif_state(B, n_e, device,
-                                               randomize=randomize_init,
-                                               ref_mean=ref_mean, ref_std=ref_std)
+            v_e[k], ref_e[k] = init_lif_state(
+                B,
+                n_e,
+                device,
+                randomize=randomize_init,
+                ref_mean=ref_mean,
+                ref_std=ref_std,
+            )
             ge_e[k] = init_conductance(B, n_e, device)
             s_e[k] = torch.zeros(B, n_e, device=device)
             if i in self.ei_layers:
                 n_i = n_e // 4
                 gi_e[k] = init_conductance(B, n_e, device)
-                v_i[k], ref_i[k] = init_lif_state(B, n_i, device,
-                                                   randomize=randomize_init)
+                v_i[k], ref_i[k] = init_lif_state(
+                    B, n_i, device, randomize=randomize_init
+                )
                 ge_i[k] = init_conductance(B, n_i, device)
                 s_i[k] = torch.zeros(B, n_i, device=device)
             if drive_sigma > 0 and i == 1:
-                drive_gains[k] = (1.0 + drive_sigma * torch.randn(
-                    B, n_e, device=device)).clamp(min=0)
+                drive_gains[k] = (
+                    1.0 + drive_sigma * torch.randn(B, n_e, device=device)
+                ).clamp(min=0)
 
         # Output: cumulative last-hidden-layer spikes → linear decoder
         # (Same readout as CUBANet — no output spiking neurons, no
@@ -1147,11 +1353,11 @@ class COBANet(SNNBase):
                 rec_buf["input"] = torch.zeros(T_steps, B, N_IN, device=device)
             for i in range(1, self.n_layers + 1):
                 n_e = self.hidden_sizes[i - 1]
-                rec_buf[self._hid_key(i)] = torch.zeros(
-                    T_steps, B, n_e, device=device)
+                rec_buf[self._hid_key(i)] = torch.zeros(T_steps, B, n_e, device=device)
                 if i in self.ei_layers:
                     rec_buf[self._inh_key(i)] = torch.zeros(
-                        T_steps, B, n_e // 4, device=device)
+                        T_steps, B, n_e // 4, device=device
+                    )
         # GPU-side spike accumulators
         n_spk_tensors = {}
         for i in range(1, self.n_layers + 1):
@@ -1165,18 +1371,32 @@ class COBANet(SNNBase):
         # int `t` and rec_buf writes stay in _forward_loop so the compiled
         # graph never has to re-trace per-t.
         state = {
-            "v_e": v_e, "ref_e": ref_e, "ge_e": ge_e, "gi_e": gi_e, "s_e": s_e,
-            "v_i": v_i, "ref_i": ref_i, "ge_i": ge_i, "s_i": s_i,
-            "hidden_accum": hidden_accum, "v_out": v_out,
-            "logits_max": logits_max, "s_count": s_count, "mem_sum": mem_sum,
+            "v_e": v_e,
+            "ref_e": ref_e,
+            "ge_e": ge_e,
+            "gi_e": gi_e,
+            "s_e": s_e,
+            "v_i": v_i,
+            "ref_i": ref_i,
+            "ge_i": ge_i,
+            "s_i": s_i,
+            "hidden_accum": hidden_accum,
+            "v_out": v_out,
+            "logits_max": logits_max,
+            "s_count": s_count,
+            "mem_sum": mem_sum,
         }
         cfg = {
-            "B": B, "device": device,
-            "W_ff": W_ff, "drive_gains": drive_gains,
+            "B": B,
+            "device": device,
+            "W_ff": W_ff,
+            "drive_gains": drive_gains,
             "ei_layers": self.ei_layers,
-            "has_input_spikes": has_input_spikes, "has_ext_g": has_ext_g,
+            "has_input_spikes": has_input_spikes,
+            "has_ext_g": has_ext_g,
             "readout_mode": self.readout_mode,
-            "g_noise": g_noise, "n_e0": self.hidden_sizes[0],
+            "g_noise": g_noise,
+            "n_e0": self.hidden_sizes[0],
             "n_spk_tensors": n_spk_tensors,
         }
 
@@ -1185,12 +1405,15 @@ class COBANet(SNNBase):
         # CUBANet. CPU is skipped because Inductor's cpp build fails on
         # some hosts and the error escapes the try/except (surfaces only
         # at first compiled call, not at torch.compile() construction).
-        if ("step" not in self._compiled_cache
-                and not _env_no_compile()
-                and device.type != "cpu"):
+        if (
+            "step" not in self._compiled_cache
+            and not _env_no_compile()
+            and device.type != "cpu"
+        ):
             try:
                 self._compiled_cache["step"] = torch.compile(
-                    self._step_body, dynamic=False)
+                    self._step_body, dynamic=False
+                )
             except Exception as exc:  # noqa: BLE001
                 self._compiled_cache["step"] = self._step_body
                 self._compiled_cache["compile_error"] = str(exc)
@@ -1198,12 +1421,16 @@ class COBANet(SNNBase):
 
         for t in range(T_steps):
             slc = {
-                "in_t": (input_spikes[t].unsqueeze(0)
-                         if has_input_spikes and input_spikes.dim() == 2
-                         else (input_spikes[t] if has_input_spikes else None)),
-                "ext_t": (ext_g[t].unsqueeze(0)
-                          if has_ext_g and ext_g.dim() == 2
-                          else (ext_g[t] if has_ext_g else None)),
+                "in_t": (
+                    input_spikes[t].unsqueeze(0)
+                    if has_input_spikes and input_spikes.dim() == 2
+                    else (input_spikes[t] if has_input_spikes else None)
+                ),
+                "ext_t": (
+                    ext_g[t].unsqueeze(0)
+                    if has_ext_g and ext_g.dim() == 2
+                    else (ext_g[t] if has_ext_g else None)
+                ),
             }
             logits_t = step(slc, cfg, state)
             if rec_buf is not None:
@@ -1225,8 +1452,10 @@ class COBANet(SNNBase):
         n_spk = {k: v.item() for k, v in n_spk_tensors.items()}
         rec = None
         if rec_buf is not None:
-            rec = {k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
-                   for k, v in rec_buf.items()}
+            rec = {
+                k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
+                for k, v in rec_buf.items()
+            }
         self._set_meta(B, n_spk, rec, sizes)
         if self.readout_mode == "li":
             return state["logits_max"]
@@ -1271,12 +1500,15 @@ class COBANet(SNNBase):
                 # eager. Inlining keeps everything inside _step_body's
                 # single compiled graph where the three weight shapes are
                 # specialized once per (W_ee, W_ei, W_ie) tuple.
-                state["ge_e"][k] = (state["ge_e"][k]
-                                    + state["s_e"][k] @ self.W_ee[k]) * decay_ampa
-                state["ge_i"][k] = (state["ge_i"][k]
-                                    + state["s_e"][k] @ self.W_ei[k]) * decay_ampa
-                state["gi_e"][k] = (state["gi_e"][k]
-                                    + state["s_i"][k] @ self.W_ie[k]) * decay_gaba
+                state["ge_e"][k] = (
+                    state["ge_e"][k] + state["s_e"][k] @ self.W_ee[k]
+                ) * decay_ampa
+                state["ge_i"][k] = (
+                    state["ge_i"][k] + state["s_e"][k] @ self.W_ei[k]
+                ) * decay_ampa
+                state["gi_e"][k] = (
+                    state["gi_e"][k] + state["s_i"][k] @ self.W_ie[k]
+                ) * decay_gaba
             else:
                 state["ge_e"][k] = state["ge_e"][k] * decay_ampa
 
@@ -1292,18 +1524,24 @@ class COBANet(SNNBase):
                 state["ge_e"][k] = state["ge_e"][k] + prev_spk @ W
 
             if g_noise > 0 and i == 1:
-                state["ge_e"][k] = state["ge_e"][k] + (g_noise * torch.randn(
-                    cfg["B"], cfg["n_e0"], device=cfg["device"])).clamp(min=0)
+                state["ge_e"][k] = state["ge_e"][k] + (
+                    g_noise * torch.randn(cfg["B"], cfg["n_e0"], device=cfg["device"])
+                ).clamp(min=0)
 
             if is_ei:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
-                    state["v_e"][k], state["ref_e"][k],
-                    state["ge_e"][k], state["gi_e"][k])
+                    state["v_e"][k],
+                    state["ref_e"][k],
+                    state["ge_e"][k],
+                    state["gi_e"][k],
+                )
                 state["v_i"][k], state["s_i"][k], state["ref_i"][k] = i_step_coba(
-                    state["v_i"][k], state["ref_i"][k], state["ge_i"][k])
+                    state["v_i"][k], state["ref_i"][k], state["ge_i"][k]
+                )
             else:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
-                    state["v_e"][k], state["ref_e"][k], state["ge_e"][k])
+                    state["v_e"][k], state["ref_e"][k], state["ge_e"][k]
+                )
 
             prev_spk = state["s_e"][k]
 
@@ -1335,5 +1573,3 @@ class COBANet(SNNBase):
             return state["s_count"]
         state["hidden_accum"] = state["hidden_accum"] + prev_spk
         return state["hidden_accum"] @ W_ff[-1]
-
-
