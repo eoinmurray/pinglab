@@ -1,0 +1,44 @@
+{
+  "notebook_run_id": "r006",
+  "duration_s": 544.7818264160305,
+  "duration": "9m 04s",
+  "tier": "medium",
+  "config": {
+    "dt": 0.1,
+    "t_ms": 200.0,
+    "seed": 42,
+    "max_samples": 2000,
+    "epochs": 10,
+    "dataset": "mnist"
+  },
+  "runs": {
+    "cuba": {
+      "best_acc": 87.0,
+      "final_acc": 87.0,
+      "final_loss": 0.27156644633838106,
+      "rate_e": 90.66839599609375,
+      "rate_i": 0.0,
+      "git_sha": "cfe440e (dirty)",
+      "run_id": "r-20260501-114715"
+    },
+    "coba": {
+      "best_acc": 82.0,
+      "final_acc": 82.0,
+      "final_loss": 0.6056346126965114,
+      "rate_e": 79.91535949707031,
+      "rate_i": 0.0,
+      "git_sha": "cfe440e (dirty)",
+      "run_id": "r-20260501-114902"
+    },
+    "ping": {
+      "best_acc": 82.75,
+      "final_acc": 80.5,
+      "final_loss": 0.6132439885820661,
+      "rate_e": 3.814018964767456,
+      "rate_i": 17.62152671813965,
+      "git_sha": "cfe440e (dirty)",
+      "run_id": "r-20260501-115238"
+    }
+  },
+  "run_finished_at": "2026-05-01T10:56:18+00:00"
+}

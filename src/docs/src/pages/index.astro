@@ -69,13 +69,34 @@ for (const nb of notebooks) {
   for (const c of nb.collections) collectionCounts.set(c, (collectionCounts.get(c) ?? 0) + 1);
 }
 const collectionOrder = [...collectionCounts.entries()]
-  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  .sort((a, b) => {
+    if (a[0] === "in-progress") return -1;
+    if (b[0] === "in-progress") return 1;
+    return b[1] - a[1] || a[0].localeCompare(b[0]);
+  })
   .map(([c]) => c);
 const groupedByCollection = collectionOrder.map((collection) => ({
   collection,
   notebooks: notebooks.filter((nb) => nb.collections.includes(collection)),
 }));
 const uncollected = notebooks.filter((nb) => nb.collections.length === 0);
+
+const articleModules = import.meta.glob("./articles/*.mdx", { eager: true });
+const articles = Object.entries(articleModules)
+  .map(([path, mod]) => {
+    const slug = path
+      .split("/")
+      .pop()
+      .replace(/\.mdx$/, "");
+    const fm = mod.frontmatter;
+    return {
+      slug,
+      entry: fm.entry,
+      title: String(fm.title).replace(/^\d+\s*[—–-]\s*/, ""),
+      date: fm.date,
+    };
+  })
+  .sort((a, b) => -b.entry + a.entry);
 
 const formatDate = (raw) => {
   const d =
@@ -113,63 +134,64 @@ const formatDate = (raw) => {
       class="hidden lg:block fixed top-16 left-8 w-[calc(25%-4rem)] max-h-[calc(100vh-8rem)] overflow-y-auto text-base pr-4"
       aria-label="Pages"
     >
+      <p class="mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]">Documentation</p>
       <ol class="pl-0 list-none space-y-1.5">
         <li>
           <a
-            href="/introduction/"
+            href="/docs/introduction/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
             >Introduction</a
           >
         </li>
         <li>
           <a
-            href="/models/"
+            href="/docs/models/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Models</a
           >
         </li>
         <li>
           <a
-            href="/training/"
+            href="/docs/training/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Training</a
           >
         </li>
         <li>
           <a
-            href="/the-oscilloscope/"
+            href="/docs/the-oscilloscope/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
             >The Oscilloscope</a
           >
         </li>
         <li>
           <a
-            href="/the-notebooks/"
+            href="/docs/the-notebooks/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
             >The Notebooks</a
           >
         </li>
         <li>
           <a
-            href="/metrics/"
+            href="/docs/metrics/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Metrics</a
           >
         </li>
         <li>
           <a
-            href="/parameters-and-units/"
+            href="/docs/parameters-and-units/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
             >Parameters &amp; Units</a
           >
         </li>
         <li>
           <a
-            href="/references/"
+            href="/docs/references/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
             >References</a
           >
         </li>
         <li>
           <a
-            href="/styleguide/"
+            href="/docs/styleguide/"
             class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
             >Styleguide</a
           >
@@ -177,7 +199,7 @@ const formatDate = (raw) => {
       </ol>
     </aside>
 
-    <main class="px-6 py-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
+    <main class="px-6 pt-16 pb-64 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
       <div class="max-w-[46rem]">
         <div class="flex items-baseline justify-between gap-4">
           <h1 class="text-2xl font-bold">Pinglab</h1>
@@ -192,99 +214,66 @@ const formatDate = (raw) => {
           Exploring the PING mod for spiking neural networks
         </p>
 
-        <p class="mt-10 mb-2 text-xs uppercase tracking-wider text-[color:var(--muted)]">
-          Notebooks
-        </p>
+        <p class="mt-10 text-xs uppercase tracking-wider text-[color:var(--muted)]">Notebooks</p>
+        <section class="mt-2">
+          <div
+            class="border border-[color:var(--color-rule)] rounded-[2px] bg-[color:var(--color-paper-tint)] overflow-hidden"
+          >
+            <table
+              class="w-full border-collapse m-0 text-[0.95rem] [&_tr:first-child>td]:border-t-0"
+            >
+              <tbody>
+                {
+                  notebooks.map((nb) => (
+                    <tr class="[&>td]:px-[0.7rem] [&>td]:py-[0.4rem] [&>td]:border-t [&>td]:border-[color:var(--color-rule)] [&>td]:align-baseline">
+                      <td class="w-[2.2rem] text-[color:var(--color-muted)]">
+                        <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
+                          {String(nb.entry).padStart(1, "0")}.
+                        </a>
+                      </td>
+                      <td>
+                        <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
+                      </td>
+                      <td class="w-[8rem] whitespace-nowrap tabular-nums text-[0.85rem] text-[color:var(--muted)]">
+                        {formatDate(nb.date)}
+                      </td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
         {
-          groupedByCollection.map((group) => (
-            <section class="mt-6">
-              <h2 class="mb-2 font-mono text-[0.78rem] uppercase tracking-wider text-[color:var(--muted)]">
-                <a
-                  href={`#collection-${group.collection}`}
-                  id={`collection-${group.collection}`}
-                  class="text-[color:var(--muted)] hover:text-[color:var(--ink)]"
-                >
-                  {group.collection}
-                  <span class="ml-2 normal-case opacity-60">({group.notebooks.length})</span>
-                </a>
-              </h2>
-              <div class="border border-[color:var(--color-rule)] rounded-[2px] bg-[color:var(--color-paper-tint)] overflow-hidden">
-                <table class="w-full border-collapse m-0 text-[0.95rem] [&_tr:first-child>td]:border-t-0">
-                  <tbody>
-                    {group.notebooks.map((nb) => (
-                      <tr class="[&>td]:px-[0.7rem] [&>td]:py-[0.4rem] [&>td]:border-t [&>td]:border-[color:var(--color-rule)] [&>td]:align-baseline">
-                        <td class="w-[2.2rem] text-[color:var(--color-muted)]">
-                          <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
-                            {String(nb.entry).padStart(1, "0")}.
-                          </a>
-                        </td>
-                        <td>
-                          <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
-                        </td>
-                        <td class="w-[8rem] whitespace-nowrap tabular-nums text-[color:var(--muted)]">
-                          {formatDate(nb.date)}
-                        </td>
-                        <td class="w-[5rem] whitespace-nowrap text-[0.85rem] text-[color:var(--muted)]">
-                          {nb.tier ?? ""}
-                        </td>
-                        <td class="w-[4.8rem] whitespace-nowrap">
-                          {nb.badge &&
-                            (nb.badge.running ? (
-                              <span
-                                class="inline-flex items-baseline rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider bg-[color:var(--color-rule)]/50 text-[color:var(--muted)]"
-                                title="run produced no success criteria"
-                              >
-                                no run
-                              </span>
-                            ) : (
-                              <a
-                                href={`/notebooks/${nb.slug}/#success-criteria`}
-                                class={`inline-flex items-baseline gap-[0.25rem] rounded-[2px] px-[0.4rem] py-[0.05rem] font-mono text-[0.65rem] font-medium uppercase tracking-wider no-underline! ${nb.badge.allPass ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
-                                title={`${nb.badge.passed}/${nb.badge.total} success criteria passed`}
-                              >
-                                <span>{nb.badge.allPass ? "pass" : "fail"}</span>
-                                <span class="opacity-70">
-                                  {nb.badge.passed}/{nb.badge.total}
-                                </span>
-                              </a>
-                            ))}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          ))
-        }
-        {
-          uncollected.length > 0 && (
-            <section class="mt-6">
-              <h2 class="mb-2 font-mono text-[0.78rem] uppercase tracking-wider text-[color:var(--muted)]">
-                uncollected ({uncollected.length})
-              </h2>
-              <div class="border border-[color:var(--color-rule)] rounded-[2px] bg-[color:var(--color-paper-tint)] overflow-hidden">
-                <table class="w-full border-collapse m-0 text-[0.95rem]">
-                  <tbody>
-                    {uncollected.map((nb) => (
-                      <tr class="[&>td]:px-[0.7rem] [&>td]:py-[0.4rem] [&>td]:border-t [&>td]:border-[color:var(--color-rule)] [&>td]:align-baseline">
-                        <td class="w-[2.2rem] text-[color:var(--color-muted)]">
-                          <a href={`/notebooks/${nb.slug}/`} class="tabular-nums">
-                            {String(nb.entry).padStart(1, "0")}.
-                          </a>
-                        </td>
-                        <td>
-                          <a href={`/notebooks/${nb.slug}/`}>{nb.title}</a>
-                        </td>
-                        <td class="w-[8rem] whitespace-nowrap tabular-nums text-[color:var(--muted)]">
-                          {formatDate(nb.date)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+          articles.length > 0 && (
+            <>
+              <p class="mt-12 text-xs uppercase tracking-wider text-[color:var(--muted)]">
+                Articles
+              </p>
+              <section class="mt-2">
+                <div class="border border-[color:var(--color-rule)] rounded-[2px] bg-[color:var(--color-paper-tint)] overflow-hidden">
+                  <table class="w-full border-collapse m-0 text-[0.95rem] [&_tr:first-child>td]:border-t-0">
+                    <tbody>
+                      {articles.map((a) => (
+                        <tr class="[&>td]:px-[0.7rem] [&>td]:py-[0.4rem] [&>td]:border-t [&>td]:border-[color:var(--color-rule)] [&>td]:align-baseline">
+                          <td class="w-[2.2rem] text-[color:var(--color-muted)]">
+                            <a href={`/articles/${a.slug}/`} class="tabular-nums">
+                              {String(a.entry).padStart(1, "0")}.
+                            </a>
+                          </td>
+                          <td>
+                            <a href={`/articles/${a.slug}/`}>{a.title}</a>
+                          </td>
+                          <td class="w-[8rem] whitespace-nowrap tabular-nums text-[0.85rem] text-[color:var(--muted)]">
+                            {formatDate(a.date)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </>
           )
         }
       </div>

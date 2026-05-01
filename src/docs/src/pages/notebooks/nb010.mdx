@@ -22,11 +22,11 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*coba*](/models/#coba) path — conductance-based synapses, dispatched through the COBANet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb009](/notebooks/nb009/) and [nb011](/notebooks/nb011/). No Δt sweep. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*coba*](/docs/models/#coba) path — conductance-based synapses, dispatched through the COBANet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb009](/notebooks/nb009/) and [nb011](/notebooks/nb011/). No Δt sweep. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb010.py* per the [runner contract](/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/the-oscilloscope/#subcommand-train) path with the *ping* model dispatched at *ei_strength* = 0. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
+Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb010.py* per the [runner contract](/docs/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path with the *ping* model dispatched at *ei_strength* = 0. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
   { label: "E→I strength", value: 0, default: 1.0 },
@@ -34,9 +34,9 @@ Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb010.py* 
   { label: "W_in", value: "0.3 (95% sparse)", default: "0.3 (dense)" },
 ]} />
 
-- [**ei-strength = 0**](/the-oscilloscope/#network-flags-shared) — collapses the COBANet dispatch into a pure conductance-based feedforward path by zeroing the E→I→E loop. The cell below in the ladder is [nb009](/notebooks/nb009/) (current-based synapses); the cell above is [nb011](/notebooks/nb011/) (full PING with the loop closed).
-- [**v-grad-dampen = 1000**](/the-oscilloscope/#network-flags-shared) — strong damping on the membrane-voltage gradient. Conductance synapses multiply the input by $(V - E_\text{rev})$, which makes BPTT through *V* far stiffer than *cuba*'s additive current; the high damping coefficient keeps gradients finite end-to-end.
-- [**w-in 0.3, w-in-sparsity 0.95**](/the-oscilloscope/#weight-flags-shared-advanced) — sparse $W_\text{in}$ (5% density) at the same scale as the dense default. Matches the *ping* working point used in [nb011](/notebooks/nb011/) so the two share an input distribution.
+- [**ei-strength = 0**](/docs/the-oscilloscope/#network-flags-shared) — collapses the COBANet dispatch into a pure conductance-based feedforward path by zeroing the E→I→E loop. The cell below in the ladder is [nb009](/notebooks/nb009/) (current-based synapses); the cell above is [nb011](/notebooks/nb011/) (full PING with the loop closed).
+- [**v-grad-dampen = 1000**](/docs/the-oscilloscope/#network-flags-shared) — strong damping on the membrane-voltage gradient. Conductance synapses multiply the input by $(V - E_\text{rev})$, which makes BPTT through *V* far stiffer than *cuba*'s additive current; the high damping coefficient keeps gradients finite end-to-end.
+- [**w-in 0.3, w-in-sparsity 0.95**](/docs/the-oscilloscope/#weight-flags-shared-advanced) — sparse $W_\text{in}$ (5% density) at the same scale as the dense default. Matches the *ping* working point used in [nb011](/notebooks/nb011/) so the two share an input distribution.
 
 ## Results
 
@@ -75,7 +75,7 @@ Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb010.py* 
 
 ## Next steps
 
-The conductance-based synapse is the bridge between [nb009](/notebooks/nb009/)'s clean *cuba* baseline and [nb011](/notebooks/nb011/)'s full PING circuit; once *coba* is sitting in the same firing-rate band as *cuba*, closing the E→I→E loop in nb011 should be a one-knob change. Two follow-ups parked: (a) tune the *v_grad_dampen* coefficient downward and confirm the gradient-skip path stays empty — the current 1000 is conservative; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/the-oscilloscope/#subcommand-infer) path to test whether the conductance dynamics generalise off the trained *dt*, mirroring the analogous follow-up in [nb009](/notebooks/nb009/).
+The conductance-based synapse is the bridge between [nb009](/notebooks/nb009/)'s clean *cuba* baseline and [nb011](/notebooks/nb011/)'s full PING circuit; once *coba* is sitting in the same firing-rate band as *cuba*, closing the E→I→E loop in nb011 should be a one-knob change. Two follow-ups parked: (a) tune the *v_grad_dampen* coefficient downward and confirm the gradient-skip path stays empty — the current 1000 is conservative; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/docs/the-oscilloscope/#subcommand-infer) path to test whether the conductance dynamics generalise off the trained *dt*, mirroring the analogous follow-up in [nb009](/notebooks/nb009/).
 
 ## Appendix
 
@@ -85,4 +85,4 @@ The conductance-based synapse is the bridge between [nb009](/notebooks/nb009/)'s
 uv run src/pinglab/notebooks/nb010.py
 ```
 
-Add [*--tier*](/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/the-notebooks/#cli).
+Add [*--tier*](/docs/the-notebooks/#cli) *extra small* for a faster pass — tier names come from the sizing table in [The Notebooks § CLI](/docs/the-notebooks/#cli).

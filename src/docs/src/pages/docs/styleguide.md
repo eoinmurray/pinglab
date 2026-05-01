@@ -1,13 +1,13 @@
 ---
-layout: ../layouts/MarkdownLayout.astro
+layout: ../../layouts/MarkdownLayout.astro
 title: "Styleguide"
 ---
 
 # Styleguide
 
-Hard rules for editing the docs and notebook. For repo layout, workflow narrative, and how to run things, see [Introduction](/introduction/).
+Hard rules for editing the docs and notebook. For repo layout, workflow narrative, and how to run things, see [Introduction](/docs/introduction/).
 
-These rules apply when editing the docs and notebook. They are the source of truth — if anything on the [Introduction](/introduction/) page conflicts, these win.
+These rules apply when editing the docs and notebook. They are the source of truth — if anything on the [Introduction](/docs/introduction/) page conflicts, these win.
 
 ### 1. Color palette
 
@@ -156,7 +156,7 @@ Training cost scales linearly in *max-samples × epochs × t-ms* ($\approx$3.3 �
 
 Each notebook entry names the tier it ran at — either in Method prose or implicitly via its notebook runner's *MAX_SAMPLES / EPOCHS / T_MS* constants (training) or *TIER_FRAMES* lookup (video). If a finding needs a tier larger than what produced the numbers currently on the page, say so in Next steps rather than quietly upgrading.
 
-Every notebook runner accepts *--modal-gpu {none, T4, L4, A10G, A100, H100}* to dispatch its oscilloscope invocations to Modal.com (see [The oscilloscope § Modal dispatch](/the-oscilloscope/#modal-dispatch)). Default is local.
+Every notebook runner accepts *--modal-gpu {none, T4, L4, A10G, A100, H100}* to dispatch its oscilloscope invocations to Modal.com (see [The oscilloscope § Modal dispatch](/docs/the-oscilloscope/#modal-dispatch)). Default is local.
 
 ## Maintaining this page
 

@@ -29,11 +29,11 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-External drive is one knob ([nb002](/notebooks/nb002/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes. Input rate and $W_\text{in}$ are bumped relative to [nb002](/notebooks/nb002/) / [nb004](/notebooks/nb004/) so E has enough baseline drive to recruit I at all without a stim pulse. See [The Notebooks](/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+External drive is one knob ([nb002](/notebooks/nb002/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes. Input rate and $W_\text{in}$ are bumped relative to [nb002](/notebooks/nb002/) / [nb004](/notebooks/nb004/) so E has enough baseline drive to recruit I at all without a stim pulse. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-A scan over the [oscilloscope *video*](/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× and **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}). All knobs are hardcoded literals in *src/pinglab/notebooks/nb005.py* per the [runner contract](/the-notebooks/#runner-contract).
+A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× and **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}). All knobs are hardcoded literals in *src/pinglab/notebooks/nb005.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {

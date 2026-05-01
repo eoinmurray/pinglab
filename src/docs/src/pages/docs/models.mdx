@@ -1,8 +1,8 @@
 ---
-layout: ../layouts/MarkdownLayout.astro
+layout: ../../layouts/MarkdownLayout.astro
 title: "Models"
 ---
-import Code from "../components/Code.astro";
+import Code from "../../components/Code.astro";
 
 # Models
 
@@ -126,4 +126,4 @@ $$
 g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{18}
 $$
 
-Hard reset $V \leftarrow V_{\text{reset}}$ on threshold; refractory $\tau_{\text{ref}}^E = 3$ ms, $\tau_{\text{ref}}^I = 1.5$ ms. Dale's law: $W \geq 0$. Defaults: $W^{EE} = 0$, $W^{EI} \approx 1$ µS, $W^{IE} \approx 3$ µS. Recurrent matrices frozen at init; only $W_{\text{in}}, W_{\text{out}}$ train. $\Delta t$ ceiling at $\sim \tau_{\text{GABA}}$. Constants on [Parameters & Units](/parameters-and-units/#coba--ping-biophysical-constants).
+Hard reset $V \leftarrow V_{\text{reset}}$ on threshold; refractory $\tau_{\text{ref}}^E = 3$ ms, $\tau_{\text{ref}}^I = 1.5$ ms. Dale's law: $W \geq 0$. Defaults: $W^{EE} = 0$, $W^{EI} \approx 1$ µS, $W^{IE} \approx 3$ µS. Recurrent matrices frozen at init; only $W_{\text{in}}, W_{\text{out}}$ train. $\Delta t$ ceiling at $\sim \tau_{\text{GABA}}$. Constants on [Parameters & Units](/docs/parameters-and-units/#coba--ping-biophysical-constants).

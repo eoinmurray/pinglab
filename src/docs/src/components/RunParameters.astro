@@ -81,35 +81,35 @@ function buildTrainingSections(): Group[] {
     {
       title: "Setup",
       rows: [
-        { label: "Tier", value: numbers.tier ?? cfg.tier ?? "?", href: "/the-notebooks/#cli" },
-        { label: "Dataset", value: cfg.dataset ?? "?", default: "scikit", href: "/the-oscilloscope/#input-flags-shared" },
-        { label: "Model", value: cfg.model ?? "?", default: "ping", href: "/the-oscilloscope/#network-flags-shared" },
+        { label: "Tier", value: numbers.tier ?? cfg.tier ?? "?", href: "/docs/the-notebooks/#cli" },
+        { label: "Dataset", value: cfg.dataset ?? "?", default: "scikit", href: "/docs/the-oscilloscope/#input-flags-shared" },
+        { label: "Model", value: cfg.model ?? "?", default: "ping", href: "/docs/the-oscilloscope/#network-flags-shared" },
       ],
     },
     {
       title: "Architecture",
       rows: [
-        { label: "Hidden", value: hidden, default: hiddenDefault ?? undefined, href: "/the-oscilloscope/#network-flags-shared" },
-        { label: "T", value: cfg.t_ms != null ? `${cfg.t_ms} ms` : "?", default: "200 ms", href: "/the-oscilloscope/#network-flags-shared" },
-        { label: "dt", value: cfg.dt != null ? `${cfg.dt} ms` : "?", default: "0.25 ms", href: "/the-oscilloscope/#network-flags-shared" },
-        { label: "Input rate", value: cfg.input_rate_hz != null ? `${cfg.input_rate_hz} Hz` : "?", default: "25 Hz", href: "/the-oscilloscope/#input-flags-shared" },
-        { label: "Seed", value: cfg.seed ?? "?", default: null, href: "/the-oscilloscope/#execution-flags-shared" },
+        { label: "Hidden", value: hidden, default: hiddenDefault ?? undefined, href: "/docs/the-oscilloscope/#network-flags-shared" },
+        { label: "T", value: cfg.t_ms != null ? `${cfg.t_ms} ms` : "?", default: "200 ms", href: "/docs/the-oscilloscope/#network-flags-shared" },
+        { label: "dt", value: cfg.dt != null ? `${cfg.dt} ms` : "?", default: "0.25 ms", href: "/docs/the-oscilloscope/#network-flags-shared" },
+        { label: "Input rate", value: cfg.input_rate_hz != null ? `${cfg.input_rate_hz} Hz` : "?", default: "25 Hz", href: "/docs/the-oscilloscope/#input-flags-shared" },
+        { label: "Seed", value: cfg.seed ?? "?", default: null, href: "/docs/the-oscilloscope/#execution-flags-shared" },
       ],
     },
     {
       title: "Training recipe",
       rows: [
-        { label: "Samples × Epochs", value: samplesEpochs, href: "/the-oscilloscope/#subcommand-train" },
-        { label: "Batch size", value: cfg.batch_size ?? run.batch_size ?? "?", default: 64, href: "/the-oscilloscope/#subcommand-train" },
-        { label: "Learning rate (η)", value: run.lr ?? "?", default: 0.01, href: "/the-oscilloscope/#subcommand-train" },
+        { label: "Samples × Epochs", value: samplesEpochs, href: "/docs/the-oscilloscope/#subcommand-train" },
+        { label: "Batch size", value: cfg.batch_size ?? run.batch_size ?? "?", default: 64, href: "/docs/the-oscilloscope/#subcommand-train" },
+        { label: "Learning rate (η)", value: run.lr ?? "?", default: 0.01, href: "/docs/the-oscilloscope/#subcommand-train" },
         ...recipeExtras,
       ],
     },
     {
       title: "Results",
       rows: [
-        { label: "Best / Final acc", value: bestFinal, href: "/metrics/" },
-        { label: "Final loss", value: finalLossStr, href: "/training/" },
+        { label: "Best / Final acc", value: bestFinal, href: "/docs/metrics/" },
+        { label: "Final loss", value: finalLossStr, href: "/docs/training/" },
         { label: "Elapsed", value: numbers.duration ?? "?" },
         ...resultsExtras,
       ],
@@ -123,7 +123,7 @@ const provenanceExtras = extras.filter((e) => e.section === "provenance");
 const provenanceSection: Group = {
   title: "Provenance",
   rows: [
-    { label: "Run ID", value: nbRunId, mono: true, href: "/the-notebooks/#runner-contract" },
+    { label: "Run ID", value: nbRunId, mono: true, href: "/docs/the-notebooks/#runner-contract" },
     { label: "Git SHA", value: short ?? "?", mono: true },
     ...provenanceExtras,
   ],
@@ -135,7 +135,7 @@ if (groups) {
   provenanceSection.rows.splice(0, 0, {
     label: "Tier",
     value: numbers.tier ?? cfg.tier ?? "?",
-    href: "/the-notebooks/#cli",
+    href: "/docs/the-notebooks/#cli",
   });
 }
 
