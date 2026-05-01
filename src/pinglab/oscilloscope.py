@@ -3883,13 +3883,6 @@ Models:
         "Without: image = single snapshot.",
     )
     infer_parser.add_argument(
-        "--frozen-inputs",
-        action="store_true",
-        default=False,
-        help="Freeze input spike patterns across dt sweep. "
-        "Shorthand for --frozen-inputs-mode upsample.",
-    )
-    infer_parser.add_argument(
         "--frozen-inputs-mode",
         type=str,
         default=None,
@@ -4292,8 +4285,6 @@ if __name__ == "__main__":
 
             encoder = None
             frozen_mode = getattr(args, "frozen_inputs_mode", None)
-            if frozen_mode is None and getattr(args, "frozen_inputs", False):
-                frozen_mode = "upsample"
             if frozen_mode is not None:
                 # Anchor the reference at the training dt (paper's framing):
                 # spikes are generated at dt_ref = args.dt once, then
