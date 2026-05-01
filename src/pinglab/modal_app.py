@@ -87,7 +87,7 @@ def _run_oscilloscope_impl(cli_args: list[str]) -> str:
         if torch.cuda.is_available():
             args.extend(["--device", "cuda"])
 
-    cmd = [sys.executable, "/root/pinglab/oscilloscope.py", *args]
+    cmd = [sys.executable, "/root/pinglab/oscilloscope/__main__.py", *args]
     print(f"modal> {' '.join(cmd)}")
     result = subprocess.run(cmd, cwd="/root/pinglab", capture_output=False)
     volume.commit()

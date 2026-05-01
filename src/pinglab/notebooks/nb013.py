@@ -49,7 +49,7 @@ from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 SLUG = "nb013"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
+OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
 
 DEFAULT_TIER = "medium"
 TIER = DEFAULT_TIER  # overridable via --tier <name>
