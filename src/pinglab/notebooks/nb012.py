@@ -47,7 +47,7 @@ from pinglab import theme  # noqa: E402
 SLUG = "nb012"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope.py"
+OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
 
 MODELS = [
     "standard-snn",

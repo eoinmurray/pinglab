@@ -18,16 +18,12 @@ import sys
 import time as _time
 from pathlib import Path
 
-# Ensure src/pinglab/ is FIRST on sys.path so our new top-level modules
-# (models, inputs, metrics, config, plot) take priority over lib/.
-_pkg_dir = str(Path(__file__).parent)
+# Ensure src/pinglab/ is FIRST on sys.path so the sibling top-level modules
+# (models, inputs, metrics, config, plot) are importable as bare names.
+_pkg_dir = str(Path(__file__).resolve().parent.parent)  # src/pinglab/
 if _pkg_dir in sys.path:
     sys.path.remove(_pkg_dir)
 sys.path.insert(0, _pkg_dir)
-# Keep lib/ on path as fallback (some files still live there during transition)
-_lib_dir = str(Path(__file__).parent / "lib")
-if _lib_dir not in sys.path:
-    sys.path.append(_lib_dir)
 
 import logging
 import numpy as np
