@@ -4,6 +4,36 @@ All notable changes to pinglab. Format: [Keep a Changelog](https://keepachangelo
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-05-01
+
+Repo hygiene and structural cleanup. No behaviour changes.
+
+### Removed
+
+- **Dead code (tier 1)**: dropped `def hybrid_readout()`, the unused
+  `tutorial_readout` attribute, the `import F` and `import dataclasses`
+  no-op imports, and the `--frozen-inputs` boolean shorthand
+  (superseded by `--frozen-inputs-mode`).
+- **Orphan**: `src/pinglab/snntorch-tutorial.py` — hyphenated filename
+  meant it was never importable, and nothing referenced it.
+
+### Changed
+
+- **`oscilloscope.py` (4,459 lines) → `oscilloscope/` package**:
+  - `oscilloscope/__main__.py` keeps the CLI entrypoint (callers updated
+    in nb001, nb012, nb013, _per_model.py, _ping_scan.py, modal_app.py,
+    test_smoke.py, test_mode_drift.py, test_flag_propagation.py).
+  - `oscilloscope/encoders.py` (287 lines): Poisson encoders, the
+    `FrozenEncoder`, count-preserving transports.
+  - `oscilloscope/datasets.py` (161 lines): scikit / MNIST / sMNIST /
+    SHD loaders + `_load_dataset_image`.
+  - `oscilloscope/__init__.py` re-exports the symbols tests import.
+  - `__main__.py` now 4,052 lines; further cuts (train/infer/scan/cli)
+    deferred to a future release.
+
+[0.1.1]: https://github.com/eoinmurray/pinglab/releases/tag/v0.1.1
+[Unreleased]: https://github.com/eoinmurray/pinglab/compare/v0.1.1...HEAD
+
 ## [0.1.0] — 2026-05-01
 
 First tagged release. Closes the *Δt-stability* arc — six SNN models trained at two timesteps each (12 cells), all converged within 86–89% on MNIST under a uniform recipe.
@@ -34,5 +64,4 @@ First tagged release. Closes the *Δt-stability* arc — six SNN models trained 
 - `ruff format` pass across 46 files.
 - `ty check` clean.
 
-[Unreleased]: https://github.com/eoinmurray/pinglab/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/eoinmurray/pinglab/releases/tag/v0.1.0
