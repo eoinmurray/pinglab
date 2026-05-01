@@ -108,61 +108,18 @@ from plot import (
 # =============================================================================
 
 
-def encode_image_spikes(
-    pixel_vec, T_steps, dt, base_rate, stim_rate, step_on_ms, step_off_ms, seed=42
-):
-    """Poisson-encode an image with a rate step during stimulus window.
-
-    Samples absolute spike *times* (ms) per pixel from a three-section
-    Poisson process (pre/stim/post), then bins them to the given dt. Spike
-    times are a deterministic function of ``seed`` and rate schedule — not
-    of dt — so changing dt rebins the *same* event stream rather than
-    drawing a fresh one. That's what makes dt-sweep rasters look temporally
-    coherent frame-to-frame instead of stretching/flowing.
-
-    pixel_vec: (N_IN,) pixel intensities in [0,1]
-    Returns:   (T_steps, N_IN) float32 tensor of 0/1 spikes
-    """
-    n_in = len(pixel_vec)
-    t_max_ms = T_steps * dt
-    spikes = np.zeros((T_steps, n_in), dtype=np.float32)
-
-    # Three dt-invariant Poisson sections, clipped to [0, t_max_ms].
-    t_on = min(step_on_ms, t_max_ms)
-    t_off = min(step_off_ms, t_max_ms)
-    sections = (
-        (0.0, t_on, base_rate),
-        (t_on, t_off, stim_rate),
-        (t_off, t_max_ms, base_rate),
-    )
-
-    # Independent RNG per (pixel, section) so the pre/post sections are
-    # identical across frames (same rate → same times), and only the stim
-    # section varies when stim_rate changes in a sweep. A single shared RNG
-    # would let the stim section's variable Poisson count shift every
-    # downstream draw, making the whole input raster jump frame-to-frame.
-    base_seed = int(seed) & 0xFFFFFFFF
-    for i in range(n_in):
-        pixel = float(pixel_vec[i])
-        if pixel <= 0.0:
-            continue
-        for s_idx, (t_start, t_end, rate_hz) in enumerate(sections):
-            dur = t_end - t_start
-            if dur <= 0 or rate_hz <= 0:
-                continue
-            expected = pixel * rate_hz * dur / 1000.0
-            if expected <= 0:
-                continue
-            sub_seed = (base_seed + i * 3 + s_idx) & 0xFFFFFFFF
-            rng = np.random.RandomState(sub_seed)
-            n = int(rng.poisson(expected))
-            if n == 0:
-                continue
-            times = rng.uniform(t_start, t_end, size=n)
-            steps = (times / dt).astype(np.int64)
-            steps = steps[(steps >= 0) & (steps < T_steps)]
-            spikes[steps, i] = 1.0
-    return torch.tensor(spikes, dtype=torch.float32)
+from oscilloscope.encoders import (  # noqa: E402,F401
+    EVAL_SEED,
+    FROZEN_MODES,
+    FrozenEncoder,
+    downsample_spikes_count,
+    encode_batch,
+    encode_image_spikes,
+    encode_images_poisson,
+    encode_smnist,
+    transport_spikes_bin,
+    upsample_spikes_zeropad,
+)
 
 
 # Scannable variables
@@ -1084,148 +1041,14 @@ def primary_inh_key(rec):
     return inh_keys[-1] if inh_keys else None
 
 
-SHD_N_CHANNELS = 700
-
-
-def _shd_cache_dir():
-    """Root dir for SHD HDF5 files. Override with $PINGLAB_SHD_DIR."""
-    import os
-
-    return os.environ.get("PINGLAB_SHD_DIR", "/tmp/shd/SHD")
-
-
-def _load_shd(dt_ms, t_ms, max_samples=None):
-    """Load SHD as a dense (N, T_steps, 700) float32 spike tensor + int64 labels.
-
-    Reads the official train+test H5 files, concatenates them, then bins
-    each sample's (time, unit) events into the grid at dt. `max_samples`
-    is a per-file cap applied before binning — keeps the smoke-test cost
-    bounded without reading the full 10k-sample set.
-    """
-    import h5py
-    from pathlib import Path
-
-    root = Path(_shd_cache_dir())
-    train_path = root / "shd_train.h5"
-    test_path = root / "shd_test.h5"
-    if not train_path.exists() or not test_path.exists():
-        raise FileNotFoundError(
-            f"SHD HDF5 files not found at {root}. Download shd_train.h5 + "
-            f"shd_test.h5 from https://zenkelab.org/datasets/ or set "
-            f"$PINGLAB_SHD_DIR to an existing cache."
-        )
-    T_steps = int(round(t_ms / dt_ms))
-    dt_s = dt_ms / 1000.0
-    xs, ys = [], []
-    per_file_cap = max_samples if max_samples is not None else None
-    for path in (train_path, test_path):
-        with h5py.File(path, "r") as f:
-            labels = f["labels"][:].astype(np.int64)
-            n = len(labels) if per_file_cap is None else min(per_file_cap, len(labels))
-            times_ds = f["spikes/times"]
-            units_ds = f["spikes/units"]
-            X = np.zeros((n, T_steps, SHD_N_CHANNELS), dtype=np.float32)
-            for i in range(n):
-                t_idx = np.clip((times_ds[i] / dt_s).astype(np.int64), 0, T_steps - 1)
-                u_idx = np.clip(units_ds[i].astype(np.int64), 0, SHD_N_CHANNELS - 1)
-                # multiple events per cell → clip to 1 spike (dense binary raster)
-                X[i, t_idx, u_idx] = 1.0
-            xs.append(X)
-            ys.append(labels[:n])
-    return np.concatenate(xs, axis=0), np.concatenate(ys, axis=0)
-
-
-def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
-    """Load full dataset as (X, y) numpy arrays in [0, 1] / int64.
-
-    Args:
-        name: "scikit" | "mnist" | "smnist" | "shd"
-              - smnist is mnist data, encoded row-by-row at run time
-              - shd is natively event-based; X shape is (N, T_steps, 700)
-        max_samples: optional cap; deterministic random subset (seed 42)
-        split: if True, return (X_tr, X_te, y_tr, y_te) via stratified 80/20
-               train_test_split(seed 42); otherwise return (X, y)
-        dt_ms, t_ms: required for "shd" (event binning grid); ignored otherwise
-
-    Single canonical loader used by train, infer, and image/video paths so
-    "first digit-0 sample" means the same physical sample everywhere.
-    """
-    if name in ("mnist", "smnist"):
-        from torchvision import datasets, transforms
-
-        mnist_train = datasets.MNIST(
-            root="/tmp/mnist",
-            train=True,
-            download=True,
-            transform=transforms.ToTensor(),
-        )
-        mnist_test = datasets.MNIST(
-            root="/tmp/mnist",
-            train=False,
-            download=True,
-            transform=transforms.ToTensor(),
-        )
-        X = np.concatenate(
-            [
-                mnist_train.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0,
-                mnist_test.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0,
-            ]
-        )
-        y = np.concatenate(
-            [
-                mnist_train.targets.numpy(),
-                mnist_test.targets.numpy(),
-            ]
-        ).astype(np.int64)
-    elif name == "scikit":
-        from sklearn.datasets import load_digits
-
-        digits = load_digits()
-        X = digits.data.astype(np.float32) / 16.0
-        y = digits.target.astype(np.int64)
-    elif name == "shd":
-        if dt_ms is None or t_ms is None:
-            raise ValueError("load_dataset('shd', ...) requires dt_ms and t_ms")
-        X, y = _load_shd(dt_ms=dt_ms, t_ms=t_ms, max_samples=max_samples)
-    else:
-        raise ValueError(f"Unknown dataset: {name}")
-
-    if max_samples is not None and max_samples < len(X):
-        idx = np.random.RandomState(42).choice(len(X), max_samples, replace=False)
-        X, y = X[idx], y[idx]
-
-    if split:
-        from sklearn.model_selection import train_test_split
-
-        return train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-    return X, y
-
-
-def _load_dataset_image(dataset="scikit", digit_class=0, sample_idx=0):
-    """Load a single image from a dataset. Returns (pixel_vec, digit_image)."""
-    if dataset == "scikit":
-        from sklearn.datasets import load_digits
-
-        digits = load_digits()
-        data = digits.data / 16.0
-        targets = digits.target
-        images = digits.images
-    elif dataset in ("mnist", "smnist"):
-        from torchvision import datasets, transforms
-
-        mnist = datasets.MNIST(
-            root="/tmp/mnist",
-            train=False,
-            download=True,
-            transform=transforms.ToTensor(),
-        )
-        data = mnist.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0
-        targets = mnist.targets.numpy()
-        images = mnist.data.numpy()
-    else:
-        raise ValueError(f"Unknown dataset: {dataset}")
-    idx = np.where(targets == digit_class)[0][sample_idx]
-    return data[idx], images[idx]
+from oscilloscope.datasets import (  # noqa: E402,F401
+    DATASET_N_HIDDEN_DEFAULTS,
+    SHD_N_CHANNELS,
+    _load_dataset_image,
+    _load_shd,
+    _shd_cache_dir,
+    load_dataset,
+)
 
 
 def generate_image_snapshot(
@@ -1444,89 +1267,7 @@ BATCH_SIZE = 64
 GRAD_CLIP = 1.0
 PATIENCE = 15
 
-# Default n_hidden per dataset — n_hid >= n_in avoids bottleneck correlations
-# when W_in is dense. Override with --n-hidden.
-DATASET_N_HIDDEN_DEFAULTS = {
-    "scikit": 64,  # n_in = 64
-    "mnist": 1024,  # n_in = 784, next pow2
-    "smnist": 32,  # n_in = 28, next pow2
-    "shd": 256,  # n_in = 700; 256 keeps the ladder tractable locally
-}
-
-
-def encode_images_poisson(images, T_steps, dt, max_rate_hz, generator=None):
-    """Encode (B, N_in) pixel intensities as Poisson spike trains.
-
-    Returns (T_steps, B, N_in) float spikes. Single canonical encoder used by
-    train, infer, and image/video paths so identical pixels with the same dt
-    and max_rate produce the same spike train regardless of mode.
-    """
-    pixels = images.clamp(0, 1)
-    p = max_rate_hz * dt / 1000.0
-    B, n_in = pixels.shape
-    if generator is not None:
-        # Generator dictates device (usually CPU); generate there then move.
-        rand = torch.rand(
-            T_steps, B, n_in, device=generator.device, generator=generator
-        ).to(pixels.device)
-    else:
-        rand = torch.rand(T_steps, B, n_in, device=pixels.device)
-    return (rand < pixels.unsqueeze(0) * p).float()
-
-
-def encode_smnist(images, dt, max_rate_hz, t_ms_per_row=10.0, generator=None):
-    """Encode MNIST images as sequential row-by-row Poisson spikes.
-
-    Each row (28 pixels) is presented for t_ms_per_row ms.
-    Returns (T_steps, B, 28) float32 tensor of 0/1 spikes.
-
-    images: (B, 784) pixel intensities in [0, 1]
-    """
-    B = images.shape[0]
-    n_rows = 28
-    n_cols = 28
-    steps_per_row = int(t_ms_per_row / dt)
-    T_steps = n_rows * steps_per_row
-    device = images.device
-
-    pixels = images.reshape(B, n_rows, n_cols)  # (B, 28, 28)
-    p_spike = max_rate_hz * dt / 1000.0
-
-    # Fully vectorized: for each row, broadcast probabilities across its timesteps.
-    # Build (n_rows, steps_per_row, B, n_cols) probability tensor.
-    # pixels[:, row, :] is held constant for steps_per_row steps.
-    probs = pixels.permute(1, 0, 2).unsqueeze(1)  # (n_rows, 1, B, n_cols)
-    probs = probs.expand(n_rows, steps_per_row, B, n_cols).contiguous()
-    probs = probs.reshape(T_steps, B, n_cols) * p_spike
-    if generator is not None:
-        rand = torch.rand(
-            T_steps, B, n_cols, device=generator.device, generator=generator
-        ).to(device)
-    else:
-        rand = torch.rand(T_steps, B, n_cols, device=device)
-    return (rand < probs).float()
-
-
-def encode_batch(X_b, dt, use_smnist, generator=None):
-    """Encode a pre-moved pixel batch as spikes using the canonical scheme.
-
-    Shared by train, infer, and calibration loops so the three paths can't
-    drift. Routes smnist through the row-by-row sequential encoder, 3-d
-    already-spiked tensors (e.g. SHD) through a transpose passthrough, and
-    everything else through vanilla Poisson rate coding. Output is always
-    returned on X_b.device. Pass `generator` (typically a CPU torch.Generator
-    with a fixed seed) for deterministic eval — same weights + same split +
-    same generator seed → identical spike trains → identical accuracy.
-    """
-    if X_b.ndim == 3:
-        # (B, T, N_in) pre-spiked → (T, B, N_in); ignore dt/generator.
-        return X_b.permute(1, 0, 2).contiguous()
-    if use_smnist:
-        return encode_smnist(X_b, dt, M.max_rate_hz, generator=generator).to(X_b.device)
-    return encode_images_poisson(X_b, M.T_steps, dt, M.max_rate_hz, generator=generator)
-
-
-EVAL_SEED = 20260415
+# DATASET_N_HIDDEN_DEFAULTS lives in oscilloscope/datasets.py — re-imported above.
 
 
 def seed_everything(seed):
@@ -1546,150 +1287,6 @@ def seed_everything(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
     log.info(f"  seed={seed} (Python, NumPy, torch)")
-
-
-def downsample_spikes_count(spikes_ref, dt_ref, dt_target):
-    """Sum-pool fine→coarse: integer count of spikes per coarse step
-    (Parthasarathy et al. §2.3 integer-bin downsample). Per-ms rate is
-    preserved exactly; total spike count is preserved up to leftover steps
-    trimmed at the end when T_ref is not divisible by k. Output is not
-    binary."""
-    if dt_target < dt_ref - 1e-9:
-        raise ValueError(
-            f"downsample requires dt_target >= dt_ref; "
-            f"got dt_target={dt_target}, dt_ref={dt_ref}"
-        )
-    k = round(dt_target / dt_ref)
-    if k == 1:
-        return spikes_ref
-    T_target = spikes_ref.shape[0] // k
-    trimmed = spikes_ref[: T_target * k]
-    blocks = trimmed.reshape(T_target, k, *spikes_ref.shape[1:])
-    return blocks.sum(dim=1)
-
-
-def upsample_spikes_zeropad(spikes_ref, dt_ref, dt_target):
-    """Zero-pad coarse→fine: expand T axis by k = dt_ref / dt_target and
-    place each reference spike at the *first* fine sub-step of its block
-    (Parthasarathy et al. §2.1 / Fig 1B). Total spike count is preserved
-    exactly; per-ms rate is preserved; per-step rate drops by 1/k."""
-    if dt_target > dt_ref + 1e-9:
-        raise ValueError(
-            f"upsample requires dt_target <= dt_ref; "
-            f"got dt_target={dt_target}, dt_ref={dt_ref}"
-        )
-    k = round(dt_ref / dt_target)
-    if k == 1:
-        return spikes_ref
-    T_ref = spikes_ref.shape[0]
-    T_target = T_ref * k
-    out = torch.zeros(
-        (T_target, *spikes_ref.shape[1:]),
-        dtype=spikes_ref.dtype,
-        device=spikes_ref.device,
-    )
-    out[::k] = spikes_ref
-    return out
-
-
-def transport_spikes_bin(spikes_ref, dt_ref, dt_target):
-    """Paper count-preserving transport: identity at dt_target == dt_ref,
-    zero-pad when dt_target < dt_ref (§2.1 Fig 1B), sum-pool when
-    dt_target > dt_ref (§2.3). Requires an integer ratio in either
-    direction."""
-    if abs(dt_target - dt_ref) < 1e-9:
-        return spikes_ref
-    if dt_target < dt_ref:
-        ratio = dt_ref / dt_target
-        if abs(ratio - round(ratio)) > 1e-6:
-            raise ValueError(
-                f"zero-pad requires integer dt_ref/dt_target; "
-                f"got {dt_ref}/{dt_target}={ratio:.4f}"
-            )
-        return upsample_spikes_zeropad(spikes_ref, dt_ref, dt_target)
-    ratio = dt_target / dt_ref
-    if abs(ratio - round(ratio)) > 1e-6:
-        raise ValueError(
-            f"downsample requires integer dt_target/dt_ref; "
-            f"got {dt_target}/{dt_ref}={ratio:.4f}"
-        )
-    return downsample_spikes_count(spikes_ref, dt_ref, dt_target)
-
-
-FROZEN_MODES = ("upsample", "downsample", "resample")
-
-
-class FrozenEncoder:
-    """Deterministic encoder that controls how input spike patterns are
-    transported across dt values during a sweep.
-
-    dt_ref is the *training* dt — the anchor the paper describes when a
-    network trained at dt_ref is evaluated at a sweep of other dts
-    (Parthasarathy, Burghi & O'Leary 2024, Fig 1B / §2.1, §2.3).
-
-    Modes (one transport per paper-named case):
-      * upsample    — generate Poisson at dt_ref, then zero-pad to finer
-                      eval-dt (§2.1 / Fig 1B). Each reference spike lands
-                      at the first fine sub-step of its block. Requires
-                      eval-dt <= dt_ref. Binary.
-      * downsample  — generate Poisson at dt_ref, then sum-pool to coarser
-                      eval-dt (§2.3). Requires eval-dt >= dt_ref. Output
-                      is non-binary (integer counts per coarse bin).
-      * resample    — draw a fresh Poisson stream at the *target* dt with
-                      the same per-ms rate (§2.1 alternative). Binary;
-                      sampling noise re-introduced. Works in both
-                      directions.
-
-    At eval-dt == dt_ref all three modes produce the same Poisson stream
-    (identity transport). Call reset() before each new sweep dt so batch
-    indices line up across iterations.
-    """
-
-    def __init__(self, dt_ref, t_ms, base_seed=42, mode="upsample"):
-        if mode not in FROZEN_MODES:
-            raise ValueError(
-                f"unknown frozen-encoder mode {mode!r}; expected one of {FROZEN_MODES}"
-            )
-        self.dt_ref = dt_ref
-        self.t_ms = t_ms
-        self.base_seed = base_seed
-        self.mode = mode
-        self.batch_idx = 0
-
-    def reset(self):
-        self.batch_idx = 0
-
-    def __call__(self, X_b, dt, use_smnist, generator=None):
-        # generator arg ignored — FrozenEncoder seeds per-batch deterministically
-        if X_b.ndim == 3:
-            # Already-spiked inputs (e.g. SHD) — passthrough; dt-transport on
-            # event-based data would need a rebinning path we haven't built yet.
-            return X_b.permute(1, 0, 2).contiguous()
-        g = torch.Generator()
-        g.manual_seed(self.base_seed + self.batch_idx)
-        self.batch_idx += 1
-
-        if self.mode == "resample":
-            if use_smnist:
-                return encode_smnist(X_b, dt, M.max_rate_hz, generator=g)
-            T_target = int(self.t_ms / dt)
-            return encode_images_poisson(X_b, T_target, dt, M.max_rate_hz, generator=g)
-
-        if use_smnist:
-            spk_ref = encode_smnist(X_b, self.dt_ref, M.max_rate_hz, generator=g)
-        else:
-            T_ref = int(self.t_ms / self.dt_ref)
-            spk_ref = encode_images_poisson(
-                X_b, T_ref, self.dt_ref, M.max_rate_hz, generator=g
-            )
-
-        if abs(dt - self.dt_ref) < 1e-9:
-            return spk_ref
-        if self.mode == "upsample":
-            return upsample_spikes_zeropad(spk_ref, self.dt_ref, dt)
-        if self.mode == "downsample":
-            return downsample_spikes_count(spk_ref, self.dt_ref, dt)
-        raise AssertionError(f"unhandled frozen-encoder mode {self.mode!r}")
 
 
 def observe_epoch(
