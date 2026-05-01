@@ -1,6 +1,6 @@
 [project]
 name = "pinglab"
-version = "0.1.0"
+version = "0.1.1"
 description = "Spiking neural networks with explicit E/I and PING dynamics, trained with surrogate gradients and diagnosed via Δt-stability."
 readme = "README.md"
 requires-python = ">=3.10"
