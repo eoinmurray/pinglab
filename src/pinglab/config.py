@@ -15,7 +15,6 @@ if _pkg_dir in sys.path:
     sys.path.remove(_pkg_dir)
 sys.path.insert(0, _pkg_dir)
 
-import dataclasses
 from dataclasses import dataclass, field
 
 import numpy as np
