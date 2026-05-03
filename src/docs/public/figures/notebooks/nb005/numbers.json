@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r008",
-  "run_datetime": "Tuesday, 28th April 26 at 07:23",
-  "duration_s": 493.7,
-  "duration": "8m 14s",
+  "notebook_run_id": "r002",
+  "run_datetime": "Saturday, 25th April 26 at 10:34",
+  "duration_s": 1478.9,
+  "duration": "24m 39s",
   "tier": "large",
   "config": {
     "tier": "large",
@@ -19,48 +19,44 @@
       "digit": 0,
       "sample": 0,
       "base_rate_hz": 50.0,
-      "w_in_mean": 0.54,
-      "w_in_std": 0.108
+      "w_in_overdrive": 1.8
     },
     "seed": 42,
     "scan": {
-      "var": "ei_strength",
-      "min": 0.0,
+      "var": "dt",
+      "min": 0.05,
       "max": 2.0,
       "frames": 300,
       "fps": 30,
-      "fixed_overdrive": 1.0,
-      "input_rate_hz": 200.0,
-      "w_in_mean": 1.8,
-      "w_in_std": 0.36
+      "fixed_overdrive": 10.0
     }
   },
   "rates_hz": {
     "pre": {
-      "e": 12.73437519557774,
-      "i": 57.18749947845936
+      "e": 6.7773438058793545,
+      "i": 0.0
     },
     "stim": {
-      "e": 10.976562043651938,
-      "i": 49.4531262665987
+      "e": 20.468749571591616,
+      "i": 54.218750447034836
     },
     "post": {
-      "e": 11.591188376769423,
-      "i": 53.0812656506896
+      "e": 5.564551684074104,
+      "i": 1.5880123828537762
     }
   },
-  "canonical_ei": 0.8,
+  "canonical_dt_ms": 0.1,
   "success_criteria": [
     {
-      "label": "ei-strength scan video rendered",
+      "label": "dt scan video rendered",
       "passed": true,
-      "detail": "scan_ei.mp4 (9442256 bytes)",
-      "detail_href": "/figures/notebooks/nb005/scan_ei.mp4"
+      "detail": "scan_dt.mp4 (7953552 bytes)",
+      "detail_href": "/figures/notebooks/nb005/scan_dt.mp4"
     },
     {
-      "label": "PING forms at canonical ei (0.8)",
+      "label": "PING forms at canonical dt (0.1 ms)",
       "passed": true,
-      "detail": "E stim=11.0 Hz, I stim=49.5 Hz"
+      "detail": "I pre=0.0 Hz \u2192 stim=54.2 Hz"
     }
   ]
 }

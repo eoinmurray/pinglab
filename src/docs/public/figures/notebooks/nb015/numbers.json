@@ -1,0 +1,79 @@
+{
+  "notebook_run_id": "r001",
+  "duration_s": 79.94357141666114,
+  "duration": "1m 19s",
+  "tier": "large",
+  "config": {
+    "dt": 0.1,
+    "t_ms": 200.0,
+    "seed": 42,
+    "max_samples": 5000,
+    "epochs": 40,
+    "dataset": "mnist"
+  },
+  "runs": {
+    "cuba": {
+      "best_acc": 88.9,
+      "final_acc": 87.6,
+      "final_loss": 0.1448377976194024,
+      "rate_e": 43.75542449951172,
+      "rate_i": 0.0,
+      "git_sha": "unknown",
+      "run_id": "r-20260503-072222"
+    },
+    "coba": {
+      "best_acc": 88.4,
+      "final_acc": 88.4,
+      "final_loss": 0.30286093428730965,
+      "rate_e": 93.73914337158203,
+      "rate_i": 0.0,
+      "git_sha": "unknown",
+      "run_id": "r-20260503-072229"
+    },
+    "ping": {
+      "best_acc": 87.4,
+      "final_acc": 86.7,
+      "final_loss": 0.32577405497431755,
+      "rate_e": 7.204860687255859,
+      "rate_i": 38.888885498046875,
+      "git_sha": "unknown",
+      "run_id": "r-20260503-072231"
+    }
+  },
+  "run_finished_at": "2026-05-03T10:39:17+00:00",
+  "seq_eval": {
+    "cuba": {
+      "per_window_acc_pct": {
+        "window_0": 25.874999999999996,
+        "window_1": 24.75,
+        "window_2": 22.25,
+        "window_3": 26.125
+      },
+      "n_trials": 800,
+      "n_windows": 4,
+      "window_ms": 50.0
+    },
+    "coba": {
+      "per_window_acc_pct": {
+        "window_0": 27.500000000000004,
+        "window_1": 28.375,
+        "window_2": 28.499999999999996,
+        "window_3": 28.625
+      },
+      "n_trials": 800,
+      "n_windows": 4,
+      "window_ms": 50.0
+    },
+    "ping": {
+      "per_window_acc_pct": {
+        "window_0": 30.625000000000004,
+        "window_1": 27.750000000000004,
+        "window_2": 31.624999999999996,
+        "window_3": 29.625
+      },
+      "n_trials": 800,
+      "n_windows": 4,
+      "window_ms": 50.0
+    }
+  }
+}

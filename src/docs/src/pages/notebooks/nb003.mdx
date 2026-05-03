@@ -1,7 +1,7 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "003 — ping input-rate video"
-date: 2026-04-27
+title: "003 — ping stim-overdrive video"
+date: 2026-04-18
 entry: 3
 structure: paper
 collections: [videos]
@@ -13,7 +13,11 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb003/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
-export const r = numbers.rates_hz?.mean ?? {};
+export const r = {
+  pre: numbers.rates_hz?.pre ?? {},
+  stim: numbers.rates_hz?.stim ?? {},
+  post: numbers.rates_hz?.post ?? {},
+};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const runDuration = numbers.duration ?? "?";
 export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?", base_rate_hz: "?" };
@@ -25,18 +29,18 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Companion to [nb002](/notebooks/nb002/). Where nb002 holds the input rate fixed and sweeps an in-window *overdrive* multiplier, this entry has **no stim window** — the Poisson input rate is flat over the whole simulation, and the sweep walks that single rate from low to high. The aim is to map PING onset as a function of constant input drive, with no transient stimulus to confound the picture.
+**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz, but only when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold scan — companion sweeps live in [nb005](/notebooks/nb005/) (integration step) and [nb006](/notebooks/nb006/) (E→I coupling strength). Single-still version of the same working point is [nb002](/notebooks/nb002/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}, with the Poisson input rate set per frame from the scan and held flat across the whole run (overdrive=1, no stim elevation). The sweep walks the rate from {scan.min} Hz → {scan.max} Hz over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb003.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
+A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb003.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
     title: "Setup",
     rows: [
       { label: "Model", value: cfg.model ?? "?" },
-      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample}` },
+      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample} @ ${input.base_rate_hz} Hz max` },
       { label: "Seed", value: cfg.seed ?? "?" },
     ],
   },
@@ -50,8 +54,8 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
   {
     title: "Stimulus & scan",
     rows: [
-      { label: "Envelope", value: `flat (no stim window, overdrive=1)` },
-      { label: "Input-rate scan", value: `${scan.min}–${scan.max} Hz` },
+      { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
+      { label: "Overdrive scan", value: `${scan.min}×–${scan.max}×` },
       { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
     ],
   },
@@ -78,30 +82,23 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure type="video" id="Figure 1" title="Input-rate sweep (scan_input_rate.mp4)" src="/figures/notebooks/nb003/scan_input_rate.mp4">
-  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The Poisson input rate is held flat across the run at the value shown on the frame. Sweep walks the rate from {scan.min} Hz → {scan.max} Hz over {scan.frames} frames.
+<Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/nb003/scan_overdrive.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
 </Figure>
+
+In Figure 1 three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
 
 ### Population rates
 
-| Population | Mean rate (Hz) |
-|---|---|
-| E | {fmtHz(r.e)} |
-| I | {fmtHz(r.i)} |
-
-Rates above are from the canonical replay at input rate = {numbers.canonical_input_rate_hz ?? "?"} Hz.
-
-## Findings
-
-Filled in once the run produces a video.
-
-## Implications
-
-Filled in once findings are written.
+| Window | E (Hz) | I (Hz) |
+|---|---|---|
+| Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
+| In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
+| Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
 
 ## Next steps
 
-Cross-reference the input-rate threshold against nb002's overdrive threshold — together they parameterise the (base, in-window) drive plane and identify whether PING onset is dominated by total drive or by stim-window contrast.
+The threshold around overdrive ≈ 1.2× is sharp on this MNIST sample but the structure depends on input statistics; a sample-averaged version (mean rate envelope across many digits) would harden the regime boundaries. With the threshold map in hand, [nb005](/notebooks/nb005/) and [nb006](/notebooks/nb006/) hold drive fixed in stable-PING territory and sweep the other two knobs (*dt*, *ei-strength*) — together the three videos pin the working-point box for every training entry downstream.
 
 ## Appendix
 

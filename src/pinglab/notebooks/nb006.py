@@ -1,10 +1,18 @@
-"""Notebook runner for entry 005 — standard-snn single-model training.
+"""Notebook runner for entry 004 — PING E→I coupling sweep.
 
-Trains the standard-snn (LIF classifier, snntorch research baseline) at
-dt=0.1 ms on MNIST and publishes training curves, hidden firing rates,
-a training video, and numbers.json. Companion to the other per-model
-runners (nb008–nb011) and to the five-model Δt-stability sweep in
-nb012.
+Sweeps the E→I coupling strength from 0 → 1 with *no* stim-window
+overdrive (input rate flat through the trial), walking the network
+from the async baseline (E and I effectively decoupled) through the
+emergence of gamma as the E→I→E feedback loop closes. Input rate and
+W_in are bumped relative to the other scans so E has enough baseline
+drive to recruit I at all. Split out from the original nb003
+basic-PING notebook; companion to nb003 (stim-overdrive) and nb005
+(dt).
+
+Also writes numbers.json with pre/stim/post E and I population rates
+from an in-Python replay at the canonical high-ei run so the MDX can
+interpolate exact values and the success-criteria check can gate on
+PING actually forming once the feedback loop is closed.
 
 Notebook entry: src/docs/src/pages/notebooks/nb006.mdx
 """
@@ -17,34 +25,177 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src" / "pinglab"))
 
-from _per_model import run, osc_base_args  # noqa: E402
+import numpy as np  # noqa: E402
+
+from _ping_scan import (  # noqa: E402
+    DATASET,
+    DIGIT_CLASS,
+    DT_MS,
+    INPUT_RATE_HZ,
+    N_HIDDEN,
+    SAMPLE_IDX,
+    SEED,
+    SIM_MS,
+    STEP_OFF_MS,
+    STEP_ON_MS,
+    ScanSpec,
+    run_scan,
+)
 
 SLUG = "nb006"
-MODEL = "standard-snn"
+EI_SCAN_INPUT_RATE_HZ = 200.0
+EI_SCAN_W_IN_MEAN = 1.8  # 6× over the default 0.3 — bigger E baseline drive
+EI_SCAN_W_IN_STD = 0.36  # 6× over the default 0.06
+EI_SCAN_MIN = 0.0
+EI_SCAN_MAX = 2.0
+CANON_EI = 0.8  # well inside the PING-on regime for the replay
 
 
-def build_osc_args(tier: str, out_dir: Path) -> list[str]:
-    # --readout mem-mean: snnTorch tutorial 5 pattern — the output layer
-    # is a spiking LIF (with hard reset) but the loss reads mean(v_out)
-    # over the trial. This gives a dense per-step gradient signal (CE on
-    # membrane every step, equivalent under linearity) that the pure
-    # spike-count readout's surrogate-gated backward couldn't provide.
-    # --surrogate-slope 1: default slope=5 × T_steps=2000 timesteps of
-    # BPTT through the LIF stack overflows fp32 in W_ff.0 / b_ff.0 grads.
-    # slope=1 keeps the surrogate pseudo-derivative ≤ 1 so the gradient
-    # stays bounded end-to-end.
-    return osc_base_args(out_dir, tier, build_as=MODEL) + [
-        "--kaiming-init",
-        "--readout",
-        "mem-mean",
-        "--surrogate-slope",
-        "1",
-        "--lr",
-        "0.01",
-        "--batch-size",
-        "256",
+def compute_summary_rates() -> dict:
+    """Replay one canonical-ei forward pass in-process with MNIST d0s0
+    spike input (flat rate, no stim-window overdrive), then extract
+    pre/stim/post E/I population rates."""
+    import torch  # noqa: E402
+    import config as C  # noqa: E402
+    import models as M  # noqa: E402
+    from config import make_net, patch_dt  # noqa: E402
+    from oscilloscope import (
+        _extract_records,
+        _load_dataset_image,
+        encode_image_spikes,
+        primary_hid_key,
+    )  # noqa: E402
+
+    C.cfg.n_e = N_HIDDEN
+    C.cfg.n_i = N_HIDDEN // 4
+    C.cfg.sim_ms = SIM_MS
+    C.cfg.step_on_ms = STEP_ON_MS
+    C.cfg.step_off_ms = STEP_OFF_MS
+    C.cfg.seed = SEED
+    s = CANON_EI
+    C.cfg.w_ei = (s, s * 0.1)
+    C.cfg.w_ie = (s * C.cfg.ei_ratio, s * C.cfg.ei_ratio * 0.1)
+    C._sync_globals_from_cfg(C.cfg)
+
+    pixel_vec, _ = _load_dataset_image(DATASET, DIGIT_CLASS, SAMPLE_IDX)
+    M.N_IN = len(pixel_vec)
+    M.N_HID = C.N_E
+    M.N_INH = C.N_I
+    M.max_rate_hz = EI_SCAN_INPUT_RATE_HZ
+    patch_dt(DT_MS)
+
+    base_rate = M.max_rate_hz
+    input_spikes = encode_image_spikes(
+        pixel_vec,
+        M.T_steps,
+        DT_MS,
+        base_rate,
+        base_rate,
+        C.STEP_ON_MS,
+        C.STEP_OFF_MS,
+        C.SEED,
+    ).to(C.DEVICE)
+
+    net = make_net(
+        C.cfg,
+        w_in=(EI_SCAN_W_IN_MEAN, EI_SCAN_W_IN_STD, "normal", C.W_IN_SPARSITY),
+        model_name="ping",
+    )
+    net.recording = True
+    with torch.no_grad():
+        net.forward(input_spikes=input_spikes)
+    rec = _extract_records(net)
+
+    spk_e = rec[primary_hid_key(rec)]
+    spk_i = rec["inh"]
+    T_steps = spk_e.shape[0]
+    t_ms = np.arange(T_steps) * DT_MS
+
+    pre = (t_ms >= 0) & (t_ms < STEP_ON_MS)
+    stim = (t_ms >= STEP_ON_MS) & (t_ms < STEP_OFF_MS)
+    post = (t_ms >= STEP_OFF_MS) & (t_ms <= SIM_MS)
+
+    def mean_rate(spk, mask):
+        return float(spk[mask].mean()) * 1000.0 / DT_MS
+
+    return {
+        "pre": {"e": mean_rate(spk_e, pre), "i": mean_rate(spk_i, pre)},
+        "stim": {"e": mean_rate(spk_e, stim), "i": mean_rate(spk_i, stim)},
+        "post": {"e": mean_rate(spk_e, post), "i": mean_rate(spk_i, post)},
+    }
+
+
+def extras(tier: str, notebook_run_id: str) -> dict:
+    rates = compute_summary_rates()
+    r = rates
+    print(
+        f"  E rate  pre={r['pre']['e']:.1f} Hz  "
+        f"stim={r['stim']['e']:.1f} Hz  post={r['post']['e']:.1f} Hz"
+    )
+    print(
+        f"  I rate  pre={r['pre']['i']:.1f} Hz  "
+        f"stim={r['stim']['i']:.1f} Hz  post={r['post']['i']:.1f} Hz"
+    )
+    return {"rates_hz": rates, "canonical_ei": CANON_EI}
+
+
+def evaluate_success(figures_dir, summary):
+    """Criteria: scan video rendered, and PING actually forms at the
+    canonical high-ei coupling (I fires across the full trial since
+    input is flat). The I-rate check mirrors nb003 / nb005 — guards
+    against a regression where the network never recruits I."""
+    video = figures_dir / "scan_ei.mp4"
+    video_ok = video.exists() and video.stat().st_size > 0
+    href = "/" + str(video.relative_to(figures_dir.parents[2])) if video_ok else None
+
+    rates = summary.get("rates_hz", {})
+    i_stim = rates.get("stim", {}).get("i", 0.0)
+    e_stim = rates.get("stim", {}).get("e", 0.0)
+    ping_formed = i_stim > 1.0 and e_stim > 1.0
+    return [
+        {
+            "label": "ei-strength scan video rendered",
+            "passed": bool(video_ok),
+            "detail": f"{video.name} ({video.stat().st_size} bytes)"
+            if video_ok
+            else f"missing {video.name}",
+            "detail_href": href,
+        },
+        {
+            "label": f"PING forms at canonical ei ({CANON_EI})",
+            "passed": bool(ping_formed),
+            "detail": f"E stim={e_stim:.1f} Hz, I stim={i_stim:.1f} Hz",
+        },
     ]
 
 
 if __name__ == "__main__":
-    run(SLUG, MODEL, build_osc_args)
+    run_scan(
+        ScanSpec(
+            slug=SLUG,
+            scan_var="ei_strength",
+            scan_min=EI_SCAN_MIN,
+            scan_max=EI_SCAN_MAX,
+            video_name="scan_ei.mp4",
+            extra_osc_args=[
+                "--input-rate",
+                str(EI_SCAN_INPUT_RATE_HZ),
+                "--w-in",
+                str(EI_SCAN_W_IN_MEAN),
+                str(EI_SCAN_W_IN_STD),
+                "--stim-overdrive",
+                "1.0",
+                "--dt",
+                str(DT_MS),
+            ],
+            config_payload={
+                "fixed_overdrive": 1.0,
+                "input_rate_hz": EI_SCAN_INPUT_RATE_HZ,
+                "w_in_mean": EI_SCAN_W_IN_MEAN,
+                "w_in_std": EI_SCAN_W_IN_STD,
+            },
+            extras_fn=extras,
+            criteria_fn=evaluate_success,
+        )
+    )
+    sys.exit(0)

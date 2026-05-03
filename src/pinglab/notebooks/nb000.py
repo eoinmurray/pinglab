@@ -3,8 +3,8 @@
 Profiling reference workload. Trains two models per run so the perf
 matrix covers both training backbones used elsewhere in the lab:
 
-  - standard-snn (CUBANet path, recipe mirrors nb006)
-  - coba         (COBANet path with ei_strength=0, recipe mirrors nb010)
+  - standard-snn (CUBANet path, recipe mirrors nb007)
+  - coba         (COBANet path with ei_strength=0, recipe mirrors nb011)
 
 Both recipes are verbatim copies of their science-owner notebooks; if
 the science changes, change it there first and mirror here. The point
@@ -34,8 +34,8 @@ MODEL = "standard-snn"
 
 
 def build_osc_args(tier: str, out_dir: Path) -> list[str]:
-    # Recipe is intentionally a verbatim copy of nb006 — see nb006.py for
-    # why each customisation is needed. nb000 must not drift from nb006;
+    # Recipe is intentionally a verbatim copy of nb007 — see nb007.py for
+    # why each customisation is needed. nb000 must not drift from nb007;
     # if the science recipe changes, change it there first and mirror.
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
         "--kaiming-init",
@@ -51,7 +51,7 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
 
 
 def build_coba_osc_args(tier: str, out_dir: Path) -> list[str]:
-    """Mirrors nb010's coba recipe verbatim. coba is dispatched via COBANet
+    """Mirrors nb011's coba recipe verbatim. coba is dispatched via COBANet
     with ei_strength=0, so this exercises the COBANet compile path next to
     standard-snn's CUBANet path — both backbones tested per nb000 run."""
     return osc_base_args(out_dir, tier, build_as="ping") + [
@@ -71,10 +71,10 @@ def build_coba_osc_args(tier: str, out_dir: Path) -> list[str]:
 def perf_criteria(figures: Path, run_dir: Path, tier: str) -> list[dict]:
     """Perf-baseline gates: confirm the workload ran end-to-end and
     populated the perf block. Deliberately permissive on the science
-    side — nb000 inherits nb006's recipe at every tier (incl. ones the
+    side — nb000 inherits nb007's recipe at every tier (incl. ones the
     science is not calibrated for), so failing on rate-band overshoot
     or low accuracy at small/medium would just be noise. Science gates
-    live in nb006."""
+    live in nb007."""
     crits: list[dict] = []
     figs_root = figures.parents[2]
 

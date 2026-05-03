@@ -1,185 +1,300 @@
-"""Notebook runner for entry 002 — PING stim-overdrive video.
+"""Notebook runner for entry 001 — scope-frame.
 
-Sweeps the Poisson-input overdrive factor (in-window rate multiplier)
-from 1× → 10× while everything else is held fixed, and produces the
-canonical *scan_overdrive.mp4* frame-by-frame video. Input is MNIST
-digit 0 sample 0. Companion dt and ei-strength scans live in nb004
-and nb005 respectively.
+Renders a single SCOPE_FRAME (see src/pinglab/plot.py) for aesthetic
+iteration. No sweep, no video — one forward pass at a canonical working
+point, saved as a PNG plus a stamped copy into the entry's figures dir.
 
-Also writes numbers.json with pre/stim/post E and I population rates
-from an in-Python replay of the canonical overdrive=5× run so the MDX
-can interpolate exact values.
+Invokes `oscilloscope.py image` once with MNIST d0 s0, ping model, at the
+same working point that lights up PING in nb003 (overdrive 5×, w_in 1.8×),
+then copies the produced snapshot.png into the figures dir with the
+notebook_run_id stamped in the corner.
 
 Notebook entry: src/docs/src/pages/notebooks/nb002.mdx
 """
 
 from __future__ import annotations
 
+import json
+import shutil
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
+import sh
+
 REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO / "src" / "pinglab"))
+PINGLAB = REPO / "src" / "pinglab"
+sys.path.insert(0, str(PINGLAB))
 
-import numpy as np  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 
-from _ping_scan import (  # noqa: E402
-    DATASET,
-    DIGIT_CLASS,
-    DT_MS,
-    INPUT_RATE_HZ,
-    N_HIDDEN,
-    SAMPLE_IDX,
-    SEED,
-    SIM_MS,
-    STEP_OFF_MS,
-    STEP_ON_MS,
-    W_IN_MEAN,
-    W_IN_STD,
-    ScanSpec,
-    run_scan,
-)
+from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
+from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from _tier import parse_tier  # noqa: E402
 
 SLUG = "nb002"
-SCAN_MIN = 1.0  # overdrive=1 → no elevation (control)
-SCAN_MAX = 10.0  # overdrive=10 → strong elevation
-CANON_OVERDRIVE = 5.0  # canonical in-window rate multiplier for the replay
+ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
+FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+OSCILLOSCOPE = PINGLAB / "oscilloscope/__main__.py"
+
+# ── Frame config — matches nb003's canonical PING working point ──────────
+SEED = 42
+DEFAULT_TIER = "extra small"  # single forward pass — no sweep cost
+TIER_CHOICES = ["extra small", "small", "medium", "large", "extra large"]
+TIER = DEFAULT_TIER  # overridable via --tier <name>; label only
+N_HIDDEN = 512
+DT_MS = 0.1
+SIM_MS = 600.0
+STEP_ON_MS = 200.0
+STEP_OFF_MS = 300.0
+STIM_OVERDRIVE = 1.0
+INPUT_RATE_HZ = 100.0
+W_IN_MEAN = 0.9  # 3× over the default 0.3 — pushes net firmly into PING
+W_IN_STD = 0.18  # 3× over the default 0.06
+EI_STRENGTH = 1.0
+DATASET = "mnist"
+DIGIT_CLASS = 0
+SAMPLE_IDX = 0
 
 
-def compute_summary_rates() -> dict:
-    """Replay one canonical-overdrive forward pass in-process with MNIST
-    d0s0 spike input, then extract pre/stim/post E/I population rates."""
-    import torch  # noqa: E402
-    import config as C  # noqa: E402
-    import models as M  # noqa: E402
-    from config import make_net, patch_dt  # noqa: E402
-    from oscilloscope import (
-        _extract_records,
-        _load_dataset_image,
-        encode_image_spikes,
-        primary_hid_key,
-    )  # noqa: E402
-
-    C.cfg.n_e = N_HIDDEN
-    C.cfg.n_i = N_HIDDEN // 4
-    C.cfg.sim_ms = SIM_MS
-    C.cfg.step_on_ms = STEP_ON_MS
-    C.cfg.step_off_ms = STEP_OFF_MS
-    C.cfg.seed = SEED
-    C._sync_globals_from_cfg(C.cfg)
-
-    pixel_vec, _ = _load_dataset_image(DATASET, DIGIT_CLASS, SAMPLE_IDX)
-    M.N_IN = len(pixel_vec)
-    M.N_HID = C.N_E
-    M.N_INH = C.N_I
-    M.max_rate_hz = INPUT_RATE_HZ
-    patch_dt(DT_MS)
-
-    base_rate = M.max_rate_hz
-    stim_rate = base_rate * CANON_OVERDRIVE
-    input_spikes = encode_image_spikes(
-        pixel_vec,
-        M.T_steps,
-        DT_MS,
-        base_rate,
-        stim_rate,
-        C.STEP_ON_MS,
-        C.STEP_OFF_MS,
-        C.SEED,
-    ).to(C.DEVICE)
-
-    net = make_net(
-        C.cfg, w_in=(W_IN_MEAN, W_IN_STD, "normal", C.W_IN_SPARSITY), model_name="ping"
+def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
+    fig = plt.figure(figsize=(2.8, 0.28), dpi=150)
+    fig.patch.set_alpha(0.0)
+    fig.text(
+        0.97,
+        0.5,
+        notebook_run_id,
+        ha="right",
+        va="center",
+        fontsize=10,
+        color="white",
+        family="monospace",
+        bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"),
     )
-    net.recording = True
-    with torch.no_grad():
-        net.forward(input_spikes=input_spikes)
-    rec = _extract_records(net)
-
-    spk_e = rec[primary_hid_key(rec)]
-    spk_i = rec["inh"]
-    T_steps = spk_e.shape[0]
-    t_ms = np.arange(T_steps) * DT_MS
-
-    pre = (t_ms >= 0) & (t_ms < STEP_ON_MS)
-    stim = (t_ms >= STEP_ON_MS) & (t_ms < STEP_OFF_MS)
-    post = (t_ms >= STEP_OFF_MS) & (t_ms <= SIM_MS)
-
-    def mean_rate(spk, mask):
-        return float(spk[mask].mean()) * 1000.0 / DT_MS
-
-    return {
-        "pre": {"e": mean_rate(spk_e, pre), "i": mean_rate(spk_i, pre)},
-        "stim": {"e": mean_rate(spk_e, stim), "i": mean_rate(spk_i, stim)},
-        "post": {"e": mean_rate(spk_e, post), "i": mean_rate(spk_i, post)},
-        "base_rate_hz": float(base_rate),
-        "stim_rate_hz": float(stim_rate),
-    }
+    stamp_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(stamp_path, transparent=True, bbox_inches="tight", pad_inches=0.02)
+    plt.close(fig)
 
 
-def extras(tier: str, notebook_run_id: str) -> dict:
-    rates = compute_summary_rates()
-    r = rates
+def _overlay_stamp_image(src: Path, dst: Path, stamp: Path) -> None:
+    """Copy src→dst, overlaying the notebook_run_id PNG in the bottom-right."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    sh.ffmpeg(
+        "-y",
+        "-i",
+        str(src),
+        "-i",
+        str(stamp),
+        "-filter_complex",
+        "[0:v][1:v]overlay=W-w-10:H-h-10",
+        "-frames:v",
+        "1",
+        str(dst),
+        _out=sys.stdout,
+        _err=sys.stderr,
+    )
+    print(f"wrote {dst.relative_to(REPO)}")
+
+
+def render_frame(out_dir: Path, modal_gpu: str | None = None) -> Path:
+    """One forward pass, one SCOPE_FRAME rendered to snapshot.png."""
     print(
-        f"  E rate  pre={r['pre']['e']:.1f} Hz  "
-        f"stim={r['stim']['e']:.1f} Hz  post={r['post']['e']:.1f} Hz"
+        f"[frame] → {out_dir.relative_to(REPO)}"
+        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
     )
-    print(
-        f"  I rate  pre={r['pre']['i']:.1f} Hz  "
-        f"stim={r['stim']['i']:.1f} Hz  post={r['post']['i']:.1f} Hz"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    args = [
+        "run",
+        "python",
+        str(OSCILLOSCOPE),
+        "image",
+        "--model",
+        "ping",
+        "--n-hidden",
+        str(N_HIDDEN),
+        "--input",
+        "dataset",
+        "--dataset",
+        DATASET,
+        "--digit",
+        str(DIGIT_CLASS),
+        "--sample",
+        str(SAMPLE_IDX),
+        "--input-rate",
+        str(INPUT_RATE_HZ),
+        "--w-in",
+        str(W_IN_MEAN),
+        str(W_IN_STD),
+        "--stim-overdrive",
+        str(STIM_OVERDRIVE),
+        "--ei-strength",
+        str(EI_STRENGTH),
+        "--dt",
+        str(DT_MS),
+        "--t-ms",
+        str(SIM_MS),
+        "--out-dir",
+        str(out_dir),
+        "--wipe-dir",
+    ]
+    args = append_modal_args(args, modal_gpu)
+    sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
+    png = out_dir / "snapshot.png"
+    if not png.exists():
+        raise SystemExit(f"image run did not produce {png}")
+    return png
+
+
+def _format_run_datetime(dt: datetime) -> str:
+    day = dt.day
+    suffix = (
+        "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
     )
-    return {"rates_hz": rates, "canonical_overdrive": CANON_OVERDRIVE}
+    return dt.strftime(f"%A, {day}{suffix} %B %y at %H:%M")
 
 
-def evaluate_success(figures_dir, summary):
-    """Criteria: scan video rendered, and PING actually forms at the
-    canonical overdrive (I fires during the stim window). The I-stim check
-    guards against the --t-ms regression where the stim window never fires
-    and every frame lands in flat baseline."""
-    video = figures_dir / "scan_overdrive.mp4"
-    video_ok = video.exists() and video.stat().st_size > 0
-    href = "/" + str(video.relative_to(figures_dir.parents[2])) if video_ok else None
+def _format_duration(seconds: float) -> str:
+    s = int(round(seconds))
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60:02d}s"
+    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
 
-    rates = summary.get("rates_hz", {})
-    i_stim = rates.get("stim", {}).get("i", 0.0)
-    i_pre = rates.get("pre", {}).get("i", 0.0)
-    ping_formed = i_stim > 1.0 and i_stim > i_pre
+
+def evaluate_success(figures_dir: Path) -> list[dict]:
+    """Check that the publishable artifact actually landed. Pattern: each
+    criterion is {label, passed, detail, detail_href?}. detail_href is an
+    optional site-relative URL the MDX renders the detail text as a link to."""
+    frame = figures_dir / "scope_frame.png"
+    exists = frame.exists() and frame.stat().st_size > 0
+    # figures live under src/docs/public/, which Astro serves at the site root.
+    href = "/" + str(frame.relative_to(figures_dir.parents[2]))
     return [
         {
-            "label": "overdrive scan video rendered",
-            "passed": bool(video_ok),
-            "detail": f"{video.name} ({video.stat().st_size} bytes)"
-            if video_ok
-            else f"missing {video.name}",
-            "detail_href": href,
-        },
-        {
-            "label": f"PING forms at canonical overdrive ({CANON_OVERDRIVE}×)",
-            "passed": bool(ping_formed),
-            "detail": f"I pre={i_pre:.1f} Hz → stim={i_stim:.1f} Hz",
+            "label": "scope frame rendered",
+            "passed": bool(exists),
+            "detail": f"{frame.name} ({frame.stat().st_size} bytes)"
+            if exists
+            else f"missing {frame.name}",
+            "detail_href": href if exists else None,
         },
     ]
 
 
-if __name__ == "__main__":
-    run_scan(
-        ScanSpec(
-            slug=SLUG,
-            scan_var="stim-overdrive",
-            scan_min=SCAN_MIN,
-            scan_max=SCAN_MAX,
-            video_name="scan_overdrive.mp4",
-            extra_osc_args=[
-                "--input-rate",
-                str(INPUT_RATE_HZ),
-                "--w-in",
-                str(W_IN_MEAN),
-                str(W_IN_STD),
-                "--dt",
-                str(DT_MS),
-            ],
-            extras_fn=extras,
-            criteria_fn=evaluate_success,
+def write_numbers(
+    out_path: Path,
+    notebook_run_id: str,
+    duration_s: float,
+    success_criteria: list[dict],
+) -> dict:
+    summary = {
+        "notebook_run_id": notebook_run_id,
+        "run_datetime": _format_run_datetime(datetime.now().astimezone()),
+        "duration_s": round(duration_s, 1),
+        "duration": _format_duration(duration_s),
+        "success_criteria": success_criteria,
+        "config": {
+            "tier": TIER,
+            "model": "ping",
+            "n_e": N_HIDDEN,
+            "n_i": N_HIDDEN // 4,
+            "dt_ms": DT_MS,
+            "sim_ms": SIM_MS,
+            "step_on_ms": STEP_ON_MS,
+            "step_off_ms": STEP_OFF_MS,
+            "stim_overdrive": STIM_OVERDRIVE,
+            "input_rate_hz": INPUT_RATE_HZ,
+            "w_in_mean": W_IN_MEAN,
+            "w_in_std": W_IN_STD,
+            "ei_strength": EI_STRENGTH,
+            "input": {"dataset": DATASET, "digit": DIGIT_CLASS, "sample": SAMPLE_IDX},
+            "seed": SEED,
+        },
+    }
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"wrote {out_path.relative_to(REPO)}")
+    return summary
+
+
+def _print_and_gate(success_criteria: list[dict]) -> None:
+    """Print a [pass]/[FAIL] line per criterion; exit 1 if any failed."""
+    for c in success_criteria:
+        mark = "pass" if c["passed"] else "FAIL"
+        print(f"  [{mark}] {c['label']} — {c['detail']}")
+    if any(not c["passed"] for c in success_criteria):
+        sys.exit(1)
+
+
+def evaluate_only() -> None:
+    """Re-run only the success-criteria check against the existing
+    numbers.json + published figures. No pipeline dispatch, no wipe —
+    useful when only the criteria themselves have changed."""
+    numbers_path = FIGURES / "numbers.json"
+    if not numbers_path.exists():
+        raise SystemExit(
+            f"--evaluate-success-only requires existing "
+            f"{numbers_path.relative_to(REPO)}"
         )
+    summary = json.loads(numbers_path.read_text())
+    summary["success_criteria"] = evaluate_success(FIGURES)
+    numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"rewrote {numbers_path.relative_to(REPO)} (success_criteria only)")
+    _print_and_gate(summary["success_criteria"])
+
+
+def main() -> None:
+    global TIER
+    if "--evaluate-success-only" in sys.argv:
+        evaluate_only()
+        return
+    wipe_dir = "--no-wipe-dir" not in sys.argv
+    skip_training = "--skip-training" in sys.argv
+    modal_gpu = parse_modal_gpu(sys.argv)
+    TIER = parse_tier(sys.argv, choices=TIER_CHOICES, default=DEFAULT_TIER)
+
+    t_start = time.monotonic()
+    notebook_run_id = next_run_id(SLUG)
+    print(
+        f"notebook_run_id = {notebook_run_id} tier={TIER}"
+        + ("  [skip-training]" if skip_training else "")
+        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
     )
+
+    if wipe_dir:
+        wipe_targets = (FIGURES,) if skip_training else (ARTIFACTS, FIGURES)
+        for d in wipe_targets:
+            if d.exists():
+                print(f"[wipe] {d.relative_to(REPO)}")
+                shutil.rmtree(d)
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
+    FIGURES.mkdir(parents=True, exist_ok=True)
+    persist_run_id(SLUG, notebook_run_id)
+    stamp = FIGURES / "_stamp.png"
+    _render_stamp_png(notebook_run_id, stamp)
+
+    frame_dir = ARTIFACTS / "frame"
+    if skip_training:
+        frame_src = frame_dir / "snapshot.png"
+        if not frame_src.exists():
+            raise SystemExit(f"--skip-training requires existing frame at {frame_src}")
+    else:
+        frame_src = render_frame(frame_dir, modal_gpu=modal_gpu)
+    _overlay_stamp_image(frame_src, FIGURES / "scope_frame.png", stamp)
+
+    stamp.unlink(missing_ok=True)
+
+    duration_s = time.monotonic() - t_start
+    success_criteria = evaluate_success(FIGURES)
+    summary = write_numbers(
+        FIGURES / "numbers.json", notebook_run_id, duration_s, success_criteria
+    )
+    print(f"  duration: {summary['duration']}")
+    _print_and_gate(success_criteria)
+
+
+if __name__ == "__main__":
+    main()
     sys.exit(0)
