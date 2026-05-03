@@ -1,10 +1,9 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "001 — scope frame"
-date: 2026-04-18
+title: "001 — plotting style guide"
+date: 2026-05-02
 entry: 1
-structure: paper
-collections: [infrastructure]
+collections: [in-progress]
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
@@ -12,96 +11,55 @@ import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb001/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
-export const cfg = numbers.config ?? {};
-export const nbRunId = numbers.notebook_run_id ?? "?";
-export const runDatetime = numbers.run_datetime ?? "?";
-export const runDuration = numbers.duration ?? "?";
-export const imageGlob = import.meta.glob("../../../public/figures/notebooks/nb001/scope_frame.png", { eager: true, query: "?url", import: "default" });
-export const hasFrame = Object.keys(imageGlob).length > 0;
-export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-A scope frame is the canonical [oscilloscope](/docs/the-oscilloscope/) layout — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content. Sibling of the scan-video entries [nb002](/notebooks/nb002/) (drive sweep), [nb004](/notebooks/nb004/) (dt sweep) and [nb005](/notebooks/nb005/) (E→I sweep). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Pinglab notebooks pull from a small palette of chart types — line, bar, scatter, histogram with theoretical overlay, heatmap, raster. This entry generates one canonical example of each on synthetic data, so the *style* (typography, spacing, colors, axis treatment, gridlines) can be iterated on independently of the science. Whatever this page settles on becomes the brand-aligned baseline that every other notebook inherits.
 
 ## Method
 
-One forward pass via the [oscilloscope *image*](/docs/the-oscilloscope/#subcommand-image) subcommand on MNIST digit {cfg.input?.digit} sample {cfg.input?.sample}, at the working point that lights up PING in [nb002](/notebooks/nb002/). All knobs are hardcoded literals in *src/pinglab/notebooks/nb001.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
-
-<RunParameters numbers={numbers} groups={[
-  {
-    title: "Setup",
-    rows: [
-      { label: "Model", value: cfg.model ?? "?" },
-      { label: "Input", value: `${cfg.input?.dataset ?? "?"} d${cfg.input?.digit ?? "?"} s${cfg.input?.sample ?? "?"}` },
-      { label: "Seed", value: cfg.seed ?? "?" },
-    ],
-  },
-  {
-    title: "Architecture",
-    rows: [
-      { label: "N_E / N_I", value: `${cfg.n_e ?? "?"} / ${cfg.n_i ?? "?"}` },
-      { label: "dt / T", value: `${cfg.dt_ms ?? "?"} / ${cfg.sim_ms ?? "?"} ms` },
-    ],
-  },
-  {
-    title: "Stimulus",
-    rows: [
-      { label: "Window", value: `${cfg.step_on_ms ?? "?"}–${cfg.step_off_ms ?? "?"} ms` },
-      { label: "Overdrive", value: `${cfg.stim_overdrive ?? "?"}×` },
-      { label: "Input rate", value: `${cfg.input_rate_hz ?? "?"} Hz` },
-      { label: "W_in init (mean, std)", value: `${cfg.w_in_mean ?? "?"}, ${cfg.w_in_std ?? "?"}` },
-      { label: "E→I strength", value: cfg.ei_strength ?? "?" },
-    ],
-  },
-]} />
-
-Input rate is flat through the trial (no stim-window overdrive); the *W_in* init is bumped 3× over the default so E has enough baseline drive on its own to recruit I and form PING at *ei-strength* 1.0.
+Six plots, one per chart type, written with raw matplotlib defaults as the starting point. Data is synthetic and seeded so the plots are reproducible across runs. The renderer is *src/pinglab/notebooks/nb001.py*; figures land in *src/docs/public/figures/notebooks/nb001/*.
 
 ## Results
 
-### Success criteria
+<Figure id="Figure 1" title="Line — training curves" src="/figures/notebooks/nb001/line.png" alt="Two overlaid line plots showing accuracy climbing then plateauing across 40 epochs">
+  Two-series line plot with a legend. Used for training curves, sweep curves, time-series of any scalar metric. The 5-color categorical cycle handles up to ~5 distinct series before legibility falls apart.
+</Figure>
 
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
+<Figure id="Figure 2" title="Line — many series (sweep)" src="/figures/notebooks/nb001/line_many.png" alt="Twelve overlaid line plots colored by a sequential brand colormap, with a colorbar encoding learning rate">
+  When the number of series exceeds the categorical cycle (here, 12 learning rates across a sweep), drop the cycle and use the brand colormap as a sequential scale. Brightness encodes the parameter, a colorbar replaces the legend, and the visual story becomes "how does this metric vary along the swept axis" rather than "which series is which."
+</Figure>
 
-{hasFrame && (
-  <Figure id="Figure 1" title="The scope frame at the canonical working point" src="/figures/notebooks/nb001/scope_frame.png" alt="A single SCOPE_FRAME rendering">
-    The E-population raster fills the 2×2 block because rhythm is the primary observable; the I raster sits beside it at 1/4 the height, phase-offset from E to close the PING loop. Header readouts, weight histograms, input digit and spike train, output logits, PSD, and population rate flank the central raster — every panel shares the same 600 ms time axis so the network's drive, spikes, and output are read off in one glance.
-  </Figure>
-)}
+<Figure id="Figure 3" title="Bar — grouped categorical" src="/figures/notebooks/nb001/bar.png" alt="Grouped bar chart with three series across four categorical bins, dashed chance line">
+  Three-series grouped bars over four categorical positions. Used for per-window or per-condition comparisons across a small set of models.
+</Figure>
 
-### Panels
+<Figure id="Figure 4" title="Scatter — two continuous variables" src="/figures/notebooks/nb001/scatter.png" alt="Scatter plot with size-encoded points showing a linear correlation">
+  Scatter with a third variable encoded by marker size. Used for correlations, latency-vs-accuracy, rate-vs-accuracy.
+</Figure>
 
-- **Header** — model name, integration step, population size, input rate on the top row; live readouts (E/I firing rates, fundamental frequency f₀, population CV, I/E ratio, active-neuron fraction) on the second row.
-- **E Neurons** — raster of excitatory-population spike times over the full simulation window. The dominant 2×2 block of the figure because rhythm is the thing we're measuring.
-- **Input** — the MNIST digit being shown to the network, rendered at native pixel resolution.
-- **Weights** — histograms of every weight matrix the model owns (*In*, *Out*, *E→E*, *E→I*, *I→E*). Lets you see at a glance whether a matrix has collapsed, saturated, or drifted out of scale.
-- **Input Spikes** — raster of the Poisson-encoded spike train hitting the network. A dense band during the 200–300 ms stimulus window corresponds to the pixel intensities of the digit.
-- **I Neurons** — raster of inhibitory-population spike times, same axes as the E raster. The I population is 1/4 the size of E and fires on an offset phase from E, producing the gamma rhythm.
-- **Output (logits)** — horizontal bar chart of the 10 class logits at the final timestep. The predicted class (argmax) is filled red; the rest are outlined.
-- **PSD** — power spectral density of the E-population rate, restricted to 5–200 Hz. The red vertical marker is the gamma peak frequency f₀.
-- **E Population Rate** — binned firing-rate trace of the E population over time (2 ms bins). The envelope that the PSD is computed from.
+<Figure id="Figure 5" title="Histogram — data + theoretical overlay" src="/figures/notebooks/nb001/histogram.png" alt="Histogram of speeds with a smooth theoretical curve overlaid">
+  Histogram with the analytical reference curve overlaid. Used whenever a measured distribution should be compared to its equilibrium shape (Maxwell–Boltzmann, Poisson, exponential ISI, etc.).
+</Figure>
+
+<Figure id="Figure 6" title="Heatmap — 2D parameter sweep" src="/figures/notebooks/nb001/heatmap.png" alt="Color-coded matrix showing accuracy across train-dt and eval-dt combinations">
+  Heatmap of a scalar over two parameter axes, with a colorbar. Used for dt-stability matrices, hyperparameter sweeps, confusion-style summaries.
+</Figure>
+
+<Figure id="Figure 7" title="Raster — spike trains" src="/figures/notebooks/nb001/raster.png" alt="Sparse scatter raster of spike events across 200 neurons over 1 second">
+  Scatter raster of spike events over time. Used for input encoders, hidden-layer responses, every dynamics-level visualisation across the codebase.
+</Figure>
+
+## Discussion
+
+*Iterate on style here.*
 
 ## Next steps
 
-The frame is the layout reference for every scan video downstream — any panel rearrangement should be made here first and then propagated. The training entries ([nb006](/notebooks/nb006/)–[nb011](/notebooks/nb011/), [nb012](/notebooks/nb012/)) reuse the same panel skeleton at lower density, so changes that affect spike rasters or the PSD axes need to be checked against those too.
+- Settle on a unified theme (palette, font, gridline rules, axis treatment) and codify it in *src/pinglab/theme.py*.
+- Re-render at least one notebook entry's figures using the new theme to confirm the rules transfer.
 
 ## Appendix
 
@@ -110,3 +68,7 @@ The frame is the layout reference for every scan video downstream — any panel 
 ```
 uv run src/pinglab/notebooks/nb001.py
 ```
+
+### Run parameters
+
+<RunParameters numbers={numbers} />

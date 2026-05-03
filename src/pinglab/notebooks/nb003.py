@@ -1,15 +1,14 @@
-"""Notebook runner for entry 003 — PING input-rate video.
+"""Notebook runner for entry 002 — PING stim-overdrive video.
 
-Sweeps the Poisson input rate (max per-pixel rate, applied uniformly
-over the whole sim — no stim window, no overdrive) from 25 Hz → 1000 Hz
-with everything else held fixed, and produces the *scan_input_rate.mp4*
-frame-by-frame video. Companion to nb002 which sweeps the in-window
-overdrive factor at fixed base rate; this entry walks the absolute drive
-itself with a flat envelope. Input is MNIST digit 0 sample 0.
+Sweeps the Poisson-input overdrive factor (in-window rate multiplier)
+from 1× → 10× while everything else is held fixed, and produces the
+canonical *scan_overdrive.mp4* frame-by-frame video. Input is MNIST
+digit 0 sample 0. Companion dt and ei-strength scans live in nb005
+and nb006 respectively.
 
-Also writes numbers.json with mean E and I population rates from an
-in-Python replay of the canonical input-rate run so the MDX can
-interpolate exact values.
+Also writes numbers.json with pre/stim/post E and I population rates
+from an in-Python replay of the canonical overdrive=5× run so the MDX
+can interpolate exact values.
 
 Notebook entry: src/docs/src/pages/notebooks/nb003.mdx
 """
@@ -22,10 +21,13 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src" / "pinglab"))
 
+import numpy as np  # noqa: E402
+
 from _ping_scan import (  # noqa: E402
     DATASET,
     DIGIT_CLASS,
     DT_MS,
+    INPUT_RATE_HZ,
     N_HIDDEN,
     SAMPLE_IDX,
     SEED,
@@ -39,16 +41,14 @@ from _ping_scan import (  # noqa: E402
 )
 
 SLUG = "nb003"
-SCAN_MIN = 25.0  # 25 Hz → barely-driven control
-SCAN_MAX = 1000.0  # 1 kHz → strong drive
-CANON_INPUT_RATE = (
-    250.0  # canonical input rate for the replay (suprathreshold for flat envelope)
-)
+SCAN_MIN = 1.0  # overdrive=1 → no elevation (control)
+SCAN_MAX = 10.0  # overdrive=10 → strong elevation
+CANON_OVERDRIVE = 5.0  # canonical in-window rate multiplier for the replay
 
 
 def compute_summary_rates() -> dict:
-    """Replay one canonical-input-rate forward pass in-process with MNIST
-    d0s0 spike input, then extract mean E/I population rates."""
+    """Replay one canonical-overdrive forward pass in-process with MNIST
+    d0s0 spike input, then extract pre/stim/post E/I population rates."""
     import torch  # noqa: E402
     import config as C  # noqa: E402
     import models as M  # noqa: E402
@@ -72,16 +72,17 @@ def compute_summary_rates() -> dict:
     M.N_IN = len(pixel_vec)
     M.N_HID = C.N_E
     M.N_INH = C.N_I
-    M.max_rate_hz = CANON_INPUT_RATE
+    M.max_rate_hz = INPUT_RATE_HZ
     patch_dt(DT_MS)
 
-    rate = M.max_rate_hz
+    base_rate = M.max_rate_hz
+    stim_rate = base_rate * CANON_OVERDRIVE
     input_spikes = encode_image_spikes(
         pixel_vec,
         M.T_steps,
         DT_MS,
-        rate,
-        rate,
+        base_rate,
+        stim_rate,
         C.STEP_ON_MS,
         C.STEP_OFF_MS,
         C.SEED,
@@ -97,39 +98,55 @@ def compute_summary_rates() -> dict:
 
     spk_e = rec[primary_hid_key(rec)]
     spk_i = rec["inh"]
+    T_steps = spk_e.shape[0]
+    t_ms = np.arange(T_steps) * DT_MS
 
-    def mean_rate(spk):
-        return float(spk.mean()) * 1000.0 / DT_MS
+    pre = (t_ms >= 0) & (t_ms < STEP_ON_MS)
+    stim = (t_ms >= STEP_ON_MS) & (t_ms < STEP_OFF_MS)
+    post = (t_ms >= STEP_OFF_MS) & (t_ms <= SIM_MS)
+
+    def mean_rate(spk, mask):
+        return float(spk[mask].mean()) * 1000.0 / DT_MS
 
     return {
-        "mean": {"e": mean_rate(spk_e), "i": mean_rate(spk_i)},
-        "input_rate_hz": float(rate),
+        "pre": {"e": mean_rate(spk_e, pre), "i": mean_rate(spk_i, pre)},
+        "stim": {"e": mean_rate(spk_e, stim), "i": mean_rate(spk_i, stim)},
+        "post": {"e": mean_rate(spk_e, post), "i": mean_rate(spk_i, post)},
+        "base_rate_hz": float(base_rate),
+        "stim_rate_hz": float(stim_rate),
     }
 
 
 def extras(tier: str, notebook_run_id: str) -> dict:
     rates = compute_summary_rates()
-    print(f"  mean rate  E={rates['mean']['e']:.1f} Hz  I={rates['mean']['i']:.1f} Hz")
-    return {
-        "rates_hz": rates,
-        "canonical_input_rate_hz": CANON_INPUT_RATE,
-    }
+    r = rates
+    print(
+        f"  E rate  pre={r['pre']['e']:.1f} Hz  "
+        f"stim={r['stim']['e']:.1f} Hz  post={r['post']['e']:.1f} Hz"
+    )
+    print(
+        f"  I rate  pre={r['pre']['i']:.1f} Hz  "
+        f"stim={r['stim']['i']:.1f} Hz  post={r['post']['i']:.1f} Hz"
+    )
+    return {"rates_hz": rates, "canonical_overdrive": CANON_OVERDRIVE}
 
 
 def evaluate_success(figures_dir, summary):
     """Criteria: scan video rendered, and PING actually forms at the
-    canonical input rate (E and I both fire over the run)."""
-    video = figures_dir / "scan_input_rate.mp4"
+    canonical overdrive (I fires during the stim window). The I-stim check
+    guards against the --t-ms regression where the stim window never fires
+    and every frame lands in flat baseline."""
+    video = figures_dir / "scan_overdrive.mp4"
     video_ok = video.exists() and video.stat().st_size > 0
     href = "/" + str(video.relative_to(figures_dir.parents[2])) if video_ok else None
 
     rates = summary.get("rates_hz", {})
-    i_mean = rates.get("mean", {}).get("i", 0.0)
-    e_mean = rates.get("mean", {}).get("e", 0.0)
-    ping_formed = i_mean > 1.0 and e_mean > 0.0
+    i_stim = rates.get("stim", {}).get("i", 0.0)
+    i_pre = rates.get("pre", {}).get("i", 0.0)
+    ping_formed = i_stim > 1.0 and i_stim > i_pre
     return [
         {
-            "label": "input-rate scan video rendered",
+            "label": "overdrive scan video rendered",
             "passed": bool(video_ok),
             "detail": f"{video.name} ({video.stat().st_size} bytes)"
             if video_ok
@@ -137,9 +154,9 @@ def evaluate_success(figures_dir, summary):
             "detail_href": href,
         },
         {
-            "label": f"PING forms at canonical input rate ({CANON_INPUT_RATE:.0f} Hz)",
+            "label": f"PING forms at canonical overdrive ({CANON_OVERDRIVE}×)",
             "passed": bool(ping_formed),
-            "detail": f"E={e_mean:.1f} Hz, I={i_mean:.1f} Hz",
+            "detail": f"I pre={i_pre:.1f} Hz → stim={i_stim:.1f} Hz",
         },
     ]
 
@@ -148,13 +165,13 @@ if __name__ == "__main__":
     run_scan(
         ScanSpec(
             slug=SLUG,
-            scan_var="spike_rate",
+            scan_var="stim-overdrive",
             scan_min=SCAN_MIN,
             scan_max=SCAN_MAX,
-            video_name="scan_input_rate.mp4",
+            video_name="scan_overdrive.mp4",
             extra_osc_args=[
-                "--stim-overdrive",
-                "1.0",
+                "--input-rate",
+                str(INPUT_RATE_HZ),
                 "--w-in",
                 str(W_IN_MEAN),
                 str(W_IN_STD),

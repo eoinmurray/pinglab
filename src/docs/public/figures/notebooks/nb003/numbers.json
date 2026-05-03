@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r014",
-  "run_datetime": "Tuesday, 28th April 26 at 06:56",
-  "duration_s": 486.8,
-  "duration": "8m 07s",
+  "notebook_run_id": "r013",
+  "run_datetime": "Saturday, 25th April 26 at 01:04",
+  "duration_s": 2263.4,
+  "duration": "37m 43s",
   "tier": "large",
   "config": {
     "tier": "large",
@@ -19,37 +19,45 @@
       "digit": 0,
       "sample": 0,
       "base_rate_hz": 50.0,
-      "w_in_mean": 0.54,
-      "w_in_std": 0.108
+      "w_in_overdrive": 1.8
     },
     "seed": 42,
     "scan": {
-      "var": "spike_rate",
-      "min": 25.0,
-      "max": 1000.0,
+      "var": "stim-overdrive",
+      "min": 1.0,
+      "max": 10.0,
       "frames": 300,
       "fps": 30
     }
   },
   "rates_hz": {
-    "mean": {
-      "e": 12.222656514495611,
-      "i": 27.992187533527613
+    "pre": {
+      "e": 6.7773438058793545,
+      "i": 0.0
     },
-    "input_rate_hz": 250.0
+    "stim": {
+      "e": 15.507813077419996,
+      "i": 35.468749701976776
+    },
+    "post": {
+      "e": 5.629633669741452,
+      "i": 0.0
+    },
+    "base_rate_hz": 50.0,
+    "stim_rate_hz": 250.0
   },
-  "canonical_input_rate_hz": 250.0,
+  "canonical_overdrive": 5.0,
   "success_criteria": [
     {
-      "label": "input-rate scan video rendered",
+      "label": "overdrive scan video rendered",
       "passed": true,
-      "detail": "scan_input_rate.mp4 (9185069 bytes)",
-      "detail_href": "/figures/notebooks/nb003/scan_input_rate.mp4"
+      "detail": "scan_overdrive.mp4 (3125171 bytes)",
+      "detail_href": "/figures/notebooks/nb003/scan_overdrive.mp4"
     },
     {
-      "label": "PING forms at canonical input rate (250 Hz)",
+      "label": "PING forms at canonical overdrive (5.0\u00d7)",
       "passed": true,
-      "detail": "E=12.2 Hz, I=28.0 Hz"
+      "detail": "I pre=0.0 Hz \u2192 stim=35.5 Hz"
     }
   ]
 }

@@ -1,10 +1,10 @@
-"""Notebook runner for entry 007 — cuba single-model training.
+"""Notebook runner for entry 006 — snntorch-library single-model training.
 
-Trains the cuba model (current-based synapses, exp-Euler + ZOH integration
-keeping dt explicit in the update) on MNIST at dt=0.1 ms and publishes
-training curves, hidden firing rates, a training video, and numbers.json.
-Companion to the other per-model runners (nb006, nb008, nb010, nb011) and
-to the five-model Δt-stability sweep in nb012.
+Trains the snntorch-library model (external snnTorch reference path) at
+dt=0.1 ms on MNIST and publishes training curves, hidden firing rates,
+a training video, and numbers.json. Companion to the other per-model
+runners (nb007, nb010–nb012) and to the five-model Δt-stability sweep
+in nb013.
 
 Notebook entry: src/docs/src/pages/notebooks/nb009.mdx
 """
@@ -20,11 +20,15 @@ sys.path.insert(0, str(REPO / "src" / "pinglab"))
 from _per_model import run, osc_base_args  # noqa: E402
 
 SLUG = "nb009"
-MODEL = "cuba"
+MODEL = "snntorch-library"
 
 
 def build_osc_args(tier: str, out_dir: Path) -> list[str]:
-    # mem-mean readout + slope=1 — same rationale as nb006.
+    # --readout mem-mean: snnTorch tutorial 5 pattern (output spiking LIF
+    # with mean(v_out) loss). Dense per-step gradient signal vs the
+    # surrogate-gated spike-count alternative.
+    # --surrogate-slope 1: bounds fast-sigmoid pseudo-derivative through
+    # 2000 BPTT steps; slope=5 overflows fp32 in W_ff.0 grads.
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
         "--kaiming-init",
         "--readout",
@@ -32,7 +36,7 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
         "--surrogate-slope",
         "1",
         "--lr",
-        "0.04",
+        "0.01",
         "--batch-size",
         "256",
     ]

@@ -1,18 +1,15 @@
-"""Notebook runner for entry 004 — PING E→I coupling sweep.
+"""Notebook runner for entry 003 — PING integration-step sweep.
 
-Sweeps the E→I coupling strength from 0 → 1 with *no* stim-window
-overdrive (input rate flat through the trial), walking the network
-from the async baseline (E and I effectively decoupled) through the
-emergence of gamma as the E→I→E feedback loop closes. Input rate and
-W_in are bumped relative to the other scans so E has enough baseline
-drive to recruit I at all. Split out from the original nb002
-basic-PING notebook; companion to nb002 (stim-overdrive) and nb004
-(dt).
+Sweeps the integration timestep *dt* from 0.05 → 2 ms with the input
+overdrive held well past the PING threshold (fixed 10×), isolating dt
+as the only knob that can break the rhythm. Fine dt is stable; coarse
+dt distorts or saturates. Split out from the original nb003 basic-PING
+notebook; companion to nb003 (stim-overdrive) and nb006 (ei-strength).
 
 Also writes numbers.json with pre/stim/post E and I population rates
-from an in-Python replay at the canonical high-ei run so the MDX can
+from an in-Python replay at the canonical fine dt so the MDX can
 interpolate exact values and the success-criteria check can gate on
-PING actually forming once the feedback loop is closed.
+PING actually forming at fine dt.
 
 Notebook entry: src/docs/src/pages/notebooks/nb005.mdx
 """
@@ -30,7 +27,6 @@ import numpy as np  # noqa: E402
 from _ping_scan import (  # noqa: E402
     DATASET,
     DIGIT_CLASS,
-    DT_MS,
     INPUT_RATE_HZ,
     N_HIDDEN,
     SAMPLE_IDX,
@@ -38,23 +34,22 @@ from _ping_scan import (  # noqa: E402
     SIM_MS,
     STEP_OFF_MS,
     STEP_ON_MS,
+    W_IN_MEAN,
+    W_IN_STD,
     ScanSpec,
     run_scan,
 )
 
 SLUG = "nb005"
-EI_SCAN_INPUT_RATE_HZ = 200.0
-EI_SCAN_W_IN_MEAN = 1.8  # 6× over the default 0.3 — bigger E baseline drive
-EI_SCAN_W_IN_STD = 0.36  # 6× over the default 0.06
-EI_SCAN_MIN = 0.0
-EI_SCAN_MAX = 2.0
-CANON_EI = 0.8  # well inside the PING-on regime for the replay
+DT_SCAN_OVERDRIVE = 10.0  # pinned above PING threshold so dt is the only variable
+DT_SCAN_MIN = 0.05
+DT_SCAN_MAX = 2.0
+CANON_DT_MS = 0.1  # canonical fine dt for the replay — well inside stable band
 
 
 def compute_summary_rates() -> dict:
-    """Replay one canonical-ei forward pass in-process with MNIST d0s0
-    spike input (flat rate, no stim-window overdrive), then extract
-    pre/stim/post E/I population rates."""
+    """Replay one canonical-dt forward pass in-process with MNIST d0s0
+    spike input, then extract pre/stim/post E/I population rates."""
     import torch  # noqa: E402
     import config as C  # noqa: E402
     import models as M  # noqa: E402
@@ -72,34 +67,30 @@ def compute_summary_rates() -> dict:
     C.cfg.step_on_ms = STEP_ON_MS
     C.cfg.step_off_ms = STEP_OFF_MS
     C.cfg.seed = SEED
-    s = CANON_EI
-    C.cfg.w_ei = (s, s * 0.1)
-    C.cfg.w_ie = (s * C.cfg.ei_ratio, s * C.cfg.ei_ratio * 0.1)
     C._sync_globals_from_cfg(C.cfg)
 
     pixel_vec, _ = _load_dataset_image(DATASET, DIGIT_CLASS, SAMPLE_IDX)
     M.N_IN = len(pixel_vec)
     M.N_HID = C.N_E
     M.N_INH = C.N_I
-    M.max_rate_hz = EI_SCAN_INPUT_RATE_HZ
-    patch_dt(DT_MS)
+    M.max_rate_hz = INPUT_RATE_HZ
+    patch_dt(CANON_DT_MS)
 
     base_rate = M.max_rate_hz
+    stim_rate = base_rate * DT_SCAN_OVERDRIVE
     input_spikes = encode_image_spikes(
         pixel_vec,
         M.T_steps,
-        DT_MS,
+        CANON_DT_MS,
         base_rate,
-        base_rate,
+        stim_rate,
         C.STEP_ON_MS,
         C.STEP_OFF_MS,
         C.SEED,
     ).to(C.DEVICE)
 
     net = make_net(
-        C.cfg,
-        w_in=(EI_SCAN_W_IN_MEAN, EI_SCAN_W_IN_STD, "normal", C.W_IN_SPARSITY),
-        model_name="ping",
+        C.cfg, w_in=(W_IN_MEAN, W_IN_STD, "normal", C.W_IN_SPARSITY), model_name="ping"
     )
     net.recording = True
     with torch.no_grad():
@@ -109,14 +100,14 @@ def compute_summary_rates() -> dict:
     spk_e = rec[primary_hid_key(rec)]
     spk_i = rec["inh"]
     T_steps = spk_e.shape[0]
-    t_ms = np.arange(T_steps) * DT_MS
+    t_ms = np.arange(T_steps) * CANON_DT_MS
 
     pre = (t_ms >= 0) & (t_ms < STEP_ON_MS)
     stim = (t_ms >= STEP_ON_MS) & (t_ms < STEP_OFF_MS)
     post = (t_ms >= STEP_OFF_MS) & (t_ms <= SIM_MS)
 
     def mean_rate(spk, mask):
-        return float(spk[mask].mean()) * 1000.0 / DT_MS
+        return float(spk[mask].mean()) * 1000.0 / CANON_DT_MS
 
     return {
         "pre": {"e": mean_rate(spk_e, pre), "i": mean_rate(spk_i, pre)},
@@ -136,25 +127,25 @@ def extras(tier: str, notebook_run_id: str) -> dict:
         f"  I rate  pre={r['pre']['i']:.1f} Hz  "
         f"stim={r['stim']['i']:.1f} Hz  post={r['post']['i']:.1f} Hz"
     )
-    return {"rates_hz": rates, "canonical_ei": CANON_EI}
+    return {"rates_hz": rates, "canonical_dt_ms": CANON_DT_MS}
 
 
 def evaluate_success(figures_dir, summary):
     """Criteria: scan video rendered, and PING actually forms at the
-    canonical high-ei coupling (I fires across the full trial since
-    input is flat). The I-rate check mirrors nb002 / nb004 — guards
-    against a regression where the network never recruits I."""
-    video = figures_dir / "scan_ei.mp4"
+    canonical fine dt (I fires during the stim window). The I-stim check
+    mirrors nb003 — guards against a regression where the stim window
+    never fires and every frame lands in flat baseline."""
+    video = figures_dir / "scan_dt.mp4"
     video_ok = video.exists() and video.stat().st_size > 0
     href = "/" + str(video.relative_to(figures_dir.parents[2])) if video_ok else None
 
     rates = summary.get("rates_hz", {})
     i_stim = rates.get("stim", {}).get("i", 0.0)
-    e_stim = rates.get("stim", {}).get("e", 0.0)
-    ping_formed = i_stim > 1.0 and e_stim > 1.0
+    i_pre = rates.get("pre", {}).get("i", 0.0)
+    ping_formed = i_stim > 1.0 and i_stim > i_pre
     return [
         {
-            "label": "ei-strength scan video rendered",
+            "label": "dt scan video rendered",
             "passed": bool(video_ok),
             "detail": f"{video.name} ({video.stat().st_size} bytes)"
             if video_ok
@@ -162,9 +153,9 @@ def evaluate_success(figures_dir, summary):
             "detail_href": href,
         },
         {
-            "label": f"PING forms at canonical ei ({CANON_EI})",
+            "label": f"PING forms at canonical dt ({CANON_DT_MS} ms)",
             "passed": bool(ping_formed),
-            "detail": f"E stim={e_stim:.1f} Hz, I stim={i_stim:.1f} Hz",
+            "detail": f"I pre={i_pre:.1f} Hz → stim={i_stim:.1f} Hz",
         },
     ]
 
@@ -173,27 +164,20 @@ if __name__ == "__main__":
     run_scan(
         ScanSpec(
             slug=SLUG,
-            scan_var="ei_strength",
-            scan_min=EI_SCAN_MIN,
-            scan_max=EI_SCAN_MAX,
-            video_name="scan_ei.mp4",
+            scan_var="dt",
+            scan_min=DT_SCAN_MIN,
+            scan_max=DT_SCAN_MAX,
+            video_name="scan_dt.mp4",
             extra_osc_args=[
                 "--input-rate",
-                str(EI_SCAN_INPUT_RATE_HZ),
+                str(INPUT_RATE_HZ),
                 "--w-in",
-                str(EI_SCAN_W_IN_MEAN),
-                str(EI_SCAN_W_IN_STD),
+                str(W_IN_MEAN),
+                str(W_IN_STD),
                 "--stim-overdrive",
-                "1.0",
-                "--dt",
-                str(DT_MS),
+                str(DT_SCAN_OVERDRIVE),
             ],
-            config_payload={
-                "fixed_overdrive": 1.0,
-                "input_rate_hz": EI_SCAN_INPUT_RATE_HZ,
-                "w_in_mean": EI_SCAN_W_IN_MEAN,
-                "w_in_std": EI_SCAN_W_IN_STD,
-            },
+            config_payload={"fixed_overdrive": DT_SCAN_OVERDRIVE},
             extras_fn=extras,
             criteria_fn=evaluate_success,
         )

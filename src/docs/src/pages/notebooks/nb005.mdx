@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "005 — ping e→i coupling video"
+title: "005 — ping integration-step video"
 date: 2026-04-23
 entry: 5
 structure: paper
@@ -16,7 +16,7 @@ export const cfg = numbers.config ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const runDuration = numbers.duration ?? "?";
 export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?" };
-export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?", input_rate_hz: "?", w_in_mean: "?", w_in_std: "?" };
+export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?" };
 export const r = {
   pre: numbers.rates_hz?.pre ?? {},
   stim: numbers.rates_hz?.stim ?? {},
@@ -29,19 +29,18 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-External drive is one knob ([nb002](/notebooks/nb002/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes. Input rate and $W_\text{in}$ are bumped relative to [nb002](/notebooks/nb002/) / [nb004](/notebooks/nb004/) so E has enough baseline drive to recruit I at all without a stim pulse. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb003](/notebooks/nb003/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb003](/notebooks/nb003/) (drive) and [nb006](/notebooks/nb006/) (E→I coupling); companion *dt*-stability training experiment is [nb013](/notebooks/nb013/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× and **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}). All knobs are hardcoded literals in *src/pinglab/notebooks/nb005.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
+A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× (firmly inside the stable-PING regime mapped by [nb003](/notebooks/nb003/)) while *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb005.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
     title: "Setup",
     rows: [
       { label: "Model", value: cfg.model ?? "?" },
-      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample} @ ${scan.input_rate_hz} Hz` },
-      { label: "W_in init (mean, std)", value: `${scan.w_in_mean}, ${scan.w_in_std}` },
+      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample}` },
       { label: "Seed", value: cfg.seed ?? "?" },
     ],
   },
@@ -49,7 +48,7 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
     title: "Architecture",
     rows: [
       { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
-      { label: "dt / T", value: `${cfg.dt_ms} / ${cfg.sim_ms} ms` },
+      { label: "T", value: `${cfg.sim_ms} ms` },
     ],
   },
   {
@@ -57,7 +56,7 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
     rows: [
       { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
       { label: "Fixed overdrive", value: `${scan.fixed_overdrive}×` },
-      { label: "E→I strength scan", value: `${scan.min}–${scan.max}` },
+      { label: "dt scan", value: `${scan.min}–${scan.max} ms` },
       { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
     ],
   },
@@ -84,10 +83,10 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure type="video" id="Figure 1" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb005/scan_ei.mp4">
-  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}).
+<Figure type="video" id="Figure 1" title="Integration-step sweep (scan_dt.mp4)" src="/figures/notebooks/nb005/scan_dt.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample} with stim-overdrive held at {scan.fixed_overdrive}×. *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames.
 
-  No PING until about E→I strength 1.6; then unstable onset of PING from 1.6 onwards.
+  Stable until about *dt* = 1.65 ms; beyond that the whole population saturates after PING onset.
 </Figure>
 
 ### Population rates
@@ -100,7 +99,7 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
 
 ## Next steps
 
-The recruitment threshold near *ei* ≈ 1.6 here is the practical floor for any *trained* PING circuit — and explains why [nb011](/notebooks/nb011/) at *ei* = 0.5 reports *rate_i* = 0 Hz, with the network silently degenerating into feedforward-E. A natural follow-up is an independent 2D sweep over (*ei-strength*, *input-rate*) rendered as a heatmap of *rate_i*, since the threshold here is conditional on the bumped input drive used in this entry. With that map in hand, the trained-PING entries can choose an *ei* / drive pair from inside a verified PING basin instead of guessing.
+The breakdown around *dt* ≈ 1.65 ms sets a hard ceiling on the timestep any downstream training entry can use without losing the rhythm. [nb013](/notebooks/nb013/) tests whether this same ceiling holds end-to-end through training — i.e. whether a model trained at *dt* near the limit still produces PING at inference. The breakdown mode here (saturation, not collapse) suggests the failure is integrator instability rather than loss of the rhythm itself; a side-by-side with explicit-Euler vs the current scheme would isolate that.
 
 ## Appendix
 

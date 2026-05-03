@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "011 — ping"
+title: "011 — coba"
 date: 2026-04-23
 entry: 11
 structure: paper
@@ -22,25 +22,21 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*ping*](/docs/models/#ping) path — conductance-based synapses with the full E→I→E feedback loop that gives gamma oscillations — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. The top rung on the CUBA → PING ladder; sibling of [nb009](/notebooks/nb009/) (cuba) and [nb010](/notebooks/nb010/) (coba). No Δt sweep. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*coba*](/docs/models/#coba) path — conductance-based synapses, dispatched through the COBANet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb010](/notebooks/nb010/) and [nb012](/notebooks/nb012/). No Δt sweep. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb011.py* per the [runner contract](/docs/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
+Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb011.py* per the [runner contract](/docs/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path with the *ping* model dispatched at *ei_strength* = 0. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "E→I strength", value: 0.5, default: 0 },
-  { label: "v_grad_dampen", value: 1000, default: 1 },
-  { label: "W_in", value: 1.2, default: 0.3 },
-  { label: "W_in sparsity", value: 0.95, default: 0 },
+  { label: "E→I strength", value: 0, default: 1.0 },
+  { label: "v_grad_dampen", value: 1000, default: 1.0 },
+  { label: "W_in", value: "0.3 (95% sparse)", default: "0.3 (dense)" },
 ]} />
 
-Four customisations turn COBANet from its degenerate feedforward configuration into an actual PING circuit, and keep BPTT through the conductance dynamics finite.
-
-- [**ei-strength = 0.5**](/docs/the-oscilloscope/#network-flags-shared) — the E→I→E coupling that distinguishes *ping* from [*coba*](/notebooks/nb010/). At zero, COBANet collapses to coba (no feedback inhibition, no gamma); 0.5 is below the canonical 0.8 used in [nb005](/notebooks/nb005/) but matches the input-drive tier here.
-- [**v_grad_dampen = 1000**](/docs/the-oscilloscope/#network-flags-shared) — conductance-based voltage updates carry a $g \cdot (V - E_\text{rev})$ term whose gradient explodes through 2000 BPTT steps without dampening. The dampener clips the *V*-path Jacobian magnitude so input-layer grads stay finite.
-- [**W_in = 1.2 (95% sparse)**](/docs/the-oscilloscope/#network-flags-shared) — sparse, large-magnitude input weights drive the E population strongly enough that the E→I coupling can recruit the I population at all; the dense default (*W_in* = 0.3, density 1.0) puts mean drive far below I's recruitment threshold.
-- [**lr = 0.0001**](/docs/the-oscilloscope/#train-flags) — an order of magnitude below the 1e-3 default used by the LIF siblings. The recurrent E→I→E loop makes the loss surface stiffer; 1e-3 trips *v_grad_dampen* skip-step counters within the first epoch, 1e-4 sits in a stable regime.
+- [**ei-strength = 0**](/docs/the-oscilloscope/#network-flags-shared) — collapses the COBANet dispatch into a pure conductance-based feedforward path by zeroing the E→I→E loop. The cell below in the ladder is [nb010](/notebooks/nb010/) (current-based synapses); the cell above is [nb012](/notebooks/nb012/) (full PING with the loop closed).
+- [**v-grad-dampen = 1000**](/docs/the-oscilloscope/#network-flags-shared) — strong damping on the membrane-voltage gradient. Conductance synapses multiply the input by $(V - E_\text{rev})$, which makes BPTT through *V* far stiffer than *cuba*'s additive current; the high damping coefficient keeps gradients finite end-to-end.
+- [**w-in 0.3, w-in-sparsity 0.95**](/docs/the-oscilloscope/#weight-flags-shared-advanced) — sparse $W_\text{in}$ (5% density) at the same scale as the dense default. Matches the *ping* working point used in [nb012](/notebooks/nb012/) so the two share an input distribution.
 
 ## Results
 
@@ -65,23 +61,21 @@ Four customisations turn COBANet from its degenerate feedforward configuration i
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb011/training_curves.png" alt="Train loss and test accuracy per epoch for ping">
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb011/training_curves.png" alt="Train loss and test accuracy per epoch for coba">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
 </Figure>
 
-<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb011/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for ping">
+<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb011/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for coba">
   Mean hidden firing rate across the training schedule.
 </Figure>
 
-<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb011/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the ping hidden layer">
-  Per-epoch snapshot of the reference MNIST trial through *ping*'s hidden layer.
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb011/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the coba hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *coba*'s hidden layer.
 </Figure>
 
 ## Next steps
 
-The six shared training-health criteria pass at this tier — curves/rate/video render, *rate_e* = 12.6 Hz lands in the 1–200 Hz band, accuracy clears the floor, and there's no late-epoch collapse. But the seventh, *ping*-specific criterion **fails**: the inhibitory population is silent at the final epoch (*rate_i* = 0 Hz). The E→I→E feedback loop never closes, so *ping* is running as feedforward-E (i.e. as [*coba*](/notebooks/nb010/) with an unused inhibitory reservoir), not as PING. The trained weights no longer represent a PING circuit — accuracy here is a coba result wearing a ping label.
-
-The likely cause is that *--ei-strength 0.5* sits below the recruitment threshold for this input drive — [nb005](/notebooks/nb005/)'s ei-strength sweep showed I rates only rise at *ei* ≳ 0.3–0.4 with overdriven input, and this recipe runs at the default *input_rate_hz* without the 2× boost nb005 uses. Two candidate next moves to push *rate_i* off zero: (a) bump *--ei-strength* to the canonical 0.8 used in [nb005](/notebooks/nb005/) where PING is demonstrably formed, or (b) raise [*--input-rate*](/docs/the-oscilloscope/#network-flags-shared) so E drives I above threshold. Either change should recruit I; the accuracy trade-off is open. A larger-tier rerun is also needed — extra-small is one epoch on 100 samples, so the headline accuracy is barely above chance even setting aside the PING-formation question.
+The conductance-based synapse is the bridge between [nb010](/notebooks/nb010/)'s clean *cuba* baseline and [nb012](/notebooks/nb012/)'s full PING circuit; once *coba* is sitting in the same firing-rate band as *cuba*, closing the E→I→E loop in nb012 should be a one-knob change. Two follow-ups parked: (a) tune the *v_grad_dampen* coefficient downward and confirm the gradient-skip path stays empty — the current 1000 is conservative; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/docs/the-oscilloscope/#subcommand-infer) path to test whether the conductance dynamics generalise off the trained *dt*, mirroring the analogous follow-up in [nb010](/notebooks/nb010/).
 
 ## Appendix
 

@@ -1,9 +1,16 @@
 {
-  "notebook_run_id": "r013",
-  "run_datetime": "Saturday, 25th April 26 at 01:04",
-  "duration_s": 2263.4,
-  "duration": "37m 43s",
-  "tier": "large",
+  "notebook_run_id": "r038",
+  "run_datetime": "Tuesday, 28th April 26 at 07:32",
+  "duration_s": 2.3,
+  "duration": "2s",
+  "success_criteria": [
+    {
+      "label": "scope frame rendered",
+      "passed": true,
+      "detail": "scope_frame.png (176299 bytes)",
+      "detail_href": "/figures/notebooks/nb002/scope_frame.png"
+    }
+  ],
   "config": {
     "tier": "large",
     "model": "ping",
@@ -13,51 +20,16 @@
     "sim_ms": 600.0,
     "step_on_ms": 200.0,
     "step_off_ms": 300.0,
+    "stim_overdrive": 1.0,
+    "input_rate_hz": 100.0,
+    "w_in_mean": 0.9,
+    "w_in_std": 0.18,
+    "ei_strength": 1.0,
     "input": {
-      "mode": "dataset",
       "dataset": "mnist",
       "digit": 0,
-      "sample": 0,
-      "base_rate_hz": 50.0,
-      "w_in_overdrive": 1.8
+      "sample": 0
     },
-    "seed": 42,
-    "scan": {
-      "var": "stim-overdrive",
-      "min": 1.0,
-      "max": 10.0,
-      "frames": 300,
-      "fps": 30
-    }
-  },
-  "rates_hz": {
-    "pre": {
-      "e": 6.7773438058793545,
-      "i": 0.0
-    },
-    "stim": {
-      "e": 15.507813077419996,
-      "i": 35.468749701976776
-    },
-    "post": {
-      "e": 5.629633669741452,
-      "i": 0.0
-    },
-    "base_rate_hz": 50.0,
-    "stim_rate_hz": 250.0
-  },
-  "canonical_overdrive": 5.0,
-  "success_criteria": [
-    {
-      "label": "overdrive scan video rendered",
-      "passed": true,
-      "detail": "scan_overdrive.mp4 (3125171 bytes)",
-      "detail_href": "/figures/notebooks/nb002/scan_overdrive.mp4"
-    },
-    {
-      "label": "PING forms at canonical overdrive (5.0\u00d7)",
-      "passed": true,
-      "detail": "I pre=0.0 Hz \u2192 stim=35.5 Hz"
-    }
-  ]
+    "seed": 42
+  }
 }

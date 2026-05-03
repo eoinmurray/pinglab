@@ -1,0 +1,108 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "015 — sequential MNIST tracking"
+date: 2026-05-01
+entry: 15
+collections: [in-progress]
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb015/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const seq = numbers.seq_eval ?? {};
+export const cuba = seq.cuba?.per_window_acc_pct ?? {};
+export const coba = seq.coba?.per_window_acc_pct ?? {};
+export const ping = seq.ping?.per_window_acc_pct ?? {};
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+Single-MNIST training tells you whether a network can recognise *one* digit; it says nothing about how the network's internal state evolves over the trial. This entry runs an *eval-only* probe on top of standard cuba / coba / ping training: every test trial is a sequence of four random MNIST digits, each shown for 50 ms inside a 200 ms trial. The trained mem-mean readout is queried as-is, and we ask — for each window position k — how often does the network's argmax prediction equal the digit that was on screen during window k?
+
+A network whose state turns over fast (small effective τ relative to the 50 ms window) should peak at *k = 3*: the most recent digit dominates the readout. A network with slow recurrent persistence — most obviously PING with its E↔I loop — should be flatter or biased toward earlier windows.
+
+## Method
+
+Three networks (cuba, coba, ping) trained on standard single-MNIST at the configured tier; recipes inherited verbatim from [nb010](/notebooks/nb010/), [nb011](/notebooks/nb011/), [nb012](/notebooks/nb012/). After training, weights are frozen and a sequential-eval phase runs on the MNIST test set: 800 trials, each constructed as four randomly-drawn test images Poisson-encoded for 50 ms each, concatenated into a single 200 ms input. The model's mem-mean readout (taken over the *entire* 200 ms — same readout the network was trained with) yields one argmax prediction per trial. Per-target-window accuracy is the fraction of trials whose prediction equals the digit shown in window *k*, for *k* ∈ {0, 1, 2, 3}.
+
+| param | value |
+|---|---|
+| windows × window length | 4 × 50 ms |
+| total trial | 200 ms |
+| trials | 800 |
+| input rate | 25 Hz Poisson per pixel |
+| readout | mem-mean over full 200 ms (unchanged from training) |
+
+## Results
+
+<Figure id="Figure 1" title="example trial input" src="/figures/notebooks/nb015/sequential_input.png" alt="Top: four MNIST digit thumbnails. Bottom: Poisson spike raster of the input neurons over 200 ms with red vertical lines separating the four 50 ms windows.">
+  One representative trial: four random MNIST test images shown in sequence (top), and the Poisson-encoded input spike raster fed to the network (bottom, 784 input neurons × 2000 time steps at *dt* = 0.1 ms). Red vertical lines mark the 50 / 100 / 150 ms window boundaries. Each digit is freshly Poisson-encoded for its 50 ms window; the network sees these spikes and only these spikes — no separator token.
+</Figure>
+
+<Figure id="Figure 2" title="hidden-layer response per model" src="/figures/notebooks/nb015/sequential_response.png" alt="Stacked rasters showing the input spikes and the hidden-layer spikes of cuba, coba, and ping for the same 4-digit trial.">
+  The same trial pushed through each trained network. From top: input spikes; cuba hidden raster; coba hidden raster; ping hidden raster. Red lines mark window boundaries. Cuba's high firing rate (~250 Hz) responds promptly to each digit; coba and ping fire much sparsely (~5–30 Hz biological band) and the recurrent dynamics in ping bleed activity across window boundaries — the visual signature of slower state turnover.
+</Figure>
+
+| model | w₀ (0–50 ms) | w₁ (50–100 ms) | w₂ (100–150 ms) | w₃ (150–200 ms) |
+|---|---|---|---|---|
+| cuba | {cuba.window_0?.toFixed?.(1) ?? "?"}% | {cuba.window_1?.toFixed?.(1) ?? "?"}% | {cuba.window_2?.toFixed?.(1) ?? "?"}% | {cuba.window_3?.toFixed?.(1) ?? "?"}% |
+| coba | {coba.window_0?.toFixed?.(1) ?? "?"}% | {coba.window_1?.toFixed?.(1) ?? "?"}% | {coba.window_2?.toFixed?.(1) ?? "?"}% | {coba.window_3?.toFixed?.(1) ?? "?"}% |
+| ping | {ping.window_0?.toFixed?.(1) ?? "?"}% | {ping.window_1?.toFixed?.(1) ?? "?"}% | {ping.window_2?.toFixed?.(1) ?? "?"}% | {ping.window_3?.toFixed?.(1) ?? "?"}% |
+
+All three are well above the 10% chance line and well below their single-MNIST baselines (~80%). All three show a slight bias toward later windows; the bias is largest for ping and smallest for cuba.
+
+<Figure id="Figure 3" title="per-window prediction accuracy" src="/figures/notebooks/nb015/tracking_accuracy.png" alt="Bar chart of per-window prediction accuracy for cuba, coba and ping">
+  Argmax of the trained mem-mean readout matched against the digit shown in each 50 ms window. Each bar is the fraction (out of 800 trials) where the readout's predicted class equals the digit at window *k*. Dashed line is 10% chance.
+</Figure>
+
+The single-MNIST training that produced the weights used here is recorded below — one per-epoch oscilloscope video per model. The dynamics on display are the *single-digit* dynamics the network actually learned; the sequential probe above tests how the same dynamics behave when the input changes mid-trial.
+
+<Figure id="Figure 4" type="video" title="cuba training" src="/figures/notebooks/nb015/training_cuba.mp4">
+  Per-epoch oscilloscope of the cuba single-MNIST training run.
+</Figure>
+
+<Figure id="Figure 5" type="video" title="coba training" src="/figures/notebooks/nb015/training_coba.mp4">
+  Per-epoch oscilloscope of the coba single-MNIST training run.
+</Figure>
+
+<Figure id="Figure 6" type="video" title="ping training" src="/figures/notebooks/nb015/training_ping.mp4">
+  Per-epoch oscilloscope of the ping single-MNIST training run; the E→I→E loop is visible in the inhibitory raster.
+</Figure>
+
+## Discussion
+
+The flat-ish profile is the dominant feature: with a readout that averages over the entire trial, every window contributes roughly equally, so no single window dominates. The mild rightward tilt for ping ({(ping.window_3 - ping.window_0)?.toFixed?.(1) ?? "?"} percentage-point advantage of *w₃* over *w₀*) suggests its recurrent dynamics still let recent input dominate slightly — but the effect is buried under the trial-average readout.
+
+The clean version of this experiment requires either:
+
+1. **Tail-only readout**: average mem only over the last 50 ms window. Should sharpen *w₃* dramatically across all models.
+2. **Per-window readout**: argmax at the end of each window separately, reporting accuracy at each position.
+3. **Training on the sequential task**: with a tail-only loss, networks can *learn* to gate earlier windows out — the test of temporal capacity rather than passive dynamics.
+
+Each adds complexity (custom readout flag in the oscilloscope, or a sequence-aware loss). The flat-readout numbers above are the cheapest probe; the next entry will pick one of these to actually separate the architectures.
+
+## Success criteria
+
+*None recorded; this is an exploratory probe, not a calibration.*
+
+## Next steps
+
+- Add a tail-only mem-mean readout to the oscilloscope so the per-window probe can read out at *each* window endpoint, not just the trial end.
+- Train the ladder on the sequential task with a last-window loss; compare to passive eval here.
+- Vary *window_ms* (10 / 25 / 50 / 100 ms) to find each model's natural turnover scale.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb015.py --tier small
+```
+
+### Run parameters
+
+<RunParameters numbers={numbers} />

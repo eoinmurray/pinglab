@@ -1,10 +1,10 @@
 """Shared orchestration for single-scan PING-video notebooks.
 
-Each scan runner (nb002 stim-overdrive, nb004 dt, nb005 ei-strength)
+Each scan runner (nb003 stim-overdrive, nb005 dt, nb006 ei-strength)
 hands `run_scan` a ScanSpec and gets back the full notebook pipeline:
 per-tier frame counts, oscilloscope-video dispatch, run-id stamping,
 numbers.json, duration bookkeeping. Canonical-overdrive population-rate
-replay stays in nb002 (only relevant to the overdrive scan).
+replay stays in nb003 (only relevant to the overdrive scan).
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ def dataset_args() -> tuple[str, ...]:
 
 @dataclass
 class ScanSpec:
-    slug: str  # e.g. "nb002"
+    slug: str  # e.g. "nb003"
     scan_var: str  # oscilloscope --scan-var value
     scan_min: float
     scan_max: float

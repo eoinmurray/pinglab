@@ -1,7 +1,7 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "007 — standard-snn-exp"
-date: 2026-04-28
+title: "007 — standard-snn"
+date: 2026-04-23
 entry: 7
 structure: paper
 collections: [dt-stability]
@@ -22,22 +22,23 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Same recipe as [nb006](/notebooks/nb006/) (snntorch-style direct-LIF) but with an exponential synapse on the feedforward synapses *into the hidden layer* — i.e. the *standard-snn-exp* registry variant. Sits between *standard-snn* (no exp synapse) and *snntorch-library* (external reference) on the model ladder; a single-knob ablation that isolates the contribution of the synaptic kernel without changing readout, surrogate, or init.
+Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*standard-snn*](/docs/models/#standard-snn) — the snnTorch research-baseline LIF classifier — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; this is the rung-zero training profile in isolation. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-Hyperparameters are a verbatim copy of [nb006](/notebooks/nb006/) per the [runner contract](/docs/the-notebooks/#runner-contract); only the model name differs (`standard-snn-exp` vs `standard-snn`). The new model registry entry instantiates *CUBANet* with `exponential_synapse=True`.
+Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb007.py* per the [runner contract](/docs/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "Synapse", value: "exponential", default: "direct LIF", href: "/docs/the-oscilloscope/#network-flags-shared" },
   { label: "Readout", value: "li", default: "rate", href: "/docs/the-oscilloscope/#readouts" },
   { label: "Surrogate slope", value: 1, default: 5, href: "/docs/the-oscilloscope/#network-flags-shared" },
   { label: "Init", value: "Kaiming (signed)", default: "non-negative", href: "/docs/the-oscilloscope/#network-flags-shared" },
 ]} />
 
-The three shared customisations are explained in [nb006](/notebooks/nb006/). The fourth — exponential synapse — is the difference being measured here:
+Three of those customisations are what let *standard-snn* train at this *dt*/*T* combination; the others (model, dataset, hidden size, tier-driven schedule) are routine.
 
-- **exponential synapse** — incoming spikes drive a low-pass-filtered conductance trace into the hidden layer (decaying exponentially with τ_syn ≈ 2 ms by default) instead of an instantaneous current kick. Smooths the per-step drive into the hidden neurons, often reducing rate overshoot at the cost of slower drive build-up.
+- [**readout = li**](/docs/the-oscilloscope/#readouts) — the default *rate* readout accumulates hidden spikes across *T* = 2000 steps and produces logits large enough that CE saturates to zero on the forward pass, masking the real gradient signal.
+- [**surrogate-slope = 1**](/docs/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient (*finite_max* ≈ 9 × 10³⁷ then NaN). Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end; the *skipped_steps* counter goes from 7/7 to 0/7.
+- [**kaiming-init (signed)**](/docs/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* is what gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
 
 To reproduce:
 
@@ -70,18 +71,22 @@ Add [*--tier*](/docs/the-notebooks/#cli) *extra small* for a faster pass — tie
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb007/training_curves.png" alt="Train loss and test accuracy per epoch for standard-snn-exp">
+At the **large** [tier](/docs/the-notebooks/#cli) ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) the recipe reaches best-acc {cell.best_acc ?? "?"}% / final {cell.final_acc ?? "?"}% with no late-epoch collapse and hidden rate back inside the 1–200 Hz band — all six gate criteria pass. The intermediate **medium** tier (2000 × 10) had scraped to ~80% but overshot the rate ceiling at 205 Hz; the extra 30 epochs at the same $\eta$ let the readout pull the hidden population back down to ~125 Hz without losing accuracy, so the rate drift was a short-run transient rather than the recipe being genuinely unstable.
+
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb007/training_curves.png" alt="Train loss and test accuracy per epoch for standard-snn">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
 </Figure>
 
-<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb007/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for standard-snn-exp">
+<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb007/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for standard-snn">
   Mean hidden firing rate across the training schedule.
 </Figure>
 
-<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb007/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the standard-snn-exp hidden layer">
-  Per-epoch snapshot of the reference MNIST trial through *standard-snn-exp*'s hidden layer.
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb007/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the standard-snn hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *standard-snn*'s hidden layer.
 </Figure>
 
 ## Next steps
 
-Compare against [nb006](/notebooks/nb006/) (no exp synapse) and [nb008](/notebooks/nb008/) (snntorch-library reference) at matched tier to read the contribution of the exponential-synapse knob alone.
+Any future *dt* rescale of this notebook should revisit the three Method knobs — the surrogate slope in particular is a function of total trial-length, not *dt*. The large-tier run is the companion check for this recipe in the Δt-stability sweep of [nb013](/notebooks/nb013/).
+
+A shared two-sided firing-rate regulariser across this notebook and its parity sibling [nb009](/notebooks/nb009/) — via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/docs/the-oscilloscope/#network-flags-shared), Cramer-2022 style — is parked for a follow-up. It would pin both implementations into the 1–200 Hz band by training pressure rather than by step-code parity, closing the residual mid-training rate gap (nb007 ~250 Hz / nb009 ~630 Hz at medium) without making the two paths interact.

@@ -70,11 +70,11 @@ Three places per entry combine these:
 
 1. Frontmatter title — *title: "001 — &lt;title&gt;"* (number only; date omitted here so tabs stay compact)
 2. Italic byline under H1 — *001 · Thursday, April 16 2026*
-3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · &lt;link to title&gt; — Thursday, April 16 2026*, pointing at */notebooks/&lt;slug&gt;/* (e.g. */notebooks/nb001/*)
+3. Home-page Notebook list in *src/docs/src/pages/index.astro* — plain-weight *001 · &lt;link to title&gt; — Thursday, April 16 2026*, pointing at */notebooks/&lt;slug&gt;/* (e.g. */notebooks/nb002/*)
 
 The word "Entry" is never written — the zero-padded number carries the meaning on its own.
 
-Filenames and URL slugs are *nbNNN* (e.g. *nb001.mdx*). The descriptive name lives in the frontmatter *title*, not the slug. The canonical ISO date lives in frontmatter (*date: YYYY-MM-DD*) alongside *entry: &lt;N&gt;*. Day-name only appears in human-visible text. Compute on macOS with *date -j -f "%Y-%m-%d" &lt;YYYY-MM-DD&gt; "+%A"*; Linux: *date -d &lt;YYYY-MM-DD&gt; +%A*.
+Filenames and URL slugs are *nbNNN* (e.g. *nb002.mdx*). The descriptive name lives in the frontmatter *title*, not the slug. The canonical ISO date lives in frontmatter (*date: YYYY-MM-DD*) alongside *entry: &lt;N&gt;*. Day-name only appears in human-visible text. Compute on macOS with *date -j -f "%Y-%m-%d" &lt;YYYY-MM-DD&gt; "+%A"*; Linux: *date -d &lt;YYYY-MM-DD&gt; +%A*.
 
 ### 4. Figure aspect ratio is 16:9
 
@@ -103,7 +103,7 @@ Every image and video in docs — notebook entry or background page — is rende
 ```mdx
 import Figure from "../../components/Figure.astro";
 
-<Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebooks/nb012/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
+<Figure id="Figure 1" title="Accuracy vs eval-dt" src="/figures/notebooks/nb013/dt_sweep.png" alt="Accuracy vs eval-dt, one panel per training-dt regime">
   Caption interpreting the figure. Self-contained — a reader scrolling to the image should understand what it shows without reading the surrounding prose.
 </Figure>
 ```
@@ -144,7 +144,7 @@ Notebook entry runs pick from a fixed set of tiers. Tiers are size-named so the 
 
 Training cost scales linearly in *max-samples × epochs × t-ms* ($\approx$3.3 × 10⁻⁵ s per unit per model on MPS). Multi-model comparisons multiply: an N-model head-to-head at *medium* is N × $\sim$7 min. *observe video* with per-epoch frames adds $\lesssim$10% at *medium* and above.
 
-**Video-render tiers.** ETA per 3-scan nb002-style run (one 600 ms PING forward pass + full SCOPE_FRAME render per frame). Per-frame wall-clock is $\sim$1.3 s, dominated by matplotlib:
+**Video-render tiers.** ETA per 3-scan nb003-style run (one 600 ms PING forward pass + full SCOPE_FRAME render per frame). Per-frame wall-clock is $\sim$1.3 s, dominated by matplotlib:
 
 | tier | frames/scan | $\sim$ETA |
 | ---- | ----------: | --------: |

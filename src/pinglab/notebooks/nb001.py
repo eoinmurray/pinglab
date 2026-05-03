@@ -1,13 +1,11 @@
-"""Notebook runner for entry 001 — scope-frame.
+"""Notebook runner for entry 001 — plotting style guide.
 
-Renders a single SCOPE_FRAME (see src/pinglab/plot.py) for aesthetic
-iteration. No sweep, no video — one forward pass at a canonical working
-point, saved as a PNG plus a stamped copy into the entry's figures dir.
-
-Invokes `oscilloscope.py image` once with MNIST d0 s0, ping model, at the
-same working point that lights up PING in nb002 (overdrive 5×, w_in 1.8×),
-then copies the produced snapshot.png into the figures dir with the
-notebook_run_id stamped in the corner.
+Generates a fixed set of placeholder plots covering the chart types
+used across pinglab notebooks (line, bar, scatter, histogram with
+theoretical overlay, heatmap, spike raster). The data is intentionally
+synthetic — this notebook is a *style* surface, not a result. Iterate
+on theme.py and the per-plot styling here; whatever lands as the
+final brand-aligned look is the canonical pinglab plot style.
 
 Notebook entry: src/docs/src/pages/notebooks/nb001.mdx
 """
@@ -18,283 +16,262 @@ import json
 import shutil
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
-import sh
-
 REPO = Path(__file__).resolve().parents[3]
-PINGLAB = REPO / "src" / "pinglab"
-sys.path.insert(0, str(PINGLAB))
+sys.path.insert(0, str(REPO / "src" / "pinglab"))
 
-import matplotlib.pyplot as plt  # noqa: E402
-
-from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from _tier import parse_tier  # noqa: E402
 
 SLUG = "nb001"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-OSCILLOSCOPE = PINGLAB / "oscilloscope/__main__.py"
-
-# ── Frame config — matches nb002's canonical PING working point ──────────
+DEFAULT_TIER = "small"
+TIER_CONFIG = {
+    "small": dict(),
+    "medium": dict(),
+    "large": dict(),
+}
+FIGSIZE = (8, 4.5)
 SEED = 42
-DEFAULT_TIER = "extra small"  # single forward pass — no sweep cost
-TIER_CHOICES = ["extra small", "small", "medium", "large", "extra large"]
-TIER = DEFAULT_TIER  # overridable via --tier <name>; label only
-N_HIDDEN = 512
-DT_MS = 0.1
-SIM_MS = 600.0
-STEP_ON_MS = 200.0
-STEP_OFF_MS = 300.0
-STIM_OVERDRIVE = 1.0
-INPUT_RATE_HZ = 100.0
-W_IN_MEAN = 0.9  # 3× over the default 0.3 — pushes net firmly into PING
-W_IN_STD = 0.18  # 3× over the default 0.06
-EI_STRENGTH = 1.0
-DATASET = "mnist"
-DIGIT_CLASS = 0
-SAMPLE_IDX = 0
 
 
-def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
-    fig = plt.figure(figsize=(2.8, 0.28), dpi=150)
-    fig.patch.set_alpha(0.0)
-    fig.text(
-        0.97,
-        0.5,
-        notebook_run_id,
-        ha="right",
-        va="center",
-        fontsize=10,
-        color="white",
-        family="monospace",
-        bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"),
-    )
-    stamp_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(stamp_path, transparent=True, bbox_inches="tight", pad_inches=0.02)
+def _setup() -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import theme  # type: ignore[import]
+
+    theme.apply()
+
+
+def fig_line() -> Path:
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    rng = np.random.default_rng(SEED)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    epochs = np.arange(1, 41)
+    train = 1 - 0.85 * np.exp(-epochs / 8) + rng.normal(0, 0.01, size=epochs.shape)
+    test = 1 - 0.80 * np.exp(-epochs / 8) + rng.normal(0, 0.015, size=epochs.shape)
+    ax.plot(epochs, train * 100, label="train")
+    ax.plot(epochs, test * 100, label="test")
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("accuracy (%)")
+    ax.set_title("Line: training curves")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    out = FIGURES / "line.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
     plt.close(fig)
+    return out
 
 
-def _overlay_stamp_image(src: Path, dst: Path, stamp: Path) -> None:
-    """Copy src→dst, overlaying the notebook_run_id PNG in the bottom-right."""
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    sh.ffmpeg(
-        "-y",
-        "-i",
-        str(src),
-        "-i",
-        str(stamp),
-        "-filter_complex",
-        "[0:v][1:v]overlay=W-w-10:H-h-10",
-        "-frames:v",
-        "1",
-        str(dst),
-        _out=sys.stdout,
-        _err=sys.stderr,
+def fig_line_many() -> Path:
+    """12 lines, ordinal — too many for the 5-color cycle, so colors come
+    from the brand colormap instead. Brightness encodes the parameter."""
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    rng = np.random.default_rng(SEED)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    epochs = np.arange(1, 41)
+    cmap = plt.get_cmap("pinglab_brand")
+    n_series = 12
+    lrs = np.geomspace(1e-4, 1e-1, n_series)
+    for i, lr in enumerate(lrs):
+        plateau = 0.92 - 0.35 * abs(np.log10(lr) + 2.5) / 3
+        plateau = np.clip(plateau, 0.45, 0.92)
+        tau = 6 + 8 * abs(np.log10(lr) + 2.5)
+        curve = plateau * (1 - np.exp(-epochs / tau)) + rng.normal(0, 0.008, size=epochs.shape)
+        # Skip the colormap's extreme-light end so series stay legible on white.
+        color = cmap(0.15 + 0.8 * i / (n_series - 1))
+        ax.plot(epochs, curve * 100, color=color, linewidth=1.4)
+
+    sm = plt.cm.ScalarMappable(
+        cmap=cmap,
+        norm=plt.matplotlib.colors.LogNorm(vmin=lrs[0], vmax=lrs[-1]),
     )
-    print(f"wrote {dst.relative_to(REPO)}")
+    fig.colorbar(sm, ax=ax, label="learning rate")
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("accuracy (%)")
+    ax.set_title("Line: many series (sweep)")
+    out = FIGURES / "line_many.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
 
 
-def render_frame(out_dir: Path, modal_gpu: str | None = None) -> Path:
-    """One forward pass, one SCOPE_FRAME rendered to snapshot.png."""
-    print(
-        f"[frame] → {out_dir.relative_to(REPO)}"
-        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-    )
-    out_dir.mkdir(parents=True, exist_ok=True)
-    args = [
-        "run",
-        "python",
-        str(OSCILLOSCOPE),
-        "image",
-        "--model",
-        "ping",
-        "--n-hidden",
-        str(N_HIDDEN),
-        "--input",
-        "dataset",
-        "--dataset",
-        DATASET,
-        "--digit",
-        str(DIGIT_CLASS),
-        "--sample",
-        str(SAMPLE_IDX),
-        "--input-rate",
-        str(INPUT_RATE_HZ),
-        "--w-in",
-        str(W_IN_MEAN),
-        str(W_IN_STD),
-        "--stim-overdrive",
-        str(STIM_OVERDRIVE),
-        "--ei-strength",
-        str(EI_STRENGTH),
-        "--dt",
-        str(DT_MS),
-        "--t-ms",
-        str(SIM_MS),
-        "--out-dir",
-        str(out_dir),
-        "--wipe-dir",
-    ]
-    args = append_modal_args(args, modal_gpu)
-    sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
-    png = out_dir / "snapshot.png"
-    if not png.exists():
-        raise SystemExit(f"image run did not produce {png}")
-    return png
+def fig_bar() -> Path:
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import theme  # type: ignore[import]
+
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    models = ["cuba", "coba", "ping"]
+    windows = np.arange(4)
+    width = 0.25
+    base = np.array([
+        [25.4, 26.4, 28.5, 27.0],
+        [23.8, 27.1, 27.9, 28.4],
+        [24.0, 29.5, 29.2, 30.1],
+    ])
+    for i, m in enumerate(models):
+        ax.bar(windows + (i - 1) * width, base[i], width, label=m)
+    ax.axhline(10, linestyle="--", linewidth=1.0, color=theme.DEEP_RED, label="chance")
+    ax.set_xticks(windows)
+    ax.set_xticklabels([f"w{k}" for k in windows])
+    ax.set_ylabel("accuracy (%)")
+    ax.set_title("Bar: grouped categorical")
+    ax.legend()
+    out = FIGURES / "bar.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
 
 
-def _format_run_datetime(dt: datetime) -> str:
-    day = dt.day
-    suffix = (
-        "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
-    )
-    return dt.strftime(f"%A, {day}{suffix} %B %y at %H:%M")
+def fig_scatter() -> Path:
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    import theme  # type: ignore[import]
+
+    rng = np.random.default_rng(SEED)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    n = 80
+    x = rng.uniform(0, 100, size=n)
+    y = 0.6 * x + rng.normal(0, 8, size=n)
+    sizes = rng.uniform(20, 120, size=n)
+    ax.scatter(x, y, s=sizes, alpha=0.55, color=theme.CAT_BLUE, edgecolor="white", linewidth=0.5)
+    ax.set_xlabel("firing rate (Hz)")
+    ax.set_ylabel("test accuracy (%)")
+    ax.set_title("Scatter: two continuous variables")
+    ax.grid(True, alpha=0.3)
+    out = FIGURES / "scatter.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
 
 
-def _format_duration(seconds: float) -> str:
-    s = int(round(seconds))
-    if s < 60:
-        return f"{s}s"
-    if s < 3600:
-        return f"{s // 60}m {s % 60:02d}s"
-    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
+def fig_hist() -> Path:
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import theme  # type: ignore[import]
+
+    rng = np.random.default_rng(SEED)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    T = 80.0
+    n = 4000
+    speeds = np.sqrt(-2 * T * np.log(rng.uniform(1e-9, 1, size=n)))
+    bins = np.linspace(0, 30, 30)
+    ax.hist(speeds, bins=bins, alpha=0.5, label="samples")
+    v = np.linspace(0, 30, 200)
+    pdf = (v / T) * np.exp(-v * v / (2 * T))
+    pdf_scaled = pdf * n * (bins[1] - bins[0])
+    ax.plot(v, pdf_scaled, color=theme.DEEP_RED, linewidth=2.0, label="theory (Maxwell-Boltzmann)")
+    ax.set_xlabel("speed")
+    ax.set_ylabel("count")
+    ax.set_title("Histogram: data + theoretical overlay")
+    ax.legend()
+    out = FIGURES / "histogram.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
 
 
-def evaluate_success(figures_dir: Path) -> list[dict]:
-    """Check that the publishable artifact actually landed. Pattern: each
-    criterion is {label, passed, detail, detail_href?}. detail_href is an
-    optional site-relative URL the MDX renders the detail text as a link to."""
-    frame = figures_dir / "scope_frame.png"
-    exists = frame.exists() and frame.stat().st_size > 0
-    # figures live under src/docs/public/, which Astro serves at the site root.
-    href = "/" + str(frame.relative_to(figures_dir.parents[2]))
-    return [
-        {
-            "label": "scope frame rendered",
-            "passed": bool(exists),
-            "detail": f"{frame.name} ({frame.stat().st_size} bytes)"
-            if exists
-            else f"missing {frame.name}",
-            "detail_href": href if exists else None,
-        },
-    ]
+def fig_heatmap() -> Path:
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    rng = np.random.default_rng(SEED)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    train_dts = np.array([0.1, 0.25, 0.5, 1.0])
+    eval_dts = np.array([0.05, 0.1, 0.25, 0.5, 1.0, 1.5])
+    base = 88 - 2 * np.abs(np.log10(eval_dts[None, :] / train_dts[:, None]))
+    noise = rng.normal(0, 1.5, size=base.shape)
+    grid = np.clip(base + noise, 60, 95)
+    im = ax.imshow(grid, aspect="auto", origin="upper")
+    ax.set_xticks(range(len(eval_dts)))
+    ax.set_xticklabels([f"{d:g}" for d in eval_dts])
+    ax.set_yticks(range(len(train_dts)))
+    ax.set_yticklabels([f"{d:g}" for d in train_dts])
+    ax.set_xlabel("eval dt (ms)")
+    ax.set_ylabel("train dt (ms)")
+    ax.set_title("Heatmap: 2D parameter sweep")
+    fig.colorbar(im, ax=ax, label="accuracy (%)")
+    out = FIGURES / "heatmap.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
 
 
-def write_numbers(
-    out_path: Path,
-    notebook_run_id: str,
-    duration_s: float,
-    success_criteria: list[dict],
-) -> dict:
-    summary = {
-        "notebook_run_id": notebook_run_id,
-        "run_datetime": _format_run_datetime(datetime.now().astimezone()),
-        "duration_s": round(duration_s, 1),
-        "duration": _format_duration(duration_s),
-        "success_criteria": success_criteria,
-        "config": {
-            "tier": TIER,
-            "model": "ping",
-            "n_e": N_HIDDEN,
-            "n_i": N_HIDDEN // 4,
-            "dt_ms": DT_MS,
-            "sim_ms": SIM_MS,
-            "step_on_ms": STEP_ON_MS,
-            "step_off_ms": STEP_OFF_MS,
-            "stim_overdrive": STIM_OVERDRIVE,
-            "input_rate_hz": INPUT_RATE_HZ,
-            "w_in_mean": W_IN_MEAN,
-            "w_in_std": W_IN_STD,
-            "ei_strength": EI_STRENGTH,
-            "input": {"dataset": DATASET, "digit": DIGIT_CLASS, "sample": SAMPLE_IDX},
-            "seed": SEED,
-        },
-    }
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"wrote {out_path.relative_to(REPO)}")
-    return summary
+def fig_raster() -> Path:
+    import matplotlib.pyplot as plt
+    import numpy as np
 
+    import theme  # type: ignore[import]
 
-def _print_and_gate(success_criteria: list[dict]) -> None:
-    """Print a [pass]/[FAIL] line per criterion; exit 1 if any failed."""
-    for c in success_criteria:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in success_criteria):
-        sys.exit(1)
-
-
-def evaluate_only() -> None:
-    """Re-run only the success-criteria check against the existing
-    numbers.json + published figures. No pipeline dispatch, no wipe —
-    useful when only the criteria themselves have changed."""
-    numbers_path = FIGURES / "numbers.json"
-    if not numbers_path.exists():
-        raise SystemExit(
-            f"--evaluate-success-only requires existing "
-            f"{numbers_path.relative_to(REPO)}"
-        )
-    summary = json.loads(numbers_path.read_text())
-    summary["success_criteria"] = evaluate_success(FIGURES)
-    numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"rewrote {numbers_path.relative_to(REPO)} (success_criteria only)")
-    _print_and_gate(summary["success_criteria"])
+    rng = np.random.default_rng(SEED)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    n_neurons = 200
+    T = 1.0
+    dt = 0.001
+    times = np.arange(0, T, dt)
+    rate_hz = 6 + 4 * np.sin(2 * np.pi * 4 * times)
+    spikes = rng.uniform(size=(len(times), n_neurons)) < rate_hz[:, None] * dt
+    t_idx, n_idx = np.where(spikes)
+    ax.scatter(times[t_idx], n_idx, s=1.2, c=theme.INK, alpha=0.7)
+    ax.set_xlim(0, T)
+    ax.set_ylim(-1, n_neurons)
+    ax.set_xlabel("time (s)")
+    ax.set_ylabel("neuron")
+    ax.set_title("Raster: spike trains")
+    out = FIGURES / "raster.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return out
 
 
 def main() -> None:
-    global TIER
-    if "--evaluate-success-only" in sys.argv:
-        evaluate_only()
-        return
-    wipe_dir = "--no-wipe-dir" not in sys.argv
-    skip_training = "--skip-training" in sys.argv
-    modal_gpu = parse_modal_gpu(sys.argv)
-    TIER = parse_tier(sys.argv, choices=TIER_CHOICES, default=DEFAULT_TIER)
-
-    t_start = time.monotonic()
+    parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     notebook_run_id = next_run_id(SLUG)
-    print(
-        f"notebook_run_id = {notebook_run_id} tier={TIER}"
-        + ("  [skip-training]" if skip_training else "")
-        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-    )
+    print(f"notebook_run_id = {notebook_run_id}")
 
-    if wipe_dir:
-        wipe_targets = (FIGURES,) if skip_training else (ARTIFACTS, FIGURES)
-        for d in wipe_targets:
-            if d.exists():
-                print(f"[wipe] {d.relative_to(REPO)}")
-                shutil.rmtree(d)
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
+    if "--no-wipe-dir" not in sys.argv:
+        for path in (ARTIFACTS, FIGURES):
+            if path.exists():
+                print(f"[wipe] {path.relative_to(REPO)}")
+                shutil.rmtree(path)
     FIGURES.mkdir(parents=True, exist_ok=True)
-    persist_run_id(SLUG, notebook_run_id)
-    stamp = FIGURES / "_stamp.png"
-    _render_stamp_png(notebook_run_id, stamp)
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
 
-    frame_dir = ARTIFACTS / "frame"
-    if skip_training:
-        frame_src = frame_dir / "snapshot.png"
-        if not frame_src.exists():
-            raise SystemExit(f"--skip-training requires existing frame at {frame_src}")
-    else:
-        frame_src = render_frame(frame_dir, modal_gpu=modal_gpu)
-    _overlay_stamp_image(frame_src, FIGURES / "scope_frame.png", stamp)
-
-    stamp.unlink(missing_ok=True)
-
+    _setup()
+    t_start = time.monotonic()
+    for fn in (fig_line, fig_line_many, fig_bar, fig_scatter, fig_hist, fig_heatmap, fig_raster):
+        out = fn()
+        print(f"  → {out.relative_to(REPO)}")
     duration_s = time.monotonic() - t_start
-    success_criteria = evaluate_success(FIGURES)
-    summary = write_numbers(
-        FIGURES / "numbers.json", notebook_run_id, duration_s, success_criteria
-    )
-    print(f"  duration: {summary['duration']}")
-    _print_and_gate(success_criteria)
+
+    persist_run_id(SLUG, notebook_run_id)
+    summary = {
+        "notebook_run_id": notebook_run_id,
+        "duration_s": duration_s,
+        "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
+        "config": {"figsize": list(FIGSIZE), "seed": SEED},
+        "run_finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"wrote {(FIGURES / 'numbers.json').relative_to(REPO)}")
 
 
 if __name__ == "__main__":
     main()
-    sys.exit(0)
