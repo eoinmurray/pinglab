@@ -1,10 +1,10 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "002 — ping stim-overdrive video"
+title: "002 — scope frame"
 date: 2026-04-18
 entry: 2
 structure: paper
-collections: [videos]
+collections: [infrastructure]
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
@@ -13,53 +13,52 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb002/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
-export const r = {
-  pre: numbers.rates_hz?.pre ?? {},
-  stim: numbers.rates_hz?.stim ?? {},
-  post: numbers.rates_hz?.post ?? {},
-};
 export const nbRunId = numbers.notebook_run_id ?? "?";
+export const runDatetime = numbers.run_datetime ?? "?";
 export const runDuration = numbers.duration ?? "?";
-export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?", base_rate_hz: "?" };
-export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?" };
-export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
+export const imageGlob = import.meta.glob("../../../public/figures/notebooks/nb002/scope_frame.png", { eager: true, query: "?url", import: "default" });
+export const hasFrame = Object.keys(imageGlob).length > 0;
 export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz, but only when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold scan — companion sweeps live in [nb004](/notebooks/nb004/) (integration step) and [nb005](/notebooks/nb005/) (E→I coupling strength). Single-still version of the same working point is [nb001](/notebooks/nb001/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+A scope frame is the canonical [oscilloscope](/docs/the-oscilloscope/) layout — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content. Sibling of the scan-video entries [nb003](/notebooks/nb003/) (drive sweep), [nb005](/notebooks/nb005/) (dt sweep) and [nb006](/notebooks/nb006/) (E→I sweep). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
-A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb002.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
+One forward pass via the [oscilloscope *image*](/docs/the-oscilloscope/#subcommand-image) subcommand on MNIST digit {cfg.input?.digit} sample {cfg.input?.sample}, at the working point that lights up PING in [nb003](/notebooks/nb003/). All knobs are hardcoded literals in *src/pinglab/notebooks/nb002.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
     title: "Setup",
     rows: [
       { label: "Model", value: cfg.model ?? "?" },
-      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample} @ ${input.base_rate_hz} Hz max` },
+      { label: "Input", value: `${cfg.input?.dataset ?? "?"} d${cfg.input?.digit ?? "?"} s${cfg.input?.sample ?? "?"}` },
       { label: "Seed", value: cfg.seed ?? "?" },
     ],
   },
   {
     title: "Architecture",
     rows: [
-      { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
-      { label: "dt / T", value: `${cfg.dt_ms} / ${cfg.sim_ms} ms` },
+      { label: "N_E / N_I", value: `${cfg.n_e ?? "?"} / ${cfg.n_i ?? "?"}` },
+      { label: "dt / T", value: `${cfg.dt_ms ?? "?"} / ${cfg.sim_ms ?? "?"} ms` },
     ],
   },
   {
-    title: "Stimulus & scan",
+    title: "Stimulus",
     rows: [
-      { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
-      { label: "Overdrive scan", value: `${scan.min}×–${scan.max}×` },
-      { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
+      { label: "Window", value: `${cfg.step_on_ms ?? "?"}–${cfg.step_off_ms ?? "?"} ms` },
+      { label: "Overdrive", value: `${cfg.stim_overdrive ?? "?"}×` },
+      { label: "Input rate", value: `${cfg.input_rate_hz ?? "?"} Hz` },
+      { label: "W_in init (mean, std)", value: `${cfg.w_in_mean ?? "?"}, ${cfg.w_in_std ?? "?"}` },
+      { label: "E→I strength", value: cfg.ei_strength ?? "?" },
     ],
   },
 ]} />
+
+Input rate is flat through the trial (no stim-window overdrive); the *W_in* init is bumped 3× over the default so E has enough baseline drive on its own to recruit I and form PING at *ei-strength* 1.0.
 
 ## Results
 
@@ -82,23 +81,27 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/nb002/scan_overdrive.mp4">
-  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
-</Figure>
+{hasFrame && (
+  <Figure id="Figure 1" title="The scope frame at the canonical working point" src="/figures/notebooks/nb002/scope_frame.png" alt="A single SCOPE_FRAME rendering">
+    The E-population raster fills the 2×2 block because rhythm is the primary observable; the I raster sits beside it at 1/4 the height, phase-offset from E to close the PING loop. Header readouts, weight histograms, input digit and spike train, output logits, PSD, and population rate flank the central raster — every panel shares the same 600 ms time axis so the network's drive, spikes, and output are read off in one glance.
+  </Figure>
+)}
 
-In Figure 1 three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
+### Panels
 
-### Population rates
-
-| Window | E (Hz) | I (Hz) |
-|---|---|---|
-| Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
-| In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
-| Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
+- **Header** — model name, integration step, population size, input rate on the top row; live readouts (E/I firing rates, fundamental frequency f₀, population CV, I/E ratio, active-neuron fraction) on the second row.
+- **E Neurons** — raster of excitatory-population spike times over the full simulation window. The dominant 2×2 block of the figure because rhythm is the thing we're measuring.
+- **Input** — the MNIST digit being shown to the network, rendered at native pixel resolution.
+- **Weights** — histograms of every weight matrix the model owns (*In*, *Out*, *E→E*, *E→I*, *I→E*). Lets you see at a glance whether a matrix has collapsed, saturated, or drifted out of scale.
+- **Input Spikes** — raster of the Poisson-encoded spike train hitting the network. A dense band during the 200–300 ms stimulus window corresponds to the pixel intensities of the digit.
+- **I Neurons** — raster of inhibitory-population spike times, same axes as the E raster. The I population is 1/4 the size of E and fires on an offset phase from E, producing the gamma rhythm.
+- **Output (logits)** — horizontal bar chart of the 10 class logits at the final timestep. The predicted class (argmax) is filled red; the rest are outlined.
+- **PSD** — power spectral density of the E-population rate, restricted to 5–200 Hz. The red vertical marker is the gamma peak frequency f₀.
+- **E Population Rate** — binned firing-rate trace of the E population over time (2 ms bins). The envelope that the PSD is computed from.
 
 ## Next steps
 
-The threshold around overdrive ≈ 1.2× is sharp on this MNIST sample but the structure depends on input statistics; a sample-averaged version (mean rate envelope across many digits) would harden the regime boundaries. With the threshold map in hand, [nb004](/notebooks/nb004/) and [nb005](/notebooks/nb005/) hold drive fixed in stable-PING territory and sweep the other two knobs (*dt*, *ei-strength*) — together the three videos pin the working-point box for every training entry downstream.
+The frame is the layout reference for every scan video downstream — any panel rearrangement should be made here first and then propagated. The training entries ([nb007](/notebooks/nb007/)–[nb012](/notebooks/nb012/), [nb013](/notebooks/nb013/)) reuse the same panel skeleton at lower density, so changes that affect spike rasters or the PSD axes need to be checked against those too.
 
 ## Appendix
 

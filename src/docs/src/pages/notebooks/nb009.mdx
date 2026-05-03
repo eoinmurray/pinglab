@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "009 — cuba"
+title: "009 — snntorch-library"
 date: 2026-04-23
 entry: 9
 structure: paper
@@ -22,7 +22,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb012](/notebooks/nb012/). Trains only the [*cuba*](/docs/models/#cuba) path — current-based synapses with the $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors built into the integrator — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; calibration sibling of [nb006](/notebooks/nb006/) and [nb008](/notebooks/nb008/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*snntorch-library*](/docs/models/#snntorch-library) path — the external snnTorch reference implementation, kept as a parity check on our own CUBANet class — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; parity sibling of [nb007](/notebooks/nb007/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
@@ -34,10 +34,10 @@ Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb009.py* 
   { label: "Init", value: "Kaiming (signed)", default: "non-negative" },
 ]} />
 
-These three customisations mirror [nb006](/notebooks/nb006/)/[nb008](/notebooks/nb008/) verbatim. *cuba* relies on its integrator-level $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors for *dt*-invariance — no per-init compensation needed.
+The three customisations mirror [nb007](/notebooks/nb007/) verbatim — *snntorch-library* shares the saturated-rate-readout and slope-5 × 2000-step BPTT pathologies of our CUBANet, because it's the same math through snnTorch's own *Leaky* cell rather than our clone.
 
 - [**readout = li**](/docs/the-oscilloscope/#readouts) — the default *rate* readout accumulates hidden spikes across *T* = 2000 steps and produces logits large enough that CE saturates to zero on the forward pass, masking the real gradient signal.
-- [**surrogate-slope = 1**](/docs/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient. Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end.
+- [**surrogate-slope = 1**](/docs/the-oscilloscope/#network-flags-shared) — the global default slope = 5 × 2000 timesteps of BPTT overflows fp32 in the *W_ff* input-layer gradient. Slope = 1 bounds the fast-sigmoid pseudo-derivative so grads stay finite end-to-end; the *skipped_steps* counter goes from 7/7 to 0/7.
 - [**kaiming-init (signed)**](/docs/the-oscilloscope/#network-flags-shared) — signed Kaiming on *W_in* gives the hidden layer enough starting drive to spike at all; without it the default non-negative init leaves *rate_e* ≈ 0.
 
 ## Results
@@ -63,23 +63,23 @@ These three customisations mirror [nb006](/notebooks/nb006/)/[nb008](/notebooks/
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb009/training_curves.png" alt="Train loss and test accuracy per epoch for cuba">
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb009/training_curves.png" alt="Train loss and test accuracy per epoch for snntorch-library">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
 </Figure>
 
-<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb009/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for cuba">
+<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb009/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for snntorch-library">
   Mean hidden firing rate across the training schedule.
 </Figure>
 
-<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb009/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the cuba hidden layer">
-  Per-epoch snapshot of the reference MNIST trial through *cuba*'s hidden layer.
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb009/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the snntorch-library hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *snntorch-library*'s hidden layer.
 </Figure>
 
 ## Next steps
 
-Every check passes at large tier — best accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%, and crucially *rate_e* = 104 Hz lands inside the 1–200 Hz sanity band. *cuba* is the first model on this shared MNIST recipe without the saturation pathology that pushes [nb006](/notebooks/nb006/) (rate ≈ 284 Hz) and [nb008](/notebooks/nb008/) (rate ≈ 390 Hz) above the upper rail at matched config. The exp-Euler+ZOH integrator's $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors keep starting drive matched to *standard-snn* at *dt* = 0.1 ms while the exponential synapse low-passes the spike train into the readout, so the network can hit competitive accuracy without driving the hidden layer into rate saturation.
+Large-tier training pulls the hidden rate part-way back (peak ~705 Hz → ~390 Hz by epoch 40) while best accuracy tracks [nb007](/notebooks/nb007/) to within ~1pp — so acc calibration holds, but the rate sanity-band fail persists. The weight init is already matched bit-for-bit with nb007 via the shared Kaiming-uniform recipe in [*CUBANet*](/docs/models/#standard-snn); the remaining gap comes from per-step drift between pinglab's LIF clone and *snn.Leaky* (bias fold, spike/reset ordering, surrogate attachment point) accumulated over 2000 × 40 timesteps of BPTT.
 
-Parked follow-up: the same two-sided firing-rate regulariser proposed for nb006/nb008 (Cramer-2022 style via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/docs/the-oscilloscope/#network-flags-shared)) should be a no-op here — applying it to *cuba* and confirming rate stays inside the band would cheaply verify the regulariser is well-posed before turning it loose on the saturating siblings.
+A shared two-sided firing-rate regulariser across this notebook and [nb007](/notebooks/nb007/) — via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/docs/the-oscilloscope/#network-flags-shared), Cramer-2022 style — is parked for a follow-up. It would pin both paths into the 1–200 Hz band by training pressure rather than by step-code parity, closing the rate gap without turning the calibration pair into a re-import of the library's quirks.
 
 ## Appendix
 

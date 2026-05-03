@@ -1,10 +1,10 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "013 — shd"
-date: 2026-04-22
+title: "013 — dt stability"
+date: 2026-04-19
 entry: 13
 structure: paper
-collections: [spiking-heidelberg-digits]
+collections: [dt-stability]
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
@@ -13,90 +13,253 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb013/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
-export const cell = numbers.winner ?? {};
+export const regimes = numbers.regimes ?? {};
+export const regimeKeys = Object.keys(regimes).sort((a, b) => parseFloat(a) - parseFloat(b));
+export const r1 = regimes[regimeKeys[0]] ?? {};
+export const r2 = regimes[regimeKeys[1]] ?? {};
+export const dt1 = r1.dt_train ?? regimeKeys[0];
+export const dt2 = r2.dt_train ?? regimeKeys[1];
+export const rk1 = r1.regime_key ?? "dt?";
+export const rk2 = r2.regime_key ?? "dt?";
+export const snn1 = r1.runs?.["standard-snn"] ?? {};
+export const snnexp1 = r1.runs?.["standard-snn-exp"] ?? {};
+export const lib1 = r1.runs?.["snntorch-library"] ?? {};
+export const cuba1 = r1.runs?.cuba ?? {};
+export const coba1 = r1.runs?.coba ?? {};
+export const ping1 = r1.runs?.ping ?? {};
+export const snn2 = r2.runs?.["standard-snn"] ?? {};
+export const snnexp2 = r2.runs?.["standard-snn-exp"] ?? {};
+export const lib2 = r2.runs?.["snntorch-library"] ?? {};
+export const cuba2 = r2.runs?.cuba ?? {};
+export const coba2 = r2.runs?.coba ?? {};
+export const ping2 = r2.runs?.ping ?? {};
+export const mode = (run, m = "upsample") => (run?.encoder_modes?.[m] ?? {});
+// Use each regime's count-preserving mode that covers most of its sweep:
+// at fine train-dt (0.1), eval-dt mostly extends coarser → downsample;
+// at coarse train-dt (1.0), eval-dt mostly extends finer → upsample.
+export const snn1Cp = mode(snn1, "downsample");
+export const snnexp1Cp = mode(snnexp1, "downsample");
+export const lib1Cp = mode(lib1, "downsample");
+export const cuba1Cp = mode(cuba1, "downsample");
+export const coba1Cp = mode(coba1, "downsample");
+export const ping1Cp = mode(ping1, "downsample");
+export const snn2Cp = mode(snn2, "upsample");
+export const snnexp2Cp = mode(snnexp2, "upsample");
+export const lib2Cp = mode(lib2, "upsample");
+export const cuba2Cp = mode(cuba2, "upsample");
+export const coba2Cp = mode(coba2, "upsample");
+export const ping2Cp = mode(ping2, "upsample");
 export const nbRunId = numbers.notebook_run_id ?? "?";
-export const runFinished = numbers.run_finished_at ?? "?";
 export const gitSha = numbers.git_sha ?? null;
+export const runDuration = numbers.duration ?? "?";
+export const latestRun = snn1.run_date ?? lib1.run_date ?? cuba1.run_date ?? "?";
+export const sec = (v) => (typeof v === "number" ? v.toFixed(0) : "?");
+export const num = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
+export const rateRatio = (r) => (r && typeof r.sweep_max_hid_rate_hz === "number" && typeof r.sweep_min_hid_rate_hz === "number" && r.sweep_min_hid_rate_hz > 0
+  ? r.sweep_max_hid_rate_hz / r.sweep_min_hid_rate_hz
+  : null);
+export const ratioFmt = (x, digits = 0) => (typeof x === "number" ? (digits === 0 ? Math.round(x) : x.toFixed(digits)) : "?");
+export const accRange = (run, m = "upsample") => {
+  const e = mode(run, m);
+  return (typeof e.sweep_min_acc === "number" && typeof e.sweep_max_acc === "number")
+    ? `${e.sweep_min_acc}–${e.sweep_max_acc}%` : "?";
+};
+
+export const figGlob = import.meta.glob("../../../public/figures/notebooks/nb013/*.{png,mp4}", { eager: true, query: "?url", import: "default" });
+export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" + name));
 export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/spiking-heidelberg-datasets-shd/) dataset, introduced by Cramer et al. ([*cramer-et-al*](/docs/references/#spiking-mnist--benchmarks)) for systematic SNN benchmarking — 20 classes of spoken digits (English + German) encoded as cochleogram spike trains over 700 input channels and $\sim$1 s per trial. SHD is natively event-based, so the dt / discretisation / encoding questions the earlier notebooks studied apply directly rather than being mediated by an artificial row-by-row encoding of an image dataset.
+The simulator's *dt* is a numerical knob, not a feature of the network — but in spiking models it leaks into the dynamics. Train at one *dt* and evaluate at another and hidden firing rates can shift by an order of magnitude with frozen weights. This notebook quantifies that leakage across six models and traces it to a single expression: the bias term scales as $1/\Delta t$ in the snnTorch family, while cuba/coba/ping are *dt*-invariant by construction.
 
 ## Method
 
-<Figure id="Figure 0" title="SHD at a glance — one example per class" src="/figures/notebooks/nb013/shd_digits.png" alt="Spike rasters for one trial from each of the 20 SHD classes, arranged as a 4×5 grid">
-  One cochleogram spike raster per class, sampled from the train set (seed {cfg.seed ?? "?"}). Classes 0–9 are the English digits *zero*–*nine*; classes 10–19 are the German *null*–*neun*. Each panel is 700 channels × {cfg.t_ms ?? "?"} ms; density and temporal structure vary across speakers but the class-specific spectral signature is visible.
-</Figure>
+### Setup
 
-[*cuba*](/docs/models/#cuba) model with one hidden layer of 128 units, trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **li** readout. Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}; raw Kaiming init, no per-init drive compensation.
+Six models are trained on MNIST at two *dt* regimes ({dt1} ms and {dt2} ms), each with the per-model recipe from its calibration sibling ([nb007](/notebooks/nb007/)–[nb012](/notebooks/nb012/)). Weights are then frozen and accuracy is re-evaluated across a sweep of eval-*dt* values under three input-transport rules ([upsample / downsample / resample](#eval-time-dt-transport)). Identity transport (eval-*dt* = train-*dt*) anchors each sweep, so any change downstream is *integrator-side*.
 
-### Comparison to the literature
+**Models** (see [the ladder](/docs/models/)):
 
-Cramer et al. ([*cramer-et-al*](/docs/references/#spiking-mnist--benchmarks)) set the reference SHD recipe that most subsequent work measures against: a current-based LIF with exponential synapse, LI (non-spiking) readout, full-BPTT with a fast-sigmoid surrogate, and a two-sided firing-rate regulariser. Their headline numbers are 48.1–48.6% for 1–2 layer feedforward SNNs and 71.4% for the recurrent variant at matched capacity.
+- [*standard-snn*](/docs/models/#standard-snn) — pinglab reimplementation of snnTorch's *snn.Leaky*. The Tutorial-3 simplification ($\Delta t = 1$, $R = 1$, $(1-\beta)$ absorbed into $W$) drops $\Delta t$ from the update, which is what produces the *dt*-leakage analysed below.
+- [*standard-snn-exp*](/docs/models/#standard-snn) — *standard-snn* with an exponential synapse ($\tau_\text{syn} \approx 2$ ms) on the feedforward inputs.
+- [*snntorch-library*](/docs/models/#snntorch-library) — snnTorch's *snn.Leaky* directly. Parity probe against *standard-snn*.
+- [*cuba*](/docs/models/#cuba) — same LIF, exp-Euler + ZOH integration restoring the $(1-\beta)/dt$ and $(1-\beta)$ prefactors. *dt* is back in the update.
+- [*coba*](/docs/models/#coba) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
+- [*ping*](/docs/models/#ping) — COBA plus the frozen E→I→E recurrent loop that produces gamma.
 
-This entry deliberately tracks that recipe component-by-component so the gap to the reference number is interpretable. Below are the features of their setup and whether this entry matches.
+Recipe table cells are the resolved training values; *n/a* marks parameters the model class doesn't use.
 
-**Matching**
+| Param | standard-snn | standard-snn-exp | snntorch-library | cuba | coba | ping |
+|---|---|---|---|---|---|---|
+| [*--model*](/docs/the-oscilloscope/#network-flags-shared) | standard-snn | standard-snn-exp | snntorch-library | cuba | ping | ping |
+| [*--dataset*](/docs/the-oscilloscope/#input-flags-shared) | mnist | mnist | mnist | mnist | mnist | mnist |
+| [*--input-rate*](/docs/the-oscilloscope/#input-flags-shared) (Hz) | 25 | 25 | 25 | 25 | 25 | 25 |
+| [*--t-ms*](/docs/the-oscilloscope/#network-flags-shared) | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} |
+| [*--seed*](/docs/the-oscilloscope/#execution-flags-shared) | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} |
+| [*--max-samples*](/docs/the-oscilloscope/#subcommand-train) | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} |
+| [*--epochs*](/docs/the-oscilloscope/#subcommand-train) | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} |
+| [*--batch-size*](/docs/the-oscilloscope/#subcommand-train) | 256 | 256 | 256 | 256 | 256 | 256 |
+| [*--observe*](/docs/the-oscilloscope/#subcommand-train) | video | video | video | video | video | video |
+| [*--kaiming-init*](/docs/the-oscilloscope/#weight-flags-shared-advanced) | True | True | True | True | False | False |
+| [*--readout*](/docs/the-oscilloscope/#readouts) | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* |
+| [*--surrogate-slope*](/docs/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 1 | 1 |
+| [*--readout-w-out-scale*](/docs/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 100 | 500 |
+| [*--lr*](/docs/the-oscilloscope/#subcommand-train) | 0.01 | 0.01 | 0.01 | 0.04 | 0.0004 | 0.0004 |
+| [*--ei-strength*](/docs/the-oscilloscope/#network-flags-shared) | n/a | n/a | n/a | n/a | 0 | 1 |
+| [*--v-grad-dampen*](/docs/the-oscilloscope/#subcommand-train) | n/a | n/a | n/a | n/a | 1000 | 1000 |
+| [*--w-in*](/docs/the-oscilloscope/#weight-flags-shared-advanced) (mean, std) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.03) | (1.2, 0.12) |
+| [*--w-in-sparsity*](/docs/the-oscilloscope/#weight-flags-shared-advanced) | 0.0 | 0.0 | 0.0 | 0.0 | 0.95 | 0.95 |
+| integrator | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | exp-Euler ZOH (input) | exp-Euler ZOH (conductance) | exp-Euler ZOH (conductance) |
+| synapse | direct | exponential | direct | direct | exponential (COBA) | exponential (COBA) + E→I→E |
 
-| Feature | Cramer et al. | This entry |
-|---|---|---|
-| Neuron | current-based LIF (cuba) | *cuba-exp* |
-| Synapse | exponential low-pass on spikes | exponential low-pass on spikes |
-| $\tau_\text{mem}$ | 20 ms | 20 ms |
-| $\tau_\text{syn}$ | 10 ms | 10 ms |
-| Trial length $T$ | 1 s | {cfg.t_ms ?? "?"} ms |
-| Timestep $dt$ | 2 ms | {cfg.dt ?? "?"} ms |
-| Hidden width | 128 | 128 |
-| Readout | LI (non-spiking leaky integrator) | LI |
-| Input channels | 700 cochleogram | 700 cochleogram |
-| Batch size | 256 | 256 |
-| Learning rate | $10^{-3}$ | $10^{-3}$ |
-| Surrogate | fast-sigmoid | fast-sigmoid |
-| Firing-rate regulariser | two-sided, $\theta_l{=}0.01$, $s_l{=}1.0$, $\theta_u{=}100$, $s_u{=}0.06$ | same |
-| BPTT | full | full |
+Trainable parameters (with $N_\text{in} = 784$, $N_\text{hid} = 1024$, $N_\text{out} = 10$):
 
-**Not matching**
+| Param | shape | snnTorch family | cuba | coba | ping |
+|---|---|---|---|---|---|
+| *W_ff[0]* (input → hidden) | $N_\text{in} \times N_\text{hid}$ | ✓ | ✓ | ✓ | ✓ |
+| *b_ff[0]* (hidden bias) | $N_\text{hid}$ | ✓ | ✓ | — | — |
+| *W_ff[-1]* (hidden → output) | $N_\text{hid} \times N_\text{out}$ | ✓ | ✓ | ✓ | ✓ |
+| *b_ff[-1]* (output bias) | $N_\text{out}$ | ✓ | ✓ | — | — |
+| *W_ee*, *W_ei*, *W_ie* | $N_\text{hid}^2$, $N_\text{hid} \times N_\text{i}$, $N_\text{i} \times N_\text{hid}$ | — | — | frozen | frozen |
+| **Total** | | **814,090** | **814,090** | **813,056** | **813,056** |
 
-| Feature | Cramer et al. | This entry | Notes |
-|---|---|---|---|
-| Architecture | recurrent (hidden→hidden) for the 71.4% row, feedforward for the 48% rows | feedforward only (*W_rec* = 0) | we're targeting the 48% feedforward band first; recurrence is the next step |
-| Hidden depth | 1 layer for the 48.1% row, 2 layers for 48.6% | 1 layer | width $\times$ depth budget not yet swept |
-| Epochs | 150 | {cfg.epochs ?? "?"} | our **{numbers.tier ?? "?"}** tier is much shorter for iteration speed |
-| Training samples | full SHD (8156 train) | {cfg.max_samples ?? "?"} | subsampled per tier; *huge* tier will restore full-set |
-| Surrogate slope $\beta$ | 40 | 10 | $\beta{=}40$ × 500-step BPTT explodes gradients in our current config; we'll revisit once a stable backbone is established |
-| Optimizer | Adamax | Adam | not yet wired as an oscilloscope flag |
-| Weight init | Kaiming uniform, $k{=}1/\text{fan-in}$ | Kaiming uniform, $k{=}2/\text{fan-in}$ (PyTorch default) | factor-2 difference in init scale |
-| Data augmentation | none for the 71.4% row; time-jitter/channel-shift for 83.2% | none | out of scope until the recurrent-SNN number is reproduced |
+The CUBANet family includes hidden + output biases; COBANet's biophysical formulation has no bias term, so $\sim$1k fewer params. PING's E↔I recurrent matrices are present but frozen at init — only the feedforward path trains, matching the trainable-parameter count of coba so the model-class comparison is apples-to-apples.
 
-Cramer's reference numbers (for context):
+### Readout
 
-| Architecture | SHD test acc (%) |
-|---|---|
-| Spiking, 1-layer feedforward | 48.1 ± 1.6 |
-| Spiking, 2-layer feedforward | 48.6 ± 0.9 |
-| Spiking, 3-layer feedforward | 47.5 ± 2.3 |
-| Spiking, recurrent | 71.4 ± 1.9 |
-| Spiking, recurrent (best effort, 1024 neurons + augmentation) | 83.2 ± 1.3 |
-| SVM (RBF) | 60.0 ± 0.3 |
-| LSTM | 89.0 ± 0.2 |
-| CNN | 92.4 ± 0.7 |
+All six models use *mem-mean*: spiking output LIF, mean-of-membrane as logits. Architecture matches [snnTorch tutorial 3](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html) (leaky neuron after the final projection), training signal matches [tutorial 5](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html) (CE on the output membrane summed across timesteps — taken in mean form here for *dt*-invariance).
+
+The output LIF uses the same exp-Euler + ZOH form cuba uses for its hidden membrane:
+
+$$
+v_\mathrm o^{t+1} = \beta_\mathrm o\, v_\mathrm o^{t} + \tfrac{1-\beta_\mathrm o}{\Delta t}\, W_{ff}^{[-1]} s_t + (1-\beta_\mathrm o)\, b_{ff}^{[-1]},
+$$
+
+with $\beta_\mathrm o = e^{-\Delta t / \tau_\mathrm o}$, $\tau_\mathrm o = 2$ ms, threshold 1, subtract reset on spike. Output spikes are recorded but *not* used in the loss — they only bound the membrane. The trial logit is
+
+$$
+\text{logits}^{(c)} = \tfrac{1}{T}\, \sum_t v_\mathrm o^{(c)}(t)
+$$
+
+and CE applies once. Mean-of-membrane gives a dense per-step gradient signal; spike count's gradient flows only through the surrogate at threshold crossings (sparse, high-variance) and earlier *spike-count* runs of this notebook trained at chance for COBANet.
+
+COBANet caveat: hidden firing rate ($\sim$5–30 Hz) is $\sim$10–100× lower than CUBANet's, so per-step drive into the output is correspondingly weaker. We compensate at init (*--readout-w-out-scale*: 100 for coba, 500 for ping); see the [differences table](#differences-between-cuba-and-coba) below.
+
+### Differences between CUBA and COBA
+
+Five flags differ between [*cuba*](/docs/models/#cuba) and [*coba*](/docs/models/#coba); the classes themselves differ on six more not exposed as flags.
+
+**Recipe-level (visible in the table)**
+
+| Difference | cuba | coba | Effect | Justification |
+|---|---|---|---|---|
+| *--model* | *cuba* | *ping* (with *--ei-strength 0*) | Dispatches [CUBANet](/docs/models/#cubanet) vs [COBANet](/docs/models/#cobanet). | coba is feedforward COBANet; ping with the recurrent loop off. |
+| *--lr* | 0.04 | 0.0004 | 100× spread. | $g(V - E_\text{rev})$ is far more LR-sensitive than cuba's $+I$. |
+| *--readout-w-out-scale* | 1 | 100 / 500 | Multiplies *W_ff[-1]* at init. | COBANet hidden rate $\sim$10–100× below CUBANet's, so output drive is correspondingly weak. nb011 sweep: 1→59%, 10→70%, 30→74%, 100→82%. ping's inhibitory loop wants 5× more. |
+| *--kaiming-init* | True | False | Signed vs half-normal init on $W_\text{in}$. | cuba is Dale-off; coba is Dale-on (non-negative). |
+| *--w-in* (mean, std) | (0.3, 0.06) | (0.3, 0.03) | std halved. | Half-normal already biases positive — narrower std avoids overdriving at *t* = 0. |
+| *--w-in-sparsity* | 0.0 | 0.95 | Dense vs sparse $W_\text{in}$. | Biophysical µS scale: a few strong inputs per neuron, not dense Kaiming. |
+| *--v-grad-dampen* | n/a | 1000 | Soft-clips the voltage gradient on backward. | Conductance Jacobian $\partial U / \partial g$ explodes near threshold. |
+
+**Class-level (not exposed as flags)**
+
+| Difference | cuba | coba | Effect | Justification |
+|---|---|---|---|---|
+| Membrane equation | $\tau\, dV/dt = -V + I$ | $C_m\, dV/dt = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i)$ | Linear additive ODE vs nonlinear multiplicative; coba clips $V$ at $E_e$. | Headline biophysical step on [the ladder](/docs/models/); reversal potentials, $g_e/g_i$, µS units all follow. |
+| Spike reset | subtract ($U \mathrel{{-}{=}} \theta$) | hard ($V \leftarrow V_\text{reset}$) | Subtract preserves cross-spike momentum; hard reset destroys it. | Matches biological after-hyperpolarisation (the brief K⁺-driven dip below rest after a spike). |
+| Refractory | none | $\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms | Caps single-neuron rate at $\sim 1/\tau_\text{ref}$. | Biophysical realism + prevents runaway firing. |
+| Dale's law | off | on ($W \geq 0$) | Restricts optimisation landscape. | Real cortical synapses don't switch sign. |
+| Synaptic kernel | direct LIF | exponential ($\tau_\text{AMPA} = 2$, $\tau_\text{GABA} = 9$ ms) | Each spike kicks instantaneously in cuba; in coba it raises a decaying conductance trace. | Required for any oscillation, including PING's gamma. |
+| Bias term | trainable $b_\text{ff}$ | none | cuba has a free DC offset per neuron. | A constant bias doesn't fit the biophysical form (would need a current source). |
+| Units / scale | dimensionless | mV / µS / ms | Just a rescaling computationally. | Required for matching electrophysiology. Constants on [Parameters & Units](/docs/parameters-and-units/). |
+
+**What's *not* different.** Both models share the exp-Euler + ZOH integrator (with the $(1-\beta)$ prefactors that make the per-step update *dt*-invariant — the whole point of this notebook), the fast-sigmoid surrogate-gradient primitive, and the same reset-by-subtraction-and-clamp for membrane numerics outside spikes. The integrator is *not* the cuba/coba boundary; it's what coba inherits unchanged from cuba.
+
+### Eval-time *dt* transport
+
+With weights frozen, evaluating at a different *dt* needs a rule for how to rebin the input spike train. Three modes are run:
+
+- **Upsample** (count-preserving, eval-*dt* ≤ train-*dt*) — generate Poisson at train-*dt*, then expand the time axis by $k = \Delta t_\text{ref}/\Delta t_\text{target}$, placing each reference spike at the *first* fine sub-step of its block. Total spike count exact, per-ms rate exact, per-step rate drops by $1/k$.
+- **Downsample** (count-preserving, eval-*dt* ≥ train-*dt*) — generate Poisson at train-*dt*, then sum-pool blocks of $k$ steps (§2.3): split the time axis into non-overlapping windows of $k$ consecutive ref-steps, replacing each window with the sum of its values. Per-ms rate exact, total count preserved up to leftover steps trimmed when $T$ is not divisible by $k$. Output is non-binary (counts per coarse bin).
+- **Resample** — draw a fresh Poisson stream at the target *dt* with the same per-ms rate. Sampling noise re-enters; works in both directions.
+
+### Latency-to-correct-answer protocol
+
+One forward pass per (model, train-*dt*) on a deterministic test batch with `recording=True`; the per-timestep readout state lands in *net.spike_record["out"]*, shape *(T_steps, B, N_OUT)*. For *mem-mean* the state at step $t$ is the cumulative $v_\mathrm o$ sum so far (scaled by a constant, so argmax is preserved). The anytime prediction at fraction $f$ is
+
+$$
+\text{prediction}(f) = \arg\max_c \; \sum_{t=1}^{f \cdot T} v_\mathrm o^{(c)}(t),
+$$
+
+monotonic by construction. Sweep $f$ over 20 points $\{0.05, 0.10, \ldots, 1.00\}$, compare to labels, plot $P(\text{correct} \mid f)$ — one curve per (train-*dt*, model).
 
 ## Results
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb013/training_curves.png" alt="Train loss and test accuracy per epoch for the cuba baseline">
-  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%.
-</Figure>
+Training videos are in [the appendix](#videos--training).
 
-<Figure id="Figure 2" title="Per-epoch hidden activity" src="/figures/notebooks/nb013/training_cuba-exp.mp4" type="video" alt="Per-epoch oscilloscope snapshot of hidden-layer activity for the cuba baseline on SHD">
-  Per-epoch snapshot of the reference SHD trial through *cuba*'s hidden layer ($\eta$ = {cell.lr ?? "?"}, *li* readout).
-</Figure>
+### Training curves
 
-## Discussion
+{hasFig("training_curves.png") && (
+  <Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb013/training_curves.png" alt="Training curves, 2x2 grid (rows: train-dt regime, columns: loss and accuracy)">
+    Per-epoch train loss (left) and test accuracy (right) for each model; rows are training-dt regimes.
+  </Figure>
+)}
 
-*To be written once results are analysed.*
+Best test accuracy per regime:
+
+| model | train *dt* = {dt1} ms | train *dt* = {dt2} ms |
+|---|---|---|
+| standard-snn | {snn1.best_acc ?? "?"}% | {snn2.best_acc ?? "?"}% |
+| standard-snn-exp | {snnexp1.best_acc ?? "?"}% | {snnexp2.best_acc ?? "?"}% |
+| snntorch-library | {lib1.best_acc ?? "?"}% | {lib2.best_acc ?? "?"}% |
+| cuba | {cuba1.best_acc ?? "?"}% | {cuba2.best_acc ?? "?"}% |
+| coba | {coba1.best_acc ?? "?"}% | {coba2.best_acc ?? "?"}% |
+| ping | {ping1.best_acc ?? "?"}% | {ping2.best_acc ?? "?"}% |
+
+### Hidden layer firing rate vs eval-*dt*
+
+{hasFig("firing_rates.png") && (
+  <Figure id="Figure 2" title="Hidden firing rate vs eval-dt" src="/figures/notebooks/nb013/firing_rates.png" alt="Mean hidden firing rate vs eval-dt, 2x2 grid (rows: count-preserving / resample, columns: train-dt)">
+    Mean hidden-layer firing rate under frozen weights as eval-dt is swept. Top row: count-preserving transports (solid = upsample, dashed = downsample); bottom row: resample. Red dashed vertical marks train-dt. Color groups family: blue gradient = snnTorch family, green = cuba, orange/red = PING family.
+  </Figure>
+)}
+
+The snnTorch family (blue) rises as eval-*dt* shrinks; cuba/coba/ping stay flat. The mechanism is visible in the steady-state membrane.
+
+Update rule, with $\beta = e^{-\Delta t / \tau_\text{mem}}$:
+
+$$
+U_{t+1} = \beta U_t + W s_t + b.
+$$
+
+Take the expectation at mean input rate $r$ (so $\mathbb{E}[s_t] = r\Delta t$); each step adds $Wr\Delta t + b$ on average. The fixed point is
+
+$$
+U_{ss} = \frac{Wr\Delta t + b}{1 - \beta} \approx Wr\tau + \frac{b\tau}{\Delta t}
+$$
+
+using $1-\beta \approx \Delta t/\tau$.
+
+The spike contribution $Wr\tau$ is *dt*-invariant; the bias contribution $b\tau/\Delta t$ scales as $1/\Delta t$. Halving eval-*dt* doubles bias drive; firing rate rises with it. cuba/coba/ping restore the missing $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors at integration time, giving $U_{ss} = Wr + b$ — *dt*-invariant by construction.
+
+### Accuracy vs eval-*dt*
+
+{hasFig("dt_sweep.png") && (
+  <Figure id="Figure 3" title="Accuracy vs eval-dt" src="/figures/notebooks/nb013/dt_sweep.png" alt="Accuracy vs eval-dt, 2x2 grid (rows: count-preserving / resample, columns: train-dt)">
+    Test accuracy on frozen weights as eval-dt is swept. Same 2×2 layout as Figure 2.
+  </Figure>
+)}
+
+### Latency to correct answer
+
+{hasFig("latency_curves.png") && (
+  <Figure id="Figure 4" title="Latency to correct answer" src="/figures/notebooks/nb013/latency_curves.png" alt="P(correct) as a function of fraction of trial seen, per model, two panels for train-dt regimes">
+    Test accuracy on frozen weights as a function of how much of the trial the mem-mean readout has integrated. At each fraction the running argmax picks the class with the highest cumulative output membrane up to that step, matching the trained-time output. Dotted line at 10% is chance.
+  </Figure>
+)}
 
 ## Success criteria
 
@@ -117,43 +280,194 @@ Cramer's reference numbers (for context):
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-The machine-checked table above gates *pipeline health*: artifacts rendered, test accuracy above the tier chance-floor (SHD is 20-class so chance = 5%), hidden firing rate in the 1–200 Hz sanity band, and no late-epoch collapse. It does **not** gate the literature comparison — whether best accuracy lands inside Cramer et al.'s 47.5–48.6% feedforward-SNN band is narrated in *Comparison to the literature* above, since falling short of that is not a regression, just a gap to close.
+## Discussion
+
+The difference between CUBA and COBA amounts to several changes at once — which ones are crucial?
+
+**Crucial — the ones that change network behaviour**
+
+1. **Conductance form $g \cdot (V - E_\text{rev})$ instead of additive $+I$.** Excitation saturates as $V \to E_e$ (can't drive past 0 mV); inhibition becomes shunting (raises $g_\text{tot}$, shortens effective $\tau$). CUBA has neither — additive currents drive $V$ arbitrarily, no shunting, no biophysical clipping. Everything downstream (reversal potentials, separate $g_e / g_i$ channels, units in µS) follows from this one switch.
+2. **Hard reset + refractory.** Hard reset to $V_\text{reset}$ destroys cross-spike membrane momentum; refractory ($\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms) puts a hard ceiling on firing rate at $\approx 1/\tau_\text{ref}$. Reset-by-subtraction (cuba's default) lets the membrane carry residual depolarisation forward, so high rates can run away. Under the uniform *mem-mean* readout this is exactly what shows up as the COBANet family's lower trial-level drive into the output LIF — it's why we have to scale *W_ff[-1]* by 100× (coba) and 500× (ping) to recover competitive accuracy.
+3. **Exponential synapses.** $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms. Low-passes the presynaptic spike train into the membrane drive and separates fast-E from slow-I — required for any oscillation, including PING. cuba can opt in (*standard-snn-exp*), but it's standard in coba.
+
+**Secondary — change the *constraints*, not the dynamics**
+
+4. **Dale's law** ($W \geq 0$). A regulariser on the optimiser, not a dynamics change. Off in cuba, on in coba.
+5. **Biophysical units** (mV, µS, ms with realistic constants). Required for matching electrophysiology; computationally just a rescaling.
+
+**Not actually different**
+
+6. **Integrator.** Both cuba and coba use exp-Euler + ZOH with $(1 - \beta)$ prefactors built into the update — that's what makes both *dt*-invariant in this notebook. The integrator is *not* the cuba/coba boundary; it's what coba inherits unchanged from cuba.
+7. **Surrogate-gradient spike primitive.** Same fast-sigmoid in both.
+
+If you had to keep one: conductance form (1). Without it there's no shunting and no biophysics — *cuba-with-hard-reset-and-refractory* is just a stiffer LIF.
 
 ## Next steps
 
-**Switch to Zenke's direct update form.** Zenke (Spytorch Tutorial 4, cited by Cramer 2022) uses
-
-$$
-\text{syn}_{t+1} = \alpha\,\text{syn}_t + W s_t, \qquad \text{mem}_{t+1} = \beta\,\text{mem}_t + \text{syn}_{t+1}
-$$
-
-with a bare init $W \sim \mathcal{N}(0, 0.2/\sqrt{N_\text{in}})$. Our cuba-exp uses the *dt*-invariant low-pass form $\beta\,\text{mem} + (1-\beta)\,\text{drive}$, $\alpha\,\text{syn} + (1-\alpha)\,W s_t$. The two are equivalent in steady state if the trainable $W$ is scaled by $1/((1-\alpha)(1-\beta)) \approx 10$ at $\Delta t=2$, $\tau_\text{mem}=20$, $\tau_\text{syn}=10$ — i.e., to match Zenke's per-spike kick from the low-pass form, the raw parameter has to be inflated 10×.
-
-The catch is parameter scale. Off-equilibrium, three things go wrong with $W$ inflated 10×:
-
-1. The raw $W s_t$ (computed before the $(1-\alpha)$ scaling) is 10× Zenke's; at fast surrogate slope, *any* membrane excursion past threshold produces a $10\times$ larger gradient spike that Adam's second moment can't smooth.
-2. Adam/Adamax take steps of relative size $\sim\eta$, so 10× larger absolute step in weight space — overshoots compound where Zenke's don't.
-3. The recurrence Jacobian has $W_\text{rec}\cdot s\cdot\sigma'$, where slope $s$ and weight scale enter multiplicatively. Slope 40 in the low-pass form behaves like slope $\sim$400 in the direct form across 500 BPTT steps.
-
-Net: the low-pass form caps out around slope 5; Cramer's 71% RSNN row needs slope 40. The fix is mechanical — add a `--cuba-update-form {low-pass, direct}` flag, use `direct` for nb013, and init $W$ at $0.2/\sqrt{N_\text{in}}$ directly.
-
-**Re-enable recurrence.** The 71% RSNN target requires $W_\text{rec} \neq 0$. Feedforward $W_\text{rec} = 0$ with slope = 5 + adamax is stable; under the direct update form above, restoring $W_\text{rec} \sim \mathcal{N}(0, 0.2/\sqrt{N_\text{hidden}})$ should match Zenke's `v1`.
-
-**Remove the grad-skip band-aid.** Adamax reduces skipped batches from ~440 to ~3 across a 69-epoch run; the `--skip-bad-grad-threshold 1e4` flag is no longer load-bearing. Already dropped from the recipe.
+- **Large-tier confirmation** to check whether the 86–89% medium results scale to the literature 90+% baseline cuba/coba/ping had under the old recipe.
+- **Per-family sweep over `--readout-w-out-scale`** at large tier to find whether the 100/500 settings are near-optimal or just adequate.
+- **Apply the *mem-mean* recipe to nb014 (SHD)** where the lower-rate firing regime makes the readout-coupling problem more acute.
 
 ## Appendix
 
 ### Reproduction
 
 ```
-uv run src/pinglab/notebooks/nb013.py
+uv run src/pinglab/notebooks/nb013.py --tier medium
 ```
 
-Add `--tier small` for a faster pass.
+Add *--modal-gpu A100* to dispatch the 12 training jobs (and 36 sweep jobs) to Modal in parallel; default is local. *--plots-only* re-renders figures + numbers.json from existing artifacts without retraining.
 
-### Run parameters
+### Videos
 
-<RunParameters numbers={numbers} extras={[
-  { label: "Readout", value: "li" },
-  { label: "Finished", value: runFinished, section: "provenance" },
-]} />
+One scope frame per training epoch, one video per (model, train-*dt*).
+
+#### Training
+
+{hasFig(`training_${rk1}_standard-snn.mp4`) && (
+  <Figure type="video" id="Figure 5" title={`standard-snn @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_standard-snn.mp4`}>
+    standard-snn at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk1}_standard-snn-exp.mp4`) && (
+  <Figure type="video" id="Figure 6" title={`standard-snn-exp @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_standard-snn-exp.mp4`}>
+    standard-snn-exp at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk1}_snntorch-library.mp4`) && (
+  <Figure type="video" id="Figure 7" title={`snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_snntorch-library.mp4`}>
+    Parity reference (*snn.Leaky*).
+  </Figure>
+)}
+
+{hasFig(`training_${rk1}_cuba.mp4`) && (
+  <Figure type="video" id="Figure 8" title={`cuba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_cuba.mp4`}>
+    *cuba* at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk1}_coba.mp4`) && (
+  <Figure type="video" id="Figure 9" title={`coba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_coba.mp4`}>
+    *coba* at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk1}_ping.mp4`) && (
+  <Figure type="video" id="Figure 10" title={`ping @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_ping.mp4`}>
+    *ping* at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_standard-snn.mp4`) && (
+  <Figure type="video" id="Figure 11" title={`standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_standard-snn.mp4`}>
+    standard-snn at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_standard-snn-exp.mp4`) && (
+  <Figure type="video" id="Figure 12" title={`standard-snn-exp @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_standard-snn-exp.mp4`}>
+    standard-snn-exp at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_snntorch-library.mp4`) && (
+  <Figure type="video" id="Figure 13" title={`snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_snntorch-library.mp4`}>
+    Parity reference.
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_cuba.mp4`) && (
+  <Figure type="video" id="Figure 14" title={`cuba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_cuba.mp4`}>
+    *cuba* at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_coba.mp4`) && (
+  <Figure type="video" id="Figure 15" title={`coba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_coba.mp4`}>
+    *coba* at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`training_${rk2}_ping.mp4`) && (
+  <Figure type="video" id="Figure 16" title={`ping @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_ping.mp4`}>
+    *ping* at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+One scope frame per eval-*dt* with weights frozen at end of training; one video per (model, train-*dt*).
+
+#### Eval dt sweep
+
+{hasFig(`dt_sweep_${rk1}_standard-snn.mp4`) && (
+  <Figure type="video" id="Figure 17" title={`dt-sweep — standard-snn @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_standard-snn.mp4`}>
+    Frozen weights, one frame per eval-*dt*.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk1}_standard-snn-exp.mp4`) && (
+  <Figure type="video" id="Figure 18" title={`dt-sweep — standard-snn-exp @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_standard-snn-exp.mp4`}>
+    standard-snn-exp at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk1}_snntorch-library.mp4`) && (
+  <Figure type="video" id="Figure 19" title={`dt-sweep — snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_snntorch-library.mp4`}>
+    Parity reference (*snn.Leaky*).
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk1}_cuba.mp4`) && (
+  <Figure type="video" id="Figure 20" title={`dt-sweep — cuba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_cuba.mp4`}>
+    *cuba* at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk1}_coba.mp4`) && (
+  <Figure type="video" id="Figure 21" title={`dt-sweep — coba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_coba.mp4`}>
+    *coba* at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk1}_ping.mp4`) && (
+  <Figure type="video" id="Figure 22" title={`dt-sweep — ping @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_ping.mp4`}>
+    *ping* at train-*dt* = {dt1} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk2}_standard-snn.mp4`) && (
+  <Figure type="video" id="Figure 23" title={`dt-sweep — standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_standard-snn.mp4`}>
+    standard-snn at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk2}_standard-snn-exp.mp4`) && (
+  <Figure type="video" id="Figure 24" title={`dt-sweep — standard-snn-exp @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_standard-snn-exp.mp4`}>
+    standard-snn-exp at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk2}_snntorch-library.mp4`) && (
+  <Figure type="video" id="Figure 25" title={`dt-sweep — snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_snntorch-library.mp4`}>
+    Parity reference.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk2}_cuba.mp4`) && (
+  <Figure type="video" id="Figure 26" title={`dt-sweep — cuba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_cuba.mp4`}>
+    *cuba* at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk2}_coba.mp4`) && (
+  <Figure type="video" id="Figure 27" title={`dt-sweep — coba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_coba.mp4`}>
+    *coba* at train-*dt* = {dt2} ms.
+  </Figure>
+)}
+
+{hasFig(`dt_sweep_${rk2}_ping.mp4`) && (
+  <Figure type="video" id="Figure 28" title={`dt-sweep — ping @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_ping.mp4`}>
+    *ping* at train-*dt* = {dt2} ms.
+  </Figure>
+)}

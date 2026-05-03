@@ -1,5 +1,5 @@
 """Encoders that turn images into spike trains, plus the count-preserving
-transports (upsample / downsample) used by nb012's eval-dt sweep.
+transports (upsample / downsample) used by nb013's eval-dt sweep.
 
 Everything here is pure-data — no model state, no CLI plumbing. Lifted out
 of __main__.py during the oscilloscope split.
