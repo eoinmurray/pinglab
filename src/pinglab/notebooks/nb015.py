@@ -1,19 +1,17 @@
-"""Notebook runner for entry 014 — sequential MNIST tracking.
+"""Notebook runner for entry 015 — sequential MNIST tracking.
 
 Trains cuba/coba/ping on standard single-MNIST (recipe inherited from
 nb010/10/11), then runs an *eval-only* probe in which each trial is a
 sequence of four random MNIST digits, each shown for 50 ms inside a
-200 ms trial. The trained network's mem-mean readout is queried
-without retraining; for every target window position k ∈ {0,1,2,3} we
-measure how often the network's argmax prediction equals the digit
-shown in window k.
+200 ms trial. The trained network's mem-mean readout is applied
+*per-window*: for window k we average v_out over the k-th 50 ms slice
+and argmax through the existing W_out, asking whether the trial-level
+decoder still picks out the digit currently being shown.
 
-A network whose state turns over fast (small effective τ relative to
-the 50 ms window) should peak at k = 3 — the most recent digit
-dominates the readout. A network with slow recurrent persistence
-(PING) should be flatter or biased toward earlier windows. This is a
-direct probe of state turnover and temporal binding under each
-architecture's natural dynamics.
+Chance = 10%; ceiling = 100%. A network whose state turns over fast
+(small effective τ relative to 50 ms) should track each window
+faithfully; a slow integrator will smear digit k+1 with leftover
+state from digit k and lose accuracy on later windows.
 
 Notebook entry: src/docs/src/pages/notebooks/nb015.mdx
 """
@@ -230,14 +228,19 @@ def eval_sequential(model_name: str, run_dir: Path) -> dict:
             labels[i, k] = y
 
     window_steps = int(round(SEQ_WINDOW_MS / DT))
+    T_steps = SEQ_WINDOWS * window_steps
     rate_hz = cfg.get("input_rate", 25.0)
     batch = 64
-    all_preds: list[int] = []
+    # Per-window predictions: apply trained mem-mean readout to mem averaged
+    # over each 50ms slice. spike_record["out"][t] holds the running mem-mean
+    # cumulative, i.e. (Σ_{s≤t} v_out_s) / T_steps. Window-k mean recovers
+    # via finite difference of the cumulative endpoints.
+    net.recording = True
+    per_window_preds = np.zeros((SEQ_TRIALS, SEQ_WINDOWS), dtype=np.int64)
     gen = torch.Generator(device="cpu").manual_seed(SEED)
     with torch.no_grad():
         for start in range(0, SEQ_TRIALS, batch):
             stop = min(start + batch, SEQ_TRIALS)
-            B = stop - start
             blocks = []
             for k in range(SEQ_WINDOWS):
                 blocks.append(
@@ -246,14 +249,22 @@ def eval_sequential(model_name: str, run_dir: Path) -> dict:
                     )
                 )
             input_spikes = torch.cat(blocks, dim=0)
-            out = net(input_spikes=input_spikes)
-            preds = out.argmax(dim=-1).cpu().numpy()
-            all_preds.extend(preds.tolist())
+            net(input_spikes=input_spikes)
+            out_rec = net.spike_record["out"]
+            if out_rec.dim() == 2:
+                out_rec = out_rec.unsqueeze(1)
+            cum = out_rec * float(T_steps)
+            for k in range(SEQ_WINDOWS):
+                end_t = (k + 1) * window_steps - 1
+                window_sum = cum[end_t] if k == 0 else cum[end_t] - cum[k * window_steps - 1]
+                window_mean = window_sum / float(window_steps)
+                per_window_preds[start:stop, k] = window_mean.argmax(dim=-1).cpu().numpy()
 
-    preds_arr = np.array(all_preds)
     per_window_acc: dict[str, float] = {}
     for k in range(SEQ_WINDOWS):
-        per_window_acc[f"window_{k}"] = float((preds_arr == labels[:, k]).mean() * 100)
+        per_window_acc[f"window_{k}"] = float(
+            (per_window_preds[:, k] == labels[:, k]).mean() * 100
+        )
     return {
         "per_window_acc_pct": per_window_acc,
         "n_trials": SEQ_TRIALS,
@@ -278,9 +289,17 @@ def _build_seq_trial():
         transform=transforms.ToTensor(),
     )
     rng = np.random.default_rng(SEED)
-    indices = rng.integers(0, len(mnist), size=SEQ_WINDOWS)
-    images = torch.stack([mnist[int(i)][0].view(-1) for i in indices])
-    labels = [int(mnist[int(i)][1]) for i in indices]
+    chosen: list[int] = []
+    seen: set[int] = set()
+    while len(chosen) < SEQ_WINDOWS:
+        i = int(rng.integers(0, len(mnist)))
+        y = int(mnist[i][1])
+        if y in seen:
+            continue
+        seen.add(y)
+        chosen.append(i)
+    images = torch.stack([mnist[i][0].view(-1) for i in chosen])
+    labels = [int(mnist[i][1]) for i in chosen]
 
     window_steps = int(round(SEQ_WINDOW_MS / DT))
     rate_hz = 25.0
@@ -457,8 +476,8 @@ def plot_seq_results(seq_results: dict[str, dict]) -> Path:
     ax.axhline(10, linestyle="--", linewidth=1.0, color=theme.DEEP_RED, label="chance (10%)")
     ax.set_xticks(x)
     ax.set_xticklabels([f"window {k}\n({int(SEQ_WINDOW_MS * k)}-{int(SEQ_WINDOW_MS * (k + 1))} ms)" for k in range(SEQ_WINDOWS)])
-    ax.set_ylabel("argmax matches digit at window k (%)")
-    ax.set_title("sequential MNIST: which window dominates the readout?")
+    ax.set_ylabel("per-window readout accuracy (%)")
+    ax.set_title("sequential MNIST: per-window mem-mean readout vs digit at window k")
     ax.legend(loc="upper left")
     fig.tight_layout()
     out = FIGURES / "tracking_accuracy.png"
