@@ -1,7 +1,7 @@
 {
   "notebook_run_id": "r001",
-  "duration_s": 79.94357141666114,
-  "duration": "1m 19s",
+  "duration_s": 162.6890655416064,
+  "duration": "2m 42s",
   "tier": "large",
   "config": {
     "dt": 0.1,
@@ -40,14 +40,14 @@
       "run_id": "r-20260503-072231"
     }
   },
-  "run_finished_at": "2026-05-03T10:39:17+00:00",
+  "run_finished_at": "2026-05-05T07:11:28+00:00",
   "seq_eval": {
     "cuba": {
       "per_window_acc_pct": {
-        "window_0": 25.874999999999996,
-        "window_1": 24.75,
-        "window_2": 22.25,
-        "window_3": 26.125
+        "window_0": 80.625,
+        "window_1": 80.75,
+        "window_2": 80.625,
+        "window_3": 82.25
       },
       "n_trials": 800,
       "n_windows": 4,
@@ -55,10 +55,10 @@
     },
     "coba": {
       "per_window_acc_pct": {
-        "window_0": 27.500000000000004,
-        "window_1": 28.375,
-        "window_2": 28.499999999999996,
-        "window_3": 28.625
+        "window_0": 77.125,
+        "window_1": 80.625,
+        "window_2": 82.0,
+        "window_3": 79.75
       },
       "n_trials": 800,
       "n_windows": 4,
@@ -66,10 +66,10 @@
     },
     "ping": {
       "per_window_acc_pct": {
-        "window_0": 30.625000000000004,
-        "window_1": 27.750000000000004,
-        "window_2": 31.624999999999996,
-        "window_3": 29.625
+        "window_0": 82.625,
+        "window_1": 84.0,
+        "window_2": 84.75,
+        "window_3": 82.75
       },
       "n_trials": 800,
       "n_windows": 4,
