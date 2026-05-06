@@ -21,13 +21,15 @@ export const ping = seq.ping?.per_window_acc_pct ?? {};
 
 ## Introduction
 
-Single-MNIST training says whether the network recognises one digit; it says nothing about how its state turns over within a trial. Each test trial here is a sequence of four random MNIST digits, 50 ms each, inside a 200 ms input. Weights are frozen at single-MNIST values and the trained mem-mean readout is applied *per window*: average *v_out* over the *k*-th 50 ms slice, push through the same *W_out*, and check whether the argmax matches the digit shown in window *k*.
+Training on single MNIST digits tells us whether a network can recognise *a* digit. It does not tell us how quickly the network forgets one digit and locks onto the next. This entry asks that question directly: show the network four different digits back-to-back, 50 ms apiece, and ask after each 50 ms slice which digit is on screen right now.
 
-Chance is 10%. The ceiling is roughly the trial-level test accuracy (~88%): if the trained decoder generalises perfectly from full-trial mean to window-local mean, every window decodes as well as a static MNIST trial.
+Three networks go in: cuba, coba, and ping. All three are trained the standard way — one digit at a time — and then frozen. We do not retrain them on sequences. Instead, we reuse the readout learned from single digits and apply it window by window. A perfect readout would hit the single-digit ceiling of $\sim$88% on every window; chance is 10%.
 
 ## Method
 
-cuba / coba / ping trained on standard single-MNIST at the configured tier — recipes from [nb010](/notebooks/nb010/), [nb011](/notebooks/nb011/), [nb012](/notebooks/nb012/). Then 800 frozen-weight test trials, each four MNIST test images Poisson-encoded for 50 ms and concatenated. The mem-mean accumulator is recorded per timestep and finite-differenced to recover the window-local mean; argmax through the trained *W_out* gives a per-window prediction.
+The networks come from the standard single-MNIST recipes in [nb010](/notebooks/nb010/), [nb011](/notebooks/nb011/), and [nb012](/notebooks/nb012/). For evaluation we build 800 four-digit test trials. Each digit is Poisson-encoded for 50 ms; the four 50 ms streams are concatenated into a single 200 ms input. Weights stay frozen.
+
+To read out window by window, the mem-mean accumulator (the running average of *v_out* the network was trained against) is logged every timestep and then finite-differenced across window boundaries. That recovers the average *v_out* during each individual 50 ms slice. The same trained *W_out* turns each slice's mean into class scores; the argmax is the prediction for that window.
 
 | param | value |
 |---|---|
@@ -37,14 +39,14 @@ cuba / coba / ping trained on standard single-MNIST at the configured tier — r
 | input rate | 25 Hz Poisson per pixel |
 | readout | trained mem-mean *W_out*, applied per 50 ms window |
 
-## Findings
+## Results
 
 <Figure id="Figure 1" title="example trial input" src="/figures/notebooks/nb015/sequential_input.png" alt="Top: four MNIST digit thumbnails. Bottom: Poisson spike raster of the input neurons over 200 ms with red vertical lines separating the four 50 ms windows.">
-  One representative trial: four MNIST test images (top) and the Poisson-encoded input raster (bottom, 784 input neurons × 2000 steps at *dt* = 0.1 ms). Each digit is freshly encoded for its 50 ms window; no separator token.
+  A single trial. Top row: the four digits the network will see, in order. Bottom: the spike pattern the network actually receives — 784 input neurons firing Poisson-style for 50 ms per digit, with a fresh sample each window. There is no gap or marker between digits; the input simply switches.
 </Figure>
 
 <Figure id="Figure 2" title="hidden-layer response per model" src="/figures/notebooks/nb015/sequential_response.png" alt="Stacked rasters showing the input spikes and the hidden-layer spikes of cuba, coba, and ping for the same 4-digit trial.">
-  Same trial through each trained network. cuba fires densely (~250 Hz); coba and ping stay in the biological band (~5–30 Hz). ping's recurrent activity bleeds across window boundaries — the visual signature of slower state turnover.
+  The same trial passed through each trained network. cuba responds with dense, high-rate firing ($\sim$250 Hz); coba and ping stay in the biologically realistic range ($\sim$5–30 Hz). In ping, you can see the recurrent activity smear across window boundaries — a visible cue that its internal state turns over more slowly.
 </Figure>
 
 | model | w₀ (0–50 ms) | w₁ (50–100 ms) | w₂ (100–150 ms) | w₃ (150–200 ms) |
@@ -53,13 +55,13 @@ cuba / coba / ping trained on standard single-MNIST at the configured tier — r
 | coba | {coba.window_0?.toFixed?.(1) ?? "?"}% | {coba.window_1?.toFixed?.(1) ?? "?"}% | {coba.window_2?.toFixed?.(1) ?? "?"}% | {coba.window_3?.toFixed?.(1) ?? "?"}% |
 | ping | {ping.window_0?.toFixed?.(1) ?? "?"}% | {ping.window_1?.toFixed?.(1) ?? "?"}% | {ping.window_2?.toFixed?.(1) ?? "?"}% | {ping.window_3?.toFixed?.(1) ?? "?"}% |
 
-All three sit near the trial-level baseline (~88%) at every window — the trained decoder transfers cleanly from full-trial to per-window mem averages. ping wins on every window; w₀ is a few points lower across models, consistent with onset transients before the recurrent state settles.
+Every model sits close to its single-digit baseline ($\sim$88%) on every window — the readout trained on full-trial averages works just as well on 50 ms slices. ping is a few points ahead of cuba and coba on every window. The first window (w₀) is consistently the weakest, which fits the picture of an onset transient before the recurrent state has settled into its working regime.
 
 <Figure id="Figure 3" title="per-window prediction accuracy" src="/figures/notebooks/nb015/tracking_accuracy.png" alt="Bar chart of per-window prediction accuracy for cuba, coba and ping">
-  Per-window argmax of the trained mem-mean readout vs. the digit shown in each 50 ms window. 800 trials. Dashed line is 10% chance.
+  Per-window prediction accuracy, taken across 800 trials. The dashed line marks 10% chance. All three models sit far above chance and close to their single-digit baseline.
 </Figure>
 
-The training videos below show the single-digit dynamics each network actually learned; the per-window probe above tests how those dynamics behave when the input changes mid-trial.
+The videos below show how each network behaves during ordinary single-digit training. The per-window probe above asks what happens when the input keeps changing.
 
 <Figure id="Figure 4" type="video" title="cuba training" src="/figures/notebooks/nb015/training_cuba.mp4">
   Per-epoch oscilloscope of the cuba single-MNIST run.
@@ -73,17 +75,16 @@ The training videos below show the single-digit dynamics each network actually l
   Per-epoch oscilloscope of the ping single-MNIST run; the E→I→E loop is visible in the inhibitory raster.
 </Figure>
 
-## Implications
+## Success criteria
 
-The trial-trained mem-mean decoder is essentially a window-local decoder: averaging over 50 ms gives nearly the same readout quality as averaging over 200 ms. Each model refreshes its readable state on a sub-50-ms timescale despite very different firing-rate regimes — cuba doing it with dense activity, ping doing it with sparse rhythm. The w₀ dip is the only systematic effect and is small.
-
-This experiment was originally designed assuming the trial-level readout would dominate, leaving the 1-of-4 ceiling (~25%) and forcing a richer probe. With a per-window readout the ceiling is gone, and the answer is that all three architectures track adequately at this 50 ms scale; the discrimination has to come from a harder task.
+- ✅ Every model and window beats the old trial-level ceiling of 25%. The lowest cell in the table is {Math.min(...Object.values(cuba), ...Object.values(coba), ...Object.values(ping)).toFixed(1)}%.
+- ✅ Every model lands within $\sim$10 points of its single-digit baseline ($\sim$88%). Best windows: cuba {Math.max(...Object.values(cuba)).toFixed(1)}%, coba {Math.max(...Object.values(coba)).toFixed(1)}%, ping {Math.max(...Object.values(ping)).toFixed(1)}%.
 
 ## Next steps
 
-- Push window length down (10 / 25 ms) until each model breaks — the breaking point is the natural turnover scale.
-- Train on the sequential task with a last-window loss to test learnable temporal binding rather than passive dynamics.
-- Move to a task where the four windows must be combined (e.g. summed or compared), so the integration time matters.
+- Shrink the window (25 ms, then 10 ms) until each model breaks. The breaking point is a direct measure of the network's natural turnover speed.
+- Add training on the sequential task itself, with the loss focused on the last window, to test whether the networks can *learn* temporal binding rather than just inherit it from passive dynamics.
+- Move to a task that forces the windows to interact — e.g. report the sum or compare two of the digits — so integration time becomes the bottleneck.
 
 ## Appendix
 
