@@ -350,48 +350,6 @@ def _record_response(model_name: str, run_dir: Path, input_spikes):
     return net.spike_record
 
 
-def plot_seq_input() -> Path:
-    """Render input thumbnails + Poisson raster for the canonical trial."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    theme.apply()
-    spikes_t, images, labels = _build_seq_trial()
-    spikes = spikes_t.squeeze(1).numpy()
-    T_total = spikes.shape[0]
-
-    fig = plt.figure(figsize=(8, 4.5))
-    gs = fig.add_gridspec(2, SEQ_WINDOWS, height_ratios=[1, 3], hspace=0.25, wspace=0.1)
-
-    for k in range(SEQ_WINDOWS):
-        ax = fig.add_subplot(gs[0, k])
-        ax.imshow(images[k].view(28, 28).numpy(), cmap="gray_r")
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_title(f"w{k}: {labels[k]}", fontsize=theme.SIZE_ANNOTATION)
-
-    ax_raster = fig.add_subplot(gs[1, :])
-    t_idx, n_idx = np.where(spikes > 0)
-    ax_raster.scatter(t_idx * DT, n_idx, s=0.4, c=theme.INK_BLACK, alpha=0.5)
-    for k in range(1, SEQ_WINDOWS):
-        ax_raster.axvline(k * SEQ_WINDOW_MS, color=theme.GREY_MID, linewidth=0.8, linestyle="--")
-    ax_raster.set_xlim(0, T_total * DT)
-    ax_raster.set_ylim(-1, 784)
-    ax_raster.set_xlabel("time (ms)")
-    ax_raster.set_ylabel("input neuron")
-    ax_raster.set_title("input spikes (Poisson encoding)")
-
-    fig.tight_layout()
-    out = FIGURES / "sequential_input.png"
-    fig.savefig(out, dpi=150)
-    plt.close(fig)
-    print(f"  → {out.relative_to(REPO)}")
-    return out
-
-
 def plot_seq_response(run_dirs: dict[str, Path]) -> Path:
     """Render per-model hidden-layer rasters for the canonical sequential trial."""
     import matplotlib
@@ -478,7 +436,8 @@ def plot_seq_results(seq_results: dict[str, dict]) -> Path:
     ax.set_xticklabels([f"window {k}\n({int(SEQ_WINDOW_MS * k)}-{int(SEQ_WINDOW_MS * (k + 1))} ms)" for k in range(SEQ_WINDOWS)])
     ax.set_ylabel("per-window readout accuracy (%)")
     ax.set_title("sequential MNIST: per-window mem-mean readout vs digit at window k")
-    ax.legend(loc="upper left")
+    ax.set_ylim(0, 100)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.32), ncol=4, frameon=False)
     fig.tight_layout()
     out = FIGURES / "tracking_accuracy.png"
     fig.savefig(out, dpi=150)
@@ -530,7 +489,6 @@ def main() -> None:
         accs = seq_results[model]["per_window_acc_pct"]
         per_w = "  ".join(f"w{k}={accs[f'window_{k}']:.1f}%" for k in range(SEQ_WINDOWS))
         print(f"  {model:5s}: {per_w}")
-    plot_seq_input()
     plot_seq_response(run_dirs)
     plot_seq_results(seq_results)
 

@@ -41,12 +41,8 @@ To read out window by window, the mem-mean accumulator (the running average of *
 
 ## Results
 
-<Figure id="Figure 1" title="example trial input" src="/figures/notebooks/nb015/sequential_input.png" alt="Top: four MNIST digit thumbnails. Bottom: Poisson spike raster of the input neurons over 200 ms with red vertical lines separating the four 50 ms windows.">
-  A single trial. Top row: the four digits the network will see, in order. Bottom: the spike pattern the network actually receives — 784 input neurons firing Poisson-style for 50 ms per digit, with a fresh sample each window. There is no gap or marker between digits; the input simply switches.
-</Figure>
-
-<Figure id="Figure 2" title="hidden-layer response per model" src="/figures/notebooks/nb015/sequential_response.png" alt="Stacked rasters showing the input spikes and the hidden-layer spikes of cuba, coba, and ping for the same 4-digit trial.">
-  The same trial passed through each trained network. cuba responds with dense, high-rate firing ($\sim$250 Hz); coba and ping stay in the biologically realistic range ($\sim$5–30 Hz). In ping, you can see the recurrent activity smear across window boundaries — a visible cue that its internal state turns over more slowly.
+<Figure id="Figure 1" title="hidden-layer response per model" src="/figures/notebooks/nb015/sequential_response.png" alt="Stacked rasters showing the four digit thumbnails, the Poisson input spikes, and the hidden-layer spikes of cuba, coba, and ping for the same 4-digit trial.">
+  A single trial through each trained network. Top row: the four digits the network will see, in order. Below that: the 784-neuron Poisson input — a fresh sample for each 50 ms window, with no gap or marker between digits. Then each model's hidden-layer raster on the same trial. cuba responds with dense, high-rate firing ($\sim$250 Hz); coba and ping stay in the biologically realistic range ($\sim$5–30 Hz). In ping, you can see the recurrent activity smear across window boundaries — a visible cue that its internal state turns over more slowly.
 </Figure>
 
 | model | w₀ (0–50 ms) | w₁ (50–100 ms) | w₂ (100–150 ms) | w₃ (150–200 ms) |
@@ -57,21 +53,21 @@ To read out window by window, the mem-mean accumulator (the running average of *
 
 Every model sits close to its single-digit baseline ($\sim$88%) on every window — the readout trained on full-trial averages works just as well on 50 ms slices. ping is a few points ahead of cuba and coba on every window. The first window (w₀) is consistently the weakest, which fits the picture of an onset transient before the recurrent state has settled into its working regime.
 
-<Figure id="Figure 3" title="per-window prediction accuracy" src="/figures/notebooks/nb015/tracking_accuracy.png" alt="Bar chart of per-window prediction accuracy for cuba, coba and ping">
+<Figure id="Figure 2" title="per-window prediction accuracy" src="/figures/notebooks/nb015/tracking_accuracy.png" alt="Bar chart of per-window prediction accuracy for cuba, coba and ping">
   Per-window prediction accuracy, taken across 800 trials. The dashed line marks 10% chance. All three models sit far above chance and close to their single-digit baseline.
 </Figure>
 
 The videos below show how each network behaves during ordinary single-digit training. The per-window probe above asks what happens when the input keeps changing.
 
-<Figure id="Figure 4" type="video" title="cuba training" src="/figures/notebooks/nb015/training_cuba.mp4">
+<Figure id="Figure 3" type="video" title="cuba training" src="/figures/notebooks/nb015/training_cuba.mp4">
   Per-epoch oscilloscope of the cuba single-MNIST run.
 </Figure>
 
-<Figure id="Figure 5" type="video" title="coba training" src="/figures/notebooks/nb015/training_coba.mp4">
+<Figure id="Figure 4" type="video" title="coba training" src="/figures/notebooks/nb015/training_coba.mp4">
   Per-epoch oscilloscope of the coba single-MNIST run.
 </Figure>
 
-<Figure id="Figure 6" type="video" title="ping training" src="/figures/notebooks/nb015/training_ping.mp4">
+<Figure id="Figure 5" type="video" title="ping training" src="/figures/notebooks/nb015/training_ping.mp4">
   Per-epoch oscilloscope of the ping single-MNIST run; the E→I→E loop is visible in the inhibitory raster.
 </Figure>
 
