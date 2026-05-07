@@ -203,70 +203,6 @@ def compute_per_frame_pop_rates() -> dict:
     return {"frames": out, "bin_ms": bin_ms}
 
 
-def compute_gzip_complexity(frames_data: dict, n_shuffles: int = 20) -> dict:
-    """Per-frame gzip length of the E-rate time-series (real + temporal-shuffle
-    baseline). Quantises to uint8 so the raw byte string is identical-length
-    across frames; only temporal structure varies."""
-    import gzip
-
-    rng = np.random.default_rng(SEED)
-    out: list[dict] = []
-    for f in frames_data["frames"]:
-        rate = np.asarray(f["e_rate_hz"], dtype=np.float64)
-        q = np.clip(np.round(rate), 0, 255).astype(np.uint8)
-        real_len = len(gzip.compress(q.tobytes(), compresslevel=9))
-        shuf_lens = []
-        for _ in range(n_shuffles):
-            shuf = q.copy()
-            rng.shuffle(shuf)
-            shuf_lens.append(len(gzip.compress(shuf.tobytes(), compresslevel=9)))
-        out.append({
-            "ei_strength": f["ei_strength"],
-            "raw_bytes": int(q.size),
-            "gzip_len_real": int(real_len),
-            "gzip_len_shuffled_mean": float(np.mean(shuf_lens)),
-            "gzip_len_shuffled_std": float(np.std(shuf_lens)),
-        })
-    return {"frames": out, "n_shuffles": n_shuffles}
-
-
-def plot_gzip_complexity(gzip_data: dict, out_path: Path) -> Path:
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import theme  # type: ignore[import]
-
-    theme.apply()
-    rows = gzip_data["frames"]
-    eis = [r["ei_strength"] for r in rows]
-    real = [r["gzip_len_real"] for r in rows]
-    shuf_mean = np.array([r["gzip_len_shuffled_mean"] for r in rows])
-    shuf_std = np.array([r["gzip_len_shuffled_std"] for r in rows])
-    raw = rows[0]["raw_bytes"]
-
-    fig, ax = plt.subplots(figsize=(10.0, 5.625))
-    ax.plot(eis, real, marker="o", color=theme.INK_BLACK,
-            linewidth=1.5, label="real")
-    ax.plot(eis, shuf_mean, marker="s", color=theme.MUTED,
-            linewidth=1.0, label=f"shuffled (n={gzip_data['n_shuffles']})")
-    ax.fill_between(eis, shuf_mean - shuf_std, shuf_mean + shuf_std,
-                    color=theme.MUTED, alpha=0.15, linewidth=0)
-    ax.set_xlabel("ei strength")
-    ax.set_ylabel(f"gzip length (bytes; raw uint8 = {raw} B)")
-    ax.set_title("compressibility of E rate vs ei strength (real vs time-shuffled)",
-                 fontsize=theme.SIZE_TITLE)
-    ax.legend(loc="upper right", frameon=False)
-    for spine in ("top", "right"):
-        ax.spines[spine].set_visible(False)
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-    print(f"  → {out_path}")
-    return out_path
-
-
 def compute_autocorr_metric(frames_data: dict,
                             onset_skip_ms: float = 20.0,
                             lag_min_ms: float = 5.0,
@@ -389,8 +325,8 @@ def plot_autocorr_stack(autocorr_data: dict, out_path: Path) -> Path:
 
 
 def plot_autocorr_metric(autocorr_data: dict, out_path: Path) -> Path:
-    """Peak autocorrelation in [lag_min, lag_max] vs ei — a single-frame
-    rhythmicity metric that doesn't suffer from gzip's block-step noise."""
+    """Peak prominence of the autocorrelation in [lag_min, lag_max] vs ei —
+    single-frame, single-trace rhythmicity score per frame of the sweep."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -412,43 +348,6 @@ def plot_autocorr_metric(autocorr_data: dict, out_path: Path) -> Path:
         f"{autocorr_data['lag_min_ms']:.0f}–{autocorr_data['lag_max_ms']:.0f} ms",
         fontsize=theme.SIZE_TITLE,
     )
-    for spine in ("top", "right"):
-        ax.spines[spine].set_visible(False)
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-    print(f"  → {out_path}")
-    return out_path
-
-
-def plot_gzip_metric(gzip_data: dict, out_path: Path) -> Path:
-    """Structure score = (shuffled - real) gzip bytes, the bit of compression
-    saving that comes purely from temporal pattern. Candidate PING metric."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import theme  # type: ignore[import]
-
-    theme.apply()
-    rows = gzip_data["frames"]
-    eis = np.array([r["ei_strength"] for r in rows])
-    real = np.array([r["gzip_len_real"] for r in rows], dtype=float)
-    shuf = np.array([r["gzip_len_shuffled_mean"] for r in rows])
-    shuf_std = np.array([r["gzip_len_shuffled_std"] for r in rows])
-    metric = shuf - real
-
-    fig, ax = plt.subplots(figsize=(10.0, 5.625))
-    ax.axhline(0, color=theme.MUTED, linewidth=0.8, linestyle="--")
-    ax.fill_between(eis, metric - shuf_std, metric + shuf_std,
-                    color=theme.INK_BLACK, alpha=0.10, linewidth=0)
-    ax.plot(eis, metric, marker="o", color=theme.INK_BLACK,
-            linewidth=1.5, label="ping-ness")
-    ax.set_xlabel("ei strength")
-    ax.set_ylabel("structure score (bytes; shuffled − real)")
-    ax.set_title("ping-ness from gzip: temporal structure beyond histogram",
-                 fontsize=theme.SIZE_TITLE)
     for spine in ("top", "right"):
         ax.spines[spine].set_visible(False)
     fig.tight_layout()
@@ -538,23 +437,10 @@ def extras(tier: str, notebook_run_id: str) -> dict:
     autocorr_data = compute_autocorr_metric(frames_data)
     plot_autocorr_stack(autocorr_data, figures / "autocorr_stack.png")
     plot_autocorr_metric(autocorr_data, figures / "autocorr_metric.png")
-    print("  per-frame gzip complexity…")
-    gzip_data = compute_gzip_complexity(frames_data)
-    plot_gzip_complexity(gzip_data, figures / "gzip_complexity.png")
-    plot_gzip_metric(gzip_data, figures / "gzip_metric.png")
-    n_frames = len(gzip_data["frames"])
-    print_step = max(1, n_frames // 10)
-    for i, r in enumerate(gzip_data["frames"]):
-        score = r["gzip_len_shuffled_mean"] - r["gzip_len_real"]
-        r["structure_score"] = score
-        if i % print_step == 0 or i == n_frames - 1:
-            print(f"    ei={r['ei_strength']:.3f}  real={r['gzip_len_real']:4d}B  "
-                  f"shuf={r['gzip_len_shuffled_mean']:.1f}B  score={score:+.1f}B")
     return {
         "rates_hz": rates,
         "canonical_ei": CANON_EI,
         "frame_pop_rates": frames_data,
-        "gzip_complexity": gzip_data,
         "autocorr_metric": {
             "bin_ms": autocorr_data["bin_ms"],
             "onset_skip_ms": autocorr_data["onset_skip_ms"],
