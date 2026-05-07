@@ -1,7 +1,7 @@
 {
-  "notebook_run_id": "r022",
-  "run_datetime": "Thursday, 7th May 26 at 16:29",
-  "duration_s": 19.5,
+  "notebook_run_id": "r027",
+  "run_datetime": "Thursday, 7th May 26 at 16:46",
+  "duration_s": 19.6,
   "duration": "20s",
   "tier": "small",
   "config": {
@@ -54,7 +54,7 @@
     {
       "label": "ei-strength scan video rendered",
       "passed": true,
-      "detail": "scan_ei.mp4 (1356544 bytes)",
+      "detail": "scan_ei.mp4 (1356533 bytes)",
       "detail_href": "/figures/notebooks/nb017/scan_ei.mp4"
     },
     {
