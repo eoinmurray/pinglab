@@ -1,0 +1,128 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "017 — ping metrics from population rate"
+date: 2026-05-07
+entry: 17
+structure: paper
+collections: [in-progress]
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb017/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const runDuration = numbers.duration ?? "?";
+export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?" };
+export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?", input_rate_hz: "?", w_in_mean: "?", w_in_std: "?" };
+export const r = {
+  pre: numbers.rates_hz?.pre ?? {},
+  stim: numbers.rates_hz?.stim ?? {},
+  post: numbers.rates_hz?.post ?? {},
+};
+export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+Forked from [nb016](/notebooks/nb016/) to swap the raster-based Bayes factor for a **rate-based** one. The raster BF saturated bimodally in the PING regime (log-BF on real data hovered near zero, the sigmoid amplified small fluctuations into 0/1 jumps), and the diagnosis was that real PING data carries population-coordinated information in the rate amplitude, not in individual spike times. Working on the smoothed E rate directly should give substantially more evidence per bin and clean post-threshold saturation. Same ei sweep, same population-rate / autocorrelation views as nb016 — only the BF likelihood changes.
+
+## Method
+
+A [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) scan with **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}). All knobs are hardcoded in *src/pinglab/notebooks/nb017.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
+
+<RunParameters numbers={numbers} groups={[
+  {
+    title: "Setup",
+    rows: [
+      { label: "Model", value: cfg.model ?? "?" },
+      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample} @ ${scan.input_rate_hz} Hz` },
+      { label: "W_in init (mean, std)", value: `${scan.w_in_mean}, ${scan.w_in_std}` },
+      { label: "Seed", value: cfg.seed ?? "?" },
+    ],
+  },
+  {
+    title: "Architecture",
+    rows: [
+      { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
+      { label: "dt / T", value: `${cfg.dt_ms} / ${cfg.sim_ms} ms` },
+    ],
+  },
+  {
+    title: "Stimulus & scan",
+    rows: [
+      { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
+      { label: "Fixed overdrive", value: `${scan.fixed_overdrive}×` },
+      { label: "E→I strength scan", value: `${scan.min}–${scan.max}` },
+      { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
+    ],
+  },
+]} />
+
+### Population rate
+
+Replay the same Poisson input through a fresh ping network at each frame's *ei* value, record the E spike train $s_{i,t}$, and bin at $\Delta_\text{bin} = 2$ ms. We use the **participation fraction** — the same dimensionless normalisation the oscilloscope video panel shows — i.e. total spikes per bin divided by $N_E$:
+
+$$
+r_k \;=\; \frac{1}{N_E} \sum_{i=1}^{N_E} \sum_{t \in \mathrm{bin}_k} s_{i, t}.
+$$
+
+Each $r_k \in [0, 1]$ when no neuron fires more than once per bin (the regime we operate in for *ei* $\gtrsim 0.2$). This equals the rate in Hz divided by the maximum possible rate $1000/\Delta_\text{bin} = 500$ Hz.
+
+### Generative models
+
+Two recipes, one per regime, picked by an *ei* threshold (currently 0.2). The participation trace $r_t$ is at 2 ms bins on the post-onset window ($N \approx 490$ samples).
+
+Both models share a count-based noise structure: at each bin, the participation $r_t = k_t / N_E$ where $k_t \sim \mathrm{Bin}(N_E, p_t)$. This puts the variance in the peaks (where it's invisible against the signal) and zero variance in the trough — so the cadence reads cleanly instead of being washed out by additive Gaussian noise that doesn't know the trace is bounded below by zero.
+
+**Async** — constant Bernoulli rate per bin:
+
+$$
+k_t \sim \mathrm{Bin}(N_E,\, \mu_a),\qquad r_t = k_t / N_E.
+$$
+
+$\hat\mu_a$ is the sample mean of the real trace, clipped to $[0, 1]$. No frequency, no phase.
+
+**Ping** — Gaussian-pulse-train modulating the rate:
+
+$$
+p_t = \mathrm{clip}\!\left[\mu_0 + A \sum_{n} \exp\!\left(-\frac{(t - t_0 - n/f)^2}{2\sigma_b^2}\right),\; 0,\; 1\right],\qquad k_t \sim \mathrm{Bin}(N_E,\, p_t),\quad A \ge 0.
+$$
+
+Five mean-curve parameters: baseline $\mu_0$, pulse amplitude $A$, fundamental frequency $f$, phase offset $t_0$, and burst width $\sigma_b$. Fitting is an outer grid search over $(f, t_0, \sigma_b)$ — gamma-band $f$ at 0.5 Hz spacing, eight phase positions per period, $\sigma_b \in \{1, 2, 3, 4\}$ ms — and at each grid point $(\mu_0, A)$ are closed-form least-squares against the real rate trace. We pick the triple that minimises the LS residual.
+
+Pulse-train rather than Fourier harmonics because PING is *physically* a periodic train of population bursts: $\sigma_b$ directly parameterises burst width (instead of being smeared across multiple harmonic coefficients), and the troughs go genuinely flat between pulses. Tight Gaussian over Lorentzian — Gaussians are local, so the trough quiets between pulses.
+
+The async model is the $A = 0$ limit of ping, so the split is conceptual: we use it to keep parsimony in the low-*ei* regime where fitting a pulse train to a flat trace would just chase noise.
+
+Working on the rate rather than the raster trades per-spike resolution for population-synchronous amplitude — at burst peaks $\sim$10–25% of E neurons fire together within a single 2 ms bin, and that swing is what we want the model to reproduce.
+
+## Results
+
+<Figure type="video" id="Figure 1" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb017/scan_ei.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}).
+</Figure>
+
+### Generative model
+
+<Figure id="Figure 2" title="real vs simulated E population participation across the ei sweep" src="/figures/notebooks/nb017/rate_model_validation.png" alt="Stacked rows: real (left) vs single-sample simulated (right) E population-participation traces for 10 evenly-spaced ei values across the sweep.">
+  Real participation traces (left column) vs single samples drawn from the fitted model (right column), one row per *ei* value (10 evenly-spaced across the {scan.frames}-frame sweep). Display is the first 250 ms of the post-onset window; the fit uses the full $\sim$980 ms. The binomial noise model means simulated troughs go genuinely flat (zero spikes is a hard floor), so the cadence reads cleanly at high *ei*. The amplitude of fitted pulses still undershoots real bursts — phase jitter in the data drags the LS-best perfectly-periodic template downward — and pulse shape is symmetric Gaussian rather than the asymmetric onset/decay of real PING. Cadence and timing are right; the burst-shape and amplitude-recovery problems are open work.
+</Figure>
+
+## Next steps
+
+The current model matches the *ei* = 0.8 burst train credibly but falls short at *ei* = 0 (real trace has regular tonic ripple that the constant-mean limit treats as noise). Open work:
+
+1. **Capture the tonic ripple**: at *ei* $\lesssim 0.1$ the real participation trace has a fast oscillation outside the 25–75 Hz gamma grid. Either widen the $f$ grid to include it, or add a non-rhythmic component to the model (e.g. an AR(1) noise structure on $\varepsilon_t$).
+2. **Quantify fit quality**: report per-frame $\hat\sigma_p / \hat\mu_0$ (residual / signal) or $|R(\hat f)|^2 / \hat\sigma_a^2$ (variance-explained fraction) along the sweep so improvements to the model show up as a measurable goodness curve, not just visual judgement.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb017.py
+```
