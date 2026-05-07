@@ -1,0 +1,129 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "016 — ping e→i coupling video"
+date: 2026-05-07
+entry: 16
+structure: paper
+collections: [in-progress]
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb016/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const runDuration = numbers.duration ?? "?";
+export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample: "?" };
+export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?", fixed_overdrive: "?", input_rate_hz: "?", w_in_mean: "?", w_in_std: "?" };
+export const r = {
+  pre: numbers.rates_hz?.pre ?? {},
+  stim: numbers.rates_hz?.stim ?? {},
+  post: numbers.rates_hz?.post ?? {},
+};
+export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+External drive is one knob ([nb003](/notebooks/nb003/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes — and tries to extract a single-frame scalar metric from each frame of the resulting video. Three candidates are tried in order: the population firing rate, gzip compressibility of the rate trace, and the autocorrelation peak. Input rate and $W_\text{in}$ are bumped relative to [nb003](/notebooks/nb003/) / [nb005](/notebooks/nb005/) so E has enough baseline drive to recruit I at all without a stim pulse. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+
+## Method
+
+A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× and **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}). All knobs are hardcoded literals in *src/pinglab/notebooks/nb016.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
+
+<RunParameters numbers={numbers} groups={[
+  {
+    title: "Setup",
+    rows: [
+      { label: "Model", value: cfg.model ?? "?" },
+      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample} @ ${scan.input_rate_hz} Hz` },
+      { label: "W_in init (mean, std)", value: `${scan.w_in_mean}, ${scan.w_in_std}` },
+      { label: "Seed", value: cfg.seed ?? "?" },
+    ],
+  },
+  {
+    title: "Architecture",
+    rows: [
+      { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
+      { label: "dt / T", value: `${cfg.dt_ms} / ${cfg.sim_ms} ms` },
+    ],
+  },
+  {
+    title: "Stimulus & scan",
+    rows: [
+      { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
+      { label: "Fixed overdrive", value: `${scan.fixed_overdrive}×` },
+      { label: "E→I strength scan", value: `${scan.min}–${scan.max}` },
+      { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
+    ],
+  },
+]} />
+
+### Population rate
+
+For each frame of the video we replay the same Poisson input through a fresh ping network at that frame's ei value, record the E hidden-layer spikes, and bin them at 2 ms to recover a smoothed population rate (Hz, averaged over all $N_E$ neurons). The first {numbers.autocorr_metric?.onset_skip_ms ?? "20"} ms onset transient is discarded for the downstream metrics; the full trace is shown in the stacked plot.
+
+### Compression
+
+Periodic rates are highly compressible (gzip recognises repeated patterns); white noise of the same length is not. So gzip length should *fall* as ei rises, and how far it falls is a candidate scalar metric for how PING-like the network is.
+
+There's a confound: at high ei the rate is also more *peaked* (mostly zero, with sharp bursts), and a skewed value distribution compresses better than a uniform one even without temporal structure. To separate "structure I care about" from "histogram I don't", each frame's gzip length is compared against a **time-shuffled baseline**: each rate sample is quantised to uint8 (round Hz, clip to [0, 255]) to give a 115-byte string; that string is gzipped at level 9 in its original order (real) and again under {numbers.gzip_complexity?.n_shuffles ?? "?"} fresh uniform random permutations of the indices (shuffled). The shuffle preserves the value histogram exactly but destroys every temporal correlation, so $\text{gzip}(\text{shuffled}) - \text{gzip}(\text{real})$ in bytes isolates the compressibility that comes purely from temporal pattern. We call that gap the **ping-ness**.
+
+### Autocorrelation
+
+A second candidate single-frame metric is the **autocorrelation peak** at non-zero lag — async noise has none, a periodic burst train has a tall, sharp one at the gamma period. We take the post-onset rate (after the {numbers.autocorr_metric?.onset_skip_ms ?? "20"} ms transient), z-score it, autocorrelate via FFT, and normalise so lag 0 = 1. The metric is the prominence of the strongest peak in the {numbers.autocorr_metric?.lag_min_ms ?? "5"}–{numbers.autocorr_metric?.lag_max_ms ?? "60"} ms window (peak height minus its nearest valley). No shuffles required.
+
+## Results
+
+### Population rate
+
+<Figure type="video" id="Figure 1" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb016/scan_ei.mp4">
+  Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}).
+</Figure>
+
+| Window | E (Hz) | I (Hz) |
+|---|---|---|
+| Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
+| In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
+| Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
+
+<Figure id="Figure 2" title="per-frame E population rate" src="/figures/notebooks/nb016/pop_rates_stack.png" alt="Stacked time-series of the excitatory population rate, one row per frame of the ei-strength sweep.">
+  Smoothed (2 ms bin) E population rate within each frame's {cfg.sim_ms} ms trial. One row per ei value (10 sampled across the {scan.frames}-frame sweep). The qualitative async-to-PING transition is visible by eye but not yet a single number.
+</Figure>
+
+### Compression
+
+<Figure id="Figure 3" title="gzip complexity of E rate vs ei" src="/figures/notebooks/nb016/gzip_complexity.png" alt="Curve of gzipped byte length vs ei strength, real time-series in black with a time-shuffled baseline in grey.">
+  Each frame's E-rate is quantised to uint8 (round Hz, capped at 255) and gzipped. Real time-series in black; mean ± std of {numbers.gzip_complexity?.n_shuffles ?? "?"} time-shuffled permutations in grey.
+</Figure>
+
+The two curves only separate where there's pattern over and above what the histogram alone explains. Subtract them to get the ping-ness:
+
+<Figure id="Figure 4" title="ping-ness metric from gzip" src="/figures/notebooks/nb016/gzip_metric.png" alt="Ping-ness metric (shuffled minus real gzip bytes) vs ei strength.">
+  Structure-only compression saving (gzip-shuffled − gzip-real, bytes) vs ei. Shaded band is the per-frame std across the {numbers.gzip_complexity?.n_shuffles ?? "?"} shuffles. Zero is the no-temporal-structure floor; the curve lifts off the floor near the threshold and grows from there as the rhythm gets cleaner. As a single-trace metric it's noisy: gzip's block coder has step changes at byte boundaries, so a 2 % shift in the rate can flip the score by a byte either way.
+</Figure>
+
+### Autocorrelation
+
+<Figure id="Figure 5" title="per-frame autocorrelation" src="/figures/notebooks/nb016/autocorr_stack.png" alt="Stacked autocorrelation curves of the post-onset E rate, one row per ei value sampled across the sweep.">
+  Per-frame autocorrelation of the post-onset E rate. One row per ei value (10 sampled across the sweep). At low ei the curve decays straight to zero; from the threshold up, a periodic side-peak appears at the gamma lag and stays. The lag of the first side-peak shifts from $\sim$14 ms ($\sim$70 Hz) at threshold to $\sim$20 ms ($\sim$50 Hz) at ei = 1, the canonical PING slowing-with-coupling-strength.
+</Figure>
+
+<Figure id="Figure 6" title="rhythmicity metric from autocorrelation" src="/figures/notebooks/nb016/autocorr_metric.png" alt="Autocorrelation peak prominence in the gamma-lag window vs ei strength.">
+  Peak prominence of the strongest autocorrelation peak in the lag {numbers.autocorr_metric?.lag_min_ms ?? "?"}–{numbers.autocorr_metric?.lag_max_ms ?? "?"} ms window vs ei. Single-trace, no shuffles. Cleaner trend than Figure 4 above the threshold, but a finite-sample noise floor of $\sim$0.4 sits in the async regime — `find_peaks` always picks the deepest noise excursion as a "peak", and on a 115-sample window that excursion has positive expectation.
+</Figure>
+
+## Next steps
+
+*To be filled in once the run is reviewed.*
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb016.py
+```

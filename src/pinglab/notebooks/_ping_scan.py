@@ -85,6 +85,12 @@ class ScanSpec:
     # Optional hook: (figures_dir, summary) -> list[{label, passed, detail, detail_href?}].
     # Runs after extras_fn, so criteria can read the just-written numbers.
     criteria_fn: Callable[[Path, dict], list[dict]] | None = None
+    # Optional override for the rendered video framerate. Default: SCAN_FPS.
+    fps: int | None = None
+    # Optional override for the per-frame integration time (ms). Default: SIM_MS.
+    sim_ms: float | None = None
+    # Optional override for the scan frame count. Default: TIER_FRAMES[tier].
+    frames: int | None = None
 
 
 def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
@@ -167,7 +173,7 @@ def _render_video(
         "--n-hidden",
         str(N_HIDDEN),
         "--t-ms",
-        str(SIM_MS),
+        str(spec.sim_ms if spec.sim_ms is not None else SIM_MS),
         *dataset_args(),
         "--scan-var",
         spec.scan_var,
@@ -178,7 +184,7 @@ def _render_video(
         "--frames",
         str(frames),
         "--frame-rate",
-        str(SCAN_FPS),
+        str(spec.fps if spec.fps is not None else SCAN_FPS),
         "--out-dir",
         str(out_dir),
         "--wipe-dir",
@@ -233,7 +239,7 @@ def run_scan(spec: ScanSpec) -> dict:
     skip_training = "--skip-training" in sys.argv
     modal_gpu = parse_modal_gpu(sys.argv)
     tier = parse_tier(sys.argv, choices=TIER_FRAMES.keys(), default=DEFAULT_TIER)
-    frames = TIER_FRAMES[tier]
+    frames = spec.frames if spec.frames is not None else TIER_FRAMES[tier]
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(spec.slug)
