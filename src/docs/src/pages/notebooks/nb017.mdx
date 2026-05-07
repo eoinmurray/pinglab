@@ -72,31 +72,22 @@ $$
 
 Each $r_k \in [0, 1]$ when no neuron fires more than once per bin (the regime we operate in for *ei* $\gtrsim 0.2$). This equals the rate in Hz divided by the maximum possible rate $1000/\Delta_\text{bin} = 500$ Hz.
 
-### Generative models
+### Generative model
 
-Two recipes, one per regime, picked by an *ei* threshold (currently 0.2). The participation trace $r_t$ is at 2 ms bins on the post-onset window ($N \approx 490$ samples).
-
-Both models share a count-based noise structure: at each bin, the participation $r_t = k_t / N_E$ where $k_t \sim \mathrm{Bin}(N_E, p_t)$. This puts the variance in the peaks (where it's invisible against the signal) and zero variance in the trough — so the cadence reads cleanly instead of being washed out by additive Gaussian noise that doesn't know the trace is bounded below by zero.
-
-**Async** — constant Bernoulli rate per bin:
+One recipe for the participation trace $r_t$ (at 2 ms bins on the post-onset window, $N \approx 490$ samples) — a Gaussian-pulse-train rate driving a binomial count:
 
 $$
-k_t \sim \mathrm{Bin}(N_E,\, \mu_a),\qquad r_t = k_t / N_E.
+p_t = \mathrm{clip}\!\left[\mu_0 + A \sum_{n} \exp\!\left(-\frac{(t - t_0 - n/f)^2}{2\sigma_b^2}\right),\; 0,\; 1\right],\qquad k_t \sim \mathrm{Bin}(N_E,\, p_t),\quad r_t = k_t / N_E,\quad A \ge 0.
 $$
 
-$\hat\mu_a$ is the sample mean of the real trace, clipped to $[0, 1]$. No frequency, no phase.
+Five mean-curve parameters: baseline $\mu_0$, pulse amplitude $A$, fundamental frequency $f$, phase offset $t_0$, and burst width $\sigma_b$. The fit is a two-pass grid search over $(f, t_0, \sigma_b)$ — coarse 0.5 Hz over the gamma band, then refined to 0.05 Hz around the coarse winner; sixteen phase positions per period; $\sigma_b \in \{0.5, 1, 1.5, 2, 2.5, 3, 4\}$ ms — and at each grid point $(\mu_0, A)$ are closed-form least-squares. We pick the triple that minimises the LS residual.
 
-**Ping** — Gaussian-pulse-train modulating the rate:
+Async is the $A \to 0$ limit of the same model: when there's no rhythm in the data the LS fit returns small $A$ and the simulated trace looks like a constant-rate binomial draw. So there's no regime switch, no "is this ping" decision — the async-to-ping transition is continuous in the parameter space.
 
-$$
-p_t = \mathrm{clip}\!\left[\mu_0 + A \sum_{n} \exp\!\left(-\frac{(t - t_0 - n/f)^2}{2\sigma_b^2}\right),\; 0,\; 1\right],\qquad k_t \sim \mathrm{Bin}(N_E,\, p_t),\quad A \ge 0.
-$$
+Two design choices worth flagging:
 
-Five mean-curve parameters: baseline $\mu_0$, pulse amplitude $A$, fundamental frequency $f$, phase offset $t_0$, and burst width $\sigma_b$. Fitting is an outer grid search over $(f, t_0, \sigma_b)$ — gamma-band $f$ at 0.5 Hz spacing, eight phase positions per period, $\sigma_b \in \{1, 2, 3, 4\}$ ms — and at each grid point $(\mu_0, A)$ are closed-form least-squares against the real rate trace. We pick the triple that minimises the LS residual.
-
-Pulse-train rather than Fourier harmonics because PING is *physically* a periodic train of population bursts: $\sigma_b$ directly parameterises burst width (instead of being smeared across multiple harmonic coefficients), and the troughs go genuinely flat between pulses. Tight Gaussian over Lorentzian — Gaussians are local, so the trough quiets between pulses.
-
-The async model is the $A = 0$ limit of ping, so the split is conceptual: we use it to keep parsimony in the low-*ei* regime where fitting a pulse train to a flat trace would just chase noise.
+* **Pulse train rather than Fourier harmonics**: PING is *physically* a periodic train of population bursts. $\sigma_b$ directly parameterises burst width (instead of being smeared across multiple harmonic coefficients), and the troughs go genuinely flat between pulses. Tight Gaussian over Lorentzian — Gaussians are local, so the trough quiets between pulses.
+* **Binomial count rather than additive Gaussian noise**: zero spikes is a hard floor; an additive Gaussian residual drowns the small-$A$ pulses in noise that doesn't know the trace is bounded below by zero. With binomial $\mathrm{Bin}(N_E, p_t)$ the variance is $p_t(1-p_t)/N_E$ — quiet at the trough where $p \approx 0$, putting noise in the peaks where it doesn't hide the cadence.
 
 Working on the rate rather than the raster trades per-spike resolution for population-synchronous amplitude — at burst peaks $\sim$10–25% of E neurons fire together within a single 2 ms bin, and that swing is what we want the model to reproduce.
 
@@ -108,8 +99,8 @@ Working on the rate rather than the raster trades per-spike resolution for popul
 
 ### Generative model
 
-<Figure id="Figure 2" title="real vs simulated E population participation across the ei sweep" src="/figures/notebooks/nb017/rate_model_validation.png" alt="Stacked rows: real (left) vs single-sample simulated (right) E population-participation traces for 10 evenly-spaced ei values across the sweep.">
-  Real participation traces (left column) vs single samples drawn from the fitted model (right column), one row per *ei* value (10 evenly-spaced across the {scan.frames}-frame sweep). Display is the first 250 ms of the post-onset window; the fit uses the full $\sim$980 ms. The binomial noise model means simulated troughs go genuinely flat (zero spikes is a hard floor), so the cadence reads cleanly at high *ei*. The amplitude of fitted pulses still undershoots real bursts — phase jitter in the data drags the LS-best perfectly-periodic template downward — and pulse shape is symmetric Gaussian rather than the asymmetric onset/decay of real PING. Cadence and timing are right; the burst-shape and amplitude-recovery problems are open work.
+<Figure id="Figure 2" title="real (black) vs fitted-model sample (red dashed) across the ei sweep" src="/figures/notebooks/nb017/rate_model_validation.png" alt="Stacked rows: real E population-participation traces (black) with a single-sample fitted-model overlay (red dashed) for 10 evenly-spaced ei values across the sweep.">
+  One row per *ei* value (10 evenly-spaced across the {scan.frames}-frame sweep). Real participation in black; a single sample drawn from the fitted model overlaid in red dashed. Display is the first 250 ms of the post-onset window; the fit uses the full $\sim$980 ms. The binomial noise model means simulated troughs go genuinely flat (zero spikes is a hard floor), so the cadence reads cleanly at high *ei*. The amplitude of fitted pulses still undershoots real bursts — phase jitter in the data drags the LS-best perfectly-periodic template downward — and pulse shape is symmetric Gaussian rather than the asymmetric onset/decay of real PING. Cadence and timing are right; the burst-shape and amplitude-recovery problems are open work.
 </Figure>
 
 ## Next steps

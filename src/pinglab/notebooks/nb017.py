@@ -47,7 +47,6 @@ EI_SCAN_MIN = 0.0
 EI_SCAN_MAX = 1.0
 EI_SCAN_FRAMES = 10
 CANON_EI = 0.8  # well inside the PING-on regime for the replay
-ASYNC_EI_THRESHOLD = 0.2  # ei strictly below this → async model; else → ping
 EI_SIM_MS = 1000.0  # 4× the nb006/nb016/early-nb017 trial — more bins per fit
 EI_STEP_ON_MS = EI_SIM_MS / 3.0  # rate-window split: pre / stim / post each ≈ 333 ms
 EI_STEP_OFF_MS = 2.0 * EI_SIM_MS / 3.0
@@ -212,18 +211,6 @@ def compute_per_frame_pop_rates() -> dict:
     return {"frames": out, "bin_ms": bin_ms}
 
 
-def _fit_async(r: "np.ndarray") -> dict:
-    """Async generative model: at each bin, k_t ~ Binomial(N_E, μ_a) and
-    r_t = k_t / N_E. Mean rate μ_a is the sample mean, clipped to [0, 1].
-    No frequency, no phase. Variance scales with the mean and dies at 0
-    or 1 — quiet trough by construction."""
-    return {"mu": float(np.clip(r.mean(), 0.0, 1.0))}
-
-
-def _sample_async(t_ms: "np.ndarray", fit: dict, rng, n_e: int) -> "np.ndarray":
-    return rng.binomial(n_e, fit["mu"], size=t_ms.size).astype(np.float64) / n_e
-
-
 def _pulse_comb(t_ms: "np.ndarray", f_hz: float, t0_ms: float,
                 sigma_b_ms: float) -> "np.ndarray":
     """Unit-amplitude Gaussian pulse train: Σ_n exp(-(t - t_0 - n/f)² / 2σ_b²),
@@ -258,21 +245,10 @@ def _sample_ping(t_ms: "np.ndarray", fit: dict, rng, n_e: int) -> "np.ndarray":
     return rng.binomial(n_e, p).astype(np.float64) / n_e
 
 
-def _fit_ping(r: "np.ndarray", t_ms: "np.ndarray",
-              f_grid_hz: "np.ndarray",
-              sigma_b_grid_ms: "np.ndarray | None" = None,
-              n_phase: int = 8) -> dict | None:
-    """Ping generative model — Gaussian pulse train:
-        r_t = μ_0 + A · Σ_n exp(-(t - t_0 - n/f)² / 2σ_b²) + ε_t,
-        ε_t ~ N(0, σ_p²),  A ≥ 0.
-    Outer grid over (f, t_0, σ_b); at each grid point (μ_0, A) are
-    closed-form LS. Pick the triple that minimises σ_p². Returns dict
-    with mu_0, A, f_hz, t0_ms, sigma_b_ms, sigma_p; None if no positive-
-    amplitude fit exists on the grid."""
-    if sigma_b_grid_ms is None:
-        sigma_b_grid_ms = np.array([1.0, 2.0, 3.0, 4.0])
-    sigma_b_grid_ms = np.asarray(sigma_b_grid_ms, dtype=np.float64)
-    phase_fracs = np.linspace(0.0, 1.0, int(n_phase), endpoint=False)
+def _ping_grid_search(r, t_ms, f_grid_hz, sigma_b_grid_ms, phase_fracs):
+    """Inner loop of `_fit_ping`: triple-grid LS over (f, t_0, σ_b);
+    closed-form (μ_0, A) at each grid point. Returns the best dict
+    (or None) using the same schema as `_fit_ping`."""
     best = None
     ones = np.ones_like(t_ms, dtype=np.float64)
     for f_hz in f_grid_hz:
@@ -301,8 +277,33 @@ def _fit_ping(r: "np.ndarray", t_ms: "np.ndarray",
                         "A": float(betas[1]),
                         "sigma_p_sq": sigma_p_sq,
                     }
-    if best is None:
+    return best
+
+
+def _fit_ping(r: "np.ndarray", t_ms: "np.ndarray",
+              f_grid_hz: "np.ndarray",
+              sigma_b_grid_ms: "np.ndarray | None" = None,
+              n_phase: int = 16) -> dict | None:
+    """Ping generative model — Gaussian pulse train:
+        r_t = μ_0 + A · Σ_n exp(-(t - t_0 - n/f)² / 2σ_b²) + ε_t,
+        ε_t ~ N(0, σ_p²),  A ≥ 0.
+    Two-pass grid: coarse over the full f range, then refined around the
+    coarse winner at 0.05 Hz spacing. Two passes because at f ≈ 55 Hz
+    over a 1 s trace, sub-0.5 Hz grid drift accumulates several ms of
+    phase error by the end. (μ_0, A) are closed-form LS at each grid
+    point; we keep the (f, t_0, σ_b) that minimises σ_p²."""
+    if sigma_b_grid_ms is None:
+        sigma_b_grid_ms = np.array([0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0])
+    sigma_b_grid_ms = np.asarray(sigma_b_grid_ms, dtype=np.float64)
+    phase_fracs = np.linspace(0.0, 1.0, int(n_phase), endpoint=False)
+
+    coarse = _ping_grid_search(r, t_ms, f_grid_hz, sigma_b_grid_ms, phase_fracs)
+    if coarse is None:
         return None
+    f_centre = coarse["f_hz"]
+    fine_f = np.arange(max(1.0, f_centre - 1.0), f_centre + 1.0 + 1e-9, 0.05)
+    fine = _ping_grid_search(r, t_ms, fine_f, sigma_b_grid_ms, phase_fracs)
+    best = fine if (fine is not None and fine["sigma_p_sq"] <= coarse["sigma_p_sq"]) else coarse
     best["sigma_p"] = float(np.sqrt(best["sigma_p_sq"]))
     return best
 
@@ -311,12 +312,11 @@ def _fit_ping(r: "np.ndarray", t_ms: "np.ndarray",
 def plot_rate_model_validation(
     frames_data: dict, out_path: Path, n_rows: int = 10, f_grid_hz=None
 ) -> Path:
-    """Stacked real-vs-simulated comparison across the ei sweep. For each
-    of n_rows evenly-spaced ei values, pick the generative model by ei:
-    ei < ASYNC_EI_THRESHOLD → async (constant-mean Gaussian); else →
-    ping (harmonic-mean Gaussian, closed-form least-squares on a
-    gamma-band f-grid). Draw one sample from the fit and plot real (left)
-    vs simulated (right) side by side."""
+    """Stacked real-with-simulation-overlay across the ei sweep. For each
+    of n_rows evenly-spaced ei values, fit the pulse-train rate model on
+    the post-onset participation trace and overlay one binomial sample
+    (red dashed) on the real trace (black). Async is the A → 0 limit of
+    the same model, so no regime switch."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -344,9 +344,12 @@ def plot_rate_model_validation(
 
     theme.apply()
     n = len(rows)
-    fig, axes = plt.subplots(n, 2, figsize=(14.0, 7.875), sharex=True)
+    fig, axes = plt.subplots(
+        n, 1, figsize=(10.0, 11.25), sharex=True,
+        gridspec_kw={"hspace": 0.0},
+    )
     if n == 1:
-        axes = np.atleast_2d(axes)
+        axes = [axes]
 
     panels = []
     for frame in rows:
@@ -355,67 +358,60 @@ def plot_rate_model_validation(
         t_ms = full_t[onset_skip_bins:] - full_t[onset_skip_bins]
         r = full_r[onset_skip_bins:]
         ei = float(frame["ei_strength"])
-        if ei < ASYNC_EI_THRESHOLD:
-            sim = _sample_async(t_ms, _fit_async(r), rng, N_HIDDEN)
-            model = "async"
+        fit = _fit_ping(r, t_ms, f_grid_hz)
+        if fit is None:
+            # Degenerate trace (all zeros, etc.); fall back to constant rate.
+            mu = float(np.clip(r.mean(), 0.0, 1.0))
+            sim = rng.binomial(N_HIDDEN, mu, size=t_ms.size).astype(np.float64) / N_HIDDEN
         else:
-            ping_fit = _fit_ping(r, t_ms, f_grid_hz)
-            if ping_fit is None:  # f-grid produced no valid fit; fall back
-                sim = _sample_async(t_ms, _fit_async(r), rng, N_HIDDEN)
-                model = "async"
-            else:
-                sim = _sample_ping(t_ms, ping_fit, rng, N_HIDDEN)
-                model = "ping"
+            sim = _sample_ping(t_ms, fit, rng, N_HIDDEN)
         panels.append({
             "ei": ei,
             "t_ms": t_ms,
             "real": r,
             "sim": sim,
-            "model": model,
         })
     # Display only the first ~250 ms of each post-onset trace so the gamma
     # rhythm reads clearly; the fit was done on the full window. Fixed
     # y-range matches the oscilloscope video panel (plot.py: ylim(0, 0.5)).
     display_t_max_ms = 250.0
-    y_max = 0.5
-    for ax_row, p in zip(axes, panels):
+    for ax, p in zip(axes, panels):
         keep = p["t_ms"] <= display_t_max_ms
         t_disp = p["t_ms"][keep]
         real_disp = p["real"][keep]
         sim_disp = p["sim"][keep]
-        for col, (ax, trace) in enumerate(zip(ax_row, [real_disp, sim_disp])):
-            ax.plot(t_disp, trace, color=theme.INK_BLACK, linewidth=1.0)
-            ax.set_xlim(0, display_t_max_ms)
-            ax.set_ylim(0.0, y_max)
-            for spine in ("top", "right"):
-                ax.spines[spine].set_visible(False)
-            if col == 0:
-                ax.set_yticks([0.0, y_max])
-                ax.set_yticklabels(["0", f"{y_max:.2f}"])
-            else:
-                ax.spines["left"].set_visible(False)
-                ax.set_yticks([])
-        ax_row[1].text(
+        ax.plot(t_disp, real_disp, color=theme.INK_BLACK, linewidth=1.0,
+                label="real")
+        ax.plot(t_disp, sim_disp, color="red", linewidth=1.0,
+                linestyle="--", alpha=0.85, label="sim")
+        # Per-row y-max: tightest bound on what's actually plotted, with a
+        # 5 % margin so peaks don't kiss the spine.
+        y_max = float(max(real_disp.max(), sim_disp.max())) * 1.05
+        if y_max <= 0.0:
+            y_max = 1.0 / N_HIDDEN  # one-spike floor for a fully empty trace
+        ax.set_xlim(0, display_t_max_ms)
+        ax.set_ylim(0.0, y_max)
+        # Only label the per-row max — adjacent rows would otherwise collide
+        # at hspace=0 (this row's 0 sits on top of the next row's y_max).
+        ax.set_yticks([y_max])
+        ax.set_yticklabels([f"{y_max:.2f}"])
+        for spine in ("top", "right"):
+            ax.spines[spine].set_visible(False)
+        ax.text(
             0.985,
             0.85,
-            f"ei = {p['ei']:.2f} · {p['model']}",
+            f"ei = {p['ei']:.2f}",
             ha="right",
             va="top",
-            transform=ax_row[1].transAxes,
+            transform=ax.transAxes,
             fontsize=theme.SIZE_ANNOTATION,
             color=theme.INK,
         )
-    axes[0, 0].set_title(
-        "real", loc="left", fontsize=theme.SIZE_ANNOTATION, color=theme.INK
+    axes[0].legend(
+        loc="upper left", frameon=False, fontsize=theme.SIZE_ANNOTATION,
+        ncol=2, handlelength=1.5,
     )
-    axes[0, 1].set_title(
-        "sim · fitted ping model",
-        loc="left",
-        fontsize=theme.SIZE_ANNOTATION,
-        color=theme.INK,
-    )
-    axes[-1, 0].set_xlabel("post-onset time (ms)")
-    axes[-1, 1].set_xlabel("post-onset time (ms)")
+    axes[-1].set_xlabel("post-onset time (ms)")
     fig.text(
         0.01,
         0.5,
@@ -428,7 +424,7 @@ def plot_rate_model_validation(
     )
 
     fig.suptitle(
-        "real vs simulated E population participation across the ei sweep",
+        "real (black) vs fitted-model sample (red dashed) across the ei sweep",
         fontsize=theme.SIZE_TITLE,
         y=0.98,
     )
