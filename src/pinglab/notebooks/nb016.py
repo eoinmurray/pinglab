@@ -259,67 +259,67 @@ def _async_log_lik_marginal(spike_times_per_neuron: list, T_ms: float,
 
 
 def _ping_log_lik_marginal(spike_times_ms: "np.ndarray", n_e: int, T_ms: float,
-                           f_grid_hz=None, n_phase_grid: int = 16) -> float:
-    """Marginal log-likelihood under the burst-MPP model, profile (p, σ²) at
-    each (b₀, f) grid point then mean-marginalise over the discrete grid.
-        p̂ = n_tot / (N_E·N_b)
-        σ̂² = ⟨(t - b_{n*})²⟩
-    Phase b₀ is gridded across [0, T_p); frequency f is gridded across the
-    gamma band (default 25–75 Hz at 5 Hz steps)."""
-    from scipy.special import logsumexp
+                           f_grid_hz=None, kappa_grid=None) -> float:
+    """Marginal log-likelihood under the **von Mises rhythm-Poisson** model
+        λ(t) = λ₀ · exp(κ cos(2πft - φ)) / I₀(κ),
+    with λ₀ profiled to its MLE λ̂₀ = n_tot/(N_E T). At κ = 0 the
+    intensity collapses to the homogeneous Poisson rate λ₀ — async is
+    nested inside ping at κ = 0. At large κ the density concentrates
+    sharply at the burst phases.
+
+    The phase φ marginalisation is *closed form* via Bessel ratios.
+    Defining C = Σᵢ cos(2πf tᵢ), S = Σᵢ sin(2πf tᵢ), R = √(C² + S²)
+    (the spike-time resultant length at frequency f), one finds
+
+        ∫ exp[κ R cos(φ − φ*)] dφ/(2π) = I₀(κ R),
+
+    so the φ-marginalised log-likelihood is
+
+        ℓ(κ, f) = n_tot log(λ̂₀) − n_tot
+                  + log I₀(κ R(f)) − n_tot log I₀(κ).
+
+    κ is then grid-marginalised on a log scale; f on a linear grid in the
+    gamma band. The von Mises form has built-in resistance to over-fitting
+    on null data: at random R ~ √n_tot, the maximum-likelihood κ̂ is small
+    and the gain log I₀(κR) − n_tot log I₀(κ) is O(1) — no large spurious
+    log-BF on Poisson traces."""
+    from scipy.special import logsumexp, i0e
 
     if f_grid_hz is None:
         f_grid_hz = np.arange(25.0, 76.0, 5.0)
+    if kappa_grid is None:
+        # 30 log-spaced points from κ = 0.01 (almost flat) to κ = 1000
+        # (extremely sharp peak; equivalent von Mises σ ≈ 1/√κ ≈ 0.03 cycles).
+        kappa_grid = np.logspace(-2.0, 3.0, 30)
     f_grid_hz = np.asarray(f_grid_hz, dtype=np.float64)
+    kappa_grid = np.asarray(kappa_grid, dtype=np.float64)
     n_tot = spike_times_ms.size
-    if n_tot == 0:
+    if n_tot == 0 or T_ms <= 0:
         return -np.inf
 
+    log_baseline = n_tot * np.log(n_tot / (n_e * T_ms)) - n_tot
+
+    def log_i0(x: "np.ndarray") -> "np.ndarray":
+        """Numerically stable log I₀(x) for x ≥ 0:
+            I₀(x) = exp(|x|) · i0e(|x|)  ⇒  log I₀(x) = |x| + log i0e(|x|)."""
+        x = np.asarray(x, dtype=np.float64)
+        # i0e(0) = 1; i0e(x) ~ 1/√(2πx) at large x → log i0e(x) → -0.5 log(2πx)
+        return x + np.log(i0e(x))
+
+    log_i0_kappa = log_i0(kappa_grid)  # shape (n_kappa,)
     log_marg_per_f = []
-    for f in f_grid_hz:
-        T_p = 1000.0 / f
-        b0_grid = np.linspace(0.0, T_p, n_phase_grid, endpoint=False)
-        log_at_phase = []
-        for b0 in b0_grid:
-            n_b = int(np.floor((T_ms - b0) / T_p)) + 1
-            if n_b <= 1:
-                log_at_phase.append(-np.inf)
-                continue
-            burst_times = b0 + np.arange(n_b) * T_p
-            burst_times = burst_times[burst_times < T_ms]
-            if burst_times.size == 0:
-                log_at_phase.append(-np.inf)
-                continue
-
-            # Each spike's nearest burst (binary search via searchsorted).
-            idx_right = np.searchsorted(burst_times, spike_times_ms)
-            idx_right = np.clip(idx_right, 1, burst_times.size - 1)
-            idx_left = idx_right - 1
-            d_left = np.abs(spike_times_ms - burst_times[idx_left])
-            d_right = np.abs(spike_times_ms - burst_times[idx_right])
-            d_min = np.minimum(d_left, d_right)
-
-            n_pairs = n_e * burst_times.size
-            p_hat = n_tot / n_pairs
-            if p_hat <= 0.0 or p_hat >= 1.0:
-                log_at_phase.append(-np.inf)
-                continue
-            sigma2 = float((d_min ** 2).mean())
-            if sigma2 <= 0.0:
-                log_at_phase.append(-np.inf)
-                continue
-
-            L_spike = (n_tot * (np.log(p_hat) - 0.5 * np.log(2 * np.pi * sigma2))
-                       - 0.5 * float((d_min ** 2).sum()) / sigma2)
-            L_skip = (n_pairs - n_tot) * np.log(1.0 - p_hat)
-            log_at_phase.append(L_spike + L_skip)
-        arr = np.asarray(log_at_phase, dtype=np.float64)
-        if not np.isfinite(arr).any():
-            log_marg_per_f.append(-np.inf)
-        else:
-            log_marg_per_f.append(
-                float(logsumexp(arr) - np.log(n_phase_grid))
-            )
+    for f_hz in f_grid_hz:
+        omega = 2.0 * np.pi * f_hz / 1000.0  # rad/ms
+        phases = omega * spike_times_ms
+        C = float(np.cos(phases).sum())
+        S = float(np.sin(phases).sum())
+        R = float(np.sqrt(C * C + S * S))
+        log_at_kappa = (log_baseline
+                        + log_i0(kappa_grid * R)
+                        - n_tot * log_i0_kappa)
+        log_marg_per_f.append(
+            float(logsumexp(log_at_kappa) - np.log(kappa_grid.size))
+        )
     arr = np.asarray(log_marg_per_f, dtype=np.float64)
     if not np.isfinite(arr).any():
         return -np.inf
@@ -455,7 +455,6 @@ def plot_raster_validation(real_rasters: dict, autocorr_data: dict,
     """2×2 raster sanity check: real vs simulated at ei=0 (async) and ei=CANON_EI (ping).
     Cosmetic check that the generative recipes can produce something that
     looks like the real data; the autocorr-shape match is the main test."""
-    from matplotlib.patches import Rectangle
     import matplotlib
 
     matplotlib.use("Agg")
@@ -514,17 +513,7 @@ def plot_raster_validation(real_rasters: dict, autocorr_data: dict,
         f"ei = {target_ei:.1f}",
         fontsize=theme.SIZE_TITLE, y=0.98,
     )
-    fig.tight_layout(rect=(0.02, 0.02, 0.98, 0.93))
-    pad_x, pad_y = 0.01, 0.01
-    bboxes = [ax.get_position() for ax in axes_flat]
-    x0 = min(b.x0 for b in bboxes) - pad_x
-    x1 = max(b.x1 for b in bboxes) + pad_x
-    y0 = min(b.y0 for b in bboxes) - pad_y
-    y1 = max(b.y1 for b in bboxes) + pad_y
-    fig.patches.append(Rectangle(
-        (x0, y0), x1 - x0, y1 - y0, transform=fig.transFigure,
-        fill=False, edgecolor=theme.INK_BLACK, linewidth=1.0,
-    ))
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.93))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -598,11 +587,22 @@ def compute_per_frame_pop_rates() -> dict:
         i_pop = (spk_i[:usable].reshape(n_bins, bin_steps, -1)
                  .sum(axis=(1, 2))) * 1000.0 / (bin_ms * spk_i.shape[1])
         t_ms = (np.arange(n_bins) + 0.5) * bin_ms
+
+        # Per-frame Bayes factor. Skip the onset transient to match the
+        # other metrics (post-onset window only).
+        onset_skip_steps = int(round(20.0 / DT_MS))
+        spk_e_post = spk_e[onset_skip_steps:]
+        T_post_ms = (spk_e_post.shape[0]) * DT_MS
+        bf = compute_log_bayes_factor(spk_e_post, DT_MS) \
+            if T_post_ms > 0 else {"log_bf": float("nan"), "p_ping": float("nan")}
+
         out.append({
             "ei_strength": s,
             "time_ms": t_ms.tolist(),
             "e_rate_hz": e_pop.tolist(),
             "i_rate_hz": i_pop.tolist(),
+            "log_bf": bf["log_bf"],
+            "p_ping": bf["p_ping"],
         })
     return {"frames": out, "bin_ms": bin_ms}
 
@@ -671,7 +671,6 @@ def compute_autocorr_metric(frames_data: dict,
 
 def plot_autocorr_stack(autocorr_data: dict, out_path: Path) -> Path:
     """Stacked autocorrelation curves, one row per ei (sampled to ≤10)."""
-    from matplotlib.patches import Rectangle
     import matplotlib
 
     matplotlib.use("Agg")
@@ -707,20 +706,55 @@ def plot_autocorr_stack(autocorr_data: dict, out_path: Path) -> Path:
         for spine in ("top", "right", "left"):
             ax.spines[spine].set_visible(False)
     axes[-1].set_xlabel("lag (ms)")
-    fig.tight_layout(rect=(0.02, 0.02, 0.98, 0.94))
-    pad_x, pad_y = 0.01, 0.01
-    bboxes = [ax.get_position() for ax in axes]
-    x0 = min(b.x0 for b in bboxes) - pad_x
-    x1 = max(b.x1 for b in bboxes) + pad_x
-    y0 = min(b.y0 for b in bboxes) - pad_y
-    y1 = max(b.y1 for b in bboxes) + pad_y
-    fig.patches.append(Rectangle(
-        (x0, y0), x1 - x0, y1 - y0, transform=fig.transFigure,
-        fill=False, edgecolor=theme.INK_BLACK, linewidth=1.0,
-    ))
-    fig.text((x0 + x1) / 2, y1 + 0.02,
-             "per-frame autocorrelation of the post-onset E rate",
-             ha="center", va="bottom", fontsize=theme.SIZE_TITLE)
+    fig.suptitle("per-frame autocorrelation of the post-onset E rate",
+                 fontsize=theme.SIZE_TITLE, y=0.98)
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"  → {out_path}")
+    return out_path
+
+
+def plot_bayes_factor(frames_data: dict, out_path: Path) -> Path:
+    """Per-frame log Bayes factor and P(ping | D) vs ei. Two stacked panels:
+    log-BF on top, sigmoid-converted probability below."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import theme  # type: ignore[import]
+
+    theme.apply()
+    rows = frames_data["frames"]
+    eis = np.array([r["ei_strength"] for r in rows])
+    log_bfs = np.array([r.get("log_bf", float("nan")) for r in rows])
+    p_pings = np.array([r.get("p_ping", float("nan")) for r in rows])
+    finite = np.isfinite(log_bfs)
+
+    fig, axes = plt.subplots(2, 1, figsize=(10.0, 5.625), sharex=True,
+                             gridspec_kw={"height_ratios": [1, 1]})
+    ax_top, ax_bot = axes
+
+    ax_top.axhline(0.0, color=theme.MUTED, linewidth=0.8, linestyle="--")
+    ax_top.plot(eis[finite], log_bfs[finite], marker="o", color=theme.INK_BLACK,
+                linewidth=1.5)
+    ax_top.set_ylabel("log Bayes factor (nats)")
+    for spine in ("top", "right"):
+        ax_top.spines[spine].set_visible(False)
+
+    ax_bot.axhline(0.5, color=theme.MUTED, linewidth=0.8, linestyle="--")
+    ax_bot.plot(eis[finite], p_pings[finite], marker="o", color=theme.INK_BLACK,
+                linewidth=1.5)
+    ax_bot.set_ylabel(r"$P(\mathrm{ping} \mid D)$")
+    ax_bot.set_xlabel("ei strength")
+    ax_bot.set_ylim(-0.02, 1.02)
+    for spine in ("top", "right"):
+        ax_bot.spines[spine].set_visible(False)
+
+    fig.suptitle("regime probability from raster Bayes factor",
+                 fontsize=theme.SIZE_TITLE, y=0.98)
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -769,8 +803,6 @@ def plot_per_frame_pop_rates(frames_data: dict, out_path: Path) -> Path:
     import matplotlib.pyplot as plt
     import theme  # type: ignore[import]
 
-    from matplotlib.patches import Rectangle  # local import keeps deps explicit
-
     theme.apply()
     all_frames = frames_data["frames"]
     # Show at most 10 rows: evenly-spaced from start to end of the sweep.
@@ -799,22 +831,9 @@ def plot_per_frame_pop_rates(frames_data: dict, out_path: Path) -> Path:
         for spine in ("top", "right", "left"):
             ax.spines[spine].set_visible(False)
     axes[-1].set_xlabel("time (ms)")
-    fig.tight_layout(rect=(0.02, 0.02, 0.98, 0.94))
-    # Frame in figure coords, hugging just the plot area (axes bbox union).
-    pad_x, pad_y = 0.01, 0.01
-    bboxes = [ax.get_position() for ax in axes]
-    x0 = min(b.x0 for b in bboxes) - pad_x
-    x1 = max(b.x1 for b in bboxes) + pad_x
-    y0 = min(b.y0 for b in bboxes) - pad_y
-    y1 = max(b.y1 for b in bboxes) + pad_y
-    fig.patches.append(Rectangle(
-        (x0, y0), x1 - x0, y1 - y0, transform=fig.transFigure,
-        fill=False, edgecolor=theme.INK_BLACK, linewidth=1.0,
-    ))
-    # Title: center on the frame's x-range, sit just above the top edge.
-    fig.text((x0 + x1) / 2, y1 + 0.02,
-             "E population rate per frame along the ei-strength sweep",
-             ha="center", va="bottom", fontsize=theme.SIZE_TITLE)
+    fig.suptitle("E population rate per frame along the ei-strength sweep",
+                 fontsize=theme.SIZE_TITLE, y=0.98)
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -845,10 +864,24 @@ def extras(tier: str, notebook_run_id: str) -> dict:
     real_rasters = compute_validation_rasters()
     plot_raster_validation(real_rasters, autocorr_data,
                            figures / "raster_validation.png")
+    print("  Bayes-factor unit tests on synthetic data (step 2)…")
+    bf_unit_tests = unit_test_bayes_factor()
+    print("  per-frame Bayes factor (step 3)…")
+    plot_bayes_factor(frames_data, figures / "bayes_factor.png")
     return {
         "rates_hz": rates,
         "canonical_ei": CANON_EI,
         "frame_pop_rates": frames_data,
+        "bayes_factor_unit_tests": [
+            {"label": r["label"], "log_bf": r["log_bf"],
+             "p_ping": r["p_ping"], "n_spikes": r["n_spikes"]}
+            for r in bf_unit_tests
+        ],
+        "bayes_factor_per_frame": [
+            {"ei_strength": r["ei_strength"], "log_bf": r["log_bf"],
+             "p_ping": r["p_ping"]}
+            for r in frames_data["frames"]
+        ],
         "autocorr_metric": {
             "bin_ms": autocorr_data["bin_ms"],
             "onset_skip_ms": autocorr_data["onset_skip_ms"],

@@ -695,6 +695,12 @@ def build_config(args):
     bias = getattr(args, "bias", None)
     if bias is not None:
         c.bias = bias
+    # Honour --t-ms by syncing cfg.sim_ms; otherwise the scan path sizes the
+    # input array from cfg.SIM_MS (default 600) while the network loop uses
+    # args.t_ms, producing an off-by-one IndexError when they disagree.
+    t_ms = getattr(args, "t_ms", None)
+    if t_ms is not None:
+        c.sim_ms = float(t_ms)
     # For image input, --input-rate sets the max Poisson encoding rate
     if input_mode == "dataset":
         spike_rate = getattr(args, "spike_rate", M.max_rate_hz)
