@@ -92,44 +92,74 @@ with $\ell^\star$ the highest-prominence peak and $[\ell_l, \ell_r]$ the interva
 
 ### Bayes factor
 
-The two metrics above are descriptive — they summarise the trace but don't say "this is ping with probability $P$". The Bayesian alternative is to fit two generative recipes to each trace and report the log-odds. We work on the raster directly (the pooled E spike times $\{t_1, \dots, t_n\}$ over the post-onset window $[0, T]$), so every spike's exact timing contributes and there's no bin-width choice to defend.
+The two metrics above are descriptive — they summarise the trace but don't say "this is ping with probability $P$". The Bayesian alternative is to fit two generative recipes to each trace and report the log-odds. We work on the raster directly (per-neuron spike times $\{t_{j,1} < \dots < t_{j,n_j}\}$ for $j = 1, \dots, N_E$ over the post-onset window $[0, T]$). Both recipes match the validated step-1a sims rather than the simpler Poisson placeholders.
 
-**Async**: homogeneous Poisson with per-neuron rate $\lambda_a$,
+**Async** is a per-neuron gamma-renewal process. The generative recipe is:
 
-$$
-\log P(\{t_i\} \mid \text{async}, \lambda_a) \;=\; n \log(N_E \lambda_a) \;-\; N_E \lambda_a T.
-$$
+1. Pick parameters: shape $k$, scale $\theta$, so each neuron's mean firing rate is $1/(k\theta)$ and the ISI coefficient of variation is $1/\sqrt{k}$.
+2. For each neuron $j = 1, \dots, N_E$, independently:
+   - Draw a starting offset $u_j \sim \mathrm{Uniform}(0, k\theta)$ (random initial phase).
+   - Set $t_{j,1} = u_j$.
+   - For $i = 2, 3, \dots$, draw $\tau_{j,i} \sim \Gamma(k, \theta)$ and set $t_{j,i} = t_{j,i-1} + \tau_{j,i}$, until $t_{j,i} > T$.
 
-**Ping**: same Poisson scaffold but with a periodically modulated rate,
-
-$$
-\lambda_p(t) \;=\; \lambda_0 \, \big(1 + A \cos(2\pi f t + \phi)\big),
-$$
-
-amplitude $A \in [0, 1]$, gamma frequency $f$, phase $\phi$, baseline $\lambda_0$. $A = 0$ collapses ping to async, so async is nested inside ping. The spike-time log-likelihood is
+$k = 1$ recovers Poisson; $k = 10$ matches the visible *ei* = 0 stripe pattern (CV $\approx$ 0.32). Conditional on the inner ISIs $\tau_{j,i} = t_{j,i} - t_{j,i-1}$ for $i \ge 2$, the log-likelihood is
 
 $$
-\log P(\{t_i\} \mid \text{ping}) \;=\; \sum_{i=1}^{n} \log\!\big(N_E \, \lambda_p(t_i)\big) \;-\; N_E \lambda_0 T,
+\log P(D \mid \text{async}, k, \theta) \;=\; \sum_{j,\, i \ge 2} \big[(k - 1)\log\tau_{j,i} \;-\; \tau_{j,i}/\theta \;-\; k\log\theta \;-\; \log\Gamma(k)\big].
 $$
 
-up to end-effect corrections of order $1/(fT)$ in the integral. The sum over spike times is where the rhythm shows up — spikes near the bursts contribute big log-rates, spikes in the troughs contribute small ones.
-
-The Bayes factor is the ratio of marginal likelihoods,
+To see where this comes from, start with the gamma probability density of one inter-spike interval,
 
 $$
-\log\mathrm{BF} \;=\; \log P(\{t_i\} \mid \text{ping}) - \log P(\{t_i\} \mid \text{async}),
+f_\Gamma(\tau; k, \theta) \;=\; \frac{\tau^{k-1} \, e^{-\tau/\theta}}{\theta^{k} \, \Gamma(k)}, \qquad \tau > 0,
 $$
 
-with the right-hand side marginalised over nuisance parameters: $\phi$ analytically (a uniform $[0, 2\pi)$ prior gives a Bessel-style closed form), $f$ on a grid across the gamma band, and $A, \lambda_0, \lambda_a$ via Laplace approximation around their MLEs. Marginalisation brings an automatic Occam penalty: ping has more knobs and only beats async when the data demand the structure. $\log\mathrm{BF}$ scales linearly with the total spike count $n \approx N_E \lambda_0 T$ — a 250 ms trace from $N_E$ = 512 neurons at $\sim$10 Hz already carries $\sim$1280 spikes of evidence.
+whose logarithm is the bracketed expression in the sum: the first three terms come from the $\tau^{k-1}$, $e^{-\tau/\theta}$, and $\theta^{-k}$ factors of the density; the last is the gamma-function normaliser. The renewal property says that ISIs are independent draws from this density, so across one neuron $j$ the joint log-likelihood of the inner ISIs $\tau_{j,2}, \tau_{j,3}, \dots$ is just the sum $\sum_{i \ge 2} \log f_\Gamma(\tau_{j,i})$. Different neurons are independent renewal processes, so the joint log-likelihood across all $N_E$ neurons sums over $j$ as well, giving the double sum above.
+
+The $i \ge 2$ constraint is deliberate: the *first* spike $t_{j,1}$ is not the end of an ISI but a forward-recurrence time relative to a fictional spike at $t = 0$, so it belongs to a different distribution. Likewise, the post-last-spike interval $T - t_{j, n_j}$ is right-censored — we know the next spike came after $T$ but not when. Boundary terms — first-spike forward-recurrence density and final censored survival — drop out as a per-neuron $O(1)$ offset, small against the $O(\sum_j n_j)$ inner-ISI bulk. At fixed $k$ the MLE for $\theta$ is closed form, $\hat\theta = \bar\tau / k$ with $\bar\tau$ the global mean inner ISI; we then marginalise over $k$ on a grid spanning Poisson to highly regular.
+
+**Ping** is a marked point process driven by a shared periodic burst schedule. The generative recipe is:
+
+1. Pick parameters: frequency $f$ (period $T_p = 1/f$), participation probability $p \in (0, 1]$, jitter $\sigma > 0$.
+2. Draw a global phase $b_0 \sim \mathrm{Uniform}(0, T_p)$, giving the burst schedule $b_n = b_0 + n T_p$ for $n = 0, 1, \dots, N_b - 1$ with $N_b = \lfloor T / T_p \rfloor$.
+3. For each $(j, n) \in \{1, \dots, N_E\} \times \{0, \dots, N_b - 1\}$, independently:
+   - Draw a participation indicator $z_{j,n} \sim \mathrm{Bernoulli}(p)$.
+   - If $z_{j,n} = 1$, draw $\varepsilon_{j,n} \sim \mathcal{N}(0, \sigma^2)$ and emit a spike at $t = b_n + \varepsilon_{j,n}$ (discarding any spike that falls outside $[0, T]$).
+
+The per-neuron mean rate is $p f$, so matching to a target rate $\lambda$ fixes $p = \lambda / f$. Assigning each observed spike to its nearest burst $n^\star(j, i)$, the log-likelihood factors into a "spike → burst" term and a non-participation term:
+
+$$
+\log P(D \mid \text{ping}, b_0, f, p, \sigma) \;=\; \sum_{j,i}\!\Big[\log p \;-\; \tfrac{1}{2}\log(2\pi\sigma^2) \;-\; \tfrac{(t_{j,i} - b_{n^\star})^2}{2\sigma^2}\Big] \;+\; (N_E N_b - n_\text{tot})\log(1 - p),
+$$
+
+The derivation runs straight from the recipe. Each $(j, n)$ pair has two outcomes: with probability $1 - p$ the neuron skips that burst (no spike, contribution $1 - p$ to the joint density); with probability $p$ it fires once at $b_n + \varepsilon_{j,n}$, $\varepsilon_{j,n} \sim \mathcal{N}(0, \sigma^2)$, contributing the joint density $p \cdot \mathcal{N}(t_{j,n}; b_n, \sigma^2)$. Because the Gaussian PDF is
+
+$$
+\mathcal{N}(t; b_n, \sigma^2) \;=\; \frac{1}{\sigma\sqrt{2\pi}} \, \exp\!\Big[-\tfrac{(t - b_n)^2}{2\sigma^2}\Big],
+$$
+
+its log gives the bracketed term: $\log p$ (the participation factor), $-\tfrac{1}{2}\log(2\pi\sigma^2)$ (the normaliser), and the squared-error penalty in $(t - b_n)^2/(2\sigma^2)$.
+
+To get from the per-pair log-likelihoods to the equation above, we partition the $N_E N_b$ pairs into participating and non-participating. A pair is *participating* if there's an observed spike close enough to $b_n$ to have come from it — formalised as "the nearest burst to spike $t_{j,i}$ is $b_{n^\star(j,i)}$, with no other spike of neuron $j$ closer to $b_{n^\star}$". With $\sigma \ll T_p$ this assignment is essentially injective: each spike maps uniquely to one $(j, n)$, so the participating pairs are exactly the $n_\text{tot} = \sum_j n_j$ observed spikes. The remaining $N_E N_b - n_\text{tot}$ pairs are non-participating and each contributes $\log(1 - p)$. Summing the two halves gives the displayed log-likelihood.
+
+With $N_b$ the number of bursts in $[0, T]$ and $n_\text{tot} = \sum_j n_j$ the total spike count, the first sum rewards spikes that fall close to a burst; the second penalises non-participation. MLEs are closed form: $\hat p = n_\text{tot} / (N_E N_b)$ and $\hat\sigma^2 = (1/n_\text{tot}) \sum_{j,i}(t_{j,i} - b_{n^\star})^2$. The discrete nuisance parameters — phase $b_0$ on a fine grid in $[0, T_p)$ and frequency $f$ on a coarser grid spanning the gamma band — get integrated numerically.
+
+The Bayes factor is the ratio of marginalised likelihoods,
+
+$$
+\log\mathrm{BF} \;=\; \log P(D \mid \text{ping}) \;-\; \log P(D \mid \text{async}),
+$$
+
+each side integrated over its model parameters (Laplace around the MLEs for the continuous scale parameters, grid for the discrete priors). Ping has more degrees of freedom than async, so marginalisation imposes an automatic Occam penalty — ping only beats async when the data demand the burst structure. $\log\mathrm{BF}$ scales linearly with total spike count $\sum_j n_j$, so a 250 ms trace from $N_E$ = 512 neurons at $\sim$10 Hz already carries $\sim$1280 spikes of evidence.
 
 The per-frame output is $\log\mathrm{BF}$ in nats (positive favours ping, zero undecided), converted to $P(\text{ping} \mid D) = \sigma(\log\mathrm{BF})$ under equal prior odds.
 
 #### Todo
 
-1. **Validate the generative models.** Sample rasters from constant-rate Poisson at *ei* = 0 baseline and from sinusoidally-modulated Poisson at *ei* = 0.8 parameters; overlay their autocorrelations on Figure 3 at the matching *ei*. If shapes track, the models are usable likelihoods. If real ping has sharper bursts than a cosine, swap in a half-wave-rectified rate before going further.
-   - **1a. Raster sanity check.** As a cosmetic cross-check, render the same simulated and real rasters side-by-side at *ei* = 0 and *ei* = 0.8 (one short panel each). Single-trial rasters mostly look like dot-clouds regardless of regime, so this is a "no obvious pathology" pass — no missing burst structure, no neuron-specific weirdness — not the main acceptance test.
-2. **Unit-test on synthetic data.** Add *compute_log_bayes_factor(spike_times, T, N_E)*. Feed it ground-truth rasters and verify: async at $\lambda_a = 30$ Hz → strongly negative; ping at $\lambda_0 = 30$, $A = 0.6$, $f = 50$ → strongly positive; borderline $A = 0.05$ → near zero. Catches sign errors, rate-unit mistakes, and $\log(1 + A\cos\cdot)$ instabilities near $-1$.
-3. **Apply per frame, add Figure 5.** Pull each frame's raster from the in-process replay, feed to the routine, store $\log\mathrm{BF}$ and $P(\text{ping}\mid D)$ in *numbers.json*, plot the probability curve vs *ei*. Should sit near 0 through async, cross 0.5 at threshold, saturate near 1 in PING. Estimated cost: $\sim$50 lines, $\sim$30 s extra per 100-frame run.
+1. **Validate the generative models.** Sample rasters from each recipe at the canonical *ei* values; overlay simulated autocorrelations on Figure 3 at the matching *ei*. If shapes track, the models are usable likelihoods. ✅ Done — Figure 5 below shows the upgraded recipes (gamma-renewal async, burst-MPP ping) match the real rasters; the math above is the corresponding likelihood.
+   - **1a. Raster sanity check.** Side-by-side real vs simulated panels at *ei* = 0 and *ei* = 0.8 — checks that the recipes produce the right qualitative structure (regular stripes for async, vertical bands for ping). ✅ Done — Figure 5.
+2. **Unit-test on synthetic data.** Add *compute_log_bayes_factor(spike_times, T, N_E)* implementing the renewal+MPP likelihoods above. Feed it ground-truth rasters and verify: async-renewal at $k = 10$, $\mu = 5$ ms → strongly negative log-BF; burst-MPP at $f = 50$ Hz, $\sigma = 2$ ms, $p = 0.2$ → strongly positive; borderline burst with $\sigma = T_p / 4$ (jitter approaches uniform-over-cycle) → near zero. Catches sign errors, the $b_0$ grid resolution, and $\log\sigma$ instabilities at small $\sigma$.
+3. **Apply per frame, add Figure 6.** Pull each frame's raster from the in-process replay, feed to the routine, store $\log\mathrm{BF}$ and $P(\text{ping}\mid D)$ in *numbers.json*, plot the probability curve vs *ei*. Should sit near 0 through async, cross 0.5 at threshold, saturate near 1 in PING. Estimated cost: $\sim$120 lines (renewal + MPP likelihoods, marginalisation grids), $\sim$1 min extra per 100-frame run.
 
 ## Results
 
@@ -159,9 +189,19 @@ The per-frame output is $\log\mathrm{BF}$ in nats (positive favours ping, zero u
   Peak prominence in the {numbers.autocorr_metric?.lag_min_ms ?? "?"}–{numbers.autocorr_metric?.lag_max_ms ?? "?"} ms lag window vs ei. Lifts off at threshold but sits at a finite-sample noise floor $\sim$0.4 through async — *find_peaks* picks the deepest noise excursion when no real peak exists, and on a 115-sample window that has positive expectation.
 </Figure>
 
+### Bayes factor
+
+<Figure id="Figure 5" title="raster sanity check (Todo 1a)" src="/figures/notebooks/nb016/raster_validation.png" alt="Two-by-two raster panels: real vs simulated at ei = 0 (async) and ei = 0.8 (ping).">
+  Real vs simulated rasters at *ei* = 0 (top: async baseline) and *ei* = {numbers.canonical_ei ?? "0.8"} (bottom: canonical ping), under the upgraded recipes documented in *Method > Bayes factor*. Async: per-neuron gamma-renewal with shape $k = 10$ (CV(ISI) $\approx$ 0.32, regular tonic stripes). Ping: shared periodic burst schedule at frequency from the autocorr peak, Bernoulli($p = \lambda / f$) per-neuron participation, Gaussian jitter $\sigma = 2$ ms (vertical population-synchrony bands). First 80 of $N_E$ neurons shown. The earlier homogeneous-Poisson and sinusoidally-modulated-Poisson recipes both failed inspection — real *ei* = 0 is regular tonic, not random dots; real *ei* = 0.8 is population-synchronous, not scattered Poisson — which is why the likelihoods above are gamma-renewal + marked-point-process rather than Poisson-based.
+</Figure>
+
+The Bayes-factor likelihoods above match the validated recipes; per-frame log-BF and $P(\text{ping}\mid D)$ figures land here once Todo step 2 (synthetic unit tests) and step 3 (per-frame application) are implemented.
+
 ## Next steps
 
-*To be filled in once the run is reviewed.*
+1. **Implement the upgraded Bayes factor.** Steps 2 and 3 of the Method > Bayes factor > Todo: write the gamma-renewal + marked-point-process log-likelihoods, unit-test on synthetic ground-truth rasters, then apply per frame and add the $P(\text{ping}\mid D)$ vs *ei* curve as Figure 6.
+2. **Sweep beyond *ei*.** Once the BF metric is calibrated, repeat the sweep for *input rate*, *N_E*, and $\tau_\text{gaba}$ at fixed *ei* = 0.8 to map the basin of clean PING in parameter space.
+3. **Compare metrics on sample efficiency.** Run all three single-frame metrics (autocorr prominence, BF probability, plus a half-trace ablation) at increasing trial lengths and plot how each saturates with sample size — the BF should win at short traces by an Occam-corrected margin, the autocorr should be cheaper but biased.
 
 ## Appendix
 

@@ -1,16 +1,26 @@
-"""Notebook runner for entry 016 — PING E→I coupling sweep (copy of nb006).
+"""Notebook runner for entry 016 — ping metrics.
 
-Sweeps the E→I coupling strength from 0 → 1 with *no* stim-window
-overdrive (input rate flat through the trial), walking the network
-from the async baseline (E and I effectively decoupled) through the
-emergence of gamma as the E→I→E feedback loop closes. Input rate and
-W_in are bumped relative to the other scans so E has enough baseline
-drive to recruit I at all.
+Sweeps the E→I coupling strength from 0 → 1 with input held flat
+(stim-window overdrive 1×), walking the network from the async
+baseline through the onset of gamma. For each frame of the resulting
+video we extract three views of the trace:
+
+1. **Population rate** — the smoothed E hidden-layer firing rate
+   (2 ms bins, post-onset window). Visualised as a stacked-rows plot.
+2. **Autocorrelation peak prominence** — a single-frame rhythmicity
+   score derived from the FFT-autocorrelation of the post-onset rate.
+3. **Bayes factor** — calibrated regime probability per frame from
+   two raster-level generative models. Async = per-neuron gamma-
+   renewal process Γ(k, θ); ping = shared periodic burst schedule
+   (period 1/f, phase b₀) with Bernoulli(p) per-neuron participation
+   and Gaussian(0, σ²) jitter. Both recipes were validated against
+   the real raster at *ei* = 0 and *ei* = 0.8 in step 1a (see
+   plot_raster_validation). Likelihood implementation pending —
+   see Method > Bayes factor > Todo in the entry.
 
 Also writes numbers.json with pre/stim/post E and I population rates
-from an in-Python replay at the canonical high-ei run so the MDX can
-interpolate exact values and the success-criteria check can gate on
-PING actually forming once the feedback loop is closed.
+from an in-process replay at the canonical high-ei run, so the entry
+can interpolate exact values.
 
 Notebook entry: src/docs/src/pages/notebooks/nb016.mdx
 """
@@ -126,6 +136,400 @@ def compute_summary_rates() -> dict:
         "stim": {"e": mean_rate(spk_e, stim), "i": mean_rate(spk_i, stim)},
         "post": {"e": mean_rate(spk_e, post), "i": mean_rate(spk_i, post)},
     }
+
+
+def compute_validation_rasters() -> dict:
+    """Pull real E rasters at ei=0 (async baseline) and ei=CANON_EI (ping)
+    for the Bayes-factor model-validation step (Todo 1a). Each raster has
+    shape (T_steps, N_E) and is stored alongside an estimated per-neuron
+    mean rate (Hz) used to parameterise the matched simulation."""
+    import torch  # noqa: E402
+    import config as C  # noqa: E402
+    import models as M  # noqa: E402
+    from config import make_net, patch_dt  # noqa: E402
+    from oscilloscope import (
+        _extract_records,
+        _load_dataset_image,
+        encode_image_spikes,
+        primary_hid_key,
+    )  # noqa: E402
+
+    pixel_vec, _ = _load_dataset_image(DATASET, DIGIT_CLASS, SAMPLE_IDX)
+    M.N_IN = len(pixel_vec)
+    M.T_ms = EI_SIM_MS
+
+    out: dict = {}
+    for label, ei in [("async", 0.0), ("ping", CANON_EI)]:
+        C.cfg.n_e = N_HIDDEN
+        C.cfg.n_i = N_HIDDEN // 4
+        C.cfg.sim_ms = EI_SIM_MS
+        C.cfg.step_on_ms = EI_STEP_ON_MS
+        C.cfg.step_off_ms = EI_STEP_OFF_MS
+        C.cfg.seed = SEED
+        C.cfg.w_ei = (ei, ei * 0.1)
+        C.cfg.w_ie = (ei * C.cfg.ei_ratio, ei * C.cfg.ei_ratio * 0.1)
+        C._sync_globals_from_cfg(C.cfg)
+
+        M.N_HID = C.N_E
+        M.N_INH = C.N_I
+        M.T_ms = EI_SIM_MS
+        M.max_rate_hz = EI_SCAN_INPUT_RATE_HZ
+        patch_dt(DT_MS)
+
+        base_rate = M.max_rate_hz
+        input_spikes = encode_image_spikes(
+            pixel_vec, M.T_steps, DT_MS, base_rate, base_rate,
+            C.STEP_ON_MS, C.STEP_OFF_MS, C.SEED,
+        ).to(C.DEVICE)
+        net = make_net(
+            C.cfg,
+            w_in=(EI_SCAN_W_IN_MEAN, EI_SCAN_W_IN_STD, "normal", C.W_IN_SPARSITY),
+            model_name="ping",
+        )
+        net.recording = True
+        with torch.no_grad():
+            net.forward(input_spikes=input_spikes)
+        rec = _extract_records(net)
+        spk_e = rec[primary_hid_key(rec)]  # (T, N_E)
+        T_steps, n_e = spk_e.shape
+        mean_rate_hz = float(spk_e.sum() / (n_e * T_steps * DT_MS / 1000.0))
+        out[label] = {"ei": float(ei), "raster": spk_e, "rate_hz": mean_rate_hz}
+    return out
+
+
+def _async_log_lik_marginal(spike_times_per_neuron: list, T_ms: float,
+                            k_grid=(1.0, 2.0, 5.0, 10.0, 20.0, 50.0)) -> float:
+    """Marginal log-likelihood of the *full* spike-train under the gamma-renewal
+    model (forward-recurrence first-spike density + iid inner ISIs + censored
+    post-last-spike survival), profile-θ at each grid k then mean-marginalise
+    over k. Closed form for θ̂(k): ∂L/∂θ = 0 ⇒ θ̂ = ⟨τ⟩/k where ⟨τ⟩ is the mean
+    of the inner ISIs across all neurons.
+
+    For a stationary renewal process the boundary contributions are
+        f_first(t₁) = S(t₁)/μ           (forward-recurrence density)
+        S_cens(T - t_n) = Q(k, (T-t_n)/θ̂)  (right-censored survival)
+    where μ = kθ and S(t) = Q(k, t/θ) is the gamma survival function.
+    Including them is what puts the async log-likelihood on equal footing
+    with the ping density (which scores all N_E·N_b pairs)."""
+    from scipy.special import gammaln, gammaincc, logsumexp
+
+    isis_ms_chunks = []
+    first_spikes_ms = []
+    last_gaps_ms = []
+    for s in spike_times_per_neuron:
+        if s.size == 0:
+            continue
+        first_spikes_ms.append(float(s[0]))
+        last_gaps_ms.append(float(T_ms - s[-1]))
+        if s.size >= 2:
+            isis_ms_chunks.append(np.diff(s))
+    if not isis_ms_chunks:
+        return -np.inf
+    isis_ms = np.concatenate(isis_ms_chunks)
+    first_spikes_ms = np.asarray(first_spikes_ms, dtype=np.float64)
+    last_gaps_ms = np.asarray(last_gaps_ms, dtype=np.float64)
+
+    n_tau = isis_ms.size
+    mean_isi = float(isis_ms.mean())
+    mean_log_isi = float(np.log(isis_ms).mean())
+
+    log_profiles = []
+    for k in k_grid:
+        theta_hat = mean_isi / k
+        # Inner-ISI bulk: (k-1)⟨log τ⟩ - k - k log θ̂ - log Γ(k), times n_tau.
+        ell_inner = n_tau * (
+            (k - 1.0) * mean_log_isi
+            - k
+            - k * np.log(theta_hat)
+            - float(gammaln(k))
+        )
+        # Boundary: first-spike forward-recurrence and post-last survival.
+        log_q_first = np.log(np.clip(
+            gammaincc(k, first_spikes_ms / theta_hat), 1e-300, None
+        ))
+        ell_first = float(log_q_first.sum()
+                          - first_spikes_ms.size * np.log(k * theta_hat))
+        log_q_last = np.log(np.clip(
+            gammaincc(k, last_gaps_ms / theta_hat), 1e-300, None
+        ))
+        ell_last = float(log_q_last.sum())
+        log_profiles.append(ell_inner + ell_first + ell_last)
+    log_profiles = np.asarray(log_profiles, dtype=np.float64)
+    return float(logsumexp(log_profiles) - np.log(len(k_grid)))
+
+
+def _ping_log_lik_marginal(spike_times_ms: "np.ndarray", n_e: int, T_ms: float,
+                           f_grid_hz=None, n_phase_grid: int = 16) -> float:
+    """Marginal log-likelihood under the burst-MPP model, profile (p, σ²) at
+    each (b₀, f) grid point then mean-marginalise over the discrete grid.
+        p̂ = n_tot / (N_E·N_b)
+        σ̂² = ⟨(t - b_{n*})²⟩
+    Phase b₀ is gridded across [0, T_p); frequency f is gridded across the
+    gamma band (default 25–75 Hz at 5 Hz steps)."""
+    from scipy.special import logsumexp
+
+    if f_grid_hz is None:
+        f_grid_hz = np.arange(25.0, 76.0, 5.0)
+    f_grid_hz = np.asarray(f_grid_hz, dtype=np.float64)
+    n_tot = spike_times_ms.size
+    if n_tot == 0:
+        return -np.inf
+
+    log_marg_per_f = []
+    for f in f_grid_hz:
+        T_p = 1000.0 / f
+        b0_grid = np.linspace(0.0, T_p, n_phase_grid, endpoint=False)
+        log_at_phase = []
+        for b0 in b0_grid:
+            n_b = int(np.floor((T_ms - b0) / T_p)) + 1
+            if n_b <= 1:
+                log_at_phase.append(-np.inf)
+                continue
+            burst_times = b0 + np.arange(n_b) * T_p
+            burst_times = burst_times[burst_times < T_ms]
+            if burst_times.size == 0:
+                log_at_phase.append(-np.inf)
+                continue
+
+            # Each spike's nearest burst (binary search via searchsorted).
+            idx_right = np.searchsorted(burst_times, spike_times_ms)
+            idx_right = np.clip(idx_right, 1, burst_times.size - 1)
+            idx_left = idx_right - 1
+            d_left = np.abs(spike_times_ms - burst_times[idx_left])
+            d_right = np.abs(spike_times_ms - burst_times[idx_right])
+            d_min = np.minimum(d_left, d_right)
+
+            n_pairs = n_e * burst_times.size
+            p_hat = n_tot / n_pairs
+            if p_hat <= 0.0 or p_hat >= 1.0:
+                log_at_phase.append(-np.inf)
+                continue
+            sigma2 = float((d_min ** 2).mean())
+            if sigma2 <= 0.0:
+                log_at_phase.append(-np.inf)
+                continue
+
+            L_spike = (n_tot * (np.log(p_hat) - 0.5 * np.log(2 * np.pi * sigma2))
+                       - 0.5 * float((d_min ** 2).sum()) / sigma2)
+            L_skip = (n_pairs - n_tot) * np.log(1.0 - p_hat)
+            log_at_phase.append(L_spike + L_skip)
+        arr = np.asarray(log_at_phase, dtype=np.float64)
+        if not np.isfinite(arr).any():
+            log_marg_per_f.append(-np.inf)
+        else:
+            log_marg_per_f.append(
+                float(logsumexp(arr) - np.log(n_phase_grid))
+            )
+    arr = np.asarray(log_marg_per_f, dtype=np.float64)
+    if not np.isfinite(arr).any():
+        return -np.inf
+    return float(logsumexp(arr) - np.log(f_grid_hz.size))
+
+
+def compute_log_bayes_factor(raster: "np.ndarray", dt_ms: float) -> dict:
+    """Per-trial log Bayes factor between the ping and async generative models
+    of *Method > Bayes factor* in the entry. raster has shape (T_steps, N_E).
+
+    Returns a dict with the marginalised log-likelihoods, log-BF and the
+    sigmoid-converted regime probability P(ping | D). All log quantities are
+    in nats."""
+    T_steps, n_e = raster.shape
+    T_ms = T_steps * dt_ms
+
+    spike_times_per_neuron = [np.flatnonzero(raster[:, j]) * dt_ms
+                              for j in range(n_e)]
+    spikes_flat = np.concatenate(spike_times_per_neuron) \
+        if spike_times_per_neuron else np.empty(0, dtype=np.float64)
+    n_isis = sum(max(s.size - 1, 0) for s in spike_times_per_neuron)
+
+    log_p_async = _async_log_lik_marginal(spike_times_per_neuron, T_ms)
+    log_p_ping = _ping_log_lik_marginal(spikes_flat, n_e, T_ms)
+    log_bf = log_p_ping - log_p_async
+    # Numerically stable sigmoid for huge |log_bf|.
+    if not np.isfinite(log_bf):
+        p_ping = float("nan")
+    elif log_bf >= 0:
+        p_ping = 1.0 / (1.0 + np.exp(-log_bf))
+    else:
+        e = np.exp(log_bf)
+        p_ping = e / (1.0 + e)
+    return {
+        "log_p_async": log_p_async,
+        "log_p_ping": log_p_ping,
+        "log_bf": log_bf,
+        "p_ping": float(p_ping),
+        "n_spikes": int(spikes_flat.size),
+        "n_isis": int(n_isis),
+    }
+
+
+def unit_test_bayes_factor() -> list[dict]:
+    """Synthetic ground-truth raster check (Todo step 2). Generate rasters from
+    each generative model at known parameters and report log-BF, p_ping for
+    each. Expect strongly negative log-BF for async-renewal traces, strongly
+    positive for burst-MPP traces, and near-zero for the borderline case
+    where burst jitter approaches σ ≈ T_p / 4 (loses synchrony)."""
+    n_e = 256
+    T_ms = 250.0
+    T_steps = int(T_ms / DT_MS)
+    cases = [
+        ("async, k=10, λ=200 Hz",
+         simulate_async_renewal(n_e, T_steps, DT_MS, rate_hz=200.0,
+                                shape_k=10.0, seed=1)),
+        ("async, k=1 (Poisson), λ=15 Hz",
+         simulate_async_renewal(n_e, T_steps, DT_MS, rate_hz=15.0,
+                                shape_k=1.0, seed=2)),
+        ("ping, f=50 Hz, σ=2 ms, λ=12 Hz",
+         simulate_ping_burst(n_e, T_steps, DT_MS, rate_hz=12.0,
+                             f_hz=50.0, jitter_ms=2.0, seed=3)),
+        ("ping, f=70 Hz, σ=1.5 ms, λ=15 Hz",
+         simulate_ping_burst(n_e, T_steps, DT_MS, rate_hz=15.0,
+                             f_hz=70.0, jitter_ms=1.5, seed=4)),
+        ("borderline ping, f=50 Hz, σ=5 ms (T_p/4)",
+         simulate_ping_burst(n_e, T_steps, DT_MS, rate_hz=12.0,
+                             f_hz=50.0, jitter_ms=5.0, seed=5)),
+    ]
+    results = []
+    for label, raster in cases:
+        out = compute_log_bayes_factor(raster, DT_MS)
+        out["label"] = label
+        results.append(out)
+        print(f"  {label:42s}  log_BF={out['log_bf']:+9.1f}  "
+              f"p_ping={out['p_ping']:.3f}")
+    return results
+
+
+def simulate_async_renewal(n_e: int, T_steps: int, dt_ms: float,
+                           rate_hz: float, shape_k: float = 10.0,
+                           seed: int = SEED):
+    """Sample from the async generative model (Method > Bayes factor):
+    per-neuron gamma-renewal process with shape k and scale θ chosen so
+    mean rate = rate_hz. Each neuron j gets a uniform initial phase
+    u_j ~ U(0, kθ) and ISIs τ_{j,i} ~ Γ(k, θ) iid. CV(ISI) = 1/√k;
+    k = 10 (default) matches the visible ei=0 stripe pattern."""
+    rng = np.random.default_rng(seed)
+    T_ms = T_steps * dt_ms
+    mean_isi_ms = 1000.0 / max(rate_hz, 1e-9)
+    scale_ms = mean_isi_ms / shape_k
+    spikes = np.zeros((T_steps, n_e), dtype=np.uint8)
+    for j in range(n_e):
+        t = rng.uniform(0.0, mean_isi_ms)
+        while t < T_ms:
+            idx = int(t / dt_ms)
+            if 0 <= idx < T_steps:
+                spikes[idx, j] = 1
+            t += rng.gamma(shape_k, scale_ms)
+    return spikes
+
+
+def simulate_ping_burst(n_e: int, T_steps: int, dt_ms: float,
+                        rate_hz: float, f_hz: float,
+                        jitter_ms: float = 2.0, seed: int = SEED):
+    """Sample from the ping generative model (Method > Bayes factor):
+    shared periodic burst schedule b_n = b_0 + n/f with global phase
+    b_0 ~ U(0, 1/f). For each (j, n), neuron j participates with
+    probability p = rate_hz/f_hz; if it does, fires once at b_n + ε
+    with ε ~ N(0, σ²), σ = jitter_ms. Per-neuron mean rate = p·f
+    matches rate_hz by construction. Captures the population-
+    synchronous burst alignment of real PING."""
+    rng = np.random.default_rng(seed)
+    T_ms = T_steps * dt_ms
+    period_ms = 1000.0 / max(f_hz, 1e-9)
+    p_part = min(1.0, rate_hz / max(f_hz, 1e-9))
+    phase_offset = rng.uniform(0.0, period_ms)
+    burst_times = phase_offset + np.arange(0, int(T_ms / period_ms) + 2) * period_ms
+    burst_times = burst_times[burst_times < T_ms]
+    spikes = np.zeros((T_steps, n_e), dtype=np.uint8)
+    for tb in burst_times:
+        participates = rng.random(n_e) < p_part
+        jitters = rng.normal(0.0, jitter_ms, n_e)
+        for j in np.flatnonzero(participates):
+            idx = int((tb + jitters[j]) / dt_ms)
+            if 0 <= idx < T_steps:
+                spikes[idx, j] = 1
+    return spikes
+
+
+def plot_raster_validation(real_rasters: dict, autocorr_data: dict,
+                           out_path: Path) -> Path:
+    """2×2 raster sanity check: real vs simulated at ei=0 (async) and ei=CANON_EI (ping).
+    Cosmetic check that the generative recipes can produce something that
+    looks like the real data; the autocorr-shape match is the main test."""
+    from matplotlib.patches import Rectangle
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import theme  # type: ignore[import]
+
+    theme.apply()
+
+    # Estimate ping model parameters from real ei=CANON_EI data. Frequency
+    # comes from the autocorr peak lag at the matching ei value.
+    lam_async = real_rasters["async"]["rate_hz"]
+    lam_ping = real_rasters["ping"]["rate_hz"]
+    target_ei = real_rasters["ping"]["ei"]
+    peak_lag_ms = None
+    if autocorr_data is not None:
+        # Find the autocorr frame closest to CANON_EI.
+        best = min(autocorr_data["frames"],
+                   key=lambda r: abs(r["ei_strength"] - target_ei))
+        peak_lag_ms = best["peak_lag_ms"]
+    f_hz = 1000.0 / peak_lag_ms if (peak_lag_ms and peak_lag_ms > 0) else 50.0
+    A = 0.6  # rough; tune in step 1's autocorr-shape comparison
+
+    real_async = real_rasters["async"]["raster"]
+    real_ping = real_rasters["ping"]["raster"]
+    T_steps, n_e = real_async.shape
+    sim_async = simulate_async_renewal(n_e, T_steps, DT_MS, lam_async)
+    sim_ping = simulate_ping_burst(n_e, T_steps, DT_MS, lam_ping, f_hz)
+
+    n_show = min(80, n_e)
+    panels = [
+        ("real · ei = 0",                                              real_async[:, :n_show]),
+        (f"sim · async (renewal), λ = {lam_async:.1f} Hz",             sim_async[:, :n_show]),
+        (f"real · ei = {target_ei:.1f}",                               real_ping[:, :n_show]),
+        (f"sim · ping (burst), λ = {lam_ping:.1f}, f = {f_hz:.0f} Hz", sim_ping[:, :n_show]),
+    ]
+
+    fig, axes = plt.subplots(2, 2, figsize=(10.0, 5.625), sharex=True, sharey=True)
+    axes_flat = axes.ravel()
+    for ax, (title, raster) in zip(axes_flat, panels):
+        t_idx, n_idx = np.where(raster > 0)
+        ax.scatter(t_idx * DT_MS, n_idx, s=0.6,
+                   color=theme.INK_BLACK, alpha=0.7, marker=".")
+        ax.set_xlim(0, T_steps * DT_MS)
+        ax.set_ylim(-1, n_show)
+        ax.set_title(title, fontsize=theme.SIZE_ANNOTATION, loc="left",
+                     color=theme.INK)
+        for spine in ("top", "right"):
+            ax.spines[spine].set_visible(False)
+    for ax in axes[-1]:
+        ax.set_xlabel("time (ms)")
+    for ax in axes[:, 0]:
+        ax.set_ylabel("neuron")
+
+    fig.suptitle(
+        "raster sanity check: real vs simulated at ei = 0 and "
+        f"ei = {target_ei:.1f}",
+        fontsize=theme.SIZE_TITLE, y=0.98,
+    )
+    fig.tight_layout(rect=(0.02, 0.02, 0.98, 0.93))
+    pad_x, pad_y = 0.01, 0.01
+    bboxes = [ax.get_position() for ax in axes_flat]
+    x0 = min(b.x0 for b in bboxes) - pad_x
+    x1 = max(b.x1 for b in bboxes) + pad_x
+    y0 = min(b.y0 for b in bboxes) - pad_y
+    y1 = max(b.y1 for b in bboxes) + pad_y
+    fig.patches.append(Rectangle(
+        (x0, y0), x1 - x0, y1 - y0, transform=fig.transFigure,
+        fill=False, edgecolor=theme.INK_BLACK, linewidth=1.0,
+    ))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"  → {out_path}")
+    return out_path
 
 
 def compute_per_frame_pop_rates() -> dict:
@@ -437,6 +841,10 @@ def extras(tier: str, notebook_run_id: str) -> dict:
     autocorr_data = compute_autocorr_metric(frames_data)
     plot_autocorr_stack(autocorr_data, figures / "autocorr_stack.png")
     plot_autocorr_metric(autocorr_data, figures / "autocorr_metric.png")
+    print("  raster validation (Bayes-factor step 1a)…")
+    real_rasters = compute_validation_rasters()
+    plot_raster_validation(real_rasters, autocorr_data,
+                           figures / "raster_validation.png")
     return {
         "rates_hz": rates,
         "canonical_ei": CANON_EI,
