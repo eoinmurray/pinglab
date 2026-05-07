@@ -52,6 +52,7 @@ class Config:
     sigma_e: float = 0.05
     w_ei: tuple = (0.5, 0.05)
     w_ie: tuple = (1.0, 0.1)
+    w_ee: tuple = (0.0, 0.0)
     sparsity: float = 0.2
     noise_sigma: float = 0.001
     noise_tau: float = 3.0
@@ -100,6 +101,7 @@ MODEL_REGISTRY = {
     "ping": lambda **kw: COBANet(
         w_in=(0, 0),
         w_hid=(5.1, 3.8),
+        w_ee=(*cfg.w_ee, "normal", cfg.sparsity),
         w_ei=(*cfg.w_ei, "normal", cfg.sparsity),
         w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
         **kw,
@@ -203,6 +205,7 @@ def build_net(
     model_name,
     w_in=None,
     w_in_sparsity=0.0,
+    w_ee=None,
     w_ei=None,
     w_ie=None,
     ei_strength=None,
@@ -257,6 +260,8 @@ def build_net(
     elif w_in is not None:
         kwargs["w_in"] = (*w_in, "normal", w_in_sparsity)
     if model_name in HAS_INH:
+        if w_ee is not None:
+            kwargs["w_ee"] = (*w_ee, "normal", sparsity)
         if w_ei is not None:
             kwargs["w_ei"] = (*w_ei, "normal", sparsity)
         elif ei_strength is not None:
@@ -420,6 +425,7 @@ def make_net(cfg_obj, w_in=None, w_hid=(5.1, 3.8), model_name="ping"):
         model_name,
         w_in=w_in_pair,
         w_in_sparsity=w_in_sparsity,
+        w_ee=cfg_obj.w_ee,
         w_ei=cfg_obj.w_ei,
         w_ie=cfg_obj.w_ie,
         sparsity=cfg_obj.sparsity,
@@ -666,6 +672,10 @@ def build_config(args):
         c.w_ei = tuple(args.w_ei)
     if hasattr(args, "w_ie") and args.w_ie is not None:
         c.w_ie = tuple(args.w_ie)
+    if hasattr(args, "w_ee") and args.w_ee is not None:
+        c.w_ee = tuple(args.w_ee)
+    if hasattr(args, "burn_in") and args.burn_in is not None:
+        c.burn_in_ms = args.burn_in
     if hasattr(args, "w_in") and args.w_in is not None:
         w = args.w_in
         if len(w) == 1:

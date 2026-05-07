@@ -2916,6 +2916,14 @@ Models:
         "values <= STEP_ON_MS leave the trial in flat baseline.",
     )
     net_group.add_argument(
+        "--burn-in",
+        type=float,
+        default=None,
+        help="Burn-in period in ms hidden from oscilloscope plots/videos. "
+        "Default: 100 ms in shared cfg (legacy); pass 0 to make the entire "
+        "trial visible.",
+    )
+    net_group.add_argument(
         "--tau-mem",
         type=float,
         default=None,
@@ -3047,6 +3055,14 @@ Models:
         default=None,
         metavar=("MEAN", "STD"),
         help="W_in init mean std (default: 0.3 0.06; standard-snn needs ~10 2 dense)",
+    )
+    wt_group.add_argument(
+        "--w-ee",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("MEAN", "STD"),
+        help="W_EE init (mean std). E→E recurrent excitation; default (0, 0) per Börgers PING.",
     )
     wt_group.add_argument(
         "--w-ei",
@@ -3298,9 +3314,6 @@ Models:
         type=int,
         default=None,
         help="Mini-batch size for DataLoader. Default: 64 (from models.BATCH_SIZE).",
-    )
-    train_parser.add_argument(
-        "--burn-in", type=float, default=20.0, help="Burn-in period in ms (default: 20)"
     )
     train_parser.add_argument(
         "--observe",
@@ -3823,7 +3836,7 @@ if __name__ == "__main__":
             snapshot_init=True,
             snapshot_end=True,
             t_ms=args.t_ms,
-            burn_in_ms=args.burn_in,
+            burn_in_ms=args.burn_in if args.burn_in is not None else 20.0,
             hidden_sizes=args.n_hidden,
             max_samples=args.max_samples,
             v_grad_dampen=args.v_grad_dampen,
