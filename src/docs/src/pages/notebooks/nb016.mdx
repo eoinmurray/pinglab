@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "016 — ping e→i coupling video"
+title: "016 — ping metrics"
 date: 2026-05-07
 entry: 16
 structure: paper
@@ -28,11 +28,11 @@ export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
 ## Introduction
 
-External drive is one knob ([nb003](/notebooks/nb003/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes — and tries to extract a single-frame scalar metric from the resulting trace. Two views are kept in parallel: the population firing rate (the raw signal we look at) and the autocorrelation peak (a candidate scalar score). Input rate and $W_\text{in}$ are bumped relative to [nb003](/notebooks/nb003/) / [nb005](/notebooks/nb005/) so E has enough baseline drive to recruit I at all without a stim pulse. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Sweep the internal E→I→E coupling strength with input held flat (overdrive {scan.fixed_overdrive}×), watch the network walk from async baseline through the onset of gamma, and try to pull a single-frame scalar out of each trace. Three candidates: the population rate (the raw signal), the autocorrelation peak (a candidate score), and a Bayes factor between an async and a ping generative model (a calibrated probability).
 
 ## Method
 
-A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× and **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}). All knobs are hardcoded literals in *src/pinglab/notebooks/nb016.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
+A [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) scan with **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}). All knobs are hardcoded in *src/pinglab/notebooks/nb016.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
 
 <RunParameters numbers={numbers} groups={[
   {
@@ -64,11 +64,72 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
 
 ### Population rate
 
-For each frame of the video we replay the same Poisson input through a fresh ping network at that frame's ei value, record the E hidden-layer spikes, and bin them at 2 ms to recover a smoothed population rate (Hz, averaged over all $N_E$ neurons). The first {numbers.autocorr_metric?.onset_skip_ms ?? "20"} ms onset transient is discarded for the downstream metrics; the full trace is shown in the stacked plot.
+Replay the same Poisson input through a fresh ping network at each frame's *ei* value, record the E spike train $s_{i,t}$, and bin at $\Delta_\text{bin} = 2$ ms,
+
+$$
+r_k \;=\; \frac{1000}{N_E \, \Delta_\text{bin}} \sum_{i=1}^{N_E} \sum_{t \in \mathrm{bin}_k} s_{i, t}
+\quad \text{(Hz)}.
+$$
+
+Discard the first {numbers.autocorr_metric?.onset_skip_ms ?? "20"} ms onset transient before the downstream metrics; the full trace is shown in the stacked plot.
 
 ### Autocorrelation
 
-The candidate single-frame metric is the **autocorrelation peak** at non-zero lag — async noise has none, a periodic burst train has a tall, sharp one at the gamma period. We take the post-onset rate (after the {numbers.autocorr_metric?.onset_skip_ms ?? "20"} ms transient), z-score it, autocorrelate via FFT, and normalise so lag 0 = 1. The metric is the prominence of the strongest peak in the {numbers.autocorr_metric?.lag_min_ms ?? "5"}–{numbers.autocorr_metric?.lag_max_ms ?? "60"} ms window (peak height minus its nearest valley). No shuffles required.
+The candidate single-frame metric is the **autocorrelation peak** at non-zero lag — async noise has none, a periodic burst train has a tall, sharp one at the gamma period. Let $r_k$ be the post-onset rate ($k = 0, \dots, N-1$), with mean $\bar r$ and standard deviation $\sigma_r$. Z-score and autocorrelate via FFT:
+
+$$
+\tilde r_k \;=\; \frac{r_k - \bar r}{\sigma_r}, \qquad
+C(\ell) \;=\; \frac{1}{N} \sum_{k} \tilde r_k \, \tilde r_{k+\ell}.
+$$
+
+Z-scoring puts every frame's trace on the same dimensionless scale so the autocorrelation reads out *shape*, not amplitude, and pins $C(0) = 1$. The metric is the *prominence* of the strongest peak in the lag window {numbers.autocorr_metric?.lag_min_ms ?? "5"}–{numbers.autocorr_metric?.lag_max_ms ?? "60"} ms,
+
+$$
+\mathrm{prom}(\ell^\star) \;=\; C(\ell^\star) \;-\; \min_{\ell \in [\ell_l, \ell_r]} C(\ell),
+$$
+
+with $\ell^\star$ the highest-prominence peak and $[\ell_l, \ell_r]$ the interval bounded by its nearest valleys (scipy's *find_peaks* convention).
+
+### Bayes factor
+
+The two metrics above are descriptive — they summarise the trace but don't say "this is ping with probability $P$". The Bayesian alternative is to fit two generative recipes to each trace and report the log-odds. We work on the raster directly (the pooled E spike times $\{t_1, \dots, t_n\}$ over the post-onset window $[0, T]$), so every spike's exact timing contributes and there's no bin-width choice to defend.
+
+**Async**: homogeneous Poisson with per-neuron rate $\lambda_a$,
+
+$$
+\log P(\{t_i\} \mid \text{async}, \lambda_a) \;=\; n \log(N_E \lambda_a) \;-\; N_E \lambda_a T.
+$$
+
+**Ping**: same Poisson scaffold but with a periodically modulated rate,
+
+$$
+\lambda_p(t) \;=\; \lambda_0 \, \big(1 + A \cos(2\pi f t + \phi)\big),
+$$
+
+amplitude $A \in [0, 1]$, gamma frequency $f$, phase $\phi$, baseline $\lambda_0$. $A = 0$ collapses ping to async, so async is nested inside ping. The spike-time log-likelihood is
+
+$$
+\log P(\{t_i\} \mid \text{ping}) \;=\; \sum_{i=1}^{n} \log\!\big(N_E \, \lambda_p(t_i)\big) \;-\; N_E \lambda_0 T,
+$$
+
+up to end-effect corrections of order $1/(fT)$ in the integral. The sum over spike times is where the rhythm shows up — spikes near the bursts contribute big log-rates, spikes in the troughs contribute small ones.
+
+The Bayes factor is the ratio of marginal likelihoods,
+
+$$
+\log\mathrm{BF} \;=\; \log P(\{t_i\} \mid \text{ping}) - \log P(\{t_i\} \mid \text{async}),
+$$
+
+with the right-hand side marginalised over nuisance parameters: $\phi$ analytically (a uniform $[0, 2\pi)$ prior gives a Bessel-style closed form), $f$ on a grid across the gamma band, and $A, \lambda_0, \lambda_a$ via Laplace approximation around their MLEs. Marginalisation brings an automatic Occam penalty: ping has more knobs and only beats async when the data demand the structure. $\log\mathrm{BF}$ scales linearly with the total spike count $n \approx N_E \lambda_0 T$ — a 250 ms trace from $N_E$ = 512 neurons at $\sim$10 Hz already carries $\sim$1280 spikes of evidence.
+
+The per-frame output is $\log\mathrm{BF}$ in nats (positive favours ping, zero undecided), converted to $P(\text{ping} \mid D) = \sigma(\log\mathrm{BF})$ under equal prior odds.
+
+#### Todo
+
+1. **Validate the generative models.** Sample rasters from constant-rate Poisson at *ei* = 0 baseline and from sinusoidally-modulated Poisson at *ei* = 0.8 parameters; overlay their autocorrelations on Figure 3 at the matching *ei*. If shapes track, the models are usable likelihoods. If real ping has sharper bursts than a cosine, swap in a half-wave-rectified rate before going further.
+   - **1a. Raster sanity check.** As a cosmetic cross-check, render the same simulated and real rasters side-by-side at *ei* = 0 and *ei* = 0.8 (one short panel each). Single-trial rasters mostly look like dot-clouds regardless of regime, so this is a "no obvious pathology" pass — no missing burst structure, no neuron-specific weirdness — not the main acceptance test.
+2. **Unit-test on synthetic data.** Add *compute_log_bayes_factor(spike_times, T, N_E)*. Feed it ground-truth rasters and verify: async at $\lambda_a = 30$ Hz → strongly negative; ping at $\lambda_0 = 30$, $A = 0.6$, $f = 50$ → strongly positive; borderline $A = 0.05$ → near zero. Catches sign errors, rate-unit mistakes, and $\log(1 + A\cos\cdot)$ instabilities near $-1$.
+3. **Apply per frame, add Figure 5.** Pull each frame's raster from the in-process replay, feed to the routine, store $\log\mathrm{BF}$ and $P(\text{ping}\mid D)$ in *numbers.json*, plot the probability curve vs *ei*. Should sit near 0 through async, cross 0.5 at threshold, saturate near 1 in PING. Estimated cost: $\sim$50 lines, $\sim$30 s extra per 100-frame run.
 
 ## Results
 
@@ -85,17 +146,17 @@ The candidate single-frame metric is the **autocorrelation peak** at non-zero la
 | Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
 
 <Figure id="Figure 2" title="per-frame E population rate" src="/figures/notebooks/nb016/pop_rates_stack.png" alt="Stacked time-series of the excitatory population rate, one row per frame of the ei-strength sweep.">
-  Smoothed (2 ms bin) E population rate within each frame's {cfg.sim_ms} ms trial. One row per ei value (10 sampled across the {scan.frames}-frame sweep). The qualitative async-to-PING transition is visible by eye but not yet a single number.
+  E population rate within each {cfg.sim_ms} ms trial (2 ms bins). 10 ei values sampled across the {scan.frames}-frame sweep. The async-to-PING transition is visible by eye but not yet a single number.
 </Figure>
 
 ### Autocorrelation
 
 <Figure id="Figure 3" title="per-frame autocorrelation" src="/figures/notebooks/nb016/autocorr_stack.png" alt="Stacked autocorrelation curves of the post-onset E rate, one row per ei value sampled across the sweep.">
-  Per-frame autocorrelation of the post-onset E rate. One row per ei value (10 sampled across the sweep). At low ei the curve decays straight to zero; from the threshold up, a periodic side-peak appears at the gamma lag and stays. The lag of the first side-peak shifts from $\sim$14 ms ($\sim$70 Hz) at threshold to $\sim$20 ms ($\sim$50 Hz) at ei = 1, the canonical PING slowing-with-coupling-strength.
+  Autocorrelation of the post-onset E rate, 10 ei values sampled across the sweep. At low ei the curve decays straight to zero; above threshold a periodic side-peak appears at the gamma lag. Side-peak lag drifts from $\sim$14 ms ($\sim$70 Hz) at threshold to $\sim$20 ms ($\sim$50 Hz) at ei = 1 — canonical PING slowing-with-coupling.
 </Figure>
 
 <Figure id="Figure 4" title="rhythmicity metric from autocorrelation" src="/figures/notebooks/nb016/autocorr_metric.png" alt="Autocorrelation peak prominence in the gamma-lag window vs ei strength.">
-  Peak prominence of the strongest autocorrelation peak in the lag {numbers.autocorr_metric?.lag_min_ms ?? "?"}–{numbers.autocorr_metric?.lag_max_ms ?? "?"} ms window vs ei. Single-trace, no shuffles. Lifts off near the threshold, but a finite-sample noise floor of $\sim$0.4 sits in the async regime — `find_peaks` always picks the deepest noise excursion as a "peak", and on a 115-sample window that excursion has positive expectation.
+  Peak prominence in the {numbers.autocorr_metric?.lag_min_ms ?? "?"}–{numbers.autocorr_metric?.lag_max_ms ?? "?"} ms lag window vs ei. Lifts off at threshold but sits at a finite-sample noise floor $\sim$0.4 through async — *find_peaks* picks the deepest noise excursion when no real peak exists, and on a 115-sample window that has positive expectation.
 </Figure>
 
 ## Next steps
