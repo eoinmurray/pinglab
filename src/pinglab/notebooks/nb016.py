@@ -1,965 +1,1009 @@
-"""Notebook runner for entry 016 — ping metrics.
+"""Notebook runner for entry 016 — sequential MNIST tracking + entry 015 latency.
 
-Sweeps the E→I coupling strength from 0 → 1 with input held flat
-(stim-window overdrive 1×), walking the network from the async
-baseline through the onset of gamma. For each frame of the resulting
-video we extract three views of the trace:
+Trains cuba/coba/ping on standard single-MNIST (recipe inherited from
+nb010/nb011/nb012), then runs two *eval-only* probes against the
+frozen weights:
 
-1. **Population rate** — the smoothed E hidden-layer firing rate
-   (2 ms bins, post-onset window). Visualised as a stacked-rows plot.
-2. **Autocorrelation peak prominence** — a single-frame rhythmicity
-   score derived from the FFT-autocorrelation of the post-onset rate.
-3. **Bayes factor** — calibrated regime probability per frame from
-   two raster-level generative models. Async = per-neuron gamma-
-   renewal process Γ(k, θ); ping = shared periodic burst schedule
-   (period 1/f, phase b₀) with Bernoulli(p) per-neuron participation
-   and Gaussian(0, σ²) jitter. Both recipes were validated against
-   the real raster at *ei* = 0 and *ei* = 0.8 in step 1a (see
-   plot_raster_validation). Likelihood implementation pending —
-   see Method > Bayes factor > Todo in the entry.
+  * Sequential MNIST tracking (entry 016) — each trial is four random
+    MNIST digits packed into 200 ms; we apply the trained mem-mean
+    readout per-window and ask whether the trial-level decoder still
+    picks out the currently-shown digit.
+  * Single-window latency + per-trial dynamics (entry 015) — one digit
+    fills the full 200 ms; we score the running argmax through time
+    and look at the per-trial rate / autocorrelation of the hidden
+    layer to ask whether ping has a stimulus-locked rhythm.
 
-Also writes numbers.json with pre/stim/post E and I population rates
-from an in-process replay at the canonical high-ei run, so the entry
-can interpolate exact values.
+The two probes share the trained weights, so this single runner emits
+artifacts for both entries: nb016 figures + numbers.json for the
+sequential sweep, nb015 figures + numbers.json for the latency curve
+and per-trial dynamics. Run-time is dominated by training; splitting
+the runner would just duplicate the training step.
 
-Notebook entry: src/docs/src/pages/notebooks/nb016.mdx
+Notebook entries:
+  src/docs/src/pages/notebooks/nb016.mdx
+  src/docs/src/pages/notebooks/nb015.mdx
 """
 
 from __future__ import annotations
 
+import json
+import shutil
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from pathlib import Path
+
+import sh
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src" / "pinglab"))
 
-import numpy as np  # noqa: E402
-
-from _ping_scan import (  # noqa: E402
-    DATASET,
-    DIGIT_CLASS,
-    DT_MS,
-    INPUT_RATE_HZ,
-    N_HIDDEN,
-    SAMPLE_IDX,
-    SEED,
-    SIM_MS,
-    STEP_OFF_MS,
-    STEP_ON_MS,
-    ScanSpec,
-    run_scan,
-)
+from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
+from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from _tier import parse_tier  # noqa: E402
+import theme  # noqa: E402
 
 SLUG = "nb016"
-EI_SCAN_INPUT_RATE_HZ = 200.0
-EI_SCAN_W_IN_MEAN = 1.8  # 6× over the default 0.3 — bigger E baseline drive
-EI_SCAN_W_IN_STD = 0.36  # 6× over the default 0.06
-EI_SCAN_MIN = 0.0
-EI_SCAN_MAX = 1.0
-EI_SCAN_FRAMES = 100
-CANON_EI = 0.8  # well inside the PING-on regime for the replay
-EI_SIM_MS = 250.0  # shorter trial than nb006's 600 ms
-EI_STEP_ON_MS = EI_SIM_MS / 3.0  # rate-window split: pre / stim / post each ≈ 83 ms
-EI_STEP_OFF_MS = 2.0 * EI_SIM_MS / 3.0
+SLUG_NB015 = "nb015"
+ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
+FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+# nb015 reuses the same trained weights — its figures and numbers.json
+# are emitted from this same runner (latency curve + per-trial dynamics).
+FIGURES_NB015 = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG_NB015
+OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope" / "__main__.py"
+
+MODELS = ("cuba", "coba", "ping")
+MODEL_COLORS = {
+    "cuba": theme.DEEP_RED,
+    "coba": theme.AMBER,
+    "ping": theme.ELECTRIC_CYAN,
+}
+DT = 0.1
+T_MS = 200.0
+SEED = 42
+DEFAULT_TIER = "small"
+TIER_CONFIG = {
+    "extra small": dict(max_samples=100, epochs=1),
+    "small": dict(max_samples=500, epochs=5),
+    "medium": dict(max_samples=2000, epochs=10),
+    "large": dict(max_samples=5000, epochs=40),
+    "huge": dict(max_samples=10000, epochs=80),
+}
 
 
-def compute_summary_rates() -> dict:
-    """Replay one canonical-ei forward pass in-process with MNIST d0s0
-    spike input (flat rate, no stim-window overdrive), then extract
-    pre/stim/post E/I population rates."""
-    import torch  # noqa: E402
-    import config as C  # noqa: E402
-    import models as M  # noqa: E402
-    from config import make_net, patch_dt  # noqa: E402
-    from oscilloscope import (
-        _extract_records,
-        _load_dataset_image,
-        encode_image_spikes,
-        primary_hid_key,
-    )  # noqa: E402
+def build_args(model: str, tier: str, out_dir: Path, modal_gpu: str | None) -> list[str]:
+    """Recipes mirror nb010 (cuba), nb011 (coba), nb012 (ping) verbatim."""
+    cfg = TIER_CONFIG[tier]
+    common = [
+        "run", "python", str(OSCILLOSCOPE), "train",
+        "--dataset", "mnist",
+        "--max-samples", str(cfg["max_samples"]),
+        "--epochs", str(cfg["epochs"]),
+        "--t-ms", str(T_MS),
+        "--dt", str(DT),
+        "--seed", str(SEED),
+        "--observe", "video",
+        "--frame-rate", "1",
+        "--readout", "mem-mean",
+        "--surrogate-slope", "1",
+        "--batch-size", "256",
+        "--out-dir", str(out_dir),
+        "--wipe-dir",
+    ]
+    if model == "cuba":
+        cell = ["--model", "cuba", "--kaiming-init", "--lr", "0.04"]
+    elif model == "coba":
+        cell = [
+            "--model", "ping",  # COBANet with ei-strength 0
+            "--ei-strength", "0",
+            "--v-grad-dampen", "1000",
+            "--w-in", "0.3",
+            "--w-in-sparsity", "0.95",
+            "--readout-w-out-scale", "100",
+            "--lr", "0.0004",
+        ]
+    elif model == "ping":
+        cell = [
+            "--model", "ping",
+            "--ei-strength", "1",
+            "--v-grad-dampen", "1000",
+            "--w-in", "1.2",
+            "--w-in-sparsity", "0.95",
+            "--readout-w-out-scale", "500",
+            "--lr", "0.0004",
+        ]
+    else:
+        raise ValueError(f"unknown model {model!r}")
+    return append_modal_args(common + cell, modal_gpu)
 
-    C.cfg.n_e = N_HIDDEN
-    C.cfg.n_i = N_HIDDEN // 4
-    C.cfg.sim_ms = EI_SIM_MS
-    C.cfg.step_on_ms = EI_STEP_ON_MS
-    C.cfg.step_off_ms = EI_STEP_OFF_MS
-    C.cfg.seed = SEED
-    s = CANON_EI
-    C.cfg.w_ei = (s, s * 0.1)
-    C.cfg.w_ie = (s * C.cfg.ei_ratio, s * C.cfg.ei_ratio * 0.1)
-    C._sync_globals_from_cfg(C.cfg)
 
-    pixel_vec, _ = _load_dataset_image(DATASET, DIGIT_CLASS, SAMPLE_IDX)
-    M.N_IN = len(pixel_vec)
-    M.N_HID = C.N_E
-    M.N_INH = C.N_I
-    M.T_ms = EI_SIM_MS
-    M.max_rate_hz = EI_SCAN_INPUT_RATE_HZ
-    patch_dt(DT_MS)
+def train_model(model: str, tier: str, modal_gpu: str | None,
+                log_file: Path | None = None) -> Path:
+    out_dir = ARTIFACTS / model / "train"
+    print(f"[{model}] training → {out_dir.relative_to(REPO)}"
+          + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+          + (f"  log={log_file.relative_to(REPO)}" if log_file else ""),
+          flush=True)
+    args = build_args(model, tier, out_dir, modal_gpu)
+    if log_file is not None:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        with log_file.open("w") as fh:
+            sh.uv(*args, _cwd=str(REPO), _out=fh, _err=fh)
+    else:
+        sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
+    if not (out_dir / "metrics.json").exists():
+        raise SystemExit(f"training did not produce {out_dir / 'metrics.json'}")
+    return out_dir
 
-    base_rate = M.max_rate_hz
-    input_spikes = encode_image_spikes(
-        pixel_vec,
-        M.T_steps,
-        DT_MS,
-        base_rate,
-        base_rate,
-        C.STEP_ON_MS,
-        C.STEP_OFF_MS,
-        C.SEED,
-    ).to(C.DEVICE)
 
-    net = make_net(
-        C.cfg,
-        w_in=(EI_SCAN_W_IN_MEAN, EI_SCAN_W_IN_STD, "normal", C.W_IN_SPARSITY),
-        model_name="ping",
-    )
-    net.recording = True
-    with torch.no_grad():
-        net.forward(input_spikes=input_spikes)
-    rec = _extract_records(net)
+def copy_video(model: str, run_dir: Path) -> Path:
+    src = run_dir / "training.mp4"
+    if not src.exists():
+        raise SystemExit(f"no training video at {src}")
+    dst = FIGURES / f"training_{model}.mp4"
+    FIGURES.mkdir(parents=True, exist_ok=True)
+    shutil.copy(src, dst)
+    print(f"  → {dst.relative_to(REPO)}")
+    return dst
 
-    spk_e = rec[primary_hid_key(rec)]
-    spk_i = rec["inh"]
-    T_steps = spk_e.shape[0]
-    t_ms = np.arange(T_steps) * DT_MS
 
-    pre = (t_ms >= 0) & (t_ms < EI_STEP_ON_MS)
-    stim = (t_ms >= EI_STEP_ON_MS) & (t_ms < EI_STEP_OFF_MS)
-    post = (t_ms >= EI_STEP_OFF_MS) & (t_ms <= EI_SIM_MS)
-
-    def mean_rate(spk, mask):
-        return float(spk[mask].mean()) * 1000.0 / DT_MS
-
+def write_numbers(run_dirs: dict[str, Path], notebook_run_id: str,
+                  duration_s: float) -> dict:
+    runs = {}
+    for model, run_dir in run_dirs.items():
+        m = json.loads((run_dir / "metrics.json").read_text())
+        cfg = json.loads((run_dir / "config.json").read_text())
+        runs[model] = {
+            "best_acc": m.get("best_acc"),
+            "final_acc": m["epochs"][-1]["acc"],
+            "final_loss": m["epochs"][-1]["loss"],
+            "rate_e": m["epochs"][-1].get("rate_e"),
+            "rate_i": m["epochs"][-1].get("rate_i"),
+            "git_sha": cfg.get("git_sha"),
+            "run_id": cfg.get("run_id"),
+        }
     return {
-        "pre": {"e": mean_rate(spk_e, pre), "i": mean_rate(spk_i, pre)},
-        "stim": {"e": mean_rate(spk_e, stim), "i": mean_rate(spk_i, stim)},
-        "post": {"e": mean_rate(spk_e, post), "i": mean_rate(spk_i, post)},
+        "notebook_run_id": notebook_run_id,
+        "duration_s": duration_s,
+        "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
+        "tier": TIER,
+        "config": {
+            "dt": DT, "t_ms": T_MS, "seed": SEED,
+            "max_samples": TIER_CONFIG[TIER]["max_samples"],
+            "epochs": TIER_CONFIG[TIER]["epochs"],
+            "dataset": "mnist",
+        },
+        "runs": runs,
+        "run_finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 
 
-def compute_validation_rasters() -> dict:
-    """Pull real E rasters at ei=0 (async baseline) and ei=CANON_EI (ping)
-    for the Bayes-factor model-validation step (Todo 1a). Each raster has
-    shape (T_steps, N_E) and is stored alongside an estimated per-neuron
-    mean rate (Hz) used to parameterise the matched simulation."""
-    import torch  # noqa: E402
-    import config as C  # noqa: E402
-    import models as M  # noqa: E402
-    from config import make_net, patch_dt  # noqa: E402
-    from oscilloscope import (
-        _extract_records,
-        _load_dataset_image,
-        encode_image_spikes,
-        primary_hid_key,
-    )  # noqa: E402
+TIER = DEFAULT_TIER
 
-    pixel_vec, _ = _load_dataset_image(DATASET, DIGIT_CLASS, SAMPLE_IDX)
-    M.N_IN = len(pixel_vec)
-    M.T_ms = EI_SIM_MS
+SEQ_WINDOWS = 4
+SEQ_WINDOW_MS = 50.0
+SEQ_TRIALS = 800
+# Sweep: each entry is the number of digits packed into the 200 ms trial.
+# Window length = T_MS / n. Chosen so window_ms × DT_steps stays integer.
+SEQ_SWEEP_NS = (1, 2, 4, 5, 8, 10, 20, 25, 40)
+# Input-rate sweep at fixed window length (canonical 4×50 ms layout).
+SEQ_RATE_SWEEP_HZS = (1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 200.0)
+SEQ_RATE_SWEEP_N = 4
+SEQ_RATE_SWEEP_WINDOW_MS = 50.0
+# Fractions of the 200 ms single-window trial at which to score the running
+# argmax for the latency curve. Skewed toward early times where the curve moves.
+SEQ_LATENCY_FRACS = (0.01, 0.02, 0.03, 0.05, 0.075, 0.10, 0.15, 0.20, 0.30,
+                     0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00)
 
-    out: dict = {}
-    for label, ei in [("async", 0.0), ("ping", CANON_EI)]:
-        C.cfg.n_e = N_HIDDEN
-        C.cfg.n_i = N_HIDDEN // 4
-        C.cfg.sim_ms = EI_SIM_MS
-        C.cfg.step_on_ms = EI_STEP_ON_MS
-        C.cfg.step_off_ms = EI_STEP_OFF_MS
-        C.cfg.seed = SEED
-        C.cfg.w_ei = (ei, ei * 0.1)
-        C.cfg.w_ie = (ei * C.cfg.ei_ratio, ei * C.cfg.ei_ratio * 0.1)
-        C._sync_globals_from_cfg(C.cfg)
 
-        M.N_HID = C.N_E
-        M.N_INH = C.N_I
-        M.T_ms = EI_SIM_MS
-        M.max_rate_hz = EI_SCAN_INPUT_RATE_HZ
-        patch_dt(DT_MS)
+def eval_sequential(model_name: str, run_dir: Path,
+                    n_windows: int = SEQ_WINDOWS,
+                    window_ms: float = SEQ_WINDOW_MS,
+                    rate_hz: float | None = None) -> dict:
+    """Load trained weights, run sequential-MNIST trials, return per-window accuracy."""
+    import numpy as np
+    import torch
+    from torchvision import datasets, transforms
 
-        base_rate = M.max_rate_hz
-        input_spikes = encode_image_spikes(
-            pixel_vec, M.T_steps, DT_MS, base_rate, base_rate,
-            C.STEP_ON_MS, C.STEP_OFF_MS, C.SEED,
-        ).to(C.DEVICE)
-        net = make_net(
-            C.cfg,
-            w_in=(EI_SCAN_W_IN_MEAN, EI_SCAN_W_IN_STD, "normal", C.W_IN_SPARSITY),
-            model_name="ping",
+    from config import build_net  # type: ignore[import]
+    import models as M  # type: ignore[import]
+    from oscilloscope.encoders import encode_images_poisson  # type: ignore[import]
+
+    cfg = json.loads((run_dir / "config.json").read_text())
+    device = torch.device("cpu")
+    torch.manual_seed(SEED)
+
+    M.N_IN = cfg.get("n_in", 784)
+    M.N_INH = cfg.get("n_inh", 256)
+    M.dt = DT
+    M.T_ms = n_windows * window_ms
+    M.T_steps = int(M.T_ms / M.dt)
+    hidden_sizes = cfg.get("hidden_sizes") or [cfg["n_hidden"]]
+    net = build_net(
+        cfg["model"],
+        w_in=cfg.get("w_in"),
+        w_in_sparsity=cfg.get("w_in_sparsity", 0.0),
+        ei_strength=cfg.get("ei_strength"),
+        ei_ratio=cfg.get("ei_ratio", 2.0),
+        sparsity=cfg.get("sparsity", 0.0),
+        device=device,
+        kaiming_init=cfg.get("kaiming_init", False),
+        dales_law=cfg.get("dales_law", True),
+        hidden_sizes=hidden_sizes,
+        readout_mode=cfg.get("readout_mode", "mem-mean"),
+    ).to(device)
+    state = torch.load(run_dir / "weights.pth", map_location=device, weights_only=True)
+    net.load_state_dict(state, strict=False)
+    net.eval()
+
+    mnist = datasets.MNIST(
+        root=str(REPO / "src" / "artifacts" / "data"),
+        train=False,
+        download=True,
+        transform=transforms.ToTensor(),
+    )
+    rng = np.random.default_rng(SEED)
+    indices = rng.integers(0, len(mnist), size=(SEQ_TRIALS, n_windows))
+    images = torch.zeros(SEQ_TRIALS, n_windows, 784)
+    labels = np.zeros((SEQ_TRIALS, n_windows), dtype=np.int64)
+    for i in range(SEQ_TRIALS):
+        for k in range(n_windows):
+            x, y = mnist[int(indices[i, k])]
+            images[i, k] = x.view(-1)
+            labels[i, k] = y
+
+    window_steps = int(round(window_ms / DT))
+    T_steps = n_windows * window_steps
+    rate_hz = rate_hz if rate_hz is not None else cfg.get("input_rate", 25.0)
+    batch = 64
+    # Per-window predictions: apply trained mem-mean readout to mem averaged
+    # over each window. spike_record["out"][t] holds the running mem-mean
+    # cumulative, i.e. (Σ_{s≤t} v_out_s) / T_steps. Window-k mean recovers
+    # via finite difference of the cumulative endpoints.
+    net.recording = True
+    per_window_preds = np.zeros((SEQ_TRIALS, n_windows), dtype=np.int64)
+    input_spike_total = 0.0
+    hidden_spike_total = 0.0
+    n_total_trials = 0
+    gen = torch.Generator(device="cpu").manual_seed(SEED)
+    with torch.no_grad():
+        for start in range(0, SEQ_TRIALS, batch):
+            stop = min(start + batch, SEQ_TRIALS)
+            blocks = []
+            for k in range(n_windows):
+                blocks.append(
+                    encode_images_poisson(
+                        images[start:stop, k], window_steps, DT, rate_hz, generator=gen
+                    )
+                )
+            input_spikes = torch.cat(blocks, dim=0)
+            net(input_spikes=input_spikes)
+            input_spike_total += float(input_spikes.sum().item())
+            for key, rec in net.spike_record.items():
+                if key == "hid" or key.startswith("hid_"):
+                    hidden_spike_total += float(rec.sum().item())
+            n_total_trials += stop - start
+            out_rec = net.spike_record["out"]
+            if out_rec.dim() == 2:
+                out_rec = out_rec.unsqueeze(1)
+            cum = out_rec * float(T_steps)
+            for k in range(n_windows):
+                end_t = (k + 1) * window_steps - 1
+                window_sum = cum[end_t] if k == 0 else cum[end_t] - cum[k * window_steps - 1]
+                window_mean = window_sum / float(window_steps)
+                per_window_preds[start:stop, k] = window_mean.argmax(dim=-1).cpu().numpy()
+
+    per_window_acc: dict[str, float] = {}
+    for k in range(n_windows):
+        per_window_acc[f"window_{k}"] = float(
+            (per_window_preds[:, k] == labels[:, k]).mean() * 100
         )
-        net.recording = True
-        with torch.no_grad():
-            net.forward(input_spikes=input_spikes)
-        rec = _extract_records(net)
-        spk_e = rec[primary_hid_key(rec)]  # (T, N_E)
-        T_steps, n_e = spk_e.shape
-        mean_rate_hz = float(spk_e.sum() / (n_e * T_steps * DT_MS / 1000.0))
-        out[label] = {"ei": float(ei), "raster": spk_e, "rate_hz": mean_rate_hz}
+    mean_acc = float(sum(per_window_acc.values()) / n_windows)
+    n_window_total = float(n_total_trials * n_windows)
+    return {
+        "per_window_acc_pct": per_window_acc,
+        "mean_acc_pct": mean_acc,
+        "n_trials": SEQ_TRIALS,
+        "n_windows": n_windows,
+        "window_ms": window_ms,
+        "rate_hz": rate_hz,
+        "mean_input_spikes_per_window": input_spike_total / n_window_total,
+        "mean_hidden_spikes_per_window": hidden_spike_total / n_window_total,
+    }
+
+
+def eval_latency(model_name: str, run_dir: Path,
+                 window_ms: float = T_MS,
+                 rate_hz: float | None = None,
+                 fracs: tuple[float, ...] = SEQ_LATENCY_FRACS) -> list[dict]:
+    """Single-digit, full-window trials. Score running argmax + cumulative spikes
+    at each fraction of the window.
+
+    Returns a list of dicts (one per fraction) with keys:
+        frac, time_ms, accuracy_pct, mean_input_spikes, mean_hidden_spikes.
+    """
+    import numpy as np
+    import torch
+    from torchvision import datasets, transforms
+
+    from config import build_net  # type: ignore[import]
+    import models as M  # type: ignore[import]
+    from oscilloscope.encoders import encode_images_poisson  # type: ignore[import]
+
+    cfg = json.loads((run_dir / "config.json").read_text())
+    device = torch.device("cpu")
+    torch.manual_seed(SEED)
+
+    M.N_IN = cfg.get("n_in", 784)
+    M.N_INH = cfg.get("n_inh", 256)
+    M.dt = DT
+    M.T_ms = window_ms
+    M.T_steps = int(M.T_ms / M.dt)
+    hidden_sizes = cfg.get("hidden_sizes") or [cfg["n_hidden"]]
+    net = build_net(
+        cfg["model"],
+        w_in=cfg.get("w_in"),
+        w_in_sparsity=cfg.get("w_in_sparsity", 0.0),
+        ei_strength=cfg.get("ei_strength"),
+        ei_ratio=cfg.get("ei_ratio", 2.0),
+        sparsity=cfg.get("sparsity", 0.0),
+        device=device,
+        kaiming_init=cfg.get("kaiming_init", False),
+        dales_law=cfg.get("dales_law", True),
+        hidden_sizes=hidden_sizes,
+        readout_mode=cfg.get("readout_mode", "mem-mean"),
+    ).to(device)
+    state = torch.load(run_dir / "weights.pth", map_location=device, weights_only=True)
+    net.load_state_dict(state, strict=False)
+    net.eval()
+    net.recording = True
+
+    mnist = datasets.MNIST(
+        root=str(REPO / "src" / "artifacts" / "data"),
+        train=False,
+        download=True,
+        transform=transforms.ToTensor(),
+    )
+    rng = np.random.default_rng(SEED)
+    indices = rng.integers(0, len(mnist), size=SEQ_TRIALS)
+    images = torch.stack([mnist[int(i)][0].view(-1) for i in indices])
+    labels = np.array([mnist[int(i)][1] for i in indices], dtype=np.int64)
+
+    T_steps = int(round(window_ms / DT))
+    rate_hz = rate_hz if rate_hz is not None else cfg.get("input_rate", 25.0)
+    batch = 64
+    step_indices = [max(0, min(T_steps - 1, int(round(f * T_steps)) - 1)) for f in fracs]
+
+    n_fracs = len(fracs)
+    correct = np.zeros(n_fracs, dtype=np.int64)
+    input_spk_sum = np.zeros(n_fracs, dtype=np.float64)
+    hidden_spk_sum = np.zeros(n_fracs, dtype=np.float64)
+    n_total = 0
+    gen = torch.Generator(device="cpu").manual_seed(SEED)
+    with torch.no_grad():
+        for start in range(0, SEQ_TRIALS, batch):
+            stop = min(start + batch, SEQ_TRIALS)
+            input_spikes = encode_images_poisson(
+                images[start:stop], T_steps, DT, rate_hz, generator=gen
+            )
+            net(input_spikes=input_spikes)
+            out_rec = net.spike_record["out"]
+            if out_rec.dim() == 2:
+                out_rec = out_rec.unsqueeze(1)
+            in_cum = input_spikes.sum(dim=-1).cumsum(dim=0)  # (T, B)
+            hid_cum = None
+            for key, rec in net.spike_record.items():
+                if key == "hid" or key.startswith("hid_"):
+                    contribution = rec.sum(dim=-1).cumsum(dim=0)
+                    hid_cum = contribution if hid_cum is None else hid_cum + contribution
+            if hid_cum is None:
+                hid_cum = torch.zeros_like(in_cum)
+            batch_labels = labels[start:stop]
+            for fi, t_idx in enumerate(step_indices):
+                preds = out_rec[t_idx].argmax(dim=-1).cpu().numpy()
+                correct[fi] += int((preds == batch_labels).sum())
+                input_spk_sum[fi] += float(in_cum[t_idx].sum().item())
+                hidden_spk_sum[fi] += float(hid_cum[t_idx].sum().item())
+            n_total += stop - start
+
+    out: list[dict] = []
+    for fi, frac in enumerate(fracs):
+        out.append({
+            "frac": float(frac),
+            "time_ms": float(frac * window_ms),
+            "accuracy_pct": float(correct[fi] / n_total * 100.0),
+            "mean_input_spikes": float(input_spk_sum[fi] / n_total),
+            "mean_hidden_spikes": float(hidden_spk_sum[fi] / n_total),
+        })
     return out
 
 
-def _async_log_lik_marginal(spike_times_per_neuron: list, T_ms: float,
-                            k_grid=(1.0, 2.0, 5.0, 10.0, 20.0, 50.0)) -> float:
-    """Marginal log-likelihood of the *full* spike-train under the gamma-renewal
-    model (forward-recurrence first-spike density + iid inner ISIs + censored
-    post-last-spike survival), profile-θ at each grid k then mean-marginalise
-    over k. Closed form for θ̂(k): ∂L/∂θ = 0 ⇒ θ̂ = ⟨τ⟩/k where ⟨τ⟩ is the mean
-    of the inner ISIs across all neurons.
+def _build_seq_trial():
+    """Build one canonical sequential trial. Returns (input_spikes, images, labels)."""
+    import numpy as np
+    import torch
+    from torchvision import datasets, transforms
 
-    For a stationary renewal process the boundary contributions are
-        f_first(t₁) = S(t₁)/μ           (forward-recurrence density)
-        S_cens(T - t_n) = Q(k, (T-t_n)/θ̂)  (right-censored survival)
-    where μ = kθ and S(t) = Q(k, t/θ) is the gamma survival function.
-    Including them is what puts the async log-likelihood on equal footing
-    with the ping density (which scores all N_E·N_b pairs)."""
-    from scipy.special import gammaln, gammaincc, logsumexp
+    sys.path.insert(0, str(REPO / "src" / "pinglab"))
+    from oscilloscope.encoders import encode_images_poisson  # type: ignore[import]
 
-    isis_ms_chunks = []
-    first_spikes_ms = []
-    last_gaps_ms = []
-    for s in spike_times_per_neuron:
-        if s.size == 0:
+    mnist = datasets.MNIST(
+        root=str(REPO / "src" / "artifacts" / "data"),
+        train=False,
+        download=True,
+        transform=transforms.ToTensor(),
+    )
+    rng = np.random.default_rng(SEED)
+    chosen: list[int] = []
+    seen: set[int] = set()
+    while len(chosen) < SEQ_WINDOWS:
+        i = int(rng.integers(0, len(mnist)))
+        y = int(mnist[i][1])
+        if y in seen:
             continue
-        first_spikes_ms.append(float(s[0]))
-        last_gaps_ms.append(float(T_ms - s[-1]))
-        if s.size >= 2:
-            isis_ms_chunks.append(np.diff(s))
-    if not isis_ms_chunks:
-        return -np.inf
-    isis_ms = np.concatenate(isis_ms_chunks)
-    first_spikes_ms = np.asarray(first_spikes_ms, dtype=np.float64)
-    last_gaps_ms = np.asarray(last_gaps_ms, dtype=np.float64)
+        seen.add(y)
+        chosen.append(i)
+    images = torch.stack([mnist[i][0].view(-1) for i in chosen])
+    labels = [int(mnist[i][1]) for i in chosen]
 
-    n_tau = isis_ms.size
-    mean_isi = float(isis_ms.mean())
-    mean_log_isi = float(np.log(isis_ms).mean())
-
-    log_profiles = []
-    for k in k_grid:
-        theta_hat = mean_isi / k
-        # Inner-ISI bulk: (k-1)⟨log τ⟩ - k - k log θ̂ - log Γ(k), times n_tau.
-        ell_inner = n_tau * (
-            (k - 1.0) * mean_log_isi
-            - k
-            - k * np.log(theta_hat)
-            - float(gammaln(k))
-        )
-        # Boundary: first-spike forward-recurrence and post-last survival.
-        log_q_first = np.log(np.clip(
-            gammaincc(k, first_spikes_ms / theta_hat), 1e-300, None
-        ))
-        ell_first = float(log_q_first.sum()
-                          - first_spikes_ms.size * np.log(k * theta_hat))
-        log_q_last = np.log(np.clip(
-            gammaincc(k, last_gaps_ms / theta_hat), 1e-300, None
-        ))
-        ell_last = float(log_q_last.sum())
-        log_profiles.append(ell_inner + ell_first + ell_last)
-    log_profiles = np.asarray(log_profiles, dtype=np.float64)
-    return float(logsumexp(log_profiles) - np.log(len(k_grid)))
-
-
-def _ping_log_lik_marginal(spike_times_ms: "np.ndarray", n_e: int, T_ms: float,
-                           f_grid_hz=None, kappa_grid=None) -> float:
-    """Marginal log-likelihood under the **von Mises rhythm-Poisson** model
-        λ(t) = λ₀ · exp(κ cos(2πft - φ)) / I₀(κ),
-    with λ₀ profiled to its MLE λ̂₀ = n_tot/(N_E T). At κ = 0 the
-    intensity collapses to the homogeneous Poisson rate λ₀ — async is
-    nested inside ping at κ = 0. At large κ the density concentrates
-    sharply at the burst phases.
-
-    The phase φ marginalisation is *closed form* via Bessel ratios.
-    Defining C = Σᵢ cos(2πf tᵢ), S = Σᵢ sin(2πf tᵢ), R = √(C² + S²)
-    (the spike-time resultant length at frequency f), one finds
-
-        ∫ exp[κ R cos(φ − φ*)] dφ/(2π) = I₀(κ R),
-
-    so the φ-marginalised log-likelihood is
-
-        ℓ(κ, f) = n_tot log(λ̂₀) − n_tot
-                  + log I₀(κ R(f)) − n_tot log I₀(κ).
-
-    κ is then grid-marginalised on a log scale; f on a linear grid in the
-    gamma band. The von Mises form has built-in resistance to over-fitting
-    on null data: at random R ~ √n_tot, the maximum-likelihood κ̂ is small
-    and the gain log I₀(κR) − n_tot log I₀(κ) is O(1) — no large spurious
-    log-BF on Poisson traces."""
-    from scipy.special import logsumexp, i0e
-
-    if f_grid_hz is None:
-        f_grid_hz = np.arange(25.0, 76.0, 5.0)
-    if kappa_grid is None:
-        # 30 log-spaced points from κ = 0.01 (almost flat) to κ = 1000
-        # (extremely sharp peak; equivalent von Mises σ ≈ 1/√κ ≈ 0.03 cycles).
-        kappa_grid = np.logspace(-2.0, 3.0, 30)
-    f_grid_hz = np.asarray(f_grid_hz, dtype=np.float64)
-    kappa_grid = np.asarray(kappa_grid, dtype=np.float64)
-    n_tot = spike_times_ms.size
-    if n_tot == 0 or T_ms <= 0:
-        return -np.inf
-
-    log_baseline = n_tot * np.log(n_tot / (n_e * T_ms)) - n_tot
-
-    def log_i0(x: "np.ndarray") -> "np.ndarray":
-        """Numerically stable log I₀(x) for x ≥ 0:
-            I₀(x) = exp(|x|) · i0e(|x|)  ⇒  log I₀(x) = |x| + log i0e(|x|)."""
-        x = np.asarray(x, dtype=np.float64)
-        # i0e(0) = 1; i0e(x) ~ 1/√(2πx) at large x → log i0e(x) → -0.5 log(2πx)
-        return x + np.log(i0e(x))
-
-    log_i0_kappa = log_i0(kappa_grid)  # shape (n_kappa,)
-    log_marg_per_f = []
-    for f_hz in f_grid_hz:
-        omega = 2.0 * np.pi * f_hz / 1000.0  # rad/ms
-        phases = omega * spike_times_ms
-        C = float(np.cos(phases).sum())
-        S = float(np.sin(phases).sum())
-        R = float(np.sqrt(C * C + S * S))
-        log_at_kappa = (log_baseline
-                        + log_i0(kappa_grid * R)
-                        - n_tot * log_i0_kappa)
-        log_marg_per_f.append(
-            float(logsumexp(log_at_kappa) - np.log(kappa_grid.size))
-        )
-    arr = np.asarray(log_marg_per_f, dtype=np.float64)
-    if not np.isfinite(arr).any():
-        return -np.inf
-    return float(logsumexp(arr) - np.log(f_grid_hz.size))
-
-
-def compute_log_bayes_factor(raster: "np.ndarray", dt_ms: float) -> dict:
-    """Per-trial log Bayes factor between the ping and async generative models
-    of *Method > Bayes factor* in the entry. raster has shape (T_steps, N_E).
-
-    Returns a dict with the marginalised log-likelihoods, log-BF and the
-    sigmoid-converted regime probability P(ping | D). All log quantities are
-    in nats."""
-    T_steps, n_e = raster.shape
-    T_ms = T_steps * dt_ms
-
-    spike_times_per_neuron = [np.flatnonzero(raster[:, j]) * dt_ms
-                              for j in range(n_e)]
-    spikes_flat = np.concatenate(spike_times_per_neuron) \
-        if spike_times_per_neuron else np.empty(0, dtype=np.float64)
-    n_isis = sum(max(s.size - 1, 0) for s in spike_times_per_neuron)
-
-    log_p_async = _async_log_lik_marginal(spike_times_per_neuron, T_ms)
-    log_p_ping = _ping_log_lik_marginal(spikes_flat, n_e, T_ms)
-    log_bf = log_p_ping - log_p_async
-    # Numerically stable sigmoid for huge |log_bf|.
-    if not np.isfinite(log_bf):
-        p_ping = float("nan")
-    elif log_bf >= 0:
-        p_ping = 1.0 / (1.0 + np.exp(-log_bf))
-    else:
-        e = np.exp(log_bf)
-        p_ping = e / (1.0 + e)
-    return {
-        "log_p_async": log_p_async,
-        "log_p_ping": log_p_ping,
-        "log_bf": log_bf,
-        "p_ping": float(p_ping),
-        "n_spikes": int(spikes_flat.size),
-        "n_isis": int(n_isis),
-    }
-
-
-def unit_test_bayes_factor() -> list[dict]:
-    """Synthetic ground-truth raster check (Todo step 2). Generate rasters from
-    each generative model at known parameters and report log-BF, p_ping for
-    each. Expect strongly negative log-BF for async-renewal traces, strongly
-    positive for burst-MPP traces, and near-zero for the borderline case
-    where burst jitter approaches σ ≈ T_p / 4 (loses synchrony)."""
-    n_e = 256
-    T_ms = 250.0
-    T_steps = int(T_ms / DT_MS)
-    cases = [
-        ("async, k=10, λ=200 Hz",
-         simulate_async_renewal(n_e, T_steps, DT_MS, rate_hz=200.0,
-                                shape_k=10.0, seed=1)),
-        ("async, k=1 (Poisson), λ=15 Hz",
-         simulate_async_renewal(n_e, T_steps, DT_MS, rate_hz=15.0,
-                                shape_k=1.0, seed=2)),
-        ("ping, f=50 Hz, σ=2 ms, λ=12 Hz",
-         simulate_ping_burst(n_e, T_steps, DT_MS, rate_hz=12.0,
-                             f_hz=50.0, jitter_ms=2.0, seed=3)),
-        ("ping, f=70 Hz, σ=1.5 ms, λ=15 Hz",
-         simulate_ping_burst(n_e, T_steps, DT_MS, rate_hz=15.0,
-                             f_hz=70.0, jitter_ms=1.5, seed=4)),
-        ("borderline ping, f=50 Hz, σ=5 ms (T_p/4)",
-         simulate_ping_burst(n_e, T_steps, DT_MS, rate_hz=12.0,
-                             f_hz=50.0, jitter_ms=5.0, seed=5)),
+    window_steps = int(round(SEQ_WINDOW_MS / DT))
+    rate_hz = 25.0
+    gen = torch.Generator(device="cpu").manual_seed(SEED)
+    blocks = [
+        encode_images_poisson(images[k : k + 1], window_steps, DT, rate_hz, generator=gen)
+        for k in range(SEQ_WINDOWS)
     ]
-    results = []
-    for label, raster in cases:
-        out = compute_log_bayes_factor(raster, DT_MS)
-        out["label"] = label
-        results.append(out)
-        print(f"  {label:42s}  log_BF={out['log_bf']:+9.1f}  "
-              f"p_ping={out['p_ping']:.3f}")
-    return results
+    return torch.cat(blocks, dim=0), images, labels
 
 
-def simulate_async_renewal(n_e: int, T_steps: int, dt_ms: float,
-                           rate_hz: float, shape_k: float = 10.0,
-                           seed: int = SEED):
-    """Sample from the async generative model (Method > Bayes factor):
-    per-neuron gamma-renewal process with shape k and scale θ chosen so
-    mean rate = rate_hz. Each neuron j gets a uniform initial phase
-    u_j ~ U(0, kθ) and ISIs τ_{j,i} ~ Γ(k, θ) iid. CV(ISI) = 1/√k;
-    k = 10 (default) matches the visible ei=0 stripe pattern."""
-    rng = np.random.default_rng(seed)
-    T_ms = T_steps * dt_ms
-    mean_isi_ms = 1000.0 / max(rate_hz, 1e-9)
-    scale_ms = mean_isi_ms / shape_k
-    spikes = np.zeros((T_steps, n_e), dtype=np.uint8)
-    for j in range(n_e):
-        t = rng.uniform(0.0, mean_isi_ms)
-        while t < T_ms:
-            idx = int(t / dt_ms)
-            if 0 <= idx < T_steps:
-                spikes[idx, j] = 1
-            t += rng.gamma(shape_k, scale_ms)
-    return spikes
+def _record_response(model_name: str, run_dir: Path, input_spikes):
+    """Run a single trial through a trained model with recording=True."""
+    import json as _json
+
+    import torch
+
+    from config import build_net  # type: ignore[import]
+    import models as M  # type: ignore[import]
+
+    cfg = _json.loads((run_dir / "config.json").read_text())
+    M.N_IN = cfg.get("n_in", 784)
+    M.N_INH = cfg.get("n_inh", 256)
+    M.dt = DT
+    M.T_ms = SEQ_WINDOWS * SEQ_WINDOW_MS
+    M.T_steps = int(M.T_ms / M.dt)
+    hidden_sizes = cfg.get("hidden_sizes") or [cfg["n_hidden"]]
+
+    net = build_net(
+        cfg["model"],
+        w_in=cfg.get("w_in"),
+        w_in_sparsity=cfg.get("w_in_sparsity", 0.0),
+        ei_strength=cfg.get("ei_strength"),
+        ei_ratio=cfg.get("ei_ratio", 2.0),
+        sparsity=cfg.get("sparsity", 0.0),
+        device=torch.device("cpu"),
+        kaiming_init=cfg.get("kaiming_init", False),
+        dales_law=cfg.get("dales_law", True),
+        hidden_sizes=hidden_sizes,
+        readout_mode=cfg.get("readout_mode", "mem-mean"),
+    )
+    state = torch.load(run_dir / "weights.pth", map_location="cpu", weights_only=True)
+    net.load_state_dict(state, strict=False)
+    net.eval()
+    net.recording = True
+    with torch.no_grad():
+        net(input_spikes=input_spikes)
+    return net.spike_record
 
 
-def simulate_ping_burst(n_e: int, T_steps: int, dt_ms: float,
-                        rate_hz: float, f_hz: float,
-                        jitter_ms: float = 2.0, seed: int = SEED):
-    """Sample from the ping generative model (Method > Bayes factor):
-    shared periodic burst schedule b_n = b_0 + n/f with global phase
-    b_0 ~ U(0, 1/f). For each (j, n), neuron j participates with
-    probability p = rate_hz/f_hz; if it does, fires once at b_n + ε
-    with ε ~ N(0, σ²), σ = jitter_ms. Per-neuron mean rate = p·f
-    matches rate_hz by construction. Captures the population-
-    synchronous burst alignment of real PING."""
-    rng = np.random.default_rng(seed)
-    T_ms = T_steps * dt_ms
-    period_ms = 1000.0 / max(f_hz, 1e-9)
-    p_part = min(1.0, rate_hz / max(f_hz, 1e-9))
-    phase_offset = rng.uniform(0.0, period_ms)
-    burst_times = phase_offset + np.arange(0, int(T_ms / period_ms) + 2) * period_ms
-    burst_times = burst_times[burst_times < T_ms]
-    spikes = np.zeros((T_steps, n_e), dtype=np.uint8)
-    for tb in burst_times:
-        participates = rng.random(n_e) < p_part
-        jitters = rng.normal(0.0, jitter_ms, n_e)
-        for j in np.flatnonzero(participates):
-            idx = int((tb + jitters[j]) / dt_ms)
-            if 0 <= idx < T_steps:
-                spikes[idx, j] = 1
-    return spikes
-
-
-def plot_raster_validation(real_rasters: dict, autocorr_data: dict,
-                           out_path: Path) -> Path:
-    """2×2 raster sanity check: real vs simulated at ei=0 (async) and ei=CANON_EI (ping).
-    Cosmetic check that the generative recipes can produce something that
-    looks like the real data; the autocorr-shape match is the main test."""
+def plot_seq_response(run_dirs: dict[str, Path]) -> Path:
+    """Render per-model hidden-layer rasters for the canonical sequential trial."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    import theme  # type: ignore[import]
+    import numpy as np
 
     theme.apply()
+    input_spikes, images, labels = _build_seq_trial()
+    T_total = input_spikes.shape[0]
 
-    # Estimate ping model parameters from real ei=CANON_EI data. Frequency
-    # comes from the autocorr peak lag at the matching ei value.
-    lam_async = real_rasters["async"]["rate_hz"]
-    lam_ping = real_rasters["ping"]["rate_hz"]
-    target_ei = real_rasters["ping"]["ei"]
-    peak_lag_ms = None
-    if autocorr_data is not None:
-        # Find the autocorr frame closest to CANON_EI.
-        best = min(autocorr_data["frames"],
-                   key=lambda r: abs(r["ei_strength"] - target_ei))
-        peak_lag_ms = best["peak_lag_ms"]
-    f_hz = 1000.0 / peak_lag_ms if (peak_lag_ms and peak_lag_ms > 0) else 50.0
-    A = 0.6  # rough; tune in step 1's autocorr-shape comparison
-
-    real_async = real_rasters["async"]["raster"]
-    real_ping = real_rasters["ping"]["raster"]
-    T_steps, n_e = real_async.shape
-    sim_async = simulate_async_renewal(n_e, T_steps, DT_MS, lam_async)
-    sim_ping = simulate_ping_burst(n_e, T_steps, DT_MS, lam_ping, f_hz)
-
-    n_show = min(80, n_e)
-    panels = [
-        ("real · ei = 0",                                              real_async[:, :n_show]),
-        (f"sim · async (renewal), λ = {lam_async:.1f} Hz",             sim_async[:, :n_show]),
-        (f"real · ei = {target_ei:.1f}",                               real_ping[:, :n_show]),
-        (f"sim · ping (burst), λ = {lam_ping:.1f}, f = {f_hz:.0f} Hz", sim_ping[:, :n_show]),
-    ]
-
-    fig, axes = plt.subplots(2, 2, figsize=(10.0, 5.625), sharex=True, sharey=True)
-    axes_flat = axes.ravel()
-    for ax, (title, raster) in zip(axes_flat, panels):
-        t_idx, n_idx = np.where(raster > 0)
-        ax.scatter(t_idx * DT_MS, n_idx, s=0.6,
-                   color=theme.INK_BLACK, alpha=0.7, marker=".")
-        ax.set_xlim(0, T_steps * DT_MS)
-        ax.set_ylim(-1, n_show)
-        ax.set_title(title, fontsize=theme.SIZE_ANNOTATION, loc="left",
-                     color=theme.INK)
-        for spine in ("top", "right"):
-            ax.spines[spine].set_visible(False)
-    for ax in axes[-1]:
-        ax.set_xlabel("time (ms)")
-    for ax in axes[:, 0]:
-        ax.set_ylabel("neuron")
-
-    fig.suptitle(
-        "raster sanity check: real vs simulated at ei = 0 and "
-        f"ei = {target_ei:.1f}",
-        fontsize=theme.SIZE_TITLE, y=0.98,
+    n_rows = 2 + len(MODELS)
+    fig = plt.figure(figsize=(8, 1.0 + 1.6 * n_rows))
+    gs = fig.add_gridspec(
+        n_rows,
+        SEQ_WINDOWS,
+        height_ratios=[1] + [1.6] * (n_rows - 1),
+        hspace=0.35,
+        wspace=0.1,
     )
-    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.93))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+
+    for k in range(SEQ_WINDOWS):
+        ax = fig.add_subplot(gs[0, k])
+        ax.imshow(images[k].view(28, 28).numpy(), cmap="gray_r")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(f"w{k}: {labels[k]}", fontsize=theme.SIZE_ANNOTATION)
+
+    inp = input_spikes.squeeze(1).numpy()
+    ax_in = fig.add_subplot(gs[1, :])
+    ti, ni = np.where(inp > 0)
+    ax_in.scatter(ti * DT, ni, s=0.3, c=theme.INK_BLACK, alpha=0.4)
+    for k in range(1, SEQ_WINDOWS):
+        ax_in.axvline(k * SEQ_WINDOW_MS, color=theme.GREY_MID, linewidth=0.7, linestyle="--")
+    ax_in.set_xlim(0, T_total * DT)
+    ax_in.set_ylim(-1, inp.shape[1])
+    ax_in.set_ylabel("input")
+    ax_in.set_xticklabels([])
+    ax_in.set_title("input spikes (Poisson encoding)")
+
+    for row, model in enumerate(MODELS):
+        rec = _record_response(model, run_dirs[model], input_spikes)
+        hid_keys = sorted(k for k in rec.keys() if k == "hid" or k.startswith("hid_"))
+        last_hid = rec[hid_keys[-1]].squeeze(1).numpy() if hid_keys else None
+        ax = fig.add_subplot(gs[2 + row, :])
+        if last_hid is not None:
+            t_idx, n_idx = np.where(last_hid > 0)
+            ax.scatter(t_idx * DT, n_idx, s=0.3, c=MODEL_COLORS[model], alpha=0.6)
+            ax.set_ylim(-1, last_hid.shape[1])
+        for k in range(1, SEQ_WINDOWS):
+            ax.axvline(k * SEQ_WINDOW_MS, color=theme.GREY_MID, linewidth=0.7, linestyle="--")
+        ax.set_xlim(0, T_total * DT)
+        ax.set_ylabel(f"{model}\nhidden")
+        if row == len(MODELS) - 1:
+            ax.set_xlabel("time (ms)")
+        else:
+            ax.set_xticklabels([])
+
+    fig.tight_layout()
+    out = FIGURES / "sequential_response.png"
+    fig.savefig(out, dpi=150)
     plt.close(fig)
-    print(f"  → {out_path}")
-    return out_path
+    print(f"  → {out.relative_to(REPO)}")
+    return out
 
 
-def compute_per_frame_pop_rates() -> dict:
-    """For each ei_strength value in the sweep, run one in-process forward
-    pass and return the smoothed E/I population rate time-series. Used for
-    the stacked per-frame rate plot."""
-    import torch  # noqa: E402
-    import config as C  # noqa: E402
-    import models as M  # noqa: E402
-    from config import make_net, patch_dt  # noqa: E402
-    from oscilloscope import (
-        _extract_records,
-        _load_dataset_image,
-        encode_image_spikes,
-        primary_hid_key,
-    )  # noqa: E402
+def plot_seq_results(seq_results: dict[str, dict]) -> Path:
+    import matplotlib
 
-    pixel_vec, _ = _load_dataset_image(DATASET, DIGIT_CLASS, SAMPLE_IDX)
-    M.N_IN = len(pixel_vec)
-    M.T_ms = EI_SIM_MS
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
 
-    ei_values = np.linspace(EI_SCAN_MIN, EI_SCAN_MAX, EI_SCAN_FRAMES).tolist()
-    bin_ms = 2.0  # smoothing bin for the time-series
-    bin_steps = int(round(bin_ms / DT_MS))
-    out: list[dict] = []
-
-    for ei in ei_values:
-        C.cfg.n_e = N_HIDDEN
-        C.cfg.n_i = N_HIDDEN // 4
-        C.cfg.sim_ms = EI_SIM_MS
-        C.cfg.step_on_ms = EI_STEP_ON_MS
-        C.cfg.step_off_ms = EI_STEP_OFF_MS
-        C.cfg.seed = SEED
-        s = float(ei)
-        C.cfg.w_ei = (s, s * 0.1)
-        C.cfg.w_ie = (s * C.cfg.ei_ratio, s * C.cfg.ei_ratio * 0.1)
-        C._sync_globals_from_cfg(C.cfg)
-
-        M.N_HID = C.N_E
-        M.N_INH = C.N_I
-        M.max_rate_hz = EI_SCAN_INPUT_RATE_HZ
-        patch_dt(DT_MS)
-
-        base_rate = M.max_rate_hz
-        input_spikes = encode_image_spikes(
-            pixel_vec, M.T_steps, DT_MS, base_rate, base_rate,
-            C.STEP_ON_MS, C.STEP_OFF_MS, C.SEED,
-        ).to(C.DEVICE)
-        net = make_net(
-            C.cfg,
-            w_in=(EI_SCAN_W_IN_MEAN, EI_SCAN_W_IN_STD, "normal", C.W_IN_SPARSITY),
-            model_name="ping",
-        )
-        net.recording = True
-        with torch.no_grad():
-            net.forward(input_spikes=input_spikes)
-        rec = _extract_records(net)
-        spk_e = rec[primary_hid_key(rec)]  # (T, N_E)
-        spk_i = rec["inh"]                  # (T, N_I)
-
-        T_steps = spk_e.shape[0]
-        n_bins = T_steps // bin_steps
-        usable = n_bins * bin_steps
-        e_pop = (spk_e[:usable].reshape(n_bins, bin_steps, -1)
-                 .sum(axis=(1, 2))) * 1000.0 / (bin_ms * spk_e.shape[1])
-        i_pop = (spk_i[:usable].reshape(n_bins, bin_steps, -1)
-                 .sum(axis=(1, 2))) * 1000.0 / (bin_ms * spk_i.shape[1])
-        t_ms = (np.arange(n_bins) + 0.5) * bin_ms
-
-        # Per-frame Bayes factor. Skip the onset transient to match the
-        # other metrics (post-onset window only).
-        onset_skip_steps = int(round(20.0 / DT_MS))
-        spk_e_post = spk_e[onset_skip_steps:]
-        T_post_ms = (spk_e_post.shape[0]) * DT_MS
-        bf = compute_log_bayes_factor(spk_e_post, DT_MS) \
-            if T_post_ms > 0 else {"log_bf": float("nan"), "p_ping": float("nan")}
-
-        out.append({
-            "ei_strength": s,
-            "time_ms": t_ms.tolist(),
-            "e_rate_hz": e_pop.tolist(),
-            "i_rate_hz": i_pop.tolist(),
-            "log_bf": bf["log_bf"],
-            "p_ping": bf["p_ping"],
-        })
-    return {"frames": out, "bin_ms": bin_ms}
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    for model in MODELS:
+        points = sorted(seq_results[model].values(), key=lambda r: r["window_ms"])
+        xs = [r["window_ms"] for r in points]
+        ys = [r["mean_acc_pct"] for r in points]
+        ax.plot(xs, ys, marker="o", color=MODEL_COLORS[model], label=model)
+    ax.axhline(10, linestyle="--", linewidth=1.0, color=theme.DEEP_RED, label="chance (10%)")
+    ax.set_xlabel("window length (ms)")
+    ax.set_ylabel("mean per-window accuracy (%)")
+    ax.set_title("sequential MNIST: accuracy vs window length (200 ms trial)")
+    ax.set_ylim(0, 100)
+    ax.legend(loc="lower right")
+    fig.tight_layout()
+    out = FIGURES / "tracking_accuracy.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"  → {out.relative_to(REPO)}")
+    return out
 
 
-def compute_autocorr_metric(frames_data: dict,
-                            onset_skip_ms: float = 20.0,
-                            lag_min_ms: float = 5.0,
-                            lag_max_ms: float = 60.0) -> dict:
-    """Per-frame autocorrelation of the post-onset E rate. Returns the full
-    autocorrelation curve plus a single-trace rhythmicity score: the
-    *prominence* of the strongest peak in the [lag_min, lag_max] window
-    (peak height minus its nearest valley). Prominence is naturally zero
-    when there's no real peak above the noise floor, so async traces score
-    near zero without any baseline subtraction or shuffling."""
+def plot_seq_input_spikes(rate_results: dict[str, dict]) -> Path:
+    """Accuracy vs mean input spikes per window (input-rate sweep at fixed 50 ms)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    for model in MODELS:
+        points = sorted(rate_results[model].values(), key=lambda r: r["rate_hz"])
+        xs = [r["mean_input_spikes_per_window"] for r in points]
+        ys = [r["mean_acc_pct"] for r in points]
+        ax.plot(xs, ys, marker="o", color=MODEL_COLORS[model], label=model)
+    ax.axhline(10, linestyle="--", linewidth=1.0, color=theme.DEEP_RED, label="chance (10%)")
+    ax.set_xscale("log")
+    ax.set_xlabel("mean input spikes per 50 ms window (log scale)")
+    ax.set_ylabel("mean per-window accuracy (%)")
+    ax.set_title("sequential MNIST: accuracy vs input spikes (4 × 50 ms, rate swept)")
+    ax.set_ylim(0, 100)
+    ax.legend(loc="lower right")
+    fig.tight_layout()
+    out = FIGURES / "tracking_input_spikes.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"  → {out.relative_to(REPO)}")
+    return out
+
+
+def eval_per_trial_rate(model_name: str, run_dir: Path,
+                        window_ms: float = T_MS,
+                        rate_hz: float | None = None,
+                        n_keep_trials: int = 50) -> dict:
+    """Per-trial smoothed hidden-population rate for the single 200 ms digit.
+
+    Returns:
+        time_ms (T,), rates (K, T) for the first n_keep_trials trials,
+        autocorr (T_lags,) — trial-averaged autocorrelation of the
+        post-onset rate (computed on all SEQ_TRIALS trials).
+    """
+    import numpy as np
+    import torch
+    from torchvision import datasets, transforms
+
+    from config import build_net  # type: ignore[import]
+    import models as M  # type: ignore[import]
+    from oscilloscope.encoders import encode_images_poisson  # type: ignore[import]
+
+    cfg = json.loads((run_dir / "config.json").read_text())
+    device = torch.device("cpu")
+    torch.manual_seed(SEED)
+
+    M.N_IN = cfg.get("n_in", 784)
+    M.N_INH = cfg.get("n_inh", 256)
+    M.dt = DT
+    M.T_ms = window_ms
+    M.T_steps = int(M.T_ms / M.dt)
+    hidden_sizes = cfg.get("hidden_sizes") or [cfg["n_hidden"]]
+    net = build_net(
+        cfg["model"],
+        w_in=cfg.get("w_in"),
+        w_in_sparsity=cfg.get("w_in_sparsity", 0.0),
+        ei_strength=cfg.get("ei_strength"),
+        ei_ratio=cfg.get("ei_ratio", 2.0),
+        sparsity=cfg.get("sparsity", 0.0),
+        device=device,
+        kaiming_init=cfg.get("kaiming_init", False),
+        dales_law=cfg.get("dales_law", True),
+        hidden_sizes=hidden_sizes,
+        readout_mode=cfg.get("readout_mode", "mem-mean"),
+    ).to(device)
+    state = torch.load(run_dir / "weights.pth", map_location=device, weights_only=True)
+    net.load_state_dict(state, strict=False)
+    net.eval()
+    net.recording = True
+
+    mnist = datasets.MNIST(
+        root=str(REPO / "src" / "artifacts" / "data"),
+        train=False,
+        download=True,
+        transform=transforms.ToTensor(),
+    )
+    rng = np.random.default_rng(SEED)
+    indices = rng.integers(0, len(mnist), size=SEQ_TRIALS)
+    images = torch.stack([mnist[int(i)][0].view(-1) for i in indices])
+
+    T_steps = int(round(window_ms / DT))
+    rate_hz_eff = rate_hz if rate_hz is not None else cfg.get("input_rate", 25.0)
+    batch = 64
+
+    per_trial_rate = np.zeros((SEQ_TRIALS, T_steps), dtype=np.float64)
+    n_neurons = 0
+    gen = torch.Generator(device="cpu").manual_seed(SEED)
+    with torch.no_grad():
+        for start in range(0, SEQ_TRIALS, batch):
+            stop = min(start + batch, SEQ_TRIALS)
+            input_spikes = encode_images_poisson(
+                images[start:stop], T_steps, DT, rate_hz_eff, generator=gen
+            )
+            net(input_spikes=input_spikes)
+            hid_total = None
+            n_neurons = 0
+            for key, rec in net.spike_record.items():
+                if key == "hid" or key.startswith("hid_"):
+                    summed = rec.sum(dim=-1)  # (T, B)
+                    hid_total = summed if hid_total is None else hid_total + summed
+                    n_neurons += int(rec.shape[-1])
+            # spikes per ms per neuron → Hz: divide by (n_neurons * dt_in_seconds)
+            hid_hz = hid_total.transpose(0, 1).cpu().numpy() / (n_neurons * (DT / 1000.0))
+            per_trial_rate[start:stop] = hid_hz
+
+    # Smooth each trial with a 1 ms Gaussian
+    smoothed = np.empty_like(per_trial_rate)
+    for i in range(SEQ_TRIALS):
+        smoothed[i] = _smooth_gaussian(per_trial_rate[i], sigma_ms=1.0, dt_ms=DT)
+
+    # Average autocorrelation: drop first 20 ms (onset transient) so we look at
+    # the sustained regime, then z-score per trial and autocorrelate.
+    onset_steps = int(round(20.0 / DT))
+    sustained = smoothed[:, onset_steps:]
+    sustained = sustained - sustained.mean(axis=1, keepdims=True)
+    norms = sustained.std(axis=1, keepdims=True)
+    norms = np.where(norms < 1e-9, 1.0, norms)
+    sustained = sustained / norms
+    n_lags_steps = int(round(60.0 / DT))  # 60 ms of lag is enough to span 2-3 cycles
+    autocorr = np.zeros(n_lags_steps + 1, dtype=np.float64)
+    for i in range(SEQ_TRIALS):
+        x = sustained[i]
+        # FFT-based autocorrelation, normalised by trial length
+        n = x.shape[0]
+        f = np.fft.rfft(x, n=2 * n)
+        ac = np.fft.irfft(f * np.conj(f))[: n_lags_steps + 1] / n
+        autocorr += ac
+    autocorr /= SEQ_TRIALS
+
+    time_ms = (np.arange(T_steps) + 1) * DT
+    lag_ms = np.arange(n_lags_steps + 1) * DT
+    return {
+        "time_ms": time_ms.tolist(),
+        "rates_subset": smoothed[:n_keep_trials].tolist(),
+        "lag_ms": lag_ms.tolist(),
+        "autocorr": autocorr.tolist(),
+    }
+
+
+def plot_per_trial_rate(per_trial: dict[str, dict]) -> tuple[Path, dict]:
+    """Two figures-worth of analysis in one image:
+       (top) ping single-trial heatmap; (bottom) trial-averaged autocorrelation
+       for all three models with detected peaks."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
     from scipy.signal import find_peaks
 
-    bin_ms = float(frames_data["bin_ms"])
-    out: list[dict] = []
-    for f in frames_data["frames"]:
-        rate = np.asarray(f["e_rate_hz"], dtype=np.float64)
-        skip = int(round(onset_skip_ms / bin_ms))
-        x = rate[skip:]
-        x = x - x.mean()
-        sd = x.std()
-        if sd < 1e-9:
-            corr = np.zeros(x.size)
-        else:
-            x = x / sd
-            n = x.size
-            spec = np.fft.rfft(x, n=2 * n)
-            corr = np.fft.irfft(spec * np.conj(spec))[:n] / n
-        lag_steps = np.arange(corr.size)
-        lag_ms = lag_steps * bin_ms
-
-        win = (lag_ms >= lag_min_ms) & (lag_ms <= lag_max_ms)
-        peak_lag = float("nan")
-        peak_value = float("nan")
-        peak_prominence = 0.0
-        if win.any():
-            sub = corr[win]
-            sub_lag = lag_ms[win]
-            # min separation: at least 5 ms apart so we ignore wiggles
-            distance = max(int(round(5.0 / bin_ms)), 1)
-            peaks, props = find_peaks(sub, distance=distance, prominence=0.0)
-            if peaks.size:
-                best = int(np.argmax(props["prominences"]))
-                peak_lag = float(sub_lag[peaks[best]])
-                peak_value = float(sub[peaks[best]])
-                peak_prominence = float(props["prominences"][best])
-        out.append({
-            "ei_strength": f["ei_strength"],
-            "lag_ms": lag_ms.tolist(),
-            "autocorr": corr.tolist(),
-            "peak_lag_ms": peak_lag,
-            "peak_value": peak_value,
-            "peak_prominence": peak_prominence,
-        })
-    return {
-        "frames": out,
-        "bin_ms": bin_ms,
-        "onset_skip_ms": onset_skip_ms,
-        "lag_min_ms": lag_min_ms,
-        "lag_max_ms": lag_max_ms,
-    }
-
-
-def plot_autocorr_stack(autocorr_data: dict, out_path: Path) -> Path:
-    """Stacked autocorrelation curves, one row per ei (sampled to ≤10)."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import theme  # type: ignore[import]
-
     theme.apply()
-    all_frames = autocorr_data["frames"]
-    n_total = len(all_frames)
-    if n_total <= 10:
-        frames = all_frames
-    else:
-        idx = np.linspace(0, n_total - 1, 10).round().astype(int)
-        frames = [all_frames[int(i)] for i in idx]
-    n = len(frames)
+    fig = plt.figure(figsize=(12, 6.75))
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.4, 1], hspace=0.4)
 
-    fig, axes = plt.subplots(n, 1, figsize=(10.0, 5.625),
-                             sharex=True, sharey=True)
-    if n == 1:
-        axes = [axes]
-    lag_max = autocorr_data["lag_max_ms"]
-    for ax, f in zip(axes, frames):
-        lag = np.asarray(f["lag_ms"])
-        corr = np.asarray(f["autocorr"])
-        keep = lag <= lag_max
-        ax.axhline(0, color=theme.MUTED, linewidth=0.5)
-        ax.plot(lag[keep], corr[keep], color=theme.INK_BLACK, linewidth=1.0)
-        ax.set_ylim(-0.6, 1.05)
-        ax.set_yticks([])
-        ax.text(0.985, 0.85, f"ei = {f['ei_strength']:.2f}",
-                ha="right", va="top", transform=ax.transAxes,
-                fontsize=theme.SIZE_ANNOTATION, color=theme.INK)
-        for spine in ("top", "right", "left"):
-            ax.spines[spine].set_visible(False)
-    axes[-1].set_xlabel("lag (ms)")
-    fig.suptitle("per-frame autocorrelation of the post-onset E rate",
-                 fontsize=theme.SIZE_TITLE, y=0.98)
-    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-    print(f"  → {out_path}")
-    return out_path
+    # Top: ping heatmap
+    ax_h = fig.add_subplot(gs[0, 0])
+    ping_rates = np.asarray(per_trial["ping"]["rates_subset"])
+    t = np.asarray(per_trial["ping"]["time_ms"])
+    im = ax_h.imshow(ping_rates, aspect="auto",
+                     extent=(float(t[0]), float(t[-1]),
+                             ping_rates.shape[0], 0),
+                     cmap="pinglab_brand")
+    ax_h.set_xlabel("time (ms)")
+    ax_h.set_ylabel("trial #")
+    ax_h.set_title("ping: single-trial hidden firing rate (first 50 trials)")
+    cbar = fig.colorbar(im, ax=ax_h, fraction=0.02, pad=0.01)
+    cbar.set_label("rate (Hz)")
 
+    # Bottom: trial-averaged autocorrelation per model
+    ax_a = fig.add_subplot(gs[1, 0])
+    peak_summary: dict[str, list[dict]] = {}
+    for model in MODELS:
+        lag = np.asarray(per_trial[model]["lag_ms"])
+        ac = np.asarray(per_trial[model]["autocorr"])
+        ac = ac / max(abs(ac[0]), 1e-9)  # normalise so lag-0 is 1
+        ax_a.plot(lag, ac, color=MODEL_COLORS[model], label=model)
+        # Skip lag-0; require positive peaks at least 5 ms apart, prominence 0.05
+        skip = int(round(2.0 / DT))
+        peaks, _ = find_peaks(ac[skip:], distance=int(round(5.0 / DT)),
+                              prominence=0.05)
+        peak_lags = lag[skip:][peaks]
+        peak_vals = ac[skip:][peaks]
+        peak_summary[model] = [
+            {"lag_ms": float(pl), "value": float(pv)}
+            for pl, pv in zip(peak_lags, peak_vals)
+        ]
+        for pl in peak_lags[:3]:
+            ax_a.axvline(pl, color=MODEL_COLORS[model], linestyle=":", linewidth=0.6, alpha=0.6)
+    ax_a.axhline(0, color=theme.GREY_MID, linewidth=0.5)
+    ax_a.set_xlabel("lag (ms)")
+    ax_a.set_ylabel("autocorr (normalised)")
+    ax_a.set_title("trial-averaged autocorrelation of hidden rate (post-onset)")
+    ax_a.legend(loc="upper right")
 
-def plot_bayes_factor(frames_data: dict, out_path: Path) -> Path:
-    """Per-frame log Bayes factor and P(ping | D) vs ei. Two stacked panels:
-    log-BF on top, sigmoid-converted probability below."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import theme  # type: ignore[import]
-
-    theme.apply()
-    rows = frames_data["frames"]
-    eis = np.array([r["ei_strength"] for r in rows])
-    log_bfs = np.array([r.get("log_bf", float("nan")) for r in rows])
-    p_pings = np.array([r.get("p_ping", float("nan")) for r in rows])
-    finite = np.isfinite(log_bfs)
-
-    fig, axes = plt.subplots(2, 1, figsize=(10.0, 5.625), sharex=True,
-                             gridspec_kw={"height_ratios": [1, 1]})
-    ax_top, ax_bot = axes
-
-    ax_top.axhline(0.0, color=theme.MUTED, linewidth=0.8, linestyle="--")
-    ax_top.plot(eis[finite], log_bfs[finite], marker="o", color=theme.INK_BLACK,
-                linewidth=1.5)
-    ax_top.set_ylabel("log Bayes factor (nats)")
-    for spine in ("top", "right"):
-        ax_top.spines[spine].set_visible(False)
-
-    ax_bot.axhline(0.5, color=theme.MUTED, linewidth=0.8, linestyle="--")
-    ax_bot.plot(eis[finite], p_pings[finite], marker="o", color=theme.INK_BLACK,
-                linewidth=1.5)
-    ax_bot.set_ylabel(r"$P(\mathrm{ping} \mid D)$")
-    ax_bot.set_xlabel("ei strength")
-    ax_bot.set_ylim(-0.02, 1.02)
-    for spine in ("top", "right"):
-        ax_bot.spines[spine].set_visible(False)
-
-    fig.suptitle("regime probability from raster Bayes factor",
-                 fontsize=theme.SIZE_TITLE, y=0.98)
-    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-    print(f"  → {out_path}")
-    return out_path
-
-
-def plot_autocorr_metric(autocorr_data: dict, out_path: Path) -> Path:
-    """Peak prominence of the autocorrelation in [lag_min, lag_max] vs ei —
-    single-frame, single-trace rhythmicity score per frame of the sweep."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import theme  # type: ignore[import]
-
-    theme.apply()
-    rows = autocorr_data["frames"]
-    eis = [r["ei_strength"] for r in rows]
-    proms = [r["peak_prominence"] for r in rows]
-
-    fig, ax = plt.subplots(figsize=(10.0, 5.625))
-    ax.axhline(0, color=theme.MUTED, linewidth=0.8, linestyle="--")
-    ax.plot(eis, proms, marker="o", color=theme.INK_BLACK, linewidth=1.5)
-    ax.set_xlabel("ei strength")
-    ax.set_ylabel("autocorrelation peak prominence (post-onset)")
-    ax.set_title(
-        f"rhythmicity from autocorr: peak prominence in lag "
-        f"{autocorr_data['lag_min_ms']:.0f}–{autocorr_data['lag_max_ms']:.0f} ms",
-        fontsize=theme.SIZE_TITLE,
-    )
-    for spine in ("top", "right"):
-        ax.spines[spine].set_visible(False)
     fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    # Per-trial dynamics belong to entry 015 — emit under nb015's figures dir.
+    out = FIGURES_NB015 / "per_trial_dynamics.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150)
     plt.close(fig)
-    print(f"  → {out_path}")
-    return out_path
+    print(f"  → {out.relative_to(REPO)}")
+    return out, peak_summary
 
 
-def plot_per_frame_pop_rates(frames_data: dict, out_path: Path) -> Path:
+def _smooth_gaussian(x, sigma_ms: float, dt_ms: float):
+    import numpy as np
+    sigma_steps = max(sigma_ms / dt_ms, 0.5)
+    radius = int(round(4 * sigma_steps))
+    k = np.arange(-radius, radius + 1)
+    kernel = np.exp(-0.5 * (k / sigma_steps) ** 2)
+    kernel /= kernel.sum()
+    return np.convolve(np.asarray(x), kernel, mode="same")
+
+
+
+def plot_seq_latency(latency_results: dict[str, list[dict]]) -> tuple[Path, Path, Path]:
+    """Three latency plots from the single-window sweep:
+       (1) accuracy vs time, (2) accuracy vs cumulative input spikes,
+       (3) accuracy vs cumulative hidden spikes."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    import theme  # type: ignore[import]
 
     theme.apply()
-    all_frames = frames_data["frames"]
-    # Show at most 10 rows: evenly-spaced from start to end of the sweep.
-    n_total = len(all_frames)
-    if n_total <= 10:
-        frames = all_frames
-    else:
-        idx = np.linspace(0, n_total - 1, 10).round().astype(int)
-        frames = [all_frames[int(i)] for i in idx]
-    n = len(frames)
-    # 16:9 overall; per-row height shrinks with n.
-    fig, axes = plt.subplots(n, 1, figsize=(10.0, 5.625),
-                             sharex=True, sharey=True)
-    if n == 1:
-        axes = [axes]
-    y_max = max(max(f["e_rate_hz"]) for f in frames)
-    for ax, f in zip(axes, frames):
-        ax.plot(f["time_ms"], f["e_rate_hz"], color=theme.INK_BLACK,
-                linewidth=1.0)
-        ax.set_ylim(0, y_max * 1.05)
-        ax.set_yticks([])
-        ax.text(0.985, 0.85, f"ei = {f['ei_strength']:.2f}",
-                ha="right", va="top", transform=ax.transAxes,
-                fontsize=theme.SIZE_ANNOTATION,
-                color=theme.INK)
-        for spine in ("top", "right", "left"):
-            ax.spines[spine].set_visible(False)
-    axes[-1].set_xlabel("time (ms)")
-    fig.suptitle("E population rate per frame along the ei-strength sweep",
-                 fontsize=theme.SIZE_TITLE, y=0.98)
-    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.94))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+
+    def _plot(xkey: str, xlabel: str, log_x: bool, title: str, fname: str) -> Path:
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        for model in MODELS:
+            pts = latency_results[model]
+            xs = [r[xkey] for r in pts]
+            ys = [r["accuracy_pct"] for r in pts]
+            ax.plot(xs, ys, marker="o", color=MODEL_COLORS[model], label=model)
+        ax.axhline(10, linestyle="--", linewidth=1.0, color=theme.DEEP_RED, label="chance (10%)")
+        if log_x:
+            ax.set_xscale("log")
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel("running accuracy (%)")
+        ax.set_title(title)
+        ax.set_ylim(0, 100)
+        ax.legend(loc="lower right")
+        fig.tight_layout()
+        # Latency plots belong to entry 015 — emit them under nb015's figures dir.
+        out = FIGURES_NB015 / fname
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=150)
+        plt.close(fig)
+        print(f"  → {out.relative_to(REPO)}")
+        return out
+
+    out_t = _plot("time_ms", "fraction of window seen (ms)", False,
+                  "single-digit latency: accuracy vs time", "latency_time.png")
+    out_in = _plot("mean_input_spikes",
+                   "cumulative input spikes per trial (log scale)", True,
+                   "single-digit latency: accuracy vs input spikes", "latency_input_spikes.png")
+    out_hid = _plot("mean_hidden_spikes",
+                    "cumulative hidden spikes per trial (log scale)", True,
+                    "single-digit latency: accuracy vs hidden spikes", "latency_hidden_spikes.png")
+    return out_t, out_in, out_hid
+
+
+def plot_seq_hidden_spikes(seq_results: dict[str, dict]) -> Path:
+    """Accuracy vs mean hidden spikes per window (window-length sweep at fixed input rate)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    for model in MODELS:
+        points = sorted(seq_results[model].values(), key=lambda r: r["mean_hidden_spikes_per_window"])
+        xs = [r["mean_hidden_spikes_per_window"] for r in points]
+        ys = [r["mean_acc_pct"] for r in points]
+        ax.plot(xs, ys, marker="o", color=MODEL_COLORS[model], label=model)
+    ax.axhline(10, linestyle="--", linewidth=1.0, color=theme.DEEP_RED, label="chance (10%)")
+    ax.set_xscale("log")
+    ax.set_xlabel("mean hidden spikes per window (log scale)")
+    ax.set_ylabel("mean per-window accuracy (%)")
+    ax.set_title("sequential MNIST: accuracy vs hidden spikes (window length swept, 25 Hz input)")
+    ax.set_ylim(0, 100)
+    ax.legend(loc="lower right")
+    fig.tight_layout()
+    out = FIGURES / "tracking_hidden_spikes.png"
+    fig.savefig(out, dpi=150)
     plt.close(fig)
-    print(f"  → {out_path}")
-    return out_path
+    print(f"  → {out.relative_to(REPO)}")
+    return out
 
 
-def extras(tier: str, notebook_run_id: str) -> dict:
-    rates = compute_summary_rates()
-    r = rates
+def main() -> None:
+    global TIER
+    TIER = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+    modal_gpu = parse_modal_gpu(sys.argv)
+    skip_training = "--skip-training" in sys.argv
+    notebook_run_id = next_run_id(SLUG)
     print(
-        f"  E rate  pre={r['pre']['e']:.1f} Hz  "
-        f"stim={r['stim']['e']:.1f} Hz  post={r['post']['e']:.1f} Hz"
+        f"notebook_run_id = {notebook_run_id} tier={TIER}"
+        + ("  [skip-training]" if skip_training else "")
     )
-    print(
-        f"  I rate  pre={r['pre']['i']:.1f} Hz  "
-        f"stim={r['stim']['i']:.1f} Hz  post={r['post']['i']:.1f} Hz"
-    )
-    print("  per-frame pop-rate replay…")
-    frames_data = compute_per_frame_pop_rates()
-    figures = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-    plot_per_frame_pop_rates(frames_data, figures / "pop_rates_stack.png")
-    print("  per-frame autocorr metric…")
-    autocorr_data = compute_autocorr_metric(frames_data)
-    plot_autocorr_stack(autocorr_data, figures / "autocorr_stack.png")
-    plot_autocorr_metric(autocorr_data, figures / "autocorr_metric.png")
-    print("  raster validation (Bayes-factor step 1a)…")
-    real_rasters = compute_validation_rasters()
-    plot_raster_validation(real_rasters, autocorr_data,
-                           figures / "raster_validation.png")
-    print("  Bayes-factor unit tests on synthetic data (step 2)…")
-    bf_unit_tests = unit_test_bayes_factor()
-    print("  per-frame Bayes factor (step 3)…")
-    plot_bayes_factor(frames_data, figures / "bayes_factor.png")
-    return {
-        "rates_hz": rates,
-        "canonical_ei": CANON_EI,
-        "frame_pop_rates": frames_data,
-        "bayes_factor_unit_tests": [
-            {"label": r["label"], "log_bf": r["log_bf"],
-             "p_ping": r["p_ping"], "n_spikes": r["n_spikes"]}
-            for r in bf_unit_tests
-        ],
-        "bayes_factor_per_frame": [
-            {"ei_strength": r["ei_strength"], "log_bf": r["log_bf"],
-             "p_ping": r["p_ping"]}
-            for r in frames_data["frames"]
-        ],
-        "autocorr_metric": {
-            "bin_ms": autocorr_data["bin_ms"],
-            "onset_skip_ms": autocorr_data["onset_skip_ms"],
-            "lag_min_ms": autocorr_data["lag_min_ms"],
-            "lag_max_ms": autocorr_data["lag_max_ms"],
-            "frames": [
-                {
-                    "ei_strength": r["ei_strength"],
-                    "peak_lag_ms": r["peak_lag_ms"],
-                    "peak_value": r["peak_value"],
-                    "peak_prominence": r["peak_prominence"],
-                }
-                for r in autocorr_data["frames"]
-            ],
-        },
+
+    if "--no-wipe-dir" not in sys.argv:
+        # When skipping training, only wipe figures (artifacts contain the weights).
+        targets = (FIGURES, FIGURES_NB015) if skip_training else (ARTIFACTS, FIGURES, FIGURES_NB015)
+        for path in targets:
+            if path.exists():
+                print(f"[wipe] {path.relative_to(REPO)}")
+                shutil.rmtree(path)
+
+    t_start = time.monotonic()
+    run_dirs: dict[str, Path] = {}
+    if skip_training:
+        for model in MODELS:
+            run_dir = ARTIFACTS / model / "train"
+            if not (run_dir / "weights.pth").exists():
+                raise SystemExit(
+                    f"--skip-training requires existing weights at {run_dir}"
+                )
+            run_dirs[model] = run_dir
+            copy_video(model, run_dir)
+    elif modal_gpu:
+        # Modal runs each cell in its own remote container — fan out the
+        # three model trains and await them concurrently. Each model's
+        # stdout/stderr goes to its own log file to avoid interleaving.
+        log_files = {m: ARTIFACTS / m / "train.log" for m in MODELS}
+        with ThreadPoolExecutor(max_workers=len(MODELS)) as pool:
+            futures = {
+                m: pool.submit(train_model, m, TIER, modal_gpu, log_files[m])
+                for m in MODELS
+            }
+            for m in MODELS:
+                run_dirs[m] = futures[m].result()
+                print(f"[{m}] train done — log: {log_files[m].relative_to(REPO)}",
+                      flush=True)
+                copy_video(m, run_dirs[m])
+    else:
+        for model in MODELS:
+            run_dirs[model] = train_model(model, TIER, modal_gpu)
+            copy_video(model, run_dirs[model])
+
+    seq_results: dict[str, dict] = {m: {} for m in MODELS}
+    for n_windows in SEQ_SWEEP_NS:
+        window_ms = T_MS / n_windows
+        print(f"\n[seq-eval] {n_windows} × {window_ms:.1f} ms windows, {SEQ_TRIALS} trials")
+        for model in MODELS:
+            res = eval_sequential(model, run_dirs[model], n_windows, window_ms)
+            seq_results[model][f"{n_windows}w"] = res
+            print(f"  {model:5s}: mean={res['mean_acc_pct']:.1f}%  hid_spikes={res['mean_hidden_spikes_per_window']:.0f}")
+    rate_results: dict[str, dict] = {m: {} for m in MODELS}
+    for rate_hz in SEQ_RATE_SWEEP_HZS:
+        print(f"\n[rate-eval] rate={rate_hz:.0f} Hz, {SEQ_RATE_SWEEP_N} × {SEQ_RATE_SWEEP_WINDOW_MS:.0f} ms")
+        for model in MODELS:
+            res = eval_sequential(model, run_dirs[model], SEQ_RATE_SWEEP_N,
+                                  SEQ_RATE_SWEEP_WINDOW_MS, rate_hz=rate_hz)
+            rate_results[model][f"{int(rate_hz)}hz"] = res
+            print(f"  {model:5s}: mean={res['mean_acc_pct']:.1f}%  in_spikes={res['mean_input_spikes_per_window']:.0f}")
+    print(f"\n[latency-eval] single 200 ms digit, {SEQ_TRIALS} trials")
+    latency_results: dict[str, list[dict]] = {}
+    for model in MODELS:
+        latency_results[model] = eval_latency(model, run_dirs[model])
+        last = latency_results[model][-1]
+        print(f"  {model:5s}: final acc={last['accuracy_pct']:.1f}%  in_spk={last['mean_input_spikes']:.0f}  hid_spk={last['mean_hidden_spikes']:.0f}")
+    plot_seq_response(run_dirs)
+    plot_seq_results(seq_results)
+    plot_seq_hidden_spikes(seq_results)
+    plot_seq_input_spikes(rate_results)
+    plot_seq_latency(latency_results)
+    print("\n[per-trial] single-trial heatmap + trial-averaged autocorrelation")
+    per_trial_results: dict[str, dict] = {}
+    for model in MODELS:
+        per_trial_results[model] = eval_per_trial_rate(model, run_dirs[model])
+    _, autocorr_peaks = plot_per_trial_rate(per_trial_results)
+
+    duration_s = time.monotonic() - t_start
+    persist_run_id(SLUG, notebook_run_id)
+    summary = write_numbers(run_dirs, notebook_run_id, duration_s)
+    summary["seq_eval"] = seq_results
+    summary["rate_eval"] = rate_results
+    numbers_path = FIGURES / "numbers.json"
+    numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"wrote {numbers_path.relative_to(REPO)}")
+
+    # Sidecar numbers.json for nb015 (Latency entry) — same trained
+    # weights, separate artifact per styleguide §5 (figures namespaced
+    # by notebook).
+    nb015_run_id = next_run_id(SLUG_NB015)
+    persist_run_id(SLUG_NB015, nb015_run_id)
+    nb015_summary = {
+        "notebook_run_id": nb015_run_id,
+        "duration_s": duration_s,
+        "duration": summary["duration"],
+        "tier": TIER,
+        "git_sha": next(iter(summary["runs"].values())).get("git_sha"),
+        "config": summary["config"],
+        "runs": summary["runs"],
+        "latency_eval": latency_results,
+        "autocorr_peaks": autocorr_peaks,
+        "run_finished_at": summary["run_finished_at"],
     }
+    nb015_numbers_path = FIGURES_NB015 / "numbers.json"
+    nb015_numbers_path.parent.mkdir(parents=True, exist_ok=True)
+    nb015_numbers_path.write_text(json.dumps(nb015_summary, indent=2) + "\n")
+    print(f"wrote {nb015_numbers_path.relative_to(REPO)}")
 
-
-def evaluate_success(figures_dir, summary):
-    """Criteria: scan video rendered, and PING actually forms at the
-    canonical high-ei coupling (I fires across the full trial since
-    input is flat). The I-rate check mirrors nb003 / nb005 — guards
-    against a regression where the network never recruits I."""
-    video = figures_dir / "scan_ei.mp4"
-    video_ok = video.exists() and video.stat().st_size > 0
-    href = "/" + str(video.relative_to(figures_dir.parents[2])) if video_ok else None
-
-    rates = summary.get("rates_hz", {})
-    i_stim = rates.get("stim", {}).get("i", 0.0)
-    e_stim = rates.get("stim", {}).get("e", 0.0)
-    ping_formed = i_stim > 1.0 and e_stim > 1.0
-    return [
-        {
-            "label": "ei-strength scan video rendered",
-            "passed": bool(video_ok),
-            "detail": f"{video.name} ({video.stat().st_size} bytes)"
-            if video_ok
-            else f"missing {video.name}",
-            "detail_href": href,
-        },
-        {
-            "label": f"PING forms at canonical ei ({CANON_EI})",
-            "passed": bool(ping_formed),
-            "detail": f"E stim={e_stim:.1f} Hz, I stim={i_stim:.1f} Hz",
-        },
-    ]
+    for model, info in summary["runs"].items():
+        print(f"  {model:5s}: best={info['best_acc']}%  final={info['final_acc']}%"
+              f"  rate_e={info['rate_e']:.1f}Hz")
 
 
 if __name__ == "__main__":
-    run_scan(
-        ScanSpec(
-            slug=SLUG,
-            scan_var="ei_strength",
-            scan_min=EI_SCAN_MIN,
-            scan_max=EI_SCAN_MAX,
-            video_name="scan_ei.mp4",
-            extra_osc_args=[
-                "--input-rate",
-                str(EI_SCAN_INPUT_RATE_HZ),
-                "--w-in",
-                str(EI_SCAN_W_IN_MEAN),
-                str(EI_SCAN_W_IN_STD),
-                "--stim-overdrive",
-                "1.0",
-                "--dt",
-                str(DT_MS),
-            ],
-            config_payload={
-                "fixed_overdrive": 1.0,
-                "input_rate_hz": EI_SCAN_INPUT_RATE_HZ,
-                "w_in_mean": EI_SCAN_W_IN_MEAN,
-                "w_in_std": EI_SCAN_W_IN_STD,
-            },
-            extras_fn=extras,
-            criteria_fn=evaluate_success,
-            fps=10,
-            sim_ms=EI_SIM_MS,
-            frames=EI_SCAN_FRAMES,
-        )
-    )
-    sys.exit(0)
+    main()

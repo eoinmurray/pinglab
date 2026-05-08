@@ -1,0 +1,370 @@
+{
+  "notebook_run_id": "r009",
+  "git_sha": "a31c1b2 (dirty)",
+  "duration_s": 0.2,
+  "duration": "0s",
+  "tier": "medium",
+  "config": {
+    "tier": "medium",
+    "dataset": "mnist",
+    "models": [
+      "cuba",
+      "coba",
+      "ping"
+    ],
+    "theta_u_grid_spikes": [
+      5.0,
+      2.0,
+      1.0,
+      0.5,
+      0.2
+    ],
+    "theta_u_grid_hz": [
+      25.0,
+      10.0,
+      5.0,
+      2.5,
+      1.0
+    ],
+    "max_samples": 2000,
+    "epochs": 10,
+    "t_ms": 200.0,
+    "dt": 0.1,
+    "seed": 42,
+    "fr_strength_upper": 0.001
+  },
+  "results": [
+    {
+      "model": "cuba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "best_acc": 87.0,
+      "best_epoch": 8,
+      "final_acc": 87.0,
+      "rate_e": 90.66839599609375
+    },
+    {
+      "model": "cuba",
+      "theta_u": 5.0,
+      "theta_display": "5",
+      "theta_u_hz": 25.0,
+      "best_acc": 86.25,
+      "best_epoch": 10,
+      "final_acc": 86.25,
+      "rate_e": 24.327255249023438
+    },
+    {
+      "model": "cuba",
+      "theta_u": 2.0,
+      "theta_display": "2",
+      "theta_u_hz": 10.0,
+      "best_acc": 84.75,
+      "best_epoch": 10,
+      "final_acc": 84.75,
+      "rate_e": 13.085936546325684
+    },
+    {
+      "model": "cuba",
+      "theta_u": 1.0,
+      "theta_display": "1",
+      "theta_u_hz": 5.0,
+      "best_acc": 83.75,
+      "best_epoch": 10,
+      "final_acc": 83.75,
+      "rate_e": 8.458115577697754
+    },
+    {
+      "model": "cuba",
+      "theta_u": 0.5,
+      "theta_display": "0.5",
+      "theta_u_hz": 2.5,
+      "best_acc": 80.75,
+      "best_epoch": 10,
+      "final_acc": 80.75,
+      "rate_e": 5.37109375
+    },
+    {
+      "model": "cuba",
+      "theta_u": 0.2,
+      "theta_display": "0.2",
+      "theta_u_hz": 1.0,
+      "best_acc": 69.25,
+      "best_epoch": 8,
+      "final_acc": 69.0,
+      "rate_e": 0.6890190839767456
+    },
+    {
+      "model": "coba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "best_acc": 82.0,
+      "best_epoch": 10,
+      "final_acc": 82.0,
+      "rate_e": 79.91535949707031
+    },
+    {
+      "model": "coba",
+      "theta_u": 5.0,
+      "theta_display": "5",
+      "theta_u_hz": 25.0,
+      "best_acc": 76.75,
+      "best_epoch": 9,
+      "final_acc": 76.5,
+      "rate_e": 39.97395706176758
+    },
+    {
+      "model": "coba",
+      "theta_u": 2.0,
+      "theta_display": "2",
+      "theta_u_hz": 10.0,
+      "best_acc": 73.25,
+      "best_epoch": 9,
+      "final_acc": 73.25,
+      "rate_e": 17.86566734313965
+    },
+    {
+      "model": "coba",
+      "theta_u": 1.0,
+      "theta_display": "1",
+      "theta_u_hz": 5.0,
+      "best_acc": 70.75,
+      "best_epoch": 10,
+      "final_acc": 70.75,
+      "rate_e": 7.94813346862793
+    },
+    {
+      "model": "coba",
+      "theta_u": 0.5,
+      "theta_display": "0.5",
+      "theta_u_hz": 2.5,
+      "best_acc": 66.0,
+      "best_epoch": 5,
+      "final_acc": 65.75,
+      "rate_e": 2.8157551288604736
+    },
+    {
+      "model": "coba",
+      "theta_u": 0.2,
+      "theta_display": "0.2",
+      "theta_u_hz": 1.0,
+      "best_acc": 64.75,
+      "best_epoch": 9,
+      "final_acc": 61.25,
+      "rate_e": 0.3580729067325592
+    },
+    {
+      "model": "ping",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "best_acc": 82.75,
+      "best_epoch": 7,
+      "final_acc": 80.5,
+      "rate_e": 3.814018964767456
+    },
+    {
+      "model": "ping",
+      "theta_u": 5.0,
+      "theta_display": "5",
+      "theta_u_hz": 25.0,
+      "best_acc": 82.75,
+      "best_epoch": 7,
+      "final_acc": 80.5,
+      "rate_e": 3.814018964767456
+    },
+    {
+      "model": "ping",
+      "theta_u": 2.0,
+      "theta_display": "2",
+      "theta_u_hz": 10.0,
+      "best_acc": 81.5,
+      "best_epoch": 8,
+      "final_acc": 80.25,
+      "rate_e": 3.559027671813965
+    },
+    {
+      "model": "ping",
+      "theta_u": 1.0,
+      "theta_display": "1",
+      "theta_u_hz": 5.0,
+      "best_acc": 82.0,
+      "best_epoch": 9,
+      "final_acc": 81.5,
+      "rate_e": 3.814018964767456
+    },
+    {
+      "model": "ping",
+      "theta_u": 0.5,
+      "theta_display": "0.5",
+      "theta_u_hz": 2.5,
+      "best_acc": 82.5,
+      "best_epoch": 10,
+      "final_acc": 82.5,
+      "rate_e": 2.734375
+    },
+    {
+      "model": "ping",
+      "theta_u": 0.2,
+      "theta_display": "0.2",
+      "theta_u_hz": 1.0,
+      "best_acc": 80.75,
+      "best_epoch": 10,
+      "final_acc": 80.75,
+      "rate_e": 3.716362714767456
+    }
+  ],
+  "success_criteria": [
+    {
+      "label": "frontier figure rendered",
+      "passed": true,
+      "detail": "frontier.png (50008 bytes)",
+      "detail_href": "/figures/notebooks/nb020/frontier.png"
+    },
+    {
+      "label": "\u03b8_u-axis figure rendered",
+      "passed": true,
+      "detail": "acc_vs_theta.png (97263 bytes)",
+      "detail_href": "/figures/notebooks/nb020/acc_vs_theta.png"
+    },
+    {
+      "label": "cuba \u03b8_u=off: training video",
+      "passed": true,
+      "detail": "training__cuba__off.mp4 (451005 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__cuba__off.mp4"
+    },
+    {
+      "label": "cuba \u03b8_u=5: training video",
+      "passed": true,
+      "detail": "training__cuba__tu5.mp4 (264364 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__cuba__tu5.mp4"
+    },
+    {
+      "label": "cuba \u03b8_u=2: training video",
+      "passed": true,
+      "detail": "training__cuba__tu2.mp4 (212674 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__cuba__tu2.mp4"
+    },
+    {
+      "label": "cuba \u03b8_u=1: training video",
+      "passed": true,
+      "detail": "training__cuba__tu1.mp4 (178758 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__cuba__tu1.mp4"
+    },
+    {
+      "label": "cuba \u03b8_u=0.5: training video",
+      "passed": true,
+      "detail": "training__cuba__tu0p5.mp4 (158215 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__cuba__tu0p5.mp4"
+    },
+    {
+      "label": "cuba \u03b8_u=0.2: training video",
+      "passed": true,
+      "detail": "training__cuba__tu0p2.mp4 (138477 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__cuba__tu0p2.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=off: training video",
+      "passed": true,
+      "detail": "training__coba__off.mp4 (446477 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__coba__off.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=5: training video",
+      "passed": true,
+      "detail": "training__coba__tu5.mp4 (332958 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__coba__tu5.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=2: training video",
+      "passed": true,
+      "detail": "training__coba__tu2.mp4 (237165 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__coba__tu2.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=1: training video",
+      "passed": true,
+      "detail": "training__coba__tu1.mp4 (182405 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__coba__tu1.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=0.5: training video",
+      "passed": true,
+      "detail": "training__coba__tu0p5.mp4 (145614 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__coba__tu0p5.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=0.2: training video",
+      "passed": true,
+      "detail": "training__coba__tu0p2.mp4 (130277 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__coba__tu0p2.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=off: training video",
+      "passed": true,
+      "detail": "training__ping__off.mp4 (168519 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__ping__off.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=5: training video",
+      "passed": true,
+      "detail": "training__ping__tu5.mp4 (168519 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__ping__tu5.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=2: training video",
+      "passed": true,
+      "detail": "training__ping__tu2.mp4 (176609 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__ping__tu2.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=1: training video",
+      "passed": true,
+      "detail": "training__ping__tu1.mp4 (174931 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__ping__tu1.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=0.5: training video",
+      "passed": true,
+      "detail": "training__ping__tu0p5.mp4 (160822 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__ping__tu0p5.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=0.2: training video",
+      "passed": true,
+      "detail": "training__ping__tu0p2.mp4 (153846 bytes)",
+      "detail_href": "/figures/notebooks/nb020/training__ping__tu0p2.mp4"
+    },
+    {
+      "label": "cuba baseline acc \u2265 50% (medium floor)",
+      "passed": true,
+      "detail": "cuba=87.00%"
+    },
+    {
+      "label": "coba baseline acc \u2265 50% (medium floor)",
+      "passed": true,
+      "detail": "coba=82.00%"
+    },
+    {
+      "label": "ping baseline acc \u2265 50% (medium floor)",
+      "passed": true,
+      "detail": "ping=82.75%"
+    },
+    {
+      "label": "cuba rate non-increasing as \u03b8_u tightens (\u00b11 Hz)",
+      "passed": true,
+      "detail": "rates(loose\u2192tight): 24.3, 13.1, 8.5, 5.4, 0.7"
+    },
+    {
+      "label": "coba rate non-increasing as \u03b8_u tightens (\u00b11 Hz)",
+      "passed": true,
+      "detail": "rates(loose\u2192tight): 40.0, 17.9, 7.9, 2.8, 0.4"
+    },
+    {
+      "label": "ping rate non-increasing as \u03b8_u tightens (\u00b11 Hz)",
+      "passed": true,
+      "detail": "rates(loose\u2192tight): 3.8, 3.6, 3.8, 2.7, 3.7"
+    }
+  ]
+}
