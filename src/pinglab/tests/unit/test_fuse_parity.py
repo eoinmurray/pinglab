@@ -57,7 +57,13 @@ FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "fuse_parity
 
 MODELS = ["standard-snn", "cuba", "cuba-exp", "ping", "snntorch-library"]
 
-TOL_TENSOR = 1e-5
+# 1e-4 absolute / relative for forward+backward parity. Tighter (1e-5)
+# was platform-fragile on Linux CI for ping after COBANet started
+# accumulating rate_counts in forward — adding autograd graph nodes
+# perturbs intermediate-buffer scheduling even when the new outputs
+# aren't used by the loss, producing sub-1e-4 grad drift between
+# macOS-MPS and Linux-CPU.
+TOL_TENSOR = 1e-4
 TOL_TRAJ = 1e-4
 
 # Pinned tiny config for the harness. Must stay stable — changing any of
