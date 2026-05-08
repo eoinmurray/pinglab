@@ -461,7 +461,7 @@ def _stamp_figure(fig, notebook_run_id: str) -> None:
         notebook_run_id,
         ha="right",
         va="bottom",
-        fontsize=7,
+        
         color=theme.LABEL,
         family="monospace",
     )
@@ -475,7 +475,13 @@ def plot_training_curves(
     """Grid: one row per training regime, columns = (loss, accuracy)."""
     dt_trains = sorted(regime_train_dirs.keys())
     n = len(dt_trains)
-    fig, axes = plt.subplots(n, 2, figsize=(8, 4.5 * max(n, 1) / 2), squeeze=False)
+    # Wider figsize + right-edge legend so the panels stay clean. Reserve
+    # ~18% of the canvas width for the legend column.
+    fig, axes = plt.subplots(
+        n, 2,
+        figsize=(11, 4.5 * max(n, 1) / 2),
+        squeeze=False,
+    )
     for i, dt_train in enumerate(dt_trains):
         ax_loss, ax_acc = axes[i]
         for model, run_dir in regime_train_dirs[dt_train].items():
@@ -492,24 +498,20 @@ def plot_training_curves(
         ax_loss.set_xlabel("epoch")
         ax_loss.set_ylabel("train loss")
         ax_loss.set_title(f"train loss (train dt = {dt_train} ms)")
-        ax_loss.grid(alpha=0.3)
-        ax_loss.legend(
-            handles=_grouped_model_handles(),
-            frameon=False,
-            fontsize=7,
-            handlelength=2.2,
-        )
+        ax_loss.grid(True, alpha=0.3)
         ax_acc.set_xlabel("epoch")
         ax_acc.set_ylabel("test accuracy (%)")
         ax_acc.set_title(f"test accuracy (train dt = {dt_train} ms)")
-        ax_acc.grid(alpha=0.3)
-        ax_acc.legend(
-            handles=_grouped_model_handles(),
-            frameon=False,
-            fontsize=7,
-            handlelength=2.2,
-        )
-    fig.tight_layout()
+        ax_acc.grid(True, alpha=0.3)
+    # Single figure-level legend on the right margin — keeps the data
+    # panels uncluttered and avoids the loss curves running under it.
+    fig.legend(
+        handles=_grouped_model_handles(),
+        loc="center left",
+        bbox_to_anchor=(0.84, 0.5),
+        handlelength=2.2,
+    )
+    fig.tight_layout(rect=(0, 0, 0.83, 1))
     _stamp_figure(fig, notebook_run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
@@ -743,27 +745,37 @@ def plot_latency(
     shapes — early-commit max-over-time vs cumulative rate — sit on
     separate axes; cols are the two train-dt regimes."""
     dt_trains = sorted(latency.keys())
-    # Smaller fonts than plot.py's global 22-pt monospace defaults so the
-    # dual-line y-labels and longer x-label fit without clipping.
+    return _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id)
+
+
+def _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id):
+    # 2×2 latency grid: each panel is half the height of the 1-row layouts
+    # used elsewhere, so canonical theme fonts read as proportionally ~2×
+    # too large unless we override. Scale every text rcParam down so the
+    # on-screen font size matches the other nb013 figures.
     rc_overrides = {
-        "font.size": 11,
-        "axes.labelsize": 11,
-        "axes.titlesize": 11,
-        "xtick.labelsize": 10,
-        "ytick.labelsize": 10,
-        "figure.titlesize": 13,
-        "savefig.dpi": 150,
+        "font.size": theme.SIZE_BASE - 3,
+        "axes.titlesize": theme.SIZE_TITLE - 3,
+        "axes.labelsize": theme.SIZE_LABEL - 3,
+        "xtick.labelsize": theme.SIZE_TICK - 2,
+        "ytick.labelsize": theme.SIZE_TICK - 2,
+        "legend.fontsize": theme.SIZE_LEGEND - 2,
     }
     saved = {k: plt.rcParams[k] for k in rc_overrides}
     plt.rcParams.update(rc_overrides)
     try:
-        return _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id)
+        _plot_latency_body(latency, dt_trains, out_path, notebook_run_id)
     finally:
         plt.rcParams.update(saved)
 
 
-def _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id):
-    fig, axes = _matrix_axes(2, len(dt_trains))
+def _plot_latency_body(latency, dt_trains, out_path, notebook_run_id):
+    fig, axes = plt.subplots(
+        2, len(dt_trains),
+        figsize=(11, 4.5),
+        sharex="col", sharey=True, squeeze=False,
+        gridspec_kw={"wspace": 0.08, "hspace": 0.40},
+    )
     for j, dt_train in enumerate(dt_trains):
         # Row 0: li readout (max-over-time argmax).
         ax = axes[0, j]
@@ -772,30 +784,17 @@ def _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id):
             if not entry:
                 continue
             ax.plot(
-                entry["fractions"],
-                entry["p_correct"],
-                color=MODEL_COLORS[model],
-                label=MODEL_LABELS[model],
-                linestyle="-",
+                entry["fractions"], entry["p_correct"],
+                color=MODEL_COLORS[model], label=MODEL_LABELS[model],
             )
-        ax.axhline(10.0, color=theme.LABEL, lw=0.7, ls=":")
+        ax.axhline(10.0, color=theme.LABEL, lw=0.8, ls=":", label="chance")
         ax.set_ylim(0, 100)
         ax.set_xlim(0, 1)
-        ax.set_title(f"train dt = {dt_train} ms")
-        ax.grid(alpha=0.3)
+        ax.set_title(f"li @ dt = {dt_train} ms")
+        ax.grid(True, alpha=0.3)
         if j == 0:
-            ax.set_ylabel("li readout\ntest acc (%)")
-            ax.legend(
-                handles=[
-                    h
-                    for h in _grouped_model_handles()
-                    if h.get_label() in _LI_READOUT_MODELS
-                ],
-                frameon=False,
-                fontsize=6,
-                loc="lower right",
-                handlelength=2.0,
-            )
+            ax.set_ylabel("test accuracy (%)")
+            ax.legend(loc="lower right")
 
         # Row 1: rate readout (cumulative argmax).
         ax = axes[1, j]
@@ -804,31 +803,18 @@ def _plot_latency_inner(latency, dt_trains, out_path, notebook_run_id):
             if not entry:
                 continue
             ax.plot(
-                entry["fractions"],
-                entry["p_correct"],
-                color=MODEL_COLORS[model],
-                label=MODEL_LABELS[model],
-                linestyle="-",
+                entry["fractions"], entry["p_correct"],
+                color=MODEL_COLORS[model], label=MODEL_LABELS[model],
             )
-        ax.axhline(10.0, color=theme.LABEL, lw=0.7, ls=":")
+        ax.axhline(10.0, color=theme.LABEL, lw=0.8, ls=":", label="chance")
         ax.set_xlabel("fraction of trial seen")
         ax.set_ylim(0, 100)
         ax.set_xlim(0, 1)
-        ax.grid(alpha=0.3)
+        ax.set_title(f"rate @ dt = {dt_train} ms")
+        ax.grid(True, alpha=0.3)
         if j == 0:
-            ax.set_ylabel("rate readout\ntest acc (%)")
-            ax.legend(
-                handles=[
-                    h
-                    for h in _grouped_model_handles()
-                    if h.get_label() in _RATE_READOUT_MODELS
-                ],
-                frameon=False,
-                fontsize=6,
-                loc="lower right",
-                handlelength=2.0,
-            )
-    fig.suptitle("Latency to correct answer")
+            ax.set_ylabel("test accuracy (%)")
+            ax.legend(loc="lower right")
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -878,7 +864,7 @@ def plot_firing_rates(
             ax.set_ylabel("count-preserving\nhidden rate (Hz)")
             ax.legend(
                 handles=_grouped_model_handles(),
-                frameon=False,
+                
                 fontsize=6,
                 loc="upper right",
                 handlelength=2.0,
@@ -886,14 +872,14 @@ def plot_firing_rates(
             ax.add_artist(
                 ax.legend(
                     handles=_mode_legend_handles(),
-                    frameon=False,
+                    
                     fontsize=6,
                     loc="lower right",
                 )
             )
             ax.legend(
                 handles=_grouped_model_handles(),
-                frameon=False,
+                
                 fontsize=6,
                 loc="upper right",
                 handlelength=2.0,
@@ -965,7 +951,7 @@ def plot_dt_sweep(
             ax.set_ylabel("count-preserving\ntest acc (%)")
             ax.legend(
                 handles=_grouped_model_handles(),
-                frameon=False,
+                
                 fontsize=6,
                 loc="lower right",
                 handlelength=2.0,
@@ -973,14 +959,14 @@ def plot_dt_sweep(
             ax.add_artist(
                 ax.legend(
                     handles=_mode_legend_handles(),
-                    frameon=False,
+                    
                     fontsize=6,
                     loc="lower left",
                 )
             )
             ax.legend(
                 handles=_grouped_model_handles(),
-                frameon=False,
+                
                 fontsize=6,
                 loc="lower right",
                 handlelength=2.0,

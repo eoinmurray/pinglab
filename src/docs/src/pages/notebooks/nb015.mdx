@@ -1,8 +1,9 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "015 — sequential MNIST tracking"
-date: 2026-05-01
+title: "015 — Classification Latency"
+date: 2026-05-08
 entry: 15
+structure: paper
 collections: [in-progress]
 ---
 import Figure from "../../components/Figure.astro";
@@ -12,25 +13,10 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb015/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
-export const seq = numbers.seq_eval ?? {};
-export const rate = numbers.rate_eval ?? {};
-export const sweepFor = (m) => Object.values(seq[m] ?? {})
-  .map(r => ({ window_ms: r.window_ms, mean: r.mean_acc_pct, n: r.n_windows,
-                hidSpk: r.mean_hidden_spikes_per_window }))
-  .sort((a, b) => b.window_ms - a.window_ms);
-export const sweepCuba = sweepFor("cuba");
-export const sweepCoba = sweepFor("coba");
-export const sweepPing = sweepFor("ping");
-export const meanAt = (rows, ms) => rows.find(r => r.window_ms === ms)?.mean ?? null;
-export const hidAt = (rows, ms) => rows.find(r => r.window_ms === ms)?.hidSpk ?? null;
-export const rateRowsFor = (m) => Object.values(rate[m] ?? {})
-  .map(r => ({ rate_hz: r.rate_hz, mean: r.mean_acc_pct, inSpk: r.mean_input_spikes_per_window }))
-  .sort((a, b) => a.rate_hz - b.rate_hz);
-export const rateCuba = rateRowsFor("cuba");
-export const rateCoba = rateRowsFor("coba");
-export const ratePing = rateRowsFor("ping");
-export const meanAtRate = (rows, hz) => rows.find(r => r.rate_hz === hz)?.mean ?? null;
 export const latency = numbers.latency_eval ?? {};
+export const autocorr = numbers.autocorr_peaks ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const gitSha = numbers.git_sha ?? null;
 export const latencyAt = (model, time_ms) =>
   (latency[model] ?? []).find(r => r.time_ms === time_ms) ?? null;
 
@@ -38,77 +24,25 @@ export const latencyAt = (model, time_ms) =>
 
 ## Introduction
 
-Single-MNIST training shows the network can recognise one digit. This entry asks what it costs to recognise a stream of them. The trial is always 200 ms; the trained single-digit readout is reused frozen, applied window by window. We sweep three axes — window length, input spikes per window, hidden spikes per window — and a single-digit latency curve. Chance is 10%; the single-digit ceiling is $\sim$88%.
+How quickly does a trained spiking network commit to a classification? cuba, coba, and ping all reach $\sim$80% on a single 200 ms MNIST trial, but they get there along very different timelines. This entry asks two related questions of the same trained weights:
+
+1. **Single-window latency** — when one digit fills the full 200 ms, how does the running argmax accuracy rise with elapsed time, and with cumulative input or hidden spikes?
+2. **How many ping cycles?** — ping's E→I→E loop produces gamma-band activity. Is the natural unit of accumulation the millisecond, or the *ping cycle*? We look directly at single-trial rates and the trial-averaged autocorrelation rather than relying on a stimulus-locked PSTH.
+
+The companion entry [nb016](/notebooks/nb016/) reuses the same weights to ask the dual question — classification accuracy when *many* digits share the trial — for the multi-window tracking story.
 
 ## Method
 
-cuba, coba, ping trained on standard single-MNIST per [nb010](/notebooks/nb010/), [nb011](/notebooks/nb011/), [nb012](/notebooks/nb012/), then frozen. Each trial is 200 ms; each window holds a freshly Poisson-encoded MNIST digit. Per-window predictions come from finite-differencing the trained mem-mean accumulator across window boundaries and argmax-ing through the same *W_out*. 800 trials per operating point. Four sweeps:
+cuba, coba, ping trained on standard single-MNIST per [nb010](/notebooks/nb010/), [nb011](/notebooks/nb011/), [nb012](/notebooks/nb012/), then frozen. The runner that produces every artifact in this entry is [src/pinglab/notebooks/nb016.py](/docs/the-notebooks/) — it trains once and emits artifacts for both nb015 (here) and nb016 (sequential tracking). Two probes against the frozen weights:
 
-1. **Window length.** 200 ms / *n* with *n* ∈ {1, 2, 4, 5, 8, 10, 20, 25, 40}, 25 Hz input.
-2. **Input rate.** 4 × 50 ms layout, per-pixel rate ∈ {1, 5, 10, 25, 50, 100, 200} Hz.
-3. **Hidden spikes.** Re-projects sweep 1 onto measured hidden spike count per window.
-4. **Single-window latency.** One digit for the full 200 ms; running argmax scored at sixteen fractions. Mirrors [nb013's latency protocol](/notebooks/nb013/#latency-to-correct-answer-protocol).
+1. **Single-window latency.** One digit fills the 200 ms window; the running cumulative-mem-mean argmax is scored at sixteen fractions of the window. 800 trials per fraction. Mirrors [nb013's latency protocol](/notebooks/nb013/#latency-to-correct-answer-protocol).
+2. **Per-trial dynamics.** Same trial layout but we record the smoothed hidden firing rate per trial (50 trials, $\sigma$ = 1 ms Gaussian smoothing) and compute the trial-averaged autocorrelation of the post-onset rate (drop the first 20 ms onset transient, z-score per trial, FFT-based AC).
 
 ## Results
 
-<Figure id="Figure 1" title="hidden-layer response per model" src="/figures/notebooks/nb015/sequential_response.png" alt="Stacked rasters showing the four digit thumbnails, the Poisson input spikes, and the hidden-layer spikes of cuba, coba, and ping for the same 4-digit trial.">
-  One 4-digit trial through each trained network. Top: the digits in order. Middle: 784-neuron Poisson input, fresh per 50 ms window, no gap or marker between digits. Bottom: each model's hidden-layer raster. cuba fires densely ($\sim$250 Hz); coba and ping stay biological ($\sim$5–30 Hz). ping's recurrent activity visibly smears across window boundaries.
-</Figure>
-
-<Figure id="Figure 2" title="accuracy vs window length" src="/figures/notebooks/nb015/tracking_accuracy.png" alt="Line chart: mean per-window accuracy as a function of window length in milliseconds for cuba, coba, and ping. Dashed line marks 10% chance.">
-  Mean per-window accuracy as a function of window length. Each point is 800 trials. Dashed line marks 10% chance.
-</Figure>
-
-| window length | cuba | coba | ping |
-|---|---|---|---|
-| 200 ms (1 digit) | {meanAt(sweepCuba, 200)?.toFixed(1) ?? "?"}% | {meanAt(sweepCoba, 200)?.toFixed(1) ?? "?"}% | {meanAt(sweepPing, 200)?.toFixed(1) ?? "?"}% |
-| 100 ms (2 digits) | {meanAt(sweepCuba, 100)?.toFixed(1) ?? "?"}% | {meanAt(sweepCoba, 100)?.toFixed(1) ?? "?"}% | {meanAt(sweepPing, 100)?.toFixed(1) ?? "?"}% |
-| 50 ms (4 digits) | {meanAt(sweepCuba, 50)?.toFixed(1) ?? "?"}% | {meanAt(sweepCoba, 50)?.toFixed(1) ?? "?"}% | {meanAt(sweepPing, 50)?.toFixed(1) ?? "?"}% |
-| 25 ms (8 digits) | {meanAt(sweepCuba, 25)?.toFixed(1) ?? "?"}% | {meanAt(sweepCoba, 25)?.toFixed(1) ?? "?"}% | {meanAt(sweepPing, 25)?.toFixed(1) ?? "?"}% |
-| 20 ms (10 digits) | {meanAt(sweepCuba, 20)?.toFixed(1) ?? "?"}% | {meanAt(sweepCoba, 20)?.toFixed(1) ?? "?"}% | {meanAt(sweepPing, 20)?.toFixed(1) ?? "?"}% |
-| 10 ms (20 digits) | {meanAt(sweepCuba, 10)?.toFixed(1) ?? "?"}% | {meanAt(sweepCoba, 10)?.toFixed(1) ?? "?"}% | {meanAt(sweepPing, 10)?.toFixed(1) ?? "?"}% |
-| 5 ms (40 digits) | {meanAt(sweepCuba, 5)?.toFixed(1) ?? "?"}% | {meanAt(sweepCoba, 5)?.toFixed(1) ?? "?"}% | {meanAt(sweepPing, 5)?.toFixed(1) ?? "?"}% |
-
-All three start at their single-digit baseline ($\sim$83–87%) at 200 ms and degrade smoothly. The curves nearly overlap down to 25 ms; below 20 ms ping breaks fastest, dropping to {meanAt(sweepPing, 5)?.toFixed(1) ?? "?"}% at 5 ms while cuba and coba hold $\sim${meanAt(sweepCuba, 5)?.toFixed(1) ?? "?"}%. The recurrent dynamics that help ping at long windows now hurt: its internal state can't refresh on a 5–10 ms cadence.
-
-### Accuracy vs input spikes
-
-<Figure id="Figure 3" title="accuracy vs input spikes per window" src="/figures/notebooks/nb015/tracking_input_spikes.png" alt="Line chart: mean per-window accuracy as a function of mean input spikes per 50 ms window, log x-axis, for cuba, coba, and ping. Dashed line marks 10% chance.">
-  4 × 50 ms layout, per-pixel rate swept 1–200 Hz. X-axis is the measured mean input spikes per window (log scale).
-</Figure>
-
-| input rate | input spikes / window | cuba | coba | ping |
-|---|---|---|---|---|
-|   1 Hz |    5 | {meanAtRate(rateCuba, 1)?.toFixed(1) ?? "?"}% | {meanAtRate(rateCoba, 1)?.toFixed(1) ?? "?"}% | {meanAtRate(ratePing, 1)?.toFixed(1) ?? "?"}% |
-|   5 Hz |   26 | {meanAtRate(rateCuba, 5)?.toFixed(1) ?? "?"}% | {meanAtRate(rateCoba, 5)?.toFixed(1) ?? "?"}% | {meanAtRate(ratePing, 5)?.toFixed(1) ?? "?"}% |
-|  10 Hz |   52 | {meanAtRate(rateCuba, 10)?.toFixed(1) ?? "?"}% | {meanAtRate(rateCoba, 10)?.toFixed(1) ?? "?"}% | {meanAtRate(ratePing, 10)?.toFixed(1) ?? "?"}% |
-|  25 Hz |  130 | {meanAtRate(rateCuba, 25)?.toFixed(1) ?? "?"}% | {meanAtRate(rateCoba, 25)?.toFixed(1) ?? "?"}% | {meanAtRate(ratePing, 25)?.toFixed(1) ?? "?"}% |
-|  50 Hz |  259 | {meanAtRate(rateCuba, 50)?.toFixed(1) ?? "?"}% | {meanAtRate(rateCoba, 50)?.toFixed(1) ?? "?"}% | {meanAtRate(ratePing, 50)?.toFixed(1) ?? "?"}% |
-| 100 Hz |  518 | {meanAtRate(rateCuba, 100)?.toFixed(1) ?? "?"}% | {meanAtRate(rateCoba, 100)?.toFixed(1) ?? "?"}% | {meanAtRate(ratePing, 100)?.toFixed(1) ?? "?"}% |
-| 200 Hz | 1035 | {meanAtRate(rateCuba, 200)?.toFixed(1) ?? "?"}% | {meanAtRate(rateCoba, 200)?.toFixed(1) ?? "?"}% | {meanAtRate(ratePing, 200)?.toFixed(1) ?? "?"}% |
-
-Below $\sim$50 input spikes per window accuracy collapses; coba and ping barely beat chance at 5 spikes/window. cuba is the surprise: at 1 Hz ($\sim$5 spikes) it still scores {meanAtRate(rateCuba, 1)?.toFixed(1) ?? "?"}% — its dense intrinsic activity keeps the hidden layer near its working regime even without input. Above 25 Hz all three cross 80%; beyond 50 Hz extra spikes barely help.
-
-### Accuracy vs hidden spikes
-
-<Figure id="Figure 4" title="accuracy vs hidden spikes per window" src="/figures/notebooks/nb015/tracking_hidden_spikes.png" alt="Line chart: mean per-window accuracy as a function of mean hidden-layer spikes per window, log x-axis, for cuba, coba, and ping. Dashed line marks 10% chance.">
-  Figure 2's data re-projected onto measured hidden spikes per window (log scale). Curves shift sideways because the three architectures fire at very different densities.
-</Figure>
-
-| window length | cuba hid spk | coba hid spk | ping hid spk |
-|---|---|---|---|
-| 200 ms | {hidAt(sweepCuba, 200)?.toFixed(0) ?? "?"} | {hidAt(sweepCoba, 200)?.toFixed(0) ?? "?"} | {hidAt(sweepPing, 200)?.toFixed(0) ?? "?"} |
-|  50 ms | {hidAt(sweepCuba, 50)?.toFixed(0) ?? "?"} | {hidAt(sweepCoba, 50)?.toFixed(0) ?? "?"} | {hidAt(sweepPing, 50)?.toFixed(0) ?? "?"} |
-|  20 ms | {hidAt(sweepCuba, 20)?.toFixed(0) ?? "?"} | {hidAt(sweepCoba, 20)?.toFixed(0) ?? "?"} | {hidAt(sweepPing, 20)?.toFixed(0) ?? "?"} |
-|   5 ms | {hidAt(sweepCuba, 5)?.toFixed(0) ?? "?"} | {hidAt(sweepCoba, 5)?.toFixed(0) ?? "?"} | {hidAt(sweepPing, 5)?.toFixed(0) ?? "?"} |
-
-cuba spends roughly an order of magnitude more hidden spikes than ping for the same accuracy: at 50 ms, $\sim${hidAt(sweepCuba, 50)?.toFixed(0) ?? "?"} vs $\sim${hidAt(sweepPing, 50)?.toFixed(0) ?? "?"}. Per spike, ping wins — its sparse rhythmic firing carries more readout-relevant information than cuba's dense activity. ping only loses on the time axis because its hidden state needs $\sim$10 ms to reorganise.
-
 ### Single-window latency
 
-How quickly does the running argmax lock on when one digit fills the full 200 ms?
-
-<Figure id="Figure 5" title="latency: accuracy vs time" src="/figures/notebooks/nb015/latency_time.png" alt="Line chart: running argmax accuracy as a function of time within a single 200 ms window for cuba, coba, and ping. Dashed line marks 10% chance.">
+<Figure id="Figure 1" title="latency: accuracy vs time" src="/figures/notebooks/nb015/latency_time.png" alt="Line chart: running argmax accuracy as a function of time within a single 200 ms window for cuba, coba, and ping. Dashed line marks 10% chance.">
   Running accuracy of the cumulative-mem-mean argmax across a single 200 ms window. 800 trials per point.
 </Figure>
 
@@ -123,13 +57,13 @@ How quickly does the running argmax lock on when one digit fills the full 200 ms
 
 cuba decodes above chance by 2 ms ({latencyAt("cuba", 2)?.accuracy_pct?.toFixed(1) ?? "?"}%) while coba and ping are still at chance; ping catches up around 10–15 ms and briefly overtakes cuba 15–30 ms. By 80 ms all three are within $\sim$5 points of their final values.
 
-<Figure id="Figure 6" title="latency: accuracy vs cumulative input spikes" src="/figures/notebooks/nb015/latency_input_spikes.png" alt="Line chart: running argmax accuracy as a function of cumulative input spikes per trial, log x-axis, for cuba, coba, and ping.">
-  Figure 5 re-projected onto cumulative input spikes per trial (log scale). All three models see the same input, so the curves are directly comparable.
+<Figure id="Figure 2" title="latency: accuracy vs cumulative input spikes" src="/figures/notebooks/nb015/latency_input_spikes.png" alt="Line chart: running argmax accuracy as a function of cumulative input spikes per trial, log x-axis, for cuba, coba, and ping.">
+  Figure 1 re-projected onto cumulative input spikes per trial (log scale). All three models see the same input, so the curves are directly comparable.
 </Figure>
 
-cuba's lead below $\sim$50 spikes is the same intrinsic-activity effect as in the input-rate sweep. Above $\sim$100 input spikes the curves converge, with ping tracking cuba.
+cuba's lead below $\sim$50 spikes is a dense-intrinsic-activity effect — its hidden layer keeps firing even when the input is sparse, and the readout takes evidence from that endogenous activity. Above $\sim$100 input spikes the curves converge, with ping tracking cuba.
 
-<Figure id="Figure 7" title="latency: accuracy vs cumulative hidden spikes" src="/figures/notebooks/nb015/latency_hidden_spikes.png" alt="Line chart: running argmax accuracy as a function of cumulative hidden spikes per trial, log x-axis, for cuba, coba, and ping.">
+<Figure id="Figure 3" title="latency: accuracy vs cumulative hidden spikes" src="/figures/notebooks/nb015/latency_hidden_spikes.png" alt="Line chart: running argmax accuracy as a function of cumulative hidden spikes per trial, log x-axis, for cuba, coba, and ping.">
   Same data, x-axis is cumulative hidden spikes. Curves shift sideways because each architecture fires at a different density.
 </Figure>
 
@@ -139,7 +73,7 @@ Hidden spikes are the cleanest efficiency view. At the 60 ms mark ping reaches 8
 
 ping's E→I→E loop produces gamma activity, so the natural unit of accumulation might be the *ping cycle* rather than the millisecond. A trial-averaged PSTH only sees stimulus-locked rhythm; phase-varying rhythm is invisible. We look directly: per-trial rate heatmap (top) and trial-averaged autocorrelation post-onset (bottom).
 
-<Figure id="Figure 8" title="ping single-trial rates and trial-averaged autocorrelation" src="/figures/notebooks/nb015/per_trial_dynamics.png" alt="Top: heatmap of single-trial hidden firing rate for ping, 50 trials × 200 ms. Bottom: trial-averaged autocorrelation of the post-onset hidden rate for cuba, coba, and ping over lags 0–60 ms.">
+<Figure id="Figure 4" title="ping single-trial rates and trial-averaged autocorrelation" src="/figures/notebooks/nb015/per_trial_dynamics.png" alt="Top: heatmap of single-trial hidden firing rate for ping, 50 trials × 200 ms. Bottom: trial-averaged autocorrelation of the post-onset hidden rate for cuba, coba, and ping over lags 0–60 ms.">
   Top: ping's per-trial smoothed hidden rate (first 50 trials). Bursts are visible but land at different times across trials. Bottom: trial-averaged autocorrelation after dropping the 20 ms onset transient. cuba and coba decay smoothly; ping shows one small peak at lag $\sim$29 ms (height $\sim$0.06 vs lag-0 = 1.0).
 </Figure>
 
@@ -147,45 +81,34 @@ ping's E→I→E loop produces gamma activity, so the natural unit of accumulati
 - **Sustained rhythm, but weak and phase-incoherent.** The $\sim$29 ms ($\sim$35 Hz) autocorrelation peak is barely above noise.
 - **Past cycle 1 it's integration, not counting.** The mem-mean readout averages out the dephased oscillation. Plateau is one locked cycle plus $\sim$60 ms of drift integration.
 
+## Discussion
+
+The ladder splits two ways. *Per-spike* (Figure 3, x-axis = cumulative hidden spikes), ping is the clear winner — the I-loop's dynamic sparsity means each E spike carries more readout-relevant information. *Per-millisecond* (Figure 1), cuba wins below $\sim$15 ms because its dense intrinsic activity keeps the running average above chance even with very few input spikes. The crossover happens around 15–30 ms, where ping briefly leads before all three plateau.
+
+The "ping cycles" question resolves negatively: there's exactly one stimulus-locked cycle (the onset burst), and the sustained gamma rhythm is real but phase-incoherent across trials, so it averages out under the mem-mean readout. The accuracy plateau past $\sim$10 ms is integration, not counting cycles. If we want the readout to *count* cycles, we'd need either a phase-locked drive or a phase-sensitive decoder.
+
 ## Success criteria
 
-- ✅ All three recover their single-digit baseline at 200 ms (cuba {meanAt(sweepCuba, 200)?.toFixed(1) ?? "?"}%, coba {meanAt(sweepCoba, 200)?.toFixed(1) ?? "?"}%, ping {meanAt(sweepPing, 200)?.toFixed(1) ?? "?"}%) and degrade smoothly as the window shrinks; lowest tested point is ping at 5 ms ({meanAt(sweepPing, 5)?.toFixed(1) ?? "?"}%, still above chance).
-- ❌ ping loses its lead below 20 ms and breaks first at 5 ms — recurrent dynamics that help at long windows hurt at short ones.
-- ✅ Per hidden spike, ping is $\sim$8× more efficient than cuba: {meanAt(sweepPing, 50)?.toFixed(1) ?? "?"}% on $\sim${hidAt(sweepPing, 50)?.toFixed(0) ?? "?"} spikes vs cuba {meanAt(sweepCuba, 50)?.toFixed(1) ?? "?"}% on $\sim${hidAt(sweepCuba, 50)?.toFixed(0) ?? "?"} (50 ms window).
-- ⚠ Readout needs $\sim$25–50 input spikes per window to lock on; below that everything collapses toward chance, cuba most gracefully thanks to dense intrinsic activity.
 - ✅ All three reach $\geq$80% within 80 ms of a single 200 ms digit (cuba {latencyAt("cuba", 80)?.accuracy_pct?.toFixed(1) ?? "?"}%, coba {latencyAt("coba", 80)?.accuracy_pct?.toFixed(1) ?? "?"}%, ping {latencyAt("ping", 80)?.accuracy_pct?.toFixed(1) ?? "?"}%); the rest just sharpens the answer.
 - ⚠ ping has one stimulus-locked cycle (the $\sim$9 ms onset burst → {latencyAt("ping", 10)?.accuracy_pct?.toFixed(1) ?? "?"}% by 10 ms); the sustained $\sim$29 ms rhythm is phase-incoherent. cuba and coba have no rhythm.
+- ✅ Per cumulative hidden spike, ping is $\sim$8× more efficient than cuba at 200 ms ({Math.round(latencyAt("cuba", 200)?.mean_hidden_spikes ?? 0)} vs {Math.round(latencyAt("ping", 200)?.mean_hidden_spikes ?? 0)} hidden spikes for the same accuracy plateau).
 
 ## Next steps
 
-- Train on the sequential task with a last-window loss; expect ping's short-window curve to flatten once the recurrent state is shaped by the task.
-- Move to a task that forces window interaction (sum or compare two digits) so integration time becomes the bottleneck.
-- Vary total trial length (100 ms, 400 ms) to separate "network refresh time" from "readout evidence time".
+- Phase-lock the input to ping's gamma so the sustained rhythm becomes coherent across trials and the autocorrelation peak rises above noise — does the readout then benefit from a cycle-counting decoder?
+- Try a readout that takes ping's instantaneous rate envelope (not just the mem-mean) — see whether accuracy plateaus earlier when the decoder reads bursts rather than running averages.
+- Push to dt = 1 ms and ask whether the latency curve shifts in proportion (would imply the decoder is doing time-step counting) or stays anchored in milliseconds (would imply biophysical-time integration).
 
 ## Appendix
 
 ### Reproduction
 
+The runner that emits both this entry and [nb016](/notebooks/nb016/) is *nb016.py* — there is no separate nb015.py runner, the trained weights are shared:
+
 ```
-uv run src/pinglab/notebooks/nb015.py --tier small
+uv run src/pinglab/notebooks/nb016.py --tier small
 ```
 
 ### Run parameters
 
 <RunParameters numbers={numbers} />
-
-### Videos
-
-Per-epoch oscilloscope of each network's single-MNIST training run — the weights used in every sweep above.
-
-<Figure id="Figure 9" type="video" title="cuba training" src="/figures/notebooks/nb015/training_cuba.mp4">
-  Per-epoch oscilloscope of the cuba single-MNIST run.
-</Figure>
-
-<Figure id="Figure 10" type="video" title="coba training" src="/figures/notebooks/nb015/training_coba.mp4">
-  Per-epoch oscilloscope of the coba single-MNIST run.
-</Figure>
-
-<Figure id="Figure 11" type="video" title="ping training" src="/figures/notebooks/nb015/training_ping.mp4">
-  Per-epoch oscilloscope of the ping single-MNIST run; the E→I→E loop is visible in the inhibitory raster.
-</Figure>

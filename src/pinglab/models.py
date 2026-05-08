@@ -45,7 +45,6 @@ tau_gaba = 9.0  # ms — GABA decay (Börgers: 9 ms; Buzsaki & Wang: 8-12 ms)
 max_rate_hz = (
     25.0  # Hz — max Poisson rate for fully-on pixel (sensory-input scale, LGN-ish)
 )
-input_scale = 20.0  # nA per input spike (CUBA only)
 
 # ── snnTorch ──────────────────────────────────────────────────────────────
 tau_snn = 10.0  # ms — membrane time constant
@@ -1357,6 +1356,12 @@ class COBANet(SNNBase):
             if i in self.ei_layers:
                 n_spk_tensors[self._inh_key(i)] = torch.zeros(1, device=device)
         n_spk_tensors["out"] = torch.zeros(1, device=device)
+        # Per-layer (B, n_e) spike-count accumulator for the firing-rate
+        # regulariser — must keep gradient attached, so it sums state["s_e"]
+        # post-step (CUBANet does the same in its rate_counts list).
+        rate_counts = [
+            torch.zeros(B, n, device=device) for n in self.hidden_sizes
+        ]
 
         # Bundle mutating state and per-call config so _step_body can be
         # compiled per-timestep (the same boundary CUBANet uses). The Python
@@ -1425,6 +1430,9 @@ class COBANet(SNNBase):
                 ),
             }
             logits_t = step(slc, cfg, state)
+            # Accumulate per-neuron E spike counts for fr-reg (grad-attached).
+            for i in range(1, self.n_layers + 1):
+                rate_counts[i - 1] = rate_counts[i - 1] + state["s_e"][str(i)]
             if rec_buf is not None:
                 if slc["in_t"] is not None and "input" in rec_buf:
                     rec_buf["input"][t] = slc["in_t"]
@@ -1449,6 +1457,10 @@ class COBANet(SNNBase):
                 for k, v in rec_buf.items()
             }
         self._set_meta(B, n_spk, rec, sizes)
+        # Expose grad-attached per-neuron spike counts so the trainer's
+        # firing-rate regulariser (oscilloscope.train) can build its loss.
+        # Mirrors CUBANet.last_spike_counts.
+        self.last_spike_counts = rate_counts
         if self.readout_mode == "li":
             return state["logits_max"]
         if self.readout_mode == "spike-count":

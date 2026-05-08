@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "017 — ping metrics from population rate"
+title: "017 — PING Metrics (draft)"
 date: 2026-05-07
 entry: 17
 structure: paper
@@ -28,7 +28,7 @@ export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
 ## Introduction
 
-Forked from [nb016](/notebooks/nb016/) to swap the raster-based Bayes factor for a **rate-based** one. The raster BF saturated bimodally in the PING regime (log-BF on real data hovered near zero, the sigmoid amplified small fluctuations into 0/1 jumps), and the diagnosis was that real PING data carries population-coordinated information in the rate amplitude, not in individual spike times. Working on the smoothed E rate directly should give substantially more evidence per bin and clean post-threshold saturation. Same ei sweep, same population-rate / autocorrelation views as nb016 — only the BF likelihood changes.
+Sweep the internal E→I→E coupling strength with input held flat (overdrive {scan.fixed_overdrive}×), watch the network walk from async baseline through the onset of gamma, and try to pull a single-frame scalar out of each trace. Three candidates: the population rate (the raw signal), the autocorrelation peak (a candidate score), and a Bayes factor between an async and a ping generative model (a calibrated probability).
 
 ## Method
 
@@ -64,51 +64,165 @@ A [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) scan with **E
 
 ### Population rate
 
-Replay the same Poisson input through a fresh ping network at each frame's *ei* value, record the E spike train $s_{i,t}$, and bin at $\Delta_\text{bin} = 2$ ms. We use the **participation fraction** — the same dimensionless normalisation the oscilloscope video panel shows — i.e. total spikes per bin divided by $N_E$:
+Replay the same Poisson input through a fresh ping network at each frame's *ei* value, record the E spike train $s_{i,t}$, and bin at $\Delta_\text{bin} = 2$ ms,
 
 $$
-r_k \;=\; \frac{1}{N_E} \sum_{i=1}^{N_E} \sum_{t \in \mathrm{bin}_k} s_{i, t}.
+r_k \;=\; \frac{1000}{N_E \, \Delta_\text{bin}} \sum_{i=1}^{N_E} \sum_{t \in \mathrm{bin}_k} s_{i, t}
+\quad \text{(Hz)}.
 $$
 
-Each $r_k \in [0, 1]$ when no neuron fires more than once per bin (the regime we operate in for *ei* $\gtrsim 0.2$). This equals the rate in Hz divided by the maximum possible rate $1000/\Delta_\text{bin} = 500$ Hz.
+Discard the first {numbers.autocorr_metric?.onset_skip_ms ?? "20"} ms onset transient before the downstream metrics; the full trace is shown in the stacked plot.
 
-### Generative model
+### Autocorrelation
 
-One recipe for the participation trace $r_t$ (at 2 ms bins on the post-onset window, $N \approx 490$ samples) — a Gaussian-pulse-train rate driving a binomial count:
+The candidate single-frame metric is the **autocorrelation peak** at non-zero lag — async noise has none, a periodic burst train has a tall, sharp one at the gamma period. Let $r_k$ be the post-onset rate ($k = 0, \dots, N-1$), with mean $\bar r$ and standard deviation $\sigma_r$. Z-score and autocorrelate via FFT:
 
 $$
-p_t = \mathrm{clip}\!\left[\mu_0 + A \sum_{n} \exp\!\left(-\frac{(t - t_0 - n/f)^2}{2\sigma_b^2}\right),\; 0,\; 1\right],\qquad k_t \sim \mathrm{Bin}(N_E,\, p_t),\quad r_t = k_t / N_E,\quad A \ge 0.
+\tilde r_k \;=\; \frac{r_k - \bar r}{\sigma_r}, \qquad
+C(\ell) \;=\; \frac{1}{N} \sum_{k} \tilde r_k \, \tilde r_{k+\ell}.
 $$
 
-Five mean-curve parameters: baseline $\mu_0$, pulse amplitude $A$, fundamental frequency $f$, phase offset $t_0$, and burst width $\sigma_b$. The fit is a two-pass grid search over $(f, t_0, \sigma_b)$ — coarse 0.5 Hz over the gamma band, then refined to 0.05 Hz around the coarse winner; sixteen phase positions per period; $\sigma_b \in \{0.5, 1, 1.5, 2, 2.5, 3, 4\}$ ms — and at each grid point $(\mu_0, A)$ are closed-form least-squares. We pick the triple that minimises the LS residual.
+Z-scoring puts every frame's trace on the same dimensionless scale so the autocorrelation reads out *shape*, not amplitude, and pins $C(0) = 1$. The metric is the *prominence* of the strongest peak in the lag window {numbers.autocorr_metric?.lag_min_ms ?? "5"}–{numbers.autocorr_metric?.lag_max_ms ?? "60"} ms,
 
-Async is the $A \to 0$ limit of the same model: when there's no rhythm in the data the LS fit returns small $A$ and the simulated trace looks like a constant-rate binomial draw. So there's no regime switch, no "is this ping" decision — the async-to-ping transition is continuous in the parameter space.
+$$
+\mathrm{prom}(\ell^\star) \;=\; C(\ell^\star) \;-\; \min_{\ell \in [\ell_l, \ell_r]} C(\ell),
+$$
 
-Two design choices worth flagging:
+with $\ell^\star$ the highest-prominence peak and $[\ell_l, \ell_r]$ the interval bounded by its nearest valleys (scipy's *find_peaks* convention).
 
-* **Pulse train rather than Fourier harmonics**: PING is *physically* a periodic train of population bursts. $\sigma_b$ directly parameterises burst width (instead of being smeared across multiple harmonic coefficients), and the troughs go genuinely flat between pulses. Tight Gaussian over Lorentzian — Gaussians are local, so the trough quiets between pulses.
-* **Binomial count rather than additive Gaussian noise**: zero spikes is a hard floor; an additive Gaussian residual drowns the small-$A$ pulses in noise that doesn't know the trace is bounded below by zero. With binomial $\mathrm{Bin}(N_E, p_t)$ the variance is $p_t(1-p_t)/N_E$ — quiet at the trough where $p \approx 0$, putting noise in the peaks where it doesn't hide the cadence.
+### Bayes factor
 
-Working on the rate rather than the raster trades per-spike resolution for population-synchronous amplitude — at burst peaks $\sim$10–25% of E neurons fire together within a single 2 ms bin, and that swing is what we want the model to reproduce.
+The two metrics above are descriptive — they summarise the trace but don't say "this is ping with probability $P$". The Bayesian alternative is to fit two generative recipes to each trace and report the log-odds. We work on the raster directly (per-neuron spike times $\{t_{j,1} < \dots < t_{j,n_j}\}$ for $j = 1, \dots, N_E$ over the post-onset window $[0, T]$). Both recipes match the validated step-1a sims rather than the simpler Poisson placeholders.
+
+**Async** is a per-neuron gamma-renewal process. The generative recipe is:
+
+1. Pick parameters: shape $k$, scale $\theta$, so each neuron's mean firing rate is $1/(k\theta)$ and the ISI coefficient of variation is $1/\sqrt{k}$.
+2. For each neuron $j = 1, \dots, N_E$, independently:
+   - Draw a starting offset $u_j \sim \mathrm{Uniform}(0, k\theta)$ (random initial phase).
+   - Set $t_{j,1} = u_j$.
+   - For $i = 2, 3, \dots$, draw $\tau_{j,i} \sim \Gamma(k, \theta)$ and set $t_{j,i} = t_{j,i-1} + \tau_{j,i}$, until $t_{j,i} > T$.
+
+$k = 1$ recovers Poisson; $k = 10$ matches the visible *ei* = 0 stripe pattern (CV $\approx$ 0.32). Conditional on the inner ISIs $\tau_{j,i} = t_{j,i} - t_{j,i-1}$ for $i \ge 2$, the log-likelihood is
+
+$$
+\log P(D \mid \text{async}, k, \theta) \;=\; \sum_{j,\, i \ge 2} \big[(k - 1)\log\tau_{j,i} \;-\; \tau_{j,i}/\theta \;-\; k\log\theta \;-\; \log\Gamma(k)\big].
+$$
+
+To see where this comes from, start with the gamma probability density of one inter-spike interval,
+
+$$
+f_\Gamma(\tau; k, \theta) \;=\; \frac{\tau^{k-1} \, e^{-\tau/\theta}}{\theta^{k} \, \Gamma(k)}, \qquad \tau > 0,
+$$
+
+whose logarithm is the bracketed expression in the sum: the first three terms come from the $\tau^{k-1}$, $e^{-\tau/\theta}$, and $\theta^{-k}$ factors of the density; the last is the gamma-function normaliser. The renewal property says that ISIs are independent draws from this density, so across one neuron $j$ the joint log-likelihood of the inner ISIs $\tau_{j,2}, \tau_{j,3}, \dots$ is just the sum $\sum_{i \ge 2} \log f_\Gamma(\tau_{j,i})$. Different neurons are independent renewal processes, so the joint log-likelihood across all $N_E$ neurons sums over $j$ as well, giving the double sum above.
+
+The $i \ge 2$ constraint is deliberate: the *first* spike $t_{j,1}$ is not the end of an ISI but a forward-recurrence time relative to a fictional spike at $t = 0$, so it belongs to a different distribution. Likewise, the post-last-spike interval $T - t_{j, n_j}$ is right-censored — we know the next spike came after $T$ but not when. Boundary terms — first-spike forward-recurrence density and final censored survival — drop out as a per-neuron $O(1)$ offset, small against the $O(\sum_j n_j)$ inner-ISI bulk. At fixed $k$ the MLE for $\theta$ is closed form, $\hat\theta = \bar\tau / k$ with $\bar\tau$ the global mean inner ISI; we then marginalise over $k$ on a grid spanning Poisson to highly regular.
+
+**Ping** is an inhomogeneous Poisson process with a **von Mises rhythm-modulated** rate, the natural circular analog of a sinusoidal modulation. The generative recipe (used for the *likelihood*) is:
+
+1. Pick parameters: baseline per-neuron rate $\lambda_0 > 0$, concentration $\kappa \ge 0$, frequency $f$, phase $\phi \in [0, 2\pi)$. Define the time-varying rate
+$$
+\lambda(t) \;=\; \lambda_0 \cdot \frac{e^{\kappa \cos(2\pi f t - \phi)}}{I_0(\kappa)},
+$$
+where $I_0$ is the modified Bessel function of the first kind. By construction the cycle-average of $\lambda(t)$ equals $\lambda_0$.
+2. For each neuron $j$, sample spike times as an inhomogeneous Poisson process with intensity $\lambda(t)$.
+
+$\kappa = 0$ gives $\lambda(t) = \lambda_0$ (since $I_0(0) = 1$), collapsing ping to homogeneous Poisson — so async (at $k = 1$) is exactly nested inside ping. Large $\kappa$ concentrates probability mass sharply at the burst phase. Pooling across neurons, the population intensity is $N_E \lambda(t)$, and the joint log-likelihood of the pooled spike times $\{t_i\}$ is the standard inhomogeneous-Poisson form
+
+$$
+\log P(D \mid \text{ping}, \lambda_0, \kappa, f, \phi)
+\;=\; \sum_{i=1}^{n_\text{tot}} \log\!\big[N_E \lambda(t_i)\big] \;-\; N_E \int_0^T \lambda(t)\, dt.
+$$
+
+Profiling the baseline gives $\hat\lambda_0 = n_\text{tot}/(N_E T)$, and the integral becomes $n_\text{tot}$ up to end-effect corrections of order $1/(fT)$. Defining the spike-time resultant length at frequency $f$ as
+
+$$
+R(f) \;=\; \Big|\sum_i e^{i \, 2\pi f t_i}\Big|
+\;=\; \sqrt{\big(\textstyle\sum_i \cos 2\pi f t_i\big)^2 + \big(\sum_i \sin 2\pi f t_i\big)^2},
+$$
+
+the phase $\phi$ marginalisation under a uniform $[0, 2\pi)$ prior is *closed form* via Bessel:
+
+$$
+\int_0^{2\pi} e^{\kappa R \cos(\phi - \phi^\star)} \tfrac{d\phi}{2\pi}
+\;=\; I_0(\kappa R),
+$$
+
+leaving the $\phi$-marginalised log-likelihood
+
+$$
+\ell(\kappa, f) \;=\; n_\text{tot}\log\hat\lambda_0 \;-\; n_\text{tot}
+\;+\; \log I_0\!\big(\kappa R(f)\big) \;-\; n_\text{tot}\log I_0(\kappa).
+$$
+
+The remaining nuisance parameters get gridded: $\kappa$ on a logarithmic grid spanning ~0.01 to ~1000, $f$ on a linear grid in the gamma band. The von Mises form has built-in resistance to over-fitting on null data: at random data $R \sim \sqrt{n_\text{tot}}$, the maximum-likelihood $\hat\kappa$ is small and the rhythm gain $\log I_0(\kappa R) - n_\text{tot}\log I_0(\kappa)$ stays $O(1)$.
+
+A note on simulator vs likelihood: the visualisation in Figure 5 below uses a different generative form for ping — a marked point process with population synchrony (shared burst schedule, Bernoulli participation, Gaussian jitter) — because that form *visually* matches real PING rasters. The BF math uses the von Mises rhythm-Poisson because it has a clean Poisson nested limit ($\kappa \to 0$), closed-form phase marginalisation, and well-behaved null evidence. The mismatch (sharp coupled real bursts vs smoothed-rate ping model) means the BF *under*-credits real ping rather than over-credits noise — a conservative bias.
+
+The Bayes factor is the ratio of marginalised likelihoods,
+
+$$
+\log\mathrm{BF} \;=\; \log P(D \mid \text{ping}) \;-\; \log P(D \mid \text{async}),
+$$
+
+each side integrated over its model parameters (Laplace around the MLEs for the continuous scale parameters, grid for the discrete priors). Ping has more degrees of freedom than async, so marginalisation imposes an automatic Occam penalty — ping only beats async when the data demand the burst structure. $\log\mathrm{BF}$ scales linearly with total spike count $\sum_j n_j$, so a 250 ms trace from $N_E$ = 512 neurons at $\sim$10 Hz already carries $\sim$1280 spikes of evidence.
+
+The per-frame output is $\log\mathrm{BF}$ in nats (positive favours ping, zero undecided), converted to $P(\text{ping} \mid D) = \sigma(\log\mathrm{BF})$ under equal prior odds.
+
+#### Todo
+
+1. **Validate the generative models.** ✅ Done — Figure 5 shows that gamma-renewal async ($k = 10$) and burst-MPP ping (with Bernoulli participation + Gaussian jitter) reproduce the real raster structure at *ei* = 0 and *ei* = 0.8. The async recipe is also the BF likelihood. The ping recipe matches the data visually but is **not** the BF likelihood — see step 2 for why.
+   - **1a. Raster sanity check.** ✅ Done — Figure 5 has the side-by-side panels.
+2. **Unit-test on synthetic data.** ✅ Done — `unit_test_bayes_factor` in the runner generates ground-truth rasters from each recipe and reports log-BF / P(ping). Outcomes: async-renewal at $k=10$, $\lambda=200$ Hz → log-BF $= -9872$; async-Poisson ($k=1$) at 15 Hz → log-BF $= +22$ (small look-elsewhere residual from $\kappa$/$f$ grid marginalisation); burst-MPP at $f=50$ Hz, $\sigma=2$ ms → log-BF $= +692$; at $f=70$ Hz, $\sigma=1.5$ ms → log-BF $= +842$; borderline at $\sigma = T_p/4$ → log-BF $= +99$. Signal/noise ratio in the discrimination is $\sim$30×; the residual on Poisson data is $\sim$30× smaller than typical ping evidence.
+
+   The history: the burst marked-point-process likelihood (matching the simulator one-to-one) over-credited null data because at the random-data MLE $\hat\sigma^2 \approx T_p^2/12$, the per-spike Gaussian peak is artificially concentrated relative to the uniform-over-cycle floor; that gave +500 nats of spurious evidence on pure Poisson traces. The first fix — sinusoidal-Poisson $\lambda(t) = \lambda_0(1 + A\cos)$ — eliminated the null over-fit but under-credited real ping. The current likelihood is **von Mises rhythm-Poisson**, the circular-distribution analog: $\kappa = 0$ gives Poisson exactly (clean null), large $\kappa$ gives sharp bursts (matches synthetic ping +50% better than the cosine), and the phase $\phi$ marginalises in closed form via Bessel ratios. Real ping bursts still have sharper structure than even a von Mises shape (population synchrony plus refractoriness), so the BF remains conservative in absolute magnitude.
+3. **Apply per frame, add Figure 6.** ✅ Done — *compute_log_bayes_factor* runs in the per-frame loop and Figure 6 plots the resulting log-BF and $P(\text{ping}\mid D)$ vs *ei*. Threshold at *ei* ≈ 0.30 matches autocorr; async classification is unambiguous (log-BF $\sim -20{,}000$ at *ei* = 0); PING saturation is noisier than ideal (sigmoid bimodal near threshold) because of the cosine-vs-burst likelihood mismatch.
 
 ## Results
+
+### Population rate
 
 <Figure type="video" id="Figure 1" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb017/scan_ei.mp4">
   Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}).
 </Figure>
 
-### Generative model
+| Window | E (Hz) | I (Hz) |
+|---|---|---|
+| Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
+| In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
+| Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
 
-<Figure id="Figure 2" title="real (black) vs fitted-model sample (red dashed) across the ei sweep" src="/figures/notebooks/nb017/rate_model_validation.png" alt="Stacked rows: real E population-participation traces (black) with a single-sample fitted-model overlay (red dashed) for 10 evenly-spaced ei values across the sweep.">
-  One row per *ei* value (10 evenly-spaced across the {scan.frames}-frame sweep). Real participation in black; a single sample drawn from the fitted model overlaid in red dashed. Display is the first 250 ms of the post-onset window; the fit uses the full $\sim$980 ms. The binomial noise model means simulated troughs go genuinely flat (zero spikes is a hard floor), so the cadence reads cleanly at high *ei*. The amplitude of fitted pulses still undershoots real bursts — phase jitter in the data drags the LS-best perfectly-periodic template downward — and pulse shape is symmetric Gaussian rather than the asymmetric onset/decay of real PING. Cadence and timing are right; the burst-shape and amplitude-recovery problems are open work.
+<Figure id="Figure 2" title="per-frame E population rate" src="/figures/notebooks/nb017/pop_rates_stack.png" alt="Stacked time-series of the excitatory population rate, one row per frame of the ei-strength sweep.">
+  E population rate within each {cfg.sim_ms} ms trial (2 ms bins). 10 ei values sampled across the {scan.frames}-frame sweep. The async-to-PING transition is visible by eye but not yet a single number.
 </Figure>
+
+### Autocorrelation
+
+<Figure id="Figure 3" title="per-frame autocorrelation" src="/figures/notebooks/nb017/autocorr_stack.png" alt="Stacked autocorrelation curves of the post-onset E rate, one row per ei value sampled across the sweep.">
+  Autocorrelation of the post-onset E rate, 10 ei values sampled across the sweep. At low ei the curve decays straight to zero; above threshold a periodic side-peak appears at the gamma lag. Side-peak lag drifts from $\sim$14 ms ($\sim$70 Hz) at threshold to $\sim$20 ms ($\sim$50 Hz) at ei = 1 — canonical PING slowing-with-coupling.
+</Figure>
+
+<Figure id="Figure 4" title="rhythmicity metric from autocorrelation" src="/figures/notebooks/nb017/autocorr_metric.png" alt="Autocorrelation peak prominence in the gamma-lag window vs ei strength.">
+  Peak prominence in the {numbers.autocorr_metric?.lag_min_ms ?? "?"}–{numbers.autocorr_metric?.lag_max_ms ?? "?"} ms lag window vs ei. Lifts off at threshold but sits at a finite-sample noise floor $\sim$0.4 through async — *find_peaks* picks the deepest noise excursion when no real peak exists, and on a 115-sample window that has positive expectation.
+</Figure>
+
+### Bayes factor
+
+<Figure id="Figure 5" title="raster sanity check (Todo 1a)" src="/figures/notebooks/nb017/raster_validation.png" alt="Two-by-two raster panels: real vs simulated at ei = 0 (async) and ei = 0.8 (ping).">
+  Real vs simulated rasters at *ei* = 0 (top: async baseline) and *ei* = {numbers.canonical_ei ?? "0.8"} (bottom: canonical ping), under the upgraded recipes documented in *Method > Bayes factor*. Async: per-neuron gamma-renewal with shape $k = 10$ (CV(ISI) $\approx$ 0.32, regular tonic stripes). Ping: shared periodic burst schedule at frequency from the autocorr peak, Bernoulli($p = \lambda / f$) per-neuron participation, Gaussian jitter $\sigma = 2$ ms (vertical population-synchrony bands). First 80 of $N_E$ neurons shown. The earlier homogeneous-Poisson and sinusoidally-modulated-Poisson recipes both failed inspection — real *ei* = 0 is regular tonic, not random dots; real *ei* = 0.8 is population-synchronous, not scattered Poisson — which is why the likelihoods above are gamma-renewal + marked-point-process rather than Poisson-based.
+</Figure>
+
+<Figure id="Figure 6" title="regime probability from raster Bayes factor" src="/figures/notebooks/nb017/bayes_factor.png" alt="Two stacked panels: log Bayes factor (nats) and sigmoid-converted P(ping | D), both vs ei strength.">
+  Per-frame log Bayes factor (top, in nats) and the sigmoid-converted regime probability $P(\text{ping}\mid D)$ (bottom), using the von Mises rhythm-Poisson likelihood. Async classification is sharp: $\log\mathrm{BF} \approx -20{,}000$ through *ei* $\lesssim 0.07$ where the network is in regular tonic firing that no rhythm-Poisson model can fit. Transition at $\textit{ei} \approx 0.30$ matches the autocorr threshold from Figure 4. Above the threshold $\log\mathrm{BF}$ hovers in $[-200, +500]$ nats with frame-to-frame variance, and the sigmoid amplifies fluctuations near zero into binary jumps in $P(\text{ping}\mid D)$.
+</Figure>
+
+The async-regime classification is unambiguous (probability pinned at 0 with thousands of nats of evidence below threshold). The PING-regime saturation is noisy: real PING data carries surprisingly modest BF evidence (a few hundred nats per trace) compared to clean synthetic ping at matched parameters (~700 nats). The gap is real network structure that neither sinusoidal nor von Mises rhythm models capture — phase wander between bursts, occasional missed bursts, refractoriness. The conservative bias means the BF is honest about *its* uncertainty rather than reading high confidence from a misspecified model fit. To get smooth saturation across PING you'd need either a more sophisticated rhythm model (e.g. coupled-oscillator marked-point process — losing the closed-form Bessel marginalisation), longer trace lengths to accumulate more spikes per frame, or accept that log-BF itself (top panel) is the cleaner-reading metric since the sigmoid step at zero is the only thing producing the bimodality.
 
 ## Next steps
 
-The current model matches the *ei* = 0.8 burst train credibly but falls short at *ei* = 0 (real trace has regular tonic ripple that the constant-mean limit treats as noise). Open work:
-
-1. **Capture the tonic ripple**: at *ei* $\lesssim 0.1$ the real participation trace has a fast oscillation outside the 25–75 Hz gamma grid. Either widen the $f$ grid to include it, or add a non-rhythmic component to the model (e.g. an AR(1) noise structure on $\varepsilon_t$).
-2. **Quantify fit quality**: report per-frame $\hat\sigma_p / \hat\mu_0$ (residual / signal) or $|R(\hat f)|^2 / \hat\sigma_a^2$ (variance-explained fraction) along the sweep so improvements to the model show up as a measurable goodness curve, not just visual judgement.
+1. **Implement the upgraded Bayes factor.** Steps 2 and 3 of the Method > Bayes factor > Todo: write the gamma-renewal + marked-point-process log-likelihoods, unit-test on synthetic ground-truth rasters, then apply per frame and add the $P(\text{ping}\mid D)$ vs *ei* curve as Figure 6.
+2. **Sweep beyond *ei*.** Once the BF metric is calibrated, repeat the sweep for *input rate*, *N_E*, and $\tau_\text{gaba}$ at fixed *ei* = 0.8 to map the basin of clean PING in parameter space.
+3. **Compare metrics on sample efficiency.** Run all three single-frame metrics (autocorr prominence, BF probability, plus a half-trace ablation) at increasing trial lengths and plot how each saturates with sample size — the BF should win at short traces by an Occam-corrected margin, the autocorr should be cheaper but biased.
 
 ## Appendix
 

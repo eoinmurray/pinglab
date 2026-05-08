@@ -1,0 +1,66 @@
+{
+  "notebook_run_id": "r027",
+  "run_datetime": "Thursday, 7th May 26 at 16:46",
+  "duration_s": 19.6,
+  "duration": "20s",
+  "tier": "small",
+  "config": {
+    "tier": "small",
+    "model": "ping",
+    "n_e": 512,
+    "n_i": 128,
+    "dt_ms": 0.1,
+    "sim_ms": 600.0,
+    "step_on_ms": 200.0,
+    "step_off_ms": 300.0,
+    "input": {
+      "mode": "dataset",
+      "dataset": "mnist",
+      "digit": 0,
+      "sample": 0,
+      "base_rate_hz": 50.0,
+      "w_in_mean": 0.54,
+      "w_in_std": 0.108
+    },
+    "seed": 42,
+    "scan": {
+      "var": "ei_strength",
+      "min": 0.0,
+      "max": 1.0,
+      "frames": 10,
+      "fps": 30,
+      "fixed_overdrive": 1.0,
+      "input_rate_hz": 200.0,
+      "w_in_mean": 1.8,
+      "w_in_std": 0.36
+    }
+  },
+  "rates_hz": {
+    "pre": {
+      "e": 11.939018731936812,
+      "i": 54.38756197690964
+    },
+    "stim": {
+      "e": 11.298004537820816,
+      "i": 52.41149105131626
+    },
+    "post": {
+      "e": 11.555843520909548,
+      "i": 52.05989349633455
+    }
+  },
+  "canonical_ei": 0.8,
+  "success_criteria": [
+    {
+      "label": "ei-strength scan video rendered",
+      "passed": true,
+      "detail": "scan_ei.mp4 (1356533 bytes)",
+      "detail_href": "/figures/notebooks/nb018/scan_ei.mp4"
+    },
+    {
+      "label": "PING forms at canonical ei (0.8)",
+      "passed": true,
+      "detail": "E stim=11.3 Hz, I stim=52.4 Hz"
+    }
+  ]
+}

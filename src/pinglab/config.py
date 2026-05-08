@@ -158,18 +158,6 @@ CUBA_MODELS = {
     "cuba-exp-hard-refrac",  # kept in registry for legacy-artifact loading
 }
 
-# Headline ladder: the 5 models that appear in the main dt-sweep figure and
-# the ablation waterfall. snntorch-library is a parity reference for standard-snn
-# and deliberately *not* in the ladder. cuba-exp-hard and cuba-exp-hard-refrac
-# stay in MODEL_REGISTRY for loading legacy artifacts but are not dispatched.
-HEADLINE_LADDER = [
-    "standard-snn",
-    "cuba",
-    "cuba-exp",
-    "coba",
-    "ping",
-]
-
 _MODEL_CLASSES = {
     "ping": (COBANet, {}),
     "standard-snn": (CUBANet, {}),
