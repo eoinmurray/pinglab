@@ -1,14 +1,14 @@
 {
-  "notebook_run_id": "r073",
+  "notebook_run_id": "r083",
   "git_sha": "unknown",
   "duration_s": 0.0,
   "duration": "0s",
   "init_match": {},
   "config": {
-    "tier": "large",
+    "tier": "small",
     "dataset": "mnist",
-    "max_samples": 5000,
-    "epochs": 40,
+    "max_samples": 500,
+    "epochs": 5,
     "t_ms": 200.0,
     "dt_trains": [
       0.1,
@@ -5044,7 +5044,7 @@
   },
   "success_criteria": [
     {
-      "label": "all runs final-acc \u2265 70% (large tier floor)",
+      "label": "all runs final-acc \u2265 30% (small tier floor)",
       "passed": true,
       "detail": "standard-snn@dt0.1 90%; standard-snn-exp@dt0.1 86%; snntorch-library@dt0.1 91%; cuba@dt0.1 88%; coba@dt0.1 88%; ping@dt0.1 88%; standard-snn@dt1.0 91%; standard-snn-exp@dt1.0 89%; snntorch-library@dt1.0 90%; cuba@dt1.0 91%; coba@dt1.0 88%; ping@dt1.0 86%"
     },
@@ -5056,19 +5056,19 @@
     {
       "label": "training curves rendered",
       "passed": true,
-      "detail": "training_curves.png (137268 bytes)",
+      "detail": "training_curves.png (133141 bytes)",
       "detail_href": "/figures/notebooks/nb013/training_curves.png"
     },
     {
       "label": "dt-sweep accuracy plot rendered",
       "passed": true,
-      "detail": "dt_sweep.png (95909 bytes)",
+      "detail": "dt_sweep.png (96432 bytes)",
       "detail_href": "/figures/notebooks/nb013/dt_sweep.png"
     },
     {
       "label": "firing-rate plot rendered",
       "passed": true,
-      "detail": "firing_rates.png (113968 bytes)",
+      "detail": "firing_rates.png (111023 bytes)",
       "detail_href": "/figures/notebooks/nb013/firing_rates.png"
     },
     {

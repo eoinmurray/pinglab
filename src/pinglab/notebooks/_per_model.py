@@ -98,23 +98,24 @@ def _format_duration(seconds: float) -> str:
 def plot_training_curves(
     run_dir: Path, out_path: Path, model: str, notebook_run_id: str
 ) -> None:
+    theme.apply()
     metrics = load_metrics(run_dir)
     epochs = [e["ep"] for e in metrics["epochs"]]
     loss = [e["loss"] for e in metrics["epochs"]]
     acc = [e["acc"] for e in metrics["epochs"]]
     fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(10, 4.5))
-    ax_loss.plot(epochs, loss, marker="o", color=theme.CAT_BLUE, label=model)
-    ax_acc.plot(epochs, acc, marker="o", color=theme.CAT_BLUE, label=model)
+    ax_loss.plot(epochs, loss, marker="o", color=theme.INK_BLACK, label=model)
+    ax_acc.plot(epochs, acc, marker="o", color=theme.INK_BLACK, label=model)
     ax_loss.set_xlabel("epoch")
     ax_loss.set_ylabel("train loss")
     ax_loss.set_title(f"{model} — train loss")
-    ax_loss.grid(alpha=0.3)
-    ax_loss.legend(frameon=False, fontsize=8)
+    ax_loss.grid(True, alpha=0.3)
+    ax_loss.legend()
     ax_acc.set_xlabel("epoch")
     ax_acc.set_ylabel("test accuracy (%)")
     ax_acc.set_title(f"{model} — test accuracy")
-    ax_acc.grid(alpha=0.3)
-    ax_acc.legend(frameon=False, fontsize=8)
+    ax_acc.grid(True, alpha=0.3)
+    ax_acc.legend()
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -125,17 +126,18 @@ def plot_training_curves(
 def plot_firing_rates(
     run_dir: Path, out_path: Path, model: str, notebook_run_id: str
 ) -> None:
+    theme.apply()
     metrics = load_metrics(run_dir)
     init_rate = metrics.get("init", {}).get("rate_e") or 0.0
     epochs = [0] + [e["ep"] for e in metrics["epochs"]]
     rates = [init_rate] + [e.get("rate_e", 0.0) for e in metrics["epochs"]]
-    fig, ax = plt.subplots(1, 1, figsize=(8, 4.5))
-    ax.plot(epochs, rates, marker="o", color=theme.CAT_GREEN, label=model)
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    ax.plot(epochs, rates, marker="o", color=theme.DEEP_RED, label=model)
     ax.set_xlabel("epoch")
     ax.set_ylabel("mean hidden firing rate (Hz)")
     ax.set_title(f"{model} — hidden firing rate per epoch")
-    ax.grid(alpha=0.3)
-    ax.legend(frameon=False, fontsize=8)
+    ax.grid(True, alpha=0.3)
+    ax.legend()
     fig.tight_layout()
     _stamp_figure(fig, notebook_run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)

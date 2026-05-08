@@ -59,7 +59,7 @@ const notebooks = Object.entries(notebookModules)
       tier: tierFor(slug),
     };
   })
-  .sort((a, b) => -b.entry + a.entry);
+  .sort((a, b) => b.entry - a.entry);
 
 // Group notebooks by collection. Each notebook appears under every
 // collection it belongs to. Collections are ordered by size desc,
@@ -96,7 +96,7 @@ const articles = Object.entries(articleModules)
       date: fm.date,
     };
   })
-  .sort((a, b) => -b.entry + a.entry);
+  .sort((a, b) => b.entry - a.entry);
 
 const formatDate = (raw) => {
   const d =
@@ -128,81 +128,18 @@ const formatDate = (raw) => {
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <title>Pinglab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <aside
-      class="hidden lg:block fixed top-16 left-8 w-[calc(25%-4rem)] max-h-[calc(100vh-8rem)] overflow-y-auto text-base pr-4"
-      aria-label="Pages"
-    >
-      <p class="mb-2 text-xs uppercase tracking-wider text-muted">Documentation</p>
-      <ol class="pl-0 list-none space-y-1.5">
-        <li>
-          <a
-            href="/docs/introduction/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >Introduction</a
-          >
-        </li>
-        <li>
-          <a
-            href="/docs/models/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Models</a
-          >
-        </li>
-        <li>
-          <a
-            href="/docs/training/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Training</a
-          >
-        </li>
-        <li>
-          <a
-            href="/docs/the-oscilloscope/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >The Oscilloscope</a
-          >
-        </li>
-        <li>
-          <a
-            href="/docs/the-notebooks/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >The Notebooks</a
-          >
-        </li>
-        <li>
-          <a
-            href="/docs/metrics/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug">Metrics</a
-          >
-        </li>
-        <li>
-          <a
-            href="/docs/parameters-and-units/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >Parameters &amp; Units</a
-          >
-        </li>
-        <li>
-          <a
-            href="/docs/references/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >References</a
-          >
-        </li>
-        <li>
-          <a
-            href="/docs/styleguide/"
-            class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-            >Styleguide</a
-          >
-        </li>
-      </ol>
-    </aside>
-
-    <main class="px-6 pt-16 pb-64 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
-      <div class="max-w-[46rem]">
-        <div class="flex items-baseline justify-between gap-4">
-          <h1 class="text-2xl font-bold">Pinglab</h1>
+    <main class="px-6 pt-16 pb-64 lg:px-12 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[90rem] mx-auto">
+        <div class="flex items-baseline gap-4">
+          <h1 class="text-2xl font-bold" style="font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;">PINGLAB</h1>
           <a
             href="https://github.com/eoinmurray/pinglab"
             class="text-sm text-muted hover:text-[color:var(--ink)]"
@@ -210,58 +147,65 @@ const formatDate = (raw) => {
             rel="noopener">github</a
           >
         </div>
-        <p class="mt-1 text-sm text-muted">Exploring the PING mod for spiking neural networks</p>
 
-        <p class="mt-10 text-xs uppercase tracking-wider text-muted">Notebooks</p>
-        <section class="mt-2">
-          <ol class="pl-0 list-none m-0 text-[0.95rem]">
-            {
-              notebooks.map((nb) => (
+        <div class="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <section>
+            <p class="mb-2 text-xs uppercase tracking-wider text-muted">Documentation</p>
+            <ol class="pl-0 list-none m-0 text-[0.95rem] space-y-1.5">
+              <li><a href="/docs/introduction/" class="leading-snug">Introduction</a></li>
+              <li><a href="/docs/models/" class="leading-snug">Models</a></li>
+              <li><a href="/docs/training/" class="leading-snug">Training</a></li>
+              <li><a href="/docs/the-oscilloscope/" class="leading-snug">The Oscilloscope</a></li>
+              <li><a href="/docs/the-notebooks/" class="leading-snug">The Notebooks</a></li>
+              <li><a href="/docs/metrics/" class="leading-snug">Metrics</a></li>
+              <li><a href="/docs/parameters-and-units/" class="leading-snug">Parameters &amp; Units</a></li>
+              <li><a href="/docs/references/" class="leading-snug">References</a></li>
+              <li><a href="/docs/styleguide/" class="leading-snug">Styleguide</a></li>
+            </ol>
+          </section>
+
+          <section>
+            <p class="mb-2 text-xs uppercase tracking-wider text-muted">Articles</p>
+            {articles.length > 0 ? (
+              <ol class="pl-0 list-none m-0 text-[0.95rem]">
+                {articles.map((a) => (
+                  <li class="flex items-baseline gap-3 py-[0.3rem]">
+                    <a href={`/articles/${a.slug}/`} class="w-4 shrink-0 tabular-nums text-muted-soft">
+                      {String(a.entry).padStart(1, "0")}.
+                    </a>
+                    <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
+                      {a.title}
+                    </a>
+                    <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                      {formatDate(a.date)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p class="text-sm text-muted">None yet.</p>
+            )}
+          </section>
+
+          <section>
+            <p class="mb-2 text-xs uppercase tracking-wider text-muted">Notebooks</p>
+            <ol class="pl-0 list-none m-0 text-[0.95rem]">
+              {notebooks.map((nb) => (
                 <li class="flex items-baseline gap-3 py-[0.3rem]">
-                  <a
-                    href={`/notebooks/${nb.slug}/`}
-                    class="w-4 shrink-0 tabular-nums text-muted-soft"
-                  >
+                  <a href={`/notebooks/${nb.slug}/`} class="w-4 shrink-0 tabular-nums text-muted-soft">
                     {String(nb.entry).padStart(1, "0")}.
                   </a>
                   <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
                     {nb.title}
                   </a>
-                  <span class="w-32 shrink-0 text-right whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                  <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
                     {formatDate(nb.date)}
                   </span>
                 </li>
-              ))
-            }
-          </ol>
-        </section>
-        {
-          articles.length > 0 && (
-            <>
-              <p class="mt-12 text-xs uppercase tracking-wider text-muted">Articles</p>
-              <section class="mt-2">
-                <ol class="pl-0 list-none m-0 text-[0.95rem]">
-                  {articles.map((a) => (
-                    <li class="flex items-baseline gap-3 py-[0.3rem]">
-                      <a
-                        href={`/articles/${a.slug}/`}
-                        class="w-4 shrink-0 tabular-nums text-muted-soft"
-                      >
-                        {String(a.entry).padStart(1, "0")}.
-                      </a>
-                      <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
-                        {a.title}
-                      </a>
-                      <span class="w-32 shrink-0 text-right whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
-                        {formatDate(a.date)}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            </>
-          )
-        }
+              ))}
+            </ol>
+          </section>
+        </div>
       </div>
     </main>
   </body>
