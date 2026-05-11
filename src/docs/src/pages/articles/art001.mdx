@@ -7,19 +7,6 @@ structure: paper
 ---
 import Figure from "../../components/Figure.astro";
 
-# PING Training
-
-Plots pertaining to training PING networks and comparing them with CUBA and raw COBA.
-
-**Notebooks referenced:**
-
-- [012 — PING](/notebooks/nb012/)
-- [013 — Timestep Stability](/notebooks/nb013/)
-- [015 — Classification Latency](/notebooks/nb015/)
-- [016 — Sequential MNIST Tracking](/notebooks/nb016/)
-- [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/)
-- [020 — Spike-Penalty Sweep Across the Ladder](/notebooks/nb020/)
-
 ## PING training
 
 PING has been modelled but not trained on a task. We train it here on MNIST classification.
@@ -139,3 +126,12 @@ CUBA plateaus at short windows; against spikes per window (Figure 18), PING and 
 <Figure id="Figure 18" title="Accuracy vs hidden spikes per window" src="/figures/notebooks/nb016/tracking_hidden_spikes.png" alt="Line chart: mean per-window accuracy as a function of mean hidden-layer spikes per window, log x-axis, for cuba, coba, and ping. Dashed line marks 10% chance.">
   Figure 17 re-projected onto mean hidden-layer spikes per 50 ms window (log x-axis). From [016 — Sequential MNIST Tracking](/notebooks/nb016/), Figure 4.
 </Figure>
+
+**Notebooks referenced in this article:**
+
+- [012 — PING](/notebooks/nb012/)
+- [013 — Timestep Stability](/notebooks/nb013/)
+- [015 — Classification Latency](/notebooks/nb015/)
+- [016 — Sequential MNIST Tracking](/notebooks/nb016/)
+- [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/)
+- [020 — Spike-Penalty Sweep Across the Ladder](/notebooks/nb020/)
