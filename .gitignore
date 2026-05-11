@@ -10,6 +10,7 @@ __pycache__/
 *.pt
 *.pth
 !src/pinglab/tests/fixtures/**/*.pt
+src/temp
 .env
 src/data/**
 worktrees/

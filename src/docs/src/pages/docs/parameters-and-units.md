@@ -17,7 +17,6 @@ All physical quantities in the codebase use the same unit system: **ms for time,
 | Refractory period | ms | 3 (E), 1.5 (I) | *ref_ms_E*, *ref_ms_I* |
 | AMPA decay | ms | 2 | *tau_ampa* |
 | GABA decay | ms | 9 | *tau_gaba* |
-| Synaptic delay | ms | 1 | *delay_ei_ms*, *delay_ie_ms* |
 | Resting / leak potential | mV | −65 | *E_L* |
 | Spike threshold | mV | −50 | *V_th* |
 | Reset potential | mV | −65 | *V_reset* |
