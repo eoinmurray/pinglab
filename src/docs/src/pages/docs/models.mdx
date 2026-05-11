@@ -6,124 +6,401 @@ import Code from "../../components/Code.astro";
 
 # Models
 
+This page documents every spiking neural network class that pinglab trains, end-to-end and from first principles. Each model is a discretisation of a continuous-time leaky integrate-and-fire (LIF) neuron, augmented with some particular synaptic and architectural structure; the differences between them are what the empirical work in the [notebooks](/notebooks/) probes. The goal of this page is to make every equation in the codebase traceable to a starting biophysical assumption — and to make every CLI flag traceable to the equation it controls.
+
+The implementation lives in *src/pinglab/models.py*. Three Python classes — *SNNTorchLibraryNet*, *CUBANet* and *COBANet* — back every model on the ladder. A small registry in *src/pinglab/config.py* maps each *--model* CLI name to one of those classes plus a kwargs dict; *build_net()* is the single canonical builder used by train, infer, image and video paths. The seven CLI rungs:
+
+| *--model*           | class               | discretisation | exponential synapse | E-I loop                 |
+|---------------------|---------------------|----------------|---------------------|--------------------------|
+| *snntorch-library*  | SNNTorchLibraryNet  | snnTorch       | n/a                 | off                      |
+| *standard-snn*      | CUBANet             | snnTorch       | off                 | off                      |
+| *standard-snn-exp*  | CUBANet             | snnTorch       | on (τ_syn ≈ 2 ms)   | off                      |
+| *cuba*              | CUBANet             | ZOH            | off                 | off                      |
+| *cuba-exp*          | CUBANet             | ZOH            | on (τ_syn ≈ 2 ms)   | off                      |
+| *coba*              | COBANet             | exp-Euler+ZOH  | exponential g_e/g_i | wired but ei-strength=0  |
+| *ping*              | COBANet             | exp-Euler+ZOH  | exponential g_e/g_i | active                   |
+
+The rungs differ in two dimensions: how faithfully they discretise continuous-time LIF dynamics, and what kind of recurrent E/I structure they wrap around the LIF. The *snnTorch* rungs and *cuba* differ only in how the integrator is built; *cuba*, *coba* and *ping* differ in what synapses and circuitry connect their neurons. The body of the page walks through each in turn.
+
+Biophysical constants (membrane time constants, capacitances, reversal potentials, synaptic decays, refractory periods) are tabulated on [Parameters & Units](/docs/parameters-and-units/#coba--ping-biophysical-constants).
+
+## Notation
+
+We use a uniform notation for every model below. Every symbol used elsewhere in this page appears here first.
+
+**Time and indexing**
+
+- $t$ — discrete time index, $t \in \{0, 1, \ldots, T_{\text{steps}}-1\}$.
+- $\Delta t$ — simulation time-step in ms. Default 0.1 ms, set by *--dt*.
+- $T_{\text{ms}}$ — trial duration in ms, set by *--t-ms*.
+- $T_{\text{steps}} = T_{\text{ms}} / \Delta t$ — trial length in steps.
+
+**State variables**
+
+- $U_t, V_t$ — membrane potential at step $t$. We use $U$ for the unitless CUBA models and $V$ for the millivolt-scale COBA models.
+- $s_t \in \{0, 1\}^N$ — spike vector at step $t$ over a population of $N$ neurons. Superscripts $s^E_t$, $s^I_t$, $s^{\text{inp}}_t$ denote the E-population, I-population, and external-input spike vectors respectively.
+- $S_t$ — single-neuron spike output (same role as $s_t$ but for scalar equations).
+- $g_e, g_i$ — per-step excitatory and inhibitory synaptic conductances (µS), COBA only. $g^{E\to E}$, $g^{E\to I}$, $g^{I\to E}$ name the three pathway-specific conductances.
+
+**Membrane constants** (set in *src/pinglab/models.py*; see [Parameters & Units](/docs/parameters-and-units/))
+
+- $\tau$ — membrane time constant. Subscripted $\tau_m$ (COBA), $\tau_{\text{snn}} = 10$ ms (snnTorch-family) or context-specific.
+- $\tau_{\text{ref}}$ — refractory period during which a neuron cannot spike.
+- $\tau_{\text{syn}}$ — synaptic time constant. Specialisations: $\tau_{\text{AMPA}} = 2$ ms (excitatory), $\tau_{\text{GABA}} = 9$ ms (inhibitory).
+- $C_m$ — membrane capacitance (nF). $g_L = C_m/\tau_m$ — leak conductance (µS).
+- $E_L$, $E_e$, $E_i$ — leak / excitatory / inhibitory reversal potentials. COBA: $E_L = -65$, $E_e = 0$, $E_i = -80$ mV.
+- $V_{\text{th}}$ — spike threshold (COBA: $-50$ mV). $V_{\text{reset}}$ — post-spike reset potential (COBA: $-65$ mV).
+- $\theta$ — spike threshold for the unitless CUBA models (snnTorch convention, default $\theta = 1$).
+- $R$ — input resistance in the continuous-time LIF. We use $R = 1$ throughout; only present in eq (1) to keep the canonical form recognisable.
+
+**Decay factors** (derived from time constants and $\Delta t$)
+
+- $\beta = e^{-\Delta t / \tau}$ — discrete-time membrane decay.
+- $\alpha = e^{-\Delta t / \tau_{\text{AMPA}}}$ — AMPA-synapse decay.
+- $\gamma = e^{-\Delta t / \tau_{\text{GABA}}}$ — GABA-synapse decay.
+
+**Weights**
+
+- $W$ — feedforward weight matrix between two hidden layers.
+- $W_{\text{in}}$ — feedforward weight from external input into the first hidden layer.
+- $W_{\text{out}}$ — readout weight from the last hidden layer to the output.
+- $b$ — feedforward bias.
+- $W^{EE}$, $W^{EI}$, $W^{IE}$ — fixed (non-trainable) recurrent weights for E→E, E→I, I→E connections within an E-I layer (COBA only). Dale's law: every entry $\geq 0$; sign is carried by the population.
+- $b_{\text{scale}}$, *spike_scale*, *bias_scale* — discretisation-dependent prefactors that scale the spike kick and bias into the membrane update (see the ZOH derivation below).
+
+**Functions**
+
+- $\mathbf{1}[P]$ — indicator function: 1 if predicate $P$ is true, 0 otherwise.
+- $\delta(t - t_k)$ — Dirac delta at $t = t_k$, used to represent an instantaneous spike at time $t_k$.
+- $\sigma_{\text{surr}}(\cdot)$ — *fast-sigmoid surrogate gradient* used in place of the non-differentiable threshold during the backward pass.
+- $I$ — current or drive entering the membrane (continuous-time $I(t)$, discrete-time per-step scalar inside the LIF primitive).
+- $k$ — surrogate-gradient slope (set by *--surrogate-slope*, default 1.0).
+- $r$ — stationary mean input firing rate (Hz), used only in the bias-balloon derivation.
+- $U_{ss}$ — steady-state membrane in that derivation.
+
+Dale's law is on by default (*--no-dales-law* disables it). Excitatory and inhibitory populations are kept separate by sign of their action, not by sign of the weight matrix entries.
+
+## Continuous-time leaky integrate-and-fire
+
+All discrete updates in this codebase are derived from the same continuous-time LIF model:
+
+$$
+\tau \frac{dV}{dt} = -(V - E_L) + R\, I(t) \tag{1}
+$$
+
+with reset condition
+
+$$
+V(t^+) = V_{\text{reset}} \quad \text{when } V(t^-) \geq \theta \tag{2}
+$$
+
+and an optional refractory period $\tau_{\text{ref}}$ during which the neuron cannot spike. The constants $\tau$, $E_L$, $V_{\text{reset}}$, $\theta$ and $R$ are model-specific.
+
+The threshold + reset rule makes the dynamics non-differentiable at spike times. To train networks with backpropagation we replace the spike function $S = \mathbf{1}[V \geq \theta]$ with a smooth surrogate during the backward pass:
+
+$$
+\sigma_{\text{surr}}(u) = \frac{1}{1 + |k \cdot u|}, \qquad u = V - \theta \tag{3}
+$$
+
+(fast-sigmoid; argument $u$ is the membrane–threshold gap, slope $k$ is controlled by *--surrogate-slope*, default $k = 1$). The forward pass still emits hard binary spikes; only the gradient flowing back through the threshold is smoothed. This is what makes spiking networks trainable end-to-end with PyTorch's autograd.
+
+The rest of this page is about how each rung discretises (1) and what kind of synaptic input $I(t)$ it expects.
+
 ## SNNTorchLibraryNet
 
-Wraps [*snn.Leaky*](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html) + fast-sigmoid surrogate.
+A thin wrapper around [*snn.Leaky*](https://snntorch.readthedocs.io/en/latest/snn.neurons_leaky.html) with a fast-sigmoid surrogate. We carry this rung as a *parity probe* against *standard-snn* — the same seed must produce bit-identical weights and trajectories. If parity ever breaks we know our re-implementation has drifted from the reference.
+
+The update is the Tutorial-3 simplification of (1): no resistor (R=1), no input scaling by $\Delta t$, and the $(1-\beta)$ that would naturally appear in a forward-Euler discretisation of (1) is absorbed into the weight matrix $W$ at training time. The discrete rule becomes
 
 $$
-U_{t+1} = \beta\, U_t + W\, s_t + b \;-\; \theta\, S_t, \qquad S_t = \mathbf{1}[U_t \geq \theta] \tag{1}
+U_{t+1} = \beta\, U_t + W\, s_t + b \;-\; \theta\, S_t, \qquad S_t = \mathbf{1}[U_t \geq \theta] \tag{4}
 $$
 
-Reset by subtraction. $\beta = e^{-\Delta t/\tau_{\text{snn}}}$ with $\tau_{\text{snn}} = 10$ ms; $W$, $b$ unscaled by $\Delta t$.
+with reset by subtraction and $\beta = e^{-\Delta t/\tau_{\text{snn}}}$, $\tau_{\text{snn}} = 10$ ms.
+
+Because $\Delta t$ no longer appears in the update, halving $\Delta t$ doubles the number of update steps without rescaling the per-step contribution. This is the source of the *dt*-leakage analysed in [013 — Timestep Stability](/notebooks/nb013/): the same trained weights produce different firing rates and different accuracies if you change *--dt* at evaluation time. *cuba* and the COBA family fix this by keeping $\Delta t$ explicit in the update.
 
 ## CUBANet
 
-One class, three CLI variants selected by *discretisation* ∈ \{snntorch, zoh\} and *exponential_synapse* ∈ \{False, True\}.
+CUBANet (current-based LIF) is a single class with two orthogonal flags that select four behaviours:
+
+- *discretisation* ∈ \{*snntorch*, *zoh*\} — how the continuous LIF is discretised.
+- *exponential_synapse* ∈ \{*False*, *True*\} — whether the spike train is filtered through an AMPA-like first-order synapse before reaching the membrane.
+
+The four canonical rungs *standard-snn*, *standard-snn-exp*, *cuba* and *cuba-exp* span the (discretisation × synapse) grid. *Tutorial mode* (*--kaiming-init*) is a further switch that overrides Dale's law and weight scaling to match *snn.Leaky* bit-for-bit at initialisation, used only by the parity probe.
+
+The forward pass and backward pass share a primitive *snn_lif_step* (models.py:269) that performs one timestep of decay + drive + spike + reset:
+
+```python
+mem = β * mem + I
+s   = σ_surr(mem − θ)
+if reset == "subtract":
+    mem = mem − θ · s
+else:  # "zero"
+    mem = mem · (1 − s)
+```
+
+In words: decay the old membrane, add the (already-scaled) drive $I$, threshold the new membrane to emit a spike, and apply the reset. The caller is responsible for scaling $I$ — that's where the two discretisations diverge.
 
 ### snnTorch discretisation
 
+Used by *standard-snn* and *standard-snn-exp*. Same form as eq (4) but without the explicit subtractive term inside the update — the reset is applied separately after the spike is emitted:
+
 $$
-U_{t+1} = \beta\, U_t + W\, s_t + b, \qquad S_t = \sigma_{\text{surr}}(U_t - \theta) \tag{2}
+U_{t+1} = \beta\, U_t + W\, s_t + b, \qquad S_{t+1} = \sigma_{\text{surr}}(U_{t+1} - \theta) \tag{5}
 $$
 
 $$
-U_{t+1} \leftarrow \begin{cases} 0 & \text{reset=zero, } S_t = 1 \\ U_{t+1} - \theta\, S_t & \text{reset=subtract} \end{cases} \tag{3}
+U_{t+1} \leftarrow \begin{cases} 0 & \text{reset=zero, } S_{t+1} = 1 \\ U_{t+1} - \theta\, S_{t+1} & \text{reset=subtract} \end{cases} \tag{6}
 $$
 
-Bias-balloon derivation. Take expectation under mean input rate $r$: $\mathbb{E}[s_t] = r\Delta t$, so each step adds $Wr\Delta t + b$ on average. Fixed point:
+Two things to notice. First, the spike is computed on the *post-update* membrane $U_{t+1}$, not the previous one — that's the order of operations in *snn_lif_step*. Second, $W$ and $b$ enter the update *without* a $\Delta t$ scaling, so the same trained weights produce different per-step contributions at different $\Delta t$. This is the *dt*-fragility shared with *snn.Leaky*.
+
+**Bias-balloon derivation.** Take the expectation of (5) under a stationary mean input rate $r$ (Hz). Each step, the expected input is $\mathbb{E}[s_t] = r\Delta t$, so $\mathbb{E}[W s_t] = W r \Delta t$. The fixed-point of the membrane is the value $U_{ss}$ that satisfies $U_{ss} = \beta U_{ss} + W r \Delta t + b$, giving
 
 $$
-U_{ss} = \beta U_{ss} + Wr\Delta t + b \;\Longrightarrow\; U_{ss} = \frac{Wr\Delta t + b}{1-\beta} \tag{4}
+U_{ss} = \frac{W r \Delta t + b}{1-\beta} \tag{7}
 $$
 
-Using $1-\beta \approx \Delta t/\tau$ for $\Delta t \ll \tau$:
+For $\Delta t \ll \tau$, use the first-order expansion $1 - \beta \approx \Delta t / \tau$:
 
 $$
-U_{ss} \approx W r \tau \;+\; \frac{b\tau}{\Delta t} \tag{5}
+U_{ss} \approx W r \tau \;+\; \frac{b \tau}{\Delta t} \tag{8}
 $$
 
-Spike contribution $W r \tau$ is $\Delta t$-invariant; bias contribution scales as $1/\Delta t$.
-
-With *exponential_synapse=True* (standard-snn-exp), $\tau_{\text{syn}} = 2$ ms:
-
-$$
-g_{t+1} = e^{-\Delta t / \tau_{\text{syn}}}\,(g_t + W\, s_t), \qquad U_{t+1} = \beta\, U_t + (1-\beta)\, g_t + b \tag{6}
-$$
+The spike contribution $W r \tau$ is $\Delta t$-invariant: halve $\Delta t$ and the per-step kick halves, but you take twice as many steps. The bias contribution scales as $1/\Delta t$: halve $\Delta t$ and the steady-state bias contribution doubles. This is why *standard-snn* with a non-zero bias drifts toward firing-rate saturation as $\Delta t$ shrinks at eval time.
 
 ### ZOH discretisation
 
-Continuous-time LIF:
+Used by *cuba* and *cuba-exp*. Start from the continuous-time LIF in canonical form ($E_L = 0$, $R = 1$):
 
 $$
-\tau\, \frac{dV}{dt} = -V + I(t), \qquad I(t) = \sum_k W\, \delta(t - t_k) + b \tag{7}
+\tau\, \frac{dV}{dt} = -V + I(t), \qquad I(t) = \sum_k W\, \delta(t - t_k) + b \tag{9}
 $$
 
-Exponential-Euler step (closed-form homogeneous decay) + zero-order hold on $I$ over $[t, t+\Delta t]$:
+where the spike train $\sum_k \delta(t - t_k)$ represents incoming presynaptic spikes at times $\{t_k\}$. The exponential-Euler integrator gives the closed-form solution of the homogeneous part (decay), and we apply a *zero-order hold* to the inhomogeneous input over the step $[t, t+\Delta t]$ — i.e. treat $I$ as constant over the step:
 
 $$
-V(t + \Delta t) = e^{-\Delta t/\tau}\, V(t) + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - u)/\tau}\, I(t + u)\, du \tag{8}
+V(t + \Delta t) = e^{-\Delta t/\tau}\, V(t) + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau}\, I(t + \xi)\, d\xi \tag{10}
 $$
 
-ZOH on the spike train: replace within-step Diracs by a uniform pulse of height $W s_t / \Delta t$.
+with $\xi$ a dummy integration variable spanning $[0, \Delta t]$. The integral is the *contribution of the input* to the new membrane, weighted by how long the input has had to decay. For the delta-function spike at $t$ we use the ZOH approximation: replace the Dirac by a uniform pulse of height $W s_t / \Delta t$ over $[t, t+\Delta t]$. Substituting:
 
 $$
-V_{t+1} = \beta\, V_t + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - u)/\tau} \left[\frac{W\, s_t}{\Delta t} + b\right] du, \quad \beta = e^{-\Delta t/\tau} \tag{9}
+V_{t+1} = \beta\, V_t + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau} \left[\frac{W\, s_t}{\Delta t} + b\right] d\xi, \quad \beta = e^{-\Delta t/\tau} \tag{11}
 $$
 
-The integral evaluates to
+The integral evaluates to a clean prefactor:
 
 $$
-\frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - u)/\tau}\, du = 1 - \beta \tag{10}
+\frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau}\, d\xi = 1 - \beta \tag{12}
 $$
 
-giving
+(verify by differentiating; this is the standard exp-Euler ZOH result). Putting it together:
 
 $$
-\boxed{U_{t+1} = \beta\, U_t + \frac{1 - \beta}{\Delta t}\, W\, s_t + (1 - \beta)\, b} \tag{11}
+\boxed{U_{t+1} = \beta\, U_t + \frac{1 - \beta}{\Delta t}\, W\, s_t + (1 - \beta)\, b} \tag{13}
 $$
 
-Limits as $\Delta t \to 0$: per-spike kick $\to W/\tau$; per-ms bias $\to b/\tau$. Both $\Delta t$-invariant.
+**Limits.** As $\Delta t \to 0$:
+
+- $(1 - \beta) / \Delta t \to 1/\tau$, so the per-spike kick approaches $W / \tau$.
+- $(1 - \beta) \to \Delta t / \tau$, so the per-step bias contribution approaches $b\Delta t/\tau$ — i.e. the *per-millisecond* bias contribution is $b/\tau$.
+
+Both are $\Delta t$-invariant. Where the snnTorch discretisation has $W$ scaled by 1 and $b$ scaled by 1 (regardless of $\Delta t$), the ZOH discretisation has $W$ scaled by $(1 - \beta)/\Delta t$ and $b$ scaled by $(1 - \beta)$. The code records these as *spike_scale* and *bias_scale*; see models.py:696.
+
+### Exponential synapse
+
+Setting *--exponential-synapse* (variants *standard-snn-exp* and *cuba-exp*) interposes an AMPA-like first-order conductance with $\tau_{\text{syn}} = 2$ ms between the spike train and the membrane. Continuous-time:
+
+$$
+\tau_{\text{syn}} \frac{dg}{dt} = -g + W\, \sum_k \delta(t - t_k) \tag{14}
+$$
+
+Discretised: decay applies only to the *old* conductance, and the same-step spike kick $W s_t$ enters fresh. The just-updated $g_{t+1}$ then drives the membrane:
+
+$$
+g_{t+1} = e^{-\Delta t / \tau_{\text{syn}}}\, g_t + W\, s_t \tag{15}
+$$
+
+$$
+U_{t+1} = \beta\, U_t + (1-\beta)\, g_{t+1} + b_{\text{scale}}\, b \tag{16}
+$$
+
+with $b_{\text{scale}} = 1$ for snnTorch discretisation and $b_{\text{scale}} = 1 - \beta$ for ZOH. The factor $(1-\beta)$ on $g_{t+1}$ rather than $(1-\beta)/\Delta t$ reflects that $g$ already has units of current (it's been integrated), not delta-function strength. See models.py:646.
+
+### Reset modes
+
+Two choices on spike, controlled by *--reset-mode*:
+
+- *zero* — hard reset $U_{t+1} \leftarrow 0$. Discards overshoot. Standard for biological neurons.
+- *subtract* — $U_{t+1} \leftarrow U_{t+1} - \theta$. Preserves overshoot above threshold for the next step. Standard for snnTorch tutorials.
+
+Defaults: *standard-snn* / *standard-snn-exp* use *subtract* under tutorial-mode; *cuba* / *cuba-exp* use *zero*.
+
+### Refractory period
+
+Optional, controlled by *--ref-ms*. Implemented as a per-neuron *can_fire* mask in *snn_lif_step*: during refractory the membrane is clamped to $V_{\text{reset}}$ and the spike output is forced to zero. Default 0 ms (no refractory) for the CUBA-family rungs.
 
 ## COBANet
 
-Conductance-based E + I populations (E:I = 4:1) with frozen recurrent matrices $W^{EE}, W^{EI}, W^{IE}$. With *ei_strength=0* the recurrent loop is off (feedforward COBA); otherwise PING.
+COBANet is the conductance-based rung, qualitatively closer to biology than CUBANet. The single flag that turns *coba* into *ping* is *--ei-strength*: at 0 the recurrent E-I weights are zero and the network is feedforward COBA; at non-zero values the inhibitory loop is wired up and the network generates PING (pyramidal-interneuron gamma) oscillations. Both build the same COBANet class.
 
-Membrane:
+### What COBA adds over CUBA, and why
 
-$$
-C_m\, \frac{dV}{dt} = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i) \tag{12}
-$$
+COBA differs from CUBA in five concrete structural choices. Each one is a deliberate upgrade with a particular phenomenon in mind, not a generic "more biological" gesture.
 
-Collect on $V$:
+**1. Two populations: excitatory (E) and inhibitory (I).** Each hidden layer is partitioned into an E sub-population and an I sub-population in a 4:1 ratio (matching mammalian cortex). CUBA has no such distinction — every hidden unit is interchangeable. The split is what makes Dale's law meaningful: an E unit can only excite its targets and an I unit can only inhibit them, regardless of how the optimiser would otherwise set weight signs. Without the split there's no way to wire an inhibitory feedback loop, and therefore no way to support PING.
 
-$$
-C_m\, \frac{dV}{dt} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{13}
-$$
-
-Define $g_{\text{tot}} = g_L + g_e + g_i$, $\tau_{\text{eff}} = C_m/g_{\text{tot}}$, $V_\infty = (g_L E_L + g_e E_e + g_i E_i)/g_{\text{tot}}$:
+**2. Conductance-based synaptic input.** CUBA adds synaptic input directly to the membrane as a current: $U_{t+1} = \beta U_t + W s_t$. COBA instead multiplies each synapse's conductance by the *driving force* — the gap between the membrane and that synapse's reversal potential:
 
 $$
-\tau_{\text{eff}}\, \frac{dV}{dt} = -(V - V_\infty) \tag{14}
+\text{synaptic term} = -g_e\, (V - E_e) - g_i\, (V - E_i)
 $$
 
-ZOH on $g_e, g_i$ → constant $\tau_{\text{eff}}, V_\infty$ over the step:
+Three things follow from this that CUBA cannot reproduce. First, **synapses saturate**: as $V$ approaches $E_e = 0$ mV the excitatory driving force shrinks toward zero, so the same conductance produces less current the more the cell is already depolarised. CUBA can keep injecting current indefinitely. Second, **inhibition can shunt** even when it doesn't hyperpolarise: open $g_i$ increases $g_{\text{tot}}$, which shortens $\tau_{\text{eff}}$ and dampens the membrane's response to all other inputs — a multiplicative gain control unavailable to CUBA's additive currents. Third, **the effective time constant changes with input**: $\tau_{\text{eff}} = C_m/g_{\text{tot}}$ is fast when synapses are open, slow when they're closed. CUBA's $\tau$ is fixed at initialisation.
+
+**3. Explicit reversal potentials.** E_e = 0 mV (depolarising) and E_i = −80 mV (hyperpolarising, below E_L = −65 mV). CUBA collapses these into the sign and magnitude of $W$, but the sign is the only signal — there's no equivalent of "the inhibitory effect reverses if the membrane already sits below −80 mV", which COBA gets for free. The reversal potentials also let the same conductance act differently on cells in different membrane states, which is what makes the PING circuit phase-locked rather than just rate-coupled.
+
+**4. Fixed recurrent E-I matrices.** Each E-I layer carries three weight matrices — $W^{EE}$ (E→E), $W^{EI}$ (E→I), $W^{IE}$ (I→E) — initialised at the start and held *requires_grad=False*. Only the feedforward $W_{\text{in}}$ and readout $W_{\text{out}}$ train. This is the most significant philosophical departure from CUBA: the gamma rhythm produced by *ping* is **not learned**. It is a fixed substrate, present at initialisation, that the optimiser learns to *read out* via the trainable feedforward weights. Empirically this is what makes [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/) work: a network trained as pure COBA (with the E-I loop silent) can be retrofitted with PING dynamics at inference by simply turning *--ei-strength* on, because the loop hardware was always there.
+
+**5. Exponential synapses with two time constants.** Every COBA synapse is a first-order low-pass filter on its presynaptic spike train, not an instantaneous kick. Excitatory (AMPA) synapses decay with $\tau_{\text{AMPA}} = 2$ ms; inhibitory (GABA) synapses decay with $\tau_{\text{GABA}} = 9$ ms. CUBA can be configured with a single exponential synapse via *--exponential-synapse* (eq 15), but only one time constant, and never with the AMPA/GABA asymmetry. The slow-GABA / fast-AMPA gap is the single most important quantity for PING: an E-burst recruits I on the AMPA timescale ($\sim 2$ ms), I inhibits E on the GABA timescale ($\sim 9$ ms), and the resulting E↔I oscillation lands in the gamma band ($\sim 30$ Hz). Symmetric time constants would not produce PING.
+
+Beyond these five structural differences, COBA also bakes in some constants that CUBA leaves to the user: **hard reset** (not subtract; biological cells discard overshoot), a **mandatory refractory period** (3 ms for E, 1.5 ms for I), and **per-population biophysical heterogeneity** — E and I cells have different membrane time constants, capacitances, leak conductances and refractory periods (see the table below). CUBA uses a single uniform parameter set for every hidden unit. The asymmetry between E and I biophysics is what gives PING its phase structure — both populations have to react on different timescales for the loop to oscillate rather than equilibrate.
+
+### E and I neurons are not the same
+
+E and I units share the same LIF equations (17)–(22), but every biophysical constant differs by a fixed ratio. The values below follow Börgers (2017) and are pinned in *src/pinglab/models.py*:
+
+| property                       | symbol            | E neuron      | I neuron      | ratio (E:I) |
+|--------------------------------|-------------------|---------------|---------------|-------------|
+| membrane time constant         | $\tau_m$          | 20 ms         | 5 ms          | 4 : 1       |
+| capacitance                    | $C_m$             | 1.0 nF        | 0.5 nF        | 2 : 1       |
+| leak conductance               | $g_L = C_m/\tau_m$ | 0.05 µS       | 0.1 µS        | 1 : 2       |
+| refractory period              | $\tau_{\text{ref}}$ | 3 ms          | 1.5 ms        | 2 : 1       |
+| inputs received                | —                 | $g_e$ + $g_i$ | $g_e$ only    | —           |
+| output transmitter             | —                 | AMPA          | GABA          | —           |
+| synaptic decay onto target     | $\tau_{\text{syn}}$ | 2 ms (AMPA)   | 9 ms (GABA)   | 1 : 4.5     |
+| synaptic reversal at target    | —                 | $E_e = 0$ mV  | $E_i = -80$ mV | —           |
+| population fraction in a layer | —                 | 4/5           | 1/5           | 4 : 1       |
+
+The functional consequences fall out of this asymmetry:
+
+- **I neurons integrate four times faster.** Their shorter $\tau_m$ (and the 2× higher $g_L$) makes the I membrane reach its steady state in $\sim 5$ ms — fast enough that a synchronous E-burst raises I above threshold within a single AMPA window. This is the *rising* edge of a PING cycle.
+- **I→E inhibition is slow and broad.** GABA's $\tau_{\text{GABA}} = 9$ ms is more than four times AMPA's $\tau_{\text{AMPA}} = 2$ ms, so a burst of I-spikes produces inhibition that outlasts the triggering excitation by tens of milliseconds. This is the *falling* edge: E is shunted long enough for the excitatory drive to re-accumulate, which sets the gamma period at $\sim 30$ Hz.
+- **I neurons receive no inhibition.** Only $g_e$ is wired into the I update (*i_step_coba* in models.py:359 takes a single conductance argument). No I→I recurrence and no I→I anatomically. This keeps the I population reactive — it follows the E population's drive without being self-suppressed.
+- **The 4:1 population ratio** matches mammalian cortex. With 1024 E units per hidden layer the corresponding I population is 256.
+
+Functions *e_step_coba* (models.py:331) and *i_step_coba* (models.py:359) wrap the same exp-Euler LIF primitive with these per-population constants.
+
+### Membrane equation
+
+A single COBA neuron obeys
 
 $$
-V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp(-\Delta t / \tau_{\text{eff}}) \tag{15}
+C_m\, \frac{dV}{dt} = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i) \tag{17}
 $$
 
-Synaptic conductances. With $\alpha = e^{-\Delta t/\tau_{\text{AMPA}}}$, $\gamma = e^{-\Delta t/\tau_{\text{GABA}}}$, $\tau_{\text{AMPA}} = 2$ ms, $\tau_{\text{GABA}} = 9$ ms:
+with capacitance $C_m$, leak conductance $g_L$, and reversal potentials $E_L = -65$ mV, $E_e = 0$ mV, $E_i = -80$ mV. Each conductance term pulls $V$ toward its reversal potential at a rate proportional to the conductance. Excitatory synapses drive $V$ up toward $E_e = 0$; inhibitory synapses both pull $V$ down toward $E_i = -80$ *and* increase total conductance, which shortens the effective membrane time constant — this is *shunting inhibition*, and it's why COBA networks are more dynamically rich than CUBA.
+
+Collect on $V$ (expand the three driving-force terms and group $V$ from each):
 
 $$
-g^{E \to E}_{t+1} = \alpha\bigl(g^{E \to E}_t + W^{EE}\, s^{E}_t\bigr) + W_{\text{in}}\, s^{\text{inp}}_t \tag{16}
+C_m\, \frac{dV}{dt} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{18}
+$$
+
+This is a linear first-order ODE of the form $C_m \dot V = -A\,V + B$, with $A = g_L + g_e + g_i$ and $B = g_L E_L + g_e E_e + g_i E_i$. Any equation in that form can be rewritten as a *decay toward a steady-state value*: if you set $\dot V = 0$ in (18), you find the voltage at which the inflow $B$ exactly balances the outflow $A V$. Call that voltage $V_\infty$ — the value the membrane *would* relax to if the conductances were held constant forever. Define accordingly
+
+$$
+g_{\text{tot}} = g_L + g_e + g_i, \qquad \tau_{\text{eff}} = \frac{C_m}{g_{\text{tot}}}, \qquad V_\infty = \frac{g_L E_L + g_e E_e + g_i E_i}{g_{\text{tot}}} \tag{19}
+$$
+
+Each of these has a clean physical meaning:
+
+- $g_{\text{tot}}$ is the *total* membrane conductance — leak plus every open synapse summed. Bigger total conductance ⇒ the cell is more "leaky" overall.
+- $\tau_{\text{eff}} = C_m / g_{\text{tot}}$ is the *effective* membrane time constant. Note this is **not** the leak-only $\tau_m = C_m/g_L$ from the constants table — when synapses are open, $\tau_{\text{eff}} < \tau_m$ because $g_{\text{tot}} > g_L$. This is *shunting*: open synapses speed up the membrane's response.
+- $V_\infty$ is a conductance-weighted average of the three reversal potentials $E_L, E_e, E_i$. With only the leak open, $V_\infty = E_L$. As $g_e$ rises, $V_\infty$ shifts up toward $E_e = 0$ mV. As $g_i$ rises, $V_\infty$ shifts down toward $E_i = -80$ mV.
+
+Substituting (19) into (18) and dividing through by $g_{\text{tot}}$ yields the standard "decay-to-steady-state" form:
+
+$$
+\tau_{\text{eff}}\, \frac{dV}{dt} = -(V - V_\infty) \tag{20}
+$$
+
+This is the form every linear first-order ODE with constant coefficients can be put into; once you're here you can integrate analytically by inspection. The closed-form solution over an interval where $\tau_{\text{eff}}$ and $V_\infty$ are constant is
+
+$$
+V(t) = V_\infty + (V_0 - V_\infty)\, e^{-t / \tau_{\text{eff}}}
+$$
+
+— the membrane interpolates from its starting value $V_0$ toward $V_\infty$ on a timescale $\tau_{\text{eff}}$.
+
+The catch is that in continuous time $\tau_{\text{eff}}$ and $V_\infty$ are *not* constant — both depend on $g_e(t)$ and $g_i(t)$, which evolve as spikes arrive. The zero-order hold below (eq 21) is what makes this tractable numerically: freeze $g_e$ and $g_i$ over one $\Delta t$ step, integrate (20) exactly under that freeze, then update $g_e$ and $g_i$ for the next step.
+
+### Discretisation
+
+Hold $g_e, g_i$ constant over the step $[t, t+\Delta t]$ (zero-order hold) — then $\tau_{\text{eff}}$ and $V_\infty$ are also constant and (20) integrates analytically:
+
+$$
+V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp\!\left(-\Delta t / \tau_{\text{eff}}\right) \tag{21}
+$$
+
+After the membrane update, apply the threshold/reset:
+
+$$
+S_{t+1} = \mathbf{1}[V_{t+1} \geq V_{\text{th}}], \quad V_{t+1} \leftarrow V_{\text{reset}} \text{ if } S_{t+1} = 1 \text{ or refractory} \tag{22}
+$$
+
+with $V_{\text{th}} = -50$ mV, $V_{\text{reset}} = -65$ mV. Refractory periods are $\tau_{\text{ref}}^E = 3$ ms and $\tau_{\text{ref}}^I = 1.5$ ms — held in a per-neuron countdown that suppresses spiking until exhausted. See *e_step_coba* / *i_step_coba* in models.py:331.
+
+### Synaptic conductances
+
+Each conductance is the convolution of its presynaptic spike train with a decaying exponential. Discretising with the same post-decay-then-kick convention as the CUBA exponential synapse:
+
+$$
+g^{E \to E}_{t+1} = \alpha\bigl(g^{E \to E}_t + W^{EE}\, s^{E}_t\bigr) + W_{\text{in}}\, s^{\text{inp}}_t \tag{23}
 $$
 
 $$
-g^{E \to I}_{t+1} = \alpha\bigl(g^{E \to I}_t + W^{EI}\, s^{E}_t\bigr) \tag{17}
+g^{E \to I}_{t+1} = \alpha\bigl(g^{E \to I}_t + W^{EI}\, s^{E}_t\bigr) \tag{24}
 $$
 
 $$
-g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{18}
+g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{25}
 $$
 
-Hard reset $V \leftarrow V_{\text{reset}}$ on threshold; refractory $\tau_{\text{ref}}^E = 3$ ms, $\tau_{\text{ref}}^I = 1.5$ ms. Dale's law: $W \geq 0$. Defaults: $W^{EE} = 0$, $W^{EI} \approx 1$ µS, $W^{IE} \approx 3$ µS. Recurrent matrices frozen at init; only $W_{\text{in}}, W_{\text{out}}$ train. $\Delta t$ ceiling at $\sim \tau_{\text{GABA}}$. Constants on [Parameters & Units](/docs/parameters-and-units/#coba--ping-biophysical-constants).
+The trainable feedforward input $W_{\text{in}} s^{\text{inp}}_t$ is added to the input-layer E→E conductance **after** the decay+kick step, not folded into it — this matches the code (models.py:1524) and lets the input arrive "fresh" each step regardless of the recurrent dynamics.
+
+### Architectural constants
+
+Defaults at initialisation (overridable by CLI flags):
+
+- E:I ratio 4:1 within each hidden layer. For *--n-hidden 1024* this gives 1024 E + 256 I.
+- $W^{EE} = 0$, $W^{EI} \approx 1$ µS, $W^{IE} \approx 3$ µS. Each is scaled by *--ei-strength* at init.
+- Dale's law: all recurrent weights $\geq 0$; sign is determined by population.
+- $\Delta t$ ceiling. Numerical stability of the exp-Euler step degrades when $\Delta t$ approaches the shortest time constant, $\tau_{\text{AMPA}} = 2$ ms. Train and infer at $\Delta t \leq 1$ ms.
+
+## Readout modes
+
+All three classes expose a *--readout* flag selecting how the output layer turns hidden spikes into logits:
+
+- *rate* — output layer is the last linear projection of accumulated hidden spikes (no LIF state). Cheapest.
+- *li* — output layer is a leaky integrator (LIF without spikes). Returns the integrator state at the final step.
+- *spike-count* — output layer is a spiking LIF; logit is the cumulative spike count over the trial.
+- *mem-mean* — output layer is a spiking LIF; logit is the mean membrane potential over the trial.
+
+The CUBA family defaults to *rate*; the COBA family and the headline notebooks use *mem-mean*, which gives a smoother training signal than *spike-count* without the saturation behaviour of *rate*.
+
+## Surrogate gradient
+
+The fast-sigmoid surrogate (3) is what makes backprop through the spike threshold possible. The forward pass is unchanged from the biological model: a hard binary spike is emitted whenever the membrane crosses threshold. On the backward pass, the gradient $\partial S / \partial V$ — which is a Dirac delta in the exact model — is replaced by the derivative of the smooth fast-sigmoid:
+
+$$
+\frac{\partial \sigma_{\text{surr}}}{\partial u} = \frac{k}{(1 + |k\, u|)^2} \tag{26}
+$$
+
+The *slope* parameter $k$ (set by *--surrogate-slope*, default 1.0) controls how peaked the surrogate gradient is around threshold. Larger $k$ approaches the true delta in the limit but loses gradient signal away from threshold; smaller $k$ spreads gradient more widely at the cost of biasing the implicit gradient direction.
+
+## Patching $\Delta t$ at runtime
+
+A single utility, *patch_dt* in *src/pinglab/inputs.py*, mutates the module-level $\Delta t$ together with all derived quantities ($\beta$, $\alpha$, $\gamma$, $T_{\text{steps}}$). This is the only sanctioned way to change the simulation time-step — calling it ensures that every model picks up the new $\Delta t$-dependent constants on the next forward pass. The [013 — Timestep Stability](/notebooks/nb013/) experiments exercise *patch_dt* extensively to evaluate trained networks at $\Delta t$ values different from training.

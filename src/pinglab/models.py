@@ -79,8 +79,6 @@ W_EI_MEAN = 1.0  # uS — E→I init mean (just suprathreshold, Börgers)
 W_EI_STD = 0.5  # uS — E→I init std (pre-fan-in)
 W_IE_MEAN = 3.0  # uS — I→E init mean (2-3× E→I, Viriyopase et al.)
 W_IE_STD = 1.5  # uS — I→E init std (pre-fan-in)
-delay_ei_ms = 1.0  # ms — E→I synaptic delay
-delay_ie_ms = 1.0  # ms — I→E synaptic delay
 
 # ── Training ──────────────────────────────────────────────────────────────
 BATCH_SIZE = 64
@@ -102,8 +100,6 @@ ref_steps_I = max(1, int(round(ref_ms_I / dt)))
 p_scale = max_rate_hz * dt / 1000.0
 beta_snn = np.exp(-dt / tau_snn)
 beta_out = np.exp(-dt / tau_out_ms)
-delay_ei_steps = max(1, int(round(delay_ei_ms / dt)))
-delay_ie_steps = max(1, int(round(delay_ie_ms / dt)))
 
 
 def _env_no_compile() -> bool:
