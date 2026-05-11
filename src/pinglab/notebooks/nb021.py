@@ -1,23 +1,17 @@
 """Notebook runner for entry 021 — L2 (MSE) loss across cuba / coba / ping.
 
-Trains each rung of the biophysical ladder (cuba, coba, ping) under
-two loss modes:
+Trains each rung of the biophysical ladder under two loss modes:
 
-  ce  — cross-entropy on cumulative-membrane logits (the existing
-        default across nb010–12).
-  mse — L2 between logits and one-hot targets (Bohte 2002 / Lee 2016
-        SNN-paper standard; useful when readout-scale makes the CE
-        softmax saturate).
+  ce  — cross-entropy on cumulative-membrane logits (the default across
+        nb010–12).
+  mse — L2 between logits and one-hot targets (Bohte 2002, Lee 2016).
 
-Six cells total (3 models × 2 loss modes). Every other knob is
-identical to each model's calibrated recipe from nb010/11/12, so any
-difference between cells is attributable to the loss choice.
-
-The MSE path through oscilloscope.train (--loss mse) already exists;
-this notebook is the first repo-wide use of it for COBANet-family
-models. It exists to surface readout-scale issues that bite MSE but
-not CE, and to record whether the existing per-model w_out scaling
-(used to make CE softmax sharper) needs to change for L2.
+Six cells (3 models × 2 loss modes). The CE-calibrated readout scales
+(100 for coba, 500 for ping) put logits in O(100), which CE absorbs
+through softmax but MSE chases as raw magnitude error — collapses the
+network. A scale sweep ∈ {1, 2, 5, 10} (see numbers.json history) put
+the optimum at scale=5 for both coba/mse and ping/mse, so we pin that
+value for the MSE cells.
 
 Notebook entry: src/docs/src/pages/notebooks/nb021.mdx
 """
@@ -95,6 +89,16 @@ MODEL_RECIPES: dict[str, dict] = {
     },
 }
 
+# MSE on one-hot targets needs logits in O(1); the CE-calibrated readout
+# scales (100 for coba, 500 for ping) over-shoot under L2. A sweep across
+# {1, 2, 5, 10} put the optimum at 5 for both coba/mse and ping/mse —
+# pinned here.
+MSE_READOUT_SCALE = "5"
+LOSS_RECIPE_OVERRIDES: dict[tuple[str, str], dict[str, str | bool | None]] = {
+    ("coba", "mse"): {"--readout-w-out-scale": MSE_READOUT_SCALE},
+    ("ping", "mse"): {"--readout-w-out-scale": MSE_READOUT_SCALE},
+}
+
 MODEL_COLORS = {
     "cuba": theme.DEEP_RED,
     "coba": theme.AMBER,
@@ -134,7 +138,8 @@ def build_train_args(
         "--out-dir", str(out_dir),
         "--wipe-dir",
     ]
-    for k, v in recipe.items():
+    merged: dict = {**recipe, **LOSS_RECIPE_OVERRIDES.get((model, loss_mode), {})}
+    for k, v in merged.items():
         if k.startswith("__"):
             continue
         if v is True:
@@ -233,8 +238,6 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
                 "detail": f"{model}/ce={ce['best_acc']:.2f}%",
             }
         )
-    # Stub success: mse must train (acc > chance). Tightened later once we
-    # know what acc gap is acceptable.
     for model in MODELS:
         mse = next(
             r for r in rows if r["model"] == model and r["loss_mode"] == "mse"
@@ -364,6 +367,7 @@ def main() -> None:
             "dataset": "mnist",
             "models": MODELS,
             "loss_modes": LOSS_MODES,
+            "mse_readout_scale": MSE_READOUT_SCALE,
             "max_samples": TIER_CONFIG[tier]["max_samples"],
             "epochs": TIER_CONFIG[tier]["epochs"],
             "t_ms": T_MS,
