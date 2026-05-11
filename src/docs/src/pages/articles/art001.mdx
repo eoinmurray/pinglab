@@ -9,7 +9,7 @@ import Figure from "../../components/Figure.astro";
 
 # PING Training
 
-Goal of this article it to show plots pertaining to training PING networks and their advantages over CUBA and raw COBA models.
+Plots pertaining to training PING networks and comparing them with CUBA and raw COBA.
 
 **Notebooks referenced:**
 
@@ -22,78 +22,120 @@ Goal of this article it to show plots pertaining to training PING networks and t
 
 ## PING training
 
-Hitherto researchers have modelled PING, but not trained it and given it a computational task. We report that result here, training PING on the MNIST classification task.
+PING has been modelled but not trained on a task. We train it here on MNIST classification.
+
+The network is a conductance-based E/I model with a fixed E→I→E loop. Feedforward and E→E weights are learned; the inhibitory loop is held at its initialised strength. Training uses surrogate-gradient backprop with a cumulative-membrane readout (Figure 1).
 
 <Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb012/training_curves.png" alt="Train loss and test accuracy per epoch for ping">
-  Per-epoch train loss and test accuracy for PING on MNIST — the network trains to a stable accuracy plateau, demonstrating that an E/I gamma-rhythm network can be optimised end-to-end with surrogate-gradient backprop. From [012 — PING](/notebooks/nb012/), Figure 1.
+  Per-epoch train loss and test accuracy for PING on MNIST. From [012 — PING](/notebooks/nb012/), Figure 1.
 </Figure>
 
+Figures 2 and 3 record whether the gamma rhythm survives training. Mean excitatory rate settles in the $\sim$20–40 Hz band, and the hidden layer organises into E-then-I cycles by the final epoch.
+
 <Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb012/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for ping">
-  Mean excitatory hidden firing rate over the training schedule. The rate settles into a biologically plausible band rather than running away or collapsing to silence. From [012 — PING](/notebooks/nb012/), Figure 2.
+  Mean excitatory hidden firing rate over the training schedule. From [012 — PING](/notebooks/nb012/), Figure 2.
 </Figure>
 
 <Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb012/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the ping hidden layer">
-  Oscilloscope view of PING's hidden layer on a fixed reference MNIST trial, sampled once per epoch. As training progresses, asynchronous spiking organises into the stereotypical E-then-I gamma cycles. From [012 — PING](/notebooks/nb012/), Figure 3.
+  Oscilloscope view of PING's hidden layer on a fixed reference MNIST trial, sampled once per epoch. From [012 — PING](/notebooks/nb012/), Figure 3.
 </Figure>
 
 ## dt stability vs other models
 
+Six models are trained on MNIST at two *dt* regimes (0.1 ms and 1 ms), each with the per-model recipe from its calibration sibling ([nb007](/notebooks/nb007/)–[nb012](/notebooks/nb012/)). Weights are then frozen and accuracy is re-evaluated across a sweep of eval-*dt* values under three input-transport rules ([upsample / downsample / resample](#eval-time-dt-transport)). Identity transport (eval-*dt* = train-*dt*) anchors each sweep, so any change downstream is *integrator-side*.
+
+**Models** (see [the ladder](/docs/models/)):
+
+- [*standard-snn*](/docs/models/#standard-snn) — pinglab reimplementation of snnTorch's *snn.Leaky*. The Tutorial-3 simplification ($\Delta t = 1$, $R = 1$, $(1-\beta)$ absorbed into $W$) drops $\Delta t$ from the update, which is what produces the *dt*-leakage analysed below.
+- [*standard-snn-exp*](/docs/models/#standard-snn) — *standard-snn* with an exponential synapse ($\tau_\text{syn} \approx 2$ ms) on the feedforward inputs.
+- [*snntorch-library*](/docs/models/#snntorch-library) — snnTorch's *snn.Leaky* directly. Parity probe against *standard-snn*.
+- [*cuba*](/docs/models/#cuba) — same LIF, exp-Euler + ZOH integration restoring the $(1-\beta)/dt$ and $(1-\beta)$ prefactors. *dt* is back in the update.
+- [*coba*](/docs/models/#coba) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
+- [*ping*](/docs/models/#ping) — COBA plus the frozen E→I→E recurrent loop that produces gamma.
+
+
+All six models reach comparable accuracy at their training dt (Figure 4); differences appear once dt is perturbed at inference.
+
 <Figure id="Figure 4" title="Training curves" src="/figures/notebooks/nb013/training_curves.png" alt="Training curves, 2x2 grid (rows: train-dt regime, columns: loss and accuracy)">
-  Per-epoch train loss (left column) and test accuracy (right column) for every model on the dt-stability ladder; rows are the two training-dt regimes (1 ms and 0.1 ms). All models reach comparable accuracy at training-time dt — the question Figures 5–7 then ask is what happens when the integrator dt is changed at evaluation time. From [013 — Timestep Stability](/notebooks/nb013/), Figure 1.
+  Per-epoch train loss (left) and test accuracy (right) for every model. Rows: train-dt 1 ms and 0.1 ms. From [013 — Timestep Stability](/notebooks/nb013/), Figure 1.
 </Figure>
+
+Figure 5 plots hidden firing rate vs eval-dt. The snnTorch family scales with dt — $\Delta t$ is absorbed into the weights, so halving dt doubles spike-emission opportunities. CUBA, COBA and PING keep $\Delta t$ explicit and stay flat.
 
 <Figure id="Figure 5" title="Hidden firing rate vs eval-dt" src="/figures/notebooks/nb013/firing_rates.png" alt="Mean hidden firing rate vs eval-dt, 2x2 grid (rows: count-preserving / resample, columns: train-dt)">
-  Mean hidden-layer firing rate on frozen weights as the evaluation dt is swept around the training dt (red dashed vertical). Top row sweeps with count-preserving input transports (solid = upsample, dashed = downsample); bottom row resamples the Poisson input. Colour groups model family — blue gradient = snnTorch family, green = CUBA, orange/red = PING family. PING's curves stay flat where the standard SNNs swing wildly. From [013 — Timestep Stability](/notebooks/nb013/), Figure 2.
+  Mean hidden firing rate vs eval-dt, frozen weights. Red dashed vertical = train-dt. Top row: count-preserving transports (solid upsample, dashed downsample). Bottom row: resampled Poisson input. From [013 — Timestep Stability](/notebooks/nb013/), Figure 2.
 </Figure>
+
+Figure 6 shows test accuracy across the same sweep: the standard-SNN family collapses off the training point, while CUBA, COBA and PING hold near-training accuracy.
 
 <Figure id="Figure 6" title="Accuracy vs eval-dt" src="/figures/notebooks/nb013/dt_sweep.png" alt="Accuracy vs eval-dt, 2x2 grid (rows: count-preserving / resample, columns: train-dt)">
-  Same 2×2 layout as Figure 5, now plotting test accuracy on frozen weights vs eval-dt. PING and COBA hold accuracy across the sweep; the CUBA and standard-SNN families collapse off the trained operating point. This is the central dt-robustness claim of the article. From [013 — Timestep Stability](/notebooks/nb013/), Figure 3.
+  Same layout as Figure 5; test accuracy on frozen weights vs eval-dt. From [013 — Timestep Stability](/notebooks/nb013/), Figure 3.
 </Figure>
 
+Figure 7 reports *when* each model commits to a class within the 200 ms trial (running argmax of cumulative output membrane).
+
 <Figure id="Figure 7" title="Latency to correct answer" src="/figures/notebooks/nb013/latency_curves.png" alt="P(correct) as a function of fraction of trial seen, per model, two panels for train-dt regimes">
-  Test accuracy as a function of how much of the trial the cumulative-membrane readout has integrated, per model, one panel per train-dt regime. The running argmax picks the class with the highest cumulative output membrane up to that step. Dotted line at 10% is chance. Models that reach high accuracy earliest have the steepest curves. From [013 — Timestep Stability](/notebooks/nb013/), Figure 4.
+  Running-argmax test accuracy vs fraction of the 200 ms trial integrated, per model, one panel per train-dt. Dotted line at 10% is chance. From [013 — Timestep Stability](/notebooks/nb013/), Figure 4.
 </Figure>
 
 ## COBA to PING weight transfer
 
+PING and COBA share the same units and feedforward path; they differ only in whether the E→I→E loop is active. Does the loop need to be active during training, or can it be switched on at inference? We sweep *ei_strength* at test time on frozen COBA weights.
+
 <Figure id="Figure 8" title="Transfer accuracy vs I-loop strength" src="/figures/notebooks/nb019/acc_sweep.png" alt="Line plot: test accuracy versus inference ei_strength, on coba-trained weights.">
-  Test accuracy as the inhibitory loop strength *ei_strength* is swept at inference time on weights trained as plain COBA (no I→E loop). At ei = 0 the network is pure COBA; turning the loop on retrofits PING dynamics without retraining. Dotted lines mark the COBA baseline and 10% chance. Accuracy degrades only modestly across the sweep — the COBA readout still works once PING dynamics are switched on. From [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), Figure 1.
+  Test accuracy vs inference-time *ei_strength* on COBA-trained weights. Dotted lines: COBA baseline and 10% chance. From [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), Figure 1.
 </Figure>
+
+Figure 9 reports population firing rates across the sweep: E rate falls as the loop is dialled up, I rate rises from zero.
 
 <Figure id="Figure 9" title="E and I firing rates vs I-loop strength" src="/figures/notebooks/nb019/rates_sweep.png" alt="Line plot: mean excitatory and inhibitory population firing rates versus inference ei_strength.">
-  Mean E (hidden) and I population firing rates over each test pass as the inhibitory loop is dialled up. E falls as inhibition comes online; I rises from zero as the inhibitory population starts spiking. Read together with Figure 8, this disambiguates failure modes — a large E drop with preserved accuracy implies a rate-invariant readout. From [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), Figure 2.
+  Mean E (hidden) and I population firing rates per test pass vs *ei_strength*. From [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), Figure 2.
 </Figure>
 
+Figure 10 shows single-trial rasters at six *ei* values. At ei = 0 the network is asynchronous; by ei ≈ 0.4 the same weights produce gamma-band E-then-I cycles.
+
 <Figure id="Figure 10" title="E and I spike rasters across the ei sweep" src="/figures/notebooks/nb019/rasters.png" alt="Stacked raster panels, one per ei value, showing E (black) and I (red) spike trains for a single test sample.">
-  Single-trial spike rasters at six representative *ei* values (E units in black, I units in red, dotted line separates populations). At ei = 0 the I population is silent and E fires asynchronously at high rate; by ei = 0.2 the loop comes online with sharp synchronous I bursts and E troughs; from ei = 0.4 upward, full PING is established with tight gamma-band E-then-I cycles ($\sim$30 Hz). Same trained feedforward and E→E weights throughout — only the inhibitory loop is changing. From [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), Figure 3.
+  Single-trial spike rasters at six *ei* values (E black, I red; dotted line separates populations). Same trained feedforward and E→E weights throughout. From [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), Figure 3.
 </Figure>
 
 ## Classification latency
 
+Figures 11 and 12 plot single-window MNIST accuracy against two x-axes: elapsed time, and cumulative hidden-layer spikes.
+
 <Figure id="Figure 11" title="Latency: accuracy vs time" src="/figures/notebooks/nb015/latency_time.png" alt="Line chart: running argmax accuracy as a function of time within a single 200 ms window for cuba, coba, and ping. Dashed line marks 10% chance.">
-  Running cumulative-membrane argmax accuracy across a single 200 ms MNIST trial for CUBA, COBA, and PING (800 trials averaged per point). Dashed line marks 10% chance. Steeper, earlier curves mean the network can commit to a class sooner — the wall-clock latency budget. From [015 — Classification Latency](/notebooks/nb015/), Figure 1.
+  Running cumulative-membrane argmax accuracy across a 200 ms MNIST trial (800 trials averaged per point). Dashed line: 10% chance. From [015 — Classification Latency](/notebooks/nb015/), Figure 1.
 </Figure>
 
 <Figure id="Figure 12" title="Latency: accuracy vs cumulative hidden spikes" src="/figures/notebooks/nb015/latency_hidden_spikes.png" alt="Line chart: running argmax accuracy as a function of cumulative hidden spikes per trial, log x-axis, for cuba, coba, and ping.">
-  Same data as Figure 11 re-projected onto cumulative *hidden-layer* spikes (log x-axis). This factors out the very different firing densities of the three architectures and asks how much accuracy each model extracts per spike. Curves further left are more spike-efficient. From [015 — Classification Latency](/notebooks/nb015/), Figure 3.
+  Figure 11 re-projected onto cumulative *hidden-layer* spikes (log x-axis). Curves further left are more spike-efficient. From [015 — Classification Latency](/notebooks/nb015/), Figure 3.
 </Figure>
+
+CUBA plateaus slightly earlier in time; against spike count, COBA and PING reach the same accuracy with about an order of magnitude fewer spikes.
 
 ## Spike Penalty
 
+Unpenalised, the three models settle at different rates (Figure 12). Adding an upper-bound regulariser $\lambda_u \cdot \sum \text{ReLU}(\bar s - \theta_u)^2$ — with strength $\lambda_u = 10^{-3}$ held fixed — and sweeping the budget $\theta_u$ (mean spikes per trial per unit) traces each model's accuracy–rate frontier.
+
 <Figure id="Figure 13" title="Accuracy / rate frontier" src="/figures/notebooks/nb020/frontier.png" alt="Pareto frontier: best test accuracy versus achieved hidden E rate, one line per model. Each point labelled with its θ_u value.">
-  Pareto frontier of test accuracy vs achieved hidden-E firing rate, one curve per model along the (CUBA, COBA, PING) ladder; each point is one *(model, $\theta_u$)* configuration, labelled by the spike-budget $\theta_u$ used to penalise excess firing. The flat-then-knee shape is the compressibility profile — leftward extent at constant accuracy says how sparse the network *can* be made; rightward extent says how loose the unpenalised baseline was. From [020 — Spike-Penalty Sweep Across the Ladder](/notebooks/nb020/), Figure 1.
+  Test accuracy vs achieved hidden-E firing rate, one curve per model; each point is one *(model, $\theta_u$)* configuration. From [020 — Spike-Penalty Sweep Across the Ladder](/notebooks/nb020/), Figure 1.
 </Figure>
+
+PING's frontier is flat: its unpenalised rate is already biological, and accuracy is insensitive to $\theta_u$. CUBA loses accuracy when forced down toward PING's rate.
 
 ## Sequential MNIST
 
+The same three models are evaluated on a continuous stream of digits with no boundary marker, classified in a sliding window.
+
 <Figure id="Figure 16" title="Hidden-layer response per model" src="/figures/notebooks/nb016/sequential_response.png" alt="Stacked rasters showing the four digit thumbnails, the Poisson input spikes, and the hidden-layer spikes of cuba, coba, and ping for the same 4-digit trial.">
-  One sequential-MNIST trial of four digits in succession through each trained network. Top: the digits in order. Middle: the 784-neuron Poisson input, refreshed every 50 ms with no marker between digits. Bottom: each model's hidden-layer raster. CUBA fires densely ($\sim$250 Hz); COBA and PING stay biological ($\sim$5–30 Hz), and PING's recurrent activity visibly carries information across digit boundaries. From [016 — Sequential MNIST Tracking](/notebooks/nb016/), Figure 1.
+  One sequential-MNIST trial of four digits through each trained network. Top: digits in order. Middle: 784-neuron Poisson input, refreshed every 50 ms with no boundary marker. Bottom: each model's hidden-layer raster. From [016 — Sequential MNIST Tracking](/notebooks/nb016/), Figure 1.
 </Figure>
 
 <Figure id="Figure 17" title="Accuracy vs window length" src="/figures/notebooks/nb016/tracking_accuracy.png" alt="Line chart: mean per-window accuracy as a function of window length in milliseconds for cuba, coba, and ping. Dashed line marks 10% chance.">
-  Mean per-window classification accuracy vs window length on the sequential-digit task, for CUBA, COBA, and PING (800 trials per point). Dashed line marks 10% chance. Shorter windows are harder; the curve shows how quickly each model can classify a digit before the next one arrives. From [016 — Sequential MNIST Tracking](/notebooks/nb016/), Figure 2.
+  Mean per-window accuracy vs window length on the sequential-digit task (800 trials per point). Dashed line: 10% chance. From [016 — Sequential MNIST Tracking](/notebooks/nb016/), Figure 2.
 </Figure>
 
+CUBA plateaus at short windows; against spikes per window (Figure 18), PING and COBA match it with about an order of magnitude fewer spikes.
+
 <Figure id="Figure 18" title="Accuracy vs hidden spikes per window" src="/figures/notebooks/nb016/tracking_hidden_spikes.png" alt="Line chart: mean per-window accuracy as a function of mean hidden-layer spikes per window, log x-axis, for cuba, coba, and ping. Dashed line marks 10% chance.">
-  Figure 16's data re-projected onto the measured mean *hidden-layer* spikes per 50 ms window (log x-axis). Curves shift sideways because the three architectures fire at very different densities — this projection isolates how much accuracy each model gets per emitted spike. From [016 — Sequential MNIST Tracking](/notebooks/nb016/), Figure 4.
+  Figure 17 re-projected onto mean hidden-layer spikes per 50 ms window (log x-axis). From [016 — Sequential MNIST Tracking](/notebooks/nb016/), Figure 4.
 </Figure>
