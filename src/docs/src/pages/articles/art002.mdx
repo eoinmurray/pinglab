@@ -1,0 +1,128 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "Vector Calculus"
+date: 2026-05-12
+entry: 2
+structure: paper
+---
+import InnerProduct from "../../components/articles/InnerProduct";
+import CrossProduct from "../../components/articles/CrossProduct";
+import Gradient from "../../components/articles/Gradient";
+import Divergence from "../../components/articles/Divergence";
+import Curl from "../../components/articles/Curl";
+import DivergenceTheorem from "../../components/articles/DivergenceTheorem";
+import StokesTheorem from "../../components/articles/StokesTheorem";
+
+# Vector Calculus
+
+A short primer on the vector calculus needed to read [Maxwell's equations](/articles/art003/) in both their differential and integral forms. We work in $\mathbb{R}^3$ with Cartesian coordinates $(x, y, z)$. Scalar fields take a point to a number; vector fields take a point to a vector. The operators below are the alphabet for talking about how those fields change in space, and the two theorems at the end are what turn the local (differential) story into the global (integral) one.
+
+## Operators
+
+### Inner product
+
+Takes two vectors and returns a scalar.
+
+<InnerProduct client:load />
+
+$$
+\mathbf{a} \cdot \mathbf{b} \;=\; \sum_{i} a_i b_i \;=\; a_1 b_1 + a_2 b_2 + a_3 b_3 \;=\; |\mathbf{a}|\,|\mathbf{b}|\,\cos\theta,
+$$
+
+where $\theta$ is the angle between them. It measures how much $\mathbf{a}$ projects onto $\mathbf{b}$; it is zero exactly when the two are perpendicular. Dot products of the form $\mathbf{F} \cdot d\mathbf{A}$ and $\mathbf{F} \cdot d\boldsymbol{\ell}$ are what pick out the component of a field along a surface normal or path tangent — the building block of flux and circulation.
+
+Intuitively: how much of one arrow lies along the other — a shadow length.
+
+### Cross product
+
+Takes two vectors and returns a vector perpendicular to both, with magnitude equal to the area of the parallelogram they span.
+
+<CrossProduct client:load />
+
+$$
+\mathbf{a} \times \mathbf{b} \;=\; \bigl(a_2 b_3 - a_3 b_2,\; a_3 b_1 - a_1 b_3,\; a_1 b_2 - a_2 b_1\bigr),
+\qquad |\mathbf{a} \times \mathbf{b}| = |\mathbf{a}|\,|\mathbf{b}|\,\sin\theta.
+$$
+
+The direction follows the right-hand rule. Unlike the dot product, this one is anti-symmetric: $\mathbf{a} \times \mathbf{b} = -\,\mathbf{b} \times \mathbf{a}$. We use it implicitly via the curl operator below.
+
+Intuitively: a vector pointing along the axle of the rotation that would carry $\mathbf{a}$ onto $\mathbf{b}$, with length equal to the area of the parallelogram they span.
+
+### Gradient
+
+Takes a scalar field $f(x, y, z)$ to a vector field.
+
+<Gradient client:load />
+
+$$
+\nabla f \;=\; \left(\frac{\partial f}{\partial x},\; \frac{\partial f}{\partial y},\; \frac{\partial f}{\partial z}\right).
+$$
+
+At every point it gives the direction of steepest increase of $f$ and a magnitude equal to the rate of that increase. The symbol $\nabla = \bigl(\partial_x,\, \partial_y,\, \partial_z\bigr)$ is a formal vector of partial-derivative operators; the gradient is what you get when you apply it to a scalar.
+
+Intuitively: standing on a hilly landscape with $f$ as the altitude — the arrow pointing straight up the steepest path.
+
+### Divergence
+
+Takes a vector field $\mathbf{F} = (F_x, F_y, F_z)$ to a scalar field.
+
+<Divergence client:load />
+
+$$
+\nabla \cdot \mathbf{F} \;=\; \frac{\partial F_x}{\partial x} + \frac{\partial F_y}{\partial y} + \frac{\partial F_z}{\partial z}.
+$$
+
+It measures the net outflow of $\mathbf{F}$ per unit volume at a point — positive at sources (lines fan outward), negative at sinks (lines converge), zero where the field passes through cleanly.
+
+Intuitively: a tiny soap bubble dropped into the field — divergence is the rate at which it expands (positive) or shrinks (negative) at that point.
+
+### Curl
+
+Takes a vector field to a vector field.
+
+<Curl client:load />
+
+$$
+\nabla \times \mathbf{F} \;=\; \left(\frac{\partial F_z}{\partial y} - \frac{\partial F_y}{\partial z},\; \frac{\partial F_x}{\partial z} - \frac{\partial F_z}{\partial x},\; \frac{\partial F_y}{\partial x} - \frac{\partial F_x}{\partial y}\right).
+$$
+
+At every point it measures the local rotation of $\mathbf{F}$ — its magnitude is the rate of circulation per unit area, its direction is the axis about which the field swirls (right-hand rule).
+
+Intuitively: a paddle wheel placed at this point in a flowing fluid — curl is the axis it spins around and how fast.
+
+## Integral theorems
+
+The two theorems below convert a *local* statement about a field's divergence or curl into a *global* statement about flux or circulation across a boundary. They are what let the differential and integral forms of physical conservation laws be two sides of the same coin.
+
+### Divergence theorem
+
+For a vector field $\mathbf{F}$ defined on a volume $V$ with closed boundary surface $\partial V$, the integral of the divergence over the volume equals the flux through the boundary.
+
+<DivergenceTheorem client:load />
+
+$$
+\int_{V} (\nabla \cdot \mathbf{F})\, dV \;=\; \oint_{\partial V} \mathbf{F} \cdot d\mathbf{A}.
+$$
+
+Intuitively: whatever the field is *sourcing* inside the volume has to flow out through the boundary. It is a conservation statement about field lines — every line that originates inside $V$ has to cross $\partial V$ on its way out.
+
+### Stokes' theorem
+
+For a vector field $\mathbf{F}$ on an oriented surface $S$ with boundary curve $\partial S$, the flux of the curl through $S$ equals the line integral around $\partial S$.
+
+<StokesTheorem client:load />
+
+$$
+\int_{S} (\nabla \times \mathbf{F}) \cdot d\mathbf{A} \;=\; \oint_{\partial S} \mathbf{F} \cdot d\boldsymbol{\ell}.
+$$
+
+Intuitively: if the field is *swirling* across the surface, that swirl has to add up to something circulating around the edge — like measuring a whirlpool by walking its rim rather than counting eddies across its face.
+
+## Orientation conventions
+
+Both theorems carry a sign that depends on how you orient the surface or boundary, and getting these wrong is what makes minus signs in physical laws look mysterious. Two conventions, applied consistently:
+
+- *Closed surfaces* (the $\partial V$ in the divergence theorem) carry the **outward normal**. The surface element $d\mathbf{A}$ points away from the enclosed volume, so $\mathbf{F} \cdot d\mathbf{A}$ counts flux leaving $V$ as positive and flux entering as negative. This is what makes the divergence theorem a "net outflow" statement.
+- *Open surfaces with boundary* (the $S$ in Stokes' theorem) carry a normal $d\mathbf{A}$ that the user picks, and the boundary curve $\partial S$ is then oriented by the **right-hand rule** — curl your right-hand fingers around $\partial S$, and your thumb points along $d\mathbf{A}$. Flip $d\mathbf{A}$ and the direction of integration around $\partial S$ also flips, so both sides of Stokes' theorem change sign in lockstep.
+
+These conventions are what make signs in the physical laws non-arbitrary. In [Maxwell's equations](/articles/art003/), the minus in Faraday's law is the canonical example: once the right-hand rule fixes $\partial S$ relative to $d\mathbf{A}$, Lenz's law (the induced current opposes the change in flux) forces that sign — get the convention wrong and you'd derive perpetual motion.
