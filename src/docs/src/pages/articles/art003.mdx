@@ -1,0 +1,54 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "Maxwell's Equations"
+date: 2026-05-12
+entry: 3
+structure: paper
+---
+
+# Maxwell's Equations
+
+The four Maxwell equations are the backbone of classical electromagnetism. They come in two equivalent forms — *differential*, which states how the fields behave at every point, and *integral*, which states how they behave across surfaces and along loops. Both forms use the operators and integral theorems collected in [Vector Calculus](/articles/art002/), so we assume that primer here.
+
+## Differential form
+
+$$
+\begin{aligned}
+\nabla \cdot \mathbf{E}   &= \frac{\rho}{\epsilon_0}
+  && \text{Gauss's law of electricity} \\[4pt]
+\nabla \cdot \mathbf{B}   &= 0
+  && \text{Gauss's law of magnetism} \\[4pt]
+\nabla \times \mathbf{E}  &= -\,\frac{\partial \mathbf{B}}{\partial t}
+  && \text{Faraday's law of induction} \\[4pt]
+\nabla \times \mathbf{B}  &= \mu_0 \mathbf{J} + \mu_0 \epsilon_0 \frac{\partial \mathbf{E}}{\partial t}
+  && \text{Ampère–Maxwell law}
+\end{aligned}
+$$
+
+Here $\mathbf{E}$ and $\mathbf{B}$ are the electric and magnetic fields, $\rho$ is the charge density, $\mathbf{J}$ the current density, and $\epsilon_0$, $\mu_0$ the vacuum permittivity and permeability. Two of the equations involve a [divergence](/articles/art002/#operators) and two a [curl](/articles/art002/#operators), and that split is what lets the two integral theorems convert each pair into the integral form below.
+
+## Integral form
+
+$$
+\begin{aligned}
+\oint_{\partial V} \mathbf{E} \cdot d\mathbf{A}  &= \frac{Q_{\text{enc}}}{\epsilon_0}
+  && \text{Gauss's law of electricity} \\[4pt]
+\oint_{\partial V} \mathbf{B} \cdot d\mathbf{A}  &= 0
+  && \text{Gauss's law of magnetism} \\[4pt]
+\oint_{\partial S} \mathbf{E} \cdot d\boldsymbol{\ell}  &= -\,\frac{d}{dt} \int_{S} \mathbf{B} \cdot d\mathbf{A}
+  && \text{Faraday's law of induction} \\[4pt]
+\oint_{\partial S} \mathbf{B} \cdot d\boldsymbol{\ell}  &= \mu_0 I_{\text{enc}} + \mu_0 \epsilon_0 \,\frac{d}{dt} \int_{S} \mathbf{E} \cdot d\mathbf{A}
+  && \text{Ampère–Maxwell law}
+\end{aligned}
+$$
+
+Here $Q_{\text{enc}}$ is the total charge enclosed by the closed surface $\partial V$, $I_{\text{enc}}$ is the total current passing through the open surface $S$, and the [orientation conventions](/articles/art002/#orientation-conventions) for $d\mathbf{A}$ and $d\boldsymbol{\ell}$ are the ones from the vector-calculus primer.
+
+## Linking the two forms
+
+The two forms are linked by the integral theorems from [Vector Calculus](/articles/art002/#integral-theorems):
+
+- The **divergence theorem** turns the two $\nabla \cdot$ equations into the two flux statements through closed surfaces. Applied to $\mathbf{F} = \mathbf{E}$, it converts $\nabla \cdot \mathbf{E} = \rho/\epsilon_0$ into the enclosed-charge version of Gauss's law; the same move applied to $\mathbf{B}$ gives the magnetic Gauss law with zero on the right.
+- **Stokes' theorem** turns the two $\nabla \times$ equations into the two circulation-vs-flux-derivative statements. Applied to $\mathbf{F} = \mathbf{E}$, it converts Faraday's $\nabla \times \mathbf{E} = -\partial \mathbf{B}/\partial t$ into the integral form above (and the minus sign carries over directly); applied to $\mathbf{F} = \mathbf{B}$, it does the same for the Ampère–Maxwell law.
+
+The minus sign on Faraday's law is the canonical example of [orientation conventions](/articles/art002/#orientation-conventions) doing real work: once the right-hand rule fixes $\partial S$ relative to $d\mathbf{A}$, Lenz's law forces that sign, and the differential and integral forms agree on it automatically.
