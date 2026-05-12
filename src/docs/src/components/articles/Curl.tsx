@@ -98,7 +98,6 @@ export default function Curl() {
       const t = m / (fmax || 1);
       const arrowLen = (MIN_FRAC + (MAX_FRAC - MIN_FRAC) * Math.sqrt(t)) * PITCH;
       const ux = m > 1e-6 ? fx / m : 0;
-      // Screen y is flipped vs world y, so map +y world → -y screen.
       const uy = m > 1e-6 ? fy / m : 0;
       const arrow = arrowPath(
         sx - ux * arrowLen * 0.5,
