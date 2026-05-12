@@ -10,6 +10,7 @@ import CrossProduct from "../../components/articles/CrossProduct";
 import Gradient from "../../components/articles/Gradient";
 import Divergence from "../../components/articles/Divergence";
 import Curl from "../../components/articles/Curl";
+import Flux from "../../components/articles/Flux";
 import DivergenceTheorem from "../../components/articles/DivergenceTheorem";
 import StokesTheorem from "../../components/articles/StokesTheorem";
 
@@ -90,6 +91,31 @@ At every point it measures the local rotation of $\mathbf{F}$ — its magnitude 
 
 Intuitively: a paddle wheel placed at this point in a flowing fluid — curl is the axis it spins around and how fast.
 
+## Flux
+
+The flux of a vector field $\mathbf{F}$ through a surface $S$ is the integral of its normal component across that surface.
+
+<Flux client:load />
+
+$$
+\Phi_{\mathbf{F}}(S) \;=\; \int_{S} \mathbf{F} \cdot d\mathbf{A} \;=\; \int_{S} (\mathbf{F} \cdot \mathbf{n})\, dA,
+$$
+
+where $\mathbf{n}$ is the unit normal to $S$ at each point and $dA$ is the scalar area element. In 2D the surface degenerates to a curve and $dA \to d\ell$, the arclength element. Each infinitesimal patch contributes $\mathbf{F} \cdot \mathbf{n}\, dA$ — the projection of the field onto the surface's normal, times the patch area. Positive contributions are field lines *crossing out*; negative ones are field lines *crossing in*. The integral sums them with sign.
+
+The choice of which way $\mathbf{n}$ points is part of the orientation conventions below. Flipping $\mathbf{n}$ flips the sign of the integral, so the meaning of "out" has to be fixed up front — outward normal for closed surfaces, user-chosen for open ones.
+
+Intuitively: how many field lines net-cross the surface, counted positively in the chosen direction and negatively the other way.
+
+## Orientation conventions
+
+Flux and the integral theorems below all carry signs that depend on how you orient the surface or boundary, and getting these wrong is what makes minus signs in physical laws look mysterious. Two conventions, applied consistently:
+
+- *Closed surfaces* (a $\partial V$ wrapping a volume $V$) carry the **outward normal**. The surface element $d\mathbf{A}$ points away from the enclosed volume, so $\mathbf{F} \cdot d\mathbf{A}$ counts flux leaving $V$ as positive and flux entering as negative. This is what makes the divergence theorem a "net outflow" statement.
+- *Open surfaces with boundary* (an $S$ bounded by a curve $\partial S$) carry a normal $d\mathbf{A}$ that the user picks, and the boundary curve $\partial S$ is then oriented by the **right-hand rule** — curl your right-hand fingers around $\partial S$, and your thumb points along $d\mathbf{A}$. Flip $d\mathbf{A}$ and the direction of integration around $\partial S$ also flips, so both sides of Stokes' theorem change sign in lockstep.
+
+These conventions are what make signs in the physical laws non-arbitrary. In [Maxwell's equations](/articles/art003/), the minus in Faraday's law is the canonical example: once the right-hand rule fixes $\partial S$ relative to $d\mathbf{A}$, Lenz's law (the induced current opposes the change in flux) forces that sign — get the convention wrong and you'd derive perpetual motion.
+
 ## Integral theorems
 
 The two theorems below convert a *local* statement about a field's divergence or curl into a *global* statement about flux or circulation across a boundary. They are what let the differential and integral forms of physical conservation laws be two sides of the same coin.
@@ -118,11 +144,6 @@ $$
 
 Intuitively: if the field is *swirling* across the surface, that swirl has to add up to something circulating around the edge — like measuring a whirlpool by walking its rim rather than counting eddies across its face.
 
-## Orientation conventions
+## Where this leads
 
-Both theorems carry a sign that depends on how you orient the surface or boundary, and getting these wrong is what makes minus signs in physical laws look mysterious. Two conventions, applied consistently:
-
-- *Closed surfaces* (the $\partial V$ in the divergence theorem) carry the **outward normal**. The surface element $d\mathbf{A}$ points away from the enclosed volume, so $\mathbf{F} \cdot d\mathbf{A}$ counts flux leaving $V$ as positive and flux entering as negative. This is what makes the divergence theorem a "net outflow" statement.
-- *Open surfaces with boundary* (the $S$ in Stokes' theorem) carry a normal $d\mathbf{A}$ that the user picks, and the boundary curve $\partial S$ is then oriented by the **right-hand rule** — curl your right-hand fingers around $\partial S$, and your thumb points along $d\mathbf{A}$. Flip $d\mathbf{A}$ and the direction of integration around $\partial S$ also flips, so both sides of Stokes' theorem change sign in lockstep.
-
-These conventions are what make signs in the physical laws non-arbitrary. In [Maxwell's equations](/articles/art003/), the minus in Faraday's law is the canonical example: once the right-hand rule fixes $\partial S$ relative to $d\mathbf{A}$, Lenz's law (the induced current opposes the change in flux) forces that sign — get the convention wrong and you'd derive perpetual motion.
+The five operators plus the two integral theorems are the full toolkit needed to read Maxwell's equations in both their differential and integral forms. The differential form makes local statements about $\nabla\cdot\mathbf{E}$, $\nabla\cdot\mathbf{B}$, $\nabla\times\mathbf{E}$, $\nabla\times\mathbf{B}$; the integral form makes global statements about flux and circulation across surfaces and loops. The two are equivalent precisely because of the divergence and Stokes' theorems above. The next article, [Maxwell's Equations](/articles/art003/), writes those four equations down and takes the conversion seriously.
