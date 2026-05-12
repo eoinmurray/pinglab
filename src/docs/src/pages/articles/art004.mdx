@@ -1,0 +1,126 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "From Fields to Circuits"
+date: 2026-05-12
+entry: 4
+structure: paper
+---
+
+# From Fields to Circuits
+
+[Maxwell's equations](/articles/art003/) describe electromagnetism at every point in space, but for a single wire or capacitor that spatial resolution is overkill. Applied *in matter*, two of the four equations collapse onto two circuit-level constitutive laws — Ohm and Q=CV — which together give the **RC equation**, the simplest first-order voltage dynamics in physics. This article walks that collapse end-to-end. The next one, [The LIF Neuron](/articles/art005/), uses the same RC equation as the subthreshold dynamics of a single cell and adds the threshold-and-reset rule that turns it into a spiking neuron.
+
+We assume the [vector calculus primer](/articles/art002/) and a comfort with the integral form of [Maxwell's equations](/articles/art003/). The destination is
+
+$$
+\tau\,\frac{dV}{dt} \;=\; -(V - V_\infty) \;+\; R\,I_{\text{ext}}(t), \qquad \tau \;=\; RC,
+$$
+
+the equation an RC circuit obeys and the same equation a single point-neuron's membrane obeys between spikes.
+
+## Ohm's law in matter
+
+In free space Maxwell's equations relate $\mathbf{E}$, $\mathbf{B}$, $\rho$ and $\mathbf{J}$. In a conductor there is one extra relation, supplied by the *material* rather than by Maxwell: an electric field $\mathbf{E}$ pushes the free charges around, and the rate at which they move per unit area, per unit time, is the current density $\mathbf{J}$. To linear order,
+
+$$
+\mathbf{J} \;=\; \sigma\, \mathbf{E},
+$$
+
+where $\sigma$ is the **conductivity** of the material (siemens per metre, $\mathrm{S/m}$). This is a *constitutive* law — not derivable from Maxwell alone, it tells you how a specific material responds to a field, in the same role the relation $\mathbf{D} = \epsilon\mathbf{E}$ plays for dielectrics.
+
+### What conductivity actually is
+
+A field $\mathbf{E}$ exerts a force $q\mathbf{E}$ on every mobile charge carrier, accelerating it. In a true vacuum that carrier would keep accelerating forever; in a real material it scatters off the lattice (or the surrounding fluid) on a short timescale $\tau_c$, the **mean free time** between collisions. Between collisions it picks up a velocity $\Delta v = (q/m)\mathbf{E}\,\tau_c$, then loses it again. Averaged over many collisions, every carrier acquires a steady *drift velocity*
+
+$$
+\mathbf{v}_d \;=\; \mu\,\mathbf{E},\qquad \mu \;=\; \frac{q\,\tau_c}{m},
+$$
+
+where $\mu$ is the **mobility** of that carrier (units $\mathrm{m^2/(V\,s)}$). With $n$ carriers per unit volume, each carrying charge $q$, the current density is just $n q \mathbf{v}_d$, so
+
+$$
+\boxed{\;\sigma \;=\; n\,q\,\mu \;=\; \frac{n\,q^2\,\tau_c}{m}.\;}
+$$
+
+Conductivity is therefore a product of "how many carriers there are" ($n$), "how much charge each one carries" ($q$), and "how easily each one drifts in a field" ($\mu$, or equivalently $\tau_c/m$). A metal has $n \sim 10^{28}\,\mathrm{m^{-3}}$ near-free electrons and $\tau_c \sim 10^{-14}\,\mathrm{s}$, giving $\sigma \sim 10^7\,\mathrm{S/m}$. Salt water has $\sim 10^{26}\,\mathrm{m^{-3}}$ dissolved ions of charge $\pm e$, but the mobility of an ion in water is roughly six orders of magnitude smaller than an electron in a metal, so $\sigma \sim 1\,\mathrm{S/m}$. A neuron's cytoplasm and the extracellular fluid sit in the same $\sim 1\,\mathrm{S/m}$ ballpark. The lipid bilayer at the membrane is the opposite extreme: essentially no mobile ions at all, $\sigma \sim 10^{-13}\,\mathrm{S/m}$. That is why the membrane behaves as a capacitor in the next section and the fluids on either side behave as wires.
+
+Intuitively: $\sigma$ measures how *responsive* a material is to a field — how many carriers it offers up, multiplied by how easily each one moves. A field exerts a force per carrier; collisions limit the velocity; the product is the current.
+
+### Voltage
+
+To get from the differential statement $\mathbf{J} = \sigma\mathbf{E}$ to the familiar $V = IR$ we first need to nail down what *voltage* means. **Voltage** (or **potential difference**) between two points $A$ and $B$ is the work done per unit charge to carry a test charge from $B$ to $A$ against the electric field:
+
+$$
+V_{AB} \;=\; -\int_{B}^{A} \mathbf{E} \cdot d\boldsymbol{\ell}.
+$$
+
+Units: joules per coulomb $\equiv$ **volts** ($\mathrm{V}$). The minus sign is bookkeeping: $V_{AB} > 0$ when $A$ is at higher potential than $B$, so a positive charge would *want* to fall from $A$ to $B$ — like a ball wanting to roll downhill.
+
+Two consequences make voltage a useful circuit-level concept:
+
+- **Path-independence.** In the electrostatic limit, $\nabla\times\mathbf{E} = 0$ (no time-varying $\mathbf{B}$), so the line integral above depends only on the endpoints, not on the path taken between them. This is what justifies talking about "the voltage at a node" rather than "the voltage along this particular wire."
+- **Kirchhoff's voltage law.** Path-independence is equivalent to saying the integral around any closed loop is zero: $\oint \mathbf{E}\cdot d\boldsymbol{\ell} = 0$ → $\sum V = 0$ around the loop. (When $\partial_t \mathbf{B}$ is *not* zero through the loop, [Faraday's law](/articles/art003/#faradays-law-of-induction) modifies this — but for the membrane circuits we care about the time-varying magnetic field is negligible.)
+
+For a uniform-cross-section wire of length $L$ with constant $\mathbf{E}$ along it, the integral collapses to $V = E\,L$ — the special case the textbook starts with.
+
+### Ohm's law in integral form
+
+Substituting $V = EL$ and $I = JA$ into $\mathbf{J} = \sigma\mathbf{E}$ for the uniform wire gives
+
+$$
+I \;=\; \frac{V}{R}, \qquad R \;=\; \frac{L}{\sigma A},
+$$
+
+with $R$ the wire's **resistance** (ohms, $\Omega = \mathrm{V/A}$). For neurons the two relevant values of $\sigma$ — high for the fluids, $\sim$ zero for the membrane — are what make the rest of this article's RC picture justified.
+
+## Capacitance
+
+A thin insulator sandwiched between two conductors can hold separated charge: positive on one plate, negative on the other. To get the relation between stored charge and voltage, walk Gauss's law and the [voltage definition](#voltage) through a parallel-plate geometry.
+
+Take two plates of area $A$ separated by a gap $d$, holding charge $+Q$ and $-Q$. The integral form of [Gauss's law](/articles/art003/#gausss-law) applied to a pillbox surface straddling one plate gives a uniform field between the plates of magnitude
+
+$$
+E \;=\; \frac{Q}{\epsilon_0\, A}.
+$$
+
+Integrating that field across the gap gives the voltage between the plates, $V = E\,d = Q d / (\epsilon_0 A)$. Rearranging,
+
+$$
+Q \;=\; C\, V, \qquad C \;=\; \frac{\epsilon_0\, A}{d},
+$$
+
+where $C$ is the **capacitance** (farads, $\mathrm{F} = \mathrm{C/V}$). The relation $Q = CV$ is the load-bearing piece: capacitance is the proportionality between *stored charge* and the *voltage that charge creates*.
+
+Differentiating in time gives the current flowing onto the plates,
+
+$$
+I \;=\; \frac{dQ}{dt} \;=\; C\,\frac{dV}{dt}.
+$$
+
+This is the "current-through-a-capacitor" rule. Charge moving onto the plates *is* the current; the voltage rises in lockstep, at a rate set by how big the capacitor is.
+
+Intuitively: a capacitor is a tank. Pouring charge in (current) raises its level (voltage) at a rate determined by how big the tank is (capacitance).
+
+## The RC equation
+
+Wire a resistor $R$ in parallel with a capacitor $C$, with one end of both held at a reference voltage $V_\infty$ and the other driven by an external current source $I_{\text{ext}}(t)$. Kirchhoff's current law at the top node says the input current splits between charging the capacitor and leaking through the resistor,
+
+$$
+I_{\text{ext}}(t) \;=\; C\,\frac{dV}{dt} \;+\; \frac{V - V_\infty}{R}.
+$$
+
+Rearranging gives the **RC equation**:
+
+$$
+\boxed{\;\tau\,\frac{dV}{dt} \;=\; -(V - V_\infty) \;+\; R\,I_{\text{ext}}(t),\qquad \tau \;=\; R\,C.\;}
+$$
+
+With $I_{\text{ext}} = 0$ the voltage relaxes exponentially toward $V_\infty$ on the timescale $\tau$. With a steady $I_{\text{ext}}$ the steady-state shifts to $V_\infty + R\, I_{\text{ext}}$. Whatever the input, the dynamics is always a first-order linear ODE — the same form that appears in the [COBA derivation](/docs/models/#cobanet) on the models page, where $\tau_{\text{eff}}$ and $V_\infty$ become functions of the open conductances.
+
+The RC equation is also already most of the way to the LIF neuron. The only thing missing for LIF is a *threshold + reset* rule on top: when $V$ crosses some firing level $\theta$, emit a spike and snap $V$ back to a reset value. The subthreshold dynamics between spikes is exactly the RC equation.
+
+Intuitively: an RC circuit is the simplest dynamical voltage in physics — one state variable, one timescale, one rest level. Everything more elaborate (cable equations, Hodgkin–Huxley, COBA) is decoration on top of this skeleton.
+
+## Where this leads
+
+Three ingredients — Ohm's law in matter, parallel-plate capacitance, and Kirchhoff's current law — collapse Maxwell's equations *in matter* into a first-order ODE with a single state variable. That is enough machinery to write down a neuron's membrane: a thin insulator (capacitor) between two conducting fluids, with embedded ion channels that act as resistors. The next article, [The LIF Neuron](/articles/art005/), applies this RC picture to the cell membrane, brings in the Nernst equation for the reversal potentials, and adds the threshold-and-reset rule that turns the passive circuit into a spike-emitting neuron.

@@ -1,0 +1,194 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "The LIF Neuron"
+date: 2026-05-12
+entry: 5
+structure: paper
+---
+
+# The LIF Neuron
+
+The leaky integrate-and-fire (LIF) neuron is the simplest model of a spiking cell that still preserves the two things that make neurons interesting: a continuous *voltage* that integrates inputs in time, and a discrete *spike* output emitted when that voltage crosses a threshold. Subthreshold, an LIF cell is exactly the [RC circuit](/articles/art004/#the-rc-equation) derived in the previous article — Maxwell's equations applied to a thin insulator between two conducting fluids. The active ingredient is just one extra rule: when the membrane voltage reaches a firing level, emit a spike and reset.
+
+This article walks the construction in four steps. First, the membrane equation — the RC circuit specialised to a cell, with ion channels playing the role of resistors. Second, the reversal potentials at the end of those channels, via the Nernst equation. Third, the threshold-and-reset rule that completes the LIF model. Fourth, the two ways of wiring synaptic inputs in — current-based (**CUBA**) and conductance-based (**COBA**) — which together turn one cell into the building block of the [pinglab models](/docs/models/) and notebooks.
+
+## The cell membrane as an RC circuit
+
+A neuron's membrane is a lipid bilayer, $\sim 5$ nm thick, separating an inside compartment (axoplasm, high $K^+$, low $Na^+$) from an outside one (extracellular fluid, high $Na^+$, low $K^+$). Electrically:
+
+- The bilayer is an insulator. No free charge crosses it without help. By [Ohm's law in matter](/articles/art004/#ohms-law-in-matter), its conductivity is essentially zero.
+- Both the inside and outside fluids are conductors with $\sigma \sim 1\,\mathrm{S/m}$ — many orders of magnitude higher than the bilayer's.
+- That makes the membrane a *capacitor* in the [parallel-plate](/articles/art004/#capacitance) sense, with capacitance per unit area $C_m \sim 1\,\mu\mathrm{F}/\mathrm{cm}^2$.
+- Embedded **ion channels** open and close to let specific ions through. While open, each channel contributes a conductance $g_{\text{channel}}$ across the membrane.
+
+Stacking all of this for a small patch of membrane and applying Kirchhoff's current law gives
+
+$$
+C_m\,\frac{dV}{dt} \;=\; -\sum_k g_k\,(V - E_k) \;+\; I_{\text{ext}}(t),
+$$
+
+where the sum is over the channel types $k$ that are currently open, $g_k$ is the total open conductance of that type, and $E_k$ is the channel's *reversal potential* — the voltage at which the net current of ion $k$ through its channel is zero. The driving term $(V - E_k)$ makes each open channel pull $V$ toward its own $E_k$ at a rate set by $g_k$.
+
+Collapse all the channels into a single passive "leak" conductance $g_L$ with reversal $E_L$ and the equation reduces to the canonical [RC form](/articles/art004/#the-rc-equation),
+
+$$
+\boxed{\;C_m\,\frac{dV}{dt} \;=\; -g_L\,(V - E_L) \;+\; I_{\text{ext}}(t),\;}
+$$
+
+with membrane time constant $\tau_m = C_m / g_L$ and steady state $V_\infty = E_L$. This is the **subthreshold** dynamics of an LIF neuron — the equation it integrates whenever it is not currently spiking. The only remaining question before we can write down the full model is *where the reversal potential $E_L$ comes from* — and for that we need to leave electromagnetism for a moment and visit thermodynamics.
+
+## Ion gradients and the Nernst equation
+
+Each ion species $k$ sits at a different concentration inside and outside the cell, actively maintained by pumps that burn ATP. Two forces act on an ion that crosses the membrane:
+
+- **Diffusion** drives the ion from high concentration to low, by random thermal motion — the same statistical mechanics that produced the Maxwell–Boltzmann distribution in [Particles in a Box](/articles/art000/). Fick's law gives a flux $\mathbf{J}_{\text{diff}} = -D\,\nabla c$.
+- **Drift** acts because the ion has charge $q_k$, so it feels the electric field across the membrane: $\mathbf{J}_{\text{drift}} = \mu\, q_k\, c\, \mathbf{E}$, with $\mu$ the ionic mobility.
+
+For each ion species at equilibrium, these two fluxes cancel. Setting $\mathbf{J}_{\text{diff}} + \mathbf{J}_{\text{drift}} = 0$, using the Einstein relation $D = \mu\, k_B T$ to link diffusion and mobility, and integrating across the membrane gives the **Nernst equation**:
+
+$$
+E_k \;=\; \frac{k_B T}{q_k}\,\ln\!\left(\frac{c_{k,\text{out}}}{c_{k,\text{in}}}\right).
+$$
+
+This is the voltage at which the field-driven drift of ion $k$ exactly cancels its concentration-driven diffusion — its *equilibrium*, or *reversal*, potential. For mammalian body temperature ($T \approx 310\,\mathrm{K}$), the typical values are
+
+| ion           | inside (mM) | outside (mM) | $E_k$       |
+|---------------|-------------|--------------|-------------|
+| $K^+$         | 140         | 5            | $-86\,\mathrm{mV}$  |
+| $Na^+$        | 15          | 145          | $+61\,\mathrm{mV}$  |
+| $Cl^-$        | 10          | 110          | $-64\,\mathrm{mV}$  |
+| $Ca^{2+}$     | $10^{-4}$   | 1.2          | $+125\,\mathrm{mV}$ |
+
+The leak conductance $g_L$ used in the previous section is a mixture of mostly $K^+$ and $Cl^-$ channels, so the effective $E_L$ for the leak sits in the neighbourhood of $-65\,\mathrm{mV}$ — the cell's *resting potential*. Mixed-cation excitatory channels (AMPA receptors) end up with a reversal near $E_e \approx 0\,\mathrm{mV}$; chloride-selective inhibitory channels (GABA-A receptors) sit near $E_i \approx -75\,\mathrm{mV}$ — exactly the values used in the [COBA model](/docs/models/#cobanet). They are *not* free parameters; they fall out of the ion concentrations the cell maintains with its pumps.
+
+Intuitively: every ion feels two restoring forces — thermal diffusion pushing toward equal concentrations, and the electric field across the membrane. The voltage at which they balance is that ion's reversal potential. The cell spends ATP to keep the concentrations away from equilibrium, and the reversal potentials are the price of that maintenance.
+
+## Threshold and reset
+
+The membrane equation derived above is *passive*: it leaks toward $E_L$, never crosses any threshold, never spikes. A real neuron does fire — when its membrane voltage rises above $\sim -50\,\mathrm{mV}$ a cascade of voltage-gated $Na^+$ and $K^+$ channels opens, drives the membrane up to $\sim +30\,\mathrm{mV}$ and back down in about a millisecond, and emits an *action potential*. The full mechanism is captured by the Hodgkin–Huxley model, which adds four nonlinear gating variables to the membrane equation.
+
+The LIF idealisation throws all of that out. Instead of modelling the spike-shape dynamics, it just declares: when $V$ reaches a fixed threshold $V_{\text{th}}$, an instantaneous spike is emitted and $V$ is snapped back to a reset voltage $V_{\text{reset}}$. Optionally, the cell enters a brief refractory period $\tau_{\text{ref}}$ during which it is unresponsive — modelling the few-ms recovery time after a biological spike.
+
+$$
+\text{if } V(t) \geq V_{\text{th}} : \quad
+\text{emit spike}, \quad
+V(t^+) \leftarrow V_{\text{reset}}, \quad
+\text{cell refractory for } \tau_{\text{ref}}.
+$$
+
+This is the *only* nonlinearity in LIF. The model is otherwise a linear ODE; the spike rule is what makes it neuron-like rather than just a leaky integrator.
+
+Typical biophysical settings:
+
+| symbol              | name                  | typical value     |
+|---------------------|-----------------------|-------------------|
+| $V_{\text{th}}$     | spike threshold       | $-50\,\mathrm{mV}$ |
+| $V_{\text{reset}}$  | post-spike reset      | $-65\,\mathrm{mV}$ (often = $E_L$) |
+| $\tau_{\text{ref}}$ | refractory period     | $1\text{–}3\,\mathrm{ms}$ |
+| $\tau_m$            | membrane time const   | $10\text{–}20\,\mathrm{ms}$ |
+
+The choice of where to put the reset $V_{\text{reset}}$ is a modelling decision. Two common conventions:
+
+- **Hard reset**: $V_{\text{reset}}$ is a fixed value, usually $E_L$. Any overshoot above threshold is discarded.
+- **Subtract reset**: $V \leftarrow V - V_{\text{th}}$. Preserves overshoot, useful when integrating very fast inputs across long timesteps.
+
+These choices show up explicitly in the pinglab [model implementations](/docs/models/#cubanet) — *reset_mode = "zero"* vs *reset_mode = "subtract"*.
+
+## The full LIF model
+
+Putting it all together — the subthreshold RC dynamics, the reversal-potential leak, and the threshold-and-reset rule — gives the canonical LIF neuron:
+
+$$
+\boxed{\;
+\begin{aligned}
+\tau_m\,\frac{dV}{dt} \;&=\; -(V - E_L) \;+\; R_m\, I_{\text{ext}}(t), \\[4pt]
+\text{if } V \geq V_{\text{th}}\!:\;& \quad S \leftarrow 1, \quad V \leftarrow V_{\text{reset}}.
+\end{aligned}
+\;}
+$$
+
+with $\tau_m = C_m / g_L$ and $R_m = 1/g_L$. Inputs $I_{\text{ext}}(t)$ come from synapses (other neurons' spikes filtered through receptor channels) plus any experimental injection. The output is the **spike train** $\{t_k\}$ — the sequence of times at which $V$ crossed the threshold.
+
+That is everything. Every term has a physical pedigree traceable back to [Maxwell](/articles/art003/) or to thermodynamics:
+
+- $C_m$ from the bilayer's geometry (Gauss's law + parallel-plate capacitance).
+- $g_L$ from the open leak channels (Ohm's law in matter, with the channels playing the role of resistors).
+- $E_L$ from the ion gradients (Nernst, equilibrium of diffusion and drift).
+- $V_{\text{th}}$, $V_{\text{reset}}$, $\tau_{\text{ref}}$ from the biological behaviour of voltage-gated channels, abstracted into three numbers.
+
+Intuitively: an LIF neuron is a leaky bucket with a trip lever. Input pours water in; the bucket leaks back to a baseline level $E_L$; if the water reaches a lip $V_{\text{th}}$, the bucket tips, emits a "drop" (the spike), refills to $V_{\text{reset}}$, and starts again.
+
+## Synaptic input
+
+A single LIF cell driven by an arbitrary $I_{\text{ext}}(t)$ is useful for analysis but not yet a part of a network. In a real circuit (or a simulation of one), every cell's input comes from the *spikes* of other cells, filtered through synapses. A presynaptic spike at time $t_k$ does not deliver an instantaneous kick — postsynaptic receptor channels need a few milliseconds to open and close. The standard kernel is an **exponential synapse**: a brief jump at the spike time followed by exponential decay,
+
+$$
+\tau_{\text{syn}}\,\frac{dg}{dt} \;=\; -g \;+\; W \sum_{k}\delta(t - t_k),
+$$
+
+with $\tau_{\text{syn}}$ on the order of milliseconds ($\sim 2$ ms for AMPA, $\sim 9$ ms for GABA-A) and $W$ the synaptic weight (in conductance units). The state variable $g(t)$ is then plugged into the membrane equation — but *how* it enters is what separates the two main families of synapse model.
+
+### Current-based synapses (CUBA)
+
+In a CUBA synapse, $g(t)$ is treated as a current and added directly to the membrane:
+
+$$
+C_m\,\frac{dV}{dt} \;=\; -g_L\,(V - E_L) \;+\; \sum_i g_i(t) \;+\; I_{\text{ext}}(t),
+$$
+
+where the sum runs over all synapses, with positive $W$ for excitatory and negative for inhibitory. Each $g_i$ obeys its own exponential-synapse ODE.
+
+The big advantage of CUBA is that the membrane equation stays **linear** in $V$: each synapse contributes a fixed-shape post-synaptic potential (PSP) regardless of where the membrane currently sits. That makes the dynamics easy to analyse (sums of exponentials) and fast to simulate. The disadvantage is biological realism: a real synapse's effect on the membrane *does* depend on $V$ — but a CUBA synapse contributes the same kick whether the cell is at rest, near threshold, or already saturated.
+
+### Conductance-based synapses (COBA)
+
+In COBA, $g(t)$ is treated as it actually is — a conductance — and the current it produces depends on the membrane's distance from the synapse's reversal potential:
+
+$$
+I_{\text{syn},\,k}(t) \;=\; -\,g_k(t)\,(V - E_k).
+$$
+
+Each synapse type $k$ has its own conductance $g_k(t)$ obeying its own exponential synapse, and its own reversal potential $E_k$ set by the [Nernst equation](#ion-gradients-and-the-nernst-equation). In a typical excitatory / inhibitory split:
+
+| family       | transmitter | $\tau_{\text{syn}}$ | $E_k$              |
+|--------------|-------------|---------------------|--------------------|
+| excitatory   | AMPA (mixed cations) | $\sim 2$ ms   | $E_e \approx 0$ mV |
+| inhibitory   | GABA-A (chloride)    | $\sim 9$ ms   | $E_i \approx -75$ mV |
+
+Stacking the leak channel and the two synapse families gives the **conductance-based LIF**, i.e. the **COBA** subthreshold equation:
+
+$$
+\boxed{\;
+C_m\,\frac{dV}{dt} \;=\; -g_L\,(V - E_L) \;-\; g_e(t)\,(V - E_e) \;-\; g_i(t)\,(V - E_i) \;+\; I_{\text{ext}}(t).
+\;}
+$$
+
+The same threshold-and-reset rule from the LIF section sits on top of this. The two synaptic conductances $g_e(t)$ and $g_i(t)$ each evolve via the exponential-synapse ODE, driven by spikes from upstream excitatory or inhibitory cells.
+
+This is the model used throughout the [pinglab COBANet implementation](/docs/models/#cobanet) and every PING / COBA experiment in the [notebooks](/notebooks/).
+
+### What COBA gives you that CUBA doesn't
+
+Three things follow from the $(V - E_k)$ driving force in COBA that CUBA's additive currents miss:
+
+1. **Synaptic saturation.** As $V$ approaches $E_e \approx 0$ mV the excitatory driving force shrinks toward zero, so the same conductance produces less current. A cell can't be driven above $E_e$ by excitation alone, no matter how much $g_e$ pours in.
+2. **Shunting inhibition.** Open inhibitory channels don't just pull $V$ toward $E_i$ — they also raise the total conductance $g_{\text{tot}}$, which shortens the effective time constant $\tau_{\text{eff}} = C_m/g_{\text{tot}}$ and dampens the membrane's response to *every* other input. CUBA has no equivalent because its inputs are additive.
+3. **State-dependent coupling.** The effective gain between a presynaptic spike and the postsynaptic voltage change depends on $V$. This is what makes phase-locked phenomena like PING work — the gamma rhythm uses exactly this dependence to keep its phase tight.
+
+### Choice between them
+
+A pragmatic guide:
+
+- **CUBA** is the right choice when you want linearity, when firing rates are modest, when the membrane stays close to $E_L$ most of the time, or when you just need a fast network simulation. Most tutorial SNN code uses CUBA.
+- **COBA** is the right choice when realism matters: any model studying gamma rhythms, balanced E/I networks, shunting, or biological calibration. The COBA, PING, and *standard-snn* rungs in the [pinglab models page](/docs/models/) are the corresponding implementations.
+
+## Where this leads
+
+Every term in the boxed COBA equation has a physical pedigree traceable through the previous articles:
+
+- $C_m$ from the bilayer's geometry ([Gauss's law](/articles/art003/#gausss-law) + [parallel-plate capacitance](/articles/art004/#capacitance)).
+- $g_L$ and $g_{e,i}(t)$ from open ion channels ([Ohm's law in matter](/articles/art004/#ohms-law-in-matter), with channels as resistors).
+- $E_L$, $E_e$, $E_i$ from ion gradients across the membrane ([Nernst](#ion-gradients-and-the-nernst-equation), equilibrium of diffusion and drift — which themselves descend from the [Maxwell–Boltzmann distribution](/articles/art000/) and the [Maxwell equations](/articles/art003/)).
+- $V_{\text{th}}$, $V_{\text{reset}}$, $\tau_{\text{ref}}$ as the threshold-and-reset abstraction of voltage-gated channels.
+
+That is the full chain: math (art002) → fields (art003) → circuits (art004) → cells (art005). From here the pinglab work goes in two directions: *training* — turning the non-differentiable threshold into a backpropagatable model via the surrogate gradient — and *networks* — wiring many COBA neurons together into E/I populations that produce phenomena like the PING gamma rhythm. Both are taken up in [PING Training](/articles/art001/) and the [notebooks](/notebooks/).

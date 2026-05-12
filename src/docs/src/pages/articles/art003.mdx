@@ -52,3 +52,143 @@ The two forms are linked by the integral theorems from [Vector Calculus](/articl
 - **Stokes' theorem** turns the two $\nabla \times$ equations into the two circulation-vs-flux-derivative statements. Applied to $\mathbf{F} = \mathbf{E}$, it converts Faraday's $\nabla \times \mathbf{E} = -\partial \mathbf{B}/\partial t$ into the integral form above (and the minus sign carries over directly); applied to $\mathbf{F} = \mathbf{B}$, it does the same for the Ampère–Maxwell law.
 
 The minus sign on Faraday's law is the canonical example of [orientation conventions](/articles/art002/#orientation-conventions) doing real work: once the right-hand rule fixes $\partial S$ relative to $d\mathbf{A}$, Lenz's law forces that sign, and the differential and integral forms agree on it automatically.
+
+## Gauss's law
+
+Charges are the sources of the electric field. The strength of the source at every point is the local charge density.
+
+**Differential form.**
+
+$$
+\nabla \cdot \mathbf{E} \;=\; \frac{\rho}{\epsilon_0}.
+$$
+
+**Integral form.**
+
+$$
+\oint_{\partial V} \mathbf{E} \cdot d\mathbf{A} \;=\; \frac{Q_{\text{enc}}}{\epsilon_0}.
+$$
+
+The two forms say the same thing at different scales. The differential form is a *local* identity: at every point in space, the [divergence](/articles/art002/#divergence) of the electric field equals the charge density there, divided by the vacuum permittivity. The integral form is the *global* consequence: for any closed surface $\partial V$ you draw, the total outward [flux](/articles/art002/#operators) of $\mathbf{E}$ across it is the total charge $Q_{\text{enc}}$ inside, divided by $\epsilon_0$. The link between the two is the [divergence theorem](/articles/art002/#divergence-theorem) applied to $\mathbf{F} = \mathbf{E}$.
+
+Intuitively: electric field lines start on positive charges and end on negative charges. Wrap any closed surface around a chunk of space and count the lines crossing it — positive when leaving, negative when entering — and you've measured the net charge inside. No charges inside, no net flux. The shape of the surface doesn't matter; only what's enclosed.
+
+**Symbols and units** (SI):
+
+| symbol             | name                       | units                                 |
+|--------------------|----------------------------|---------------------------------------|
+| $\mathbf{E}$       | electric field             | V/m  (volts per metre)                |
+| $\rho$             | charge density             | C/m³ (coulombs per cubic metre)       |
+| $Q_{\text{enc}}$   | charge enclosed by $\partial V$ | C   (coulombs)                   |
+| $\partial V$       | closed surface (boundary of a volume $V$) | m² when integrated      |
+| $d\mathbf{A}$      | outward-pointing surface element  | m² (vector, normal to $\partial V$) |
+| $\epsilon_0$       | vacuum permittivity        | $8.854 \times 10^{-12}$ F/m (farads/m, equivalent C²/(N·m²)) |
+
+The constant $\epsilon_0$ is what sets the scale: a single $1\,\mathrm{C}$ point charge produces a total flux of $1/\epsilon_0 \approx 1.13 \times 10^{11}\,\mathrm{V\,m}$ — large because a coulomb is a lot of charge. In everyday terms, $\epsilon_0$ encodes "how stiffly the vacuum opposes electric field lines": a small $\epsilon_0$ would mean a tiny charge produces an enormous field.
+
+## Gauss's law of magnetism
+
+The magnetic field has no sources or sinks. Every magnetic field line that enters a region eventually leaves it — there is no magnetic equivalent of an isolated charge.
+
+**Differential form.**
+
+$$
+\nabla \cdot \mathbf{B} \;=\; 0.
+$$
+
+**Integral form.**
+
+$$
+\oint_{\partial V} \mathbf{B} \cdot d\mathbf{A} \;=\; 0.
+$$
+
+The two forms again say the same thing at different scales, linked by the [divergence theorem](/articles/art002/#divergence-theorem). The differential form says the divergence of $\mathbf{B}$ is zero *everywhere* — no points act as sources or sinks. The integral form says that for *every* closed surface, the net magnetic flux through it is zero — exactly as many field lines leave as enter. The right-hand side of [Gauss's law](#gausss-law) had a $Q_{\text{enc}}/\epsilon_0$ term; here, there is no equivalent, because no magnetic monopole has ever been observed.
+
+Intuitively: magnetic field lines form closed loops. Wrap any closed surface around a chunk of space and the loops crossing into it must also cross out — net flux is zero.
+
+**Symbols and units** (SI):
+
+| symbol             | name                       | units                                 |
+|--------------------|----------------------------|---------------------------------------|
+| $\mathbf{B}$       | magnetic field             | T  (tesla, equivalent V·s/m² or N/(A·m)) |
+| $\partial V$       | closed surface             | m² when integrated                    |
+| $d\mathbf{A}$      | outward-pointing surface element | m² (vector, normal to $\partial V$) |
+
+No constant appears on the right-hand side — the law's content is the equation $= 0$. If a magnetic monopole were ever discovered, it would acquire a $\rho_m/\mu_0$-style term and stop being structurally simpler than its electric cousin. Until then, the magnetic side of Maxwell's equations is "missing" exactly one of the four source terms electricity carries.
+
+## Faraday's law of induction
+
+A changing magnetic field induces a circulating electric field. The faster the magnetic flux changes through a loop, the larger the induced electric circulation around its boundary.
+
+**Differential form.**
+
+$$
+\nabla \times \mathbf{E} \;=\; -\,\frac{\partial \mathbf{B}}{\partial t}.
+$$
+
+**Integral form.**
+
+$$
+\oint_{\partial S} \mathbf{E} \cdot d\boldsymbol{\ell} \;=\; -\,\frac{d}{dt} \int_{S} \mathbf{B} \cdot d\mathbf{A}.
+$$
+
+The two forms are linked by [Stokes' theorem](/articles/art002/#stokes-theorem). The differential form is a local identity: the [curl](/articles/art002/#curl) of $\mathbf{E}$ at every point equals the negative time-derivative of $\mathbf{B}$ there. The integral form is the global consequence: the total $\mathbf{E}$-[circulation](/articles/art002/#flux) around any closed loop $\partial S$ equals the negative rate of change of the $\mathbf{B}$-flux through any surface $S$ spanning that loop. The minus sign is **Lenz's law**: the induced electric field drives currents that *oppose* the change in magnetic flux — a self-stabilising sign forced by the [right-hand rule](/articles/art002/#orientation-conventions) relating $\partial S$ to $d\mathbf{A}$.
+
+Intuitively: shove a magnet through a wire loop and the loop pushes back. The pushing is the induced electric field, the direction it circulates is whichever way *opposes* whatever you were doing.
+
+**Symbols and units** (SI):
+
+| symbol             | name                            | units                                       |
+|--------------------|---------------------------------|---------------------------------------------|
+| $\mathbf{E}$       | electric field                  | V/m                                         |
+| $\mathbf{B}$       | magnetic field                  | T                                           |
+| $\partial S$       | closed boundary curve of $S$    | m when integrated                           |
+| $d\boldsymbol{\ell}$ | tangent line element to $\partial S$ | m (vector, right-hand-oriented relative to $d\mathbf{A}$) |
+| $S$                | open surface bounded by $\partial S$ | m² when integrated                     |
+| $d\mathbf{A}$      | surface element on $S$          | m² (vector, normal to $S$)                  |
+| $\partial/\partial t$ | partial derivative in time   | per second                                  |
+
+No constants appear on the right-hand side beyond the minus sign — the relation between $\mathbf{E}$ and $\partial_t \mathbf{B}$ is exact, with no scale factor. The whole content of the law sits in that minus sign and the geometric pairing $\mathbf{E} \leftrightarrow \mathbf{B}$.
+
+## Ampère–Maxwell law
+
+The magnetic field circulates around both real currents *and* changing electric fields. The "displacement-current" term — Maxwell's addition to Ampère's original law — is what completes the symmetry with Faraday's law and makes self-propagating electromagnetic waves possible.
+
+**Differential form.**
+
+$$
+\nabla \times \mathbf{B} \;=\; \mu_0 \mathbf{J} \;+\; \mu_0 \epsilon_0 \,\frac{\partial \mathbf{E}}{\partial t}.
+$$
+
+**Integral form.**
+
+$$
+\oint_{\partial S} \mathbf{B} \cdot d\boldsymbol{\ell} \;=\; \mu_0 I_{\text{enc}} \;+\; \mu_0 \epsilon_0 \,\frac{d}{dt} \int_{S} \mathbf{E} \cdot d\mathbf{A}.
+$$
+
+The two forms are linked by [Stokes' theorem](/articles/art002/#stokes-theorem), exactly mirroring Faraday's law but with the electric and magnetic roles swapped (and no minus sign). The differential form says the curl of $\mathbf{B}$ at every point has two sources: a real current density $\mathbf{J}$, and a changing electric field $\partial_t \mathbf{E}$. The integral form says the $\mathbf{B}$-circulation around a loop equals $\mu_0$ times the current piercing any surface spanning it, plus $\mu_0\epsilon_0$ times the rate of change of $\mathbf{E}$-flux through the same surface.
+
+The displacement-current term $\mu_0 \epsilon_0\, \partial_t \mathbf{E}$ was Maxwell's invention; without it, the original Ampère law $\nabla \times \mathbf{B} = \mu_0 \mathbf{J}$ is inconsistent with [charge conservation](/articles/art002/#divergence-theorem) (taking $\nabla\cdot$ of both sides would imply $\nabla\cdot \mathbf{J} = 0$ always, which is false whenever charge density changes in time). Adding the term not only patches that inconsistency but also produces the wave equation $\nabla^2 \mathbf{E} = \mu_0 \epsilon_0\, \partial_t^2 \mathbf{E}$ when combined with Faraday's law in vacuum — the propagation speed comes out as $c = 1/\sqrt{\mu_0 \epsilon_0}$, which is the speed of light.
+
+Intuitively: every current is wrapped by a magnetic field, and so is every region of changing electric field. The second part is what lets light exist: an oscillating $\mathbf{E}$ generates a circulating $\mathbf{B}$ which generates a circulating $\mathbf{E}$, and the pair propagates through empty space at speed $c$.
+
+**Symbols and units** (SI):
+
+| symbol             | name                       | units                                             |
+|--------------------|----------------------------|---------------------------------------------------|
+| $\mathbf{B}$       | magnetic field             | T                                                 |
+| $\mathbf{J}$       | current density            | A/m² (amperes per square metre)                   |
+| $\mathbf{E}$       | electric field             | V/m                                               |
+| $I_{\text{enc}}$   | current piercing $S$       | A (amperes)                                       |
+| $\partial S$       | boundary curve of $S$      | m when integrated                                 |
+| $d\boldsymbol{\ell}$ | tangent line element     | m                                                 |
+| $S$                | open surface bounded by $\partial S$ | m² when integrated                       |
+| $d\mathbf{A}$      | surface element on $S$     | m²                                                |
+| $\mu_0$            | vacuum permeability        | $1.257 \times 10^{-6}$ N/A² (henries/m)           |
+| $\epsilon_0$       | vacuum permittivity        | $8.854 \times 10^{-12}$ F/m                       |
+
+The two constants $\mu_0$ and $\epsilon_0$ encode how the vacuum responds to magnetism and electricity respectively, and they appear here as a product. Their reciprocal-square-root is the speed of light: $c = 1/\sqrt{\mu_0\epsilon_0} \approx 2.998 \times 10^{8}\,\mathrm{m/s}$. That "the speed of light falls out of Maxwell's equations" is the historical moment electromagnetism and optics merged into one subject.
+
+## Where this leads
+
+The four equations above describe electromagnetism at every point in space, which is more resolution than we need for most concrete systems. Applied *in matter*, two of them collapse to the circuit-level laws that underpin everything from a wire to a neuron's membrane: [Gauss's law](#gausss-law) gives capacitance, and the constitutive relation $\mathbf{J} = \sigma\mathbf{E}$ that links current density to field gives Ohm's law. The next article, [From Fields to Circuits](/articles/art004/), takes that collapse step by step and ends at the RC equation a leaky integrate-and-fire neuron integrates between spikes.
