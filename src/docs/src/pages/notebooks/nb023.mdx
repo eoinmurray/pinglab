@@ -1,0 +1,90 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "023 — PING Fundamentals (draft)"
+date: 2026-05-13
+entry: 23
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb023/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const successCriteria = numbers.success_criteria ?? [];
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+PING (pyramidal-interneuron gamma) is the gamma-band oscillation produced by an excitatory population $E$ feeding an inhibitory population $I$ which in turn feeds back onto $E$. The standard story:
+
+1. The E population starts firing.
+2. After an AMPA-delay ($\tau_{\text{AMPA}} \approx 2$ ms), the I population spikes.
+3. GABA-A inhibition silences E for the GABA-decay time ($\tau_{\text{GABA}} \approx 9$ ms).
+4. Inhibition decays away; E refires.
+
+The interspike-interval comes out around $\tau_{\text{GABA}} + \tau_{\text{AMPA}} \sim 11$ ms, giving a fundamental near $\sim 30$ Hz — the gamma band.
+
+This entry strips PING down to its biophysical fundamentals and characterises it *in isolation from any task*. No training, no readout, no loss — just a free-running network driven by Poisson input. Goal: see the rhythm emerge, measure its frequency, and trace how each piece of the recipe (E-I coupling strength, AMPA / GABA decay constants, refractory period) shapes the gamma peak.
+
+The full conductance-based model that produces PING is documented in [The LIF Neuron](/articles/art005/#conductance-based-synapses-coba) and on the [pinglab models page](/docs/models/#cobanet); this notebook is the empirical companion piece.
+
+## Method
+
+Run the oscilloscope in *image* mode against an untrained PING network driven by a synthetic-conductance step, capture the resulting snapshot — rasters, rates, conductance trace, PSD, weight histograms — into one figure. The recipe (*--ei-strength 1.5*, *--stim-overdrive 6.0*, *--t-ms 400*) is a working point that produces a clean gamma rhythm without elaborate tuning.
+
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "model", value: cfg.model ?? "?", default: "—" },
+  { label: "input", value: cfg.input ?? "?", default: "—" },
+  { label: "ei strength", value: cfg.ei_strength ?? "?", default: "—" },
+  { label: "stim overdrive", value: cfg.stim_overdrive ?? "?", default: "—" },
+  { label: "t_ms", value: cfg.t_ms ?? "?", default: "—" },
+]} />
+
+## Results
+
+### Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+<Figure id="Figure 1" title="COBA — ei-strength 0 (no recurrent inhibition)" src="/figures/notebooks/nb023/snapshot__coba.png" alt="Multi-panel oscilloscope figure: E spike raster (asynchronous), MNIST 0 input, weight histograms, PSD of the E rate with no clean gamma peak.">
+  Baseline: same network with the recurrent inhibitory loop silent (*--ei-strength 0*). The E raster fires asynchronously across the full 400 ms; the I population is silent (loop disabled); the PSD has no clean gamma peak. This is the "PING off" reference for the next figure.
+</Figure>
+
+<Figure id="Figure 2" title="PING — ei-strength 1.5 (recurrent loop active)" src="/figures/notebooks/nb023/snapshot__ping.png" alt="Same multi-panel figure as Figure 1 but with the recurrent inhibitory loop turned on — E raster shows vertical bands, I raster shows the matching I-bursts, PSD shows a clean gamma f0 peak.">
+  Same network with the I→E loop turned on (*--ei-strength 1.5*). Same trained feedforward weights, same MNIST input, same integration window. The E raster now shows vertical gamma bands, the I population fires bursts trailing each E-burst by the AMPA delay, and the PSD has a clean f₀ peak in the gamma band.
+</Figure>
+
+## Discussion
+
+*To fill in after first real run.*
+
+Questions this entry is designed to answer:
+
+- **What's the minimum *ei-strength* to produce a peak?** Is the transition gradual or knee-shaped?
+- **How does $f_0$ depend on $\tau_{\text{AMPA}}$ and $\tau_{\text{GABA}}$?** A follow-up cell would sweep those.
+- **What's the E-to-I phase delay?** A clean PING has $\sim 2$ ms lag; deviations indicate something is broken.
+
+## Next steps
+
+- Implement the simulation loop and analysis (see TODO in the runner).
+- Add a second sweep over $\tau_{\text{AMPA}}$ and $\tau_{\text{GABA}}$ for a cleaner mapping to the rate equation.
+- Compare against the analytical PING period $\tau_{\text{AMPA}} + \tau_{\text{GABA}}$ as a sanity check.
+- Pair with [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), which is the "task-side" companion that asks whether PING dynamics survive after training as COBA.

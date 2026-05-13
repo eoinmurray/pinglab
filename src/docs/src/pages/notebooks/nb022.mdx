@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "022 — Dale's Law On vs Off"
+title: "022 — COBA Dale's Law On vs Off"
 date: 2026-05-12
 entry: 22
 structure: paper
@@ -65,18 +65,26 @@ Two cells, both running the [coba](/docs/models/#cobanet) recipe:
   Final-epoch test accuracy under Dale's law (left) and with signed weights (right). The number beneath each bar is the hidden-E firing rate at the same time point.
 </Figure>
 
-<Figure id="Figure 2" title="Distribution of trained input weights" src="/figures/notebooks/nb022/weight_hist.png" alt="Histogram of all entries of the trained input weight matrix W_ff[0], overlaid for the two cells. Under Dale's law the mass is pinned to non-negative; without it the distribution is roughly symmetric around zero.">
-  Histogram of every entry of the trained input weight matrix $W_{\text{ff}}^{(0)}$. Under Dale's law (amber), every entry is non-negative — the clamp pushes the would-be negative mass to zero. Without it (cyan), the optimiser distributes weight on both sides of zero.
+<Figure id="Figure 2" title="Training curves" src="/figures/notebooks/nb022/training_curves.png" alt="Two panels: train loss per epoch (left) and test accuracy per epoch (right), with one curve per cell overlaid.">
+  Train loss (left) and test accuracy (right) per epoch, both cells overlaid. Shows how quickly each variant climbs the learning curve and whether the two converge to the same asymptote.
+</Figure>
+
+<Figure id="Figure 3" title="Hidden firing rate per epoch" src="/figures/notebooks/nb022/firing_rates.png" alt="Line chart: mean hidden-E firing rate per epoch, one curve per cell.">
+  Mean hidden-E firing rate over the training schedule for each cell, including the initial (epoch 0) state. Tells us whether Dale's law forces a different operating point on the activity, even when end-point accuracy is similar.
+</Figure>
+
+<Figure id="Figure 4" title="Distribution of trained input weights" src="/figures/notebooks/nb022/weight_hist.png" alt="Histogram of all entries of the trained input weight matrix W_ff[0], overlaid for the two cells. Under Dale's law the mass is pinned to non-negative; without it the distribution is roughly symmetric around zero.">
+  Histogram of every entry of the trained input weight matrix $W_{\text{ff}}^{(0)}$. Under Dale's law (amber), every entry is non-negative — the optimiser-then-project step pins the mass to the right half-line. Without it (cyan), the distribution sits symmetrically around zero.
 </Figure>
 
 ## Per-cell training videos
 
-<Figure id="Figure 3" title="coba — Dale's law" src="/figures/notebooks/nb022/training__dales.mp4" type="video" alt="coba training, Dale's law on">
-  coba reference recipe with `--dales-law` (default).
+<Figure id="Figure 5" title="coba — Dale's law" src="/figures/notebooks/nb022/training__dales.mp4" type="video" alt="coba training, Dale's law on">
+  coba reference recipe with *--dales-law* (default).
 </Figure>
 
-<Figure id="Figure 4" title="coba — signed weights" src="/figures/notebooks/nb022/training__no_dales.mp4" type="video" alt="coba training, Dale's law off">
-  coba reference recipe with `--no-dales-law`.
+<Figure id="Figure 6" title="coba — signed weights" src="/figures/notebooks/nb022/training__no_dales.mp4" type="video" alt="coba training, Dale's law off">
+  coba reference recipe with *--no-dales-law*.
 </Figure>
 
 ## Discussion

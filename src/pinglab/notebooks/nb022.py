@@ -138,6 +138,60 @@ def _stamp(fig, run_id: str) -> None:
     )
 
 
+def plot_training_curves(out_path: Path, run_id: str) -> None:
+    """Loss + test accuracy per epoch, both cells overlaid."""
+    theme.apply()
+    fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(10, 4.5))
+    for c in CELLS:
+        m = load_metrics(cell_dir(c))
+        epochs = [e["ep"] for e in m["epochs"]]
+        loss = [e["loss"] for e in m["epochs"]]
+        acc = [e["acc"] for e in m["epochs"]]
+        ax_loss.plot(epochs, loss, marker="o", color=CELL_COLORS[c],
+                     label=CELL_LABEL[c])
+        ax_acc.plot(epochs, acc, marker="o", color=CELL_COLORS[c],
+                    label=CELL_LABEL[c])
+    ax_loss.set_xlabel("epoch")
+    ax_loss.set_ylabel("train loss")
+    ax_loss.set_title("Train loss per epoch")
+    ax_loss.grid(True, alpha=0.3)
+    ax_loss.legend(fontsize=theme.SIZE_ANNOTATION)
+    ax_acc.set_xlabel("epoch")
+    ax_acc.set_ylabel("test accuracy (%)")
+    ax_acc.set_title("Test accuracy per epoch")
+    ax_acc.set_ylim(0, 100)
+    ax_acc.grid(True, alpha=0.3)
+    ax_acc.legend(fontsize=theme.SIZE_ANNOTATION)
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path)
+    plt.close(fig)
+
+
+def plot_firing_rates(out_path: Path, run_id: str) -> None:
+    """Mean hidden-E firing rate per epoch, both cells overlaid."""
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    for c in CELLS:
+        m = load_metrics(cell_dir(c))
+        init_rate = (m.get("init") or {}).get("rate_e") or 0.0
+        epochs = [0] + [e["ep"] for e in m["epochs"]]
+        rates = [init_rate] + [e.get("rate_e", 0.0) for e in m["epochs"]]
+        ax.plot(epochs, rates, marker="o", color=CELL_COLORS[c],
+                label=CELL_LABEL[c])
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("mean hidden-E firing rate (Hz)")
+    ax.set_title("Hidden firing rate per epoch")
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=theme.SIZE_ANNOTATION)
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path)
+    plt.close(fig)
+
+
 def plot_accuracy(rows: list[dict], out_path: Path, run_id: str) -> None:
     """Side-by-side bars: final accuracy with vs without Dale's law."""
     theme.apply()
@@ -227,6 +281,8 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
 
     crits: list[dict] = [
         artifact("accuracy.png", "accuracy figure rendered"),
+        artifact("training_curves.png", "training curves rendered"),
+        artifact("firing_rates.png", "firing-rate curves rendered"),
         artifact("weight_hist.png", "weight histogram rendered"),
     ]
     for c in CELLS:
@@ -342,6 +398,10 @@ def main() -> None:
 
     plot_accuracy(rows, FIGURES / "accuracy.png", notebook_run_id)
     print(f"wrote {FIGURES / 'accuracy.png'}")
+    plot_training_curves(FIGURES / "training_curves.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'training_curves.png'}")
+    plot_firing_rates(FIGURES / "firing_rates.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'firing_rates.png'}")
     plot_weight_hist(rows, FIGURES / "weight_hist.png", notebook_run_id)
     print(f"wrote {FIGURES / 'weight_hist.png'}")
 
