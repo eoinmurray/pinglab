@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r002",
+  "notebook_run_id": "r003",
   "git_sha": "unknown",
-  "duration_s": 1380.5,
-  "duration": "23m 00s",
+  "duration_s": 0.2,
+  "duration": "0s",
   "tier": "large",
   "config": {
     "tier": "large",
@@ -37,13 +37,13 @@
     {
       "label": "accuracy figure rendered",
       "passed": true,
-      "detail": "accuracy.png (33884 bytes)",
+      "detail": "accuracy.png (33903 bytes)",
       "detail_href": "/figures/notebooks/nb022/accuracy.png"
     },
     {
       "label": "weight histogram rendered",
       "passed": true,
-      "detail": "weight_hist.png (37002 bytes)",
+      "detail": "weight_hist.png (45551 bytes)",
       "detail_href": "/figures/notebooks/nb022/weight_hist.png"
     },
     {
