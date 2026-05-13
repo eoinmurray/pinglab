@@ -1889,6 +1889,10 @@ def train(
                 n_skipped_steps += 1
             else:
                 opt.step()
+                # Project trainable weights back onto the Dale's-law cone
+                # (no-op when signed weights are allowed). Keeps the stored
+                # parameter values consistent with what forward() uses.
+                net.project_dales()
                 total_loss += loss.item()
                 n_batches += 1
                 grad_sum += gn_f
