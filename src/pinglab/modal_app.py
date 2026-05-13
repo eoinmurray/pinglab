@@ -46,7 +46,34 @@ app = modal.App("pinglab")
 volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
 
 
-def _run_oscilloscope_impl(cli_args: list[str]) -> str:
+def _host_git_sha() -> str | None:
+    """Capture the host repo's git SHA so it can be forwarded into Modal
+    containers (which don't have .git mounted)."""
+    import subprocess
+
+    try:
+        sha = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL,
+                timeout=2,
+            )
+            .decode()
+            .strip()
+        )
+        dirty = subprocess.call(
+            ["git", "diff-index", "--quiet", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            timeout=2,
+        )
+        return f"{sha} (dirty)" if dirty else sha
+    except Exception:
+        return None
+
+
+def _run_oscilloscope_impl(cli_args: list[str], git_sha: str | None = None) -> str:
+    import os
     import subprocess
     import sys
 
@@ -89,7 +116,10 @@ def _run_oscilloscope_impl(cli_args: list[str]) -> str:
 
     cmd = [sys.executable, "/root/pinglab/oscilloscope/__main__.py", *args]
     print(f"modal> {' '.join(cmd)}")
-    result = subprocess.run(cmd, cwd="/root/pinglab", capture_output=False)
+    env = os.environ.copy()
+    if git_sha:
+        env["PINGLAB_GIT_SHA"] = git_sha
+    result = subprocess.run(cmd, cwd="/root/pinglab", capture_output=False, env=env)
     volume.commit()
 
     if result.returncode != 0:
@@ -105,8 +135,8 @@ def _run_oscilloscope_impl(cli_args: list[str]) -> str:
     cpu=4,
     memory=32768,
 )
-def run_cpu(cli_args: list[str]) -> str:
-    return _run_oscilloscope_impl(cli_args)
+def run_cpu(cli_args: list[str], git_sha: str | None = None) -> str:
+    return _run_oscilloscope_impl(cli_args, git_sha)
 
 
 @app.function(
@@ -115,8 +145,8 @@ def run_cpu(cli_args: list[str]) -> str:
     timeout=43200,
     gpu="T4",
 )
-def run_gpu_t4(cli_args: list[str]) -> str:
-    return _run_oscilloscope_impl(cli_args)
+def run_gpu_t4(cli_args: list[str], git_sha: str | None = None) -> str:
+    return _run_oscilloscope_impl(cli_args, git_sha)
 
 
 @app.function(
@@ -125,8 +155,8 @@ def run_gpu_t4(cli_args: list[str]) -> str:
     timeout=43200,
     gpu="A10G",
 )
-def run_gpu_a10g(cli_args: list[str]) -> str:
-    return _run_oscilloscope_impl(cli_args)
+def run_gpu_a10g(cli_args: list[str], git_sha: str | None = None) -> str:
+    return _run_oscilloscope_impl(cli_args, git_sha)
 
 
 @app.function(
@@ -135,8 +165,8 @@ def run_gpu_a10g(cli_args: list[str]) -> str:
     timeout=43200,
     gpu="L4",
 )
-def run_gpu_l4(cli_args: list[str]) -> str:
-    return _run_oscilloscope_impl(cli_args)
+def run_gpu_l4(cli_args: list[str], git_sha: str | None = None) -> str:
+    return _run_oscilloscope_impl(cli_args, git_sha)
 
 
 @app.function(
@@ -145,8 +175,8 @@ def run_gpu_l4(cli_args: list[str]) -> str:
     timeout=43200,
     gpu="A100-80GB",
 )
-def run_gpu_a100(cli_args: list[str]) -> str:
-    return _run_oscilloscope_impl(cli_args)
+def run_gpu_a100(cli_args: list[str], git_sha: str | None = None) -> str:
+    return _run_oscilloscope_impl(cli_args, git_sha)
 
 
 @app.function(
@@ -155,8 +185,8 @@ def run_gpu_a100(cli_args: list[str]) -> str:
     timeout=43200,
     gpu="H100",
 )
-def run_gpu_h100(cli_args: list[str]) -> str:
-    return _run_oscilloscope_impl(cli_args)
+def run_gpu_h100(cli_args: list[str], git_sha: str | None = None) -> str:
+    return _run_oscilloscope_impl(cli_args, git_sha)
 
 
 _GPU_DISPATCH = {
@@ -185,6 +215,7 @@ def dispatch_batch_to_modal(jobs: list[dict]):
     if not jobs:
         return
 
+    host_sha = _host_git_sha()
     print(f"Dispatching {len(jobs)} jobs to Modal in parallel...")
     for i, j in enumerate(jobs):
         print(f"  [{i}] gpu={j['gpu']} out={j['local_out_dir']}")
@@ -199,7 +230,7 @@ def dispatch_batch_to_modal(jobs: list[dict]):
                     raise ValueError(
                         f"Unknown gpu {j['gpu']!r}, choose from {list(_GPU_DISPATCH)}"
                     )
-                calls.append(fn.spawn(j["cli_args"]))
+                calls.append(fn.spawn(j["cli_args"], host_sha))
             for j, c in zip(jobs, calls):
                 try:
                     results.append((j, c.get(), None))
@@ -284,7 +315,7 @@ def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
             # client disconnects (e.g. Taskfile parallel dispatcher exits after
             # all 8 deps are kicked off).
             with app.run(detach=True):
-                remote_out = fn.remote(cli_args)
+                remote_out = fn.remote(cli_args, _host_git_sha())
     except Exception as exc:  # noqa: BLE001
         print(f"\n[modal] connection to detached app lost: {exc}")
         print(
