@@ -1182,6 +1182,18 @@ def generate_image_snapshot(
     plt.close(fig)
     log.info(f"  \u2192 {fname}")
 
+    npz_name = Path(out_filename).with_suffix(".npz").name
+    npz_path = out_dir / npz_name
+    np.savez(
+        npz_path,
+        spk_e=np.asarray(spk_e),
+        spk_i=np.asarray(spk_i) if spk_i is not None else np.empty((0, 0)),
+        dt=np.float32(dt),
+        n_e=np.int32(C.N_E),
+        n_i=np.int32(C.N_I),
+    )
+    log.info(f"  \u2192 {npz_path}")
+
 
 def generate_sim_only(
     spike_rate=None,

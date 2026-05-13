@@ -64,12 +64,12 @@ Run the oscilloscope in *image* mode against an untrained PING network driven by
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure id="Figure 1" title="COBA — ei-strength 0 (no recurrent inhibition)" src="/figures/notebooks/nb023/snapshot__coba.png" alt="Multi-panel oscilloscope figure: E spike raster (asynchronous), MNIST 0 input, weight histograms, PSD of the E rate with no clean gamma peak.">
-  Baseline: same network with the recurrent inhibitory loop silent (*--ei-strength 0*). The E raster fires asynchronously across the full 400 ms; the I population is silent (loop disabled); the PSD has no clean gamma peak. This is the "PING off" reference for the next figure.
+<Figure id="Figure 1" title="COBA — ei-strength 0 (no recurrent inhibition)" src="/figures/notebooks/nb023/raster__coba.png" alt="Spike raster: E population (top) fires asynchronously across 400 ms, I population (bottom) is silent.">
+  Baseline: recurrent inhibitory loop silent (*--ei-strength 0*). The E raster fires asynchronously across the full 400 ms; the I population is silent (loop disabled). This is the "PING off" reference for the next figure.
 </Figure>
 
-<Figure id="Figure 2" title="PING — ei-strength 1.5 (recurrent loop active)" src="/figures/notebooks/nb023/snapshot__ping.png" alt="Same multi-panel figure as Figure 1 but with the recurrent inhibitory loop turned on — E raster shows vertical bands, I raster shows the matching I-bursts, PSD shows a clean gamma f0 peak.">
-  Same network with the I→E loop turned on (*--ei-strength 1.5*). Same trained feedforward weights, same MNIST input, same integration window. The E raster now shows vertical gamma bands, the I population fires bursts trailing each E-burst by the AMPA delay, and the PSD has a clean f₀ peak in the gamma band.
+<Figure id="Figure 2" title="PING — ei-strength 1.5 (recurrent loop active)" src="/figures/notebooks/nb023/raster__ping.png" alt="Spike raster: E population (top) shows vertical bands every ~45 ms, I population (bottom) shows the matching I-bursts trailing each E-burst.">
+  Same network with the I→E loop turned on (*--ei-strength 1.5*). Same MNIST input, same integration window. The E raster now shows vertical bands, and the I population fires synchronous bursts trailing each E-burst by the AMPA delay.
 </Figure>
 
 ## Discussion

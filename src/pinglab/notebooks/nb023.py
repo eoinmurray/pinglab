@@ -1,15 +1,12 @@
 """Notebook runner for entry 023 — PING fundamentals.
 
-Runs the oscilloscope in *image* mode against a canonical PING recipe
-(no training, synthetic-conductance drive) and captures the resulting
-oscilloscope snapshot — rasters, rates, conductance, PSD, weight
-histograms — into the figures directory. The point of this entry is
-to show the fundamental dynamics in one frame: gamma rhythm, E-then-I
-phase, the PSD peak in the gamma band.
+Runs the oscilloscope in *image* mode twice — once with the recurrent
+loop disabled (*--ei-strength 0*, "coba") and once with it active
+(*--ei-strength 1.5*, "ping") — and renders dedicated per-cell raster
+plots from the saved spike arrays. Everything else is held fixed
+(MNIST digit 0 sample 0, --input-rate 50, --t-ms 400, --w-in 1.5 0.3).
 
-Later iterations of this notebook will sweep --ei-strength and the
-synaptic time constants for a richer characterisation; for now we
-ship one canonical frame.
+Two PNGs are written: raster__coba.png and raster__ping.png.
 
 Notebook entry: src/docs/src/pages/notebooks/nb023.mdx
 """
@@ -23,6 +20,9 @@ import sys
 import time
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src" / "pinglab"))
 
@@ -34,19 +34,9 @@ SLUG = "nb023"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
-SCOPE_OUT = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
+SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
+SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
 
-# Two cells driven by MNIST digit 0 sample 0 with constant Poisson
-# encoding across the whole 400 ms integration window (no step-on /
-# step-off stim). Only the recurrent E-I loop differs:
-#
-#   ping  — --ei-strength 1.5: gamma rhythm active.
-#   coba  — --ei-strength 0  : no recurrent inhibition. Feedforward-only
-#                              conductance-based LIF. Sometimes called
-#                              "PING off" in the article series.
-#
-# Same recipe in every other respect so the two snapshots can be
-# compared side-by-side.
 COMMON_ARGS = [
     "image",
     "--model", "ping",
@@ -58,9 +48,15 @@ COMMON_ARGS = [
     "--input-rate", "50",
     "--t-ms", "400",
 ]
-CELLS: dict[str, list[str]] = {
-    "coba": ["--ei-strength", "0"],
-    "ping": ["--ei-strength", "1.5"],
+CELLS: dict[str, dict] = {
+    "coba": {
+        "args": ["--ei-strength", "0"],
+        "title": "COBA — no recurrent loop (ei-strength = 0)",
+    },
+    "ping": {
+        "args": ["--ei-strength", "1.5"],
+        "title": "PING — recurrent loop active (ei-strength = 1.5)",
+    },
 }
 
 TIER_CONFIG = {
@@ -71,6 +67,47 @@ TIER_CONFIG = {
     "extra large": {},
 }
 DEFAULT_TIER = "small"
+
+
+def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+    data = np.load(npz_path)
+    spk_e = data["spk_e"]
+    spk_i = data["spk_i"]
+    dt = float(data["dt"])
+    T = spk_e.shape[0]
+    t_ms = np.arange(T) * dt
+
+    has_i = spk_i.size > 0 and spk_i.shape[0] == T and spk_i.any()
+
+    if has_i:
+        fig, (ax_e, ax_i) = plt.subplots(
+            2, 1, figsize=(8, 4.5), sharex=True,
+            gridspec_kw={"height_ratios": [4, 1]},
+        )
+    else:
+        fig, ax_e = plt.subplots(1, 1, figsize=(8, 4.5))
+        ax_i = None
+
+    e_idx, e_t = np.where(spk_e.T)
+    ax_e.scatter(t_ms[e_t], e_idx, s=1.0, c="black", marker="|", linewidths=0.5)
+    ax_e.set_ylabel("E neuron")
+    ax_e.set_ylim(0, spk_e.shape[1])
+    ax_e.set_xlim(0, T * dt)
+    ax_e.set_title(title)
+
+    if has_i:
+        i_idx, i_t = np.where(spk_i.T)
+        ax_i.scatter(t_ms[i_t], i_idx, s=1.0, c="C3", marker="|", linewidths=0.5)
+        ax_i.set_ylabel("I neuron")
+        ax_i.set_ylim(0, spk_i.shape[1])
+        ax_i.set_xlim(0, T * dt)
+        ax_i.set_xlabel("time (ms)")
+    else:
+        ax_e.set_xlabel("time (ms)")
+
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
 
 
 def main() -> None:
@@ -90,19 +127,20 @@ def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     persist_run_id(SLUG, notebook_run_id)
 
-    snapshots: dict[str, Path] = {}
-    for cell, extra in CELLS.items():
-        if SCOPE_OUT.exists():
-            SCOPE_OUT.unlink()
-        scope_argv = [*COMMON_ARGS, *extra]
+    rasters: dict[str, Path] = {}
+    for cell, spec in CELLS.items():
+        for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
+            if p.exists():
+                p.unlink()
+        scope_argv = [*COMMON_ARGS, *spec["args"]]
         cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *scope_argv]
         print(f"[scope] {cell}: {' '.join(scope_argv)}")
         subprocess.run(cmd, cwd=REPO, check=True)
-        if not SCOPE_OUT.exists():
-            raise SystemExit(f"oscilloscope did not produce {SCOPE_OUT}")
-        dst = FIGURES / f"snapshot__{cell}.png"
-        shutil.copy2(SCOPE_OUT, dst)
-        snapshots[cell] = dst
+        if not SCOPE_OUT_NPZ.exists():
+            raise SystemExit(f"oscilloscope did not produce {SCOPE_OUT_NPZ}")
+        dst = FIGURES / f"raster__{cell}.png"
+        plot_raster(SCOPE_OUT_NPZ, dst, spec["title"])
+        rasters[cell] = dst
         print(f"wrote {dst}")
 
     duration_s = time.monotonic() - t_start
@@ -114,20 +152,21 @@ def main() -> None:
         "config": {
             "tier": tier,
             "model": "ping",
-            "input": "synthetic-conductance",
+            "input": "mnist d0 s0",
             "cells": list(CELLS),
             "t_ms": 400,
+            "input_rate_hz": 50,
             "modal_gpu": modal_gpu,
         },
         "results": [],
         "success_criteria": [
             {
-                "label": f"{cell} snapshot rendered",
+                "label": f"{cell} raster rendered",
                 "passed": dst.exists() and dst.stat().st_size > 0,
                 "detail": f"{dst.name} ({dst.stat().st_size} bytes)" if dst.exists() else "missing",
                 "detail_href": "/" + str(dst.relative_to(figs_root)) if dst.exists() else None,
             }
-            for cell, dst in snapshots.items()
+            for cell, dst in rasters.items()
         ],
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")

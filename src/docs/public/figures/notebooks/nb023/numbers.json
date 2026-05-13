@@ -1,31 +1,32 @@
 {
-  "notebook_run_id": "r006",
-  "duration_s": 3.8,
+  "notebook_run_id": "r009",
+  "duration_s": 3.9,
   "tier": "small",
   "config": {
     "tier": "small",
     "model": "ping",
-    "input": "synthetic-conductance",
+    "input": "mnist d0 s0",
     "cells": [
       "coba",
       "ping"
     ],
     "t_ms": 400,
+    "input_rate_hz": 50,
     "modal_gpu": null
   },
   "results": [],
   "success_criteria": [
     {
-      "label": "coba snapshot rendered",
+      "label": "coba raster rendered",
       "passed": true,
-      "detail": "snapshot__coba.png (180852 bytes)",
-      "detail_href": "/figures/notebooks/nb023/snapshot__coba.png"
+      "detail": "raster__coba.png (106085 bytes)",
+      "detail_href": "/figures/notebooks/nb023/raster__coba.png"
     },
     {
-      "label": "ping snapshot rendered",
+      "label": "ping raster rendered",
       "passed": true,
-      "detail": "snapshot__ping.png (125935 bytes)",
-      "detail_href": "/figures/notebooks/nb023/snapshot__ping.png"
+      "detail": "raster__ping.png (38187 bytes)",
+      "detail_href": "/figures/notebooks/nb023/raster__ping.png"
     }
   ]
 }
