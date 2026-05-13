@@ -144,6 +144,64 @@ $$
 
 Intuitively: if the field is *swirling* across the surface, that swirl has to add up to something circulating around the edge — like measuring a whirlpool by walking its rim rather than counting eddies across its face.
 
+## Vector identities
+
+A short reference list of identities that come up repeatedly when manipulating the operators above. Throughout, $f$ and $g$ are scalar fields and $\mathbf{A}$, $\mathbf{B}$, $\mathbf{C}$ are vector fields. The first group are pure-algebra identities about dot/cross products; the rest are differential identities about how $\nabla$ combines with itself or distributes through products.
+
+**Triple products.**
+
+$$
+\mathbf{a} \cdot (\mathbf{b} \times \mathbf{c}) \;=\; \mathbf{b} \cdot (\mathbf{c} \times \mathbf{a}) \;=\; \mathbf{c} \cdot (\mathbf{a} \times \mathbf{b}).
+$$
+
+The *scalar triple product* is cyclically invariant: it equals the signed volume of the parallelepiped spanned by the three vectors. Swapping any two arguments flips the sign.
+
+$$
+\mathbf{a} \times (\mathbf{b} \times \mathbf{c}) \;=\; \mathbf{b}\,(\mathbf{a} \cdot \mathbf{c}) \;-\; \mathbf{c}\,(\mathbf{a} \cdot \mathbf{b}).
+$$
+
+The *vector triple product*, mnemonic "BAC − CAB". The cross product is non-associative; this identity tells you exactly how it fails.
+
+**Second-derivative identities.** The Laplacian $\nabla^2 f \equiv \nabla\cdot(\nabla f) = \partial_x^2 f + \partial_y^2 f + \partial_z^2 f$ is the divergence of the gradient of a scalar field.
+
+$$
+\nabla \times (\nabla f) \;=\; \mathbf{0}.
+$$
+
+The curl of any gradient is zero. Equivalently, any field that is the gradient of a scalar potential is automatically curl-free — the basis for the electric scalar potential under electrostatics.
+
+$$
+\nabla \cdot (\nabla \times \mathbf{F}) \;=\; 0.
+$$
+
+The divergence of any curl is zero. Equivalently, any field that is the curl of another vector is automatically divergence-free — the basis for the magnetic vector potential $\mathbf{B} = \nabla\times\mathbf{A}$ when $\nabla\cdot\mathbf{B} = 0$.
+
+$$
+\nabla \times (\nabla \times \mathbf{F}) \;=\; \nabla(\nabla \cdot \mathbf{F}) \;-\; \nabla^2 \mathbf{F}.
+$$
+
+The *curl-of-curl* identity. This is what turns Maxwell's two curl equations into the [wave equation](/articles/art006/#problem-2-the-electromagnetic-wave-equation): taking $\nabla\times$ of Faraday and substituting Ampère–Maxwell on the right invokes this identity on the left, and $\nabla\cdot\mathbf{E} = 0$ in vacuum kills the first term.
+
+**Product rules.** The differential operators distribute through products in patterns analogous to the ordinary calculus product rule.
+
+$$
+\nabla(f g) \;=\; f\,\nabla g \;+\; g\,\nabla f.
+$$
+
+$$
+\nabla \cdot (f \mathbf{A}) \;=\; f\,(\nabla \cdot \mathbf{A}) \;+\; \mathbf{A} \cdot \nabla f.
+$$
+
+$$
+\nabla \times (f \mathbf{A}) \;=\; f\,(\nabla \times \mathbf{A}) \;+\; (\nabla f) \times \mathbf{A}.
+$$
+
+$$
+\nabla \cdot (\mathbf{A} \times \mathbf{B}) \;=\; \mathbf{B} \cdot (\nabla \times \mathbf{A}) \;-\; \mathbf{A} \cdot (\nabla \times \mathbf{B}).
+$$
+
+The last of these is what proves Poynting's theorem in electromagnetism: applied to $\mathbf{S} = \mathbf{E} \times \mathbf{B}/\mu_0$ it produces an energy-flux conservation law.
+
 ## Where this leads
 
 The five operators plus the two integral theorems are the full toolkit needed to read Maxwell's equations in both their differential and integral forms. The differential form makes local statements about $\nabla\cdot\mathbf{E}$, $\nabla\cdot\mathbf{B}$, $\nabla\times\mathbf{E}$, $\nabla\times\mathbf{B}$; the integral form makes global statements about flux and circulation across surfaces and loops. The two are equivalent precisely because of the divergence and Stokes' theorems above. The next article, [Maxwell's Equations](/articles/art003/), writes those four equations down and takes the conversion seriously.
