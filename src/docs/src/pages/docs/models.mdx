@@ -178,36 +178,181 @@ $$
 \tau\, \frac{dV}{dt} = -V + I(t), \qquad I(t) = \sum_k W\, \delta(t - t_k) + b \tag{9}
 $$
 
-where the spike train $\sum_k \delta(t - t_k)$ represents incoming presynaptic spikes at times $\{t_k\}$. The exponential-Euler integrator gives the closed-form solution of the homogeneous part (decay), and we apply a *zero-order hold* to the inhomogeneous input over the step $[t, t+\Delta t]$ — i.e. treat $I$ as constant over the step:
+where the spike train $\sum_k \delta(t - t_k)$ represents incoming presynaptic spikes at times $\{t_k\}$.
+
+**Step 1 — set up an integrating factor.** Rewrite (9) as
 
 $$
-V(t + \Delta t) = e^{-\Delta t/\tau}\, V(t) + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau}\, I(t + \xi)\, d\xi \tag{10}
+\frac{dV}{dt} + \frac{1}{\tau}\, V = \frac{I(t)}{\tau}
 $$
 
-with $\xi$ a dummy integration variable spanning $[0, \Delta t]$. The integral is the *contribution of the input* to the new membrane, weighted by how long the input has had to decay. For the delta-function spike at $t$ we use the ZOH approximation: replace the Dirac by a uniform pulse of height $W s_t / \Delta t$ over $[t, t+\Delta t]$. Substituting:
+This is a first-order linear ODE. Its integrating factor is $\mu(t) = e^{t/\tau}$. Multiply both sides by $\mu(t)$:
 
 $$
-V_{t+1} = \beta\, V_t + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau} \left[\frac{W\, s_t}{\Delta t} + b\right] d\xi, \quad \beta = e^{-\Delta t/\tau} \tag{11}
+e^{t/\tau}\, \frac{dV}{dt} + \frac{1}{\tau}\, e^{t/\tau}\, V = \frac{I(t)}{\tau}\, e^{t/\tau}
 $$
 
-The integral evaluates to a clean prefactor:
+The left-hand side is, by the product rule, the derivative of $V(t)\, e^{t/\tau}$:
 
 $$
-\frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau}\, d\xi = 1 - \beta \tag{12}
+\frac{d}{dt}\!\left[V(t)\, e^{t/\tau}\right] = \frac{d V}{dt}\, e^{t/\tau} + V(t)\, \frac{1}{\tau}\, e^{t/\tau}
 $$
 
-(verify by differentiating; this is the standard exp-Euler ZOH result). Putting it together:
+So the ODE becomes
+
+$$
+\frac{d}{dt}\!\left[V(t)\, e^{t/\tau}\right] = \frac{I(t)}{\tau}\, e^{t/\tau} \tag{10a}
+$$
+
+**Step 2 — integrate from $t$ to $t + \Delta t$.** Apply $\int_t^{t+\Delta t} (\cdot)\, ds$ to both sides of (10a). The left-hand side is a total derivative, so by the fundamental theorem of calculus
+
+$$
+\int_t^{t+\Delta t} \frac{d}{ds}\!\left[V(s)\, e^{s/\tau}\right] ds
+= V(t + \Delta t)\, e^{(t + \Delta t)/\tau} - V(t)\, e^{t/\tau}
+$$
+
+Equating to the integrated right-hand side:
+
+$$
+V(t + \Delta t)\, e^{(t + \Delta t)/\tau} - V(t)\, e^{t/\tau} = \int_t^{t+\Delta t} \frac{I(s)}{\tau}\, e^{s/\tau}\, ds \tag{10b}
+$$
+
+**Step 3 — isolate $V(t + \Delta t)$.** Divide both sides of (10b) by $e^{(t+\Delta t)/\tau}$:
+
+$$
+V(t + \Delta t) - V(t)\, e^{t/\tau}\, e^{-(t+\Delta t)/\tau}
+= \frac{1}{\tau}\, e^{-(t+\Delta t)/\tau} \int_t^{t+\Delta t} I(s)\, e^{s/\tau}\, ds
+$$
+
+The decay coefficient simplifies as $e^{t/\tau}\, e^{-(t+\Delta t)/\tau} = e^{-\Delta t/\tau}$. Pull the constant $e^{-(t+\Delta t)/\tau}$ inside the integral as $e^{s/\tau}\, e^{-(t+\Delta t)/\tau} = e^{(s - t - \Delta t)/\tau}$:
+
+$$
+V(t + \Delta t) = e^{-\Delta t/\tau}\, V(t) + \frac{1}{\tau} \int_t^{t+\Delta t} I(s)\, e^{(s - t - \Delta t)/\tau}\, ds
+$$
+
+**Step 4 — change of variable $\xi = s - t$.** Then $ds = d\xi$, $s = t + \xi$, and $s - t - \Delta t = \xi - \Delta t$. The limits transform as $s = t \Rightarrow \xi = 0$ and $s = t + \Delta t \Rightarrow \xi = \Delta t$. Substituting:
+
+$$
+V(t + \Delta t) = e^{-\Delta t/\tau}\, V(t) + \frac{1}{\tau} \int_0^{\Delta t} I(t + \xi)\, e^{-(\Delta t - \xi)/\tau}\, d\xi \tag{10}
+$$
+
+This is **exact** for any forcing $I(t)$ — no approximation has been made yet.
+
+**Step 5 — replace the Dirac by a rectangle.** A literal evaluation of (10) for $I(t + \xi) = W\, \delta(t + \xi - t_k)$ with $t_k \in [t, t+\Delta t]$ gives a contribution $(W/\tau)\, e^{-(\Delta t - (t_k - t))/\tau}$ that depends on the *sub-step* arrival time $t_k - t$ — information the discrete simulator doesn't track. We replace each Dirac that lands in $[t, t+\Delta t]$ by a rectangle of equal area $W$ and width $\Delta t$, i.e. constant height $W/\Delta t$. Writing $s_t \in \{0, 1\}$ for the indicator that a spike occurred in step $t$, the effective forcing over the step is
+
+$$
+I(t + \xi) \;\to\; \frac{W\, s_t}{\Delta t} + b, \qquad \xi \in [0, \Delta t]
+$$
+
+The bias $b$ is already constant, so it is unmodified. Define $\beta \equiv e^{-\Delta t / \tau}$ and $V_t \equiv V(t)$. Substituting into (10):
+
+$$
+V_{t+1} = \beta\, V_t + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau} \left[\frac{W\, s_t}{\Delta t} + b\right] d\xi \tag{11}
+$$
+
+**Step 6 — pull the constants out of the integral.** The bracket is independent of $\xi$, so
+
+$$
+V_{t+1} = \beta\, V_t + \left[\frac{W\, s_t}{\Delta t} + b\right] \cdot \underbrace{\frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau}\, d\xi}_{\text{call this } J}
+$$
+
+**Step 7 — evaluate $J$ by $u$-substitution.** Let $u = \Delta t - \xi$. Then $du = -d\xi$, i.e. $d\xi = -du$. The limits transform as $\xi = 0 \Rightarrow u = \Delta t$ and $\xi = \Delta t \Rightarrow u = 0$. Substituting:
+
+$$
+J = \frac{1}{\tau} \int_{u=\Delta t}^{u=0} e^{-u/\tau}\, (-du)
+$$
+
+The negative sign flips the limits:
+
+$$
+J = \frac{1}{\tau} \int_0^{\Delta t} e^{-u/\tau}\, du
+$$
+
+The antiderivative of $e^{-u/\tau}$ with respect to $u$ is $-\tau\, e^{-u/\tau}$ (check: $\frac{d}{du}[-\tau\, e^{-u/\tau}] = -\tau \cdot (-1/\tau)\, e^{-u/\tau} = e^{-u/\tau}$). Evaluate:
+
+$$
+J = \frac{1}{\tau}\, \Big[ -\tau\, e^{-u/\tau} \Big]_0^{\Delta t}
+= \frac{1}{\tau}\, \Big[ -\tau\, e^{-\Delta t/\tau} - (-\tau \cdot 1) \Big]
+= \frac{1}{\tau}\, \big[\, \tau - \tau\, e^{-\Delta t/\tau} \,\big]
+= 1 - e^{-\Delta t/\tau}
+= 1 - \beta \tag{12}
+$$
+
+**Step 8 — substitute $J$ back and distribute.** From Step 6 with $J = 1 - \beta$:
+
+$$
+V_{t+1} = \beta\, V_t + (1 - \beta) \left[\frac{W\, s_t}{\Delta t} + b\right]
+= \beta\, V_t + \frac{1 - \beta}{\Delta t}\, W\, s_t + (1 - \beta)\, b
+$$
+
+Renaming $V \to U$ to match the code's symbol for membrane potential:
 
 $$
 \boxed{U_{t+1} = \beta\, U_t + \frac{1 - \beta}{\Delta t}\, W\, s_t + (1 - \beta)\, b} \tag{13}
 $$
 
-**Limits.** As $\Delta t \to 0$:
+In the code, the two prefactors are computed once per step as *spike_scale* $= (1-\beta)/\Delta t$ and *bias_scale* $= 1 - \beta$; see [models.py:705-710](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L705-L710).
 
-- $(1 - \beta) / \Delta t \to 1/\tau$, so the per-spike kick approaches $W / \tau$.
-- $(1 - \beta) \to \Delta t / \tau$, so the per-step bias contribution approaches $b\Delta t/\tau$ — i.e. the *per-millisecond* bias contribution is $b/\tau$.
+**Step 9 — $\Delta t$-invariance, part 1: bias steady state.** In the absence of spikes ($s_t = 0$), (13) reduces to $U_{t+1} = \beta\, U_t + (1-\beta)\, b$. Setting $U_{t+1} = U_t = \bar U$ for the fixed point:
 
-Both are $\Delta t$-invariant. Where the snnTorch discretisation has $W$ scaled by 1 and $b$ scaled by 1 (regardless of $\Delta t$), the ZOH discretisation has $W$ scaled by $(1 - \beta)/\Delta t$ and $b$ scaled by $(1 - \beta)$. The code records these as *spike_scale* and *bias_scale*; see models.py:696.
+$$
+\bar U = \beta\, \bar U + (1 - \beta)\, b
+\;\;\Longrightarrow\;\;
+\bar U - \beta\, \bar U = (1 - \beta)\, b
+\;\;\Longrightarrow\;\;
+(1 - \beta)\, \bar U = (1 - \beta)\, b
+\;\;\Longrightarrow\;\;
+\bar U = b
+$$
+
+The steady-state membrane equals $b$ regardless of $\Delta t$. ✓
+
+**Step 10 — $\Delta t$-invariance, part 2: single-spike time integral.** Consider a network at rest, $U_0 = 0$, that receives one spike at step 0 ($s_0 = 1$, $s_t = 0$ for $t \ge 1$), with $b = 0$. Then from (13):
+
+$$
+U_1 = \beta \cdot 0 + \frac{1 - \beta}{\Delta t}\, W \cdot 1 + 0 = K, \quad K \equiv \frac{1 - \beta}{\Delta t}\, W
+$$
+
+For $t \ge 1$ there is no further forcing, so $U_{t+1} = \beta\, U_t$, which means $U_t = K\, \beta^{t-1}$ for $t \ge 1$. To get a $\Delta t$-invariant quantity, integrate $U$ against time using a left-Riemann sum with step $\Delta t$:
+
+$$
+\int_0^\infty U(t)\, dt \;\approx\; \sum_{t=0}^\infty U_t\, \Delta t
+= U_0\, \Delta t + \sum_{t=1}^\infty K\, \beta^{t-1}\, \Delta t
+= 0 + K\, \Delta t \sum_{m=0}^\infty \beta^m
+$$
+
+The sum is a geometric series with ratio $\beta \in (0, 1)$, so $\sum_{m=0}^\infty \beta^m = 1/(1 - \beta)$. Substituting:
+
+$$
+\int_0^\infty U(t)\, dt \;\approx\; \frac{K\, \Delta t}{1 - \beta}
+= \frac{1}{1 - \beta} \cdot \frac{1 - \beta}{\Delta t}\, W \cdot \Delta t
+= W
+$$
+
+The result is exactly $W$, independent of $\Delta t$. The corresponding continuous-time impulse response of (9) is $V(t) = (W/\tau)\, e^{-t/\tau}\, \mathbf{1}_{t \ge 0}$, whose time integral is
+
+$$
+\int_0^\infty \frac{W}{\tau}\, e^{-t/\tau}\, dt = \frac{W}{\tau} \cdot \tau \,\big[\,1 - 0\,\big] = W
+$$
+
+The discrete and continuous time integrals agree. ✓
+
+**Step 11 — small-$\Delta t$ limit (sanity check).** Taylor-expand $\beta = e^{-\Delta t/\tau}$ around $\Delta t = 0$:
+
+$$
+\beta = 1 - \frac{\Delta t}{\tau} + \frac{1}{2}\!\left(\frac{\Delta t}{\tau}\right)^{\!2} - \cdots
+\;\;\Longrightarrow\;\;
+1 - \beta = \frac{\Delta t}{\tau} - \frac{1}{2}\!\left(\frac{\Delta t}{\tau}\right)^{\!2} + \cdots
+$$
+
+To leading order in $\Delta t/\tau$:
+
+- $(1 - \beta)/\Delta t = 1/\tau - \Delta t/(2\tau^2) + O(\Delta t^2) \to 1/\tau$.
+- $(1 - \beta) = \Delta t/\tau + O(\Delta t^2)$, so $(1 - \beta)/\Delta t = 1/\tau + O(\Delta t)$.
+
+In words: the per-spike kick $(1-\beta)/\Delta t \cdot W$ approaches $W/\tau$ — i.e. the impulse response of the continuous LIF — and the per-step bias contribution $(1-\beta)\, b$ shrinks linearly with $\Delta t$. The number of steps per ms scales as $1/\Delta t$, so the per-millisecond bias contribution is $(1-\beta)\, b / \Delta t \to b/\tau$, also $\Delta t$-invariant.
+
+**Contrast with snnTorch.** In the snnTorch discretisation, $W$ and $b$ have prefactor $1$ regardless of $\Delta t$, so the per-spike kick is $W$ (not $W/\tau$) and the per-step bias is $b$ (not $b\, \Delta t/\tau$). Changing $\Delta t$ at eval time therefore shifts the effective input scale in *standard-snn*, while ZOH leaves it fixed — verified empirically in [013 — dt sensitivity](/notebooks/nb013/).
 
 ### Exponential synapse
 
