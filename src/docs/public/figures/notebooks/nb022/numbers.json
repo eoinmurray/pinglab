@@ -1,0 +1,72 @@
+{
+  "notebook_run_id": "r002",
+  "git_sha": "unknown",
+  "duration_s": 1380.5,
+  "duration": "23m 00s",
+  "tier": "large",
+  "config": {
+    "tier": "large",
+    "dataset": "mnist",
+    "cells": [
+      "dales",
+      "no_dales"
+    ],
+    "max_samples": 5000,
+    "epochs": 40,
+    "t_ms": 200.0,
+    "dt": 0.1,
+    "seed": 42
+  },
+  "results": [
+    {
+      "cell": "dales",
+      "best_acc": 88.2,
+      "best_epoch": 36,
+      "final_acc": 88.0,
+      "rate_e": 90.73350524902344
+    },
+    {
+      "cell": "no_dales",
+      "best_acc": 88.7,
+      "best_epoch": 28,
+      "final_acc": 88.7,
+      "rate_e": 89.4802474975586
+    }
+  ],
+  "success_criteria": [
+    {
+      "label": "accuracy figure rendered",
+      "passed": true,
+      "detail": "accuracy.png (33884 bytes)",
+      "detail_href": "/figures/notebooks/nb022/accuracy.png"
+    },
+    {
+      "label": "weight histogram rendered",
+      "passed": true,
+      "detail": "weight_hist.png (37002 bytes)",
+      "detail_href": "/figures/notebooks/nb022/weight_hist.png"
+    },
+    {
+      "label": "dales: training video",
+      "passed": true,
+      "detail": "training__dales.mp4 (1584051 bytes)",
+      "detail_href": "/figures/notebooks/nb022/training__dales.mp4"
+    },
+    {
+      "label": "no_dales: training video",
+      "passed": true,
+      "detail": "training__no_dales.mp4 (1714946 bytes)",
+      "detail_href": "/figures/notebooks/nb022/training__no_dales.mp4"
+    },
+    {
+      "label": "dales acc \u2265 70% (large floor)",
+      "passed": true,
+      "detail": "dales=88.20%"
+    },
+    {
+      "label": "no_dales acc \u2265 70% (large floor)",
+      "passed": true,
+      "detail": "no_dales=88.70%"
+    }
+  ]
+}
