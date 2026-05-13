@@ -1,18 +1,18 @@
 {
-  "notebook_run_id": "r003",
-  "git_sha": "unknown",
-  "duration_s": 0.2,
-  "duration": "0s",
-  "tier": "large",
+  "notebook_run_id": "r004",
+  "git_sha": "21d3739 (dirty)",
+  "duration_s": 426.1,
+  "duration": "7m 06s",
+  "tier": "medium",
   "config": {
-    "tier": "large",
+    "tier": "medium",
     "dataset": "mnist",
     "cells": [
       "dales",
       "no_dales"
     ],
-    "max_samples": 5000,
-    "epochs": 40,
+    "max_samples": 2000,
+    "epochs": 10,
     "t_ms": 200.0,
     "dt": 0.1,
     "seed": 42
@@ -20,53 +20,53 @@
   "results": [
     {
       "cell": "dales",
-      "best_acc": 88.2,
-      "best_epoch": 36,
-      "final_acc": 88.0,
-      "rate_e": 90.73350524902344
+      "best_acc": 83.75,
+      "best_epoch": 8,
+      "final_acc": 83.5,
+      "rate_e": 85.03146362304688
     },
     {
       "cell": "no_dales",
-      "best_acc": 88.7,
-      "best_epoch": 28,
-      "final_acc": 88.7,
-      "rate_e": 89.4802474975586
+      "best_acc": 86.25,
+      "best_epoch": 10,
+      "final_acc": 86.25,
+      "rate_e": 85.48176574707031
     }
   ],
   "success_criteria": [
     {
       "label": "accuracy figure rendered",
       "passed": true,
-      "detail": "accuracy.png (33903 bytes)",
+      "detail": "accuracy.png (34267 bytes)",
       "detail_href": "/figures/notebooks/nb022/accuracy.png"
     },
     {
       "label": "weight histogram rendered",
       "passed": true,
-      "detail": "weight_hist.png (45551 bytes)",
+      "detail": "weight_hist.png (38109 bytes)",
       "detail_href": "/figures/notebooks/nb022/weight_hist.png"
     },
     {
       "label": "dales: training video",
       "passed": true,
-      "detail": "training__dales.mp4 (1584051 bytes)",
+      "detail": "training__dales.mp4 (498001 bytes)",
       "detail_href": "/figures/notebooks/nb022/training__dales.mp4"
     },
     {
       "label": "no_dales: training video",
       "passed": true,
-      "detail": "training__no_dales.mp4 (1714946 bytes)",
+      "detail": "training__no_dales.mp4 (498298 bytes)",
       "detail_href": "/figures/notebooks/nb022/training__no_dales.mp4"
     },
     {
-      "label": "dales acc \u2265 70% (large floor)",
+      "label": "dales acc \u2265 50% (medium floor)",
       "passed": true,
-      "detail": "dales=88.20%"
+      "detail": "dales=83.75%"
     },
     {
-      "label": "no_dales acc \u2265 70% (large floor)",
+      "label": "no_dales acc \u2265 50% (medium floor)",
       "passed": true,
-      "detail": "no_dales=88.70%"
+      "detail": "no_dales=86.25%"
     }
   ]
 }

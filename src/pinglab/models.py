@@ -394,6 +394,19 @@ class SNNBase(nn.Module):
                 for k, v in rec.items()
             }
 
+    def project_dales(self) -> None:
+        """Project trainable weights back into the Dale's-law cone.
+
+        Override in subclasses that enforce signed weights at forward
+        time via clamp(min=0). After every optimiser step, calling
+        this method makes the *stored* parameter values match what the
+        network actually uses — so a downstream consumer reading
+        weights.pth sees the constrained weights, not the raw
+        pre-clamp ones with negative entries that the optimiser drove
+        toward but the forward pass discarded. No-op by default.
+        """
+        pass
+
 
 # ── Model classes ────────────────────────────────────────────────────────
 
@@ -894,6 +907,18 @@ class CUBANet(SNNBase):
         # Gradients intentionally still attached — trainer uses these counts
         # to build the firing-rate regularisation loss.
         self.last_spike_counts = state["rate_counts"]
+
+    def project_dales(self) -> None:
+        """Project W_ff and W_rec back onto the non-negative orthant when
+        Dale's law is enforced. Called after every optimiser step so the
+        stored parameter values match what forward() actually uses."""
+        if self.signed_weights:
+            return
+        with torch.no_grad():
+            for W in self.W_ff:
+                W.data.clamp_(min=0)
+            for W in self.W_rec.values():
+                W.data.clamp_(min=0)
 
 
 def _parse_weight_spec(w, default_dist, default_sparsity):
@@ -1573,3 +1598,14 @@ class COBANet(SNNBase):
             return state["s_count"]
         state["hidden_accum"] = state["hidden_accum"] + prev_spk
         return state["hidden_accum"] @ W_ff[-1]
+
+    def project_dales(self) -> None:
+        """Project W_ff back onto the non-negative orthant when Dale's
+        law is enforced. The recurrent W_ee / W_ei / W_ie are stored as
+        non-trainable buffers (requires_grad=False) so they are never
+        touched by the optimiser and need no projection."""
+        if self.signed_weights:
+            return
+        with torch.no_grad():
+            for W in self.W_ff:
+                W.data.clamp_(min=0)
