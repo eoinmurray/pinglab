@@ -65,7 +65,11 @@ def red(text):
 
 
 def _git_sha() -> str:
-    """Return current git SHA with '(dirty)' suffix if uncommitted changes."""
+    """Return current git SHA with '(dirty)' suffix if uncommitted changes.
+
+    Honors PINGLAB_GIT_SHA env var as a fallback so Modal containers (which
+    don't have .git mounted) still record the host's SHA.
+    """
     try:
         sha = (
             subprocess.check_output(
@@ -84,7 +88,7 @@ def _git_sha() -> str:
         )
         return f"{sha} (dirty)" if dirty else sha
     except Exception:
-        return "unknown"
+        return os.environ.get("PINGLAB_GIT_SHA", "unknown")
 
 
 def _env_hash() -> str:

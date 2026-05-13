@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r004",
+  "notebook_run_id": "r005",
   "git_sha": "21d3739 (dirty)",
-  "duration_s": 426.1,
-  "duration": "7m 06s",
+  "duration_s": 0.3,
+  "duration": "0s",
   "tier": "medium",
   "config": {
     "tier": "medium",
@@ -37,13 +37,25 @@
     {
       "label": "accuracy figure rendered",
       "passed": true,
-      "detail": "accuracy.png (34267 bytes)",
+      "detail": "accuracy.png (34300 bytes)",
       "detail_href": "/figures/notebooks/nb022/accuracy.png"
+    },
+    {
+      "label": "training curves rendered",
+      "passed": true,
+      "detail": "training_curves.png (78249 bytes)",
+      "detail_href": "/figures/notebooks/nb022/training_curves.png"
+    },
+    {
+      "label": "firing-rate curves rendered",
+      "passed": true,
+      "detail": "firing_rates.png (53158 bytes)",
+      "detail_href": "/figures/notebooks/nb022/firing_rates.png"
     },
     {
       "label": "weight histogram rendered",
       "passed": true,
-      "detail": "weight_hist.png (38109 bytes)",
+      "detail": "weight_hist.png (38139 bytes)",
       "detail_href": "/figures/notebooks/nb022/weight_hist.png"
     },
     {

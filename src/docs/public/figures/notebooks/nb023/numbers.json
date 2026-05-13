@@ -1,0 +1,31 @@
+{
+  "notebook_run_id": "r006",
+  "duration_s": 3.8,
+  "tier": "small",
+  "config": {
+    "tier": "small",
+    "model": "ping",
+    "input": "synthetic-conductance",
+    "cells": [
+      "coba",
+      "ping"
+    ],
+    "t_ms": 400,
+    "modal_gpu": null
+  },
+  "results": [],
+  "success_criteria": [
+    {
+      "label": "coba snapshot rendered",
+      "passed": true,
+      "detail": "snapshot__coba.png (180852 bytes)",
+      "detail_href": "/figures/notebooks/nb023/snapshot__coba.png"
+    },
+    {
+      "label": "ping snapshot rendered",
+      "passed": true,
+      "detail": "snapshot__ping.png (125935 bytes)",
+      "detail_href": "/figures/notebooks/nb023/snapshot__ping.png"
+    }
+  ]
+}
