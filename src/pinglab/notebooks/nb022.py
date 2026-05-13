@@ -173,13 +173,16 @@ def plot_accuracy(rows: list[dict], out_path: Path, run_id: str) -> None:
 def plot_weight_hist(rows: list[dict], out_path: Path, run_id: str) -> None:
     """Histogram of trained input weights W_ff[0] for each cell.
 
-    Under Dale's law every entry is clamped non-negative at use; without
-    it the optimiser is free to put weight mass on either sign. This
-    plot shows the resulting distribution.
+    The Dale's-law clamp is applied at *forward time* (COBANet.forward
+    does ``W_ff = [W.clamp(min=0) for W in self.W_ff]``), not as a
+    constraint on the stored parameter — so the raw stored W_ff.0 of
+    the dales cell still has negative entries, which the network never
+    actually uses. To make the histogram show *effective* weights, we
+    apply the same clamp here for the dales cell.
     """
     theme.apply()
     fig, ax = plt.subplots(figsize=(8, 4.5))
-    bins = np.linspace(-0.6, 0.6, 61)
+    bins = np.linspace(-0.15, 0.15, 61)
     for c in CELLS:
         weights_path = cell_dir(c) / "weights.pth"
         state = torch.load(weights_path, map_location="cpu", weights_only=False)
@@ -191,7 +194,12 @@ def plot_weight_hist(rows: list[dict], out_path: Path, run_id: str) -> None:
                 if k.startswith("W_ff"):
                     w0 = state[k]
                     break
-        flat = w0.detach().cpu().numpy().flatten()
+        w0 = w0.detach().cpu()
+        if c == "dales":
+            # Mirror the forward-pass clamp so the histogram matches the
+            # weights the network actually uses.
+            w0 = w0.clamp(min=0)
+        flat = w0.numpy().flatten()
         ax.hist(
             flat, bins=bins,
             color=CELL_COLORS[c], alpha=0.55,
@@ -199,7 +207,7 @@ def plot_weight_hist(rows: list[dict], out_path: Path, run_id: str) -> None:
             label=CELL_LABEL[c],
         )
     ax.axvline(0.0, color=theme.LABEL, lw=0.8, ls=":", alpha=0.7)
-    ax.set_xlabel("W_ff[0] entry value")
+    ax.set_xlabel("effective W_ff[0] entry (Dale's-law clamp applied for the dales cell)")
     ax.set_ylabel("count")
     ax.set_title("Distribution of trained input weights")
     ax.legend(fontsize=theme.SIZE_ANNOTATION)
