@@ -65,8 +65,10 @@ src/posts/*.pdf
 src/vite/public/*.pdf
 src/vite/public/manifest.json
 
-# Third-party reading-list PDFs — copyright, not redistributed
-src/papers/*.pdf
+# Third-party reading-list PDFs — copyright, not redistributed.
+# Whole subfolders are ignored (any new topic folder is auto-excluded);
+# README.md and any other root-level notes stay tracked.
+src/papers/*/
 
 # Keynote source files — large binaries, not useful in source
 src/keynote/*.key
