@@ -52,7 +52,13 @@ TIER_CONFIG = {
 DEFAULT_TIER = "small"
 T_MS = 200.0
 DT_TRAIN = 0.1
-SEED = 42
+
+# Baseline (θ_u = off) cells are trained at multiple seeds so the
+# headline bar chart and learning curves can show mean ± SEM. The θ_u
+# sweep cells stay single-seed — the frontier *shape* is dominated by
+# the regulariser, not the seed.
+SEEDS_BASELINE: list[int] = [42, 43, 44]
+SEED_SWEEP: int = 42
 
 # θ_u sweep grid in spikes-per-trial. None = no penalty (baseline).
 # At T = 200 ms, spikes/trial × 5 = Hz. The grid spans from no
@@ -136,16 +142,34 @@ def theta_hz(theta_u: float | None) -> float | None:
     return theta_u * (1000.0 / T_MS)
 
 
-def cell_dir(model: str, theta_u: float | None) -> Path:
-    return ARTIFACTS / f"{model}__{theta_label(theta_u)}"
+def seeds_for(theta_u: float | None) -> list[int]:
+    """Baseline cells run all seeds; sweep cells stay single-seed."""
+    return list(SEEDS_BASELINE) if theta_u is None else [SEED_SWEEP]
 
 
-def baseline_dir(model: str) -> Path:
-    return cell_dir(model, None)
+def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
+    """Per-cell artifact directory.
+
+    Baseline cells get a `__seed{N}` suffix so multiple seeds coexist.
+    Sweep cells run only at SEED_SWEEP and skip the suffix to keep
+    paths short — they live alongside the baseline ones.
+    """
+    label = theta_label(theta_u)
+    if theta_u is None:
+        return ARTIFACTS / f"{model}__{label}__seed{seed}"
+    return ARTIFACTS / f"{model}__{label}"
+
+
+def baseline_dirs(model: str) -> list[Path]:
+    return [cell_dir(model, None, s) for s in SEEDS_BASELINE]
+
+
+def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
+    return cell_dir(model, None, seed)
 
 
 def build_train_args(
-    model: str, theta_u: float | None, tier: str, out_dir: Path
+    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
 ) -> list[str]:
     recipe = MODEL_RECIPES[model]
     args = [
@@ -156,7 +180,7 @@ def build_train_args(
         "--epochs", str(TIER_CONFIG[tier]["epochs"]),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
-        "--seed", str(SEED),
+        "--seed", str(seed),
         "--observe", "video",
         "--frame-rate", "1",
         "--out-dir", str(out_dir),
@@ -193,10 +217,25 @@ def _stamp(fig, run_id: str) -> None:
     )
 
 
+def _baseline_seed_stats(rows: list[dict], model: str) -> tuple[float, float, float, float, int]:
+    """Mean/SEM of final-epoch accuracy and rate_e across all seeds for
+    one model's θ_u = off cells. Returns (acc_mean, acc_sem, rate_mean,
+    rate_sem, n_seeds). With n=1, SEM is reported as 0 (no error bar)."""
+    baseline_rows = [
+        r for r in rows if r["model"] == model and r["theta_u"] is None
+    ]
+    accs = np.array([r["final_acc"] for r in baseline_rows], dtype=float)
+    rates = np.array([r["rate_e"] for r in baseline_rows], dtype=float)
+    n = len(accs)
+    acc_sem = float(accs.std(ddof=1) / np.sqrt(n)) if n > 1 else 0.0
+    rate_sem = float(rates.std(ddof=1) / np.sqrt(n)) if n > 1 else 0.0
+    return float(accs.mean()), acc_sem, float(rates.mean()), rate_sem, n
+
+
 def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
     """Twin-y bar chart on the baseline (θ_u = off) cells: per model,
     side-by-side bars for accuracy (left y-axis) and mean hidden-E rate
-    (right y-axis)."""
+    (right y-axis). Error bars are ±SEM across baseline seeds."""
     theme.apply()
     fig, ax_acc = plt.subplots(figsize=(8.0, 4.5))
     ax_rate = ax_acc.twinx()
@@ -204,41 +243,37 @@ def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
     n = len(MODELS)
     xs = np.arange(n)
     width = 0.35
-    accs = [
-        next(
-            r for r in rows
-            if r["model"] == m and r["theta_u"] is None
-        )["final_acc"]
-        for m in MODELS
-    ]
-    rates = [
-        next(
-            r for r in rows
-            if r["model"] == m and r["theta_u"] is None
-        )["rate_e"]
-        for m in MODELS
-    ]
+    stats = [_baseline_seed_stats(rows, m) for m in MODELS]
+    accs = [s[0] for s in stats]
+    acc_sems = [s[1] for s in stats]
+    rates = [s[2] for s in stats]
+    rate_sems = [s[3] for s in stats]
+    n_seeds = stats[0][4] if stats else 0
 
     ax_acc.bar(
         xs - width / 2, accs, width=width,
         color=[MODEL_COLORS[m] for m in MODELS],
         edgecolor=theme.INK_BLACK,
+        yerr=acc_sems, ecolor=theme.INK_BLACK, capsize=4,
     )
     ax_rate.bar(
         xs + width / 2, rates, width=width,
         color=[MODEL_COLORS[m] for m in MODELS],
         edgecolor=theme.INK_BLACK, hatch="///",
+        yerr=rate_sems, ecolor=theme.INK_BLACK, capsize=4,
     )
 
-    for x, a in zip(xs, accs):
+    for x, a, ae in zip(xs, accs, acc_sems):
+        label = f"{a:.1f}%" if n_seeds <= 1 else f"{a:.1f}±{ae:.1f}%"
         ax_acc.text(
-            x - width / 2, a + 1.5, f"{a:.1f}%",
+            x - width / 2, a + ae + 1.5, label,
             ha="center", va="bottom",
             fontsize=theme.SIZE_ANNOTATION, color=theme.INK_BLACK,
         )
-    for x, r in zip(xs, rates):
+    for x, r, re_ in zip(xs, rates, rate_sems):
+        label = f"{r:.1f} Hz" if n_seeds <= 1 else f"{r:.1f}±{re_:.1f} Hz"
         ax_rate.text(
-            x + width / 2, r + max(rates) * 0.02, f"{r:.1f} Hz",
+            x + width / 2, r + re_ + max(rates) * 0.02, label,
             ha="center", va="bottom",
             fontsize=theme.SIZE_ANNOTATION, color=theme.INK_BLACK,
         )
@@ -247,7 +282,12 @@ def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
     ax_acc.set_xticklabels(MODELS)
     ax_acc.set_ylabel("test accuracy (%, final epoch)")
     ax_rate.set_ylabel("hidden-E firing rate (Hz, final epoch)")
-    ax_acc.set_title("cuba / coba / ping — accuracy vs firing rate (θ_u = off)")
+    title_suffix = (
+        f" — accuracy vs firing rate (θ_u = off, n={n_seeds} seeds, mean ± SEM)"
+        if n_seeds > 1
+        else " — accuracy vs firing rate (θ_u = off)"
+    )
+    ax_acc.set_title("cuba / coba / ping" + title_suffix)
     ax_acc.set_ylim(0, max(100, max(accs) + 10))
     ax_rate.set_ylim(0, max(rates) * 1.2 if rates else 1.0)
     ax_acc.grid(True, axis="y", alpha=0.3)
@@ -272,24 +312,51 @@ def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
 
 
 def plot_learning_curves(out_path: Path, run_id: str) -> None:
-    """Train loss + test accuracy per epoch, one curve per model (θ_u = off)."""
+    """Train loss + test accuracy per epoch, one curve per model
+    (θ_u = off). With multiple seeds, plot mean and shade ±SEM."""
     theme.apply()
     fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(10.0, 5.625))
+    n_seeds = len(SEEDS_BASELINE)
     for m in MODELS:
-        metrics = load_metrics(baseline_dir(m))
-        epochs = [e["ep"] for e in metrics["epochs"]]
-        loss = [e["loss"] for e in metrics["epochs"]]
-        acc = [e["acc"] for e in metrics["epochs"]]
-        ax_loss.plot(epochs, loss, marker="o", color=MODEL_COLORS[m], label=m)
-        ax_acc.plot(epochs, acc, marker="o", color=MODEL_COLORS[m], label=m)
+        per_seed_loss: list[list[float]] = []
+        per_seed_acc: list[list[float]] = []
+        epochs_ref: list[int] = []
+        for seed in SEEDS_BASELINE:
+            metrics_path = baseline_dir(m, seed) / "metrics.json"
+            if not metrics_path.exists():
+                continue
+            metrics = load_metrics(baseline_dir(m, seed))
+            eps = [e["ep"] for e in metrics["epochs"]]
+            if not epochs_ref:
+                epochs_ref = eps
+            per_seed_loss.append([e["loss"] for e in metrics["epochs"]])
+            per_seed_acc.append([e["acc"] for e in metrics["epochs"]])
+        loss_arr = np.asarray(per_seed_loss, dtype=float)
+        acc_arr = np.asarray(per_seed_acc, dtype=float)
+        loss_mean = loss_arr.mean(axis=0)
+        acc_mean = acc_arr.mean(axis=0)
+        ax_loss.plot(epochs_ref, loss_mean, marker="o", color=MODEL_COLORS[m], label=m)
+        ax_acc.plot(epochs_ref, acc_mean, marker="o", color=MODEL_COLORS[m], label=m)
+        if loss_arr.shape[0] > 1:
+            loss_sem = loss_arr.std(axis=0, ddof=1) / np.sqrt(loss_arr.shape[0])
+            acc_sem = acc_arr.std(axis=0, ddof=1) / np.sqrt(acc_arr.shape[0])
+            ax_loss.fill_between(
+                epochs_ref, loss_mean - loss_sem, loss_mean + loss_sem,
+                color=MODEL_COLORS[m], alpha=0.18, linewidth=0,
+            )
+            ax_acc.fill_between(
+                epochs_ref, acc_mean - acc_sem, acc_mean + acc_sem,
+                color=MODEL_COLORS[m], alpha=0.18, linewidth=0,
+            )
     ax_loss.set_xlabel("epoch")
     ax_loss.set_ylabel("train loss")
-    ax_loss.set_title("Train loss per epoch")
+    title_suffix = f" (n={n_seeds} seeds, mean ± SEM)" if n_seeds > 1 else ""
+    ax_loss.set_title("Train loss per epoch" + title_suffix)
     ax_loss.grid(True, alpha=0.3)
     ax_loss.legend(fontsize=theme.SIZE_LEGEND)
     ax_acc.set_xlabel("epoch")
     ax_acc.set_ylabel("test accuracy (%)")
-    ax_acc.set_title("Test accuracy per epoch")
+    ax_acc.set_title("Test accuracy per epoch" + title_suffix)
     ax_acc.set_ylim(0, 100)
     ax_acc.grid(True, alpha=0.3)
     ax_acc.legend(fontsize=theme.SIZE_LEGEND)
@@ -370,25 +437,53 @@ def generate_raster(model: str, out_path: Path) -> None:
 
 def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
     """Pareto-style frontier: one line per model, baseline → tightest
-    penalty. Both axes are final-epoch state."""
+    penalty. Both axes are final-epoch state. Baseline (θ_u = off)
+    points show ±SEM error bars across baseline seeds; sweep points
+    are single-seed and unbarred."""
     theme.apply()
     fig, ax = plt.subplots(figsize=(8.0, 4.5))
     for model in MODELS:
-        pts = sorted(
-            (r for r in rows if r["model"] == model),
-            key=lambda r: r["rate_e"],
-        )
-        xs = [p["rate_e"] for p in pts]
-        ys = [p["final_acc"] for p in pts]
-        ax.plot(
-            xs, ys,
+        # Aggregate per (model, θ_u): for the baseline, mean ± SEM
+        # across seeds. For sweep cells, just the single seed.
+        agg_pts: list[dict] = []
+        for theta_u in THETA_U_GRID:
+            cell_rows = [
+                r for r in rows
+                if r["model"] == model and r["theta_u"] == theta_u
+            ]
+            if not cell_rows:
+                continue
+            accs = np.array([r["final_acc"] for r in cell_rows], dtype=float)
+            rates = np.array([r["rate_e"] for r in cell_rows], dtype=float)
+            n = len(cell_rows)
+            agg_pts.append(
+                {
+                    "theta_display": cell_rows[0]["theta_display"],
+                    "acc_mean": float(accs.mean()),
+                    "rate_mean": float(rates.mean()),
+                    "acc_sem": (
+                        float(accs.std(ddof=1) / np.sqrt(n)) if n > 1 else 0.0
+                    ),
+                    "rate_sem": (
+                        float(rates.std(ddof=1) / np.sqrt(n)) if n > 1 else 0.0
+                    ),
+                }
+            )
+        agg_pts.sort(key=lambda p: p["rate_mean"])
+        xs = [p["rate_mean"] for p in agg_pts]
+        ys = [p["acc_mean"] for p in agg_pts]
+        x_err = [p["rate_sem"] for p in agg_pts]
+        y_err = [p["acc_sem"] for p in agg_pts]
+        ax.errorbar(
+            xs, ys, xerr=x_err, yerr=y_err,
             color=MODEL_COLORS[model],
-            marker=MODEL_MARKERS[model], label=model,
+            marker=MODEL_MARKERS[model],
+            label=model, capsize=3,
         )
-        for p in pts:
+        for p in agg_pts:
             ax.annotate(
                 p["theta_display"],
-                (p["rate_e"], p["final_acc"]),
+                (p["rate_mean"], p["acc_mean"]),
                 xytext=(5, 5), textcoords="offset points",
                 fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
             )
@@ -515,49 +610,63 @@ def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     persist_run_id(SLUG, notebook_run_id)
 
+    only_missing = "--only-missing" in sys.argv
     if not skip_training:
         dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
         for model in MODELS:
             for theta_u in THETA_U_GRID:
-                out = cell_dir(model, theta_u)
                 build_as = MODEL_RECIPES[model]["__build_as"]
                 gpu_override = None
                 if modal_gpu in ("T4", "L4", "A10G") and build_as == "ping":
                     gpu_override = "A100"
-                print(
-                    f"[train] {model}/θ_u={theta_display(theta_u)} → "
-                    f"{out.relative_to(REPO)}"
-                    + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-                )
-                dispatcher.submit(
-                    build_train_args(model, theta_u, tier, out),
-                    out,
-                    gpu_override=gpu_override,
-                )
+                for seed in seeds_for(theta_u):
+                    out = cell_dir(model, theta_u, seed)
+                    if only_missing and (out / "metrics.json").exists():
+                        print(
+                            f"[skip] {model}/θ_u={theta_display(theta_u)}/seed={seed} "
+                            f"already trained → {out.relative_to(REPO)}"
+                        )
+                        continue
+                    print(
+                        f"[train] {model}/θ_u={theta_display(theta_u)}/seed={seed} → "
+                        f"{out.relative_to(REPO)}"
+                        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+                    )
+                    dispatcher.submit(
+                        build_train_args(model, theta_u, seed, tier, out),
+                        out,
+                        gpu_override=gpu_override,
+                    )
         dispatcher.drain()
 
     rows: list[dict] = []
     for model in MODELS:
         for theta_u in THETA_U_GRID:
-            run_dir = cell_dir(model, theta_u)
-            if not (run_dir / "metrics.json").exists():
-                raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
-            metrics = load_metrics(run_dir)
-            last = metrics["epochs"][-1]
-            rows.append(
-                {
-                    "model": model,
-                    "theta_u": theta_u,
-                    "theta_display": theta_display(theta_u),
-                    "theta_u_hz": theta_hz(theta_u),
-                    "best_acc": float(metrics["best_acc"]),
-                    "best_epoch": int(metrics["best_epoch"]),
-                    "final_acc": float(last["acc"]),
-                    "rate_e": float(last.get("rate_e") or 0.0),
-                }
-            )
+            for seed in seeds_for(theta_u):
+                run_dir = cell_dir(model, theta_u, seed)
+                if not (run_dir / "metrics.json").exists():
+                    raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
+                metrics = load_metrics(run_dir)
+                last = metrics["epochs"][-1]
+                rows.append(
+                    {
+                        "model": model,
+                        "theta_u": theta_u,
+                        "theta_display": theta_display(theta_u),
+                        "theta_u_hz": theta_hz(theta_u),
+                        "seed": seed,
+                        "best_acc": float(metrics["best_acc"]),
+                        "best_epoch": int(metrics["best_epoch"]),
+                        "final_acc": float(last["acc"]),
+                        "rate_e": float(last.get("rate_e") or 0.0),
+                    }
+                )
+        # One training video per (model, θ_u) — use the canonical seed
+        # (first of SEEDS_BASELINE for baselines, SEED_SWEEP for sweep).
+        for theta_u in THETA_U_GRID:
+            canonical_seed = seeds_for(theta_u)[0]
             copy_video(
-                run_dir,
+                cell_dir(model, theta_u, canonical_seed),
                 FIGURES / f"training__{model}__{theta_label(theta_u)}.mp4",
             )
 
@@ -607,7 +716,8 @@ def main() -> None:
             "epochs": TIER_CONFIG[tier]["epochs"],
             "t_ms": T_MS,
             "dt": DT_TRAIN,
-            "seed": SEED,
+            "seeds_baseline": SEEDS_BASELINE,
+            "seed_sweep": SEED_SWEEP,
             "fr_strength_upper": FR_STRENGTH_UPPER,
         },
         "results": rows,
