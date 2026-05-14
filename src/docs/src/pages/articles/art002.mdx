@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "Vector Calculus"
+title: "From Vector Calculus to the LIF Neuron"
 date: 2026-05-12
 entry: 2
 structure: paper
@@ -14,13 +14,17 @@ import Flux from "../../components/articles/Flux";
 import DivergenceTheorem from "../../components/articles/DivergenceTheorem";
 import StokesTheorem from "../../components/articles/StokesTheorem";
 
-# Vector Calculus
+# From Vector Calculus to the LIF Neuron
 
-A short primer on the vector calculus needed to read [Maxwell's equations](/articles/art003/) in both their differential and integral forms. We work in $\mathbb{R}^3$ with Cartesian coordinates $(x, y, z)$. Scalar fields take a point to a number; vector fields take a point to a vector. The operators below are the alphabet for talking about how those fields change in space, and the two theorems at the end are what turn the local (differential) story into the global (integral) one.
+This article walks the chain from vector calculus to the spiking neuron: the operators and theorems needed to read Maxwell's equations, the four equations themselves in differential and integral form, their collapse to Ohm and capacitance and the RC equation when applied *in matter*, the same RC equation specialised to a cell membrane plus the threshold-and-reset rule that makes it spike, and five worked examples that exercise the chain end-to-end. The destination is the conductance-based leaky integrate-and-fire (COBA) neuron used throughout the [pinglab models](/docs/models/) and notebooks.
 
-## Operators
+## Vector Calculus
 
-### Inner product
+A short primer on the vector calculus needed to read [Maxwell's equations](#maxwells-equations) in both their differential and integral forms. We work in $\mathbb{R}^3$ with Cartesian coordinates $(x, y, z)$. Scalar fields take a point to a number; vector fields take a point to a vector. The operators below are the alphabet for talking about how those fields change in space, and the two theorems at the end are what turn the local (differential) story into the global (integral) one.
+
+### Operators
+
+#### Inner product
 
 Takes two vectors and returns a scalar.
 
@@ -34,7 +38,7 @@ where $\theta$ is the angle between them. It measures how much $\mathbf{a}$ proj
 
 Intuitively: how much of one arrow lies along the other — a shadow length.
 
-### Cross product
+#### Cross product
 
 Takes two vectors and returns a vector perpendicular to both, with magnitude equal to the area of the parallelogram they span.
 
@@ -49,7 +53,7 @@ The direction follows the right-hand rule. Unlike the dot product, this one is a
 
 Intuitively: a vector pointing along the axle of the rotation that would carry $\mathbf{a}$ onto $\mathbf{b}$, with length equal to the area of the parallelogram they span.
 
-### Gradient
+#### Gradient
 
 Takes a scalar field $f(x, y, z)$ to a vector field.
 
@@ -63,7 +67,7 @@ At every point it gives the direction of steepest increase of $f$ and a magnitud
 
 Intuitively: standing on a hilly landscape with $f$ as the altitude — the arrow pointing straight up the steepest path.
 
-### Divergence
+#### Divergence
 
 Takes a vector field $\mathbf{F} = (F_x, F_y, F_z)$ to a scalar field.
 
@@ -77,7 +81,7 @@ It measures the net outflow of $\mathbf{F}$ per unit volume at a point — posit
 
 Intuitively: a tiny soap bubble dropped into the field — divergence is the rate at which it expands (positive) or shrinks (negative) at that point.
 
-### Curl
+#### Curl
 
 Takes a vector field to a vector field.
 
@@ -91,7 +95,7 @@ At every point it measures the local rotation of $\mathbf{F}$ — its magnitude 
 
 Intuitively: a paddle wheel placed at this point in a flowing fluid — curl is the axis it spins around and how fast.
 
-## Flux
+### Flux
 
 The flux of a vector field $\mathbf{F}$ through a surface $S$ is the integral of its normal component across that surface.
 
@@ -107,20 +111,20 @@ The choice of which way $\mathbf{n}$ points is part of the orientation conventio
 
 Intuitively: how many field lines net-cross the surface, counted positively in the chosen direction and negatively the other way.
 
-## Orientation conventions
+### Orientation conventions
 
 Flux and the integral theorems below all carry signs that depend on how you orient the surface or boundary, and getting these wrong is what makes minus signs in physical laws look mysterious. Two conventions, applied consistently:
 
 - *Closed surfaces* (a $\partial V$ wrapping a volume $V$) carry the **outward normal**. The surface element $d\mathbf{A}$ points away from the enclosed volume, so $\mathbf{F} \cdot d\mathbf{A}$ counts flux leaving $V$ as positive and flux entering as negative. This is what makes the divergence theorem a "net outflow" statement.
 - *Open surfaces with boundary* (an $S$ bounded by a curve $\partial S$) carry a normal $d\mathbf{A}$ that the user picks, and the boundary curve $\partial S$ is then oriented by the **right-hand rule** — curl your right-hand fingers around $\partial S$, and your thumb points along $d\mathbf{A}$. Flip $d\mathbf{A}$ and the direction of integration around $\partial S$ also flips, so both sides of Stokes' theorem change sign in lockstep.
 
-These conventions are what make signs in the physical laws non-arbitrary. In [Maxwell's equations](/articles/art003/), the minus in Faraday's law is the canonical example: once the right-hand rule fixes $\partial S$ relative to $d\mathbf{A}$, Lenz's law (the induced current opposes the change in flux) forces that sign — get the convention wrong and you'd derive perpetual motion.
+These conventions are what make signs in the physical laws non-arbitrary. In [Maxwell's equations](#maxwells-equations), the minus in Faraday's law is the canonical example: once the right-hand rule fixes $\partial S$ relative to $d\mathbf{A}$, Lenz's law (the induced current opposes the change in flux) forces that sign — get the convention wrong and you'd derive perpetual motion.
 
-## Integral theorems
+### Integral theorems
 
 The two theorems below convert a *local* statement about a field's divergence or curl into a *global* statement about flux or circulation across a boundary. They are what let the differential and integral forms of physical conservation laws be two sides of the same coin.
 
-### Divergence theorem
+#### Divergence theorem
 
 For a vector field $\mathbf{F}$ defined on a volume $V$ with closed boundary surface $\partial V$, the integral of the divergence over the volume equals the flux through the boundary.
 
@@ -132,7 +136,7 @@ $$
 
 Intuitively: whatever the field is *sourcing* inside the volume has to flow out through the boundary. It is a conservation statement about field lines — every line that originates inside $V$ has to cross $\partial V$ on its way out.
 
-### Stokes' theorem
+#### Stokes' theorem
 
 For a vector field $\mathbf{F}$ on an oriented surface $S$ with boundary curve $\partial S$, the flux of the curl through $S$ equals the line integral around $\partial S$.
 
@@ -144,7 +148,7 @@ $$
 
 Intuitively: if the field is *swirling* across the surface, that swirl has to add up to something circulating around the edge — like measuring a whirlpool by walking its rim rather than counting eddies across its face.
 
-## Vector identities
+### Vector identities
 
 A short reference list of identities that come up repeatedly when manipulating the operators above. Throughout, $f$ and $g$ are scalar fields and $\mathbf{A}$, $\mathbf{B}$, $\mathbf{C}$ are vector fields. The first group are pure-algebra identities about dot/cross products; the rest are differential identities about how $\nabla$ combines with itself or distributes through products.
 
@@ -180,7 +184,7 @@ $$
 \nabla \times (\nabla \times \mathbf{F}) \;=\; \nabla(\nabla \cdot \mathbf{F}) \;-\; \nabla^2 \mathbf{F}.
 $$
 
-The *curl-of-curl* identity. This is what turns Maxwell's two curl equations into the [wave equation](/articles/art006/#problem-2-the-electromagnetic-wave-equation): taking $\nabla\times$ of Faraday and substituting Ampère–Maxwell on the right invokes this identity on the left, and $\nabla\cdot\mathbf{E} = 0$ in vacuum kills the first term.
+The *curl-of-curl* identity. This is what turns Maxwell's two curl equations into the [wave equation](#problem-2-the-electromagnetic-wave-equation): taking $\nabla\times$ of Faraday and substituting Ampère–Maxwell on the right invokes this identity on the left, and $\nabla\cdot\mathbf{E} = 0$ in vacuum kills the first term.
 
 **Product rules.** The differential operators distribute through products in patterns analogous to the ordinary calculus product rule.
 
@@ -202,6 +206,698 @@ $$
 
 The last of these is what proves Poynting's theorem in electromagnetism: applied to $\mathbf{S} = \mathbf{E} \times \mathbf{B}/\mu_0$ it produces an energy-flux conservation law.
 
+## Maxwell's Equations
+
+The four Maxwell equations are the backbone of classical electromagnetism. They come in two equivalent forms — *differential*, which states how the fields behave at every point, and *integral*, which states how they behave across surfaces and along loops. Both forms use the operators and integral theorems collected in [Vector Calculus](#vector-calculus) above.
+
+### Differential form
+
+$$
+\begin{aligned}
+\nabla \cdot \mathbf{E}   &= \frac{\rho}{\epsilon_0}
+  && \text{Gauss's law of electricity} \\[4pt]
+\nabla \cdot \mathbf{B}   &= 0
+  && \text{Gauss's law of magnetism} \\[4pt]
+\nabla \times \mathbf{E}  &= -\,\frac{\partial \mathbf{B}}{\partial t}
+  && \text{Faraday's law of induction} \\[4pt]
+\nabla \times \mathbf{B}  &= \mu_0 \mathbf{J} + \mu_0 \epsilon_0 \frac{\partial \mathbf{E}}{\partial t}
+  && \text{Ampère–Maxwell law}
+\end{aligned}
+$$
+
+Here $\mathbf{E}$ and $\mathbf{B}$ are the electric and magnetic fields, $\rho$ is the charge density, $\mathbf{J}$ the current density, and $\epsilon_0$, $\mu_0$ the vacuum permittivity and permeability. Two of the equations involve a [divergence](#divergence) and two a [curl](#curl), and that split is what lets the two integral theorems convert each pair into the integral form below.
+
+### Integral form
+
+$$
+\begin{aligned}
+\oint_{\partial V} \mathbf{E} \cdot d\mathbf{A}  &= \frac{Q_{\text{enc}}}{\epsilon_0}
+  && \text{Gauss's law of electricity} \\[4pt]
+\oint_{\partial V} \mathbf{B} \cdot d\mathbf{A}  &= 0
+  && \text{Gauss's law of magnetism} \\[4pt]
+\oint_{\partial S} \mathbf{E} \cdot d\boldsymbol{\ell}  &= -\,\frac{d}{dt} \int_{S} \mathbf{B} \cdot d\mathbf{A}
+  && \text{Faraday's law of induction} \\[4pt]
+\oint_{\partial S} \mathbf{B} \cdot d\boldsymbol{\ell}  &= \mu_0 I_{\text{enc}} + \mu_0 \epsilon_0 \,\frac{d}{dt} \int_{S} \mathbf{E} \cdot d\mathbf{A}
+  && \text{Ampère–Maxwell law}
+\end{aligned}
+$$
+
+Here $Q_{\text{enc}}$ is the total charge enclosed by the closed surface $\partial V$, $I_{\text{enc}}$ is the total current passing through the open surface $S$, and the [orientation conventions](#orientation-conventions) for $d\mathbf{A}$ and $d\boldsymbol{\ell}$ are the ones from the vector-calculus primer.
+
+### Linking the two forms
+
+The two forms are linked by the integral theorems from [Integral theorems](#integral-theorems):
+
+- The **divergence theorem** turns the two $\nabla \cdot$ equations into the two flux statements through closed surfaces. Applied to $\mathbf{F} = \mathbf{E}$, it converts $\nabla \cdot \mathbf{E} = \rho/\epsilon_0$ into the enclosed-charge version of Gauss's law; the same move applied to $\mathbf{B}$ gives the magnetic Gauss law with zero on the right.
+- **Stokes' theorem** turns the two $\nabla \times$ equations into the two circulation-vs-flux-derivative statements. Applied to $\mathbf{F} = \mathbf{E}$, it converts Faraday's $\nabla \times \mathbf{E} = -\partial \mathbf{B}/\partial t$ into the integral form above (and the minus sign carries over directly); applied to $\mathbf{F} = \mathbf{B}$, it does the same for the Ampère–Maxwell law.
+
+The minus sign on Faraday's law is the canonical example of [orientation conventions](#orientation-conventions) doing real work: once the right-hand rule fixes $\partial S$ relative to $d\mathbf{A}$, Lenz's law forces that sign, and the differential and integral forms agree on it automatically.
+
+### Gauss's law
+
+Charges are the sources of the electric field. The strength of the source at every point is the local charge density.
+
+**Differential form.**
+
+$$
+\nabla \cdot \mathbf{E} \;=\; \frac{\rho}{\epsilon_0}.
+$$
+
+**Integral form.**
+
+$$
+\oint_{\partial V} \mathbf{E} \cdot d\mathbf{A} \;=\; \frac{Q_{\text{enc}}}{\epsilon_0}.
+$$
+
+The two forms say the same thing at different scales. The differential form is a *local* identity: at every point in space, the [divergence](#divergence) of the electric field equals the charge density there, divided by the vacuum permittivity. The integral form is the *global* consequence: for any closed surface $\partial V$ you draw, the total outward [flux](#flux) of $\mathbf{E}$ across it is the total charge $Q_{\text{enc}}$ inside, divided by $\epsilon_0$. The link between the two is the [divergence theorem](#divergence-theorem) applied to $\mathbf{F} = \mathbf{E}$.
+
+Intuitively: electric field lines start on positive charges and end on negative charges. Wrap any closed surface around a chunk of space and count the lines crossing it — positive when leaving, negative when entering — and you've measured the net charge inside. No charges inside, no net flux. The shape of the surface doesn't matter; only what's enclosed.
+
+**Symbols and units** (SI):
+
+| symbol             | name                       | units                                 |
+|--------------------|----------------------------|---------------------------------------|
+| $\mathbf{E}$       | electric field             | V/m  (volts per metre)                |
+| $\rho$             | charge density             | C/m³ (coulombs per cubic metre)       |
+| $Q_{\text{enc}}$   | charge enclosed by $\partial V$ | C   (coulombs)                   |
+| $\partial V$       | closed surface (boundary of a volume $V$) | m² when integrated      |
+| $d\mathbf{A}$      | outward-pointing surface element  | m² (vector, normal to $\partial V$) |
+| $\epsilon_0$       | vacuum permittivity        | $8.854 \times 10^{-12}$ F/m (farads/m, equivalent C²/(N·m²)) |
+
+The constant $\epsilon_0$ is what sets the scale: a single $1\,\mathrm{C}$ point charge produces a total flux of $1/\epsilon_0 \approx 1.13 \times 10^{11}\,\mathrm{V\,m}$ — large because a coulomb is a lot of charge. In everyday terms, $\epsilon_0$ encodes "how stiffly the vacuum opposes electric field lines": a small $\epsilon_0$ would mean a tiny charge produces an enormous field.
+
+### Gauss's law of magnetism
+
+The magnetic field has no sources or sinks. Every magnetic field line that enters a region eventually leaves it — there is no magnetic equivalent of an isolated charge.
+
+**Differential form.**
+
+$$
+\nabla \cdot \mathbf{B} \;=\; 0.
+$$
+
+**Integral form.**
+
+$$
+\oint_{\partial V} \mathbf{B} \cdot d\mathbf{A} \;=\; 0.
+$$
+
+The two forms again say the same thing at different scales, linked by the [divergence theorem](#divergence-theorem). The differential form says the divergence of $\mathbf{B}$ is zero *everywhere* — no points act as sources or sinks. The integral form says that for *every* closed surface, the net magnetic flux through it is zero — exactly as many field lines leave as enter. The right-hand side of [Gauss's law](#gausss-law) had a $Q_{\text{enc}}/\epsilon_0$ term; here, there is no equivalent, because no magnetic monopole has ever been observed.
+
+Intuitively: magnetic field lines form closed loops. Wrap any closed surface around a chunk of space and the loops crossing into it must also cross out — net flux is zero.
+
+**Symbols and units** (SI):
+
+| symbol             | name                       | units                                 |
+|--------------------|----------------------------|---------------------------------------|
+| $\mathbf{B}$       | magnetic field             | T  (tesla, equivalent V·s/m² or N/(A·m)) |
+| $\partial V$       | closed surface             | m² when integrated                    |
+| $d\mathbf{A}$      | outward-pointing surface element | m² (vector, normal to $\partial V$) |
+
+No constant appears on the right-hand side — the law's content is the equation $= 0$. If a magnetic monopole were ever discovered, it would acquire a $\rho_m/\mu_0$-style term and stop being structurally simpler than its electric cousin. Until then, the magnetic side of Maxwell's equations is "missing" exactly one of the four source terms electricity carries.
+
+### Faraday's law of induction
+
+A changing magnetic field induces a circulating electric field. The faster the magnetic flux changes through a loop, the larger the induced electric circulation around its boundary.
+
+**Differential form.**
+
+$$
+\nabla \times \mathbf{E} \;=\; -\,\frac{\partial \mathbf{B}}{\partial t}.
+$$
+
+**Integral form.**
+
+$$
+\oint_{\partial S} \mathbf{E} \cdot d\boldsymbol{\ell} \;=\; -\,\frac{d}{dt} \int_{S} \mathbf{B} \cdot d\mathbf{A}.
+$$
+
+The two forms are linked by [Stokes' theorem](#stokes-theorem). The differential form is a local identity: the [curl](#curl) of $\mathbf{E}$ at every point equals the negative time-derivative of $\mathbf{B}$ there. The integral form is the global consequence: the total $\mathbf{E}$-[circulation](#flux) around any closed loop $\partial S$ equals the negative rate of change of the $\mathbf{B}$-flux through any surface $S$ spanning that loop. The minus sign is **Lenz's law**: the induced electric field drives currents that *oppose* the change in magnetic flux — a self-stabilising sign forced by the [right-hand rule](#orientation-conventions) relating $\partial S$ to $d\mathbf{A}$.
+
+Intuitively: shove a magnet through a wire loop and the loop pushes back. The pushing is the induced electric field, the direction it circulates is whichever way *opposes* whatever you were doing.
+
+**Symbols and units** (SI):
+
+| symbol             | name                            | units                                       |
+|--------------------|---------------------------------|---------------------------------------------|
+| $\mathbf{E}$       | electric field                  | V/m                                         |
+| $\mathbf{B}$       | magnetic field                  | T                                           |
+| $\partial S$       | closed boundary curve of $S$    | m when integrated                           |
+| $d\boldsymbol{\ell}$ | tangent line element to $\partial S$ | m (vector, right-hand-oriented relative to $d\mathbf{A}$) |
+| $S$                | open surface bounded by $\partial S$ | m² when integrated                     |
+| $d\mathbf{A}$      | surface element on $S$          | m² (vector, normal to $S$)                  |
+| $\partial/\partial t$ | partial derivative in time   | per second                                  |
+
+No constants appear on the right-hand side beyond the minus sign — the relation between $\mathbf{E}$ and $\partial_t \mathbf{B}$ is exact, with no scale factor. The whole content of the law sits in that minus sign and the geometric pairing $\mathbf{E} \leftrightarrow \mathbf{B}$.
+
+### Ampère–Maxwell law
+
+The magnetic field circulates around both real currents *and* changing electric fields. The "displacement-current" term — Maxwell's addition to Ampère's original law — is what completes the symmetry with Faraday's law and makes self-propagating electromagnetic waves possible.
+
+**Differential form.**
+
+$$
+\nabla \times \mathbf{B} \;=\; \mu_0 \mathbf{J} \;+\; \mu_0 \epsilon_0 \,\frac{\partial \mathbf{E}}{\partial t}.
+$$
+
+**Integral form.**
+
+$$
+\oint_{\partial S} \mathbf{B} \cdot d\boldsymbol{\ell} \;=\; \mu_0 I_{\text{enc}} \;+\; \mu_0 \epsilon_0 \,\frac{d}{dt} \int_{S} \mathbf{E} \cdot d\mathbf{A}.
+$$
+
+The two forms are linked by [Stokes' theorem](#stokes-theorem), exactly mirroring Faraday's law but with the electric and magnetic roles swapped (and no minus sign). The differential form says the curl of $\mathbf{B}$ at every point has two sources: a real current density $\mathbf{J}$, and a changing electric field $\partial_t \mathbf{E}$. The integral form says the $\mathbf{B}$-circulation around a loop equals $\mu_0$ times the current piercing any surface spanning it, plus $\mu_0\epsilon_0$ times the rate of change of $\mathbf{E}$-flux through the same surface.
+
+The displacement-current term $\mu_0 \epsilon_0\, \partial_t \mathbf{E}$ was Maxwell's invention; without it, the original Ampère law $\nabla \times \mathbf{B} = \mu_0 \mathbf{J}$ is inconsistent with [charge conservation](#divergence-theorem) (taking $\nabla\cdot$ of both sides would imply $\nabla\cdot \mathbf{J} = 0$ always, which is false whenever charge density changes in time). Adding the term not only patches that inconsistency but also produces the wave equation $\nabla^2 \mathbf{E} = \mu_0 \epsilon_0\, \partial_t^2 \mathbf{E}$ when combined with Faraday's law in vacuum — the propagation speed comes out as $c = 1/\sqrt{\mu_0 \epsilon_0}$, which is the speed of light.
+
+Intuitively: every current is wrapped by a magnetic field, and so is every region of changing electric field. The second part is what lets light exist: an oscillating $\mathbf{E}$ generates a circulating $\mathbf{B}$ which generates a circulating $\mathbf{E}$, and the pair propagates through empty space at speed $c$.
+
+**Symbols and units** (SI):
+
+| symbol             | name                       | units                                             |
+|--------------------|----------------------------|---------------------------------------------------|
+| $\mathbf{B}$       | magnetic field             | T                                                 |
+| $\mathbf{J}$       | current density            | A/m² (amperes per square metre)                   |
+| $\mathbf{E}$       | electric field             | V/m                                               |
+| $I_{\text{enc}}$   | current piercing $S$       | A (amperes)                                       |
+| $\partial S$       | boundary curve of $S$      | m when integrated                                 |
+| $d\boldsymbol{\ell}$ | tangent line element     | m                                                 |
+| $S$                | open surface bounded by $\partial S$ | m² when integrated                       |
+| $d\mathbf{A}$      | surface element on $S$     | m²                                                |
+| $\mu_0$            | vacuum permeability        | $1.257 \times 10^{-6}$ N/A² (henries/m)           |
+| $\epsilon_0$       | vacuum permittivity        | $8.854 \times 10^{-12}$ F/m                       |
+
+The two constants $\mu_0$ and $\epsilon_0$ encode how the vacuum responds to magnetism and electricity respectively, and they appear here as a product. Their reciprocal-square-root is the speed of light: $c = 1/\sqrt{\mu_0\epsilon_0} \approx 2.998 \times 10^{8}\,\mathrm{m/s}$. That "the speed of light falls out of Maxwell's equations" is the historical moment electromagnetism and optics merged into one subject.
+
+## From Fields to Circuits
+
+Maxwell's equations describe electromagnetism at every point in space, but for a single wire or capacitor that spatial resolution is overkill. Applied *in matter*, two of the four equations collapse onto two circuit-level constitutive laws — Ohm and Q=CV — which together give the **RC equation**, the simplest first-order voltage dynamics in physics. This section walks that collapse end-to-end. The destination is
+
+$$
+\tau\,\frac{dV}{dt} \;=\; -(V - V_\infty) \;+\; R\,I_{\text{ext}}(t), \qquad \tau \;=\; RC,
+$$
+
+the equation an RC circuit obeys and the same equation a single point-neuron's membrane obeys between spikes.
+
+### Ohm's law in matter
+
+In free space Maxwell's equations relate $\mathbf{E}$, $\mathbf{B}$, $\rho$ and $\mathbf{J}$. In a conductor there is one extra relation, supplied by the *material* rather than by Maxwell: an electric field $\mathbf{E}$ pushes the free charges around, and the rate at which they move per unit area, per unit time, is the current density $\mathbf{J}$. To linear order,
+
+$$
+\mathbf{J} \;=\; \sigma\, \mathbf{E},
+$$
+
+where $\sigma$ is the **conductivity** of the material (siemens per metre, $\mathrm{S/m}$). This is a *constitutive* law — not derivable from Maxwell alone, it tells you how a specific material responds to a field, in the same role the relation $\mathbf{D} = \epsilon\mathbf{E}$ plays for dielectrics.
+
+#### What conductivity actually is
+
+A field $\mathbf{E}$ exerts a force $q\mathbf{E}$ on every mobile charge carrier, accelerating it. In a true vacuum that carrier would keep accelerating forever; in a real material it scatters off the lattice (or the surrounding fluid) on a short timescale $\tau_c$, the **mean free time** between collisions. Between collisions it picks up a velocity $\Delta v = (q/m)\mathbf{E}\,\tau_c$, then loses it again. Averaged over many collisions, every carrier acquires a steady *drift velocity*
+
+$$
+\mathbf{v}_d \;=\; \mu\,\mathbf{E},\qquad \mu \;=\; \frac{q\,\tau_c}{m},
+$$
+
+where $\mu$ is the **mobility** of that carrier (units $\mathrm{m^2/(V\,s)}$). With $n$ carriers per unit volume, each carrying charge $q$, the current density is just $n q \mathbf{v}_d$, so
+
+$$
+\boxed{\;\sigma \;=\; n\,q\,\mu \;=\; \frac{n\,q^2\,\tau_c}{m}.\;}
+$$
+
+Conductivity is therefore a product of "how many carriers there are" ($n$), "how much charge each one carries" ($q$), and "how easily each one drifts in a field" ($\mu$, or equivalently $\tau_c/m$). A metal has $n \sim 10^{28}\,\mathrm{m^{-3}}$ near-free electrons and $\tau_c \sim 10^{-14}\,\mathrm{s}$, giving $\sigma \sim 10^7\,\mathrm{S/m}$. Salt water has $\sim 10^{26}\,\mathrm{m^{-3}}$ dissolved ions of charge $\pm e$, but the mobility of an ion in water is roughly six orders of magnitude smaller than an electron in a metal, so $\sigma \sim 1\,\mathrm{S/m}$. A neuron's cytoplasm and the extracellular fluid sit in the same $\sim 1\,\mathrm{S/m}$ ballpark. The lipid bilayer at the membrane is the opposite extreme: essentially no mobile ions at all, $\sigma \sim 10^{-13}\,\mathrm{S/m}$. That is why the membrane behaves as a capacitor in the next section and the fluids on either side behave as wires.
+
+Intuitively: $\sigma$ measures how *responsive* a material is to a field — how many carriers it offers up, multiplied by how easily each one moves. A field exerts a force per carrier; collisions limit the velocity; the product is the current.
+
+#### Voltage
+
+To get from the differential statement $\mathbf{J} = \sigma\mathbf{E}$ to the familiar $V = IR$ we first need to nail down what *voltage* means. **Voltage** (or **potential difference**) between two points $A$ and $B$ is the work done per unit charge to carry a test charge from $B$ to $A$ against the electric field:
+
+$$
+V_{AB} \;=\; -\int_{B}^{A} \mathbf{E} \cdot d\boldsymbol{\ell}.
+$$
+
+Units: joules per coulomb $\equiv$ **volts** ($\mathrm{V}$). The minus sign is bookkeeping: $V_{AB} > 0$ when $A$ is at higher potential than $B$, so a positive charge would *want* to fall from $A$ to $B$ — like a ball wanting to roll downhill.
+
+Two consequences make voltage a useful circuit-level concept:
+
+- **Path-independence.** In the electrostatic limit, $\nabla\times\mathbf{E} = 0$ (no time-varying $\mathbf{B}$), so the line integral above depends only on the endpoints, not on the path taken between them. This is what justifies talking about "the voltage at a node" rather than "the voltage along this particular wire."
+- **Kirchhoff's voltage law.** Path-independence is equivalent to saying the integral around any closed loop is zero: $\oint \mathbf{E}\cdot d\boldsymbol{\ell} = 0$ → $\sum V = 0$ around the loop. (When $\partial_t \mathbf{B}$ is *not* zero through the loop, [Faraday's law](#faradays-law-of-induction) modifies this — but for the membrane circuits we care about the time-varying magnetic field is negligible.)
+
+For a uniform-cross-section wire of length $L$ with constant $\mathbf{E}$ along it, the integral collapses to $V = E\,L$ — the special case the textbook starts with.
+
+#### Ohm's law in integral form
+
+Substituting $V = EL$ and $I = JA$ into $\mathbf{J} = \sigma\mathbf{E}$ for the uniform wire gives
+
+$$
+I \;=\; \frac{V}{R}, \qquad R \;=\; \frac{L}{\sigma A},
+$$
+
+with $R$ the wire's **resistance** (ohms, $\Omega = \mathrm{V/A}$). For neurons the two relevant values of $\sigma$ — high for the fluids, $\sim$ zero for the membrane — are what make the rest of this section's RC picture justified.
+
+### Capacitance
+
+A thin insulator sandwiched between two conductors can hold separated charge: positive on one plate, negative on the other. To get the relation between stored charge and voltage, walk Gauss's law and the [voltage definition](#voltage) through a parallel-plate geometry.
+
+Take two plates of area $A$ separated by a gap $d$, holding charge $+Q$ and $-Q$. The integral form of [Gauss's law](#gausss-law) applied to a pillbox surface straddling one plate gives a uniform field between the plates of magnitude
+
+$$
+E \;=\; \frac{Q}{\epsilon_0\, A}.
+$$
+
+Integrating that field across the gap gives the voltage between the plates, $V = E\,d = Q d / (\epsilon_0 A)$. Rearranging,
+
+$$
+Q \;=\; C\, V, \qquad C \;=\; \frac{\epsilon_0\, A}{d},
+$$
+
+where $C$ is the **capacitance** (farads, $\mathrm{F} = \mathrm{C/V}$). The relation $Q = CV$ is the load-bearing piece: capacitance is the proportionality between *stored charge* and the *voltage that charge creates*.
+
+Differentiating in time gives the current flowing onto the plates,
+
+$$
+I \;=\; \frac{dQ}{dt} \;=\; C\,\frac{dV}{dt}.
+$$
+
+This is the "current-through-a-capacitor" rule. Charge moving onto the plates *is* the current; the voltage rises in lockstep, at a rate set by how big the capacitor is.
+
+Intuitively: a capacitor is a tank. Pouring charge in (current) raises its level (voltage) at a rate determined by how big the tank is (capacitance).
+
+### The RC equation
+
+Wire a resistor $R$ in parallel with a capacitor $C$, with one end of both held at a reference voltage $V_\infty$ and the other driven by an external current source $I_{\text{ext}}(t)$. Kirchhoff's current law at the top node says the input current splits between charging the capacitor and leaking through the resistor,
+
+$$
+I_{\text{ext}}(t) \;=\; C\,\frac{dV}{dt} \;+\; \frac{V - V_\infty}{R}.
+$$
+
+Rearranging gives the **RC equation**:
+
+$$
+\boxed{\;\tau\,\frac{dV}{dt} \;=\; -(V - V_\infty) \;+\; R\,I_{\text{ext}}(t),\qquad \tau \;=\; R\,C.\;}
+$$
+
+With $I_{\text{ext}} = 0$ the voltage relaxes exponentially toward $V_\infty$ on the timescale $\tau$. With a steady $I_{\text{ext}}$ the steady-state shifts to $V_\infty + R\, I_{\text{ext}}$. Whatever the input, the dynamics is always a first-order linear ODE — the same form that appears in the [COBA derivation](/docs/models/#cobanet) on the models page, where $\tau_{\text{eff}}$ and $V_\infty$ become functions of the open conductances.
+
+The RC equation is also already most of the way to the LIF neuron. The only thing missing for LIF is a *threshold + reset* rule on top: when $V$ crosses some firing level $\theta$, emit a spike and snap $V$ back to a reset value. The subthreshold dynamics between spikes is exactly the RC equation.
+
+Intuitively: an RC circuit is the simplest dynamical voltage in physics — one state variable, one timescale, one rest level. Everything more elaborate (cable equations, Hodgkin–Huxley, COBA) is decoration on top of this skeleton.
+
+## The LIF Neuron
+
+The leaky integrate-and-fire (LIF) neuron is the simplest model of a spiking cell that still preserves the two things that make neurons interesting: a continuous *voltage* that integrates inputs in time, and a discrete *spike* output emitted when that voltage crosses a threshold. Subthreshold, an LIF cell is exactly the [RC circuit](#the-rc-equation) derived in the previous section — Maxwell's equations applied to a thin insulator between two conducting fluids. The active ingredient is just one extra rule: when the membrane voltage reaches a firing level, emit a spike and reset.
+
+This section walks the construction in four steps. First, the membrane equation — the RC circuit specialised to a cell, with ion channels playing the role of resistors. Second, the reversal potentials at the end of those channels, via the Nernst equation. Third, the threshold-and-reset rule that completes the LIF model. Fourth, the two ways of wiring synaptic inputs in — current-based (**CUBA**) and conductance-based (**COBA**) — which together turn one cell into the building block of the [pinglab models](/docs/models/) and notebooks.
+
+### The cell membrane as an RC circuit
+
+A neuron's membrane is a lipid bilayer, $\sim 5$ nm thick, separating an inside compartment (axoplasm, high $K^+$, low $Na^+$) from an outside one (extracellular fluid, high $Na^+$, low $K^+$). Electrically:
+
+- The bilayer is an insulator. No free charge crosses it without help. By [Ohm's law in matter](#ohms-law-in-matter), its conductivity is essentially zero.
+- Both the inside and outside fluids are conductors with $\sigma \sim 1\,\mathrm{S/m}$ — many orders of magnitude higher than the bilayer's.
+- That makes the membrane a *capacitor* in the [parallel-plate](#capacitance) sense, with capacitance per unit area $C_m \sim 1\,\mu\mathrm{F}/\mathrm{cm}^2$.
+- Embedded **ion channels** open and close to let specific ions through. While open, each channel contributes a conductance $g_{\text{channel}}$ across the membrane.
+
+Stacking all of this for a small patch of membrane and applying Kirchhoff's current law gives
+
+$$
+C_m\,\frac{dV}{dt} \;=\; -\sum_k g_k\,(V - E_k) \;+\; I_{\text{ext}}(t),
+$$
+
+where the sum is over the channel types $k$ that are currently open, $g_k$ is the total open conductance of that type, and $E_k$ is the channel's *reversal potential* — the voltage at which the net current of ion $k$ through its channel is zero. The driving term $(V - E_k)$ makes each open channel pull $V$ toward its own $E_k$ at a rate set by $g_k$.
+
+Collapse all the channels into a single passive "leak" conductance $g_L$ with reversal $E_L$ and the equation reduces to the canonical [RC form](#the-rc-equation),
+
+$$
+\boxed{\;C_m\,\frac{dV}{dt} \;=\; -g_L\,(V - E_L) \;+\; I_{\text{ext}}(t),\;}
+$$
+
+with membrane time constant $\tau_m = C_m / g_L$ and steady state $V_\infty = E_L$. This is the **subthreshold** dynamics of an LIF neuron — the equation it integrates whenever it is not currently spiking. The only remaining question before we can write down the full model is *where the reversal potential $E_L$ comes from* — and for that we need to leave electromagnetism for a moment and visit thermodynamics.
+
+### Ion gradients and the Nernst equation
+
+Each ion species $k$ sits at a different concentration inside and outside the cell, actively maintained by pumps that burn ATP. Two forces act on an ion that crosses the membrane:
+
+- **Diffusion** drives the ion from high concentration to low, by random thermal motion — the same statistical mechanics that produced the Maxwell–Boltzmann distribution in [Particles in a Box](/articles/art000/). Fick's law gives a flux $\mathbf{J}_{\text{diff}} = -D\,\nabla c$.
+- **Drift** acts because the ion has charge $q_k$, so it feels the electric field across the membrane: $\mathbf{J}_{\text{drift}} = \mu\, q_k\, c\, \mathbf{E}$, with $\mu$ the ionic mobility.
+
+For each ion species at equilibrium, these two fluxes cancel. Setting $\mathbf{J}_{\text{diff}} + \mathbf{J}_{\text{drift}} = 0$, using the Einstein relation $D = \mu\, k_B T$ to link diffusion and mobility, and integrating across the membrane gives the **Nernst equation**:
+
+$$
+E_k \;=\; \frac{k_B T}{q_k}\,\ln\!\left(\frac{c_{k,\text{out}}}{c_{k,\text{in}}}\right).
+$$
+
+This is the voltage at which the field-driven drift of ion $k$ exactly cancels its concentration-driven diffusion — its *equilibrium*, or *reversal*, potential. For mammalian body temperature ($T \approx 310\,\mathrm{K}$), the typical values are
+
+| ion           | inside (mM) | outside (mM) | $E_k$       |
+|---------------|-------------|--------------|-------------|
+| $K^+$         | 140         | 5            | $-86\,\mathrm{mV}$  |
+| $Na^+$        | 15          | 145          | $+61\,\mathrm{mV}$  |
+| $Cl^-$        | 10          | 110          | $-64\,\mathrm{mV}$  |
+| $Ca^{2+}$     | $10^{-4}$   | 1.2          | $+125\,\mathrm{mV}$ |
+
+The leak conductance $g_L$ used in the previous section is a mixture of mostly $K^+$ and $Cl^-$ channels, so the effective $E_L$ for the leak sits in the neighbourhood of $-65\,\mathrm{mV}$ — the cell's *resting potential*. Mixed-cation excitatory channels (AMPA receptors) end up with a reversal near $E_e \approx 0\,\mathrm{mV}$; chloride-selective inhibitory channels (GABA-A receptors) sit near $E_i \approx -75\,\mathrm{mV}$ — exactly the values used in the [COBA model](/docs/models/#cobanet). They are *not* free parameters; they fall out of the ion concentrations the cell maintains with its pumps.
+
+Intuitively: every ion feels two restoring forces — thermal diffusion pushing toward equal concentrations, and the electric field across the membrane. The voltage at which they balance is that ion's reversal potential. The cell spends ATP to keep the concentrations away from equilibrium, and the reversal potentials are the price of that maintenance.
+
+### Threshold and reset
+
+The membrane equation derived above is *passive*: it leaks toward $E_L$, never crosses any threshold, never spikes. A real neuron does fire — when its membrane voltage rises above $\sim -50\,\mathrm{mV}$ a cascade of voltage-gated $Na^+$ and $K^+$ channels opens, drives the membrane up to $\sim +30\,\mathrm{mV}$ and back down in about a millisecond, and emits an *action potential*. The full mechanism is captured by the Hodgkin–Huxley model, which adds four nonlinear gating variables to the membrane equation.
+
+The LIF idealisation throws all of that out. Instead of modelling the spike-shape dynamics, it just declares: when $V$ reaches a fixed threshold $V_{\text{th}}$, an instantaneous spike is emitted and $V$ is snapped back to a reset voltage $V_{\text{reset}}$. Optionally, the cell enters a brief refractory period $\tau_{\text{ref}}$ during which it is unresponsive — modelling the few-ms recovery time after a biological spike.
+
+$$
+\text{if } V(t) \geq V_{\text{th}} : \quad
+\text{emit spike}, \quad
+V(t^+) \leftarrow V_{\text{reset}}, \quad
+\text{cell refractory for } \tau_{\text{ref}}.
+$$
+
+This is the *only* nonlinearity in LIF. The model is otherwise a linear ODE; the spike rule is what makes it neuron-like rather than just a leaky integrator.
+
+Typical biophysical settings:
+
+| symbol              | name                  | typical value     |
+|---------------------|-----------------------|-------------------|
+| $V_{\text{th}}$     | spike threshold       | $-50\,\mathrm{mV}$ |
+| $V_{\text{reset}}$  | post-spike reset      | $-65\,\mathrm{mV}$ (often = $E_L$) |
+| $\tau_{\text{ref}}$ | refractory period     | $1\text{–}3\,\mathrm{ms}$ |
+| $\tau_m$            | membrane time const   | $10\text{–}20\,\mathrm{ms}$ |
+
+The choice of where to put the reset $V_{\text{reset}}$ is a modelling decision. Two common conventions:
+
+- **Hard reset**: $V_{\text{reset}}$ is a fixed value, usually $E_L$. Any overshoot above threshold is discarded.
+- **Subtract reset**: $V \leftarrow V - V_{\text{th}}$. Preserves overshoot, useful when integrating very fast inputs across long timesteps.
+
+These choices show up explicitly in the pinglab [model implementations](/docs/models/#cubanet) — *reset_mode = "zero"* vs *reset_mode = "subtract"*.
+
+### The full LIF model
+
+Putting it all together — the subthreshold RC dynamics, the reversal-potential leak, and the threshold-and-reset rule — gives the canonical LIF neuron:
+
+$$
+\boxed{\;
+\begin{aligned}
+\tau_m\,\frac{dV}{dt} \;&=\; -(V - E_L) \;+\; R_m\, I_{\text{ext}}(t), \\[4pt]
+\text{if } V \geq V_{\text{th}}\!:\;& \quad S \leftarrow 1, \quad V \leftarrow V_{\text{reset}}.
+\end{aligned}
+\;}
+$$
+
+with $\tau_m = C_m / g_L$ and $R_m = 1/g_L$. Inputs $I_{\text{ext}}(t)$ come from synapses (other neurons' spikes filtered through receptor channels) plus any experimental injection. The output is the **spike train** $\{t_k\}$ — the sequence of times at which $V$ crossed the threshold.
+
+That is everything. Every term has a physical pedigree traceable back to [Maxwell](#maxwells-equations) or to thermodynamics:
+
+- $C_m$ from the bilayer's geometry (Gauss's law + parallel-plate capacitance).
+- $g_L$ from the open leak channels (Ohm's law in matter, with the channels playing the role of resistors).
+- $E_L$ from the ion gradients (Nernst, equilibrium of diffusion and drift).
+- $V_{\text{th}}$, $V_{\text{reset}}$, $\tau_{\text{ref}}$ from the biological behaviour of voltage-gated channels, abstracted into three numbers.
+
+Intuitively: an LIF neuron is a leaky bucket with a trip lever. Input pours water in; the bucket leaks back to a baseline level $E_L$; if the water reaches a lip $V_{\text{th}}$, the bucket tips, emits a "drop" (the spike), refills to $V_{\text{reset}}$, and starts again.
+
+### Synaptic input
+
+A single LIF cell driven by an arbitrary $I_{\text{ext}}(t)$ is useful for analysis but not yet a part of a network. In a real circuit (or a simulation of one), every cell's input comes from the *spikes* of other cells, filtered through synapses. A presynaptic spike at time $t_k$ does not deliver an instantaneous kick — postsynaptic receptor channels need a few milliseconds to open and close. The standard kernel is an **exponential synapse**: a brief jump at the spike time followed by exponential decay,
+
+$$
+\tau_{\text{syn}}\,\frac{dg}{dt} \;=\; -g \;+\; W \sum_{k}\delta(t - t_k),
+$$
+
+with $\tau_{\text{syn}}$ on the order of milliseconds ($\sim 2$ ms for AMPA, $\sim 9$ ms for GABA-A) and $W$ the synaptic weight (in conductance units). The state variable $g(t)$ is then plugged into the membrane equation — but *how* it enters is what separates the two main families of synapse model.
+
+#### Current-based synapses (CUBA)
+
+In a CUBA synapse, $g(t)$ is treated as a current and added directly to the membrane:
+
+$$
+C_m\,\frac{dV}{dt} \;=\; -g_L\,(V - E_L) \;+\; \sum_i g_i(t) \;+\; I_{\text{ext}}(t),
+$$
+
+where the sum runs over all synapses, with positive $W$ for excitatory and negative for inhibitory. Each $g_i$ obeys its own exponential-synapse ODE.
+
+The big advantage of CUBA is that the membrane equation stays **linear** in $V$: each synapse contributes a fixed-shape post-synaptic potential (PSP) regardless of where the membrane currently sits. That makes the dynamics easy to analyse (sums of exponentials) and fast to simulate. The disadvantage is biological realism: a real synapse's effect on the membrane *does* depend on $V$ — but a CUBA synapse contributes the same kick whether the cell is at rest, near threshold, or already saturated.
+
+#### Conductance-based synapses (COBA)
+
+In COBA, $g(t)$ is treated as it actually is — a conductance — and the current it produces depends on the membrane's distance from the synapse's reversal potential:
+
+$$
+I_{\text{syn},\,k}(t) \;=\; -\,g_k(t)\,(V - E_k).
+$$
+
+Each synapse type $k$ has its own conductance $g_k(t)$ obeying its own exponential synapse, and its own reversal potential $E_k$ set by the [Nernst equation](#ion-gradients-and-the-nernst-equation). In a typical excitatory / inhibitory split:
+
+| family       | transmitter | $\tau_{\text{syn}}$ | $E_k$              |
+|--------------|-------------|---------------------|--------------------|
+| excitatory   | AMPA (mixed cations) | $\sim 2$ ms   | $E_e \approx 0$ mV |
+| inhibitory   | GABA-A (chloride)    | $\sim 9$ ms   | $E_i \approx -75$ mV |
+
+Stacking the leak channel and the two synapse families gives the **conductance-based LIF**, i.e. the **COBA** subthreshold equation:
+
+$$
+\boxed{\;
+C_m\,\frac{dV}{dt} \;=\; -g_L\,(V - E_L) \;-\; g_e(t)\,(V - E_e) \;-\; g_i(t)\,(V - E_i) \;+\; I_{\text{ext}}(t).
+\;}
+$$
+
+The same threshold-and-reset rule from the LIF section sits on top of this. The two synaptic conductances $g_e(t)$ and $g_i(t)$ each evolve via the exponential-synapse ODE, driven by spikes from upstream excitatory or inhibitory cells.
+
+This is the model used throughout the [pinglab COBANet implementation](/docs/models/#cobanet) and every PING / COBA experiment in the [notebooks](/notebooks/).
+
+#### What COBA gives you that CUBA doesn't
+
+Three things follow from the $(V - E_k)$ driving force in COBA that CUBA's additive currents miss:
+
+1. **Synaptic saturation.** As $V$ approaches $E_e \approx 0$ mV the excitatory driving force shrinks toward zero, so the same conductance produces less current. A cell can't be driven above $E_e$ by excitation alone, no matter how much $g_e$ pours in.
+2. **Shunting inhibition.** Open inhibitory channels don't just pull $V$ toward $E_i$ — they also raise the total conductance $g_{\text{tot}}$, which shortens the effective time constant $\tau_{\text{eff}} = C_m/g_{\text{tot}}$ and dampens the membrane's response to *every* other input. CUBA has no equivalent because its inputs are additive.
+3. **State-dependent coupling.** The effective gain between a presynaptic spike and the postsynaptic voltage change depends on $V$. This is what makes phase-locked phenomena like PING work — the gamma rhythm uses exactly this dependence to keep its phase tight.
+
+#### Choice between them
+
+A pragmatic guide:
+
+- **CUBA** is the right choice when you want linearity, when firing rates are modest, when the membrane stays close to $E_L$ most of the time, or when you just need a fast network simulation. Most tutorial SNN code uses CUBA.
+- **COBA** is the right choice when realism matters: any model studying gamma rhythms, balanced E/I networks, shunting, or biological calibration. The COBA, PING, and *standard-snn* rungs in the [pinglab models page](/docs/models/) are the corresponding implementations.
+
+## Worked Examples
+
+Five problems that span the previous sections. Each one uses material from one or more of [Vector Calculus](#vector-calculus), [Maxwell's Equations](#maxwells-equations), [From Fields to Circuits](#from-fields-to-circuits), and [The LIF Neuron](#the-lif-neuron).
+
+### Problem 1: Field of a uniformly charged sphere
+
+**Setup.** A solid ball of radius $R$ carries total charge $Q$ spread with uniform volume density $\rho_0 = Q / (\tfrac{4}{3}\pi R^3)$. Find the electric field everywhere — inside and outside the ball — and verify that the differential form of Gauss's law holds on the interior.
+
+**Strategy.** Exploit spherical symmetry. Apply the integral form of [Gauss's law](#gausss-law) to two concentric spherical Gaussian surfaces — one outside the ball ($r > R$) and one inside ($r < R$). Then differentiate the inside answer and check $\nabla\cdot\mathbf{E} = \rho/\epsilon_0$.
+
+**Solution.** By spherical symmetry the field is radial, $\mathbf{E}(\mathbf{r}) = E(r)\,\hat{\mathbf{r}}$, depending only on $r = |\mathbf{r}|$. On a sphere of radius $r$, $\mathbf{E}\cdot d\mathbf{A} = E(r)\,dA$ and the integral is $E(r)\cdot 4\pi r^2$.
+
+*Outside* ($r > R$). The enclosed charge is the whole ball:
+
+$$
+E(r)\cdot 4\pi r^2 \;=\; \frac{Q}{\epsilon_0}
+\quad\Rightarrow\quad
+E_{\text{out}}(r) \;=\; \frac{Q}{4\pi\epsilon_0\, r^2}.
+$$
+
+Outside the ball, the field is identical to that of a point charge $Q$ at the centre. This is Coulomb's law, recovered from Gauss + symmetry.
+
+*Inside* ($r < R$). The enclosed charge is now $\rho_0 \cdot \tfrac{4}{3}\pi r^3 = Q\,(r/R)^3$, so
+
+$$
+E(r)\cdot 4\pi r^2 \;=\; \frac{Q (r/R)^3}{\epsilon_0}
+\quad\Rightarrow\quad
+E_{\text{in}}(r) \;=\; \frac{Q}{4\pi\epsilon_0\, R^3}\, r \;=\; \frac{\rho_0}{3\epsilon_0}\, r.
+$$
+
+The interior field grows *linearly* with $r$ and vanishes at the centre.
+
+*Differential check.* Take the [divergence](#divergence) of $\mathbf{E}_{\text{in}}$. In spherical coordinates for a radial vector field $E(r)\hat{\mathbf{r}}$,
+
+$$
+\nabla\cdot\mathbf{E} \;=\; \frac{1}{r^2}\frac{\partial}{\partial r}\bigl(r^2 E\bigr)
+\;=\; \frac{1}{r^2}\frac{\partial}{\partial r}\!\left(\frac{\rho_0}{3\epsilon_0}\, r^3\right)
+\;=\; \frac{\rho_0}{\epsilon_0},
+$$
+
+which matches the differential form of Gauss's law with $\rho = \rho_0$ on the interior. On the exterior, $\rho = 0$ and one checks similarly that $\nabla\cdot\mathbf{E}_{\text{out}} = 0$ (any inverse-square radial field is divergence-free off the singularity).
+
+**Takeaway.** Symmetry + the integral form gives the field cheaply; the differential form is the local consistency check. The two forms are related by the [divergence theorem](#divergence-theorem) — the worked check above is essentially that theorem applied to one infinitesimal shell.
+
+### Problem 2: The electromagnetic wave equation
+
+**Setup.** In vacuum ($\rho = 0$, $\mathbf{J} = 0$), Maxwell's equations reduce to a coupled pair for $\mathbf{E}$ and $\mathbf{B}$. Show that each field separately satisfies the wave equation
+
+$$
+\nabla^2 \mathbf{E} \;=\; \mu_0\epsilon_0\, \frac{\partial^2 \mathbf{E}}{\partial t^2},
+$$
+
+and that the propagation speed is $c = 1/\sqrt{\mu_0\epsilon_0}$.
+
+**Strategy.** Take the curl of [Faraday's law](#faradays-law-of-induction), substitute the [Ampère–Maxwell law](#ampere-maxwell-law) on the right, and use the vector identity $\nabla\times(\nabla\times\mathbf{F}) = \nabla(\nabla\cdot\mathbf{F}) - \nabla^2\mathbf{F}$. In vacuum $\nabla\cdot\mathbf{E} = 0$ kills the first term.
+
+**Solution.** Faraday in differential form:
+
+$$
+\nabla\times\mathbf{E} \;=\; -\frac{\partial \mathbf{B}}{\partial t}.
+$$
+
+Take the curl of both sides:
+
+$$
+\nabla\times(\nabla\times\mathbf{E}) \;=\; -\frac{\partial}{\partial t}(\nabla\times\mathbf{B}).
+$$
+
+The left-hand side expands via the identity, and the right-hand side uses Ampère–Maxwell in vacuum ($\mathbf{J} = 0$):
+
+$$
+\nabla(\nabla\cdot\mathbf{E}) - \nabla^2 \mathbf{E}
+\;=\;
+-\frac{\partial}{\partial t}\!\left(\mu_0\epsilon_0\, \frac{\partial \mathbf{E}}{\partial t}\right)
+\;=\;
+-\mu_0\epsilon_0\, \frac{\partial^2 \mathbf{E}}{\partial t^2}.
+$$
+
+In vacuum Gauss's law gives $\nabla\cdot\mathbf{E} = 0$, so the gradient term drops out. Rearranging,
+
+$$
+\boxed{\;\nabla^2 \mathbf{E} \;=\; \mu_0\epsilon_0\, \frac{\partial^2 \mathbf{E}}{\partial t^2}.\;}
+$$
+
+This is the wave equation. Comparing to the canonical form $\nabla^2 u = (1/c^2)\,\partial_t^2 u$ identifies the propagation speed
+
+$$
+c \;=\; \frac{1}{\sqrt{\mu_0\epsilon_0}} \;\approx\; 2.998\times 10^8\,\mathrm{m/s}.
+$$
+
+The same derivation with the curl applied to Ampère–Maxwell (and Faraday substituted on the right) gives the matching wave equation for $\mathbf{B}$.
+
+**Takeaway.** The displacement-current term in Ampère–Maxwell is exactly what makes the wave equation work — without it, taking the curl of Faraday and plugging Ampère in gives $\nabla^2 \mathbf{E} = 0$ (Laplace, not wave). The fact that the speed $c$ comes out as $1/\sqrt{\mu_0\epsilon_0}$, a quantity measurable purely from electrostatics and magnetostatics, is the historical bridge from Maxwell's equations to optics.
+
+### Problem 3: Self-discharge of a leaky capacitor
+
+**Setup.** A parallel-plate capacitor has plate area $A$ and gap $d$, filled with a *lossy* dielectric of permittivity $\epsilon$ and conductivity $\sigma$ (no longer the perfect insulator of the textbook capacitor). Charge the plates to voltage $V_0$ at $t = 0$, then disconnect. The leak current through the dielectric discharges the plates. Find the time-constant of that discharge and show that it depends only on the *material* ($\epsilon$, $\sigma$), not on the geometry ($A$, $d$).
+
+**Strategy.** Use [parallel-plate capacitance](#capacitance) and the geometry of [Ohm's law in matter](#ohms-law-in-matter) to write $C$ and $R$ separately, then form the [RC time constant](#the-rc-equation) and see what cancels.
+
+**Solution.** From the capacitance derivation above (Gauss's law on a pillbox + voltage = field × gap),
+
+$$
+C \;=\; \frac{\epsilon\, A}{d}.
+$$
+
+From Ohm's law in matter applied to the same geometry (the dielectric is a slab of cross-section $A$, length $d$, conductivity $\sigma$),
+
+$$
+R \;=\; \frac{d}{\sigma\, A}.
+$$
+
+The discharge dynamics is the [RC equation](#the-rc-equation) with no external drive ($I_{\text{ext}} = 0$, $V_\infty = 0$),
+
+$$
+\tau\,\frac{dV}{dt} \;=\; -V,\qquad \tau \;=\; R C,
+$$
+
+with solution $V(t) = V_0\, e^{-t/\tau}$. Substituting the geometric expressions for $R$ and $C$,
+
+$$
+\tau \;=\; R\, C \;=\; \frac{d}{\sigma A}\cdot\frac{\epsilon A}{d} \;=\; \frac{\epsilon}{\sigma}.
+$$
+
+The area $A$ and gap $d$ both cancel. The time constant is set entirely by the *material*: a slow-leaking dielectric (small $\sigma$) gives a long $\tau$, regardless of the capacitor's shape.
+
+For reference, $\epsilon/\sigma$ for various media:
+
+| medium                 | $\epsilon/\sigma$              |
+|------------------------|--------------------------------|
+| good insulator (Teflon, $\sigma \sim 10^{-25}$ S/m) | $\sim 10^{15}$ s, i.e. millions of years |
+| pure water             | $\sim 10^{-6}$ s (microsecond)   |
+| salt water             | $\sim 10^{-10}$ s               |
+| metal                  | $\sim 10^{-18}$ s (effectively instantaneous) |
+| neuron's lipid bilayer | $\sim 10^{-3}$ to $10^{-2}$ s (membrane time constant!) |
+
+The last row is the link to [The LIF Neuron](#the-lif-neuron): a neuron's membrane *is* a leaky capacitor with $\sigma$ set by the open ion channels, and the discharge time constant $\tau_m = C_m / g_L \sim 10\text{–}20\,\mathrm{ms}$ is exactly the membrane time constant that shows up in the LIF model.
+
+**Takeaway.** Time constants of leaky capacitors are material properties, not geometric ones. A neuron's membrane sits in a particular regime of $\epsilon/\sigma$ that makes its $\tau_m$ comparable to the timescale of synaptic input — which is what allows it to *integrate* incoming spikes rather than passing them through instantly or holding them forever.
+
+### Problem 4: Resting potential of a real neuron
+
+**Setup.** A neuron has the ion concentrations from the [Nernst table](#ion-gradients-and-the-nernst-equation): $[K^+]_{\text{in}} = 140$, $[K^+]_{\text{out}} = 5$, $[Na^+]_{\text{in}} = 15$, $[Na^+]_{\text{out}} = 145$, $[Cl^-]_{\text{in}} = 10$, $[Cl^-]_{\text{out}} = 110$ (all in mM). At rest, the membrane has permeabilities $P_K : P_{Na} : P_{Cl} = 1 : 0.04 : 0.45$ (typical "at-rest" ratios; $K^+$ channels dominate). Find the resting potential.
+
+**Strategy.** Compute the individual Nernst potentials, then combine them with the **Goldman–Hodgkin–Katz (GHK) equation**, which is the extension of Nernst to multiple permeable ions:
+
+$$
+V_{\text{rest}} \;=\; \frac{k_B T}{e}\,\ln\!\left(
+\frac{P_K [K^+]_{\text{out}} + P_{Na}[Na^+]_{\text{out}} + P_{Cl}[Cl^-]_{\text{in}}}{P_K [K^+]_{\text{in}}  + P_{Na}[Na^+]_{\text{in}}  + P_{Cl}[Cl^-]_{\text{out}}}\right).
+$$
+
+The cation concentrations are arranged "out / in"; chloride enters with inside / out swapped because it is negatively charged. Body temperature: $k_B T / e = 26.7\,\mathrm{mV}$ at $T = 310\,\mathrm{K}$.
+
+**Solution.** First the individual Nernst potentials. Using $k_B T / e = 26.7\,\mathrm{mV}$ and $\ln$ of the ratios:
+
+$$
+\begin{aligned}
+E_K &= 26.7\,\ln(5/140) \;=\; 26.7 \cdot (-3.33) \;=\; -89\,\mathrm{mV}, \\
+E_{Na} &= 26.7\,\ln(145/15) \;=\; 26.7 \cdot 2.27 \;=\; +61\,\mathrm{mV}, \\
+E_{Cl} &= -26.7\,\ln(110/10) \;=\; -26.7 \cdot 2.40 \;=\; -64\,\mathrm{mV} \quad(\text{sign flipped for anion}).
+\end{aligned}
+$$
+
+The cell at rest would sit at $E_K$ if $K^+$ were the only permeable ion. The other two pull it slightly off.
+
+GHK numerator: $1\cdot 5 + 0.04\cdot 145 + 0.45\cdot 10 = 5 + 5.8 + 4.5 = 15.3$.
+GHK denominator: $1\cdot 140 + 0.04\cdot 15 + 0.45\cdot 110 = 140 + 0.6 + 49.5 = 190.1$.
+
+$$
+V_{\text{rest}} \;=\; 26.7\,\ln(15.3 / 190.1) \;=\; 26.7\cdot(-2.52) \;=\; -67\,\mathrm{mV}.
+$$
+
+The resting potential is about $-67\,\mathrm{mV}$ — close to $E_K = -89\,\mathrm{mV}$ but pulled $\sim 22\,\mathrm{mV}$ positive by the small $Na^+$ leak. Without $Na^+$ permeability the cell would sit at $E_K$; the $Na^+$ leak is what gives a finite "depolarisation gap" to spike threshold.
+
+**Takeaway.** The resting potential is not any individual ion's Nernst potential — it is a *weighted* average of all permeable species, weighted by their permeabilities. Because the cell's permeability ratios are not 1:1:1, $V_{\text{rest}}$ is dominated by the most-permeable ion ($K^+$) but pulled away from its Nernst potential by the others. The same equation, with different open-channel ratios, governs the membrane voltage during an action potential — $Na^+$ permeability briefly dominates, pulling $V$ toward $E_{Na} \approx +60\,\mathrm{mV}$.
+
+### Problem 5: The f–I curve of a deterministic LIF neuron
+
+**Setup.** An [LIF neuron](#the-full-lif-model) with membrane time constant $\tau_m$, resting potential $V_{\text{rest}} = E_L$, threshold $V_{\text{th}}$, hard reset to $V_{\text{reset}} = E_L$, and refractory period $\tau_{\text{ref}}$ is driven by a constant input current $I_{\text{ext}} = I$. Compute its firing rate $f(I)$ as a function of $I$.
+
+**Strategy.** Between spikes, the membrane obeys the RC equation with constant input. Solve the ODE for the time-to-threshold $T(I)$, add the refractory period, and invert to get $f = 1/(T + \tau_{\text{ref}})$.
+
+**Solution.** With $V_\infty = E_L + R_m I$ (the steady-state if the cell could stay subthreshold forever) and initial condition $V(0) = E_L$, the [RC equation](#the-rc-equation) gives
+
+$$
+V(t) \;=\; V_\infty + (E_L - V_\infty)\, e^{-t/\tau_m}
+\;=\; V_\infty\,(1 - e^{-t/\tau_m}) + E_L\, e^{-t/\tau_m}.
+$$
+
+(Subtracting $E_L$ from both sides if you prefer, $V - E_L = R_m I\,(1 - e^{-t/\tau_m})$.)
+
+The neuron fires at the time $T$ when $V(T) = V_{\text{th}}$. Setting $V_{\text{th}} = E_L + R_m I\,(1 - e^{-T/\tau_m})$ and solving for $T$,
+
+$$
+T(I) \;=\; \tau_m\,\ln\!\left(\frac{R_m I}{R_m I - (V_{\text{th}} - E_L)}\right).
+$$
+
+Two regimes fall out:
+
+- **Sub-rheobase** ($R_m I < V_{\text{th}} - E_L$, i.e. the steady state never reaches threshold). The argument of the log is negative, $T$ is undefined: the neuron *never fires*. The minimum current to fire is the **rheobase**
+
+$$
+I_{\text{rh}} \;=\; \frac{V_{\text{th}} - E_L}{R_m}.
+$$
+
+- **Supra-rheobase** ($I > I_{\text{rh}}$). The neuron fires every $T(I)$ seconds, then waits $\tau_{\text{ref}}$ before being able to integrate again. The interspike interval is $T + \tau_{\text{ref}}$, so the firing rate is
+
+$$
+\boxed{\;f(I) \;=\; \frac{1}{\tau_{\text{ref}} + \tau_m\,\ln\!\dfrac{R_m I}{R_m I - (V_{\text{th}} - E_L)}}\;.\;}
+$$
+
+*Limits.*
+
+- Just above rheobase ($I \to I_{\text{rh}}^+$), the logarithm $\to \infty$, so $T \to \infty$ and $f \to 0$. The f–I curve rises continuously from zero — no discontinuity at threshold.
+- Far above rheobase ($I \to \infty$), the log $\to (V_{\text{th}} - E_L)/(R_m I) \to 0$, so $T \to 0$ and $f \to 1/\tau_{\text{ref}}$. The neuron saturates: it fires every refractory-period-worth of time, no faster.
+
+A typical neuron has $\tau_m = 10\,\mathrm{ms}$, $\tau_{\text{ref}} = 2\,\mathrm{ms}$, giving a maximum rate of $500\,\mathrm{Hz}$. The curve is concave: shallow near rheobase, steeper at moderate inputs, then saturating.
+
+**Takeaway.** The LIF f–I curve has a sharp rheobase (no firing below a threshold current) and a saturating maximum rate (set by the refractory period), with a *smooth* transition between them. This is the simplest analytically tractable input-output relation for any spiking neuron — every more elaborate model (CUBA, COBA, Hodgkin–Huxley) collapses to a qualitatively similar concave-saturating f–I curve, with the differences showing up in onset shape (gradual vs. discontinuous) and the precise saturation level.
+
 ## Where this leads
 
-The five operators plus the two integral theorems are the full toolkit needed to read Maxwell's equations in both their differential and integral forms. The differential form makes local statements about $\nabla\cdot\mathbf{E}$, $\nabla\cdot\mathbf{B}$, $\nabla\times\mathbf{E}$, $\nabla\times\mathbf{B}$; the integral form makes global statements about flux and circulation across surfaces and loops. The two are equivalent precisely because of the divergence and Stokes' theorems above. The next article, [Maxwell's Equations](/articles/art003/), writes those four equations down and takes the conversion seriously.
+The five sections trace a single chain: vector calculus → fields (Maxwell) → circuits (Ohm, capacitance, RC) → cells (LIF, COBA) → worked exercises that pin each link of the chain into place. A reader who can derive each of the five worked examples from scratch has internalised the material. The next step in the codebase is to wire many such cells into a network — the subject of the [PING paper](/articles/art001/) and every experiment in the [notebooks](/notebooks/).
