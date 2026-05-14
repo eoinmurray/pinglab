@@ -28,7 +28,7 @@ The recurrent E-I matrices ($W^{EE}$, $W^{EI}$, $W^{IE}$ inside COBANet) are fix
 
 ## Method
 
-Two cells, both running the [coba](/docs/models/#cobanet) recipe:
+Two cells, both running the [coba](/articles/art004/) recipe:
 
 - *coba/dales* — `--dales-law` (default). The trainable $W_{\text{ff}}$ is clamped non-negative at every forward pass.
 - *coba/no_dales* — `--no-dales-law`. Signed weights allowed everywhere.

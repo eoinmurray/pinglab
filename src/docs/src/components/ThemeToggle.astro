@@ -1,0 +1,151 @@
+---
+// Light / Dark / System dropdown. The pre-paint script in the parent <head>
+// is responsible for setting `data-theme` before first paint to avoid FOUC;
+// this component only handles the dropdown UI and persistence on change.
+---
+
+<div class="theme-toggle" data-theme-toggle>
+  <button
+    type="button"
+    class="theme-toggle__button"
+    aria-haspopup="listbox"
+    aria-expanded="false"
+    aria-label="Theme"
+    data-theme-button
+  >
+    <span data-theme-label>System</span>
+    <span aria-hidden="true" class="theme-toggle__caret">▾</span>
+  </button>
+  <ul role="listbox" class="theme-toggle__menu" data-theme-menu hidden>
+    <li role="option" data-theme-option="light">Light</li>
+    <li role="option" data-theme-option="dark">Dark</li>
+    <li role="option" data-theme-option="system">System</li>
+  </ul>
+</div>
+
+<style>
+  .theme-toggle {
+    position: relative;
+    font-family: var(--font-serif);
+    font-size: 0.85rem;
+    line-height: 1;
+  }
+  .theme-toggle__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.55rem;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    border: 1px solid var(--color-rule);
+    border-radius: 2px;
+    cursor: pointer;
+    font: inherit;
+  }
+  .theme-toggle__button:hover {
+    background: var(--color-paper-tint);
+  }
+  .theme-toggle__caret {
+    font-size: 0.7em;
+    color: var(--color-muted);
+  }
+  .theme-toggle__menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    margin: 0;
+    padding: 0.25rem 0;
+    list-style: none;
+    background: var(--color-paper);
+    border: 1px solid var(--color-rule);
+    border-radius: 2px;
+    min-width: 100%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    z-index: 50;
+  }
+  .theme-toggle__menu[hidden] {
+    display: none;
+  }
+  .theme-toggle__menu li {
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+    color: var(--color-ink);
+    white-space: nowrap;
+  }
+  .theme-toggle__menu li:hover {
+    background: var(--color-paper-tint);
+  }
+  .theme-toggle__menu li[aria-selected="true"]::before {
+    content: "✓ ";
+    color: var(--color-muted);
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    const root = document.querySelector("[data-theme-toggle]");
+    if (!root) return;
+    const button = root.querySelector("[data-theme-button]");
+    const label = root.querySelector("[data-theme-label]");
+    const menu = root.querySelector("[data-theme-menu]");
+    const options = root.querySelectorAll("[data-theme-option]");
+    const LABELS = { light: "Light", dark: "Dark", system: "System" };
+
+    function getChoice() {
+      try {
+        return localStorage.getItem("theme") || "system";
+      } catch (e) {
+        return "system";
+      }
+    }
+    function applyChoice(choice) {
+      try {
+        if (choice === "system") localStorage.removeItem("theme");
+        else localStorage.setItem("theme", choice);
+      } catch (e) {}
+      const resolved =
+        choice === "system"
+          ? window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light"
+          : choice;
+      document.documentElement.setAttribute("data-theme", resolved);
+      label.textContent = LABELS[choice] || "System";
+      options.forEach((o) => {
+        o.setAttribute(
+          "aria-selected",
+          o.getAttribute("data-theme-option") === choice ? "true" : "false",
+        );
+      });
+    }
+    function setOpen(open) {
+      if (open) menu.removeAttribute("hidden");
+      else menu.setAttribute("hidden", "");
+      button.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    applyChoice(getChoice());
+
+    button.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setOpen(menu.hasAttribute("hidden"));
+    });
+    options.forEach((opt) => {
+      opt.addEventListener("click", (e) => {
+        e.stopPropagation();
+        applyChoice(opt.getAttribute("data-theme-option"));
+        setOpen(false);
+      });
+    });
+    document.addEventListener("click", () => setOpen(false));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") setOpen(false);
+    });
+
+    // Track OS theme changes while the user is on "system".
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", () => {
+      if (getChoice() === "system") applyChoice("system");
+    });
+  })();
+</script>

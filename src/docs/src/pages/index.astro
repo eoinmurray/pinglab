@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import ThemeToggle from "../components/ThemeToggle.astro";
 
 const notebookModules = import.meta.glob("./notebooks/*.mdx", { eager: true });
 const numbersModules = import.meta.glob("../../public/figures/notebooks/*/numbers.json", {
@@ -134,12 +135,34 @@ const formatDate = (raw) => {
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap"
       rel="stylesheet"
     />
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme");
+          var resolved =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", resolved);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
+    <div class="fixed top-4 right-4 z-40">
+      <ThemeToggle />
+    </div>
     <main class="px-6 pt-16 pb-64 lg:px-12 [&_a]:no-underline! [&_a:hover]:underline!">
       <div class="max-w-[90rem] mx-auto">
         <div class="flex items-baseline gap-4">
-          <h1 class="text-2xl font-bold" style="font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;">PINGLAB</h1>
+          <h1
+            class="text-2xl font-bold"
+            style="font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;"
+          >
+            PINGLAB
+          </h1>
           <a
             href="https://github.com/eoinmurray/pinglab"
             class="text-sm text-muted hover:text-[color:var(--ink)]"
@@ -150,59 +173,54 @@ const formatDate = (raw) => {
 
         <div class="mt-10 flex flex-col gap-12 max-w-3xl">
           <section>
-            <p class="mb-2 text-xs uppercase tracking-wider text-muted">Documentation</p>
-            <ol class="pl-0 list-none m-0 text-[0.95rem] space-y-1.5">
-              <li><a href="/docs/introduction/" class="leading-snug">Introduction</a></li>
-              <li><a href="/docs/models/" class="leading-snug">Models</a></li>
-              <li><a href="/docs/training/" class="leading-snug">Training</a></li>
-              <li><a href="/docs/the-oscilloscope/" class="leading-snug">The Oscilloscope</a></li>
-              <li><a href="/docs/the-notebooks/" class="leading-snug">The Notebooks</a></li>
-              <li><a href="/docs/metrics/" class="leading-snug">Metrics</a></li>
-              <li><a href="/docs/parameters-and-units/" class="leading-snug">Parameters &amp; Units</a></li>
-              <li><a href="/docs/references/" class="leading-snug">References</a></li>
-              <li><a href="/docs/styleguide/" class="leading-snug">Styleguide</a></li>
-            </ol>
-          </section>
-
-          <section>
             <p class="mb-2 text-xs uppercase tracking-wider text-muted">Articles</p>
-            {articles.length > 0 ? (
-              <ol class="pl-0 list-none m-0 text-[0.95rem]">
-                {articles.map((a) => (
-                  <li class="flex items-baseline gap-3 py-[0.3rem]">
-                    <a href={`/articles/${a.slug}/`} class="w-4 shrink-0 tabular-nums text-muted-soft">
-                      {String(a.entry).padStart(1, "0")}.
-                    </a>
-                    <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
-                      {a.title}
-                    </a>
-                    <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
-                      {formatDate(a.date)}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p class="text-sm text-muted">None yet.</p>
-            )}
+            {
+              articles.length > 0 ? (
+                <ol class="pl-0 list-none m-0 text-[0.95rem]">
+                  {articles.map((a) => (
+                    <li class="flex items-baseline gap-3 py-[0.3rem]">
+                      <a
+                        href={`/articles/${a.slug}/`}
+                        class="w-4 shrink-0 tabular-nums text-muted-soft"
+                      >
+                        {String(a.entry).padStart(1, "0")}.
+                      </a>
+                      <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
+                        {a.title}
+                      </a>
+                      <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                        {formatDate(a.date)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p class="text-sm text-muted">None yet.</p>
+              )
+            }
           </section>
 
           <section>
             <p class="mb-2 text-xs uppercase tracking-wider text-muted">Notebooks</p>
             <ol class="pl-0 list-none m-0 text-[0.95rem]">
-              {notebooks.map((nb) => (
-                <li class="flex items-baseline gap-3 py-[0.3rem]">
-                  <a href={`/notebooks/${nb.slug}/`} class="w-4 shrink-0 tabular-nums text-muted-soft">
-                    {String(nb.entry).padStart(1, "0")}.
-                  </a>
-                  <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
-                    {nb.title}
-                  </a>
-                  <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
-                    {formatDate(nb.date)}
-                  </span>
-                </li>
-              ))}
+              {
+                notebooks.map((nb) => (
+                  <li class="flex items-baseline gap-3 py-[0.3rem]">
+                    <a
+                      href={`/notebooks/${nb.slug}/`}
+                      class="w-4 shrink-0 tabular-nums text-muted-soft"
+                    >
+                      {String(nb.entry).padStart(1, "0")}.
+                    </a>
+                    <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
+                      {nb.title}
+                    </a>
+                    <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                      {formatDate(nb.date)}
+                    </span>
+                  </li>
+                ))
+              }
             </ol>
           </section>
         </div>

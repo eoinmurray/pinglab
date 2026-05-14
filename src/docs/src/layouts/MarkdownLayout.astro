@@ -1,7 +1,10 @@
 ---
 import "katex/dist/katex.min.css";
+import katex from "katex";
+import { readFileSync } from "node:fs";
 import "../styles/global.css";
 import { blobUrl } from "../config/repo";
+import ThemeToggle from "../components/ThemeToggle.astro";
 const { frontmatter, headings = [], file } = Astro.props as {
   frontmatter: any;
   headings?: any;
@@ -9,7 +12,75 @@ const { frontmatter, headings = [], file } = Astro.props as {
 };
 
 type Heading = { depth: number; slug: string; text: string };
-const toc: Heading[] = headings.filter((h: Heading) => h.depth >= 2 && h.depth <= 3);
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Render `$...$` and `$$...$$` segments via KaTeX; escape the rest.
+function renderTocText(text: string): string {
+  const parts = text.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
+  return parts
+    .map((part) => {
+      if (!part) return "";
+      const display = part.startsWith("$$") && part.endsWith("$$");
+      const inline = !display && part.startsWith("$") && part.endsWith("$");
+      if (display || inline) {
+        const expr = display ? part.slice(2, -2) : part.slice(1, -1);
+        try {
+          return katex.renderToString(expr, {
+            displayMode: display,
+            throwOnError: false,
+            output: "html",
+          });
+        } catch {
+          return escapeHtml(part);
+        }
+      }
+      return escapeHtml(part);
+    })
+    .join("");
+}
+
+// Astro's `headings.text` is the rendered heading's textContent, which for
+// math headings concatenates KaTeX's MathML annotation with the rendered
+// glyphs (e.g. "Δt\Delta tΔt"). Re-parse the raw source so we recover the
+// original `$...$` segments. Slug comes from Astro (matches the rendered
+// heading id); the rendered HTML comes from the raw source.
+type TocEntry = { depth: number; slug: string; html: string };
+
+const astroHeadings: Heading[] = (headings as Heading[]).filter(
+  (h) => h.depth >= 1 && h.depth <= 6,
+);
+
+let rawHeadings: { depth: number; raw: string }[] = [];
+if (file) {
+  try {
+    const src = readFileSync(file, "utf8");
+    let body = src.replace(/^---\n[\s\S]*?\n---\n?/, "");
+    body = body.replace(/```[\s\S]*?```/g, "");
+    for (const line of body.split(/\r?\n/)) {
+      const m = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+      if (m) rawHeadings.push({ depth: m[1].length, raw: m[2] });
+    }
+  } catch {
+    rawHeadings = [];
+  }
+}
+
+const useRaw = rawHeadings.length === astroHeadings.length;
+const toc: TocEntry[] = astroHeadings
+  .map((h, i) => ({
+    depth: h.depth,
+    slug: h.slug,
+    html: useRaw ? renderTocText(rawHeadings[i].raw) : escapeHtml(h.text),
+  }))
+  .filter((h) => h.depth >= 2 && h.depth <= 3);
 
 // `file` is an absolute filesystem path to the source .md/.mdx. Strip the
 // repo prefix so the "Edit on GitHub" link points at the file in-tree.
@@ -29,8 +100,25 @@ if (file) {
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width" />
     <title>{frontmatter.title} · Pinglab</title>
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme");
+          var resolved =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", resolved);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
+    <div class="fixed top-4 right-4 z-40">
+      <ThemeToggle />
+    </div>
     {toc.length > 0 && (
       <aside
         class="hidden lg:block fixed top-16 left-8 w-[calc(25%-4rem)] max-h-[calc(100vh-8rem)] overflow-y-auto text-base pr-4"
@@ -41,10 +129,10 @@ if (file) {
             <li class={h.depth === 3 ? "pl-4" : ""}>
               <a
                 href={`#${h.slug}`}
-                class="text-[#555] !no-underline hover:text-[color:var(--ink)] leading-snug"
-              >
-                {h.text}
-              </a>
+                class="text-[color:var(--color-dim)] !no-underline hover:text-[color:var(--ink)] leading-snug"
+                set:html={h.html}
+              />
+
             </li>
           ))}
         </ol>
@@ -70,12 +158,12 @@ if (file) {
   .page-source {
     margin-top: 3rem;
     padding-top: 0.75rem;
-    border-top: 1px solid #e7e5df;
+    border-top: 1px solid var(--color-rule);
     font-family: var(--font-serif);
     font-size: 0.85rem;
-    color: #777;
+    color: var(--color-muted-soft);
   }
   .page-source a {
-    color: #555;
+    color: var(--color-dim);
   }
 </style>

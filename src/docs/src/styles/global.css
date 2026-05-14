@@ -73,6 +73,53 @@
   --muted: var(--color-muted);
 }
 
+:root[data-theme="dark"] {
+  --color-ink-strong: #f5f3ec;
+  --color-ink: #e8e4d7;
+  --color-ink-soft: #d6d1c2;
+  --color-dim: #b5b0a1;
+  --color-muted: #9a9587;
+  --color-muted-soft: #807c70;
+  --color-label: #6f6b60;
+  --color-faint: #4a4740;
+  --color-underline: #4a4740;
+  --color-rule: #2c2a26;
+  --color-rule-warm: #38352f;
+  --color-paper: #15140f;
+  --color-paper-tint: #1d1c17;
+  --color-danger: #e57373;
+  --color-success: #7ed07e;
+
+  --ink: var(--color-ink);
+  --paper: var(--color-paper);
+  --muted: var(--color-muted);
+
+  color-scheme: dark;
+}
+
+/* @tailwindcss/typography hardcodes its own grey scale via --tw-prose-*.
+   Map those onto our theme tokens so .prose content follows dark mode. */
+:root[data-theme="dark"] .prose {
+  --tw-prose-body: var(--color-ink);
+  --tw-prose-headings: var(--color-ink-strong);
+  --tw-prose-lead: var(--color-ink-soft);
+  --tw-prose-links: var(--color-ink-strong);
+  --tw-prose-bold: var(--color-ink-strong);
+  --tw-prose-counters: var(--color-muted);
+  --tw-prose-bullets: var(--color-faint);
+  --tw-prose-hr: var(--color-rule);
+  --tw-prose-quotes: var(--color-ink-soft);
+  --tw-prose-quote-borders: var(--color-rule);
+  --tw-prose-captions: var(--color-muted);
+  --tw-prose-kbd: var(--color-ink);
+  --tw-prose-kbd-shadows: 0 0 0;
+  --tw-prose-code: var(--color-ink);
+  --tw-prose-pre-code: var(--color-ink);
+  --tw-prose-pre-bg: var(--color-paper-tint);
+  --tw-prose-th-borders: var(--color-rule);
+  --tw-prose-td-borders: var(--color-rule);
+}
+
 @layer base {
   html, body {
     background: var(--paper);
@@ -114,6 +161,26 @@
   pre.astro-code code {
     background: transparent;
     font-size: 0.88em;
+  }
+
+  /* Shiki dual themes: with defaultColor: false, both light & dark token
+     colors are emitted as CSS custom properties on every span but no
+     `color` is applied. Default to the light theme; flip to dark when
+     html[data-theme="dark"]. */
+  pre.astro-code,
+  pre.astro-code span {
+    color: var(--shiki-light);
+    font-style: var(--shiki-light-font-style);
+    font-weight: var(--shiki-light-font-weight);
+    text-decoration: var(--shiki-light-text-decoration);
+  }
+  :root[data-theme="dark"] pre.astro-code,
+  :root[data-theme="dark"] pre.astro-code span {
+    color: var(--shiki-dark) !important;
+    background-color: var(--shiki-dark-bg) !important;
+    font-style: var(--shiki-dark-font-style) !important;
+    font-weight: var(--shiki-dark-font-weight) !important;
+    text-decoration: var(--shiki-dark-text-decoration) !important;
   }
 }
 

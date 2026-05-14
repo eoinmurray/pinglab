@@ -84,14 +84,14 @@ Figures 8 and 9 record whether the gamma rhythm survives training. Mean excitato
 
 Six models are trained on MNIST at two *dt* regimes (0.1 ms and 1 ms), each with the per-model recipe from its calibration sibling ([nb007](/notebooks/nb007/)–[nb012](/notebooks/nb012/)). Weights are then frozen and accuracy is re-evaluated across a sweep of eval-*dt* values under three input-transport rules ([upsample / downsample / resample](#eval-time-dt-transport)). Identity transport (eval-*dt* = train-*dt*) anchors each sweep, so any change downstream is *integrator-side*.
 
-**Models** (see [the ladder](/docs/models/)):
+**Models** (see [the ladder](/articles/art003/)):
 
-- [*standard-snn*](/docs/models/#standard-snn) — pinglab reimplementation of snnTorch's *snn.Leaky*. The Tutorial-3 simplification ($\Delta t = 1$, $R = 1$, $(1-\beta)$ absorbed into $W$) drops $\Delta t$ from the update, which is what produces the *dt*-leakage analysed below.
-- [*standard-snn-exp*](/docs/models/#standard-snn) — *standard-snn* with an exponential synapse ($\tau_\text{syn} \approx 2$ ms) on the feedforward inputs.
-- [*snntorch-library*](/docs/models/#snntorch-library) — snnTorch's *snn.Leaky* directly. Parity probe against *standard-snn*.
-- [*cuba*](/docs/models/#cuba) — same LIF, exp-Euler + ZOH integration restoring the $(1-\beta)/dt$ and $(1-\beta)$ prefactors. *dt* is back in the update.
-- [*coba*](/docs/models/#coba) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
-- [*ping*](/docs/models/#ping) — COBA plus the frozen E→I→E recurrent loop that produces gamma.
+- [*standard-snn*](/articles/art003/) — pinglab reimplementation of snnTorch's *snn.Leaky*. The Tutorial-3 simplification ($\Delta t = 1$, $R = 1$, $(1-\beta)$ absorbed into $W$) drops $\Delta t$ from the update, which is what produces the *dt*-leakage analysed below.
+- [*standard-snn-exp*](/articles/art003/) — *standard-snn* with an exponential synapse ($\tau_\text{syn} \approx 2$ ms) on the feedforward inputs.
+- [*snntorch-library*](/articles/art003/#snntorch-library) — snnTorch's *snn.Leaky* directly. Parity probe against *standard-snn*.
+- [*cuba*](/articles/art003/) — same LIF, exp-Euler + ZOH integration restoring the $(1-\beta)/dt$ and $(1-\beta)$ prefactors. *dt* is back in the update.
+- [*coba*](/articles/art004/) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
+- [*ping*](/articles/art004/) — COBA plus the frozen E→I→E recurrent loop that produces gamma.
 
 All six models reach comparable accuracy at their training dt (Figure 10); differences appear once dt is perturbed at inference.
 

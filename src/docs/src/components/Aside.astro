@@ -1,0 +1,47 @@
+---
+// Aside: a visually offset block for tangential derivations / definitions
+// inside an article body. Sits between the main paragraphs as a tinted box
+// with a warm-rule left accent so it reads as parallel to the main flow
+// rather than part of it. Title accepts inline $…$ KaTeX.
+import katex from "katex";
+
+const { title } = Astro.props;
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function renderTitle(s: string | undefined): string {
+  if (!s) return "";
+  // Split on inline $...$ pairs; render math segments via KaTeX, escape
+  // the rest. Source is project-authored MDX so HTML injection is safe.
+  const parts = s.split(/(\$[^$]+\$)/g);
+  return parts
+    .map((p) => {
+      if (p.startsWith("$") && p.endsWith("$") && p.length >= 2) {
+        const tex = p.slice(1, -1);
+        try {
+          return katex.renderToString(tex, { throwOnError: false });
+        } catch {
+          return escapeHtml(p);
+        }
+      }
+      return escapeHtml(p);
+    })
+    .join("");
+}
+
+const titleHtml = renderTitle(title);
+---
+
+<aside class="my-5 border-l-4 border-l-rule-warm border-y border-r border-rule bg-paper-tint pl-4 pr-4 py-3 rounded-r-[2px]">
+  {title && (
+    <div class="mb-2 font-serif text-[0.95rem] leading-snug text-ink font-bold not-prose">
+      <span>Aside — </span><span set:html={titleHtml} />
+    </div>
+  )}
+  <slot />
+</aside>
