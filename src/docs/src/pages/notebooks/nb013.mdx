@@ -22,13 +22,11 @@ export const dt2 = r2.dt_train ?? regimeKeys[1];
 export const rk1 = r1.regime_key ?? "dt?";
 export const rk2 = r2.regime_key ?? "dt?";
 export const snn1 = r1.runs?.["standard-snn"] ?? {};
-export const snnexp1 = r1.runs?.["standard-snn-exp"] ?? {};
 export const lib1 = r1.runs?.["snntorch-library"] ?? {};
 export const cuba1 = r1.runs?.cuba ?? {};
 export const coba1 = r1.runs?.coba ?? {};
 export const ping1 = r1.runs?.ping ?? {};
 export const snn2 = r2.runs?.["standard-snn"] ?? {};
-export const snnexp2 = r2.runs?.["standard-snn-exp"] ?? {};
 export const lib2 = r2.runs?.["snntorch-library"] ?? {};
 export const cuba2 = r2.runs?.cuba ?? {};
 export const coba2 = r2.runs?.coba ?? {};
@@ -38,13 +36,11 @@ export const mode = (run, m = "upsample") => (run?.encoder_modes?.[m] ?? {});
 // at fine train-dt (0.1), eval-dt mostly extends coarser → downsample;
 // at coarse train-dt (1.0), eval-dt mostly extends finer → upsample.
 export const snn1Cp = mode(snn1, "downsample");
-export const snnexp1Cp = mode(snnexp1, "downsample");
 export const lib1Cp = mode(lib1, "downsample");
 export const cuba1Cp = mode(cuba1, "downsample");
 export const coba1Cp = mode(coba1, "downsample");
 export const ping1Cp = mode(ping1, "downsample");
 export const snn2Cp = mode(snn2, "upsample");
-export const snnexp2Cp = mode(snnexp2, "upsample");
 export const lib2Cp = mode(lib2, "upsample");
 export const cuba2Cp = mode(cuba2, "upsample");
 export const coba2Cp = mode(coba2, "upsample");
@@ -73,18 +69,17 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-The simulator's *dt* is a numerical knob, not a feature of the network — but in spiking models it leaks into the dynamics. Train at one *dt* and evaluate at another and hidden firing rates can shift by an order of magnitude with frozen weights. This notebook quantifies that leakage across six models and traces it to a single expression: the bias term scales as $1/\Delta t$ in the snnTorch family, while cuba/coba/ping are *dt*-invariant by construction.
+The simulator's *dt* is a numerical knob, not a feature of the network — but in spiking models it leaks into the dynamics. Train at one *dt* and evaluate at another and hidden firing rates can shift by an order of magnitude with frozen weights. This notebook quantifies that leakage across five models and traces it to a single expression: the bias term scales as $1/\Delta t$ in the snnTorch family, while cuba/coba/ping are *dt*-invariant by construction.
 
 ## Method
 
 ### Setup
 
-Six models are trained on MNIST at two *dt* regimes ({dt1} ms and {dt2} ms), each with the per-model recipe from its calibration sibling ([nb007](/notebooks/nb007/)–[nb012](/notebooks/nb012/)). Weights are then frozen and accuracy is re-evaluated across a sweep of eval-*dt* values under three input-transport rules ([upsample / downsample / resample](#eval-time-dt-transport)). Identity transport (eval-*dt* = train-*dt*) anchors each sweep, so any change downstream is *integrator-side*.
+Five models are trained on MNIST at two *dt* regimes ({dt1} ms and {dt2} ms), each with the per-model recipe from its calibration sibling ([nb007](/notebooks/nb007/)–[nb012](/notebooks/nb012/)). Weights are then frozen and accuracy is re-evaluated across a sweep of eval-*dt* values under three input-transport rules ([upsample / downsample / resample](#eval-time-dt-transport)). Identity transport (eval-*dt* = train-*dt*) anchors each sweep, so any change downstream is *integrator-side*.
 
 **Models** (see [the ladder](/articles/art003/)):
 
 - [*standard-snn*](/articles/art003/) — pinglab reimplementation of snnTorch's *snn.Leaky*. The Tutorial-3 simplification ($\Delta t = 1$, $R = 1$, $(1-\beta)$ absorbed into $W$) drops $\Delta t$ from the update, which is what produces the *dt*-leakage analysed below.
-- [*standard-snn-exp*](/articles/art003/) — *standard-snn* with an exponential synapse ($\tau_\text{syn} \approx 2$ ms) on the feedforward inputs.
 - [*snntorch-library*](/articles/art003/#snntorch-library) — snnTorch's *snn.Leaky* directly. Parity probe against *standard-snn*.
 - [*cuba*](/articles/art003/) — same LIF, exp-Euler + ZOH integration restoring the $(1-\beta)/dt$ and $(1-\beta)$ prefactors. *dt* is back in the update.
 - [*coba*](/articles/art004/) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
@@ -92,28 +87,28 @@ Six models are trained on MNIST at two *dt* regimes ({dt1} ms and {dt2} ms), eac
 
 Recipe table cells are the resolved training values; *n/a* marks parameters the model class doesn't use.
 
-| Param | standard-snn | standard-snn-exp | snntorch-library | cuba | coba | ping |
-|---|---|---|---|---|---|---|
-| [*--model*](/docs/the-oscilloscope/#network-flags-shared) | standard-snn | standard-snn-exp | snntorch-library | cuba | ping | ping |
-| [*--dataset*](/docs/the-oscilloscope/#input-flags-shared) | mnist | mnist | mnist | mnist | mnist | mnist |
-| [*--input-rate*](/docs/the-oscilloscope/#input-flags-shared) (Hz) | 25 | 25 | 25 | 25 | 25 | 25 |
-| [*--t-ms*](/docs/the-oscilloscope/#network-flags-shared) | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} |
-| [*--seed*](/docs/the-oscilloscope/#execution-flags-shared) | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} |
-| [*--max-samples*](/docs/the-oscilloscope/#subcommand-train) | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} |
-| [*--epochs*](/docs/the-oscilloscope/#subcommand-train) | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} |
-| [*--batch-size*](/docs/the-oscilloscope/#subcommand-train) | 256 | 256 | 256 | 256 | 256 | 256 |
-| [*--observe*](/docs/the-oscilloscope/#subcommand-train) | video | video | video | video | video | video |
-| [*--kaiming-init*](/docs/the-oscilloscope/#weight-flags-shared-advanced) | True | True | True | True | False | False |
-| [*--readout*](/docs/the-oscilloscope/#readouts) | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* |
-| [*--surrogate-slope*](/docs/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 1 | 1 |
-| [*--readout-w-out-scale*](/docs/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 100 | 500 |
-| [*--lr*](/docs/the-oscilloscope/#subcommand-train) | 0.01 | 0.01 | 0.01 | 0.04 | 0.0004 | 0.0004 |
-| [*--ei-strength*](/docs/the-oscilloscope/#network-flags-shared) | n/a | n/a | n/a | n/a | 0 | 1 |
-| [*--v-grad-dampen*](/docs/the-oscilloscope/#subcommand-train) | n/a | n/a | n/a | n/a | 1000 | 1000 |
-| [*--w-in*](/docs/the-oscilloscope/#weight-flags-shared-advanced) (mean, std) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.03) | (1.2, 0.12) |
-| [*--w-in-sparsity*](/docs/the-oscilloscope/#weight-flags-shared-advanced) | 0.0 | 0.0 | 0.0 | 0.0 | 0.95 | 0.95 |
-| integrator | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | exp-Euler ZOH (input) | exp-Euler ZOH (conductance) | exp-Euler ZOH (conductance) |
-| synapse | direct | exponential | direct | direct | exponential (COBA) | exponential (COBA) + E→I→E |
+| Param | standard-snn | snntorch-library | cuba | coba | ping |
+|---|---|---|---|---|---|
+| [*--model*](/docs/the-oscilloscope/#network-flags-shared) | standard-snn | snntorch-library | cuba | ping | ping |
+| [*--dataset*](/docs/the-oscilloscope/#input-flags-shared) | mnist | mnist | mnist | mnist | mnist |
+| [*--input-rate*](/docs/the-oscilloscope/#input-flags-shared) (Hz) | 25 | 25 | 25 | 25 | 25 |
+| [*--t-ms*](/docs/the-oscilloscope/#network-flags-shared) | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} | {cfg.t_ms ?? "?"} |
+| [*--seed*](/docs/the-oscilloscope/#execution-flags-shared) | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} | {cfg.seed ?? "?"} |
+| [*--max-samples*](/docs/the-oscilloscope/#subcommand-train) | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} | {cfg.max_samples ?? "?"} |
+| [*--epochs*](/docs/the-oscilloscope/#subcommand-train) | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} | {cfg.epochs ?? "?"} |
+| [*--batch-size*](/docs/the-oscilloscope/#subcommand-train) | 256 | 256 | 256 | 256 | 256 |
+| [*--observe*](/docs/the-oscilloscope/#subcommand-train) | video | video | video | video | video |
+| [*--kaiming-init*](/docs/the-oscilloscope/#weight-flags-shared-advanced) | True | True | True | False | False |
+| [*--readout*](/docs/the-oscilloscope/#readouts) | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* | *mem-mean* |
+| [*--surrogate-slope*](/docs/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 1 | 1 |
+| [*--readout-w-out-scale*](/docs/the-oscilloscope/#network-flags-shared) | 1 | 1 | 1 | 100 | 500 |
+| [*--lr*](/docs/the-oscilloscope/#subcommand-train) | 0.01 | 0.01 | 0.04 | 0.0004 | 0.0004 |
+| [*--ei-strength*](/docs/the-oscilloscope/#network-flags-shared) | n/a | n/a | n/a | 0 | 1 |
+| [*--v-grad-dampen*](/docs/the-oscilloscope/#subcommand-train) | n/a | n/a | n/a | 1000 | 1000 |
+| [*--w-in*](/docs/the-oscilloscope/#weight-flags-shared-advanced) (mean, std) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.06) | (0.3, 0.03) | (1.2, 0.12) |
+| [*--w-in-sparsity*](/docs/the-oscilloscope/#weight-flags-shared-advanced) | 0.0 | 0.0 | 0.0 | 0.95 | 0.95 |
+| integrator | snnTorch (Δt=1 input) | snnTorch (Δt=1 input) | exp-Euler ZOH (input) | exp-Euler ZOH (conductance) | exp-Euler ZOH (conductance) |
+| synapse | direct | direct | direct | exponential (COBA) | exponential (COBA) + E→I→E |
 
 Trainable parameters (with $N_\text{in} = 784$, $N_\text{hid} = 1024$, $N_\text{out} = 10$):
 
@@ -130,7 +125,7 @@ The CUBANet family includes hidden + output biases; COBANet's biophysical formul
 
 ### Readout
 
-All six models use *mem-mean*: spiking output LIF, mean-of-membrane as logits. Architecture matches [snnTorch tutorial 3](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html) (leaky neuron after the final projection), training signal matches [tutorial 5](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html) (CE on the output membrane summed across timesteps — taken in mean form here for *dt*-invariance).
+All five models use *mem-mean*: spiking output LIF, mean-of-membrane as logits. Architecture matches [snnTorch tutorial 3](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_3.html) (leaky neuron after the final projection), training signal matches [tutorial 5](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html) (CE on the output membrane summed across timesteps — taken in mean form here for *dt*-invariance).
 
 The output LIF uses the same exp-Euler + ZOH form cuba uses for its hidden membrane:
 
@@ -213,7 +208,6 @@ Best test accuracy per regime:
 | model | train *dt* = {dt1} ms | train *dt* = {dt2} ms |
 |---|---|---|
 | standard-snn | {snn1.best_acc ?? "?"}% | {snn2.best_acc ?? "?"}% |
-| standard-snn-exp | {snnexp1.best_acc ?? "?"}% | {snnexp2.best_acc ?? "?"}% |
 | snntorch-library | {lib1.best_acc ?? "?"}% | {lib2.best_acc ?? "?"}% |
 | cuba | {cuba1.best_acc ?? "?"}% | {cuba2.best_acc ?? "?"}% |
 | coba | {coba1.best_acc ?? "?"}% | {coba2.best_acc ?? "?"}% |
@@ -288,7 +282,7 @@ The difference between CUBA and COBA amounts to several changes at once — whic
 
 1. **Conductance form $g \cdot (V - E_\text{rev})$ instead of additive $+I$.** Excitation saturates as $V \to E_e$ (can't drive past 0 mV); inhibition becomes shunting (raises $g_\text{tot}$, shortens effective $\tau$). CUBA has neither — additive currents drive $V$ arbitrarily, no shunting, no biophysical clipping. Everything downstream (reversal potentials, separate $g_e / g_i$ channels, units in µS) follows from this one switch.
 2. **Hard reset + refractory.** Hard reset to $V_\text{reset}$ destroys cross-spike membrane momentum; refractory ($\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms) puts a hard ceiling on firing rate at $\approx 1/\tau_\text{ref}$. Reset-by-subtraction (cuba's default) lets the membrane carry residual depolarisation forward, so high rates can run away. Under the uniform *mem-mean* readout this is exactly what shows up as the COBANet family's lower trial-level drive into the output LIF — it's why we have to scale *W_ff[-1]* by 100× (coba) and 500× (ping) to recover competitive accuracy.
-3. **Exponential synapses.** $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms. Low-passes the presynaptic spike train into the membrane drive and separates fast-E from slow-I — required for any oscillation, including PING. cuba can opt in (*standard-snn-exp*), but it's standard in coba.
+3. **Exponential synapses.** $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms. Low-passes the presynaptic spike train into the membrane drive and separates fast-E from slow-I — required for any oscillation, including PING. Standard in coba.
 
 **Secondary — change the *constraints*, not the dynamics**
 
@@ -306,7 +300,7 @@ If you had to keep one: conductance form (1). Without it there's no shunting and
 
 - **Large-tier confirmation** to check whether the 86–89% medium results scale to the literature 90+% baseline cuba/coba/ping had under the old recipe.
 - **Per-family sweep over `--readout-w-out-scale`** at large tier to find whether the 100/500 settings are near-optimal or just adequate.
-- **Apply the *mem-mean* recipe to nb014 (SHD)** where the lower-rate firing regime makes the readout-coupling problem more acute.
+- **Apply the *mem-mean* recipe to SHD runs** where the lower-rate firing regime makes the readout-coupling problem more acute.
 
 ## Appendix
 
@@ -330,68 +324,56 @@ One scope frame per training epoch, one video per (model, train-*dt*).
   </Figure>
 )}
 
-{hasFig(`training_${rk1}_standard-snn-exp.mp4`) && (
-  <Figure type="video" id="Figure 6" title={`standard-snn-exp @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_standard-snn-exp.mp4`}>
-    standard-snn-exp at train-*dt* = {dt1} ms.
-  </Figure>
-)}
-
 {hasFig(`training_${rk1}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 7" title={`snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_snntorch-library.mp4`}>
+  <Figure type="video" id="Figure 6" title={`snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_snntorch-library.mp4`}>
     Parity reference (*snn.Leaky*).
   </Figure>
 )}
 
 {hasFig(`training_${rk1}_cuba.mp4`) && (
-  <Figure type="video" id="Figure 8" title={`cuba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_cuba.mp4`}>
+  <Figure type="video" id="Figure 7" title={`cuba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_cuba.mp4`}>
     *cuba* at train-*dt* = {dt1} ms.
   </Figure>
 )}
 
 {hasFig(`training_${rk1}_coba.mp4`) && (
-  <Figure type="video" id="Figure 9" title={`coba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_coba.mp4`}>
+  <Figure type="video" id="Figure 8" title={`coba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_coba.mp4`}>
     *coba* at train-*dt* = {dt1} ms.
   </Figure>
 )}
 
 {hasFig(`training_${rk1}_ping.mp4`) && (
-  <Figure type="video" id="Figure 10" title={`ping @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_ping.mp4`}>
+  <Figure type="video" id="Figure 9" title={`ping @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_ping.mp4`}>
     *ping* at train-*dt* = {dt1} ms.
   </Figure>
 )}
 
 {hasFig(`training_${rk2}_standard-snn.mp4`) && (
-  <Figure type="video" id="Figure 11" title={`standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_standard-snn.mp4`}>
+  <Figure type="video" id="Figure 10" title={`standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_standard-snn.mp4`}>
     standard-snn at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
-{hasFig(`training_${rk2}_standard-snn-exp.mp4`) && (
-  <Figure type="video" id="Figure 12" title={`standard-snn-exp @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_standard-snn-exp.mp4`}>
-    standard-snn-exp at train-*dt* = {dt2} ms.
-  </Figure>
-)}
-
 {hasFig(`training_${rk2}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 13" title={`snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_snntorch-library.mp4`}>
+  <Figure type="video" id="Figure 11" title={`snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_snntorch-library.mp4`}>
     Parity reference.
   </Figure>
 )}
 
 {hasFig(`training_${rk2}_cuba.mp4`) && (
-  <Figure type="video" id="Figure 14" title={`cuba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_cuba.mp4`}>
+  <Figure type="video" id="Figure 12" title={`cuba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_cuba.mp4`}>
     *cuba* at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
 {hasFig(`training_${rk2}_coba.mp4`) && (
-  <Figure type="video" id="Figure 15" title={`coba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_coba.mp4`}>
+  <Figure type="video" id="Figure 13" title={`coba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_coba.mp4`}>
     *coba* at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
 {hasFig(`training_${rk2}_ping.mp4`) && (
-  <Figure type="video" id="Figure 16" title={`ping @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_ping.mp4`}>
+  <Figure type="video" id="Figure 14" title={`ping @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_ping.mp4`}>
     *ping* at train-*dt* = {dt2} ms.
   </Figure>
 )}
@@ -401,73 +383,61 @@ One scope frame per eval-*dt* with weights frozen at end of training; one video 
 #### Eval dt sweep
 
 {hasFig(`dt_sweep_${rk1}_standard-snn.mp4`) && (
-  <Figure type="video" id="Figure 17" title={`dt-sweep — standard-snn @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_standard-snn.mp4`}>
+  <Figure type="video" id="Figure 15" title={`dt-sweep — standard-snn @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_standard-snn.mp4`}>
     Frozen weights, one frame per eval-*dt*.
   </Figure>
 )}
 
-{hasFig(`dt_sweep_${rk1}_standard-snn-exp.mp4`) && (
-  <Figure type="video" id="Figure 18" title={`dt-sweep — standard-snn-exp @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_standard-snn-exp.mp4`}>
-    standard-snn-exp at train-*dt* = {dt1} ms.
-  </Figure>
-)}
-
 {hasFig(`dt_sweep_${rk1}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 19" title={`dt-sweep — snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_snntorch-library.mp4`}>
+  <Figure type="video" id="Figure 16" title={`dt-sweep — snntorch-library @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_snntorch-library.mp4`}>
     Parity reference (*snn.Leaky*).
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk1}_cuba.mp4`) && (
-  <Figure type="video" id="Figure 20" title={`dt-sweep — cuba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_cuba.mp4`}>
+  <Figure type="video" id="Figure 17" title={`dt-sweep — cuba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_cuba.mp4`}>
     *cuba* at train-*dt* = {dt1} ms.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk1}_coba.mp4`) && (
-  <Figure type="video" id="Figure 21" title={`dt-sweep — coba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_coba.mp4`}>
+  <Figure type="video" id="Figure 18" title={`dt-sweep — coba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_coba.mp4`}>
     *coba* at train-*dt* = {dt1} ms.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk1}_ping.mp4`) && (
-  <Figure type="video" id="Figure 22" title={`dt-sweep — ping @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_ping.mp4`}>
+  <Figure type="video" id="Figure 19" title={`dt-sweep — ping @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_ping.mp4`}>
     *ping* at train-*dt* = {dt1} ms.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk2}_standard-snn.mp4`) && (
-  <Figure type="video" id="Figure 23" title={`dt-sweep — standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_standard-snn.mp4`}>
+  <Figure type="video" id="Figure 20" title={`dt-sweep — standard-snn @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_standard-snn.mp4`}>
     standard-snn at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
-{hasFig(`dt_sweep_${rk2}_standard-snn-exp.mp4`) && (
-  <Figure type="video" id="Figure 24" title={`dt-sweep — standard-snn-exp @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_standard-snn-exp.mp4`}>
-    standard-snn-exp at train-*dt* = {dt2} ms.
-  </Figure>
-)}
-
 {hasFig(`dt_sweep_${rk2}_snntorch-library.mp4`) && (
-  <Figure type="video" id="Figure 25" title={`dt-sweep — snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_snntorch-library.mp4`}>
+  <Figure type="video" id="Figure 21" title={`dt-sweep — snntorch-library @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_snntorch-library.mp4`}>
     Parity reference.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk2}_cuba.mp4`) && (
-  <Figure type="video" id="Figure 26" title={`dt-sweep — cuba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_cuba.mp4`}>
+  <Figure type="video" id="Figure 22" title={`dt-sweep — cuba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_cuba.mp4`}>
     *cuba* at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk2}_coba.mp4`) && (
-  <Figure type="video" id="Figure 27" title={`dt-sweep — coba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_coba.mp4`}>
+  <Figure type="video" id="Figure 23" title={`dt-sweep — coba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_coba.mp4`}>
     *coba* at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
 {hasFig(`dt_sweep_${rk2}_ping.mp4`) && (
-  <Figure type="video" id="Figure 28" title={`dt-sweep — ping @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_ping.mp4`}>
+  <Figure type="video" id="Figure 24" title={`dt-sweep — ping @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_ping.mp4`}>
     *ping* at train-*dt* = {dt2} ms.
   </Figure>
 )}

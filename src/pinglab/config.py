@@ -107,35 +107,8 @@ MODEL_REGISTRY = {
         **kw,
     ),
     "standard-snn": lambda **kw: CUBANet(w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "standard-snn-exp": lambda **kw: CUBANet(
-        exponential_synapse=True, w_in=(0, 0), w_hid=(0, 0.1), **kw
-    ),
     "cuba": lambda **kw: CUBANet(
         discretisation="zoh", w_in=(0, 0), w_hid=(0, 0.1), **kw
-    ),
-    "cuba-exp": lambda **kw: CUBANet(
-        discretisation="zoh",
-        exponential_synapse=True,
-        w_in=(0, 0),
-        w_hid=(0, 0.1),
-        **kw,
-    ),
-    "cuba-exp-hard": lambda **kw: CUBANet(
-        discretisation="zoh",
-        exponential_synapse=True,
-        reset_mode="zero",
-        w_in=(0, 0),
-        w_hid=(0, 0.1),
-        **kw,
-    ),
-    "cuba-exp-hard-refrac": lambda **kw: CUBANet(
-        discretisation="zoh",
-        exponential_synapse=True,
-        reset_mode="zero",
-        ref_ms=2.0,
-        w_in=(0, 0),
-        w_hid=(0, 0.1),
-        **kw,
     ),
     "snntorch-library": lambda **kw: SNNTorchLibraryNet(**kw),
 }
@@ -144,39 +117,18 @@ HAS_INH = {"ping"}
 IS_COBA = {"ping"}
 
 # All CUBA-family variants (shared CUBANet class, distinct discretisation
-# / synaptic / reset / refractory settings). Used by build_net guards.
-# The headline 5-model ladder is {standard-snn, cuba, cuba-exp, coba, ping};
-# cuba-exp-hard and cuba-exp-hard-refrac are retained in the registry only
-# to load legacy artifacts (they are no longer dispatched by any experiment).
+# settings). Used by build_net guards. Headline 4-model ladder is
+# {standard-snn, cuba, coba, ping}.
 CUBA_MODELS = {
     "standard-snn",
-    "standard-snn-exp",
     "snntorch-library",
     "cuba",
-    "cuba-exp",
-    "cuba-exp-hard",  # kept in registry for legacy-artifact loading
-    "cuba-exp-hard-refrac",  # kept in registry for legacy-artifact loading
 }
 
 _MODEL_CLASSES = {
     "ping": (COBANet, {}),
     "standard-snn": (CUBANet, {}),
-    "standard-snn-exp": (CUBANet, {"exponential_synapse": True}),
     "cuba": (CUBANet, {"discretisation": "zoh"}),
-    "cuba-exp": (CUBANet, {"discretisation": "zoh", "exponential_synapse": True}),
-    "cuba-exp-hard": (
-        CUBANet,
-        {"discretisation": "zoh", "exponential_synapse": True, "reset_mode": "zero"},
-    ),
-    "cuba-exp-hard-refrac": (
-        CUBANet,
-        {
-            "discretisation": "zoh",
-            "exponential_synapse": True,
-            "reset_mode": "zero",
-            "ref_ms": 2.0,
-        },
-    ),
     "snntorch-library": (SNNTorchLibraryNet, {}),
 }
 
@@ -185,7 +137,6 @@ _MODEL_CLASSES = {
 LEGACY_MODEL_ALIASES = {
     "snntorch": "standard-snn",  # renamed 2026-04-18
     "snntorch-canonical": "standard-snn",  # renamed 2026-04-17
-    "snntorch-exp": "standard-snn",  # exp removed; loads as canonical
 }
 
 
