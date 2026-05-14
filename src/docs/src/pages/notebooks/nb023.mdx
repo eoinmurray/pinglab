@@ -72,6 +72,14 @@ Run the oscilloscope in *image* mode against an untrained PING network driven by
   Same network with the I→E loop turned on (*--ei-strength 1.5*). Same MNIST input, same integration window. The E raster now shows vertical bands, and the I population fires synchronous bursts trailing each E-burst by the AMPA delay.
 </Figure>
 
+<Figure id="Figure 3" title="COBA — single-neuron traces" src="/figures/notebooks/nb023/traces__coba.png" alt="Two panels: V_E for one representative E neuron, and its excitatory conductance g_E. No inhibitory conductance — the loop is off.">
+  Membrane voltage and excitatory conductance for the most active E neuron in the COBA cell. V_E (top) rises to threshold $V_{\text{th}} = -50$ mV repeatedly, with hard reset back to $V_{\text{reset}}$. g_E (bottom) is the only synaptic drive — no g_I trace because the recurrent inhibitory loop is disabled. The trace is *tonic*: drive comes only from the Poisson input.
+</Figure>
+
+<Figure id="Figure 4" title="PING — single-neuron traces" src="/figures/notebooks/nb023/traces__ping.png" alt="Four panels: V_E and conductances for the most active E neuron, then V_I and its excitatory conductance for the most active I neuron.">
+  Same plot for the PING cell, plus the I neuron. The E neuron's V_E (top) is held below threshold by the rhythmic g_I bursts (panel 2, red); g_E (panel 2, blue) is tiny by comparison. The I neuron's V_I (panel 3) tracks the population E-burst envelope through its g_E input (panel 4) and fires once per cycle. This is the PING loop in cross-section: E-spikes ramp g_E on I; I fires; g_I shuts E down; g_I decays; E refires.
+</Figure>
+
 ## Discussion
 
 *To fill in after first real run.*

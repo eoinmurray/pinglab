@@ -1,6 +1,6 @@
 {
-  "notebook_run_id": "r009",
-  "duration_s": 3.9,
+  "notebook_run_id": "r012",
+  "duration_s": 4.1,
   "tier": "small",
   "config": {
     "tier": "small",
@@ -17,16 +17,28 @@
   "results": [],
   "success_criteria": [
     {
-      "label": "coba raster rendered",
+      "label": "raster__coba rendered",
       "passed": true,
-      "detail": "raster__coba.png (106085 bytes)",
+      "detail": "raster__coba.png (102928 bytes)",
       "detail_href": "/figures/notebooks/nb023/raster__coba.png"
     },
     {
-      "label": "ping raster rendered",
+      "label": "traces__coba rendered",
       "passed": true,
-      "detail": "raster__ping.png (38187 bytes)",
+      "detail": "traces__coba.png (112954 bytes)",
+      "detail_href": "/figures/notebooks/nb023/traces__coba.png"
+    },
+    {
+      "label": "raster__ping rendered",
+      "passed": true,
+      "detail": "raster__ping.png (35157 bytes)",
       "detail_href": "/figures/notebooks/nb023/raster__ping.png"
+    },
+    {
+      "label": "traces__ping rendered",
+      "passed": true,
+      "detail": "traces__ping.png (128454 bytes)",
+      "detail_href": "/figures/notebooks/nb023/traces__ping.png"
     }
   ]
 }
