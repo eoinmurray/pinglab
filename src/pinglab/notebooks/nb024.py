@@ -445,6 +445,40 @@ def generate_raster(model: str, out_path: Path) -> None:
     render_raster(npz_path, out_path, f"{model} — trained network, MNIST digit 0, 400 ms")
 
 
+def generate_rate_sweep_video(model: str, out_path: Path) -> None:
+    """Replay the trained baseline (θ_u = off) network on one MNIST digit
+    while sweeping the input Poisson rate. The oscilloscope writes
+    scan.mp4 into a per-call out-dir; we copy it to out_path."""
+    artifact_dir = ARTIFACTS / f"rate_sweep__{model}"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    scan_mp4 = artifact_dir / "scan.mp4"
+    if scan_mp4.exists():
+        scan_mp4.unlink()
+    argv = [
+        "video",
+        "--from-dir", str(baseline_dir(model)),
+        "--input", "dataset",
+        "--dataset", "mnist",
+        "--digit", "0",
+        "--sample", "0",
+        "--scan-var", "spike_rate",
+        "--scan-min", "0",
+        "--scan-max", "100",
+        "--frames", "40",
+        "--frame-rate", "10",
+        # 400 ms gives PING's loop room to settle at each rate.
+        "--t-ms", "400",
+        "--out-dir", str(artifact_dir),
+    ]
+    cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *argv]
+    print(f"[rate-sweep] {model}: {' '.join(argv)}")
+    subprocess.run(cmd, cwd=REPO, check=True)
+    if not scan_mp4.exists():
+        raise SystemExit(f"oscilloscope did not produce {scan_mp4}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(scan_mp4, out_path)
+
+
 def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
     """Pareto-style frontier: one line per model, baseline → tightest
     penalty. Both axes are final-epoch state. Baseline (θ_u = off)
@@ -1076,6 +1110,12 @@ def main() -> None:
         out = FIGURES / f"raster__{model}.png"
         generate_raster(model, out)
         print(f"wrote {out}")
+
+    # Input-rate sweep on the trained ping network — one digit, vary the
+    # Poisson rate over a wide range, render as a scope-frame video.
+    rate_sweep_out = FIGURES / "rate_sweep__ping.mp4"
+    generate_rate_sweep_video("ping", rate_sweep_out)
+    print(f"wrote {rate_sweep_out}")
 
     ei_points = run_ei_sweep(notebook_run_id)
 
