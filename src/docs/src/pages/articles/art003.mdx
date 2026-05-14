@@ -1,437 +1,153 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "CUBANet"
+title: "COBANet"
 date: 2026-05-14
 entry: 3
 structure: paper
 ---
-import Aside from "../../components/Aside.astro";
 
-# CUBANet
+# COBANet
 
-[Article 2](/articles/art002/) derived the continuous-time leaky integrate-and-fire (LIF) neuron from Maxwell's equations and the membrane circuit. This article picks up where that derivation leaves off and asks: how do you turn the continuous LIF into a discrete update rule that runs on a GPU? Two integrator choices (snnTorch-style and zero-order hold) give two rungs — *standard-snn* and *cuba* — both backed by a single Python class, **CUBANet**, in *src/pinglab/models.py*. Every empirical result in the [notebooks](/notebooks/) on the CUBA / standard-snn family traces back to the math here.
+[CUBANet](/articles/art002/) covers the current-based LIF — the simplest discrete spiking neuron, with synaptic inputs added directly to the membrane as currents. This article does the same job for the conductance-based rung. COBANet builds on the LIF derivation in [art001](/articles/art001/) but replaces every "current-in" synaptic term with a $(V - E_k)$ driving-force form, partitions each hidden layer into excitatory and inhibitory subpopulations, wires fixed recurrent E↔I matrices, and asymmetrises every biophysical constant between the two populations. The single flag that turns *coba* into *ping* is *--ei-strength*: at 0 the recurrent E-I weights are zero and the network is feedforward COBA; at non-zero values the inhibitory loop is wired up and the network generates PING (pyramidal-interneuron gamma) oscillations. Both build the same COBANet class.
 
-The implementation lives in *src/pinglab/models.py*. This article keeps the derivations.
+The implementation lives in *src/pinglab/models.py*; this article keeps the derivations.
 
-## Architecture
+## What COBA adds over CUBA, and why
 
-CUBANet (current-based LIF) is a single class with one switch:
+COBA differs from CUBA in five concrete structural choices. Each one is a deliberate upgrade with a particular phenomenon in mind, not a generic "more biological" gesture.
 
-- *discretisation* ∈ \{*snntorch*, *zoh*\} — how the continuous LIF is discretised. Spikes drive the membrane directly (no synaptic filter); the conductance-filtered story lives one rung up in [COBANet](/articles/art004/).
+**1. Two populations: excitatory (E) and inhibitory (I).** Each hidden layer is partitioned into an E sub-population and an I sub-population in a 4:1 ratio (matching mammalian cortex). CUBA has no such distinction — every hidden unit is interchangeable. The split is what makes Dale's law meaningful: an E unit can only excite its targets and an I unit can only inhibit them, regardless of how the optimiser would otherwise set weight signs. Without the split there's no way to wire an inhibitory feedback loop, and therefore no way to support PING.
 
-The two canonical rungs:
+**2. Conductance-based synaptic input.** CUBA adds synaptic input directly to the membrane as a current: $U_{t+1} = \beta U_t + W s_t$. COBA instead multiplies each synapse's conductance by the *driving force* — the gap between the membrane and that synapse's reversal potential:
 
-| rung           | discretisation |
-|----------------|----------------|
-| *standard-snn* | snnTorch       |
-| *cuba*         | ZOH            |
-
-*Tutorial mode* (*--kaiming-init*) is a further switch that overrides Dale's law and weight scaling to match *snn.Leaky* bit-for-bit at initialisation, used only by the parity probe.
-
-## The LIF primitive
-
-The forward pass and backward pass share a primitive *snn_lif_step* that performs one timestep of decay + drive + spike + reset:
-
-```python
-mem = β * mem + I
-s   = σ_surr(mem − θ)
-if reset == "subtract":
-    mem = mem − θ · s
-else:  # "zero"
-    mem = mem · (1 − s)
-```
-
-In words: decay the old membrane, add the (already-scaled) drive $I$, threshold the new membrane to emit a spike, and apply the reset. The caller is responsible for scaling $I$ — that's where the two discretisations diverge.
-
-## snnTorch discretisation
-
-Used by *standard-snn*. The update is the snnTorch convention — decay times the previous membrane plus the *unscaled* drive — with the reset applied after the spike is emitted:
-
-$$
-U_{t+1} = \beta\, U_t + W\, s_t + b, \qquad S_{t+1} = \sigma_{\text{surr}}(U_{t+1} - \theta) \tag{5}
-$$
-
-$$
-U_{t+1} \leftarrow \begin{cases} 0 & \text{reset=zero, } S_{t+1} = 1 \\ U_{t+1} - \theta\, S_{t+1} & \text{reset=subtract} \end{cases} \tag{6}
-$$
-
-Two things to notice. First, the spike is computed on the *post-update* membrane $U_{t+1}$, not the previous one — that's the order of operations in *snn_lif_step*. Second, $W$ and $b$ enter the update *without* a $\Delta t$ scaling, so the same trained weights produce different per-step contributions at different $\Delta t$. This is the *dt*-fragility shared with *snn.Leaky*.
-
-### Bias-balloon derivation
-
-Take the expectation of (5) under a stationary mean input rate $r$ (Hz). Each step, the expected input is $\mathbb{E}[s_t] = r\Delta t$, so $\mathbb{E}[W s_t] = W r \Delta t$. The fixed-point of the membrane is the value $U_{ss}$ that satisfies $U_{ss} = \beta U_{ss} + W r \Delta t + b$, giving
-
-$$
-U_{ss} = \frac{W r \Delta t + b}{1-\beta} \tag{7}
-$$
-
-For $\Delta t \ll \tau$, use the first-order expansion $1 - \beta \approx \Delta t / \tau$:
-
-$$
-U_{ss} \approx W r \tau \;+\; \frac{b \tau}{\Delta t} \tag{8}
-$$
-
-The spike contribution $W r \tau$ is $\Delta t$-invariant: halve $\Delta t$ and the per-step kick halves, but you take twice as many steps. The bias contribution scales as $1/\Delta t$: halve $\Delta t$ and the steady-state bias contribution doubles. This is why *standard-snn* with a non-zero bias drifts toward firing-rate saturation as $\Delta t$ shrinks at eval time.
-
-## ZOH discretisation
-
-Used by *cuba*. Start from the continuous-time LIF in canonical form ($E_L = 0$, $R = 1$):
-
-$$
-\tau\, \frac{dV}{dt} = -V + I(t), \qquad I(t) = \sum_k W\, \delta(t - t_k) + b \tag{9}
-$$
-
-where the spike train $\sum_k \delta(t - t_k)$ represents incoming presynaptic spikes at times $\{t_k\}$.
-
-### Step 1 — set up an integrating factor
-
-Rewrite (9) as
-
-$$
-\frac{dV}{dt} + \frac{1}{\tau}\, V = \frac{I(t)}{\tau}
-$$
-
-This is a first-order linear ODE.
-
-<Aside title="what is an integrating factor">
-
-For any first-order linear ODE of the form $\frac{dy}{dt} + p(t)\,y = q(t)$, an *integrating factor* $\mu(t)$ is a function chosen specifically so that multiplying both sides by $\mu(t)$ turns the left-hand side into a single perfect derivative $\frac{d}{dt}[\mu(t)\,y(t)]$. The benefit is concrete: once the LHS is a total derivative, both sides can be integrated directly — the LHS by inspection ($\int \frac{d}{dt}[\mu y]\,dt = \mu y + \text{const}$), the RHS as a definite integral of a known function. The non-trivial ODE collapses to one antiderivative.
-
-For the LHS to collapse this way, we need $\mu(t)$ to satisfy
-
-$$
-\mu(t)\,\frac{dy}{dt} + \mu(t)\,p(t)\,y \;=\; \frac{d}{dt}\!\left[\mu(t)\,y(t)\right]
-\;=\; \mu(t)\,\frac{dy}{dt} + \mu'(t)\,y.
-$$
-
-Matching the two RHS gives the defining condition $\mu'(t) = p(t)\,\mu(t)$, a separable ODE with solution $\mu(t) = e^{\int p(t)\,dt}$ (up to an unimportant multiplicative constant). In our problem $p(t) = 1/\tau$ is constant, so $\int p\,dt = t/\tau$ and
-
-$$
-\mu(t) \;=\; e^{t/\tau}.
-$$
-
-This is the unique (up to scale) function whose logarithmic derivative is $1/\tau$ — i.e. the function whose growth rate matches the membrane's leak rate.
-
-</Aside>
-
-Multiplying both sides of the original ODE by $\mu(t)$:
-
-$$
-e^{t/\tau}\, \frac{dV}{dt} + \frac{1}{\tau}\, e^{t/\tau}\, V = \frac{I(t)}{\tau}\, e^{t/\tau}
-$$
-
-The left-hand side is, by the product rule, the derivative of $V(t)\, e^{t/\tau}$:
-
-$$
-\frac{d}{dt}\!\left[V(t)\, e^{t/\tau}\right] = \frac{d V}{dt}\, e^{t/\tau} + V(t)\, \frac{1}{\tau}\, e^{t/\tau}
-$$
-
-So the ODE becomes
-
-$$
-\frac{d}{dt}\!\left[V(t)\, e^{t/\tau}\right] = \frac{I(t)}{\tau}\, e^{t/\tau} \tag{10a}
-$$
-
-### Step 2 — integrate from $t$ to $t + \Delta t$
-
-Apply $\int_t^{t+\Delta t} (\cdot)\, ds$ to both sides of (10a).
-
-<Aside title="why we rename the variable from $t$ to $s$">
-
-Equation (10a) holds at every instant of time, with $t$ used both as the independent variable inside the derivative *and* as a generic label. To integrate over an interval we need to make a distinction: one symbol that *ranges* over the interval (the dummy / bound variable), and two fixed symbols that label the endpoints. If we kept everything called $t$, expressions like $\int_t^{t+\Delta t} V(t)\, dt$ would be ambiguous — is the $t$ in $V(t)$ the moving one or the fixed lower endpoint?
-
-The standard fix is to rename the dummy variable. The relation (10a) was
-
-$$
-\frac{d}{dt}\!\left[V(t)\, e^{t/\tau}\right] \;=\; \frac{I(t)}{\tau}\, e^{t/\tau},
-$$
-
-and since "$t$" was just a placeholder for "any time," we are free to relabel it. Call the dummy variable $s$ — the equation is identically true for $s$ in place of $t$:
-
-$$
-\frac{d}{ds}\!\left[V(s)\, e^{s/\tau}\right] \;=\; \frac{I(s)}{\tau}\, e^{s/\tau}.
-$$
-
-Now $t$ stays as the *fixed* lower endpoint and $t + \Delta t$ stays as the *fixed* upper endpoint, while $s$ runs across the interval $[t,\, t + \Delta t]$. The integral $\int_t^{t+\Delta t} \cdots\, ds$ is unambiguous, and the answer it produces will be a function of the endpoints $t$ and $t + \Delta t$ — which is exactly what we want, since the goal is to compute $V(t + \Delta t)$ from $V(t)$.
-
-</Aside>
-
-<Aside title="the fundamental theorem of calculus">
-
-The fundamental theorem of calculus says that if $F$ is any antiderivative of $f$ (i.e. $F'(s) = f(s)$), then
-
-$$
-\int_a^b f(s)\, ds \;=\; F(b) - F(a).
-$$
-
-In words: integrating a derivative recovers the difference of the endpoint values. We don't need to know how the integrand behaves anywhere except at the two endpoints — the antiderivative already captures everything in between. This is exactly the situation we have: the LHS of (10a) is itself a derivative of $V(s)\,e^{s/\tau}$, so its antiderivative is just $V(s)\,e^{s/\tau}$ itself, and the integral collapses to the difference between its values at $s = t + \Delta t$ and $s = t$:
-
 $$
-\int_t^{t+\Delta t} \frac{d}{ds}\!\left[V(s)\, e^{s/\tau}\right] ds
-= V(t + \Delta t)\, e^{(t + \Delta t)/\tau} - V(t)\, e^{t/\tau}.
+\text{synaptic term} = -g_e\, (V - E_e) - g_i\, (V - E_i)
 $$
 
-</Aside>
+Three things follow from this that CUBA cannot reproduce. First, **synapses saturate**: as $V$ approaches $E_e = 0$ mV the excitatory driving force shrinks toward zero, so the same conductance produces less current the more the cell is already depolarised. CUBA can keep injecting current indefinitely. Second, **inhibition can shunt** even when it doesn't hyperpolarise: open $g_i$ increases $g_{\text{tot}}$, which shortens $\tau_{\text{eff}}$ and dampens the membrane's response to all other inputs — a multiplicative gain control unavailable to CUBA's additive currents. Third, **the effective time constant changes with input**: $\tau_{\text{eff}} = C_m/g_{\text{tot}}$ is fast when synapses are open, slow when they're closed. CUBA's $\tau$ is fixed at initialisation.
 
-Equating to the integrated right-hand side:
+**3. Explicit reversal potentials.** $E_e = 0$ mV (depolarising) and $E_i = -80$ mV (hyperpolarising, below $E_L = -65$ mV). CUBA collapses these into the sign and magnitude of $W$, but the sign is the only signal — there's no equivalent of "the inhibitory effect reverses if the membrane already sits below $-80$ mV", which COBA gets for free. The reversal potentials also let the same conductance act differently on cells in different membrane states, which is what makes the PING circuit phase-locked rather than just rate-coupled.
 
-$$
-V(t + \Delta t)\, e^{(t + \Delta t)/\tau} - V(t)\, e^{t/\tau} = \int_t^{t+\Delta t} \frac{I(s)}{\tau}\, e^{s/\tau}\, ds \tag{10b}
-$$
-
-### Step 3 — isolate $V(t + \Delta t)$
-
-Divide both sides of (10b) by $e^{(t+\Delta t)/\tau}$:
-
-$$
-V(t + \Delta t) - V(t)\, e^{t/\tau}\, e^{-(t+\Delta t)/\tau}
-= \frac{1}{\tau}\, e^{-(t+\Delta t)/\tau} \int_t^{t+\Delta t} I(s)\, e^{s/\tau}\, ds
-$$
-
-The decay coefficient on $V(t)$ simplifies using the exponent rule $e^{a}\, e^{b} = e^{a+b}$:
-
-$$
-e^{t/\tau}\, e^{-(t+\Delta t)/\tau}
-\;=\; e^{(t - t - \Delta t)/\tau}
-\;=\; e^{-\Delta t/\tau}.
-$$
-
-That gives the homogeneous part of the solution: $V(t + \Delta t) = e^{-\Delta t/\tau}\, V(t) + \text{(integral term)}$.
-
-For the integral term, the factor $e^{-(t+\Delta t)/\tau}$ sits *outside* the integral but is constant with respect to the integration variable $s$ — neither $t$ nor $\Delta t$ depend on $s$, they are fixed bounds. A standard property of integrals is that any factor independent of the integration variable can be moved freely across the integral sign:
-
-$$
-\alpha \int_t^{t+\Delta t} f(s)\, ds \;=\; \int_t^{t+\Delta t} \alpha\, f(s)\, ds,
-\qquad \alpha \text{ independent of } s.
-$$
-
-Applying that here with $\alpha = e^{-(t+\Delta t)/\tau}$ and $f(s) = I(s)\, e^{s/\tau}$:
-
-$$
-e^{-(t+\Delta t)/\tau} \int_t^{t+\Delta t} I(s)\, e^{s/\tau}\, ds
-\;=\; \int_t^{t+\Delta t} I(s)\, e^{s/\tau}\, e^{-(t+\Delta t)/\tau}\, ds.
-$$
-
-Inside the integrand the two exponentials now multiply each other. Combining via the same exponent rule:
-
-$$
-e^{s/\tau}\, e^{-(t+\Delta t)/\tau}
-\;=\; e^{(s - t - \Delta t)/\tau}.
-$$
-
-So the integral term becomes $\frac{1}{\tau} \int_t^{t+\Delta t} I(s)\, e^{(s - t - \Delta t)/\tau}\, ds$, and we can write the full update as
-
-$$
-V(t + \Delta t) = e^{-\Delta t/\tau}\, V(t) + \frac{1}{\tau} \int_t^{t+\Delta t} I(s)\, e^{(s - t - \Delta t)/\tau}\, ds
-$$
-
-### Step 4 — change of variable $\xi = s - t$
-
-Then $ds = d\xi$, $s = t + \xi$, and $s - t - \Delta t = \xi - \Delta t$. The limits transform as $s = t \Rightarrow \xi = 0$ and $s = t + \Delta t \Rightarrow \xi = \Delta t$.
-
-<Aside title="why $ds = d\xi$">
-
-The substitution defines a new variable $\xi$ as a function of $s$ via $\xi = s - t$. Inside the integral, $s$ ranges over $[t,\, t + \Delta t]$ and $t$ is the *fixed* lower endpoint (recall the aside on renaming) — $t$ does **not** vary as $s$ moves through the interval. So $\xi$ is a function of just $s$, with derivative
-
-$$
-\frac{d\xi}{ds} \;=\; \frac{d}{ds}\,(s - t) \;=\; 1 - 0 \;=\; 1.
-$$
-
-The differentials are then related by $d\xi = (d\xi/ds)\, ds = 1 \cdot ds = ds$. Equivalently: an infinitesimal step in $s$ produces an equal infinitesimal step in $\xi$, because the substitution is a pure shift (translation by $-t$) with slope 1.
-
-This is what licenses the $u$-substitution rule $\int f(\xi(s))\,(d\xi/ds)\, ds = \int f(\xi)\, d\xi$; with $d\xi/ds = 1$ the Jacobian factor is trivial and we can just relabel the variable directly.
-
-</Aside>
-
-Substituting:
-
-$$
-V(t + \Delta t) = e^{-\Delta t/\tau}\, V(t) + \frac{1}{\tau} \int_0^{\Delta t} I(t + \xi)\, e^{-(\Delta t - \xi)/\tau}\, d\xi \tag{10}
-$$
-
-This is **exact** for any forcing $I(t)$ — no approximation has been made yet.
-
-### Step 5 — replace the Dirac by a rectangle
-
-So far we have an exact equation (10) for $V_{t+1}$ given $V_t$ and the forcing $I$ over the step. Now we hit the problem the rectangle approximation exists to solve. Suppose exactly one spike lands inside the step at some time $t_k \in [t,\, t + \Delta t]$. The Dirac forcing for that spike alone is
-
-$$
-I(t + \xi) \;=\; W\, \delta\!\bigl(t + \xi - t_k\bigr),
-$$
-
-i.e. the forcing is zero everywhere across the step except at $\xi = t_k - t$, where it is an infinitely tall pulse of area $W$. Plugging that into the integral in (10),
-
-$$
-\frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau}\, W\, \delta\!\bigl(t + \xi - t_k\bigr)\, d\xi,
-$$
-
-and using the **sifting property** of the Dirac — $\int f(\xi)\, \delta(\xi - a)\, d\xi = f(a)$ whenever $a$ lies inside the integration interval — the integrand is collapsed to its value at the spike's location, $\xi = t_k - t$. The contribution to $V_{t+1}$ from that single spike comes out as
-
-$$
-\frac{W}{\tau}\, e^{-(\Delta t - (t_k - t))/\tau}.
-$$
+**4. Fixed recurrent E-I matrices.** Each E-I layer carries three weight matrices — $W^{EE}$ (E→E), $W^{EI}$ (E→I), $W^{IE}$ (I→E) — initialised at the start and held *requires_grad=False*. Only the feedforward $W_{\text{in}}$ and readout $W_{\text{out}}$ train. This is the most significant philosophical departure from CUBA: the gamma rhythm produced by *ping* is **not learned**. It is a fixed substrate, present at initialisation, that the optimiser learns to *read out* via the trainable feedforward weights. Empirically this is what makes [024 — Inhibition-gated sparsity in trainable spiking neural networks](/notebooks/nb024/) work: a network trained as pure COBA (with the E-I loop silent) can be retrofitted with PING dynamics at inference by simply turning *--ei-strength* on, because the loop hardware was always there.
 
-Read the exponent: $\Delta t - (t_k - t)$ is the amount of time *between the spike and the end of the step*. So the spike contributes more if it lands late in the step (small remaining time means little decay before reaching $t + \Delta t$) and less if it lands early (long remaining time means heavy exponential decay). In other words: **the exact answer depends on where inside the step the spike arrived** — on the *sub-step* arrival time $t_k - t$, a continuous number between $0$ and $\Delta t$.
+**5. Exponential synapses with two time constants.** Every COBA synapse is a first-order low-pass filter on its presynaptic spike train, not an instantaneous kick. Excitatory (AMPA) synapses decay with $\tau_{\text{AMPA}} = 2$ ms; inhibitory (GABA) synapses decay with $\tau_{\text{GABA}} = 9$ ms. CUBA has no synaptic filter at all — spikes hit the membrane directly. The slow-GABA / fast-AMPA gap is the single most important quantity for PING: an E-burst recruits I on the AMPA timescale ($\sim 2$ ms), I inhibits E on the GABA timescale ($\sim 9$ ms), and the resulting E↔I oscillation lands in the gamma band ($\sim 30$ Hz). Symmetric time constants would not produce PING.
 
-That sub-step time is information the discrete simulator does not carry. Once we have agreed to integrate in steps of size $\Delta t$, the only data we keep per neuron per step is "did at least one spike arrive in this step?" — a single Boolean $s_t \in \{0, 1\}$. We have collapsed the continuous spike time onto a binary step indicator, and the moment we do that we forfeit the dependence on $t_k - t$ that the exact integral wants.
+Beyond these five structural differences, COBA also bakes in some constants that CUBA leaves to the user: **hard reset** (not subtract; biological cells discard overshoot), a **mandatory refractory period** (3 ms for E, 1.5 ms for I), and **per-population biophysical heterogeneity** — E and I cells have different membrane time constants, capacitances, leak conductances and refractory periods (see the table below). CUBA uses a single uniform parameter set for every hidden unit. The asymmetry between E and I biophysics is what gives PING its phase structure — both populations have to react on different timescales for the loop to oscillate rather than equilibrate.
 
-<Aside title="why the bias $b$ doesn't appear in that contribution">
+## E and I neurons are not the same
 
-The full forcing from (9) is $I(t) = \sum_k W\, \delta(t - t_k) + b$ — a Dirac train plus a constant bias. The integral in (10) is *linear* in $I$, so the two parts contribute independently and we can write
+E and I units share the same LIF equations (1)–(2) below, but every biophysical constant differs by a fixed ratio. The values below follow Börgers (2017) and are pinned in *src/pinglab/models.py*:
 
-$$
-\int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau}\, I(t + \xi)\, d\xi
-\;=\; \underbrace{\int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau}\, W\, \delta(t + \xi - t_k)\, d\xi}_{\text{spike part}}
-\;+\; \underbrace{\int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau}\, b\, d\xi}_{\text{bias part}}.
-$$
+| property                       | symbol            | E neuron      | I neuron      | ratio (E:I) |
+|--------------------------------|-------------------|---------------|---------------|-------------|
+| membrane time constant         | $\tau_m$          | 20 ms         | 5 ms          | 4 : 1       |
+| capacitance                    | $C_m$             | 1.0 nF        | 0.5 nF        | 2 : 1       |
+| leak conductance               | $g_L = C_m/\tau_m$ | 0.05 µS       | 0.1 µS        | 1 : 2       |
+| refractory period              | $\tau_{\text{ref}}$ | 3 ms          | 1.5 ms        | 2 : 1       |
+| inputs received                | —                 | $g_e$ + $g_i$ | $g_e$ only    | —           |
+| output transmitter             | —                 | AMPA          | GABA          | —           |
+| synaptic decay onto target     | $\tau_{\text{syn}}$ | 2 ms (AMPA)   | 9 ms (GABA)   | 1 : 4.5     |
+| synaptic reversal at target    | —                 | $E_e = 0$ mV  | $E_i = -80$ mV | —           |
+| population fraction in a layer | —                 | 4/5           | 1/5           | 4 : 1       |
 
-The expression $(W/\tau)\, e^{-(\Delta t - (t_k - t))/\tau}$ shown above is just the *spike part*, isolated because that is the term whose value depends on the unknown sub-step arrival time $t_k - t$. The bias part is a clean integral of a constant against the same kernel and evaluates to $b\,(1 - \beta)$ regardless of where the spike falls (it doesn't depend on $t_k$ at all). We keep the spike part separate here only because that is what needs the rectangle approximation; the bias rides along untouched and re-enters in (11) below.
+The functional consequences fall out of this asymmetry:
 
-</Aside>
+- **I neurons integrate four times faster.** Their shorter $\tau_m$ (and the 2× higher $g_L$) makes the I membrane reach its steady state in $\sim 5$ ms — fast enough that a synchronous E-burst raises I above threshold within a single AMPA window. This is the *rising* edge of a PING cycle.
+- **I→E inhibition is slow and broad.** GABA's $\tau_{\text{GABA}} = 9$ ms is more than four times AMPA's $\tau_{\text{AMPA}} = 2$ ms, so a burst of I-spikes produces inhibition that outlasts the triggering excitation by tens of milliseconds. This is the *falling* edge: E is shunted long enough for the excitatory drive to re-accumulate, which sets the gamma period at $\sim 30$ Hz.
+- **I neurons receive no inhibition.** Only $g_e$ is wired into the I update (*i_step_coba* in *models.py* takes a single conductance argument). No I→I recurrence and no I→I anatomically. This keeps the I population reactive — it follows the E population's drive without being self-suppressed.
+- **The 4:1 population ratio** matches mammalian cortex. With 1024 E units per hidden layer the corresponding I population is 256.
 
-We replace each Dirac that lands in $[t, t+\Delta t]$ by a rectangle of equal area $W$ and width $\Delta t$, i.e. constant height $W/\Delta t$. Writing $s_t \in \{0, 1\}$ for the indicator that a spike occurred in step $t$, the effective forcing over the step is
+Functions *e_step_coba* and *i_step_coba* in *models.py* wrap the same exp-Euler LIF primitive with these per-population constants.
 
-$$
-I(t + \xi) \;\to\; \frac{W\, s_t}{\Delta t} + b, \qquad \xi \in [0, \Delta t]
-$$
+## Membrane equation
 
-The bias $b$ is already constant, so it is unmodified. Define $\beta \equiv e^{-\Delta t / \tau}$ and $V_t \equiv V(t)$. Substituting into (10):
+A single COBA neuron obeys
 
 $$
-V_{t+1} = \beta\, V_t + \frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau} \left[\frac{W\, s_t}{\Delta t} + b\right] d\xi \tag{11}
+C_m\, \frac{dV}{dt} = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i) \tag{1}
 $$
 
-### Step 6 — pull the constants out of the integral
+with capacitance $C_m$, leak conductance $g_L$, and reversal potentials $E_L = -65$ mV, $E_e = 0$ mV, $E_i = -80$ mV. Each conductance term pulls $V$ toward its reversal potential at a rate proportional to the conductance. Excitatory synapses drive $V$ up toward $E_e = 0$; inhibitory synapses both pull $V$ down toward $E_i = -80$ *and* increase total conductance, which shortens the effective membrane time constant — this is *shunting inhibition*, and it's why COBA networks are more dynamically rich than CUBA.
 
-The bracket is independent of $\xi$, so
+Collect on $V$ (expand the three driving-force terms and group $V$ from each):
 
 $$
-V_{t+1} = \beta\, V_t + \left[\frac{W\, s_t}{\Delta t} + b\right] \cdot \underbrace{\frac{1}{\tau} \int_0^{\Delta t} e^{-(\Delta t - \xi)/\tau}\, d\xi}_{\text{call this } J}
+C_m\, \frac{dV}{dt} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{2}
 $$
 
-### Step 7 — evaluate $J$ by $u$-substitution
+This is a linear first-order ODE of the form $C_m \dot V = -A\,V + B$, with $A = g_L + g_e + g_i$ and $B = g_L E_L + g_e E_e + g_i E_i$. Any equation in that form can be rewritten as a *decay toward a steady-state value*: if you set $\dot V = 0$ in (2), you find the voltage at which the inflow $B$ exactly balances the outflow $A V$. Call that voltage $V_\infty$ — the value the membrane *would* relax to if the conductances were held constant forever. Define accordingly
 
-Let $u = \Delta t - \xi$. Then $du = -d\xi$, i.e. $d\xi = -du$. The limits transform as $\xi = 0 \Rightarrow u = \Delta t$ and $\xi = \Delta t \Rightarrow u = 0$. Substituting:
-
 $$
-J = \frac{1}{\tau} \int_{u=\Delta t}^{u=0} e^{-u/\tau}\, (-du)
+g_{\text{tot}} = g_L + g_e + g_i, \qquad \tau_{\text{eff}} = \frac{C_m}{g_{\text{tot}}}, \qquad V_\infty = \frac{g_L E_L + g_e E_e + g_i E_i}{g_{\text{tot}}} \tag{3}
 $$
 
-The negative sign flips the limits:
+Each of these has a clean physical meaning:
 
-$$
-J = \frac{1}{\tau} \int_0^{\Delta t} e^{-u/\tau}\, du
-$$
+- $g_{\text{tot}}$ is the *total* membrane conductance — leak plus every open synapse summed. Bigger total conductance ⇒ the cell is more "leaky" overall.
+- $\tau_{\text{eff}} = C_m / g_{\text{tot}}$ is the *effective* membrane time constant. Note this is **not** the leak-only $\tau_m = C_m/g_L$ from the constants table — when synapses are open, $\tau_{\text{eff}} < \tau_m$ because $g_{\text{tot}} > g_L$. This is *shunting*: open synapses speed up the membrane's response.
+- $V_\infty$ is a conductance-weighted average of the three reversal potentials $E_L, E_e, E_i$. With only the leak open, $V_\infty = E_L$. As $g_e$ rises, $V_\infty$ shifts up toward $E_e = 0$ mV. As $g_i$ rises, $V_\infty$ shifts down toward $E_i = -80$ mV.
 
-The antiderivative of $e^{-u/\tau}$ with respect to $u$ is $-\tau\, e^{-u/\tau}$ (check: $\frac{d}{du}[-\tau\, e^{-u/\tau}] = -\tau \cdot (-1/\tau)\, e^{-u/\tau} = e^{-u/\tau}$). Evaluate:
+Substituting (3) into (2) and dividing through by $g_{\text{tot}}$ yields the standard "decay-to-steady-state" form:
 
 $$
-J = \frac{1}{\tau}\, \Big[ -\tau\, e^{-u/\tau} \Big]_0^{\Delta t}
-= \frac{1}{\tau}\, \Big[ -\tau\, e^{-\Delta t/\tau} - (-\tau \cdot 1) \Big]
-= \frac{1}{\tau}\, \big[\, \tau - \tau\, e^{-\Delta t/\tau} \,\big]
-= 1 - e^{-\Delta t/\tau}
-= 1 - \beta \tag{12}
+\tau_{\text{eff}}\, \frac{dV}{dt} = -(V - V_\infty) \tag{4}
 $$
 
-### Step 8 — substitute $J$ back and distribute
+This is the form every linear first-order ODE with constant coefficients can be put into; once you're here you can integrate analytically by inspection. The closed-form solution over an interval where $\tau_{\text{eff}}$ and $V_\infty$ are constant is
 
-From Step 6 with $J = 1 - \beta$:
-
 $$
-V_{t+1} = \beta\, V_t + (1 - \beta) \left[\frac{W\, s_t}{\Delta t} + b\right]
-= \beta\, V_t + \frac{1 - \beta}{\Delta t}\, W\, s_t + (1 - \beta)\, b
+V(t) = V_\infty + (V_0 - V_\infty)\, e^{-t / \tau_{\text{eff}}}
 $$
-
-Renaming $V \to U$ to match the code's symbol for membrane potential:
 
-$$
-\boxed{U_{t+1} = \beta\, U_t + \frac{1 - \beta}{\Delta t}\, W\, s_t + (1 - \beta)\, b} \tag{13}
-$$
+— the membrane interpolates from its starting value $V_0$ toward $V_\infty$ on a timescale $\tau_{\text{eff}}$.
 
-In the code, the two prefactors are computed once per step as *spike_scale* $= (1-\beta)/\Delta t$ and *bias_scale* $= 1 - \beta$; see [models.py:705-710](https://github.com/eoinmurray/pinglab/blob/main/src/pinglab/models.py#L705-L710).
+The catch is that in continuous time $\tau_{\text{eff}}$ and $V_\infty$ are *not* constant — both depend on $g_e(t)$ and $g_i(t)$, which evolve as spikes arrive. The zero-order hold below (eq 5) is what makes this tractable numerically: freeze $g_e$ and $g_i$ over one $\Delta t$ step, integrate (4) exactly under that freeze, then update $g_e$ and $g_i$ for the next step.
 
-### Step 9 — $\Delta t$-invariance, part 1: bias steady state
+## Discretisation
 
-In the absence of spikes ($s_t = 0$), (13) reduces to $U_{t+1} = \beta\, U_t + (1-\beta)\, b$. Setting $U_{t+1} = U_t = \bar U$ for the fixed point:
+Hold $g_e, g_i$ constant over the step $[t, t+\Delta t]$ (zero-order hold) — then $\tau_{\text{eff}}$ and $V_\infty$ are also constant and (4) integrates analytically:
 
 $$
-\bar U = \beta\, \bar U + (1 - \beta)\, b
-\;\;\Longrightarrow\;\;
-\bar U - \beta\, \bar U = (1 - \beta)\, b
-\;\;\Longrightarrow\;\;
-(1 - \beta)\, \bar U = (1 - \beta)\, b
-\;\;\Longrightarrow\;\;
-\bar U = b
+V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp\!\left(-\Delta t / \tau_{\text{eff}}\right) \tag{5}
 $$
 
-The steady-state membrane equals $b$ regardless of $\Delta t$. ✓
+After the membrane update, apply the threshold/reset:
 
-### Step 10 — $\Delta t$-invariance, part 2: single-spike time integral
-
-Consider a network at rest, $U_0 = 0$, that receives one spike at step 0 ($s_0 = 1$, $s_t = 0$ for $t \ge 1$), with $b = 0$. Then from (13):
-
 $$
-U_1 = \beta \cdot 0 + \frac{1 - \beta}{\Delta t}\, W \cdot 1 + 0 = K, \quad K \equiv \frac{1 - \beta}{\Delta t}\, W
+S_{t+1} = \mathbf{1}[V_{t+1} \geq V_{\text{th}}], \quad V_{t+1} \leftarrow V_{\text{reset}} \text{ if } S_{t+1} = 1 \text{ or refractory} \tag{6}
 $$
 
-For $t \ge 1$ there is no further forcing, so $U_{t+1} = \beta\, U_t$, which means $U_t = K\, \beta^{t-1}$ for $t \ge 1$. To get a $\Delta t$-invariant quantity, integrate $U$ against time using a left-Riemann sum with step $\Delta t$:
+with $V_{\text{th}} = -50$ mV, $V_{\text{reset}} = -65$ mV. Refractory periods are $\tau_{\text{ref}}^E = 3$ ms and $\tau_{\text{ref}}^I = 1.5$ ms — held in a per-neuron countdown that suppresses spiking until exhausted. See *e_step_coba* / *i_step_coba* in *models.py*.
 
-$$
-\int_0^\infty U(t)\, dt \;\approx\; \sum_{t=0}^\infty U_t\, \Delta t
-= U_0\, \Delta t + \sum_{t=1}^\infty K\, \beta^{t-1}\, \Delta t
-= 0 + K\, \Delta t \sum_{m=0}^\infty \beta^m
-$$
+## Synaptic conductances
 
-The sum is a geometric series with ratio $\beta \in (0, 1)$, so $\sum_{m=0}^\infty \beta^m = 1/(1 - \beta)$. Substituting:
+Each conductance is the convolution of its presynaptic spike train with a decaying exponential. Discretising with the post-decay-then-kick convention:
 
 $$
-\int_0^\infty U(t)\, dt \;\approx\; \frac{K\, \Delta t}{1 - \beta}
-= \frac{1}{1 - \beta} \cdot \frac{1 - \beta}{\Delta t}\, W \cdot \Delta t
-= W
+g^{E \to E}_{t+1} = \alpha\bigl(g^{E \to E}_t + W^{EE}\, s^{E}_t\bigr) + W_{\text{in}}\, s^{\text{inp}}_t \tag{7}
 $$
-
-The result is exactly $W$, independent of $\Delta t$. The corresponding continuous-time impulse response of (9) is $V(t) = (W/\tau)\, e^{-t/\tau}\, \mathbf{1}_{t \ge 0}$, whose time integral is
 
 $$
-\int_0^\infty \frac{W}{\tau}\, e^{-t/\tau}\, dt = \frac{W}{\tau} \cdot \tau \,\big[\,1 - 0\,\big] = W
+g^{E \to I}_{t+1} = \alpha\bigl(g^{E \to I}_t + W^{EI}\, s^{E}_t\bigr) \tag{8}
 $$
-
-The discrete and continuous time integrals agree. ✓
-
-### Step 11 — small-$\Delta t$ limit (sanity check)
-
-Taylor-expand $\beta = e^{-\Delta t/\tau}$ around $\Delta t = 0$:
 
 $$
-\beta = 1 - \frac{\Delta t}{\tau} + \frac{1}{2}\!\left(\frac{\Delta t}{\tau}\right)^{\!2} - \cdots
-\;\;\Longrightarrow\;\;
-1 - \beta = \frac{\Delta t}{\tau} - \frac{1}{2}\!\left(\frac{\Delta t}{\tau}\right)^{\!2} + \cdots
+g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{9}
 $$
-
-To leading order in $\Delta t/\tau$:
-
-- $(1 - \beta)/\Delta t = 1/\tau - \Delta t/(2\tau^2) + O(\Delta t^2) \to 1/\tau$.
-- $(1 - \beta) = \Delta t/\tau + O(\Delta t^2)$, so $(1 - \beta)/\Delta t = 1/\tau + O(\Delta t)$.
-
-In words: the per-spike kick $(1-\beta)/\Delta t \cdot W$ approaches $W/\tau$ — i.e. the impulse response of the continuous LIF — and the per-step bias contribution $(1-\beta)\, b$ shrinks linearly with $\Delta t$. The number of steps per ms scales as $1/\Delta t$, so the per-millisecond bias contribution is $(1-\beta)\, b / \Delta t \to b/\tau$, also $\Delta t$-invariant.
-
-### Contrast with snnTorch
-
-In the snnTorch discretisation, $W$ and $b$ have prefactor $1$ regardless of $\Delta t$, so the per-spike kick is $W$ (not $W/\tau$) and the per-step bias is $b$ (not $b\, \Delta t/\tau$). Changing $\Delta t$ at eval time therefore shifts the effective input scale in *standard-snn*, while ZOH leaves it fixed — verified empirically in [013 — dt sensitivity](/notebooks/nb013/).
-
-## Reset modes
 
-Two choices on spike, controlled by *--reset-mode*:
+with $\alpha = e^{-\Delta t / \tau_{\text{AMPA}}}$ and $\gamma = e^{-\Delta t / \tau_{\text{GABA}}}$.
 
-- *zero* — hard reset $U_{t+1} \leftarrow 0$. Discards overshoot. Standard for biological neurons.
-- *subtract* — $U_{t+1} \leftarrow U_{t+1} - \theta$. Preserves overshoot above threshold for the next step. Standard for snnTorch tutorials.
+The trainable feedforward input $W_{\text{in}} s^{\text{inp}}_t$ is added to the input-layer E→E conductance **after** the decay+kick step, not folded into it — this matches the code and lets the input arrive "fresh" each step regardless of the recurrent dynamics.
 
-Defaults: *standard-snn* uses *subtract* under tutorial-mode; *cuba* uses *zero*.
+## Architectural constants
 
-## Refractory period
+Defaults at initialisation (overridable by CLI flags):
 
-Optional, controlled by *--ref-ms*. Implemented as a per-neuron *can_fire* mask in *snn_lif_step*: during refractory the membrane is clamped to $V_{\text{reset}}$ and the spike output is forced to zero. Default 0 ms (no refractory) for the CUBA-family rungs.
+- E:I ratio 4:1 within each hidden layer. For *--n-hidden 1024* this gives 1024 E + 256 I.
+- $W^{EE} = 0$, $W^{EI} \approx 1$ µS, $W^{IE} \approx 3$ µS. Each is scaled by *--ei-strength* at init.
+- Dale's law: all recurrent weights $\geq 0$; sign is determined by population.
+- $\Delta t$ ceiling. Numerical stability of the exp-Euler step degrades when $\Delta t$ approaches the shortest time constant, $\tau_{\text{AMPA}} = 2$ ms. Train and infer at $\Delta t \leq 1$ ms.
 
 ## Where this leads
 
-The two CUBA rungs span the design space of a single LIF cell with current-based inputs. The next step up the ladder adds genuine *conductance-based* synapses and a recurrent E-I loop — the COBA and PING models, documented at [the models page](/articles/art004/) and exercised throughout the [PING paper](/articles/art001/) and [notebooks](/notebooks/).
+COBA equips a single LIF cell with conductance-based synapses, two cell populations, and fixed recurrent E↔I matrices. The result is the same network as CUBA only at *--ei-strength = 0*; at non-zero values the inhibitory loop produces PING gamma oscillations without any further learning. The empirical consequences — the gamma rhythm before training, the loop's survival under training, and the accuracy / firing-rate trade-off that makes PING the headline result — are characterised in [023 — PING fundamentals](/notebooks/nb023/) and [024 — Inhibition-gated sparsity](/notebooks/nb024/).
