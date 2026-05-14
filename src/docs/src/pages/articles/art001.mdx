@@ -14,7 +14,7 @@ import Figure from "../../components/Figure.astro";
 We show that biologically inspired PING trains and that it operates at low firing rates in the absense of a spike penalty. On MNIST, PING matches CUBA in test accuracy at roughly an order of magnitude lower mean hidden-E firing rate, with no spike-penalty regulariser (Figure 1).
 
 <Figure id="Figure 1" title="Accuracy vs firing rate across the cuba → coba → ping ladder" src="/figures/notebooks/nb024/acc_vs_rate.png" alt="Bar chart with two y-axes. For each of cuba, coba, ping there are two side-by-side bars: solid for final-epoch test accuracy (left y-axis, %) and hatched for mean hidden-E firing rate (right y-axis, Hz). cuba and coba bars are tall on both axes; ping is tall on accuracy and short on rate.">
-  Final-epoch test accuracy (solid bar, left y-axis) and mean hidden-E firing rate (hatched bar, right y-axis) for each model, trained on MNIST with calibrated per-model recipes and no spike-penalty regulariser. CUBA (85.8%, 87.6 Hz) and COBA (84.0%, 84.7 Hz) sit at the high-rate corner; PING reaches the same accuracy (84.8%) at $\sim 1/17$ the firing rate (5.1 Hz). From [024 — Ladder accuracy vs firing rate](/notebooks/nb024/), Figure 1.
+  Final-epoch test accuracy (solid bar, left y-axis) and mean hidden-E firing rate (hatched bar, right y-axis) for each model, trained on MNIST with calibrated per-model recipes and no spike-penalty regulariser. CUBA (85.8%, 87.6 Hz) and COBA (84.0%, 84.7 Hz) sit at the high-rate corner; PING reaches the same accuracy (84.8%) at $\sim 1/17$ the firing rate (5.1 Hz). From [024 — Inhibition-gated sparsity in trainable spiking neural networks](/notebooks/nb024/), Figure 1.
 </Figure>
 
 ## Introduction
@@ -63,7 +63,7 @@ PING has been modelled but not trained on a task. We train it here on MNIST clas
 The network is a conductance-based E/I model with a fixed E→I→E loop. Feedforward and E→E weights are learned; the inhibitory loop is held at its initialised strength. Training uses surrogate-gradient backprop with a cumulative-membrane readout. Figure 6 shows that the three rungs of the ladder converge to within $\sim 2$ percentage points of each other on test accuracy; Figure 7 zooms in on PING's curves in isolation.
 
 <Figure id="Figure 6" title="Learning curves across the ladder" src="/figures/notebooks/nb024/learning_curves.png" alt="Two panels. Left: train loss per epoch, one curve per model (cuba red, coba amber, ping cyan). Right: test accuracy per epoch, same colors. All three curves converge to roughly 84–86%.">
-  Train loss (left) and test accuracy (right) per epoch, one curve per model. PING reaches the highest test accuracy after one epoch (60%) and the three converge to within $\sim 2$ percentage points by epoch 10. From [024 — Ladder accuracy vs firing rate](/notebooks/nb024/), Figure 2.
+  Train loss (left) and test accuracy (right) per epoch, one curve per model. PING reaches the highest test accuracy after one epoch (60%) and the three converge to within $\sim 2$ percentage points by epoch 10. From [024 — Inhibition-gated sparsity in trainable spiking neural networks](/notebooks/nb024/), Figure 2.
 </Figure>
 
 <Figure id="Figure 7" title="Training curves" src="/figures/notebooks/nb012/training_curves.png" alt="Train loss and test accuracy per epoch for ping">
@@ -121,20 +121,20 @@ Figure 13 reports *when* each model commits to a class within the 200 ms trial (
 
 PING and COBA share the same units and feedforward path; they differ only in whether the E→I→E loop is active. Does the loop need to be active during training, or can it be switched on at inference? We sweep *ei_strength* at test time on frozen COBA weights.
 
-<Figure id="Figure 14" title="Transfer accuracy vs I-loop strength" src="/figures/notebooks/nb019/acc_sweep.png" alt="Line plot: test accuracy versus inference ei_strength, on coba-trained weights.">
-  Test accuracy vs inference-time *ei_strength* on COBA-trained weights. Dotted lines: COBA baseline and 10% chance. From [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), Figure 1.
+<Figure id="Figure 14" title="Transfer accuracy vs I-loop strength" src="/figures/notebooks/nb024/ei_acc_sweep.png" alt="Line plot: test accuracy versus inference ei_strength, on coba-trained weights.">
+  Test accuracy vs inference-time *ei_strength* on COBA-trained weights. Dotted lines: COBA baseline and 10% chance. From [024 — Inhibition-gated sparsity in trainable spiking neural networks](/notebooks/nb024/), Figure 7.
 </Figure>
 
 Figure 15 reports population firing rates across the sweep: E rate falls as the loop is dialled up, I rate rises from zero.
 
-<Figure id="Figure 15" title="E and I firing rates vs I-loop strength" src="/figures/notebooks/nb019/rates_sweep.png" alt="Line plot: mean excitatory and inhibitory population firing rates versus inference ei_strength.">
-  Mean E (hidden) and I population firing rates per test pass vs *ei_strength*. From [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), Figure 2.
+<Figure id="Figure 15" title="E and I firing rates vs I-loop strength" src="/figures/notebooks/nb024/ei_rates_sweep.png" alt="Line plot: mean excitatory and inhibitory population firing rates versus inference ei_strength.">
+  Mean E (hidden) and I population firing rates per test pass vs *ei_strength*. From [024 — Inhibition-gated sparsity in trainable spiking neural networks](/notebooks/nb024/), Figure 8.
 </Figure>
 
 Figure 16 shows single-trial rasters at six *ei* values. At ei = 0 the network is asynchronous; by ei ≈ 0.4 the same weights produce gamma-band E-then-I cycles.
 
-<Figure id="Figure 16" title="E and I spike rasters across the ei sweep" src="/figures/notebooks/nb019/rasters.png" alt="Stacked raster panels, one per ei value, showing E (black) and I (red) spike trains for a single test sample.">
-  Single-trial spike rasters at six *ei* values (E black, I red; dotted line separates populations). Same trained feedforward and E→E weights throughout. From [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), Figure 3.
+<Figure id="Figure 16" title="E and I spike rasters across the ei sweep" src="/figures/notebooks/nb024/ei_rasters.png" alt="Stacked raster panels, one per ei value, showing E (black) and I (red) spike trains for a single test sample.">
+  Single-trial spike rasters at six *ei* values (E black, I red; dotted line separates populations). Same trained feedforward and E→E weights throughout. From [024 — Inhibition-gated sparsity in trainable spiking neural networks](/notebooks/nb024/), Figure 9.
 </Figure>
 
 ### Classification latency
@@ -156,7 +156,7 @@ CUBA plateaus slightly earlier in time; against spike count, COBA and PING reach
 Unpenalised, the three models settle at different rates (Figure 18). Adding an upper-bound regulariser $\lambda_u \cdot \sum \text{ReLU}(\bar s - \theta_u)^2$ — with strength $\lambda_u = 10^{-3}$ held fixed — and sweeping the budget $\theta_u$ (mean spikes per trial per unit) traces each model's accuracy–rate frontier.
 
 <Figure id="Figure 19" title="Accuracy / rate frontier" src="/figures/notebooks/nb024/frontier.png" alt="Pareto frontier: best test accuracy versus achieved hidden E rate, one line per model. Each point labelled with its θ_u value.">
-  Test accuracy vs achieved hidden-E firing rate, one curve per model; each point is one *(model, $\theta_u$)* configuration. From [024 — Ladder accuracy vs firing rate](/notebooks/nb024/), Figure 3.
+  Test accuracy vs achieved hidden-E firing rate, one curve per model; each point is one *(model, $\theta_u$)* configuration. From [024 — Inhibition-gated sparsity in trainable spiking neural networks](/notebooks/nb024/), Figure 3.
 </Figure>
 
 PING's frontier is flat: its unpenalised rate is already biological, and accuracy is insensitive to $\theta_u$. CUBA loses accuracy when forced down toward PING's rate.
