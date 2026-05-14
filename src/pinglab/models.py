@@ -1366,10 +1366,19 @@ class COBANet(SNNBase):
             for i in range(1, self.n_layers + 1):
                 n_e = self.hidden_sizes[i - 1]
                 rec_buf[self._hid_key(i)] = torch.zeros(T_steps, B, n_e, device=device)
+                # Extra trace buffers: membrane voltage and conductances for
+                # E (and I, where present). Lets downstream image-mode dump
+                # per-neuron v/g traces alongside spikes.
+                rec_buf[f"v_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
+                rec_buf[f"ge_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
                 if i in self.ei_layers:
+                    n_inh = n_e // 4
                     rec_buf[self._inh_key(i)] = torch.zeros(
-                        T_steps, B, n_e // 4, device=device
+                        T_steps, B, n_inh, device=device
                     )
+                    rec_buf[f"gi_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
+                    rec_buf[f"v_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
+                    rec_buf[f"ge_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
         # GPU-side spike accumulators
         n_spk_tensors = {}
         for i in range(1, self.n_layers + 1):
@@ -1460,8 +1469,13 @@ class COBANet(SNNBase):
                 for i in range(1, self.n_layers + 1):
                     k = str(i)
                     rec_buf[self._hid_key(i)][t] = state["s_e"][k]
+                    rec_buf[f"v_e_{i}"][t] = state["v_e"][k]
+                    rec_buf[f"ge_e_{i}"][t] = state["ge_e"][k]
                     if i in self.ei_layers:
                         rec_buf[self._inh_key(i)][t] = state["s_i"][k]
+                        rec_buf[f"gi_e_{i}"][t] = state["gi_e"][k]
+                        rec_buf[f"v_i_{i}"][t] = state["v_i"][k]
+                        rec_buf[f"ge_i_{i}"][t] = state["ge_i"][k]
                 rec_buf["out"][t] = logits_t
 
         sizes = {}

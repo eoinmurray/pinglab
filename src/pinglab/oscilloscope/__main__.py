@@ -1184,6 +1184,10 @@ def generate_image_snapshot(
 
     npz_name = Path(out_filename).with_suffix(".npz").name
     npz_path = out_dir / npz_name
+    extra = {}
+    for key in ("v_e_1", "ge_e_1", "gi_e_1", "v_i_1", "ge_i_1"):
+        if key in rec:
+            extra[key] = np.asarray(rec[key])
     np.savez(
         npz_path,
         spk_e=np.asarray(spk_e),
@@ -1191,6 +1195,7 @@ def generate_image_snapshot(
         dt=np.float32(dt),
         n_e=np.int32(C.N_E),
         n_i=np.int32(C.N_I),
+        **extra,
     )
     log.info(f"  \u2192 {npz_path}")
 

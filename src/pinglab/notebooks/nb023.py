@@ -6,7 +6,9 @@ loop disabled (*--ei-strength 0*, "coba") and once with it active
 plots from the saved spike arrays. Everything else is held fixed
 (MNIST digit 0 sample 0, --input-rate 50, --t-ms 400, --w-in 1.5 0.3).
 
-Two PNGs are written: raster__coba.png and raster__ping.png.
+Per cell, two PNGs are written: raster__<cell>.png (population spike
+raster) and traces__<cell>.png (membrane voltage + conductances for a
+single representative neuron from each population).
 
 Notebook entry: src/docs/src/pages/notebooks/nb023.mdx
 """
@@ -26,6 +28,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src" / "pinglab"))
 
+import theme  # noqa: E402
 from _modal import parse_modal_gpu  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from _tier import parse_tier  # noqa: E402
@@ -70,6 +73,7 @@ DEFAULT_TIER = "small"
 
 
 def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+    theme.apply()
     data = np.load(npz_path)
     spk_e = data["spk_e"]
     spk_i = data["spk_i"]
@@ -81,15 +85,17 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
 
     if has_i:
         fig, (ax_e, ax_i) = plt.subplots(
-            2, 1, figsize=(8, 4.5), sharex=True,
+            2, 1, figsize=(8.0, 4.5), sharex=True,
             gridspec_kw={"height_ratios": [4, 1]},
         )
     else:
-        fig, ax_e = plt.subplots(1, 1, figsize=(8, 4.5))
+        fig, ax_e = plt.subplots(1, 1, figsize=(8.0, 4.5))
         ax_i = None
 
     e_idx, e_t = np.where(spk_e.T)
-    ax_e.scatter(t_ms[e_t], e_idx, s=1.0, c="black", marker="|", linewidths=0.5)
+    ax_e.scatter(
+        t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|", linewidths=0.5
+    )
     ax_e.set_ylabel("E neuron")
     ax_e.set_ylim(0, spk_e.shape[1])
     ax_e.set_xlim(0, T * dt)
@@ -97,7 +103,9 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
 
     if has_i:
         i_idx, i_t = np.where(spk_i.T)
-        ax_i.scatter(t_ms[i_t], i_idx, s=1.0, c="C3", marker="|", linewidths=0.5)
+        ax_i.scatter(
+            t_ms[i_t], i_idx, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.5
+        )
         ax_i.set_ylabel("I neuron")
         ax_i.set_ylim(0, spk_i.shape[1])
         ax_i.set_xlim(0, T * dt)
@@ -105,6 +113,82 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     else:
         ax_e.set_xlabel("time (ms)")
 
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
+def _pick_active(spk: np.ndarray) -> int | None:
+    if spk.size == 0 or spk.shape[0] == 0:
+        return None
+    counts = spk.sum(axis=0)
+    if not np.any(counts > 0):
+        return None
+    return int(np.argmax(counts))
+
+
+def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
+    theme.apply()
+    data = np.load(npz_path)
+    spk_e = data["spk_e"]
+    spk_i = data["spk_i"]
+    v_e = data["v_e_1"]
+    ge_e = data["ge_e_1"]
+    dt = float(data["dt"])
+    T = spk_e.shape[0]
+    t_ms = np.arange(T) * dt
+
+    has_i_state = (
+        "v_i_1" in data.files
+        and data["v_i_1"].shape[0] == T
+        and spk_i.size > 0
+        and spk_i.any()
+    )
+    has_gi_e = "gi_e_1" in data.files and data["gi_e_1"].any()
+
+    e_idx = _pick_active(spk_e)
+    if e_idx is None:
+        e_idx = 0
+    i_idx = _pick_active(spk_i) if has_i_state else None
+
+    # Both 2-panel and 4-panel variants keep the overall figure at 16:9.
+    nrows = 4 if has_i_state else 2
+    figsize = (10.0, 5.625) if nrows == 4 else (8.0, 4.5)
+    fig, axes = plt.subplots(nrows, 1, figsize=figsize, sharex=True)
+    axes = list(np.atleast_1d(axes))
+
+    ax_ve = axes[0]
+    ax_ve.plot(t_ms, v_e[:, e_idx], color=theme.INK_BLACK, lw=0.8)
+    ax_ve.axhline(-50.0, color=theme.FAINT, lw=0.5, ls="--", label="V_th")
+    ax_ve.set_ylabel(f"V_E (neuron {e_idx})")
+    ax_ve.set_xlim(0, T * dt)
+    ax_ve.set_title(title)
+
+    ax_ge = axes[1]
+    ax_ge.plot(t_ms, ge_e[:, e_idx], color=theme.ELECTRIC_CYAN, lw=0.8, label="g_E (exc)")
+    if has_gi_e:
+        gi_e = data["gi_e_1"]
+        ax_ge.plot(t_ms, gi_e[:, e_idx], color=theme.DEEP_RED, lw=0.8, label="g_I (inh)")
+    ax_ge.set_ylabel(f"g (neuron {e_idx})")
+    ax_ge.set_xlim(0, T * dt)
+    ax_ge.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
+
+    if has_i_state and i_idx is not None:
+        v_i = data["v_i_1"]
+        ge_i = data["ge_i_1"]
+        ax_vi = axes[2]
+        ax_vi.plot(t_ms, v_i[:, i_idx], color=theme.DEEP_RED, lw=0.8)
+        ax_vi.axhline(-50.0, color=theme.FAINT, lw=0.5, ls="--", label="V_th")
+        ax_vi.set_ylabel(f"V_I (neuron {i_idx})")
+        ax_vi.set_xlim(0, T * dt)
+
+        ax_gi = axes[3]
+        ax_gi.plot(t_ms, ge_i[:, i_idx], color=theme.ELECTRIC_CYAN, lw=0.8, label="g_E (exc)")
+        ax_gi.set_ylabel(f"g (neuron {i_idx})")
+        ax_gi.set_xlim(0, T * dt)
+        ax_gi.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
+
+    axes[-1].set_xlabel("time (ms)")
     fig.tight_layout()
     fig.savefig(out_path, dpi=120)
     plt.close(fig)
@@ -127,7 +211,7 @@ def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     persist_run_id(SLUG, notebook_run_id)
 
-    rasters: dict[str, Path] = {}
+    figures: dict[str, Path] = {}
     for cell, spec in CELLS.items():
         for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
             if p.exists():
@@ -138,10 +222,16 @@ def main() -> None:
         subprocess.run(cmd, cwd=REPO, check=True)
         if not SCOPE_OUT_NPZ.exists():
             raise SystemExit(f"oscilloscope did not produce {SCOPE_OUT_NPZ}")
-        dst = FIGURES / f"raster__{cell}.png"
-        plot_raster(SCOPE_OUT_NPZ, dst, spec["title"])
-        rasters[cell] = dst
-        print(f"wrote {dst}")
+
+        raster_dst = FIGURES / f"raster__{cell}.png"
+        plot_raster(SCOPE_OUT_NPZ, raster_dst, spec["title"])
+        figures[f"raster__{cell}"] = raster_dst
+        print(f"wrote {raster_dst}")
+
+        traces_dst = FIGURES / f"traces__{cell}.png"
+        plot_traces(SCOPE_OUT_NPZ, traces_dst, spec["title"])
+        figures[f"traces__{cell}"] = traces_dst
+        print(f"wrote {traces_dst}")
 
     duration_s = time.monotonic() - t_start
     figs_root = FIGURES.parents[2]
@@ -161,12 +251,12 @@ def main() -> None:
         "results": [],
         "success_criteria": [
             {
-                "label": f"{cell} raster rendered",
+                "label": f"{name} rendered",
                 "passed": dst.exists() and dst.stat().st_size > 0,
                 "detail": f"{dst.name} ({dst.stat().st_size} bytes)" if dst.exists() else "missing",
                 "detail_href": "/" + str(dst.relative_to(figs_root)) if dst.exists() else None,
             }
-            for cell, dst in rasters.items()
+            for name, dst in figures.items()
         ],
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
