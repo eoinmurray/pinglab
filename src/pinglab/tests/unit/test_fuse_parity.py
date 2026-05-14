@@ -55,7 +55,7 @@ from config import build_net  # noqa: E402
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "fuse_parity"
 
-MODELS = ["standard-snn", "cuba", "cuba-exp", "ping", "snntorch-library"]
+MODELS = ["standard-snn", "cuba", "ping", "snntorch-library"]
 
 # 1e-4 absolute / relative for forward+backward parity. Tighter (1e-5)
 # was platform-fragile on Linux CI for ping after COBANet started

@@ -9,25 +9,22 @@ import Aside from "../../components/Aside.astro";
 
 # CUBANet
 
-[Article 2](/articles/art002/) derived the continuous-time leaky integrate-and-fire (LIF) neuron from Maxwell's equations and the membrane circuit. This article picks up where that derivation leaves off and asks: how do you turn the continuous LIF into a discrete update rule that runs on a GPU? Two integrator choices (snnTorch-style and zero-order hold) plus one optional first-order synaptic filter give four rungs — *standard-snn*, *standard-snn-exp*, *cuba*, *cuba-exp* — all backed by a single Python class, **CUBANet**, in *src/pinglab/models.py*. Every empirical result in the [notebooks](/notebooks/) on the CUBA / standard-snn family traces back to the math here.
+[Article 2](/articles/art002/) derived the continuous-time leaky integrate-and-fire (LIF) neuron from Maxwell's equations and the membrane circuit. This article picks up where that derivation leaves off and asks: how do you turn the continuous LIF into a discrete update rule that runs on a GPU? Two integrator choices (snnTorch-style and zero-order hold) give two rungs — *standard-snn* and *cuba* — both backed by a single Python class, **CUBANet**, in *src/pinglab/models.py*. Every empirical result in the [notebooks](/notebooks/) on the CUBA / standard-snn family traces back to the math here.
 
 The implementation lives in *src/pinglab/models.py*. This article keeps the derivations.
 
 ## Architecture
 
-CUBANet (current-based LIF) is a single class with two orthogonal flags that select four behaviours:
+CUBANet (current-based LIF) is a single class with one switch:
 
-- *discretisation* ∈ \{*snntorch*, *zoh*\} — how the continuous LIF is discretised.
-- *exponential_synapse* ∈ \{*False*, *True*\} — whether the spike train is filtered through an AMPA-like first-order synapse before reaching the membrane.
+- *discretisation* ∈ \{*snntorch*, *zoh*\} — how the continuous LIF is discretised. Spikes drive the membrane directly (no synaptic filter); the conductance-filtered story lives one rung up in [COBANet](/articles/art004/).
 
-The four canonical rungs span the $(\text{discretisation} \times \text{synapse})$ grid:
+The two canonical rungs:
 
-| rung               | discretisation | exponential synapse |
-|--------------------|----------------|---------------------|
-| *standard-snn*     | snnTorch       | off                 |
-| *standard-snn-exp* | snnTorch       | on ($\tau_{\text{syn}} \approx 2$ ms) |
-| *cuba*             | ZOH            | off                 |
-| *cuba-exp*         | ZOH            | on ($\tau_{\text{syn}} \approx 2$ ms) |
+| rung           | discretisation |
+|----------------|----------------|
+| *standard-snn* | snnTorch       |
+| *cuba*         | ZOH            |
 
 *Tutorial mode* (*--kaiming-init*) is a further switch that overrides Dale's law and weight scaling to match *snn.Leaky* bit-for-bit at initialisation, used only by the parity probe.
 
@@ -48,7 +45,7 @@ In words: decay the old membrane, add the (already-scaled) drive $I$, threshold 
 
 ## snnTorch discretisation
 
-Used by *standard-snn* and *standard-snn-exp*. The update is the snnTorch convention — decay times the previous membrane plus the *unscaled* drive — with the reset applied after the spike is emitted:
+Used by *standard-snn*. The update is the snnTorch convention — decay times the previous membrane plus the *unscaled* drive — with the reset applied after the spike is emitted:
 
 $$
 U_{t+1} = \beta\, U_t + W\, s_t + b, \qquad S_{t+1} = \sigma_{\text{surr}}(U_{t+1} - \theta) \tag{5}
@@ -78,7 +75,7 @@ The spike contribution $W r \tau$ is $\Delta t$-invariant: halve $\Delta t$ and 
 
 ## ZOH discretisation
 
-Used by *cuba* and *cuba-exp*. Start from the continuous-time LIF in canonical form ($E_L = 0$, $R = 1$):
+Used by *cuba*. Start from the continuous-time LIF in canonical form ($E_L = 0$, $R = 1$):
 
 $$
 \tau\, \frac{dV}{dt} = -V + I(t), \qquad I(t) = \sum_k W\, \delta(t - t_k) + b \tag{9}
@@ -422,26 +419,6 @@ In words: the per-spike kick $(1-\beta)/\Delta t \cdot W$ approaches $W/\tau$ �
 
 In the snnTorch discretisation, $W$ and $b$ have prefactor $1$ regardless of $\Delta t$, so the per-spike kick is $W$ (not $W/\tau$) and the per-step bias is $b$ (not $b\, \Delta t/\tau$). Changing $\Delta t$ at eval time therefore shifts the effective input scale in *standard-snn*, while ZOH leaves it fixed — verified empirically in [013 — dt sensitivity](/notebooks/nb013/).
 
-## Exponential synapse
-
-Setting *--exponential-synapse* (variants *standard-snn-exp* and *cuba-exp*) interposes an AMPA-like first-order conductance with $\tau_{\text{syn}} = 2$ ms between the spike train and the membrane. Continuous-time:
-
-$$
-\tau_{\text{syn}} \frac{dg}{dt} = -g + W\, \sum_k \delta(t - t_k) \tag{14}
-$$
-
-Discretised: decay applies only to the *old* conductance, and the same-step spike kick $W s_t$ enters fresh. The just-updated $g_{t+1}$ then drives the membrane:
-
-$$
-g_{t+1} = e^{-\Delta t / \tau_{\text{syn}}}\, g_t + W\, s_t \tag{15}
-$$
-
-$$
-U_{t+1} = \beta\, U_t + (1-\beta)\, g_{t+1} + b_{\text{scale}}\, b \tag{16}
-$$
-
-with $b_{\text{scale}} = 1$ for snnTorch discretisation and $b_{\text{scale}} = 1 - \beta$ for ZOH. The factor $(1-\beta)$ on $g_{t+1}$ rather than $(1-\beta)/\Delta t$ reflects that $g$ already has units of current (it's been integrated), not delta-function strength.
-
 ## Reset modes
 
 Two choices on spike, controlled by *--reset-mode*:
@@ -449,7 +426,7 @@ Two choices on spike, controlled by *--reset-mode*:
 - *zero* — hard reset $U_{t+1} \leftarrow 0$. Discards overshoot. Standard for biological neurons.
 - *subtract* — $U_{t+1} \leftarrow U_{t+1} - \theta$. Preserves overshoot above threshold for the next step. Standard for snnTorch tutorials.
 
-Defaults: *standard-snn* / *standard-snn-exp* use *subtract* under tutorial-mode; *cuba* / *cuba-exp* use *zero*.
+Defaults: *standard-snn* uses *subtract* under tutorial-mode; *cuba* uses *zero*.
 
 ## Refractory period
 
@@ -457,4 +434,4 @@ Optional, controlled by *--ref-ms*. Implemented as a per-neuron *can_fire* mask 
 
 ## Where this leads
 
-The four CUBA rungs span the design space of a single LIF cell with current-based inputs. The next step up the ladder adds genuine *conductance-based* synapses and a recurrent E-I loop — the COBA and PING models, documented at [the models page](/articles/art004/) and exercised throughout the [PING paper](/articles/art001/) and [notebooks](/notebooks/).
+The two CUBA rungs span the design space of a single LIF cell with current-based inputs. The next step up the ladder adds genuine *conductance-based* synapses and a recurrent E-I loop — the COBA and PING models, documented at [the models page](/articles/art004/) and exercised throughout the [PING paper](/articles/art001/) and [notebooks](/notebooks/).
