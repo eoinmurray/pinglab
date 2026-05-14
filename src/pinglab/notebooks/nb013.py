@@ -51,7 +51,6 @@ OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
 
 MODELS = [
     "standard-snn",
-    "standard-snn-exp",
     "snntorch-library",
     "cuba",
     "coba",
@@ -124,17 +123,14 @@ TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 # and ~40× below for bias drive — silent at init, no gradient, no learning.
 MODEL_LABELS = {
     "standard-snn": "standard-snn",
-    "standard-snn-exp": "standard-snn-exp",
     "snntorch-library": "snntorch-library",
     "cuba": "cuba",
     "coba": "coba",
     "ping": "ping",
 }
 MODEL_COLORS = {
-    # snnTorch family: grey gradient (mid → dark by sophistication).
-    # standard-snn-exp is the lightest because it's the synapse-only ablation
-    # of standard-snn; snntorch-library is darkest as the external reference.
-    "standard-snn-exp": theme.GREY_MID,
+    # snnTorch family: grey gradient. snntorch-library is darkest as the
+    # external reference.
     "standard-snn": theme.GREY_DARK,
     "snntorch-library": theme.INK_BLACK,
     # Biophysical ladder: each gets a categorically distinct cyberpunk
@@ -146,7 +142,7 @@ MODEL_COLORS = {
 
 # Visual groupings used by the legend builder.
 MODEL_GROUPS = [
-    ("snnTorch family", ["standard-snn-exp", "standard-snn", "snntorch-library"]),
+    ("snnTorch family", ["standard-snn", "snntorch-library"]),
     ("CUBA", ["cuba"]),
     ("PING family", ["coba", "ping"]),
 ]
@@ -168,14 +164,6 @@ MODEL_CONFIG: dict[str, dict] = {
     # same recipe being baselined elsewhere.
     "standard-snn": {  # mirrors nb007
         "__build_as": "standard-snn",
-        "--kaiming-init": True,
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--lr": "0.01",
-        "--batch-size": "256",
-    },
-    "standard-snn-exp": {  # mirrors nb008
-        "__build_as": "standard-snn-exp",
         "--kaiming-init": True,
         "--readout": "mem-mean",
         "--surrogate-slope": "1",
@@ -732,7 +720,7 @@ def compute_latency_curves(
     return out
 
 
-_LI_READOUT_MODELS = ["standard-snn", "standard-snn-exp", "snntorch-library", "cuba"]
+_LI_READOUT_MODELS = ["standard-snn", "snntorch-library", "cuba"]
 _RATE_READOUT_MODELS = ["coba", "ping"]
 
 
