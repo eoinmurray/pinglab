@@ -1,15 +1,25 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "PING Paper"
+title: "(Paper) PING trains with low firings rates"
 date: 2026-05-08
 entry: 1
 structure: paper
 ---
 import Figure from "../../components/Figure.astro";
 
-# PING Paper
+# PING trains with low firings rates
 
-## PING basics
+## Abstract
+
+We show that biologically inspired PING trains and that it operates at low firing rates in the absense of a spike penalty.
+
+## Introduction
+
+To be written...
+
+## Results
+
+### PING basics
 
 PING (pyramidal–interneuron gamma) is the gamma-band oscillation produced when an excitatory population $E$ drives an inhibitory population $I$ which feeds back onto $E$. The mechanism is mechanical:
 
@@ -42,7 +52,7 @@ Figures 3 and 4 zoom in on a single representative neuron from each population t
 
 The point of this section is that PING is not a property the network learns — it is a property of the architecture. The rest of this article asks what happens when you train on top of it.
 
-## PING training
+### PING training
 
 PING has been modelled but not trained on a task. We train it here on MNIST classification.
 
@@ -62,7 +72,7 @@ Figures 6 and 7 record whether the gamma rhythm survives training. Mean excitato
   Oscilloscope view of PING's hidden layer on a fixed reference MNIST trial, sampled once per epoch. From [012 — PING](/notebooks/nb012/), Figure 3.
 </Figure>
 
-## dt stability vs other models
+### dt stability vs other models
 
 Six models are trained on MNIST at two *dt* regimes (0.1 ms and 1 ms), each with the per-model recipe from its calibration sibling ([nb007](/notebooks/nb007/)–[nb012](/notebooks/nb012/)). Weights are then frozen and accuracy is re-evaluated across a sweep of eval-*dt* values under three input-transport rules ([upsample / downsample / resample](#eval-time-dt-transport)). Identity transport (eval-*dt* = train-*dt*) anchors each sweep, so any change downstream is *integrator-side*.
 
@@ -100,7 +110,7 @@ Figure 11 reports *when* each model commits to a class within the 200 ms trial (
   Running-argmax test accuracy vs fraction of the 200 ms trial integrated, per model, one panel per train-dt. Dotted line at 10% is chance. From [013 — Timestep Stability](/notebooks/nb013/), Figure 4.
 </Figure>
 
-## COBA to PING weight transfer
+### COBA to PING weight transfer
 
 PING and COBA share the same units and feedforward path; they differ only in whether the E→I→E loop is active. Does the loop need to be active during training, or can it be switched on at inference? We sweep *ei_strength* at test time on frozen COBA weights.
 
@@ -120,7 +130,7 @@ Figure 14 shows single-trial rasters at six *ei* values. At ei = 0 the network i
   Single-trial spike rasters at six *ei* values (E black, I red; dotted line separates populations). Same trained feedforward and E→E weights throughout. From [019 — COBA-to-PING Weight Transfer](/notebooks/nb019/), Figure 3.
 </Figure>
 
-## Classification latency
+### Classification latency
 
 Figures 15 and 16 plot single-window MNIST accuracy against two x-axes: elapsed time, and cumulative hidden-layer spikes.
 
@@ -134,7 +144,7 @@ Figures 15 and 16 plot single-window MNIST accuracy against two x-axes: elapsed 
 
 CUBA plateaus slightly earlier in time; against spike count, COBA and PING reach the same accuracy with about an order of magnitude fewer spikes.
 
-## Spike Penalty
+### Spike Penalty
 
 Unpenalised, the three models settle at different rates (Figure 16). Adding an upper-bound regulariser $\lambda_u \cdot \sum \text{ReLU}(\bar s - \theta_u)^2$ — with strength $\lambda_u = 10^{-3}$ held fixed — and sweeping the budget $\theta_u$ (mean spikes per trial per unit) traces each model's accuracy–rate frontier.
 
@@ -144,7 +154,7 @@ Unpenalised, the three models settle at different rates (Figure 16). Adding an u
 
 PING's frontier is flat: its unpenalised rate is already biological, and accuracy is insensitive to $\theta_u$. CUBA loses accuracy when forced down toward PING's rate.
 
-## Sequential MNIST
+### Sequential MNIST
 
 The same three models are evaluated on a continuous stream of digits with no boundary marker, classified in a sliding window.
 
@@ -161,3 +171,15 @@ CUBA plateaus at short windows; against spikes per window (Figure 20), PING and 
 <Figure id="Figure 20" title="Accuracy vs hidden spikes per window" src="/figures/notebooks/nb016/tracking_hidden_spikes.png" alt="Line chart: mean per-window accuracy as a function of mean hidden-layer spikes per window, log x-axis, for cuba, coba, and ping. Dashed line marks 10% chance.">
   Figure 19 re-projected onto mean hidden-layer spikes per 50 ms window (log x-axis). From [016 — Sequential MNIST Tracking](/notebooks/nb016/), Figure 4.
 </Figure>
+
+## Methods
+
+To be written...
+
+## Discussion
+
+To be written...
+
+## References
+
+To be written...
