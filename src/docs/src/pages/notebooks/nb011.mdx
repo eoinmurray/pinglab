@@ -22,7 +22,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*coba*](/docs/models/#coba) path — conductance-based synapses, dispatched through the COBANet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb010](/notebooks/nb010/) and [nb012](/notebooks/nb012/). No Δt sweep. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*coba*](/articles/art004/) path — conductance-based synapses, dispatched through the COBANet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb010](/notebooks/nb010/) and [nb012](/notebooks/nb012/). No Δt sweep. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 

@@ -22,7 +22,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*snntorch-library*](/docs/models/#snntorch-library) path — the external snnTorch reference implementation, kept as a parity check on our own CUBANet class — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; parity sibling of [nb007](/notebooks/nb007/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*snntorch-library*](/articles/art003/#snntorch-library) path — the external snnTorch reference implementation, kept as a parity check on our own CUBANet class — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; parity sibling of [nb007](/notebooks/nb007/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
@@ -77,7 +77,7 @@ The three customisations mirror [nb007](/notebooks/nb007/) verbatim — *snntorc
 
 ## Next steps
 
-Large-tier training pulls the hidden rate part-way back (peak ~705 Hz → ~390 Hz by epoch 40) while best accuracy tracks [nb007](/notebooks/nb007/) to within ~1pp — so acc calibration holds, but the rate sanity-band fail persists. The weight init is already matched bit-for-bit with nb007 via the shared Kaiming-uniform recipe in [*CUBANet*](/docs/models/#standard-snn); the remaining gap comes from per-step drift between pinglab's LIF clone and *snn.Leaky* (bias fold, spike/reset ordering, surrogate attachment point) accumulated over 2000 × 40 timesteps of BPTT.
+Large-tier training pulls the hidden rate part-way back (peak ~705 Hz → ~390 Hz by epoch 40) while best accuracy tracks [nb007](/notebooks/nb007/) to within ~1pp — so acc calibration holds, but the rate sanity-band fail persists. The weight init is already matched bit-for-bit with nb007 via the shared Kaiming-uniform recipe in [*CUBANet*](/articles/art003/); the remaining gap comes from per-step drift between pinglab's LIF clone and *snn.Leaky* (bias fold, spike/reset ordering, surrogate attachment point) accumulated over 2000 × 40 timesteps of BPTT.
 
 A shared two-sided firing-rate regulariser across this notebook and [nb007](/notebooks/nb007/) — via [*--fr-reg-upper-strength* / *--fr-reg-upper-theta*](/docs/the-oscilloscope/#network-flags-shared), Cramer-2022 style — is parked for a follow-up. It would pin both paths into the 1–200 Hz band by training pressure rather than by step-code parity, closing the rate gap without turning the calibration pair into a re-import of the library's quirks.
 
