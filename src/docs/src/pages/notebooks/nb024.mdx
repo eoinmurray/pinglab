@@ -1,0 +1,177 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "024 — Ladder accuracy vs firing rate"
+date: 2026-05-14
+entry: 24
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb024/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const results = numbers.results ?? [];
+export const successCriteria = numbers.success_criteria ?? [];
+export const get = (model, theta_u = null) =>
+  results.find((r) => r.model === model && r.theta_u === theta_u) ?? {};
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+Three rungs of the biophysical ladder — [cuba](/docs/models/#cubanet), [coba](/docs/models/#cobanet) and [ping](/docs/models/#ping) — are trained on MNIST with their calibrated nb010 / nb011 / nb012 recipes. The headline deliverable is a single bar chart with two y-axes: final-epoch test accuracy on the left, mean hidden-E firing rate on the right (Figure 1).
+
+Each model is also re-trained at five values of the upper-bound spike-budget regulariser $\theta_u$ (off + 5 finite values). The frontier those $(\text{acc}, \text{rate})$ pairs trace out (Figure 3) characterises where each model can be pushed in the accuracy/rate plane. This subsumes the now-retired nb020.
+
+## Method
+
+Three cells per model, six $\theta_u$ values each (18 cells total):
+
+- *cuba* — [cuba](/docs/models/#cubanet) with *--kaiming-init*, *--lr=0.04*, *--readout=mem-mean*.
+- *coba* — [coba](/docs/models/#cobanet) recipe (*--ei-strength=0*, *--w-in=0.3*, *--lr=0.0004*, *--readout-w-out-scale=100*).
+- *ping* — [ping](/docs/models/#ping) recipe (*--ei-strength=1*, *--w-in=1.2*, *--lr=0.0004*, *--readout-w-out-scale=500*).
+
+$\theta_u$ grid (spikes/trial): *off, 5, 2, 1, 0.5, 0.2*. At $T = 200$ ms these correspond to *off, 25, 10, 5, 2.5, 1* Hz, with regulariser strength $\lambda_u = 10^{-3}$ held fixed.
+
+Every other knob (surrogate slope, batch size, dt, t-ms, seed=42) is held fixed at the per-model calibration. Training uses the [oscilloscope](/docs/the-oscilloscope/) directly via [BatchDispatcher](/docs/the-oscilloscope/#modal-dispatch).
+
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "models", value: (cfg.models ?? []).join(", ") || "?", default: "—" },
+  { label: "θ_u grid (Hz)", value: (cfg.theta_u_grid_hz ?? []).map((h) => h.toFixed(1)).join(", ") || "?", default: "—" },
+]} />
+
+## Results
+
+<Figure id="Figure 1" title="Accuracy vs mean firing rate, per model" src="/figures/notebooks/nb024/acc_vs_rate.png" alt="Bar chart with two y-axes. For each of cuba, coba, ping there are two bars side-by-side: a solid bar showing final-epoch test accuracy (left y-axis) and a hatched bar showing mean hidden-E firing rate in Hz (right y-axis).">
+  Per model (θ_u = off): solid bar = final-epoch test accuracy (left y-axis, %); hatched bar = mean hidden-E firing rate at the same epoch (right y-axis, Hz). PING reaches the same accuracy as CUBA at roughly $1/17$ the firing rate.
+</Figure>
+
+<Figure id="Figure 2" title="Learning curves" src="/figures/notebooks/nb024/learning_curves.png" alt="Two panels. Left: train loss per epoch, one curve per model. Right: test accuracy per epoch, one curve per model.">
+  Train loss (left) and test accuracy (right) per epoch, one curve per model (θ_u = off). PING reaches the highest test accuracy after one epoch (60%) and the three converge to within $\sim 2$ percentage points by the final epoch.
+</Figure>
+
+<Figure id="Figure 3" title="Accuracy / rate frontier" src="/figures/notebooks/nb024/frontier.png" alt="Pareto frontier: test accuracy versus achieved hidden E rate, one line per model. Each point labelled with its θ_u value.">
+  Test accuracy vs achieved hidden-E firing rate, one curve per model; each point is one $(\text{model}, \theta_u)$ configuration. CUBA traces a long curve from $\sim 90$ Hz down to $\sim 1$ Hz; PING sits in a tight cluster around its natural $\sim 3$–$5$ Hz operating point.
+</Figure>
+
+
+### Population rasters
+
+Each trained baseline (θ_u = off) network is replayed on MNIST digit 0 sample 0 for 400 ms (longer than the 200 ms training window so PING's gamma rhythm has room to develop visibly).
+
+<Figure id="Figure 4" title="cuba — population raster" src="/figures/notebooks/nb024/raster__cuba.png" alt="Spike raster of the trained cuba hidden layer. Dense asynchronous E firing across 400 ms; no I population.">
+  Trained cuba (no I population). Dense, asynchronous E firing — consistent with the $\sim 88$ Hz rate.
+</Figure>
+
+<Figure id="Figure 5" title="coba — population raster" src="/figures/notebooks/nb024/raster__coba.png" alt="Spike raster of the trained coba hidden layer. Dense asynchronous E firing; I population silent.">
+  Trained coba. I population silent because the recurrent loop is disabled (*--ei-strength 0*). E raster asynchronous-dense.
+</Figure>
+
+<Figure id="Figure 6" title="ping — population raster" src="/figures/notebooks/nb024/raster__ping.png" alt="Spike raster of the trained ping hidden layer. E shows vertical gamma bands every ~40 ms; I shows synchronous bursts trailing each E-burst.">
+  Trained ping. E raster shows vertical gamma bands every $\sim 40$ ms; the I population fires synchronous bursts trailing each E-burst by the AMPA delay. The same loop visible in [023 — PING fundamentals](/notebooks/nb023/) before training survives optimisation.
+</Figure>
+
+### Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+## Discussion
+
+- **Accuracy gap.** All three models converge to within $\sim 2$ pp at θ_u = off; the headline claim is that the ladder is *accuracy-equivalent* but not *rate-equivalent*.
+- **Rate at headline accuracy.** CUBA and COBA settle at $\sim 85$ Hz; PING settles at $\sim 5$ Hz, an order of magnitude lower with the same accuracy.
+- **Frontier shape.** Adding the $\theta_u$ regulariser to CUBA drags its rate down to PING-like values but at a $\sim 10$ pp accuracy cost; PING's frontier is flat because its baseline already sits in the budget regime.
+- **PING is the architecture that's already biological.** No regulariser needed to reach gamma-band firing rates.
+
+## Next steps
+
+- Extend the $\theta_u$ grid downward (e.g. 0.1, 0.05) to find where every model breaks.
+- Add a *coba-with-loop* cell (active recurrent inhibition but trained as coba) to disentangle "the loop on" from "the loop being trained against".
+- Repeat at *large* tier on Modal to tighten the per-point variance.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb024.py --tier medium --modal-gpu A10G
+```
+
+### Run parameters
+
+<RunParameters numbers={numbers} />
+
+### Videos
+
+Per-epoch oscilloscope view of each (model, $\theta_u$) cell on a fixed reference MNIST trial.
+
+<Figure id="Figure 7" title="cuba — θ_u = off" src="/figures/notebooks/nb024/training__cuba__off.mp4" type="video" alt="cuba training, no penalty">
+  cuba baseline (θ_u = off).
+</Figure>
+<Figure id="Figure 8" title="cuba — θ_u = 5" src="/figures/notebooks/nb024/training__cuba__tu5.mp4" type="video" alt="cuba training, θ_u = 5">
+  cuba at θ_u = 5 spikes/trial.
+</Figure>
+<Figure id="Figure 9" title="cuba — θ_u = 2" src="/figures/notebooks/nb024/training__cuba__tu2.mp4" type="video" alt="cuba training, θ_u = 2">
+  cuba at θ_u = 2 spikes/trial.
+</Figure>
+<Figure id="Figure 10" title="cuba — θ_u = 1" src="/figures/notebooks/nb024/training__cuba__tu1.mp4" type="video" alt="cuba training, θ_u = 1">
+  cuba at θ_u = 1 spikes/trial.
+</Figure>
+<Figure id="Figure 11" title="cuba — θ_u = 0.5" src="/figures/notebooks/nb024/training__cuba__tu0p5.mp4" type="video" alt="cuba training, θ_u = 0.5">
+  cuba at θ_u = 0.5 spikes/trial.
+</Figure>
+<Figure id="Figure 12" title="cuba — θ_u = 0.2" src="/figures/notebooks/nb024/training__cuba__tu0p2.mp4" type="video" alt="cuba training, θ_u = 0.2">
+  cuba at θ_u = 0.2 spikes/trial.
+</Figure>
+<Figure id="Figure 13" title="coba — θ_u = off" src="/figures/notebooks/nb024/training__coba__off.mp4" type="video" alt="coba training, no penalty">
+  coba baseline (θ_u = off).
+</Figure>
+<Figure id="Figure 14" title="coba — θ_u = 5" src="/figures/notebooks/nb024/training__coba__tu5.mp4" type="video" alt="coba training, θ_u = 5">
+  coba at θ_u = 5 spikes/trial.
+</Figure>
+<Figure id="Figure 15" title="coba — θ_u = 2" src="/figures/notebooks/nb024/training__coba__tu2.mp4" type="video" alt="coba training, θ_u = 2">
+  coba at θ_u = 2 spikes/trial.
+</Figure>
+<Figure id="Figure 16" title="coba — θ_u = 1" src="/figures/notebooks/nb024/training__coba__tu1.mp4" type="video" alt="coba training, θ_u = 1">
+  coba at θ_u = 1 spikes/trial.
+</Figure>
+<Figure id="Figure 17" title="coba — θ_u = 0.5" src="/figures/notebooks/nb024/training__coba__tu0p5.mp4" type="video" alt="coba training, θ_u = 0.5">
+  coba at θ_u = 0.5 spikes/trial.
+</Figure>
+<Figure id="Figure 18" title="coba — θ_u = 0.2" src="/figures/notebooks/nb024/training__coba__tu0p2.mp4" type="video" alt="coba training, θ_u = 0.2">
+  coba at θ_u = 0.2 spikes/trial.
+</Figure>
+<Figure id="Figure 19" title="ping — θ_u = off" src="/figures/notebooks/nb024/training__ping__off.mp4" type="video" alt="ping training, no penalty">
+  ping baseline (θ_u = off).
+</Figure>
+<Figure id="Figure 20" title="ping — θ_u = 5" src="/figures/notebooks/nb024/training__ping__tu5.mp4" type="video" alt="ping training, θ_u = 5">
+  ping at θ_u = 5 spikes/trial.
+</Figure>
+<Figure id="Figure 21" title="ping — θ_u = 2" src="/figures/notebooks/nb024/training__ping__tu2.mp4" type="video" alt="ping training, θ_u = 2">
+  ping at θ_u = 2 spikes/trial.
+</Figure>
+<Figure id="Figure 22" title="ping — θ_u = 1" src="/figures/notebooks/nb024/training__ping__tu1.mp4" type="video" alt="ping training, θ_u = 1">
+  ping at θ_u = 1 spikes/trial.
+</Figure>
+<Figure id="Figure 23" title="ping — θ_u = 0.5" src="/figures/notebooks/nb024/training__ping__tu0p5.mp4" type="video" alt="ping training, θ_u = 0.5">
+  ping at θ_u = 0.5 spikes/trial.
+</Figure>
+<Figure id="Figure 24" title="ping — θ_u = 0.2" src="/figures/notebooks/nb024/training__ping__tu0p2.mp4" type="video" alt="ping training, θ_u = 0.2">
+  ping at θ_u = 0.2 spikes/trial.
+</Figure>

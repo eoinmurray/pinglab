@@ -1,30 +1,33 @@
-"""Notebook runner for entry 019 — spike-penalty θ_u sweep across cuba / coba / ping.
+"""Notebook runner for entry 024 — cuba / coba / ping head-to-head on
+test accuracy and mean firing rate, with the θ_u spike-budget sweep.
 
-For each rung of the biophysical ladder (cuba, coba, ping), trains
-the same calibrated recipe at six values of the upper-bound spike
-budget θ_u: off (no penalty) plus θ_u ∈ {5, 2, 1, 0.5, 0.2}
-spikes/trial = {25, 10, 5, 2.5, 1} Hz. Same recipe in every other
-respect — only the regulariser flag changes — so each (model, θ_u)
-cell is one point on that model's accuracy / rate Pareto frontier.
+Subsumes the now-retired nb020. For each rung of the biophysical
+ladder (cuba, coba, ping), trains the calibrated nb010 / nb011 / nb012
+recipe at six values of the upper-bound spike budget θ_u: off (no
+penalty) plus θ_u ∈ {5, 2, 1, 0.5, 0.2} spikes/trial = {25, 10, 5,
+2.5, 1} Hz. Same recipe in every other respect — only the regulariser
+flag changes — so each (model, θ_u) cell is one point on that model's
+accuracy / rate Pareto frontier.
 
-The fr-reg path was originally CUBANet-only — coba and ping run
-through COBANet, which had no last_spike_counts hook. This notebook
-exercises the matching hook added to COBANet.forward (mirrors the
-CUBANet rate_counts list, gradient-attached), so the regulariser
-applies uniformly across the ladder.
+The unpenalised "off" cell of each model also feeds the headline
+figures: a twin-axis accuracy-vs-rate bar chart, learning curves
+overlaid across the ladder, and per-model post-training spike
+rasters.
 
-Notebook entry: src/docs/src/pages/notebooks/nb020.mdx
+Notebook entry: src/docs/src/pages/notebooks/nb024.mdx
 """
 
 from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src" / "pinglab"))
@@ -34,7 +37,7 @@ from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from _tier import parse_tier  # noqa: E402
 from pinglab import theme  # noqa: E402
 
-SLUG = "nb020"
+SLUG = "nb024"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
@@ -52,19 +55,16 @@ DT_TRAIN = 0.1
 SEED = 42
 
 # θ_u sweep grid in spikes-per-trial. None = no penalty (baseline).
-# At T = 200 ms, spikes/trial × 5 = Hz.  The grid spans from no
+# At T = 200 ms, spikes/trial × 5 = Hz. The grid spans from no
 # pressure (off → ~80–90 Hz baselines for cuba/coba) down to 1 Hz —
-# below ping's natural 4 Hz and well into the regime where every
-# model loses accuracy.
+# below ping's natural 5 Hz and into the regime where every model
+# loses accuracy.
 THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
 FR_STRENGTH_UPPER = 1e-3
 
 MODELS = ["cuba", "coba", "ping"]
 
 MODEL_RECIPES: dict[str, dict] = {
-    # Recipes mirror nb010 (cuba) / nb011 (coba) / nb012 (ping). Drift
-    # would invalidate the comparison: any per-model rate change must be
-    # attributable to the penalty, not to a separate hyperparameter.
     "cuba": {
         "__build_as": "cuba",
         "--kaiming-init": True,
@@ -104,7 +104,6 @@ MODEL_COLORS = {
     "coba": theme.AMBER,
     "ping": theme.ELECTRIC_CYAN,
 }
-
 MODEL_MARKERS = {"cuba": "o", "coba": "s", "ping": "D"}
 
 MIN_ACC_BY_TIER = {
@@ -141,32 +140,26 @@ def cell_dir(model: str, theta_u: float | None) -> Path:
     return ARTIFACTS / f"{model}__{theta_label(theta_u)}"
 
 
+def baseline_dir(model: str) -> Path:
+    return cell_dir(model, None)
+
+
 def build_train_args(
     model: str, theta_u: float | None, tier: str, out_dir: Path
 ) -> list[str]:
     recipe = MODEL_RECIPES[model]
     args = [
         "train",
-        "--model",
-        recipe["__build_as"],
-        "--dataset",
-        "mnist",
-        "--max-samples",
-        str(TIER_CONFIG[tier]["max_samples"]),
-        "--epochs",
-        str(TIER_CONFIG[tier]["epochs"]),
-        "--t-ms",
-        str(T_MS),
-        "--dt",
-        str(DT_TRAIN),
-        "--seed",
-        str(SEED),
-        "--observe",
-        "video",
-        "--frame-rate",
-        "1",
-        "--out-dir",
-        str(out_dir),
+        "--model", recipe["__build_as"],
+        "--dataset", "mnist",
+        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--t-ms", str(T_MS),
+        "--dt", str(DT_TRAIN),
+        "--seed", str(SEED),
+        "--observe", "video",
+        "--frame-rate", "1",
+        "--out-dir", str(out_dir),
         "--wipe-dir",
     ]
     for k, v in recipe.items():
@@ -178,10 +171,8 @@ def build_train_args(
             args += [k, v]
     if theta_u is not None:
         args += [
-            "--fr-reg-upper-theta",
-            str(theta_u),
-            "--fr-reg-upper-strength",
-            str(FR_STRENGTH_UPPER),
+            "--fr-reg-upper-theta", str(theta_u),
+            "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
         ]
     return args
 
@@ -196,25 +187,192 @@ def load_config(run_dir: Path) -> dict:
 
 def _stamp(fig, run_id: str) -> None:
     fig.text(
-        0.995,
-        0.005,
-        run_id,
-        ha="right",
-        va="bottom",
-        fontsize=theme.SIZE_CAPTION,
-        color=theme.LABEL,
-        family="monospace",
+        0.995, 0.005, run_id,
+        ha="right", va="bottom",
+        fontsize=theme.SIZE_CAPTION, color=theme.LABEL, family="monospace",
     )
 
 
-def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
-    """Pareto-style frontier: one line per model from baseline (highest
-    rate) toward the most-aggressive penalty (lowest rate). Both axes are
-    the final-epoch state — best-acc from earlier epochs would pair with
-    a rate from a different network state, which doesn't physically
-    correspond to anything you can observe in the training video."""
+def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Twin-y bar chart on the baseline (θ_u = off) cells: per model,
+    side-by-side bars for accuracy (left y-axis) and mean hidden-E rate
+    (right y-axis)."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    fig, ax_acc = plt.subplots(figsize=(8.0, 4.5))
+    ax_rate = ax_acc.twinx()
+
+    n = len(MODELS)
+    xs = np.arange(n)
+    width = 0.35
+    accs = [
+        next(
+            r for r in rows
+            if r["model"] == m and r["theta_u"] is None
+        )["final_acc"]
+        for m in MODELS
+    ]
+    rates = [
+        next(
+            r for r in rows
+            if r["model"] == m and r["theta_u"] is None
+        )["rate_e"]
+        for m in MODELS
+    ]
+
+    ax_acc.bar(
+        xs - width / 2, accs, width=width,
+        color=[MODEL_COLORS[m] for m in MODELS],
+        edgecolor=theme.INK_BLACK,
+    )
+    ax_rate.bar(
+        xs + width / 2, rates, width=width,
+        color=[MODEL_COLORS[m] for m in MODELS],
+        edgecolor=theme.INK_BLACK, hatch="///",
+    )
+
+    for x, a in zip(xs, accs):
+        ax_acc.text(
+            x - width / 2, a + 1.5, f"{a:.1f}%",
+            ha="center", va="bottom",
+            fontsize=theme.SIZE_ANNOTATION, color=theme.INK_BLACK,
+        )
+    for x, r in zip(xs, rates):
+        ax_rate.text(
+            x + width / 2, r + max(rates) * 0.02, f"{r:.1f} Hz",
+            ha="center", va="bottom",
+            fontsize=theme.SIZE_ANNOTATION, color=theme.INK_BLACK,
+        )
+
+    ax_acc.set_xticks(xs)
+    ax_acc.set_xticklabels(MODELS)
+    ax_acc.set_ylabel("test accuracy (%, final epoch)")
+    ax_rate.set_ylabel("hidden-E firing rate (Hz, final epoch)")
+    ax_acc.set_title("cuba / coba / ping — accuracy vs firing rate (θ_u = off)")
+    ax_acc.set_ylim(0, max(100, max(accs) + 10))
+    ax_rate.set_ylim(0, max(rates) * 1.2 if rates else 1.0)
+    ax_acc.grid(True, axis="y", alpha=0.3)
+
+    handles = [
+        plt.Rectangle((0, 0), 1, 1, facecolor=theme.PAPER, edgecolor=theme.INK_BLACK),
+        plt.Rectangle(
+            (0, 0), 1, 1, facecolor=theme.PAPER, edgecolor=theme.INK_BLACK,
+            hatch="///",
+        ),
+    ]
+    ax_acc.legend(
+        handles, ["accuracy (left)", "rate (right)"],
+        loc="upper right", fontsize=theme.SIZE_LEGEND,
+    )
+
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path)
+    plt.close(fig)
+
+
+def plot_learning_curves(out_path: Path, run_id: str) -> None:
+    """Train loss + test accuracy per epoch, one curve per model (θ_u = off)."""
+    theme.apply()
+    fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(10.0, 5.625))
+    for m in MODELS:
+        metrics = load_metrics(baseline_dir(m))
+        epochs = [e["ep"] for e in metrics["epochs"]]
+        loss = [e["loss"] for e in metrics["epochs"]]
+        acc = [e["acc"] for e in metrics["epochs"]]
+        ax_loss.plot(epochs, loss, marker="o", color=MODEL_COLORS[m], label=m)
+        ax_acc.plot(epochs, acc, marker="o", color=MODEL_COLORS[m], label=m)
+    ax_loss.set_xlabel("epoch")
+    ax_loss.set_ylabel("train loss")
+    ax_loss.set_title("Train loss per epoch")
+    ax_loss.grid(True, alpha=0.3)
+    ax_loss.legend(fontsize=theme.SIZE_LEGEND)
+    ax_acc.set_xlabel("epoch")
+    ax_acc.set_ylabel("test accuracy (%)")
+    ax_acc.set_title("Test accuracy per epoch")
+    ax_acc.set_ylim(0, 100)
+    ax_acc.grid(True, alpha=0.3)
+    ax_acc.legend(fontsize=theme.SIZE_LEGEND)
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path)
+    plt.close(fig)
+
+
+def render_raster(npz_path: Path, out_path: Path, title: str) -> None:
+    """Population spike raster from snapshot.npz."""
+    theme.apply()
+    data = np.load(npz_path)
+    spk_e = data["spk_e"]
+    spk_i = data["spk_i"]
+    dt = float(data["dt"])
+    T = spk_e.shape[0]
+    t_ms = np.arange(T) * dt
+    has_i = spk_i.size > 0 and spk_i.shape[0] == T and spk_i.any()
+    if has_i:
+        fig, (ax_e, ax_i) = plt.subplots(
+            2, 1, figsize=(8.0, 4.5), sharex=True,
+            gridspec_kw={"height_ratios": [4, 1]},
+        )
+    else:
+        fig, ax_e = plt.subplots(1, 1, figsize=(8.0, 4.5))
+        ax_i = None
+    e_idx, e_t = np.where(spk_e.T)
+    ax_e.scatter(
+        t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|", linewidths=0.5
+    )
+    ax_e.set_ylabel("E neuron")
+    ax_e.set_ylim(0, spk_e.shape[1])
+    ax_e.set_xlim(0, T * dt)
+    ax_e.set_title(title)
+    if has_i:
+        i_idx, i_t = np.where(spk_i.T)
+        ax_i.scatter(
+            t_ms[i_t], i_idx, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.5
+        )
+        ax_i.set_ylabel("I neuron")
+        ax_i.set_ylim(0, spk_i.shape[1])
+        ax_i.set_xlim(0, T * dt)
+        ax_i.set_xlabel("time (ms)")
+    else:
+        ax_e.set_xlabel("time (ms)")
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+
+
+def generate_raster(model: str, out_path: Path) -> None:
+    """Replay the trained baseline (θ_u = off) network on MNIST digit 0
+    for 400 ms and render its raster figure."""
+    infer_dir = baseline_dir(model) / "infer"
+    npz_path = infer_dir / "snapshot.npz"
+    if npz_path.exists():
+        npz_path.unlink()
+    argv = [
+        "image",
+        "--from-dir", str(baseline_dir(model)),
+        "--input", "dataset",
+        "--dataset", "mnist",
+        "--digit", "0",
+        "--sample", "0",
+        # Longer than the 200 ms training window so PING's rhythm
+        # has room to develop visibly.
+        "--t-ms", "400",
+    ]
+    cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *argv]
+    print(f"[raster] {model}: {' '.join(argv)}")
+    subprocess.run(cmd, cwd=REPO, check=True)
+    if not npz_path.exists():
+        raise SystemExit(f"oscilloscope did not produce {npz_path}")
+    render_raster(npz_path, out_path, f"{model} — trained network, MNIST digit 0, 400 ms")
+
+
+def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Pareto-style frontier: one line per model, baseline → tightest
+    penalty. Both axes are final-epoch state."""
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8.0, 4.5))
     for model in MODELS:
         pts = sorted(
             (r for r in rows if r["model"] == model),
@@ -225,8 +383,7 @@ def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
         ax.plot(
             xs, ys,
             color=MODEL_COLORS[model],
-            marker=MODEL_MARKERS[model],
-            label=model,
+            marker=MODEL_MARKERS[model], label=model,
         )
         for p in pts:
             ax.annotate(
@@ -248,62 +405,6 @@ def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
-def plot_acc_vs_theta(rows: list[dict], out_path: Path, run_id: str) -> None:
-    """Two stacked panels: accuracy and achieved rate, both vs θ_u (Hz).
-    Reads the regulariser as the independent variable (what was asked
-    of the network) rather than the achieved rate (what came out)."""
-    theme.apply()
-    grid_hz = [theta_hz(t) or float("inf") for t in THETA_U_GRID]
-    finite = [(t, h) for t, h in zip(THETA_U_GRID, grid_hz) if h != float("inf")]
-    fig, (ax_acc, ax_rate) = plt.subplots(2, 1, figsize=(8, 9), sharex=True)
-    for model in MODELS:
-        accs_finite, rates_finite, xs_finite = [], [], []
-        for t, h in finite:
-            r = next(
-                row for row in rows if row["model"] == model and row["theta_u"] == t
-            )
-            accs_finite.append(r["final_acc"])
-            rates_finite.append(r["rate_e"])
-            xs_finite.append(h)
-        ax_acc.plot(
-            xs_finite, accs_finite,
-            color=MODEL_COLORS[model],
-            marker=MODEL_MARKERS[model], label=model,
-        )
-        ax_rate.plot(
-            xs_finite, rates_finite,
-            color=MODEL_COLORS[model],
-            marker=MODEL_MARKERS[model], label=model,
-        )
-        base = next(
-            row for row in rows if row["model"] == model and row["theta_u"] is None
-        )
-        ax_acc.axhline(base["final_acc"], color=MODEL_COLORS[model], lw=0.8, ls=":", alpha=0.7)
-        ax_rate.axhline(base["rate_e"], color=MODEL_COLORS[model], lw=0.8, ls=":", alpha=0.7)
-    # diagonal: rate = θ_u
-    budget_xs = sorted(xs_finite)
-    ax_rate.plot(
-        budget_xs, budget_xs,
-        color=theme.LABEL, lw=1.0, ls="--",
-        label="rate = θ_u",
-    )
-    ax_acc.set_ylabel("test accuracy (%, final epoch)")
-    ax_acc.set_title("Accuracy vs spike budget θ_u")
-    ax_acc.set_ylim(0, 100)
-    ax_acc.grid(True, alpha=0.3, which="both")
-    ax_acc.legend(loc="lower right")
-    ax_rate.set_xlabel("θ_u (Hz)  [smaller = tighter budget]")
-    ax_rate.set_ylabel("achieved rate (Hz)")
-    ax_rate.set_title("Achieved rate vs spike budget — dotted lines mark each model's λ=off rate")
-    ax_rate.grid(True, alpha=0.3)
-    ax_rate.legend(loc="upper left")
-    fig.tight_layout()
-    _stamp(fig, run_id)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
-    plt.close(fig)
-
-
 def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
     floor = float(MIN_ACC_BY_TIER[tier])
     figs_root = figures.parents[2]
@@ -315,16 +416,20 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         return {
             "label": label,
             "passed": bool(ok),
-            "detail": f"{path.name} ({path.stat().st_size} bytes)"
-            if ok
-            else f"missing {path.name}",
+            "detail": (
+                f"{path.name} ({path.stat().st_size} bytes)"
+                if ok else f"missing {path.name}"
+            ),
             "detail_href": href,
         }
 
     crits: list[dict] = [
-        artifact("frontier.png", "frontier figure rendered"),
-        artifact("acc_vs_theta.png", "θ_u-axis figure rendered"),
+        artifact("acc_vs_rate.png", "bar chart rendered"),
+        artifact("learning_curves.png", "learning curves rendered"),
+        artifact("frontier.png", "frontier rendered"),
     ]
+    for model in MODELS:
+        crits.append(artifact(f"raster__{model}.png", f"{model} raster rendered"))
     for model in MODELS:
         for theta_u in THETA_U_GRID:
             crits.append(
@@ -334,7 +439,6 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
                 )
             )
 
-    # baseline accuracy must clear the tier floor for every model
     for model in MODELS:
         base = next(
             r for r in rows if r["model"] == model and r["theta_u"] is None
@@ -346,19 +450,15 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
                 "detail": f"{model}={base['best_acc']:.2f}%",
             }
         )
-    # The frontier should be monotone-ish: tighter budget cannot give
-    # higher rate. Allow a tolerance because of stochastic optimisation.
+    # Frontier monotonicity: tighter budget cannot give higher rate.
     for model in MODELS:
         ordered = [
             next(r for r in rows if r["model"] == model and r["theta_u"] == t)
             for t in [tu for tu in THETA_U_GRID if tu is not None]
         ]
-        # Sort by θ_u descending (loosest → tightest) and check rate is non-increasing.
         ordered.sort(key=lambda r: -r["theta_u"])
         rates = [r["rate_e"] for r in ordered]
-        non_increasing = all(
-            b <= a + 1.0 for a, b in zip(rates, rates[1:])
-        )  # 1 Hz tolerance
+        non_increasing = all(b <= a + 1.0 for a, b in zip(rates, rates[1:]))
         crits.append(
             {
                 "label": f"{model} rate non-increasing as θ_u tightens (±1 Hz)",
@@ -398,8 +498,7 @@ def main() -> None:
     notebook_run_id = next_run_id(SLUG)
     n_cells = len(MODELS) * len(THETA_U_GRID)
     print(
-        f"notebook_run_id = {notebook_run_id} tier={tier} "
-        f"cells={n_cells}"
+        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
         + ("  [skip-training]" if skip_training else "")
     )
 
@@ -475,13 +574,20 @@ def main() -> None:
             f"rate_e={r['rate_e']:6.1f} Hz"
         )
 
+    plot_acc_rate_bars(rows, FIGURES / "acc_vs_rate.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'acc_vs_rate.png'}")
+    plot_learning_curves(FIGURES / "learning_curves.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'learning_curves.png'}")
     plot_frontier(rows, FIGURES / "frontier.png", notebook_run_id)
     print(f"wrote {FIGURES / 'frontier.png'}")
-    plot_acc_vs_theta(rows, FIGURES / "acc_vs_theta.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'acc_vs_theta.png'}")
+
+    for model in MODELS:
+        out = FIGURES / f"raster__{model}.png"
+        generate_raster(model, out)
+        print(f"wrote {out}")
 
     duration_s = time.monotonic() - t_start
-    train_cfg = load_config(cell_dir(MODELS[0], None))
+    train_cfg = load_config(baseline_dir(MODELS[0]))
     crits = evaluate_success(rows, tier, FIGURES)
     summary = {
         "notebook_run_id": notebook_run_id,
