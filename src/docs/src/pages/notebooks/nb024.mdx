@@ -21,7 +21,7 @@ export const get = (model, theta_u = null) =>
 
 ## Introduction
 
-Three rungs of the biophysical ladder — [cuba](/docs/models/#cubanet), [coba](/docs/models/#cobanet) and [ping](/docs/models/#ping) — are trained on MNIST with their calibrated nb010 / nb011 / nb012 recipes. The headline deliverable is a single bar chart with two y-axes: final-epoch test accuracy on the left, mean hidden-E firing rate on the right (Figure 1).
+Three rungs of the biophysical ladder — [cuba](/articles/art003/), [coba](/articles/art004/) and [ping](/articles/art004/) — are trained on MNIST with their calibrated nb010 / nb011 / nb012 recipes. The headline deliverable is a single bar chart with two y-axes: final-epoch test accuracy on the left, mean hidden-E firing rate on the right (Figure 1).
 
 Each model is also re-trained at five values of the upper-bound spike-budget regulariser $\theta_u$ (off + 5 finite values). The frontier those $(\text{acc}, \text{rate})$ pairs trace out (Figure 3) characterises where each model can be pushed in the accuracy/rate plane. This subsumes the now-retired nb020.
 
@@ -29,9 +29,9 @@ Each model is also re-trained at five values of the upper-bound spike-budget reg
 
 Three cells per model, six $\theta_u$ values each (18 cells total):
 
-- *cuba* — [cuba](/docs/models/#cubanet) with *--kaiming-init*, *--lr=0.04*, *--readout=mem-mean*.
-- *coba* — [coba](/docs/models/#cobanet) recipe (*--ei-strength=0*, *--w-in=0.3*, *--lr=0.0004*, *--readout-w-out-scale=100*).
-- *ping* — [ping](/docs/models/#ping) recipe (*--ei-strength=1*, *--w-in=1.2*, *--lr=0.0004*, *--readout-w-out-scale=500*).
+- *cuba* — [cuba](/articles/art003/) with *--kaiming-init*, *--lr=0.04*, *--readout=mem-mean*.
+- *coba* — [coba](/articles/art004/) recipe (*--ei-strength=0*, *--w-in=0.3*, *--lr=0.0004*, *--readout-w-out-scale=100*).
+- *ping* — [ping](/articles/art004/) recipe (*--ei-strength=1*, *--w-in=1.2*, *--lr=0.0004*, *--readout-w-out-scale=500*).
 
 $\theta_u$ grid (spikes/trial): *off, 5, 2, 1, 0.5, 0.2*. At $T = 200$ ms these correspond to *off, 25, 10, 5, 2.5, 1* Hz, with regulariser strength $\lambda_u = 10^{-3}$ held fixed.
 

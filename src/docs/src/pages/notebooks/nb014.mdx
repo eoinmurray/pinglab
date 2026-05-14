@@ -31,7 +31,7 @@ Stub entry for the [Spiking Heidelberg Digits](https://zenkelab.org/resources/sp
   One cochleogram spike raster per class, sampled from the train set (seed {cfg.seed ?? "?"}). Classes 0–9 are the English digits *zero*–*nine*; classes 10–19 are the German *null*–*neun*. Each panel is 700 channels × {cfg.t_ms ?? "?"} ms; density and temporal structure vary across speakers but the class-specific spectral signature is visible.
 </Figure>
 
-[*cuba*](/docs/models/#cuba) model with one hidden layer of 128 units, trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **li** readout. Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}; raw Kaiming init, no per-init drive compensation.
+[*cuba*](/articles/art003/) model with one hidden layer of 128 units, trained on SHD at the **{numbers.tier ?? "?"}** tier ({cfg.max_samples ?? "?"} samples × {cfg.epochs ?? "?"} epochs) with the **li** readout. Trials run for {cfg.t_ms ?? "?"} ms at *dt* = {cfg.dt ?? "?"} ms. Learning rate $\eta$ = {cell.lr ?? "?"}; raw Kaiming init, no per-init drive compensation.
 
 ### Comparison to the literature
 

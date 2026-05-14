@@ -22,7 +22,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*cuba*](/docs/models/#cuba) path — current-based synapses with the $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors built into the integrator — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; calibration sibling of [nb007](/notebooks/nb007/) and [nb009](/notebooks/nb009/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*cuba*](/articles/art003/) path — current-based synapses with the $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors built into the integrator — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. No Δt sweep; calibration sibling of [nb007](/notebooks/nb007/) and [nb009](/notebooks/nb009/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
