@@ -748,6 +748,144 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
     }
 
 
+def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> dict:
+    """Single-trial raster: load the trained ping baseline, override
+    M.max_rate_hz, run one forward pass on a single test sample."""
+    import torch
+
+    import config as C  # noqa: F401
+    import models as M
+    from config import build_net, patch_dt
+    from oscilloscope import (
+        EVAL_SEED,
+        _auto_device,
+        encode_batch,
+        load_dataset,
+        seed_everything,
+    )
+
+    cfg = json.loads((train_dir / "config.json").read_text())
+    seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
+    M.T_ms = float(cfg["t_ms"])
+    patch_dt(float(cfg["dt"]))
+    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
+    M.N_HID = hidden_sizes[-1]
+    M.N_INH = hidden_sizes[-1] // 4
+    M.HIDDEN_SIZES = list(hidden_sizes)
+    M.max_rate_hz = float(spike_rate)
+    M.p_scale = M.max_rate_hz * M.dt / 1000.0
+
+    device = _auto_device()
+    _, X_te, _, y_te = load_dataset(
+        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
+    )
+    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
+
+    w_in_cfg = cfg.get("w_in")
+    w_in_arg = (
+        (float(w_in_cfg[0]), float(w_in_cfg[1]))
+        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
+        else None
+    )
+    net = build_net(
+        cfg["model"],
+        w_in=w_in_arg,
+        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
+        ei_strength=float(cfg.get("ei_strength") or 1.0),
+        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
+        sparsity=float(cfg.get("sparsity") or 0.0),
+        device=device,
+        randomize_init=not bool(cfg.get("kaiming_init", False)),
+        kaiming_init=bool(cfg.get("kaiming_init", False)),
+        dales_law=bool(cfg.get("dales_law", True)),
+        hidden_sizes=hidden_sizes,
+    )
+    if hasattr(net, "readout_mode"):
+        net.readout_mode = cfg.get("readout_mode", "mem-mean")
+
+    state = torch.load(train_dir / "weights.pth", map_location=device)
+    net.load_state_dict(state, strict=False)
+    net.eval()
+    net.recording = True
+
+    X_b = torch.from_numpy(X_te[sample_idx : sample_idx + 1]).to(device)
+    y_b = int(y_te[sample_idx])
+    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+    with torch.no_grad():
+        spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
+        _ = net(input_spikes=spk)
+
+    e_full = net.spike_record["hid"].cpu().numpy()
+    i_full = net.spike_record["inh"].cpu().numpy()
+    # Mean E firing rate over the trial, in Hz.
+    e_rate_hz = float(e_full.sum() / (e_full.shape[1] * cfg["t_ms"] / 1000.0))
+    rng = np.random.default_rng(0)
+    e_idx = np.sort(rng.choice(e_full.shape[1], EI_RASTER_N_E_PLOT, replace=False))
+    i_idx = np.sort(rng.choice(i_full.shape[1], EI_RASTER_N_I_PLOT, replace=False))
+    return {
+        "spike_rate": float(spike_rate),
+        "e_rate_hz": e_rate_hz,
+        "label": y_b,
+        "e": e_full[:, e_idx].astype(bool),
+        "i": i_full[:, i_idx].astype(bool),
+        "dt": float(cfg["dt"]),
+        "t_ms": float(cfg["t_ms"]),
+    }
+
+
+def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
+    """One row per input-rate value; same E-over-I stacked layout as
+    plot_ei_rasters so the two figures are visually comparable."""
+    theme.apply()
+    n = len(samples)
+    n_e = EI_RASTER_N_E_PLOT
+    n_i = EI_RASTER_N_I_PLOT
+    gap = 6
+    fig, axes = plt.subplots(
+        n, 1, figsize=(10.0, 5.625 + 0.6 * max(n - 4, 0)),
+        sharex=True, gridspec_kw={"hspace": 0.18},
+    )
+    if n == 1:
+        axes = [axes]
+    for i, (ax, s) in enumerate(zip(axes, samples)):
+        T = s["e"].shape[0]
+        t_axis = np.arange(T) * s["dt"]
+        e_t, e_n = np.where(s["e"])
+        i_t, i_n = np.where(s["i"])
+        ax.scatter(
+            t_axis[e_t], e_n,
+            s=2.0, c=theme.INK_BLACK, marker="|", linewidths=0.4,
+        )
+        ax.scatter(
+            t_axis[i_t], i_n + n_e + gap,
+            s=2.0, c=theme.DEEP_RED, marker="|", linewidths=0.4,
+        )
+        ax.set_ylim(-2, n_e + n_i + gap + 2)
+        ax.set_yticks([n_e / 2, n_e + gap + n_i / 2])
+        ax.set_yticklabels(["E", "I"])
+        ax.tick_params(axis="y", length=0)
+        ax.set_xlim(0, s["t_ms"])
+        ax.text(
+            1.012, 0.5, f"E = {s['e_rate_hz']:.1f} Hz",
+            transform=ax.transAxes,
+            ha="left", va="center",
+            fontsize=theme.SIZE_LABEL,
+        )
+        if i == 0:
+            ax.set_title(
+                "E (black) and I (red) spikes — trained ping, MNIST digit 0, "
+                "input-rate sweep"
+            )
+        if i < n - 1:
+            ax.tick_params(axis="x", labelbottom=False)
+    axes[-1].set_xlabel("time (ms)")
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path)
+    plt.close(fig)
+
+
 def plot_ei_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     """One row per ei value; I units stack over E units so the PING-style
     E-then-I cadence reads as alternating bursts when it appears."""
@@ -1107,6 +1245,19 @@ def main() -> None:
     rate_sweep_out = FIGURES / "rate_sweep__ping.mp4"
     generate_rate_sweep_video("ping", rate_sweep_out)
     print(f"wrote {rate_sweep_out}")
+
+    # Stacked raster snapshot at the first 10 frames of the rate sweep —
+    # same panel style as the ei-sweep rasters so the two read as a pair.
+    rate_grid = np.linspace(0.0, 100.0, 40)[:10]
+    print(f"[rate-rasters] capturing rates {[round(r, 2) for r in rate_grid]}")
+    rate_samples = [
+        capture_rate_raster(baseline_dir("ping"), float(r), sample_idx=0)
+        for r in rate_grid
+    ]
+    plot_rate_rasters(
+        rate_samples, FIGURES / "rate_rasters__ping.png", notebook_run_id
+    )
+    print(f"wrote {FIGURES / 'rate_rasters__ping.png'}")
 
     ei_points = run_ei_sweep(notebook_run_id)
 
