@@ -108,8 +108,8 @@ MODEL_RECIPES: dict[str, dict] = {
 }
 
 MODEL_COLORS = {
-    "coba": theme.AMBER,
-    "ping": theme.ELECTRIC_CYAN,
+    "coba": theme.DEEP_RED,
+    "ping": theme.INK_BLACK,
 }
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
 
@@ -251,15 +251,19 @@ def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
     rate_sems = [s[3] for s in stats]
     n_seeds = stats[0][4] if stats else 0
 
+    # Local black-and-grey scheme for the headline bar chart — keeps the
+    # two-bars-per-model pairing readable on a single axes without leaning on
+    # the model-color palette used elsewhere.
+    bar_colors = {"coba": theme.GREY_MID, "ping": theme.DEEP_RED}
     ax_acc.bar(
         xs - width / 2, accs, width=width,
-        color=[MODEL_COLORS[m] for m in MODELS],
+        color=[bar_colors[m] for m in MODELS],
         edgecolor=theme.INK_BLACK,
         yerr=acc_sems, ecolor=theme.INK_BLACK, capsize=4,
     )
     ax_rate.bar(
         xs + width / 2, rates, width=width,
-        color=[MODEL_COLORS[m] for m in MODELS],
+        color=[bar_colors[m] for m in MODELS],
         edgecolor=theme.INK_BLACK, hatch="///",
         yerr=rate_sems, ecolor=theme.INK_BLACK, capsize=4,
     )
@@ -308,7 +312,7 @@ def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     _stamp(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
@@ -364,7 +368,7 @@ def plot_learning_curves(out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     _stamp(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
@@ -406,7 +410,7 @@ def render_raster(npz_path: Path, out_path: Path, title: str) -> None:
     else:
         ax_e.set_xlabel("time (ms)")
     fig.tight_layout()
-    fig.savefig(out_path, dpi=120)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
@@ -531,7 +535,7 @@ def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     _stamp(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
@@ -842,7 +846,7 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     n_i = EI_RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 5.625 + 0.6 * max(n - 4, 0)),
+        n, 1, figsize=(10.0, 5.625),
         sharex=True, gridspec_kw={"hspace": 0.18},
     )
     if n == 1:
@@ -882,7 +886,7 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     _stamp(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
@@ -995,7 +999,7 @@ def plot_perturbation_rasters(
     n_i = EI_RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 5.625 + 0.6 * max(n - 4, 0)),
+        n, 1, figsize=(10.0, 5.625),
         sharex=True, gridspec_kw={"hspace": 0.18},
     )
     if n == 1:
@@ -1033,7 +1037,7 @@ def plot_perturbation_rasters(
     fig.tight_layout()
     _stamp(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
@@ -1198,7 +1202,7 @@ def plot_perturbation_curves(
     level in its native units (probability for drop, Hz for add).
     """
     theme.apply()
-    fig, axes = plt.subplots(1, 2, figsize=(10.0, 4.5), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(10.0, 5.625), sharey=True)
     for ax, mode, xlabel in zip(
         axes,
         ("drop", "add"),
@@ -1230,7 +1234,7 @@ def plot_perturbation_curves(
     fig.tight_layout()
     _stamp(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
@@ -1243,7 +1247,7 @@ def plot_ei_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     n_i = EI_RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 5.625 + 0.6 * max(n - 4, 0)),
+        n, 1, figsize=(10.0, 5.625),
         sharex=True, gridspec_kw={"hspace": 0.18},
     )
     if n == 1:
@@ -1282,7 +1286,7 @@ def plot_ei_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     _stamp(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
@@ -1319,7 +1323,7 @@ def plot_ei_acc_sweep(points: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     _stamp(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
@@ -1341,7 +1345,7 @@ def plot_ei_rates_sweep(points: list[dict], out_path: Path, run_id: str) -> None
     ax.legend(loc="upper right")
     fig.tight_layout()
     _stamp(fig, run_id)
-    fig.savefig(out_path)
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
