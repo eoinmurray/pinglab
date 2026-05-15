@@ -1222,6 +1222,12 @@ class COBANet(SNNBase):
         self.signed_weights = not dales_law
         # Same lazy-compile pattern as CUBANet — see CUBANet for rationale.
         self._compiled_cache: dict = {}
+        # Optional per-step hook fired right after every layer's spikes are
+        # emitted and before they propagate (readout + next-step recurrence +
+        # I-loop). Signature: (s_e, s_i_or_None, layer_idx) -> (s_e', s_i').
+        # Set on the live instance to do hidden-spike perturbation experiments
+        # without modifying the forward graph. Forces the eager step body.
+        self._hidden_perturb_fn = None
 
         sizes = hidden_sizes if hidden_sizes is not None else HIDDEN_SIZES
         self.hidden_sizes = list(sizes)
@@ -1436,6 +1442,7 @@ class COBANet(SNNBase):
             "step" not in self._compiled_cache
             and not _env_no_compile()
             and device.type != "cpu"
+            and self._hidden_perturb_fn is None
         ):
             try:
                 self._compiled_cache["step"] = torch.compile(
@@ -1444,7 +1451,13 @@ class COBANet(SNNBase):
             except Exception as exc:  # noqa: BLE001
                 self._compiled_cache["step"] = self._step_body
                 self._compiled_cache["compile_error"] = str(exc)
-        step = self._compiled_cache.get("step", self._step_body)
+        # When the perturb hook is set, always use the eager body so the
+        # Python callable doesn't break (or trigger recompile on) the graph.
+        step = (
+            self._step_body
+            if self._hidden_perturb_fn is not None
+            else self._compiled_cache.get("step", self._step_body)
+        )
 
         for t in range(T_steps):
             slc = {
@@ -1581,6 +1594,16 @@ class COBANet(SNNBase):
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
                     state["v_e"][k], state["ref_e"][k], state["ge_e"][k]
                 )
+
+            if self._hidden_perturb_fn is not None:
+                new_s_e, new_s_i = self._hidden_perturb_fn(
+                    state["s_e"][k],
+                    state["s_i"].get(k) if is_ei else None,
+                    i,
+                )
+                state["s_e"][k] = new_s_e
+                if is_ei and new_s_i is not None:
+                    state["s_i"][k] = new_s_i
 
             prev_spk = state["s_e"][k]
 

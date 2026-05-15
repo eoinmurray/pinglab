@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r017",
+  "notebook_run_id": "r019",
   "git_sha": "559f599 (dirty)",
-  "duration_s": 93.0,
-  "duration": "1m 33s",
+  "duration_s": 547.7,
+  "duration": "9m 08s",
   "tier": "small",
   "config": {
     "tier": "small",
@@ -294,41 +294,395 @@
       "n_total": 400
     }
   ],
+  "perturbation": [
+    {
+      "mode": "drop",
+      "level": 0.0,
+      "acc": 83.75,
+      "e_rate_hz": 52.7231689453125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.1,
+      "acc": 83.5,
+      "e_rate_hz": 47.46053466796875,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.2,
+      "acc": 84.0,
+      "e_rate_hz": 42.18714599609375,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.3,
+      "acc": 84.25,
+      "e_rate_hz": 36.92286376953125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.4,
+      "acc": 82.75,
+      "e_rate_hz": 31.6572265625,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.5,
+      "acc": 82.0,
+      "e_rate_hz": 26.38291015625,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.6,
+      "acc": 81.0,
+      "e_rate_hz": 21.10142822265625,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.7,
+      "acc": 80.5,
+      "e_rate_hz": 15.831396484375,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.8,
+      "acc": 76.5,
+      "e_rate_hz": 10.5544677734375,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.9,
+      "acc": 57.25,
+      "e_rate_hz": 5.2669677734375,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 1.0,
+      "acc": 9.5,
+      "e_rate_hz": 0.0,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 0.0,
+      "acc": 83.75,
+      "e_rate_hz": 52.7231689453125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 10.0,
+      "acc": 84.25,
+      "e_rate_hz": 62.677392578125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 20.0,
+      "acc": 84.25,
+      "e_rate_hz": 72.62777099609374,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 30.0,
+      "acc": 84.25,
+      "e_rate_hz": 82.55938720703125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 40.0,
+      "acc": 83.5,
+      "e_rate_hz": 92.4903564453125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 50.0,
+      "acc": 82.0,
+      "e_rate_hz": 102.42603759765625,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 60.0,
+      "acc": 80.0,
+      "e_rate_hz": 112.375537109375,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 70.0,
+      "acc": 78.25,
+      "e_rate_hz": 122.3324951171875,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 80.0,
+      "acc": 74.5,
+      "e_rate_hz": 132.2664794921875,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 90.0,
+      "acc": 70.5,
+      "e_rate_hz": 142.21124267578125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 100.0,
+      "acc": 67.0,
+      "e_rate_hz": 152.14637451171876,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "drop",
+      "level": 0.0,
+      "acc": 84.5,
+      "e_rate_hz": 4.59638671875,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.1,
+      "acc": 84.25,
+      "e_rate_hz": 4.59808349609375,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.2,
+      "acc": 84.0,
+      "e_rate_hz": 4.63948974609375,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.3,
+      "acc": 83.5,
+      "e_rate_hz": 4.72188720703125,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.4,
+      "acc": 84.25,
+      "e_rate_hz": 4.7634521484375,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.5,
+      "acc": 84.75,
+      "e_rate_hz": 4.87354736328125,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.6,
+      "acc": 83.0,
+      "e_rate_hz": 5.13062744140625,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.7,
+      "acc": 82.25,
+      "e_rate_hz": 5.72882080078125,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.8,
+      "acc": 78.25,
+      "e_rate_hz": 7.0495361328125,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 0.9,
+      "acc": 73.0,
+      "e_rate_hz": 5.0380859375,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "drop",
+      "level": 1.0,
+      "acc": 9.5,
+      "e_rate_hz": 0.0,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 0.0,
+      "acc": 84.5,
+      "e_rate_hz": 4.59638671875,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 10.0,
+      "acc": 12.25,
+      "e_rate_hz": 10.0410400390625,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 20.0,
+      "acc": 10.0,
+      "e_rate_hz": 20.00960693359375,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 30.0,
+      "acc": 10.0,
+      "e_rate_hz": 29.99371337890625,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 40.0,
+      "acc": 9.75,
+      "e_rate_hz": 39.9767333984375,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 50.0,
+      "acc": 9.75,
+      "e_rate_hz": 49.965380859375,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 60.0,
+      "acc": 9.5,
+      "e_rate_hz": 59.967822265625,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 70.0,
+      "acc": 10.5,
+      "e_rate_hz": 69.97752685546875,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 80.0,
+      "acc": 10.75,
+      "e_rate_hz": 79.96444091796874,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 90.0,
+      "acc": 10.0,
+      "e_rate_hz": 89.9632080078125,
+      "n_total": 400,
+      "model": "ping"
+    },
+    {
+      "mode": "add",
+      "level": 100.0,
+      "acc": 10.5,
+      "e_rate_hz": 99.95064697265624,
+      "n_total": 400,
+      "model": "ping"
+    }
+  ],
   "success_criteria": [
     {
       "label": "bar chart rendered",
       "passed": true,
-      "detail": "acc_vs_rate.png (55925 bytes)",
+      "detail": "acc_vs_rate.png (56032 bytes)",
       "detail_href": "/figures/notebooks/nb024/acc_vs_rate.png"
     },
     {
       "label": "learning curves rendered",
       "passed": true,
-      "detail": "learning_curves.png (91650 bytes)",
+      "detail": "learning_curves.png (91762 bytes)",
       "detail_href": "/figures/notebooks/nb024/learning_curves.png"
     },
     {
       "label": "frontier rendered",
       "passed": true,
-      "detail": "frontier.png (43796 bytes)",
+      "detail": "frontier.png (43902 bytes)",
       "detail_href": "/figures/notebooks/nb024/frontier.png"
     },
     {
       "label": "ei-sweep accuracy rendered",
       "passed": true,
-      "detail": "ei_acc_sweep.png (47803 bytes)",
+      "detail": "ei_acc_sweep.png (47909 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_acc_sweep.png"
     },
     {
       "label": "ei-sweep rates rendered",
       "passed": true,
-      "detail": "ei_rates_sweep.png (54804 bytes)",
+      "detail": "ei_rates_sweep.png (54907 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_rates_sweep.png"
     },
     {
       "label": "ei-sweep rasters rendered",
       "passed": true,
-      "detail": "ei_rasters.png (71978 bytes)",
+      "detail": "ei_rasters.png (72100 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_rasters.png"
     },
     {
