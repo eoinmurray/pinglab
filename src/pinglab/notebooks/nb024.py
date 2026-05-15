@@ -1,8 +1,8 @@
-"""Notebook runner for entry 024 — cuba / coba / ping head-to-head on
+"""Notebook runner for entry 024 — coba / ping head-to-head on
 test accuracy and mean firing rate, with the θ_u spike-budget sweep.
 
 Subsumes the now-retired nb020. For each rung of the biophysical
-ladder (cuba, coba, ping), trains the calibrated nb010 / nb011 / nb012
+ladder (coba, ping), trains the calibrated nb011 / nb012
 recipe at six values of the upper-bound spike budget θ_u: off (no
 penalty) plus θ_u ∈ {5, 2, 1, 0.5, 0.2} spikes/trial = {25, 10, 5,
 2.5, 1} Hz. Same recipe in every other respect — only the regulariser
@@ -72,23 +72,15 @@ EI_RASTER_N_I_PLOT: int = 64
 
 # θ_u sweep grid in spikes-per-trial. None = no penalty (baseline).
 # At T = 200 ms, spikes/trial × 5 = Hz. The grid spans from no
-# pressure (off → ~80–90 Hz baselines for cuba/coba) down to 1 Hz —
+# pressure (off → ~80 Hz coba baseline) down to 1 Hz —
 # below ping's natural 5 Hz and into the regime where every model
 # loses accuracy.
 THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
 FR_STRENGTH_UPPER = 1e-3
 
-MODELS = ["cuba", "coba", "ping"]
+MODELS = ["coba", "ping"]
 
 MODEL_RECIPES: dict[str, dict] = {
-    "cuba": {
-        "__build_as": "cuba",
-        "--kaiming-init": True,
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--lr": "0.04",
-        "--batch-size": "256",
-    },
     "coba": {
         "__build_as": "ping",
         "--ei-strength": "0",
@@ -116,11 +108,10 @@ MODEL_RECIPES: dict[str, dict] = {
 }
 
 MODEL_COLORS = {
-    "cuba": theme.DEEP_RED,
     "coba": theme.AMBER,
     "ping": theme.ELECTRIC_CYAN,
 }
-MODEL_MARKERS = {"cuba": "o", "coba": "s", "ping": "D"}
+MODEL_MARKERS = {"coba": "s", "ping": "D"}
 
 MIN_ACC_BY_TIER = {
     "extra small": 15.0,
@@ -297,7 +288,7 @@ def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
         if n_seeds > 1
         else " — accuracy vs firing rate (θ_u = off)"
     )
-    ax_acc.set_title("cuba / coba / ping" + title_suffix)
+    ax_acc.set_title("coba / ping" + title_suffix)
     ax_acc.set_ylim(0, max(100, max(accs) + 10))
     ax_rate.set_ylim(0, max(rates) * 1.2 if rates else 1.0)
     ax_acc.grid(True, axis="y", alpha=0.3)
@@ -533,7 +524,7 @@ def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
             )
     ax.set_xlabel("hidden E firing rate (Hz, final epoch)")
     ax.set_ylabel("test accuracy (%, final epoch)")
-    ax.set_title("Accuracy / rate frontier across the cuba → coba → ping ladder")
+    ax.set_title("Accuracy / rate frontier across the coba → ping ladder")
     ax.set_ylim(0, 100)
     ax.grid(True, alpha=0.3)
     ax.legend()
