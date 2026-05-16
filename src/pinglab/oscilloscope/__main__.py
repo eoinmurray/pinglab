@@ -1425,6 +1425,9 @@ def train(
     optimizer="adam",
     loss_mode="ce",
     profile_path=None,
+    trainable_w_ee=False,
+    slow_synapse=False,
+    slow_syn_gain=0.5,
 ):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
@@ -1512,6 +1515,9 @@ def train(
         rec_layers=rec_layers,
         ei_layers=ei_layers,
         readout_mode=readout_mode,
+        trainable_w_ee=trainable_w_ee,
+        slow_synapse=slow_synapse,
+        slow_syn_gain=slow_syn_gain,
     )
     if randomize:
         log.info("  randomize_init=True (symmetry breaking for standard-snn)")
@@ -1576,6 +1582,10 @@ def train(
         "w_rec": w_rec,
         "rec_layers": list(rec_layers) if rec_layers else None,
         "ei_layers": list(ei_layers) if ei_layers else None,
+        "trainable_w_ee": trainable_w_ee,
+        "slow_synapse": slow_synapse,
+        "slow_syn_gain": slow_syn_gain,
+        "tau_nmda": float(M.tau_nmda),
         "seed": seed,
         # Provenance (git SHA, run_id, started_at, device, torch version,
         # python env hash) — keeps train-mode config.json at parity with
@@ -3100,6 +3110,38 @@ Models:
         metavar=("MEAN", "STD"),
         help="W_rec recurrent init (mean std, default: 0 0.1)",
     )
+    wt_group.add_argument(
+        "--trainable-w-ee",
+        action="store_true",
+        help="Make COBANet's E→E recurrent matrix gradient-carrying "
+        "(default: frozen). W_ei / W_ie stay frozen. Use for working-"
+        "memory tasks where the E attractor needs to learn.",
+    )
+    net_group.add_argument(
+        "--slow-syn",
+        action="store_true",
+        help="COBANet only: add an NMDA-like slow excitatory channel "
+        "running in parallel with AMPA on every E-driving projection. "
+        "Sample-period spikes leave a long-decay residue (tau_nmda, "
+        "default 100 ms) on E neurons via the same W matrices — useful "
+        "for working-memory tasks. No new trainable parameters.",
+    )
+    net_group.add_argument(
+        "--tau-nmda",
+        type=float,
+        default=None,
+        help="Decay time constant for the slow synapse in ms "
+        "(default: 100 ms, module-level `tau_nmda`). Only relevant "
+        "when --slow-syn is set.",
+    )
+    net_group.add_argument(
+        "--slow-syn-gain",
+        type=float,
+        default=0.5,
+        help="Gain on the slow synapse drive relative to the fast "
+        "(AMPA) drive (default: 0.5). 0.0 makes the network behaviour "
+        "identical to plain COBA. Only relevant when --slow-syn is set.",
+    )
     out_group = parent.add_argument_group("Output")
     out_group.add_argument("--out-dir", type=str, default=None, help="Output directory")
     out_group.add_argument(
@@ -3536,6 +3578,8 @@ Models:
         M.tau_snn = float(args.tau_mem)
     if getattr(args, "tau_syn", None) is not None:
         M.tau_ampa = float(args.tau_syn)
+    if getattr(args, "tau_nmda", None) is not None:
+        M.tau_nmda = float(args.tau_nmda)
     if getattr(args, "readout_tau_out", None) is not None:
         M.tau_out_ms = float(args.readout_tau_out)
 
@@ -3866,6 +3910,9 @@ if __name__ == "__main__":
             optimizer=args.optimizer,
             loss_mode=args.loss_mode,
             profile_path=args.profile,
+            trainable_w_ee=args.trainable_w_ee,
+            slow_synapse=args.slow_syn,
+            slow_syn_gain=args.slow_syn_gain,
         )
 
     elif mode == "infer":

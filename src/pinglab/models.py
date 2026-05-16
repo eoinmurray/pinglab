@@ -40,6 +40,10 @@ _REF_RATIO = 2.0  # ref_ms_E / ref_ms_I (Börgers)
 ref_ms_I = ref_ms_E / _REF_RATIO  # 1.5 ms
 tau_ampa = 2.0  # ms — AMPA decay
 tau_gaba = 9.0  # ms — GABA decay (Börgers: 9 ms; Buzsaki & Wang: 8-12 ms)
+# Slow excitatory ("NMDA-like") decay. Used only when COBANet is built
+# with slow_synapse=True. ~100 ms matches the Wang / Compte working-
+# memory NMDA timescale.
+tau_nmda = 100.0  # ms — slow excitatory decay (off by default)
 
 # ── Input encoding ────────────────────────────────────────────────────────
 max_rate_hz = (
@@ -95,6 +99,7 @@ V_GRAD_DAMPEN = 80.0
 # Derived
 decay_ampa = np.exp(-dt / tau_ampa)
 decay_gaba = np.exp(-dt / tau_gaba)
+decay_nmda = np.exp(-dt / tau_nmda)
 ref_steps_E = max(1, int(round(ref_ms_E / dt)))
 ref_steps_I = max(1, int(round(ref_ms_I / dt)))
 p_scale = max_rate_hz * dt / 1000.0
@@ -1211,6 +1216,9 @@ class COBANet(SNNBase):
         hidden_sizes=None,
         ei_layers=None,
         readout_mode="rate",
+        trainable_w_ee=False,
+        slow_synapse=False,
+        slow_syn_gain=0.5,
     ):
         super().__init__()
         if readout_mode not in ("rate", "li", "spike-count", "mem-mean"):
@@ -1248,10 +1256,24 @@ class COBANet(SNNBase):
             p1, p2, d, s = _parse_weight_spec(spec, dist, sparsity)
             self.W_ff.append(nn.Parameter(init_weight((n_pre, n_post), d, p1, p2, s)))
 
-        # E-I weights per E-I layer — fixed anatomical connectivity
-        # (buffers, not parameters: gradients don't flow through these, so
-        # the recurrent E-I circuit is a fixed substrate that the network
-        # learns to read out via trainable W_in / W_out only).
+        # E-I weights per E-I layer. W_ei / W_ie are fixed anatomical
+        # connectivity (the recurrent inhibitory circuit is a substrate the
+        # readout learns to read, not a trainable thing). W_ee defaults to
+        # fixed too, but flipping `trainable_w_ee=True` makes E→E gradient-
+        # carrying so the network can learn a Hopfield-style E attractor on
+        # top of the COBA biophysics — useful for working-memory tasks like
+        # DMTS where activity has to persist across silent delays.
+        self.trainable_w_ee = trainable_w_ee
+        # Optional slow excitatory ("NMDA-like") channel running in parallel
+        # with AMPA on every E-driving projection. When enabled, sample-
+        # period spikes leave a long-decay residue (tau_nmda ~ 100 ms) on
+        # E neurons via the same W matrices; useful for working-memory
+        # tasks where activity has to outlast the membrane / AMPA window.
+        # Gain is the multiplier on the slow channel's drive relative to
+        # the fast channel; 0.0 makes the network behaviour identical to
+        # plain COBA.
+        self.slow_synapse = slow_synapse
+        self.slow_syn_gain = float(slow_syn_gain)
         self.W_ee = nn.ParameterDict()
         self.W_ei = nn.ParameterDict()
         self.W_ie = nn.ParameterDict()
@@ -1261,7 +1283,8 @@ class COBANet(SNNBase):
             k = str(i)
             p1, p2, d, s = _parse_weight_spec(w_ee, dist, sparsity)
             w_ee_t = nn.Parameter(
-                init_weight((n_e, n_e), d, p1, p2, s), requires_grad=False
+                init_weight((n_e, n_e), d, p1, p2, s),
+                requires_grad=trainable_w_ee,
             )
             p1, p2, d, s = _parse_weight_spec(w_ei, dist, sparsity)
             w_ei_t = nn.Parameter(
@@ -1327,6 +1350,7 @@ class COBANet(SNNBase):
         # Per-layer state
         v_e, ref_e, ge_e, gi_e, s_e = {}, {}, {}, {}, {}
         v_i, ref_i, ge_i, s_i = {}, {}, {}, {}
+        ge_e_slow: dict = {}  # populated only when slow_synapse is set
         drive_gains = {}
         for i in range(1, self.n_layers + 1):
             n_e = self.hidden_sizes[i - 1]
@@ -1340,6 +1364,8 @@ class COBANet(SNNBase):
                 ref_std=ref_std,
             )
             ge_e[k] = init_conductance(B, n_e, device)
+            if self.slow_synapse:
+                ge_e_slow[k] = init_conductance(B, n_e, device)
             s_e[k] = torch.zeros(B, n_e, device=device)
             if i in self.ei_layers:
                 n_i = n_e // 4
@@ -1407,6 +1433,7 @@ class COBANet(SNNBase):
             "v_e": v_e,
             "ref_e": ref_e,
             "ge_e": ge_e,
+            "ge_e_slow": ge_e_slow,
             "gi_e": gi_e,
             "s_e": s_e,
             "v_i": v_i,
@@ -1431,6 +1458,8 @@ class COBANet(SNNBase):
             "g_noise": g_noise,
             "n_e0": self.hidden_sizes[0],
             "n_spk_tensors": n_spk_tensors,
+            "slow_synapse": self.slow_synapse,
+            "slow_syn_gain": self.slow_syn_gain,
         }
 
         # Lazy-init torch.compile on the per-timestep body. Same pattern,
@@ -1537,6 +1566,8 @@ class COBANet(SNNBase):
         has_ext_g = cfg["has_ext_g"]
         g_noise = cfg["g_noise"]
         n_spk_tensors = cfg["n_spk_tensors"]
+        slow_on = cfg["slow_synapse"]
+        slow_gain = cfg["slow_syn_gain"]
 
         prev_spk = None
         for i in range(1, self.n_layers + 1):
@@ -1552,17 +1583,22 @@ class COBANet(SNNBase):
                 # eager. Inlining keeps everything inside _step_body's
                 # single compiled graph where the three weight shapes are
                 # specialized once per (W_ee, W_ei, W_ie) tuple.
-                state["ge_e"][k] = (
-                    state["ge_e"][k] + state["s_e"][k] @ self.W_ee[k]
-                ) * decay_ampa
+                ee_drive = state["s_e"][k] @ self.W_ee[k]
+                state["ge_e"][k] = (state["ge_e"][k] + ee_drive) * decay_ampa
                 state["ge_i"][k] = (
                     state["ge_i"][k] + state["s_e"][k] @ self.W_ei[k]
                 ) * decay_ampa
                 state["gi_e"][k] = (
                     state["gi_e"][k] + state["s_i"][k] @ self.W_ie[k]
                 ) * decay_gaba
+                if slow_on:
+                    state["ge_e_slow"][k] = (
+                        state["ge_e_slow"][k] + slow_gain * ee_drive
+                    ) * decay_nmda
             else:
                 state["ge_e"][k] = state["ge_e"][k] * decay_ampa
+                if slow_on:
+                    state["ge_e_slow"][k] = state["ge_e_slow"][k] * decay_nmda
 
             if i == 1:
                 if has_input_spikes:
@@ -1570,21 +1606,40 @@ class COBANet(SNNBase):
                     if k in drive_gains:
                         g_ext = g_ext * drive_gains[k]
                     state["ge_e"][k] = state["ge_e"][k] + g_ext
+                    if slow_on:
+                        state["ge_e_slow"][k] = (
+                            state["ge_e_slow"][k] + slow_gain * g_ext
+                        )
                 if has_ext_g:
                     state["ge_e"][k] = state["ge_e"][k] + slc["ext_t"]
+                    if slow_on:
+                        state["ge_e_slow"][k] = (
+                            state["ge_e_slow"][k] + slow_gain * slc["ext_t"]
+                        )
             else:
-                state["ge_e"][k] = state["ge_e"][k] + prev_spk @ W
+                ff_drive = prev_spk @ W
+                state["ge_e"][k] = state["ge_e"][k] + ff_drive
+                if slow_on:
+                    state["ge_e_slow"][k] = (
+                        state["ge_e_slow"][k] + slow_gain * ff_drive
+                    )
 
             if g_noise > 0 and i == 1:
                 state["ge_e"][k] = state["ge_e"][k] + (
                     g_noise * torch.randn(cfg["B"], cfg["n_e0"], device=cfg["device"])
                 ).clamp(min=0)
 
+            # Combined fast + slow conductance drives the membrane.
+            g_e_total = (
+                state["ge_e"][k] + state["ge_e_slow"][k]
+                if slow_on
+                else state["ge_e"][k]
+            )
             if is_ei:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
                     state["v_e"][k],
                     state["ref_e"][k],
-                    state["ge_e"][k],
+                    g_e_total,
                     state["gi_e"][k],
                 )
                 state["v_i"][k], state["s_i"][k], state["ref_i"][k] = i_step_coba(
@@ -1592,7 +1647,7 @@ class COBANet(SNNBase):
                 )
             else:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
-                    state["v_e"][k], state["ref_e"][k], state["ge_e"][k]
+                    state["v_e"][k], state["ref_e"][k], g_e_total
                 )
 
             if self._hidden_perturb_fn is not None:
