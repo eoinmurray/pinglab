@@ -1,7 +1,7 @@
 {
-  "notebook_run_id": "r008",
-  "duration_s": 4.3,
-  "duration": "4s",
+  "notebook_run_id": "r010",
+  "duration_s": 7.2,
+  "duration": "7s",
   "tier": "small",
   "config": {
     "tier": "small",
@@ -39,6 +39,34 @@
       "slow_syn_gain": 0.5,
       "e_rate_hz": 22.52685546875,
       "i_rate_hz": 132.5
+    },
+    {
+      "model": "coba",
+      "trained_with_slow_syn": true,
+      "slow_syn_gain": 0.0,
+      "e_rate_hz": 3.26904296875,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "trained_with_slow_syn": true,
+      "slow_syn_gain": 0.5,
+      "e_rate_hz": 208.5400390625,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "ping",
+      "trained_with_slow_syn": true,
+      "slow_syn_gain": 0.0,
+      "e_rate_hz": 4.0576171875,
+      "i_rate_hz": 19.677734375
+    },
+    {
+      "model": "ping",
+      "trained_with_slow_syn": true,
+      "slow_syn_gain": 0.5,
+      "e_rate_hz": 17.47802734375,
+      "i_rate_hz": 92.5
     }
   ],
   "success_criteria": [
