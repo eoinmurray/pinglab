@@ -37,6 +37,7 @@ from pinglab import theme  # noqa: E402
 SLUG = "nb025"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
 
 # Pretrained baselines from nb024 (no slow-syn at training time).
 NB024_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "nb024"
@@ -46,6 +47,8 @@ PRETRAINED = {
 }
 
 # ── Recipe (CLI accepts only --tier and --modal-gpu) ──────────────────
+T_MS_TRAIN = 200.0
+DT_TRAIN = 0.1
 T_MS_TRIAL = 400.0
 SAMPLE_IDX = 0
 SLOW_SYN_GAIN = 0.5
@@ -56,13 +59,41 @@ RASTER_N_I_PLOT = 64
 
 DEFAULT_TIER = "small"
 TIER_CONFIG = {
-    "extra small": dict(max_samples=200),
-    "small":       dict(max_samples=500),
-    "medium":      dict(max_samples=2000),
-    "large":       dict(max_samples=5000),
-    "extra large": dict(max_samples=10000),
+    "extra small": dict(max_samples=200, epochs=1),
+    "small":       dict(max_samples=500, epochs=5),
+    "medium":      dict(max_samples=2000, epochs=20),
+    "large":       dict(max_samples=5000, epochs=40),
+    "extra large": dict(max_samples=10000, epochs=40),
 }
 MODELS = ["coba", "ping"]
+
+# Recipes mirror nb024's coba and ping baselines, with --slow-syn on.
+SLOW_TRAIN_RECIPES: dict[str, dict] = {
+    "coba": {
+        "--ei-strength": "0",
+        "--v-grad-dampen": "1000",
+        "--w-in": "0.3",
+        "--w-in-sparsity": "0.95",
+        "--readout": "mem-mean",
+        "--surrogate-slope": "1",
+        "--readout-w-out-scale": "100",
+        "--lr": "0.0004",
+        "--batch-size": "256",
+    },
+    "ping": {
+        "--ei-strength": "1",
+        "--v-grad-dampen": "1000",
+        "--w-in": "1.2",
+        "--w-in-sparsity": "0.95",
+        "--readout": "mem-mean",
+        "--surrogate-slope": "1",
+        "--readout-w-out-scale": "500",
+        "--lr": "0.0004",
+        "--batch-size": "256",
+    },
+}
+def slow_train_dir(model: str) -> Path:
+    return ARTIFACTS / f"{model}_slow__seed{SEED}"
 
 
 def _stamp(fig, run_id: str) -> None:
@@ -80,6 +111,42 @@ def _format_duration(seconds: float) -> str:
     if s < 3600:
         return f"{s // 60}m {s % 60:02d}s"
     return f"{s // 3600}h {(s % 3600) // 60:02d}m"
+
+
+def train_with_slow_syn(model: str, tier: str) -> Path:
+    """Train one coba or ping cell with --slow-syn enabled. Mirrors
+    nb024's recipe in every other respect."""
+    import subprocess
+
+    out_dir = slow_train_dir(model)
+    out_dir.parent.mkdir(parents=True, exist_ok=True)
+    recipe = SLOW_TRAIN_RECIPES[model]
+    args = [
+        "train",
+        "--model", "ping",  # both coba and ping dispatch via COBANet
+        "--dataset", "mnist",
+        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--t-ms", str(T_MS_TRAIN),
+        "--dt", str(DT_TRAIN),
+        "--seed", str(SEED),
+        "--observe", "video",
+        "--frame-rate", "1",
+        "--out-dir", str(out_dir),
+        "--wipe-dir",
+        "--slow-syn",
+        "--slow-syn-gain", str(SLOW_SYN_GAIN),
+        "--tau-nmda", str(TAU_NMDA_MS),
+    ]
+    for k, v in recipe.items():
+        if v is True:
+            args.append(k)
+        elif v is not None:
+            args += [k, v]
+    cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *args]
+    print(f"[train-slow] {model}: {' '.join(args)}")
+    subprocess.run(cmd, cwd=REPO, check=True)
+    return out_dir
 
 
 def capture_raster(train_dir: Path, slow_syn_gain: float) -> dict:
@@ -270,12 +337,19 @@ def main() -> None:
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id} tier={tier}")
+    skip_training = "--skip-training" in sys.argv
+    print(
+        f"notebook_run_id = {notebook_run_id} tier={tier}"
+        + ("  [skip-training]" if skip_training else "")
+    )
     if modal_gpu is not None:
         print(f"[stub] --modal-gpu {modal_gpu} accepted, no-op for this cell")
 
     if wipe_dir:
-        for d in (ARTIFACTS, FIGURES):
+        # Always wipe FIGURES so plots come from this run; only wipe
+        # ARTIFACTS when training will regenerate them.
+        wipe_targets = (FIGURES,) if skip_training else (ARTIFACTS, FIGURES)
+        for d in wipe_targets:
             if d.exists():
                 print(f"[wipe] {d.relative_to(REPO)}")
                 shutil.rmtree(d)
@@ -316,6 +390,64 @@ def main() -> None:
         samples, FIGURES / "slow_syn_rasters.png", notebook_run_id
     )
     print(f"wrote {FIGURES / 'slow_syn_rasters.png'}")
+
+    # Cell 2: train fresh coba + ping with --slow-syn enabled so the
+    # weights actually adapt to the new channel. Then replay each at
+    # slow-syn off vs on (same gain as Cell 1) so the comparison with
+    # Figure 1 is apples-to-apples — the only difference is whether
+    # training saw the slow channel.
+    if not skip_training:
+        for model in MODELS:
+            train_with_slow_syn(model, tier)
+    else:
+        missing_slow = [
+            m for m in MODELS if not (slow_train_dir(m) / "weights.pth").exists()
+        ]
+        if missing_slow:
+            raise SystemExit(
+                f"--skip-training but slow-syn weights missing for {missing_slow}"
+            )
+
+    print(
+        f"[slow-syn-rasters-trained] coba + ping (trained with slow-syn) "
+        f"at gains {{0.0, {SLOW_SYN_GAIN}}}"
+    )
+    samples_trained: dict[str, dict[float, dict]] = {}
+    for model in MODELS:
+        samples_trained[model] = {}
+        for gain in (0.0, SLOW_SYN_GAIN):
+            s = capture_raster(slow_train_dir(model), gain)
+            samples_trained[model][gain] = s
+            print(
+                f"  {model:<4}  gain={gain:.2f}  "
+                f"E={s['e_rate_hz']:6.2f} Hz  I={s['i_rate_hz']:6.2f} Hz"
+            )
+            summary_rows.append(
+                {
+                    "model": model,
+                    "trained_with_slow_syn": True,
+                    "slow_syn_gain": gain,
+                    "e_rate_hz": s["e_rate_hz"],
+                    "i_rate_hz": s["i_rate_hz"],
+                }
+            )
+    plot_slow_syn_rasters(
+        samples_trained,
+        FIGURES / "slow_syn_rasters__trained.png",
+        notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'slow_syn_rasters__trained.png'}")
+
+    # Copy per-epoch training videos into FIGURES so the notebook entry
+    # can embed them — same convention as nb024.
+    for model in MODELS:
+        src = slow_train_dir(model) / "training.mp4"
+        dst = FIGURES / f"training__{model}_slow.mp4"
+        if src.exists():
+            shutil.copy2(src, dst)
+            print(f"wrote {dst}")
+        else:
+            print(f"[warn] missing training video for {model}: {src}")
 
     duration_s = time.monotonic() - t_start
     summary = {
