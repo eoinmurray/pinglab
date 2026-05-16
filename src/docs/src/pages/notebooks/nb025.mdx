@@ -53,16 +53,31 @@ with the same reversal potential $E_e = 0$ mV for both fast and slow excitatory 
 
 ## Results
 
-<Figure id="Figure 1" title="Trained coba / ping rasters — slow-syn off vs gain 0.5" src="/figures/notebooks/nb025/slow_syn_rasters.png" alt="Four raster panels in a 2-column × 2-row grid: columns are coba (left) and ping (right), rows are slow-syn off (top) and gain 0.5 (bottom). Each panel shows E (black) above I (red) spikes over 400 ms.">
-  Trained coba (left column) and ping (right) replayed on MNIST digit 0 sample 0 for 400 ms. Top row: slow-syn off — these are bit-identical to nb024's Figures 4 and 5. Bottom row: slow-syn gain 0.5 with $\tau_\text{NMDA} = 100$ ms. Same weights, same trial, only the slow channel differs. Each panel is annotated with mean E and I firing rate.
+### Cell 1 — nb024 baselines replayed with slow synapse injected
+
+<Figure id="Figure 1" title="nb024-trained coba / ping rasters — slow-syn off vs gain 0.5 at inference" src="/figures/notebooks/nb025/slow_syn_rasters.png" alt="Four raster panels in a 2-column × 2-row grid: columns are coba (left) and ping (right), rows are slow-syn off (top) and gain 0.5 (bottom). Networks are the nb024-trained baselines.">
+  nb024-trained coba (left column) and ping (right) replayed on MNIST digit 0 sample 0 for 400 ms. Top row: slow-syn off — bit-identical to nb024's Figures 4 and 5. Bottom row: slow-syn gain 0.5 with $\tau_\text{NMDA} = 100$ ms injected at inference. Same weights, same trial, only the slow channel differs.
+</Figure>
+
+**Reading:** with weights that never saw the slow channel during training, gain 0.5 just dumps free excitation on top. coba's E rate goes 78 → 288 Hz (refractory saturation); ping's goes 5.3 → 22.5 Hz with the gamma cadence still visible — the I-loop's authority keeps the rhythm locked at its trained period, density just goes up.
+
+### Cell 2 — coba and ping trained with slow synapse from scratch
+
+Same nb024 recipe in every respect, just *--slow-syn --slow-syn-gain 0.5 --tau-nmda 100* added to the training command. Both reach $\sim 85$% MNIST test accuracy at small tier — comparable to nb024's coba (84.25%) and ping (85.75%) — so the slow channel doesn't break the training pipeline.
+
+<Figure id="Figure 2" title="Trained-with-slow-syn coba / ping rasters — slow-syn off vs gain 0.5" src="/figures/notebooks/nb025/slow_syn_rasters__trained.png" alt="Four raster panels in a 2-column × 2-row grid like Figure 1, but the networks were trained from scratch with --slow-syn enabled.">
+  Same layout as Figure 1, but the networks were freshly trained with *--slow-syn --slow-syn-gain 0.5* enabled. Top row: replayed at slow-syn off (the channel the network was trained against is removed at inference). Bottom row: replayed at slow-syn gain 0.5 (the training condition).
 </Figure>
 
 ## Discussion
 
-*To fill in once we have the figure.* Two things worth checking:
+The contrast between Figure 1 and Figure 2 — same models, same comparison structure, only difference is whether training saw the slow channel — gives a clean answer to what the network learns to do with the new mechanism.
 
-- **coba**: does adding slow synapse on top of the trained feedforward-only network just scale up E activity (more drive → more spikes), or does it produce qualitatively new structure?
-- **ping**: does the slow excitatory residue change the gamma cadence, or does the I-loop's authority keep the rhythm locked at its trained period?
+**coba adapts its feedforward weights to depend on the slow channel.** Top-left panel: trained-with-slow-syn coba *fired at 3.3 Hz* when the slow channel is removed at inference, vs the nb024-trained baseline's 78 Hz with the same weights structure. That's a $\sim 23\times$ reduction. Gradient descent shifted the feedforward gain to the regime where the slow channel's residue carries most of the drive — without it, the network is starved. Bottom-left at training gain: 208 Hz vs Figure 1's 288 Hz — training brings the operating point down, but small-tier coba still ends up over-driven because the recipe wasn't separately tuned for the slow channel's added gain.
+
+**ping barely cares.** Top-right: 4.1 Hz E, 19.7 Hz I with slow-syn off (vs nb024 baseline 5.3 Hz E, 27.5 Hz I). Bottom-right: 17.5 Hz E, 92.5 Hz I with slow-syn on (vs Figure 1's 22.5 Hz E, 132.5 Hz I). The I-loop's authority sets the gamma cadence and the firing rate floor regardless of whether the slow channel was in the training environment — the trained-with-slow-syn ping converges to a similar operating point as nb024 ping, just with the slow conductance soaking up some of the drive instead of the slow channel being absent. The dynamical attractor is robust to whether this new substrate is present at training.
+
+Together: **the slow channel is a usable substrate for the feedforward path (coba uses it as primary drive), but the existing PING gamma loop is already a strong attractor that re-wins regardless of the slow channel's presence.** Working-memory tasks that need long-timescale state will likely train better in the coba-style feedforward regime than on top of the PING loop.
 
 ## Success criteria
 
@@ -100,3 +115,15 @@ uv run src/pinglab/notebooks/nb025.py --tier small
 ### Run parameters
 
 <RunParameters numbers={numbers} />
+
+### Training videos
+
+Per-epoch oscilloscope view of the freshly-trained coba and ping cells with *--slow-syn --slow-syn-gain 0.5 --tau-nmda 100*.
+
+<Figure id="Figure 3" title="coba — trained with slow synapse" src="/figures/notebooks/nb025/training__coba_slow.mp4" type="video" alt="Per-epoch oscilloscope training video for coba trained with slow-syn at gain 0.5.">
+  coba trained with the slow channel enabled. One frame per epoch on a fixed reference MNIST trial.
+</Figure>
+
+<Figure id="Figure 4" title="ping — trained with slow synapse" src="/figures/notebooks/nb025/training__ping_slow.mp4" type="video" alt="Per-epoch oscilloscope training video for ping trained with slow-syn at gain 0.5.">
+  ping trained with the slow channel enabled. One frame per epoch on a fixed reference MNIST trial.
+</Figure>
