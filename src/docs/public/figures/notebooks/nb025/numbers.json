@@ -1,0 +1,51 @@
+{
+  "notebook_run_id": "r008",
+  "duration_s": 4.3,
+  "duration": "4s",
+  "tier": "small",
+  "config": {
+    "tier": "small",
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "slow_syn_gain": 0.5,
+    "tau_nmda_ms": 100.0,
+    "t_total_ms": 400.0,
+    "sample_idx": 0,
+    "seed": 42
+  },
+  "results": [
+    {
+      "model": "coba",
+      "slow_syn_gain": 0.0,
+      "e_rate_hz": 78.3984375,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "coba",
+      "slow_syn_gain": 0.5,
+      "e_rate_hz": 287.87109375,
+      "i_rate_hz": 0.0
+    },
+    {
+      "model": "ping",
+      "slow_syn_gain": 0.0,
+      "e_rate_hz": 5.34912109375,
+      "i_rate_hz": 27.5
+    },
+    {
+      "model": "ping",
+      "slow_syn_gain": 0.5,
+      "e_rate_hz": 22.52685546875,
+      "i_rate_hz": 132.5
+    }
+  ],
+  "success_criteria": [
+    {
+      "label": "slow-syn raster rendered",
+      "passed": true,
+      "detail": "coba E gain0=78.4 Hz; coba E gain0.5=287.9 Hz; ping E gain0=5.3 Hz; ping E gain0.5=22.5 Hz"
+    }
+  ]
+}
