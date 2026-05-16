@@ -159,6 +159,9 @@ def build_net(
     rec_layers=None,
     ei_layers=None,
     readout_mode="rate",
+    trainable_w_ee=False,
+    slow_synapse=False,
+    slow_syn_gain=0.5,
 ):
     """Construct a network with the given config.
 
@@ -194,6 +197,21 @@ def build_net(
     # E-I layer selection (PING)
     if ei_layers is not None and model_name in HAS_INH:
         kwargs["ei_layers"] = set(ei_layers)
+    # Trainable E→E (COBANet only). When True, W_ee.requires_grad = True
+    # so the E-attractor learns alongside the feedforward weights —
+    # working-memory tasks like DMTS need this.
+    if trainable_w_ee and model_name in HAS_INH:
+        kwargs["trainable_w_ee"] = True
+    # Slow ("NMDA-like") excitatory channel on E projections — COBANet only.
+    # Adds a parallel long-decay conductance fed by the same W matrices.
+    if slow_synapse:
+        if model_name not in HAS_INH:
+            raise ValueError(
+                f"--slow-syn is COBANet-only; model {model_name!r} doesn't "
+                "have a biophysical synapse layer to attach it to"
+            )
+        kwargs["slow_synapse"] = True
+        kwargs["slow_syn_gain"] = float(slow_syn_gain)
     if kaiming_init and model_name in CUBA_MODELS:
         kwargs["tutorial_mode"] = True
     elif w_in is not None:
