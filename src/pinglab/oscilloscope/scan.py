@@ -58,6 +58,19 @@ from .encoders import encode_image_spikes
 log = logging.getLogger("oscilloscope")
 
 
+# ── Shared utilities (imported by snapshot/train/infer/__main__) ──────────
+def _auto_device() -> torch.device:
+    """Pick the fastest available device: cuda > mps > cpu.
+
+    Called when the user doesn't explicitly set --device.
+    """
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
 # ── Recording-key resolvers (shared with __main__.py and future modules) ──
 def primary_hid_key(rec):
     """Return the recording key for the deepest hidden layer.
