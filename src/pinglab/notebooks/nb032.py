@@ -1,28 +1,21 @@
-"""Notebook runner for entry 032 — DMTS with trainable W_ee + SGCC + NMDA.
+"""Notebook runner for entry 032 — N-way recall with trainable W_ee + SGCC + NMDA.
 
-Pulls the design together from nb030 (structural bistability of coba),
-nb031 (the lower edge of ping's sustained band), and the architectural
-features available on COBANet:
+Reformulates the working-memory task to match the LSNN paper's actual
+problem rather than the pathological binary-CE version we tried first.
+Same architecture (ping COBANet, trainable W_ee, slow-syn, SGCC), but
+task is now:
 
-  * ping config (ei_strength = 1) — inhibition provides the negative
-    feedback that nb030 proved is structurally required.
-  * trainable W_ee (--trainable-w-ee) — lets gradient descent find the
-    recurrent-attractor regime instead of us hand-picking it.
-  * slow synapse (--slow-syn) — NMDA-like long-decay excitatory channel,
-    the substrate for cross-stimulus memory.
-  * SGCC (--sgcc) — surgical gradient stabilizer that doesn't kill the
-    cross-coupling signal the way --v-grad-dampen 1000 does.
+  *  sample phase [0, T_s):           MNIST digit A as Poisson spikes.
+  *  delay  phase [T_s, T_s+T_d):     silence — network must hold class.
+  *  recall phase [T_s+T_d, T):       silence — readout integrates E activity.
+  *  target label: digit_A's class (10-way).
 
-Task: DMTS (delayed match-to-sample).
-  *  sample phase [0, T_s):       MNIST digit A encoded as Poisson spikes.
-  *  delay  phase [T_s, T_s+T_d): silence — network must hold sample state.
-  *  probe  phase [T_s+T_d, T):   MNIST digit B encoded as Poisson spikes.
-  *  target label: 1 if A == B (match), 0 otherwise.
-
-Readout (custom, bypasses the built-in mem-mean): mean E spike count
-over the probe window only → Linear(N_E → 2). This avoids the dilution
-problem that diluted the per-trial gradient in nb028/29 — only what
-happens during the probe window contributes to the loss.
+Loss is 10-class cross-entropy on the recall-window mean E spike rate
+fed through a Linear(N_E → 10) head. The per-sample gradient on the
+readout has directional variance across classes — no balanced-batch
+cancellation, no chance-basin trap. This is the same loss structure that
+let nb027 (regular MNIST classification with the same coba+SGCC stack)
+train cleanly to 87% test accuracy.
 
 Notebook entry: src/docs/src/pages/notebooks/nb032.mdx
 """
@@ -67,14 +60,14 @@ W_EE_INIT_STD = 0.005  # rather than washing it through a gamma attractor
 SLOW_SYN_GAIN = 0.5
 SGCC_ALPHA = 0.5
 
-# ── DMTS task ─────────────────────────────────────────────────────────
-T_SAMPLE_MS = 100.0
-T_DELAY_MS = 100.0
-T_PROBE_MS = 100.0
-T_TOTAL_MS = T_SAMPLE_MS + T_DELAY_MS + T_PROBE_MS
-STIM_PEAK_RATE_HZ = 50.0  # peak Poisson rate per pixel during stim windows
-N_OUT = 2                  # match / non-match
-N_CLASSES_FOR_PAIRING = 10  # how many digit classes to sample from
+# ── N-way recall task ─────────────────────────────────────────────────
+T_SAMPLE_MS = 100.0   # input on (digit_A's Poisson encoding)
+T_DELAY_MS = 200.0    # input off — pure memory window
+T_RECALL_MS = 100.0   # input off — readout integrates E activity here
+T_TOTAL_MS = T_SAMPLE_MS + T_DELAY_MS + T_RECALL_MS  # 400 ms
+STIM_PEAK_RATE_HZ = 50.0   # peak Poisson rate per pixel during sample window
+N_CLASSES = 10              # MNIST digit classes
+N_OUT = N_CLASSES
 
 # ── Training ──────────────────────────────────────────────────────────
 LR = 1e-3
@@ -118,84 +111,55 @@ def load_mnist_split():
     return X_tr, y_tr, X_te, y_te
 
 
-def _pair_indices(y: np.ndarray, n_pairs: int, seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Build n_pairs (idx_A, idx_B, label) trials with balanced match/non-match.
-
-    Half the pairs are sample-class == probe-class (label = 1, match), the
-    other half are sample-class != probe-class (label = 0, non-match).
-    Within each class we pick distinct samples so the network doesn't see
-    pixel-identical inputs at both phases.
-    """
+def _sample_indices(y: np.ndarray, n: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    """Pick n random sample indices balanced across the N_CLASSES digit classes."""
     rng = np.random.default_rng(seed)
-    by_class = {c: np.where(y == c)[0] for c in range(N_CLASSES_FOR_PAIRING)}
-    idx_a = np.empty(n_pairs, dtype=np.int64)
-    idx_b = np.empty(n_pairs, dtype=np.int64)
-    labels = np.empty(n_pairs, dtype=np.int64)
-    for i in range(n_pairs):
-        if i < n_pairs // 2:
-            c = int(rng.integers(0, N_CLASSES_FOR_PAIRING))
-            pool = by_class[c]
-            a, b = rng.choice(pool, size=2, replace=False)
-            idx_a[i], idx_b[i], labels[i] = a, b, 1
-        else:
-            ca, cb = rng.choice(N_CLASSES_FOR_PAIRING, size=2, replace=False)
-            a = int(rng.choice(by_class[int(ca)]))
-            b = int(rng.choice(by_class[int(cb)]))
-            idx_a[i], idx_b[i], labels[i] = a, b, 0
-    # Shuffle so match/non-match are interleaved
-    order = rng.permutation(n_pairs)
-    return idx_a[order], idx_b[order], labels[order]
+    by_class = {c: np.where(y == c)[0] for c in range(N_CLASSES)}
+    per_class = n // N_CLASSES
+    idx = []
+    labels = []
+    for c in range(N_CLASSES):
+        chosen = rng.choice(by_class[c], size=per_class, replace=False)
+        idx.append(chosen)
+        labels.append(np.full(per_class, c, dtype=np.int64))
+    idx_arr = np.concatenate(idx)
+    lbl_arr = np.concatenate(labels)
+    order = rng.permutation(len(idx_arr))
+    return idx_arr[order], lbl_arr[order]
 
 
-def _encode_pair_spikes(
-    pixel_a: np.ndarray,
-    pixel_b: np.ndarray,
+def _encode_recall_spikes(
+    pixel: np.ndarray,
     T_sample_steps: int,
-    T_delay_steps: int,
-    T_probe_steps: int,
+    T_silent_steps: int,
     seed: int,
 ) -> np.ndarray:
-    """Build a (T_total, N_IN) Poisson-encoded spike pattern for one trial.
-
-    Sample window: pixel_a * rate. Delay: zero. Probe: pixel_b * rate.
-    """
+    """One trial's (T_total, N_IN) input: digit during sample, silence after."""
     from cli.encoders import encode_image_spikes
 
-    # Encode each window separately with the canonical encoder, then stitch.
-    # base_rate=0 outside the window, stim_rate=STIM_PEAK_RATE_HZ inside.
     sample = encode_image_spikes(
-        pixel_a, T_sample_steps, DT,
+        pixel, T_sample_steps, DT,
         base_rate=0.0, stim_rate=STIM_PEAK_RATE_HZ,
         step_on_ms=0.0, step_off_ms=T_SAMPLE_MS,
         seed=seed,
     ).numpy()
-    delay = np.zeros((T_delay_steps, N_IN), dtype=np.float32)
-    probe = encode_image_spikes(
-        pixel_b, T_probe_steps, DT,
-        base_rate=0.0, stim_rate=STIM_PEAK_RATE_HZ,
-        step_on_ms=0.0, step_off_ms=T_PROBE_MS,
-        seed=seed + 1000003,
-    ).numpy()
-    return np.concatenate([sample, delay, probe], axis=0)
+    silent = np.zeros((T_silent_steps, N_IN), dtype=np.float32)
+    return np.concatenate([sample, silent], axis=0)
 
 
-def build_dmts_batch(
-    X: np.ndarray, y: np.ndarray,
-    idx_a: np.ndarray, idx_b: np.ndarray, labels: np.ndarray,
+def build_recall_batch(
+    X: np.ndarray, idx: np.ndarray, labels: np.ndarray,
     seed: int, device: torch.device,
 ):
     """Materialise a batch of (input_spikes, labels) for one training step."""
     T_sample_steps = int(T_SAMPLE_MS / DT)
-    T_delay_steps = int(T_DELAY_MS / DT)
-    T_probe_steps = int(T_PROBE_MS / DT)
-    T_total_steps = T_sample_steps + T_delay_steps + T_probe_steps
-    B = len(idx_a)
+    T_silent_steps = int((T_DELAY_MS + T_RECALL_MS) / DT)
+    T_total_steps = T_sample_steps + T_silent_steps
+    B = len(idx)
     spk = np.zeros((T_total_steps, B, N_IN), dtype=np.float32)
     for j in range(B):
-        spk[:, j, :] = _encode_pair_spikes(
-            X[idx_a[j]], X[idx_b[j]],
-            T_sample_steps, T_delay_steps, T_probe_steps,
-            seed=seed + j,
+        spk[:, j, :] = _encode_recall_spikes(
+            X[idx[j]], T_sample_steps, T_silent_steps, seed=seed + j,
         )
     return (
         torch.from_numpy(spk).to(device),
@@ -228,12 +192,13 @@ def build_dmts_net(device: torch.device):
     return net
 
 
-class DMTSReadout(nn.Module):
-    """Linear(N_E → 2) on probe-window mean E spike count.
+class RecallReadout(nn.Module):
+    """Linear(N_E → N_CLASSES) on recall-window mean E spike count.
 
-    Bypasses the built-in mem-mean readout — we only want what happens
-    during the probe window to drive the loss, otherwise the gradient on
-    W_out is averaged over the silent delay phase and washes out.
+    Bypasses the built-in mem-mean readout — we only want what's left in
+    the network after the delay window to drive the loss. Integrating
+    over the sample window would let the readout solve the task by
+    looking at the input directly, which isn't the point.
     """
 
     def __init__(self, n_e: int, n_out: int):
@@ -242,48 +207,46 @@ class DMTSReadout(nn.Module):
         nn.init.kaiming_uniform_(self.proj.weight, a=5.0 ** 0.5)
         nn.init.zeros_(self.proj.bias)
 
-    def forward(self, e_spikes_probe: torch.Tensor) -> torch.Tensor:
-        # e_spikes_probe: (T_probe, B, N_E) → mean over time → (B, N_E)
-        rate = e_spikes_probe.mean(dim=0)
+    def forward(self, e_spikes_recall: torch.Tensor) -> torch.Tensor:
+        rate = e_spikes_recall.mean(dim=0)
         return self.proj(rate)
 
 
 def forward_and_readout(
-    net: nn.Module, readout: DMTSReadout,
+    net: nn.Module, readout: RecallReadout,
     input_spikes: torch.Tensor,
 ) -> torch.Tensor:
-    """Run network, pull probe-window E activity, apply readout → logits."""
+    """Run network, pull recall-window E activity, apply readout → logits."""
     import models as M
 
     T_sample_steps = int(T_SAMPLE_MS / DT)
     T_delay_steps = int(T_DELAY_MS / DT)
-    T_probe_steps = int(T_PROBE_MS / DT)
-    T_total_steps = T_sample_steps + T_delay_steps + T_probe_steps
+    T_recall_steps = int(T_RECALL_MS / DT)
+    T_total_steps = T_sample_steps + T_delay_steps + T_recall_steps
     M.T_steps = T_total_steps
     M.T_ms = T_TOTAL_MS
 
     net.recording = True
     _ = net(input_spikes=input_spikes)
-    # spike_record["hid"] is (T, N_E) for B=1 or (T, B, N_E) for batched.
     e_record = net.spike_record["hid"]
     if e_record.dim() == 2:
         e_record = e_record.unsqueeze(1)
-    e_probe = e_record[T_sample_steps + T_delay_steps:]  # (T_probe, B, N_E)
-    return readout(e_probe)
+    e_recall = e_record[T_sample_steps + T_delay_steps:]  # (T_recall, B, N_E)
+    return readout(e_recall)
 
 
 # ── Training ──────────────────────────────────────────────────────────
-def evaluate(net, readout, X, y, idx_a, idx_b, labels, device, batch_size=32):
+def evaluate(net, readout, X, idx, labels, device, batch_size=32):
     net.eval()
     readout.eval()
-    n = len(idx_a)
+    n = len(idx)
     correct = 0
     total = 0
     with torch.no_grad():
         for start in range(0, n, batch_size):
             end = min(start + batch_size, n)
-            spk, lbl = build_dmts_batch(
-                X, y, idx_a[start:end], idx_b[start:end], labels[start:end],
+            spk, lbl = build_recall_batch(
+                X, idx[start:end], labels[start:end],
                 seed=999_000 + start, device=device,
             )
             logits = forward_and_readout(net, readout, spk)
@@ -293,7 +256,7 @@ def evaluate(net, readout, X, y, idx_a, idx_b, labels, device, batch_size=32):
     return correct / total
 
 
-def train_dmts(tier_cfg, device, run_id):
+def train_recall(tier_cfg, device, run_id):
     import models as M
     from cli import seed_everything
 
@@ -303,19 +266,21 @@ def train_dmts(tier_cfg, device, run_id):
     n_test = tier_cfg["n_test"]
     epochs = tier_cfg["epochs"]
 
-    train_a, train_b, train_lbl = _pair_indices(y_tr, n_train, seed=SEED)
-    test_a, test_b, test_lbl = _pair_indices(y_te, n_test, seed=SEED + 1)
+    train_idx, train_lbl = _sample_indices(y_tr, n_train, seed=SEED)
+    test_idx, test_lbl = _sample_indices(y_te, n_test, seed=SEED + 1)
 
     net = build_dmts_net(device)
     net = net.to(device)
-    readout = DMTSReadout(N_E, N_OUT).to(device)
+    readout = RecallReadout(N_E, N_OUT).to(device)
     optim = torch.optim.Adam(
         list(net.parameters()) + list(readout.parameters()),
         lr=LR,
     )
 
     history = {"epoch": [], "train_loss": [], "train_acc": [], "test_acc": []}
-    n_batches = n_train // BATCH_SIZE
+    # _sample_indices rounds down to N_CLASSES multiples, so use actual length
+    n_train_actual = len(train_idx)
+    n_batches = n_train_actual // BATCH_SIZE
 
     for ep in range(epochs):
         net.train()
@@ -323,17 +288,14 @@ def train_dmts(tier_cfg, device, run_id):
         epoch_loss = 0.0
         epoch_correct = 0
         epoch_total = 0
-        # Re-shuffle training pairs each epoch
-        perm = np.random.default_rng(SEED + ep + 1).permutation(n_train)
-        t_a_ep = train_a[perm]
-        t_b_ep = train_b[perm]
+        perm = np.random.default_rng(SEED + ep + 1).permutation(n_train_actual)
+        t_idx_ep = train_idx[perm]
         t_lbl_ep = train_lbl[perm]
         for bi in range(n_batches):
             start = bi * BATCH_SIZE
             end = start + BATCH_SIZE
-            spk, lbl = build_dmts_batch(
-                X_tr, y_tr,
-                t_a_ep[start:end], t_b_ep[start:end], t_lbl_ep[start:end],
+            spk, lbl = build_recall_batch(
+                X_tr, t_idx_ep[start:end], t_lbl_ep[start:end],
                 seed=SEED + ep * 10_000 + bi, device=device,
             )
             optim.zero_grad()
@@ -360,7 +322,7 @@ def train_dmts(tier_cfg, device, run_id):
             epoch_total += int(lbl.numel())
 
         train_acc = epoch_correct / max(1, epoch_total)
-        test_acc = evaluate(net, readout, X_te, y_te, test_a, test_b, test_lbl,
+        test_acc = evaluate(net, readout, X_te, test_idx, test_lbl,
                             device, batch_size=BATCH_SIZE)
         avg_loss = epoch_loss / max(1, epoch_total)
         history["epoch"].append(ep + 1)
@@ -370,7 +332,7 @@ def train_dmts(tier_cfg, device, run_id):
         print(f"  ep {ep+1:>2}/{epochs}  loss={avg_loss:.4f}  "
               f"train_acc={train_acc*100:5.1f}%  test_acc={test_acc*100:5.1f}%")
 
-    return net, readout, history, (X_te, y_te, test_a, test_b, test_lbl)
+    return net, readout, history, (X_te, y_te, test_idx, test_lbl)
 
 
 # ── Figures ───────────────────────────────────────────────────────────
@@ -380,25 +342,28 @@ def fig_training_curve(history: dict, run_id: str) -> plt.Figure:
     ax_loss.plot(history["epoch"], history["train_loss"],
                  color=theme.DEEP_RED, lw=1.5, marker="o")
     ax_loss.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
-    ax_loss.set_ylabel("Train loss (BCE)", fontsize=theme.SIZE_LABEL)
+    ax_loss.set_ylabel("Train loss (CE)", fontsize=theme.SIZE_LABEL)
     ax_loss.set_title("Training loss", fontsize=theme.SIZE_LABEL)
     ax_loss.grid(True, alpha=0.3)
 
-    ax_acc.axhline(50, color=theme.MUTED, lw=0.8, ls="--", label="chance")
+    chance_pct = 100.0 / N_CLASSES
+    ax_acc.axhline(chance_pct, color=theme.MUTED, lw=0.8, ls="--",
+                   label=f"chance ({chance_pct:.0f}%)")
     ax_acc.plot(history["epoch"], [a * 100 for a in history["train_acc"]],
                 color=theme.DEEP_RED, lw=1.5, marker="o", label="train")
     ax_acc.plot(history["epoch"], [a * 100 for a in history["test_acc"]],
                 color=theme.INK_BLACK, lw=1.5, marker="s", label="test")
     ax_acc.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
-    ax_acc.set_ylabel("DMTS accuracy (%)", fontsize=theme.SIZE_LABEL)
-    ax_acc.set_ylim(40, 102)
-    ax_acc.set_title("DMTS accuracy", fontsize=theme.SIZE_LABEL)
+    ax_acc.set_ylabel(f"{N_CLASSES}-way recall accuracy (%)",
+                      fontsize=theme.SIZE_LABEL)
+    ax_acc.set_ylim(0, 102)
+    ax_acc.set_title("Recall accuracy", fontsize=theme.SIZE_LABEL)
     ax_acc.legend(fontsize=theme.SIZE_LEGEND, loc="lower right", frameon=False)
     ax_acc.grid(True, alpha=0.3)
 
     fig.suptitle(
-        f"DMTS with trainable $W_{{ee}}$ + SGCC + NMDA on ping  "
-        f"(T_s={T_SAMPLE_MS:.0f} / T_d={T_DELAY_MS:.0f} / T_p={T_PROBE_MS:.0f} ms)",
+        f"N-way recall with trainable $W_{{ee}}$ + SGCC + NMDA on ping  "
+        f"(T_s={T_SAMPLE_MS:.0f} / T_d={T_DELAY_MS:.0f} / T_r={T_RECALL_MS:.0f} ms)",
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
@@ -407,27 +372,28 @@ def fig_training_curve(history: dict, run_id: str) -> plt.Figure:
 
 
 def fig_example_trial(
-    net, readout, X_te, y_te, test_a, test_b, test_lbl, device, run_id,
+    net, readout, X_te, y_te, test_idx, test_lbl, device, run_id,
 ) -> plt.Figure:
-    """Show one match and one non-match trial: input raster + E activity."""
-    import models as M
-
-    T_sample_steps = int(T_SAMPLE_MS / DT)
-    T_delay_steps = int(T_DELAY_MS / DT)
-    T_probe_steps = int(T_PROBE_MS / DT)
-    T_total_steps = T_sample_steps + T_delay_steps + T_probe_steps
-
-    match_idx = next((i for i in range(len(test_lbl)) if test_lbl[i] == 1), 0)
-    nm_idx = next((i for i in range(len(test_lbl)) if test_lbl[i] == 0), 0)
-
+    """Show two random test trials: input phases + E activity."""
     fig, axes = plt.subplots(2, 1, figsize=(11, 5.5), dpi=150, sharex=True)
-    for ax, idx, title in [
-        (axes[0], match_idx, "match (label = 1)"),
-        (axes[1], nm_idx,    "non-match (label = 0)"),
-    ]:
-        spk, lbl = build_dmts_batch(
-            X_te, y_te, test_a[idx:idx+1], test_b[idx:idx+1], test_lbl[idx:idx+1],
-            seed=12345, device=device,
+
+    # Pick two trials from different classes
+    chosen = []
+    seen_classes = set()
+    for i in range(len(test_lbl)):
+        c = int(test_lbl[i])
+        if c not in seen_classes:
+            chosen.append(i)
+            seen_classes.add(c)
+        if len(chosen) == 2:
+            break
+    if len(chosen) < 2:
+        chosen = list(range(min(2, len(test_lbl))))
+
+    for ax, idx in zip(axes, chosen):
+        spk, lbl = build_recall_batch(
+            X_te, test_idx[idx:idx+1], test_lbl[idx:idx+1],
+            seed=12345 + idx, device=device,
         )
         with torch.no_grad():
             logits = forward_and_readout(net, readout, spk)
@@ -437,7 +403,6 @@ def fig_example_trial(
             e = e[:, 0, :]
         e = e.cpu().numpy()
 
-        # Subsample E neurons for visibility
         rng = np.random.default_rng(0)
         e_pick = rng.choice(N_E, size=min(80, N_E), replace=False)
         e_pick.sort()
@@ -450,13 +415,11 @@ def fig_example_trial(
         ax.axvspan(T_SAMPLE_MS, T_SAMPLE_MS + T_DELAY_MS,
                    color=theme.GREY_LIGHT, alpha=0.25, label="delay")
         ax.axvspan(T_SAMPLE_MS + T_DELAY_MS, T_TOTAL_MS,
-                   color=theme.DEEP_RED, alpha=0.06, label="probe")
-        digit_a = int(y_te[test_a[idx]])
-        digit_b = int(y_te[test_b[idx]])
-        correct = "✓" if pred == int(test_lbl[idx]) else "✗"
+                   color=theme.DEEP_RED, alpha=0.06, label="recall")
+        true_c = int(test_lbl[idx])
+        correct = "✓" if pred == true_c else "✗"
         ax.set_title(
-            f"{title}  —  digit_A={digit_a}, digit_B={digit_b}  "
-            f"→  pred={pred} ({correct})",
+            f"digit = {true_c}  →  pred = {pred} ({correct})",
             fontsize=theme.SIZE_LABEL, loc="left",
         )
         ax.set_ylim(-1, len(e_pick))
@@ -466,7 +429,7 @@ def fig_example_trial(
     axes[0].legend(fontsize=theme.SIZE_LEGEND, loc="upper right",
                    frameon=False, ncol=3)
     fig.suptitle(
-        "Example test trials — input phases shaded",
+        "Example test trials — sample / delay / recall windows shaded",
         fontsize=theme.SIZE_TITLE, y=0.99,
     )
     fig.tight_layout()
@@ -498,12 +461,12 @@ def main() -> None:
     t0 = time.time()
     print(f"[{SLUG}] tier={tier}  device={device}  "
           f"n_train={tier_cfg['n_train']}  epochs={tier_cfg['epochs']}")
-    print(f"  T_s/T_d/T_p = {T_SAMPLE_MS:.0f}/{T_DELAY_MS:.0f}/{T_PROBE_MS:.0f} ms, "
+    print(f"  T_s/T_d/T_r = {T_SAMPLE_MS:.0f}/{T_DELAY_MS:.0f}/{T_RECALL_MS:.0f} ms, "
           f"dt = {DT} ms")
     print(f"  net: ping, trainable_w_ee, W_ee init=({W_EE_INIT_MEAN}, {W_EE_INIT_STD}), "
           f"slow-syn gain={SLOW_SYN_GAIN}, sgcc α={SGCC_ALPHA}")
 
-    net, readout, history, test_pkg = train_dmts(tier_cfg, device, run_id)
+    net, readout, history, test_pkg = train_recall(tier_cfg, device, run_id)
     runtime = time.time() - t0
 
     fig1 = fig_training_curve(history, run_id)
@@ -524,7 +487,8 @@ def main() -> None:
             "dt": DT,
             "t_sample_ms": T_SAMPLE_MS,
             "t_delay_ms": T_DELAY_MS,
-            "t_probe_ms": T_PROBE_MS,
+            "t_recall_ms": T_RECALL_MS,
+            "n_classes": N_CLASSES,
             "n_e": N_E,
             "n_in": N_IN,
             "ei_strength": EI_STRENGTH,
@@ -549,13 +513,13 @@ def main() -> None:
         },
         "success_criteria": [
             {
-                "label": "test acc above chance + margin (≥ 60%)",
-                "passed": best_test >= 0.60,
+                "label": f"test acc above chance ({100/N_CLASSES:.0f}%) by ≥ 10 pp",
+                "passed": best_test >= (1.0 / N_CLASSES + 0.10),
                 "detail": f"best test acc = {best_test*100:.1f}%",
             },
             {
-                "label": "training acc above chance (≥ 55%) — loss has signal",
-                "passed": final_train >= 0.55,
+                "label": "training acc above chance — loss has signal",
+                "passed": final_train >= (1.0 / N_CLASSES + 0.05),
                 "detail": f"final train acc = {final_train*100:.1f}%",
             },
         ],
