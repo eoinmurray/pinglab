@@ -23,7 +23,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 That diagnosis pointed at the loss formulation, not the architecture. The LSNN paper's DMTS task isn't actually binary; it's **N-way store-and-recall** — present one of $N$ items, then later recall which it was. Multi-class cross-entropy has the per-sample directional variance that binary CE on balanced labels doesn't, and that's the same loss structure that let [nb027](/notebooks/nb027/) train coba+SGCC to 87% on 10-class MNIST. This entry switches the task and re-runs.
 
-**Result: it trains.** {(results.best_test_acc * 100)?.toFixed(1) ?? "—"}% test accuracy on 10-way recall after 10 epochs at the small tier, vs. 10% chance. First working-memory result in the codebase.
+**Result: it trains.** {(results.best_test_acc * 100)?.toFixed(1) ?? "—"}% test accuracy on 10-way recall after {cfg.epochs} epochs at the {cfg.tier} tier, vs. 10% chance. First working-memory result in the codebase.
 
 ## Method
 
@@ -51,15 +51,15 @@ Target label: the digit's class (0–9). Loss is multi-class cross-entropy.
 
 ## Results
 
-<Figure id="Figure 1" title="Training curve — N-way recall" src="/figures/notebooks/nb032/training_curve.png" alt="Two-panel figure. Left: training loss falls from ~2.23 (ln 10) to ~1.56 over 10 epochs. Right: train and test accuracy rise from ~10% chance to ~43-45% by epoch 2 and stay there.">
-  Train cross-entropy loss falls from $\ln 10 \approx 2.30$ at start to ~1.56 by epoch 8 — well below chance. Train and test accuracy both climb above the 10% chance line by epoch 1 and reach a ~43-45% plateau by epoch 8. Test accuracy stays close to train accuracy throughout, with no sign of overfitting at this tier.
+<Figure id="Figure 1" title="Training curve — N-way recall" src="/figures/notebooks/nb032/training_curve.png" alt="Two-panel figure. Left: training loss falls from ~1.95 to ~1.19 over 20 epochs. Right: train and test accuracy rise from ~28% to ~58-63% with test slightly above train throughout.">
+  Train cross-entropy loss falls from ~1.95 at epoch 1 to ~1.19 at epoch 20 — well below the $\ln 10 \approx 2.30$ chance line. Train and test accuracy both climb monotonically from ~28% (already 2.8× chance after one epoch) to {(results.final_test_acc * 100)?.toFixed(0) ?? "?"}% by the end. Test stays close to train throughout with no sign of overfitting, and the curve is still improving at epoch 20 — there's headroom for longer runs.
 </Figure>
 
 <Figure id="Figure 2" title="Example test trials" src="/figures/notebooks/nb032/example_trials.png" alt="Two raster panels showing E activity for two different digit-class trials, with sample/delay/recall windows shaded.">
   Two test trials with different sample digits. Sample window (red shaded) drives the network from the digit's pixel pattern; delay window (grey shaded) is silent input; recall window (red shaded) is silent input but the readout integrates activity here. E activity persists across the entire 400 ms trial — the network is holding *something* through the delay, and the readout picks the digit class from the post-delay state. Top trial gets digit 6 correct; bottom predicts 5 for a 3 (visible miss — the network's representation is good but not perfect at this tier).
 </Figure>
 
-**Headline numbers** ({cfg.epochs} epochs at small tier):
+**Headline numbers** ({cfg.epochs} epochs at {cfg.tier} tier):
 
 - Best test accuracy: **{(results.best_test_acc * 100)?.toFixed(1) ?? "?"}%** (chance = 10%)
 - Final test accuracy: {(results.final_test_acc * 100)?.toFixed(1) ?? "?"}%
@@ -92,7 +92,7 @@ The architecture didn't change. Only the loss formulation did.
 
 This is the same loss-structure that worked for nb027 (10-class MNIST classification on coba+SGCC) and the same reason the LSNN paper's actual recall task is N-way rather than binary. The "DMTS is hard" finding from the nb028/29 chain was actually "binary CE on balanced labels is hard"; the architecture was always capable.
 
-**What 45% means.** Chance is 10%, so this is 4.5× above chance — the network is clearly extracting class identity from the post-delay state. It's not yet competitive with feedforward MNIST classification (where the same coba+SGCC stack hits 87% in [nb027](/notebooks/nb027/)) because:
+**What 63% means.** Chance is 10%, so this is 6× above chance — the network is clearly extracting class identity from the post-delay state. It's not yet competitive with feedforward MNIST classification (where the same coba+SGCC stack hits 87% in [nb027](/notebooks/nb027/) at the same tier) because:
 
 1. The recall task only sees a 100 ms sample window (vs nb027's 200 ms full trial). Fewer input spikes → less reliable encoding.
 2. There's a 200 ms silent delay between sample and readout, during which the network's hidden state has to maintain class identity by itself. Information is lost during the delay.
@@ -104,7 +104,7 @@ Headroom exists in all three dimensions (longer sample, more epochs/samples, lar
 
 - **Longer delays.** Does test accuracy degrade gracefully as $T_d$ goes 200 → 400 → 800 ms, or does it cliff at the NMDA time constant ($\tau = 100$ ms)? This tests whether the recurrent dynamics ARE the slow store, or whether the network is just riding the NMDA tail.
 - **Add ALIF on top.** ALIF ($\tau_{adapt} = 700$ ms by default, configurable to 1200 ms à la LSNN) adds a much longer memory primitive than NMDA. Combined with NMDA the network has memory at two timescales; with ALIF only it's closer to LSNN architecturally.
-- **Scale to nb027 territory.** Same network at medium tier (more samples, more epochs). At nb027 the medium tier gives 87% on the harder 10-class MNIST task. Plausible the recall accuracy ceiling here is in a similar regime.
+- **Scale beyond medium.** The medium-tier curve hasn't plateaued — accuracy is still climbing at epoch 20. nb027 reaches 87% on the easier feedforward version of this task at the same tier, so there's at least ~25 pp of plausible headroom from longer training and/or more samples.
 - **Try the binary version *with content selectivity already trained in*.** Warm-start from this notebook's trained weights and switch to binary match/non-match. The hidden state would start out class-discriminating, which should sidestep the chance-basin trap.
 
 ## Appendix
