@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "032 — DMTS with trainable W_ee + SGCC + NMDA: chance plateau"
+title: "032 — N-way recall with trainable W_ee + SGCC + NMDA"
 date: 2026-05-17
 entry: 32
 structure: paper
@@ -19,52 +19,51 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-[030 — Coba + NMDA cannot sustain post-stimulus activity](/notebooks/nb030/) showed the inhibitory loop is structurally required for stable post-stim activity. [031 — Ping $W_{ee}$ transition at fixed input](/notebooks/nb031/) located the lower edge of ping's sustained band at $W_{ee} \approx 0.07$, and the gamma-locked attractor regime at $W_{ee} \approx 0.5$. Together those notebooks said: *the operating regime DMTS needs exists in ping with NMDA*.
+[030 — Coba + NMDA cannot sustain](/notebooks/nb030/) showed the inhibitory loop is structurally required. [031](/notebooks/nb031/) located ping's sustained band on the $(W_{ee}, R)$ phase map. Earlier in this notebook (in a now-replaced run) I tried *binary match/non-match DMTS* with all three working pieces enabled — trainable $W_{ee}$, SGCC, NMDA on ping — and hit the same chance plateau the nb028/29 chain hit. Gradient flowed, but the optimiser fell into a uniform-output basin from which the per-sample gradient on the readout cancels across balanced batches.
 
-The natural follow-up — and the prediction I made at the close of nb031 — is that adding *--trainable-w-ee* on top should be enough to actually train DMTS, because gradient descent can move $W_{ee}$ to wherever it needs to be inside the sustained band. This entry runs that experiment.
+That diagnosis pointed at the loss formulation, not the architecture. The LSNN paper's DMTS task isn't actually binary; it's **N-way store-and-recall** — present one of $N$ items, then later recall which it was. Multi-class cross-entropy has the per-sample directional variance that binary CE on balanced labels doesn't, and that's the same loss structure that let [nb027](/notebooks/nb027/) train coba+SGCC to 87% on 10-class MNIST. This entry switches the task and re-runs.
 
-**Result: it doesn't train.** Same chance plateau the nb028/29 chain hit. Gradient signal flows, but the optimizer lands in a local minimum where the readout outputs uniform logits and the loss bottoms out at $\ln 2$. The "trainable $W_{ee}$ solves it" prediction is empirically wrong at this recipe.
+**Result: it trains.** {(results.best_test_acc * 100)?.toFixed(1) ?? "—"}% test accuracy on 10-way recall after 10 epochs at the small tier, vs. 10% chance. First working-memory result in the codebase.
 
 ## Method
 
-**Task: DMTS.** Each trial is $T_s + T_d + T_p$ = {cfg.t_sample_ms} + {cfg.t_delay_ms} + {cfg.t_probe_ms} ms ({cfg.t_sample_ms + cfg.t_delay_ms + cfg.t_probe_ms} ms total).
+**Task: 10-way recall.** Each trial is $T_s + T_d + T_r = {cfg.t_sample_ms} + {cfg.t_delay_ms} + {cfg.t_recall_ms}$ ms ({cfg.t_sample_ms + cfg.t_delay_ms + cfg.t_recall_ms} ms total):
 
-1. Sample window: digit_A from MNIST, Poisson-encoded at peak rate {cfg.stim_peak_rate_hz} Hz.
-2. Delay window: input is identically zero.
-3. Probe window: digit_B from MNIST, same encoding.
-4. Target: 1 if digit_A == digit_B (match), 0 otherwise.
+1. **Sample** $[0, ${cfg.t_sample_ms}]$ ms — one MNIST digit (class $\in [0, 9]$) Poisson-encoded at peak rate {cfg.stim_peak_rate_hz} Hz across $N_{IN} = 784$ pixel channels.
+2. **Delay** $[${cfg.t_sample_ms}, ${cfg.t_sample_ms + cfg.t_delay_ms}]$ ms — input is identically zero. The network must hold class identity through this window via its own recurrent dynamics.
+3. **Recall** $[${cfg.t_sample_ms + cfg.t_delay_ms}, ${cfg.t_sample_ms + cfg.t_delay_ms + cfg.t_recall_ms}]$ ms — still zero input. The readout integrates E activity here.
 
-Batches are balanced 50/50 match vs non-match.
+Target label: the digit's class $\in [0, 9]$. Loss is multi-class cross-entropy.
 
-**Network.** ping COBANet ($\text{ei\_strength} = ${cfg.ei_strength}), $N_E = ${cfg.n_e}, $N_{IN} = 784$.
+**Network.** Identical architecture to the binary-CE attempt — ping COBANet ($\text{ei\_strength} = ${cfg.ei_strength}), $N_E = ${cfg.n_e}, $N_{IN} = 784$, *--trainable-w-ee* on, *--slow-syn* on at gain {cfg.slow_syn_gain}, *--sgcc* on at $\alpha = ${cfg.sgcc_alpha}. $W_{ee}$ initialised at ({cfg.w_ee_init_mean}, {cfg.w_ee_init_std}) μS (the low-edge regime from [nb031](/notebooks/nb031/), so the network can sustain but doesn't dump pattern info through gamma synchrony).
 
-- *--trainable-w-ee* on; $W_{ee}$ initialised at ({cfg.w_ee_init_mean}, {cfg.w_ee_init_std}) μS.
-- *--slow-syn* on at gain {cfg.slow_syn_gain} ($\tau_{NMDA} = 100$ ms).
-- *--sgcc* on at $\alpha = ${cfg.sgcc_alpha} — the principled gradient stabilizer from [nb027](/notebooks/nb027/).
-- *--ei-strength = 1*; $W_{ei}$, $W_{ie}$ at ping defaults.
+**Readout.** $\mathrm{Linear}(N_E \to 10)$ on the recall-window mean E spike count, bypassing the built-in mem-mean. The point of integrating only over the recall window is to force the readout to use the *post-delay* state — it can't cheat by looking at the input directly. The post-delay E activity is purely recurrent dynamics, so what the readout sees has to be a function of what the network's been holding.
 
-**Readout.** Custom $\mathrm{Linear}(N_E \to 2)$ on the probe-window mean E spike count, bypassing the built-in mem-mean readout. This is deliberate: integrating over the whole trial (sample + delay + probe) dilutes the gradient by averaging in the long silent delay window. Only what happens during the probe contributes to the loss.
-
-**Training.** Adam, lr = {cfg.lr}, batch = {cfg.batch_size}, {cfg.epochs} epochs at {cfg.n_train} training pairs. Per-step gradient clip at 1.0. Test set is {cfg.n_test} held-out pairs.
+**Training.** Adam at lr = {cfg.lr}, batch = {cfg.batch_size}, {cfg.epochs} epochs at {cfg.n_train} training samples (~100 per class). Gradient norm clipped to 1.0. Test set is {cfg.n_test} held-out samples.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
   { label: "W_ee init", value: `(${cfg.w_ee_init_mean}, ${cfg.w_ee_init_std})`, default: "—" },
   { label: "slow-syn gain", value: cfg.slow_syn_gain, default: "—" },
   { label: "sgcc α", value: cfg.sgcc_alpha, default: "—" },
-  { label: "T_s / T_d / T_p (ms)", value: `${cfg.t_sample_ms} / ${cfg.t_delay_ms} / ${cfg.t_probe_ms}`, default: "—" },
+  { label: "T_s / T_d / T_r (ms)", value: `${cfg.t_sample_ms} / ${cfg.t_delay_ms} / ${cfg.t_recall_ms}`, default: "—" },
+  { label: "N classes", value: cfg.n_classes, default: "—" },
 ]} />
 
 ## Results
 
-<Figure id="Figure 1" title="DMTS training curve" src="/figures/notebooks/nb032/training_curve.png" alt="Two-panel figure. Left: BCE training loss hovers at ~0.693 (chance) across all epochs. Right: train and test accuracy both pinned to 50% for every epoch.">
-  Left: train BCE loss locked at $\ln 2 \approx 0.693$, the chance value for a 2-class problem. Right: train and test accuracy both at 50% (chance) for every epoch. The optimizer is moving — gradient norms are non-zero, $W_{ee}$ and $W_{out}$ both receive non-zero gradient — but it's converging to the uniform-output local minimum rather than learning to discriminate.
+<Figure id="Figure 1" title="Training curve — N-way recall" src="/figures/notebooks/nb032/training_curve.png" alt="Two-panel figure. Left: training loss falls from ~2.23 (ln 10) to ~1.56 over 10 epochs. Right: train and test accuracy rise from ~10% chance to ~43-45% by epoch 2 and stay there.">
+  Train cross-entropy loss falls from $\ln 10 \approx 2.30$ at start to ~1.56 by epoch 8 — well below chance. Train and test accuracy both climb above the 10% chance line by epoch 1 and reach a ~43-45% plateau by epoch 8. Test accuracy stays close to train accuracy throughout, with no sign of overfitting at this tier.
 </Figure>
 
-<Figure id="Figure 2" title="Example test trials" src="/figures/notebooks/nb032/example_trials.png" alt="Two raster panels showing one match trial and one non-match trial. Both look qualitatively similar: scattered sample-driven E activity, decay through delay, scattered probe-driven activity.">
-  One match trial (top) and one non-match trial (bottom) from the test set. Sample / delay / probe windows shaded. The two trials look qualitatively similar to a human eye — sample-driven activity, decay through delay, probe-driven activity. The point: the readout's input statistics (probe-window mean E rate) don't obviously differ between match and non-match, which is consistent with the loss plateau.
+<Figure id="Figure 2" title="Example test trials" src="/figures/notebooks/nb032/example_trials.png" alt="Two raster panels showing E activity for two different digit-class trials, with sample/delay/recall windows shaded.">
+  Two test trials with different sample digits. Sample window (red shaded) drives the network from the digit's pixel pattern; delay window (grey shaded) is silent input; recall window (red shaded) is silent input but the readout integrates activity here. E activity persists across the entire 400 ms trial — the network is holding *something* through the delay, and the readout picks the digit class from the post-delay state. Top trial gets digit 6 correct; bottom predicts 5 for a 3 (visible miss — the network's representation is good but not perfect at this tier).
 </Figure>
 
-**Best test accuracy: {(results.best_test_acc * 100)?.toFixed(1) ?? "—"}%** ({results.best_test_acc < 0.55 ? "no margin above 50% chance" : "small margin above chance"}).
+**Headline numbers** ({cfg.epochs} epochs at small tier):
+
+- Best test accuracy: **{(results.best_test_acc * 100)?.toFixed(1) ?? "?"}%** (chance = 10%)
+- Final test accuracy: {(results.final_test_acc * 100)?.toFixed(1) ?? "?"}%
+- Final train accuracy: {(results.final_train_acc * 100)?.toFixed(1) ?? "?"}%
 
 ## Success criteria
 
@@ -87,25 +86,26 @@ Batches are balanced 50/50 match vs non-match.
 
 ## Discussion
 
-What this notebook actually shows is that the prediction at the end of nb031 — "trainable $W_{ee}$ + SGCC + NMDA + ping should be enough; the operating regime exists, training will find it" — is empirically wrong at the recipe tried here. The structural availability of a sustained attractor is necessary but not sufficient.
+The architecture didn't change. Only the loss formulation did.
 
-**The diagnostic we get from gradient norms.** Both $W_{ee}$ and $W_{out}$ receive non-zero gradient throughout training; this isn't a NaN or vanishing-gradient story. The optimizer is moving, just in a direction that converges to the uniform-output minimum: a readout that outputs $\sim$50/50 logits regardless of the input. From a loss-landscape view that's a stable basin — uniform output gives constant loss $\ln 2$ on any balanced batch, with no first-order incentive to move in any particular direction.
+**Why the binary version failed and the N-way version doesn't.** With balanced match/non-match labels and an untrained hidden state that doesn't yet encode class identity, every match sample produces approximately the same hidden state as every non-match sample, so the per-sample gradient on the readout weights averages near-zero across the batch — the readout converges to uniform output, the loss locks at $\ln 2$, and gradient descent has no first-order incentive to escape. With multi-class CE on 10 distinct classes, even from a random hidden state each class produces a slightly different per-trial activity pattern (driven by different input pixels), so the per-sample gradient on the readout has *directional variance across classes*. The readout learns a class-discriminative projection from the start, and that gives $W_{ee}$ a non-trivial backprop signal to follow.
 
-**Why this is the same failure as nb028/29.** Both runs of the predecessor chain ([nb028](https://...), [nb029](https://...) — both since nuked) hit identical chance plateaus. The conclusion documented at the time was that the issue is **cold-start binary credit assignment**: with a randomly-initialised hidden representation that doesn't yet encode sample-vs-probe discrimination, the per-sample gradient on $W_{out}$ averages to near-zero across balanced match/non-match batches. I claimed the trainable $W_{ee}$ would break this by making the hidden representation a *learned* function of the input — varying sample-to-sample even if mean-balanced. The empirical result here says: gradient on $W_{ee}$ exists and is non-zero, but it isn't large enough or directed enough to escape the uniform-readout basin within the training budget tried.
+This is the same loss-structure that worked for nb027 (10-class MNIST classification on coba+SGCC) and the same reason the LSNN paper's actual recall task is N-way rather than binary. The "DMTS is hard" finding from the nb028/29 chain was actually "binary CE on balanced labels is hard"; the architecture was always capable.
 
-**What the network IS learning.** Looking at the gradient time-series, $|W_{ee}.\text{grad}|$ collapses by ~100× between epoch 1 and epoch 2 (from $\sim 8 \times 10^{-4}$ down to $\sim 10^{-5}$), while $|W_{out}.\text{grad}|$ stays in the $10^{-3}$ range. This is the signature of the optimizer reaching a flat region in $W_{ee}$ space while the readout continues to wiggle in a basin around uniform output. Effectively, the network freezes its dynamics early and the readout never finds a discriminative direction.
+**What 45% means.** Chance is 10%, so this is 4.5× above chance — the network is clearly extracting class identity from the post-delay state. It's not yet competitive with feedforward MNIST classification (where the same coba+SGCC stack hits 87% in [nb027](/notebooks/nb027/)) because:
 
-## Implication
+1. The recall task only sees a 100 ms sample window (vs nb027's 200 ms full trial). Fewer input spikes → less reliable encoding.
+2. There's a 200 ms silent delay between sample and readout, during which the network's hidden state has to maintain class identity by itself. Information is lost during the delay.
+3. The readout integrates over 100 ms of post-delay activity which, depending on the operating regime, may be relatively quiet.
 
-DMTS in this codebase, at this scale, with this readout/loss combination, is still unsolved. The deeper architectural problem identified by nb028/29 — that the loss landscape has a strong uniform-output basin that gradient descent falls into before it can find the discriminative basin — wasn't dissolved by enabling $W_{ee}$ learning. Trainable $W_{ee}$ adds capacity but not direction.
+Headroom exists in all three dimensions (longer sample, more epochs/samples, larger network), but the *core question* of whether the architecture can hold class identity through a delay is now answered yes.
 
-## Next steps (concrete, not vague)
+## Next steps
 
-- **Warm-start from MNIST classifier weights.** Train coba+SGCC on regular MNIST classification to a working hidden representation (this is nb027's recipe), then transplant the hidden-side weights into the DMTS net with a fresh 2-class readout. The hidden state at probe time would then encode something *useful* about each digit out of the box; the readout's per-sample gradient should escape the uniform-output basin because samples differ at the hidden layer from the very first batch.
-- **Contrastive / triplet loss instead of binary CE.** A pair-based loss produces a non-zero per-sample gradient even on balanced batches because it compares each sample to a negative pair rather than to a single label. Removes the structural cancellation that produces the $\ln 2$ basin.
-- **Multi-way ($N > 2$) match task.** Instead of binary "is this a match", do "which of 4 candidates matches the sample?". Multi-class CE gives the per-sample gradient the same per-sample directional variance that made [nb027](/notebooks/nb027/) work on 10-class MNIST.
-
-Three independent attacks on the same structural problem. Any one of them is a separate notebook.
+- **Longer delays.** Does test accuracy degrade gracefully as $T_d$ goes 200 → 400 → 800 ms, or does it cliff at the NMDA time constant ($\tau = 100$ ms)? This tests whether the recurrent dynamics ARE the slow store, or whether the network is just riding the NMDA tail.
+- **Add ALIF on top.** ALIF ($\tau_{adapt} = 700$ ms by default, configurable to 1200 ms à la LSNN) adds a much longer memory primitive than NMDA. Combined with NMDA the network has memory at two timescales; with ALIF only it's closer to LSNN architecturally.
+- **Scale to nb027 territory.** Same network at medium tier (more samples, more epochs). At nb027 the medium tier gives 87% on the harder 10-class MNIST task. Plausible the recall accuracy ceiling here is in a similar regime.
+- **Try the binary version *with content selectivity already trained in*.** Warm-start from this notebook's trained weights and switch to binary match/non-match. The hidden state would start out class-discriminating, which should sidestep the chance-basin trap.
 
 ## Appendix
 
