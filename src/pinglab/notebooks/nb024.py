@@ -40,7 +40,7 @@ from pinglab import theme  # noqa: E402
 SLUG = "nb024"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
+OSCILLOSCOPE = REPO / "src" / "pinglab" / "cli/__main__.py"
 
 TIER_CONFIG = {
     "extra small": dict(max_samples=100, epochs=1),
@@ -560,7 +560,7 @@ def run_inproc_infer(
     import config as C  # noqa: F401
     import models as M
     from config import build_net, patch_dt
-    from oscilloscope import (
+    from cli import (
         EVAL_SEED,
         _auto_device,
         encode_batch,
@@ -675,7 +675,7 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
     import config as C  # noqa: F401
     import models as M
     from config import build_net, patch_dt
-    from oscilloscope import (
+    from cli import (
         EVAL_SEED,
         _auto_device,
         encode_batch,
@@ -756,7 +756,7 @@ def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> 
     import config as C  # noqa: F401
     import models as M
     from config import build_net, patch_dt
-    from oscilloscope import (
+    from cli import (
         EVAL_SEED,
         _auto_device,
         encode_batch,
@@ -905,7 +905,7 @@ def capture_perturbation_raster(
     import config as C  # noqa: F401
     import models as M
     from config import build_net, patch_dt
-    from oscilloscope import (
+    from cli import (
         EVAL_SEED,
         _auto_device,
         encode_batch,
@@ -1098,7 +1098,7 @@ def run_perturbation_sweep(
     import config as C  # noqa: F401
     import models as M
     from config import build_net, patch_dt
-    from oscilloscope import (
+    from cli import (
         EVAL_SEED,
         _auto_device,
         encode_batch,

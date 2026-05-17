@@ -114,7 +114,7 @@ def _run_oscilloscope_impl(cli_args: list[str], git_sha: str | None = None) -> s
         if torch.cuda.is_available():
             args.extend(["--device", "cuda"])
 
-    cmd = [sys.executable, "/root/pinglab/oscilloscope/__main__.py", *args]
+    cmd = [sys.executable, "/root/pinglab/cli/__main__.py", *args]
     print(f"modal> {' '.join(cmd)}")
     env = os.environ.copy()
     if git_sha:
@@ -290,7 +290,7 @@ def dispatch_batch_to_modal(jobs: list[dict]):
 
 
 def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
-    """Called from oscilloscope.py when --modal is set.
+    """Called from cli.py when --modal is set.
 
     Submits the job to Modal, waits for completion, then syncs artifacts
     back to the local out-dir.

@@ -6,7 +6,7 @@ Fig 1B / §2.3). If this drifts, dt-sweep calibration results are lying.
 import pytest
 import torch
 
-from oscilloscope import (
+from cli import (
     FROZEN_MODES,
     FrozenEncoder,
     downsample_spikes_count,

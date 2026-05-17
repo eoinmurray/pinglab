@@ -53,14 +53,14 @@ from run_log import (
     write_test_predictions,
 )
 
-from oscilloscope.datasets import (
+from cli.datasets import (
     DATASET_N_HIDDEN_DEFAULTS,
     SHD_N_CHANNELS,
     _load_dataset_image,
     load_dataset,
 )
-from oscilloscope.encoders import EVAL_SEED, encode_batch, encode_smnist
-from oscilloscope.scan import _auto_device, primary_hid_key, primary_inh_key
+from cli.encoders import EVAL_SEED, encode_batch, encode_smnist
+from cli.scan import _auto_device, primary_hid_key, primary_inh_key
 
 log = logging.getLogger("oscilloscope")
 

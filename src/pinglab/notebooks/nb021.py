@@ -37,7 +37,7 @@ from pinglab import theme  # noqa: E402
 SLUG = "nb021"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
+OSCILLOSCOPE = REPO / "src" / "pinglab" / "cli/__main__.py"
 
 TIER_CONFIG = {
     "extra small": dict(max_samples=100, epochs=1),
