@@ -186,32 +186,94 @@ def analyze(result: dict) -> dict:
     }
 
 
+RASTER_N_NEURONS = 80   # subsample E cells for the raster strip
+TRACE_BIN_MS = 25.0     # rate-trace smoothing — long enough to wash out gamma peaks
+TRACE_Y_MAX_HZ = 220    # shared y-axis cap so panels are directly comparable
+
+
 def fig_rasters(results_by_rate: dict, run_id: str) -> plt.Figure:
-    """Stacked E rasters, one panel per input rate. Stim window shaded."""
+    """Stacked rate-trace + raster, one row per input rate.
+
+    Each row is a tall panel: red-filled population rate trace (gamma-
+    smoothed at 25 ms bins) on top, subsampled E raster underneath.
+    Stim window shaded across both. All rate traces share a fixed
+    y-axis [0, TRACE_Y_MAX_HZ] so rows are directly comparable.
+    """
     rates = sorted(results_by_rate.keys())
-    h = max(4.5, 0.7 * len(rates))
-    fig, axes = plt.subplots(len(rates), 1, figsize=(8, h), sharex=True, dpi=150)
-    if len(rates) == 1:
-        axes = [axes]
-    for ax, rate in zip(axes, rates):
+    n = len(rates)
+    fig_h = 1.7 * n  # ~1.7" per row
+    fig = plt.figure(figsize=(14, fig_h), dpi=150)
+
+    outer = fig.add_gridspec(
+        n, 1, hspace=0.55, left=0.08, right=0.97, top=0.96, bottom=0.05
+    )
+
+    rng = np.random.default_rng(0)
+    cell_pick = rng.choice(N_E, size=min(RASTER_N_NEURONS, N_E), replace=False)
+    cell_pick.sort()
+
+    for row_idx, rate in enumerate(rates):
+        inner = outer[row_idx].subgridspec(2, 1, height_ratios=[1, 2], hspace=0.05)
+        ax_rate = fig.add_subplot(inner[0])
+        ax_rast = fig.add_subplot(inner[1], sharex=ax_rate)
+
         r = results_by_rate[rate][0]
         e = r["e"]  # (T, N)
-        t_idx, n_idx = np.where(e > 0)
-        ax.scatter(
-            t_idx * DT, n_idx,
-            s=0.4, c=theme.INK_BLACK, alpha=0.65, marker=".", edgecolors="none",
+
+        # Top: gamma-smoothed population rate trace
+        rate_trace = population_rate_hz(e, TRACE_BIN_MS)
+        t_bin = np.arange(len(rate_trace)) * TRACE_BIN_MS
+        ax_rate.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.08)
+        ax_rate.fill_between(
+            t_bin, rate_trace, 0, color=theme.DEEP_RED, alpha=0.35, linewidth=0
         )
-        ax.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.08)
-        ax.axvline(T_STIM_MS, color=theme.DEEP_RED, lw=0.8, alpha=0.5)
-        ax.set_xlim(0, T_TOTAL_MS)
-        ax.set_ylim(0, N_E)
-        ax.set_yticks([])
-        ax.set_ylabel(f"{rate} Hz", fontsize=theme.SIZE_LABEL, rotation=0,
-                      ha="right", va="center")
-    axes[-1].set_xlabel("Time (ms)", fontsize=theme.SIZE_LABEL)
-    fig.suptitle("E rasters per input rate — stim window shaded",
-                 fontsize=theme.SIZE_TITLE)
-    fig.tight_layout()
+        ax_rate.plot(t_bin, rate_trace, color=theme.DEEP_RED, lw=1.2)
+        ax_rate.axhline(
+            SEIZURE_HZ, color=theme.INK_BLACK, lw=0.7, ls="--", alpha=0.5
+        )
+        ax_rate.set_xlim(0, T_TOTAL_MS)
+        ax_rate.set_ylim(0, TRACE_Y_MAX_HZ)
+        ax_rate.set_yticks([0, SEIZURE_HZ])
+        ax_rate.set_yticklabels(["0", f"{SEIZURE_HZ}"], fontsize=theme.SIZE_TICK)
+        ax_rate.tick_params(axis="x", labelbottom=False)
+        ax_rate.set_ylabel("E rate\n(Hz)", fontsize=theme.SIZE_ANNOTATION,
+                           rotation=0, ha="right", va="center", labelpad=14)
+
+        # Per-row title shows input + post-stim mean rate (caps display at SEIZURE_HZ+)
+        post_steps = int(T_POST_START_MS / DT)
+        post_rate = float(
+            e[post_steps:].sum() / (N_E * (T_TOTAL_MS - T_POST_START_MS) / 1000.0)
+        )
+        ax_rate.set_title(
+            f"input = {rate} Hz    →    post-stim = {post_rate:.0f} Hz",
+            fontsize=theme.SIZE_LABEL, loc="left", color=theme.INK_STRONG, pad=4,
+        )
+
+        # Bottom: subsampled raster
+        e_sub = e[:, cell_pick]
+        t_idx, n_idx = np.where(e_sub > 0)
+        ax_rast.scatter(
+            t_idx * DT, n_idx,
+            s=2.4, c=theme.INK_BLACK, marker="|", linewidths=0.5,
+        )
+        ax_rast.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.08)
+        ax_rast.axvline(T_STIM_MS, color=theme.DEEP_RED, lw=0.7, alpha=0.7)
+        ax_rast.set_xlim(0, T_TOTAL_MS)
+        ax_rast.set_ylim(-1, len(cell_pick))
+        ax_rast.set_yticks([])
+        ax_rast.set_ylabel(f"{len(cell_pick)} E cells",
+                           fontsize=theme.SIZE_ANNOTATION,
+                           rotation=0, ha="right", va="center", labelpad=14)
+        ax_rast.tick_params(axis="x", labelsize=theme.SIZE_TICK)
+        if row_idx == n - 1:
+            ax_rast.set_xlabel("Time (ms)", fontsize=theme.SIZE_LABEL)
+        else:
+            ax_rast.tick_params(axis="x", labelbottom=False)
+
+    fig.suptitle(
+        "E activity per input rate — stim shaded; dashed = seizure threshold",
+        fontsize=theme.SIZE_TITLE, y=0.99,
+    )
     _stamp(fig, run_id)
     return fig
 
