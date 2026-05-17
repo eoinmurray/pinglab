@@ -19,7 +19,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-[nb024](/notebooks/nb024/) trains coba on MNIST to $\sim 84$% test accuracy only with *--v-grad-dampen 1000* — a heavy-handed global gradient scalar that hides the conductance-Jacobian explosion by muting every per-step voltage gradient uniformly. [nb026](/notebooks/nb026/) showed that this stabilizer trades the explosion for an unbroken chance plateau on any task longer than a couple hundred milliseconds: the same uniform damping that prevents NaN also kills the gradient signal needed for working-memory tasks.
+[nb024](/notebooks/nb024/) trains coba on MNIST to $\sim 84$% test accuracy only with *--v-grad-dampen 1000* — a heavy-handed global gradient scalar that hides the conductance-Jacobian explosion by muting every per-step voltage gradient uniformly. The cost of that stabilizer is that the same uniform damping which prevents NaN also kills the gradient signal needed for any task longer than a couple hundred milliseconds — so it's unusable for working-memory work without something more surgical.
 
 Burghi, Pugliese Carratelli & Rule (2024) — *"Costate control for nonlinear system identification with applications to excitable systems"* — propose a principled alternative for conductance-based neuron models: **Surrogate Gradients by Costate Control (SGCC)**. Instead of damping every voltage gradient uniformly, SGCC inserts a control input into the costate (adjoint) dynamics that targets *only* the cross-coupling terms between voltage and conductance — the path responsible for the explosion. Two designs:
 
@@ -93,13 +93,13 @@ The interesting half of the figure is epochs 10–20. The baseline run ended at 
 
 This is exactly the result Burghi et al. predict in their proposition 1: the original gradients and the SGCC surrogate gradients vanish at the same global optimum, but in between, the SGCC variant retains significantly more landscape structure. The trained-network rasters in Figure 2 corroborate the dynamical equivalence — same operating point ($\sim$85 Hz E rate, asynchronous-dense activity, silent I population because *ei-strength = 0*), reached via a different optimization path.
 
-**Implications for the harder tasks.** This is the first piece of direct evidence that the gradient stabilizer was the limiter on the earlier DMTS attempts ([nb025](/notebooks/nb025/), [nb026](/notebooks/nb026/)), not the memory mechanism or the training pipeline. With the *--v-grad-dampen* path closed for working memory and the SGCC path now empirically validated for MNIST, a fresh DMTS attempt with *--sgcc* (and likely *--alif* or *--slow-syn* on top) is the obvious next experiment.
+**Implications for the harder tasks.** SGCC is now an empirically validated drop-in for the *--v-grad-dampen* stabilizer on MNIST, with strictly more landscape structure preserved. That makes it the right primitive to reach for on any task where the global dampener was capping signal — working-memory loops being the obvious case.
 
 ## Next steps
 
 - **Sweep α** across e.g. {0.3, 0.5, 0.7, 0.9} at small tier to find the sweet spot.
 - **Test SGCC on ping**, where the additional E↔I↔E loop creates extra positive-feedback paths.
-- **Re-attempt DMTS with SGCC** (from [nb026](/notebooks/nb026/)) — this is the real prize. SGCC preserves cross-coupling gradient on the diagonal which the global dampener killed, so the working-memory loss should have signal.
+- **Re-attempt DMTS with SGCC** — SGCC preserves cross-coupling gradient on the diagonal which the global dampener killed, so the working-memory loss should have signal.
 
 ## Appendix
 
