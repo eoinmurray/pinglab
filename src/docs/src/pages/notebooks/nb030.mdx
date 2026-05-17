@@ -1,0 +1,118 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "030 — NMDA-mediated post-stimulus persistence"
+date: 2026-05-17
+entry: 30
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb030/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const results = numbers.results ?? {};
+export const byRate = results.by_rate ?? {};
+export const successCriteria = numbers.success_criteria ?? [];
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+[025 — Slow synapse on trained coba and ping](/notebooks/nb025/) wired the NMDA-like slow synaptic channel into COBANet and showed it's a usable substrate. What it didn't show is the dynamical thing the slow channel was added *for*: **activity that survives a stimulus going away**. With only AMPA ($\tau = 2$ ms) and GABA ($\tau = 9$ ms), the longest excitatory time constant in the network is shorter than a single gamma cycle — there's no way a transient input can leave a footprint that lasts hundreds of milliseconds. NMDA-like decay ($\tau \approx 100$ ms) is the structural piece that lets a network hold something.
+
+But there's a knife-edge nearby: any recurrent network with strong enough excitation to sustain itself can also runaway into population saturation. Persistence and seizure are the same mechanism with different gains. The question this entry asks: *does there exist a regime where an untrained COBA + NMDA network produces sustained post-stimulus activity that isn't seizure?* And if so, where's the cliff?
+
+## Method
+
+**Network.** Untrained PING-config COBANet ($\text{ei\_strength} = 1$) with hand-set weights and the slow channel on:
+
+- $N_E = {cfg.n_e}$ excitatory cells, $N_I$ = $N_E / 4$ inhibitory.
+- $W_{ee}$ at modest positive mean (recurrent excitation that NMDA can amplify on the slow timescale); $W_{ei}$, $W_{ie}$ at PING defaults.
+- *--slow-syn* on, gain = {cfg.slow_syn_gain ?? "?"} ($\tau_{NMDA} = 100$ ms).
+- Forward-only — no training. Everything is determined by the init at the chosen seed.
+
+**Stimulus protocol.** Each trial is {cfg.t_total_ms ?? "?"} ms long, $dt = $ {cfg.dt ?? "?"} ms:
+
+1. **Stim window** $[0, t_{stim}]$ — Poisson input spikes at rate $R$ arrive on all input channels.
+2. **Silence** $[t_{stim}, t_{total}]$ — input is identically zero. Anything the network does after $t_{stim}$ is purely self-sustained.
+
+We sweep $R$ over a 1D grid and at each $R$ run a fresh seed (more seeds at higher tiers).
+
+**Measurements.** For every run we compute:
+
+- *stim_rate* — mean E population firing rate over $[50, 200]$ ms (drop a 50 ms onset transient).
+- *post_rate* — mean E population firing rate over $[250, 600]$ ms (drop 50 ms after stim cuts).
+- *is_seizure* — *post_rate* $\geq$ 120 Hz, deep into refractory-saturation territory and well above any healthy gamma-locked PING operating point.
+- *sustained* — *post_rate* $\in [5, 120]$ Hz and not *is_seizure*.
+
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "slow-syn gain", value: cfg.slow_syn_gain, default: "—" },
+  { label: "w_ee (mean, std)", value: cfg.w_ee_mean != null ? `(${cfg.w_ee_mean}, ${cfg.w_ee_std})` : "?", default: "—" },
+  { label: "stim window (ms)", value: cfg.t_stim_ms, default: "—" },
+  { label: "post window (ms)", value: cfg.t_post_start_ms != null && cfg.t_total_ms != null ? `[${cfg.t_post_start_ms}, ${cfg.t_total_ms}]` : "?", default: "—" },
+  { label: "input rates (Hz)", value: cfg.input_rates_hz?.join(", "), default: "—" },
+]} />
+
+## Results
+
+<Figure id="Figure 1" title="E rasters per input rate" src="/figures/notebooks/nb030/rasters.png" alt="One raster panel per input rate stacked vertically. Red shading marks the [0, 200] ms stim window; everything after the vertical red line is post-stim silence.">
+  Each panel is one input rate's E raster. Red shaded region = stim window; the vertical red line at 200 ms is when input cuts to zero. The transition from "decays after stim" through "sustained gamma-locked activity" to "saturates and stays saturated" is visible row by row as the input rate climbs.
+</Figure>
+
+<Figure id="Figure 2" title="E firing rate vs input rate, stim vs post-stim" src="/figures/notebooks/nb030/rates_vs_input.png" alt="Two curves on a log-x axis. Red (stim window) climbs monotonically from ~20 Hz to ~290 Hz. Black (post-stim) starts at ~60 Hz for low inputs, stays in the 50–75 Hz band through 50 Hz input, then jumps to ~333 Hz for 75 Hz input and above. The grey band is the non-seizure region.">
+  Mean E rate during the stim window (red) vs after stim cuts (black), as a function of input rate. Grey band marks the non-seizure window. The post-stim curve has a hard cliff between 50 Hz and 75 Hz input — below the cliff the network settles into a 50–75 Hz attractor regardless of input; above the cliff it locks at refractory saturation (333 Hz $\approx 1/\tau_{\text{ref},E}$) and stays there.
+</Figure>
+
+## Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+## Discussion
+
+Three regimes, cleanly separated by the input rate:
+
+1. **Sub-input persistence** ($R \leq 25$ Hz). Stim-window rate (~20–50 Hz) is *lower* than the post-stim rate (~50–60 Hz). The network barely fires while input is on — it's still ramping up. Then, *after* the input cuts, the slow NMDA residue continues driving the recurrent loop, and the population settles into a self-sustained attractor at ~55 Hz. This is the cleanest demonstration of NMDA-mediated persistence: a network that lights up *after* the stimulus disappears.
+
+2. **Driven sustained** ($R = 50$ Hz). Stim-window rate is high (~110 Hz) but post-stim rate is lower (~75 Hz). The network is in a "settle-down" regime — input over-drives it, then it relaxes into the same ~50–75 Hz attractor as the lower-input cases. Same attractor, approached from above.
+
+3. **Seizure** ($R \geq 75$ Hz). Post-stim rate is at refractory saturation (333 Hz = $1 / \tau_{\text{ref},E}$). NMDA + recurrent E→E with enough drive blows past the inhibitory loop's ability to clamp; the population locks into "every cell fires as often as the refractory period allows" and stays there indefinitely. The slow time constant that gave us persistence in the low-input regime is now the same thing that prevents the network from quenching.
+
+The interesting bit is that the attractor at low input is **robust to input rate**. Anywhere from 5 Hz to 50 Hz input ends in the same ~60 Hz post-stim state. The network doesn't remember the input *strength* — only that the input was on at some point. That's the structural property a working-memory layer wants: load-once, hold-stably, regardless of input variance during loading. It's also the property that would let a one-shot pulse boot up sustained activity.
+
+The cliff at 75 Hz is the boundary where slow-channel buildup during the stim window exceeds the inhibitory loop's ability to brake post-stim. The position of the cliff is presumably tunable via $W_{ee}$ mean, $W_{ie}$ mean, and *slow_syn_gain* — those are the three knobs that govern excitation, brake strength, and slow-channel weight respectively. A reasonable next experiment is a 2D heatmap.
+
+## Next steps
+
+- **2D sweep: $W_{ee}$ × slow_syn_gain.** Where does the cliff move? Is there a regime where the attractor rate is much lower (e.g. 10–20 Hz, more biologically plausible for working memory)?
+- **Decay-time fit.** Right now we average over windows; we don't quantify *how* slowly activity decays. Fitting an exponential to the rate trace in the post-stim window would let us put a number on the persistence timescale and check it against $\tau_{NMDA}$.
+- **Multiple stimuli.** Single-pulse load is the easiest version. Can the network hold two stimuli simultaneously? Can a second pulse erase the first?
+- **Pre-trained network.** Load nb024 or nb027 weights and run this same protocol. Does a network optimised for MNIST already lie near a sustained-activity regime when NMDA is turned on at inference, or do the trained weights destroy the attractor?
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb030.py --tier small
+```
+
+### Run parameters
+
+<RunParameters numbers={numbers} />

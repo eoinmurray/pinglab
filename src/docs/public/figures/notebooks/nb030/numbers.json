@@ -1,0 +1,91 @@
+{
+  "run_id": "r001",
+  "config": {
+    "dt": 0.1,
+    "t_stim_ms": 200.0,
+    "t_total_ms": 600.0,
+    "t_post_start_ms": 250.0,
+    "slow_syn_gain": 0.5,
+    "w_ee_mean": 0.5,
+    "w_ee_std": 0.05,
+    "ei_strength": 1.0,
+    "n_e": 256,
+    "n_in": 64,
+    "tier": "small",
+    "input_rates_hz": [
+      5,
+      10,
+      25,
+      50,
+      75,
+      100,
+      150
+    ]
+  },
+  "results": {
+    "by_rate": {
+      "5": {
+        "stim_rate_hz": 18.828125,
+        "post_rate_hz": 62.15401840209961,
+        "seizure_rate": 0.0,
+        "sustained_rate": 1.0,
+        "n_seeds": 1
+      },
+      "10": {
+        "stim_rate_hz": 25.41666603088379,
+        "post_rate_hz": 56.38393020629883,
+        "seizure_rate": 0.0,
+        "sustained_rate": 1.0,
+        "n_seeds": 1
+      },
+      "25": {
+        "stim_rate_hz": 47.52604293823242,
+        "post_rate_hz": 53.47098159790039,
+        "seizure_rate": 0.0,
+        "sustained_rate": 1.0,
+        "n_seeds": 1
+      },
+      "50": {
+        "stim_rate_hz": 112.60416412353516,
+        "post_rate_hz": 73.40401458740234,
+        "seizure_rate": 0.0,
+        "sustained_rate": 1.0,
+        "n_seeds": 1
+      },
+      "75": {
+        "stim_rate_hz": 193.1770782470703,
+        "post_rate_hz": 333.0133972167969,
+        "seizure_rate": 1.0,
+        "sustained_rate": 0.0,
+        "n_seeds": 1
+      },
+      "100": {
+        "stim_rate_hz": 240.3125,
+        "post_rate_hz": 333.2477722167969,
+        "seizure_rate": 1.0,
+        "sustained_rate": 0.0,
+        "n_seeds": 1
+      },
+      "150": {
+        "stim_rate_hz": 293.4375,
+        "post_rate_hz": 333.34820556640625,
+        "seizure_rate": 1.0,
+        "sustained_rate": 0.0,
+        "n_seeds": 1
+      }
+    }
+  },
+  "success_criteria": [
+    {
+      "label": "at least one rate produces non-seizure sustained activity",
+      "passed": true,
+      "detail": "post_rate \u2208 [5, 120] Hz and no 5 ms bin >90% active"
+    },
+    {
+      "label": "at least one rate stays out of seizure",
+      "passed": true,
+      "detail": "seizure observed at any rate: True"
+    }
+  ],
+  "runtime_s": 6.5760979652404785
+}
