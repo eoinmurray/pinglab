@@ -1,0 +1,120 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "026 — Adaptive LIF (ALIF) and DMTS retry"
+date: 2026-05-15
+entry: 26
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb026/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const successCriteria = numbers.success_criteria ?? [];
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+[025 — slow synapse](/notebooks/nb025/) added an NMDA-like long-decay excitatory channel on the *input* side of E cells, then tried to train coba on DMTS. The slow synapse fixed the information pathology — the network has a usable long-timescale variable for the first time — but DMTS still couldn't escape the chance plateau because the gradient pathology was orthogonal: BPTT through a long-trial binary classification with vanilla Adam is unstable at any LR strong enough to break logit symmetry.
+
+This entry tries the LSNN paper's mechanism instead: **adaptive LIF (ALIF)**. A per-neuron slow variable $a_t$ rises with each spike and raises that neuron's own threshold:
+
+$$
+a_{t+1} = e^{-\Delta t/\tau_a}\, a_t + s_t, \qquad V_\text{th,eff} = V_\text{th} + \beta a_t
+$$
+
+Different memory mechanism (output-side, self-suppressive) than slow synapse (input-side, additive). The LSNN paper (Bellec et al. 2018) showed reliable DMTS training with this substrate at standard hyperparameters — so the test is whether plugging ALIF into our coba pipeline lets DMTS train where slow synapse couldn't.
+
+The new oscilloscope flags: *--alif* (boolean), *--tau-adapt* (default 700 ms), *--alif-beta* (default 1.7 mV per spike).
+
+## Cell 1 — coba and ping trained with ALIF
+
+Both networks trained from scratch with *--alif --alif-beta 1.7 --tau-adapt 700*; everything else mirrors nb024's recipe.
+
+<Figure id="Figure 1" title="Trained-with-ALIF coba / ping rasters — ALIF off vs β = 1.7" src="/figures/notebooks/nb026/alif_rasters.png" alt="Four raster panels in a 2-column × 2-row grid: columns are coba (left) and ping (right), rows are ALIF off (top) and β = 1.7 (bottom). Each panel shows E (black) above I (red) spikes over 400 ms.">
+  Trained-with-ALIF coba (left) and ping (right) replayed on MNIST digit 0 sample 0 for 400 ms. Top row: ALIF off — the trained weights replayed without the adaptation hook, so each cell sees only the static $V_\text{th} = -50$ mV. Bottom row: ALIF β = 1.7 mV — each cell's recent spike history raises its own threshold.
+</Figure>
+
+## Cell 2 — DMTS retry
+
+Same trial structure as the failed nb025 attempt: $T_s = T_p = 50$ ms, $T_d = 50$ ms (150 ms total), binary classification, mem-mean readout. Train coba+ALIF from scratch.
+
+<Figure id="Figure 2" title="DMTS training curve — coba + ALIF" src="/figures/notebooks/nb026/dmts_training_curve.png" alt="Per-epoch training and test accuracy on the DMTS task, with a chance baseline at 50%.">
+  Train and test DMTS accuracy per epoch on coba + ALIF. The hypothesis is that the LSNN-style adaptation variable provides the gradient geometry the slow-synapse path was missing — same task, same recipe, only the memory mechanism differs.
+</Figure>
+
+## Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+## Discussion
+
+The DMTS attempt at small tier sat flat at chance for five epochs with no NaN. Extending to medium tier (LSNN's actual setup: lr=10⁻³, batch=256, no v-grad-dampen, gradient clip 0.5) then revealed the real obstruction: with the v-grad dampener turned down to let BPTT signal through, **137 of 140 training batches produced non-finite gradients**. We characterised the dampening/learning space deliberately:
+
+| `v_grad_dampen` | Medium-tier outcome |
+|---|---|
+| 1 (off) | NaN gradient on essentially every batch — 98% of updates skipped |
+| 3 | Stable, no learning (loss stays at $\ln 2$) |
+| 10 | Stable, no learning |
+| 1000 (nb024 default) | Stable, learns MNIST but not DMTS |
+
+This makes the structural issue explicit. The conductance synaptic term
+
+$$
+\frac{\partial}{\partial g_e} \left[g_e (V - E_e)\right] = V - E_e
+$$
+
+couples voltage and conductance multiplicatively. BPTT through ~1500 timesteps of this multiplication produces gradient magnitudes that explode whenever any cell's $V$ is near $E_e$ — which is essentially always for an active network. The dampener can mute the explosion but it mutes the *signal* by the same factor (since both flow through the same Jacobian path), so there is no setting that lets DMTS-relevant gradient through without also letting the explosion through.
+
+**Together with [nb025's slow-synapse failure](/notebooks/nb025/), this localises the actual blocker:** COBA biophysics has a gradient pathology that's orthogonal to the choice of memory mechanism. Slow synapse and ALIF *both* give the network the long-timescale variable working memory needs, but neither helps because the bottleneck is the BPTT pipeline, not the architecture's representational capacity. The LSNN paper trains DMTS reliably on **CUBA** neurons; their additive coupling has no multiplicative voltage–conductance Jacobian, which is why their vanilla-Adam recipe works there and our adapted version fails here.
+
+## What we learned
+
+- ALIF mechanism is implemented and works mechanically (Cell 1).
+- A second memory substrate, parallel to nb025's slow synapse, produces the same DMTS failure.
+- The dampening/training space has been mapped — there is no Goldilocks setting at our scale.
+- The real architectural barrier is the conductance synapse's multiplicative Jacobian, not anything about the memory mechanism.
+
+## Next steps
+
+The natural next experiment is a **CUBA + ALIF + trainable W_rec** replica of LSNN proper — same neuron substrate Bellec et al. used. CUBA's additive synaptic coupling avoids the explosion entirely. Implementing this would mean adding ALIF support to CUBANet (currently COBA-only) and a fresh notebook (nb027) following LSNN's exact recipe (lr=10⁻³, surrogate slope ≈ 0.3, batch=256, no dampener). If that *does* train DMTS while our COBA versions don't, the conclusion will be specific and actionable: working-memory tasks belong on CUBA rungs, not COBA.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb026.py --tier small
+```
+
+### Run parameters
+
+<RunParameters numbers={numbers} />
+
+### Training videos
+
+<Figure id="Figure 3" title="coba — trained with ALIF" src="/figures/notebooks/nb026/training__coba_alif.mp4" type="video" alt="Per-epoch oscilloscope training video for coba trained with --alif.">
+  coba trained with ALIF enabled. One frame per epoch on a fixed reference MNIST trial.
+</Figure>
+
+<Figure id="Figure 4" title="ping — trained with ALIF" src="/figures/notebooks/nb026/training__ping_alif.mp4" type="video" alt="Per-epoch oscilloscope training video for ping trained with --alif.">
+  ping trained with ALIF enabled. One frame per epoch on a fixed reference MNIST trial.
+</Figure>

@@ -162,6 +162,10 @@ def build_net(
     trainable_w_ee=False,
     slow_synapse=False,
     slow_syn_gain=0.5,
+    alif=False,
+    alif_beta=1.7,
+    sgcc=False,
+    sgcc_alpha=0.5,
 ):
     """Construct a network with the given config.
 
@@ -212,6 +216,25 @@ def build_net(
             )
         kwargs["slow_synapse"] = True
         kwargs["slow_syn_gain"] = float(slow_syn_gain)
+    # ALIF: per-neuron slow adaptation on E (and I) cells.
+    if alif:
+        if model_name not in HAS_INH:
+            raise ValueError(
+                f"--alif is COBANet-only; model {model_name!r} doesn't "
+                "have the biophysical step body that the adaptation hook "
+                "lives in"
+            )
+        kwargs["alif"] = True
+        kwargs["alif_beta"] = float(alif_beta)
+    # SGCC: surgical gradient stabilizer (Burghi et al. 2024).
+    if sgcc:
+        if model_name not in HAS_INH:
+            raise ValueError(
+                f"--sgcc is COBANet-only; CUBA-family models don't have "
+                "the conductance Jacobian SGCC is designed to stabilize"
+            )
+        kwargs["sgcc"] = True
+        kwargs["sgcc_alpha"] = float(sgcc_alpha)
     if kaiming_init and model_name in CUBA_MODELS:
         kwargs["tutorial_mode"] = True
     elif w_in is not None:

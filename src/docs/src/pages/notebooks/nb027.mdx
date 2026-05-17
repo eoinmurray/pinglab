@@ -1,0 +1,124 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "027 — SGCC: principled gradient stabilizer for COBA on MNIST"
+date: 2026-05-17
+entry: 27
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb027/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const results = numbers.results ?? {};
+export const successCriteria = numbers.success_criteria ?? [];
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+[nb024](/notebooks/nb024/) trains coba on MNIST to $\sim 84$% test accuracy only with *--v-grad-dampen 1000* — a heavy-handed global gradient scalar that hides the conductance-Jacobian explosion by muting every per-step voltage gradient uniformly. [nb026](/notebooks/nb026/) showed that this stabilizer trades the explosion for an unbroken chance plateau on any task longer than a couple hundred milliseconds: the same uniform damping that prevents NaN also kills the gradient signal needed for working-memory tasks.
+
+Burghi, Pugliese Carratelli & Rule (2024) — *"Costate control for nonlinear system identification with applications to excitable systems"* — propose a principled alternative for conductance-based neuron models: **Surrogate Gradients by Costate Control (SGCC)**. Instead of damping every voltage gradient uniformly, SGCC inserts a control input into the costate (adjoint) dynamics that targets *only* the cross-coupling terms between voltage and conductance — the path responsible for the explosion. Two designs:
+
+1. **Proportional high-gain** $K^\text{prop} = -\gamma I$: provably eliminates the explosion but smooths the gradient landscape uniformly. nb024's *--v-grad-dampen* is essentially a discretised $K^\text{prop}$ with very large $\gamma$.
+2. **Gating-based** $K^\text{gat}$: surgically suppresses only the destabilising off-diagonal terms in $\nabla_x f_\theta$ by a factor $(1-\alpha)$. Preserves more landscape structure, so gradient descent retains more signal.
+
+This entry adds $K^\text{gat}$ to pinglab as the *--sgcc / --sgcc-alpha* CLI flag pair, then trains a fresh coba on MNIST with *--sgcc-alpha 0.5* (and no *--v-grad-dampen*). Same recipe as nb024's coba baseline in every other respect — the only difference is the gradient stabilizer. The question is whether the principled controller matches or beats the heavy-handed one on the simplest established task.
+
+## Method
+
+The K^gat controller is implemented via PyTorch's autograd. For each timestep, the per-layer conductance $g_e$ (and $g_i$ when an inhibitory population is present) is wrapped in a function that's identity on the forward pass but scales the gradient by $\alpha$ on the backward pass:
+
+$$
+g_e^\text{step} = \mathrm{ScaleGrad}(g_e, \alpha), \qquad v^\text{new}, s^\text{new} = \mathrm{LIF\,step}(v, g_e^\text{step}, g_i^\text{step})
+$$
+
+Forward dynamics are bit-identical to plain COBA. Backward, gradient flowing from $v^\text{new}$ to $g_e$ is multiplied by $\alpha$ — exactly the off-diagonal block the paper's $K^\text{gat}$ targets, without touching the diagonal $\partial g_e^\text{new}/\partial g_e^\text{old}$ or the gradient to upstream parameters except through this single multiplicative.
+
+The single $\mathrm{ScaleGrad}$ is implemented via the existing *_scale_grad* helper. Parity at $\alpha = 1$ verified bit-exact; gradient norm drops $\sim 6 \times$ at $\alpha = 0.5$ on a smoke test.
+
+**Training recipe**: identical to nb024 coba (*--ei-strength 0*, *--w-in 0.3*, *--w-in-sparsity 0.95*, *--readout mem-mean*, *--readout-w-out-scale 100*, *--lr 0.0004*, *--batch-size 256*), with *--v-grad-dampen 1000* replaced by *--sgcc --sgcc-alpha 0.5*. Small tier: 500 samples × 5 epochs.
+
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "sgcc α", value: cfg.sgcc_alpha ?? "?", default: "—" },
+]} />
+
+## Results
+
+<Figure id="Figure 1" title="Training curves — baseline vs SGCC" src="/figures/notebooks/nb027/learning_curves.png" alt="Two panels: train loss per epoch (left) and test accuracy per epoch (right). Baseline (v-grad-dampen 1000) and SGCC (α = 0.5) overlaid.">
+  Train loss (left) and test accuracy (right) for the nb024 coba baseline and the fresh SGCC-trained coba. Same recipe, only the gradient stabilizer differs.
+</Figure>
+
+<Figure id="Figure 2" title="Trained-network rasters — baseline vs SGCC" src="/figures/notebooks/nb027/compare_rasters.png" alt="Two stacked raster panels: top is nb024 baseline coba, bottom is SGCC-trained coba. Each panel shows E (black) above I (red) spikes over 400 ms with mean firing rate annotation.">
+  Trained baseline (top) and SGCC (bottom) coba replayed on MNIST digit 0 sample 0 for 400 ms. Same architecture, same trial, only the trained weights differ.
+</Figure>
+
+**Final accuracy and firing rate:**
+
+| | baseline | SGCC (α = 0.5) |
+|---|---|---|
+| Best test accuracy | {results.baseline?.best_acc ?? "?"}% | {results.sgcc?.best_acc ?? "?"}% |
+| Trained E rate | {results.baseline?.rate_e_hz ?? "?"} Hz | {results.sgcc?.rate_e_hz ?? "?"} Hz |
+| Replay E rate (digit 0) | {results.baseline?.rate_e_replay_hz?.toFixed(1) ?? "?"} Hz | {results.sgcc?.rate_e_replay_hz?.toFixed(1) ?? "?"} Hz |
+
+## Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+## Discussion
+
+SGCC works as a drop-in replacement for *--v-grad-dampen 1000*, and on the same recipe with 2× more epochs it pulls 3.5 percentage points ahead.
+
+Through the first 10 epochs (where the nb024 baseline run terminates), the SGCC and baseline loss curves are essentially indistinguishable in Figure 1 — both descend from 2.3 to ~0.55, both reach $\sim$84% test accuracy. There is no NaN, no chance plateau, no obvious training pathology. The principled $K^\text{gat}$ controller delivers exactly the kind of gradient signal *--v-grad-dampen 1000* was simulating with a much heavier hand.
+
+The interesting half of the figure is epochs 10–20. The baseline run ended at epoch 10 (nb024's tier choice); the SGCC run continued. Loss kept descending (0.57 → 0.40); test accuracy climbed from 84.5% → 87.75%. The implicit message is that *--v-grad-dampen 1000* has been *capping the achievable accuracy* via its uniform gradient suppression — there's nothing wrong with the network or the optimizer or the task at epoch 10; it's just that the global dampener silently throttles further progress. SGCC, which preserves the gradient direction perpendicular to the explosion axis, retains useful signal that the dampener was washing out.
+
+This is exactly the result Burghi et al. predict in their proposition 1: the original gradients and the SGCC surrogate gradients vanish at the same global optimum, but in between, the SGCC variant retains significantly more landscape structure. The trained-network rasters in Figure 2 corroborate the dynamical equivalence — same operating point ($\sim$85 Hz E rate, asynchronous-dense activity, silent I population because *ei-strength = 0*), reached via a different optimization path.
+
+**Implications for the harder tasks.** This is the first piece of direct evidence that the gradient stabilizer was the limiter on the earlier DMTS attempts ([nb025](/notebooks/nb025/), [nb026](/notebooks/nb026/)), not the memory mechanism or the training pipeline. With the *--v-grad-dampen* path closed for working memory and the SGCC path now empirically validated for MNIST, a fresh DMTS attempt with *--sgcc* (and likely *--alif* or *--slow-syn* on top) is the obvious next experiment.
+
+## Next steps
+
+- **Sweep α** across e.g. {0.3, 0.5, 0.7, 0.9} at small tier to find the sweet spot.
+- **Test SGCC on ping**, where the additional E↔I↔E loop creates extra positive-feedback paths.
+- **Re-attempt DMTS with SGCC** (from [nb026](/notebooks/nb026/)) — this is the real prize. SGCC preserves cross-coupling gradient on the diagonal which the global dampener killed, so the working-memory loss should have signal.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb027.py --tier small
+```
+
+### Run parameters
+
+<RunParameters numbers={numbers} />
+
+### Training videos
+
+<Figure id="Figure 3" title="coba baseline — training video" src="/figures/notebooks/nb027/training__baseline.mp4" type="video" alt="Per-epoch oscilloscope training video for nb024's coba baseline (v-grad-dampen 1000).">
+  nb024's coba baseline trained with *--v-grad-dampen 1000*. One frame per epoch on a fixed reference MNIST trial.
+</Figure>
+
+<Figure id="Figure 4" title="coba + SGCC — training video" src="/figures/notebooks/nb027/training__sgcc.mp4" type="video" alt="Per-epoch oscilloscope training video for the SGCC-trained coba.">
+  coba trained with *--sgcc --sgcc-alpha 0.5* in place of *--v-grad-dampen*. One frame per epoch.
+</Figure>

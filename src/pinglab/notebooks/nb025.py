@@ -330,6 +330,7 @@ def plot_slow_syn_rasters(
     plt.close(fig)
 
 
+
 def main() -> None:
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
