@@ -6,7 +6,7 @@
     "t_total_ms": 600.0,
     "slow_syn_gain": 0.5,
     "n_e": 256,
-    "n_in": 64,
+    "n_in": 784,
     "tier": "small",
     "w_ee_grid": [
       0.0,
@@ -61,7 +61,7 @@
           "w_ee_mean": 0.0,
           "input_rate_hz": 25.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 8.984375,
+          "late_rate_hz_mean": 0.0,
           "outcomes": [
             "decay"
           ]
@@ -70,7 +70,7 @@
           "w_ee_mean": 0.0,
           "input_rate_hz": 50.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 37.8515625,
+          "late_rate_hz_mean": 0.0,
           "outcomes": [
             "decay"
           ]
@@ -79,7 +79,7 @@
           "w_ee_mean": 0.0,
           "input_rate_hz": 100.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 86.25,
+          "late_rate_hz_mean": 0.625,
           "outcomes": [
             "decay"
           ]
@@ -88,7 +88,7 @@
           "w_ee_mean": 0.0,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 115.9765625,
+          "late_rate_hz_mean": 5.859375,
           "outcomes": [
             "decay"
           ]
@@ -97,7 +97,7 @@
           "w_ee_mean": 0.05,
           "input_rate_hz": 5.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 303.1640625,
+          "late_rate_hz_mean": 301.2109375,
           "outcomes": [
             "seizure"
           ]
@@ -115,7 +115,7 @@
           "w_ee_mean": 0.05,
           "input_rate_hz": 50.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 303.515625,
+          "late_rate_hz_mean": 302.3828125,
           "outcomes": [
             "seizure"
           ]
@@ -124,7 +124,7 @@
           "w_ee_mean": 0.05,
           "input_rate_hz": 100.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 304.4921875,
+          "late_rate_hz_mean": 303.3984375,
           "outcomes": [
             "seizure"
           ]
@@ -133,7 +133,7 @@
           "w_ee_mean": 0.05,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 305.78125,
+          "late_rate_hz_mean": 302.109375,
           "outcomes": [
             "seizure"
           ]
@@ -142,7 +142,7 @@
           "w_ee_mean": 0.1,
           "input_rate_hz": 5.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 323.59375,
+          "late_rate_hz_mean": 320.5078125,
           "outcomes": [
             "seizure"
           ]
@@ -151,7 +151,7 @@
           "w_ee_mean": 0.1,
           "input_rate_hz": 25.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 323.203125,
+          "late_rate_hz_mean": 321.640625,
           "outcomes": [
             "seizure"
           ]
@@ -160,7 +160,7 @@
           "w_ee_mean": 0.1,
           "input_rate_hz": 50.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 322.1875,
+          "late_rate_hz_mean": 321.5234375,
           "outcomes": [
             "seizure"
           ]
@@ -169,7 +169,7 @@
           "w_ee_mean": 0.1,
           "input_rate_hz": 100.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 322.265625,
+          "late_rate_hz_mean": 322.2265625,
           "outcomes": [
             "seizure"
           ]
@@ -178,7 +178,7 @@
           "w_ee_mean": 0.1,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 322.6953125,
+          "late_rate_hz_mean": 322.578125,
           "outcomes": [
             "seizure"
           ]
@@ -187,7 +187,7 @@
           "w_ee_mean": 0.25,
           "input_rate_hz": 5.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 330.4296875,
+          "late_rate_hz_mean": 330.7421875,
           "outcomes": [
             "seizure"
           ]
@@ -196,7 +196,7 @@
           "w_ee_mean": 0.25,
           "input_rate_hz": 25.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 331.5234375,
+          "late_rate_hz_mean": 338.28125,
           "outcomes": [
             "seizure"
           ]
@@ -204,60 +204,6 @@
         {
           "w_ee_mean": 0.25,
           "input_rate_hz": 50.0,
-          "n_seeds": 1,
-          "late_rate_hz_mean": 332.6171875,
-          "outcomes": [
-            "seizure"
-          ]
-        },
-        {
-          "w_ee_mean": 0.25,
-          "input_rate_hz": 100.0,
-          "n_seeds": 1,
-          "late_rate_hz_mean": 333.3203125,
-          "outcomes": [
-            "seizure"
-          ]
-        },
-        {
-          "w_ee_mean": 0.25,
-          "input_rate_hz": 150.0,
-          "n_seeds": 1,
-          "late_rate_hz_mean": 333.3984375,
-          "outcomes": [
-            "seizure"
-          ]
-        },
-        {
-          "w_ee_mean": 0.5,
-          "input_rate_hz": 5.0,
-          "n_seeds": 1,
-          "late_rate_hz_mean": 338.8671875,
-          "outcomes": [
-            "seizure"
-          ]
-        },
-        {
-          "w_ee_mean": 0.5,
-          "input_rate_hz": 25.0,
-          "n_seeds": 1,
-          "late_rate_hz_mean": 330.703125,
-          "outcomes": [
-            "seizure"
-          ]
-        },
-        {
-          "w_ee_mean": 0.5,
-          "input_rate_hz": 50.0,
-          "n_seeds": 1,
-          "late_rate_hz_mean": 337.421875,
-          "outcomes": [
-            "seizure"
-          ]
-        },
-        {
-          "w_ee_mean": 0.5,
-          "input_rate_hz": 100.0,
           "n_seeds": 1,
           "late_rate_hz_mean": 330.546875,
           "outcomes": [
@@ -265,10 +211,64 @@
           ]
         },
         {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 336.6796875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 331.8359375,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 338.359375,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.234375,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.1953125,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.1953125,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
           "w_ee_mean": 0.5,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 331.640625,
+          "late_rate_hz_mean": 338.828125,
           "outcomes": [
             "seizure"
           ]
@@ -276,6 +276,24 @@
         {
           "w_ee_mean": 1.0,
           "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.234375,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.15625,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 50.0,
           "n_seeds": 1,
           "late_rate_hz_mean": 330.0390625,
           "outcomes": [
@@ -284,27 +302,9 @@
         },
         {
           "w_ee_mean": 1.0,
-          "input_rate_hz": 25.0,
-          "n_seeds": 1,
-          "late_rate_hz_mean": 330.1953125,
-          "outcomes": [
-            "seizure"
-          ]
-        },
-        {
-          "w_ee_mean": 1.0,
-          "input_rate_hz": 50.0,
-          "n_seeds": 1,
-          "late_rate_hz_mean": 330.7421875,
-          "outcomes": [
-            "seizure"
-          ]
-        },
-        {
-          "w_ee_mean": 1.0,
           "input_rate_hz": 100.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 333.515625,
+          "late_rate_hz_mean": 339.2578125,
           "outcomes": [
             "seizure"
           ]
@@ -313,7 +313,7 @@
           "w_ee_mean": 1.0,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 339.3359375,
+          "late_rate_hz_mean": 330.5078125,
           "outcomes": [
             "seizure"
           ]
@@ -322,9 +322,9 @@
     },
     "ping": {
       "totals": {
-        "decay": 18,
-        "sustained": 5,
-        "seizure": 7,
+        "decay": 10,
+        "sustained": 15,
+        "seizure": 5,
         "total_cells": 30
       },
       "by_cell": [
@@ -332,7 +332,7 @@
           "w_ee_mean": 0.0,
           "input_rate_hz": 5.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 2.5390625,
+          "late_rate_hz_mean": 0.0,
           "outcomes": [
             "decay"
           ]
@@ -341,7 +341,7 @@
           "w_ee_mean": 0.0,
           "input_rate_hz": 25.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 5.078125,
+          "late_rate_hz_mean": 0.6640625,
           "outcomes": [
             "decay"
           ]
@@ -350,7 +350,7 @@
           "w_ee_mean": 0.0,
           "input_rate_hz": 50.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 6.6796875,
+          "late_rate_hz_mean": 2.34375,
           "outcomes": [
             "decay"
           ]
@@ -359,7 +359,7 @@
           "w_ee_mean": 0.0,
           "input_rate_hz": 100.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 10.5078125,
+          "late_rate_hz_mean": 3.59375,
           "outcomes": [
             "decay"
           ]
@@ -368,7 +368,7 @@
           "w_ee_mean": 0.0,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 12.9296875,
+          "late_rate_hz_mean": 3.59375,
           "outcomes": [
             "decay"
           ]
@@ -377,7 +377,7 @@
           "w_ee_mean": 0.05,
           "input_rate_hz": 5.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 3.515625,
+          "late_rate_hz_mean": 0.0,
           "outcomes": [
             "decay"
           ]
@@ -386,7 +386,7 @@
           "w_ee_mean": 0.05,
           "input_rate_hz": 25.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 5.4296875,
+          "late_rate_hz_mean": 1.796875,
           "outcomes": [
             "decay"
           ]
@@ -395,7 +395,7 @@
           "w_ee_mean": 0.05,
           "input_rate_hz": 50.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 10.546875,
+          "late_rate_hz_mean": 3.90625,
           "outcomes": [
             "decay"
           ]
@@ -404,7 +404,7 @@
           "w_ee_mean": 0.05,
           "input_rate_hz": 100.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 12.734375,
+          "late_rate_hz_mean": 6.6015625,
           "outcomes": [
             "decay"
           ]
@@ -413,7 +413,7 @@
           "w_ee_mean": 0.05,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 15.0390625,
+          "late_rate_hz_mean": 7.578125,
           "outcomes": [
             "decay"
           ]
@@ -422,50 +422,59 @@
           "w_ee_mean": 0.1,
           "input_rate_hz": 5.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 4.296875,
+          "late_rate_hz_mean": 15.3515625,
           "outcomes": [
-            "decay"
+            "sustained"
           ]
         },
         {
           "w_ee_mean": 0.1,
           "input_rate_hz": 25.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 8.59375,
+          "late_rate_hz_mean": 8.4375,
           "outcomes": [
-            "decay"
+            "sustained"
           ]
         },
         {
           "w_ee_mean": 0.1,
           "input_rate_hz": 50.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 11.7578125,
+          "late_rate_hz_mean": 7.578125,
           "outcomes": [
-            "decay"
+            "sustained"
           ]
         },
         {
           "w_ee_mean": 0.1,
           "input_rate_hz": 100.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 13.3203125,
+          "late_rate_hz_mean": 11.09375,
           "outcomes": [
-            "decay"
+            "sustained"
           ]
         },
         {
           "w_ee_mean": 0.1,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 16.875,
+          "late_rate_hz_mean": 13.75,
           "outcomes": [
-            "decay"
+            "sustained"
           ]
         },
         {
           "w_ee_mean": 0.25,
           "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 50.0,
+          "outcomes": [
+            "sustained"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 25.0,
           "n_seeds": 1,
           "late_rate_hz_mean": 40.0,
           "outcomes": [
@@ -474,45 +483,36 @@
         },
         {
           "w_ee_mean": 0.25,
-          "input_rate_hz": 25.0,
+          "input_rate_hz": 50.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 28.4375,
+          "late_rate_hz_mean": 40.0,
           "outcomes": [
             "sustained"
           ]
         },
         {
           "w_ee_mean": 0.25,
-          "input_rate_hz": 50.0,
-          "n_seeds": 1,
-          "late_rate_hz_mean": 21.71875,
-          "outcomes": [
-            "decay"
-          ]
-        },
-        {
-          "w_ee_mean": 0.25,
           "input_rate_hz": 100.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 24.6484375,
+          "late_rate_hz_mean": 40.0,
           "outcomes": [
-            "decay"
+            "sustained"
           ]
         },
         {
           "w_ee_mean": 0.25,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 28.4765625,
+          "late_rate_hz_mean": 40.0,
           "outcomes": [
-            "decay"
+            "sustained"
           ]
         },
         {
           "w_ee_mean": 0.5,
           "input_rate_hz": 5.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 80.0,
+          "late_rate_hz_mean": 100.0,
           "outcomes": [
             "sustained"
           ]
@@ -521,7 +521,7 @@
           "w_ee_mean": 0.5,
           "input_rate_hz": 25.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 80.0,
+          "late_rate_hz_mean": 90.0,
           "outcomes": [
             "sustained"
           ]
@@ -530,7 +530,7 @@
           "w_ee_mean": 0.5,
           "input_rate_hz": 50.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 89.921875,
+          "late_rate_hz_mean": 90.0,
           "outcomes": [
             "sustained"
           ]
@@ -539,25 +539,25 @@
           "w_ee_mean": 0.5,
           "input_rate_hz": 100.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 333.4375,
+          "late_rate_hz_mean": 80.8984375,
           "outcomes": [
-            "seizure"
+            "sustained"
           ]
         },
         {
           "w_ee_mean": 0.5,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 333.3203125,
+          "late_rate_hz_mean": 87.3828125,
           "outcomes": [
-            "seizure"
+            "sustained"
           ]
         },
         {
           "w_ee_mean": 1.0,
           "input_rate_hz": 5.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 339.9609375,
+          "late_rate_hz_mean": 340.0,
           "outcomes": [
             "seizure"
           ]
@@ -566,7 +566,7 @@
           "w_ee_mean": 1.0,
           "input_rate_hz": 25.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 335.1171875,
+          "late_rate_hz_mean": 330.15625,
           "outcomes": [
             "seizure"
           ]
@@ -575,7 +575,7 @@
           "w_ee_mean": 1.0,
           "input_rate_hz": 50.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 333.7109375,
+          "late_rate_hz_mean": 332.34375,
           "outcomes": [
             "seizure"
           ]
@@ -584,7 +584,7 @@
           "w_ee_mean": 1.0,
           "input_rate_hz": 100.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 333.6328125,
+          "late_rate_hz_mean": 330.546875,
           "outcomes": [
             "seizure"
           ]
@@ -593,7 +593,7 @@
           "w_ee_mean": 1.0,
           "input_rate_hz": 150.0,
           "n_seeds": 1,
-          "late_rate_hz_mean": 333.203125,
+          "late_rate_hz_mean": 330.5859375,
           "outcomes": [
             "seizure"
           ]
@@ -610,13 +610,13 @@
     {
       "label": "ping grid has at least one sustained cell",
       "passed": true,
-      "detail": "ping sustained = 5"
+      "detail": "ping sustained = 15"
     },
     {
       "label": "ping has strictly more sustained cells than coba",
       "passed": true,
-      "detail": "ping=5 > coba=0"
+      "detail": "ping=15 > coba=0"
     }
   ],
-  "runtime_s": 45.399455070495605
+  "runtime_s": 47.23641514778137
 }

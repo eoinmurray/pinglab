@@ -44,7 +44,11 @@ DT = 0.1
 T_STIM_MS = 200.0
 T_TOTAL_MS = 600.0
 N_E = 256
-N_IN = 64
+N_IN = 784           # 28×28 MNIST
+DATASET = "mnist"
+DIGIT_CLASS = 0
+SAMPLE_IDX = 0
+INPUT_SEED = 42      # Poisson encoder seed (deterministic across runs)
 W_EE_STD_FRAC = 0.1
 W_IN_SPARSITY = 0.95
 SLOW_SYN_GAIN = 0.5
@@ -92,13 +96,43 @@ def _stamp(fig, run_id: str) -> None:
     )
 
 
+_PIXEL_VEC_CACHE: np.ndarray | None = None
+
+
+def _get_digit_pixels() -> np.ndarray:
+    """Cached fetch of the (784,) pixel-vector for the chosen MNIST sample."""
+    global _PIXEL_VEC_CACHE
+    if _PIXEL_VEC_CACHE is None:
+        from cli.datasets import _load_dataset_image
+
+        pixel_vec, _ = _load_dataset_image(DATASET, DIGIT_CLASS, SAMPLE_IDX)
+        _PIXEL_VEC_CACHE = pixel_vec.astype(np.float32)
+    return _PIXEL_VEC_CACHE
+
+
 def make_input_spikes(rate_hz: float, T_stim_steps: int, T_total_steps: int,
                       seed: int) -> np.ndarray:
-    rng = np.random.default_rng(seed)
-    p = rate_hz * (DT / 1000.0)
-    stim = (rng.random((T_stim_steps, 1, N_IN)) < p).astype(np.float32)
-    post = np.zeros((T_total_steps - T_stim_steps, 1, N_IN), dtype=np.float32)
-    return np.concatenate([stim, post], axis=0)
+    """Poisson-encode the chosen MNIST digit during [0, T_STIM_MS], silence after.
+
+    Uses the canonical encode_image_spikes pipeline (three dt-invariant
+    Poisson sections per pixel) with base_rate=0 outside the stim window
+    and stim_rate=rate_hz × pixel intensity during it. Reshapes to the
+    (T, B=1, N_IN) input_spikes shape the COBANet forward expects.
+    """
+    from cli.encoders import encode_image_spikes
+
+    pixel_vec = _get_digit_pixels()
+    spikes = encode_image_spikes(
+        pixel_vec,
+        T_total_steps,
+        DT,
+        base_rate=0.0,
+        stim_rate=rate_hz,
+        step_on_ms=0.0,
+        step_off_ms=T_STIM_MS,
+        seed=INPUT_SEED + seed,
+    )  # (T_total_steps, N_IN) torch tensor
+    return spikes.numpy().reshape(T_total_steps, 1, N_IN)
 
 
 def run_one(model: str, rate_hz: float, w_ee_mean: float, seed: int) -> dict:
