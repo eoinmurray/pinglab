@@ -141,8 +141,13 @@ def run_one(model: str, rate_hz: float, w_ee_mean: float, seed: int) -> dict:
         _ = net(input_spikes=spk_in_t)
 
     e_full = net.spike_record["hid"].cpu().numpy()
+    i_full = (
+        net.spike_record["inh"].cpu().numpy()
+        if "inh" in net.spike_record else None
+    )
     return {
         "e": e_full,
+        "i": i_full,
         "model": model,
         "rate_hz": rate_hz,
         "w_ee_mean": w_ee_mean,
@@ -246,16 +251,20 @@ def fig_phase_maps(grid_by_model: dict, run_id: str) -> plt.Figure:
     return fig
 
 
+RASTER_N_I_NEURONS = 30  # subsampled I cells shown above the E cells per panel
+RASTER_E_I_GAP = 6       # blank rows between E and I bands
+
+
 def fig_ping_corners(corner_traces: list, run_id: str) -> plt.Figure:
-    """Rate trace + raster at 4 corners of the ping (W_ee × R) grid."""
+    """Rate trace + (I+E) raster across the three outcome classes for ping."""
     fig = plt.figure(figsize=(13, 7.3), dpi=150)
     outer = fig.add_gridspec(
-        2, 2, hspace=0.35, wspace=0.15,
+        2, 2, hspace=0.40, wspace=0.15,
         left=0.07, right=0.97, top=0.92, bottom=0.06,
     )
     rng = np.random.default_rng(0)
-    cell_pick = rng.choice(N_E, size=min(RASTER_N_NEURONS, N_E), replace=False)
-    cell_pick.sort()
+    e_pick = rng.choice(N_E, size=min(RASTER_N_NEURONS, N_E), replace=False)
+    e_pick.sort()
 
     for cell_slot, c in zip(
         [outer[0, 0], outer[0, 1], outer[1, 0], outer[1, 1]], corner_traces
@@ -284,19 +293,45 @@ def fig_ping_corners(corner_traces: list, run_id: str) -> plt.Figure:
             fontsize=theme.SIZE_LABEL, loc="left", pad=4,
         )
 
-        e_sub = c["e"][:, cell_pick]
-        t_idx, n_idx = np.where(e_sub > 0)
+        # E cells in black at the bottom, I cells in red above them with a gap.
+        e_sub = c["e"][:, e_pick]
+        e_t, e_n = np.where(e_sub > 0)
         ax_rast.scatter(
-            t_idx * DT, n_idx,
+            e_t * DT, e_n,
             s=2.0, c=theme.INK_BLACK, marker="|", linewidths=0.5,
+            rasterized=True,
         )
+        n_e_plot = len(e_pick)
+        n_i_plot = 0
+        if c.get("i") is not None and c["i"].shape[1] > 0:
+            i_arr = c["i"]
+            n_i_total = i_arr.shape[1]
+            i_pick = rng.choice(
+                n_i_total, size=min(RASTER_N_I_NEURONS, n_i_total), replace=False
+            )
+            i_pick.sort()
+            i_sub = i_arr[:, i_pick]
+            i_t, i_n = np.where(i_sub > 0)
+            ax_rast.scatter(
+                i_t * DT, i_n + n_e_plot + RASTER_E_I_GAP,
+                s=2.0, c=theme.DEEP_RED, marker="|", linewidths=0.5,
+                rasterized=True,
+            )
+            n_i_plot = len(i_pick)
         ax_rast.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.07)
         ax_rast.axvline(T_STIM_MS, color=theme.DEEP_RED, lw=0.6, alpha=0.6)
         ax_rast.set_xlim(0, T_TOTAL_MS)
-        ax_rast.set_ylim(-1, len(cell_pick))
-        ax_rast.set_yticks([])
-        ax_rast.set_ylabel(f"{len(cell_pick)} E cells",
-                           fontsize=theme.SIZE_ANNOTATION)
+        total_rows = n_e_plot + (RASTER_E_I_GAP + n_i_plot if n_i_plot else 0)
+        ax_rast.set_ylim(-1, total_rows + 1)
+        # Side labels: "E" centred on its band, "I" centred on its band
+        ytick_pos = [n_e_plot / 2]
+        ytick_lbl = [f"E\n({n_e_plot})"]
+        if n_i_plot:
+            ytick_pos.append(n_e_plot + RASTER_E_I_GAP + n_i_plot / 2)
+            ytick_lbl.append(f"I\n({n_i_plot})")
+        ax_rast.set_yticks(ytick_pos)
+        ax_rast.set_yticklabels(ytick_lbl, fontsize=theme.SIZE_ANNOTATION)
+        ax_rast.tick_params(axis="y", length=0)
         ax_rast.set_xlabel("Time (ms)", fontsize=theme.SIZE_LABEL)
         ax_rast.tick_params(axis="x", labelsize=theme.SIZE_TICK)
 
@@ -333,9 +368,10 @@ def main() -> None:
 
     grid_by_model: dict[str, dict[tuple, list[dict]]] = {"coba": {}, "ping": {}}
     # We want fig 2 to actually showcase the sustained band — so we cache
-    # *every* ping cell's example raster, then pick four informative ones
-    # (one decay, two sustained, one seizure) after classification is done.
-    ping_all_e: dict[tuple, np.ndarray] = {}
+    # *every* ping cell's example raster (both E and I), then pick four
+    # informative ones (one decay, two sustained, one seizure) after
+    # classification is done.
+    ping_all_rasters: dict[tuple, dict] = {}
 
     for model in ["coba", "ping"]:
         print(f"--- {model} ({MODEL_CONFIGS[model]}) ---")
@@ -347,8 +383,8 @@ def main() -> None:
                     r = run_one(model, rt, w, seed)
                     m = classify(r)
                     grid_by_model[model][(w, rt)].append(m)
-                    if model == "ping" and s == 0 and (w, rt) not in ping_all_e:
-                        ping_all_e[(w, rt)] = r["e"]
+                    if model == "ping" and s == 0 and (w, rt) not in ping_all_rasters:
+                        ping_all_rasters[(w, rt)] = {"e": r["e"], "i": r["i"]}
                 outs = [m["outcome"] for m in grid_by_model[model][(w, rt)]]
                 late = np.mean([m["late_rate_hz"] for m in grid_by_model[model][(w, rt)]])
                 verdict = (
@@ -393,10 +429,12 @@ def main() -> None:
         if cell is None:
             continue
         w, rt = cell
+        rast = ping_all_rasters[(w, rt)]
         ping_corners.append({
             "label": label,
             "w": w, "rate": rt,
-            "e": ping_all_e[(w, rt)],
+            "e": rast["e"],
+            "i": rast["i"],
             "outcome": grid_by_model["ping"][(w, rt)][0]["outcome"],
         })
     fig2 = fig_ping_corners(ping_corners, run_id)
