@@ -3,9 +3,8 @@ the global v-grad-dampen.
 
 nb024 showed that COBA can be BPTT-trained on MNIST at small tier
 *only* when the conductance Jacobian is muted via --v-grad-dampen 1000
-— a heavy-handed global scaling that nb026 then revealed kills the
-gradient signal needed for any task longer than a couple hundred
-milliseconds.
+— a heavy-handed global scaling that kills gradient signal on any
+task longer than a couple hundred milliseconds.
 
 [Burghi, Pugliese Carratelli & Rule 2024](https://arxiv.org/) propose
 Surrogate Gradients by Costate Control (SGCC) — a surgical
