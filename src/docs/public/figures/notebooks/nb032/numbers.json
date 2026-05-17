@@ -1,0 +1,92 @@
+{
+  "run_id": "r001",
+  "config": {
+    "dt": 1.0,
+    "t_sample_ms": 100.0,
+    "t_delay_ms": 100.0,
+    "t_probe_ms": 100.0,
+    "n_e": 256,
+    "n_in": 784,
+    "ei_strength": 1.0,
+    "w_ee_init_mean": 0.05,
+    "w_ee_init_std": 0.005,
+    "w_in_mean": 1.2,
+    "slow_syn_gain": 0.5,
+    "sgcc_alpha": 0.5,
+    "stim_peak_rate_hz": 50.0,
+    "lr": 0.001,
+    "batch_size": 32,
+    "n_train": 1024,
+    "n_test": 256,
+    "epochs": 10,
+    "tier": "small"
+  },
+  "results": {
+    "best_test_acc": 0.5,
+    "final_test_acc": 0.5,
+    "final_train_acc": 0.5,
+    "history": {
+      "epoch": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "train_loss": [
+        0.6963900215923786,
+        0.6941033899784088,
+        0.6939803492277861,
+        0.6933722347021103,
+        0.6938447766005993,
+        0.6940695960074663,
+        0.6936552878469229,
+        0.6938117034733295,
+        0.6939638946205378,
+        0.6940681710839272
+      ],
+      "train_acc": [
+        0.4931640625,
+        0.4794921875,
+        0.4853515625,
+        0.498046875,
+        0.4814453125,
+        0.509765625,
+        0.5,
+        0.4990234375,
+        0.4970703125,
+        0.5
+      ],
+      "test_acc": [
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.49609375,
+        0.5,
+        0.5,
+        0.5
+      ]
+    }
+  },
+  "success_criteria": [
+    {
+      "label": "test acc above chance + margin (\u2265 60%)",
+      "passed": false,
+      "detail": "best test acc = 50.0%"
+    },
+    {
+      "label": "training acc above chance (\u2265 55%) \u2014 loss has signal",
+      "passed": false,
+      "detail": "final train acc = 50.0%"
+    }
+  ],
+  "runtime_s": 271.21162486076355
+}
