@@ -1,0 +1,622 @@
+{
+  "run_id": "r001",
+  "config": {
+    "dt": 0.1,
+    "t_stim_ms": 200.0,
+    "t_total_ms": 600.0,
+    "slow_syn_gain": 0.5,
+    "n_e": 256,
+    "n_in": 64,
+    "tier": "small",
+    "w_ee_grid": [
+      0.0,
+      0.05,
+      0.1,
+      0.25,
+      0.5,
+      1.0
+    ],
+    "input_rates_hz": [
+      5,
+      25,
+      50,
+      100,
+      150
+    ],
+    "n_seeds": 1,
+    "decay_threshold_hz": 1.0,
+    "seizure_threshold_hz": 120.0,
+    "model_configs": {
+      "coba": {
+        "ei_strength": 0.0,
+        "w_in_mean": 0.3,
+        "w_in_std": 0.09
+      },
+      "ping": {
+        "ei_strength": 1.0,
+        "w_in_mean": 1.2,
+        "w_in_std": 0.36
+      }
+    }
+  },
+  "results": {
+    "coba": {
+      "totals": {
+        "decay": 5,
+        "sustained": 0,
+        "seizure": 25,
+        "total_cells": 30
+      },
+      "by_cell": [
+        {
+          "w_ee_mean": 0.0,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 0.0,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.0,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 8.984375,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.0,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 37.8515625,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.0,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 86.25,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.0,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 115.9765625,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.05,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 303.1640625,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.05,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 302.6171875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.05,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 303.515625,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.05,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 304.4921875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.05,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 305.78125,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.1,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 323.59375,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.1,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 323.203125,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.1,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 322.1875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.1,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 322.265625,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.1,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 322.6953125,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.4296875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 331.5234375,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 332.6171875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 333.3203125,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 333.3984375,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 338.8671875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.703125,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 337.421875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.546875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 331.640625,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.0390625,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.1953125,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 330.7421875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 333.515625,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 339.3359375,
+          "outcomes": [
+            "seizure"
+          ]
+        }
+      ]
+    },
+    "ping": {
+      "totals": {
+        "decay": 18,
+        "sustained": 5,
+        "seizure": 7,
+        "total_cells": 30
+      },
+      "by_cell": [
+        {
+          "w_ee_mean": 0.0,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 2.5390625,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.0,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 5.078125,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.0,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 6.6796875,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.0,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 10.5078125,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.0,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 12.9296875,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.05,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 3.515625,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.05,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 5.4296875,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.05,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 10.546875,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.05,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 12.734375,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.05,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 15.0390625,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.1,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 4.296875,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.1,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 8.59375,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.1,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 11.7578125,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.1,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 13.3203125,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.1,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 16.875,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 40.0,
+          "outcomes": [
+            "sustained"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 28.4375,
+          "outcomes": [
+            "sustained"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 21.71875,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 24.6484375,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.25,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 28.4765625,
+          "outcomes": [
+            "decay"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 80.0,
+          "outcomes": [
+            "sustained"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 80.0,
+          "outcomes": [
+            "sustained"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 89.921875,
+          "outcomes": [
+            "sustained"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 333.4375,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 0.5,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 333.3203125,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 5.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 339.9609375,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 25.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 335.1171875,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 50.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 333.7109375,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 100.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 333.6328125,
+          "outcomes": [
+            "seizure"
+          ]
+        },
+        {
+          "w_ee_mean": 1.0,
+          "input_rate_hz": 150.0,
+          "n_seeds": 1,
+          "late_rate_hz_mean": 333.203125,
+          "outcomes": [
+            "seizure"
+          ]
+        }
+      ]
+    }
+  },
+  "success_criteria": [
+    {
+      "label": "coba grid has zero sustained cells (nb030 replication)",
+      "passed": true,
+      "detail": "coba sustained = 0"
+    },
+    {
+      "label": "ping grid has at least one sustained cell",
+      "passed": true,
+      "detail": "ping sustained = 5"
+    },
+    {
+      "label": "ping has strictly more sustained cells than coba",
+      "passed": true,
+      "detail": "ping=5 > coba=0"
+    }
+  ],
+  "runtime_s": 45.723827838897705
+}
