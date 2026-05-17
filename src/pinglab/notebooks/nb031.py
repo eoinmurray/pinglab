@@ -290,19 +290,26 @@ RASTER_E_I_GAP = 6       # blank rows between E and I bands
 
 
 def fig_ping_corners(corner_traces: list, run_id: str) -> plt.Figure:
-    """Rate trace + (I+E) raster across the three outcome classes for ping."""
-    fig = plt.figure(figsize=(13, 7.3), dpi=150)
+    """Rate trace + (I+E) raster across the ping outcome regimes.
+
+    Lays out up to 6 panels in a 2×3 grid: typically [decay, sus@5,
+    sus@25, sus@50, sus@150, seizure], showing both the input-rate
+    progression along a fixed-W_ee sustained row and the boundary panels.
+    """
+    n_panels = len(corner_traces)
+    n_cols = 3 if n_panels >= 5 else 2
+    n_rows = (n_panels + n_cols - 1) // n_cols
+    fig = plt.figure(figsize=(5.0 * n_cols, 3.65 * n_rows), dpi=150)
     outer = fig.add_gridspec(
-        2, 2, hspace=0.40, wspace=0.15,
-        left=0.07, right=0.97, top=0.92, bottom=0.06,
+        n_rows, n_cols, hspace=0.45, wspace=0.18,
+        left=0.05, right=0.985, top=0.93, bottom=0.06,
     )
     rng = np.random.default_rng(0)
     e_pick = rng.choice(N_E, size=min(RASTER_N_NEURONS, N_E), replace=False)
     e_pick.sort()
 
-    for cell_slot, c in zip(
-        [outer[0, 0], outer[0, 1], outer[1, 0], outer[1, 1]], corner_traces
-    ):
+    slots = [outer[r, c] for r in range(n_rows) for c in range(n_cols)]
+    for cell_slot, c in zip(slots[:n_panels], corner_traces):
         inner = cell_slot.subgridspec(2, 1, height_ratios=[1, 2], hspace=0.05)
         ax_rate = fig.add_subplot(inner[0])
         ax_rast = fig.add_subplot(inner[1], sharex=ax_rate)
@@ -433,9 +440,9 @@ def main() -> None:
     fig1.savefig(FIGURES / "phase_maps.png", dpi=150)
     plt.close(fig1)
 
-    # Pick 4 informative cells from ping's grid: one decay, two sustained
-    # (preferring the highest-rate sustained cell + a complementary one),
-    # and one seizure. If a category is empty, fall back to a grid corner.
+    # Pick 6 informative cells: decay, then a 4-cell input-rate progression
+    # along the W_ee=0.5 sustained row, then seizure. Falls back gracefully
+    # if a chosen cell isn't actually on the grid for the running tier.
     def _ping_cell(outcome_filter, sort_key=None, prefer=None):
         cells = [(w, rt) for (w, rt), ms in grid_by_model["ping"].items()
                  if ms[0]["outcome"] == outcome_filter]
@@ -447,17 +454,31 @@ def main() -> None:
             cells.sort(key=sort_key)
         return cells[0]
 
-    decay_cell    = _ping_cell("decay",     sort_key=lambda c: (c[0], c[1]))
-    sustained_lo  = _ping_cell("sustained", sort_key=lambda c: (c[1], c[0]))   # lowest input rate
-    sustained_hi  = _ping_cell("sustained", sort_key=lambda c: (-c[1], -c[0])) # highest input rate
-    seizure_cell  = _ping_cell("seizure",   sort_key=lambda c: (-c[0], -c[1]))
+    def _cell_if_in_grid(w, rt):
+        return (w, rt) if (w, rt) in grid_by_model["ping"] else None
 
-    panel_specs = [
-        (decay_cell,   "ping — decay"),
-        (sustained_lo, "ping — sustained (low input)"),
-        (sustained_hi, "ping — sustained (higher input)"),
-        (seizure_cell, "ping — seizure"),
-    ]
+    decay_cell    = _ping_cell("decay",   sort_key=lambda c: (c[0], c[1]))
+    seizure_cell  = _ping_cell("seizure", sort_key=lambda c: (-c[0], -c[1]))
+
+    # Sustained-row progression at fixed W_ee=0.5 across multiple input rates.
+    # Falls back to any sustained cell if 0.5 isn't on the tier's grid.
+    sus_row_w = 0.5 if 0.5 in w_ee_grid else (sorted(
+        {w for (w, _), ms in grid_by_model["ping"].items()
+         if ms[0]["outcome"] == "sustained"}
+    ) or [None])[-1]
+    sus_rates_wanted = [r for r in (5, 25, 50, 150) if r in rate_grid]
+    sus_cells = []
+    if sus_row_w is not None:
+        for r in sus_rates_wanted:
+            c = _cell_if_in_grid(sus_row_w, r)
+            if c is not None and grid_by_model["ping"][c][0]["outcome"] == "sustained":
+                sus_cells.append((c, "ping — sustained"))
+
+    panel_specs = (
+        [(decay_cell, "ping — decay")]
+        + sus_cells
+        + [(seizure_cell, "ping — seizure")]
+    )
     ping_corners = []
     for cell, label in panel_specs:
         if cell is None:
