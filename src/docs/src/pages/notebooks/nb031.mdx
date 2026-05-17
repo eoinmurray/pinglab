@@ -27,7 +27,9 @@ This entry adds the proof. Same 2D sweep, same slope-aware classifier, only one 
 
 ## Method
 
-Same setup as [nb030](/notebooks/nb030/) — untrained COBANet, $N_E = ${cfg.n_e}, slow channel on at gain {cfg.slow_syn_gain}, Poisson input for $[0, ${cfg.t_stim_ms}]$ ms then silence to ${cfg.t_total_ms} ms. Two models:
+Same setup as [nb030](/notebooks/nb030/) — untrained COBANet, $N_E = ${cfg.n_e}, slow channel on at gain {cfg.slow_syn_gain}. **Input is the MNIST digit-0 (sample 0), pixel-weighted Poisson-encoded** over $N_{IN} = 784$ channels during $[0, ${cfg.t_stim_ms}]$ ms, then silence to ${cfg.t_total_ms} ms — same encoder pipeline as the trained MNIST notebooks ([nb024](/notebooks/nb024/), [nb025](/notebooks/nb025/), [nb027](/notebooks/nb027/)) so the input statistics match what a real trained run sees. The sweep axis $R$ is the *peak* Poisson rate at pixel intensity = 1; mean per-channel rate ≈ $0.18\,R$ for digit 0.
+
+Two models:
 
 | | *ei_strength* | $W_{in}$ mean | Notes |
 |---|---|---|---|
@@ -54,11 +56,11 @@ where $r_1$, $r_2$ are mean E rate over $[200, 300]$ and $[500, 600]$ ms respect
 ## Results
 
 <Figure id="Figure 1" title="(W_ee × input rate) phase maps — coba vs ping" src="/figures/notebooks/nb031/phase_maps.png" alt="Two 6×5 phase maps side by side. Left (coba) is all decay (grey) at W_ee=0 and all seizure (red) above. Right (ping) has a green sustained band at mid-range W_ee and low-to-mid input rates.">
-  Same 2D sweep, two models. Cell colour = outcome class; numbers are the late-window mean E rate. **Coba (left)** reproduces nb030 exactly — 30 cells, zero sustained, bistable between decay and saturation. **Ping (right)** has a non-empty sustained band ({pingTotals.sustained ?? "?"} cells of {pingTotals.total_cells ?? "?"}) at mid-range $W_{ee}$ ($\sim 0.25$–$0.5$) and low-to-mid input rate ($\leq 50$ Hz). The cliff into seizure is at high $W_{ee}$ where excitation overruns the inhibitory brake; the cliff into decay is at low $W_{ee}$ where there isn't enough recurrent gain to overcome the inhibition.
+  Same 2D sweep, two models, MNIST digit-0 input. Cell colour = outcome class; numbers are the late-window mean E rate. **Coba (left):** {cobaTotals.decay} decay cells along the $W_{ee} = 0$ row, the other {cobaTotals.seizure} seize. **Zero sustained.** Same structural bistability nb030 documents. **Ping (right):** a clearly populated sustained band ({pingTotals.sustained} cells of {pingTotals.total_cells}) covering $W_{ee} \in \{0.1, 0.25, 0.5\}$ at *every* input rate in the grid. Seizure only appears at $W_{ee} = 1.0$ — too much recurrent excitation for the inhibitory brake. Decay only appears at $W_{ee} \in \{0, 0.05\}$ and only at the lowest input rates.
 </Figure>
 
 <Figure id="Figure 2" title="Ping rate trace + raster across the three outcome classes" src="/figures/notebooks/nb031/ping_corners.png" alt="Four panels showing ping at one decay cell, two sustained cells, and one seizure cell. Each panel has the population rate trace on top and an 80-cell raster underneath.">
-  Ping's own three regimes laid out. **Decay** (top-left, $W_{ee} = 0$): activity tails off as soon as input cuts. **Sustained at low input** (top-right, $W_{ee} = 0.25$): low but non-zero firing maintained through the silent window. **Sustained at higher input** (bottom-left, $W_{ee} = 0.5$): the canonical bump — gamma-locked synchronous activity at $\sim 80$ Hz that persists for the full post-stim period, with visible burst structure in the raster. **Seizure** (bottom-right, $W_{ee} = 1$): refractory saturation, same as coba's saturated corners — too much recurrence for the inhibition to brake.
+  Ping's own three regimes laid out. **Decay** (top-left, $W_{ee} = 0$): activity tails off as soon as input cuts; the per-pixel structure of the digit-0 input is visible during the stim window. **Sustained at low input** (top-right, $W_{ee} = 0.1$): low but non-zero firing maintained through the silent window. **Sustained at higher input** (bottom-left, $W_{ee} = 0.5$, $R = 150$ Hz): the canonical PING bump — strong gamma-locked synchronous activity, with I bursts (red vertical columns) leading each E firing window. The structured input during stim transitions into a self-sustained recurrent attractor at the same population rate ($\sim 90$ Hz) after the input cuts. **Seizure** (bottom-right, $W_{ee} = 1$): refractory saturation, same as coba's saturated corners — too much recurrence for the inhibition to brake.
 </Figure>
 
 ## Success criteria
