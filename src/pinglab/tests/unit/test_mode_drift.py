@@ -58,7 +58,7 @@ def test_build_net_deterministic_ping():
 
 
 def test_encode_images_poisson_deterministic():
-    from oscilloscope import encode_images_poisson
+    from cli import encode_images_poisson
 
     images = torch.rand(4, 64)
     g1 = torch.Generator().manual_seed(123)
@@ -73,7 +73,7 @@ def test_encode_images_poisson_deterministic():
 
 
 def test_load_dataset_deterministic_scikit():
-    from oscilloscope import load_dataset
+    from cli import load_dataset
 
     a_tr, a_te, ay_tr, ay_te = load_dataset("scikit", max_samples=200, split=True)
     b_tr, b_te, by_tr, by_te = load_dataset("scikit", max_samples=200, split=True)
@@ -84,7 +84,7 @@ def test_load_dataset_deterministic_scikit():
 
 
 def test_train_and_infer_share_test_split_mnist():
-    from oscilloscope import load_dataset
+    from cli import load_dataset
 
     _, train_X_te, _, train_y_te = load_dataset("mnist", max_samples=500, split=True)
     _, infer_X_te, _, infer_y_te = load_dataset("mnist", max_samples=500, split=True)
@@ -96,7 +96,7 @@ def test_train_and_infer_share_test_split_mnist():
 
 
 def _run_cli(*args, timeout=180):
-    cmd = ["uv", "run", "python", "src/pinglab/oscilloscope/__main__.py", *args]
+    cmd = ["uv", "run", "python", "src/pinglab/cli/__main__.py", *args]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     return result.returncode, result.stdout, result.stderr
 

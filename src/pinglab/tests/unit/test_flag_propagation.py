@@ -16,7 +16,7 @@ import torch
 
 
 def _run_cli(*args, timeout=180):
-    cmd = ["uv", "run", "python", "src/pinglab/oscilloscope/__main__.py", *args]
+    cmd = ["uv", "run", "python", "src/pinglab/cli/__main__.py", *args]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     assert result.returncode == 0, (
         f"cmd failed (exit {result.returncode}):\n  {' '.join(cmd)}\n"

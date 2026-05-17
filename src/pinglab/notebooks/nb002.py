@@ -36,7 +36,7 @@ from _tier import parse_tier  # noqa: E402
 SLUG = "nb002"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-OSCILLOSCOPE = PINGLAB / "oscilloscope/__main__.py"
+OSCILLOSCOPE = PINGLAB / "cli/__main__.py"
 
 # ── Frame config — matches nb003's canonical PING working point ──────────
 SEED = 42

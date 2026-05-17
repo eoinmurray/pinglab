@@ -44,7 +44,7 @@ from pinglab import theme  # noqa: E402
 SLUG = "nb027"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
+OSCILLOSCOPE = REPO / "src" / "pinglab" / "cli/__main__.py"
 
 # nb024's coba baseline — trained with --v-grad-dampen 1000. The
 # reference point we're comparing against.
@@ -160,7 +160,7 @@ def capture_raster(train_dir: Path) -> dict:
     import config as C  # noqa: F401
     import models as M
     from config import build_net, patch_dt
-    from oscilloscope import (
+    from cli import (
         EVAL_SEED,
         _auto_device,
         encode_batch,

@@ -37,7 +37,7 @@ from pinglab import theme  # noqa: E402
 SLUG = "nb025"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
+OSCILLOSCOPE = REPO / "src" / "pinglab" / "cli/__main__.py"
 
 # Pretrained baselines from nb024 (no slow-syn at training time).
 NB024_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "nb024"
@@ -162,7 +162,7 @@ def capture_raster(train_dir: Path, slow_syn_gain: float) -> dict:
     import config as C  # noqa: F401
     import models as M
     from config import build_net, patch_dt
-    from oscilloscope import (
+    from cli import (
         EVAL_SEED,
         _auto_device,
         encode_batch,

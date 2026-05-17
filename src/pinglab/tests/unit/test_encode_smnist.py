@@ -5,7 +5,7 @@ is wrong, sMNIST accuracy silently collapses but nothing crashes.
 import pytest
 import torch
 
-from oscilloscope import encode_smnist
+from cli import encode_smnist
 
 
 def _row_pattern(active_row: int, B: int = 1) -> torch.Tensor:

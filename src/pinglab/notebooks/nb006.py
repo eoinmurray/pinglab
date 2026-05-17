@@ -59,7 +59,7 @@ def compute_summary_rates() -> dict:
     import config as C  # noqa: E402
     import models as M  # noqa: E402
     from config import make_net, patch_dt  # noqa: E402
-    from oscilloscope import (
+    from cli import (
         _extract_records,
         _load_dataset_image,
         encode_image_spikes,
