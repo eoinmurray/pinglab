@@ -29,15 +29,15 @@ import models as M
 from config import extract_weights, patch_dt
 from plot import draw_transient_frame, make_transient_fig, reset_weight_xlims
 
-from oscilloscope.datasets import _load_dataset_image
-from oscilloscope.encoders import (
+from cli.datasets import _load_dataset_image
+from cli.encoders import (
     encode_batch,
     encode_images_poisson,
     encode_smnist,
     transport_spikes_bin,
 )
-from oscilloscope.scan import primary_hid_key, primary_inh_key
-from oscilloscope.train import train
+from cli.scan import primary_hid_key, primary_inh_key
+from cli.train import train
 
 log = logging.getLogger("oscilloscope")
 

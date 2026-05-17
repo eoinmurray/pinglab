@@ -1,7 +1,7 @@
 """Oscilloscope package — CLI entry-point at __main__.py.
 
 Re-exports the symbols imported by tests and notebooks. The CLI is invoked
-as `python src/pinglab/oscilloscope/__main__.py …` (or via the runners,
+as `python src/pinglab/cli/__main__.py …` (or via the runners,
 which already point at __main__.py).
 """
 

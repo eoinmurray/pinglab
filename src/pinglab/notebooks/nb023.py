@@ -36,7 +36,7 @@ from _tier import parse_tier  # noqa: E402
 SLUG = "nb023"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-OSCILLOSCOPE = REPO / "src" / "pinglab" / "oscilloscope/__main__.py"
+OSCILLOSCOPE = REPO / "src" / "pinglab" / "cli/__main__.py"
 SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
 SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
 

@@ -60,7 +60,7 @@ def compute_summary_rates() -> dict:
     import models as M  # noqa: E402
     import torch  # noqa: E402
     from config import make_net, patch_dt  # noqa: E402
-    from oscilloscope import (
+    from cli import (
         _extract_records,
         _load_dataset_image,
         encode_image_spikes,
@@ -135,7 +135,7 @@ def compute_per_frame_pop_rates() -> dict:
     import models as M  # noqa: E402
     import torch  # noqa: E402
     from config import make_net, patch_dt  # noqa: E402
-    from oscilloscope import (
+    from cli import (
         _extract_records,
         _load_dataset_image,
         encode_image_spikes,

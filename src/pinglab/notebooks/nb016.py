@@ -208,7 +208,7 @@ def eval_sequential(model_name: str, run_dir: Path,
 
     from config import build_net  # type: ignore[import]
     import models as M  # type: ignore[import]
-    from oscilloscope.encoders import encode_images_poisson  # type: ignore[import]
+    from cli.encoders import encode_images_poisson  # type: ignore[import]
 
     cfg = json.loads((run_dir / "config.json").read_text())
     device = torch.device("cpu")
@@ -329,7 +329,7 @@ def eval_latency(model_name: str, run_dir: Path,
 
     from config import build_net  # type: ignore[import]
     import models as M  # type: ignore[import]
-    from oscilloscope.encoders import encode_images_poisson  # type: ignore[import]
+    from cli.encoders import encode_images_poisson  # type: ignore[import]
 
     cfg = json.loads((run_dir / "config.json").read_text())
     device = torch.device("cpu")
@@ -426,7 +426,7 @@ def _build_seq_trial():
     from torchvision import datasets, transforms
 
     sys.path.insert(0, str(REPO / "src" / "pinglab"))
-    from oscilloscope.encoders import encode_images_poisson  # type: ignore[import]
+    from cli.encoders import encode_images_poisson  # type: ignore[import]
 
     mnist = datasets.MNIST(
         root=str(REPO / "src" / "artifacts" / "data"),
@@ -636,7 +636,7 @@ def eval_per_trial_rate(model_name: str, run_dir: Path,
 
     from config import build_net  # type: ignore[import]
     import models as M  # type: ignore[import]
-    from oscilloscope.encoders import encode_images_poisson  # type: ignore[import]
+    from cli.encoders import encode_images_poisson  # type: ignore[import]
 
     cfg = json.loads((run_dir / "config.json").read_text())
     device = torch.device("cpu")

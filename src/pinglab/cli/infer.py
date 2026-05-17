@@ -23,10 +23,10 @@ import torch
 import models as M
 from config import build_net, patch_dt
 
-from oscilloscope.datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
-from oscilloscope.encoders import EVAL_SEED, encode_batch
-from oscilloscope.scan import _auto_device
-from oscilloscope.train import seed_everything, train
+from cli.datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
+from cli.encoders import EVAL_SEED, encode_batch
+from cli.scan import _auto_device
+from cli.train import seed_everything, train
 
 log = logging.getLogger("oscilloscope")
 

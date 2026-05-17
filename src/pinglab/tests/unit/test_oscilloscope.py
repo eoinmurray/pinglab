@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 import torch
 
-import oscilloscope as O
-from oscilloscope import (
+import cli as O
+from cli import (
     encode_image_spikes,
     encode_images_poisson,
     encode_smnist,

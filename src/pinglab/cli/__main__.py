@@ -108,7 +108,7 @@ from plot import (
 # =============================================================================
 
 
-from oscilloscope.encoders import (  # noqa: E402,F401
+from cli.encoders import (  # noqa: E402,F401
     EVAL_SEED,
     FROZEN_MODES,
     FrozenEncoder,
@@ -123,7 +123,7 @@ from oscilloscope.encoders import (  # noqa: E402,F401
 
 
 
-from oscilloscope.scan import (  # noqa: E402
+from cli.scan import (  # noqa: E402
     SCAN_DEFAULTS,
     _SWEEP_XLABELS,
     _WEIGHT_SCAN_VARS,
@@ -144,14 +144,14 @@ from oscilloscope.scan import (  # noqa: E402
 # Snapshot generators
 # =============================================================================
 
-from oscilloscope.snapshot import (  # noqa: E402
+from cli.snapshot import (  # noqa: E402
     generate_image_snapshot,
     generate_sim_only,
     generate_snapshot,
     generate_spike_snapshot,
 )
 
-from oscilloscope.datasets import (  # noqa: E402,F401
+from cli.datasets import (  # noqa: E402,F401
     DATASET_N_HIDDEN_DEFAULTS,
     SHD_N_CHANNELS,
     _load_dataset_image,
@@ -166,7 +166,7 @@ from oscilloscope.datasets import (  # noqa: E402,F401
 # Training (moved to oscilloscope/train.py)
 # =============================================================================
 
-from oscilloscope.train import (  # noqa: E402
+from cli.train import (  # noqa: E402
     BATCH_SIZE,
     GRAD_CLIP,
     observe_epoch,
@@ -181,11 +181,11 @@ from oscilloscope.train import (  # noqa: E402
 # =============================================================================
 
 
-from oscilloscope.video import (  # noqa: E402
+from cli.video import (  # noqa: E402
     _plot_dt_sweep,
     _render_dt_sweep_video,
 )
-from oscilloscope.infer import infer  # noqa: E402
+from cli.infer import infer  # noqa: E402
 
 
 def _apply_from_dir(args, argv):
@@ -499,7 +499,7 @@ Models:
         "--burn-in",
         type=float,
         default=None,
-        help="Burn-in period in ms hidden from oscilloscope plots/videos. "
+        help="Burn-in period in ms hidden from cli plots/videos. "
         "Default: 100 ms in shared cfg (legacy); pass 0 to make the entire "
         "trial visible.",
     )

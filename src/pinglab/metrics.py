@@ -49,7 +49,7 @@ def find_fundamental_nondiff(psd, freqs, f_lo=5.0, f_hi=80.0, snr_threshold=3.0)
 
 
 # =========================================================================
-# Oscilloscope-level metric helpers (moved from oscilloscope.py)
+# Oscilloscope-level metric helpers (moved from cli.py)
 # =========================================================================
 
 
