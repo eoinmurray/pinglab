@@ -51,8 +51,8 @@ Target label: the digit's class (0–9). Loss is multi-class cross-entropy.
 
 ## Results
 
-<Figure id="Figure 1" title="Training curve — N-way recall" src="/figures/notebooks/nb032/training_curve.png" alt="Two-panel figure. Left: training loss falls from ~1.95 to ~1.19 over 20 epochs. Right: train and test accuracy rise from ~28% to ~58-63% with test slightly above train throughout.">
-  Train cross-entropy loss falls from ~1.95 at epoch 1 to ~1.19 at epoch 20 — well below the $\ln 10 \approx 2.30$ chance line. Train and test accuracy both climb monotonically from ~28% (already 2.8× chance after one epoch) to {(results.final_test_acc * 100)?.toFixed(0) ?? "?"}% by the end. Test stays close to train throughout with no sign of overfitting, and the curve is still improving at epoch 20 — there's headroom for longer runs.
+<Figure id="Figure 1" title="Training curve — N-way recall" src="/figures/notebooks/nb032/training_curve.png" alt="Two-panel figure. Left: training loss falls from ~1.97 to ~1.05 over 40 epochs and plateaus. Right: train and test accuracy rise from ~28% to ~63-66% by epoch 20 and oscillate at that level for the rest of training.">
+  Train cross-entropy loss falls from ~1.97 at epoch 1 to ~1.05 by epoch 30 — well below the $\ln 10 \approx 2.30$ chance line — then plateaus. Train and test accuracy both climb steeply to ~50% by epoch 9, slow down, and settle at the ~63-66% band by epoch 20. Test stays close to train throughout with no sign of overfitting. The plateau over the last 20 epochs suggests this is an **architectural ceiling** rather than a data/compute one: the network has extracted what it can from the post-delay state given the available capacity (N_E = 256), sample window (100 ms), and slow primitive (NMDA τ = 100 ms).
 </Figure>
 
 <Figure id="Figure 2" title="Example test trials" src="/figures/notebooks/nb032/example_trials.png" alt="Two raster panels showing E activity for two different digit-class trials, with sample/delay/recall windows shaded.">
@@ -92,7 +92,7 @@ The architecture didn't change. Only the loss formulation did.
 
 This is the same loss-structure that worked for nb027 (10-class MNIST classification on coba+SGCC) and the same reason the LSNN paper's actual recall task is N-way rather than binary. The "DMTS is hard" finding from the nb028/29 chain was actually "binary CE on balanced labels is hard"; the architecture was always capable.
 
-**What 63% means.** Chance is 10%, so this is 6× above chance — the network is clearly extracting class identity from the post-delay state. It's not yet competitive with feedforward MNIST classification (where the same coba+SGCC stack hits 87% in [nb027](/notebooks/nb027/) at the same tier) because:
+**What 66% means.** Chance is 10%, so this is 6.6× above chance — the network is clearly extracting class identity from the post-delay state. It's not yet competitive with feedforward MNIST classification (where the same coba+SGCC stack hits 87% in [nb027](/notebooks/nb027/)) because:
 
 1. The recall task only sees a 100 ms sample window (vs nb027's 200 ms full trial). Fewer input spikes → less reliable encoding.
 2. There's a 200 ms silent delay between sample and readout, during which the network's hidden state has to maintain class identity by itself. Information is lost during the delay.
@@ -104,7 +104,7 @@ Headroom exists in all three dimensions (longer sample, more epochs/samples, lar
 
 - **Longer delays.** Does test accuracy degrade gracefully as $T_d$ goes 200 → 400 → 800 ms, or does it cliff at the NMDA time constant ($\tau = 100$ ms)? This tests whether the recurrent dynamics ARE the slow store, or whether the network is just riding the NMDA tail.
 - **Add ALIF on top.** ALIF ($\tau_{adapt} = 700$ ms by default, configurable to 1200 ms à la LSNN) adds a much longer memory primitive than NMDA. Combined with NMDA the network has memory at two timescales; with ALIF only it's closer to LSNN architecturally.
-- **Scale beyond medium.** The medium-tier curve hasn't plateaued — accuracy is still climbing at epoch 20. nb027 reaches 87% on the easier feedforward version of this task at the same tier, so there's at least ~25 pp of plausible headroom from longer training and/or more samples.
+- **Architectural changes, not more compute.** The large-tier run (n=8192 × 40 epochs, 101 min CPU) shows the curve plateaus at ~63–66% from epoch 20 onward. The marginal accuracy gain compressed from +18 pp (small → medium) to +3.7 pp (medium → large), so more samples/epochs won't substantially help. To break past ~70% the architecture needs to change: more E cells (currently $N_E = 256$), a longer slow primitive (ALIF $\tau_{adapt} = 700$ ms on top of NMDA $\tau = 100$ ms), or a longer-integration readout (LI cells rather than mean-rate).
 - **Try the binary version *with content selectivity already trained in*.** Warm-start from this notebook's trained weights and switch to binary match/non-match. The hidden state would start out class-discriminating, which should sidestep the chance-basin trap.
 
 ## Appendix
