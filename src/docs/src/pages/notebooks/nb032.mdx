@@ -1,0 +1,120 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "032 — DMTS with trainable W_ee + SGCC + NMDA: chance plateau"
+date: 2026-05-17
+entry: 32
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb032/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const results = numbers.results ?? {};
+export const successCriteria = numbers.success_criteria ?? [];
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+[030 — Coba + NMDA cannot sustain post-stimulus activity](/notebooks/nb030/) showed the inhibitory loop is structurally required for stable post-stim activity. [031 — Ping $W_{ee}$ transition at fixed input](/notebooks/nb031/) located the lower edge of ping's sustained band at $W_{ee} \approx 0.07$, and the gamma-locked attractor regime at $W_{ee} \approx 0.5$. Together those notebooks said: *the operating regime DMTS needs exists in ping with NMDA*.
+
+The natural follow-up — and the prediction I made at the close of nb031 — is that adding *--trainable-w-ee* on top should be enough to actually train DMTS, because gradient descent can move $W_{ee}$ to wherever it needs to be inside the sustained band. This entry runs that experiment.
+
+**Result: it doesn't train.** Same chance plateau the nb028/29 chain hit. Gradient signal flows, but the optimizer lands in a local minimum where the readout outputs uniform logits and the loss bottoms out at $\ln 2$. The "trainable $W_{ee}$ solves it" prediction is empirically wrong at this recipe.
+
+## Method
+
+**Task: DMTS.** Each trial is $T_s + T_d + T_p$ = {cfg.t_sample_ms} + {cfg.t_delay_ms} + {cfg.t_probe_ms} ms ({cfg.t_sample_ms + cfg.t_delay_ms + cfg.t_probe_ms} ms total).
+
+1. Sample window: digit_A from MNIST, Poisson-encoded at peak rate {cfg.stim_peak_rate_hz} Hz.
+2. Delay window: input is identically zero.
+3. Probe window: digit_B from MNIST, same encoding.
+4. Target: 1 if digit_A == digit_B (match), 0 otherwise.
+
+Batches are balanced 50/50 match vs non-match.
+
+**Network.** ping COBANet ($\text{ei\_strength} = ${cfg.ei_strength}), $N_E = ${cfg.n_e}, $N_{IN} = 784$.
+
+- *--trainable-w-ee* on; $W_{ee}$ initialised at ({cfg.w_ee_init_mean}, {cfg.w_ee_init_std}) μS.
+- *--slow-syn* on at gain {cfg.slow_syn_gain} ($\tau_{NMDA} = 100$ ms).
+- *--sgcc* on at $\alpha = ${cfg.sgcc_alpha} — the principled gradient stabilizer from [nb027](/notebooks/nb027/).
+- *--ei-strength = 1*; $W_{ei}$, $W_{ie}$ at ping defaults.
+
+**Readout.** Custom $\mathrm{Linear}(N_E \to 2)$ on the probe-window mean E spike count, bypassing the built-in mem-mean readout. This is deliberate: integrating over the whole trial (sample + delay + probe) dilutes the gradient by averaging in the long silent delay window. Only what happens during the probe contributes to the loss.
+
+**Training.** Adam, lr = {cfg.lr}, batch = {cfg.batch_size}, {cfg.epochs} epochs at {cfg.n_train} training pairs. Per-step gradient clip at 1.0. Test set is {cfg.n_test} held-out pairs.
+
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "W_ee init", value: `(${cfg.w_ee_init_mean}, ${cfg.w_ee_init_std})`, default: "—" },
+  { label: "slow-syn gain", value: cfg.slow_syn_gain, default: "—" },
+  { label: "sgcc α", value: cfg.sgcc_alpha, default: "—" },
+  { label: "T_s / T_d / T_p (ms)", value: `${cfg.t_sample_ms} / ${cfg.t_delay_ms} / ${cfg.t_probe_ms}`, default: "—" },
+]} />
+
+## Results
+
+<Figure id="Figure 1" title="DMTS training curve" src="/figures/notebooks/nb032/training_curve.png" alt="Two-panel figure. Left: BCE training loss hovers at ~0.693 (chance) across all epochs. Right: train and test accuracy both pinned to 50% for every epoch.">
+  Left: train BCE loss locked at $\ln 2 \approx 0.693$, the chance value for a 2-class problem. Right: train and test accuracy both at 50% (chance) for every epoch. The optimizer is moving — gradient norms are non-zero, $W_{ee}$ and $W_{out}$ both receive non-zero gradient — but it's converging to the uniform-output local minimum rather than learning to discriminate.
+</Figure>
+
+<Figure id="Figure 2" title="Example test trials" src="/figures/notebooks/nb032/example_trials.png" alt="Two raster panels showing one match trial and one non-match trial. Both look qualitatively similar: scattered sample-driven E activity, decay through delay, scattered probe-driven activity.">
+  One match trial (top) and one non-match trial (bottom) from the test set. Sample / delay / probe windows shaded. The two trials look qualitatively similar to a human eye — sample-driven activity, decay through delay, probe-driven activity. The point: the readout's input statistics (probe-window mean E rate) don't obviously differ between match and non-match, which is consistent with the loss plateau.
+</Figure>
+
+**Best test accuracy: {(results.best_test_acc * 100)?.toFixed(1) ?? "—"}%** ({results.best_test_acc < 0.55 ? "no margin above 50% chance" : "small margin above chance"}).
+
+## Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+## Discussion
+
+What this notebook actually shows is that the prediction at the end of nb031 — "trainable $W_{ee}$ + SGCC + NMDA + ping should be enough; the operating regime exists, training will find it" — is empirically wrong at the recipe tried here. The structural availability of a sustained attractor is necessary but not sufficient.
+
+**The diagnostic we get from gradient norms.** Both $W_{ee}$ and $W_{out}$ receive non-zero gradient throughout training; this isn't a NaN or vanishing-gradient story. The optimizer is moving, just in a direction that converges to the uniform-output minimum: a readout that outputs $\sim$50/50 logits regardless of the input. From a loss-landscape view that's a stable basin — uniform output gives constant loss $\ln 2$ on any balanced batch, with no first-order incentive to move in any particular direction.
+
+**Why this is the same failure as nb028/29.** Both runs of the predecessor chain ([nb028](https://...), [nb029](https://...) — both since nuked) hit identical chance plateaus. The conclusion documented at the time was that the issue is **cold-start binary credit assignment**: with a randomly-initialised hidden representation that doesn't yet encode sample-vs-probe discrimination, the per-sample gradient on $W_{out}$ averages to near-zero across balanced match/non-match batches. I claimed the trainable $W_{ee}$ would break this by making the hidden representation a *learned* function of the input — varying sample-to-sample even if mean-balanced. The empirical result here says: gradient on $W_{ee}$ exists and is non-zero, but it isn't large enough or directed enough to escape the uniform-readout basin within the training budget tried.
+
+**What the network IS learning.** Looking at the gradient time-series, $|W_{ee}.\text{grad}|$ collapses by ~100× between epoch 1 and epoch 2 (from $\sim 8 \times 10^{-4}$ down to $\sim 10^{-5}$), while $|W_{out}.\text{grad}|$ stays in the $10^{-3}$ range. This is the signature of the optimizer reaching a flat region in $W_{ee}$ space while the readout continues to wiggle in a basin around uniform output. Effectively, the network freezes its dynamics early and the readout never finds a discriminative direction.
+
+## Implication
+
+DMTS in this codebase, at this scale, with this readout/loss combination, is still unsolved. The deeper architectural problem identified by nb028/29 — that the loss landscape has a strong uniform-output basin that gradient descent falls into before it can find the discriminative basin — wasn't dissolved by enabling $W_{ee}$ learning. Trainable $W_{ee}$ adds capacity but not direction.
+
+## Next steps (concrete, not vague)
+
+- **Warm-start from MNIST classifier weights.** Train coba+SGCC on regular MNIST classification to a working hidden representation (this is nb027's recipe), then transplant the hidden-side weights into the DMTS net with a fresh 2-class readout. The hidden state at probe time would then encode something *useful* about each digit out of the box; the readout's per-sample gradient should escape the uniform-output basin because samples differ at the hidden layer from the very first batch.
+- **Contrastive / triplet loss instead of binary CE.** A pair-based loss produces a non-zero per-sample gradient even on balanced batches because it compares each sample to a negative pair rather than to a single label. Removes the structural cancellation that produces the $\ln 2$ basin.
+- **Multi-way ($N > 2$) match task.** Instead of binary "is this a match", do "which of 4 candidates matches the sample?". Multi-class CE gives the per-sample gradient the same per-sample directional variance that made [nb027](/notebooks/nb027/) work on 10-class MNIST.
+
+Three independent attacks on the same structural problem. Any one of them is a separate notebook.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb032.py --tier small
+```
+
+### Run parameters
+
+<RunParameters numbers={numbers} />
