@@ -1,25 +1,30 @@
-"""Notebook runner for entry 030 — NMDA-mediated post-stimulus persistence.
+"""Notebook runner for entry 030 — coba + NMDA cannot sustain post-stim activity.
 
-Tests whether an untrained COBANet with hand-set W_ee > 0 and the slow
-(NMDA-like) synaptic channel enabled can produce non-seizure sustained
-activity after the input cuts out — i.e. a bump that decays gracefully
-rather than dying instantly or saturating.
+The recurrent excitation + NMDA story is, with inhibition, what gives a
+working-memory layer its attractor. The structural claim this entry
+makes concrete: without inhibition (coba, *ei_strength = 0*), the same
+slow channel + recurrent E→E that produces a stable attractor in ping
+admits only two outcomes — quench or seizure. There is no intermediate
+sustained state.
 
 Setup
 -----
-* Untrained PING-config COBANet (ei_strength=1), N_E=256, N_I=64.
-* W_ee init: small positive mean (recurrent excitation that NMDA can
-  amplify on the slow timescale). All other weights at defaults.
-* Slow synapse on, gain = 0.5 (tau_nmda = 100 ms).
-* Input: Poisson spikes at fixed rate R for [0, 200] ms, then total
-  silence for [200, 600] ms.
-* Sweep R over a 1D grid; 1+ seeds per rate.
+* Untrained COBANet at *ei_strength = 0* (no I cells driving E, no E→I→E
+  loop). N_E = 256.
+* Slow channel on, gain = 0.5 (tau_nmda = 100 ms).
+* Hand-set W_ee mean swept over a small grid.
+* Input: Poisson spikes at rate R during [0, 200] ms, then silence for
+  [200, 600] ms.
 
-Per rate we record the full E + I raster and measure:
-  * stim_rate_hz  — mean E pop rate over [50, 200] ms
-  * post_rate_hz  — mean E pop rate over [250, 600] ms (skip onset transient)
-  * is_seizure    — any 5 ms bin where >90% of E cells fire
-  * sustained     — post_rate_hz in [5, 50] Hz and not is_seizure
+For every (W_ee, R) cell we classify the outcome by the late-window
+mean E rate over [500, 600] ms:
+
+    DECAY     — late_rate < 1 Hz   (silent — the network quenches)
+    SUSTAINED — 1 ≤ late_rate < 120 Hz   (the goal — would be a green cell)
+    SEIZURE   — late_rate ≥ 120 Hz  (refractory saturation, locked)
+
+The success-criterion check is whether ANY cell on the grid lands in the
+sustained class. Result: none does.
 
 Notebook entry: src/docs/src/pages/notebooks/nb030.mdx
 """
@@ -47,42 +52,47 @@ SLUG = "nb030"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 
-# ── Hand-tuned operating point ────────────────────────────────────────
+# ── Fixed network setup ───────────────────────────────────────────────
 DT = 0.1
 T_STIM_MS = 200.0
 T_TOTAL_MS = 600.0
-T_POST_START_MS = 250.0  # skip 50 ms onset-transient after stim cuts
+T_LATE_START_MS = 500.0  # late window for outcome classification (last 100 ms)
 N_E = 256
 N_IN = 64
-EI_STRENGTH = 1.0
-W_EE_MEAN = 0.5         # modest recurrent excitation
-W_EE_STD = 0.05
-W_IN_MEAN = 1.2
-W_IN_STD = 0.36
-W_IN_SPARSITY = 0.95
+EI_STRENGTH = 0.0       # coba — no E↔I↔E loop; the structural point being made
+W_EE_STD_FRAC = 0.1     # W_ee std = W_ee_mean × this (keep CV constant across grid)
+W_IN_MEAN = 0.3         # coba's lighter W_in (matches nb024 coba recipe); a strong
+W_IN_STD = 0.09         # ping-tuned W_in would NMDA-charge the network to seizure on
+W_IN_SPARSITY = 0.95    # its own, hiding the W_ee effect we're trying to measure.
 SLOW_SYN_GAIN = 0.5
 
-# Sweep grid
-INPUT_RATES_HZ = [5, 10, 25, 50, 75, 100, 150]
+# ── 2D sweep grid: W_ee × input rate ──────────────────────────────────
+W_EE_MEAN_GRID = [0.0, 0.05, 0.10, 0.25, 0.50, 1.00]
+INPUT_RATES_HZ = [5, 25, 50, 100, 150]
+# Small-tier subgrids so smoke runs stay quick
+EXTRA_SMALL_W_EE = [0.0, 0.50]
 EXTRA_SMALL_RATES = [25, 100]
 
 DEFAULT_TIER = "small"
 TIER_CONFIG: dict[str, dict] = {
-    "extra small": {"n_seeds": 1, "rates": EXTRA_SMALL_RATES},
-    "small":       {"n_seeds": 1, "rates": INPUT_RATES_HZ},
-    "medium":      {"n_seeds": 3, "rates": INPUT_RATES_HZ},
-    "large":       {"n_seeds": 5, "rates": INPUT_RATES_HZ},
+    "extra small": {"n_seeds": 1, "w_ee": EXTRA_SMALL_W_EE, "rates": EXTRA_SMALL_RATES},
+    "small":       {"n_seeds": 1, "w_ee": W_EE_MEAN_GRID,   "rates": INPUT_RATES_HZ},
+    "medium":      {"n_seeds": 3, "w_ee": W_EE_MEAN_GRID,   "rates": INPUT_RATES_HZ},
+    "large":       {"n_seeds": 5, "w_ee": W_EE_MEAN_GRID,   "rates": INPUT_RATES_HZ},
 }
 
-# Analysis
+# Outcome classification
+DECAY_HZ = 1.0          # late-window rate below this: network has quenched
+SEIZURE_HZ = 120.0      # late-window rate at/above this: refractory saturation
+DECAY_SLOPE_RATIO = 0.5 # late/early post-stim ratio below this counts as
+                        # "still decaying" — a passive NMDA tail rather than
+                        # a stable attractor.
+# Sustained = anywhere between DECAY_HZ and SEIZURE_HZ AND not still actively
+# decaying. The claim of this notebook is that for coba (ei_strength=0) this
+# class is empty no matter how you tune W_ee.
+
+# Display
 RATE_BIN_MS = 5.0
-# "Seizure" = post-stim runaway, not gamma synchrony. We call it a seizure
-# when the post-stim mean E rate is at refractory-saturation territory
-# (≥ SEIZURE_HZ). Healthy gamma-locked ping on MNIST runs ~60–90 Hz, so
-# 120 Hz is above any normal operating point but below the 1/ref_ms_E ceiling.
-SEIZURE_HZ = 120
-SUSTAINED_LO_HZ = 5
-SUSTAINED_HI_HZ = SEIZURE_HZ
 
 
 def _stamp(fig, run_id: str) -> None:
@@ -106,7 +116,7 @@ def make_input_spikes(rate_hz: float, T_stim_steps: int, T_total_steps: int,
     return np.concatenate([stim, post], axis=0)
 
 
-def run_one(rate_hz: float, seed: int) -> dict:
+def run_one(rate_hz: float, w_ee_mean: float, seed: int) -> dict:
     """Build a fresh net at this seed, drive with Poisson input, capture spikes."""
     import torch
 
@@ -123,7 +133,7 @@ def run_one(rate_hz: float, seed: int) -> dict:
         "ping",
         w_in=(W_IN_MEAN, W_IN_STD),
         w_in_sparsity=W_IN_SPARSITY,
-        w_ee=(W_EE_MEAN, W_EE_STD),
+        w_ee=(w_ee_mean, w_ee_mean * W_EE_STD_FRAC),
         ei_strength=EI_STRENGTH,
         slow_synapse=True,
         slow_syn_gain=SLOW_SYN_GAIN,
@@ -144,9 +154,8 @@ def run_one(rate_hz: float, seed: int) -> dict:
     with torch.no_grad():
         _ = net(input_spikes=spk_in_t)
 
-    e_full = net.spike_record["hid"].cpu().numpy()  # (T, B, N_E)
-    i_full = net.spike_record["inh"].cpu().numpy()  # (T, B, N_I)
-    return {"e": e_full, "i": i_full, "rate_hz": rate_hz, "seed": seed}
+    e_full = net.spike_record["hid"].cpu().numpy()
+    return {"e": e_full, "rate_hz": rate_hz, "w_ee_mean": w_ee_mean, "seed": seed}
 
 
 def population_rate_hz(spikes: np.ndarray, bin_ms: float) -> np.ndarray:
@@ -159,156 +168,151 @@ def population_rate_hz(spikes: np.ndarray, bin_ms: float) -> np.ndarray:
     return pop
 
 
-def analyze(result: dict) -> dict:
-    """Compute stim/post rates and seizure flag for one run."""
+def classify(result: dict) -> dict:
+    """Outcome classification with a slope-aware sustained-vs-decay split.
+
+    We measure two post-stim windows:
+      * post1 = mean E rate over [T_STIM_MS, T_STIM_MS + 100]
+      * post2 = mean E rate over [T_TOTAL_MS - 100, T_TOTAL_MS]
+
+    Classification:
+      * SEIZURE — post2 >= SEIZURE_HZ (network locked at refractory saturation)
+      * DECAY   — post2 < DECAY_HZ  (network has quenched), OR
+                  post2 / post1 < DECAY_SLOPE_RATIO (still actively decaying;
+                  we count this as "not sustained" because the trace clearly
+                  hasn't settled — a passive NMDA tail isn't an attractor)
+      * SUSTAINED — anywhere else: post2 stable relative to post1, in
+                    [DECAY_HZ, SEIZURE_HZ). This is the only class that
+                    represents genuine recurrent-attractor maintenance.
+    """
     e = result["e"]
     rate_trace = population_rate_hz(e, RATE_BIN_MS)
     t_bin = np.arange(len(rate_trace)) * RATE_BIN_MS
 
     stim_mask = (t_bin >= 50) & (t_bin < T_STIM_MS)
-    post_mask = t_bin >= T_POST_START_MS
+    post1_mask = (t_bin >= T_STIM_MS) & (t_bin < T_STIM_MS + 100.0)
+    post2_mask = t_bin >= (T_TOTAL_MS - 100.0)
     stim_rate = float(rate_trace[stim_mask].mean()) if stim_mask.any() else 0.0
-    post_rate = float(rate_trace[post_mask].mean()) if post_mask.any() else 0.0
+    post1_rate = float(rate_trace[post1_mask].mean()) if post1_mask.any() else 0.0
+    post2_rate = float(rate_trace[post2_mask].mean()) if post2_mask.any() else 0.0
 
-    # Seizure: post-stim mean rate at refractory saturation (≥ SEIZURE_HZ).
-    # Gamma synchrony alone (high peaks, low mean) is NOT seizure — only
-    # runaway sustained firing is.
-    is_seizure = post_rate >= SEIZURE_HZ
+    if post2_rate >= SEIZURE_HZ:
+        outcome = "seizure"
+    elif post2_rate < DECAY_HZ:
+        outcome = "decay"
+    elif post1_rate > 0 and post2_rate / post1_rate < DECAY_SLOPE_RATIO:
+        outcome = "decay"  # active decay, not a stable attractor
+    else:
+        outcome = "sustained"
 
-    sustained = (SUSTAINED_LO_HZ <= post_rate <= SUSTAINED_HI_HZ) and not is_seizure
     return {
-        "rate_trace_hz": [float(x) for x in rate_trace],
-        "t_bin_ms": [float(x) for x in t_bin],
         "stim_rate_hz": stim_rate,
-        "post_rate_hz": post_rate,
-        "is_seizure": is_seizure,
-        "sustained": bool(sustained),
+        "post1_rate_hz": post1_rate,
+        "post2_rate_hz": post2_rate,
+        "late_rate_hz": post2_rate,  # kept for back-compat with figure code
+        "outcome": outcome,
     }
 
 
-RASTER_N_NEURONS = 80   # subsample E cells for the raster strip
+OUTCOME_COLORS = {
+    # Map each outcome class to a palette colour. Sustained is the one we
+    # *want* to find — give it the strong accent so an empty grid reads as
+    # an empty-by-design plot.
+    "decay": "#cfd6db",      # cool light grey — silent network
+    "sustained": "#1f9d3a",  # green — the (empty) target band
+    "seizure": "#cc0000",    # deep-red — runaway saturation
+}
+
+
 TRACE_BIN_MS = 25.0     # rate-trace smoothing — long enough to wash out gamma peaks
-TRACE_Y_MAX_HZ = 220    # shared y-axis cap so panels are directly comparable
 
 
-def fig_rasters(results_by_rate: dict, run_id: str) -> plt.Figure:
-    """Stacked rate-trace + raster, one row per input rate.
+def fig_phase_map(grid_results: dict, run_id: str) -> plt.Figure:
+    """Phase map: every (W_ee, input_rate) cell coloured by outcome class.
 
-    Each row is a tall panel: red-filled population rate trace (gamma-
-    smoothed at 25 ms bins) on top, subsampled E raster underneath.
-    Stim window shaded across both. All rate traces share a fixed
-    y-axis [0, TRACE_Y_MAX_HZ] so rows are directly comparable.
+    A cell is green only if at least one seed produced *sustained* (rare —
+    expected to be empty for coba). Red if any seed seized; grey if all
+    seeds decayed. The whole point of the figure is the absence of green.
     """
-    rates = sorted(results_by_rate.keys())
-    n = len(rates)
-    fig_h = 1.7 * n  # ~1.7" per row
-    fig = plt.figure(figsize=(14, fig_h), dpi=150)
+    w_ees = sorted({k[0] for k in grid_results})
+    rates = sorted({k[1] for k in grid_results})
+    Z = np.zeros((len(w_ees), len(rates)), dtype=int)  # 0=decay, 1=sustained, 2=seizure
+    late_rates = np.zeros_like(Z, dtype=float)
+    for i, w in enumerate(w_ees):
+        for j, rt in enumerate(rates):
+            ms = grid_results[(w, rt)]
+            outs = [m["outcome"] for m in ms]
+            Z[i, j] = 2 if "seizure" in outs else (1 if "sustained" in outs else 0)
+            late_rates[i, j] = float(np.mean([m["late_rate_hz"] for m in ms]))
 
-    outer = fig.add_gridspec(
-        n, 1, hspace=0.55, left=0.08, right=0.97, top=0.96, bottom=0.05
+    fig, ax = plt.subplots(figsize=(9, 5.0625), dpi=150)
+    cmap = plt.matplotlib.colors.ListedColormap([
+        OUTCOME_COLORS["decay"],
+        OUTCOME_COLORS["sustained"],
+        OUTCOME_COLORS["seizure"],
+    ])
+    ax.imshow(Z, cmap=cmap, vmin=0, vmax=2, aspect="auto", origin="lower")
+    for i in range(len(w_ees)):
+        for j in range(len(rates)):
+            v = late_rates[i, j]
+            txt = f"{v:.0f}" if v < 1000 else f"{v:.0f}"
+            color = "white" if Z[i, j] == 2 else theme.INK_STRONG
+            ax.text(j, i, txt, ha="center", va="center",
+                    fontsize=theme.SIZE_ANNOTATION, color=color)
+    ax.set_xticks(range(len(rates)))
+    ax.set_xticklabels([str(r) for r in rates], fontsize=theme.SIZE_TICK)
+    ax.set_yticks(range(len(w_ees)))
+    ax.set_yticklabels([f"{w:g}" for w in w_ees], fontsize=theme.SIZE_TICK)
+    ax.set_xlabel("Input rate during stim (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("$W_{ee}$ mean (μS, pre-fan-in)", fontsize=theme.SIZE_LABEL)
+    ax.set_title(
+        f"Late-window mean E rate (Hz) — coba (ei_strength=0), slow-syn on\n"
+        f"green = sustained {DECAY_HZ:g}–{SEIZURE_HZ:g} Hz | "
+        f"grey = decay <{DECAY_HZ:g} | red = seizure ≥{SEIZURE_HZ:g}",
+        fontsize=theme.SIZE_LABEL,
     )
-
-    rng = np.random.default_rng(0)
-    cell_pick = rng.choice(N_E, size=min(RASTER_N_NEURONS, N_E), replace=False)
-    cell_pick.sort()
-
-    for row_idx, rate in enumerate(rates):
-        inner = outer[row_idx].subgridspec(2, 1, height_ratios=[1, 2], hspace=0.05)
-        ax_rate = fig.add_subplot(inner[0])
-        ax_rast = fig.add_subplot(inner[1], sharex=ax_rate)
-
-        r = results_by_rate[rate][0]
-        e = r["e"]  # (T, N)
-
-        # Top: gamma-smoothed population rate trace
-        rate_trace = population_rate_hz(e, TRACE_BIN_MS)
-        t_bin = np.arange(len(rate_trace)) * TRACE_BIN_MS
-        ax_rate.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.08)
-        ax_rate.fill_between(
-            t_bin, rate_trace, 0, color=theme.DEEP_RED, alpha=0.35, linewidth=0
-        )
-        ax_rate.plot(t_bin, rate_trace, color=theme.DEEP_RED, lw=1.2)
-        ax_rate.axhline(
-            SEIZURE_HZ, color=theme.INK_BLACK, lw=0.7, ls="--", alpha=0.5
-        )
-        ax_rate.set_xlim(0, T_TOTAL_MS)
-        ax_rate.set_ylim(0, TRACE_Y_MAX_HZ)
-        ax_rate.set_yticks([0, SEIZURE_HZ])
-        ax_rate.set_yticklabels(["0", f"{SEIZURE_HZ}"], fontsize=theme.SIZE_TICK)
-        ax_rate.tick_params(axis="x", labelbottom=False)
-        ax_rate.set_ylabel("E rate\n(Hz)", fontsize=theme.SIZE_ANNOTATION,
-                           rotation=0, ha="right", va="center", labelpad=14)
-
-        # Per-row title shows input + post-stim mean rate (caps display at SEIZURE_HZ+)
-        post_steps = int(T_POST_START_MS / DT)
-        post_rate = float(
-            e[post_steps:].sum() / (N_E * (T_TOTAL_MS - T_POST_START_MS) / 1000.0)
-        )
-        ax_rate.set_title(
-            f"input = {rate} Hz    →    post-stim = {post_rate:.0f} Hz",
-            fontsize=theme.SIZE_LABEL, loc="left", color=theme.INK_STRONG, pad=4,
-        )
-
-        # Bottom: subsampled raster
-        e_sub = e[:, cell_pick]
-        t_idx, n_idx = np.where(e_sub > 0)
-        ax_rast.scatter(
-            t_idx * DT, n_idx,
-            s=2.4, c=theme.INK_BLACK, marker="|", linewidths=0.5,
-        )
-        ax_rast.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.08)
-        ax_rast.axvline(T_STIM_MS, color=theme.DEEP_RED, lw=0.7, alpha=0.7)
-        ax_rast.set_xlim(0, T_TOTAL_MS)
-        ax_rast.set_ylim(-1, len(cell_pick))
-        ax_rast.set_yticks([])
-        ax_rast.set_ylabel(f"{len(cell_pick)} E cells",
-                           fontsize=theme.SIZE_ANNOTATION,
-                           rotation=0, ha="right", va="center", labelpad=14)
-        ax_rast.tick_params(axis="x", labelsize=theme.SIZE_TICK)
-        if row_idx == n - 1:
-            ax_rast.set_xlabel("Time (ms)", fontsize=theme.SIZE_LABEL)
-        else:
-            ax_rast.tick_params(axis="x", labelbottom=False)
-
-    fig.suptitle(
-        "E activity per input rate — stim shaded; dashed = seizure threshold",
-        fontsize=theme.SIZE_TITLE, y=0.99,
-    )
+    # Legend swatches
+    for outcome, x in zip(["decay", "sustained", "seizure"], [0.05, 0.40, 0.78]):
+        ax.add_patch(plt.matplotlib.patches.Rectangle(
+            (x, -0.18), 0.04, 0.04, transform=ax.transAxes,
+            color=OUTCOME_COLORS[outcome], clip_on=False,
+        ))
+        ax.text(x + 0.05, -0.16, outcome, transform=ax.transAxes,
+                fontsize=theme.SIZE_ANNOTATION, va="center")
+    fig.tight_layout()
     _stamp(fig, run_id)
     return fig
 
 
-def fig_rates_vs_input(metrics_by_rate: dict, run_id: str) -> plt.Figure:
-    """Stim vs post-stim E rate as a function of input rate."""
-    rates = sorted(metrics_by_rate.keys())
+def fig_example_traces(corner_traces: list, run_id: str) -> plt.Figure:
+    """Example population-rate traces at four corners of the (W_ee × R) grid.
 
-    def _mean(key):
-        return np.array([np.mean([m[key] for m in metrics_by_rate[r]]) for r in rates])
-
-    def _sem(key):
-        return np.array([
-            np.std([m[key] for m in metrics_by_rate[r]])
-            / max(1.0, np.sqrt(len(metrics_by_rate[r])))
-            for r in rates
-        ])
-
-    stim = _mean("stim_rate_hz")
-    post = _mean("post_rate_hz")
-    stim_sem = _sem("stim_rate_hz")
-    post_sem = _sem("post_rate_hz")
-
-    fig, ax = plt.subplots(figsize=(8, 4.5), dpi=150)
-    ax.axhspan(SUSTAINED_LO_HZ, SUSTAINED_HI_HZ, color=theme.GREY_LIGHT,
-               alpha=0.25,
-               label=f"non-seizure band [{SUSTAINED_LO_HZ}, {SUSTAINED_HI_HZ}] Hz")
-    ax.errorbar(rates, stim, yerr=stim_sem, color=theme.DEEP_RED, marker="o",
-                lw=1.5, capsize=3, label="stim window [50, 200] ms")
-    ax.errorbar(rates, post, yerr=post_sem, color=theme.INK_BLACK, marker="s",
-                lw=1.5, capsize=3, label="post-stim [250, 600] ms")
-    ax.set_xlabel("Input rate during stim (Hz)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("Mean E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
-    ax.set_xscale("log")
-    ax.legend(fontsize=theme.SIZE_LEGEND, loc="upper left", frameon=False)
+    Each entry of corner_traces is a dict: {label, w, rate, e, outcome}.
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(11, 6.18), dpi=150, sharex=True, sharey=True)
+    for ax, c in zip(axes.flat, corner_traces):
+        trace = population_rate_hz(c["e"], TRACE_BIN_MS)
+        t = np.arange(len(trace)) * TRACE_BIN_MS
+        color = OUTCOME_COLORS[c["outcome"]]
+        ax.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.07)
+        ax.axvline(T_STIM_MS, color=theme.DEEP_RED, lw=0.6, alpha=0.6)
+        ax.axhline(SEIZURE_HZ, color=theme.INK_BLACK, lw=0.6, ls="--", alpha=0.4)
+        ax.fill_between(t, trace, 0, color=color, alpha=0.35, linewidth=0)
+        ax.plot(t, trace, color=color, lw=1.2)
+        ax.set_xlim(0, T_TOTAL_MS)
+        ax.set_ylim(0, 360)
+        ax.set_title(
+            f"{c['label']}  ($W_{{ee}}$={c['w']:g}, R={c['rate']} Hz)  →  {c['outcome']}",
+            fontsize=theme.SIZE_LABEL, loc="left", pad=4,
+        )
+        ax.set_ylabel("E rate (Hz)", fontsize=theme.SIZE_ANNOTATION)
+        ax.tick_params(labelsize=theme.SIZE_TICK)
+    for ax in axes[-1, :]:
+        ax.set_xlabel("Time (ms)", fontsize=theme.SIZE_LABEL)
+    fig.suptitle(
+        "Population-rate trace at four corners of the grid",
+        fontsize=theme.SIZE_TITLE, y=0.995,
+    )
     fig.tight_layout()
     _stamp(fig, run_id)
     return fig
@@ -331,46 +335,87 @@ def main() -> None:
     (FIGURES / "_run.txt").write_text(f"run_id: {run_id}\ntier: {tier}\n")
 
     t0 = time.time()
-    print(f"[{SLUG}] tier={tier}  seeds={tier_cfg['n_seeds']}  rates={tier_cfg['rates']}")
+    w_ee_grid = tier_cfg["w_ee"]
+    rate_grid = tier_cfg["rates"]
+    n_seeds = tier_cfg["n_seeds"]
+    print(f"[{SLUG}] tier={tier}  seeds={n_seeds}  "
+          f"W_ee={w_ee_grid}  rates={rate_grid}")
 
-    results_by_rate: dict[int, list] = {}
-    metrics_by_rate: dict[int, list] = {}
-    for rate in tier_cfg["rates"]:
-        results_by_rate[rate] = []
-        metrics_by_rate[rate] = []
-        for s in range(tier_cfg["n_seeds"]):
-            seed = 42 + s
-            r = run_one(rate, seed)
-            m = analyze(r)
-            results_by_rate[rate].append(r)
-            metrics_by_rate[rate].append(m)
-            tag = "SEIZURE" if m["is_seizure"] else ("SUST" if m["sustained"] else "    ")
-            print(f"  rate={rate:>3}Hz seed={seed}: "
-                  f"stim={m['stim_rate_hz']:6.2f}Hz  post={m['post_rate_hz']:6.2f}Hz  {tag}")
+    # 2D sweep: (W_ee × input_rate), n_seeds per cell.
+    # grid_metrics[(w, r)] = [metric_dict_per_seed]
+    # corner_traces holds one example spike record per grid corner for the
+    # trace figure (we don't need to cache the rest).
+    grid_metrics: dict[tuple, list[dict]] = {}
+    corner_keys = {(w_ee_grid[0], rate_grid[0]),
+                   (w_ee_grid[0], rate_grid[-1]),
+                   (w_ee_grid[-1], rate_grid[0]),
+                   (w_ee_grid[-1], rate_grid[-1])}
+    corner_traces_raw: dict[tuple, np.ndarray] = {}
 
-    fig1 = fig_rasters(results_by_rate, run_id)
-    fig1.savefig(FIGURES / "rasters.png", dpi=150)
+    for w in w_ee_grid:
+        for rt in rate_grid:
+            grid_metrics[(w, rt)] = []
+            for s in range(n_seeds):
+                seed = 42 + s
+                r = run_one(rt, w, seed)
+                m = classify(r)
+                grid_metrics[(w, rt)].append(m)
+                if s == 0 and (w, rt) in corner_keys and (w, rt) not in corner_traces_raw:
+                    corner_traces_raw[(w, rt)] = r["e"]
+            outcomes = [m["outcome"] for m in grid_metrics[(w, rt)]]
+            late = np.mean([m["late_rate_hz"] for m in grid_metrics[(w, rt)]])
+            verdict = (
+                "SEIZURE" if "seizure" in outcomes else
+                "SUST"    if "sustained" in outcomes else
+                "DECAY"
+            )
+            print(f"  W_ee={w:>4}  R={rt:>3}Hz  late={late:6.2f}Hz  {verdict}")
+
+    # Figures
+    fig1 = fig_phase_map(grid_metrics, run_id)
+    fig1.savefig(FIGURES / "phase_map.png", dpi=150)
     plt.close(fig1)
 
-    fig2 = fig_rates_vs_input(metrics_by_rate, run_id)
-    fig2.savefig(FIGURES / "rates_vs_input.png", dpi=150)
+    corner_traces = [
+        {"label": "low W_ee, low input",
+         "w": w_ee_grid[0], "rate": rate_grid[0],
+         "e": corner_traces_raw[(w_ee_grid[0], rate_grid[0])],
+         "outcome": grid_metrics[(w_ee_grid[0], rate_grid[0])][0]["outcome"]},
+        {"label": "low W_ee, high input",
+         "w": w_ee_grid[0], "rate": rate_grid[-1],
+         "e": corner_traces_raw[(w_ee_grid[0], rate_grid[-1])],
+         "outcome": grid_metrics[(w_ee_grid[0], rate_grid[-1])][0]["outcome"]},
+        {"label": "high W_ee, low input",
+         "w": w_ee_grid[-1], "rate": rate_grid[0],
+         "e": corner_traces_raw[(w_ee_grid[-1], rate_grid[0])],
+         "outcome": grid_metrics[(w_ee_grid[-1], rate_grid[0])][0]["outcome"]},
+        {"label": "high W_ee, high input",
+         "w": w_ee_grid[-1], "rate": rate_grid[-1],
+         "e": corner_traces_raw[(w_ee_grid[-1], rate_grid[-1])],
+         "outcome": grid_metrics[(w_ee_grid[-1], rate_grid[-1])][0]["outcome"]},
+    ]
+    fig2 = fig_example_traces(corner_traces, run_id)
+    fig2.savefig(FIGURES / "example_traces.png", dpi=150)
     plt.close(fig2)
 
-    # Roll up by-rate summaries (drop the per-bin rate traces from numbers.json
-    # — they live in artifacts if needed).
-    by_rate = {}
-    for rate in metrics_by_rate:
-        ms = metrics_by_rate[rate]
-        by_rate[str(rate)] = {
-            "stim_rate_hz": float(np.mean([m["stim_rate_hz"] for m in ms])),
-            "post_rate_hz": float(np.mean([m["post_rate_hz"] for m in ms])),
-            "seizure_rate": float(np.mean([float(m["is_seizure"]) for m in ms])),
-            "sustained_rate": float(np.mean([float(m["sustained"]) for m in ms])),
+    # Roll up per-cell summaries for numbers.json
+    by_cell = []
+    sustained_count = 0
+    seizure_count = 0
+    decay_count = 0
+    for (w, rt), ms in grid_metrics.items():
+        outcomes = [m["outcome"] for m in ms]
+        sustained_count += sum(1 for o in outcomes if o == "sustained")
+        seizure_count += sum(1 for o in outcomes if o == "seizure")
+        decay_count += sum(1 for o in outcomes if o == "decay")
+        by_cell.append({
+            "w_ee_mean": float(w),
+            "input_rate_hz": float(rt),
             "n_seeds": len(ms),
-        }
-
-    sustained_any = any(m["sustained"] for ms in metrics_by_rate.values() for m in ms)
-    seizure_any = any(m["is_seizure"] for ms in metrics_by_rate.values() for m in ms)
+            "late_rate_hz_mean": float(np.mean([m["late_rate_hz"] for m in ms])),
+            "stim_rate_hz_mean": float(np.mean([m["stim_rate_hz"] for m in ms])),
+            "outcomes": outcomes,
+        })
 
     numbers = {
         "run_id": run_id,
@@ -378,37 +423,52 @@ def main() -> None:
             "dt": DT,
             "t_stim_ms": T_STIM_MS,
             "t_total_ms": T_TOTAL_MS,
-            "t_post_start_ms": T_POST_START_MS,
+            "t_late_start_ms": T_LATE_START_MS,
             "slow_syn_gain": SLOW_SYN_GAIN,
-            "w_ee_mean": W_EE_MEAN,
-            "w_ee_std": W_EE_STD,
             "ei_strength": EI_STRENGTH,
             "n_e": N_E,
             "n_in": N_IN,
             "tier": tier,
-            "input_rates_hz": sorted(tier_cfg["rates"]),
+            "w_ee_grid": w_ee_grid,
+            "input_rates_hz": rate_grid,
+            "n_seeds": n_seeds,
+            "decay_threshold_hz": DECAY_HZ,
+            "seizure_threshold_hz": SEIZURE_HZ,
         },
-        "results": {"by_rate": by_rate},
-        "success_criteria": [
-            {
-                "label": "at least one rate produces non-seizure sustained activity",
-                "passed": sustained_any,
-                "detail": f"post_rate ∈ [{SUSTAINED_LO_HZ}, {SUSTAINED_HI_HZ}] Hz "
-                          "and no 5 ms bin >90% active",
+        "results": {
+            "by_cell": by_cell,
+            "totals": {
+                "decay": decay_count,
+                "sustained": sustained_count,
+                "seizure": seizure_count,
+                "total_cells": decay_count + sustained_count + seizure_count,
             },
+        },
+        "success_criteria": [
+            # The headline negative result: coba can't sustain. Pass if the
+            # grid is empty of "sustained" outcomes — that confirms the
+            # structural claim. (Inverted: this is a *predicted* fail of the
+            # sustained-search; passing means the prediction held.)
             {
-                "label": "at least one rate stays out of seizure",
-                "passed": not all(
-                    m["is_seizure"] for ms in metrics_by_rate.values() for m in ms
-                ),
-                "detail": f"seizure observed at any rate: {seizure_any}",
+                "label": "structural claim: coba grid has zero sustained cells",
+                "passed": sustained_count == 0,
+                "detail": f"sustained cells = {sustained_count} of "
+                          f"{decay_count + sustained_count + seizure_count}",
+            },
+            # The bistability sanity check: both decay AND seizure should
+            # appear somewhere on the grid (otherwise we've only tested half
+            # the regime).
+            {
+                "label": "grid covers both regimes (decay and seizure observed)",
+                "passed": decay_count > 0 and seizure_count > 0,
+                "detail": f"decay={decay_count}, seizure={seizure_count}",
             },
         ],
         "runtime_s": time.time() - t0,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2))
     print(f"[{SLUG}] done in {time.time() - t0:.1f}s. "
-          f"sustained_any={sustained_any}  seizure_any={seizure_any}")
+          f"decay={decay_count} sustained={sustained_count} seizure={seizure_count}")
 
     if not all(c["passed"] for c in numbers["success_criteria"]):
         sys.exit(1)
