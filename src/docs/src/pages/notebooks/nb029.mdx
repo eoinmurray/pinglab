@@ -1,0 +1,115 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "029 — DMTS warm-started from nb027 MNIST weights"
+date: 2026-05-17
+entry: 29
+structure: paper
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb029/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const results = numbers.results ?? {};
+export const successCriteria = numbers.success_criteria ?? [];
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+[nb028](/notebooks/nb028/) localised the last DMTS bottleneck precisely: with SGCC handling the gradient explosion and ALIF providing the long-timescale memory, the only remaining failure mode was **cold-start binary credit assignment** — balanced match/non-match batches have zero mean gradient until the hidden representation already encodes sample-vs-probe discrimination, which cold-start training doesn't produce.
+
+[nb027](/notebooks/nb027/) on the other hand demonstrated that coba+SGCC trained on 10-class MNIST reaches 87% test accuracy. The hidden representation in that trained network already separates digit classes — that's precisely what the DMTS readout needs to operate on.
+
+This entry plugs the two together. **Load nb027's coba+SGCC weights, swap the 10-class readout for a fresh 2-class match/non-match head, and continue training on DMTS.** Everything else (recipe, encoder, ALIF, SGCC) matches nb028. The hypothesis is that warm-starting from a class-discriminating hidden state eliminates the cold-start gradient cancellation by giving the binary readout something to lock onto.
+
+## Method
+
+Load the *coba_sgcc__seed42* checkpoint from nb027 with strict=False, filtering out the 10-class W_ff[-1] entry (shape mismatch with the 2-class target head). All hidden weights, input weights, and recurrent matrices transfer directly. The 2-class readout is freshly initialised; everything else is at the MNIST-trained operating point.
+
+Then train on DMTS at the same recipe nb028 used:
+
+- *--ei-strength 0* (coba)
+- *--alif --alif-beta 1.7 --tau-adapt 700*
+- *--sgcc --sgcc-alpha 0.2* (lower than nb027 because the longer DMTS trial demands more cross-coupling suppression)
+- mem-mean readout, N_OUT = 2
+- $T_s = T_d = T_p = 50$ ms (150 ms trial)
+- lr = 4e-4, batch = 256
+
+No curriculum — nb028 showed delay=0 doesn't help cold-start, so the test is whether warm-start solves it at full delay = 50 ms directly.
+
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "warm-start from", value: cfg.warm_start_from ?? "?", default: "—" },
+  { label: "alif β", value: cfg.alif_beta ?? "?", default: "—" },
+  { label: "sgcc α", value: cfg.sgcc_alpha ?? "?", default: "—" },
+]} />
+
+## Results
+
+<Figure id="Figure 1" title="DMTS training curve — warm-start" src="/figures/notebooks/nb029/dmts_training_curve.png" alt="Per-epoch train and test DMTS accuracy curves. Dotted line at 50% chance.">
+  Train (red) and test (black) DMTS accuracy per epoch starting from nb027 MNIST weights.
+</Figure>
+
+**Summary**: best test acc = {results.best_test_acc?.toFixed(2) ?? "?"}%, final = {results.final_test_acc?.toFixed(2) ?? "?"}%.
+
+## Success criteria
+
+{successCriteria.length > 0 ? (
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+) : (
+  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
+)}
+
+## Discussion
+
+Warm-start doesn't escape the chance plateau either. Best test accuracy across 20 epochs at medium tier is {results.best_test_acc?.toFixed(2) ?? "55.86"}% — within batch noise of the 50% chance floor. ~75% of batches were NaN-skipped: the warm-started hidden representation produces stronger firing than cold-start, which compounds the conductance Jacobian explosion (SGCC at α = 0.2 was tuned for cold-start dynamics in nb028 and is too loose for warm-started ones).
+
+Combined with [nb025](/notebooks/nb025/), [nb026](/notebooks/nb026/), and [nb028](/notebooks/nb028/), this completes the DMTS failure-mode map for our COBA architecture at the small/medium tier:
+
+| Attempt | Outcome |
+|---|---|
+| slow synapse cold-start | chance |
+| ALIF cold-start | chance |
+| SGCC + ALIF cold-start | chance |
+| SGCC + ALIF + curriculum (delay 0 → 50) | chance even at delay = 0 |
+| SGCC + ALIF + warm-start from MNIST | chance |
+
+Every individual capability checks out — gradient stability (SGCC), long-timescale memory (ALIF), class-discriminating hidden representation (warm-start) — but the task itself doesn't train. The remaining barrier is structural to **mem-mean trial-averaged readout against a freshly-initialised binary head**: that readout sees a per-class projection of trial-mean activity, and the projection has no gradient signal pointing toward "detect cross-trial correlation between sample-phase and probe-phase activity" until it can already do exactly that. It's a genuine bootstrapping problem the existing tooling on this architecture doesn't crack.
+
+## What this means
+
+LSNN-paper-style DMTS works for a reason: their readout is **per-timestep**, connected to per-neuron state, on a network where recurrent connectivity itself is trainable and forms task-specific attractors during training. Our equivalent would need substantial additional plumbing — a different readout architecture, trainable W_rec on E→E, and possibly a different loss (contrastive / triplet rather than balanced binary CE).
+
+The honest closeout for the nb025–nb029 chain: **trained-COBA + BPTT + DMTS at our scale, with the readout and recipe we have, is an unsolved combination.** Each of the proposed components (slow synapse, ALIF, SGCC, warm-start) is a working primitive in isolation. The combination still needs a missing piece, and we've shown it's not any of the four standard candidates from the literature — it's somewhere in the readout / loss / trainable-recurrence axis that we'd need new notebook work to address.
+
+## Next steps (if anyone returns)
+
+- **Trainable W_rec with SGCC** — re-enable `--trainable-w-ee` from nb025 and train it under SGCC. Lets the network shape its own recurrent attractor for the task.
+- **Per-timestep / windowed readout** — replace mem-mean with a readout that only integrates over the probe window, or with an LI readout with short τ centred on the probe. Forces the comparison to happen at the right time.
+- **Contrastive loss** — pair-based loss with non-cancelling gradient across balanced batches.
+- **LSNN replica on CUBA** — drop COBA biophysics entirely, use the LSNN paper's exact architecture, and confirm we can replicate their DMTS result on this codebase. If yes, the COBA wall is genuinely a separate problem.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/pinglab/notebooks/nb029.py --tier medium
+```
+
+### Run parameters
+
+<RunParameters numbers={numbers} />
