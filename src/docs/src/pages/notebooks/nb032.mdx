@@ -27,15 +27,15 @@ That diagnosis pointed at the loss formulation, not the architecture. The LSNN p
 
 ## Method
 
-**Task: 10-way recall.** Each trial is $T_s + T_d + T_r = {cfg.t_sample_ms} + {cfg.t_delay_ms} + {cfg.t_recall_ms}$ ms ({cfg.t_sample_ms + cfg.t_delay_ms + cfg.t_recall_ms} ms total):
+**Task: 10-way recall.** Each trial is sample + delay + recall = {cfg.t_sample_ms} + {cfg.t_delay_ms} + {cfg.t_recall_ms} = {cfg.t_sample_ms + cfg.t_delay_ms + cfg.t_recall_ms} ms total:
 
-1. **Sample** $[0, ${cfg.t_sample_ms}]$ ms — one MNIST digit (class $\in [0, 9]$) Poisson-encoded at peak rate {cfg.stim_peak_rate_hz} Hz across $N_{IN} = 784$ pixel channels.
-2. **Delay** $[${cfg.t_sample_ms}, ${cfg.t_sample_ms + cfg.t_delay_ms}]$ ms — input is identically zero. The network must hold class identity through this window via its own recurrent dynamics.
-3. **Recall** $[${cfg.t_sample_ms + cfg.t_delay_ms}, ${cfg.t_sample_ms + cfg.t_delay_ms + cfg.t_recall_ms}]$ ms — still zero input. The readout integrates E activity here.
+1. **Sample** ({cfg.t_sample_ms} ms) — one MNIST digit (class 0–9) Poisson-encoded at peak rate {cfg.stim_peak_rate_hz} Hz across $N_{IN} = 784$ pixel channels.
+2. **Delay** ({cfg.t_delay_ms} ms) — input is identically zero. The network must hold class identity through this window via its own recurrent dynamics.
+3. **Recall** ({cfg.t_recall_ms} ms) — still zero input. The readout integrates E activity here.
 
-Target label: the digit's class $\in [0, 9]$. Loss is multi-class cross-entropy.
+Target label: the digit's class (0–9). Loss is multi-class cross-entropy.
 
-**Network.** Identical architecture to the binary-CE attempt — ping COBANet ($\text{ei\_strength} = ${cfg.ei_strength}), $N_E = ${cfg.n_e}, $N_{IN} = 784$, *--trainable-w-ee* on, *--slow-syn* on at gain {cfg.slow_syn_gain}, *--sgcc* on at $\alpha = ${cfg.sgcc_alpha}. $W_{ee}$ initialised at ({cfg.w_ee_init_mean}, {cfg.w_ee_init_std}) μS (the low-edge regime from [nb031](/notebooks/nb031/), so the network can sustain but doesn't dump pattern info through gamma synchrony).
+**Network.** Identical architecture to the binary-CE attempt — ping COBANet (ei_strength = {cfg.ei_strength}), $N_E$ = {cfg.n_e}, $N_{IN} = 784$, *--trainable-w-ee* on, *--slow-syn* on at gain {cfg.slow_syn_gain}, *--sgcc* on at α = {cfg.sgcc_alpha}. $W_{ee}$ initialised at ({cfg.w_ee_init_mean}, {cfg.w_ee_init_std}) μS (the low-edge regime from [nb031](/notebooks/nb031/), so the network can sustain but doesn't dump pattern info through gamma synchrony).
 
 **Readout.** $\mathrm{Linear}(N_E \to 10)$ on the recall-window mean E spike count, bypassing the built-in mem-mean. The point of integrating only over the recall window is to force the readout to use the *post-delay* state — it can't cheat by looking at the input directly. The post-delay E activity is purely recurrent dynamics, so what the readout sees has to be a function of what the network's been holding.
 
