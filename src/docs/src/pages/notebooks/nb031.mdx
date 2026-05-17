@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "031 — Ping breaks the bistability: inhibition gives a stable attractor"
+title: "031 — Ping W_ee transition at fixed MNIST input"
 date: 2026-05-17
 entry: 31
 structure: paper
@@ -13,55 +13,54 @@ export const numbers = Object.values(
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const results = numbers.results ?? {};
-export const cobaTotals = results.coba?.totals ?? {};
-export const pingTotals = results.ping?.totals ?? {};
+export const totals = results.totals ?? {};
 export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-[030 — Coba + NMDA cannot sustain post-stimulus activity](/notebooks/nb030/) makes a structural claim: with the slow channel on but no inhibitory loop, a recurrently-coupled E population has only two stable outcomes — decay or refractory saturation. The mean-field argument identifies the missing piece — a second (negative-feedback) equation — but doesn't prove that turning that piece on actually fills in the sustained band.
-
-This entry adds the proof. Same 2D sweep, same slope-aware classifier, only one thing changes: *ei_strength*. Run coba (0) and ping (1) side by side. Ping should have a non-empty sustained band that coba doesn't.
+[030 — Coba + NMDA cannot sustain post-stimulus activity](/notebooks/nb030/) showed coba is structurally bistable: decay or seizure, no in-between. With ping (inhibition on) a sustained attractor exists — but where exactly is the boundary? This entry zooms in on the lower edge of ping's sustained band by fixing the input and sweeping $W_{ee}$ in fine steps from 0 to 0.1.
 
 ## Method
 
-Same setup as [nb030](/notebooks/nb030/) — untrained COBANet, $N_E = ${cfg.n_e}, slow channel on at gain {cfg.slow_syn_gain}. **Input is the MNIST digit-0 (sample 0), pixel-weighted Poisson-encoded** over $N_{IN} = 784$ channels during $[0, ${cfg.t_stim_ms}]$ ms, then silence to ${cfg.t_total_ms} ms — same encoder pipeline as the trained MNIST notebooks ([nb024](/notebooks/nb024/), [nb025](/notebooks/nb025/), [nb027](/notebooks/nb027/)) so the input statistics match what a real trained run sees. The sweep axis $R$ is the *peak* Poisson rate at pixel intensity = 1; mean per-channel rate ≈ $0.18\,R$ for digit 0.
+Untrained PING-config COBANet (*ei_strength = 1*), $N_E = ${cfg.n_e}, slow channel on at gain {cfg.slow_syn_gain}. **Input is fixed at MNIST digit {cfg.digit_class} (sample 0), pixel-weighted Poisson-encoded** on $N_{IN} = 784$ channels at peak rate $R = ${cfg.input_rate_hz} Hz during $[0, ${cfg.t_stim_ms}]$ ms, then silence to ${cfg.t_total_ms} ms.
 
-Two models:
+**Sweep.** $W_{ee}$ mean over $\{${cfg.w_ee_grid?.join(", ")}\}$ μS (pre-fan-in); all other parameters held constant.
 
-| | *ei_strength* | $W_{in}$ mean | Notes |
-|---|---|---|---|
-| coba | 0 | 0.3 | No I→E feedback; only E cells effectively recurrent |
-| ping | 1 | 1.2 | Full E↔I↔E loop with W_ei, W_ie at PING defaults |
+**Outcome classification** (same as [nb030](/notebooks/nb030/)):
 
-Each model uses its own canonical $W_{in}$ (coba's is gentler to compensate for the missing inhibition that would otherwise hold a strong $W_{in}$ in check). Everything else — slow channel, classifier, grid axes — is identical to nb030 so the comparison is one-variable.
-
-**Classifier** (verbatim from nb030):
-
-- **seizure** — $r_2 \geq 120$ Hz.
-- **decay** — $r_2 < 1$ Hz OR $r_2 / r_1 < 0.5$ (still actively decaying).
-- **sustained** — anywhere else: stable late-window rate in $[1, 120)$ Hz.
-
-where $r_1$, $r_2$ are mean E rate over $[200, 300]$ and $[500, 600]$ ms respectively.
+- *seizure* — late-window rate $r_2 \geq 120$ Hz.
+- *decay* — $r_2 < 1$ Hz or still actively declining ($r_2 / r_1 < 0.5$).
+- *sustained* — anywhere else: stable late-window rate.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "slow-syn gain", value: cfg.slow_syn_gain, default: "—" },
+  { label: "input rate (Hz)", value: cfg.input_rate_hz, default: "—" },
+  { label: "dataset / digit", value: `${cfg.dataset} / ${cfg.digit_class}`, default: "—" },
   { label: "W_ee grid (μS)", value: cfg.w_ee_grid?.join(", "), default: "—" },
-  { label: "input rates (Hz)", value: cfg.input_rates_hz?.join(", "), default: "—" },
-  { label: "seeds per cell", value: cfg.n_seeds, default: "—" },
+  { label: "slow-syn gain", value: cfg.slow_syn_gain, default: "—" },
 ]} />
 
 ## Results
 
-<Figure id="Figure 1" title="(W_ee × input rate) phase maps — coba vs ping" src="/figures/notebooks/nb031/phase_maps.png" alt="Two 6×5 phase maps side by side. Left (coba) is all decay (grey) at W_ee=0 and all seizure (red) above. Right (ping) has a green sustained band at mid-range W_ee and low-to-mid input rates.">
-  Same 2D sweep, two models, MNIST digit-0 input. Cell colour = outcome class; numbers are the late-window mean E rate. **Coba (left):** {cobaTotals.decay} decay cells along the $W_{ee} = 0$ row, the other {cobaTotals.seizure} seize. **Zero sustained.** Same structural bistability nb030 documents. **Ping (right):** a clearly populated sustained band ({pingTotals.sustained} cells of {pingTotals.total_cells}) covering $W_{ee} \in \{0.1, 0.25, 0.5\}$ at *every* input rate in the grid. Seizure only appears at $W_{ee} = 1.0$ — too much recurrent excitation for the inhibitory brake. Decay only appears at $W_{ee} \in \{0, 0.05\}$ and only at the lowest input rates.
+<Figure id="Figure 1" title="W_ee sweep — rate trace + (E + I) raster per W_ee value" src="/figures/notebooks/nb031/w_ee_sweep.png" alt="Six panels in a 2×3 grid, one per W_ee value, showing the rate trace on top and a subsampled (E + I) raster underneath. The first four panels (W_ee ≤ 0.06) are grey-shaded (decay). The last two (W_ee = 0.08, 0.10) are green-shaded (sustained).">
+  Each panel is one $W_{ee}$ value. Rate trace on top (red shading = stim window; dashed line = seizure threshold), 80 subsampled E cells (black) and 30 subsampled I cells (red, above the gap) in the raster underneath. The digit-0 pixel mask is visible in the E raster during stim — the same subset of cells gets driven hard in every panel. **The decay → sustained transition lives between $W_{ee} = 0.06$ and $0.08$.** Below it, the post-stim rate trace flattens to zero; above it, the trace settles at a small but non-zero steady level (5–9 Hz). The I cells fire continuously across all panels, driven by stray E spikes and their own dynamics — what changes with $W_{ee}$ is whether the E↔I↔E loop has enough recurrent gain to keep itself going after input cuts.
 </Figure>
 
-<Figure id="Figure 2" title="Ping rate trace + raster across the outcome regimes" src="/figures/notebooks/nb031/ping_corners.png" alt="Six panels in a 2×3 grid: decay, four sustained cells along the W_ee=0.5 row at input rates 5/25/50/150 Hz, and seizure. Each panel has the population rate trace on top and an (E + I) raster underneath.">
-  Six panels in a 2×3 grid. **Top-left, decay** ($W_{ee} = 0$, $R = 5$ Hz): per-pixel structure of the digit-0 input visible during stim, then nothing. **Middle four panels, sustained** ($W_{ee} = 0.5$ across $R \in \{5, 25, 50, 150\}$ Hz): the sustained-row progression — every input rate produces the same $\sim 90$ Hz gamma-locked bump post-stim, with I bursts (red vertical columns) leading each E firing window. The settled rate is essentially flat across two orders of magnitude of input — *load-once, hold-stably*, the property a working-memory layer wants. **Bottom-right, seizure** ($W_{ee} = 1$, $R = 150$ Hz): refractory saturation, same as coba's saturated corners — too much recurrence for the inhibition to brake.
-</Figure>
+**Per-W_ee late-window mean E rate:**
+
+<table>
+  <thead><tr><th>$W_{ee}$ mean</th><th>late rate (Hz)</th><th>outcome</th></tr></thead>
+  <tbody>
+    {(results.by_w_ee ?? []).map((r) => (
+      <tr key={r.w_ee_mean}>
+        <td>{r.w_ee_mean.toFixed(2)}</td>
+        <td>{r.late_rate_hz_mean.toFixed(2)}</td>
+        <td>{r.outcomes?.[0] ?? "—"}</td>
+      </tr>
+    ))}
+  </tbody>
+</table>
 
 ## Success criteria
 
@@ -82,26 +81,19 @@ where $r_1$, $r_2$ are mean E rate over $[200, 300]$ and $[500, 600]$ ms respect
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-Coba on the same grid: **{cobaTotals.decay}** decay, **{cobaTotals.sustained}** sustained, **{cobaTotals.seizure}** seizure.
-Ping on the same grid: **{pingTotals.decay}** decay, **{pingTotals.sustained}** sustained, **{pingTotals.seizure}** seizure.
+Across the 6 $W_{ee}$ values: **{totals.decay}** decay, **{totals.sustained}** sustained, **{totals.seizure}** seizure.
 
 ## Discussion
 
-Three observations that go beyond just "ping works":
+The decay → sustained transition is gradual rather than sharp. From $W_{ee} = 0.00$ to $0.06$ the late-window rate climbs monotonically (0.7 → 0.5 → 1.1 → 3.8 Hz), with the slope-aware classifier still calling everything decay because the trace is *still falling* at the end of the trial. At $W_{ee} = 0.08$ the trace flattens, and the classifier flips to sustained. The boundary is a continuous one — somewhere between $0.06$ and $0.08$ the recurrent excitation crosses the threshold where the slow channel can hold a steady-state non-zero level against the inhibitory + leak losses.
 
-**1. The sustained band has both lower and upper $W_{ee}$ boundaries.** Below it (W_ee = 0, 0.05, 0.1): the inhibitory loop dominates and the network can't keep itself going post-stim — it decays just like coba. Above it (W_ee = 1.0): inhibition isn't fast enough to prevent runaway, so saturation wins. Inhibition isn't a magic brake; it has its own gain, and the attractor lives in the slice where E and I gains balance.
-
-**2. The sustained band has an upper *input rate* boundary too.** At $W_{ee} = 0.5$ ping sustains at 5–50 Hz input but seizes at 100+ Hz. Strong input charges the slow channel beyond what inhibition can clamp; the network is then pushed past the upper edge of the basin around its sustained attractor and falls into the seizure attractor. This is consistent with how working-memory layers in cortex behave: they integrate evidence up to a saturation point and then "decide" by locking, losing their ability to hold further information.
-
-**3. Ping's sustained activity is structured, coba's saturated activity isn't.** The bottom-left raster in Figure 2 shows the canonical PING gamma rhythm — synchronous bursts every ~10 ms, all 80 plotted cells firing in lockstep but with visible quiet windows between bursts. That's a population that's *integrating* via its inhibitory cycle. Coba's saturated state (Figure 2 in [nb030](/notebooks/nb030/)) is structureless — every cell firing every refractory period, no temporal correlation, no information.
-
-**Together with nb030 these two notebooks settle the question structurally**: persistent-but-bounded post-stimulus activity in a pinglab COBANet *requires* the inhibitory loop. The slow channel is necessary but not sufficient. Inhibition is the structural piece, and within the inhibitory model there's a clearly delineated sustained band over $(W_{ee}, R)$ where the network behaves as a working-memory layer.
+The settled rate at the bottom of the sustained band is low — 5–9 Hz at $W_{ee} \in \{0.08, 0.10\}$, well below the gamma-locked $\sim 90$ Hz attractor at $W_{ee} = 0.5$. So the sustained band has internal structure: a low-rate edge at small $W_{ee}$ where the attractor barely exists, and a high-rate gamma regime at larger $W_{ee}$. Following the boundary further (e.g. a $W_{ee}$ sweep from $0.10 \to 0.50$ at the same input) would map this internal gradient.
 
 ## Next steps
 
-- **Quantify the sustained band shape across seeds.** The current grid uses a single seed per cell. The boundary edges may be soft — a higher-tier run with $n = 5$ seeds would let us put error bars on which cells reliably sustain.
-- **What about $W_{in}$?** This entry uses each model's native $W_{in}$ as a control. The honest follow-up is: when $W_{in}$ is matched between models, does the ping sustained band shrink or move? That would isolate the contribution of *just* the inhibitory loop vs the input strength.
-- **Multi-sample storage.** Can ping's sustained attractor hold two distinguishable bumps? Drive the network with two non-overlapping subsets of input channels — different "patterns" — and check whether the post-stim state retains which pattern was loaded.
+- **Continue the sweep upward.** $W_{ee} \in [0.10, 0.50]$ at fixed input rate — does the settled rate climb continuously, or jump?
+- **Multi-seed at the boundary.** Run $W_{ee} \in \{0.06, 0.07, 0.08\}$ with 10+ seeds to see if the decay → sustained transition is seed-stochastic at the boundary.
+- **Decay-time fits.** For the decay panels, fit an exponential to the post-stim trace and check whether the time constant matches $\tau_{NMDA}$ or differs by $W_{ee}$.
 
 ## Appendix
 

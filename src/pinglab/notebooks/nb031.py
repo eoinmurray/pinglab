@@ -1,17 +1,9 @@
-"""Notebook runner for entry 031 — ping breaks the bistability.
+"""Notebook runner for entry 031 — ping W_ee transition at fixed input.
 
-Follow-up to nb030. Same 2D sweep over (W_ee × input rate), same slope-
-aware outcome classifier, same untrained-network forward-only setup —
-but now we run *two* models side by side:
-
-    * coba — ei_strength = 0, W_in = 0.3 (coba recipe)
-    * ping — ei_strength = 1, W_in = 1.2 (ping recipe)
-
-Each is given the W_in init that matches its own working regime; nothing
-else differs except the I→E→I loop. The prediction (from nb030's mean-
-field argument): ping should have a non-empty sustained band that coba
-doesn't, because inhibition adds the negative-feedback equation that
-makes intermediate fixed points stable.
+Hold input fixed at 25 Hz MNIST digit-0 Poisson encoding, sweep W_ee
+from 0 to 0.1 in 6 steps, plot one (rate trace + E/I raster) panel per
+W_ee. The sweep walks the decay → sustained boundary at the low edge of
+ping's sustained band.
 
 Notebook entry: src/docs/src/pages/notebooks/nb031.mdx
 """
@@ -39,7 +31,7 @@ SLUG = "nb031"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 
-# ── Common setup ──────────────────────────────────────────────────────
+# ── Network setup ─────────────────────────────────────────────────────
 DT = 0.1
 T_STIM_MS = 200.0
 T_TOTAL_MS = 600.0
@@ -48,38 +40,36 @@ N_IN = 784           # 28×28 MNIST
 DATASET = "mnist"
 DIGIT_CLASS = 0
 SAMPLE_IDX = 0
-INPUT_SEED = 42      # Poisson encoder seed (deterministic across runs)
+INPUT_RATE_HZ = 25.0  # peak Poisson rate at pixel intensity = 1
+INPUT_SEED = 42
 W_EE_STD_FRAC = 0.1
 W_IN_SPARSITY = 0.95
+W_IN_MEAN = 1.2       # ping recipe
+W_IN_STD = 0.36
+EI_STRENGTH = 1.0     # ping
 SLOW_SYN_GAIN = 0.5
 
-# Per-model W_in (each at the model's own standard operating point).
-MODEL_CONFIGS: dict[str, dict] = {
-    "coba": {"ei_strength": 0.0, "w_in_mean": 0.3, "w_in_std": 0.09},
-    "ping": {"ei_strength": 1.0, "w_in_mean": 1.2, "w_in_std": 0.36},
-}
-
-# ── 2D sweep grid ─────────────────────────────────────────────────────
-W_EE_MEAN_GRID = [0.0, 0.05, 0.10, 0.25, 0.50, 1.00]
-INPUT_RATES_HZ = [5, 25, 50, 100, 150]
-EXTRA_SMALL_W_EE = [0.0, 0.50]
-EXTRA_SMALL_RATES = [25, 100]
+# ── W_ee sweep ────────────────────────────────────────────────────────
+W_EE_GRID = [0.00, 0.02, 0.04, 0.06, 0.08, 0.10]
+EXTRA_SMALL_W_EE = [0.00, 0.10]
 
 DEFAULT_TIER = "small"
 TIER_CONFIG: dict[str, dict] = {
-    "extra small": {"n_seeds": 1, "w_ee": EXTRA_SMALL_W_EE, "rates": EXTRA_SMALL_RATES},
-    "small":       {"n_seeds": 1, "w_ee": W_EE_MEAN_GRID,   "rates": INPUT_RATES_HZ},
-    "medium":      {"n_seeds": 3, "w_ee": W_EE_MEAN_GRID,   "rates": INPUT_RATES_HZ},
-    "large":       {"n_seeds": 5, "w_ee": W_EE_MEAN_GRID,   "rates": INPUT_RATES_HZ},
+    "extra small": {"n_seeds": 1, "w_ee": EXTRA_SMALL_W_EE},
+    "small":       {"n_seeds": 1, "w_ee": W_EE_GRID},
+    "medium":      {"n_seeds": 3, "w_ee": W_EE_GRID},
+    "large":       {"n_seeds": 5, "w_ee": W_EE_GRID},
 }
 
-# ── Outcome classification (matches nb030) ────────────────────────────
+# ── Outcome classification (same as nb030) ────────────────────────────
 DECAY_HZ = 1.0
 SEIZURE_HZ = 120.0
 DECAY_SLOPE_RATIO = 0.5
 RATE_BIN_MS = 5.0
 TRACE_BIN_MS = 25.0
-RASTER_N_NEURONS = 80
+RASTER_N_E = 80
+RASTER_N_I = 30
+RASTER_E_I_GAP = 6
 
 OUTCOME_COLORS = {
     "decay": "#cfd6db",
@@ -100,7 +90,6 @@ _PIXEL_VEC_CACHE: np.ndarray | None = None
 
 
 def _get_digit_pixels() -> np.ndarray:
-    """Cached fetch of the (784,) pixel-vector for the chosen MNIST sample."""
     global _PIXEL_VEC_CACHE
     if _PIXEL_VEC_CACHE is None:
         from cli.datasets import _load_dataset_image
@@ -110,15 +99,8 @@ def _get_digit_pixels() -> np.ndarray:
     return _PIXEL_VEC_CACHE
 
 
-def make_input_spikes(rate_hz: float, T_stim_steps: int, T_total_steps: int,
-                      seed: int) -> np.ndarray:
-    """Poisson-encode the chosen MNIST digit during [0, T_STIM_MS], silence after.
-
-    Uses the canonical encode_image_spikes pipeline (three dt-invariant
-    Poisson sections per pixel) with base_rate=0 outside the stim window
-    and stim_rate=rate_hz × pixel intensity during it. Reshapes to the
-    (T, B=1, N_IN) input_spikes shape the COBANet forward expects.
-    """
+def make_input_spikes(T_stim_steps: int, T_total_steps: int, seed: int) -> np.ndarray:
+    """Poisson-encode MNIST digit-0 during [0, T_STIM_MS], silence after."""
     from cli.encoders import encode_image_spikes
 
     pixel_vec = _get_digit_pixels()
@@ -127,23 +109,21 @@ def make_input_spikes(rate_hz: float, T_stim_steps: int, T_total_steps: int,
         T_total_steps,
         DT,
         base_rate=0.0,
-        stim_rate=rate_hz,
+        stim_rate=INPUT_RATE_HZ,
         step_on_ms=0.0,
         step_off_ms=T_STIM_MS,
         seed=INPUT_SEED + seed,
-    )  # (T_total_steps, N_IN) torch tensor
+    )
     return spikes.numpy().reshape(T_total_steps, 1, N_IN)
 
 
-def run_one(model: str, rate_hz: float, w_ee_mean: float, seed: int) -> dict:
-    """Build a fresh model-tagged net, drive with Poisson input, capture spikes."""
+def run_one(w_ee_mean: float, seed: int) -> dict:
     import torch
 
     import models as M
     from config import build_net, patch_dt
     from cli import _auto_device, seed_everything
 
-    mc = MODEL_CONFIGS[model]
     device = _auto_device()
     seed_everything(seed)
     M.N_IN = N_IN
@@ -151,10 +131,10 @@ def run_one(model: str, rate_hz: float, w_ee_mean: float, seed: int) -> dict:
 
     net = build_net(
         "ping",
-        w_in=(mc["w_in_mean"], mc["w_in_std"]),
+        w_in=(W_IN_MEAN, W_IN_STD),
         w_in_sparsity=W_IN_SPARSITY,
         w_ee=(w_ee_mean, w_ee_mean * W_EE_STD_FRAC),
-        ei_strength=mc["ei_strength"],
+        ei_strength=EI_STRENGTH,
         slow_synapse=True,
         slow_syn_gain=SLOW_SYN_GAIN,
         hidden_sizes=[N_E],
@@ -168,24 +148,17 @@ def run_one(model: str, rate_hz: float, w_ee_mean: float, seed: int) -> dict:
     M.T_steps = T_total_steps
     M.T_ms = T_TOTAL_MS
 
-    spk_in = make_input_spikes(rate_hz, T_stim_steps, T_total_steps, seed)
+    spk_in = make_input_spikes(T_stim_steps, T_total_steps, seed)
     spk_in_t = torch.from_numpy(spk_in).to(device)
-
     with torch.no_grad():
         _ = net(input_spikes=spk_in_t)
 
-    e_full = net.spike_record["hid"].cpu().numpy()
-    i_full = (
-        net.spike_record["inh"].cpu().numpy()
-        if "inh" in net.spike_record else None
-    )
     return {
-        "e": e_full,
-        "i": i_full,
-        "model": model,
-        "rate_hz": rate_hz,
         "w_ee_mean": w_ee_mean,
         "seed": seed,
+        "e": net.spike_record["hid"].cpu().numpy(),
+        "i": (net.spike_record["inh"].cpu().numpy()
+              if "inh" in net.spike_record else None),
     }
 
 
@@ -194,22 +167,19 @@ def population_rate_hz(spikes: np.ndarray, bin_ms: float) -> np.ndarray:
     steps_per_bin = int(bin_ms / DT)
     n_bins = T // steps_per_bin
     spikes_t = spikes[: n_bins * steps_per_bin].reshape(n_bins, steps_per_bin, N)
-    pop = spikes_t.sum(axis=(1, 2)) / (N * (bin_ms / 1000.0))
-    return pop
+    return spikes_t.sum(axis=(1, 2)) / (N * (bin_ms / 1000.0))
 
 
 def classify(result: dict) -> dict:
-    """Slope-aware outcome classifier (same as nb030)."""
     e = result["e"]
-    rate_trace = population_rate_hz(e, RATE_BIN_MS)
-    t_bin = np.arange(len(rate_trace)) * RATE_BIN_MS
-
+    trace = population_rate_hz(e, RATE_BIN_MS)
+    t_bin = np.arange(len(trace)) * RATE_BIN_MS
     stim_mask = (t_bin >= 50) & (t_bin < T_STIM_MS)
     post1_mask = (t_bin >= T_STIM_MS) & (t_bin < T_STIM_MS + 100.0)
     post2_mask = t_bin >= (T_TOTAL_MS - 100.0)
-    stim_rate = float(rate_trace[stim_mask].mean()) if stim_mask.any() else 0.0
-    post1_rate = float(rate_trace[post1_mask].mean()) if post1_mask.any() else 0.0
-    post2_rate = float(rate_trace[post2_mask].mean()) if post2_mask.any() else 0.0
+    stim_rate = float(trace[stim_mask].mean()) if stim_mask.any() else 0.0
+    post1_rate = float(trace[post1_mask].mean()) if post1_mask.any() else 0.0
+    post2_rate = float(trace[post2_mask].mean()) if post2_mask.any() else 0.0
 
     if post2_rate >= SEIZURE_HZ:
         outcome = "seizure"
@@ -219,7 +189,6 @@ def classify(result: dict) -> dict:
         outcome = "decay"
     else:
         outcome = "sustained"
-
     return {
         "stim_rate_hz": stim_rate,
         "post1_rate_hz": post1_rate,
@@ -229,94 +198,32 @@ def classify(result: dict) -> dict:
     }
 
 
-def fig_phase_maps(grid_by_model: dict, run_id: str) -> plt.Figure:
-    """Two phase maps side by side: coba | ping."""
-    models = ["coba", "ping"]
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5.0), dpi=150, sharey=True)
-    cmap = plt.matplotlib.colors.ListedColormap([
-        OUTCOME_COLORS["decay"],
-        OUTCOME_COLORS["sustained"],
-        OUTCOME_COLORS["seizure"],
-    ])
-    for ax, model in zip(axes, models):
-        grid = grid_by_model[model]
-        w_ees = sorted({k[0] for k in grid})
-        rates = sorted({k[1] for k in grid})
-        Z = np.zeros((len(w_ees), len(rates)), dtype=int)
-        late = np.zeros_like(Z, dtype=float)
-        for i, w in enumerate(w_ees):
-            for j, rt in enumerate(rates):
-                ms = grid[(w, rt)]
-                outs = [m["outcome"] for m in ms]
-                Z[i, j] = 2 if "seizure" in outs else (1 if "sustained" in outs else 0)
-                late[i, j] = float(np.mean([m["late_rate_hz"] for m in ms]))
-        ax.imshow(Z, cmap=cmap, vmin=0, vmax=2, aspect="auto", origin="lower")
-        for i in range(len(w_ees)):
-            for j in range(len(rates)):
-                color = "white" if Z[i, j] == 2 else theme.INK_STRONG
-                ax.text(j, i, f"{late[i, j]:.0f}", ha="center", va="center",
-                        fontsize=theme.SIZE_ANNOTATION, color=color)
-        ax.set_xticks(range(len(rates)))
-        ax.set_xticklabels([str(r) for r in rates], fontsize=theme.SIZE_TICK)
-        ax.set_yticks(range(len(w_ees)))
-        ax.set_yticklabels([f"{w:g}" for w in w_ees], fontsize=theme.SIZE_TICK)
-        ax.set_xlabel("Input rate during stim (Hz)", fontsize=theme.SIZE_LABEL)
-        ax.set_title(
-            f"{model}  (ei_strength = {MODEL_CONFIGS[model]['ei_strength']:.0f}, "
-            f"W_in mean = {MODEL_CONFIGS[model]['w_in_mean']})",
-            fontsize=theme.SIZE_LABEL,
-        )
-    axes[0].set_ylabel("$W_{ee}$ mean (μS, pre-fan-in)", fontsize=theme.SIZE_LABEL)
-
-    fig.suptitle(
-        "Late-window mean E rate — same sweep, two models",
-        fontsize=theme.SIZE_TITLE, y=0.99,
-    )
-    # Legend
-    for outcome, x in zip(["decay", "sustained", "seizure"], [0.05, 0.45, 0.80]):
-        fig.patches.append(plt.matplotlib.patches.Rectangle(
-            (x, 0.005), 0.025, 0.025, transform=fig.transFigure,
-            color=OUTCOME_COLORS[outcome], clip_on=False,
-        ))
-        fig.text(x + 0.03, 0.018, outcome,
-                 fontsize=theme.SIZE_ANNOTATION, va="center")
-    fig.tight_layout(rect=(0, 0.05, 1, 0.95))
-    _stamp(fig, run_id)
-    return fig
-
-
-RASTER_N_I_NEURONS = 30  # subsampled I cells shown above the E cells per panel
-RASTER_E_I_GAP = 6       # blank rows between E and I bands
-
-
-def fig_ping_corners(corner_traces: list, run_id: str) -> plt.Figure:
-    """Rate trace + (I+E) raster across the ping outcome regimes.
-
-    Lays out up to 6 panels in a 2×3 grid: typically [decay, sus@5,
-    sus@25, sus@50, sus@150, seizure], showing both the input-rate
-    progression along a fixed-W_ee sustained row and the boundary panels.
-    """
-    n_panels = len(corner_traces)
-    n_cols = 3 if n_panels >= 5 else 2
-    n_rows = (n_panels + n_cols - 1) // n_cols
+def fig_w_ee_sweep(panels: list, run_id: str) -> plt.Figure:
+    """One (rate trace + E/I raster) panel per W_ee value, 2×3 layout."""
+    n = len(panels)
+    n_cols = 3 if n >= 5 else 2
+    n_rows = (n + n_cols - 1) // n_cols
     fig = plt.figure(figsize=(5.0 * n_cols, 3.65 * n_rows), dpi=150)
     outer = fig.add_gridspec(
         n_rows, n_cols, hspace=0.45, wspace=0.18,
-        left=0.05, right=0.985, top=0.93, bottom=0.06,
+        left=0.05, right=0.985, top=0.92, bottom=0.06,
     )
     rng = np.random.default_rng(0)
-    e_pick = rng.choice(N_E, size=min(RASTER_N_NEURONS, N_E), replace=False)
+    e_pick = rng.choice(N_E, size=min(RASTER_N_E, N_E), replace=False)
     e_pick.sort()
 
     slots = [outer[r, c] for r in range(n_rows) for c in range(n_cols)]
-    for cell_slot, c in zip(slots[:n_panels], corner_traces):
-        inner = cell_slot.subgridspec(2, 1, height_ratios=[1, 2], hspace=0.05)
+    for slot, p in zip(slots, panels):
+        inner = slot.subgridspec(2, 1, height_ratios=[1, 2], hspace=0.05)
         ax_rate = fig.add_subplot(inner[0])
         ax_rast = fig.add_subplot(inner[1], sharex=ax_rate)
 
-        trace = population_rate_hz(c["e"], TRACE_BIN_MS)
+        e = p["e"]
+        trace = population_rate_hz(e, TRACE_BIN_MS)
         t = np.arange(len(trace)) * TRACE_BIN_MS
-        color = OUTCOME_COLORS[c["outcome"]]
+        color = OUTCOME_COLORS[p["outcome"]]
+
+        # Rate trace
         ax_rate.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.07)
         ax_rate.axvline(T_STIM_MS, color=theme.DEEP_RED, lw=0.6, alpha=0.6)
         ax_rate.axhline(SEIZURE_HZ, color=theme.INK_BLACK, lw=0.6, ls="--", alpha=0.4)
@@ -330,12 +237,12 @@ def fig_ping_corners(corner_traces: list, run_id: str) -> plt.Figure:
         ax_rate.tick_params(axis="x", labelbottom=False)
         ax_rate.set_ylabel("E rate (Hz)", fontsize=theme.SIZE_ANNOTATION)
         ax_rate.set_title(
-            f"{c['label']}  ($W_{{ee}}$={c['w']:g}, R={c['rate']} Hz)  →  {c['outcome']}",
+            f"$W_{{ee}}$ = {p['w']:.2f}    →    late = {p['late']:.1f} Hz  ({p['outcome']})",
             fontsize=theme.SIZE_LABEL, loc="left", pad=4,
         )
 
-        # E cells in black at the bottom, I cells in red above them with a gap.
-        e_sub = c["e"][:, e_pick]
+        # Raster (E in black, I in red above with gap)
+        e_sub = e[:, e_pick]
         e_t, e_n = np.where(e_sub > 0)
         ax_rast.scatter(
             e_t * DT, e_n,
@@ -344,11 +251,11 @@ def fig_ping_corners(corner_traces: list, run_id: str) -> plt.Figure:
         )
         n_e_plot = len(e_pick)
         n_i_plot = 0
-        if c.get("i") is not None and c["i"].shape[1] > 0:
-            i_arr = c["i"]
+        if p.get("i") is not None and p["i"].shape[1] > 0:
+            i_arr = p["i"]
             n_i_total = i_arr.shape[1]
             i_pick = rng.choice(
-                n_i_total, size=min(RASTER_N_I_NEURONS, n_i_total), replace=False
+                n_i_total, size=min(RASTER_N_I, n_i_total), replace=False
             )
             i_pick.sort()
             i_sub = i_arr[:, i_pick]
@@ -364,7 +271,6 @@ def fig_ping_corners(corner_traces: list, run_id: str) -> plt.Figure:
         ax_rast.set_xlim(0, T_TOTAL_MS)
         total_rows = n_e_plot + (RASTER_E_I_GAP + n_i_plot if n_i_plot else 0)
         ax_rast.set_ylim(-1, total_rows + 1)
-        # Side labels: "E" centred on its band, "I" centred on its band
         ytick_pos = [n_e_plot / 2]
         ytick_lbl = [f"E\n({n_e_plot})"]
         if n_i_plot:
@@ -377,7 +283,8 @@ def fig_ping_corners(corner_traces: list, run_id: str) -> plt.Figure:
         ax_rast.tick_params(axis="x", labelsize=theme.SIZE_TICK)
 
     fig.suptitle(
-        "ping across the three outcome classes — rate trace + raster",
+        f"ping — $W_{{ee}}$ sweep at fixed input "
+        f"(MNIST digit {DIGIT_CLASS}, R = {INPUT_RATE_HZ:.0f} Hz)",
         fontsize=theme.SIZE_TITLE, y=0.985,
     )
     _stamp(fig, run_id)
@@ -402,129 +309,63 @@ def main() -> None:
 
     t0 = time.time()
     w_ee_grid = tier_cfg["w_ee"]
-    rate_grid = tier_cfg["rates"]
     n_seeds = tier_cfg["n_seeds"]
-    print(f"[{SLUG}] tier={tier}  seeds={n_seeds}  "
-          f"W_ee={w_ee_grid}  rates={rate_grid}")
+    print(f"[{SLUG}] tier={tier}  R={INPUT_RATE_HZ}Hz  "
+          f"W_ee={w_ee_grid}  seeds={n_seeds}")
 
-    grid_by_model: dict[str, dict[tuple, list[dict]]] = {"coba": {}, "ping": {}}
-    # We want fig 2 to actually showcase the sustained band — so we cache
-    # *every* ping cell's example raster (both E and I), then pick four
-    # informative ones (one decay, two sustained, one seizure) after
-    # classification is done.
-    ping_all_rasters: dict[tuple, dict] = {}
-
-    for model in ["coba", "ping"]:
-        print(f"--- {model} ({MODEL_CONFIGS[model]}) ---")
-        for w in w_ee_grid:
-            for rt in rate_grid:
-                grid_by_model[model][(w, rt)] = []
-                for s in range(n_seeds):
-                    seed = 42 + s
-                    r = run_one(model, rt, w, seed)
-                    m = classify(r)
-                    grid_by_model[model][(w, rt)].append(m)
-                    if model == "ping" and s == 0 and (w, rt) not in ping_all_rasters:
-                        ping_all_rasters[(w, rt)] = {"e": r["e"], "i": r["i"]}
-                outs = [m["outcome"] for m in grid_by_model[model][(w, rt)]]
-                late = np.mean([m["late_rate_hz"] for m in grid_by_model[model][(w, rt)]])
-                verdict = (
-                    "SEIZURE" if "seizure" in outs else
-                    "SUST"    if "sustained" in outs else
-                    "DECAY"
-                )
-                print(f"  W_ee={w:>4}  R={rt:>3}Hz  late={late:6.2f}Hz  {verdict}")
-
-    # Figures
-    fig1 = fig_phase_maps(grid_by_model, run_id)
-    fig1.savefig(FIGURES / "phase_maps.png", dpi=150)
-    plt.close(fig1)
-
-    # Pick 6 informative cells: decay, then a 4-cell input-rate progression
-    # along the W_ee=0.5 sustained row, then seizure. Falls back gracefully
-    # if a chosen cell isn't actually on the grid for the running tier.
-    def _ping_cell(outcome_filter, sort_key=None, prefer=None):
-        cells = [(w, rt) for (w, rt), ms in grid_by_model["ping"].items()
-                 if ms[0]["outcome"] == outcome_filter]
-        if not cells:
-            return None
-        if prefer is not None and prefer in cells:
-            return prefer
-        if sort_key:
-            cells.sort(key=sort_key)
-        return cells[0]
-
-    def _cell_if_in_grid(w, rt):
-        return (w, rt) if (w, rt) in grid_by_model["ping"] else None
-
-    decay_cell    = _ping_cell("decay",   sort_key=lambda c: (c[0], c[1]))
-    seizure_cell  = _ping_cell("seizure", sort_key=lambda c: (-c[0], -c[1]))
-
-    # Sustained-row progression at fixed W_ee=0.5 across multiple input rates.
-    # Falls back to any sustained cell if 0.5 isn't on the tier's grid.
-    sus_row_w = 0.5 if 0.5 in w_ee_grid else (sorted(
-        {w for (w, _), ms in grid_by_model["ping"].items()
-         if ms[0]["outcome"] == "sustained"}
-    ) or [None])[-1]
-    sus_rates_wanted = [r for r in (5, 25, 50, 150) if r in rate_grid]
-    sus_cells = []
-    if sus_row_w is not None:
-        for r in sus_rates_wanted:
-            c = _cell_if_in_grid(sus_row_w, r)
-            if c is not None and grid_by_model["ping"][c][0]["outcome"] == "sustained":
-                sus_cells.append((c, "ping — sustained"))
-
-    panel_specs = (
-        [(decay_cell, "ping — decay")]
-        + sus_cells
-        + [(seizure_cell, "ping — seizure")]
-    )
-    ping_corners = []
-    for cell, label in panel_specs:
-        if cell is None:
-            continue
-        w, rt = cell
-        rast = ping_all_rasters[(w, rt)]
-        ping_corners.append({
-            "label": label,
-            "w": w, "rate": rt,
-            "e": rast["e"],
-            "i": rast["i"],
-            "outcome": grid_by_model["ping"][(w, rt)][0]["outcome"],
+    panels = []
+    by_w: dict[float, list[dict]] = {}
+    for w in w_ee_grid:
+        by_w[w] = []
+        first_e, first_i = None, None
+        for s in range(n_seeds):
+            seed = 42 + s
+            r = run_one(w, seed)
+            m = classify(r)
+            by_w[w].append(m)
+            if s == 0:
+                first_e, first_i = r["e"], r["i"]
+        late_mean = float(np.mean([m["late_rate_hz"] for m in by_w[w]]))
+        outcomes = [m["outcome"] for m in by_w[w]]
+        verdict = (
+            "SEIZURE" if "seizure" in outcomes else
+            "SUST"    if "sustained" in outcomes else
+            "DECAY"
+        )
+        print(f"  W_ee={w:.2f}  late={late_mean:6.2f}Hz  {verdict}")
+        # Use the first-seed outcome for the panel colour (sustained beats
+        # decay if any seed sustains).
+        panel_outcome = (
+            "sustained" if "sustained" in outcomes else
+            "seizure"   if "seizure"   in outcomes else
+            "decay"
+        )
+        panels.append({
+            "w": w,
+            "late": late_mean,
+            "outcome": panel_outcome,
+            "e": first_e,
+            "i": first_i,
         })
-    fig2 = fig_ping_corners(ping_corners, run_id)
-    fig2.savefig(FIGURES / "ping_corners.png", dpi=150)
-    plt.close(fig2)
 
-    # Numbers
-    by_model_summary = {}
-    for model, grid in grid_by_model.items():
-        decay_n = seizure_n = sustained_n = 0
-        by_cell = []
-        for (w, rt), ms in grid.items():
-            outs = [m["outcome"] for m in ms]
-            decay_n += sum(1 for o in outs if o == "decay")
-            seizure_n += sum(1 for o in outs if o == "seizure")
-            sustained_n += sum(1 for o in outs if o == "sustained")
-            by_cell.append({
-                "w_ee_mean": float(w),
-                "input_rate_hz": float(rt),
-                "n_seeds": len(ms),
-                "late_rate_hz_mean": float(np.mean([m["late_rate_hz"] for m in ms])),
-                "outcomes": outs,
-            })
-        by_model_summary[model] = {
-            "totals": {
-                "decay": decay_n,
-                "sustained": sustained_n,
-                "seizure": seizure_n,
-                "total_cells": decay_n + sustained_n + seizure_n,
-            },
-            "by_cell": by_cell,
-        }
+    fig = fig_w_ee_sweep(panels, run_id)
+    fig.savefig(FIGURES / "w_ee_sweep.png", dpi=150)
+    plt.close(fig)
 
-    coba_sus = by_model_summary["coba"]["totals"]["sustained"]
-    ping_sus = by_model_summary["ping"]["totals"]["sustained"]
+    by_w_summary = []
+    sustained_count = decay_count = seizure_count = 0
+    for w, ms in by_w.items():
+        outs = [m["outcome"] for m in ms]
+        decay_count += sum(1 for o in outs if o == "decay")
+        seizure_count += sum(1 for o in outs if o == "seizure")
+        sustained_count += sum(1 for o in outs if o == "sustained")
+        by_w_summary.append({
+            "w_ee_mean": float(w),
+            "n_seeds": len(ms),
+            "late_rate_hz_mean": float(np.mean([m["late_rate_hz"] for m in ms])),
+            "stim_rate_hz_mean": float(np.mean([m["stim_rate_hz"] for m in ms])),
+            "outcomes": outs,
+        })
 
     numbers = {
         "run_id": run_id,
@@ -533,39 +374,45 @@ def main() -> None:
             "t_stim_ms": T_STIM_MS,
             "t_total_ms": T_TOTAL_MS,
             "slow_syn_gain": SLOW_SYN_GAIN,
+            "ei_strength": EI_STRENGTH,
+            "w_in_mean": W_IN_MEAN,
             "n_e": N_E,
             "n_in": N_IN,
+            "dataset": DATASET,
+            "digit_class": DIGIT_CLASS,
+            "input_rate_hz": INPUT_RATE_HZ,
             "tier": tier,
             "w_ee_grid": w_ee_grid,
-            "input_rates_hz": rate_grid,
             "n_seeds": n_seeds,
             "decay_threshold_hz": DECAY_HZ,
             "seizure_threshold_hz": SEIZURE_HZ,
-            "model_configs": MODEL_CONFIGS,
         },
-        "results": by_model_summary,
+        "results": {
+            "by_w_ee": by_w_summary,
+            "totals": {
+                "decay": decay_count,
+                "sustained": sustained_count,
+                "seizure": seizure_count,
+                "total_cells": decay_count + sustained_count + seizure_count,
+            },
+        },
         "success_criteria": [
             {
-                "label": "coba grid has zero sustained cells (nb030 replication)",
-                "passed": coba_sus == 0,
-                "detail": f"coba sustained = {coba_sus}",
+                "label": "at least one W_ee sustains",
+                "passed": sustained_count > 0,
+                "detail": f"sustained cells = {sustained_count}",
             },
             {
-                "label": "ping grid has at least one sustained cell",
-                "passed": ping_sus > 0,
-                "detail": f"ping sustained = {ping_sus}",
-            },
-            {
-                "label": "ping has strictly more sustained cells than coba",
-                "passed": ping_sus > coba_sus,
-                "detail": f"ping={ping_sus} > coba={coba_sus}",
+                "label": "at least one W_ee decays (lower W_ee edge is reachable)",
+                "passed": decay_count > 0,
+                "detail": f"decay cells = {decay_count}",
             },
         ],
         "runtime_s": time.time() - t0,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2))
     print(f"[{SLUG}] done in {time.time() - t0:.1f}s. "
-          f"coba sustained={coba_sus}  ping sustained={ping_sus}")
+          f"decay={decay_count} sustained={sustained_count} seizure={seizure_count}")
 
     if not all(c["passed"] for c in numbers["success_criteria"]):
         sys.exit(1)
