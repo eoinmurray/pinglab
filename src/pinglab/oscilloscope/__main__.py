@@ -1428,6 +1428,10 @@ def train(
     trainable_w_ee=False,
     slow_synapse=False,
     slow_syn_gain=0.5,
+    alif=False,
+    alif_beta=1.7,
+    sgcc=False,
+    sgcc_alpha=0.5,
 ):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
@@ -1518,6 +1522,10 @@ def train(
         trainable_w_ee=trainable_w_ee,
         slow_synapse=slow_synapse,
         slow_syn_gain=slow_syn_gain,
+        alif=alif,
+        alif_beta=alif_beta,
+        sgcc=sgcc,
+        sgcc_alpha=sgcc_alpha,
     )
     if randomize:
         log.info("  randomize_init=True (symmetry breaking for standard-snn)")
@@ -1586,6 +1594,11 @@ def train(
         "slow_synapse": slow_synapse,
         "slow_syn_gain": slow_syn_gain,
         "tau_nmda": float(M.tau_nmda),
+        "alif": alif,
+        "alif_beta": alif_beta,
+        "tau_adapt": float(M.tau_adapt),
+        "sgcc": sgcc,
+        "sgcc_alpha": sgcc_alpha,
         "seed": seed,
         # Provenance (git SHA, run_id, started_at, device, torch version,
         # python env hash) — keeps train-mode config.json at parity with
@@ -3142,6 +3155,49 @@ Models:
         "(AMPA) drive (default: 0.5). 0.0 makes the network behaviour "
         "identical to plain COBA. Only relevant when --slow-syn is set.",
     )
+    net_group.add_argument(
+        "--alif",
+        action="store_true",
+        help="COBANet only: add a per-neuron slow adaptation variable "
+        "that raises the firing threshold proportional to recent "
+        "spiking (LSNN-style). tau_adapt default 700 ms — provides a "
+        "long output-side timescale complementing slow-syn's "
+        "input-side timescale.",
+    )
+    net_group.add_argument(
+        "--tau-adapt",
+        type=float,
+        default=None,
+        help="Adaptation decay time constant in ms "
+        "(default: 700 ms, module-level `tau_adapt`). Only relevant "
+        "when --alif is set.",
+    )
+    net_group.add_argument(
+        "--alif-beta",
+        type=float,
+        default=1.7,
+        help="ALIF threshold-bump per accumulated spike, in mV "
+        "(default: 1.7). 0.0 makes the network behaviour identical "
+        "to plain COBA. Only relevant when --alif is set.",
+    )
+    net_group.add_argument(
+        "--sgcc",
+        action="store_true",
+        help="COBANet only: enable Surrogate Gradients by Costate "
+        "Control (Burghi et al. 2024). Scales the gradient on the "
+        "voltage↔conductance cross-coupling by --sgcc-alpha, taming "
+        "the conductance Jacobian explosion without uniformly damping "
+        "all gradients the way --v-grad-dampen does.",
+    )
+    net_group.add_argument(
+        "--sgcc-alpha",
+        type=float,
+        default=0.5,
+        help="SGCC retained fraction of cross-coupling gradient "
+        "(default: 0.5). alpha=1.0 is no-op (parity with no SGCC); "
+        "alpha=0.0 kills the cross-coupling entirely. Paper uses "
+        "alpha ≈ 0.5–0.7.",
+    )
     out_group = parent.add_argument_group("Output")
     out_group.add_argument("--out-dir", type=str, default=None, help="Output directory")
     out_group.add_argument(
@@ -3580,6 +3636,8 @@ Models:
         M.tau_ampa = float(args.tau_syn)
     if getattr(args, "tau_nmda", None) is not None:
         M.tau_nmda = float(args.tau_nmda)
+    if getattr(args, "tau_adapt", None) is not None:
+        M.tau_adapt = float(args.tau_adapt)
     if getattr(args, "readout_tau_out", None) is not None:
         M.tau_out_ms = float(args.readout_tau_out)
 
@@ -3913,6 +3971,10 @@ if __name__ == "__main__":
             trainable_w_ee=args.trainable_w_ee,
             slow_synapse=args.slow_syn,
             slow_syn_gain=args.slow_syn_gain,
+            alif=args.alif,
+            alif_beta=args.alif_beta,
+            sgcc=args.sgcc,
+            sgcc_alpha=args.sgcc_alpha,
         )
 
     elif mode == "infer":

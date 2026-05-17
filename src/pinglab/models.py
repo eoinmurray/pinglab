@@ -44,6 +44,10 @@ tau_gaba = 9.0  # ms — GABA decay (Börgers: 9 ms; Buzsaki & Wang: 8-12 ms)
 # with slow_synapse=True. ~100 ms matches the Wang / Compte working-
 # memory NMDA timescale.
 tau_nmda = 100.0  # ms — slow excitatory decay (off by default)
+# Adaptation timescale for the optional ALIF neuron. ~700 ms is the
+# LSNN paper default; tuned to bridge the working-memory delays the
+# slow-NMDA channel struggles with.
+tau_adapt = 700.0  # ms — slow adaptation decay (off by default)
 
 # ── Input encoding ────────────────────────────────────────────────────────
 max_rate_hz = (
@@ -100,6 +104,7 @@ V_GRAD_DAMPEN = 80.0
 decay_ampa = np.exp(-dt / tau_ampa)
 decay_gaba = np.exp(-dt / tau_gaba)
 decay_nmda = np.exp(-dt / tau_nmda)
+decay_adapt = np.exp(-dt / tau_adapt)
 ref_steps_E = max(1, int(round(ref_ms_E / dt)))
 ref_steps_I = max(1, int(round(ref_ms_I / dt)))
 p_scale = max_rate_hz * dt / 1000.0
@@ -157,10 +162,12 @@ def fast_sigmoid_spike(u, slope):
     return hard.detach() + (proxy - proxy.detach())
 
 
-def spike_biophysical(v):
+def spike_biophysical(v, threshold_offset=0.0):
     # mV-scale membrane: slope=1 keeps gradient support at the ~mV width of
-    # typical threshold crossings.
-    return fast_sigmoid_spike(v - V_th, SURROGATE_SLOPE)
+    # typical threshold crossings. `threshold_offset` shifts the effective
+    # threshold up — used by ALIF where each neuron's threshold rises with
+    # its own recent firing.
+    return fast_sigmoid_spike(v - V_th - threshold_offset, SURROGATE_SLOPE)
 
 
 def spike_snn(v):
@@ -225,6 +232,7 @@ def lif_step_expeuler(
     dt_override=None,
     V_floor=V_floor,
     V_max=None,
+    threshold_offset=None,
 ):
     """COBA LIF step under exponential Euler with a zero-order hold on g_e, g_i.
 
@@ -260,7 +268,10 @@ def lif_step_expeuler(
     v = v.clamp(min=V_floor) if V_max is None else v.clamp(min=V_floor, max=V_max)
     ref = (ref - 1).clamp(min=0)
     can_spike = ref == 0
-    s = spike_fn(v) * can_spike.float()
+    if threshold_offset is None:
+        s = spike_fn(v) * can_spike.float()
+    else:
+        s = spike_fn(v, threshold_offset) * can_spike.float()
     spiked_or_ref = s.bool() | (~can_spike)
     v = torch.where(spiked_or_ref, torch.full_like(v, V_reset), v)
     ref = torch.where(s.bool(), torch.full_like(ref, ref_steps), ref)
@@ -329,7 +340,7 @@ def init_conductance(B, N, device):
 COBA_INTEGRATOR = "expeuler"  # "expeuler" | "fwd"  — parity toggle for COBA integration
 
 
-def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None):
+def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None, threshold_offset=None):
     """One E-neuron LIF step with COBA driving force."""
     if ref_steps is None:
         ref_steps = ref_steps_E
@@ -344,6 +355,7 @@ def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None):
             ref_steps,
             spike_biophysical,
             v_grad_dampen=V_GRAD_DAMPEN,
+            threshold_offset=threshold_offset,
         )
     return lif_step(
         v,
@@ -357,7 +369,7 @@ def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None):
     )
 
 
-def i_step_coba(v, ref, g_e):
+def i_step_coba(v, ref, g_e, threshold_offset=None):
     """One I-neuron LIF step with COBA driving force."""
     if COBA_INTEGRATOR == "expeuler":
         return lif_step_expeuler(
@@ -370,6 +382,7 @@ def i_step_coba(v, ref, g_e):
             ref_steps_I,
             spike_biophysical,
             v_grad_dampen=V_GRAD_DAMPEN,
+            threshold_offset=threshold_offset,
         )
     return lif_step(
         v,
@@ -1219,6 +1232,10 @@ class COBANet(SNNBase):
         trainable_w_ee=False,
         slow_synapse=False,
         slow_syn_gain=0.5,
+        alif=False,
+        alif_beta=1.7,
+        sgcc=False,
+        sgcc_alpha=0.5,
     ):
         super().__init__()
         if readout_mode not in ("rate", "li", "spike-count", "mem-mean"):
@@ -1274,6 +1291,23 @@ class COBANet(SNNBase):
         # plain COBA.
         self.slow_synapse = slow_synapse
         self.slow_syn_gain = float(slow_syn_gain)
+        # Adaptive LIF: a per-neuron slow variable that rises with each
+        # spike and raises the cell's own threshold. Provides a long
+        # (tau_adapt ~ 700 ms) timescale on the OUTPUT side of the cell,
+        # complementing slow_synapse which is on the input side. β scales
+        # the bump per accumulated spike, in mV (since V_th is in mV).
+        # LSNN paper default β ≈ 1.7 mV.
+        self.alif = alif
+        self.alif_beta = float(alif_beta)
+        # SGCC (Surrogate Gradients by Costate Control, Burghi et al. 2024)
+        # — a surgical replacement for v_grad_dampen. Instead of muting
+        # every voltage gradient uniformly, scale only the cross-coupling
+        # gradient v ↔ g (the path responsible for the conductance Jacobian
+        # explosion in BPTT). alpha is the retained fraction; alpha=1 is
+        # no-op, alpha=0 kills the cross-coupling entirely. Paper's example
+        # uses alpha around 0.5–0.7.
+        self.sgcc = sgcc
+        self.sgcc_alpha = float(sgcc_alpha)
         self.W_ee = nn.ParameterDict()
         self.W_ei = nn.ParameterDict()
         self.W_ie = nn.ParameterDict()
@@ -1351,6 +1385,8 @@ class COBANet(SNNBase):
         v_e, ref_e, ge_e, gi_e, s_e = {}, {}, {}, {}, {}
         v_i, ref_i, ge_i, s_i = {}, {}, {}, {}
         ge_e_slow: dict = {}  # populated only when slow_synapse is set
+        a_e: dict = {}        # populated only when alif is set
+        a_i: dict = {}
         drive_gains = {}
         for i in range(1, self.n_layers + 1):
             n_e = self.hidden_sizes[i - 1]
@@ -1366,6 +1402,8 @@ class COBANet(SNNBase):
             ge_e[k] = init_conductance(B, n_e, device)
             if self.slow_synapse:
                 ge_e_slow[k] = init_conductance(B, n_e, device)
+            if self.alif:
+                a_e[k] = torch.zeros(B, n_e, device=device)
             s_e[k] = torch.zeros(B, n_e, device=device)
             if i in self.ei_layers:
                 n_i = n_e // 4
@@ -1375,6 +1413,8 @@ class COBANet(SNNBase):
                 )
                 ge_i[k] = init_conductance(B, n_i, device)
                 s_i[k] = torch.zeros(B, n_i, device=device)
+                if self.alif:
+                    a_i[k] = torch.zeros(B, n_i, device=device)
             if drive_sigma > 0 and i == 1:
                 drive_gains[k] = (
                     1.0 + drive_sigma * torch.randn(B, n_e, device=device)
@@ -1440,6 +1480,8 @@ class COBANet(SNNBase):
             "ref_i": ref_i,
             "ge_i": ge_i,
             "s_i": s_i,
+            "a_e": a_e,
+            "a_i": a_i,
             "hidden_accum": hidden_accum,
             "v_out": v_out,
             "logits_max": logits_max,
@@ -1460,6 +1502,10 @@ class COBANet(SNNBase):
             "n_spk_tensors": n_spk_tensors,
             "slow_synapse": self.slow_synapse,
             "slow_syn_gain": self.slow_syn_gain,
+            "alif": self.alif,
+            "alif_beta": self.alif_beta,
+            "sgcc": self.sgcc,
+            "sgcc_alpha": self.sgcc_alpha,
         }
 
         # Lazy-init torch.compile on the per-timestep body. Same pattern,
@@ -1568,6 +1614,10 @@ class COBANet(SNNBase):
         n_spk_tensors = cfg["n_spk_tensors"]
         slow_on = cfg["slow_synapse"]
         slow_gain = cfg["slow_syn_gain"]
+        alif_on = cfg["alif"]
+        alif_beta = cfg["alif_beta"]
+        sgcc_on = cfg["sgcc"]
+        sgcc_alpha = cfg["sgcc_alpha"]
 
         prev_spk = None
         for i in range(1, self.n_layers + 1):
@@ -1635,20 +1685,60 @@ class COBANet(SNNBase):
                 if slow_on
                 else state["ge_e"][k]
             )
+            # SGCC (Burghi et al.): scale the gradient on the
+            # voltage↔conductance cross-coupling by sgcc_alpha. forward
+            # value is unchanged; backward gradient through this path is
+            # multiplied by sgcc_alpha. Surgically tames the conductance
+            # Jacobian explosion without uniformly damping all gradients.
+            if sgcc_on:
+                g_e_for_step = _scale_grad(g_e_total, sgcc_alpha)
+                g_i_for_e = (
+                    _scale_grad(state["gi_e"][k], sgcc_alpha) if is_ei else None
+                )
+                g_e_for_i = (
+                    _scale_grad(state["ge_i"][k], sgcc_alpha) if is_ei else None
+                )
+            else:
+                g_e_for_step = g_e_total
+                g_i_for_e = state["gi_e"][k] if is_ei else None
+                g_e_for_i = state["ge_i"][k] if is_ei else None
+            # ALIF effective threshold: V_th_eff = V_th + β · a. Built
+            # as a per-neuron offset tensor so the spike step compares
+            # v against the right per-cell threshold.
+            e_thresh_offset = (
+                alif_beta * state["a_e"][k] if alif_on else None
+            )
+            i_thresh_offset = (
+                alif_beta * state["a_i"][k] if alif_on and is_ei else None
+            )
             if is_ei:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
                     state["v_e"][k],
                     state["ref_e"][k],
-                    g_e_total,
-                    state["gi_e"][k],
+                    g_e_for_step,
+                    g_i_for_e,
+                    threshold_offset=e_thresh_offset,
                 )
                 state["v_i"][k], state["s_i"][k], state["ref_i"][k] = i_step_coba(
-                    state["v_i"][k], state["ref_i"][k], state["ge_i"][k]
+                    state["v_i"][k], state["ref_i"][k], g_e_for_i,
+                    threshold_offset=i_thresh_offset,
                 )
             else:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
-                    state["v_e"][k], state["ref_e"][k], g_e_total
+                    state["v_e"][k], state["ref_e"][k], g_e_for_step,
+                    threshold_offset=e_thresh_offset,
                 )
+            # ALIF adaptation update: a_{t+1} = decay_adapt · a_t + s_t.
+            # Uses the FRESH spikes (post-step), so the threshold offset
+            # bumps up *for the next step*, not the current one.
+            if alif_on:
+                state["a_e"][k] = (
+                    decay_adapt * state["a_e"][k] + state["s_e"][k]
+                )
+                if is_ei:
+                    state["a_i"][k] = (
+                        decay_adapt * state["a_i"][k] + state["s_i"][k]
+                    )
 
             if self._hidden_perturb_fn is not None:
                 new_s_e, new_s_i = self._hidden_perturb_fn(
