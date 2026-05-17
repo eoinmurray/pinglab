@@ -321,8 +321,6 @@ def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
         print(
             "       the run is still executing remotely; fetch artifacts manually with:"
         )
-        out_name = Path(local_out_dir).name
-        rel = str(Path(local_out_dir).relative_to(Path.cwd()))
         print(
             f"         uv run modal volume get {VOLUME_NAME} "
             f"{REMOTE_ARTIFACTS.lstrip('/')}{Path(local_out_dir).as_posix().split(REMOTE_ARTIFACTS, 1)[-1] if REMOTE_ARTIFACTS in local_out_dir else '/<remote-path>/'}/ "

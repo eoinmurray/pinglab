@@ -113,7 +113,6 @@ TIER_CONFIG = {
     "extra large": dict(max_samples=10000, epochs=40),
 }
 TIER = DEFAULT_TIER  # overridable via --tier <name>
-TAU_MEM_MS = 10.0  # matches models.py SNN_TAU_MEM_MS
 
 # Per-step drive compensation for cuba at training dt. cuba's update is
 #   mem = β·mem + (1-β)/dt · (W·s) + (1-β) · b      (β = exp(-dt/τ_mem))

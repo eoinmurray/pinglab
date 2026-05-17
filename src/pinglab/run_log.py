@@ -246,7 +246,6 @@ class WarningTracker:
         self.best_acc = 0.0
         self.best_epoch = 0
         self.no_progress_since = 0
-        self.grad_clip_frac_last = 0.0
         self.observed_warnings = []  # (ep_start, ep_end, kind) aggregated
 
     def tick(
