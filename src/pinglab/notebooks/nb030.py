@@ -284,36 +284,74 @@ def fig_phase_map(grid_results: dict, run_id: str) -> plt.Figure:
     return fig
 
 
+RASTER_N_NEURONS = 80   # subsampled cells shown in each corner raster
+
+
 def fig_example_traces(corner_traces: list, run_id: str) -> plt.Figure:
-    """Example population-rate traces at four corners of the (W_ee × R) grid.
+    """For each of the 4 grid corners: rate trace on top, raster underneath.
 
     Each entry of corner_traces is a dict: {label, w, rate, e, outcome}.
+    The rate trace shows level; the raster underneath shows the texture
+    (gamma-locked synchrony, asynchronous-dense, silent, saturated).
     """
-    fig, axes = plt.subplots(2, 2, figsize=(11, 6.18), dpi=150, sharex=True, sharey=True)
-    for ax, c in zip(axes.flat, corner_traces):
+    fig = plt.figure(figsize=(13, 7.3), dpi=150)
+    outer = fig.add_gridspec(
+        2, 2, hspace=0.35, wspace=0.15,
+        left=0.07, right=0.97, top=0.92, bottom=0.06,
+    )
+    rng = np.random.default_rng(0)
+    cell_pick = rng.choice(N_E, size=min(RASTER_N_NEURONS, N_E), replace=False)
+    cell_pick.sort()
+
+    for cell_slot, c in zip(
+        [outer[0, 0], outer[0, 1], outer[1, 0], outer[1, 1]], corner_traces
+    ):
+        inner = cell_slot.subgridspec(2, 1, height_ratios=[1, 2], hspace=0.05)
+        ax_rate = fig.add_subplot(inner[0])
+        ax_rast = fig.add_subplot(inner[1], sharex=ax_rate)
+
+        # Top: rate trace (gamma-smoothed)
         trace = population_rate_hz(c["e"], TRACE_BIN_MS)
         t = np.arange(len(trace)) * TRACE_BIN_MS
         color = OUTCOME_COLORS[c["outcome"]]
-        ax.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.07)
-        ax.axvline(T_STIM_MS, color=theme.DEEP_RED, lw=0.6, alpha=0.6)
-        ax.axhline(SEIZURE_HZ, color=theme.INK_BLACK, lw=0.6, ls="--", alpha=0.4)
-        ax.fill_between(t, trace, 0, color=color, alpha=0.35, linewidth=0)
-        ax.plot(t, trace, color=color, lw=1.2)
-        ax.set_xlim(0, T_TOTAL_MS)
-        ax.set_ylim(0, 360)
-        ax.set_title(
+        ax_rate.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.07)
+        ax_rate.axvline(T_STIM_MS, color=theme.DEEP_RED, lw=0.6, alpha=0.6)
+        ax_rate.axhline(SEIZURE_HZ, color=theme.INK_BLACK, lw=0.6, ls="--", alpha=0.4)
+        ax_rate.fill_between(t, trace, 0, color=color, alpha=0.35, linewidth=0)
+        ax_rate.plot(t, trace, color=color, lw=1.2)
+        ax_rate.set_xlim(0, T_TOTAL_MS)
+        ax_rate.set_ylim(0, 360)
+        ax_rate.set_yticks([0, SEIZURE_HZ])
+        ax_rate.set_yticklabels(["0", f"{int(SEIZURE_HZ)}"], fontsize=theme.SIZE_TICK)
+        ax_rate.tick_params(axis="x", labelbottom=False)
+        ax_rate.set_ylabel("E rate (Hz)", fontsize=theme.SIZE_ANNOTATION)
+        ax_rate.set_title(
             f"{c['label']}  ($W_{{ee}}$={c['w']:g}, R={c['rate']} Hz)  →  {c['outcome']}",
             fontsize=theme.SIZE_LABEL, loc="left", pad=4,
         )
-        ax.set_ylabel("E rate (Hz)", fontsize=theme.SIZE_ANNOTATION)
-        ax.tick_params(labelsize=theme.SIZE_TICK)
-    for ax in axes[-1, :]:
-        ax.set_xlabel("Time (ms)", fontsize=theme.SIZE_LABEL)
+
+        # Bottom: subsampled raster
+        e = c["e"]
+        e_sub = e[:, cell_pick]
+        t_idx, n_idx = np.where(e_sub > 0)
+        ax_rast.scatter(
+            t_idx * DT, n_idx,
+            s=2.0, c=theme.INK_BLACK, marker="|", linewidths=0.5,
+        )
+        ax_rast.axvspan(0, T_STIM_MS, color=theme.DEEP_RED, alpha=0.07)
+        ax_rast.axvline(T_STIM_MS, color=theme.DEEP_RED, lw=0.6, alpha=0.6)
+        ax_rast.set_xlim(0, T_TOTAL_MS)
+        ax_rast.set_ylim(-1, len(cell_pick))
+        ax_rast.set_yticks([])
+        ax_rast.set_ylabel(f"{len(cell_pick)} E cells",
+                           fontsize=theme.SIZE_ANNOTATION)
+        ax_rast.set_xlabel("Time (ms)", fontsize=theme.SIZE_LABEL)
+        ax_rast.tick_params(axis="x", labelsize=theme.SIZE_TICK)
+
     fig.suptitle(
-        "Population-rate trace at four corners of the grid",
-        fontsize=theme.SIZE_TITLE, y=0.995,
+        "Rate trace + raster at four corners of the (W_ee × input rate) grid",
+        fontsize=theme.SIZE_TITLE, y=0.985,
     )
-    fig.tight_layout()
     _stamp(fig, run_id)
     return fig
 
