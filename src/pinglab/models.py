@@ -74,7 +74,6 @@ HIDDEN_SIZES: list[int] = [64]  # hidden layer sizes (N_HID is always last entry
 # ── Weight init ───────────────────────────────────────────────────────────
 # Weight init — p1/p2 are pre-fan-in values (init_weight divides by N_pre)
 W_STD_CUBA = 32.0  # nA — CUBA weight init std (pre-fan-in)
-W_STD_COBA = 6.4  # uS — COBA weight init std (pre-fan-in)
 W_FF_MEAN = 5.1  # uS — feedforward init mean (pre-fan-in)
 W_FF_STD = 3.8  # uS — feedforward init std (pre-fan-in)
 W_IN_MEAN = W_FF_MEAN  # alias
@@ -96,8 +95,6 @@ GRAD_CLIP = 1.0
 # config — slope=10 (Neftci canonical) and slope=40 (Cramer) both blow
 # up to gn 1e10+ even with --optimizer adamax + --grad-clip 100.
 SURROGATE_SLOPE = 5.0
-READOUT_SCALE = 0.0
-PATIENCE = 15
 V_GRAD_DAMPEN = 80.0
 
 # Derived

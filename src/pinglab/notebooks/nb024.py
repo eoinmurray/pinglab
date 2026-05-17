@@ -161,10 +161,6 @@ def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
     return ARTIFACTS / f"{model}__{label}"
 
 
-def baseline_dirs(model: str) -> list[Path]:
-    return [cell_dir(model, None, s) for s in SEEDS_BASELINE]
-
-
 def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
     return cell_dir(model, None, seed)
 

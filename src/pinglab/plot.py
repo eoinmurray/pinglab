@@ -174,7 +174,6 @@ PANEL_CATALOG = {
 }
 
 GRID_COLS = 3  # main-grid width in cells
-GRID_ROWS = 5  # main-grid height in cells (extended if more panels are requested)
 HEADER_HEIGHT_RATIO = 0.35  # header strip height relative to one main-grid cell row
 
 # Every panel's plot interior occupies the same fractional inset within
