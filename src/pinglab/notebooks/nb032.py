@@ -65,6 +65,10 @@ T_SAMPLE_MS = 100.0   # input on (digit_A's Poisson encoding)
 T_DELAY_MS = 200.0    # input off — pure memory window
 T_RECALL_MS = 100.0   # input off — readout integrates E activity here
 T_TOTAL_MS = T_SAMPLE_MS + T_DELAY_MS + T_RECALL_MS  # 400 ms
+# Both extending T_s (→ 200) and T_r (→ 300) were tried; each made
+# accuracy worse roughly linearly with added timesteps (~5 pp per
+# +100 ms of BPTT depth at the medium tier). BPTT depth is the
+# dominant ceiling here, not signal/noise on either window.
 STIM_PEAK_RATE_HZ = 50.0   # peak Poisson rate per pixel during sample window
 N_CLASSES = 10              # MNIST digit classes
 N_OUT = N_CLASSES
