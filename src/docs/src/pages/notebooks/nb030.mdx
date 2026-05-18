@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "030 — Coba + NMDA cannot sustain post-stimulus activity"
+title: "030 — COBA + NMDA cannot sustain post-stimulus activity"
 date: 2026-05-17
 entry: 30
 structure: paper
@@ -20,9 +20,9 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-[025 — Slow synapse on trained coba and ping](/notebooks/nb025/) wired the NMDA-like slow synaptic channel ($\tau_{NMDA} = 100$ ms) into COBANet and showed it's a usable substrate. The structural follow-up question: with that channel in place, can a network produce *non-seizure sustained activity post-stimulus* — i.e. a bump that survives the input cutting out without either dying or running away to saturation?
+[025 — Slow synapse on trained COBA and ping](/notebooks/nb025/) wired the NMDA-like slow synaptic channel ($\tau_{NMDA} = 100$ ms) into COBANet and showed it's a usable substrate. The structural follow-up question: with that channel in place, can a network produce *non-seizure sustained activity post-stimulus* — i.e. a bump that survives the input cutting out without either dying or running away to saturation?
 
-This entry concretely answers **no, not in coba** (*ei_strength* = 0). The slow channel + recurrent E→E that, with inhibition, gives ping a stable attractor admits only **two** outcomes in coba: the network either decays to silence (no recurrence, or recurrence too weak), or it locks at refractory saturation. There is no intermediate $W_{ee}$ that produces a stable attractor at a moderate firing rate.
+This entry concretely answers **no, not in COBA** (*ei_strength* = 0). The slow channel + recurrent E→E that, with inhibition, gives ping a stable attractor admits only **two** outcomes in COBA: the network either decays to silence (no recurrence, or recurrence too weak), or it locks at refractory saturation. There is no intermediate $W_{ee}$ that produces a stable attractor at a moderate firing rate.
 
 ## Method
 
@@ -57,7 +57,7 @@ Then assign:
 ## Results
 
 <Figure id="Figure 1" title="(W_ee × input rate) phase map" src="/figures/notebooks/nb030/phase_map.png" alt="6×5 grid coloured by outcome class. Bottom row (W_ee=0) is grey (decay). Every other row is red (seizure). The green sustained class never appears.">
-  Every grid cell is one $(W_{ee}, R)$ operating point at coba (*ei_strength = 0*) with the slow channel on. Cell colour = outcome class; numbers are the late-window mean E firing rate (Hz). The bottom row ($W_{ee} = 0$, no recurrent drive) all decays — including the cells whose late-window rate happens to be non-trivial, because they're still mid-decay through the NMDA tail. Every cell with non-zero $W_{ee}$ flips to refractory saturation regardless of input rate. **Zero cells land in the sustained band.**
+  Every grid cell is one $(W_{ee}, R)$ operating point at COBA (*ei_strength = 0*) with the slow channel on. Cell colour = outcome class; numbers are the late-window mean E firing rate (Hz). The bottom row ($W_{ee} = 0$, no recurrent drive) all decays — including the cells whose late-window rate happens to be non-trivial, because they're still mid-decay through the NMDA tail. Every cell with non-zero $W_{ee}$ flips to refractory saturation regardless of input rate. **Zero cells land in the sustained band.**
 </Figure>
 
 <Figure id="Figure 2" title="Rate trace + raster at the grid corners" src="/figures/notebooks/nb030/example_traces.png" alt="Four panels showing the population rate trace and an 80-cell E raster for each of the four corners of the (W_ee × input rate) grid.">
@@ -101,13 +101,13 @@ A stable intermediate attractor requires a second equation — an inhibitory pop
 
 ## Implication
 
-If you want sustained post-stimulus activity in a network with the pinglab COBANet stack, you need *either* inhibition (ping config, *ei_strength > 0*) *or* an alternative slow negative-feedback primitive (e.g. spike-rate adaptation via ALIF). Coba + NMDA alone is structurally incapable, and the result is robust to choice of $W_{ee}$ across two orders of magnitude. This rules out a whole family of "just add NMDA to coba" approaches for working memory work on this codebase.
+If you want sustained post-stimulus activity in a network with the pinglab COBANet stack, you need *either* inhibition (ping config, *ei_strength > 0*) *or* an alternative slow negative-feedback primitive (e.g. spike-rate adaptation via ALIF). COBA + NMDA alone is structurally incapable, and the result is robust to choice of $W_{ee}$ across two orders of magnitude. This rules out a whole family of "just add NMDA to coba" approaches for working memory work on this codebase.
 
 ## Next steps
 
 - **Add ALIF as the brake.** ALIF (per-neuron threshold adaptation, $\tau = 700$ ms) provides slow self-quenching that could substitute for I-cell inhibition. The interesting question: does the bistability dissolve when ALIF is added on top, or is the structural problem deeper?
-- **Repeat with ping** (*ei_strength = 1*) for visual comparison — the same $(W_{ee}, R)$ phase map at ping should have a green band that's *empty* in coba, making the I-cell role concrete.
-- **slow_syn_gain sweep.** Does any gain produce sustained cells in coba? Likely no — the structural argument doesn't care about gain — but worth confirming.
+- **Repeat with ping** (*ei_strength = 1*) for visual comparison — the same $(W_{ee}, R)$ phase map at ping should have a green band that's *empty* in COBA, making the I-cell role concrete.
+- **slow_syn_gain sweep.** Does any gain produce sustained cells in COBA? Likely no — the structural argument doesn't care about gain — but worth confirming.
 
 ## Appendix
 

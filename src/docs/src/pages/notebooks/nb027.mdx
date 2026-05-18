@@ -19,14 +19,14 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-[nb024](/notebooks/nb024/) trains coba on MNIST to $\sim 84$% test accuracy only with *--v-grad-dampen 1000* — a heavy-handed global gradient scalar that hides the conductance-Jacobian explosion by muting every per-step voltage gradient uniformly. The cost of that stabilizer is that the same uniform damping which prevents NaN also kills the gradient signal needed for any task longer than a couple hundred milliseconds — so it's unusable for working-memory work without something more surgical.
+[nb024](/notebooks/nb024/) trains COBA on MNIST to $\sim 84$% test accuracy only with *--v-grad-dampen 1000* — a heavy-handed global gradient scalar that hides the conductance-Jacobian explosion by muting every per-step voltage gradient uniformly. The cost of that stabilizer is that the same uniform damping which prevents NaN also kills the gradient signal needed for any task longer than a couple hundred milliseconds — so it's unusable for working-memory work without something more surgical.
 
 Burghi, Pugliese Carratelli & Rule (2024) — *"Costate control for nonlinear system identification with applications to excitable systems"* — propose a principled alternative for conductance-based neuron models: **Surrogate Gradients by Costate Control (SGCC)**. Instead of damping every voltage gradient uniformly, SGCC inserts a control input into the costate (adjoint) dynamics that targets *only* the cross-coupling terms between voltage and conductance — the path responsible for the explosion. Two designs:
 
 1. **Proportional high-gain** $K^\text{prop} = -\gamma I$: provably eliminates the explosion but smooths the gradient landscape uniformly. nb024's *--v-grad-dampen* is essentially a discretised $K^\text{prop}$ with very large $\gamma$.
 2. **Gating-based** $K^\text{gat}$: surgically suppresses only the destabilising off-diagonal terms in $\nabla_x f_\theta$ by a factor $(1-\alpha)$. Preserves more landscape structure, so gradient descent retains more signal.
 
-This entry adds $K^\text{gat}$ to pinglab as the *--sgcc / --sgcc-alpha* CLI flag pair, then trains a fresh coba on MNIST with *--sgcc-alpha 0.5* (and no *--v-grad-dampen*). Same recipe as nb024's coba baseline in every other respect — the only difference is the gradient stabilizer. The question is whether the principled controller matches or beats the heavy-handed one on the simplest established task.
+This entry adds $K^\text{gat}$ to pinglab as the *--sgcc / --sgcc-alpha* CLI flag pair, then trains a fresh COBA on MNIST with *--sgcc-alpha 0.5* (and no *--v-grad-dampen*). Same recipe as nb024's COBA baseline in every other respect — the only difference is the gradient stabilizer. The question is whether the principled controller matches or beats the heavy-handed one on the simplest established task.
 
 ## Method
 
@@ -40,7 +40,7 @@ Forward dynamics are bit-identical to plain COBA. Backward, gradient flowing fro
 
 The single $\mathrm{ScaleGrad}$ is implemented via the existing *_scale_grad* helper. Parity at $\alpha = 1$ verified bit-exact; gradient norm drops $\sim 6 \times$ at $\alpha = 0.5$ on a smoke test.
 
-**Training recipe**: identical to nb024 coba (*--ei-strength 0*, *--w-in 0.3*, *--w-in-sparsity 0.95*, *--readout mem-mean*, *--readout-w-out-scale 100*, *--lr 0.0004*, *--batch-size 256*), with *--v-grad-dampen 1000* replaced by *--sgcc --sgcc-alpha 0.5*. Small tier: 500 samples × 5 epochs.
+**Training recipe**: identical to nb024 COBA (*--ei-strength 0*, *--w-in 0.3*, *--w-in-sparsity 0.95*, *--readout mem-mean*, *--readout-w-out-scale 100*, *--lr 0.0004*, *--batch-size 256*), with *--v-grad-dampen 1000* replaced by *--sgcc --sgcc-alpha 0.5*. Small tier: 500 samples × 5 epochs.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
   { label: "sgcc α", value: cfg.sgcc_alpha ?? "?", default: "—" },
@@ -49,11 +49,11 @@ The single $\mathrm{ScaleGrad}$ is implemented via the existing *_scale_grad* he
 ## Results
 
 <Figure id="Figure 1" title="Training curves — baseline vs SGCC" src="/figures/notebooks/nb027/learning_curves.png" alt="Two panels: train loss per epoch (left) and test accuracy per epoch (right). Baseline (v-grad-dampen 1000) and SGCC (α = 0.5) overlaid.">
-  Train loss (left) and test accuracy (right) for the nb024 coba baseline and the fresh SGCC-trained coba. Same recipe, only the gradient stabilizer differs.
+  Train loss (left) and test accuracy (right) for the nb024 COBA baseline and the fresh SGCC-trained COBA. Same recipe, only the gradient stabilizer differs.
 </Figure>
 
-<Figure id="Figure 2" title="Trained-network rasters — baseline vs SGCC" src="/figures/notebooks/nb027/compare_rasters.png" alt="Two stacked raster panels: top is nb024 baseline coba, bottom is SGCC-trained coba. Each panel shows E (black) above I (red) spikes over 400 ms with mean firing rate annotation.">
-  Trained baseline (top) and SGCC (bottom) coba replayed on MNIST digit 0 sample 0 for 400 ms. Same architecture, same trial, only the trained weights differ.
+<Figure id="Figure 2" title="Trained-network rasters — baseline vs SGCC" src="/figures/notebooks/nb027/compare_rasters.png" alt="Two stacked raster panels: top is nb024 baseline COBA, bottom is SGCC-trained COBA. Each panel shows E (black) above I (red) spikes over 400 ms with mean firing rate annotation.">
+  Trained baseline (top) and SGCC (bottom) COBA replayed on MNIST digit 0 sample 0 for 400 ms. Same architecture, same trial, only the trained weights differ.
 </Figure>
 
 **Final accuracy and firing rate:**
@@ -115,10 +115,10 @@ uv run src/pinglab/notebooks/nb027.py --tier small
 
 ### Training videos
 
-<Figure id="Figure 3" title="coba baseline — training video" src="/figures/notebooks/nb027/training__baseline.mp4" type="video" alt="Per-epoch oscilloscope training video for nb024's coba baseline (v-grad-dampen 1000).">
-  nb024's coba baseline trained with *--v-grad-dampen 1000*. One frame per epoch on a fixed reference MNIST trial.
+<Figure id="Figure 3" title="coba baseline — training video" src="/figures/notebooks/nb027/training__baseline.mp4" type="video" alt="Per-epoch oscilloscope training video for nb024's COBA baseline (v-grad-dampen 1000).">
+  nb024's COBA baseline trained with *--v-grad-dampen 1000*. One frame per epoch on a fixed reference MNIST trial.
 </Figure>
 
-<Figure id="Figure 4" title="coba + SGCC — training video" src="/figures/notebooks/nb027/training__sgcc.mp4" type="video" alt="Per-epoch oscilloscope training video for the SGCC-trained coba.">
-  coba trained with *--sgcc --sgcc-alpha 0.5* in place of *--v-grad-dampen*. One frame per epoch.
+<Figure id="Figure 4" title="coba + SGCC — training video" src="/figures/notebooks/nb027/training__sgcc.mp4" type="video" alt="Per-epoch oscilloscope training video for the SGCC-trained COBA.">
+  COBA trained with *--sgcc --sgcc-alpha 0.5* in place of *--v-grad-dampen*. One frame per epoch.
 </Figure>

@@ -22,7 +22,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*coba*](/articles/art003/) path — conductance-based synapses, dispatched through the COBANet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb010](/notebooks/nb010/) and [nb012](/notebooks/nb012/). No Δt sweep. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*COBA*](/articles/art003/) path — conductance-based synapses, dispatched through the COBANet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb010](/notebooks/nb010/) and [nb012](/notebooks/nb012/). No Δt sweep. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
@@ -69,13 +69,13 @@ Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb011.py* 
   Mean hidden firing rate across the training schedule.
 </Figure>
 
-<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb011/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the coba hidden layer">
-  Per-epoch snapshot of the reference MNIST trial through *coba*'s hidden layer.
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb011/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the COBA hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *COBA*'s hidden layer.
 </Figure>
 
 ## Next steps
 
-The conductance-based synapse is the bridge between [nb010](/notebooks/nb010/)'s clean *cuba* baseline and [nb012](/notebooks/nb012/)'s full PING circuit; once *coba* is sitting in the same firing-rate band as *cuba*, closing the E→I→E loop in nb012 should be a one-knob change. Two follow-ups parked: (a) tune the *v_grad_dampen* coefficient downward and confirm the gradient-skip path stays empty — the current 1000 is conservative; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/docs/the-oscilloscope/#subcommand-infer) path to test whether the conductance dynamics generalise off the trained *dt*, mirroring the analogous follow-up in [nb010](/notebooks/nb010/).
+The conductance-based synapse is the bridge between [nb010](/notebooks/nb010/)'s clean *cuba* baseline and [nb012](/notebooks/nb012/)'s full PING circuit; once *COBA* is sitting in the same firing-rate band as *cuba*, closing the E→I→E loop in nb012 should be a one-knob change. Two follow-ups parked: (a) tune the *v_grad_dampen* coefficient downward and confirm the gradient-skip path stays empty — the current 1000 is conservative; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/docs/the-oscilloscope/#subcommand-infer) path to test whether the conductance dynamics generalise off the trained *dt*, mirroring the analogous follow-up in [nb010](/notebooks/nb010/).
 
 ## Appendix
 

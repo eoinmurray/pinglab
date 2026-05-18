@@ -20,18 +20,18 @@ export const get = (cell) => results.find((r) => r.cell === cell) ?? {};
 
 ## Introduction
 
-**Dale's law**, in this codebase, is the constraint that the *trainable* feedforward weight matrix $W_{\text{ff}}$ stays non-negative: an "excitatory" input projection genuinely excites the post-synaptic cell rather than being free to switch sign mid-training. It is the default for the *coba* and *ping* models — and it is the biological assumption that distinguishes them from a "vanilla" SNN where every weight is freely signed.
+**Dale's law**, in this codebase, is the constraint that the *trainable* feedforward weight matrix $W_{\text{ff}}$ stays non-negative: an "excitatory" input projection genuinely excites the post-synaptic cell rather than being free to switch sign mid-training. It is the default for the *COBA* and *ping* models — and it is the biological assumption that distinguishes them from a "vanilla" SNN where every weight is freely signed.
 
-This entry trains the [coba](/notebooks/nb011/) recipe twice — once with the default *--dales-law*, once with *--no-dales-law* — and compares accuracy, firing rate, and the resulting distribution of trained weights. Every other knob (lr, w_in, surrogate slope, readout, batch size, seed) is held fixed at the calibrated [nb011](/notebooks/nb011/) recipe, so any difference is attributable to the constraint alone.
+This entry trains the [COBA](/notebooks/nb011/) recipe twice — once with the default *--dales-law*, once with *--no-dales-law* — and compares accuracy, firing rate, and the resulting distribution of trained weights. Every other knob (lr, w_in, surrogate slope, readout, batch size, seed) is held fixed at the calibrated [nb011](/notebooks/nb011/) recipe, so any difference is attributable to the constraint alone.
 
 The recurrent E-I matrices ($W^{EE}$, $W^{EI}$, $W^{IE}$ inside COBANet) are fixed buffers either way — Dale's law on them is just the initial-condition sign convention. This experiment therefore isolates the *trainable* feedforward effect.
 
 ## Method
 
-Two cells, both running the [coba](/articles/art003/) recipe:
+Two cells, both running the [COBA](/articles/art003/) recipe:
 
-- *coba/dales* — `--dales-law` (default). The trainable $W_{\text{ff}}$ is clamped non-negative at every forward pass.
-- *coba/no_dales* — `--no-dales-law`. Signed weights allowed everywhere.
+- *COBA/dales* — `--dales-law` (default). The trainable $W_{\text{ff}}$ is clamped non-negative at every forward pass.
+- *COBA/no_dales* — `--no-dales-law`. Signed weights allowed everywhere.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
   { label: "cells", value: (cfg.cells ?? []).join(", ") || "?", default: "—" },
@@ -61,7 +61,7 @@ Two cells, both running the [coba](/articles/art003/) recipe:
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
 )}
 
-<Figure id="Figure 1" title="Final accuracy and firing rate" src="/figures/notebooks/nb022/accuracy.png" alt="Bar chart: final test accuracy of coba with and without Dale's law, with the hidden-E firing rate annotated underneath each bar.">
+<Figure id="Figure 1" title="Final accuracy and firing rate" src="/figures/notebooks/nb022/accuracy.png" alt="Bar chart: final test accuracy of COBA with and without Dale's law, with the hidden-E firing rate annotated underneath each bar.">
   Final-epoch test accuracy under Dale's law (left) and with signed weights (right). The number beneath each bar is the hidden-E firing rate at the same time point.
 </Figure>
 
@@ -80,11 +80,11 @@ Two cells, both running the [coba](/articles/art003/) recipe:
 ## Per-cell training videos
 
 <Figure id="Figure 5" title="coba — Dale's law" src="/figures/notebooks/nb022/training__dales.mp4" type="video" alt="coba training, Dale's law on">
-  coba reference recipe with *--dales-law* (default).
+  COBA reference recipe with *--dales-law* (default).
 </Figure>
 
 <Figure id="Figure 6" title="coba — signed weights" src="/figures/notebooks/nb022/training__no_dales.mp4" type="video" alt="coba training, Dale's law off">
-  coba reference recipe with *--no-dales-law*.
+  COBA reference recipe with *--no-dales-law*.
 </Figure>
 
 ## Discussion

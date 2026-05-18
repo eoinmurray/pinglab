@@ -24,12 +24,12 @@ export const rk2 = r2.regime_key ?? "dt?";
 export const snn1 = r1.runs?.["standard-snn"] ?? {};
 export const lib1 = r1.runs?.["snntorch-library"] ?? {};
 export const cuba1 = r1.runs?.cuba ?? {};
-export const coba1 = r1.runs?.coba ?? {};
+export const coba1 = r1.runs?.COBA ?? {};
 export const ping1 = r1.runs?.ping ?? {};
 export const snn2 = r2.runs?.["standard-snn"] ?? {};
 export const lib2 = r2.runs?.["snntorch-library"] ?? {};
 export const cuba2 = r2.runs?.cuba ?? {};
-export const coba2 = r2.runs?.coba ?? {};
+export const coba2 = r2.runs?.COBA ?? {};
 export const ping2 = r2.runs?.ping ?? {};
 export const mode = (run, m = "upsample") => (run?.encoder_modes?.[m] ?? {});
 // Use each regime's count-preserving mode that covers most of its sweep:
@@ -69,7 +69,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-The simulator's *dt* is a numerical knob, not a feature of the network — but in spiking models it leaks into the dynamics. Train at one *dt* and evaluate at another and hidden firing rates can shift by an order of magnitude with frozen weights. This notebook quantifies that leakage across five models and traces it to a single expression: the bias term scales as $1/\Delta t$ in the snnTorch family, while cuba/coba/ping are *dt*-invariant by construction.
+The simulator's *dt* is a numerical knob, not a feature of the network — but in spiking models it leaks into the dynamics. Train at one *dt* and evaluate at another and hidden firing rates can shift by an order of magnitude with frozen weights. This notebook quantifies that leakage across five models and traces it to a single expression: the bias term scales as $1/\Delta t$ in the snnTorch family, while cuba/COBA/ping are *dt*-invariant by construction.
 
 ## Method
 
@@ -82,12 +82,12 @@ Five models are trained on MNIST at two *dt* regimes ({dt1} ms and {dt2} ms), ea
 - [*standard-snn*](/articles/art002/) — pinglab reimplementation of snnTorch's *snn.Leaky*. The Tutorial-3 simplification ($\Delta t = 1$, $R = 1$, $(1-\beta)$ absorbed into $W$) drops $\Delta t$ from the update, which is what produces the *dt*-leakage analysed below.
 - [*snntorch-library*](/articles/art002/#snntorch-library) — snnTorch's *snn.Leaky* directly. Parity probe against *standard-snn*.
 - [*cuba*](/articles/art002/) — same LIF, exp-Euler + ZOH integration restoring the $(1-\beta)/dt$ and $(1-\beta)$ prefactors. *dt* is back in the update.
-- [*coba*](/articles/art003/) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
+- [*COBA*](/articles/art003/) — conductance-based LIF with exponential synapses, hard reset, refractory. COBANet with *--ei-strength 0* (feedforward-only).
 - [*ping*](/articles/art003/) — COBA plus the frozen E→I→E recurrent loop that produces gamma.
 
 Recipe table cells are the resolved training values; *n/a* marks parameters the model class doesn't use.
 
-| Param | standard-snn | snntorch-library | cuba | coba | ping |
+| Param | standard-snn | snntorch-library | cuba | COBA | ping |
 |---|---|---|---|---|---|
 | [*--model*](/docs/the-oscilloscope/#network-flags-shared) | standard-snn | snntorch-library | cuba | ping | ping |
 | [*--dataset*](/docs/the-oscilloscope/#input-flags-shared) | mnist | mnist | mnist | mnist | mnist |
@@ -112,7 +112,7 @@ Recipe table cells are the resolved training values; *n/a* marks parameters the 
 
 Trainable parameters (with $N_\text{in} = 784$, $N_\text{hid} = 1024$, $N_\text{out} = 10$):
 
-| Param | shape | snnTorch family | cuba | coba | ping |
+| Param | shape | snnTorch family | cuba | COBA | ping |
 |---|---|---|---|---|---|
 | *W_ff[0]* (input → hidden) | $N_\text{in} \times N_\text{hid}$ | ✓ | ✓ | ✓ | ✓ |
 | *b_ff[0]* (hidden bias) | $N_\text{hid}$ | ✓ | ✓ | — | — |
@@ -121,7 +121,7 @@ Trainable parameters (with $N_\text{in} = 784$, $N_\text{hid} = 1024$, $N_\text{
 | *W_ee*, *W_ei*, *W_ie* | $N_\text{hid}^2$, $N_\text{hid} \times N_\text{i}$, $N_\text{i} \times N_\text{hid}$ | — | — | frozen | frozen |
 | **Total** | | **814,090** | **814,090** | **813,056** | **813,056** |
 
-The CUBANet family includes hidden + output biases; COBANet's biophysical formulation has no bias term, so $\sim$1k fewer params. PING's E↔I recurrent matrices are present but frozen at init — only the feedforward path trains, matching the trainable-parameter count of coba so the model-class comparison is apples-to-apples.
+The CUBANet family includes hidden + output biases; COBANet's biophysical formulation has no bias term, so $\sim$1k fewer params. PING's E↔I recurrent matrices are present but frozen at init — only the feedforward path trains, matching the trainable-parameter count of COBA so the model-class comparison is apples-to-apples.
 
 ### Readout
 
@@ -141,37 +141,37 @@ $$
 
 and CE applies once. Mean-of-membrane gives a dense per-step gradient signal; spike count's gradient flows only through the surrogate at threshold crossings (sparse, high-variance) and earlier *spike-count* runs of this notebook trained at chance for COBANet.
 
-COBANet caveat: hidden firing rate ($\sim$5–30 Hz) is $\sim$10–100× lower than CUBANet's, so per-step drive into the output is correspondingly weaker. We compensate at init (*--readout-w-out-scale*: 100 for coba, 500 for ping); see the [differences table](#differences-between-cuba-and-coba) below.
+COBANet caveat: hidden firing rate ($\sim$5–30 Hz) is $\sim$10–100× lower than CUBANet's, so per-step drive into the output is correspondingly weaker. We compensate at init (*--readout-w-out-scale*: 100 for COBA, 500 for ping); see the [differences table](#differences-between-cuba-and-COBA) below.
 
 ### Differences between CUBA and COBA
 
-Five flags differ between [*cuba*](/articles/art002/) and [*coba*](/articles/art003/); the classes themselves differ on six more not exposed as flags.
+Five flags differ between [*cuba*](/articles/art002/) and [*COBA*](/articles/art003/); the classes themselves differ on six more not exposed as flags.
 
 **Recipe-level (visible in the table)**
 
-| Difference | cuba | coba | Effect | Justification |
+| Difference | cuba | COBA | Effect | Justification |
 |---|---|---|---|---|
-| *--model* | *cuba* | *ping* (with *--ei-strength 0*) | Dispatches [CUBANet](/articles/art002/) vs [COBANet](/articles/art003/). | coba is feedforward COBANet; ping with the recurrent loop off. |
+| *--model* | *cuba* | *ping* (with *--ei-strength 0*) | Dispatches [CUBANet](/articles/art002/) vs [COBANet](/articles/art003/). | COBA is feedforward COBANet; ping with the recurrent loop off. |
 | *--lr* | 0.04 | 0.0004 | 100× spread. | $g(V - E_\text{rev})$ is far more LR-sensitive than cuba's $+I$. |
 | *--readout-w-out-scale* | 1 | 100 / 500 | Multiplies *W_ff[-1]* at init. | COBANet hidden rate $\sim$10–100× below CUBANet's, so output drive is correspondingly weak. nb011 sweep: 1→59%, 10→70%, 30→74%, 100→82%. ping's inhibitory loop wants 5× more. |
-| *--kaiming-init* | True | False | Signed vs half-normal init on $W_\text{in}$. | cuba is Dale-off; coba is Dale-on (non-negative). |
+| *--kaiming-init* | True | False | Signed vs half-normal init on $W_\text{in}$. | cuba is Dale-off; COBA is Dale-on (non-negative). |
 | *--w-in* (mean, std) | (0.3, 0.06) | (0.3, 0.03) | std halved. | Half-normal already biases positive — narrower std avoids overdriving at *t* = 0. |
 | *--w-in-sparsity* | 0.0 | 0.95 | Dense vs sparse $W_\text{in}$. | Biophysical µS scale: a few strong inputs per neuron, not dense Kaiming. |
 | *--v-grad-dampen* | n/a | 1000 | Soft-clips the voltage gradient on backward. | Conductance Jacobian $\partial U / \partial g$ explodes near threshold. |
 
 **Class-level (not exposed as flags)**
 
-| Difference | cuba | coba | Effect | Justification |
+| Difference | cuba | COBA | Effect | Justification |
 |---|---|---|---|---|
-| Membrane equation | $\tau\, dV/dt = -V + I$ | $C_m\, dV/dt = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i)$ | Linear additive ODE vs nonlinear multiplicative; coba clips $V$ at $E_e$. | Headline biophysical step on [the ladder](/articles/art002/); reversal potentials, $g_e/g_i$, µS units all follow. |
+| Membrane equation | $\tau\, dV/dt = -V + I$ | $C_m\, dV/dt = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i)$ | Linear additive ODE vs nonlinear multiplicative; COBA clips $V$ at $E_e$. | Headline biophysical step on [the ladder](/articles/art002/); reversal potentials, $g_e/g_i$, µS units all follow. |
 | Spike reset | subtract ($U \mathrel{{-}{=}} \theta$) | hard ($V \leftarrow V_\text{reset}$) | Subtract preserves cross-spike momentum; hard reset destroys it. | Matches biological after-hyperpolarisation (the brief K⁺-driven dip below rest after a spike). |
 | Refractory | none | $\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms | Caps single-neuron rate at $\sim 1/\tau_\text{ref}$. | Biophysical realism + prevents runaway firing. |
 | Dale's law | off | on ($W \geq 0$) | Restricts optimisation landscape. | Real cortical synapses don't switch sign. |
-| Synaptic kernel | direct LIF | exponential ($\tau_\text{AMPA} = 2$, $\tau_\text{GABA} = 9$ ms) | Each spike kicks instantaneously in cuba; in coba it raises a decaying conductance trace. | Required for any oscillation, including PING's gamma. |
+| Synaptic kernel | direct LIF | exponential ($\tau_\text{AMPA} = 2$, $\tau_\text{GABA} = 9$ ms) | Each spike kicks instantaneously in cuba; in COBA it raises a decaying conductance trace. | Required for any oscillation, including PING's gamma. |
 | Bias term | trainable $b_\text{ff}$ | none | cuba has a free DC offset per neuron. | A constant bias doesn't fit the biophysical form (would need a current source). |
 | Units / scale | dimensionless | mV / µS / ms | Just a rescaling computationally. | Required for matching electrophysiology. Constants on [Parameters & Units](/articles/art004/). |
 
-**What's *not* different.** Both models share the exp-Euler + ZOH integrator (with the $(1-\beta)$ prefactors that make the per-step update *dt*-invariant — the whole point of this notebook), the fast-sigmoid surrogate-gradient primitive, and the same reset-by-subtraction-and-clamp for membrane numerics outside spikes. The integrator is *not* the cuba/coba boundary; it's what coba inherits unchanged from cuba.
+**What's *not* different.** Both models share the exp-Euler + ZOH integrator (with the $(1-\beta)$ prefactors that make the per-step update *dt*-invariant — the whole point of this notebook), the fast-sigmoid surrogate-gradient primitive, and the same reset-by-subtraction-and-clamp for membrane numerics outside spikes. The integrator is *not* the cuba/COBA boundary; it's what COBA inherits unchanged from cuba.
 
 ### Eval-time *dt* transport
 
@@ -210,7 +210,7 @@ Best test accuracy per regime:
 | standard-snn | {snn1.best_acc ?? "?"}% | {snn2.best_acc ?? "?"}% |
 | snntorch-library | {lib1.best_acc ?? "?"}% | {lib2.best_acc ?? "?"}% |
 | cuba | {cuba1.best_acc ?? "?"}% | {cuba2.best_acc ?? "?"}% |
-| coba | {coba1.best_acc ?? "?"}% | {coba2.best_acc ?? "?"}% |
+| COBA | {coba1.best_acc ?? "?"}% | {coba2.best_acc ?? "?"}% |
 | ping | {ping1.best_acc ?? "?"}% | {ping2.best_acc ?? "?"}% |
 
 ### Hidden layer firing rate vs eval-*dt*
@@ -221,7 +221,7 @@ Best test accuracy per regime:
   </Figure>
 )}
 
-The snnTorch family (blue) rises as eval-*dt* shrinks; cuba/coba/ping stay flat. The mechanism is visible in the steady-state membrane.
+The snnTorch family (blue) rises as eval-*dt* shrinks; cuba/COBA/ping stay flat. The mechanism is visible in the steady-state membrane.
 
 Update rule, with $\beta = e^{-\Delta t / \tau_\text{mem}}$:
 
@@ -237,7 +237,7 @@ $$
 
 using $1-\beta \approx \Delta t/\tau$.
 
-The spike contribution $Wr\tau$ is *dt*-invariant; the bias contribution $b\tau/\Delta t$ scales as $1/\Delta t$. Halving eval-*dt* doubles bias drive; firing rate rises with it. cuba/coba/ping restore the missing $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors at integration time, giving $U_{ss} = Wr + b$ — *dt*-invariant by construction.
+The spike contribution $Wr\tau$ is *dt*-invariant; the bias contribution $b\tau/\Delta t$ scales as $1/\Delta t$. Halving eval-*dt* doubles bias drive; firing rate rises with it. cuba/COBA/ping restore the missing $(1-\beta)/\Delta t$ and $(1-\beta)$ prefactors at integration time, giving $U_{ss} = Wr + b$ — *dt*-invariant by construction.
 
 ### Accuracy vs eval-*dt*
 
@@ -281,24 +281,24 @@ The difference between CUBA and COBA amounts to several changes at once — whic
 **Crucial — the ones that change network behaviour**
 
 1. **Conductance form $g \cdot (V - E_\text{rev})$ instead of additive $+I$.** Excitation saturates as $V \to E_e$ (can't drive past 0 mV); inhibition becomes shunting (raises $g_\text{tot}$, shortens effective $\tau$). CUBA has neither — additive currents drive $V$ arbitrarily, no shunting, no biophysical clipping. Everything downstream (reversal potentials, separate $g_e / g_i$ channels, units in µS) follows from this one switch.
-2. **Hard reset + refractory.** Hard reset to $V_\text{reset}$ destroys cross-spike membrane momentum; refractory ($\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms) puts a hard ceiling on firing rate at $\approx 1/\tau_\text{ref}$. Reset-by-subtraction (cuba's default) lets the membrane carry residual depolarisation forward, so high rates can run away. Under the uniform *mem-mean* readout this is exactly what shows up as the COBANet family's lower trial-level drive into the output LIF — it's why we have to scale *W_ff[-1]* by 100× (coba) and 500× (ping) to recover competitive accuracy.
-3. **Exponential synapses.** $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms. Low-passes the presynaptic spike train into the membrane drive and separates fast-E from slow-I — required for any oscillation, including PING. Standard in coba.
+2. **Hard reset + refractory.** Hard reset to $V_\text{reset}$ destroys cross-spike membrane momentum; refractory ($\tau_\text{ref}^E = 3$ ms, $\tau_\text{ref}^I = 1.5$ ms) puts a hard ceiling on firing rate at $\approx 1/\tau_\text{ref}$. Reset-by-subtraction (cuba's default) lets the membrane carry residual depolarisation forward, so high rates can run away. Under the uniform *mem-mean* readout this is exactly what shows up as the COBANet family's lower trial-level drive into the output LIF — it's why we have to scale *W_ff[-1]* by 100× (COBA) and 500× (ping) to recover competitive accuracy.
+3. **Exponential synapses.** $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms. Low-passes the presynaptic spike train into the membrane drive and separates fast-E from slow-I — required for any oscillation, including PING. Standard in COBA.
 
 **Secondary — change the *constraints*, not the dynamics**
 
-4. **Dale's law** ($W \geq 0$). A regulariser on the optimiser, not a dynamics change. Off in cuba, on in coba.
+4. **Dale's law** ($W \geq 0$). A regulariser on the optimiser, not a dynamics change. Off in cuba, on in COBA.
 5. **Biophysical units** (mV, µS, ms with realistic constants). Required for matching electrophysiology; computationally just a rescaling.
 
 **Not actually different**
 
-6. **Integrator.** Both cuba and coba use exp-Euler + ZOH with $(1 - \beta)$ prefactors built into the update — that's what makes both *dt*-invariant in this notebook. The integrator is *not* the cuba/coba boundary; it's what coba inherits unchanged from cuba.
+6. **Integrator.** Both cuba and COBA use exp-Euler + ZOH with $(1 - \beta)$ prefactors built into the update — that's what makes both *dt*-invariant in this notebook. The integrator is *not* the cuba/COBA boundary; it's what COBA inherits unchanged from cuba.
 7. **Surrogate-gradient spike primitive.** Same fast-sigmoid in both.
 
 If you had to keep one: conductance form (1). Without it there's no shunting and no biophysics — *cuba-with-hard-reset-and-refractory* is just a stiffer LIF.
 
 ## Next steps
 
-- **Large-tier confirmation** to check whether the 86–89% medium results scale to the literature 90+% baseline cuba/coba/ping had under the old recipe.
+- **Large-tier confirmation** to check whether the 86–89% medium results scale to the literature 90+% baseline cuba/COBA/ping had under the old recipe.
 - **Per-family sweep over `--readout-w-out-scale`** at large tier to find whether the 100/500 settings are near-optimal or just adequate.
 - **Apply the *mem-mean* recipe to SHD runs** where the lower-rate firing regime makes the readout-coupling problem more acute.
 
@@ -337,8 +337,8 @@ One scope frame per training epoch, one video per (model, train-*dt*).
 )}
 
 {hasFig(`training_${rk1}_coba.mp4`) && (
-  <Figure type="video" id="Figure 8" title={`coba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_coba.mp4`}>
-    *coba* at train-*dt* = {dt1} ms.
+  <Figure type="video" id="Figure 8" title={`COBA @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/training_${rk1}_coba.mp4`}>
+    *COBA* at train-*dt* = {dt1} ms.
   </Figure>
 )}
 
@@ -367,8 +367,8 @@ One scope frame per training epoch, one video per (model, train-*dt*).
 )}
 
 {hasFig(`training_${rk2}_coba.mp4`) && (
-  <Figure type="video" id="Figure 13" title={`coba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_coba.mp4`}>
-    *coba* at train-*dt* = {dt2} ms.
+  <Figure type="video" id="Figure 13" title={`COBA @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/training_${rk2}_coba.mp4`}>
+    *COBA* at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
@@ -401,8 +401,8 @@ One scope frame per eval-*dt* with weights frozen at end of training; one video 
 )}
 
 {hasFig(`dt_sweep_${rk1}_coba.mp4`) && (
-  <Figure type="video" id="Figure 18" title={`dt-sweep — coba @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_coba.mp4`}>
-    *coba* at train-*dt* = {dt1} ms.
+  <Figure type="video" id="Figure 18" title={`dt-sweep — COBA @ train-dt = ${dt1} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk1}_coba.mp4`}>
+    *COBA* at train-*dt* = {dt1} ms.
   </Figure>
 )}
 
@@ -431,8 +431,8 @@ One scope frame per eval-*dt* with weights frozen at end of training; one video 
 )}
 
 {hasFig(`dt_sweep_${rk2}_coba.mp4`) && (
-  <Figure type="video" id="Figure 23" title={`dt-sweep — coba @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_coba.mp4`}>
-    *coba* at train-*dt* = {dt2} ms.
+  <Figure type="video" id="Figure 23" title={`dt-sweep — COBA @ train-dt = ${dt2} ms`} src={`/figures/notebooks/nb013/dt_sweep_${rk2}_coba.mp4`}>
+    *COBA* at train-*dt* = {dt2} ms.
   </Figure>
 )}
 
