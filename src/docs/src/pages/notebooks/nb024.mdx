@@ -43,9 +43,11 @@ Both models descend at similar pace and finish within ≈2 pp. To probe the rate
   Test accuracy vs achieved hidden-E rate; one point per cell.
 </Figure>
 
-COBA traces a Pareto curve from ≈52 Hz down to ≈0.1 Hz, costing ≈10 pp accuracy. PING clusters tight at 3–5 Hz across every $\theta_u$ — the penalty has no leverage because the network is already inside the budget at $\theta_u =$ off.
+COBA traces a Pareto curve from ≈52 Hz down to ≈0.1 Hz, costing ≈10 pp accuracy. PING clusters tight at 3–5 Hz across every $\theta_u$ — the penalty has measurable but small leverage (5.3 → 2.8 Hz from $\theta_u =$ off to $\theta_u = 0.2$), and never pushes the network into COBA's territory.
 
-Question: what sets PING's rate floor, if not the loss? A hidden-spike perturbation at inference separates the candidates.
+A reasonable follow-up: if we cranked $\theta_u$ harder still, could the optimiser break the PING loop and train at an even lower rate without one? The architecture says no. Only two parameter sets train: $W_\text{in}$ and $W_\text{ff}^{(-1)}$ — the feedforward input weights and the linear readout. The recurrent matrices $W_{ee}, W_{ei}, W_{ie}$ are initialised once and held *requires_grad = False* for the entire run, and the time constants $\tau_\text{AMPA}, \tau_\text{GABA}$ are module-level constants, not parameters. So the gamma cycle period is *fixed by physics*, not optimised — gradient descent cannot alter it. What the optimiser can do is move the recruitment threshold, by changing $W_\text{in}$: weaker input means a smaller fraction of E cells participates in each cycle, which is exactly the 5.3 → 2.8 Hz path the penalty already exploits. Below that, recruitment falls under the loop's engagement threshold and the network goes silent — gamma stops appearing, the readout has nothing structured to integrate, accuracy collapses to chance. There is no intermediate regime where PING dissolves into a different, sparser dynamical attractor while remaining trainable; the loop is either engaged at its native cadence or absent entirely. We did not run $\theta_u$ harder than 0.2 directly, but the prediction is sharp: continued tightening would cross silence, not produce a lower-rate working network.
+
+That account also explains why the perturbation question — what does the readout actually need — is interesting. The optimiser is locked into reading out from a fixed-cadence loop; the only freedom left is *which* features of the gamma cycle the readout learns to depend on. A hidden-spike perturbation at inference separates the candidates.
 
 The mechanism is a per-step callback installed on the COBANet's *_hidden_perturb_fn* slot.
 
