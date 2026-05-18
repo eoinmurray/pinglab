@@ -56,19 +56,41 @@ $$
 
 with slope $k = 1$ on both the biophysical path (mV-scale membrane) and the standard-snn path (dimensionless membrane). The snnTorch-library path uses the library default $k = 25$ — the asymmetry is deliberate and is part of what the parity test exposes. This keeps the forward dynamics exact while giving BPTT a usable gradient through the otherwise-discontinuous spike function.
 
-## Gradient dampening for biophysical models
+## Gradient stabilisation for biophysical models
 
-The biophysical models (COBA, PING) face a gradient scale mismatch: voltage updates involve multiplication by $\Delta t / C_m$, which can be very small, while the surrogate gradient through the spike function is $O(1)$. Naive backpropagation through the membrane ODE produces gradients that are either vanishingly small (through voltage) or discontinuously large (through spikes).
+The biophysical models (COBA, PING) face a gradient-scale problem. The forward step couples membrane voltage $V$ and synaptic conductance $g$ through a small parameter $\Delta t / C_m$. The *diagonal* Jacobian terms ($\partial V^{t+1}/\partial V^t$ and $\partial g^{t+1}/\partial g^t$) are well-behaved; the *off-diagonal* cross-coupling block — how voltage propagates back into conductance and vice versa — is what blows up. Multiply that block by itself $T$ times during BPTT and the gradient norm grows exponentially in $T$. Naive backprop through a 2000-step trial produces NaN within a few batches.
 
-To stabilise training, the backward pass through each voltage update is scaled by $1/\alpha$ where $\alpha$ is a dampening factor (V_GRAD_DAMPEN, typically 80 for the unitless models and 1000 for COBA/PING). In the forward pass nothing changes — the gradient is simply attenuated:
+Pinglab has two ways to handle this, both following the costate-control framework of [Burghi, Pugliese Carratelli & Rule 2024](https://arxiv.org/abs/2410.16627) ("Costate control for nonlinear system identification with applications to excitable systems"). The paper formulates the problem as adjoint-equation stability and introduces a controller $K_\theta(t, x)$ injected into the costate dynamics; choosing $K_\theta$ so the costate is *exponentially contracting* bounds the gradient matrices uniformly. Their **Proposition 1** is the key result: the original and SGCC-modified gradients vanish at the *same* global optimum, so the controller doesn't shift where the optimiser ends up — only what landscape it crosses to get there.
+
+The paper proposes two controllers; we implement both.
+
+### K^prop — uniform dampening (--v-grad-dampen)
+
+The simplest controller: $K^{\text{prop}} = -\gamma I$, a proportional high-gain scalar that scales *every* backward voltage gradient by $1/\gamma$. In pinglab this is the *--v-grad-dampen* flag with $\gamma$ in the range 80–1000:
 
 $$
-\frac{\partial \mathcal{L}}{\partial V_i^t} \leftarrow \frac{1}{\alpha} \frac{\partial \mathcal{L}}{\partial V_i^t}
+\frac{\partial \mathcal{L}}{\partial V_i^t} \leftarrow \frac{1}{\gamma}\,\frac{\partial \mathcal{L}}{\partial V_i^t}
 $$
 
-This keeps the biophysical forward dynamics exact while bringing gradient magnitudes into a range compatible with Adam's learning rate.
+Forward pass is unchanged. This eliminates the explosion but also attenuates the diagonal gradient pathway, which we *want* to keep. Empirically the bound has to be aggressive ($\gamma = 1000$ for COBA/PING) to avoid NaN, and that aggression caps trainable accuracy — [nb027](/notebooks/nb027/) shows the same network trained past where the V_GRAD_DAMPEN=1000 baseline plateaus and picks up 3.5 percentage points just by using a more surgical controller.
 
-*Future direction: principled costate control.* Our constant scaling factor is a blunt instrument. Burghi et al. (2026, "costate") introduce a controller $K_\theta(t, x)$ directly into the adjoint equations; by choosing $K_\theta$ to make the costate dynamics *exponentially contracting*, they bound the gradient matrices uniformly while preserving the global optimum. Replacing our constant $\alpha$ with a state-dependent $K_\theta$ is a natural next step.
+### K^gat — gating-based costate control (--sgcc)
+
+The surgical version. $K^{\text{gat}}$ targets only the destabilising off-diagonal block of $\nabla_x f_\theta$ — the voltage ↔ conductance cross-coupling — and scales *only that gradient path* by $(1 - \alpha)$. The diagonal $\partial V/\partial V$, $\partial g/\partial g$, and parameter-gradient paths flow through unchanged. We expose this as the *--sgcc / --sgcc-alpha* flag pair.
+
+Implementation is a forward-identity / backward-scaled gradient on the combined conductance term immediately before it enters the LIF step:
+
+$$
+g_{e}^{\text{step}} = \mathrm{ScaleGrad}(g_e, \alpha), \qquad V^{t+1}, S^{t+1} = \mathrm{LIF\,step}(V^t, g_{e}^{\text{step}}, g_{i}^{\text{step}})
+$$
+
+where $\mathrm{ScaleGrad}(x, \alpha)$ is identity on the forward pass and multiplies its gradient by $\alpha$ on the backward pass. At $\alpha = 1$ this is bit-exact identity; at $\alpha = 0$ the gradient through the cross-coupling block is fully blocked. Useful values are around $\alpha \in [0.3, 0.7]$.
+
+Bit-exact parity to plain COBA at $\alpha = 1$ is verified in the smoke tests; nb027 measures a $\sim 6\times$ drop in gradient norm at $\alpha = 0.5$ on a representative trial — exactly the targeted off-diagonal contribution.
+
+### Choosing between them
+
+V_GRAD_DAMPEN is simpler and works for MNIST-scale tasks where you only need the network to not NaN. SGCC is what to reach for when the global dampener is silently capping accuracy or when training on longer-trial tasks where preserving cross-coupling gradient matters (working memory, sequence tasks). [nb027](/notebooks/nb027/) is the empirical validation: same recipe, same seed, *--v-grad-dampen 1000* replaced by *--sgcc --sgcc-alpha 0.5* — the SGCC variant matches the baseline through epoch 10 and pulls ahead with more training, consistent with Proposition 1's prediction that the two paths converge at the same optimum but the SGCC variant traverses more landscape structure along the way.
 
 ## The training loop
 
