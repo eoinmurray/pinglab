@@ -9,7 +9,7 @@ import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
 import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb021/numbers.json", {})
+  import.meta.glob("../../../public/figures/notebooks/nb021/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const results = numbers.results ?? [];
@@ -17,49 +17,49 @@ export const successCriteria = numbers.success_criteria ?? [];
 export const fmt2 = (v) => (typeof v === "number" ? v.toFixed(2) : "?");
 export const get = (model, loss) => results.find((r) => r.model === model && r.loss_mode === loss) ?? {};
 
-<NotebookHeader frontmatter={} numbers={} />
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-Train *cuba* ([nb010](/notebooks/nb010/)), *COBA* ([nb011](/notebooks/nb011/)) and *ping* ([nb012](/notebooks/nb012/)) on MNIST under two loss modes:
+Train *cuba* ([nb010](/notebooks/nb010/)), *coba* ([nb011](/notebooks/nb011/)) and *ping* ([nb012](/notebooks/nb012/)) on MNIST under two loss modes:
 
 - *ce* — cross-entropy on the cumulative-membrane logits (the default across nb010–12).
 - *mse* — L2 between logits and one-hot targets (Bohte 2002, Lee 2016).
 
-The motivation is readout scale. *COBA* and *ping* use *--readout-w-out-scale* to amplify the cumulative-membrane logits so that the cross-entropy softmax doesn't saturate. L2 loss has no softmax and is sensitive to the target's absolute scale rather than ratios, so the same scaling factor that helped CE is likely to over- or under-shoot for MSE. This notebook records whether the existing recipes train with *--loss mse* at all, and what the accuracy gap to *ce* is at the calibrated operating point.
+The motivation is readout scale. *coba* and *ping* use *--readout-w-out-scale* to amplify the cumulative-membrane logits so that the cross-entropy softmax doesn't saturate. L2 loss has no softmax and is sensitive to the target's absolute scale rather than ratios, so the same scaling factor that helped CE is likely to over- or under-shoot for MSE. This notebook records whether the existing recipes train with *--loss mse* at all, and what the accuracy gap to *ce* is at the calibrated operating point.
 
 ## Method
 
 Six cells: three models × two loss modes. Each cell runs the calibrated recipe from its single-model trainer (nb010/11/12) with *--loss ce* or *--loss mse* added; every other knob is held fixed. The runner shells out to [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) per cell and renders one accuracy bar chart plus one training video per cell.
 
-<RunParameters numbers={} variant="recipe" extras={ variant="recipe" extras={[
-  {},
-  {},
-}]} />
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "models", value: "cuba, coba, ping", default: "—" },
+  { label: "loss modes", value: (cfg.loss_modes ?? []).join(", ") || "?", default: "—" },
+]} />
 
-- **Recipes are unchanged from nb010/11/12.** *--readout-w-out-scale* in particular is left at its CE-calibrated value (100 for *COBA*, 500 for *ping*, unset for *cuba*); if MSE collapses, the readout scale is the prime suspect.
+- **Recipes are unchanged from nb010/11/12.** *--readout-w-out-scale* in particular is left at its CE-calibrated value (100 for *coba*, 500 for *ping*, unset for *cuba*); if MSE collapses, the readout scale is the prime suspect.
 - **Six cells, one shared seed.** Stochastic optimisation differences between *ce* and *mse* show up as run-to-run noise; tighter follow-ups can re-seed and re-run.
 
 ## Results
 
 ### Success criteria
 
-{{successCriteria.length > 0 ? (
+{successCriteria.length > 0 ? (
   <table>
     <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
     <tbody>
-      {      {successCriteria.map((c) => (
-        <tr key={}>
-          <td>{}</td>
-          <td><strong>{}</strong></td>
-          <td>{{}{}}</td>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
         </tr>
-}      ))}
+      ))}
     </tbody>
   </table>
 ) : (
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-})}
+)}
 
 <Figure id="Figure 1" title="Final test accuracy by loss mode" src="/figures/notebooks/nb021/accuracy.png" alt="Grouped bar chart: final test accuracy per model, two bars per group (ce and mse).">
   Final-epoch test accuracy for each *(model, loss_mode)* cell. Solid bars: CE baseline; hatched bars: L2.
@@ -75,12 +75,12 @@ Six cells: three models × two loss modes. Each cell runs the calibrated recipe 
   cuba reference recipe, L2 loss.
 </Figure>
 
-<Figure id="Figure 4" title="COBA — ce" src="/figures/notebooks/nb021/training__coba__ce.mp4" type="video" alt="COBA training, cross-entropy loss">
-  COBA reference recipe, cross-entropy loss.
+<Figure id="Figure 4" title="coba — ce" src="/figures/notebooks/nb021/training__coba__ce.mp4" type="video" alt="coba training, cross-entropy loss">
+  coba reference recipe, cross-entropy loss.
 </Figure>
 
-<Figure id="Figure 5" title="COBA — mse" src="/figures/notebooks/nb021/training__coba__mse.mp4" type="video" alt="COBA training, L2 loss">
-  COBA reference recipe, L2 loss.
+<Figure id="Figure 5" title="coba — mse" src="/figures/notebooks/nb021/training__coba__mse.mp4" type="video" alt="coba training, L2 loss">
+  coba reference recipe, L2 loss.
 </Figure>
 
 <Figure id="Figure 6" title="ping — ce" src="/figures/notebooks/nb021/training__ping__ce.mp4" type="video" alt="ping training, cross-entropy loss">
@@ -97,6 +97,6 @@ Six cells: three models × two loss modes. Each cell runs the calibrated recipe 
 
 ## Next steps
 
-- If MSE collapses for *COBA* or *ping*, sweep *--readout-w-out-scale* under L2 to find a working operating point.
+- If MSE collapses for *coba* or *ping*, sweep *--readout-w-out-scale* under L2 to find a working operating point.
 - If MSE matches CE, fold the per-model L2 calibration into nb010/11/12 so the comparison is documented at the rung level.
 - Pair with [024 — Inhibition-gated sparsity in trainable spiking neural networks](/notebooks/nb024/) to ask whether L2 changes the accuracy / rate frontier.

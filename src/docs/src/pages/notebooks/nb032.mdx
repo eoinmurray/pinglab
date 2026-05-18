@@ -9,90 +9,90 @@ import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
 import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb032/numbers.json", {})
+  import.meta.glob("../../../public/figures/notebooks/nb032/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const results = numbers.results ?? {};
 export const successCriteria = numbers.success_criteria ?? [];
 
-<NotebookHeader frontmatter={} numbers={} />
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-[030 — COBA + NMDA cannot sustain](/notebooks/nb030/) showed the inhibitory loop is structurally required. [031](/notebooks/nb031/) located ping's sustained band on the $(W_{}, R)$ phase map. Earlier in this notebook (in a now-replaced run) I tried *binary match/non-match DMTS* with all three working pieces enabled — trainable $W_{}$, SGCC, NMDA on ping — and hit the same chance plateau the nb028/29 chain hit. Gradient flowed, but the optimiser fell into a uniform-output basin from which the per-sample gradient on the readout cancels across balanced batches.
+[030 — Coba + NMDA cannot sustain](/notebooks/nb030/) showed the inhibitory loop is structurally required. [031](/notebooks/nb031/) located ping's sustained band on the $(W_{ee}, R)$ phase map. Earlier in this notebook (in a now-replaced run) I tried *binary match/non-match DMTS* with all three working pieces enabled — trainable $W_{ee}$, SGCC, NMDA on ping — and hit the same chance plateau the nb028/29 chain hit. Gradient flowed, but the optimiser fell into a uniform-output basin from which the per-sample gradient on the readout cancels across balanced batches.
 
-That diagnosis pointed at the loss formulation, not the architecture. The LSNN paper's DMTS task isn't actually binary; it's **N-way store-and-recall** — present one of $N$ items, then later recall which it was. Multi-class cross-entropy has the per-sample directional variance that binary CE on balanced labels doesn't, and that's the same loss structure that let [nb027](/notebooks/nb027/) train COBA+SGCC to 87% on 10-class MNIST. This entry switches the task and re-runs.
+That diagnosis pointed at the loss formulation, not the architecture. The LSNN paper's DMTS task isn't actually binary; it's **N-way store-and-recall** — present one of $N$ items, then later recall which it was. Multi-class cross-entropy has the per-sample directional variance that binary CE on balanced labels doesn't, and that's the same loss structure that let [nb027](/notebooks/nb027/) train coba+SGCC to 87% on 10-class MNIST. This entry switches the task and re-runs.
 
-**Result: it trains.** {}% test accuracy on 10-way recall after {} epochs at the {} tier, vs. 10% chance. First working-memory result in the codebase.
+**Result: it trains.** {(results.best_test_acc * 100)?.toFixed(1) ?? "—"}% test accuracy on 10-way recall after {cfg.epochs} epochs at the {cfg.tier} tier, vs. 10% chance. First working-memory result in the codebase.
 
 ## Method
 
-**Task: 10-way recall.** Each trial is sample + delay + recall = {} + {} + {} = {} ms total:
+**Task: 10-way recall.** Each trial is sample + delay + recall = {cfg.t_sample_ms} + {cfg.t_delay_ms} + {cfg.t_recall_ms} = {cfg.t_sample_ms + cfg.t_delay_ms + cfg.t_recall_ms} ms total:
 
-1. **Sample** ({} ms) — one MNIST digit (class 0–9) Poisson-encoded at peak rate {} Hz across $N_{} = 784$ pixel channels.
-2. **Delay** ({} ms) — input is identically zero. The network must hold class identity through this window via its own recurrent dynamics.
-3. **Recall** ({} ms) — still zero input. The readout integrates E activity here.
+1. **Sample** ({cfg.t_sample_ms} ms) — one MNIST digit (class 0–9) Poisson-encoded at peak rate {cfg.stim_peak_rate_hz} Hz across $N_{IN} = 784$ pixel channels.
+2. **Delay** ({cfg.t_delay_ms} ms) — input is identically zero. The network must hold class identity through this window via its own recurrent dynamics.
+3. **Recall** ({cfg.t_recall_ms} ms) — still zero input. The readout integrates E activity here.
 
 Target label: the digit's class (0–9). Loss is multi-class cross-entropy.
 
-**Network.** Identical architecture to the binary-CE attempt — ping COBANet (ei_strength = {}), $N_E$ = {}, $N_{} = 784$, *--trainable-w-ee* on, *--slow-syn* on at gain {}, *--sgcc* on at α = {}. $W_{}$ initialised at ({}, {}) μS (the low-edge regime from [nb031](/notebooks/nb031/), so the network can sustain but doesn't dump pattern info through gamma synchrony).
+**Network.** Identical architecture to the binary-CE attempt — ping COBANet (ei_strength = {cfg.ei_strength}), $N_E$ = {cfg.n_e}, $N_{IN} = 784$, *--trainable-w-ee* on, *--slow-syn* on at gain {cfg.slow_syn_gain}, *--sgcc* on at α = {cfg.sgcc_alpha}. $W_{ee}$ initialised at ({cfg.w_ee_init_mean}, {cfg.w_ee_init_std}) μS (the low-edge regime from [nb031](/notebooks/nb031/), so the network can sustain but doesn't dump pattern info through gamma synchrony).
 
-**Readout.** $\mathrm{}(N_E \to 10)$ on the recall-window mean E spike count, bypassing the built-in mem-mean. The point of integrating only over the recall window is to force the readout to use the *post-delay* state — it can't cheat by looking at the input directly. The post-delay E activity is purely recurrent dynamics, so what the readout sees has to be a function of what the network's been holding.
+**Readout.** $\mathrm{Linear}(N_E \to 10)$ on the recall-window mean E spike count, bypassing the built-in mem-mean. The point of integrating only over the recall window is to force the readout to use the *post-delay* state — it can't cheat by looking at the input directly. The post-delay E activity is purely recurrent dynamics, so what the readout sees has to be a function of what the network's been holding.
 
-**Training.** Adam at lr = {}, batch = {}, {} epochs at {} training samples (≈100 per class). Gradient norm clipped to 1.0. Test set is {} held-out samples.
+**Training.** Adam at lr = {cfg.lr}, batch = {cfg.batch_size}, {cfg.epochs} epochs at {cfg.n_train} training samples (~100 per class). Gradient norm clipped to 1.0. Test set is {cfg.n_test} held-out samples.
 
-<RunParameters numbers={} variant="recipe" extras={{ variant="recipe" extras={ variant="recipe" extras={[
-  {{}{}},
-  {},
-  {},
-  {{}{}{}},
-  {},
-}}}]} />
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "W_ee init", value: `(${cfg.w_ee_init_mean}, ${cfg.w_ee_init_std})`, default: "—" },
+  { label: "slow-syn gain", value: cfg.slow_syn_gain, default: "—" },
+  { label: "sgcc α", value: cfg.sgcc_alpha, default: "—" },
+  { label: "T_s / T_d / T_r (ms)", value: `${cfg.t_sample_ms} / ${cfg.t_delay_ms} / ${cfg.t_recall_ms}`, default: "—" },
+  { label: "N classes", value: cfg.n_classes, default: "—" },
+]} />
 
 ## Results
 
-<Figure id="Figure 1" title="Training curve — N-way recall" src="/figures/notebooks/nb032/training_curve.png" alt="Two-panel figure. Left: training loss falls from ≈1.97 to ≈1.05 over 40 epochs and plateaus. Right: train and test accuracy rise from ≈28% to ≈63-66% by epoch 20 and oscillate at that level for the rest of training.">
-  Train cross-entropy loss falls from ≈1.97 at epoch 1 to ≈1.05 by epoch 30 — well below the $\ln 10 \approx 2.30$ chance line — then plateaus. Train and test accuracy both climb steeply to ≈50% by epoch 9, slow down, and settle at the ≈63-66% band by epoch 20. Test stays close to train throughout with no sign of overfitting. The plateau over the last 20 epochs suggests this is an **architectural ceiling** rather than a data/compute one: the network has extracted what it can from the post-delay state given the available capacity (N_E = 256), sample window (100 ms), and slow primitive (NMDA τ = 100 ms).
+<Figure id="Figure 1" title="Training curve — N-way recall" src="/figures/notebooks/nb032/training_curve.png" alt="Two-panel figure. Left: training loss falls from ~1.97 to ~1.05 over 40 epochs and plateaus. Right: train and test accuracy rise from ~28% to ~63-66% by epoch 20 and oscillate at that level for the rest of training.">
+  Train cross-entropy loss falls from ~1.97 at epoch 1 to ~1.05 by epoch 30 — well below the $\ln 10 \approx 2.30$ chance line — then plateaus. Train and test accuracy both climb steeply to ~50% by epoch 9, slow down, and settle at the ~63-66% band by epoch 20. Test stays close to train throughout with no sign of overfitting. The plateau over the last 20 epochs suggests this is an **architectural ceiling** rather than a data/compute one: the network has extracted what it can from the post-delay state given the available capacity (N_E = 256), sample window (100 ms), and slow primitive (NMDA τ = 100 ms).
 </Figure>
 
 <Figure id="Figure 2" title="Example test trials" src="/figures/notebooks/nb032/example_trials.png" alt="Two raster panels showing E activity for two different digit-class trials, with sample/delay/recall windows shaded.">
   Two test trials with different sample digits. Sample window (red shaded) drives the network from the digit's pixel pattern; delay window (grey shaded) is silent input; recall window (red shaded) is silent input but the readout integrates activity here. E activity persists across the entire 400 ms trial — the network is holding *something* through the delay, and the readout picks the digit class from the post-delay state. Top trial gets digit 6 correct; bottom predicts 5 for a 3 (visible miss — the network's representation is good but not perfect at this tier).
 </Figure>
 
-**Headline numbers** ({} epochs at {} tier):
+**Headline numbers** ({cfg.epochs} epochs at {cfg.tier} tier):
 
-- Best test accuracy: **{}%** (chance = 10%)
-- Final test accuracy: {}%
-- Final train accuracy: {}%
+- Best test accuracy: **{(results.best_test_acc * 100)?.toFixed(1) ?? "?"}%** (chance = 10%)
+- Final test accuracy: {(results.final_test_acc * 100)?.toFixed(1) ?? "?"}%
+- Final train accuracy: {(results.final_train_acc * 100)?.toFixed(1) ?? "?"}%
 
 ## Success criteria
 
-{{{{successCriteria.length > 0 ? (
+{successCriteria.length > 0 ? (
   <table>
     <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
     <tbody>
-      {{      {      {successCriteria.map((c) => (
-        <tr key={}>
-          <td>{}</td>
-          <td><strong>{}</strong></td>
-          <td>{{}{}}</td>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
         </tr>
-}}}      ))}
+      ))}
     </tbody>
   </table>
 ) : (
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-}}})}
+)}
 
 ## Discussion
 
 The architecture didn't change. Only the loss formulation did.
 
-**Why the binary version failed and the N-way version doesn't.** With balanced match/non-match labels and an untrained hidden state that doesn't yet encode class identity, every match sample produces approximately the same hidden state as every non-match sample, so the per-sample gradient on the readout weights averages near-zero across the batch — the readout converges to uniform output, the loss locks at $\ln 2$, and gradient descent has no first-order incentive to escape. With multi-class CE on 10 distinct classes, even from a random hidden state each class produces a slightly different per-trial activity pattern (driven by different input pixels), so the per-sample gradient on the readout has *directional variance across classes*. The readout learns a class-discriminative projection from the start, and that gives $W_{}$ a non-trivial backprop signal to follow.
+**Why the binary version failed and the N-way version doesn't.** With balanced match/non-match labels and an untrained hidden state that doesn't yet encode class identity, every match sample produces approximately the same hidden state as every non-match sample, so the per-sample gradient on the readout weights averages near-zero across the batch — the readout converges to uniform output, the loss locks at $\ln 2$, and gradient descent has no first-order incentive to escape. With multi-class CE on 10 distinct classes, even from a random hidden state each class produces a slightly different per-trial activity pattern (driven by different input pixels), so the per-sample gradient on the readout has *directional variance across classes*. The readout learns a class-discriminative projection from the start, and that gives $W_{ee}$ a non-trivial backprop signal to follow.
 
-This is the same loss-structure that worked for nb027 (10-class MNIST classification on COBA+SGCC) and the same reason the LSNN paper's actual recall task is N-way rather than binary. The "DMTS is hard" finding from the nb028/29 chain was actually "binary CE on balanced labels is hard"; the architecture was always capable.
+This is the same loss-structure that worked for nb027 (10-class MNIST classification on coba+SGCC) and the same reason the LSNN paper's actual recall task is N-way rather than binary. The "DMTS is hard" finding from the nb028/29 chain was actually "binary CE on balanced labels is hard"; the architecture was always capable.
 
-**What 66% means.** Chance is 10%, so this is 6.6× above chance — the network is clearly extracting class identity from the post-delay state. It's not yet competitive with feedforward MNIST classification (where the same COBA+SGCC stack hits 87% in [nb027](/notebooks/nb027/)) because:
+**What 66% means.** Chance is 10%, so this is 6.6× above chance — the network is clearly extracting class identity from the post-delay state. It's not yet competitive with feedforward MNIST classification (where the same coba+SGCC stack hits 87% in [nb027](/notebooks/nb027/)) because:
 
 1. The recall task only sees a 100 ms sample window (vs nb027's 200 ms full trial). Fewer input spikes → less reliable encoding.
 2. There's a 200 ms silent delay between sample and readout, during which the network's hidden state has to maintain class identity by itself. Information is lost during the delay.
@@ -103,8 +103,8 @@ Headroom exists in all three dimensions (longer sample, more epochs/samples, lar
 ## Next steps
 
 - **Longer delays.** Does test accuracy degrade gracefully as $T_d$ goes 200 → 400 → 800 ms, or does it cliff at the NMDA time constant ($\tau = 100$ ms)? This tests whether the recurrent dynamics ARE the slow store, or whether the network is just riding the NMDA tail.
-- **Add ALIF on top.** ALIF ($\tau_{} = 700$ ms by default, configurable to 1200 ms à la LSNN) adds a much longer memory primitive than NMDA. Combined with NMDA the network has memory at two timescales; with ALIF only it's closer to LSNN architecturally.
-- **Architectural changes, not more compute.** The large-tier run (n=8192 × 40 epochs, 101 min CPU) shows the curve plateaus at ≈63–66% from epoch 20 onward. The marginal accuracy gain compressed from +18 pp (small → medium) to +3.7 pp (medium → large), so more samples/epochs won't substantially help. To break past ≈70% the architecture needs to change: more E cells (currently $N_E = 256$), a longer slow primitive (ALIF $\tau_{} = 700$ ms on top of NMDA $\tau = 100$ ms), or a longer-integration readout (LI cells rather than mean-rate).
+- **Add ALIF on top.** ALIF ($\tau_{adapt} = 700$ ms by default, configurable to 1200 ms à la LSNN) adds a much longer memory primitive than NMDA. Combined with NMDA the network has memory at two timescales; with ALIF only it's closer to LSNN architecturally.
+- **Architectural changes, not more compute.** The large-tier run (n=8192 × 40 epochs, 101 min CPU) shows the curve plateaus at ~63–66% from epoch 20 onward. The marginal accuracy gain compressed from +18 pp (small → medium) to +3.7 pp (medium → large), so more samples/epochs won't substantially help. To break past ~70% the architecture needs to change: more E cells (currently $N_E = 256$), a longer slow primitive (ALIF $\tau_{adapt} = 700$ ms on top of NMDA $\tau = 100$ ms), or a longer-integration readout (LI cells rather than mean-rate).
 - **Try the binary version *with content selectivity already trained in*.** Warm-start from this notebook's trained weights and switch to binary match/non-match. The hidden state would start out class-discriminating, which should sidestep the chance-basin trap.
 
 ## Appendix
@@ -117,4 +117,4 @@ uv run src/pinglab/notebooks/nb032.py --tier small
 
 ### Run parameters
 
-<RunParameters numbers={} />
+<RunParameters numbers={numbers} />

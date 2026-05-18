@@ -423,7 +423,7 @@ $$
 \boxed{\;\sigma \;=\; n\,q\,\mu \;=\; \frac{n\,q^2\,\tau_c}{m}.\;}
 $$
 
-Conductivity is therefore a product of "how many carriers there are" ($n$), "how much charge each one carries" ($q$), and "how easily each one drifts in a field" ($\mu$, or equivalently $\tau_c/m$). A metal has $n \approx 10^{28}\,\mathrm{m^{-3}}$ near-free electrons and $\tau_c \approx 10^{-14}\,\mathrm{s}$, giving $\sigma \approx 10^7\,\mathrm{S/m}$. Salt water has $\approx 10^{26}\,\mathrm{m^{-3}}$ dissolved ions of charge $\pm e$, but the mobility of an ion in water is roughly six orders of magnitude smaller than an electron in a metal, so $\sigma \approx 1\,\mathrm{S/m}$. A neuron's cytoplasm and the extracellular fluid sit in the same $\approx 1\,\mathrm{S/m}$ ballpark. The lipid bilayer at the membrane is the opposite extreme: essentially no mobile ions at all, $\sigma \approx 10^{-13}\,\mathrm{S/m}$. That is why the membrane behaves as a capacitor in the next section and the fluids on either side behave as wires.
+Conductivity is therefore a product of "how many carriers there are" ($n$), "how much charge each one carries" ($q$), and "how easily each one drifts in a field" ($\mu$, or equivalently $\tau_c/m$). A metal has $n \sim 10^{28}\,\mathrm{m^{-3}}$ near-free electrons and $\tau_c \sim 10^{-14}\,\mathrm{s}$, giving $\sigma \sim 10^7\,\mathrm{S/m}$. Salt water has $\sim 10^{26}\,\mathrm{m^{-3}}$ dissolved ions of charge $\pm e$, but the mobility of an ion in water is roughly six orders of magnitude smaller than an electron in a metal, so $\sigma \sim 1\,\mathrm{S/m}$. A neuron's cytoplasm and the extracellular fluid sit in the same $\sim 1\,\mathrm{S/m}$ ballpark. The lipid bilayer at the membrane is the opposite extreme: essentially no mobile ions at all, $\sigma \sim 10^{-13}\,\mathrm{S/m}$. That is why the membrane behaves as a capacitor in the next section and the fluids on either side behave as wires.
 
 Intuitively: $\sigma$ measures how *responsive* a material is to a field — how many carriers it offers up, multiplied by how easily each one moves. A field exerts a force per carrier; collisions limit the velocity; the product is the current.
 
@@ -452,7 +452,7 @@ $$
 I \;=\; \frac{V}{R}, \qquad R \;=\; \frac{L}{\sigma A},
 $$
 
-with $R$ the wire's **resistance** (ohms, $\Omega = \mathrm{V/A}$). For neurons the two relevant values of $\sigma$ — high for the fluids, $\approx$ zero for the membrane — are what make the rest of this section's RC picture justified.
+with $R$ the wire's **resistance** (ohms, $\Omega = \mathrm{V/A}$). For neurons the two relevant values of $\sigma$ — high for the fluids, $\sim$ zero for the membrane — are what make the rest of this section's RC picture justified.
 
 ### Capacitance
 
@@ -510,11 +510,11 @@ This section walks the construction in four steps. First, the membrane equation 
 
 ### The cell membrane as an RC circuit
 
-A neuron's membrane is a lipid bilayer, $\approx 5$ nm thick, separating an inside compartment (axoplasm, high $K^+$, low $Na^+$) from an outside one (extracellular fluid, high $Na^+$, low $K^+$). Electrically:
+A neuron's membrane is a lipid bilayer, $\sim 5$ nm thick, separating an inside compartment (axoplasm, high $K^+$, low $Na^+$) from an outside one (extracellular fluid, high $Na^+$, low $K^+$). Electrically:
 
 - The bilayer is an insulator. No free charge crosses it without help. By [Ohm's law in matter](#ohms-law-in-matter), its conductivity is essentially zero.
-- Both the inside and outside fluids are conductors with $\sigma \approx 1\,\mathrm{S/m}$ — many orders of magnitude higher than the bilayer's.
-- That makes the membrane a *capacitor* in the [parallel-plate](#capacitance) sense, with capacitance per unit area $C_m \approx 1\,\mu\mathrm{F}/\mathrm{cm}^2$.
+- Both the inside and outside fluids are conductors with $\sigma \sim 1\,\mathrm{S/m}$ — many orders of magnitude higher than the bilayer's.
+- That makes the membrane a *capacitor* in the [parallel-plate](#capacitance) sense, with capacitance per unit area $C_m \sim 1\,\mu\mathrm{F}/\mathrm{cm}^2$.
 - Embedded **ion channels** open and close to let specific ions through. While open, each channel contributes a conductance $g_{\text{channel}}$ across the membrane.
 
 Stacking all of this for a small patch of membrane and applying Kirchhoff's current law gives
@@ -622,7 +622,7 @@ $$
 \tau_{\text{syn}}\,\frac{dg}{dt} \;=\; -g \;+\; W \sum_{k}\delta(t - t_k),
 $$
 
-with $\tau_{\text{syn}}$ on the order of milliseconds ($\approx 2$ ms for AMPA, $\approx 9$ ms for GABA-A) and $W$ the synaptic weight (in conductance units). The state variable $g(t)$ is then plugged into the membrane equation — but *how* it enters is what separates the two main families of synapse model.
+with $\tau_{\text{syn}}$ on the order of milliseconds ($\sim 2$ ms for AMPA, $\sim 9$ ms for GABA-A) and $W$ the synaptic weight (in conductance units). The state variable $g(t)$ is then plugged into the membrane equation — but *how* it enters is what separates the two main families of synapse model.
 
 #### Current-based synapses (CUBA)
 
@@ -648,8 +648,8 @@ Each synapse type $k$ has its own conductance $g_k(t)$ obeying its own exponenti
 
 | family       | transmitter | $\tau_{\text{syn}}$ | $E_k$              |
 |--------------|-------------|---------------------|--------------------|
-| excitatory   | AMPA (mixed cations) | $\approx 2$ ms   | $E_e \approx 0$ mV |
-| inhibitory   | GABA-A (chloride)    | $\approx 9$ ms   | $E_i \approx -75$ mV |
+| excitatory   | AMPA (mixed cations) | $\sim 2$ ms   | $E_e \approx 0$ mV |
+| inhibitory   | GABA-A (chloride)    | $\sim 9$ ms   | $E_i \approx -75$ mV |
 
 Stacking the leak channel and the two synapse families gives the **conductance-based LIF**, i.e. the **COBA** subthreshold equation:
 
@@ -808,13 +808,13 @@ For reference, $\epsilon/\sigma$ for various media:
 
 | medium                 | $\epsilon/\sigma$              |
 |------------------------|--------------------------------|
-| good insulator (Teflon, $\sigma \approx 10^{-25}$ S/m) | $\approx 10^{15}$ s, i.e. millions of years |
-| pure water             | $\approx 10^{-6}$ s (microsecond)   |
-| salt water             | $\approx 10^{-10}$ s               |
-| metal                  | $\approx 10^{-18}$ s (effectively instantaneous) |
-| neuron's lipid bilayer | $\approx 10^{-3}$ to $10^{-2}$ s (membrane time constant!) |
+| good insulator (Teflon, $\sigma \sim 10^{-25}$ S/m) | $\sim 10^{15}$ s, i.e. millions of years |
+| pure water             | $\sim 10^{-6}$ s (microsecond)   |
+| salt water             | $\sim 10^{-10}$ s               |
+| metal                  | $\sim 10^{-18}$ s (effectively instantaneous) |
+| neuron's lipid bilayer | $\sim 10^{-3}$ to $10^{-2}$ s (membrane time constant!) |
 
-The last row is the link to [The LIF Neuron](#the-lif-neuron): a neuron's membrane *is* a leaky capacitor with $\sigma$ set by the open ion channels, and the discharge time constant $\tau_m = C_m / g_L \approx 10\text{–}20\,\mathrm{ms}$ is exactly the membrane time constant that shows up in the LIF model.
+The last row is the link to [The LIF Neuron](#the-lif-neuron): a neuron's membrane *is* a leaky capacitor with $\sigma$ set by the open ion channels, and the discharge time constant $\tau_m = C_m / g_L \sim 10\text{–}20\,\mathrm{ms}$ is exactly the membrane time constant that shows up in the LIF model.
 
 **Takeaway.** Time constants of leaky capacitors are material properties, not geometric ones. A neuron's membrane sits in a particular regime of $\epsilon/\sigma$ that makes its $\tau_m$ comparable to the timescale of synaptic input — which is what allows it to *integrate* incoming spikes rather than passing them through instantly or holding them forever.
 
@@ -850,7 +850,7 @@ $$
 V_{\text{rest}} \;=\; 26.7\,\ln(15.3 / 190.1) \;=\; 26.7\cdot(-2.52) \;=\; -67\,\mathrm{mV}.
 $$
 
-The resting potential is about $-67\,\mathrm{mV}$ — close to $E_K = -89\,\mathrm{mV}$ but pulled $\approx 22\,\mathrm{mV}$ positive by the small $Na^+$ leak. Without $Na^+$ permeability the cell would sit at $E_K$; the $Na^+$ leak is what gives a finite "depolarisation gap" to spike threshold.
+The resting potential is about $-67\,\mathrm{mV}$ — close to $E_K = -89\,\mathrm{mV}$ but pulled $\sim 22\,\mathrm{mV}$ positive by the small $Na^+$ leak. Without $Na^+$ permeability the cell would sit at $E_K$; the $Na^+$ leak is what gives a finite "depolarisation gap" to spike threshold.
 
 **Takeaway.** The resting potential is not any individual ion's Nernst potential — it is a *weighted* average of all permeable species, weighted by their permeabilities. Because the cell's permeability ratios are not 1:1:1, $V_{\text{rest}}$ is dominated by the most-permeable ion ($K^+$) but pulled away from its Nernst potential by the others. The same equation, with different open-channel ratios, governs the membrane voltage during an action potential — $Na^+$ permeability briefly dominates, pulling $V$ toward $E_{Na} \approx +60\,\mathrm{mV}$.
 

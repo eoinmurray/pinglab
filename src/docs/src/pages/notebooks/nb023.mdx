@@ -25,7 +25,7 @@ PING (pyramidal-interneuron gamma) is the gamma-band oscillation produced by an 
 3. GABA-A inhibition silences E for the GABA-decay time ($\tau_{\text{GABA}} \approx 9$ ms).
 4. Inhibition decays away; E refires.
 
-The interspike-interval comes out around $\tau_{\text{GABA}} + \tau_{\text{AMPA}} \approx 11$ ms, giving a fundamental near $\approx 30$ Hz — the gamma band.
+The interspike-interval comes out around $\tau_{\text{GABA}} + \tau_{\text{AMPA}} \sim 11$ ms, giving a fundamental near $\sim 30$ Hz — the gamma band.
 
 This entry strips PING down to its biophysical fundamentals and characterises it *in isolation from any task*. No training, no readout, no loss — just a free-running network driven by Poisson input. Goal: see the rhythm emerge, measure its frequency, and trace how each piece of the recipe (E-I coupling strength, AMPA / GABA decay constants, refractory period) shapes the gamma peak.
 
@@ -88,7 +88,7 @@ Questions this entry is designed to answer:
 
 - **What's the minimum *ei-strength* to produce a peak?** Is the transition gradual or knee-shaped?
 - **How does $f_0$ depend on $\tau_{\text{AMPA}}$ and $\tau_{\text{GABA}}$?** A follow-up cell would sweep those.
-- **What's the E-to-I phase delay?** A clean PING has $\approx 2$ ms lag; deviations indicate something is broken.
+- **What's the E-to-I phase delay?** A clean PING has $\sim 2$ ms lag; deviations indicate something is broken.
 
 ## Next steps
 
