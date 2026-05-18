@@ -59,6 +59,14 @@ Both populations get the same statistics. Full MNIST test set per (model, mode, 
   Drop and add are not symmetric. Ping holds 73% at $p_\text{drop} = 0.9$; coba degrades only at the very end. Under add, coba degrades smoothly (84% → 67%) while ping collapses to chance at 10 Hz of injected noise.
 </Figure>
 
+<Figure id="Figure 5" title="Trained ping — accuracy and E rate vs τ_GABA" src="/figures/notebooks/nb024/tau_gaba_sweep.png" alt="Two-axis plot: red curve E firing rate vs τ_GABA falls from ~7 Hz at 4.5 ms to ~2.4 Hz at 27 ms; black accuracy curve holds 80-86% across the same range.">
+  Inference-only sweep on the trained ping baseline: vary $\tau_{\text{GABA}}$ across [4.5, 27] ms at test time, no retraining. The rate floor moves cleanly with the cycle period — $\sim$7 Hz at 4.5 ms, $\sim$5 Hz at the trained 9 ms, $\sim$2 Hz at 27 ms — while accuracy holds 80–86%. **Direct confirmation that the floor is set by $\tau_{\text{AMPA}} + \tau_{\text{GABA}}$**: shortening GABA tightens the loop and produces more cycles per second; lengthening it stretches the cycle and produces fewer. The readout adapts (within the tested range) without retraining.
+</Figure>
+
+<Figure id="Figure 6" title="Trained ping — accuracy and E rate vs uniform threshold offset" src="/figures/notebooks/nb024/threshold_shift_sweep.png" alt="Two-axis plot: red curve E firing rate rises from 4.7 Hz to ~7 Hz as threshold offset goes 0 → 10 mV then falls; black accuracy holds 80-86% across the range.">
+  Structure-preserving alternative to add: raise the LIF firing threshold by a constant offset across both E and I cells. The first-order prediction (firing should be uniformly suppressed) is wrong — E rate actually **rises** from 4.7 to 7.0 Hz as the offset increases. The reason is in the I rate (not shown on this axis, but in numbers.json): inhibitory cells fire ~5× higher baseline than E (23 vs 4.7 Hz at offset = 0), so they hit the suppression cliff first. As the offset climbs 0 → 10 mV the I rate collapses from 23 Hz to 7 Hz, the inhibitory grip on E is released, and E fires more freely. Beyond 10 mV both populations are saturated-suppressed. **Accuracy holds 80–86% across the whole sweep.** Combined with Figure 4, this isolates the structure axis: the readout is robust to rate changes that preserve gamma phase (threshold suppression) and brittle only to rate changes that break gamma phase (additive Poisson noise).
+</Figure>
+
 ## Discussion
 
 The drop/add asymmetry separates two candidate explanations of ping's rate floor:
@@ -66,9 +74,11 @@ The drop/add asymmetry separates two candidate explanations of ping's rate floor
 1. **Information-bound** — the readout needs ~3–5 Hz of spikes to classify. Drop refutes this: ping still classifies at ~73% with 90% of its emitted spikes thrown away.
 2. **Dynamics-bound** — the gamma loop has a preferred cycle period of $\tau_\text{AMPA} + \tau_\text{GABA} \approx 11$ ms; the readout is phase-locked to it. Add confirms this: extra spikes at the wrong phase corrupt the readout's signal, even though they *raise* the E rate. Coba has no phase to be off of, so add degrades smoothly.
 
-The rate floor is the loop's natural cadence, not what the task requires. The spike-budget penalty has no leverage because pushing the rate lower would require the loop to oscillate slower than its time constants permit. "Inhibition does sparsity" here is a physical consequence of the cycle period, not an optimisation preference.
+**Figure 5 closes the loop on the dynamics-bound argument.** A clean inference-only sweep of $\tau_\text{GABA}$ across [4.5, 27] ms moves the rate floor monotonically and proportionally: 7 Hz at 4.5 ms → 5 Hz at the trained 9 ms → 2 Hz at 27 ms. Accuracy holds 80–86% throughout, so the readout adapts (or was already invariant) to changes in cycle period. This is the experiment the original notebook only predicted; it now confirms that the floor is *literally* the cycle period, not something coincidentally near it.
 
-**Predictions for follow-up.** Lengthening $\tau_\text{GABA}$ at inference should lower the floor; shortening it should raise it. Decoupling the readout from gamma phase (e.g. mem-mean over many cycles) should trade sparsity for additive-noise robustness.
+**Figure 6 separates rate from structure.** Raising the firing threshold uniformly across E and I is a structure-preserving rate manipulation — it suppresses spikes without injecting noise at the wrong phase. Accuracy holds 80–86%, in sharp contrast to Figure 4's add curve which dropped ping to chance at 10 Hz of added Poisson. The interesting wrinkle is that E *rate* doesn't fall monotonically: I cells fire higher than E at baseline (23 vs 5 Hz), so a uniform threshold offset suppresses I first, releasing the inhibitory grip on E and *raising* the E rate up to ~7 Hz before everything finally collapses around +15 mV.
+
+Together: ping's rate floor is the loop's natural cadence; the readout is robust to anything that preserves the gamma structure and brittle only to corruptions of it. "Inhibition does sparsity" here is a physical consequence of the cycle period, not an optimisation preference.
 
 ## Limitations
 
@@ -84,11 +94,11 @@ uv run src/pinglab/notebooks/nb024.py --tier medium --modal-gpu A10G
 
 ### Extra figures
 
-<Figure id="Figure 5" title="Input-rate sweep on trained ping" src="/figures/notebooks/nb024/rate_sweep__ping.mp4" type="video" alt="Oscilloscope scope-frame video sweeping the input Poisson rate from 0 to 100 Hz on the trained ping network with MNIST digit 0.">
+<Figure id="Figure 7" title="Input-rate sweep on trained ping" src="/figures/notebooks/nb024/rate_sweep__ping.mp4" type="video" alt="Oscilloscope scope-frame video sweeping the input Poisson rate from 0 to 100 Hz on the trained ping network with MNIST digit 0.">
   Same trained ping, sweeping input rate 0 → 100 Hz on MNIST digit 0. The gamma loop engages above a recruitment threshold and locks across a wide input range.
 </Figure>
 
-<Figure id="Figure 6" title="coba → ping I-loop transfer" src="/figures/notebooks/nb024/ei_rasters.png" alt="Stacked raster panels showing the trained coba network replayed with increasing inference-time ei_strength.">
+<Figure id="Figure 8" title="coba → ping I-loop transfer" src="/figures/notebooks/nb024/ei_rasters.png" alt="Stacked raster panels showing the trained coba network replayed with increasing inference-time ei_strength.">
   Trained coba replayed with a freshly-initialised PING I-loop at increasing strengths. At ei=0 the network is asynchronous; by ei≈0.4 the same weights produce gamma-band E-then-I cycles. The loop and rate suppression both emerge from the dynamics, not from training.
 </Figure>
 
