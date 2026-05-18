@@ -47,7 +47,9 @@ ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
 
 # ── Network setup ─────────────────────────────────────────────────────
-DT = 1.0             # ms — keep BPTT graph shallow (300 ms / 1 ms = 300 steps)
+DT = 1.0             # ms — 400-step BPTT graph at this trial length is the
+                     # sweet spot. dt=2.0 (halving steps) and longer trials at
+                     # dt=1.0 both hurt; baseline tested empirically optimal.
 N_E = 256
 N_IN = 784           # MNIST
 DATASET = "mnist"
