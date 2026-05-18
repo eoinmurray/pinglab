@@ -58,7 +58,7 @@ $$
 r_E = \frac{\sum_{t, i} s_E[t, i]}{N_E \cdot T_{\text{sec}}}
 $$
 
-*Common values:* 1–30 Hz is sparse-coding territory (healthy for snnTorch when classifying MNIST); 40–80 Hz is the gamma-locked regime (PING target); over $\sim$150 Hz means the network has saturated; 0 Hz means it's silent.
+*Common values:* 1–30 Hz is sparse-coding territory (healthy for snnTorch when classifying MNIST); 40–80 Hz is the gamma-locked regime (PING target); over $\approx$150 Hz means the network has saturated; 0 Hz means it's silent.
 
 ## I
 
@@ -90,7 +90,7 @@ $$
 \text{CV} = \frac{\sigma(n_b)}{\max(\mu(n_b),\ 10^{-9})}
 $$
 
-*Common values:* Around 1 for Poisson-like asynchronous firing; well above 1 (often ≳ 2) for gamma-locked PING, where spikes cluster into cycle peaks and leave the troughs empty; below $\sim$0.3 for a clock-like or saturated network.
+*Common values:* Around 1 for Poisson-like asynchronous firing; well above 1 (often ≳ 2) for gamma-locked PING, where spikes cluster into cycle peaks and leave the troughs empty; below $\approx$0.3 for a clock-like or saturated network.
 
 ## I/E
 
@@ -190,7 +190,7 @@ $$
 
 *What it is:* Test accuracy, training loss, and learning rate as a function of epoch — the standard training-progress panel. All three are normalised to their running maximum and plotted on a single 0–100 % axis. Rendered only during training runs.
 
-*How to read it:* A healthy run has accuracy climbing from $\sim$10 % (chance on MNIST) toward 85–98 %, and loss dropping monotonically. A flat accuracy with drifting loss usually means the readout can't separate classes.
+*How to read it:* A healthy run has accuracy climbing from $\approx$10 % (chance on MNIST) toward 85–98 %, and loss dropping monotonically. A flat accuracy with drifting loss usually means the readout can't separate classes.
 
 ## rate_curve
 

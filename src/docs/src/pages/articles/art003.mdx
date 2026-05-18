@@ -8,7 +8,7 @@ structure: paper
 
 # COBANet
 
-[CUBANet](/articles/art002/) covers the current-based LIF — the simplest discrete spiking neuron, with synaptic inputs added directly to the membrane as currents. This article does the same job for the conductance-based rung. COBANet builds on the LIF derivation in [art001](/articles/art001/) but replaces every "current-in" synaptic term with a $(V - E_k)$ driving-force form, partitions each hidden layer into excitatory and inhibitory subpopulations, wires fixed recurrent E↔I matrices, and asymmetrises every biophysical constant between the two populations. The single flag that turns *coba* into *ping* is *--ei-strength*: at 0 the recurrent E-I weights are zero and the network is feedforward COBA; at non-zero values the inhibitory loop is wired up and the network generates PING (pyramidal-interneuron gamma) oscillations. Both build the same COBANet class.
+[CUBANet](/articles/art002/) covers the current-based LIF — the simplest discrete spiking neuron, with synaptic inputs added directly to the membrane as currents. This article does the same job for the conductance-based rung. COBANet builds on the LIF derivation in [art001](/articles/art001/) but replaces every "current-in" synaptic term with a $(V - E_k)$ driving-force form, partitions each hidden layer into excitatory and inhibitory subpopulations, wires fixed recurrent E↔I matrices, and asymmetrises every biophysical constant between the two populations. The single flag that turns *COBA* into *ping* is *--ei-strength*: at 0 the recurrent E-I weights are zero and the network is feedforward COBA; at non-zero values the inhibitory loop is wired up and the network generates PING (pyramidal-interneuron gamma) oscillations. Both build the same COBANet class.
 
 The implementation lives in *src/pinglab/models.py*; this article keeps the derivations.
 
@@ -18,19 +18,19 @@ COBA differs from CUBA in five concrete structural choices. Each one is a delibe
 
 **1. Two populations: excitatory (E) and inhibitory (I).** Each hidden layer is partitioned into an E sub-population and an I sub-population in a 4:1 ratio (matching mammalian cortex). CUBA has no such distinction — every hidden unit is interchangeable. The split is what makes Dale's law meaningful: an E unit can only excite its targets and an I unit can only inhibit them, regardless of how the optimiser would otherwise set weight signs. Without the split there's no way to wire an inhibitory feedback loop, and therefore no way to support PING.
 
-**2. Conductance-based synaptic input.** CUBA adds synaptic input directly to the membrane as a current: $U_{t+1} = \beta U_t + W s_t$. COBA instead multiplies each synapse's conductance by the *driving force* — the gap between the membrane and that synapse's reversal potential:
+**2. Conductance-based synaptic input.** CUBA adds synaptic input directly to the membrane as a current: $U_{} = \beta U_t + W s_t$. COBA instead multiplies each synapse's conductance by the *driving force* — the gap between the membrane and that synapse's reversal potential:
 
 $$
-\text{synaptic term} = -g_e\, (V - E_e) - g_i\, (V - E_i)
+\text{} = -g_e\, (V - E_e) - g_i\, (V - E_i)
 $$
 
-Three things follow from this that CUBA cannot reproduce. First, **synapses saturate**: as $V$ approaches $E_e = 0$ mV the excitatory driving force shrinks toward zero, so the same conductance produces less current the more the cell is already depolarised. CUBA can keep injecting current indefinitely. Second, **inhibition can shunt** even when it doesn't hyperpolarise: open $g_i$ increases $g_{\text{tot}}$, which shortens $\tau_{\text{eff}}$ and dampens the membrane's response to all other inputs — a multiplicative gain control unavailable to CUBA's additive currents. Third, **the effective time constant changes with input**: $\tau_{\text{eff}} = C_m/g_{\text{tot}}$ is fast when synapses are open, slow when they're closed. CUBA's $\tau$ is fixed at initialisation.
+Three things follow from this that CUBA cannot reproduce. First, **synapses saturate**: as $V$ approaches $E_e = 0$ mV the excitatory driving force shrinks toward zero, so the same conductance produces less current the more the cell is already depolarised. CUBA can keep injecting current indefinitely. Second, **inhibition can shunt** even when it doesn't hyperpolarise: open $g_i$ increases $g_{{}}$, which shortens $\tau_{{}}$ and dampens the membrane's response to all other inputs — a multiplicative gain control unavailable to CUBA's additive currents. Third, **the effective time constant changes with input**: $\tau_{{}} = C_m/g_{{}}$ is fast when synapses are open, slow when they're closed. CUBA's $\tau$ is fixed at initialisation.
 
 **3. Explicit reversal potentials.** $E_e = 0$ mV (depolarising) and $E_i = -80$ mV (hyperpolarising, below $E_L = -65$ mV). CUBA collapses these into the sign and magnitude of $W$, but the sign is the only signal — there's no equivalent of "the inhibitory effect reverses if the membrane already sits below $-80$ mV", which COBA gets for free. The reversal potentials also let the same conductance act differently on cells in different membrane states, which is what makes the PING circuit phase-locked rather than just rate-coupled.
 
-**4. Fixed recurrent E-I matrices.** Each E-I layer carries three weight matrices — $W^{EE}$ (E→E), $W^{EI}$ (E→I), $W^{IE}$ (I→E) — initialised at the start and held *requires_grad=False*. Only the feedforward $W_{\text{in}}$ and readout $W_{\text{out}}$ train. This is the most significant philosophical departure from CUBA: the gamma rhythm produced by *ping* is **not learned**. It is a fixed substrate, present at initialisation, that the optimiser learns to *read out* via the trainable feedforward weights. Empirically this is what makes [024 — Inhibition-gated sparsity in trainable spiking neural networks](/notebooks/nb024/) work: a network trained as pure COBA (with the E-I loop silent) can be retrofitted with PING dynamics at inference by simply turning *--ei-strength* on, because the loop hardware was always there.
+**4. Fixed recurrent E-I matrices.** Each E-I layer carries three weight matrices — $W^{}$ (E→E), $W^{}$ (E→I), $W^{}$ (I→E) — initialised at the start and held *requires_grad=False*. Only the feedforward $W_{{}}$ and readout $W_{{}}$ train. This is the most significant philosophical departure from CUBA: the gamma rhythm produced by *ping* is **not learned**. It is a fixed substrate, present at initialisation, that the optimiser learns to *read out* via the trainable feedforward weights. Empirically this is what makes [024 — Inhibition-gated sparsity in trainable spiking neural networks](/notebooks/nb024/) work: a network trained as pure COBA (with the E-I loop silent) can be retrofitted with PING dynamics at inference by simply turning *--ei-strength* on, because the loop hardware was always there.
 
-**5. Exponential synapses with two time constants.** Every COBA synapse is a first-order low-pass filter on its presynaptic spike train, not an instantaneous kick. Excitatory (AMPA) synapses decay with $\tau_{\text{AMPA}} = 2$ ms; inhibitory (GABA) synapses decay with $\tau_{\text{GABA}} = 9$ ms. CUBA has no synaptic filter at all — spikes hit the membrane directly. The slow-GABA / fast-AMPA gap is the single most important quantity for PING: an E-burst recruits I on the AMPA timescale ($\sim 2$ ms), I inhibits E on the GABA timescale ($\sim 9$ ms), and the resulting E↔I oscillation lands in the gamma band ($\sim 30$ Hz). Symmetric time constants would not produce PING.
+**5. Exponential synapses with two time constants.** Every COBA synapse is a first-order low-pass filter on its presynaptic spike train, not an instantaneous kick. Excitatory (AMPA) synapses decay with $\tau_{{}} = 2$ ms; inhibitory (GABA) synapses decay with $\tau_{{}} = 9$ ms. CUBA has no synaptic filter at all — spikes hit the membrane directly. The slow-GABA / fast-AMPA gap is the single most important quantity for PING: an E-burst recruits I on the AMPA timescale ($\approx 2$ ms), I inhibits E on the GABA timescale ($\approx 9$ ms), and the resulting E↔I oscillation lands in the gamma band ($\approx 30$ Hz). Symmetric time constants would not produce PING.
 
 Beyond these five structural differences, COBA also bakes in some constants that CUBA leaves to the user: **hard reset** (not subtract; biological cells discard overshoot), a **mandatory refractory period** (3 ms for E, 1.5 ms for I), and **per-population biophysical heterogeneity** — E and I cells have different membrane time constants, capacitances, leak conductances and refractory periods (see the table below). CUBA uses a single uniform parameter set for every hidden unit. The asymmetry between E and I biophysics is what gives PING its phase structure — both populations have to react on different timescales for the loop to oscillate rather than equilibrate.
 
@@ -43,17 +43,17 @@ E and I units share the same LIF equations (1)–(2) below, but every biophysica
 | membrane time constant         | $\tau_m$          | 20 ms         | 5 ms          | 4 : 1       |
 | capacitance                    | $C_m$             | 1.0 nF        | 0.5 nF        | 2 : 1       |
 | leak conductance               | $g_L = C_m/\tau_m$ | 0.05 µS       | 0.1 µS        | 1 : 2       |
-| refractory period              | $\tau_{\text{ref}}$ | 3 ms          | 1.5 ms        | 2 : 1       |
+| refractory period              | $\tau_{{}}$ | 3 ms          | 1.5 ms        | 2 : 1       |
 | inputs received                | —                 | $g_e$ + $g_i$ | $g_e$ only    | —           |
 | output transmitter             | —                 | AMPA          | GABA          | —           |
-| synaptic decay onto target     | $\tau_{\text{syn}}$ | 2 ms (AMPA)   | 9 ms (GABA)   | 1 : 4.5     |
+| synaptic decay onto target     | $\tau_{{}}$ | 2 ms (AMPA)   | 9 ms (GABA)   | 1 : 4.5     |
 | synaptic reversal at target    | —                 | $E_e = 0$ mV  | $E_i = -80$ mV | —           |
 | population fraction in a layer | —                 | 4/5           | 1/5           | 4 : 1       |
 
 The functional consequences fall out of this asymmetry:
 
-- **I neurons integrate four times faster.** Their shorter $\tau_m$ (and the 2× higher $g_L$) makes the I membrane reach its steady state in $\sim 5$ ms — fast enough that a synchronous E-burst raises I above threshold within a single AMPA window. This is the *rising* edge of a PING cycle.
-- **I→E inhibition is slow and broad.** GABA's $\tau_{\text{GABA}} = 9$ ms is more than four times AMPA's $\tau_{\text{AMPA}} = 2$ ms, so a burst of I-spikes produces inhibition that outlasts the triggering excitation by tens of milliseconds. This is the *falling* edge: E is shunted long enough for the excitatory drive to re-accumulate, which sets the gamma period at $\sim 30$ Hz.
+- **I neurons integrate four times faster.** Their shorter $\tau_m$ (and the 2× higher $g_L$) makes the I membrane reach its steady state in $\approx 5$ ms — fast enough that a synchronous E-burst raises I above threshold within a single AMPA window. This is the *rising* edge of a PING cycle.
+- **I→E inhibition is slow and broad.** GABA's $\tau_{{}} = 9$ ms is more than four times AMPA's $\tau_{{}} = 2$ ms, so a burst of I-spikes produces inhibition that outlasts the triggering excitation by tens of milliseconds. This is the *falling* edge: E is shunted long enough for the excitatory drive to re-accumulate, which sets the gamma period at $\approx 30$ Hz.
 - **I neurons receive no inhibition.** Only $g_e$ is wired into the I update (*i_step_coba* in *models.py* takes a single conductance argument). No I→I recurrence and no I→I anatomically. This keeps the I population reactive — it follows the E population's drive without being self-suppressed.
 - **The 4:1 population ratio** matches mammalian cortex. With 1024 E units per hidden layer the corresponding I population is 256.
 
@@ -64,7 +64,7 @@ Functions *e_step_coba* and *i_step_coba* in *models.py* wrap the same exp-Euler
 A single COBA neuron obeys
 
 $$
-C_m\, \frac{dV}{dt} = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i) \tag{1}
+C_m\, \frac{}{} = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i) \tag{}
 $$
 
 with capacitance $C_m$, leak conductance $g_L$, and reversal potentials $E_L = -65$ mV, $E_e = 0$ mV, $E_i = -80$ mV. Each conductance term pulls $V$ toward its reversal potential at a rate proportional to the conductance. Excitatory synapses drive $V$ up toward $E_e = 0$; inhibitory synapses both pull $V$ down toward $E_i = -80$ *and* increase total conductance, which shortens the effective membrane time constant — this is *shunting inhibition*, and it's why COBA networks are more dynamically rich than CUBA.
@@ -72,81 +72,81 @@ with capacitance $C_m$, leak conductance $g_L$, and reversal potentials $E_L = -
 Collect on $V$ (expand the three driving-force terms and group $V$ from each):
 
 $$
-C_m\, \frac{dV}{dt} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{2}
+C_m\, \frac{}{} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{}
 $$
 
 This is a linear first-order ODE of the form $C_m \dot V = -A\,V + B$, with $A = g_L + g_e + g_i$ and $B = g_L E_L + g_e E_e + g_i E_i$. Any equation in that form can be rewritten as a *decay toward a steady-state value*: if you set $\dot V = 0$ in (2), you find the voltage at which the inflow $B$ exactly balances the outflow $A V$. Call that voltage $V_\infty$ — the value the membrane *would* relax to if the conductances were held constant forever. Define accordingly
 
 $$
-g_{\text{tot}} = g_L + g_e + g_i, \qquad \tau_{\text{eff}} = \frac{C_m}{g_{\text{tot}}}, \qquad V_\infty = \frac{g_L E_L + g_e E_e + g_i E_i}{g_{\text{tot}}} \tag{3}
+g_{{}} = g_L + g_e + g_i, \qquad \tau_{{}} = \frac{}{{{}}}, \qquad V_\infty = \frac{}{{{}}} \tag{}
 $$
 
 Each of these has a clean physical meaning:
 
-- $g_{\text{tot}}$ is the *total* membrane conductance — leak plus every open synapse summed. Bigger total conductance ⇒ the cell is more "leaky" overall.
-- $\tau_{\text{eff}} = C_m / g_{\text{tot}}$ is the *effective* membrane time constant. Note this is **not** the leak-only $\tau_m = C_m/g_L$ from the constants table — when synapses are open, $\tau_{\text{eff}} < \tau_m$ because $g_{\text{tot}} > g_L$. This is *shunting*: open synapses speed up the membrane's response.
+- $g_{{}}$ is the *total* membrane conductance — leak plus every open synapse summed. Bigger total conductance ⇒ the cell is more "leaky" overall.
+- $\tau_{{}} = C_m / g_{{}}$ is the *effective* membrane time constant. Note this is **not** the leak-only $\tau_m = C_m/g_L$ from the constants table — when synapses are open, $\tau_{{}} < \tau_m$ because $g_{{}} > g_L$. This is *shunting*: open synapses speed up the membrane's response.
 - $V_\infty$ is a conductance-weighted average of the three reversal potentials $E_L, E_e, E_i$. With only the leak open, $V_\infty = E_L$. As $g_e$ rises, $V_\infty$ shifts up toward $E_e = 0$ mV. As $g_i$ rises, $V_\infty$ shifts down toward $E_i = -80$ mV.
 
-Substituting (3) into (2) and dividing through by $g_{\text{tot}}$ yields the standard "decay-to-steady-state" form:
+Substituting (3) into (2) and dividing through by $g_{{}}$ yields the standard "decay-to-steady-state" form:
 
 $$
-\tau_{\text{eff}}\, \frac{dV}{dt} = -(V - V_\infty) \tag{4}
+\tau_{{}}\, \frac{}{} = -(V - V_\infty) \tag{}
 $$
 
-This is the form every linear first-order ODE with constant coefficients can be put into; once you're here you can integrate analytically by inspection. The closed-form solution over an interval where $\tau_{\text{eff}}$ and $V_\infty$ are constant is
+This is the form every linear first-order ODE with constant coefficients can be put into; once you're here you can integrate analytically by inspection. The closed-form solution over an interval where $\tau_{{}}$ and $V_\infty$ are constant is
 
 $$
-V(t) = V_\infty + (V_0 - V_\infty)\, e^{-t / \tau_{\text{eff}}}
+V(t) = V_\infty + (V_0 - V_\infty)\, e^{{{}}}
 $$
 
-— the membrane interpolates from its starting value $V_0$ toward $V_\infty$ on a timescale $\tau_{\text{eff}}$.
+— the membrane interpolates from its starting value $V_0$ toward $V_\infty$ on a timescale $\tau_{{}}$.
 
-The catch is that in continuous time $\tau_{\text{eff}}$ and $V_\infty$ are *not* constant — both depend on $g_e(t)$ and $g_i(t)$, which evolve as spikes arrive. The zero-order hold below (eq 5) is what makes this tractable numerically: freeze $g_e$ and $g_i$ over one $\Delta t$ step, integrate (4) exactly under that freeze, then update $g_e$ and $g_i$ for the next step.
+The catch is that in continuous time $\tau_{{}}$ and $V_\infty$ are *not* constant — both depend on $g_e(t)$ and $g_i(t)$, which evolve as spikes arrive. The zero-order hold below (eq 5) is what makes this tractable numerically: freeze $g_e$ and $g_i$ over one $\Delta t$ step, integrate (4) exactly under that freeze, then update $g_e$ and $g_i$ for the next step.
 
 ## Discretisation
 
-Hold $g_e, g_i$ constant over the step $[t, t+\Delta t]$ (zero-order hold) — then $\tau_{\text{eff}}$ and $V_\infty$ are also constant and (4) integrates analytically:
+Hold $g_e, g_i$ constant over the step $[t, t+\Delta t]$ (zero-order hold) — then $\tau_{{}}$ and $V_\infty$ are also constant and (4) integrates analytically:
 
 $$
-V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp\!\left(-\Delta t / \tau_{\text{eff}}\right) \tag{5}
+V_{} = V_\infty + (V_t - V_\infty)\,\exp\!\left(-\Delta t / \tau_{{}}\right) \tag{}
 $$
 
 After the membrane update, apply the threshold/reset:
 
 $$
-S_{t+1} = \mathbf{1}[V_{t+1} \geq V_{\text{th}}], \quad V_{t+1} \leftarrow V_{\text{reset}} \text{ if } S_{t+1} = 1 \text{ or refractory} \tag{6}
+S_{} = \mathbf{}[V_{} \geq V_{{}}], \quad V_{} \leftarrow V_{{}} \text{} S_{} = 1 \text{} \tag{}
 $$
 
-with $V_{\text{th}} = -50$ mV, $V_{\text{reset}} = -65$ mV. Refractory periods are $\tau_{\text{ref}}^E = 3$ ms and $\tau_{\text{ref}}^I = 1.5$ ms — held in a per-neuron countdown that suppresses spiking until exhausted. See *e_step_coba* / *i_step_coba* in *models.py*.
+with $V_{{}} = -50$ mV, $V_{{}} = -65$ mV. Refractory periods are $\tau_{{}}^E = 3$ ms and $\tau_{{}}^I = 1.5$ ms — held in a per-neuron countdown that suppresses spiking until exhausted. See *e_step_coba* / *i_step_coba* in *models.py*.
 
 ## Synaptic conductances
 
 Each conductance is the convolution of its presynaptic spike train with a decaying exponential. Discretising with the post-decay-then-kick convention:
 
 $$
-g^{E \to E}_{t+1} = \alpha\bigl(g^{E \to E}_t + W^{EE}\, s^{E}_t\bigr) + W_{\text{in}}\, s^{\text{inp}}_t \tag{7}
+g^{}_{} = \alpha\bigl(g^{}_t + W^{}\, s^{}_t\bigr) + W_{{}}\, s^{{}}_t \tag{}
 $$
 
 $$
-g^{E \to I}_{t+1} = \alpha\bigl(g^{E \to I}_t + W^{EI}\, s^{E}_t\bigr) \tag{8}
+g^{}_{} = \alpha\bigl(g^{}_t + W^{}\, s^{}_t\bigr) \tag{}
 $$
 
 $$
-g^{I \to E}_{t+1} = \gamma\bigl(g^{I \to E}_t + W^{IE}\, s^{I}_t\bigr) \tag{9}
+g^{}_{} = \gamma\bigl(g^{}_t + W^{}\, s^{}_t\bigr) \tag{}
 $$
 
-with $\alpha = e^{-\Delta t / \tau_{\text{AMPA}}}$ and $\gamma = e^{-\Delta t / \tau_{\text{GABA}}}$.
+with $\alpha = e^{{{}}}$ and $\gamma = e^{{{}}}$.
 
-The trainable feedforward input $W_{\text{in}} s^{\text{inp}}_t$ is added to the input-layer E→E conductance **after** the decay+kick step, not folded into it — this matches the code and lets the input arrive "fresh" each step regardless of the recurrent dynamics.
+The trainable feedforward input $W_{{}} s^{{}}_t$ is added to the input-layer E→E conductance **after** the decay+kick step, not folded into it — this matches the code and lets the input arrive "fresh" each step regardless of the recurrent dynamics.
 
 ## Architectural constants
 
 Defaults at initialisation (overridable by CLI flags):
 
 - E:I ratio 4:1 within each hidden layer. For *--n-hidden 1024* this gives 1024 E + 256 I.
-- $W^{EE} = 0$, $W^{EI} \approx 1$ µS, $W^{IE} \approx 3$ µS. Each is scaled by *--ei-strength* at init.
+- $W^{} = 0$, $W^{} \approx 1$ µS, $W^{} \approx 3$ µS. Each is scaled by *--ei-strength* at init.
 - Dale's law: all recurrent weights $\geq 0$; sign is determined by population.
-- $\Delta t$ ceiling. Numerical stability of the exp-Euler step degrades when $\Delta t$ approaches the shortest time constant, $\tau_{\text{AMPA}} = 2$ ms. Train and infer at $\Delta t \leq 1$ ms.
+- $\Delta t$ ceiling. Numerical stability of the exp-Euler step degrades when $\Delta t$ approaches the shortest time constant, $\tau_{{}} = 2$ ms. Train and infer at $\Delta t \leq 1$ ms.
 
 ## Where this leads
 

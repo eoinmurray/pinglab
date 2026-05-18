@@ -29,7 +29,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb003](/notebooks/nb003/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb003](/notebooks/nb003/) (drive) and [nb006](/notebooks/nb006/) (E→I coupling); companion *dt*-stability training experiment is [nb013](/notebooks/nb013/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Gamma has a period of $\approx$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb003](/notebooks/nb003/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb003](/notebooks/nb003/) (drive) and [nb006](/notebooks/nb006/) (E→I coupling); companion *dt*-stability training experiment is [nb013](/notebooks/nb013/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
