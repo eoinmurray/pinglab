@@ -1415,10 +1415,9 @@ def run_ei_sweep(notebook_run_id: str) -> list[dict]:
 # ── End ei sweep ────────────────────────────────────────────────────
 
 
-# ── tau_GABA + threshold-shift sweeps (inference-only, trained ping) ─────
+# ── tau_GABA sweep (inference-only, trained ping) ───────────────────
 
 TAU_GABA_VALUES: list[float] = [4.5, 6.0, 9.0, 12.0, 18.0, 27.0]  # ms; default 9.0
-THRESHOLD_SHIFT_VALUES_MV: list[float] = [0.0, 2.5, 5.0, 7.5, 10.0, 15.0]
 
 
 def _load_trained_full(train_dir: Path, device):
@@ -1552,69 +1551,6 @@ def run_tau_gaba_sweep(notebook_run_id: str) -> list[dict]:
     return rows
 
 
-def run_threshold_shift_sweep(notebook_run_id: str) -> list[dict]:
-    """Inference-only uniform-threshold-offset sweep on trained ping.
-
-    Structure-preserving alternative to the additive-noise perturbation:
-    raise the LIF firing threshold by a constant Δ mV across all E and I
-    cells. Suppresses firing without injecting noise; the gamma cycle
-    structure survives intact at low offsets.
-
-    Sets PINGLAB_NO_COMPILE=1 for the duration of the sweep so the
-    monkey-patched spike_biophysical actually reaches the forward path —
-    torch.compile would otherwise bake in the original function reference.
-    """
-    import os
-
-    import models as M
-    from cli import _auto_device
-
-    train_dir = baseline_dir("ping")
-    if not (train_dir / "weights.pth").exists():
-        raise SystemExit(
-            f"threshold-shift-sweep needs trained ping weights at {train_dir}"
-        )
-    device = _auto_device()
-    rows: list[dict] = []
-    sb_original = M.spike_biophysical
-    nc_saved = os.environ.get("PINGLAB_NO_COMPILE", "")
-    os.environ["PINGLAB_NO_COMPILE"] = "1"
-    try:
-        for offset_mv in THRESHOLD_SHIFT_VALUES_MV:
-            net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-
-            # Monkey-patch the module-level spike fn to add a constant offset
-            # on top of whatever the model passed (None for non-ALIF; for
-            # ALIF it's a per-neuron tensor that we'd add to, but ping
-            # doesn't use ALIF so the passed value is always None / 0.0).
-            def patched_spike(v, threshold_offset=0.0, _delta=offset_mv):
-                base = threshold_offset if (threshold_offset is not None) else 0.0
-                return sb_original(v, threshold_offset=base + _delta)
-
-            M.spike_biophysical = patched_spike
-            try:
-                acc, e_rate, i_rate = _eval_net_on_test(net, cfg, X_te, y_te, device)
-            finally:
-                M.spike_biophysical = sb_original
-            rows.append({
-                "threshold_offset_mv": float(offset_mv),
-                "acc": acc,
-                "hid_rate_hz": e_rate,
-                "inh_rate_hz": i_rate,
-            })
-            print(
-                f"  V_th += {offset_mv:>4.1f} mV  "
-                f"acc={acc:5.2f}%  E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
-            )
-    finally:
-        M.spike_biophysical = sb_original
-        if nc_saved:
-            os.environ["PINGLAB_NO_COMPILE"] = nc_saved
-        else:
-            os.environ.pop("PINGLAB_NO_COMPILE", None)
-    return rows
-
-
 def _plot_sweep_two_axes(
     rows: list[dict], x_key: str, x_label: str, x_vline: float | None,
     title: str, out_path: Path, run_id: str,
@@ -1648,7 +1584,108 @@ def _plot_sweep_two_axes(
     plt.close(fig)
 
 
-# ── End tau_GABA + threshold-shift ─────────────────────────────────
+# ── End tau_GABA ───────────────────────────────────────────────────
+
+
+# ── low-w_in alternate-schedule sweep (PING under heavy θ_u) ────────
+#
+# Tests the path-dependent-barrier claim: if the network starts with
+# W_in too small to recruit the I-loop and θ_u is on from epoch 0, can
+# training land in the sub-f* COBA-like basin instead of locking into
+# PING? Three w_in inits straddle f* (0.1 sub, 0.3 sub, 1.2 standard).
+
+LOW_W_IN_VALUES: list[float] = [0.1, 0.3, 1.2]  # 1.2 matches standard ping init
+LOW_W_IN_THETA_U: float = 0.2                   # heaviest from frontier sweep
+LOW_W_IN_SEED: int = SEED_SWEEP
+
+
+def low_w_in_cell_dir(w_in: float) -> Path:
+    label = f"{w_in:g}".replace(".", "p")
+    return ARTIFACTS / f"ping__low_w_in__win{label}"
+
+
+def build_low_w_in_args(w_in: float, tier: str, out_dir: Path) -> list[str]:
+    """Train args for the low-w_in alternate-schedule sweep:
+    PING recipe with --w-in overridden and θ_u = 0.2 on from epoch 0."""
+    recipe = dict(MODEL_RECIPES["ping"])
+    recipe["--w-in"] = f"{w_in:g}"
+    args = [
+        "train",
+        "--model", recipe["__build_as"],
+        "--dataset", "mnist",
+        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--t-ms", str(T_MS),
+        "--dt", str(DT_TRAIN),
+        "--seed", str(LOW_W_IN_SEED),
+        "--out-dir", str(out_dir),
+        "--wipe-dir",
+    ]
+    for k, v in recipe.items():
+        if k.startswith("__"):
+            continue
+        if v is True:
+            args.append(k)
+        elif v is not None:
+            args += [k, v]
+    args += [
+        "--fr-reg-upper-theta", str(LOW_W_IN_THETA_U),
+        "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
+    ]
+    return args
+
+
+def plot_low_w_in(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """2 rows × 3 cols. One column per --w-in init. Top row: per-epoch
+    accuracy. Bottom row: per-epoch firing rates with E (black) and I
+    (red) overlaid. Reads per-epoch traces from each run's metrics.json."""
+    theme.apply()
+    n = len(rows)
+    fig, axes = plt.subplots(2, n, figsize=(4.0 * n, 5.5), dpi=150, sharex=True)
+    rate_max = 0.0
+    for col, row in enumerate(rows):
+        metrics = load_metrics(low_w_in_cell_dir(row["w_in"]))
+        epochs = list(range(1, len(metrics["epochs"]) + 1))
+        accs = [float(e["acc"]) for e in metrics["epochs"]]
+        rate_e = [float(e.get("rate_e") or 0.0) for e in metrics["epochs"]]
+        rate_i = [float(e.get("rate_i") or 0.0) for e in metrics["epochs"]]
+        rate_max = max(rate_max, max(rate_e), max(rate_i))
+
+        ax_acc = axes[0, col]
+        ax_rate = axes[1, col]
+        ax_acc.plot(epochs, accs, marker="o", color=theme.INK_BLACK, lw=1.5)
+        ax_acc.axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
+        ax_acc.set_ylim(0, 100)
+        ax_acc.set_title(
+            f"$W_\\text{{in}}$ = {row['w_in']:g}",
+            fontsize=theme.SIZE_TITLE,
+        )
+        ax_rate.plot(epochs, rate_e, marker="o", color=theme.INK_BLACK,
+                     lw=1.5, label="E")
+        ax_rate.plot(epochs, rate_i, marker="s", color=theme.DEEP_RED,
+                     lw=1.5, label="I")
+        ax_rate.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
+        if col == 0:
+            ax_acc.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+            ax_rate.set_ylabel("Firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+            ax_rate.legend(fontsize=theme.SIZE_LABEL, frameon=False,
+                           loc="upper left")
+
+    for col in range(n):
+        axes[1, col].set_ylim(0, rate_max * 1.1 if rate_max > 0 else 1.0)
+
+    fig.suptitle(
+        f"Per-epoch traces — PING, $\\theta_u = {LOW_W_IN_THETA_U:g}$, "
+        "varying $W_\\text{in}$ init",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+# ── End low-w_in ────────────────────────────────────────────────────
 
 
 def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
@@ -1677,7 +1714,7 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("ei_rates_sweep.png", "ei-sweep rates rendered"),
         artifact("ei_rasters.png", "ei-sweep rasters rendered"),
         artifact("tau_gaba_sweep.png", "tau_GABA sweep rendered"),
-        artifact("threshold_shift_sweep.png", "threshold-shift sweep rendered"),
+        artifact("low_w_in_sweep.png", "low-w_in sweep rendered"),
     ]
     for model in MODELS:
         crits.append(artifact(f"raster__{model}.png", f"{model} raster rendered"))
@@ -1793,6 +1830,27 @@ def main() -> None:
                         out,
                         gpu_override=gpu_override,
                     )
+        # Low-w_in alternate-schedule sweep dispatched in the same batch.
+        gpu_override = None
+        if modal_gpu in ("T4", "L4", "A10G"):
+            gpu_override = "A100"
+        for w_in in LOW_W_IN_VALUES:
+            out = low_w_in_cell_dir(w_in)
+            if only_missing and (out / "metrics.json").exists():
+                print(
+                    f"[skip] low_w_in/w_in={w_in} already trained → "
+                    f"{out.relative_to(REPO)}"
+                )
+                continue
+            print(
+                f"[train] low_w_in/w_in={w_in} → {out.relative_to(REPO)}"
+                + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+            )
+            dispatcher.submit(
+                build_low_w_in_args(w_in, tier, out),
+                out,
+                gpu_override=gpu_override,
+            )
         dispatcher.drain()
 
     rows: list[dict] = []
@@ -1944,16 +2002,31 @@ def main() -> None:
     )
     print(f"wrote {FIGURES / 'tau_gaba_sweep.png'}")
 
-    # Threshold-shift sweep — structure-preserving alternative to add.
-    print("[threshold-shift-sweep] inference-only on trained ping")
-    threshold_rows = run_threshold_shift_sweep(notebook_run_id)
-    _plot_sweep_two_axes(
-        threshold_rows, "threshold_offset_mv",
-        "Threshold offset (mV)", 0.0,
-        "Trained ping — accuracy and E rate vs uniform threshold offset",
-        FIGURES / "threshold_shift_sweep.png", notebook_run_id,
-    )
-    print(f"wrote {FIGURES / 'threshold_shift_sweep.png'}")
+    # Low-w_in alternate-schedule sweep — reads metrics from the three
+    # dispatched trainings and plots accuracy + E/I rates vs --w-in init.
+    print("[low-w_in-sweep] reading metrics from dispatched trainings")
+    low_w_in_rows: list[dict] = []
+    for w_in in LOW_W_IN_VALUES:
+        run_dir = low_w_in_cell_dir(w_in)
+        if not (run_dir / "metrics.json").exists():
+            raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
+        metrics = load_metrics(run_dir)
+        last = metrics["epochs"][-1]
+        low_w_in_rows.append({
+            "w_in": float(w_in),
+            "best_acc": float(metrics["best_acc"]),
+            "best_epoch": int(metrics["best_epoch"]),
+            "final_acc": float(last["acc"]),
+            "rate_e": float(last.get("rate_e") or 0.0),
+            "rate_i": float(last.get("rate_i") or 0.0),
+        })
+        print(
+            f"  w_in={w_in:>4}  acc={last['acc']:5.2f}%  "
+            f"E={last.get('rate_e') or 0:6.2f} Hz  "
+            f"I={last.get('rate_i') or 0:6.2f} Hz"
+        )
+    plot_low_w_in(low_w_in_rows, FIGURES / "low_w_in_sweep.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'low_w_in_sweep.png'}")
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
@@ -1984,7 +2057,7 @@ def main() -> None:
         "ei_sweep": ei_points,
         "perturbation": perturb_rows,
         "tau_gaba_sweep": tau_gaba_rows,
-        "threshold_shift_sweep": threshold_rows,
+        "low_w_in_sweep": low_w_in_rows,
         "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
