@@ -1475,7 +1475,17 @@ def _load_trained_full(train_dir: Path, device):
 
 def _eval_net_on_test(net, cfg, X_te, y_te, device) -> tuple[float, float, float]:
     """Forward over test set; return (acc, hid_rate_hz, inh_rate_hz)."""
+    acc, _ce, e_rate, i_rate = _eval_net_on_test_with_loss(
+        net, cfg, X_te, y_te, device
+    )
+    return acc, e_rate, i_rate
+
+
+def _eval_net_on_test_with_loss(net, cfg, X_te, y_te, device) -> tuple[float, float, float, float]:
+    """Forward over test set; return (acc, ce_loss, hid_rate_hz, inh_rate_hz).
+    ce_loss is mean cross-entropy across all test samples."""
     import torch
+    import torch.nn.functional as F
     from torch.utils.data import DataLoader, TensorDataset
 
     import models as M
@@ -1486,6 +1496,7 @@ def _eval_net_on_test(net, cfg, X_te, y_te, device) -> tuple[float, float, float
         batch_size=64,
     )
     correct = total = 0
+    ce_sum = 0.0
     e_spike_sum = i_spike_sum = 0.0
     eval_gen = torch.Generator().manual_seed(EVAL_SEED)
     with torch.no_grad():
@@ -1493,6 +1504,9 @@ def _eval_net_on_test(net, cfg, X_te, y_te, device) -> tuple[float, float, float
             X_b, y_b = X_b.to(device), y_b.to(device)
             spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
             logits = net(input_spikes=spk)
+            ce_sum += float(
+                F.cross_entropy(logits, y_b, reduction="sum").item()
+            )
             correct += (logits.argmax(1) == y_b).sum().item()
             total += y_b.size(0)
             e_spike_sum += float(net.spike_record["hid"].sum().item())
@@ -1504,7 +1518,8 @@ def _eval_net_on_test(net, cfg, X_te, y_te, device) -> tuple[float, float, float
     e_rate = e_spike_sum / (total * n_e * t_sec) if total else 0.0
     i_rate = i_spike_sum / (total * n_i * t_sec) if (total and i_spike_sum) else 0.0
     acc = 100.0 * correct / total if total else 0.0
-    return acc, e_rate, i_rate
+    ce_loss = ce_sum / total if total else 0.0
+    return acc, ce_loss, e_rate, i_rate
 
 
 def run_tau_gaba_sweep(notebook_run_id: str) -> list[dict]:
@@ -1688,6 +1703,109 @@ def plot_low_w_in(rows: list[dict], out_path: Path, run_id: str) -> None:
 # ── End low-w_in ────────────────────────────────────────────────────
 
 
+# ── W_in scale sweep (inference-only, trained PING and COBA) ──────
+#
+# Tests the bifurcation argument directly: scale each trained network's
+# W_in by a multiplicative factor s and walk along the W_in axis at
+# inference time. The bifurcation prediction is that PING shows a
+# sharp loss feature as s crosses below f^* (loop disengages, readout
+# sees mismatched activity), while COBA — which has no f^* — shows a
+# smooth monotonic loss curve.
+
+W_IN_SCALE_VALUES: list[float] = [
+    0.10, 0.15, 0.22, 0.33, 0.50, 0.75, 1.00, 1.50, 2.20, 3.30, 5.00,
+]
+
+
+def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
+    """Inference-only sweep that multiplies each trained net's W_in
+    (i.e. net.W_ff[0]) by every value in W_IN_SCALE_VALUES, evaluates on
+    the test set, and records (model, scale, loss, acc, rate_e, rate_i).
+    Restores the original W_in after the sweep."""
+    import torch
+    from cli import _auto_device
+
+    device = _auto_device()
+    rows: list[dict] = []
+    for model in MODELS:
+        train_dir = baseline_dir(model)
+        if not (train_dir / "weights.pth").exists():
+            raise SystemExit(
+                f"w_in-scale-sweep needs trained {model} weights at {train_dir}"
+            )
+        net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
+        w_in_original = net.W_ff[0].data.clone()
+        try:
+            for scale in W_IN_SCALE_VALUES:
+                net.W_ff[0].data.copy_(w_in_original * float(scale))
+                with torch.no_grad():
+                    acc, ce_loss, e_rate, i_rate = _eval_net_on_test_with_loss(
+                        net, cfg, X_te, y_te, device
+                    )
+                rows.append({
+                    "model": model,
+                    "scale": float(scale),
+                    "loss": float(ce_loss),
+                    "acc": float(acc),
+                    "rate_e": float(e_rate),
+                    "rate_i": float(i_rate),
+                })
+                print(
+                    f"  {model:<4} s={scale:>5.2f}  "
+                    f"loss={ce_loss:6.3f}  acc={acc:5.2f}%  "
+                    f"E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
+                )
+        finally:
+            net.W_ff[0].data.copy_(w_in_original)
+    return rows
+
+
+def plot_w_in_scale_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Four-panel: loss, accuracy, E rate, I rate vs W_in scale on log
+    x-axis. One curve per model (PING = black, COBA = red)."""
+    theme.apply()
+    fig, axes = plt.subplots(1, 4, figsize=(14.0, 4.5), dpi=150)
+    colors = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
+    markers = {"coba": "s", "ping": "o"}
+    for ax in axes:
+        ax.set_xlabel("$W_\\text{in}$ scale $s$", fontsize=theme.SIZE_LABEL)
+        ax.axvline(1.0, color=theme.GREY_MID, lw=0.6, ls="--", alpha=0.7)
+    for model in MODELS:
+        msel = [r for r in rows if r["model"] == model]
+        xs = [r["scale"] for r in msel]
+        axes[0].plot(xs, [r["loss"] for r in msel], marker=markers[model],
+                     color=colors[model], lw=1.5, label=model.upper())
+        axes[1].plot(xs, [r["acc"] for r in msel], marker=markers[model],
+                     color=colors[model], lw=1.5, label=model.upper())
+        axes[2].plot(xs, [r["rate_e"] for r in msel], marker=markers[model],
+                     color=colors[model], lw=1.5, label=model.upper())
+        axes[3].plot(xs, [r["rate_i"] for r in msel], marker=markers[model],
+                     color=colors[model], lw=1.5, label=model.upper())
+    axes[0].set_ylabel("Test cross-entropy", fontsize=theme.SIZE_LABEL)
+    axes[0].set_title("Loss", fontsize=theme.SIZE_TITLE)
+    axes[1].set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    axes[1].set_ylim(0, 100)
+    axes[1].axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
+    axes[1].set_title("Accuracy", fontsize=theme.SIZE_TITLE)
+    axes[2].set_ylabel("E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    axes[2].set_title("E rate", fontsize=theme.SIZE_TITLE)
+    axes[3].set_ylabel("I rate (Hz)", fontsize=theme.SIZE_LABEL)
+    axes[3].set_title("I rate", fontsize=theme.SIZE_TITLE)
+    axes[0].legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper right")
+    fig.suptitle(
+        "Inference-time $W_\\text{in}$ scale sweep on trained networks "
+        "(dashed line = trained $s = 1$)",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+# ── End W_in scale sweep ───────────────────────────────────────────
+
+
 def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
     floor = float(MIN_ACC_BY_TIER[tier])
     figs_root = figures.parents[2]
@@ -1715,6 +1833,7 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("ei_rasters.png", "ei-sweep rasters rendered"),
         artifact("tau_gaba_sweep.png", "tau_GABA sweep rendered"),
         artifact("low_w_in_sweep.png", "low-w_in sweep rendered"),
+        artifact("w_in_scale_sweep.png", "W_in scale sweep rendered"),
     ]
     for model in MODELS:
         crits.append(artifact(f"raster__{model}.png", f"{model} raster rendered"))
@@ -2028,6 +2147,14 @@ def main() -> None:
     plot_low_w_in(low_w_in_rows, FIGURES / "low_w_in_sweep.png", notebook_run_id)
     print(f"wrote {FIGURES / 'low_w_in_sweep.png'}")
 
+    # W_in scale sweep — direct test of the bifurcation argument.
+    print("[w_in-scale-sweep] inference-only on trained PING and COBA")
+    w_in_scale_rows = run_w_in_scale_sweep(notebook_run_id)
+    plot_w_in_scale_sweep(
+        w_in_scale_rows, FIGURES / "w_in_scale_sweep.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'w_in_scale_sweep.png'}")
+
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
     crits = evaluate_success(rows, tier, FIGURES)
@@ -2058,6 +2185,7 @@ def main() -> None:
         "perturbation": perturb_rows,
         "tau_gaba_sweep": tau_gaba_rows,
         "low_w_in_sweep": low_w_in_rows,
+        "w_in_scale_sweep": w_in_scale_rows,
         "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
