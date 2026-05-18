@@ -1,11 +1,11 @@
 {
-  "notebook_run_id": "r021",
-  "git_sha": "559f599 (dirty)",
-  "duration_s": 589.5,
-  "duration": "9m 49s",
-  "tier": "small",
+  "notebook_run_id": "r023",
+  "git_sha": "02ca708 (dirty)",
+  "duration_s": 1395.7,
+  "duration": "23m 16s",
+  "tier": "medium",
   "config": {
-    "tier": "small",
+    "tier": "medium",
     "dataset": "mnist",
     "models": [
       "coba",
@@ -25,8 +25,8 @@
       2.5,
       1.0
     ],
-    "max_samples": 500,
-    "epochs": 5,
+    "max_samples": 2000,
+    "epochs": 10,
     "t_ms": 200.0,
     "dt": 0.1,
     "seeds_baseline": [
@@ -44,9 +44,9 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 42,
-      "best_acc": 84.25,
-      "best_epoch": 10,
-      "final_acc": 84.25,
+      "best_acc": 84.75,
+      "best_epoch": 8,
+      "final_acc": 84.0,
       "rate_e": 84.72222137451172
     },
     {
@@ -55,9 +55,9 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 43,
-      "best_acc": 84.25,
+      "best_acc": 84.5,
       "best_epoch": 10,
-      "final_acc": 84.25,
+      "final_acc": 84.5,
       "rate_e": 84.67339324951172
     },
     {
@@ -66,10 +66,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 44,
-      "best_acc": 83.5,
+      "best_acc": 83.0,
       "best_epoch": 10,
-      "final_acc": 83.5,
-      "rate_e": 84.72222137451172
+      "final_acc": 83.0,
+      "rate_e": 84.74934387207031
     },
     {
       "model": "coba",
@@ -77,10 +77,10 @@
       "theta_display": "5",
       "theta_u_hz": 25.0,
       "seed": 42,
-      "best_acc": 77.75,
-      "best_epoch": 8,
-      "final_acc": 77.5,
-      "rate_e": 40.2723503112793
+      "best_acc": 78.5,
+      "best_epoch": 10,
+      "final_acc": 78.5,
+      "rate_e": 40.31032943725586
     },
     {
       "model": "coba",
@@ -89,9 +89,9 @@
       "theta_u_hz": 10.0,
       "seed": 42,
       "best_acc": 73.5,
-      "best_epoch": 6,
-      "final_acc": 72.0,
-      "rate_e": 16.93250846862793
+      "best_epoch": 7,
+      "final_acc": 73.0,
+      "rate_e": 16.85655403137207
     },
     {
       "model": "coba",
@@ -99,10 +99,10 @@
       "theta_display": "1",
       "theta_u_hz": 5.0,
       "seed": 42,
-      "best_acc": 72.0,
-      "best_epoch": 9,
-      "final_acc": 70.5,
-      "rate_e": 6.716579437255859
+      "best_acc": 70.25,
+      "best_epoch": 6,
+      "final_acc": 70.0,
+      "rate_e": 6.700303554534912
     },
     {
       "model": "coba",
@@ -110,10 +110,10 @@
       "theta_display": "0.5",
       "theta_u_hz": 2.5,
       "seed": 42,
-      "best_acc": 67.75,
+      "best_acc": 68.0,
       "best_epoch": 9,
       "final_acc": 66.25,
-      "rate_e": 1.345486044883728
+      "rate_e": 1.3346353769302368
     },
     {
       "model": "coba",
@@ -121,10 +121,10 @@
       "theta_display": "0.2",
       "theta_u_hz": 1.0,
       "seed": 42,
-      "best_acc": 62.25,
-      "best_epoch": 10,
-      "final_acc": 62.25,
-      "rate_e": 0.0542534701526165
+      "best_acc": 61.0,
+      "best_epoch": 7,
+      "final_acc": 60.5,
+      "rate_e": 0.059678815305233
     },
     {
       "model": "ping",
@@ -132,10 +132,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 42,
-      "best_acc": 85.75,
-      "best_epoch": 9,
-      "final_acc": 85.5,
-      "rate_e": 5.121527671813965
+      "best_acc": 86.0,
+      "best_epoch": 10,
+      "final_acc": 86.0,
+      "rate_e": 5.268012046813965
     },
     {
       "model": "ping",
@@ -143,10 +143,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 43,
-      "best_acc": 84.25,
+      "best_acc": 84.75,
       "best_epoch": 10,
-      "final_acc": 84.25,
-      "rate_e": 5.392795085906982
+      "final_acc": 84.75,
+      "rate_e": 5.533854007720947
     },
     {
       "model": "ping",
@@ -154,10 +154,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 44,
-      "best_acc": 84.75,
-      "best_epoch": 10,
+      "best_acc": 85.75,
+      "best_epoch": 9,
       "final_acc": 84.75,
-      "rate_e": 5.181206226348877
+      "rate_e": 5.3548173904418945
     },
     {
       "model": "ping",
@@ -165,10 +165,10 @@
       "theta_display": "5",
       "theta_u_hz": 25.0,
       "seed": 42,
-      "best_acc": 85.0,
+      "best_acc": 86.0,
       "best_epoch": 10,
-      "final_acc": 85.0,
-      "rate_e": 5.105251312255859
+      "final_acc": 86.0,
+      "rate_e": 5.268012046813965
     },
     {
       "model": "ping",
@@ -176,10 +176,10 @@
       "theta_display": "2",
       "theta_u_hz": 10.0,
       "seed": 42,
-      "best_acc": 86.25,
-      "best_epoch": 9,
-      "final_acc": 84.5,
-      "rate_e": 5.36024284362793
+      "best_acc": 85.75,
+      "best_epoch": 10,
+      "final_acc": 85.75,
+      "rate_e": 5.343966960906982
     },
     {
       "model": "ping",
@@ -187,10 +187,10 @@
       "theta_display": "1",
       "theta_u_hz": 5.0,
       "seed": 42,
-      "best_acc": 84.0,
-      "best_epoch": 7,
-      "final_acc": 83.0,
-      "rate_e": 4.709201335906982
+      "best_acc": 84.25,
+      "best_epoch": 9,
+      "final_acc": 83.5,
+      "rate_e": 4.850260257720947
     },
     {
       "model": "ping",
@@ -198,10 +198,10 @@
       "theta_display": "0.5",
       "theta_u_hz": 2.5,
       "seed": 42,
-      "best_acc": 83.75,
+      "best_acc": 84.0,
       "best_epoch": 9,
-      "final_acc": 83.25,
-      "rate_e": 3.6349825859069824
+      "final_acc": 83.75,
+      "rate_e": 3.314887046813965
     },
     {
       "model": "ping",
@@ -209,88 +209,88 @@
       "theta_display": "0.2",
       "theta_u_hz": 1.0,
       "seed": 42,
-      "best_acc": 84.25,
+      "best_acc": 84.5,
       "best_epoch": 10,
-      "final_acc": 84.25,
-      "rate_e": 3.423393964767456
+      "final_acc": 84.5,
+      "rate_e": 2.842881917953491
     }
   ],
   "ei_sweep": [
     {
       "ei_strength": 0.0,
-      "acc": 83.75,
-      "hid_rate_hz": 52.7231689453125,
+      "acc": 82.75,
+      "hid_rate_hz": 51.75125732421875,
       "inh_rate_hz": 0.0,
       "n_total": 400
     },
     {
       "ei_strength": 0.1,
-      "acc": 83.75,
-      "hid_rate_hz": 52.7231689453125,
+      "acc": 82.75,
+      "hid_rate_hz": 51.75125732421875,
       "inh_rate_hz": 0.0,
       "n_total": 400
     },
     {
       "ei_strength": 0.2,
       "acc": 81.75,
-      "hid_rate_hz": 36.74111328125,
-      "inh_rate_hz": 9.339697265625,
+      "hid_rate_hz": 35.80606689453125,
+      "inh_rate_hz": 9.364208984375,
       "n_total": 400
     },
     {
       "ei_strength": 0.3,
-      "acc": 78.75,
-      "hid_rate_hz": 20.0839599609375,
-      "inh_rate_hz": 18.768896484375,
+      "acc": 79.0,
+      "hid_rate_hz": 19.46612548828125,
+      "inh_rate_hz": 18.627978515625,
       "n_total": 400
     },
     {
       "ei_strength": 0.4,
       "acc": 76.25,
-      "hid_rate_hz": 13.4208984375,
-      "inh_rate_hz": 22.18076171875,
+      "hid_rate_hz": 13.05479736328125,
+      "inh_rate_hz": 21.797607421875,
       "n_total": 400
     },
     {
       "ei_strength": 0.5,
       "acc": 73.75,
-      "hid_rate_hz": 10.16719970703125,
-      "inh_rate_hz": 23.272119140625,
+      "hid_rate_hz": 9.87574462890625,
+      "inh_rate_hz": 22.89345703125,
       "n_total": 400
     },
     {
       "ei_strength": 0.6,
       "acc": 72.5,
-      "hid_rate_hz": 8.21876220703125,
-      "inh_rate_hz": 23.710595703125,
+      "hid_rate_hz": 7.99400634765625,
+      "inh_rate_hz": 23.309912109375,
       "n_total": 400
     },
     {
       "ei_strength": 0.7,
-      "acc": 71.75,
-      "hid_rate_hz": 6.91700439453125,
-      "inh_rate_hz": 23.744384765625,
+      "acc": 72.5,
+      "hid_rate_hz": 6.7771484375,
+      "inh_rate_hz": 23.29228515625,
       "n_total": 400
     },
     {
       "ei_strength": 0.8,
-      "acc": 73.25,
-      "hid_rate_hz": 5.98438720703125,
-      "inh_rate_hz": 23.704833984375,
+      "acc": 72.25,
+      "hid_rate_hz": 5.859521484375,
+      "inh_rate_hz": 23.28076171875,
       "n_total": 400
     },
     {
       "ei_strength": 0.9,
-      "acc": 72.0,
-      "hid_rate_hz": 5.2908203125,
-      "inh_rate_hz": 23.608642578125,
+      "acc": 73.5,
+      "hid_rate_hz": 5.1774658203125,
+      "inh_rate_hz": 23.2748046875,
       "n_total": 400
     },
     {
       "ei_strength": 1.0,
-      "acc": 72.5,
-      "hid_rate_hz": 4.75567626953125,
-      "inh_rate_hz": 23.5564453125,
+      "acc": 71.75,
+      "hid_rate_hz": 4.65147705078125,
+      "inh_rate_hz": 23.187890625,
       "n_total": 400
     }
   ],
@@ -298,80 +298,80 @@
     {
       "mode": "drop",
       "level": 0.0,
-      "acc": 83.75,
-      "e_rate_hz": 52.7231689453125,
+      "acc": 82.75,
+      "e_rate_hz": 51.75125732421875,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.1,
-      "acc": 83.5,
-      "e_rate_hz": 47.46053466796875,
+      "acc": 82.25,
+      "e_rate_hz": 46.57669677734375,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.2,
-      "acc": 84.0,
-      "e_rate_hz": 42.18714599609375,
+      "acc": 82.25,
+      "e_rate_hz": 41.39493408203125,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.3,
-      "acc": 84.25,
-      "e_rate_hz": 36.92286376953125,
+      "acc": 81.75,
+      "e_rate_hz": 36.20589599609375,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.4,
-      "acc": 82.75,
-      "e_rate_hz": 31.6572265625,
+      "acc": 81.75,
+      "e_rate_hz": 31.03447265625,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.5,
-      "acc": 82.0,
-      "e_rate_hz": 26.38291015625,
+      "acc": 81.25,
+      "e_rate_hz": 25.847802734375,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.6,
-      "acc": 81.0,
-      "e_rate_hz": 21.10142822265625,
+      "acc": 80.75,
+      "e_rate_hz": 20.68587646484375,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.7,
-      "acc": 80.5,
-      "e_rate_hz": 15.831396484375,
+      "acc": 79.0,
+      "e_rate_hz": 15.51893310546875,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.8,
-      "acc": 76.5,
-      "e_rate_hz": 10.5544677734375,
+      "acc": 75.5,
+      "e_rate_hz": 10.34012451171875,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.9,
-      "acc": 57.25,
-      "e_rate_hz": 5.2669677734375,
+      "acc": 51.5,
+      "e_rate_hz": 5.1785400390625,
       "n_total": 400,
       "model": "coba"
     },
@@ -386,152 +386,152 @@
     {
       "mode": "add",
       "level": 0.0,
-      "acc": 83.75,
-      "e_rate_hz": 52.7231689453125,
+      "acc": 82.75,
+      "e_rate_hz": 51.75125732421875,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "add",
       "level": 10.0,
-      "acc": 84.25,
-      "e_rate_hz": 62.677392578125,
+      "acc": 83.0,
+      "e_rate_hz": 61.70618896484375,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "add",
       "level": 20.0,
-      "acc": 84.25,
-      "e_rate_hz": 72.62777099609374,
+      "acc": 83.25,
+      "e_rate_hz": 71.65711669921875,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "add",
       "level": 30.0,
-      "acc": 84.25,
-      "e_rate_hz": 82.55938720703125,
+      "acc": 83.0,
+      "e_rate_hz": 81.5902587890625,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "add",
       "level": 40.0,
-      "acc": 83.5,
-      "e_rate_hz": 92.4903564453125,
+      "acc": 83.0,
+      "e_rate_hz": 91.52203369140625,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "add",
       "level": 50.0,
-      "acc": 82.0,
-      "e_rate_hz": 102.42603759765625,
+      "acc": 82.25,
+      "e_rate_hz": 101.457568359375,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "add",
       "level": 60.0,
-      "acc": 80.0,
-      "e_rate_hz": 112.375537109375,
+      "acc": 80.25,
+      "e_rate_hz": 111.40721435546875,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "add",
       "level": 70.0,
-      "acc": 78.25,
-      "e_rate_hz": 122.3324951171875,
+      "acc": 80.0,
+      "e_rate_hz": 121.36640625,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "add",
       "level": 80.0,
-      "acc": 74.5,
-      "e_rate_hz": 132.2664794921875,
+      "acc": 77.5,
+      "e_rate_hz": 131.3010009765625,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "add",
       "level": 90.0,
-      "acc": 70.5,
-      "e_rate_hz": 142.21124267578125,
+      "acc": 74.0,
+      "e_rate_hz": 141.2462890625,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "add",
       "level": 100.0,
-      "acc": 67.0,
-      "e_rate_hz": 152.14637451171876,
+      "acc": 70.75,
+      "e_rate_hz": 151.1827392578125,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.0,
-      "acc": 84.5,
-      "e_rate_hz": 4.59638671875,
+      "acc": 85.0,
+      "e_rate_hz": 4.65860595703125,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.1,
-      "acc": 84.25,
-      "e_rate_hz": 4.59808349609375,
+      "acc": 84.0,
+      "e_rate_hz": 4.66585693359375,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.2,
-      "acc": 84.0,
-      "e_rate_hz": 4.63948974609375,
+      "acc": 85.0,
+      "e_rate_hz": 4.70172119140625,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.3,
-      "acc": 83.5,
-      "e_rate_hz": 4.72188720703125,
+      "acc": 85.25,
+      "e_rate_hz": 4.727783203125,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.4,
-      "acc": 84.25,
-      "e_rate_hz": 4.7634521484375,
+      "acc": 84.75,
+      "e_rate_hz": 4.7923095703125,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.5,
-      "acc": 84.75,
-      "e_rate_hz": 4.87354736328125,
+      "acc": 85.0,
+      "e_rate_hz": 4.9149169921875,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.6,
-      "acc": 83.0,
-      "e_rate_hz": 5.13062744140625,
+      "acc": 86.0,
+      "e_rate_hz": 5.186767578125,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.7,
-      "acc": 82.25,
-      "e_rate_hz": 5.72882080078125,
+      "acc": 83.75,
+      "e_rate_hz": 5.7427001953125,
       "n_total": 400,
       "model": "ping"
     },
@@ -539,15 +539,15 @@
       "mode": "drop",
       "level": 0.8,
       "acc": 78.25,
-      "e_rate_hz": 7.0495361328125,
+      "e_rate_hz": 7.078369140625,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.9,
-      "acc": 73.0,
-      "e_rate_hz": 5.0380859375,
+      "acc": 69.75,
+      "e_rate_hz": 5.1366943359375,
       "n_total": 400,
       "model": "ping"
     },
@@ -562,16 +562,16 @@
     {
       "mode": "add",
       "level": 0.0,
-      "acc": 84.5,
-      "e_rate_hz": 4.59638671875,
+      "acc": 85.0,
+      "e_rate_hz": 4.65860595703125,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "add",
       "level": 10.0,
-      "acc": 12.25,
-      "e_rate_hz": 10.0410400390625,
+      "acc": 13.0,
+      "e_rate_hz": 10.049365234375,
       "n_total": 400,
       "model": "ping"
     },
@@ -579,7 +579,7 @@
       "mode": "add",
       "level": 20.0,
       "acc": 10.0,
-      "e_rate_hz": 20.00960693359375,
+      "e_rate_hz": 20.00968017578125,
       "n_total": 400,
       "model": "ping"
     },
@@ -634,7 +634,7 @@
     {
       "mode": "add",
       "level": 90.0,
-      "acc": 10.0,
+      "acc": 10.5,
       "e_rate_hz": 89.9632080078125,
       "n_total": 400,
       "model": "ping"
@@ -652,132 +652,132 @@
     {
       "label": "bar chart rendered",
       "passed": true,
-      "detail": "acc_vs_rate.png (56062 bytes)",
+      "detail": "acc_vs_rate.png (55783 bytes)",
       "detail_href": "/figures/notebooks/nb024/acc_vs_rate.png"
     },
     {
       "label": "learning curves rendered",
       "passed": true,
-      "detail": "learning_curves.png (89353 bytes)",
+      "detail": "learning_curves.png (90927 bytes)",
       "detail_href": "/figures/notebooks/nb024/learning_curves.png"
     },
     {
       "label": "frontier rendered",
       "passed": true,
-      "detail": "frontier.png (43300 bytes)",
+      "detail": "frontier.png (43903 bytes)",
       "detail_href": "/figures/notebooks/nb024/frontier.png"
     },
     {
       "label": "ei-sweep accuracy rendered",
       "passed": true,
-      "detail": "ei_acc_sweep.png (47855 bytes)",
+      "detail": "ei_acc_sweep.png (46860 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_acc_sweep.png"
     },
     {
       "label": "ei-sweep rates rendered",
       "passed": true,
-      "detail": "ei_rates_sweep.png (54855 bytes)",
+      "detail": "ei_rates_sweep.png (53973 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_rates_sweep.png"
     },
     {
       "label": "ei-sweep rasters rendered",
       "passed": true,
-      "detail": "ei_rasters.png (68230 bytes)",
+      "detail": "ei_rasters.png (68484 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_rasters.png"
     },
     {
       "label": "coba raster rendered",
       "passed": true,
-      "detail": "raster__coba.png (172605 bytes)",
+      "detail": "raster__coba.png (172701 bytes)",
       "detail_href": "/figures/notebooks/nb024/raster__coba.png"
     },
     {
       "label": "ping raster rendered",
       "passed": true,
-      "detail": "raster__ping.png (52545 bytes)",
+      "detail": "raster__ping.png (55292 bytes)",
       "detail_href": "/figures/notebooks/nb024/raster__ping.png"
     },
     {
       "label": "coba \u03b8_u=off: training video",
       "passed": true,
-      "detail": "training__coba__off.mp4 (488118 bytes)",
+      "detail": "training__coba__off.mp4 (489187 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__off.mp4"
     },
     {
       "label": "coba \u03b8_u=5: training video",
       "passed": true,
-      "detail": "training__coba__tu5.mp4 (338906 bytes)",
+      "detail": "training__coba__tu5.mp4 (338503 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__tu5.mp4"
     },
     {
       "label": "coba \u03b8_u=2: training video",
       "passed": true,
-      "detail": "training__coba__tu2.mp4 (231299 bytes)",
+      "detail": "training__coba__tu2.mp4 (229642 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__tu2.mp4"
     },
     {
       "label": "coba \u03b8_u=1: training video",
       "passed": true,
-      "detail": "training__coba__tu1.mp4 (174078 bytes)",
+      "detail": "training__coba__tu1.mp4 (174892 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__tu1.mp4"
     },
     {
       "label": "coba \u03b8_u=0.5: training video",
       "passed": true,
-      "detail": "training__coba__tu0p5.mp4 (142490 bytes)",
+      "detail": "training__coba__tu0p5.mp4 (144255 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__tu0p5.mp4"
     },
     {
       "label": "coba \u03b8_u=0.2: training video",
       "passed": true,
-      "detail": "training__coba__tu0p2.mp4 (130645 bytes)",
+      "detail": "training__coba__tu0p2.mp4 (136928 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__tu0p2.mp4"
     },
     {
       "label": "ping \u03b8_u=off: training video",
       "passed": true,
-      "detail": "training__ping__off.mp4 (186016 bytes)",
+      "detail": "training__ping__off.mp4 (179702 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__off.mp4"
     },
     {
       "label": "ping \u03b8_u=5: training video",
       "passed": true,
-      "detail": "training__ping__tu5.mp4 (179583 bytes)",
+      "detail": "training__ping__tu5.mp4 (179702 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__tu5.mp4"
     },
     {
       "label": "ping \u03b8_u=2: training video",
       "passed": true,
-      "detail": "training__ping__tu2.mp4 (176584 bytes)",
+      "detail": "training__ping__tu2.mp4 (176415 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__tu2.mp4"
     },
     {
       "label": "ping \u03b8_u=1: training video",
       "passed": true,
-      "detail": "training__ping__tu1.mp4 (170859 bytes)",
+      "detail": "training__ping__tu1.mp4 (173097 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__tu1.mp4"
     },
     {
       "label": "ping \u03b8_u=0.5: training video",
       "passed": true,
-      "detail": "training__ping__tu0p5.mp4 (166892 bytes)",
+      "detail": "training__ping__tu0p5.mp4 (162632 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__tu0p5.mp4"
     },
     {
       "label": "ping \u03b8_u=0.2: training video",
       "passed": true,
-      "detail": "training__ping__tu0p2.mp4 (148752 bytes)",
+      "detail": "training__ping__tu0p2.mp4 (148428 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__tu0p2.mp4"
     },
     {
-      "label": "coba baseline acc \u2265 30% (small floor)",
+      "label": "coba baseline acc \u2265 50% (medium floor)",
       "passed": true,
-      "detail": "coba=84.25%"
+      "detail": "coba=84.75%"
     },
     {
-      "label": "ping baseline acc \u2265 30% (small floor)",
+      "label": "ping baseline acc \u2265 50% (medium floor)",
       "passed": true,
-      "detail": "ping=85.75%"
+      "detail": "ping=86.00%"
     },
     {
       "label": "coba rate non-increasing as \u03b8_u tightens (\u00b11 Hz)",
@@ -787,7 +787,7 @@
     {
       "label": "ping rate non-increasing as \u03b8_u tightens (\u00b11 Hz)",
       "passed": true,
-      "detail": "rates(loose\u2192tight): 5.1, 5.4, 4.7, 3.6, 3.4"
+      "detail": "rates(loose\u2192tight): 5.3, 5.3, 4.9, 3.3, 2.8"
     }
   ]
 }

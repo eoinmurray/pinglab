@@ -19,7 +19,7 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Summary
 
-Same MNIST accuracy, ~16× fewer spikes. Coba (no I-loop) settles at ~80 Hz hidden firing; ping (E↔I loop wired up, frozen) settles at ~5 Hz with comparable accuracy. A spike-budget regulariser drags coba toward ping-like rates at an accuracy cost; ping's frontier is flat — it's already at its floor. **The floor is dynamical, not informational**: hidden-spike drop shows the readout works at ~1 Hz, but the gamma loop's preferred cycle period (τ_AMPA + τ_GABA ≈ 11 ms) keeps the network from going there spontaneously.
+Same MNIST accuracy (82-86%), ~11× fewer spikes. Coba (no I-loop) settles at ~52 Hz hidden firing; ping (E↔I loop wired up, frozen) settles at ~5 Hz with comparable accuracy. A spike-budget regulariser drags coba toward ping-like rates at an accuracy cost; ping's frontier is flat — it's already at its floor. **The floor is dynamical, not informational**: hidden-spike drop shows the readout works at ~1 Hz, but the gamma loop's preferred cycle period (τ_AMPA + τ_GABA ≈ 11 ms) keeps the network from going there spontaneously.
 
 ## Method
 
@@ -72,7 +72,7 @@ The rate floor is the loop's natural cadence, not what the task requires. The sp
 
 ## Limitations
 
-Small tier only (max_samples = 500, epochs = 5); absolute accuracies are below state-of-the-art. MNIST only. Sweep cells single-seed; baselines 3-seed. Drop/add applies the same statistic to E and I — a population-resolved version would isolate which population's timing the readout uses.
+Medium tier (max_samples = 2000, epochs = 10); absolute accuracies (82-86%) are below state-of-the-art. MNIST only. Sweep cells single-seed; baselines 3-seed. Drop/add applies the same statistic to E and I — a population-resolved version would isolate which population's timing the readout uses.
 
 ## Appendix
 
