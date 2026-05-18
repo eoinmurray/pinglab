@@ -866,10 +866,11 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
         ax.tick_params(axis="y", length=0)
         ax.set_xlim(0, s["t_ms"])
         ax.text(
-            1.012, 0.5, f"E = {s['e_rate_hz']:.1f} Hz",
+            1.012, 0.5,
+            f"input = {s['spike_rate']:.1f} Hz\nE = {s['e_rate_hz']:.1f} Hz",
             transform=ax.transAxes,
             ha="left", va="center",
-            fontsize=theme.SIZE_LABEL,
+            fontsize=theme.SIZE_ANNOTATION,
         )
         if i == 0:
             ax.set_title(
