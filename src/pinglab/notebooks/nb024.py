@@ -1198,12 +1198,15 @@ def plot_perturbation_curves(
     level in its native units (probability for drop, Hz for add).
     """
     theme.apply()
-    fig, axes = plt.subplots(1, 2, figsize=(10.0, 5.625), sharey=True)
-    for ax, mode, xlabel in zip(
-        axes,
-        ("drop", "add"),
-        ("p(drop) per spike", "Poisson add rate (Hz / neuron)"),
-    ):
+    # 16:9 styleguide ratio, sized for two side-by-side panels.
+    fig, axes = plt.subplots(1, 2, figsize=(8.0, 4.5), sharey=True, dpi=150)
+    panel_specs = [
+        ("drop", "Drop — Bernoulli spike mask",
+         "p(drop) per spike", (-0.02, 1.02)),
+        ("add", "Add — Poisson noise injection",
+         "Poisson rate (Hz / neuron)", None),
+    ]
+    for ax, (mode, title, xlabel, xlim) in zip(axes, panel_specs):
         for model in MODELS:
             rows = [
                 p for p in points if p["model"] == model and p["mode"] == mode
@@ -1214,18 +1217,39 @@ def plot_perturbation_curves(
             ax.plot(
                 xs, ys,
                 marker=MODEL_MARKERS[model],
+                markersize=5,
+                linewidth=1.4,
                 color=MODEL_COLORS[model],
                 label=model,
             )
-        ax.axhline(10.0, ls=":", color=theme.FAINT, lw=0.8)
-        ax.set_xlabel(xlabel)
-        ax.set_title(mode)
-        ax.grid(True, alpha=0.3)
+        ax.axhline(10.0, ls="--", color=theme.MUTED, lw=0.7, alpha=0.6)
+        # Light annotation of the chance line, only on the left panel
+        # to avoid duplicate ink.
+        if mode == "drop":
+            ax.text(
+                0.02, 12, "chance", transform=ax.get_yaxis_transform(),
+                fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
+                va="bottom",
+            )
+        ax.set_xlabel(xlabel, fontsize=theme.SIZE_LABEL)
+        ax.set_title(title, fontsize=theme.SIZE_LABEL, loc="left", pad=4)
         ax.set_ylim(0, 100)
-    axes[0].set_ylabel("test accuracy (%)")
-    axes[0].legend(loc="lower left")
+        if xlim is not None:
+            ax.set_xlim(*xlim)
+        ax.tick_params(labelsize=theme.SIZE_TICK)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.yaxis.set_major_locator(plt.matplotlib.ticker.MultipleLocator(20))
+        ax.grid(True, axis="y", alpha=0.15, linewidth=0.5)
+    axes[0].set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    axes[1].legend(
+        loc="upper right",
+        fontsize=theme.SIZE_LEGEND,
+        frameon=False,
+    )
     fig.suptitle(
-        "Hidden-layer spike perturbation — accuracy vs perturbation level"
+        "Hidden-spike perturbation — accuracy vs perturbation level",
+        fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
     _stamp(fig, run_id)
