@@ -23,12 +23,12 @@ Same MNIST accuracy, ~16× fewer spikes. Coba (no I-loop) settles at ~80 Hz hidd
 
 ## Method
 
-Two COBANet recipes, identical except for `ei_strength`:
+Two COBANet recipes, identical except for *ei_strength*:
 
-- **coba** — `--ei-strength 0`, `--w-in 0.3`, `--readout-w-out-scale 100`.
-- **ping** — `--ei-strength 1`, `--w-in 1.2`, `--readout-w-out-scale 500`.
+- **coba** — *--ei-strength 0*, *--w-in 0.3*, *--readout-w-out-scale 100*.
+- **ping** — *--ei-strength 1*, *--w-in 1.2*, *--readout-w-out-scale 500*.
 
-E↔I matrices in ping are wired at init and held `requires_grad=False`. Same surrogate, lr, dt, seed everywhere. Spike-budget regulariser θ_u ∈ {off, 5, 2, 1, 0.5, 0.2} spikes/trial (12 cells total).
+E↔I matrices in ping are wired at init and held *requires_grad=False*. Same surrogate, lr, dt, seed everywhere. Spike-budget regulariser θ_u sweeps over six values (off, 5, 2, 1, 0.5, 0.2 spikes/trial) — 12 cells total.
 
 **Hidden-spike perturbation.** A per-step callback rewrites the emitted E and I spike vectors *inside* the forward loop, so the I-feedback and readout both react within the same trial. Two modes:
 
