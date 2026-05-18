@@ -89,7 +89,7 @@ Two design choices worth flagging:
 * **Pulse train rather than Fourier harmonics**: PING is *physically* a periodic train of population bursts. $\sigma_b$ directly parameterises burst width (instead of being smeared across multiple harmonic coefficients), and the troughs go genuinely flat between pulses. Tight Gaussian over Lorentzian — Gaussians are local, so the trough quiets between pulses.
 * **Binomial count rather than additive Gaussian noise**: zero spikes is a hard floor; an additive Gaussian residual drowns the small-$A$ pulses in noise that doesn't know the trace is bounded below by zero. With binomial $\mathrm{Bin}(N_E, p_t)$ the variance is $p_t(1-p_t)/N_E$ — quiet at the trough where $p \approx 0$, putting noise in the peaks where it doesn't hide the cadence.
 
-Working on the rate rather than the raster trades per-spike resolution for population-synchronous amplitude — at burst peaks $\approx$10–25% of E neurons fire together within a single 2 ms bin, and that swing is what we want the model to reproduce.
+Working on the rate rather than the raster trades per-spike resolution for population-synchronous amplitude — at burst peaks $\sim$10–25% of E neurons fire together within a single 2 ms bin, and that swing is what we want the model to reproduce.
 
 ## Results
 
@@ -100,7 +100,7 @@ Working on the rate rather than the raster trades per-spike resolution for popul
 ### Generative model
 
 <Figure id="Figure 2" title="real (black) vs fitted-model sample (red dashed) across the ei sweep" src="/figures/notebooks/nb018/rate_model_validation.png" alt="Stacked rows: real E population-participation traces (black) with a single-sample fitted-model overlay (red dashed) for 10 evenly-spaced ei values across the sweep.">
-  One row per *ei* value (10 evenly-spaced across the {scan.frames}-frame sweep). Real participation in black; a single sample drawn from the fitted model overlaid in red dashed. Display is the first 250 ms of the post-onset window; the fit uses the full $\approx$980 ms. The binomial noise model means simulated troughs go genuinely flat (zero spikes is a hard floor), so the cadence reads cleanly at high *ei*. The amplitude of fitted pulses still undershoots real bursts — phase jitter in the data drags the LS-best perfectly-periodic template downward — and pulse shape is symmetric Gaussian rather than the asymmetric onset/decay of real PING. Cadence and timing are right; the burst-shape and amplitude-recovery problems are open work.
+  One row per *ei* value (10 evenly-spaced across the {scan.frames}-frame sweep). Real participation in black; a single sample drawn from the fitted model overlaid in red dashed. Display is the first 250 ms of the post-onset window; the fit uses the full $\sim$980 ms. The binomial noise model means simulated troughs go genuinely flat (zero spikes is a hard floor), so the cadence reads cleanly at high *ei*. The amplitude of fitted pulses still undershoots real bursts — phase jitter in the data drags the LS-best perfectly-periodic template downward — and pulse shape is symmetric Gaussian rather than the asymmetric onset/decay of real PING. Cadence and timing are right; the burst-shape and amplitude-recovery problems are open work.
 </Figure>
 
 ## Next steps

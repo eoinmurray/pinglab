@@ -9,33 +9,33 @@ import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
 import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb022/numbers.json", {})
+  import.meta.glob("../../../public/figures/notebooks/nb022/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const results = numbers.results ?? [];
 export const successCriteria = numbers.success_criteria ?? [];
 export const get = (cell) => results.find((r) => r.cell === cell) ?? {};
 
-<NotebookHeader frontmatter={} numbers={} />
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
-**Dale's law**, in this codebase, is the constraint that the *trainable* feedforward weight matrix $W_{{}}$ stays non-negative: an "excitatory" input projection genuinely excites the post-synaptic cell rather than being free to switch sign mid-training. It is the default for the *COBA* and *ping* models — and it is the biological assumption that distinguishes them from a "vanilla" SNN where every weight is freely signed.
+**Dale's law**, in this codebase, is the constraint that the *trainable* feedforward weight matrix $W_{\text{ff}}$ stays non-negative: an "excitatory" input projection genuinely excites the post-synaptic cell rather than being free to switch sign mid-training. It is the default for the *coba* and *ping* models — and it is the biological assumption that distinguishes them from a "vanilla" SNN where every weight is freely signed.
 
-This entry trains the [COBA](/notebooks/nb011/) recipe twice — once with the default *--dales-law*, once with *--no-dales-law* — and compares accuracy, firing rate, and the resulting distribution of trained weights. Every other knob (lr, w_in, surrogate slope, readout, batch size, seed) is held fixed at the calibrated [nb011](/notebooks/nb011/) recipe, so any difference is attributable to the constraint alone.
+This entry trains the [coba](/notebooks/nb011/) recipe twice — once with the default *--dales-law*, once with *--no-dales-law* — and compares accuracy, firing rate, and the resulting distribution of trained weights. Every other knob (lr, w_in, surrogate slope, readout, batch size, seed) is held fixed at the calibrated [nb011](/notebooks/nb011/) recipe, so any difference is attributable to the constraint alone.
 
-The recurrent E-I matrices ($W^{}$, $W^{}$, $W^{}$ inside COBANet) are fixed buffers either way — Dale's law on them is just the initial-condition sign convention. This experiment therefore isolates the *trainable* feedforward effect.
+The recurrent E-I matrices ($W^{EE}$, $W^{EI}$, $W^{IE}$ inside COBANet) are fixed buffers either way — Dale's law on them is just the initial-condition sign convention. This experiment therefore isolates the *trainable* feedforward effect.
 
 ## Method
 
-Two cells, both running the [COBA](/articles/art003/) recipe:
+Two cells, both running the [coba](/articles/art003/) recipe:
 
-- *COBA/dales* — `` (default). The trainable $W_{{}}$ is clamped non-negative at every forward pass.
-- *COBA/no_dales* — ``. Signed weights allowed everywhere.
+- *coba/dales* — `--dales-law` (default). The trainable $W_{\text{ff}}$ is clamped non-negative at every forward pass.
+- *coba/no_dales* — `--no-dales-law`. Signed weights allowed everywhere.
 
-<RunParameters numbers={} variant="recipe" extras={ variant="recipe" extras={[
-  {},
-}]} />
+<RunParameters numbers={numbers} variant="recipe" extras={[
+  { label: "cells", value: (cfg.cells ?? []).join(", ") || "?", default: "—" },
+]} />
 
 - **Same recipe as nb011.** *--ei-strength=0* (no active I-loop), *--readout=mem-mean*, *--readout-w-out-scale=100*, *--lr=0.0004*, *--w-in=0.3*, *--surrogate-slope=1*, *--batch-size=256*.
 - **Same seed (42).** The only difference between the two runs is the flag.
@@ -44,24 +44,24 @@ Two cells, both running the [COBA](/articles/art003/) recipe:
 
 ### Success criteria
 
-{{successCriteria.length > 0 ? (
+{successCriteria.length > 0 ? (
   <table>
     <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
     <tbody>
-      {      {successCriteria.map((c) => (
-        <tr key={}>
-          <td>{}</td>
-          <td><strong>{}</strong></td>
-          <td>{{}{}}</td>
+      {successCriteria.map((c) => (
+        <tr key={c.label}>
+          <td>{c.label}</td>
+          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
+          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
         </tr>
-}      ))}
+      ))}
     </tbody>
   </table>
 ) : (
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-})}
+)}
 
-<Figure id="Figure 1" title="Final accuracy and firing rate" src="/figures/notebooks/nb022/accuracy.png" alt="Bar chart: final test accuracy of COBA with and without Dale's law, with the hidden-E firing rate annotated underneath each bar.">
+<Figure id="Figure 1" title="Final accuracy and firing rate" src="/figures/notebooks/nb022/accuracy.png" alt="Bar chart: final test accuracy of coba with and without Dale's law, with the hidden-E firing rate annotated underneath each bar.">
   Final-epoch test accuracy under Dale's law (left) and with signed weights (right). The number beneath each bar is the hidden-E firing rate at the same time point.
 </Figure>
 
@@ -74,17 +74,17 @@ Two cells, both running the [COBA](/articles/art003/) recipe:
 </Figure>
 
 <Figure id="Figure 4" title="Distribution of trained input weights" src="/figures/notebooks/nb022/weight_hist.png" alt="Histogram of all entries of the trained input weight matrix W_ff[0], overlaid for the two cells. Under Dale's law the mass is pinned to non-negative; without it the distribution is roughly symmetric around zero.">
-  Histogram of every entry of the trained input weight matrix $W_{{}}^{}$. Under Dale's law (amber), every entry is non-negative — the optimiser-then-project step pins the mass to the right half-line. Without it (cyan), the distribution sits symmetrically around zero.
+  Histogram of every entry of the trained input weight matrix $W_{\text{ff}}^{(0)}$. Under Dale's law (amber), every entry is non-negative — the optimiser-then-project step pins the mass to the right half-line. Without it (cyan), the distribution sits symmetrically around zero.
 </Figure>
 
 ## Per-cell training videos
 
-<Figure id="Figure 5" title="COBA — Dale's law" src="/figures/notebooks/nb022/training__dales.mp4" type="video" alt="COBA training, Dale's law on">
-  COBA reference recipe with *--dales-law* (default).
+<Figure id="Figure 5" title="coba — Dale's law" src="/figures/notebooks/nb022/training__dales.mp4" type="video" alt="coba training, Dale's law on">
+  coba reference recipe with *--dales-law* (default).
 </Figure>
 
-<Figure id="Figure 6" title="COBA — signed weights" src="/figures/notebooks/nb022/training__no_dales.mp4" type="video" alt="COBA training, Dale's law off">
-  COBA reference recipe with *--no-dales-law*.
+<Figure id="Figure 6" title="coba — signed weights" src="/figures/notebooks/nb022/training__no_dales.mp4" type="video" alt="coba training, Dale's law off">
+  coba reference recipe with *--no-dales-law*.
 </Figure>
 
 ## Discussion
