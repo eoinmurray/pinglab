@@ -308,72 +308,72 @@ def parse_args():
     import argparse
 
     _examples = """\
-Network:
-  --model MODEL             ping|standard-snn|cuba (default: ping)
-  --n-hidden N              N_E neurons, N_I=N_E//4 (default: 1024)
-  --n-input N               N_IN input neurons (default: N_E)
-  --ei-strength S           E-I coupling, W_EI=s W_IE=s*ratio (default: 0.5)
-  --ei-ratio R              W_IE/W_EI ratio (default: 2.0)
-  --ei-sparsity F           E-I sparsity (default: 0.2)
-  --w-in-sparsity F         W_in sparsity (default: 0.95)
-  --bias B                  background conductance uS (default: 0.0002)
-  --dt DT                   timestep ms (default: 0.25)
-  --device DEV              cpu|mps|cuda (default: cpu)
+Each subcommand has its own complete argument listing. The top-level help
+above only shows the dispatcher; for the actual flags accepted by a mode,
+run:
 
-Input:
-  --input MODE              synthetic-spikes|dataset (default: synthetic-spikes)
-  --input-rate HZ           baseline Poisson rate (default: 25)
-  --stim-overdrive X        stimulus multiplier (default: 1.0)
-  --dataset NAME            scikit|mnist|smnist (default: scikit)
-  --digit D                 digit class 0-9 (default: 0)
+  python -m cli sim    --help
+  python -m cli image  --help
+  python -m cli video  --help
+  python -m cli train  --help
+  python -m cli infer  --help
 
-Weights (advanced):
-  --w-in MEAN STD           W_in init (default: 0.3 0.06; standard-snn needs ~10 2)
-  --w-ei MEAN STD           W_EI init (overrides --ei-strength)
-  --w-ie MEAN STD           W_IE init (overrides --ei-strength)
+The flags fall into the following groups (every group is documented in
+each subcommand's --help):
 
-Scan (video mode):
-  --scan-var VAR            stim-overdrive|ei_strength|spike_rate|bias|dt|...
-  --scan-min / --scan-max   sweep range
-  --frames N                number of frames (default: 10)
-  --frame-rate FPS          video fps (default: 10)
-
-Train:
-  --epochs N                training epochs (default: 0, probe only)
-  --lr RATE                 learning rate (default: 0.01)
-  --observe video|images    save oscilloscope per epoch
-  --max-samples N           limit dataset size
-  --v-grad-dampen S         COBA gradient dampening (default: 80)
-  --early-stopping N        stop after N epochs without improvement
-
-Output:
-  --out-dir DIR             output directory
+  Network        --model, --n-hidden, --n-input, --ei-strength, --ei-ratio,
+                 --ei-sparsity, --w-in-sparsity, --bias, --dt, --t-ms,
+                 --burn-in, --tau-mem, --tau-syn, --device, --seed
+  Readout        --readout {rate,li,spike-count,mem-mean}, --readout-tau-out,
+                 --readout-w-out-scale, --kaiming-init, --dales-law,
+                 --no-dales-law, --rec-layers, --ei-layers
+  Input          --input, --input-rate, --stim-overdrive, --drive, --dataset,
+                 --digit, --sample
+  Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-rec, --trainable-w-ee
+  Slow + ALIF    --slow-syn, --tau-nmda, --slow-syn-gain,
+                 --alif, --tau-adapt, --alif-beta
+  Gradient       --v-grad-dampen, --sgcc, --sgcc-alpha, --grad-clip,
+                 --surrogate-slope, --coba-integrator
+  Train (train)  --lr, --epochs, --batch-size, --max-samples, --optimizer,
+                 --loss, --adaptive-lr, --early-stopping, --observe,
+                 --observe-every, --frame-rate, --profile,
+                 --fr-reg-lower-theta, --fr-reg-lower-strength,
+                 --fr-reg-upper-theta, --fr-reg-upper-strength,
+                 --skip-bad-grad-threshold
+  Image (image)  --fake-progress
+  Scan (video)   --scan-var, --scan-min, --scan-max, --frames, --frame-rate,
+                 --resample-input
+  Infer (infer)  --load-weights, --from-dir, --dt-sweep, --eval-encoder,
+                 --frozen-inputs-mode
+  Output / exec  --out-dir, --wipe-dir, --raster, --layout, --panels,
+                 --modal, --modal-gpu
 
 Examples:
-  oscilloscope.py                                  # sim (metrics only)
-  oscilloscope.py image                            # snapshot (ping default)
-  oscilloscope.py video --scan-var ei_strength     # sweep E-I coupling
-  oscilloscope.py video --scan-var spike_rate --scan-min 5 --scan-max 100
-  oscilloscope.py train --epochs 100 --observe video
-  oscilloscope.py train --epochs 0               # probe init state
-  oscilloscope.py image --input dataset --dataset mnist --digit 3
-  oscilloscope.py infer --load-weights weights.pth --dt 0.5
-  oscilloscope.py infer --load-weights w.pth --dt 1.0 --dataset mnist
+  python -m cli                                    # sim (metrics only)
+  python -m cli image                              # snapshot (ping default)
+  python -m cli video --scan-var ei_strength       # sweep E-I coupling
+  python -m cli video --scan-var spike_rate --scan-min 5 --scan-max 100
+  python -m cli train --epochs 100 --observe video
+  python -m cli train --epochs 100 --sgcc --sgcc-alpha 0.5
+  python -m cli train --epochs 100 --slow-syn --trainable-w-ee
+  python -m cli image --input dataset --dataset mnist --digit 3
+  python -m cli infer --load-weights weights.pth --dt 0.5
+  python -m cli infer --from-dir runs/foo --dt-sweep 0.05 0.1 0.25 0.5
 
 Models:
-  ping (default)      COBA E-I with PING oscillations
-  oscilloscope.py image --ei-strength 0.5          # PING on
-  oscilloscope.py image --ei-strength 0            # PING off (E-only COBA)
+  ping        COBANet with E↔I coupling. With --ei-strength > 0 the
+              recurrent inhibitory loop is wired up and frozen at init;
+              feedforward weights train against this fixed substrate.
+  cuba        COBANet with --ei-strength 0 (E cells only, no I-loop).
+              The articles/models page calls this "coba" — naming is for
+              CLI-vs-pedagogy reasons.
+  standard-snn   Dimensionless mem = β·mem + I from snnTorch tutorial 5.
+                 Not dt-invariant; β is a fitted hyperparameter.
+  snntorch-library   External snnTorch reference path; uses the library's
+                     Leaky/Synaptic primitives directly.
 
-  standard-snn      snnTorch-library form: mem = β·mem + I. β is a
-                      dimensionless hyperparameter, no dt semantics. Not
-                      dt-invariant.
-  oscilloscope.py image --model standard-snn --kaiming-init
-
-  cuba                Proper continuous-time exp-Euler CUBA: mem = β·mem + (1-β)·I,
-                      β = exp(-dt/τ). Bias and weights have per-ms semantics.
-                      dt-invariant by construction.
-  oscilloscope.py image --model cuba --kaiming-init
+For the underlying theory of the gradient-stabilisation flags
+(--v-grad-dampen, --sgcc) see /articles/art006/.
 """
     parser = argparse.ArgumentParser(
         description="Oscilloscope — PING network toolkit",
