@@ -1390,6 +1390,242 @@ def run_ei_sweep(notebook_run_id: str) -> list[dict]:
 # ── End ei sweep ────────────────────────────────────────────────────
 
 
+# ── tau_GABA + threshold-shift sweeps (inference-only, trained ping) ─────
+
+TAU_GABA_VALUES: list[float] = [4.5, 6.0, 9.0, 12.0, 18.0, 27.0]  # ms; default 9.0
+THRESHOLD_SHIFT_VALUES_MV: list[float] = [0.0, 2.5, 5.0, 7.5, 10.0, 15.0]
+
+
+def _load_trained_full(train_dir: Path, device):
+    """Load full state from a trained run (incl. W_ei/W_ie). Returns
+    (net, cfg, X_te, y_te) ready for forward passes."""
+    import torch
+
+    import config as C  # noqa: F401
+    import models as M
+    from config import build_net, patch_dt
+    from cli import load_dataset, seed_everything
+
+    cfg = json.loads((train_dir / "config.json").read_text())
+    seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
+    M.T_ms = float(cfg["t_ms"])
+    patch_dt(float(cfg["dt"]))
+    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
+    M.N_HID = hidden_sizes[-1]
+    M.N_INH = hidden_sizes[-1] // 4
+    M.HIDDEN_SIZES = list(hidden_sizes)
+
+    _, X_te, _, y_te = load_dataset(
+        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
+    )
+    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
+
+    w_in_cfg = cfg.get("w_in")
+    w_in_arg = (
+        (float(w_in_cfg[0]), float(w_in_cfg[1]))
+        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
+        else None
+    )
+    net = build_net(
+        cfg["model"],
+        w_in=w_in_arg,
+        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
+        ei_strength=float(cfg.get("ei_strength") or 1.0),
+        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
+        sparsity=float(cfg.get("sparsity") or 0.0),
+        device=device,
+        randomize_init=not bool(cfg.get("kaiming_init", False)),
+        kaiming_init=bool(cfg.get("kaiming_init", False)),
+        dales_law=bool(cfg.get("dales_law", True)),
+        hidden_sizes=hidden_sizes,
+    )
+    if hasattr(net, "readout_mode"):
+        net.readout_mode = cfg.get("readout_mode", "mem-mean")
+
+    state = torch.load(train_dir / "weights.pth", map_location=device)
+    net.load_state_dict(state, strict=False)
+    net.eval()
+    net.recording = True
+    return net, cfg, X_te, y_te
+
+
+def _eval_net_on_test(net, cfg, X_te, y_te, device) -> tuple[float, float, float]:
+    """Forward over test set; return (acc, hid_rate_hz, inh_rate_hz)."""
+    import torch
+    from torch.utils.data import DataLoader, TensorDataset
+
+    import models as M
+    from cli import EVAL_SEED, encode_batch
+
+    test_loader = DataLoader(
+        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
+        batch_size=64,
+    )
+    correct = total = 0
+    e_spike_sum = i_spike_sum = 0.0
+    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+    with torch.no_grad():
+        for X_b, y_b in test_loader:
+            X_b, y_b = X_b.to(device), y_b.to(device)
+            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
+            logits = net(input_spikes=spk)
+            correct += (logits.argmax(1) == y_b).sum().item()
+            total += y_b.size(0)
+            e_spike_sum += float(net.spike_record["hid"].sum().item())
+            if "inh" in net.spike_record:
+                i_spike_sum += float(net.spike_record["inh"].sum().item())
+    n_e = M.N_HID
+    n_i = M.N_INH or 1
+    t_sec = float(cfg["t_ms"]) / 1000.0
+    e_rate = e_spike_sum / (total * n_e * t_sec) if total else 0.0
+    i_rate = i_spike_sum / (total * n_i * t_sec) if (total and i_spike_sum) else 0.0
+    acc = 100.0 * correct / total if total else 0.0
+    return acc, e_rate, i_rate
+
+
+def run_tau_gaba_sweep(notebook_run_id: str) -> list[dict]:
+    """Inference-only τ_GABA sweep on trained ping. Tests the
+    dynamics-bound floor claim: rate floor should track cycle period."""
+    import numpy as np
+
+    import models as M
+    from cli import _auto_device
+
+    train_dir = baseline_dir("ping")
+    if not (train_dir / "weights.pth").exists():
+        raise SystemExit(
+            f"tau_gaba-sweep needs trained ping weights at {train_dir}"
+        )
+    device = _auto_device()
+    rows: list[dict] = []
+    # Snapshot module state so we can restore it after the sweep — otherwise
+    # downstream code (or follow-on sweeps) inherits our mutations.
+    tau_gaba_saved = M.tau_gaba
+    decay_gaba_saved = M.decay_gaba
+    try:
+        for tau_gaba_ms in TAU_GABA_VALUES:
+            net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
+            # _load_trained_full calls patch_dt → recomputes decay_gaba from
+            # whatever M.tau_gaba currently is. Override AFTER load so our
+            # value sticks for this iteration's forward pass.
+            M.tau_gaba = float(tau_gaba_ms)
+            M.decay_gaba = float(np.exp(-M.dt / tau_gaba_ms))
+            acc, e_rate, i_rate = _eval_net_on_test(net, cfg, X_te, y_te, device)
+            rows.append({
+                "tau_gaba_ms": float(tau_gaba_ms),
+                "acc": acc,
+                "hid_rate_hz": e_rate,
+                "inh_rate_hz": i_rate,
+            })
+            print(
+                f"  τ_GABA={tau_gaba_ms:>5.1f} ms  "
+                f"acc={acc:5.2f}%  E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
+            )
+    finally:
+        M.tau_gaba = tau_gaba_saved
+        M.decay_gaba = decay_gaba_saved
+    return rows
+
+
+def run_threshold_shift_sweep(notebook_run_id: str) -> list[dict]:
+    """Inference-only uniform-threshold-offset sweep on trained ping.
+
+    Structure-preserving alternative to the additive-noise perturbation:
+    raise the LIF firing threshold by a constant Δ mV across all E and I
+    cells. Suppresses firing without injecting noise; the gamma cycle
+    structure survives intact at low offsets.
+
+    Sets PINGLAB_NO_COMPILE=1 for the duration of the sweep so the
+    monkey-patched spike_biophysical actually reaches the forward path —
+    torch.compile would otherwise bake in the original function reference.
+    """
+    import os
+
+    import models as M
+    from cli import _auto_device
+
+    train_dir = baseline_dir("ping")
+    if not (train_dir / "weights.pth").exists():
+        raise SystemExit(
+            f"threshold-shift-sweep needs trained ping weights at {train_dir}"
+        )
+    device = _auto_device()
+    rows: list[dict] = []
+    sb_original = M.spike_biophysical
+    nc_saved = os.environ.get("PINGLAB_NO_COMPILE", "")
+    os.environ["PINGLAB_NO_COMPILE"] = "1"
+    try:
+        for offset_mv in THRESHOLD_SHIFT_VALUES_MV:
+            net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
+
+            # Monkey-patch the module-level spike fn to add a constant offset
+            # on top of whatever the model passed (None for non-ALIF; for
+            # ALIF it's a per-neuron tensor that we'd add to, but ping
+            # doesn't use ALIF so the passed value is always None / 0.0).
+            def patched_spike(v, threshold_offset=0.0, _delta=offset_mv):
+                base = threshold_offset if (threshold_offset is not None) else 0.0
+                return sb_original(v, threshold_offset=base + _delta)
+
+            M.spike_biophysical = patched_spike
+            try:
+                acc, e_rate, i_rate = _eval_net_on_test(net, cfg, X_te, y_te, device)
+            finally:
+                M.spike_biophysical = sb_original
+            rows.append({
+                "threshold_offset_mv": float(offset_mv),
+                "acc": acc,
+                "hid_rate_hz": e_rate,
+                "inh_rate_hz": i_rate,
+            })
+            print(
+                f"  V_th += {offset_mv:>4.1f} mV  "
+                f"acc={acc:5.2f}%  E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
+            )
+    finally:
+        M.spike_biophysical = sb_original
+        if nc_saved:
+            os.environ["PINGLAB_NO_COMPILE"] = nc_saved
+        else:
+            os.environ.pop("PINGLAB_NO_COMPILE", None)
+    return rows
+
+
+def _plot_sweep_two_axes(
+    rows: list[dict], x_key: str, x_label: str, x_vline: float | None,
+    title: str, out_path: Path, run_id: str,
+) -> None:
+    """Shared plot: x-axis sweep var, left y E rate (red), right y accuracy (black)."""
+    fig, ax_rate = plt.subplots(figsize=(8, 4.5), dpi=150)
+    xs = [r[x_key] for r in rows]
+    e_rate = [r["hid_rate_hz"] for r in rows]
+    acc = [r["acc"] for r in rows]
+    ax_rate.plot(xs, e_rate, color=theme.DEEP_RED, marker="o", lw=1.5)
+    ax_rate.set_xlabel(x_label, fontsize=theme.SIZE_LABEL)
+    ax_rate.set_ylabel("Hidden E rate (Hz)",
+                       fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
+    ax_rate.tick_params(axis="y", labelcolor=theme.DEEP_RED)
+    if x_vline is not None:
+        ax_rate.axvline(x_vline, color=theme.GREY_MID, lw=0.6, ls="--", alpha=0.7)
+        ymax = ax_rate.get_ylim()[1]
+        ax_rate.text(
+            x_vline, ymax * 0.95, " training value",
+            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED, va="top",
+        )
+    ax_acc = ax_rate.twinx()
+    ax_acc.plot(xs, acc, color=theme.INK_BLACK, marker="s", lw=1.5)
+    ax_acc.axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
+    ax_acc.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    ax_acc.set_ylim(0, 100)
+    fig.suptitle(title, fontsize=theme.SIZE_TITLE)
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+# ── End tau_GABA + threshold-shift ─────────────────────────────────
+
+
 def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
     floor = float(MIN_ACC_BY_TIER[tier])
     figs_root = figures.parents[2]
@@ -1415,6 +1651,8 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("ei_acc_sweep.png", "ei-sweep accuracy rendered"),
         artifact("ei_rates_sweep.png", "ei-sweep rates rendered"),
         artifact("ei_rasters.png", "ei-sweep rasters rendered"),
+        artifact("tau_gaba_sweep.png", "tau_GABA sweep rendered"),
+        artifact("threshold_shift_sweep.png", "threshold-shift sweep rendered"),
     ]
     for model in MODELS:
         crits.append(artifact(f"raster__{model}.png", f"{model} raster rendered"))
@@ -1670,6 +1908,28 @@ def main() -> None:
 
     ei_points = run_ei_sweep(notebook_run_id)
 
+    # τ_GABA sweep — tests the "loop sets the floor" claim.
+    print("[tau-gaba-sweep] inference-only on trained ping")
+    tau_gaba_rows = run_tau_gaba_sweep(notebook_run_id)
+    _plot_sweep_two_axes(
+        tau_gaba_rows, "tau_gaba_ms",
+        "$\\tau_{\\mathrm{GABA}}$ (ms)", 9.0,
+        "Trained ping — accuracy and E rate vs $\\tau_{\\mathrm{GABA}}$",
+        FIGURES / "tau_gaba_sweep.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'tau_gaba_sweep.png'}")
+
+    # Threshold-shift sweep — structure-preserving alternative to add.
+    print("[threshold-shift-sweep] inference-only on trained ping")
+    threshold_rows = run_threshold_shift_sweep(notebook_run_id)
+    _plot_sweep_two_axes(
+        threshold_rows, "threshold_offset_mv",
+        "Threshold offset (mV)", 0.0,
+        "Trained ping — accuracy and E rate vs uniform threshold offset",
+        FIGURES / "threshold_shift_sweep.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'threshold_shift_sweep.png'}")
+
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
     crits = evaluate_success(rows, tier, FIGURES)
@@ -1698,6 +1958,8 @@ def main() -> None:
         "results": rows,
         "ei_sweep": ei_points,
         "perturbation": perturb_rows,
+        "tau_gaba_sweep": tau_gaba_rows,
+        "threshold_shift_sweep": threshold_rows,
         "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")

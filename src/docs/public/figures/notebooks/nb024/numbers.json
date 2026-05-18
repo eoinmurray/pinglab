@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r023",
+  "notebook_run_id": "r025",
   "git_sha": "02ca708 (dirty)",
-  "duration_s": 1395.7,
-  "duration": "23m 16s",
+  "duration_s": 670.9,
+  "duration": "11m 11s",
   "tier": "medium",
   "config": {
     "tier": "medium",
@@ -648,42 +648,130 @@
       "model": "ping"
     }
   ],
+  "tau_gaba_sweep": [
+    {
+      "tau_gaba_ms": 4.5,
+      "acc": 86.25,
+      "hid_rate_hz": 7.05703125,
+      "inh_rate_hz": 35.31943359375
+    },
+    {
+      "tau_gaba_ms": 6.0,
+      "acc": 85.25,
+      "hid_rate_hz": 5.96043701171875,
+      "inh_rate_hz": 29.863134765625
+    },
+    {
+      "tau_gaba_ms": 9.0,
+      "acc": 85.0,
+      "hid_rate_hz": 4.65860595703125,
+      "inh_rate_hz": 22.786328125
+    },
+    {
+      "tau_gaba_ms": 12.0,
+      "acc": 83.25,
+      "hid_rate_hz": 3.9085205078125,
+      "inh_rate_hz": 18.470947265625
+    },
+    {
+      "tau_gaba_ms": 18.0,
+      "acc": 84.5,
+      "hid_rate_hz": 3.0504638671875,
+      "inh_rate_hz": 13.913671875
+    },
+    {
+      "tau_gaba_ms": 27.0,
+      "acc": 79.5,
+      "hid_rate_hz": 2.35889892578125,
+      "inh_rate_hz": 10.1341796875
+    }
+  ],
+  "threshold_shift_sweep": [
+    {
+      "threshold_offset_mv": 0.0,
+      "acc": 85.0,
+      "hid_rate_hz": 4.65860595703125,
+      "inh_rate_hz": 22.786328125
+    },
+    {
+      "threshold_offset_mv": 2.5,
+      "acc": 83.75,
+      "hid_rate_hz": 5.05084228515625,
+      "inh_rate_hz": 19.57158203125
+    },
+    {
+      "threshold_offset_mv": 5.0,
+      "acc": 85.5,
+      "hid_rate_hz": 5.6590087890625,
+      "inh_rate_hz": 16.156787109375
+    },
+    {
+      "threshold_offset_mv": 7.5,
+      "acc": 85.75,
+      "hid_rate_hz": 6.445654296875,
+      "inh_rate_hz": 11.748193359375
+    },
+    {
+      "threshold_offset_mv": 10.0,
+      "acc": 83.75,
+      "hid_rate_hz": 6.97122802734375,
+      "inh_rate_hz": 6.98837890625
+    },
+    {
+      "threshold_offset_mv": 15.0,
+      "acc": 80.5,
+      "hid_rate_hz": 5.36995849609375,
+      "inh_rate_hz": 1.020361328125
+    }
+  ],
   "success_criteria": [
     {
       "label": "bar chart rendered",
       "passed": true,
-      "detail": "acc_vs_rate.png (55783 bytes)",
+      "detail": "acc_vs_rate.png (55749 bytes)",
       "detail_href": "/figures/notebooks/nb024/acc_vs_rate.png"
     },
     {
       "label": "learning curves rendered",
       "passed": true,
-      "detail": "learning_curves.png (90927 bytes)",
+      "detail": "learning_curves.png (90894 bytes)",
       "detail_href": "/figures/notebooks/nb024/learning_curves.png"
     },
     {
       "label": "frontier rendered",
       "passed": true,
-      "detail": "frontier.png (43903 bytes)",
+      "detail": "frontier.png (43879 bytes)",
       "detail_href": "/figures/notebooks/nb024/frontier.png"
     },
     {
       "label": "ei-sweep accuracy rendered",
       "passed": true,
-      "detail": "ei_acc_sweep.png (46860 bytes)",
+      "detail": "ei_acc_sweep.png (46838 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_acc_sweep.png"
     },
     {
       "label": "ei-sweep rates rendered",
       "passed": true,
-      "detail": "ei_rates_sweep.png (53973 bytes)",
+      "detail": "ei_rates_sweep.png (53949 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_rates_sweep.png"
     },
     {
       "label": "ei-sweep rasters rendered",
       "passed": true,
-      "detail": "ei_rasters.png (68484 bytes)",
+      "detail": "ei_rasters.png (68455 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_rasters.png"
+    },
+    {
+      "label": "tau_GABA sweep rendered",
+      "passed": true,
+      "detail": "tau_gaba_sweep.png (51505 bytes)",
+      "detail_href": "/figures/notebooks/nb024/tau_gaba_sweep.png"
+    },
+    {
+      "label": "threshold-shift sweep rendered",
+      "passed": true,
+      "detail": "threshold_shift_sweep.png (64302 bytes)",
+      "detail_href": "/figures/notebooks/nb024/threshold_shift_sweep.png"
     },
     {
       "label": "coba raster rendered",
