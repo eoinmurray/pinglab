@@ -7,13 +7,9 @@ structure: paper
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
-import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb024/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
-export const cfg = numbers.config ?? {};
-export const results = numbers.results ?? [];
-export const successCriteria = numbers.success_criteria ?? [];
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
@@ -77,35 +73,3 @@ export const successCriteria = numbers.success_criteria ?? [];
   **What.** E rate falls monotonically as the loop is dialled up — from ≈52 Hz at ei = 0 (the coba baseline) to ≈5 Hz at ei = 1 (the ping rate). I rate rises from zero to ≈23 Hz. The rate suppression is a continuous function of the I-loop's authority over E.
 </Figure>
 
-## Appendix
-
-### Reproduction
-
-```
-uv run src/pinglab/notebooks/nb024.py --tier medium --modal-gpu A10G
-```
-
-### Run parameters
-
-<RunParameters numbers={numbers} extras={[
-  { label: "θ_u grid (Hz)", value: (cfg.theta_u_grid_hz ?? []).map((h) => h.toFixed(1)).join(", ") || "?", default: "—" },
-]} />
-
-### Success criteria
-
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
