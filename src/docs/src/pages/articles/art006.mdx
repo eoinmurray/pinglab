@@ -58,39 +58,124 @@ with slope $k = 1$ on both the biophysical path (mV-scale membrane) and the stan
 
 ## Gradient stabilisation for biophysical models
 
-The biophysical models (COBA, PING) face a gradient-scale problem. The forward step couples membrane voltage $V$ and synaptic conductance $g$ through a small parameter $\Delta t / C_m$. The *diagonal* Jacobian terms ($\partial V^{t+1}/\partial V^t$ and $\partial g^{t+1}/\partial g^t$) are well-behaved; the *off-diagonal* cross-coupling block — how voltage propagates back into conductance and vice versa — is what blows up. Multiply that block by itself $T$ times during BPTT and the gradient norm grows exponentially in $T$. Naive backprop through a 2000-step trial produces NaN within a few batches.
+The biophysical models (COBA, PING) face a gradient-scale problem. Naive backprop through a 2000-step trial produces NaN within a few batches. Pinglab handles this with the costate-control framework of [Burghi, Pugliese Carratelli & Rule 2024](https://arxiv.org/abs/2410.16627) ("Costate control for nonlinear system identification with applications to excitable systems"). The framework is general; the paper develops it for parameter identification of Hodgkin–Huxley-type models. We use it for SNN training, which is the same mathematical problem (BPTT through an excitable forward model) wearing different clothes.
 
-Pinglab has two ways to handle this, both following the costate-control framework of [Burghi, Pugliese Carratelli & Rule 2024](https://arxiv.org/abs/2410.16627) ("Costate control for nonlinear system identification with applications to excitable systems"). The paper formulates the problem as adjoint-equation stability and introduces a controller $K_\theta(t, x)$ injected into the costate dynamics; choosing $K_\theta$ so the costate is *exponentially contracting* bounds the gradient matrices uniformly. Their **Proposition 1** is the key result: the original and SGCC-modified gradients vanish at the *same* global optimum, so the controller doesn't shift where the optimiser ends up — only what landscape it crosses to get there.
+This section builds up to two controllers, $K^{\text{prop}}$ and $K^{\text{gat}}$, both of which are exposed as CLI flags. The theory takes a few steps; the controllers themselves are one-line code changes.
 
-The paper proposes two controllers; we implement both.
+### Why the Jacobian blows up in excitable systems
 
-### K^prop — uniform dampening (--v-grad-dampen)
-
-The simplest controller: $K^{\text{prop}} = -\gamma I$, a proportional high-gain scalar that scales *every* backward voltage gradient by $1/\gamma$. In pinglab this is the *--v-grad-dampen* flag with $\gamma$ in the range 80–1000:
+The forward dynamics of a conductance-based neuron, in continuous time, are
 
 $$
-\frac{\partial \mathcal{L}}{\partial V_i^t} \leftarrow \frac{1}{\gamma}\,\frac{\partial \mathcal{L}}{\partial V_i^t}
+\dot x = f_\theta(t, x, u), \qquad x = (V, g_e, g_i, \ldots),
 $$
 
-Forward pass is unchanged. This eliminates the explosion but also attenuates the diagonal gradient pathway, which we *want* to keep. Empirically the bound has to be aggressive ($\gamma = 1000$ for COBA/PING) to avoid NaN, and that aggression caps trainable accuracy — [nb027](/notebooks/nb027/) shows the same network trained past where the V_GRAD_DAMPEN=1000 baseline plateaus and picks up 3.5 percentage points just by using a more surgical controller.
-
-### K^gat — gating-based costate control (--sgcc)
-
-The surgical version. $K^{\text{gat}}$ targets only the destabilising off-diagonal block of $\nabla_x f_\theta$ — the voltage ↔ conductance cross-coupling — and scales *only that gradient path* by $(1 - \alpha)$. The diagonal $\partial V/\partial V$, $\partial g/\partial g$, and parameter-gradient paths flow through unchanged. We expose this as the *--sgcc / --sgcc-alpha* flag pair.
-
-Implementation is a forward-identity / backward-scaled gradient on the combined conductance term immediately before it enters the LIF step:
+with $u(t)$ the input and $\theta$ the parameters (weights, time constants, etc.). The Jacobian $\nabla_x f_\theta$ describes how a small perturbation in any state variable propagates into all the others over one infinitesimal step. For a LIF neuron with conductance synapses, $\nabla_x f_\theta$ has the block structure
 
 $$
-g_{e}^{\text{step}} = \mathrm{ScaleGrad}(g_e, \alpha), \qquad V^{t+1}, S^{t+1} = \mathrm{LIF\,step}(V^t, g_{e}^{\text{step}}, g_{i}^{\text{step}})
+\nabla_x f_\theta = \begin{pmatrix}
+\partial \dot V / \partial V & \partial \dot V / \partial g \\
+\partial \dot g / \partial V & \partial \dot g / \partial g
+\end{pmatrix}.
 $$
 
-where $\mathrm{ScaleGrad}(x, \alpha)$ is identity on the forward pass and multiplies its gradient by $\alpha$ on the backward pass. At $\alpha = 1$ this is bit-exact identity; at $\alpha = 0$ the gradient through the cross-coupling block is fully blocked. Useful values are around $\alpha \in [0.3, 0.7]$.
+The diagonal blocks decay (the membrane and conductance both have leak terms). The **off-diagonal** blocks are the cross-coupling: $\partial \dot V / \partial g$ is the synaptic drive into the membrane (large during spikes), $\partial \dot g / \partial V$ is the voltage's feedback into the conductance (small but nonzero through reversal-potential terms). It's the off-diagonal block that has the destabilising spectrum — large transient eigenvalue magnitudes during firing events, which is the *very feature* that lets the neuron spike fast.
 
-Bit-exact parity to plain COBA at $\alpha = 1$ is verified in the smoke tests; nb027 measures a $\sim 6\times$ drop in gradient norm at $\alpha = 0.5$ on a representative trial — exactly the targeted off-diagonal contribution.
+For training, we don't just need $\nabla_x f_\theta$ at one moment; we need to chain it across every timestep in the trial. The product $\prod_{t=1}^T \nabla_x f_\theta(t)$ accumulates the off-diagonal explosion exponentially in $T$. For a $\Delta t = 0.1$ ms simulation of a 200 ms trial, $T = 2000$ — the product blows up by many orders of magnitude.
+
+### The costate (adjoint) equation
+
+BPTT computes parameter gradients by running an adjoint equation backward in time. Define the *costate* $\lambda(t) \in \mathbb{R}^d$, initialised at the loss's gradient with respect to the terminal state:
+
+$$
+\lambda(T) = \nabla_{x(T)} \mathcal{L}, \qquad
+\dot \lambda(t) = -\nabla_x f_\theta(t, x, u)^\top \lambda(t).
+$$
+
+The parameter gradient is then the integral $\nabla_\theta \mathcal{L} = -\int_0^T \nabla_\theta f_\theta^\top \lambda \, dt$. This is exactly what PyTorch's autograd computes when you call $\mathcal{L}.\mathrm{backward}()$ on a network unrolled in time, just stated as a continuous ODE rather than a discrete chain rule.
+
+The costate equation is *linear in $\lambda$*, with time-varying coefficient $\nabla_x f_\theta$. Its solution norm therefore tracks the integrated exponent of the Jacobian:
+
+$$
+\|\lambda(0)\| \leq \|\lambda(T)\| \cdot \exp\!\left(\int_0^T \|\nabla_x f_\theta(t)\|\,dt\right).
+$$
+
+If $\nabla_x f_\theta$ has any large transient eigenvalues — as it does during spikes — the costate blows up between $t = T$ and $t = 0$, and the parameter gradient comes out either NaN or astronomically large.
+
+### Costate control
+
+The fix is to modify the costate equation — and *only* the costate equation, not the forward pass — by adding a controller $K_\theta(t, x)$:
+
+$$
+\dot \lambda = -[\nabla_x f_\theta + K_\theta(t, x)]^\top \lambda.
+$$
+
+If we choose $K_\theta$ so that the operator $\nabla_x f_\theta + K_\theta$ has eigenvalues with sufficiently negative real parts (*exponentially contracting*), the costate $\lambda(t)$ stays bounded by a $K_\theta$-controlled exponential as $t$ marches backward — independent of how badly $\nabla_x f_\theta$ alone would have blown up.
+
+The forward dynamics are unchanged. The forward state $x(t)$ is identical with or without the controller. Only the *gradient flow* is modified — backward propagation now respects a different effective Jacobian.
+
+This breaks any naïve identification of "the gradient" with "the true gradient": we're computing a *surrogate* gradient. The interesting question is whether descending on the surrogate still converges to the right answer.
+
+### Proposition 1 — same fixed points
+
+The paper's key theoretical result is that controlled costate descent has the same critical points as true gradient descent. Let $\theta^\star$ be a stationary point of the original loss, i.e. $\nabla_\theta \mathcal{L}(\theta^\star) = 0$. Burghi et al. prove: the controlled gradient (computed by the modified costate) also vanishes at $\theta^\star$, provided $K_\theta$ is chosen so the modified costate is uniformly bounded.
+
+The intuition: at $\theta^\star$ the true costate $\lambda$ produces a parameter integral that integrates to zero. The controller $K_\theta$ deforms $\lambda$ along the trial, but doesn't add any new sources of bias — at the global optimum the modified $\lambda$ also integrates to zero through $\nabla_\theta f_\theta$. The path through $\theta$-space gets reshaped; the destination doesn't.
+
+This is what makes costate control different from blunt tricks like aggressive gradient clipping. Clipping changes where the optimiser converges to (a clipped gradient is a different vector field). $K_\theta$ converges to the same place — it just takes a different route there. In particular, no fictitious local minima.
+
+### Two controller designs
+
+Burghi et al. propose two specific choices for $K_\theta$:
+
+**$K^{\text{prop}}$** — proportional high-gain. Pick a scalar $\gamma > 0$ and set $K_\theta(t, x) = -\gamma I$. The controller is constant; it scales every component of the costate equation uniformly. The resulting modified Jacobian has eigenvalues shifted by $-\gamma$, which guarantees exponential contraction as long as $\gamma > \max_t \mathrm{Re}(\text{eig}(\nabla_x f_\theta))$.
+
+Pinglab's *--v-grad-dampen* flag is the discrete-time analogue: scale the backward voltage gradient by $1/\gamma$ at every timestep, with $\gamma$ around 80 for unitless models and 1000 for COBA/PING:
+
+$$
+\frac{\partial \mathcal{L}}{\partial V_i^t} \leftarrow \frac{1}{\gamma}\,\frac{\partial \mathcal{L}}{\partial V_i^t}.
+$$
+
+This works — it eliminates the NaN — but it's *uniform*. It attenuates the diagonal voltage gradient (which we wanted to keep) by the same factor as the destabilising off-diagonal block (which we wanted to suppress). The loss landscape becomes uniformly smoother. Empirically, large $\gamma$ silently caps achievable accuracy; the controller's gain is so high that useful first-order information is washed out along with the explosion.
+
+**$K^{\text{gat}}$** — gating-based. Pick $\alpha \in [0, 1]$ and define $K_\theta$ to act *only* on the off-diagonal block of $\nabla_x f_\theta$, scaling it by $(1 - \alpha)$ and leaving the diagonal alone:
+
+$$
+\nabla_x f_\theta + K^{\text{gat}}_\theta =
+\begin{pmatrix}
+\partial \dot V / \partial V & \alpha\,\partial \dot V / \partial g \\
+\alpha\,\partial \dot g / \partial V & \partial \dot g / \partial g
+\end{pmatrix}.
+$$
+
+At $\alpha = 1$ the controller is identity (no modification — bit-exact plain BPTT). At $\alpha = 0$ the cross-coupling is fully blocked and only the diagonal contributes. Useful values sit around $\alpha \in [0.3, 0.7]$ — enough to tame the off-diagonal explosion, not so much that the optimiser loses the cross-coupling signal entirely.
+
+Two properties make $K^{\text{gat}}$ work in practice. First, the diagonal gradient through voltage (the leak / refractory pathway) is *untouched* — Adam still sees a clean signal there. Second, the parameter gradient $\nabla_\theta f_\theta$ is also untouched — the controller acts on the costate dynamics, not on the integral that produces $\nabla_\theta \mathcal{L}$. Both are how $K^{\text{gat}}$ retains landscape structure that $K^{\text{prop}}$ flattens.
+
+### Implementing $K^{\text{gat}}$ as a one-line scale-grad
+
+The discrete-time implementation drops out of the structure of LIF + COBA. At each timestep the LIF step takes $(V^t, g_e^t, g_i^t)$ as input and emits $(V^{t+1}, g_e^{t+1}, g_i^{t+1}, S^{t+1})$. The off-diagonal block of $\nabla_x f_\theta$ is precisely the gradient that flows from $V^{t+1}$ *back into* $g_e^t$ and $g_i^t$. So scaling only the gradient that the conductance receives from downstream voltage achieves the $K^{\text{gat}}$ effect.
+
+In PyTorch this is a custom autograd op: $\mathrm{ScaleGrad}(x, \alpha)$ is identity in the forward pass and multiplies its gradient by $\alpha$ in the backward pass. Wrap the combined conductance term immediately before it enters the LIF step:
+
+$$
+g_e^{\text{step}} = \mathrm{ScaleGrad}(g_e, \alpha), \qquad
+V^{t+1}, S^{t+1} = \mathrm{LIF\,step}(V^t, g_e^{\text{step}}, g_i^{\text{step}}).
+$$
+
+Forward: $g_e^{\text{step}} = g_e$. Backward: $\partial \mathcal{L} / \partial g_e \leftarrow \alpha \cdot \partial \mathcal{L} / \partial g_e$. That's the entire implementation. Pinglab exposes the flag pair *--sgcc / --sgcc-alpha*. Bit-exact parity with plain COBA at $\alpha = 1$ is verified in the smoke tests.
+
+### Empirical validation
+
+[nb027](/notebooks/nb027/) tests the prediction directly: same network, same recipe, same seed, replace *--v-grad-dampen 1000* with *--sgcc --sgcc-alpha 0.5*. Through the first ~10 epochs the two training curves are visually indistinguishable — both descend from CE loss $\sim 2.3$ to $\sim 0.55$, both reach $\sim 84\%$ test accuracy. This matches Proposition 1's prediction: same optimum, similar path early.
+
+Past epoch 10 the V_GRAD_DAMPEN baseline plateaus; SGCC continues to descend and reaches 87.75% by epoch 20. The 3.5 pp gap is the cost of $K^{\text{prop}}$'s uniformity — the global dampener was silently throttling the diagonal pathway too. $K^{\text{gat}}$ keeps the diagonal sharp while taming only what needed taming.
+
+The trained-network rasters in nb027 (Figure 2) corroborate the dynamical equivalence: the SGCC and V_GRAD_DAMPEN baselines arrive at indistinguishable operating points (~85 Hz E, asynchronous-dense, silent I) via different optimisation paths.
 
 ### Choosing between them
 
-V_GRAD_DAMPEN is simpler and works for MNIST-scale tasks where you only need the network to not NaN. SGCC is what to reach for when the global dampener is silently capping accuracy or when training on longer-trial tasks where preserving cross-coupling gradient matters (working memory, sequence tasks). [nb027](/notebooks/nb027/) is the empirical validation: same recipe, same seed, *--v-grad-dampen 1000* replaced by *--sgcc --sgcc-alpha 0.5* — the SGCC variant matches the baseline through epoch 10 and pulls ahead with more training, consistent with Proposition 1's prediction that the two paths converge at the same optimum but the SGCC variant traverses more landscape structure along the way.
+*--v-grad-dampen* is the simpler instrument — one scalar, no autograd subclass — and is what to use when you just need the network not to NaN. *--sgcc* is what to reach for when V_GRAD_DAMPEN is silently capping accuracy, on longer-trial tasks where preserving cross-coupling gradient matters (working memory, sequence problems), or whenever you want the gradient to behave the way the underlying optimisation problem wants it to. Both are flag-level changes; nothing else in the recipe needs to move.
 
 ## The training loop
 
