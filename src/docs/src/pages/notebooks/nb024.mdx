@@ -45,7 +45,27 @@ Both models descend at similar pace and finish within ≈2 pp of each other. The
 
 Coba traces a long Pareto curve from its unregularised ≈52 Hz baseline down to ≈0.1 Hz, paying ≈10 pp accuracy along the way. The penalty has obvious leverage: it pushes rate down at a measurable cost. Ping's curve is a tight cluster at 3–5 Hz across every $\theta_u$ value. The penalty has *no leverage* on ping — the network is already inside the budget at the unpenalised baseline, so tightening the regulariser further does nothing.
 
-That asks the obvious question: what *is* setting ping's firing rate, if not the loss function? The cleanest separation runs a hidden-spike perturbation at inference. A per-step callback installed on the forward loop rewrites the emitted E and I spike vectors before they propagate downstream. In *drop* mode each emitted spike is kept with probability $1 - p_\text{drop}$; in *add* mode each silent slot turns into a Bernoulli spike at Poisson rate $r_\text{add} \cdot \Delta t / 1000$. Both populations get the same statistics, and crucially the I-feedback and readout both react within the same trial — there is no shadow un-perturbed pathway. 44 forward passes total (2 models × 2 modes × 11 levels).
+That asks the obvious question: what *is* setting ping's firing rate, if not the loss function? The cleanest separation runs a hidden-spike perturbation at inference.
+
+The mechanism is a per-step callback installed on the COBANet's *_hidden_perturb_fn* slot. The callback fires inside the step body of the forward loop, right after the LIF step emits the binary spike vectors $\mathbf{s}^E_t \in \{0,1\}^{B \times N_E}$ and $\mathbf{s}^I_t \in \{0,1\}^{B \times N_I}$, and before those vectors propagate to any of three downstream consumers within the same step: the readout (E spikes through $W_\text{ff}^{(-1)}$), the next-step E→E and E→I recurrence (through $W_{ee}$ and $W_{ei}$), and the next-step I→E feedback (through $W_{ie}$). Because the perturbed vectors are what every downstream operator reads, the loop dynamics *react* to the perturbation: a dropped E spike actually fails to drive I; an injected I spike actually inhibits E on the next step. There is no shadow un-perturbed pathway. Both populations get the same mode and level, with independent random draws — the perturbation hits E and I cells with identical per-cell statistics.
+
+In **drop** mode, for each (batch element, neuron, timestep) slot $i$ we draw $u_i \sim \mathrm{Uniform}(0, 1)$ i.i.d. and apply
+
+$$
+\tilde s_i \;=\; s_i \cdot \mathbb{1}\!\left[u_i \geq p_\text{drop}\right].
+$$
+
+Each emitted spike is kept with probability $1 - p_\text{drop}$; slots that were already zero stay zero. So drop *thins* the spike train without creating new spikes — the gamma cycle's temporal phase is preserved, only its amplitude is reduced. We sweep $p_\text{drop} \in \{0.0, 0.1, 0.2, \dots, 1.0\}$ (11 levels).
+
+In **add** mode, for each slot we draw $u_i \sim \mathrm{Uniform}(0, 1)$ i.i.d. and apply
+
+$$
+\tilde s_i \;=\; \min\!\left(s_i + \mathbb{1}\!\left[u_i < r_\text{add} \cdot \Delta t / 1000\right],\; 1\right).
+$$
+
+With $\Delta t = 0.1$ ms, $r_\text{add} = 10$ Hz corresponds to a per-step per-neuron extra-spike probability of $10^{-3}$. The clamp is purely for binary cleanliness; the noise process is Bernoulli, not additive integer. Slots that were already 1 stay 1; silent slots become 1 with probability $r_\text{add} \Delta t / 1000$. So add *injects* extra spikes at fully independent Poisson statistics — the new spikes have no relationship to the gamma cycle phase, and that's the whole point of the experiment. We sweep $r_\text{add} \in \{0, 2, 4, \dots, 40\}$ Hz (21 levels) to resolve the cliff at fine resolution.
+
+The per-step RNG comes from a CPU torch.Generator seeded at *EVAL_SEED + 1*, separate from the input-encoding generator so the input Poisson stream stays identical to the unperturbed baseline; only the hidden-layer perturbation differs across the sweep. Total: 2 models × (11 drop + 21 add) = 64 forward passes over the test set.
 
 <Figure id="Figure 6" title="Hidden-spike perturbation" src="/figures/notebooks/nb024/perturbation_curves.png" alt="Test accuracy vs p(drop) (left) and vs Poisson-add rate (right) per model.">
   Accuracy under spike drop (left) and Poisson add (right); both modes applied within the forward loop so dynamics react.
