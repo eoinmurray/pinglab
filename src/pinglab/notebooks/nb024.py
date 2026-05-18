@@ -887,7 +887,7 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
 
 
 PERTURB_DROP_LEVELS: list[float] = [round(x * 0.1, 2) for x in range(11)]  # 0.0..1.0
-PERTURB_ADD_LEVELS: list[float] = [float(x) for x in range(0, 101, 10)]  # 0..100 Hz
+PERTURB_ADD_LEVELS: list[float] = [float(x) for x in range(0, 41, 2)]  # 0..40 Hz, 2 Hz steps
 PERTURB_RASTER_DROP_LEVELS: list[float] = [0.0, 0.3, 0.6, 0.8, 0.9, 1.0]
 PERTURB_RASTER_ADD_LEVELS: list[float] = [0.0, 5.0, 10.0, 20.0, 50.0, 100.0]
 
