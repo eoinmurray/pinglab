@@ -51,7 +51,7 @@ That asks the obvious question: what *is* setting ping's firing rate, if not the
   Accuracy under spike drop (left) and Poisson add (right); both modes applied within the forward loop so dynamics react.
 </Figure>
 
-The two modes are not symmetric. Under drop, ping holds 73% at $p_\text{drop} = 0.9$ — the readout is happy at a tenth of ping's natural firing rate, because drop *thins* the gamma structure without breaking it. Under add, ping collapses to chance at 10 Hz of injected noise; coba degrades smoothly (84% → 67% across 0–100 Hz). The readout cares which spikes survive — drop preserves the cycle, add corrupts it.
+The two modes are not symmetric. Under drop, ping holds 73% at $p_\text{drop} = 0.9$ — the readout is happy at a tenth of ping's natural firing rate, because drop *thins* the gamma structure without breaking it. Under add (now resolved at 2 Hz steps from 0 to 40 Hz), ping's accuracy collapses across a sharp 4–10 Hz cliff: 77% at 4 Hz, 52% at 6 Hz, 29% at 8 Hz, 14% at 10 Hz, chance from 12 Hz onward. Coba stays at 82–84% across the same range — without a gamma cycle to corrupt, the readout integrates over the extra spikes uniformly. The readout cares which spikes survive: drop preserves the cycle, add corrupts it.
 
 That suggests the rate floor is dynamical, not informational. If true, lengthening $\tau_\text{GABA}$ should stretch the gamma cycle and lower the floor; shortening it should tighten the cycle and raise it.
 
