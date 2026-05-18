@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "025 — Slow synapse on trained coba and ping"
+title: "025 — Slow synapse on trained COBA and ping"
 date: 2026-05-15
 entry: 25
 structure: paper
@@ -9,63 +9,63 @@ import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
 import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb025/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../../public/figures/notebooks/nb025/numbers.json", {})
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const successCriteria = numbers.success_criteria ?? [];
 
-<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+<NotebookHeader frontmatter={} numbers={} />
 
 ## Introduction
 
-[023 — PING fundamentals](/notebooks/nb023/) and [024 — Inhibition-gated sparsity](/notebooks/nb024/) characterise coba and ping with only the two synaptic time constants the COBA model has by default: AMPA ($\tau = 2$ ms) and GABA ($\tau = 9$ ms). The longest physical time constant in the network is ~9 ms — an order of magnitude shorter than the cognitively-relevant working-memory window. Anything that requires the network to remember an input across more than a few tens of milliseconds is structurally impossible to encode in the current architecture's dynamics.
+[023 — PING fundamentals](/notebooks/nb023/) and [024 — Inhibition-gated sparsity](/notebooks/nb024/) characterise COBA and ping with only the two synaptic time constants the COBA model has by default: AMPA ($\tau = 2$ ms) and GABA ($\tau = 9$ ms). The longest physical time constant in the network is ≈9 ms — an order of magnitude shorter than the cognitively-relevant working-memory window. Anything that requires the network to remember an input across more than a few tens of milliseconds is structurally impossible to encode in the current architecture's dynamics.
 
 This entry adds a third synaptic channel — an NMDA-like slow excitatory current — as a new option in the oscilloscope: *--slow-syn*, optional *--tau-nmda* (default 100 ms) and *--slow-syn-gain* (default 0.5). The slow channel runs in parallel with the existing AMPA channel on every excitatory projection onto E cells, reuses the same $W$ matrices (no new trainable parameters), and adds a single per-layer slow-conductance buffer. Gain 0.0 is bit-identical to plain COBA; non-zero gain layers a long-decay residue on top.
 
-This first cell is purely observational — take the nb024-trained coba and ping baselines, freeze every weight, and replay each on one MNIST trial twice: once with slow-syn off (parity check) and once at gain 0.5. Same weights, same input, same trial. The question is whether the slow channel meaningfully changes the spike statistics, given that the trained $W$ matrices were never optimised to use it.
+This first cell is purely observational — take the nb024-trained COBA and ping baselines, freeze every weight, and replay each on one MNIST trial twice: once with slow-syn off (parity check) and once at gain 0.5. Same weights, same input, same trial. The question is whether the slow channel meaningfully changes the spike statistics, given that the trained $W$ matrices were never optimised to use it.
 
 ## Method
 
 The slow channel updates in parallel with the fast AMPA channel:
 
 $$
-g^{e,\text{slow}}_{t+1} = e^{-\Delta t/\tau_\text{NMDA}}\left(g^{e,\text{slow}}_t + \alpha \cdot W s_t\right)
+g^{{}}_{} = e^{{}}\left(g^{{}}_t + \alpha \cdot W s_t\right)
 $$
 
-where $W s_t$ is whichever excitatory drive feeds layer $\ell$ on this step (input-to-E for layer 1, recurrent E→E and inter-layer feedforward for deeper layers), $\alpha$ is *--slow-syn-gain*, and $\tau_\text{NMDA}$ is *--tau-nmda*. The membrane equation gains one term:
+where $W s_t$ is whichever excitatory drive feeds layer $\ell$ on this step (input-to-E for layer 1, recurrent E→E and inter-layer feedforward for deeper layers), $\alpha$ is *--slow-syn-gain*, and $\tau_\text{}$ is *--tau-nmda*. The membrane equation gains one term:
 
 $$
-C_m \frac{dV}{dt} = -g_L(V-E_L) - (g^e + g^{e,\text{slow}})(V-E_e) - g^i(V-E_i)
+C_m \frac{}{} = -g_L(V-E_L) - (g^e + g^{{}})(V-E_e) - g^i(V-E_i)
 $$
 
 with the same reversal potential $E_e = 0$ mV for both fast and slow excitatory channels.
 
-**No new trainable parameters.** The slow channel reuses the existing $W_\text{in}$, $W_\text{ee}$, and $W_\text{ff}$ matrices. One extra conductance tensor per E layer, one extra add and one extra scalar multiply per timestep — about 5% per-step overhead.
+**No new trainable parameters.** The slow channel reuses the existing $W_\text{}$, $W_\text{}$, and $W_\text{}$ matrices. One extra conductance tensor per E layer, one extra add and one extra scalar multiply per timestep — about 5% per-step overhead.
 
-**This cell:** replay the trained coba and ping baselines (from nb024) on MNIST digit 0 sample 0 for 400 ms. Two slow-syn gains: 0.0 (parity with nb024) and 0.5 (Wang/Compte-style NMDA contribution). $\tau_\text{NMDA} = 100$ ms.
+**This cell:** replay the trained COBA and ping baselines (from nb024) on MNIST digit 0 sample 0 for 400 ms. Two slow-syn gains: 0.0 (parity with nb024) and 0.5 (Wang/Compte-style NMDA contribution). $\tau_\text{} = 100$ ms.
 
-<RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "models", value: (cfg.models ?? []).join(", ") || "?", default: "—" },
-  { label: "slow-syn gain", value: cfg.slow_syn_gain ?? "?", default: "—" },
-  { label: "τ_nmda (ms)", value: cfg.tau_nmda_ms ?? "?", default: "—" },
-  { label: "trial (ms)", value: cfg.t_total_ms ?? "?", default: "—" },
-]} />
+<RunParameters numbers={} variant="recipe" extras={ variant="recipe" extras={[
+  {},
+  {},
+  {},
+  {},
+}]} />
 
 ## Results
 
 ### Cell 1 — nb024 baselines replayed with slow synapse injected
 
-<Figure id="Figure 1" title="nb024-trained coba / ping rasters — slow-syn off vs gain 0.5 at inference" src="/figures/notebooks/nb025/slow_syn_rasters.png" alt="Four raster panels in a 2-column × 2-row grid: columns are coba (left) and ping (right), rows are slow-syn off (top) and gain 0.5 (bottom). Networks are the nb024-trained baselines.">
-  nb024-trained coba (left column) and ping (right) replayed on MNIST digit 0 sample 0 for 400 ms. Top row: slow-syn off — bit-identical to nb024's Figures 4 and 5. Bottom row: slow-syn gain 0.5 with $\tau_\text{NMDA} = 100$ ms injected at inference. Same weights, same trial, only the slow channel differs.
+<Figure id="Figure 1" title="nb024-trained COBA / ping rasters — slow-syn off vs gain 0.5 at inference" src="/figures/notebooks/nb025/slow_syn_rasters.png" alt="Four raster panels in a 2-column × 2-row grid: columns are COBA (left) and ping (right), rows are slow-syn off (top) and gain 0.5 (bottom). Networks are the nb024-trained baselines.">
+  nb024-trained COBA (left column) and ping (right) replayed on MNIST digit 0 sample 0 for 400 ms. Top row: slow-syn off — bit-identical to nb024's Figures 4 and 5. Bottom row: slow-syn gain 0.5 with $\tau_\text{} = 100$ ms injected at inference. Same weights, same trial, only the slow channel differs.
 </Figure>
 
-**Reading:** with weights that never saw the slow channel during training, gain 0.5 just dumps free excitation on top. coba's E rate goes 78 → 288 Hz (refractory saturation); ping's goes 5.3 → 22.5 Hz with the gamma cadence still visible — the I-loop's authority keeps the rhythm locked at its trained period, density just goes up.
+**Reading:** with weights that never saw the slow channel during training, gain 0.5 just dumps free excitation on top. COBA's E rate goes 78 → 288 Hz (refractory saturation); ping's goes 5.3 → 22.5 Hz with the gamma cadence still visible — the I-loop's authority keeps the rhythm locked at its trained period, density just goes up.
 
-### Cell 2 — coba and ping trained with slow synapse from scratch
+### Cell 2 — COBA and ping trained with slow synapse from scratch
 
-Same nb024 recipe in every respect, just *--slow-syn --slow-syn-gain 0.5 --tau-nmda 100* added to the training command. Both reach $\sim 85$% MNIST test accuracy at small tier — comparable to nb024's coba (84.25%) and ping (85.75%) — so the slow channel doesn't break the training pipeline.
+Same nb024 recipe in every respect, just *--slow-syn --slow-syn-gain 0.5 --tau-nmda 100* added to the training command. Both reach $\approx 85$% MNIST test accuracy at small tier — comparable to nb024's COBA (84.25%) and ping (85.75%) — so the slow channel doesn't break the training pipeline.
 
-<Figure id="Figure 2" title="Trained-with-slow-syn coba / ping rasters — slow-syn off vs gain 0.5" src="/figures/notebooks/nb025/slow_syn_rasters__trained.png" alt="Four raster panels in a 2-column × 2-row grid like Figure 1, but the networks were trained from scratch with --slow-syn enabled.">
+<Figure id="Figure 2" title="Trained-with-slow-syn COBA / ping rasters — slow-syn off vs gain 0.5" src="/figures/notebooks/nb025/slow_syn_rasters__trained.png" alt="Four raster panels in a 2-column × 2-row grid like Figure 1, but the networks were trained from scratch with --slow-syn enabled.">
   Same layout as Figure 1, but the networks were freshly trained with *--slow-syn --slow-syn-gain 0.5* enabled. Top row: replayed at slow-syn off (the channel the network was trained against is removed at inference). Bottom row: replayed at slow-syn gain 0.5 (the training condition).
 </Figure>
 
@@ -73,36 +73,36 @@ Same nb024 recipe in every respect, just *--slow-syn --slow-syn-gain 0.5 --tau-n
 
 The contrast between Figure 1 and Figure 2 — same models, same comparison structure, only difference is whether training saw the slow channel — gives a clean answer to what the network learns to do with the new mechanism.
 
-**coba adapts its feedforward weights to depend on the slow channel.** Top-left panel: trained-with-slow-syn coba *fired at 3.3 Hz* when the slow channel is removed at inference, vs the nb024-trained baseline's 78 Hz with the same weights structure. That's a $\sim 23\times$ reduction. Gradient descent shifted the feedforward gain to the regime where the slow channel's residue carries most of the drive — without it, the network is starved. Bottom-left at training gain: 208 Hz vs Figure 1's 288 Hz — training brings the operating point down, but small-tier coba still ends up over-driven because the recipe wasn't separately tuned for the slow channel's added gain.
+**COBA adapts its feedforward weights to depend on the slow channel.** Top-left panel: trained-with-slow-syn COBA *fired at 3.3 Hz* when the slow channel is removed at inference, vs the nb024-trained baseline's 78 Hz with the same weights structure. That's a $\approx 23\times$ reduction. Gradient descent shifted the feedforward gain to the regime where the slow channel's residue carries most of the drive — without it, the network is starved. Bottom-left at training gain: 208 Hz vs Figure 1's 288 Hz — training brings the operating point down, but small-tier COBA still ends up over-driven because the recipe wasn't separately tuned for the slow channel's added gain.
 
 **ping barely cares.** Top-right: 4.1 Hz E, 19.7 Hz I with slow-syn off (vs nb024 baseline 5.3 Hz E, 27.5 Hz I). Bottom-right: 17.5 Hz E, 92.5 Hz I with slow-syn on (vs Figure 1's 22.5 Hz E, 132.5 Hz I). The I-loop's authority sets the gamma cadence and the firing rate floor regardless of whether the slow channel was in the training environment — the trained-with-slow-syn ping converges to a similar operating point as nb024 ping, just with the slow conductance soaking up some of the drive instead of the slow channel being absent. The dynamical attractor is robust to whether this new substrate is present at training.
 
-Together: **the slow channel is a usable substrate for the feedforward path (coba uses it as primary drive), but the existing PING gamma loop is already a strong attractor that re-wins regardless of the slow channel's presence.** Working-memory tasks that need long-timescale state will likely train better in the coba-style feedforward regime than on top of the PING loop.
+Together: **the slow channel is a usable substrate for the feedforward path (COBA uses it as primary drive), but the existing PING gamma loop is already a strong attractor that re-wins regardless of the slow channel's presence.** Working-memory tasks that need long-timescale state will likely train better in the COBA-style feedforward regime than on top of the PING loop.
 
 ## Success criteria
 
-{successCriteria.length > 0 ? (
+{{successCriteria.length > 0 ? (
   <table>
     <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
     <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+      {      {successCriteria.map((c) => (
+        <tr key={}>
+          <td>{}</td>
+          <td><strong>{}</strong></td>
+          <td>{{}{}}</td>
         </tr>
-      ))}
+}      ))}
     </tbody>
   </table>
 ) : (
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
+})}
 
 ## Next steps
 
-- **Train coba / ping from scratch with *--slow-syn*.** Compares the trained-with-slow-syn dynamics against trained-without rather than just freezing nb024 weights.
+- **Train COBA / ping from scratch with *--slow-syn*.** Compares the trained-with-slow-syn dynamics against trained-without rather than just freezing nb024 weights.
 - **Sweep gain and τ_nmda.** Where on the (gain, τ) plane does the slow channel hold sample-period activity through a silent delay without driving the network to saturation?
-- **Revive the DMTS pipeline** on top of a trained-with-slow-syn coba baseline. The slow channel provides the long-timescale memory substrate the previous DMTS attempt was missing.
+- **Revive the DMTS pipeline** on top of a trained-with-slow-syn COBA baseline. The slow channel provides the long-timescale memory substrate the previous DMTS attempt was missing.
 
 ## Appendix
 
@@ -114,14 +114,14 @@ uv run src/pinglab/notebooks/nb025.py --tier small
 
 ### Run parameters
 
-<RunParameters numbers={numbers} />
+<RunParameters numbers={} />
 
 ### Training videos
 
-Per-epoch oscilloscope view of the freshly-trained coba and ping cells with *--slow-syn --slow-syn-gain 0.5 --tau-nmda 100*.
+Per-epoch oscilloscope view of the freshly-trained COBA and ping cells with *--slow-syn --slow-syn-gain 0.5 --tau-nmda 100*.
 
-<Figure id="Figure 3" title="coba — trained with slow synapse" src="/figures/notebooks/nb025/training__coba_slow.mp4" type="video" alt="Per-epoch oscilloscope training video for coba trained with slow-syn at gain 0.5.">
-  coba trained with the slow channel enabled. One frame per epoch on a fixed reference MNIST trial.
+<Figure id="Figure 3" title="COBA — trained with slow synapse" src="/figures/notebooks/nb025/training__coba_slow.mp4" type="video" alt="Per-epoch oscilloscope training video for COBA trained with slow-syn at gain 0.5.">
+  COBA trained with the slow channel enabled. One frame per epoch on a fixed reference MNIST trial.
 </Figure>
 
 <Figure id="Figure 4" title="ping — trained with slow synapse" src="/figures/notebooks/nb025/training__ping_slow.mp4" type="video" alt="Per-epoch oscilloscope training video for ping trained with slow-syn at gain 0.5.">

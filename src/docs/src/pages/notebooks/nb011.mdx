@@ -10,7 +10,7 @@ import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
 import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb011/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../../public/figures/notebooks/nb011/numbers.json", {})
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const cell = numbers.run ?? {};
@@ -18,64 +18,64 @@ export const nbRunId = numbers.notebook_run_id ?? "?";
 export const gitSha = numbers.git_sha ?? null;
 export const successCriteria = numbers.success_criteria ?? [];
 
-<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+<NotebookHeader frontmatter={} numbers={} />
 
 ## Introduction
 
-Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*coba*](/articles/art003/) path — conductance-based synapses, dispatched through the COBANet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb010](/notebooks/nb010/) and [nb012](/notebooks/nb012/). No Δt sweep. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Single-model companion to [nb013](/notebooks/nb013/). Trains only the [*COBA*](/articles/art003/) path — conductance-based synapses, dispatched through the COBANet class with *ei_strength* = 0 so the E→I→E loop is disabled — at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {} ms on MNIST and publishes its own curves, firing-rate trace, and training video via the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) subcommand. The second rung on the CUBA → PING ladder; calibration sibling of [nb010](/notebooks/nb010/) and [nb012](/notebooks/nb012/). No Δt sweep. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Method
 
 Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb011.py* per the [runner contract](/docs/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path with the *ping* model dispatched at *ei_strength* = 0. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
-<RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "E→I strength", value: 0, default: 1.0 },
-  { label: "v_grad_dampen", value: 1000, default: 1.0 },
-  { label: "W_in", value: "0.3 (95% sparse)", default: "0.3 (dense)" },
-]} />
+<RunParameters numbers={} variant="recipe" extras={ variant="recipe" extras={[
+  {},
+  {},
+  {},
+}]} />
 
 - [**ei-strength = 0**](/docs/the-oscilloscope/#network-flags-shared) — collapses the COBANet dispatch into a pure conductance-based feedforward path by zeroing the E→I→E loop. The cell below in the ladder is [nb010](/notebooks/nb010/) (current-based synapses); the cell above is [nb012](/notebooks/nb012/) (full PING with the loop closed).
-- [**v-grad-dampen = 1000**](/docs/the-oscilloscope/#network-flags-shared) — strong damping on the membrane-voltage gradient. Conductance synapses multiply the input by $(V - E_\text{rev})$, which makes BPTT through *V* far stiffer than *cuba*'s additive current; the high damping coefficient keeps gradients finite end-to-end.
-- [**w-in 0.3, w-in-sparsity 0.95**](/docs/the-oscilloscope/#weight-flags-shared-advanced) — sparse $W_\text{in}$ (5% density) at the same scale as the dense default. Matches the *ping* working point used in [nb012](/notebooks/nb012/) so the two share an input distribution.
+- [**v-grad-dampen = 1000**](/docs/the-oscilloscope/#network-flags-shared) — strong damping on the membrane-voltage gradient. Conductance synapses multiply the input by $(V - E_\text{})$, which makes BPTT through *V* far stiffer than *cuba*'s additive current; the high damping coefficient keeps gradients finite end-to-end.
+- [**w-in 0.3, w-in-sparsity 0.95**](/docs/the-oscilloscope/#weight-flags-shared-advanced) — sparse $W_\text{}$ (5% density) at the same scale as the dense default. Matches the *ping* working point used in [nb012](/notebooks/nb012/) so the two share an input distribution.
 
 ## Results
 
-<RunParameters numbers={numbers} variant="results" />
+<RunParameters numbers={} variant="results" />
 
 ### Success criteria
 
-{successCriteria.length > 0 ? (
+{{successCriteria.length > 0 ? (
   <table>
     <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
     <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
+      {      {successCriteria.map((c) => (
+        <tr key={}>
+          <td>{}</td>
+          <td><strong>{}</strong></td>
+          <td>{{}{}}</td>
         </tr>
-      ))}
+}      ))}
     </tbody>
   </table>
 ) : (
   <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
+})}
 
-<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb011/training_curves.png" alt="Train loss and test accuracy per epoch for coba">
-  Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
+<Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb011/training_curves.png" alt="Train loss and test accuracy per epoch for COBA">
+  Train loss and test accuracy per epoch; best test accuracy {}%, final {}%.
 </Figure>
 
-<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb011/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for coba">
+<Figure id="Figure 2" title="Hidden firing rate per epoch" src="/figures/notebooks/nb011/firing_rates.png" alt="Mean excitatory hidden firing rate per epoch for COBA">
   Mean hidden firing rate across the training schedule.
 </Figure>
 
-<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb011/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the coba hidden layer">
-  Per-epoch snapshot of the reference MNIST trial through *coba*'s hidden layer.
+<Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb011/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the COBA hidden layer">
+  Per-epoch snapshot of the reference MNIST trial through *COBA*'s hidden layer.
 </Figure>
 
 ## Next steps
 
-The conductance-based synapse is the bridge between [nb010](/notebooks/nb010/)'s clean *cuba* baseline and [nb012](/notebooks/nb012/)'s full PING circuit; once *coba* is sitting in the same firing-rate band as *cuba*, closing the E→I→E loop in nb012 should be a one-knob change. Two follow-ups parked: (a) tune the *v_grad_dampen* coefficient downward and confirm the gradient-skip path stays empty — the current 1000 is conservative; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/docs/the-oscilloscope/#subcommand-infer) path to test whether the conductance dynamics generalise off the trained *dt*, mirroring the analogous follow-up in [nb010](/notebooks/nb010/).
+The conductance-based synapse is the bridge between [nb010](/notebooks/nb010/)'s clean *cuba* baseline and [nb012](/notebooks/nb012/)'s full PING circuit; once *COBA* is sitting in the same firing-rate band as *cuba*, closing the E→I→E loop in nb012 should be a one-knob change. Two follow-ups parked: (a) tune the *v_grad_dampen* coefficient downward and confirm the gradient-skip path stays empty — the current 1000 is conservative; (b) a *dt* sweep through the [oscilloscope *infer --dt-sweep*](/docs/the-oscilloscope/#subcommand-infer) path to test whether the conductance dynamics generalise off the trained *dt*, mirroring the analogous follow-up in [nb010](/notebooks/nb010/).
 
 ## Appendix
 
