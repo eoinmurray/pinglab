@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import ThemeToggle from "../components/ThemeToggle.astro";
+import SiteHeader from "../components/SiteHeader.astro";
 
 const notebookModules = import.meta.glob("./notebooks/*.mdx", { eager: true });
 const numbersModules = import.meta.glob("../../public/figures/notebooks/*/numbers.json", {
@@ -156,20 +157,7 @@ const formatDate = (raw) => {
     </div>
     <main class="px-6 pt-16 pb-64 lg:px-12 [&_a]:no-underline! [&_a:hover]:underline!">
       <div class="max-w-[90rem] mx-auto">
-        <div class="flex items-baseline gap-4">
-          <h1
-            class="text-2xl font-bold"
-            style="font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;"
-          >
-            PINGLAB
-          </h1>
-          <a
-            href="https://github.com/eoinmurray/pinglab"
-            class="text-sm text-muted hover:text-[color:var(--ink)]"
-            target="_blank"
-            rel="noopener">github</a
-          >
-        </div>
+        <SiteHeader isHome={true} />
 
         <div class="mt-10 flex flex-col gap-12 max-w-3xl">
           <section>

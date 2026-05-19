@@ -121,7 +121,10 @@ const ddMono = "font-mono text-[0.85rem]";
   {collections.length > 0 && (
     <div class="mb-4 flex flex-wrap gap-[0.3rem]">
       {collections.map((c) => (
-        <span class="inline-block rounded-[2px] border border-rule bg-paper-tint px-[0.45rem] py-[0.05rem] font-mono text-[0.72rem] text-muted-soft">{c}</span>
+        <a
+          href={`/collections/${c}/`}
+          class="inline-block rounded-[2px] border border-rule bg-paper-tint px-[0.45rem] py-[0.05rem] font-mono text-[0.72rem] text-muted-soft no-underline hover:text-[color:var(--ink)]"
+        >{c}</a>
       ))}
     </div>
   )}

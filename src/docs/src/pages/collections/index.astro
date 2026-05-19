@@ -1,0 +1,116 @@
+---
+import "../../styles/global.css";
+import ThemeToggle from "../../components/ThemeToggle.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+
+const notebookModules = import.meta.glob("../notebooks/*.mdx", { eager: true });
+const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
+
+type Bucket = { articles: number; notebooks: number };
+const buckets = new Map<string, Bucket>();
+
+function tally(kind: "articles" | "notebooks", cs: unknown) {
+  if (!Array.isArray(cs)) return;
+  for (const c of cs) {
+    if (typeof c !== "string") continue;
+    if (!buckets.has(c)) buckets.set(c, { articles: 0, notebooks: 0 });
+    buckets.get(c)![kind]++;
+  }
+}
+
+for (const mod of Object.values(notebookModules)) {
+  tally("notebooks", (mod as any).frontmatter?.collections);
+}
+for (const mod of Object.values(articleModules)) {
+  tally("articles", (mod as any).frontmatter?.collections);
+}
+
+// in-progress floats to the top (it is a workflow state, not a topic);
+// otherwise sort by total count desc, then alphabetical.
+const entries = [...buckets.entries()].sort((a, b) => {
+  if (a[0] === "in-progress") return -1;
+  if (b[0] === "in-progress") return 1;
+  const totA = a[1].articles + a[1].notebooks;
+  const totB = b[1].articles + b[1].notebooks;
+  return totB - totA || a[0].localeCompare(b[0]);
+});
+
+function countLabel(articles: number, notebooks: number): string {
+  const parts: string[] = [];
+  if (articles > 0) parts.push(`${articles} article${articles === 1 ? "" : "s"}`);
+  if (notebooks > 0) parts.push(`${notebooks} notebook${notebooks === 1 ? "" : "s"}`);
+  return parts.join(", ");
+}
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Collections · Pinglab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap"
+      rel="stylesheet"
+    />
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme");
+          var resolved =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", resolved);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="fixed top-4 right-4 z-40">
+      <ThemeToggle />
+    </div>
+    <main class="px-6 pt-16 pb-64 lg:px-12 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[90rem] mx-auto">
+        <SiteHeader>
+          <span slot="breadcrumb" class="text-sm text-muted-soft">/ collections</span>
+        </SiteHeader>
+
+        <div class="mt-10 flex flex-col gap-12 max-w-3xl">
+          <section>
+            <p class="mb-2 text-xs uppercase tracking-wider text-muted">Collections</p>
+            {
+              entries.length > 0 ? (
+                <ol class="pl-0 list-none m-0 text-[0.95rem]">
+                  {entries.map(([name, { articles, notebooks }], i) => (
+                    <li class="flex items-baseline gap-3 py-[0.3rem]">
+                      <a
+                        href={`/collections/${name}/`}
+                        class="w-4 shrink-0 tabular-nums text-muted-soft"
+                      >
+                        {String(i).padStart(1, "0")}.
+                      </a>
+                      <a href={`/collections/${name}/`} class="flex-1 min-w-0">
+                        {name.charAt(0).toUpperCase() + name.slice(1)}
+                      </a>
+                      <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                        {countLabel(articles, notebooks)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p class="text-sm text-muted">None yet.</p>
+              )
+            }
+          </section>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,105 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "Decision Theory and Behavioural Tests"
+date: 2026-05-19
+entry: 11
+structure: paper
+collections: [uncertainty]
+---
+
+# Decision Theory and Behavioural Tests
+
+How a posterior becomes an action, and how an experimenter tests whether a subject is reading off that posterior correctly. The first half — *Bayesian decision theory* — closes the loop from belief to behaviour. The second half — *signal detection theory* — is the machinery psychophysics uses to test whether observed behaviour is consistent with optimal inference. SDT is also the prerequisite for Fleming & Lau 2014 ([reading list](/articles/art007/) entry 7).
+
+## From posterior to action
+
+Bayesian inference gives you a posterior $p(z \mid x)$ — a *distribution* over latents given data. Action requires a *single* output: which way to look, what to grasp, which button to press. The bridge is a *loss function* (or, equivalently, a *utility function* with the sign flipped).
+
+### Loss, utility, and expected loss
+
+A loss function $L(a, z)$ specifies the cost of taking action $a$ when the true state is $z$. A grocery example: $z$ is the actual size of an item, $a$ is the size of the bag you choose, and $L$ is the cost of an awkward fit. A neural example: $z$ is the true orientation of a stimulus, $a$ is the saccade direction you choose, and $L$ is the angular error.
+
+Given a posterior, the *Bayes-optimal* action minimises *expected loss*:
+$$
+a^\star = \arg\min_a\,\mathbb{E}_{z \sim p(z \mid x)}\bigl[L(a, z)\bigr] = \arg\min_a\,\int L(a, z)\,p(z \mid x)\,dz.
+$$
+This is the formal sense in which "behaviour reflects belief": $a^\star$ depends on both *what you believe* (the posterior) and *what you care about* (the loss).
+
+### Three losses, three actions
+
+The choice of loss function changes the action substantively, even with the same posterior.
+
+- *Squared error* $L(a, z) = (a - z)^2$. Bayes-optimal action is the *posterior mean*. Sensitive to the whole distribution; symmetric.
+- *Zero–one* $L(a, z) = \mathbf{1}[a \neq z]$. Bayes-optimal action is the *posterior mode* (i.e. MAP). Cares only about whether the answer is exactly right.
+- *Absolute error* $L(a, z) = |a - z|$. Bayes-optimal action is the *posterior median*. Robust to long-tailed posteriors.
+
+Asymmetric losses produce *biased* actions even from a symmetric posterior. If under-estimation is twice as costly as over-estimation, the optimal action shifts towards the upper end. This is the formal source of perceptual *biases* under Bayesian models: a bias is not a flaw, it is the optimal response to an asymmetric loss (or to an informative prior).
+
+### Why this matters for the reading list
+
+When a paper says "the subject's behaviour is consistent with optimal inference," the implicit claim is *Bayes-optimal under some loss function*. Distinguishing "the brain has the wrong posterior" from "the brain has the right posterior but is optimising for an unusual loss" is the standing methodological problem of Bayesian psychophysics, and reading any behavioural-test paper requires keeping the two interpretations separate.
+
+## Signal detection theory
+
+Signal detection theory (SDT) is the workhorse framework for analysing two-alternative perceptual decisions: stimulus present or absent, this category or that one. It long predates the Bayesian framing but maps onto it cleanly.
+
+### The setup
+
+A subject is presented with one of two stimuli: *signal* ($S = 1$) or *noise* ($S = 0$). They respond with *yes* ($R = 1$) or *no* ($R = 0$). Four outcomes:
+
+| | $S = 1$ | $S = 0$ |
+| --- | :---: | :---: |
+| $R = 1$ | hit | false alarm |
+| $R = 0$ | miss | correct rejection |
+
+The two diagnostic rates are the *hit rate* $H = \Pr(R = 1 \mid S = 1)$ and the *false-alarm rate* $\mathit{FA} = \Pr(R = 1 \mid S = 0)$. Percent-correct alone is misleading; $H$ and $\mathit{FA}$ together separate *sensitivity* (how well the subject can tell signal from noise) from *bias* (how willing they are to say *yes*).
+
+### The internal-evidence model
+
+SDT models the subject's internal state as a one-dimensional decision variable $d$ that is approximately Gaussian under each condition:
+$$
+d \mid S = 0 \sim \mathcal{N}(0, 1), \qquad d \mid S = 1 \sim \mathcal{N}(d', 1).
+$$
+The subject responds *yes* when $d$ exceeds a criterion $c$. Two parameters — $d'$ and $c$ — generate every possible $(H, \mathit{FA})$ pair.
+
+### $d'$ — sensitivity
+
+The separation between the two Gaussians is the *sensitivity index* $d'$:
+$$
+d' = z(H) - z(\mathit{FA}),
+$$
+where $z(\cdot)$ is the inverse of the standard normal CDF (the *probit* function). $d'$ has the units of standard deviations between the two distributions. It is sensitivity *that does not depend on the criterion*: a subject can have high $d'$ and shift their criterion to be more or less liberal, changing their hit and false-alarm rates without changing how well they actually discriminate.
+
+### Criterion and ROC curves
+
+The criterion $c$ is where the subject draws the line. A *liberal* criterion (low $c$) gives high $H$ and high $\mathit{FA}$ — they say *yes* often. A *conservative* criterion gives low $H$ and low $\mathit{FA}$. Sweeping $c$ traces out the *receiver operating characteristic* (ROC) curve: a plot of $H$ against $\mathit{FA}$ as the criterion varies, for fixed $d'$. The area under the ROC curve is monotonic in $d'$ and is the standard non-parametric sensitivity measure.
+
+Criterion shifts arise from base-rate asymmetries (signal is rare), reward asymmetries (missing a signal is costly), and instructions ("be sure before saying yes"). Bayesian decision theory predicts where the criterion should sit given the priors and the loss function:
+$$
+c^\star = \log\frac{p(S = 0)}{p(S = 1)} + \log\frac{L_{\text{FA}}}{L_{\text{miss}}}.
+$$
+A subject's actual criterion can be compared to this Bayesian-optimal one.
+
+### Type-1 vs type-2 judgements
+
+A *type-1* judgement is the perceptual decision itself: yes or no, this orientation or that one. A *type-2* judgement is about your own type-1 judgement: how *confident* are you that your answer was correct?
+
+A subject's type-2 sensitivity is *metacognitive sensitivity* — the ability to distinguish their own correct from incorrect type-1 responses. This is exactly what Fleming & Lau 2014 set out to measure properly.
+
+### Why naive measures fail
+
+Correlating confidence with accuracy seems like the obvious thing to do. It is wrong: any such correlation is contaminated by type-1 *bias* (how willing the subject is to say *yes* overall) and by *task performance* (a subject who gets nothing right has nothing to be confident about). Fleming & Lau argue that the right framework is to run *SDT a second time* — at the type-2 level — and define analogues of $d'$, ROC, and criterion for the metacognitive judgement.
+
+The key measure is *meta-$d'$*: the sensitivity a type-2 ROC analysis would imply, expressed in the same units as the type-1 $d'$. A *metacognitive efficiency* of $\mathit{meta}\text{-}d'/d'$ near 1 means the subject's confidence carries as much information about their correctness as their actual percept does. Less than 1 means they are losing information when reading out their own state.
+
+This is the operational definition of "the brain knowing what it knows." From a Bayesian perspective, $\mathit{meta}\text{-}d' \approx d'$ is what you would expect if confidence is a readout of the *width* of the type-1 posterior. The empirical fact that humans often fall short of this ceiling is one of the most pointed measurable failures of the strict-Bayesian-brain hypothesis.
+
+## Why this matters for the reading list
+
+- *Behavioural tests of cue combination.* Demonstrations that humans behave Bayes-optimally (Ernst & Banks 2002, Fiser et al. 2010) rely on SDT-flavoured psychophysics: precision is read off from response variability, and Bayesian predictions are tested against observed sensitivity in single-cue and multi-cue conditions.
+- *Reading Fleming & Lau 2014.* The whole paper is a careful walk through what can go wrong when type-2 sensitivity is measured naively, and how to fix it. Without SDT vocabulary the paper is unreadable; with it the paper is a useful tutorial.
+- *Connecting belief to behaviour at all.* The neural papers on the reading list argue about *how* cortex encodes posteriors. Whether that representation actually drives action requires the decision-theoretic apparatus above — otherwise there is no behavioural prediction to test against.
+
+## Where to go next
+
+You now have the decision-theoretic glue between belief and behaviour. The remaining prerequisite article — the [neural-side primer](/articles/art012/) — covers the population-coding, spike-statistics, and circuit-dynamics vocabulary the papers assume. After that the [reading list](/articles/art007/) is fully equipped.
