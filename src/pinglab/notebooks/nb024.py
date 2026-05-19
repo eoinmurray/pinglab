@@ -1475,15 +1475,25 @@ def _load_trained_full(train_dir: Path, device):
 
 def _eval_net_on_test(net, cfg, X_te, y_te, device) -> tuple[float, float, float]:
     """Forward over test set; return (acc, hid_rate_hz, inh_rate_hz)."""
-    acc, _ce, e_rate, i_rate = _eval_net_on_test_with_loss(
+    acc, _ce, _pen, e_rate, i_rate = _eval_net_on_test_with_loss(
         net, cfg, X_te, y_te, device
     )
     return acc, e_rate, i_rate
 
 
-def _eval_net_on_test_with_loss(net, cfg, X_te, y_te, device) -> tuple[float, float, float, float]:
-    """Forward over test set; return (acc, ce_loss, hid_rate_hz, inh_rate_hz).
-    ce_loss is mean cross-entropy across all test samples."""
+def _eval_net_on_test_with_loss(
+    net, cfg, X_te, y_te, device,
+    fr_upper_theta: float = 0.0,
+    fr_upper_strength: float = 0.0,
+) -> tuple[float, float, float, float, float]:
+    """Forward over test set; return
+    (acc, ce_loss, penalty, hid_rate_hz, inh_rate_hz).
+
+    `penalty` is the same firing-rate-upper regulariser the trainer applies:
+    sum over hidden neurons of strength · ReLU(mean_per_neuron_spike_count -
+    theta_u)^2, computed against the per-neuron spike-count mean over the
+    full test set (one application, not per-batch averaging). When strength
+    or theta_u is zero the penalty is zero."""
     import torch
     import torch.nn.functional as F
     from torch.utils.data import DataLoader, TensorDataset
@@ -1498,6 +1508,9 @@ def _eval_net_on_test_with_loss(net, cfg, X_te, y_te, device) -> tuple[float, fl
     correct = total = 0
     ce_sum = 0.0
     e_spike_sum = i_spike_sum = 0.0
+    # Per-neuron spike count accumulators (one tensor per hidden layer)
+    # for computing the training-objective penalty term.
+    sc_accums: list[torch.Tensor] = []
     eval_gen = torch.Generator().manual_seed(EVAL_SEED)
     with torch.no_grad():
         for X_b, y_b in test_loader:
@@ -1512,6 +1525,14 @@ def _eval_net_on_test_with_loss(net, cfg, X_te, y_te, device) -> tuple[float, fl
             e_spike_sum += float(net.spike_record["hid"].sum().item())
             if "inh" in net.spike_record:
                 i_spike_sum += float(net.spike_record["inh"].sum().item())
+            if fr_upper_strength > 0 and getattr(net, "last_spike_counts", None):
+                if not sc_accums:
+                    sc_accums = [
+                        torch.zeros(sc.shape[1], device=device)
+                        for sc in net.last_spike_counts
+                    ]
+                for acc_tensor, sc in zip(sc_accums, net.last_spike_counts):
+                    acc_tensor += sc.sum(dim=0)
     n_e = M.N_HID
     n_i = M.N_INH or 1
     t_sec = float(cfg["t_ms"]) / 1000.0
@@ -1519,7 +1540,15 @@ def _eval_net_on_test_with_loss(net, cfg, X_te, y_te, device) -> tuple[float, fl
     i_rate = i_spike_sum / (total * n_i * t_sec) if (total and i_spike_sum) else 0.0
     acc = 100.0 * correct / total if total else 0.0
     ce_loss = ce_sum / total if total else 0.0
-    return acc, ce_loss, e_rate, i_rate
+    penalty = 0.0
+    if sc_accums and total > 0 and fr_upper_strength > 0:
+        for acc_tensor in sc_accums:
+            mean_z = acc_tensor / total
+            penalty += float(
+                fr_upper_strength
+                * (torch.relu(mean_z - fr_upper_theta) ** 2).sum().item()
+            )
+    return acc, ce_loss, penalty, e_rate, i_rate
 
 
 def run_tau_gaba_sweep(notebook_run_id: str) -> list[dict]:
@@ -1720,18 +1749,23 @@ W_IN_SCALE_VALUES: list[float] = [
 def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
     """Inference-only sweep that multiplies each trained net's W_in
     (i.e. net.W_ff[0]) by every value in W_IN_SCALE_VALUES, evaluates on
-    the test set, and records (model, scale, loss, acc, rate_e, rate_i).
-    Restores the original W_in after the sweep."""
+    the test set, and records (cell, scale, loss, acc, rate_e, rate_i).
+    Cells: PING at θ_u = off (baseline), COBA at θ_u = off (baseline),
+    PING at θ_u = 0.2 (heaviest budget — the floor-pinned case).
+    Restores the original W_in after each cell's sweep."""
     import torch
     from cli import _auto_device
 
     device = _auto_device()
+    cells = [
+        ("ping@tu0.2", cell_dir("ping", 0.2, SEED_SWEEP), 0.2),
+        ("coba@tu0.2", cell_dir("coba", 0.2, SEED_SWEEP), 0.2),
+    ]
     rows: list[dict] = []
-    for model in MODELS:
-        train_dir = baseline_dir(model)
+    for label, train_dir, theta_u in cells:
         if not (train_dir / "weights.pth").exists():
             raise SystemExit(
-                f"w_in-scale-sweep needs trained {model} weights at {train_dir}"
+                f"w_in-scale-sweep: missing weights for {label} at {train_dir}"
             )
         net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
         w_in_original = net.W_ff[0].data.clone()
@@ -1739,20 +1773,28 @@ def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
             for scale in W_IN_SCALE_VALUES:
                 net.W_ff[0].data.copy_(w_in_original * float(scale))
                 with torch.no_grad():
-                    acc, ce_loss, e_rate, i_rate = _eval_net_on_test_with_loss(
-                        net, cfg, X_te, y_te, device
+                    acc, ce_loss, penalty, e_rate, i_rate = (
+                        _eval_net_on_test_with_loss(
+                            net, cfg, X_te, y_te, device,
+                            fr_upper_theta=theta_u,
+                            fr_upper_strength=FR_STRENGTH_UPPER,
+                        )
                     )
+                total_loss = ce_loss + penalty
                 rows.append({
-                    "model": model,
+                    "cell": label,
                     "scale": float(scale),
                     "loss": float(ce_loss),
+                    "penalty": float(penalty),
+                    "total_loss": float(total_loss),
                     "acc": float(acc),
                     "rate_e": float(e_rate),
                     "rate_i": float(i_rate),
                 })
                 print(
-                    f"  {model:<4} s={scale:>5.2f}  "
-                    f"loss={ce_loss:6.3f}  acc={acc:5.2f}%  "
+                    f"  {label:<11} s={scale:>5.2f}  "
+                    f"CE={ce_loss:6.3f}  pen={penalty:6.3f}  "
+                    f"tot={total_loss:6.3f}  acc={acc:5.2f}%  "
                     f"E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
                 )
         finally:
@@ -1761,36 +1803,75 @@ def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
 
 
 def plot_w_in_scale_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
-    """Four-panel: loss, accuracy, E rate, I rate vs W_in scale on log
-    x-axis. One curve per model (PING = black, COBA = red)."""
+    """Six-panel: CE loss, penalty, total loss, accuracy, E rate, I rate
+    vs W_in scale. One curve per (model, theta_u) cell."""
     theme.apply()
-    fig, axes = plt.subplots(1, 4, figsize=(14.0, 4.5), dpi=150)
-    colors = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
-    markers = {"coba": "s", "ping": "o"}
+    fig, axes_2d = plt.subplots(2, 3, figsize=(12.0, 8.0), dpi=150)
+    axes = axes_2d.flatten()
+    styles = {
+        "coba@tu0.2":  ("COBA ($\\theta_u = 0.2$)",
+                        theme.DEEP_RED, "s", "-"),
+        "ping@tu0.2":  ("PING ($\\theta_u = 0.2$)",
+                        theme.INK_BLACK, "o", "-"),
+    }
+    # f* proxy on PING: the W_in scale where the I-population first
+    # fires. Linear-interpolate between the largest s with I≈0 and the
+    # smallest s with measurable I to estimate the crossing.
+    ping_sorted = sorted(
+        (r for r in rows if r["cell"] == "ping@tu0.2"),
+        key=lambda r: r["scale"],
+    )
+    f_star_s = None
+    for prev, curr in zip(ping_sorted, ping_sorted[1:]):
+        if prev["rate_i"] < 0.05 <= curr["rate_i"]:
+            f_star_s = 0.5 * (prev["scale"] + curr["scale"])
+            break
+
     for ax in axes:
         ax.set_xlabel("$W_\\text{in}$ scale $s$", fontsize=theme.SIZE_LABEL)
         ax.axvline(1.0, color=theme.GREY_MID, lw=0.6, ls="--", alpha=0.7)
-    for model in MODELS:
-        msel = [r for r in rows if r["model"] == model]
+        if f_star_s is not None:
+            ax.axvline(f_star_s, color=theme.INK_BLACK, lw=0.8, ls=":", alpha=0.7)
+    for cell, (label, color, marker, ls) in styles.items():
+        msel = [r for r in rows if r["cell"] == cell]
+        if not msel:
+            continue
         xs = [r["scale"] for r in msel]
-        axes[0].plot(xs, [r["loss"] for r in msel], marker=markers[model],
-                     color=colors[model], lw=1.5, label=model.upper())
-        axes[1].plot(xs, [r["acc"] for r in msel], marker=markers[model],
-                     color=colors[model], lw=1.5, label=model.upper())
-        axes[2].plot(xs, [r["rate_e"] for r in msel], marker=markers[model],
-                     color=colors[model], lw=1.5, label=model.upper())
-        axes[3].plot(xs, [r["rate_i"] for r in msel], marker=markers[model],
-                     color=colors[model], lw=1.5, label=model.upper())
+        axes[0].plot(xs, [r["loss"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        axes[1].plot(xs, [r["penalty"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        axes[2].plot(xs, [r["total_loss"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        axes[3].plot(xs, [r["acc"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        axes[4].plot(xs, [r["rate_e"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        axes[5].plot(xs, [r["rate_i"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
     axes[0].set_ylabel("Test cross-entropy", fontsize=theme.SIZE_LABEL)
-    axes[0].set_title("Loss", fontsize=theme.SIZE_TITLE)
-    axes[1].set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
-    axes[1].set_ylim(0, 100)
-    axes[1].axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
-    axes[1].set_title("Accuracy", fontsize=theme.SIZE_TITLE)
-    axes[2].set_ylabel("E rate (Hz)", fontsize=theme.SIZE_LABEL)
-    axes[2].set_title("E rate", fontsize=theme.SIZE_TITLE)
-    axes[3].set_ylabel("I rate (Hz)", fontsize=theme.SIZE_LABEL)
-    axes[3].set_title("I rate", fontsize=theme.SIZE_TITLE)
+    axes[0].set_title("CE loss", fontsize=theme.SIZE_TITLE)
+    if f_star_s is not None:
+        ylim = axes[0].get_ylim()
+        axes[0].text(
+            f_star_s, ylim[1] * 0.95, "$\\approx f^\\star$",
+            ha="left", va="top", fontsize=theme.SIZE_ANNOTATION,
+            color=theme.INK_BLACK,
+        )
+    axes[1].set_ylabel("Spike-budget penalty", fontsize=theme.SIZE_LABEL)
+    axes[1].set_title("Penalty", fontsize=theme.SIZE_TITLE)
+    axes[1].set_ylim(0, 4.0)
+    axes[2].set_ylabel("CE + penalty", fontsize=theme.SIZE_LABEL)
+    axes[2].set_title("Training-objective loss", fontsize=theme.SIZE_TITLE)
+    axes[2].set_ylim(0, 4.0)
+    axes[3].set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    axes[3].set_ylim(0, 100)
+    axes[3].axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
+    axes[3].set_title("Accuracy", fontsize=theme.SIZE_TITLE)
+    axes[4].set_ylabel("E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    axes[4].set_title("E rate", fontsize=theme.SIZE_TITLE)
+    axes[5].set_ylabel("I rate (Hz)", fontsize=theme.SIZE_LABEL)
+    axes[5].set_title("I rate", fontsize=theme.SIZE_TITLE)
     axes[0].legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper right")
     fig.suptitle(
         "Inference-time $W_\\text{in}$ scale sweep on trained networks "
