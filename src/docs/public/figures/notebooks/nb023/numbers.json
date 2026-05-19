@@ -1,9 +1,9 @@
 {
-  "notebook_run_id": "r012",
-  "duration_s": 4.1,
-  "tier": "small",
+  "notebook_run_id": "r013",
+  "duration_s": 4.0,
+  "tier": "extra small",
   "config": {
-    "tier": "small",
+    "tier": "extra small",
     "model": "ping",
     "input": "mnist d0 s0",
     "cells": [

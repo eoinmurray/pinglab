@@ -21,7 +21,7 @@ export const get = (model, loss) => results.find((r) => r.model === model && r.l
 
 ## Introduction
 
-Train *cuba* ([nb010](/notebooks/nb010/)), *COBA* ([nb011](/notebooks/nb011/)) and *ping* ([nb012](/notebooks/nb012/)) on MNIST under two loss modes:
+Train *COBA* ([nb011](/notebooks/nb011/)) and *PING* ([nb012](/notebooks/nb012/)) on MNIST under two loss modes:
 
 - *ce* — cross-entropy on the cumulative-membrane logits (the default across nb010–12).
 - *mse* — L2 between logits and one-hot targets (Bohte 2002, Lee 2016).
@@ -33,11 +33,11 @@ The motivation is readout scale. *COBA* and *ping* use *--readout-w-out-scale* t
 Six cells: three models × two loss modes. Each cell runs the calibrated recipe from its single-model trainer (nb010/11/12) with *--loss ce* or *--loss mse* added; every other knob is held fixed. The runner shells out to [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) per cell and renders one accuracy bar chart plus one training video per cell.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "models", value: "cuba, COBA, ping", default: "—" },
+  { label: "models", value: "COBA, PING", default: "—" },
   { label: "loss modes", value: (cfg.loss_modes ?? []).join(", ") || "?", default: "—" },
 ]} />
 
-- **Recipes are unchanged from nb010/11/12.** *--readout-w-out-scale* in particular is left at its CE-calibrated value (100 for *COBA*, 500 for *ping*, unset for *cuba*); if MSE collapses, the readout scale is the prime suspect.
+- **Recipes are unchanged from nb011/12.** *--readout-w-out-scale* in particular is left at its CE-calibrated value (100 for COBA, 500 for PING); if MSE collapses, the readout scale is the prime suspect.
 - **Six cells, one shared seed.** Stochastic optimisation differences between *ce* and *mse* show up as run-to-run noise; tighter follow-ups can re-seed and re-run.
 
 ## Results
@@ -67,28 +67,20 @@ Six cells: three models × two loss modes. Each cell runs the calibrated recipe 
 
 ## Per-cell training videos
 
-<Figure id="Figure 2" title="cuba — ce" src="/figures/notebooks/nb021/training__cuba__ce.mp4" type="video" alt="cuba training, cross-entropy loss">
-  cuba reference recipe, cross-entropy loss.
-</Figure>
-
-<Figure id="Figure 3" title="cuba — mse" src="/figures/notebooks/nb021/training__cuba__mse.mp4" type="video" alt="cuba training, L2 loss">
-  cuba reference recipe, L2 loss.
-</Figure>
-
-<Figure id="Figure 4" title="coba — ce" src="/figures/notebooks/nb021/training__coba__ce.mp4" type="video" alt="coba training, cross-entropy loss">
+<Figure id="Figure 2" title="coba — ce" src="/figures/notebooks/nb021/training__coba__ce.mp4" type="video" alt="coba training, cross-entropy loss">
   COBA reference recipe, cross-entropy loss.
 </Figure>
 
-<Figure id="Figure 5" title="coba — mse" src="/figures/notebooks/nb021/training__coba__mse.mp4" type="video" alt="coba training, L2 loss">
+<Figure id="Figure 3" title="coba — mse" src="/figures/notebooks/nb021/training__coba__mse.mp4" type="video" alt="coba training, L2 loss">
   COBA reference recipe, L2 loss.
 </Figure>
 
-<Figure id="Figure 6" title="ping — ce" src="/figures/notebooks/nb021/training__ping__ce.mp4" type="video" alt="ping training, cross-entropy loss">
-  ping reference recipe, cross-entropy loss.
+<Figure id="Figure 4" title="ping — ce" src="/figures/notebooks/nb021/training__ping__ce.mp4" type="video" alt="ping training, cross-entropy loss">
+  PING reference recipe, cross-entropy loss.
 </Figure>
 
-<Figure id="Figure 7" title="ping — mse" src="/figures/notebooks/nb021/training__ping__mse.mp4" type="video" alt="ping training, L2 loss">
-  ping reference recipe, L2 loss.
+<Figure id="Figure 5" title="ping — mse" src="/figures/notebooks/nb021/training__ping__mse.mp4" type="video" alt="ping training, L2 loss">
+  PING reference recipe, L2 loss.
 </Figure>
 
 ## Discussion

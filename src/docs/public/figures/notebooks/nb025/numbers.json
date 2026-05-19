@@ -1,10 +1,10 @@
 {
-  "notebook_run_id": "r018",
-  "duration_s": 6.8,
-  "duration": "7s",
-  "tier": "small",
+  "notebook_run_id": "r019",
+  "duration_s": 27.8,
+  "duration": "28s",
+  "tier": "extra small",
   "config": {
-    "tier": "small",
+    "tier": "extra small",
     "models": [
       "coba",
       "ping"
@@ -19,61 +19,61 @@
     {
       "model": "coba",
       "slow_syn_gain": 0.0,
-      "e_rate_hz": 78.3984375,
+      "e_rate_hz": 0.0,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "slow_syn_gain": 0.5,
-      "e_rate_hz": 287.87109375,
+      "e_rate_hz": 134.35302734375,
       "i_rate_hz": 0.0
     },
     {
       "model": "ping",
       "slow_syn_gain": 0.0,
-      "e_rate_hz": 5.34912109375,
-      "i_rate_hz": 27.5
+      "e_rate_hz": 5.3466796875,
+      "i_rate_hz": 6.220703125
     },
     {
       "model": "ping",
       "slow_syn_gain": 0.5,
-      "e_rate_hz": 22.52685546875,
-      "i_rate_hz": 132.5
+      "e_rate_hz": 11.806640625,
+      "i_rate_hz": 65.0
     },
     {
       "model": "coba",
       "trained_with_slow_syn": true,
       "slow_syn_gain": 0.0,
-      "e_rate_hz": 3.26904296875,
+      "e_rate_hz": 0.0,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "trained_with_slow_syn": true,
       "slow_syn_gain": 0.5,
-      "e_rate_hz": 208.5400390625,
+      "e_rate_hz": 66.8505859375,
       "i_rate_hz": 0.0
     },
     {
       "model": "ping",
       "trained_with_slow_syn": true,
       "slow_syn_gain": 0.0,
-      "e_rate_hz": 4.0576171875,
-      "i_rate_hz": 19.677734375
+      "e_rate_hz": 1.54541015625,
+      "i_rate_hz": 0.0
     },
     {
       "model": "ping",
       "trained_with_slow_syn": true,
       "slow_syn_gain": 0.5,
-      "e_rate_hz": 17.47802734375,
-      "i_rate_hz": 92.5
+      "e_rate_hz": 7.98095703125,
+      "i_rate_hz": 45.0
     }
   ],
   "success_criteria": [
     {
       "label": "slow-syn raster rendered",
       "passed": true,
-      "detail": "coba E gain0=78.4 Hz; coba E gain0.5=287.9 Hz; ping E gain0=5.3 Hz; ping E gain0.5=22.5 Hz"
+      "detail": "coba E gain0=0.0 Hz; coba E gain0.5=134.4 Hz; ping E gain0=5.3 Hz; ping E gain0.5=11.8 Hz"
     }
   ]
 }
