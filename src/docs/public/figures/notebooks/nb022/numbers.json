@@ -1,18 +1,18 @@
 {
-  "notebook_run_id": "r005",
-  "git_sha": "21d3739 (dirty)",
-  "duration_s": 0.3,
-  "duration": "0s",
-  "tier": "medium",
+  "notebook_run_id": "r006",
+  "git_sha": "8420ba9 (dirty)",
+  "duration_s": 16.8,
+  "duration": "17s",
+  "tier": "extra small",
   "config": {
-    "tier": "medium",
+    "tier": "extra small",
     "dataset": "mnist",
     "cells": [
       "dales",
       "no_dales"
     ],
-    "max_samples": 2000,
-    "epochs": 10,
+    "max_samples": 100,
+    "epochs": 1,
     "t_ms": 200.0,
     "dt": 0.1,
     "seed": 42
@@ -20,65 +20,65 @@
   "results": [
     {
       "cell": "dales",
-      "best_acc": 83.75,
-      "best_epoch": 8,
-      "final_acc": 83.5,
-      "rate_e": 85.03146362304688
+      "best_acc": 10.0,
+      "best_epoch": 1,
+      "final_acc": 10.0,
+      "rate_e": 0.0
     },
     {
       "cell": "no_dales",
-      "best_acc": 86.25,
-      "best_epoch": 10,
-      "final_acc": 86.25,
-      "rate_e": 85.48176574707031
+      "best_acc": 10.0,
+      "best_epoch": 1,
+      "final_acc": 10.0,
+      "rate_e": 0.0
     }
   ],
   "success_criteria": [
     {
       "label": "accuracy figure rendered",
       "passed": true,
-      "detail": "accuracy.png (34300 bytes)",
+      "detail": "accuracy.png (31834 bytes)",
       "detail_href": "/figures/notebooks/nb022/accuracy.png"
     },
     {
       "label": "training curves rendered",
       "passed": true,
-      "detail": "training_curves.png (78249 bytes)",
+      "detail": "training_curves.png (41938 bytes)",
       "detail_href": "/figures/notebooks/nb022/training_curves.png"
     },
     {
       "label": "firing-rate curves rendered",
       "passed": true,
-      "detail": "firing_rates.png (53158 bytes)",
+      "detail": "firing_rates.png (32268 bytes)",
       "detail_href": "/figures/notebooks/nb022/firing_rates.png"
     },
     {
       "label": "weight histogram rendered",
       "passed": true,
-      "detail": "weight_hist.png (38139 bytes)",
+      "detail": "weight_hist.png (42735 bytes)",
       "detail_href": "/figures/notebooks/nb022/weight_hist.png"
     },
     {
       "label": "dales: training video",
       "passed": true,
-      "detail": "training__dales.mp4 (498001 bytes)",
+      "detail": "training__dales.mp4 (55046 bytes)",
       "detail_href": "/figures/notebooks/nb022/training__dales.mp4"
     },
     {
       "label": "no_dales: training video",
       "passed": true,
-      "detail": "training__no_dales.mp4 (498298 bytes)",
+      "detail": "training__no_dales.mp4 (55109 bytes)",
       "detail_href": "/figures/notebooks/nb022/training__no_dales.mp4"
     },
     {
-      "label": "dales acc \u2265 50% (medium floor)",
-      "passed": true,
-      "detail": "dales=83.75%"
+      "label": "dales acc \u2265 15% (extra small floor)",
+      "passed": false,
+      "detail": "dales=10.00%"
     },
     {
-      "label": "no_dales acc \u2265 50% (medium floor)",
-      "passed": true,
-      "detail": "no_dales=86.25%"
+      "label": "no_dales acc \u2265 15% (extra small floor)",
+      "passed": false,
+      "detail": "no_dales=10.00%"
     }
   ]
 }

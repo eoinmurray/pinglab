@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r025",
-  "git_sha": "02ca708 (dirty)",
-  "duration_s": 670.9,
-  "duration": "11m 11s",
+  "notebook_run_id": "r026",
+  "git_sha": "5298afb (dirty)",
+  "duration_s": 4823.2,
+  "duration": "1h 20m",
   "tier": "medium",
   "config": {
     "tier": "medium",
@@ -44,10 +44,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 42,
-      "best_acc": 84.75,
+      "best_acc": 83.75,
       "best_epoch": 8,
-      "final_acc": 84.0,
-      "rate_e": 84.72222137451172
+      "final_acc": 83.5,
+      "rate_e": 85.03146362304688
     },
     {
       "model": "coba",
@@ -55,10 +55,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 43,
-      "best_acc": 84.5,
-      "best_epoch": 10,
-      "final_acc": 84.5,
-      "rate_e": 84.67339324951172
+      "best_acc": 84.0,
+      "best_epoch": 8,
+      "final_acc": 83.75,
+      "rate_e": 85.21050262451172
     },
     {
       "model": "coba",
@@ -66,10 +66,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 44,
-      "best_acc": 83.0,
+      "best_acc": 83.25,
       "best_epoch": 10,
-      "final_acc": 83.0,
-      "rate_e": 84.74934387207031
+      "final_acc": 83.25,
+      "rate_e": 85.32443237304688
     },
     {
       "model": "coba",
@@ -77,10 +77,10 @@
       "theta_display": "5",
       "theta_u_hz": 25.0,
       "seed": 42,
-      "best_acc": 78.5,
+      "best_acc": 77.5,
       "best_epoch": 10,
-      "final_acc": 78.5,
-      "rate_e": 40.31032943725586
+      "final_acc": 77.5,
+      "rate_e": 40.549041748046875
     },
     {
       "model": "coba",
@@ -89,9 +89,9 @@
       "theta_u_hz": 10.0,
       "seed": 42,
       "best_acc": 73.5,
-      "best_epoch": 7,
-      "final_acc": 73.0,
-      "rate_e": 16.85655403137207
+      "best_epoch": 8,
+      "final_acc": 73.25,
+      "rate_e": 18.20203971862793
     },
     {
       "model": "coba",
@@ -99,10 +99,10 @@
       "theta_display": "1",
       "theta_u_hz": 5.0,
       "seed": 42,
-      "best_acc": 70.25,
-      "best_epoch": 6,
-      "final_acc": 70.0,
-      "rate_e": 6.700303554534912
+      "best_acc": 71.0,
+      "best_epoch": 7,
+      "final_acc": 69.0,
+      "rate_e": 7.877604007720947
     },
     {
       "model": "coba",
@@ -110,10 +110,10 @@
       "theta_display": "0.5",
       "theta_u_hz": 2.5,
       "seed": 42,
-      "best_acc": 68.0,
-      "best_epoch": 9,
-      "final_acc": 66.25,
-      "rate_e": 1.3346353769302368
+      "best_acc": 67.5,
+      "best_epoch": 4,
+      "final_acc": 65.25,
+      "rate_e": 2.5227863788604736
     },
     {
       "model": "coba",
@@ -122,9 +122,9 @@
       "theta_u_hz": 1.0,
       "seed": 42,
       "best_acc": 61.0,
-      "best_epoch": 7,
-      "final_acc": 60.5,
-      "rate_e": 0.059678815305233
+      "best_epoch": 6,
+      "final_acc": 57.5,
+      "rate_e": 0.2061631828546524
     },
     {
       "model": "ping",
@@ -132,10 +132,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 42,
-      "best_acc": 86.0,
-      "best_epoch": 10,
-      "final_acc": 86.0,
-      "rate_e": 5.268012046813965
+      "best_acc": 85.25,
+      "best_epoch": 9,
+      "final_acc": 84.0,
+      "rate_e": 5.083549976348877
     },
     {
       "model": "ping",
@@ -143,10 +143,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 43,
-      "best_acc": 84.75,
-      "best_epoch": 10,
-      "final_acc": 84.75,
-      "rate_e": 5.533854007720947
+      "best_acc": 85.0,
+      "best_epoch": 9,
+      "final_acc": 84.0,
+      "rate_e": 5.034721851348877
     },
     {
       "model": "ping",
@@ -156,8 +156,8 @@
       "seed": 44,
       "best_acc": 85.75,
       "best_epoch": 9,
-      "final_acc": 84.75,
-      "rate_e": 5.3548173904418945
+      "final_acc": 85.0,
+      "rate_e": 5.40907096862793
     },
     {
       "model": "ping",
@@ -165,10 +165,10 @@
       "theta_display": "5",
       "theta_u_hz": 25.0,
       "seed": 42,
-      "best_acc": 86.0,
-      "best_epoch": 10,
-      "final_acc": 86.0,
-      "rate_e": 5.268012046813965
+      "best_acc": 85.25,
+      "best_epoch": 9,
+      "final_acc": 84.0,
+      "rate_e": 5.083549976348877
     },
     {
       "model": "ping",
@@ -176,10 +176,10 @@
       "theta_display": "2",
       "theta_u_hz": 10.0,
       "seed": 42,
-      "best_acc": 85.75,
-      "best_epoch": 10,
-      "final_acc": 85.75,
-      "rate_e": 5.343966960906982
+      "best_acc": 84.5,
+      "best_epoch": 9,
+      "final_acc": 84.25,
+      "rate_e": 5.132378101348877
     },
     {
       "model": "ping",
@@ -187,10 +187,10 @@
       "theta_display": "1",
       "theta_u_hz": 5.0,
       "seed": 42,
-      "best_acc": 84.25,
+      "best_acc": 83.75,
       "best_epoch": 9,
-      "final_acc": 83.5,
-      "rate_e": 4.850260257720947
+      "final_acc": 83.75,
+      "rate_e": 4.465060710906982
     },
     {
       "model": "ping",
@@ -199,9 +199,9 @@
       "theta_u_hz": 2.5,
       "seed": 42,
       "best_acc": 84.0,
-      "best_epoch": 9,
-      "final_acc": 83.75,
-      "rate_e": 3.314887046813965
+      "best_epoch": 10,
+      "final_acc": 84.0,
+      "rate_e": 4.497612476348877
     },
     {
       "model": "ping",
@@ -209,88 +209,88 @@
       "theta_display": "0.2",
       "theta_u_hz": 1.0,
       "seed": 42,
-      "best_acc": 84.5,
+      "best_acc": 84.25,
       "best_epoch": 10,
-      "final_acc": 84.5,
-      "rate_e": 2.842881917953491
+      "final_acc": 84.25,
+      "rate_e": 3.1629772186279297
     }
   ],
   "ei_sweep": [
     {
       "ei_strength": 0.0,
-      "acc": 82.75,
-      "hid_rate_hz": 51.75125732421875,
+      "acc": 83.5,
+      "hid_rate_hz": 51.77847900390625,
       "inh_rate_hz": 0.0,
       "n_total": 400
     },
     {
       "ei_strength": 0.1,
-      "acc": 82.75,
-      "hid_rate_hz": 51.75125732421875,
+      "acc": 83.5,
+      "hid_rate_hz": 51.77847900390625,
       "inh_rate_hz": 0.0,
       "n_total": 400
     },
     {
       "ei_strength": 0.2,
-      "acc": 81.75,
-      "hid_rate_hz": 35.80606689453125,
-      "inh_rate_hz": 9.364208984375,
+      "acc": 80.75,
+      "hid_rate_hz": 35.83704833984375,
+      "inh_rate_hz": 9.344580078125,
       "n_total": 400
     },
     {
       "ei_strength": 0.3,
-      "acc": 79.0,
-      "hid_rate_hz": 19.46612548828125,
-      "inh_rate_hz": 18.627978515625,
+      "acc": 78.0,
+      "hid_rate_hz": 19.61239013671875,
+      "inh_rate_hz": 18.59267578125,
       "n_total": 400
     },
     {
       "ei_strength": 0.4,
-      "acc": 76.25,
-      "hid_rate_hz": 13.05479736328125,
-      "inh_rate_hz": 21.797607421875,
+      "acc": 75.25,
+      "hid_rate_hz": 13.05751953125,
+      "inh_rate_hz": 21.79169921875,
       "n_total": 400
     },
     {
       "ei_strength": 0.5,
-      "acc": 73.75,
-      "hid_rate_hz": 9.87574462890625,
-      "inh_rate_hz": 22.89345703125,
+      "acc": 73.5,
+      "hid_rate_hz": 9.91009521484375,
+      "inh_rate_hz": 22.90263671875,
       "n_total": 400
     },
     {
       "ei_strength": 0.6,
       "acc": 72.5,
-      "hid_rate_hz": 7.99400634765625,
-      "inh_rate_hz": 23.309912109375,
+      "hid_rate_hz": 8.0083740234375,
+      "inh_rate_hz": 23.34326171875,
       "n_total": 400
     },
     {
       "ei_strength": 0.7,
-      "acc": 72.5,
-      "hid_rate_hz": 6.7771484375,
-      "inh_rate_hz": 23.29228515625,
+      "acc": 71.5,
+      "hid_rate_hz": 6.79117431640625,
+      "inh_rate_hz": 23.29521484375,
       "n_total": 400
     },
     {
       "ei_strength": 0.8,
-      "acc": 72.25,
-      "hid_rate_hz": 5.859521484375,
-      "inh_rate_hz": 23.28076171875,
+      "acc": 71.0,
+      "hid_rate_hz": 5.86553955078125,
+      "inh_rate_hz": 23.39736328125,
       "n_total": 400
     },
     {
       "ei_strength": 0.9,
-      "acc": 73.5,
-      "hid_rate_hz": 5.1774658203125,
-      "inh_rate_hz": 23.2748046875,
+      "acc": 71.75,
+      "hid_rate_hz": 5.18857421875,
+      "inh_rate_hz": 23.306640625,
       "n_total": 400
     },
     {
       "ei_strength": 1.0,
-      "acc": 71.75,
-      "hid_rate_hz": 4.65147705078125,
-      "inh_rate_hz": 23.187890625,
+      "acc": 72.0,
+      "hid_rate_hz": 4.6463623046875,
+      "inh_rate_hz": 23.200537109375,
       "n_total": 400
     }
   ],
@@ -298,56 +298,56 @@
     {
       "mode": "drop",
       "level": 0.0,
-      "acc": 82.75,
-      "e_rate_hz": 51.75125732421875,
+      "acc": 83.5,
+      "e_rate_hz": 51.77847900390625,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.1,
-      "acc": 82.25,
-      "e_rate_hz": 46.57669677734375,
+      "acc": 82.75,
+      "e_rate_hz": 46.6087890625,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.2,
-      "acc": 82.25,
-      "e_rate_hz": 41.39493408203125,
+      "acc": 82.75,
+      "e_rate_hz": 41.429052734375,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.3,
-      "acc": 81.75,
-      "e_rate_hz": 36.20589599609375,
+      "acc": 82.75,
+      "e_rate_hz": 36.24066162109375,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.4,
-      "acc": 81.75,
-      "e_rate_hz": 31.03447265625,
+      "acc": 83.75,
+      "e_rate_hz": 31.0726318359375,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.5,
-      "acc": 81.25,
-      "e_rate_hz": 25.847802734375,
+      "acc": 82.5,
+      "e_rate_hz": 25.88887939453125,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.6,
-      "acc": 80.75,
-      "e_rate_hz": 20.68587646484375,
+      "acc": 81.25,
+      "e_rate_hz": 20.71639404296875,
       "n_total": 400,
       "model": "coba"
     },
@@ -355,23 +355,23 @@
       "mode": "drop",
       "level": 0.7,
       "acc": 79.0,
-      "e_rate_hz": 15.51893310546875,
+      "e_rate_hz": 15.533837890625,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.8,
-      "acc": 75.5,
-      "e_rate_hz": 10.34012451171875,
+      "acc": 77.75,
+      "e_rate_hz": 10.35093994140625,
       "n_total": 400,
       "model": "coba"
     },
     {
       "mode": "drop",
       "level": 0.9,
-      "acc": 51.5,
-      "e_rate_hz": 5.1785400390625,
+      "acc": 54.0,
+      "e_rate_hz": 5.16710205078125,
       "n_total": 400,
       "model": "coba"
     },
@@ -384,26 +384,194 @@
       "model": "coba"
     },
     {
+      "mode": "add",
+      "level": 0.0,
+      "acc": 83.5,
+      "e_rate_hz": 51.77847900390625,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 2.0,
+      "acc": 83.0,
+      "e_rate_hz": 53.7806396484375,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 4.0,
+      "acc": 83.25,
+      "e_rate_hz": 55.76717529296875,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 6.0,
+      "acc": 83.5,
+      "e_rate_hz": 57.75927734375,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 8.0,
+      "acc": 83.25,
+      "e_rate_hz": 59.7472412109375,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 10.0,
+      "acc": 83.5,
+      "e_rate_hz": 61.73392333984375,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 12.0,
+      "acc": 83.75,
+      "e_rate_hz": 63.7269775390625,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 14.0,
+      "acc": 83.25,
+      "e_rate_hz": 65.71239013671875,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 16.0,
+      "acc": 83.5,
+      "e_rate_hz": 67.708984375,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 18.0,
+      "acc": 83.5,
+      "e_rate_hz": 69.6908935546875,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 20.0,
+      "acc": 83.5,
+      "e_rate_hz": 71.68463134765625,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 22.0,
+      "acc": 82.5,
+      "e_rate_hz": 73.6707275390625,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 24.0,
+      "acc": 82.0,
+      "e_rate_hz": 75.66160888671875,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 26.0,
+      "acc": 82.0,
+      "e_rate_hz": 77.63836669921875,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 28.0,
+      "acc": 83.0,
+      "e_rate_hz": 79.62861328125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 30.0,
+      "acc": 83.25,
+      "e_rate_hz": 81.6186767578125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 32.0,
+      "acc": 83.25,
+      "e_rate_hz": 83.607080078125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 34.0,
+      "acc": 82.75,
+      "e_rate_hz": 85.5940185546875,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 36.0,
+      "acc": 83.0,
+      "e_rate_hz": 87.56767578125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 38.0,
+      "acc": 83.0,
+      "e_rate_hz": 89.5522705078125,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
+      "mode": "add",
+      "level": 40.0,
+      "acc": 82.5,
+      "e_rate_hz": 91.54964599609374,
+      "n_total": 400,
+      "model": "coba"
+    },
+    {
       "mode": "drop",
       "level": 0.0,
-      "acc": 85.0,
-      "e_rate_hz": 4.65860595703125,
+      "acc": 86.0,
+      "e_rate_hz": 4.54776611328125,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.1,
-      "acc": 84.0,
-      "e_rate_hz": 4.66585693359375,
+      "acc": 86.0,
+      "e_rate_hz": 4.5776611328125,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.2,
-      "acc": 85.0,
-      "e_rate_hz": 4.70172119140625,
+      "acc": 85.5,
+      "e_rate_hz": 4.635205078125,
       "n_total": 400,
       "model": "ping"
     },
@@ -411,55 +579,55 @@
       "mode": "drop",
       "level": 0.3,
       "acc": 85.25,
-      "e_rate_hz": 4.727783203125,
+      "e_rate_hz": 4.66226806640625,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.4,
-      "acc": 84.75,
-      "e_rate_hz": 4.7923095703125,
+      "acc": 85.5,
+      "e_rate_hz": 4.75870361328125,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.5,
-      "acc": 85.0,
-      "e_rate_hz": 4.9149169921875,
+      "acc": 84.75,
+      "e_rate_hz": 4.8758056640625,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.6,
-      "acc": 86.0,
-      "e_rate_hz": 5.186767578125,
+      "acc": 83.25,
+      "e_rate_hz": 5.180419921875,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.7,
-      "acc": 83.75,
-      "e_rate_hz": 5.7427001953125,
+      "acc": 82.5,
+      "e_rate_hz": 5.72684326171875,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.8,
-      "acc": 78.25,
-      "e_rate_hz": 7.078369140625,
+      "acc": 81.75,
+      "e_rate_hz": 6.99931640625,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "drop",
       "level": 0.9,
-      "acc": 69.75,
-      "e_rate_hz": 5.1366943359375,
+      "acc": 72.5,
+      "e_rate_hz": 4.904150390625,
       "n_total": 400,
       "model": "ping"
     },
@@ -474,232 +642,64 @@
     {
       "mode": "add",
       "level": 0.0,
-      "acc": 82.75,
-      "e_rate_hz": 57.07572021484375,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 2.0,
-      "acc": 83.0,
-      "e_rate_hz": 59.07686767578125,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 4.0,
-      "acc": 83.25,
-      "e_rate_hz": 61.0626220703125,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 6.0,
-      "acc": 83.0,
-      "e_rate_hz": 63.05404052734375,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 8.0,
-      "acc": 83.5,
-      "e_rate_hz": 65.0420654296875,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 10.0,
-      "acc": 83.75,
-      "e_rate_hz": 67.0272216796875,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 12.0,
-      "acc": 83.75,
-      "e_rate_hz": 69.01961669921874,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 14.0,
-      "acc": 84.25,
-      "e_rate_hz": 71.00411376953124,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 16.0,
-      "acc": 84.0,
-      "e_rate_hz": 72.9994873046875,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 18.0,
-      "acc": 84.25,
-      "e_rate_hz": 74.980029296875,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 20.0,
-      "acc": 83.5,
-      "e_rate_hz": 76.97303466796875,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 22.0,
-      "acc": 83.0,
-      "e_rate_hz": 78.95791015625,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 24.0,
-      "acc": 83.25,
-      "e_rate_hz": 80.94605712890625,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 26.0,
-      "acc": 83.25,
-      "e_rate_hz": 82.92196044921874,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 28.0,
-      "acc": 83.75,
-      "e_rate_hz": 84.91080322265626,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 30.0,
-      "acc": 83.75,
-      "e_rate_hz": 86.900634765625,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 32.0,
-      "acc": 83.5,
-      "e_rate_hz": 88.88748779296876,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 34.0,
-      "acc": 83.5,
-      "e_rate_hz": 90.8741455078125,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 36.0,
-      "acc": 83.5,
-      "e_rate_hz": 92.8465087890625,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 38.0,
-      "acc": 82.75,
-      "e_rate_hz": 94.83045654296875,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 40.0,
-      "acc": 83.0,
-      "e_rate_hz": 96.82664794921875,
-      "n_total": 400,
-      "model": "coba"
-    },
-    {
-      "mode": "add",
-      "level": 0.0,
-      "acc": 84.75,
-      "e_rate_hz": 4.84718017578125,
+      "acc": 86.0,
+      "e_rate_hz": 4.54776611328125,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "add",
       "level": 2.0,
-      "acc": 82.0,
-      "e_rate_hz": 5.4930419921875,
+      "acc": 80.5,
+      "e_rate_hz": 5.1300048828125,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "add",
       "level": 4.0,
-      "acc": 76.5,
-      "e_rate_hz": 5.94033203125,
+      "acc": 70.0,
+      "e_rate_hz": 5.46468505859375,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "add",
       "level": 6.0,
-      "acc": 52.0,
-      "e_rate_hz": 6.7697021484375,
+      "acc": 42.75,
+      "e_rate_hz": 6.49246826171875,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "add",
       "level": 8.0,
-      "acc": 29.0,
-      "e_rate_hz": 8.26611328125,
+      "acc": 19.0,
+      "e_rate_hz": 8.14471435546875,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "add",
       "level": 10.0,
-      "acc": 14.25,
-      "e_rate_hz": 10.08380126953125,
+      "acc": 11.75,
+      "e_rate_hz": 10.03804931640625,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "add",
       "level": 12.0,
-      "acc": 12.25,
-      "e_rate_hz": 12.0336181640625,
+      "acc": 11.5,
+      "e_rate_hz": 12.0191162109375,
       "n_total": 400,
       "model": "ping"
     },
     {
       "mode": "add",
       "level": 14.0,
-      "acc": 10.0,
-      "e_rate_hz": 14.013623046875,
+      "acc": 9.75,
+      "e_rate_hz": 14.0087158203125,
       "n_total": 400,
       "model": "ping"
     },
@@ -707,7 +707,7 @@
       "mode": "add",
       "level": 16.0,
       "acc": 9.5,
-      "e_rate_hz": 16.01563720703125,
+      "e_rate_hz": 16.01392822265625,
       "n_total": 400,
       "model": "ping"
     },
@@ -715,7 +715,7 @@
       "mode": "add",
       "level": 18.0,
       "acc": 9.25,
-      "e_rate_hz": 18.00594482421875,
+      "e_rate_hz": 18.00521240234375,
       "n_total": 400,
       "model": "ping"
     },
@@ -723,7 +723,7 @@
       "mode": "add",
       "level": 20.0,
       "acc": 10.0,
-      "e_rate_hz": 20.0099365234375,
+      "e_rate_hz": 20.0095947265625,
       "n_total": 400,
       "model": "ping"
     },
@@ -731,7 +731,7 @@
       "mode": "add",
       "level": 22.0,
       "acc": 9.75,
-      "e_rate_hz": 22.0061279296875,
+      "e_rate_hz": 22.00594482421875,
       "n_total": 400,
       "model": "ping"
     },
@@ -739,7 +739,7 @@
       "mode": "add",
       "level": 24.0,
       "acc": 10.25,
-      "e_rate_hz": 24.00616455078125,
+      "e_rate_hz": 24.00601806640625,
       "n_total": 400,
       "model": "ping"
     },
@@ -747,7 +747,7 @@
       "mode": "add",
       "level": 26.0,
       "acc": 9.75,
-      "e_rate_hz": 25.99307861328125,
+      "e_rate_hz": 25.99302978515625,
       "n_total": 400,
       "model": "ping"
     },
@@ -755,7 +755,7 @@
       "mode": "add",
       "level": 28.0,
       "acc": 9.25,
-      "e_rate_hz": 27.99295654296875,
+      "e_rate_hz": 27.9929443359375,
       "n_total": 400,
       "model": "ping"
     },
@@ -778,7 +778,7 @@
     {
       "mode": "add",
       "level": 34.0,
-      "acc": 9.75,
+      "acc": 10.0,
       "e_rate_hz": 33.9900390625,
       "n_total": 400,
       "model": "ping"
@@ -802,7 +802,7 @@
     {
       "mode": "add",
       "level": 40.0,
-      "acc": 9.75,
+      "acc": 9.5,
       "e_rate_hz": 39.9767333984375,
       "n_total": 400,
       "model": "ping"
@@ -811,231 +811,447 @@
   "tau_gaba_sweep": [
     {
       "tau_gaba_ms": 4.5,
-      "acc": 86.25,
-      "hid_rate_hz": 7.05703125,
-      "inh_rate_hz": 35.31943359375
+      "acc": 86.0,
+      "hid_rate_hz": 6.830615234375,
+      "inh_rate_hz": 34.35556640625
     },
     {
       "tau_gaba_ms": 6.0,
-      "acc": 85.25,
-      "hid_rate_hz": 5.96043701171875,
-      "inh_rate_hz": 29.863134765625
+      "acc": 86.25,
+      "hid_rate_hz": 5.79202880859375,
+      "inh_rate_hz": 28.942626953125
     },
     {
       "tau_gaba_ms": 9.0,
-      "acc": 85.0,
-      "hid_rate_hz": 4.65860595703125,
-      "inh_rate_hz": 22.786328125
+      "acc": 86.0,
+      "hid_rate_hz": 4.54776611328125,
+      "inh_rate_hz": 22.274951171875
     },
     {
       "tau_gaba_ms": 12.0,
-      "acc": 83.25,
-      "hid_rate_hz": 3.9085205078125,
-      "inh_rate_hz": 18.470947265625
+      "acc": 82.25,
+      "hid_rate_hz": 3.82379150390625,
+      "inh_rate_hz": 17.96767578125
     },
     {
       "tau_gaba_ms": 18.0,
       "acc": 84.5,
-      "hid_rate_hz": 3.0504638671875,
-      "inh_rate_hz": 13.913671875
+      "hid_rate_hz": 3.00989990234375,
+      "inh_rate_hz": 13.55810546875
     },
     {
       "tau_gaba_ms": 27.0,
-      "acc": 79.5,
-      "hid_rate_hz": 2.35889892578125,
-      "inh_rate_hz": 10.1341796875
+      "acc": 80.75,
+      "hid_rate_hz": 2.34339599609375,
+      "inh_rate_hz": 9.92109375
     }
   ],
-  "threshold_shift_sweep": [
+  "low_w_in_sweep": [
     {
-      "threshold_offset_mv": 0.0,
-      "acc": 85.0,
-      "hid_rate_hz": 4.65860595703125,
-      "inh_rate_hz": 22.786328125
+      "w_in": 0.1,
+      "best_acc": 83.25,
+      "best_epoch": 10,
+      "final_acc": 83.25,
+      "rate_e": 2.8591578006744385,
+      "rate_i": 22.22222137451172
     },
     {
-      "threshold_offset_mv": 2.5,
-      "acc": 83.75,
-      "hid_rate_hz": 5.05084228515625,
-      "inh_rate_hz": 19.57158203125
+      "w_in": 0.3,
+      "best_acc": 82.75,
+      "best_epoch": 10,
+      "final_acc": 82.75,
+      "rate_e": 2.8971352577209473,
+      "rate_i": 16.623262405395508
     },
     {
-      "threshold_offset_mv": 5.0,
-      "acc": 85.5,
-      "hid_rate_hz": 5.6590087890625,
-      "inh_rate_hz": 16.156787109375
+      "w_in": 1.2,
+      "best_acc": 84.25,
+      "best_epoch": 10,
+      "final_acc": 84.25,
+      "rate_e": 3.1629772186279297,
+      "rate_i": 16.66666603088379
+    }
+  ],
+  "w_in_scale_sweep": [
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.1,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
     },
     {
-      "threshold_offset_mv": 7.5,
-      "acc": 85.75,
-      "hid_rate_hz": 6.445654296875,
-      "inh_rate_hz": 11.748193359375
+      "cell": "ping@tu0.2",
+      "scale": 0.15,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
     },
     {
-      "threshold_offset_mv": 10.0,
-      "acc": 83.75,
-      "hid_rate_hz": 6.97122802734375,
-      "inh_rate_hz": 6.98837890625
+      "cell": "ping@tu0.2",
+      "scale": 0.22,
+      "loss": 2.3025746726989746,
+      "penalty": 0.0,
+      "total_loss": 2.3025746726989746,
+      "acc": 9.5,
+      "rate_e": 2.44140625e-05,
+      "rate_i": 0.0
     },
     {
-      "threshold_offset_mv": 15.0,
+      "cell": "ping@tu0.2",
+      "scale": 0.33,
+      "loss": 2.2952181911468506,
+      "penalty": 0.0,
+      "total_loss": 2.2952181911468506,
+      "acc": 15.25,
+      "rate_e": 0.02227783203125,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.5,
+      "loss": 1.9445935153961182,
+      "penalty": 0.0015186123847961426,
+      "total_loss": 1.9461121277809144,
+      "acc": 61.5,
+      "rate_e": 0.833740234375,
+      "rate_i": 0.348974609375
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.75,
+      "loss": 1.0229094409942627,
+      "penalty": 0.16892056274414063,
+      "total_loss": 1.1918300037384033,
+      "acc": 81.5,
+      "rate_e": 2.95330810546875,
+      "rate_i": 4.849560546875
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 1.0,
+      "loss": 0.7263779830932617,
+      "penalty": 0.3157813110351563,
+      "total_loss": 1.042159294128418,
+      "acc": 82.5,
+      "rate_e": 3.7263671875,
+      "rate_i": 11.016015625
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 1.5,
+      "loss": 0.6328163194656372,
+      "penalty": 0.4428789367675781,
+      "total_loss": 1.0756952562332154,
       "acc": 80.5,
-      "hid_rate_hz": 5.36995849609375,
-      "inh_rate_hz": 1.020361328125
+      "rate_e": 4.24024658203125,
+      "rate_i": 18.543408203125
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 2.2,
+      "loss": 0.6122037720680237,
+      "penalty": 0.6773550415039062,
+      "total_loss": 1.2895588135719298,
+      "acc": 80.25,
+      "rate_e": 5.01947021484375,
+      "rate_i": 24.338916015625
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 3.3,
+      "loss": 0.5673183917999267,
+      "penalty": 1.135117431640625,
+      "total_loss": 1.7024358234405517,
+      "acc": 82.75,
+      "rate_e": 6.21866455078125,
+      "rate_i": 30.676220703125
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 5.0,
+      "loss": 0.5660340774059296,
+      "penalty": 1.933622314453125,
+      "total_loss": 2.4996563918590544,
+      "acc": 81.0,
+      "rate_e": 7.82105712890625,
+      "rate_i": 38.21083984375
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.1,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.15,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.22,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.33,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.5,
+      "loss": 2.302577838897705,
+      "penalty": 0.0,
+      "total_loss": 2.302577838897705,
+      "acc": 9.5,
+      "rate_e": 3.662109375e-05,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.75,
+      "loss": 2.297724514007568,
+      "penalty": 0.0,
+      "total_loss": 2.297724514007568,
+      "acc": 25.0,
+      "rate_e": 0.060205078125,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 1.0,
+      "loss": 2.266157531738281,
+      "penalty": 2.5474993512034415e-05,
+      "total_loss": 2.266183006731793,
+      "acc": 53.75,
+      "rate_e": 0.64154052734375,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 1.5,
+      "loss": 2.0879735851287844,
+      "penalty": 0.5209661865234375,
+      "total_loss": 2.608939771652222,
+      "acc": 67.25,
+      "rate_e": 4.38563232421875,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 2.2,
+      "loss": 1.6717205142974854,
+      "penalty": 6.61038525390625,
+      "total_loss": 8.282105768203735,
+      "acc": 72.25,
+      "rate_e": 13.20447998046875,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 3.3,
+      "loss": 1.126571705341339,
+      "penalty": 33.5006953125,
+      "total_loss": 34.62726701784134,
+      "acc": 71.75,
+      "rate_e": 28.74625244140625,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 5.0,
+      "loss": 0.8793953227996826,
+      "penalty": 104.244921875,
+      "total_loss": 105.12431719779968,
+      "acc": 71.5,
+      "rate_e": 50.350146484375,
+      "rate_i": 0.0
     }
   ],
   "success_criteria": [
     {
       "label": "bar chart rendered",
       "passed": true,
-      "detail": "acc_vs_rate.png (55749 bytes)",
+      "detail": "acc_vs_rate.png (54857 bytes)",
       "detail_href": "/figures/notebooks/nb024/acc_vs_rate.png"
     },
     {
       "label": "learning curves rendered",
       "passed": true,
-      "detail": "learning_curves.png (90894 bytes)",
+      "detail": "learning_curves.png (94990 bytes)",
       "detail_href": "/figures/notebooks/nb024/learning_curves.png"
     },
     {
       "label": "frontier rendered",
       "passed": true,
-      "detail": "frontier.png (43879 bytes)",
+      "detail": "frontier.png (43738 bytes)",
       "detail_href": "/figures/notebooks/nb024/frontier.png"
     },
     {
       "label": "ei-sweep accuracy rendered",
       "passed": true,
-      "detail": "ei_acc_sweep.png (46838 bytes)",
+      "detail": "ei_acc_sweep.png (47368 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_acc_sweep.png"
     },
     {
       "label": "ei-sweep rates rendered",
       "passed": true,
-      "detail": "ei_rates_sweep.png (53949 bytes)",
+      "detail": "ei_rates_sweep.png (53666 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_rates_sweep.png"
     },
     {
       "label": "ei-sweep rasters rendered",
       "passed": true,
-      "detail": "ei_rasters.png (68455 bytes)",
+      "detail": "ei_rasters.png (68496 bytes)",
       "detail_href": "/figures/notebooks/nb024/ei_rasters.png"
     },
     {
       "label": "tau_GABA sweep rendered",
       "passed": true,
-      "detail": "tau_gaba_sweep.png (51505 bytes)",
+      "detail": "tau_gaba_sweep.png (51400 bytes)",
       "detail_href": "/figures/notebooks/nb024/tau_gaba_sweep.png"
     },
     {
-      "label": "threshold-shift sweep rendered",
+      "label": "low-w_in sweep rendered",
       "passed": true,
-      "detail": "threshold_shift_sweep.png (64302 bytes)",
-      "detail_href": "/figures/notebooks/nb024/threshold_shift_sweep.png"
+      "detail": "low_w_in_sweep.png (75943 bytes)",
+      "detail_href": "/figures/notebooks/nb024/low_w_in_sweep.png"
+    },
+    {
+      "label": "W_in scale sweep rendered",
+      "passed": true,
+      "detail": "w_in_scale_sweep.png (132931 bytes)",
+      "detail_href": "/figures/notebooks/nb024/w_in_scale_sweep.png"
     },
     {
       "label": "coba raster rendered",
       "passed": true,
-      "detail": "raster__coba.png (172701 bytes)",
+      "detail": "raster__coba.png (172793 bytes)",
       "detail_href": "/figures/notebooks/nb024/raster__coba.png"
     },
     {
       "label": "ping raster rendered",
       "passed": true,
-      "detail": "raster__ping.png (55292 bytes)",
+      "detail": "raster__ping.png (52533 bytes)",
       "detail_href": "/figures/notebooks/nb024/raster__ping.png"
     },
     {
       "label": "coba \u03b8_u=off: training video",
       "passed": true,
-      "detail": "training__coba__off.mp4 (489187 bytes)",
+      "detail": "training__coba__off.mp4 (498001 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__off.mp4"
     },
     {
       "label": "coba \u03b8_u=5: training video",
       "passed": true,
-      "detail": "training__coba__tu5.mp4 (338503 bytes)",
+      "detail": "training__coba__tu5.mp4 (349494 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__tu5.mp4"
     },
     {
       "label": "coba \u03b8_u=2: training video",
       "passed": true,
-      "detail": "training__coba__tu2.mp4 (229642 bytes)",
+      "detail": "training__coba__tu2.mp4 (239138 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__tu2.mp4"
     },
     {
       "label": "coba \u03b8_u=1: training video",
       "passed": true,
-      "detail": "training__coba__tu1.mp4 (174892 bytes)",
+      "detail": "training__coba__tu1.mp4 (183609 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__tu1.mp4"
     },
     {
       "label": "coba \u03b8_u=0.5: training video",
       "passed": true,
-      "detail": "training__coba__tu0p5.mp4 (144255 bytes)",
+      "detail": "training__coba__tu0p5.mp4 (147179 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__tu0p5.mp4"
     },
     {
       "label": "coba \u03b8_u=0.2: training video",
       "passed": true,
-      "detail": "training__coba__tu0p2.mp4 (136928 bytes)",
+      "detail": "training__coba__tu0p2.mp4 (129119 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__coba__tu0p2.mp4"
     },
     {
       "label": "ping \u03b8_u=off: training video",
       "passed": true,
-      "detail": "training__ping__off.mp4 (179702 bytes)",
+      "detail": "training__ping__off.mp4 (178240 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__off.mp4"
     },
     {
       "label": "ping \u03b8_u=5: training video",
       "passed": true,
-      "detail": "training__ping__tu5.mp4 (179702 bytes)",
+      "detail": "training__ping__tu5.mp4 (178240 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__tu5.mp4"
     },
     {
       "label": "ping \u03b8_u=2: training video",
       "passed": true,
-      "detail": "training__ping__tu2.mp4 (176415 bytes)",
+      "detail": "training__ping__tu2.mp4 (176482 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__tu2.mp4"
     },
     {
       "label": "ping \u03b8_u=1: training video",
       "passed": true,
-      "detail": "training__ping__tu1.mp4 (173097 bytes)",
+      "detail": "training__ping__tu1.mp4 (167771 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__tu1.mp4"
     },
     {
       "label": "ping \u03b8_u=0.5: training video",
       "passed": true,
-      "detail": "training__ping__tu0p5.mp4 (162632 bytes)",
+      "detail": "training__ping__tu0p5.mp4 (164523 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__tu0p5.mp4"
     },
     {
       "label": "ping \u03b8_u=0.2: training video",
       "passed": true,
-      "detail": "training__ping__tu0p2.mp4 (148428 bytes)",
+      "detail": "training__ping__tu0p2.mp4 (151191 bytes)",
       "detail_href": "/figures/notebooks/nb024/training__ping__tu0p2.mp4"
     },
     {
       "label": "coba baseline acc \u2265 50% (medium floor)",
       "passed": true,
-      "detail": "coba=84.75%"
+      "detail": "coba=83.75%"
     },
     {
       "label": "ping baseline acc \u2265 50% (medium floor)",
       "passed": true,
-      "detail": "ping=86.00%"
+      "detail": "ping=85.25%"
     },
     {
       "label": "coba rate non-increasing as \u03b8_u tightens (\u00b11 Hz)",
       "passed": true,
-      "detail": "rates(loose\u2192tight): 40.3, 16.9, 6.7, 1.3, 0.1"
+      "detail": "rates(loose\u2192tight): 40.5, 18.2, 7.9, 2.5, 0.2"
     },
     {
       "label": "ping rate non-increasing as \u03b8_u tightens (\u00b11 Hz)",
       "passed": true,
-      "detail": "rates(loose\u2192tight): 5.3, 5.3, 4.9, 3.3, 2.8"
+      "detail": "rates(loose\u2192tight): 5.1, 5.1, 4.5, 4.5, 3.2"
     }
   ]
 }

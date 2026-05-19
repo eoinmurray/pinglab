@@ -1,12 +1,12 @@
-"""Notebook runner for entry 021 — L2 (MSE) loss across cuba / coba / ping.
+"""Notebook runner for entry 021 — L2 (MSE) loss across COBA / PING.
 
-Trains each rung of the biophysical ladder under two loss modes:
+Trains each model under two loss modes:
 
   ce  — cross-entropy on cumulative-membrane logits (the default across
-        nb010–12).
+        nb011–12).
   mse — L2 between logits and one-hot targets (Bohte 2002, Lee 2016).
 
-Six cells (3 models × 2 loss modes). The CE-calibrated readout scales
+Four cells (2 models × 2 loss modes). The CE-calibrated readout scales
 (100 for coba, 500 for ping) put logits in O(100), which CE absorbs
 through softmax but MSE chases as raw magnitude error — collapses the
 network. A scale sweep ∈ {1, 2, 5, 10} (see numbers.json history) put
@@ -51,18 +51,10 @@ T_MS = 200.0
 DT_TRAIN = 0.1
 SEED = 42
 
-MODELS = ["cuba", "coba", "ping"]
+MODELS = ["coba", "ping"]
 LOSS_MODES = ["ce", "mse"]
 
 MODEL_RECIPES: dict[str, dict] = {
-    "cuba": {
-        "__build_as": "cuba",
-        "--kaiming-init": True,
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--lr": "0.04",
-        "--batch-size": "256",
-    },
     "coba": {
         "__build_as": "ping",
         "--ei-strength": "0",
@@ -100,7 +92,6 @@ LOSS_RECIPE_OVERRIDES: dict[tuple[str, str], dict[str, str | bool | None]] = {
 }
 
 MODEL_COLORS = {
-    "cuba": theme.DEEP_RED,
     "coba": theme.AMBER,
     "ping": theme.ELECTRIC_CYAN,
 }
@@ -191,7 +182,7 @@ def plot_accuracy_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(MODELS)
     ax.set_ylabel("test accuracy (%, final epoch)")
-    ax.set_title("CE vs L2 loss across the cuba → coba → ping ladder")
+    ax.set_title("CE vs L2 loss — COBA and PING")
     ax.set_ylim(0, 100)
     ax.legend(title="loss")
     ax.grid(True, axis="y", alpha=0.3)

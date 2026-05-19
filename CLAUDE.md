@@ -13,3 +13,4 @@
 - src/docs/src/pages/the-notebooks.md and src/docs/src/pages/the-oscilloscope.md have update rules read them
 
 - when talking about runs always report start time, current time, eta and if on modal cost.
+- in docs (src/docs/), NEVER use `~` or `\sim` for "approximately". Use `≈` in prose and `\approx` inside math (`$...$`). `\sim` is reserved for "distributed as" (e.g. `$u \sim \mathrm{Uniform}(0,1)$`). Same goes for figure titles/labels/annotations in matplotlib — use the Unicode `≈`, never ASCII tilde. ASCII tilde for approximation is a recurring stylistic mistake; the convention in the existing docs corpus is `≈` and matching it preserves typographic consistency.

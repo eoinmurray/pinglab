@@ -1,2 +1,2 @@
 run_id: r001
-tier: large
+tier: medium
