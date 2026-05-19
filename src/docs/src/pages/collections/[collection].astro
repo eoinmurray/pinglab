@@ -1,0 +1,178 @@
+---
+import "../../styles/global.css";
+import ThemeToggle from "../../components/ThemeToggle.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+
+type Entry = {
+  slug: string;
+  entry: number;
+  title: string;
+  date: any;
+  collections: string[];
+};
+
+function buildEntries(modules: Record<string, any>): Entry[] {
+  return Object.entries(modules).map(([path, mod]) => {
+    const slug = path.split("/").pop()!.replace(/\.mdx$/, "");
+    const fm = (mod as any).frontmatter ?? {};
+    return {
+      slug,
+      entry: fm.entry,
+      title: String(fm.title ?? slug).replace(/^\d+\s*[—–-]\s*/, ""),
+      date: fm.date,
+      collections: Array.isArray(fm.collections) ? fm.collections : [],
+    };
+  });
+}
+
+export async function getStaticPaths() {
+  const notebookModules = import.meta.glob("../notebooks/*.mdx", { eager: true });
+  const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
+
+  const cs = new Set<string>();
+  for (const mod of Object.values(notebookModules)) {
+    const list = (mod as any).frontmatter?.collections;
+    if (Array.isArray(list)) for (const c of list) if (typeof c === "string") cs.add(c);
+  }
+  for (const mod of Object.values(articleModules)) {
+    const list = (mod as any).frontmatter?.collections;
+    if (Array.isArray(list)) for (const c of list) if (typeof c === "string") cs.add(c);
+  }
+
+  return [...cs].map((c) => ({ params: { collection: c } }));
+}
+
+const { collection } = Astro.params;
+
+const notebookModules = import.meta.glob("../notebooks/*.mdx", { eager: true });
+const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
+
+const articles = buildEntries(articleModules)
+  .filter((a) => a.collections.includes(collection!))
+  .sort((a, b) => b.entry - a.entry);
+
+const notebooks = buildEntries(notebookModules)
+  .filter((nb) => nb.collections.includes(collection!))
+  .sort((a, b) => b.entry - a.entry);
+
+const formatDate = (raw: any) => {
+  const d =
+    raw instanceof Date
+      ? raw
+      : new Date(String(raw).includes("T") ? String(raw) : String(raw) + "T00:00:00Z");
+  if (isNaN(d.getTime())) return String(raw);
+  const day = d.getUTCDate();
+  const suffix =
+    day % 100 >= 11 && day % 100 <= 13
+      ? "th"
+      : day % 10 === 1
+        ? "st"
+        : day % 10 === 2
+          ? "nd"
+          : day % 10 === 3
+            ? "rd"
+            : "th";
+  const month = d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
+  const year = d.getUTCFullYear();
+  return `${day}${suffix} ${month} ${year}`;
+};
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{collection} · Collections · Pinglab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap"
+      rel="stylesheet"
+    />
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme");
+          var resolved =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", resolved);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="fixed top-4 right-4 z-40">
+      <ThemeToggle />
+    </div>
+    <main class="px-6 pt-16 pb-64 lg:px-12 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[90rem] mx-auto">
+        <SiteHeader>
+          <span slot="breadcrumb" class="text-sm text-muted-soft">
+            / <a href="/collections/" class="text-muted-soft">collections</a> /
+            <span class="font-mono text-[color:var(--ink)]">{collection}</span>
+          </span>
+        </SiteHeader>
+
+        <div class="mt-10 flex flex-col gap-12 max-w-3xl">
+          {articles.length > 0 && (
+            <section>
+              <p class="mb-2 text-xs uppercase tracking-wider text-muted">Articles</p>
+              <ol class="pl-0 list-none m-0 text-[0.95rem]">
+                {articles.map((a) => (
+                  <li class="flex items-baseline gap-3 py-[0.3rem]">
+                    <a
+                      href={`/articles/${a.slug}/`}
+                      class="w-4 shrink-0 tabular-nums text-muted-soft"
+                    >
+                      {String(a.entry).padStart(1, "0")}.
+                    </a>
+                    <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
+                      {a.title}
+                    </a>
+                    <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                      {formatDate(a.date)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {notebooks.length > 0 && (
+            <section>
+              <p class="mb-2 text-xs uppercase tracking-wider text-muted">Notebooks</p>
+              <ol class="pl-0 list-none m-0 text-[0.95rem]">
+                {notebooks.map((nb) => (
+                  <li class="flex items-baseline gap-3 py-[0.3rem]">
+                    <a
+                      href={`/notebooks/${nb.slug}/`}
+                      class="w-4 shrink-0 tabular-nums text-muted-soft"
+                    >
+                      {String(nb.entry).padStart(1, "0")}.
+                    </a>
+                    <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
+                      {nb.title}
+                    </a>
+                    <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                      {formatDate(nb.date)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {articles.length === 0 && notebooks.length === 0 && (
+            <p class="text-sm text-muted">No entries.</p>
+          )}
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
