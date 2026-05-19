@@ -1,0 +1,99 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "Bayes in the Cortex: A Reading Guide"
+date: 2026-05-19
+entry: 7
+structure: paper
+collections: [uncertainty]
+---
+
+# Bayes in the Cortex: A Reading Guide
+
+Eight papers form the uncertainty-and-inference shelf in this project. They share one big idea — *the brain represents uncertainty and performs Bayesian inference, and this is visible in the way cortical circuits behave* — but they argue about *how* the inference is implemented in spikes. This guide names the concepts you should learn before opening them, sketches the unifying themes, and lays out a reading order.
+
+## The papers
+
+| Role | Paper | Year |
+| --- | --- | --- |
+| Framing review (population codes) | Pouget, Dayan & Zemel — *Inference and computation with population codes* | 2003 |
+| Framing review (perception + learning) | Fiser, Berkes, Orbán & Lengyel — *Statistically optimal perception and learning* | 2010 |
+| PPC school | Ma, Beck, Latham & Pouget — *Bayesian inference with probabilistic population codes* | 2006 |
+| Sampling school (V1 variability) | Orbán, Berkes, Fiser & Lengyel — *Neural variability and sampling-based probabilistic representations* | 2016 |
+| Sampling school (HMC via E–I dynamics) | Aitchison & Lengyel — *The Hamiltonian brain* | 2016 |
+| Sampling school (trained RNNs) | Echeveste, Aitchison, Hennequin & Lengyel — *Cortical-like dynamics in recurrent circuits optimised for sampling* | 2020 |
+| Behavioural read-out | Fleming & Lau — *How to measure metacognition* | 2014 |
+| Energetic constraint | Padamsey et al. — *Neocortex saves energy by reducing coding precision* | 2022 |
+
+## Unifying themes
+
+**Perception is inference under uncertainty.** Sensory input is ambiguous — a 2D retinal image is consistent with infinitely many 3D scenes. The mathematically appropriate thing for a brain to do is compute a posterior over possible causes given a prior and a likelihood. All eight papers take this as the starting assumption.
+
+**Representing a whole distribution in spikes is the hard problem.** Two competing answers dominate, and the papers split along this line:
+
+- *Probabilistic Population Codes (PPC).* The posterior is implicit in the instantaneous firing rates of a population. Poisson-like neural variability happens to be the exact noise structure that makes optimal Bayesian inference reduce to *linear* combinations of activity. (Ma et al. 2006 is the canonical statement.)
+- *Sampling.* Instantaneous activity *is one sample* from the posterior; over time, neural variability traces out the distribution. Oscillations and transients become dynamical features of the sampler, not noise. (Orbán, Aitchison & Lengyel, Echeveste — the Lengyel-lab line.)
+
+**Neural variability is a feature, not a bug.** Both schools reinterpret what used to look like nuisance noise — trial-to-trial variability, Fano factor ≈ 1, gamma oscillations, stimulus-onset transients — as the *signature* of probabilistic computation.
+
+**Cortical dynamics are the algorithm, not the substrate.** Aitchison & Lengyel and Echeveste explicitly cast excitation–inhibition dynamics — with gamma oscillations and onset transients — as implementing Hamiltonian Monte Carlo or a related fast sampler. This is the bit most directly relevant to PING-style work in this project.
+
+**Behaviour is the read-out.** Fleming & Lau give the tools to measure whether a subject's confidence tracks the actual posterior. It is how you test, behaviourally, that a brain is doing Bayesian inference rather than merely looking like it.
+
+**Precision has a metabolic price.** Padamsey shows that coding precision (≡ inverse variance) — which the other papers treat purely as a representational variable — is also under energetic pressure. A useful counterweight to the purely-computational framing.
+
+## Prerequisites
+
+If you have not done Bayesian probability before, work through these in roughly this order. The list is short on purpose; everything here pays off across all eight papers.
+
+### Probability foundations
+
+- Random variables, joint / marginal / conditional probability, expectation, variance.
+- Bayes' rule and its four ingredients: prior, likelihood, posterior, evidence (the normalising constant).
+- *Marginalisation* — integrating out latent variables. Bayesian inference is mostly marginalisation in disguise.
+- Common distributions: Gaussian, Poisson, Bernoulli, Categorical. For Gaussians, know the mean, the variance, the *precision* ($= 1/\sigma^2$), and that a product of Gaussians is Gaussian — that one fact is what makes cue-combination work.
+
+### Bayesian reasoning
+
+- MAP vs MLE vs full posterior. Papers switch between these without warning.
+- Generative models and latent-variable models — "the brain has an internal model of how sensations are generated."
+- Cue combination / sensor fusion — the canonical demonstration that humans do near-optimal inference. (Fiser et al. opens with this.)
+- Sequential updating — the posterior at time $t$ becomes the prior at $t+1$. The Kalman filter is the worked example; even without the equations, the intuition is essential.
+
+### Approximate inference
+
+This is the fork where the two schools diverge.
+
+- Why exact inference is intractable in high dimensions (the partition function $Z = \int p(x, y)\,dy$ is the problem).
+- *Variational inference* — approximate the posterior with a simpler family by minimising KL divergence.
+- *Monte Carlo sampling* — approximate the posterior with samples. Know at least the *idea* of rejection sampling, importance sampling, Markov-chain Monte Carlo (MCMC), and Hamiltonian Monte Carlo (HMC). Aitchison & Lengyel maps HMC directly onto E–I dynamics, so HMC's *position + momentum* structure is worth a couple of focused hours.
+
+### Decision theory and behavioural tests
+
+- Expected utility and loss functions — how a posterior turns into an action.
+- Signal detection theory: $d'$, ROC curves, criterion shifts, type-1 vs type-2 judgements. Fleming & Lau is unreadable without this.
+
+### Neural-side prerequisites
+
+Probably already familiar, but flagging:
+
+- Population coding and tuning curves.
+- Poisson spike statistics and the Fano factor.
+- Signal correlations vs noise correlations. Sampling theories make specific predictions about both.
+- Divisive normalisation, gamma oscillations, excitation–inhibition balance.
+
+## Reading order
+
+Once you have the above, this order minimises backtracking.
+
+1. **[Pouget, Dayan & Zemel 2003](https://doi.org/10.1146/annurev.neuro.26.041002.131112).** Gentle overview of population coding. Sets the vocabulary — tuning curves, decoders, the population-vector vs maximum-likelihood vs Bayesian decoders — that every later paper takes for granted.
+2. **[Fiser, Berkes, Orbán & Lengyel 2010](https://doi.org/10.1016/j.tics.2010.01.003).** The big-picture review tying perception, learning, and probabilistic representation together. Read the glossary in the sidebar carefully — it nails down the terms (likelihood, MAP, marginalisation, probabilistic learning) used throughout the field.
+3. **[Ma, Beck, Latham & Pouget 2006](https://doi.org/10.1038/nn1790).** The PPC argument: Poisson-like variability is precisely the noise model that makes Bayesian cue-combination collapse to *linear* operations on neural activity. This is the strongest single statement of the PPC school.
+4. **[Orbán, Berkes, Fiser & Lengyel 2016](https://doi.org/10.1016/j.neuron.2016.09.038).** The sampling counter-argument, applied to V1. Reads V1 noise correlations and stimulus-dependent variability as a signature of posterior sampling. Sets up the rest of the sampling-school papers.
+5. **[Aitchison & Lengyel 2016](https://doi.org/10.1371/journal.pcbi.1005186).** Maps Hamiltonian Monte Carlo onto an excitatory–inhibitory circuit: gamma oscillations are the sampler's momentum dynamics, transients are the speed-up from spanning state space rapidly. The most direct contact with PING-style work in this project.
+6. **[Echeveste, Aitchison, Hennequin & Lengyel 2020](https://doi.org/10.1038/s41593-020-0671-1).** Trains a recurrent E–I circuit to do sampling-based inference from scratch and shows that gamma oscillations, transients, divisive normalisation, and stimulus-modulated noise variability all emerge as consequences. The capstone of the sampling-as-implementation argument.
+7. **[Fleming & Lau 2014](https://doi.org/10.3389/fnhum.2014.00443).** Behavioural tools to test whether subjects' confidence ratings actually track their posteriors. Supporting paper, not central — useful when you want to design experiments that distinguish "computing a posterior" from "looking Bayesian on average."
+8. **[Padamsey et al. 2022](https://doi.org/10.1016/j.neuron.2021.10.024).** The outlier. Shows that coding precision in V1 is regulated by metabolic state — a reminder that the precision Bayesian models treat as a free representational parameter is, in real cortex, energetically constrained.
+
+## Where this fits in the project
+
+The sampling school's argument — *gamma oscillations are not a side-effect, they are the inference algorithm running* — is the most direct external motivation for treating PING dynamics in this project (see [the model ladder](/articles/art002/) and [training](/articles/art006/)) as functionally important rather than as a biological curio worth taming away. The PPC alternative is the principal contrast worth keeping in mind.

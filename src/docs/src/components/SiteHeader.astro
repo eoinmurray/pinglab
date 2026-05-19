@@ -1,0 +1,30 @@
+---
+// Site-wide navigation header. PINGLAB on the left (H1 on the home page,
+// otherwise a link back home), optional breadcrumb segment via the
+// `breadcrumb` slot, then global links on the right.
+interface Props {
+  isHome?: boolean;
+}
+const { isHome = false } = Astro.props as Props;
+const pinglabClass = "text-2xl font-bold";
+const pinglabStyle =
+  "font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;";
+---
+<div class="flex items-baseline gap-4 flex-wrap">
+  {isHome ? (
+    <h1 class={pinglabClass} style={pinglabStyle}>PINGLAB</h1>
+  ) : (
+    <a href="/" class={pinglabClass} style={pinglabStyle}>PINGLAB</a>
+  )}
+  <slot name="breadcrumb" />
+  <a
+    href="/collections/"
+    class="text-sm text-muted hover:text-[color:var(--ink)]">collections</a
+  >
+  <a
+    href="https://github.com/eoinmurray/pinglab"
+    class="text-sm text-muted hover:text-[color:var(--ink)]"
+    target="_blank"
+    rel="noopener">github</a
+  >
+</div>

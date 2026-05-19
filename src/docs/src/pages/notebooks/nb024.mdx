@@ -4,6 +4,7 @@ title: "024 — Inhibition-gated sparsity"
 date: 2026-05-14
 entry: 24
 structure: paper
+collections: [experiments]
 ---
 import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
@@ -73,21 +74,61 @@ __(C) Budget below 5 Hz.__ The penalty wants a rate PING's cadence cannot delive
 
 Let $f$ be the **recruitment fraction** (share of E cells crossing threshold per cycle) and $f^\star$ the critical value at which the I-population fires reliably. So $f > f^\star$ means the loop PING is engaged and $f < f^\star$ means the network is in a low-rate COBA-like regime.
 
-TODO: Write more here.
+Figure 6 shows networks trained with four different $W_\text{in}$ initialisation means — 0.05, 0.1, 0.3 and 1.2 (the default used above). The point is to see what happens when the network is initialised with $f \ll f^\star$, $f < f^\star$, and $f > f^\star$.
 
-<Figure id="Figure 6" title="Alternate-schedule sweep — per-epoch traces" src="/figures/notebooks/nb024/low_w_in_sweep.png" alt="Two rows by three columns of panels. Each column is one --w-in init (0.1, 0.3, 1.2). Top row shows per-epoch test accuracy climbing from chance to ~83%. Bottom row shows per-epoch E (black) and I (red) firing rates: at w_in=0.1 the I rate is zero for the first two epochs then rises sharply to ~20 Hz; at w_in=0.3 the I rate is zero for one epoch then rises; at w_in=1.2 the I rate is high from epoch 1.">
-  Three PING trainings at $\theta_u = 0.2$, *--w-in* ∈ {0.1, 0.3, 1.2}, seed 42, medium tier. One column per init. Top: test accuracy. Bottom: E (black) and I (red) population firing rate.
+<Figure id="Figure 6" title="Four W_in initialisations, all converge to PING" src="/figures/notebooks/nb024/low_w_in_sweep.png" alt="Two rows by four columns of panels. Each column is one --w-in init (0.05, 0.1, 0.3, 1.2). Top row shows per-epoch test accuracy climbing from chance to ~83%. Bottom row shows per-epoch test-set E (black) and I (red) firing rates: at w_in=0.05 and 0.1 the I rate is near zero for the first epoch or two then rises to ~10 Hz; at w_in=0.3 the I rate is zero for one epoch then rises; at w_in=1.2 the I rate is positive from epoch 1.">
+  Per-epoch training traces from four PING networks (seed 42, medium tier, $\theta_u = 0.2$ from epoch 0), one per column. Columns differ only in the initial mean of $W_\text{in}$: $0.05$ and $0.1$ (well below $f^\star$, the loop cannot engage at init), $0.3$ (just below $f^\star$), and $1.2$ (the standard PING init, above $f^\star$). Top row: test accuracy at the end of each epoch; the dotted grey line at 10% is chance. Bottom row: test-set mean firing rate over the full test set (≈400 trials), E in black and I in red. At $W_\text{in} = 0.05$ and $0.1$ the I population is essentially silent for the first one to two epochs while the readout is still random; once $W_\text{in}$ has grown enough to cross $f^\star$, I engages and the network locks into the PING basin (final test-set I rates: 10.1 / 9.8 / 8.5 / 12.6 Hz). At $W_\text{in} = 0.3$ the transition happens earlier. At $W_\text{in} = 1.2$ the loop is already engaged at init. All four reach comparable final accuracy (84.25% / 83.25% / 82.75% / 84.25%).
 </Figure>
 
-All three converge to PING within a few epochs (final accuracies 83.25% / 82.75% / 84.25%; final I rates 22.2 / 16.6 / 16.7 Hz). Starting below $f^\star$ only delays entry — the basin is attractive from outside, not just from inside. The mechanism doesn't depend on training order; the basin recruits the readout, not the reverse.
+All four converge to PING within a few epochs (final accuracies 84.25% / 83.25% / 82.75% / 84.25%; final test-set I rates 10.1 / 9.8 / 8.5 / 12.6 Hz). Starting well below $f^\star$ only delays entry — even $W_\text{in} = 0.05$, an order of magnitude below the standard init, finds the basin by epoch 2. The basin is attractive from outside, not just from inside; the mechanism doesn't depend on training order; the basin recruits the readout, not the reverse.
 
-We do a direct probe of the loss landscape under the heaviest penalty: scale each trained network's $W_\text{in}$ by $s \in [0.1, 5]$ at inference, readout frozen.
+We do a direct probe of the loss landscape under the heaviest penalty: scale each trained network's $W_in$ by $s \in [0.05, 3]$ at inference, readout frozen.
 
-<Figure id="Figure 7" title="W_in scale sweep on networks trained at θ_u = 0.2" src="/figures/notebooks/nb024/w_in_scale_sweep.png" alt="Six panels showing CE loss, spike-budget penalty, total training-objective loss, accuracy, E rate, and I rate vs W_in scale s. Two curves: COBA (red squares) and PING (black circles), both trained at θ_u = 0.2. PING CE shows a sharp recruitment cliff at s ≈ 0.5-0.75. PING penalty is small and grows mildly with s. COBA penalty is essentially zero up to s ≈ 1 then explodes (y-axis clipped at 4). PING total loss has a minimum at s = 1; COBA total loss has a minimum near s = 1 then climbs steeply. Vertical dashed line at s = 1 marks the trained operating point; vertical dotted line marks ≈f*, the smallest s where the I population first fires.">
-  Inference-time $W_\text{in}$ scale sweep on PING (black) and COBA (red), both trained at $\theta_u = 0.2$. Each network's $W_\text{in}$ is multiplied by $s$ at evaluation only; no weights are retrained. Vertical dashed line marks the trained operating point $s = 1$; dotted line marks $\approx f^\star$ (the smallest $s$ at which PING's I population first fires, midpoint between the last $s$ with $I \approx 0$ and the first $s$ with measurable I activity). Penalty and total-loss panels y-axis clipped at 4 — COBA's penalty reaches 104 at $s = 5$ (and its total loss reaches 105) because the rate$^2$ regulariser scales steeply.
+<Figure id="Figure 7" title="W_in scale sweep on networks trained at θ_u = 0.2" src="/figures/notebooks/nb024/w_in_scale_sweep.png" alt="Six panels showing CE loss, spike-budget penalty, total training-objective loss, accuracy, E rate, and I rate vs W_in scale s, swept at 24 points in [0.05, 3]. Two curves: COBA (red squares) and PING (black circles), both trained at θ_u = 0.2. PING CE drops smoothly across the recruitment cliff near s ≈ 0.3–0.7; PING penalty is small and grows mildly with s. COBA penalty is essentially zero up to s ≈ 1 then explodes (y-axis clipped at 4). PING total loss has a broad minimum near s = 1; COBA total loss has a minimum near s = 1 then climbs steeply. Vertical dashed line at s = 1 marks the trained operating point; vertical dotted line marks ≈f*, the smallest s where the I population first fires.">
+  Inference-time $W_\text{in}$ scale sweep on the two networks trained under the heaviest penalty ($\theta_u = 0.2$). At evaluation, every weight in $W_\text{in}$ is multiplied by a common scalar $s$; the readout and all other weights are frozen. Sweep covers 24 values of $s \in [0.05, 3]$. **Panels (top row, left → right):** test cross-entropy; spike-budget penalty $L_\text{rate}$ (the term the optimiser added to CE during training); training-objective loss CE + $L_\text{rate}$. **Panels (bottom row):** test accuracy (10% chance line dotted); test-set mean E rate; test-set mean I rate. Curves: PING in black (circles), COBA in red (squares). **Reference lines:** the vertical dashed line at $s = 1$ marks the trained operating point that the optimiser actually landed on; the vertical dotted line marks $\approx f^\star$, estimated as the midpoint between the last $s$ with $I \approx 0$ and the first $s$ with measurable I activity (PING's recruitment cliff). **Clipping:** the penalty and training-objective panels are clipped at 4 on the y-axis — at $s = 3$ COBA's penalty is ≈32 (total loss ≈33), since the regulariser scales as rate$^2$. The combined-loss panel is what training optimised: both minima sit at $s = 1$, the operating point each network ended up at.
 </Figure>
 
-TODO: interpretation
+Reading Figure 7 together with everything that came before, the floor is the lowest rate at which PING can still produce the participation pattern its readout was trained to decode. Three pieces lock the rate in place.
+
+**The PING firing pattern is qualitatively different from COBA's** (Figures 1–2, 11–13). PING fires in gamma-coordinated bursts at ≈25 Hz cycle frequency, with ≈20% of E cells participating per cycle → 5 Hz per-cell mean. COBA fires asynchronously at ≈85 Hz with most cells participating continuously. These are different statistical regimes, and $W_\text{out}$ is specialised on whichever one the network produced during training.
+
+**There is a recruitment cliff in $W_\text{in}$-space at $f^\star$** (Figure 7, dotted line at $s \approx 0.42$). Below $f^\star$, too few E cells reach threshold per cycle to drive I reliably, the loop disengages, and the network falls into sparse uncoordinated firing — *not silent* (E rate is ≈0.3–1 Hz between $s = 0.4$ and $s = 0.5$), just a different pattern. PING's readout cannot decode it: CE rises from ≈0.7 to chance (2.30) across the cliff and accuracy collapses from ≈80% to ≈10%.
+
+**Above the cliff, the rate is set by PING physics, not by the penalty** (τ_GABA sweep + Figure 7 E-rate panel). Once the I-loop is engaged, the cycle period is governed by inhibitory timescales — the τ_GABA sweep shows E rate scaling monotonically with $\tau_\text{GABA}$. At the trained $\tau_\text{GABA} = 9$ ms, the natural per-cell rate is ≈4.5–5 Hz. The penalty can nudge this rate down by reducing $W_\text{in}$ within the basin, but the engaged loop sets a soft minimum.
+
+What training actually does. The optimiser balances CE (wants accuracy) against the rate$^2$ penalty (wants low rate). Figure 7's training-objective panel shows PING-tu0.2's total loss has a broad minimum around $s = 1$: below it the cliff kicks CE up; above it the penalty grows. The floor at ≈3.2 Hz (under $\theta_u = 0.2$) is where these two pressures cross.
+
+The basin doesn't have to be found via specific initialisation (Figure 6): even starting at $W_\text{in} = 0.05$ — well below the cliff — training pulls the network into the PING basin within 1–2 epochs. The floor is a structural property of PING-with-this-readout, not a path-dependence artefact.
+
+**Why doesn't PING slide down COBA's curve to 0.2 Hz?** Because that endpoint requires a different readout. COBA at $\theta_u = 0.2$ (Figure 7, red) shows what that looks like: rate ≈1 Hz, CE 2.27 (chance), accuracy 53.75% — its readout learned to extract digits from sparse asynchronous firing during training. PING's readout was trained on gamma-coordinated participation; to reach 0.2 Hz it would need to abandon the gamma cycle, but doing so breaks the readout (the cliff). There is no path from one solution to the other without retraining.
+
+**The one-sentence picture.** The rate floor is the equilibrium of two opposing pressures — the gamma-cycle dynamics that bound the rate from below (set by $\tau_\text{GABA}$) and the rate$^2$ penalty that bounds it from above — confined to the basin in $W_\text{in}$-space where the readout still decodes the participation pattern.
+
+### Why doesn't the network find a low-rate COBA-like solution when $W_\text{in}$ starts very low?
+
+Looking at Figure 6, even when $W_\text{in}$ is initialised at 0.05 — well below $f^\star$ — the network always converges to PING, not to a low-rate COBA-like solution. Why?
+
+**At $W_\text{in} = 0.05$ the network starts silent, not COBA-like.** When $W_\text{in}$ is tiny, E cells almost never reach threshold and the network produces essentially zero spikes. That's neither PING nor COBA — it's *off*. The COBA-like regime requires E to actually be firing.
+
+**The loss landscape from silent init has a clear gradient up.** What the optimiser sees:
+
+- CE is pinned at chance (≈2.30). There is no signal in the output to discriminate.
+- The penalty is zero — rate is below budget by a mile.
+- Only the CE gradient is informative, and it says: raise $W_\text{in}$ so the network produces *some* signal to decode.
+
+There is no opposing pressure from the penalty because there is no firing to penalise. So $W_\text{in}$ grows.
+
+**Once $W_\text{in}$ crosses $f^\star$, the architecture takes over.** Even at $W_\text{in} = 0.05$, the PING configuration is in place: *--ei-strength = 1* with non-zero W_ei and W_ie. Those weights aren't disabled — they're just dormant because no E spikes are driving I. The moment $W_\text{in}$ has grown enough that a few E cells start firing, those E spikes hit W_ei, drive I, I drives W_ie, suppression kicks in — the gamma cycle self-assembles. You can see this in Figure 6: at $W_\text{in} = 0.05$ the I rate is 0.016 Hz in epoch 1 and 1.20 Hz by epoch 2, then climbs to ≈10 Hz. The optimiser didn't have to *choose* PING; the PING dynamics turn on automatically once there is drive.
+
+**Could the optimiser escape into a COBA-like solution by suppressing the I-loop?** In the scope of this notebook, W_ei and W_ie are fixed at construction (scaled by *--ei-strength*) and are *not* trainable. W_ee is also non-trainable here and initialised to zero (Börgers-style PING needs no E→E coupling). The COBA architecture also carries no bias term. The only trainable parameters are W_in and W_out. So the optimiser has no way to decouple the I-loop through gradient descent — the I-loop weights aren't parameters of the optimisation problem. Whatever it does to W_in and W_out, the I-loop remains structurally intact.
+
+The COBA-low solution exists in a *different* parameter space — one where W_ei = W_ie = 0 at construction. That is exactly what *--ei-strength = 0* gives, and that is the COBA-tu0.2 cell. Within the PING architecture, the COBA-low solution is unreachable.
+
+So Figure 6's finding restated: every PING-architecture network must converge to PING, not because the optimiser prefers it, but because PING is the only working solution available in this parameter space. The gradient-easiest path from silent init passes through "$W_\text{in}$ grows → I-loop self-engages → PING basin" — and there is no other path the trainable weights can take.
+
+<Figure id="Figure 8" title="W_in scale sweep replotted vs E rate" src="/figures/notebooks/nb024/w_in_scale_sweep_vs_rate.png" alt="Six panels showing CE loss, spike-budget penalty, total training-objective loss, accuracy, I rate, and W_in scale s, all plotted with hidden E rate (Hz) on the x-axis. Two curves: COBA (red squares) and PING (black circles), both trained at θ_u = 0.2. A filled star on each curve marks the trained operating point at s = 1.">
+  The same 24-point $W_\text{in}$ scale sweep as Figure 7, re-projected so every panel has hidden E rate (Hz) on the x-axis. **Panels (top row):** CE loss, spike-budget penalty, training-objective loss (CE + penalty), all clipped at 4 where applicable. **Panels (bottom row):** test accuracy, I rate, and the underlying $W_\text{in}$ scale $s$ that produced each rate (an inverse-relationship panel — useful for reading off "what scale do I need to reach this rate?"). Curves: PING in black (circles), COBA in red (squares). **Filled stars** mark each cell's trained operating point ($s = 1$): PING lands at $E \approx 3.8$ Hz, COBA at $E \approx 1.0$ Hz. Reading across the bottom row, PING's accuracy reaches its plateau by $E \approx 3$ Hz and stays there; COBA accuracy climbs slowly and never quite reaches PING's level — even at $E \approx 28$ Hz it sits near 70%. The training-objective panel makes the same point as Figure 7: each network's minimum sits at its own trained rate.
+</Figure>
 
 ## Hidden-spike perturbation
 
@@ -123,7 +164,7 @@ At $\Delta t = 0.1$ ms, $r_\text{add} = 10$ Hz gives a per-step extra-spike prob
 
 The per-step RNG is a CPU torch.Generator seeded at *EVAL_SEED + 1*, separate from the input encoder so the Poisson input stream matches the unperturbed baseline. Total: 2 models × (11 drop + 21 add) = 64 forward passes.
 
-<Figure id="Figure 8" title="Hidden-spike perturbation" src="/figures/notebooks/nb024/perturbation_curves.png" alt="Test accuracy vs p(drop) (left) and vs Poisson-add rate (right) per model.">
+<Figure id="Figure 9" title="Hidden-spike perturbation" src="/figures/notebooks/nb024/perturbation_curves.png" alt="Test accuracy vs p(drop) (left) and vs Poisson-add rate (right) per model.">
   Accuracy under spike drop (left) and Poisson add (right).
 </Figure>
 
@@ -133,7 +174,7 @@ This suggests the rate floor is dynamical, not informational. Test: lengthening 
 
 ## τ_GABA sweep
 
-<Figure id="Figure 9" title="Trained PING — accuracy and E rate vs τ_GABA" src="/figures/notebooks/nb024/tau_gaba_sweep.png" alt="Red curve: E firing rate falls from ≈7 Hz at 4.5 ms to ≈2.4 Hz at 27 ms. Black curve: accuracy holds 80–86%.">
+<Figure id="Figure 10" title="Trained PING — accuracy and E rate vs τ_GABA" src="/figures/notebooks/nb024/tau_gaba_sweep.png" alt="Red curve: E firing rate falls from ≈7 Hz at 4.5 ms to ≈2.4 Hz at 27 ms. Black curve: accuracy holds 80–86%.">
   Inference-only sweep of $\tau_\text{GABA}$ on trained PING; E rate (red), accuracy (black).
 </Figure>
 
@@ -143,7 +184,7 @@ Six-point inference-only sweep (mutate decay constant, no retraining): E rate is
 
 Two extra views document the loop's own behaviour. First, stacked rasters across the first ten input-rate frames of trained PING on MNIST digit 0 (rate sweeps 0 → ≈23 Hz in 2.56 Hz steps):
 
-<Figure id="Figure 10" title="Input-rate sweep on trained PING" src="/figures/notebooks/nb024/rate_rasters__ping.png" alt="Ten stacked raster panels showing trained PING on MNIST digit 0 at input rates from 0 to about 23 Hz; E spikes in black, I spikes in red. The bottom rows are silent; the top rows show locked E-then-I gamma cycles.">
+<Figure id="Figure 11" title="Input-rate sweep on trained PING" src="/figures/notebooks/nb024/rate_rasters__ping.png" alt="Ten stacked raster panels showing trained PING on MNIST digit 0 at input rates from 0 to about 23 Hz; E spikes in black, I spikes in red. The bottom rows are silent; the top rows show locked E-then-I gamma cycles.">
   Trained PING replayed on MNIST digit 0 across ten input-rate values; E (black) above I (red) per panel.
 </Figure>
 
@@ -153,17 +194,17 @@ At rate = 0 the network is silent. Above a recruitment threshold a few E units f
 
 The trained COBA baseline replayed through a fresh inference-time PING I-loop at 11 *ei_strength* values. W_ff and W_ee load from the COBA checkpoint; W_ei and W_ie skip so the freshly-initialised loop survives.
 
-<Figure id="Figure 11" title="COBA → PING I-loop transfer at inference" src="/figures/notebooks/nb024/ei_rasters.png" alt="Stacked raster panels showing trained COBA replayed with increasing inference-time ei_strength.">
+<Figure id="Figure 12" title="COBA → PING I-loop transfer at inference" src="/figures/notebooks/nb024/ei_rasters.png" alt="Stacked raster panels showing trained COBA replayed with increasing inference-time ei_strength.">
   Trained COBA replayed at six inference-time *ei_strength* values; same trial, same weights, fresh I-loop each row.
 </Figure>
 
 At *ei = 0* the asynchronous-dense COBA pattern persists. By *ei ≈ 0.4* the same feedforward weights produce gamma cycles. The PING dynamics come from the inhibitory architecture, not from training — the same weights that fired at 52 Hz without the loop fire at ≈5 Hz with the loop wired up.
 
-<Figure id="Figure 12" title="ei_strength sweep — accuracy" src="/figures/notebooks/nb024/ei_acc_sweep.png" alt="Test accuracy vs inference-time ei_strength on COBA-trained weights, with horizontal lines at the trained COBA baseline and at 10% chance.">
+<Figure id="Figure 13" title="ei_strength sweep — accuracy" src="/figures/notebooks/nb024/ei_acc_sweep.png" alt="Test accuracy vs inference-time ei_strength on COBA-trained weights, with horizontal lines at the trained COBA baseline and at 10% chance.">
   Test accuracy vs inference-time *ei_strength* on trained COBA weights.
 </Figure>
 
-<Figure id="Figure 13" title="ei_strength sweep — E and I rates" src="/figures/notebooks/nb024/ei_rates_sweep.png" alt="Mean E (hidden) and I (inhibitory) population firing rates per test pass versus ei_strength.">
+<Figure id="Figure 14" title="ei_strength sweep — E and I rates" src="/figures/notebooks/nb024/ei_rates_sweep.png" alt="Mean E (hidden) and I (inhibitory) population firing rates per test pass versus ei_strength.">
   Mean E and I rates across the same *ei_strength* sweep.
 </Figure>
 

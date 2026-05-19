@@ -781,6 +781,11 @@ def train(
         correct = total = 0
         test_loss_sum = 0.0
         test_batches = 0
+        # Accumulate per-cell rate (Hz) over the full test set so the
+        # per-epoch metrics record reflects test-set means rather than
+        # only the single-trial observation rate set by observe_epoch.
+        test_rate_e_sum = 0.0
+        test_rate_i_sum = 0.0
         eval_gen = torch.Generator().manual_seed(EVAL_SEED)
         with torch.no_grad():
             for X_b, y_b in test_loader:
@@ -790,13 +795,24 @@ def train(
                 test_loss_sum += loss_fn(logits_t, y_b).item()
                 test_batches += 1
                 correct += (logits_t.argmax(1) == y_b).sum().item()
-                total += y_b.size(0)
+                B = y_b.size(0)
+                total += B
+                # net.rates is set by _set_meta after every forward pass;
+                # values are already per-cell Hz averaged over the batch.
+                batch_rates = getattr(net, "rates", None) or {}
+                for k, v in batch_rates.items():
+                    if k.startswith("hid"):
+                        test_rate_e_sum += float(v) * B
+                    elif k.startswith("inh"):
+                        test_rate_i_sum += float(v) * B
 
         eval_s = _time.perf_counter() - t_eval
 
         acc = 100.0 * correct / total
         avg_train = total_loss / max(n_batches, 1)
         avg_test = test_loss_sum / max(test_batches, 1)
+        test_rate_e = test_rate_e_sum / total if total else 0.0
+        test_rate_i = test_rate_i_sum / total if total else 0.0
 
         new_best = acc > best_acc
         if new_best:
@@ -873,6 +889,8 @@ def train(
             "acc": acc,
             "loss": avg_train,
             "test_loss": avg_test,
+            "test_rate_e": test_rate_e,
+            "test_rate_i": test_rate_i,
             "lr": cur_lr,
             "elapsed_s": elapsed,
             "train_compute_s": train_compute_s,

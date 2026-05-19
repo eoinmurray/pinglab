@@ -1638,7 +1638,7 @@ def _plot_sweep_two_axes(
 # training land in the sub-f* COBA-like basin instead of locking into
 # PING? Three w_in inits straddle f* (0.1 sub, 0.3 sub, 1.2 standard).
 
-LOW_W_IN_VALUES: list[float] = [0.1, 0.3, 1.2]  # 1.2 matches standard ping init
+LOW_W_IN_VALUES: list[float] = [0.05, 0.1, 0.3, 1.2]  # 1.2 matches standard ping init
 LOW_W_IN_THETA_U: float = 0.2                   # heaviest from frontier sweep
 LOW_W_IN_SEED: int = SEED_SWEEP
 
@@ -1691,8 +1691,18 @@ def plot_low_w_in(rows: list[dict], out_path: Path, run_id: str) -> None:
         metrics = load_metrics(low_w_in_cell_dir(row["w_in"]))
         epochs = list(range(1, len(metrics["epochs"]) + 1))
         accs = [float(e["acc"]) for e in metrics["epochs"]]
-        rate_e = [float(e.get("rate_e") or 0.0) for e in metrics["epochs"]]
-        rate_i = [float(e.get("rate_i") or 0.0) for e in metrics["epochs"]]
+        # Prefer test-set rates (added to the trainer in train.py); fall
+        # back to the single-trial observation rates for legacy runs.
+        rate_e = [
+            float(e.get("test_rate_e") if e.get("test_rate_e") is not None
+                  else (e.get("rate_e") or 0.0))
+            for e in metrics["epochs"]
+        ]
+        rate_i = [
+            float(e.get("test_rate_i") if e.get("test_rate_i") is not None
+                  else (e.get("rate_i") or 0.0))
+            for e in metrics["epochs"]
+        ]
         rate_max = max(rate_max, max(rate_e), max(rate_i))
 
         ax_acc = axes[0, col]
@@ -1742,7 +1752,9 @@ def plot_low_w_in(rows: list[dict], out_path: Path, run_id: str) -> None:
 # smooth monotonic loss curve.
 
 W_IN_SCALE_VALUES: list[float] = [
-    0.10, 0.15, 0.22, 0.33, 0.50, 0.75, 1.00, 1.50, 2.20, 3.30, 5.00,
+    0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50,
+    0.55, 0.60, 0.65, 0.70, 0.80, 0.90, 1.00, 1.15, 1.30, 1.50,
+    1.75, 2.00, 2.50, 3.00,
 ]
 
 
@@ -1884,6 +1896,87 @@ def plot_w_in_scale_sweep(rows: list[dict], out_path: Path, run_id: str) -> None
     plt.close(fig)
 
 
+def plot_w_in_scale_sweep_vs_rate(
+    rows: list[dict], out_path: Path, run_id: str
+) -> None:
+    """Same data as plot_w_in_scale_sweep, but x-axis is E rate instead
+    of W_in scale s. Y-axes: CE | penalty | total loss | accuracy |
+    I rate | s. Each cell's trained s=1 point marked with a filled star
+    on every curve so the reader sees where on the rate axis training
+    landed."""
+    theme.apply()
+    fig, axes_2d = plt.subplots(2, 3, figsize=(12.0, 8.0), dpi=150)
+    axes = axes_2d.flatten()
+    styles = {
+        "coba@tu0.2":  ("COBA ($\\theta_u = 0.2$)",
+                        theme.DEEP_RED, "s", "-"),
+        "ping@tu0.2":  ("PING ($\\theta_u = 0.2$)",
+                        theme.INK_BLACK, "o", "-"),
+    }
+    for ax in axes:
+        ax.set_xlabel("Hidden E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    # Order each cell by E rate so lines don't backtrack.
+    for cell, (label, color, marker, ls) in styles.items():
+        msel = sorted(
+            (r for r in rows if r["cell"] == cell),
+            key=lambda r: r["rate_e"],
+        )
+        if not msel:
+            continue
+        xs = [r["rate_e"] for r in msel]
+        axes[0].plot(xs, [r["loss"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        axes[1].plot(xs, [r["penalty"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        axes[2].plot(xs, [r["total_loss"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        axes[3].plot(xs, [r["acc"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        axes[4].plot(xs, [r["rate_i"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        axes[5].plot(xs, [r["scale"] for r in msel], marker=marker,
+                     color=color, lw=1.5, ls=ls, label=label)
+        # Mark each cell's trained operating point (s = 1) with a star.
+        trained = next((r for r in msel if abs(r["scale"] - 1.0) < 1e-6), None)
+        if trained is not None:
+            star_kwargs = dict(marker="*", color=color, markersize=16,
+                               markeredgecolor=theme.INK_BLACK,
+                               markeredgewidth=0.7, linestyle="None", zorder=5)
+            axes[0].plot([trained["rate_e"]], [trained["loss"]], **star_kwargs)
+            axes[1].plot([trained["rate_e"]], [trained["penalty"]], **star_kwargs)
+            axes[2].plot([trained["rate_e"]], [trained["total_loss"]], **star_kwargs)
+            axes[3].plot([trained["rate_e"]], [trained["acc"]], **star_kwargs)
+            axes[4].plot([trained["rate_e"]], [trained["rate_i"]], **star_kwargs)
+            axes[5].plot([trained["rate_e"]], [trained["scale"]], **star_kwargs)
+    axes[0].set_ylabel("Test cross-entropy", fontsize=theme.SIZE_LABEL)
+    axes[0].set_title("CE loss", fontsize=theme.SIZE_TITLE)
+    axes[1].set_ylabel("Spike-budget penalty", fontsize=theme.SIZE_LABEL)
+    axes[1].set_title("Penalty", fontsize=theme.SIZE_TITLE)
+    axes[1].set_ylim(0, 4.0)
+    axes[2].set_ylabel("CE + penalty", fontsize=theme.SIZE_LABEL)
+    axes[2].set_title("Training-objective loss", fontsize=theme.SIZE_TITLE)
+    axes[2].set_ylim(0, 4.0)
+    axes[3].set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    axes[3].set_ylim(0, 100)
+    axes[3].axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
+    axes[3].set_title("Accuracy", fontsize=theme.SIZE_TITLE)
+    axes[4].set_ylabel("I rate (Hz)", fontsize=theme.SIZE_LABEL)
+    axes[4].set_title("I rate", fontsize=theme.SIZE_TITLE)
+    axes[5].set_ylabel("$W_\\text{in}$ scale $s$", fontsize=theme.SIZE_LABEL)
+    axes[5].set_title("$W_\\text{in}$ scale", fontsize=theme.SIZE_TITLE)
+    axes[0].legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper right")
+    fig.suptitle(
+        "Inference-time $W_\\text{in}$ scale sweep — replotted vs E rate "
+        "(stars mark trained $s = 1$)",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+
 # ── End W_in scale sweep ───────────────────────────────────────────
 
 
@@ -1915,6 +2008,10 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("tau_gaba_sweep.png", "tau_GABA sweep rendered"),
         artifact("low_w_in_sweep.png", "low-w_in sweep rendered"),
         artifact("w_in_scale_sweep.png", "W_in scale sweep rendered"),
+        artifact(
+            "w_in_scale_sweep_vs_rate.png",
+            "W_in scale sweep vs E rate rendered",
+        ),
     ]
     for model in MODELS:
         crits.append(artifact(f"raster__{model}.png", f"{model} raster rendered"))
@@ -2235,6 +2332,12 @@ def main() -> None:
         w_in_scale_rows, FIGURES / "w_in_scale_sweep.png", notebook_run_id,
     )
     print(f"wrote {FIGURES / 'w_in_scale_sweep.png'}")
+    plot_w_in_scale_sweep_vs_rate(
+        w_in_scale_rows,
+        FIGURES / "w_in_scale_sweep_vs_rate.png",
+        notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'w_in_scale_sweep_vs_rate.png'}")
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
