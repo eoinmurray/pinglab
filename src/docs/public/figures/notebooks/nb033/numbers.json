@@ -1,0 +1,15 @@
+{
+  "slug": "nb033",
+  "status": "theory-only",
+  "config": {
+    "tier": "n/a"
+  },
+  "results": {},
+  "success_criteria": [
+    {
+      "label": "theory page exists",
+      "passed": true,
+      "detail": "src/docs/src/pages/notebooks/nb033.mdx"
+    }
+  ]
+}
