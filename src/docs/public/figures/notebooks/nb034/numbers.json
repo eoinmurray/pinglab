@@ -1,0 +1,41 @@
+{
+  "slug": "nb034",
+  "config": {
+    "tau_E_ms": 20.0,
+    "tau_I_ms": 5.0,
+    "W_EI": 80.0,
+    "W_IE": 60.0,
+    "phi_E": {
+      "rmax": 0.2,
+      "theta": 1.5,
+      "k": 0.2
+    },
+    "phi_I": {
+      "rmax": 0.3,
+      "theta": 1.0,
+      "k": 0.15
+    }
+  },
+  "results": {
+    "cubic_coefficients": {
+      "alpha": 0.25,
+      "beta": 0.5208333333333333,
+      "gamma": 15.0,
+      "delta": 0.2031041249184545
+    },
+    "hopf": null,
+    "verdict": "no Hopf \u2014 alpha < 1 means trace stays negative"
+  },
+  "success_criteria": [
+    {
+      "label": "cubic coefficients computed",
+      "passed": true,
+      "detail": "\u03b1=0.250, \u03b2=0.521, \u03b3=15.000, \u03b4=0.203"
+    },
+    {
+      "label": "verdict on 2D-cubic Hopf",
+      "passed": true,
+      "detail": "expected no Hopf, confirmed"
+    }
+  ]
+}
