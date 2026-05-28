@@ -68,6 +68,24 @@ At every point it gives the direction of steepest increase of $f$ and a magnitud
 
 Intuitively: standing on a hilly landscape with $f$ as the altitude — the arrow pointing straight up the steepest path.
 
+#### Jacobian
+
+Takes a vector field $\mathbf{F} : \mathbb{R}^n \to \mathbb{R}^m$ to a matrix of partial derivatives at each point. For $\mathbf{F}(\mathbf{x}) = \bigl(F_1(\mathbf{x}), \dots, F_m(\mathbf{x})\bigr)$,
+
+$$
+J_\mathbf{F}(\mathbf{x}) \;=\; \begin{pmatrix}
+\partial F_1 / \partial x_1 & \cdots & \partial F_1 / \partial x_n \\
+\vdots & \ddots & \vdots \\
+\partial F_m / \partial x_1 & \cdots & \partial F_m / \partial x_n
+\end{pmatrix}.
+$$
+
+The $(i, j)$ entry is the rate at which the $i$-th output component changes with respect to the $j$-th input variable. Special cases: when $\mathbf{F}$ is scalar-valued ($m = 1$) the Jacobian is a row vector — the transpose of the gradient. When $\mathbf{F}$ is a coordinate transformation ($m = n$), $|\det J_\mathbf{F}|$ is the local volume-scaling factor and appears as the Jacobian determinant in change-of-variables integrals.
+
+The use that matters most in [nb033](/notebooks/nb033/) is *linearisation*: near a point $\mathbf{x}_0$, $\mathbf{F}(\mathbf{x}_0 + \delta\mathbf{x}) \approx \mathbf{F}(\mathbf{x}_0) + J_\mathbf{F}(\mathbf{x}_0)\,\delta\mathbf{x}$. For a dynamical system $\dot{\mathbf{x}} = \mathbf{F}(\mathbf{x})$ with a fixed point at $\mathbf{x}^\star$ (where $\mathbf{F}(\mathbf{x}^\star) = 0$), the linearised dynamics are $\dot{\delta\mathbf{x}} = J_\mathbf{F}(\mathbf{x}^\star)\,\delta\mathbf{x}$, and the eigenvalues of $J_\mathbf{F}(\mathbf{x}^\star)$ determine stability and oscillation frequency in the neighbourhood of the fixed point. This is the engine of bifurcation analysis.
+
+Intuitively: the Jacobian is the multivariable derivative — the best linear approximation to a vector-valued function at a point.
+
 #### Divergence
 
 Takes a vector field $\mathbf{F} = (F_x, F_y, F_z)$ to a scalar field.
