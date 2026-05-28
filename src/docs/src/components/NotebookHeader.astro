@@ -118,17 +118,6 @@ const ddMono = "font-mono text-[0.85rem]";
 
   <h1 class="mb-4 text-[2rem] font-bold leading-[1.15] text-ink-strong">{entryName}</h1>
 
-  {collections.length > 0 && (
-    <div class="mb-4 flex flex-wrap gap-[0.3rem]">
-      {collections.map((c) => (
-        <a
-          href={`/collections/${c}/`}
-          class="inline-block rounded-[2px] border border-rule bg-paper-tint px-[0.45rem] py-[0.05rem] font-mono text-[0.72rem] text-muted-soft no-underline hover:text-[color:var(--ink)]"
-        >{c}</a>
-      ))}
-    </div>
-  )}
-
   <dl class="m-0 flex flex-wrap gap-x-6 gap-y-0 border rounded-[2px] border-rule bg-paper-tint px-[0.9rem] py-[0.7rem]">
     {stats.length === 0 && !short && (
       <div class="flex min-w-0 flex-col py-[0.15rem]">
