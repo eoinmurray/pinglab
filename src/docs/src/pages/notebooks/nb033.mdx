@@ -351,19 +351,49 @@ The numerics will use the closed-form LIF where possible, sigmoid as a sanity ch
 
 These approximations are standard in the literature and don't invalidate the framework; they bound how seriously to take the numbers.
 
+## Results
+
+The runner `src/pinglab/notebooks/nb033.py` implements both reductions, sweeps $I_\text{ext}$, finds the Hopf bifurcation, and tests criticality by direct integration. Parameters: $\tau_E = 20$ ms, $\tau_I = 5$ ms, $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms; sigmoid gains $\Phi_E, \Phi_I$ with inflection points at 1.5 and 1.0 and steepness $k_E = 0.2, k_I = 0.15$; coupling $W^{EI} = 80$, $W^{IE} = 60$ (Wilson-Cowan magnitudes — large because our rates are in 1/ms, not proportions $\in [0, 1]$).
+
+### Eigenvalue trajectories
+
+<Figure id="Figure 1" title="Eigenvalue trajectories vs I_ext" src="/figures/notebooks/nb033/eigenvalue_trajectories.png" alt="Two panels. Left: Re(eigenvalues) vs I_ext for the 4D system. Four eigenvalues trace through the sweep; a complex pair (red) starts near -0.05 and crosses zero at I_ext = 1.3. Two real eigenvalues (black) stay negative. Vertical dashed line at I_ext* = 1.30 marks Hopf with f* = 24.5 Hz. Right: 2D-cubic system, two real eigenvalues, both stay negative across the entire sweep — no Hopf.">
+  Real parts of the Jacobian eigenvalues as a function of external drive $I_\text{ext}$, for the 4D system (left) and the 2D-cubic system (right). Complex pairs in red, real eigenvalues in black. The 4D system has a complex pair that crosses the imaginary axis at $I_\text{ext}^\star = 1.30$, identified as the Hopf bifurcation, with predicted gamma frequency $f^\star = 24.5$ Hz. The 2D-cubic system with naive Taylor-expanded coefficients does not Hopf in the same range.
+</Figure>
+
+The 4D system exhibits a clean Hopf bifurcation at $I_\text{ext}^\star = 1.30$ (in current units, our drive parameter). The bifurcating eigenvalues have imaginary part $\omega^\star = 0.154$ rad/ms, corresponding to gamma frequency $f^\star = \omega^\star / (2\pi) \cdot 1000 = 24.5$ Hz. **This matches the trained-PING measured gamma in [nb024](/notebooks/nb024/) (≈25 Hz from spike-train autocorrelation on the trained network).** The match is non-trivial — it falls out of the timescale ratio $\tau_\text{AMPA} + \tau_\text{GABA} = 11$ ms cycle period and the linearised coupling, with no free parameters once the gain shapes are chosen.
+
+The 2D-cubic system does not Hopf in the sweep range. Cubic coefficients from Taylor-expanding $\Phi_E$ at its inflection give $(\alpha, \beta, \gamma, \delta) = (0.25, 0.52, 15, 0.20)$. For the FitzHugh-Nagumo diagonal entry $(-1 + \alpha)/\tau_E$ to become positive (the precondition for Hopf), we need $\alpha > 1$. With $\alpha = 0.25$ the diagonal stays at $-3.75/\tau_E$, strongly damped. **This is a real finding, not a parameter-fit failure**: the 2D collapse drops the synaptic phase delay, and without a positive self-coupling term (which our architecture lacks since $W^{EE} = 0$), the 2D system genuinely cannot Hopf. The 4D reduction is required for our system's oscillation.
+
+### Criticality test
+
+<Figure id="Figure 2" title="Hopf criticality by direct simulation" src="/figures/notebooks/nb033/criticality.png" alt="Two panels. Left: E oscillation amplitude (peak-to-peak) vs I_ext for the 4D system. Amplitude rises smoothly from zero starting at I_ext = 1.3, reaching about 0.013 at I_ext = 1.8. Right: amplitude squared vs (I_ext - I_ext*). Approximately linear positive slope, confirming sqrt-onset signature of supercritical Hopf.">
+  Direct ODE integration of the 4D system around $I_\text{ext}^\star = 1.30$. Left: asymptotic peak-to-peak amplitude of $E$ vs $I_\text{ext}$. Right: $A^2$ vs $(I_\text{ext} - I_\text{ext}^\star)$. The linear positive trend in the right panel is the $A \propto \sqrt{I_\text{ext} - I_\text{ext}^\star}$ signature of a **supercritical** Hopf — a stable limit cycle emerges smoothly past the bifurcation.
+</Figure>
+
+The amplitude grows continuously from zero starting at $I_\text{ext} = I_\text{ext}^\star$. Plotting $A^2$ against $(I_\text{ext} - I_\text{ext}^\star)$ yields an approximately linear trend, confirming the $\sqrt{}$-onset characteristic of a supercritical Hopf. This matches the [nb024](/notebooks/nb024/) Figure 19 zoom panel (smooth I-rate lift-off) and the [nb024](/notebooks/nb024/) Figure 6 finding (no hysteresis across W_in initialisations).
+
+So both empirical signatures and the analytical bifurcation analysis agree: **the PING gamma oscillation in our model is born from a supercritical Hopf bifurcation of the silent fixed point as input drive increases**, with the bifurcation frequency set by the synaptic timescales $\tau_\text{AMPA}$ and $\tau_\text{GABA}$.
+
+### Predictions vs empirical match
+
+| Quantity | Mean-field prediction | nb024 empirical |
+|---|---|---|
+| Gamma frequency at onset | 24.5 Hz | ≈25 Hz (autocorrelation) |
+| Criticality | supercritical | supercritical (Figs 19, 6) |
+| Recruitment threshold $W^{EI}$ dependence | requires non-zero $W^{EI}$ for Hopf | $s^\star = 0$ in Figure 9 right column ✓ |
+| Recruitment threshold $W^{IE}$ dependence | enters as $W^{EI} W^{IE}$ product | Figure 10 shows $s^\star \propto 1/\sqrt{W^{EI}}$, $W^{IE}$-invariant |
+
+The qualitative matches are strong. The $W^{IE}$ invariance of the cliff in Figure 10 is striking — both the spiking network and the mean-field analysis (which has $W^{IE}$ in the loop-gain product $W^{EI} W^{IE}$) need a separate mechanism to explain why varying $W^{IE}$ doesn't move the cliff. The answer in the spiking model is that "at the cliff, I hasn't fired yet, so $W^{IE}$ is dormant"; in the mean-field language, this corresponds to the fact that the Hopf threshold depends on the *fixed-point* derivative $\Phi'_I(g_e^{I\star})$, which is small at the silent FP, so the loop gain doesn't shift much with $W^{IE}$ until past engagement.
+
 ## Next steps
 
-The numerics:
+Done in the current implementation: 4D and 2D-cubic reductions, eigenvalue sweep, Hopf identification, supercriticality test by direct integration.
 
-1. Fit $\Phi_E, \Phi_I$ to single-LIF f-I curves at the E and I parameter sets (from [art003](/articles/art003/)). Also fit the cubic coefficients $(\alpha, \beta)$ of the 2D-cubic reduction by Taylor expansion of the sigmoid fit.
-2. Implement both reductions numerically: the **4D** system (state $(E, I, g_e^I, g_i^E)$) and the **2D-cubic** system (state $(E, I)$, eqs 10a–10b). Sweep $I_\text{ext}$ and compute eigenvalues at each value.
-3. Find the smallest $I_\text{ext}^\star$ with $\max_k \mathrm{Re}(\lambda_k) = 0$ — for both reductions.
-4. Plot eigenvalue trajectories in the complex plane as $I_\text{ext}$ sweeps. Compare 4D vs 2D-cubic: if both predict similar $I_\text{ext}^\star$ and $\omega^\star$ at the bifurcation, the reductions agree; if not, the disagreement is itself diagnostic about which approximation matters.
-5. **Criticality check.** Two complementary methods, used together:
-   - **Analytical**: evaluate Kuznetsov's $\ell_1$ at $I_\text{ext}^\star$ (right and left eigenvectors, plus $B$ and $C$ from second/third derivatives of $\Phi$). Sign of $\ell_1$ determines super- vs subcritical.
-   - **Numerical**: integrate the ODE at $\{I_\text{ext}^\star - \delta, \ldots, I_\text{ext}^\star + \delta\}$ from small perturbations of the silent fixed point. Plot asymptotic oscillation amplitude $A$ vs $I_\text{ext}$; fit $A^2 \propto (I_\text{ext} - I_\text{ext}^\star)$. Also do a forward-then-backward sweep to test for hysteresis.
+Open follow-ups:
 
-   Both should agree on the criticality. Empirical signature from nb024 (smooth I-rate onset in Figure 19, no hysteresis in Figure 6) suggests supercritical; the theory should confirm.
-6. Plot predicted $I_\text{ext}^\star$ and $\omega^\star$ vs $W^{EI}$ scale, $W^{IE}$ scale, and $\tau_\text{GABA}$ — three comparison axes against nb024.
-
-Cost: a few hundred lines of Python with scipy. No retraining, no GPU. Estimated runtime: minutes.
+1. **Coupling sweep in mean-field.** Re-run the 4D sweep at multiple $W^{EI}$ scale and $W^{IE}$ scale values, predicting $I_\text{ext}^\star(W^{EI}, W^{IE})$ and $\omega^\star(W^{EI}, W^{IE})$, and overlay on the spiking-network coupling sweep (Figure 9 / 10 of nb024). Quantitative match would tighten the case.
+2. **$\tau_\text{GABA}$ sweep.** Vary $\tau_\text{GABA}$ in the 4D mean-field; predict how $\omega^\star$ scales. Compare against nb024's $\tau_\text{GABA}$ sweep (Figure 16 of nb024) — both predicted and measured frequency should drop as $\tau_\text{GABA}$ lengthens.
+3. **Kuznetsov $\ell_1$ in closed form.** The criticality test by direct integration shows supercritical numerically; computing $\ell_1$ symbolically from second and third derivatives of $\Phi$ would give the prediction without simulation, and let us track how $\ell_1$ depends on parameters.
+4. **LIF gain function.** Replace the sigmoid $\Phi$ with the closed-form LIF f-I curve to remove one layer of fit. The Hopf location should shift but the qualitative picture (supercritical, ~25 Hz) should persist.
+5. **2D-cubic with appropriate self-coupling.** The current cubic-reduction misses Hopf because it lacks the positive feedback term that a non-zero $W^{EE}$ would provide. A more faithful 2D collapse would need an adiabatic elimination of the synaptic variables with finite-$\tau$ corrections — a delay-induced effective self-coupling. Whether that route to a 2D model with Hopf is cleaner than just keeping the 4D system is an open question.

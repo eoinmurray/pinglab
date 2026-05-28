@@ -1,15 +1,58 @@
 {
   "slug": "nb033",
-  "status": "theory-only",
   "config": {
-    "tier": "n/a"
+    "tau_E_ms": 20.0,
+    "tau_I_ms": 5.0,
+    "tau_AMPA_ms": 2.0,
+    "tau_GABA_ms": 9.0,
+    "W_EI": 80.0,
+    "W_IE": 60.0,
+    "phi_E": {
+      "rmax": 0.2,
+      "theta": 1.5,
+      "k": 0.2
+    },
+    "phi_I": {
+      "rmax": 0.3,
+      "theta": 1.0,
+      "k": 0.15
+    },
+    "I_ext_grid": [
+      0.0,
+      12.0,
+      241
+    ]
   },
-  "results": {},
+  "results": {
+    "hopf_4d": {
+      "I_ext_star": 1.3,
+      "omega_star": 0.15373757169893015,
+      "freq_star_Hz": 24.468094474829407,
+      "fp_at_star": [
+        0.005837155107272615,
+        0.008348178915479015,
+        0.4669724085818092,
+        0.5008907349287408
+      ]
+    },
+    "hopf_2d": null,
+    "cubic_coefficients": {
+      "alpha": 0.25,
+      "beta": 0.5208333333333333,
+      "gamma": 15.0,
+      "delta": 0.2031041249184545
+    }
+  },
   "success_criteria": [
     {
-      "label": "theory page exists",
+      "label": "4D Hopf located",
       "passed": true,
-      "detail": "src/docs/src/pages/notebooks/nb033.mdx"
+      "detail": "I_ext* = 1.300"
+    },
+    {
+      "label": "2D-cubic Hopf located",
+      "passed": false,
+      "detail": "no Hopf"
     }
   ]
 }
