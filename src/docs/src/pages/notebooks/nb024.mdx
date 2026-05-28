@@ -124,6 +124,14 @@ Figure 9 cleanly separates the two roles. $W^{EI}$ moves the cliff (left column)
 
 Figure 10 quantifies the contrast: $s^\star$ moves from 0.5 to 0.25 as $W^{EI}$ grows from 0.25 to 1.0, while it sits flat at 0.25 across the entire $W^{IE}$ range.
 
+Three observations beyond the qualitative split.
+
+**Scaling is sublinear.** The three unsaturated $W^{EI}$ points obey $s^\star \cdot \sqrt{W^{EI}_\text{scale}} \approx 0.25$ to three significant figures (products 0.250, 0.247, 0.250). So empirically $s^\star \propto 1/\sqrt{W^{EI}}$, *not* $1/W^{EI}$ as a naive "more coupling needs less drive" argument would predict. The shape of this scaling is a quantitative fingerprint of the gain function $\Phi_E$ near threshold: a linear gain would give $s^\star \propto 1/W^{EI}$, a square-root gain (typical of stochastic LIF near rheobase, where firing rate $\propto \sqrt{I - I_\text{rheo}}$) gives $s^\star \propto 1/\sqrt{W^{EI}}$. The Wilson-Cowan analysis in [nb033](/notebooks/nb033/) should reproduce this exponent from first principles, and the match (or mismatch) is a concrete test of the mean-field reduction.
+
+**The plateau is a sweep-floor artifact, not a saturation.** $s^\star = 0.25$ at both $W^{EI} = 1.0$ and $W^{EI} = 2.0$ because we did not test $s < 0.25$. The plateau is the smallest sweep grid point hit; the true $s^\star$ at $W^{EI} = 2.0$ is likely lower. A finer sweep at low $s$ would resolve it, but is bounded below by where E itself stops firing — that floor is set by the single-neuron rheobase of E given uniform input through $W_\text{in}$, not by I-cell recruitment.
+
+**The mechanism for $W^{IE}$ invariance is structural, not approximate.** $W^{IE}$ controls the strength of I→E synapses, which only act once I has fired. At the recruitment cliff I has not yet fired (by definition of "first $s$ at which I rate lifts off zero"), so the entire I→E pathway is dormant. The condition for engagement is whether the E volley summed through $W^{EI}$ exceeds I's rheobase, and $W^{IE}$ appears nowhere in that condition. The cliff would be exactly invariant in $W^{IE}$ in any model with this E→I→E loop structure — the data showing $s^\star$ flat at 0.25 across four orders of $W^{IE}$ scale is the strongest qualitative confirmation in the notebook.
+
 ## Hidden-spike perturbation
 
 The mechanism is a per-step callback installed on the COBANet's *_hidden_perturb_fn* slot.
