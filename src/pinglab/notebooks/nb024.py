@@ -2117,6 +2117,187 @@ def plot_latency(rows: list[dict], out_path: Path, run_id: str) -> None:
 # ── End latency ────────────────────────────────────────────────────
 
 
+# ── Coupling sweep (W^{EI} and W^{IE} scaling on top of W_in scaling) ──
+#
+# Validates the prof's first point: altering W_EI and W_IE should shift
+# the critical recruitment fraction f*. For each coupling-scale value
+# (multiplier on W_ei or W_ie), sweep W_in scale s and measure how the
+# recruitment cliff moves.
+
+COUPLING_SCALE_VALUES: list[float] = [0.25, 0.5, 1.0, 2.0]
+
+
+def run_coupling_sweep(notebook_run_id: str) -> list[dict]:
+    """Inference-only on the trained PING baseline (θ_u = off, seed 42):
+    for each (axis, coupling_scale, w_in_scale) point, multiply either
+    W_ei or W_ie by the coupling scale, multiply W_in by s, evaluate.
+    Records (axis, coupling_scale, scale, loss, penalty, total_loss,
+    acc, rate_e, rate_i)."""
+    import torch
+    from cli import _auto_device
+
+    device = _auto_device()
+    train_dir = baseline_dir("ping")
+    if not (train_dir / "weights.pth").exists():
+        raise SystemExit(
+            f"coupling-sweep needs trained PING weights at {train_dir}"
+        )
+    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
+    w_in_original = net.W_ff[0].data.clone()
+    w_ei_original = {k: v.data.clone() for k, v in net.W_ei.items()}
+    w_ie_original = {k: v.data.clone() for k, v in net.W_ie.items()}
+
+    rows: list[dict] = []
+    try:
+        for axis in ("W_ei", "W_ie"):
+            for coupling_scale in COUPLING_SCALE_VALUES:
+                # Reset coupling matrices to baseline scaled by this axis's
+                # coupling value (other axis held at 1.0).
+                for k in net.W_ei.keys():
+                    net.W_ei[k].data.copy_(
+                        w_ei_original[k] * (
+                            coupling_scale if axis == "W_ei" else 1.0
+                        )
+                    )
+                for k in net.W_ie.keys():
+                    net.W_ie[k].data.copy_(
+                        w_ie_original[k] * (
+                            coupling_scale if axis == "W_ie" else 1.0
+                        )
+                    )
+                for scale in W_IN_SCALE_VALUES:
+                    net.W_ff[0].data.copy_(w_in_original * float(scale))
+                    with torch.no_grad():
+                        acc, ce_loss, penalty, e_rate, i_rate = (
+                            _eval_net_on_test_with_loss(
+                                net, cfg, X_te, y_te, device,
+                                fr_upper_theta=0.0,
+                                fr_upper_strength=0.0,
+                            )
+                        )
+                    rows.append({
+                        "axis": axis,
+                        "coupling_scale": float(coupling_scale),
+                        "scale": float(scale),
+                        "loss": float(ce_loss),
+                        "penalty": float(penalty),
+                        "total_loss": float(ce_loss + penalty),
+                        "acc": float(acc),
+                        "rate_e": float(e_rate),
+                        "rate_i": float(i_rate),
+                    })
+                    print(
+                        f"  {axis} ×{coupling_scale:>4.2g}  s={scale:>5.2f}  "
+                        f"acc={acc:5.2f}%  E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
+                    )
+    finally:
+        net.W_ff[0].data.copy_(w_in_original)
+        for k in net.W_ei.keys():
+            net.W_ei[k].data.copy_(w_ei_original[k])
+        for k in net.W_ie.keys():
+            net.W_ie[k].data.copy_(w_ie_original[k])
+    return rows
+
+
+def plot_coupling_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Two-panel figure: left axis sweeps W^{EI} (W^{IE} held at 1), right
+    sweeps W^{IE} (W^{EI} held at 1). Each panel is a stacked plot —
+    accuracy (top) and I rate (bottom) vs W_in scale s, one curve per
+    coupling scale value."""
+    theme.apply()
+    fig, axes = plt.subplots(2, 2, figsize=(12.0, 6.0), dpi=150, sharex=True)
+    cmap = plt.get_cmap("viridis")
+    n = len(COUPLING_SCALE_VALUES)
+    axes_labels = [("W_ei", "$W^{EI}$ scale"), ("W_ie", "$W^{IE}$ scale")]
+    for col, (axis_key, axis_label) in enumerate(axes_labels):
+        ax_acc = axes[0, col]
+        ax_irate = axes[1, col]
+        for j, c_scale in enumerate(COUPLING_SCALE_VALUES):
+            color = cmap(j / max(n - 1, 1))
+            msel = [
+                r for r in rows
+                if r["axis"] == axis_key and r["coupling_scale"] == c_scale
+            ]
+            xs = [r["scale"] for r in msel]
+            ax_acc.plot(xs, [r["acc"] for r in msel], marker="o",
+                        color=color, lw=1.5, label=f"× {c_scale:g}")
+            ax_irate.plot(xs, [r["rate_i"] for r in msel], marker="o",
+                          color=color, lw=1.5, label=f"× {c_scale:g}")
+        ax_acc.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+        ax_acc.set_ylim(0, 100)
+        ax_acc.axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
+        ax_acc.set_title(axis_label, fontsize=theme.SIZE_TITLE)
+        ax_acc.legend(
+            fontsize=theme.SIZE_LABEL, frameon=False, loc="lower right",
+            title=axis_label,
+        )
+        ax_irate.set_xlabel("$W_\\text{in}$ scale $s$", fontsize=theme.SIZE_LABEL)
+        ax_irate.set_ylabel("I rate (Hz)", fontsize=theme.SIZE_LABEL)
+        ax_irate.axvline(1.0, color=theme.GREY_MID, lw=0.6, ls="--", alpha=0.7)
+        ax_acc.axvline(1.0, color=theme.GREY_MID, lw=0.6, ls="--", alpha=0.7)
+    fig.suptitle(
+        "Recruitment-cliff migration with coupling scale "
+        "(trained PING, $\\theta_u =$ off)",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def _recruitment_edge(rows: list[dict], i_rate_threshold: float = 0.5) -> float:
+    """Return the smallest W_in scale s in `rows` at which I rate first
+    exceeds the threshold (Hz). If none, returns the largest s. Assumes
+    `rows` is sorted ascending by scale."""
+    for r in rows:
+        if r["rate_i"] >= i_rate_threshold:
+            return r["scale"]
+    return rows[-1]["scale"]
+
+
+def plot_coupling_boundary(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Phase-boundary plot: for each (axis, coupling_scale), locate
+    s* (the smallest W_in scale at which I first fires reliably) and
+    plot s* against coupling scale. Two curves: vary W^{EI} and vary
+    W^{IE}."""
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    for axis_key, label, color, marker in [
+        ("W_ei", "$W^{EI}$ scale", theme.INK_BLACK, "o"),
+        ("W_ie", "$W^{IE}$ scale", theme.DEEP_RED, "s"),
+    ]:
+        xs, ys = [], []
+        for c_scale in COUPLING_SCALE_VALUES:
+            msel = sorted(
+                [
+                    r for r in rows
+                    if r["axis"] == axis_key and r["coupling_scale"] == c_scale
+                ],
+                key=lambda r: r["scale"],
+            )
+            if not msel:
+                continue
+            s_star = _recruitment_edge(msel)
+            xs.append(c_scale)
+            ys.append(s_star)
+        ax.plot(xs, ys, marker=marker, color=color, lw=1.5, label=label)
+    ax.set_xlabel("Coupling scale", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Recruitment edge $s^\\star$", fontsize=theme.SIZE_LABEL)
+    ax.set_title(
+        "Phase boundary: smallest $W_\\text{in}$ scale that engages the loop",
+        fontsize=theme.SIZE_TITLE,
+    )
+    ax.legend(fontsize=theme.SIZE_LABEL, frameon=False)
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+# ── End coupling sweep ────────────────────────────────────────────────
+
+
 def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
     floor = float(MIN_ACC_BY_TIER[tier])
     figs_root = figures.parents[2]
@@ -2146,6 +2327,8 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("low_w_in_sweep.png", "low-w_in sweep rendered"),
         artifact("w_in_scale_sweep.png", "W_in scale sweep rendered"),
         artifact("latency.png", "latency plot rendered"),
+        artifact("coupling_sweep.png", "coupling sweep rendered"),
+        artifact("coupling_boundary.png", "coupling boundary rendered"),
         artifact(
             "w_in_scale_sweep_vs_rate.png",
             "W_in scale sweep vs E rate rendered",
@@ -2483,6 +2666,18 @@ def main() -> None:
     plot_latency(latency_rows, FIGURES / "latency.png", notebook_run_id)
     print(f"wrote {FIGURES / 'latency.png'}")
 
+    # Coupling sweep — validates the recruitment-fraction shift prediction.
+    print("[coupling-sweep] inference-only on trained PING (θ_u = off)")
+    coupling_rows = run_coupling_sweep(notebook_run_id)
+    plot_coupling_sweep(
+        coupling_rows, FIGURES / "coupling_sweep.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'coupling_sweep.png'}")
+    plot_coupling_boundary(
+        coupling_rows, FIGURES / "coupling_boundary.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'coupling_boundary.png'}")
+
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
     crits = evaluate_success(rows, tier, FIGURES)
@@ -2515,6 +2710,7 @@ def main() -> None:
         "low_w_in_sweep": low_w_in_rows,
         "w_in_scale_sweep": w_in_scale_rows,
         "latency": latency_rows,
+        "coupling_sweep": coupling_rows,
         "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
