@@ -252,6 +252,38 @@ Three predictions follow:
 
 3. **Coupling dependence.** Because $\det(J)$ and the imaginary-axis crossing condition both depend on the *product* $W^{EI} W^{IE}$ but the recruitment threshold $I_\text{ext}^\star$ specifically depends on the gain $\Phi'_E \Phi'_I$ at the fixed point (which itself depends on the path from silent to engaged), the cliff shifts with $W^{EI}$ in a specific way that the analysis can compute. nb024's coupling sweep (Figure 9) provides four data points to compare against.
 
+### Super- vs subcritical Hopf
+
+A Hopf bifurcation can be one of two qualitative types, distinguished by the sign of the first Lyapunov coefficient $\ell_1$ of the normal form, and they have very different empirical signatures.
+
+- **Supercritical** ($\ell_1 < 0$): a *stable* limit cycle appears smoothly on the unstable-fixed-point side. Cycle amplitude grows continuously from zero as $A(I_\text{ext}) \propto \sqrt{I_\text{ext} - I_\text{ext}^\star}$ for $I_\text{ext} > I_\text{ext}^\star$. No hysteresis. Sweeping $I_\text{ext}$ forwards and backwards traces the same curve.
+
+- **Subcritical** ($\ell_1 > 0$): an *unstable* limit cycle exists on the stable-fixed-point side. Crossing $I_\text{ext}^\star$ produces a discontinuous jump in amplitude to a large finite-amplitude state (typically captured by some higher-order stabilising mechanism not visible in the local normal form). Sweeping back from above $I_\text{ext}^\star$ exhibits hysteresis: the system stays on the large-amplitude branch even after $I_\text{ext}$ has been reduced below the bifurcation point.
+
+**Empirical prediction from nb024.** The recruitment cliff in nb024's Figure 19 zoom panel (PING, 0–10 Hz) shows the I rate lifting off zero smoothly from $I \approx 0$ at input ≈ 1.5 Hz to $I \approx 12$ Hz over ≈ 0.5 Hz of input. This is the continuous-onset signature of a *supercritical* Hopf, not a discontinuous jump. Figure 6 (alternate-schedule sweep) also shows no hysteresis: networks initialised below the cliff cross it cleanly during training without getting trapped on a large-amplitude branch. Both are consistent with supercritical.
+
+**Computing $\ell_1$ analytically.** Kuznetsov's projection formula (Kuznetsov 2004, *Elements of Applied Bifurcation Theory*) gives the first Lyapunov coefficient for a general $n$-dimensional system $\dot x = F(x)$ at a Hopf bifurcation $x_0$:
+
+$$
+\ell_1 \;=\; \frac{1}{2\omega}\,\mathrm{Re}\!\Big[\,\langle p, C(q, q, \bar q) \rangle \;-\; 2\,\langle p, B(q, J^{-1} B(q, \bar q)) \rangle \;+\; \langle p, B(\bar q, (2 i \omega I - J)^{-1} B(q, q)) \rangle\Big]
+$$
+
+where:
+
+- $J$ is the Jacobian of $F$ at $x_0$,
+- $q$ is the right eigenvector for the eigenvalue $i\omega$,
+- $p$ is the left eigenvector, normalised so $\langle p, q \rangle = 1$,
+- $B(x, y) = D^2 F(x_0)(x, y)$ and $C(x, y, z) = D^3 F(x_0)(x, y, z)$ are the second- and third-derivative multilinear forms.
+
+For our 4D system the only nonlinearity is the gain $\Phi$, which enters through the rate equations. So $B$ and $C$ involve $\Phi''_E, \Phi''_I, \Phi'''_E, \Phi'''_I$ evaluated at the fixed-point arguments. For a sigmoid gain $\Phi(x) = r_\text{max}/(1 + e^{-(x-\theta)/k})$ these derivatives are standard expressions in $\Phi$ itself; for the LIF closed-form gain they need to be computed by differentiating the log expression. Either way it's a one-time symbolic calculation, then numerical evaluation at $(x_0, I_\text{ext}^\star)$.
+
+**Cheap numerical alternative: direct simulation.** Integrate the 4D ODE numerically at a sequence of $I_\text{ext}$ values $\{I_\text{ext}^\star \pm \delta\}$ in a small neighbourhood of the bifurcation. For each, run from a small random perturbation of the fixed point and measure the asymptotic oscillation amplitude $A$ over the last few hundred ms. Two diagnostics:
+
+1. **Onset shape.** For $I_\text{ext} > I_\text{ext}^\star$, plot $A^2$ vs $(I_\text{ext} - I_\text{ext}^\star)$. Supercritical gives a straight line passing through origin (since $A \propto \sqrt{\cdot}$). Subcritical gives a sharp jump.
+2. **Hysteresis test.** Sweep $I_\text{ext}$ forwards from below $I_\text{ext}^\star$ to above, then backwards. Supercritical: same curve in both directions. Subcritical: backward sweep stays on the high-amplitude branch until well below $I_\text{ext}^\star$.
+
+The simulation approach has the advantage of working even when the analytical Lyapunov coefficient is messy, and produces the same kind of plot we can compare against an empirical sweep of the spiking network at fine resolution.
+
 ### The gain function $\Phi$
 
 The remaining modelling choice is what to use for $\Phi_E, \Phi_I$. Two options:
@@ -283,6 +315,11 @@ The numerics:
 2. Implement the 4D system numerically; sweep $I_\text{ext}$ and compute eigenvalues at each value.
 3. Find the smallest $I_\text{ext}^\star$ with $\max_k \mathrm{Re}(\lambda_k) = 0$.
 4. Plot eigenvalue trajectories in the complex plane as $I_\text{ext}$ sweeps.
-5. Plot predicted $I_\text{ext}^\star$ and $\omega^\star$ vs $W^{EI}$ scale, $W^{IE}$ scale, and $\tau_\text{GABA}$ — three comparison axes against nb024.
+5. **Criticality check.** Two complementary methods, used together:
+   - **Analytical**: evaluate Kuznetsov's $\ell_1$ at $I_\text{ext}^\star$ (right and left eigenvectors, plus $B$ and $C$ from second/third derivatives of $\Phi$). Sign of $\ell_1$ determines super- vs subcritical.
+   - **Numerical**: integrate the ODE at $\{I_\text{ext}^\star - \delta, \ldots, I_\text{ext}^\star + \delta\}$ from small perturbations of the silent fixed point. Plot asymptotic oscillation amplitude $A$ vs $I_\text{ext}$; fit $A^2 \propto (I_\text{ext} - I_\text{ext}^\star)$. Also do a forward-then-backward sweep to test for hysteresis.
+
+   Both should agree on the criticality. Empirical signature from nb024 (smooth I-rate onset in Figure 19, no hysteresis in Figure 6) suggests supercritical; the theory should confirm.
+6. Plot predicted $I_\text{ext}^\star$ and $\omega^\star$ vs $W^{EI}$ scale, $W^{IE}$ scale, and $\tau_\text{GABA}$ — three comparison axes against nb024.
 
 Cost: a few hundred lines of Python with scipy. No retraining, no GPU. Estimated runtime: minutes.
