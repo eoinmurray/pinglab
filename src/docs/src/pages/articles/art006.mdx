@@ -180,7 +180,15 @@ The trained-network rasters in nb027 (Figure 2) corroborate the dynamical equiva
 
 ## The training loop
 
-The network output (spike-count readout, unified across all models) is treated as logits and passed to cross-entropy loss. The optimiser is Adam with an optional ReduceLROnPlateau scheduler, or the --adaptive-lr schedule which divides the learning rate by 10 after epoch 20. Gradients are clipped to unit norm before each step.
+The network output (spike-count readout, unified across all models) is treated as logits and passed to cross-entropy loss:
+
+$$
+L_\text{CE} = -\frac{1}{B}\sum_{b=1}^{B} \log \frac{\exp(\hat y_{b,\,c_b})}{\sum_k \exp(\hat y_{b,k})}
+$$
+
+where $B$ is the batch size, $\hat y_b$ is the logit vector for sample $b$, and $c_b$ is the true class. Chance-level loss on a 10-class problem is $\ln 10 \approx 2.30$.
+
+The optimiser is Adam with an optional ReduceLROnPlateau scheduler, or the --adaptive-lr schedule which divides the learning rate by 10 after epoch 20. Gradients are clipped to unit norm before each step.
 
 The best model state (by test accuracy) is saved at each epoch. Training terminates early if accuracy has not improved for a configurable number of epochs (default patience: 15). The saved weights.pth is the *best-epoch* state, not the final-epoch state.
 

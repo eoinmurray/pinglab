@@ -14,9 +14,23 @@ export const numbers = Object.values(
 
 <NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
+## Method
+
+Two configurations of the same COBANet architecture, differing only in whether the E→I→E inhibitory loop is active. **COBA** (*--ei-strength 0*) disables the loop; excitatory cells drive each other but receive no structured inhibition. **PING** (*--ei-strength 1*) enables the loop, producing pyramidal-interneuron gamma (PING) oscillations at a cadence set by $\tau_\text{AMPA}$ and $\tau_\text{GABA}$.
+
+**Architecture.** $N_E = 1024$ excitatory cells, $N_I = 256$ inhibitory cells, single hidden layer. Input: 784 channels (MNIST pixels), Poisson-encoded at 25 Hz peak rate. Readout: mem-mean (time-averaged E spike vector projected through a trained linear layer $W_\text{out}$; see [art006](/articles/art006/) for the full readout specification). Dale's law enforced.
+
+**What is trainable.** Only the input weights $W_\text{in}$ ($784 \times 1024$, 95% sparse) and the readout $W_\text{out}$ ($1024 \times 10$). The recurrent weights $W_{ee}$ (fixed at zero — Börgers-style PING needs no E→E coupling), $W_{ei}$, and $W_{ie}$ are initialised once and held *requires_grad = False*. The synaptic time constants $\tau_\text{AMPA}$, $\tau_\text{GABA}$ are module-level constants. 813k trainable parameters out of 2.4M total.
+
+**Training.** Adam, lr = $4 \times 10^{-4}$, batch size 256, gradient norm clipped to 1.0. Cross-entropy loss on 10-class MNIST (definition in [art006](/articles/art006/)). Gradient stabiliser: *--v-grad-dampen 1000* (uniform scaling of per-step voltage gradients; see [nb027](/notebooks/nb027/) for a principled alternative). Trial duration $T = 200$ ms at $\Delta t = 0.1$ ms (2000 timesteps).
+
+**Tier.** Medium: 2000 training samples, 10 epochs, three seeds (42, 43, 44) for baselines, one seed (42) for sweep cells.
+
+**Recipe difference.** The only parameter that differs between COBA and PING besides *--ei-strength* is the $W_\text{in}$ initialisation: COBA uses mean 0.3 (std 0.03), PING uses mean 1.2 (std 0.12). PING needs stronger input drive to reliably recruit the I-loop at init.
+
 ## Trained-network dynamics
 
-We train COBA and PING on MNIST and discuss the differences.
+Each trained baseline (seed 42, $\theta_u =$ off) is replayed on MNIST digit 0 for 400 ms and the hidden-layer spike trains are recorded.
 
 <Figure id="Figure 1" title="Trained COBA raster (no I-loop)" src="/figures/notebooks/nb024/raster__coba.png" alt="Spike raster of trained COBA showing dense asynchronous E firing and an empty I row.">
   Trained COBA (*--ei-strength 0*) on MNIST digit 0; I row empty because the loop is disabled.
@@ -30,7 +44,7 @@ COBA fires asynchronously at ≈85 Hz across the trial. PING fires in gamma band
 
 ## Accuracy and firing rate
 
-Quantitatively, paired bars over the baselines (medium tier, max_samples = 2000, epochs = 10, three seeds, no spike-budget penalty):
+Final test accuracy and mean hidden-E firing rate are computed for each baseline ($\theta_u =$ off) across three seeds and reported as means.
 
 <Figure id="Figure 3" title="Accuracy vs mean firing rate" src="/figures/notebooks/nb024/acc_vs_rate.png" alt="Bar chart: per-model final test accuracy and mean hidden-E firing rate at θ_u = off.">
   Final test accuracy (solid) and mean hidden-E firing rate (hatched), per model, at the unregularised baseline.
@@ -64,7 +78,13 @@ COBA traces a curve from ≈85 Hz down to ≈0.2 Hz, costing ≈24 pp accuracy. 
 
 ## Why PING has a rate floor
 
-Figure 5 shows COBA spanning three decades under $\theta_u$ (≈85 → ≈0.2 Hz) while PING barely moves (5.1 → 3.2 Hz). PING with the loop disengaged is structurally just COBA — so why doesn't a heavy penalty slide PING down COBA's curve to 0.2 Hz?
+Figure 5 shows COBA spanning three decades under $\theta_u$ (≈85 → ≈0.2 Hz) while PING barely moves (5.1 → 3.2 Hz). Three cases, by where the budget sits relative to PING's trained ≈5 Hz rate.
+
+__(A) No budget.__ The network sits at PING's gamma-locked attractor; if E dips low enough to disengage the I-loop, dynamics relax toward COBA's ≈85 Hz fixed point, recruitment crosses the I-cell threshold, and the loop re-engages.
+
+__(B) Budget above 5 Hz.__ Penalty inactive at the operating point; equivalent to (A).
+
+__(C) Budget below 5 Hz.__ The penalty wants a rate PING's cadence cannot deliver, and PING with the loop disengaged is structurally COBA — so why not slide down COBA's curve to 0.2 Hz?
 
 Let $f$ be the **recruitment fraction** (share of E cells crossing threshold per cycle) and $f^\star$ the critical value at which the I-population fires reliably: $f > f^\star$ is engaged PING, $f < f^\star$ is a low-rate COBA-like regime. Figure 6 trains four PING networks across this threshold — $W_\text{in}$ initialised at 0.05 and 0.1 ($f \ll f^\star$), 0.3 ($f < f^\star$), and 1.2 (the standard init, above $f^\star$).
 
@@ -74,7 +94,7 @@ Let $f$ be the **recruitment fraction** (share of E cells crossing threshold per
 
 All four converge to PING within a few epochs (final accuracies 84.25% / 83.25% / 82.75% / 84.25%; test-set I rates 10.1 / 9.8 / 8.5 / 12.6 Hz). Even $W_\text{in} = 0.05$, an order of magnitude below the standard init, finds the basin by epoch 2. The basin is attractive from outside as well as from inside — the floor is structural, not a path-dependence artefact.
 
-To probe the loss landscape directly, scale each trained network's $W_\text{in}$ by $s \in [0.05, 3]$ at inference, readout frozen.
+To probe the loss landscape directly, scale each trained network's $W_\text{in}$ by $s \in [0.05, 3]$ at inference, readout frozen. At each $s$ all metrics (CE loss, penalty, accuracy, E/I rates) are computed as averages across the full held-out test set (≈400 samples).
 
 <Figure id="Figure 7" title="W_in scale sweep on networks trained at θ_u = 0.2" src="/figures/notebooks/nb024/w_in_scale_sweep.png" alt="Six panels showing CE loss, spike-budget penalty, total training-objective loss, accuracy, E rate, and I rate vs W_in scale s, swept at 24 points in [0.05, 3]. Two curves: COBA (red squares) and PING (black circles), both trained at θ_u = 0.2. PING CE drops smoothly across the recruitment cliff near s ≈ 0.3–0.7; PING penalty is small and grows mildly with s. COBA penalty is essentially zero up to s ≈ 1 then explodes (y-axis clipped at 4). PING total loss has a broad minimum near s = 1; COBA total loss has a minimum near s = 1 then climbs steeply. Vertical dashed line at s = 1 marks the trained operating point; vertical dotted line marks ≈f*, the smallest s where the I population first fires.">
   Inference-time $W_\text{in}$ scale sweep on the two networks trained under the heaviest penalty ($\theta_u = 0.2$). At evaluation, every weight in $W_\text{in}$ is multiplied by a common scalar $s$; the readout and all other weights are frozen. Sweep covers 24 values of $s \in [0.05, 3]$. **Panels (top row, left → right):** test cross-entropy; spike-budget penalty $L_\text{rate}$ (the term the optimiser added to CE during training); training-objective loss CE + $L_\text{rate}$. **Panels (bottom row):** test accuracy (10% chance line dotted); test-set mean E rate; test-set mean I rate. Curves: PING in black (circles), COBA in red (squares). **Reference lines:** the vertical dashed line at $s = 1$ marks the trained operating point that the optimiser actually landed on; the vertical dotted line marks $\approx f^\star$, estimated as the midpoint between the last $s$ with $I \approx 0$ and the first $s$ with measurable I activity (PING's recruitment cliff). **Clipping:** the penalty and training-objective panels are clipped at 4 on the y-axis — at $s = 3$ COBA's penalty is ≈32 (total loss ≈33), since the regulariser scales as rate$^2$. The combined-loss panel is what training optimised: both minima sit at $s = 1$, the operating point each network ended up at.
@@ -95,6 +115,8 @@ The optimiser balances CE against the rate$^2$ penalty. Figure 7's training-obje
 *The architecture forbids it.* In nb024 only **$W_\text{in}$ and $W_\text{out}$** are trainable. $W_{ei}$ and $W_{ie}$ are fixed at construction (scaled by *--ei-strength*); $W_{ee}$ is fixed at zero (Börgers-style PING needs no E→E coupling); the COBA architecture carries no bias. No setting of $W_\text{in}, W_\text{out}$ suppresses the I-loop. The COBA-low solution lives in a different parameter space — exactly the one *--ei-strength = 0* opens, which is the COBA-tu0.2 cell.
 
 This also explains Figure 6's universality. At $W_\text{in} = 0.05$ the network starts *silent*, not COBA-like — too little drive to fire. CE is at chance, penalty is zero; the only gradient pulls $W_\text{in}$ up. The moment drive crosses $f^\star$, E spikes hit the fixed $W_{ei}$, I fires, I hits the fixed $W_{ie}$, gamma cycle self-assembles. The optimiser never chose PING; the architecture forced it as soon as there was anything to fire.
+
+A further observation from the CE panel: PING's CE drops much more steeply across the recruitment threshold than COBA's. PING goes from chance (CE ≈ 2.30) to working (CE ≈ 0.91) across a factor of ≈2 in $s$; COBA over the same ratio barely moves (CE 2.30 → 2.04). The difference is signal quality per spike. When PING's loop engages, E spikes arrive in gamma-coordinated volleys where the digit identity is encoded in which cells participate per burst. The readout was trained on this structure, so even 2–3 bursts per trial (E ≈ 1–3 Hz) produce a clean class-specific contribution to the time-averaged spike vector. Without the loop, COBA's spikes arrive asynchronously — each one adds a noisy single-cell increment to the running average, and the class signal only emerges after many have accumulated. The gamma cycle acts as a signal concentrator: the temporal coordination makes each spike more informative to the readout, which is why PING's CE curve is steep where COBA's is gradual. PING does not just use fewer spikes — it uses them more efficiently.
 
 **One sentence:** the rate floor is the equilibrium of two pressures — gamma-cycle dynamics that bound the rate from below (set by $\tau_\text{GABA}$) and the rate$^2$ penalty that bounds it from above — confined to the basin in $W_\text{in}$-space where $W_\text{out}$ still decodes the participation pattern.
 
@@ -136,8 +158,24 @@ At $\Delta t = 0.1$ ms, $r_\text{add} = 10$ Hz gives a per-step extra-spike prob
 
 The per-step RNG is a CPU torch.Generator seeded at *EVAL_SEED + 1*, separate from the input encoder so the Poisson input stream matches the unperturbed baseline. Total: 2 models × (11 drop + 21 add) = 64 forward passes.
 
-<Figure id="Figure 9" title="Hidden-spike perturbation" src="/figures/notebooks/nb024/perturbation_curves.png" alt="Test accuracy vs p(drop) (left) and vs Poisson-add rate (right) per model.">
+<Figure id="Figure 9" title="Hidden-spike perturbation — accuracy curves" src="/figures/notebooks/nb024/perturbation_curves.png" alt="Test accuracy vs p(drop) (left) and vs Poisson-add rate (right) per model.">
   Accuracy under spike drop (left) and Poisson add (right).
+</Figure>
+
+<Figure id="Figure 10" title="PING under spike drop — rasters" src="/figures/notebooks/nb024/perturb_rasters__drop__ping.png" alt="Stacked raster panels showing trained PING on MNIST digit 0 across increasing p_drop levels; E spikes in black, I spikes in red. At low p_drop the gamma cycle is intact; at high p_drop spikes are thinned but the cycle persists.">
+  Trained PING replayed on the same MNIST digit 0 trial across six drop levels; E (black) above I (red) per panel. The gamma cadence persists across all levels — dropped spikes thin the train without injecting phase-incoherent activity.
+</Figure>
+
+<Figure id="Figure 11" title="PING under Poisson add — rasters" src="/figures/notebooks/nb024/perturb_rasters__add__ping.png" alt="Stacked raster panels showing trained PING on MNIST digit 0 across increasing Poisson-add rates; E spikes in black, I spikes in red. At low r_add the gamma cycle is preserved; at higher r_add added spikes drive I at arbitrary phase and the cycle dissolves into broadband firing.">
+  Trained PING replayed across six Poisson-add rates. As $r_\text{add}$ increases, randomly-timed E spikes drive I at arbitrary phase; the gamma cycle dissolves and the population fires asynchronously.
+</Figure>
+
+<Figure id="Figure 12" title="COBA under spike drop — rasters" src="/figures/notebooks/nb024/perturb_rasters__drop__coba.png" alt="Stacked raster panels showing trained COBA on MNIST digit 0 across increasing p_drop levels; E spikes in black, I row empty because COBA has no loop. The pattern is asynchronous and dense at p_drop = 0, sparsifying uniformly as drop increases.">
+  Trained COBA replayed across six drop levels. With no cycle to preserve, dropping spikes just thins a uniform asynchronous mean.
+</Figure>
+
+<Figure id="Figure 13" title="COBA under Poisson add — rasters" src="/figures/notebooks/nb024/perturb_rasters__add__coba.png" alt="Stacked raster panels showing trained COBA on MNIST digit 0 across increasing Poisson-add rates; E spikes in black, I row empty because COBA has no loop. The pattern stays asynchronous and dense; added spikes blend into the uniform background.">
+  Trained COBA replayed across six Poisson-add rates. Added spikes blend into COBA's asynchronous mean — no temporal structure to corrupt.
 </Figure>
 
 Drop and add are asymmetric. Under drop, PING holds 72.5% at $p_\text{drop} = 0.9$ through I-loop compensation: fewer E spikes drive I less, GABA relaxes, and E fires more freely. The recorded E rate rises to ≈7 Hz at $p_\text{drop} = 0.8$ and remains near 5 Hz at $p_\text{drop} = 0.9$ — back-calculating, the pre-drop rate at that point is ≈49 Hz (≈90% discarded), approaching COBA's spontaneous level. The E→I→E loop compensates because it is weakened proportionally rather than phase-corrupted. Under add, random E spikes drive I at arbitrary phase, disrupting the cycle's temporal structure: PING accuracy falls across a sharp 2–10 Hz cliff (70% at 4 Hz, 43% at 6 Hz, 19% at 8 Hz, 12% at 10 Hz, chance from 12 Hz on). COBA stays at 83–84% under both perturbation modes — without a cycle to compensate or corrupt, dropped spikes thin a uniform mean and added spikes raise it.
@@ -146,7 +184,9 @@ This suggests the rate floor is dynamical, not informational. Test: lengthening 
 
 ## τ_GABA sweep
 
-<Figure id="Figure 10" title="Trained PING — accuracy and E rate vs τ_GABA" src="/figures/notebooks/nb024/tau_gaba_sweep.png" alt="Red curve: E firing rate falls from ≈7 Hz at 4.5 ms to ≈2.4 Hz at 27 ms. Black curve: accuracy holds 80–86%.">
+Inference-only: the GABA decay constant is mutated on the trained PING baseline (seed 42, $\theta_u =$ off) across six values (4.5, 6, 9, 12, 18, 27 ms; trained value is 9 ms), then the test set is re-evaluated without retraining.
+
+<Figure id="Figure 14" title="Trained PING — accuracy and E rate vs τ_GABA" src="/figures/notebooks/nb024/tau_gaba_sweep.png" alt="Red curve: E firing rate falls from ≈7 Hz at 4.5 ms to ≈2.4 Hz at 27 ms. Black curve: accuracy holds 80–86%.">
   Inference-only sweep of $\tau_\text{GABA}$ on trained PING; E rate (red), accuracy (black).
 </Figure>
 
@@ -154,34 +194,48 @@ Six-point inference-only sweep (mutate decay constant, no retraining): E rate is
 
 ## Input-rate sweep
 
-Two extra views document the loop's own behaviour. First, stacked rasters across the first ten input-rate frames of trained PING on MNIST digit 0 (rate sweeps 0 → ≈23 Hz in 2.56 Hz steps):
+Inference-only: the trained PING baseline (seed 42, $\theta_u =$ off) is replayed on MNIST digit 0 with the Poisson input rate swept from 0 to ≈23 Hz in ten steps (2.56 Hz spacing). Spike trains are recorded per panel.
 
-<Figure id="Figure 11" title="Input-rate sweep on trained PING" src="/figures/notebooks/nb024/rate_rasters__ping.png" alt="Ten stacked raster panels showing trained PING on MNIST digit 0 at input rates from 0 to about 23 Hz; E spikes in black, I spikes in red. The bottom rows are silent; the top rows show locked E-then-I gamma cycles.">
+<Figure id="Figure 15" title="Input-rate sweep on trained PING" src="/figures/notebooks/nb024/rate_rasters__ping.png" alt="Ten stacked raster panels showing trained PING on MNIST digit 0 at input rates from 0 to about 23 Hz; E spikes in black, I spikes in red. Each panel is labelled with the input rate, the per-cell E rate, and the per-cell I rate. At low input (0–5 Hz) the network is silent (E and I rates both 0). At ≈8 Hz input the I-loop engages (I rate jumps from 0 to ≈10 Hz). Above engagement the E rate saturates near 4–5 Hz while the I rate climbs from ≈10 to ≈25 Hz.">
   Trained PING replayed on MNIST digit 0 across ten input-rate values; E (black) above I (red) per panel.
 </Figure>
 
 At rate = 0 the network is silent. Above a recruitment threshold a few E units fire, the I loop catches, and the gamma cadence appears. Once the loop is locked the cycle period is invariant to further increases in input rate across the rest of the sweep.
 
+A subtlety in the just-engaged panels (e.g. input ≈ 5 Hz, E = 1.7 Hz, I = 0): the E spikes look mildly clustered even though the I-loop hasn't fired. This is feedforward — not PING. The Poisson input stream has natural temporal fluctuations, the digit-0 input is spatially correlated, and the trained $W_\text{in}$ has learned to be selective for digit-relevant pixels. So the cells that fire are the input-tuned subset, and they fire together during input-rich windows. The participation pattern is partially preserved from training; the gamma timing is not, because the loop is genuinely off.
+
 ## COBA → PING I-loop transfer
 
-The trained COBA baseline replayed through a fresh inference-time PING I-loop at 11 *ei_strength* values. W_ff and W_ee load from the COBA checkpoint; W_ei and W_ie skip so the freshly-initialised loop survives.
+Inference-only: the trained COBA baseline (seed 42, $\theta_u =$ off) is loaded and *ei_strength* is overridden at eval time across 11 values from 0 to 1. $W_\text{in}$ and $W_\text{out}$ load from the COBA checkpoint; $W_{ei}$ and $W_{ie}$ are freshly initialised (the COBA checkpoint has these at zero, so skipping the load preserves a functional I-loop). No retraining.
 
-<Figure id="Figure 12" title="COBA → PING I-loop transfer at inference" src="/figures/notebooks/nb024/ei_rasters.png" alt="Stacked raster panels showing trained COBA replayed with increasing inference-time ei_strength.">
+<Figure id="Figure 16" title="COBA → PING I-loop transfer at inference" src="/figures/notebooks/nb024/ei_rasters.png" alt="Stacked raster panels showing trained COBA replayed with increasing inference-time ei_strength.">
   Trained COBA replayed at six inference-time *ei_strength* values; same trial, same weights, fresh I-loop each row.
 </Figure>
 
 At *ei = 0* the asynchronous-dense COBA pattern persists. By *ei ≈ 0.4* the same feedforward weights produce gamma cycles. The PING dynamics come from the inhibitory architecture, not from training — the same weights that fired at 52 Hz without the loop fire at ≈5 Hz with the loop wired up.
 
-<Figure id="Figure 13" title="ei_strength sweep — accuracy" src="/figures/notebooks/nb024/ei_acc_sweep.png" alt="Test accuracy vs inference-time ei_strength on COBA-trained weights, with horizontal lines at the trained COBA baseline and at 10% chance.">
+<Figure id="Figure 17" title="ei_strength sweep — accuracy" src="/figures/notebooks/nb024/ei_acc_sweep.png" alt="Test accuracy vs inference-time ei_strength on COBA-trained weights, with horizontal lines at the trained COBA baseline and at 10% chance.">
   Test accuracy vs inference-time *ei_strength* on trained COBA weights.
 </Figure>
 
-<Figure id="Figure 14" title="ei_strength sweep — E and I rates" src="/figures/notebooks/nb024/ei_rates_sweep.png" alt="Mean E (hidden) and I (inhibitory) population firing rates per test pass versus ei_strength.">
+<Figure id="Figure 18" title="ei_strength sweep — E and I rates" src="/figures/notebooks/nb024/ei_rates_sweep.png" alt="Mean E (hidden) and I (inhibitory) population firing rates per test pass versus ei_strength.">
   Mean E and I rates across the same *ei_strength* sweep.
 </Figure>
 
 Accuracy stays within ≈12 pp of the COBA baseline across the full *ei_strength* range. E rate falls monotonically from ≈52 Hz (*ei = 0*) to ≈5 Hz (*ei = 1*); I rate rises from zero to ≈23 Hz. Suppression is continuous in the loop strength.
 
+## Readout latency
+
+How quickly does each network reach a confident classification during a trial? At each 5 ms checkpoint we compute the running-average readout from the accumulated output-LIF membrane potential up to that point and evaluate test accuracy. Baselines at $\theta_u =$ off, seed 42.
+
+<Figure id="Figure 19" title="Readout latency — accuracy vs time and vs spike count" src="/figures/notebooks/nb024/latency.png" alt="Two panels. Left: test accuracy vs trial time (ms) — COBA (red) leads early (73.5% at 20 ms vs PING 68.5%), curves cross near 100 ms, PING finishes ahead (85% vs 83%). Right: test accuracy vs cumulative E spikes per sample — PING's curve is dramatically left-shifted, reaching 81% at ≈530 spikes while COBA needs ≈5,700.">
+  Left: test accuracy at each 5 ms checkpoint. Right: the same accuracy plotted against cumulative E spikes per sample at each checkpoint. Baselines, $\theta_u =$ off, seed 42. PING in black, COBA in red. Chance at 10% (dotted).
+</Figure>
+
+The left panel shows COBA reaching higher accuracy faster in wall-clock time: 73.5% at 20 ms vs PING's 68.5%. The curves cross near 100 ms and PING finishes ahead (85.0% vs 83.0%). COBA fires asynchronously from timestep 1 at ≈85 Hz, so by 20 ms the readout has ≈1.7 spikes/cell to average over. PING needs the gamma cycle to self-assemble — the first structured burst appears at ≈10-15 ms — so the readout sees little useful signal before then.
+
+The right panel reframes the same data with cumulative E spikes on the x-axis. At the crossover accuracy (≈81%), PING has used ≈530 spikes vs COBA's ≈5,700 — roughly 11× fewer. PING's curve is shifted an order of magnitude to the left. Each gamma burst is a concentrated class-discriminative event, so the readout converges faster per spike than COBA's noisy per-spike average. COBA wins on absolute latency (more spikes available earlier). PING wins on spike efficiency (fewer spikes to reach the same accuracy). If the relevant metric is minimum spikes to decision rather than minimum time to decision, PING is strictly better.
+
 ## Summary
 
-PING reaches COBA's accuracy at an order of magnitude lower rate. The rate floor is the loop's preferred cycle period, governed by $\tau_\text{GABA}$, not by what the task requires. The readout phase-locks to that cycle; perturbations that leave the E→I→E loop intact (drop, $\tau_\text{GABA}$ sweep, threshold shift) are compensated dynamically, while those that inject phase-incoherent activity (add) corrupt the cycle and collapse accuracy. $\theta_u$ has no leverage below the cycle's cadence — the floor is physical, not optimised.
+PING reaches COBA's accuracy at an order of magnitude lower rate. The rate floor is the loop's preferred cycle period, governed by $\tau_\text{GABA}$, not by what the task requires. The readout phase-locks to that cycle; perturbations that leave the E→I→E loop intact (drop, $\tau_\text{GABA}$ sweep) are compensated dynamically, while those that inject phase-incoherent activity (add) corrupt the cycle and collapse accuracy. $\theta_u$ has no leverage below the cycle's cadence — the floor is physical, not optimised. Within its operating regime, PING uses each spike more efficiently than COBA: the gamma cycle concentrates the class signal into coordinated bursts that the readout can decode at lower total count, though this efficiency comes with a startup latency cost.
