@@ -1,0 +1,114 @@
+---
+import "../../styles/global.css";
+import ThemeToggle from "../../components/ThemeToggle.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+
+const articleModules = import.meta.glob("./*.mdx", { eager: true });
+const articles = Object.entries(articleModules)
+  .map(([path, mod]) => {
+    const slug = path
+      .split("/")
+      .pop()
+      .replace(/\.mdx$/, "");
+    const fm = mod.frontmatter;
+    return {
+      slug,
+      entry: fm.entry,
+      title: String(fm.title).replace(/^\d+\s*[—–-]\s*/, ""),
+      date: fm.date,
+    };
+  })
+  .sort((a, b) => b.entry - a.entry);
+
+const formatDate = (raw) => {
+  const d =
+    raw instanceof Date
+      ? raw
+      : new Date(String(raw).includes("T") ? String(raw) : String(raw) + "T00:00:00Z");
+  if (isNaN(d.getTime())) return String(raw);
+  const day = d.getUTCDate();
+  const suffix =
+    day % 100 >= 11 && day % 100 <= 13
+      ? "th"
+      : day % 10 === 1
+        ? "st"
+        : day % 10 === 2
+          ? "nd"
+          : day % 10 === 3
+            ? "rd"
+            : "th";
+  const month = d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
+  const year = d.getUTCFullYear();
+  return `${day}${suffix} ${month} ${year}`;
+};
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Articles — Pinglab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap"
+      rel="stylesheet"
+    />
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme");
+          var resolved =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", resolved);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="fixed top-4 right-4 z-40">
+      <ThemeToggle />
+    </div>
+    <main class="px-6 pt-16 pb-64 lg:px-12 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[90rem] mx-auto">
+        <SiteHeader />
+
+        <div class="mt-10 flex flex-col gap-12 max-w-3xl">
+          <section>
+            <p class="mb-2 text-xs uppercase tracking-wider text-muted">Articles</p>
+            {
+              articles.length > 0 ? (
+                <ol class="pl-0 list-none m-0 text-[0.95rem]">
+                  {articles.map((a) => (
+                    <li class="flex items-baseline gap-3 py-[0.3rem]">
+                      <a
+                        href={`/articles/${a.slug}/`}
+                        class="w-4 shrink-0 tabular-nums text-muted-soft"
+                      >
+                        {String(a.entry).padStart(1, "0")}.
+                      </a>
+                      <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
+                        {a.title}
+                      </a>
+                      <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                        {formatDate(a.date)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p class="text-sm text-muted">None yet.</p>
+              )
+            }
+          </section>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
