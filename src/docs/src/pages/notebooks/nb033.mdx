@@ -240,6 +240,50 @@ $$
 
 Two diagonal blocks couple through the off-diagonal terms $W^{EI}, W^{IE}$ and the gain derivatives $\Phi'_E, \Phi'_I$. The block structure reflects the E↔I↔E feedback loop with explicit synaptic filters.
 
+### A 2D alternative: cubic-in-rate Wilson-Cowan
+
+The 4D system above is one way to recover a Hopf bifurcation despite our zero diagonal. The other way is to stay 2D in $(E, I)$ but add a cubic self-feedback term to the E equation. This is the standard FitzHugh-Nagumo / Wilson-1999 / Hindmarsh-Rose move, and it gives a 2D system that admits clean phase-plane analysis at the cost of an extra modelling assumption.
+
+**Where the cubic comes from.** Taylor-expand the sigmoid gain function $\Phi_E$ around the silent fixed point, keeping terms to cubic order:
+
+$$
+\Phi_E(\text{drive}) \;\approx\; \Phi_E(0) + a\,\text{drive} + b\,\text{drive}^3 \tag{9}
+$$
+
+The even-order terms vanish because $\Phi_E$ is approximately odd around its inflection point ($\Phi''_E(0) = 0$ at the inflection of any symmetric sigmoid). For a sigmoid like $1/(1 + e^{-x})$, $a > 0$ and $b < 0$ (the leading correction *suppresses* response away from the inflection). For drive = $I_\text{ext} - W^{IE} I$, substituting (9) into the rate equation and using self-consistency at the fixed point to re-express the cubic in terms of $E$ rather than the raw drive, the system reduces to the FitzHugh-Nagumo form
+
+$$
+\tau_E\,\dot E = -E + \alpha\,E - \beta\,E^3 - \gamma\,I + I_\text{ext} \tag{10a}
+$$
+
+$$
+\tau_I\,\dot I = -I + \delta\,E \tag{10b}
+$$
+
+with $\alpha, \beta, \gamma, \delta > 0$ constants read off from the gain expansion: $\alpha$ from the linear part of $\Phi_E$ (post-substitution), $\beta$ from the cubic part (positive because of the sign change above), $\gamma = a\,W^{IE}$, and $\delta$ from the linearisation of $\Phi_I$.
+
+**Why the E³ term fixes the Hopf problem.** Compute the Jacobian of (10a)–(10b) at a fixed point $E^\star$:
+
+$$
+J_{\text{cubic}} = \begin{pmatrix} (-1 + \alpha - 3\beta (E^\star)^2)/\tau_E & -\gamma/\tau_E \\ \delta/\tau_I & -1/\tau_I \end{pmatrix} \tag{11}
+$$
+
+The diagonal $\partial \dot E / \partial E$ now contains $\alpha$. For small $E^\star$ (near the silent fixed point), it equals $(-1 + \alpha)/\tau_E$, which is **positive when $\alpha > 1$**. The trace is
+
+$$
+\text{tr}(J_\text{cubic}) = (-1 + \alpha - 3\beta (E^\star)^2)/\tau_E - 1/\tau_I
+$$
+
+which crosses zero when $\alpha - 3\beta (E^\star)^2 = 1 + \tau_E/\tau_I$. As $I_\text{ext}$ grows and the fixed point moves up, $E^\star$ grows; the cubic eventually dominates and the trace returns to negative. The crossings are the Hopf bifurcations. Past the bifurcation, the cubic damping $-3\beta(E^\star)^2$ stabilises the limit cycle at finite amplitude.
+
+The mechanism: the E³ term provides the saturating self-feedback that the synaptic phase delays would otherwise provide in the 4D system. Both routes give the same near-Hopf normal form; the difference is which physical effect carries the phase lag.
+
+**Two routes to the cubic.** Route (a) — expanding the sigmoid as above — produces the cleanest closed form. Route (b) is the canonical Wilson-Cowan move: keep the $(1 - r_e E)$ refractory prefactor multiplying $\Phi_E$. The cross product expands to give an $E \cdot \Phi_E$ term and, on Taylor expansion of $\Phi_E$, indirectly produces quadratic and cubic terms in $E$. Both produce a Hopf-capable 2D system; (a) is cleaner for analysing $\ell_1$ in closed form, (b) is closer to the 1972 paper.
+
+**Tradeoff.** Pros of the 2D-cubic system over our 4D one: clean phase-plane analysis, closed-form fixed points, $\ell_1$ tractable analytically, immediate connection to a well-studied normal form (Bautin / Stuart-Landau). Cons: the $\alpha$, $\beta$, $\gamma$, $\delta$ constants are abstract polynomial-fit parameters rather than direct biophysical quantities, so connecting them back to $\tau_\text{AMPA}, \tau_\text{GABA}$ and the spiking model takes an extra calibration step. The 4D system keeps all biophysical parameters explicit at the cost of higher dimensionality.
+
+**Recommendation.** Implement both: the 4D system for direct mapping to nb024's empirical sweeps (each biophysical parameter has a clear analogue), and the 2D-cubic system for analytical clarity about super- vs subcritical Hopf and as a benchmark to confirm the 4D results' qualitative features survive the additional reduction. If they agree on $I_\text{ext}^\star$, $\omega^\star$, and the sign of $\ell_1$, both reductions are credible; if they disagree, the source of the disagreement is itself diagnostic.
+
 ### Predicted bifurcation behaviour
 
 Eigenvalues of (8) come in two complex-conjugate pairs in the regime where the loop is engaged. The Hopf criterion is that the pair with larger real part crosses the imaginary axis as $I_\text{ext}$ increases through some critical value $I_\text{ext}^\star$.
@@ -311,10 +355,10 @@ These approximations are standard in the literature and don't invalidate the fra
 
 The numerics:
 
-1. Fit $\Phi_E, \Phi_I$ to single-LIF f-I curves at the E and I parameter sets (from [art003](/articles/art003/)).
-2. Implement the 4D system numerically; sweep $I_\text{ext}$ and compute eigenvalues at each value.
-3. Find the smallest $I_\text{ext}^\star$ with $\max_k \mathrm{Re}(\lambda_k) = 0$.
-4. Plot eigenvalue trajectories in the complex plane as $I_\text{ext}$ sweeps.
+1. Fit $\Phi_E, \Phi_I$ to single-LIF f-I curves at the E and I parameter sets (from [art003](/articles/art003/)). Also fit the cubic coefficients $(\alpha, \beta)$ of the 2D-cubic reduction by Taylor expansion of the sigmoid fit.
+2. Implement both reductions numerically: the **4D** system (state $(E, I, g_e^I, g_i^E)$) and the **2D-cubic** system (state $(E, I)$, eqs 10a–10b). Sweep $I_\text{ext}$ and compute eigenvalues at each value.
+3. Find the smallest $I_\text{ext}^\star$ with $\max_k \mathrm{Re}(\lambda_k) = 0$ — for both reductions.
+4. Plot eigenvalue trajectories in the complex plane as $I_\text{ext}$ sweeps. Compare 4D vs 2D-cubic: if both predict similar $I_\text{ext}^\star$ and $\omega^\star$ at the bifurcation, the reductions agree; if not, the disagreement is itself diagnostic about which approximation matters.
 5. **Criticality check.** Two complementary methods, used together:
    - **Analytical**: evaluate Kuznetsov's $\ell_1$ at $I_\text{ext}^\star$ (right and left eigenvectors, plus $B$ and $C$ from second/third derivatives of $\Phi$). Sign of $\ell_1$ determines super- vs subcritical.
    - **Numerical**: integrate the ODE at $\{I_\text{ext}^\star - \delta, \ldots, I_\text{ext}^\star + \delta\}$ from small perturbations of the silent fixed point. Plot asymptotic oscillation amplitude $A$ vs $I_\text{ext}$; fit $A^2 \propto (I_\text{ext} - I_\text{ext}^\star)$. Also do a forward-then-backward sweep to test for hysteresis.
