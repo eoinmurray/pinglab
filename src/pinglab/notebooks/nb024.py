@@ -2408,6 +2408,124 @@ def plot_coupling_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
 # ── End coupling sweep ────────────────────────────────────────────────
 
 
+# ── W_ei × W_ie training grid sweep (GH #29) ─────────────────────────
+#
+# Train one PING-architecture network per cell of a 2D grid of (W_ei,
+# W_ie) initialisations, all under heavy spike penalty (θ_u = 0.2).
+# Read final test accuracy, E rate, I rate. Plot three heatmaps. The
+# question: does the (acc, rate) outcome cluster into a PING-like
+# region and a COBA-like region depending on coupling strength?
+
+WEI_WIE_GRID_VALUES: list[float] = [0.0, 0.25, 0.5, 1.0, 2.0]  # absolute means
+WEI_WIE_GRID_STD_FRAC: float = 0.1   # init std = STD_FRAC × mean
+WEI_WIE_GRID_THETA_U: float = 0.2
+WEI_WIE_GRID_SEED: int = SEED_SWEEP
+
+
+def wei_wie_grid_cell_dir(w_ei: float, w_ie: float) -> Path:
+    """Per-cell artifact directory for the (W_ei, W_ie) grid."""
+    a = f"{w_ei:g}".replace(".", "p")
+    b = f"{w_ie:g}".replace(".", "p")
+    return ARTIFACTS / f"ping__wei_wie_grid__wei{a}__wie{b}"
+
+
+def build_wei_wie_grid_args(
+    w_ei: float, w_ie: float, tier: str, out_dir: Path,
+) -> list[str]:
+    """Train PING with explicit --w-ei and --w-ie overrides plus θ_u
+    rate penalty. Uses the standard PING recipe in MODEL_RECIPES
+    (--ei-strength 1 is left in so other fields keep their defaults,
+    but --w-ei and --w-ie override its effect)."""
+    recipe = dict(MODEL_RECIPES["ping"])
+    args = [
+        "train",
+        "--model", recipe["__build_as"],
+        "--dataset", "mnist",
+        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--t-ms", str(T_MS),
+        "--dt", str(DT_TRAIN),
+        "--seed", str(WEI_WIE_GRID_SEED),
+        "--out-dir", str(out_dir),
+        "--wipe-dir",
+    ]
+    for k, v in recipe.items():
+        if k.startswith("__"):
+            continue
+        if v is True:
+            args.append(k)
+        elif v is not None:
+            args += [k, v]
+    # Explicit overrides for W_ei, W_ie (these take precedence over
+    # what --ei-strength would have set).
+    args += [
+        "--w-ei", str(w_ei), str(max(w_ei * WEI_WIE_GRID_STD_FRAC, 1e-6)),
+        "--w-ie", str(w_ie), str(max(w_ie * WEI_WIE_GRID_STD_FRAC, 1e-6)),
+        "--fr-reg-upper-theta", str(WEI_WIE_GRID_THETA_U),
+        "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
+    ]
+    return args
+
+
+def plot_wei_wie_grid(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Three heatmaps on the (W_ei, W_ie) grid: accuracy, E rate, I rate.
+    I rate is the PING-vs-COBA cluster discriminator."""
+    import numpy as np
+    theme.apply()
+    fig, axes = plt.subplots(1, 3, figsize=(13.0, 4.5), dpi=150)
+    g = WEI_WIE_GRID_VALUES
+    n = len(g)
+    val_to_idx = {v: i for i, v in enumerate(g)}
+    A_acc = np.full((n, n), np.nan)
+    A_e = np.full((n, n), np.nan)
+    A_i = np.full((n, n), np.nan)
+    for r in rows:
+        i = val_to_idx[r["w_ei"]]
+        j = val_to_idx[r["w_ie"]]
+        A_acc[i, j] = r["final_acc"]
+        A_e[i, j] = r["rate_e"]
+        A_i[i, j] = r["rate_i"]
+    for ax, A, title, cbar_label in [
+        (axes[0], A_acc, "Test accuracy (%)", "%"),
+        (axes[1], A_e, "Hidden E rate (Hz)", "Hz"),
+        (axes[2], A_i, "Hidden I rate (Hz)", "Hz"),
+    ]:
+        im = ax.imshow(
+            A, origin="lower", cmap="viridis",
+            extent=[-0.5, n - 0.5, -0.5, n - 0.5], aspect="equal",
+        )
+        ax.set_xticks(range(n))
+        ax.set_yticks(range(n))
+        ax.set_xticklabels([f"{v:g}" for v in g])
+        ax.set_yticklabels([f"{v:g}" for v in g])
+        ax.set_xlabel("$W^{IE}$ mean", fontsize=theme.SIZE_LABEL)
+        ax.set_ylabel("$W^{EI}$ mean", fontsize=theme.SIZE_LABEL)
+        ax.set_title(title, fontsize=theme.SIZE_TITLE)
+        # annotate cells with values
+        for i in range(n):
+            for j in range(n):
+                v = A[i, j]
+                if not np.isnan(v):
+                    ax.text(
+                        j, i, f"{v:.1f}",
+                        ha="center", va="center",
+                        fontsize=theme.SIZE_ANNOTATION,
+                        color="white" if v < (np.nanmax(A) + np.nanmin(A)) / 2 else "black",
+                    )
+        fig.colorbar(im, ax=ax, label=cbar_label, fraction=0.046, pad=0.04)
+    fig.suptitle(
+        f"5×5 (W_ei, W_ie) training grid at $\\theta_u = {WEI_WIE_GRID_THETA_U:g}$",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+# ── End W_ei × W_ie grid sweep ───────────────────────────────────────
+
+
 def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
     floor = float(MIN_ACC_BY_TIER[tier])
     figs_root = figures.parents[2]
@@ -2438,6 +2556,7 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("w_in_scale_sweep.png", "W_in scale sweep rendered"),
         artifact("latency.png", "latency plot rendered"),
         artifact("coupling_sweep.png", "coupling sweep rendered"),
+        artifact("wei_wie_grid.png", "W_ei × W_ie grid rendered"),
         artifact("fi_curve__ping.png", "f-I curve rendered"),
         artifact("fi_curve_uniform.png", "uniform-input f-I curve rendered"),
         artifact(
@@ -2580,6 +2699,26 @@ def main() -> None:
                 out,
                 gpu_override=gpu_override,
             )
+        # W_ei × W_ie 5×5 training grid (GH #29).
+        for w_ei in WEI_WIE_GRID_VALUES:
+            for w_ie in WEI_WIE_GRID_VALUES:
+                out = wei_wie_grid_cell_dir(w_ei, w_ie)
+                if only_missing and (out / "metrics.json").exists():
+                    print(
+                        f"[skip] wei_wie_grid/{w_ei}/{w_ie} already trained → "
+                        f"{out.relative_to(REPO)}"
+                    )
+                    continue
+                print(
+                    f"[train] wei_wie_grid/wei={w_ei}/wie={w_ie} → "
+                    f"{out.relative_to(REPO)}"
+                    + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+                )
+                dispatcher.submit(
+                    build_wei_wie_grid_args(w_ei, w_ie, tier, out),
+                    out,
+                    gpu_override=gpu_override,
+                )
         dispatcher.drain()
 
     rows: list[dict] = []
@@ -2798,6 +2937,32 @@ def main() -> None:
     )
     print(f"wrote {FIGURES / 'coupling_sweep.png'}")
 
+    # W_ei × W_ie 5×5 training grid (GH #29).
+    print("[wei-wie-grid] reading metrics from 5×5 grid trainings")
+    wei_wie_rows: list[dict] = []
+    for w_ei in WEI_WIE_GRID_VALUES:
+        for w_ie in WEI_WIE_GRID_VALUES:
+            run_dir = wei_wie_grid_cell_dir(w_ei, w_ie)
+            metrics_path = run_dir / "metrics.json"
+            if not metrics_path.exists():
+                print(f"  missing: {run_dir.name} (skipping in plot)")
+                continue
+            metrics = load_metrics(run_dir)
+            last = metrics["epochs"][-1]
+            wei_wie_rows.append({
+                "w_ei": float(w_ei),
+                "w_ie": float(w_ie),
+                "best_acc": float(metrics["best_acc"]),
+                "final_acc": float(last["acc"]),
+                "rate_e": float(last.get("rate_e") or 0.0),
+                "rate_i": float(last.get("rate_i") or 0.0),
+            })
+    if wei_wie_rows:
+        plot_wei_wie_grid(
+            wei_wie_rows, FIGURES / "wei_wie_grid.png", notebook_run_id,
+        )
+        print(f"wrote {FIGURES / 'wei_wie_grid.png'}")
+
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
     crits = evaluate_success(rows, tier, FIGURES)
@@ -2831,6 +2996,7 @@ def main() -> None:
         "w_in_scale_sweep": w_in_scale_rows,
         "latency": latency_rows,
         "coupling_sweep": coupling_rows,
+        "wei_wie_grid": wei_wie_rows,
         "fi_sweep_uniform": fi_rows,
         "fi_sweep_uniform_zoom": fi_rows_zoom,
         "success_criteria": crits,
