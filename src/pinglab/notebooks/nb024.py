@@ -2404,54 +2404,6 @@ def plot_coupling_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
-def _recruitment_edge(rows: list[dict], i_rate_threshold: float = 0.5) -> float:
-    """Return the smallest W_in scale s in `rows` at which I rate first
-    exceeds the threshold (Hz). If none, returns the largest s. Assumes
-    `rows` is sorted ascending by scale."""
-    for r in rows:
-        if r["rate_i"] >= i_rate_threshold:
-            return r["scale"]
-    return rows[-1]["scale"]
-
-
-def plot_coupling_boundary(rows: list[dict], out_path: Path, run_id: str) -> None:
-    """Phase-boundary plot: for each (axis, coupling_scale), locate
-    s* (the smallest W_in scale at which I first fires reliably) and
-    plot s* against coupling scale. Two curves: vary W^{EI} and vary
-    W^{IE}."""
-    theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    for axis_key, label, color, marker in [
-        ("W_ei", "$W^{EI}$ scale", theme.INK_BLACK, "o"),
-        ("W_ie", "$W^{IE}$ scale", theme.DEEP_RED, "s"),
-    ]:
-        xs, ys = [], []
-        for c_scale in COUPLING_SCALE_VALUES:
-            msel = sorted(
-                [
-                    r for r in rows
-                    if r["axis"] == axis_key and r["coupling_scale"] == c_scale
-                ],
-                key=lambda r: r["scale"],
-            )
-            if not msel:
-                continue
-            s_star = _recruitment_edge(msel)
-            xs.append(c_scale)
-            ys.append(s_star)
-        ax.plot(xs, ys, marker=marker, color=color, lw=1.5, label=label)
-    ax.set_xlabel("Coupling scale", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("Recruitment edge $s^\\star$", fontsize=theme.SIZE_LABEL)
-    ax.set_title(
-        "Phase boundary: smallest $W_\\text{in}$ scale that engages the loop",
-        fontsize=theme.SIZE_TITLE,
-    )
-    ax.legend(fontsize=theme.SIZE_LABEL, frameon=False)
-    fig.tight_layout()
-    _stamp(fig, run_id)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
 
 # ── End coupling sweep ────────────────────────────────────────────────
 
@@ -2486,7 +2438,6 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("w_in_scale_sweep.png", "W_in scale sweep rendered"),
         artifact("latency.png", "latency plot rendered"),
         artifact("coupling_sweep.png", "coupling sweep rendered"),
-        artifact("coupling_boundary.png", "coupling boundary rendered"),
         artifact("fi_curve__ping.png", "f-I curve rendered"),
         artifact("fi_curve_uniform.png", "uniform-input f-I curve rendered"),
         artifact(
@@ -2846,10 +2797,6 @@ def main() -> None:
         coupling_rows, FIGURES / "coupling_sweep.png", notebook_run_id,
     )
     print(f"wrote {FIGURES / 'coupling_sweep.png'}")
-    plot_coupling_boundary(
-        coupling_rows, FIGURES / "coupling_boundary.png", notebook_run_id,
-    )
-    print(f"wrote {FIGURES / 'coupling_boundary.png'}")
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
