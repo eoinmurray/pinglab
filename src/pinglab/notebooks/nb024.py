@@ -892,6 +892,30 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def plot_fi_curve(samples: list[dict], out_path: Path, run_id: str) -> None:
+    """f-I curve from the same data that plot_rate_rasters consumed.
+    x-axis: input Poisson rate (Hz, per channel). y-axis: per-cell mean
+    firing rate of E (black) and I (red) populations across the trial."""
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    xs = [s["spike_rate"] for s in samples]
+    e_ys = [s["e_rate_hz"] for s in samples]
+    i_ys = [s["i_rate_hz"] for s in samples]
+    ax.plot(xs, e_ys, marker="o", color=theme.INK_BLACK, lw=1.5, label="E")
+    ax.plot(xs, i_ys, marker="s", color=theme.DEEP_RED, lw=1.5, label="I")
+    ax.set_xlabel("Input Poisson rate (Hz, per channel)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Per-cell firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.legend(fontsize=theme.SIZE_LABEL, frameon=False)
+    fig.suptitle(
+        "Trained PING f-I curve (MNIST digit 0)",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 PERTURB_DROP_LEVELS: list[float] = [round(x * 0.1, 2) for x in range(11)]  # 0.0..1.0
 PERTURB_ADD_LEVELS: list[float] = [float(x) for x in range(0, 41, 2)]  # 0..40 Hz, 2 Hz steps
 PERTURB_RASTER_DROP_LEVELS: list[float] = [0.0, 0.3, 0.6, 0.8, 0.9, 1.0]
@@ -2329,6 +2353,7 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("latency.png", "latency plot rendered"),
         artifact("coupling_sweep.png", "coupling sweep rendered"),
         artifact("coupling_boundary.png", "coupling boundary rendered"),
+        artifact("fi_curve__ping.png", "f-I curve rendered"),
         artifact(
             "w_in_scale_sweep_vs_rate.png",
             "W_in scale sweep vs E rate rendered",
@@ -2545,6 +2570,8 @@ def main() -> None:
         rate_samples, FIGURES / "rate_rasters__ping.png", notebook_run_id
     )
     print(f"wrote {FIGURES / 'rate_rasters__ping.png'}")
+    plot_fi_curve(rate_samples, FIGURES / "fi_curve__ping.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'fi_curve__ping.png'}")
 
     # Hidden-layer perturbation sweep: drop spikes (Bernoulli mask) and
     # add Poisson noise spikes, applied inside the forward loop so the
