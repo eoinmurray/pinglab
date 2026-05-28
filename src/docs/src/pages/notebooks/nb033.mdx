@@ -124,6 +124,22 @@ Together with (i)–(ii), this is the 4D extended Wilson-Cowan system in state $
 | 4 | single relaxational mode at $\tau_E, \tau_I$ | sub-membrane dynamics, refractory effects |
 | 4D→2D | instantaneous synapses ($\tau_\text{AMPA}, \tau_\text{GABA} \to 0$) | the oscillation itself |
 
+### Comparison with canonical Wilson-Cowan (1972)
+
+Worth flagging where this derivation diverges from the canonical Wilson & Cowan paper, since the differences are load-bearing for the analysis below.
+
+**Variables.** WC's $E, I$ are *proportions of cells active per unit time*, dimensionless and bounded $\in [0, 1]$. Here we use population firing rates in Hz. Related by population size and the trial window, but WC's bounding shows up as an extra saturation factor that we drop (see refractoriness, below).
+
+**Coupling architecture.** WC's system uses four strictly positive coupling constants $c_1, c_2, c_3, c_4$ for E→E, I→E, E→I, I→I; *all four are non-zero* in the canonical model. Our network has $W^{EE} = W^{II} = 0$ (Börgers-style PING), so the analogues of $c_1$ and $c_4$ vanish. This is a structural simplification, not an approximation, and it has a sharp consequence for the analysis: WC's 2D system can Hopf because $c_1$ gives the Jacobian a positive diagonal entry that can drive the trace positive as $I_\text{ext}$ grows. Our 2D system cannot, because the trace is constant in $I_\text{ext}$ and strictly negative. The next subsection makes this concrete.
+
+**Refractoriness.** WC carries an explicit "sensitive-fraction" factor $1 - \int_{t-r}^t E\,dt'$ from refractory bookkeeping, which becomes a $(k_e - r_e E)$ prefactor on the sigmoid in their coarse-grained form. We omit it. The cost is over-estimating the population output at very high rates (LIF's $1/\tau_\text{ref}$ ceiling is folded into the gain $\Phi$ implicitly via its saturation shape). For the silent-fixed-point analysis we care about, this isn't load-bearing.
+
+**Synaptic timescales.** WC includes a synaptic kernel $\alpha(t - t')$ inside their drive integral, then *coarse-grains it away* via Taylor expansion, absorbing the synaptic dynamics into a single population time constant $\tau$. Their final system is 2D in $(E, I)$. We do not take this step: we keep AMPA and GABA conductance dynamics as separate state variables, giving a 4D system in $(E, I, g_e^I, g_i^E)$. This is the central methodological choice. Coarse-graining the synapses removes the phase-delay structure that closes the E↔I loop with a non-zero rotation in state space — exactly the structure that makes our system oscillate. WC's 2D form works as an oscillator only because $c_1 > 0$ provides an alternative source of instability we don't have access to.
+
+**Sigmoid origin.** WC derives the sigmoid response function from a distribution of single-cell thresholds (or synapse counts) across the population — a statistical-mechanical argument agnostic to the single-neuron model. Here we use the LIF f-I curve directly. The shape difference matters near rheobase, where LIF's gain has a square-root onset that the smooth WC sigmoid does not.
+
+**Verdict.** The derivation is faithfully in the WC tradition, but adapts three things for our system: strip $W^{EE}$ and $W^{II}$ (matches our architecture), keep synaptic dynamics explicit (preserves the oscillation that our zero-diagonal blocks would otherwise lose), drop the refractory saturation factor (negligible at the silent fixed point). WC's 2D form is the synapse-coarse-grained limit of our 4D system, but the limit is exactly the one that loses the dynamics we want to study.
+
 The first four approximations are standard and shared with most mean-field neural models. The fifth — collapsing synaptic dynamics — is the textbook Wilson-Cowan move, and it is the one we will *not* make.
 
 ### The standard Wilson-Cowan reduction
