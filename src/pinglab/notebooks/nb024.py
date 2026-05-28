@@ -897,20 +897,23 @@ FI_UNIFORM_RATES_HZ: list[float] = [
     12.0, 14.0, 16.0, 18.0, 20.0, 25.0, 30.0, 35.0, 40.0,
     50.0, 60.0, 70.0, 80.0, 90.0, 100.0,
 ]
+FI_UNIFORM_ZOOM_RATES_HZ: list[float] = [round(r, 2) for r in np.linspace(0.0, 10.0, 101)]
 FI_UNIFORM_BATCH: int = 32  # batch of uniform-1 inputs per rate; average over.
 
 
-def run_fi_sweep_uniform(notebook_run_id: str) -> list[dict]:
+def run_fi_sweep_uniform(notebook_run_id: str, rates: list[float] | None = None) -> list[dict]:
     """Population f-I curves on trained PING and COBA baselines (θ_u =
     off, seed 42) with spatially uniform Poisson input — every input
     channel firing at the same rate, no MNIST structure. For each rate
-    in FI_UNIFORM_RATES_HZ, average per-cell E and I firing rates over
-    FI_UNIFORM_BATCH trials."""
+    in `rates` (defaults to FI_UNIFORM_RATES_HZ), average per-cell E and
+    I firing rates over FI_UNIFORM_BATCH trials."""
     import torch
 
     import models as M
     from cli import EVAL_SEED, _auto_device, encode_batch
 
+    if rates is None:
+        rates = FI_UNIFORM_RATES_HZ
     device = _auto_device()
     rows: list[dict] = []
     for model in MODELS:
@@ -928,7 +931,7 @@ def run_fi_sweep_uniform(notebook_run_id: str) -> list[dict]:
         x_uniform = torch.ones(FI_UNIFORM_BATCH, M.N_IN, device=device)
         original_max_rate = M.max_rate_hz
         try:
-            for rate in FI_UNIFORM_RATES_HZ:
+            for rate in rates:
                 M.max_rate_hz = float(rate)
                 M.p_scale = M.max_rate_hz * M.dt / 1000.0
                 eval_gen = torch.Generator().manual_seed(EVAL_SEED)
@@ -947,24 +950,34 @@ def run_fi_sweep_uniform(notebook_run_id: str) -> list[dict]:
                     "e_rate_hz": float(e_rate),
                     "i_rate_hz": float(i_rate),
                 })
-                print(
-                    f"  {model:<5} input={rate:>5.1f} Hz  "
-                    f"E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
-                )
         finally:
             M.max_rate_hz = original_max_rate
             M.p_scale = M.max_rate_hz * M.dt / 1000.0
+        print(
+            f"  {model:<5} {len(rates)} rates done; "
+            f"E range {min(r['e_rate_hz'] for r in rows if r['model']==model):.2f}–"
+            f"{max(r['e_rate_hz'] for r in rows if r['model']==model):.2f} Hz"
+        )
     return rows
 
 
-def plot_fi_curve_uniform(rows: list[dict], out_path: Path, run_id: str) -> None:
-    """Two-panel f-I figure under spatially uniform Poisson input.
-    Left: PING — E (black) and I (red). Right: COBA — same. Lets you
-    read the I-loop's effect on E directly off each panel."""
+def plot_fi_curve_uniform(
+    rows: list[dict], out_path: Path, run_id: str,
+    zoom_rows: list[dict] | None = None,
+) -> None:
+    """Two-panel f-I figure under spatially uniform Poisson input:
+    PING (E + I) on the left, COBA (E + I) on the right. If `zoom_rows`
+    is provided, a third panel below adds the 0-10 Hz zoom overlaying
+    both models' E curves to expose the recruitment cliff."""
     theme.apply()
-    fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.5), dpi=150)
+    if zoom_rows is None:
+        fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.5), dpi=150)
+        top_axes = list(axes)
+    else:
+        fig, axes = plt.subplots(2, 2, figsize=(12.0, 9.0), dpi=150)
+        top_axes = list(axes[0])
     titles = {"ping": "PING (I-loop active)", "coba": "COBA (no I-loop)"}
-    for ax, model in zip(axes, MODELS):
+    for ax, model in zip(top_axes, MODELS):
         msel = sorted(
             [r for r in rows if r["model"] == model],
             key=lambda r: r["input_rate_hz"],
@@ -979,6 +992,30 @@ def plot_fi_curve_uniform(rows: list[dict], out_path: Path, run_id: str) -> None
         ax.set_ylabel("Per-cell firing rate (Hz)", fontsize=theme.SIZE_LABEL)
         ax.set_title(titles[model], fontsize=theme.SIZE_TITLE)
         ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper left")
+
+    if zoom_rows is not None:
+        # Bottom row: zoom 0-10 Hz, one panel per model, same scheme
+        # as the top row.
+        for ax, model in zip(axes[1], MODELS):
+            msel = sorted(
+                [r for r in zoom_rows if r["model"] == model],
+                key=lambda r: r["input_rate_hz"],
+            )
+            xs = [r["input_rate_hz"] for r in msel]
+            ax.plot(xs, [r["e_rate_hz"] for r in msel],
+                    color=theme.INK_BLACK, lw=1.5, label="E")
+            ax.plot(xs, [r["i_rate_hz"] for r in msel],
+                    color=theme.DEEP_RED, lw=1.5, label="I")
+            ax.set_xlabel("Input Poisson rate (Hz, per channel)",
+                          fontsize=theme.SIZE_LABEL)
+            ax.set_ylabel("Per-cell firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+            ax.set_title(
+                f"{titles[model]} — 0–10 Hz zoom",
+                fontsize=theme.SIZE_TITLE,
+            )
+            ax.set_xlim(0, 10)
+            ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper left")
+
     fig.suptitle(
         "Population f-I curves: trained PING and COBA, uniform Poisson input",
         fontsize=theme.SIZE_TITLE,
@@ -2672,10 +2709,13 @@ def main() -> None:
     print(f"wrote {FIGURES / 'fi_curve__ping.png'}")
 
     # Uniform-input f-I curves for PING and COBA — no MNIST structure.
-    print("[fi-sweep] uniform Poisson input on trained PING and COBA")
+    print("[fi-sweep] uniform Poisson input on trained PING and COBA (wide)")
     fi_rows = run_fi_sweep_uniform(notebook_run_id)
+    print("[fi-sweep] uniform Poisson input on trained PING and COBA (zoom 0–10 Hz)")
+    fi_rows_zoom = run_fi_sweep_uniform(notebook_run_id, rates=FI_UNIFORM_ZOOM_RATES_HZ)
     plot_fi_curve_uniform(
         fi_rows, FIGURES / "fi_curve_uniform.png", notebook_run_id,
+        zoom_rows=fi_rows_zoom,
     )
     print(f"wrote {FIGURES / 'fi_curve_uniform.png'}")
 
@@ -2845,6 +2885,7 @@ def main() -> None:
         "latency": latency_rows,
         "coupling_sweep": coupling_rows,
         "fi_sweep_uniform": fi_rows,
+        "fi_sweep_uniform_zoom": fi_rows_zoom,
         "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
