@@ -30,9 +30,105 @@ If the theory matches, the empirical story is grounded in a saddle-node-on-invar
 
 ## Method
 
+### Derivation of the Wilson-Cowan reduction from our spiking network
+
+We start from the microscopic equations and reduce them in four steps. The destination is a small system of ODEs in population-level variables; the cost is a series of explicit approximations, each worth flagging.
+
+**Step 1 — single-cell dynamics.** From [art003](/articles/art003/), an E cell $j$ obeys
+
+$$
+C_m^E\,\dot V_j^E = -g_L^E(V_j^E - E_L) - g_{i,j}^E(V_j^E - E_I) + I_{\text{ext},j}(t) \tag{0a}
+$$
+
+(the AMPA term that would normally couple E to E is absent because $W^{EE} = 0$), and an I cell $k$ obeys
+
+$$
+C_m^I\,\dot V_k^I = -g_L^I(V_k^I - E_L) - g_{e,k}^I(V_k^I - E_E) \tag{0b}
+$$
+
+(no I→I term because $W^{II} = 0$). Spikes are emitted by threshold crossings and reset. The synaptic conductances are first-order low-pass filters of presynaptic spike trains:
+
+$$
+\tau_\text{AMPA}\,\dot g_{e,k}^I = -g_{e,k}^I + \sum_j W^{EI}_{kj}\,s_j^E(t) \tag{0c}
+$$
+
+$$
+\tau_\text{GABA}\,\dot g_{i,j}^E = -g_{i,j}^E + \sum_k W^{IE}_{jk}\,s_k^I(t) \tag{0d}
+$$
+
+where $s_j^E(t) = \sum_n \delta(t - t_{j,n})$ is the spike train of E cell $j$. This is the full COBANet, $2(N_E + N_I)$ ODEs plus discrete spike events.
+
+**Step 2 — population averaging.** Define the population firing rates as time-averaged densities:
+
+$$
+E(t) = \frac{1}{N_E}\sum_j s_j^E(t), \qquad I(t) = \frac{1}{N_I}\sum_k s_k^I(t)
+$$
+
+(in continuous-time these are point processes; mean-field treats $E, I$ as smooth functions equal to the expected firing rate over a small averaging window). Substituting into (0c) and assuming all entries $W^{EI}_{kj} = w^{EI}$ are statistically identical (homogeneous coupling — first approximation), the conductance felt by any I cell is the same:
+
+$$
+\sum_j W^{EI}_{kj}\,s_j^E(t) \;=\; w^{EI}\,\sum_j s_j^E(t) \;=\; (w^{EI} N_E)\,E(t) \;\equiv\; \tilde W^{EI}\,E(t)
+$$
+
+with $\tilde W^{EI} \equiv w^{EI} N_E$ the population-level coupling (units of conductance per unit rate). Similarly $\tilde W^{IE} \equiv w^{IE} N_I$. With homogeneous coupling, $g_{e,k}^I \to g_e^I$ and $g_{i,j}^E \to g_i^E$ — single population-level conductances — and (0c)–(0d) collapse to
+
+$$
+\tau_\text{AMPA}\,\dot g_e^I = -g_e^I + \tilde W^{EI}\,E \tag{i}
+$$
+
+$$
+\tau_\text{GABA}\,\dot g_i^E = -g_i^E + \tilde W^{IE}\,I \tag{ii}
+$$
+
+**Step 3 — linearise the driving force.** The synaptic term $-g(V - E_\text{rev})$ is bilinear in conductance and voltage. The standard mean-field move is to approximate $V$ as roughly constant around the operating point (typically $V \approx V_\text{rest}$, second approximation, the strongest one). Then the inhibitory current on E cells becomes
+
+$$
+-g_i^E(V_j^E - E_I) \;\approx\; -g_i^E(V_\text{rest} - E_I) \;=\; -g_i^E\,\Delta V_\text{inh}
+$$
+
+with $\Delta V_\text{inh} = V_\text{rest} - E_I = -65 - (-80) = 15$ mV. The driving force becomes a constant. Similarly the excitatory current on I cells: $-g_e^I(V_k^I - E_E) \approx +g_e^I \Delta V_\text{exc}$ with $\Delta V_\text{exc} = E_E - V_\text{rest} = 65$ mV (this sign is positive because $E_E > V_\text{rest}$, depolarising).
+
+With $V$ approximated as constant, the dynamics of (0a) and (0b) become effectively linear in the synaptic currents, so the steady-state population firing rate is a function of the current alone — a single-neuron f-I curve evaluated at the effective drive:
+
+$$
+E_\infty(t) = \Phi_E\!\left(I_\text{ext}(t) - g_i^E\,\Delta V_\text{inh}\right)
+$$
+
+$$
+I_\infty(t) = \Phi_I\!\left(g_e^I\,\Delta V_\text{exc}\right)
+$$
+
+**Step 4 — add finite population time constants.** The "instantaneous" $E_\infty, I_\infty$ above ignore the membrane time constants of E and I cells. To capture the lag from drive to firing, the populations obey relaxation dynamics toward $E_\infty, I_\infty$ with time constants $\tau_E, \tau_I$ set by the membrane integration time (third approximation — population firing rate as a single relaxational mode):
+
+$$
+\tau_E\,\dot E = -E + \Phi_E(I_\text{ext} - g_i^E\,\Delta V_\text{inh}) \tag{iii}
+$$
+
+$$
+\tau_I\,\dot I = -I + \Phi_I(g_e^I\,\Delta V_\text{exc}) \tag{iv}
+$$
+
+Together with (i)–(ii), this is the 4D extended Wilson-Cowan system in state $(E, I, g_e^I, g_i^E)$.
+
+**Step 5 — absorb constants.** Define current-units coupling constants $W^{IE} = \tilde W^{IE}\,\Delta V_\text{inh}$ and $W^{EI} = \tilde W^{EI}\,\Delta V_\text{exc}$, and rescale $g \mapsto g \cdot \Delta V$ so the conductances are in current units throughout. Then (i)–(iv) become the standard form used below.
+
+**Final approximation — instantaneous synapses.** If we further drop synaptic timescales ($\tau_\text{AMPA}, \tau_\text{GABA} \to 0$), $g_e^I \to W^{EI} E$ and $g_i^E \to W^{IE} I$ instantaneously, collapsing (i)–(iv) to the textbook 2D Wilson-Cowan system. Whether this is valid is precisely the question of the next subsection — it turns out *not* to be, because the synaptic timescales are what make the system oscillate.
+
+### Summary of approximations
+
+| Step | Approximation | What's lost |
+|---|---|---|
+| 2 | homogeneous coupling | weight heterogeneity, structured connectivity |
+| 2 | population firing rate as a smooth function | finite-size noise, asynchronous-irregular variability |
+| 3 | $V$ approximately constant in driving force | shunting effects, threshold-crossing nonlinearity |
+| 4 | single relaxational mode at $\tau_E, \tau_I$ | sub-membrane dynamics, refractory effects |
+| 4D→2D | instantaneous synapses ($\tau_\text{AMPA}, \tau_\text{GABA} \to 0$) | the oscillation itself |
+
+The first four approximations are standard and shared with most mean-field neural models. The fifth — collapsing synaptic dynamics — is the textbook Wilson-Cowan move, and it is the one we will *not* make.
+
 ### The standard Wilson-Cowan reduction
 
-The textbook Wilson-Cowan system for two coupled populations is
+After all the simplifying approximations above plus the synapse-instantaneous limit, the textbook system is
 
 $$
 \tau_E\,\dot E = -E + \Phi_E\!\left(W^{EE} E - W^{IE} I + I_\text{ext}\right) \tag{1}
@@ -42,7 +138,7 @@ $$
 \tau_I\,\dot I = -I + \Phi_I\!\left(W^{EI} E - W^{II} I\right) \tag{2}
 $$
 
-with $E$, $I$ the population firing rates, $\Phi$ a monotone nonlinear gain function (the f-I curve of a single neuron, averaged across the population), $W^{**}$ the synaptic coupling matrices, $\tau_E, \tau_I$ population time constants, and $I_\text{ext}$ the external drive.
+with $E$, $I$ the population firing rates, $\Phi$ the monotone nonlinear gain function from Step 3, $W^{**}$ the population-level coupling matrices from Step 2 (rescaled by driving forces in Step 5), $\tau_E, \tau_I$ from Step 4, and $I_\text{ext}$ the external drive.
 
 For our network the architecture sets
 
@@ -93,17 +189,7 @@ This is a mathematical fact, not a numerical artefact. With no positive-feedback
 
 ### Where the oscillation lives: synaptic timescales
 
-The 2D reduction collapses synaptic dynamics into instantaneous coupling. In the actual network, the conductances $g$ are *low-pass-filtered* versions of presynaptic spike trains with their own time constants $\tau_\text{AMPA}$ and $\tau_\text{GABA}$. Specifically:
-
-$$
-\tau_\text{AMPA}\,\dot g_e^I = -g_e^I + W^{EI} E \tag{6}
-$$
-
-$$
-\tau_\text{GABA}\,\dot g_i^E = -g_i^E + W^{IE} I \tag{7}
-$$
-
-where $g_e^I$ is the AMPA conductance on the I population (driven by E spikes) and $g_i^E$ is the GABA conductance on the E population (driven by I spikes). The rate equations now depend on these slow variables rather than on $E, I$ directly:
+The 2D reduction is the synapse-instantaneous limit of the 4D system derived above — it drops equations (i)–(ii) by sending $\tau_\text{AMPA}, \tau_\text{GABA} \to 0$. The 4D system
 
 $$
 \tau_E\,\dot E = -E + \Phi_E(I_\text{ext} - g_i^E) \tag{1''}
@@ -113,7 +199,15 @@ $$
 \tau_I\,\dot I = -I + \Phi_I(g_e^I) \tag{2''}
 $$
 
-This is a 4D system in state $(E, I, g_e^I, g_i^E)$. The synaptic time constants $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms introduce phase delays that close the E↔I loop with a non-zero rotation in state space — the geometric source of the oscillation. In the limit $\tau_\text{AMPA}, \tau_\text{GABA} \to 0$ the system collapses back to the 2D Wilson-Cowan equations (1')–(2'), which we just showed cannot oscillate.
+$$
+\tau_\text{AMPA}\,\dot g_e^I = -g_e^I + W^{EI} E \tag{6}
+$$
+
+$$
+\tau_\text{GABA}\,\dot g_i^E = -g_i^E + W^{IE} I \tag{7}
+$$
+
+(state variables $E, I, g_e^I, g_i^E$, where $g_e^I$ is AMPA on I cells, $g_i^E$ is GABA on E cells, all in current units after the rescaling of Step 5) is what we keep. The synaptic time constants $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms introduce phase delays that close the E↔I loop with a non-zero rotation in state space — the geometric source of the oscillation.
 
 ### The 4D Jacobian
 
