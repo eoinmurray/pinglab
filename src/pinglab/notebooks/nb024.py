@@ -892,6 +892,110 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+FI_UNIFORM_RATES_HZ: list[float] = [
+    0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+    12.0, 14.0, 16.0, 18.0, 20.0, 25.0, 30.0, 35.0, 40.0,
+    50.0, 60.0, 70.0, 80.0, 90.0, 100.0,
+]
+FI_UNIFORM_BATCH: int = 32  # batch of uniform-1 inputs per rate; average over.
+
+
+def run_fi_sweep_uniform(notebook_run_id: str) -> list[dict]:
+    """Population f-I curves on trained PING and COBA baselines (θ_u =
+    off, seed 42) with spatially uniform Poisson input — every input
+    channel firing at the same rate, no MNIST structure. For each rate
+    in FI_UNIFORM_RATES_HZ, average per-cell E and I firing rates over
+    FI_UNIFORM_BATCH trials."""
+    import torch
+
+    import models as M
+    from cli import EVAL_SEED, _auto_device, encode_batch
+
+    device = _auto_device()
+    rows: list[dict] = []
+    for model in MODELS:
+        train_dir = baseline_dir(model)
+        if not (train_dir / "weights.pth").exists():
+            raise SystemExit(
+                f"f-I sweep needs trained {model} weights at {train_dir}"
+            )
+        net, cfg, _X_te, _y_te = _load_trained_full(train_dir, device)
+        net.eval()
+        net.recording = True
+        n_e = M.N_HID
+        n_i = M.N_INH or 1
+        t_sec = float(cfg["t_ms"]) / 1000.0
+        x_uniform = torch.ones(FI_UNIFORM_BATCH, M.N_IN, device=device)
+        original_max_rate = M.max_rate_hz
+        try:
+            for rate in FI_UNIFORM_RATES_HZ:
+                M.max_rate_hz = float(rate)
+                M.p_scale = M.max_rate_hz * M.dt / 1000.0
+                eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+                with torch.no_grad():
+                    spk = encode_batch(x_uniform, M.dt, False, generator=eval_gen)
+                    net(input_spikes=spk)
+                    e_spk_sum = float(net.spike_record["hid"].sum().item())
+                    i_spk_sum = float(net.spike_record["inh"].sum().item()) \
+                        if "inh" in net.spike_record else 0.0
+                e_rate = e_spk_sum / (FI_UNIFORM_BATCH * n_e * t_sec)
+                i_rate = i_spk_sum / (FI_UNIFORM_BATCH * n_i * t_sec) \
+                    if i_spk_sum else 0.0
+                rows.append({
+                    "model": model,
+                    "input_rate_hz": float(rate),
+                    "e_rate_hz": float(e_rate),
+                    "i_rate_hz": float(i_rate),
+                })
+                print(
+                    f"  {model:<5} input={rate:>5.1f} Hz  "
+                    f"E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
+                )
+        finally:
+            M.max_rate_hz = original_max_rate
+            M.p_scale = M.max_rate_hz * M.dt / 1000.0
+    return rows
+
+
+def plot_fi_curve_uniform(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Two-panel f-I figure under spatially uniform Poisson input.
+    Left: E rate vs input. Right: I rate vs input. PING and COBA on
+    each panel, no MNIST structure in the inputs."""
+    theme.apply()
+    fig, (ax_e, ax_i) = plt.subplots(1, 2, figsize=(12.0, 4.5), dpi=150)
+    styles = {
+        "ping": ("PING", theme.INK_BLACK, "o"),
+        "coba": ("COBA", theme.DEEP_RED, "s"),
+    }
+    for model in MODELS:
+        msel = sorted(
+            [r for r in rows if r["model"] == model],
+            key=lambda r: r["input_rate_hz"],
+        )
+        xs = [r["input_rate_hz"] for r in msel]
+        label, color, marker = styles[model]
+        ax_e.plot(xs, [r["e_rate_hz"] for r in msel],
+                  marker=marker, color=color, lw=1.5, label=label)
+        ax_i.plot(xs, [r["i_rate_hz"] for r in msel],
+                  marker=marker, color=color, lw=1.5, label=label)
+    for ax in (ax_e, ax_i):
+        ax.set_xlabel("Input Poisson rate (Hz, per channel)",
+                      fontsize=theme.SIZE_LABEL)
+        ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="lower right")
+    ax_e.set_ylabel("Per-cell E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax_e.set_title("E population", fontsize=theme.SIZE_TITLE)
+    ax_i.set_ylabel("Per-cell I rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax_i.set_title("I population", fontsize=theme.SIZE_TITLE)
+    fig.suptitle(
+        "Population f-I curves: trained PING vs COBA, uniform Poisson input",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_fi_curve(samples: list[dict], out_path: Path, run_id: str) -> None:
     """f-I curve from the same data that plot_rate_rasters consumed.
     x-axis: input Poisson rate (Hz, per channel). y-axis: per-cell mean
@@ -2354,6 +2458,7 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("coupling_sweep.png", "coupling sweep rendered"),
         artifact("coupling_boundary.png", "coupling boundary rendered"),
         artifact("fi_curve__ping.png", "f-I curve rendered"),
+        artifact("fi_curve_uniform.png", "uniform-input f-I curve rendered"),
         artifact(
             "w_in_scale_sweep_vs_rate.png",
             "W_in scale sweep vs E rate rendered",
@@ -2573,6 +2678,14 @@ def main() -> None:
     plot_fi_curve(rate_samples, FIGURES / "fi_curve__ping.png", notebook_run_id)
     print(f"wrote {FIGURES / 'fi_curve__ping.png'}")
 
+    # Uniform-input f-I curves for PING and COBA — no MNIST structure.
+    print("[fi-sweep] uniform Poisson input on trained PING and COBA")
+    fi_rows = run_fi_sweep_uniform(notebook_run_id)
+    plot_fi_curve_uniform(
+        fi_rows, FIGURES / "fi_curve_uniform.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'fi_curve_uniform.png'}")
+
     # Hidden-layer perturbation sweep: drop spikes (Bernoulli mask) and
     # add Poisson noise spikes, applied inside the forward loop so the
     # I-population and readout both react.
@@ -2738,6 +2851,7 @@ def main() -> None:
         "w_in_scale_sweep": w_in_scale_rows,
         "latency": latency_rows,
         "coupling_sweep": coupling_rows,
+        "fi_sweep_uniform": fi_rows,
         "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
