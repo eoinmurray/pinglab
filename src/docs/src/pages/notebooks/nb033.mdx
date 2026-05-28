@@ -1,0 +1,178 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "033 — Wilson-Cowan mean-field bifurcation analysis of PING"
+date: 2026-05-28
+entry: 33
+structure: paper
+collections: [theory]
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb033/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+[nb024](/notebooks/nb024/) characterised the PING rate floor empirically: a recruitment cliff at $f^\star$ where the I-loop engages, gamma cycle frequency set by $\tau_\text{AMPA} + \tau_\text{GABA}$, asymmetric coupling effects ($W^{EI}$ moves the cliff, $W^{IE}$ does not). Two observations sit at the centre of that story — a threshold and an oscillation frequency. Both are bifurcation phenomena, and the classical framework for them in coupled E–I populations is Wilson-Cowan mean-field analysis.
+
+This entry develops the theory. The numerics are deferred to a follow-up.
+
+The goal is to derive, from the equations alone:
+
+1. A predicted recruitment threshold $I_\text{ext}^\star$ matching the cliff in Figure 19 of nb024.
+2. A predicted gamma frequency $\omega^\star$ at the bifurcation, matching the measured cycle period.
+3. Coupling-dependence of both predictions — in particular, $I_\text{ext}^\star$ should depend on $W^{EI}$ but not on $W^{IE}$, matching nb024's coupling sweep.
+
+If the theory matches, the empirical story is grounded in a saddle-node-on-invariant-circle or Hopf bifurcation in a well-defined low-dimensional reduction. If it doesn't match, either the reduction is too crude or the empirical story needs revisiting.
+
+## Method
+
+### The standard Wilson-Cowan reduction
+
+The textbook Wilson-Cowan system for two coupled populations is
+
+$$
+\tau_E\,\dot E = -E + \Phi_E\!\left(W^{EE} E - W^{IE} I + I_\text{ext}\right) \tag{1}
+$$
+
+$$
+\tau_I\,\dot I = -I + \Phi_I\!\left(W^{EI} E - W^{II} I\right) \tag{2}
+$$
+
+with $E$, $I$ the population firing rates, $\Phi$ a monotone nonlinear gain function (the f-I curve of a single neuron, averaged across the population), $W^{**}$ the synaptic coupling matrices, $\tau_E, \tau_I$ population time constants, and $I_\text{ext}$ the external drive.
+
+For our network the architecture sets
+
+$$
+W^{EE} = 0, \qquad W^{II} = 0
+$$
+
+(Börgers-style PING, see [art003](/articles/art003/)). The reduced system is
+
+$$
+\tau_E\,\dot E = -E + \Phi_E\!\left(I_\text{ext} - W^{IE} I\right) \tag{1'}
+$$
+
+$$
+\tau_I\,\dot I = -I + \Phi_I\!\left(W^{EI} E\right) \tag{2'}
+$$
+
+### Fixed points
+
+Setting $\dot E = \dot I = 0$:
+
+$$
+E^\star = \Phi_E(I_\text{ext} - W^{IE} I^\star), \qquad I^\star = \Phi_I(W^{EI} E^\star) \tag{3}
+$$
+
+At $I_\text{ext}$ below rheobase the only fixed point is $(E^\star, I^\star) = (0, 0)$ (silent). As $I_\text{ext}$ grows past rheobase a non-zero fixed point appears.
+
+### Linearisation and the Hopf criterion
+
+The Jacobian of (1')–(2') at any fixed point is
+
+$$
+J = \begin{pmatrix}
+-1/\tau_E & -\Phi'_E\,W^{IE}/\tau_E \\
+\Phi'_I\,W^{EI}/\tau_I & -1/\tau_I
+\end{pmatrix} \tag{4}
+$$
+
+with $\Phi'_E, \Phi'_I$ evaluated at the fixed-point arguments. Trace and determinant:
+
+$$
+\mathrm{tr}(J) = -\frac{1}{\tau_E} - \frac{1}{\tau_I}, \qquad \det(J) = \frac{1}{\tau_E \tau_I} + \frac{\Phi'_E \Phi'_I \, W^{EI} W^{IE}}{\tau_E \tau_I} \tag{5}
+$$
+
+A Hopf bifurcation requires a pair of pure-imaginary eigenvalues, i.e. $\mathrm{tr}(J) = 0$ and $\det(J) > 0$. But $\mathrm{tr}(J) = -1/\tau_E - 1/\tau_I$ is constant in $I_\text{ext}$ and strictly negative. **The 2D Wilson-Cowan reduction with $W^{EE} = W^{II} = 0$ cannot exhibit a Hopf bifurcation.**
+
+This is a mathematical fact, not a numerical artefact. With no positive-feedback diagonal (no E→E self-excitation, no I→I disinhibition-by-cross-coupling), the trace cannot become positive. The silent fixed point is always damped, and any oscillation observed in the full network must come from somewhere outside the 2D reduction.
+
+### Where the oscillation lives: synaptic timescales
+
+The 2D reduction collapses synaptic dynamics into instantaneous coupling. In the actual network, the conductances $g$ are *low-pass-filtered* versions of presynaptic spike trains with their own time constants $\tau_\text{AMPA}$ and $\tau_\text{GABA}$. Specifically:
+
+$$
+\tau_\text{AMPA}\,\dot g_e^I = -g_e^I + W^{EI} E \tag{6}
+$$
+
+$$
+\tau_\text{GABA}\,\dot g_i^E = -g_i^E + W^{IE} I \tag{7}
+$$
+
+where $g_e^I$ is the AMPA conductance on the I population (driven by E spikes) and $g_i^E$ is the GABA conductance on the E population (driven by I spikes). The rate equations now depend on these slow variables rather than on $E, I$ directly:
+
+$$
+\tau_E\,\dot E = -E + \Phi_E(I_\text{ext} - g_i^E) \tag{1''}
+$$
+
+$$
+\tau_I\,\dot I = -I + \Phi_I(g_e^I) \tag{2''}
+$$
+
+This is a 4D system in state $(E, I, g_e^I, g_i^E)$. The synaptic time constants $\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} = 9$ ms introduce phase delays that close the E↔I loop with a non-zero rotation in state space — the geometric source of the oscillation. In the limit $\tau_\text{AMPA}, \tau_\text{GABA} \to 0$ the system collapses back to the 2D Wilson-Cowan equations (1')–(2'), which we just showed cannot oscillate.
+
+### The 4D Jacobian
+
+At any fixed point $(E^\star, I^\star, g_e^{I\star}, g_i^{E\star})$:
+
+$$
+J = \begin{pmatrix}
+-1/\tau_E & 0 & 0 & -\Phi'_E/\tau_E \\
+0 & -1/\tau_I & \Phi'_I/\tau_I & 0 \\
+W^{EI}/\tau_\text{AMPA} & 0 & -1/\tau_\text{AMPA} & 0 \\
+0 & W^{IE}/\tau_\text{GABA} & 0 & -1/\tau_\text{GABA}
+\end{pmatrix} \tag{8}
+$$
+
+Two diagonal blocks couple through the off-diagonal terms $W^{EI}, W^{IE}$ and the gain derivatives $\Phi'_E, \Phi'_I$. The block structure reflects the E↔I↔E feedback loop with explicit synaptic filters.
+
+### Predicted bifurcation behaviour
+
+Eigenvalues of (8) come in two complex-conjugate pairs in the regime where the loop is engaged. The Hopf criterion is that the pair with larger real part crosses the imaginary axis as $I_\text{ext}$ increases through some critical value $I_\text{ext}^\star$.
+
+Three predictions follow:
+
+1. **Recruitment threshold.** $I_\text{ext}^\star$ is the smallest external drive at which the real part of any eigenvalue becomes non-negative. Empirically this should align with the cliff in nb024's Figure 19 (≈1.6 Hz uniform input on trained PING).
+
+2. **Gamma frequency at onset.** At the Hopf crossing, the imaginary part of the bifurcating eigenvalues is the oscillation frequency $\omega^\star$. Order-of-magnitude estimate from balancing the synaptic timescales: $\omega^\star \approx 1/\sqrt{\tau_\text{AMPA} \tau_\text{GABA}} \approx 1/\sqrt{2 \cdot 9}$ ms$^{-1} \approx 240$ rad/s, or $f^\star = \omega^\star / 2\pi \approx 37$ Hz. This is in the right ballpark for cortical gamma; nb024's $\tau_\text{GABA}$ sweep can directly verify the predicted $\omega^\star(\tau_\text{GABA})$ scaling.
+
+3. **Coupling dependence.** Because $\det(J)$ and the imaginary-axis crossing condition both depend on the *product* $W^{EI} W^{IE}$ but the recruitment threshold $I_\text{ext}^\star$ specifically depends on the gain $\Phi'_E \Phi'_I$ at the fixed point (which itself depends on the path from silent to engaged), the cliff shifts with $W^{EI}$ in a specific way that the analysis can compute. nb024's coupling sweep (Figure 9) provides four data points to compare against.
+
+### The gain function $\Phi$
+
+The remaining modelling choice is what to use for $\Phi_E, \Phi_I$. Two options:
+
+- **Closed-form LIF f-I curve.** For a leaky integrate-and-fire neuron driven by constant current $I$, the firing rate is
+$$
+\Phi(I) = \begin{cases} \left[\tau_\text{ref} + \tau_m \ln\!\dfrac{I}{I - g_L(V_\text{th} - V_\text{reset})}\right]^{-1} & I > g_L(V_\text{th} - V_\text{reset}) \\ 0 & \text{otherwise} \end{cases}
+$$
+Stiff (zero below rheobase), but faithful to the model.
+
+- **Sigmoid.** $\Phi(x) = r_\text{max}/(1 + e^{-(x - \theta)/k})$ with $(\theta, k, r_\text{max})$ fit to the LIF curve. Smoother; better for symbolic analysis; loses the threshold.
+
+The numerics will use the closed-form LIF where possible, sigmoid as a sanity check.
+
+### Caveats
+
+- **Mean-field assumes asynchronous firing within each population.** PING is precisely the regime where this assumption fails — the populations fire in synchronous bursts. The Hopf calculation is most valid *at* the bifurcation point (oscillation amplitude infinitesimal); it loses faithfulness as the cycle grows.
+- **Conductance-based driving force is nonlinear in $V$.** The standard reduction absorbs $-(V - E_\text{rev})$ into the gain $\Phi$, which is fine at a single fixed point but distorts away from it.
+- **Refractory periods cap the gain.** $\Phi$ saturates at $1/\tau_\text{ref}$. The analysis assumes the relevant regime is below saturation.
+- **Heterogeneity.** E and I cells have different time constants; we use distinct $\tau_E, \tau_I$ to capture this but treat each population as homogeneous in firing rate.
+
+These approximations are standard in the literature and don't invalidate the framework; they bound how seriously to take the numbers.
+
+## Next steps
+
+The numerics:
+
+1. Fit $\Phi_E, \Phi_I$ to single-LIF f-I curves at the E and I parameter sets (from [art003](/articles/art003/)).
+2. Implement the 4D system numerically; sweep $I_\text{ext}$ and compute eigenvalues at each value.
+3. Find the smallest $I_\text{ext}^\star$ with $\max_k \mathrm{Re}(\lambda_k) = 0$.
+4. Plot eigenvalue trajectories in the complex plane as $I_\text{ext}$ sweeps.
+5. Plot predicted $I_\text{ext}^\star$ and $\omega^\star$ vs $W^{EI}$ scale, $W^{IE}$ scale, and $\tau_\text{GABA}$ — three comparison axes against nb024.
+
+Cost: a few hundred lines of Python with scipy. No retraining, no GPU. Estimated runtime: minutes.
