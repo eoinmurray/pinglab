@@ -959,35 +959,28 @@ def run_fi_sweep_uniform(notebook_run_id: str) -> list[dict]:
 
 def plot_fi_curve_uniform(rows: list[dict], out_path: Path, run_id: str) -> None:
     """Two-panel f-I figure under spatially uniform Poisson input.
-    Left: E rate vs input. Right: I rate vs input. PING and COBA on
-    each panel, no MNIST structure in the inputs."""
+    Left: PING — E (black) and I (red). Right: COBA — same. Lets you
+    read the I-loop's effect on E directly off each panel."""
     theme.apply()
-    fig, (ax_e, ax_i) = plt.subplots(1, 2, figsize=(12.0, 4.5), dpi=150)
-    styles = {
-        "ping": ("PING", theme.INK_BLACK, "o"),
-        "coba": ("COBA", theme.DEEP_RED, "s"),
-    }
-    for model in MODELS:
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.5), dpi=150)
+    titles = {"ping": "PING (I-loop active)", "coba": "COBA (no I-loop)"}
+    for ax, model in zip(axes, MODELS):
         msel = sorted(
             [r for r in rows if r["model"] == model],
             key=lambda r: r["input_rate_hz"],
         )
         xs = [r["input_rate_hz"] for r in msel]
-        label, color, marker = styles[model]
-        ax_e.plot(xs, [r["e_rate_hz"] for r in msel],
-                  marker=marker, color=color, lw=1.5, label=label)
-        ax_i.plot(xs, [r["i_rate_hz"] for r in msel],
-                  marker=marker, color=color, lw=1.5, label=label)
-    for ax in (ax_e, ax_i):
+        ax.plot(xs, [r["e_rate_hz"] for r in msel],
+                marker="o", color=theme.INK_BLACK, lw=1.5, label="E")
+        ax.plot(xs, [r["i_rate_hz"] for r in msel],
+                marker="s", color=theme.DEEP_RED, lw=1.5, label="I")
         ax.set_xlabel("Input Poisson rate (Hz, per channel)",
                       fontsize=theme.SIZE_LABEL)
-        ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="lower right")
-    ax_e.set_ylabel("Per-cell E rate (Hz)", fontsize=theme.SIZE_LABEL)
-    ax_e.set_title("E population", fontsize=theme.SIZE_TITLE)
-    ax_i.set_ylabel("Per-cell I rate (Hz)", fontsize=theme.SIZE_LABEL)
-    ax_i.set_title("I population", fontsize=theme.SIZE_TITLE)
+        ax.set_ylabel("Per-cell firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+        ax.set_title(titles[model], fontsize=theme.SIZE_TITLE)
+        ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper left")
     fig.suptitle(
-        "Population f-I curves: trained PING vs COBA, uniform Poisson input",
+        "Population f-I curves: trained PING and COBA, uniform Poisson input",
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
