@@ -6,33 +6,25 @@ entry: 34
 structure: paper
 collections: [theory]
 ---
-import Figure from "../../components/Figure.astro";
 import NotebookHeader from "../../components/NotebookHeader.astro";
-export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb034/numbers.json", { eager: true, import: "default" })
-)[0] ?? {};
 
-<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+<NotebookHeader frontmatter={frontmatter} numbers={{}} />
 
 ## Introduction
 
-[nb033](/notebooks/nb033/) develops the 4D mean-field reduction of the PING spiking network — rates $E, I$ plus synaptic conductances $g_e^I, g_i^E$ — and finds a clean Hopf bifurcation at $I_\text{ext}^\star = 1.30$ with $f^\star = 24.5$ Hz, matching the gamma frequency in the spiking simulations. The 4D reduction was needed because the textbook 2D Wilson-Cowan system, with our zero diagonal ($W^{EE} = W^{II} = 0$), has $\text{tr}(J) < 0$ identically and cannot Hopf.
+[nb033](/notebooks/nb033/) derives a 4D mean-field reduction of PING — rates $E, I$ plus synaptic conductances $g_e^I, g_i^E$ — and finds a Hopf bifurcation at $I_\text{ext}^\star = 1.30$ with $f^\star \approx 24.5$ Hz, matching the gamma rhythm observed in spiking simulations. The textbook 2D Wilson-Cowan reduction with our diagonals ($W^{EE} = W^{II} = 0$) cannot Hopf — its trace is identically negative, so the silent fixed point is always stable.
 
-This notebook explores an alternative path back to 2D. The idea — suggested by Tim — is to add an explicit cubic self-feedback term to the E equation. This is the standard FitzHugh-Nagumo / Wilson-1999 / Hindmarsh-Rose move: the cubic provides a saturating self-suppression that can substitute for the phase delays the synaptic timescales introduce in the 4D system. The question is whether the resulting 2D model is faithful to our PING network.
+This raises a natural question, suggested by Tim: can a 2D model recover the Hopf if we add an explicit cubic self-feedback term to $E$, as in the FitzHugh-Nagumo / Wilson-1999 framework? The cubic plays the role that the synaptic phase delays play in 4D: a saturating self-suppression that stabilises an unstable fixed point at finite amplitude. This entry argues that the answer is **no** — not because the cubic is wrong, but because it stabilises something that, in our network, never destabilises in the first place. The negative result pins down which structural feature of the 4D system is load-bearing for the oscillation.
 
-The result is mostly negative — the cubic emerges from sigmoid expansion but at coefficient magnitudes too small to drive a Hopf in our parameter regime, because we don't have the positive self-coupling that the canonical Wilson-Cowan model relies on. That negative result is itself diagnostic: it pins down which structural feature of the 4D system is doing the work.
+## The 2D-cubic reduction
 
-## Method
-
-### Where the cubic comes from
-
-Taylor-expand the sigmoid gain $\Phi_E$ around the silent fixed point, keeping terms to cubic order:
+Taylor-expand the excitatory gain $\Phi_E$ around its inflection, keeping odd terms (even terms vanish by the inflection symmetry):
 
 $$
 \Phi_E(\text{drive}) \;\approx\; \Phi_E(0) + a\,\text{drive} + b\,\text{drive}^3 \tag{1}
 $$
 
-The even-order terms vanish because $\Phi_E$ is approximately odd around its inflection point ($\Phi''_E = 0$ at the inflection of a symmetric sigmoid). For a sigmoid like $r_\text{max}/(1 + e^{-x/k})$, $a > 0$ and $b < 0$ — the leading correction *suppresses* the response away from the inflection. With drive $= I_\text{ext} - W^{IE} I$, substituting (1) into the rate equation and using self-consistency at the fixed point to re-express the cubic in terms of $E$ itself, the system reduces to the FitzHugh-Nagumo form:
+For a sigmoid $\Phi_E(x) = r_\text{max}/(1 + e^{-(x-\theta)/k})$, one has $a = \Phi'_E(\theta) = r_\text{max}/(4k) > 0$ and $b < 0$ — the cubic *suppresses* the linear response away from the inflection. Substituting drive $= I_\text{ext} - W^{IE} I$ into the rate equation and absorbing constants gives the FitzHugh-Nagumo form
 
 $$
 \tau_E\,\dot E = -E + \alpha\,E - \beta\,E^3 - \gamma\,I + \alpha\,I_\text{ext} \tag{2a}
@@ -42,84 +34,46 @@ $$
 \tau_I\,\dot I = -I + \delta\,E \tag{2b}
 $$
 
-with $\alpha, \beta, \gamma, \delta > 0$ constants read off from the gain expansion: $\alpha$ from the linear part of $\Phi_E$ post-substitution, $\beta$ from the cubic part (positive because of the sign flip on $b$), $\gamma = a \cdot W^{IE}$, and $\delta$ from the linearisation of $\Phi_I$.
+with $\alpha = a$, $\beta = -b > 0$, $\gamma = a\,W^{IE}$, $\delta = \Phi'_I(0)\,W^{EI}$.
 
-### Why the cubic *should* enable Hopf
+## When this system Hopfs
 
-Compute the Jacobian of (2a)–(2b) at a fixed point $E^\star$:
+The Jacobian at a fixed point $E^\star$ is
 
 $$
 J = \begin{pmatrix} (-1 + \alpha - 3\beta (E^\star)^2)/\tau_E & -\gamma/\tau_E \\ \delta/\tau_I & -1/\tau_I \end{pmatrix} \tag{3}
 $$
 
-For small $E^\star$ near the silent fixed point, the diagonal $\partial \dot E / \partial E \approx (-1 + \alpha)/\tau_E$, which is **positive when $\alpha > 1$**. The trace becomes
+For the trace to cross zero — the precondition for a Hopf — we need
 
 $$
-\text{tr}(J) = (-1 + \alpha - 3\beta (E^\star)^2)/\tau_E - 1/\tau_I
+\frac{-1 + \alpha - 3\beta (E^\star)^2}{\tau_E} - \frac{1}{\tau_I} = 0
+\;\;\Longleftrightarrow\;\;
+\alpha - 3\beta (E^\star)^2 \;=\; 1 + \frac{\tau_E}{\tau_I}. \tag{4}
 $$
 
-which crosses zero when $\alpha - 3\beta (E^\star)^2 = 1 + \tau_E/\tau_I$. Past it, the cubic $-3\beta(E^\star)^2$ stabilises the limit cycle at finite amplitude — supercritical Hopf with $A \propto \sqrt{I_\text{ext} - I_\text{ext}^\star}$.
+The right-hand side is bounded below by 1 (and strictly larger when $\tau_E > \tau_I$). The left-hand side has a maximum at $E^\star = 0$, where it equals $\alpha$. So a necessary condition for the trace to ever reach zero is
 
-The mechanism: the $E^3$ term provides the saturating self-feedback that, in the 4D system, the synaptic phase delays provide. Both routes give the same near-Hopf normal form.
+$$
+\boxed{\;\alpha > 1 + \tau_E/\tau_I.\;} \tag{5}
+$$
 
-### Why it doesn't work for our system
+The mechanism is intuitive: the silent fixed point must first be linearly destabilised ($\alpha > 1$ buys positive feedback from the E-loop), and only then does the cubic $-3\beta(E^\star)^2$ stabilise the resulting limit cycle at finite amplitude (supercritical Hopf, $A \propto \sqrt{I_\text{ext} - I_\text{ext}^\star}$). Without (5) the trace is negative at *every* fixed point and no oscillation can emerge.
 
-The catch is the value of $\alpha$. For our sigmoid $\Phi_E$ with parameters chosen to roughly match the LIF gain (inflection at 1.5, steepness $k_E = 0.2$, $r_\text{max} = 0.2$ ms$^{-1}$), the Taylor coefficient $a = \Phi'_E(\theta) = r_\text{max}/(4k_E) = 0.25$. So $\alpha = 0.25$, and the diagonal entry $(-1 + \alpha)/\tau_E = -0.0375$ — **strongly damped**. The trace can never cross zero. No Hopf.
+## Why our network fails the condition
 
-This is a structural feature of our network: we don't have $W^{EE}$ (E→E self-excitation), which is what makes $\alpha$ large in the canonical Wilson-Cowan model. Wilson and Cowan's $c_1$ is the E→E coupling strength; with $c_1 = 12$ and a steep sigmoid, the effective gain $c_1 \Phi'_E$ at the operating point easily exceeds unity, and the 2D system Hopfs through the standard mechanism. Our $W^{EE} = 0$ removes this path entirely.
+The linear gain $\alpha = a = \Phi'_E(\theta)$ depends only on the slope of $\Phi_E$ at the inflection. For our sigmoid (steepness $k_E = 0.2$, $r_\text{max} = 0.2$ ms$^{-1}$) this gives
 
-The cubic-from-gain-expansion does not rescue the situation. The cubic provides *suppression* (stabilisation), but it doesn't generate the positive feedback needed to destabilise the silent fixed point in the first place. You need both:
+$$
+\alpha = \frac{r_\text{max}}{4 k_E} = \frac{0.2}{4 \cdot 0.2} = 0.25.
+$$
 
-1. **Linear destabilisation** of the silent fixed point as $I_\text{ext}$ grows — comes from $\alpha > 1$ (needs $W^{EE}$ or similar).
-2. **Cubic stabilisation** at finite amplitude — comes from $\beta > 0$ (from sigmoid expansion).
+With $\tau_E/\tau_I = 4$, the threshold (5) requires $\alpha > 5$. We have $\alpha = 0.25$, a factor of twenty below. The trace stays strictly negative for every $I_\text{ext}$, and no Hopf exists. Crucially, the cubic plays no role in this conclusion — it can only damp oscillations, not create them. The system fails the precondition before $\beta$ enters the picture.
 
-We have (2) for free; we lack (1).
+The structural reason is that the linear gain $\alpha$ measures *positive self-feedback on $E$*. In the canonical Wilson-Cowan 1972 model this comes from an E→E self-coupling $W^{EE}$, which renormalises the effective gain to $\alpha_\text{eff} = W^{EE}\,\Phi'_E$ — with $W^{EE} \approx 12$ in their model, $\alpha_\text{eff}$ comfortably exceeds 1 and the 2D Hopf works through the textbook mechanism. Our PING architecture has $W^{EE} = 0$ by construction (Börgers-style: only E→I and I→E recurrence). There is nothing to renormalise $\alpha$ above its bare sigmoid value, and the cubic — which provides amplitude saturation, not linear gain — cannot rescue the trace.
 
-## Results
+## Conclusion
 
-### Cubic coefficients
+So the 2D-cubic reduction is mathematically sound but structurally inappropriate for our architecture. The cubic delivers (B) — bounded limit-cycle amplitude — but cannot deliver (A) — linear destabilisation. For our $W^{EE} = 0$ network, the destabilisation comes from elsewhere entirely: the synaptic phase delays $\tau_\text{AMPA}, \tau_\text{GABA}$ in the full 4D system. Eliminating them via the cubic-from-Taylor route loses the very mechanism that produces the oscillation.
 
-The runner `src/pinglab/notebooks/nb034.py` computes the cubic coefficients by Taylor expansion of $\Phi_E$ at its inflection, using the same gain parameters as [nb033](/notebooks/nb033/).
-
-| coefficient | value | role |
-|---|---|---|
-| $\alpha$ | 0.25 | linear gain — needs $> 1$ for Hopf |
-| $\beta$ | 0.52 | cubic damping — fine |
-| $\gamma$ | 15 | I→E coupling |
-| $\delta$ | 0.20 | linear gain $\Phi'_I W^{EI}$ |
-
-$\alpha$ is well below the $1 + \tau_E/\tau_I = 5$ threshold needed for $\text{tr}(J) = 0$. The Jacobian's trace is always negative, and the diagonal element $(-1 + 0.25)/\tau_E$ shows the silent fixed point is stable to small perturbations regardless of $I_\text{ext}$.
-
-### Eigenvalue sweep
-
-<Figure id="Figure 1" title="2D-cubic eigenvalues vs I_ext" src="/figures/notebooks/nb034/eigenvalues.png" alt="Single panel showing Re(eigenvalues) vs I_ext for the 2D-cubic system. Both eigenvalues are real and negative across the entire I_ext sweep range — no Hopf, no instability.">
-  Real parts of the Jacobian eigenvalues of the 2D-cubic reduction vs external drive $I_\text{ext}$. Both eigenvalues remain real and negative across the sweep range. The system is monotonically stable; no Hopf bifurcation exists for these coefficients.
-</Figure>
-
-### What would be needed
-
-The 2D-cubic system *could* Hopf if we added one of:
-
-- **A positive linear self-coupling** in the E equation: $+ \alpha_\text{ext} E$ with $\alpha_\text{ext}$ large enough that the total effective linear gain $\alpha + \alpha_\text{ext} > 1$. The most direct way is to allow a non-zero $W^{EE}$ — but our network architecture has $W^{EE} = 0$ by construction (Börgers-style PING).
-
-- **A delay-induced effective self-coupling** from adiabatic elimination of the synaptic dynamics with finite-$\tau$ corrections. The 4D system in [nb033](/notebooks/nb033/) does this implicitly via $\tau_\text{AMPA}$ and $\tau_\text{GABA}$; in the limit where these are small but non-zero, the slow-fast separation can be expanded perturbatively, and the leading correction to the textbook 2D form is *not* a cubic — it's a delayed coupling. This is mathematically more involved than the cubic-from-Taylor route, and recovers the same dynamics as the 4D system to leading order.
-
-So the cubic-in-rate route is mathematically attractive but structurally inappropriate for our architecture. The fact that the cubic is the natural reduction for Wilson and Cowan's 1972 model with $c_1 > 0$ but breaks for our $W^{EE} = 0$ model is itself a useful pin: **the oscillation in our system is genuinely a 4D phenomenon driven by synaptic phase delays, not a 2D phenomenon driven by self-coupling and saturation**.
-
-## Discussion
-
-The negative result here narrows the explanation of PING's bifurcation behaviour:
-
-- The textbook **2D Wilson-Cowan** with our diagonals can't Hopf (trace argument, [nb033](/notebooks/nb033/)).
-- Adding a **cubic from sigmoid expansion** doesn't fix it because we lack the positive self-coupling that makes $\alpha > 1$ possible.
-- The **4D extension with explicit synaptic dynamics** does Hopf, and the bifurcation frequency matches nb024's measured gamma.
-
-So the synaptic timescales aren't an optional refinement — they're the load-bearing structural feature that produces the oscillation. Any reduction that drops them loses the phenomenon.
-
-A direction for future work: derive the 2D reduction more carefully via singular perturbation theory in the small parameters $\tau_\text{AMPA}/\tau_E, \tau_\text{GABA}/\tau_E$. The result is *not* a polynomial system in $(E, I)$ — it's a delay-differential equation, and the delay is what couples back to give the Hopf. Whether that 2D-with-delay system is cleaner than the 4D-ODE system depends on which tools one wants to use.
-
-## Next steps
-
-- Repeat the sweep with $\alpha = 5$ (forcing $\alpha > 1 + \tau_E/\tau_I$) to confirm the cubic system *would* Hopf if $\alpha$ were large enough. Useful sanity check, not a faithful model.
-- Derive the singular-perturbation 2D reduction from the 4D system; check whether the resulting delay-coupled 2D system has the same Hopf as the 4D analysis.
-- Compare the closed-form Kuznetsov $\ell_1$ for the cubic system (when $\alpha$ is artificially boosted) with the empirical criticality of the 4D system in nb033.
+This pins the 4D analysis from [nb033](/notebooks/nb033/): synaptic timescales are not a refinement that can be adiabatically eliminated. They are the load-bearing structural feature. A faithful 2D reduction would have to retain them — most naturally as a delay-differential equation — and the resulting system would not be polynomial in $(E, I)$.
