@@ -140,6 +140,16 @@ One transitional cell at $(W^{EI}, W^{IE}) = (0.5, 2.0)$ sits between the regime
 
 The clustering confirms the GH #29 hypothesis: under heavy spike penalty, the (coupling, accuracy, rate) outcome lands in qualitatively different solutions depending on coupling strength. The recruitment cliff that the inference-time coupling sweep located (Figure 9) is reproduced here as the boundary of the PING cluster at $W^{EI} \approx 1$. Critically, the no-loop band is now at 74.75% — close to PING's 83.5%, not at chance — so accuracy at the spike budget is achievable both with and without the loop, just via different dynamical mechanisms.
 
+Plotting the same 25 cells in (E rate, accuracy) space — colour-coded by I rate — makes the cluster structure direct:
+
+<Figure id="Figure 10b" title="Grid cells in (E rate, accuracy) space, coloured by I rate" src="/figures/notebooks/nb024/wei_wie_acc_vs_e.png" alt="Scatter of 25 points showing accuracy vs hidden E rate. Points are coloured by hidden I rate from dark purple (I=0) to bright yellow (I=28 Hz). Dark-purple points (I=0) form two tight clusters: one near (E=2.7, acc=74.75) labelled the no-loop band, another spread along E=2.8-6.6 Hz at acc=73-75% labelled stretched-COBA. Yellow/green points (I>0) sit at higher accuracy 78-83.5% with E rate 2.3-9.3 Hz. One bright-yellow outlier at E=9.27, acc=82 is the transitional cell.">
+  Each dot is one cell of the 5×5 $(W^{EI}, W^{IE})$ training grid, plotted at its final test accuracy vs final hidden-E rate. Colour encodes the third quantity — hidden-I rate — which is what discriminates the clusters. Labels are $(W^{EI}, W^{IE})$.
+</Figure>
+
+Three groups separate cleanly in this view. **Dark-purple points (I rate = 0)** split into two sub-clusters: a tight knot near $(E = 2.7 \text{ Hz}, \text{acc} = 74.75\%)$ that is the no-loop band (multiple cells collapse to the same operating point), and a scatter at slightly higher E rate (2.8–6.6 Hz) and similar or lower accuracy that is the stretched-COBA cells. **Yellow/green points (I rate > 10 Hz)** sit above the dark-purple band at 78–83.5% accuracy with E rates 2.3–4.4 Hz — the PING cluster, distinguished from no-loop by both higher accuracy and an active I population. The single bright-yellow point at $(E = 9.27 \text{ Hz}, \text{acc} = 82\%)$ is the transitional cell at $(0.5, 2.0)$ — same accuracy class as PING but with much higher E rate, the dynamical signature of a loop engaged before inhibition has stabilised.
+
+The vertical gap between the dark-purple band ($\le 75.75\%$) and the green/yellow cluster ($\ge 78\%$) is the recruitment cliff measured in accuracy units: a ≈3% step that no amount of E-rate adjustment in the failed-recurrence band closes.
+
 ### Training videos
 
 Per-epoch oscilloscope videos for every cell of the grid. Each video shows one epoch per frame against a fixed test trial; gamma cadence (if any) is visible in the E/I rasters. Naming: `wei{X}__wie{Y}` for $W^{EI} = X$, $W^{IE} = Y$.

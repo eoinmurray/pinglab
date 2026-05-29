@@ -2523,6 +2523,43 @@ def plot_wei_wie_grid(rows: list[dict], out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def plot_wei_wie_acc_vs_e(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Accuracy vs hidden-E rate scatter, one dot per (W^EI, W^IE) grid
+    cell from Figure 10, coloured by I rate. The cluster structure of
+    the grid should appear as separated point clouds: I=0 cells (no-loop
+    + stretched-COBA) at low I-rate colour, I>0 cells (PING) at high."""
+    import numpy as np
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    xs = np.array([r["rate_e"] for r in rows])
+    ys = np.array([r["final_acc"] for r in rows])
+    cs = np.array([r["rate_i"] for r in rows])
+    sc = ax.scatter(
+        xs, ys, c=cs, cmap="viridis", s=70, edgecolor="k",
+        linewidth=0.5, zorder=3,
+    )
+    for r in rows:
+        ax.annotate(
+            f"({r['w_ei']:g},{r['w_ie']:g})",
+            (r["rate_e"], r["final_acc"]),
+            xytext=(4, 4), textcoords="offset points",
+            fontsize=theme.SIZE_CAPTION, color=theme.LABEL, alpha=0.75,
+        )
+    cbar = fig.colorbar(sc, ax=ax, label="Hidden I rate (Hz)")
+    cbar.ax.tick_params(labelsize=theme.SIZE_CAPTION)
+    ax.set_xlabel("Hidden E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    ax.set_title(
+        "Grid cells in (E rate, accuracy) — coloured by I rate",
+        fontsize=theme.SIZE_TITLE,
+    )
+    ax.set_ylim(70.0, 90.0)
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 # ── End W_ei × W_ie grid sweep ───────────────────────────────────────
 
 
@@ -2674,6 +2711,7 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("latency.png", "latency plot rendered"),
         artifact("coupling_sweep.png", "coupling sweep rendered"),
         artifact("wei_wie_grid.png", "W_ei × W_ie grid rendered"),
+        artifact("wei_wie_acc_vs_e.png", "acc-vs-E scatter rendered"),
         artifact("wei_diagonal.png", "W_ei diagonal sweep rendered"),
         artifact("fi_curve__ping.png", "f-I curve rendered"),
         artifact("fi_curve_uniform.png", "uniform-input f-I curve rendered"),
@@ -3100,6 +3138,10 @@ def main() -> None:
             wei_wie_rows, FIGURES / "wei_wie_grid.png", notebook_run_id,
         )
         print(f"wrote {FIGURES / 'wei_wie_grid.png'}")
+        plot_wei_wie_acc_vs_e(
+            wei_wie_rows, FIGURES / "wei_wie_acc_vs_e.png", notebook_run_id,
+        )
+        print(f"wrote {FIGURES / 'wei_wie_acc_vs_e.png'}")
 
     # W_ei 1D diagonal sweep (W^IE = 2 W^EI), 3 seeds.
     print("[wei-diagonal] reading metrics from 1D diagonal trainings")
