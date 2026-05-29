@@ -2526,6 +2526,123 @@ def plot_wei_wie_grid(rows: list[dict], out_path: Path, run_id: str) -> None:
 # ── End W_ei × W_ie grid sweep ───────────────────────────────────────
 
 
+# ── W_ei 1D sweep along the ei_ratio = 2 diagonal ─────────────────────
+#
+# 1D slice of the 5×5 grid above: hold W^IE = 2 × W^EI (the standard
+# ei_ratio) and scan W^EI. Plots accuracy, E rate, I rate as smooth
+# curves so the cluster transition is visible at finer resolution.
+
+WEI_DIAGONAL_VALUES: list[float] = [
+    0.0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 1.0, 1.5, 2.0,
+]
+WEI_DIAGONAL_RATIO: float = 2.0       # W^IE / W^EI
+WEI_DIAGONAL_THETA_U: float = 0.2     # same penalty as the grid
+WEI_DIAGONAL_SEEDS: list[int] = list(SEEDS_BASELINE)  # 3-seed replicate
+
+
+def wei_diagonal_cell_dir(w_ei: float, seed: int) -> Path:
+    a = f"{w_ei:g}".replace(".", "p")
+    return ARTIFACTS / f"ping__wei_diagonal__wei{a}__seed{seed}"
+
+
+def build_wei_diagonal_args(
+    w_ei: float, seed: int, tier: str, out_dir: Path,
+) -> list[str]:
+    w_ie = w_ei * WEI_DIAGONAL_RATIO
+    recipe = dict(MODEL_RECIPES["ping"])
+    recipe["--w-in"] = "0.6"   # match the W^EI×W^IE grid sweep
+    args = [
+        "train",
+        "--model", recipe["__build_as"],
+        "--dataset", "mnist",
+        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--t-ms", str(T_MS),
+        "--dt", str(DT_TRAIN),
+        "--seed", str(seed),
+        "--out-dir", str(out_dir),
+        "--wipe-dir",
+    ]
+    for k, v in recipe.items():
+        if k.startswith("__"):
+            continue
+        if v is True:
+            args.append(k)
+        elif v is not None:
+            if k == "--w-in":
+                args += [k, v, "0.06"]
+            else:
+                args += [k, v]
+    args += [
+        "--w-ei", str(w_ei), str(max(w_ei * 0.1, 1e-6)),
+        "--w-ie", str(w_ie), str(max(w_ie * 0.1, 1e-6)),
+        "--fr-reg-upper-theta", str(WEI_DIAGONAL_THETA_U),
+        "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
+    ]
+    return args
+
+
+def plot_wei_diagonal(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Three panels: accuracy, E rate, I rate vs W^EI (with W^IE held
+    at 2 × W^EI). Aggregates over the seeds present in rows and plots
+    mean ± std as error bars. Individual seed points shown as faint
+    markers."""
+    import numpy as np
+    theme.apply()
+    fig, axes = plt.subplots(1, 3, figsize=(13.0, 4.5), dpi=150)
+    by_w: dict[float, list[dict]] = {}
+    for r in rows:
+        by_w.setdefault(float(r["w_ei"]), []).append(r)
+    xs = sorted(by_w.keys())
+
+    def agg(key: str) -> tuple[list[float], list[float], list[list[float]]]:
+        means, stds, raw = [], [], []
+        for w in xs:
+            vals = [float(r[key]) for r in by_w[w]]
+            means.append(float(np.mean(vals)))
+            stds.append(float(np.std(vals, ddof=0)))
+            raw.append(vals)
+        return means, stds, raw
+
+    panels = [
+        ("final_acc", axes[0], "Test accuracy (%)", theme.INK_BLACK, "Accuracy"),
+        ("rate_e", axes[1], "E rate (Hz)", theme.INK_BLACK, "Hidden E rate"),
+        ("rate_i", axes[2], "I rate (Hz)", theme.DEEP_RED, "Hidden I rate"),
+    ]
+    for key, ax, ylab, color, title in panels:
+        means, stds, raw = agg(key)
+        ax.errorbar(
+            xs, means, yerr=stds, marker="o", color=color, lw=1.5,
+            capsize=3, elinewidth=1.0, zorder=3,
+        )
+        # individual seeds as faint markers
+        for w, vals in zip(xs, raw):
+            ax.plot(
+                [w] * len(vals), vals, marker=".", color=color,
+                alpha=0.35, lw=0, ms=5, zorder=2,
+            )
+        ax.set_xlabel("$W^{EI}$ mean (init)", fontsize=theme.SIZE_LABEL)
+        ax.set_ylabel(ylab, fontsize=theme.SIZE_LABEL)
+        ax.axvline(1.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.7)
+        ax.set_title(title, fontsize=theme.SIZE_TITLE)
+    axes[0].set_ylim(0, 100)
+    axes[0].axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
+    n_seeds = max(len(v) for v in by_w.values()) if by_w else 0
+    fig.suptitle(
+        f"$W^{{EI}}$ sweep with $W^{{IE}} = {WEI_DIAGONAL_RATIO:g}\\,W^{{EI}}$ "
+        f"(ei_ratio = {WEI_DIAGONAL_RATIO:g}), $\\theta_u = "
+        f"{WEI_DIAGONAL_THETA_U:g}$, $n = {n_seeds}$ seeds (mean ± std)",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+# ── End W_ei diagonal sweep ──────────────────────────────────────────
+
+
 def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
     floor = float(MIN_ACC_BY_TIER[tier])
     figs_root = figures.parents[2]
@@ -2557,6 +2674,7 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("latency.png", "latency plot rendered"),
         artifact("coupling_sweep.png", "coupling sweep rendered"),
         artifact("wei_wie_grid.png", "W_ei × W_ie grid rendered"),
+        artifact("wei_diagonal.png", "W_ei diagonal sweep rendered"),
         artifact("fi_curve__ping.png", "f-I curve rendered"),
         artifact("fi_curve_uniform.png", "uniform-input f-I curve rendered"),
         artifact(
@@ -2716,6 +2834,26 @@ def main() -> None:
                 )
                 dispatcher.submit(
                     build_wei_wie_grid_args(w_ei, w_ie, tier, out),
+                    out,
+                    gpu_override=gpu_override,
+                )
+        # W_ei 1D diagonal sweep with W^IE = ei_ratio × W^EI, 3 seeds.
+        for w_ei in WEI_DIAGONAL_VALUES:
+            for seed in WEI_DIAGONAL_SEEDS:
+                out = wei_diagonal_cell_dir(w_ei, seed)
+                if only_missing and (out / "metrics.json").exists():
+                    print(
+                        f"[skip] wei_diagonal/{w_ei}/seed={seed} already "
+                        f"trained → {out.relative_to(REPO)}"
+                    )
+                    continue
+                print(
+                    f"[train] wei_diagonal/wei={w_ei}/seed={seed} → "
+                    f"{out.relative_to(REPO)}"
+                    + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+                )
+                dispatcher.submit(
+                    build_wei_diagonal_args(w_ei, seed, tier, out),
                     out,
                     gpu_override=gpu_override,
                 )
@@ -2963,6 +3101,39 @@ def main() -> None:
         )
         print(f"wrote {FIGURES / 'wei_wie_grid.png'}")
 
+    # W_ei 1D diagonal sweep (W^IE = 2 W^EI), 3 seeds.
+    print("[wei-diagonal] reading metrics from 1D diagonal trainings")
+    wei_diagonal_rows: list[dict] = []
+    for w_ei in WEI_DIAGONAL_VALUES:
+        for seed in WEI_DIAGONAL_SEEDS:
+            run_dir = wei_diagonal_cell_dir(w_ei, seed)
+            metrics_path = run_dir / "metrics.json"
+            if not metrics_path.exists():
+                print(f"  missing: {run_dir.name} (skipping in plot)")
+                continue
+            metrics = load_metrics(run_dir)
+            last = metrics["epochs"][-1]
+            wei_diagonal_rows.append({
+                "w_ei": float(w_ei),
+                "w_ie": float(w_ei * WEI_DIAGONAL_RATIO),
+                "seed": int(seed),
+                "best_acc": float(metrics["best_acc"]),
+                "final_acc": float(last["acc"]),
+                "rate_e": float(last.get("rate_e") or 0.0),
+                "rate_i": float(last.get("rate_i") or 0.0),
+            })
+            print(
+                f"  W_ei={w_ei:>5}  seed={seed}  "
+                f"acc={last['acc']:5.2f}%  "
+                f"E={last.get('rate_e') or 0:6.2f} Hz  "
+                f"I={last.get('rate_i') or 0:6.2f} Hz"
+            )
+    if wei_diagonal_rows:
+        plot_wei_diagonal(
+            wei_diagonal_rows, FIGURES / "wei_diagonal.png", notebook_run_id,
+        )
+        print(f"wrote {FIGURES / 'wei_diagonal.png'}")
+
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
     crits = evaluate_success(rows, tier, FIGURES)
@@ -2997,6 +3168,7 @@ def main() -> None:
         "latency": latency_rows,
         "coupling_sweep": coupling_rows,
         "wei_wie_grid": wei_wie_rows,
+        "wei_diagonal": wei_diagonal_rows,
         "fi_sweep_uniform": fi_rows,
         "fi_sweep_uniform_zoom": fi_rows_zoom,
         "success_criteria": crits,

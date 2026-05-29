@@ -152,6 +152,24 @@ Per-epoch oscilloscope videos for every cell of the grid. Each video shows one e
 | **$W^{EI} = 1$** | [video](/figures/notebooks/nb024/wei_wie_grid_videos/wei1__wie0.mp4) | [video](/figures/notebooks/nb024/wei_wie_grid_videos/wei1__wie0p25.mp4) | [video](/figures/notebooks/nb024/wei_wie_grid_videos/wei1__wie0p5.mp4) | [video](/figures/notebooks/nb024/wei_wie_grid_videos/wei1__wie1.mp4) | [video](/figures/notebooks/nb024/wei_wie_grid_videos/wei1__wie2.mp4) |
 | **$W^{EI} = 2$** | [video](/figures/notebooks/nb024/wei_wie_grid_videos/wei2__wie0.mp4) | [video](/figures/notebooks/nb024/wei_wie_grid_videos/wei2__wie0p25.mp4) | [video](/figures/notebooks/nb024/wei_wie_grid_videos/wei2__wie0p5.mp4) | [video](/figures/notebooks/nb024/wei_wie_grid_videos/wei2__wie1.mp4) | [video](/figures/notebooks/nb024/wei_wie_grid_videos/wei2__wie2.mp4) |
 
+### 1D diagonal slice ($W^{IE} = 2 W^{EI}$)
+
+The grid above varies $W^{EI}$ and $W^{IE}$ independently, but the codebase's standard PING recipe ties them via $W^{IE} = \text{ei\_ratio} \cdot W^{EI}$ with $\text{ei\_ratio} = 2$. Restricting to that line gives a finer-grained view of the same transition: one knob ($W^{EI}$) at 10 values, $W^{IE}$ tracking at twice the value, three seeds per value. Same recipe as the 5×5 grid ($\theta_u = 0.2$, $W_\text{in} = 0.6$).
+
+<Figure id="Figure 11" title="W^EI sweep along ei_ratio=2 diagonal — accuracy, E rate, I rate (3 seeds)" src="/figures/notebooks/nb024/wei_diagonal.png" alt="Three line panels with W^EI on x-axis and error bars from 3 seeds. Left: accuracy is flat at 74% in the failed-recurrence regime, rises sharply to 82% in the PING regime, drops back to 76% with large error bar at W^EI=2 (over-inhibited). Middle: E rate climbs from 2.9 to 8.4 Hz across the cliff then drops to 1.5 Hz at high W^EI. Right: I rate is 0 below the cliff, jumps to ~12 Hz at W^EI=0.75, plateaus at 13-17 Hz.">
+  $W^{EI}$ scanned over $\{0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 1.0, 1.5, 2.0\}$ with $W^{IE} = 2 W^{EI}$. Error bars are mean ± std over 3 seeds (42, 43, 44); faint dots show individual runs. **Left:** final test accuracy. **Middle:** hidden-E rate. **Right:** hidden-I rate. Grey dotted vertical at $W^{EI} = 1$ marks the canonical recipe baseline.
+</Figure>
+
+Three regimes line up cleanly across seeds, with the across-seed variance itself encoding the dynamics:
+
+- **$W^{EI} \in \{0, 0.1, 0.25, 0.4\}$** — no-loop / stretched-COBA: accuracy ≈74%, I rate exactly 0, E rate climbing slowly from 2.9 to 4.1 Hz. Tight error bars (acc std ≤ 0.85, I std = 0) — the optimiser deterministically settles into the E-only attractor regardless of seed.
+- **$W^{EI} = 0.5$** — stretched-COBA at its limit: $I = 0$ for every seed but $E = 6.8$ Hz, the highest E rate in the failed-recurrence regime.
+- **$W^{EI} = 0.6$** — *the bifurcation cell*: mean I rate 4.1 Hz but std 2.4 Hz across seeds (some seeds engage the loop, others don't); E rate similarly noisy (8.4 ± 1.9 Hz). This is the empirical signature of sitting *on* the cliff — small differences in initialisation push the optimiser into different attractors.
+- **$W^{EI} \in \{0.75, 1.0, 1.5\}$** — stable PING: accuracy plateau at 82% (±0.5–1.1 across seeds; all three values within 0.6% of each other), I rate locked at 12–17 Hz, E rate clamped to 2–5 Hz. The single-seed "peak at 1.0" was noise — this is a wide plateau.
+- **$W^{EI} = 2.0$** — over-inhibited: accuracy mean 76.4% but std 4.0% — the highest across-seed variance in the whole sweep. The loop is too tight and seeds split between collapsing into low-rate solutions and converging anyway.
+
+The cliff lands sharply between $W^{EI} = 0.5$ (zero I rate for all seeds) and $W^{EI} = 0.75$ (≈12 Hz I rate for all seeds), with $W^{EI} = 0.6$ the transition cell where seed-to-seed variance peaks. The variance pattern itself is informative: deterministic seeds inside each attractor, noisy seeds at the bifurcation — exactly what a saddle-node / recruitment-cliff picture predicts.
+
 ## Hidden-spike perturbation
 
 The mechanism is a per-step callback installed on the COBANet's *_hidden_perturb_fn* slot.
