@@ -1,5 +1,24 @@
-"""Notebook runner for entry 024 — coba / ping head-to-head on
-test accuracy and mean firing rate, with the θ_u spike-budget sweep.
+"""Notebook runner — single source of truth for nb024, nb035, nb036,
+nb037, and nb038.
+
+The notebook entry for inhibition-gated sparsity was split on 2026-05-30
+into five MDX pages: nb024 (foundations: rasters, accuracy bar, learning
+curves, frontier), nb035 (rate-floor mechanism: w_in sweeps), nb036
+(coupling architecture: coupling sweep, 5×5 grid, diagonal), nb037
+(spike-stream perturbations + τ_GABA), nb038 (functional probes:
+input-rate / f-I / COBA→PING transfer / latency).
+
+This runner stays monolithic — main() orchestrates every sweep and
+plot for all five entries — but the per-figure routing table _FIG_DEST
+sends each output PNG/MP4 to the correct /figures/notebooks/nbXXX/
+directory, and the merged numbers.json is mirrored into every child
+notebook's figures dir so each page's NotebookHeader renders the
+success-criteria block.
+
+# Original docstring
+
+coba / ping head-to-head on test accuracy and mean firing rate, with
+the θ_u spike-budget sweep.
 
 Subsumes the now-retired nb020. For each rung of the biophysical
 ladder (coba, ping), trains the calibrated nb011 / nb012
@@ -40,6 +59,53 @@ from pinglab import theme  # noqa: E402
 SLUG = "nb024"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+
+# The notebook was split into nb024 (baselines/foundations) + nb035-038
+# (per-thread follow-ups) on 2026-05-30. The runner stays monolithic
+# but figures are routed to the correct per-notebook output directory.
+_FIG_ROOT = REPO / "src" / "docs" / "public" / "figures" / "notebooks"
+FIGURES_NB035 = _FIG_ROOT / "nb035"
+FIGURES_NB036 = _FIG_ROOT / "nb036"
+FIGURES_NB037 = _FIG_ROOT / "nb037"
+FIGURES_NB038 = _FIG_ROOT / "nb038"
+_FIG_DEST: dict[str, Path] = {
+    # nb035 — rate-floor mechanism
+    "low_w_in_sweep.png": FIGURES_NB035,
+    "w_in_scale_sweep.png": FIGURES_NB035,
+    "w_in_scale_sweep_vs_rate.png": FIGURES_NB035,
+    # nb036 — coupling architecture
+    "coupling_sweep.png": FIGURES_NB036,
+    "wei_wie_grid.png": FIGURES_NB036,
+    "wei_wie_acc_vs_e.png": FIGURES_NB036,
+    "wei_wie_acc_vs_e_with_frontier.png": FIGURES_NB036,
+    "wei_diagonal.png": FIGURES_NB036,
+    "wei_diagonal_acc_vs_e.png": FIGURES_NB036,
+    "wei_diagonal_converge.png": FIGURES_NB036,
+    # nb037 — spike-stream perturbations
+    "perturbation_curves.png": FIGURES_NB037,
+    "perturb_rasters__drop__ping.png": FIGURES_NB037,
+    "perturb_rasters__add__ping.png": FIGURES_NB037,
+    "perturb_rasters__drop__coba.png": FIGURES_NB037,
+    "perturb_rasters__add__coba.png": FIGURES_NB037,
+    "tau_gaba_sweep.png": FIGURES_NB037,
+    # nb038 — functional probes
+    "rate_rasters__ping.png": FIGURES_NB038,
+    "rate_sweep__ping.mp4": FIGURES_NB038,
+    "fi_curve__ping.png": FIGURES_NB038,
+    "fi_curve_uniform.png": FIGURES_NB038,
+    "ei_rasters.png": FIGURES_NB038,
+    "ei_acc_sweep.png": FIGURES_NB038,
+    "ei_rates_sweep.png": FIGURES_NB038,
+    "latency.png": FIGURES_NB038,
+}
+
+
+def fig_path(name: str) -> Path:
+    """Resolve a figure basename to its target per-notebook directory.
+    Defaults to nb024's FIGURES if the name isn't in the routing table."""
+    dest = _FIG_DEST.get(name, FIGURES)
+    dest.mkdir(parents=True, exist_ok=True)
+    return dest / name
 OSCILLOSCOPE = REPO / "src" / "pinglab" / "cli/__main__.py"
 
 TIER_CONFIG = {
@@ -1567,12 +1633,12 @@ def run_ei_sweep(notebook_run_id: str) -> list[dict]:
         capture_ei_raster(train_dir, ei, EI_RASTER_SAMPLE_IDX) for ei in EI_RASTER
     ]
 
-    plot_ei_acc_sweep(points, FIGURES / "ei_acc_sweep.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'ei_acc_sweep.png'}")
-    plot_ei_rates_sweep(points, FIGURES / "ei_rates_sweep.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'ei_rates_sweep.png'}")
-    plot_ei_rasters(raster_samples, FIGURES / "ei_rasters.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'ei_rasters.png'}")
+    plot_ei_acc_sweep(points, fig_path("ei_acc_sweep.png"), notebook_run_id)
+    print(f"wrote {fig_path('ei_acc_sweep.png')}")
+    plot_ei_rates_sweep(points, fig_path("ei_rates_sweep.png"), notebook_run_id)
+    print(f"wrote {fig_path('ei_rates_sweep.png')}")
+    plot_ei_rasters(raster_samples, fig_path("ei_rasters.png"), notebook_run_id)
+    print(f"wrote {fig_path('ei_rasters.png')}")
     return points
 
 
@@ -3075,7 +3141,7 @@ def main() -> None:
 
     # Input-rate sweep on the trained ping network — one digit, vary the
     # Poisson rate over a wide range, render as a scope-frame video.
-    rate_sweep_out = FIGURES / "rate_sweep__ping.mp4"
+    rate_sweep_out = fig_path("rate_sweep__ping.mp4")
     generate_rate_sweep_video("ping", rate_sweep_out)
     print(f"wrote {rate_sweep_out}")
 
@@ -3088,11 +3154,11 @@ def main() -> None:
         for r in rate_grid
     ]
     plot_rate_rasters(
-        rate_samples, FIGURES / "rate_rasters__ping.png", notebook_run_id
+        rate_samples, fig_path("rate_rasters__ping.png"), notebook_run_id
     )
-    print(f"wrote {FIGURES / 'rate_rasters__ping.png'}")
-    plot_fi_curve(rate_samples, FIGURES / "fi_curve__ping.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'fi_curve__ping.png'}")
+    print(f"wrote {fig_path('rate_rasters__ping.png')}")
+    plot_fi_curve(rate_samples, fig_path("fi_curve__ping.png"), notebook_run_id)
+    print(f"wrote {fig_path('fi_curve__ping.png')}")
 
     # Uniform-input f-I curves for PING and COBA — no MNIST structure.
     print("[fi-sweep] uniform Poisson input on trained PING and COBA (wide)")
@@ -3100,10 +3166,10 @@ def main() -> None:
     print("[fi-sweep] uniform Poisson input on trained PING and COBA (zoom 0–10 Hz)")
     fi_rows_zoom = run_fi_sweep_uniform(notebook_run_id, rates=FI_UNIFORM_ZOOM_RATES_HZ)
     plot_fi_curve_uniform(
-        fi_rows, FIGURES / "fi_curve_uniform.png", notebook_run_id,
+        fi_rows, fig_path("fi_curve_uniform.png"), notebook_run_id,
         zoom_rows=fi_rows_zoom,
     )
-    print(f"wrote {FIGURES / 'fi_curve_uniform.png'}")
+    print(f"wrote {fig_path('fi_curve_uniform.png')}")
 
     # Hidden-layer perturbation sweep: drop spikes (Bernoulli mask) and
     # add Poisson noise spikes, applied inside the forward loop so the
@@ -3125,9 +3191,9 @@ def main() -> None:
                     f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:6.2f} Hz"
                 )
     plot_perturbation_curves(
-        perturb_rows, FIGURES / "perturbation_curves.png", notebook_run_id
+        perturb_rows, fig_path("perturbation_curves.png"), notebook_run_id
     )
-    print(f"wrote {FIGURES / 'perturbation_curves.png'}")
+    print(f"wrote {fig_path('perturbation_curves.png')}")
 
     # Stacked-raster snapshots of each trained baseline under both
     # perturbation modes, six panels per (model, mode). Same MNIST digit 0
@@ -3141,7 +3207,7 @@ def main() -> None:
         ]
         plot_perturbation_rasters(
             drop_samples,
-            FIGURES / f"perturb_rasters__drop__{model}.png",
+            fig_path(f"perturb_rasters__drop__{model}.png"),
             notebook_run_id,
             level_fmt="p(drop) = {level:.1f}",
             title=(
@@ -3149,14 +3215,14 @@ def main() -> None:
                 "hidden-spike drop"
             ),
         )
-        print(f"wrote {FIGURES / f'perturb_rasters__drop__{model}.png'}")
+        print(f"wrote {fig_path(f'perturb_rasters__drop__{model}.png')}")
         add_samples = [
             capture_perturbation_raster(train_dir, "add", lvl, 0)
             for lvl in PERTURB_RASTER_ADD_LEVELS
         ]
         plot_perturbation_rasters(
             add_samples,
-            FIGURES / f"perturb_rasters__add__{model}.png",
+            fig_path(f"perturb_rasters__add__{model}.png"),
             notebook_run_id,
             level_fmt="r(add) = {level:g} Hz",
             title=(
@@ -3164,7 +3230,7 @@ def main() -> None:
                 "hidden-spike Poisson noise added"
             ),
         )
-        print(f"wrote {FIGURES / f'perturb_rasters__add__{model}.png'}")
+        print(f"wrote {fig_path(f'perturb_rasters__add__{model}.png')}")
 
     ei_points = run_ei_sweep(notebook_run_id)
 
@@ -3175,9 +3241,9 @@ def main() -> None:
         tau_gaba_rows, "tau_gaba_ms",
         "$\\tau_{\\mathrm{GABA}}$ (ms)", 9.0,
         "Trained ping — accuracy and E rate vs $\\tau_{\\mathrm{GABA}}$",
-        FIGURES / "tau_gaba_sweep.png", notebook_run_id,
+        fig_path("tau_gaba_sweep.png"), notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'tau_gaba_sweep.png'}")
+    print(f"wrote {fig_path('tau_gaba_sweep.png')}")
 
     # Low-w_in alternate-schedule sweep — reads metrics from the three
     # dispatched trainings and plots accuracy + E/I rates vs --w-in init.
@@ -3202,36 +3268,36 @@ def main() -> None:
             f"E={last.get('rate_e') or 0:6.2f} Hz  "
             f"I={last.get('rate_i') or 0:6.2f} Hz"
         )
-    plot_low_w_in(low_w_in_rows, FIGURES / "low_w_in_sweep.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'low_w_in_sweep.png'}")
+    plot_low_w_in(low_w_in_rows, fig_path("low_w_in_sweep.png"), notebook_run_id)
+    print(f"wrote {fig_path('low_w_in_sweep.png')}")
 
     # W_in scale sweep — direct test of the bifurcation argument.
     print("[w_in-scale-sweep] inference-only on trained PING and COBA")
     w_in_scale_rows = run_w_in_scale_sweep(notebook_run_id)
     plot_w_in_scale_sweep(
-        w_in_scale_rows, FIGURES / "w_in_scale_sweep.png", notebook_run_id,
+        w_in_scale_rows, fig_path("w_in_scale_sweep.png"), notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'w_in_scale_sweep.png'}")
+    print(f"wrote {fig_path('w_in_scale_sweep.png')}")
     plot_w_in_scale_sweep_vs_rate(
         w_in_scale_rows,
-        FIGURES / "w_in_scale_sweep_vs_rate.png",
+        fig_path("w_in_scale_sweep_vs_rate.png"),
         notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'w_in_scale_sweep_vs_rate.png'}")
+    print(f"wrote {fig_path('w_in_scale_sweep_vs_rate.png')}")
 
     # Readout latency — how quickly each model reaches a confident answer.
     print("[latency] inference-only on trained baselines")
     latency_rows = run_latency(notebook_run_id)
-    plot_latency(latency_rows, FIGURES / "latency.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'latency.png'}")
+    plot_latency(latency_rows, fig_path("latency.png"), notebook_run_id)
+    print(f"wrote {fig_path('latency.png')}")
 
     # Coupling sweep — validates the recruitment-fraction shift prediction.
     print("[coupling-sweep] inference-only on trained PING (θ_u = off)")
     coupling_rows = run_coupling_sweep(notebook_run_id)
     plot_coupling_sweep(
-        coupling_rows, FIGURES / "coupling_sweep.png", notebook_run_id,
+        coupling_rows, fig_path("coupling_sweep.png"), notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'coupling_sweep.png'}")
+    print(f"wrote {fig_path('coupling_sweep.png')}")
 
     # W_ei × W_ie 5×5 training grid (GH #29).
     print("[wei-wie-grid] reading metrics from 5×5 grid trainings")
@@ -3255,19 +3321,19 @@ def main() -> None:
             })
     if wei_wie_rows:
         plot_wei_wie_grid(
-            wei_wie_rows, FIGURES / "wei_wie_grid.png", notebook_run_id,
+            wei_wie_rows, fig_path("wei_wie_grid.png"), notebook_run_id,
         )
-        print(f"wrote {FIGURES / 'wei_wie_grid.png'}")
+        print(f"wrote {fig_path('wei_wie_grid.png')}")
         plot_wei_wie_acc_vs_e(
-            wei_wie_rows, FIGURES / "wei_wie_acc_vs_e.png", notebook_run_id,
+            wei_wie_rows, fig_path("wei_wie_acc_vs_e.png"), notebook_run_id,
         )
-        print(f"wrote {FIGURES / 'wei_wie_acc_vs_e.png'}")
+        print(f"wrote {fig_path('wei_wie_acc_vs_e.png')}")
         plot_wei_wie_acc_vs_e_with_frontier(
             wei_wie_rows, rows,
-            FIGURES / "wei_wie_acc_vs_e_with_frontier.png",
+            fig_path("wei_wie_acc_vs_e_with_frontier.png"),
             notebook_run_id,
         )
-        print(f"wrote {FIGURES / 'wei_wie_acc_vs_e_with_frontier.png'}")
+        print(f"wrote {fig_path('wei_wie_acc_vs_e_with_frontier.png')}")
 
     # W_ei 1D diagonal sweep (W^IE = 2 W^EI), 3 seeds.
     print("[wei-diagonal] reading metrics from 1D diagonal trainings")
@@ -3298,15 +3364,15 @@ def main() -> None:
             )
     if wei_diagonal_rows:
         plot_wei_diagonal(
-            wei_diagonal_rows, FIGURES / "wei_diagonal.png", notebook_run_id,
+            wei_diagonal_rows, fig_path("wei_diagonal.png"), notebook_run_id,
         )
-        print(f"wrote {FIGURES / 'wei_diagonal.png'}")
+        print(f"wrote {fig_path('wei_diagonal.png')}")
         plot_wei_diagonal_acc_vs_e(
             wei_diagonal_rows,
-            FIGURES / "wei_diagonal_acc_vs_e.png",
+            fig_path("wei_diagonal_acc_vs_e.png"),
             notebook_run_id,
         )
-        print(f"wrote {FIGURES / 'wei_diagonal_acc_vs_e.png'}")
+        print(f"wrote {fig_path('wei_diagonal_acc_vs_e.png')}")
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
@@ -3347,8 +3413,15 @@ def main() -> None:
         "fi_sweep_uniform_zoom": fi_rows_zoom,
         "success_criteria": crits,
     }
-    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"wrote {FIGURES / 'numbers.json'}")
+    # The notebook was split into nb024 (foundations) + nb035-038
+    # (per-thread follow-ups). The runner stays monolithic; we mirror
+    # the same numbers.json into each child notebook's figures dir so
+    # NotebookHeader can find the success-criteria block on every page.
+    summary_json = json.dumps(summary, indent=2) + "\n"
+    for dest in (FIGURES, FIGURES_NB035, FIGURES_NB036, FIGURES_NB037, FIGURES_NB038):
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "numbers.json").write_text(summary_json)
+        print(f"wrote {dest / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
 
     for c in crits:

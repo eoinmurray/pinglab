@@ -1,0 +1,89 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "037 — Spike-stream perturbations of trained PING"
+date: 2026-05-30
+entry: 37
+structure: paper
+collections: [experiments]
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb037/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Setup
+
+PING and COBA baseline definitions and training recipe are in [nb035](/notebooks/nb035/); the rate-floor mechanism is worked out in [nb035](/notebooks/nb035/). This entry tests whether the floor is dynamical (locked by the cycle period) or informational (locked by the readout's spike-count requirement) by perturbing the spike stream of trained networks at inference.
+
+## Hidden-spike perturbation
+
+The mechanism is a per-step callback installed on the COBANet's *_hidden_perturb_fn* slot.
+
+**When the callback fires.** Every timestep of every trial. No warm-up, no schedule, no exclusion. Trials are $T = 200$ ms at $\Delta t = 0.1$ ms → 2000 fires per trial. Test set ≈400 trials → ≈800 000 fires per (model, mode, level) sweep point against the same trained network. Level is constant across all timesteps and trials at a given sweep point.
+
+**Where in the step body.** At each timestep $t$:
+
+1. *update conductances* from the previous step's spikes: $g_e^{(t)} \leftarrow g_e^{(t-1)} \cdot d_\text{AMPA} + \mathbf{\tilde s}^{E,(t-1)} W_{ee} + \text{input}^{(t)} W_\text{in}$, with the analogous update for $g_i^{(t)}$ from $\mathbf{\tilde s}^{I,(t-1)} W_{ie}$ and the E→I conductance from $\mathbf{\tilde s}^{E,(t-1)} W_{ei}$;
+2. *LIF step* integrates $V^{(t)}$ from $g_e^{(t)}, g_i^{(t)}$ and emits raw spike vectors $\mathbf{s}^{E,(t)} \in \{0,1\}^{B \times N_E}$, $\mathbf{s}^{I,(t)} \in \{0,1\}^{B \times N_I}$;
+3. *perturbation callback* rewrites the raw vectors → $\mathbf{\tilde s}^{E,(t)}, \mathbf{\tilde s}^{I,(t)}$;
+4. *record* the perturbed vectors into the spike buffer;
+5. *readout accumulator* adds $\mathbf{\tilde s}^{E,(t)} W_\text{out}$ to the mem-mean integrator.
+
+Step 1 of timestep $t+1$ consumes $\mathbf{\tilde s}^{E,(t)}$ and $\mathbf{\tilde s}^{I,(t)}$ through $W_{ee}$, $W_{ei}$, $W_{ie}$. A dropped E spike at $t$ fails to drive I at $t+1$ and contributes nothing to the readout at $t$. An injected I spike at $t$ adds inhibition at $t+1$ and counts in the rate metric. E and I get the same mode and level with independent draws.
+
+In **drop** mode, for each (batch, neuron, timestep) slot $i$ draw $u_i \sim \mathrm{Uniform}(0, 1)$ i.i.d.:
+
+$$
+\tilde s_i \;=\; s_i \cdot \mathbb{1}\!\left[u_i \geq p_\text{drop}\right].
+$$
+
+Each emitted spike is kept with probability $1 - p_\text{drop}$; silent slots stay silent. Drop reduces the spike count fed to both the readout and the next-step conductance update, while leaving the E→I→E feedback loop intact. Sweep $p_\text{drop} \in \{0.0, 0.1, \dots, 1.0\}$, 11 levels.
+
+In **add** mode, for each slot draw $u_i \sim \mathrm{Uniform}(0, 1)$ i.i.d.:
+
+$$
+\tilde s_i \;=\; \min\!\left(s_i + \mathbb{1}\!\left[u_i < r_\text{add} \cdot \Delta t / 1000\right],\; 1\right).
+$$
+
+At $\Delta t = 0.1$ ms, $r_\text{add} = 10$ Hz gives a per-step extra-spike probability of $10^{-3}$. The clamp is for binary cleanliness — the process is Bernoulli, not additive integer. Silent slots become 1 with probability $r_\text{add} \Delta t / 1000$. Add injects spikes at Poisson statistics independent of cycle phase. Sweep $r_\text{add} \in \{0, 2, \dots, 40\}$ Hz, 21 levels.
+
+The per-step RNG is a CPU torch.Generator seeded at *EVAL_SEED + 1*, separate from the input encoder so the Poisson input stream matches the unperturbed baseline. Total: 2 models × (11 drop + 21 add) = 64 forward passes.
+
+<Figure id="Figure 1" title="Hidden-spike perturbation — accuracy curves" src="/figures/notebooks/nb037/perturbation_curves.png" alt="Test accuracy vs p(drop) (left) and vs Poisson-add rate (right) per model.">
+  Accuracy under spike drop (left) and Poisson add (right).
+</Figure>
+
+<Figure id="Figure 2" title="PING under spike drop — rasters" src="/figures/notebooks/nb037/perturb_rasters__drop__ping.png" alt="Stacked raster panels showing trained PING on MNIST digit 0 across increasing p_drop levels; E spikes in black, I spikes in red. At low p_drop the gamma cycle is intact; at high p_drop spikes are thinned but the cycle persists.">
+  Trained PING replayed on the same MNIST digit 0 trial across six drop levels; E (black) above I (red) per panel. The gamma cadence persists across all levels — dropped spikes thin the train without injecting phase-incoherent activity.
+</Figure>
+
+<Figure id="Figure 3" title="PING under Poisson add — rasters" src="/figures/notebooks/nb037/perturb_rasters__add__ping.png" alt="Stacked raster panels showing trained PING on MNIST digit 0 across increasing Poisson-add rates; E spikes in black, I spikes in red. At low r_add the gamma cycle is preserved; at higher r_add added spikes drive I at arbitrary phase and the cycle dissolves into broadband firing.">
+  Trained PING replayed across six Poisson-add rates. As $r_\text{add}$ increases, randomly-timed E spikes drive I at arbitrary phase; the gamma cycle dissolves and the population fires asynchronously.
+</Figure>
+
+<Figure id="Figure 4" title="COBA under spike drop — rasters" src="/figures/notebooks/nb037/perturb_rasters__drop__coba.png" alt="Stacked raster panels showing trained COBA on MNIST digit 0 across increasing p_drop levels; E spikes in black, I row empty because COBA has no loop. The pattern is asynchronous and dense at p_drop = 0, sparsifying uniformly as drop increases.">
+  Trained COBA replayed across six drop levels. With no cycle to preserve, dropping spikes just thins a uniform asynchronous mean.
+</Figure>
+
+<Figure id="Figure 5" title="COBA under Poisson add — rasters" src="/figures/notebooks/nb037/perturb_rasters__add__coba.png" alt="Stacked raster panels showing trained COBA on MNIST digit 0 across increasing Poisson-add rates; E spikes in black, I row empty because COBA has no loop. The pattern stays asynchronous and dense; added spikes blend into the uniform background.">
+  Trained COBA replayed across six Poisson-add rates. Added spikes blend into COBA's asynchronous mean — no temporal structure to corrupt.
+</Figure>
+
+Drop and add are asymmetric. Under drop, PING holds 72.5% at $p_\text{drop} = 0.9$ through I-loop compensation: fewer E spikes drive I less, GABA relaxes, and E fires more freely. The recorded E rate rises to ≈7 Hz at $p_\text{drop} = 0.8$ and remains near 5 Hz at $p_\text{drop} = 0.9$ — back-calculating, the pre-drop rate at that point is ≈49 Hz (≈90% discarded), approaching COBA's spontaneous level. The E→I→E loop compensates because it is weakened proportionally rather than phase-corrupted. Under add, random E spikes drive I at arbitrary phase, disrupting the cycle's temporal structure: PING accuracy falls across a sharp 2–10 Hz cliff (70% at 4 Hz, 43% at 6 Hz, 19% at 8 Hz, 12% at 10 Hz, chance from 12 Hz on). COBA stays at 83–84% under both perturbation modes — without a cycle to compensate or corrupt, dropped spikes thin a uniform mean and added spikes raise it.
+
+This suggests the rate floor is dynamical, not informational. Test: lengthening $\tau_\text{GABA}$ should stretch the cycle and lower the floor; shortening should raise it.
+
+## τ_GABA sweep
+
+Inference-only: the GABA decay constant is mutated on the trained PING baseline (seed 42, $\theta_u =$ off) across six values (4.5, 6, 9, 12, 18, 27 ms; trained value is 9 ms), then the test set is re-evaluated without retraining.
+
+<Figure id="Figure 6" title="Trained PING — accuracy and E rate vs τ_GABA" src="/figures/notebooks/nb037/tau_gaba_sweep.png" alt="Red curve: E firing rate falls from ≈7 Hz at 4.5 ms to ≈2.4 Hz at 27 ms. Black curve: accuracy holds 80–86%.">
+  Inference-only sweep of $\tau_\text{GABA}$ on trained PING; E rate (red), accuracy (black).
+</Figure>
+
+Six-point inference-only sweep (mutate decay constant, no retraining): E rate is ≈7 Hz at 4.5 ms → ≈4.5 Hz at 9 ms (the trained value) → ≈2.3 Hz at 27 ms. Monotonic with cycle period. Accuracy holds 80–86%. The floor tracks the γ cycle period, which is governed by the inhibitory decay timescale: as $\tau_\text{GABA}$ lengthens, so does the cycle, and the floor rate falls.
+
+The combined picture: drop preserves the cycle and is compensated; add corrupts the cycle and collapses accuracy; $\tau_\text{GABA}$ directly sets the floor rate. The rate floor is the gamma cycle made visible — a structural feature of the architecture, not an accuracy/spike-count tradeoff the readout could otherwise navigate.
