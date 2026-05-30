@@ -94,13 +94,6 @@ if (file) {
   }
 }
 
-// Articles render their collection chip here in the layout, because they
-// have no per-page header component. Notebooks render their own chip via
-// NotebookHeader and should not get a duplicate from the layout.
-const isArticle = !!file && file.includes("/src/docs/src/pages/articles/");
-const articleCollections: string[] = isArticle && Array.isArray(frontmatter?.collections)
-  ? frontmatter.collections
-  : [];
 ---
 
 <html lang="en">
@@ -109,6 +102,12 @@ const articleCollections: string[] = isArticle && Array.isArray(frontmatter?.col
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width" />
     <title>{frontmatter.title} · Pinglab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap"
+      rel="stylesheet"
+    />
     <script is:inline>
       (function () {
         try {
@@ -129,8 +128,10 @@ const articleCollections: string[] = isArticle && Array.isArray(frontmatter?.col
       <ThemeToggle />
     </div>
 
-    <header class="px-6 pt-16 lg:pl-8 lg:pr-12 [&_a]:no-underline! [&_a:hover]:underline!">
-      <SiteHeader />
+    <header class="px-6 pt-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[46rem]">
+        <SiteHeader />
+      </div>
     </header>
 
     {toc.length > 0 && (
@@ -155,16 +156,6 @@ const articleCollections: string[] = isArticle && Array.isArray(frontmatter?.col
 
     <main class="px-6 pt-10 pb-48 lg:pl-[25%] lg:pr-16">
       <div class="max-w-[46rem]">
-        {articleCollections.length > 0 && (
-          <div class="not-prose mb-4 flex flex-wrap gap-[0.3rem]">
-            {articleCollections.map((c) => (
-              <a
-                href={`/collections/${c}/`}
-                class="inline-block rounded-[2px] border border-rule bg-paper-tint px-[0.45rem] py-[0.05rem] font-mono text-[0.72rem] text-muted-soft no-underline hover:text-[color:var(--ink)]"
-              >{c}</a>
-            ))}
-          </div>
-        )}
         <article class="prose max-w-none" style="font-family: var(--font-serif);">
           <slot />
         </article>

@@ -59,6 +59,7 @@ DT_TRAIN = 0.1
 # the regulariser, not the seed.
 SEEDS_BASELINE: list[int] = [42, 43, 44]
 SEED_SWEEP: int = 42
+BASELINE_EPOCHS: int = 30  # overrides TIER_CONFIG epochs for baselines
 
 # Inference-time ei_strength sweep on the coba__off__seed42 baseline.
 # Subsumes the now-retired nb019 — trains nothing new; just runs the
@@ -174,7 +175,7 @@ def build_train_args(
         "--model", recipe["__build_as"],
         "--dataset", "mnist",
         "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--epochs", str(BASELINE_EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
         "--seed", str(seed),
@@ -2420,6 +2421,7 @@ WEI_WIE_GRID_VALUES: list[float] = [0.0, 0.25, 0.5, 1.0, 2.0]  # absolute means
 WEI_WIE_GRID_STD_FRAC: float = 0.1   # init std = STD_FRAC × mean
 WEI_WIE_GRID_THETA_U: float = 0.2
 WEI_WIE_GRID_SEED: int = SEED_SWEEP
+WEI_WIE_GRID_EPOCHS: int = 30        # 30 epochs to match the diagonal sweep
 
 
 def wei_wie_grid_cell_dir(w_ei: float, w_ie: float) -> Path:
@@ -2442,7 +2444,7 @@ def build_wei_wie_grid_args(
         "--model", recipe["__build_as"],
         "--dataset", "mnist",
         "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--epochs", str(WEI_WIE_GRID_EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
         "--seed", str(WEI_WIE_GRID_SEED),
@@ -2482,7 +2484,7 @@ def plot_wei_wie_grid(rows: list[dict], out_path: Path, run_id: str) -> None:
     for r in rows:
         i = val_to_idx[r["w_ei"]]
         j = val_to_idx[r["w_ie"]]
-        A_acc[i, j] = r["final_acc"]
+        A_acc[i, j] = r["best_acc"]
         A_e[i, j] = r["rate_e"]
         A_i[i, j] = r["rate_i"]
     for ax, A, title, cbar_label in [
@@ -2523,6 +2525,72 @@ def plot_wei_wie_grid(rows: list[dict], out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def plot_wei_wie_acc_vs_e_with_frontier(
+    grid_rows: list[dict],
+    baseline_rows: list[dict],
+    out_path: Path,
+    run_id: str,
+) -> None:
+    """Figure 10b base (grid scatter coloured by I rate) with the COBA
+    and PING θ_u-sweep frontiers from Figure 5 overlaid as connected
+    curves. Lets the reader see where the (W^EI, W^IE)-grid solutions
+    fall relative to the θ_u-driven accuracy/rate tradeoffs of the
+    canonical COBA and PING baselines."""
+    import numpy as np
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    # ── Base: Figure 10b scatter ──
+    xs = np.array([r["rate_e"] for r in grid_rows])
+    ys = np.array([r["best_acc"] for r in grid_rows])
+    cs = np.array([r["rate_i"] for r in grid_rows])
+    sc = ax.scatter(
+        xs, ys, c=cs, cmap="viridis", s=70, edgecolor="k",
+        linewidth=0.5, zorder=3, label=None,
+    )
+    cbar = fig.colorbar(sc, ax=ax, label="Hidden I rate (Hz)")
+    cbar.ax.tick_params(labelsize=theme.SIZE_CAPTION)
+    # ── Overlay: Figure 5 frontier per model ──
+    for model in MODELS:
+        pts: list[tuple[float, float, str]] = []
+        for theta_u in THETA_U_GRID:
+            cell = [
+                r for r in baseline_rows
+                if r["model"] == model and r["theta_u"] == theta_u
+            ]
+            if not cell:
+                continue
+            mean_acc = float(np.mean([r["final_acc"] for r in cell]))
+            mean_rate = float(np.mean([r["rate_e"] for r in cell]))
+            pts.append((mean_rate, mean_acc, theta_display(theta_u)))
+        pts.sort()
+        if not pts:
+            continue
+        rx = [p[0] for p in pts]
+        ry = [p[1] for p in pts]
+        ax.plot(
+            rx, ry, color=MODEL_COLORS[model],
+            marker=MODEL_MARKERS[model], lw=1.4, ms=6,
+            label=f"{model} (θ_u sweep)", zorder=4,
+        )
+        for x, y, lab in pts:
+            ax.annotate(
+                lab, (x, y), xytext=(5, 5), textcoords="offset points",
+                fontsize=theme.SIZE_CAPTION, color=theme.MUTED, alpha=0.85,
+            )
+    ax.set_xlabel("Hidden E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    ax.set_title(
+        "Grid cells (dots) vs COBA/PING θ_u frontiers (lines)",
+        fontsize=theme.SIZE_TITLE,
+    )
+    ax.set_ylim(70.0, 90.0)
+    ax.legend(fontsize=theme.SIZE_CAPTION, frameon=False, loc="lower right")
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_wei_wie_acc_vs_e(rows: list[dict], out_path: Path, run_id: str) -> None:
     """Accuracy vs hidden-E rate scatter, one dot per (W^EI, W^IE) grid
     cell from Figure 10, coloured by I rate. The cluster structure of
@@ -2532,7 +2600,7 @@ def plot_wei_wie_acc_vs_e(rows: list[dict], out_path: Path, run_id: str) -> None
     theme.apply()
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     xs = np.array([r["rate_e"] for r in rows])
-    ys = np.array([r["final_acc"] for r in rows])
+    ys = np.array([r["best_acc"] for r in rows])
     cs = np.array([r["rate_i"] for r in rows])
     sc = ax.scatter(
         xs, ys, c=cs, cmap="viridis", s=70, edgecolor="k",
@@ -2541,7 +2609,7 @@ def plot_wei_wie_acc_vs_e(rows: list[dict], out_path: Path, run_id: str) -> None
     for r in rows:
         ax.annotate(
             f"({r['w_ei']:g},{r['w_ie']:g})",
-            (r["rate_e"], r["final_acc"]),
+            (r["rate_e"], r["best_acc"]),
             xytext=(4, 4), textcoords="offset points",
             fontsize=theme.SIZE_CAPTION, color=theme.LABEL, alpha=0.75,
         )
@@ -2575,6 +2643,7 @@ WEI_DIAGONAL_VALUES: list[float] = [
 WEI_DIAGONAL_RATIO: float = 2.0       # W^IE / W^EI
 WEI_DIAGONAL_THETA_U: float = 0.2     # same penalty as the grid
 WEI_DIAGONAL_SEEDS: list[int] = list(SEEDS_BASELINE)  # 3-seed replicate
+WEI_DIAGONAL_EPOCHS: int = 30         # convergence-checked (see nb024 notes)
 
 
 def wei_diagonal_cell_dir(w_ei: float, seed: int) -> Path:
@@ -2593,7 +2662,7 @@ def build_wei_diagonal_args(
         "--model", recipe["__build_as"],
         "--dataset", "mnist",
         "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--epochs", str(WEI_DIAGONAL_EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
         "--seed", str(seed),
@@ -2642,7 +2711,7 @@ def plot_wei_diagonal(rows: list[dict], out_path: Path, run_id: str) -> None:
         return means, stds, raw
 
     panels = [
-        ("final_acc", axes[0], "Test accuracy (%)", theme.INK_BLACK, "Accuracy"),
+        ("best_acc", axes[0], "Test accuracy (%, best epoch)", theme.INK_BLACK, "Accuracy"),
         ("rate_e", axes[1], "E rate (Hz)", theme.INK_BLACK, "Hidden E rate"),
         ("rate_i", axes[2], "I rate (Hz)", theme.DEEP_RED, "Hidden I rate"),
     ]
@@ -2671,6 +2740,52 @@ def plot_wei_diagonal(rows: list[dict], out_path: Path, run_id: str) -> None:
         f"{WEI_DIAGONAL_THETA_U:g}$, $n = {n_seeds}$ seeds (mean ± std)",
         fontsize=theme.SIZE_TITLE,
     )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_wei_diagonal_acc_vs_e(
+    rows: list[dict], out_path: Path, run_id: str,
+) -> None:
+    """Per-seed accuracy vs hidden-E rate scatter from the 30-epoch
+    diagonal sweep, coloured by I rate. Same idea as Figure 10b but
+    each point is one (W^EI, seed) cell; labels mark only the W^EI
+    value (W^IE = 2 W^EI implicit)."""
+    import numpy as np
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    xs = np.array([r["rate_e"] for r in rows])
+    ys = np.array([r["best_acc"] for r in rows])
+    cs = np.array([r["rate_i"] for r in rows])
+    sc = ax.scatter(
+        xs, ys, c=cs, cmap="viridis", s=70, edgecolor="k",
+        linewidth=0.5, zorder=3,
+    )
+    # Label only the seed-42 point at each W^EI to avoid clutter.
+    seen: set[float] = set()
+    for r in rows:
+        if r["w_ei"] in seen:
+            continue
+        if int(r.get("seed", -1)) != 42:
+            continue
+        seen.add(r["w_ei"])
+        ax.annotate(
+            f"{r['w_ei']:g}",
+            (r["rate_e"], r["best_acc"]),
+            xytext=(4, 4), textcoords="offset points",
+            fontsize=theme.SIZE_CAPTION, color=theme.LABEL, alpha=0.75,
+        )
+    cbar = fig.colorbar(sc, ax=ax, label="Hidden I rate (Hz)")
+    cbar.ax.tick_params(labelsize=theme.SIZE_CAPTION)
+    ax.set_xlabel("Hidden E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Best-epoch test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    ax.set_title(
+        "Diagonal cells in (E rate, accuracy) — coloured by I rate",
+        fontsize=theme.SIZE_TITLE,
+    )
+    ax.set_ylim(70.0, 90.0)
     fig.tight_layout()
     _stamp(fig, run_id)
     fig.savefig(out_path, dpi=150)
@@ -2712,7 +2827,12 @@ def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
         artifact("coupling_sweep.png", "coupling sweep rendered"),
         artifact("wei_wie_grid.png", "W_ei × W_ie grid rendered"),
         artifact("wei_wie_acc_vs_e.png", "acc-vs-E scatter rendered"),
+        artifact(
+            "wei_wie_acc_vs_e_with_frontier.png",
+            "acc-vs-E scatter with θ_u frontier overlay rendered",
+        ),
         artifact("wei_diagonal.png", "W_ei diagonal sweep rendered"),
+        artifact("wei_diagonal_acc_vs_e.png", "diagonal acc-vs-E scatter rendered"),
         artifact("fi_curve__ping.png", "f-I curve rendered"),
         artifact("fi_curve_uniform.png", "uniform-input f-I curve rendered"),
         artifact(
@@ -3142,6 +3262,12 @@ def main() -> None:
             wei_wie_rows, FIGURES / "wei_wie_acc_vs_e.png", notebook_run_id,
         )
         print(f"wrote {FIGURES / 'wei_wie_acc_vs_e.png'}")
+        plot_wei_wie_acc_vs_e_with_frontier(
+            wei_wie_rows, rows,
+            FIGURES / "wei_wie_acc_vs_e_with_frontier.png",
+            notebook_run_id,
+        )
+        print(f"wrote {FIGURES / 'wei_wie_acc_vs_e_with_frontier.png'}")
 
     # W_ei 1D diagonal sweep (W^IE = 2 W^EI), 3 seeds.
     print("[wei-diagonal] reading metrics from 1D diagonal trainings")
@@ -3175,6 +3301,12 @@ def main() -> None:
             wei_diagonal_rows, FIGURES / "wei_diagonal.png", notebook_run_id,
         )
         print(f"wrote {FIGURES / 'wei_diagonal.png'}")
+        plot_wei_diagonal_acc_vs_e(
+            wei_diagonal_rows,
+            FIGURES / "wei_diagonal_acc_vs_e.png",
+            notebook_run_id,
+        )
+        print(f"wrote {FIGURES / 'wei_diagonal_acc_vs_e.png'}")
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
