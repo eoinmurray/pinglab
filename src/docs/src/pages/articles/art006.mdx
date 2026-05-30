@@ -168,11 +168,11 @@ Forward: $g_e^{\text{step}} = g_e$. Backward: $\partial \mathcal{L} / \partial g
 
 ### Empirical validation
 
-[nb027](/notebooks/nb027/) tests the prediction directly: same network, same recipe, same seed, replace *--v-grad-dampen 1000* with *--sgcc --sgcc-alpha 0.5*. Through the first ~10 epochs the two training curves are visually indistinguishable — both descend from CE loss $\sim 2.3$ to $\sim 0.55$, both reach $\sim 84\%$ test accuracy. This matches Proposition 1's prediction: same optimum, similar path early.
+A head-to-head comparison — same network, same recipe, same seed, *--v-grad-dampen 1000* replaced with *--sgcc --sgcc-alpha 0.5* — tests the prediction directly. Through the first ~10 epochs the two training curves are visually indistinguishable: both descend from CE loss $\sim 2.3$ to $\sim 0.55$, both reach $\sim 84\%$ test accuracy. This matches Proposition 1's prediction: same optimum, similar path early.
 
 Past epoch 10 the V_GRAD_DAMPEN baseline plateaus; SGCC continues to descend and reaches 87.75% by epoch 20. The 3.5 pp gap is the cost of $K^{\text{prop}}$'s uniformity — the global dampener was silently throttling the diagonal pathway too. $K^{\text{gat}}$ keeps the diagonal sharp while taming only what needed taming.
 
-The trained-network rasters in nb027 (Figure 2) corroborate the dynamical equivalence: the SGCC and V_GRAD_DAMPEN baselines arrive at indistinguishable operating points (~85 Hz E, asynchronous-dense, silent I) via different optimisation paths.
+The trained-network rasters corroborate the dynamical equivalence: the SGCC and V_GRAD_DAMPEN baselines arrive at indistinguishable operating points (~85 Hz E, asynchronous-dense, silent I) via different optimisation paths.
 
 ### Choosing between them
 

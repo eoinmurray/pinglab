@@ -16,7 +16,7 @@ export const numbers = Object.values(
 
 ## Introduction
 
-[nb024](/notebooks/nb024/) characterised the PING rate floor empirically: a recruitment cliff where the I-loop engages, gamma at ≈25 Hz, $W^{EI}$ moves the cliff and $W^{IE}$ does not. Both phenomena are bifurcation behaviours; the natural framework is Wilson-Cowan mean-field. The goal here is to derive the recruitment threshold $I_\text{ext}^\star$ and oscillation frequency $\omega^\star$ from the equations alone and check whether they match the spiking simulations.
+[nb035](/notebooks/nb035/) characterised the PING rate floor empirically: a recruitment cliff where the I-loop engages, gamma at ≈25 Hz, $W^{EI}$ moves the cliff and $W^{IE}$ does not. Both phenomena are bifurcation behaviours; the natural framework is Wilson-Cowan mean-field. The goal here is to derive the recruitment threshold $I_\text{ext}^\star$ and oscillation frequency $\omega^\star$ from the equations alone and check whether they match the spiking simulations.
 
 ## Method
 
@@ -111,7 +111,7 @@ Two qualitative types, distinguished by the sign of the first Lyapunov coefficie
 - **Supercritical** ($\ell_1 < 0$): stable limit cycle emerges smoothly past the bifurcation, $A \propto \sqrt{I_\text{ext} - I_\text{ext}^\star}$, no hysteresis.
 - **Subcritical** ($\ell_1 > 0$): amplitude jumps discontinuously, hysteresis on reverse sweep.
 
-The numerics use direct integration to determine criticality: simulate the 4D ODE at a sequence of $I_\text{ext}$ values around $I_\text{ext}^\star$, measure asymptotic amplitude, check whether $A^2$ is linear in $(I_\text{ext} - I_\text{ext}^\star)$. nb024's Figure 19 zoom (smooth I-rate onset) and Figure 6 (no hysteresis) both predict supercritical.
+The numerics use direct integration to determine criticality: simulate the 4D ODE at a sequence of $I_\text{ext}$ values around $I_\text{ext}^\star$, measure asymptotic amplitude, check whether $A^2$ is linear in $(I_\text{ext} - I_\text{ext}^\star)$. nb038's Figure 3 zoom (smooth I-rate onset) and nb035 Figure 6 (no hysteresis) both predict supercritical.
 
 ### Caveats
 
@@ -127,15 +127,15 @@ The numerics use direct integration to determine criticality: simulate the 4D OD
   Real parts of the Jacobian eigenvalues vs external drive. Complex pairs in red, real in black. A complex pair crosses the imaginary axis at $I_\text{ext}^\star = 1.30$, predicted gamma $f^\star = 24.5$ Hz.
 </Figure>
 
-**Hopf at $I_\text{ext}^\star = 1.30$, $f^\star = 24.5$ Hz**. This matches the trained-PING measured gamma in [nb024](/notebooks/nb024/) (≈25 Hz from spike autocorrelation), with no free parameters once gain shapes are chosen.
+**Hopf at $I_\text{ext}^\star = 1.30$, $f^\star = 24.5$ Hz**. This matches the trained-PING measured gamma in [nb035](/notebooks/nb035/) (≈25 Hz from spike autocorrelation), with no free parameters once gain shapes are chosen.
 
 <Figure id="Figure 2" title="Hopf criticality by direct simulation" src="/figures/notebooks/nb033/criticality.png" alt="Two panels. Left: E oscillation amplitude (peak-to-peak) vs I_ext for the 4D system. Amplitude rises smoothly from zero starting at I_ext = 1.3. Right: amplitude squared vs (I_ext - I_ext*). Approximately linear positive slope, confirming sqrt-onset signature of supercritical Hopf.">
   Direct ODE integration around $I_\text{ext}^\star = 1.30$. Left: asymptotic peak-to-peak amplitude of $E$ vs $I_\text{ext}$. Right: $A^2$ vs $(I_\text{ext} - I_\text{ext}^\star)$ — linear trend confirms $\sqrt{}$-onset signature of supercritical Hopf.
 </Figure>
 
-The amplitude grows smoothly from zero past the bifurcation. The Hopf is **supercritical**, consistent with the smooth I-rate lift-off in nb024 Figure 19 and the hysteresis-free convergence in nb024 Figure 6.
+The amplitude grows smoothly from zero past the bifurcation. The Hopf is **supercritical**, consistent with the smooth I-rate lift-off in nb038 Figure 3 and the hysteresis-free convergence in nb035 Figure 6.
 
-| Quantity | Mean-field prediction | nb024 empirical |
+| Quantity | Mean-field prediction | nb035 empirical |
 |---|---|---|
 | Gamma frequency at onset | 24.5 Hz | ≈25 Hz (autocorrelation) |
 | Criticality | supercritical | supercritical (Figs 19, 6) |
@@ -146,7 +146,7 @@ The $W^{IE}$-invariance match has the same mechanism in both pictures: at the si
 
 ## Next steps
 
-1. **Coupling sweep in mean-field.** $I_\text{ext}^\star(W^{EI}, W^{IE})$ and $\omega^\star(W^{EI}, W^{IE})$ overlaid on nb024 Figure 9 / 10. Quantitative match would tighten the case.
-2. **$\tau_\text{GABA}$ sweep.** Predict how $\omega^\star$ scales with $\tau_\text{GABA}$; compare against nb024 Figure 16.
+1. **Coupling sweep in mean-field.** $I_\text{ext}^\star(W^{EI}, W^{IE})$ and $\omega^\star(W^{EI}, W^{IE})$ overlaid on nb036 Figures 1, 2. Quantitative match would tighten the case.
+2. **$\tau_\text{GABA}$ sweep.** Predict how $\omega^\star$ scales with $\tau_\text{GABA}$; compare against nb037 Figure 6.
 3. **Kuznetsov $\ell_1$ in closed form.** Direct simulation shows supercritical; the analytical formula would let us track $\ell_1$ across parameter space.
 4. **LIF gain function.** Replace the sigmoid $\Phi$ with the closed-form LIF f-I curve.

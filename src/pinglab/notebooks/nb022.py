@@ -56,7 +56,7 @@ SEED = 42
 # Two cells: one with Dale's law on, one off. Same recipe otherwise.
 CELLS = ["dales", "no_dales"]
 
-# coba recipe from nb011 / nb021.
+# coba recipe.
 COBA_RECIPE: dict[str, str | bool | None] = {
     "__build_as": "ping",
     "--ei-strength": "0",
