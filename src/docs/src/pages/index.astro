@@ -155,11 +155,15 @@ const formatDate = (raw) => {
     <div class="fixed top-4 right-4 z-40">
       <ThemeToggle />
     </div>
-    <main class="px-6 pt-16 pb-64 lg:px-12 [&_a]:no-underline! [&_a:hover]:underline!">
-      <div class="max-w-[90rem] mx-auto">
+    <header class="px-6 pt-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[46rem]">
         <SiteHeader isHome={true} />
+      </div>
+    </header>
 
-        <div class="mt-10 flex flex-col gap-12 max-w-3xl">
+    <main class="px-6 pt-10 pb-48 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[46rem]">
+        <div class="flex flex-col gap-12">
           <section>
             <p class="mb-2 text-xs uppercase tracking-wider text-muted">Articles</p>
             {
