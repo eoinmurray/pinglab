@@ -1,10 +1,8 @@
-"""Notebook runner for entry 041 — CUBA-no-PING baseline.
+"""Notebook runner for entry 041 — CUBA-no-PING control via oscilloscope.
 
-Standalone PyTorch runner. Companion to nb040: same architecture
-*minus* the I-loop. Trains a current-based LIF E-only network with
-the same mem-mean readout, same TBPTT recipe, same MNIST subset, same
-hyperparameters. The point is to test whether nb040's sub-Hz firing
-rates come from the I-loop (clamping the rate) or from the mem-mean
+Companion to nb040: same architecture *minus* the I-loop, dispatched
+via the oscilloscope's `cuba-noping` model. Tests whether nb040's
+sub-Hz firing comes from the I-loop (rate clamp) or the mem-mean
 readout (which doesn't require spikes to classify).
 
 Notebook entry: src/docs/src/pages/notebooks/nb041.mdx
@@ -21,19 +19,20 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "src" / "pinglab"))
 
+from _modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+from _tier import parse_tier  # noqa: E402
 from pinglab import theme  # noqa: E402
 
 SLUG = "nb041"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+OSCILLOSCOPE = REPO / "src" / "pinglab" / "cli" / "__main__.py"
 
-# ── Architecture (same E params as nb040; no I population) ──────
+# ── Architecture (matches nb040 exactly; no I population) ─────────
 N_E: int = 1024
 N_IN: int = 784
 N_CLASSES: int = 10
@@ -43,228 +42,97 @@ DT: float = 1.0
 N_STEPS: int = int(T_MS / DT)
 
 TAU_M_MS: float = 20.0
-TAU_OUT_MS: float = 20.0  # output-LIF readout time constant (matches nb040)
-V_REST: float = 0.0
+TAU_OUT_MS: float = 20.0
 V_TH: float = 1.0
-V_RESET: float = 0.0
-R_M: float = 1.0
 
-W_IN_INIT_STD: float = 0.5
+W_IN_MEAN: float = 0.0
+W_IN_STD: float = 0.5
 W_IN_SPARSITY: float = 0.95
 
 SEED: int = 42
 
-# ── Training (matches nb040 exactly) ─────────────────────────────
+# ── Training recipe (tier-scaled; mirror nb040) ──────────────────
+TIER_CONFIG = {
+    "extra small": dict(max_samples=200, epochs=2),
+    "small": dict(max_samples=1000, epochs=5),
+    "medium": dict(max_samples=5000, epochs=15),
+    "large": dict(max_samples=10000, epochs=30),
+    "extra large": dict(max_samples=20000, epochs=40),
+}
+DEFAULT_TIER = "medium"
 INPUT_RATE_HZ: float = 80.0
-
-N_TRAIN: int = 10000
-N_TEST: int = 1000
-EPOCHS: int = 30
+LR: float = 2e-3
 BATCH_SIZE: int = 64
-LR: float = 5e-4
-SURROGATE_SLOPE: float = 1.0
-TBPTT_WINDOW: int = 10
-GRAD_CLIP_VALUE: float = 1.0
+
+MODEL: str = "cuba-noping"
 
 
-# ── Surrogate gradient (same as nb040) ───────────────────────────
-class SurrSpike(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, v_minus_th: torch.Tensor, slope: float) -> torch.Tensor:
-        ctx.save_for_backward(v_minus_th)
-        ctx.slope = slope
-        return (v_minus_th >= 0).float()
-
-    @staticmethod
-    def backward(ctx, grad_out: torch.Tensor):
-        (v,) = ctx.saved_tensors
-        s = ctx.slope
-        denom = 1.0 + (s * np.pi * v).pow(2)
-        return grad_out * s / denom, None
-
-
-def spike(v: torch.Tensor, slope: float) -> torch.Tensor:
-    return SurrSpike.apply(v - V_TH, slope)
-
-
-class CubaNoPingNet(nn.Module):
-    """LIF E-population only — no I-loop, no W_ei, no W_ie. Otherwise
-    identical to the CubaPingNet in nb040."""
-
-    def __init__(self, seed: int):
-        super().__init__()
-        g = torch.Generator().manual_seed(seed)
-        w_in_dense = torch.randn(N_IN, N_E, generator=g) * W_IN_INIT_STD
-        mask = (torch.rand(N_IN, N_E, generator=g) > W_IN_SPARSITY).float()
-        self.W_in = nn.Parameter((w_in_dense * mask).abs())
-        w_out = torch.randn(N_E, N_CLASSES, generator=g) * 0.05
-        self.W_out = nn.Parameter(w_out)
-        self.b_out = nn.Parameter(torch.zeros(N_CLASSES))
-
-    def forward(self, input_spikes: torch.Tensor) -> tuple[torch.Tensor, dict]:
-        B, T, _ = input_spikes.shape
-        dev = input_spikes.device
-        V_E = torch.zeros(B, N_E, device=dev)
-        V_out = torch.zeros(B, N_CLASSES, device=dev)
-        readout = torch.zeros(B, N_CLASSES, device=dev)
-        e_spike_total = torch.zeros((), device=dev)
-        alpha = DT / TAU_M_MS
-        alpha_out = DT / TAU_OUT_MS
-        for t in range(T):
-            if self.training and t > 0 and t % TBPTT_WINDOW == 0:
-                V_E = V_E.detach()
-                V_out = V_out.detach()
-            x = input_spikes[:, t, :]
-            I_E = x @ self.W_in
-            V_E = V_E + alpha * (-(V_E - V_REST) + R_M * I_E)
-            s_E = spike(V_E, SURROGATE_SLOPE)
-            V_E = V_E - s_E.detach() * (V_TH - V_RESET)
-            # Output-LIF mem-mean readout (same as nb040). Hidden
-            # spikes are now mandatory for the readout to carry signal.
-            V_out = V_out + alpha_out * (-V_out + s_E @ self.W_out)
-            readout = readout + V_out
-            e_spike_total = e_spike_total + s_E.sum()
-        logits = readout / T + self.b_out
-        e_rate = float(e_spike_total.detach()) / (B * N_E * T * DT / 1000.0)
-        return logits, {"rate_e_hz": e_rate}
+def build_oscilloscope_args(tier: str, out_dir: Path) -> list[str]:
+    return [
+        "train",
+        "--model", MODEL,
+        "--dataset", "mnist",
+        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--t-ms", str(T_MS),
+        "--dt", str(DT),
+        "--input-rate", str(INPUT_RATE_HZ),
+        "--seed", str(SEED),
+        "--n-hidden", str(N_E),
+        "--w-in", str(W_IN_MEAN), str(W_IN_STD),
+        "--w-in-sparsity", str(W_IN_SPARSITY),
+        "--readout", "mem-mean",
+        "--surrogate-slope", "1",
+        "--tau-mem", str(TAU_M_MS),
+        "--readout-tau-out", str(TAU_OUT_MS),
+        "--lr", str(LR),
+        "--batch-size", str(BATCH_SIZE),
+        "--grad-clip", "1e6",
+        "--no-dales-law",
+        "--out-dir", str(out_dir),
+        "--wipe-dir",
+    ]
 
 
-# ── Data + training (mirrors nb040) ──────────────────────────────
-def load_mnist() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    from torchvision import datasets, transforms
-    cache = REPO / ".cache" / "mnist"
-    cache.mkdir(parents=True, exist_ok=True)
-    transform = transforms.Compose([transforms.ToTensor()])
-    train_ds = datasets.MNIST(cache, train=True, download=True, transform=transform)
-    test_ds = datasets.MNIST(cache, train=False, download=True, transform=transform)
-    rng = np.random.default_rng(SEED)
-    train_idx = rng.choice(len(train_ds), size=N_TRAIN, replace=False)
-    test_idx = rng.choice(len(test_ds), size=N_TEST, replace=False)
-    X_tr = torch.stack([train_ds[int(i)][0].view(-1) for i in train_idx])
-    y_tr = torch.tensor([train_ds[int(i)][1] for i in train_idx])
-    X_te = torch.stack([test_ds[int(i)][0].view(-1) for i in test_idx])
-    y_te = torch.tensor([test_ds[int(i)][1] for i in test_idx])
-    return X_tr, y_tr, X_te, y_te
+def _build_cubanet():
+    torch.manual_seed(SEED)
+    import models as M
+    M.HIDDEN_SIZES = [N_E]
+    M.N_IN = N_IN
+    M.N_OUT = N_CLASSES
+    M.N_HID = N_E
+    M.N_INH = N_E // 4
+    M.T_steps = N_STEPS
+    M.T_ms = T_MS
+    M.dt = DT
+    from config import build_net
+    return build_net(
+        MODEL,
+        w_in=(W_IN_MEAN, W_IN_STD),
+        w_in_sparsity=W_IN_SPARSITY,
+        hidden_sizes=[N_E],
+    )
 
 
-def encode_batch(X: torch.Tensor, gen: torch.Generator) -> torch.Tensor:
-    B = X.shape[0]
-    p = X.unsqueeze(1) * (INPUT_RATE_HZ * DT / 1000.0)
-    p = p.expand(B, N_STEPS, N_IN).contiguous()
-    return torch.bernoulli(p, generator=gen)
-
-
-def evaluate(net, X, y, device, gen) -> dict:
-    net.eval()
-    correct = total = 0
-    e_rate_sum = 0.0
-    n_batches = 0
-    with torch.no_grad():
-        for i in range(0, len(X), BATCH_SIZE):
-            xb = X[i:i + BATCH_SIZE].to(device)
-            yb = y[i:i + BATCH_SIZE].to(device)
-            spk = encode_batch(xb, gen).to(device)
-            logits, info = net(spk)
-            correct += (logits.argmax(1) == yb).sum().item()
-            total += yb.size(0)
-            e_rate_sum += info["rate_e_hz"]
-            n_batches += 1
-    return {"acc": 100.0 * correct / total,
-            "rate_e_hz": e_rate_sum / max(n_batches, 1)}
-
-
-def train(X_tr, y_tr, X_te, y_te, device) -> dict:
-    print("\n[nb041] training CUBA-no-PING")
-    net = CubaNoPingNet(seed=SEED).to(device)
-    n_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
-    print(f"  trainable parameters: {n_params:,}")
-    opt = torch.optim.Adam(net.parameters(), lr=LR)
-    gen = torch.Generator(device="cpu").manual_seed(SEED + 7)
-    epoch_rows: list[dict] = []
-    for ep in range(1, EPOCHS + 1):
-        net.train()
-        perm = torch.randperm(len(X_tr))
-        loss_sum = 0.0; n = 0
-        t_ep = time.monotonic()
-        for i in range(0, len(X_tr), BATCH_SIZE):
-            idx = perm[i:i + BATCH_SIZE]
-            xb = X_tr[idx].to(device)
-            yb = y_tr[idx].to(device)
-            spk = encode_batch(xb, gen).to(device)
-            logits, _ = net(spk)
-            loss = F.cross_entropy(logits, yb)
-            opt.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_value_(net.parameters(), GRAD_CLIP_VALUE)
-            opt.step()
-            loss_sum += float(loss.item()) * yb.size(0)
-            n += yb.size(0)
-        train_loss = loss_sum / max(n, 1)
-        ev = evaluate(net, X_te, y_te, device, gen)
-        dt_ep = time.monotonic() - t_ep
-        print(
-            f"  ep {ep:2d}/{EPOCHS}  loss={train_loss:6.3f}  "
-            f"acc={ev['acc']:5.2f}%  E={ev['rate_e_hz']:6.2f} Hz  [{dt_ep:5.1f}s]"
-        )
-        epoch_rows.append({"epoch": ep, "train_loss": train_loss, **ev, "duration_s": dt_ep})
-
-    # Capture a test trial's E raster.
-    net.eval()
-    with torch.no_grad():
-        scan_B = min(16, len(X_te))
-        xb = X_te[:scan_B].to(device)
-        spk = encode_batch(xb, gen).to(device)
-        V_E = torch.zeros(scan_B, N_E, device=device)
-        e_per = torch.zeros(scan_B, device=device)
-        alpha = DT / TAU_M_MS
-        for t in range(N_STEPS):
-            x = spk[:, t, :]
-            V_E = V_E + alpha * (-(V_E - V_REST) + R_M * (x @ net.W_in))
-            s_E = (V_E >= V_TH).float()
-            V_E = torch.where(s_E.bool(), torch.full_like(V_E, V_RESET), V_E)
-            e_per = e_per + s_E.sum(dim=1)
-        sample_idx = int(e_per.argmax().item())
-        print(f"  raster sample: idx={sample_idx} digit={int(y_te[sample_idx].item())}")
-
-        spk_one = encode_batch(X_te[sample_idx:sample_idx + 1].to(device), gen).to(device)
-        V_E = torch.zeros(1, N_E, device=device)
-        spk_E_log = torch.zeros(N_STEPS, N_E)
-        for t in range(N_STEPS):
-            x = spk_one[:, t, :]
-            V_E = V_E + alpha * (-(V_E - V_REST) + R_M * (x @ net.W_in))
-            s_E = (V_E >= V_TH).float()
-            V_E = torch.where(s_E.bool(), torch.full_like(V_E, V_RESET), V_E)
-            spk_E_log[t] = s_E[0].cpu()
-
-    return {
-        "epochs": epoch_rows,
-        "final": epoch_rows[-1],
-        "raster": {
-            "spk_E": spk_E_log.numpy(),
-            "label": int(y_te[sample_idx].item()),
-        },
-    }
-
-
-# ── Plotting ─────────────────────────────────────────────────────
 def _stamp(fig) -> None:
     fig.text(
-        0.995, 0.005, f"nb041-{int(time.time())}",
+        0.995, 0.005, f"{SLUG}-{int(time.time())}",
         ha="right", va="bottom",
         fontsize=theme.SIZE_CAPTION, color=theme.LABEL, family="monospace",
     )
 
 
-def plot_learning_curves(run: dict, out_path: Path) -> None:
+def plot_learning_curves(metrics: dict, out_path: Path) -> None:
     theme.apply()
+    epochs = metrics["epochs"]
+    eps = [e["ep"] for e in epochs]
+    loss = [e["loss"] for e in epochs]
+    acc = [e["acc"] for e in epochs]
+    re = [e["test_rate_e"] for e in epochs]
     fig, (ax_loss, ax_acc, ax_rate) = plt.subplots(1, 3, figsize=(13.0, 4.5), dpi=150)
-    eps = [e["epoch"] for e in run["epochs"]]
-    ax_loss.plot(eps, [e["train_loss"] for e in run["epochs"]],
-                 marker="o", color=theme.INK_BLACK)
-    ax_acc.plot(eps, [e["acc"] for e in run["epochs"]],
-                marker="o", color=theme.INK_BLACK)
-    ax_rate.plot(eps, [e["rate_e_hz"] for e in run["epochs"]],
-                 marker="o", color=theme.INK_BLACK)
+    ax_loss.plot(eps, loss, marker="o", color=theme.INK_BLACK)
+    ax_acc.plot(eps, acc, marker="o", color=theme.INK_BLACK)
+    ax_rate.plot(eps, re, marker="o", color=theme.INK_BLACK)
     for ax, ylab, title in (
         (ax_loss, "Cross-entropy", "Training loss"),
         (ax_acc, "Test accuracy (%)", "Test accuracy"),
@@ -281,10 +149,31 @@ def plot_learning_curves(run: dict, out_path: Path) -> None:
     plt.close(fig)
 
 
-def plot_trained_raster(run: dict, out_path: Path) -> None:
+def plot_trained_raster(weights_path: Path, metrics: dict, out_path: Path) -> None:
+    from torchvision import datasets, transforms
+    cache = REPO / ".cache" / "mnist"
+    test_ds = datasets.MNIST(cache, train=False, download=True,
+                             transform=transforms.ToTensor())
+    rng = np.random.default_rng(SEED + 2)
+    idx = int(rng.integers(len(test_ds)))
+    img, label = test_ds[idx]
+    pixels = img.view(-1)
+    p = pixels.unsqueeze(0).unsqueeze(0) * (INPUT_RATE_HZ * DT / 1000.0)
+    p = p.expand(N_STEPS, 1, N_IN).contiguous()
+    gen = torch.Generator().manual_seed(SEED + 3)
+    spk_in = torch.bernoulli(p, generator=gen)
+
+    net = _build_cubanet()
+    state = torch.load(weights_path, map_location="cpu")
+    net.load_state_dict(state, strict=False)
+    net.eval()
+    net.recording = True
+    with torch.no_grad():
+        net(input_spikes=spk_in)
+    rec = net.spike_record
+    spk_e = rec["hid"].cpu().numpy()
+
     theme.apply()
-    sample = run["raster"]
-    spk_e = sample["spk_E"]
     t_ms = np.arange(spk_e.shape[0]) * DT
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     e_idx, e_t = np.where(spk_e.T)
@@ -293,10 +182,10 @@ def plot_trained_raster(run: dict, out_path: Path) -> None:
     ax.set_ylim(0, N_E)
     ax.set_xlim(0, T_MS)
     ax.set_xlabel("time (ms)")
-    final = run["final"]
+    final = metrics["epochs"][-1]
     ax.set_title(
-        f"Trained CUBA-no-PING — digit {sample['label']}, "
-        f"acc={final['acc']:.1f}%, E={final['rate_e_hz']:.2f} Hz",
+        f"Trained CUBA-no-PING — digit {label}, "
+        f"acc={final['acc']:.1f}%, E={final['test_rate_e']:.2f} Hz",
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
@@ -305,28 +194,29 @@ def plot_trained_raster(run: dict, out_path: Path) -> None:
     plt.close(fig)
 
 
-def plot_comparison(this_run: dict, ping_numbers: dict, out_path: Path) -> None:
-    """Side-by-side comparison of accuracy and E rate vs epoch — this
-    notebook's no-PING run against nb040's PING run (loaded from
-    nb040/numbers.json)."""
+def plot_comparison(this_metrics: dict, ping_numbers: dict, out_path: Path) -> None:
     theme.apply()
     fig, (ax_acc, ax_rate) = plt.subplots(1, 2, figsize=(11.0, 4.5), dpi=150)
-    eps = [e["epoch"] for e in this_run["epochs"]]
-    ax_acc.plot(eps, [e["acc"] for e in this_run["epochs"]],
-                marker="o", color=theme.INK_BLACK, label="CUBA-no-PING")
-    ax_rate.plot(eps, [e["rate_e_hz"] for e in this_run["epochs"]],
-                 marker="o", color=theme.INK_BLACK, label="CUBA-no-PING")
+    this_eps = this_metrics["epochs"]
+    ax_acc.plot(
+        [e["ep"] for e in this_eps], [e["acc"] for e in this_eps],
+        marker="o", color=theme.INK_BLACK, label="CUBA-no-PING",
+    )
+    ax_rate.plot(
+        [e["ep"] for e in this_eps], [e["test_rate_e"] for e in this_eps],
+        marker="o", color=theme.INK_BLACK, label="CUBA-no-PING",
+    )
     if ping_numbers is not None:
         ping_eps = ping_numbers.get("epochs", [])
         if ping_eps:
             ax_acc.plot(
-                [e["epoch"] for e in ping_eps],
+                [e["ep"] for e in ping_eps],
                 [e["acc"] for e in ping_eps],
                 marker="s", color=theme.DEEP_RED, label="CUBA-PING (nb040)",
             )
             ax_rate.plot(
-                [e["epoch"] for e in ping_eps],
-                [e["rate_e_hz"] for e in ping_eps],
+                [e["ep"] for e in ping_eps],
+                [e["test_rate_e"] for e in ping_eps],
                 marker="s", color=theme.DEEP_RED, label="CUBA-PING (nb040)",
             )
     ax_acc.set_xlabel("Epoch")
@@ -347,62 +237,66 @@ def plot_comparison(this_run: dict, ping_numbers: dict, out_path: Path) -> None:
 
 
 def main() -> None:
+    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+    modal_gpu = parse_modal_gpu(sys.argv)
     wipe_dir = "--no-wipe-dir" not in sys.argv
-    if wipe_dir and FIGURES.exists():
-        print(f"[wipe] {FIGURES.relative_to(REPO)}")
-        shutil.rmtree(FIGURES)
+
+    if wipe_dir:
+        for d in (ARTIFACTS, FIGURES):
+            if d.exists():
+                print(f"[wipe] {d.relative_to(REPO)}")
+                shutil.rmtree(d)
     FIGURES.mkdir(parents=True, exist_ok=True)
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    torch.manual_seed(SEED)
     t_start = time.monotonic()
-    print(f"[nb041] CUBA-no-PING (E only, mem-mean readout), device={device}")
-    print(f"  N_E={N_E}, N_IN={N_IN}, T={T_MS}ms, dt={DT}ms, batch={BATCH_SIZE}")
+    print(f"[{SLUG}] CUBA-no-PING via oscilloscope, tier={tier}")
 
-    X_tr, y_tr, X_te, y_te = load_mnist()
-    print(f"  data: {len(X_tr)} train, {len(X_te)} test")
+    train_dir = ARTIFACTS / "train"
+    print(f"\n[{SLUG}:train] dispatching {MODEL} train run → "
+          f"{train_dir.relative_to(REPO)}")
+    dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
+    dispatcher.submit(build_oscilloscope_args(tier, train_dir), train_dir)
+    dispatcher.drain()
 
-    run = train(X_tr, y_tr, X_te, y_te, device)
-    plot_learning_curves(run, FIGURES / "learning_curves.png")
+    metrics = json.loads((train_dir / "metrics.json").read_text())
+    plot_learning_curves(metrics, FIGURES / "learning_curves.png")
     print(f"  wrote {FIGURES / 'learning_curves.png'}")
-    plot_trained_raster(run, FIGURES / "trained_raster.png")
+    plot_trained_raster(
+        train_dir / "weights.pth", metrics, FIGURES / "trained_raster.png"
+    )
     print(f"  wrote {FIGURES / 'trained_raster.png'}")
 
-    # Comparison with nb040 CUBA-PING.
     ping_path = REPO / "src/docs/public/figures/notebooks/nb040/numbers.json"
     ping_numbers = json.loads(ping_path.read_text()) if ping_path.exists() else None
     if ping_numbers is not None:
-        plot_comparison(run, ping_numbers, FIGURES / "comparison.png")
+        plot_comparison(metrics, ping_numbers, FIGURES / "comparison.png")
         print(f"  wrote {FIGURES / 'comparison.png'}")
 
+    final = metrics["epochs"][-1]
     duration_s = time.monotonic() - t_start
     summary = {
         "slug": SLUG,
+        "tier": tier,
         "duration_s": round(duration_s, 1),
-        "device": str(device),
+        "model": MODEL,
         "config": {
             "n_e": N_E, "n_in": N_IN, "n_classes": N_CLASSES,
             "t_ms": T_MS, "dt": DT, "tau_m_ms": TAU_M_MS,
-            "v_th": V_TH, "v_reset": V_RESET, "v_rest": V_REST, "r_m": R_M,
+            "tau_out_ms": TAU_OUT_MS, "v_th": V_TH,
             "input_rate_hz": INPUT_RATE_HZ,
-            "n_train": N_TRAIN, "n_test": N_TEST,
-            "epochs": EPOCHS, "batch_size": BATCH_SIZE, "lr": LR,
-            "tbptt_window": TBPTT_WINDOW,
-            "grad_clip_value": GRAD_CLIP_VALUE,
-            "surrogate_slope": SURROGATE_SLOPE, "seed": SEED,
+            "max_samples": TIER_CONFIG[tier]["max_samples"],
+            "epochs": TIER_CONFIG[tier]["epochs"],
+            "batch_size": BATCH_SIZE, "lr": LR, "seed": SEED,
         },
-        "final_acc": run["final"]["acc"],
-        "final_rate_e_hz": run["final"]["rate_e_hz"],
-        "epochs": [
-            {k: v for k, v in e.items() if k != "raster"}
-            for e in run["epochs"]
-        ],
+        "final_acc": final["acc"],
+        "final_rate_e_hz": final["test_rate_e"],
+        "epochs": metrics["epochs"],
         "success_criteria": [
             {
                 "label": "training reaches above chance",
-                "passed": run["final"]["acc"] > 15.0,
-                "detail": f"{run['final']['acc']:.2f}%",
+                "passed": final["acc"] > 15.0,
+                "detail": f"{final['acc']:.2f}%",
             },
         ],
     }

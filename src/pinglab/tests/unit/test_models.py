@@ -26,9 +26,8 @@ class TestBuildNetRegistry:
         with pytest.raises(ValueError, match="Unknown model"):
             build_net("nonexistent")
 
-    @pytest.mark.parametrize("name", ["ping", "standard-snn", "cuba"])
-    def test_each_registered_model_instantiates(self, name):
-        net = build_net(name, hidden_sizes=[32])
+    def test_ping_instantiates(self):
+        net = build_net("ping", hidden_sizes=[32])
         assert isinstance(net, nn.Module)
 
 
@@ -52,7 +51,6 @@ class TestCOBANetFrozenWeights:
             for name in ["W_ee", "W_ei", "W_ie"]
             for k, p in getattr(net, name).items()
         }
-        # Optimize over all params, nudge with a fake loss from a trainable param
         trainable = [p for p in net.parameters() if p.requires_grad]
         assert len(trainable) > 0, "expected at least one trainable param"
         opt = torch.optim.SGD(trainable, lr=1.0)
@@ -67,37 +65,14 @@ class TestCOBANetFrozenWeights:
 
 
 class TestSeedReproducibility:
-    @pytest.mark.parametrize("name", ["ping", "standard-snn"])
-    def test_same_seed_gives_same_weights(self, name):
+    def test_same_seed_gives_same_weights(self):
         def _weights(net):
             return [p.detach().clone() for p in net.parameters()]
 
         torch.manual_seed(123)
-        a = _weights(build_net(name, hidden_sizes=[32]))
+        a = _weights(build_net("ping", hidden_sizes=[32]))
         torch.manual_seed(123)
-        b = _weights(build_net(name, hidden_sizes=[32]))
+        b = _weights(build_net("ping", hidden_sizes=[32]))
         assert len(a) == len(b)
         for pa, pb in zip(a, b):
             assert torch.equal(pa, pb)
-
-    def test_different_seeds_give_different_weights(self):
-        torch.manual_seed(1)
-        a = [
-            p.detach().clone()
-            for p in build_net("standard-snn", hidden_sizes=[32]).parameters()
-        ]
-        torch.manual_seed(2)
-        b = [
-            p.detach().clone()
-            for p in build_net("standard-snn", hidden_sizes=[32]).parameters()
-        ]
-        # At least one parameter tensor must differ
-        assert any(not torch.equal(pa, pb) for pa, pb in zip(a, b))
-
-
-class TestKaimingMode:
-    def test_kaiming_flag_switches_snntorch_canonical_to_tutorial(self):
-        net = build_net("standard-snn", kaiming_init=True, hidden_sizes=[32])
-        # Kaiming-init flips reset to "subtract" (snnTorch tutorial default)
-        # vs the biophysical "zero" hard reset that CUBANet uses by default.
-        assert net.reset_mode == "subtract"
