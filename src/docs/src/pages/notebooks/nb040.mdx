@@ -1,0 +1,72 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "040 — Training CUBA-PING on MNIST (instant vs exp synapses)"
+date: 2026-05-31
+entry: 40
+structure: paper
+collections: [experiments]
+---
+import Figure from "../../components/Figure.astro";
+import NotebookHeader from "../../components/NotebookHeader.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb040/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
+
+## Introduction
+
+[nb039](/notebooks/nb039/) characterised the dynamics of a current-based PING network in two synaptic configurations — instant and exponential — under spatially uniform Poisson input. Both variants showed the architectural signatures of PING (recruitment cliff, inhibitory clamp on E rate); the difference was the cycle period (≈40 Hz instant, ≈14 Hz exp).
+
+This entry asks whether either variant can be *trained* to classify MNIST. The training stack is intentionally minimal: surrogate-gradient backprop through time on a small subset (2 000 train / 400 test), 8 epochs, single seed, no Modal — just the same standalone PyTorch infrastructure nb039 used, with `W_in` and `W_out` upgraded from buffers to trainable parameters.
+
+## Method
+
+### Network
+
+Same architecture as nb039 — $N_E = 1024$ excitatory LIF neurons, $N_I = 256$ inhibitory, $N_\text{in} = 784$, same membrane constants ($\tau_m = 20$ ms), same fixed E↔I wiring ($W^{EI} \sim \mathcal{N}(1, 0.1)$, $W^{IE} \sim \mathcal{N}(2, 0.2)$, both non-negative, frozen). The two changes for training:
+
+- **$\Delta t = 1$ ms** instead of $0.1$ ms — coarser grid so the 200-step BPTT unroll fits on CPU. The recruitment-cliff and clamp dynamics survive the discretisation.
+- **$W_\text{in}$ and $W_\text{out}$ are trainable.** $W_\text{in}$ keeps the 95% sparse init from nb039; $W_\text{out}$ is a dense $N_E \times 10$ readout initialised at $\mathcal{N}(0, 0.05)$. Total trainable: 813k parameters.
+
+### Surrogate gradient
+
+Forward is hard Heaviside ($s = \mathbb{1}[V \geq V_\text{th}]$). Backward uses the arctan surrogate
+
+$$
+\frac{ds}{dV} = \frac{\sigma}{1 + (\sigma \pi (V - V_\text{th}))^2}
+$$
+
+with slope $\sigma = 1$. This is bounded everywhere — sharper slopes ($\sigma \geq 5$) caused gradient explosion through the I-loop unroll in early tests.
+
+### Training loop
+
+Adam optimiser at $\text{lr} = 5 \times 10^{-4}$, batch size 64, gradient norm clipped to 1.0. Cross-entropy loss on logits $= (1/T) \sum_t s^E_t W_\text{out} + b_\text{out}$ (mem-mean readout). 50 epochs over 2 000 randomly-sampled MNIST digits — long enough to plateau in both modes.
+
+**One implementation detail matters.** The I-loop feedback path ($s^I \to V^E$ and $s^E \to V^I$) is *detached* from the autograd graph. $W^{EI}$ and $W^{IE}$ are frozen buffers, so no gradient needs to flow through them; and without the detach, the recurrent unroll compounds gradient by $\sigma \cdot \|W^{IE}\| \cdot \sigma \cdot \|W^{EI}\|$ per cycle, blowing up to NaN within a handful of cycles. Detaching the feedback breaks the geometric compound while leaving the forward dynamics fully intact (E spikes still drive I, I spikes still suppress E, just the gradient sees a feed-forward chain).
+
+## Results
+
+<Figure id="Figure 1" title="Training curves — instant vs exponential synapses (50 epochs)" src="/figures/notebooks/nb040/learning_curves.png" alt="Three panels across 50 epochs. Left: training loss decreasing from ~2.30 to ~1.7 for both modes. Middle: test accuracy climbing from 9% to ~70-72%, with most of the gain in the first 25 epochs and a plateau after. Right: E firing rate climbing slowly from 0 to ~1.1 Hz; I rate climbing more steeply from 0 to ~42 Hz; both modes track each other closely.">
+  Three panels across 50 epochs. **Left:** training cross-entropy loss. **Middle:** test accuracy. **Right:** mean per-cell E (solid) and I (dashed) firing rates on the test set. Black: instant synapses. Red: exponential synapses.
+</Figure>
+
+Both networks plateau around epoch 25 at very similar operating points: **instant 72.25% / 1.10 Hz E / 41.9 Hz I**, **exp 70.25% / 1.15 Hz E / 43.1 Hz I**. The trajectories track each other to within ≈2% accuracy throughout training — exponential filtering doesn't fundamentally help or hurt learning at this scale; it just adds a synaptic time constant on top of the membrane time constant.
+
+The I-rate trajectory is informative. At epoch 1 both networks are silent (E = I = 0 Hz). The optimiser pushes $W_\text{in}$ up until the E population starts firing, which then engages the I-loop. The I rate climbs steeply during the recruitment phase (epochs 3–15) and keeps climbing slowly throughout — by epoch 50 the network is running with ≈40× more I-spikes than E-spikes, an unusually heavy-inhibition regime compared to COBA-PING's frontier (which sits at ≈5 Hz E / ≈15 Hz I at the unregularised baseline; see [nb035 Figure 5](/notebooks/nb035/)). The accuracy doesn't track the I-rate climb past epoch 25 — the network keeps recruiting more inhibition without translating it into better classification.
+
+<Figure id="Figure 2" title="Trained instant-synapse network — test trial raster" src="/figures/notebooks/nb040/raster__instant.png" alt="Two-panel raster of trained instant-synapse CUBA-PING on a single test trial. E neurons fire sparsely throughout the 200 ms trial; I neurons fire in periodic bursts.">
+  One test trial replayed on the trained instant-synapse network. E above, I below. The E population fires sparsely but selectively; the I population shows clear gamma-band bursts.
+</Figure>
+
+<Figure id="Figure 3" title="Trained exp-synapse network — test trial raster" src="/figures/notebooks/nb040/raster__exp.png" alt="Two-panel raster of trained exp-synapse CUBA-PING on a single test trial. Similar to instant but with slightly longer inter-burst intervals.">
+  Same trial replayed on the trained exp-synapse network. Same selective-E / bursty-I structure as instant, but the I bursts space out slightly more — consistent with the longer cycle period nb039 showed for exp under uniform input.
+</Figure>
+
+## Discussion
+
+The headline result is **both variants train** — the recurrent loop in CUBA-PING is gradient-tractable provided the feedback path is detached. With the detach in place, surrogate-gradient BPTT moves $W_\text{in}$ and $W_\text{out}$ into a working regime within a few epochs and the I-loop self-assembles as a side effect of E starting to fire (same as the [low-W_in sweep in nb035](/notebooks/nb035/) showed for COBA-PING).
+
+The accuracy ceiling here (≈70–72%) is well below COBA-PING's ≈88% on the same task ([nb035 Figure 5](/notebooks/nb035/)), with three caveats: the training set is 10× smaller (2 000 vs 60 000 MNIST), the discretisation is 10× coarser ($\Delta t = 1$ ms vs $0.1$ ms), and there's no spike-budget regulariser so the network is free to recruit as much inhibition as it likes (it ends up at ≈40× more I than E, vs COBA-PING's ≈3×). The point of this entry was to show the gradient path is sound, which it is. The natural follow-up is a spike-budget term: adding $L_\text{rate}$ in the loss to keep the I rate in a sensible regime, then scaling up the training set, would let us put CUBA-PING on the same accuracy/rate frontier as nb035 Figure 5 and compare directly.
+
+The two synapse modes ending up at similar accuracy is consistent with the nb039 picture: both architectures support the same recruitment cliff and clamp, only differing in cycle cadence. MNIST at this scale doesn't seem to need a specific cycle period — the optimiser finds a working solution at whatever cadence the network's clock gives it, and reaches the same accuracy whether the clock is set by $\tau_m$ alone (instant) or by $\tau_\text{GABA}$ on top of $\tau_m$ (exp).
