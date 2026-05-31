@@ -41,15 +41,11 @@ def infer(
     w_in=None,
     ei_strength=0.5,
     ei_ratio=2.0,
-    sparsity=0.0,
     w_in_sparsity=0.0,
     hidden_sizes=None,
     out_dir=None,
-    kaiming_init=False,
     dales_law=True,
     encode_fn=None,
-    w_rec=None,
-    rec_layers=None,
     ei_layers=None,
     seed=None,
 ):
@@ -96,21 +92,16 @@ def infer(
     # Build model — same builder as train, same args produce same network
     # Uniform randomize_init across all models — symmetry breaking matters
     # for all architectures. Only skip when kaiming (already heterogeneous).
-    randomize = not kaiming_init
     net = build_net(
         model_name,
         w_in=w_in,
         w_in_sparsity=w_in_sparsity,
         ei_strength=ei_strength,
         ei_ratio=ei_ratio,
-        sparsity=sparsity,
         device=device,
-        randomize_init=randomize,
-        kaiming_init=kaiming_init,
+        randomize_init=True,
         dales_law=dales_law,
-        w_rec=w_rec,
         hidden_sizes=hidden_sizes,
-        rec_layers=rec_layers,
         ei_layers=ei_layers,
     )
 
@@ -165,7 +156,6 @@ def infer(
                 "w_in_sparsity": w_in_sparsity,
                 "ei_strength": ei_strength,
                 "ei_ratio": ei_ratio,
-                "sparsity": sparsity,
                 "n_hidden": M.N_HID,
                 "n_inh": M.N_INH,
                 "n_in": M.N_IN,

@@ -179,52 +179,32 @@ def train(
     w_in=None,
     w_ei=None,
     w_ie=None,
-    w_ee=None,
     ei_strength=None,
     ei_ratio=2.0,
-    sparsity=0.0,
     w_in_sparsity=0.0,
     dataset="scikit",
     snapshot_init=True,
     snapshot_end=True,
     t_ms=200.0,
-    burn_in_ms=20.0,
     hidden_sizes=None,
     max_samples=None,
     v_grad_dampen=80.0,
-    early_stopping=None,
-    observe_every=1,
-    adaptive_lr=False,
-    kaiming_init=False,
     dales_law=True,
-    w_rec=None,
-    rec_layers=None,
     ei_layers=None,
     batch_size=None,
     seed=None,
     readout_w_out_scale=1.0,
     readout_mode="rate",
-    fr_reg_lower_theta=0.0,
-    fr_reg_lower_strength=0.0,
     fr_reg_upper_theta=0.0,
     fr_reg_upper_strength=0.0,
-    skip_bad_grad_threshold=None,
-    optimizer="adam",
-    loss_mode="ce",
-    profile_path=None,
     trainable_w_ee=False,
-    slow_synapse=False,
-    slow_syn_gain=0.5,
-    alif=False,
-    alif_beta=1.7,
-    sgcc=False,
-    sgcc_alpha=0.5,
 ):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
     from torch.utils.data import DataLoader, TensorDataset
 
-    # Seed before any RNG use (dataset split, shuffle, model init, Poisson encoding).
+    burn_in_ms = 20.0
+
     seed_everything(seed)
 
     # Setup dt and all derived constants
@@ -289,38 +269,22 @@ def train(
     # heterogeneous per-neuron tuning, so scattering mem phases is redundant.
     # Uniform randomize_init across all models — symmetry breaking matters
     # for all architectures. Only skip when kaiming (already heterogeneous).
-    randomize = not kaiming_init
     net = build_net(
         model_name,
         w_in=w_in,
         w_in_sparsity=w_in_sparsity,
         w_ei=w_ei,
         w_ie=w_ie,
-        w_ee=w_ee,
         ei_strength=ei_strength,
         ei_ratio=ei_ratio,
-        sparsity=sparsity,
         device=device,
-        randomize_init=randomize,
-        kaiming_init=kaiming_init,
+        randomize_init=True,
         dales_law=dales_law,
-        w_rec=w_rec,
         hidden_sizes=hidden_sizes,
-        rec_layers=rec_layers,
         ei_layers=ei_layers,
         readout_mode=readout_mode,
         trainable_w_ee=trainable_w_ee,
-        slow_synapse=slow_synapse,
-        slow_syn_gain=slow_syn_gain,
-        alif=alif,
-        alif_beta=alif_beta,
-        sgcc=sgcc,
-        sgcc_alpha=sgcc_alpha,
     )
-    if randomize:
-        log.info("  randomize_init=True (symmetry breaking for standard-snn)")
-    if kaiming_init:
-        log.info("  kaiming_init=True (signed Kaiming weights, canonical snnTorch)")
     if readout_mode != "rate":
         log.info(f"  readout_mode={readout_mode}")
     if readout_w_out_scale != 1.0:
@@ -332,8 +296,6 @@ def train(
             f"  readout_w_out_scale={readout_w_out_scale:g} "
             f"(W_ff[-1] and b_ff[-1] scaled at init)"
         )
-    if w_rec is not None:
-        log.info("  recurrent=True (hidden→hidden connections)")
     if not dales_law:
         log.info("  dales_law=False (signed weights, no clamp)")
     n_params = sum(p.numel() for p in net.parameters())
@@ -361,34 +323,20 @@ def train(
         "w_in": list(w_in) if w_in else None,
         "ei_strength": ei_strength,
         "ei_ratio": ei_ratio,
-        "sparsity": sparsity,
         "w_in_sparsity": w_in_sparsity,
         "input_rate": M.max_rate_hz,
         "v_grad_dampen": v_grad_dampen,
         "burn_in_ms": burn_in_ms,
         "batch_size": bs,
         "grad_clip": GRAD_CLIP,
-        "early_stopping": early_stopping,
         "max_samples": max_samples,
         "n_params": n_params,
         "n_trainable": n_trainable,
-        "kaiming_init": kaiming_init,
         "dales_law": dales_law,
         "readout_mode": readout_mode,
-        "loss_mode": loss_mode,
         "hidden_sizes": hidden_sizes,
-        "w_rec": w_rec,
-        "rec_layers": list(rec_layers) if rec_layers else None,
         "ei_layers": list(ei_layers) if ei_layers else None,
         "trainable_w_ee": trainable_w_ee,
-        "slow_synapse": slow_synapse,
-        "slow_syn_gain": slow_syn_gain,
-        "tau_nmda": float(M.tau_nmda),
-        "alif": alif,
-        "alif_beta": alif_beta,
-        "tau_adapt": float(M.tau_adapt),
-        "sgcc": sgcc,
-        "sgcc_alpha": sgcc_alpha,
         "seed": seed,
         # Provenance (git SHA, run_id, started_at, device, torch version,
         # python env hash) — keeps train-mode config.json at parity with
@@ -516,14 +464,12 @@ def train(
                 "w_in_sparsity": w_in_sparsity,
                 "ei_strength": ei_strength,
                 "ei_ratio": ei_ratio,
-                "sparsity": sparsity,
                 "n_hidden": M.N_HID,
                 "n_inh": M.N_INH,
                 "n_in": M.N_IN,
                 "max_samples": max_samples,
                 "dataset": dataset,
                 "v_grad_dampen": v_grad_dampen,
-                "adaptive_lr": adaptive_lr,
                 "burn_in_ms": burn_in_ms,
                 "n_params": n_params,
                 "n_trainable": n_trainable,
@@ -544,42 +490,11 @@ def train(
     if observe:
         log.info(f"  observe → {out_dir / 'frames/'}")
 
-    # Optimizer. Adamax uses the L∞ norm for the second moment instead of
-    # the EMA of squared grads, so a single pathological batch can't poison
-    # the preconditioner the way it does in Adam — the canonical SNN choice
-    # (Cramer, Zenke Spytorch).
-    if optimizer == "adamax":
-        opt = torch.optim.Adamax(net.parameters(), lr=lr)
-    elif optimizer == "adam":
-        opt = torch.optim.Adam(net.parameters(), lr=lr)
-    else:
-        raise ValueError(f"unknown optimizer: {optimizer!r}")
-    scheduler = None
-    if adaptive_lr:
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            opt, mode="max", factor=0.5, patience=5, min_lr=1e-5
-        )
-    if loss_mode == "ce":
-        _ce = torch.nn.CrossEntropyLoss()
+    opt = torch.optim.Adam(net.parameters(), lr=lr)
+    _ce = torch.nn.CrossEntropyLoss()
 
-        def loss_fn(logits, y):
-            return _ce(logits, y)
-    elif loss_mode == "mse":
-        # L2 loss on logits vs one-hot targets — standard SNN-paper
-        # alternative to CE (e.g. Bohte 2002, Lee 2016). No softmax;
-        # the network is trained to push the correct-class logit toward
-        # 1 and others toward 0. Useful when CE saturates because of
-        # the readout's logit scale.
-        _mse = torch.nn.MSELoss()
-
-        def loss_fn(logits, y):
-            target = torch.nn.functional.one_hot(
-                y, num_classes=logits.shape[-1]
-            ).float()
-            return _mse(logits, target)
-    else:
-        raise ValueError(f"unknown loss_mode {loss_mode!r}")
-    log.info(f"  loss_mode={loss_mode}")
+    def loss_fn(logits, y):
+        return _ce(logits, y)
 
     # Observe setup
     obs_fig = obs_axes = None
@@ -647,24 +562,6 @@ def train(
         n_samples_train = 0
         t_train_compute = _time.perf_counter()
         for batch_idx, (X_b, y_b) in enumerate(train_loader):
-            # Wrap the 3rd batch of epoch 0 in torch.profiler when --profile
-            # is set. Skip first two for allocator/JIT warmup. Trace overhead
-            # only hits this one batch; the rest of training is unprofiled.
-            # Manual __enter__/__exit__ avoids re-indenting the batch body.
-            do_profile = profile_path is not None and epoch == 0 and batch_idx == 2
-            _prof_handle = None
-            if do_profile:
-                from torch.profiler import profile as _prof, ProfilerActivity
-
-                _activities = [ProfilerActivity.CPU]
-                if device.type == "cuda":
-                    _activities.append(ProfilerActivity.CUDA)
-                elif device.type == "mps" and hasattr(ProfilerActivity, "MPS"):
-                    _activities.append(ProfilerActivity.MPS)
-                _prof_handle = _prof(
-                    activities=_activities, record_shapes=True, with_stack=True
-                )
-                _prof_handle.__enter__()
             X_b, y_b = X_b.to(device), y_b.to(device)
             spk = encode_batch(X_b, dt, use_smnist)
             logits = net(input_spikes=spk)
@@ -672,33 +569,20 @@ def train(
                 opt.zero_grad()
                 continue
             loss = loss_fn(logits, y_b)
-            # Firing-rate regularisation (Cramer et al. 2022): penalise
-            # per-neuron trial spike counts outside [θ_l, θ_u]. Off by default
-            # (all strengths 0). Uses CUBANet.last_spike_counts when present.
-            if (fr_reg_lower_strength > 0 or fr_reg_upper_strength > 0) and getattr(
+            if fr_reg_upper_strength > 0 and getattr(
                 net, "last_spike_counts", None
             ) is not None:
                 reg = 0.0
                 for sc in net.last_spike_counts:
-                    mean_z = sc.mean(dim=0)  # (n_hidden,)
-                    if fr_reg_lower_strength > 0:
-                        reg = (
-                            reg
-                            + fr_reg_lower_strength
-                            * (torch.relu(fr_reg_lower_theta - mean_z) ** 2).sum()
-                        )
-                    if fr_reg_upper_strength > 0:
-                        reg = (
-                            reg
-                            + fr_reg_upper_strength
-                            * (torch.relu(mean_z - fr_reg_upper_theta) ** 2).sum()
-                        )
+                    mean_z = sc.mean(dim=0)
+                    reg = (
+                        reg
+                        + fr_reg_upper_strength
+                        * (torch.relu(mean_z - fr_reg_upper_theta) ** 2).sum()
+                    )
                 loss = loss + reg
             opt.zero_grad()
             loss.backward()
-            # Per-layer ‖grad‖/‖W‖ ratio (weights only, skip biases) before clip.
-            # CUBANet names biases b_ff.*; SNNTorchLibraryNet exposes biases
-            # via nn.Linear as fc_ff.*.bias. Filter both naming conventions.
             for pname, p in net.named_parameters():
                 if p.grad is None or pname.startswith("b_") or pname.endswith(".bias"):
                     continue
@@ -709,72 +593,17 @@ def train(
                     )
             gn = torch.nn.utils.clip_grad_norm_(net.parameters(), GRAD_CLIP)
             gn_f = float(gn)
-            bad_grad = (not math.isfinite(gn_f)) or (
-                skip_bad_grad_threshold is not None and gn_f > skip_bad_grad_threshold
-            )
-            if bad_grad:
-                # Skip the step: a single exploded batch would otherwise
-                # poison Adam's second-moment estimate and kill the run.
+            if not math.isfinite(gn_f):
                 opt.zero_grad(set_to_none=True)
                 n_skipped_steps += 1
             else:
                 opt.step()
-                # Project trainable weights back onto the Dale's-law cone
-                # (no-op when signed weights are allowed). Keeps the stored
-                # parameter values consistent with what forward() uses.
                 net.project_dales()
                 total_loss += loss.item()
                 n_batches += 1
                 grad_sum += gn_f
                 n_grad += 1
             n_samples_train += y_b.size(0)
-            if _prof_handle is not None:
-                _prof_handle.__exit__(None, None, None)
-                assert profile_path is not None
-                from pathlib import Path as _Path
-
-                _Path(profile_path).parent.mkdir(parents=True, exist_ok=True)
-                _prof_handle.export_chrome_trace(profile_path)
-                log.info(f"  → profiler trace {profile_path}")
-                # Top-15 ops by self CPU time (or self device time on cuda).
-                _sort_key = (
-                    "self_cuda_time_total"
-                    if device.type == "cuda"
-                    else "self_cpu_time_total"
-                )
-                log.info(f"  profiler top-15 ops by {_sort_key}:")
-                log.info(
-                    _prof_handle.key_averages().table(sort_by=_sort_key, row_limit=15)
-                )
-                # Per-call-site breakdown for the high-frequency ops we
-                # actually want to optimise. group_by_stack_n=8 gives a
-                # short-enough stack to read at a glance.
-                # Dump first few stacks per hot op to a debug file so we can
-                # see which Python lines are dispatching the kernel storm.
-                _dbg_path = profile_path + ".stacks.txt"
-                _hot_ops = (
-                    "aten::_local_scalar_dense",
-                    "aten::copy_",
-                    "aten::where",
-                    "aten::eq",
-                )
-                with open(_dbg_path, "w") as _dbg:
-                    for _op in _hot_ops:
-                        _dbg.write(f"\n=== {_op} ===\n")
-                        _seen = 0
-                        for _e in _prof_handle.events():
-                            if _e.name != _op:
-                                continue
-                            if _seen >= 3:
-                                break
-                            _dbg.write(f"--- event {_seen} ---\n")
-                            for _f in _e.stack or []:
-                                _dbg.write(f"  {_f}\n")
-                            if not _e.stack:
-                                _dbg.write("  (no stack)\n")
-                            _seen += 1
-                log.info(f"  → stack debug {_dbg_path}")
-                _prof_handle = None
         train_compute_s = _time.perf_counter() - t_train_compute
         if device.type == "mps":
             peak_mem_mps = max(peak_mem_mps, torch.mps.current_allocated_memory())
@@ -829,8 +658,6 @@ def train(
         else:
             no_improve += 1
 
-        if scheduler is not None:
-            scheduler.step(acc)
         cur_lr = opt.param_groups[0]["lr"]
         elapsed = _time.perf_counter() - t_epoch
 
@@ -841,7 +668,7 @@ def train(
         # Oscilloscope frame (returns metrics dict; merged into epoch record)
         t_observe = _time.perf_counter()
         epoch_metrics = None
-        if observe and (epoch + 1) % observe_every == 0:
+        if observe:
             assert obs_fig is not None and obs_frames_dir is not None
             epoch_metrics = observe_epoch(
                 net,
@@ -937,10 +764,6 @@ def train(
             new_best=new_best,
             warnings=flags,
         )
-
-        if early_stopping is not None and no_improve >= early_stopping:
-            log.info(f"  Early stopping: no improvement for {early_stopping} epochs")
-            break
 
     total_time = _time.perf_counter() - t_start
 
@@ -1058,18 +881,15 @@ def train(
             "w_in_sparsity": w_in_sparsity,
             "ei_strength": ei_strength,
             "ei_ratio": ei_ratio,
-            "sparsity": sparsity,
             "n_hidden": M.N_HID,
             "n_inh": M.N_INH,
             "n_in": M.N_IN,
             "max_samples": max_samples,
             "dataset": dataset,
             "v_grad_dampen": v_grad_dampen,
-            "adaptive_lr": adaptive_lr,
             "burn_in_ms": burn_in_ms,
             "batch_size": bs,
             "grad_clip": GRAD_CLIP,
-            "early_stopping": early_stopping,
             "n_params": n_params,
             "n_trainable": n_trainable,
         },

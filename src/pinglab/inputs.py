@@ -153,8 +153,6 @@ def patch_dt(dt_new, sim_ms):
     M.T_steps = int(sim_ms / dt_new)
     M.decay_ampa = np.exp(-dt_new / M.tau_ampa)
     M.decay_gaba = np.exp(-dt_new / M.tau_gaba)
-    M.decay_nmda = np.exp(-dt_new / M.tau_nmda)
-    M.decay_adapt = np.exp(-dt_new / M.tau_adapt)
     M.beta_snn = np.exp(-dt_new / M.tau_snn)
     M.beta_out = np.exp(-dt_new / M.tau_out_ms)
     M.ref_steps_E = max(1, int(round(M.ref_ms_E / dt_new)))
