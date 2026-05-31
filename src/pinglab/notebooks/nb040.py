@@ -52,6 +52,7 @@ DT: float = 1.0
 N_STEPS: int = int(T_MS / DT)
 
 TAU_M_MS: float = 20.0
+TAU_OUT_MS: float = 20.0  # output-LIF time constant for the mem-mean readout
 V_REST: float = 0.0
 V_TH: float = 1.0
 V_RESET: float = 0.0
@@ -60,8 +61,9 @@ R_M: float = 1.0
 W_IN_INIT_STD: float = 0.5
 W_EI_MEAN: float = 1.0
 W_EI_STD: float = 0.1
-W_IE_MEAN: float = 2.0
-W_IE_STD: float = 0.2
+W_IE_MEAN: float = 1.0   # halved from earlier runs to soften the
+W_IE_STD: float = 0.1    # post-burst suppression (each I-spike's
+                         # inhibitory kick is now ~half as large)
 W_IN_SPARSITY: float = 0.95
 
 SEED: int = 42
@@ -105,6 +107,8 @@ def simulate_dynamics(
         I_I = s_E_prev @ W["W_ei"]
         V_E = V_E + alpha * (-(V_E - V_REST) + R_M * I_E)
         V_I = V_I + alpha * (-(V_I - V_REST) + R_M * I_I)
+        V_E = torch.clamp(V_E, min=V_REST)
+        V_I = torch.clamp(V_I, min=V_REST)
         s_E = (V_E >= V_TH).float()
         s_I = (V_I >= V_TH).float()
         spk_E[t] = s_E
@@ -118,9 +122,9 @@ def simulate_dynamics(
 # ── Section 2: training ──────────────────────────────────────────
 INPUT_RATE_HZ: float = 80.0     # peak Poisson rate for a fully-on pixel
 
-N_TRAIN: int = 2000
-N_TEST: int = 400
-EPOCHS: int = 20
+N_TRAIN: int = 10000
+N_TEST: int = 1000
+EPOCHS: int = 30
 BATCH_SIZE: int = 64
 LR: float = 5e-4
 SURROGATE_SLOPE: float = 1.0
@@ -175,10 +179,12 @@ class CubaPingNet(nn.Module):
         V_I = torch.zeros(B, N_I, device=dev)
         s_E_prev = torch.zeros(B, N_E, device=dev)
         s_I_prev = torch.zeros(B, N_I, device=dev)
+        V_out = torch.zeros(B, N_CLASSES, device=dev)
         readout = torch.zeros(B, N_CLASSES, device=dev)
         e_spike_total = torch.zeros((), device=dev)
         i_spike_total = torch.zeros((), device=dev)
         alpha = DT / TAU_M_MS
+        alpha_out = DT / TAU_OUT_MS
         for t in range(T):
             # TBPTT: detach state every K steps so gradient horizon
             # is bounded.
@@ -187,16 +193,30 @@ class CubaPingNet(nn.Module):
                 V_I = V_I.detach()
                 s_E_prev = s_E_prev.detach()
                 s_I_prev = s_I_prev.detach()
+                V_out = V_out.detach()
             x = input_spikes[:, t, :]
             I_E = x @ self.W_in - s_I_prev @ self.W_ie
             I_I = s_E_prev @ self.W_ei
             V_E = V_E + alpha * (-(V_E - V_REST) + R_M * I_E)
             V_I = V_I + alpha * (-(V_I - V_REST) + R_M * I_I)
+            # Floor at V_REST: V can't go below the reversal of the
+            # dominant ion (biological equivalent of E_K). Without
+            # this floor, a single synchronous I-burst pushes V_E to
+            # very negative values and takes tens of ms to recover.
+            V_E = torch.clamp(V_E, min=V_REST)
+            V_I = torch.clamp(V_I, min=V_REST)
             s_E = spike(V_E, SURROGATE_SLOPE)
             s_I = spike(V_I, SURROGATE_SLOPE)
             V_E = V_E - s_E.detach() * (V_TH - V_RESET)
             V_I = V_I - s_I.detach() * (V_TH - V_RESET)
-            readout = readout + s_E @ self.W_out
+            # Output-LIF mem-mean readout: an output LIF layer
+            # integrates the hidden E spikes through W_out, and the
+            # readout is the time-average of its membrane. The
+            # surrogate gradient at s_E makes this trainable; hidden
+            # spikes are now mandatory because the output layer only
+            # accumulates when they fire.
+            V_out = V_out + alpha_out * (-V_out + s_E @ self.W_out)
+            readout = readout + V_out
             e_spike_total = e_spike_total + s_E.sum()
             i_spike_total = i_spike_total + s_I.sum()
             s_E_prev, s_I_prev = s_E, s_I
@@ -316,6 +336,8 @@ def train(
             I_I = s_E_prev @ net.W_ei
             V_E = V_E + alpha * (-(V_E - V_REST) + R_M * I_E)
             V_I = V_I + alpha * (-(V_I - V_REST) + R_M * I_I)
+            V_E = torch.clamp(V_E, min=V_REST)
+            V_I = torch.clamp(V_I, min=V_REST)
             s_E = (V_E >= V_TH).float()
             s_I = (V_I >= V_TH).float()
             V_E = torch.where(s_E.bool(), torch.full_like(V_E, V_RESET), V_E)
@@ -339,6 +361,8 @@ def train(
             I_I = s_E_prev @ net.W_ei
             V_E = V_E + alpha * (-(V_E - V_REST) + R_M * I_E)
             V_I = V_I + alpha * (-(V_I - V_REST) + R_M * I_I)
+            V_E = torch.clamp(V_E, min=V_REST)
+            V_I = torch.clamp(V_I, min=V_REST)
             s_E = (V_E >= V_TH).float()
             s_I = (V_I >= V_TH).float()
             V_E = torch.where(s_E.bool(), torch.full_like(V_E, V_RESET), V_E)
