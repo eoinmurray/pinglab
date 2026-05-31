@@ -21,7 +21,7 @@ export const numbers = Object.values(
 LIF E and I populations with the same wiring as [nb035](/notebooks/nb035/)'s COBA-PING but with no synaptic state: every presynaptic spike at $t-1$ contributes its weight to the postsynaptic current at $t$ and is gone by $t+1$.
 
 - $N_E = 1024$, $N_I = 256$, $N_\text{in} = 784$, $\Delta t = 1$ ms, $T = 200$ ms.
-- Membrane: $\tau_m = 20$ ms, $V_\text{rest} = 0$, $V_\text{th} = 1$, soft-subtract reset, $R_m = 1$. $V$ is floored at $V_\text{rest}$ after each step (membrane can't fall below the dominant ion's reversal potential).
+- Membrane: $\tau_m = 20$ ms, $V_\text{rest} = 0$, $V_\text{th} = 1$, hard reset to $V_\text{rest}$ on spike, $R_m = 1$. $V$ is floored at $V_\text{rest}$ after each step (membrane can't fall below the dominant ion's reversal potential).
 - Weights: $W^{EI} \sim \mathcal{N}(1, 0.1)$, $W^{IE} \sim \mathcal{N}(1, 0.1)$, both clamped non-negative; $W_\text{in}$ is 95% sparse with $\mathcal{N}(0, 0.5)$ entries.
 
 $$
@@ -88,7 +88,7 @@ $$
 Both effects of the I-loop show up cleanly:
 
 1. **The rate clamp is real and strong.** Removing the I-loop lets the E rate climb into the tens of Hz — biologically high but within the snnTorch / rate-coded SNN regime. The I-loop in place holds the rate near 1 Hz: an order-of-magnitude sparsification with no $L_\text{rate}$ regulariser.
-2. **The sparsification has a real but bounded accuracy cost.** Roughly 10 pp, well below the catastrophic gap an earlier version of this notebook saw with an over-strong $W^{IE}$. The output-LIF readout integrates spike events, so suppressing E spikes throttles the output membrane response; the network still has enough integrated signal to classify, just less than the dense-spike control.
+2. **The sparsification has a real but bounded accuracy cost.** Roughly 10 pp. The output-LIF readout integrates spike events, so suppressing E spikes throttles the output membrane response; the network still has enough integrated signal to classify, just less than the dense-spike control.
 
 This is the same tradeoff the COBA-PING baselines in [nb035 Figure 5](/notebooks/nb035/) walk via the $\theta_u$ spike-budget term — except CUBA-PING walks it by the architectural inhibitory clamp rather than by an explicit penalty.
 
@@ -117,7 +117,7 @@ For random matrices with entries $\mathcal{N}(\mu, \sigma_w)$ the spectral norm 
 - $W^{EI}$, $W^{IE}$ at $\mathcal{N}(1, 0.1)$, shape $1024 \times 256$ or transpose: $\|W\| \approx \sqrt{256} \cdot 1 + 0.1 \sqrt{1024} \approx 19$.
 - $(\alpha R_m)^2 \sigma^2 \|W^{EI}\| \|W^{IE}\| \approx (0.05)^2 \cdot 19 \cdot 19 \approx 0.9$.
 
-Just under unity at this recipe — but with moderate spectral slack the per-cycle factor exceeds 1 and growth begins. The earlier $W^{IE} \sim \mathcal{N}(2, 0.2)$ recipe gave ≈1.8 per cycle; over $T = 200$ steps that compound overflows float32 well before the trial ends. The current recipe halves $W^{IE}$ to soften suppression and bring the per-cycle factor to the edge of stability; even so, full-horizon BPTT remains unreliable in practice.
+Just under unity at this recipe — but with moderate spectral slack the per-cycle factor exceeds 1 and growth begins. Over $T = 200$ steps the compound overflows float32 well before the trial ends, so full-horizon BPTT is unreliable in practice.
 
 ### Why truncated BPTT works
 
@@ -134,4 +134,3 @@ The natural follow-ups:
 1. Scale to full MNIST. Training loss is still decreasing at the end of the medium-tier run, so the operating point is not yet converged. Full MNIST + more epochs should close the gap to the COBA-PING baselines.
 2. Add an explicit $L_\text{rate}$ like nb035's, exposing a $\theta_u$ knob that lets you slide along the rate–accuracy frontier on top of what the architecture already gives.
 3. Replace TBPTT with a principled stabiliser — spectral normalisation of $W^{EI}$ / $W^{IE}$, or a Jacobian-norm regulariser — that lets full-horizon BPTT through and closes the COBA-PING gap from below.
-4. **Stabilise the PING arm at $\Delta t = 0.1$ ms.** The discretisation is dt-invariant in the forward (no-PING trains fine at $\Delta t = 0.1$ at matched physical recipe), but the I-loop produces NaN/inf gradients on every batch under the scaled TBPTT-100 window. Surrogate-slope reduction (1 → 0.5) and hard reset vs soft subtract both leave the failure intact; the underlying source is likely some interaction between the surrogate gradient through the long backward chain and the high initial I rate. Resolving this is what unlocks the fine-time recipe.
