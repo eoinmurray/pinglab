@@ -1052,7 +1052,6 @@ class CubaPingNet(SNNBase):
         drive = 1.0 / self.tau_m_ms
         leak_out = float(dt) / self.tau_out_ms
         drive_out = 1.0 / self.tau_out_ms
-        v_drop = self.v_th - self.v_reset
 
         V_E = torch.zeros(B, n_e, device=device)
         s_E_prev = torch.zeros(B, n_e, device=device)
@@ -1096,7 +1095,16 @@ class CubaPingNet(SNNBase):
                 V_I = V_I + leak * (-(V_I - self.v_rest)) + drive * self.r_m * I_I
                 V_I = V_I.clamp(min=self.v_rest)
                 s_I = arctan_spike(V_I - self.v_th, SURROGATE_SLOPE)
-                V_I = V_I - s_I.detach() * v_drop
+                # Hard reset to v_reset on spike — bounds V from above
+                # when the network is overdriven; soft subtract leaves V
+                # arbitrarily high if drive >> v_drop and is unstable at
+                # small dt where many spikes accumulate within one TBPTT
+                # window.
+                V_I = torch.where(
+                    s_I.detach().bool(),
+                    torch.full_like(V_I, self.v_reset),
+                    V_I,
+                )
                 i_spk_total = i_spk_total + s_I.detach().sum()
                 I_E = x @ W_in - s_I_prev @ W_ie
                 s_I_prev = s_I
@@ -1106,7 +1114,11 @@ class CubaPingNet(SNNBase):
             V_E = V_E + leak * (-(V_E - self.v_rest)) + drive * self.r_m * I_E
             V_E = V_E.clamp(min=self.v_rest)
             s_E = arctan_spike(V_E - self.v_th, SURROGATE_SLOPE)
-            V_E = V_E - s_E.detach() * v_drop
+            V_E = torch.where(
+                s_E.detach().bool(),
+                torch.full_like(V_E, self.v_reset),
+                V_E,
+            )
             e_count = e_count + s_E
             e_spk_total = e_spk_total + s_E.detach().sum()
 
