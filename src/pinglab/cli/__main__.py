@@ -235,10 +235,7 @@ def _apply_from_dir(args, argv):
         "w_in": "w_in",
         "input_rate": "spike_rate",
         "max_samples": "max_samples",
-        "kaiming_init": "kaiming_init",
         "dales_law": "dales_law",
-        "w_rec": "w_rec",
-        "rec_layers": "rec_layers",
         "ei_layers": "ei_layers",
         "seed": "seed",
     }
@@ -270,11 +267,8 @@ def _apply_from_dir(args, argv):
         "w_in": "--w-in",
         "spike_rate": "--input-rate",
         "max_samples": "--max-samples",
-        "kaiming_init": "--kaiming-init",
         "dales_law": "--dales-law",
-        "w_rec": "--w-rec",
         "hidden_sizes": "--n-hidden",
-        "rec_layers": "--rec-layers",
         "ei_layers": "--ei-layers",
         "seed": "--seed",
     }
@@ -294,7 +288,7 @@ def _apply_from_dir(args, argv):
         print(f"  from-dir: inherited {', '.join(inherited)}")
 
     # Warn about critical flags missing from config.json (old training runs)
-    critical = ["kaiming_init", "dales_law"]
+    critical = ["dales_law"]
     missing = [k for k in critical if k not in cfg]
     if missing:
         print(
@@ -330,9 +324,7 @@ each subcommand's --help):
   Input          --input, --input-rate, --stim-overdrive, --drive, --dataset,
                  --digit, --sample
   Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-rec, --trainable-w-ee
-  Slow + ALIF    --slow-syn, --tau-nmda, --slow-syn-gain,
-                 --alif, --tau-adapt, --alif-beta
-  Gradient       --v-grad-dampen, --sgcc, --sgcc-alpha, --grad-clip,
+  Gradient       --v-grad-dampen, --grad-clip,
                  --surrogate-slope, --coba-integrator
   Train (train)  --lr, --epochs, --batch-size, --max-samples, --optimizer,
                  --loss, --adaptive-lr, --early-stopping, --observe,
@@ -354,8 +346,7 @@ Examples:
   python -m cli video --scan-var ei_strength       # sweep E-I coupling
   python -m cli video --scan-var spike_rate --scan-min 5 --scan-max 100
   python -m cli train --epochs 100 --observe video
-  python -m cli train --epochs 100 --sgcc --sgcc-alpha 0.5
-  python -m cli train --epochs 100 --slow-syn --trainable-w-ee
+  python -m cli train --epochs 100 --trainable-w-ee
   python -m cli image --input dataset --dataset mnist --digit 3
   python -m cli infer --load-weights weights.pth --dt 0.5
   python -m cli infer --from-dir runs/foo --dt-sweep 0.05 0.1 0.25 0.5
@@ -372,8 +363,7 @@ Models:
   snntorch-library   External snnTorch reference path; uses the library's
                      Leaky/Synaptic primitives directly.
 
-For the underlying theory of the gradient-stabilisation flags
-(--v-grad-dampen, --sgcc) see /articles/art006/.
+For the underlying theory of --v-grad-dampen see /articles/art006/.
 """
     parser = argparse.ArgumentParser(
         description="Oscilloscope — PING network toolkit",
@@ -402,15 +392,6 @@ For the underlying theory of the gradient-stabilisation flags
         "scikit=64, mnist=1024, smnist=32)",
     )
     net_group.add_argument(
-        "--kaiming-init",
-        action="store_true",
-        help="Use plain nn.Linear Kaiming uniform init "
-        "(signed weights, no fan-in normalization). "
-        "Matches canonical snnTorch tutorial setup. "
-        "Only applies to standard-snn / cuba; "
-        "--w-in is ignored when this is set.",
-    )
-    net_group.add_argument(
         "--readout",
         choices=["rate", "li", "spike-count", "mem-mean"],
         default="rate",
@@ -434,23 +415,12 @@ For the underlying theory of the gradient-stabilisation flags
         help="Allow signed (positive + negative) weights (standard-snn / cuba only)",
     )
     net_group.add_argument(
-        "--rec-layers",
-        type=int,
-        nargs="+",
-        default=None,
-        help="Which hidden layers get recurrence (1-indexed). "
-        "Default: all layers when --w-rec is set.",
-    )
-    net_group.add_argument(
         "--ei-layers",
         type=int,
         nargs="+",
         default=None,
         help="Which hidden layers get E-I structure (1-indexed). "
         "Default: all layers (PING only).",
-    )
-    net_group.add_argument(
-        "--n-input", type=int, default=None, help="N_IN input neurons (default: N_E)"
     )
     net_group.add_argument(
         "--ei-strength",
@@ -462,23 +432,10 @@ For the underlying theory of the gradient-stabilisation flags
         "--ei-ratio", type=float, default=2.0, help="W_IE/W_EI ratio (default: 2.0)"
     )
     net_group.add_argument(
-        "--ei-sparsity",
-        type=float,
-        default=None,
-        dest="sparsity",
-        help="E-I connection sparsity (default: 0.2)",
-    )
-    net_group.add_argument(
         "--w-in-sparsity",
         type=float,
         default=None,
         help="W_in sparsity (default: 0.95)",
-    )
-    net_group.add_argument(
-        "--bias",
-        type=float,
-        default=None,
-        help="Background conductance to E neurons in uS",
     )
     net_group.add_argument(
         "--dt",
@@ -494,14 +451,6 @@ For the underlying theory of the gradient-stabilisation flags
         "For synthetic-step modes, must exceed STEP_ON_MS "
         "(default 200) so the stimulus window is reached; "
         "values <= STEP_ON_MS leave the trial in flat baseline.",
-    )
-    net_group.add_argument(
-        "--burn-in",
-        type=float,
-        default=None,
-        help="Burn-in period in ms hidden from cli plots/videos. "
-        "Default: 100 ms in shared cfg (legacy); pass 0 to make the entire "
-        "trial visible.",
     )
     net_group.add_argument(
         "--tau-mem",
@@ -534,6 +483,15 @@ For the underlying theory of the gradient-stabilisation flags
         "dt. No-op for --readout rate or li.",
     )
     net_group.add_argument(
+        "--grad-clip",
+        type=float,
+        default=None,
+        help="Override the default global-norm gradient clip "
+        "(default 1.0). Pass a large value (e.g. 1e6) to "
+        "effectively disable clipping and rely on Adam's "
+        "preconditioner instead.",
+    )
+    net_group.add_argument(
         "--readout-w-out-scale",
         type=float,
         default=1.0,
@@ -546,16 +504,6 @@ For the underlying theory of the gradient-stabilisation flags
         "equalises the trial-level drive into the "
         "output LIF and recovers gradient signal. "
         "Train-mode only. Default 1.0.",
-    )
-    net_group.add_argument(
-        "--grad-clip",
-        type=float,
-        default=None,
-        help="Global-norm gradient-clip threshold passed to "
-        "torch.nn.utils.clip_grad_norm_. Default 1.0 "
-        "(M.GRAD_CLIP). Set high (e.g. 100+) to let "
-        "Adam handle wildly-scaled BPTT gradients via "
-        "its second-moment preconditioner.",
     )
     net_group.add_argument(
         "--surrogate-slope",
@@ -599,12 +547,6 @@ For the underlying theory of the gradient-stabilisation flags
         help="Stimulus multiplier (default: 1.0)",
     )
     inp_group.add_argument(
-        "--drive",
-        type=float,
-        default=None,
-        help="Baseline tonic conductance for synthetic-conductance",
-    )
-    inp_group.add_argument(
         "--digit", type=int, default=0, help="Digit class for dataset input (0-9)"
     )
     inp_group.add_argument(
@@ -628,14 +570,6 @@ For the underlying theory of the gradient-stabilisation flags
         help="W_in init mean std (default: 0.3 0.06; standard-snn needs ~10 2 dense)",
     )
     wt_group.add_argument(
-        "--w-ee",
-        type=float,
-        nargs=2,
-        default=None,
-        metavar=("MEAN", "STD"),
-        help="W_EE init (mean std). E→E recurrent excitation; default (0, 0) per Börgers PING.",
-    )
-    wt_group.add_argument(
         "--w-ei",
         type=float,
         nargs=2,
@@ -652,87 +586,11 @@ For the underlying theory of the gradient-stabilisation flags
         help="W_IE init (mean std)",
     )
     wt_group.add_argument(
-        "--w-rec",
-        type=float,
-        nargs=2,
-        default=None,
-        metavar=("MEAN", "STD"),
-        help="W_rec recurrent init (mean std, default: 0 0.1)",
-    )
-    wt_group.add_argument(
         "--trainable-w-ee",
         action="store_true",
         help="Make COBANet's E→E recurrent matrix gradient-carrying "
         "(default: frozen). W_ei / W_ie stay frozen. Use for working-"
         "memory tasks where the E attractor needs to learn.",
-    )
-    net_group.add_argument(
-        "--slow-syn",
-        action="store_true",
-        help="COBANet only: add an NMDA-like slow excitatory channel "
-        "running in parallel with AMPA on every E-driving projection. "
-        "Sample-period spikes leave a long-decay residue (tau_nmda, "
-        "default 100 ms) on E neurons via the same W matrices — useful "
-        "for working-memory tasks. No new trainable parameters.",
-    )
-    net_group.add_argument(
-        "--tau-nmda",
-        type=float,
-        default=None,
-        help="Decay time constant for the slow synapse in ms "
-        "(default: 100 ms, module-level `tau_nmda`). Only relevant "
-        "when --slow-syn is set.",
-    )
-    net_group.add_argument(
-        "--slow-syn-gain",
-        type=float,
-        default=0.5,
-        help="Gain on the slow synapse drive relative to the fast "
-        "(AMPA) drive (default: 0.5). 0.0 makes the network behaviour "
-        "identical to plain COBA. Only relevant when --slow-syn is set.",
-    )
-    net_group.add_argument(
-        "--alif",
-        action="store_true",
-        help="COBANet only: add a per-neuron slow adaptation variable "
-        "that raises the firing threshold proportional to recent "
-        "spiking (LSNN-style). tau_adapt default 700 ms — provides a "
-        "long output-side timescale complementing slow-syn's "
-        "input-side timescale.",
-    )
-    net_group.add_argument(
-        "--tau-adapt",
-        type=float,
-        default=None,
-        help="Adaptation decay time constant in ms "
-        "(default: 700 ms, module-level `tau_adapt`). Only relevant "
-        "when --alif is set.",
-    )
-    net_group.add_argument(
-        "--alif-beta",
-        type=float,
-        default=1.7,
-        help="ALIF threshold-bump per accumulated spike, in mV "
-        "(default: 1.7). 0.0 makes the network behaviour identical "
-        "to plain COBA. Only relevant when --alif is set.",
-    )
-    net_group.add_argument(
-        "--sgcc",
-        action="store_true",
-        help="COBANet only: enable Surrogate Gradients by Costate "
-        "Control (Burghi et al. 2024). Scales the gradient on the "
-        "voltage↔conductance cross-coupling by --sgcc-alpha, taming "
-        "the conductance Jacobian explosion without uniformly damping "
-        "all gradients the way --v-grad-dampen does.",
-    )
-    net_group.add_argument(
-        "--sgcc-alpha",
-        type=float,
-        default=0.5,
-        help="SGCC retained fraction of cross-coupling gradient "
-        "(default: 0.5). alpha=1.0 is no-op (parity with no SGCC); "
-        "alpha=0.0 kills the cross-coupling entirely. Paper uses "
-        "alpha ≈ 0.5–0.7.",
     )
     out_group = parent.add_argument_group("Output")
     out_group.add_argument("--out-dir", type=str, default=None, help="Output directory")
@@ -746,17 +604,6 @@ For the underlying theory of the gradient-stabilisation flags
         choices=["scatter", "imshow"],
         help="Raster style (default: scatter)",
     )
-    out_group.add_argument(
-        "--layout",
-        type=str,
-        default="full",
-        choices=list(LAYOUT_PRESETS.keys()),
-        help="Panel layout (default: full)",
-    )
-    out_group.add_argument(
-        "--panels", type=str, default=None, help="Comma-separated panel names"
-    )
-
     exec_group = parent.add_argument_group("Execution")
     exec_group.add_argument(
         "--seed",
@@ -778,15 +625,6 @@ For the underlying theory of the gradient-stabilisation flags
         default="T4",
         choices=["none", "T4", "L4", "A10G", "A100", "H100"],
         help="GPU type for Modal runs (default: T4). Use 'none' for CPU-only.",
-    )
-    exec_group.add_argument(
-        "--coba-integrator",
-        type=str,
-        default="expeuler",
-        choices=["expeuler", "fwd"],
-        help="Membrane ODE integrator for COBA/PING "
-        "(default: expeuler). 'fwd' falls back to "
-        "forward Euler for parity comparisons.",
     )
 
     subparsers = parser.add_subparsers(
@@ -835,14 +673,6 @@ For the underlying theory of the gradient-stabilisation flags
         default=None,
         help="Path to a weights.pth file (alternative to --from-dir).",
     )
-    image_parser.add_argument(
-        "--fake-progress",
-        type=float,
-        default=None,
-        help="Overlay a progress-bar indicator at level 0-1 "
-        "(for demo / teaching; default: off).",
-    )
-
     # -- video subcommand --
     video_parser = subparsers.add_parser(
         "video",
@@ -885,12 +715,6 @@ For the underlying theory of the gradient-stabilisation flags
         type=float,
         default=50.0,
         help="Scan end value (default: 50.0). For digit: integer class.",
-    )
-    video_parser.add_argument(
-        "--resample-input",
-        action="store_true",
-        help="Use a different Poisson seed on each frame "
-        "(default: same seed for all frames).",
     )
     video_parser.add_argument(
         "--frames",
@@ -969,12 +793,6 @@ For the underlying theory of the gradient-stabilisation flags
         help="Save oscilloscope per epoch",
     )
     train_parser.add_argument(
-        "--observe-every",
-        type=int,
-        default=1,
-        help="Observe every Nth epoch (default: 1)",
-    )
-    train_parser.add_argument(
         "--max-samples",
         type=int,
         default=None,
@@ -987,47 +805,7 @@ For the underlying theory of the gradient-stabilisation flags
         help="Gradient dampening for COBA membrane",
     )
     train_parser.add_argument(
-        "--early-stopping",
-        type=int,
-        default=None,
-        help="Stop after N epochs without improvement",
-    )
-    train_parser.add_argument(
-        "--adaptive-lr",
-        action="store_true",
-        help="Enable ReduceLROnPlateau scheduler (factor=0.5, patience=5)",
-    )
-    train_parser.add_argument(
         "--frame-rate", type=int, default=10, help="Video fps for observe (default: 10)"
-    )
-    train_parser.add_argument(
-        "--profile",
-        type=str,
-        default=None,
-        metavar="PATH",
-        help="Wrap the 3rd batch of epoch 0 in "
-        "torch.profiler and write a Chrome-format "
-        "trace JSON to PATH. Skips the first two "
-        "batches to avoid allocator/JIT warmup "
-        "noise. Training continues normally after.",
-    )
-    train_parser.add_argument(
-        "--fr-reg-lower-theta",
-        type=float,
-        default=0.0,
-        help="Firing-rate reg: lower-bound target spike "
-        "count per neuron per trial (θ_l). "
-        "Penalty s_l · Σ relu(θ_l − <z_i>)² is "
-        "added to the loss. Default 0 = off. "
-        "Cramer et al. SHD RSNN: 0.01.",
-    )
-    train_parser.add_argument(
-        "--fr-reg-lower-strength",
-        type=float,
-        default=0.0,
-        help="Strength s_l on the lower-bound firing-"
-        "rate regulariser (default 0 = off). "
-        "Cramer et al.: 1.0.",
     )
     train_parser.add_argument(
         "--fr-reg-upper-theta",
@@ -1046,39 +824,6 @@ For the underlying theory of the gradient-stabilisation flags
         help="Strength s_u on the upper-bound firing-"
         "rate regulariser (default 0 = off). "
         "Cramer et al.: 0.06.",
-    )
-    train_parser.add_argument(
-        "--skip-bad-grad-threshold",
-        type=float,
-        default=None,
-        help="Skip opt.step() (and zero grads) whenever "
-        "the batch's clipped gradient norm is NaN, "
-        "inf, or exceeds this threshold. Band-aid "
-        "against single exploded batches poisoning "
-        "Adam's second-moment estimate mid-run. "
-        "Default off.",
-    )
-    train_parser.add_argument(
-        "--optimizer",
-        choices=["adam", "adamax"],
-        default="adam",
-        help="Optimizer. Adamax uses the L∞ norm for "
-        "the second moment instead of an EMA of "
-        "squared grads, so a single pathological "
-        "batch cannot poison the preconditioner. "
-        "Canonical SNN choice (Cramer, Zenke).",
-    )
-    train_parser.add_argument(
-        "--loss",
-        choices=["ce", "mse"],
-        default="ce",
-        dest="loss_mode",
-        help="Training loss. 'ce' = cross-entropy on "
-        "logits (default; expects unnormalised "
-        "logits). 'mse' = L2 between logits and "
-        "one-hot targets — the SNN-paper standard "
-        "(Bohte 2002, Lee 2016) when the readout's "
-        "logit scale makes CE softmax saturate.",
     )
 
     # -- infer subcommand --
@@ -1156,24 +901,16 @@ For the underlying theory of the gradient-stabilisation flags
         parser.print_help()
         sys.exit(0)
 
-    # Apply global model knobs as early as possible so every downstream
-    # entrypoint (train, sim, image, video, infer) sees the right integrator.
-    M.COBA_INTEGRATOR = args.coba_integrator
     if getattr(args, "surrogate_slope", None) is not None:
         M.SURROGATE_SLOPE = float(args.surrogate_slope)
     if getattr(args, "grad_clip", None) is not None:
-        global GRAD_CLIP
-        GRAD_CLIP = float(args.grad_clip)
-        M.GRAD_CLIP = GRAD_CLIP
-    # Override τ_mem / τ_syn before patch_dt() re-derives β_snn and decay_ampa.
+        import cli.train as _train_mod
+        _train_mod.GRAD_CLIP = float(args.grad_clip)
+        M.GRAD_CLIP = float(args.grad_clip)
     if getattr(args, "tau_mem", None) is not None:
         M.tau_snn = float(args.tau_mem)
     if getattr(args, "tau_syn", None) is not None:
         M.tau_ampa = float(args.tau_syn)
-    if getattr(args, "tau_nmda", None) is not None:
-        M.tau_nmda = float(args.tau_nmda)
-    if getattr(args, "tau_adapt", None) is not None:
-        M.tau_adapt = float(args.tau_adapt)
     if getattr(args, "readout_tau_out", None) is not None:
         M.tau_out_ms = float(args.readout_tau_out)
 
@@ -1280,12 +1017,11 @@ def _print_intro(log, config, args, mode):
         "Network": {
             "model": model,
             "hidden_sizes": config.get("n_hidden", "?"),
-            "kaiming_init": config.get("kaiming_init", False),
             "dales_law": config.get("dales_law", True),
             "ei_strength": config.get("ei_strength"),
             "ei_ratio": config.get("ei_ratio"),
         },
-        "Weights": g("w_in", "w_in_sparsity", "w_ei", "w_ie", "w_rec"),
+        "Weights": g("w_in", "w_in_sparsity", "w_ei", "w_ie"),
         "Training": g("epochs", "lr", "adaptive_lr", "v_grad_dampen")
         if mode == "train"
         else {},
@@ -1423,7 +1159,6 @@ if __name__ == "__main__":
             generate_snapshot(
                 args.overdrive,
                 dt=args.dt,
-                fake_progress=args.fake_progress,
                 model_name=args.model,
                 t_e_async=t_e_async,
             )
@@ -1447,7 +1182,6 @@ if __name__ == "__main__":
             scan_var=args.scan_var,
             scan_min=args.scan_min,
             scan_max=args.scan_max,
-            resample_input=args.resample_input,
             n_frames=args.frames,
             t_e_async=t_e_async,
             overdrive=args.overdrive,
@@ -1474,46 +1208,25 @@ if __name__ == "__main__":
             w_in=w_in,
             w_ei=args.w_ei,
             w_ie=args.w_ie,
-            w_ee=args.w_ee,
             ei_strength=args.ei_strength,
             ei_ratio=args.ei_ratio,
-            sparsity=args.sparsity or 0.0,
             w_in_sparsity=args.w_in_sparsity or 0.0,
             dataset=args.dataset,
             snapshot_init=True,
             snapshot_end=True,
             t_ms=args.t_ms,
-            burn_in_ms=args.burn_in if args.burn_in is not None else 20.0,
             hidden_sizes=args.n_hidden,
             max_samples=args.max_samples,
             v_grad_dampen=args.v_grad_dampen,
-            early_stopping=args.early_stopping,
-            observe_every=args.observe_every,
-            adaptive_lr=args.adaptive_lr,
-            kaiming_init=args.kaiming_init,
             dales_law=args.dales_law,
-            w_rec=args.w_rec,
-            rec_layers=args.rec_layers,
             ei_layers=args.ei_layers,
             batch_size=args.batch_size,
             seed=args.seed,
             readout_w_out_scale=args.readout_w_out_scale,
             readout_mode=args.readout_mode,
-            fr_reg_lower_theta=args.fr_reg_lower_theta,
-            fr_reg_lower_strength=args.fr_reg_lower_strength,
             fr_reg_upper_theta=args.fr_reg_upper_theta,
             fr_reg_upper_strength=args.fr_reg_upper_strength,
-            skip_bad_grad_threshold=args.skip_bad_grad_threshold,
-            optimizer=args.optimizer,
-            loss_mode=args.loss_mode,
-            profile_path=args.profile,
             trainable_w_ee=args.trainable_w_ee,
-            slow_synapse=args.slow_syn,
-            slow_syn_gain=args.slow_syn_gain,
-            alif=args.alif,
-            alif_beta=args.alif_beta,
-            sgcc=args.sgcc,
-            sgcc_alpha=args.sgcc_alpha,
         )
 
     elif mode == "infer":
@@ -1529,13 +1242,9 @@ if __name__ == "__main__":
             w_in=w_in,
             ei_strength=args.ei_strength,
             ei_ratio=args.ei_ratio,
-            sparsity=args.sparsity or 0.0,
             w_in_sparsity=args.w_in_sparsity or 0.0,
             hidden_sizes=args.n_hidden,
-            kaiming_init=args.kaiming_init,
             dales_law=args.dales_law,
-            w_rec=args.w_rec,
-            rec_layers=args.rec_layers,
             ei_layers=args.ei_layers,
             seed=args.seed,
         )
@@ -1629,20 +1338,15 @@ if __name__ == "__main__":
             log.info(f"  → {out_dir / 'dt_sweep.png'}")
 
             if args.observe == "video":
-                randomize = not args.kaiming_init
                 vid_net = build_net(
                     args.model,
                     w_in=w_in,
                     w_in_sparsity=args.w_in_sparsity or 0.0,
                     ei_strength=args.ei_strength,
                     ei_ratio=args.ei_ratio,
-                    sparsity=args.sparsity or 0.0,
-                    randomize_init=randomize,
-                    kaiming_init=args.kaiming_init,
+                    randomize_init=True,
                     dales_law=args.dales_law,
-                    w_rec=args.w_rec,
                     hidden_sizes=args.n_hidden,
-                    rec_layers=args.rec_layers,
                     ei_layers=args.ei_layers,
                 )
                 vid_net.load_state_dict(
@@ -1667,20 +1371,15 @@ if __name__ == "__main__":
 
                 C.N_E = M.N_HID
                 C.N_I = M.N_INH
-                randomize = not args.kaiming_init
                 vis_net = build_net(
                     args.model,
                     w_in=w_in,
                     w_in_sparsity=args.w_in_sparsity or 0.0,
                     ei_strength=args.ei_strength,
                     ei_ratio=args.ei_ratio,
-                    sparsity=args.sparsity or 0.0,
-                    randomize_init=randomize,
-                    kaiming_init=args.kaiming_init,
+                    randomize_init=True,
                     dales_law=args.dales_law,
-                    w_rec=args.w_rec,
                     hidden_sizes=args.n_hidden,
-                    rec_layers=args.rec_layers,
                     ei_layers=args.ei_layers,
                 )
                 vis_net.load_state_dict(

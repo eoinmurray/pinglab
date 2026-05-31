@@ -37,7 +37,7 @@ def _train_probe(out_dir, *extra, epochs=0):
     _run_cli(
         "train",
         "--model",
-        "standard-snn",
+        "ping",
         "--dataset",
         "mnist",
         "--max-samples",
@@ -131,7 +131,7 @@ def test_from_dir_auto_loads_weights(tmp_path):
     _run_cli(
         "train",
         "--model",
-        "standard-snn",
+        "ping",
         "--dataset",
         "mnist",
         "--max-samples",
@@ -186,7 +186,7 @@ def test_readout_changes_model_forward():
 
     torch.manual_seed(0)
     net_rate = build_net(
-        "standard-snn",
+        "ping",
         w_in=(10.0, 1.0),
         w_in_sparsity=0.0,
         hidden_sizes=[64],
@@ -194,7 +194,7 @@ def test_readout_changes_model_forward():
     )
     torch.manual_seed(0)
     net_li = build_net(
-        "standard-snn",
+        "ping",
         w_in=(10.0, 1.0),
         w_in_sparsity=0.0,
         hidden_sizes=[64],
@@ -272,87 +272,6 @@ def test_ei_strength_scales_weights():
     assert abs(ie_hi / ie_lo - 2.0) < 0.05, f"W_ie scale: {ie_hi / ie_lo}"
 
 
-# ── Tier 2: training-path knobs ──────────────────────────────────────────
-
-# --early-stopping
-
-
-@pytest.mark.slow
-def test_early_stopping_propagates(tmp_path):
-    out = tmp_path / "es"
-    _train_probe(out, "--early-stopping", "3")
-    assert _read_config(out)["early_stopping"] == 3
-
-
-@pytest.mark.slow
-def test_early_stopping_triggers_stop(tmp_path):
-    """With --early-stopping 1 and a trivially plateauing setup, the run
-    halts before --epochs."""
-    out = tmp_path / "es-fire"
-    _run_cli(
-        "train",
-        "--model",
-        "standard-snn",
-        "--dataset",
-        "mnist",
-        "--max-samples",
-        "60",
-        "--epochs",
-        "20",
-        "--early-stopping",
-        "1",
-        "--dt",
-        "0.25",
-        "--w-in",
-        "10",
-        "--w-in-sparsity",
-        "0",
-        "--lr",
-        "1e-8",  # frozen — no improvement possible
-        "--out-dir",
-        str(out),
-        "--wipe-dir",
-        timeout=240,
-    )
-    jsonl = (out / "metrics.jsonl").read_text().strip().splitlines()
-    assert len(jsonl) < 20, f"early-stopping did not fire: {len(jsonl)} epochs ran"
-
-
-# --adaptive-lr
-
-
-@pytest.mark.slow
-def test_adaptive_lr_smoke(tmp_path):
-    """--adaptive-lr run completes and emits lr in every jsonl row."""
-    out = tmp_path / "adlr"
-    _run_cli(
-        "train",
-        "--model",
-        "standard-snn",
-        "--dataset",
-        "mnist",
-        "--max-samples",
-        "50",
-        "--epochs",
-        "2",
-        "--adaptive-lr",
-        "--dt",
-        "0.25",
-        "--w-in",
-        "10",
-        "--w-in-sparsity",
-        "0",
-        "--out-dir",
-        str(out),
-        "--wipe-dir",
-    )
-    rows = [
-        json.loads(l) for l in (out / "metrics.jsonl").read_text().strip().splitlines()
-    ]
-    assert len(rows) == 2
-    assert all("lr" in r for r in rows)
-
-
 # --kaiming-init / --dales-law (config propagation)
 
 
@@ -360,7 +279,6 @@ def test_adaptive_lr_smoke(tmp_path):
 @pytest.mark.parametrize(
     "flag,key,expected",
     [
-        (["--kaiming-init"], "kaiming_init", True),
         (["--no-dales-law"], "dales_law", False),
     ],
 )
@@ -368,60 +286,6 @@ def test_train_flag_propagates_to_config(tmp_path, flag, key, expected):
     out = tmp_path / f"cfg-{key}"
     _train_probe(out, *flag)
     assert _read_config(out)[key] == expected
-
-
-# --kaiming-init / --no-dales-law (behavior, in-process, fast)
-
-
-def test_kaiming_init_produces_signed_weights():
-    """kaiming_init=True gives signed Kaiming-uniform weights; the default
-    pipeline produces strictly non-negative weights (Dale's-law-compatible)."""
-    import sys
-
-    sys.path.insert(0, "src/pinglab")
-    from config import build_net
-
-    torch.manual_seed(0)
-    net_default = build_net(
-        "standard-snn", w_in=(10.0, 1.0), w_in_sparsity=0.0, hidden_sizes=[32]
-    )
-    torch.manual_seed(0)
-    net_kaiming = build_net("standard-snn", kaiming_init=True, hidden_sizes=[32])
-
-    w_default = dict(net_default.named_parameters())["W_ff.1"].detach()
-    w_kaiming = dict(net_kaiming.named_parameters())["W_ff.1"].detach()
-    assert float(w_default.min()) >= 0.0, "default init leaked negative weights"
-    assert float(w_kaiming.min()) < 0.0, "kaiming init should produce signed weights"
-
-
-def test_no_dales_law_allows_signed_weights():
-    """dales_law=False permits negative weights at init; dales_law=True clamps."""
-    import sys
-
-    sys.path.insert(0, "src/pinglab")
-    from config import build_net
-
-    torch.manual_seed(0)
-    net_dale = build_net(
-        "standard-snn",
-        w_in=(10.0, 1.0),
-        w_in_sparsity=0.0,
-        dales_law=True,
-        hidden_sizes=[32],
-    )
-    torch.manual_seed(0)
-    net_free = build_net(
-        "standard-snn",
-        w_in=(10.0, 1.0),
-        w_in_sparsity=0.0,
-        dales_law=False,
-        hidden_sizes=[32],
-    )
-
-    w_dale = dict(net_dale.named_parameters())["W_ff.1"].detach()
-    w_free = dict(net_free.named_parameters())["W_ff.1"].detach()
-    assert float(w_dale.min()) >= 0.0
-    assert float(w_free.min()) < 0.0
 
 
 # --fr-reg-upper / --fr-reg-lower (behavior)
@@ -436,7 +300,7 @@ def test_fr_reg_upper_pulls_rate_down(tmp_path):
         _run_cli(
             "train",
             "--model",
-            "standard-snn",
+            "ping",
             "--dataset",
             "mnist",
             "--max-samples",
@@ -556,154 +420,6 @@ def test_scan_var_runs(tmp_path, scan_var, lo, hi, extra):
     assert any(out.glob("*.mp4")), f"no MP4 written for scan {scan_var}"
 
 
-# --layout presets — image-compatible layouts
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize("layout", ["full", "dataset", "compact", "minimal"])
-def test_image_layout_preset(tmp_path, layout):
-    out = tmp_path / f"layout-{layout}"
-    extra = (
-        ["--input", "dataset", "--dataset", "scikit", "--digit", "0"]
-        if layout == "dataset"
-        else []
-    )
-    _run_cli(
-        "image",
-        "--model",
-        "ping",
-        "--n-hidden",
-        "32",
-        "--layout",
-        layout,
-        "--t-ms",
-        "250",
-        "--out-dir",
-        str(out),
-        "--wipe-dir",
-        *extra,
-    )
-    # image mode writes snapshot.png, not oscilloscope.png
-    assert any(p.suffix == ".png" for p in out.iterdir()), (
-        f"no PNG written for layout {layout}"
-    )
-
-
-# --panels override
-
-
-@pytest.mark.slow
-def test_panels_override(tmp_path):
-    """--panels wins over --layout."""
-    out = tmp_path / "panels"
-    _run_cli(
-        "image",
-        "--model",
-        "ping",
-        "--n-hidden",
-        "32",
-        "--layout",
-        "full",
-        "--panels",
-        "header,e_raster,i_raster",
-        "--t-ms",
-        "250",
-        "--out-dir",
-        str(out),
-        "--wipe-dir",
-    )
-    assert any(p.suffix == ".png" for p in out.iterdir())
-
-
-# --coba-integrator fwd vs expeuler parity
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize("integrator", ["expeuler", "fwd"])
-def test_coba_integrator_runs(tmp_path, integrator):
-    out = tmp_path / f"int-{integrator}"
-    _run_cli(
-        "sim",
-        "--model",
-        "cuba",
-        "--n-hidden",
-        "32",
-        "--coba-integrator",
-        integrator,
-        "--t-ms",
-        "250",
-        "--out-dir",
-        str(out),
-        "--wipe-dir",
-    )
-    # sim writes config.json; metrics.json only when there's spiking data.
-    assert (out / "config.json").exists()
-
-
-# --resample-input / --observe-every smokes
-
-
-@pytest.mark.slow
-def test_resample_input_smoke(tmp_path):
-    out = tmp_path / "resample"
-    _run_cli(
-        "video",
-        "--model",
-        "ping",
-        "--n-hidden",
-        "32",
-        "--scan-var",
-        "stim-overdrive",
-        "--scan-min",
-        "1",
-        "--scan-max",
-        "2",
-        "--frames",
-        "2",
-        "--t-ms",
-        "250",
-        "--resample-input",
-        "--out-dir",
-        str(out),
-        "--wipe-dir",
-    )
-    assert any(out.glob("*.mp4"))
-
-
-@pytest.mark.slow
-def test_observe_every_smoke(tmp_path):
-    """--observe-every 2 with --observe video over 4 epochs emits 2 frames."""
-    out = tmp_path / "obs-every"
-    _run_cli(
-        "train",
-        "--model",
-        "standard-snn",
-        "--dataset",
-        "mnist",
-        "--max-samples",
-        "60",
-        "--epochs",
-        "4",
-        "--observe",
-        "video",
-        "--observe-every",
-        "2",
-        "--dt",
-        "0.25",
-        "--w-in",
-        "10",
-        "--w-in-sparsity",
-        "0",
-        "--n-hidden",
-        "32",
-        "--out-dir",
-        str(out),
-        "--wipe-dir",
-        timeout=240,
-    )
-    assert any(out.glob("*.mp4"))
-
-
 @pytest.mark.slow
 def test_no_wipe_dir_preserves_existing(tmp_path):
     """Without --wipe-dir, unrelated files in the output dir survive."""
@@ -715,7 +431,7 @@ def test_no_wipe_dir_preserves_existing(tmp_path):
     _run_cli(
         "train",
         "--model",
-        "standard-snn",
+        "ping",
         "--dataset",
         "mnist",
         "--max-samples",

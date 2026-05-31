@@ -22,7 +22,7 @@ import torch
 from torch import nn
 
 import models as M
-from models import COBANet, CUBANet, SNNTorchLibraryNet
+from models import COBANet, CubaPingNet
 from inputs import (
     make_spike_drive,
     patch_dt as _patch_dt,
@@ -106,38 +106,21 @@ MODEL_REGISTRY = {
         w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
         **kw,
     ),
-    "standard-snn": lambda **kw: CUBANet(w_in=(0, 0), w_hid=(0, 0.1), **kw),
-    "cuba": lambda **kw: CUBANet(
-        discretisation="zoh", w_in=(0, 0), w_hid=(0, 0.1), **kw
-    ),
-    "snntorch-library": lambda **kw: SNNTorchLibraryNet(**kw),
+    "cuba-ping": lambda **kw: CubaPingNet(**kw),
+    "cuba-noping": lambda **kw: CubaPingNet(no_inhibition=True, **kw),
 }
 
-HAS_INH = {"ping"}
+HAS_INH = {"ping", "cuba-ping"}
 IS_COBA = {"ping"}
-
-# All CUBA-family variants (shared CUBANet class, distinct discretisation
-# settings). Used by build_net guards. Headline 4-model ladder is
-# {standard-snn, cuba, coba, ping}.
-CUBA_MODELS = {
-    "standard-snn",
-    "snntorch-library",
-    "cuba",
-}
+CUBA_MODELS: set[str] = set()
 
 _MODEL_CLASSES = {
     "ping": (COBANet, {}),
-    "standard-snn": (CUBANet, {}),
-    "cuba": (CUBANet, {"discretisation": "zoh"}),
-    "snntorch-library": (SNNTorchLibraryNet, {}),
+    "cuba-ping": (CubaPingNet, {}),
+    "cuba-noping": (CubaPingNet, {"no_inhibition": True}),
 }
 
-# Back-compat aliases: older config.json files record legacy model names.
-# Resolved to current primary key before lookup in MODEL_REGISTRY / build_net.
-LEGACY_MODEL_ALIASES = {
-    "snntorch": "standard-snn",  # renamed 2026-04-18
-    "snntorch-canonical": "standard-snn",  # renamed 2026-04-17
-}
+LEGACY_MODEL_ALIASES: dict[str, str] = {}
 
 
 def build_net(
@@ -152,20 +135,11 @@ def build_net(
     sparsity=0.0,
     device=None,
     randomize_init=False,
-    kaiming_init=False,
     dales_law=True,
-    w_rec=None,
     hidden_sizes=None,
-    rec_layers=None,
     ei_layers=None,
     readout_mode="rate",
     trainable_w_ee=False,
-    slow_synapse=False,
-    slow_syn_gain=0.5,
-    alif=False,
-    alif_beta=1.7,
-    sgcc=False,
-    sgcc_alpha=0.5,
 ):
     """Construct a network with the given config.
 
@@ -176,14 +150,16 @@ def build_net(
     w_rec: if set, enables recurrence on all layers (or rec_layers subset).
     ei_layers: which layers get E-I structure (1-indexed). Default: all.
     """
-    model_name = LEGACY_MODEL_ALIASES.get(model_name, model_name)
     if model_name not in _MODEL_CLASSES:
         raise ValueError(
             f"Unknown model {model_name!r}; choose from {list(_MODEL_CLASSES)}"
         )
     cls, base_kwargs = _MODEL_CLASSES[model_name]
     kwargs = {**base_kwargs}
-    kwargs["readout_mode"] = readout_mode
+    if model_name in {"cuba-ping", "cuba-noping"}:
+        kwargs["readout_mode"] = "mem-mean"
+    else:
+        kwargs["readout_mode"] = readout_mode
 
     # Set module-level hidden sizes
     if hidden_sizes is not None:
@@ -191,69 +167,27 @@ def build_net(
         M.N_HID = hidden_sizes[-1]
         kwargs["hidden_sizes"] = list(hidden_sizes)
 
-    if model_name in CUBA_MODELS or model_name == "ping":
-        kwargs["dales_law"] = dales_law
-    # Recurrence: inferred from w_rec being set
-    if w_rec is not None and model_name in CUBA_MODELS:
-        kwargs["w_rec"] = (*w_rec, "signed_normal", sparsity)
-        if rec_layers is not None:
-            kwargs["rec_layers"] = set(rec_layers)
-    # E-I layer selection (PING)
-    if ei_layers is not None and model_name in HAS_INH:
+    kwargs["dales_law"] = dales_law
+    if ei_layers is not None:
         kwargs["ei_layers"] = set(ei_layers)
-    # Trainable E→E (COBANet only). When True, W_ee.requires_grad = True
-    # so the E-attractor learns alongside the feedforward weights —
-    # working-memory tasks like DMTS need this.
-    if trainable_w_ee and model_name in HAS_INH:
+    if trainable_w_ee:
         kwargs["trainable_w_ee"] = True
-    # Slow ("NMDA-like") excitatory channel on E projections — COBANet only.
-    # Adds a parallel long-decay conductance fed by the same W matrices.
-    if slow_synapse:
-        if model_name not in HAS_INH:
-            raise ValueError(
-                f"--slow-syn is COBANet-only; model {model_name!r} doesn't "
-                "have a biophysical synapse layer to attach it to"
-            )
-        kwargs["slow_synapse"] = True
-        kwargs["slow_syn_gain"] = float(slow_syn_gain)
-    # ALIF: per-neuron slow adaptation on E (and I) cells.
-    if alif:
-        if model_name not in HAS_INH:
-            raise ValueError(
-                f"--alif is COBANet-only; model {model_name!r} doesn't "
-                "have the biophysical step body that the adaptation hook "
-                "lives in"
-            )
-        kwargs["alif"] = True
-        kwargs["alif_beta"] = float(alif_beta)
-    # SGCC: surgical gradient stabilizer (Burghi et al. 2024).
-    if sgcc:
-        if model_name not in HAS_INH:
-            raise ValueError(
-                f"--sgcc is COBANet-only; CUBA-family models don't have "
-                "the conductance Jacobian SGCC is designed to stabilize"
-            )
-        kwargs["sgcc"] = True
-        kwargs["sgcc_alpha"] = float(sgcc_alpha)
-    if kaiming_init and model_name in CUBA_MODELS:
-        kwargs["tutorial_mode"] = True
-    elif w_in is not None:
+    if w_in is not None:
         kwargs["w_in"] = (*w_in, "normal", w_in_sparsity)
-    if model_name in HAS_INH:
-        if w_ee is not None:
-            kwargs["w_ee"] = (*w_ee, "normal", sparsity)
-        if w_ei is not None:
-            kwargs["w_ei"] = (*w_ei, "normal", sparsity)
-        elif ei_strength is not None:
-            s = ei_strength
-            kwargs["w_ei"] = (s, s * 0.1, "normal", sparsity)
-        if w_ie is not None:
-            kwargs["w_ie"] = (*w_ie, "normal", sparsity)
-        elif ei_strength is not None:
-            s = ei_strength
-            kwargs["w_ie"] = (s * ei_ratio, s * ei_ratio * 0.1, "normal", sparsity)
-        if w_ei is None and w_ie is None and ei_strength is None and sparsity > 0:
-            kwargs.setdefault("sparsity", sparsity)
+    if w_ee is not None:
+        kwargs["w_ee"] = (*w_ee, "normal", sparsity)
+    if w_ei is not None:
+        kwargs["w_ei"] = (*w_ei, "normal", sparsity)
+    elif ei_strength is not None:
+        s = ei_strength
+        kwargs["w_ei"] = (s, s * 0.1, "normal", sparsity)
+    if w_ie is not None:
+        kwargs["w_ie"] = (*w_ie, "normal", sparsity)
+    elif ei_strength is not None:
+        s = ei_strength
+        kwargs["w_ie"] = (s * ei_ratio, s * ei_ratio * 0.1, "normal", sparsity)
+    if w_ei is None and w_ie is None and ei_strength is None and sparsity > 0:
+        kwargs.setdefault("sparsity", sparsity)
     net = cls(**kwargs)
     if device is not None:
         net = net.to(device)

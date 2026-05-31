@@ -23,16 +23,6 @@ def _equal_state_dicts(a, b):
     return sa.keys() == sb.keys() and all(torch.equal(sa[k], sb[k]) for k in sa)
 
 
-def test_build_net_deterministic_snntorch_canonical():
-    from config import build_net
-
-    torch.manual_seed(0)
-    a = build_net("standard-snn", w_in=(10.0, 1.0), w_in_sparsity=0.0)
-    torch.manual_seed(0)
-    b = build_net("standard-snn", w_in=(10.0, 1.0), w_in_sparsity=0.0)
-    assert _equal_state_dicts(a, b)
-
-
 def test_build_net_deterministic_ping():
     from config import build_net
 
@@ -105,7 +95,7 @@ def _train_probe(tmp_dir, **extra):
     args = [
         "train",
         "--model",
-        "standard-snn",
+        "ping",
         "--dataset",
         "mnist",
         "--max-samples",
@@ -151,7 +141,7 @@ def test_input_rate_propagates_image(tmp_path):
     rc, _, _ = _run_cli(
         "image",
         "--model",
-        "standard-snn",
+        "ping",
         "--dataset",
         "mnist",
         "--digit",
@@ -177,7 +167,7 @@ def test_input_rate_propagates_video(tmp_path):
     rc, _, _ = _run_cli(
         "video",
         "--model",
-        "standard-snn",
+        "ping",
         "--dataset",
         "mnist",
         "--digit",
@@ -218,7 +208,7 @@ def test_t_ms_propagates_image(tmp_path):
     rc, _, _ = _run_cli(
         "image",
         "--model",
-        "standard-snn",
+        "ping",
         "--dataset",
         "mnist",
         "--digit",
@@ -244,7 +234,7 @@ def test_t_ms_propagates_video(tmp_path):
     rc, _, _ = _run_cli(
         "video",
         "--model",
-        "standard-snn",
+        "ping",
         "--dataset",
         "mnist",
         "--digit",
@@ -278,7 +268,7 @@ def test_train_then_infer_match(tmp_path):
     rc, _, _ = _run_cli(
         "train",
         "--model",
-        "standard-snn",
+        "ping",
         "--dataset",
         "mnist",
         "--max-samples",
@@ -308,7 +298,7 @@ def test_train_then_infer_match(tmp_path):
     rc, _, _ = _run_cli(
         "infer",
         "--model",
-        "standard-snn",
+        "ping",
         "--dataset",
         "mnist",
         "--max-samples",
