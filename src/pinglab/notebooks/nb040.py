@@ -41,10 +41,12 @@ N_IN: int = 784
 N_CLASSES: int = 10
 
 T_MS: float = 200.0
-DT: float = 0.1
+DT: float = 1.0
 N_STEPS: int = int(T_MS / DT)
 # TBPTT window in steps — fixed *physical* gradient horizon of 10 ms
-# regardless of dt (matches the original dt=1 / window=10 recipe).
+# regardless of dt (the dt=1 / window=10 recipe of nb040.mdx). The CLI
+# flag --tbptt-window is plumbed so the recipe scales when DT changes;
+# dt=0.1 is currently unstable on the PING arm — see notebook Next steps.
 TBPTT_WINDOW: int = max(1, round(10.0 / DT))
 
 TAU_M_MS: float = 20.0
