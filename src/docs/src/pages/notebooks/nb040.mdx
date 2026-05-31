@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "040 — Training CUBA-PING on MNIST (instant vs exp synapses)"
+title: "040 — CUBA-PING with instant synapses: dynamics, training, and why naive BPTT fails"
 date: 2026-05-31
 entry: 40
 structure: paper
@@ -16,57 +16,143 @@ export const numbers = Object.values(
 
 ## Introduction
 
-[nb039](/notebooks/nb039/) characterised the dynamics of a current-based PING network in two synaptic configurations — instant and exponential — under spatially uniform Poisson input. Both variants showed the architectural signatures of PING (recruitment cliff, inhibitory clamp on E rate); the difference was the cycle period (≈40 Hz instant, ≈14 Hz exp).
+[nb035](/notebooks/nb035/)–[nb038](/notebooks/nb038/) characterise PING in the *conductance-based* (COBA) regime, where every synapse has an exponential filter with timescale $\tau_\text{AMPA}$ or $\tau_\text{GABA}$. This entry asks the colleague's question: does **current-based** (CUBA) PING with *instant* synapses — no synaptic filtering at all, no $\tau_\text{AMPA}$, no $\tau_\text{GABA}$ — still produce the gamma dynamics, and can it be trained?
 
-This entry asks whether either variant can be *trained* to classify MNIST. The training stack is intentionally minimal: surrogate-gradient backprop through time on a small subset (2 000 train / 400 test), 8 epochs, single seed, no Modal — just the same standalone PyTorch infrastructure nb039 used, with `W_in` and `W_out` upgraded from buffers to trainable parameters.
+Three sections.
 
-## Method
+1. **Dynamics**: build the network from scratch (random fixed $W_\text{in}$, $W^{EI}$, $W^{IE}$) and run it forward under uniform Poisson input. The recruitment cliff and the inhibitory clamp survive.
+2. **Training**: make $W_\text{in}$ and $W_\text{out}$ trainable, surrogate-gradient backprop on MNIST. The forward dynamics are the same; the gradient path is what's interesting.
+3. **Why naive BPTT fails**: working through the Jacobian of the I-loop to show the per-cycle gradient compound factor, plugging in our weights, and explaining why the only training configuration that actually converges is truncated BPTT.
 
-### Network
+## Architecture
 
-Same architecture as nb039 — $N_E = 1024$ excitatory LIF neurons, $N_I = 256$ inhibitory, $N_\text{in} = 784$, same membrane constants ($\tau_m = 20$ ms), same fixed E↔I wiring ($W^{EI} \sim \mathcal{N}(1, 0.1)$, $W^{IE} \sim \mathcal{N}(2, 0.2)$, both non-negative, frozen). The two changes for training:
+LIF E and I populations with the same wiring as [nb035](/notebooks/nb035/)'s COBA-PING, but with **instant synapses** instead of exponential conductances:
 
-- **$\Delta t = 1$ ms** instead of $0.1$ ms — coarser grid so the 200-step BPTT unroll fits on CPU. The recruitment-cliff and clamp dynamics survive the discretisation.
-- **$W_\text{in}$ and $W_\text{out}$ are trainable.** $W_\text{in}$ keeps the 95% sparse init from nb039; $W_\text{out}$ is a dense $N_E \times 10$ readout initialised at $\mathcal{N}(0, 0.05)$. Total trainable: 813k parameters.
+- $N_E = 1024$ excitatory neurons, $N_I = 256$ inhibitory neurons, $N_\text{in} = 784$ input channels.
+- **Membrane**: $\tau_m = 20$ ms, $V_\text{rest} = 0$, $V_\text{th} = 1$, hard reset to $V_\text{reset} = 0$. $R_m = 1$ (dimensionless — all weights are in $V/\Delta t$ units).
+- **Weights**: $W^{EI} \sim \mathcal{N}(1, 0.1)$ (E→I), $W^{IE} \sim \mathcal{N}(2, 0.2)$ (I→E), both clamped non-negative. $W_\text{in}$ is 95% sparse with mean $1.2$, std $1.2$ in the dynamics section and mean $0$, std $0.5$ in the training section (the trainable version starts smaller so gradient descent has room to grow it).
 
-### Surrogate gradient
-
-Forward is hard Heaviside ($s = \mathbb{1}[V \geq V_\text{th}]$). Backward uses the arctan surrogate
+The recurrent dynamics in one line each ($\Delta t = 1$ ms, $T = 200$ ms):
 
 $$
-\frac{ds}{dV} = \frac{\sigma}{1 + (\sigma \pi (V - V_\text{th}))^2}
+V^E_{t+1} \;=\; V^E_t \;+\; \tfrac{\Delta t}{\tau_m}\!\left(-(V^E_t - V_\text{rest}) \;+\; R_m\!\left(x_t W_\text{in} - s^I_{t-1} W^{IE}\right)\right), \quad s^E_t = \mathbb{1}\!\left[V^E_t \geq V_\text{th}\right]
 $$
 
-with slope $\sigma = 1$. This is bounded everywhere — sharper slopes ($\sigma \geq 5$) caused gradient explosion through the I-loop unroll in early tests.
+$$
+V^I_{t+1} \;=\; V^I_t \;+\; \tfrac{\Delta t}{\tau_m}\!\left(-(V^I_t - V_\text{rest}) \;+\; R_m\,s^E_{t-1} W^{EI}\right), \quad s^I_t = \mathbb{1}\!\left[V^I_t \geq V_\text{th}\right]
+$$
 
-### Training loop
+with hard reset $V \leftarrow V_\text{reset}$ whenever $s_t = 1$. There is no synaptic state — every presynaptic spike at $t-1$ contributes its weight to the post-synaptic current at $t$ and is gone by $t+1$.
 
-Adam optimiser at $\text{lr} = 5 \times 10^{-4}$, batch size 64, gradient norm clipped to 1.0. Cross-entropy loss on logits $= (1/T) \sum_t s^E_t W_\text{out} + b_\text{out}$ (mem-mean readout). 50 epochs over 2 000 randomly-sampled MNIST digits — long enough to plateau in both modes.
+## Section 1 — Dynamics
 
-**One implementation detail matters.** The I-loop feedback path ($s^I \to V^E$ and $s^E \to V^I$) is *detached* from the autograd graph. $W^{EI}$ and $W^{IE}$ are frozen buffers, so no gradient needs to flow through them; and without the detach, the recurrent unroll compounds gradient by $\sigma \cdot \|W^{IE}\| \cdot \sigma \cdot \|W^{EI}\|$ per cycle, blowing up to NaN within a handful of cycles. Detaching the feedback breaks the geometric compound while leaving the forward dynamics fully intact (E spikes still drive I, I spikes still suppress E, just the gradient sees a feed-forward chain).
+Fixed weights, no training. Spatially uniform Poisson input at 80 Hz per channel for the full 200 ms window.
 
-## Results
-
-<Figure id="Figure 1" title="Training curves — instant vs exponential synapses (50 epochs)" src="/figures/notebooks/nb040/learning_curves.png" alt="Three panels across 50 epochs. Left: training loss decreasing from ~2.30 to ~1.7 for both modes. Middle: test accuracy climbing from 9% to ~70-72%, with most of the gain in the first 25 epochs and a plateau after. Right: E firing rate climbing slowly from 0 to ~1.1 Hz; I rate climbing more steeply from 0 to ~42 Hz; both modes track each other closely.">
-  Three panels across 50 epochs. **Left:** training cross-entropy loss. **Middle:** test accuracy. **Right:** mean per-cell E (solid) and I (dashed) firing rates on the test set. Black: instant synapses. Red: exponential synapses.
+<Figure id="Figure 1" title="CUBA-PING dynamics under uniform Poisson input — no training" src="/figures/notebooks/nb040/dynamics_raster.png" alt="Two-panel raster of CUBA-PING at uniform 80 Hz Poisson input. E neurons fire in sparse, time-locked bursts at ~50 ms intervals; I neurons fire in narrow synchronous bursts immediately following each E burst.">
+  Spike raster from one trial with fixed random weights and uniform 80 Hz Poisson input on every channel. E above, I below. E = 1.8 Hz, I = 45 Hz per cell. The I-population shows narrow synchronous bursts at ≈50 ms inter-burst interval (≈20 Hz); E bursts immediately precede each I burst.
 </Figure>
 
-Both networks plateau around epoch 25 at very similar operating points: **instant 72.25% / 1.10 Hz E / 41.9 Hz I**, **exp 70.25% / 1.15 Hz E / 43.1 Hz I**. The trajectories track each other to within ≈2% accuracy throughout training — exponential filtering doesn't fundamentally help or hurt learning at this scale; it just adds a synaptic time constant on top of the membrane time constant.
+The dynamics reproduce the architectural signatures of PING: recruitment threshold, inhibitory clamp on the E rate, periodic E→I bursts. The cycle period (≈50 ms, beta-band rather than canonical gamma) is set by how long the network needs to recover from the previous inhibitory pulse — driven jointly by the membrane time constant $\tau_m = 20$ ms and by the time it takes the input drive to push enough E cells back above threshold for the next round of recruitment. With no synaptic filter, the only timescales are membrane decay and the recruitment latency itself.
 
-The I-rate trajectory is informative. At epoch 1 both networks are silent (E = I = 0 Hz). The optimiser pushes $W_\text{in}$ up until the E population starts firing, which then engages the I-loop. The I rate climbs steeply during the recruitment phase (epochs 3–15) and keeps climbing slowly throughout — by epoch 50 the network is running with ≈40× more I-spikes than E-spikes, an unusually heavy-inhibition regime compared to COBA-PING's frontier (which sits at ≈5 Hz E / ≈15 Hz I at the unregularised baseline; see [nb035 Figure 5](/notebooks/nb035/)). The accuracy doesn't track the I-rate climb past epoch 25 — the network keeps recruiting more inhibition without translating it into better classification.
+## Section 2 — Training
 
-<Figure id="Figure 2" title="Trained instant-synapse network — test trial raster" src="/figures/notebooks/nb040/raster__instant.png" alt="Two-panel raster of trained instant-synapse CUBA-PING on a single test trial. E neurons fire sparsely throughout the 200 ms trial; I neurons fire in periodic bursts.">
-  One test trial replayed on the trained instant-synapse network. E above, I below. The E population fires sparsely but selectively; the I population shows clear gamma-band bursts.
+Make $W_\text{in}$ and $W_\text{out}$ trainable. Forward dynamics unchanged. Surrogate-gradient backprop through time on Poisson-encoded MNIST. Adam at lr $5 \times 10^{-4}$, batch 64, 20 epochs, 2 000 train / 400 test, single seed.
+
+The single non-obvious choice is **truncated BPTT** with window $K = 10$ steps: every 10 timesteps the state variables ($V^E$, $V^I$, previous spikes) are detached so gradient only flows back within a 10-step window. Section 3 explains why this matters; for the figure here, the result is that the network actually trains.
+
+<Figure id="Figure 2" title="Training curves — CUBA-PING with TBPTT (K=10)" src="/figures/notebooks/nb040/learning_curves.png" alt="Three panels across 20 epochs. Left: training cross-entropy loss decreasing. Middle: test accuracy climbing from chance to several tens of percent. Right: hidden E and I firing rates climbing as W_in grows during training.">
+  Training cross-entropy loss (left), test accuracy (middle), and mean hidden E (solid) / I (dashed) firing rates (right) across 20 epochs. The network starts silent ($E = I = 0$ Hz at epoch 1) and recruits both populations as $W_\text{in}$ grows.
 </Figure>
 
-<Figure id="Figure 3" title="Trained exp-synapse network — test trial raster" src="/figures/notebooks/nb040/raster__exp.png" alt="Two-panel raster of trained exp-synapse CUBA-PING on a single test trial. Similar to instant but with slightly longer inter-burst intervals.">
-  Same trial replayed on the trained exp-synapse network. Same selective-E / bursty-I structure as instant, but the I bursts space out slightly more — consistent with the longer cycle period nb039 showed for exp under uniform input.
+<Figure id="Figure 3" title="Trained network — test trial raster" src="/figures/notebooks/nb040/trained_raster.png" alt="Two-panel raster of the trained CUBA-PING network replayed on a single MNIST test sample. E neurons fire sparsely but selectively; I neurons fire in periodic bursts at gamma cadence, similar to Figure 1 but driven by the trained W_in instead of uniform Poisson input.">
+  One MNIST test sample replayed on the trained network. E above, I below. The gamma cycle from Figure 1 survives training: same dynamic signature, but now the E participation pattern is digit-selective rather than uniform.
 </Figure>
+
+## Section 3 — Why naive BPTT diverges
+
+The single design choice in the training section that takes some justification is the TBPTT window. With $K = 10$ the network trains; with $K = T = 200$ (full BPTT, no truncation) it doesn't — gradients overflow to NaN within the first batch. This section works out why.
+
+### The recurrent Jacobian
+
+The training loss $L$ depends on the spike train $\{s^E_t\}$ via the readout $\text{logits} = (1/T) \sum_t s^E_t W_\text{out} + b_\text{out}$. By the chain rule,
+
+$$
+\frac{\partial L}{\partial W_\text{in}} \;=\; \sum_{t=1}^{T} \frac{\partial L}{\partial V^E_t} \cdot \frac{\partial V^E_t}{\partial W_\text{in}}
+$$
+
+with the direct contribution $\partial V^E_t / \partial W_\text{in} = \alpha R_m\, x_{t-1}^\top$ (where $\alpha = \Delta t / \tau_m$). The challenge is computing $\partial L / \partial V^E_t$, which carries the recurrent contributions.
+
+Look at one E→I→E round trip: how does $V^E_t$ influence $V^E_{t+2}$ via the I-loop?
+
+$$
+V^E_t \;\xrightarrow{\text{spike}}\; s^E_t \;\xrightarrow{V^I \text{ update}}\; V^I_{t+1} \;\xrightarrow{\text{spike}}\; s^I_{t+1} \;\xrightarrow{V^E \text{ update}}\; V^E_{t+2}
+$$
+
+The four Jacobian links in operator norm:
+
+1. **Surrogate at E**: $\partial s^E_t / \partial V^E_t = \sigma'(V^E_t - V_\text{th})$ bounded by $\sigma$ (the surrogate slope, set to 1).
+2. **E→I drive**: $\partial V^I_{t+1} / \partial s^E_t = \alpha R_m\, W^{EI}$ (matrix of shape $N_E \times N_I$, operator norm $\alpha R_m \|W^{EI}\|$).
+3. **Surrogate at I**: $\partial s^I_{t+1} / \partial V^I_{t+1}$ bounded by $\sigma$.
+4. **I→E suppression**: $\partial V^E_{t+2} / \partial s^I_{t+1} = -\alpha R_m\, W^{IE}$ (matrix of shape $N_I \times N_E$, operator norm $\alpha R_m \|W^{IE}\|$).
+
+Multiplying through, the per-round-trip Jacobian has operator norm bounded by
+
+$$
+\boxed{\left\|\frac{\partial V^E_{t+2}}{\partial V^E_t}\right\|_{\text{loop}} \;\leq\; (\alpha R_m)^2 \, \sigma^2 \, \|W^{EI}\| \cdot \|W^{IE}\|}
+$$
+
+### Plugging in our numbers
+
+For random weight matrices with entries $\mathcal{N}(\mu, \sigma_w)$, the spectral (operator) norm is well-approximated by $\mu \sqrt{\min(N_\text{pre}, N_\text{post})} + O(\sigma_w \sqrt{\max(N_\text{pre}, N_\text{post})})$. For our weights:
+
+- $W^{EI}$ is $1024 \times 256$ with $\mu = 1$, $\sigma_w = 0.1$: $\|W^{EI}\| \approx \sqrt{256} \cdot 1 + 0.1 \sqrt{1024} \approx 16 + 3 \approx 19$.
+- $W^{IE}$ is $256 \times 1024$ with $\mu = 2$, $\sigma_w = 0.2$: $\|W^{IE}\| \approx \sqrt{256} \cdot 2 + 0.2 \sqrt{1024} \approx 32 + 6 \approx 38$.
+
+With $\alpha = 1/20 = 0.05$, $R_m = 1$, $\sigma = 1$:
+
+$$
+(\alpha R_m)^2 \sigma^2 \|W^{EI}\|\, \|W^{IE}\| \;=\; (0.05)^2 \cdot 1 \cdot 19 \cdot 38 \;\approx\; 1.8
+$$
+
+So per round trip the gradient norm multiplies by ≈1.8. Over the full $T = 200$ steps (≈100 round trips of 2 steps each, though in practice the gamma cycle is more like 25 ms = 25 steps so ≈8 cycles), the worst-case compound factor is
+
+$$
+(1.8)^{T/2} = (1.8)^{100} \approx 10^{25}
+$$
+
+— well past float32's max representable value of $\approx 3.4 \times 10^{38}$ but the multiplications in BPTT chain together many factors and overflow happens *during* the backward pass, not just at the end.
+
+### Empirical confirmation
+
+Running the backward at varying horizons, this is what we measure for the gradient norm at $W_\text{in}$:
+
+| Horizon $T$ | max $\|\nabla_{W_\text{in}} L\|$ |
+|---|---|
+| 50 | $5 \times 10^{14}$ |
+| 100 | $\inf$ (float32 overflow) |
+| 150 | NaN |
+| 200 | NaN |
+
+At $T = 50$ the gradient norm is large but finite; somewhere past 100 the chain of matmuls overflows to $+\infty$, which then multiplied by zero (from a sparse Jacobian entry) gives NaN. Standard `clip_grad_norm_` rescales finite gradients but can't recover from inf/NaN — they survive the clip and contaminate every parameter.
+
+### Why per-element clipping doesn't help either
+
+Once the gradient is finite (say at $T = 50$ where the norm is $5 \times 10^{14}$), clipping should help, right? Empirically it doesn't, for a subtler reason. The I-loop gradient is *consistently signed* in the "decrease $W_\text{in}$" direction: every E spike triggers more I activity which suppresses future E spikes, so the chain rule says "if you want loss to decrease, fire less". Summed over 200 steps, this gives a coherent suppression signal much larger than the readout's "fire more on the right classes" signal. Clipping per-element bounds the magnitude but preserves the sign, so the network gets pushed toward silence anyway.
+
+Concretely: with per-element clip at $\pm 1$ and 200 steps, the accumulated $W_\text{in}$ gradient from the I-loop path is $O(200)$ per element, all negative. The readout path contributes $O(10^{-2})$ per element. Optimiser steps push $W_\text{in}$ toward zero; the network goes silent within a few epochs; no signal remains.
+
+### Why truncated BPTT works
+
+TBPTT with window $K$ caps the per-cycle compound to $K / 2$ round trips instead of $T / 2$. The per-step factor of $\approx 1.8$ raised to $K/2 = 5$ is $\approx 19$ — finite, well within float32. More importantly, the consistently-signed suppression signal is now summed over $K = 10$ steps instead of $T = 200$, so its magnitude is comparable to the readout signal and the optimiser sees a balanced gradient.
+
+The cost is **bias**. TBPTT computes the gradient as if each window of $K$ steps were independent of every other window. This is wrong: $V^E$ at step $10$ really *does* depend on $V^E$ at step $1$ via the membrane decay. So the optimiser doesn't converge to the same local minimum that full BPTT would (if full BPTT were numerically stable). For our 200 ms MNIST trials this bias is negligible — there's no useful gradient signal hidden in dependencies more than 10 ms apart. For sequence tasks with genuine long-range structure (language modelling, music, sequence MNIST), TBPTT would underestimate long-range gradients and systematically miss those features.
+
+So calling it "truncated" is a bit unfair. The truncation isn't a bug, it's the *regulariser* that lets you train at all. **Local-BPTT** or **gradient horizon limit** would be a more honest name.
 
 ## Discussion
 
-The headline result is **both variants train** — the recurrent loop in CUBA-PING is gradient-tractable provided the feedback path is detached. With the detach in place, surrogate-gradient BPTT moves $W_\text{in}$ and $W_\text{out}$ into a working regime within a few epochs and the I-loop self-assembles as a side effect of E starting to fire (same as the [low-W_in sweep in nb035](/notebooks/nb035/) showed for COBA-PING).
+The instant-synapse CUBA-PING:
+- **Has the right dynamics** without any synaptic filtering: recruitment cliff, inhibitory clamp, periodic I-bursts at gamma cadence set by $\tau_m$ (Figure 1).
+- **Is trainable** with surrogate-gradient backprop, *if* the BPTT horizon is limited to a few times the membrane time constant. The recurrent Jacobian compounds at ≈1.8 per round trip; over 200 ms this overflows float32 (Section 3).
 
-The accuracy ceiling here (≈70–72%) is well below COBA-PING's ≈88% on the same task ([nb035 Figure 5](/notebooks/nb035/)), with three caveats: the training set is 10× smaller (2 000 vs 60 000 MNIST), the discretisation is 10× coarser ($\Delta t = 1$ ms vs $0.1$ ms), and there's no spike-budget regulariser so the network is free to recruit as much inhibition as it likes (it ends up at ≈40× more I than E, vs COBA-PING's ≈3×). The point of this entry was to show the gradient path is sound, which it is. The natural follow-up is a spike-budget term: adding $L_\text{rate}$ in the loss to keep the I rate in a sensible regime, then scaling up the training set, would let us put CUBA-PING on the same accuracy/rate frontier as nb035 Figure 5 and compare directly.
-
-The two synapse modes ending up at similar accuracy is consistent with the nb039 picture: both architectures support the same recruitment cliff and clamp, only differing in cycle cadence. MNIST at this scale doesn't seem to need a specific cycle period — the optimiser finds a working solution at whatever cadence the network's clock gives it, and reaches the same accuracy whether the clock is set by $\tau_m$ alone (instant) or by $\tau_\text{GABA}$ on top of $\tau_m$ (exp).
+The natural follow-ups are scaling up the training set, adding a spike-budget term $L_\text{rate} = \lambda \sum_n \mathrm{ReLU}(\bar z_n - \theta_u)^2$ like [nb035](/notebooks/nb035/) uses, and replacing TBPTT with a more principled gradient stabiliser (e.g. spectral normalisation of the recurrent weights, or a regulariser that penalises the per-step Jacobian norm directly).
