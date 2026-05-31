@@ -198,6 +198,7 @@ def train(
     fr_reg_upper_theta=0.0,
     fr_reg_upper_strength=0.0,
     trainable_w_ee=False,
+    tbptt_window=None,
 ):
     """Train on scikit digits, optionally producing oscilloscope video."""
     import time
@@ -284,6 +285,7 @@ def train(
         ei_layers=ei_layers,
         readout_mode=readout_mode,
         trainable_w_ee=trainable_w_ee,
+        tbptt_window=tbptt_window,
     )
     if readout_mode != "rate":
         log.info(f"  readout_mode={readout_mode}")
@@ -337,6 +339,7 @@ def train(
         "hidden_sizes": hidden_sizes,
         "ei_layers": list(ei_layers) if ei_layers else None,
         "trainable_w_ee": trainable_w_ee,
+        "tbptt_window": getattr(net, "tbptt_window", None),
         "seed": seed,
         # Provenance (git SHA, run_id, started_at, device, torch version,
         # python env hash) — keeps train-mode config.json at parity with

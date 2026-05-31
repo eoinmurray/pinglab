@@ -41,8 +41,11 @@ N_IN: int = 784
 N_CLASSES: int = 10
 
 T_MS: float = 200.0
-DT: float = 1.0
+DT: float = 0.1
 N_STEPS: int = int(T_MS / DT)
+# TBPTT window in steps — fixed *physical* gradient horizon of 10 ms
+# regardless of dt (matches the original dt=1 / window=10 recipe).
+TBPTT_WINDOW: int = max(1, round(10.0 / DT))
 
 TAU_M_MS: float = 20.0
 TAU_OUT_MS: float = 20.0
@@ -99,6 +102,7 @@ def build_oscilloscope_args(arm: str, tier: str, out_dir: Path) -> list[str]:
         "--lr", str(LR),
         "--batch-size", str(BATCH_SIZE),
         "--grad-clip", "1e6",
+        "--tbptt-window", str(TBPTT_WINDOW),
         "--no-dales-law",
         "--out-dir", str(out_dir),
         "--wipe-dir",
@@ -267,6 +271,49 @@ def _spk_for_test_sample(arm: str, weights_path: Path) -> tuple[np.ndarray, np.n
     return spk_e, spk_i, int(label)
 
 
+def plot_headline_bars(ping_metrics: dict, noping_metrics: dict, out_path: Path) -> None:
+    """Two-panel bar chart: final accuracy and final E rate for each arm."""
+    theme.apply()
+    fig, (ax_acc, ax_rate) = plt.subplots(1, 2, figsize=(8.0, 4.5), dpi=150)
+    names = ["CUBA-PING", "CUBA-no-PING"]
+    colors = [theme.INK_BLACK, theme.DEEP_RED]
+    accs = [
+        ping_metrics["epochs"][-1]["acc"],
+        noping_metrics["epochs"][-1]["acc"],
+    ]
+    rates = [
+        ping_metrics["epochs"][-1]["test_rate_e"],
+        noping_metrics["epochs"][-1]["test_rate_e"],
+    ]
+    bars_acc = ax_acc.bar(names, accs, color=colors, edgecolor=theme.INK_BLACK, linewidth=0.8)
+    for bar, val in zip(bars_acc, accs):
+        ax_acc.text(
+            bar.get_x() + bar.get_width() / 2, val + 1,
+            f"{val:.1f}%", ha="center", va="bottom",
+            fontsize=theme.SIZE_CAPTION,
+        )
+    ax_acc.set_ylabel("Test accuracy (%)")
+    ax_acc.set_title("Final test accuracy", fontsize=theme.SIZE_TITLE)
+    ax_acc.set_ylim(0, max(accs) * 1.15)
+    ax_acc.grid(True, alpha=0.3, axis="y")
+
+    bars_rate = ax_rate.bar(names, rates, color=colors, edgecolor=theme.INK_BLACK, linewidth=0.8)
+    for bar, val in zip(bars_rate, rates):
+        ax_rate.text(
+            bar.get_x() + bar.get_width() / 2, val + max(rates) * 0.02,
+            f"{val:.1f} Hz", ha="center", va="bottom",
+            fontsize=theme.SIZE_CAPTION,
+        )
+    ax_rate.set_ylabel("Mean hidden-E rate (Hz)")
+    ax_rate.set_title("Final hidden-E firing rate", fontsize=theme.SIZE_TITLE)
+    ax_rate.set_ylim(0, max(rates) * 1.18)
+    ax_rate.grid(True, alpha=0.3, axis="y")
+    fig.tight_layout()
+    _stamp(fig)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_comparison(ping_metrics: dict, noping_metrics: dict, out_path: Path) -> None:
     theme.apply()
     fig, (ax_acc, ax_rate) = plt.subplots(1, 2, figsize=(11.0, 4.5), dpi=150)
@@ -379,9 +426,11 @@ def main() -> None:
             plot_noping_raster(spk_e, title, FIGURES / f"trained_raster__{arm}.png")
         print(f"  wrote {FIGURES / f'trained_raster__{arm}.png'}")
 
-    # ── 4: side-by-side comparison
+    # ── 4: side-by-side comparison + headline bars
     plot_comparison(metrics["ping"], metrics["noping"], FIGURES / "comparison.png")
     print(f"  wrote {FIGURES / 'comparison.png'}")
+    plot_headline_bars(metrics["ping"], metrics["noping"], FIGURES / "headline_bars.png")
+    print(f"  wrote {FIGURES / 'headline_bars.png'}")
 
     # ── 5: summary
     ping_final = metrics["ping"]["epochs"][-1]

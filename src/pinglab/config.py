@@ -140,6 +140,7 @@ def build_net(
     ei_layers=None,
     readout_mode="rate",
     trainable_w_ee=False,
+    tbptt_window=None,
 ):
     """Construct a network with the given config.
 
@@ -158,6 +159,8 @@ def build_net(
     kwargs = {**base_kwargs}
     if model_name in {"cuba-ping", "cuba-noping"}:
         kwargs["readout_mode"] = "mem-mean"
+        if tbptt_window is not None:
+            kwargs["tbptt_window"] = int(tbptt_window)
     else:
         kwargs["readout_mode"] = readout_mode
 

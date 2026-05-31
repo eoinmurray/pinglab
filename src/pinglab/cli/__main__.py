@@ -492,6 +492,14 @@ For the underlying theory of --v-grad-dampen see /articles/art006/.
         "preconditioner instead.",
     )
     net_group.add_argument(
+        "--tbptt-window",
+        type=int,
+        default=None,
+        help="TBPTT detach interval in timesteps for models that use it "
+        "(CubaPingNet). Default: 10. Scale with 1/dt to keep the "
+        "physical gradient horizon constant when dt changes.",
+    )
+    net_group.add_argument(
         "--readout-w-out-scale",
         type=float,
         default=1.0,
@@ -1227,6 +1235,7 @@ if __name__ == "__main__":
             fr_reg_upper_theta=args.fr_reg_upper_theta,
             fr_reg_upper_strength=args.fr_reg_upper_strength,
             trainable_w_ee=args.trainable_w_ee,
+            tbptt_window=args.tbptt_window,
         )
 
     elif mode == "infer":

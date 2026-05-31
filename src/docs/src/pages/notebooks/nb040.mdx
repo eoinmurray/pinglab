@@ -81,6 +81,10 @@ $$
   Black: CUBA-PING. Red: CUBA-no-PING. The rate curves diverge by an order of magnitude; the accuracy gap is bounded.
 </Figure>
 
+<Figure id="Figure 7" title="Headline numbers — final accuracy and E rate" src="/figures/notebooks/nb040/headline_bars.png" alt="Two bar-chart panels comparing final test accuracy and final hidden-E firing rate for CUBA-PING (black) and CUBA-no-PING (red).">
+  Final test accuracy (left) and mean hidden-E firing rate (right) at the end of training. The same axes as Figure 6 collapsed to single numbers — the rate-accuracy trade in headline form.
+</Figure>
+
 Both effects of the I-loop show up cleanly:
 
 1. **The rate clamp is real and strong.** Removing the I-loop lets the E rate climb into the tens of Hz — biologically high but within the snnTorch / rate-coded SNN regime. The I-loop in place holds the rate near 1 Hz: an order-of-magnitude sparsification with no $L_\text{rate}$ regulariser.

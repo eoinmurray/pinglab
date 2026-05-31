@@ -1042,8 +1042,16 @@ class CubaPingNet(SNNBase):
         W_out = self.W_ff[1]
         b_out = self.b_ff[0]
 
-        alpha = float(dt) / self.tau_m_ms
-        alpha_out = float(dt) / self.tau_out_ms
+        # dt-invariant discretisation: leak scales with dt, instant-synapse
+        # drive does not. For delta-function spikes the Euler update of
+        # τ·dV/dt = -V + R·I over [t, t+dt] integrates to
+        #     V += -(dt/τ)·V + (R/τ)·(spike count in this dt window).
+        # The drive term (R/τ)·(x@W) is independent of dt — each spike kick
+        # contributes the same V jump regardless of how finely we sample.
+        leak = float(dt) / self.tau_m_ms
+        drive = 1.0 / self.tau_m_ms
+        leak_out = float(dt) / self.tau_out_ms
+        drive_out = 1.0 / self.tau_out_ms
         v_drop = self.v_th - self.v_reset
 
         V_E = torch.zeros(B, n_e, device=device)
@@ -1085,7 +1093,7 @@ class CubaPingNet(SNNBase):
             x = input_spikes[t]
             if has_inh:
                 I_I = s_E_prev @ W_ei
-                V_I = V_I + alpha * (-(V_I - self.v_rest) + self.r_m * I_I)
+                V_I = V_I + leak * (-(V_I - self.v_rest)) + drive * self.r_m * I_I
                 V_I = V_I.clamp(min=self.v_rest)
                 s_I = arctan_spike(V_I - self.v_th, SURROGATE_SLOPE)
                 V_I = V_I - s_I.detach() * v_drop
@@ -1095,14 +1103,14 @@ class CubaPingNet(SNNBase):
             else:
                 I_E = x @ W_in
 
-            V_E = V_E + alpha * (-(V_E - self.v_rest) + self.r_m * I_E)
+            V_E = V_E + leak * (-(V_E - self.v_rest)) + drive * self.r_m * I_E
             V_E = V_E.clamp(min=self.v_rest)
             s_E = arctan_spike(V_E - self.v_th, SURROGATE_SLOPE)
             V_E = V_E - s_E.detach() * v_drop
             e_count = e_count + s_E
             e_spk_total = e_spk_total + s_E.detach().sum()
 
-            V_out = V_out + alpha_out * (-V_out + s_E @ W_out)
+            V_out = V_out + leak_out * (-V_out) + drive_out * (s_E @ W_out)
             mem_sum = mem_sum + V_out
 
             s_E_prev = s_E
