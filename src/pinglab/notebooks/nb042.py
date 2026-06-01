@@ -66,6 +66,12 @@ TIER_CONFIG = {
     "extra large": dict(max_samples=20000, epochs=40),
 }
 DEFAULT_TIER = "medium"
+# Per-cell epoch override — set to None to fall back to TIER_CONFIG, or
+# an int to use that many epochs across all tiers. The under-converged
+# tight-θ_u cells (see Figure 3) need substantially more than the
+# medium-tier default of 15 epochs to resolve whether they recover
+# toward the PING-off baseline.
+EPOCHS_OVERRIDE: int | None = 40
 
 # θ_u grid in spikes per trial. None = no penalty (baseline = nb040).
 # Same grid as nb035/036 for cross-comparison.
@@ -99,7 +105,7 @@ def build_oscilloscope_args(
         "--model", MODEL_FOR_ARM[arm],
         "--dataset", "mnist",
         "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--epochs", str(EPOCHS_OVERRIDE or TIER_CONFIG[tier]["epochs"]),
         "--t-ms", str(T_MS),
         "--dt", str(DT),
         "--input-rate", str(INPUT_RATE_HZ),
@@ -341,7 +347,7 @@ def main() -> None:
             "tau_out_ms": TAU_OUT_MS,
             "input_rate_hz": INPUT_RATE_HZ,
             "max_samples": TIER_CONFIG[tier]["max_samples"],
-            "epochs": TIER_CONFIG[tier]["epochs"],
+            "epochs": EPOCHS_OVERRIDE or TIER_CONFIG[tier]["epochs"],
             "batch_size": BATCH_SIZE, "lr": LR, "seed": SEED,
             "theta_u_grid": [t for t in THETA_U_GRID],
             "fr_strength_upper": FR_STRENGTH_UPPER,
