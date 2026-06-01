@@ -88,7 +88,7 @@ $$
 Both effects of the I-loop show up cleanly:
 
 1. **The rate clamp is real and strong.** Removing the I-loop lets the E rate climb into the tens of Hz — biologically high but within the snnTorch / rate-coded SNN regime. The I-loop in place holds the rate near 1 Hz: an order-of-magnitude sparsification with no $L_\text{rate}$ regulariser.
-2. **The sparsification has a real but bounded accuracy cost.** Roughly 10 pp. The output-LIF readout integrates spike events, so suppressing E spikes throttles the output membrane response; the network still has enough integrated signal to classify, just less than the dense-spike control.
+2. **The sparsification has a real but bounded accuracy cost.** Roughly 4 pp at large tier. The output-LIF readout integrates spike events, so suppressing E spikes throttles the output membrane response; the network still has enough integrated signal to classify, just less than the dense-spike control.
 
 This is the same tradeoff the COBA-PING baselines in [nb035 Figure 5](/notebooks/nb035/) walk via the $\theta_u$ spike-budget term — except CUBA-PING walks it by the architectural inhibitory clamp rather than by an explicit penalty.
 
@@ -127,7 +127,7 @@ The cost is **bias**. TBPTT computes the gradient as if each window were indepen
 
 ## Findings
 
-The instant-synapse CUBA-PING has the right dynamics without any synaptic filtering (Figure 1), is trainable when (a) the readout is an output-LIF mem-mean that requires hidden spikes to flow and (b) the BPTT horizon is limited to a few times $\tau_m$, and is ablation-checked: removing the I-loop raises the E rate by an order of magnitude at a bounded ≈10 pp accuracy cost. Both arms go through the same oscilloscope code path, so the only difference between Figures 2/3 and Figures 4/5 is the I population's presence.
+The instant-synapse CUBA-PING has the right dynamics without any synaptic filtering (Figure 1), is trainable when (a) the readout is an output-LIF mem-mean that requires hidden spikes to flow and (b) the BPTT horizon is limited to a few times $\tau_m$, and is ablation-checked: removing the I-loop raises the E rate by an order of magnitude at a bounded ≈4 pp accuracy cost. Both arms go through the same oscilloscope code path, so the only difference between Figures 2/3 and Figures 4/5 is the I population's presence.
 
 The natural follow-ups:
 
