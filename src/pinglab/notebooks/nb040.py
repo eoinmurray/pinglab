@@ -466,7 +466,7 @@ def main() -> None:
             "final_rate_e_hz": nop_final["test_rate_e"],
             "epochs": metrics["noping"]["epochs"],
         },
-        # Top-level shortcuts used by the index page and NotebookHeader.
+        # Top-level shortcuts used by the index page.
         "final_acc": ping_final["acc"],
         "final_rate_e_hz": ping_final["test_rate_e"],
         "final_rate_i_hz": ping_final["test_rate_i"],
