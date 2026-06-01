@@ -190,6 +190,147 @@ def plot_frontier(rows: list[dict], out_path: Path) -> None:
     plt.close(fig)
 
 
+def _build_net_for_arm(arm: str):
+    """Construct the same CubaPingNet/CubaNoPingNet the train CLI builds,
+    identically seeded. Used for raster replays."""
+    import torch
+    torch.manual_seed(SEED)
+    import models as M
+    M.HIDDEN_SIZES = [N_E]
+    M.N_IN = N_IN
+    M.N_OUT = N_CLASSES
+    M.N_HID = N_E
+    M.N_INH = N_E // 4
+    M.T_steps = int(T_MS / DT)
+    M.T_ms = T_MS
+    M.dt = DT
+    from config import build_net
+    kw = dict(
+        w_in=(W_IN_MEAN, W_IN_STD),
+        w_in_sparsity=W_IN_SPARSITY,
+        hidden_sizes=[N_E],
+    )
+    if arm == "ping":
+        kw["w_ei"] = (W_EI_MEAN, W_EI_STD)
+        kw["w_ie"] = (W_IE_MEAN, W_IE_STD)
+    return build_net(MODEL_FOR_ARM[arm], **kw)
+
+
+def _replay_digit0(arm: str, theta_u: float | None):
+    """Load this cell's trained weights, replay a digit-0 MNIST sample, and
+    return (spk_E, spk_I_or_None) at shape (T, n)."""
+    import torch
+    from torchvision import datasets, transforms
+    cache = REPO / ".cache" / "mnist"
+    test_ds = datasets.MNIST(
+        cache, train=False, download=True, transform=transforms.ToTensor(),
+    )
+    # Pick the first digit-0 sample so the panel is comparable across cells.
+    idx = next(i for i in range(len(test_ds)) if test_ds[i][1] == 0)
+    img, _ = test_ds[idx]
+    pixels = img.view(-1)
+    T = int(T_MS / DT)
+    p = pixels.unsqueeze(0).unsqueeze(0) * (INPUT_RATE_HZ * DT / 1000.0)
+    p = p.expand(T, 1, N_IN).contiguous()
+    gen = torch.Generator().manual_seed(SEED + 3)
+    spk_in = torch.bernoulli(p, generator=gen)
+
+    net = _build_net_for_arm(arm)
+    weights = cell_dir(arm, theta_u) / "weights.pth"
+    state = torch.load(weights, map_location="cpu")
+    net.load_state_dict(state, strict=False)
+    net.eval()
+    net.recording = True
+    with torch.no_grad():
+        net(input_spikes=spk_in)
+    rec = net.spike_record
+    spk_e = rec["hid"].cpu().numpy()
+    spk_i = rec["inh"].cpu().numpy() if "inh" in rec else None
+    return spk_e, spk_i
+
+
+def plot_raster_grid(arm: str, rows: list[dict], out_path: Path) -> None:
+    """6-panel raster grid for one arm — one panel per θ_u value, all on a
+    trained replay of MNIST digit 0. PING panels show a single composite
+    raster: E (black) on top, I (red) below, sharing the same x-axis with
+    no visible gap. no-PING panels show E only."""
+    theme.apply()
+    has_inh = (arm == "ping")
+    fig = plt.figure(figsize=(13.0, 6.5), dpi=150)
+    # Outer 2×3 layout; each PING panel becomes a 4:1 E/I stack via a nested
+    # SubplotSpec so the two share an x-axis with no inter-panel gap.
+    outer = fig.add_gridspec(2, 3, hspace=0.32, wspace=0.18)
+    panels = []
+    for r in range(2):
+        for c in range(3):
+            if has_inh:
+                inner = outer[r, c].subgridspec(2, 1, height_ratios=[4, 1], hspace=0.0)
+                ax_e = fig.add_subplot(inner[0])
+                ax_i = fig.add_subplot(inner[1], sharex=ax_e)
+                panels.append((ax_e, ax_i))
+            else:
+                panels.append(fig.add_subplot(outer[r, c]))
+
+    by_theta = {r["theta_u"]: r for r in rows if r["arm"] == arm}
+    for idx, theta_u in enumerate(THETA_U_GRID):
+        spk_e, spk_i = _replay_digit0(arm, theta_u)
+        r = by_theta[theta_u]
+        title = (
+            f"θ_u={theta_display(theta_u)}  "
+            f"acc={r['acc']:.1f}%  E={r['rate_e_hz']:.1f}Hz"
+            + (f"  I={r['rate_i_hz']:.0f}Hz" if has_inh else "")
+        )
+        t_ms = np.arange(spk_e.shape[0]) * DT
+        if has_inh:
+            ax_e, ax_i = panels[idx]
+            e_idx, e_t = np.where(spk_e.T)
+            ax_e.scatter(
+                t_ms[e_t], e_idx, s=0.5, c=theme.INK_BLACK,
+                marker="|", linewidths=0.35,
+            )
+            ax_e.set_ylim(0, spk_e.shape[1])
+            ax_e.set_xlim(0, T_MS)
+            ax_e.set_yticks([])
+            ax_e.set_ylabel("E", fontsize=theme.SIZE_CAPTION)
+            ax_e.set_title(title, fontsize=theme.SIZE_CAPTION, pad=4)
+            ax_e.tick_params(labelbottom=False)
+            i_idx, i_t = np.where(spk_i.T)
+            ax_i.scatter(
+                t_ms[i_t], i_idx, s=0.5, c=theme.DEEP_RED,
+                marker="|", linewidths=0.35,
+            )
+            ax_i.set_ylim(0, spk_i.shape[1])
+            ax_i.set_xlim(0, T_MS)
+            ax_i.set_yticks([])
+            ax_i.set_ylabel("I", fontsize=theme.SIZE_CAPTION)
+            if idx >= 3:
+                ax_i.set_xlabel("time (ms)", fontsize=theme.SIZE_CAPTION)
+            else:
+                ax_i.tick_params(labelbottom=False)
+        else:
+            ax = panels[idx]
+            e_idx, e_t = np.where(spk_e.T)
+            ax.scatter(
+                t_ms[e_t], e_idx, s=0.7, c=theme.INK_BLACK,
+                marker="|", linewidths=0.45,
+            )
+            ax.set_ylim(0, spk_e.shape[1])
+            ax.set_xlim(0, T_MS)
+            ax.set_ylabel("E neuron", fontsize=theme.SIZE_CAPTION)
+            ax.set_title(title, fontsize=theme.SIZE_CAPTION, pad=4)
+            if idx >= 3:
+                ax.set_xlabel("time (ms)", fontsize=theme.SIZE_CAPTION)
+            else:
+                ax.tick_params(labelbottom=False)
+    fig.suptitle(
+        f"{LABEL_FOR_ARM[arm]} — trained rasters on MNIST digit 0",
+        fontsize=theme.SIZE_TITLE,
+    )
+    _stamp(fig)
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
 def plot_training_curves(cells_by_arm: dict, out_path: Path) -> None:
     """Loss / acc / E rate over epochs, one row per arm, one curve per θ_u."""
     theme.apply()
@@ -333,6 +474,9 @@ def main() -> None:
     print(f"  wrote {FIGURES / 'training_curves.png'}")
     plot_headline_bars(rows, FIGURES / "headline_bars.png")
     print(f"  wrote {FIGURES / 'headline_bars.png'}")
+    for arm in ARMS:
+        plot_raster_grid(arm, rows, FIGURES / f"rasters__{arm}.png")
+        print(f"  wrote {FIGURES / f'rasters__{arm}.png'}")
 
     duration_s = time.monotonic() - t_start
     ping_off = next(
