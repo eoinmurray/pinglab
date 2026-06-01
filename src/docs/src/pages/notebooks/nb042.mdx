@@ -16,36 +16,24 @@ export const numbers = Object.values(
 
 ## Setup
 
-[nb040](/notebooks/nb040/) showed that CUBA-PING's I-loop architecturally clamps the hidden-E rate near 1 Hz, while the CUBA-no-PING control sits at tens of Hz. [nb035](/notebooks/nb035/)–[nb036](/notebooks/nb036/) showed that the COBA-PING baselines walk the same rate–accuracy frontier via the explicit firing-rate regulariser $L_\text{rate}$. This entry transplants the nb035 sweep to the instant-synapse CUBA family — adding the spike-budget penalty $s_u \cdot \text{relu}(\bar{z} - \theta_u)^2$ to CE loss and sweeping $\theta_u$ on both arms — to ask the same two questions:
+[nb040](/notebooks/nb040/) showed two ways to land a CUBA network in the sparse-spike regime: PING's I-loop architecturally clamps E rate near 1 Hz; the no-PING control sits at tens of Hz. [nb035](/notebooks/nb035/)–[nb036](/notebooks/nb036/) showed that COBA-PING walks the same frontier with an explicit *firing-rate regulariser* — the spike-budget penalty $s_u \cdot \text{relu}(\bar{z} - \theta_u)^2$ added to CE loss.
 
-1. **Does the penalty walk the no-PING control onto a sparse-spike frontier comparable to PING's?** (the *penalty alone* path to low firing rates)
-2. **Does the I-loop architecture stay quiet under the penalty, sitting at its natural floor?** (the *architectural floor* should make the penalty redundant on PING)
+This entry transplants that sweep to the instant-synapse CUBA family, asking:
 
-Same recipe as nb040 — `cuba-ping` and `cuba-noping` via the oscilloscope, $\Delta t = 1$ ms, $T = 200$ ms, hard reset, no refractory period, no synaptic state, mem-mean output readout, TBPTT $K = 10$, Adam at lr $2 \times 10^{-3}$, batch 64, 5000 training samples, 40 epochs. The penalty is applied to the population-mean spike count $\bar{z} = \mathbb{E}_{i, \text{batch}}[z_i]$ — a single scalar across all hidden neurons and the batch — with $s_u = 10^{-3}$ matching nb036. The grid $\theta_u \in \{\text{off}, 5, 2, 1, 0.5, 0.2\}$ spikes-per-trial is identical to nb035/036 so the frontier is directly cross-comparable. At $T = 200$ ms, $\theta_u$ in spk/trial × 5 = Hz, i.e. $\theta_u = 0.2$ corresponds to a 1 Hz target.
+1. **Does the penalty walk no-PING onto a sparse-spike frontier?** (the *penalty alone* path)
+2. **Does PING stay quiet under the penalty, sitting at its natural floor?** (the *architectural floor* should make the penalty redundant)
 
-## Results
+Recipe matches nb040 — `cuba-ping` and `cuba-noping` via the oscilloscope, $\Delta t = 1$ ms, $T = 200$ ms, hard reset, mem-mean readout, TBPTT $K = 10$, Adam at lr $2 \times 10^{-3}$, batch 64, 5000 train, 40 epochs. The penalty acts on the population mean $\bar{z} = \mathbb{E}_{i,\text{batch}}[z_i]$ with $s_u = 10^{-3}$. The grid $\theta_u \in \{\text{off}, 5, 2, 1, 0.5, 0.2\}$ spikes-per-trial mirrors nb035/036. At $T = 200$ ms, 1 spk/trial = 5 Hz.
+
+## Frontier
 
 <Figure id="Figure 1" title="Rate–accuracy frontier under θ_u sweep" src="/figures/notebooks/nb042/frontier.png" alt="Test accuracy versus mean hidden-E firing rate on a linear x-axis. Two arms: CUBA-PING in black, CUBA-no-PING in red. The no-PING points trace a smooth gentle descent from 39 Hz down to 1.3 Hz, accuracy 90.4% to 87.8%. The PING points cluster at ≈1.4 Hz / 84.7%, all five overlapping, with a single outlier at 6 Hz / 82.6% for the tightest θ_u where the penalty engaged.">
-  Test accuracy vs hidden-E firing rate, one point per $\theta_u$ value. Black: CUBA-PING. Red: CUBA-no-PING. PING sits at its architectural floor (≈1.4 Hz / 84.7%) for every $\theta_u$ value where the penalty doesn't engage; only $\theta_u = 0.2$ pushes the rate below the natural floor and pays a small accuracy cost. no-PING walks a smooth frontier from rate-coded (39 Hz / 90.4%) down to PING-rate territory (1.28 Hz / 87.8%) — 30× sparsification for 2.6 pp accuracy.
+  Test accuracy vs hidden-E firing rate, one point per $\theta_u$ value. Five of six PING cells overlap exactly at the architectural floor; the no-PING trace walks a clean frontier.
 </Figure>
 
-<Figure id="Figure 2" title="Final accuracy and E rate per θ_u" src="/figures/notebooks/nb042/headline_bars.png" alt="Two bar-chart panels. Left: final test accuracy bars, grouped by θ_u, with CUBA-PING (black) and CUBA-no-PING (red) side-by-side at each θ_u. Right: final E firing rate bars on a log axis, same grouping.">
-  Final accuracy (left) and final E rate (right) across the $\theta_u$ grid, both arms side-by-side. PING bars are identical for $\theta_u \geq 0.5$ (penalty inactive); no-PING bars step down monotonically as $\theta_u$ tightens.
+<Figure id="Figure 2" title="Final accuracy and E rate per θ_u" src="/figures/notebooks/nb042/headline_bars.png" alt="Two bar-chart panels. Left: final test accuracy bars, grouped by θ_u, with CUBA-PING (black) and CUBA-no-PING (red) side-by-side at each θ_u. Right: final E firing rate bars on a linear axis, same grouping.">
+  Final accuracy (left) and final E rate (right) across the $\theta_u$ grid, both arms side-by-side.
 </Figure>
-
-<Figure id="Figure 3" title="Per-cell training trajectories" src="/figures/notebooks/nb042/training_curves.png" alt="Six-panel grid: top row CUBA-PING, bottom row CUBA-no-PING; columns are training loss, test accuracy, and hidden-E rate. PING traces are bunched together (penalty inactive for most θ_u) and converge smoothly. no-PING traces fan out by θ_u with the tighter targets settling at lower rates but matching accuracy.">
-  Cross-entropy loss (left), test accuracy (middle) and hidden-E firing rate (right) across the 40 training epochs. Top row: CUBA-PING. Bottom row: CUBA-no-PING. Lines colour-coded by $\theta_u$ (light = off, dark = $\theta_u = 0.2$). Every curve is monotone — no divergence on either arm.
-</Figure>
-
-<Figure id="Figure 4" title="CUBA-PING — trained rasters on digit 0, one panel per θ_u" src="/figures/notebooks/nb042/rasters__ping.png" alt="Six-panel grid of E (above, black) and I (below, red) spike rasters for the trained CUBA-PING network replayed on MNIST digit 0 across the θ_u sweep. The first five panels (off through θ=0.5) look essentially identical: sparse E firing, periodic I bursts at gamma cadence, the architectural floor's characteristic pattern. The θ=0.2 panel is qualitatively different: dense E firing across the full population, dense I firing, no gamma cycles visible.">
-  E (above, black) and I (below, red) rasters for the trained CUBA-PING network on one MNIST test digit 0 trial, one panel per $\theta_u$. The architectural floor's gamma-burst pattern survives in five of six panels; the θ=0.2 panel flips into the alternate dense-firing attractor (see [bistability](#bistability)).
-</Figure>
-
-<Figure id="Figure 5" title="CUBA-no-PING — trained rasters on digit 0, one panel per θ_u" src="/figures/notebooks/nb042/rasters__noping.png" alt="Six-panel grid of E spike rasters for the trained CUBA-no-PING network on MNIST digit 0 across the θ_u sweep. The rasters progressively thin from dense rate-coded firing (θ=off, ≈39 Hz, full population active) down to sparse activity (θ=0.2, ≈1.3 Hz) with the same digit-tuned cells consistently active across the sweep.">
-  E rasters for the trained CUBA-no-PING control on one MNIST test digit 0 trial, one panel per $\theta_u$. The penalty progressively thins the activity from rate-coded dense (39 Hz) down to PING-rate sparse (1.3 Hz) without losing the digit-selective firing pattern.
-</Figure>
-
-The headline numbers, both arms:
 
 | $\theta_u$ | PING acc | PING E rate | no-PING acc | no-PING E rate |
 |---|---|---|---|---|
@@ -56,88 +44,93 @@ The headline numbers, both arms:
 | 0.5 | 84.7% | 1.37 Hz | 89.8% | 2.4 Hz |
 | 0.2 | 82.6% | 6.25 Hz | 87.8% | 1.28 Hz |
 
-## Interpretation
+PING is *bit-identical* at the architectural floor for $\theta_u \geq 0.5$: every cell lands at 84.7% / 1.37 Hz / 39.7 Hz I. The mechanism is mechanical — PING's population mean (≈0.27 spk/trial) sits below every threshold from 0.5 up, so $\text{relu}(\bar{z} - \theta_u) = 0$ exactly and the optimisation reduces to PING-off. The exception is $\theta_u = 0.2$, where the penalty engages and lands the network at *higher* rate than PING-off — a bifurcation discussed in [its own section](#the-θ-0-2-ping-bifurcation) below.
 
-Both architectural and explicit knobs work, but they do different things.
+no-PING walks the frontier smoothly from 39 Hz / 90.4% down to 1.28 Hz / 87.8%. **30× rate compression at 2.6 pp accuracy cost**, with every $\theta_u$ value landing monotonically on the curve.
 
-**PING + penalty is flat across the sweep.** For $\theta_u \geq 0.5$ every cell lands at exactly 84.7% / 1.37 Hz / 39.7 Hz I — bit-identical to PING-off. The reason is mechanical: PING's population mean E-rate (≈0.27 spk/trial) sits below every threshold from 0.5 up, so $\text{relu}(\bar{z} - \theta_u) = 0$ exactly, the penalty term vanishes, and the optimisation reduces to the nb040 PING-off problem. The I-loop is already doing all the rate-control work.
+## Training dynamics
 
-The exception is $\theta_u = 0.2$, where the threshold is *below* the population mean. The penalty engages but the optimisation doesn't converge to a low-rate solution — it lands at 6.25 Hz / 82.6%, *higher* than PING-off's rate and slightly lower accuracy. Figure 4's bottom-right panel makes the mechanism visible: the network jumps to a qualitatively different operating regime — dense E firing across the full population, no gamma cycles, I firing every step rather than in bursts. See [bistability](#bistability) below for the trajectory. So the I-loop's natural floor (≈1.4 Hz) is a hard wall — pushing below it with the penalty doesn't help.
+<Figure id="Figure 3" title="Per-cell training trajectories" src="/figures/notebooks/nb042/training_curves.png" alt="Six-panel grid: top row CUBA-PING, bottom row CUBA-no-PING; columns are training loss, test accuracy, and hidden-E rate. PING traces are bunched together (penalty inactive for most θ_u) and converge smoothly. no-PING traces fan out by θ_u with the tighter targets settling at lower rates but matching accuracy.">
+  Cross-entropy loss (left), test accuracy (middle), and hidden-E firing rate (right) across 40 epochs. Top: CUBA-PING. Bottom: CUBA-no-PING. Lines coloured by $\theta_u$ (light = off, dark = $\theta_u = 0.2$).
+</Figure>
 
-**no-PING + penalty walks the frontier cleanly.** From the rate-coded baseline (39 Hz / 90%) down to PING territory (1.28 Hz / 88%) is **30× rate compression at 2.6 pp accuracy cost**. The frontier is monotone, the trajectory is stable on every cell, and at every matched rate against PING the accuracy is comparable or higher. The explicit penalty is doing for the E-only network what the I-loop architecture does for PING — driving the rate down without losing the digit signal.
+Every trajectory is monotone, with one exception: the PING $\theta_u = 0.2$ cell undergoes a one-epoch discontinuity at ep 29 (loss jumps 0.65 → 0.70, E rate 1.88 → 4.31, I rate 66 → 172, gradient norm 0.09 → 6.45). The rest of the PING traces overlap exactly with PING-off because the penalty term is identically zero throughout training.
 
-This reproduces nb035 Figure 5 for the instant-synapse CUBA family. The I-loop and the explicit penalty are *substitutes*: either alone is enough to land the network in the sparse-spike regime at high accuracy. Combining them (PING + tight penalty) doesn't help beyond what the architecture already does, and pushing below the architectural floor with the penalty pays a real cost.
+## Rasters
 
-## Bistability
+<Figure id="Figure 4" title="CUBA-PING — trained rasters on digit 0" src="/figures/notebooks/nb042/rasters__ping.png" alt="Six-panel grid of E (above, black) and I (below, red) spike rasters for the trained CUBA-PING network replayed on MNIST digit 0 across the θ_u sweep. The first five panels (off through θ=0.5) look essentially identical: sparse E firing, periodic I bursts at gamma cadence, the architectural floor's characteristic pattern. The θ=0.2 panel is qualitatively different: dense E firing across the full population, dense I firing, no gamma cycles visible.">
+  E (above, black) and I (below, red) rasters for trained CUBA-PING on one MNIST test digit 0 trial. The gamma-burst pattern survives in five of six panels; $\theta_u = 0.2$ flips into a qualitatively different dense-firing regime.
+</Figure>
 
-The $\theta_u = 0.2$ PING outlier (Figure 1; Figure 4 bottom-right) traces a clean bifurcation through training. The trajectory has two distinct phases:
+<Figure id="Figure 5" title="CUBA-no-PING — trained rasters on digit 0" src="/figures/notebooks/nb042/rasters__noping.png" alt="Six-panel grid of E spike rasters for the trained CUBA-no-PING network on MNIST digit 0 across the θ_u sweep. The rasters progressively thin from dense rate-coded firing (θ=off, ≈39 Hz, full population active) down to sparse activity (θ=0.2, ≈1.3 Hz) with the same digit-tuned cells consistently active across the sweep.">
+  E rasters for trained CUBA-no-PING on one MNIST test digit 0 trial. The penalty progressively thins activity from rate-coded dense down to PING-rate sparse while preserving the digit-tuned firing pattern.
+</Figure>
 
-- **Phase 1 (epochs 1–28)**: trajectory is *identical* to PING-off. Loss 2.30 → 0.65, accuracy 11% → 82%, E rate climbs to 1.88 Hz, I rate to 66 Hz, gradient norm ≈0.09. The population mean of ≈0.38 spk/trial is only fractionally above $\theta_u = 0.2$, and the gradient on each of 1024 neurons is ≈$3 \times 10^{-7}$ — negligible.
-- **Bifurcation at epoch 29**: a one-epoch discontinuity. E rate jumps 1.88 → 4.31 Hz, I rate 66 → 172 Hz, gradient norm 0.090 → 6.45 (a 70× jump in a single epoch).
-- **Phase 2 (epochs 29–40)**: settles at a *different attractor*. E rate ≈9 Hz, I rate ≈250 Hz, gradient norm ≈30, accuracy holds at 82–83%, but loss climbs slowly from 0.70 to 1.81.
+## I-loop and penalty are substitutes
+
+The picture reproduces [nb035 Figure 5](/notebooks/nb035/) for the instant-synapse CUBA family: the architectural I-loop and the explicit penalty are *substitutes*. Either alone is enough to land the network in the sparse-spike regime at high accuracy:
+
+- **PING** uses the architecture. The I-loop's recurrent E↔I dynamics enforce a natural firing-rate floor (≈1.4 Hz); the optimiser settles there for any digit-classification task that fits the architecture.
+- **no-PING + penalty** uses the explicit term. The penalty applies a gradient that pulls $\bar{z}$ toward $\theta_u$; in the absence of recurrent dynamics, that gradient walks the rate down smoothly without losing the digit signal.
+
+Combining them — PING with a tight penalty — adds nothing beyond what the architecture already does until $\theta_u$ drops below the natural floor, and at that point the combination breaks rather than continues the frontier (next section).
+
+## The θ_u = 0.2 PING bifurcation
+
+The one anomalous cell (Figure 1 black outlier; Figure 4 bottom-right) is concrete evidence of a generic failure mode that's worth recording.
+
+**The trajectory.** Three phases:
+
+- *ep 1–28*: identical to PING-off. Loss 2.30 → 0.65, accuracy 11% → 82%, E rate climbing to 1.88 Hz. Population mean ≈0.38 spk/trial is only fractionally above $\theta_u = 0.2$; the penalty's gradient on each of 1024 neurons is ≈$3 \times 10^{-7}$ — negligible.
+- *ep 29*: one-epoch discontinuity. E rate 1.88 → 4.31 Hz, I rate 66 → 172 Hz, gradient norm 0.090 → 6.45 (70× jump).
+- *ep 30–40*: settles at a *different attractor*. E rate ≈9 Hz, I rate ≈250 Hz, gradient norm ≈30. Accuracy holds at 82–83%, but loss climbs steadily from 0.70 to 1.81.
 
 ### Penalty as perturbation, not rate control
 
-The counter-intuitive observation is that the penalty's *intent* is to reduce rate, yet the rate ends up *higher* than PING-off. Mechanically the penalty is doing exactly what's asked of it — at epoch 29+ the gradient norm is ≈30 with almost all of it from the penalty term pulling the population mean down — but the rate refuses to drop. The reason is that the penalty isn't a rate control. It's a *persistent perturbation to the optimisation trajectory in $W_\text{in}$ space*.
+The counter-intuitive observation: the penalty's *intent* is to reduce rate, yet the rate ends up *higher* than PING-off. The penalty *is* pulling down — at ep 29+ the gradient norm is ≈30 with almost all of it from the penalty term — but the rate refuses to drop.
 
-Walk through what's happening:
+The penalty isn't a rate control. It's a *persistent perturbation to the optimisation trajectory in $W_\text{in}$ space*. During phase 1 the contribution is too small per-step to do useful work but it's *directionally consistent*, and over ~2200 training steps the cumulative drift walks $W_\text{in}$ across a separatrix in the recurrent dynamics phase plane. PING's E↔I loop admits at least two stable digit-classifying fixed points — the low-rate gamma-burst attractor (≈1.4 Hz, what PING-off occupies) and a high-rate dense-firing attractor (≈9 Hz, Figure 4 bottom-right) — and one epoch is enough to flip basins.
 
-1. **Phase 1 — drift under negligible pressure.** The penalty term contributes ≈$3 \times 10^{-7}$ per neuron — dominated 1000× by the CE gradient. The trajectory tracks PING-off's basin of attraction. But the penalty contribution is *directionally consistent*: every step pushes $W_\text{in}$ slightly away from where pure-CE would put it. Over ~2200 steps the cumulative drift is real.
-2. **Bifurcation.** The accumulated drift carries $W_\text{in}$ across a *separatrix* in the recurrent dynamics phase plane. PING's E↔I loop admits at least two stable digit-classifying fixed points: the low-rate gamma-burst attractor (≈1.4 Hz / 40 Hz, what PING-off occupies) and the high-rate dense-firing attractor (≈9 Hz / 250 Hz, Figure 4 bottom-right). One epoch is enough to flip basins.
-3. **Trapped in a worse minimum.** Once in the high-rate basin, the penalty becomes massively active (mean ≈1.84 spk/trial, well above $\theta_u = 0.2$; gn ≈30 pulling hard downward). The recurrent dynamics holding the high-rate fixed point are stable against weight changes of any reasonable size — the basin is too deep for gradient descent to climb out. Critically, **the high-rate basin has *worse* CE loss** (1.8 vs 0.5 at PING-off) for the same top-1 accuracy. The optimiser has been nudged out of a good local minimum into a worse one — and the very gradient that nudged it there is now too weak to bring it back.
+Once in the high-rate basin, the recurrent dynamics holding the new fixed point are stable against weight changes of any reasonable size. The penalty is now massively active but the basin is too deep for gradient descent to climb out. **The high-rate basin has *worse* CE loss** (1.8 vs 0.5 at PING-off) for the same top-1 accuracy — the optimiser has been nudged out of a good local minimum into a worse one, and the same gradient that nudged it there is now too weak to bring it back.
 
-Accuracy holding at 83% across the bifurcation is a side note: at the new operating point the readout sees many more spike events per trial, so the digit signal is still encoded — just in a denser representation. The *loss* climbs because the logit distribution becomes more extreme (confidently wrong on a few hard samples) while top-1 accuracy is robust to that.
+### Generic failure mode
 
-### A generic failure mode for regularised recurrent SNN training
+Stripped of nb042-specifics:
 
-The general pattern, stripped of nb042-specifics:
+1. **Forward dynamics have multiple stable fixed points** that all solve the task to similar accuracy. Generic for recurrent networks.
+2. **A regulariser adds a small persistent gradient** in some weight direction. Too small per-step to do useful work, but consistent.
+3. **Cumulative drift crosses a separatrix.** Weight space and dynamics-attractor space are linked.
+4. **The new attractor has worse loss but is gradient-stable.** The regulariser activates strongly but gradient descent can't escape.
 
-1. **The forward dynamics have multiple stable fixed points** that all solve the task to similar quality. (Generic for recurrent networks: PING circuits, attractor networks, RNNs with saturating non-linearities, anything with feedback.)
-2. **A regulariser adds a small persistent gradient** that biases the optimisation trajectory in some weight direction. The bias is too small per-step to do meaningful work, but it's consistent.
-3. **Cumulative drift crosses a separatrix.** Weight space and dynamics-attractor space are linked: small changes in weights can move the system across boundaries between qualitatively different forward-dynamics regimes.
-4. **The new attractor has worse loss but is gradient-stable.** The regulariser activates strongly (now the network is firing outside the desired regime), but gradient descent through stable recurrent dynamics can't escape — the gradient passes through but the forward attractor refuses to budge.
+Smell test in a training log: many epochs of clean convergence, a one-epoch discontinuity, post-discontinuity the regulariser term dominates the gradient but its target metric doesn't move, loss climbs while accuracy holds. Don't trust monotone loss as a stability indicator. Watch the rate target itself, not just the gradient norm. no-PING avoids this entirely because its forward dynamics has a single attractor.
 
-The smell of this failure mode in a training log is the one we have here: many epochs of clean convergence, a one-epoch discontinuity, post-discontinuity the regulariser term dominates the gradient but its target metric doesn't move, loss climbs while accuracy holds.
+### How to avoid it
 
-Practical implications:
+Four families of fixes, from fundamentally preventing the crossing to delaying it past the training budget.
 
-- **Don't trust monotone loss as a stability indicator.** PING + $\theta_u = 0.2$ has monotonically decreasing loss through ep 28 and looks identical to PING-off. The pathology is invisible until the bifurcation fires.
-- **Watch the rate target itself, not just the gradient norm.** If `gn` is large but the regulariser's controlled quantity isn't moving, the gradient is hitting a basin wall, not changing the operating point.
-- **Penalty annealing or basin-shaping (e.g. spectral normalisation of $W^{EI}, W^{IE}$) are the principled fixes** — they either avoid creating the separatrix crossing condition or remove the alternative attractor entirely. Adding more aggressive penalty strength makes the problem *worse*, not better, because the perturbation becomes stronger and crosses the separatrix earlier.
-- **No-PING avoids this** because its forward dynamics has a single attractor (no recurrent feedback to host multiple fixed points). The penalty becomes a true rate control because there's only one rate-vs-accuracy frontier to walk along.
+**Architectural (no separatrix to cross).**
+- *Spectral-norm regulariser on $W^{EI} W^{IE}$.* Penalise the recurrent gain itself ($\lambda \|W^{EI} W^{IE}\|_2$) rather than the spike-count statistic. The gain *is* what sets the natural firing-rate floor (nb040 Section 4), so lowering it shifts the single attractor continuously — no separatrix.
+- *Output-side regularisation.* Penalise something on the acyclic readout path (e.g. $\lambda \|W_\text{out}\|_1$). No recurrent feedback in the readout graph, no separatrix.
 
-So the $\theta_u = 0.2$ PING outlier is concrete evidence of a generic failure mode: *regulariser as perturbation, bistable forward dynamics, basin trap*. Worth carrying forward as a warning for any future work that combines an explicit penalty with a recurrent SNN architecture.
+**Curriculum (delay past the training budget).**
+- $\theta_u$ *annealing*: ramp $\theta_u$ down over training so the penalty only switches on after the network has settled.
+- *lr annealing post-warmup*: pre-train without penalty, then drop lr 10× and turn the penalty on. Cumulative drift per epoch shrinks 10×.
 
-### Ways to avoid the bifurcation
-
-A few candidate formulations, ordered from fundamentally preventing the separatrix crossing to practical workarounds that just delay it past the training budget.
-
-**Architectural — no separatrix to cross.**
-- **Spectral-norm regulariser on $W^{EI} W^{IE}$.** Instead of penalising the spike count statistic (an output of the dynamics), penalise the recurrent gain itself ($\lambda \|W^{EI} W^{IE}\|_2$). The recurrent gain is what sets the natural firing-rate floor (see [nb040 Section 4](/notebooks/nb040/#bptt-stability)), so lowering it shifts the single attractor continuously rather than pushing the optimiser to escape it. Single attractor, no separatrix, no possible bifurcation. Requires $W^{EI}/W^{IE}$ to become trainable, but that's a one-line change in `CubaPingNet`.
-- **Output-side regularisation.** Penalise something on the acyclic readout path — e.g. $\lambda \|W_\text{out}\|_1$. The decoder graph has no recurrent feedback, so no separatrix. Doesn't control rate directly but indirectly encourages sparse-spike solutions (small $W_\text{out}$ → readout needs more spike events to classify → optimiser doesn't push rate up).
-
-**Curriculum — delay the bifurcation past the training budget.**
-- **$\theta_u$ annealing.** Start with $\theta_u = \infty$ (off), gradually lower over training. The penalty only switches on after the network has settled into PING-off's low-rate basin; the remaining question is whether the late, weak gradient can still escape — and at small $s_u$ it usually can't.
-- **lr annealing post-warmup.** Pre-train without penalty for $K$ epochs to land in the low-rate basin, then drop the learning rate 10× and turn on the penalty. Cumulative drift per epoch shrinks 10×, so you need 10× as many epochs to cross the same separatrix. For bounded training budgets, that prevents the crossing in practice.
-- **Cumulative-drift early stopping.** Track $\|W_\text{in}(t) - W_\text{in}(0)\|$ during training and freeze the weights (or drop lr to zero) once it crosses a precharacterised threshold. Detection-based; doesn't prevent the bifurcation in principle but stops it before it fires.
-
-**Surgical gradient interventions.**
-- **Detach the penalty's backward through the recurrent loop.** Compute the spike-count summary used by the penalty on a stop-gradient path that doesn't flow through $W^{EI}/W^{IE}$. The penalty's gradient only reaches $W_\text{in}$ via the direct input→V→spike pathway, not via the recurrent Jacobian. Theoretically prevents the kind of cumulative drift that crosses a separatrix in the recurrent phase plane. Implementation is fiddly with autograd and may weaken the penalty's effectiveness.
+**Surgical.** Detach the penalty's backward through the recurrent loop so its gradient only reaches $W_\text{in}$ via the direct input→V→spike path. Theoretically prevents the kind of drift that crosses the separatrix.
 
 **What probably won't work.**
-- **Smoothing the relu kink** (softplus, huber, smooth-l1) — the kink isn't the problem; the cumulative drift is. Smoothing changes gradient magnitude near the threshold but not its direction.
-- **Larger $s_u$** — makes the perturbation stronger and crosses the separatrix sooner. *Gentler* penalty is safer.
-- **Lower-bound term** ($\text{relu}(\theta_l - \bar{z})^2$) — homogenises the firing distribution, breaking PING's selective code rather than preserving it. Ends up in a no-PING-like regime.
+- Smoothing the relu kink (softplus, huber): the kink isn't the issue; cumulative drift is.
+- Larger $s_u$: makes the perturbation stronger; crosses the separatrix *sooner*.
+- Lower-bound term: homogenises the firing distribution, breaking PING's selective code.
 
-The honest summary is that the cleanest fix is *architectural*: switch the rate-control knob from output statistics ($\theta_u$ on $\bar{z}$) to recurrent spectral norm. That's a different experiment and probably its own notebook entry — option **PING-spectral vs PING-penalty** as parallel arms of "architectural rate control" comparison. The cheapest empirical confirmation that the bifurcation *can* be avoided without changing the formulation would be a $\theta_u$ annealing run on a single PING cell — same recipe, $\theta_u(\text{epoch}) = \max(0.2,\, 5 \exp(-\text{epoch}/10))$ or similar.
+The cleanest fix is architectural — switch the rate-control knob from output statistics to recurrent spectral norm. That's a different experiment and probably its own notebook entry.
 
 ## Findings
 
-The architectural rate-control (I-loop) and the explicit rate-control (spike-budget penalty) are interchangeable in the instant-synapse CUBA family, just as they are in the COBA-PING family from [nb035](/notebooks/nb035/). On no-PING the penalty pulls rate by 30× for ≈3 pp accuracy; on PING the architectural floor already does the work and the penalty is a no-op until $\theta_u$ drops below the natural floor.
+The I-loop architecture and the explicit spike-budget penalty are substitutes for rate control in the instant-synapse CUBA family. no-PING + penalty walks a clean 30× frontier at ≈3 pp accuracy cost. PING + penalty is a no-op until $\theta_u$ drops below the natural floor, and at that point the combination breaks — the penalty acts as a persistent perturbation that tips the recurrent dynamics into a worse stable attractor.
 
-The natural follow-ups:
+Next steps:
 
-1. **Spectral-norm regulariser on $W^{EI}, W^{IE}$.** The I-loop's natural floor is set by the operator norm of the recurrent product; controlling that directly is the architectural analogue of $\theta_u$. Combined with the penalty it would give a continuous knob on the floor itself.
-2. **Lower-bound regulariser $\theta_l$ (Cramer et al. 2022).** Constrains $\bar{z}$ from below so the optimiser doesn't drive cells silent on hard-to-classify samples. Useful for the tightest-$\theta_u$ no-PING cell where some accuracy is being lost to silence.
-3. **Scale to full MNIST.** The 5000-sample / 40-epoch run lands no-PING at 90% accuracy; with full data, both arms should reach the ≈98% regime PING-off does in the COBA-PING baselines.
-
+1. **Spectral-norm regulariser on $W^{EI}, W^{IE}$** — the architectural rate-control knob, parallel to $\theta_u$ but acting on the single attractor instead of perturbing toward a second one.
+2. **Lower-bound regulariser $\theta_l$ (Cramer et al. 2022)** on no-PING — pin the rate to a band, useful at the tightest $\theta_u$ where some accuracy is lost to silence.
+3. **Scale to full MNIST.** The 5000-sample / 40-epoch run lands no-PING at 90%; full data should push both arms toward the ≈98% regime of the COBA-PING baselines.
