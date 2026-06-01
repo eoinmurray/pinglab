@@ -7,12 +7,9 @@ structure: paper
 collections: [theory]
 ---
 import Figure from "../../components/Figure.astro";
-import NotebookHeader from "../../components/NotebookHeader.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb033/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
-
-<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 

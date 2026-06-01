@@ -7,15 +7,12 @@ structure: paper
 collections: [in-progress]
 ---
 import Figure from "../../components/Figure.astro";
-import NotebookHeader from "../../components/NotebookHeader.astro";
 import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb023/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const successCriteria = numbers.success_criteria ?? [];
-
-<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 

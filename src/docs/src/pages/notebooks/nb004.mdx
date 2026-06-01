@@ -7,7 +7,6 @@ structure: paper
 collections: [videos]
 ---
 import Figure from "../../components/Figure.astro";
-import NotebookHeader from "../../components/NotebookHeader.astro";
 import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb004/numbers.json", { eager: true, import: "default" })
@@ -20,8 +19,6 @@ export const input = cfg.input ?? { mode: "?", dataset: "?", digit: "?", sample:
 export const scan = cfg.scan ?? { min: "?", max: "?", frames: "?", fps: "?" };
 export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 export const successCriteria = numbers.success_criteria ?? [];
-
-<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 

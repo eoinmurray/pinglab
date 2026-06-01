@@ -7,7 +7,6 @@ structure: paper
 collections: [infrastructure]
 ---
 import Figure from "../../components/Figure.astro";
-import NotebookHeader from "../../components/NotebookHeader.astro";
 import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb002/numbers.json", { eager: true, import: "default" })
@@ -19,8 +18,6 @@ export const runDuration = numbers.duration ?? "?";
 export const imageGlob = import.meta.glob("../../../public/figures/notebooks/nb002/scope_frame.png", { eager: true, query: "?url", import: "default" });
 export const hasFrame = Object.keys(imageGlob).length > 0;
 export const successCriteria = numbers.success_criteria ?? [];
-
-<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 

@@ -7,7 +7,6 @@ structure: paper
 collections: [experiments]
 ---
 import Figure from "../../components/Figure.astro";
-import NotebookHeader from "../../components/NotebookHeader.astro";
 import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb022/numbers.json", { eager: true, import: "default" })
@@ -16,8 +15,6 @@ export const cfg = numbers.config ?? {};
 export const results = numbers.results ?? [];
 export const successCriteria = numbers.success_criteria ?? [];
 export const get = (cell) => results.find((r) => r.cell === cell) ?? {};
-
-<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
