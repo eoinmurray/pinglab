@@ -177,6 +177,56 @@ def plot_frontier(rows: list[dict], out_path: Path) -> None:
     plt.close(fig)
 
 
+def plot_training_curves(cells_by_arm: dict, out_path: Path) -> None:
+    """Loss / acc / E rate over epochs, one row per arm, one curve per θ_u."""
+    theme.apply()
+    fig, axes = plt.subplots(
+        2, 3, figsize=(13.0, 7.5), dpi=150, sharex=True,
+    )
+    # Color θ_u values from light → dark with the off baseline highlighted.
+    n_theta = len(THETA_U_GRID)
+    cmap = plt.get_cmap("viridis")
+    colors = [cmap(0.15 + 0.7 * i / max(n_theta - 1, 1)) for i in range(n_theta)]
+    for row, arm in enumerate(ARMS):
+        for col, key, ylab, title in (
+            (0, "loss", "Cross-entropy loss", "Training loss"),
+            (1, "acc", "Test accuracy (%)", "Test accuracy"),
+            (2, "rate_e_hz", "Mean E rate (Hz)", "Hidden E firing rate"),
+        ):
+            ax = axes[row, col]
+            for j, theta_u in enumerate(THETA_U_GRID):
+                eps = cells_by_arm[(arm, theta_u)]
+                xs = [r["ep"] for r in eps]
+                if key == "rate_e_hz":
+                    ys = [r["test_rate_e"] for r in eps]
+                elif key == "acc":
+                    ys = [r["acc"] for r in eps]
+                else:
+                    ys = [r["loss"] for r in eps]
+                label = "θ=off" if theta_u is None else f"θ={theta_u:g}"
+                ax.plot(
+                    xs, ys, marker="o", ms=3,
+                    color=colors[j], lw=1.4, label=label,
+                )
+            ax.set_ylabel(ylab)
+            ax.set_title(
+                f"{LABEL_FOR_ARM[arm]} — {title}", fontsize=theme.SIZE_TITLE,
+            )
+            ax.grid(True, alpha=0.3)
+            if col == 1:
+                ax.set_ylim(0, 100)
+            if col == 2:
+                ax.set_yscale("symlog", linthresh=0.5)
+        axes[row, 0].legend(fontsize=theme.SIZE_CAPTION, frameon=False, ncol=2)
+        axes[row, -1].set_xlabel("Epoch")
+    for col in range(3):
+        axes[-1, col].set_xlabel("Epoch")
+    fig.tight_layout()
+    _stamp(fig)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_headline_bars(rows: list[dict], out_path: Path) -> None:
     """Per-θ_u final accuracy and E rate, grouped by arm."""
     theme.apply()
@@ -253,9 +303,11 @@ def main() -> None:
 
     # ── Read metrics + plot
     rows: list[dict] = []
+    cells_by_arm: dict = {}
     for arm, theta_u in cells:
         out = cell_dir(arm, theta_u)
         m = json.loads((out / "metrics.json").read_text())
+        cells_by_arm[(arm, theta_u)] = m["epochs"]
         last = m["epochs"][-1]
         rows.append({
             "arm": arm,
@@ -267,6 +319,8 @@ def main() -> None:
         })
     plot_frontier(rows, FIGURES / "frontier.png")
     print(f"  wrote {FIGURES / 'frontier.png'}")
+    plot_training_curves(cells_by_arm, FIGURES / "training_curves.png")
+    print(f"  wrote {FIGURES / 'training_curves.png'}")
     plot_headline_bars(rows, FIGURES / "headline_bars.png")
     print(f"  wrote {FIGURES / 'headline_bars.png'}")
 
