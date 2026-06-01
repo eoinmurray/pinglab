@@ -156,10 +156,11 @@ def plot_frontier(rows: list[dict], out_path: Path) -> None:
         cells.sort(key=lambda r: -1.0 if r["theta_u"] is None else r["theta_u"])
         xs = [r["rate_e_hz"] for r in cells]
         ys = [r["acc"] for r in cells]
-        ax.plot(
+        ax.scatter(
             xs, ys,
             marker=MARKER_FOR_ARM[arm], color=COLOR_FOR_ARM[arm],
-            lw=1.4, ms=7, label=LABEL_FOR_ARM[arm],
+            s=60, label=LABEL_FOR_ARM[arm],
+            edgecolor=theme.INK_BLACK, linewidth=0.6,
         )
         for r in cells:
             label = "off" if r["theta_u"] is None else f"θ={r['theta_u']:g}"
@@ -170,8 +171,7 @@ def plot_frontier(rows: list[dict], out_path: Path) -> None:
                 fontsize=theme.SIZE_CAPTION,
                 color=COLOR_FOR_ARM[arm], alpha=0.75,
             )
-    ax.set_xscale("symlog", linthresh=0.5)
-    ax.set_xlabel("Mean hidden-E firing rate (Hz, log)")
+    ax.set_xlabel("Mean hidden-E firing rate (Hz)")
     ax.set_ylabel("Test accuracy (%)")
     ax.set_title("Rate–accuracy frontier under θ_u sweep", fontsize=theme.SIZE_TITLE)
     ax.set_ylim(0, 100)
