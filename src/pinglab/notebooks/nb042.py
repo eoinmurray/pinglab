@@ -228,8 +228,6 @@ def plot_training_curves(cells_by_arm: dict, out_path: Path) -> None:
             ax.grid(True, alpha=0.3)
             if col == 1:
                 ax.set_ylim(0, 100)
-            if col == 2:
-                ax.set_yscale("symlog", linthresh=0.5)
         axes[row, 0].legend(fontsize=theme.SIZE_CAPTION, frameon=False, ncol=2)
         axes[row, -1].set_xlabel("Epoch")
     for col in range(3):
@@ -273,7 +271,6 @@ def plot_headline_bars(rows: list[dict], out_path: Path) -> None:
         ax.grid(True, alpha=0.3, axis="y")
         ax.legend(fontsize=theme.SIZE_CAPTION, frameon=False)
     ax_acc.set_ylim(0, 100)
-    ax_rate.set_yscale("symlog", linthresh=0.5)
     fig.tight_layout()
     _stamp(fig)
     fig.savefig(out_path, dpi=150)
