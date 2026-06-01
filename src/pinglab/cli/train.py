@@ -197,6 +197,7 @@ def train(
     readout_mode="rate",
     fr_reg_upper_theta=0.0,
     fr_reg_upper_strength=0.0,
+    fr_reg_mode="per-neuron",
     trainable_w_ee=False,
     tbptt_window=None,
 ):
@@ -577,12 +578,25 @@ def train(
             ) is not None:
                 reg = 0.0
                 for sc in net.last_spike_counts:
-                    mean_z = sc.mean(dim=0)
-                    reg = (
-                        reg
-                        + fr_reg_upper_strength
-                        * (torch.relu(mean_z - fr_reg_upper_theta) ** 2).sum()
-                    )
+                    if fr_reg_mode == "population":
+                        # Single scalar penalty on the grand mean across batch
+                        # and neurons; scale by n_neurons so s_u retains its
+                        # per-neuron-recipe magnitude when all cells overshoot.
+                        pop_mean = sc.mean()
+                        n_neurons = sc.shape[-1]
+                        reg = (
+                            reg
+                            + fr_reg_upper_strength
+                            * n_neurons
+                            * torch.relu(pop_mean - fr_reg_upper_theta) ** 2
+                        )
+                    else:
+                        mean_z = sc.mean(dim=0)
+                        reg = (
+                            reg
+                            + fr_reg_upper_strength
+                            * (torch.relu(mean_z - fr_reg_upper_theta) ** 2).sum()
+                        )
                 loss = loss + reg
             opt.zero_grad()
             loss.backward()
