@@ -503,7 +503,7 @@ def main() -> None:
             "tbptt_window": TBPTT_WINDOW,
         },
         "cells": rows,
-        # Top-level shortcuts for NotebookHeader (use ping@θ=off baseline)
+        # Top-level shortcuts for the index page (use ping@θ=off baseline)
         "final_acc": ping_off["acc"],
         "final_rate_e_hz": ping_off["rate_e_hz"],
         "final_rate_i_hz": ping_off["rate_i_hz"],

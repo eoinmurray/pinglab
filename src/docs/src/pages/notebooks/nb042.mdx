@@ -8,8 +8,6 @@ collections: [experiments]
 ---
 import Figure from "../../components/Figure.astro";
 
-## Setup
-
 [nb040](/notebooks/nb040/) showed two ways to land a CUBA network in the sparse-spike regime: PING's I-loop architecturally clamps E rate near 1 Hz; the no-PING control sits at tens of Hz. [nb035](/notebooks/nb035/)–[nb036](/notebooks/nb036/) showed that COBA-PING walks the same frontier with an explicit *firing-rate regulariser* — the spike-budget penalty $s_u \cdot \text{relu}(\bar{z} - \theta_u)^2$ added to CE loss.
 
 This entry transplants that sweep to the instant-synapse CUBA family, asking:

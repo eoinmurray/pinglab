@@ -7,7 +7,6 @@ structure: paper
 collections: [dt-stability]
 ---
 import Figure from "../../components/Figure.astro";
-import NotebookHeader from "../../components/NotebookHeader.astro";
 import RunParameters from "../../components/RunParameters.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb013/numbers.json", { eager: true, import: "default" })
@@ -64,8 +63,6 @@ export const accRange = (run, m = "upsample") => {
 export const figGlob = import.meta.glob("../../../public/figures/notebooks/nb013/*.{png,mp4}", { eager: true, query: "?url", import: "default" });
 export const hasFig = (name) => Object.keys(figGlob).some((k) => k.endsWith("/" + name));
 export const successCriteria = numbers.success_criteria ?? [];
-
-<NotebookHeader frontmatter={frontmatter} numbers={numbers} />
 
 ## Introduction
 
