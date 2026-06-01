@@ -1,0 +1,148 @@
+{
+  "slug": "nb042",
+  "tier": "extra small",
+  "duration_s": 48.1,
+  "config": {
+    "n_e": 1024,
+    "n_in": 784,
+    "n_classes": 10,
+    "t_ms": 200.0,
+    "dt": 1.0,
+    "tau_m_ms": 20.0,
+    "tau_out_ms": 20.0,
+    "input_rate_hz": 80.0,
+    "max_samples": 200,
+    "epochs": 2,
+    "batch_size": 64,
+    "lr": 0.002,
+    "seed": 42,
+    "theta_u_grid": [
+      null,
+      5.0,
+      2.0,
+      1.0,
+      0.5,
+      0.2
+    ],
+    "fr_strength_upper": 0.001,
+    "tbptt_window": 10
+  },
+  "cells": [
+    {
+      "arm": "ping",
+      "theta_u": null,
+      "acc": 12.5,
+      "rate_e_hz": 0.0008544921875,
+      "rate_i_hz": 0.0,
+      "loss": 2.3024497032165527
+    },
+    {
+      "arm": "ping",
+      "theta_u": 5.0,
+      "acc": 12.5,
+      "rate_e_hz": 0.0008544921875,
+      "rate_i_hz": 0.0,
+      "loss": 2.3024497032165527
+    },
+    {
+      "arm": "ping",
+      "theta_u": 2.0,
+      "acc": 12.5,
+      "rate_e_hz": 0.0008544921875,
+      "rate_i_hz": 0.0,
+      "loss": 2.3024497032165527
+    },
+    {
+      "arm": "ping",
+      "theta_u": 1.0,
+      "acc": 12.5,
+      "rate_e_hz": 0.0008544921875,
+      "rate_i_hz": 0.0,
+      "loss": 2.3024497032165527
+    },
+    {
+      "arm": "ping",
+      "theta_u": 0.5,
+      "acc": 12.5,
+      "rate_e_hz": 0.0008544921875,
+      "rate_i_hz": 0.0,
+      "loss": 2.3024497032165527
+    },
+    {
+      "arm": "ping",
+      "theta_u": 0.2,
+      "acc": 12.5,
+      "rate_e_hz": 0.0008544921875,
+      "rate_i_hz": 0.0,
+      "loss": 2.3024497032165527
+    },
+    {
+      "arm": "noping",
+      "theta_u": null,
+      "acc": 12.5,
+      "rate_e_hz": 0.00146484375,
+      "rate_i_hz": 0.0,
+      "loss": 2.302419662475586
+    },
+    {
+      "arm": "noping",
+      "theta_u": 5.0,
+      "acc": 12.5,
+      "rate_e_hz": 0.00146484375,
+      "rate_i_hz": 0.0,
+      "loss": 2.302419662475586
+    },
+    {
+      "arm": "noping",
+      "theta_u": 2.0,
+      "acc": 12.5,
+      "rate_e_hz": 0.00146484375,
+      "rate_i_hz": 0.0,
+      "loss": 2.302419662475586
+    },
+    {
+      "arm": "noping",
+      "theta_u": 1.0,
+      "acc": 12.5,
+      "rate_e_hz": 0.00146484375,
+      "rate_i_hz": 0.0,
+      "loss": 2.302419662475586
+    },
+    {
+      "arm": "noping",
+      "theta_u": 0.5,
+      "acc": 12.5,
+      "rate_e_hz": 0.00146484375,
+      "rate_i_hz": 0.0,
+      "loss": 2.302419662475586
+    },
+    {
+      "arm": "noping",
+      "theta_u": 0.2,
+      "acc": 12.5,
+      "rate_e_hz": 0.00146484375,
+      "rate_i_hz": 0.0,
+      "loss": 2.302419662475586
+    }
+  ],
+  "final_acc": 12.5,
+  "final_rate_e_hz": 0.0008544921875,
+  "final_rate_i_hz": 0.0,
+  "success_criteria": [
+    {
+      "label": "frontier rendered",
+      "passed": true,
+      "detail": "PING off \u2192 12.5% @ 0.0 Hz"
+    },
+    {
+      "label": "no-PING baseline above chance",
+      "passed": false,
+      "detail": "12.50%"
+    },
+    {
+      "label": "spike penalty lowers no-PING rate",
+      "passed": false,
+      "detail": "\u22651 \u03b8_u cell with no-PING E rate < 50% of baseline"
+    }
+  ]
+}
