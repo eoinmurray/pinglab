@@ -833,6 +833,20 @@ For the underlying theory of --v-grad-dampen see /articles/art006/.
         "rate regulariser (default 0 = off). "
         "Cramer et al.: 0.06.",
     )
+    train_parser.add_argument(
+        "--fr-reg-mode",
+        type=str,
+        default="per-neuron",
+        choices=["per-neuron", "population"],
+        help="Firing-rate regulariser pooling. 'per-neuron' "
+        "(default) computes relu(<z_i> - θ_u)² for each neuron "
+        "i and sums — concentrates pressure on the highest-firing "
+        "cells (Cramer recipe; same as nb035/036). 'population' "
+        "uses a single scalar relu(<z>_pop - θ_u)² where <z>_pop "
+        "is the grand mean across batch and neurons, then scaled "
+        "by n_neurons to keep s_u's effective magnitude comparable. "
+        "Distributes pressure uniformly across cells.",
+    )
 
     # -- infer subcommand --
     infer_parser = subparsers.add_parser(
@@ -1234,6 +1248,7 @@ if __name__ == "__main__":
             readout_mode=args.readout_mode,
             fr_reg_upper_theta=args.fr_reg_upper_theta,
             fr_reg_upper_strength=args.fr_reg_upper_strength,
+            fr_reg_mode=args.fr_reg_mode,
             trainable_w_ee=args.trainable_w_ee,
             tbptt_window=args.tbptt_window,
         )

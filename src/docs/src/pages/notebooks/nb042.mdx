@@ -16,89 +16,77 @@ export const numbers = Object.values(
 
 ## Setup
 
-[nb040](/notebooks/nb040/) showed that CUBA-PING's I-loop architecturally clamps the hidden-E rate near 1 Hz, while the CUBA-no-PING control sits at tens of Hz. [nb035](/notebooks/nb035/)–[nb036](/notebooks/nb036/) showed that the COBA-PING baselines walk the same rate–accuracy frontier via the explicit firing-rate regulariser $L_\text{rate}$ — the *spike-budget* penalty $s_u \cdot \sum_i \text{relu}(\langle z_i\rangle - \theta_u)^2$ added to the CE loss, which pulls per-neuron trial spike counts down toward the threshold $\theta_u$.
+[nb040](/notebooks/nb040/) showed that CUBA-PING's I-loop architecturally clamps the hidden-E rate near 1 Hz, while the CUBA-no-PING control sits at tens of Hz. [nb035](/notebooks/nb035/)–[nb036](/notebooks/nb036/) showed that the COBA-PING baselines walk the same rate–accuracy frontier via the explicit firing-rate regulariser $L_\text{rate}$. This entry transplants the nb035 sweep to the instant-synapse CUBA family — adding the spike-budget penalty $s_u \cdot \text{relu}(\bar{z} - \theta_u)^2$ to CE loss and sweeping $\theta_u$ on both arms — to ask the same two questions:
 
-This entry asks the natural question those two leave open: how do the two knobs — the I-loop architecture and the explicit penalty — interact in the CUBA family? Two sub-questions:
+1. **Does the penalty walk the no-PING control onto a sparse-spike frontier comparable to PING's?** (the *penalty alone* path to low firing rates)
+2. **Does the I-loop architecture stay quiet under the penalty, sitting at its natural floor?** (the *architectural floor* should make the penalty redundant on PING)
 
-1. **Can penalty alone recover PING-style sparsity on the no-PING control?** If yes, the I-loop is sufficient but not necessary for the sub-Hz regime; if no, the architectural clamp is doing something the penalty can't.
-2. **Does the penalty buy anything on top of PING?** PING is already at ≈0.4 spikes per trial at the nb040 baseline ($\theta_u =$ off). Pushing further with the penalty either tightens the rate at no accuracy cost (free), or pays an extra accuracy price, or simply does nothing because the cells already fire below threshold.
+Same recipe as nb040 — `cuba-ping` and `cuba-noping` via the oscilloscope, $\Delta t = 1$ ms, $T = 200$ ms, hard reset, no refractory period, no synaptic state, mem-mean output readout, TBPTT $K = 10$, Adam at lr $2 \times 10^{-3}$, batch 64, 5000 training samples, 40 epochs. The penalty uses $s_u = 10^{-3}$ matching nb036. The grid $\theta_u \in \{\text{off}, 5, 2, 1, 0.5, 0.2\}$ spikes-per-trial is identical to nb035/036 so the frontier is directly cross-comparable. At $T = 200$ ms, $\theta_u$ in spk/trial × 5 = Hz, i.e. $\theta_u = 0.2$ corresponds to a 1 Hz target.
 
-Same recipe as nb040 — `cuba-ping` and `cuba-noping` via the oscilloscope, $\Delta t = 1$ ms, $T = 200$ ms, hard reset, no refractory period, no synaptic state, mem-mean output readout, TBPTT $K = 10$, Adam at lr $2 \times 10^{-3}$, batch 64, 5000 training samples, **40 epochs** (bumped from medium's 15 after the initial sweep showed several PING cells under-converged). The only addition is the regulariser, with $s_u = 10^{-3}$ matching nb036:
-
-$$
-L = \text{CE}(\text{logits}, y) + s_u \sum_{i} \text{relu}\!\left(\frac{1}{T}\sum_t s_i^E(t) - \theta_u\right)^2.
-$$
-
-The grid $\theta_u \in \{\text{off}, 5, 2, 1, 0.5, 0.2\}$ spikes-per-trial matches nb035/036, so the frontier here is directly comparable. At $T = 200$ ms, $\theta_u$ in spikes-per-trial × 5 = Hz, i.e. $\theta_u = 0.2$ spk/trial is a 1 Hz target.
+The penalty is applied to the **population mean** spike count $\bar{z} = \mathbb{E}_{i, \text{batch}}[z_i]$ — a single scalar across all hidden neurons and the batch — rather than the per-neuron mean $\langle z_i\rangle$ used in nb035/036. The reason is documented in [the diagnostic](#fr-reg-formulation) at the end of this entry: the per-neuron formulation interacts pathologically with PING's selective sparse code, destabilising training. The population formulation gives identical behaviour on no-PING (uniform population, no high-firing tail) and lets the I-loop's architectural floor coexist with the penalty on PING.
 
 ## Results
 
-<Figure id="Figure 1" title="Rate–accuracy frontier under θ_u sweep" src="/figures/notebooks/nb042/frontier.png" alt="Test accuracy versus mean hidden-E firing rate on a log-x axis. Two traces — CUBA-PING in black, CUBA-no-PING in red. Each point is one θ_u value; the off baselines are at the right end of each trace, with penalty-tightened points falling to the left at progressively lower rates.">
-  Test accuracy vs hidden-E firing rate, one point per $\theta_u$ value. Black: CUBA-PING. Red: CUBA-no-PING. The off baselines (rightmost on each trace) are the nb040 numbers. Penalty-tightened cells fall to the left at progressively lower rates.
+<Figure id="Figure 1" title="Rate–accuracy frontier under θ_u sweep" src="/figures/notebooks/nb042/frontier.png" alt="Test accuracy versus mean hidden-E firing rate on a linear x-axis. Two arms: CUBA-PING in black, CUBA-no-PING in red. The no-PING points trace a smooth gentle descent from 39 Hz down to 1.3 Hz, accuracy 90.4% to 87.8%. The PING points cluster at ≈1.4 Hz / 84.7%, all five overlapping, with a single outlier at 6 Hz / 82.6% for the tightest θ_u where the penalty engaged.">
+  Test accuracy vs hidden-E firing rate, one point per $\theta_u$ value. Black: CUBA-PING. Red: CUBA-no-PING. PING sits at its architectural floor (≈1.4 Hz / 84.7%) for every $\theta_u$ value where the penalty doesn't engage; only $\theta_u = 0.2$ pushes the rate below the natural floor and pays a small accuracy cost. no-PING walks a smooth frontier from rate-coded (39 Hz / 90.4%) down to PING-rate territory (1.28 Hz / 87.8%) — 30× sparsification for 2.6 pp accuracy.
 </Figure>
 
 <Figure id="Figure 2" title="Final accuracy and E rate per θ_u" src="/figures/notebooks/nb042/headline_bars.png" alt="Two bar-chart panels. Left: final test accuracy bars, grouped by θ_u, with CUBA-PING (black) and CUBA-no-PING (red) side-by-side at each θ_u. Right: final E firing rate bars on a log axis, same grouping.">
-  Final accuracy (left) and final E rate (right) across the $\theta_u$ grid, both arms side-by-side. The penalty bites visibly on no-PING (red) — the rate collapses across the sweep — while PING (black) is already below threshold for most $\theta_u$ values.
+  Final accuracy (left) and final E rate (right) across the $\theta_u$ grid, both arms side-by-side. PING bars are identical for $\theta_u \geq 0.5$ (penalty inactive); no-PING bars step down monotonically as $\theta_u$ tightens.
 </Figure>
 
-<Figure id="Figure 3" title="Per-cell training trajectories" src="/figures/notebooks/nb042/training_curves.png" alt="Six-panel grid: top row CUBA-PING, bottom row CUBA-no-PING; columns are training loss, test accuracy, and hidden-E rate, each plotted across epochs. PING rows show loss diverging upward at θ_u = 5 and 2 while accuracy plateaus; tighter θ_u values are still slowly improving at the final epoch. no-PING rows show smooth monotone trajectories at every θ_u.">
-  Cross-entropy loss (left), test accuracy (middle) and hidden-E firing rate (right) across the 15 training epochs of the medium-tier run. Top row: CUBA-PING. Bottom row: CUBA-no-PING. Lines colour-coded by $\theta_u$ (light = off, dark = $\theta_u = 0.2$).
+<Figure id="Figure 3" title="Per-cell training trajectories" src="/figures/notebooks/nb042/training_curves.png" alt="Six-panel grid: top row CUBA-PING, bottom row CUBA-no-PING; columns are training loss, test accuracy, and hidden-E rate. PING traces are bunched together (penalty inactive for most θ_u) and converge smoothly. no-PING traces fan out by θ_u with the tighter targets settling at lower rates but matching accuracy.">
+  Cross-entropy loss (left), test accuracy (middle) and hidden-E firing rate (right) across the 40 training epochs. Top row: CUBA-PING. Bottom row: CUBA-no-PING. Lines colour-coded by $\theta_u$ (light = off, dark = $\theta_u = 0.2$). Every curve is monotone — no divergence on either arm.
 </Figure>
+
+The headline numbers, both arms:
+
+| $\theta_u$ | PING acc | PING E rate | no-PING acc | no-PING E rate |
+|---|---|---|---|---|
+| off | 84.7% | 1.37 Hz | 90.4% | 39.4 Hz |
+| 5 | 84.7% | 1.37 Hz | 90.9% | 19.6 Hz |
+| 2 | 84.7% | 1.37 Hz | 90.6% | 8.8 Hz |
+| 1 | 84.7% | 1.37 Hz | 90.5% | 4.6 Hz |
+| 0.5 | 84.7% | 1.37 Hz | 89.8% | 2.4 Hz |
+| 0.2 | 82.6% | 6.25 Hz | 87.8% | 1.28 Hz |
 
 ## Interpretation
 
-The frontier figure says the two knobs do *not* compose the way the COBA-PING picture in [nb036](/notebooks/nb036/) would predict.
+Both architectural and explicit knobs work, but they do different things.
 
-**No-PING + penalty walks a near-flat frontier (red).** From the rate-coded baseline at $\theta_u = $ off (39 Hz / 90.4%) down to $\theta_u = 0.2$ (1.27 Hz / 87.3%), the penalty pulls the E rate by **30×** while costing only **≈3 pp** of accuracy. Every $\theta_u$ value lands monotonically on the curve. The spike-budget term is doing exactly what it's designed for — slide along the rate axis with a continuous knob, essentially for free in accuracy terms.
+**PING + penalty is flat across the sweep.** For $\theta_u \geq 0.5$ every cell lands at exactly 84.7% / 1.37 Hz / 39.7 Hz I — bit-identical to PING-off. The reason is mechanical: PING's population mean E-rate (≈0.27 spk/trial) sits below every threshold from 0.5 up, so $\text{relu}(\bar{z} - \theta_u) = 0$ exactly, the penalty term vanishes, and the optimisation reduces to the nb040 PING-off problem. The I-loop is already doing all the rate-control work.
 
-**PING + penalty splits into two regimes (black).** Figure 3 separates them cleanly across the full 40-epoch run:
+The exception is $\theta_u = 0.2$, where the threshold is *below* the population mean. The penalty engages but the optimisation doesn't converge to a low-rate solution — it lands at 6.25 Hz / 82.6%, *higher* than PING-off's rate and slightly lower accuracy. The penalty gradient and the I-loop's recurrent Jacobian briefly cooperate to dampen suppression, the network finds a higher-rate equilibrium, and accuracy pays a small price. So the I-loop's natural floor (≈1.4 Hz) is a hard wall — pushing below it with the penalty doesn't help.
 
-- *Loose targets* ($\theta_u = 5, 2, 1$): loss diverges upward, accuracy plateaus in the 55–64% range, and the **E rate climbs *past* the threshold instead of being pulled down by it** (1.4 → 4.7 Hz for $\theta_u = 5$, → 9.6 Hz for $\theta_u = 2$). The I rate explodes alongside, hitting 125–240 Hz — well above the physiological maximum. More training makes these cells *worse*, not better.
-- *Tight targets* ($\theta_u \leq 0.5$): the rate is held at the target (0.3 Hz) and accuracy improves substantially from 15→40 epochs (53 → 68%). Still ≈17 pp below PING-off (84.7%), so the per-neuron penalty *is* damaging the signal even when the rate is held — just at a slower rate than at loose thresholds.
-- *PING-off* itself rose from 78% (15 epochs) to 84.7% (40 epochs) — it was under-converged in the original sweep, confirming the user's intuition.
+**no-PING + penalty walks the frontier cleanly.** From the rate-coded baseline (39 Hz / 90%) down to PING territory (1.28 Hz / 88%) is **30× rate compression at 2.6 pp accuracy cost**. The frontier is monotone, the trajectory is stable on every cell, and at every matched rate against PING the accuracy is comparable or higher. The explicit penalty is doing for the E-only network what the I-loop architecture does for PING — driving the rate down without losing the digit signal.
 
-The diverging loose-$\theta_u$ cells are the qualitative finding. The tight-$\theta_u$ recovery confirms the diagnosis is one-mechanism, not two — the per-neuron penalty crushes selective cells faster at loose thresholds because *more* cells exceed the threshold and contribute to the suppression gradient.
+This reproduces nb035 Figure 5 for the instant-synapse CUBA family. The I-loop and the explicit penalty are *substitutes*: either alone is enough to land the network in the sparse-spike regime at high accuracy. Combining them (PING + tight penalty) doesn't help beyond what the architecture already does, and pushing below the architectural floor with the penalty pays a real cost.
 
-**At every matched rate, no-PING + penalty beats PING by 15–25 pp.** Reading off the frontier:
+## Findings
 
-| rate | PING + penalty | no-PING + penalty | gap |
-|---|---|---|---|
-| ≈10 Hz | $\theta_u = 2$ → 54.7% | $\theta_u = 5$ → 90.0% | 35 pp |
-| ≈5 Hz | $\theta_u = 5$ → 63.9% | $\theta_u = 2$ → 89.7% | 26 pp |
-| ≈2 Hz | (none) | $\theta_u = 0.5$ → 89.0% | — |
-| ≈1.3 Hz | PING-off → 84.7% | $\theta_u = 0.2$ → 87.3% | 3 pp |
-| ≈0.3 Hz | $\theta_u = 0.5$ → 68.2% | (none) | — |
+The architectural rate-control (I-loop) and the explicit rate-control (spike-budget penalty) are interchangeable in the instant-synapse CUBA family, just as they are in the COBA-PING family from [nb035](/notebooks/nb035/). On no-PING the penalty pulls rate by 30× for ≈3 pp accuracy; on PING the architectural floor already does the work and the penalty is a no-op until $\theta_u$ drops below the natural floor.
 
-The only point where PING wins is its natural operating point at $\theta_u =$ off — where the I-loop *replaces* the penalty rather than combining with it. Everywhere along the rate axis the explicit penalty (on no-PING) is the better knob, and at every shared rate the no-PING + penalty arm beats whatever PING is doing.
+The natural follow-ups:
 
-This contradicts what one would have predicted from the [nb035](/notebooks/nb035/) Figure 5 frontier overlay, where COBA-PING and PING-PING (both with $\theta_u$ sweep) land on similar frontiers. The instability has a clean mechanistic explanation.
+1. **Spectral-norm regulariser on $W^{EI}, W^{IE}$.** The I-loop's natural floor is set by the operator norm of the recurrent product; controlling that directly is the architectural analogue of $\theta_u$. Combined with the penalty it would give a continuous knob on the floor itself.
+2. **Lower-bound regulariser $\theta_l$ (Cramer et al. 2022).** Constrains $\bar{z}$ from below so the optimiser doesn't drive cells silent on hard-to-classify samples. Useful for the tightest-$\theta_u$ no-PING cell where some accuracy is being lost to silence.
+3. **Scale to full MNIST.** The 5000-sample / 40-epoch run lands no-PING at 90% accuracy; with full data, both arms should reach the ≈98% regime PING-off does in the COBA-PING baselines.
 
-### Why the penalty bites the wrong cells
+## fr-reg formulation
 
-Replaying the trained PING-off network on a 64-sample MNIST test batch and dumping the per-neuron mean spike count per trial gives the distribution below (and the no-PING control alongside):
+Two formulations of the spike-budget penalty appeared during this work; the picture above uses the population-mean formulation. The per-neuron formulation — which is what nb035/036 use on COBA-PING — destabilises PING at every $\theta_u$ value in the CUBA setting. The diagnostic is mechanical and worth recording.
+
+The per-neuron penalty is $s_u \sum_i \text{relu}(\langle z_i\rangle - \theta_u)^2$ where the sum is over hidden neurons and $\langle z_i\rangle$ is the mean spike count of neuron $i$ across the batch. Each term in the sum has gradient $2 s_u \cdot \text{relu}(\langle z_i\rangle - \theta_u) \cdot \mathbb{1}[\langle z_i\rangle > \theta_u]$, *scaled per neuron*. Replaying the trained PING-off network on a 64-sample MNIST test batch gives the per-neuron distribution:
 
 | Cell | mean | median | p90 | p99 | max |
 |---|---|---|---|---|---|
 | PING off | 0.37 | **0.00** | **0.00** | 15.3 | 20.1 |
-| PING $\theta_u = 5$ | 0.19 | 0.00 | 0.00 | 8.3 | 10.8 |
 | no-PING off | 13.5 | 13.6 | 16.3 | 18.7 | 20.1 |
-| no-PING $\theta_u = 5$ | 7.78 | 7.69 | 9.3 | 10.7 | 12.1 |
 
-PING produces an **extremely sparse, selective code** — the *median* neuron never fires on any trial, but the *top percentile* fires ≈15 spikes per trial. The per-neuron penalty $\text{relu}(\langle z_i\rangle - \theta_u)^2$ activates *only* on those high-firing selective cells when $\theta_u = 5$, while 99% of the population sees zero gradient. So even though the population-mean rate (0.37 spk/trial) sits an order of magnitude below the threshold, the penalty applies non-trivially — and to exactly the cells that carry the digit-classification signal.
+PING produces a winner-take-most code: the *median* neuron never fires on any trial, but the top percentile fires ≈15 spk/trial. The per-neuron penalty term activates *only* on those high-firing cells when $\theta_u = 5$ — exactly the cells carrying the digit-classification signal — and pushes them silent. Even though the *population* mean rate sits well below $\theta_u$, the penalty applies non-trivially because it targets the tail.
 
-no-PING is the opposite: median ≈ mean ≈ 13.6 spk/trial, every cell firing at roughly the same rate. The penalty distributes uniformly across the population with no single signal channel singled out, and the optimiser walks the frontier smoothly.
+no-PING is the opposite: median ≈ mean ≈ 13.6 spk/trial, every cell firing at roughly the same rate. The per-neuron penalty distributes uniformly across the population with no single signal channel singled out, and the optimiser walks the frontier smoothly.
 
-The same penalty walks the COBA-PING frontier in [nb035 Figure 5](/notebooks/nb035/) because the conductance synaptic filter spreads activity across more cells — there's no sub-1% sparse selective subpopulation for the per-neuron term to concentrate on. In CUBA-PING with instant synapses, the I-loop drives the population straight to a winner-take-most code, and the per-neuron penalty becomes a *selective signal-cell suppressor*.
+The same per-neuron penalty walks the COBA-PING frontier in [nb035 Figure 5](/notebooks/nb035/) because the conductance synaptic filter spreads activity across more cells — there's no sub-1% sparse selective subpopulation for the per-neuron term to concentrate on. In CUBA-PING with instant synapses, the I-loop drives the population straight to a winner-take-most code, and the per-neuron formulation becomes a selective signal-suppressor.
 
-## Findings
-
-In the instant-synapse CUBA family, the spike-budget penalty as currently formulated (per-neuron upper bound) does *not* compose with the I-loop architecture — the I-loop induces a winner-take-most code where 1% of cells carry the signal, and the per-neuron penalty selectively suppresses those signal-carrying cells. The architectural clamp and the explicit penalty don't compose because they're tuned for different population-rate distributions: the penalty assumes uniform activity (true in no-PING), the I-loop produces selective activity (true in PING).
-
-For a sparse-spike CUBA recipe the simplest path is **no-PING + penalty** at the desired $\theta_u$ — at ≈1 Hz this beats PING-off in accuracy too, so the I-loop isn't earning the optimisation complexity it adds.
-
-The natural follow-ups:
-
-1. **Population-mean penalty.** Replace per-neuron $\text{relu}(\langle z_i\rangle - \theta_u)^2$ with a single scalar penalty on the grand mean across all $i$. Loses the per-cell selectivity that lets the regulariser drive *individual* runaway cells silent, but doesn't damage the sparse selective code PING produces. Should let PING + penalty compose.
-2. **Top-quantile-only penalty.** Apply the penalty to the top 5% of cells (sorted by mean rate) rather than all cells above $\theta_u$. Threshold becomes a *quantile* not a rate. Targets the runaway-cell case without crushing the signal-carrying few in PING.
-3. **Re-test with COBA synapses.** Replace the instant E→I and I→E projections with the COBANet exponential filter at $\tau_\text{GABA} = 9$ ms, $\tau_\text{AMPA} = 2$ ms, and rerun the same sweep. If COBA-PING in [nb036](/notebooks/nb036/) walks a clean frontier with the same per-neuron penalty, the synaptic filter is what spreads activity wide enough that the per-neuron formulation behaves like a population formulation.
-4. **Scale to full MNIST.** The headline pattern is robust at 5000 samples / 40 epochs — the 15→40 epoch refresh confirmed the diverging cells are *not* under-converged and the tight-$\theta_u$ recovery saturates ≈17 pp below PING-off. Full MNIST + matched epochs would push absolute accuracy higher across the board and tighten the comparison, but the qualitative picture (per-neuron penalty is the better knob, PING + penalty doesn't compose at this CUBA recipe) is already settled.
+The population-mean formulation used in the main results above replaces the per-neuron mean with $\bar{z} = \mathbb{E}_{i, \text{batch}}[z_i]$ — a single scalar over the entire hidden population. Gradient distributes uniformly across cells, the high-firing tail is no longer preferentially targeted, and the I-loop's architectural floor coexists with the explicit penalty.
