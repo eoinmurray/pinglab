@@ -76,11 +76,37 @@ The $\theta_u = 0.2$ PING outlier (Figure 1; Figure 4 bottom-right) traces a cle
 - **Bifurcation at epoch 29**: a one-epoch discontinuity. E rate jumps 1.88 → 4.31 Hz, I rate 66 → 172 Hz, gradient norm 0.090 → 6.45 (a 70× jump in a single epoch).
 - **Phase 2 (epochs 29–40)**: settles at a *different attractor*. E rate ≈9 Hz, I rate ≈250 Hz, gradient norm ≈30, accuracy holds at 82–83%, but loss climbs slowly from 0.70 to 1.81.
 
-The interpretation is that PING's recurrent E↔I dynamics support multiple stable fixed points. The low-rate attractor (E ≈ 1.4 Hz, I ≈ 40 Hz) is the one PING-off occupies — the gamma-burst regime visible in Figure 4's top row. The high-rate attractor (E ≈ 9 Hz, I ≈ 250 Hz) is the dense-firing regime in Figure 4 bottom-right. For 28 epochs the penalty applies tiny but persistent downward pressure on the population mean. At epoch 28→29 the cumulative weight changes cross a separatrix in $W_\text{in}$ space, the dynamics flip to the high-rate attractor, and the network gets stuck there: the penalty is now fully active (population mean ≈1.84 spk/trial, well above $\theta_u = 0.2$) and applies real downward gradient (gn ≈30), but the new attractor is stable enough that the optimiser can't pull it back.
+### Penalty as perturbation, not rate control
 
-The accuracy preservation (83%) is a side note worth understanding: at the new operating point the readout sees many more spike events per trial, so the digit signal is still encoded — just in a denser representation. The *loss* climbs because the logit distribution becomes more extreme (confidently wrong on a small handful of hard samples) while top-1 accuracy is robust to that.
+The counter-intuitive observation is that the penalty's *intent* is to reduce rate, yet the rate ends up *higher* than PING-off. Mechanically the penalty is doing exactly what's asked of it — at epoch 29+ the gradient norm is ≈30 with almost all of it from the penalty term pulling the population mean down — but the rate refuses to drop. The reason is that the penalty isn't a rate control. It's a *persistent perturbation to the optimisation trajectory in $W_\text{in}$ space*.
 
-So the $\theta_u = 0.2$ outlier isn't a noise event but concrete evidence that PING has multiple stable operating regimes, and that a sufficiently weak-but-persistent rate penalty can tip the network from one to the other across a long training run.
+Walk through what's happening:
+
+1. **Phase 1 — drift under negligible pressure.** The penalty term contributes ≈$3 \times 10^{-7}$ per neuron — dominated 1000× by the CE gradient. The trajectory tracks PING-off's basin of attraction. But the penalty contribution is *directionally consistent*: every step pushes $W_\text{in}$ slightly away from where pure-CE would put it. Over ~2200 steps the cumulative drift is real.
+2. **Bifurcation.** The accumulated drift carries $W_\text{in}$ across a *separatrix* in the recurrent dynamics phase plane. PING's E↔I loop admits at least two stable digit-classifying fixed points: the low-rate gamma-burst attractor (≈1.4 Hz / 40 Hz, what PING-off occupies) and the high-rate dense-firing attractor (≈9 Hz / 250 Hz, Figure 4 bottom-right). One epoch is enough to flip basins.
+3. **Trapped in a worse minimum.** Once in the high-rate basin, the penalty becomes massively active (mean ≈1.84 spk/trial, well above $\theta_u = 0.2$; gn ≈30 pulling hard downward). The recurrent dynamics holding the high-rate fixed point are stable against weight changes of any reasonable size — the basin is too deep for gradient descent to climb out. Critically, **the high-rate basin has *worse* CE loss** (1.8 vs 0.5 at PING-off) for the same top-1 accuracy. The optimiser has been nudged out of a good local minimum into a worse one — and the very gradient that nudged it there is now too weak to bring it back.
+
+Accuracy holding at 83% across the bifurcation is a side note: at the new operating point the readout sees many more spike events per trial, so the digit signal is still encoded — just in a denser representation. The *loss* climbs because the logit distribution becomes more extreme (confidently wrong on a few hard samples) while top-1 accuracy is robust to that.
+
+### A generic failure mode for regularised recurrent SNN training
+
+The general pattern, stripped of nb042-specifics:
+
+1. **The forward dynamics have multiple stable fixed points** that all solve the task to similar quality. (Generic for recurrent networks: PING circuits, attractor networks, RNNs with saturating non-linearities, anything with feedback.)
+2. **A regulariser adds a small persistent gradient** that biases the optimisation trajectory in some weight direction. The bias is too small per-step to do meaningful work, but it's consistent.
+3. **Cumulative drift crosses a separatrix.** Weight space and dynamics-attractor space are linked: small changes in weights can move the system across boundaries between qualitatively different forward-dynamics regimes.
+4. **The new attractor has worse loss but is gradient-stable.** The regulariser activates strongly (now the network is firing outside the desired regime), but gradient descent through stable recurrent dynamics can't escape — the gradient passes through but the forward attractor refuses to budge.
+
+The smell of this failure mode in a training log is the one we have here: many epochs of clean convergence, a one-epoch discontinuity, post-discontinuity the regulariser term dominates the gradient but its target metric doesn't move, loss climbs while accuracy holds.
+
+Practical implications:
+
+- **Don't trust monotone loss as a stability indicator.** PING + $\theta_u = 0.2$ has monotonically decreasing loss through ep 28 and looks identical to PING-off. The pathology is invisible until the bifurcation fires.
+- **Watch the rate target itself, not just the gradient norm.** If `gn` is large but the regulariser's controlled quantity isn't moving, the gradient is hitting a basin wall, not changing the operating point.
+- **Penalty annealing or basin-shaping (e.g. spectral normalisation of $W^{EI}, W^{IE}$) are the principled fixes** — they either avoid creating the separatrix crossing condition or remove the alternative attractor entirely. Adding more aggressive penalty strength makes the problem *worse*, not better, because the perturbation becomes stronger and crosses the separatrix earlier.
+- **No-PING avoids this** because its forward dynamics has a single attractor (no recurrent feedback to host multiple fixed points). The penalty becomes a true rate control because there's only one rate-vs-accuracy frontier to walk along.
+
+So the $\theta_u = 0.2$ PING outlier is concrete evidence of a generic failure mode: *regulariser as perturbation, bistable forward dynamics, basin trap*. Worth carrying forward as a warning for any future work that combines an explicit penalty with a recurrent SNN architecture.
 
 ## Findings
 
