@@ -21,7 +21,7 @@ export const numbers = Object.values(
 LIF E and I populations with the same wiring as [nb035](/notebooks/nb035/)'s COBA-PING but with no synaptic state: every presynaptic spike at $t-1$ contributes its weight to the postsynaptic current at $t$ and is gone by $t+1$.
 
 - $N_E = 1024$, $N_I = 256$, $N_\text{in} = 784$, $\Delta t = 1$ ms, $T = 200$ ms.
-- Membrane: $\tau_m = 20$ ms, $V_\text{rest} = 0$, $V_\text{th} = 1$, hard reset to $V_\text{rest}$ on spike, $R_m = 1$. $V$ is floored at $V_\text{rest}$ after each step (membrane can't fall below the dominant ion's reversal potential).
+- Membrane: $\tau_m = 20$ ms, $V_\text{rest} = 0$, $V_\text{th} = 1$, hard reset to $V_\text{rest}$ on spike, $R_m = 1$. $V$ is floored at $V_\text{rest}$ after each step (membrane can't fall below the dominant ion's reversal potential). **No refractory period** — after reset the cell is free to fire on the next step; the only mechanisms limiting firing rate are membrane decay back to threshold and (in the PING arm) the I-loop suppression.
 - Weights: $W^{EI} \sim \mathcal{N}(1, 0.1)$, $W^{IE} \sim \mathcal{N}(1, 0.1)$, both clamped non-negative; $W_\text{in}$ is 95% sparse with $\mathcal{N}(0, 0.5)$ entries.
 
 $$
@@ -134,3 +134,4 @@ The natural follow-ups:
 1. Scale to full MNIST. Training loss is still decreasing at the end of the medium-tier run, so the operating point is not yet converged. Full MNIST + more epochs should close the gap to the COBA-PING baselines.
 2. Add an explicit $L_\text{rate}$ like nb035's, exposing a $\theta_u$ knob that lets you slide along the rate–accuracy frontier on top of what the architecture already gives.
 3. Replace TBPTT with a principled stabiliser — spectral normalisation of $W^{EI}$ / $W^{IE}$, or a Jacobian-norm regulariser — that lets full-horizon BPTT through and closes the COBA-PING gap from below.
+4. Add a refractory window ($\approx 1.5$ ms for E, $\approx 0.5$ ms for I, matching the COBANet baselines). The current model has none, which gives every cell an unbounded firing-rate ceiling and likely contributes to the no-PING control's ≈70 Hz E rate. With refractory in place that ceiling drops to $1/(\tau_\text{ref}) \approx 667$ Hz for E cells; the no-PING upper rate would compress, narrowing the rate gap to the PING arm without changing the qualitative comparison.
