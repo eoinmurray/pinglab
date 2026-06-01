@@ -157,6 +157,9 @@ if (file) {
     <main class="px-6 pt-10 pb-48 lg:pl-[25%] lg:pr-16">
       <div class="max-w-[46rem]">
         <article class="prose max-w-none" style="font-family: var(--font-serif);">
+          {frontmatter?.title && (
+            <h1 class="entry-title">{frontmatter.title}</h1>
+          )}
           <slot />
         </article>
         {editHref && (
@@ -170,6 +173,14 @@ if (file) {
 </html>
 
 <style>
+  .entry-title {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 1.6rem;
+    line-height: 1.25;
+    margin: 0 0 1.5rem 0;
+    color: var(--ink);
+  }
   .page-source {
     margin-top: 3rem;
     padding-top: 0.75rem;
