@@ -108,6 +108,29 @@ Practical implications:
 
 So the $\theta_u = 0.2$ PING outlier is concrete evidence of a generic failure mode: *regulariser as perturbation, bistable forward dynamics, basin trap*. Worth carrying forward as a warning for any future work that combines an explicit penalty with a recurrent SNN architecture.
 
+### Ways to avoid the bifurcation
+
+A few candidate formulations, ordered from fundamentally preventing the separatrix crossing to practical workarounds that just delay it past the training budget.
+
+**Architectural — no separatrix to cross.**
+- **Spectral-norm regulariser on $W^{EI} W^{IE}$.** Instead of penalising the spike count statistic (an output of the dynamics), penalise the recurrent gain itself ($\lambda \|W^{EI} W^{IE}\|_2$). The recurrent gain is what sets the natural firing-rate floor (see [nb040 Section 4](/notebooks/nb040/#bptt-stability)), so lowering it shifts the single attractor continuously rather than pushing the optimiser to escape it. Single attractor, no separatrix, no possible bifurcation. Requires $W^{EI}/W^{IE}$ to become trainable, but that's a one-line change in `CubaPingNet`.
+- **Output-side regularisation.** Penalise something on the acyclic readout path — e.g. $\lambda \|W_\text{out}\|_1$. The decoder graph has no recurrent feedback, so no separatrix. Doesn't control rate directly but indirectly encourages sparse-spike solutions (small $W_\text{out}$ → readout needs more spike events to classify → optimiser doesn't push rate up).
+
+**Curriculum — delay the bifurcation past the training budget.**
+- **$\theta_u$ annealing.** Start with $\theta_u = \infty$ (off), gradually lower over training. The penalty only switches on after the network has settled into PING-off's low-rate basin; the remaining question is whether the late, weak gradient can still escape — and at small $s_u$ it usually can't.
+- **lr annealing post-warmup.** Pre-train without penalty for $K$ epochs to land in the low-rate basin, then drop the learning rate 10× and turn on the penalty. Cumulative drift per epoch shrinks 10×, so you need 10× as many epochs to cross the same separatrix. For bounded training budgets, that prevents the crossing in practice.
+- **Cumulative-drift early stopping.** Track $\|W_\text{in}(t) - W_\text{in}(0)\|$ during training and freeze the weights (or drop lr to zero) once it crosses a precharacterised threshold. Detection-based; doesn't prevent the bifurcation in principle but stops it before it fires.
+
+**Surgical gradient interventions.**
+- **Detach the penalty's backward through the recurrent loop.** Compute the spike-count summary used by the penalty on a stop-gradient path that doesn't flow through $W^{EI}/W^{IE}$. The penalty's gradient only reaches $W_\text{in}$ via the direct input→V→spike pathway, not via the recurrent Jacobian. Theoretically prevents the kind of cumulative drift that crosses a separatrix in the recurrent phase plane. Implementation is fiddly with autograd and may weaken the penalty's effectiveness.
+
+**What probably won't work.**
+- **Smoothing the relu kink** (softplus, huber, smooth-l1) — the kink isn't the problem; the cumulative drift is. Smoothing changes gradient magnitude near the threshold but not its direction.
+- **Larger $s_u$** — makes the perturbation stronger and crosses the separatrix sooner. *Gentler* penalty is safer.
+- **Lower-bound term** ($\text{relu}(\theta_l - \bar{z})^2$) — homogenises the firing distribution, breaking PING's selective code rather than preserving it. Ends up in a no-PING-like regime.
+
+The honest summary is that the cleanest fix is *architectural*: switch the rate-control knob from output statistics ($\theta_u$ on $\bar{z}$) to recurrent spectral norm. That's a different experiment and probably its own notebook entry — option **PING-spectral vs PING-penalty** as parallel arms of "architectural rate control" comparison. The cheapest empirical confirmation that the bifurcation *can* be avoided without changing the formulation would be a $\theta_u$ annealing run on a single PING cell — same recipe, $\theta_u(\text{epoch}) = \max(0.2,\, 5 \exp(-\text{epoch}/10))$ or similar.
+
 ## Findings
 
 The architectural rate-control (I-loop) and the explicit rate-control (spike-budget penalty) are interchangeable in the instant-synapse CUBA family, just as they are in the COBA-PING family from [nb035](/notebooks/nb035/). On no-PING the penalty pulls rate by 30× for ≈3 pp accuracy; on PING the architectural floor already does the work and the penalty is a no-op until $\theta_u$ drops below the natural floor.
