@@ -51,14 +51,34 @@ The frontier figure says the two knobs do *not* compose the way the COBA-PING pi
 
 **At matched rates, no-PING + penalty wins.** Reading off the frontier at ≈1 Hz: no-PING + penalty sits at 80.6% / 1.5 Hz, while PING off sits at 78.2% / 0.9 Hz — comparable rate, **+2 pp accuracy for no-PING**. At ≈0.3 Hz, PING + $\theta_u = 1$ reaches 63%; no-PING never gets that low in this sweep but its trajectory extrapolates well above 63% at 0.3 Hz. So in the instant-synapse CUBA family, the explicit spike-budget penalty is *the better way* to walk the frontier — the I-loop architecture doesn't offer a free lunch over it.
 
-This contradicts what one would have predicted from the [nb035](/notebooks/nb035/) Figure 5 frontier overlay, where COBA-PING and PING-PING (both with $\theta_u$ sweep) land on similar frontiers. The difference here is the architecture: in COBA-PING the I-loop is filtered (exponential GABA), giving it a separation of timescales the penalty can act independently of. In CUBA-PING the I-loop is *instant* — the suppression hits every step, and combining it with the per-step regulariser gradient seems to over-constrain the optimisation problem.
+This contradicts what one would have predicted from the [nb035](/notebooks/nb035/) Figure 5 frontier overlay, where COBA-PING and PING-PING (both with $\theta_u$ sweep) land on similar frontiers. The instability has a clean mechanistic explanation.
+
+### Why the penalty bites the wrong cells
+
+Replaying the trained PING-off network on a 64-sample MNIST test batch and dumping the per-neuron mean spike count per trial gives the distribution below (and the no-PING control alongside):
+
+| Cell | mean | median | p90 | p99 | max |
+|---|---|---|---|---|---|
+| PING off | 0.37 | **0.00** | **0.00** | 15.3 | 20.1 |
+| PING $\theta_u = 5$ | 0.19 | 0.00 | 0.00 | 8.3 | 10.8 |
+| no-PING off | 13.5 | 13.6 | 16.3 | 18.7 | 20.1 |
+| no-PING $\theta_u = 5$ | 7.78 | 7.69 | 9.3 | 10.7 | 12.1 |
+
+PING produces an **extremely sparse, selective code** — the *median* neuron never fires on any trial, but the *top percentile* fires ≈15 spikes per trial. The per-neuron penalty $\text{relu}(\langle z_i\rangle - \theta_u)^2$ activates *only* on those high-firing selective cells when $\theta_u = 5$, while 99% of the population sees zero gradient. So even though the population-mean rate (0.37 spk/trial) sits an order of magnitude below the threshold, the penalty applies non-trivially — and to exactly the cells that carry the digit-classification signal.
+
+no-PING is the opposite: median ≈ mean ≈ 13.6 spk/trial, every cell firing at roughly the same rate. The penalty distributes uniformly across the population with no single signal channel singled out, and the optimiser walks the frontier smoothly.
+
+The same penalty walks the COBA-PING frontier in [nb035 Figure 5](/notebooks/nb035/) because the conductance synaptic filter spreads activity across more cells — there's no sub-1% sparse selective subpopulation for the per-neuron term to concentrate on. In CUBA-PING with instant synapses, the I-loop drives the population straight to a winner-take-most code, and the per-neuron penalty becomes a *selective signal-cell suppressor*.
 
 ## Findings
 
-In the instant-synapse CUBA family, the spike-budget penalty is the cheaper of the two rate-control knobs. The I-loop architecture by itself is a competitive operating point (the nb040 baseline), but combining it with the penalty makes things *worse*, not better — the architectural clamp and the explicit penalty don't compose. For a sparse-spike CUBA recipe the simplest path is no-PING + penalty at the desired $\theta_u$.
+In the instant-synapse CUBA family, the spike-budget penalty as currently formulated (per-neuron upper bound) does *not* compose with the I-loop architecture — the I-loop induces a winner-take-most code where 1% of cells carry the signal, and the per-neuron penalty selectively suppresses those signal-carrying cells. The architectural clamp and the explicit penalty don't compose because they're tuned for different population-rate distributions: the penalty assumes uniform activity (true in no-PING), the I-loop produces selective activity (true in PING).
+
+For a sparse-spike CUBA recipe the simplest path is **no-PING + penalty** at the desired $\theta_u$ — at ≈1 Hz this beats PING-off in accuracy too, so the I-loop isn't earning the optimisation complexity it adds.
 
 The natural follow-ups:
 
-1. **Diagnose the PING + penalty instability.** Is it gradient interference (the penalty term inflating the I-loop's TBPTT signal past stability) or an optimisation-basin issue (penalty deforming the recruitment cliff)? A clean diagnostic would be turning off the penalty's gradient through $s^E$ — applying it only to the readout — and seeing whether PING + penalty recovers.
-2. **Re-test with COBA synapses.** Replace the instant E→I and I→E projections with the COBANet exponential filter at $\tau_\text{GABA} = 9$ ms, $\tau_\text{AMPA} = 2$ ms, and rerun the same sweep. If the COBA-PING in nb036 walks a clean frontier with the penalty, the synaptic filter is what lets the two knobs compose.
-3. **Scale to full MNIST.** At large tier the medium gaps may compress; the no-PING + penalty advantage is small enough that full-data training could close it.
+1. **Population-mean penalty.** Replace per-neuron $\text{relu}(\langle z_i\rangle - \theta_u)^2$ with a single scalar penalty on the grand mean across all $i$. Loses the per-cell selectivity that lets the regulariser drive *individual* runaway cells silent, but doesn't damage the sparse selective code PING produces. Should let PING + penalty compose.
+2. **Top-quantile-only penalty.** Apply the penalty to the top 5% of cells (sorted by mean rate) rather than all cells above $\theta_u$. Threshold becomes a *quantile* not a rate. Targets the runaway-cell case without crushing the signal-carrying few in PING.
+3. **Re-test with COBA synapses.** Replace the instant E→I and I→E projections with the COBANet exponential filter at $\tau_\text{GABA} = 9$ ms, $\tau_\text{AMPA} = 2$ ms, and rerun the same sweep. If COBA-PING in [nb036](/notebooks/nb036/) walks a clean frontier with the same per-neuron penalty, the synaptic filter is what spreads activity wide enough that the per-neuron formulation behaves like a population formulation.
+4. **Scale to full MNIST.** The no-PING + penalty advantage is small (≈2 pp at matched rate); full-data training could close it.
