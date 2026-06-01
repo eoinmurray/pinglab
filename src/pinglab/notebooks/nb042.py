@@ -77,6 +77,12 @@ EPOCHS_OVERRIDE: int | None = 40
 # Same grid as nb035/036 for cross-comparison.
 THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
 FR_STRENGTH_UPPER: float = 1e-3
+# Population-mean penalty (not per-neuron). The per-neuron formulation
+# concentrates on the high-firing tail and crushes PING's selective
+# code; the population formulation distributes pressure uniformly across
+# all cells and lets the I-loop's architectural floor coexist with the
+# explicit penalty. See nb042 mdx Findings.
+FR_REG_MODE: str = "population"
 
 ARMS = ("ping", "noping")
 MODEL_FOR_ARM = {"ping": "cuba-ping", "noping": "cuba-noping"}
@@ -134,6 +140,7 @@ def build_oscilloscope_args(
         args += [
             "--fr-reg-upper-theta", str(theta_u),
             "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
+            "--fr-reg-mode", FR_REG_MODE,
         ]
     return args
 
@@ -351,6 +358,7 @@ def main() -> None:
             "batch_size": BATCH_SIZE, "lr": LR, "seed": SEED,
             "theta_u_grid": [t for t in THETA_U_GRID],
             "fr_strength_upper": FR_STRENGTH_UPPER,
+            "fr_reg_mode": FR_REG_MODE,
             "tbptt_window": TBPTT_WINDOW,
         },
         "cells": rows,
