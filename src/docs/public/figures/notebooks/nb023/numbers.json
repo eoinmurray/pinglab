@@ -1,9 +1,9 @@
 {
-  "notebook_run_id": "r013",
-  "duration_s": 4.0,
-  "tier": "extra small",
+  "notebook_run_id": "r014",
+  "duration_s": 11.7,
+  "tier": "small",
   "config": {
-    "tier": "extra small",
+    "tier": "small",
     "model": "ping",
     "input": "mnist d0 s0",
     "cells": [
@@ -25,7 +25,7 @@
     {
       "label": "traces__coba rendered",
       "passed": true,
-      "detail": "traces__coba.png (112954 bytes)",
+      "detail": "traces__coba.png (153932 bytes)",
       "detail_href": "/figures/notebooks/nb023/traces__coba.png"
     },
     {
@@ -37,7 +37,7 @@
     {
       "label": "traces__ping rendered",
       "passed": true,
-      "detail": "traces__ping.png (128454 bytes)",
+      "detail": "traces__ping.png (145695 bytes)",
       "detail_href": "/figures/notebooks/nb023/traces__ping.png"
     }
   ]
