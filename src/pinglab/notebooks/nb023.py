@@ -164,11 +164,20 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
     ax_ve.set_xlim(0, T * dt)
     ax_ve.set_title(title)
 
+    # Per-population leak conductances (from models.py — pinned constants).
+    G_L_E = 0.05  # µS, C_m_E / tau_m_E
+    G_L_I = 0.10  # µS, C_m_I / tau_m_I
+
     ax_ge = axes[1]
     ax_ge.plot(t_ms, ge_e[:, e_idx], color=theme.ELECTRIC_CYAN, lw=0.8, label="g_E (exc)")
+    gi_trace = None
     if has_gi_e:
         gi_e = data["gi_e_1"]
-        ax_ge.plot(t_ms, gi_e[:, e_idx], color=theme.DEEP_RED, lw=0.8, label="g_I (inh)")
+        gi_trace = gi_e[:, e_idx]
+        ax_ge.plot(t_ms, gi_trace, color=theme.DEEP_RED, lw=0.8, label="g_I (inh)")
+    ax_ge.axhline(G_L_E, color=theme.FAINT, lw=0.7, ls=":", label="g_L (leak)")
+    g_tot_e = ge_e[:, e_idx] + G_L_E + (gi_trace if gi_trace is not None else 0.0)
+    ax_ge.plot(t_ms, g_tot_e, color=theme.INK_BLACK, lw=0.6, ls="--", label="g_tot")
     ax_ge.set_ylabel(f"g (neuron {e_idx})")
     ax_ge.set_xlim(0, T * dt)
     ax_ge.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
@@ -184,6 +193,9 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
 
         ax_gi = axes[3]
         ax_gi.plot(t_ms, ge_i[:, i_idx], color=theme.ELECTRIC_CYAN, lw=0.8, label="g_E (exc)")
+        ax_gi.axhline(G_L_I, color=theme.FAINT, lw=0.7, ls=":", label="g_L (leak)")
+        g_tot_i = ge_i[:, i_idx] + G_L_I  # I receives no inhibition
+        ax_gi.plot(t_ms, g_tot_i, color=theme.INK_BLACK, lw=0.6, ls="--", label="g_tot")
         ax_gi.set_ylabel(f"g (neuron {i_idx})")
         ax_gi.set_xlim(0, T * dt)
         ax_gi.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
