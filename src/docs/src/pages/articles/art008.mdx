@@ -6,6 +6,7 @@ entry: 8
 structure: paper
 collections: [paper]
 ---
+import Figure from "../../components/Figure.astro";
 
 *Eoin Murray and Timothy O'Leary.*
 
@@ -189,7 +190,31 @@ TODO
 
 TODO
 
+### Mean field equations derivation
+
+TODO
+
 ## Results
+
+## Introductory plots
+
+Before any training, the architecture's forward dynamics are already qualitatively different between the COBA (no recurrent loop) and COBA-PING (loop active) modes. The four panels below — reproduced from [nb023](/notebooks/nb023/) — show the same MNIST input driving each mode at initialisation, first as a population raster and then as a single-neuron membrane-and-conductance trace.
+
+<Figure id="Figure 1" title="COBA — recurrent loop off" src="/figures/notebooks/nb023/raster__coba.png" alt="Spike raster across 400 ms: E population (top) fires asynchronously across the full window; I population (bottom) is silent.">
+  Baseline: recurrent inhibitory loop disabled ($W_{\text{ei}} = W_{\text{ie}} = 0$). E spikes asynchronously across the full 400 ms window; I is silent.
+</Figure>
+
+<Figure id="Figure 2" title="COBA — single-neuron traces" src="/figures/notebooks/nb023/traces__coba.png" alt="Two panels: membrane voltage V_E for one representative E neuron, and its excitatory conductance g_E. No inhibitory conductance — the loop is off.">
+  Membrane voltage (top) and excitatory conductance (bottom) for the most active E neuron in Figure 1. $V^E$ rises to threshold $V_{\text{th}} = -50$ mV repeatedly under tonic drive from $g^E_e$, with hard resets to $V_{\text{reset}}$. No $g^E_i$ trace — the loop is disabled.
+</Figure>
+
+<Figure id="Figure 3" title="COBA-PING — recurrent loop active" src="/figures/notebooks/nb023/raster__ping.png" alt="Spike raster across 400 ms: E population (top) shows vertical bands at gamma cadence; I population (bottom) fires synchronous bursts trailing each E-burst.">
+  Same network with the I-loop turned on ($s = 1.5$). The E raster collapses into vertical bands at gamma cadence; the I population fires synchronous bursts immediately after each E-burst — the textbook PING rhythm.
+</Figure>
+
+<Figure id="Figure 4" title="COBA-PING — single-neuron traces" src="/figures/notebooks/nb023/traces__ping.png" alt="Four panels: V_E and conductances g_e, g_i for one E neuron; V_I and g_e for one I neuron. V_E is held below threshold by rhythmic g_i bursts; V_I tracks the E-burst envelope.">
+  Membrane and conductance traces for the most active E and I neuron in Figure 3. $V^E$ (top) is held below threshold by the rhythmic $g^E_i$ bursts; $g^E_e$ is small by comparison. The I neuron's $V^I$ tracks the population E-burst envelope through its $g^I_e$ input and fires once per cycle. This is the PING loop in cross-section — E recruits I, I shunts E, E refires when GABA decays.
+</Figure>
 
 ### Lower rates
 
@@ -202,6 +227,8 @@ TODO
 ### Perturbation
 
 TODO
+
+### Mean field analysis
 
 ## Discussion
 
