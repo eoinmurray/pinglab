@@ -228,7 +228,19 @@ Before any training, the architecture's forward dynamics are already qualitative
 
 ### Lower rates
 
+Training COBA and COBA-PING side-by-side at matched recipe ($\theta_u = $ off, three seeds, 30 epochs, identical $W_{\text{in}}$ init) lands both models at comparable accuracy but at dramatically different firing rates — the inhibitory loop knocks the mean hidden-E rate down by more than an order of magnitude without paying a meaningful accuracy cost.
 
+<Figure id="Figure 7" title="Accuracy vs mean firing rate" src="/figures/notebooks/nb035/acc_vs_rate.png" alt="Bar chart comparing per-model final test accuracy (solid bars) against mean hidden-E firing rate (hatched bars) at θ_u = off.">
+  Final test accuracy (solid) and mean hidden-E firing rate (hatched) per model at the unregularised baseline, from [nb035](/notebooks/nb035/). COBA-PING reaches **88.17% at 6.99 Hz**; COBA reaches **87.92% at 87.68 Hz** — comparable accuracy, ≈13× fewer spikes. Means over three seeds.
+</Figure>
+
+The accuracy match isn't a late-training artefact — the loss trajectories track each other across all 30 epochs.
+
+<Figure id="Figure 8" title="Learning curves" src="/figures/notebooks/nb035/learning_curves.png" alt="Train loss (left) and test accuracy (right) per epoch, one curve per model at θ_u = off.">
+  Per-epoch train loss and test accuracy for each baseline model, averaged over three seeds, from [nb035](/notebooks/nb035/). Both models descend at the same pace and finish within ≈0.5 pp of each other.
+</Figure>
+
+The difference is rate, not accuracy. PING is firing 13× more sparsely while solving the same classification problem to the same accuracy with the same number of trainable parameters.
 
 ### Control
 
