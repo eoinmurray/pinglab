@@ -11,8 +11,6 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb040/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
-## Setup
-
 [nb035](/notebooks/nb035/)–[nb038](/notebooks/nb038/) characterise PING in the *conductance-based* regime, where every synapse has an exponential filter at $\tau_\text{AMPA}$ or $\tau_\text{GABA}$. This entry asks whether **current-based** (CUBA) PING with *instant* synapses — no synaptic filtering at all — still produces the gamma dynamics and can be trained.
 
 LIF E and I populations with the same wiring as [nb035](/notebooks/nb035/)'s COBA-PING but with no synaptic state: every presynaptic spike at $t-1$ contributes its weight to the postsynaptic current at $t$ and is gone by $t+1$.
