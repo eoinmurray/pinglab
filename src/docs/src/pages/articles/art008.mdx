@@ -106,29 +106,51 @@ $$
 
 At $s = 0$ both matrices are zero, the loop is open, and the network is feedforward COBA. At $s = 1$ the default initialisation gives $W_{\text{ei}} \approx 1~\mu\text{S}$ and $W_{\text{ie}} \approx 2~\mu\text{S}$, strong enough to sustain the PING rhythm from the first forward pass of training.
 
-For each timestep $t \to t+1$, the simulator applies the four updates below in a fixed order, separately for the E and I populations:
+For each timestep $t \to t+1$, the simulator applies the four updates below in a fixed order. The two populations are updated by the same template but with different driving inputs; they're written out separately here so the recurrent coupling is explicit.
+
+**E neurons** (driven by feedforward input and inhibitory feedback):
 
 $$
 \begin{aligned}
 \text{(i)} \quad &
-  \begin{cases}
-    g^E_{e,t+1} = \alpha\, g^E_{e,t} + W_{\text{in}}\, s^{\text{inp}}_t \\
-    g^E_{i,t+1} = \gamma\, (g^E_{i,t} + W_{\text{ie}}\, s^i_t) \\
-    g^I_{e,t+1} = \alpha\, (g^I_{e,t} + W_{\text{ei}}\, s^e_t)
-  \end{cases}
-& \text{synaptic conductances [eqs.\ 6, 7, 8]} \\[1em]
+  g^E_{e,t+1} = \alpha\, g^E_{e,t} + W_{\text{in}}\, s^{\text{inp}}_t,
+  \qquad
+  g^E_{i,t+1} = \gamma\, (g^E_{i,t} + W_{\text{ie}}\, s^i_t)
+& \text{[eqs.\ 6, 7]} \\[0.7em]
 \text{(ii)} \quad &
-  g_{\text{tot}} = g_L + g_e + g_i,\quad
-  \tau_{\text{eff}} = \frac{C_m}{g_{\text{tot}}},\quad
-  V_\infty = \frac{g_L E_L + g_e E_e + g_i E_i}{g_{\text{tot}}}
-& \text{aggregate [eqs.\ 2, 3, 4]} \\[1em]
+  g^E_{\text{tot}} = g_L + g^E_e + g^E_i,\quad
+  \tau^E_{\text{eff}} = \frac{C_m}{g^E_{\text{tot}}},\quad
+  V^E_\infty = \frac{g_L E_L + g^E_e E_e + g^E_i E_i}{g^E_{\text{tot}}}
+& \text{[eqs.\ 2, 3, 4]} \\[0.7em]
 \text{(iii)} \quad &
-  V_{t+1} = V_\infty + (V_t - V_\infty)\, \exp\!\left(-\Delta t / \tau_{\text{eff}}\right)
-& \text{membrane (closed-form, ZOH)} \\[1em]
+  V^E_{t+1} = V^E_\infty + (V^E_t - V^E_\infty)\, \exp\!\left(-\Delta t / \tau^E_{\text{eff}}\right)
+& \text{membrane} \\[0.7em]
 \text{(iv)} \quad &
-  S_{t+1} = \mathbb{1}[V_{t+1} \geq V_{\text{th}}],\quad
-  V_{t+1} \leftarrow V_{\text{reset}} \text{ if } S_{t+1}=1 \text{ or refractory}
-& \text{spike emission + reset}
+  s^e_{t+1} = \mathbb{1}[V^E_{t+1} \geq V_{\text{th}}],\quad
+  V^E_{t+1} \leftarrow V_{\text{reset}} \text{ if } s^e_{t+1}=1 \text{ or refractory}
+& \text{spike + reset}
+\end{aligned}
+$$
+
+**I neurons** (driven by excitatory feedback only; no inhibitory input):
+
+$$
+\begin{aligned}
+\text{(i)} \quad &
+  g^I_{e,t+1} = \alpha\, (g^I_{e,t} + W_{\text{ei}}\, s^e_t)
+& \text{[eq.\ 8]} \\[0.7em]
+\text{(ii)} \quad &
+  g^I_{\text{tot}} = g_L + g^I_e,\quad
+  \tau^I_{\text{eff}} = \frac{C_m}{g^I_{\text{tot}}},\quad
+  V^I_\infty = \frac{g_L E_L + g^I_e E_e}{g^I_{\text{tot}}}
+& \text{[eqs.\ 2, 3, 4]} \\[0.7em]
+\text{(iii)} \quad &
+  V^I_{t+1} = V^I_\infty + (V^I_t - V^I_\infty)\, \exp\!\left(-\Delta t / \tau^I_{\text{eff}}\right)
+& \text{membrane} \\[0.7em]
+\text{(iv)} \quad &
+  s^i_{t+1} = \mathbb{1}[V^I_{t+1} \geq V_{\text{th}}],\quad
+  V^I_{t+1} \leftarrow V_{\text{reset}} \text{ if } s^i_{t+1}=1 \text{ or refractory}
+& \text{spike + reset}
 \end{aligned}
 $$
 
