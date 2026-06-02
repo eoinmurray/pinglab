@@ -202,8 +202,6 @@ The two architectures studied here share the same E population, the same trainab
 
 ### Mean field equations derivation
 
-
-
 ## Results
 
 ## Introductory plots
@@ -226,29 +224,81 @@ Before any training, the architecture's forward dynamics are already qualitative
   Membrane and conductance traces for the most active E and I neuron in Figure 3. $V^E$ (top) is held below threshold by the rhythmic $g^E_i$ bursts; $g^E_e$ is small by comparison. The I neuron's $V^I$ tracks the population E-burst envelope through its $g^I_e$ input and fires once per cycle. This is the PING loop in cross-section — E recruits I, I shunts E, E refires when GABA decays.
 </Figure>
 
+Sweeping the input rate uniformly (no MNIST structure, just spatially uniform Poisson) traces out the population f-I curve for each architecture.
+
+<Figure id="Figure 7" title="Population f-I curves under uniform Poisson input" src="/figures/notebooks/nb038/fi_curve_uniform.png" alt="Four-panel figure. Top row: full input range 0–100 Hz. Top-left (PING): E rate climbs to ≈27 Hz, I rate to ≈125 Hz. Top-right (COBA): E rate climbs to ≈300 Hz at refractory ceiling, I rate flat at zero. Bottom row: 0–10 Hz zoom. Bottom-left (PING): I lifts off zero in a sharp step at ≈1.6–1.8 Hz input. Bottom-right (COBA): smooth E rise, no cliff.">
+  PING (left) and COBA (right), with full input range above and a 0–10 Hz zoom below; from [nb038](/notebooks/nb038/). The cliff at $\approx 1.6$–$1.8$ Hz input is the I-population's recruitment threshold. Below the cliff PING behaves like an unclamped feedforward network; above it, the I-loop locks in and holds E firing roughly 10–14× below COBA across the entire post-engagement range.
+</Figure>
+
 ### Lower rates
 
 Training COBA and COBA-PING side-by-side at matched recipe ($\theta_u = $ off, three seeds, 30 epochs, identical $W_{\text{in}}$ init) lands both models at comparable accuracy but at dramatically different firing rates — the inhibitory loop knocks the mean hidden-E rate down by more than an order of magnitude without paying a meaningful accuracy cost.
 
-<Figure id="Figure 7" title="Accuracy vs mean firing rate" src="/figures/notebooks/nb035/acc_vs_rate.png" alt="Bar chart comparing per-model final test accuracy (solid bars) against mean hidden-E firing rate (hatched bars) at θ_u = off.">
+<Figure id="Figure 8" title="Accuracy vs mean firing rate" src="/figures/notebooks/nb035/acc_vs_rate.png" alt="Bar chart comparing per-model final test accuracy (solid bars) against mean hidden-E firing rate (hatched bars) at θ_u = off.">
   Final test accuracy (solid) and mean hidden-E firing rate (hatched) per model at the unregularised baseline, from [nb035](/notebooks/nb035/). COBA-PING reaches **88.17% at 6.99 Hz**; COBA reaches **87.92% at 87.68 Hz** — comparable accuracy, ≈13× fewer spikes. Means over three seeds.
 </Figure>
 
 The accuracy match isn't a late-training artefact — the loss trajectories track each other across all 30 epochs.
 
-<Figure id="Figure 8" title="Learning curves" src="/figures/notebooks/nb035/learning_curves.png" alt="Train loss (left) and test accuracy (right) per epoch, one curve per model at θ_u = off.">
+<Figure id="Figure 9" title="Learning curves" src="/figures/notebooks/nb035/learning_curves.png" alt="Train loss (left) and test accuracy (right) per epoch, one curve per model at θ_u = off.">
   Per-epoch train loss and test accuracy for each baseline model, averaged over three seeds, from [nb035](/notebooks/nb035/). Both models descend at the same pace and finish within ≈0.5 pp of each other.
 </Figure>
 
 The difference is rate, not accuracy. PING is firing 13× more sparsely while solving the same classification problem to the same accuracy with the same number of trainable parameters.
 
-### Control
+### Spike budget control
 
+Lower rates show PING has the sparse-spike property unprompted; the natural follow-up is whether the explicit *spike-budget penalty* — the upper-bound firing-rate regulariser $s_u \cdot \text{relu}(\langle z_i\rangle - \theta_u)^2$ added to CE loss — can drive COBA into the same regime. Sweeping $\theta_u$ traces a rate–accuracy frontier per model.
 
+<Figure id="Figure 10" title="Accuracy / rate frontier under θ_u sweep" src="/figures/notebooks/nb035/frontier.png" alt="Test accuracy vs hidden-E firing rate, one curve per model, each point one (model, θ_u).">
+  Per-model frontier from [nb035](/notebooks/nb035/). COBA walks from ≈90 Hz down to PING territory under tightening $\theta_u$; PING stays clustered near 5–7 Hz across the same sweep — the architectural floor sits at the frontier's left edge.
+</Figure>
+
+The frontier is independent of the input scale that initialises the network: a sweep across four $W_{\text{in}}$ initialisations all converge to PING-like dynamics within a few epochs.
+
+<Figure id="Figure 11" title="Four W_in initialisations all converge to PING" src="/figures/notebooks/nb035/low_w_in_sweep.png" alt="Two rows by four columns. Each column is one --w-in init (0.05, 0.1, 0.3, 1.2). Top row: per-epoch test accuracy climbs from chance to ~83%. Bottom row: per-epoch test-set E and I firing rates.">
+  Per-epoch accuracy and rates across four $W_{\text{in}}$ initialisations, from [nb035](/notebooks/nb035/). Even when $W_{\text{in}}$ is initialised an order of magnitude below the canonical scale, training pushes the network into the PING basin within 1–2 epochs and the I-loop locks in.
+</Figure>
+
+The role of $W_{\text{ei}}$ and $W_{\text{ie}}$ is asymmetric. Sweeping each independently shows $W_{\text{ei}}$ shifts the recruitment cliff (controls *when* I engages) while $W_{\text{ie}}$ shapes the steady-state firing rate (controls *how hard* I suppresses E once engaged).
+
+<Figure id="Figure 12" title="Recruitment-cliff migration with coupling scale" src="/figures/notebooks/nb036/coupling_sweep.png" alt="Four-panel figure. Left column: vary W^EI scale, W^IE held at 1. Right column: vary W^IE scale, W^EI held at 1. Top row: test accuracy vs W_in scale s. Bottom row: I rate vs s.">
+  From [nb036](/notebooks/nb036/). Left column: $W_{\text{ei}}$ moves the cliff — halving it shifts engagement from $s \approx 0.25$ to $\approx 0.35$. Right column: $W_{\text{ie}}$ does not move the cliff; the four curves overlap until I has fired, then $W_{\text{ie}}$ shapes the steady-state I rate above engagement.
+</Figure>
+
+A 2D grid over $(W_{\text{ei}}, W_{\text{ie}})$ separates the trained solutions into a no-loop COBA band and a PING cluster.
+
+<Figure id="Figure 13" title="2D grid cells in (E rate, accuracy) space" src="/figures/notebooks/nb036/wei_wie_acc_vs_e.png" alt="Scatter of 25 points showing best-epoch accuracy vs hidden E rate, coloured by I rate from purple (I=0) to yellow (I≈22 Hz).">
+  Each point is a $(W_{\text{ei}}, W_{\text{ie}})$ training cell trained at $\theta_u = 0.2$, from [nb036](/notebooks/nb036/). The two regimes separate cleanly: the no-loop (purple, $I = 0$) band sits at 74–78% accuracy / 2–7 Hz E rate; the engaged-loop (green/yellow, $I > 9$ Hz) cluster sits at 82–86% / 2–11 Hz. The PING cluster is the Pareto-improving regime — same E rate range as no-loop, but higher accuracy.
+</Figure>
+
+### COBA → PING I-loop transfer
+
+The I-loop's effect is *architectural*, not learned. Loading a trained COBA network's $W_{\text{in}}$ and $W_{\text{out}}$ into a PING template at inference — without retraining — produces gamma dynamics on the same trained feedforward weights.
+
+<Figure id="Figure 14" title="COBA → PING I-loop transfer at inference" src="/figures/notebooks/nb038/ei_rasters.png" alt="Stacked raster panels showing trained COBA replayed with increasing inference-time ei_strength. At ei = 0 the COBA pattern is asynchronous and dense. At ei ≈ 0.4 the same weights produce gamma cycles.">
+  Trained COBA replayed at six inference-time $s$ values, from [nb038](/notebooks/nb038/). The same feedforward weights that fired asynchronously at 52 Hz without the loop fire in gamma cycles at ≈5 Hz once the loop is wired up at inference — no retraining.
+</Figure>
+
+Accuracy is preserved across the transfer; rate drops monotonically.
+
+<Figure id="Figure 15" title="ei_strength sweep — accuracy" src="/figures/notebooks/nb038/ei_acc_sweep.png" alt="Test accuracy vs inference-time ei_strength on COBA-trained weights, with horizontal lines at the trained COBA baseline and at 10% chance.">
+  Accuracy stays within ≈12 pp of the trained-COBA baseline across the full $s$ range, from [nb038](/notebooks/nb038/). The trained readout tolerates rate compression at inference — the digit signal is encoded in *which* cells fire, not how fast they fire.
+</Figure>
+
+<Figure id="Figure 16" title="ei_strength sweep — E and I rates" src="/figures/notebooks/nb038/ei_rates_sweep.png" alt="Mean E (hidden) and I (inhibitory) population firing rates per test pass versus ei_strength.">
+  E rate falls monotonically from ≈52 Hz ($s = 0$) to ≈5 Hz ($s = 1$); I rate rises from zero to ≈23 Hz. From [nb038](/notebooks/nb038/). The suppression is continuous in the loop strength.
+</Figure>
+
+### Latency to correct answer
+
+The accuracy match in Figure 8 hides a structural difference: PING and COBA reach a confident classification on very different timescales. Plotting accuracy against a running readout time tells one story; plotting it against cumulative spike count tells another.
+
+<Figure id="Figure 17" title="Readout latency — accuracy vs time and vs spike count" src="/figures/notebooks/nb038/latency.png" alt="Two panels. Left: test accuracy vs trial time (ms) — COBA leads early (73.5% at 20 ms vs PING 68.5%), curves cross near 100 ms, PING finishes ahead (85% vs 83%). Right: test accuracy vs cumulative E spikes per sample — PING's curve is dramatically left-shifted, reaching 81% at ≈530 spikes while COBA needs ≈5,700.">
+  From [nb038](/notebooks/nb038/). Left: accuracy vs trial time — COBA's dense asynchronous firing gives a usable readout signal within 20 ms; PING needs ≈10–15 ms for the gamma cycle to self-assemble before the readout sees structured activity. Right: accuracy vs cumulative spike count — PING reaches 81% accuracy at ≈530 E spikes per sample, COBA needs ≈5,700. **PING uses an order of magnitude fewer spikes to deliver the same classification.** Wall-clock latency is comparable; spike-count efficiency is not.
+</Figure>
 
 ### Perturbation
-
-
 
 ### Mean field analysis
 
