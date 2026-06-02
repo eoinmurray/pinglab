@@ -106,12 +106,31 @@ $$
 
 At $s = 0$ both matrices are zero, the loop is open, and the network is feedforward COBA. At $s = 1$ the default initialisation gives $W_{\text{ei}} \approx 1~\mu\text{S}$ and $W_{\text{ie}} \approx 2~\mu\text{S}$, strong enough to sustain the PING rhythm from the first forward pass of training.
 
-For each timestep $t \to t+1$, the simulator applies the four updates above in a fixed order, separately for the E and I populations:
+For each timestep $t \to t+1$, the simulator applies the four updates below in a fixed order, separately for the E and I populations:
 
-1. **Synaptic conductances.** Decay the existing conductances by their per-step factor and add any spike-driven kicks: equations (6), (7), (8). Feedforward input $W_{\text{in}} s^{\text{inp}}_t$ enters $g^E_{e,t+1}$; recurrent I spikes $s^i_t$ enter $g^E_{i,t+1}$ through $W_{\text{ie}}$; recurrent E spikes $s^e_t$ enter $g^I_{e,t+1}$ through $W_{\text{ei}}$.
-2. **Aggregate conductances.** Using the just-updated $g_e$ and $g_i$, form $g_{\text{tot}}$, $\tau_{\text{eff}}$, and $V_\infty$ via equations (2), (3), (4).
-3. **Membrane update.** Integrate the closed-form solution under the zero-order hold: $V_{t+1} = V_\infty + (V_t - V_\infty) \exp(-\Delta t / \tau_{\text{eff}})$.
-4. **Spike emission and reset.** Set $S_{t+1} = \mathbb{1}[V_{t+1} \geq V_{\text{th}}]$ and clamp $V_{t+1} \leftarrow V_{\text{reset}}$ on a fresh spike or while the per-neuron refractory countdown is still active.
+$$
+\begin{aligned}
+\text{(i)} \quad &
+  \begin{cases}
+    g^E_{e,t+1} = \alpha\, g^E_{e,t} + W_{\text{in}}\, s^{\text{inp}}_t \\
+    g^E_{i,t+1} = \gamma\, (g^E_{i,t} + W_{\text{ie}}\, s^i_t) \\
+    g^I_{e,t+1} = \alpha\, (g^I_{e,t} + W_{\text{ei}}\, s^e_t)
+  \end{cases}
+& \text{synaptic conductances [eqs.\ 6, 7, 8]} \\[1em]
+\text{(ii)} \quad &
+  g_{\text{tot}} = g_L + g_e + g_i,\quad
+  \tau_{\text{eff}} = \frac{C_m}{g_{\text{tot}}},\quad
+  V_\infty = \frac{g_L E_L + g_e E_e + g_i E_i}{g_{\text{tot}}}
+& \text{aggregate [eqs.\ 2, 3, 4]} \\[1em]
+\text{(iii)} \quad &
+  V_{t+1} = V_\infty + (V_t - V_\infty)\, \exp\!\left(-\Delta t / \tau_{\text{eff}}\right)
+& \text{membrane (closed-form, ZOH)} \\[1em]
+\text{(iv)} \quad &
+  S_{t+1} = \mathbb{1}[V_{t+1} \geq V_{\text{th}}],\quad
+  V_{t+1} \leftarrow V_{\text{reset}} \text{ if } S_{t+1}=1 \text{ or refractory}
+& \text{spike emission + reset}
+\end{aligned}
+$$
 
 The E and I populations are updated synchronously: at step $t+1$ both read the spike outputs $s^e_t$, $s^i_t$ from step $t$ to drive their conductances, and both emit fresh spikes $s^e_{t+1}$, $s^i_{t+1}$ at the end of the step. Synchronous-step semantics keep the E→I→E gamma cycle phase-locked to the integration grid.
 
