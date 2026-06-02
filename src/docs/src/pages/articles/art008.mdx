@@ -108,6 +108,10 @@ At $s = 0$ both matrices are zero, the loop is open, and the network is feedforw
 
 For each timestep $t \to t+1$, the simulator applies the four updates below in a fixed order. The two populations are updated by the same template but with different driving inputs; they're written out separately here so the recurrent coupling is explicit.
 
+<div class="popout-box">
+
+<div class="popout-title">Per-timestep update</div>
+
 **E neurons** (driven by feedforward input and inhibitory feedback):
 
 $$
@@ -153,6 +157,27 @@ $$
 & \text{spike + reset}
 \end{aligned}
 $$
+
+---
+
+<div class="popout-title">Symbols</div>
+
+- $V^E_t, V^I_t$ — membrane potential of E and I populations at step $t$ (mV)
+- $g^E_e, g^E_i$ — excitatory / inhibitory conductances on E neurons (µS)
+- $g^I_e$ — excitatory conductance on I neurons (µS); I receives no inhibition
+- $g_{\text{tot}}, \tau_{\text{eff}}, V_\infty$ — per-step aggregate conductance, effective membrane time constant, steady-state voltage
+- $C_m$ — membrane capacitance (nF)
+- $g_L, E_L$ — leak conductance and reversal potential
+- $E_e, E_i$ — synaptic reversal potentials (0 mV, −80 mV)
+- $V_{\text{th}}, V_{\text{reset}}$ — spike threshold (−50 mV) and reset voltage (−65 mV)
+- $\tau_{\text{ref}}^e, \tau_{\text{ref}}^i$ — refractory periods (3 ms, 1.5 ms)
+- $\alpha = e^{-\Delta t / \tau_{\text{AMPA}}}$ — per-step AMPA decay factor
+- $\gamma = e^{-\Delta t / \tau_{\text{GABA}}}$ — per-step GABA decay factor
+- $W_{\text{in}}, W_{\text{ei}}, W_{\text{ie}}$ — feedforward, E→I, and I→E weight matrices
+- $s^{\text{inp}}_t, s^e_t, s^i_t$ — input, excitatory, and inhibitory spike trains at step $t$
+- $\Delta t$ — integration timestep
+
+</div>
 
 The E and I populations are updated synchronously: at step $t+1$ both read the spike outputs $s^e_t$, $s^i_t$ from step $t$ to drive their conductances, and both emit fresh spikes $s^e_{t+1}$, $s^i_{t+1}$ at the end of the step. Synchronous-step semantics keep the E→I→E gamma cycle phase-locked to the integration grid.
 

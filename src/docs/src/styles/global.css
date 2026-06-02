@@ -191,3 +191,30 @@
 .katex { font-size: 1em; font-weight: normal; }
 .katex-display { text-align: center; font-weight: normal; }
 .katex-display > .katex { font-size: 1em; }
+
+/* Popout summary box — boxed callout used for algorithmic-summary blocks
+   (e.g. per-timestep update + definitions) inside article entries. */
+.popout-box {
+  background: var(--color-paper-tint);
+  border: 1px solid var(--color-rule);
+  border-radius: 4px;
+  padding: 1.1rem 1.4rem;
+  margin: 1.5rem 0;
+  font-size: 0.95em;
+}
+.popout-box > :first-child { margin-top: 0; }
+.popout-box > :last-child  { margin-bottom: 0; }
+.popout-box .popout-title {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 0.6rem;
+}
+.popout-box hr {
+  border: none;
+  border-top: 1px solid var(--color-rule);
+  margin: 1rem 0;
+}
