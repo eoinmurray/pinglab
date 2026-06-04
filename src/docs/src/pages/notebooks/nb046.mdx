@@ -1,0 +1,81 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "046 — Is there a 1-spike-per-cycle ceiling per E cell?"
+date: 2026-06-04
+entry: 46
+structure: paper
+collection: inhibition-gated-sparsity
+---
+import Figure from "../../components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb046/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+[nb041](/notebooks/nb041/)'s slope $p \approx 0.20$ was interpreted as *"each E cell joins a cycle with ≈ 20% probability"*. That reading assumes the per-cycle spike count is bounded by 1 — an E cell either participates in this cycle or not. This notebook measures that directly: walking through every gamma cycle on the test set and counting how many spikes each E cell actually emits, on all 18 trained checkpoints in nb041's $\tau_\text{GABA}$ sweep.
+
+**Result: across 48 million (cell, cycle) pairs, 99.45% have ≤ 1 spike. The max-rate-vs-$f_\gamma$ ceiling sits at $0.80 \cdot f_\gamma$ with $R^2 = 0.947$ — the architecture imposes a near-strict 1-spike-per-cycle bound, with rare violations at the 0.5% level.**
+
+## Method
+
+For each of nb041's 18 trained cells (6 $\tau_\text{GABA}$ × 3 seeds):
+
+1. Run inference on the MNIST test set; capture per-trial $(T, B, N_E)$ and $(T, B, N_I)$ spike tensors.
+2. Detect I-burst times per trial: smooth the population I rate with a 1-ms Gaussian, run scipy peak detection with min-distance set to half the cell's own $1/f_\gamma$.
+3. Cycle boundaries are the midpoints between consecutive I-burst peaks (first cycle starts at $t = 0$, last ends at trial end).
+4. For each (cell, cycle, trial), count the number of E spikes within the cycle window.
+5. Bucket counts globally into $\{0, 1, 2, \geq 3\}$ and aggregate by $\tau_\text{GABA}$.
+
+The cycle anchor is the I-burst — this is the right anchor because the cycle is operationally defined as *"the time between one inhibitory blanket and the next"*, not as the time between E bursts (which can be silent on a given cycle).
+
+## Results
+
+### Spike count distribution per E cell per gamma cycle
+
+<Figure id="Figure 1" title="P(spikes per E cell per cycle) — by τ_GABA" src="/figures/notebooks/nb046/spikes_per_cycle_distribution.png" alt="Six bar-chart panels, one per τ_GABA value. Each panel shows the fraction of (E cell, gamma cycle) pairs with 0, 1, 2, or ≥3 spikes within the cycle window. Across all six panels: P(0) ≈ 77%, P(1) ≈ 22%, P(2) ≈ 0.5%, P(≥3) ≈ 0.04%. The ≥2 fraction grows mildly with τ_GABA (longer cycles allow more multi-spike events) but stays below 3%.">
+  Distribution of E spike count per gamma cycle per cell, by $\tau_\text{GABA}$, three seeds aggregated. Across **48 million (cell, cycle) pairs**, the architecture is overwhelmingly bimodal: each cell either emits zero spikes in a given cycle (≈ 77% of the time) or exactly one (≈ 22% of the time). Two-or-more events occur in 0.55% of cycles; three-or-more in 0.04%.
+</Figure>
+
+The architectural cap is empirical, not just structural. There is nothing in the LIF equations that strictly forbids a second spike — refractory exhausts in 3 ms while the gamma window between bursts is 18–70 ms, so in principle multiple spikes could fit. But the loop's geometry constrains the actual usable window: the I burst rises sharply, clamps E firmly for most of the cycle, and only the last few ms before the next I-burst onset are de-clamped. Combined with the refractory, this leaves room for one spike per cell per cycle in the typical case.
+
+The mild rise in $P(\geq 2)$ with $\tau_\text{GABA}$ — from 0.10% at $\tau_\text{GABA} = 4.5$ ms to 2.4% at $\tau_\text{GABA} = 27$ ms — is consistent with longer cycle periods allowing some marginal cells to recover from refractory and re-spike before the next I-burst. The ceiling is *almost* hard but not strictly enforced.
+
+### Per-cell ceiling vs gamma frequency
+
+If each cell could fire at most once per cycle, the most-active cell would emit one spike *every* cycle, giving a rate of $f_\gamma$. The maxiest-cell-rate-vs-$f_\gamma$ scatter shows how close the most-excitable cells get to this ceiling, and the median-cell scatter shows the typical participation level.
+
+<Figure id="Figure 2" title="Per-cell rate vs f_γ — max-cell ceiling and median-cell participation" src="/figures/notebooks/nb046/ceiling_vs_fgamma.png" alt="Scatter of per-cell E firing rate (Hz) against measured f_γ (Hz) for 18 trained networks. Triangles mark the maximum-rate cell in each network; circles mark the median cell. The dashed line is y = f_γ (the strict 1-spike-per-cycle ceiling); the dotted line is y = 0.20 · f_γ (nb041's affine slope p). Max-cell points sit close to but consistently below the y = f_γ line; median-cell points sit close to the 0.20 · f_γ line.">
+  Per-cell rate vs measured $f_\gamma$, colour-coded by $\tau_\text{GABA}$. **Max-cell rate sits at $0.80 \cdot f_\gamma$ with $R^2 = 0.947$** — the most-excitable cell in each network participates in roughly 80% of cycles. Median-cell rate sits near $0.20 \cdot f_\gamma$, matching [nb041](/notebooks/nb041/)'s affine slope $p$ — the median cell joins one cycle in five.
+</Figure>
+
+The two lines on this plot deserve attention:
+
+- **$y = f_\gamma$** (dashed): the strict 1-spike-per-cycle ceiling. The max-cell triangles sit at $\approx 0.8 \cdot f_\gamma$ — close to but consistently below the ceiling, because even the most-excitable cell occasionally skips a cycle (e.g. when the input doesn't drive it strongly enough that cycle, or when the previous cycle's refractory extends into the next window).
+- **$y = 0.20 \cdot f_\gamma$** (dotted): [nb041](/notebooks/nb041/)'s affine slope $p$. The median-cell circles cluster around this line — confirming that nb041's $p$ is genuinely the *population-mean participation probability*, not a curve-fit nuisance.
+
+The slope agreement is the structural argument made concrete: the architecture has a per-cell ceiling at $1$ spike/cycle, the maxiest cells get to $\approx 0.8 \cdot f_\gamma$, and population-mean participation lands at $\approx 0.20 \cdot f_\gamma$. The slope $p$ in nb041's law $r_E = a + p \cdot f_\gamma$ is now mechanistically grounded in observed per-cycle counts.
+
+## Discussion
+
+The "≤ 1 spike per E cell per cycle" reading of nb041's affine law is empirically supported. Three observations:
+
+- **The participation gate is Bernoulli, not Poisson.** A Poisson process with mean $\mu = 0.22$ spikes per cycle (matching the observed $P(\geq 1) = 22.7\%$) would predict $P(2) = 2.6\%$ and $P(\geq 3) = 0.2\%$ — roughly 5× the observed multi-spike fractions. The empirical distribution is *narrower* than Poisson, consistent with a hard architectural cap and only rare violations.
+
+- **The slope $p$ is per-cycle participation.** The median cell sits on the $0.20 \cdot f_\gamma$ line; the affine fit's $p = 0.201$ is exactly the population-averaged Bernoulli participation probability. This grounds the slope mechanistically in single-cell behaviour rather than as a phenomenological fit parameter.
+
+- **Cap softens at long $\tau_\text{GABA}$.** At $\tau_\text{GABA} = 27$ ms (cycle period ≈ 70 ms), $P(\geq 2)$ reaches 2.4% — the longer cycle gives refractory cells time to recover and contribute a second spike. The architecture's cap is geometrically determined; very long cycles erode it.
+
+The structural reading of nb041's law that art008 cites — *"each E cell joins each cycle with probability $p$, contributing exactly one spike when it joins"* — is now verified at the spike-resolved level.
+
+## Cortical implication
+
+If cortical pyramidal cells participate in gamma at a similar bounded rate, the prediction is sharp: per-pyramidal spike count per gamma cycle should be ≤ 1 in the overwhelming majority of cycles, with the population-mean participation probability $p \approx 0.1$–$0.2$ predicting both the pyramidal rate and the per-cycle gating. Awake-cortex recordings with spike-resolved pyramidal data and concurrent gamma-band LFP should be able to test this directly.
+
+## Success criteria
+
+- [x] $P(\leq 1)$ aggregated over all 18 cells exceeds 95%: observed **99.45%** ($P(0) = 77.33\%$, $P(1) = 22.12\%$, $P(2) = 0.51\%$, $P(\geq 3) = 0.04\%$ across 48M pairs).
+- [x] Max-cell rate scales linearly with $f_\gamma$ at slope ≤ 1: $0.80 \cdot f_\gamma$, $R^2 = 0.947$.
+- [x] Median-cell rate scales as $p \cdot f_\gamma$ matching nb041's affine slope: median-cell ≈ $0.20 \cdot f_\gamma$, matching $p = 0.201$.
+
+## Next steps
+
+If pursued: spike-count per cell per cycle as a function of cell input strength would let us decompose "participation" into a hit-or-miss gate (Bernoulli) at high drive vs a stochastic-fail (skip) gate at low drive. But the architectural story — "each E cell at most one spike per cycle" — is already closed.
