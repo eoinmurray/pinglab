@@ -13,7 +13,10 @@ type Entry = {
 
 function buildEntries(modules: Record<string, any>): Entry[] {
   return Object.entries(modules).map(([path, mod]) => {
-    const slug = path.split("/").pop()!.replace(/\.mdx$/, "");
+    const slug = path
+      .split("/")
+      .pop()!
+      .replace(/\.mdx$/, "");
     const fm = (mod as any).frontmatter ?? {};
     const c = typeof fm.collection === "string" && fm.collection.length > 0 ? fm.collection : null;
     return {
@@ -121,59 +124,65 @@ const formatDate = (raw: any) => {
       <div class="max-w-[46rem]">
         <div class="flex flex-col gap-12">
           <p class="text-xs uppercase tracking-wider text-muted">
-            Collection / <span class="font-mono normal-case text-ink">{collection}</span>
+            Collection / <span class="text-ink">{collection}</span>
           </p>
-          {articles.length > 0 && (
-            <section>
-              <p class="mb-2 text-xs uppercase tracking-wider text-muted">Articles</p>
-              <ol class="pl-0 list-none m-0 text-[0.95rem]">
-                {articles.map((a) => (
-                  <li class="flex items-baseline gap-3 py-[0.3rem]">
-                    <a
-                      href={`/articles/${a.slug}/`}
-                      class="shrink-0 font-mono tabular-nums text-[0.85rem] text-muted-soft"
-                    >
-                      {a.slug}
-                    </a>
-                    <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
-                      {a.title}
-                    </a>
-                    <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
-                      {formatDate(a.date)}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
+          {
+            articles.length > 0 && (
+              <section>
+                <p class="mb-2 text-xs uppercase tracking-wider text-muted">Articles</p>
+                <ol class="pl-0 list-none m-0 text-[0.95rem]">
+                  {articles.map((a) => (
+                    <li class="flex items-baseline gap-3 py-[0.3rem]">
+                      <a
+                        href={`/articles/${a.slug}/`}
+                        class="shrink-0 font-mono tabular-nums text-[0.85rem] text-muted-soft"
+                      >
+                        {a.slug}
+                      </a>
+                      <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
+                        {a.title}
+                      </a>
+                      <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                        {formatDate(a.date)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )
+          }
 
-          {notebooks.length > 0 && (
-            <section>
-              <p class="mb-2 text-xs uppercase tracking-wider text-muted">Notebooks</p>
-              <ol class="pl-0 list-none m-0 text-[0.95rem]">
-                {notebooks.map((nb) => (
-                  <li class="flex items-baseline gap-3 py-[0.3rem]">
-                    <a
-                      href={`/notebooks/${nb.slug}/`}
-                      class="shrink-0 font-mono tabular-nums text-[0.85rem] text-muted-soft"
-                    >
-                      {nb.slug}
-                    </a>
-                    <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
-                      {nb.title}
-                    </a>
-                    <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
-                      {formatDate(nb.date)}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
+          {
+            notebooks.length > 0 && (
+              <section>
+                <p class="mb-2 text-xs uppercase tracking-wider text-muted">Notebooks</p>
+                <ol class="pl-0 list-none m-0 text-[0.95rem]">
+                  {notebooks.map((nb) => (
+                    <li class="flex items-baseline gap-3 py-[0.3rem]">
+                      <a
+                        href={`/notebooks/${nb.slug}/`}
+                        class="shrink-0 font-mono tabular-nums text-[0.85rem] text-muted-soft"
+                      >
+                        {nb.slug}
+                      </a>
+                      <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
+                        {nb.title}
+                      </a>
+                      <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                        {formatDate(nb.date)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )
+          }
 
-          {articles.length === 0 && notebooks.length === 0 && (
-            <p class="text-sm text-muted">No entries.</p>
-          )}
+          {
+            articles.length === 0 && notebooks.length === 0 && (
+              <p class="text-sm text-muted">No entries.</p>
+            )
+          }
         </div>
       </div>
     </main>

@@ -1,0 +1,39 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "015 — Latency to correct answer"
+date: 2026-06-04
+entry: 15
+structure: paper
+collection: dt-stability
+---
+import Figure from "../../components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb015/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+Third of three Δt-stability notebooks. Asks: *"How quickly does each model class reach the correct answer? At what fraction of the trial does P(correct) plateau?"*
+
+Reads the checkpoints produced by [nb013](/notebooks/nb013/); no retraining.
+
+## Method
+
+For each of the 10 trained networks, run a deterministic test batch forward pass with `recording=True` to capture the per-step output logits. At a grid of trial-time fractions $f \in [0, 1]$, evaluate the model's argmax prediction *as of step $\lfloor f \cdot T_\text{steps} \rfloor$* and compare to the ground-truth label.
+
+Rate-readout models accumulate output spikes from $t = 0$ up to the cut step; LI-readout models take the running max-over-time of the output membrane up to the cut step. The two readout types are plotted in separate rows so the qualitatively different latency profiles read clearly.
+
+## Results
+
+### Latency to correct answer
+
+<Figure id="Figure 1" title="P(correct) vs fraction of trial elapsed" src="/figures/notebooks/nb015/latency_curves.png" alt="P(correct) vs trial-time fraction, rows by readout type (li / rate), columns by training regime, curves by model.">
+  P(correct) vs fraction of trial elapsed, rows by readout type and columns by training regime. The reading: how early in the trial each model class reaches its asymptotic accuracy.
+</Figure>
+
+## Success criteria
+
+- [ ] Every model reaches ≥ 80% of its final accuracy by trial fraction 0.5.
+- [ ] Models that reach final accuracy earlier indicate faster spike-budget efficiency.
+
+## Next steps
+
+If pursued: combine with the per-step firing rate from nb014 to compute spikes-per-decision per architecture, completing the latency vs spike-budget picture across the model ladder.
