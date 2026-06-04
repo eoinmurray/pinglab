@@ -8,19 +8,20 @@ type Entry = {
   entry: number;
   title: string;
   date: any;
-  collections: string[];
+  collection: string | null;
 };
 
 function buildEntries(modules: Record<string, any>): Entry[] {
   return Object.entries(modules).map(([path, mod]) => {
     const slug = path.split("/").pop()!.replace(/\.mdx$/, "");
     const fm = (mod as any).frontmatter ?? {};
+    const c = typeof fm.collection === "string" && fm.collection.length > 0 ? fm.collection : null;
     return {
       slug,
       entry: fm.entry,
       title: String(fm.title ?? slug).replace(/^\d+\s*[—–-]\s*/, ""),
       date: fm.date,
-      collections: Array.isArray(fm.collections) ? fm.collections : [],
+      collection: c,
     };
   });
 }
@@ -31,12 +32,12 @@ export async function getStaticPaths() {
 
   const cs = new Set<string>();
   for (const mod of Object.values(notebookModules)) {
-    const list = (mod as any).frontmatter?.collections;
-    if (Array.isArray(list)) for (const c of list) if (typeof c === "string") cs.add(c);
+    const c = (mod as any).frontmatter?.collection;
+    if (typeof c === "string" && c.length > 0) cs.add(c);
   }
   for (const mod of Object.values(articleModules)) {
-    const list = (mod as any).frontmatter?.collections;
-    if (Array.isArray(list)) for (const c of list) if (typeof c === "string") cs.add(c);
+    const c = (mod as any).frontmatter?.collection;
+    if (typeof c === "string" && c.length > 0) cs.add(c);
   }
 
   return [...cs].map((c) => ({ params: { collection: c } }));
@@ -48,11 +49,11 @@ const notebookModules = import.meta.glob("../notebooks/*.mdx", { eager: true });
 const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
 
 const articles = buildEntries(articleModules)
-  .filter((a) => a.collections.includes(collection!))
+  .filter((a) => a.collection === collection)
   .sort((a, b) => b.entry - a.entry);
 
 const notebooks = buildEntries(notebookModules)
-  .filter((nb) => nb.collections.includes(collection!))
+  .filter((nb) => nb.collection === collection)
   .sort((a, b) => b.entry - a.entry);
 
 const formatDate = (raw: any) => {
@@ -110,16 +111,18 @@ const formatDate = (raw: any) => {
     <div class="fixed top-4 right-4 z-40">
       <ThemeToggle />
     </div>
-    <main class="px-6 pt-16 pb-64 lg:px-12 [&_a]:no-underline! [&_a:hover]:underline!">
-      <div class="max-w-[90rem] mx-auto">
-        <SiteHeader>
-          <span slot="breadcrumb" class="text-sm text-muted-soft">
-            / <a href="/collections/" class="text-muted-soft">collections</a> /
-            <span class="font-mono text-[color:var(--ink)]">{collection}</span>
-          </span>
-        </SiteHeader>
+    <header class="px-6 pt-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[46rem]">
+        <SiteHeader />
+      </div>
+    </header>
 
-        <div class="mt-10 flex flex-col gap-12 max-w-3xl">
+    <main class="px-6 pt-10 pb-48 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[46rem]">
+        <div class="flex flex-col gap-12">
+          <p class="text-xs uppercase tracking-wider text-muted">
+            Collection / <span class="font-mono normal-case text-ink">{collection}</span>
+          </p>
           {articles.length > 0 && (
             <section>
               <p class="mb-2 text-xs uppercase tracking-wider text-muted">Articles</p>
@@ -128,9 +131,9 @@ const formatDate = (raw: any) => {
                   <li class="flex items-baseline gap-3 py-[0.3rem]">
                     <a
                       href={`/articles/${a.slug}/`}
-                      class="w-4 shrink-0 tabular-nums text-muted-soft"
+                      class="shrink-0 font-mono tabular-nums text-[0.85rem] text-muted-soft"
                     >
-                      {String(a.entry).padStart(1, "0")}.
+                      {a.slug}
                     </a>
                     <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
                       {a.title}
@@ -152,9 +155,9 @@ const formatDate = (raw: any) => {
                   <li class="flex items-baseline gap-3 py-[0.3rem]">
                     <a
                       href={`/notebooks/${nb.slug}/`}
-                      class="w-4 shrink-0 tabular-nums text-muted-soft"
+                      class="shrink-0 font-mono tabular-nums text-[0.85rem] text-muted-soft"
                     >
-                      {String(nb.entry).padStart(1, "0")}.
+                      {nb.slug}
                     </a>
                     <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
                       {nb.title}

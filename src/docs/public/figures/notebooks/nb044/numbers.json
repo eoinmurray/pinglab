@@ -1,0 +1,188 @@
+{
+  "notebook_run_id": "r011",
+  "git_sha": "ed141d7 (dirty)",
+  "duration_s": 87.6,
+  "duration": "1m 28s",
+  "tier": "medium",
+  "config": {
+    "tier": "medium",
+    "dataset": "mnist",
+    "dt_sweep_ms": [
+      0.05,
+      0.1,
+      0.25,
+      0.5,
+      1.0
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "batch_size": 64,
+    "max_samples": 2000,
+    "epochs": 100,
+    "t_ms": 200.0
+  },
+  "results": [
+    {
+      "dt_ms": 0.05,
+      "t_ms": 200.0,
+      "acc": 89.75,
+      "e_rate_hz": 9.55086669921875,
+      "i_rate_hz": 46.024853515625,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "dt_ms": 0.05,
+      "t_ms": 200.0,
+      "acc": 89.5,
+      "e_rate_hz": 9.41463623046875,
+      "i_rate_hz": 45.3853515625,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "dt_ms": 0.05,
+      "t_ms": 200.0,
+      "acc": 89.75,
+      "e_rate_hz": 9.44505615234375,
+      "i_rate_hz": 45.832080078125,
+      "n_total": 400,
+      "seed": 44
+    },
+    {
+      "dt_ms": 0.1,
+      "t_ms": 200.0,
+      "acc": 88.25,
+      "e_rate_hz": 9.67532958984375,
+      "i_rate_hz": 43.181689453125,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "dt_ms": 0.1,
+      "t_ms": 200.0,
+      "acc": 88.5,
+      "e_rate_hz": 9.7887939453125,
+      "i_rate_hz": 43.66005859375,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "dt_ms": 0.1,
+      "t_ms": 200.0,
+      "acc": 88.75,
+      "e_rate_hz": 9.686328125,
+      "i_rate_hz": 43.1205078125,
+      "n_total": 400,
+      "seed": 44
+    },
+    {
+      "dt_ms": 0.25,
+      "t_ms": 200.0,
+      "acc": 90.0,
+      "e_rate_hz": 12.97674560546875,
+      "i_rate_hz": 54.73701171875,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "dt_ms": 0.25,
+      "t_ms": 200.0,
+      "acc": 90.75,
+      "e_rate_hz": 13.1457275390625,
+      "i_rate_hz": 55.46884765625,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "dt_ms": 0.25,
+      "t_ms": 200.0,
+      "acc": 89.75,
+      "e_rate_hz": 13.221484375,
+      "i_rate_hz": 55.550048828125,
+      "n_total": 400,
+      "seed": 44
+    },
+    {
+      "dt_ms": 0.5,
+      "t_ms": 200.0,
+      "acc": 90.75,
+      "e_rate_hz": 10.063525390625,
+      "i_rate_hz": 40.228759765625,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "dt_ms": 0.5,
+      "t_ms": 200.0,
+      "acc": 90.25,
+      "e_rate_hz": 10.0582763671875,
+      "i_rate_hz": 40.52568359375,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "dt_ms": 0.5,
+      "t_ms": 200.0,
+      "acc": 91.0,
+      "e_rate_hz": 10.022216796875,
+      "i_rate_hz": 40.330712890625,
+      "n_total": 400,
+      "seed": 44
+    },
+    {
+      "dt_ms": 1.0,
+      "t_ms": 200.0,
+      "acc": 90.25,
+      "e_rate_hz": 12.00047607421875,
+      "i_rate_hz": 40.0234375,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "dt_ms": 1.0,
+      "t_ms": 200.0,
+      "acc": 90.25,
+      "e_rate_hz": 14.3965087890625,
+      "i_rate_hz": 47.677783203125,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "dt_ms": 1.0,
+      "t_ms": 200.0,
+      "acc": 90.5,
+      "e_rate_hz": 15.7320068359375,
+      "i_rate_hz": 52.04248046875,
+      "n_total": 400,
+      "seed": 44
+    }
+  ],
+  "success_criteria": [
+    {
+      "label": "\u0394t-sweep figure rendered",
+      "passed": true,
+      "detail": "dt_sweep.png (54791 bytes)",
+      "detail_href": "/figures/notebooks/nb044/dt_sweep.png"
+    },
+    {
+      "label": "raster strip rendered",
+      "passed": true,
+      "detail": "raster_strip.png (55100 bytes)",
+      "detail_href": "/figures/notebooks/nb044/raster_strip.png"
+    },
+    {
+      "label": "E rate variation across \u0394t sweep \u2264 1 Hz",
+      "passed": false,
+      "detail": "E range = [9.47, 14.04] Hz (span 4.57 Hz)"
+    },
+    {
+      "label": "Accuracy variation across \u0394t sweep \u2264 5 percentage points",
+      "passed": true,
+      "detail": "acc range = [88.50, 90.67]% (span 2.17 pp)"
+    }
+  ]
+}

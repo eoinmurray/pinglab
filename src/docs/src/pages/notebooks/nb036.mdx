@@ -1,10 +1,10 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "036 — Coupling architecture of the recruitment cliff"
+title: "036 — Which E↔I weights set the recruitment threshold"
 date: 2026-05-30
 entry: 36
 structure: paper
-collections: [experiments]
+collection: inhibition-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
@@ -13,7 +13,7 @@ export const numbers = Object.values(
 
 ## Setup
 
-PING and COBA baseline definitions, training recipe, and the spike-budget regulariser are in [nb035](/notebooks/nb035/). The recruitment cliff at $f^\star$ is introduced in [nb035](/notebooks/nb035/). This entry asks: which part of the E↔I coupling architecture controls the cliff's position, and what happens when we train the network from coupling initialisations spanning both sides of it?
+PING and COBA baseline definitions, training recipe, and the spike-budget regulariser are in [nb025](/notebooks/nb025/). The recruitment cliff at $f^\star$ is introduced in [nb025](/notebooks/nb025/). This entry asks: which part of the E↔I coupling architecture controls the cliff's position, and what happens when we train the network from coupling initialisations spanning both sides of it?
 
 ## Coupling sweep: shifting the recruitment cliff
 
@@ -57,10 +57,10 @@ Two clouds separate in this view. **Dark-purple points (I rate ≈ 0)** form a b
 
 The vertical gap between the two clouds is the recruitment cliff measured in accuracy units: ≈4% step (78% top-of-purple to 82.25% bottom-of-PING) that no amount of E-rate adjustment in the failed-recurrence band closes, given equal compute.
 
-Overlaying the COBA and PING $\theta_u$-sweep frontiers ([Figure 5 of nb035](/notebooks/nb035/#the-spike-budget-control)) directly onto the same axes pins where the grid solutions live relative to the two canonical baselines:
+Overlaying the COBA and PING $\theta_u$-sweep frontiers ([Figure 5 of nb025](/notebooks/nb025/#the-spike-budget-control)) directly onto the same axes pins where the grid solutions live relative to the two canonical baselines:
 
 <Figure id="Figure 2c" title="Grid cells with COBA / PING θ_u frontiers superimposed" src="/figures/notebooks/nb036/wei_wie_acc_vs_e_with_frontier.png" alt="Same scatter as Figure 2b (25 grid cells coloured by I rate, accuracy 70-90% on y-axis, E rate on x-axis) with two extra curves overlaid: the COBA θ_u sweep (red squares connected by line) traversing high E rates (~88 Hz at θ_u=off down to ~0 Hz at θ_u=0.2) with accuracy 62-88%; and the PING θ_u sweep (black diamonds) clustered tightly at E rate 3-7 Hz with accuracy 85-89%.">
-  Grid scatter (coloured by I rate) plus the COBA (red squares) and PING (black diamonds) $\theta_u$-sweep frontiers from nb035 Figure 5, connecting each model's $(\theta_u, \text{final acc}, E)$ points. All curves and points trained for 30 epochs. Annotations on the frontier curves mark $\theta_u$ in spikes (or "off"). Note the axes follow the accuracy zoom (70–90%), so COBA's low-rate tail at $\theta_u \in \{0.5, 0.2\}$ drops off the bottom.
+  Grid scatter (coloured by I rate) plus the COBA (red squares) and PING (black diamonds) $\theta_u$-sweep frontiers from nb025 Figure 5, connecting each model's $(\theta_u, \text{final acc}, E)$ points. All curves and points trained for 30 epochs. Annotations on the frontier curves mark $\theta_u$ in spikes (or "off"). Note the axes follow the accuracy zoom (70–90%), so COBA's low-rate tail at $\theta_u \in \{0.5, 0.2\}$ drops off the bottom.
 </Figure>
 
 The PING frontier sits *above* the green/yellow grid cluster — the $(\theta_u$-swept$)$ PING baseline reaches 85–89% accuracy at E rates 3–7 Hz, higher than the grid's PING cluster (82–85.5%). This is because the canonical PING recipe uses $W_\text{in} = 1.2$ but the grid was trained with $W_\text{in} = 0.6$ (chosen to give no-loop cells a fair shot at converging), which costs a few accuracy points even at the recipe baseline coupling. The PING frontier also never leaves the active-loop regime even when the budget is squeezed all the way to 0.2 spikes — no $\theta_u$ value can push PING into the dark-purple band, because the loop sets a structural minimum on E rate. The grid scatter shows that the *only* way to reach that band is to start training from a $(W^{EI}, W^{IE})$ init that prevents the loop from engaging in the first place — a structural rather than penalty-driven escape.

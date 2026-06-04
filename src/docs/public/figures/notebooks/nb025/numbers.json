@@ -1,0 +1,876 @@
+{
+  "notebook_run_id": "r003",
+  "git_sha": "ed141d7 (dirty)",
+  "duration_s": 196.3,
+  "duration": "3m 16s",
+  "tier": "medium",
+  "config": {
+    "tier": "medium",
+    "dataset": "mnist",
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "theta_u_grid_spikes": [
+      5.0,
+      2.0,
+      1.0,
+      0.5,
+      0.2
+    ],
+    "theta_u_grid_hz": [
+      25.0,
+      10.0,
+      5.0,
+      2.5,
+      1.0
+    ],
+    "max_samples": 2000,
+    "epochs": 100,
+    "t_ms": 200.0,
+    "dt": 0.1,
+    "seeds_baseline": [
+      42,
+      43,
+      44
+    ],
+    "seed_sweep": 42,
+    "fr_strength_upper": 0.001
+  },
+  "results": [
+    {
+      "model": "coba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 42,
+      "best_acc": 89.75,
+      "best_epoch": 87,
+      "final_acc": 89.75,
+      "rate_e": 96.32703399658203
+    },
+    {
+      "model": "coba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 43,
+      "best_acc": 90.25,
+      "best_epoch": 82,
+      "final_acc": 89.75,
+      "rate_e": 96.96722412109375
+    },
+    {
+      "model": "coba",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 44,
+      "best_acc": 90.5,
+      "best_epoch": 99,
+      "final_acc": 90.5,
+      "rate_e": 96.37586212158203
+    },
+    {
+      "model": "coba",
+      "theta_u": 5.0,
+      "theta_display": "5",
+      "theta_u_hz": 25.0,
+      "seed": 42,
+      "best_acc": 81.25,
+      "best_epoch": 99,
+      "final_acc": 81.0,
+      "rate_e": 26.98025131225586
+    },
+    {
+      "model": "coba",
+      "theta_u": 2.0,
+      "theta_display": "2",
+      "theta_u_hz": 10.0,
+      "seed": 42,
+      "best_acc": 75.0,
+      "best_epoch": 91,
+      "final_acc": 73.5,
+      "rate_e": 7.70399284362793
+    },
+    {
+      "model": "coba",
+      "theta_u": 1.0,
+      "theta_display": "1",
+      "theta_u_hz": 5.0,
+      "seed": 42,
+      "best_acc": 72.75,
+      "best_epoch": 9,
+      "final_acc": 65.0,
+      "rate_e": 1.4105901718139648
+    },
+    {
+      "model": "coba",
+      "theta_u": 0.5,
+      "theta_display": "0.5",
+      "theta_u_hz": 2.5,
+      "seed": 42,
+      "best_acc": 68.0,
+      "best_epoch": 9,
+      "final_acc": 63.0,
+      "rate_e": 0.0922309011220932
+    },
+    {
+      "model": "coba",
+      "theta_u": 0.2,
+      "theta_display": "0.2",
+      "theta_u_hz": 1.0,
+      "seed": 42,
+      "best_acc": 62.25,
+      "best_epoch": 10,
+      "final_acc": 54.25,
+      "rate_e": 0.0
+    },
+    {
+      "model": "ping",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 42,
+      "best_acc": 89.5,
+      "best_epoch": 64,
+      "final_acc": 88.25,
+      "rate_e": 9.85243034362793
+    },
+    {
+      "model": "ping",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 43,
+      "best_acc": 89.25,
+      "best_epoch": 33,
+      "final_acc": 87.25,
+      "rate_e": 10.81814193725586
+    },
+    {
+      "model": "ping",
+      "theta_u": null,
+      "theta_display": "off",
+      "theta_u_hz": null,
+      "seed": 44,
+      "best_acc": 89.25,
+      "best_epoch": 24,
+      "final_acc": 88.0,
+      "rate_e": 9.944661140441895
+    },
+    {
+      "model": "ping",
+      "theta_u": 5.0,
+      "theta_display": "5",
+      "theta_u_hz": 25.0,
+      "seed": 42,
+      "best_acc": 89.75,
+      "best_epoch": 87,
+      "final_acc": 87.5,
+      "rate_e": 9.830728530883789
+    },
+    {
+      "model": "ping",
+      "theta_u": 2.0,
+      "theta_display": "2",
+      "theta_u_hz": 10.0,
+      "seed": 42,
+      "best_acc": 89.25,
+      "best_epoch": 32,
+      "final_acc": 87.25,
+      "rate_e": 7.7962236404418945
+    },
+    {
+      "model": "ping",
+      "theta_u": 1.0,
+      "theta_display": "1",
+      "theta_u_hz": 5.0,
+      "seed": 42,
+      "best_acc": 88.0,
+      "best_epoch": 87,
+      "final_acc": 87.75,
+      "rate_e": 4.92078971862793
+    },
+    {
+      "model": "ping",
+      "theta_u": 0.5,
+      "theta_display": "0.5",
+      "theta_u_hz": 2.5,
+      "seed": 42,
+      "best_acc": 87.75,
+      "best_epoch": 22,
+      "final_acc": 85.5,
+      "rate_e": 3.7326388359069824
+    },
+    {
+      "model": "ping",
+      "theta_u": 0.2,
+      "theta_display": "0.2",
+      "theta_u_hz": 1.0,
+      "seed": 42,
+      "best_acc": 86.25,
+      "best_epoch": 92,
+      "final_acc": 84.5,
+      "rate_e": 5.16493034362793
+    }
+  ],
+  "low_w_in_sweep": [
+    {
+      "w_in": 0.05,
+      "best_acc": 85.75,
+      "best_epoch": 28,
+      "final_acc": 84.0,
+      "rate_e": 3.228081464767456,
+      "rate_i": 11.11111068725586
+    },
+    {
+      "w_in": 0.1,
+      "best_acc": 85.25,
+      "best_epoch": 45,
+      "final_acc": 84.5,
+      "rate_e": 2.891710042953491,
+      "rate_i": 15.473089218139648
+    },
+    {
+      "w_in": 0.3,
+      "best_acc": 85.25,
+      "best_epoch": 15,
+      "final_acc": 85.0,
+      "rate_e": 4.703775882720947,
+      "rate_i": 6.92274284362793
+    },
+    {
+      "w_in": 1.2,
+      "best_acc": 86.0,
+      "best_epoch": 39,
+      "final_acc": 83.75,
+      "rate_e": 3.5481770038604736,
+      "rate_i": 16.66666603088379
+    }
+  ],
+  "w_in_scale_sweep": [
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.05,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.1,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.15,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.2,
+      "loss": 2.3025843620300295,
+      "penalty": 0.0,
+      "total_loss": 2.3025843620300295,
+      "acc": 9.5,
+      "rate_e": 4.8828125e-05,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.25,
+      "loss": 2.302106761932373,
+      "penalty": 0.0,
+      "total_loss": 2.302106761932373,
+      "acc": 9.75,
+      "rate_e": 0.001416015625,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.3,
+      "loss": 2.295563039779663,
+      "penalty": 0.0,
+      "total_loss": 2.295563039779663,
+      "acc": 15.75,
+      "rate_e": 0.01368408203125,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.35,
+      "loss": 2.261462163925171,
+      "penalty": 0.0,
+      "total_loss": 2.261462163925171,
+      "acc": 27.0,
+      "rate_e": 0.0656494140625,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.4,
+      "loss": 2.1748500061035156,
+      "penalty": 0.0,
+      "total_loss": 2.1748500061035156,
+      "acc": 37.25,
+      "rate_e": 0.1969482421875,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.45,
+      "loss": 2.028671998977661,
+      "penalty": 0.00011938747763633729,
+      "total_loss": 2.0287913864552976,
+      "acc": 55.5,
+      "rate_e": 0.44967041015625,
+      "rate_i": 0.0375
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.5,
+      "loss": 1.8240639543533326,
+      "penalty": 0.0017626686096191408,
+      "total_loss": 1.8258266229629516,
+      "acc": 63.75,
+      "rate_e": 0.8051513671875,
+      "rate_i": 0.209375
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.55,
+      "loss": 1.5795602798461914,
+      "penalty": 0.010061924934387208,
+      "total_loss": 1.5896222047805786,
+      "acc": 70.75,
+      "rate_e": 1.25169677734375,
+      "rate_i": 0.482763671875
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.6,
+      "loss": 1.3345130729675292,
+      "penalty": 0.032051651000976566,
+      "total_loss": 1.3665647239685057,
+      "acc": 74.75,
+      "rate_e": 1.73572998046875,
+      "rate_i": 1.149072265625
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.65,
+      "loss": 1.119835271835327,
+      "penalty": 0.07162628173828126,
+      "total_loss": 1.1914615535736084,
+      "acc": 79.0,
+      "rate_e": 2.22176513671875,
+      "rate_i": 1.913232421875
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.7,
+      "loss": 0.9446974563598632,
+      "penalty": 0.11797023010253907,
+      "total_loss": 1.0626676864624023,
+      "acc": 80.75,
+      "rate_e": 2.627587890625,
+      "rate_i": 2.798486328125
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.8,
+      "loss": 0.7294445061683654,
+      "penalty": 0.21508615112304688,
+      "total_loss": 0.9445306572914123,
+      "acc": 81.25,
+      "rate_e": 3.24869384765625,
+      "rate_i": 5.07421875
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 0.9,
+      "loss": 0.6099678993225097,
+      "penalty": 0.2898648071289063,
+      "total_loss": 0.899832706451416,
+      "acc": 82.0,
+      "rate_e": 3.622607421875,
+      "rate_i": 7.50732421875
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 1.0,
+      "loss": 0.5718932914733886,
+      "penalty": 0.3472742919921875,
+      "total_loss": 0.9191675834655761,
+      "acc": 82.75,
+      "rate_e": 3.87353515625,
+      "rate_i": 9.669482421875
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 1.15,
+      "loss": 0.5311134672164917,
+      "penalty": 0.3772177734375,
+      "total_loss": 0.9083312406539916,
+      "acc": 83.25,
+      "rate_e": 3.99490966796875,
+      "rate_i": 12.875830078125
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 1.3,
+      "loss": 0.5016767370700836,
+      "penalty": 0.4103541870117188,
+      "total_loss": 0.9120309240818024,
+      "acc": 83.5,
+      "rate_e": 4.12352294921875,
+      "rate_i": 15.215185546875
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 1.5,
+      "loss": 0.5159683990478515,
+      "penalty": 0.4489813537597656,
+      "total_loss": 0.9649497528076172,
+      "acc": 82.5,
+      "rate_e": 4.2684814453125,
+      "rate_i": 17.712548828125
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 1.75,
+      "loss": 0.5169942498207092,
+      "penalty": 0.5197786865234375,
+      "total_loss": 1.0367729363441467,
+      "acc": 84.0,
+      "rate_e": 4.51690673828125,
+      "rate_i": 20.312890625
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 2.0,
+      "loss": 0.5065756988525391,
+      "penalty": 0.5896124267578126,
+      "total_loss": 1.0961881256103516,
+      "acc": 83.25,
+      "rate_e": 4.75206298828125,
+      "rate_i": 22.259033203125
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 2.5,
+      "loss": 0.5033805382251739,
+      "penalty": 0.763053466796875,
+      "total_loss": 1.2664340050220488,
+      "acc": 84.25,
+      "rate_e": 5.274560546875,
+      "rate_i": 25.6375
+    },
+    {
+      "cell": "ping@tu0.2",
+      "scale": 3.0,
+      "loss": 0.5472033476829529,
+      "penalty": 0.9359573974609375,
+      "total_loss": 1.4831607451438904,
+      "acc": 81.25,
+      "rate_e": 5.7396484375,
+      "rate_i": 28.117236328125
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.05,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.1,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.15,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.2,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.25,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.3,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.35,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.4,
+      "loss": 2.3025851249694824,
+      "penalty": 0.0,
+      "total_loss": 2.3025851249694824,
+      "acc": 9.5,
+      "rate_e": 0.0,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.45,
+      "loss": 2.302547435760498,
+      "penalty": 0.0,
+      "total_loss": 2.302547435760498,
+      "acc": 10.25,
+      "rate_e": 0.00010986328125,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.5,
+      "loss": 2.302491798400879,
+      "penalty": 0.0,
+      "total_loss": 2.302491798400879,
+      "acc": 10.0,
+      "rate_e": 0.0017333984375,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.55,
+      "loss": 2.301793308258057,
+      "penalty": 0.0,
+      "total_loss": 2.301793308258057,
+      "acc": 12.25,
+      "rate_e": 0.00897216796875,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.6,
+      "loss": 2.299919776916504,
+      "penalty": 0.0,
+      "total_loss": 2.299919776916504,
+      "acc": 17.75,
+      "rate_e": 0.02574462890625,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.65,
+      "loss": 2.297512149810791,
+      "penalty": 0.0,
+      "total_loss": 2.297512149810791,
+      "acc": 23.5,
+      "rate_e": 0.05877685546875,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.7,
+      "loss": 2.293304233551025,
+      "penalty": 0.0,
+      "total_loss": 2.293304233551025,
+      "acc": 31.0,
+      "rate_e": 0.11505126953125,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.8,
+      "loss": 2.277964220046997,
+      "penalty": 0.0,
+      "total_loss": 2.277964220046997,
+      "acc": 41.0,
+      "rate_e": 0.31883544921875,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 0.9,
+      "loss": 2.25718318939209,
+      "penalty": 8.493749424815179e-06,
+      "total_loss": 2.2571916831415146,
+      "acc": 49.25,
+      "rate_e": 0.6632568359375,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 1.0,
+      "loss": 2.2233337593078613,
+      "penalty": 0.0028416309356689455,
+      "total_loss": 2.2261753902435304,
+      "acc": 60.5,
+      "rate_e": 1.15133056640625,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 1.15,
+      "loss": 2.1636951065063474,
+      "penalty": 0.05927701950073242,
+      "total_loss": 2.22297212600708,
+      "acc": 64.25,
+      "rate_e": 2.130419921875,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 1.3,
+      "loss": 2.094003372192383,
+      "penalty": 0.2512227020263672,
+      "total_loss": 2.34522607421875,
+      "acc": 66.75,
+      "rate_e": 3.36788330078125,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 1.5,
+      "loss": 1.9880141401290894,
+      "penalty": 0.839813720703125,
+      "total_loss": 2.8278278608322145,
+      "acc": 68.25,
+      "rate_e": 5.3348876953125,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 1.75,
+      "loss": 1.8487237787246704,
+      "penalty": 2.292711181640625,
+      "total_loss": 4.141434960365295,
+      "acc": 67.25,
+      "rate_e": 8.15023193359375,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 2.0,
+      "loss": 1.7024526166915894,
+      "penalty": 4.68288916015625,
+      "total_loss": 6.38534177684784,
+      "acc": 68.0,
+      "rate_e": 11.2171875,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 2.5,
+      "loss": 1.425426721572876,
+      "penalty": 12.443091796875,
+      "total_loss": 13.868518518447877,
+      "acc": 71.0,
+      "rate_e": 17.68446044921875,
+      "rate_i": 0.0
+    },
+    {
+      "cell": "coba@tu0.2",
+      "scale": 3.0,
+      "loss": 1.2139923858642578,
+      "penalty": 23.9353671875,
+      "total_loss": 25.149359573364258,
+      "acc": 71.25,
+      "rate_e": 24.2063232421875,
+      "rate_i": 0.0
+    }
+  ],
+  "success_criteria": [
+    {
+      "label": "bar chart rendered",
+      "passed": true,
+      "detail": "acc_vs_rate.png (56982 bytes)",
+      "detail_href": "/figures/notebooks/nb035/acc_vs_rate.png"
+    },
+    {
+      "label": "learning curves rendered",
+      "passed": true,
+      "detail": "learning_curves.png (70078 bytes)",
+      "detail_href": "/figures/notebooks/nb035/learning_curves.png"
+    },
+    {
+      "label": "frontier rendered",
+      "passed": true,
+      "detail": "frontier.png (45264 bytes)",
+      "detail_href": "/figures/notebooks/nb035/frontier.png"
+    },
+    {
+      "label": "low-w_in sweep rendered",
+      "passed": true,
+      "detail": "low_w_in_sweep.png (74785 bytes)",
+      "detail_href": "/figures/notebooks/nb035/low_w_in_sweep.png"
+    },
+    {
+      "label": "W_in scale sweep rendered",
+      "passed": true,
+      "detail": "w_in_scale_sweep.png (167895 bytes)",
+      "detail_href": "/figures/notebooks/nb035/w_in_scale_sweep.png"
+    },
+    {
+      "label": "W_in scale sweep vs E rate rendered",
+      "passed": true,
+      "detail": "w_in_scale_sweep_vs_rate.png (154370 bytes)",
+      "detail_href": "/figures/notebooks/nb035/w_in_scale_sweep_vs_rate.png"
+    },
+    {
+      "label": "coba raster rendered",
+      "passed": true,
+      "detail": "raster__coba.png (180003 bytes)",
+      "detail_href": "/figures/notebooks/nb035/raster__coba.png"
+    },
+    {
+      "label": "ping raster rendered",
+      "passed": true,
+      "detail": "raster__ping.png (64903 bytes)",
+      "detail_href": "/figures/notebooks/nb035/raster__ping.png"
+    },
+    {
+      "label": "coba \u03b8_u=off: training video",
+      "passed": true,
+      "detail": "training__coba__off.mp4 (3661575 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__coba__off.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=5: training video",
+      "passed": true,
+      "detail": "training__coba__tu5.mp4 (1872413 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__coba__tu5.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=2: training video",
+      "passed": true,
+      "detail": "training__coba__tu2.mp4 (1008559 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__coba__tu2.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=1: training video",
+      "passed": true,
+      "detail": "training__coba__tu1.mp4 (611801 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__coba__tu1.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=0.5: training video",
+      "passed": true,
+      "detail": "training__coba__tu0p5.mp4 (427680 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__coba__tu0p5.mp4"
+    },
+    {
+      "label": "coba \u03b8_u=0.2: training video",
+      "passed": true,
+      "detail": "training__coba__tu0p2.mp4 (203953 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__coba__tu0p2.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=off: training video",
+      "passed": true,
+      "detail": "training__ping__off.mp4 (776285 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__ping__off.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=5: training video",
+      "passed": true,
+      "detail": "training__ping__tu5.mp4 (786225 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__ping__tu5.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=2: training video",
+      "passed": true,
+      "detail": "training__ping__tu2.mp4 (728403 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__ping__tu2.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=1: training video",
+      "passed": true,
+      "detail": "training__ping__tu1.mp4 (533267 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__ping__tu1.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=0.5: training video",
+      "passed": true,
+      "detail": "training__ping__tu0p5.mp4 (681832 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__ping__tu0p5.mp4"
+    },
+    {
+      "label": "ping \u03b8_u=0.2: training video",
+      "passed": true,
+      "detail": "training__ping__tu0p2.mp4 (665927 bytes)",
+      "detail_href": "/figures/notebooks/nb035/training__ping__tu0p2.mp4"
+    },
+    {
+      "label": "coba baseline acc \u2265 50% (medium floor)",
+      "passed": true,
+      "detail": "coba=89.75%"
+    },
+    {
+      "label": "ping baseline acc \u2265 50% (medium floor)",
+      "passed": true,
+      "detail": "ping=89.50%"
+    },
+    {
+      "label": "coba rate non-increasing as \u03b8_u tightens (\u00b11 Hz)",
+      "passed": true,
+      "detail": "rates(loose\u2192tight): 27.0, 7.7, 1.4, 0.1, 0.0"
+    },
+    {
+      "label": "ping rate non-increasing as \u03b8_u tightens (\u00b11 Hz)",
+      "passed": false,
+      "detail": "rates(loose\u2192tight): 9.8, 7.8, 4.9, 3.7, 5.2"
+    }
+  ]
+}

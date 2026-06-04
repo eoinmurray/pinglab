@@ -1,10 +1,10 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "033 — Wilson-Cowan mean-field bifurcation analysis of PING"
+title: "033 — Mean-field PING: 4D bifurcations and the 2D-cubic dead end"
 date: 2026-05-28
 entry: 33
 structure: paper
-collections: [theory]
+collection: inhibition-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
@@ -13,7 +13,7 @@ export const numbers = Object.values(
 
 ## Introduction
 
-[nb035](/notebooks/nb035/) characterised the PING rate floor empirically: a recruitment cliff where the I-loop engages, gamma at ≈25 Hz, $W^{EI}$ moves the cliff and $W^{IE}$ does not. Both phenomena are bifurcation behaviours; the natural framework is Wilson-Cowan mean-field. The goal here is to derive the recruitment threshold $I_\text{ext}^\star$ and oscillation frequency $\omega^\star$ from the equations alone and check whether they match the spiking simulations.
+[nb025](/notebooks/nb025/) characterised the PING rate floor empirically: a recruitment cliff where the I-loop engages, gamma at ≈25 Hz, $W^{EI}$ moves the cliff and $W^{IE}$ does not. Both phenomena are bifurcation behaviours; the natural framework is Wilson-Cowan mean-field. The goal here is to derive the recruitment threshold $I_\text{ext}^\star$ and oscillation frequency $\omega^\star$ from the equations alone and check whether they match the spiking simulations.
 
 ## Method
 
@@ -82,7 +82,7 @@ $$
 \mathrm{tr}(J_\text{2D}) = -\frac{1}{\tau_E} - \frac{1}{\tau_I}
 $$
 
-— constant in $I_\text{ext}$ and strictly negative. Hopf requires $\mathrm{tr}(J) = 0$, so **the 2D reduction with $W^{EE} = W^{II} = 0$ cannot oscillate**. Canonical Wilson-Cowan works around this with non-zero $c_1$ (E→E self-excitation), which puts a positive term on the diagonal and lets the trace cross zero. Our architecture sets $W^{EE} = 0$ by construction. An alternative 2D route — adding a cubic $-\beta E^3$ self-feedback term à la FitzHugh-Nagumo — is explored in [nb034](/notebooks/nb034/) and also fails for our parameters. The 4D system is the right reduction.
+— constant in $I_\text{ext}$ and strictly negative. Hopf requires $\mathrm{tr}(J) = 0$, so **the 2D reduction with $W^{EE} = W^{II} = 0$ cannot oscillate**. Canonical Wilson-Cowan works around this with non-zero $c_1$ (E→E self-excitation), which puts a positive term on the diagonal and lets the trace cross zero. Our architecture sets $W^{EE} = 0$ by construction. An alternative 2D route — adding a cubic $-\beta E^3$ self-feedback term à la FitzHugh-Nagumo — is derived and tested in the *"2D-cubic dead end"* section below; it also fails. The 4D system is the right reduction.
 
 ### 4D Jacobian and Hopf criterion
 
@@ -108,7 +108,7 @@ Two qualitative types, distinguished by the sign of the first Lyapunov coefficie
 - **Supercritical** ($\ell_1 < 0$): stable limit cycle emerges smoothly past the bifurcation, $A \propto \sqrt{I_\text{ext} - I_\text{ext}^\star}$, no hysteresis.
 - **Subcritical** ($\ell_1 > 0$): amplitude jumps discontinuously, hysteresis on reverse sweep.
 
-The numerics use direct integration to determine criticality: simulate the 4D ODE at a sequence of $I_\text{ext}$ values around $I_\text{ext}^\star$, measure asymptotic amplitude, check whether $A^2$ is linear in $(I_\text{ext} - I_\text{ext}^\star)$. nb038's Figure 3 zoom (smooth I-rate onset) and nb035 Figure 6 (no hysteresis) both predict supercritical.
+The numerics use direct integration to determine criticality: simulate the 4D ODE at a sequence of $I_\text{ext}$ values around $I_\text{ext}^\star$, measure asymptotic amplitude, check whether $A^2$ is linear in $(I_\text{ext} - I_\text{ext}^\star)$. nb038's Figure 3 zoom (smooth I-rate onset) and nb025 Figure 6 (no hysteresis) both predict supercritical.
 
 ### Caveats
 
@@ -124,15 +124,15 @@ The numerics use direct integration to determine criticality: simulate the 4D OD
   Real parts of the Jacobian eigenvalues vs external drive. Complex pairs in red, real in black. A complex pair crosses the imaginary axis at $I_\text{ext}^\star = 1.30$, predicted gamma $f^\star = 24.5$ Hz.
 </Figure>
 
-**Hopf at $I_\text{ext}^\star = 1.30$, $f^\star = 24.5$ Hz**. This matches the trained-PING measured gamma in [nb035](/notebooks/nb035/) (≈25 Hz from spike autocorrelation), with no free parameters once gain shapes are chosen.
+**Hopf at $I_\text{ext}^\star = 1.30$, $f^\star = 24.5$ Hz**. This matches the trained-PING measured gamma in [nb025](/notebooks/nb025/) (≈25 Hz from spike autocorrelation), with no free parameters once gain shapes are chosen.
 
 <Figure id="Figure 2" title="Hopf criticality by direct simulation" src="/figures/notebooks/nb033/criticality.png" alt="Two panels. Left: E oscillation amplitude (peak-to-peak) vs I_ext for the 4D system. Amplitude rises smoothly from zero starting at I_ext = 1.3. Right: amplitude squared vs (I_ext - I_ext*). Approximately linear positive slope, confirming sqrt-onset signature of supercritical Hopf.">
   Direct ODE integration around $I_\text{ext}^\star = 1.30$. Left: asymptotic peak-to-peak amplitude of $E$ vs $I_\text{ext}$. Right: $A^2$ vs $(I_\text{ext} - I_\text{ext}^\star)$ — linear trend confirms $\sqrt{}$-onset signature of supercritical Hopf.
 </Figure>
 
-The amplitude grows smoothly from zero past the bifurcation. The Hopf is **supercritical**, consistent with the smooth I-rate lift-off in nb038 Figure 3 and the hysteresis-free convergence in nb035 Figure 6.
+The amplitude grows smoothly from zero past the bifurcation. The Hopf is **supercritical**, consistent with the smooth I-rate lift-off in nb038 Figure 3 and the hysteresis-free convergence in nb025 Figure 6.
 
-| Quantity | Mean-field prediction | nb035 empirical |
+| Quantity | Mean-field prediction | nb025 empirical |
 |---|---|---|
 | Gamma frequency at onset | 24.5 Hz | ≈25 Hz (autocorrelation) |
 | Criticality | supercritical | supercritical (Figs 19, 6) |
@@ -140,6 +140,86 @@ The amplitude grows smoothly from zero past the bifurcation. The Hopf is **super
 | $W^{IE}$ dependence | enters as $W^{EI} W^{IE}$ product | $s^\star$ $W^{IE}$-invariant in Fig 10 |
 
 The $W^{IE}$-invariance match has the same mechanism in both pictures: at the silent fixed point $\Phi'_I(g_e^{I\star})$ is small, so the loop gain $\Phi'_E \Phi'_I W^{EI} W^{IE}$ is dominated by $W^{EI}$ until past engagement.
+
+## The 2D-cubic dead end
+
+A natural follow-up question (raised by Tim) is whether the missing positive linear feedback can be put back by an explicit cubic self-suppression in $E$, à la FitzHugh-Nagumo. The derivation below shows the cubic cannot save us — *it stabilises amplitude but does not destabilise the fixed point*. The merged figure below confirms it numerically with the same parameters as the 4D analysis above.
+
+### Derivation
+
+Start from the 2D Wilson-Cowan equations without self-coupling:
+
+$$
+\tau_E\,\dot E = -E + \Phi_E\!\left(I_\text{ext} - W^{IE} I\right) \tag{6a}
+$$
+
+$$
+\tau_I\,\dot I = -I + \Phi_I\!\left(W^{EI} E\right) \tag{6b}
+$$
+
+with sigmoid gains $\Phi_{E,I}(x) = r_\text{max}/(1 + e^{-(x-\theta)/k})$. Two reductions get us to a polynomial system.
+
+**Step 1 — Taylor-expand $\Phi_E$ at its inflection.** Let $u = I_\text{ext} - W^{IE} I - \theta_E$ be the drive offset. Sigmoids are odd around the inflection, so even-order terms vanish:
+
+$$
+\Phi_E(\theta_E + u) = \Phi_E(\theta_E) + a\,u + \tfrac{1}{6} b\,u^3 + O(u^5) \tag{7}
+$$
+
+with $a = \Phi'_E(\theta_E) = r_\text{max}/(4 k_E) > 0$ and $b = \Phi'''_E(\theta_E) < 0$.
+
+**Step 2 — Linearise $\Phi_I$** around the silent state: $\Phi_I(W^{EI} E) \approx \Phi'_I(0)\,W^{EI}\,E$.
+
+**Step 3 — Express the cubic in $E$ rather than $u$.** At leading order the linearised $E$ dynamics give $E^\star \approx a\,u$ at any quasi-steady drive, so $u \approx E/a$. Substituting back into the cubic term, $\tfrac{1}{6} b\,u^3 \to (b/6 a^3)\,E^3 \equiv -\beta\,E^3$ with $\beta \equiv -b/(6 a^3) > 0$.
+
+Folding constants into $I_\text{ext}$ and writing $\alpha \equiv a$, $\gamma \equiv a\,W^{IE}$, $\delta \equiv \Phi'_I(0)\,W^{EI}$ leaves the FitzHugh-Nagumo system:
+
+$$
+\tau_E\,\dot E = -E + \alpha\,E - \beta\,E^3 - \gamma\,I + \alpha\,I_\text{ext} \tag{8a}
+$$
+
+$$
+\tau_I\,\dot I = -I + \delta\,E \tag{8b}
+$$
+
+### Why the cubic cannot save us
+
+The Jacobian of (8) at a fixed point $E^\star$ is
+
+$$
+J = \begin{pmatrix} (-1 + \alpha - 3\beta (E^\star)^2)/\tau_E & -\gamma/\tau_E \\ \delta/\tau_I & -1/\tau_I \end{pmatrix}, \tag{9}
+$$
+
+and a Hopf requires $\text{tr}(J)$ to cross zero. Rearranging $\text{tr}(J) = 0$:
+
+$$
+\alpha - 3\beta (E^\star)^2 = 1 + \tau_E/\tau_I. \tag{10}
+$$
+
+The left-hand side is maximised at $E^\star = 0$ where it equals $\alpha$. The right-hand side is bounded below by 1. So a necessary condition for *any* fixed point to lose stability is
+
+$$
+\boxed{\;\alpha > 1 + \tau_E/\tau_I.\;} \tag{11}
+$$
+
+The cubic enters only through the $-3\beta (E^\star)^2$ term, which *lowers* the left-hand side. It can stabilise an already-destabilised fixed point at finite amplitude (the saturating self-suppression that fixes the limit-cycle radius in a supercritical Hopf), but it cannot raise $\alpha$ past the threshold. Linear destabilisation must come from elsewhere.
+
+The parameters are inherited from the 4D analysis above, so the comparison is on equal footing. Plugging in:
+
+$$
+\alpha = \frac{r_\text{max}}{4 k_E} = \frac{0.2}{4 \cdot 0.2} = 0.25, \qquad 1 + \tau_E/\tau_I = 5.
+$$
+
+We have $\alpha = 0.25$ where we need $\alpha > 5$ — a factor of twenty off. The trace stays strictly negative for all $I_\text{ext}$ and no Hopf exists. Making the sigmoid steeper ($k_E$ smaller) raises $\alpha$ linearly, but reaching $\alpha = 5$ would require $k_E = 0.01$ — a sigmoid that is essentially a step function, qualitatively wrong as a gain model for an LIF population near rheobase. The deficit is structural, not tuning-limited.
+
+<Figure id="Figure 3" title="2D-cubic reduction eigenvalues — no Hopf with naive coefficients" src="/figures/notebooks/nb033/two_d_cubic_eigenvalues.png" alt="Real parts of the Jacobian eigenvalues for the 2D-cubic reduction as I_ext is swept from 0 to 12. Both eigenvalues stay strictly negative across the entire sweep — no zero crossing. Confirms the linear analysis: α = 0.25 is well below the Hopf threshold of 5.0, so the trace never crosses zero and no Hopf is possible regardless of I_ext.">
+  Real parts of the Jacobian eigenvalues for the 2D-cubic reduction across the same $I_\text{ext}$ sweep as Figure 1. Both eigenvalues stay strictly negative — no Hopf, as predicted by $\alpha = 0.25 < 5.0$.
+</Figure>
+
+### What's structurally missing
+
+The linear gain $\alpha$ is the strength of positive feedback on $E$. The canonical Wilson-Cowan 1972 model includes an E→E self-coupling $W^{EE}$, which renormalises $\alpha \to W^{EE}\,\Phi'_E$; with $W^{EE} \approx 12$ and a steep sigmoid this comfortably clears the threshold, and the cubic reduction Hopfs by the standard mechanism. Our Börgers-style PING architecture has $W^{EE} = 0$ — there is no E-loop to renormalise $\alpha$, and so the 2D-cubic route is structurally inapplicable regardless of how the cubic is tuned.
+
+The destabilisation that does drive the 4D Hopf above comes from a different mechanism entirely: the synaptic phase delays $\tau_\text{AMPA}, \tau_\text{GABA}$. These have no analogue in (8) — adiabatically eliminating them to get a 2D system kills the very feature that produces the oscillation. A faithful 2D reduction would have to keep the synaptic timescales as explicit delays, yielding a delay-differential equation rather than a polynomial ODE.
 
 ## Next steps
 

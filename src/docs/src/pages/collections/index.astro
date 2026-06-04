@@ -9,20 +9,17 @@ const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
 type Bucket = { articles: number; notebooks: number };
 const buckets = new Map<string, Bucket>();
 
-function tally(kind: "articles" | "notebooks", cs: unknown) {
-  if (!Array.isArray(cs)) return;
-  for (const c of cs) {
-    if (typeof c !== "string") continue;
-    if (!buckets.has(c)) buckets.set(c, { articles: 0, notebooks: 0 });
-    buckets.get(c)![kind]++;
-  }
+function tally(kind: "articles" | "notebooks", c: unknown) {
+  if (typeof c !== "string" || c.length === 0) return;
+  if (!buckets.has(c)) buckets.set(c, { articles: 0, notebooks: 0 });
+  buckets.get(c)![kind]++;
 }
 
 for (const mod of Object.values(notebookModules)) {
-  tally("notebooks", (mod as any).frontmatter?.collections);
+  tally("notebooks", (mod as any).frontmatter?.collection);
 }
 for (const mod of Object.values(articleModules)) {
-  tally("articles", (mod as any).frontmatter?.collections);
+  tally("articles", (mod as any).frontmatter?.collection);
 }
 
 // in-progress floats to the top (it is a workflow state, not a topic);
@@ -75,13 +72,15 @@ function countLabel(articles: number, notebooks: number): string {
     <div class="fixed top-4 right-4 z-40">
       <ThemeToggle />
     </div>
-    <main class="px-6 pt-16 pb-64 lg:px-12 [&_a]:no-underline! [&_a:hover]:underline!">
-      <div class="max-w-[90rem] mx-auto">
-        <SiteHeader>
-          <span slot="breadcrumb" class="text-sm text-muted-soft">/ collections</span>
-        </SiteHeader>
+    <header class="px-6 pt-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[46rem]">
+        <SiteHeader />
+      </div>
+    </header>
 
-        <div class="mt-10 flex flex-col gap-12 max-w-3xl">
+    <main class="px-6 pt-10 pb-48 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[46rem]">
+        <div class="flex flex-col gap-12">
           <section>
             <p class="mb-2 text-xs uppercase tracking-wider text-muted">Collections</p>
             {

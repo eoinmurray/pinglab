@@ -4,16 +4,16 @@ title: "040 — CUBA-PING"
 date: 2026-05-31
 entry: 40
 structure: paper
-collections: [experiments]
+collection: null
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb040/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
-[nb035](/notebooks/nb035/)–[nb038](/notebooks/nb038/) characterise PING in the *conductance-based* regime, where every synapse has an exponential filter at $\tau_\text{AMPA}$ or $\tau_\text{GABA}$. This entry asks whether **current-based** (CUBA) PING with *instant* synapses — no synaptic filtering at all — still produces the gamma dynamics and can be trained.
+[nb025](/notebooks/nb025/)–[nb038](/notebooks/nb038/) characterise PING in the *conductance-based* regime, where every synapse has an exponential filter at $\tau_\text{AMPA}$ or $\tau_\text{GABA}$. This entry asks whether **current-based** (CUBA) PING with *instant* synapses — no synaptic filtering at all — still produces the gamma dynamics and can be trained.
 
-LIF E and I populations with the same wiring as [nb035](/notebooks/nb035/)'s COBA-PING but with no synaptic state: every presynaptic spike at $t-1$ contributes its weight to the postsynaptic current at $t$ and is gone by $t+1$.
+LIF E and I populations with the same wiring as [nb025](/notebooks/nb025/)'s COBA-PING but with no synaptic state: every presynaptic spike at $t-1$ contributes its weight to the postsynaptic current at $t$ and is gone by $t+1$.
 
 - $N_E = 1024$, $N_I = 256$, $N_\text{in} = 784$, $\Delta t = 1$ ms, $T = 200$ ms.
 - Membrane: $\tau_m = 20$ ms, $V_\text{rest} = 0$, $V_\text{th} = 1$, hard reset to $V_\text{rest}$ on spike, $R_m = 1$. $V$ is floored at $V_\text{rest}$ after each step (membrane can't fall below the dominant ion's reversal potential). **No refractory period** — after reset the cell is free to fire on the next step; the only mechanisms limiting firing rate are membrane decay back to threshold and (in the PING arm) the I-loop suppression.
@@ -85,7 +85,7 @@ Both effects of the I-loop show up cleanly:
 1. **The rate clamp is real and strong.** Removing the I-loop lets the E rate climb into the tens of Hz — biologically high but within the snnTorch / rate-coded SNN regime. The I-loop in place holds the rate near 1 Hz: an order-of-magnitude sparsification with no $L_\text{rate}$ regulariser.
 2. **The sparsification has a real but bounded accuracy cost.** Roughly 4 pp at large tier. The output-LIF readout integrates spike events, so suppressing E spikes throttles the output membrane response; the network still has enough integrated signal to classify, just less than the dense-spike control.
 
-This is the same tradeoff the COBA-PING baselines in [nb035 Figure 5](/notebooks/nb035/) walk via the $\theta_u$ spike-budget term — except CUBA-PING walks it by the architectural inhibitory clamp rather than by an explicit penalty.
+This is the same tradeoff the COBA-PING baselines in [nb025 Figure 5](/notebooks/nb025/) walk via the $\theta_u$ spike-budget term — except CUBA-PING walks it by the architectural inhibitory clamp rather than by an explicit penalty.
 
 ## BPTT stability
 
@@ -127,6 +127,6 @@ The instant-synapse CUBA-PING has the right dynamics without any synaptic filter
 The natural follow-ups:
 
 1. Scale to full MNIST. Training loss is still decreasing at the end of the medium-tier run, so the operating point is not yet converged. Full MNIST + more epochs should close the gap to the COBA-PING baselines.
-2. Add an explicit $L_\text{rate}$ like nb035's, exposing a $\theta_u$ knob that lets you slide along the rate–accuracy frontier on top of what the architecture already gives.
+2. Add an explicit $L_\text{rate}$ like nb025's, exposing a $\theta_u$ knob that lets you slide along the rate–accuracy frontier on top of what the architecture already gives.
 3. Replace TBPTT with a principled stabiliser — spectral normalisation of $W^{EI}$ / $W^{IE}$, or a Jacobian-norm regulariser — that lets full-horizon BPTT through and closes the COBA-PING gap from below.
 4. Add a refractory window ($\approx 1.5$ ms for E, $\approx 0.5$ ms for I, matching the COBANet baselines). The current model has none, which gives every cell an unbounded firing-rate ceiling and likely contributes to the no-PING control's ≈70 Hz E rate. With refractory in place that ceiling drops to $1/(\tau_\text{ref}) \approx 667$ Hz for E cells; the no-PING upper rate would compress, narrowing the rate gap to the PING arm without changing the qualitative comparison.

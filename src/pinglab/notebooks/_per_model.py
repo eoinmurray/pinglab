@@ -1,9 +1,9 @@
-"""Shared orchestration for single-model training notebooks (nb007–nb012).
+"""Shared orchestration for single-model training notebooks.
 
 Each per-model runner declares its SLUG, MODEL, and a build_osc_args(tier)
 callable that returns the oscilloscope CLI argument list. This module
 handles the common plumbing: tier parsing, dir wipe, dispatcher, plots,
-video copy, numbers.json — identical across all five.
+video copy, numbers.json.
 """
 
 from __future__ import annotations

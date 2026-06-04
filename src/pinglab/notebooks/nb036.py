@@ -356,7 +356,7 @@ def _eval_net_on_test_with_loss(
 
 COUPLING_SCALE_VALUES: list[float] = [0.25, 0.5, 1.0, 2.0]
 # Inference-time W_in scale grid - same 24 points used to project the
-# recruitment cliff in nb035, replayed here on top of each coupling
+# recruitment cliff in nb025, replayed here on top of each coupling
 # scale to show how the cliff moves with E↔I coupling.
 W_IN_SCALE_VALUES: list[float] = [
     0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50,

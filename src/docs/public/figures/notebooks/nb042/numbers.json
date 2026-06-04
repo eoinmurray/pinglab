@@ -1,0 +1,173 @@
+{
+  "notebook_run_id": "r009",
+  "duration_s": 228.6,
+  "duration": "3m 49s",
+  "tier": "medium",
+  "config": {
+    "seeds": [
+      42
+    ],
+    "conditions": [
+      "baseline",
+      "phase_shuffled_i",
+      "poisson_matched_i"
+    ],
+    "jitter_sigmas_ms": [
+      0.0,
+      1.0,
+      3.0,
+      7.0,
+      14.0,
+      21.0,
+      28.0,
+      42.0,
+      60.0,
+      100.0
+    ],
+    "f_gamma_reference_hz": 36.0,
+    "nb025_source": "ping__off__seed{seed} (\u03b8_u = off baseline)",
+    "raster_sample_idx": 0
+  },
+  "results": [
+    {
+      "condition": "baseline",
+      "acc": 85.75,
+      "e_rate_hz": 7.96060791015625,
+      "i_rate_hz": 35.870361328125,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "condition": "phase_shuffled_i",
+      "acc": 81.5,
+      "e_rate_hz": 28.5126220703125,
+      "i_rate_hz": 35.870361328125,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "condition": "poisson_matched_i",
+      "acc": 10.5,
+      "e_rate_hz": 0.01103515625,
+      "i_rate_hz": 35.8576171875,
+      "n_total": 400,
+      "seed": 42
+    }
+  ],
+  "jitter_sweep": [
+    {
+      "condition": "jitter_sigma_0",
+      "acc": 85.75,
+      "e_rate_hz": 7.96060791015625,
+      "i_rate_hz": 35.870361328125,
+      "n_total": 400,
+      "seed": 42,
+      "sigma_ms": 0.0
+    },
+    {
+      "condition": "jitter_sigma_1",
+      "acc": 86.25,
+      "e_rate_hz": 8.04072265625,
+      "i_rate_hz": 35.870361328125,
+      "n_total": 400,
+      "seed": 42,
+      "sigma_ms": 1.0
+    },
+    {
+      "condition": "jitter_sigma_3",
+      "acc": 85.0,
+      "e_rate_hz": 10.09652099609375,
+      "i_rate_hz": 35.870068359375,
+      "n_total": 400,
+      "seed": 42,
+      "sigma_ms": 3.0
+    },
+    {
+      "condition": "jitter_sigma_7",
+      "acc": 83.25,
+      "e_rate_hz": 15.9051513671875,
+      "i_rate_hz": 35.703076171875,
+      "n_total": 400,
+      "seed": 42,
+      "sigma_ms": 7.0
+    },
+    {
+      "condition": "jitter_sigma_14",
+      "acc": 82.0,
+      "e_rate_hz": 25.62237548828125,
+      "i_rate_hz": 35.511376953125,
+      "n_total": 400,
+      "seed": 42,
+      "sigma_ms": 14.0
+    },
+    {
+      "condition": "jitter_sigma_21",
+      "acc": 83.75,
+      "e_rate_hz": 31.02030029296875,
+      "i_rate_hz": 35.146533203125,
+      "n_total": 400,
+      "seed": 42,
+      "sigma_ms": 21.0
+    },
+    {
+      "condition": "jitter_sigma_28",
+      "acc": 79.75,
+      "e_rate_hz": 33.6042236328125,
+      "i_rate_hz": 34.7375,
+      "n_total": 400,
+      "seed": 42,
+      "sigma_ms": 28.0
+    },
+    {
+      "condition": "jitter_sigma_42",
+      "acc": 79.0,
+      "e_rate_hz": 38.1236328125,
+      "i_rate_hz": 34.0064453125,
+      "n_total": 400,
+      "seed": 42,
+      "sigma_ms": 42.0
+    },
+    {
+      "condition": "jitter_sigma_60",
+      "acc": 79.75,
+      "e_rate_hz": 42.16126708984375,
+      "i_rate_hz": 32.766259765625,
+      "n_total": 400,
+      "seed": 42,
+      "sigma_ms": 60.0
+    },
+    {
+      "condition": "jitter_sigma_100",
+      "acc": 79.0,
+      "e_rate_hz": 49.35440673828125,
+      "i_rate_hz": 29.916357421875,
+      "n_total": 400,
+      "seed": 42,
+      "sigma_ms": 100.0
+    }
+  ],
+  "success_criteria": [
+    {
+      "label": "bar chart rendered",
+      "passed": true,
+      "detail": "bar_chart.png (47992 bytes)",
+      "detail_href": "/figures/notebooks/nb042/bar_chart.png"
+    },
+    {
+      "label": "raster strip rendered",
+      "passed": true,
+      "detail": "raster_strip.png (61025 bytes)",
+      "detail_href": "/figures/notebooks/nb042/raster_strip.png"
+    },
+    {
+      "label": "mean I rate held within 5% across conditions",
+      "passed": true,
+      "detail": "phase_shuffled_i: 0.0% drift, poisson_matched_i: 0.0% drift"
+    },
+    {
+      "label": "E rate under desync \u2265 25% different from baseline",
+      "passed": true,
+      "detail": "phase_shuffled_i: 28.51 Hz (+258.2% vs baseline 7.96 Hz), poisson_matched_i: 0.01 Hz (+99.9% vs baseline 7.96 Hz)"
+    }
+  ]
+}

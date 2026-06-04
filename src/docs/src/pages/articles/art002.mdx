@@ -4,11 +4,9 @@ title: "CUBANet"
 date: 2026-05-14
 entry: 2
 structure: paper
-collections: [architecture]
+collection: documentation
 ---
 import Aside from "../../components/Aside.astro";
-
-# CUBANet
 
 [Article 1](/articles/art001/) derived the continuous-time leaky integrate-and-fire (LIF) neuron from Maxwell's equations and the membrane circuit. This article picks up where that derivation leaves off and asks: how do you turn the continuous LIF into a discrete update rule that runs on a GPU? Two integrator choices (snnTorch-style and zero-order hold) give two rungs — *standard-snn* and *cuba* — both backed by a single Python class, **CUBANet**, in *src/pinglab/models.py*. Every empirical result in the [notebooks](/notebooks/) on the CUBA / standard-snn family traces back to the math here.
 

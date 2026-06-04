@@ -1,10 +1,10 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "037 — Spike-stream perturbations of trained PING"
+title: "037 — Dropping and adding spikes in trained PING"
 date: 2026-05-30
 entry: 37
 structure: paper
-collections: [experiments]
+collection: inhibition-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
@@ -13,7 +13,7 @@ export const numbers = Object.values(
 
 ## Setup
 
-PING and COBA baseline definitions and training recipe are in [nb035](/notebooks/nb035/); the rate-floor mechanism is worked out in [nb035](/notebooks/nb035/). This entry tests whether the floor is dynamical (locked by the cycle period) or informational (locked by the readout's spike-count requirement) by perturbing the spike stream of trained networks at inference.
+PING and COBA baseline definitions and training recipe are in [nb025](/notebooks/nb025/); the rate-floor mechanism is worked out in [nb025](/notebooks/nb025/). This entry tests whether the floor is dynamical (locked by the cycle period) or informational (locked by the readout's spike-count requirement) by perturbing the spike stream of trained networks at inference.
 
 ## Hidden-spike perturbation
 

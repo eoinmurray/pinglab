@@ -1,0 +1,219 @@
+{
+  "notebook_run_id": "r009",
+  "git_sha": "ed141d7 (dirty)",
+  "duration_s": 81.1,
+  "duration": "1m 21s",
+  "tier": "medium",
+  "config": {
+    "tier": "medium",
+    "dataset": "mnist",
+    "tau_gaba_sweep_ms": [
+      4.5,
+      6.0,
+      9.0,
+      12.0,
+      18.0,
+      27.0
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "f_gamma_band_hz": [
+      5.0,
+      150.0
+    ],
+    "max_samples": 2000,
+    "epochs": 100,
+    "t_ms": 200.0,
+    "dt": 0.1
+  },
+  "fit": {
+    "p_affine": 0.201023378339172,
+    "a_affine": 0.9572513814542882,
+    "r2_affine": 0.9961141532312511,
+    "p_origin": 0.2258914235056256,
+    "r2_origin": 0.9783815230091831
+  },
+  "results": [
+    {
+      "tau_gaba_ms": 4.5,
+      "acc": 89.0,
+      "e_rate_hz": 11.6746826171875,
+      "f_gamma_hz": 54.29666444018507,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "tau_gaba_ms": 4.5,
+      "acc": 90.0,
+      "e_rate_hz": 11.6487548828125,
+      "f_gamma_hz": 53.71111690187331,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "tau_gaba_ms": 4.5,
+      "acc": 89.25,
+      "e_rate_hz": 11.74644775390625,
+      "f_gamma_hz": 54.06179085561447,
+      "n_total": 400,
+      "seed": 44
+    },
+    {
+      "tau_gaba_ms": 6.0,
+      "acc": 88.0,
+      "e_rate_hz": 8.85771484375,
+      "f_gamma_hz": 41.09967978450357,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "tau_gaba_ms": 6.0,
+      "acc": 88.75,
+      "e_rate_hz": 10.31700439453125,
+      "f_gamma_hz": 45.636775438939985,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "tau_gaba_ms": 6.0,
+      "acc": 88.25,
+      "e_rate_hz": 9.97646484375,
+      "f_gamma_hz": 45.17889482055401,
+      "n_total": 400,
+      "seed": 44
+    },
+    {
+      "tau_gaba_ms": 9.0,
+      "acc": 86.75,
+      "e_rate_hz": 8.7961669921875,
+      "f_gamma_hz": 36.772847033405654,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "tau_gaba_ms": 9.0,
+      "acc": 87.0,
+      "e_rate_hz": 8.28948974609375,
+      "f_gamma_hz": 35.42117141161058,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "tau_gaba_ms": 9.0,
+      "acc": 86.25,
+      "e_rate_hz": 8.81380615234375,
+      "f_gamma_hz": 37.04784396771619,
+      "n_total": 400,
+      "seed": 44
+    },
+    {
+      "tau_gaba_ms": 12.0,
+      "acc": 85.5,
+      "e_rate_hz": 6.6638671875,
+      "f_gamma_hz": 28.592120454730107,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "tau_gaba_ms": 12.0,
+      "acc": 84.75,
+      "e_rate_hz": 6.49437255859375,
+      "f_gamma_hz": 27.477134937008458,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "tau_gaba_ms": 12.0,
+      "acc": 84.25,
+      "e_rate_hz": 6.3934814453125,
+      "f_gamma_hz": 27.66041466446829,
+      "n_total": 400,
+      "seed": 44
+    },
+    {
+      "tau_gaba_ms": 18.0,
+      "acc": 84.25,
+      "e_rate_hz": 5.502734375,
+      "f_gamma_hz": 22.190546456738282,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "tau_gaba_ms": 18.0,
+      "acc": 83.5,
+      "e_rate_hz": 5.77305908203125,
+      "f_gamma_hz": 23.53351091701631,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "tau_gaba_ms": 18.0,
+      "acc": 83.5,
+      "e_rate_hz": 4.926123046875,
+      "f_gamma_hz": 20.141211072464113,
+      "n_total": 400,
+      "seed": 44
+    },
+    {
+      "tau_gaba_ms": 27.0,
+      "acc": 81.75,
+      "e_rate_hz": 3.59500732421875,
+      "f_gamma_hz": 14.219977529238708,
+      "n_total": 400,
+      "seed": 42
+    },
+    {
+      "tau_gaba_ms": 27.0,
+      "acc": 82.25,
+      "e_rate_hz": 3.39427490234375,
+      "f_gamma_hz": 13.310026302745042,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "tau_gaba_ms": 27.0,
+      "acc": 80.5,
+      "e_rate_hz": 4.10439453125,
+      "f_gamma_hz": 15.287062901020333,
+      "n_total": 400,
+      "seed": 44
+    }
+  ],
+  "success_criteria": [
+    {
+      "label": "rate-vs-f_\u03b3 figure rendered",
+      "passed": true,
+      "detail": "rate_vs_fgamma.png (63275 bytes)",
+      "detail_href": "/figures/notebooks/nb041/rate_vs_fgamma.png"
+    },
+    {
+      "label": "PSD panel rendered",
+      "passed": true,
+      "detail": "psds.png (113906 bytes)",
+      "detail_href": "/figures/notebooks/nb041/psds.png"
+    },
+    {
+      "label": "f_\u03b3 found for every cell",
+      "passed": true,
+      "detail": "f_\u03b3 range = [13.31, 54.30] Hz"
+    },
+    {
+      "label": "f_\u03b3 varies across \u03c4_GABA sweep \u2265 2\u00d7",
+      "passed": true,
+      "detail": "min 13.31 Hz / max 54.30 Hz"
+    },
+    {
+      "label": "Affine r_E = a + p \u00b7 f_\u03b3 fit R\u00b2 \u2265 0.7",
+      "passed": true,
+      "detail": "a = 0.96 Hz, p = 0.201, R\u00b2 = 0.996"
+    },
+    {
+      "label": "Affine slope p > 0 (rate rises with f_\u03b3 as predicted)",
+      "passed": true,
+      "detail": "p = 0.201 Hz / Hz"
+    }
+  ]
+}

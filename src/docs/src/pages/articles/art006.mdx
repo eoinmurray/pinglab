@@ -4,10 +4,8 @@ title: "Training"
 date: 2026-05-14
 entry: 6
 structure: paper
-collections: [methods]
+collection: documentation
 ---
-
-# Training
 
 This page is the shared training recipe every model on the ladder uses — the gradient framework, the loss and optimiser, the tasks the networks are exercised against, and the pitfalls that bite across models.
 
@@ -245,4 +243,3 @@ $$
 so the per-neuron firing rate is $x_i \cdot r_{\max}$ Hz, independent of $\Delta t$. The resulting $(T, B, N_{\text{in}})$ binary tensor is the model's only input; stimulus duration is $T_{\text{ms}} = 1000$ ms for image tasks. Because encoding is stochastic, the network sees a different spike realisation of the same image every epoch — a form of data augmentation intrinsic to the rate code. At evaluation time, a seeded torch.Generator is threaded through the encoder so train-time eval and standalone infer on the same weights produce identical spike trains.
 
 Sequential MNIST (sMNIST) presents each $28 \times 28$ image row-by-row: at each moment only the 28 pixels of the current row are presented, for $t_{\text{row}} = 10$ ms, giving a $T = 280$ ms sample with $N_{\text{in}} = 28$. This is the standard ML benchmark for temporal credit assignment in SNNs. Because the 28-neuron bottleneck is too narrow to classify from, sMNIST runs require $\geq 2$ hidden layers and recurrence on at least one of them.
-

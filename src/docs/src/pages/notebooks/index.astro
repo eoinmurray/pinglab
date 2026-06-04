@@ -134,9 +134,9 @@ const formatDate = (raw) => {
                   <li class="flex items-baseline gap-3 py-[0.3rem]">
                     <a
                       href={`/notebooks/${nb.slug}/`}
-                      class="w-4 shrink-0 tabular-nums text-muted-soft"
+                      class="shrink-0 font-mono tabular-nums text-[0.85rem] text-muted-soft"
                     >
-                      {String(nb.entry).padStart(1, "0")}.
+                      {nb.slug}
                     </a>
                     <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
                       {nb.title}

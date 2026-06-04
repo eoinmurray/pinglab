@@ -4,7 +4,6 @@ title: "000 — Performance Baseline"
 date: 2026-04-27
 entry: 0
 structure: paper
-collections: [infrastructure]
 ---
 import Figure from "../../components/Figure.astro";
 import RunParameters from "../../components/RunParameters.astro";
@@ -19,13 +18,13 @@ export const successCriteria = numbers.success_criteria ?? [];
 
 ## Introduction
 
-Performance reference workload. The goal across the lab is **one architecture that runs efficiently on local Apple Silicon (MPS) and on Modal**, with a single code path — no device-specific branches, no CUDA-only fast paths, no MPS-only fallbacks. This notebook is the fixed point that work toward that goal is measured against: a recipe-identical clone of [nb007](/notebooks/nb007/) (standard-snn LIF classifier on MNIST at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms) trained through the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path. Holding the recipe constant means wall-time and throughput numbers reported here over successive runs reflect changes in the training stack itself — kernel launches, sync points, compile coverage, memory layout — not recipe drift.
+Performance reference workload. The goal across the lab is **one architecture that runs efficiently on local Apple Silicon (MPS) and on Modal**, with a single code path — no device-specific branches, no CUDA-only fast paths, no MPS-only fallbacks. This notebook is the fixed point that work toward that goal is measured against: a fixed standard-snn LIF classifier on MNIST at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms trained through the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path. Holding the recipe constant means wall-time and throughput numbers reported here over successive runs reflect changes in the training stack itself — kernel launches, sync points, compile coverage, memory layout — not recipe drift.
 
-Sibling per-model trainers ([nb007](/notebooks/nb007/)–[nb012](/notebooks/nb012/)) own the science. This entry owns the profile.
+This entry owns the profile, not the science.
 
 ## Method
 
-Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb000.py* per the [runner contract](/docs/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath. Recipe is a verbatim copy of [nb007](/notebooks/nb007/); changes to the science recipe land there first and are mirrored here.
+Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb000.py* per the [runner contract](/docs/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
 <RunParameters numbers={numbers} variant="recipe" extras={[
   { label: "Readout", value: "li", default: "rate", href: "/docs/the-oscilloscope/#readouts" },
@@ -33,7 +32,7 @@ Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb000.py* 
   { label: "Init", value: "Kaiming (signed)", default: "non-negative", href: "/docs/the-oscilloscope/#network-flags-shared" },
 ]} />
 
-The three customisations match [nb007](/notebooks/nb007/)'s. Briefly:
+The three customisations are:
 
 - [**readout = li**](/docs/the-oscilloscope/#readouts) — leaky-integrator readout; the default *rate* readout saturates CE on the forward pass at *T* = 2000 steps.
 - [**surrogate-slope = 1**](/docs/the-oscilloscope/#network-flags-shared) — bounds the fast-sigmoid pseudo-derivative; default slope = 5 overflows fp32 in *W_ff* gradients across 2000 BPTT steps.
@@ -142,7 +141,7 @@ Caveat on **Peak mem**: CUDA reports peak across the run via *max_memory_allocat
 
 ## Next steps
 
-Profiling instrumentation — per-step throughput in *numbers.json*, side-by-side MPS vs Modal-A100 baselines, sync-point audit — will land here as it's developed. Each round of optimisation in the shared training stack should re-run this notebook on both backends and report the delta. The accuracy criteria from [nb007](/notebooks/nb007/) carry over verbatim; if a perf change moves them, the change isn't a perf change.
+Profiling instrumentation — per-step throughput in *numbers.json*, side-by-side MPS vs Modal-A100 baselines, sync-point audit — will land here as it's developed. Each round of optimisation in the shared training stack should re-run this notebook on both backends and report the delta. The accuracy criteria are part of the recipe; if a perf change moves them, the change isn't a perf change.
 
 ## Appendix
 

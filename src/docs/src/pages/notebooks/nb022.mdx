@@ -4,7 +4,7 @@ title: "022 — COBA Dale's Law On vs Off"
 date: 2026-05-12
 entry: 22
 structure: paper
-collections: [experiments]
+collection: null
 ---
 import Figure from "../../components/Figure.astro";
 import RunParameters from "../../components/RunParameters.astro";
@@ -20,7 +20,7 @@ export const get = (cell) => results.find((r) => r.cell === cell) ?? {};
 
 **Dale's law**, in this codebase, is the constraint that the *trainable* feedforward weight matrix $W_{\text{ff}}$ stays non-negative: an "excitatory" input projection genuinely excites the post-synaptic cell rather than being free to switch sign mid-training. It is the default for the *COBA* and *ping* models — and it is the biological assumption that distinguishes them from a "vanilla" SNN where every weight is freely signed.
 
-This entry trains the [COBA](/notebooks/nb011/) recipe twice — once with the default *--dales-law*, once with *--no-dales-law* — and compares accuracy, firing rate, and the resulting distribution of trained weights. Every other knob (lr, w_in, surrogate slope, readout, batch size, seed) is held fixed at the calibrated [nb011](/notebooks/nb011/) recipe, so any difference is attributable to the constraint alone.
+This entry trains the [COBA](/articles/art003/) recipe twice — once with the default *--dales-law*, once with *--no-dales-law* — and compares accuracy, firing rate, and the resulting distribution of trained weights. Every other knob (lr, w_in, surrogate slope, readout, batch size, seed) is held fixed, so any difference is attributable to the constraint alone.
 
 The recurrent E-I matrices ($W^{EE}$, $W^{EI}$, $W^{IE}$ inside COBANet) are fixed buffers either way — Dale's law on them is just the initial-condition sign convention. This experiment therefore isolates the *trainable* feedforward effect.
 
@@ -35,7 +35,7 @@ Two cells, both running the [COBA](/articles/art003/) recipe:
   { label: "cells", value: (cfg.cells ?? []).join(", ") || "?", default: "—" },
 ]} />
 
-- **Same recipe as nb011.** *--ei-strength=0* (no active I-loop), *--readout=mem-mean*, *--readout-w-out-scale=100*, *--lr=0.0004*, *--w-in=0.3*, *--surrogate-slope=1*, *--batch-size=256*.
+- **Recipe.** *--ei-strength=0* (no active I-loop), *--readout=mem-mean*, *--readout-w-out-scale=100*, *--lr=0.0004*, *--w-in=0.3*, *--surrogate-slope=1*, *--batch-size=256*.
 - **Same seed (42).** The only difference between the two runs is the flag.
 
 ## Results
@@ -94,6 +94,6 @@ Two cells, both running the [COBA](/articles/art003/) recipe:
 
 ## Next steps
 
-- Repeat with the [ping](/notebooks/nb012/) recipe to see whether the active inhibitory loop changes the conclusion.
+- Repeat with the [ping](/articles/art003/) recipe to see whether the active inhibitory loop changes the conclusion.
 - Add a per-population weight breakdown (E units' inputs vs I units' inputs) if there's a meaningful split.
-- Pair with [035 — Why PING has a rate floor](/notebooks/nb035/) to ask whether Dale's law interacts with rate compression.
+- Pair with [035 — Why PING has a rate floor](/notebooks/nb025/) to ask whether Dale's law interacts with rate compression.
