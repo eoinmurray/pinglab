@@ -834,6 +834,34 @@ For the underlying theory of --v-grad-dampen see /articles/art006/.
         "Cramer et al.: 0.06.",
     )
     train_parser.add_argument(
+        "--tau-gaba",
+        type=float,
+        default=None,
+        help="Override GABA synaptic decay τ_GABA (ms). Default = models.py "
+        "tau_gaba (9.0 ms; Börgers / Buzsaki-Wang range). Used by nb041 to "
+        "sweep τ_GABA across {4.5..27} ms while training PING from scratch — "
+        "the realised gamma frequency f_γ tracks 1/τ_GABA, and the post-"
+        "training rate ceiling tracks f_γ.",
+    )
+    train_parser.add_argument(
+        "--fr-reg-lower-theta",
+        type=float,
+        default=0.0,
+        help="Firing-rate reg: lower-bound target spike "
+        "count per neuron per trial (θ_l). "
+        "Penalty s_l · Σ relu(θ_l − <z_i>)² is "
+        "added to the loss. Default 0 = off. "
+        "Used by nb043 for the reward-for-spikes pressure "
+        "test — pushes the optimiser to fire MORE.",
+    )
+    train_parser.add_argument(
+        "--fr-reg-lower-strength",
+        type=float,
+        default=0.0,
+        help="Strength s_l on the lower-bound firing-"
+        "rate regulariser (default 0 = off).",
+    )
+    train_parser.add_argument(
         "--fr-reg-mode",
         type=str,
         default="per-neuron",
@@ -1246,8 +1274,11 @@ if __name__ == "__main__":
             seed=args.seed,
             readout_w_out_scale=args.readout_w_out_scale,
             readout_mode=args.readout_mode,
+            tau_gaba=args.tau_gaba,
             fr_reg_upper_theta=args.fr_reg_upper_theta,
             fr_reg_upper_strength=args.fr_reg_upper_strength,
+            fr_reg_lower_theta=args.fr_reg_lower_theta,
+            fr_reg_lower_strength=args.fr_reg_lower_strength,
             fr_reg_mode=args.fr_reg_mode,
             trainable_w_ee=args.trainable_w_ee,
             tbptt_window=args.tbptt_window,

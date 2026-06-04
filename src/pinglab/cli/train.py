@@ -195,8 +195,11 @@ def train(
     seed=None,
     readout_w_out_scale=1.0,
     readout_mode="rate",
+    tau_gaba=None,
     fr_reg_upper_theta=0.0,
     fr_reg_upper_strength=0.0,
+    fr_reg_lower_theta=0.0,
+    fr_reg_lower_strength=0.0,
     fr_reg_mode="per-neuron",
     trainable_w_ee=False,
     tbptt_window=None,
@@ -212,6 +215,13 @@ def train(
     # Setup dt and all derived constants
     M.T_ms = t_ms
     patch_dt(dt)
+    # τ_GABA override: must apply AFTER patch_dt (which recomputes
+    # decay_gaba from the current M.tau_gaba). nb041 sweeps this to
+    # vary the gamma frequency f_γ across retrained networks.
+    if tau_gaba is not None:
+        import numpy as _np
+        M.tau_gaba = float(tau_gaba)
+        M.decay_gaba = float(_np.exp(-M.dt / float(tau_gaba)))
 
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
@@ -342,6 +352,7 @@ def train(
         "trainable_w_ee": trainable_w_ee,
         "tbptt_window": getattr(net, "tbptt_window", None),
         "seed": seed,
+        "tau_gaba_ms": float(M.tau_gaba),
         # Provenance (git SHA, run_id, started_at, device, torch version,
         # python env hash) — keeps train-mode config.json at parity with
         # sim/image/video modes.
@@ -598,6 +609,31 @@ def train(
                             * (torch.relu(mean_z - fr_reg_upper_theta) ** 2).sum()
                         )
                 loss = loss + reg
+            if fr_reg_lower_strength > 0 and getattr(
+                net, "last_spike_counts", None
+            ) is not None:
+                # Symmetric lower-bound: penalise being BELOW θ_l, i.e.
+                # reward firing rate at or above θ_l. Same per-neuron /
+                # population pooling rules as the upper-bound block.
+                reg_l = 0.0
+                for sc in net.last_spike_counts:
+                    if fr_reg_mode == "population":
+                        pop_mean = sc.mean()
+                        n_neurons = sc.shape[-1]
+                        reg_l = (
+                            reg_l
+                            + fr_reg_lower_strength
+                            * n_neurons
+                            * torch.relu(fr_reg_lower_theta - pop_mean) ** 2
+                        )
+                    else:
+                        mean_z = sc.mean(dim=0)
+                        reg_l = (
+                            reg_l
+                            + fr_reg_lower_strength
+                            * (torch.relu(fr_reg_lower_theta - mean_z) ** 2).sum()
+                        )
+                loss = loss + reg_l
             opt.zero_grad()
             loss.backward()
             for pname, p in net.named_parameters():
@@ -733,6 +769,17 @@ def train(
             )
         observe_s = _time.perf_counter() - t_observe
 
+        # Trainable-parameter Frobenius norms — surfaced per epoch so
+        # convergence audits (nb024) can tell whether the optimiser is
+        # still actively moving each named parameter. Mirrors the
+        # structure of grad_ratios (one key per named parameter, scalar
+        # value). All grads-requiring parameters included.
+        weight_norms = {
+            name: float(p.detach().norm().item())
+            for name, p in net.named_parameters()
+            if p.requires_grad
+        }
+
         # Record this epoch into the structured metrics history
         record = {
             "ep": epoch + 1,
@@ -749,6 +796,7 @@ def train(
             "samples": n_samples_train,
             "grad_norm": avg_grad,
             "grad_ratios": grad_ratios,
+            "weight_norms": weight_norms,
             "skipped_steps": n_skipped_steps,
             "new_best": new_best,
         }
@@ -756,8 +804,12 @@ def train(
             record.update(epoch_metrics)
         epoch_records.append(record)
 
-        # jsonl sidecar — one line per epoch
-        jsonl.write(**{k: v for k, v in record.items() if k != "grad_ratios"})
+        # jsonl sidecar — one line per epoch (skip dict fields, they
+        # round-trip via metrics.json).
+        jsonl.write(**{
+            k: v for k, v in record.items()
+            if k not in ("grad_ratios", "weight_norms")
+        })
 
         # Structured progress line + warning tracker
         e_rate = epoch_metrics.get("rate_e", 0.0) if epoch_metrics else 0.0

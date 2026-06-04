@@ -8,10 +8,10 @@ SNN). The recurrent E-I weights inside COBANet are fixed buffers either
 way, so this isolates the effect of Dale's law on the *input*
 projection.
 
-Two cells: coba/dales, coba/no-dales. Same calibrated recipe in every
-other respect (lr, w_in, surrogate slope, readout, batch size) as
-nb011, so any accuracy or firing-rate difference is attributable to
-the Dale's-law constraint alone.
+Two cells: coba/dales, coba/no-dales. Same recipe in every other
+respect (lr, w_in, surrogate slope, readout, batch size), so any
+accuracy or firing-rate difference is attributable to the Dale's-law
+constraint alone.
 
 Notebook entry: src/docs/src/pages/notebooks/nb022.mdx
 """

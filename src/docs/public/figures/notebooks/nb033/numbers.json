@@ -29,6 +29,17 @@
         0.4669724085818092,
         0.5008907349287408
       ]
+    },
+    "two_d_cubic": {
+      "cubic_coefficients": {
+        "alpha": 0.25,
+        "beta": 0.5208333333333333,
+        "gamma": 15.0,
+        "delta": 0.2031041249184545
+      },
+      "hopf_threshold_alpha": 5.0,
+      "hopf": null,
+      "verdict": "no Hopf \u2014 \u03b1 stays below 1 + \u03c4_E/\u03c4_I because W^EE = 0"
     }
   },
   "success_criteria": [
@@ -36,6 +47,11 @@
       "label": "4D Hopf located",
       "passed": true,
       "detail": "I_ext* = 1.300, f* = 24.47 Hz"
+    },
+    {
+      "label": "2D-cubic verdict: no Hopf (architecture lacks W^EE)",
+      "passed": true,
+      "detail": "\u03b1 = 0.2500 vs threshold 5.000"
     }
   ]
 }

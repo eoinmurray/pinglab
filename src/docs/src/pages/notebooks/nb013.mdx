@@ -4,7 +4,7 @@ title: "013 — Timestep Stability"
 date: 2026-04-19
 entry: 13
 structure: paper
-collections: [dt-stability]
+collection: dt-stability
 ---
 import Figure from "../../components/Figure.astro";
 import RunParameters from "../../components/RunParameters.astro";
@@ -72,7 +72,7 @@ The simulator's *dt* is a numerical knob, not a feature of the network — but i
 
 ### Setup
 
-Five models are trained on MNIST at two *dt* regimes ({dt1} ms and {dt2} ms), each with the per-model recipe from its calibration sibling ([nb007](/notebooks/nb007/)–[nb012](/notebooks/nb012/)). Weights are then frozen and accuracy is re-evaluated across a sweep of eval-*dt* values under three input-transport rules ([upsample / downsample / resample](#eval-time-dt-transport)). Identity transport (eval-*dt* = train-*dt*) anchors each sweep, so any change downstream is *integrator-side*.
+Five models are trained on MNIST at two *dt* regimes ({dt1} ms and {dt2} ms), each with a per-model recipe hardcoded in the runner. Weights are then frozen and accuracy is re-evaluated across a sweep of eval-*dt* values under three input-transport rules ([upsample / downsample / resample](#eval-time-dt-transport)). Identity transport (eval-*dt* = train-*dt*) anchors each sweep, so any change downstream is *integrator-side*.
 
 **Models** (see [the ladder](/articles/art002/)):
 
@@ -150,7 +150,7 @@ Five flags differ between [*cuba*](/articles/art002/) and [*COBA*](/articles/art
 |---|---|---|---|---|
 | *--model* | *cuba* | *ping* (with *--ei-strength 0*) | Dispatches [CUBANet](/articles/art002/) vs [COBANet](/articles/art003/). | COBA is feedforward COBANet; ping with the recurrent loop off. |
 | *--lr* | 0.04 | 0.0004 | 100× spread. | $g(V - E_\text{rev})$ is far more LR-sensitive than cuba's $+I$. |
-| *--readout-w-out-scale* | 1 | 100 / 500 | Multiplies *W_ff[-1]* at init. | COBANet hidden rate $\sim$10–100× below CUBANet's, so output drive is correspondingly weak. nb011 sweep: 1→59%, 10→70%, 30→74%, 100→82%. ping's inhibitory loop wants 5× more. |
+| *--readout-w-out-scale* | 1 | 100 / 500 | Multiplies *W_ff[-1]* at init. | COBANet hidden rate $\sim$10–100× below CUBANet's, so output drive is correspondingly weak. ping's inhibitory loop wants 5× more. |
 | *--kaiming-init* | True | False | Signed vs half-normal init on $W_\text{in}$. | cuba is Dale-off; COBA is Dale-on (non-negative). |
 | *--w-in* (mean, std) | (0.3, 0.06) | (0.3, 0.03) | std halved. | Half-normal already biases positive — narrower std avoids overdriving at *t* = 0. |
 | *--w-in-sparsity* | 0.0 | 0.95 | Dense vs sparse $W_\text{in}$. | Biophysical µS scale: a few strong inputs per neuron, not dense Kaiming. |

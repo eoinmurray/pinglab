@@ -3,14 +3,12 @@
 Profiling reference workload. Trains two models per run so the perf
 matrix covers both training backbones used elsewhere in the lab:
 
-  - standard-snn (CUBANet path, recipe mirrors nb007)
-  - coba         (COBANet path with ei_strength=0, recipe mirrors nb011)
+  - standard-snn (CUBANet path)
+  - coba         (COBANet path with ei_strength=0)
 
-Both recipes are verbatim copies of their science-owner notebooks; if
-the science changes, change it there first and mirror here. The point
-of nb000 is that recipes are *fixed* so wall-time / throughput numbers
-reflect changes in the training stack itself (kernel launches, sync
-points, compile coverage, memory layout), not recipe drift.
+Recipes are *fixed* so wall-time / throughput numbers reflect changes
+in the training stack itself (kernel launches, sync points, compile
+coverage, memory layout), not recipe drift.
 
 Anchors the "one architecture that runs efficiently on local MPS and
 Modal" goal.
@@ -34,9 +32,6 @@ MODEL = "standard-snn"
 
 
 def build_osc_args(tier: str, out_dir: Path) -> list[str]:
-    # Recipe is intentionally a verbatim copy of nb007 — see nb007.py for
-    # why each customisation is needed. nb000 must not drift from nb007;
-    # if the science recipe changes, change it there first and mirror.
     return osc_base_args(out_dir, tier, build_as=MODEL) + [
         "--kaiming-init",
         "--readout",
@@ -51,9 +46,9 @@ def build_osc_args(tier: str, out_dir: Path) -> list[str]:
 
 
 def build_coba_osc_args(tier: str, out_dir: Path) -> list[str]:
-    """Mirrors nb011's coba recipe verbatim. coba is dispatched via COBANet
-    with ei_strength=0, so this exercises the COBANet compile path next to
-    standard-snn's CUBANet path — both backbones tested per nb000 run."""
+    """coba is dispatched via COBANet with ei_strength=0, so this exercises
+    the COBANet compile path next to standard-snn's CUBANet path — both
+    backbones tested per nb000 run."""
     return osc_base_args(out_dir, tier, build_as="ping") + [
         "--ei-strength",
         "0",
@@ -71,10 +66,8 @@ def build_coba_osc_args(tier: str, out_dir: Path) -> list[str]:
 def perf_criteria(figures: Path, run_dir: Path, tier: str) -> list[dict]:
     """Perf-baseline gates: confirm the workload ran end-to-end and
     populated the perf block. Deliberately permissive on the science
-    side — nb000 inherits nb007's recipe at every tier (incl. ones the
-    science is not calibrated for), so failing on rate-band overshoot
-    or low accuracy at small/medium would just be noise. Science gates
-    live in nb007."""
+    side — small/medium tiers aren't calibrated for accuracy here, so
+    failing on rate-band overshoot or low accuracy would just be noise."""
     crits: list[dict] = []
     figs_root = figures.parents[2]
 
