@@ -1,15 +1,23 @@
-"""033 — Wilson-Cowan mean-field bifurcation analysis of PING (4D).
+"""033 — Mean-field PING: 4D bifurcations and the 2D-cubic dead end.
 
 Numerics for the theory in src/docs/src/pages/notebooks/nb033.mdx.
 
-Implements the 4D mean-field reduction of the PING spiking network in
-state (E, I, g_e^I, g_i^E) — rates plus synaptic conductances. Sweeps
-the external drive I_ext, tracks fixed points, computes the Jacobian's
-eigenvalues, identifies the Hopf bifurcation (smallest I_ext* where
-max Re(λ) = 0), and tests super- vs subcritical character by direct
-ODE simulation around the bifurcation.
+Two analyses on the same parameters:
 
-The 2D-cubic alternative reduction is explored in nb034.
+1. **4D reduction** (state $(E, I, g_e^I, g_i^E)$). Sweeps the external
+   drive $I_\text{ext}$, tracks fixed points, computes the Jacobian's
+   eigenvalues, identifies the Hopf (smallest $I_\text{ext}^\star$ where
+   max Re(λ) = 0), and tests super- vs subcritical character by direct
+   ODE simulation around the bifurcation. This is the load-bearing
+   reduction matched against the empirical PING gamma frequency.
+
+2. **2D-cubic reduction** (FitzHugh-Nagumo-style polynomial system,
+   adiabatically eliminating the synapses and Taylor-expanding the E
+   gain at its inflection). Demonstrates that the textbook 2D collapse
+   cannot Hopf for this architecture — the linear self-feedback
+   coefficient α stays below the critical 1 + τ_E/τ_I because
+   W^EE = 0 leaves no positive linear term on the diagonal. The
+   cubic stabilises amplitude but cannot destabilise the fixed point.
 
 Outputs figures and numbers.json to
 src/docs/public/figures/notebooks/nb033/.
@@ -64,8 +72,14 @@ def phi_p(x, rmax, theta, k):
     return (rmax / k) * s * (1 - s)
 
 
+def phi_ppp(x, rmax, theta, k):
+    s = phi(x, rmax, theta, k) / rmax
+    return (rmax / (k**3)) * s * (1 - s) * (1 - 6 * s * (1 - s))
+
+
 def PhiE(x): return phi(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
 def PhiE_p(x): return phi_p(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
+def PhiE_ppp(x): return phi_ppp(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
 def PhiI(x): return phi(x, PHI_I_RMAX, PHI_I_THETA, PHI_I_K)
 def PhiI_p(x): return phi_p(x, PHI_I_RMAX, PHI_I_THETA, PHI_I_K)
 
@@ -232,6 +246,116 @@ def plot_criticality(amps, hopf, out_path, run_id):
     plt.close(fig)
 
 
+# ── 2D-cubic reduction (Wilson-Cowan with FitzHugh-Nagumo-style cubic) ──
+# Demonstrates the failure mode the 4D reduction was designed to escape.
+
+
+def cubic_coefficients():
+    """Taylor-expand Phi_E at its inflection. Even-order terms vanish
+    by symmetry of the sigmoid. Returns (alpha, beta, gamma, delta)
+    for the reduced system:
+
+        tau_E dE/dt = -E + alpha E - beta E^3 - gamma I + alpha I_ext
+        tau_I dI/dt = -I + delta E
+    """
+    a = PhiE_p(PHI_E_THETA)              # linear gain at inflection
+    b = PhiE_ppp(PHI_E_THETA) / 6.0      # cubic Taylor coefficient
+    alpha = a
+    beta = -b                            # > 0 since b < 0 for sigmoid
+    gamma = a * W_IE
+    delta = PhiI_p(0.0) * W_EI
+    return alpha, beta, gamma, delta
+
+
+def cubic_fixed_point(I_ext, x0=None, *, alpha, beta, gamma, delta):
+    if x0 is None:
+        x0 = [0.001, 0.001]
+
+    def residual(x):
+        E, I = x
+        return [
+            -E + alpha * E - beta * E**3 - gamma * I + alpha * I_ext,
+            -I + delta * E,
+        ]
+
+    sol, _, ier, _ = fsolve(residual, x0, full_output=True)
+    return sol if ier == 1 else None
+
+
+def cubic_jacobian(fp, alpha, beta, gamma, delta):
+    E, I = fp
+    return np.array([
+        [(-1.0 + alpha - 3 * beta * E * E) / TAU_E_MS, -gamma / TAU_E_MS],
+        [delta / TAU_I_MS, -1.0 / TAU_I_MS],
+    ])
+
+
+def cubic_sweep(I_grid, alpha, beta, gamma, delta):
+    results = []
+    x = None
+    for I_ext in I_grid:
+        fp = cubic_fixed_point(I_ext, x0=x, alpha=alpha, beta=beta,
+                               gamma=gamma, delta=delta)
+        if fp is None:
+            continue
+        x = fp
+        J = cubic_jacobian(fp, alpha, beta, gamma, delta)
+        eigs = linalg.eigvals(J)
+        results.append({
+            "I_ext": float(I_ext),
+            "fp": fp.tolist(),
+            "eigs": [(float(e.real), float(e.imag)) for e in eigs],
+            "trace": float(np.trace(J)),
+        })
+    return results
+
+
+def cubic_find_hopf(results):
+    prev_max = None
+    for r in results:
+        re_max = max(e[0] for e in r["eigs"])
+        if prev_max is not None and prev_max < 0 <= re_max:
+            cand = [(e[0], e[1]) for e in r["eigs"]
+                    if abs(e[1]) > 1e-6 and e[0] >= -1e-2]
+            if not cand:
+                continue
+            cand.sort(key=lambda x: -x[0])
+            re, im = cand[0]
+            return {
+                "I_ext_star": r["I_ext"],
+                "omega_star": abs(im),
+                "freq_star_Hz": 1000.0 * abs(im) / (2 * np.pi),
+            }
+        prev_max = re_max
+    return None
+
+
+def plot_2d_cubic_eigenvalues(results, hopf, out_path, run_id):
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    xs = [r["I_ext"] for r in results]
+    eigs_re = np.array([[e[0] for e in r["eigs"]] for r in results])
+    eigs_im = np.array([[e[1] for e in r["eigs"]] for r in results])
+    for k in range(eigs_re.shape[1]):
+        color = theme.INK_BLACK if abs(eigs_im[0, k]) < 1e-6 else theme.DEEP_RED
+        ax.plot(xs, eigs_re[:, k], color=color, lw=1.2, alpha=0.8)
+    ax.axhline(0, color=theme.GREY_MID, lw=0.6, ls=":")
+    if hopf:
+        ax.axvline(hopf["I_ext_star"], color=theme.AMBER, lw=1.0, ls="--",
+                   label=f"$I^\\star = {hopf['I_ext_star']:.2f}$")
+        ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper left")
+    ax.set_xlabel("$I_\\text{ext}$", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
+    ax.set_title(
+        "2D-cubic reduction eigenvalues — no Hopf with naive coefficients",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     run_id = "nb033-numerics"
@@ -264,6 +388,26 @@ def main() -> None:
         plot_criticality(amp_data, hopf, FIGURES / "criticality.png", run_id)
         print(f"  wrote {FIGURES / 'criticality.png'}")
 
+    print(f"[{SLUG}] 2D-cubic reduction (FitzHugh-Nagumo-style)")
+    alpha, beta, gamma, delta = cubic_coefficients()
+    threshold = 1.0 + TAU_E_MS / TAU_I_MS
+    print(f"  Taylor coefficients: α={alpha:.4f}, β={beta:.4f}, "
+          f"γ={gamma:.4f}, δ={delta:.4f}")
+    print(f"  Hopf threshold: α > 1 + τ_E/τ_I = {threshold:.3f}")
+    print(f"  Have α = {alpha:.4f} — {'Hopf possible' if alpha > threshold else 'no Hopf'}")
+    cubic_results = cubic_sweep(I_grid, alpha, beta, gamma, delta)
+    cubic_hopf = cubic_find_hopf(cubic_results)
+    if cubic_hopf:
+        print(f"  2D-cubic Hopf at I_ext* = {cubic_hopf['I_ext_star']:.3f}, "
+              f"f* = {cubic_hopf['freq_star_Hz']:.2f} Hz")
+    else:
+        print("  2D-cubic: no Hopf detected (as expected)")
+    plot_2d_cubic_eigenvalues(
+        cubic_results, cubic_hopf,
+        FIGURES / "two_d_cubic_eigenvalues.png", run_id,
+    )
+    print(f"  wrote {FIGURES / 'two_d_cubic_eigenvalues.png'}")
+
     summary = {
         "slug": SLUG,
         "config": {
@@ -273,7 +417,21 @@ def main() -> None:
             "phi_E": dict(rmax=PHI_E_RMAX, theta=PHI_E_THETA, k=PHI_E_K),
             "phi_I": dict(rmax=PHI_I_RMAX, theta=PHI_I_THETA, k=PHI_I_K),
         },
-        "results": {"hopf": hopf},
+        "results": {
+            "hopf": hopf,
+            "two_d_cubic": {
+                "cubic_coefficients": dict(
+                    alpha=alpha, beta=beta, gamma=gamma, delta=delta,
+                ),
+                "hopf_threshold_alpha": threshold,
+                "hopf": cubic_hopf,
+                "verdict": (
+                    "no Hopf — α stays below 1 + τ_E/τ_I because W^EE = 0"
+                    if cubic_hopf is None
+                    else f"Hopf at I_ext* = {cubic_hopf['I_ext_star']:.3f}"
+                ),
+            },
+        },
         "success_criteria": [
             {
                 "label": "4D Hopf located",
@@ -281,6 +439,13 @@ def main() -> None:
                 "detail": (f"I_ext* = {hopf['I_ext_star']:.3f}, "
                            f"f* = {hopf['freq_star_Hz']:.2f} Hz"
                            if hopf else "no Hopf"),
+            },
+            {
+                "label": "2D-cubic verdict: no Hopf (architecture lacks W^EE)",
+                "passed": cubic_hopf is None,
+                "detail": (
+                    f"α = {alpha:.4f} vs threshold {threshold:.3f}"
+                ),
             },
         ],
     }

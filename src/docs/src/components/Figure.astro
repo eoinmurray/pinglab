@@ -95,25 +95,136 @@ const hasMedia = typeof src === "string" && src.length > 0;
       "box-shadow:0 4px 24px rgba(0,0,0,0.4)",
     ].join(";");
     overlay.appendChild(big);
+
+    const makeNavButton = (label: string, side: "left" | "right") => {
+      const btn = document.createElement("button");
+      btn.setAttribute("aria-label", label);
+      btn.textContent = side === "left" ? "‹" : "›";
+      btn.style.cssText = [
+        "position:absolute",
+        "top:50%",
+        side === "left" ? "left:1.5vmin" : "right:1.5vmin",
+        "transform:translateY(-50%)",
+        "width:3.2rem",
+        "height:3.2rem",
+        "border-radius:9999px",
+        "border:0",
+        "background:rgba(255,255,255,0.12)",
+        "color:white",
+        "font-size:2rem",
+        "line-height:1",
+        "cursor:pointer",
+        "display:flex",
+        "align-items:center",
+        "justify-content:center",
+        "user-select:none",
+      ].join(";");
+      btn.addEventListener("mouseenter", () => {
+        btn.style.background = "rgba(255,255,255,0.22)";
+      });
+      btn.addEventListener("mouseleave", () => {
+        btn.style.background = "rgba(255,255,255,0.12)";
+      });
+      return btn;
+    };
+    const prevBtn = makeNavButton("Previous figure", "left");
+    const nextBtn = makeNavButton("Next figure", "right");
+    overlay.appendChild(prevBtn);
+    overlay.appendChild(nextBtn);
+
+    const counter = document.createElement("div");
+    counter.style.cssText = [
+      "position:absolute",
+      "bottom:1.5vmin",
+      "left:50%",
+      "transform:translateX(-50%)",
+      "color:rgba(255,255,255,0.7)",
+      "font:0.8rem/1 ui-monospace,monospace",
+      "user-select:none",
+      "pointer-events:none",
+    ].join(";");
+    overlay.appendChild(counter);
+
     document.body.appendChild(overlay);
+
+    let figures: HTMLImageElement[] = [];
+    let idx = -1;
+
+    const refreshFigures = () => {
+      figures = Array.from(
+        document.querySelectorAll<HTMLImageElement>("img[data-figure-zoom]"),
+      );
+    };
+
+    const setDisabled = (btn: HTMLButtonElement, disabled: boolean) => {
+      btn.disabled = disabled;
+      btn.style.opacity = disabled ? "0.25" : "1";
+      btn.style.cursor = disabled ? "default" : "pointer";
+      btn.style.pointerEvents = disabled ? "none" : "auto";
+    };
+
+    const show = (i: number) => {
+      if (!figures.length) return;
+      if (i < 0 || i >= figures.length) return;
+      idx = i;
+      const img = figures[idx];
+      big.src = img.src;
+      big.alt = img.alt;
+      counter.textContent = `${idx + 1} / ${figures.length}`;
+      const onlyOne = figures.length <= 1;
+      prevBtn.style.display = onlyOne ? "none" : "flex";
+      nextBtn.style.display = onlyOne ? "none" : "flex";
+      setDisabled(prevBtn, idx === 0);
+      setDisabled(nextBtn, idx === figures.length - 1);
+    };
+
+    const open = (img: HTMLImageElement) => {
+      refreshFigures();
+      const i = figures.indexOf(img);
+      if (i < 0) return;
+      show(i);
+      overlay.style.display = "flex";
+      document.body.style.overflow = "hidden";
+    };
 
     const close = () => {
       overlay.style.display = "none";
       big.src = "";
+      idx = -1;
       document.body.style.overflow = "";
     };
-    overlay.addEventListener("click", close);
+
+    const isOpen = () => overlay.style.display === "flex";
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === prevBtn || e.target === nextBtn) return;
+      close();
+    });
+    prevBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      show(idx - 1);
+    });
+    nextBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      show(idx + 1);
+    });
+
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && overlay.style.display === "flex") close();
+      if (!isOpen()) return;
+      if (e.key === "Escape") close();
+      else if (e.key === "ArrowRight" || e.key === " ") {
+        e.preventDefault();
+        show(idx + 1);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        show(idx - 1);
+      }
     });
 
     document.addEventListener("click", (e) => {
       const t = e.target as HTMLElement;
       if (t && t.tagName === "IMG" && t.hasAttribute("data-figure-zoom")) {
-        big.src = (t as HTMLImageElement).src;
-        big.alt = (t as HTMLImageElement).alt;
-        overlay.style.display = "flex";
-        document.body.style.overflow = "hidden";
+        open(t as HTMLImageElement);
       }
     });
   })();

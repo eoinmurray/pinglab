@@ -1,0 +1,107 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "041 — Rate floor tracks gamma frequency"
+date: 2026-06-02
+entry: 41
+structure: paper
+collection: inhibition-gated-sparsity
+---
+import Figure from "../../components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb041/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+[nb037](/notebooks/nb037/) swept $\tau_\text{GABA}$ at inference on a network trained at 9 ms; the rate followed the rhythm. This entry does the *retrained* version: one PING trained from scratch at each $\tau_\text{GABA}$, three seeds. The "cannot escape the cycle" claim only earns its verb if the optimiser had a free hand at each timescale.
+
+## Method
+
+Six $\tau_\text{GABA} \in \{4.5, 6, 9, 12, 18, 27\}$ ms × three seeds = 18 cells. Same recipe as the [nb025](/notebooks/nb025/) PING baseline (100 epochs medium tier, batch 256, Adam $4 \times 10^{-4}$, mem-mean readout, $\theta_u$ off); only $\tau_\text{GABA}$ varies, exposed as `--tau-gaba`. For each trained cell, $f_\gamma$ is the parabolic-interpolated peak of the Welch PSD on the per-trial population E spike trace. Fit the affine relation $r_E = a + p \cdot f_\gamma$ across cells.
+
+## Results
+
+<Figure id="Figure 1" title="Retrained τ_GABA sweep — post-training E rate tracks measured f_γ" src="/figures/notebooks/nb041/rate_vs_fgamma.png" alt="Top panel: scatter of mean post-training E rate (Hz) vs measured gamma frequency f_γ (Hz). Six clusters, one per τ_GABA value (annotated 4.5–27 ms), three seeds each. Error bars in both dimensions. An affine fit line r_E = 0.96 + 0.201 · f_γ passes through every error bar with R² = 0.996. Bottom panel: test accuracy vs same x-axis — flat at 81–89% across the entire f_γ range.">
+  Top: mean post-training E rate vs measured $f_\gamma$. Six $\tau_\text{GABA}$ clusters, three seeds, error bars from seed variance. Bottom: accuracy by cluster.
+</Figure>
+
+| $\tau_\text{GABA}$ | mean $f_\gamma$ | mean $r_E$ | mean acc |
+|---|---|---|---|
+| 4.5 ms | 54.02 Hz | 11.69 Hz | 89.42% |
+| 6 ms | 43.97 Hz | 9.72 Hz | 88.33% |
+| 9 ms | 36.41 Hz | 8.63 Hz | 86.67% |
+| 12 ms | 27.91 Hz | 6.51 Hz | 84.83% |
+| 18 ms | 21.95 Hz | 5.40 Hz | 83.75% |
+| 27 ms | 14.27 Hz | 3.70 Hz | 81.50% |
+
+### Derivation of the form
+
+The shape $r_E = a + p \cdot f_\gamma$ is predicted by cycle dynamics, not curve-fitted. Within one cycle of duration $1/f_\gamma$, a fraction $p$ of E cells emits exactly one spike (those nearest threshold when the inhibitory blanket drops); the rest are recovering. The cyclic contribution to per-cell rate is therefore $p \cdot f_\gamma$. At long $\tau_\text{GABA}$ the inhibitory conductance never fully decays between bursts and the cycle structure dissolves into a tonic bath; the surviving E firing is whatever $W_\text{in}$ forces through it — a baseline $a$ independent of $f_\gamma$. Total:
+
+$$
+r_E = \underbrace{a}_{\text{feedforward baseline}} + \underbrace{p \cdot f_\gamma}_{\text{cyclic contribution}}.
+$$
+
+### Fit and cross-checks
+
+Affine fit: $a = 0.96$ Hz, $p = 0.201$ Hz/Hz, $R^2 = 0.996$.
+
+**$p$ is per-cycle participation.** At $\tau_\text{GABA} = 9$ ms the canonical cell has $f_\gamma \approx 36$ Hz and $r_E \approx 8.6$ Hz; $(r_E - a)/f_\gamma = 7.6/36 = 0.21$, matching the fitted slope. [nb024](/notebooks/nb024/)'s per-cell distribution at the same operating point gives the same fraction from a different direction: median 7.3 Hz, i.e. $\approx 0.20$ spikes per cell per cycle, with $\approx 9\%$ of cells silent.
+
+**$a$ is a non-rhythmic baseline.** The fit extrapolates to $a \approx 1$ Hz at $f_\gamma \to 0$ — the no-rhythm regime that [nb042](/notebooks/nb042/)'s rate-matched Poisson condition probes directly (continuous I drive at matched mean drives E nearly silent). The intercept is a prediction about a no-rhythm limit, not a nuisance term.
+
+The accuracy panel of Figure 1 stays at 81–89% across the whole $f_\gamma$ sweep — the rate change is not paid in classification.
+
+The law is visible in single-trial rasters: the cycle stretches monotonically with $\tau_\text{GABA}$ and per-cell rates follow.
+
+<Figure id="Figure 2" title="Single-trial rasters across the τ_GABA sweep" src="/figures/notebooks/nb041/raster_strip.png" alt="Six stacked raster panels for τ_GABA values 4.5, 6, 9, 12, 18, 27 ms. Each panel shows E spikes (black) and I spikes (red) across the first 100 ms of one MNIST trial (digit 0 sample 0, seed 42). The gamma cycle period grows monotonically with τ_GABA: at τ_GABA = 4.5 ms the bursts repeat every ~17 ms with E rate 14.5 Hz; at τ_GABA = 27 ms the bursts repeat every ~63 ms with E rate 4.6 Hz.">
+  One MNIST trial replayed through each retrained network. $\approx 17$ ms cycles at $\tau_\text{GABA} = 4.5$ ms (E = 14.5 Hz) → $\approx 63$ ms cycles at $\tau_\text{GABA} = 27$ ms (E = 4.6 Hz).
+</Figure>
+
+<Figure id="Figure 3" title="Trained-network population PSDs — peak marks f_γ" src="/figures/notebooks/nb041/psds.png" alt="Six PSD curves on a linear y axis, one per τ_GABA value (4.5, 6, 9, 12, 18, 27 ms; viridis colormap), x-axis frequency 5–150 Hz. Each curve has a clear peak in the gamma band, marked with a dot at the parabolic-interpolated peak frequency.">
+  Population PSDs by $\tau_\text{GABA}$. Dots mark the interpolated peak used as $f_\gamma$. Peak shifts cleanly from $\approx 14$ Hz at 27 ms to $\approx 54$ Hz at 4.5 ms.
+</Figure>
+
+## Convergence
+
+Accuracy and rate converge on different timescales. Accuracy plateaus at 80–89% by epoch 15 across all $\tau_\text{GABA}$ values. Rate climbs steadily for the first 30 epochs, slows by epoch 50, and stabilises by epoch 70–100. The convergence audit in [nb024](/notebooks/nb024/) showed the same pattern at the $\theta_u$ = off baseline: PING's rate is a converged operating point at 100 epochs, not at 30.
+
+The fit numbers shift accordingly with training duration:
+
+| training | $a$ (Hz) | $p$ (Hz/Hz) | $R^2$ |
+|---|---|---|---|
+| 30 epochs | 1.14 | 0.166 | 0.990 |
+| 100 epochs | 0.96 | 0.201 | 0.996 |
+
+The *shape* of the law is robust — a clean affine relation in $f_\gamma$ at every training duration. The *slope* is duration-conditional and tightens toward its fixed point as training continues. Reporting the converged 100-epoch values is the right framing for any claim about per-cycle participation $p$; reporting them at 30 epochs is honest but understates the participation fraction.
+
+<Figure id="Figure 4" title="Per-cell training curves" src="/figures/notebooks/nb041/training_curves.png" alt="Two stacked panels. Top: test accuracy vs epoch, one line per cell, coloured by τ_GABA. Accuracy plateaus at 80–89% by epoch 15 across all cells. Bottom: test E rate vs epoch — every curve climbs steadily across the first 30 epochs then flattens by epoch 70–100.">
+  Per-cell training curves across all 18 cells, coloured by $\tau_\text{GABA}$. Top: test accuracy. Bottom: test E rate.
+</Figure>
+
+## Discussion
+
+The retrained complement to [nb037](/notebooks/nb037/) Figure 6. nb037 mutated $\tau_\text{GABA}$ at inference; nb041 retrains at each value and shows the optimiser cannot find a different operating point. Every retrained network sits on the same affine line, with both constants physically interpretable.
+
+## Cortical prediction
+
+The result is in silico — a conductance-based PING network trained on MNIST. But the derivation does not depend on the task or on the training substrate; it depends only on the cycle structure produced by the recurrent E↔I loop. To the extent that cortical pyramidal-interneuron circuits implement the same kind of self-clocking cycle, the same law should hold *in vivo*:
+
+> **Pyramidal-cell mean firing rate should be linearly predictable from the local gamma peak frequency: $r_E \approx a + p \cdot f_\gamma$, with $p$ on the order of 0.1–0.2 (10–20% of pyramidal cells participating per cycle) and a small non-rhythmic baseline $a$.**
+
+Testable in any awake-cortex recording where gamma is visible and pyramidal-cell rates are simultaneously measured. The prediction is falsifiable in three directions:
+
+- **Slope.** If $p$ is consistently far outside 0.05–0.3 across cortical areas, the per-cycle-participation interpretation is wrong.
+- **Linearity.** If pyramidal rates correlate with gamma power but not with gamma *frequency* in an affine way, the cycle-counting picture is the wrong model.
+- **Direction.** Pharmacologically shortening $\tau_\text{GABA}$ (e.g. some benzodiazepine washouts or specific GABA-A subunit manipulations) should *raise* pyramidal rates, not lower them — counter-intuitive but a direct consequence of the law.
+
+The architectural ingredient that makes the law hold here is a recurrent I-loop with fixed (not plastic) connectivity, on adult-cortex-like biophysical parameter ranges ($\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} \in 5$–$30$ ms, E:I ratio 4:1). If cortical gamma is generated by a fundamentally different mechanism (e.g. interneuron-only ING, or pacemaker-driven), the law need not transfer; the prediction is therefore also a test of *whether the cortical gamma mechanism is PING-like*.
+
+## Success criteria
+
+- [x] rate-vs-$f_\gamma$, PSD, raster, training-curve figures rendered.
+- [x] $f_\gamma$ varies $\geq 2$× across the $\tau_\text{GABA}$ sweep (3.78×: 14.3 → 54.0 Hz).
+- [x] Affine fit $R^2 \geq 0.7$ ($R^2 = 0.996$).
+- [x] Slope $p > 0$ ($p = 0.201$ Hz/Hz).
+
+## Next steps
+
+Quantitative-law leg of [art008](/articles/art008/)'s pre-shipping chain. Combined with [nb042](/notebooks/nb042/) (rhythm vs mean-inhibition) and [nb043](/notebooks/nb043/) (reward pressure), the structural-bound argument is complete.

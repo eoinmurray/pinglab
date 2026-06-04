@@ -4,7 +4,7 @@ title: "006 — PING E→I Coupling Video"
 date: 2026-04-23
 entry: 6
 structure: paper
-collections: [videos]
+collection: basics
 ---
 import Figure from "../../components/Figure.astro";
 import RunParameters from "../../components/RunParameters.astro";
@@ -97,7 +97,7 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
 
 ## Next steps
 
-The recruitment threshold near *ei* ≈ 1.6 here is the practical floor for any *trained* PING circuit — and explains why [nb012](/notebooks/nb012/) at *ei* = 0.5 reports *rate_i* = 0 Hz, with the network silently degenerating into feedforward-E. A natural follow-up is an independent 2D sweep over (*ei-strength*, *input-rate*) rendered as a heatmap of *rate_i*, since the threshold here is conditional on the bumped input drive used in this entry. With that map in hand, the trained-PING entries can choose an *ei* / drive pair from inside a verified PING basin instead of guessing.
+The recruitment threshold near *ei* ≈ 1.6 here is the practical floor for any *trained* PING circuit — at lower *ei* (e.g. 0.5) the network silently degenerates into feedforward-E with *rate_i* = 0 Hz. A natural follow-up is an independent 2D sweep over (*ei-strength*, *input-rate*) rendered as a heatmap of *rate_i*, since the threshold here is conditional on the bumped input drive used in this entry. With that map in hand, the trained-PING entries can choose an *ei* / drive pair from inside a verified PING basin instead of guessing.
 
 ## Appendix
 

@@ -1,0 +1,322 @@
+{
+  "notebook_run_id": "r004",
+  "git_sha": "ed141d7 (dirty)",
+  "duration_s": 31.7,
+  "duration": "32s",
+  "tier": "medium",
+  "config": {
+    "tier": "medium",
+    "dataset": "mnist",
+    "models": [
+      "coba",
+      "ping"
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "epochs": 100,
+    "max_samples": 2000,
+    "t_ms": 200.0,
+    "dt": 0.1
+  },
+  "per_cell": [
+    {
+      "model": "coba",
+      "seed": 42,
+      "epochs_completed": 100,
+      "final_acc": 89.75,
+      "final_e_rate_hz": 77.28992919921875,
+      "final_i_rate_hz": 0.0,
+      "final_loss": 0.22588713892868587,
+      "final_grad_norm": 0.09123604531799044,
+      "acc_slope_last10_pp_per_ep": 0.027777777777777776,
+      "e_rate_slope_last10_hz_per_ep": 0.13492567274305461,
+      "i_rate_slope_last10_hz_per_ep": 0.0,
+      "loss_slope_last10_per_ep": -0.0008932153383890787,
+      "weight_drift": {
+        "W_ff.0": {
+          "init": 1.973571538925171,
+          "final": 17.42363739013672,
+          "ratio_final_over_init": 8.828480268633093,
+          "slope_last10": 0.09059842427571614
+        },
+        "W_ff.1": {
+          "init": 62.81587219238281,
+          "final": 65.60540771484375,
+          "ratio_final_over_init": 1.0444081316568776,
+          "slope_last10": 0.022198147243923612
+        }
+      },
+      "per_cell_rate_stats": {
+        "mean_hz": 76.00553894042969,
+        "median_hz": 67.20625305175781,
+        "std_hz": 31.866209030151367,
+        "max_hz": 199.64999389648438,
+        "frac_silent": 0.0
+      }
+    },
+    {
+      "model": "coba",
+      "seed": 43,
+      "epochs_completed": 100,
+      "final_acc": 90.0,
+      "final_e_rate_hz": 76.93134765625,
+      "final_i_rate_hz": 0.0,
+      "final_loss": 0.22473448089190892,
+      "final_grad_norm": 0.08989434902157102,
+      "acc_slope_last10_pp_per_ep": -0.027777777777777776,
+      "e_rate_slope_last10_hz_per_ep": 0.1281060112847222,
+      "i_rate_slope_last10_hz_per_ep": 0.0,
+      "loss_slope_last10_per_ep": -0.0010525447035592704,
+      "weight_drift": {
+        "W_ff.0": {
+          "init": 1.9781618118286133,
+          "final": 17.19159507751465,
+          "ratio_final_over_init": 8.69069202262212,
+          "slope_last10": 0.08905749850802952
+        },
+        "W_ff.1": {
+          "init": 62.84651565551758,
+          "final": 65.71100616455078,
+          "ratio_final_over_init": 1.0455791459423847,
+          "slope_last10": 0.022125244140625
+        }
+      },
+      "per_cell_rate_stats": {
+        "mean_hz": 74.08943176269531,
+        "median_hz": 66.55624389648438,
+        "std_hz": 30.045236587524414,
+        "max_hz": 182.1750030517578,
+        "frac_silent": 0.0
+      }
+    },
+    {
+      "model": "coba",
+      "seed": 44,
+      "epochs_completed": 100,
+      "final_acc": 89.75,
+      "final_e_rate_hz": 77.7815185546875,
+      "final_i_rate_hz": 0.0,
+      "final_loss": 0.22754051642758505,
+      "final_grad_norm": 0.09139667770692281,
+      "acc_slope_last10_pp_per_ep": 0.0,
+      "e_rate_slope_last10_hz_per_ep": 0.12504882812499968,
+      "i_rate_slope_last10_hz_per_ep": 0.0,
+      "loss_slope_last10_per_ep": -0.0008929149499015224,
+      "weight_drift": {
+        "W_ff.0": {
+          "init": 1.9644157886505127,
+          "final": 17.423490524291992,
+          "ratio_final_over_init": 8.869553291597876,
+          "slope_last10": 0.08974393208821614
+        },
+        "W_ff.1": {
+          "init": 62.093624114990234,
+          "final": 65.07767486572266,
+          "ratio_final_over_init": 1.0480572811341515,
+          "slope_last10": 0.022612677680121526
+        }
+      },
+      "per_cell_rate_stats": {
+        "mean_hz": 75.74563598632812,
+        "median_hz": 66.9312515258789,
+        "std_hz": 32.953495025634766,
+        "max_hz": 188.625,
+        "frac_silent": 0.0
+      }
+    },
+    {
+      "model": "ping",
+      "seed": 42,
+      "epochs_completed": 100,
+      "final_acc": 87.5,
+      "final_e_rate_hz": 9.01436767578125,
+      "final_i_rate_hz": 40.203857421875,
+      "final_loss": 0.17409326348985946,
+      "final_grad_norm": 0.17457064347607748,
+      "acc_slope_last10_pp_per_ep": -0.05555555555555555,
+      "e_rate_slope_last10_hz_per_ep": 0.019373914930555475,
+      "i_rate_slope_last10_hz_per_ep": 0.0737575954861111,
+      "loss_slope_last10_per_ep": 0.0011517840718466164,
+      "weight_drift": {
+        "W_ff.0": {
+          "init": 6.191005229949951,
+          "final": 17.402664184570312,
+          "ratio_final_over_init": 2.810959373831929,
+          "slope_last10": 0.09191343519422743
+        },
+        "W_ff.1": {
+          "init": 314.16552734375,
+          "final": 315.3837585449219,
+          "ratio_final_over_init": 1.0038776730581231,
+          "slope_last10": 0.008385552300347222
+        }
+      },
+      "per_cell_rate_stats": {
+        "mean_hz": 8.796167373657227,
+        "median_hz": 8.293749809265137,
+        "std_hz": 5.7906270027160645,
+        "max_hz": 29.0625,
+        "frac_silent": 0.1005859375
+      }
+    },
+    {
+      "model": "ping",
+      "seed": 43,
+      "epochs_completed": 100,
+      "final_acc": 88.25,
+      "final_e_rate_hz": 9.04637451171875,
+      "final_i_rate_hz": 40.322900390625,
+      "final_loss": 0.16959248270307267,
+      "final_grad_norm": 0.1742832213640213,
+      "acc_slope_last10_pp_per_ep": 0.1388888888888889,
+      "e_rate_slope_last10_hz_per_ep": 0.025218370225694287,
+      "i_rate_slope_last10_hz_per_ep": 0.09849717881944445,
+      "loss_slope_last10_per_ep": 0.00184429082132521,
+      "weight_drift": {
+        "W_ff.0": {
+          "init": 6.2327961921691895,
+          "final": 17.392366409301758,
+          "ratio_final_over_init": 2.790459670597495,
+          "slope_last10": 0.09093284606933594
+        },
+        "W_ff.1": {
+          "init": 314.3177490234375,
+          "final": 315.5854797363281,
+          "ratio_final_over_init": 1.0040332775251457,
+          "slope_last10": 0.008829752604166666
+        }
+      },
+      "per_cell_rate_stats": {
+        "mean_hz": 5.974389553070068,
+        "median_hz": 5.768750190734863,
+        "std_hz": 4.16351842880249,
+        "max_hz": 21.587499618530273,
+        "frac_silent": 0.0595703125
+      }
+    },
+    {
+      "model": "ping",
+      "seed": 44,
+      "epochs_completed": 100,
+      "final_acc": 87.5,
+      "final_e_rate_hz": 8.9480224609375,
+      "final_i_rate_hz": 40.222900390625,
+      "final_loss": 0.17940004169940948,
+      "final_grad_norm": 0.18595158628055028,
+      "acc_slope_last10_pp_per_ep": -0.1111111111111111,
+      "e_rate_slope_last10_hz_per_ep": 0.01769748263888893,
+      "i_rate_slope_last10_hz_per_ep": 0.09498155381944429,
+      "loss_slope_last10_per_ep": 0.0021339522467719186,
+      "weight_drift": {
+        "W_ff.0": {
+          "init": 6.153412818908691,
+          "final": 17.2375545501709,
+          "ratio_final_over_init": 2.8012998733324026,
+          "slope_last10": 0.09197235107421875
+        },
+        "W_ff.1": {
+          "init": 310.54412841796875,
+          "final": 311.8096008300781,
+          "ratio_final_over_init": 1.004075016386741,
+          "slope_last10": 0.0089111328125
+        }
+      },
+      "per_cell_rate_stats": {
+        "mean_hz": 8.901013374328613,
+        "median_hz": 8.212499618530273,
+        "std_hz": 5.941953182220459,
+        "max_hz": 27.75,
+        "frac_silent": 0.111328125
+      }
+    }
+  ],
+  "success_criteria": [
+    {
+      "label": "training-curves figure rendered",
+      "passed": true,
+      "detail": "training_curves.png (222987 bytes)",
+      "detail_href": "/figures/notebooks/nb024/training_curves.png"
+    },
+    {
+      "label": "weight-dynamics figure rendered",
+      "passed": true,
+      "detail": "weight_dynamics.png (121811 bytes)",
+      "detail_href": "/figures/notebooks/nb024/weight_dynamics.png"
+    },
+    {
+      "label": "rate/accuracy trajectory rendered",
+      "passed": true,
+      "detail": "rate_acc_trajectory.png (72177 bytes)",
+      "detail_href": "/figures/notebooks/nb024/rate_acc_trajectory.png"
+    },
+    {
+      "label": "rate-distribution figure rendered",
+      "passed": true,
+      "detail": "rate_distributions.png (45232 bytes)",
+      "detail_href": "/figures/notebooks/nb024/rate_distributions.png"
+    },
+    {
+      "label": "coba seed 42 accuracy converged (|slope| \u2264 0.1 pp/ep)",
+      "passed": true,
+      "detail": "acc = 89.75%, slope = +0.028 pp/ep"
+    },
+    {
+      "label": "coba seed 42 E rate converged (|slope| \u2264 0.05 Hz/ep)",
+      "passed": false,
+      "detail": "E = 77.29 Hz, slope = +0.135 Hz/ep"
+    },
+    {
+      "label": "coba seed 43 accuracy converged (|slope| \u2264 0.1 pp/ep)",
+      "passed": true,
+      "detail": "acc = 90.00%, slope = -0.028 pp/ep"
+    },
+    {
+      "label": "coba seed 43 E rate converged (|slope| \u2264 0.05 Hz/ep)",
+      "passed": false,
+      "detail": "E = 76.93 Hz, slope = +0.128 Hz/ep"
+    },
+    {
+      "label": "coba seed 44 accuracy converged (|slope| \u2264 0.1 pp/ep)",
+      "passed": true,
+      "detail": "acc = 89.75%, slope = +0.000 pp/ep"
+    },
+    {
+      "label": "coba seed 44 E rate converged (|slope| \u2264 0.05 Hz/ep)",
+      "passed": false,
+      "detail": "E = 77.78 Hz, slope = +0.125 Hz/ep"
+    },
+    {
+      "label": "ping seed 42 accuracy converged (|slope| \u2264 0.1 pp/ep)",
+      "passed": true,
+      "detail": "acc = 87.50%, slope = -0.056 pp/ep"
+    },
+    {
+      "label": "ping seed 42 E rate converged (|slope| \u2264 0.05 Hz/ep)",
+      "passed": true,
+      "detail": "E = 9.01 Hz, slope = +0.019 Hz/ep"
+    },
+    {
+      "label": "ping seed 43 accuracy converged (|slope| \u2264 0.1 pp/ep)",
+      "passed": false,
+      "detail": "acc = 88.25%, slope = +0.139 pp/ep"
+    },
+    {
+      "label": "ping seed 43 E rate converged (|slope| \u2264 0.05 Hz/ep)",
+      "passed": true,
+      "detail": "E = 9.05 Hz, slope = +0.025 Hz/ep"
+    },
+    {
+      "label": "ping seed 44 accuracy converged (|slope| \u2264 0.1 pp/ep)",
+      "passed": false,
+      "detail": "acc = 87.50%, slope = -0.111 pp/ep"
+    },
+    {
+      "label": "ping seed 44 E rate converged (|slope| \u2264 0.05 Hz/ep)",
+      "passed": true,
+      "detail": "E = 8.95 Hz, slope = +0.018 Hz/ep"
+    }
+  ]
+}

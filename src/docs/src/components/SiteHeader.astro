@@ -1,7 +1,6 @@
 ---
 // Site-wide navigation header. PINGLAB on the left (H1 on the home page,
-// otherwise a link back home), optional breadcrumb segment via the
-// `breadcrumb` slot, then global links on the right.
+// otherwise a link back home), then global links on the right.
 interface Props {
   isHome?: boolean;
 }
@@ -16,7 +15,6 @@ const pinglabStyle =
   ) : (
     <a href="/" class={pinglabClass} style={pinglabStyle}>PINGLAB</a>
   )}
-  <slot name="breadcrumb" />
   <a
     href="/articles/"
     class="text-sm text-muted hover:text-[color:var(--ink)]">articles</a
@@ -24,6 +22,10 @@ const pinglabStyle =
   <a
     href="/notebooks/"
     class="text-sm text-muted hover:text-[color:var(--ink)]">notebooks</a
+  >
+  <a
+    href="/collections/"
+    class="text-sm text-muted hover:text-[color:var(--ink)]">collections</a
   >
   <a
     href="https://github.com/eoinmurray/pinglab"

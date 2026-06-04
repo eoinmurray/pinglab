@@ -158,10 +158,7 @@ MODEL_GROUPS = [
 # Extra keys:
 #   __build_as: name to pass as --model (coba dispatches via --model ping).
 MODEL_CONFIG: dict[str, dict] = {
-    # Recipes mirror the per-model trainers (nb007-nb012). Any drift here
-    # would mean nb013's dt-stability sweep doesn't actually evaluate the
-    # same recipe being baselined elsewhere.
-    "standard-snn": {  # mirrors nb007
+    "standard-snn": {
         "__build_as": "standard-snn",
         "--kaiming-init": True,
         "--readout": "mem-mean",
@@ -169,7 +166,7 @@ MODEL_CONFIG: dict[str, dict] = {
         "--lr": "0.01",
         "--batch-size": "256",
     },
-    "snntorch-library": {  # mirrors nb009
+    "snntorch-library": {
         "__build_as": "snntorch-library",
         "--kaiming-init": True,
         "--readout": "mem-mean",
@@ -177,7 +174,7 @@ MODEL_CONFIG: dict[str, dict] = {
         "--lr": "0.01",
         "--batch-size": "256",
     },
-    "cuba": {  # mirrors nb010
+    "cuba": {
         "__build_as": "cuba",
         "--kaiming-init": True,
         "--readout": "mem-mean",
@@ -185,7 +182,7 @@ MODEL_CONFIG: dict[str, dict] = {
         "--lr": "0.04",  # 4× scaled vs old 0.01 for batch=256
         "--batch-size": "256",
     },
-    "coba": {  # mirrors nb011
+    "coba": {
         "__build_as": "ping",
         "--ei-strength": "0",
         "--v-grad-dampen": "1000",
@@ -195,14 +192,13 @@ MODEL_CONFIG: dict[str, dict] = {
         "--surrogate-slope": "1",
         # COBANet hidden firing rate ~10× lower than CUBANet under
         # mem-mean — scale W_out at init to equalise output drive.
-        # See nb011 for sweep: 1→59%, 10→70%, 30→74%, 100→82%.
         "--readout-w-out-scale": "100",
         "--lr": "0.0004",  # 4× scaled vs old 1e-4 for batch=256
         "--batch-size": "256",
     },
-    "ping": {  # mirrors nb012
+    "ping": {
         "__build_as": "ping",
-        "--ei-strength": "1",  # bumped 0.5 → 1 to match nb012
+        "--ei-strength": "1",
         "--v-grad-dampen": "1000",
         "--w-in": "1.2",
         "--w-in-sparsity": "0.95",
@@ -1176,7 +1172,7 @@ def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
 
     Two layers of gate:
 
-    (1) Per-run training-health checks, matching nb007–nb012 shape
+    (1) Per-run training-health checks
         (shared _per_model.evaluate_success): every one of the 5 models ×
         2 dts must have final_acc above the tier's chance-floor and no
         late-epoch collapse. Without these, a sweep where every run sat
