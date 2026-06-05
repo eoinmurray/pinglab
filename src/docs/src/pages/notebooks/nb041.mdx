@@ -48,7 +48,7 @@ Affine fit: $a = 0.96$ Hz, $p = 0.201$ Hz/Hz, $R^2 = 0.996$.
 
 **$a$ is a non-rhythmic baseline.** The fit extrapolates to $a \approx 1$ Hz at $f_\gamma \to 0$ — the no-rhythm regime that [nb042](/notebooks/nb042/)'s rate-matched Poisson condition probes directly (continuous I drive at matched mean drives E nearly silent). The intercept is a prediction about a no-rhythm limit, not a nuisance term.
 
-The accuracy panel of Figure 1 stays at 81–89% across the whole $f_\gamma$ sweep — the rate change is not paid in classification.
+The accuracy panel of Figure 1 stays at 80.5–90% across the whole $f_\gamma$ sweep — the rate change is not paid in classification.
 
 The law is visible in single-trial rasters: the cycle stretches monotonically with $\tau_\text{GABA}$ and per-cell rates follow.
 
@@ -62,7 +62,7 @@ The law is visible in single-trial rasters: the cycle stretches monotonically wi
 
 ## Convergence
 
-Accuracy and rate converge on different timescales. Accuracy plateaus at 80–89% by epoch 15 across all $\tau_\text{GABA}$ values. Rate climbs steadily for the first 30 epochs, slows by epoch 50, and stabilises by epoch 70–100. The convergence audit in [nb024](/notebooks/nb024/) showed the same pattern at the $\theta_u$ = off baseline: PING's rate is a converged operating point at 100 epochs, not at 30.
+Accuracy and rate converge on different timescales. Accuracy plateaus at 80.5–90% by epoch 15 across all $\tau_\text{GABA}$ values. Rate climbs steadily for the first 30 epochs, slows by epoch 50, and stabilises by epoch 70–100. The convergence audit in [nb024](/notebooks/nb024/) showed the same pattern at the $\theta_u$ = off baseline: PING's rate is a converged operating point at 100 epochs, not at 30.
 
 The fit numbers shift accordingly with training duration:
 
@@ -98,10 +98,10 @@ The architectural ingredient that makes the law hold here is a recurrent I-loop 
 ## Success criteria
 
 - [x] rate-vs-$f_\gamma$, PSD, raster, training-curve figures rendered.
-- [x] $f_\gamma$ varies $\geq 2$× across the $\tau_\text{GABA}$ sweep (3.78×: 14.3 → 54.0 Hz).
+- [x] $f_\gamma$ varies $\geq 2$× across the $\tau_\text{GABA}$ sweep (4.08×: 13.31 → 54.30 Hz across cells).
 - [x] Affine fit $R^2 \geq 0.7$ ($R^2 = 0.996$).
 - [x] Slope $p > 0$ ($p = 0.201$ Hz/Hz).
 
 ## Next steps
 
-Quantitative-law leg of [art008](/articles/art008/)'s pre-shipping chain. Combined with [nb042](/notebooks/nb042/) (rhythm vs mean-inhibition) and [nb043](/notebooks/nb043/) (reward pressure), the structural-bound argument is complete.
+Quantitative-law leg of [art010](/articles/art010/)'s pre-shipping chain. Combined with [nb042](/notebooks/nb042/) (rhythm vs mean-inhibition) and [nb043](/notebooks/nb043/) (reward pressure), the structural-bound argument is complete.

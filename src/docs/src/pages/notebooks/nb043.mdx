@@ -11,7 +11,7 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb043/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
-Closes the forbidding-claim chain for [art008](/articles/art008/) by inverting the regulariser. [nb025](/notebooks/nb025/) penalised firing *above* a threshold; this entry penalises firing *below* one. The Lagrangian goes through zero into reward-for-spikes territory. If PING is genuinely forbidden from the high-rate manifold, the optimiser should be unable to push its post-training mean rate up — even when the loss is actively pulling that way. COBA without the loop should track the target in both directions. Scaffolded by [art009](/articles/art009/) §Leg 1 item 3.
+Closes the forbidding-claim chain for [art010](/articles/art010/) by inverting the regulariser. [nb025](/notebooks/nb025/) penalised firing *above* a threshold; this entry penalises firing *below* one. The Lagrangian goes through zero into reward-for-spikes territory. If PING is genuinely forbidden from the high-rate manifold, the optimiser should be unable to push its post-training mean rate up — even when the loss is actively pulling that way. COBA without the loop should track the target in both directions. Scaffolded by [art009](/articles/art009/) §Leg 1 item 3.
 
 ## Method
 
@@ -23,36 +23,36 @@ $$
 
 where $\langle z_i\rangle$ is the per-neuron mean spike count per trial. The upper-bound term (existing, $s_u = 10^{-3}$) penalises firing above $\theta_u$ — used in [nb025](/notebooks/nb025/) to squeeze COBA down. The lower-bound term (new this entry, $s_l = 10^{-3}$) penalises firing *below* $\theta_l$ — pushes rate *up*.
 
-Train one PING and one COBA-no-loop network per signed target $T \in \{+1, +2, +5, 0, -4, -10, -20\}$ spikes/trial ($\times 5$ Hz at $T = 200$ ms). Positive $T$ uses $\theta_u = T$ (upper-bound active); negative $T$ uses $\theta_l = |T|$ (lower-bound active); zero is no regulariser. All other hyperparameters are the [nb025](/notebooks/nb025/) baseline recipe at medium tier (2000 train samples, 30 epochs, seed 42), dispatched to Modal A100.
+Train one PING and one COBA-no-loop network per signed target $T \in \{+1, +2, +5, 0, -4, -10, -20\}$ spikes/trial ($\times 5$ Hz at $T = 200$ ms). Positive $T$ uses $\theta_u = T$ (upper-bound active); negative $T$ uses $\theta_l = |T|$ (lower-bound active); zero is no regulariser. All other hyperparameters are the [nb025](/notebooks/nb025/) baseline recipe at medium tier (2000 train samples, 100 epochs, seed 42), dispatched to Modal A100.
 
 The forbidding signature would be PING flatlining across the full sweep — its post-training rate staying inside a narrow band regardless of which Lagrangian direction is pulled. COBA should follow the target.
 
 ## Results
 
-<Figure id="Figure 1" title="Rate-maximising pressure — E rate and accuracy vs signed rate target" src="/figures/notebooks/nb043/pressure_sweep.png" alt="Two-panel plot. Top panel: hidden E rate (Hz) vs signed rate target (Hz). PING (black diamonds) is flat at about 7 Hz across the entire penalty (upper-bound) side and at baseline, then climbs to ≈ 44 Hz under heavy reward (lower-bound), saturating around -50 to -100 Hz target. COBA (red squares) climbs from 3 Hz at +5 Hz target, through 88 Hz at baseline, to 154 Hz at −100 Hz target — a 47× span. Bottom panel: test accuracy vs the same x-axis. PING accuracy holds at 86-88% across penalty and baseline, then drops sharply to 52% under heavy reward. COBA accuracy is at 88% from baseline through the entire reward side but drops to 66% at the tightest penalty.">
-  Top: hidden E rate. Bottom: test accuracy. One curve per architecture; horizontal dashed line at the PING baseline rate (≈ 6.7 Hz). Vertical dotted line at the no-regulariser baseline ($T = 0$). The full axis: positive = upper-bound penalty (Lagrangian squeezes rate down), negative = lower-bound reward (Lagrangian pushes rate up).
+<Figure id="Figure 1" title="Rate-maximising pressure — E rate and accuracy vs signed rate target" src="/figures/notebooks/nb043/pressure_sweep.png" alt="Two-panel plot. Top panel: hidden E rate (Hz) vs signed rate target (Hz). PING (black diamonds) sits at about 10 Hz across the penalty (upper-bound) side and at baseline, then climbs to ≈ 96 Hz under heavy reward at −100 Hz target. COBA (red squares) climbs from 1.4 Hz at +5 Hz target, through 96 Hz at baseline, to 145 Hz at −100 Hz target. Bottom panel: test accuracy vs the same x-axis. PING accuracy holds at 87-88% across penalty and baseline, then drops to 66% under the heaviest reward. COBA accuracy holds at 89-90% from baseline through the entire reward side but drops to 67% at the tightest penalty.">
+  Top: hidden E rate. Bottom: test accuracy. One curve per architecture; horizontal dashed line at the PING baseline rate (≈ 10 Hz). Vertical dotted line at the no-regulariser baseline ($T = 0$). The full axis: positive = upper-bound penalty (Lagrangian squeezes rate down), negative = lower-bound reward (Lagrangian pushes rate up).
 </Figure>
 
 | Target (Hz) | Regulariser | COBA E rate | COBA acc | PING E rate | PING acc |
 |---|---|---|---|---|---|
-| +5 (heavy ceiling) | upper-bound | 3.3 Hz | 66% | 5.3 Hz | 86% |
-| +10 | upper-bound | 11.7 Hz | 71% | 6.9 Hz | 88% |
-| +25 | upper-bound | 32.8 Hz | 78% | 7.2 Hz | 87% |
-| **0 (baseline)** | none | **87.7 Hz** | **88%** | **6.7 Hz** | **88%** |
-| −20 | lower-bound | 84.8 Hz | 87% | 23.5 Hz | 85% |
-| −50 | lower-bound | 101.0 Hz | 86% | 44.3 Hz | 72% |
-| **−100 (max reward)** | lower-bound | **153.9 Hz** | **84%** | **43.6 Hz** | **52%** |
+| +5 (heavy ceiling) | upper-bound | 1.4 Hz | 67% | 4.7 Hz | 87% |
+| +10 | upper-bound | 7.7 Hz | 73% | 8.1 Hz | 88% |
+| +25 | upper-bound | 27.0 Hz | 81% | 9.9 Hz | 87% |
+| **0 (baseline)** | none | **96.3 Hz** | **90%** | **9.9 Hz** | **88%** |
+| −20 | lower-bound | 91.8 Hz | 89% | 23.7 Hz | 85% |
+| −50 | lower-bound | 96.5 Hz | 89% | 53.4 Hz | 82% |
+| **−100 (max reward)** | lower-bound | **144.6 Hz** | **89%** | **96.4 Hz** | **66%** |
 
-COBA spans 3.3–153.9 Hz across the axis (46.8× range). PING spans 5.3–44.3 Hz (8.3× range). The signature is *not* "PING is flat everywhere" — at medium tier with properly trained networks, PING *can* climb under heavy reward to ~44 Hz, where it saturates. The strict-forbidding reading from the prior small-tier writeup was an undertrained-network artefact.
+COBA spans 1.4–144.6 Hz across the axis (102× range). PING spans 4.7–96.4 Hz (20× range). The signature is *not* "PING is flat everywhere" — under heavy reward PING *does* climb to ≈ 96 Hz, the same rate COBA sits at without any regulariser. But PING pays for it: accuracy collapses to 66% at the same point COBA holds at 89%. The strict-forbidding reading from the prior small-tier writeup was an undertrained-network artefact; the *coupled* forbidding signature is what survives.
 
-The richer signature lives in the **coupled rate-accuracy trade-off**, which is asymmetric between architectures:
+The signature lives in the **coupled rate-accuracy trade-off**, which is asymmetric between architectures:
 
-- **PING under reward.** Rate climbs (6.7 → 44 Hz) but accuracy collapses 88% → 52%. The optimiser is paying classification accuracy for every Hz of rate gain. Above a ~44 Hz ceiling the rate refuses to move further; the gradient pressure goes nowhere productive.
-- **COBA under reward.** Rate climbs (88 → 154 Hz) with accuracy *preserved* at 84-88%. COBA is comfortable as a high-rate classifier and the reward objective is non-disruptive.
-- **COBA under penalty.** Rate drops (88 → 3 Hz) but accuracy collapses 88% → 66%. COBA cannot do MNIST at 3 Hz — it needs the high rate to drive its readout.
-- **PING under penalty.** Rate barely moves (7 → 5 Hz) — PING is already firing below the ceiling, so the penalty rarely engages. Accuracy is preserved at 86-88%.
+- **PING under reward.** Rate climbs (9.9 → 96.4 Hz, a 10× walk) but accuracy collapses 88% → 66%. The optimiser is paying classification accuracy for every Hz of rate gain.
+- **COBA under reward.** Rate climbs (96 → 145 Hz, a 1.5× walk) with accuracy *preserved* at 89%. COBA is comfortable as a high-rate classifier and the reward objective is non-disruptive.
+- **COBA under penalty.** Rate drops (96 → 1.4 Hz) and accuracy collapses 90% → 67%. COBA cannot do MNIST at single-digit Hz — it needs the high rate to drive its readout.
+- **PING under penalty.** Rate moves modestly (10 → 4.7 Hz) — PING is already firing near the ceiling the penalty asks for, so the penalty engages only at the tightest targets. Accuracy is preserved at 87-88%.
 
-The signature is bidirectional: each architecture has a **natural operating point** where it classifies well, set by the recurrent dynamics, and the optimiser can push it away from that point only at the cost of accuracy. COBA's natural point is ≈ 88 Hz; PING's is ≈ 7 Hz. Deviations from either point cost accuracy in a roughly symmetric way around the architecture's preferred rate, but with the two architectures' preferred rates a decade apart.
+The signature is bidirectional: each architecture has a **natural operating point** where it classifies well, set by the recurrent dynamics, and the optimiser can push it away from that point only at the cost of accuracy. COBA's natural point is ≈ 96 Hz; PING's is ≈ 10 Hz. The cleanest matched-rate comparison is at the rightmost target: at 96 Hz, COBA classifies at 90% while reward-driven PING manages 66% — a 24 pp accuracy gap at the same firing rate.
 
 ## Discussion
 
@@ -67,24 +67,24 @@ This entry required the lower-bound regulariser, which was *referenced* in the C
 ## Convergence
 
 <Figure id="Figure 2" title="Per-cell training curves — convergence check across signed-target sweep" src="/figures/notebooks/nb043/training_curves.png" alt="Two-by-two grid. Top row: COBA. Bottom row: PING. Left column: test accuracy per epoch. Right column: test E rate per epoch. Curves are coloured by signed rate target on a diverging scale: blues for upper-bound penalty targets, reds for lower-bound reward targets, grey for no regulariser. COBA accuracy and rate curves stabilise by ~epoch 7 for most cells; the heavy-reward COBA cells (darkest red) overshoot to 150 Hz around epoch 7 then decline to 110 Hz by epoch 30. PING accuracy curves at heavy reward (darkest red) are unstable around 50% across the entire training. PING rate curves at heavy reward (darkest red) are still climbing monotonically through epoch 30.">
-  Per-cell training trajectories. Top row: COBA. Bottom row: PING. Most cells reach a stable accuracy operating point by epoch 10–15; the reward cells (red) are the slowest to converge. PING under heavy reward (darkest red, bottom-right) has rate still climbing at epoch 30 — the 44 Hz number is a snapshot, not a converged ceiling.
+  Per-cell training trajectories. Top row: COBA. Bottom row: PING. Most cells reach a stable accuracy operating point by epoch 10–15; PING under heavy reward (darkest red, bottom-right) takes the longest to settle. Rate keeps moving across the entire 100 epochs in the reward direction; the table values are at epoch 100.
 </Figure>
 
 Two convergence notes that bear on the headline:
 
-1. **The reward cells did not fully converge in 30 epochs.** PING under −100 Hz target is still rising in rate at the end of training, and accuracy is unstable around 52%. With longer training the rate would climb further; whether the accuracy floor is real or partly an undertraining artefact is open.
-2. **COBA under heavy reward overshot then declined.** Heavy-reward COBA hit ~ 150 Hz around epoch 7, then settled back to ~ 110 Hz by epoch 30 — the network found a way to satisfy the reward objective early, then traded some of the spike count back. The 154 Hz reported is the snapshot at epoch 30, not the maximum the network reached.
+1. **PING under heaviest reward (−100 Hz target) reaches ≈ 96 Hz at epoch 100.** Rate still drifts at the end of training; whether 96 Hz is the asymptote or a snapshot is open. The accuracy floor of 66% at this point — vs 89% for COBA at the same rate — is the load-bearing observation either way.
+2. **COBA under heavy reward.** Heavy-reward COBA reaches ≈ 145 Hz at the −100 Hz target by epoch 100 with accuracy preserved at 89%. No overshoot-and-decline behaviour at 100 epochs.
 
-The architectural-asymmetry claim is robust to these caveats — both directions of the trade-off persist, and the natural-operating-point reading holds. The specific numerical rates are snapshots of medium-tier training at epoch 30 and would shift modestly with more epochs.
+The architectural-asymmetry claim is robust to these caveats — both directions of the trade-off persist, and the matched-rate accuracy gap at 96 Hz (90% COBA vs 66% reward-driven PING) is the cleanest single number.
 
 ## Success criteria
 
 - [x] Pressure-sweep figure rendered.
-- [x] COBA baseline accuracy > 20% (comparator non-degenerate; achieved 88%).
-- [ ] **PING span across sweep within 2× of baseline — FAIL** (span 8.30×). The strict forbidding criterion fails at medium tier; PING climbs to 44 Hz under reward. See Discussion for the softer-but-honest reading.
-- [x] COBA span across sweep ≥ 5× (achieved 46.81×).
-- [x] COBA span ≥ 5× PING span (architectures differentiated; 46.81× vs 8.30×).
+- [x] COBA baseline accuracy > 20% (comparator non-degenerate; achieved 90%).
+- [ ] **PING span across sweep within 2× of baseline — FAIL** (span 20.3×). The strict forbidding criterion fails; PING climbs to ≈ 96 Hz under reward. The matched-rate accuracy gap (24 pp at 96 Hz) is the surviving forbidding signature.
+- [x] COBA span across sweep ≥ 5× (achieved 102×).
+- [x] COBA span ≥ 5× PING span (architectures differentiated; 102× vs 20.3×).
 
 ## Next steps
 
-Closes [art008](/articles/art008/)'s pre-shipping notebook chain on the reward-side. The remaining items are [nb041](/notebooks/nb041/) (retrained $\tau_\text{GABA}$ → $f_\gamma$ sweep — the quantitative law) and [nb044](/notebooks/nb044/) ($\Delta t$ audit — protects the headline number). Worth reproducing this sweep at medium tier before shipping the paper figure so COBA's baseline ≈ 88 Hz reaches the [nb025](/notebooks/nb025/) level and the upper-bound side has more room.
+Closes [art010](/articles/art010/)'s pre-shipping notebook chain on the reward-side. The remaining items are [nb041](/notebooks/nb041/) (retrained $\tau_\text{GABA}$ → $f_\gamma$ sweep — the quantitative law) and [nb044](/notebooks/nb044/) ($\Delta t$ audit — protects the headline number).
