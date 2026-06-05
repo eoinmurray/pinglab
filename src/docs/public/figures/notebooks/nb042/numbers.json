@@ -26,7 +26,21 @@
     ],
     "f_gamma_reference_hz": 36.0,
     "nb025_source": "ping__off__seed{seed} (\u03b8_u = off baseline)",
-    "raster_sample_idx": 0
+    "raster_sample_idx": 0,
+    "mix_alpha_grid": [
+      0.0,
+      0.25,
+      0.5,
+      0.75,
+      1.0
+    ],
+    "mix_k_grid": [
+      0.25,
+      0.5,
+      1.0,
+      2.0,
+      4.0
+    ]
   },
   "results": [
     {
@@ -169,5 +183,253 @@
       "passed": true,
       "detail": "phase_shuffled_i: 28.51 Hz (+258.2% vs baseline 7.96 Hz), poisson_matched_i: 0.01 Hz (+99.9% vs baseline 7.96 Hz)"
     }
-  ]
+  ],
+  "pareto_sweep": [
+    {
+      "condition": "alpha_mix_a0_k0.25",
+      "acc": 84.75,
+      "e_rate_hz": 45.3941162109375,
+      "i_rate_hz": 8.972802734375,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.0,
+      "k": 0.25
+    },
+    {
+      "condition": "alpha_mix_a0_k0.5",
+      "acc": 86.5,
+      "e_rate_hz": 24.98245849609375,
+      "i_rate_hz": 17.95078125,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.0,
+      "k": 0.5
+    },
+    {
+      "condition": "alpha_mix_a0_k2",
+      "acc": 85.75,
+      "e_rate_hz": 7.96060791015625,
+      "i_rate_hz": 35.870361328125,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.0,
+      "k": 2.0
+    },
+    {
+      "condition": "alpha_mix_a0_k4",
+      "acc": 85.75,
+      "e_rate_hz": 7.96060791015625,
+      "i_rate_hz": 35.870361328125,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.0,
+      "k": 4.0
+    },
+    {
+      "condition": "alpha_mix_a0.25_k0.25",
+      "acc": 86.75,
+      "e_rate_hz": 33.5893310546875,
+      "i_rate_hz": 8.97197265625,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.25,
+      "k": 0.25
+    },
+    {
+      "condition": "alpha_mix_a0.25_k0.5",
+      "acc": 85.75,
+      "e_rate_hz": 7.75347900390625,
+      "i_rate_hz": 17.962451171875,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.25,
+      "k": 0.5
+    },
+    {
+      "condition": "alpha_mix_a0.25_k1",
+      "acc": 48.75,
+      "e_rate_hz": 0.44010009765625,
+      "i_rate_hz": 35.87119140625,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.25,
+      "k": 1.0
+    },
+    {
+      "condition": "alpha_mix_a0.25_k2",
+      "acc": 23.25,
+      "e_rate_hz": 0.09072265625,
+      "i_rate_hz": 44.86474609375,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.25,
+      "k": 2.0
+    },
+    {
+      "condition": "alpha_mix_a0.25_k4",
+      "acc": 11.25,
+      "e_rate_hz": 0.0064453125,
+      "i_rate_hz": 62.786767578125,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.25,
+      "k": 4.0
+    },
+    {
+      "condition": "alpha_mix_a0.5_k0.25",
+      "acc": 88.5,
+      "e_rate_hz": 23.248974609375,
+      "i_rate_hz": 8.9853515625,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.5,
+      "k": 0.25
+    },
+    {
+      "condition": "alpha_mix_a0.5_k0.5",
+      "acc": 75.25,
+      "e_rate_hz": 1.77911376953125,
+      "i_rate_hz": 17.90478515625,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.5,
+      "k": 0.5
+    },
+    {
+      "condition": "alpha_mix_a0.5_k1",
+      "acc": 27.0,
+      "e_rate_hz": 0.09326171875,
+      "i_rate_hz": 35.87421875,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.5,
+      "k": 1.0
+    },
+    {
+      "condition": "alpha_mix_a0.5_k2",
+      "acc": 10.75,
+      "e_rate_hz": 0.0059814453125,
+      "i_rate_hz": 53.7859375,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.5,
+      "k": 2.0
+    },
+    {
+      "condition": "alpha_mix_a0.5_k4",
+      "acc": 9.25,
+      "e_rate_hz": 1.220703125e-05,
+      "i_rate_hz": 89.656640625,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.5,
+      "k": 4.0
+    },
+    {
+      "condition": "alpha_mix_a0.75_k0.25",
+      "acc": 87.25,
+      "e_rate_hz": 16.4944580078125,
+      "i_rate_hz": 8.978759765625,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.75,
+      "k": 0.25
+    },
+    {
+      "condition": "alpha_mix_a0.75_k0.5",
+      "acc": 55.25,
+      "e_rate_hz": 0.4686279296875,
+      "i_rate_hz": 17.91845703125,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.75,
+      "k": 0.5
+    },
+    {
+      "condition": "alpha_mix_a0.75_k1",
+      "acc": 15.5,
+      "e_rate_hz": 0.021484375,
+      "i_rate_hz": 35.928125,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.75,
+      "k": 1.0
+    },
+    {
+      "condition": "alpha_mix_a0.75_k2",
+      "acc": 9.75,
+      "e_rate_hz": 0.0007568359375,
+      "i_rate_hz": 62.67578125,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.75,
+      "k": 2.0
+    },
+    {
+      "condition": "alpha_mix_a0.75_k4",
+      "acc": 9.5,
+      "e_rate_hz": 0.0,
+      "i_rate_hz": 116.678857421875,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 0.75,
+      "k": 4.0
+    },
+    {
+      "condition": "alpha_mix_a1_k0.25",
+      "acc": 86.25,
+      "e_rate_hz": 15.45855712890625,
+      "i_rate_hz": 8.99853515625,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 1.0,
+      "k": 0.25
+    },
+    {
+      "condition": "alpha_mix_a1_k0.5",
+      "acc": 52.0,
+      "e_rate_hz": 0.553515625,
+      "i_rate_hz": 17.980126953125,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 1.0,
+      "k": 0.5
+    },
+    {
+      "condition": "alpha_mix_a1_k1",
+      "acc": 12.25,
+      "e_rate_hz": 0.0162353515625,
+      "i_rate_hz": 35.927392578125,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 1.0,
+      "k": 1.0
+    },
+    {
+      "condition": "alpha_mix_a1_k2",
+      "acc": 9.75,
+      "e_rate_hz": 7.32421875e-05,
+      "i_rate_hz": 71.693701171875,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 1.0,
+      "k": 2.0
+    },
+    {
+      "condition": "alpha_mix_a1_k4",
+      "acc": 9.5,
+      "e_rate_hz": 0.0,
+      "i_rate_hz": 143.509814453125,
+      "n_total": 400,
+      "seed": 42,
+      "alpha": 1.0,
+      "k": 4.0
+    }
+  ],
+  "pareto_summary": {
+    "n_cells": 24,
+    "n_dominated_by_baseline": 3,
+    "n_strictly_above_baseline_acc": 5,
+    "n_below_baseline_rate_at_matched_acc": 1
+  }
 }

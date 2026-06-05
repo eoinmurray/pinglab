@@ -1,0 +1,74 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "Aggregation: PING gated sparsity"
+date: 2026-06-05
+entry: 10
+structure: paper
+collection: inhibition-gated-sparsity
+---
+*Eoin Murray and Timothy O'Leary.*
+
+Companion to the methods paper [art009](/articles/art009/) (neuron model, network architecture, training recipe, mean-field derivation). This entry is a single list of claims — each stating the result, citing the notebooks that demonstrate it, and naming a cortical observation that would falsify it. The supporting figures live in the [Inhibition Gated Sparsity](/collections/inhibition-gated-sparsity/) collection.
+
+## Claims
+
+### Claim 1. A frozen, untrained inhibitory loop reduces spike count by an order of magnitude at matched MNIST accuracy.
+
+PING trains to ≈ 10 Hz E rate at ≈ 90% accuracy; COBA (same architecture with the I-loop disabled) trains to ≈ 96 Hz at ≈ 90% — a 9.5× rate gap with the same trainable-parameter count, the same readout, and no regulariser. Spike-count-to-decision is ≈ 530 for PING vs ≈ 5,700 for COBA, a 10× efficiency gap on the operational axis that matters for neuromorphic inference.
+
+- **Demonstrated by:** [nb025](/notebooks/nb025/) (matched-accuracy rate gap at the unregularised baseline); [nb038](/notebooks/nb038/) (cumulative-spikes-per-decision); [nb024](/notebooks/nb024/) (the gap survives 100-epoch convergence).
+- **Cortical falsification:** if pyramidal mean firing rate cannot be linearly predicted from the local gamma peak frequency in any awake-cortex recording where both are simultaneously measured, the architectural-floor interpretation fails.
+
+### Claim 2. The reduction is bolted on, not learned — any pretrained spiking classifier can be retrofitted.
+
+Loading a COBA-trained network's $W_\text{in}, W_\text{out}$ into a PING template *at inference*, with no retraining, recovers the gamma cycles and ≈ 10× rate compression. The advantage does not need to be discovered by the optimiser; weights that never saw the loop produce the rate compression as soon as the loop is wired up. This implies a deploy-time decoupling: *train fast* without the loop, *deploy sparse* with the loop.
+
+- **Demonstrated by:** [nb038](/notebooks/nb038/) (inference-time loop transfer); [nb023](/notebooks/nb023/) (loop-off vs loop-on fundamentals at fixed init).
+- **Cortical falsification:** if disrupting feedforward plasticity (e.g. STDP block in V1) destroys cortical sparseness while leaving gamma intact, the substrate-independence claim is wrong — sparseness would be a learned property of the feedforward weights, not the loop.
+
+### Claim 3. The architecture Pareto-dominates spike-budget regularisation in the low-rate regime.
+
+In the 2–10 Hz window where both architectures train above chance, PING reaches 5–15 pp higher accuracy than COBA at matched rate. Under heavy reward to fire *more*, PING climbs to ≈ 96 Hz (matching COBA's natural operating rate) but pays accuracy — 88% → 66%, a 24 pp gap at the same firing rate. Each architecture has a natural operating point (PING ≈ 10 Hz, COBA ≈ 96 Hz); deviations in either direction cost accuracy proportional to deviation. This is *not* global Pareto-dominance — outside its natural window PING loses — but dominance in the regime relevant for spike-efficient inference.
+
+- **Demonstrated by:** [nb025](/notebooks/nb025/) ($\theta_u$ frontier); [nb036](/notebooks/nb036/) (2D $W^{EI} \times W^{IE}$ training grid); [nb043](/notebooks/nb043/) (reward-direction sweep showing the matched-rate accuracy gap).
+- **Cortical falsification:** if cortical circuits routinely operate in regimes where pyramidal firing rate is ≥ 50 Hz at task-relevant accuracy, PING-style sparseness is not the operative architectural strategy in those regions.
+
+### Claim 4. The floor is rhythm-held, not mean-inhibition-held.
+
+Phase-shuffling the I-spike stream at matched mean rate releases the E rate 3.6× (8 → 29 Hz) while accuracy holds. A parametric cycle-coherent jitter sweep gives a clean dose-response with inflection at $\sigma \approx 1/f_\gamma$ — not at refractory (3 ms), membrane time (20 ms), or AMPA decay (2 ms). The Pareto sweep over (rhythm, mean rate) shows no non-rhythmic configuration strictly dominates the rhythmic baseline. Drop-spike perturbations are compensated through the loop; add-spike perturbations corrupt the cycle and collapse accuracy — drops are forgiven, additions break the gating.
+
+- **Demonstrated by:** [nb042](/notebooks/nb042/) (phase-shuffle, jitter sweep, Pareto sweep); [nb037](/notebooks/nb037/) (drop-vs-add asymmetry).
+- **Cortical falsification:** if a PV-interneuron optogenetic manipulation that scrambles gamma phase while preserving total inhibitory output *does not* release pyramidal rates by 2–5×, the rhythm-locking claim is wrong. Quantitatively, the half-maximal release jitter should sit at $\sigma_\text{infl} \approx 0.5 \cdot (1/f_\gamma)$ in the local circuit.
+
+### Claim 5. The rate follows a quantitative affine law: $r_E = a + p \cdot f_\gamma$, with $p$ measurable as per-cycle Bernoulli participation.
+
+Retraining at six $\tau_\text{GABA}$ values × three seeds gives $r_E = 0.96 + 0.201 \cdot f_\gamma$ with $R^2 = 0.996$. The slope $p \approx 0.20$ is verified at the spike-resolved level: across 48 M (cell, cycle) pairs, 99.45% have ≤ 1 spike, median per-cell participation is exactly $0.20 \cdot f_\gamma$, and the most-active cell sits at $0.80 \cdot f_\gamma$. The inference-time analogue of the law — jitter tolerance — scales as $\sigma_\text{inflection} = 0.57 \cdot (1/f_\gamma)$, $R^2 = 0.875$. Two probes anchor on the same $f_\gamma$: training-time rate and inference-time precision.
+
+- **Demonstrated by:** [nb041](/notebooks/nb041/) (training-time affine law, $R^2 = 0.996$); [nb045](/notebooks/nb045/) (inference-time dimensional collapse, $R^2 = 0.875$); [nb046](/notebooks/nb046/) (per-cell, per-cycle Bernoulli participation).
+- **Cortical falsification:** pharmacologically *shortening* $\tau_\text{GABA}$ should *raise* pyramidal rates (counter-intuitive: shorter $\tau_\text{GABA}$ → faster $f_\gamma$ → higher $r_E$). If shortening GABA decay in slice lowers pyramidal rates, the cycle-counting interpretation fails. If the fitted slope $p$ in awake cortex is consistently outside [0.05, 0.3], the participation-fraction reading is wrong.
+
+### Claim 6. Theory predicts the gamma frequency from biophysical timescales alone, with no free parameters.
+
+The 4D Wilson-Cowan reduction $(E, I, g_e^I, g_i^E)$ undergoes a Hopf bifurcation at $f^\star = 24.5$ Hz from biophysical timescales $\tau_\text{AMPA}, \tau_\text{GABA}$ and the E↔I coupling — matching the trained network's gamma to within seed variance. The textbook 2D Wilson-Cowan reduction cannot Hopf for this architecture ($\alpha = 0.25$ vs the threshold $1 + \tau_E/\tau_I = 5$) because $W^{EE} = 0$ leaves no E-loop to renormalise the linear feedback. The 4D reduction is the correct mean-field; the 2D-cubic is a structural dead end.
+
+- **Demonstrated by:** [nb033](/notebooks/nb033/) (4D Hopf at 24.5 Hz; 2D-cubic failure).
+- **Cortical falsification:** if cortical gamma frequencies cannot be reconstructed from local $\tau_\text{AMPA}, \tau_\text{GABA}$, and E↔I coupling estimates within ±30%, the PING mean-field is the wrong model. Cortical gamma may then come from ING, pacemaker drive, or a hybrid — the falsification narrows the candidate set rather than killing the framework.
+
+### Robustness
+
+The numerical headlines survive implementation choices:
+
+- **Integration timestep** ([nb044](/notebooks/nb044/)): trained PING fires in a 9.5–14 Hz band across $\Delta t \in \{0.05, 0.1, 0.25, 0.5, 1.0\}$ ms; accuracy stays in 88.5–90.7%; the gamma cycle period in physical ms is invariant. The Δt-dependence within the band is non-monotonic.
+- **Training convergence** ([nb024](/notebooks/nb024/)): PING's E rate is converged at 100 epochs (slope ≤ 0.025 Hz/ep, seed-reproducible to 0.1 Hz). COBA's rate is still drifting at 100 epochs; the headline gap holds with COBA as a moving comparator.
+
+### Scope
+
+Three claims that would be tempting overreach and are *not* made here:
+
+- **Not** "PING explains cortical gamma." Many mechanisms produce gamma; we show that one mechanism — PING with conductance-based LIF — produces a rate floor with the specific quantitative signature above. Cortical gamma may come from PING, ING, or a hybrid.
+- **Not** "sparse coding has no role for learning." The weights *do* learn — $W_\text{in}$ adapts throughout training. The claim is that the *rate* is set by architecture; the *stimulus selectivity* is still learned.
+- **Not** "spike-budget regularisers are useless." They are useful when the architecture cannot be modified. We show that the architecture is a Pareto-superior alternative in the low-rate regime when it can be.
+
+## One-line summary
+
+> *Cortical-scale firing sparseness can arise without learning — a frozen recurrent inhibitory loop imposes a quantitative per-cycle spike emission ceiling ($r_E \approx p \cdot f_\gamma$) that gradient descent cannot circumvent, suggesting sparse coding in cortex may be an architectural consequence of E/I dynamics rather than a learned representational property.*

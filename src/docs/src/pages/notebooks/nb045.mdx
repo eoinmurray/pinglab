@@ -27,13 +27,13 @@ The strongest version of the test: **dimensional collapse**. Rescale σ by f_γ 
 
 ## Method
 
-Reuse [nb042](/notebooks/nb042/)'s `_jitter_i_stream`, refactored to accept a per-cell cycle period. Load each of [nb041](/notebooks/nb041/)'s 18 trained checkpoints; for each, read the measured $f_\gamma$ from [nb041](/notebooks/nb041/)'s `numbers.json` and run the cycle-coherent jitter sweep with the cell's own $1/f_\gamma$ as the binning period. σ grid: same as [nb042](/notebooks/nb042/) (10 points spanning 0–100 ms). Total: 18 cells × 10 σ values = 180 inference evaluations, ~24 min wall on local MPS. No retraining, no Modal.
+Reuse [nb042](/notebooks/nb042/)'s `_jitter_i_stream`, refactored to accept a per-cell cycle period. Load each of [nb041](/notebooks/nb041/)'s 18 trained checkpoints; for each, read the measured $f_\gamma$ from [nb041](/notebooks/nb041/)'s `numbers.json` and run the cycle-coherent jitter sweep with the cell's own $1/f_\gamma$ as the binning period. σ grid: same as [nb042](/notebooks/nb042/) (10 points spanning 0–100 ms). Total: 18 cells × 10 σ values = 180 inference evaluations, ≈ 50 min wall on local MPS. No retraining, no Modal.
 
 ## Results
 
 ### Six jitter sweeps on the raw σ axis
 
-<Figure id="Figure 1" title="Jitter sweep across τ_GABA — raw σ axis" src="/figures/notebooks/nb045/raw_sweeps.png" alt="E rate vs jitter σ on a linear x-axis, one curve per τ_GABA value (4.5, 6, 9, 12, 18, 27 ms; viridis colormap), three seeds averaged with error bars. Each curve starts at its own baseline (12, 10, 9, 7, 6, 4 Hz respectively — scaling with f_γ as nb041's affine law predicts) and rises through a sigmoidal transition to asymptote at 30–55 Hz at σ = 100 ms. The transition midpoint shifts right as τ_GABA increases.">
+<Figure id="Figure 1" title="Jitter sweep across τ_GABA — raw σ axis" src="/figures/notebooks/nb045/raw_sweeps.png" alt="E rate vs jitter σ on a linear x-axis, one curve per τ_GABA value (4.5, 6, 9, 12, 18, 27 ms; viridis colormap), three seeds averaged with error bars. Each curve starts at its own baseline (12, 10, 9, 7, 5, 4 Hz respectively — scaling with f_γ as nb041's affine law predicts) and rises through a sigmoidal transition to asymptote at 27–53 Hz at σ = 100 ms. The transition midpoint shifts right as τ_GABA increases.">
   E rate vs σ at each τ_GABA, three seeds with error bars. Each curve starts at its own baseline ($r_E$ at $\sigma = 0$ scales with $f_\gamma$ as [nb041](/notebooks/nb041/)'s affine law predicts) and rises through a sigmoidal transition. The transition position shifts monotonically with $f_\gamma$ — faster gamma, earlier inflection.
 </Figure>
 
@@ -97,6 +97,6 @@ Falsifiable: cortical recordings under optogenetic perturbation of PV-interneuro
 
 ## Next steps
 
-For [art008](/articles/art008/): combine with [nb041](/notebooks/nb041/) to make the "gamma cycle is the operative clock" claim more robust — two independent anchors on the same $f_\gamma$. The dimensional collapse (Figure 2) is the strongest single image; if art008 has room for one figure from this entry, that's the one.
+For [art010](/articles/art010/): combine with [nb041](/notebooks/nb041/) to make the "gamma cycle is the operative clock" claim more robust — two independent anchors on the same $f_\gamma$. The dimensional collapse (Figure 2) is the strongest single image; if art010 has room for one figure from this entry, that's the one.
 
 A finer σ grid (say 20 points between $\sigma \cdot f_\gamma = 0.1$ and 2) would tighten the inflection extraction and let the residuals from the through-origin fit be distinguished from extraction noise.

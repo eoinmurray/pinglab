@@ -59,6 +59,16 @@ JITTER_SIGMAS_MS: tuple[float, ...] = (
     0.0, 1.0, 3.0, 7.0, 14.0, 21.0, 28.0, 42.0, 60.0, 100.0,
 )
 F_GAMMA_REFERENCE_HZ: float = 36.0   # trained nb025 PING f_γ at τ_GABA = 9 ms
+
+# Pareto sweep — does rhythmic inhibition sit on the (E rate, accuracy)
+# frontier among I-stream perturbations at varied mean rate? Two knobs:
+#   α ∈ [0, 1]  — per-timestep mixing fraction between baseline and Poisson
+#                  (0 = pure rhythm, 1 = pure rate-matched Poisson)
+#   k ∈ (0, ∞)  — independent scaling of the mean I rate
+# At (α=0, k=1) the condition reduces to baseline; (α=1, k=1) is the
+# existing poisson_matched_i condition.
+MIX_ALPHA_GRID: tuple[float, ...] = (0.0, 0.25, 0.5, 0.75, 1.0)
+MIX_K_GRID: tuple[float, ...] = (0.25, 0.5, 1.0, 2.0, 4.0)
 # Inverse — annotated as the predicted inflection point on the sweep plot.
 # 1 / 36 Hz ≈ 27.8 ms
 CONDITION_LABELS = {
@@ -196,6 +206,13 @@ def _build_override(
         sigma_ms = float(condition.split("_")[-1])
         kwargs = {"cycle_period_ms": cycle_period_ms} if cycle_period_ms else {}
         out = _jitter_i_stream(s_i_base, sigma_ms, dt_ms, generator, **kwargs)
+    elif condition.startswith("alpha_mix_"):
+        # alpha_mix_a{α}_k{k} — per-timestep mix of baseline rhythm and
+        # Poisson at scaled mean rate. See _alpha_mix_i_stream docstring.
+        parts = condition.split("_")
+        alpha = float(parts[2][1:])  # strip leading 'a'
+        k = float(parts[3][1:])      # strip leading 'k'
+        out = _alpha_mix_i_stream(s_i_base, alpha, k, generator)
     else:
         raise ValueError(f"unknown condition {condition!r}")
     return out
@@ -257,6 +274,45 @@ def _jitter_i_stream(
         torch.ones(spike_positions.shape[0], dtype=s_i_base.dtype),
         accumulate=False,
     )
+    return out
+
+
+def _alpha_mix_i_stream(
+    s_i_base: "object", alpha: float, k: float, generator,
+) -> "object":
+    """Interpolate between baseline rhythm and rate-matched Poisson.
+
+    α ∈ [0, 1] controls the per-timestep mixing fraction:
+      - α = 0 reproduces baseline (passes s_i_base through, possibly rate-scaled by k)
+      - α = 1 reproduces the existing poisson_matched_i condition (at k=1)
+      - intermediate α swaps a random α fraction of timesteps for Poisson draws.
+
+    k ∈ (0, ∞) is an independent mean-rate scaling. For each cell, the
+    Poisson component draws at rate (k × baseline_mean_rate). The
+    baseline component is itself Bernoulli-thinned at rate min(1, k)
+    when k < 1, or unchanged when k ≥ 1 (with the rate top-up coming
+    through the Poisson channel when k > 1).
+    """
+    import torch
+
+    T, B, N_I = s_i_base.shape
+    counts = s_i_base.sum(dim=0).float()  # (B, N_I)
+    p_mean = (counts / float(T)).clamp(0.0, 1.0)
+    p_poisson = (k * p_mean).clamp(0.0, 1.0).unsqueeze(0).expand(T, B, N_I)
+    poisson_draw = (
+        torch.rand(T, B, N_I, generator=generator) < p_poisson
+    ).to(s_i_base.dtype)
+
+    if k < 1.0:
+        thin_mask = (
+            torch.rand(T, B, N_I, generator=generator) < k
+        ).to(s_i_base.dtype)
+        baseline_scaled = s_i_base * thin_mask
+    else:
+        baseline_scaled = s_i_base
+
+    use_poisson = torch.rand(T, B, N_I, generator=generator) < alpha
+    out = torch.where(use_poisson, poisson_draw, baseline_scaled)
     return out
 
 
@@ -572,6 +628,72 @@ def plot_jitter_raster_strip(
     plt.close(fig)
 
 
+def plot_pareto_raster_strip(
+    samples: list[dict], out_path: Path, run_id: str,
+) -> None:
+    """Stacked single-trial rasters at four cells of the (α, k) grid.
+
+    Each sample carries ``alpha``, ``k``, and a short ``note`` describing
+    where on the Pareto plot the cell sits.
+    """
+    theme.apply()
+    n = len(samples)
+    n_e = RASTER_N_E_PLOT
+    n_i = RASTER_N_I_PLOT
+    gap = 6
+    fig, axes = plt.subplots(
+        n, 1, figsize=(10.0, 1.0 * n + 1.5),
+        sharex=True, gridspec_kw={"hspace": 0.32},
+    )
+    if n == 1:
+        axes = [axes]
+    for i, (ax, s) in enumerate(zip(axes, samples)):
+        T = s["e"].shape[0]
+        t_axis = np.arange(T) * s["dt"]
+        e_t, e_n = np.where(s["e"])
+        i_t, i_n = np.where(s["i"])
+        ax.scatter(t_axis[e_t], e_n,
+                   s=2.0, c=theme.INK_BLACK, marker="|", linewidths=0.4)
+        ax.scatter(t_axis[i_t], i_n + n_e + gap,
+                   s=2.0, c=theme.DEEP_RED, marker="|", linewidths=0.4)
+        ax.set_ylim(-2, n_e + n_i + gap + 2)
+        ax.set_yticks([n_e / 2, n_e + gap + n_i / 2])
+        ax.set_yticklabels(["E", "I"])
+        ax.tick_params(axis="y", length=0)
+        ax.set_xlim(0, s["t_ms"])
+        ax.text(
+            1.012, 0.5,
+            f"α = {s['alpha']:g}, k = {s['k']:g}"
+            f"\nE = {s['e_rate_hz']:.1f} Hz"
+            f"\nI = {s['i_rate_hz']:.1f} Hz"
+            f"\nacc = {s['acc']:.1f}%",
+            transform=ax.transAxes,
+            ha="left", va="center",
+            fontsize=theme.SIZE_LABEL,
+        )
+        ax.text(
+            0.005, 1.04, s.get("note", ""),
+            transform=ax.transAxes,
+            ha="left", va="bottom",
+            fontsize=theme.SIZE_ANNOTATION,
+            color=theme.MUTED,
+            fontstyle="italic",
+        )
+        if i == 0:
+            ax.set_title(
+                "Pareto-sweep rasters — trained PING (nb025 seed 42) "
+                "under (α, k) I-stream perturbations"
+            )
+        if i < n - 1:
+            ax.tick_params(axis="x", labelbottom=False)
+    axes[-1].set_xlabel("time (ms)")
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_jitter_sweep(
     jitter_rows: list[dict], baseline_e_rate: float,
     phase_shuffle_e_rate: float, out_path: Path, run_id: str,
@@ -666,6 +788,106 @@ def plot_jitter_sweep(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
+
+
+def plot_pareto(
+    pareto_rows: list[dict], baseline_row: dict, out_path: Path, run_id: str,
+) -> dict:
+    """Scatter every (α, k) condition in (E rate, accuracy) space; mark
+    the rhythmic baseline and the Pareto front of the non-baseline
+    points. Returns a small dict of summary numbers (n above frontier,
+    etc.) for numbers.json.
+    """
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+
+    # Plot non-baseline points coloured by α, sized by k.
+    alphas_unique = sorted({r["alpha"] for r in pareto_rows})
+    cmap = plt.get_cmap("viridis")
+    for r in pareto_rows:
+        ai = alphas_unique.index(r["alpha"])
+        color = cmap(ai / max(1, len(alphas_unique) - 1))
+        size = 30 + 10 * (r["k"] * 4)
+        ax.scatter(
+            r["e_rate_hz"], r["acc"], s=size, c=[color],
+            edgecolor=theme.INK, lw=0.4, alpha=0.85,
+        )
+
+    # Baseline marker.
+    ax.scatter(
+        baseline_row["e_rate_hz"], baseline_row["acc"],
+        s=200, marker="*", c="white", edgecolor=theme.INK, lw=1.6,
+        zorder=10, label="rhythmic baseline (α = 0, k = 1)",
+    )
+
+    # Pareto frontier among non-baseline points (minimise E, maximise acc).
+    pts = sorted(pareto_rows, key=lambda r: (r["e_rate_hz"], -r["acc"]))
+    frontier = []
+    best_acc = -1.0
+    for r in pts:
+        if r["acc"] > best_acc:
+            frontier.append(r)
+            best_acc = r["acc"]
+    if frontier:
+        ax.plot(
+            [r["e_rate_hz"] for r in frontier],
+            [r["acc"] for r in frontier],
+            color=theme.GREY_MID, lw=1.0, ls="--", alpha=0.7,
+            label="non-rhythmic Pareto frontier",
+        )
+
+    # Legend chips for α colour and k size.
+    α_handles = []
+    for ai, a in enumerate(alphas_unique):
+        color = cmap(ai / max(1, len(alphas_unique) - 1))
+        α_handles.append(
+            plt.Line2D([], [], marker="o", linestyle="", color=color,
+                       markeredgecolor=theme.INK, markersize=6, label=f"α = {a}")
+        )
+    ax.legend(
+        handles=α_handles + [
+            plt.Line2D([], [], marker="*", linestyle="",
+                       markeredgecolor=theme.INK, markerfacecolor="white",
+                       markersize=12, label="baseline"),
+            plt.Line2D([], [], color=theme.GREY_MID, lw=1.0, ls="--",
+                       label="non-rhythmic frontier"),
+        ],
+        fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right",
+    )
+
+    ax.set_xlabel("Mean hidden-E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(True, alpha=0.15, lw=0.4)
+    ax.set_title(
+        "Rhythm-vs-Poisson (α, k) Pareto sweep — "
+        "is rhythmic baseline on the frontier?",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+    # Summary: is the baseline strictly Pareto-above every non-baseline cell?
+    dominated_by_baseline = sum(
+        1 for r in pareto_rows
+        if r["e_rate_hz"] >= baseline_row["e_rate_hz"]
+        and r["acc"] <= baseline_row["acc"]
+    )
+    above_baseline_acc = sum(1 for r in pareto_rows if r["acc"] > baseline_row["acc"])
+    below_baseline_rate = sum(
+        1 for r in pareto_rows
+        if r["e_rate_hz"] < baseline_row["e_rate_hz"] and r["acc"] >= baseline_row["acc"] - 1.0
+    )
+    return {
+        "n_cells": len(pareto_rows),
+        "n_dominated_by_baseline": dominated_by_baseline,
+        "n_strictly_above_baseline_acc": above_baseline_acc,
+        "n_below_baseline_rate_at_matched_acc": below_baseline_rate,
+    }
 
 
 # ─── success criteria ───────────────────────────────────────────────
@@ -875,6 +1097,47 @@ def main() -> None:
     )
     print(f"wrote {FIGURES / 'jitter_raster_strip.png'}")
 
+    # ── Pareto sweep ──────────────────────────────────────────────
+    # Probe whether the rhythmic baseline sits at the (low E, high acc)
+    # corner of the (α, k) grid. Single seed (first in args.seeds) — the
+    # frontier shape, not error bars, is the load-bearing observation.
+    pareto_seed = args.seeds[0]
+    pareto_train_dir = NB035_ARTIFACTS / f"ping__off__seed{pareto_seed}"
+    print(
+        f"[pareto] α × k sweep on seed {pareto_seed}: "
+        f"α ∈ {list(MIX_ALPHA_GRID)}, k ∈ {list(MIX_K_GRID)}"
+    )
+    pareto_rows: list[dict] = []
+    for alpha in MIX_ALPHA_GRID:
+        for k in MIX_K_GRID:
+            # Skip the cell that exactly reduces to baseline (α=0, k=1).
+            if alpha == 0.0 and k == 1.0:
+                continue
+            cond = f"alpha_mix_a{alpha:g}_k{k:g}"
+            t0 = time.monotonic()
+            res = evaluate_condition(
+                pareto_train_dir, cond, device,
+                seed_offset=pareto_seed + int(alpha * 100) + int(k * 10),
+            )
+            res["seed"] = pareto_seed
+            res["alpha"] = float(alpha)
+            res["k"] = float(k)
+            pareto_rows.append(res)
+            print(
+                f"    α={alpha:>4} k={k:>4}  acc={res['acc']:5.2f}%  "
+                f"E={res['e_rate_hz']:6.2f}Hz  I={res['i_rate_hz']:6.2f}Hz  "
+                f"({time.monotonic() - t0:.1f}s)"
+            )
+
+    baseline_row = next(
+        r for r in rows if r["condition"] == "baseline" and r["seed"] == pareto_seed
+    )
+    pareto_summary = plot_pareto(
+        pareto_rows, baseline_row, FIGURES / "pareto_sweep.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'pareto_sweep.png'}")
+    print(f"  pareto summary: {pareto_summary}")
+
     duration_s = time.monotonic() - t_start
     crits = evaluate_success(rows, FIGURES)
     summary = {
@@ -887,11 +1150,15 @@ def main() -> None:
             "conditions": list(CONDITIONS),
             "jitter_sigmas_ms": list(JITTER_SIGMAS_MS),
             "f_gamma_reference_hz": F_GAMMA_REFERENCE_HZ,
+            "mix_alpha_grid": list(MIX_ALPHA_GRID),
+            "mix_k_grid": list(MIX_K_GRID),
             "nb025_source": "ping__off__seed{seed} (θ_u = off baseline)",
             "raster_sample_idx": RASTER_SAMPLE_IDX,
         },
         "results": rows,
         "jitter_sweep": jitter_rows,
+        "pareto_sweep": pareto_rows,
+        "pareto_summary": pareto_summary,
         "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
