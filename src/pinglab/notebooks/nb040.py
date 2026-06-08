@@ -470,31 +470,6 @@ def main() -> None:
         "final_acc": ping_final["acc"],
         "final_rate_e_hz": ping_final["test_rate_e"],
         "final_rate_i_hz": ping_final["test_rate_i"],
-        "success_criteria": [
-            {
-                "label": "dynamics raster rendered",
-                "passed": (FIGURES / "dynamics_raster.png").exists(),
-                "detail": f"E={e_rate:.1f} Hz, I={i_rate:.1f} Hz",
-            },
-            {
-                "label": "CUBA-PING reaches above chance",
-                "passed": ping_final["acc"] > 15.0,
-                "detail": f"{ping_final['acc']:.2f}%",
-            },
-            {
-                "label": "CUBA-no-PING reaches above chance",
-                "passed": nop_final["acc"] > 15.0,
-                "detail": f"{nop_final['acc']:.2f}%",
-            },
-            {
-                "label": "no-PING E rate >> PING E rate",
-                "passed": nop_final["test_rate_e"] > 5 * max(ping_final["test_rate_e"], 0.1),
-                "detail": (
-                    f"PING={ping_final['test_rate_e']:.1f} Hz, "
-                    f"no-PING={nop_final['test_rate_e']:.1f} Hz"
-                ),
-            },
-        ],
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")

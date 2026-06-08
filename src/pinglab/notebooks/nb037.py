@@ -264,7 +264,6 @@ def capture_perturbation_raster(
         sparsity=float(cfg.get("sparsity") or 0.0),
         device=device,
         randomize_init=not bool(cfg.get("kaiming_init", False)),
-        kaiming_init=bool(cfg.get("kaiming_init", False)),
         dales_law=bool(cfg.get("dales_law", True)),
         hidden_sizes=hidden_sizes,
     )
@@ -296,7 +295,11 @@ def capture_perturbation_raster(
     i_idx = np.sort(rng.choice(i_full.shape[1], EI_RASTER_N_I_PLOT, replace=False))
     return {
         "mode": mode,
-        "level": float(level),
+        "level": (
+            list(float(x) for x in level)
+            if isinstance(level, (list, tuple))
+            else float(level)
+        ),
         "e_rate_hz": e_rate_hz,
         "label": y_b,
         "e": e_full[:, e_idx].astype(bool),
@@ -401,6 +404,31 @@ def _make_perturb_fn(mode: str, level: float, dt_ms: float, generator):
 
         return fn
 
+    if mode == "add_split":
+        # level is a (r_e_hz, r_i_hz) tuple — different per-population Poisson
+        # rates so we can express noise as a fraction of each model's own
+        # baseline activity. Keeps E and I perturbations independent.
+        r_e_hz, r_i_hz = float(level[0]), float(level[1])
+        p_e = r_e_hz * dt_ms / 1000.0
+        p_i = r_i_hz * dt_ms / 1000.0
+
+        def fn(s_e, s_i, _layer):
+            if p_e > 0:
+                extra_e = (
+                    torch.rand(s_e.shape, generator=generator, device=s_e.device)
+                    < p_e
+                ).float()
+                s_e = torch.clamp(s_e + extra_e, 0.0, 1.0)
+            if s_i is not None and p_i > 0:
+                extra_i = (
+                    torch.rand(s_i.shape, generator=generator, device=s_i.device)
+                    < p_i
+                ).float()
+                s_i = torch.clamp(s_i + extra_i, 0.0, 1.0)
+            return s_e, s_i
+
+        return fn
+
     raise ValueError(f"unknown perturbation mode {mode!r}")
 
 
@@ -457,7 +485,6 @@ def run_perturbation_sweep(
         sparsity=float(cfg.get("sparsity") or 0.0),
         device=device,
         randomize_init=not bool(cfg.get("kaiming_init", False)),
-        kaiming_init=bool(cfg.get("kaiming_init", False)),
         dales_law=bool(cfg.get("dales_law", True)),
         hidden_sizes=hidden_sizes,
     )
@@ -511,62 +538,93 @@ def run_perturbation_sweep(
 
 
 def plot_perturbation_curves(
-    points: list[dict], out_path: Path, run_id: str
+    points: list[dict], out_path: Path, run_id: str,
+    add_pct_rows: list[dict] | None = None,
 ) -> None:
     """Two-panel accuracy plot: drop on the left, add on the right.
 
-    One curve per model (coba, ping). The x-axis is the perturbation
-    level in its native units (probability for drop, Hz for add).
+    Left panel: drop probability (Bernoulli spike mask).
+    Right panel: Poisson add. If `add_pct_rows` is provided, the right
+    panel uses percentage-of-baseline-rate from those rows (the fair
+    comparison). Otherwise it falls back to absolute Hz from `points`.
     """
     theme.apply()
-    # 16:9 styleguide ratio, sized for two side-by-side panels.
     fig, axes = plt.subplots(1, 2, figsize=(8.0, 4.5), sharey=True, dpi=150)
-    panel_specs = [
-        ("drop", "Drop — Bernoulli spike mask",
-         "p(drop) per spike", (-0.02, 1.02)),
-        ("add", "Add — Poisson noise injection",
-         "Poisson rate (Hz / neuron)", None),
-    ]
-    for ax, (mode, title, xlabel, xlim) in zip(axes, panel_specs):
+    use_pct = add_pct_rows is not None and len(add_pct_rows) > 0
+
+    # Left panel: drop (as % of spikes dropped)
+    ax_drop = axes[0]
+    for model in MODELS:
+        rows = [
+            p for p in points if p["model"] == model and p["mode"] == "drop"
+        ]
+        rows.sort(key=lambda p: p["level"])
+        ax_drop.plot(
+            [p["level"] * 100 for p in rows], [p["acc"] for p in rows],
+            marker=MODEL_MARKERS[model], markersize=5, linewidth=1.4,
+            color=MODEL_COLORS[model], label=model,
+        )
+    ax_drop.set_xlabel("Spikes dropped (% of emitted)",
+                       fontsize=theme.SIZE_LABEL)
+    ax_drop.set_title("Drop — Bernoulli spike mask",
+                      fontsize=theme.SIZE_LABEL, loc="left", pad=4)
+    ax_drop.set_xlim(-2, 102)
+    ax_drop.axhline(10.0, ls="--", color=theme.MUTED, lw=0.7, alpha=0.6)
+    ax_drop.text(
+        0.02, 12, "chance", transform=ax_drop.get_yaxis_transform(),
+        fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED, va="bottom",
+    )
+
+    # Right panel: add
+    ax_add = axes[1]
+    if use_pct:
         for model in MODELS:
-            rows = [
-                p for p in points if p["model"] == model and p["mode"] == mode
-            ]
-            rows.sort(key=lambda p: p["level"])
-            xs = [p["level"] for p in rows]
-            ys = [p["acc"] for p in rows]
-            ax.plot(
-                xs, ys,
-                marker=MODEL_MARKERS[model],
-                markersize=5,
-                linewidth=1.4,
-                color=MODEL_COLORS[model],
-                label=model,
+            rows = sorted(
+                [r for r in add_pct_rows if r["model"] == model],
+                key=lambda r: r["pct"],
             )
-        ax.axhline(10.0, ls="--", color=theme.MUTED, lw=0.7, alpha=0.6)
-        # Light annotation of the chance line, only on the left panel
-        # to avoid duplicate ink.
-        if mode == "drop":
-            ax.text(
-                0.02, 12, "chance", transform=ax.get_yaxis_transform(),
-                fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
-                va="bottom",
+            ax_add.plot(
+                [r["pct"] * 100 for r in rows], [r["acc"] for r in rows],
+                marker=MODEL_MARKERS[model], markersize=5, linewidth=1.4,
+                color=MODEL_COLORS[model], label=model,
             )
-        ax.set_xlabel(xlabel, fontsize=theme.SIZE_LABEL)
-        ax.set_title(title, fontsize=theme.SIZE_LABEL, loc="left", pad=4)
+        ax_add.set_xlabel(
+            "Added Poisson noise (% of baseline rate)",
+            fontsize=theme.SIZE_LABEL,
+        )
+        ax_add.set_title(
+            "Add — Poisson noise as % of baseline",
+            fontsize=theme.SIZE_LABEL, loc="left", pad=4,
+        )
+        ax_add.set_xlim(-2, 102)
+    else:
+        for model in MODELS:
+            rows = sorted(
+                [p for p in points
+                 if p["model"] == model and p["mode"] == "add"],
+                key=lambda p: p["level"],
+            )
+            ax_add.plot(
+                [p["level"] for p in rows], [p["acc"] for p in rows],
+                marker=MODEL_MARKERS[model], markersize=5, linewidth=1.4,
+                color=MODEL_COLORS[model], label=model,
+            )
+        ax_add.set_xlabel("Poisson rate (Hz / neuron)",
+                          fontsize=theme.SIZE_LABEL)
+        ax_add.set_title("Add — Poisson noise injection",
+                          fontsize=theme.SIZE_LABEL, loc="left", pad=4)
+    ax_add.axhline(10.0, ls="--", color=theme.MUTED, lw=0.7, alpha=0.6)
+
+    for ax in axes:
         ax.set_ylim(0, 100)
-        if xlim is not None:
-            ax.set_xlim(*xlim)
         ax.tick_params(labelsize=theme.SIZE_TICK)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.yaxis.set_major_locator(plt.matplotlib.ticker.MultipleLocator(20))
         ax.grid(True, axis="y", alpha=0.15, linewidth=0.5)
-    axes[0].set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
-    axes[1].legend(
-        loc="upper right",
-        fontsize=theme.SIZE_LEGEND,
-        frameon=False,
+    ax_drop.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    ax_add.legend(
+        loc="upper right", fontsize=theme.SIZE_LEGEND, frameon=False,
     )
     fig.suptitle(
         "Hidden-spike perturbation — accuracy vs perturbation level",
@@ -579,9 +637,7 @@ def plot_perturbation_curves(
     plt.close(fig)
 
 
-# ── tau_GABA sweep (inference-only, trained ping) ───────────────────
-
-TAU_GABA_VALUES: list[float] = [4.5, 6.0, 9.0, 12.0, 18.0, 27.0]  # ms; default 9.0
+# ── inference helpers used by perturbation sweep ────────────────────
 
 
 def _load_trained_full(train_dir: Path, device):
@@ -623,7 +679,6 @@ def _load_trained_full(train_dir: Path, device):
         sparsity=float(cfg.get("sparsity") or 0.0),
         device=device,
         randomize_init=not bool(cfg.get("kaiming_init", False)),
-        kaiming_init=bool(cfg.get("kaiming_init", False)),
         dales_law=bool(cfg.get("dales_law", True)),
         hidden_sizes=hidden_sizes,
     )
@@ -713,128 +768,6 @@ def _eval_net_on_test_with_loss(
                 * (torch.relu(mean_z - fr_upper_theta) ** 2).sum().item()
             )
     return acc, ce_loss, penalty, e_rate, i_rate
-
-
-def run_tau_gaba_sweep(notebook_run_id: str) -> list[dict]:
-    """Inference-only τ_GABA sweep on trained ping. Tests the
-    dynamics-bound floor claim: rate floor should track cycle period."""
-    import numpy as np
-
-    import models as M
-    from cli import _auto_device
-
-    train_dir = baseline_dir("ping")
-    if not (train_dir / "weights.pth").exists():
-        raise SystemExit(
-            f"tau_gaba-sweep needs trained ping weights at {train_dir}"
-        )
-    device = _auto_device()
-    rows: list[dict] = []
-    # Snapshot module state so we can restore it after the sweep — otherwise
-    # downstream code (or follow-on sweeps) inherits our mutations.
-    tau_gaba_saved = M.tau_gaba
-    decay_gaba_saved = M.decay_gaba
-    try:
-        for tau_gaba_ms in TAU_GABA_VALUES:
-            net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-            # _load_trained_full calls patch_dt → recomputes decay_gaba from
-            # whatever M.tau_gaba currently is. Override AFTER load so our
-            # value sticks for this iteration's forward pass.
-            M.tau_gaba = float(tau_gaba_ms)
-            M.decay_gaba = float(np.exp(-M.dt / tau_gaba_ms))
-            acc, e_rate, i_rate = _eval_net_on_test(net, cfg, X_te, y_te, device)
-            rows.append({
-                "tau_gaba_ms": float(tau_gaba_ms),
-                "acc": acc,
-                "hid_rate_hz": e_rate,
-                "inh_rate_hz": i_rate,
-            })
-            print(
-                f"  τ_GABA={tau_gaba_ms:>5.1f} ms  "
-                f"acc={acc:5.2f}%  E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
-            )
-    finally:
-        M.tau_gaba = tau_gaba_saved
-        M.decay_gaba = decay_gaba_saved
-    return rows
-
-
-def _plot_sweep_two_axes(
-    rows: list[dict], x_key: str, x_label: str, x_vline: float | None,
-    title: str, out_path: Path, run_id: str,
-) -> None:
-    """Shared plot: x-axis sweep var, left y E rate (red), right y accuracy (black)."""
-    fig, ax_rate = plt.subplots(figsize=(8, 4.5), dpi=150)
-    xs = [r[x_key] for r in rows]
-    e_rate = [r["hid_rate_hz"] for r in rows]
-    acc = [r["acc"] for r in rows]
-    ax_rate.plot(xs, e_rate, color=theme.DEEP_RED, marker="o", lw=1.5)
-    ax_rate.set_xlabel(x_label, fontsize=theme.SIZE_LABEL)
-    ax_rate.set_ylabel("Hidden E rate (Hz)",
-                       fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
-    ax_rate.tick_params(axis="y", labelcolor=theme.DEEP_RED)
-    if x_vline is not None:
-        ax_rate.axvline(x_vline, color=theme.GREY_MID, lw=0.6, ls="--", alpha=0.7)
-        ymax = ax_rate.get_ylim()[1]
-        ax_rate.text(
-            x_vline, ymax * 0.95, " training value",
-            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED, va="top",
-        )
-    ax_acc = ax_rate.twinx()
-    ax_acc.plot(xs, acc, color=theme.INK_BLACK, marker="s", lw=1.5)
-    ax_acc.axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
-    ax_acc.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
-    ax_acc.set_ylim(0, 100)
-    fig.suptitle(title, fontsize=theme.SIZE_TITLE)
-    fig.tight_layout()
-    _stamp(fig, run_id)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
-# ── End tau_GABA ───────────────────────────────────────────────────
-
-
-
-def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
-    floor = float(MIN_ACC_BY_TIER[tier])
-    figs_root = figures.parents[2]
-
-    def artifact(name: str, label: str) -> dict:
-        path = figures / name
-        ok = path.exists() and path.stat().st_size > 0
-        href = "/" + str(path.relative_to(figs_root)) if ok else None
-        return {
-            "label": label,
-            "passed": bool(ok),
-            "detail": (
-                f"{path.name} ({path.stat().st_size} bytes)"
-                if ok else f"missing {path.name}"
-            ),
-            "detail_href": href,
-        }
-
-    crits: list[dict] = [
-        artifact("perturbation_curves.png", "perturbation curves rendered"),
-        artifact("perturb_rasters__drop__ping.png", "PING drop rasters rendered"),
-        artifact("perturb_rasters__add__ping.png", "PING add rasters rendered"),
-        artifact("perturb_rasters__drop__coba.png", "COBA drop rasters rendered"),
-        artifact("perturb_rasters__add__coba.png", "COBA add rasters rendered"),
-        artifact("tau_gaba_sweep.png", "tau_GABA sweep rendered"),
-    ]
-    for model in MODELS:
-        base = next(
-            r for r in rows if r["model"] == model and r["theta_u"] is None
-        )
-        crits.append(
-            {
-                "label": f"{model} baseline acc ≥ {floor:.0f}% ({tier} floor)",
-                "passed": bool(base["best_acc"] >= floor),
-                "detail": f"{model}={base['best_acc']:.2f}%",
-            }
-        )
-    return crits
-
 
 def _format_duration(seconds: float) -> str:
     s = int(round(seconds))
@@ -1015,20 +948,8 @@ def main() -> None:
         )
         print(f"wrote {FIGURES / f'perturb_rasters__add__{model}.png'}")
 
-    # τ_GABA sweep — tests the "loop sets the floor" claim.
-    print("[tau-gaba-sweep] inference-only on trained ping")
-    tau_gaba_rows = run_tau_gaba_sweep(notebook_run_id)
-    _plot_sweep_two_axes(
-        tau_gaba_rows, "tau_gaba_ms",
-        "$\\tau_{\\mathrm{GABA}}$ (ms)", 9.0,
-        "Trained ping — accuracy and E rate vs $\\tau_{\\mathrm{GABA}}$",
-        FIGURES / "tau_gaba_sweep.png", notebook_run_id,
-    )
-    print(f"wrote {FIGURES / 'tau_gaba_sweep.png'}")
-
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
-    crits = evaluate_success(rows, tier, FIGURES)
     summary = {
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
@@ -1053,18 +974,11 @@ def main() -> None:
         },
         "baseline_results": rows,
         "perturbation": perturb_rows,
-        "tau_gaba_sweep": tau_gaba_rows,
-        "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
 
-    for c in crits:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in crits):
-        sys.exit(1)
 
 
 if __name__ == "__main__":

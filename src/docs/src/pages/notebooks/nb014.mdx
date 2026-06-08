@@ -11,11 +11,13 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb014/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
+## Abstract
+
 Second of three Δt-stability notebooks. Asks: *"Can a network trained at one $\Delta t$ run accurately at a different $\Delta t$ at inference? And which spike-resampling mode preserves the input statistics?"*
 
 Reads the checkpoints produced by [nb013](/notebooks/nb013/); no retraining.
 
-## Method
+## Methods
 
 For each of nb013's $5 \text{ models} \times 2 \text{ train regimes} = 10$ trained networks, sweep the *evaluation* $\Delta t$ over a per-regime grid (fine train-$\Delta t$ → broad grid, coarse train-$\Delta t$ → sparser grid of integer divisors). At each eval-$\Delta t$, encode the test inputs three different ways:
 
@@ -39,11 +41,9 @@ Measure test accuracy and mean hidden firing rate at each (model, train-$\Delta 
   Mean hidden firing rate vs eval-$\Delta t$. The count-preserving modes (upsample / downsample) keep the input spike count constant across eval-$\Delta t$ but the cuba scaling compensates whereas the snnTorch models do not.
 </Figure>
 
-## Success criteria
+## Discussion
 
-- [ ] cuba: accuracy variation across eval-Δt within 2 pp of train-Δt baseline.
-- [ ] snntorch-library + standard-snn: monotonic sag away from train-Δt under count-preserving modes.
-- [ ] coba + ping: behaviour consistent with their loop dynamics in both regimes.
+TODO: discussion paragraph — write what the results above mean for the project.
 
 ## Next steps
 

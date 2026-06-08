@@ -320,7 +320,7 @@ Not every latent is what you want to know. A scene-perception generative model c
 $$
 p(z_1 \mid x) = \sum_{z_2, z_3, z_4}\,p(z_1, z_2, z_3, z_4 \mid x).
 $$
-That marginalisation is the very thing that makes high-dimensional Bayesian inference intractable and forces the approximate-inference fork ([art007](/articles/art007/) prerequisites). It is also the structural reason posterior representations cannot be a single point — the full posterior over $z_1$ has *shape* contributed by integrating uncertainty over every other latent.
+That marginalisation is the very thing that makes high-dimensional Bayesian inference intractable and forces the approximate-inference fork ([ar007](/articles/ar007/) prerequisites). It is also the structural reason posterior representations cannot be a single point — the full posterior over $z_1$ has *shape* contributed by integrating uncertainty over every other latent.
 
 ### Cue combination, more carefully
 
@@ -478,7 +478,7 @@ The *position + momentum* structure is the bit worth holding onto. The state of 
 
 #### HMC and E–I dynamics
 
-This is where the sampling school of cortical computation gets its big idea. Aitchison & Lengyel 2016 ([reading guide entry 5](/articles/art007/)) show that an excitatory–inhibitory neural circuit, under reasonable assumptions, has dynamics that can be read as HMC: excitatory population activity plays the role of $z$ (position), inhibitory activity plays the role of $r$ (momentum), and the gamma oscillation that emerges from PING dynamics is *the momentum oscillating in the Hamiltonian sense*. Speed-up over non-oscillatory inference falls out for free, because HMC's coherent trajectories span state space much faster than random walks.
+This is where the sampling school of cortical computation gets its big idea. Aitchison & Lengyel 2016 ([reading guide entry 5](/articles/ar007/)) show that an excitatory–inhibitory neural circuit, under reasonable assumptions, has dynamics that can be read as HMC: excitatory population activity plays the role of $z$ (position), inhibitory activity plays the role of $r$ (momentum), and the gamma oscillation that emerges from PING dynamics is *the momentum oscillating in the Hamiltonian sense*. Speed-up over non-oscillatory inference falls out for free, because HMC's coherent trajectories span state space much faster than random walks.
 
 Echeveste et al. 2020 (entry 6) push the argument by *training* a recurrent E–I network for sampling-based inference and showing that gamma oscillations, stimulus-onset transients, and divisive normalisation emerge as consequences — they are not built in by hand. The dynamical signatures that look like noise from a non-Bayesian standpoint are, on this view, the sampler running.
 
@@ -619,7 +619,7 @@ Why this matters for the [reading list](#the-papers):
 - *PPC (Ma et al. 2006).* The key derivation relies on *Poisson-like* variability — a slightly more permissive class where the Fano factor is constant across stimuli but not necessarily 1. Under this assumption, *optimal Bayesian inference reduces to linear operations on neural activity.* This is the entire technical case for the PPC school: nature gave us the right noise structure, and computation becomes addition.
 - *Sampling.* The sampling school does not derive from Poisson statistics — variability is reinterpreted as samples — but the empirical observation $F \approx 1$ is still the headline noise property both schools have to explain.
 
-In this project, Poisson-rate encoding of input spikes is the standard image-task input pathway (see [art006](/articles/art006/) on *Image datasets*).
+In this project, Poisson-rate encoding of input spikes is the standard image-task input pathway (see [ar006](/articles/ar006/) on *Image datasets*).
 
 ### Signal and noise correlations
 
@@ -653,7 +653,7 @@ Echeveste et al. 2020 (entry 6) find divisive normalisation *emerging* in a recu
 
 Cortical activity in the *gamma band* (≈ 30–80 Hz) is one of the most-studied rhythmic phenomena in neuroscience. The standard generation mechanism is *pyramidal-interneuron network gamma* (PING): excitatory cells fire, recruit inhibitory cells, get suppressed, recover, fire again. This rhythm is the operating point of much of cortex under stimulus drive.
 
-In this project, PING is studied directly. See [art002 (CUBANet)](/articles/art002/), [art003 (COBANet)](/articles/art003/), and [art004 (Parameters & Units)](/articles/art004/) for the model ladder that produces PING dynamics in a controlled setting. The notebook entries explore the dynamical phenomenology — frequency tuning, Δt stability, training-induced changes.
+In this project, PING is studied directly. See [ar002 (CUBANet)](/articles/ar002/), [ar003 (COBANet)](/articles/ar003/), and [ar004 (Parameters & Units)](/articles/ar004/) for the model ladder that produces PING dynamics in a controlled setting. The notebook entries explore the dynamical phenomenology — frequency tuning, Δt stability, training-induced changes.
 
 The Bayesian-brain reading: Aitchison & Lengyel 2016 (entry 5) argue gamma oscillations are *the momentum variable of an HMC sampler* implemented by the E–I circuit ([Approximate inference](#approximate-inference) on HMC). This is the most direct theoretical contact between the project's PING work and the inference-as-cortical-computation literature.
 
@@ -661,7 +661,7 @@ The Bayesian-brain reading: Aitchison & Lengyel 2016 (entry 5) argue gamma oscil
 
 Cortical neurons in vivo receive *both* large excitatory and large inhibitory inputs, of similar magnitude. The net input — what actually drives the membrane towards threshold — is the *small difference between two large numbers*. This *E–I balance* is the operating regime: when intact, firing is asynchronous, irregular, low-rate; when disrupted, networks lapse into either hypersynchrony or quiescence.
 
-The relevance for Bayesian theories: most circuit-level inference models — both PPC and sampling — assume a balanced operating point as the substrate. The sampling school adds that *dynamic* features of E–I interaction (gamma oscillations, onset transients, divisive normalisation) play active functional roles. The project's COBA and PING models implement E–I balance explicitly; see [art003](/articles/art003/) and the gamma-frequency entry in [art004](/articles/art004/).
+The relevance for Bayesian theories: most circuit-level inference models — both PPC and sampling — assume a balanced operating point as the substrate. The sampling school adds that *dynamic* features of E–I interaction (gamma oscillations, onset transients, divisive normalisation) play active functional roles. The project's COBA and PING models implement E–I balance explicitly; see [ar003](/articles/ar003/) and the gamma-frequency entry in [ar004](/articles/ar004/).
 
 ## Reading order
 
@@ -678,4 +678,4 @@ Once you have the above, this order minimises backtracking.
 
 ## Where this fits in the project
 
-The sampling school's argument — *gamma oscillations are not a side-effect, they are the inference algorithm running* — is the most direct external motivation for treating PING dynamics in this project (see [the model ladder](/articles/art002/) and [training](/articles/art006/)) as functionally important rather than as a biological curio worth taming away. The PPC alternative is the principal contrast worth keeping in mind.
+The sampling school's argument — *gamma oscillations are not a side-effect, they are the inference algorithm running* — is the most direct external motivation for treating PING dynamics in this project (see [the model ladder](/articles/ar002/) and [training](/articles/ar006/)) as functionally important rather than as a biological curio worth taming away. The PPC alternative is the principal contrast worth keeping in mind.

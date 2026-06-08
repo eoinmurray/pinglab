@@ -8,7 +8,7 @@ collection: documentation
 ---
 import Aside from "../../components/Aside.astro";
 
-[Article 1](/articles/art001/) derived the continuous-time leaky integrate-and-fire (LIF) neuron from Maxwell's equations and the membrane circuit. This article picks up where that derivation leaves off and asks: how do you turn the continuous LIF into a discrete update rule that runs on a GPU? Two integrator choices (snnTorch-style and zero-order hold) give two rungs — *standard-snn* and *cuba* — both backed by a single Python class, **CUBANet**, in *src/pinglab/models.py*. Every empirical result in the [notebooks](/notebooks/) on the CUBA / standard-snn family traces back to the math here.
+[Article 1](/articles/ar001/) derived the continuous-time leaky integrate-and-fire (LIF) neuron from Maxwell's equations and the membrane circuit. This article picks up where that derivation leaves off and asks: how do you turn the continuous LIF into a discrete update rule that runs on a GPU? Two integrator choices (snnTorch-style and zero-order hold) give two rungs — *standard-snn* and *cuba* — both backed by a single Python class, **CUBANet**, in *src/pinglab/models.py*. Every empirical result in the [notebooks](/notebooks/) on the CUBA / standard-snn family traces back to the math here.
 
 The implementation lives in *src/pinglab/models.py*. This article keeps the derivations.
 
@@ -16,7 +16,7 @@ The implementation lives in *src/pinglab/models.py*. This article keeps the deri
 
 CUBANet (current-based LIF) is a single class with one switch:
 
-- *discretisation* ∈ \{*snntorch*, *zoh*\} — how the continuous LIF is discretised. Spikes drive the membrane directly (no synaptic filter); the conductance-filtered story lives one rung up in [COBANet](/articles/art003/).
+- *discretisation* ∈ \{*snntorch*, *zoh*\} — how the continuous LIF is discretised. Spikes drive the membrane directly (no synaptic filter); the conductance-filtered story lives one rung up in [COBANet](/articles/ar003/).
 
 The two canonical rungs:
 
@@ -433,4 +433,4 @@ Optional, controlled by *--ref-ms*. Implemented as a per-neuron *can_fire* mask 
 
 ## Where this leads
 
-The two CUBA rungs span the design space of a single LIF cell with current-based inputs. The next step up the ladder adds genuine *conductance-based* synapses and a recurrent E-I loop — the COBA and PING models, documented in [COBANet](/articles/art003/) and exercised throughout the [notebooks](/notebooks/).
+The two CUBA rungs span the design space of a single LIF cell with current-based inputs. The next step up the ladder adds genuine *conductance-based* synapses and a recurrent E-I loop — the COBA and PING models, documented in [COBANet](/articles/ar003/) and exercised throughout the [notebooks](/notebooks/).

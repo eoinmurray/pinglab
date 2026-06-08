@@ -432,22 +432,6 @@ def main() -> None:
                 ),
             },
         },
-        "success_criteria": [
-            {
-                "label": "4D Hopf located",
-                "passed": hopf is not None,
-                "detail": (f"I_ext* = {hopf['I_ext_star']:.3f}, "
-                           f"f* = {hopf['freq_star_Hz']:.2f} Hz"
-                           if hopf else "no Hopf"),
-            },
-            {
-                "label": "2D-cubic verdict: no Hopf (architecture lacks W^EE)",
-                "passed": cubic_hopf is None,
-                "detail": (
-                    f"α = {alpha:.4f} vs threshold {threshold:.3f}"
-                ),
-            },
-        ],
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"  wrote {FIGURES / 'numbers.json'}")

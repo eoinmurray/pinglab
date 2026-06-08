@@ -1,25 +1,36 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "041 — Rate floor tracks gamma frequency"
+title: "041 — Rate floor tracks gamma frequency (trains)"
 date: 2026-06-02
 entry: 41
 structure: paper
-collection: inhibition-gated-sparsity
+collection: gamma-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb041/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
+## Abstract
+
+**Training recipe (canonical / `medium` tier):**
+
+| Parameter | Value |
+|---|---|
+| Integration timestep $\Delta t$ | 0.1 ms |
+| Trial duration $T$ | 200 ms |
+| MNIST samples (80/20 stratified split of 2000) | 1600 train / 400 test ($\approx$ 2.9% of the 70k-sample MNIST corpus) |
+| Epochs | 100 |
+
 [nb037](/notebooks/nb037/) swept $\tau_\text{GABA}$ at inference on a network trained at 9 ms; the rate followed the rhythm. This entry does the *retrained* version: one PING trained from scratch at each $\tau_\text{GABA}$, three seeds. The "cannot escape the cycle" claim only earns its verb if the optimiser had a free hand at each timescale.
 
-## Method
+## Methods
 
 Six $\tau_\text{GABA} \in \{4.5, 6, 9, 12, 18, 27\}$ ms × three seeds = 18 cells. Same recipe as the [nb025](/notebooks/nb025/) PING baseline (100 epochs medium tier, batch 256, Adam $4 \times 10^{-4}$, mem-mean readout, $\theta_u$ off); only $\tau_\text{GABA}$ varies, exposed as `--tau-gaba`. For each trained cell, $f_\gamma$ is the parabolic-interpolated peak of the Welch PSD on the per-trial population E spike trace. Fit the affine relation $r_E = a + p \cdot f_\gamma$ across cells.
 
 ## Results
 
-<Figure id="Figure 1" title="Retrained τ_GABA sweep — post-training E rate tracks measured f_γ" src="/figures/notebooks/nb041/rate_vs_fgamma.png" alt="Top panel: scatter of mean post-training E rate (Hz) vs measured gamma frequency f_γ (Hz). Six clusters, one per τ_GABA value (annotated 4.5–27 ms), three seeds each. Error bars in both dimensions. An affine fit line r_E = 0.96 + 0.201 · f_γ passes through every error bar with R² = 0.996. Bottom panel: test accuracy vs same x-axis — flat at 81–89% across the entire f_γ range.">
+<Figure id="Figure 1" title="Retrained τ_GABA sweep — post-training E rate tracks measured f_γ" src="/figures/notebooks/nb041/rate_vs_fgamma.png" alt="Top panel: scatter of mean post-training E rate (Hz) vs measured gamma frequency f_γ (Hz). Six clusters, one per τ_GABA value (annotated 4.5–27 ms), three seeds each. Error bars in both dimensions. An affine fit line r_E = 0.76 + 0.216 · f_γ passes through every error bar with R² = 0.997. Bottom panel: test accuracy vs same x-axis — flat at 81–89% across the entire f_γ range. f_γ on the x-axis is the per-trial PSD peak median (see Figure 4).">
   Top: mean post-training E rate vs measured $f_\gamma$. Six $\tau_\text{GABA}$ clusters, three seeds, error bars from seed variance. Bottom: accuracy by cluster.
 </Figure>
 
@@ -42,11 +53,11 @@ $$
 
 ### Fit and cross-checks
 
-Affine fit: $a = 0.96$ Hz, $p = 0.201$ Hz/Hz, $R^2 = 0.996$.
+Affine fit: $a = 0.76$ Hz, $p = 0.216$ Hz/Hz, $R^2 = 0.997$ (refit on per-trial peak medians, see Figure 4). The earlier trial-mean PSD peak fit gave $a = 0.96$, $p = 0.201$, $R^2 = 0.996$ — the per-trial-median refit shifts $a$ down by ≈ 0.2 Hz and $p$ up by 7% because the trial-mean PSD peak is biased upward at high $f_\gamma$ by ≈ 3 Hz.
 
-**$p$ is per-cycle participation.** At $\tau_\text{GABA} = 9$ ms the canonical cell has $f_\gamma \approx 36$ Hz and $r_E \approx 8.6$ Hz; $(r_E - a)/f_\gamma = 7.6/36 = 0.21$, matching the fitted slope. [nb024](/notebooks/nb024/)'s per-cell distribution at the same operating point gives the same fraction from a different direction: median 7.3 Hz, i.e. $\approx 0.20$ spikes per cell per cycle, with $\approx 9\%$ of cells silent.
+**$p$ is per-cycle participation.** At $\tau_\text{GABA} = 9$ ms the canonical cell has $f_\gamma \approx 35$ Hz and $r_E \approx 8.6$ Hz; $(r_E - a)/f_\gamma = 7.8/35 = 0.22$, matching the fitted slope. [nb024](/notebooks/nb024/)'s per-cell distribution at the same operating point gives the same fraction from a different direction: median 7.3 Hz, i.e. $\approx 0.21$ spikes per cell per cycle, with $\approx 9\%$ of cells silent.
 
-**$a$ is a non-rhythmic baseline.** The fit extrapolates to $a \approx 1$ Hz at $f_\gamma \to 0$ — the no-rhythm regime that [nb042](/notebooks/nb042/)'s rate-matched Poisson condition probes directly (continuous I drive at matched mean drives E nearly silent). The intercept is a prediction about a no-rhythm limit, not a nuisance term.
+**$a$ is a non-rhythmic baseline.** The fit extrapolates to $a \approx 0.8$ Hz at $f_\gamma \to 0$ — the no-rhythm regime that [nb042](/notebooks/nb042/)'s rate-matched Poisson condition probes directly (continuous I drive at matched mean drives E nearly silent). The intercept is a prediction about a no-rhythm limit, not a nuisance term.
 
 The accuracy panel of Figure 1 stays at 80.5–90% across the whole $f_\gamma$ sweep — the rate change is not paid in classification.
 
@@ -60,7 +71,65 @@ The law is visible in single-trial rasters: the cycle stretches monotonically wi
   Population PSDs by $\tau_\text{GABA}$. Dots mark the interpolated peak used as $f_\gamma$. Peak shifts cleanly from $\approx 14$ Hz at 27 ms to $\approx 54$ Hz at 4.5 ms.
 </Figure>
 
-## Convergence
+#### How the PSDs are computed
+
+Each curve in Figure 3 is the *trial-mean* of single-trial Welch periodograms at one $(\tau_\text{GABA}, \text{seed})$ cell. Pipeline:
+
+1. **Population trace per trial.** Run the trained network forward on the test set. For trial $n$, the population E trace is
+   $$
+   x_n(t) \;=\; \frac{1}{N_E}\sum_{j=1}^{N_E} s_{j,n}^E(t),
+   $$
+   the mean across $N_E = 1024$ hidden cells at every $\Delta t = 0.1$ ms timestep, giving $T = 2000$ samples at $f_s = 1000/\Delta t = 10$ kHz.
+
+2. **Single-trial PSD.** Mean-subtract (`x_n − x̄_n`, no detrending) and pass to `scipy.signal.welch` with `nperseg = T` (one window per trial, no overlap, density scaling). One window means $\Delta f = f_s / T = 5$ Hz frequency resolution:
+   $$
+   P_n(f) \;=\; \mathrm{Welch}\!\big(x_n - \overline{x_n};\; n_\text{perseg} = T,\; f_s\big).
+   $$
+
+3. **Trial average.** With $N_c$ test trials in the cell, the displayed curve is
+   $$
+   \overline{P_c}(f) \;=\; \frac{1}{N_c} \sum_{n=1}^{N_c} P_n(f).
+   $$
+   Averaging *after* the periodogram (not on the time series) suppresses single-trial variance by $1/\sqrt{N_c}$ without smearing the peak. Trial-to-trial peak *location* is identical (same trained network, same gamma cycle), so trial-averaging sharpens it; only amplitude jitter gets averaged out.
+
+4. **Peak extraction with parabolic interpolation.** Find the peak bin of $\overline{P_c}(f)$ inside the 5–150 Hz gamma band. With $(y_0, y_1, y_2)$ the PSD values at the peak bin and its two neighbours, the sub-bin offset is
+   $$
+   \delta \;=\; \tfrac{1}{2}\,\frac{y_0 - y_2}{y_0 - 2y_1 + y_2}, \qquad \delta \in [-\tfrac{1}{2}, \tfrac{1}{2}],
+   $$
+   clamped to $\pm\tfrac{1}{2}$. The reported frequency is $f_\gamma = \text{freq}[\text{peak}] + \delta \cdot \Delta f$. Parabolic interpolation is necessary because $\Delta f = 5$ Hz would otherwise quantise $f_\gamma$ coarsely across the six $\tau_\text{GABA}$ values; on a well-isolated peak its error is $O((\Delta f)^3)$.
+
+The seed averaging happens *later* — when the six $(\tau, s)$ curves feed Figure 1's affine fit, the three seeds at each $\tau_\text{GABA}$ contribute three independent $f_\gamma$ estimates that become the horizontal error bars.
+
+#### Sanity check: do all trials produce the same peak?
+
+The trial-average above only sharpens the peak if every trial *has the same peak* — otherwise it produces a centroid-like quantity biased toward modal trials. Different MNIST digits drive different E subnetworks through $W_\text{in}$, so in principle $f_\gamma$ could be digit-dependent. Three reasons it probably isn't, plus one empirical check:
+
+1. **MNIST digits drive similar mean rates.** Active-pixel counts are comparable across digits, so the effective $I_\text{ext}$ projected onto the hidden layer is roughly digit-independent.
+2. **The cycle clock cares about the aggregate.** $f_\gamma$ is set by the I-loop responding to *population-mean* E activity (the Hopf in [nb033](/notebooks/nb033/)), so digit-dependent heterogeneity that preserves the mean is invisible to $f_\gamma$.
+3. **The participation gate $p$ is architecturally clamped.** [nb046](/notebooks/nb046/) shows $p \approx 0.20$ across the full $\tau_\text{GABA}$ sweep; this buffers the per-cycle E output against drive fluctuations.
+
+The empirical check: instead of finding the peak of the trial-mean PSD, find the peak of each *individual-trial* PSD and look at the distribution.
+
+<Figure id="Figure 4" title="Per-trial PSD peak distribution vs trial-mean-PSD peak" src="/figures/notebooks/nb041/per_trial_peaks.png" alt="Six stacked histograms, one per τ_GABA value (viridis colormap), of per-trial PSD peak frequencies pooled across the three seeds (1200 trials per panel). Each panel reports per-trial median and IQR, with the trial-mean PSD peak overlaid as a vertical line. Distributions are unimodal and clearly resolve adjacent τ_GABA values, but have real spread of 4–10 Hz IQR.">
+  Per-trial peak distribution per $\tau_\text{GABA}$, pooled across the three seeds (≈ 1200 trials per panel). Dashed vertical: per-trial median. Solid red: peak of the trial-mean PSD (the quantity used as $f_\gamma$ in Figure 1). Read-off:
+
+  | $\tau_\text{GABA}$ (ms) | trial-mean PSD peak | per-trial median | per-trial IQR |
+  |---|---|---|---|
+  | 4.5 | 54.0 Hz | 50.6 Hz | 10.5 Hz |
+  | 6   | 44.0 Hz | 41.1 Hz | 8.7 Hz |
+  | 9   | 36.4 Hz | 35.4 Hz | 7.8 Hz |
+  | 12  | 27.9 Hz | 26.3 Hz | 5.3 Hz |
+  | 18  | 22.0 Hz | 20.9 Hz | 5.2 Hz |
+  | 27  | 14.3 Hz | 14.4 Hz | 4.1 Hz |
+
+  Two things show up. (a) **There is real trial-to-trial spread in $f_\gamma$** — IQR is 4–10 Hz, growing with $f_\gamma$ itself (consistent with frequency jitter scaling with cycle rate). (b) **The trial-mean PSD peak sits 1–3 Hz above the per-trial median**, with the gap widest at small $\tau_\text{GABA}$ (high $f_\gamma$). This is the expected centroid-bias of trial-averaging PSDs whose peaks fluctuate: high-peak trials contribute extra power on the high-frequency tail of the mean PSD and pull the trial-mean peak up.
+</Figure>
+
+So the trial-mean PSD peak — and therefore Figure 1's $f_\gamma$ — overestimates the typical-trial cycle frequency by ≈ 3 Hz at small $\tau_\text{GABA}$ and ≈ 0 Hz at large $\tau_\text{GABA}$. That's small relative to the 22-Hz inter-$\tau$ spacing but real. The affine-law fit is robust because the bias is monotonic in $\tau_\text{GABA}$ and small compared to the dynamic range, but the more rigorous quantity would be the per-trial peak median. Refit on the per-trial medians is a candidate next-step.
+
+The histograms are also clearly unimodal at every $\tau_\text{GABA}$, which rules out catastrophic digit-dependent bimodality — the spread comes from continuous trial-to-trial variation, not from digit-class-specific operating points.
+
+### Convergence
 
 Accuracy and rate converge on different timescales. Accuracy plateaus at 80.5–90% by epoch 15 across all $\tau_\text{GABA}$ values. Rate climbs steadily for the first 30 epochs, slows by epoch 50, and stabilises by epoch 70–100. The convergence audit in [nb024](/notebooks/nb024/) showed the same pattern at the $\theta_u$ = off baseline: PING's rate is a converged operating point at 100 epochs, not at 30.
 
@@ -69,7 +138,9 @@ The fit numbers shift accordingly with training duration:
 | training | $a$ (Hz) | $p$ (Hz/Hz) | $R^2$ |
 |---|---|---|---|
 | 30 epochs | 1.14 | 0.166 | 0.990 |
-| 100 epochs | 0.96 | 0.201 | 0.996 |
+| 100 epochs | 0.76 | 0.216 | 0.997 |
+
+(100-epoch row updated to the per-trial-median refit; trial-mean PSD peak gave 0.96 / 0.201 / 0.996.)
 
 The *shape* of the law is robust — a clean affine relation in $f_\gamma$ at every training duration. The *slope* is duration-conditional and tightens toward its fixed point as training continues. Reporting the converged 100-epoch values is the right framing for any claim about per-cycle participation $p$; reporting them at 30 epochs is honest but understates the participation fraction.
 
@@ -81,7 +152,7 @@ The *shape* of the law is robust — a clean affine relation in $f_\gamma$ at ev
 
 The retrained complement to [nb037](/notebooks/nb037/) Figure 6. nb037 mutated $\tau_\text{GABA}$ at inference; nb041 retrains at each value and shows the optimiser cannot find a different operating point. Every retrained network sits on the same affine line, with both constants physically interpretable.
 
-## Cortical prediction
+### Cortical prediction
 
 The result is in silico — a conductance-based PING network trained on MNIST. But the derivation does not depend on the task or on the training substrate; it depends only on the cycle structure produced by the recurrent E↔I loop. To the extent that cortical pyramidal-interneuron circuits implement the same kind of self-clocking cycle, the same law should hold *in vivo*:
 
@@ -95,13 +166,6 @@ Testable in any awake-cortex recording where gamma is visible and pyramidal-cell
 
 The architectural ingredient that makes the law hold here is a recurrent I-loop with fixed (not plastic) connectivity, on adult-cortex-like biophysical parameter ranges ($\tau_\text{AMPA} = 2$ ms, $\tau_\text{GABA} \in 5$–$30$ ms, E:I ratio 4:1). If cortical gamma is generated by a fundamentally different mechanism (e.g. interneuron-only ING, or pacemaker-driven), the law need not transfer; the prediction is therefore also a test of *whether the cortical gamma mechanism is PING-like*.
 
-## Success criteria
-
-- [x] rate-vs-$f_\gamma$, PSD, raster, training-curve figures rendered.
-- [x] $f_\gamma$ varies $\geq 2$× across the $\tau_\text{GABA}$ sweep (4.08×: 13.31 → 54.30 Hz across cells).
-- [x] Affine fit $R^2 \geq 0.7$ ($R^2 = 0.996$).
-- [x] Slope $p > 0$ ($p = 0.201$ Hz/Hz).
-
 ## Next steps
 
-Quantitative-law leg of [art010](/articles/art010/)'s pre-shipping chain. Combined with [nb042](/notebooks/nb042/) (rhythm vs mean-inhibition) and [nb043](/notebooks/nb043/) (reward pressure), the structural-bound argument is complete.
+Quantitative-law leg of [ar010](/articles/ar010/)'s pre-shipping chain. Combined with [nb042](/notebooks/nb042/) (rhythm-locking, jitter law, and cross-τ_GABA dimensional collapse), the structural-bound argument is complete.

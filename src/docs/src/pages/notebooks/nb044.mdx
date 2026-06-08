@@ -1,19 +1,30 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "044 — Is the rate floor robust to the integration timestep?"
+title: "044 — Is the rate floor robust to the integration timestep? (trains)"
 date: 2026-06-02
 entry: 44
 structure: paper
-collection: inhibition-gated-sparsity
+collection: gamma-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb044/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
+## Abstract
+
+**Training recipe (canonical / `medium` tier):**
+
+| Parameter | Value |
+|---|---|
+| Integration timestep $\Delta t$ | 0.1 ms |
+| Trial duration $T$ | 200 ms |
+| MNIST samples (80/20 stratified split of 2000) | 1600 train / 400 test ($\approx$ 2.9% of the 70k-sample MNIST corpus) |
+| Epochs | 100 |
+
 The Δt audit asks whether the [nb025](/notebooks/nb025/) headline E rate is a physical (Hz) property of the trained network or an artefact of the integration timestep. **The rate stays in a 9.5–14 Hz band across a 20× Δt sweep, accuracy holds at 88.5–90.7%, and the gamma cycle period in physical ms is invariant — but the rate dependence on Δt is non-monotonic, with Δt = 0.5 ms producing a *lower* mean rate than Δt = 0.25 ms.** The architectural separation from COBA (≈ 96 Hz at the same recipe, from [nb025](/notebooks/nb025/)) holds at every Δt.
 
-## Method
+## Methods
 
 Train one PING from scratch per $\Delta t \in \{0.05, 0.1, 0.25, 0.5, 1.0\}$ ms × seed $\in \{42, 43, 44\}$ = 15 cells. Total physical time $T = 200$ ms held constant (step count varies 4000 → 200). Batch size 64 throughout — smaller than [nb025](/nb025/)'s 256, but matched across the sweep so per-step compute and memory stay comparable, and the Δt = 0.05 cells (4000 timesteps × $N_E$ × $N_I$) fit in a single A100. All other PING recipe parameters held to [nb025](/notebooks/nb025/).
 
@@ -41,7 +52,7 @@ The E rate stays in a 9.5–14 Hz band across the 20× Δt sweep — a 4.6 Hz sp
 
 The raster strip is the load-bearing diagnostic. Across the 20× Δt sweep, the gamma cycle period in *milliseconds* is invariant — bursts at the same physical cadence in every panel. The cycle physics is Δt-invariant.
 
-## Why the rate varies with Δt
+### Why the rate varies with Δt
 
 In the discretised LIF integrator with forward Euler, $V_{t+1} = V_t + \Delta t \cdot \dot V$, a single timestep advances the membrane farther in mV when Δt is larger. The effect on the rate is non-monotonic across this sweep — Δt = 0.5 ms produces a lower mean rate than Δt = 0.25 ms — which suggests the interaction with refractory windows and per-burst dynamics is not a simple "coarser Δt → higher rate" relation. Two effects act in opposite directions:
 
@@ -50,7 +61,7 @@ In the discretised LIF integrator with forward Euler, $V_{t+1} = V_t + \Delta t 
 
 The net effect across this sweep is a 4.6 Hz band (9.5–14 Hz) with no monotone ordering. The **cycle frequency** (cycle period set by $\tau_\text{AMPA}$ and $\tau_\text{GABA}$) is Δt-invariant; the per-cycle participation probability $p$ in [nb041](/notebooks/nb041/)'s law $r_E = a + p \cdot f_\gamma$ has some Δt-dependence that this sweep does not fully disentangle.
 
-## Convergence
+### Convergence
 
 <Figure id="Figure 3" title="Per-cell training curves — convergence check across Δt sweep" src="/figures/notebooks/nb044/training_curves.png" alt="Two stacked panels. Top: test accuracy vs epoch, one line per cell coloured by Δt on a viridis scale (dark purple Δt = 0.05 ms through yellow Δt = 1 ms). Accuracy curves climb steeply for the first 5–10 epochs then plateau at 86–91% for the remainder of training. The Δt = 0.05 cells take a few epochs longer to reach the plateau but get there. Bottom: test E rate vs epoch, same colouring. Every curve is still monotonically rising at epoch 30 — the coarsest Δt (yellow) reaches ≈ 12 Hz at epoch 30 and is still climbing; the finest Δt (dark purple) reaches ≈ 7 Hz and is still climbing.">
   Top: test accuracy converges by epoch ~ 10–15 across all Δt. Bottom: test E rate has *not* converged in 30 epochs — every curve is still rising. The Δt-dependent rate scaling reported above is a snapshot of medium-tier training at epoch 30, not a fixed-point ceiling.
@@ -63,7 +74,7 @@ Two convergence observations:
 
 The gamma cycle observation from Figure 2 is independent of training convergence — it's a property of the underlying dynamics and would hold at any training duration.
 
-## Implication for [art010](/articles/art010/)
+## Discussion
 
 This audit confirms the *structural* claims are preserved across Δt:
 
@@ -71,15 +82,8 @@ This audit confirms the *structural* claims are preserved across Δt:
 2. **The qualitative architectural separation survives.** At every Δt the PING network fires in the 9.5–14 Hz band; the COBA equivalent from [nb025](/notebooks/nb025/) sits at ≈ 96 Hz. The order-of-magnitude rate gap that motivates the forbidding claim does not collapse at coarse or fine Δt.
 3. **The numerical headline rate has a Δt-dependent residual.** Reporting "≈ 10 Hz" without qualifying Δt is acceptable; the right precise statement is "9.5–14 Hz across $\Delta t \in [0.05, 1]$ ms with non-monotone ordering, accuracy invariant at 88.5–90.7%."
 
-## Success criteria
-
-- [x] Δt-sweep figure rendered.
-- [x] Raster strip rendered.
-- [ ] **E rate variation across Δt sweep ≤ 1 Hz — FAIL** (span 4.57 Hz). This was the strict test for "the rate ceiling is Δt-invariant in Hz." It fails, and the failure is interpretable (per-cycle participation has Δt sensitivity) rather than a code bug. The Discussion above sets out the right [art010](/articles/art010/) framing.
-- [x] Accuracy variation across Δt sweep ≤ 5 percentage points (span 2.17 pp).
-
 ## Next steps
 
-The art010 framing should anchor the rate claim at $\Delta t = 0.1$ ms and explicitly cite this audit's Figure 2 (the Δt-invariant gamma cycle) as the structural-bound argument's load-bearing observation. The Figure 1 rate-vs-Δt scaling is itself worth one paragraph of methods, noting that the per-cycle integration of the LIF dynamics has a residual Δt effect on participation probability.
+The ar010 framing should anchor the rate claim at $\Delta t = 0.1$ ms and explicitly cite this audit's Figure 2 (the Δt-invariant gamma cycle) as the structural-bound argument's load-bearing observation. The Figure 1 rate-vs-Δt scaling is itself worth one paragraph of methods, noting that the per-cycle integration of the LIF dynamics has a residual Δt effect on participation probability.
 
-A natural follow-up is a *retrained* version of [nb041](/notebooks/nb041/) at multiple Δt values — six $\tau_\text{GABA}$ × three Δt would test whether the affine law's slope $p$ scales predictably with Δt or wobbles. That experiment is not on the [art010](/articles/art010/) critical path but is the cleanest way to establish the Δt → $p$ functional form.
+A natural follow-up is a *retrained* version of [nb041](/notebooks/nb041/) at multiple Δt values — six $\tau_\text{GABA}$ × three Δt would test whether the affine law's slope $p$ scales predictably with Δt or wobbles. That experiment is not on the [ar010](/articles/ar010/) critical path but is the cleanest way to establish the Δt → $p$ functional form.

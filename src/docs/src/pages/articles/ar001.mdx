@@ -15,7 +15,7 @@ import Flux from "../../components/articles/Flux";
 import DivergenceTheorem from "../../components/articles/DivergenceTheorem";
 import StokesTheorem from "../../components/articles/StokesTheorem";
 
-This article walks the chain from vector calculus to the spiking neuron: the operators and theorems needed to read Maxwell's equations, the four equations themselves in differential and integral form, their collapse to Ohm and capacitance and the RC equation when applied *in matter*, the same RC equation specialised to a cell membrane plus the threshold-and-reset rule that makes it spike, and five worked examples that exercise the chain end-to-end. The destination is the conductance-based leaky integrate-and-fire (COBA) neuron used throughout the [pinglab models](/articles/art002/) and notebooks.
+This article walks the chain from vector calculus to the spiking neuron: the operators and theorems needed to read Maxwell's equations, the four equations themselves in differential and integral form, their collapse to Ohm and capacitance and the RC equation when applied *in matter*, the same RC equation specialised to a cell membrane plus the threshold-and-reset rule that makes it spike, and five worked examples that exercise the chain end-to-end. The destination is the conductance-based leaky integrate-and-fire (COBA) neuron used throughout the [pinglab models](/articles/ar002/) and notebooks.
 
 ## Vector Calculus
 
@@ -513,7 +513,7 @@ $$
 \boxed{\;\tau\,\frac{dV}{dt} \;=\; -(V - V_\infty) \;+\; R\,I_{\text{ext}}(t),\qquad \tau \;=\; R\,C.\;}
 $$
 
-With $I_{\text{ext}} = 0$ the voltage relaxes exponentially toward $V_\infty$ on the timescale $\tau$. With a steady $I_{\text{ext}}$ the steady-state shifts to $V_\infty + R\, I_{\text{ext}}$. Whatever the input, the dynamics is always a first-order linear ODE — the same form that appears in the [COBA derivation](/articles/art003/) on the models page, where $\tau_{\text{eff}}$ and $V_\infty$ become functions of the open conductances.
+With $I_{\text{ext}} = 0$ the voltage relaxes exponentially toward $V_\infty$ on the timescale $\tau$. With a steady $I_{\text{ext}}$ the steady-state shifts to $V_\infty + R\, I_{\text{ext}}$. Whatever the input, the dynamics is always a first-order linear ODE — the same form that appears in the [COBA derivation](/articles/ar003/) on the models page, where $\tau_{\text{eff}}$ and $V_\infty$ become functions of the open conductances.
 
 The RC equation is also already most of the way to the LIF neuron. The only thing missing for LIF is a *threshold + reset* rule on top: when $V$ crosses some firing level $\theta$, emit a spike and snap $V$ back to a reset value. The subthreshold dynamics between spikes is exactly the RC equation.
 
@@ -523,7 +523,7 @@ Intuitively: an RC circuit is the simplest dynamical voltage in physics — one 
 
 The leaky integrate-and-fire (LIF) neuron is the simplest model of a spiking cell that still preserves the two things that make neurons interesting: a continuous *voltage* that integrates inputs in time, and a discrete *spike* output emitted when that voltage crosses a threshold. Subthreshold, an LIF cell is exactly the [RC circuit](#the-rc-equation) derived in the previous section — Maxwell's equations applied to a thin insulator between two conducting fluids. The active ingredient is just one extra rule: when the membrane voltage reaches a firing level, emit a spike and reset.
 
-This section walks the construction in four steps. First, the membrane equation — the RC circuit specialised to a cell, with ion channels playing the role of resistors. Second, the reversal potentials at the end of those channels, via the Nernst equation. Third, the threshold-and-reset rule that completes the LIF model. Fourth, the two ways of wiring synaptic inputs in — current-based (**CUBA**) and conductance-based (**COBA**) — which together turn one cell into the building block of the [pinglab models](/articles/art002/) and notebooks.
+This section walks the construction in four steps. First, the membrane equation — the RC circuit specialised to a cell, with ion channels playing the role of resistors. Second, the reversal potentials at the end of those channels, via the Nernst equation. Third, the threshold-and-reset rule that completes the LIF model. Fourth, the two ways of wiring synaptic inputs in — current-based (**CUBA**) and conductance-based (**COBA**) — which together turn one cell into the building block of the [pinglab models](/articles/ar002/) and notebooks.
 
 ### The cell membrane as an RC circuit
 
@@ -554,7 +554,7 @@ with membrane time constant $\tau_m = C_m / g_L$ and steady state $V_\infty = E_
 
 Each ion species $k$ sits at a different concentration inside and outside the cell, actively maintained by pumps that burn ATP. Two forces act on an ion that crosses the membrane:
 
-- **Diffusion** drives the ion from high concentration to low, by random thermal motion — the same statistical mechanics that produced the Maxwell–Boltzmann distribution in [Particles in a Box](/articles/art000/). Fick's law gives a flux $\mathbf{J}_{\text{diff}} = -D\,\nabla c$.
+- **Diffusion** drives the ion from high concentration to low, by random thermal motion — the same statistical mechanics that produced the Maxwell–Boltzmann distribution in [Particles in a Box](/articles/ar000/). Fick's law gives a flux $\mathbf{J}_{\text{diff}} = -D\,\nabla c$.
 - **Drift** acts because the ion has charge $q_k$, so it feels the electric field across the membrane: $\mathbf{J}_{\text{drift}} = \mu\, q_k\, c\, \mathbf{E}$, with $\mu$ the ionic mobility.
 
 For each ion species at equilibrium, these two fluxes cancel. Setting $\mathbf{J}_{\text{diff}} + \mathbf{J}_{\text{drift}} = 0$, using the Einstein relation $D = \mu\, k_B T$ to link diffusion and mobility, and integrating across the membrane gives the **Nernst equation**:
@@ -572,7 +572,7 @@ This is the voltage at which the field-driven drift of ion $k$ exactly cancels i
 | $Cl^-$        | 10          | 110          | $-64\,\mathrm{mV}$  |
 | $Ca^{2+}$     | $10^{-4}$   | 1.2          | $+125\,\mathrm{mV}$ |
 
-The leak conductance $g_L$ used in the previous section is a mixture of mostly $K^+$ and $Cl^-$ channels, so the effective $E_L$ for the leak sits in the neighbourhood of $-65\,\mathrm{mV}$ — the cell's *resting potential*. Mixed-cation excitatory channels (AMPA receptors) end up with a reversal near $E_e \approx 0\,\mathrm{mV}$; chloride-selective inhibitory channels (GABA-A receptors) sit near $E_i \approx -75\,\mathrm{mV}$ — exactly the values used in the [COBA model](/articles/art003/). They are *not* free parameters; they fall out of the ion concentrations the cell maintains with its pumps.
+The leak conductance $g_L$ used in the previous section is a mixture of mostly $K^+$ and $Cl^-$ channels, so the effective $E_L$ for the leak sits in the neighbourhood of $-65\,\mathrm{mV}$ — the cell's *resting potential*. Mixed-cation excitatory channels (AMPA receptors) end up with a reversal near $E_e \approx 0\,\mathrm{mV}$; chloride-selective inhibitory channels (GABA-A receptors) sit near $E_i \approx -75\,\mathrm{mV}$ — exactly the values used in the [COBA model](/articles/ar003/). They are *not* free parameters; they fall out of the ion concentrations the cell maintains with its pumps.
 
 Intuitively: every ion feels two restoring forces — thermal diffusion pushing toward equal concentrations, and the electric field across the membrane. The voltage at which they balance is that ion's reversal potential. The cell spends ATP to keep the concentrations away from equilibrium, and the reversal potentials are the price of that maintenance.
 
@@ -605,7 +605,7 @@ The choice of where to put the reset $V_{\text{reset}}$ is a modelling decision.
 - **Hard reset**: $V_{\text{reset}}$ is a fixed value, usually $E_L$. Any overshoot above threshold is discarded.
 - **Subtract reset**: $V \leftarrow V - V_{\text{th}}$. Preserves overshoot, useful when integrating very fast inputs across long timesteps.
 
-These choices show up explicitly in the pinglab [CUBA implementation](/articles/art002/#reset-modes) — *reset_mode = "zero"* vs *reset_mode = "subtract"*.
+These choices show up explicitly in the pinglab [CUBA implementation](/articles/ar002/#reset-modes) — *reset_mode = "zero"* vs *reset_mode = "subtract"*.
 
 ### The full LIF model
 
@@ -678,7 +678,7 @@ $$
 
 The same threshold-and-reset rule from the LIF section sits on top of this. The two synaptic conductances $g_e(t)$ and $g_i(t)$ each evolve via the exponential-synapse ODE, driven by spikes from upstream excitatory or inhibitory cells.
 
-This is the model used throughout the [pinglab COBANet implementation](/articles/art003/) and every PING / COBA experiment in the [notebooks](/notebooks/).
+This is the model used throughout the [pinglab COBANet implementation](/articles/ar003/) and every PING / COBA experiment in the [notebooks](/notebooks/).
 
 #### What COBA gives you that CUBA doesn't
 
@@ -693,7 +693,7 @@ Three things follow from the $(V - E_k)$ driving force in COBA that CUBA's addit
 A pragmatic guide:
 
 - **CUBA** is the right choice when you want linearity, when firing rates are modest, when the membrane stays close to $E_L$ most of the time, or when you just need a fast network simulation. Most tutorial SNN code uses CUBA.
-- **COBA** is the right choice when realism matters: any model studying gamma rhythms, balanced E/I networks, shunting, or biological calibration. The COBA, PING, and *standard-snn* rungs in the [pinglab models page](/articles/art002/) are the corresponding implementations.
+- **COBA** is the right choice when realism matters: any model studying gamma rhythms, balanced E/I networks, shunting, or biological calibration. The COBA, PING, and *standard-snn* rungs in the [pinglab models page](/articles/ar002/) are the corresponding implementations.
 
 ## Worked Examples
 
@@ -917,4 +917,4 @@ A typical neuron has $\tau_m = 10\,\mathrm{ms}$, $\tau_{\text{ref}} = 2\,\mathrm
 
 ## Where this leads
 
-The five sections trace a single chain: vector calculus → fields (Maxwell) → circuits (Ohm, capacitance, RC) → cells (LIF, COBA) → worked exercises that pin each link of the chain into place. A reader who can derive each of the five worked examples from scratch has internalised the material. The next step in the codebase is to wire many such cells into a network — the subject of [CUBANet](/articles/art002/), [COBANet](/articles/art003/), and every experiment in the [notebooks](/notebooks/).
+The five sections trace a single chain: vector calculus → fields (Maxwell) → circuits (Ohm, capacitance, RC) → cells (LIF, COBA) → worked exercises that pin each link of the chain into place. A reader who can derive each of the five worked examples from scratch has internalised the material. The next step in the codebase is to wire many such cells into a network — the subject of [CUBANet](/articles/ar002/), [COBANet](/articles/ar003/), and every experiment in the [notebooks](/notebooks/).

@@ -22,13 +22,12 @@ export const r = {
   post: numbers.rates_hz?.post ?? {},
 };
 export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
-export const successCriteria = numbers.success_criteria ?? [];
 
-## Introduction
+## Abstract
 
 External drive is one knob ([nb003](/notebooks/nb003/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes. Input rate and $W_\text{in}$ are bumped relative to [nb003](/notebooks/nb003/) / [nb005](/notebooks/nb005/) so E has enough baseline drive to recruit I at all without a stim pulse. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
-## Method
+## Methods
 
 A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand with stim-overdrive held at {scan.fixed_overdrive}× and **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}). All knobs are hardcoded literals in *src/pinglab/notebooks/nb006.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
 
@@ -62,24 +61,6 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
 
 ## Results
 
-### Success criteria
-
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
 
 <Figure type="video" id="Figure 1" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb006/scan_ei.mp4">
   Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}).
@@ -94,6 +75,10 @@ A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video)
 | Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
 | In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
 | Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
+
+## Discussion
+
+TODO: discussion paragraph — write what the results above mean for the project.
 
 ## Next steps
 

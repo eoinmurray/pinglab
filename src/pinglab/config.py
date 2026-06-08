@@ -141,6 +141,7 @@ def build_net(
     readout_mode="rate",
     trainable_w_ee=False,
     tbptt_window=None,
+    n_inh_per_layer=None,
 ):
     """Construct a network with the given config.
 
@@ -191,6 +192,8 @@ def build_net(
         kwargs["w_ie"] = (s * ei_ratio, s * ei_ratio * 0.1, "normal", sparsity)
     if w_ei is None and w_ie is None and ei_strength is None and sparsity > 0:
         kwargs.setdefault("sparsity", sparsity)
+    if n_inh_per_layer is not None:
+        kwargs["n_inh_per_layer"] = dict(n_inh_per_layer)
     net = cls(**kwargs)
     if device is not None:
         net = net.to(device)

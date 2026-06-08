@@ -1,19 +1,21 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "042 — Is the floor held by the rhythm or by mean inhibition?"
+title: "042 — Two jitter regimes: burst placement and within-burst synchrony"
 date: 2026-06-02
 entry: 42
 structure: paper
-collection: inhibition-gated-sparsity
+collection: gamma-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb042/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
-[nb025](/notebooks/nb025/)'s rate gap admits a cheap reading: PING fires less because the I-loop delivers more inhibition. This entry forecloses that reading and identifies *what* about the I-stream is doing the suppressing — qualitatively (rhythm vs mean), and quantitatively (which temporal precision is required). Scaffolded by [art009](/articles/art009/) §Leg 1 item 2.
+## Abstract
 
-## Method
+[nb025](/notebooks/nb025/)'s rate gap admits a cheap reading: PING fires less because the I-loop delivers more inhibition. This entry forecloses that reading and identifies *what* about the I-stream is doing the suppressing — qualitatively (rhythm vs mean), and quantitatively (which temporal precision is required). Scaffolded by [ar009](/articles/ar009/) §Leg 1 item 2.
+
+## Methods
 
 Pure inference on the trained [nb025](/notebooks/nb025/) PING baseline (seed 42, $\theta_u =$ off). For each batch the I-population spike tensor $\mathbf{s}^I_\text{base} \in \{0,1\}^{T \times B \times N_I}$ is recorded from a baseline forward pass, then an override tensor replaces it in a second pass via the [nb037](/notebooks/nb037/) hidden-perturbation hook. The E-population experiences only the override I-stream through $W^{IE}$; the readout consumes the perturbed E spikes. Mean per-cell I rate is matched to the baseline to four decimals across every perturbation.
 
@@ -28,107 +30,63 @@ Test split from [nb025](/notebooks/nb025/) at medium tier (400 samples, $T = 200
 
 ## Results
 
-### The rate release scales with jitter, with a transition at $1/f_\gamma$
+The argument is built in two stages, each identifying a separate architectural variable that holds the rate floor. **(1)** Cycle-coherent jitter sweeps the *burst placement* axis and finds the operative timescale is $1/f_\gamma$. **(2)** Per-I-cell jitter sweeps the *within-burst synchrony* axis and finds destroying synchrony silences E (rather than releasing it), with a much sharper sub-millisecond transition. Each sweep absorbs the corresponding categorical endpoint: full phase-shuffle is the $\sigma \to \infty$ limit of cycle-coherent jitter; rate-matched Poisson is the $\sigma \to \infty$ limit of per-cell jitter.
 
-The jitter sweep is the load-bearing experiment. The prediction is sharp: if the operative variable is *temporal phase relative to the gamma cycle*, then the relevant timescale is the cycle period $1/f_\gamma$. At $\sigma \ll 1/f_\gamma$ bursts barely move from their phase-locked slots and the rate should be unchanged. At $\sigma \gtrsim 1/f_\gamma$ bursts can land anywhere within a cycle, losing phase relation to E, and the rate should rise toward an asymptote.
+### 1. Cycle-coherent jitter — the sweep identifies the operative timescale
 
-At the trained operating point ($\tau_\text{GABA} = 9$ ms), [nb041](/notebooks/nb041/) gives $f_\gamma \approx 36$ Hz, predicting the inflection at $\sigma \approx 28$ ms.
+Take the trained PING network and apply **cycle-coherent jitter** to the I-stream at inference: partition the trial into blocks of one gamma cycle, draw a single Gaussian offset $\Delta \sim \mathcal{N}(0, \sigma^2)$ per block, and shift *every* I-spike in that block by $\Delta$. **Within-burst synchrony is preserved exactly — bursts move bodily, they do not smear** — and the mean I rate is unchanged. At $\sigma = 0$ this is the baseline; as $\sigma$ grows, bursts are displaced from their phase-locked slots until their placement is decoupled from the gamma cycle. If the operative variable is *temporal phase relative to the gamma cycle*, the relevant timescale is the cycle period $1/f_\gamma$. At the trained operating point ($\tau_\text{GABA} = 9$ ms), [nb041](/notebooks/nb041/) gives $f_\gamma \approx 36$ Hz, predicting the transition at $\sigma \approx 28$ ms.
 
 <Figure id="Figure 1" title="Cycle-coherent jitter sweep — E rate vs σ" src="/figures/notebooks/nb042/jitter_sweep.png" alt="E rate (black) and accuracy (red) as Gaussian jitter σ is swept from 0 to 100 ms. E rate sits at the ≈ 8 Hz baseline for σ ≤ 1 ms, transitions through 16 Hz at σ = 7 ms and 26 Hz at σ = 14 ms, crosses the full-phase-shuffle reference line of ≈ 29 Hz between σ = 14 and 21 ms, and rises to ≈ 49 Hz at σ = 100 ms. Accuracy stays at 79–86% throughout. A vertical dotted line at σ ≈ 28 ms marks the predicted inflection 1/f_γ at the trained operating point.">
-  E rate (black) and accuracy (red) vs cycle-coherent jitter $\sigma$, seed 42. Horizontal dashed lines mark the baseline rate ($\approx 8$ Hz) and the full-phase-shuffle ceiling ($\approx 29$ Hz). Vertical dotted line at $\sigma = 1/f_\gamma \approx 28$ ms — the predicted transition timescale.
+  E rate (black) and accuracy (red) vs cycle-coherent jitter $\sigma$, seed 42. Horizontal dashed lines mark the baseline rate ($\approx 8$ Hz) and the full phase-shuffle ceiling ($\approx 29$ Hz, the $\sigma \to \infty$ asymptote with within-burst structure destroyed). Vertical dotted line at $\sigma = 1/f_\gamma \approx 28$ ms — the predicted transition timescale.
+</Figure>
+
+<Figure id="Figure 2" title="Single-trial rasters across the jitter sweep" src="/figures/notebooks/nb042/jitter_raster_strip.png" alt="Five stacked single-trial raster panels for cycle-coherent jitter σ values 0, 7, 14, 28, 100 ms. Each panel shows E spikes (black) and I spikes (red) over the 200 ms trial. At σ = 0 the gamma bands are clean with bursts every ≈ 28 ms. The I-bursts remain crisp vertical bands at every σ — their within-burst synchrony is preserved — but the bands are bodily displaced from their phase-locked positions. At σ = 7 ms bursts are visibly shifted by a few ms. At σ = 14 ms shifts of tens of ms decouple bursts from the cycle and open long gaps in the I-stream, through which E fires densely. At σ = 28 and 100 ms the bursts land at essentially random times across the trial and adjacent bursts can overlap.">
+  Single trial replayed at five jitter levels (seed 42, MNIST digit 0 sample 0). Per-trial E rate annotated on each panel. **The I-bands stay vertical and crisp at every $\sigma$** — within-burst synchrony is preserved exactly. What changes is *where* each burst lands: at larger $\sigma$ the bursts get displaced bodily from their phase-locked positions, opening longer gaps in the I-stream that E fires through.
 </Figure>
 
 The curve matches the prediction. The rate is flat for $\sigma \le 1$ ms ($\approx 8$ Hz, baseline). The transition is centred between $\sigma = 7$ ms and $\sigma = 28$ ms, crossing the phase-shuffle ceiling ($\approx 29$ Hz) between $\sigma = 14$ and $\sigma = 21$ ms — just below the predicted inflection. At $\sigma = 100$ ms the rate has reached $\approx 49$ Hz, *above* the phase-shuffle level because cycle-coherent jitter at very large $\sigma$ opens gaps in the I-stream wide enough for E to fire densely with no inhibition at all. Accuracy holds at 79–86% throughout — the rate release is not paid in classification.
 
-What this gets us, beyond a binary "the rhythm matters":
+What this gets us, beyond the binary "rhythm matters":
 
 1. **Identifies the operative timescale.** If a different process — refractory dynamics ($\sim 3$ ms), membrane time constant ($\sim 20$ ms), AMPA decay ($\sim 2$ ms) — were the operative clock, the inflection would be elsewhere. It is at $1/f_\gamma$.
 2. **The dependence is graded, not knife-edge.** The I-loop tolerates sub-cycle jitter and degrades smoothly past it.
-3. **The transition timescale is a quantitative prediction.** $1/f_\gamma$ is set by [nb041](/notebooks/nb041/)'s law. The same architecture trained at a different $\tau_\text{GABA}$ would give a different $f_\gamma$ and the jitter inflection should track it.
+3. **Full phase-shuffle is the $\sigma \to \infty$ asymptote of the jitter sweep**, modulo within-burst structure (which is why the $\sigma = 100$ ms jitter rate slightly exceeds the phase-shuffle ceiling line — at very large $\sigma$ cycle-coherent jitter opens gaps in the I-stream wide enough for E to fire densely with no inhibition at all).
+4. **The transition timescale is a quantitative prediction.** $1/f_\gamma$ is set by [nb041](/notebooks/nb041/)'s law. The same architecture trained at a different $\tau_\text{GABA}$ would give a different $f_\gamma$, and the jitter inflection should track it accordingly.
 
-### The mechanism is visible directly
+### 2. Per-I-cell jitter — within-burst synchrony is a separate axis
 
-The rasters at five jitter levels show the gap-opening mechanism without statistics.
+The cycle-coherent sweep moves bursts as whole units, preserving within-burst synchrony exactly. The complementary perturbation is **per-spike (per-I-cell) jitter**: draw an *independent* Gaussian offset $\Delta_s \sim \mathcal{N}(0, \sigma^2)$ for every I-spike. Mean per-cell I rate is preserved exactly, burst placement is preserved *on average*, but the burst itself smears across a window of width ≈ $\sigma$. This tests whether the *sharpness* of each inhibitory pulse matters, separately from where it lands.
 
-<Figure id="Figure 2" title="Single-trial rasters across the jitter sweep" src="/figures/notebooks/nb042/jitter_raster_strip.png" alt="Five stacked single-trial raster panels for cycle-coherent jitter σ values 0, 7, 14, 28, 100 ms. Each panel shows E spikes (black) and I spikes (red) over the 200 ms trial. At σ = 0 the gamma bands are clean with bursts every ≈ 28 ms. At σ = 7 ms bursts are visibly displaced. At σ = 14 ms long gaps appear in the I-stream and E fires densely through them. At σ = 28 and 100 ms the I-stream is heavily scrambled and E fires in large dense windows.">
-  Single trial replayed at five jitter levels (seed 42, MNIST digit 0 sample 0). Per-trial E rate annotated. The mechanism is direct: bigger $\sigma$ opens longer gaps in the I-stream, and E fires through them.
+Prediction: if synchrony also matters, the transition should be at $\sigma \approx \tau_\text{GABA} \approx 9$ ms — the smearing width at which the integrated $g_i$ profile starts looking continuous, the same way a rate-matched Poisson I-stream keeps E silent because $g_i$ never drops low enough for $V$ to recover.
+
+<Figure id="Figure 3" title="Per-I-cell jitter sweep — E rate and accuracy vs σ" src="/figures/notebooks/nb042/cell_jitter_sweep.png" alt="Twin-axis plot of per-I-cell jitter sweep, linear x-axis 0 to 50 ms. Black diamonds (left y-axis, Hz): E rate falls from ≈ 7 Hz at σ=0 to 3.5 Hz at σ=0.5, 1.5 Hz at σ=1, 0.5 Hz at σ=2, and effectively zero from σ=5 ms onward. Red squares (right y-axis, %): test accuracy holds at ≈ 85% up to σ=1 ms, then drops sharply through σ=2 ms (71%) and σ=5 ms (26%), reaching chance (≈ 10%) by σ=9 ms. Horizontal dashed lines mark the baseline rate (≈ 8 Hz) and the rate-matched Poisson asymptote (≈ 0 Hz). Vertical dotted line at τ_GABA = 9 ms marks the predicted transition timescale.">
+  Per-I-cell jitter sweep, three seeds. Each spike receives an independent Gaussian offset; mean per-cell I rate is preserved exactly. **E rate (cyan, left axis) falls monotonically from baseline** — already halved by $\sigma = 0.5$ ms — and is essentially zero by $\sigma \approx 5$ ms, *well below* $\tau_\text{GABA} = 9$ ms. **Accuracy (red, right axis) holds at ≈ 85% up to $\sigma = 1$ ms**, then collapses through 71% (σ = 2) and 26% (σ = 5), bottoming at chance (≈ 10%) by $\sigma = 9$ ms. The $\sigma \to \infty$ asymptote is the rate-matched Poisson regime: E silent, accuracy at chance.
 </Figure>
 
-At $\sigma = 0$ the gamma bands are crisp — E bursts immediately followed by I bursts, every $\approx 28$ ms. At $\sigma = 7$ ms bursts visibly drift but remain phase-locked enough to gate E. At $\sigma \ge 14$ ms gaps of tens of milliseconds open up in the I-stream, and E fires densely through them. The single-trial rate annotations track the population statistics: 9.6 → 11.5 → 32.8 → 52.5 → 43.6 Hz across the five σ values.
-
-### Endpoint comparison — phase-shuffle and the Poisson dissociation
-
-Three categorical conditions act as endpoints / controls for the jitter sweep:
-
-<Figure id="Figure 3" title="Three I-stream conditions — E rate and accuracy at matched mean I rate" src="/figures/notebooks/nb042/bar_chart.png" alt="Bar chart with three I-stream conditions on the x-axis. Baseline PING has low E rate (≈ 8 Hz) and high accuracy (≈ 86%). Phase-shuffled I has E rate ≈ 29 Hz and accuracy ≈ 82%. Rate-matched Poisson I has E rate ≈ 0 Hz and accuracy 11% (chance). Mean I rate annotated above each E-rate bar is identical (≈ 36 Hz) across all three conditions.">
-  E rate (black) and accuracy (red) across three I-stream conditions, seed 42. Mean I rate annotated above each bar is identical to four decimals — the control held. Phase-shuffle is effectively the $\sigma \to \infty$ limit of the jitter sweep with within-burst structure also destroyed. Poisson tests a different mechanism (variance, not phase).
+<Figure id="Figure 4" title="Per-I-cell jitter rasters — bursts smearing into a continuous shunt" src="/figures/notebooks/nb042/cell_jitter_raster_strip.png" alt="Five stacked single-trial raster panels for per-I-cell jitter σ values 0, 1, 5, 9, 50 ms. Each panel shows E spikes (black) and I spikes (red) over 200 ms. At σ=0 the gamma bands are crisp with sharp vertical I-bursts and periodic E firing. At σ=1 ms the I-spikes within each burst spread to a few-ms-wide cluster and E firing drops. At σ=5 ms the I-spikes are scattered across the trial with no visible burst structure, and E is essentially silent. At σ=9 ms and σ=50 ms the I-stream looks continuous and uniform, and E fires zero spikes.">
+  Single trial replayed at five per-cell jitter levels. At $\sigma = 0$ the I-bursts are crisp vertical bands. **At $\sigma = 1$ ms** the bursts visibly smear into a few-ms-wide cluster and E firing already collapses to 1.6 Hz. **At $\sigma \ge 5$ ms** the I-stream looks indistinguishable from a continuous low-variance shunt, and E is silenced. Per-cell jitter doesn't release E; it destroys the bursty structure that gave E recovery troughs in the first place.
 </Figure>
 
-<Figure id="Figure 4" title="Single-trial rasters — trained PING under the three endpoint conditions" src="/figures/notebooks/nb042/raster_strip.png" alt="Three stacked single-trial raster panels. Top: baseline PING showing clean periodic E bursts. Middle: phase-shuffled I — gamma bands destroyed, E fires in dense COBA-like chunks. Bottom: rate-matched Poisson I — continuous uniform I drive, E completely silent.">
-  E (black) and I (red) spikes from MNIST digit 0 sample 0 under each endpoint condition.
-</Figure>
+The clean reading: **the two jitter regimes test two different things, and the rate floor depends on both.**
 
-**Phase-shuffle** is consistent with the jitter sweep's $\sigma \to \infty$ asymptote (modulo the fact that phase-shuffle also destroys within-burst structure, which is why the $\sigma = 100$ ms jitter rate exceeds the phase-shuffle ceiling). The smooth sigmoid through 7–28 ms in Figure 1 shows that phase-shuffle is not a special case; it is one endpoint of a continuous family.
-
-**Poisson** silences E entirely, and *not* by the same mechanism the jitter sweep tests. Replacing synchronous bursts with an i.i.d. Bernoulli stream keeps mean $g_i$ identical (the filter is linear) but collapses its *variance*. Instead of large peaks separated by $e^{-\Delta t_\text{cycle}/\tau_\text{GABA}} \approx 0.07$-of-peak troughs in which $V_E$ can recover, $g_i$ becomes a tight low-variance fluctuation around the mean with no troughs at all. Continuous shunting holds $V_\infty$ below threshold and E never fires. This is a separate architectural variable from the phase-locking the jitter sweep tests — bursty inhibition lets E recover between bursts; continuous inhibition at matched mean does not.
-
-### Is the rhythm Pareto-optimal for low E rate?
-
-The jitter sweep and the endpoints above show rhythmic inhibition *survives* perturbations — but a stronger claim is that it is *optimal* for the (low E rate, high accuracy) operating point. To test this, parameterise the I-stream by two independent knobs and grid over their joint space:
-
-- **α ∈ {0, 0.25, 0.5, 0.75, 1}** — per-timestep mixing fraction between baseline rhythm and rate-matched Poisson. α = 0 is pure rhythm; α = 1 is pure Poisson at the baseline mean rate. Intermediate α swaps a random α fraction of timesteps for a Poisson draw, leaving the rest as baseline.
-- **k ∈ {0.25, 0.5, 1, 2, 4}** — independent scaling of the mean I rate. The Poisson channel draws at $k \cdot$ baseline-mean-rate; the baseline channel is Bernoulli-thinned at rate $k$ when $k < 1$.
-
-24 non-rhythmic cells (25 grid points minus the (α=0, k=1) cell that exactly reproduces baseline). For each, measure test accuracy and mean hidden-E rate. Plot all cells alongside the rhythmic baseline in (E rate, accuracy) space.
-
-<Figure id="Figure 5" title="Pareto sweep — rhythm vs Poisson (α) × mean I rate (k)" src="/figures/notebooks/nb042/pareto_sweep.png" alt="Scatter of 24 (α, k) cells in (E rate, accuracy) space, plus the rhythmic baseline marked as a white star. Points coloured by α (viridis) and sized by k. A dashed line connects the Pareto frontier of the non-rhythmic cells. The rhythmic baseline at (E ≈ 8 Hz, acc ≈ 86%) sits at the corner of the achievable region: no non-rhythmic cell is strictly to its left and above it. Cells with k = 0.25 (small) cluster at higher E rate with comparable or modestly higher accuracy; cells with k ≥ 1 and α > 0 collapse to near-silent E and chance-level accuracy.">
-  Rhythmic baseline (white star) plotted with 24 (α, k) perturbations. Colour encodes α (rhythm-vs-Poisson mix); size encodes k (mean-I-rate scaling). Dashed line: Pareto frontier of the *non-rhythmic* cells (minimising E, maximising accuracy).
-</Figure>
-
-The single-trial rasters at four representative cells make the mechanism direct.
-
-<Figure id="Figure 6" title="Pareto-sweep rasters — what the four (α, k) regions look like" src="/figures/notebooks/nb042/pareto_raster_strip.png" alt="Four stacked single-trial raster panels for MNIST digit 0 sample 0 through trained PING (nb025 seed 42). Each panel shows E spikes (black) on top of I spikes (red), labeled with the (α, k) values and resulting E rate, I rate, and accuracy. Top panel: α=0, k=1 baseline — clean gamma cycles, E ≈ 8 Hz, I ≈ 36 Hz, acc 86%. Second: α=0.25, k=0.5 — bursts still visible but thinner, E ≈ 8 Hz, I ≈ 18 Hz, acc 86% (matches baseline). Third: α=0.5, k=0.25 — quarter-rate inhibition mostly demolishes burst structure, E rises to 23 Hz at acc 89%. Bottom: α=1, k=1 — uniform Poisson I-stream, E silenced, acc at chance.">
-  Single trial replayed at each cell. Top: baseline rhythm (clean gamma bands). Second: quasi-baseline match (bursts still phase-coherent but at half count). Third: above-baseline accuracy cell (quarter-rate I + 50% Poisson; bursts mostly gone, E recovers). Bottom: pure Poisson at matched mean (continuous low-variance shunt, E silenced).
-</Figure>
-
-The rasters show why the corner is a corner. (α = 0, k = 1) keeps every gamma burst intact and E recovers in the troughs. (α = 0.25, k = 0.5) thins the I-stream but the surviving bursts still phase-lock E to the same cycle — E recovers in the same windows, just facing less inhibition during each (which would normally raise E rate, but the burst-trough alternation still caps it). (α = 0.5, k = 0.25) destroys most bursts; E rate climbs because there is too little inhibition to suppress it. (α = 1, k = 1) replaces the bursty stream with continuous mean-matched Poisson — no troughs, E silenced.
-
-The reading is honest and slightly weaker than a strict-optimality claim:
-
-- **No non-rhythmic cell strictly dominates baseline.** Of 24 perturbations, none achieves both lower E rate *and* higher accuracy than the rhythmic baseline. Three cells sit at exactly baseline's (E, acc) — they correspond to (α = 0, k ≥ 1), where saturating the per-cell Bernoulli probability at 1 leaves the baseline stream unchanged.
-- **One cell essentially matches baseline.** (α = 0.25, k = 0.5) — quarter-Poisson, half-rate inhibition — achieves E = 7.75 Hz at 85.75% accuracy, vs baseline's 7.96 Hz at 85.75%. A 0.2 Hz reduction in E at the same accuracy, with *half* the I-population spike budget. This is the cleanest non-rhythmic match to baseline's operating point.
-- **Above-baseline accuracy is reachable, but only by paying E rate.** Five cells achieve > 86% accuracy; all of them sit at k = 0.25 with E rate in 15–23 Hz — they trade more E firing for slightly higher accuracy, exiting the low-rate corner.
-- **Below-baseline E rate kills accuracy.** Every cell with E < 4 Hz has accuracy ≤ 75%; most are at chance.
-
-What this proves: **rhythmic inhibition sits at the corner of the (E rate, accuracy) Pareto front in the low-rate / high-accuracy region.** It is not *uniquely* optimal — a modestly Poisson-mixed half-rate stream matches it — but no perturbation strictly beats it, and the directions away from baseline either cost rate or cost accuracy.
-
-What this does *not* prove: that rhythmic inhibition is the *unique* attractor for spike-efficient classification. The (α = 0.25, k = 0.5) cell suggests there is a small neighbourhood of equivalent solutions near the baseline; rhythm is one route to the corner, not the only one. The stronger claim — *only rhythmic configurations* reach the corner — is *not* supported by this sweep.
+- **Burst placement** (cycle-coherent jitter): bursts must land in phase with E activity, with precision ≈ $1/f_\gamma$. Destroying placement *releases* E toward COBA territory.
+- **Burst sharpness** (per-cell jitter): bursts must be sharp enough that $g_i$ has clear troughs between them, with smear width $\ll \tau_\text{GABA}$. Destroying sharpness *silences* E because $g_i$ never drops low enough.
 
 ## Discussion
 
-Three findings of decreasing cleanliness:
+The rate floor is held by **two independent properties of the I-stream**, each tied to a separate transition timescale:
 
-- **The operative variable is phase precision relative to the gamma cycle.** (Jitter sweep, clean.) The rate release is graded, the transition timescale is $1/f_\gamma$ to within seed variance, and the prediction is independently anchored in [nb041](/notebooks/nb041/).
-- **At full phase scrambling, rate climbs $\sim 3.6$× toward COBA territory.** (Phase-shuffle, clean endpoint.) The phase-shuffle E rate (≈ 28.5 Hz) is essentially the $\sigma \to \infty$ asymptote of the jitter sweep (modulo within-burst structure); the bar chart's categorical version is now subsumed by Figure 1's dose-response.
-- **Continuous low-variance inhibition silences E.** (Poisson, distinct mechanism.) This is a claim about $g_i$ variance, not about phase. Useful as a complementary observation about the *form* of inhibition required (bursty, with troughs), but not a test of phase-locking.
+- **Burst placement on the gamma cycle**, with precision $\sigma \approx 1/f_\gamma \approx 28$ ms. Destroying placement releases E toward COBA territory ([cycle-coherent jitter sweep](#fig-figure-1); full phase-shuffle is the $\sigma \to \infty$ asymptote).
+- **Within-burst synchrony / burst sharpness**, with precision $\sigma \ll \tau_\text{GABA} \approx 9$ ms — in practice the transition is at $\sigma \approx 0.5$ ms. Destroying sharpness silences E because $g_i$ becomes a continuous shunt with no recovery troughs ([per-I-cell jitter sweep](#fig-figure-3); rate-matched Poisson is the $\sigma \to \infty$ asymptote).
 
-The combined argument: PING's rate floor is held by gamma phase-locking with sub-cycle precision. The minimum precision required is roughly $1/f_\gamma$; degrade it and the rate rises monotonically toward the COBA regime. Mean inhibition is not the operative variable, and even at matched mean rate the *form* of the inhibitory stream (bursty vs continuous) matters separately.
+Mean inhibition is not the operative variable along either axis. Cycle-coherent jitter at $\sigma = 100$ ms releases E to ≈ 49 Hz; per-cell jitter at $\sigma = 50$ ms silences E entirely — at identical mean I rates. The "rhythm matters" claim resolves into two more precise claims: bursts must land on phase, and bursts must be sharp.
 
 This integrates with [nb041](/notebooks/nb041/) in a clean way. nb041 retrains PING at different $\tau_\text{GABA}$ and finds $r_E = a + p \cdot f_\gamma$. nb042 (jitter sweep) is the *inference-time analogue*: keep the trained network, degrade the temporal precision of its I-stream, and watch the rate rise. The transition timescale $1/f_\gamma$ is set by the same architectural variable that sets the slope of the affine law. Two perturbations through different doors give the same answer: the gamma cycle is the operative clock.
 
-## Open question
+### Open question
 
 The jitter sweep's $\sigma = 100$ ms endpoint ($\approx 49$ Hz) exceeds the phase-shuffle ceiling ($\approx 29$ Hz) and approaches COBA-territory firing. The mechanism (gaps in the I-stream let E fire densely) is mechanistically clear, but the *quantitative* match between $\sigma = \infty$ jitter and trained-COBA rates would require comparing matched-rate operating points. Worth probing if the architecture-equivalence claim from [nb038](/notebooks/nb038/) is to be tightened.
 
-## Success criteria
-
-- [x] Mean I rate held within 5% across all perturbations (matched to four decimals; control held).
-- [x] E rate flat within seed variance at $\sigma \le 1$ ms (within 5% of baseline).
-- [x] E rate crosses the phase-shuffle reference between $\sigma = 14$ and $\sigma = 21$ ms — consistent with the $1/f_\gamma \approx 28$ ms prediction.
-- [x] E rate under phase-shuffle ≥ 2× baseline (3.6×: 7.96 → 28.51 Hz).
-- [x] E rate under Poisson ≤ 0.1 × baseline (silenced to 0 Hz).
-- [x] No non-rhythmic (α, k) cell strictly dominates baseline in (E rate, accuracy) — rhythmic baseline sits at the Pareto frontier corner.
-
 ## Next steps
 
-For [art010](/articles/art010/): the jitter sweep is now the load-bearing perturbation result. The categorical bar chart becomes a supporting endpoint comparison. A follow-up worth doing — but not on art010's critical path — is to retrain PING at a different $\tau_\text{GABA}$ (say 4.5 ms, giving $f_\gamma \approx 54$ Hz) and re-run the jitter sweep; the predicted transition should now sit at $\sigma \approx 18$ ms. If the inflection tracks $1/f_\gamma$ as $\tau_\text{GABA}$ varies, the quantitative law is independently confirmed by the inference-time experiment.
+For [ar010](/articles/ar010/): the jitter sweep is now the load-bearing perturbation result. The categorical bar chart becomes a supporting endpoint comparison. A follow-up worth doing — but not on ar010's critical path — is to retrain PING at a different $\tau_\text{GABA}$ (say 4.5 ms, giving $f_\gamma \approx 54$ Hz) and re-run the jitter sweep; the predicted transition should now sit at $\sigma \approx 18$ ms. If the inflection tracks $1/f_\gamma$ as $\tau_\text{GABA}$ varies, the quantitative law is independently confirmed by the inference-time experiment.

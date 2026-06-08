@@ -1,21 +1,36 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "037 — Dropping and adding spikes in trained PING"
+title: "037 — Dropping and adding spikes in trained PING (trains)"
 date: 2026-05-30
 entry: 37
 structure: paper
-collection: inhibition-gated-sparsity
+collection: gamma-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb037/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
-## Setup
+## Abstract
+
+Perturbs the hidden spike stream of trained PING and COBA networks at inference (drop spikes, add spikes) to ask whether the PING rate floor is dynamical or informational. PING tolerates ≈80% drop but only ≈15% add before accuracy collapses; COBA is roughly flat to both perturbations. The asymmetry — drops forgiven, adds break the gating — is the gamma cycle made visible: a structural feature of the architecture, not a readout-side trade-off.
+
+## Methods
+
+**Training recipe (canonical / `medium` tier):**
+
+| Parameter | Value |
+|---|---|
+| Integration timestep $\Delta t$ | 0.1 ms |
+| Trial duration $T$ | 200 ms |
+| MNIST samples (80/20 stratified split of 2000) | 1600 train / 400 test ($\approx$ 2.9% of the 70k-sample MNIST corpus) |
+| Epochs | 10 |
 
 PING and COBA baseline definitions and training recipe are in [nb025](/notebooks/nb025/); the rate-floor mechanism is worked out in [nb025](/notebooks/nb025/). This entry tests whether the floor is dynamical (locked by the cycle period) or informational (locked by the readout's spike-count requirement) by perturbing the spike stream of trained networks at inference.
 
-## Hidden-spike perturbation
+## Results
+
+### Hidden-spike perturbation
 
 The mechanism is a per-step callback installed on the COBANet's *_hidden_perturb_fn* slot.
 
@@ -49,38 +64,61 @@ At $\Delta t = 0.1$ ms, $r_\text{add} = 10$ Hz gives a per-step extra-spike prob
 
 The per-step RNG is a CPU torch.Generator seeded at *EVAL_SEED + 1*, separate from the input encoder so the Poisson input stream matches the unperturbed baseline. Total: 2 models × (11 drop + 21 add) = 64 forward passes.
 
-<Figure id="Figure 1" title="Hidden-spike perturbation — accuracy curves" src="/figures/notebooks/nb037/perturbation_curves.png" alt="Test accuracy vs p(drop) (left) and vs Poisson-add rate (right) per model.">
-  Accuracy under spike drop (left) and Poisson add (right).
+<Figure id="Figure 1" title="Hidden-spike perturbation — accuracy curves" src="/figures/notebooks/nb037/perturbation_curves.png" alt="Two-panel accuracy plot, both axes in percentage units. Left: accuracy vs % of emitted spikes dropped (0–100%). PING (black) holds ≈ 82% through 80% drop then collapses to chance by 100%; COBA (red) tracks slightly below, collapsing similarly. Right: accuracy vs added Poisson noise as % of each population's baseline rate (0–100%). PING falls off a sharp cliff between 15% and 50% relative noise, reaching chance by 65%. COBA holds 82–88% through 50% then drifts down to 75% at 100% noise.">
+  **Left (drop)**: Bernoulli mask, % of emitted spikes dropped. **Right (add)**: Poisson noise injection at $r_\text{add}^E = \text{pct} \cdot \overline{r_E}$ and $r_\text{add}^I = \text{pct} \cdot \overline{r_I}$ — independent draws for E and I, each population scaled by its own baseline rate so the comparison is architecture-fair. Baselines used (30-epoch single-seed): COBA $\overline{r_E} = 65.08$ Hz; PING $\overline{r_E} = 5.88$ Hz, $\overline{r_I} = 27.96$ Hz. The asymmetry is now visible directly: PING tolerates drop up to ≈ 80% but collapses on add between 15% and 50% relative noise, while COBA stays at 75% even with 100% extra Poisson.
 </Figure>
 
-<Figure id="Figure 2" title="PING under spike drop — rasters" src="/figures/notebooks/nb037/perturb_rasters__drop__ping.png" alt="Stacked raster panels showing trained PING on MNIST digit 0 across increasing p_drop levels; E spikes in black, I spikes in red. At low p_drop the gamma cycle is intact; at high p_drop spikes are thinned but the cycle persists.">
-  Trained PING replayed on the same MNIST digit 0 trial across six drop levels; E (black) above I (red) per panel. The gamma cadence persists across all levels — dropped spikes thin the train without injecting phase-incoherent activity.
+<Figure id="Figure 2" title="PING under spike drop — rasters" src="/figures/notebooks/nb037/perturb_rasters__drop__ping.png" alt="Stacked raster panels showing trained PING on MNIST digit 0 across six drop levels (0%, 30%, 60%, 80%, 90%, 100% of emitted spikes); E spikes in black, I spikes in red. At low drop the gamma cycle is intact; at high drop spikes are thinned but the cycle persists until total silencing at 100%.">
+  Trained PING replayed on the same MNIST digit 0 trial across the six drop levels sampled in Figure 1's left panel (0, 30, 60, 80, 90, 100%); E (black) above I (red) per panel. The gamma cadence persists across all sub-total levels — dropped spikes thin the train without injecting phase-incoherent activity.
 </Figure>
 
-<Figure id="Figure 3" title="PING under Poisson add — rasters" src="/figures/notebooks/nb037/perturb_rasters__add__ping.png" alt="Stacked raster panels showing trained PING on MNIST digit 0 across increasing Poisson-add rates; E spikes in black, I spikes in red. At low r_add the gamma cycle is preserved; at higher r_add added spikes drive I at arbitrary phase and the cycle dissolves into broadband firing.">
-  Trained PING replayed across six Poisson-add rates. As $r_\text{add}$ increases, randomly-timed E spikes drive I at arbitrary phase; the gamma cycle dissolves and the population fires asynchronously.
+<Figure id="Figure 3" title="PING under Poisson add — rasters" src="/figures/notebooks/nb037/perturb_rasters__add__ping.png" alt="Stacked raster panels showing trained PING on MNIST digit 0 across six pct-of-baseline add levels (0%, 5%, 15%, 25%, 40%, 80%); E spikes in black, I spikes in red. At 0–5% the gamma cycle is preserved with extra scattered I noise; at 15–25% the cycle weakens; at 40–80% added spikes drive I at arbitrary phase and the cycle dissolves into broadband firing.">
+  Trained PING replayed across the six pct-of-baseline add levels sampled in Figure 1's right panel (0, 5, 15, 25, 40, 80%), with $r_\text{add}^E = \text{pct} \cdot \overline{r_E}$ and $r_\text{add}^I = \text{pct} \cdot \overline{r_I}$ per population. The cycle visibly dissolves across 25–40%, matching Figure 1's accuracy cliff.
 </Figure>
 
-<Figure id="Figure 4" title="COBA under spike drop — rasters" src="/figures/notebooks/nb037/perturb_rasters__drop__coba.png" alt="Stacked raster panels showing trained COBA on MNIST digit 0 across increasing p_drop levels; E spikes in black, I row empty because COBA has no loop. The pattern is asynchronous and dense at p_drop = 0, sparsifying uniformly as drop increases.">
-  Trained COBA replayed across six drop levels. With no cycle to preserve, dropping spikes just thins a uniform asynchronous mean.
+<Figure id="Figure 4" title="COBA under spike drop — rasters" src="/figures/notebooks/nb037/perturb_rasters__drop__coba.png" alt="Stacked raster panels showing trained COBA on MNIST digit 0 across six drop levels (0%, 30%, 60%, 80%, 90%, 100% of emitted spikes); E spikes in black, I row empty because COBA has no loop. The pattern is asynchronous and dense at 0%, sparsifying uniformly as drop increases.">
+  Trained COBA replayed across the same drop sweep as Figure 2. With no cycle to preserve, dropping spikes just thins a uniform asynchronous mean.
 </Figure>
 
-<Figure id="Figure 5" title="COBA under Poisson add — rasters" src="/figures/notebooks/nb037/perturb_rasters__add__coba.png" alt="Stacked raster panels showing trained COBA on MNIST digit 0 across increasing Poisson-add rates; E spikes in black, I row empty because COBA has no loop. The pattern stays asynchronous and dense; added spikes blend into the uniform background.">
-  Trained COBA replayed across six Poisson-add rates. Added spikes blend into COBA's asynchronous mean — no temporal structure to corrupt.
+<Figure id="Figure 5" title="COBA under Poisson add — rasters" src="/figures/notebooks/nb037/perturb_rasters__add__coba.png" alt="Stacked raster panels showing trained COBA on MNIST digit 0 across six pct-of-baseline add levels (0%, 5%, 15%, 25%, 40%, 80%); E spikes in black, I row empty because COBA has no loop. The pattern stays asynchronous and dense; added spikes blend into the uniform background and the mean rate climbs.">
+  Trained COBA replayed across the same pct-of-baseline add sweep as Figure 3. Added spikes blend into COBA's asynchronous mean — no temporal structure to corrupt, just a higher mean rate.
 </Figure>
 
-Drop and add are asymmetric. Under drop, PING holds 72.5% at $p_\text{drop} = 0.9$ through I-loop compensation: fewer E spikes drive I less, GABA relaxes, and E fires more freely. The recorded E rate rises to ≈7 Hz at $p_\text{drop} = 0.8$ and remains near 5 Hz at $p_\text{drop} = 0.9$ — back-calculating, the pre-drop rate at that point is ≈49 Hz (≈90% discarded), approaching COBA's spontaneous level. The E→I→E loop compensates because it is weakened proportionally rather than phase-corrupted. Under add, random E spikes drive I at arbitrary phase, disrupting the cycle's temporal structure: PING accuracy falls across a sharp 2–10 Hz cliff (70% at 4 Hz, 43% at 6 Hz, 19% at 8 Hz, 12% at 10 Hz, chance from 12 Hz on). COBA stays at 83–84% under both perturbation modes — without a cycle to compensate or corrupt, dropped spikes thin a uniform mean and added spikes raise it.
+Drop and add are asymmetric. Under drop, PING holds 72.5% at $p_\text{drop} = 0.9$ through I-loop compensation: fewer E spikes drive I less, GABA relaxes, and E fires more freely. The recorded E rate rises to ≈7 Hz at $p_\text{drop} = 0.8$ and remains near 5 Hz at $p_\text{drop} = 0.9$ — back-calculating, the pre-drop rate at that point is ≈49 Hz (≈90% discarded), approaching COBA's spontaneous level. The E→I→E loop compensates because it is weakened proportionally rather than phase-corrupted.
 
-This suggests the rate floor is dynamical, not informational. Test: lengthening $\tau_\text{GABA}$ should stretch the cycle and lower the floor; shortening should raise it.
+#### Per-population scaling on the right panel
 
-## τ_GABA sweep
+Figure 1's right panel expresses Poisson noise as a percentage of each architecture's own baseline rate, with E and I scaled independently by their own baselines. The fair-comparison fix matters: an earlier version of this figure used absolute Hz for both architectures, but baselines differ by an order of magnitude (COBA E ≈ 65 Hz vs PING E ≈ 6 Hz), so "10 Hz of injected noise" was 15% of COBA's rate but 170% of PING's. Per-population scaling restores apples-to-apples.
 
-Inference-only: the GABA decay constant is mutated on the trained PING baseline (seed 42, $\theta_u =$ off) across six values (4.5, 6, 9, 12, 18, 27 ms; trained value is 9 ms), then the test set is re-evaluated without retraining.
+| pct of baseline | PING acc | PING $r_E$ | COBA acc | COBA $r_E$ |
+|---|---|---|---|---|
+| 0% | 86.3% | 5.88 Hz | 86.5% | 65.08 Hz |
+| 5% | 87.3% | 5.50 Hz | 86.3% | 68.32 Hz |
+| 10% | 86.3% | 5.10 Hz | 87.0% | 71.56 Hz |
+| 15% | 83.5% | 4.50 Hz | 87.0% | 74.79 Hz |
+| 20% | 79.0% | 3.87 Hz | 87.0% | 78.02 Hz |
+| 25% | 70.5% | 3.28 Hz | 86.8% | 81.26 Hz |
+| 30% | 62.5% | 2.87 Hz | 87.3% | 84.49 Hz |
+| 40% | 37.8% | 2.72 Hz | 88.5% | 90.95 Hz |
+| 50% | 25.3% | 3.07 Hz | 86.5% | 97.42 Hz |
+| 65% | 13.3% | 3.85 Hz | 82.8% | 107.10 Hz |
+| 80% | 11.0% | 4.72 Hz | 80.8% | 116.81 Hz |
+| 100% | 9.0% | 5.89 Hz | 75.0% | 129.75 Hz |
 
-<Figure id="Figure 6" title="Trained PING — accuracy and E rate vs τ_GABA" src="/figures/notebooks/nb037/tau_gaba_sweep.png" alt="Red curve: E firing rate falls from ≈7 Hz at 4.5 ms to ≈2.4 Hz at 27 ms. Black curve: accuracy holds 80–86%.">
-  Inference-only sweep of $\tau_\text{GABA}$ on trained PING; E rate (red), accuracy (black).
-</Figure>
+The 0–10% subrange (sampled in 1% steps) confirms both architectures are *robust to small relative perturbations* — the cycle structure tolerates ≤ 10% phase-incoherent additions without degrading readout. The 15–50% range shows the **PING cliff**: a sharp accuracy fall from 84% to 25%, where the added I spikes corrupt the cycle's temporal structure faster than the I-loop can compensate. COBA is essentially flat across the same range — without a cycle to corrupt, added spikes just raise its mean E rate without breaking readout.
 
-Six-point inference-only sweep (mutate decay constant, no retraining): E rate is ≈7 Hz at 4.5 ms → ≈4.5 Hz at 9 ms (the trained value) → ≈2.3 Hz at 27 ms. Monotonic with cycle period. Accuracy holds 80–86%. The floor tracks the γ cycle period, which is governed by the inhibitory decay timescale: as $\tau_\text{GABA}$ lengthens, so does the cycle, and the floor rate falls.
+Two structural observations from the wide sweep:
 
-The combined picture: drop preserves the cycle and is compensated; add corrupts the cycle and collapses accuracy; $\tau_\text{GABA}$ directly sets the floor rate. The rate floor is the gamma cycle made visible — a structural feature of the architecture, not an accuracy/spike-count tradeoff the readout could otherwise navigate.
+1. **PING's E rate is non-monotonic.** It drops 5.88 → 2.72 Hz across 0–40% pct as added I noise suppresses E firing, then *rises* back to 5.89 Hz at 100% as the cycle fully dissolves and E fires randomly under the broken loop. The minimum at 40% coincides with the steepest accuracy drop.
+2. **COBA's E rate climbs monotonically** to ≈ 130 Hz at 100% pct — the added noise is directly entering the mean firing rate without architectural feedback.
+
+So the original "drops forgiven, additions break the gating" claim is right and now visible on a fair axis: PING tolerates 80% drop but only ≈ 15% add before the cycle starts breaking, and reaches chance by 65% add. COBA is robust to both perturbations at the level of readout (though its E rate naturally tracks added noise).
+
+## Discussion
+
+The combined picture: drop preserves the cycle and is compensated; add corrupts the cycle and collapses accuracy. The rate floor is the gamma cycle made visible — a structural feature of the architecture, not an accuracy/spike-count tradeoff the readout could otherwise navigate.
+
+## Next steps
+
+1. Repeat the *add* sweep with the added I spikes phase-locked to the cycle (vs the current incoherent Poisson) and confirm the cliff softens when the perturbation respects the rhythm.
+2. Extend to the COBA arm with a *paired* drop+add of equal expected spike count, to isolate whether COBA's robustness is from rate insensitivity or from spike-pattern insensitivity.

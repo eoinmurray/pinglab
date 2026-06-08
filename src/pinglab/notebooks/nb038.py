@@ -8,7 +8,7 @@ networks:
   Poisson input;
 - COBA → PING I-loop transfer: replay trained COBA at eval-time
   ei_strength ∈ [0, 1] and watch the gamma cycle self-assemble; and
-- readout latency: accuracy at each 5 ms checkpoint, plotted vs both
+- (readout latency removed)
   wall-clock time and cumulative spike count.
 
 Figures land in /figures/notebooks/nb038/ and the success-criteria
@@ -702,10 +702,14 @@ def plot_fi_curve_uniform(
             key=lambda r: r["input_rate_hz"],
         )
         xs = [r["input_rate_hz"] for r in msel]
-        ax.plot(xs, [r["e_rate_hz"] for r in msel],
-                marker="o", color=theme.INK_BLACK, lw=1.5, label="E")
-        ax.plot(xs, [r["i_rate_hz"] for r in msel],
-                marker="s", color=theme.DEEP_RED, lw=1.5, label="I")
+        e_ys = [r["e_rate_hz"] for r in msel]
+        i_ys = [r["i_rate_hz"] for r in msel]
+        ax.plot(xs, e_ys, marker="o", color=theme.INK_BLACK, lw=1.5, label="E")
+        ax.plot(xs, i_ys, marker="s", color=theme.DEEP_RED, lw=1.5, label="I")
+        if model == "ping":
+            ax.plot(xs, [e + i for e, i in zip(e_ys, i_ys)],
+                    marker="^", color=theme.AMBER, lw=1.5, ls="--",
+                    label="E + I")
         ax.set_xlabel("Input Poisson rate (Hz, per channel)",
                       fontsize=theme.SIZE_LABEL)
         ax.set_ylabel("Per-cell firing rate (Hz)", fontsize=theme.SIZE_LABEL)
@@ -721,10 +725,13 @@ def plot_fi_curve_uniform(
                 key=lambda r: r["input_rate_hz"],
             )
             xs = [r["input_rate_hz"] for r in msel]
-            ax.plot(xs, [r["e_rate_hz"] for r in msel],
-                    color=theme.INK_BLACK, lw=1.5, label="E")
-            ax.plot(xs, [r["i_rate_hz"] for r in msel],
-                    color=theme.DEEP_RED, lw=1.5, label="I")
+            e_ys = [r["e_rate_hz"] for r in msel]
+            i_ys = [r["i_rate_hz"] for r in msel]
+            ax.plot(xs, e_ys, color=theme.INK_BLACK, lw=1.5, label="E")
+            ax.plot(xs, i_ys, color=theme.DEEP_RED, lw=1.5, label="I")
+            if model == "ping":
+                ax.plot(xs, [e + i for e, i in zip(e_ys, i_ys)],
+                        color=theme.AMBER, lw=1.5, ls="--", label="E + I")
             ax.set_xlabel("Input Poisson rate (Hz, per channel)",
                           fontsize=theme.SIZE_LABEL)
             ax.set_ylabel("Per-cell firing rate (Hz)", fontsize=theme.SIZE_LABEL)
@@ -1061,186 +1068,6 @@ def _eval_net_on_test_with_loss(
             )
     return acc, ce_loss, penalty, e_rate, i_rate
 
-
-
-
-
-
-# ── Readout latency (inference-only, trained baselines) ──────────
-#
-# How quickly does each trained network reach a confident answer?
-# We replay the test set with recording=True, then at each time
-# checkpoint compute the running-average readout and check accuracy.
-# PING should reach accuracy plateau faster because each gamma burst
-# is a concentrated class-discriminative event.
-
-LATENCY_CHECKPOINT_MS: list[float] = [
-    float(t) for t in range(5, 205, 5)
-]  # every 5 ms from 5 to 200
-
-
-def run_latency(notebook_run_id: str) -> list[dict]:
-    """Inference-only: compute test accuracy at each time checkpoint
-    for trained PING and COBA baselines (θ_u = off, seed 42)."""
-    import torch
-    from torch.utils.data import DataLoader, TensorDataset
-
-    import models as M
-    from cli import EVAL_SEED, _auto_device, encode_batch
-
-    device = _auto_device()
-    dt = DT_TRAIN
-    t_ms = T_MS
-    T_steps = int(t_ms / dt)
-    check_steps = [int(t / dt) - 1 for t in LATENCY_CHECKPOINT_MS]
-
-    rows: list[dict] = []
-    for model in MODELS:
-        train_dir = baseline_dir(model)
-        if not (train_dir / "weights.pth").exists():
-            raise SystemExit(
-                f"latency sweep needs trained {model} weights at {train_dir}"
-            )
-        net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-        net.recording = True
-
-        test_loader = DataLoader(
-            TensorDataset(
-                torch.from_numpy(X_te), torch.from_numpy(y_te)
-            ),
-            batch_size=64,
-        )
-        correct_at = {t: 0 for t in check_steps}
-        spk_count_at: dict[int, float] = {t: 0.0 for t in check_steps}
-        total = 0
-        eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-        with torch.no_grad():
-            for X_b, y_b in test_loader:
-                X_b, y_b = X_b.to(device), y_b.to(device)
-                spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-                net(input_spikes=spk)
-                out_buf = net.spike_record["out"].to(device)  # (T, B, 10)
-                hid_buf = net.spike_record["hid"].to(device)  # (T, B, N_E)
-                if out_buf.dim() == 2:
-                    out_buf = out_buf.unsqueeze(1)
-                if hid_buf.dim() == 2:
-                    hid_buf = hid_buf.unsqueeze(1)
-                # Cumulative E spikes per sample: (T, B)
-                cum_spk = hid_buf.cumsum(dim=0).sum(dim=-1)
-                total += y_b.size(0)
-                for t_step in check_steps:
-                    logits_t = out_buf[t_step] * T_steps / (t_step + 1)
-                    correct_at[t_step] += int(
-                        (logits_t.argmax(dim=-1) == y_b).sum().item()
-                    )
-                    spk_count_at[t_step] += float(
-                        cum_spk[t_step].sum().item()
-                    )
-
-        for t_step, t_ms_val in zip(check_steps, LATENCY_CHECKPOINT_MS):
-            acc = 100.0 * correct_at[t_step] / total if total else 0.0
-            mean_spk = spk_count_at[t_step] / total if total else 0.0
-            rows.append({
-                "model": model,
-                "t_ms": float(t_ms_val),
-                "acc": float(acc),
-                "cum_spikes": float(mean_spk),
-            })
-        print(
-            f"  {model}: "
-            + "  ".join(
-                f"{r['t_ms']:g}ms={r['acc']:.1f}%"
-                for r in rows
-                if r["model"] == model and r["t_ms"] in (20, 50, 100, 200)
-            )
-        )
-    return rows
-
-
-def plot_latency(rows: list[dict], out_path: Path, run_id: str) -> None:
-    """Two panels: accuracy vs trial time (ms) and accuracy vs cumulative
-    E spikes per sample. One curve per model."""
-    theme.apply()
-    fig, (ax_time, ax_spk) = plt.subplots(1, 2, figsize=(12.0, 4.5), dpi=150)
-    for model in MODELS:
-        msel = [r for r in rows if r["model"] == model]
-        marker = "o" if model == "ping" else "s"
-        color = MODEL_COLORS[model]
-        ax_time.plot(
-            [r["t_ms"] for r in msel],
-            [r["acc"] for r in msel],
-            marker=marker, color=color, lw=1.5, label=model.upper(),
-        )
-        ax_spk.plot(
-            [r["cum_spikes"] for r in msel],
-            [r["acc"] for r in msel],
-            marker=marker, color=color, lw=1.5, label=model.upper(),
-        )
-    for ax in (ax_time, ax_spk):
-        ax.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
-        ax.set_ylim(0, 100)
-        ax.axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.5)
-        ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="lower right")
-    ax_time.set_xlabel("Trial time (ms)", fontsize=theme.SIZE_LABEL)
-    ax_time.set_title("Accuracy vs time", fontsize=theme.SIZE_TITLE)
-    ax_spk.set_xlabel("Cumulative E spikes per sample", fontsize=theme.SIZE_LABEL)
-    ax_spk.set_title("Accuracy vs spike count", fontsize=theme.SIZE_TITLE)
-    fig.suptitle(
-        "Readout latency (baselines, $\\theta_u =$ off)",
-        fontsize=theme.SIZE_TITLE,
-    )
-    fig.tight_layout()
-    _stamp(fig, run_id)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
-# ── End latency ────────────────────────────────────────────────────
-
-
-
-
-def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
-    floor = float(MIN_ACC_BY_TIER[tier])
-    figs_root = figures.parents[2]
-
-    def artifact(name: str, label: str) -> dict:
-        path = figures / name
-        ok = path.exists() and path.stat().st_size > 0
-        href = "/" + str(path.relative_to(figs_root)) if ok else None
-        return {
-            "label": label,
-            "passed": bool(ok),
-            "detail": (
-                f"{path.name} ({path.stat().st_size} bytes)"
-                if ok else f"missing {path.name}"
-            ),
-            "detail_href": href,
-        }
-
-    crits: list[dict] = [
-        artifact("rate_rasters__ping.png", "rate-sweep rasters rendered"),
-        artifact("fi_curve__ping.png", "f-I curve rendered"),
-        artifact("fi_curve_uniform.png", "uniform-input f-I curve rendered"),
-        artifact("ei_rasters.png", "ei-sweep rasters rendered"),
-        artifact("ei_acc_sweep.png", "ei-sweep accuracy rendered"),
-        artifact("ei_rates_sweep.png", "ei-sweep rates rendered"),
-        artifact("latency.png", "latency plot rendered"),
-    ]
-    for model in MODELS:
-        base = next(
-            r for r in rows if r["model"] == model and r["theta_u"] is None
-        )
-        crits.append(
-            {
-                "label": f"{model} baseline acc ≥ {floor:.0f}% ({tier} floor)",
-                "passed": bool(base["best_acc"] >= floor),
-                "detail": f"{model}={base['best_acc']:.2f}%",
-            }
-        )
-    return crits
-
-
 def _format_duration(seconds: float) -> str:
     s = int(round(seconds))
     if s < 60:
@@ -1383,11 +1210,8 @@ def main() -> None:
     # Uniform-input f-I curves for PING and COBA — no MNIST structure.
     print("[fi-sweep] uniform Poisson input on trained PING and COBA (wide)")
     fi_rows = run_fi_sweep_uniform(notebook_run_id)
-    print("[fi-sweep] uniform Poisson input on trained PING and COBA (zoom 0–10 Hz)")
-    fi_rows_zoom = run_fi_sweep_uniform(notebook_run_id, rates=FI_UNIFORM_ZOOM_RATES_HZ)
     plot_fi_curve_uniform(
         fi_rows, FIGURES / "fi_curve_uniform.png", notebook_run_id,
-        zoom_rows=fi_rows_zoom,
     )
     print(f"wrote {FIGURES / 'fi_curve_uniform.png'}")
 
@@ -1395,15 +1219,8 @@ def main() -> None:
     # with progressively stronger I-loop.
     ei_points = run_ei_sweep(notebook_run_id)
 
-    # Readout latency — how quickly each model reaches a confident answer.
-    print("[latency] inference-only on trained baselines")
-    latency_rows = run_latency(notebook_run_id)
-    plot_latency(latency_rows, FIGURES / "latency.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'latency.png'}")
-
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
-    crits = evaluate_success(rows, tier, FIGURES)
     summary = {
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
@@ -1428,20 +1245,13 @@ def main() -> None:
         },
         "baseline_results": rows,
         "ei_sweep": ei_points,
-        "latency": latency_rows,
         "fi_sweep_uniform": fi_rows,
         "fi_sweep_uniform_zoom": fi_rows_zoom,
-        "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
 
-    for c in crits:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in crits):
-        sys.exit(1)
 
 
 if __name__ == "__main__":

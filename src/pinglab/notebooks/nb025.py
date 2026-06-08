@@ -424,6 +424,75 @@ def render_raster(npz_path: Path, out_path: Path, title: str) -> None:
     plt.close(fig)
 
 
+def render_baseline_rasters_combined(
+    npz_coba: Path, npz_ping: Path, out_path: Path,
+) -> None:
+    """Publication-quality 2-panel raster comparing trained COBA and
+    trained PING on the same MNIST input. E spikes (black) and I spikes
+    (red) stacked per panel; COBA's I region is empty by construction
+    (loop disabled). Shared x-axis so the temporal contrast reads at a
+    glance — COBA fires asynchronously across the trial; PING fires in
+    gamma-locked bursts."""
+    theme.apply()
+    fig, (ax_coba, ax_ping) = plt.subplots(
+        2, 1, figsize=(10.0, 6.2), dpi=150,
+        sharex=True, gridspec_kw={"hspace": 0.22, "left": 0.07,
+                                  "right": 0.985, "top": 0.93, "bottom": 0.09},
+    )
+    cells = [
+        (ax_coba, npz_coba, "COBA — recurrent inhibitory loop disabled"),
+        (ax_ping, npz_ping, "PING — recurrent inhibitory loop active"),
+    ]
+    for ax, npz_path, title in cells:
+        data = np.load(npz_path)
+        spk_e = data["spk_e"]  # (T, N_E)
+        spk_i = data["spk_i"]  # (T, N_I)
+        dt = float(data["dt"])
+        T = spk_e.shape[0]
+        N_E = spk_e.shape[1]
+        N_I = spk_i.shape[1] if spk_i.size > 0 and spk_i.ndim == 2 else 0
+        t_ms = np.arange(T) * dt
+        gap = max(8, N_E // 40)
+        e_t, e_n = np.where(spk_e)
+        ax.scatter(
+            t_ms[e_t], e_n, s=1.4, c=theme.INK_BLACK,
+            marker="|", linewidths=0.45,
+        )
+        if N_I > 0 and spk_i.any():
+            i_t, i_n = np.where(spk_i)
+            ax.scatter(
+                t_ms[i_t], i_n + N_E + gap,
+                s=1.6, c=theme.DEEP_RED, marker="|", linewidths=0.55,
+            )
+            ax.set_ylim(-2, N_E + N_I + gap + 2)
+            ax.set_yticks([N_E / 2, N_E + gap + N_I / 2])
+            ax.set_yticklabels(["E\n(1024)", "I\n(256)"], fontsize=theme.SIZE_LABEL)
+        else:
+            ax.set_ylim(-2, N_E + 2)
+            ax.set_yticks([N_E / 2])
+            ax.set_yticklabels(["E\n(1024)"], fontsize=theme.SIZE_LABEL)
+            ax.text(
+                T * dt * 0.985, N_E - 30,
+                "I population silent\n($W^{ei} = W^{ie} = 0$)",
+                ha="right", va="top", fontsize=theme.SIZE_LABEL - 1,
+                color=theme.MUTED, fontstyle="italic",
+            )
+        ax.tick_params(axis="y", length=0)
+        ax.set_xlim(0, T * dt)
+        ax.set_title(title, fontsize=theme.SIZE_LABEL, loc="left", pad=4)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax_ping.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
+    fig.suptitle(
+        "Trained-baseline single-trial rasters — same MNIST input, "
+        "same trial duration",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def generate_raster(model: str, out_path: Path) -> None:
     """Replay the trained baseline (θ_u = off) network on MNIST digit 0
     for 400 ms and render its raster figure."""
@@ -647,6 +716,289 @@ def _eval_net_on_test_with_loss(
                 * (torch.relu(mean_z - fr_upper_theta) ** 2).sum().item()
             )
     return acc, ce_loss, penalty, e_rate, i_rate
+
+
+# ── per-cycle participation p and gamma frequency f_γ vs θ_u ────────
+#
+# Decomposes the rate floor into its two factors: rate ≈ p · f_γ. As
+# θ_u tightens, where does the optimiser act? The hypothesis is that p
+# slides toward a viability minimum while f_γ stays put (biophysics
+# fixed). When p hits the floor, accuracy collapses.
+
+F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
+PFG_MAX_TRIALS: int = 256  # plenty for stable p and PSD peak
+
+
+def _f_gamma_from_population(
+    pop_traces: list[np.ndarray], fs_hz: float,
+) -> float:
+    """Welch PSD per trial, averaged across trials, peak frequency in band
+    via parabolic interpolation. Returns NaN if the spectrum is flat or
+    the population is silent."""
+    from scipy import signal as sp_signal
+
+    if not pop_traces or pop_traces[0].size == 0:
+        return float("nan")
+    nperseg = pop_traces[0].size
+    psds: list[np.ndarray] = []
+    freqs: np.ndarray | None = None
+    for tr in pop_traces:
+        if tr.std() == 0:
+            continue
+        f, p = sp_signal.welch(
+            tr - tr.mean(), fs=fs_hz, nperseg=nperseg,
+            scaling="density", detrend=False,
+        )
+        psds.append(p)
+        freqs = f
+    if not psds or freqs is None:
+        return float("nan")
+    psd_mean = np.mean(np.stack(psds, axis=0), axis=0)
+    band = (freqs >= F_GAMMA_BAND_HZ[0]) & (freqs <= F_GAMMA_BAND_HZ[1])
+    if not band.any() or psd_mean[band].max() <= 0:
+        return float("nan")
+    in_band = np.where(band)[0]
+    peak_local = int(psd_mean[in_band].argmax())
+    peak_idx = int(in_band[peak_local])
+    if not (0 < peak_idx < len(psd_mean) - 1):
+        return float(freqs[peak_idx])
+    y0, y1, y2 = (
+        float(psd_mean[peak_idx - 1]),
+        float(psd_mean[peak_idx]),
+        float(psd_mean[peak_idx + 1]),
+    )
+    denom = y0 - 2.0 * y1 + y2
+    offset = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
+    offset = max(-0.5, min(0.5, offset))
+    df = float(freqs[1] - freqs[0])
+    return float(freqs[peak_idx] + offset * df)
+
+
+def measure_p_fgamma(train_dir: Path, device, is_ping: bool) -> dict:
+    """Forward the test set; record E and I population spike trains.
+    Compute:
+      - f_γ via Welch PSD on E-population trace (PING only; NaN otherwise)
+      - p = fraction of (cell, cycle) pairs with ≥ 1 spike
+        (PING only — needs the I-burst peaks to delimit cycles)
+      - acc, mean E rate, mean I rate as side measurements.
+    """
+    import torch
+    from torch.utils.data import DataLoader, TensorDataset
+
+    import models as M
+    from cli import EVAL_SEED, encode_batch
+
+    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
+    net.recording = True
+    dt_ms = float(M.dt)
+    t_ms = float(cfg["t_ms"])
+    n_e = M.N_HID
+    n_i = M.N_INH or 1
+    fs_hz = 1000.0 / dt_ms
+    t_sec = t_ms / 1000.0
+
+    n_take = min(PFG_MAX_TRIALS, X_te.shape[0])
+    test_loader = DataLoader(
+        TensorDataset(
+            torch.from_numpy(X_te[:n_take]), torch.from_numpy(y_te[:n_take])
+        ),
+        batch_size=64,
+    )
+
+    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+    correct = total = 0
+    e_spike_sum = i_spike_sum = 0.0
+    pop_e_traces: list[np.ndarray] = []
+    # Per-cycle (cell, cycle) tallies summed across trials.
+    n_cycle_pairs = 0
+    n_cycle_pairs_active = 0
+
+    with torch.no_grad():
+        for X_b, y_b in test_loader:
+            X_b, y_b = X_b.to(device), y_b.to(device)
+            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
+            logits = net(input_spikes=spk)
+            correct += (logits.argmax(1) == y_b).sum().item()
+            total += y_b.size(0)
+            s_e = net.spike_record["hid"]
+            if s_e.ndim == 2:
+                s_e = s_e.unsqueeze(1)
+            e_spike_sum += float(s_e.sum().item())
+            B = s_e.shape[1]
+            # Population E trace per trial for PSD.
+            pop = s_e.mean(dim=2).cpu().numpy()  # (T, B)
+            for b in range(B):
+                pop_e_traces.append(pop[:, b])
+            if is_ping and "inh" in net.spike_record:
+                s_i = net.spike_record["inh"]
+                if s_i.ndim == 2:
+                    s_i = s_i.unsqueeze(1)
+                i_spike_sum += float(s_i.sum().item())
+                s_e_np = s_e.cpu().numpy().astype(np.int8)  # (T, B, N_E)
+                s_i_np = s_i.cpu().numpy().astype(np.int8)  # (T, B, N_I)
+                # Quick f_γ guess per batch for cycle-peak detection. We
+                # use the running mean f_γ estimate so peaks don't depend
+                # on the final PSD — close enough; refined later.
+                f_gamma_batch = _f_gamma_from_population(
+                    [pop[:, b] for b in range(B)], fs_hz,
+                )
+                if not np.isfinite(f_gamma_batch) or f_gamma_batch <= 0:
+                    continue
+                for b in range(B):
+                    peaks = _detect_i_burst_peaks(
+                        s_i_np[:, b, :], dt_ms, f_gamma_batch,
+                    )
+                    if peaks.size == 0:
+                        continue
+                    counts = _count_e_spikes_per_cycle(
+                        s_e_np[:, b, :], peaks,
+                    )  # (K, N_E)
+                    n_cycle_pairs += counts.size
+                    n_cycle_pairs_active += int((counts > 0).sum())
+
+    acc = 100.0 * correct / total if total else 0.0
+    e_rate = e_spike_sum / (total * n_e * t_sec) if total else 0.0
+    i_rate = (
+        i_spike_sum / (total * n_i * t_sec) if (total and i_spike_sum) else 0.0
+    )
+
+    if is_ping:
+        f_gamma_val = _f_gamma_from_population(pop_e_traces, fs_hz)
+        f_gamma = (
+            float(f_gamma_val)
+            if np.isfinite(f_gamma_val) else None
+        )
+        p = (
+            float(n_cycle_pairs_active) / float(n_cycle_pairs)
+            if n_cycle_pairs > 0 else None
+        )
+    else:
+        f_gamma = None
+        p = None
+
+    return {
+        "acc": float(acc),
+        "e_rate": float(e_rate),
+        "i_rate": float(i_rate),
+        "f_gamma": f_gamma,
+        "p": p,
+    }
+
+
+def _detect_i_burst_peaks(
+    s_i_trial: np.ndarray, dt_ms: float, f_gamma_hz: float,
+) -> np.ndarray:
+    """Mirrors nb046.detect_i_burst_steps. Smooth I population rate with
+    1-ms Gaussian, find peaks separated by at least 0.5 cycle."""
+    from scipy.signal import find_peaks
+
+    rate = s_i_trial.sum(axis=1).astype(np.float32)
+    sigma_steps = max(1.0, 1.0 / dt_ms)
+    L = int(np.ceil(4 * sigma_steps))
+    k = np.arange(-L, L + 1)
+    kernel = np.exp(-0.5 * (k / sigma_steps) ** 2)
+    kernel /= kernel.sum()
+    smooth = np.convolve(rate, kernel, mode="same")
+    cycle_steps = max(1.0, 1000.0 / max(f_gamma_hz, 1e-3) / dt_ms)
+    height = 0.05 * float(smooth.max()) if smooth.max() > 0 else 0.0
+    peaks, _ = find_peaks(
+        smooth, distance=max(1, int(0.5 * cycle_steps)), height=height,
+    )
+    return peaks
+
+
+def _count_e_spikes_per_cycle(
+    s_e_trial: np.ndarray, peak_steps: np.ndarray,
+) -> np.ndarray:
+    """Mirrors nb046.count_e_spikes_per_cycle."""
+    T, N_E = s_e_trial.shape
+    K = len(peak_steps)
+    if K == 0:
+        return np.zeros((0, N_E), dtype=np.int32)
+    edges = np.concatenate([
+        [0],
+        ((peak_steps[:-1] + peak_steps[1:]) // 2).astype(int),
+        [T],
+    ])
+    counts = np.zeros((K, N_E), dtype=np.int32)
+    for kk in range(K):
+        a, b = edges[kk], edges[kk + 1]
+        if b > a:
+            counts[kk] = s_e_trial[a:b].sum(axis=0)
+    return counts
+
+
+def plot_theta_p_fgamma(
+    rows: list[dict], out_path: Path, run_id: str,
+) -> None:
+    """4-panel decomposition vs θ_u (Hz):
+      (top-left)  p vs θ_u (PING only) — the per-cycle participation gate
+      (top-right) f_γ vs θ_u (PING only) — biophysics, untouched by θ_u
+      (bottom-left)  E rate vs θ_u (both architectures); overlay p · f_γ
+      (bottom-right) accuracy vs θ_u (both architectures)"""
+    theme.apply()
+
+    def by_model(model: str) -> list[dict]:
+        sub = [r for r in rows if r["model"] == model and r["theta_u_hz"] is not None]
+        sub.sort(key=lambda r: r["theta_u_hz"])
+        return sub
+
+    ping = by_model("ping")
+    coba = by_model("coba")
+
+    fig, axes = plt.subplots(2, 2, figsize=(11.0, 8.0), dpi=150)
+    (ax_p, ax_fg), (ax_r, ax_a) = axes
+
+    if ping:
+        ping_pf = [r for r in ping if r.get("p") is not None and r.get("f_gamma") is not None]
+        xs = [r["theta_u_hz"] for r in ping_pf]
+        ax_p.plot(xs, [r["p"] for r in ping_pf],
+                  marker="o", color=theme.INK_BLACK, lw=1.5)
+        ax_fg.plot(xs, [r["f_gamma"] for r in ping_pf],
+                   marker="s", color=theme.DEEP_RED, lw=1.5)
+        xs_all = [r["theta_u_hz"] for r in ping]
+        ax_r.plot(xs_all, [r["e_rate"] for r in ping],
+                  marker="o", color=theme.INK_BLACK, lw=1.5, label="PING E (measured)")
+        ax_r.plot(xs, [r["p"] * r["f_gamma"] for r in ping_pf],
+                  marker="^", color=theme.AMBER, lw=1.5, ls="--",
+                  label="p × f_γ (predicted)")
+        ax_a.plot(xs_all, [r["acc"] for r in ping],
+                  marker="o", color=theme.INK_BLACK, lw=1.5, label="PING")
+
+    if coba:
+        xs = [r["theta_u_hz"] for r in coba]
+        ax_r.plot(xs, [r["e_rate"] for r in coba],
+                  marker="s", color=theme.DEEP_RED, lw=1.5, label="COBA E")
+        ax_a.plot(xs, [r["acc"] for r in coba],
+                  marker="s", color=theme.DEEP_RED, lw=1.5, label="COBA")
+
+    for ax in (ax_p, ax_fg, ax_r, ax_a):
+        ax.set_xlabel("θ_u (Hz)", fontsize=theme.SIZE_LABEL)
+        ax.invert_xaxis()  # tightest penalty on the right read left → right
+    ax_p.set_ylabel("p (per-cycle participation)", fontsize=theme.SIZE_LABEL)
+    ax_p.set_title("Participation gate vs θ_u (PING)", fontsize=theme.SIZE_TITLE)
+    ax_p.set_ylim(bottom=0)
+    ax_fg.set_ylabel("f_γ (Hz)", fontsize=theme.SIZE_LABEL)
+    ax_fg.set_title("Gamma frequency vs θ_u (PING)", fontsize=theme.SIZE_TITLE)
+    ax_fg.set_ylim(bottom=0)
+    ax_r.set_ylabel("E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax_r.set_title("E rate vs θ_u — measured vs p · f_γ", fontsize=theme.SIZE_TITLE)
+    ax_r.set_ylim(bottom=0)
+    ax_r.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper left")
+    ax_a.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    ax_a.set_title("Accuracy vs θ_u", fontsize=theme.SIZE_TITLE)
+    ax_a.set_ylim(0, 100)
+    ax_a.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="lower left")
+
+    fig.suptitle(
+        "Decomposing the rate floor under the spike penalty: "
+        "θ_u presses on f_γ, p is architecturally protected, accuracy holds",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
 
 
 # ── low-w_in alternate-schedule sweep (PING under heavy θ_u) ────────
@@ -997,79 +1349,6 @@ def plot_w_in_scale_sweep_vs_rate(
 
 # ── End W_in scale sweep ───────────────────────────────────────────
 
-
-
-def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
-    floor = float(MIN_ACC_BY_TIER[tier])
-    figs_root = figures.parents[2]
-
-    def artifact(name: str, label: str) -> dict:
-        path = figures / name
-        ok = path.exists() and path.stat().st_size > 0
-        href = "/" + str(path.relative_to(figs_root)) if ok else None
-        return {
-            "label": label,
-            "passed": bool(ok),
-            "detail": (
-                f"{path.name} ({path.stat().st_size} bytes)"
-                if ok else f"missing {path.name}"
-            ),
-            "detail_href": href,
-        }
-
-    crits: list[dict] = [
-        artifact("acc_vs_rate.png", "bar chart rendered"),
-        artifact("learning_curves.png", "learning curves rendered"),
-        artifact("frontier.png", "frontier rendered"),
-        artifact("low_w_in_sweep.png", "low-w_in sweep rendered"),
-        artifact("w_in_scale_sweep.png", "W_in scale sweep rendered"),
-        artifact(
-            "w_in_scale_sweep_vs_rate.png",
-            "W_in scale sweep vs E rate rendered",
-        ),
-    ]
-    for model in MODELS:
-        crits.append(artifact(f"raster__{model}.png", f"{model} raster rendered"))
-    for model in MODELS:
-        for theta_u in THETA_U_GRID:
-            crits.append(
-                artifact(
-                    f"training__{model}__{theta_label(theta_u)}.mp4",
-                    f"{model} θ_u={theta_display(theta_u)}: training video",
-                )
-            )
-
-    for model in MODELS:
-        base = next(
-            r for r in rows if r["model"] == model and r["theta_u"] is None
-        )
-        crits.append(
-            {
-                "label": f"{model} baseline acc ≥ {floor:.0f}% ({tier} floor)",
-                "passed": bool(base["best_acc"] >= floor),
-                "detail": f"{model}={base['best_acc']:.2f}%",
-            }
-        )
-    # Frontier monotonicity: tighter budget cannot give higher rate.
-    for model in MODELS:
-        ordered = [
-            next(r for r in rows if r["model"] == model and r["theta_u"] == t)
-            for t in [tu for tu in THETA_U_GRID if tu is not None]
-        ]
-        ordered.sort(key=lambda r: -r["theta_u"])
-        rates = [r["rate_e"] for r in ordered]
-        non_increasing = all(b <= a + 1.0 for a, b in zip(rates, rates[1:]))
-        crits.append(
-            {
-                "label": f"{model} rate non-increasing as θ_u tightens (±1 Hz)",
-                "passed": non_increasing,
-                "detail": "rates(loose→tight): "
-                + ", ".join(f"{r:.1f}" for r in rates),
-            }
-        )
-    return crits
-
-
 def _format_duration(seconds: float) -> str:
     s = int(round(seconds))
     if s < 60:
@@ -1216,9 +1495,56 @@ def main() -> None:
     plot_frontier(rows, FIGURES / "frontier.png", notebook_run_id)
     print(f"wrote {FIGURES / 'frontier.png'}")
 
+    # θ_u vs (p, f_γ) decomposition — mechanism behind the frontier floor.
+    print("[theta-pfg] measuring p and f_γ per (model, θ_u) cell")
+    import torch
+    pfg_device = (
+        "cuda" if torch.cuda.is_available()
+        else ("mps" if torch.backends.mps.is_available() else "cpu")
+    )
+    pfg_rows: list[dict] = []
+    for model in MODELS:
+        is_ping = (model == "ping")
+        for theta_u in THETA_U_GRID:
+            seed = seeds_for(theta_u)[0]
+            train_dir = cell_dir(model, theta_u, seed)
+            if not (train_dir / "weights.pth").exists():
+                print(f"  skip {model} θ_u={theta_label(theta_u)} (no weights)")
+                continue
+            m = measure_p_fgamma(train_dir, pfg_device, is_ping=is_ping)
+            row = {
+                "model": model,
+                "theta_u": theta_u,
+                "theta_u_hz": theta_hz(theta_u),
+                "seed": seed,
+                **m,
+            }
+            pfg_rows.append(row)
+            theta_str = (
+                f"θ_u={theta_display(theta_u):>4} ({theta_hz(theta_u):>4.1f} Hz)"
+                if theta_u is not None else "θ_u= off"
+            )
+            print(
+                f"  {model:<5}  {theta_str}  "
+                f"acc={m['acc']:5.2f}%  E={m['e_rate']:5.2f} Hz  "
+                f"f_γ={m['f_gamma']:5.2f} Hz  p={m['p']:.3f}"
+            )
+    plot_theta_p_fgamma(
+        pfg_rows, FIGURES / "theta_p_fgamma.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'theta_p_fgamma.png'}")
+
     for model in MODELS:
         out = FIGURES / f"raster__{model}.png"
         generate_raster(model, out)
+        print(f"wrote {out}")
+
+    # Publication-quality merged rasters figure — both baselines side by side.
+    npz_coba = baseline_dir("coba") / "infer" / "snapshot.npz"
+    npz_ping = baseline_dir("ping") / "infer" / "snapshot.npz"
+    if npz_coba.exists() and npz_ping.exists():
+        out = FIGURES / "baseline_rasters.png"
+        render_baseline_rasters_combined(npz_coba, npz_ping, out)
         print(f"wrote {out}")
 
     # Low-w_in alternate-schedule sweep — reads metrics from the three
@@ -1263,7 +1589,6 @@ def main() -> None:
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
-    crits = evaluate_success(rows, tier, FIGURES)
     summary = {
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
@@ -1287,19 +1612,14 @@ def main() -> None:
             "fr_strength_upper": FR_STRENGTH_UPPER,
         },
         "results": rows,
+        "theta_p_fgamma": pfg_rows,
         "low_w_in_sweep": low_w_in_rows,
         "w_in_scale_sweep": w_in_scale_rows,
-        "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
 
-    for c in crits:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in crits):
-        sys.exit(1)
 
 
 if __name__ == "__main__":

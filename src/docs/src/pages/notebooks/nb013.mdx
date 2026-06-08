@@ -11,11 +11,13 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb013/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
+## Abstract
+
 First of three Δt-stability notebooks. Asks: *"Do the five model variants (standard-snn, snntorch-library, cuba, coba, ping) train to comparable end-state when integrated at $\Delta t = 0.1$ ms vs $\Delta t = 1.0$ ms, starting from matched initial weights?"*
 
 The trained checkpoints from this entry are reused by [nb014](/notebooks/nb014/) (eval-$\Delta t$ transport) and [nb015](/notebooks/nb015/) (latency to correct answer).
 
-## Method
+## Methods
 
 For each of the two training regimes $\Delta t \in \{0.1, 1.0\}$ ms, train every model variant at the same seed and the same MNIST recipe (Poisson-encoded inputs, 200 ms trials, mem-mean readout). Verify that within the CUBANet family (standard-snn, snntorch-library, cuba) the pre-scale weights match bit-exactly at the matched seed; coba and ping use a different class (COBANet) and are independent.
 
@@ -29,11 +31,9 @@ Per-model training is run through the oscilloscope CLI with hyperparameters hard
   Train loss and test accuracy per epoch, one curve per model and Δt regime. The qualitative finding: standard-snn and snntorch-library track each other tightly; cuba converges to comparable accuracy with the $(1-\beta)/\Delta t$ drive scaling; coba/ping converge through their own loop dynamics.
 </Figure>
 
-## Success criteria
+## Discussion
 
-- [ ] Init-match: CUBANet-family models share bit-identical pre-scale weights at the matched seed.
-- [ ] Each model reaches comparable best accuracy in both Δt regimes.
-- [ ] Training videos exist for every (model, regime) pair.
+TODO: discussion paragraph — write what the results above mean for the project.
 
 ## Next steps
 

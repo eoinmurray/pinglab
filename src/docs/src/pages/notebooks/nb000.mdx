@@ -14,15 +14,14 @@ export const cfg = numbers.config ?? {};
 export const cell = numbers.run ?? {};
 export const nbRunId = numbers.notebook_run_id ?? "?";
 export const gitSha = numbers.git_sha ?? null;
-export const successCriteria = numbers.success_criteria ?? [];
 
-## Introduction
+## Abstract
 
 Performance reference workload. The goal across the lab is **one architecture that runs efficiently on local Apple Silicon (MPS) and on Modal**, with a single code path — no device-specific branches, no CUDA-only fast paths, no MPS-only fallbacks. This notebook is the fixed point that work toward that goal is measured against: a fixed standard-snn LIF classifier on MNIST at [*dt*](/docs/the-oscilloscope/#network-flags-shared) = {cfg.dt ?? "?"} ms trained through the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path. Holding the recipe constant means wall-time and throughput numbers reported here over successive runs reflect changes in the training stack itself — kernel launches, sync points, compile coverage, memory layout — not recipe drift.
 
 This entry owns the profile, not the science.
 
-## Method
+## Methods
 
 Every hyperparameter is a hardcoded literal in *src/pinglab/notebooks/nb000.py* per the [runner contract](/docs/the-notebooks/#runner-contract); the runner shells out to the shared [oscilloscope *train*](/docs/the-oscilloscope/#subcommand-train) path. The full recipe is the table below — parameters flagged as customised in the **Default?** column are explained underneath.
 
@@ -108,24 +107,6 @@ Each row is the most recent run on that backend; running again on the same backe
 
 Caveat on **Peak mem**: CUDA reports peak across the run via *max_memory_allocated* (counts autograd-saved intermediates). MPS reports a per-epoch sample of *current_allocated_memory*, which does not fully account for autograd-saved tensors — so the MPS number is reliably an *under*-estimate. Cross-backend comparison of peak memory is not meaningful.
 
-### Success criteria
-
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
 
 <Figure id="Figure 1" title="Training curves" src="/figures/notebooks/nb000/training_curves.png" alt="Train loss and test accuracy per epoch for the perf baseline">
   Train loss and test accuracy per epoch; best test accuracy {cell.best_acc ?? "?"}%, final {cell.final_acc ?? "?"}%.
@@ -138,6 +119,10 @@ Caveat on **Peak mem**: CUDA reports peak across the run via *max_memory_allocat
 <Figure id="Figure 3" title="Per-epoch hidden activity" src="/figures/notebooks/nb000/training.mp4" type="video" alt="Per-epoch oscilloscope snapshot of the perf-baseline hidden layer">
   Per-epoch snapshot of the reference MNIST trial through *standard-snn*'s hidden layer.
 </Figure>
+
+## Discussion
+
+TODO: discussion paragraph — write what the results above mean for the project.
 
 ## Next steps
 

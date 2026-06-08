@@ -8,9 +8,8 @@
 - BEFORE making any edits, read `src/docs/src/pages/styleguide.md` — it holds the repo layout, glossary, invariants, and conventions that every edit must respect
 - do NOT create branches or open PRs unless I explicitly ask — commit to the current branch (usually `main`) and stop. "commit and push" means commit + push, not branch + PR.
 - do NOT dispatch jobs to Modal (`--modal-gpu ...`) without my explicit permission — Modal spends real money. Default to local runs; only use `--modal-gpu` when I say so.
-- notebook runners (`src/pinglab/notebooks/nbNNN.py`) accept ONLY two CLI args: `--tier` (size) and `--modal-gpu` (dispatch target). Every other hyperparameter — lr, epochs, readout, surrogate slope, regulariser strengths, etc. — must be hardcoded as a literal in the runner's `sh.uv(...)` args list. New scientific knobs go on `src/pinglab/oscilloscope.py` as flags; the notebook just passes the recipe value inline. The notebook *is* the recipe — reproducing a result must not require remembering flags.
-
-- src/docs/src/pages/the-notebooks.md and src/docs/src/pages/the-oscilloscope.md have update rules read them
+- notebook runners (`src/pinglab/notebooks/nbNNN.py`) accept ONLY two CLI args: `--tier` (size) and `--modal-gpu` (dispatch target). Every other hyperparameter — lr, epochs, readout, surrogate slope, regulariser strengths, etc. — must be hardcoded as a literal in the runner's `sh.uv(...)` args list. New scientific knobs go on `src/pinglab/oscilloscope.py` as flags; the notebook just passes the recipe value inline. The notebook _is_ the recipe — reproducing a result must not require remembering flags.
+- no log axes unless instructed to do so
 
 - when talking about runs always report start time, current time, eta and if on modal cost.
 - in docs (src/docs/), NEVER use `~` or `\sim` for "approximately". Use `≈` in prose and `\approx` inside math (`$...$`). `\sim` is reserved for "distributed as" (e.g. `$u \sim \mathrm{Uniform}(0,1)$`). Same goes for figure titles/labels/annotations in matplotlib — use the Unicode `≈`, never ASCII tilde. ASCII tilde for approximation is a recurring stylistic mistake; the convention in the existing docs corpus is `≈` and matching it preserves typographic consistency.

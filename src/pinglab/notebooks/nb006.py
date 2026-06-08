@@ -139,35 +139,6 @@ def extras(tier: str, notebook_run_id: str) -> dict:
     return {"rates_hz": rates, "canonical_ei": CANON_EI}
 
 
-def evaluate_success(figures_dir, summary):
-    """Criteria: scan video rendered, and PING actually forms at the
-    canonical high-ei coupling (I fires across the full trial since
-    input is flat). The I-rate check mirrors nb003 / nb005 — guards
-    against a regression where the network never recruits I."""
-    video = figures_dir / "scan_ei.mp4"
-    video_ok = video.exists() and video.stat().st_size > 0
-    href = "/" + str(video.relative_to(figures_dir.parents[2])) if video_ok else None
-
-    rates = summary.get("rates_hz", {})
-    i_stim = rates.get("stim", {}).get("i", 0.0)
-    e_stim = rates.get("stim", {}).get("e", 0.0)
-    ping_formed = i_stim > 1.0 and e_stim > 1.0
-    return [
-        {
-            "label": "ei-strength scan video rendered",
-            "passed": bool(video_ok),
-            "detail": f"{video.name} ({video.stat().st_size} bytes)"
-            if video_ok
-            else f"missing {video.name}",
-            "detail_href": href,
-        },
-        {
-            "label": f"PING forms at canonical ei ({CANON_EI})",
-            "passed": bool(ping_formed),
-            "detail": f"E stim={e_stim:.1f} Hz, I stim={i_stim:.1f} Hz",
-        },
-    ]
-
 
 if __name__ == "__main__":
     run_scan(
@@ -195,7 +166,6 @@ if __name__ == "__main__":
                 "w_in_std": EI_SCAN_W_IN_STD,
             },
             extras_fn=extras,
-            criteria_fn=evaluate_success,
         )
     )
     sys.exit(0)

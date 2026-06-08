@@ -1,0 +1,339 @@
+{
+  "notebook_run_id": "r002",
+  "duration_s": 261.6,
+  "config": {
+    "tier": "small",
+    "n_e": 1024,
+    "n_i": 256,
+    "n_in": 784,
+    "n_classes": 10,
+    "dt": 0.1,
+    "trained_t_ms": 200.0,
+    "tau_headline_ms": 50.0,
+    "n_digits_headline": 5,
+    "tau_sweep_ms": [
+      25.0,
+      50.0,
+      100.0,
+      200.0
+    ],
+    "input_rate_hz": 25.0,
+    "n_streams": 20,
+    "n_per_stream": 5,
+    "baseline_dir": "src/artifacts/notebooks/nb025/ping__off__seed42",
+    "seed": 42
+  },
+  "headline": {
+    "labels": [
+      5,
+      6,
+      0,
+      7,
+      3
+    ],
+    "seg_correct": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "tau_sweep": [
+    {
+      "tau_ms": 25.0,
+      "rate_compensate": false,
+      "input_rate_hz": 25.0,
+      "n_streams": 20,
+      "n_per_stream": 5,
+      "n_correct": 57,
+      "n_total": 100,
+      "acc": 57.0
+    },
+    {
+      "tau_ms": 50.0,
+      "rate_compensate": false,
+      "input_rate_hz": 25.0,
+      "n_streams": 20,
+      "n_per_stream": 5,
+      "n_correct": 77,
+      "n_total": 100,
+      "acc": 77.0
+    },
+    {
+      "tau_ms": 100.0,
+      "rate_compensate": false,
+      "input_rate_hz": 25.0,
+      "n_streams": 20,
+      "n_per_stream": 5,
+      "n_correct": 83,
+      "n_total": 100,
+      "acc": 83.0
+    },
+    {
+      "tau_ms": 200.0,
+      "rate_compensate": false,
+      "input_rate_hz": 25.0,
+      "n_streams": 20,
+      "n_per_stream": 5,
+      "n_correct": 83,
+      "n_total": 100,
+      "acc": 83.0
+    },
+    {
+      "tau_ms": 25.0,
+      "rate_compensate": true,
+      "input_rate_hz": 200.0,
+      "n_streams": 20,
+      "n_per_stream": 5,
+      "n_correct": 93,
+      "n_total": 100,
+      "acc": 93.0
+    },
+    {
+      "tau_ms": 50.0,
+      "rate_compensate": true,
+      "input_rate_hz": 100.0,
+      "n_streams": 20,
+      "n_per_stream": 5,
+      "n_correct": 87,
+      "n_total": 100,
+      "acc": 87.0
+    },
+    {
+      "tau_ms": 100.0,
+      "rate_compensate": true,
+      "input_rate_hz": 50.0,
+      "n_streams": 20,
+      "n_per_stream": 5,
+      "n_correct": 89,
+      "n_total": 100,
+      "acc": 89.0
+    },
+    {
+      "tau_ms": 200.0,
+      "rate_compensate": true,
+      "input_rate_hz": 25.0,
+      "n_streams": 20,
+      "n_per_stream": 5,
+      "n_correct": 83,
+      "n_total": 100,
+      "acc": 83.0
+    }
+  ],
+  "varying_headline": {
+    "segments": [
+      [
+        200.0,
+        10.0
+      ],
+      [
+        50.0,
+        100.0
+      ],
+      [
+        100.0,
+        25.0
+      ],
+      [
+        25.0,
+        200.0
+      ],
+      [
+        75.0,
+        15.0
+      ]
+    ],
+    "labels": [
+      5,
+      3,
+      4,
+      1,
+      7
+    ],
+    "seg_preds": [
+      5,
+      3,
+      4,
+      1,
+      7
+    ],
+    "seg_correct": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "grid_sweep": [
+    {
+      "tau_ms": 25.0,
+      "input_rate_hz": 5.0,
+      "n_correct": 14,
+      "n_total": 50,
+      "acc": 28.0
+    },
+    {
+      "tau_ms": 25.0,
+      "input_rate_hz": 10.0,
+      "n_correct": 20,
+      "n_total": 50,
+      "acc": 40.0
+    },
+    {
+      "tau_ms": 25.0,
+      "input_rate_hz": 25.0,
+      "n_correct": 27,
+      "n_total": 50,
+      "acc": 54.0
+    },
+    {
+      "tau_ms": 25.0,
+      "input_rate_hz": 50.0,
+      "n_correct": 30,
+      "n_total": 50,
+      "acc": 60.0
+    },
+    {
+      "tau_ms": 25.0,
+      "input_rate_hz": 100.0,
+      "n_correct": 42,
+      "n_total": 50,
+      "acc": 84.0
+    },
+    {
+      "tau_ms": 25.0,
+      "input_rate_hz": 200.0,
+      "n_correct": 47,
+      "n_total": 50,
+      "acc": 94.0
+    },
+    {
+      "tau_ms": 50.0,
+      "input_rate_hz": 5.0,
+      "n_correct": 18,
+      "n_total": 50,
+      "acc": 36.0
+    },
+    {
+      "tau_ms": 50.0,
+      "input_rate_hz": 10.0,
+      "n_correct": 29,
+      "n_total": 50,
+      "acc": 58.0
+    },
+    {
+      "tau_ms": 50.0,
+      "input_rate_hz": 25.0,
+      "n_correct": 34,
+      "n_total": 50,
+      "acc": 68.0
+    },
+    {
+      "tau_ms": 50.0,
+      "input_rate_hz": 50.0,
+      "n_correct": 43,
+      "n_total": 50,
+      "acc": 86.0
+    },
+    {
+      "tau_ms": 50.0,
+      "input_rate_hz": 100.0,
+      "n_correct": 50,
+      "n_total": 50,
+      "acc": 100.0
+    },
+    {
+      "tau_ms": 50.0,
+      "input_rate_hz": 200.0,
+      "n_correct": 42,
+      "n_total": 50,
+      "acc": 84.0
+    },
+    {
+      "tau_ms": 100.0,
+      "input_rate_hz": 5.0,
+      "n_correct": 32,
+      "n_total": 50,
+      "acc": 64.0
+    },
+    {
+      "tau_ms": 100.0,
+      "input_rate_hz": 10.0,
+      "n_correct": 37,
+      "n_total": 50,
+      "acc": 74.0
+    },
+    {
+      "tau_ms": 100.0,
+      "input_rate_hz": 25.0,
+      "n_correct": 48,
+      "n_total": 50,
+      "acc": 96.0
+    },
+    {
+      "tau_ms": 100.0,
+      "input_rate_hz": 50.0,
+      "n_correct": 42,
+      "n_total": 50,
+      "acc": 84.0
+    },
+    {
+      "tau_ms": 100.0,
+      "input_rate_hz": 100.0,
+      "n_correct": 46,
+      "n_total": 50,
+      "acc": 92.0
+    },
+    {
+      "tau_ms": 100.0,
+      "input_rate_hz": 200.0,
+      "n_correct": 47,
+      "n_total": 50,
+      "acc": 94.0
+    },
+    {
+      "tau_ms": 200.0,
+      "input_rate_hz": 5.0,
+      "n_correct": 38,
+      "n_total": 50,
+      "acc": 76.0
+    },
+    {
+      "tau_ms": 200.0,
+      "input_rate_hz": 10.0,
+      "n_correct": 43,
+      "n_total": 50,
+      "acc": 86.0
+    },
+    {
+      "tau_ms": 200.0,
+      "input_rate_hz": 25.0,
+      "n_correct": 45,
+      "n_total": 50,
+      "acc": 90.0
+    },
+    {
+      "tau_ms": 200.0,
+      "input_rate_hz": 50.0,
+      "n_correct": 43,
+      "n_total": 50,
+      "acc": 86.0
+    },
+    {
+      "tau_ms": 200.0,
+      "input_rate_hz": 100.0,
+      "n_correct": 45,
+      "n_total": 50,
+      "acc": 90.0
+    },
+    {
+      "tau_ms": 200.0,
+      "input_rate_hz": 200.0,
+      "n_correct": 48,
+      "n_total": 50,
+      "acc": 96.0
+    }
+  ]
+}

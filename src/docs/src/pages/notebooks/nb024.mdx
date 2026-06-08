@@ -1,19 +1,30 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "024 — COBA/PING Training"
+title: "024 — COBA/PING Training (trains)"
 date: 2026-06-02
 entry: 24
 structure: paper
-collection: inhibition-gated-sparsity
+collection: gamma-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb024/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
-The convergence diagnostics in [nb041](/notebooks/nb041/), [nb043](/notebooks/nb043/), and [nb044](/notebooks/nb044/) all showed the same pattern: test accuracy plateaus within ~ 10–15 epochs while the trained E rate keeps drifting upward through epoch 30. This entry asks the simple follow-on question — does the rate stabilise if we let training continue, and if not, *why* not?
+## Abstract
 
-## Method
+**Training recipe (canonical / `medium` tier):**
+
+| Parameter | Value |
+|---|---|
+| Integration timestep $\Delta t$ | 0.1 ms |
+| Trial duration $T$ | 200 ms |
+| MNIST samples (80/20 stratified split of 2000) | 1600 train / 400 test ($\approx$ 2.9% of the 70k-sample MNIST corpus) |
+| Epochs | 100 |
+
+The convergence diagnostics in [nb041](/notebooks/nb041/) and [nb044](/notebooks/nb044/) showed the same pattern: test accuracy plateaus within ~ 10–15 epochs while the trained E rate keeps drifting upward through epoch 30. This entry asks the simple follow-on question — does the rate stabilise if we let training continue, and if not, *why* not?
+
+## Methods
 
 Train PING and COBA (loop disabled, $\theta_u$ = off) from scratch for **100 epochs** instead of [nb025](/notebooks/nb025/)'s 30. Three seeds per architecture (42, 43, 44) = six cells total. Medium tier sample count (2000 training samples, 400 test). All other PING / COBA recipe parameters held to [nb025](/notebooks/nb025/) — same Adam at $4 \times 10^{-4}$, mem-mean readout, no rate regulariser.
 
@@ -25,6 +36,28 @@ The slope across the last 10 epochs on each metric is the operational definition
 
 <Figure id="Figure 1" title="Training curves vs epoch" src="/figures/notebooks/nb024/training_curves.png" alt="Six-panel figure. Top-left: test accuracy. Top-right: train (solid) and test (dashed) cross-entropy loss on log scale. Middle-left: test E firing rate. Middle-right: test I firing rate. Bottom-left: activity fraction. Bottom-right: gradient norm on log scale. All panels share x-axis (epoch 1 to 100). Curves coloured by architecture: black for PING, red for COBA, three seeds per architecture overlaid.">
   Six per-epoch metrics for PING (black) and COBA (red), three seeds each. Accuracy and loss converge by epoch ~ 15 in both architectures; E rate is the slow-changing variable.
+</Figure>
+
+<Figure id="Figure 2" title="Total network firing rate vs epoch — COBA E vs PING (E + I)" src="/figures/notebooks/nb024/rates_vs_epoch.png" alt="Single-panel plot of network firing rates vs epoch (1 to 100). COBA total (red, solid) is just its E rate, since the I population is silent when ei_strength = 0 — climbs sharply from 3 Hz at epoch 1 to ≈ 55 Hz by epoch 10, then slow climb to ≈ 77 Hz by epoch 100. PING total (black, solid) is E rate + I rate — climbs from ≈ 12 Hz at epoch 1 to ≈ 49 Hz by epoch 100. PING E only (black, dotted) sits flat between 4 and 9 Hz throughout. PING I only (black, dashed) climbs from ≈ 3 Hz to ≈ 40 Hz, tracking the same shape as COBA's E. Three seeds per condition overlaid.">
+  Honest like-for-like comparison of the total spike budget each architecture spends. COBA's I population is silent (ei_strength = 0 → no recurrent input to I), so its hidden-network total is just its E rate. PING's total is E + I summed. **The headline 10× E-rate gap shrinks to ≈ 1.6× when total network spikes are counted** (PING ≈ 49 Hz vs COBA ≈ 77 Hz at epoch 100). The decomposition: PING's E rate (dotted) is the locked variable that sits at 4–9 Hz throughout — the gamma cycle's per-cell participation ceiling — while PING's I rate (dashed) tracks the same climbing trajectory as COBA's E rate, both driven by the still-growing $W_\text{in}$. The architectural gating is specifically on E; the I population fires nearly as hard as COBA's E does. *(Note: population sizes are $N_E = 1024$ and $N_I = 256$; a population-weighted per-cell total would give COBA $\approx 62$ Hz and PING $\approx 15$ Hz — a 4× gap, intermediate between the 10× E-only and 1.6× E+I numbers.)*
+</Figure>
+
+<Figure id="Figure 3" title="Inference-time (W^EI × W^IE) sweep on trained PING — total firing rate (E + I)" src="/figures/notebooks/nb024/wei_wie_total_rate.png" alt="9 × 9 heatmap. Y-axis: W^EI scale from 0 to 10 (multiplier on the trained E→I matrix). X-axis: W^IE scale from 0 to 10 (multiplier on the trained I→E matrix). Cell colour: total network firing rate (E + I) on a magma colormap from 0 to ≈ 780 Hz. Each cell is annotated with the total Hz and the (E | I) breakdown. The bottom row (W^EI = 0) is uniformly at 127.6 Hz total — when E never drives I, the loop is open and E fires at the runaway rate. The first column (W^IE = 0) shows total rates climbing with W^EI from 127 to 779 Hz — E fires at 127 Hz regardless because no I→E inhibition exists, but I fires increasingly hard without doing any inhibitory work. The trained baseline at (1, 1) sits in the middle of the loop-engaged region at 48 Hz (E ≈ 9, I ≈ 39), marked with a white star. Within the engaged region (s_ei ≥ 0.25 and s_ie ≥ 0.25), total rate asymptotes around 38-40 Hz — pushing the loop harder than the trained baseline does not compress further.">
+  Inference-time sweep on the trained PING baseline (seed 42, θ_u = off, 100 epochs). For each cell of a 9 × 9 grid spanning multipliers 0 to 10, the trained $W^{EI}$ and $W^{IE}$ matrices are multiplied by the column / row scale factors before running the test set. Cell colour and large number: total network firing rate (E + I). Small numbers in parentheses: per-population (E | I) breakdown. White star marks the trained baseline at (1, 1). Three structural readings:
+
+  - **Open the I→E direction (left column, $W^{IE} = 0$).** E fires at 127.6 Hz everywhere (no inhibition ever reaches E). I is driven harder as $W^{EI}$ grows (216 → 651 Hz) but does no inhibitory work. The loop is broken on this side.
+  - **Open the E→I direction (bottom row, $W^{EI} = 0$).** I never fires (silent at 0 Hz across the row). E runs free at 127.6 Hz. The loop is broken on this side too.
+  - **The loop must be closed on *both* sides to engage.** Once it is, total rate falls fast — and then asymptotes around **38–40 Hz** across most of the engaged region. Pushing $W^{EI}$ or $W^{IE}$ to 10× the trained value doesn't compress total rate below ~ 40 Hz; what it does instead is push the (E | I) split further toward I-dominated (e.g. at (10, 10), E ≈ 1 Hz, I ≈ 39 Hz). Strengthening $W^{IE}$ compresses E within the loop; strengthening $W^{EI}$ moves the recruitment cliff to lower input but doesn't change the engaged-state rate much. This matches the inference-time asymmetry from [nb036](/notebooks/nb036/): $W^{EI}$ controls *whether* the loop engages, $W^{IE}$ controls how hard it compresses once engaged.
+</Figure>
+
+<Figure id="Figure 4" title="Diagonal slice — total rate, E, I, and accuracy vs coupling scale s along W^EI = W^IE = s" src="/figures/notebooks/nb024/wei_wie_diagonal_total_rate.png" alt="Twin-axis line plot vs the diagonal coupling scale s from 0 to 10. Left axis (black, Hz): total rate (solid diamonds) drops from 127.6 Hz at s = 0 to 84 Hz at s = 0.25, 61 Hz at s = 0.5, 48 Hz at s = 1 (the trained baseline, marked with a vertical grey dotted line), 42 Hz at s = 2, 41 Hz at s = 4, then asymptotes near 40 Hz from s = 6 onward. E rate alone (dotted, circles) peaks at 36 Hz at s = 0.25, drops to 17 at s = 0.5, 9 at s = 1, then declines to ≈ 1 Hz by s = 10. I rate (dashed, triangles) climbs from 0 to ≈ 48 at s = 0.25, then settles between 39 and 38 across s = 1 to s = 10. Right axis (red, accuracy %): rises from 58% at s = 0 to peak ≈ 87.75% at s = 0.5, holds 86–87% to s = 1, then declines slowly through 84.75% at s = 2, 78% at s = 4, 73% at s = 8.">
+  Bottom-left → top-right diagonal of Figure 3, redrawn as a line chart. As both edges of the loop strengthen together, total rate drops sharply through s = 0.25–1 and then asymptotes around **39–40 Hz** by s ≈ 4. The compression bottoms out — there is no further win from pushing coupling beyond the trained baseline.
+
+  Three things to note:
+
+  - **Accuracy peaks at s = 0.5** (87.75%) — slightly *above* the trained baseline at s = 1 (86.75%). The trained operating point is not the accuracy peak along this slice. The optimiser landed close to it (the gap is small) but the small mismatch is real and worth flagging — the rate regulariser may have pulled the recipe one notch past the accuracy peak.
+  - **Beyond s ≈ 2, accuracy starts declining** while total rate barely moves. Over-coupling buys nothing and costs classification.
+  - **The asymptote is set by I, not by E.** Past s ≈ 2, E rate falls to < 5 Hz and keeps declining toward zero, while I rate plateaus at ~ 38 Hz. The 40 Hz floor is essentially the I-population firing once per gamma cycle at $f_\gamma \approx 36$ Hz, regardless of how hard $W^{EI}$ drives it or how aggressively $W^{IE}$ suppresses E. **The architecture has a *total spike floor* that can't be moved below the I-cycle rate by coupling strength alone.**
 </Figure>
 
 | Cell | Final acc | Final E rate | E rate slope (last 10 ep) | Acc slope (last 10 ep) |
@@ -50,7 +83,7 @@ The figure below shows two quantities per trainable parameter, per epoch. Defini
 - $\Vert W \Vert_F$ — the **Frobenius norm** of a weight matrix, $\sqrt{\sum_{ij} W_{ij}^2}$. A single scalar magnitude per parameter that grows when the optimiser pushes weights away from the origin. A growing $\Vert W \Vert_F$ means the weights are still actively being adapted; a flat one means they have stopped moving.
 - $\text{grad}/W$ ratio — the mean per-step ratio $\Vert \nabla_W \mathcal{L} \Vert_F \,/\, \Vert W \Vert_F$ averaged over the epoch. A scale-free measure of how strongly the optimiser is pushing each parameter relative to its current size. Values near $10^{-1}$ mean active learning; $10^{-2}$ means slow drift; $10^{-5}$ and below means effectively frozen.
 
-<Figure id="Figure 2" title="Per-parameter weight norm and grad/weight ratio vs epoch" src="/figures/notebooks/nb024/weight_dynamics.png" alt="Two-by-two figure. Top row: trainable W_in (input weights). Top-left: Frobenius norm vs epoch — both architectures climb monotonically from their respective initialisations to about 17 by epoch 100, still rising at the end. Top-right: gradient over weight ratio for W_in on log scale — both architectures decline from ~10^-1 to ~10^-2 across training. Bottom row: trainable W_out (readout weights). Bottom-left: Frobenius norm — flat horizontal lines for both architectures (PING at ~315, COBA at ~65). Bottom-right: grad/weight ratio for W_out — flat at 10^-3 (COBA) and 10^-5 (PING) respectively.">
+<Figure id="Figure 5" title="Per-parameter weight norm and grad/weight ratio vs epoch" src="/figures/notebooks/nb024/weight_dynamics.png" alt="Two-by-two figure. Top row: trainable W_in (input weights). Top-left: Frobenius norm vs epoch — both architectures climb monotonically from their respective initialisations to about 17 by epoch 100, still rising at the end. Top-right: gradient over weight ratio for W_in on log scale — both architectures decline from ~10^-1 to ~10^-2 across training. Bottom row: trainable W_out (readout weights). Bottom-left: Frobenius norm — flat horizontal lines for both architectures (PING at ~315, COBA at ~65). Bottom-right: grad/weight ratio for W_out — flat at 10^-3 (COBA) and 10^-5 (PING) respectively.">
   Top: ||W_in||_F (left) and grad/||W_in|| ratio (right). Bottom: ||W_out||_F (left) and grad/||W_out|| ratio (right). Both architectures' W_in is still actively adapting; both architectures' W_out is essentially frozen from epoch 1.
 </Figure>
 
@@ -58,13 +91,19 @@ The figure below shows two quantities per trainable parameter, per epoch. Defini
 
 PING's grad/W_in ratio sits *higher* than COBA's throughout training (top-right panel) — PING's W_in is moving *more* aggressively per epoch — yet PING's rate barely changes (0.02 Hz/ep) while COBA's drifts (0.13 Hz/ep). So PING's W_in adaptation produces useful classification gains without rate scaling, while COBA's W_in adaptation is coupled to rate climb. The I-loop decouples weight adaptation from rate output.
 
-<Figure id="Figure 3" title="Parametric (E rate, accuracy) trajectory — coloured by epoch" src="/figures/notebooks/nb024/rate_acc_trajectory.png" alt="Parametric trajectory plot showing test E rate (x-axis, 0 to 80 Hz) vs test accuracy (y-axis, 0 to 100%). PING trajectories (black diamonds) start at about (4 Hz, 58%) at epoch 1 and walk straight upward to (9 Hz, 88%), then sit there for the remaining 90 epochs. COBA trajectories (red squares) start at (3 Hz, 44%) and walk diagonally through (20 Hz, 67%) and (50 Hz, 80%) to settle near (77 Hz, 90%), with each seed showing a long traverse along the high-accuracy plateau as rate continues to drift.">
+<Figure id="Figure 6" title="Weight distributions before and after 100 epochs of training" src="/figures/notebooks/nb024/weights_before_after.png" alt="Two-by-two grid of weight-value histograms on log-y axes. Top row: W_in (784×1024, 95% sparse) for COBA (left, red) and PING (right, black). Both start with the same sparse near-zero init (95% of entries exactly zero, the remaining 5% drawn from a narrow distribution); after training both spread into a long heavy-tailed positive distribution extending to ≈ 0.10. The init Frobenius norm is 1.5 for COBA's W_in and 6.1 for PING's W_in (the recipe difference: PING's recipe uses a stronger W_in init); both end near 16. Bottom row: W_out (1024×10) for COBA (red) and PING (black). Both start with a tight distribution near zero (init ||·|| ≈ 0.6). After training, COBA's W_out spreads to ≈ 2 (||·|| = 65), but PING's W_out spreads much further to ≈ 10 (||·|| = 315) — five times larger because PING fires sparsely and needs larger readout weights to map its spike pattern onto the 10 logits.">
+  Histograms of every weight value, before training (grey) and after training (red for COBA, black for PING). Top row: W_in. Bottom row: W_out. Y-axis logarithmic. The Frobenius norm of each distribution is annotated in the legend.
+</Figure>
+
+The histograms make Figure 2's norms concrete. **W_in** starts as a sparse near-zero matrix (95% of entries exactly zero per the *--w-in-sparsity 0.95* recipe; the remaining 5% drawn from a narrow distribution); training spreads the non-zero tail into a long heavy distribution reaching ≈ 0.10 in both architectures. **W_out** is the more striking comparison: both start tightly clustered near zero, but the trained distributions look very different. COBA's W_out is compact (max ≈ 2, ||·|| = 65). PING's W_out is *five times broader* (max ≈ 10, ||·|| = 315) — because PING fires ≈ 10× more sparsely than COBA, its readout has to weight each surviving spike ≈ 10× more strongly to reach the same logit magnitudes. The readout adapts its scale to compensate for the rate gap; the rate gap itself is not visible in the per-weight value at the time-mean level.
+
+<Figure id="Figure 7" title="Parametric (E rate, accuracy) trajectory — coloured by epoch" src="/figures/notebooks/nb024/rate_acc_trajectory.png" alt="Parametric trajectory plot showing test E rate (x-axis, 0 to 80 Hz) vs test accuracy (y-axis, 0 to 100%). PING trajectories (black diamonds) start at about (4 Hz, 58%) at epoch 1 and walk straight upward to (9 Hz, 88%), then sit there for the remaining 90 epochs. COBA trajectories (red squares) start at (3 Hz, 44%) and walk diagonally through (20 Hz, 67%) and (50 Hz, 80%) to settle near (77 Hz, 90%), with each seed showing a long traverse along the high-accuracy plateau as rate continues to drift.">
   Test accuracy vs test E rate, one parametric curve per cell, epochs encoded as dot colour (epoch 1 = dark, epoch 100 = bright). Open circles mark epoch 1; stars mark final epoch.
 </Figure>
 
 The trajectory plot makes the architectural difference visible in one figure. PING walks straight up the y-axis (single attractor at ~9 Hz); COBA walks diagonally and then traverses *along the high-accuracy plateau* — the rate keeps climbing at constant 88–90% accuracy. **PING has a single attractor; COBA has a manifold of equally-accurate solutions parameterised by rate**, and gradient descent drifts along it.
 
-<Figure id="Figure 4" title="Per-cell E rate distribution at final trained state — three seeds overlaid" src="/figures/notebooks/nb024/rate_distributions.png" alt="Two-panel histogram. Left (COBA): broad asymmetric distribution centred around 67 Hz with a long right tail extending to 200 Hz. Mean 75.3 Hz, median 66.9 Hz, max 199.7 Hz. Right (PING): narrow distribution centred around 7 Hz with most cells between 0 and 25 Hz. Mean 7.9 Hz, median 7.3 Hz, max 29.1 Hz. Three seeds overlaid per panel showing tight cross-seed agreement.">
+<Figure id="Figure 8" title="Per-cell E rate distribution at final trained state — three seeds overlaid" src="/figures/notebooks/nb024/rate_distributions.png" alt="Two-panel histogram. Left (COBA): broad asymmetric distribution centred around 67 Hz with a long right tail extending to 200 Hz. Mean 75.3 Hz, median 66.9 Hz, max 199.7 Hz. Right (PING): narrow distribution centred around 7 Hz with most cells between 0 and 25 Hz. Mean 7.9 Hz, median 7.3 Hz, max 29.1 Hz. Three seeds overlaid per panel showing tight cross-seed agreement.">
   Per-cell E firing rate histogram at the final trained state. Left: COBA. Right: PING. Three seeds overlaid per panel.
 </Figure>
 
@@ -72,38 +111,27 @@ The rate distribution shape is qualitatively different between architectures, no
 
 ## Discussion
 
-The 100-epoch audit settles two questions for [art010](/articles/art010/):
+The 100-epoch audit settles two questions for [ar010](/articles/ar010/):
 
 1. **PING's ≈ 7-9 Hz rate floor is a converged operating point.** The paper can cite the rate as a converged value rather than a training-snapshot. The cross-seed consistency at 0.1 Hz precision is itself a strong claim — the gamma rhythm pins the rate to a tight tolerance independent of initialisation.
 2. **COBA's rate is open-ended.** The 88 Hz number from [nb025](/notebooks/nb025/) (30 epochs) and the 77 Hz number here (100 epochs) are both in-training snapshots. The paper should present COBA's rate as "drifting in the high-rate manifold" rather than as a fixed comparator. The order-of-magnitude separation between the architectures is what's robust; the specific COBA number is not.
 
 The mechanism diagnostic from the weight-dynamics figure also clarifies what the I-loop is actually doing in the trained network: it decouples input-weight adaptation from rate output. PING continues to adapt W_in throughout training, gaining classification accuracy *without* the rate climbing — the gamma cycle gates the spikes per cycle to a fixed budget regardless of the underlying drive. COBA has no such decoupling, so any W_in growth feeds straight through to higher firing.
 
-The trajectory plot offers a geometric framing of the architectural asymmetry seen in [nb043](/notebooks/nb043/): PING's training trajectory sits in a *point attractor* in (rate, accuracy) space; COBA's sits on a *manifold*. The Lagrangian-pressure experiment in nb043 then reads as: under reward, COBA moves along its existing manifold (rate up, accuracy preserved); PING has to leave its attractor to climb rate (accuracy collapses).
-
-## Success criteria
-
-- [x] Training-curves figure rendered.
-- [x] Weight-dynamics figure rendered.
-- [x] Rate–accuracy trajectory rendered.
-- [x] Rate-distribution figure rendered.
-- [x] Accuracy convergence — 4/6 cells within 0.1 pp/ep; the two failures (PING seeds 43, 44) are within ±0.14 pp/ep, on the boundary.
-- PING E rate convergence — **all 3/3 PING cells pass** (0.018–0.025 Hz/ep).
-- COBA E rate convergence — **all 3/3 COBA cells fail** (0.13 Hz/ep). This is the finding, not a failure of the experiment.
+The trajectory plot offers a geometric framing of the trained-network reachable sets: PING's training trajectory sits in a *point attractor* in (rate, accuracy) space; COBA's sits on a *manifold*. Under any gradient pressure that pulls rate away from PING's attractor, accuracy is paid; COBA can drift along its manifold without paying.
 
 ## Next steps
 
 The collection's headline rate numbers were measured at 30 epochs of medium-tier training. nb024 shows that PING converges at that horizon but COBA does not, and that W_in continues to adapt past epoch 30 in both architectures. Concrete follow-ups per notebook in the collection:
 
 - **[nb033](/notebooks/nb033/) — Mean-field PING.** The 4D Hopf predicts $f_\gamma^\star = 24.5$ Hz. Predict the rate from $r_E = a + p \cdot f_\gamma$ using parameters derived analytically from the mean-field gain functions and compare to nb024's converged 9 Hz. A match would close the theory ↔ trained-network loop quantitatively.
-- **[nb025](/notebooks/nb025/) — Why PING has a rate floor.** The headline empirical entry. *Re-run at 100 epochs.* The PING ≈ 7 Hz baseline becomes PING ≈ 9 Hz (converged); the COBA ≈ 88 Hz number becomes ≈ 77 Hz (still drifting but closer to its long-run attractor). The 13× gap claim becomes a 9× gap at converged values — still order-of-magnitude, but the specific multiplier needs updating.
+- **[nb025](/notebooks/nb025/) — Why PING has a rate floor.** The headline empirical entry. *Re-run at 100 epochs.* The PING ≈ 7 Hz baseline becomes PING ≈ 9 Hz (converged); the COBA ≈ 88 Hz number becomes ≈ 77 Hz (still drifting but closer to its long-run attractor). The 13× **E-rate** gap claim becomes a 9× E-rate gap at converged values. Honest *total* (E + I) rate gap at convergence is ≈ 1.6× — see Figure 2 above. The structural claim that survives both definitions is the per-cycle E-participation gate, not a global power reduction.
 - **[nb036](/notebooks/nb036/) — Which E↔I weights set the recruitment threshold.** The $s^\star \propto 1/\sqrt{W^{EI}}$ scaling fit is a cliff position, not an absolute rate, so it should be insulated from the convergence issue. Worth re-checking the 5×5 training-grid figure at 100 epochs to see whether the PING / stretched-COBA / no-loop cluster boundaries shift.
 - **[nb037](/notebooks/nb037/) — Dropping and adding spikes in trained PING.** Inference-only on the trained baselines. The drop / add perturbation curves and the inference-only $\tau_\text{GABA}$ sweep should be re-run on the *100-epoch* nb025 weights once those exist. The qualitative result (drop preserves cycle; add corrupts it) should survive; the specific numbers will tighten.
 - **[nb038](/notebooks/nb038/) — f-I curves and inference-time loop transfer.** Inference-only. Re-run on 100-epoch nb025 baselines. The recruitment cliff position in input-rate space is the load-bearing finding and should be invariant.
-- **[nb041](/notebooks/nb041/) — Rate floor tracks gamma frequency (retrained).** *Re-run at 100 epochs.* This is the highest-priority re-run after nb025. The affine fit at 30 epochs gave $a = 1.14$ Hz, $p = 0.166$, $R^2 = 0.990$. At 100 epochs the slope $p$ will shift upward (PING rates climb modestly) and the cross-seed variance will tighten. The $R^2$ should not move. The structural-bound argument is robust; the specific coefficient cited in [art010](/articles/art010/) should anchor at the converged value.
+- **[nb041](/notebooks/nb041/) — Rate floor tracks gamma frequency (retrained).** *Re-run at 100 epochs.* This is the highest-priority re-run after nb025. The affine fit at 30 epochs gave $a = 1.14$ Hz, $p = 0.166$, $R^2 = 0.990$. At 100 epochs the slope $p$ will shift upward (PING rates climb modestly) and the cross-seed variance will tighten. The $R^2$ should not move. The structural-bound argument is robust; the specific coefficient cited in [ar010](/articles/ar010/) should anchor at the converged value.
 - **[nb042](/notebooks/nb042/) — Rhythm vs mean-inhibition.** Inference-only on nb025 weights. The 3.2× phase-shuffle release was measured against the 30-epoch baseline. Re-run against 100-epoch baselines; the multiplier should be similar (the mechanism is conductance arithmetic, not training duration) but worth confirming.
-- **[nb043](/notebooks/nb043/) — Rewarding PING for firing more.** *Re-run at 100 epochs* — the biggest lift in the collection but the right move. nb024's parametric (rate, accuracy) trajectory plot suggests a geometric reading of nb043's result: COBA has a manifold of equally-accurate solutions and the reward objective drifts it along that manifold; PING has a point attractor and the reward objective forces it off, paying accuracy. Re-running at 100 epochs would show whether the saturation point on PING's reward side (≈ 44 Hz) is a stable secondary attractor or a slow drift. The PING-l10 cell in particular was still climbing at the end of training.
 - **[nb044](/notebooks/nb044/) — Δt audit.** *Re-run at 100 epochs* for the coarse-Δt cells where the rate was still rising fastest. The cycle-period-Δt-invariance finding is robust because it's a dynamic-system property; the rate-vs-Δt scaling slope is the part that needs converged values.
-- **nb024 — this entry.** No follow-up needed for the convergence question itself. The geometric framing of the (rate, accuracy) trajectory plot is the most generalisable finding and deserves to be lifted into [art010](/articles/art010/)'s Discussion as the unifying picture for nb025 and nb043.
+- **nb024 — this entry.** No follow-up needed for the convergence question itself. The geometric framing of the (rate, accuracy) trajectory plot is the most generalisable finding and deserves to be lifted into [ar010](/articles/ar010/)'s Discussion as the unifying picture for [nb025](/notebooks/nb025/).
 
-**Cost order.** The expensive items are full retrains: nb025 (~$3 at 100 epochs), nb041 (~$15), nb043 (~$15), nb044 (~$15). The inference-only follow-ups (nb037, nb038, nb042) come for free once the nb025 100-epoch baselines exist. A sensible batch order is: nb025 first (anchors all downstream inference), then nb041 in parallel with nb043 (both expensive, both load-bearing for the paper), then nb044, then the inference re-runs.
+**Cost order.** The expensive items are full retrains: nb025 (~$3 at 100 epochs), nb041 (~$15), nb044 (~$15). The inference-only follow-ups (nb037, nb038, nb042) come for free once the nb025 100-epoch baselines exist. A sensible batch order is: nb025 first (anchors all downstream inference), then nb041 (load-bearing for the paper), then nb044, then the inference re-runs.

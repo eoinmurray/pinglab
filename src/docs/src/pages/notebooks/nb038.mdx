@@ -1,21 +1,36 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "038 — Inference-time loop transfer and readout latency"
+title: "038 — Inference-time loop transfer (trains)"
 date: 2026-05-30
 entry: 38
 structure: paper
-collection: inhibition-gated-sparsity
+collection: gamma-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb038/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
-## Setup
+## Abstract
 
-PING and COBA baseline definitions and training recipe are in [nb025](/notebooks/nb025/). This entry runs two inference-only probes on the trained baselines: COBA → PING I-loop transfer at eval time, and readout latency. The input-rate sweep / f-I curve material that previously lived here has moved to [nb023](/notebooks/nb023/), which is the natural home for "architectural response to drive" content.
+Loads a trained COBA network and switches the I-loop on at inference by sweeping *ei_strength* from 0 to 1. The same feedforward weights that fire at ≈52 Hz without the loop fire at ≈5 Hz with the loop engaged, and accuracy stays within ≈12 pp of the COBA baseline. PING gating is a post-hoc sparsity knob — the architecture, not the training, supplies the gamma dynamics.
 
-## COBA → PING I-loop transfer
+## Methods
+
+**Training recipe (canonical / `medium` tier):**
+
+| Parameter | Value |
+|---|---|
+| Integration timestep $\Delta t$ | 0.1 ms |
+| Trial duration $T$ | 200 ms |
+| MNIST samples (80/20 stratified split of 2000) | 1600 train / 400 test ($\approx$ 2.9% of the 70k-sample MNIST corpus) |
+| Epochs | 10 |
+
+PING and COBA baseline definitions and training recipe are in [nb025](/notebooks/nb025/). This entry runs the COBA → PING I-loop transfer probe at eval time on the trained baselines. The input-rate sweep / f-I curve material that previously lived here has moved to [nb023](/notebooks/nb023/), which is the natural home for "architectural response to drive" content.
+
+## Results
+
+### COBA → PING I-loop transfer
 
 Inference-only: the trained COBA baseline (seed 42, $\theta_u =$ off) is loaded and *ei_strength* is overridden at eval time across 11 values from 0 to 1. $W_\text{in}$ and $W_\text{out}$ load from the COBA checkpoint; $W_{ei}$ and $W_{ie}$ are freshly initialised (the COBA checkpoint has these at zero, so skipping the load preserves a functional I-loop). No retraining.
 
@@ -35,14 +50,11 @@ At *ei = 0* the asynchronous-dense COBA pattern persists. By *ei ≈ 0.4* the sa
 
 Accuracy stays within ≈12 pp of the COBA baseline across the full *ei_strength* range. E rate falls monotonically from ≈52 Hz (*ei = 0*) to ≈5 Hz (*ei = 1*); I rate rises from zero to ≈23 Hz. Suppression is continuous in the loop strength.
 
-## Readout latency
+## Discussion
 
-How quickly does each network reach a confident classification during a trial? At each 5 ms checkpoint we compute the running-average readout from the accumulated output-LIF membrane potential up to that point and evaluate test accuracy. Baselines at $\theta_u =$ off, seed 42.
+The I-loop transfers cleanly onto COBA-trained weights: switching on $W^{EI}$ at inference time compresses the E rate by an order of magnitude with a bounded accuracy cost. The PING substrate is therefore not contingent on having been trained with the loop engaged — it can be added post-hoc as a sparsity knob.
 
-<Figure id="Figure 4" title="Readout latency — accuracy vs time and vs spike count" src="/figures/notebooks/nb038/latency.png" alt="Two panels. Left: test accuracy vs trial time (ms) — COBA (red) leads early (73.5% at 20 ms vs PING 68.5%), curves cross near 100 ms, PING finishes ahead (85% vs 83%). Right: test accuracy vs cumulative E spikes per sample — PING's curve is dramatically left-shifted, reaching 81% at ≈530 spikes while COBA needs ≈5,700.">
-  Left: test accuracy at each 5 ms checkpoint. Right: the same accuracy plotted against cumulative E spikes per sample at each checkpoint. Baselines, $\theta_u =$ off, seed 42. PING in black, COBA in red. Chance at 10% (dotted).
-</Figure>
+## Next steps
 
-The left panel shows COBA reaching higher accuracy faster in wall-clock time: 73.5% at 20 ms vs PING's 68.5%. The curves cross near 100 ms and PING finishes ahead (85.0% vs 83.0%). COBA fires asynchronously from timestep 1 at ≈85 Hz, so by 20 ms the readout has ≈1.7 spikes/cell to average over. PING needs the gamma cycle to self-assemble — the first structured burst appears at ≈10-15 ms — so the readout sees little useful signal before then.
-
-The right panel reframes the same data with cumulative E spikes on the x-axis. At the crossover accuracy (≈81%), PING has used ≈530 spikes vs COBA's ≈5,700 — roughly 11× fewer. PING's curve is shifted an order of magnitude to the left. Each gamma burst is a concentrated class-discriminative event, so the readout converges faster per spike than COBA's noisy per-spike average. COBA wins on absolute latency (more spikes available earlier). PING wins on spike efficiency (fewer spikes to reach the same accuracy). If the relevant metric is minimum spikes to decision rather than minimum time to decision, PING is strictly better.
+1. Repeat the transfer in the opposite direction: train with the I-loop on, then sweep *ei_strength* down to zero at inference. Symmetric collapse would confirm the loop is a sparsity knob rather than a learned-circuit property.
+2. Quantify the accuracy/rate Pareto frontier traced by the *ei_strength* sweep and compare to the per-architecture frontier from [nb025](/notebooks/nb025/).

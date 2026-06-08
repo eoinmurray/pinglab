@@ -11,7 +11,11 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb040/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
+## Abstract
+
 [nb025](/notebooks/nb025/)–[nb038](/notebooks/nb038/) characterise PING in the *conductance-based* regime, where every synapse has an exponential filter at $\tau_\text{AMPA}$ or $\tau_\text{GABA}$. This entry asks whether **current-based** (CUBA) PING with *instant* synapses — no synaptic filtering at all — still produces the gamma dynamics and can be trained.
+
+## Methods
 
 LIF E and I populations with the same wiring as [nb025](/notebooks/nb025/)'s COBA-PING but with no synaptic state: every presynaptic spike at $t-1$ contributes its weight to the postsynaptic current at $t$ and is gone by $t+1$.
 
@@ -29,7 +33,9 @@ $$
 
 Both arms — full PING and the E-only ablation — go through `oscilloscope train --model cuba-ping ...` and `--model cuba-noping ...` respectively; recipe, optimiser, surrogate gradient, TBPTT window, batching, and seed all match. The output layer is a non-spiking LIF integrator ($\tau_\text{out} = 20$ ms) whose time-averaged membrane is the logits — so silent hidden activity gives a flat output and no class signal. The hidden layer is *forced* to spike for the readout to carry any information.
 
-## Untrained dynamics
+## Results
+
+### Untrained dynamics
 
 Fixed weights, no training. Spatially uniform Poisson input at 80 Hz per channel for the full 200 ms window.
 
@@ -39,7 +45,7 @@ Fixed weights, no training. Spatially uniform Poisson input at 80 Hz per channel
 
 Recruitment threshold, inhibitory clamp on the E rate, periodic E→I bursts — the architectural signatures of PING survive without any synaptic filter. The cycle period is set jointly by $\tau_m$ and the time it takes the input drive to push enough E cells back above threshold for the next round.
 
-## Training CUBA-PING
+### Training CUBA-PING
 
 $W_\text{in}$ and $W_\text{out}$ trainable, frozen $W^{EI}$ and $W^{IE}$. Surrogate-gradient BPTT on Poisson-encoded MNIST. Adam at lr $2 \times 10^{-3}$, batch 64, mem-mean output readout, **TBPTT window $K = 10$**. The $K = 10$ window is load-bearing — full BPTT diverges (Section [BPTT stability](#bptt-stability) below).
 
@@ -51,7 +57,7 @@ $W_\text{in}$ and $W_\text{out}$ trainable, frozen $W^{EI}$ and $W^{IE}$. Surrog
   One MNIST test sample replayed on the trained network. Untrained PING dynamics (Figure 1) survive — E spikes are sparse and digit-selective; I bursts at gamma cadence.
 </Figure>
 
-## CUBA-no-PING ablation
+### CUBA-no-PING ablation
 
 The interesting question is *why* CUBA-PING ends up at sub-Hz E rates. Two candidates:
 
@@ -87,7 +93,7 @@ Both effects of the I-loop show up cleanly:
 
 This is the same tradeoff the COBA-PING baselines in [nb025 Figure 5](/notebooks/nb025/) walk via the $\theta_u$ spike-budget term — except CUBA-PING walks it by the architectural inhibitory clamp rather than by an explicit penalty.
 
-## BPTT stability
+### BPTT stability
 
 The single design choice in the training section that takes some justification is the TBPTT window. With $K = 10$ the network trains; with $K = T = 200$ (full BPTT) gradients overflow to NaN within the first batch.
 
@@ -120,11 +126,11 @@ TBPTT with window $K$ caps the per-cycle compound to $K/2$ round trips instead o
 
 The cost is **bias**. TBPTT computes the gradient as if each window were independent. This is wrong — $V^E$ at step 10 really does depend on $V^E$ at step 1 via membrane decay. For 200 ms MNIST trials this bias is negligible; for sequence tasks with genuine long-range structure (language modelling, sequence MNIST), TBPTT would underestimate long-range gradients and systematically miss those features. Calling it "truncated" is a bit unfair — the truncation isn't a bug, it's the regulariser that lets you train at all. *Local-BPTT* or *gradient horizon limit* would be a more honest name.
 
-## Findings
+## Discussion
 
 The instant-synapse CUBA-PING has the right dynamics without any synaptic filtering (Figure 1), is trainable when (a) the readout is an output-LIF mem-mean that requires hidden spikes to flow and (b) the BPTT horizon is limited to a few times $\tau_m$, and is ablation-checked: removing the I-loop raises the E rate by an order of magnitude at a bounded ≈4 pp accuracy cost. Both arms go through the same oscilloscope code path, so the only difference between Figures 2/3 and Figures 4/5 is the I population's presence.
 
-The natural follow-ups:
+## Next steps
 
 1. Scale to full MNIST. Training loss is still decreasing at the end of the medium-tier run, so the operating point is not yet converged. Full MNIST + more epochs should close the gap to the COBA-PING baselines.
 2. Add an explicit $L_\text{rate}$ like nb025's, exposing a $\theta_u$ knob that lets you slide along the rate–accuracy frontier on top of what the architecture already gives.

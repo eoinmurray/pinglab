@@ -1521,5 +1521,483 @@
       "passed": true,
       "detail": "rates(loose\u2192tight): 5.1, 5.1, 4.5, 4.5, 3.2"
     }
-  ]
+  ],
+  "perturbation_add_pct": {
+    "baselines": {
+      "coba": {
+        "acc": 86.5,
+        "e_rate_hz": 65.07724609375,
+        "i_rate_hz": 0.0
+      },
+      "ping": {
+        "acc": 86.25,
+        "e_rate_hz": 5.877490234375,
+        "i_rate_hz": 27.96015625
+      }
+    },
+    "pct_levels": [
+      0.0,
+      0.01,
+      0.02,
+      0.03,
+      0.04,
+      0.05,
+      0.06,
+      0.07,
+      0.08,
+      0.09,
+      0.1,
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.4,
+      0.5,
+      0.65,
+      0.8,
+      1.0
+    ],
+    "rows": [
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.0,
+        "r_add_e_hz": 0.0,
+        "r_add_i_hz": 0.0,
+        "acc": 86.5,
+        "e_rate_hz": 65.07724609375,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.01,
+        "r_add_e_hz": 0.6507724609375001,
+        "r_add_i_hz": 0.0,
+        "acc": 86.5,
+        "e_rate_hz": 65.72772216796875,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.02,
+        "r_add_e_hz": 1.3015449218750001,
+        "r_add_i_hz": 0.0,
+        "acc": 86.5,
+        "e_rate_hz": 66.37880859375,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.03,
+        "r_add_e_hz": 1.9523173828125,
+        "r_add_i_hz": 0.0,
+        "acc": 86.25,
+        "e_rate_hz": 67.0288330078125,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.04,
+        "r_add_e_hz": 2.6030898437500003,
+        "r_add_i_hz": 0.0,
+        "acc": 86.25,
+        "e_rate_hz": 67.67525634765624,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.05,
+        "r_add_e_hz": 3.2538623046875004,
+        "r_add_i_hz": 0.0,
+        "acc": 86.25,
+        "e_rate_hz": 68.3226806640625,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.06,
+        "r_add_e_hz": 3.904634765625,
+        "r_add_i_hz": 0.0,
+        "acc": 86.75,
+        "e_rate_hz": 68.9697509765625,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.07,
+        "r_add_e_hz": 4.555407226562501,
+        "r_add_i_hz": 0.0,
+        "acc": 86.75,
+        "e_rate_hz": 69.61756591796875,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.08,
+        "r_add_e_hz": 5.206179687500001,
+        "r_add_i_hz": 0.0,
+        "acc": 87.0,
+        "e_rate_hz": 70.26527099609375,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.09,
+        "r_add_e_hz": 5.8569521484375,
+        "r_add_i_hz": 0.0,
+        "acc": 86.75,
+        "e_rate_hz": 70.915478515625,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.1,
+        "r_add_e_hz": 6.507724609375001,
+        "r_add_i_hz": 0.0,
+        "acc": 87.0,
+        "e_rate_hz": 71.55955810546875,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.15,
+        "r_add_e_hz": 9.7615869140625,
+        "r_add_i_hz": 0.0,
+        "acc": 87.0,
+        "e_rate_hz": 74.7906982421875,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.2,
+        "r_add_e_hz": 13.015449218750001,
+        "r_add_i_hz": 0.0,
+        "acc": 87.0,
+        "e_rate_hz": 78.022119140625,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.25,
+        "r_add_e_hz": 16.2693115234375,
+        "r_add_i_hz": 0.0,
+        "acc": 86.75,
+        "e_rate_hz": 81.258984375,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.3,
+        "r_add_e_hz": 19.523173828125,
+        "r_add_i_hz": 0.0,
+        "acc": 87.25,
+        "e_rate_hz": 84.492431640625,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.4,
+        "r_add_e_hz": 26.030898437500003,
+        "r_add_i_hz": 0.0,
+        "acc": 88.5,
+        "e_rate_hz": 90.95325927734375,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.5,
+        "r_add_e_hz": 32.538623046875,
+        "r_add_i_hz": 0.0,
+        "acc": 86.5,
+        "e_rate_hz": 97.4157958984375,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.65,
+        "r_add_e_hz": 42.30020996093751,
+        "r_add_i_hz": 0.0,
+        "acc": 82.75,
+        "e_rate_hz": 107.10167236328125,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 0.8,
+        "r_add_e_hz": 52.061796875000006,
+        "r_add_i_hz": 0.0,
+        "acc": 80.75,
+        "e_rate_hz": 116.80618896484376,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "coba",
+        "mode": "add_pct",
+        "pct": 1.0,
+        "r_add_e_hz": 65.07724609375,
+        "r_add_i_hz": 0.0,
+        "acc": 75.0,
+        "e_rate_hz": 129.74732666015626,
+        "baseline_e_hz": 65.07724609375,
+        "baseline_i_hz": 0.0
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.0,
+        "r_add_e_hz": 0.0,
+        "r_add_i_hz": 0.0,
+        "acc": 86.25,
+        "e_rate_hz": 5.877490234375,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.01,
+        "r_add_e_hz": 0.058774902343750005,
+        "r_add_i_hz": 0.2796015625,
+        "acc": 86.0,
+        "e_rate_hz": 5.82353515625,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.02,
+        "r_add_e_hz": 0.11754980468750001,
+        "r_add_i_hz": 0.559203125,
+        "acc": 86.25,
+        "e_rate_hz": 5.7509521484375,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.03,
+        "r_add_e_hz": 0.17632470703125,
+        "r_add_i_hz": 0.8388046875,
+        "acc": 87.0,
+        "e_rate_hz": 5.65377197265625,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.04,
+        "r_add_e_hz": 0.23509960937500002,
+        "r_add_i_hz": 1.11840625,
+        "acc": 87.0,
+        "e_rate_hz": 5.54844970703125,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.05,
+        "r_add_e_hz": 0.29387451171875,
+        "r_add_i_hz": 1.3980078125000002,
+        "acc": 87.25,
+        "e_rate_hz": 5.50086669921875,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.06,
+        "r_add_e_hz": 0.3526494140625,
+        "r_add_i_hz": 1.677609375,
+        "acc": 86.75,
+        "e_rate_hz": 5.41248779296875,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.07,
+        "r_add_e_hz": 0.41142431640625005,
+        "r_add_i_hz": 1.9572109375000002,
+        "acc": 85.0,
+        "e_rate_hz": 5.34906005859375,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.08,
+        "r_add_e_hz": 0.47019921875000004,
+        "r_add_i_hz": 2.2368125,
+        "acc": 86.25,
+        "e_rate_hz": 5.3010498046875,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.09,
+        "r_add_e_hz": 0.52897412109375,
+        "r_add_i_hz": 2.5164140625,
+        "acc": 86.0,
+        "e_rate_hz": 5.2154541015625,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.1,
+        "r_add_e_hz": 0.5877490234375,
+        "r_add_i_hz": 2.7960156250000003,
+        "acc": 86.25,
+        "e_rate_hz": 5.10408935546875,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.15,
+        "r_add_e_hz": 0.88162353515625,
+        "r_add_i_hz": 4.1940234375,
+        "acc": 83.5,
+        "e_rate_hz": 4.503125,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.2,
+        "r_add_e_hz": 1.175498046875,
+        "r_add_i_hz": 5.592031250000001,
+        "acc": 79.0,
+        "e_rate_hz": 3.8672119140625,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.25,
+        "r_add_e_hz": 1.46937255859375,
+        "r_add_i_hz": 6.9900390625,
+        "acc": 70.5,
+        "e_rate_hz": 3.28485107421875,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.3,
+        "r_add_e_hz": 1.7632470703125,
+        "r_add_i_hz": 8.388046875,
+        "acc": 62.5,
+        "e_rate_hz": 2.8711669921875,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.4,
+        "r_add_e_hz": 2.35099609375,
+        "r_add_i_hz": 11.184062500000001,
+        "acc": 37.75,
+        "e_rate_hz": 2.72041015625,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.5,
+        "r_add_e_hz": 2.9387451171875,
+        "r_add_i_hz": 13.980078125,
+        "acc": 25.25,
+        "e_rate_hz": 3.0663818359375,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.65,
+        "r_add_e_hz": 3.8203686523437503,
+        "r_add_i_hz": 18.174101562500002,
+        "acc": 13.25,
+        "e_rate_hz": 3.8491455078125,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 0.8,
+        "r_add_e_hz": 4.7019921875,
+        "r_add_i_hz": 22.368125000000003,
+        "acc": 11.0,
+        "e_rate_hz": 4.71812744140625,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      },
+      {
+        "model": "ping",
+        "mode": "add_pct",
+        "pct": 1.0,
+        "r_add_e_hz": 5.877490234375,
+        "r_add_i_hz": 27.96015625,
+        "acc": 9.0,
+        "e_rate_hz": 5.89061279296875,
+        "baseline_e_hz": 5.877490234375,
+        "baseline_i_hz": 27.96015625
+      }
+    ]
+  }
 }

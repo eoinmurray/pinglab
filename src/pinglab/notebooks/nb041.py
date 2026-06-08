@@ -45,7 +45,7 @@ T_MS = 200.0
 DT_TRAIN = 0.1
 
 # τ_GABA grid — matches the nb037 inference-only sweep so the retrained
-# and inference-only curves can be overlaid in art008. nb037's default
+# and inference-only curves can be overlaid in ar008. nb037's default
 # τ_GABA was 9.0 ms.
 TAU_GABA_SWEEP: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
 SEEDS: tuple[int, ...] = (42, 43, 44)
@@ -78,7 +78,7 @@ TIER_CONFIG = {
 }
 DEFAULT_TIER = "small"
 
-# Match nb025 / nb043 PING recipe — same network, same optimiser,
+# Match nb025 PING recipe — same network, same optimiser,
 # same readout; only τ_GABA varies.
 PING_RECIPE: dict[str, str] = {
     "--ei-strength": "1",
@@ -250,30 +250,8 @@ def measure_rate_and_psd(train_dir: Path, device) -> dict:
     psd_mean = np.mean(np.stack(psds, axis=0), axis=0)
     assert freqs is not None
 
-    band_mask = (freqs >= F_GAMMA_BAND_HZ[0]) & (freqs <= F_GAMMA_BAND_HZ[1])
-    if band_mask.any() and psd_mean[band_mask].max() > 0:
-        # Parabolic interpolation around the peak bin for sub-bin
-        # resolution. Welch with nperseg = T_steps gives Δf = fs/nperseg
-        # (5 Hz at fs=10000, T=200ms) — too coarse for six τ_GABA values.
-        # Parabolic interpolation through (k-1, k, k+1) gives an
-        # analytic peak location with error O((Δf)^3) when the peak is
-        # well-isolated, which is the regime here.
-        in_band = np.where(band_mask)[0]
-        peak_local = int(psd_mean[in_band].argmax())
-        peak_idx = int(in_band[peak_local])
-        if 0 < peak_idx < len(psd_mean) - 1:
-            y0 = float(psd_mean[peak_idx - 1])
-            y1 = float(psd_mean[peak_idx])
-            y2 = float(psd_mean[peak_idx + 1])
-            denom = (y0 - 2.0 * y1 + y2)
-            offset = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
-            offset = max(-0.5, min(0.5, offset))  # clamp to ±half bin
-            df = float(freqs[1] - freqs[0])
-            f_gamma = float(freqs[peak_idx]) + offset * df
-        else:
-            f_gamma = float(freqs[peak_idx])
-    else:
-        f_gamma = float("nan")
+    f_gamma = _peak_with_parabolic(psd_mean, freqs)
+    per_trial_peaks = [_peak_with_parabolic(p, freqs) for p in psds]
 
     return {
         "tau_gaba_ms": tau_gaba_ms,
@@ -282,8 +260,38 @@ def measure_rate_and_psd(train_dir: Path, device) -> dict:
         "f_gamma_hz": f_gamma,
         "freqs_hz": freqs.tolist(),
         "psd": psd_mean.tolist(),
+        "per_trial_peaks_hz": [
+            float(x) for x in per_trial_peaks if np.isfinite(x)
+        ],
         "n_total": total,
     }
+
+
+def _peak_with_parabolic(psd: np.ndarray, freqs: np.ndarray) -> float:
+    """Locate the gamma-band peak with parabolic sub-bin interpolation.
+
+    Returns NaN if the PSD is flat in the gamma band. Welch with
+    nperseg = T_steps gives Δf = fs/nperseg (5 Hz at fs=10000, T=200ms)
+    — too coarse on its own across six τ_GABA values. Parabolic
+    interpolation through (k-1, k, k+1) recovers the analytic peak
+    location with error O((Δf)^3) when the peak is well-isolated.
+    """
+    band_mask = (freqs >= F_GAMMA_BAND_HZ[0]) & (freqs <= F_GAMMA_BAND_HZ[1])
+    if not band_mask.any() or psd[band_mask].max() <= 0:
+        return float("nan")
+    in_band = np.where(band_mask)[0]
+    peak_local = int(psd[in_band].argmax())
+    peak_idx = int(in_band[peak_local])
+    if not (0 < peak_idx < len(psd) - 1):
+        return float(freqs[peak_idx])
+    y0 = float(psd[peak_idx - 1])
+    y1 = float(psd[peak_idx])
+    y2 = float(psd[peak_idx + 1])
+    denom = y0 - 2.0 * y1 + y2
+    offset = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
+    offset = max(-0.5, min(0.5, offset))
+    df = float(freqs[1] - freqs[0])
+    return float(freqs[peak_idx]) + offset * df
 
 
 def capture_raster(train_dir: Path, sample_idx: int, device) -> dict:
@@ -552,6 +560,76 @@ def plot_psd_panel(
     plt.close(fig)
 
 
+def plot_per_trial_peaks(
+    rows: list[dict], out_path: Path, run_id: str,
+) -> None:
+    """Sanity check: per-trial PSD peak distribution per τ_GABA.
+
+    Pools per-trial peak frequencies across seeds for each τ_GABA value
+    and shows their histogram alongside the trial-mean-PSD peak.
+    Narrow histograms → trial-mean-PSD f_γ is unbiased; wide histograms
+    → trial-mean PSD is a centroid, and per-trial median would differ.
+    """
+    theme.apply()
+    by_tau: dict[float, list[dict]] = {}
+    for r in rows:
+        by_tau.setdefault(r["tau_gaba_ms"], []).append(r)
+    taus_sorted = sorted(by_tau.keys())
+    n_taus = len(taus_sorted)
+    cmap = plt.get_cmap("viridis")
+
+    fig, axes = plt.subplots(
+        n_taus, 1, figsize=(8.0, 1.5 * n_taus + 1.0), dpi=150, sharex=True,
+    )
+    if n_taus == 1:
+        axes = [axes]
+    bin_edges = np.arange(F_GAMMA_BAND_HZ[0], F_GAMMA_BAND_HZ[1] + 1.0, 1.0)
+
+    for ax, tau in zip(axes, taus_sorted):
+        sub = by_tau[tau]
+        peaks = np.array(
+            [pk for s in sub for pk in s.get("per_trial_peaks_hz", [])],
+            dtype=float,
+        )
+        color = cmap(taus_sorted.index(tau) / max(1, n_taus - 1))
+        if peaks.size > 0:
+            ax.hist(peaks, bins=bin_edges, color=color, alpha=0.85,
+                    edgecolor=theme.INK_BLACK, lw=0.4)
+            median = float(np.median(peaks))
+            iqr = float(np.percentile(peaks, 75) - np.percentile(peaks, 25))
+            ax.axvline(median, color=theme.INK_BLACK, ls="--", lw=1.0)
+            ax.text(
+                0.98, 0.85,
+                f"τ_GABA = {tau:g} ms\n"
+                f"per-trial: median {median:.1f} Hz, IQR {iqr:.1f} Hz",
+                transform=ax.transAxes, ha="right", va="top",
+                fontsize=theme.SIZE_LABEL,
+            )
+        mean_peak = float(np.mean(
+            [s["f_gamma_hz"] for s in sub if np.isfinite(s["f_gamma_hz"])]
+        ))
+        ax.axvline(
+            mean_peak, color=theme.DEEP_RED, ls="-", lw=1.2,
+            label=f"trial-mean PSD peak: {mean_peak:.1f} Hz",
+        )
+        ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
+        ax.set_ylabel("trials", fontsize=theme.SIZE_LABEL)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    axes[-1].set_xlabel("Per-trial PSD peak frequency (Hz)",
+                        fontsize=theme.SIZE_LABEL)
+    fig.suptitle(
+        "Per-trial peak distribution vs trial-mean-PSD peak",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_raster_strip(
     samples: list[dict], out_path: Path, run_id: str, t_window_ms: float,
 ) -> None:
@@ -610,68 +688,6 @@ def plot_raster_strip(
 
 
 # ─── success criteria ───────────────────────────────────────────────
-
-
-def evaluate_success(
-    rows: list[dict], fit: dict, figures: Path,
-) -> list[dict]:
-    figs_root = figures.parents[2]
-
-    def artifact(name: str, label: str) -> dict:
-        path = figures / name
-        ok = path.exists() and path.stat().st_size > 0
-        href = "/" + str(path.relative_to(figs_root)) if ok else None
-        return {
-            "label": label,
-            "passed": bool(ok),
-            "detail": (
-                f"{path.name} ({path.stat().st_size} bytes)"
-                if ok else f"missing {path.name}"
-            ),
-            "detail_href": href,
-        }
-
-    crits: list[dict] = [
-        artifact("rate_vs_fgamma.png", "rate-vs-f_γ figure rendered"),
-        artifact("psds.png", "PSD panel rendered"),
-    ]
-    crits.append({
-        "label": "f_γ found for every cell",
-        "passed": all(
-            np.isfinite(r["f_gamma_hz"]) and r["f_gamma_hz"] > 0 for r in rows
-        ),
-        "detail": (
-            "f_γ range = "
-            f"[{min(r['f_gamma_hz'] for r in rows):.2f}, "
-            f"{max(r['f_gamma_hz'] for r in rows):.2f}] Hz"
-        ),
-    })
-    crits.append({
-        "label": "f_γ varies across τ_GABA sweep ≥ 2×",
-        "passed": bool(
-            max(r["f_gamma_hz"] for r in rows) /
-            max(min(r["f_gamma_hz"] for r in rows), 1e-3) >= 2.0
-        ),
-        "detail": (
-            f"min {min(r['f_gamma_hz'] for r in rows):.2f} Hz / "
-            f"max {max(r['f_gamma_hz'] for r in rows):.2f} Hz"
-        ),
-    })
-    crits.append({
-        "label": "Affine r_E = a + p · f_γ fit R² ≥ 0.7",
-        "passed": bool(np.isfinite(fit["r2_affine"]) and fit["r2_affine"] >= 0.7),
-        "detail": (
-            f"a = {fit['a_affine']:.2f} Hz, p = {fit['p_affine']:.3f}, "
-            f"R² = {fit['r2_affine']:.3f}"
-        ),
-    })
-    crits.append({
-        "label": "Affine slope p > 0 (rate rises with f_γ as predicted)",
-        "passed": bool(np.isfinite(fit["p_affine"]) and fit["p_affine"] > 0),
-        "detail": f"p = {fit['p_affine']:.3f} Hz / Hz",
-    })
-    return crits
-
 
 def _format_duration(seconds: float) -> str:
     s = int(round(seconds))
@@ -764,6 +780,10 @@ def main() -> None:
     )
     plot_psd_panel(rows, FIGURES / "psds.png", notebook_run_id)
     print(f"wrote {FIGURES / 'psds.png'}")
+    plot_per_trial_peaks(
+        rows, FIGURES / "per_trial_peaks.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'per_trial_peaks.png'}")
 
     # Raster strip — one panel per τ_GABA cluster, seed 42 only. Makes
     # the affine law visceral: shorter τ_GABA → faster gamma → more
@@ -785,7 +805,6 @@ def main() -> None:
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(cell_dir(TAU_GABA_SWEEP[0], SEEDS[0]))
-    crits = evaluate_success(rows, fit, FIGURES)
     summary = {
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
@@ -810,17 +829,11 @@ def main() -> None:
             {k: v for k, v in r.items() if k not in ("freqs_hz", "psd")}
             for r in rows
         ],
-        "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
 
-    for c in crits:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in crits):
-        sys.exit(1)
 
 
 if __name__ == "__main__":

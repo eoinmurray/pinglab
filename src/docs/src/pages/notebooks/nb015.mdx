@@ -11,11 +11,13 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb015/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
+## Abstract
+
 Third of three Δt-stability notebooks. Asks: *"How quickly does each model class reach the correct answer? At what fraction of the trial does P(correct) plateau?"*
 
 Reads the checkpoints produced by [nb013](/notebooks/nb013/); no retraining.
 
-## Method
+## Methods
 
 For each of the 10 trained networks, run a deterministic test batch forward pass with `recording=True` to capture the per-step output logits. At a grid of trial-time fractions $f \in [0, 1]$, evaluate the model's argmax prediction *as of step $\lfloor f \cdot T_\text{steps} \rfloor$* and compare to the ground-truth label.
 
@@ -29,10 +31,9 @@ Rate-readout models accumulate output spikes from $t = 0$ up to the cut step; LI
   P(correct) vs fraction of trial elapsed, rows by readout type and columns by training regime. The reading: how early in the trial each model class reaches its asymptotic accuracy.
 </Figure>
 
-## Success criteria
+## Discussion
 
-- [ ] Every model reaches ≥ 80% of its final accuracy by trial fraction 0.5.
-- [ ] Models that reach final accuracy earlier indicate faster spike-budget efficiency.
+TODO: discussion paragraph — write what the results above mean for the project.
 
 ## Next steps
 

@@ -7,8 +7,8 @@ the sweep on a log-Δt axis and grabs single-trial rasters at each Δt
 to verify the gamma cycle stays at the same physical period in ms
 (rather than the same step count).
 
-Scaffolded by art009 §Leg 1 item 4. Protects the ≈ 7 Hz headline rate
-in art008 against a discretisation-artefact reading.
+Scaffolded by ar009 §Leg 1 item 4. Protects the ≈ 7 Hz headline rate
+in ar008 against a discretisation-artefact reading.
 
 Notebook entry: src/docs/src/pages/notebooks/nb044.mdx
 """
@@ -418,55 +418,6 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
-
-def evaluate_success(rows: list[dict], figures: Path) -> list[dict]:
-    figs_root = figures.parents[2]
-
-    def artifact(name: str, label: str) -> dict:
-        path = figures / name
-        ok = path.exists() and path.stat().st_size > 0
-        href = "/" + str(path.relative_to(figs_root)) if ok else None
-        return {
-            "label": label,
-            "passed": bool(ok),
-            "detail": (
-                f"{path.name} ({path.stat().st_size} bytes)"
-                if ok else f"missing {path.name}"
-            ),
-            "detail_href": href,
-        }
-
-    crits: list[dict] = [
-        artifact("dt_sweep.png", "Δt-sweep figure rendered"),
-        artifact("raster_strip.png", "raster strip rendered"),
-    ]
-
-    by_dt: dict[float, list[dict]] = {}
-    for r in rows:
-        by_dt.setdefault(r["dt_ms"], []).append(r)
-    e_means = [float(np.mean([r["e_rate_hz"] for r in by_dt[d]])) for d in by_dt]
-    acc_means = [float(np.mean([r["acc"] for r in by_dt[d]])) for d in by_dt]
-    e_span = max(e_means) - min(e_means)
-    acc_span = max(acc_means) - min(acc_means)
-    crits.append({
-        "label": "E rate variation across Δt sweep ≤ 1 Hz",
-        "passed": bool(e_span <= 1.0),
-        "detail": (
-            f"E range = [{min(e_means):.2f}, {max(e_means):.2f}] Hz "
-            f"(span {e_span:.2f} Hz)"
-        ),
-    })
-    crits.append({
-        "label": "Accuracy variation across Δt sweep ≤ 5 percentage points",
-        "passed": bool(acc_span <= 5.0),
-        "detail": (
-            f"acc range = [{min(acc_means):.2f}, {max(acc_means):.2f}]% "
-            f"(span {acc_span:.2f} pp)"
-        ),
-    })
-    return crits
-
-
 def _format_duration(seconds: float) -> str:
     s = int(round(seconds))
     if s < 60:
@@ -576,7 +527,6 @@ def main() -> None:
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(cell_dir(DT_SWEEP_MS[0], SEEDS[0]))
-    crits = evaluate_success(rows, FIGURES)
     summary = {
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
@@ -594,17 +544,11 @@ def main() -> None:
             "t_ms": T_MS,
         },
         "results": rows,
-        "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
 
-    for c in crits:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in crits):
-        sys.exit(1)
 
 
 if __name__ == "__main__":

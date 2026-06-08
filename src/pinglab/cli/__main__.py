@@ -363,7 +363,7 @@ Models:
   snntorch-library   External snnTorch reference path; uses the library's
                      Leaky/Synaptic primitives directly.
 
-For the underlying theory of --v-grad-dampen see /articles/art006/.
+For the underlying theory of --v-grad-dampen see /articles/ar006/.
 """
     parser = argparse.ArgumentParser(
         description="Oscilloscope — PING network toolkit",
@@ -851,8 +851,7 @@ For the underlying theory of --v-grad-dampen see /articles/art006/.
         "count per neuron per trial (θ_l). "
         "Penalty s_l · Σ relu(θ_l − <z_i>)² is "
         "added to the loss. Default 0 = off. "
-        "Used by nb043 for the reward-for-spikes pressure "
-        "test — pushes the optimiser to fire MORE.",
+        "Pushes the optimiser to fire MORE (reward-for-spikes pressure).",
     )
     train_parser.add_argument(
         "--fr-reg-lower-strength",
