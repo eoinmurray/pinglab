@@ -4,63 +4,19 @@ title: "023 — PING Fundamentals"
 date: 2026-05-13
 entry: 23
 structure: paper
-collection: inhibition-gated-sparsity
+collection: gamma-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
-import RunParameters from "../../components/RunParameters.astro";
-export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb023/numbers.json", { eager: true, import: "default" })
-)[0] ?? {};
-export const cfg = numbers.config ?? {};
-export const successCriteria = numbers.success_criteria ?? [];
 
-## Introduction
+## Abstract
 
-PING (pyramidal-interneuron gamma) is the gamma-band oscillation produced by an excitatory population $E$ feeding an inhibitory population $I$ which in turn feeds back onto $E$. The standard story:
+Strips PING down to its biophysical fundamentals and characterises it *in isolation from any task* — no training, no readout, no loss, just a free-running network driven by Poisson input. The E → I → E loop produces gamma at ≈30 Hz with the standard $\tau_\text{AMPA} + \tau_\text{GABA}$ cycle period, and the f-I curves show the loop is dynamic-range compression: PING holds E in single digits across two orders of magnitude of drive while COBA saturates near its refractory ceiling.
 
-1. The E population starts firing.
-2. After an AMPA-delay ($\tau_{\text{AMPA}} \approx 2$ ms), the I population spikes.
-3. GABA-A inhibition silences E for the GABA-decay time ($\tau_{\text{GABA}} \approx 9$ ms).
-4. Inhibition decays away; E refires.
+## Methods
 
-The interspike-interval comes out around $\tau_{\text{GABA}} + \tau_{\text{AMPA}} \sim 11$ ms, giving a fundamental near $\sim 30$ Hz — the gamma band.
-
-This entry strips PING down to its biophysical fundamentals and characterises it *in isolation from any task*. No training, no readout, no loss — just a free-running network driven by Poisson input. Goal: see the rhythm emerge, measure its frequency, and trace how each piece of the recipe (E-I coupling strength, AMPA / GABA decay constants, refractory period) shapes the gamma peak.
-
-The full conductance-based model that produces PING is documented in [COBANet](/articles/art003/); this notebook is the empirical companion piece.
-
-## Method
-
-Run the oscilloscope in *image* mode against an untrained PING network driven by a synthetic-conductance step, capture the resulting snapshot — rasters, rates, conductance trace, PSD, weight histograms — into one figure. The recipe (*--ei-strength 1.5*, *--stim-overdrive 6.0*, *--t-ms 400*) is a working point that produces a clean gamma rhythm without elaborate tuning.
-
-<RunParameters numbers={numbers} variant="recipe" extras={[
-  { label: "model", value: cfg.model ?? "?", default: "—" },
-  { label: "input", value: cfg.input ?? "?", default: "—" },
-  { label: "ei strength", value: cfg.ei_strength ?? "?", default: "—" },
-  { label: "stim overdrive", value: cfg.stim_overdrive ?? "?", default: "—" },
-  { label: "t_ms", value: cfg.t_ms ?? "?", default: "—" },
-]} />
+The full conductance-based model that produces PING is documented in [COBANet](/articles/ar003/); this notebook is the empirical companion piece. Two conditions are run on the same network: *ei-strength 0* (loop disabled, the COBA reference) and *ei-strength 1.5* (loop engaged, the PING regime). MNIST digit 0 drives the input layer through trained $W_\text{in}$. The rate sweep at the end replays the trained PING baseline from [nb025](/notebooks/nb025/) (seed 42, $\theta_u =$ off) over a sweep of input rates, with both MNIST and spatially uniform Poisson drive.
 
 ## Results
-
-### Success criteria
-
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
 
 <Figure id="Figure 1" title="COBA — ei-strength 0 (no recurrent inhibition)" src="/figures/notebooks/nb023/raster__coba.png" alt="Spike raster: E population (top) fires asynchronously across 400 ms, I population (bottom) is silent.">
   Baseline: recurrent inhibitory loop silent (*--ei-strength 0*). The E raster fires asynchronously across the full 400 ms; the I population is silent (loop disabled). This is the "PING off" reference for the next figure.
@@ -70,12 +26,44 @@ Run the oscilloscope in *image* mode against an untrained PING network driven by
   Same network with the I→E loop turned on (*--ei-strength 1.5*). Same MNIST input, same integration window. The E raster now shows vertical bands, and the I population fires synchronous bursts trailing each E-burst by the AMPA delay.
 </Figure>
 
-<Figure id="Figure 3" title="COBA — single-neuron traces" src="/figures/notebooks/nb023/traces__coba.png" alt="Two panels: V_E for one representative E neuron, and its excitatory conductance g_E. No inhibitory conductance — the loop is off.">
-  Membrane voltage and excitatory conductance for the most active E neuron in the COBA cell. V_E (top) rises to threshold $V_{\text{th}} = -50$ mV repeatedly, with hard reset back to $V_{\text{reset}}$. g_E (bottom) is the only synaptic drive — no g_I trace because the recurrent inhibitory loop is disabled. The trace is *tonic*: drive comes only from the Poisson input.
+**COBA single-neuron traces.** Three panels for the most active E neuron — voltage, conductances, signed currents — with no I-loop activity to show.
+
+<Figure id="Figure 3a" title="COBA — V_E with V_∞ overlay" src="/figures/notebooks/nb023/traces__coba__v_e.png" alt="V_E (black) and V_∞ (grey dash-dot) for one E neuron over 400 ms in COBA mode. V_E rises to threshold V_th = −50 mV repeatedly with hard resets to V_reset = −65 mV. V_∞ tracks V_E closely with no rhythmic swings.">
+  V_E (black) with V_∞ (grey dash-dot) — the voltage V is being pulled toward at every instant. They track closely because the only synaptic drive is from feedforward input.
 </Figure>
 
-<Figure id="Figure 4" title="PING — single-neuron traces" src="/figures/notebooks/nb023/traces__ping.png" alt="Four panels: V_E and conductances for the most active E neuron, then V_I and its excitatory conductance for the most active I neuron.">
-  Same plot for the PING cell, plus the I neuron. The E neuron's V_E (top) is held below threshold by the rhythmic g_I bursts (panel 2, red); g_E (panel 2, blue) is tiny by comparison. The I neuron's V_I (panel 3) tracks the population E-burst envelope through its g_E input (panel 4) and fires once per cycle. This is the PING loop in cross-section: E-spikes ramp g_E on I; I fires; g_I shuts E down; g_I decays; E refires.
+<Figure id="Figure 3b" title="COBA — E-neuron conductances" src="/figures/notebooks/nb023/traces__coba__g_e.png" alt="Conductances on the E neuron in COBA mode: g_E (cyan) and g_L (faint dotted). No g_I trace because the loop is off. All curves non-negative.">
+  Conductances on the E neuron — g_E (cyan, the only synaptic drive) and g_L (faint). Both non-negative.
+</Figure>
+
+<Figure id="Figure 3c" title="COBA — E-neuron signed currents" src="/figures/notebooks/nb023/traces__coba__i_e.png" alt="Signed currents into the E neuron: I_E in (cyan, positive = depolarising), I_L (faint dotted, near zero). No I_I trace because the loop is off.">
+  Signed currents, $I_X^\text{in} = -g_X (V - E_X)$. Sign convention: positive = depolarising. With no g_I, the only synaptic current is the depolarising $I_E^\text{in}$ in cyan.
+</Figure>
+
+**PING single-neuron traces.** Six panels: three for the most active E neuron, three for the most active I neuron. The E panels are where the "sign lives in the driving force" picture becomes literal.
+
+<Figure id="Figure 4a" title="PING — V_E with V_∞ overlay" src="/figures/notebooks/nb023/traces__ping__v_e.png" alt="V_E (black) and V_∞ (grey dash-dot) for one E neuron in PING mode. V_E is held below threshold by rhythmic g_I bursts. V_∞ swings down to ≈ −80 mV during each I-burst and rises back between bursts.">
+  V_E is held below threshold by the rhythmic g_I bursts. The grey dash-dot V_∞ shows where V is being pulled at each instant: during an I-burst, V_∞ swings down toward E_i = −80 mV; as g_i decays, V_∞ rises again. **V_∞ moves directionally even though no quantity ever goes negative.**
+</Figure>
+
+<Figure id="Figure 4b" title="PING — E-neuron conductances" src="/figures/notebooks/nb023/traces__ping__g_e.png" alt="Conductances on the E neuron in PING mode: g_E (cyan, small), g_I (red, large rhythmic bursts), g_L (faint dotted). All curves non-negative; g_I dominates and oscillates at the gamma cadence.">
+  E-neuron conductances. g_I (red) bursts at the gamma cadence; g_E (cyan) is small by comparison. All three traces are non-negative.
+</Figure>
+
+<Figure id="Figure 4c" title="PING — E-neuron signed currents (the load-bearing panel)" src="/figures/notebooks/nb023/traces__ping__i_e.png" alt="Signed currents into the E neuron in PING mode: I_E in (cyan, positive = depolarising), I_I in (red, negative = hyperpolarising) with sharp downward pulses at each I-burst, I_L (faint dotted, near zero). I_I is negative even though g_I is positive — the sign comes purely from (V − E_i) > 0.">
+  Signed currents: $I_E^\text{in} = -g_E(V - E_E)$ in cyan is positive (depolarising). $I_I^\text{in} = -g_I(V - E_I)$ in red is **negative (hyperpolarising), even though g_I is positive** — the sign comes purely from the driving force $(V - E_I) > 0$ when $V > E_I$. This is the "sign lives in the driving force, never in the conductance" picture made literal: positive g_I in Figure 4b, negative I_I here.
+</Figure>
+
+<Figure id="Figure 4d" title="PING — V_I with V_∞ overlay" src="/figures/notebooks/nb023/traces__ping__v_i.png" alt="V_I (red) and V_∞ (grey dash-dot) for one I neuron in PING mode. V_I tracks the population E-burst envelope and fires once per cycle.">
+  V_I and V_∞ for the most active I neuron. V_I tracks the population E-burst envelope and fires once per cycle. No inhibitory drive on I, so V_∞ only depends on g_E and g_L.
+</Figure>
+
+<Figure id="Figure 4e" title="PING — I-neuron conductances" src="/figures/notebooks/nb023/traces__ping__g_i.png" alt="Conductances on the I neuron: g_E (cyan) and g_L (faint dotted). No g_I because I receives no inhibition.">
+  I-neuron conductances. g_E (cyan) is the E-spike envelope arriving via W_ei; g_L (faint) is fixed. I receives no inhibition, so there is no g_I trace.
+</Figure>
+
+<Figure id="Figure 4f" title="PING — I-neuron signed currents" src="/figures/notebooks/nb023/traces__ping__i_i.png" alt="Signed currents into the I neuron: I_E in (cyan, positive = depolarising), I_L (faint dotted). No I_I trace because the I neuron receives no inhibition.">
+  I-neuron signed currents. Only the depolarising $I_E^\text{in}$ (cyan) and the small leak current contribute. This is the PING loop in cross-section: E-spikes ramp g_E on I, I fires, g_I shuts E down on the E panel above, g_I decays, E refires.
 </Figure>
 
 ### Input-rate sweep
@@ -90,37 +78,19 @@ At rate = 0 the network is silent. Above a recruitment threshold a few E units f
 
 A subtlety in the just-engaged panels (e.g. input $\approx 5$ Hz, E = 1.7 Hz, I = 0): the E spikes look mildly clustered even though the I-loop hasn't fired. This is feedforward — not PING. The Poisson input stream has natural temporal fluctuations, the digit-0 input is spatially correlated, and the trained $W_\text{in}$ has learned to be selective for digit-relevant pixels. So the cells that fire are the input-tuned subset, and they fire together during input-rich windows. The participation pattern is partially preserved from training; the gamma timing is not, because the loop is genuinely off.
 
-Extending the sweep over 0–100 Hz and plotting per-cell mean firing rate against input rate gives the population f-I curve.
+To isolate the bare drive-response of each architecture, repeat the sweep with a **spatially uniform input** — every input channel firing at the same Poisson rate, with no digit structure — and compare PING against COBA on the same axes.
 
-<Figure id="Figure 6" title="Trained PING f-I curve (MNIST digit 0)" src="/figures/notebooks/nb038/fi_curve__ping.png" alt="Single panel: input Poisson rate (Hz, per channel) on x-axis vs per-cell mean firing rate on y-axis. Two curves — E (black circles) and I (red squares). The network is silent below 5 Hz input; at 5 Hz input E fires at 1.65 Hz but I is still silent. At 10 Hz input I engages (jumps to 15 Hz) and E rises to 3.78 Hz. Above engagement E climbs slowly from ~4 Hz at 10 Hz input to ~10 Hz at 100 Hz input; I rises from 15 Hz to ~50 Hz across the same range.">
-  Trained PING replayed on MNIST digit 0 with the Poisson input rate swept 0–100 Hz in 5 Hz steps. Per-cell mean E (black) and I (red) firing rates over the 200 ms trial.
+<Figure id="Figure 6" title="Population f-I curves under uniform Poisson input" src="/figures/notebooks/nb038/fi_curve_uniform.png" alt="Two-panel figure. Left (PING): E rate (black, circles) and I rate (red, squares) vs input Poisson rate, 0–100 Hz. PING engages at 1–2 Hz input — I jumps from 0 to 13 Hz, E settles near 3–5 Hz. At 100 Hz input E reaches ≈ 27 Hz, I reaches ≈ 125 Hz. Right (COBA): E rate climbs steeply from 0 to ≈ 300 Hz, saturating near the refractory ceiling; I rate flat at zero (no I-loop).">
+  Population f-I curves for trained PING (left) and trained COBA (right) under spatially uniform Poisson input — all 784 input channels firing at the same rate, no MNIST structure. Points averaged over 32 trials. COBA's I curve sits at zero because *ei-strength = 0* disables the loop.
 </Figure>
 
-Three features. (1) **Recruitment threshold between 5 and 10 Hz input**: I jumps from 0 to 15 Hz across that interval, marking the cliff in classical f-I form. (2) **A narrow sub-recruitment regime** at 5 Hz input where E fires (1.65 Hz) but I does not — the "E spikes, I silent" state from the rate-floor argument made directly visible. (3) **Saturation**: above $\approx 30$ Hz input the I-loop bounds both populations — E plateaus around 8–11 Hz, I around 35–50 Hz, despite 3× more drive. This is gamma physics: cycle period set by $\tau_\text{AMPA} + \tau_\text{GABA}$ limits spikes per cell per trial regardless of how hard the input pushes.
-
-Figure 5 conflates two effects: the network's response to drive, and the readout's selectivity for digit-0-shaped input through trained $W_\text{in}$. To isolate the bare drive-response, repeat the sweep with a **spatially uniform input** — every input channel firing at the same Poisson rate, with no digit structure — and compare PING against COBA on the same axes.
-
-<Figure id="Figure 7" title="Population f-I curves under uniform Poisson input" src="/figures/notebooks/nb038/fi_curve_uniform.png" alt="Four-panel figure (2x2). Top row: full input range 0–100 Hz. Top-left (PING): E rate in black, I rate in red. PING engages at 2 Hz input — I jumps from 0 to 13 Hz, E settles near 3-5 Hz. At 100 Hz input E reaches ~27 Hz, I reaches ~125 Hz. Top-right (COBA): E rate in black, I rate flat at zero (no I-loop). E climbs steeply from 0 to ~300 Hz, saturating near the refractory ceiling. Bottom row: 0–10 Hz zoom at 0.1 Hz resolution. Bottom-left (PING): the recruitment cliff resolves into a sharp step at ~1.6–1.8 Hz where I lifts off zero. Bottom-right (COBA): E rises smoothly from 0 to ~130 Hz with no cliff feature.">
-  Population f-I curves for trained PING (left) and trained COBA (right) under spatially uniform Poisson input — all 784 input channels firing at the same rate, no MNIST structure. Top row: full range 0–100 Hz. Bottom row: 0–10 Hz zoom at 0.1 Hz resolution, exposing the recruitment cliff. All points averaged over 32 trials. COBA's I curve sits at zero because *ei-strength = 0* disables the loop.
-</Figure>
-
-Two qualitative responses to the same drive. COBA (top-right) rises sharply across 1–10 Hz input then saturates toward its refractory ceiling ($\approx 300$ Hz at 100 Hz input — every E cell firing essentially as fast as it can); the I rate stays at zero because the loop is off. PING (top-left) shows the recruitment cliff at 1–2 Hz input (I jumps from 0 to 13 Hz) and then holds E roughly 10–14× lower than COBA across the entire post-engagement range: at 5 Hz input PING fires at 4.9 Hz vs COBA's 69 Hz; at 100 Hz input PING fires at 26.5 Hz vs COBA's 297 Hz. The I curve sitting above the E curve at every input rate is the visual signature of the loop — I has to fire harder than E to suppress it. The I-loop is doing dynamic-range compression — pulling drive that would saturate the E population into a bounded gamma cadence.
-
-The bottom row zooms into 0–10 Hz at 0.1 Hz resolution. PING (bottom-left) resolves the recruitment cliff into a sharp step: the I rate is identically zero up to $\approx 1.6$ Hz input, then lifts off to $\approx 12$ Hz over a narrow $\approx 0.5$ Hz interval. This is the empirical signature of the saddle-node bifurcation in $f$-space, projected onto the input-rate axis. COBA (bottom-right) shows no cliff feature — its E curve is monotone-smooth across the same range. The recruitment threshold here ($\approx 1.6$ Hz input) is lower than in Figure 5 (5–10 Hz) because uniform input drives all channels simultaneously, while MNIST drives only digit-relevant pixels.
+Two qualitative responses to the same drive. COBA (right) rises sharply across 1–10 Hz input then saturates toward its refractory ceiling ($\approx 300$ Hz at 100 Hz input — every E cell firing essentially as fast as it can); the I rate stays at zero because the loop is off. PING (left) shows the recruitment cliff at 1–2 Hz input (I jumps from 0 to 13 Hz) and then holds E roughly 10–14× lower than COBA across the entire post-engagement range: at 5 Hz input PING fires at 4.9 Hz vs COBA's 69 Hz; at 100 Hz input PING fires at 26.5 Hz vs COBA's 297 Hz. The I curve sitting above the E curve at every input rate is the visual signature of the loop — I has to fire harder than E to suppress it. The I-loop is doing dynamic-range compression — pulling drive that would saturate the E population into a bounded gamma cadence.
 
 ## Discussion
 
-*To fill in after first real run.*
-
-Questions this entry is designed to answer:
-
-- **What's the minimum *ei-strength* to produce a peak?** Is the transition gradual or knee-shaped?
-- **How does $f_0$ depend on $\tau_{\text{AMPA}}$ and $\tau_{\text{GABA}}$?** A follow-up cell would sweep those.
-- **What's the E-to-I phase delay?** A clean PING has $\sim 2$ ms lag; deviations indicate something is broken.
+The signed-current picture (Figure 4c) is the load-bearing observation: $g_I$ stays non-negative throughout, but the current it drives is negative because $(V - E_I) > 0$ — sign lives in the driving force, never in the conductance. The f-I curves make the *function* of the loop visible: PING is dynamic-range compression, not just rhythm. E rate stays in single digits across two orders of magnitude of input, while COBA saturates near its refractory ceiling.
 
 ## Next steps
 
-- Implement the simulation loop and analysis (see TODO in the runner).
-- Add a second sweep over $\tau_{\text{AMPA}}$ and $\tau_{\text{GABA}}$ for a cleaner mapping to the rate equation.
-- Compare against the analytical PING period $\tau_{\text{AMPA}} + \tau_{\text{GABA}}$ as a sanity check.
-- Pair with [035 — Why PING has a rate floor](/notebooks/nb025/), which is the "task-side" companion that asks whether PING dynamics survive after training as COBA.
+1. Sweep $\tau_\text{AMPA}$ and $\tau_\text{GABA}$ independently and confirm the gamma peak tracks $1/(\tau_\text{GABA} + \tau_\text{AMPA})$.
+2. Repeat the f-I curves with a sweep of refractory period and check whether COBA's saturation point lines up with the predicted $1/\tau_\text{ref}$ ceiling.

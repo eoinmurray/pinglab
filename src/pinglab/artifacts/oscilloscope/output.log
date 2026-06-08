@@ -26,10 +26,10 @@ Output
   wipe_dir:        False
 
 Provenance
-  git_sha:         b7b142e (dirty)
+  git_sha:         d8276f4 (dirty)
   device:          mps
-  run_id:          r-20260602-112458
-  started_at:      2026-06-02T11:24:58
+  run_id:          r-20260605-134740
+  started_at:      2026-06-05T13:47:40
 
 ────────────────────────────────────────
 Device: cpu

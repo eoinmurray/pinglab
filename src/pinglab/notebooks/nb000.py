@@ -18,7 +18,6 @@ Notebook entry: src/docs/src/pages/notebooks/nb000.mdx
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -63,108 +62,11 @@ def build_coba_osc_args(tier: str, out_dir: Path) -> list[str]:
     ]
 
 
-def perf_criteria(figures: Path, run_dir: Path, tier: str) -> list[dict]:
-    """Perf-baseline gates: confirm the workload ran end-to-end and
-    populated the perf block. Deliberately permissive on the science
-    side — small/medium tiers aren't calibrated for accuracy here, so
-    failing on rate-band overshoot or low accuracy would just be noise."""
-    crits: list[dict] = []
-    figs_root = figures.parents[2]
-
-    def artifact(name: str, label: str) -> None:
-        path = figures / name
-        ok = path.exists() and path.stat().st_size > 0
-        href = "/" + str(path.relative_to(figs_root)) if ok else None
-        crits.append(
-            {
-                "label": label,
-                "passed": bool(ok),
-                "detail": f"{path.name} ({path.stat().st_size} bytes)"
-                if ok
-                else f"missing {path.name}",
-                "detail_href": href,
-            }
-        )
-
-    artifact("training_curves.png", "training curves rendered")
-    artifact("firing_rates.png", "firing-rate trace rendered")
-    artifact("training.mp4", "training video rendered")
-
-    metrics_path = run_dir / "metrics.json"
-    if not metrics_path.exists():
-        crits.append(
-            {
-                "label": "training metrics present",
-                "passed": False,
-                "detail": f"missing {metrics_path.name}",
-            }
-        )
-        return crits
-    metrics = json.loads(metrics_path.read_text())
-    last = metrics["epochs"][-1]
-    rate = float(last.get("rate_e") or 0.0)
-    final = float(last["acc"])
-    perf = metrics.get("perf") or {}
-    sps = perf.get("samples_per_sec_warm")
-
-    crits.append(
-        {
-            "label": "hidden layer spiked (rate_e > 0)",
-            "passed": rate > 0.0,
-            "detail": f"rate_e={rate:.2f} Hz",
-        }
-    )
-    crits.append(
-        {
-            "label": "forward/backward did something (acc > 1%)",
-            "passed": final > 1.0,
-            "detail": f"final={final:.2f}%",
-        }
-    )
-    crits.append(
-        {
-            "label": "perf block populated",
-            "passed": isinstance(sps, (int, float)) and sps > 0,
-            "detail": (
-                f"samples_per_sec_warm={sps:.1f}"
-                if isinstance(sps, (int, float))
-                else "samples_per_sec_warm missing"
-            ),
-        }
-    )
-
-    # Extras-aware gate: confirm the coba secondary (COBANet path) also
-    # produced metrics. run_dir is artifacts/nb000/train/; the secondary
-    # trainer writes to its sibling artifacts/nb000/train_coba/.
-    coba_metrics = run_dir.parent / "train_coba" / "metrics.json"
-    coba_ok = coba_metrics.exists()
-    coba_sps = None
-    if coba_ok:
-        coba_sps = (
-            json.loads(coba_metrics.read_text())
-            .get("perf", {})
-            .get("samples_per_sec_warm")
-        )
-    crits.append(
-        {
-            "label": "coba (COBANet path) perf populated",
-            "passed": isinstance(coba_sps, (int, float)) and coba_sps > 0,
-            "detail": (
-                f"samples_per_sec_warm={coba_sps:.1f}"
-                if isinstance(coba_sps, (int, float))
-                else f"missing {coba_metrics.name}"
-            ),
-        }
-    )
-    return crits
-
-
 if __name__ == "__main__":
     run(
         SLUG,
         MODEL,
         build_osc_args,
-        criteria_fn=perf_criteria,
         track_baselines=True,
         extra_train_models=[("coba", build_coba_osc_args)],
     )

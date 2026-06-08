@@ -13,20 +13,15 @@ export const numbers = Object.values(
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const results = numbers.results ?? [];
-export const successCriteria = numbers.success_criteria ?? [];
 export const get = (cell) => results.find((r) => r.cell === cell) ?? {};
 
-## Introduction
+## Abstract
 
-**Dale's law**, in this codebase, is the constraint that the *trainable* feedforward weight matrix $W_{\text{ff}}$ stays non-negative: an "excitatory" input projection genuinely excites the post-synaptic cell rather than being free to switch sign mid-training. It is the default for the *COBA* and *ping* models — and it is the biological assumption that distinguishes them from a "vanilla" SNN where every weight is freely signed.
+Trains [COBA](/articles/ar003/) twice — once with Dale's law on the trainable $W_\text{ff}$ matrix, once off — every other knob held fixed, so any difference is attributable to the constraint alone. The recurrent E–I matrices are fixed buffers either way, so the experiment isolates the trainable-feedforward effect of forcing input projections non-negative.
 
-This entry trains the [COBA](/articles/art003/) recipe twice — once with the default *--dales-law*, once with *--no-dales-law* — and compares accuracy, firing rate, and the resulting distribution of trained weights. Every other knob (lr, w_in, surrogate slope, readout, batch size, seed) is held fixed, so any difference is attributable to the constraint alone.
+## Methods
 
-The recurrent E-I matrices ($W^{EE}$, $W^{EI}$, $W^{IE}$ inside COBANet) are fixed buffers either way — Dale's law on them is just the initial-condition sign convention. This experiment therefore isolates the *trainable* feedforward effect.
-
-## Method
-
-Two cells, both running the [COBA](/articles/art003/) recipe:
+Two cells, both running the [COBA](/articles/ar003/) recipe:
 
 - *COBA/dales* — `--dales-law` (default). The trainable $W_{\text{ff}}$ is clamped non-negative at every forward pass.
 - *COBA/no_dales* — `--no-dales-law`. Signed weights allowed everywhere.
@@ -40,24 +35,6 @@ Two cells, both running the [COBA](/articles/art003/) recipe:
 
 ## Results
 
-### Success criteria
-
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
 
 <Figure id="Figure 1" title="Final accuracy and firing rate" src="/figures/notebooks/nb022/accuracy.png" alt="Bar chart: final test accuracy of COBA with and without Dale's law, with the hidden-E firing rate annotated underneath each bar.">
   Final-epoch test accuracy under Dale's law (left) and with signed weights (right). The number beneath each bar is the hidden-E firing rate at the same time point.
@@ -75,7 +52,7 @@ Two cells, both running the [COBA](/articles/art003/) recipe:
   Histogram of every entry of the trained input weight matrix $W_{\text{ff}}^{(0)}$. Under Dale's law (amber), every entry is non-negative — the optimiser-then-project step pins the mass to the right half-line. Without it (cyan), the distribution sits symmetrically around zero.
 </Figure>
 
-## Per-cell training videos
+### Per-cell training videos
 
 <Figure id="Figure 5" title="coba — Dale's law" src="/figures/notebooks/nb022/training__dales.mp4" type="video" alt="coba training, Dale's law on">
   COBA reference recipe with *--dales-law* (default).
@@ -94,6 +71,6 @@ Two cells, both running the [COBA](/articles/art003/) recipe:
 
 ## Next steps
 
-- Repeat with the [ping](/articles/art003/) recipe to see whether the active inhibitory loop changes the conclusion.
+- Repeat with the [ping](/articles/ar003/) recipe to see whether the active inhibitory loop changes the conclusion.
 - Add a per-population weight breakdown (E units' inputs vs I units' inputs) if there's a meaningful split.
 - Pair with [035 — Why PING has a rate floor](/notebooks/nb025/) to ask whether Dale's law interacts with rate compression.

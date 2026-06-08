@@ -1,0 +1,128 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "047 — I-pool size sweep on untrained PING"
+date: 2026-06-08
+entry: 47
+structure: paper
+collection: gamma-gated-sparsity
+---
+import Figure from "../../components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb047/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+## Abstract
+
+Does PING's per-cell firing rate depend on how many inhibitory cells the architecture has? We sweep $N_I$ from 0% to 25% of $N_E$ (with $N_E = 1024$ fixed) on an untrained network under uniform Poisson input, under three weight-normalization conventions. Under **constant per-edge** $W^{IE}$ — the biologically motivated case — per-cell E and I rates are *flat* across the entire sweep despite a ≈ 250× variation in summed inhibitory drive. Under synaptic (1/$N$) or critical-balance (1/$\sqrt{N}$) normalization the rates drop sharply at small $N_I$. The rate-setting quantity is the **per-event shunt magnitude**, not the time-averaged summed drive — and only constant-per-edge keeps that invariant across the sweep.
+
+## Methods
+
+**Sweep recipe (inference-only, no training):**
+
+| Parameter | Value |
+|---|---|
+| Integration timestep $\Delta t$ | 0.1 ms |
+| Trial duration $T$ | 200 ms |
+| $N_E$ (excitatory cells) | 1024 (fixed) |
+| $N_I$ (inhibitory cells, swept) | 0%, 5%, 10%, 15%, 20%, 25% of $N_E$ — i.e. 1, 51, 102, 154, 205, 256 |
+| Input | uniform Poisson on 784 channels, 25 Hz per channel |
+| $W_\text{in}$ | $\mathcal{N}(1.2, 0.12)$, 95% sparse (biophysical-scale init) |
+| Reference $W^{EI}, W^{IE}$ | $\mathcal{N}(1.0, 0.1)$ μS and $\mathcal{N}(2.0, 0.2)$ μS at $N_I = 256$ |
+| Network | **untrained** PING, biophysical defaults |
+| Trials per cell | 4 (single-trial rasters from trial 0; rates averaged over all 4) |
+
+For each $N_I$ in the sweep, build an untrained PING net with $N_E = 1024$, the canonical biophysical $W^{EI}$ and $W^{IE}$, and the corresponding $W_\text{in}$. Drive it with uniform 25 Hz Poisson input across all 784 channels. Record E and I spike trains over $T = 200$ ms and report per-cell E rate ($r_E$ = total E spikes / ($N_E \cdot T$)) and per-cell I rate ($r_I$ = total I spikes / ($N_I \cdot T$)). The 0% point is implemented as $N_I = 1$ (a single I cell — the minimum the model supports). The runner uses an `n_inh_per_layer` override on `build_net` (added in this entry) so $N_I$ can be set independently of the default $N_E/4$ hardcoded into the model class.
+
+**Three weight-normalization regimes.** All three anchor on the canonical 1:4 init ($N_I = 256$), where every regime gives the identical $W^{IE}$; they only differ for $N_I \ne 256$.
+
+| Regime | Per-edge $W^{IE}$ at $N_I$ | Summed drive into each E cell |
+|---|---|---|
+| **Constant per-edge** | $W^{IE}_\text{ref}$ | $\propto N_I$ |
+| **Synaptic normalization (1/$N$)** | $W^{IE}_\text{ref} \cdot (256/N_I)$ | $N_I$-invariant by construction |
+| **Critical-balance (1/$\sqrt{N}$)** | $W^{IE}_\text{ref} \cdot \sqrt{256/N_I}$ | $\propto \sqrt{N_I}$ |
+
+Constant-per-edge is biologically motivated (anatomy-fixed synapses, mean-field fan-in gain). Synaptic and critical-balance are standard mean-field conventions imported from the asynchronous-irregular literature.
+
+## Results
+
+### Constant per-edge
+
+<Figure id="Figure 1" title="Constant-per-edge regime — firing rates vs N_I at fixed input" src="/figures/notebooks/nb047/rate_vs_n_inh.png" alt="Two traces vs N_I expressed as percentage of N_E, 0% to 25% in steps of 5%. Black circles (E per-cell rate) sit at ≈ 13.3 Hz across the entire sweep — flat to within 0.2 Hz. Red squares (I per-cell rate) sit at ≈ 33.8 Hz across the sweep — flat to within 2 Hz with small jitter consistent with single-trial sampling.">
+  E and I per-cell rates are essentially *invariant* to $N_I$ across the 0–25% sweep. At 0% (a single I cell) the rates are within 1% of their values at the canonical 25% (256 I cells, the standard 1:4 init).
+</Figure>
+
+| $N_I$ | % of $N_E$ | $r_E$ (Hz) | $r_I$ (Hz) |
+|---|---|---|---|
+| 1 | 0% | 13.48 | 35.00 |
+| 51 | 5% | 13.26 | 34.39 |
+| 102 | 10% | 13.27 | 32.67 |
+| 154 | 15% | 13.29 | 34.14 |
+| 205 | 20% | 13.27 | 33.70 |
+| 256 | 25% | 13.29 | 33.79 |
+
+<Figure id="Figure 2" title="Single-trial rasters at each N_I (constant-per-edge regime)" src="/figures/notebooks/nb047/raster_strip.png" alt="Stacked single-trial raster panels, one per N_I level (0%, 5%, 10%, 15%, 20%, 25% of N_E). Each panel shows ~200 subsampled E cells in black on the lower band and a proportionally-sized sample of I cells in red on the upper band. The gamma cycle is visible as vertical bands across the entire window in every panel. Cycle period is identical across N_I — only the number of I cells differs.">
+  Same 25 Hz Poisson input, six different $N_I$ values. The gamma cycle (≈ 28 ms cadence) is identical across the sweep. At $N_I = 1$ the I row contains a single thread of spikes at cycle cadence; at $N_I = 256$ the I band is denser — but the E population's burst pattern is unchanged.
+</Figure>
+
+### Synaptic normalization (1/$N$)
+
+Each $I \to E$ synapse is rescaled to $W^{IE}_\text{ref} \cdot (256/N_I)$. The summed time-averaged inhibitory drive into each E cell is $N_I$-invariant by construction. The naïve mean-field prediction: rates should be flat across $N_I$.
+
+<Figure id="Figure 3" title="Synaptic-normalization regime — firing rates vs N_I" src="/figures/notebooks/nb047/rate_vs_n_inh__synaptic.png" alt="E and I per-cell firing rates vs N_I (0–25% of N_E) under synaptic normalization (W^IE per edge ∝ 1/N_I). Both rates climb monotonically with N_I: E from ≈ 7.7 Hz at N_I=1 to 13.3 Hz at N_I=256; I from ≈ 20 Hz to 33.8 Hz. The curves saturate near the canonical 25% endpoint where W^IE matches the constant-per-edge value.">
+  Both E and I rates **drop substantially** at small $N_I$ — opposite of the naïve prediction. At $N_I = 1$, $r_E = 7.7$ Hz (vs 13.5 Hz under constant-per-edge); at $N_I = 256$ all three regimes converge to the canonical operating point.
+</Figure>
+
+<Figure id="Figure 4" title="Single-trial rasters at each N_I (synaptic-normalization regime)" src="/figures/notebooks/nb047/raster_strip__synaptic.png" alt="Stacked single-trial rasters across N_I, synaptic-normalization regime. At small N_I the per-event shunt is huge (e.g. 512× the canonical W^IE at N_I=1), producing extended quiet windows after each I-burst; the cycle period stretches and E firing thins. As N_I grows the per-event shunt shrinks toward the canonical value and the cycle structure recovers.">
+  At $N_I = 1$ the single I cell carries a $256 \cdot W^{IE}_\text{ref} \approx 512$ μS synapse to each E cell; one I spike clamps the E population for many ms, stretching the gamma cycle and suppressing E firing.
+</Figure>
+
+### Critical-balance (1/$\sqrt{N}$)
+
+Each $I \to E$ synapse is rescaled to $W^{IE}_\text{ref} \cdot \sqrt{256/N_I}$. Variance of summed input is $N_I$-invariant (a Brunel-style critical-balance convention); mean grows as $\sqrt{N_I}$. This sits between constant-per-edge (mean ∝ $N_I$) and synaptic normalization (mean constant).
+
+<Figure id="Figure 5" title="Critical-balance regime — firing rates vs N_I" src="/figures/notebooks/nb047/rate_vs_n_inh__critical.png" alt="E and I per-cell firing rates vs N_I under critical-balance scaling (W^IE per edge ∝ 1/√N_I). Both rates climb monotonically with N_I, intermediate in shape between constant-per-edge and synaptic normalization: E from ≈ 9.3 Hz at N_I=1 to 13.3 Hz at N_I=256; I from ≈ 25 Hz to 33.8 Hz.">
+  Intermediate between the constant-per-edge and synaptic regimes. The dependence on $N_I$ is weaker than synaptic but still present — even a $\sqrt{N_I}$ per-event scaling is enough to perturb the cycle dynamics.
+</Figure>
+
+<Figure id="Figure 6" title="Single-trial rasters at each N_I (critical-balance regime)" src="/figures/notebooks/nb047/raster_strip__critical.png" alt="Stacked single-trial rasters across N_I, critical-balance regime. At small N_I the per-event shunt is moderately large (16× the canonical W^IE at N_I=1, vs 256× in synaptic norm) — the cycle stretches and E firing thins, but less severely than in synaptic norm.">
+  Critical-balance lies between the two extremes: at $N_I = 1$ the per-edge $W^{IE}$ is $16 \cdot W^{IE}_\text{ref}$ — smaller than synaptic norm's $256 \times$ but larger than constant's $1 \times$. Cycle distortion is correspondingly milder.
+</Figure>
+
+### Cross-regime comparison
+
+Same uniform 25 Hz Poisson input, $N_E = 1024$:
+
+| $N_I$ | Constant $r_E$ | Synaptic $r_E$ | Critical $r_E$ |
+|---|---|---|---|
+| 1 | 13.48 | 7.68 | 9.27 |
+| 51 | 13.26 | 11.49 | 11.45 |
+| 102 | 13.27 | 11.65 | 12.41 |
+| 154 | 13.29 | 12.57 | 12.81 |
+| 205 | 13.27 | 12.89 | 13.30 |
+| 256 | 13.29 | 13.29 | 13.29 |
+
+All three regimes agree at $N_I = 256$ (the anchor). At small $N_I$, constant-per-edge stays flat; synaptic and critical drop.
+
+## Discussion
+
+The flatness of $r_E$ and $r_I$ under constant per-edge is non-trivial. Three mechanisms could in principle have broken it:
+
+- **Inhibition scaling.** Per-edge $W^{IE}$ is fixed, so the *summed* inhibitory conductance into each E cell scales ∝ $N_I$ (≈ 250× across the sweep). The fact that $r_E$ doesn't collapse at high $N_I$ means the loop is in a regime where the summed inhibition *magnitude* isn't the rate-setting quantity.
+- **Drive scaling.** Each I cell receives the same E→I drive regardless of $N_I$, so per-I-cell input is constant; per-cell I rate is set by the local biophysics (threshold, refractory), not by population size.
+- **Cycle dynamics.** The gamma cycle clock is set by $\tau_\text{AMPA}, \tau_\text{GABA}$ and the loop gain $G = \Phi'_E \Phi'_I W^{EI} W^{IE}$ ([nb033](/notebooks/nb033/)). $G$ doesn't depend on $N_I$ at fixed per-edge weights, so the cycle period (and hence the participation-gated $r_E = p \cdot f_\gamma$ rate) is $N_I$-invariant.
+
+The synaptic and critical-balance results are the cross-check that rules out the trivial "we normalised the weights so of course it's flat" reading. Synaptic normalization preserves the summed *mean* drive exactly and *still* drops the rates at small $N_I$ — because the timing structure of inhibition (one huge shunt vs many small ones) is what gates E firing. **The rate-setting quantity is the per-event shunt magnitude, not the time-averaged summed drive.** Constant-per-edge keeps that invariant across the sweep; the other regimes don't.
+
+This is consistent with [nb046](/notebooks/nb046/)'s structural-bound interpretation: per-cell rate is set by each cell's dynamics within a cycle (whether the cell crosses threshold before the I-shunt arrives), not by population-level mean balance. The flat $r_E$ under constant per-edge is the per-cycle Bernoulli participation gate operating at its natural rate independent of pool size.
+
+Two caveats:
+
+- **Untrained network.** After training, $W_\text{in}$ adapts and the operating point on each cell shifts; whether the $N_I$ invariance survives training (or the I-pool size becomes load-bearing for the readout's class signal) is a separate question.
+- **0% endpoint approximation.** $N_I = 1$ stands in for the 0% point. A literal $N_I = 0$ would disable the I-loop entirely and collapse the network to COBA — that's a different experiment ([nb025](/notebooks/nb025/) Figure 1 already shows the COBA dynamics).
+
+## Next steps
+
+- Re-run after training to test whether the constant-per-edge $N_I$ invariance survives — does the readout's preferred $r_E$ depend on $N_I$?
+- $W_\text{in}$ scale sweep × $N_I$ sweep to map the recruitment-cliff position in $(N_I, W_\text{in})$ space.
+- $\tau_\text{GABA}$ sweep × $N_I$ sweep to test whether the affine law $r_E = p \cdot f_\gamma$ slope $p$ is $N_I$-invariant.
+- Quantify the per-event shunt interpretation directly: measure the post-I-burst E-firing-suppression window under each regime and verify it correlates with the rate drop.

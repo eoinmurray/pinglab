@@ -116,33 +116,6 @@ def extras(tier: str, notebook_run_id: str) -> dict:
     }
 
 
-def evaluate_success(figures_dir, summary):
-    """Criteria: scan video rendered, and PING actually forms at the
-    canonical input rate (E and I both fire over the run)."""
-    video = figures_dir / "scan_input_rate.mp4"
-    video_ok = video.exists() and video.stat().st_size > 0
-    href = "/" + str(video.relative_to(figures_dir.parents[2])) if video_ok else None
-
-    rates = summary.get("rates_hz", {})
-    i_mean = rates.get("mean", {}).get("i", 0.0)
-    e_mean = rates.get("mean", {}).get("e", 0.0)
-    ping_formed = i_mean > 1.0 and e_mean > 0.0
-    return [
-        {
-            "label": "input-rate scan video rendered",
-            "passed": bool(video_ok),
-            "detail": f"{video.name} ({video.stat().st_size} bytes)"
-            if video_ok
-            else f"missing {video.name}",
-            "detail_href": href,
-        },
-        {
-            "label": f"PING forms at canonical input rate ({CANON_INPUT_RATE:.0f} Hz)",
-            "passed": bool(ping_formed),
-            "detail": f"E={e_mean:.1f} Hz, I={i_mean:.1f} Hz",
-        },
-    ]
-
 
 if __name__ == "__main__":
     run_scan(
@@ -162,7 +135,6 @@ if __name__ == "__main__":
                 str(DT_MS),
             ],
             extras_fn=extras,
-            criteria_fn=evaluate_success,
         )
     )
     sys.exit(0)

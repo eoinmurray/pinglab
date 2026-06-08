@@ -1,21 +1,36 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "036 — Which E↔I weights set the recruitment threshold"
+title: "036 — Which E↔I weights set the recruitment threshold (trains)"
 date: 2026-05-30
 entry: 36
 structure: paper
-collection: inhibition-gated-sparsity
+collection: gamma-gated-sparsity
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb036/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
-## Setup
+## Abstract
+
+Maps the (wEI, wIE) coupling plane: which weight controls the recruitment cliff, and where do *trained* networks land when initialised across it? *wEI* moves the cliff (E→I drive is the recruitment knob); *wIE* shapes the basin above engagement but does not move the cliff. Training from each grid point lands in two distinct basins — a low-E PING corner and a high-E silent-I stretched-COBA corner.
+
+## Methods
+
+**Training recipe (canonical / `medium` tier):**
+
+| Parameter | Value |
+|---|---|
+| Integration timestep $\Delta t$ | 0.1 ms |
+| Trial duration $T$ | 200 ms |
+| MNIST samples (80/20 stratified split of 2000) | 1600 train / 400 test ($\approx$ 2.9% of the 70k-sample MNIST corpus) |
+| Epochs | 10 |
 
 PING and COBA baseline definitions, training recipe, and the spike-budget regulariser are in [nb025](/notebooks/nb025/). The recruitment cliff at $f^\star$ is introduced in [nb025](/notebooks/nb025/). This entry asks: which part of the E↔I coupling architecture controls the cliff's position, and what happens when we train the network from coupling initialisations spanning both sides of it?
 
-## Coupling sweep: shifting the recruitment cliff
+## Results
+
+### Coupling sweep: shifting the recruitment cliff
 
 If $f^\star$ is set by the E↔I coupling, altering $W^{EI}$ or $W^{IE}$ at inference should move it. On the trained PING baseline ($\theta_u =$ off), we multiply either $W^{EI}$ or $W^{IE}$ by a scalar in $\{0.25, 0.5, 1.0, 2.0\}$ and re-run the $W_\text{in}$ scale sweep on top. All other weights frozen.
 
@@ -27,40 +42,40 @@ Figure 1 cleanly separates the two roles. $W^{EI}$ moves the cliff (left column)
 
 The $W^{EI}$ scaling has a clean quantitative signature: the unsaturated points obey $s^\star \cdot \sqrt{W^{EI}_\text{scale}} \approx 0.25$ to three significant figures (products 0.250, 0.247, 0.250), so empirically $s^\star \propto 1/\sqrt{W^{EI}}$ rather than the naive $1/W^{EI}$. The exponent is a fingerprint of the gain function $\Phi_E$ near rheobase, and a concrete prediction for the mean-field analysis in [nb033](/notebooks/nb033/) to reproduce.
 
-## $W^{EI}$ x $W^{IE}$ training grid
+### $W^{EI}$ x $W^{IE}$ training grid
 
 The coupling-sweep results above scaled $W^{EI}$ and $W^{IE}$ on an *already-trained* network. A stronger test is to train one network per grid point with $W^{EI}$ and $W^{IE}$ initialised to specified values from scratch, under heavy spike penalty. Do the resulting solutions cluster into a PING-like region and a COBA-like region?
 
-Method: 5×5 grid over $W^{EI}, W^{IE} \in \{0, 0.25, 0.5, 1.0, 2.0\}$ (mean initialisation, std fixed at $0.1 \times$ mean). One PING-architecture training run per cell at $\theta_u = 0.2$ from epoch 0, $W_\text{in} = 0.6$ (a compromise between COBA's 0.3 init and PING's 1.2 — gives the no-loop cells a fair shot at converging), 30 training epochs per cell, seed 42. All other hyperparameters from the standard PING recipe. 25 trainings on Modal A100 in parallel. Reporting per-cell best-epoch accuracy.
+Method: 5×5 grid over $W^{EI}, W^{IE} \in \{0, 0.25, 0.5, 1.0, 2.0\}$ (mean initialisation, std fixed at $0.1 \times$ mean). One PING-architecture training run per cell at $\theta_u = 0.2$ from epoch 0, $W_\text{in} = 0.6$ (a compromise between COBA's 0.3 init and PING's 1.2 — gives the no-loop cells a fair shot at converging), **100 training epochs** per cell, seed 42. All other hyperparameters from the standard PING recipe. 25 trainings on Modal A100 in parallel. Reporting per-cell best-epoch accuracy.
 
-<Figure id="Figure 2" title="W^EI × W^IE training grid — accuracy, E rate, I rate (30 epochs)" src="/figures/notebooks/nb036/wei_wie_grid.png" alt="Three heatmap panels on a 5x5 grid with W^EI on y-axis and W^IE on x-axis, each value in {0, 0.25, 0.5, 1, 2}. Left: best-epoch accuracy ranges from 74.25% in the no-loop band to 85.5% at the PING baseline (1, 2). Middle: hidden E rate is 2-3 Hz in the no-loop and PING cells, up to 11.4 Hz in the transitional (0.5, 2) cell. Right: I rate is 0 in the no-loop band and most stretched-COBA cells, jumps to 9.9-22.2 Hz in the PING cluster (W^EI ≥ 1 and W^IE ≥ 0.25, or W^EI ≥ 0.5 and W^IE = 2).">
-  Three heatmaps on the 5×5 ($W^{EI}, W^{IE}$) training grid. One PING-architecture network per cell, trained from scratch at $\theta_u = 0.2$ for 30 epochs, $W_\text{in} = 0.6$. **Left:** best-epoch test accuracy. **Middle:** hidden-E rate. **Right:** hidden-I rate (the cluster discriminator).
+<Figure id="Figure 2" title="W^EI × W^IE training grid — accuracy, E rate, I rate (100 epochs)" src="/figures/notebooks/nb036/wei_wie_grid.png" alt="Three heatmap panels on a 5x5 grid with W^EI on y-axis and W^IE on x-axis, each value in {0, 0.25, 0.5, 1, 2}. Left: best-epoch accuracy ranges from 75% in the no-loop band to 86% at the PING baseline (1, 2). Middle: hidden E rate is 2-3 Hz in the no-loop and PING cells, up to 9.4 Hz in the high-E stretched-COBA cell (0.5, 2). Right: I rate is 0 in the no-loop band and most stretched-COBA cells, jumps to 11-22 Hz in the PING cluster (W^EI ≥ 1 and W^IE ≥ 1, or W^EI = 2 and W^IE ≥ 0.25).">
+  Three heatmaps on the 5×5 ($W^{EI}, W^{IE}$) training grid. One PING-architecture network per cell, trained from scratch at $\theta_u = 0.2$ for 100 epochs, $W_\text{in} = 0.6$. **Left:** best-epoch test accuracy. **Middle:** hidden-E rate. **Right:** hidden-I rate (the cluster discriminator).
 </Figure>
 
 Three regions emerge:
 
-- **No-loop band** ($W^{EI} = 0$ row OR $W^{IE} = 0$ column): accuracy ≈75.75–76.5%, E rate 2.4 Hz, I rate 0 (with one mild exception at $(W^{EI}, W^{IE}) = (2, 0)$, where strong E→I drive pushes I marginally above rheobase even with no I→E feedback). Without a closed E→I→E loop the optimiser settles at the same COBA-low operating point regardless of which side of the loop is zero — the structural-equivalence prediction holds.
-- **PING cluster** ($W^{EI} \geq 1.0$ with $W^{IE} \geq 0.25$, plus $(0.5, 2.0)$): I rate 9.9–22.2 Hz, E rate 2.0–11.4 Hz, accuracy 82.25–85.5%. Gamma signature; the trained recipe baseline at $(W^{EI}, W^{IE}) = (1, 2)$ peaks at 85.5%, and the cluster includes the over-inhibited corner $(2, 2)$ at 82.25% — only a ≈3% drop from peak, not the catastrophic collapse a 10-epoch read would have suggested.
-- **Stretched-COBA cluster** ($W^{EI} \in \{0.25, 0.5\}$, $W^{IE} \in \{0.25, 0.5, 1.0\}$): I rate 0, E rate 2.2–6.85 Hz, accuracy 74.25–78%. The I-loop never engages; the optimiser uses pure E-cell firing to fit the digits. The high end of this cluster — $(0.5, 1)$ at 78% — reaches accuracy comparable to weaker PING cells with no inhibitory activity at all.
+- **No-loop band** ($W^{EI} = 0$ row OR $W^{IE} = 0$ column): accuracy ≈ 76.5–77%, E rate 2.2 Hz, I rate 0. Without a closed E→I→E loop the optimiser settles at the same COBA-low operating point regardless of which side of the loop is zero — the structural-equivalence prediction holds.
+- **PING cluster** ($W^{EI} \geq 1.0$ with $W^{IE} \geq 1.0$, plus the entire $W^{EI} = 2$ row from $W^{IE} \geq 0.25$): I rate 11.1–22.2 Hz, E rate 2.0–3.6 Hz, **accuracy 80.25–86.0%**. Gamma signature; the recipe baseline at $(W^{EI}, W^{IE}) = (1, 2)$ peaks at **86.0%**, and the cluster includes the over-inhibited corner $(2, 2)$ at 82.5% — only ≈ 3.5% drop from peak.
+- **Stretched-COBA cluster** ($W^{EI} \in \{0.25, 0.5\}$ with most $W^{IE}$, plus $(1.0, 0.25)$ and $(1.0, 0.5)$): I rate 0, E rate 2.2–9.4 Hz, accuracy 75–84%. The I-loop never engages; the optimiser uses pure E-cell firing to fit the digits. The high end of this cluster is the cell at $(0.5, 2.0)$ — at **84.0% with E = 9.37 Hz and I = 0**, the I-loop is silent yet accuracy is within 2 pp of PING peak.
 
-The cell at $(W^{EI}, W^{IE}) = (0.5, 2.0)$ formerly read as "transitional" at 10 epochs now sits firmly in the PING cluster (83.75%, I = 11.11 Hz, E = 11.38 Hz). Strong $W^{IE}$ does engage a stable loop, just with higher steady-state E rate than the canonical baseline. The hybrid character was the 10-epoch reading's noise; with full training the dynamics are PING.
+The $(0.5, 2.0)$ cell deserves special attention. With 30 epochs of training it sat in the PING cluster (some seeds engaging I, some not). At 100 epochs the optimiser deterministically finds a **no-I, high-E solution** (E = 9.37 Hz, I = 0, acc = 84%). This is a new attractor that the shorter-training version masked — the network learns to classify with elevated E firing in lieu of recruiting the loop.
 
-The clustering confirms the GH #29 hypothesis: under heavy spike penalty, the (coupling, accuracy, rate) outcome lands in qualitatively different solutions depending on coupling strength. The recruitment cliff that the inference-time coupling sweep located (Figure 1) is reproduced here as the boundary of the PING cluster at $W^{EI} \approx 1$ (or $W^{EI} = 0.5$ if $W^{IE} = 2$). The no-loop band at 75.75–76.5% sits ≈9% below PING's 85.5% peak — substantially better than chance, but the loop is a real accuracy advantage even at this spike budget. The diagonal slice below walks this transition at 10× resolution along the canonical $W^{IE} = 2 W^{EI}$ line.
+The clustering confirms the GH #29 hypothesis: under heavy spike penalty, the (coupling, accuracy, rate) outcome lands in qualitatively different solutions depending on coupling strength. The recruitment cliff that the inference-time coupling sweep located (Figure 1) is reproduced here as the boundary of the PING cluster at $W^{EI} \approx 1$ (with $W^{IE} \geq 1$). The no-loop band at 76.5–77% sits ≈ 9 pp below PING's 86% peak — substantially better than chance, but the loop is a real accuracy advantage even at this spike budget. The diagonal slice below walks this transition at higher resolution along the canonical $W^{IE} = 2 W^{EI}$ line.
 
 Plotting the same 25 cells in (E rate, accuracy) space — colour-coded by I rate — makes the cluster structure direct:
 
-<Figure id="Figure 2b" title="Grid cells in (E rate, accuracy) space, coloured by I rate (30 epochs)" src="/figures/notebooks/nb036/wei_wie_acc_vs_e.png" alt="Scatter of 25 points showing best-epoch accuracy vs hidden E rate. Points are coloured by hidden I rate from dark purple (I=0) to bright yellow (I=22 Hz). Dark-purple points (I=0) cluster from accuracy 74.25-78% with E rates 2.15-6.85 Hz. Green/yellow points (I>9 Hz) sit at higher accuracy 82.25-85.5% with E rates 2.05-11.4 Hz. One outlier near acc=76% with mid-purple colour is the (2, 0) cell where strong W^EI pushes I to 1.7 Hz despite W^IE=0.">
+<Figure id="Figure 2b" title="Grid cells in (E rate, accuracy) space, coloured by I rate (100 epochs)" src="/figures/notebooks/nb036/wei_wie_acc_vs_e.png" alt="Scatter of 25 points showing best-epoch accuracy vs hidden E rate. Points are coloured by hidden I rate from dark purple (I=0) to bright yellow (I=22 Hz). Dark-purple points (I=0) span accuracy 75-84% with E rates 2.2-9.4 Hz. Green/yellow points (I>11 Hz) sit at 80-86% accuracy with E rates 2-3.6 Hz. The (0.5, 2.0) cell at acc=84%, E=9.4 Hz, I=0 sits as the outlier high-E no-loop solution.">
   Each dot is one cell of the 5×5 $(W^{EI}, W^{IE})$ training grid, plotted at its best-epoch test accuracy vs final hidden-E rate. Colour encodes the third quantity — hidden-I rate — which is what discriminates the clusters. Labels are $(W^{EI}, W^{IE})$.
 </Figure>
 
-Two clouds separate in this view. **Dark-purple points (I rate ≈ 0)** form a band at accuracy 74.25–78% with E rates 2.15–6.85 Hz — the no-loop / stretched-COBA region. The top of this band ($(0.5, 1)$ at 78% with E = 3.49 Hz) is the high-accuracy E-only solution the diagonal slice also surfaces: silent I, modest E rate, accuracy within ≈4% of the PING cluster. **Yellow/green points (I rate > 9 Hz)** sit above at 82.25–85.5% accuracy with E rates spanning 2–11 Hz — the PING cluster, distinguished from no-loop by both higher accuracy and an active I population. The cell at $(0.5, 2.0)$ — bright-yellow near $(E = 11.4, \text{acc} = 83.75)$ — uses an unusually high E rate even with the loop engaged; strong $W^{IE}$ pulls more E spikes through I per cycle.
+Two clouds separate in this view. **Dark-purple points (I rate ≈ 0)** span accuracy 75–84% with E rates 2.2–9.4 Hz — the no-loop / stretched-COBA region. The top of this band is $(0.5, 2.0)$ at 84% with **E = 9.4 Hz**, the high-accuracy E-only solution: silent I, elevated E rate, accuracy within ≈ 2 pp of the PING cluster. **Yellow/green points (I rate > 11 Hz)** sit above at 80–86% accuracy with E rates clamped to 2–3.6 Hz by the active inhibitory loop — the PING cluster, distinguished from no-loop by lower E and active I.
 
-The vertical gap between the two clouds is the recruitment cliff measured in accuracy units: ≈4% step (78% top-of-purple to 82.25% bottom-of-PING) that no amount of E-rate adjustment in the failed-recurrence band closes, given equal compute.
+The vertical gap between the two clouds is the recruitment cliff measured in accuracy units: ≈ 2–6 pp depending on where you draw the comparison. The high-E no-loop attractor at $(0.5, 2.0)$ closes most of that gap with E firing alone, but at 4× the per-cycle E spike count.
 
 Overlaying the COBA and PING $\theta_u$-sweep frontiers ([Figure 5 of nb025](/notebooks/nb025/#the-spike-budget-control)) directly onto the same axes pins where the grid solutions live relative to the two canonical baselines:
 
 <Figure id="Figure 2c" title="Grid cells with COBA / PING θ_u frontiers superimposed" src="/figures/notebooks/nb036/wei_wie_acc_vs_e_with_frontier.png" alt="Same scatter as Figure 2b (25 grid cells coloured by I rate, accuracy 70-90% on y-axis, E rate on x-axis) with two extra curves overlaid: the COBA θ_u sweep (red squares connected by line) traversing high E rates (~88 Hz at θ_u=off down to ~0 Hz at θ_u=0.2) with accuracy 62-88%; and the PING θ_u sweep (black diamonds) clustered tightly at E rate 3-7 Hz with accuracy 85-89%.">
-  Grid scatter (coloured by I rate) plus the COBA (red squares) and PING (black diamonds) $\theta_u$-sweep frontiers from nb025 Figure 5, connecting each model's $(\theta_u, \text{final acc}, E)$ points. All curves and points trained for 30 epochs. Annotations on the frontier curves mark $\theta_u$ in spikes (or "off"). Note the axes follow the accuracy zoom (70–90%), so COBA's low-rate tail at $\theta_u \in \{0.5, 0.2\}$ drops off the bottom.
+  Grid scatter (coloured by I rate) plus the COBA (red squares) and PING (black diamonds) $\theta_u$-sweep frontiers from nb025 Figure 5, connecting each model's $(\theta_u, \text{final acc}, E)$ points. All curves and points trained for 100 epochs. Annotations on the frontier curves mark $\theta_u$ in spikes (or "off"). Note the axes follow the accuracy zoom (70–90%), so COBA's low-rate tail at $\theta_u \in \{0.5, 0.2\}$ drops off the bottom.
 </Figure>
 
 The PING frontier sits *above* the green/yellow grid cluster — the $(\theta_u$-swept$)$ PING baseline reaches 85–89% accuracy at E rates 3–7 Hz, higher than the grid's PING cluster (82–85.5%). This is because the canonical PING recipe uses $W_\text{in} = 1.2$ but the grid was trained with $W_\text{in} = 0.6$ (chosen to give no-loop cells a fair shot at converging), which costs a few accuracy points even at the recipe baseline coupling. The PING frontier also never leaves the active-loop regime even when the budget is squeezed all the way to 0.2 spikes — no $\theta_u$ value can push PING into the dark-purple band, because the loop sets a structural minimum on E rate. The grid scatter shows that the *only* way to reach that band is to start training from a $(W^{EI}, W^{IE})$ init that prevents the loop from engaging in the first place — a structural rather than penalty-driven escape.
@@ -81,25 +96,35 @@ Per-epoch oscilloscope videos for every cell of the grid. Each video shows one e
 
 ### 1D diagonal slice along the ei_ratio = 2 line
 
-The grid above varies $W^{EI}$ and $W^{IE}$ independently, but the codebase's standard PING recipe ties them via $W^{IE} = \text{ei\_ratio} \cdot W^{EI}$ with $\text{ei\_ratio} = 2$. Restricting to that line gives a finer-grained view: one knob ($W^{EI}$) at 10 values, $W^{IE}$ tracking at twice the value, **three seeds per value, 30 training epochs** (3× the 10-epoch tier used for the 5×5 grid above — a convergence check on four cells showed several regimes were still improving past epoch 10). Accuracy is reported as the per-cell best epoch. Same recipe as the grid otherwise ($\theta_u = 0.2$, $W_\text{in} = 0.6$).
+The grid above varies $W^{EI}$ and $W^{IE}$ independently, but the codebase's standard PING recipe ties them via $W^{IE} = \text{ei\_ratio} \cdot W^{EI}$ with $\text{ei\_ratio} = 2$. Restricting to that line gives a finer-grained view: one knob ($W^{EI}$) at 10 values, $W^{IE}$ tracking at twice the value, **three seeds per value, 100 training epochs**. Accuracy is reported as the per-cell best epoch. Same recipe as the grid otherwise ($\theta_u = 0.2$, $W_\text{in} = 0.6$).
 
-<Figure id="Figure 3" title="W^EI sweep along ei_ratio=2 diagonal — accuracy, E rate, I rate (3 seeds, 30 epochs)" src="/figures/notebooks/nb036/wei_diagonal.png" alt="Three line panels with W^EI on x-axis and error bars from 3 seeds. Left: best-epoch accuracy is flat at 77-78% from W^EI 0 to 0.5, jumps to 81% at W^EI=0.6, plateaus at 85% from W^EI 0.75 to 1.5, drops to 82% at W^EI=2. Middle: E rate is 2-3 Hz in the no-loop band, peaks at 7.7 Hz at W^EI=0.6, drops back to 2-4 Hz once the loop engages. Right: I rate is exactly 0 for W^EI ≤ 0.6, jumps to 10.8 Hz at W^EI=0.75 then climbs steadily to 19 Hz at W^EI=2.">
-  $W^{EI}$ scanned over $\{0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 1.0, 1.5, 2.0\}$ with $W^{IE} = 2 W^{EI}$. Error bars are mean ± std of the best-epoch test accuracy over 3 seeds (42, 43, 44), 30 training epochs each; faint dots show individual seed peaks. **Left:** test accuracy. **Middle:** hidden-E rate (last-epoch). **Right:** hidden-I rate (last-epoch). Grey dotted vertical at $W^{EI} = 1$ marks the canonical recipe baseline.
+<Figure id="Figure 3" title="W^EI sweep along ei_ratio=2 diagonal — accuracy, E rate, I rate (3 seeds, 100 epochs)" src="/figures/notebooks/nb036/wei_diagonal.png" alt="Three line panels with W^EI on x-axis and error bars from 3 seeds. Left: best-epoch accuracy is flat at 77-78% from W^EI 0 to 0.5, jumps to 80.5% at W^EI=0.6, rises further to 84.75% at W^EI=0.75, peaks at 86.08% at W^EI=1, then drops to 83.33% at W^EI=2. Middle: E rate is 2-3 Hz in the no-loop band, peaks at 7.8 Hz at W^EI=0.75, drops back to 2-3 Hz once the loop locks. Right: I rate is exactly 0 for W^EI ≤ 0.6, lifts to 1.6 Hz at W^EI=0.75 then climbs to 22.2 Hz at W^EI=2.">
+  $W^{EI}$ scanned over $\{0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 1.0, 1.5, 2.0\}$ with $W^{IE} = 2 W^{EI}$. Error bars are mean ± std of the best-epoch test accuracy over 3 seeds (42, 43, 44), 100 training epochs each; faint dots show individual seed peaks. **Left:** test accuracy. **Middle:** hidden-E rate (last-epoch). **Right:** hidden-I rate (last-epoch). Grey dotted vertical at $W^{EI} = 1$ marks the canonical recipe baseline.
 </Figure>
 
-Three regimes are still visible, but the 30-epoch picture is structurally different from a naive 10-epoch read: the accuracy cliff and the I-recruitment cliff sit at *different* $W^{EI}$ values, and a previously-unseen high-accuracy E-only solution emerges in between.
+Three regimes:
 
-- **$W^{EI} \in \{0, 0.1, 0.25, 0.4, 0.5\}$** — no-loop / stretched-COBA, low-accuracy variant: accuracy 77–78%, I rate exactly 0, E rate 2.4–3.7 Hz. Tight error bars (acc std ≤ 0.5%) — the optimiser deterministically lands in the same E-only basin from any seed.
-- **$W^{EI} = 0.6$** — *high-accuracy stretched-COBA*: 81.25 ± 0.20% accuracy, **I rate still exactly 0** for all three seeds, but E rate up to 7.73 ± 1.19 Hz. The loop hasn't engaged, yet accuracy is within ≈4% of PING. With 10 epochs of training this cell looked transitional (some seeds engaging I, large variance); with 30 epochs the optimiser deterministically finds a high-E, no-I solution. This is a new attractor the short-training analysis missed.
-- **$W^{EI} \in \{0.75, 1.0, 1.5\}$** — full PING: accuracy plateau at **84.8–85.2%** (std 0.1–0.6 across seeds), I rate climbing 10.8 → 13.0 → 16.4 Hz as the loop tightens, E rate clamped to 2.0–4.5 Hz by inhibitory negative feedback. The plateau is wide — the recipe baseline at $W^{EI} = 1$ is not a peak but a representative point inside a stable region.
-- **$W^{EI} = 2.0$** — over-inhibited: 82.33 ± 0.62% accuracy, I rate 19.2 Hz, E rate 2.1 Hz. The drop from the plateau is only ≈3%, not the catastrophic collapse a 10-epoch read suggested — over-inhibited cells just need more epochs to converge.
+- **$W^{EI} \in \{0, 0.1, 0.25, 0.4, 0.5\}$** — no-loop / stretched-COBA, low-accuracy variant: **accuracy 77–78%**, I rate exactly 0, E rate 2.2–2.6 Hz. Tight error bars (acc std ≤ 0.9%) — the optimiser deterministically lands in the same E-only basin from any seed.
+- **$W^{EI} = 0.6$** — *high-accuracy stretched-COBA, transition*: **80.50 ± 0.43% accuracy**, **I rate still exactly 0** for all three seeds, E rate **4.18 Hz**. The loop hasn't engaged but accuracy is already 3 pp above the low-band.
+- **$W^{EI} = 0.75$** — *transitional with weak loop*: **84.75 ± 0.43% accuracy**, **I rate 1.6 Hz** (1 of 3 seeds engages a small I population), **E rate 7.80 Hz**. The first cell on the sweep where I lifts off zero.
+- **$W^{EI} \in \{1.0, 1.5\}$** — full PING: accuracy **85.4–86.1%**, I rate climbing 12.7 → 16.7 Hz as the loop tightens, E rate clamped to 2.2–3.2 Hz by inhibitory negative feedback. The recipe baseline at $W^{EI} = 1$ is the peak of the sweep.
+- **$W^{EI} = 2.0$** — over-inhibited: **83.33 ± 0.63%** accuracy, I rate 22.2 Hz, E rate 2.0 Hz. The drop from the plateau is ≈ 3 pp — not catastrophic, but the over-inhibited corner is genuinely less accurate.
 
-The two cliffs now decouple. The **accuracy cliff** lands between $W^{EI} = 0.5$ (77%) and $W^{EI} = 0.6$ (81%) — a clean 4% step. The **I-recruitment cliff** is one step later, between $W^{EI} = 0.6$ (still $I = 0$) and $W^{EI} = 0.75$ (≈11 Hz). In the gap sits the high-accuracy stretched-COBA solution: same I-loop status as the no-loop band (silent), but accuracy in the PING ballpark, achieved by pushing E rate up to ≈8 Hz. With more compute the network finds an E-only solution that nearly matches what PING achieves with an active loop — the loop is a useful but not *necessary* mechanism for high accuracy at this spike budget.
+The accuracy cliff is now smoother than the 30-epoch picture suggested. The **accuracy cliff** rises in two steps: $W^{EI} = 0.5 \to 0.6$ (77.5% → 80.5%) and $W^{EI} = 0.6 \to 0.75$ (80.5% → 84.75%). The **I-recruitment cliff** sits at the second step, between $W^{EI} = 0.6$ (I = 0) and $W^{EI} = 0.75$ (I ≈ 1.6 Hz). In the gap between the cliffs sits the high-E stretched-COBA solution at $W^{EI} = 0.6$, which uses pure E firing without engaging the loop. With more compute the network finds an E-only solution that closes much of the gap with PING — the loop is a useful but not *necessary* mechanism for high accuracy at this spike budget.
 
 Plotting the 30 cells in (E rate, accuracy) space — colour-coded by I rate, same convention as Figure 2b — makes the new attractor visible directly:
 
-<Figure id="Figure 3b" title="Diagonal cells in (E rate, accuracy) space, coloured by I rate (3 seeds, 30 epochs)" src="/figures/notebooks/nb036/wei_diagonal_acc_vs_e.png" alt="Scatter of 30 points showing best-epoch accuracy vs hidden E rate. Points are coloured by hidden I rate from dark purple (I=0) to bright yellow (I=19 Hz). Three groups: a low-E dark-purple cluster at accuracy 77% (W^EI ≤ 0.5, I=0, E ≈ 2.4-3.7 Hz); a high-E dark-purple knot at accuracy 81% (W^EI=0.6, I=0, E ≈ 7.7 Hz); a green/yellow upper band at accuracy 82-85% (W^EI ≥ 0.75, I > 10 Hz, E 2-5 Hz). Labels mark W^EI values 0, 0.25, 0.5, 0.6, 0.75, 1, 1.5, 2.">
-  Each dot is one $(W^{EI}, \text{seed})$ cell of the 30-epoch diagonal sweep, plotted at its best-epoch test accuracy vs final hidden-E rate. Colour encodes hidden-I rate; labels mark the $W^{EI}$ value at one representative seed.
+<Figure id="Figure 3b" title="Diagonal cells in (E rate, accuracy) space, coloured by I rate (3 seeds, 100 epochs)" src="/figures/notebooks/nb036/wei_diagonal_acc_vs_e.png" alt="Scatter of 30 points showing best-epoch accuracy vs hidden E rate. Points are coloured by hidden I rate from dark purple (I=0) to bright yellow (I=22 Hz). Three groups: a low-E dark-purple cluster at accuracy 77-78% (W^EI ≤ 0.5, I=0, E ≈ 2.2-2.6 Hz); a high-E dark-purple knot at accuracy 80.5% (W^EI=0.6, I=0, E ≈ 4.2 Hz); a transitional W^EI=0.75 cluster (some seeds at I≈4.7 Hz, some at I=0, E ≈ 7.8 Hz, acc ≈ 84.75%); a green/yellow upper band at accuracy 83-86% (W^EI ≥ 1, I > 12 Hz, E 2-3 Hz). Labels mark W^EI values.">
+  Each dot is one $(W^{EI}, \text{seed})$ cell of the 100-epoch diagonal sweep, plotted at its best-epoch test accuracy vs final hidden-E rate. Colour encodes hidden-I rate; labels mark the $W^{EI}$ value at one representative seed.
 </Figure>
 
 The diagonal scatter resolves the same physics as Figure 2b at higher resolution. The dark-purple ($I = 0$) cluster now visibly splits into **two sub-clouds**: a low-E group ($W^{EI} \leq 0.5$, E ≈ 2.4–3.7 Hz, acc ≈ 77%) and a tight knot at $W^{EI} = 0.6$ (E ≈ 7.7 Hz, acc ≈ 81%) — the high-accuracy stretched-COBA solution. They share the silent-I label but separate cleanly in $(E, \text{acc})$. The green/yellow PING cluster ($W^{EI} \geq 0.75$) sits above at 82–85% accuracy with E rates clamped to 2–5 Hz by inhibitory feedback. The recruitment of inhibition (purple→green colour transition) and the accuracy cliff (vertical jump) happen at the same $W^{EI}$ step in this slice (0.6 → 0.75), but the two purple sub-clouds prove that high accuracy is achievable on either side of the I-recruitment threshold — just at very different E rates.
+
+## Discussion
+
+The $(W^{EI}, W^{IE})$ map separates two accuracy basins — a high-E silent-I stretched-COBA solution and a low-E loop-engaged PING solution — that share the loss surface but live at very different per-spike economy. The PING corner is not uniquely optimal for accuracy at this tier, but it *is* the only corner where the E rate is held down to single digits; the rest of the per-spike-economy story in [ar009](/articles/ar009/) lives there.
+
+## Next steps
+
+1. Run the same diagonal at full MNIST + more epochs to check whether the two basins converge or stay separated.
+2. Sweep $W^{EI}$ and $W^{IE}$ independently (off-diagonal) to see whether the I-recruitment threshold tracks the product or one factor alone.

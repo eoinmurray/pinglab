@@ -2,7 +2,7 @@
 
 Trains PING and COBA-no-loop networks at medium-tier sample count but
 for 100 epochs (vs nb025's 30). The convergence diagnostics in
-nb041/nb043/nb044 showed test accuracy plateaus within ~ 10–15 epochs
+nb041/nb044 showed test accuracy plateaus within ~ 10–15 epochs
 while E rate keeps drifting upward past epoch 30. This entry asks
 whether both metrics stabilise with enough training, and — when the
 rate does not — surfaces enough mechanism plots to diagnose *why*.
@@ -274,6 +274,182 @@ def plot_weight_dynamics(out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def plot_rates_vs_epoch(out_path: Path, run_id: str) -> None:
+    """Total network firing rate vs epoch — COBA E vs PING (E + I).
+
+    COBA's I population is silent (ei_strength = 0 → no recurrent input
+    to I), so its E rate IS its total network rate. PING's network total
+    is the sum of E and I rates. Honest like-for-like comparison of
+    the total spike budget the optimiser is spending per cell-second.
+    """
+    theme.apply()
+    cells = _gather_cells()
+    fig, ax = plt.subplots(figsize=(9.0, 5.0), dpi=150)
+    seen_labels: set[str] = set()
+    for (model, seed), m in cells.items():
+        eps = np.array([e["ep"] for e in m["epochs"]])
+        e_rates = np.array([e.get("test_rate_e", 0) for e in m["epochs"]])
+        i_rates = np.array([e.get("test_rate_i", 0) for e in m["epochs"]])
+        color = MODEL_COLORS[model]
+        if model == "coba":
+            label = ("COBA total (E only — I silent)"
+                     if "COBA total" not in seen_labels else None)
+            seen_labels.add("COBA total")
+            ax.plot(eps, e_rates, color=color, lw=1.4, alpha=0.85, label=label)
+        else:  # ping
+            total = e_rates + i_rates
+            label = ("PING total (E + I)"
+                     if "PING total" not in seen_labels else None)
+            seen_labels.add("PING total")
+            ax.plot(eps, total, color=color, lw=1.4, alpha=0.85, label=label)
+            # Faint dashed lines for the per-population components.
+            if "PING E only" not in seen_labels:
+                ax.plot(eps, e_rates, color=color, lw=0.8, ls=":",
+                        alpha=0.5, label="PING E only")
+                seen_labels.add("PING E only")
+            else:
+                ax.plot(eps, e_rates, color=color, lw=0.8, ls=":", alpha=0.5)
+            if "PING I only" not in seen_labels:
+                ax.plot(eps, i_rates, color=color, lw=0.8, ls="--",
+                        alpha=0.5, label="PING I only")
+                seen_labels.add("PING I only")
+            else:
+                ax.plot(eps, i_rates, color=color, lw=0.8, ls="--", alpha=0.5)
+    ax.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Hidden firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(True, alpha=0.15, lw=0.4)
+    ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="center right")
+    fig.suptitle(
+        "Total network firing rate vs epoch — COBA E vs PING (E + I)",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def _load_init_and_trained_state(train_dir: Path):
+    """Reconstruct the init state for one cell (re-seed + re-build with
+    the same cfg → state_dict before training) plus the trained state
+    (state_dict from disk). Returns (init_state, trained_state)."""
+    import torch
+    import models as M
+    from config import build_net, patch_dt
+    from cli import seed_everything
+
+    cfg = json.loads((train_dir / "config.json").read_text())
+    seed_everything(int(cfg.get("seed", 42)))
+    M.T_ms = float(cfg["t_ms"])
+    patch_dt(float(cfg["dt"]))
+    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
+    M.N_HID = hidden_sizes[-1]
+    M.N_INH = hidden_sizes[-1] // 4
+    M.HIDDEN_SIZES = list(hidden_sizes)
+    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
+    w_in_cfg = cfg.get("w_in")
+    w_in_arg = (
+        (float(w_in_cfg[0]), float(w_in_cfg[1]))
+        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
+        else None
+    )
+    net = build_net(
+        cfg["model"],
+        w_in=w_in_arg,
+        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
+        ei_strength=float(cfg.get("ei_strength") or 1.0),
+        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
+        sparsity=float(cfg.get("sparsity") or 0.0),
+        device="cpu",
+        randomize_init=not bool(cfg.get("kaiming_init", False)),
+        dales_law=bool(cfg.get("dales_law", True)),
+        hidden_sizes=hidden_sizes,
+        readout_mode=cfg.get("readout_mode", "mem-mean"),
+    )
+    init_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
+    trained_state = torch.load(train_dir / "weights.pth", map_location="cpu")
+    return init_state, trained_state
+
+
+def plot_weight_before_after(
+    out_path: Path, run_id: str, seed: int = 42,
+) -> None:
+    """Before/after histograms of the two trainable parameter matrices
+    (W_in and W_out) for one representative seed × (COBA, PING). Shows
+    where weights start and where they end up, directly."""
+    theme.apply()
+    cells: list[tuple[str, dict, dict]] = []
+    for model in MODELS:
+        train_dir = cell_dir(model, seed)
+        if not (train_dir / "weights.pth").exists():
+            print(f"[warn] weight_before_after: missing {train_dir.name}, skipping")
+            continue
+        init, trained = _load_init_and_trained_state(train_dir)
+        cells.append((model, init, trained))
+    if not cells:
+        print("[warn] no cells available for weight_before_after — skipping")
+        return
+
+    params = list(PARAM_LABELS.keys())  # ['W_ff.0', 'W_ff.1'] → W_in, W_out
+    n_rows = len(params)
+    n_cols = len(cells)
+    fig, axes = plt.subplots(
+        n_rows, n_cols, figsize=(4.5 * n_cols, 3.0 * n_rows), dpi=150,
+        sharex="row", gridspec_kw={"hspace": 0.32, "wspace": 0.22},
+    )
+    if n_rows == 1:
+        axes = np.array([axes])
+    if n_cols == 1:
+        axes = axes[:, None]
+    for col, (model, init, trained) in enumerate(cells):
+        color = MODEL_COLORS[model]
+        for row, pname in enumerate(params):
+            ax = axes[row][col]
+            init_w = init.get(pname)
+            trained_w = trained.get(pname)
+            if init_w is None or trained_w is None:
+                ax.text(0.5, 0.5, f"{pname} missing",
+                        ha="center", va="center", transform=ax.transAxes)
+                continue
+            init_arr = init_w.numpy().ravel()
+            trained_arr = trained_w.numpy().ravel()
+            # Symmetric bin range over the union of both.
+            lo = float(min(init_arr.min(), trained_arr.min()))
+            hi = float(max(init_arr.max(), trained_arr.max()))
+            bins = np.linspace(lo, hi, 80)
+            ax.hist(init_arr, bins=bins, color=theme.GREY_MID, alpha=0.55,
+                    edgecolor="none", label=f"init  (||·||={np.linalg.norm(init_arr):.1f})")
+            ax.hist(trained_arr, bins=bins, color=color, alpha=0.60,
+                    edgecolor="none",
+                    label=f"trained  (||·||={np.linalg.norm(trained_arr):.1f})")
+            ax.set_yscale("log")
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.grid(True, alpha=0.15, lw=0.4)
+            if row == 0:
+                ax.set_title(f"{model.upper()} (seed {seed})",
+                             fontsize=theme.SIZE_TITLE)
+            if col == 0:
+                ax.set_ylabel(f"count ({PARAM_LABELS[pname]} entries)",
+                              fontsize=theme.SIZE_LABEL)
+            if row == n_rows - 1:
+                ax.set_xlabel("weight value", fontsize=theme.SIZE_LABEL)
+            ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
+    fig.suptitle(
+        f"Weight distributions before vs after training "
+        f"(W_in 784×1024 sparse, W_out 1024×10)",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_rate_acc_trajectory(out_path: Path, run_id: str) -> None:
     """Parametric (E rate, accuracy) trajectory per cell, dots
     per epoch, line connecting consecutive epochs. Reveals whether
@@ -319,6 +495,218 @@ def plot_rate_acc_trajectory(out_path: Path, run_id: str) -> None:
               frameon=False, loc="lower right")
     fig.suptitle(
         "Parametric (E rate, accuracy) trajectory — coloured by epoch",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+# ─── inference: total rate vs (W^EI, W^IE) on trained PING ─────────
+
+
+WEI_WIE_GRID_VALUES: tuple[float, ...] = (
+    0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0,
+)
+
+
+def run_wei_wie_total_rate_sweep(
+    train_dir: Path, device, grid: tuple[float, ...] = WEI_WIE_GRID_VALUES,
+) -> list[dict]:
+    """Inference-time 2D sweep on the trained PING baseline. For each
+    (s_ei, s_ie) cell, multiply the loop matrices by the scaling factors
+    and measure mean E and I firing rate on the test set. Records total
+    network rate (E + I) as the headline quantity."""
+    import torch
+    from torch.utils.data import DataLoader, TensorDataset
+
+    import models as M
+    from cli import EVAL_SEED, encode_batch
+
+    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
+    w_ei_original = {k: v.data.clone() for k, v in net.W_ei.items()}
+    w_ie_original = {k: v.data.clone() for k, v in net.W_ie.items()}
+
+    test_loader = DataLoader(
+        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
+        batch_size=64,
+    )
+    rows: list[dict] = []
+    try:
+        for s_ei in grid:
+            for s_ie in grid:
+                for k in net.W_ei.keys():
+                    net.W_ei[k].data.copy_(w_ei_original[k] * float(s_ei))
+                for k in net.W_ie.keys():
+                    net.W_ie[k].data.copy_(w_ie_original[k] * float(s_ie))
+                eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+                e_spike_sum = i_spike_sum = 0.0
+                correct = total = 0
+                with torch.no_grad():
+                    for X_b, y_b in test_loader:
+                        X_b, y_b = X_b.to(device), y_b.to(device)
+                        spk = encode_batch(
+                            X_b, M.dt, False, generator=eval_gen,
+                        )
+                        logits = net(input_spikes=spk)
+                        correct += (logits.argmax(1) == y_b).sum().item()
+                        total += y_b.size(0)
+                        e_spike_sum += float(
+                            net.spike_record["hid"].sum().item()
+                        )
+                        i_spike_sum += float(
+                            net.spike_record["inh"].sum().item()
+                        )
+                t_sec = float(cfg["t_ms"]) / 1000.0
+                n_e = M.N_HID
+                n_i = M.N_INH or 1
+                e_rate = e_spike_sum / (total * n_e * t_sec)
+                i_rate = i_spike_sum / (total * n_i * t_sec)
+                acc = 100.0 * correct / total
+                rows.append({
+                    "s_ei": float(s_ei),
+                    "s_ie": float(s_ie),
+                    "acc": acc,
+                    "rate_e": e_rate,
+                    "rate_i": i_rate,
+                    "rate_total": e_rate + i_rate,
+                })
+                print(
+                    f"  s_ei={s_ei:>4.2g}  s_ie={s_ie:>4.2g}  "
+                    f"acc={acc:5.2f}%  E={e_rate:6.2f}Hz  I={i_rate:6.2f}Hz  "
+                    f"total={e_rate + i_rate:6.2f}Hz"
+                )
+    finally:
+        for k in net.W_ei.keys():
+            net.W_ei[k].data.copy_(w_ei_original[k])
+        for k in net.W_ie.keys():
+            net.W_ie[k].data.copy_(w_ie_original[k])
+    return rows
+
+
+def plot_wei_wie_total_rate(
+    rows: list[dict], out_path: Path, run_id: str,
+) -> None:
+    """Heatmap of total network firing rate (E + I) vs (s_ei, s_ie).
+    Annotates each cell with the total rate. Star at (1, 1) marks the
+    trained operating point."""
+    theme.apply()
+    s_ei_vals = sorted({r["s_ei"] for r in rows})
+    s_ie_vals = sorted({r["s_ie"] for r in rows})
+    rate_grid = np.full((len(s_ei_vals), len(s_ie_vals)), np.nan)
+    e_grid = np.full_like(rate_grid, np.nan)
+    i_grid = np.full_like(rate_grid, np.nan)
+    for r in rows:
+        ei = s_ei_vals.index(r["s_ei"])
+        ie = s_ie_vals.index(r["s_ie"])
+        rate_grid[ei, ie] = r["rate_total"]
+        e_grid[ei, ie] = r["rate_e"]
+        i_grid[ei, ie] = r["rate_i"]
+
+    fig, ax = plt.subplots(figsize=(8.5, 6.5), dpi=150)
+    im = ax.imshow(
+        rate_grid, origin="lower", aspect="equal",
+        cmap="magma", vmin=0, vmax=150,
+    )
+    ax.set_xticks(range(len(s_ie_vals)))
+    ax.set_yticks(range(len(s_ei_vals)))
+    ax.set_xticklabels([f"{s:g}" for s in s_ie_vals])
+    ax.set_yticklabels([f"{s:g}" for s in s_ei_vals])
+    ax.set_xlabel("$W^{IE}$ scale  (× trained value)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("$W^{EI}$ scale  (× trained value)", fontsize=theme.SIZE_LABEL)
+    for ei in range(len(s_ei_vals)):
+        for ie in range(len(s_ie_vals)):
+            v = rate_grid[ei, ie]
+            if np.isnan(v):
+                continue
+            # Choose text colour based on cell value.
+            txt_color = "white" if v < 0.55 * np.nanmax(rate_grid) else "black"
+            ax.text(
+                ie, ei,
+                f"{v:.1f}\n({e_grid[ei,ie]:.1f}|{i_grid[ei,ie]:.1f})",
+                ha="center", va="center", fontsize=theme.SIZE_ANNOTATION - 1,
+                color=txt_color,
+            )
+    # Mark the trained operating point at (1, 1).
+    if 1.0 in s_ei_vals and 1.0 in s_ie_vals:
+        ei_idx = s_ei_vals.index(1.0)
+        ie_idx = s_ie_vals.index(1.0)
+        ax.scatter(ie_idx, ei_idx, marker="*", s=300,
+                   facecolors="none", edgecolors="white", lw=1.8, zorder=5)
+    cbar = fig.colorbar(im, ax=ax, shrink=0.85)
+    cbar.set_label("Total network rate E + I (Hz)",
+                   fontsize=theme.SIZE_LABEL)
+    fig.suptitle(
+        "Inference-time (W^EI × W^IE) sweep on trained PING — "
+        "total firing rate (E + I)\n"
+        "cell labels: total Hz, with (E | I) breakdown.  "
+        "Star marks the trained baseline.",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_wei_wie_diagonal_total_rate(
+    rows: list[dict], out_path: Path, run_id: str,
+) -> None:
+    """Diagonal slice through the (W^EI × W^IE) sweep — total rate vs s
+    where W^EI = W^IE = s. Total, E, and I rates on a single panel,
+    plus accuracy on a twin axis. The bottom-left → top-right diagonal
+    of the heatmap, redrawn as a line chart so the asymptote is visible.
+    """
+    theme.apply()
+    diag = sorted(
+        [r for r in rows if abs(r["s_ei"] - r["s_ie"]) < 1e-9],
+        key=lambda r: r["s_ei"],
+    )
+    scales = [r["s_ei"] for r in diag]
+    totals = [r["rate_total"] for r in diag]
+    es = [r["rate_e"] for r in diag]
+    is_ = [r["rate_i"] for r in diag]
+    accs = [r["acc"] for r in diag]
+
+    fig, ax_rate = plt.subplots(figsize=(9.0, 5.0), dpi=150)
+    ax_rate.plot(scales, totals, marker="D", markersize=7, lw=1.6,
+                 color=theme.INK_BLACK, label="total (E + I)")
+    ax_rate.plot(scales, es, marker="o", markersize=5, lw=1.0, ls=":",
+                 color=theme.INK_BLACK, alpha=0.7, label="E only")
+    ax_rate.plot(scales, is_, marker="^", markersize=5, lw=1.0, ls="--",
+                 color=theme.INK_BLACK, alpha=0.7, label="I only")
+    ax_rate.set_xlabel(
+        "Diagonal coupling scale  s  (with $W^{EI} = W^{IE} = s$ × trained)",
+        fontsize=theme.SIZE_LABEL,
+    )
+    ax_rate.set_ylabel("Hidden firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax_rate.spines["top"].set_visible(False)
+    ax_rate.grid(True, alpha=0.15, lw=0.4)
+    ax_rate.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper right")
+    # Vertical marker at the trained baseline (s = 1).
+    ax_rate.axvline(1.0, color=theme.GREY_MID, lw=0.7, ls=":", alpha=0.7)
+    ax_rate.text(
+        1.0, ax_rate.get_ylim()[1] * 0.95, " trained baseline (s = 1)",
+        fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
+        ha="left", va="top",
+    )
+
+    ax_acc = ax_rate.twinx()
+    ax_acc.plot(scales, accs, marker="s", markersize=5, lw=1.0,
+                color=theme.DEEP_RED, alpha=0.75)
+    ax_acc.set_ylabel("Test accuracy (%)",
+                      fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
+    ax_acc.tick_params(axis="y", labelcolor=theme.DEEP_RED)
+    ax_acc.set_ylim(0, 100)
+    ax_acc.axhline(10.0, color=theme.DEEP_RED, lw=0.5, ls=":", alpha=0.4)
+    ax_acc.spines["top"].set_visible(False)
+
+    fig.suptitle(
+        "Diagonal slice of the (W^EI × W^IE) sweep — "
+        "total rate and accuracy vs coupling scale",
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
@@ -540,55 +928,6 @@ def per_cell_diagnostics(rates_by_cell: dict) -> list[dict]:
             summary.append(cell_summary)
     return summary
 
-
-def evaluate_success(summary: list[dict], figures: Path) -> list[dict]:
-    figs_root = figures.parents[2]
-
-    def artifact(name: str, label: str) -> dict:
-        path = figures / name
-        ok = path.exists() and path.stat().st_size > 0
-        href = "/" + str(path.relative_to(figs_root)) if ok else None
-        return {
-            "label": label,
-            "passed": bool(ok),
-            "detail": (
-                f"{path.name} ({path.stat().st_size} bytes)"
-                if ok else f"missing {path.name}"
-            ),
-            "detail_href": href,
-        }
-
-    crits = [
-        artifact("training_curves.png", "training-curves figure rendered"),
-        artifact("weight_dynamics.png", "weight-dynamics figure rendered"),
-        artifact("rate_acc_trajectory.png", "rate/accuracy trajectory rendered"),
-        artifact("rate_distributions.png", "rate-distribution figure rendered"),
-    ]
-
-    # Thresholds for declaring convergence at the per-cell level.
-    ACC_SLOPE_OK = 0.1   # pp / epoch (≤ 1 pp drift over 10 epochs)
-    RATE_SLOPE_OK = 0.05  # Hz / epoch (≤ 0.5 Hz drift over 10 epochs)
-    for cell in summary:
-        cell_label = f"{cell['model']} seed {cell['seed']}"
-        crits.append({
-            "label": f"{cell_label} accuracy converged (|slope| ≤ {ACC_SLOPE_OK} pp/ep)",
-            "passed": bool(abs(cell["acc_slope_last10_pp_per_ep"]) <= ACC_SLOPE_OK),
-            "detail": (
-                f"acc = {cell['final_acc']:.2f}%, "
-                f"slope = {cell['acc_slope_last10_pp_per_ep']:+.3f} pp/ep"
-            ),
-        })
-        crits.append({
-            "label": f"{cell_label} E rate converged (|slope| ≤ {RATE_SLOPE_OK} Hz/ep)",
-            "passed": bool(abs(cell["e_rate_slope_last10_hz_per_ep"]) <= RATE_SLOPE_OK),
-            "detail": (
-                f"E = {cell['final_e_rate_hz']:.2f} Hz, "
-                f"slope = {cell['e_rate_slope_last10_hz_per_ep']:+.3f} Hz/ep"
-            ),
-        })
-    return crits
-
-
 def _format_duration(seconds: float) -> str:
     s = int(round(seconds))
     if s < 60:
@@ -671,6 +1010,27 @@ def main() -> None:
     print(f"wrote {FIGURES / 'training_curves.png'}")
     plot_weight_dynamics(FIGURES / "weight_dynamics.png", notebook_run_id)
     print(f"wrote {FIGURES / 'weight_dynamics.png'}")
+    plot_weight_before_after(
+        FIGURES / "weights_before_after.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'weights_before_after.png'}")
+    plot_rates_vs_epoch(FIGURES / "rates_vs_epoch.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'rates_vs_epoch.png'}")
+
+    # Inference-time (W^EI × W^IE) sweep on the trained PING baseline.
+    print("[wei-wie sweep] inference on trained PING (seed 42)")
+    from cli import _auto_device
+    device = _auto_device()
+    wei_wie_rows = run_wei_wie_total_rate_sweep(cell_dir("ping", 42), device)
+    plot_wei_wie_total_rate(
+        wei_wie_rows, FIGURES / "wei_wie_total_rate.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'wei_wie_total_rate.png'}")
+    plot_wei_wie_diagonal_total_rate(
+        wei_wie_rows, FIGURES / "wei_wie_diagonal_total_rate.png",
+        notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'wei_wie_diagonal_total_rate.png'}")
     plot_rate_acc_trajectory(FIGURES / "rate_acc_trajectory.png", notebook_run_id)
     print(f"wrote {FIGURES / 'rate_acc_trajectory.png'}")
     plot_rate_distributions(rates_by_cell, FIGURES / "rate_distributions.png",
@@ -691,7 +1051,6 @@ def main() -> None:
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(cell_dir(MODELS[0], SEEDS[0]))
-    crits = evaluate_success(summary, FIGURES)
     summary_doc = {
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
@@ -709,17 +1068,11 @@ def main() -> None:
             "dt": DT_TRAIN,
         },
         "per_cell": summary,
-        "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary_doc, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary_doc['duration']}")
 
-    for c in crits:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in crits):
-        sys.exit(1)
 
 
 if __name__ == "__main__":

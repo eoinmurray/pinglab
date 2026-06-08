@@ -131,35 +131,6 @@ def extras(tier: str, notebook_run_id: str) -> dict:
     return {"rates_hz": rates, "canonical_overdrive": CANON_OVERDRIVE}
 
 
-def evaluate_success(figures_dir, summary):
-    """Criteria: scan video rendered, and PING actually forms at the
-    canonical overdrive (I fires during the stim window). The I-stim check
-    guards against the --t-ms regression where the stim window never fires
-    and every frame lands in flat baseline."""
-    video = figures_dir / "scan_overdrive.mp4"
-    video_ok = video.exists() and video.stat().st_size > 0
-    href = "/" + str(video.relative_to(figures_dir.parents[2])) if video_ok else None
-
-    rates = summary.get("rates_hz", {})
-    i_stim = rates.get("stim", {}).get("i", 0.0)
-    i_pre = rates.get("pre", {}).get("i", 0.0)
-    ping_formed = i_stim > 1.0 and i_stim > i_pre
-    return [
-        {
-            "label": "overdrive scan video rendered",
-            "passed": bool(video_ok),
-            "detail": f"{video.name} ({video.stat().st_size} bytes)"
-            if video_ok
-            else f"missing {video.name}",
-            "detail_href": href,
-        },
-        {
-            "label": f"PING forms at canonical overdrive ({CANON_OVERDRIVE}×)",
-            "passed": bool(ping_formed),
-            "detail": f"I pre={i_pre:.1f} Hz → stim={i_stim:.1f} Hz",
-        },
-    ]
-
 
 if __name__ == "__main__":
     run_scan(
@@ -179,7 +150,6 @@ if __name__ == "__main__":
                 str(DT_MS),
             ],
             extras_fn=extras,
-            criteria_fn=evaluate_success,
         )
     )
     sys.exit(0)

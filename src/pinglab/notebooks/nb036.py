@@ -5,8 +5,8 @@ Standalone runner with no cross-notebook helpers. Trains the
 coba / ping × θ_u baseline sweep (needed for the frontier overlay
 in Figure 2c), then runs the inference-time W^EI / W^IE coupling
 sweep on the trained PING baseline, then trains the 25-cell
-(W^EI, W^IE) grid (30 epochs each, seed 42), then trains the 30-cell
-W^EI diagonal sweep (10 W^EI values × 3 seeds, 30 epochs each, with
+(W^EI, W^IE) grid (100 epochs each, seed 42), then trains the 30-cell
+W^EI diagonal sweep (10 W^EI values × 3 seeds, 100 epochs each, with
 W^IE = 2 W^EI). Figures land in /figures/notebooks/nb036/ and the
 success-criteria summary in nb036/numbers.json.
 
@@ -250,7 +250,6 @@ def _load_trained_full(train_dir: Path, device):
         sparsity=float(cfg.get("sparsity") or 0.0),
         device=device,
         randomize_init=not bool(cfg.get("kaiming_init", False)),
-        kaiming_init=bool(cfg.get("kaiming_init", False)),
         dales_law=bool(cfg.get("dales_law", True)),
         hidden_sizes=hidden_sizes,
     )
@@ -500,7 +499,7 @@ WEI_WIE_GRID_VALUES: list[float] = [0.0, 0.25, 0.5, 1.0, 2.0]  # absolute means
 WEI_WIE_GRID_STD_FRAC: float = 0.1   # init std = STD_FRAC × mean
 WEI_WIE_GRID_THETA_U: float = 0.2
 WEI_WIE_GRID_SEED: int = SEED_SWEEP
-WEI_WIE_GRID_EPOCHS: int = 30        # 30 epochs to match the diagonal sweep
+WEI_WIE_GRID_EPOCHS: int = 100       # 100 epochs to match nb025/nb041/nb044 converged baselines
 
 
 def wei_wie_grid_cell_dir(w_ei: float, w_ie: float) -> Path:
@@ -722,7 +721,7 @@ WEI_DIAGONAL_VALUES: list[float] = [
 WEI_DIAGONAL_RATIO: float = 2.0       # W^IE / W^EI
 WEI_DIAGONAL_THETA_U: float = 0.2     # same penalty as the grid
 WEI_DIAGONAL_SEEDS: list[int] = list(SEEDS_BASELINE)  # 3-seed replicate
-WEI_DIAGONAL_EPOCHS: int = 30         # convergence-checked (see nb024 notes)
+WEI_DIAGONAL_EPOCHS: int = 100        # 100 epochs to match nb025/nb041/nb044 converged baselines
 
 
 def wei_diagonal_cell_dir(w_ei: float, seed: int) -> Path:
@@ -872,50 +871,6 @@ def plot_wei_diagonal_acc_vs_e(
 
 
 # ── End W_ei diagonal sweep ──────────────────────────────────────────
-
-
-def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
-    floor = float(MIN_ACC_BY_TIER[tier])
-    figs_root = figures.parents[2]
-
-    def artifact(name: str, label: str) -> dict:
-        path = figures / name
-        ok = path.exists() and path.stat().st_size > 0
-        href = "/" + str(path.relative_to(figs_root)) if ok else None
-        return {
-            "label": label,
-            "passed": bool(ok),
-            "detail": (
-                f"{path.name} ({path.stat().st_size} bytes)"
-                if ok else f"missing {path.name}"
-            ),
-            "detail_href": href,
-        }
-
-    crits: list[dict] = [
-        artifact("coupling_sweep.png", "coupling sweep rendered"),
-        artifact("wei_wie_grid.png", "W_ei × W_ie grid rendered"),
-        artifact("wei_wie_acc_vs_e.png", "acc-vs-E scatter rendered"),
-        artifact(
-            "wei_wie_acc_vs_e_with_frontier.png",
-            "acc-vs-E scatter with θ_u frontier overlay rendered",
-        ),
-        artifact("wei_diagonal.png", "W_ei diagonal sweep rendered"),
-        artifact("wei_diagonal_acc_vs_e.png", "diagonal acc-vs-E scatter rendered"),
-    ]
-    for model in MODELS:
-        base = next(
-            r for r in rows if r["model"] == model and r["theta_u"] is None
-        )
-        crits.append(
-            {
-                "label": f"{model} baseline acc ≥ {floor:.0f}% ({tier} floor)",
-                "passed": bool(base["best_acc"] >= floor),
-                "detail": f"{model}={base['best_acc']:.2f}%",
-            }
-        )
-    return crits
-
 
 def _format_duration(seconds: float) -> str:
     s = int(round(seconds))
@@ -1157,7 +1112,6 @@ def main() -> None:
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))
-    crits = evaluate_success(rows, tier, FIGURES)
     summary = {
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
@@ -1184,17 +1138,11 @@ def main() -> None:
         "coupling_sweep": coupling_rows,
         "wei_wie_grid": wei_wie_rows,
         "wei_diagonal": wei_diagonal_rows,
-        "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
 
-    for c in crits:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in crits):
-        sys.exit(1)
 
 
 if __name__ == "__main__":

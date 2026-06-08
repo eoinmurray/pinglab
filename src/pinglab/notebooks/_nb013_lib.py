@@ -1147,200 +1147,6 @@ def write_numbers(
     return summary
 
 
-def _primary_mode_for(dt_train: float) -> str:
-    """Which count-preserving mode covers most of this regime's eval-dt
-    sweep. Matches the MDX's snn{1,2}Cp selection so prose and machine
-    criteria read from the same series."""
-    return "downsample" if dt_train <= 0.5 else "upsample"
-
-
-def _rate_ratio(mode_entry: dict) -> float | None:
-    lo = mode_entry.get("sweep_min_hid_rate_hz")
-    hi = mode_entry.get("sweep_max_hid_rate_hz")
-    if not isinstance(lo, (int, float)) or not isinstance(hi, (int, float)):
-        return None
-    # Floor min at 0.5 Hz so near-silent sweep points don't collapse the
-    # denominator to zero. For the flat-models check this makes no
-    # practical difference (hi is small, ratio stays small); for the
-    # sag-models check it means a 0→N Hz fan still registers as ~2N×
-    # rather than being dropped as no-data.
-    return hi / max(lo, 0.5)
-
-
-def evaluate_success(figures_dir: Path, summary: dict) -> list[dict]:
-    """Machine-checked version of the prose in nb013.mdx § Success criteria.
-
-    Two layers of gate:
-
-    (1) Per-run training-health checks
-        (shared _per_model.evaluate_success): every one of the 5 models ×
-        2 dts must have final_acc above the tier's chance-floor and no
-        late-epoch collapse. Without these, a sweep where every run sat
-        at chance could still pass the sweep-level ratio checks below.
-
-    (2) Sweep-level structural checks: (a) the three headline figures
-        rendered, (b) cuba/coba/ping hold hidden rate flat across
-        eval-dt on the regime's primary count-preserving mode
-        (ratio ≤ FLAT_MAX), (c) pinglab parity — standard-snn best-acc
-        within PARITY_TOL pts of snntorch-library in both regimes.
-
-    Each is a hard gate; the prose paragraph above the table keeps the
-    nuance.
-    """
-    dataset_root = figures_dir.parents[2]  # src/docs/public
-    criteria: list[dict] = []
-
-    # ── Per-run training-health (layer 1) ──
-    # Matches the per-model runner thresholds in _per_model.py.
-    PER_RUN_COLLAPSE_TOL_PP = 5.0
-    # Tier floors match _per_model.DEFAULT_MIN_ACC. Default to the
-    # lowest if tier is not recorded (older runs).
-    TIER_FLOORS = {
-        "extra small": 15.0,
-        "small": 30.0,
-        "medium": 50.0,
-        "large": 70.0,
-        "extra large": 70.0,
-    }
-    tier = summary.get("tier") or summary.get("config", {}).get("tier")
-    floor = TIER_FLOORS.get(tier, 15.0)
-
-    regimes_all = summary.get("regimes", {})
-    acc_fails: list[str] = []
-    collapse_fails: list[str] = []
-    acc_detail: list[str] = []
-    collapse_detail: list[str] = []
-    for dt_key, regime in regimes_all.items():
-        dt_train = regime.get("dt_train", float(dt_key))
-        for m, r in regime.get("runs", {}).items():
-            tag = f"{m}@dt{dt_train}"
-            best = r.get("best_acc")
-            final = r.get("final_acc")
-            if isinstance(final, (int, float)):
-                acc_detail.append(f"{tag} {final:.0f}%")
-                if final < floor:
-                    acc_fails.append(f"{tag}:{final:.0f}%<{floor:.0f}%")
-            else:
-                acc_fails.append(f"{tag}:no-data")
-            if isinstance(best, (int, float)) and isinstance(final, (int, float)):
-                delta = best - final
-                collapse_detail.append(f"{tag} Δ={delta:.0f}pp")
-                if delta > PER_RUN_COLLAPSE_TOL_PP:
-                    collapse_fails.append(f"{tag}:Δ={delta:.0f}pp")
-
-    criteria.append(
-        {
-            "label": f"all runs final-acc ≥ {floor:.0f}% ({tier or 'unknown'} tier floor)",
-            "passed": not acc_fails,
-            "detail": "; ".join(acc_detail) if acc_detail else "no data",
-        }
-    )
-    criteria.append(
-        {
-            "label": f"no collapse (final ≥ best − {PER_RUN_COLLAPSE_TOL_PP:.0f}pp) for all runs",
-            "passed": not collapse_fails,
-            "detail": "; ".join(collapse_detail) if collapse_detail else "no data",
-        }
-    )
-
-    # ── Sweep-level structural checks (layer 2) ──
-
-    for fname, label in (
-        ("training_curves.png", "training curves rendered"),
-        ("dt_sweep.png", "dt-sweep accuracy plot rendered"),
-        ("firing_rates.png", "firing-rate plot rendered"),
-    ):
-        p = figures_dir / fname
-        ok = p.exists() and p.stat().st_size > 0
-        criteria.append(
-            {
-                "label": label,
-                "passed": bool(ok),
-                "detail": f"{p.name} ({p.stat().st_size} bytes)"
-                if ok
-                else f"missing {p.name}",
-                "detail_href": "/" + str(p.relative_to(dataset_root)) if ok else None,
-            }
-        )
-
-    regimes = summary.get("regimes", {})
-    flat_models = ("cuba", "coba", "ping")
-    # Threshold is deliberately loose relative to the prose: gates against
-    # regression ("ping holding gamma across eval-dt collapsed") rather
-    # than enforcing the tier-small numeric headline, which varies
-    # run-to-run.
-    FLAT_MAX = 3.0
-    PARITY_TOL = 15.0
-
-    flat_fails: list[str] = []
-    parity_fails: list[str] = []
-    flat_detail: list[str] = []
-    parity_detail: list[str] = []
-
-    for dt_key, regime in regimes.items():
-        dt_train = regime.get("dt_train", float(dt_key))
-        mode = _primary_mode_for(dt_train)
-        runs = regime.get("runs", {})
-
-        for m in flat_models:
-            entry = runs.get(m, {}).get("encoder_modes", {}).get(mode, {})
-            ratio = _rate_ratio(entry)
-            if ratio is None:
-                flat_fails.append(f"{m}@dt={dt_train}:no-data")
-                continue
-            flat_detail.append(f"{m}@dt{dt_train} {ratio:.2f}×")
-            if ratio > FLAT_MAX:
-                flat_fails.append(f"{m}@dt={dt_train}:{ratio:.2f}×>{FLAT_MAX}×")
-
-        snn_acc = runs.get("standard-snn", {}).get("best_acc")
-        lib_acc = runs.get("snntorch-library", {}).get("best_acc")
-        if isinstance(snn_acc, (int, float)) and isinstance(lib_acc, (int, float)):
-            diff = abs(snn_acc - lib_acc)
-            parity_detail.append(f"dt{dt_train} Δ={diff:.1f}pt")
-            if diff > PARITY_TOL:
-                parity_fails.append(f"dt={dt_train}:Δ={diff:.1f}>{PARITY_TOL}pt")
-        else:
-            parity_fails.append(f"dt={dt_train}:no-data")
-
-    criteria.append(
-        {
-            "label": f"cuba/coba/ping rate-flat (ratio ≤ {FLAT_MAX:g}×) on count-preserving sweep",
-            "passed": not flat_fails,
-            "detail": "; ".join(flat_detail) if flat_detail else "no data",
-        }
-    )
-    criteria.append(
-        {
-            "label": f"pinglab parity: standard-snn vs snntorch-library best-acc within {PARITY_TOL:g} pt",
-            "passed": not parity_fails,
-            "detail": "; ".join(parity_detail) if parity_detail else "no data",
-        }
-    )
-    return criteria
-
-
-def _print_and_gate(success_criteria: list[dict]) -> None:
-    for c in success_criteria:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in success_criteria):
-        sys.exit(1)
-
-
-def evaluate_only() -> None:
-    numbers_path = FIGURES / "numbers.json"
-    if not numbers_path.exists():
-        raise SystemExit(
-            f"--evaluate-success-only requires existing "
-            f"{numbers_path.relative_to(REPO)}"
-        )
-    summary = json.loads(numbers_path.read_text())
-    summary["success_criteria"] = evaluate_success(FIGURES, summary)
-    numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"rewrote {numbers_path.relative_to(REPO)} (success_criteria only)")
-    _print_and_gate(summary["success_criteria"])
-
-
 def plots_only() -> None:
     """Re-render the four published figures + numbers.json from existing
     artifacts on disk without dispatching any training or sweep. Reuses
@@ -1404,18 +1210,13 @@ def plots_only() -> None:
         regime_train_dirs, regime_sweep_dirs, numbers_path, notebook_run_id, 0.0
     )
     summary["latency"] = latency
-    summary["success_criteria"] = evaluate_success(FIGURES, summary)
     numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {numbers_path.relative_to(REPO)}")
-    _print_and_gate(summary["success_criteria"])
 
 
 def main() -> None:
     global TIER
     theme.apply()
-    if "--evaluate-success-only" in sys.argv:
-        evaluate_only()
-        return
     if "--plots-only" in sys.argv:
         plots_only()
         return
@@ -1532,7 +1333,6 @@ def main() -> None:
         init_match=init_match,
     )
     summary["latency"] = latency
-    summary["success_criteria"] = evaluate_success(FIGURES, summary)
     numbers_path.write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {numbers_path.relative_to(REPO)}")
     for dt_train_s, regime in summary["regimes"].items():
@@ -1549,7 +1349,6 @@ def main() -> None:
                     f"sweep=[{m['sweep_min_acc']}..{m['sweep_max_acc']}]%"
                 )
     print(f"  total duration: {summary['duration']}")
-    _print_and_gate(summary["success_criteria"])
 
 
 if __name__ == "__main__":

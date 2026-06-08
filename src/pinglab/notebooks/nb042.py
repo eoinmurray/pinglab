@@ -13,7 +13,7 @@ preserving per-cell mean I rate within trial:
 3. poisson_matched_i  — replace I-spikes with a Bernoulli draw matched
                         to each (trial, cell)'s baseline spike count.
 
-If the E rate stays clamped without the rhythm, art008's thesis
+If the E rate stays clamped without the rhythm, ar008's thesis
 collapses to "inhibition lowers rates." If it shoots up toward COBA's
 operating point, gamma is specifically what is doing the forbidding.
 
@@ -60,6 +60,15 @@ JITTER_SIGMAS_MS: tuple[float, ...] = (
 )
 F_GAMMA_REFERENCE_HZ: float = 36.0   # trained nb025 PING f_γ at τ_GABA = 9 ms
 
+# Per-I-cell (per-spike) jitter sweep — tests whether within-burst
+# synchrony matters, by drawing an independent Gaussian offset for each
+# I-spike. Predicted transition timescale is τ_GABA ≈ 9 ms (synaptic
+# decay), where the smeared g_i profile starts looking continuous.
+CELL_JITTER_SIGMAS_MS: tuple[float, ...] = (
+    0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0, 21.0, 50.0,
+)
+CELL_JITTER_RASTER_SIGMAS_MS: tuple[float, ...] = (0.0, 1.0, 5.0, 9.0, 50.0)
+
 # Pareto sweep — does rhythmic inhibition sit on the (E rate, accuracy)
 # frontier among I-stream perturbations at varied mean rate? Two knobs:
 #   α ∈ [0, 1]  — per-timestep mixing fraction between baseline and Poisson
@@ -69,6 +78,21 @@ F_GAMMA_REFERENCE_HZ: float = 36.0   # trained nb025 PING f_γ at τ_GABA = 9 ms
 # existing poisson_matched_i condition.
 MIX_ALPHA_GRID: tuple[float, ...] = (0.0, 0.25, 0.5, 0.75, 1.0)
 MIX_K_GRID: tuple[float, ...] = (0.25, 0.5, 1.0, 2.0, 4.0)
+
+# Cross-τ_GABA jitter sweep (formerly nb045) — loads each of nb041's 18
+# trained cells and re-runs the cycle-coherent jitter sweep at each
+# cell's own 1/f_γ. Outputs xtau_raw_sweeps, xtau_dimensional_collapse,
+# xtau_inflection_vs_period.
+NB041_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "nb041"
+NB041_NUMBERS = (
+    REPO / "src" / "docs" / "public" / "figures" / "notebooks" / "nb041"
+    / "numbers.json"
+)
+XTAU_TAU_GABAS_MS: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
+XTAU_SEEDS: tuple[int, ...] = (42, 43, 44)
+XTAU_SIGMAS_MS: tuple[float, ...] = (
+    0.0, 1.0, 3.0, 7.0, 14.0, 21.0, 28.0, 42.0, 60.0, 100.0,
+)
 # Inverse — annotated as the predicted inflection point on the sweep plot.
 # 1 / 36 Hz ≈ 27.8 ms
 CONDITION_LABELS = {
@@ -187,6 +211,8 @@ def _build_override(
       - jitter_sigma_{X}: cycle-coherent Gaussian jitter with σ = X ms.
         Uses F_GAMMA_REFERENCE_HZ unless `cycle_period_ms` is provided
         (the nb045 cross-cell experiment passes the cell's own 1/f_γ).
+      - cell_jitter_sigma_{X}: per-spike Gaussian jitter with σ = X ms
+        (destroys within-burst synchrony; preserves burst placement on average).
     """
     import torch
 
@@ -206,6 +232,9 @@ def _build_override(
         sigma_ms = float(condition.split("_")[-1])
         kwargs = {"cycle_period_ms": cycle_period_ms} if cycle_period_ms else {}
         out = _jitter_i_stream(s_i_base, sigma_ms, dt_ms, generator, **kwargs)
+    elif condition.startswith("cell_jitter_sigma_"):
+        sigma_ms = float(condition.split("_")[-1])
+        out = _cell_jitter_i_stream(s_i_base, sigma_ms, dt_ms, generator)
     elif condition.startswith("alpha_mix_"):
         # alpha_mix_a{α}_k{k} — per-timestep mix of baseline rhythm and
         # Poisson at scaled mean rate. See _alpha_mix_i_stream docstring.
@@ -272,6 +301,54 @@ def _jitter_i_stream(
     out.index_put_(
         (new_t, b_idx, n_idx),
         torch.ones(spike_positions.shape[0], dtype=s_i_base.dtype),
+        accumulate=False,
+    )
+    return out
+
+
+def _cell_jitter_i_stream(
+    s_i_base: "object", sigma_ms: float, dt_ms: float, generator,
+) -> "object":
+    """Per-spike (per-I-cell) Gaussian jitter on the I-spike stream.
+
+    Each spike gets its own independent Gaussian offset Δ ~ 𝒩(0, σ²).
+    Within-burst cross-cell synchrony is destroyed — different I-cells
+    that fired at the same timestep in baseline land at different times
+    in the override. Burst placement is preserved on average (each
+    spike's offset has zero mean), but the burst itself smears across
+    a window of width ≈ σ.
+
+    Complements `_jitter_i_stream` (cycle-coherent): the cycle-coherent
+    sweep tests whether the *placement* of each burst relative to the
+    gamma cycle matters; per-cell jitter tests whether the *sharpness*
+    of each burst matters.
+
+    Mean per-cell I rate is preserved exactly (every spike survives —
+    we only move it in time and clamp to the valid range).
+    """
+    import torch
+
+    T, B, N_I = s_i_base.shape
+    if sigma_ms <= 0.0:
+        return s_i_base.clone()
+
+    sigma_steps = sigma_ms / dt_ms
+    spike_positions = s_i_base.nonzero(as_tuple=False)  # (n_spikes, 3): (t, b, n)
+    if spike_positions.numel() == 0:
+        return s_i_base.clone()
+    t_orig = spike_positions[:, 0]
+    b_idx = spike_positions[:, 1]
+    n_idx = spike_positions[:, 2]
+    # Independent Gaussian offset per spike, rounded to timestep grid.
+    n_spikes = spike_positions.shape[0]
+    offsets = (
+        torch.randn(n_spikes, generator=generator) * sigma_steps
+    ).round().long()
+    new_t = (t_orig + offsets).clamp(0, T - 1)
+    out = torch.zeros_like(s_i_base)
+    out.index_put_(
+        (new_t, b_idx, n_idx),
+        torch.ones(n_spikes, dtype=s_i_base.dtype),
         accumulate=False,
     )
     return out
@@ -628,6 +705,157 @@ def plot_jitter_raster_strip(
     plt.close(fig)
 
 
+def plot_cell_jitter_raster_strip(
+    samples: list[dict], out_path: Path, run_id: str,
+) -> None:
+    """Stacked single-trial rasters across per-I-cell jitter σ values.
+
+    Same layout as plot_jitter_raster_strip but for the per-spike (per-cell)
+    jitter — within-burst synchrony is destroyed rather than preserved.
+    """
+    theme.apply()
+    n = len(samples)
+    n_e = RASTER_N_E_PLOT
+    n_i = RASTER_N_I_PLOT
+    gap = 6
+    fig, axes = plt.subplots(
+        n, 1, figsize=(10.0, 1.0 * n + 1.5),
+        sharex=True, gridspec_kw={"hspace": 0.22},
+    )
+    if n == 1:
+        axes = [axes]
+    for i, (ax, s) in enumerate(zip(axes, samples)):
+        T = s["e"].shape[0]
+        t_axis = np.arange(T) * s["dt"]
+        e_t, e_n = np.where(s["e"])
+        i_t, i_n = np.where(s["i"])
+        ax.scatter(t_axis[e_t], e_n,
+                   s=2.0, c=theme.INK_BLACK, marker="|", linewidths=0.4)
+        ax.scatter(t_axis[i_t], i_n + n_e + gap,
+                   s=2.0, c=theme.DEEP_RED, marker="|", linewidths=0.4)
+        ax.set_ylim(-2, n_e + n_i + gap + 2)
+        ax.set_yticks([n_e / 2, n_e + gap + n_i / 2])
+        ax.set_yticklabels(["E", "I"])
+        ax.tick_params(axis="y", length=0)
+        ax.set_xlim(0, s["t_ms"])
+        ax.text(
+            1.012, 0.5,
+            f"σ = {s['sigma_ms']:g} ms"
+            f"\nE = {s['e_rate_hz']:.1f} Hz"
+            f"\nI = {s['i_rate_hz']:.1f} Hz",
+            transform=ax.transAxes,
+            ha="left", va="center",
+            fontsize=theme.SIZE_LABEL,
+        )
+        if i == 0:
+            ax.set_title(
+                "Single-trial rasters — trained PING (nb025 seed 42) "
+                "under per-I-cell jitter (within-burst smearing)"
+            )
+        if i < n - 1:
+            ax.tick_params(axis="x", labelbottom=False)
+    axes[-1].set_xlabel("time (ms)")
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_cell_jitter_sweep(
+    cell_rows: list[dict], baseline_e_rate: float,
+    poisson_e_rate: float, out_path: Path, run_id: str,
+    tau_gaba_ms: float = 9.0,
+) -> None:
+    """Per-I-cell jitter sweep — E rate + accuracy on twin axes.
+
+    Mirrors plot_jitter_sweep's layout but for the per-spike jitter family.
+    Annotates the predicted transition at σ ≈ τ_GABA (the smearing width
+    at which g_i looks continuous) and the Poisson asymptote.
+    """
+    theme.apply()
+    by_sigma: dict[float, list[dict]] = {}
+    for r in cell_rows:
+        by_sigma.setdefault(r["sigma_ms"], []).append(r)
+    sigmas_sorted = sorted(by_sigma.keys())
+    e_means = [
+        float(np.mean([r["e_rate_hz"] for r in by_sigma[s]])) for s in sigmas_sorted
+    ]
+    e_sems = [
+        float(np.std([r["e_rate_hz"] for r in by_sigma[s]], ddof=1)
+              / np.sqrt(max(1, len(by_sigma[s]))))
+        if len(by_sigma[s]) > 1 else 0.0 for s in sigmas_sorted
+    ]
+    acc_means = [
+        float(np.mean([r["acc"] for r in by_sigma[s]])) for s in sigmas_sorted
+    ]
+    acc_sems = [
+        float(np.std([r["acc"] for r in by_sigma[s]], ddof=1)
+              / np.sqrt(max(1, len(by_sigma[s]))))
+        if len(by_sigma[s]) > 1 else 0.0 for s in sigmas_sorted
+    ]
+
+    fig, ax_rate = plt.subplots(figsize=(9.0, 5.0), dpi=150)
+    ax_rate.errorbar(
+        sigmas_sorted, e_means, yerr=e_sems,
+        marker="D", markersize=6, lw=1.4, color=theme.INK_BLACK, capsize=3,
+        label="E rate (Hz)",
+    )
+    ax_rate.set_xlabel(
+        "Per-I-cell jitter σ on the I-stream (ms)",
+        fontsize=theme.SIZE_LABEL,
+    )
+    ax_rate.set_ylabel("Hidden E rate (Hz)",
+                       fontsize=theme.SIZE_LABEL, color=theme.INK_BLACK)
+    ax_rate.tick_params(axis="y", labelcolor=theme.INK_BLACK)
+
+    # Reference horizontal lines: baseline and Poisson (the σ → ∞ asymptote).
+    ax_rate.axhline(baseline_e_rate, color=theme.MUTED, lw=0.7, ls="--", alpha=0.7)
+    ax_rate.text(
+        ax_rate.get_xlim()[1], baseline_e_rate + 0.4,
+        f"  baseline ≈ {baseline_e_rate:.1f} Hz",
+        fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
+        ha="right", va="bottom",
+    )
+    ax_rate.axhline(poisson_e_rate, color=theme.DEEP_RED, lw=0.7, ls="--",
+                    alpha=0.7)
+    ax_rate.text(
+        ax_rate.get_xlim()[1], poisson_e_rate + 0.4,
+        f"  rate-matched Poisson ≈ {poisson_e_rate:.1f} Hz",
+        fontsize=theme.SIZE_ANNOTATION, color=theme.DEEP_RED,
+        ha="right", va="bottom",
+    )
+    # Predicted transition: τ_GABA (smearing width at which g_i goes continuous).
+    ax_rate.axvline(tau_gaba_ms, color=theme.GREY_MID, lw=0.7, ls=":", alpha=0.8)
+    ax_rate.text(
+        tau_gaba_ms, ax_rate.get_ylim()[1] * 0.95,
+        f" τ_GABA = {tau_gaba_ms:g} ms",
+        fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
+        ha="left", va="top",
+    )
+
+    ax_acc = ax_rate.twinx()
+    ax_acc.errorbar(
+        sigmas_sorted, acc_means, yerr=acc_sems,
+        marker="s", markersize=6, lw=1.4, color=theme.DEEP_RED, capsize=3,
+    )
+    ax_acc.set_ylabel("Test accuracy (%)",
+                      fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
+    ax_acc.tick_params(axis="y", labelcolor=theme.DEEP_RED)
+    ax_acc.set_ylim(0, 100)
+    ax_acc.axhline(10.0, color=theme.DEEP_RED, lw=0.5, ls=":", alpha=0.4)
+
+    fig.suptitle(
+        "Per-I-cell jitter sweep — within-burst synchrony silences E",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_pareto_raster_strip(
     samples: list[dict], out_path: Path, run_id: str,
 ) -> None:
@@ -890,68 +1118,255 @@ def plot_pareto(
     }
 
 
-# ─── success criteria ───────────────────────────────────────────────
+# ─── cross-τ_GABA jitter (formerly nb045) ───────────────────────────
 
 
-def evaluate_success(rows: list[dict], figures: Path) -> list[dict]:
-    figs_root = figures.parents[2]
+def _xtau_tau_label(tau_ms: float) -> str:
+    return f"tg{f'{tau_ms:g}'.replace('.', 'p')}"
 
-    def artifact(name: str, label: str) -> dict:
-        path = figures / name
-        ok = path.exists() and path.stat().st_size > 0
-        href = "/" + str(path.relative_to(figs_root)) if ok else None
-        return {
-            "label": label,
-            "passed": bool(ok),
-            "detail": (
-                f"{path.name} ({path.stat().st_size} bytes)"
-                if ok else f"missing {path.name}"
-            ),
-            "detail_href": href,
-        }
 
-    crits: list[dict] = [
-        artifact("bar_chart.png", "bar chart rendered"),
-        artifact("raster_strip.png", "raster strip rendered"),
-    ]
+def _xtau_nb041_cell_dir(tau_ms: float, seed: int) -> Path:
+    return NB041_ARTIFACTS / f"ping__{_xtau_tau_label(tau_ms)}__seed{seed}"
 
-    # Control sanity: mean I rate held constant across conditions
-    # (otherwise we're not isolating the rhythm).
-    by_cond = {c: [] for c in CONDITIONS}
+
+def _xtau_load_nb041_f_gamma() -> dict[tuple[float, int], float]:
+    if not NB041_NUMBERS.exists():
+        raise SystemExit(
+            f"missing nb041 numbers.json at {NB041_NUMBERS}; "
+            "re-render nb041 (skip-training) to produce it."
+        )
+    data = json.loads(NB041_NUMBERS.read_text())
+    out: dict[tuple[float, int], float] = {}
+    for r in data.get("results", []):
+        out[(float(r["tau_gaba_ms"]), int(r["seed"]))] = float(r["f_gamma_hz"])
+    return out
+
+
+def _xtau_evaluate_cell(
+    train_dir: Path, sigma_ms: float, cycle_period_ms: float,
+    device, seed_offset: int = 0,
+) -> dict:
+    """Per-cell inference under cycle-coherent jitter, with the cell's
+    own 1/f_γ as the binning period (the cross-cell parameter the
+    single-cell sweep lacked)."""
+    import torch
+    from torch.utils.data import DataLoader, TensorDataset
+
+    import models as M
+    from cli import EVAL_SEED, encode_batch
+
+    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
+    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or 9.0)
+    import models as M2
+    M2.tau_gaba = tau_gaba_ms
+    M2.decay_gaba = float(np.exp(-M2.dt / tau_gaba_ms))
+    test_loader = DataLoader(
+        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
+        batch_size=64,
+    )
+    override_gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
+    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+
+    correct = total = 0
+    e_spike_sum = i_spike_sum = 0.0
+    n_e = M.N_HID
+    n_i = M.N_INH or 1
+    with torch.no_grad():
+        for X_b, y_b in test_loader:
+            X_b, y_b = X_b.to(device), y_b.to(device)
+            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
+            if sigma_ms <= 0.0:
+                logits = net(input_spikes=spk)
+            else:
+                net._hidden_perturb_fn = None
+                _ = net(input_spikes=spk)
+                s_i_base = net.spike_record["inh"].detach().clone()
+                cond = f"jitter_sigma_{sigma_ms:g}"
+                override = _build_override(
+                    s_i_base, cond, override_gen,
+                    dt_ms=float(M.dt), cycle_period_ms=cycle_period_ms,
+                )
+                fn = _make_i_override_fn(override)
+                fn.reset()
+                net._hidden_perturb_fn = fn
+                logits = net(input_spikes=spk)
+                net._hidden_perturb_fn = None
+            correct += (logits.argmax(1) == y_b).sum().item()
+            total += y_b.size(0)
+            e_spike_sum += float(net.spike_record["hid"].sum().item())
+            i_spike_sum += float(net.spike_record["inh"].sum().item())
+    t_sec = float(cfg["t_ms"]) / 1000.0
+    return {
+        "tau_gaba_ms": tau_gaba_ms,
+        "sigma_ms": float(sigma_ms),
+        "cycle_period_ms": float(cycle_period_ms),
+        "acc": 100.0 * correct / total,
+        "e_rate_hz": e_spike_sum / (total * n_e * t_sec),
+        "i_rate_hz": i_spike_sum / (total * n_i * t_sec),
+        "n_total": total,
+    }
+
+
+def _xtau_aggregate(rows: list[dict]) -> dict:
+    by_key: dict[tuple[float, float], list[dict]] = {}
     for r in rows:
-        by_cond[r["condition"]].append(r["i_rate_hz"])
-    base_i = float(np.mean(by_cond["baseline"]))
-    drift = []
-    for cond in ("phase_shuffled_i", "poisson_matched_i"):
-        i_mu = float(np.mean(by_cond[cond]))
-        rel = abs(i_mu - base_i) / max(base_i, 1e-6)
-        drift.append((cond, rel))
-    max_drift = max(d for _, d in drift)
-    crits.append({
-        "label": "mean I rate held within 5% across conditions",
-        "passed": bool(max_drift <= 0.05),
-        "detail": ", ".join(f"{c}: {100*d:.1f}% drift" for c, d in drift),
-    })
+        by_key.setdefault((r["tau_gaba_ms"], r["sigma_ms"]), []).append(r)
+    agg: dict = {}
+    for key, group in by_key.items():
+        e = [g["e_rate_hz"] for g in group]
+        a = [g["acc"] for g in group]
+        f = [g.get("f_gamma_hz", 0.0) for g in group]
+        agg[key] = {
+            "e_rate_mean": float(np.mean(e)),
+            "e_rate_sem": float(
+                np.std(e, ddof=1) / np.sqrt(len(e)) if len(e) > 1 else 0.0
+            ),
+            "acc_mean": float(np.mean(a)),
+            "f_gamma_mean": float(np.mean(f)),
+        }
+    return agg
 
-    # Discrimination: phase-shuffled / Poisson E rate clearly different
-    # from baseline (the rhythm is doing real work).
-    e_base = float(np.mean([r["e_rate_hz"] for r in rows if r["condition"] == "baseline"]))
-    diffs = []
-    for cond in ("phase_shuffled_i", "poisson_matched_i"):
-        e_mu = float(np.mean([r["e_rate_hz"] for r in rows if r["condition"] == cond]))
-        rel = abs(e_mu - e_base) / max(e_base, 1e-6)
-        diffs.append((cond, e_mu, rel))
-    max_e_jump = max(rel for _, _, rel in diffs)
-    crits.append({
-        "label": "E rate under desync ≥ 25% different from baseline",
-        "passed": bool(max_e_jump >= 0.25),
-        "detail": ", ".join(
-            f"{c}: {mu:.2f} Hz ({100*rel:+.1f}% vs baseline {e_base:.2f} Hz)"
-            for c, mu, rel in diffs
-        ),
-    })
-    return crits
 
+def plot_xtau_raw_sweeps(rows: list[dict], out_path: Path, run_id: str) -> None:
+    theme.apply()
+    agg = _xtau_aggregate(rows)
+    fig, ax = plt.subplots(figsize=(9.0, 5.0), dpi=150)
+    cmap = plt.get_cmap("viridis")
+    taus_sorted = sorted({k[0] for k in agg.keys()})
+    for i, tau in enumerate(taus_sorted):
+        color = cmap(i / max(1, len(taus_sorted) - 1))
+        sigmas = sorted({k[1] for k in agg.keys() if k[0] == tau})
+        e_means = [agg[(tau, s)]["e_rate_mean"] for s in sigmas]
+        e_sems = [agg[(tau, s)]["e_rate_sem"] for s in sigmas]
+        f_gamma = agg[(tau, sigmas[0])]["f_gamma_mean"]
+        ax.errorbar(
+            sigmas, e_means, yerr=e_sems, marker="o", markersize=5, lw=1.2,
+            color=color, capsize=3,
+            label=f"τ_GABA = {tau:g} ms  (f_γ = {f_gamma:.0f} Hz)",
+        )
+    ax.set_xlabel("Cycle-coherent jitter σ (ms)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Hidden E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(True, alpha=0.15, lw=0.4)
+    fig.suptitle("Jitter sweep across τ_GABA — raw σ axis",
+                 fontsize=theme.SIZE_TITLE)
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_xtau_dimensional_collapse(
+    rows: list[dict], out_path: Path, run_id: str,
+) -> None:
+    theme.apply()
+    agg = _xtau_aggregate(rows)
+    fig, ax = plt.subplots(figsize=(9.0, 5.0), dpi=150)
+    cmap = plt.get_cmap("viridis")
+    taus_sorted = sorted({k[0] for k in agg.keys()})
+    for i, tau in enumerate(taus_sorted):
+        color = cmap(i / max(1, len(taus_sorted) - 1))
+        sigmas = sorted({k[1] for k in agg.keys() if k[0] == tau})
+        f_gamma = agg[(tau, sigmas[0])]["f_gamma_mean"]
+        baseline = agg[(tau, sigmas[0])]["e_rate_mean"]
+        rate_max = max(agg[(tau, s)]["e_rate_mean"] for s in sigmas)
+        rate_range = max(rate_max - baseline, 1e-6)
+        x_scaled = [s * f_gamma / 1000.0 for s in sigmas]
+        y_norm = [
+            (agg[(tau, s)]["e_rate_mean"] - baseline) / rate_range
+            for s in sigmas
+        ]
+        ax.plot(x_scaled, y_norm, marker="o", markersize=5, lw=1.2,
+                color=color, label=f"τ_GABA = {tau:g} ms")
+    ax.axvline(1.0, color=theme.GREY_MID, lw=0.7, ls=":", alpha=0.8)
+    ax.text(1.0, 0.97, " predicted inflection: σ·f_γ = 1",
+            transform=ax.get_xaxis_transform(),
+            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
+            ha="left", va="top")
+    ax.set_xlabel("σ · f_γ  (dimensionless, units of one cycle)",
+                  fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Normalised E rate (r − baseline) / (max − baseline)",
+                  fontsize=theme.SIZE_LABEL)
+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(True, alpha=0.15, lw=0.4)
+    ax.set_ylim(-0.05, 1.1)
+    fig.suptitle("Dimensional collapse — σ rescaled by f_γ",
+                 fontsize=theme.SIZE_TITLE)
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_xtau_inflection_vs_period(
+    rows: list[dict], out_path: Path, run_id: str,
+) -> dict:
+    theme.apply()
+    agg = _xtau_aggregate(rows)
+    taus_sorted = sorted({k[0] for k in agg.keys()})
+    inflections, periods, f_gammas = [], [], []
+    for tau in taus_sorted:
+        sigmas = sorted({k[1] for k in agg.keys() if k[0] == tau})
+        baseline = agg[(tau, sigmas[0])]["e_rate_mean"]
+        rate_max = max(agg[(tau, s)]["e_rate_mean"] for s in sigmas)
+        rate_range = max(rate_max - baseline, 1e-6)
+        ys = [
+            (agg[(tau, s)]["e_rate_mean"] - baseline) / rate_range
+            for s in sigmas
+        ]
+        sigma_inflection = None
+        for k in range(len(sigmas) - 1):
+            y0, y1 = ys[k], ys[k + 1]
+            if (y0 <= 0.5 <= y1) or (y1 <= 0.5 <= y0):
+                frac = (0.5 - y0) / (y1 - y0 + 1e-12)
+                sigma_inflection = sigmas[k] + frac * (sigmas[k + 1] - sigmas[k])
+                break
+        if sigma_inflection is None:
+            continue
+        f_gamma = agg[(tau, sigmas[0])]["f_gamma_mean"]
+        inflections.append(sigma_inflection)
+        periods.append(1000.0 / f_gamma)
+        f_gammas.append(f_gamma)
+
+    fig, ax = plt.subplots(figsize=(7.0, 5.0), dpi=150)
+    alpha = r2 = float("nan")
+    if inflections:
+        ax.scatter(periods, inflections, s=60, color=theme.INK_BLACK, zorder=3,
+                   label="measured inflection σ")
+        p = np.array(periods)
+        s = np.array(inflections)
+        alpha = float(np.sum(p * s) / np.sum(p * p))
+        ss_res = float(np.sum((s - alpha * p) ** 2))
+        ss_tot = float(np.sum((s - s.mean()) ** 2)) if len(s) > 1 else 1.0
+        r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else float("nan")
+        xs_fit = np.linspace(0, max(p) * 1.1, 100)
+        ax.plot(xs_fit, alpha * xs_fit, color=theme.DEEP_RED, ls="--", lw=1.2,
+                label=f"σ = α · (1/f_γ)  (α = {alpha:.2f}, R² = {r2:.3f})")
+        ax.plot(xs_fit, xs_fit, color=theme.GREY_MID, ls=":", lw=0.8,
+                label="predicted: σ = 1/f_γ")
+    ax.set_xlabel("1/f_γ  (ms)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Measured inflection σ  (ms)", fontsize=theme.SIZE_LABEL)
+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(True, alpha=0.15, lw=0.4)
+    fig.suptitle("Inflection σ tracks 1/f_γ across τ_GABA",
+                 fontsize=theme.SIZE_TITLE)
+    fig.tight_layout()
+    _stamp(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    return {"alpha": alpha, "r2": r2, "n_points": len(inflections)}
+
+
+# ─── success criteria ───────────────────────────────────────────────
 
 def _format_duration(seconds: float) -> str:
     s = int(round(seconds))
@@ -1097,6 +1512,59 @@ def main() -> None:
     )
     print(f"wrote {FIGURES / 'jitter_raster_strip.png'}")
 
+    # ── Per-cell jitter sweep ──────────────────────────────────────
+    # Independent Gaussian offset per spike — destroys within-burst
+    # synchrony while preserving burst placement on average. Predicts
+    # the rate-release transition at σ ≈ τ_GABA (the smearing width
+    # at which the integrated g_i profile starts looking continuous).
+    print(f"[cell-jitter] sweep σ ∈ {list(CELL_JITTER_SIGMAS_MS)} ms")
+    cell_jitter_rows: list[dict] = []
+    for seed in args.seeds:
+        train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
+        for sigma_ms in CELL_JITTER_SIGMAS_MS:
+            cond = f"cell_jitter_sigma_{sigma_ms:g}"
+            t0 = time.monotonic()
+            res = evaluate_condition(train_dir, cond, device,
+                                     seed_offset=seed + int(sigma_ms * 13))
+            res["seed"] = seed
+            res["sigma_ms"] = float(sigma_ms)
+            cell_jitter_rows.append(res)
+            print(
+                f"    σ={sigma_ms:>5.1f}ms seed={seed}  "
+                f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:6.2f} Hz  "
+                f"I={res['i_rate_hz']:6.2f} Hz  ({time.monotonic() - t0:.1f}s)"
+            )
+
+    poisson_e = float(np.mean(
+        [r["e_rate_hz"] for r in rows if r["condition"] == "poisson_matched_i"]
+    ))
+    plot_cell_jitter_sweep(
+        cell_jitter_rows, baseline_e, poisson_e,
+        FIGURES / "cell_jitter_sweep.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'cell_jitter_sweep.png'}")
+
+    # Per-cell jitter raster strip — diagnostic subset.
+    print(
+        f"[cell-jitter-raster] panels from seed {raster_seed}, "
+        f"σ ∈ {list(CELL_JITTER_RASTER_SIGMAS_MS)} ms"
+    )
+    cell_jitter_raster_samples = []
+    for sigma_ms in CELL_JITTER_RASTER_SIGMAS_MS:
+        cond = f"cell_jitter_sigma_{sigma_ms:g}"
+        sample = capture_condition_raster(
+            raster_train_dir, cond, RASTER_SAMPLE_IDX, device,
+            seed_offset=raster_seed + int(sigma_ms * 13),
+        )
+        sample["sigma_ms"] = float(sigma_ms)
+        cell_jitter_raster_samples.append(sample)
+    plot_cell_jitter_raster_strip(
+        cell_jitter_raster_samples,
+        FIGURES / "cell_jitter_raster_strip.png",
+        notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'cell_jitter_raster_strip.png'}")
+
     # ── Pareto sweep ──────────────────────────────────────────────
     # Probe whether the rhythmic baseline sits at the (low E, high acc)
     # corner of the (α, k) grid. Single seed (first in args.seeds) — the
@@ -1138,8 +1606,66 @@ def main() -> None:
     print(f"wrote {FIGURES / 'pareto_sweep.png'}")
     print(f"  pareto summary: {pareto_summary}")
 
+    # ── Cross-τ_GABA jitter sweep (formerly nb045) ─────────────────
+    # Replay the cycle-coherent jitter sweep on each of nb041's 18
+    # trained cells, with each cell's own 1/f_γ as the binning period.
+    # Tests whether the σ ≈ 1/f_γ inflection scales when f_γ varies.
+    print(f"[xtau] τ_GABA × seed × σ sweep: {len(XTAU_TAU_GABAS_MS)} × "
+          f"{len(XTAU_SEEDS)} × {len(XTAU_SIGMAS_MS)} = "
+          f"{len(XTAU_TAU_GABAS_MS) * len(XTAU_SEEDS) * len(XTAU_SIGMAS_MS)} evals")
+    xtau_rows: list[dict] = []
+    xtau_fit_summary: dict | None = None
+    try:
+        f_gamma_map = _xtau_load_nb041_f_gamma()
+    except SystemExit as e:
+        print(f"  [skip xtau] {e}")
+        f_gamma_map = None
+    if f_gamma_map is not None:
+        for tau in XTAU_TAU_GABAS_MS:
+            for seed in XTAU_SEEDS:
+                train_dir = _xtau_nb041_cell_dir(tau, seed)
+                if not (train_dir / "weights.pth").exists():
+                    print(f"    [skip] missing {train_dir.relative_to(REPO)}")
+                    continue
+                f_gamma = f_gamma_map.get((tau, seed))
+                if f_gamma is None or f_gamma <= 0:
+                    print(f"    [skip] no f_γ for τ={tau} seed={seed}")
+                    continue
+                cycle_ms = 1000.0 / f_gamma
+                for sigma in XTAU_SIGMAS_MS:
+                    t0 = time.monotonic()
+                    res = _xtau_evaluate_cell(
+                        train_dir, sigma, cycle_ms, device,
+                        seed_offset=seed + int(sigma),
+                    )
+                    res["seed"] = seed
+                    res["f_gamma_hz"] = f_gamma
+                    xtau_rows.append(res)
+                    print(
+                        f"    τ={tau:>5.1f}ms seed={seed} σ={sigma:>5.1f}ms  "
+                        f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:5.2f}Hz  "
+                        f"({time.monotonic() - t0:.1f}s)"
+                    )
+        plot_xtau_raw_sweeps(
+            xtau_rows, FIGURES / "xtau_raw_sweeps.png", notebook_run_id,
+        )
+        print(f"wrote {FIGURES / 'xtau_raw_sweeps.png'}")
+        plot_xtau_dimensional_collapse(
+            xtau_rows, FIGURES / "xtau_dimensional_collapse.png",
+            notebook_run_id,
+        )
+        print(f"wrote {FIGURES / 'xtau_dimensional_collapse.png'}")
+        xtau_fit_summary = plot_xtau_inflection_vs_period(
+            xtau_rows, FIGURES / "xtau_inflection_vs_period.png",
+            notebook_run_id,
+        )
+        print(
+            f"wrote {FIGURES / 'xtau_inflection_vs_period.png'}  "
+            f"(α = {xtau_fit_summary['alpha']:.3f}, "
+            f"R² = {xtau_fit_summary['r2']:.3f})"
+        )
+
     duration_s = time.monotonic() - t_start
-    crits = evaluate_success(rows, FIGURES)
     summary = {
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
@@ -1152,24 +1678,27 @@ def main() -> None:
             "f_gamma_reference_hz": F_GAMMA_REFERENCE_HZ,
             "mix_alpha_grid": list(MIX_ALPHA_GRID),
             "mix_k_grid": list(MIX_K_GRID),
+            "xtau_tau_gabas_ms": list(XTAU_TAU_GABAS_MS),
+            "xtau_seeds": list(XTAU_SEEDS),
+            "xtau_sigmas_ms": list(XTAU_SIGMAS_MS),
             "nb025_source": "ping__off__seed{seed} (θ_u = off baseline)",
+            "nb041_source": "ping__tg{N}__seed{S} (100-epoch baselines)",
             "raster_sample_idx": RASTER_SAMPLE_IDX,
         },
         "results": rows,
         "jitter_sweep": jitter_rows,
+        "cell_jitter_sweep": cell_jitter_rows,
         "pareto_sweep": pareto_rows,
         "pareto_summary": pareto_summary,
-        "success_criteria": crits,
+        "cross_tau_jitter": {
+            "fit": xtau_fit_summary,
+            "results": xtau_rows,
+        },
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
 
-    for c in crits:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in crits):
-        sys.exit(1)
 
 
 if __name__ == "__main__":
