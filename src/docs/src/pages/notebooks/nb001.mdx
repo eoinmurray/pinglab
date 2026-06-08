@@ -11,11 +11,11 @@ export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb001/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
-## Introduction
+## Abstract
 
 Pinglab notebooks pull from a small palette of chart types — line, bar, scatter, histogram with theoretical overlay, heatmap, raster. This entry generates one canonical example of each on synthetic data, so the *style* (typography, spacing, colors, axis treatment, gridlines) can be iterated on independently of the science. Whatever this page settles on becomes the brand-aligned baseline that every other notebook inherits.
 
-## Method
+## Methods
 
 Six plots, one per chart type, written with raw matplotlib defaults as the starting point. Data is synthetic and seeded so the plots are reproducible across runs. The renderer is *src/pinglab/notebooks/nb001.py*; figures land in *src/docs/public/figures/notebooks/nb001/*.
 

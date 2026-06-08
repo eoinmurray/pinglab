@@ -1,0 +1,17 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "An ASCII PING field"
+date: 2026-06-08
+entry: 10
+structure: paper
+collection: null
+---
+import PingAsciiHero from "../../components/articles/PingAsciiHero";
+
+<PingAsciiHero client:only="react" />
+
+A small visual aside. The hero above is a procedural ASCII field driven by the same recipe as a PING rhythm: two horizontal bands — one for the excitatory population, one for the inhibitory — each filled with a travelling gamma wave, and the I band running a fixed phase lag behind E. The brightness of a cell maps to a character from a sparse-to-dense ramp, so high-rate cells render as *@* and *$* and silent cells fall back to *.* or to whitespace.
+
+The lag is the whole point. In a real PING circuit, an E volley spikes first, drives the I population through fast AMPA-mediated excitation, and the I population then silences E via GABAergic inhibition until enough I cells decay for the next E volley to escape. The phase relationship is rigid: I tracks E by something on the order of a few milliseconds, which at 40 Hz is roughly a fifth of a cycle. The hero uses sixty degrees by default — close enough to feel like the real thing without being a literal simulation.
+
+Move the cursor over the canvas. The local Gaussian bump in intensity is a deliberate hand-wave at the *spotlight* role gamma plays in selective routing: where attention lands, more neurons cross threshold, the rhythm locks tighter, and the readout gets denser. It is decoration, not a model. The actual gating story is in the [Gamma Gated Sparsity](/collections/gamma-gated-sparsity/) collection.

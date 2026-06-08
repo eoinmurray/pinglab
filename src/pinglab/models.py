@@ -477,6 +477,7 @@ class COBANet(SNNBase):
         ei_layers=None,
         readout_mode="rate",
         trainable_w_ee=False,
+        n_inh_per_layer=None,
     ):
         super().__init__()
         if readout_mode not in ("rate", "li", "spike-count", "mem-mean"):
@@ -507,6 +508,11 @@ class COBANet(SNNBase):
         else:
             self.ei_layers = set(range(1, self.n_layers + 1))
 
+        # Per-layer N_I override (1-indexed). When None, falls back to
+        # n_e // 4. Used by the I-pool sweep in nb047 to vary the E:I
+        # ratio without retraining the rest of the architecture.
+        self.n_inh_per_layer = dict(n_inh_per_layer or {})
+
         # Feedforward weights: input→H1, H1→H2, ..., HN→output
         self.W_ff = nn.ParameterList()
         for idx, (n_pre, n_post) in enumerate(zip(all_sizes[:-1], all_sizes[1:])):
@@ -527,7 +533,7 @@ class COBANet(SNNBase):
         self.W_ie = nn.ParameterDict()
         for i in self.ei_layers:
             n_e = sizes[i - 1]
-            n_i = n_e // 4  # standard E:I ratio
+            n_i = self.n_inh_per_layer.get(i, n_e // 4)
             k = str(i)
             p1, p2, d, s = _parse_weight_spec(w_ee, dist, sparsity)
             w_ee_t = nn.Parameter(
@@ -613,7 +619,7 @@ class COBANet(SNNBase):
             ge_e[k] = init_conductance(B, n_e, device)
             s_e[k] = torch.zeros(B, n_e, device=device)
             if i in self.ei_layers:
-                n_i = n_e // 4
+                n_i = self.n_inh_per_layer.get(i, n_e // 4)
                 gi_e[k] = init_conductance(B, n_e, device)
                 v_i[k], ref_i[k] = init_lif_state(
                     B, n_i, device, randomize=randomize_init
@@ -649,7 +655,7 @@ class COBANet(SNNBase):
                 rec_buf[f"v_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
                 rec_buf[f"ge_e_{i}"] = torch.zeros(T_steps, B, n_e, device=device)
                 if i in self.ei_layers:
-                    n_inh = n_e // 4
+                    n_inh = self.n_inh_per_layer.get(i, n_e // 4)
                     rec_buf[self._inh_key(i)] = torch.zeros(
                         T_steps, B, n_inh, device=device
                     )

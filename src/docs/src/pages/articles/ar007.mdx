@@ -1,0 +1,681 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "Bayes in the Cortex: A Reading Guide"
+date: 2026-05-19
+entry: 7
+structure: paper
+collection: null
+---
+
+Eight papers form the uncertainty-and-inference shelf in this project. They share one big idea — *the brain represents uncertainty and performs Bayesian inference, and this is visible in the way cortical circuits behave* — but they argue about *how* the inference is implemented in spikes. This guide names the concepts you should learn before opening them, sketches the unifying themes, and lays out a reading order.
+
+## The papers
+
+| Role | Paper | Year |
+| --- | --- | --- |
+| Framing review (population codes) | Pouget, Dayan & Zemel — *Inference and computation with population codes* | 2003 |
+| Framing review (perception + learning) | Fiser, Berkes, Orbán & Lengyel — *Statistically optimal perception and learning* | 2010 |
+| PPC school | Ma, Beck, Latham & Pouget — *Bayesian inference with probabilistic population codes* | 2006 |
+| Sampling school (V1 variability) | Orbán, Berkes, Fiser & Lengyel — *Neural variability and sampling-based probabilistic representations* | 2016 |
+| Sampling school (HMC via E–I dynamics) | Aitchison & Lengyel — *The Hamiltonian brain* | 2016 |
+| Sampling school (trained RNNs) | Echeveste, Aitchison, Hennequin & Lengyel — *Cortical-like dynamics in recurrent circuits optimised for sampling* | 2020 |
+| Behavioural read-out | Fleming & Lau — *How to measure metacognition* | 2014 |
+| Energetic constraint | Padamsey et al. — *Neocortex saves energy by reducing coding precision* | 2022 |
+
+## Unifying themes
+
+**Perception is inference under uncertainty.** Sensory input is ambiguous — a 2D retinal image is consistent with infinitely many 3D scenes. The mathematically appropriate thing for a brain to do is compute a posterior over possible causes given a prior and a likelihood. All eight papers take this as the starting assumption.
+
+**Representing a whole distribution in spikes is the hard problem.** Two competing answers dominate, and the papers split along this line:
+
+- *Probabilistic Population Codes (PPC).* The posterior is implicit in the instantaneous firing rates of a population. Poisson-like neural variability happens to be the exact noise structure that makes optimal Bayesian inference reduce to *linear* combinations of activity. (Ma et al. 2006 is the canonical statement.)
+- *Sampling.* Instantaneous activity *is one sample* from the posterior; over time, neural variability traces out the distribution. Oscillations and transients become dynamical features of the sampler, not noise. (Orbán, Aitchison & Lengyel, Echeveste — the Lengyel-lab line.)
+
+**Neural variability is a feature, not a bug.** Both schools reinterpret what used to look like nuisance noise — trial-to-trial variability, Fano factor ≈ 1, gamma oscillations, stimulus-onset transients — as the *signature* of probabilistic computation.
+
+**Cortical dynamics are the algorithm, not the substrate.** Aitchison & Lengyel and Echeveste explicitly cast excitation–inhibition dynamics — with gamma oscillations and onset transients — as implementing Hamiltonian Monte Carlo or a related fast sampler. This is the bit most directly relevant to PING-style work in this project.
+
+**Behaviour is the read-out.** Fleming & Lau give the tools to measure whether a subject's confidence tracks the actual posterior. It is how you test, behaviourally, that a brain is doing Bayesian inference rather than merely looking like it.
+
+**Precision has a metabolic price.** Padamsey shows that coding precision (≡ inverse variance) — which the other papers treat purely as a representational variable — is also under energetic pressure. A useful counterweight to the purely-computational framing.
+
+
+## Probability foundations
+
+A self-contained introduction to the probability machinery the [reading guide](#the-papers) assumes. Worked through in order, this page is enough to read Pouget, Fiser, and Ma without getting stuck on the formalism. The examples lean towards neuroscience — spike counts, membrane voltages, stimulus inference — because that's where everything is heading.
+
+### Random variables
+
+A *random variable* is a quantity whose value is uncertain. The two flavours that matter:
+
+- *Discrete* — the value lives in a countable set. Examples: the number of spikes a neuron emits in a 100 ms window ($X \in \{0, 1, 2, \dots\}$); whether a stimulus is on or off ($S \in \{0, 1\}$); which of ten digits a handwritten image shows ($Y \in \{0, \dots, 9\}$).
+- *Continuous* — the value lives in $\mathbb{R}$ (or some subset). Examples: a neuron's membrane voltage at a given moment ($V \in \mathbb{R}$); the orientation of a visual edge ($\theta \in [0, 2\pi)$); the time of the next spike ($t > 0$).
+
+A discrete random variable is fully described by a *probability mass function* (PMF) $p(x) = \Pr(X = x)$, with $p(x) \geq 0$ and $\sum_x p(x) = 1$. A continuous random variable is described by a *probability density function* (PDF) $p(x)$, with $p(x) \geq 0$ and $\int p(x)\,dx = 1$. The density is *not* a probability — only its integral over an interval is — but for almost every purpose the two cases share the same algebra, with $\sum$ swapped for $\int$.
+
+### Joint, marginal, conditional
+
+These three quantities — joint, marginal, conditional — are the entire vocabulary of probability. Everything that follows is recombinations of them. To keep the intuition concrete, every definition below is illustrated with the same running example: an orientation-selective neuron observed while one of two stimuli is presented.
+
+*The setup.* On each trial, a stimulus $S$ is shown — *vertical* or *horizontal*, with equal probability — and the neuron emits a spike count $N \in \{0, 1, 2, 3\}$ in a fixed window. The neuron prefers vertical: it fires more spikes when $S$ is vertical than when it is horizontal. The full description of one trial's randomness is captured by the joint distribution below.
+
+#### Joint distribution
+
+The *joint* distribution $p(x, y) = \Pr(X = x, Y = y)$ assigns a probability to every possible combination of $X$ and $Y$. *Intuition: the joint is the complete description of the experiment* — once you have it, every other probabilistic statement about $X$ and $Y$ is a derived quantity.
+
+*Example.* The joint $p(N, S)$ over spike counts and stimulus, written as a table:
+
+| | $N = 0$ | $N = 1$ | $N = 2$ | $N = 3$ |
+| --- | ---: | ---: | ---: | ---: |
+| $S = $ vertical | 0.05 | 0.10 | 0.20 | 0.15 |
+| $S = $ horizontal | 0.25 | 0.15 | 0.075 | 0.025 |
+
+Every cell is the probability of one specific outcome (e.g. *vertical stimulus shown and the neuron emitted 2 spikes*: $p(N=2, S=\text{v}) = 0.20$). All eight cells sum to 1.
+
+#### Marginal distribution
+
+The *marginal* distribution of $X$ is obtained by summing the joint over the other variable:
+$$
+p(x) = \sum_y p(x, y).
+$$
+*Intuition: the marginal answers a question about one variable in a world where you don't care about the other.* You add up all the ways the joint can produce a given $X$, regardless of what $Y$ did.
+
+*Example.* The marginal $p(N)$ — what spike counts do you see, averaged across both stimulus types?
+$$
+p(N = 0) = 0.05 + 0.25 = 0.30,\quad p(N = 1) = 0.25,\quad p(N = 2) = 0.275,\quad p(N = 3) = 0.175.
+$$
+This is what an observer who didn't know which stimulus had been shown would record. The neuron's "spontaneous-looking" distribution is just the stimulus-marginal of its stimulus-driven distribution.
+
+#### Conditional distribution
+
+The *conditional* distribution of $X$ given $Y = y$ is the joint restricted to that slice and renormalised:
+$$
+p(x \mid y) = \frac{p(x, y)}{p(y)}.
+$$
+*Intuition: the conditional is what you believe about $X$ once $Y$ has stopped being uncertain.* You select the row (or column) of the joint corresponding to the known value of $Y$, then divide by its total so the probabilities sum to 1 again.
+
+*Example — forward direction, $p(N \mid S)$.* Given a vertical stimulus, what spike counts does the neuron produce?
+$$
+p(N = k \mid S = \text{v}) = \frac{p(N = k, S = \text{v})}{p(S = \text{v})} = \frac{p(N = k, S = \text{v})}{0.5}.
+$$
+That gives $p(N \mid S = \text{v}) = (0.10,\,0.20,\,0.40,\,0.30)$ for $k = 0, 1, 2, 3$. For horizontal stimuli, $p(N \mid S = \text{h}) = (0.50,\,0.30,\,0.15,\,0.05)$. The vertical row is shifted towards higher counts — the tuning of the neuron.
+
+*Example — reverse direction, $p(S \mid N)$.* You observe two spikes. Which stimulus was shown?
+$$
+p(S = \text{v} \mid N = 2) = \frac{p(N = 2, S = \text{v})}{p(N = 2)} = \frac{0.20}{0.275} \approx 0.73, \qquad p(S = \text{h} \mid N = 2) \approx 0.27.
+$$
+This last calculation is exactly Bayesian inference in miniature: you take the joint, condition on what you observed, and read off a probability distribution over the latent cause. The forward conditional $p(N \mid S)$ is the *likelihood*; the reverse conditional $p(S \mid N)$ is the *posterior* — the same algebra you will see in Bayes' rule below.
+
+#### Independence
+
+$X$ and $Y$ are *independent* if $p(x, y) = p(x)\,p(y)$ for all $x, y$. Equivalently, $p(x \mid y) = p(x)$ — knowing $Y$ tells you nothing about $X$. Independence is rare in nature; in neural data it almost never holds exactly. Conditional independence — independence *given some third variable* — is much more common and is the building block of graphical models.
+
+### Expectation and variance
+
+The *expectation* (or mean) of a random variable is its average weighted by probability:
+$$
+\mathbb{E}[X] = \sum_x x\,p(x) \qquad \text{(or } \int x\,p(x)\,dx\text{).}
+$$
+Expectation is linear: $\mathbb{E}[aX + bY] = a\,\mathbb{E}[X] + b\,\mathbb{E}[Y]$, *whether or not $X$ and $Y$ are independent*. This is one of the most-used facts in all of probability.
+
+The *variance* measures spread around the mean:
+$$
+\mathrm{Var}(X) = \mathbb{E}\!\left[(X - \mathbb{E}[X])^2\right] = \mathbb{E}[X^2] - \mathbb{E}[X]^2.
+$$
+The standard deviation $\sigma = \sqrt{\mathrm{Var}(X)}$ has the same units as $X$. Variance adds for *independent* sums: $\mathrm{Var}(X + Y) = \mathrm{Var}(X) + \mathrm{Var}(Y)$ when $X \perp Y$.
+
+A useful pair for later: if $a$ is a constant, $\mathbb{E}[aX] = a\,\mathbb{E}[X]$ but $\mathrm{Var}(aX) = a^2\,\mathrm{Var}(X)$ — variance has units of $X^2$.
+
+### Bayes' rule
+
+Bayes' rule is a one-line consequence of how conditional probability is defined. Write the joint two ways:
+$$
+p(x, y) = p(x \mid y)\,p(y) = p(y \mid x)\,p(x).
+$$
+Rearranging,
+$$
+\boxed{\;p(y \mid x) = \frac{p(x \mid y)\,p(y)}{p(x)}\;}.
+$$
+
+That single equation is everything. The substantive content is the four roles its pieces play when $y$ is the thing you want to know and $x$ is what you observe.
+
+| Symbol | Name | What it captures |
+| --- | --- | --- |
+| $p(y)$ | *prior* | What you believed about $y$ before seeing $x$. |
+| $p(x \mid y)$ | *likelihood* | How probable each possible $x$ is, *for each candidate value of $y$*. The forward / generative model. |
+| $p(y \mid x)$ | *posterior* | Updated belief about $y$ after seeing $x$. The output of inference. |
+| $p(x)$ | *evidence* (or marginal likelihood) | A normalising constant: $\sum_y p(x \mid y)\,p(y)$. Independent of $y$. |
+
+#### A concrete example
+
+A neuron fires more for some orientations than others. Suppose its expected spike count in a 100 ms window is $f(\theta) = 10\cos^2\theta$ Hz, and you observe $X = 7$ spikes. Treating the spike count as Poisson given the orientation, the likelihood is $p(X = 7 \mid \theta)$. With a flat prior $p(\theta)$, the posterior $p(\theta \mid X = 7)$ peaks where $f(\theta)$ is closest to 7 — and its *width* tells you how certain the brain (or you) can be about the stimulus. That width is what the [reading guide](#the-papers) calls "uncertainty," and it is the central object of Bayesian neuroscience.
+
+#### Why the evidence often does not need computing
+
+The denominator $p(x)$ has no $y$-dependence, so for many purposes you can write
+$$
+p(y \mid x) \propto p(x \mid y)\,p(y)
+$$
+and find the *shape* of the posterior without ever computing the normaliser. The constant is recovered from the requirement that the posterior sums to 1. When you cannot avoid it, computing $p(x) = \sum_y p(x \mid y)\,p(y)$ is the very thing that makes Bayesian inference intractable in high-dimensional models — and the reason approximate inference exists (variational, sampling). The reading guide flags this fork.
+
+### Marginalisation
+
+If "Bayesian inference is mostly marginalisation in disguise" sounds dramatic, here is why.
+
+Suppose your generative model has three variables: a stimulus $S$, a neural response $R$, and a nuisance variable $Z$ (say, eye position, or some unobserved internal noise). You observe $R$ and want $p(S \mid R)$. The joint factorises as $p(S, R, Z)$, and the inference you actually want is
+$$
+p(S \mid R) = \frac{\sum_Z p(S, R, Z)}{\sum_{S, Z} p(S, R, Z)}.
+$$
+Both numerator and denominator are *marginal* sums over $Z$. The harder the dependence between $S$, $R$, and $Z$, the more these sums (or integrals, in the continuous case) eat all the computational time. In high-dimensional latent spaces — exactly the regime the brain has to work in — exact marginalisation is impossible; sampling and variational methods exist to approximate it.
+
+A second use of marginalisation: model selection. To compare two generative models $M_1$ and $M_2$ you need their evidences $p(x \mid M_i) = \int p(x \mid \theta, M_i)\,p(\theta \mid M_i)\,d\theta$ — marginal over all parameters $\theta$. Same integral, different question.
+
+### Common distributions
+
+You will see four discrete and continuous distributions over and over. Each has a *natural* situation it describes; recognising the situation lets you reach for the right one without thought.
+
+#### Bernoulli — a single yes/no event
+
+$X \in \{0, 1\}$ with probability $p$ of being 1:
+$$
+p(X = 1) = p, \qquad p(X = 0) = 1 - p.
+$$
+$\mathbb{E}[X] = p$, $\mathrm{Var}(X) = p(1-p)$. A neuron firing or not firing in a single millisecond bin is well-modelled as Bernoulli when the bin is short enough that two spikes are impossible.
+
+#### Categorical — one out of $K$
+
+$X \in \{1, \dots, K\}$ with probabilities $\pi_1, \dots, \pi_K$ summing to 1. The natural model for a label (which digit? which orientation bin?) and the output of a softmax classifier.
+
+#### Poisson — count of independent events
+
+$X \in \{0, 1, 2, \dots\}$ with rate parameter $\lambda > 0$:
+$$
+p(X = k) = \frac{\lambda^k e^{-\lambda}}{k!}.
+$$
+$\mathbb{E}[X] = \lambda$, $\mathrm{Var}(X) = \lambda$ — the variance equals the mean. This *Fano factor of 1* is the signature: when neural data is approximately Poisson, its variability per unit mean is fixed. The Poisson distribution is the canonical model for spike counts over a fixed window when individual spikes are roughly independent. Ma et al. 2006 leans heavily on a slightly more permissive object — *Poisson-like* variability, where the Fano factor is constant but not necessarily 1 — because this is precisely the noise structure that makes PPC inference linear.
+
+#### Gaussian (normal) — continuous, central-limit-flavoured
+
+$X \in \mathbb{R}$ with mean $\mu$ and variance $\sigma^2$:
+$$
+p(x) = \frac{1}{\sqrt{2\pi\sigma^2}}\,\exp\!\left(-\frac{(x-\mu)^2}{2\sigma^2}\right).
+$$
+The Gaussian's outsized importance comes from the *central limit theorem* — sums of many small independent contributions tend to a Gaussian, almost regardless of what those contributions individually look like. Membrane voltage fluctuations driven by many synaptic inputs, measurement noise, behavioural reaction times after a transform: all are routinely modelled as Gaussian.
+
+### The Gaussian, in more depth
+
+Two facts about the Gaussian are doing most of the work in the papers on the reading list.
+
+#### Mean, variance, precision
+
+A Gaussian is fully described by two numbers. Two equivalent parameterisations:
+
+- $(\mu, \sigma^2)$ — mean and variance. The natural form for thinking about *spread*.
+- $(\mu, \tau)$ — mean and *precision*, where $\tau = 1/\sigma^2$. The natural form for thinking about *reliability* or *information*.
+
+Why the precision parameterisation is useful: when you combine two independent Gaussian estimates, *precisions add*. A cue that gives you a very narrow Gaussian (high precision, low variance) is *more informative* than one that gives a broad Gaussian, and "more informative" is exactly what precision is supposed to mean.
+
+#### A product of Gaussians is Gaussian
+
+This is the most-used calculation in the entire Bayesian-brain literature. Take two Gaussians in $x$:
+$$
+\mathcal{N}(x;\,\mu_1, \sigma_1^2) \cdot \mathcal{N}(x;\,\mu_2, \sigma_2^2).
+$$
+Their product, after renormalising, is again Gaussian — say $\mathcal{N}(x;\,\mu_\star, \sigma_\star^2)$ — with parameters
+$$
+\frac{1}{\sigma_\star^2} = \frac{1}{\sigma_1^2} + \frac{1}{\sigma_2^2}, \qquad
+\frac{\mu_\star}{\sigma_\star^2} = \frac{\mu_1}{\sigma_1^2} + \frac{\mu_2}{\sigma_2^2}.
+$$
+Translated into precisions $\tau_i = 1/\sigma_i^2$,
+$$
+\tau_\star = \tau_1 + \tau_2, \qquad \mu_\star = \frac{\tau_1\mu_1 + \tau_2\mu_2}{\tau_1 + \tau_2}.
+$$
+Precisions add. The combined mean is a *precision-weighted average* of the two means — the more reliable cue pulls the answer more strongly.
+
+This is the mathematical core of *cue combination*: Bayes' rule with a Gaussian prior and a Gaussian likelihood gives a Gaussian posterior, and the rules above tell you exactly what the posterior is.
+
+#### Cue combination — a worked example
+
+You estimate the size of an object with both vision and touch. Each modality gives a noisy Gaussian estimate:
+
+- Visual estimate $\mu_v = 10.2$ cm, $\sigma_v = 0.5$ cm. ($\tau_v = 4$ cm$^{-2}$.)
+- Haptic estimate $\mu_h = 10.8$ cm, $\sigma_h = 1.0$ cm. ($\tau_h = 1$ cm$^{-2}$.)
+
+Treating these as conditionally independent likelihoods over the true size with a flat prior, the posterior is Gaussian with
+$$
+\tau_\star = 4 + 1 = 5,\quad \sigma_\star = 1/\sqrt{5} \approx 0.45\text{ cm}
+$$
+$$
+\mu_\star = \frac{4 \cdot 10.2 + 1 \cdot 10.8}{5} = 10.32\text{ cm}.
+$$
+Two observations:
+
+1. The combined estimate is *more precise* than either single modality — $\sigma_\star = 0.45$ beats both $0.5$ and $1.0$. Independent evidence always tightens the posterior.
+2. The combined mean is pulled *towards the more precise cue* — closer to $\mu_v = 10.2$ than to $\mu_h = 10.8$.
+
+The Fiser review opens with exactly this calculation as the demonstration that humans behave Bayes-optimally in multisensory tasks. Every later paper on the reading list is, in one way or another, asking *how* a population of spiking neurons could be doing this.
+
+## Bayesian reasoning
+
+A second pass over the foundations — now assuming the probability machinery of [Probability foundations](#probability-foundations) and turning it into reasoning patterns. Four ideas, all of which appear without warning in the papers on the [reading list](#the-papers): point estimates vs full posteriors, generative models, cue combination, and how a posterior becomes tomorrow's prior.
+
+### MAP vs MLE vs full posterior
+
+You have observed data $x$ and want to say something about a latent variable $\theta$. There are three things you might report.
+
+#### Maximum likelihood (MLE)
+
+Pick the $\theta$ that makes the observed data most probable:
+$$
+\hat\theta_{\text{MLE}} = \arg\max_\theta\,p(x \mid \theta).
+$$
+No prior. No notion of which $\theta$'s were plausible *before* you saw the data. This is the workhorse of classical statistics. It is also what a standard neural-network classifier does when it minimises cross-entropy loss — likelihood maximisation under the model's parametric assumptions.
+
+#### Maximum a posteriori (MAP)
+
+Pick the $\theta$ that has the highest posterior probability:
+$$
+\hat\theta_{\text{MAP}} = \arg\max_\theta\,p(\theta \mid x) = \arg\max_\theta\,p(x \mid \theta)\,p(\theta).
+$$
+The denominator $p(x)$ does not depend on $\theta$ and drops out. MAP is MLE with a prior bolted on. When the prior is uniform over $\theta$, MAP and MLE coincide. When the prior is informative — a Gaussian, say — MAP becomes regularised MLE, and *regularisation* and *prior* turn out to be the same idea seen from two angles.
+
+#### Full posterior
+
+Return the whole distribution $p(\theta \mid x)$. Not a point, but a *belief* — a probability density over every possible value of $\theta$, with a mode, a width, a tail.
+
+#### Why the distinction matters
+
+MLE and MAP collapse the posterior to a single number. That number can be the right *answer* and still be the wrong *thing to report*, because it discards the width — the uncertainty — of the posterior. Two posteriors with the same mode but very different widths look identical under MAP and very different under any decision that should respect uncertainty.
+
+This is the core methodological commitment of Bayesian neuroscience: a brain that represents only $\hat\theta_{\text{MAP}}$ at each instant *cannot* combine cues optimally, *cannot* propagate uncertainty through time, and *cannot* know when it does not know. The reading list's central question — *what is the format in which cortex represents the posterior?* — only makes sense once you accept that MAP isn't enough.
+
+Papers switch freely between the three. A psychophysics paper reporting "the perceived orientation" is typically reporting MAP (the mode); a paper analysing trial-to-trial variability is typically modelling the spread of the posterior; a theory paper deriving optimal inference will work with the full $p(\theta \mid x)$.
+
+### Generative models and latent variables
+
+A *generative model* is a specification of how data are produced from causes. Formally, it is a joint distribution $p(x, z)$ over observed variables $x$ and unobserved (latent) variables $z$, usually factorised as
+$$
+p(x, z) = p(x \mid z)\,p(z).
+$$
+The prior $p(z)$ says what causes are plausible. The likelihood $p(x \mid z)$ says how each cause produces data. Sampling from $p(z)$ and then from $p(x \mid z)$ gives you a synthetic dataset. *Inference* runs this process backwards: given $x$, recover $p(z \mid x)$ via Bayes' rule.
+
+The phrase "the brain has an internal model of how sensations are generated" means exactly this: cortex is hypothesised to encode the joint $p(x, z)$ — where $x$ is sensory input and $z$ is the latent state of the world (shapes, objects, depths, sources) — and perception is the inversion of that model. This is the assumption underpinning every paper on the reading list.
+
+#### A worked example — shape from a 2D projection
+
+You see a 2D image $x$ on your retina. The world has 3D objects $z$ that project to 2D. Your generative model is
+
+- *Prior* $p(z)$: chairs and tables exist; chairs are smaller and have more vertical struts.
+- *Likelihood* $p(x \mid z)$: a 3D object $z$, projected and rendered, produces image $x$.
+
+Inference asks: given the 2D image I see, what 3D object is it most likely to be? The same retinal image is consistent with many different $z$'s — a deformed chair, an unusual table, a stool — and the posterior $p(z \mid x)$ assigns a probability to each. Fiser et al. 2010 (Figure 2) walks through this iteratively, with the posterior shifting as more cues come in.
+
+#### Discriminative vs generative
+
+A *discriminative* model parameterises $p(z \mid x)$ directly — no joint, no likelihood, no prior. A modern image classifier is discriminative: it maps pixels to class probabilities without ever specifying *how* a class would generate pixels. Discriminative models are cheaper to train and often beat generative models at narrow tasks. They cannot, however, sample new data, marginalise over latent variables, or transfer to tasks the loss function did not anticipate. Brains seem to be doing something closer to generative — at minimum, they can imagine, dream, and reason counterfactually about scenes they have never seen.
+
+#### Latent variables that aren't the answer
+
+Not every latent is what you want to know. A scene-perception generative model contains the shape $z_1$ you care about *and* the lighting direction $z_2$, eye position $z_3$, scene depth $z_4$ — nuisance variables you must marginalise out:
+$$
+p(z_1 \mid x) = \sum_{z_2, z_3, z_4}\,p(z_1, z_2, z_3, z_4 \mid x).
+$$
+That marginalisation is the very thing that makes high-dimensional Bayesian inference intractable and forces the approximate-inference fork ([ar007](/articles/ar007/) prerequisites). It is also the structural reason posterior representations cannot be a single point — the full posterior over $z_1$ has *shape* contributed by integrating uncertainty over every other latent.
+
+### Cue combination, more carefully
+
+[Probability foundations](#probability-foundations) showed the Gaussian case: a visual and a haptic estimate of an object's size combine to give a precision-weighted posterior. Step back and the general rule is simpler.
+
+Two cues $x_1, x_2$ about a latent $z$ are *conditionally independent given* $z$ if $p(x_1, x_2 \mid z) = p(x_1 \mid z)\,p(x_2 \mid z)$. That assumption — *the cues are independent once you know the cause* — is what makes cue combination clean. The posterior is then
+$$
+p(z \mid x_1, x_2) \propto p(x_1 \mid z)\,p(x_2 \mid z)\,p(z).
+$$
+For Gaussian likelihoods this gives the precision-weighted formula. For non-Gaussian likelihoods you still multiply — the structure is identical, only the algebra is harder.
+
+The empirical claim, due originally to Ernst & Banks 2002 and reviewed by Fiser et al., is that humans behave as though they are running this calculation. When the visual cue is degraded (made noisier), the perceived size shifts towards the haptic estimate by exactly the amount Bayesian precision-weighting predicts. The shift is not learned trial-by-trial; it follows the cue noise automatically. Across cue-combination tasks, this near-optimal weighting is robust and quantitatively close to Bayesian.
+
+#### What happens when cues disagree
+
+If $\mu_1$ and $\mu_2$ are far apart relative to their widths, the posterior under the cue-combination model becomes implausible — it sits between two cues that each say it is wrong. Real perception in this regime stops combining cues and starts *vetoing* one (which often happens for large mismatches between vision and proprioception in VR setups). Bayesian models extend the basic combination rule with a hidden *causal* variable: are these two cues coming from the same underlying object, or from different ones? Causal inference of this sort is its own active subfield, but the basic rule above is the baseline everything else extends.
+
+#### More than two cues
+
+Conditional independence extends: with $N$ cues,
+$$
+p(z \mid x_1, \dots, x_N) \propto p(z) \prod_{i=1}^N p(x_i \mid z).
+$$
+For Gaussian cues, precisions still add: $\tau_\star = \sum_i \tau_i$. Each additional informative cue tightens the posterior; uninformative cues (very large $\sigma_i$, very small $\tau_i$) contribute negligibly. This monotonic *more evidence = tighter posterior* property is essentially what people mean when they say Bayesian inference is "self-correcting."
+
+### Sequential updating
+
+Time has been hiding in everything above. Cues do not arrive simultaneously; the world changes. The sequential-updating rule says:
+
+*The posterior at time $t$, after observing $x_t$, becomes the prior at time $t+1$ — once you propagate it forward through whatever you believe about how the world changes between steps.*
+
+In symbols, with $z_t$ the latent state and $x_t$ the observation:
+$$
+\underbrace{p(z_t \mid x_{1:t})}_{\text{posterior at }t} \xrightarrow{\text{predict}} \underbrace{p(z_{t+1} \mid x_{1:t})}_{\text{prior for }t+1} \xrightarrow{\text{observe } x_{t+1}} \underbrace{p(z_{t+1} \mid x_{1:t+1})}_{\text{posterior at }t+1}.
+$$
+Two operations, alternating:
+
+- *Predict.* Push the posterior forward through the dynamics model $p(z_{t+1} \mid z_t)$. This typically *widens* the distribution — uncertainty grows over time when nothing is observed.
+- *Update.* Multiply by the likelihood $p(x_{t+1} \mid z_{t+1})$ and renormalise. This typically *narrows* the distribution — each observation adds information.
+
+The whole of perception, decision-making, motor control, and tracking can be cast in this form. So can learning, if $z$ is interpreted as model parameters rather than world state.
+
+#### The Kalman filter — the worked Gaussian case
+
+The *Kalman filter* is the exact answer to sequential updating when (i) the dynamics are linear, (ii) the noise is Gaussian, and (iii) the observation model is linear-Gaussian. Under these assumptions, the posterior is Gaussian at every step and only its mean and variance need to be tracked.
+
+The two operations specialise to:
+
+- *Predict.* The mean drifts forward by the deterministic dynamics; the variance grows by the process noise. *Uncertainty accumulates between observations.*
+- *Update.* The mean shifts towards the observation by a *gain* (the *Kalman gain*) that is large when the observation is precise relative to the prediction; the variance shrinks. *Observations always tighten the posterior.*
+
+The intuition — and this is the bit worth keeping even without the algebra — is that the brain (or any tracker) is balancing *what it expected* against *what it just observed*, weighted by the relative precisions of the two, exactly the same precision-weighting that drove cue combination. Sequential updating *is* cue combination, with one cue being your propagated prior and the other being the new observation.
+
+#### Beyond Gaussian — particle filters and the brain
+
+When the dynamics or likelihood are nonlinear or non-Gaussian, the posterior is no longer Gaussian and the Kalman filter no longer applies exactly. The general workaround is a *particle filter*: represent the posterior by a cloud of samples, propagate each sample through the dynamics, reweight by the likelihood, resample. This is one concrete instantiation of the *sampling* picture the [reading guide](#the-papers) describes as one of the two competing accounts of how cortex represents posteriors. A spiking population that maintains a population of momentarily-active neurons, each representing one sample, looks remarkably like a particle filter — and is exactly what the Lengyel-lab papers (Orbán, Aitchison, Echeveste) argue cortex is doing.
+
+## Approximate inference
+
+The fork where the two schools of Bayesian neuroscience diverge. Exact inference in non-trivial generative models is computationally hopeless; *approximate* inference is what brains and machines actually do. The two families — *variational* and *Monte Carlo* — correspond directly to the two competing accounts of cortical computation on the [reading list](#the-papers). This article assumes the probability machinery of [Probability foundations](#probability-foundations) and the reasoning patterns of [Bayesian reasoning](#bayesian-reasoning).
+
+### Why exact inference is impossible
+
+For a generative model $p(x, z)$, Bayes' rule says
+$$
+p(z \mid x) = \frac{p(x, z)}{p(x)}, \qquad p(x) = \int p(x, z)\,dz.
+$$
+The numerator is usually easy — pick a $z$ and a likelihood, plug in. The trouble is the denominator: an integral over the entire latent space $z$. In statistical physics, this normalising integral is the *partition function*; the same name and the same difficulty.
+
+For a single latent variable in 1D, the integral is a calculus problem. For two, it is a double integral, still fine. For a hundred, the integral is over a 100-dimensional volume, and standard numerical-integration techniques (grids, Simpson's rule, anything that visits all of latent space) become catastrophically expensive: cost scales like $N^d$, where $d$ is the dimension. Cortex routinely faces inference problems where $d$ runs into the thousands. Whatever it is doing, it is not computing $\int p(x, z)\,dz$ on a grid.
+
+Two families of escape hatch dominate.
+
+### Variational inference
+
+Pick a tractable family of distributions $\mathcal{Q}$ — say, factorised Gaussians, one per latent dimension. Search within $\mathcal{Q}$ for the $q(z)$ that best approximates the true posterior $p(z \mid x)$, where "best" means minimising the *Kullback–Leibler divergence*
+$$
+\mathrm{KL}\!\bigl(q(z)\,\|\,p(z \mid x)\bigr) = \int q(z)\,\log\frac{q(z)}{p(z \mid x)}\,dz.
+$$
+KL is asymmetric, non-negative, zero only when the two distributions are identical. It is *not* a distance — but it is the right measure to optimise here.
+
+#### The ELBO trick
+
+You cannot compute $\mathrm{KL}\bigl(q \| p(z \mid x)\bigr)$ directly, because it contains the intractable $p(z \mid x)$. The trick is to rewrite:
+$$
+\log p(x) = \underbrace{\int q(z)\,\log\frac{p(x, z)}{q(z)}\,dz}_{\text{ELBO}(q)} + \mathrm{KL}\!\bigl(q \| p(z \mid x)\bigr).
+$$
+The left-hand side is a constant (the model evidence, which doesn't depend on $q$). So *maximising the ELBO is identical to minimising the KL*, and the ELBO only involves $p(x, z)$ — which you know — and $q(z)$ — which you control. Tractable.
+
+#### Mean-field approximation
+
+The canonical first cut is the *mean-field* approximation: $q(z) = \prod_i q_i(z_i)$. Each latent dimension is treated independently. This destroys posterior correlations — if $z_1$ and $z_2$ are correlated in the true posterior, mean-field has no way to represent it. But the resulting optimisation is cheap and often surprisingly useful.
+
+#### Tradeoffs
+
+Variational inference is fast, deterministic, and scales to large models. It is also *biased*: the approximation is only as good as the family $\mathcal{Q}$, and the KL direction tends to produce posteriors that are too narrow (mode-seeking). When you want speed and a single coherent approximate posterior, variational methods are the answer.
+
+The connection to neuroscience: a fixed-point of a recurrent neural network — a single stable activity pattern — is naturally read as a variational point estimate. Predictive-coding architectures can be derived as variational inference on hierarchical generative models. This is the side of the fork most closely allied with deterministic-rate-code accounts of cortex.
+
+### Monte Carlo sampling
+
+The other workaround is *don't compute the integral; estimate it from samples*. If you can draw $z_1, \dots, z_N \sim p(z \mid x)$, then any expectation under the posterior is
+$$
+\mathbb{E}_{p(z \mid x)}[f(z)] \approx \frac{1}{N} \sum_{n=1}^N f(z_n).
+$$
+The accuracy improves as $1/\sqrt{N}$, *independent of dimension*. That is the magic that makes sampling scale to high-dimensional posteriors where grid-based integration cannot.
+
+The catch: actually drawing samples from $p(z \mid x)$ is itself hard, because $p(z \mid x)$ involves the partition function. Several sampling techniques exist, of escalating cleverness.
+
+#### Rejection sampling
+
+Pick a *proposal distribution* $q(z)$ that you can sample from, and that everywhere upper-bounds the target up to a constant: $M\,q(z) \geq p^\star(z)$ for some $M$, where $p^\star = p(x, z)$ is the unnormalised target. Draw a candidate $z \sim q$ and a uniform $u \sim \mathrm{Uniform}(0, 1)$; accept $z$ if $u \leq p^\star(z) / [M\,q(z)]$.
+
+This is simple, exact, and almost completely useless in high dimensions: the acceptance rate falls exponentially with dimension because the proposal envelope $M\,q$ has to grow large enough to dominate the target everywhere, which leaves almost all candidates rejected.
+
+#### Importance sampling
+
+Instead of accepting/rejecting, *weight* each sample. Draw $z_n \sim q(z)$ and give it weight $w_n = p^\star(z_n) / q(z_n)$. Then
+$$
+\mathbb{E}_{p}[f(z)] \approx \frac{\sum_n w_n\,f(z_n)}{\sum_n w_n}.
+$$
+This is exact in expectation. It also fails in high dimensions: the weights become extremely peaked, with a single sample dominating, leaving the effective sample size near 1.
+
+Both methods are useful in low dimensions and as building blocks of more sophisticated schemes. Neither is what the brain or modern Bayesian software actually uses for hard problems.
+
+#### Markov-chain Monte Carlo (MCMC)
+
+Construct a *Markov chain* — a stochastic process where the next sample depends only on the current one — whose long-run distribution is exactly $p(z \mid x)$. Run the chain; once it has *mixed*, the states it visits are (correlated) samples from the target.
+
+The canonical recipe is *Metropolis–Hastings*. At state $z$:
+
+1. Propose $z'$ from some local proposal $q(z' \mid z)$.
+2. Compute acceptance ratio $\alpha = \min\!\bigl(1,\,\frac{p^\star(z')\,q(z \mid z')}{p^\star(z)\,q(z' \mid z)}\bigr)$.
+3. With probability $\alpha$, move to $z'$; otherwise stay at $z$.
+
+Importantly, $\alpha$ depends only on *ratios* of $p^\star$ — the partition function cancels. That cancellation is what makes MCMC viable for unnormalised distributions.
+
+MCMC scales to high dimensions and converges to the exact posterior in the long run. The cost is *time*: nearby proposals mean correlated samples and slow mixing, while large proposals get rejected. Diagnostics for convergence and effective sample size become their own subfield.
+
+#### Hamiltonian Monte Carlo (HMC)
+
+HMC is MCMC with a much better proposal mechanism. The idea is borrowed from physics. Treat $z$ as a *position* in a potential-energy landscape $U(z) = -\log p^\star(z)$ — the negative log of the (unnormalised) target. Introduce an *auxiliary momentum* variable $r$ of the same dimension as $z$, with its own simple distribution (usually a unit Gaussian). The combined system has Hamiltonian
+$$
+H(z, r) = U(z) + \tfrac{1}{2}\|r\|^2,
+$$
+and the joint distribution $p(z, r) \propto e^{-H(z, r)}$ marginalises to the target in $z$. *Sampling from this joint is exactly sampling from the target.*
+
+To generate proposals: resample $r$ from its Gaussian, then evolve $(z, r)$ under Hamilton's equations of motion for some integration time:
+$$
+\dot z = \frac{\partial H}{\partial r} = r, \qquad \dot r = -\frac{\partial H}{\partial z} = -\nabla U(z).
+$$
+The position $z$ moves *coherently* over long distances, guided by the gradient of the log-posterior, then a Metropolis correction (small, because Hamiltonian dynamics conserve $H$ exactly) handles the small numerical error from the leapfrog integrator. The result: far-flung proposals with high acceptance, much faster mixing than random-walk MCMC.
+
+The *position + momentum* structure is the bit worth holding onto. The state of the sampler is not just the latent estimate $z$ — it also includes a velocity-like variable that carries the trajectory forward. Sampling becomes a *dynamical system* whose attractor is the target distribution.
+
+#### HMC and E–I dynamics
+
+This is where the sampling school of cortical computation gets its big idea. Aitchison & Lengyel 2016 ([reading guide entry 5](/articles/ar007/)) show that an excitatory–inhibitory neural circuit, under reasonable assumptions, has dynamics that can be read as HMC: excitatory population activity plays the role of $z$ (position), inhibitory activity plays the role of $r$ (momentum), and the gamma oscillation that emerges from PING dynamics is *the momentum oscillating in the Hamiltonian sense*. Speed-up over non-oscillatory inference falls out for free, because HMC's coherent trajectories span state space much faster than random walks.
+
+Echeveste et al. 2020 (entry 6) push the argument by *training* a recurrent E–I network for sampling-based inference and showing that gamma oscillations, stimulus-onset transients, and divisive normalisation emerge as consequences — they are not built in by hand. The dynamical signatures that look like noise from a non-Bayesian standpoint are, on this view, the sampler running.
+
+This is also why the prerequisites list flags HMC as worth "a couple of focused hours": it is the single piece of approximate-inference machinery whose structure (position + momentum + gradient flow) most directly maps to cortical dynamics.
+
+### How the brain might do it
+
+The two families above correspond directly to the two schools described in the [reading guide](#the-papers):
+
+- *Variational / PPC.* Instantaneous firing rates encode the parameters of an approximate posterior. Inference is fast, deterministic, and biased. Ma et al. 2006 is the canonical statement.
+- *Sampling.* The neural state at each instant is a single sample from the posterior; the trajectory over time traces out the distribution. Variability is the algorithm. Orbán, Aitchison & Lengyel, Echeveste.
+
+Both accounts are alive in the field. The papers on the reading list are largely arguing for the second; the first is the foil. Knowing the two algorithm families lets you read the arguments rather than just the conclusions.
+
+## Decision theory and behavioural tests
+
+How a posterior becomes an action, and how an experimenter tests whether a subject is reading off that posterior correctly. The first half — *Bayesian decision theory* — closes the loop from belief to behaviour. The second half — *signal detection theory* — is the machinery psychophysics uses to test whether observed behaviour is consistent with optimal inference. SDT is also the prerequisite for Fleming & Lau 2014 ([reading list](#the-papers) entry 7).
+
+### From posterior to action
+
+Bayesian inference gives you a posterior $p(z \mid x)$ — a *distribution* over latents given data. Action requires a *single* output: which way to look, what to grasp, which button to press. The bridge is a *loss function* (or, equivalently, a *utility function* with the sign flipped).
+
+#### Loss, utility, and expected loss
+
+A loss function $L(a, z)$ specifies the cost of taking action $a$ when the true state is $z$. A grocery example: $z$ is the actual size of an item, $a$ is the size of the bag you choose, and $L$ is the cost of an awkward fit. A neural example: $z$ is the true orientation of a stimulus, $a$ is the saccade direction you choose, and $L$ is the angular error.
+
+Given a posterior, the *Bayes-optimal* action minimises *expected loss*:
+$$
+a^\star = \arg\min_a\,\mathbb{E}_{z \sim p(z \mid x)}\bigl[L(a, z)\bigr] = \arg\min_a\,\int L(a, z)\,p(z \mid x)\,dz.
+$$
+This is the formal sense in which "behaviour reflects belief": $a^\star$ depends on both *what you believe* (the posterior) and *what you care about* (the loss).
+
+#### Three losses, three actions
+
+The choice of loss function changes the action substantively, even with the same posterior.
+
+- *Squared error* $L(a, z) = (a - z)^2$. Bayes-optimal action is the *posterior mean*. Sensitive to the whole distribution; symmetric.
+- *Zero–one* $L(a, z) = \mathbf{1}[a \neq z]$. Bayes-optimal action is the *posterior mode* (i.e. MAP). Cares only about whether the answer is exactly right.
+- *Absolute error* $L(a, z) = |a - z|$. Bayes-optimal action is the *posterior median*. Robust to long-tailed posteriors.
+
+Asymmetric losses produce *biased* actions even from a symmetric posterior. If under-estimation is twice as costly as over-estimation, the optimal action shifts towards the upper end. This is the formal source of perceptual *biases* under Bayesian models: a bias is not a flaw, it is the optimal response to an asymmetric loss (or to an informative prior).
+
+#### Why this matters for the reading list
+
+When a paper says "the subject's behaviour is consistent with optimal inference," the implicit claim is *Bayes-optimal under some loss function*. Distinguishing "the brain has the wrong posterior" from "the brain has the right posterior but is optimising for an unusual loss" is the standing methodological problem of Bayesian psychophysics, and reading any behavioural-test paper requires keeping the two interpretations separate.
+
+### Signal detection theory
+
+Signal detection theory (SDT) is the workhorse framework for analysing two-alternative perceptual decisions: stimulus present or absent, this category or that one. It long predates the Bayesian framing but maps onto it cleanly.
+
+#### The setup
+
+A subject is presented with one of two stimuli: *signal* ($S = 1$) or *noise* ($S = 0$). They respond with *yes* ($R = 1$) or *no* ($R = 0$). Four outcomes:
+
+| | $S = 1$ | $S = 0$ |
+| --- | :---: | :---: |
+| $R = 1$ | hit | false alarm |
+| $R = 0$ | miss | correct rejection |
+
+The two diagnostic rates are the *hit rate* $H = \Pr(R = 1 \mid S = 1)$ and the *false-alarm rate* $\mathit{FA} = \Pr(R = 1 \mid S = 0)$. Percent-correct alone is misleading; $H$ and $\mathit{FA}$ together separate *sensitivity* (how well the subject can tell signal from noise) from *bias* (how willing they are to say *yes*).
+
+#### The internal-evidence model
+
+SDT models the subject's internal state as a one-dimensional decision variable $d$ that is approximately Gaussian under each condition:
+$$
+d \mid S = 0 \sim \mathcal{N}(0, 1), \qquad d \mid S = 1 \sim \mathcal{N}(d', 1).
+$$
+The subject responds *yes* when $d$ exceeds a criterion $c$. Two parameters — $d'$ and $c$ — generate every possible $(H, \mathit{FA})$ pair.
+
+#### $d'$ — sensitivity
+
+The separation between the two Gaussians is the *sensitivity index* $d'$:
+$$
+d' = z(H) - z(\mathit{FA}),
+$$
+where $z(\cdot)$ is the inverse of the standard normal CDF (the *probit* function). $d'$ has the units of standard deviations between the two distributions. It is sensitivity *that does not depend on the criterion*: a subject can have high $d'$ and shift their criterion to be more or less liberal, changing their hit and false-alarm rates without changing how well they actually discriminate.
+
+#### Criterion and ROC curves
+
+The criterion $c$ is where the subject draws the line. A *liberal* criterion (low $c$) gives high $H$ and high $\mathit{FA}$ — they say *yes* often. A *conservative* criterion gives low $H$ and low $\mathit{FA}$. Sweeping $c$ traces out the *receiver operating characteristic* (ROC) curve: a plot of $H$ against $\mathit{FA}$ as the criterion varies, for fixed $d'$. The area under the ROC curve is monotonic in $d'$ and is the standard non-parametric sensitivity measure.
+
+Criterion shifts arise from base-rate asymmetries (signal is rare), reward asymmetries (missing a signal is costly), and instructions ("be sure before saying yes"). Bayesian decision theory predicts where the criterion should sit given the priors and the loss function:
+$$
+c^\star = \log\frac{p(S = 0)}{p(S = 1)} + \log\frac{L_{\text{FA}}}{L_{\text{miss}}}.
+$$
+A subject's actual criterion can be compared to this Bayesian-optimal one.
+
+#### Type-1 vs type-2 judgements
+
+A *type-1* judgement is the perceptual decision itself: yes or no, this orientation or that one. A *type-2* judgement is about your own type-1 judgement: how *confident* are you that your answer was correct?
+
+A subject's type-2 sensitivity is *metacognitive sensitivity* — the ability to distinguish their own correct from incorrect type-1 responses. This is exactly what Fleming & Lau 2014 set out to measure properly.
+
+#### Why naive measures fail
+
+Correlating confidence with accuracy seems like the obvious thing to do. It is wrong: any such correlation is contaminated by type-1 *bias* (how willing the subject is to say *yes* overall) and by *task performance* (a subject who gets nothing right has nothing to be confident about). Fleming & Lau argue that the right framework is to run *SDT a second time* — at the type-2 level — and define analogues of $d'$, ROC, and criterion for the metacognitive judgement.
+
+The key measure is *meta-$d'$*: the sensitivity a type-2 ROC analysis would imply, expressed in the same units as the type-1 $d'$. A *metacognitive efficiency* of $\mathit{meta}\text{-}d'/d'$ near 1 means the subject's confidence carries as much information about their correctness as their actual percept does. Less than 1 means they are losing information when reading out their own state.
+
+This is the operational definition of "the brain knowing what it knows." From a Bayesian perspective, $\mathit{meta}\text{-}d' \approx d'$ is what you would expect if confidence is a readout of the *width* of the type-1 posterior. The empirical fact that humans often fall short of this ceiling is one of the most pointed measurable failures of the strict-Bayesian-brain hypothesis.
+
+### Why this matters for the reading list
+
+- *Behavioural tests of cue combination.* Demonstrations that humans behave Bayes-optimally (Ernst & Banks 2002, Fiser et al. 2010) rely on SDT-flavoured psychophysics: precision is read off from response variability, and Bayesian predictions are tested against observed sensitivity in single-cue and multi-cue conditions.
+- *Reading Fleming & Lau 2014.* The whole paper is a careful walk through what can go wrong when type-2 sensitivity is measured naively, and how to fix it. Without SDT vocabulary the paper is unreadable; with it the paper is a useful tutorial.
+- *Connecting belief to behaviour at all.* The neural papers on the reading list argue about *how* cortex encodes posteriors. Whether that representation actually drives action requires the decision-theoretic apparatus above — otherwise there is no behavioural prediction to test against.
+
+## Neural-side prerequisites
+
+The neuroscience vocabulary that the [reading list](#the-papers) papers take for granted. Most readers of this site will have already met these ideas in some form; this article makes them explicit so that the inferential and circuit-level claims in the papers can be parsed without translation overhead. Where a topic is studied in depth elsewhere in pinglab, the relevant internal article is linked.
+
+### Population coding and tuning curves
+
+A single neuron does not encode a stimulus by itself; encoding lives in a *population*. Each neuron has a *tuning curve* $f_a(s) = \mathbb{E}[\text{response} \mid s]$ describing how its expected response varies with the stimulus $s$. Classic examples: a V1 simple cell's tuning to orientation, a hippocampal place cell's tuning to position, a motor-cortex cell's tuning to arm-movement direction.
+
+The population's role is *covering* the stimulus space: many cells with different *preferred stimuli* tile the range, so any stimulus produces some response in some subset of cells. Reading the stimulus back out from the activity is the *decoding* problem, with several standard answers:
+
+- *Population vector.* Each cell contributes a vote weighted by its activity towards its preferred stimulus; the sum is the decoded estimate. Simple, biased when tuning is heterogeneous.
+- *Maximum likelihood (ML).* Pick the stimulus that maximises $p(\mathbf{r} \mid s)$, where $\mathbf{r}$ is the population activity vector. Optimal under a known noise model.
+- *Bayesian decoder.* Return the full posterior $p(s \mid \mathbf{r}) \propto p(\mathbf{r} \mid s)\,p(s)$. The object the reading list is fundamentally about.
+
+Pouget, Dayan & Zemel 2003 ([reading list](#the-papers) entry 1) is the canonical review. The mental picture to carry forward: *a population activity vector is not a number, it is an estimate-with-uncertainty,* and the format in which that uncertainty is encoded is the central theoretical question.
+
+### Poisson spike statistics and the Fano factor
+
+Over a fixed time window $T$, count the spikes a neuron emits in response to a stimulus. The count $N$ is well-modelled by a Poisson distribution with rate $\lambda T$:
+$$
+\Pr(N = k) = \frac{(\lambda T)^k\,e^{-\lambda T}}{k!}, \qquad \mathbb{E}[N] = \mathrm{Var}[N] = \lambda T.
+$$
+For Poisson, *mean equals variance*. The *Fano factor* is the ratio,
+$$
+F = \frac{\mathrm{Var}[N]}{\mathbb{E}[N]}.
+$$
+$F = 1$ for a pure Poisson process. Cortical spike counts under stimulus presentation typically show $F$ near 1 (often between 0.5 and 2), close enough that *Poisson-like* variability is a reasonable working model.
+
+Why this matters for the [reading list](#the-papers):
+
+- *PPC (Ma et al. 2006).* The key derivation relies on *Poisson-like* variability — a slightly more permissive class where the Fano factor is constant across stimuli but not necessarily 1. Under this assumption, *optimal Bayesian inference reduces to linear operations on neural activity.* This is the entire technical case for the PPC school: nature gave us the right noise structure, and computation becomes addition.
+- *Sampling.* The sampling school does not derive from Poisson statistics — variability is reinterpreted as samples — but the empirical observation $F \approx 1$ is still the headline noise property both schools have to explain.
+
+In this project, Poisson-rate encoding of input spikes is the standard image-task input pathway (see [ar006](/articles/ar006/) on *Image datasets*).
+
+### Signal and noise correlations
+
+Two neurons recorded simultaneously have two correlations worth keeping straight.
+
+- *Signal correlation* $r_{\text{sig}}$. The correlation of their *mean responses* across many stimuli. Two cells with overlapping tuning have $r_{\text{sig}} > 0$; two cells with orthogonal tuning have $r_{\text{sig}} \approx 0$. This is a property of the *tuning curves*, not of the noise.
+- *Noise correlation* $r_{\text{noise}}$. The correlation of their *trial-to-trial fluctuations* at a fixed stimulus. This is a property of the joint noise distribution. A cortical pair typically has $r_{\text{noise}}$ in the range 0.05–0.20 — small but reliably non-zero.
+
+The sampling school's predictions about $r_{\text{noise}}$ are sharp. If the population activity at each instant is a *sample* from a posterior $p(z \mid x)$, then the structure of trial-to-trial variability across the population *is* the structure of the posterior. Specifically:
+
+- Posterior correlations between latents should appear as noise correlations between the neurons representing them.
+- Stimulus-dependent changes in the posterior (sharper for some stimuli, broader for others) should appear as stimulus-dependent noise correlations.
+
+Orbán, Berkes, Fiser & Lengyel 2016 (entry 4) tests exactly this in V1 data and finds the predicted dependences. PPC accounts can predict noise correlations too, but with different signatures — disentangling the two is one of the central empirical battlegrounds.
+
+### Divisive normalisation, gamma oscillations, E–I balance
+
+Three closely linked features of cortical operation that the sampling-school papers (especially Echeveste et al. 2020) treat as signatures of inference rather than circuit quirks.
+
+#### Divisive normalisation
+
+A neuron's response is not a fixed function of its input; it is *divided* by the activity of a local pool. Schematically,
+$$
+r_i \propto \frac{f_i(s)^{\,p}}{\sigma^p + \sum_j f_j(s)^{\,p}},
+$$
+where the sum runs over the neuron's normalising pool. This is the *canonical cortical computation*: it appears in V1 contrast response, attention modulation, multisensory integration, and decision making. From a Bayesian point of view, divisive normalisation has a natural reading as *marginalising out a multiplicative gain* — the kind of operation that drops out of well-posed generative models with latent intensity variables.
+
+Echeveste et al. 2020 (entry 6) find divisive normalisation *emerging* in a recurrent E–I network trained for sampling-based inference. The interpretation is that normalisation is not a separate mechanism bolted on, but a natural consequence of doing inference properly.
+
+#### Gamma oscillations
+
+Cortical activity in the *gamma band* (≈ 30–80 Hz) is one of the most-studied rhythmic phenomena in neuroscience. The standard generation mechanism is *pyramidal-interneuron network gamma* (PING): excitatory cells fire, recruit inhibitory cells, get suppressed, recover, fire again. This rhythm is the operating point of much of cortex under stimulus drive.
+
+In this project, PING is studied directly. See [ar002 (CUBANet)](/articles/ar002/), [ar003 (COBANet)](/articles/ar003/), and [ar004 (Parameters & Units)](/articles/ar004/) for the model ladder that produces PING dynamics in a controlled setting. The notebook entries explore the dynamical phenomenology — frequency tuning, Δt stability, training-induced changes.
+
+The Bayesian-brain reading: Aitchison & Lengyel 2016 (entry 5) argue gamma oscillations are *the momentum variable of an HMC sampler* implemented by the E–I circuit ([Approximate inference](#approximate-inference) on HMC). This is the most direct theoretical contact between the project's PING work and the inference-as-cortical-computation literature.
+
+#### E–I balance
+
+Cortical neurons in vivo receive *both* large excitatory and large inhibitory inputs, of similar magnitude. The net input — what actually drives the membrane towards threshold — is the *small difference between two large numbers*. This *E–I balance* is the operating regime: when intact, firing is asynchronous, irregular, low-rate; when disrupted, networks lapse into either hypersynchrony or quiescence.
+
+The relevance for Bayesian theories: most circuit-level inference models — both PPC and sampling — assume a balanced operating point as the substrate. The sampling school adds that *dynamic* features of E–I interaction (gamma oscillations, onset transients, divisive normalisation) play active functional roles. The project's COBA and PING models implement E–I balance explicitly; see [ar003](/articles/ar003/) and the gamma-frequency entry in [ar004](/articles/ar004/).
+
+## Reading order
+
+Once you have the above, this order minimises backtracking.
+
+1. **[Pouget, Dayan & Zemel 2003](https://doi.org/10.1146/annurev.neuro.26.041002.131112).** Gentle overview of population coding. Sets the vocabulary — tuning curves, decoders, the population-vector vs maximum-likelihood vs Bayesian decoders — that every later paper takes for granted.
+2. **[Fiser, Berkes, Orbán & Lengyel 2010](https://doi.org/10.1016/j.tics.2010.01.003).** The big-picture review tying perception, learning, and probabilistic representation together. Read the glossary in the sidebar carefully — it nails down the terms (likelihood, MAP, marginalisation, probabilistic learning) used throughout the field.
+3. **[Ma, Beck, Latham & Pouget 2006](https://doi.org/10.1038/nn1790).** The PPC argument: Poisson-like variability is precisely the noise model that makes Bayesian cue-combination collapse to *linear* operations on neural activity. This is the strongest single statement of the PPC school.
+4. **[Orbán, Berkes, Fiser & Lengyel 2016](https://doi.org/10.1016/j.neuron.2016.09.038).** The sampling counter-argument, applied to V1. Reads V1 noise correlations and stimulus-dependent variability as a signature of posterior sampling. Sets up the rest of the sampling-school papers.
+5. **[Aitchison & Lengyel 2016](https://doi.org/10.1371/journal.pcbi.1005186).** Maps Hamiltonian Monte Carlo onto an excitatory–inhibitory circuit: gamma oscillations are the sampler's momentum dynamics, transients are the speed-up from spanning state space rapidly. The most direct contact with PING-style work in this project.
+6. **[Echeveste, Aitchison, Hennequin & Lengyel 2020](https://doi.org/10.1038/s41593-020-0671-1).** Trains a recurrent E–I circuit to do sampling-based inference from scratch and shows that gamma oscillations, transients, divisive normalisation, and stimulus-modulated noise variability all emerge as consequences. The capstone of the sampling-as-implementation argument.
+7. **[Fleming & Lau 2014](https://doi.org/10.3389/fnhum.2014.00443).** Behavioural tools to test whether subjects' confidence ratings actually track their posteriors. Supporting paper, not central — useful when you want to design experiments that distinguish "computing a posterior" from "looking Bayesian on average."
+8. **[Padamsey et al. 2022](https://doi.org/10.1016/j.neuron.2021.10.024).** The outlier. Shows that coding precision in V1 is regulated by metabolic state — a reminder that the precision Bayesian models treat as a free representational parameter is, in real cortex, energetically constrained.
+
+## Where this fits in the project
+
+The sampling school's argument — *gamma oscillations are not a side-effect, they are the inference algorithm running* — is the most direct external motivation for treating PING dynamics in this project (see [the model ladder](/articles/ar002/) and [training](/articles/ar006/)) as functionally important rather than as a biological curio worth taming away. The PPC alternative is the principal contrast worth keeping in mind.

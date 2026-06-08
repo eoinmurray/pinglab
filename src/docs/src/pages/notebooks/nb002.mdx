@@ -16,13 +16,12 @@ export const runDatetime = numbers.run_datetime ?? "?";
 export const runDuration = numbers.duration ?? "?";
 export const imageGlob = import.meta.glob("../../../public/figures/notebooks/nb002/scope_frame.png", { eager: true, query: "?url", import: "default" });
 export const hasFrame = Object.keys(imageGlob).length > 0;
-export const successCriteria = numbers.success_criteria ?? [];
 
-## Introduction
+## Abstract
 
 A scope frame is the canonical [oscilloscope](/docs/the-oscilloscope/) layout — the multi-panel figure that every video in this notebook is a stack of. This entry holds a single still rendering of it at a fixed working point so the layout can be iterated on for aesthetics independently of sweep content. Sibling of the scan-video entries [nb003](/notebooks/nb003/) (drive sweep), [nb005](/notebooks/nb005/) (dt sweep) and [nb006](/notebooks/nb006/) (E→I sweep). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
-## Method
+## Methods
 
 One forward pass via the [oscilloscope *image*](/docs/the-oscilloscope/#subcommand-image) subcommand on MNIST digit {cfg.input?.digit} sample {cfg.input?.sample}, at the working point that lights up PING in [nb003](/notebooks/nb003/). All knobs are hardcoded literals in *src/pinglab/notebooks/nb002.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
 
@@ -58,24 +57,6 @@ Input rate is flat through the trial (no stim-window overdrive); the *W_in* init
 
 ## Results
 
-### Success criteria
-
-{successCriteria.length > 0 ? (
-  <table>
-    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
-    <tbody>
-      {successCriteria.map((c) => (
-        <tr key={c.label}>
-          <td>{c.label}</td>
-          <td><strong>{c.passed ? "pass" : "fail"}</strong></td>
-          <td>{c.detail_href ? <a href={c.detail_href}>{c.detail}</a> : c.detail}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p><em>No success criteria recorded — runner has not produced numbers.json yet.</em></p>
-)}
 
 {hasFrame && (
   <Figure id="Figure 1" title="The scope frame at the canonical working point" src="/figures/notebooks/nb002/scope_frame.png" alt="A single SCOPE_FRAME rendering">
@@ -94,6 +75,10 @@ Input rate is flat through the trial (no stim-window overdrive); the *W_in* init
 - **Output (logits)** — horizontal bar chart of the 10 class logits at the final timestep. The predicted class (argmax) is filled red; the rest are outlined.
 - **PSD** — power spectral density of the E-population rate, restricted to 5–200 Hz. The red vertical marker is the gamma peak frequency f₀.
 - **E Population Rate** — binned firing-rate trace of the E population over time (2 ms bins). The envelope that the PSD is computed from.
+
+## Discussion
+
+TODO: discussion paragraph — write what the results above mean for the project.
 
 ## Next steps
 

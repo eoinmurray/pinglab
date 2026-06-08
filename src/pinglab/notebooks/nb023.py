@@ -151,59 +151,111 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
         e_idx = 0
     i_idx = _pick_active(spk_i) if has_i_state else None
 
-    # Both 2-panel and 4-panel variants keep the overall figure at 16:9.
-    nrows = 4 if has_i_state else 2
-    figsize = (10.0, 5.625) if nrows == 4 else (8.0, 4.5)
-    fig, axes = plt.subplots(nrows, 1, figsize=figsize, sharex=True)
-    axes = list(np.atleast_1d(axes))
+    # Reversal potentials (mV) and leak conductances (µS) from models.py.
+    E_L = -65.0
+    E_E = 0.0
+    E_I = -80.0
+    G_L_E = 0.05
+    G_L_I = 0.10
+    PANEL_SIZE = (8.0, 4.5)
 
-    ax_ve = axes[0]
-    ax_ve.plot(t_ms, v_e[:, e_idx], color=theme.INK_BLACK, lw=0.8)
-    ax_ve.axhline(-50.0, color=theme.FAINT, lw=0.5, ls="--", label="V_th")
-    ax_ve.set_ylabel(f"V_E (neuron {e_idx})")
-    ax_ve.set_xlim(0, T * dt)
-    ax_ve.set_title(title)
+    def _save_panel(plot_fn, suffix: str, ylabel: str, panel_title: str):
+        fig, ax = plt.subplots(figsize=PANEL_SIZE)
+        plot_fn(ax)
+        ax.set_xlim(0, T * dt)
+        ax.set_xlabel("time (ms)")
+        ax.set_ylabel(ylabel)
+        ax.set_title(f"{title} — {panel_title}")
+        ax.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
+        fig.tight_layout()
+        panel_path = out_path.with_name(
+            f"{out_path.stem}__{suffix}{out_path.suffix}"
+        )
+        fig.savefig(panel_path, dpi=120)
+        plt.close(fig)
+        return panel_path
 
-    # Per-population leak conductances (from models.py — pinned constants).
-    G_L_E = 0.05  # µS, C_m_E / tau_m_E
-    G_L_I = 0.10  # µS, C_m_I / tau_m_I
+    # ── E neuron ─────────────────────────────────────────────────────
+    ge_trace_e = ge_e[:, e_idx]
+    gi_trace = data["gi_e_1"][:, e_idx] if has_gi_e else np.zeros_like(ge_trace_e)
+    g_tot_e_full = G_L_E + ge_trace_e + gi_trace
+    v_inf_e = (G_L_E * E_L + ge_trace_e * E_E + gi_trace * E_I) / g_tot_e_full
 
-    ax_ge = axes[1]
-    ax_ge.plot(t_ms, ge_e[:, e_idx], color=theme.ELECTRIC_CYAN, lw=0.8, label="g_E (exc)")
-    gi_trace = None
-    if has_gi_e:
-        gi_e = data["gi_e_1"]
-        gi_trace = gi_e[:, e_idx]
-        ax_ge.plot(t_ms, gi_trace, color=theme.DEEP_RED, lw=0.8, label="g_I (inh)")
-    ax_ge.axhline(G_L_E, color=theme.FAINT, lw=0.7, ls=":", label="g_L (leak)")
-    g_tot_e = ge_e[:, e_idx] + G_L_E + (gi_trace if gi_trace is not None else 0.0)
-    ax_ge.plot(t_ms, g_tot_e, color=theme.INK_BLACK, lw=0.6, ls="--", label="g_tot")
-    ax_ge.set_ylabel(f"g (neuron {e_idx})")
-    ax_ge.set_xlim(0, T * dt)
-    ax_ge.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
+    def _draw_v_e(ax):
+        ax.plot(t_ms, v_e[:, e_idx], color=theme.INK_BLACK, lw=0.8, label="V_E")
+        ax.axhline(-50.0, color=theme.FAINT, lw=0.5, ls="--", label="V_th")
+        ax.plot(t_ms, v_inf_e, color=theme.MUTED, lw=0.9, ls="-.", label="V_∞")
 
+    def _draw_g_e(ax):
+        ax.plot(t_ms, ge_trace_e, color=theme.ELECTRIC_CYAN, lw=0.9, label="g_E (exc)")
+        if has_gi_e:
+            ax.plot(t_ms, gi_trace, color=theme.DEEP_RED, lw=0.9, label="g_I (inh)")
+        ax.axhline(G_L_E, color=theme.FAINT, lw=0.7, ls=":", label="g_L (leak)")
+
+    def _draw_i_e(ax):
+        i_e_in = -ge_trace_e * (v_e[:, e_idx] - E_E)
+        i_i_in = -gi_trace * (v_e[:, e_idx] - E_I)
+        i_l_in = -G_L_E * (v_e[:, e_idx] - E_L)
+        ax.axhline(0.0, color=theme.FAINT, lw=0.5)
+        ax.plot(t_ms, i_e_in, color=theme.ELECTRIC_CYAN, lw=0.9,
+                label="I_E in (depol.)")
+        if has_gi_e:
+            ax.plot(t_ms, i_i_in, color=theme.DEEP_RED, lw=0.9,
+                    label="I_I in (hyperpol.)")
+        ax.plot(t_ms, i_l_in, color=theme.FAINT, lw=0.7, ls=":",
+                label="I_L in (leak)")
+
+    written = [
+        _save_panel(_draw_v_e, "v_e",
+                    f"V_E (neuron {e_idx})  [mV]",
+                    "V_E with V_∞ overlay"),
+        _save_panel(_draw_g_e, "g_e",
+                    "g  [µS]",
+                    f"E-neuron conductances (cell {e_idx})"),
+        _save_panel(_draw_i_e, "i_e",
+                    "I in  [+ depol. / − hyperpol.]",
+                    f"E-neuron signed currents (cell {e_idx})"),
+    ]
+
+    # ── I neuron ─────────────────────────────────────────────────────
     if has_i_state and i_idx is not None:
         v_i = data["v_i_1"]
         ge_i = data["ge_i_1"]
-        ax_vi = axes[2]
-        ax_vi.plot(t_ms, v_i[:, i_idx], color=theme.DEEP_RED, lw=0.8)
-        ax_vi.axhline(-50.0, color=theme.FAINT, lw=0.5, ls="--", label="V_th")
-        ax_vi.set_ylabel(f"V_I (neuron {i_idx})")
-        ax_vi.set_xlim(0, T * dt)
+        ge_trace_i = ge_i[:, i_idx]
+        g_tot_i_full = G_L_I + ge_trace_i  # I receives no inhibition
+        v_inf_i = (G_L_I * E_L + ge_trace_i * E_E) / g_tot_i_full
 
-        ax_gi = axes[3]
-        ax_gi.plot(t_ms, ge_i[:, i_idx], color=theme.ELECTRIC_CYAN, lw=0.8, label="g_E (exc)")
-        ax_gi.axhline(G_L_I, color=theme.FAINT, lw=0.7, ls=":", label="g_L (leak)")
-        g_tot_i = ge_i[:, i_idx] + G_L_I  # I receives no inhibition
-        ax_gi.plot(t_ms, g_tot_i, color=theme.INK_BLACK, lw=0.6, ls="--", label="g_tot")
-        ax_gi.set_ylabel(f"g (neuron {i_idx})")
-        ax_gi.set_xlim(0, T * dt)
-        ax_gi.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
+        def _draw_v_i(ax):
+            ax.plot(t_ms, v_i[:, i_idx], color=theme.DEEP_RED, lw=0.8, label="V_I")
+            ax.axhline(-50.0, color=theme.FAINT, lw=0.5, ls="--", label="V_th")
+            ax.plot(t_ms, v_inf_i, color=theme.MUTED, lw=0.9, ls="-.", label="V_∞")
 
-    axes[-1].set_xlabel("time (ms)")
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=120)
-    plt.close(fig)
+        def _draw_g_i(ax):
+            ax.plot(t_ms, ge_trace_i, color=theme.ELECTRIC_CYAN, lw=0.9,
+                    label="g_E (exc)")
+            ax.axhline(G_L_I, color=theme.FAINT, lw=0.7, ls=":", label="g_L (leak)")
+
+        def _draw_i_i(ax):
+            i_e_in_i = -ge_trace_i * (v_i[:, i_idx] - E_E)
+            i_l_in_i = -G_L_I * (v_i[:, i_idx] - E_L)
+            ax.axhline(0.0, color=theme.FAINT, lw=0.5)
+            ax.plot(t_ms, i_e_in_i, color=theme.ELECTRIC_CYAN, lw=0.9,
+                    label="I_E in (depol.)")
+            ax.plot(t_ms, i_l_in_i, color=theme.FAINT, lw=0.7, ls=":",
+                    label="I_L in (leak)")
+
+        written += [
+            _save_panel(_draw_v_i, "v_i",
+                        f"V_I (neuron {i_idx})  [mV]",
+                        "V_I with V_∞ overlay"),
+            _save_panel(_draw_g_i, "g_i",
+                        "g  [µS]",
+                        f"I-neuron conductances (cell {i_idx})"),
+            _save_panel(_draw_i_i, "i_i",
+                        "I in  [+ depol.]",
+                        f"I-neuron signed currents (cell {i_idx})"),
+        ]
+    return written
 
 
 def main() -> None:
@@ -241,9 +293,10 @@ def main() -> None:
         print(f"wrote {raster_dst}")
 
         traces_dst = FIGURES / f"traces__{cell}.png"
-        plot_traces(SCOPE_OUT_NPZ, traces_dst, spec["title"])
-        figures[f"traces__{cell}"] = traces_dst
-        print(f"wrote {traces_dst}")
+        panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, spec["title"])
+        for p in panel_paths:
+            figures[p.stem] = p
+            print(f"wrote {p}")
 
     duration_s = time.monotonic() - t_start
     figs_root = FIGURES.parents[2]
@@ -261,15 +314,6 @@ def main() -> None:
             "modal_gpu": modal_gpu,
         },
         "results": [],
-        "success_criteria": [
-            {
-                "label": f"{name} rendered",
-                "passed": dst.exists() and dst.stat().st_size > 0,
-                "detail": f"{dst.name} ({dst.stat().st_size} bytes)" if dst.exists() else "missing",
-                "detail_href": "/" + str(dst.relative_to(figs_root)) if dst.exists() else None,
-            }
-            for name, dst in figures.items()
-        ],
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")

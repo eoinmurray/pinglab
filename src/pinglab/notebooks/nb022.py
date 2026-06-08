@@ -262,48 +262,6 @@ def plot_weight_hist(rows: list[dict], out_path: Path, run_id: str) -> None:
     fig.savefig(out_path)
     plt.close(fig)
 
-
-def evaluate_success(rows: list[dict], tier: str, figures: Path) -> list[dict]:
-    floor = float(MIN_ACC_BY_TIER[tier])
-    figs_root = figures.parents[2]
-
-    def artifact(name: str, label: str) -> dict:
-        path = figures / name
-        ok = path.exists() and path.stat().st_size > 0
-        href = "/" + str(path.relative_to(figs_root)) if ok else None
-        return {
-            "label": label,
-            "passed": bool(ok),
-            "detail": f"{path.name} ({path.stat().st_size} bytes)"
-            if ok else f"missing {path.name}",
-            "detail_href": href,
-        }
-
-    crits: list[dict] = [
-        artifact("accuracy.png", "accuracy figure rendered"),
-        artifact("training_curves.png", "training curves rendered"),
-        artifact("firing_rates.png", "firing-rate curves rendered"),
-        artifact("weight_hist.png", "weight histogram rendered"),
-    ]
-    for c in CELLS:
-        crits.append(
-            artifact(
-                f"training__{c}.mp4",
-                f"{c}: training video",
-            )
-        )
-    for c in CELLS:
-        r = next(row for row in rows if row["cell"] == c)
-        crits.append(
-            {
-                "label": f"{c} acc ≥ {floor:.0f}% ({tier} floor)",
-                "passed": bool(r["best_acc"] >= floor),
-                "detail": f"{c}={r['best_acc']:.2f}%",
-            }
-        )
-    return crits
-
-
 def _format_duration(seconds: float) -> str:
     s = int(round(seconds))
     if s < 60:
@@ -407,7 +365,6 @@ def main() -> None:
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(cell_dir(CELLS[0]))
-    crits = evaluate_success(rows, tier, FIGURES)
     summary = {
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
@@ -425,17 +382,11 @@ def main() -> None:
             "seed": SEED,
         },
         "results": rows,
-        "success_criteria": crits,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"  total duration: {summary['duration']}")
 
-    for c in crits:
-        mark = "pass" if c["passed"] else "FAIL"
-        print(f"  [{mark}] {c['label']} — {c['detail']}")
-    if any(not c["passed"] for c in crits):
-        sys.exit(1)
 
 
 if __name__ == "__main__":
