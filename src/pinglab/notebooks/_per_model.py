@@ -189,9 +189,8 @@ def _baseline_label(perf: dict, modal_gpu: str | None, model: str) -> str:
 
     Backend is local-{device.type} for local runs, modal-{GPU} for Modal
     so concurrent A100/T4 baselines don't overwrite each other. Model is
-    appended so a notebook training multiple models (e.g. nb000 testing
-    both CUBANet via standard-snn and COBANet via coba) can hold all four
-    rows of the (model × backend) matrix without collisions."""
+    appended so a notebook training multiple models can hold all rows of
+    the (model × backend) matrix without collisions."""
     if modal_gpu:
         backend = f"modal-{modal_gpu}"
     else:
@@ -262,8 +261,8 @@ def run(
     track_baselines emits a perf_baselines map in numbers.json keyed by
     backend label (e.g. local-mps, modal-A100). With --also-modal-gpu set
     on the same invocation, the map gets a second entry from the secondary
-    Modal dispatch — used by nb000 so a single run produces both local
-    and Modal numbers atomically, no cross-run state."""
+    Modal dispatch — a single run produces both local and Modal numbers
+    atomically, no cross-run state."""
     repo = Path(__file__).resolve().parents[3]
     artifacts = repo / "src" / "artifacts" / "notebooks" / slug
     figures = repo / "src" / "docs" / "public" / "figures" / "notebooks" / slug
