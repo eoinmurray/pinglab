@@ -272,58 +272,135 @@ def plot_weight_matrices(
     device,
     out_path: Path, run_id: str,
 ) -> None:
-    """Per-condition weight-matrix card: W_ei and W_ie, init vs trained, seed 42."""
+    """Per-condition weight-distribution card: W^EI and W^IE, init vs trained.
+
+    Two panels side-by-side. Each panel shows the *surviving* (>0) weights as
+    overlaid histograms (init outline, trained fill). The fraction of entries
+    pruned to zero by Dale's-law clamping is shown as a small bar chart inset
+    so the spike-at-zero doesn't dominate the histogram visually.
+    """
     theme.apply()
+    from matplotlib.gridspec import GridSpec
     label = CONDITIONS[cond]["label"]
-    seed = sorted(seed_to_dir.keys())[0]
-    w_ei_init, w_ei_trained, w_ie_init, w_ie_trained = load_init_and_trained_weights(
-        seed_to_dir[seed], device,
+    seeds_sorted = sorted(seed_to_dir.keys())
+
+    # Pool across all available seeds — the legend stats then describe what
+    # happens on average, not what happens to any one initialisation.
+    ei_init_chunks, ei_trained_chunks = [], []
+    ie_init_chunks, ie_trained_chunks = [], []
+    for seed in seeds_sorted:
+        a, b, c, d = load_init_and_trained_weights(seed_to_dir[seed], device)
+        ei_init_chunks.append(a)
+        ei_trained_chunks.append(b)
+        ie_init_chunks.append(c)
+        ie_trained_chunks.append(d)
+    w_ei_init    = np.concatenate([x.ravel() for x in ei_init_chunks])
+    w_ei_trained = np.concatenate([x.ravel() for x in ei_trained_chunks])
+    w_ie_init    = np.concatenate([x.ravel() for x in ie_init_chunks])
+    w_ie_trained = np.concatenate([x.ravel() for x in ie_trained_chunks])
+
+    # Canonical biophysical means (from N(1.0, 0.1) / 1024 and N(2.0, 0.2) / 256)
+    canon_ei = 1.0 / 1024.0
+    canon_ie = 2.0 / 256.0
+
+    fig = plt.figure(figsize=(13.0, 4.8), dpi=150)
+    gs = GridSpec(
+        2, 2, figure=fig,
+        width_ratios=[1.0, 1.0],
+        height_ratios=[0.10, 1.0],
+        hspace=0.45, wspace=0.30,
+        top=0.92, bottom=0.16, left=0.06, right=0.97,
+    )
+    ax_hdr = fig.add_subplot(gs[0, :])
+    ax_ei  = fig.add_subplot(gs[1, 0])
+    ax_ie  = fig.add_subplot(gs[1, 1])
+
+    # --- header ---
+    ax_hdr.set_axis_off()
+    ax_hdr.text(
+        0.0, 0.5, label,
+        transform=ax_hdr.transAxes, ha="left", va="center",
+        fontsize=theme.SIZE_TITLE + 1, fontweight="semibold",
+        color=COND_COLOURS[cond],
+    )
+    ax_hdr.text(
+        1.0, 0.5,
+        f"Recurrent-weight distributions  ·  pooled across {len(seeds_sorted)} seeds  ·  effective (post-clamp) values",
+        transform=ax_hdr.transAxes, ha="right", va="center",
+        fontsize=theme.SIZE_CAPTION, color=theme.LABEL, fontfamily="monospace",
     )
 
-    fig, axes = plt.subplots(
-        1, 2, figsize=(11.0, 4.5), dpi=150,
-        gridspec_kw={"wspace": 0.25},
-    )
-
-    def _hist_panel(ax, init_arr, trained_arr, title, color):
-        # Plot the *effective* weight — Dale's law clamps stored w < 0 to 0
-        # in the forward pass, so that's what the network actually sees.
+    def _panel(ax, init_arr, trained_arr, title, color, canon_mean):
         flat_init = np.maximum(init_arr.ravel(), 0.0)
         flat_trained = np.maximum(trained_arr.ravel(), 0.0)
-        v_hi = float(max(flat_init.max(), flat_trained.max(), 1e-12))
-        bins = np.linspace(0.0, v_hi * 1.05, 60)
+        nonzero_init    = flat_init[flat_init > 0]
+        nonzero_trained = flat_trained[flat_trained > 0]
+        v_hi = float(max(
+            nonzero_init.max() if nonzero_init.size else 0.0,
+            nonzero_trained.max() if nonzero_trained.size else 0.0,
+            canon_mean * 1.2,
+            1e-12,
+        ))
+        bins = np.linspace(0.0, v_hi * 1.05, 50)
 
         eff_init = flat_init.mean()
         eff_trained = flat_trained.mean()
-        # Fraction of entries that the forward pass sees as exactly zero
-        # (init: structural sparsity; trained: Dale's-law pruning).
         frac_pruned_init = float((flat_init <= 0).mean())
         frac_pruned_trained = float((flat_trained <= 0).mean())
 
-        ax.hist(
-            flat_init, bins=bins, histtype="step", color=color, lw=1.4,
-            label=(f"init   (mean = {eff_init:.4f}, "
-                   f"pruned = {frac_pruned_init:.0%})"),
+        # Surviving (>0) distributions only — keeps the histogram readable.
+        if nonzero_init.size:
+            ax.hist(
+                nonzero_init, bins=bins, histtype="step",
+                color=color, lw=1.6, label="init",
+            )
+        if nonzero_trained.size:
+            ax.hist(
+                nonzero_trained, bins=bins, histtype="stepfilled",
+                color=color, alpha=0.32, edgecolor=color, lw=0.8,
+                label="trained",
+            )
+
+        # Reference vertical at the canonical biophysical mean.
+        ax.axvline(canon_mean, color=theme.GREY_MID, lw=0.9, ls=":")
+        y_lo, y_hi = ax.get_ylim()
+        ax.text(
+            canon_mean, y_hi * 0.5, "  canonical",
+            ha="left", va="center", fontsize=theme.SIZE_CAPTION,
+            color=theme.GREY_MID, rotation=90,
         )
-        ax.hist(
-            flat_trained, bins=bins, histtype="stepfilled", color=color,
-            alpha=0.35, edgecolor=color, lw=1.0,
-            label=(f"trained (mean = {eff_trained:.4f}, "
-                   f"pruned = {frac_pruned_trained:.0%})"),
-        )
-        ax.set_title(title, fontsize=theme.SIZE_LABEL)
-        ax.set_xlabel("effective weight (forward-pass value)",
+
+        ax.set_title(title, fontsize=theme.SIZE_LABEL, loc="left", pad=4)
+        ax.set_xlabel("effective weight  (Dale-clamped, surviving entries shown)",
                       fontsize=theme.SIZE_LABEL)
-        ax.set_ylabel("count", fontsize=theme.SIZE_LABEL)
+        ax.set_ylabel("entry count", fontsize=theme.SIZE_LABEL)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
+        ax.tick_params(labelsize=theme.SIZE_LABEL - 1, direction="out", length=3)
+        ax.set_xlim(0, v_hi * 1.05)
+        ax.legend(
+            fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right",
+        )
 
-    _hist_panel(axes[0], w_ei_init, w_ei_trained, r"$W^{EI}$ distribution", theme.INK_BLACK)
-    _hist_panel(axes[1], w_ie_init, w_ie_trained, r"$W^{IE}$ distribution", theme.DEEP_RED)
-    fig.suptitle(f"{label} — recurrent weight distributions, seed {seed}",
-                 fontsize=theme.SIZE_TITLE)
-    fig.tight_layout()
+        # Stats box (upper-right): the two key numbers per row.
+        stat_text = (
+            f"init     mean = {eff_init:.4f}    pruned = {frac_pruned_init:5.1%}\n"
+            f"trained  mean = {eff_trained:.4f}    pruned = {frac_pruned_trained:5.1%}"
+        )
+        ax.text(
+            0.99, 0.78, stat_text,
+            transform=ax.transAxes, ha="right", va="top",
+            fontsize=theme.SIZE_CAPTION, color=theme.LABEL,
+            fontfamily="monospace",
+            bbox=dict(facecolor="white", edgecolor=theme.GREY_MID,
+                      lw=0.5, boxstyle="round,pad=0.4", alpha=0.95),
+        )
+
+    _panel(ax_ei, w_ei_init, w_ei_trained,
+           r"$W^{EI}$  (1024 × 256)", theme.INK_BLACK, canon_ei)
+    _panel(ax_ie, w_ie_init, w_ie_trained,
+           r"$W^{IE}$  (256 × 1024)", theme.DEEP_RED, canon_ie)
+
     _stamp(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
@@ -567,27 +644,58 @@ def plot_condition_card(
     color = COND_COLOURS[cond]
     label = CONDITIONS[cond]["label"]
 
-    fig = plt.figure(figsize=(14.0, 7.0), dpi=150)
-    gs = GridSpec(
-        2, 4, figure=fig,
-        height_ratios=[1.0, 1.4], hspace=0.45, wspace=0.32,
-    )
-    ax_wei  = fig.add_subplot(gs[0, 0])
-    ax_wie  = fig.add_subplot(gs[0, 1])
-    ax_rate = fig.add_subplot(gs[0, 2])
-    ax_acc  = fig.add_subplot(gs[0, 3])
-    ax_psd  = fig.add_subplot(gs[1, 0:2])
-    ax_rast = fig.add_subplot(gs[1, 2:4])
+    # --- summary stats for header ---
+    def _agg(key, sub=None):
+        vals = []
+        for c in final_cells:
+            v = c.get(key)
+            if isinstance(v, dict) and sub is not None:
+                v = v.get(sub)
+            if v is not None and not (isinstance(v, float) and v != v):
+                vals.append(float(v))
+        return float(np.mean(vals)) if vals else float("nan")
 
-    # --- trajectory strip (mean + per-seed faint lines) ---
-    traj_specs = [
-        (ax_wei,  "weight_norms", "W_ei.1", r"$\|W^{EI}\|_F$",  "-"),
-        (ax_wie,  "weight_norms", "W_ie.1", r"$\|W^{IE}\|_F$",  "-"),
-        (ax_rate, "rate_e",       None,     "Firing rate (Hz)", "-"),
-        (ax_rate, "rate_i",       None,     None,               "--"),
-        (ax_acc,  "acc",          None,     "Test accuracy (%)","-"),
+    acc_final  = _agg("acc")
+    e_rate_f   = _agg("e_rate_hz")
+    i_rate_f   = _agg("i_rate_hz")
+    f_gamma_f  = _agg("f_gamma_hz")
+
+    fig = plt.figure(figsize=(13.5, 8.5), dpi=150)
+    gs = GridSpec(
+        3, 4, figure=fig,
+        height_ratios=[0.32, 1.0, 1.4],
+        hspace=0.55, wspace=0.40,
+        top=0.96, bottom=0.07, left=0.06, right=0.97,
+    )
+    ax_hdr  = fig.add_subplot(gs[0, :])
+    ax_wei  = fig.add_subplot(gs[1, 0])
+    ax_wie  = fig.add_subplot(gs[1, 1])
+    ax_rate = fig.add_subplot(gs[1, 2])
+    ax_acc  = fig.add_subplot(gs[1, 3])
+    ax_psd  = fig.add_subplot(gs[2, 0:2])
+    ax_rast = fig.add_subplot(gs[2, 2:4])
+
+    # --- header strip ---
+    ax_hdr.set_axis_off()
+    ax_hdr.text(
+        0.0, 1.0, label,
+        transform=ax_hdr.transAxes, ha="left", va="top",
+        fontsize=theme.SIZE_TITLE + 2, fontweight="semibold", color=color,
+    )
+    stat_pieces = [
+        f"acc = {acc_final:5.2f}%",
+        f"E = {e_rate_f:5.1f} Hz" if e_rate_f == e_rate_f else "E = —",
+        f"I = {i_rate_f:5.1f} Hz" if i_rate_f == i_rate_f else "I = —",
+        f"f$_\\gamma$ = {f_gamma_f:4.1f} Hz" if f_gamma_f == f_gamma_f else "f$_\\gamma$ = —",
     ]
-    for ax, key, sub_key, ylabel, linestyle in traj_specs:
+    ax_hdr.text(
+        0.0, 0.0, "    ".join(stat_pieces),
+        transform=ax_hdr.transAxes, ha="left", va="bottom",
+        fontsize=theme.SIZE_LABEL + 1, color=theme.LABEL, fontfamily="monospace",
+    )
+
+    # --- trajectory strip (per-seed alpha + mean) ---
+    def _per_seed_curves(key, sub_key=None):
         per_seed = []
         for m in metrics_list:
             curve = []
@@ -599,45 +707,126 @@ def plot_condition_card(
             if curve:
                 per_seed.append(curve)
         if not per_seed:
-            continue
+            return None, None
         n_eps = min(len(c) for c in per_seed)
         arr = np.array([c[:n_eps] for c in per_seed], dtype=np.float64)
         xs = np.arange(1, n_eps + 1)
+        return xs, arr
+
+    def _plot_traj(ax, xs, arr, *, ls="-", lw_mean=1.8):
         for row in arr:
-            ax.plot(xs, row, color=color, lw=0.6, ls=linestyle, alpha=0.35)
-        ax.plot(xs, np.nanmean(arr, axis=0), color=color, lw=1.6, ls=linestyle)
-        if ylabel is not None:
-            ax.set_ylabel(ylabel, fontsize=theme.SIZE_LABEL)
+            ax.plot(xs, row, color=color, lw=0.7, ls=ls, alpha=0.28)
+        ax.plot(xs, np.nanmean(arr, axis=0), color=color, lw=lw_mean, ls=ls,
+                solid_capstyle="round")
+
+    def _style_panel(ax, *, ylabel, last_xlabel=False, last_val=None,
+                     last_val_fmt="{:.4f}"):
+        ax.set_ylabel(ylabel, fontsize=theme.SIZE_LABEL)
         ax.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        if key == "acc":
-            ax.set_ylim(0, 100)
-            ax.axhline(10.0, color=theme.GREY_MID, lw=0.5, ls=":", alpha=0.6)
+        ax.tick_params(labelsize=theme.SIZE_LABEL - 1, direction="out", length=3)
+        if last_val is not None and last_val == last_val:
+            ax.text(
+                0.99, 0.97, last_val_fmt.format(last_val),
+                transform=ax.transAxes, ha="right", va="top",
+                fontsize=theme.SIZE_LABEL - 1, color=color, fontweight="semibold",
+                bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.0),
+            )
+
+    def _empty_panel(ax, ylabel, message):
+        ax.set_ylabel(ylabel, fontsize=theme.SIZE_LABEL)
+        ax.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.tick_params(labelsize=theme.SIZE_LABEL - 1, direction="out", length=3)
+        ax.set_xlim(0, 100)
+        ax.set_ylim(0, 1)
+        ax.set_yticks([])
+        ax.text(
+            0.5, 0.5, message,
+            transform=ax.transAxes, ha="center", va="center",
+            fontsize=theme.SIZE_LABEL, color=theme.GREY_MID, fontstyle="italic",
+        )
+
+    # ‖W^EI‖
+    xs, arr = _per_seed_curves("weight_norms", "W_ei.1")
+    if xs is not None and np.isfinite(arr).any() and arr.max() > 0:
+        _plot_traj(ax_wei, xs, arr)
+        _style_panel(
+            ax_wei, ylabel=r"$\|W^{EI}\|_F$",
+            last_val=float(np.nanmean(arr[:, -1])), last_val_fmt="end={:.3f}",
+        )
+    else:
+        msg = "frozen" if cond == "frozen_ping" else "no gradient"
+        _empty_panel(ax_wei, ylabel=r"$\|W^{EI}\|_F$", message=msg)
+    # ‖W^IE‖
+    xs, arr = _per_seed_curves("weight_norms", "W_ie.1")
+    if xs is not None and np.isfinite(arr).any() and arr.max() > 0:
+        _plot_traj(ax_wie, xs, arr)
+        _style_panel(
+            ax_wie, ylabel=r"$\|W^{IE}\|_F$",
+            last_val=float(np.nanmean(arr[:, -1])), last_val_fmt="end={:.3f}",
+        )
+    else:
+        msg = "frozen" if cond == "frozen_ping" else "no gradient"
+        _empty_panel(ax_wie, ylabel=r"$\|W^{IE}\|_F$", message=msg)
+    # Firing rates: E (solid) + I (dashed)
+    xs_e, arr_e = _per_seed_curves("rate_e")
+    xs_i, arr_i = _per_seed_curves("rate_i")
+    if xs_e is not None:
+        _plot_traj(ax_rate, xs_e, arr_e, ls="-")
+    if xs_i is not None:
+        _plot_traj(ax_rate, xs_i, arr_i, ls="--")
+    _style_panel(ax_rate, ylabel="Rate (Hz)")
     ax_rate.legend(
         handles=[
-            Line2D([0], [0], color=color, lw=1.6, ls="-",  label="E"),
-            Line2D([0], [0], color=color, lw=1.6, ls="--", label="I"),
+            Line2D([0], [0], color=color, lw=1.8, ls="-",  label="E"),
+            Line2D([0], [0], color=color, lw=1.8, ls="--", label="I"),
         ],
-        fontsize=theme.SIZE_LEGEND, frameon=False, loc="best",
+        fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left",
     )
+    # Accuracy
+    xs, arr = _per_seed_curves("acc")
+    if xs is not None:
+        _plot_traj(ax_acc, xs, arr)
+        _style_panel(
+            ax_acc, ylabel="Test accuracy (%)",
+            last_val=float(np.nanmean(arr[:, -1])), last_val_fmt="end={:.1f}%",
+        )
+        ax_acc.set_ylim(0, 100)
+        ax_acc.axhline(10.0, color=theme.GREY_MID, lw=0.6, ls=":", alpha=0.6)
+        ax_acc.text(
+            0.02, 0.13, "chance", transform=ax_acc.transAxes,
+            fontsize=theme.SIZE_CAPTION, color=theme.GREY_MID,
+        )
 
-    # --- final PSD (per-seed faint + mean bold) ---
+    # --- final PSD ---
     if final_cells:
         freqs = np.array(final_cells[0]["freqs_hz"])
         band = (freqs >= F_GAMMA_BAND_HZ[0]) & (freqs <= F_GAMMA_BAND_HZ[1])
         psds = np.stack([np.array(c["psd"]) for c in final_cells], axis=0)
         for row in psds:
-            ax_psd.plot(freqs[band], row[band], color=color, lw=0.6, alpha=0.35)
-        ax_psd.plot(
-            freqs[band], psds.mean(axis=0)[band], color=color, lw=1.6,
-        )
+            ax_psd.plot(freqs[band], row[band], color=color, lw=0.7, alpha=0.3)
+        psd_mean = psds.mean(axis=0)
+        ax_psd.plot(freqs[band], psd_mean[band], color=color, lw=1.8)
+        # Mark f_γ if defined
+        if f_gamma_f == f_gamma_f and F_GAMMA_BAND_HZ[0] <= f_gamma_f <= F_GAMMA_BAND_HZ[1]:
+            ax_psd.axvline(f_gamma_f, color=color, lw=0.9, ls="--", alpha=0.55)
+            ax_psd.text(
+                f_gamma_f, ax_psd.get_ylim()[1] * 0.95,
+                f"  $f_\\gamma$ = {f_gamma_f:.1f} Hz",
+                ha="left", va="top", fontsize=theme.SIZE_LABEL - 1,
+                color=color, fontweight="semibold",
+            )
     ax_psd.set_xlabel("Frequency (Hz)", fontsize=theme.SIZE_LABEL)
     ax_psd.set_ylabel("Population E PSD (a.u.)", fontsize=theme.SIZE_LABEL)
     ax_psd.set_xlim(F_GAMMA_BAND_HZ)
     ax_psd.spines["top"].set_visible(False)
     ax_psd.spines["right"].set_visible(False)
-    ax_psd.set_title("Trained-network E PSD", fontsize=theme.SIZE_LABEL)
+    ax_psd.tick_params(labelsize=theme.SIZE_LABEL - 1, direction="out", length=3)
+    ax_psd.set_title("Trained-network E-population PSD",
+                     fontsize=theme.SIZE_LABEL, loc="left", pad=4)
 
     # --- single-trial raster ---
     if raster is not None:
@@ -650,29 +839,34 @@ def plot_condition_card(
         e_idx = np.sort(rng.choice(n_e, n_e_plot, replace=False))
         e_t, e_n = np.where(raster["e"][:, e_idx])
         ax_rast.scatter(
-            t_axis[e_t], e_n, s=2.0, c=theme.INK_BLACK, marker="|", linewidths=0.4,
+            t_axis[e_t], e_n, s=1.6, c=theme.INK_BLACK, marker="|", linewidths=0.35,
         )
         if n_i > 0:
             n_i_plot = min(50, n_i)
             i_idx = np.sort(rng.choice(n_i, n_i_plot, replace=False))
             i_t, i_n = np.where(raster["i"][:, i_idx])
+            divider_y = n_e_plot + 4
+            ax_rast.axhline(divider_y, color=theme.GREY_MID, lw=0.5, alpha=0.5)
             ax_rast.scatter(
-                t_axis[i_t], i_n + n_e_plot + 6,
-                s=2.0, c=theme.DEEP_RED, marker="|", linewidths=0.4,
+                t_axis[i_t], i_n + divider_y + 4,
+                s=1.6, c=theme.DEEP_RED, marker="|", linewidths=0.35,
             )
-            ax_rast.set_ylim(-2, n_e_plot + n_i_plot + 8)
-            ax_rast.set_yticks([n_e_plot / 2, n_e_plot + 6 + n_i_plot / 2])
-            ax_rast.set_yticklabels(["E", "I"])
+            ax_rast.set_ylim(-2, divider_y + 4 + n_i_plot + 2)
+            ax_rast.set_yticks([n_e_plot / 2, divider_y + 4 + n_i_plot / 2])
+            ax_rast.set_yticklabels(
+                [f"E ({n_e})", f"I ({n_i})"], fontsize=theme.SIZE_LABEL - 1,
+            )
         else:
             ax_rast.set_ylim(-2, n_e_plot + 2)
             ax_rast.set_yticks([n_e_plot / 2])
-            ax_rast.set_yticklabels(["E"])
-    ax_rast.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
+            ax_rast.set_yticklabels([f"E ({n_e})"], fontsize=theme.SIZE_LABEL - 1)
+    ax_rast.set_xlabel("Time (ms)", fontsize=theme.SIZE_LABEL)
     ax_rast.spines["top"].set_visible(False)
     ax_rast.spines["right"].set_visible(False)
-    ax_rast.set_title("Single-trial raster (seed 42)", fontsize=theme.SIZE_LABEL)
+    ax_rast.tick_params(labelsize=theme.SIZE_LABEL - 1, direction="out", length=3)
+    ax_rast.set_title("Single-trial raster (seed 42)",
+                      fontsize=theme.SIZE_LABEL, loc="left", pad=4)
 
-    fig.suptitle(f"{label}", fontsize=theme.SIZE_TITLE)
     _stamp(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
