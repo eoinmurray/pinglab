@@ -106,7 +106,7 @@ def _build_untrained_ping(n_inh: int):
     """Build an untrained PING net at the given inhibitory pool size."""
     torch.manual_seed(SEED)
     import models as M
-    from config import build_net
+    from cli.config import build_net
 
     M.HIDDEN_SIZES = [N_E]
     M.N_HID = N_E

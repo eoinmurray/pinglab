@@ -182,7 +182,7 @@ def test_readout_changes_model_forward():
     import sys
 
     sys.path.insert(0, "src/pinglab")
-    from config import build_net
+    from cli.config import build_net
 
     torch.manual_seed(0)
     net_rate = build_net(
@@ -225,7 +225,7 @@ def test_ei_ratio_scales_only_wie():
     import sys
 
     sys.path.insert(0, "src/pinglab")
-    from config import build_net
+    from cli.config import build_net
 
     def _means(ratio):
         torch.manual_seed(0)
@@ -251,7 +251,7 @@ def test_ei_strength_scales_weights():
     import sys
 
     sys.path.insert(0, "src/pinglab")
-    from config import build_net
+    from cli.config import build_net
 
     def _means(s):
         torch.manual_seed(0)
