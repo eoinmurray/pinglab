@@ -202,6 +202,8 @@ def train(
     fr_reg_lower_strength=0.0,
     fr_reg_mode="per-neuron",
     trainable_w_ee=False,
+    trainable_w_ei=False,
+    trainable_w_ie=False,
     tbptt_window=None,
 ):
     """Train on scikit digits, optionally producing oscilloscope video."""
@@ -296,6 +298,8 @@ def train(
         ei_layers=ei_layers,
         readout_mode=readout_mode,
         trainable_w_ee=trainable_w_ee,
+        trainable_w_ei=trainable_w_ei,
+        trainable_w_ie=trainable_w_ie,
         tbptt_window=tbptt_window,
     )
     if readout_mode != "rate":
@@ -350,6 +354,8 @@ def train(
         "hidden_sizes": hidden_sizes,
         "ei_layers": list(ei_layers) if ei_layers else None,
         "trainable_w_ee": trainable_w_ee,
+        "trainable_w_ei": trainable_w_ei,
+        "trainable_w_ie": trainable_w_ie,
         "tbptt_window": getattr(net, "tbptt_window", None),
         "seed": seed,
         "tau_gaba_ms": float(M.tau_gaba),
