@@ -86,7 +86,7 @@ def test_train_and_infer_share_test_split_mnist():
 
 
 def _run_cli(*args, timeout=180):
-    cmd = ["uv", "run", "python", "src/pinglab/cli/cli.py", *args]
+    cmd = ["uv", "run", "python", "src/cli/cli.py", *args]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     return result.returncode, result.stdout, result.stderr
 
