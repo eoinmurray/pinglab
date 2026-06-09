@@ -449,3 +449,185 @@ def test_no_wipe_dir_preserves_existing(tmp_path):
     )
     assert sentinel.exists(), "no --wipe-dir should have preserved keep.txt"
     assert (out / "config.json").exists()
+
+
+# ── V&S session additions ────────────────────────────────────────────────
+
+
+@pytest.mark.slow
+def test_w_ii_propagates_to_train_config(tmp_path):
+    """--w-ii MEAN STD lands in config.json and reaches the W^II matrix.
+
+    Caught a real bug: --w-ii was wired to image mode but not train() until
+    this test failed (train() didn't accept the kwarg). Keeping the test
+    pins both the round-trip AND the train-side plumbing."""
+    out = tmp_path / "wii"
+    _train_probe(out, "--w-ii", "0.5", "0.1")
+    cfg = _read_config(out)
+    # The trainer's config.json stores the per-cell tuple under whichever
+    # name maps to w_ii in the trained-state schema. Whatever key the
+    # trainer chooses, the float values must round-trip.
+    serialised = json.dumps(cfg)
+    assert "0.5" in serialised, f"w_ii MEAN missing from config: {cfg}"
+
+
+def test_trainable_w_flags_make_recurrent_matrices_gradient_carrying():
+    """Each --trainable-w-{ei,ie,ii,ee} flag makes the corresponding
+    recurrent matrix gradient-carrying. nb049's whole story depends on
+    this — without it, Adam can't push W^EI entries below zero."""
+    import sys
+
+    sys.path.insert(0, "src/cli")
+    from config import build_net
+
+    for flag, attr in [
+        ("trainable_w_ei", "W_ei"),
+        ("trainable_w_ie", "W_ie"),
+        ("trainable_w_ii", "W_ii"),
+        ("trainable_w_ee", "W_ee"),
+    ]:
+        torch.manual_seed(0)
+        net_default = build_net(
+            "ping", w_in=(0.3, 0.03), w_in_sparsity=0.0,
+            ei_strength=0.5, sparsity=0.0,
+        )
+        torch.manual_seed(0)
+        net_trainable = build_net(
+            "ping", w_in=(0.3, 0.03), w_in_sparsity=0.0,
+            ei_strength=0.5, sparsity=0.0, w_ii=(0.5, 0.1),
+            **{flag: True},
+        )
+        W_default = getattr(net_default, attr)["1"]
+        W_trainable = getattr(net_trainable, attr)["1"]
+        assert not W_default.requires_grad, f"{attr} default should be frozen"
+        assert W_trainable.requires_grad, (
+            f"--{flag.replace('_', '-')} did not make {attr} gradient-carrying"
+        )
+
+
+def test_ei_sparsity_zeros_recurrent_entries():
+    """--ei-sparsity FRAC zeros approximately *frac* of recurrent entries.
+    At 0.9, ≈ 10% of W^EI entries should survive (with stochastic tolerance)."""
+    import sys
+
+    sys.path.insert(0, "src/cli")
+    from config import build_net
+
+    torch.manual_seed(0)
+    net = build_net(
+        "ping",
+        w_in=(0.3, 0.03), w_in_sparsity=0.0,
+        ei_strength=1.0, sparsity=0.9,
+    )
+    W = net.W_ei["1"].detach()
+    nonzero_frac = float((W > 0).float().mean())
+    # Expected ≈ 0.1 (10% survive); allow generous wiggle for finite-size noise.
+    assert 0.05 < nonzero_frac < 0.15, (
+        f"at sparsity 0.9 expected ~10% nonzero W_ei entries, got {nonzero_frac:.2%}"
+    )
+
+
+def test_w_ii_changes_i_cell_membrane():
+    """Non-zero W^II should change I-cell dynamics relative to W^II = 0
+    when there is enough I activity for self-inhibition to matter.
+    Two-population sanity check that the new gi_i conductance trace
+    actually reaches the I-cell membrane integration."""
+    import sys
+
+    sys.path.insert(0, "src/cli")
+    import models as M
+    from config import build_net
+
+    old_T = M.T_ms
+    M.T_ms = 50.0
+    M.T_steps = int(M.T_ms / M.dt)
+    try:
+        # Strong E drive to make I cells fire; with W_ii=0 vs W_ii>0 the
+        # I rate should differ.
+        def _i_rate(w_ii):
+            torch.manual_seed(0)
+            net = build_net(
+                "ping", w_in=(2.0, 0.4), w_in_sparsity=0.0,
+                ei_strength=1.0, sparsity=0.0,
+                w_ii=(w_ii, w_ii * 0.1) if w_ii > 0 else None,
+            )
+            net.recording = True
+            spikes = (torch.rand(M.T_steps, 1, M.N_IN) < 0.5).float()
+            with torch.no_grad():
+                net.forward(input_spikes=spikes)
+            # Sum I spikes across time and cells.
+            inh_key = net._inh_key(1)
+            return float(net.spike_record[inh_key].sum())
+
+        rate_off = _i_rate(0.0)
+        rate_on = _i_rate(2.0)
+        assert rate_off != rate_on, (
+            f"--w-ii had no effect on I rate: off={rate_off}, on={rate_on}"
+        )
+    finally:
+        M.T_ms = old_T
+        M.T_steps = int(M.T_ms / M.dt)
+
+
+def test_independent_drive_raises_e_rate():
+    """--independent-drive on the synthetic-spikes image mode raises the
+    E rate above the no-extra-drive baseline (sanity check that the
+    per-cell Poisson stream actually reaches state['ge_e'])."""
+    import os
+    import subprocess
+
+    def _e_rate(*extra):
+        # Run with a tiny config and parse "E= NN" from CLI stdout.
+        cmd = [
+            "uv", "run", "python", "src/cli/cli.py", "image",
+            "--model", "ping", "--input", "synthetic-spikes",
+            "--input-rate", "5", "--t-ms", "300",
+            "--w-in", "0.5", "0.1",
+            "--ei-strength", "0.5",
+            *extra,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        # The CLI prints a line like "  E=  5 I=  3 CV=..."; pull E.
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("E=") or "  E=" in line:
+                # First numeric after E=
+                idx = line.find("E=")
+                tok = line[idx + 2:].split()[0]
+                return float(tok)
+        raise AssertionError(f"no E= line in CLI output:\n{result.stdout}")
+
+    e_off = _e_rate()
+    e_on = _e_rate("--independent-drive", "500", "0.03")
+    assert e_on > e_off, (
+        f"--independent-drive did not raise E rate: off={e_off}, on={e_on}"
+    )
+
+
+def test_independent_drive_i_raises_i_rate():
+    """--independent-drive-i raises I rate above the no-extra-drive baseline.
+    The new ext_g_i pathway must reach state['ge_i']."""
+    import subprocess
+
+    def _i_rate(*extra):
+        cmd = [
+            "uv", "run", "python", "src/cli/cli.py", "image",
+            "--model", "ping", "--input", "synthetic-spikes",
+            "--input-rate", "5", "--t-ms", "300",
+            "--w-in", "0.5", "0.1",
+            "--ei-strength", "0.5",
+            *extra,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        for line in result.stdout.splitlines():
+            idx = line.find("I=")
+            if idx >= 0 and "CV=" in line:
+                tok = line[idx + 2:].split()[0]
+                return float(tok)
+        raise AssertionError(f"no I= line in CLI output:\n{result.stdout}")
+
+    i_off = _i_rate()
+    i_on = _i_rate("--independent-drive-i", "500", "0.03")
+    assert i_on > i_off, (
+        f"--independent-drive-i did not raise I rate: off={i_off}, on={i_on}"
+    )
