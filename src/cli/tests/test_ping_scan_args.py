@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-TESTS = Path(__file__).resolve().parents[1]  # src/cli/tests/
+TESTS = Path(__file__).resolve().parent  # src/cli/tests/
 NOTEBOOKS = TESTS.parent.parent / "notebooks"  # src/notebooks/
 sys.path.insert(0, str(NOTEBOOKS))
 
