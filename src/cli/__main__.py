@@ -1060,7 +1060,7 @@ def save_run_artifacts(out_dir, args, mode):
     """Save config.json (with provenance), run.sh, set up logging, print intro."""
     import json
     import logging
-    import run_log
+    import runlog
 
     out_dir = Path(out_dir)
     if args.wipe_dir and out_dir.exists():
@@ -1071,7 +1071,7 @@ def save_run_artifacts(out_dir, args, mode):
 
     # config.json — with provenance metadata at top
     config = {"mode": mode}
-    config.update(run_log.provenance())
+    config.update(runlog.provenance())
     for k, v in vars(args).items():
         if v is not None:
             config[k] = v
@@ -1091,7 +1091,7 @@ def save_run_artifacts(out_dir, args, mode):
     class _StripAnsiFormatter(logging.Formatter):
         def format(self, record):
             msg = super().format(record)
-            return run_log._strip_ansi(msg)
+            return runlog._strip_ansi(msg)
 
     fh = logging.FileHandler(out_dir / "output.log", mode="w")
     fh.setFormatter(_StripAnsiFormatter("%(message)s"))
@@ -1107,8 +1107,8 @@ def save_run_artifacts(out_dir, args, mode):
 
 
 def _print_intro(log, config, args, mode):
-    """Group CLI args into sections and print via run_log.print_intro."""
-    import run_log
+    """Group CLI args into sections and print via runlog.print_intro."""
+    import runlog
 
     model = config.get("model", "ping")
     dataset = config.get("dataset", "scikit")
@@ -1146,7 +1146,7 @@ def _print_intro(log, config, args, mode):
             "started_at": config.get("started_at"),
         },
     }
-    run_log.print_intro(log, mode, model, dataset, sections)
+    runlog.print_intro(log, mode, model, dataset, sections)
 
 
 if __name__ == "__main__":
@@ -1196,7 +1196,7 @@ if __name__ == "__main__":
 
     # Create enriched .running marker (PID, start time, run_id, cmd).
     # Deleted on normal exit via atexit hook.
-    import run_log as _rl
+    import runlog as _rl
     import json as _json_marker
 
     try:

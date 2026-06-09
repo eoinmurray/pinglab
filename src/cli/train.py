@@ -46,7 +46,7 @@ from config import (
 from inputs import DT_CAL, make_spike_drive
 from metrics import compute_metrics, format_metrics
 from plot import draw_transient_frame, make_transient_fig, reset_weight_xlims
-from run_log import (
+from runlog import (
     MetricsJsonl,
     WarningTracker,
     print_epoch,
@@ -329,7 +329,7 @@ def train(
 
     # Save config for reproducibility
     import json
-    import run_log
+    import runlog
 
     config = {
         "model": model_name,
@@ -366,7 +366,7 @@ def train(
         # Provenance (git SHA, run_id, started_at, device, torch version,
         # python env hash) — keeps train-mode config.json at parity with
         # sim/image/video modes.
-        **run_log.provenance(),
+        **runlog.provenance(),
     }
     with open(out_dir / "config.json", "w") as f:
         json.dump(config, f, indent=2)
@@ -555,7 +555,7 @@ def train(
         obs_fig.savefig(obs_frames_dir / "epoch_000.png", dpi=120)
 
     # Training loop
-    import run_log
+    import runlog
 
     best_acc = 0.0
     best_state = None
@@ -564,9 +564,9 @@ def train(
     prev_lr = lr
     epoch_records = []  # accumulated for metrics.json
     best_epoch = 0
-    wtracker = run_log.WarningTracker()
-    jsonl = run_log.MetricsJsonl(out_dir / "metrics.jsonl")
-    run_log.print_progress_header(log)
+    wtracker = runlog.WarningTracker()
+    jsonl = runlog.MetricsJsonl(out_dir / "metrics.jsonl")
+    runlog.print_progress_header(log)
     # MPS has no max_memory_allocated — sample per epoch and keep the peak.
     # CUDA tracks peak natively (queried at end of run).
     peak_mem_mps = 0
@@ -828,7 +828,7 @@ def train(
         activity = epoch_metrics.get("act", 0.0) * 100 if epoch_metrics else 0.0
         flags = wtracker.tick(epoch + 1, acc, activity, avg_train)
         eta = (epochs - epoch - 1) * elapsed
-        run_log.print_epoch(
+        runlog.print_epoch(
             log,
             epoch + 1,
             epochs,
@@ -1041,7 +1041,7 @@ def train(
                     }
                 )
                 idx += 1
-    run_log.write_test_predictions(out_dir / "test_predictions.json", preds)
+    runlog.write_test_predictions(out_dir / "test_predictions.json", preds)
 
     # Structured summary block
     dyn = None
@@ -1058,7 +1058,7 @@ def train(
         }
         if end_state.get("f0"):
             dyn["f0"] = f"{end_state['f0']:.0f} Hz"
-    run_log.print_summary(
+    runlog.print_summary(
         log,
         best_acc=best_acc,
         final_acc=acc,

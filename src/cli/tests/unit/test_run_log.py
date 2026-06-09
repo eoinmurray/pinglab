@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from run_log import (
+from runlog import (
     MetricsJsonl,
     WarningTracker,
     format_bytes,
