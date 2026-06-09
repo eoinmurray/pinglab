@@ -13,7 +13,7 @@ export const numbers = Object.values(
 
 ## Abstract
 
-Vreeswijk & Sompolinsky's 1996 *Science* paper showed that a sparsely-connected network of excitatory and inhibitory cells with strong recurrent weights settles, generically, into an *asynchronous irregular* (AI) state — both populations firing at moderate rates, individual ISIs close to Poisson (CV ≈ 1), and low pairwise correlations across cells. The mean recurrent inputs from E and I are individually large but cancel; what's left is fluctuations that drive each cell across threshold by noise, not by deterministic integration. This entry asks whether the same network that produces canonical PING in the gamma-gated-sparsity collection can also reach AI, and finds that it can: with sparse recurrent connectivity, per-cell independent external drive on both populations, and tuned recurrent weights, we land at $\langle r_E\rangle = 18$, $\langle r_I\rangle = 29$ Hz, per-E ISI CV = 0.97, per-I ISI CV = 1.08, and a broadband PSD with no gamma peak. Side-by-side with canonical PING (sharp 31 Hz peak, per-E CV 0.62, per-I CV 0.03), the AI cell is a qualitatively distinct dynamical regime of the *same architecture*, selected by operating point alone.
+Vreeswijk & Sompolinsky's 1996 *Science* paper showed that a sparsely-connected network of excitatory and inhibitory cells with strong recurrent weights settles, generically, into an *asynchronous irregular* (AI) state — both populations firing at moderate rates, individual ISIs close to Poisson (CV ≈ 1), low pairwise correlations across cells, and deterministic chaos (positive Lyapunov exponent). The mean recurrent inputs from E and I are individually large but cancel; what's left is fluctuations that drive each cell across threshold by noise, not by deterministic integration. This entry asks whether the same network that produces canonical PING in the gamma-gated-sparsity collection can also reach AI, and finds that it can: with fixed-fan-in sparse connectivity, per-cell independent external drive on both populations, and tuned recurrent weights, we land at $\langle r_E\rangle = 17$, $\langle r_I\rangle = 21$ Hz, per-E ISI CV = 1.02, per-I ISI CV = 1.13, a broadband PSD with no gamma peak, near-zero pairwise correlations, and a positive Lyapunov exponent. Side-by-side with canonical PING (sharp 31 Hz peak, per-E CV 0.62, per-I CV 0.03, perturbations re-locked), the AI cell is a qualitatively distinct dynamical regime of the *same architecture*, selected by operating point alone.
 
 ## Methods
 
@@ -33,23 +33,23 @@ Brunel 2000 reproduced the regime with LIF neurons instead of binary spins. Rena
 Conductance-based LIF, two populations $N_E = 1024, N_I = 256$, recurrent matrices $W^{EE}, W^{EI}, W^{IE}, W^{II}$ between them. The same network class used throughout the gamma-gated-sparsity collection ([ar003](/articles/ar003/)) for PING. To reach the V&S regime we needed four ingredients that the PING runs don't use:
 
 - **An $I \to I$ matrix.** Canonical PING has none; V&S requires it to break the synchronous I-burst that would otherwise re-establish the cycle.
-- **Sparse random recurrent connectivity.** Each entry of $W^{EE}, W^{EI}, W^{IE}, W^{II}$ is zeroed independently with probability $1 - K/N$ and surviving entries rescaled to preserve mean total drive. We use $K \approx 10$ ($N \approx 1000$), in the range V&S used for their numerical examples.
+- **Fixed-fan-in sparse connectivity.** Every post cell draws exactly $K = \text{round}((1 - \text{sparsity})\,N_\text{pre}) \approx 10$ random presynaptic inputs in each recurrent matrix. This is V&S's exact-$K$ random connectivity — *not* per-entry Bernoulli sparsity, which gives a binomial fan-in that varies cell to cell (mean 10 but std ≈ 3.3, range 2–21) and broadens the rate distribution. Fixing $K$ holds every cell statistically equivalent: it cut the per-cell rate dispersion from CV $= 0.79$ (Bernoulli) to $0.33$ (exact-$K$).
 - **Per-E-cell independent external drive.** Each E cell receives its own uncorrelated Poisson stream, applied directly to its $g_E$, bypassing the feedforward $W_\text{in}$ matrix. This is the per-cell uncorrelated noise V&S takes as input.
 - **Per-I-cell independent external drive.** Same for the I population. Without it, I-cell membrane fluctuations are entirely E-correlated through $W^{EI}$ and per-I CV stalls below 1.
 
-Both cells run on the same COBANet ($N_E = 1024, N_I = 256$, $\Delta t = 0.1$ ms, $T = 1000$ ms) and differ only in the recurrent matrices, the connectivity sparsity, and the external drive:
+Both cells run on the same COBANet ($N_E = 1024, N_I = 256$, $\Delta t = 0.1$ ms, $T = 1000$ ms) and differ only in the recurrent matrices, the connectivity, and the external drive:
 
 | Quantity | PING (canonical, control) | V&S AI |
 |---|---|---|
 | External drive on E | Poisson at 20 Hz, routed through $W_\text{in} = \mathcal{N}(1.5, 0.3)$ | per-cell independent Poisson at 45 Hz × $0.38$ μS, bypassing $W_\text{in}$ |
 | External drive on I | none (only via $W^{EI}$ from E spikes) | per-cell independent Poisson at 8 Hz × $0.25$ μS |
-| Recurrent sparsity | 0 (dense) | 0.99 ($K \approx 10$ presynaptic inputs per post cell) |
+| Recurrent connectivity | dense | fixed fan-in, exactly $K \approx 10$ inputs per post cell |
 | $W^{EI}$ init | `ei-strength 1.5` (biophysical defaults) | $\mathcal{N}(0.6, 0.18)$ μS |
 | $W^{IE}$ init | (same as $W^{EI}$) | $\mathcal{N}(3.0, 0.9)$ μS |
 | $W^{II}$ init | $0$ (no $I \to I$) | $\mathcal{N}(0.4, 0.12)$ μS |
 | Architectural class | conductance-based LIF, two populations | (same) |
 
-The PING column is the canonical biophysical recipe from [nb023](/notebooks/nb023/). The AI column inherits the same network class and adds (i) the $W^{II}$ matrix, (ii) sparse recurrents, (iii) per-cell independent drive on both populations.
+The PING column is the canonical biophysical recipe from [nb023](/notebooks/nb023/). The AI column inherits the same network class and adds (i) the $W^{II}$ matrix, (ii) fixed-$K$ sparse recurrents, (iii) per-cell independent drive on both populations.
 
 Each cell produces a five-panel figure: E raster, I raster, Welch PSD on the population-mean E trace (matching the [nb041](/notebooks/nb041/) pipeline), per-E-neuron ISI-CV histogram with the Poisson reference at CV = 1, and the mean pairwise spike-train cross-correlogram on 100 random E-cell pairs.
 
@@ -59,8 +59,8 @@ Each cell produces a five-panel figure: E raster, I raster, Welch PSD on the pop
   Textbook PING. $r_E$ ≈ 4 Hz, $r_I$ ≈ 31 Hz, $f_\gamma$ ≈ 31 Hz with harmonics. Per-E ISI CV = 0.62, per-I CV = 0.03. Cross-correlogram shows the gamma comb explicitly — peak |C| = 0.041 with clean structure at integer multiples of 1/$f_\gamma$.
 </Figure>
 
-<Figure id="Figure 2" title="V&S asynchronous-irregular state" src="/figures/notebooks/nb050/raster__ai.png" alt="Five-panel figure for the tuned V&S AI cell. Top: E raster, completely scattered — no vertical bands. Second: I raster, also scattered with no synchronous bursts. Third: Welch PSD is broadband across 5–150 Hz with no clear gamma peak. Fourth: per-E ISI CV histogram centered around 1.0, median ≈ 0.97. Fifth: mean pairwise spike-train cross-correlation, essentially flat noise around zero across all lags with peak |C| = 0.010 — no comb structure, no central peak.">
-  V&S AI. $r_E$ ≈ 18 Hz, $r_I$ ≈ 29 Hz, **per-E ISI CV = 0.97, per-I ISI CV = 1.08**, broadband PSD, and **peak |C| = 0.010** with no spectral / temporal structure in the cross-correlogram — both populations firing as essentially independent Poisson processes.
+<Figure id="Figure 2" title="V&S asynchronous-irregular state" src="/figures/notebooks/nb050/raster__ai.png" alt="Five-panel figure for the tuned V&S AI cell. Top: E raster, completely scattered — no vertical bands. Second: I raster, also scattered with no synchronous bursts. Third: Welch PSD is broadband across 5–150 Hz with no clear gamma peak. Fourth: per-E ISI CV histogram centered around 1.0, median ≈ 1.02. Fifth: mean pairwise spike-train cross-correlation, essentially flat noise around zero across all lags with peak |C| = 0.010 — no comb structure, no central peak.">
+  V&S AI. $r_E$ ≈ 17 Hz, $r_I$ ≈ 21 Hz, **per-E ISI CV = 1.02, per-I ISI CV = 1.13**, broadband PSD, and **peak |C| = 0.010** with no spectral / temporal structure in the cross-correlogram — both populations firing as essentially independent Poisson processes.
 </Figure>
 
 ### Contrast
@@ -69,12 +69,12 @@ Each cell produces a five-panel figure: E raster, I raster, Welch PSD on the pop
 |---|---|---|
 | Raster | vertical bands at gamma cadence | scattered, no bands |
 | Welch PSD | sharp 31 Hz peak + harmonics | broadband, no clear peak |
-| Median per-E ISI CV | 0.62 | **0.97** |
-| Median per-I ISI CV | 0.03 | **1.08** |
+| Median per-E ISI CV | 0.62 | **1.02** |
+| Median per-I ISI CV | 0.03 | **1.13** |
 | Peak \|mean pairwise C(τ)\| | 0.041 (gamma comb) | **0.010** (flat) |
-| Median $\eta = \sigma_I / \|I_{th} - \mu_I\|$ | 5.5 (cells at $\mu \approx 0$) | **7.0** (cells spread 0–3 nA) |
-| Spike-train divergence after ε perturb | re-locks to 0 (λ ≤ 0) | **sustained, +2.2 cells/s (λ > 0)** |
-| $\langle r_E\rangle, \langle r_I\rangle$ | 4, 31 Hz | **18, 29 Hz** |
+| Median $\eta = \sigma_I / \|I_{th} - \mu_I\|$ | 5.5 | **23** |
+| Spike-train divergence after ε perturb | re-locks to 0 (λ ≤ 0) | **sustained ≈ 6 cells (λ > 0)** |
+| $\langle r_E\rangle, \langle r_I\rangle$ | 4, 31 Hz | **17, 21 Hz** |
 
 ### Fluctuation-vs-mean diagnostic
 
@@ -84,19 +84,19 @@ V&S says cells fire because input fluctuations are comparable to the gap between
   PING. All E cells cluster at $\mu_I \approx 0$ (mean E and I drives cancel to within $\pm 0.25$ nA), but $\sigma_I$ is huge (2.5–5.5 nA) — those fluctuations are the deterministic gamma-cycle pumps. 100% of cells have $\eta \geq 1$, so the V&S "fluctuations comparable to gap" condition holds, but the fluctuations are cyclic not random (which is what the PSD and cross-correlogram already showed).
 </Figure>
 
-<Figure id="Figure 4" title="V&S AI — per-cell drive-vs-fluctuation diagnostic" src="/figures/notebooks/nb050/current_balance__ai.png" alt="Two-panel figure for the V&S AI cell. Left: scatter of μ_I vs σ_I across 1024 E cells, forming a curved cluster from (μ=0, σ=2) up to (μ=3, σ=6). Distribution spans both sides of the I_th = 0.75 nA threshold line. Right: histogram of η = σ_I / |I_th − μ_I| with median η = 6.97, 100% of cells have η ≥ 1.">
-  V&S AI. Per-cell $\mu_I$ spreads from 0 to 3 nA (sparse K-of-N connectivity gives each cell an independent random subset of presynaptic inputs, so mean drives are not homogenised by population synchrony). $\sigma_I$ correlates with $\mu_I$, growing from ≈ 2 to ≈ 6 nA. Many cells have $\mu_I > I_{th}$ — naively they should fire deterministically, but $\sigma_I$ is so large that firing is Poisson-like anyway. Median $\eta = 7.0$: every cell is fluctuation-dominated.
+<Figure id="Figure 4" title="V&S AI — per-cell drive-vs-fluctuation diagnostic" src="/figures/notebooks/nb050/current_balance__ai.png" alt="Two-panel figure for the V&S AI cell. Left: scatter of μ_I vs σ_I across 1024 E cells, clustered near μ_I ≈ 0.7 nA with σ_I around 4 nA. Right: histogram of η = σ_I / |I_th − μ_I| with median η ≈ 23, 100% of cells have η ≥ 1.">
+  V&S AI. Per-cell $\mu_I$ sits near $I_{th}$ with $\sigma_I \approx 4$ nA — fluctuations many times larger than the distance to threshold. Median $\eta = 23$: every cell is strongly fluctuation-dominated. (With fixed-$K$ connectivity the per-cell $\mu_I$ spread is tighter than the Bernoulli version, concentrating $\eta$ higher.)
 </Figure>
 
 ### Chaos probe (Lyapunov)
 
 The sharpest mechanistic test: clone the network, perturb every membrane voltage by ε = 2 mV at $t = 0$, rerun on *identical frozen input* (same Poisson drive, same seed), and track $D(t)$ = the number of E cells whose spike differs between the two copies. A chaotic network amplifies the perturbation ($D$ grows); a stable one re-absorbs it ($D \to 0$).
 
-<Figure id="Figure 5" title="Spike-train divergence after an ε = 2 mV perturbation" src="/figures/notebooks/nb050/lyapunov_divergence.png" alt="Line plot of spike-train divergence D(t) (E cells differing) vs time since perturbation, 0 to 1000 ms. Grey trace (PING): an initial spike to ~7 cells, then a series of decaying pulses at the gamma period, monotonically shrinking and reaching exactly 0 by ~500 ms and staying there. Red trace (V&S AI): rises from 0 to a sustained fluctuating level around 3-4 cells, never returning to 0, with a slow upward drift across the full 1000 ms.">
-  **PING re-locks; V&S AI does not.** PING (grey): the perturbation produces decaying gamma-locked pulses — each cycle the perturbed copy is briefly out of step, then the limit cycle pulls it back — and $D$ reaches exactly 0 by ≈ 500 ms. That's a stable attractor ($\lambda \leq 0$). V&S AI (red): $D$ settles into a sustained fluctuating divergence around 3–4 cells with a slow upward drift (+2.2 cells/s), never re-locking — a positive Lyapunov exponent.
+<Figure id="Figure 5" title="Spike-train divergence after an ε = 2 mV perturbation" src="/figures/notebooks/nb050/lyapunov_divergence.png" alt="Line plot of spike-train divergence D(t) (E cells differing) vs time since perturbation, 0 to 1000 ms. Grey trace (PING): an initial spike to ~7 cells, then a series of decaying pulses at the gamma period, monotonically shrinking and reaching exactly 0 by ~500 ms and staying there. Red trace (V&S AI): rises quickly from 0 to a sustained fluctuating level around 5-8 cells within ~100 ms, then stays there for the full 1000 ms, never returning to 0.">
+  **PING re-locks; V&S AI does not.** PING (grey): the perturbation produces decaying gamma-locked pulses — each cycle the perturbed copy is briefly out of step, then the limit cycle pulls it back — and $D$ reaches exactly 0 by ≈ 500 ms. That's a stable attractor ($\lambda \leq 0$). V&S AI (red): $D$ rises to a sustained ≈ 6-cell divergence within ≈ 100 ms and stays there, never re-locking — the perturbation saturates rather than vanishing, the signature of a positive Lyapunov exponent.
 </Figure>
 
-A caveat on magnitude: the divergence is *weak* (a handful of cells out of 1024) because the strong shared frozen input partially *entrains* both copies (the Mainen-Sejnowski reliability effect — strongly-driven cells fire reliably regardless of network state). So our AI cell is mostly noise-entrained with chaos riding on top, rather than the strongly-autonomous-chaos regime of V&S's quenched-input network. But the *qualitative* distinction is unambiguous: PING's perturbation vanishes, AI's persists and grows.
+A caveat on magnitude: the steady divergence is a handful of cells out of 1024, because the strong shared frozen input partially *entrains* both copies (the Mainen-Sejnowski reliability effect — strongly-driven cells fire reliably regardless of network state). So our AI cell is noise-entrained with chaos riding on top, rather than the strongly-autonomous-chaos regime of V&S's quenched-input network. But the *qualitative* distinction is unambiguous: PING's perturbation vanishes to exactly zero; AI's saturates at a sustained nonzero level.
 
 ## Discussion
 
@@ -116,18 +116,15 @@ So at the level of *what the state looks like*, we have the V&S regime.
 Three substrate differences, plus three *mechanistic* signatures now checked:
 
 1. **Conductance-based LIF, not binary spins.** V&S 1996 used binary asynchronous-update units. Brunel 2000 and Renart 2010 ported the regime onto LIF and conductance-based synapses respectively; this work follows that route. The substrate change matters quantitatively (specific scaling constants, rate-vs-drive curves) but the regime itself is robust to it.
-2. **Per-entry Bernoulli sparsity, not exact-$K$ random connectivity.** V&S draws exactly $K$ presynaptic inputs per post cell; we zero each entry of $W$ independently with probability $1 - K/N$. At $N \gtrsim 100$ the law-of-large-numbers makes the two indistinguishable for population dynamics, but the cell-to-cell variability in actual fan-in is larger here, which broadens the rate distribution slightly above the V&S prediction.
+2. **Fixed-$K$ connectivity: matched to V&S.** We use exact-$K$ random connectivity (every post cell draws exactly $K$ presynaptic inputs), the V&S convention, rather than per-entry Bernoulli sparsity. The difference is not cosmetic: Bernoulli sparsity gives a binomial fan-in (std ≈ 3.3 on mean 10, range 2–21) that broadens the per-cell rate distribution to CV $= 0.79$; fixing $K$ tightens it to $0.33$, making the cells statistically equivalent as V&S assumes.
 3. **Hand-tuned weights, not the $1/\sqrt{K}$ scaling ansatz.** V&S derive their weight scaling from the requirement that recurrent fluctuations stay $O(1)$ in the large-$N$ limit. We picked weights by tuning on the diagnostic. The numerical result is in the right regime, but we haven't *verified* that the recurrent mean drives are individually $O(\sqrt{K})$-large and self-cancelling — that diagnostic would be a follow-up.
 4. **Pairwise correlations: confirmed AI-like.** The mean cross-correlogram on 100 random E-cell pairs gives peak |C| = 0.010 for the AI cell vs 0.041 for PING — a 4× separation, and the PING value is structured (gamma comb), while the AI value is flat noise around zero. The single-number summary distinguishes the regimes mechanistically.
-5. **Fluctuation-driven firing: confirmed for both, with different mechanisms.** Per-cell mean total current $\mu_I$ and fluctuation amplitude $\sigma_I$ give the V&S-style ratio $\eta = \sigma_I / |I_{th} - \mu_I|$. Both regimes have 100% of cells with $\eta \geq 1$ (median 5.5 PING, 7.0 AI) — fluctuations are large enough to drive threshold crossings, exactly as V&S requires. The *shape* of the per-cell distribution distinguishes them:
-   - **PING:** $\mu_I$ tightly clustered at $\approx 0$ nA (mean drives cancel by population synchrony), $\sigma_I$ contributed by the deterministic gamma cycle.
-   - **V&S AI:** $\mu_I$ spreads from 0 to 3 nA (sparse-K connectivity gives per-cell drive heterogeneity), $\sigma_I$ from random Poisson noise.
-6. **Chaos: positive Lyapunov exponent confirmed, weakly.** A two-trajectory perturbation experiment (Figure 5) shows PING re-locks to zero spike-train divergence after an ε = 2 mV kick (stable limit cycle, $\lambda \leq 0$) while V&S AI sustains a slowly-growing divergence ($+2.2$ cells/s, $\lambda > 0$). The growth is weak because the strong shared frozen input partially entrains both copies (Mainen-Sejnowski reliability), so our cell is noise-entrained-with-chaos rather than the strongly-autonomous chaos of V&S's quenched-input network — but the qualitative PING-vs-AI distinction is unambiguous.
+5. **Fluctuation-driven firing: confirmed for both.** Per-cell mean total current $\mu_I$ and fluctuation amplitude $\sigma_I$ give the V&S-style ratio $\eta = \sigma_I / |I_{th} - \mu_I|$. Both regimes have 100% of cells with $\eta \geq 1$ (median 5.5 PING, 23 AI) — fluctuations are large enough to drive threshold crossings, exactly as V&S requires. PING's $\eta$ is contributed by the deterministic gamma cycle (cells cluster at $\mu_I \approx 0$); AI's far higher $\eta$ comes from the strong independent Poisson noise with $\mu_I$ near threshold.
+6. **Chaos: positive Lyapunov exponent confirmed.** A two-trajectory perturbation experiment (Figure 5) shows PING re-locks to zero spike-train divergence after an ε = 2 mV kick (stable limit cycle, $\lambda \leq 0$) while V&S AI saturates at a sustained ≈ 6-cell divergence ($\lambda > 0$). The magnitude is modest because the strong shared frozen input partially entrains both copies (Mainen-Sejnowski reliability), so our cell is noise-entrained-with-chaos rather than the strongly-autonomous chaos of V&S's quenched-input network — but the qualitative PING-vs-AI distinction is unambiguous.
 
 So: phenomenology + all three mechanistic signatures confirmed (low pairwise correlation, fluctuation-driven firing, positive Lyapunov exponent). The AI cell is in the V&S balanced regime, with the one quantitative caveat that the chaos is weak relative to the input entrainment.
 
 ## Next steps
 
-1. **Exact-$K$ random connectivity.** Replace the per-entry Bernoulli sparsifier with a fixed-fan-in sampler that draws exactly $K$ presynaptic inputs per post cell. Removes the cell-to-cell fan-in variance that broadens our rate distribution above the V&S prediction and lets us hold $K$ fixed while sweeping $N$.
-2. **$1/\sqrt{K}$ scaling sanity check.** Sweep $N$ at fixed $K/N$ ratio with weights rescaled as $1/\sqrt{K}$ and verify that the regime is stable across $N$ — i.e. that we landed on the V&S balanced manifold, not on a substrate-specific operating point that happens to look like AI at one $N$. If it's truly V&S the per-neuron CV, rate, and PSD shape should all be $N$-invariant.
-3. **Quenched-input chaos.** The Lyapunov probe (Figure 5) is partly masked by input entrainment because our per-cell drive is strong shared Poisson noise. Re-running with a *quenched* constant per-cell drive (frozen DC offset instead of fresh Poisson) would isolate the autonomous network chaos from the input-reliability effect and give the strong-divergence V&S signature.
+1. **$1/\sqrt{K}$ scaling sanity check.** Sweep $N$ at fixed $K/N$ ratio with weights rescaled as $1/\sqrt{K}$ and verify that the regime is stable across $N$ — i.e. that we landed on the V&S balanced manifold, not on a substrate-specific operating point that happens to look like AI at one $N$. If it's truly V&S the per-neuron CV, rate, and PSD shape should all be $N$-invariant. (Fixed-$K$ connectivity, added this entry, is the prerequisite — it lets $K$ stay constant while $N$ varies.)
+2. **Quenched-input chaos.** The Lyapunov probe (Figure 5) is partly masked by input entrainment because our per-cell drive is strong shared Poisson noise. Re-running with a *quenched* constant per-cell drive (frozen DC offset instead of fresh Poisson) would isolate the autonomous network chaos from the input-reliability effect and give the strong-divergence V&S signature.
