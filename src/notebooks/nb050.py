@@ -189,6 +189,40 @@ def _pair_cross_correlogram(
     return lags_ms, mean_corr, peak_abs
 
 
+def _per_cell_fluctuation_drive(ge_e, gi_e, v_e, burn_steps: int):
+    """Per-E-cell V&S signature: total synaptic + leak current $I_{tot}(t)$,
+    its time-mean $\\mu_I$, time-std $\\sigma_I$, and the fluctuation-vs-mean
+    ratio $\\eta = \\sigma_I / |I_{th} - \\mu_I|$ where $I_{th}$ is the
+    constant current needed to maintain V at threshold.
+
+    V&S predicts mean drives cancel to leave $\\mu_I$ well below the
+    threshold-needed value, with fluctuations $\\sigma_I$ comparable to
+    the gap (so the cell fires only when noise pushes V across $V_{th}$).
+    PING in contrast has a strong oscillatory $I_{tot}(t)$ where the
+    deterministic cycle structure dominates the variance.
+
+    Constants: E_e = 0, E_i = -80, E_L = -65, V_th = -50 mV, g_L = 0.05 μS.
+    I_{th} = g_L (V_th - E_L) = 0.75 nA.
+    """
+    E_e = 0.0
+    E_i = -80.0
+    E_L = -65.0
+    V_th = -50.0
+    g_L = 0.05
+    I_th = g_L * (V_th - E_L)  # 0.75 nA threshold-current
+
+    ge = ge_e[burn_steps:]
+    gi = gi_e[burn_steps:]
+    v = v_e[burn_steps:]
+    # Total membrane current per cell per timestep (positive depolarises).
+    I_tot = ge * (E_e - v) + gi * (E_i - v) + g_L * (E_L - v)
+    mu = I_tot.mean(axis=0)       # (N_E,) mean drive
+    sigma = I_tot.std(axis=0)     # (N_E,) fluctuation amplitude
+    gap = I_th - mu               # how much extra mean current would be needed
+    eta = sigma / np.maximum(np.abs(gap), 1e-9)
+    return mu, sigma, gap, eta, I_th
+
+
 def _isi_cvs(spk_2d: np.ndarray, dt_ms: float, min_spikes: int = 3) -> np.ndarray:
     """Per-neuron coefficient of variation of inter-spike intervals.
 
@@ -207,6 +241,136 @@ def _isi_cvs(spk_2d: np.ndarray, dt_ms: float, min_spikes: int = 3) -> np.ndarra
             continue
         cvs.append(isis.std() / isis.mean())
     return np.array(cvs)
+
+
+def plot_current_balance(npz_path: Path, out_path: Path, title: str) -> dict:
+    """Two-panel V&S fluctuation-vs-mean diagnostic.
+
+    Left: scatter of per-cell time-mean $\\mu_I$ vs time-std $\\sigma_I$ of
+    the total membrane current $I_{tot}(t) = g_e(E_e - V) + g_i(E_i - V)
+    + g_L(E_L - V)$. Two reference lines:
+      - $\\mu_I = I_{th}$ (vertical): cells right of this would fire from
+        the mean alone (no fluctuations needed).
+      - $\\sigma_I = I_{th} - \\mu_I$ (diagonal, dashed): on this line the
+        fluctuation amplitude equals the distance to threshold, the
+        boundary of fluctuation-driven firing. V&S cells sit on or above
+        the diagonal *left* of the vertical line. Mean-driven cells sit
+        *right* of the vertical line.
+
+    Right: histogram of $\\eta = \\sigma_I / |I_{th} - \\mu_I|$ across cells,
+    the V&S single-number signature. Reference line at $\\eta = 1$:
+      - $\\eta \\gg 1$: fluctuations dominate the gap to threshold →
+        fluctuation-driven firing (V&S balanced state).
+      - $\\eta \\ll 1$: cell's mean drive is well below threshold and
+        fluctuations are too small to drive it across — cell is silent.
+    """
+    theme.apply()
+    from matplotlib.gridspec import GridSpec
+    data = np.load(npz_path)
+    spk_e = data["spk_e"]
+    if "ge_e_1" not in data:
+        return {
+            "median_eta_fluct_drive": None, "frac_above_eta_1": None,
+            "median_mu_I": None, "median_sigma_I": None,
+        }
+    ge_e = data["ge_e_1"]
+    gi_e = data["gi_e_1"]
+    v_e = data["v_e_1"]
+    burn_steps = max(0, ge_e.shape[0] - spk_e.shape[0])
+    mu, sigma, gap, eta, I_th = _per_cell_fluctuation_drive(
+        ge_e, gi_e, v_e, burn_steps,
+    )
+    valid = np.isfinite(mu) & np.isfinite(sigma) & np.isfinite(eta)
+    mu = mu[valid]
+    sigma = sigma[valid]
+    eta = eta[valid]
+    gap = gap[valid]
+    if mu.size == 0:
+        return {
+            "median_eta_fluct_drive": None, "frac_above_eta_1": None,
+            "median_mu_I": None, "median_sigma_I": None,
+        }
+
+    fig = plt.figure(figsize=(11.0, 4.4), dpi=150)
+    gs = GridSpec(
+        1, 2, figure=fig, width_ratios=[1.0, 1.0],
+        wspace=0.30, top=0.86, bottom=0.16, left=0.08, right=0.97,
+    )
+    ax_sc = fig.add_subplot(gs[0])
+    ax_hi = fig.add_subplot(gs[1])
+
+    # Scatter: mean current vs fluctuation amplitude per cell.
+    ax_sc.scatter(mu, sigma, s=4.0, c=theme.INK_BLACK, alpha=0.35, linewidths=0)
+    x_lo = float(min(mu.min(), 0.0))
+    x_hi = float(max(mu.max(), I_th * 1.2))
+    y_hi = float(max(sigma.max(), abs(I_th - mu.min())))
+    # Vertical: μ = I_th
+    ax_sc.axvline(
+        I_th, color=theme.DEEP_RED, lw=0.9, ls=":", alpha=0.7,
+    )
+    # Diagonal: σ = I_th - μ (only meaningful where μ ≤ I_th)
+    xs = np.linspace(x_lo, I_th, 50)
+    ax_sc.plot(
+        xs, I_th - xs, color=theme.DEEP_RED, lw=0.9, ls="--", alpha=0.7,
+    )
+    ax_sc.set_xlim(x_lo - 0.5, x_hi + 0.5)
+    ax_sc.set_ylim(0, y_hi * 1.1)
+    ax_sc.set_xlabel("$\\mu_I$  (time-mean total current, nA)")
+    ax_sc.set_ylabel("$\\sigma_I$  (time-std, nA)")
+    ax_sc.spines["top"].set_visible(False)
+    ax_sc.spines["right"].set_visible(False)
+    ax_sc.set_title(
+        f"Per-cell drive: mean vs fluctuation (n = {mu.size} E cells)",
+        loc="left", fontsize=theme.SIZE_LABEL, pad=4,
+    )
+    ax_sc.text(
+        0.02, 0.97,
+        f"I$_{{th}}$ = {I_th:.2f} nA (dotted)\n$\\sigma$ = I$_{{th}}$ − $\\mu$ (dashed)",
+        transform=ax_sc.transAxes, ha="left", va="top",
+        fontsize=theme.SIZE_LABEL - 1, color=theme.LABEL,
+    )
+
+    # Histogram of η = σ / |I_th - μ| (clip extremes for display).
+    eta_disp = np.clip(eta, 0, 5.0)
+    median_eta = float(np.median(eta))
+    frac_above_1 = float((eta >= 1.0).mean())
+    ax_hi.hist(
+        eta_disp, bins=np.linspace(0, 5.0, 50),
+        color=theme.INK_BLACK, alpha=0.7,
+    )
+    ax_hi.axvline(1.0, color=theme.DEEP_RED, lw=1.0, ls="--", alpha=0.85)
+    ax_hi.text(
+        1.0, ax_hi.get_ylim()[1] * 0.95,
+        "  η = 1  (fluct ≈ gap)",
+        ha="left", va="top",
+        fontsize=theme.SIZE_LABEL - 1, color=theme.DEEP_RED,
+    )
+    ax_hi.set_xlim(0, 5.0)
+    ax_hi.set_xlabel("$\\eta = \\sigma_I / |I_{th} - \\mu_I|$")
+    ax_hi.set_ylabel("E-cell count")
+    ax_hi.spines["top"].set_visible(False)
+    ax_hi.spines["right"].set_visible(False)
+    ax_hi.set_title(
+        "Fluctuation-vs-mean ratio (V&S signature)",
+        loc="left", fontsize=theme.SIZE_LABEL, pad=4,
+    )
+    ax_hi.text(
+        0.97, 0.97,
+        f"median η = {median_eta:.2f}\n{frac_above_1:.0%} of cells have η ≥ 1",
+        transform=ax_hi.transAxes, ha="right", va="top",
+        fontsize=theme.SIZE_LABEL - 1, color=theme.LABEL,
+        fontweight="semibold",
+    )
+
+    fig.suptitle(title, fontsize=theme.SIZE_TITLE, x=0.08, ha="left")
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    return {
+        "median_eta_fluct_drive": median_eta,
+        "frac_above_eta_1": frac_above_1,
+        "median_mu_I": float(np.median(mu)),
+        "median_sigma_I": float(np.median(sigma)),
+    }
 
 
 def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
@@ -393,6 +557,13 @@ def main() -> None:
         figures[f"raster__{cell}"] = raster_dst
         print(f"wrote {raster_dst}")
 
+        current_dst = FIGURES / f"current_balance__{cell}.png"
+        current_stats = plot_current_balance(
+            SCOPE_OUT_NPZ, current_dst, spec["title"],
+        )
+        figures[f"current_balance__{cell}"] = current_dst
+        print(f"wrote {current_dst}")
+
         # Extract summary statistics for the row table.
         data = np.load(SCOPE_OUT_NPZ)
         spk_e = data["spk_e"]
@@ -415,6 +586,7 @@ def main() -> None:
             "median_isi_cv_i": med_cv_i,
             "f_psd_peak_hz": f_peak,
             "peak_abs_xcorr_e": peak_abs_xcorr,
+            **current_stats,
         })
 
     duration_s = time.monotonic() - t_start
