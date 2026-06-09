@@ -1,25 +1,183 @@
-"""Intro / per-epoch / summary printing + the WarningTracker.
+"""Oscilloscope run logging: ansi, intro/progress/summary, metrics JSONL,
+provenance metadata, and the .running marker — all in one place.
 
 Three blocks make up an oscilloscope run on stdout:
     1. Intro    — grouped config dump (Data / Simulation / Network / ...)
     2. Progress — per-epoch line with rates, ETA, and dynamics flags
     3. Summary  — best/final accuracy, runtime, files written, warnings
+
+Public names (kept stable across the previous run_log package layout):
+    DIVIDER, WIDTH, _strip_ansi, bold, c, green, red, yellow
+    MetricsJsonl, write_test_predictions
+    WarningTracker, _fmt_kv, format_bytes, format_eta, list_output_files,
+        print_epoch, print_intro, print_progress_header, print_summary
+    _env_hash, _git_sha, provenance, run_id, write_running_marker
 """
 
 from __future__ import annotations
 
+import datetime
+import hashlib
+import json
 import os
+import re
+import subprocess
+import sys
 from pathlib import Path
 
-from .ansi import (
-    DIVIDER,
-    WIDTH,
-    _strip_ansi,
-    bold,
-    green,
-    red,
-    yellow,
-)
+
+# ── ANSI / terminal width ────────────────────────────────────────────────
+
+WIDTH = 80
+DIVIDER = "─" * 40
+
+_IS_TTY = sys.stdout.isatty()
+
+
+def c(code: str, text: str) -> str:
+    """Apply ANSI color if stdout is a TTY; return plain otherwise."""
+    if not _IS_TTY:
+        return text
+    return f"\x1b[{code}m{text}\x1b[0m"
+
+
+def bold(text):
+    return c("1", text)
+
+
+def green(text):
+    return c("32", text)
+
+
+def yellow(text):
+    return c("33", text)
+
+
+def red(text):
+    return c("31", text)
+
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(s: str) -> str:
+    return _ANSI_RE.sub("", s)
+
+
+# ── Metrics sidecar writers ──────────────────────────────────────────────
+
+
+class MetricsJsonl:
+    """Append-only JSONL writer for per-epoch (or per-step) metrics."""
+
+    def __init__(self, path: Path):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._f = open(self.path, "w")
+
+    def write(self, **fields):
+        fields.setdefault(
+            "timestamp", datetime.datetime.now().isoformat(timespec="seconds")
+        )
+        self._f.write(json.dumps(fields) + "\n")
+        self._f.flush()
+
+    def close(self):
+        try:
+            self._f.close()
+        except Exception:
+            pass
+
+
+def write_test_predictions(path: Path, predictions: list):
+    """Save list of {idx, true, pred, correct, logits} records to JSON."""
+    with open(path, "w") as f:
+        json.dump(predictions, f, indent=2, default=float)
+
+
+# ── Provenance ───────────────────────────────────────────────────────────
+
+
+def _git_sha() -> str:
+    """Return current git SHA with '(dirty)' suffix if uncommitted changes.
+
+    Honors PINGLAB_GIT_SHA env var as a fallback so Modal containers (which
+    don't have .git mounted) still record the host's SHA.
+    """
+    try:
+        sha = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL,
+                timeout=2,
+            )
+            .decode()
+            .strip()
+        )
+        dirty = subprocess.call(
+            ["git", "diff-index", "--quiet", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            timeout=2,
+        )
+        return f"{sha} (dirty)" if dirty else sha
+    except Exception:
+        return os.environ.get("PINGLAB_GIT_SHA", "unknown")
+
+
+def _env_hash() -> str:
+    """Hash of uv.lock (or pyproject.toml fallback) for env reproducibility."""
+    for name in ("uv.lock", "pyproject.toml"):
+        p = Path(name)
+        if p.exists():
+            h = hashlib.sha256(p.read_bytes()).hexdigest()[:12]
+            return f"{name}:{h}"
+    return "unknown"
+
+
+def run_id() -> str:
+    """Compact run ID: r-YYYYMMDD-HHMMSS."""
+    now = datetime.datetime.now()
+    return f"r-{now.strftime('%Y%m%d-%H%M%S')}"
+
+
+def provenance() -> dict:
+    """Return a provenance dict to embed in config.json."""
+    import torch
+
+    device = (
+        "cuda"
+        if torch.cuda.is_available()
+        else "mps"
+        if torch.backends.mps.is_available()
+        else "cpu"
+    )
+    return {
+        "git_sha": _git_sha(),
+        "torch_version": torch.__version__,
+        "device": device,
+        "python_env_hash": _env_hash(),
+        "run_id": run_id(),
+        "started_at": datetime.datetime.now().isoformat(timespec="seconds"),
+    }
+
+
+def write_running_marker(out_dir: Path, run_id_str: str) -> Path:
+    """Write enriched .running file with PID, start time, run_id, cmd.
+
+    Deleted by atexit hook in caller.
+    """
+    marker = Path(out_dir) / ".running"
+    try:
+        marker.write_text(
+            f"pid={os.getpid()}\n"
+            f"started={datetime.datetime.now().isoformat(timespec='seconds')}\n"
+            f"run_id={run_id_str}\n"
+            f"cmd={' '.join(sys.argv)}\n"
+        )
+    except Exception:
+        pass
+    return marker
 
 
 # ── Intro block ──────────────────────────────────────────────────────────
