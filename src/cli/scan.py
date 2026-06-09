@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 # Make `import config as C`, `import models as M`, etc. resolve to the
-# top-level files in src/ (mirrors __main__.py's path setup).
+# top-level files in src/ (mirrors cli.py's path setup).
 _pkg_dir = str(Path(__file__).resolve().parent.parent)
 if _pkg_dir in sys.path:
     sys.path.remove(_pkg_dir)
@@ -56,8 +56,8 @@ from inputs import (
 from metrics import metrics_str
 from plot import draw_transient_frame, make_transient_fig, prof
 
-from .datasets import _load_dataset_image
-from .encoders import encode_image_spikes
+from datasets import _load_dataset_image
+from encoders import encode_image_spikes
 
 log = logging.getLogger("oscilloscope")
 
@@ -75,7 +75,7 @@ def _auto_device() -> torch.device:
     return torch.device("cpu")
 
 
-# ── Recording-key resolvers (shared with __main__.py and future modules) ──
+# ── Recording-key resolvers (shared with cli.py and future modules) ──
 def primary_hid_key(rec):
     """Return the recording key for the deepest hidden layer.
 

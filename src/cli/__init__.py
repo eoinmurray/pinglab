@@ -1,12 +1,12 @@
-"""Oscilloscope package — CLI entry-point at __main__.py.
+"""Oscilloscope package — CLI entry-point at cli.py.
 
 Re-exports the symbols imported by tests and notebooks. The CLI is invoked
-as `python src/cli/__main__.py …` (or via the runners,
-which already point at __main__.py).
+as `python src/cli/cli.py …` (or via the runners,
+which already point at cli.py).
 """
 
-from .__main__ import M  # noqa: F401  # re-exported for tests/_apply_scan_var
-from .__main__ import (  # noqa: F401
+from .cli import M  # noqa: F401  # re-exported for tests/_apply_scan_var
+from .cli import (  # noqa: F401
     EVAL_SEED,
     FROZEN_MODES,
     FrozenEncoder,
