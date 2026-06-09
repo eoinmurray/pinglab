@@ -37,7 +37,7 @@ from scipy.optimize import fsolve
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
-import theme  # noqa: E402
+from cli import theme  # noqa: E402
 
 SLUG = "nb033"
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
