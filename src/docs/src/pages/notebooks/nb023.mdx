@@ -18,12 +18,12 @@ The full conductance-based model that produces PING is documented in [COBANet](/
 
 ## Results
 
-<Figure id="Figure 1" title="COBA — ei-strength 0 (no recurrent inhibition)" src="/figures/notebooks/nb023/raster__coba.png" alt="Spike raster: E population (top) fires asynchronously across 400 ms, I population (bottom) is silent.">
-  Baseline: recurrent inhibitory loop silent (*--ei-strength 0*). The E raster fires asynchronously across the full 400 ms; the I population is silent (loop disabled). This is the "PING off" reference for the next figure.
+<Figure id="Figure 1" title="COBA — ei-strength 0 (no recurrent inhibition)" src="/figures/notebooks/nb023/raster__coba.png" alt="Two-panel figure. Top: E spike raster across 400 ms, asynchronous firing across the population, no I-population activity (loop disabled). Bottom: Welch PSD on the population-mean E spike trace over 5–150 Hz. No isolated gamma peak — the spectrum has scattered weak peaks driven by the feedforward input structure, not by a recurrent cycle.">
+  Baseline: recurrent inhibitory loop silent (*--ei-strength 0*). The E raster fires asynchronously across the full 400 ms; the I population is silent. The Welch PSD on the population-mean E trace (computed exactly like [nb041](/notebooks/nb041/) and [nb049](/notebooks/nb049/): one window per trial, `nperseg = T`, parabolic-interpolated peak) shows **no isolated gamma peak** — only the broadband structure of input-driven asynchronous firing. This is the "PING off" reference for the next figure.
 </Figure>
 
-<Figure id="Figure 2" title="PING — ei-strength 1.5 (recurrent loop active)" src="/figures/notebooks/nb023/raster__ping.png" alt="Spike raster: E population (top) shows vertical bands every ~45 ms, I population (bottom) shows the matching I-bursts trailing each E-burst.">
-  Same network with the I→E loop turned on (*--ei-strength 1.5*). Same MNIST input, same integration window. The E raster now shows vertical bands, and the I population fires synchronous bursts trailing each E-burst by the AMPA delay.
+<Figure id="Figure 2" title="PING — ei-strength 1.5 (recurrent loop active)" src="/figures/notebooks/nb023/raster__ping.png" alt="Three-panel figure. Top: E spike raster across 400 ms showing vertical bands every ~45 ms. Middle: I spike raster showing synchronous bursts trailing each E-burst. Bottom: Welch PSD on the population-mean E trace, sharp gamma peak at f_γ ≈ 24 Hz marked with a dashed vertical line, with harmonics at ≈ 48, 72, 96, and 120 Hz.">
+  Same network with the I→E loop turned on (*--ei-strength 1.5*). Same MNIST input, same integration window. The E raster now shows vertical bands and the I population fires synchronous bursts trailing each E-burst by the AMPA delay. The Welch PSD has a **clean gamma peak at $f_\gamma \approx 24$ Hz**, with the periodic burst structure visible as harmonics at the higher integer multiples — the spectral signature of the recurrent E↔I loop that the COBA panel lacked.
 </Figure>
 
 **COBA single-neuron traces.** Three panels for the most active E neuron — voltage, conductances, signed currents — with no I-loop activity to show.

@@ -50,8 +50,8 @@ Each condition gets two paired figures: a **diagnostic card** (training trajecto
   Start the trainable recurrent matrices at the canonical PING values and let them go. Within 15 epochs the I population is silent, E saturates near 42 Hz, the gamma peak drifts up to ≈ 55 Hz, and the raster shows dense asynchronous E firing. 88.0% accuracy — about 2 pp above the frozen control.
 </Figure>
 
-<Figure id="Figure 4" title="Trainable W^EI/W^IE, PING init — recurrent weight distributions" src="/figures/notebooks/nb049/weights__trainable_ping_init.png" alt="Two-panel histogram (effective weight, w<0 clamped to 0). Left: W^EI init outline is the canonical half-normal centred near 0.0010, 0% pruned. Trained fill has a tall spike at exactly 0 — 84% of entries — plus a sparse positive tail reaching ≈ 0.008. Effective mean ≈ 0.0005, lower than the init's 0.0010. Right: W^IE init and trained distributions overlap closely at ≈ 0.0078, 0% pruned.">
-  Why the loop dies: **84% of $W^{EI}$ entries are pruned** (Adam pushed them below zero, the forward-pass clamp made them structural zeros). The surviving 16% grew, but the post-clamp mean dropped to 0.0005, *below* the init's 0.0010. $W^{IE}$ barely moves. Most I cells lose their drive, the gamma shunt that paces E firing vanishes.
+<Figure id="Figure 4" title="Trainable W^EI/W^IE, PING init — recurrent weight distributions" src="/figures/notebooks/nb049/weights__trainable_ping_init.png" alt="Two-panel histogram (effective weight, w<0 clamped to 0, pooled across 3 seeds). Left: W^EI init outline is the canonical half-normal centred near 0.0010, 0% pruned. Trained fill is broader, shifted into a sparse positive tail reaching ≈ 0.016. 73% of entries are pruned to zero; the effective post-clamp mean drops to ≈ 0.0005, lower than the init's 0.0010. Right: W^IE init and trained distributions overlap closely at ≈ 0.0078, 0% pruned.">
+  Why the loop dies: **73% of $W^{EI}$ entries are pruned** (Adam pushed them below zero, the forward-pass clamp made them structural zeros). The surviving 27% grew, but the post-clamp mean dropped to 0.0005, *below* the init's 0.0010. $W^{IE}$ barely moves. Most I cells lose their drive, the gamma shunt that paces E firing vanishes.
 </Figure>
 
 ### Trainable, zero initialisation
@@ -70,8 +70,8 @@ Each condition gets two paired figures: a **diagnostic card** (training trajecto
   Start at 1/10 canonical so there's a small but non-zero gradient signal in the loop. Same endpoint as the canonical-init case: dense E, silent I, 88.6% accuracy.
 </Figure>
 
-<Figure id="Figure 8" title="Trainable W^EI/W^IE, small init — recurrent weight distributions" src="/figures/notebooks/nb049/weights__trainable_small_init.png" alt="Two-panel histogram (effective weight, w<0 clamped to 0). Left: W^EI init outline narrow at 0.0001, 0% pruned. Trained fill is a tall spike at 0 (99% pruned) plus a sparse positive tail reaching ≈ 0.005. Effective mean ≈ 0.00005. Right: W^IE init narrow at 0.0008, 0% pruned. Trained fill has a smaller spike at 0 (34% pruned) plus a positive distribution centred near 0.002. Effective mean ≈ 0.0013.">
-  Sharper version of Figure 4: **99% of $W^{EI}$ pruned and 34% of $W^{IE}$ pruned**. The few survivors grow, but the population-level effect is loop dismantling.
+<Figure id="Figure 8" title="Trainable W^EI/W^IE, small init — recurrent weight distributions" src="/figures/notebooks/nb049/weights__trainable_small_init.png" alt="Two-panel histogram (effective weight, w<0 clamped to 0, pooled across 3 seeds). Left: W^EI init outline narrow at 0.0001, 0% pruned. Trained fill is a tall spike at 0 (99% pruned) plus a sparse positive tail reaching ≈ 0.005. Effective mean ≈ 0.00002. Right: W^IE init narrow at 0.0008, 0% pruned. Trained fill has a smaller spike at 0 (37% pruned) plus a positive distribution centred near 0.0015. Effective mean ≈ 0.0015.">
+  Sharper version of Figure 4: **99% of $W^{EI}$ pruned and 37% of $W^{IE}$ pruned**. The few survivors grow, but the population-level effect is loop dismantling.
 </Figure>
 
 ### At-a-glance comparison (mean across three seeds)
@@ -79,9 +79,9 @@ Each condition gets two paired figures: a **diagnostic card** (training trajecto
 | Condition | Acc (%) | $E$ (Hz) | $I$ (Hz) | $f_\gamma$ (Hz) | $W^{EI}$ pruned / eff. mean | $W^{IE}$ pruned / eff. mean |
 |---|---|---|---|---|---|---|
 | *frozen_ping* | 86.2 | 8.5 | 37.9 | 38 | 0% / 0.0010 | 0% / 0.0078 |
-| *trainable_ping_init* | 88.0 | 42.3 | 0.3 | 55 | 84% / 0.0005 | 0% / 0.0080 |
+| *trainable_ping_init* | 88.0 | 42.3 | 0.3 | 55 | 73% / 0.0005 | 0% / 0.0078 |
 | *trainable_zero_init* | 87.8 | 47.3 | 0 | 57 | 100% / 0 | 100% / 0 |
-| *trainable_small_init* | 88.6 | 45.6 | 0 | 55 | 99% / 0.00005 | 34% / 0.0013 |
+| *trainable_small_init* | 88.6 | 45.6 | 0 | 55 | 99% / 0.00002 | 37% / 0.0015 |
 
 The frozen control reaches healthy PING; every trainable condition reaches the same dense-E / silent-I attractor at ≈ 88% accuracy — about 2 pp above the control. Starting state doesn't matter, only whether the loop is allowed to train.
 
