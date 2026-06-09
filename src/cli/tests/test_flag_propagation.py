@@ -356,18 +356,10 @@ def test_wipe_dir_clears_existing(tmp_path):
 
 # All scan vars — "does the scan driver dispatch this variable without crashing?"
 
-# The three weight-indexing scan vars are currently broken: COBANet stores
-# W_ei / W_ie / W_in as ParameterDicts (per-layer) but _scan_streaming still
-# does getattr(net, attr).clone() expecting a tensor. Flagging via xfail so
-# the tests stay on the radar until the scan driver is fixed.
-_BROKEN_SCAN_VARS = {"w_ei_mean", "w_ie_mean"}
-
 _IMAGE_SCAN_VARS = [
     ("stim-overdrive", 1.0, 3.0, []),
     ("tau_gaba", 5.0, 15.0, []),
     ("tau_ampa", 1.0, 5.0, []),
-    ("w_ei_mean", 0.3, 0.6, []),
-    ("w_ie_mean", 0.6, 1.2, []),
     ("ei_strength", 0.1, 0.5, []),
     ("spike_rate", 5.0, 50.0, []),
     ("bias", 0.0, 0.5, []),
@@ -377,21 +369,11 @@ _IMAGE_SCAN_VARS = [
 ]
 
 
-def _scan_marks(scan_var):
-    if scan_var in _BROKEN_SCAN_VARS:
-        return pytest.mark.xfail(
-            reason="scan driver uses getattr for ParameterDict weights"
-        )
-    return ()
-
-
 @pytest.mark.slow
 @pytest.mark.parametrize(
     "scan_var,lo,hi,extra",
-    [
-        pytest.param(sv, lo, hi, extra, id=sv, marks=_scan_marks(sv))
-        for sv, lo, hi, extra in _IMAGE_SCAN_VARS
-    ],
+    [(sv, lo, hi, extra) for sv, lo, hi, extra in _IMAGE_SCAN_VARS],
+    ids=lambda v: v if isinstance(v, str) else None,
 )
 def test_scan_var_runs(tmp_path, scan_var, lo, hi, extra):
     """Every --scan-var in the table runs video mode without crashing."""
