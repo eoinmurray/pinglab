@@ -22,7 +22,7 @@ import sh
 from _modal import BatchDispatcher, parse_also_modal_gpu, parse_modal_gpu
 from _run_id import next_run_id, persist as persist_run_id
 from _tier import parse_tier
-import theme
+from cli import theme
 
 TIER_CONFIG = {
     "extra small": dict(max_samples=100, epochs=1),

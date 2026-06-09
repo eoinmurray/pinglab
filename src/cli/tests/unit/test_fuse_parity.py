@@ -45,7 +45,7 @@ import pytest
 import torch
 
 # Allow running this file directly (regeneration mode) without pytest conftest.
-_PKG_ROOT = Path(__file__).resolve().parent.parent
+_PKG_ROOT = Path(__file__).resolve().parents[2]  # src/cli/
 if str(_PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(_PKG_ROOT))
 
