@@ -53,6 +53,7 @@ class Config:
     w_ei: tuple = (0.5, 0.05)
     w_ie: tuple = (1.0, 0.1)
     w_ee: tuple = (0.0, 0.0)
+    w_ii: tuple = (0.0, 0.0)
     sparsity: float = 0.2
     noise_sigma: float = 0.001
     noise_tau: float = 3.0
@@ -130,6 +131,7 @@ def build_net(
     w_ee=None,
     w_ei=None,
     w_ie=None,
+    w_ii=None,
     ei_strength=None,
     ei_ratio=2.0,
     sparsity=0.0,
@@ -142,6 +144,7 @@ def build_net(
     trainable_w_ee=False,
     trainable_w_ei=False,
     trainable_w_ie=False,
+    trainable_w_ii=False,
     tbptt_window=None,
     n_inh_per_layer=None,
 ):
@@ -182,6 +185,8 @@ def build_net(
         kwargs["trainable_w_ei"] = True
     if trainable_w_ie:
         kwargs["trainable_w_ie"] = True
+    if trainable_w_ii:
+        kwargs["trainable_w_ii"] = True
     if w_in is not None:
         kwargs["w_in"] = (*w_in, "normal", w_in_sparsity)
     if w_ee is not None:
@@ -196,6 +201,8 @@ def build_net(
     elif ei_strength is not None:
         s = ei_strength
         kwargs["w_ie"] = (s * ei_ratio, s * ei_ratio * 0.1, "normal", sparsity)
+    if w_ii is not None:
+        kwargs["w_ii"] = (*w_ii, "normal", sparsity)
     if w_ei is None and w_ie is None and ei_strength is None and sparsity > 0:
         kwargs.setdefault("sparsity", sparsity)
     if n_inh_per_layer is not None:
@@ -354,6 +361,7 @@ def make_net(cfg_obj, w_in=None, w_hid=(5.1, 3.8), model_name="ping"):
         w_ee=cfg_obj.w_ee,
         w_ei=cfg_obj.w_ei,
         w_ie=cfg_obj.w_ie,
+        w_ii=cfg_obj.w_ii if cfg_obj.w_ii != (0.0, 0.0) else None,
         sparsity=cfg_obj.sparsity,
         device=cfg_obj.torch_device,
         hidden_sizes=[cfg_obj.n_e],

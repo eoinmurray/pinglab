@@ -72,8 +72,41 @@ TIER_CONFIG = {
 DEFAULT_TIER = "small"
 
 
+F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
+
+
+def _population_psd(spk_2d: np.ndarray, dt_ms: float):
+    """Welch periodogram on the population-mean spike trace, matching
+    nb041 / nb049: one window per trial (nperseg = T), density scaling,
+    mean-subtracted input. Returns (freqs_hz, psd, f_peak_hz_or_None)
+    with parabolic-interpolated peak frequency inside the gamma band."""
+    from scipy import signal as sp_signal
+    T, N = spk_2d.shape
+    if T < 2 or N == 0:
+        return np.array([0.0]), np.array([0.0]), None
+    x = spk_2d.mean(axis=1).astype(np.float64)
+    x = x - x.mean()
+    fs = 1000.0 / dt_ms
+    freqs, psd = sp_signal.welch(x, fs=fs, nperseg=T, scaling="density")
+    band = (freqs >= F_GAMMA_BAND_HZ[0]) & (freqs <= F_GAMMA_BAND_HZ[1])
+    if not band.any() or psd[band].max() == 0 or not np.isfinite(psd[band]).any():
+        return freqs, psd, None
+    abs_idx = int(np.where(band)[0][int(np.argmax(psd[band]))])
+    if 0 < abs_idx < len(psd) - 1:
+        y0, y1, y2 = psd[abs_idx - 1], psd[abs_idx], psd[abs_idx + 1]
+        denom = (y0 - 2 * y1 + y2)
+        delta = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
+        delta = float(max(-0.5, min(0.5, delta)))
+    else:
+        delta = 0.0
+    df = float(freqs[1] - freqs[0]) if len(freqs) > 1 else 0.0
+    f_peak = float(freqs[abs_idx] + delta * df)
+    return freqs, psd, f_peak
+
+
 def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     theme.apply()
+    from matplotlib.gridspec import GridSpec
     data = np.load(npz_path)
     spk_e = data["spk_e"]
     spk_i = data["spk_i"]
@@ -84,37 +117,83 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     has_i = spk_i.size > 0 and spk_i.shape[0] == T and spk_i.any()
 
     if has_i:
-        fig, (ax_e, ax_i) = plt.subplots(
-            2, 1, figsize=(8.0, 4.5), sharex=True,
-            gridspec_kw={"height_ratios": [4, 1]},
+        fig = plt.figure(figsize=(9.0, 7.5), dpi=150)
+        gs = GridSpec(
+            3, 1, figure=fig,
+            height_ratios=[4.0, 1.2, 2.6],
+            hspace=0.85, top=0.94, bottom=0.08, left=0.12, right=0.97,
         )
+        ax_e = fig.add_subplot(gs[0])
+        ax_i = fig.add_subplot(gs[1], sharex=ax_e)
+        ax_psd = fig.add_subplot(gs[2])
     else:
-        fig, ax_e = plt.subplots(1, 1, figsize=(8.0, 4.5))
+        fig = plt.figure(figsize=(9.0, 6.0), dpi=150)
+        gs = GridSpec(
+            2, 1, figure=fig,
+            height_ratios=[4.0, 2.6],
+            hspace=0.55, top=0.94, bottom=0.10, left=0.12, right=0.97,
+        )
+        ax_e = fig.add_subplot(gs[0])
         ax_i = None
+        ax_psd = fig.add_subplot(gs[1])
 
+    # E raster
     e_idx, e_t = np.where(spk_e.T)
     ax_e.scatter(
-        t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|", linewidths=0.5
+        t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|", linewidths=0.5,
     )
     ax_e.set_ylabel("E neuron")
     ax_e.set_ylim(0, spk_e.shape[1])
     ax_e.set_xlim(0, T * dt)
-    ax_e.set_title(title)
+    ax_e.set_title(title, loc="left")
+    ax_e.spines["top"].set_visible(False)
+    ax_e.spines["right"].set_visible(False)
 
+    # I raster
     if has_i:
         i_idx, i_t = np.where(spk_i.T)
         ax_i.scatter(
-            t_ms[i_t], i_idx, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.5
+            t_ms[i_t], i_idx, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.5,
         )
         ax_i.set_ylabel("I neuron")
         ax_i.set_ylim(0, spk_i.shape[1])
         ax_i.set_xlim(0, T * dt)
         ax_i.set_xlabel("time (ms)")
+        ax_i.spines["top"].set_visible(False)
+        ax_i.spines["right"].set_visible(False)
+        ax_e.tick_params(labelbottom=False)
     else:
         ax_e.set_xlabel("time (ms)")
 
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=120)
+    # PSD on the population-mean E spike trace (Welch, nperseg = T)
+    freqs, psd, f_peak = _population_psd(spk_e, dt)
+    band = (freqs >= F_GAMMA_BAND_HZ[0]) & (freqs <= F_GAMMA_BAND_HZ[1])
+    ax_psd.plot(freqs[band], psd[band], color=theme.INK_BLACK, lw=1.4)
+    ax_psd.set_xlim(F_GAMMA_BAND_HZ)
+    ax_psd.set_xlabel("Frequency (Hz)")
+    ax_psd.set_ylabel("Population E PSD (a.u.)")
+    ax_psd.spines["top"].set_visible(False)
+    ax_psd.spines["right"].set_visible(False)
+    ax_psd.set_title("Welch PSD on population-mean E trace", loc="left",
+                     fontsize=theme.SIZE_LABEL, pad=8)
+    if f_peak is not None:
+        ax_psd.axvline(f_peak, color=theme.DEEP_RED, lw=0.9, ls="--", alpha=0.8)
+        ax_psd.text(
+            f_peak, ax_psd.get_ylim()[1] * 0.95,
+            f"  $f_\\gamma$ = {f_peak:.1f} Hz",
+            ha="left", va="top",
+            fontsize=theme.SIZE_LABEL - 1, color=theme.DEEP_RED,
+            fontweight="semibold",
+        )
+    else:
+        ax_psd.text(
+            0.99, 0.95, "no clear peak",
+            transform=ax_psd.transAxes, ha="right", va="top",
+            fontsize=theme.SIZE_LABEL - 1, color=theme.GREY_MID,
+            fontstyle="italic",
+        )
+
+    fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 

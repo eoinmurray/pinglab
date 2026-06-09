@@ -120,9 +120,20 @@ def generate_snapshot(
 
 
 def generate_spike_snapshot(
-    spike_rate=None, overdrive=12.0, dt=None, model_name="ping"
+    spike_rate=None, overdrive=12.0, dt=None, model_name="ping",
+    independent_drive=None, independent_drive_i=None,
 ):
-    """Generate a snapshot with synthetic spike input."""
+    """Generate a snapshot with synthetic spike input.
+
+    ``independent_drive``: optional (rate_hz, g_per_spike) tuple. When set,
+    generates per-E-cell independent Poisson streams (instead of routing
+    everything through W_in) and feeds them as ext_g. Used for V&S/Brunel
+    balanced-network experiments where input correlations should be zero.
+
+    ``independent_drive_i``: same as above but targeting the I population's
+    excitatory conductance. Required for the full V&S-AI state where
+    I cells need uncorrelated noise distinct from the E-mediated W^EI input.
+    """
     import config as C
 
     if spike_rate is None:
@@ -161,8 +172,35 @@ def generate_spike_snapshot(
         tonic_g = torch.full(
             (T_steps, C.N_E), C.BIAS, dtype=torch.float32, device=C.DEVICE
         )
+    if independent_drive is not None:
+        ind_rate, ind_g = float(independent_drive[0]), float(independent_drive[1])
+        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 1)
+        p_per_step = ind_rate * dt / 1000.0
+        # (T, N_E) independent Bernoulli spikes — one Poisson stream per E cell.
+        ind_spikes = (
+            torch.rand(T_steps, C.N_E, generator=gen) < p_per_step
+        ).to(torch.float32).to(C.DEVICE)
+        log.info(
+            f"  + independent per-E-cell drive: {ind_rate:.0f} Hz × {ind_g:.4f} μS"
+        )
+        ind_drive_g = ind_spikes * ind_g
+        tonic_g = (tonic_g + ind_drive_g) if tonic_g is not None else ind_drive_g
+    tonic_g_i = None
+    if independent_drive_i is not None:
+        ind_rate_i, ind_g_i = (
+            float(independent_drive_i[0]), float(independent_drive_i[1])
+        )
+        gen_i = torch.Generator(device="cpu").manual_seed(C.SEED + 2)
+        p_per_step_i = ind_rate_i * dt / 1000.0
+        ind_spikes_i = (
+            torch.rand(T_steps, C.N_I, generator=gen_i) < p_per_step_i
+        ).to(torch.float32).to(C.DEVICE)
+        log.info(
+            f"  + independent per-I-cell drive: {ind_rate_i:.0f} Hz × {ind_g_i:.4f} μS"
+        )
+        tonic_g_i = ind_spikes_i * ind_g_i
     with torch.no_grad():
-        net.forward(input_spikes=input_spikes, ext_g=tonic_g)
+        net.forward(input_spikes=input_spikes, ext_g=tonic_g, ext_g_i=tonic_g_i)
 
     rec = _extract_records(net)
     spk_e = rec[primary_hid_key(rec)][burn_steps:]
@@ -209,6 +247,22 @@ def generate_spike_snapshot(
     fig.savefig(fname, dpi=120)
     plt.close(fig)
     log.info(f"  → {fname}")
+
+    npz_path = out_dir / "snapshot.npz"
+    extra = {}
+    for key in ("v_e_1", "ge_e_1", "gi_e_1", "v_i_1", "ge_i_1"):
+        if key in rec:
+            extra[key] = np.asarray(rec[key])
+    np.savez(
+        npz_path,
+        spk_e=np.asarray(spk_e),
+        spk_i=np.asarray(spk_i) if spk_i is not None else np.empty((0, 0)),
+        dt=np.float32(dt),
+        n_e=np.int32(C.N_E),
+        n_i=np.int32(C.N_I),
+        **extra,
+    )
+    log.info(f"  → {npz_path}")
 
 
 def generate_image_snapshot(

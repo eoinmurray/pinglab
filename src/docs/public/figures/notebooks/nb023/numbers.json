@@ -1,5 +1,5 @@
 {
-  "notebook_run_id": "r017",
+  "notebook_run_id": "r020",
   "duration_s": 4.5,
   "tier": "small",
   "config": {
@@ -14,73 +14,5 @@
     "input_rate_hz": 50,
     "modal_gpu": null
   },
-  "results": [],
-  "success_criteria": [
-    {
-      "label": "raster__coba rendered",
-      "passed": true,
-      "detail": "raster__coba.png (102928 bytes)",
-      "detail_href": "/figures/notebooks/nb023/raster__coba.png"
-    },
-    {
-      "label": "traces__coba__v_e rendered",
-      "passed": true,
-      "detail": "traces__coba__v_e.png (158447 bytes)",
-      "detail_href": "/figures/notebooks/nb023/traces__coba__v_e.png"
-    },
-    {
-      "label": "traces__coba__g_e rendered",
-      "passed": true,
-      "detail": "traces__coba__g_e.png (102650 bytes)",
-      "detail_href": "/figures/notebooks/nb023/traces__coba__g_e.png"
-    },
-    {
-      "label": "traces__coba__i_e rendered",
-      "passed": true,
-      "detail": "traces__coba__i_e.png (110049 bytes)",
-      "detail_href": "/figures/notebooks/nb023/traces__coba__i_e.png"
-    },
-    {
-      "label": "raster__ping rendered",
-      "passed": true,
-      "detail": "raster__ping.png (35157 bytes)",
-      "detail_href": "/figures/notebooks/nb023/raster__ping.png"
-    },
-    {
-      "label": "traces__ping__v_e rendered",
-      "passed": true,
-      "detail": "traces__ping__v_e.png (111814 bytes)",
-      "detail_href": "/figures/notebooks/nb023/traces__ping__v_e.png"
-    },
-    {
-      "label": "traces__ping__g_e rendered",
-      "passed": true,
-      "detail": "traces__ping__g_e.png (74434 bytes)",
-      "detail_href": "/figures/notebooks/nb023/traces__ping__g_e.png"
-    },
-    {
-      "label": "traces__ping__i_e rendered",
-      "passed": true,
-      "detail": "traces__ping__i_e.png (86913 bytes)",
-      "detail_href": "/figures/notebooks/nb023/traces__ping__i_e.png"
-    },
-    {
-      "label": "traces__ping__v_i rendered",
-      "passed": true,
-      "detail": "traces__ping__v_i.png (91014 bytes)",
-      "detail_href": "/figures/notebooks/nb023/traces__ping__v_i.png"
-    },
-    {
-      "label": "traces__ping__g_i rendered",
-      "passed": true,
-      "detail": "traces__ping__g_i.png (53458 bytes)",
-      "detail_href": "/figures/notebooks/nb023/traces__ping__g_i.png"
-    },
-    {
-      "label": "traces__ping__i_i rendered",
-      "passed": true,
-      "detail": "traces__ping__i_i.png (66350 bytes)",
-      "detail_href": "/figures/notebooks/nb023/traces__ping__i_i.png"
-    }
-  ]
+  "results": []
 }

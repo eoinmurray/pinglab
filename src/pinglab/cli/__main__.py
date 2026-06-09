@@ -438,6 +438,40 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         help="W_in sparsity (default: 0.95)",
     )
     net_group.add_argument(
+        "--ei-sparsity",
+        type=float,
+        default=0.0,
+        help="Sparsity of the recurrent E↔I matrices (W_EE / W_EI / W_IE / "
+        "W_II). Fraction of entries zeroed independently; surviving entries "
+        "rescaled by 1/(1-s) to preserve total expected drive. Default 0 "
+        "(dense). Use ≈ 1 - K/N for Brunel/Vreeswijk-style sparse random "
+        "connectivity where each post-cell draws ≈ K presynaptic inputs.",
+    )
+    net_group.add_argument(
+        "--independent-drive",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("RATE_HZ", "G_PER_SPIKE"),
+        help="Per-E-cell independent Poisson drive (bypasses W_in). Generates "
+        "N_E uncorrelated Poisson streams at RATE_HZ each and adds "
+        "G_PER_SPIKE μS of g_E to each E cell per spike. Works on the "
+        "synthetic-spikes input mode. Use for Brunel/Vreeswijk-style "
+        "experiments where input correlations across cells should be zero.",
+    )
+    net_group.add_argument(
+        "--independent-drive-i",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("RATE_HZ", "G_PER_SPIKE"),
+        help="Per-I-cell independent Poisson drive on the I population's "
+        "excitatory conductance. Same semantics as --independent-drive but "
+        "targets the I cells directly, so their membrane fluctuations are "
+        "no longer driven entirely by E spikes via W^EI. Required for full "
+        "V&S-style AI state where both populations need uncorrelated noise.",
+    )
+    net_group.add_argument(
         "--dt",
         type=float,
         default=0.25,
@@ -592,6 +626,15 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         default=None,
         metavar=("MEAN", "STD"),
         help="W_IE init (mean std)",
+    )
+    wt_group.add_argument(
+        "--w-ii",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("MEAN", "STD"),
+        help="W_II (I→I) init (mean std). Default: 0 0 (no I→I, canonical "
+        "PING). Enable for Brunel/Vreeswijk balanced-network experiments.",
     )
     wt_group.add_argument(
         "--trainable-w-ee",
@@ -1112,7 +1155,7 @@ if __name__ == "__main__":
     if getattr(args, "modal", False):
         out_dir = args.out_dir
         if out_dir is None:
-            out_dir = str(Path(__file__).parent.parent / "artifacts" / "oscilloscope")
+            out_dir = str(Path(__file__).parent.parent.parent / "artifacts" / "oscilloscope")
         # Rebuild CLI args without --modal / --modal-gpu
         skip = {"--modal"}
         cli_args = []
@@ -1141,7 +1184,7 @@ if __name__ == "__main__":
     # Determine output directory
     out_dir = args.out_dir
     if out_dir is None:
-        out_dir = str(Path(__file__).parent.parent / "artifacts" / "oscilloscope")
+        out_dir = str(Path(__file__).parent.parent.parent / "artifacts" / "oscilloscope")
     out_dir = Path(out_dir)
 
     # Save run artifacts for all modes
@@ -1201,6 +1244,19 @@ if __name__ == "__main__":
     elif mode == "image":
         t_e_async = C.T_E_ASYNC_DEFAULT
         log.info(f"Device: {C.DEVICE}")
+        # Apply CLI overrides to module-level config so snapshot generators
+        # (which read C.cfg) see the requested W^EI / W^IE / W^II / sparsity.
+        if args.w_ei is not None:
+            C.cfg.w_ei = tuple(args.w_ei)
+            C.W_EI = tuple(args.w_ei)
+        if args.w_ie is not None:
+            C.cfg.w_ie = tuple(args.w_ie)
+            C.W_IE = tuple(args.w_ie)
+        if args.w_ii is not None:
+            C.cfg.w_ii = tuple(args.w_ii)
+        if getattr(args, "ei_sparsity", 0.0) > 0:
+            C.cfg.sparsity = float(args.ei_sparsity)
+            C.SPARSITY = float(args.ei_sparsity)
         if args.input == "dataset":
             generate_image_snapshot(
                 digit_class=args.digit,
@@ -1217,6 +1273,8 @@ if __name__ == "__main__":
                 overdrive=args.overdrive,
                 dt=args.dt,
                 model_name=args.model,
+                independent_drive=args.independent_drive,
+                independent_drive_i=args.independent_drive_i,
             )
         else:
             generate_snapshot(
@@ -1271,6 +1329,7 @@ if __name__ == "__main__":
             w_in=w_in,
             w_ei=args.w_ei,
             w_ie=args.w_ie,
+            w_ii=args.w_ii,
             ei_strength=args.ei_strength,
             ei_ratio=args.ei_ratio,
             w_in_sparsity=args.w_in_sparsity or 0.0,

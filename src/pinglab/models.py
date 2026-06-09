@@ -78,6 +78,8 @@ W_EI_MEAN = 1.0  # uS — E→I init mean (just suprathreshold, Börgers)
 W_EI_STD = 0.5  # uS — E→I init std (pre-fan-in)
 W_IE_MEAN = 3.0  # uS — I→E init mean (2-3× E→I, Viriyopase et al.)
 W_IE_STD = 1.5  # uS — I→E init std (pre-fan-in)
+W_II_MEAN = 0.0  # uS — I→I recurrent init mean (0 by default: PING needs no I→I,
+W_II_STD = 0.0  #  enable explicitly for Brunel/Vreeswijk balanced-network experiments)
 
 # ── Training ──────────────────────────────────────────────────────────────
 BATCH_SIZE = 64
@@ -399,14 +401,19 @@ def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None, threshold_offset=None):
     )
 
 
-def i_step_coba(v, ref, g_e, threshold_offset=None):
-    """One I-neuron LIF step with COBA driving force."""
+def i_step_coba(v, ref, g_e, g_i=None, threshold_offset=None):
+    """One I-neuron LIF step with COBA driving force.
+
+    ``g_i`` is the I→I inhibitory conductance on the I cell, used for
+    Brunel/Vreeswijk-style balanced-network experiments where I-cells have
+    recurrent self-inhibition. Default ``None`` preserves the canonical PING
+    architecture (no I→I)."""
     if COBA_INTEGRATOR == "expeuler":
         return lif_step_expeuler(
             v,
             ref,
             g_e,
-            None,
+            g_i,
             C_m_I,
             g_L_I,
             ref_steps_I,
@@ -416,7 +423,7 @@ def i_step_coba(v, ref, g_e, threshold_offset=None):
         )
     return lif_step(
         v,
-        coba_current(g_e, v),
+        coba_current(g_e, v, g_i),
         ref,
         C_m_I,
         g_L_I,
@@ -470,6 +477,7 @@ class COBANet(SNNBase):
         w_ee=(W_EE_MEAN, W_EE_STD),
         w_ei=(W_EI_MEAN, W_EI_STD),
         w_ie=(W_IE_MEAN, W_IE_STD),
+        w_ii=(W_II_MEAN, W_II_STD),
         dist="normal",
         sparsity=0.0,
         dales_law=True,
@@ -479,6 +487,7 @@ class COBANet(SNNBase):
         trainable_w_ee=False,
         trainable_w_ei=False,
         trainable_w_ie=False,
+        trainable_w_ii=False,
         n_inh_per_layer=None,
     ):
         super().__init__()
@@ -533,6 +542,10 @@ class COBANet(SNNBase):
         self.W_ee = nn.ParameterDict()
         self.W_ei = nn.ParameterDict()
         self.W_ie = nn.ParameterDict()
+        # W_ii is the I→I recurrent matrix (added for Brunel/Vreeswijk balanced-
+        # network experiments). Zero-mean / zero-std by default so the canonical
+        # PING architecture is unchanged; set w_ii to non-zero to enable.
+        self.W_ii = nn.ParameterDict()
         for i in self.ei_layers:
             n_e = sizes[i - 1]
             n_i = self.n_inh_per_layer.get(i, n_e // 4)
@@ -552,9 +565,15 @@ class COBANet(SNNBase):
                 init_weight((n_i, n_e), d, p1, p2, s),
                 requires_grad=trainable_w_ie,
             )
+            p1, p2, d, s = _parse_weight_spec(w_ii, dist, sparsity)
+            w_ii_t = nn.Parameter(
+                init_weight((n_i, n_i), d, p1, p2, s),
+                requires_grad=trainable_w_ii,
+            )
             self.W_ee[k] = w_ee_t
             self.W_ei[k] = w_ei_t
             self.W_ie[k] = w_ie_t
+            self.W_ii[k] = w_ii_t
 
     def _hid_key(self, layer_idx):
         if self.n_layers == 1:
@@ -573,10 +592,12 @@ class COBANet(SNNBase):
         ref_mean=0.0,
         ref_std=0.0,
         ext_g=None,
+        ext_g_i=None,
         drive_sigma=0.0,
         input_spikes=None,
     ):
         has_ext_g = ext_g is not None
+        has_ext_g_i = ext_g_i is not None
         has_input_spikes = input_spikes is not None
 
         if has_ext_g and ext_g.dim() == 3:
@@ -607,7 +628,7 @@ class COBANet(SNNBase):
 
         # Per-layer state
         v_e, ref_e, ge_e, gi_e, s_e = {}, {}, {}, {}, {}
-        v_i, ref_i, ge_i, s_i = {}, {}, {}, {}
+        v_i, ref_i, ge_i, gi_i, s_i = {}, {}, {}, {}, {}
         drive_gains = {}
         for i in range(1, self.n_layers + 1):
             n_e = self.hidden_sizes[i - 1]
@@ -629,6 +650,7 @@ class COBANet(SNNBase):
                     B, n_i, device, randomize=randomize_init
                 )
                 ge_i[k] = init_conductance(B, n_i, device)
+                gi_i[k] = init_conductance(B, n_i, device)
                 s_i[k] = torch.zeros(B, n_i, device=device)
             if drive_sigma > 0 and i == 1:
                 drive_gains[k] = (
@@ -693,6 +715,7 @@ class COBANet(SNNBase):
             "v_i": v_i,
             "ref_i": ref_i,
             "ge_i": ge_i,
+            "gi_i": gi_i,
             "s_i": s_i,
             "hidden_accum": hidden_accum,
             "v_out": v_out,
@@ -708,6 +731,7 @@ class COBANet(SNNBase):
             "ei_layers": self.ei_layers,
             "has_input_spikes": has_input_spikes,
             "has_ext_g": has_ext_g,
+            "has_ext_g_i": has_ext_g_i,
             "readout_mode": self.readout_mode,
             "g_noise": g_noise,
             "n_e0": self.hidden_sizes[0],
@@ -751,6 +775,11 @@ class COBANet(SNNBase):
                     ext_g[t].unsqueeze(0)
                     if has_ext_g and ext_g.dim() == 2
                     else (ext_g[t] if has_ext_g else None)
+                ),
+                "ext_t_i": (
+                    ext_g_i[t].unsqueeze(0)
+                    if has_ext_g_i and ext_g_i.dim() == 2
+                    else (ext_g_i[t] if has_ext_g_i else None)
                 ),
             }
             logits_t = step(slc, cfg, state)
@@ -835,11 +864,15 @@ class COBANet(SNNBase):
                 # specialized once per (W_ee, W_ei, W_ie) tuple.
                 ee_drive = state["s_e"][k] @ self.W_ee[k]
                 state["ge_e"][k] = (state["ge_e"][k] + ee_drive) * decay_ampa
-                state["ge_i"][k] = (
-                    state["ge_i"][k] + state["s_e"][k] @ self.W_ei[k]
-                ) * decay_ampa
+                ei_drive = state["s_e"][k] @ self.W_ei[k]
+                if k == "1" and cfg["has_ext_g_i"]:
+                    ei_drive = ei_drive + slc["ext_t_i"]
+                state["ge_i"][k] = (state["ge_i"][k] + ei_drive) * decay_ampa
                 state["gi_e"][k] = (
                     state["gi_e"][k] + state["s_i"][k] @ self.W_ie[k]
+                ) * decay_gaba
+                state["gi_i"][k] = (
+                    state["gi_i"][k] + state["s_i"][k] @ self.W_ii[k]
                 ) * decay_gaba
             else:
                 state["ge_e"][k] = state["ge_e"][k] * decay_ampa
@@ -864,6 +897,7 @@ class COBANet(SNNBase):
             g_e_for_step = state["ge_e"][k]
             g_i_for_e = state["gi_e"][k] if is_ei else None
             g_e_for_i = state["ge_i"][k] if is_ei else None
+            g_i_for_i = state["gi_i"][k] if is_ei else None
             if is_ei:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
                     state["v_e"][k],
@@ -872,7 +906,7 @@ class COBANet(SNNBase):
                     g_i_for_e,
                 )
                 state["v_i"][k], state["s_i"][k], state["ref_i"][k] = i_step_coba(
-                    state["v_i"][k], state["ref_i"][k], g_e_for_i,
+                    state["v_i"][k], state["ref_i"][k], g_e_for_i, g_i_for_i,
                 )
             else:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
