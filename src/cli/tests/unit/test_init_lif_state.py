@@ -7,7 +7,7 @@ import pytest
 import torch
 
 import models as M
-from cli.models import init_lif_state
+from models import init_lif_state
 
 
 class TestInitLifState:

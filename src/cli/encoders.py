@@ -2,7 +2,7 @@
 transports (upsample / downsample) used by nb013's eval-dt sweep.
 
 Everything here is pure-data — no model state, no CLI plumbing. Lifted out
-of __main__.py during the oscilloscope split.
+of cli.py during the oscilloscope split.
 """
 
 from __future__ import annotations

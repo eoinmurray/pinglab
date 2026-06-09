@@ -114,7 +114,7 @@ def _run_oscilloscope_impl(cli_args: list[str], git_sha: str | None = None) -> s
         if torch.cuda.is_available():
             args.extend(["--device", "cuda"])
 
-    cmd = [sys.executable, "/root/cli/__main__.py", *args]
+    cmd = [sys.executable, "/root/cli/cli.py", *args]
     print(f"modal> {' '.join(cmd)}")
     env = os.environ.copy()
     if git_sha:

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from cli.inputs import (
+from inputs import (
     DT_CAL,
     TAU_AMPA,
     drive_scale,

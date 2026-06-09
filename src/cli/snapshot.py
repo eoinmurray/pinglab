@@ -45,9 +45,9 @@ from inputs import DT_CAL, make_spike_drive
 from metrics import report_metrics
 from plot import draw_transient_frame, make_transient_fig
 
-from cli.datasets import _load_dataset_image
-from cli.encoders import encode_image_spikes
-from cli.scan import primary_hid_key, primary_inh_key
+from datasets import _load_dataset_image
+from encoders import encode_image_spikes
+from scan import primary_hid_key, primary_inh_key
 
 log = logging.getLogger("oscilloscope")
 
