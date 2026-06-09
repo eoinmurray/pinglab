@@ -476,6 +476,15 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         "V&S-style AI state where both populations need uncorrelated noise.",
     )
     net_group.add_argument(
+        "--exact-k",
+        action="store_true",
+        help="Use fixed-fan-in (exact-K) recurrent connectivity instead of "
+        "per-entry Bernoulli sparsity: every post cell draws exactly "
+        "K = round((1−ei_sparsity)·N_pre) presynaptic inputs. Removes the "
+        "binomial cell-to-cell fan-in variance — the Brunel/Vreeswijk "
+        "convention. No effect unless --ei-sparsity > 0.",
+    )
+    net_group.add_argument(
         "--lyapunov-eps",
         type=float,
         default=0.0,
@@ -1023,6 +1032,8 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
 
     if getattr(args, "surrogate_slope", None) is not None:
         M.SURROGATE_SLOPE = float(args.surrogate_slope)
+    if getattr(args, "exact_k", False):
+        M.EXACT_K_CONNECTIVITY = True
     if getattr(args, "grad_clip", None) is not None:
         import cli.train as _train_mod
         _train_mod.GRAD_CLIP = float(args.grad_clip)

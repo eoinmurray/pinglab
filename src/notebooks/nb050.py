@@ -70,7 +70,9 @@ CELLS: dict[str, dict] = {
         "args": [
             # Brunel/Vreeswijk asynchronous-irregular state, full version.
             # Five knobs land it on textbook CV ≈ 1 for both populations:
-            #   - --ei-sparsity 0.99 (K ≈ 10) breaks loop synchronisation
+            #   - --ei-sparsity 0.99 + --exact-k → fixed fan-in K ≈ 10 per
+            #     post cell (Brunel/V&S convention; removes the binomial
+            #     fan-in variance that otherwise broadens the rate dist)
             #   - --independent-drive 45 0.38 — large per-spike kicks at low
             #     rate on E (input fluctuations dominate drift)
             #   - --independent-drive-i 8 0.25 — same for I (without this
@@ -85,10 +87,11 @@ CELLS: dict[str, dict] = {
             "--w-ie", "3.0", "0.9",
             "--w-ii", "0.4", "0.12",
             "--ei-sparsity", "0.99",
+            "--exact-k",
             "--independent-drive", "45", "0.38",
             "--independent-drive-i", "8", "0.25",
         ],
-        "title": "Balanced E/I (V&S) — per-E + per-I drive, CV ≈ 1",
+        "title": "Balanced E/I (V&S) — fixed-K, per-E + per-I drive, CV ≈ 1",
     },
 }
 
@@ -630,19 +633,18 @@ def main() -> None:
 
         # Lyapunov / chaos: spike-train divergence curve D(t) from the
         # perturbed rerun (saved in the npz by the snapshot generator).
-        lyap_final = lyap_max = lyap_slope = None
+        # The discriminating quantity is the steady-state divergence level
+        # (mean D over the second half): ≈ 0 for a stable limit cycle that
+        # re-locks (PING), > 0 and sustained for chaos (AI).
+        lyap_final = lyap_max = lyap_steady = None
         if "lyap_dist" in data:
             lt = np.asarray(data["lyap_t_ms"])
             ld = np.asarray(data["lyap_dist"])
             lyap_by_cell[cell] = (lt, ld)
             lyap_final = float(ld[-1])
             lyap_max = float(ld.max())
-            # Crude growth-rate proxy: least-squares slope of D(t) over the
-            # second half (after the initial transient), in cells/second.
             half = len(ld) // 2
-            if len(ld) - half > 2:
-                tt = lt[half:] / 1000.0
-                lyap_slope = float(np.polyfit(tt, ld[half:], 1)[0])
+            lyap_steady = float(ld[half:].mean())
 
         summary_rows.append({
             "cell": cell,
@@ -654,7 +656,7 @@ def main() -> None:
             "peak_abs_xcorr_e": peak_abs_xcorr,
             "lyap_final_diff_cells": lyap_final,
             "lyap_max_diff_cells": lyap_max,
-            "lyap_growth_cells_per_s": lyap_slope,
+            "lyap_steady_diff_cells": lyap_steady,
             **current_stats,
         })
 
