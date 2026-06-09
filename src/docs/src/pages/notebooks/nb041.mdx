@@ -1,6 +1,6 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "041 — Rate floor tracks gamma frequency (trains)"
+title: "041 — E rate is affine in gamma frequency: $r_E = a + p \\cdot f_\\gamma$ (trains)"
 date: 2026-06-02
 entry: 41
 structure: paper
@@ -73,15 +73,6 @@ $$
 <Figure id="Figure 5" title="Retrained τ_GABA sweep — post-training E rate tracks measured f_γ" src="/figures/notebooks/nb041/rate_vs_fgamma.png" alt="Top panel: scatter of mean post-training E rate (Hz) vs measured gamma frequency f_γ (Hz). Six clusters, one per τ_GABA value (annotated 4.5–27 ms), three seeds each. Error bars in both dimensions. An affine fit line r_E = 0.76 + 0.216 · f_γ passes through every error bar with R² = 0.997. Bottom panel: test accuracy vs same x-axis — flat at 81–89% across the entire f_γ range. f_γ on the x-axis is the per-trial PSD peak median (see Figure 2).">
   Top: mean post-training E rate vs $f_\gamma$, six clusters × three seeds, error bars from seed variance. The affine fit passes through every error bar. Bottom: per-cluster accuracy — flat. The rate change is not paid in classification.
 </Figure>
-
-| $\tau_\text{GABA}$ | mean $f_\gamma$ | mean $r_E$ | mean acc |
-|---|---|---|---|
-| 4.5 ms | 54.02 Hz | 11.69 Hz | 89.42% |
-| 6 ms | 43.97 Hz | 9.72 Hz | 88.33% |
-| 9 ms | 36.41 Hz | 8.63 Hz | 86.67% |
-| 12 ms | 27.91 Hz | 6.51 Hz | 84.83% |
-| 18 ms | 21.95 Hz | 5.40 Hz | 83.75% |
-| 27 ms | 14.27 Hz | 3.70 Hz | 81.50% |
 
 Two interpretations come for free:
 
