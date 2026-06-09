@@ -24,6 +24,10 @@ _pkg_dir = str(Path(__file__).resolve().parent.parent)  # src/
 if _pkg_dir in sys.path:
     sys.path.remove(_pkg_dir)
 sys.path.insert(0, _pkg_dir)
+_cli_dir = str(Path(__file__).resolve().parent)
+if _cli_dir in sys.path:
+    sys.path.remove(_cli_dir)
+sys.path.insert(0, _cli_dir)
 
 import logging
 import numpy as np

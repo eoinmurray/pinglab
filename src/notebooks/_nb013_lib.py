@@ -41,7 +41,7 @@ import torch  # noqa: E402
 from _modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from _tier import parse_tier  # noqa: E402
 from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
-from config import build_net  # noqa: E402
+from cli.config import build_net  # noqa: E402
 import theme  # noqa: E402
 
 SLUG = "nb013"
@@ -619,7 +619,7 @@ def compute_latency_curves(
         seed_everything,
         EVAL_SEED,
     )
-    from config import patch_dt
+    from cli.config import patch_dt
 
     device = _auto_device()
     out: dict[float, dict[str, dict]] = {}

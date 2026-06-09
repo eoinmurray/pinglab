@@ -129,7 +129,7 @@ def _build_net_for_arm(arm: str):
     M.T_steps = N_STEPS
     M.T_ms = T_MS
     M.dt = DT
-    from config import build_net
+    from cli.config import build_net
     kw = dict(
         w_in=(W_IN_MEAN, W_IN_STD),
         w_in_sparsity=W_IN_SPARSITY,

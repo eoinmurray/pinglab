@@ -50,7 +50,7 @@ if str(_PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(_PKG_ROOT))
 
 import models as M  # noqa: E402
-from config import build_net  # noqa: E402
+from cli.config import build_net  # noqa: E402
 
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "fuse_parity"

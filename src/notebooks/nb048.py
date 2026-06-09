@@ -109,7 +109,7 @@ def _load_trained_full(device, seed: int = SEEDS[0]):
     """Mirror nb025's loader but read τ_GABA from the trained config so
     we replay under the same biophysics. Returns (net, cfg, X_te, y_te)."""
     import models as M
-    from config import build_net, patch_dt
+    from cli.config import build_net, patch_dt
     from cli import load_dataset, seed_everything
 
     train_dir = baseline_dir(seed)

@@ -6,7 +6,7 @@ import pytest
 import torch
 
 import models as M
-from models import exp_synapse, lif_step, spike_biophysical
+from cli.models import exp_synapse, lif_step, spike_biophysical
 
 
 def _fresh_state(B=1, N=1):
