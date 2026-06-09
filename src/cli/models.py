@@ -345,6 +345,17 @@ def _parse_weight_spec(w, default_dist, default_sparsity):
     return w[0], w[1], default_dist, default_sparsity
 
 
+# Connectivity mode for the sparsifier in init_weight:
+#   False (default) — per-entry Bernoulli: each entry zeroed independently
+#     with probability `sparsity`. Fan-in per post cell is binomial, so it
+#     varies cell to cell.
+#   True            — fixed fan-in (exact-K): every post cell (column) keeps
+#     exactly K = round((1-sparsity)·N_pre) random presynaptic inputs.
+#     Removes the binomial fan-in variance — the Brunel/Vreeswijk convention.
+# Set via the --exact-k CLI flag (M.EXACT_K_CONNECTIVITY = True).
+EXACT_K_CONNECTIVITY = False
+
+
 def init_weight(shape, dist="normal", p1=0.0, p2=0.1, sparsity=0.0):
     """Initialise a weight tensor with fan-in normalization."""
     n_pre = shape[0]
@@ -361,8 +372,21 @@ def init_weight(shape, dist="normal", p1=0.0, p2=0.1, sparsity=0.0):
     else:
         raise ValueError(f"Unknown dist: {dist!r}")
     if sparsity > 0:
-        w = w * (torch.rand(*shape) > sparsity).float()
-        w = w / (1.0 - sparsity)
+        if EXACT_K_CONNECTIVITY and len(shape) == 2:
+            # Fixed fan-in: each column keeps exactly K random rows.
+            n_post = shape[1]
+            k = max(1, int(round((1.0 - sparsity) * n_pre)))
+            mask = torch.zeros(n_pre, n_post)
+            for j in range(n_post):
+                idx = torch.randperm(n_pre)[:k]
+                mask[idx, j] = 1.0
+            w = w * mask
+            # Rescale by exact fan-in so per-column expected drive is
+            # preserved (matches the Bernoulli path's 1/(1-sparsity)).
+            w = w * (n_pre / k)
+        else:
+            w = w * (torch.rand(*shape) > sparsity).float()
+            w = w / (1.0 - sparsity)
     w = w / n_pre
     return w
 

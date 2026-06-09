@@ -615,6 +615,38 @@ def test_independent_drive_i_raises_i_rate():
     )
 
 
+def test_exact_k_gives_uniform_fan_in():
+    """--exact-k connectivity makes every post cell draw exactly K
+    presynaptic inputs (zero fan-in variance), vs the binomial spread of
+    the per-entry Bernoulli sparsifier."""
+    import sys
+
+    sys.path.insert(0, "src/cli")
+    import models as M
+
+    shape = (1024, 256)
+    sparsity = 0.99  # K ≈ 10
+
+    try:
+        M.EXACT_K_CONNECTIVITY = False
+        torch.manual_seed(0)
+        w_b = M.init_weight(shape, "normal", 1.0, 0.1, sparsity)
+        fan_b = (w_b != 0).sum(dim=0).float()
+
+        M.EXACT_K_CONNECTIVITY = True
+        torch.manual_seed(0)
+        w_k = M.init_weight(shape, "normal", 1.0, 0.1, sparsity)
+        fan_k = (w_k != 0).sum(dim=0).float()
+    finally:
+        M.EXACT_K_CONNECTIVITY = False
+
+    # Bernoulli: binomial fan-in, nonzero variance.
+    assert fan_b.std() > 1.0, "Bernoulli fan-in should vary cell to cell"
+    # Exact-K: every column has identical fan-in.
+    assert fan_k.std() == 0.0, "exact-K fan-in must be uniform"
+    assert int(fan_k[0]) == round((1 - sparsity) * shape[0])
+
+
 @pytest.mark.slow
 def test_lyapunov_eps_writes_divergence_to_npz(tmp_path):
     """--lyapunov-eps reruns the perturbed copy and saves a spike-train
