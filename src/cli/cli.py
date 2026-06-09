@@ -476,6 +476,16 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         "V&S-style AI state where both populations need uncorrelated noise.",
     )
     net_group.add_argument(
+        "--lyapunov-eps",
+        type=float,
+        default=0.0,
+        help="If > 0 (synthetic-spikes image mode), rerun the forward pass "
+        "on identical input with all membrane voltages ε-perturbed at t=0 "
+        "and save the membrane-divergence curve ‖ΔV(t)‖ to snapshot.npz. "
+        "Its exponential growth rate is the max Lyapunov exponent: positive "
+        "for the chaotic V&S balanced state, ≈ 0 for cycle-locked PING.",
+    )
+    net_group.add_argument(
         "--dt",
         type=float,
         default=0.25,
@@ -1279,6 +1289,7 @@ if __name__ == "__main__":
                 model_name=args.model,
                 independent_drive=args.independent_drive,
                 independent_drive_i=args.independent_drive_i,
+                lyapunov_eps=args.lyapunov_eps,
             )
         else:
             generate_snapshot(
