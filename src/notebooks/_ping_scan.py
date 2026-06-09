@@ -27,7 +27,7 @@ from _tier import parse_tier
 
 REPO = Path(__file__).resolve().parents[2]
 PINGLAB = REPO / "src"
-OSCILLOSCOPE = PINGLAB / "cli/__main__.py"
+OSCILLOSCOPE = PINGLAB / "cli/cli.py"
 
 # Simulation config shared by every PING-video scan. Defaults in config.py:
 # sim_ms=600, step_on_ms=200, step_off_ms=300. Input is MNIST d0s0,

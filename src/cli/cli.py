@@ -112,7 +112,7 @@ from plot import (
 # =============================================================================
 
 
-from cli.encoders import (  # noqa: E402,F401
+from encoders import (  # noqa: E402,F401
     EVAL_SEED,
     FROZEN_MODES,
     FrozenEncoder,
@@ -127,7 +127,7 @@ from cli.encoders import (  # noqa: E402,F401
 
 
 
-from cli.scan import (  # noqa: E402
+from scan import (  # noqa: E402
     SCAN_DEFAULTS,
     _SWEEP_XLABELS,
     _WEIGHT_SCAN_VARS,
@@ -148,14 +148,14 @@ from cli.scan import (  # noqa: E402
 # Snapshot generators
 # =============================================================================
 
-from cli.snapshot import (  # noqa: E402
+from snapshot import (  # noqa: E402
     generate_image_snapshot,
     generate_sim_only,
     generate_snapshot,
     generate_spike_snapshot,
 )
 
-from cli.datasets import (  # noqa: E402,F401
+from datasets import (  # noqa: E402,F401
     DATASET_N_HIDDEN_DEFAULTS,
     SHD_N_CHANNELS,
     _load_dataset_image,
@@ -170,7 +170,7 @@ from cli.datasets import (  # noqa: E402,F401
 # Training (moved to oscilloscope/train.py)
 # =============================================================================
 
-from cli.train import (  # noqa: E402
+from train import (  # noqa: E402
     BATCH_SIZE,
     GRAD_CLIP,
     observe_epoch,
@@ -185,11 +185,11 @@ from cli.train import (  # noqa: E402
 # =============================================================================
 
 
-from cli.video import (  # noqa: E402
+from video import (  # noqa: E402
     _plot_dt_sweep,
     _render_dt_sweep_video,
 )
-from cli.infer import infer  # noqa: E402
+from infer import infer  # noqa: E402
 
 
 def _apply_from_dir(args, argv):

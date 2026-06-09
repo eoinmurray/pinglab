@@ -24,7 +24,7 @@ def _equal_state_dicts(a, b):
 
 
 def test_build_net_deterministic_ping():
-    from cli.config import build_net
+    from config import build_net
 
     torch.manual_seed(0)
     a = build_net(
@@ -86,7 +86,7 @@ def test_train_and_infer_share_test_split_mnist():
 
 
 def _run_cli(*args, timeout=180):
-    cmd = ["uv", "run", "python", "src/pinglab/cli/__main__.py", *args]
+    cmd = ["uv", "run", "python", "src/pinglab/cli/cli.py", *args]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     return result.returncode, result.stdout, result.stderr
 

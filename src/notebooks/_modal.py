@@ -1,6 +1,6 @@
 """Shared helpers for notebook runners to forward --modal-gpu to oscilloscope.
 
-Every notebook runner invokes src/cli/__main__.py one or more times via
+Every notebook runner invokes src/cli/cli.py one or more times via
 sh.uv. When the runner is given --modal-gpu <GPU>, each oscilloscope call gets
 --modal --modal-gpu <GPU> appended so the job runs on Modal instead of the
 local machine.

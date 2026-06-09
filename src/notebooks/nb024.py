@@ -37,7 +37,7 @@ from cli import theme  # noqa: E402
 SLUG = "nb024"
 ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
 FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
-OSCILLOSCOPE = REPO / "src" / "cli" / "__main__.py"
+OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
 
 T_MS = 200.0
 DT_TRAIN = 0.1

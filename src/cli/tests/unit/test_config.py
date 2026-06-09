@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from cli.config import Config
+from config import Config
 
 
 class TestConfigDefaults:

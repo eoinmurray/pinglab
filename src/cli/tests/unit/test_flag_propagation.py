@@ -16,7 +16,7 @@ import torch
 
 
 def _run_cli(*args, timeout=180):
-    cmd = ["uv", "run", "python", "src/pinglab/cli/__main__.py", *args]
+    cmd = ["uv", "run", "python", "src/pinglab/cli/cli.py", *args]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     assert result.returncode == 0, (
         f"cmd failed (exit {result.returncode}):\n  {' '.join(cmd)}\n"
@@ -182,7 +182,7 @@ def test_readout_changes_model_forward():
     import sys
 
     sys.path.insert(0, "src/pinglab")
-    from cli.config import build_net
+    from config import build_net
 
     torch.manual_seed(0)
     net_rate = build_net(
@@ -225,7 +225,7 @@ def test_ei_ratio_scales_only_wie():
     import sys
 
     sys.path.insert(0, "src/pinglab")
-    from cli.config import build_net
+    from config import build_net
 
     def _means(ratio):
         torch.manual_seed(0)
@@ -251,7 +251,7 @@ def test_ei_strength_scales_weights():
     import sys
 
     sys.path.insert(0, "src/pinglab")
-    from cli.config import build_net
+    from config import build_net
 
     def _means(s):
         torch.manual_seed(0)
