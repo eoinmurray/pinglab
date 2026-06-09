@@ -19,7 +19,7 @@ import pytest
 import torch
 
 import models as M
-from models import spike_biophysical
+from cli.models import spike_biophysical
 
 
 pytest.importorskip("models")  # noqa

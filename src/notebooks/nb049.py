@@ -169,7 +169,7 @@ def _load_trained_full(train_dir: Path, device):
     import torch
 
     import models as M
-    from config import build_net, patch_dt
+    from cli.config import build_net, patch_dt
     from cli import load_dataset, seed_everything
 
     cfg = json.loads((train_dir / "config.json").read_text())
@@ -226,7 +226,7 @@ def load_init_and_trained_weights(train_dir: Path, device):
     import torch
 
     import models as M
-    from config import build_net, patch_dt
+    from cli.config import build_net, patch_dt
     from cli import seed_everything
 
     cfg = json.loads((train_dir / "config.json").read_text())

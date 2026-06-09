@@ -90,7 +90,7 @@ class Config:
 
 
 cfg = Config(
-    artifact_root=str(Path(__file__).parent / "artifacts" / "oscilloscope")
+    artifact_root=str(Path(__file__).parent.parent / "artifacts" / "oscilloscope")
 )
 
 
@@ -578,7 +578,7 @@ def build_config(args):
         c.artifact_root = args.out_dir
     else:
         c.artifact_root = str(
-            Path(__file__).parent / "artifacts" / "oscilloscope"
+            Path(__file__).parent.parent / "artifacts" / "oscilloscope"
         )
     c.fps = getattr(args, "frame_rate", 10)
     if hasattr(args, "n_hidden") and args.n_hidden is not None:

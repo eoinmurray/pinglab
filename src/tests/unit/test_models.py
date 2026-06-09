@@ -3,7 +3,7 @@ import torch
 from torch import nn
 
 import models as M
-from config import build_net
+from cli.config import build_net
 
 
 @pytest.fixture(autouse=True)

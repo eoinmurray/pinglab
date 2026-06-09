@@ -24,7 +24,7 @@ def _equal_state_dicts(a, b):
 
 
 def test_build_net_deterministic_ping():
-    from config import build_net
+    from cli.config import build_net
 
     torch.manual_seed(0)
     a = build_net(

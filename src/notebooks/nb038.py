@@ -276,9 +276,9 @@ def run_inproc_infer(
     """
     import torch
 
-    import config as C  # noqa: F401
+    import cli.config as config as C  # noqa: F401
     import models as M
-    from config import build_net, patch_dt
+    from cli.config import build_net, patch_dt
     from cli import (
         EVAL_SEED,
         _auto_device,
@@ -391,9 +391,9 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
     forward pass on a single test sample."""
     import torch
 
-    import config as C  # noqa: F401
+    import cli.config as config as C  # noqa: F401
     import models as M
-    from config import build_net, patch_dt
+    from cli.config import build_net, patch_dt
     from cli import (
         EVAL_SEED,
         _auto_device,
@@ -472,9 +472,9 @@ def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> 
     M.max_rate_hz, run one forward pass on a single test sample."""
     import torch
 
-    import config as C  # noqa: F401
+    import cli.config as config as C  # noqa: F401
     import models as M
-    from config import build_net, patch_dt
+    from cli.config import build_net, patch_dt
     from cli import (
         EVAL_SEED,
         _auto_device,
@@ -943,9 +943,9 @@ def _load_trained_full(train_dir: Path, device):
     (net, cfg, X_te, y_te) ready for forward passes."""
     import torch
 
-    import config as C  # noqa: F401
+    import cli.config as config as C  # noqa: F401
     import models as M
-    from config import build_net, patch_dt
+    from cli.config import build_net, patch_dt
     from cli import load_dataset, seed_everything
 
     cfg = json.loads((train_dir / "config.json").read_text())

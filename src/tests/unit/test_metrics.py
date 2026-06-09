@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from metrics import (
+from cli.metrics import (
     find_fundamental_nondiff,
     format_metrics,
     population_rate_nondiff,
