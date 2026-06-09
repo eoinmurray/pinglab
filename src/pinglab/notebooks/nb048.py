@@ -813,6 +813,10 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     for sp in ("top", "right", "left", "bottom"):
         ax_a.spines[sp].set_visible(False)
 
+    rates_all = [seg[1] for seg in segments]
+    log_rmin = np.log(min(rates_all))
+    log_rmax = np.log(max(rates_all))
+
     for d in range(n_dig):
         tau_ms, rate_hz = segments[d]
         x_lo = seg_starts_ms[d]
@@ -826,7 +830,16 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
             sub_l, ax_a.get_position().y0 + 0.005,
             sub_w, ax_a.get_position().height - 0.02,
         ])
-        sub.imshow(img, cmap="Greys", interpolation="nearest", aspect="auto")
+        # Opacity ∈ [0.2, 1.0] (log-rate) so the weakest drive is faintly
+        # visible and the strongest is bold — input rate becomes a visual cue.
+        if log_rmax > log_rmin:
+            alpha = 0.2 + 0.8 * (np.log(rate_hz) - log_rmin) / (log_rmax - log_rmin)
+        else:
+            alpha = 1.0
+        sub.imshow(
+            img, cmap="Greys", interpolation="nearest", aspect="auto",
+            alpha=alpha,
+        )
         sub.set_xticks([])
         sub.set_yticks([])
         ok_color = theme.INK_BLACK if seg_pred[d] == labels[d] else theme.DEEP_RED
