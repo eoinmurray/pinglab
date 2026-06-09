@@ -183,6 +183,7 @@ def train(
     w_in=None,
     w_ei=None,
     w_ie=None,
+    w_ii=None,
     ei_strength=None,
     ei_ratio=2.0,
     w_in_sparsity=0.0,
@@ -208,6 +209,7 @@ def train(
     trainable_w_ee=False,
     trainable_w_ei=False,
     trainable_w_ie=False,
+    trainable_w_ii=False,
     tbptt_window=None,
 ):
     """Train on scikit digits, optionally producing oscilloscope video."""
@@ -293,6 +295,7 @@ def train(
         w_in_sparsity=w_in_sparsity,
         w_ei=w_ei,
         w_ie=w_ie,
+        w_ii=w_ii,
         ei_strength=ei_strength,
         ei_ratio=ei_ratio,
         device=device,
@@ -304,6 +307,7 @@ def train(
         trainable_w_ee=trainable_w_ee,
         trainable_w_ei=trainable_w_ei,
         trainable_w_ie=trainable_w_ie,
+        trainable_w_ii=trainable_w_ii,
         tbptt_window=tbptt_window,
     )
     if readout_mode != "rate":
