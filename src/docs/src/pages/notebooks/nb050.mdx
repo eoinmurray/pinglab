@@ -51,16 +51,16 @@ Both cells run on the same COBANet ($N_E = 1024, N_I = 256$, $\Delta t = 0.1$ ms
 
 The PING column is the canonical biophysical recipe from [nb023](/notebooks/nb023/). The AI column inherits the same network class and adds (i) the $W^{II}$ matrix, (ii) sparse recurrents, (iii) per-cell independent drive on both populations.
 
-Each cell produces a four-panel figure: E raster, I raster, Welch PSD on the population-mean E trace (matching the [nb041](/notebooks/nb041/) pipeline), and the per-E-neuron ISI-CV histogram with the Poisson reference at CV = 1.
+Each cell produces a five-panel figure: E raster, I raster, Welch PSD on the population-mean E trace (matching the [nb041](/notebooks/nb041/) pipeline), per-E-neuron ISI-CV histogram with the Poisson reference at CV = 1, and the mean pairwise spike-train cross-correlogram on 100 random E-cell pairs.
 
 ## Results
 
-<Figure id="Figure 1" title="Canonical PING — control cell" src="/figures/notebooks/nb050/raster__ping.png" alt="Four-panel figure for the canonical PING cell. Top: E raster across 1000 ms with vertical bands every ~33 ms. Second: I raster with synchronous bursts at the same cadence. Third: Welch PSD with a sharp gamma peak at ≈ 31 Hz plus visible 60 / 90 / 120 Hz harmonics. Bottom: per-neuron ISI CV histogram, median ≈ 0.62 — sub-Poisson, regular firing typical of cycle-locked PING.">
-  Textbook PING. $r_E$ ≈ 4 Hz, $r_I$ ≈ 31 Hz, $f_\gamma$ ≈ 31 Hz with harmonics. Per-E ISI CV = 0.62, per-I CV = 0.03 (cycle-locked, almost-deterministic firing).
+<Figure id="Figure 1" title="Canonical PING — control cell" src="/figures/notebooks/nb050/raster__ping.png" alt="Five-panel figure for the canonical PING cell. Top: E raster across 1000 ms with vertical bands every ~33 ms. Second: I raster with synchronous bursts at the same cadence. Third: Welch PSD with a sharp gamma peak at ≈ 31 Hz plus 60 / 90 / 120 Hz harmonics. Fourth: per-neuron ISI CV histogram, median ≈ 0.62 — sub-Poisson, regular firing. Fifth: mean pairwise spike-train cross-correlation over lags ±100 ms, showing a clean comb of peaks at lag 0 and ±32 / ±64 / ±96 ms (the gamma harmonics); peak |C| = 0.041.">
+  Textbook PING. $r_E$ ≈ 4 Hz, $r_I$ ≈ 31 Hz, $f_\gamma$ ≈ 31 Hz with harmonics. Per-E ISI CV = 0.62, per-I CV = 0.03. Cross-correlogram shows the gamma comb explicitly — peak |C| = 0.041 with clean structure at integer multiples of 1/$f_\gamma$.
 </Figure>
 
-<Figure id="Figure 2" title="V&S asynchronous-irregular state" src="/figures/notebooks/nb050/raster__ai.png" alt="Four-panel figure for the tuned V&S AI cell. Top: E raster across 1000 ms, completely scattered — no vertical bands. Second: I raster, also scattered with no synchronous bursts. Third: Welch PSD is broadband across 5–150 Hz with no clear gamma peak. Bottom: per-E ISI CV histogram centered around 1.0, median ≈ 0.97 — overlaps the Poisson reference line.">
-  V&S AI. $r_E$ ≈ 18 Hz, $r_I$ ≈ 29 Hz, **per-E ISI CV = 0.97, per-I ISI CV = 1.08** — both populations firing essentially as Poisson. Broadband PSD with no gamma signature.
+<Figure id="Figure 2" title="V&S asynchronous-irregular state" src="/figures/notebooks/nb050/raster__ai.png" alt="Five-panel figure for the tuned V&S AI cell. Top: E raster, completely scattered — no vertical bands. Second: I raster, also scattered with no synchronous bursts. Third: Welch PSD is broadband across 5–150 Hz with no clear gamma peak. Fourth: per-E ISI CV histogram centered around 1.0, median ≈ 0.97. Fifth: mean pairwise spike-train cross-correlation, essentially flat noise around zero across all lags with peak |C| = 0.010 — no comb structure, no central peak.">
+  V&S AI. $r_E$ ≈ 18 Hz, $r_I$ ≈ 29 Hz, **per-E ISI CV = 0.97, per-I ISI CV = 1.08**, broadband PSD, and **peak |C| = 0.010** with no spectral / temporal structure in the cross-correlogram — both populations firing as essentially independent Poisson processes.
 </Figure>
 
 ### Contrast
@@ -71,6 +71,7 @@ Each cell produces a four-panel figure: E raster, I raster, Welch PSD on the pop
 | Welch PSD | sharp 31 Hz peak + harmonics | broadband, no clear peak |
 | Median per-E ISI CV | 0.62 | **0.97** |
 | Median per-I ISI CV | 0.03 | **1.08** |
+| Peak \|mean pairwise C(τ)\| | 0.041 (gamma comb) | **0.010** (flat) |
 | $\langle r_E\rangle, \langle r_I\rangle$ | 4, 31 Hz | **18, 29 Hz** |
 
 ## Discussion
@@ -88,19 +89,19 @@ So at the level of *what the state looks like*, we have the V&S regime.
 
 ### What's different from the canonical setup
 
-Three substrate differences and one un-verified mechanistic property:
+Three substrate differences, plus one *mechanistic* signature we now have, plus one we still don't:
 
 1. **Conductance-based LIF, not binary spins.** V&S 1996 used binary asynchronous-update units. Brunel 2000 and Renart 2010 ported the regime onto LIF and conductance-based synapses respectively; this work follows that route. The substrate change matters quantitatively (specific scaling constants, rate-vs-drive curves) but the regime itself is robust to it.
 2. **Per-entry Bernoulli sparsity, not exact-$K$ random connectivity.** V&S draws exactly $K$ presynaptic inputs per post cell; we zero each entry of $W$ independently with probability $1 - K/N$. At $N \gtrsim 100$ the law-of-large-numbers makes the two indistinguishable for population dynamics, but the cell-to-cell variability in actual fan-in is larger here, which broadens the rate distribution slightly above the V&S prediction.
-3. **Hand-tuned weights, not the $1/\sqrt{K}$ scaling ansatz.** V&S derive their weight scaling from the requirement that recurrent fluctuations stay $O(1)$ in the large-$N$ limit. We picked weights by tuning on the four-panel diagnostic. The numerical result is in the right regime, but we haven't *verified* that the recurrent mean drives are individually $O(\sqrt{K})$-large and self-cancelling — that diagnostic would be a follow-up.
-4. **Pairwise correlation and chaos not measured.** V&S characterise the AI state by low cross-correlation across cell pairs (vanishing as $1/\sqrt{K}$) and positive maximum Lyapunov exponent. Both are testable here but we didn't compute them.
+3. **Hand-tuned weights, not the $1/\sqrt{K}$ scaling ansatz.** V&S derive their weight scaling from the requirement that recurrent fluctuations stay $O(1)$ in the large-$N$ limit. We picked weights by tuning on the diagnostic. The numerical result is in the right regime, but we haven't *verified* that the recurrent mean drives are individually $O(\sqrt{K})$-large and self-cancelling — that diagnostic would be a follow-up.
+4. **Pairwise correlations: confirmed AI-like.** The mean cross-correlogram on 100 random E-cell pairs gives peak |C| = 0.010 for the AI cell vs 0.041 for PING — a 4× separation, and the PING value is structured (gamma comb), while the AI value is flat noise around zero. The single-number summary distinguishes the regimes mechanistically.
+5. **Chaos not measured.** V&S characterise AI by a positive maximum Lyapunov exponent. We haven't computed it; the cleanest test is a two-trajectory perturbation experiment.
 
-So: we have the *phenomenological* AI state on this substrate, but we haven't yet checked the *mechanistic* signatures that pin the regime to the V&S theory specifically rather than to any unstructured-broadband firing pattern. Doing those checks is what would let this entry support an argument like "the rate-floor framing in [ar009](/articles/ar009/) is PING-specific, not balanced-E/I-specific" with the V&S regime as the comparator.
+So: we have the *phenomenological* AI state and one of two mechanistic signatures (low pairwise correlation). The remaining gap is the chaos check, which would distinguish "V&S balanced manifold" from "any unstructured-broadband firing pattern that happens to also be uncorrelated."
 
 ## Next steps
 
-1. **Cross-correlation diagnostic.** Compute average pairwise spike-train cross-correlation across cell pairs. AI predicts $\sim 1/\sqrt{K}$; PING predicts strong correlations at lag $\pm 1/f_\gamma$. Cheapest single number that distinguishes the regimes mechanistically.
-2. **Mean-cancellation check.** Track the time-averaged total recurrent E and I input to each cell separately. V&S predicts they're each $O(\sqrt{K})$-large and approximately cancel, with the cancellation gap setting the rate. PING predicts coherent burst-driven oscillations in both.
-3. **Exact-$K$ random connectivity.** Replace the per-entry Bernoulli sparsifier with a fixed-fan-in sampler that draws exactly $K$ presynaptic inputs per post cell. Removes the cell-to-cell fan-in variance that broadens our rate distribution above the V&S prediction and lets us hold $K$ fixed while sweeping $N$.
-4. **$1/\sqrt{K}$ scaling sanity check.** Sweep $N$ at fixed $K/N$ ratio with weights rescaled as $1/\sqrt{K}$ and verify that the regime is stable across $N$ — i.e. that we landed on the V&S balanced manifold, not on a substrate-specific operating point that happens to look like AI at one $N$. If it's truly V&S the per-neuron CV, rate, and PSD shape should all be $N$-invariant.
-5. **Chaos / Lyapunov measurement.** Compute the maximum Lyapunov exponent from a two-trajectory perturbation experiment: clone the network state at $t = 0$, perturb one copy infinitesimally, integrate both, and measure the exponential separation rate of their spike trains. AI predicts $\lambda_\text{max} > 0$ (perturbations decorrelate within ≈ one $\tau_\text{mem}$); PING predicts $\lambda_\text{max} \approx 0$ (perturbations get re-locked into the cycle).
+1. **Mean-cancellation check.** Track the time-averaged total recurrent E and I input to each cell separately. V&S predicts they're each $O(\sqrt{K})$-large and approximately cancel, with the cancellation gap setting the rate. PING predicts coherent burst-driven oscillations in both.
+2. **Exact-$K$ random connectivity.** Replace the per-entry Bernoulli sparsifier with a fixed-fan-in sampler that draws exactly $K$ presynaptic inputs per post cell. Removes the cell-to-cell fan-in variance that broadens our rate distribution above the V&S prediction and lets us hold $K$ fixed while sweeping $N$.
+3. **$1/\sqrt{K}$ scaling sanity check.** Sweep $N$ at fixed $K/N$ ratio with weights rescaled as $1/\sqrt{K}$ and verify that the regime is stable across $N$ — i.e. that we landed on the V&S balanced manifold, not on a substrate-specific operating point that happens to look like AI at one $N$. If it's truly V&S the per-neuron CV, rate, and PSD shape should all be $N$-invariant.
+4. **Chaos / Lyapunov measurement.** Compute the maximum Lyapunov exponent from a two-trajectory perturbation experiment: clone the network state at $t = 0$, perturb one copy infinitesimally, integrate both, and measure the exponential separation rate of their spike trains. AI predicts $\lambda_\text{max} > 0$ (perturbations decorrelate within ≈ one $\tau_\text{mem}$); PING predicts $\lambda_\text{max} \approx 0$ (perturbations get re-locked into the cycle).
