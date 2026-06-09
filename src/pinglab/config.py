@@ -140,6 +140,8 @@ def build_net(
     ei_layers=None,
     readout_mode="rate",
     trainable_w_ee=False,
+    trainable_w_ei=False,
+    trainable_w_ie=False,
     tbptt_window=None,
     n_inh_per_layer=None,
 ):
@@ -176,6 +178,10 @@ def build_net(
         kwargs["ei_layers"] = set(ei_layers)
     if trainable_w_ee:
         kwargs["trainable_w_ee"] = True
+    if trainable_w_ei:
+        kwargs["trainable_w_ei"] = True
+    if trainable_w_ie:
+        kwargs["trainable_w_ie"] = True
     if w_in is not None:
         kwargs["w_in"] = (*w_in, "normal", w_in_sparsity)
     if w_ee is not None:

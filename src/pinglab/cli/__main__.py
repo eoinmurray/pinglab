@@ -600,6 +600,20 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         "(default: frozen). W_ei / W_ie stay frozen. Use for working-"
         "memory tasks where the E attractor needs to learn.",
     )
+    wt_group.add_argument(
+        "--trainable-w-ei",
+        action="store_true",
+        help="Make COBANet's E→I matrix gradient-carrying (default: "
+        "frozen). Use to ask whether the optimiser would discover the "
+        "PING-loop weights from scratch.",
+    )
+    wt_group.add_argument(
+        "--trainable-w-ie",
+        action="store_true",
+        help="Make COBANet's I→E matrix gradient-carrying (default: "
+        "frozen). Use to ask whether the optimiser would discover the "
+        "PING-loop weights from scratch.",
+    )
     out_group = parent.add_argument_group("Output")
     out_group.add_argument("--out-dir", type=str, default=None, help="Output directory")
     out_group.add_argument(
@@ -1280,6 +1294,8 @@ if __name__ == "__main__":
             fr_reg_lower_strength=args.fr_reg_lower_strength,
             fr_reg_mode=args.fr_reg_mode,
             trainable_w_ee=args.trainable_w_ee,
+            trainable_w_ei=args.trainable_w_ei,
+            trainable_w_ie=args.trainable_w_ie,
             tbptt_window=args.tbptt_window,
         )
 

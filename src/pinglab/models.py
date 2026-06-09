@@ -477,6 +477,8 @@ class COBANet(SNNBase):
         ei_layers=None,
         readout_mode="rate",
         trainable_w_ee=False,
+        trainable_w_ei=False,
+        trainable_w_ie=False,
         n_inh_per_layer=None,
     ):
         super().__init__()
@@ -542,11 +544,13 @@ class COBANet(SNNBase):
             )
             p1, p2, d, s = _parse_weight_spec(w_ei, dist, sparsity)
             w_ei_t = nn.Parameter(
-                init_weight((n_e, n_i), d, p1, p2, s), requires_grad=False
+                init_weight((n_e, n_i), d, p1, p2, s),
+                requires_grad=trainable_w_ei,
             )
             p1, p2, d, s = _parse_weight_spec(w_ie, dist, sparsity)
             w_ie_t = nn.Parameter(
-                init_weight((n_i, n_e), d, p1, p2, s), requires_grad=False
+                init_weight((n_i, n_e), d, p1, p2, s),
+                requires_grad=trainable_w_ie,
             )
             self.W_ee[k] = w_ee_t
             self.W_ei[k] = w_ei_t

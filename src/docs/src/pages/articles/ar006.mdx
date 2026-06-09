@@ -7,11 +7,11 @@ structure: paper
 collection: documentation
 ---
 
-This page is the shared training recipe every model on the ladder uses — the gradient framework, the loss and optimiser, the tasks the networks are exercised against, and the pitfalls that bite across models.
+This page is the shared training recipe every model on the ladder uses — the gradient framework, the surrogate, the gradient-stabilisation flag, the loss and optimiser, the readout options, the firing-rate regulariser, and the tasks the networks are exercised against.
 
 ## Backpropagation through time
 
-Backpropagation Through Time (BPTT) is how gradients are computed in any network whose output at time $t$ depends on state from earlier timesteps. The idea is to *unroll* the recurrent computation into a deep feedforward graph and then run standard backpropagation through it.
+Backpropagation Through Time (BPTT) is how gradients are computed in any network whose output at time $t$ depends on state from earlier timesteps. The idea is to *unroll* the recurrent computation into a deep feedforward graph and run standard backpropagation through it.
 
 Consider a recurrent system with hidden state $h^t$ that evolves according to:
 
@@ -27,39 +27,37 @@ $$
 \frac{\partial \mathcal{L}}{\partial \theta_k} = \sum_{t=1}^T \frac{\partial \mathcal{L}}{\partial h^t} \cdot \frac{\partial h^t}{\partial \theta_k}
 $$
 
-Each $\partial \mathcal{L}/\partial h^t$ is itself recursive:
+The recursion contains a product of Jacobians $\partial h^{t+1}/\partial h^t$ across every timestep; if the Jacobian norms are consistently greater than 1, this product explodes exponentially in $T$, and if consistently less than 1, it vanishes.
 
-$$
-\frac{\partial \mathcal{L}}{\partial h^t} = \frac{\partial \mathcal{L}}{\partial h^{t+1}} \cdot \frac{\partial h^{t+1}}{\partial h^t} + \frac{\partial \mathcal{L}}{\partial y^t} \cdot \frac{\partial y^t}{\partial h^t}
-$$
-
-The backward pass marches from $t = T$ down to $t = 1$, accumulating gradient contributions at each step.
-
-The recursion contains a product of Jacobians $\partial h^{t+1}/\partial h^t$ across every timestep:
-
-$$
-\frac{\partial h^T}{\partial h^1} = \prod_{t=1}^{T-1} \frac{\partial h^{t+1}}{\partial h^t}
-$$
-
-If the Jacobian norms are consistently greater than 1, this product explodes exponentially in $T$; if consistently less than 1, it vanishes. Standard mitigations include gradient clipping, architectural choices that stabilise the Jacobian, and in the SNN setting, surrogate gradients that smooth the otherwise-discontinuous spike function.
-
-SNNs are a natural fit for BPTT: each timestep of the simulation is one step of the recursion, and the "hidden state" includes membrane potentials, synaptic conductances, and refractory counters. Simulating a 200 ms input at $\Delta t = 0.1$ ms gives $T = 2000$ unrolled steps — a very deep computation graph. Because SNNs have biophysical state variables with physical units ($V$ in mV, $g$ in μS), the Jacobians can be wildly scaled — voltage updates involve tiny factors like $\Delta t / C_m$, while surrogate gradients through spikes are $O(1)$. This is the origin of the gradient scale mismatch addressed by the dampening trick below.
+SNNs are a natural fit for BPTT: each timestep of the simulation is one step of the recursion, and the hidden state includes membrane potentials, synaptic conductances, and refractory counters. Simulating 200 ms at $\Delta t = 0.1$ ms gives $T = 2000$ unrolled steps. Biophysical state variables carry physical units (mV, μS), so the Jacobians can be wildly scaled — voltage updates involve tiny factors like $\Delta t / C_m$ while surrogate gradients through spikes are $O(1)$. This scale mismatch is the origin of the gradient-stabilisation flag below.
 
 ## Surrogate gradients
 
-The spike function $S = \mathbf{1}[U \geq \theta]$ has zero gradient almost everywhere, so backward passes use a surrogate. Pinglab uses fast-sigmoid (matching [snntorch.surrogate.fast_sigmoid](https://snntorch.readthedocs.io/en/latest/snntorch.surrogate.html); motivation and alternatives discussed in [Tutorial 5 § The Surrogate Gradient Approach](https://snntorch.readthedocs.io/en/latest/tutorials/tutorial_5.html)) with pseudo-derivative
+The spike function $S = \mathbf{1}[U \geq \theta]$ has zero gradient almost everywhere, so backward passes use a surrogate.
+
+Pinglab implements two surrogates:
+
+- **Fast-sigmoid** (`fast_sigmoid_spike`) — used by every model except CubaPingNet. Forward is the hard step, backward is
 
 $$
-\frac{\partial \tilde S}{\partial U}\bigg|_{U} = \frac{k}{(1 + k\,|U - \theta|)^2}
+\frac{\partial \tilde S}{\partial U} = \frac{k}{(1 + k\,|U - \theta|)^2}
 $$
 
-with slope $k = 1$ on both the biophysical path (mV-scale membrane) and the standard-snn path (dimensionless membrane). The snnTorch-library path uses the library default $k = 25$ — the asymmetry is deliberate and is part of what the parity test exposes. This keeps the forward dynamics exact while giving BPTT a usable gradient through the otherwise-discontinuous spike function.
+This matches snntorch's `FastSigmoid` surrogate so equal-$k$ comparisons against the snntorch reference are pure update-rule comparisons, not surrogate comparisons.
 
-## Gradient stabilisation for biophysical models
+- **Arctan** (`arctan_spike`) — used inside CubaPingNet for both the E and I spike emissions. Forward is the hard step, backward is
 
-The biophysical models (COBA, PING) face a gradient-scale problem. Naive backprop through a 2000-step trial produces NaN within a few batches. Pinglab handles this with the costate-control framework of [Burghi, Pugliese Carratelli & Rule 2024](https://arxiv.org/abs/2410.16627) ("Costate control for nonlinear system identification with applications to excitable systems"). The framework is general; the paper develops it for parameter identification of Hodgkin–Huxley-type models. We use it for SNN training, which is the same mathematical problem (BPTT through an excitable forward model) wearing different clothes.
+$$
+\frac{\partial \tilde S}{\partial U} = \frac{k}{1 + (k\pi\,(U - \theta))^2}
+$$
 
-This section builds up to two controllers, $K^{\text{prop}}$ and $K^{\text{gat}}$, both of which are exposed as CLI flags. The theory takes a few steps; the controllers themselves are one-line code changes.
+This decays faster than fast-sigmoid around threshold, which keeps the I-population's spike gradient from overwhelming the E-population gradient when both are far from threshold.
+
+Both surrogates take their slope from the module-level constant `SURROGATE_SLOPE = 5.0`, overridable per-run with `--surrogate-slope`.
+
+## Gradient stabilisation: `--v-grad-dampen`
+
+The biophysical models (COBA, PING) face a gradient-scale problem. Naive backprop through a 2000-step trial produces NaN within a few batches. Pinglab handles this with the costate-control framework of [Burghi, Pugliese Carratelli & Rule 2024](https://arxiv.org/abs/2410.16627) ("Costate control for nonlinear system identification with applications to excitable systems"), implemented as the single CLI flag `--v-grad-dampen`.
 
 ### Why the Jacobian blows up in excitable systems
 
@@ -69,7 +67,7 @@ $$
 \dot x = f_\theta(t, x, u), \qquad x = (V, g_e, g_i, \ldots),
 $$
 
-with $u(t)$ the input and $\theta$ the parameters (weights, time constants, etc.). The Jacobian $\nabla_x f_\theta$ describes how a small perturbation in any state variable propagates into all the others over one infinitesimal step. For a LIF neuron with conductance synapses, $\nabla_x f_\theta$ has the block structure
+with $u(t)$ the input and $\theta$ the parameters. The Jacobian $\nabla_x f_\theta$ has block structure
 
 $$
 \nabla_x f_\theta = \begin{pmatrix}
@@ -78,107 +76,42 @@ $$
 \end{pmatrix}.
 $$
 
-The diagonal blocks decay (the membrane and conductance both have leak terms). The **off-diagonal** blocks are the cross-coupling: $\partial \dot V / \partial g$ is the synaptic drive into the membrane (large during spikes), $\partial \dot g / \partial V$ is the voltage's feedback into the conductance (small but nonzero through reversal-potential terms). It's the off-diagonal block that has the destabilising spectrum — large transient eigenvalue magnitudes during firing events, which is the *very feature* that lets the neuron spike fast.
+The diagonal blocks decay (membrane and conductance both have leak terms). The *off-diagonal* blocks are the cross-coupling and carry the destabilising spectrum — large transient eigenvalues during firing events, which is the very feature that lets the neuron spike fast. Chained across $T = 2000$ steps the product blows up by many orders of magnitude.
 
-For training, we don't just need $\nabla_x f_\theta$ at one moment; we need to chain it across every timestep in the trial. The product $\prod_{t=1}^T \nabla_x f_\theta(t)$ accumulates the off-diagonal explosion exponentially in $T$. For a $\Delta t = 0.1$ ms simulation of a 200 ms trial, $T = 2000$ — the product blows up by many orders of magnitude.
+### The costate equation
 
-### The costate (adjoint) equation
-
-BPTT computes parameter gradients by running an adjoint equation backward in time. Define the *costate* $\lambda(t) \in \mathbb{R}^d$, initialised at the loss's gradient with respect to the terminal state:
+BPTT computes parameter gradients by running an adjoint equation backward in time. Define the *costate* $\lambda(t) \in \mathbb{R}^d$:
 
 $$
 \lambda(T) = \nabla_{x(T)} \mathcal{L}, \qquad
 \dot \lambda(t) = -\nabla_x f_\theta(t, x, u)^\top \lambda(t).
 $$
 
-The parameter gradient is then the integral $\nabla_\theta \mathcal{L} = -\int_0^T \nabla_\theta f_\theta^\top \lambda \, dt$. This is exactly what PyTorch's autograd computes when you call $\mathcal{L}.\mathrm{backward}()$ on a network unrolled in time, just stated as a continuous ODE rather than a discrete chain rule.
+This is exactly what PyTorch's autograd computes; the costate equation is linear in $\lambda$ with time-varying coefficient $\nabla_x f_\theta$, so its solution norm tracks the integrated exponent of the Jacobian and blows up whenever $\nabla_x f_\theta$ has large transient eigenvalues.
 
-The costate equation is *linear in $\lambda$*, with time-varying coefficient $\nabla_x f_\theta$. Its solution norm therefore tracks the integrated exponent of the Jacobian:
+### Costate control — proportional high-gain
 
-$$
-\|\lambda(0)\| \leq \|\lambda(T)\| \cdot \exp\!\left(\int_0^T \|\nabla_x f_\theta(t)\|\,dt\right).
-$$
-
-If $\nabla_x f_\theta$ has any large transient eigenvalues — as it does during spikes — the costate blows up between $t = T$ and $t = 0$, and the parameter gradient comes out either NaN or astronomically large.
-
-### Costate control
-
-The fix is to modify the costate equation — and *only* the costate equation, not the forward pass — by adding a controller $K_\theta(t, x)$:
+Burghi et al. modify the costate equation — and *only* the costate equation, not the forward pass — by adding a controller $K_\theta(t, x)$:
 
 $$
 \dot \lambda = -[\nabla_x f_\theta + K_\theta(t, x)]^\top \lambda.
 $$
 
-If we choose $K_\theta$ so that the operator $\nabla_x f_\theta + K_\theta$ has eigenvalues with sufficiently negative real parts (*exponentially contracting*), the costate $\lambda(t)$ stays bounded by a $K_\theta$-controlled exponential as $t$ marches backward — independent of how badly $\nabla_x f_\theta$ alone would have blown up.
-
-The forward dynamics are unchanged. The forward state $x(t)$ is identical with or without the controller. Only the *gradient flow* is modified — backward propagation now respects a different effective Jacobian.
-
-This breaks any naïve identification of "the gradient" with "the true gradient": we're computing a *surrogate* gradient. The interesting question is whether descending on the surrogate still converges to the right answer.
-
-### Proposition 1 — same fixed points
-
-The paper's key theoretical result is that controlled costate descent has the same critical points as true gradient descent. Let $\theta^\star$ be a stationary point of the original loss, i.e. $\nabla_\theta \mathcal{L}(\theta^\star) = 0$. Burghi et al. prove: the controlled gradient (computed by the modified costate) also vanishes at $\theta^\star$, provided $K_\theta$ is chosen so the modified costate is uniformly bounded.
-
-The intuition: at $\theta^\star$ the true costate $\lambda$ produces a parameter integral that integrates to zero. The controller $K_\theta$ deforms $\lambda$ along the trial, but doesn't add any new sources of bias — at the global optimum the modified $\lambda$ also integrates to zero through $\nabla_\theta f_\theta$. The path through $\theta$-space gets reshaped; the destination doesn't.
-
-This is what makes costate control different from blunt tricks like aggressive gradient clipping. Clipping changes where the optimiser converges to (a clipped gradient is a different vector field). $K_\theta$ converges to the same place — it just takes a different route there. In particular, no fictitious local minima.
-
-### Two controller designs
-
-Burghi et al. propose two specific choices for $K_\theta$:
-
-**$K^{\text{prop}}$** — proportional high-gain. Pick a scalar $\gamma > 0$ and set $K_\theta(t, x) = -\gamma I$. The controller is constant; it scales every component of the costate equation uniformly. The resulting modified Jacobian has eigenvalues shifted by $-\gamma$, which guarantees exponential contraction as long as $\gamma > \max_t \mathrm{Re}(\text{eig}(\nabla_x f_\theta))$.
-
-Pinglab's *--v-grad-dampen* flag is the discrete-time analogue: scale the backward voltage gradient by $1/\gamma$ at every timestep, with $\gamma$ around 80 for unitless models and 1000 for COBA/PING:
+Pinglab implements the simplest controller they describe: proportional high-gain. Pick a scalar $\gamma > 0$ and scale the backward voltage gradient by $1/\gamma$ at every timestep:
 
 $$
 \frac{\partial \mathcal{L}}{\partial V_i^t} \leftarrow \frac{1}{\gamma}\,\frac{\partial \mathcal{L}}{\partial V_i^t}.
 $$
 
-This works — it eliminates the NaN — but it's *uniform*. It attenuates the diagonal voltage gradient (which we wanted to keep) by the same factor as the destabilising off-diagonal block (which we wanted to suppress). The loss landscape becomes uniformly smoother. Empirically, large $\gamma$ silently caps achievable accuracy; the controller's gain is so high that useful first-order information is washed out along with the explosion.
+In code this is one line — `_scale_grad(dv, 1.0 / v_grad_dampen)` inside the LIF step. Typical values are $\gamma \approx 80$ for the unitless standard SNN and $\gamma \approx 1000$ for COBA/PING; the latter is what the canonical recipes in [nb025](/notebooks/nb025/) and downstream use.
 
-**$K^{\text{gat}}$** — gating-based. Pick $\alpha \in [0, 1]$ and define $K_\theta$ to act *only* on the off-diagonal block of $\nabla_x f_\theta$, scaling it by $(1 - \alpha)$ and leaving the diagonal alone:
+The forward dynamics are unchanged. The forward state $x(t)$ is identical with or without the controller; only the *gradient flow* is modified. Burghi et al.'s Proposition 1 establishes that controlled costate descent has the same critical points as true gradient descent provided $K_\theta$ is chosen so the modified costate is uniformly bounded — Adam converges to the same place, it just takes a different route. This is why proportional high-gain is not just gradient clipping in disguise: clipping changes the vector field; $K^{\text{prop}}$ preserves the fixed points.
 
-$$
-\nabla_x f_\theta + K^{\text{gat}}_\theta =
-\begin{pmatrix}
-\partial \dot V / \partial V & \alpha\,\partial \dot V / \partial g \\
-\alpha\,\partial \dot g / \partial V & \partial \dot g / \partial g
-\end{pmatrix}.
-$$
-
-At $\alpha = 1$ the controller is identity (no modification — bit-exact plain BPTT). At $\alpha = 0$ the cross-coupling is fully blocked and only the diagonal contributes. Useful values sit around $\alpha \in [0.3, 0.7]$ — enough to tame the off-diagonal explosion, not so much that the optimiser loses the cross-coupling signal entirely.
-
-Two properties make $K^{\text{gat}}$ work in practice. First, the diagonal gradient through voltage (the leak / refractory pathway) is *untouched* — Adam still sees a clean signal there. Second, the parameter gradient $\nabla_\theta f_\theta$ is also untouched — the controller acts on the costate dynamics, not on the integral that produces $\nabla_\theta \mathcal{L}$. Both are how $K^{\text{gat}}$ retains landscape structure that $K^{\text{prop}}$ flattens.
-
-### Implementing $K^{\text{gat}}$ as a one-line scale-grad
-
-The discrete-time implementation drops out of the structure of LIF + COBA. At each timestep the LIF step takes $(V^t, g_e^t, g_i^t)$ as input and emits $(V^{t+1}, g_e^{t+1}, g_i^{t+1}, S^{t+1})$. The off-diagonal block of $\nabla_x f_\theta$ is precisely the gradient that flows from $V^{t+1}$ *back into* $g_e^t$ and $g_i^t$. So scaling only the gradient that the conductance receives from downstream voltage achieves the $K^{\text{gat}}$ effect.
-
-In PyTorch this is a custom autograd op: $\mathrm{ScaleGrad}(x, \alpha)$ is identity in the forward pass and multiplies its gradient by $\alpha$ in the backward pass. Wrap the combined conductance term immediately before it enters the LIF step:
-
-$$
-g_e^{\text{step}} = \mathrm{ScaleGrad}(g_e, \alpha), \qquad
-V^{t+1}, S^{t+1} = \mathrm{LIF\,step}(V^t, g_e^{\text{step}}, g_i^{\text{step}}).
-$$
-
-Forward: $g_e^{\text{step}} = g_e$. Backward: $\partial \mathcal{L} / \partial g_e \leftarrow \alpha \cdot \partial \mathcal{L} / \partial g_e$. That's the entire implementation. Pinglab exposes the flag pair *--sgcc / --sgcc-alpha*. Bit-exact parity with plain COBA at $\alpha = 1$ is verified in the smoke tests.
-
-### Empirical validation
-
-A head-to-head comparison — same network, same recipe, same seed, *--v-grad-dampen 1000* replaced with *--sgcc --sgcc-alpha 0.5* — tests the prediction directly. Through the first ~10 epochs the two training curves are visually indistinguishable: both descend from CE loss $\sim 2.3$ to $\sim 0.55$, both reach $\sim 84\%$ test accuracy. This matches Proposition 1's prediction: same optimum, similar path early.
-
-Past epoch 10 the V_GRAD_DAMPEN baseline plateaus; SGCC continues to descend and reaches 87.75% by epoch 20. The 3.5 pp gap is the cost of $K^{\text{prop}}$'s uniformity — the global dampener was silently throttling the diagonal pathway too. $K^{\text{gat}}$ keeps the diagonal sharp while taming only what needed taming.
-
-The trained-network rasters corroborate the dynamical equivalence: the SGCC and V_GRAD_DAMPEN baselines arrive at indistinguishable operating points (~85 Hz E, asynchronous-dense, silent I) via different optimisation paths.
-
-### Choosing between them
-
-*--v-grad-dampen* is the simpler instrument — one scalar, no autograd subclass — and is what to use when you just need the network not to NaN. *--sgcc* is what to reach for when V_GRAD_DAMPEN is silently capping accuracy, on longer-trial tasks where preserving cross-coupling gradient matters (working memory, sequence problems), or whenever you want the gradient to behave the way the underlying optimisation problem wants it to. Both are flag-level changes; nothing else in the recipe needs to move.
+The cost of the uniform scaling is that the diagonal voltage gradient — the leak/refractory pathway, which we'd rather keep — is attenuated by the same factor as the destabilising off-diagonal block we wanted to suppress. Empirically, large $\gamma$ can silently cap achievable accuracy. The fix is to use the smallest $\gamma$ that still prevents NaN; on long-trial tasks this is open future work.
 
 ## The training loop
 
-The network output (spike-count readout, unified across all models) is treated as logits and passed to cross-entropy loss:
+The network output is passed to cross-entropy loss:
 
 $$
 L_\text{CE} = -\frac{1}{B}\sum_{b=1}^{B} \log \frac{\exp(\hat y_{b,\,c_b})}{\sum_k \exp(\hat y_{b,k})}
@@ -186,19 +119,28 @@ $$
 
 where $B$ is the batch size, $\hat y_b$ is the logit vector for sample $b$, and $c_b$ is the true class. Chance-level loss on a 10-class problem is $\ln 10 \approx 2.30$.
 
-The optimiser is Adam with an optional ReduceLROnPlateau scheduler, or the --adaptive-lr schedule which divides the learning rate by 10 after epoch 20. Gradients are clipped to unit norm before each step.
+The optimiser is Adam. Gradients are clipped to unit norm (`GRAD_CLIP = 1.0`) before each step. The best model state (by test accuracy) is saved at each epoch; the saved `weights.pth` is the *best-epoch* state, not the final-epoch state.
 
-The best model state (by test accuracy) is saved at each epoch. Training terminates early if accuracy has not improved for a configurable number of epochs (default patience: 15). The saved weights.pth is the *best-epoch* state, not the final-epoch state.
+## Readout
 
-## Linear readout
+The linear readout is configurable via `--readout`. Four modes are available:
 
-Every model in the ladder uses the same output head: accumulate last-hidden-layer spikes over the trial and project through a trained linear layer.
+- **`spike-count`** — accumulate last-hidden spikes over the trial and project linearly. $\hat y = (\sum_t s^{\text{hid}}_t)\, W_\text{out} + b_\text{out}$. Equivalent to spike-rate up to a constant.
+- **`mem-mean`** — pass spikes through a final LIF without resetting and average its membrane potential across the trial. This is the default for the COBA/PING recipes and is what [nb025](/notebooks/nb025/) and the streaming entries use.
+- **`li`** — leaky integrator: a non-spiking LIF whose final-step membrane potential is the logit.
+- **`rate`** — softmax over per-trial spike rates.
+
+The readout choice is one of the few knobs that changes where in the network the gradient enters. `mem-mean` lets gradient flow through the output LIF's membrane state at every timestep; `spike-count` only sees the aggregate.
+
+## Firing-rate regularisation
+
+Many recipes add a penalty on excessive or insufficient hidden firing via `--fr-reg-upper-theta`, `--fr-reg-upper-strength`, and the matching `lower` pair. The penalty is
 
 $$
-\hat y_t = \Bigl(\sum_{s \leq t} s^{\text{hid}}_s\Bigr) W_{\text{out}} + b_{\text{out}}
+\mathcal{L}_\text{fr} = s_u \cdot \mathrm{ReLU}(\bar r - \theta_u) + s_l \cdot \mathrm{ReLU}(\theta_l - \bar r)
 $$
 
-No output-layer spiking dynamics, no softmax — logits are read out at each step and the final $\hat y_{T}$ is used for cross-entropy loss. Shared readout means any accuracy gap across the ladder cannot localise to the output.
+where $\bar r$ is the per-layer mean firing rate (per-neuron or population, set by `--fr-reg-mode`). It's the mechanism behind the $\theta_u$ sweeps in [nb025](/notebooks/nb025/) and the rate-floor framing in [ar009](/articles/ar009/) / [ar010](/articles/ar010/).
 
 ## Weight init
 
@@ -208,19 +150,19 @@ $$
 W \sim \mathcal{N}(\mu, \sigma^2), \qquad W \leftarrow W / N_{\text{pre}}
 $$
 
-with optional sparsity $s \in [0, 1)$: a fraction $s$ of entries are zeroed, and surviving entries are rescaled by $1/(1-s)$ so that total expected synaptic input per post-neuron is preserved. Under Dale's law ($\mu \geq 0$, clamp $< 0$ to $0$), signs are fixed at init and the forward pass re-clamps on every step.
+with optional sparsity $s \in [0, 1)$: a fraction $s$ of entries are zeroed and surviving entries are rescaled by $1/(1-s)$ so the total expected synaptic input per post-neuron is preserved.
 
 ## Dale's law under Adam
 
-When Dale's law is enforced, weight matrices are clamped to $W \geq 0$ in the forward pass. Gradients still flow through the unclamped parameters, so Adam can push a weight below zero — but it will be clipped back to zero on the next forward pass. The optimiser explores the full real line; the network only ever sees non-negative weights.
+When Dale's law is enforced, weight matrices are clamped to $W \geq 0$ in the forward pass *and* explicitly projected back into the non-negative cone by `project_dales()` after every optimiser step. The forward clamp keeps the simulation honest; the post-step projection keeps the trainable parameters themselves from drifting arbitrarily far into the negative orthant under Adam's momentum.
 
 ## Tasks and inputs
 
-The models are exercised against three classes of input: synthetic drive for probing PING dynamics in isolation, synthetic spike trains for a spiking input with no spatial structure, and real image datasets for classification.
+The models are exercised against three classes of input.
 
 ### Synthetic conductance
 
-Direct conductance injection into layer-1 E neurons, used for baseline oscillation studies where we want to study PING dynamics in isolation from any encoding stage. Drive is generated Börgers-style as a step function with per-neuron heterogeneity $X_i$ plus an Ornstein–Uhlenbeck noise process:
+Direct conductance injection into layer-1 E neurons, used for baseline oscillation studies where we want PING dynamics in isolation from any encoding stage. Drive is generated Börgers-style as a step function with per-neuron heterogeneity $X_i$ plus an Ornstein–Uhlenbeck noise process:
 
 $$
 g_i^{\text{ext}}(t) = T_E(t)(1 + \sigma_e X_i) + \eta_i(t)
@@ -232,14 +174,14 @@ where $T_E$ switches between async and PING-regime values during a stimulus wind
 
 Poisson spike trains over $N_{\text{in}}$ input neurons with a rate that steps between a baseline and a stimulus level during a fixed window. Used when we want a spiking input with no spatial structure.
 
-### Image datasets
+### Image and audio datasets
 
-Supported datasets are scikit-digits ($8 \times 8$, 10 classes), MNIST ($28 \times 28 = 784$), and sequential MNIST. Pixels become Poisson spike trains. For a pixel with normalised intensity $x \in [0, 1]$, input neuron $i$ fires a Bernoulli spike at each step with probability
+Supported datasets are scikit-digits ($8 \times 8$, 10 classes), MNIST ($28 \times 28 = 784$, 10 classes), and SHD (Spiking Heidelberg Digits, 700 channels, 20 classes). MNIST pixels become Poisson spike trains: for a pixel with normalised intensity $x \in [0, 1]$, input neuron $i$ fires a Bernoulli spike at each step with probability
 
 $$
 p_i(t) = x_i \cdot r_{\max} \cdot \Delta t / 1000, \qquad r_{\max} = 25 \text{ Hz}
 $$
 
-so the per-neuron firing rate is $x_i \cdot r_{\max}$ Hz, independent of $\Delta t$. The resulting $(T, B, N_{\text{in}})$ binary tensor is the model's only input; stimulus duration is $T_{\text{ms}} = 1000$ ms for image tasks. Because encoding is stochastic, the network sees a different spike realisation of the same image every epoch — a form of data augmentation intrinsic to the rate code. At evaluation time, a seeded torch.Generator is threaded through the encoder so train-time eval and standalone infer on the same weights produce identical spike trains.
+so the per-neuron rate is $x_i \cdot r_{\max}$ Hz, independent of $\Delta t$. Default trial length is $T_\text{ms} = 200$ ms. Encoding is stochastic so the network sees a different spike realisation of the same image every epoch — a form of data augmentation intrinsic to the rate code. At evaluation time, a seeded `torch.Generator` is threaded through the encoder so train-time eval and standalone infer on the same weights produce identical spike trains.
 
-Sequential MNIST (sMNIST) presents each $28 \times 28$ image row-by-row: at each moment only the 28 pixels of the current row are presented, for $t_{\text{row}} = 10$ ms, giving a $T = 280$ ms sample with $N_{\text{in}} = 28$. This is the standard ML benchmark for temporal credit assignment in SNNs. Because the 28-neuron bottleneck is too narrow to classify from, sMNIST runs require $\geq 2$ hidden layers and recurrence on at least one of them.
+SHD ships as spike trains directly, so no encoder is needed; the trial is the recording.
