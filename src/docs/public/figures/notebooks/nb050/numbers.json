@@ -1,6 +1,6 @@
 {
-  "notebook_run_id": "r014",
-  "duration_s": 5.1,
+  "notebook_run_id": "r015",
+  "duration_s": 4.8,
   "tier": "small",
   "common_args": [
     "image",
@@ -53,7 +53,8 @@
       "i_rate_hz": 31.09808921813965,
       "median_isi_cv_e": 0.6221292690755034,
       "median_isi_cv_i": 0.026036784008114846,
-      "f_psd_peak_hz": 30.971435190810247
+      "f_psd_peak_hz": 30.971435190810247,
+      "peak_abs_xcorr_e": 0.04122902273163091
     },
     {
       "cell": "ai",
@@ -61,7 +62,8 @@
       "i_rate_hz": 29.04513931274414,
       "median_isi_cv_e": 0.9707880768809418,
       "median_isi_cv_i": 1.0755435460765645,
-      "f_psd_peak_hz": 129.79733700644897
+      "f_psd_peak_hz": 129.79733700644897,
+      "peak_abs_xcorr_e": 0.010103445639660728
     }
   ]
 }

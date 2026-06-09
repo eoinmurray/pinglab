@@ -128,6 +128,67 @@ def _population_psd(spk_2d: np.ndarray, dt_ms: float):
     return freqs, psd, f_peak
 
 
+def _pair_cross_correlogram(
+    spk_2d: np.ndarray, dt_ms: float, *,
+    n_pairs: int = 100, max_lag_ms: float = 100.0, bin_ms: float = 1.0,
+    seed: int = 0,
+):
+    """Sample ``n_pairs`` random distinct cell pairs and compute their
+    mean cross-correlogram (Pearson correlation between binned spike
+    trains) over lags ∈ [-max_lag_ms, +max_lag_ms]. Returns:
+
+    - lags_ms: 1-D array of lag centres in ms
+    - mean_corr: cross-correlation averaged across pairs
+    - peak_abs: max(|mean_corr|) across all lags — the single-number
+      summary. V&S AI predicts peak_abs → 0 (≈ 1/√K); PING predicts a
+      strong peak at lag 0 (and ±1/f_γ harmonics).
+    """
+    from scipy import signal as sp_signal
+    T, N = spk_2d.shape
+    if N < 2 or T == 0:
+        return np.array([0.0]), np.array([0.0]), 0.0
+
+    bin_steps = max(1, int(round(bin_ms / dt_ms)))
+    n_bins = T // bin_steps
+    if n_bins < 2:
+        return np.array([0.0]), np.array([0.0]), 0.0
+    binned = (
+        spk_2d[: n_bins * bin_steps]
+        .reshape(n_bins, bin_steps, N)
+        .sum(axis=1)
+        .astype(np.float64)
+    )
+
+    active = np.where(binned.sum(axis=0) > 0)[0]
+    if active.size < 2:
+        return np.array([0.0]), np.array([0.0]), 0.0
+
+    max_lag_bins = int(max_lag_ms / bin_ms)
+    lags_ms = np.arange(-max_lag_bins, max_lag_bins + 1) * bin_ms
+    rng = np.random.default_rng(seed)
+    n_pairs = int(min(n_pairs, active.size * (active.size - 1) // 2))
+
+    accum = np.zeros(2 * max_lag_bins + 1, dtype=np.float64)
+    n_used = 0
+    for _ in range(n_pairs):
+        i, j = rng.choice(active, size=2, replace=False)
+        si = binned[:, i] - binned[:, i].mean()
+        sj = binned[:, j] - binned[:, j].mean()
+        norm = np.sqrt((si * si).sum() * (sj * sj).sum())
+        if norm == 0:
+            continue
+        full = sp_signal.correlate(si, sj, mode="full", method="fft")
+        center = n_bins - 1
+        accum += full[center - max_lag_bins: center + max_lag_bins + 1] / norm
+        n_used += 1
+
+    if n_used == 0:
+        return lags_ms, np.zeros_like(lags_ms), 0.0
+    mean_corr = accum / n_used
+    peak_abs = float(np.max(np.abs(mean_corr)))
+    return lags_ms, mean_corr, peak_abs
+
+
 def _isi_cvs(spk_2d: np.ndarray, dt_ms: float, min_spikes: int = 3) -> np.ndarray:
     """Per-neuron coefficient of variation of inter-spike intervals.
 
@@ -161,27 +222,29 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     has_i = spk_i.size > 0 and spk_i.shape[0] == T and spk_i.any()
 
     if has_i:
-        fig = plt.figure(figsize=(9.0, 8.0), dpi=150)
+        fig = plt.figure(figsize=(9.0, 9.5), dpi=150)
         gs = GridSpec(
-            4, 1, figure=fig,
-            height_ratios=[4.0, 1.2, 2.6, 1.6],
-            hspace=0.85, top=0.94, bottom=0.06, left=0.12, right=0.97,
+            5, 1, figure=fig,
+            height_ratios=[4.0, 1.2, 2.4, 1.6, 1.8],
+            hspace=0.95, top=0.94, bottom=0.05, left=0.12, right=0.97,
         )
         ax_e = fig.add_subplot(gs[0])
         ax_i = fig.add_subplot(gs[1], sharex=ax_e)
         ax_psd = fig.add_subplot(gs[2])
         ax_cv = fig.add_subplot(gs[3])
+        ax_xcorr = fig.add_subplot(gs[4])
     else:
-        fig = plt.figure(figsize=(9.0, 6.5), dpi=150)
+        fig = plt.figure(figsize=(9.0, 8.0), dpi=150)
         gs = GridSpec(
-            3, 1, figure=fig,
-            height_ratios=[4.0, 2.6, 1.6],
-            hspace=0.55, top=0.94, bottom=0.08, left=0.12, right=0.97,
+            4, 1, figure=fig,
+            height_ratios=[4.0, 2.4, 1.6, 1.8],
+            hspace=0.70, top=0.94, bottom=0.06, left=0.12, right=0.97,
         )
         ax_e = fig.add_subplot(gs[0])
         ax_i = None
         ax_psd = fig.add_subplot(gs[1])
         ax_cv = fig.add_subplot(gs[2])
+        ax_xcorr = fig.add_subplot(gs[3])
 
     # E raster
     e_idx, e_t = np.where(spk_e.T)
@@ -269,6 +332,28 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     ax_cv.set_title("Per-neuron ISI coefficient of variation",
                     loc="left", fontsize=theme.SIZE_LABEL, pad=4)
 
+    # Mean pairwise cross-correlogram on E cells.
+    lags_ms, xcorr, peak_abs = _pair_cross_correlogram(spk_e, dt)
+    ax_xcorr.plot(lags_ms, xcorr, color=theme.INK_BLACK, lw=1.2)
+    ax_xcorr.axhline(0.0, color=theme.GREY_MID, lw=0.6, alpha=0.7)
+    ax_xcorr.axvline(0.0, color=theme.GREY_MID, lw=0.6, alpha=0.7)
+    ax_xcorr.set_xlim(lags_ms[0], lags_ms[-1])
+    ax_xcorr.set_xlabel("lag (ms)")
+    ax_xcorr.set_ylabel("mean pairwise C(τ)")
+    ax_xcorr.spines["top"].set_visible(False)
+    ax_xcorr.spines["right"].set_visible(False)
+    ax_xcorr.set_title(
+        "Pairwise spike-train cross-correlation (100 random E pairs)",
+        loc="left", fontsize=theme.SIZE_LABEL, pad=4,
+    )
+    ax_xcorr.text(
+        0.99, 0.95,
+        f"peak |C| = {peak_abs:.3f}",
+        transform=ax_xcorr.transAxes, ha="right", va="top",
+        fontsize=theme.SIZE_LABEL - 1, color=theme.LABEL,
+        fontweight="semibold",
+    )
+
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -321,6 +406,7 @@ def main() -> None:
         med_cv_e = float(np.median(cvs_e)) if cvs_e.size > 0 else float("nan")
         med_cv_i = float(np.median(cvs_i)) if cvs_i.size > 0 else float("nan")
         _, _, f_peak = _population_psd(spk_e, dt)
+        _, _, peak_abs_xcorr = _pair_cross_correlogram(spk_e, dt)
         summary_rows.append({
             "cell": cell,
             "e_rate_hz": e_rate,
@@ -328,6 +414,7 @@ def main() -> None:
             "median_isi_cv_e": med_cv_e,
             "median_isi_cv_i": med_cv_i,
             "f_psd_peak_hz": f_peak,
+            "peak_abs_xcorr_e": peak_abs_xcorr,
         })
 
     duration_s = time.monotonic() - t_start
