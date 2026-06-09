@@ -12,7 +12,7 @@ import pytest
 
 pytestmark = pytest.mark.slow
 
-OSC = "uv run python src/pinglab/cli/cli.py"
+OSC = "uv run python src/cli/cli.py"
 
 
 @pytest.fixture(scope="module")
