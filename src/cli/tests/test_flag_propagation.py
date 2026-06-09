@@ -613,3 +613,31 @@ def test_independent_drive_i_raises_i_rate():
     assert i_on > i_off, (
         f"--independent-drive-i did not raise I rate: off={i_off}, on={i_on}"
     )
+
+
+@pytest.mark.slow
+def test_lyapunov_eps_writes_divergence_to_npz(tmp_path):
+    """--lyapunov-eps reruns the perturbed copy and saves a spike-train
+    divergence curve (lyap_dist) to snapshot.npz."""
+    import numpy as np
+
+    out = tmp_path / "lyap"
+    out.mkdir()
+    _run_cli(
+        "image",
+        "--model", "ping", "--input", "synthetic-spikes",
+        "--t-ms", "300", "--input-rate", "20",
+        "--w-in", "1.5", "0.3", "--ei-strength", "1.5",
+        "--lyapunov-eps", "2.0",
+        "--out-dir", str(out),
+    )
+    npz = out / "snapshot.npz"
+    if not npz.exists():
+        # synthetic-spikes mode writes to the oscilloscope artifact dir by
+        # default; fall back to the repo-standard location.
+        npz = Path("src/artifacts/oscilloscope/snapshot.npz")
+    data = np.load(npz)
+    assert "lyap_dist" in data, "lyap_dist missing from snapshot.npz"
+    assert "lyap_t_ms" in data
+    assert data["lyap_dist"].shape == data["lyap_t_ms"].shape
+    assert data["lyap_dist"].max() >= 0

@@ -126,6 +126,7 @@ def generate_snapshot(
 def generate_spike_snapshot(
     spike_rate=None, overdrive=12.0, dt=None, model_name="ping",
     independent_drive=None, independent_drive_i=None,
+    lyapunov_eps=0.0,
 ):
     """Generate a snapshot with synthetic spike input.
 
@@ -137,6 +138,15 @@ def generate_spike_snapshot(
     ``independent_drive_i``: same as above but targeting the I population's
     excitatory conductance. Required for the full V&S-AI state where
     I cells need uncorrelated noise distinct from the E-mediated W^EI input.
+
+    ``lyapunov_eps``: if > 0, run a second forward pass on the *same* input
+    with all membrane voltages perturbed by an ε-mV random offset at t=0,
+    then save the per-timestep *spike-train* divergence D(t) = number of E
+    cells whose spike differs between the clean and perturbed copy (keys
+    lyap_t_ms / lyap_dist / lyap_eps). Spike-train divergence (not ‖ΔV‖) is
+    the right measure for spiking nets: the reset contracts voltage between
+    spikes, so chaos lives in spike-flip events. D(t) grows for the chaotic
+    V&S balanced state and stays bounded / re-locks for cycle-locked PING.
     """
     import config as C
 
@@ -207,6 +217,33 @@ def generate_spike_snapshot(
         net.forward(input_spikes=input_spikes, ext_g=tonic_g, ext_g_i=tonic_g_i)
 
     rec = _extract_records(net)
+
+    # Lyapunov check: rerun on identical input with an ε-perturbed initial
+    # membrane state and measure how fast the two *spike trains* diverge.
+    # Done before downstream record mutation so `rec` still holds the clean
+    # run's E spikes.
+    lyap_t_ms = lyap_dist = None
+    if lyapunov_eps > 0:
+        hid_k = primary_hid_key(rec)
+        s_clean = np.asarray(rec[hid_k])  # (T, B, N_E) or (T, N_E)
+        with torch.no_grad():
+            net.forward(
+                input_spikes=input_spikes, ext_g=tonic_g, ext_g_i=tonic_g_i,
+                v_perturb_eps=float(lyapunov_eps), v_perturb_seed=C.SEED + 7,
+            )
+        rec_p = _extract_records(net)
+        s_pert = np.asarray(rec_p[hid_k])
+        n_t = min(s_clean.shape[0], s_pert.shape[0])
+        # D(t) = number of E cells whose spike state differs at step t.
+        diff = (s_clean[:n_t] != s_pert[:n_t]).reshape(n_t, -1)
+        lyap_dist = diff.sum(axis=1).astype(np.float64)
+        lyap_t_ms = np.arange(n_t) * dt
+        log.info(
+            f"  + lyapunov ε={lyapunov_eps:g} mV: "
+            f"spike-diff D {lyap_dist[0]:.0f} → {lyap_dist[-1]:.0f} cells "
+            f"(max {lyap_dist.max():.0f})"
+        )
+
     spk_e = rec[primary_hid_key(rec)][burn_steps:]
     spk_i = rec[primary_inh_key(rec)][burn_steps:] if primary_inh_key(rec) else None
     spk_o = rec.get("out")
@@ -257,6 +294,10 @@ def generate_spike_snapshot(
     for key in ("v_e_1", "ge_e_1", "gi_e_1", "v_i_1", "ge_i_1"):
         if key in rec:
             extra[key] = np.asarray(rec[key])
+    if lyap_dist is not None:
+        extra["lyap_t_ms"] = np.asarray(lyap_t_ms)
+        extra["lyap_dist"] = np.asarray(lyap_dist)
+        extra["lyap_eps"] = np.float32(lyapunov_eps)
     np.savez(
         npz_path,
         spk_e=np.asarray(spk_e),

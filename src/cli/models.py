@@ -595,6 +595,8 @@ class COBANet(SNNBase):
         ext_g_i=None,
         drive_sigma=0.0,
         input_spikes=None,
+        v_perturb_eps=0.0,
+        v_perturb_seed=0,
     ):
         has_ext_g = ext_g is not None
         has_ext_g_i = ext_g_i is not None
@@ -656,6 +658,28 @@ class COBANet(SNNBase):
                 drive_gains[k] = (
                     1.0 + drive_sigma * torch.randn(B, n_e, device=device)
                 ).clamp(min=0)
+
+        # Lyapunov perturbation: add a fixed-norm random offset to every
+        # membrane voltage at t=0 so a second forward pass on identical
+        # input diverges only by the chaos of the dynamics. Seeded so the
+        # perturbation is reproducible across the clean/perturbed pair.
+        if v_perturb_eps > 0:
+            pgen = torch.Generator(device="cpu").manual_seed(int(v_perturb_seed))
+            for i in range(1, self.n_layers + 1):
+                k = str(i)
+                dv = (
+                    torch.randn(
+                        v_e[k].shape, generator=pgen
+                    ).to(device) * v_perturb_eps
+                )
+                v_e[k] = v_e[k] + dv
+                if k in v_i:
+                    dvi = (
+                        torch.randn(
+                            v_i[k].shape, generator=pgen
+                        ).to(device) * v_perturb_eps
+                    )
+                    v_i[k] = v_i[k] + dvi
 
         # Output: cumulative last-hidden-layer spikes → linear decoder
         # (Same readout as CUBANet — no output spiking neurons, no

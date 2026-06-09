@@ -49,6 +49,12 @@ COMMON_ARGS = [
     "--model", "ping",
     "--input", "synthetic-spikes",
     "--t-ms", "1000",
+    # Lyapunov / chaos probe: rerun on identical frozen input with an
+    # ε = 2 mV initial membrane perturbation and record the spike-train
+    # divergence D(t). PING re-locks to D = 0 (stable limit cycle);
+    # AI sustains a small slowly-growing divergence (weak intrinsic chaos
+    # riding on top of input entrainment).
+    "--lyapunov-eps", "2.0",
 ]
 CELLS: dict[str, dict] = {
     "ping": {
@@ -522,6 +528,48 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     plt.close(fig)
 
 
+def plot_lyapunov(lyap_by_cell: dict, out_path: Path, run_id: str) -> None:
+    """Compare spike-train divergence D(t) across cells on one axis.
+
+    D(t) = number of E cells whose spike differs between the clean run and
+    an ε-perturbed rerun on identical frozen input. PING re-locks to 0
+    (stable limit cycle, λ ≤ 0); the V&S AI cell sustains a small
+    slowly-growing divergence (weak intrinsic chaos riding on top of the
+    strong input entrainment that the shared frozen drive imposes).
+    """
+    theme.apply()
+    colours = {"ping": theme.MUTED, "ai": theme.DEEP_RED}
+    labels = {"ping": "PING", "ai": "V&S AI"}
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    for cell, (t_ms, dist) in lyap_by_cell.items():
+        # Smooth lightly (10 ms boxcar) so the per-step jitter doesn't
+        # swamp the trend.
+        w = max(1, int(10.0 / (t_ms[1] - t_ms[0]))) if len(t_ms) > 1 else 1
+        if w > 1:
+            kernel = np.ones(w) / w
+            smooth = np.convolve(dist, kernel, mode="same")
+        else:
+            smooth = dist
+        ax.plot(
+            t_ms, smooth,
+            color=colours.get(cell, theme.INK_BLACK), lw=1.4,
+            label=labels.get(cell, cell),
+        )
+    ax.set_xlabel("time since perturbation (ms)")
+    ax.set_ylabel("spike-train divergence  D(t)  (E cells differing)")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
+    ax.set_title(
+        "Chaos probe: spike-train divergence after ε = 2 mV perturbation",
+        fontsize=theme.SIZE_TITLE, loc="left",
+    )
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     parse_modal_gpu(sys.argv)
@@ -541,6 +589,7 @@ def main() -> None:
 
     figures: dict[str, Path] = {}
     summary_rows: list[dict] = []
+    lyap_by_cell: dict[str, tuple] = {}
     for cell, spec in CELLS.items():
         for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
             if p.exists():
@@ -578,6 +627,23 @@ def main() -> None:
         med_cv_i = float(np.median(cvs_i)) if cvs_i.size > 0 else float("nan")
         _, _, f_peak = _population_psd(spk_e, dt)
         _, _, peak_abs_xcorr = _pair_cross_correlogram(spk_e, dt)
+
+        # Lyapunov / chaos: spike-train divergence curve D(t) from the
+        # perturbed rerun (saved in the npz by the snapshot generator).
+        lyap_final = lyap_max = lyap_slope = None
+        if "lyap_dist" in data:
+            lt = np.asarray(data["lyap_t_ms"])
+            ld = np.asarray(data["lyap_dist"])
+            lyap_by_cell[cell] = (lt, ld)
+            lyap_final = float(ld[-1])
+            lyap_max = float(ld.max())
+            # Crude growth-rate proxy: least-squares slope of D(t) over the
+            # second half (after the initial transient), in cells/second.
+            half = len(ld) // 2
+            if len(ld) - half > 2:
+                tt = lt[half:] / 1000.0
+                lyap_slope = float(np.polyfit(tt, ld[half:], 1)[0])
+
         summary_rows.append({
             "cell": cell,
             "e_rate_hz": e_rate,
@@ -586,8 +652,18 @@ def main() -> None:
             "median_isi_cv_i": med_cv_i,
             "f_psd_peak_hz": f_peak,
             "peak_abs_xcorr_e": peak_abs_xcorr,
+            "lyap_final_diff_cells": lyap_final,
+            "lyap_max_diff_cells": lyap_max,
+            "lyap_growth_cells_per_s": lyap_slope,
             **current_stats,
         })
+
+    # Comparison figure: spike-train divergence D(t) for all cells.
+    if lyap_by_cell:
+        lyap_dst = FIGURES / "lyapunov_divergence.png"
+        plot_lyapunov(lyap_by_cell, lyap_dst, notebook_run_id)
+        figures["lyapunov_divergence"] = lyap_dst
+        print(f"wrote {lyap_dst}")
 
     duration_s = time.monotonic() - t_start
     summary = {
