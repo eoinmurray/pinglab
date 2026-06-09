@@ -239,7 +239,7 @@ def train(
     device = torch.device(device_name) if device_name else _auto_device()
 
     if out_dir is None:
-        out_dir = Path(__file__).parent.parent / "artifacts" / "training" / model_name
+        out_dir = Path(__file__).parent.parent.parent / "artifacts" / "training" / model_name
     else:
         out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -842,9 +842,9 @@ def train(
 
     total_time = _time.perf_counter() - t_start
 
-    # Tier 1 perf block — see nb000 for the why. Per-epoch breakdown is in
-    # epoch_records (train_compute_s / eval_s / observe_s); these are the
-    # whole-run aggregates the dashboards read.
+    # Tier 1 perf block. Per-epoch breakdown is in epoch_records
+    # (train_compute_s / eval_s / observe_s); these are the whole-run
+    # aggregates the dashboards read.
     perf_block: dict = {
         "device": {"type": device.type},
         "torch_version": torch.__version__,

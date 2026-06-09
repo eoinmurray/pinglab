@@ -38,7 +38,6 @@ defined in `src/docs/src/pages/styleguide.md` § 8. The tier is recorded in
 
 ## Files
 
-- `nb002.py` — scope-frame aesthetic reference (canonical SCOPE_FRAME still).
 - `nb003.py` — basic PING videos (stim-overdrive, dt, ei_strength sweeps).
 - `nb013.py` — cuba vs standard-snn Δt-stability (train at one dt, sweep eval-dt; includes snntorch-library as external parity reference).
 - `_run_id.py` — per-runner monotonic counter helper.
