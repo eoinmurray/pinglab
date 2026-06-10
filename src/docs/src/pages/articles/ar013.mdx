@@ -1,0 +1,44 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "Literature tl;dr — unsorted"
+date: 2026-06-10
+entry: 13
+structure: paper
+collection: misc
+---
+
+The remaining reference papers in the reading list — methods, SNN-training background, balanced-state and efficiency results — that don't belong to a single curated collection. Unsorted: a flat catch-all rather than a role-grouped backbone like [ar008](/articles/ar008/) (PING) or [ar012](/articles/ar012/) (uncertainty). Each entry is a one-line summary; several are already load-bearing in the codebase.
+
+## The papers
+
+| Paper | Year |
+| --- | --- |
+| [Sterling & Laughlin — *Principles of Neural Design*](https://doi.org/10.7551/mitpress/9780262028707.001.0001) | 2015 |
+| [London, Roth, Beeren, Häusser & Latham — *Sensitivity to Perturbations in vivo Implies High Noise and Suggests Rate Coding in Cortex*](https://doi.org/10.1038/nature09086) | 2010 |
+| [Renart, de la Rocha, Bartho, Hollender, Parga, Reyes & Harris — *The Asynchronous State in Cortical Circuits*](https://doi.org/10.1126/science.1179850) | 2010 |
+| [Neftci, Mostafa & Zenke — *Surrogate Gradient Learning in Spiking Neural Networks*](https://doi.org/10.1109/MSP.2019.2931595) | 2019 |
+| [Cramer, Stradmann, Schemmel & Zenke — *The Heidelberg Spiking Data Sets for the Systematic Evaluation of Spiking Neural Networks*](https://doi.org/10.1109/TNNLS.2020.3044364) | 2022 |
+| [Eshraghian, Ward, Neftci, Wang, Lenz, Dwivedi, Bennamoun, Jeong & Lu — *Training Spiking Neural Networks Using Lessons From Deep Learning*](https://doi.org/10.1109/JPROC.2023.3308088) | 2023 |
+| [Yan, Yang, Wu, Liu, Zhang, Li, Tan & Wu — *Efficient and Robust Temporal Processing with Neural Oscillations Modulated Spiking Neural Networks*](https://doi.org/10.1038/s41467-025-63771-x) | 2025 |
+| Burghi, Pugliese Carratelli & Rule — *Costate Control for Nonlinear System Identification with Applications to Excitable Systems* (preprint) | 2024 |
+| Parthasarathy, Burghi & O'Leary — *Temporal Discretisation Shapes Optimisation Landscape in Spiking Neural Networks* (preprint) | 2024 |
+
+## Summaries
+
+**Sterling & Laughlin (2015).** Book. Argues that the brain's architecture follows a small set of efficiency principles — compute with chemistry where possible, send information at the lowest acceptable rate, minimise wire, match channel capacity to demand — that together explain *why* neural circuits are built the way they are. The intellectual backdrop for any "the rhythm buys per-spike economy" claim: spikes are expensive, and the cortex is under selection to use fewer of them.
+
+**London, Roth, Beeren, Häusser & Latham (2010).** Shows experimentally that a single extra spike in one rat-barrel-cortex neuron produces ≈ 28 additional spikes in its postsynaptic targets — i.e. cortical networks *amplify* perturbations. The amplification implies high intrinsic noise and argues that cortex must use a *rate* code rather than precise spike timing. The in-vivo counterpart of the chaos probe in [nb050](/notebooks/nb050/): perturbations grow, so the network is chaotic and spike-timing is not reproducible.
+
+**Renart, de la Rocha, Bartho, Hollender, Parga, Reyes & Harris (2010).** Shows that recurrent networks can generate an *asynchronous state* with arbitrarily low pairwise spiking correlations despite heavy shared input, because E and I fluctuations track each other and the resulting negative correlation in synaptic currents cancels the shared-input correlation. The conductance-based-spiking demonstration of the Vreeswijk–Sompolinsky balanced state — the paper [nb050](/notebooks/nb050/) follows to reach near-zero pairwise correlations.
+
+**Neftci, Mostafa & Zenke (2019).** The canonical tutorial-review of *surrogate-gradient* learning: replace the non-differentiable spike threshold with a smooth pseudo-derivative on the backward pass so that BPTT can train spiking networks. The method the entire collection trains with — every COBA/PING network in [ar006](/articles/ar006/) uses a fast-sigmoid surrogate exactly as described here.
+
+**Cramer, Stradmann, Schemmel & Zenke (2022).** Introduces the *Spiking Heidelberg Digits* (SHD) and *Spiking Speech Commands* datasets — spike-train classification benchmarks where leveraging spike *timing* (not just rate) is necessary for good accuracy. SHD is the collection's canonical multi-class spiking benchmark (the `shd` dataset slug in the trainer).
+
+**Eshraghian, Ward, Neftci, Wang, Lenz, Dwivedi, Bennamoun, Jeong & Lu (2023).** A book-length tutorial-and-perspective on training SNNs with deep-learning tools, and the paper behind the *snnTorch* library. The collection's readout choices (mem-mean, spike-count) and surrogate setup follow this paper's tutorials directly.
+
+**Yan, Yang, Wu, Liu, Zhang, Li, Tan & Wu (2025).** "Rhythm-SNN": modulating spiking neurons with heterogeneous oscillatory signals so they activate periodically at distinct frequencies, which markedly *reduces firing rates* while improving temporal-processing robustness and energy efficiency. Essentially the machine-learning statement of this collection's thesis — oscillatory gating buys sparsity and efficiency — arrived at from the applied-SNN side.
+
+**Burghi, Pugliese Carratelli & Rule (preprint).** Introduces *Surrogate Gradients by Costate Control* (SGCC): treats the exploding/vanishing costate (adjoint) dynamics of BPTT through excitable systems as a control problem, and designs gradient regularisers — a proportional high-gain controller and a state-dependent one — that provably tame the instability without changing the fixed points. The theoretical foundation for the *--v-grad-dampen* gradient-stabilisation flag documented in [ar006](/articles/ar006/).
+
+**Parthasarathy, Burghi & O'Leary (preprint).** Shows that the temporal discretisation step $\Delta t$ shapes both the forward dynamics and the backward gradient flow of an SNN, so spiking patterns and surrogate-gradient learning are sensitive to $\Delta t$ — a primary contributor to the poor cross-implementation reproducibility of SNN results. Directly relevant to the $\Delta t$-stability audits in this project ([nb044](/notebooks/nb044/)): it is the methodological warning those notebooks are answering.
