@@ -68,7 +68,10 @@ function getBucket(name: string): Bucket {
       label:
         name === UNCOLLECTED
           ? "Misc"
-          : name.charAt(0).toUpperCase() + name.slice(1).replace(/-/g, " "),
+          : name
+              .split("-")
+              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+              .join(" "),
       articles: [],
       notebooks: [],
     });
@@ -87,6 +90,14 @@ const buckets = [...bucketByName.values()].sort((a, b) => {
   const totB = b.articles.length + b.notebooks.length;
   return totB - totA || a.collection.localeCompare(b.collection);
 });
+
+// future-experiments is pinned to the second slot to keep the proposal thread
+// visible regardless of how few entries it has yet.
+const pinnedIdx = buckets.findIndex((b) => b.collection === "future-experiments");
+if (pinnedIdx > 1) {
+  const [pinned] = buckets.splice(pinnedIdx, 1);
+  buckets.splice(1, 0, pinned);
+}
 
 const formatDate = (raw: any) => {
   const d =

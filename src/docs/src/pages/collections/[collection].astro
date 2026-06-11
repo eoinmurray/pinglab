@@ -47,6 +47,10 @@ export async function getStaticPaths() {
 }
 
 const { collection } = Astro.params;
+const collectionLabel = String(collection)
+  .split("-")
+  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+  .join(" ");
 
 const notebookModules = import.meta.glob("../notebooks/*.mdx", { eager: true });
 const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
@@ -124,7 +128,7 @@ const formatDate = (raw: any) => {
       <div class="max-w-[46rem]">
         <div class="flex flex-col gap-12">
           <p class="text-xs uppercase tracking-wider text-muted">
-            Collection / <span class="text-ink">{collection}</span>
+            Collection / <span class="text-ink">{collectionLabel}</span>
           </p>
           {
             articles.length > 0 && (
