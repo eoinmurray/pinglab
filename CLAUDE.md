@@ -5,10 +5,10 @@
 - read all the READMEs in the repo
 - when making runs always report an eta.
 - when making runs on modal always report estimated cost.
-- BEFORE making any edits, read `src/docs/src/pages/styleguide.md` — it holds the repo layout, glossary, invariants, and conventions that every edit must respect
+- BEFORE making any edits, read the repo READMEs and the reference articles under `src/docs/src/pages/articles/` (parameters, metrics, training, the oscilloscope CLI) — together with the project memory's `feedback_notebook_*` entries they hold the layout, glossary, invariants, and conventions every edit must respect. (The former `src/docs/src/pages/styleguide.md` was migrated into those articles + memory and no longer exists as a single file.)
 - do NOT create branches or open PRs unless I explicitly ask — commit to the current branch (usually `main`) and stop. "commit and push" means commit + push, not branch + PR.
 - do NOT dispatch jobs to Modal (`--modal-gpu ...`) without my explicit permission — Modal spends real money. Default to local runs; only use `--modal-gpu` when I say so.
-- notebook runners (`src/pinglab/notebooks/nbNNN.py`) accept ONLY two CLI args: `--tier` (size) and `--modal-gpu` (dispatch target). Every other hyperparameter — lr, epochs, readout, surrogate slope, regulariser strengths, etc. — must be hardcoded as a literal in the runner's `sh.uv(...)` args list. New scientific knobs go on `src/pinglab/oscilloscope.py` as flags; the notebook just passes the recipe value inline. The notebook _is_ the recipe — reproducing a result must not require remembering flags.
+- notebook runners (`src/notebooks/nbNNN.py`) accept ONLY two CLI args: `--tier` (size) and `--modal-gpu` (dispatch target). Every other hyperparameter — lr, epochs, readout, surrogate slope, regulariser strengths, etc. — must be hardcoded as a literal in the runner's `sh.uv(...)` args list. New scientific knobs go on `src/cli/cli.py` as flags; the notebook just passes the recipe value inline. The notebook _is_ the recipe — reproducing a result must not require remembering flags.
 - no log axes unless instructed to do so
 
 - when talking about runs always report start time, current time, eta and if on modal cost.

@@ -1,109 +1,39 @@
-"""Oscilloscope -- PING network toolkit.
+"""PING network toolkit — CLI entrypoint.
 
-CLI entrypoint with subcommands: sim, image, video, train.
+Subcommands: sim, image, video, train, infer.
 
 Usage:
-    uv run python src/cli/__main__.py                             # sim only (metrics)
-    uv run python src/cli/__main__.py sim                         # sim only (metrics)
-    uv run python src/cli/__main__.py image                       # snapshot
-    uv run python src/cli/__main__.py video --scan-var dt         # dt sweep video
-    uv run python src/cli/__main__.py train --epochs 10           # train on scikit digits
+    uv run python src/cli/cli.py                             # sim only (metrics)
+    uv run python src/cli/cli.py sim                         # sim only (metrics)
+    uv run python src/cli/cli.py image                       # snapshot
+    uv run python src/cli/cli.py video --scan-var dt         # dt sweep video
+    uv run python src/cli/cli.py train --epochs 10           # train on scikit digits
 """
 
 from __future__ import annotations
 
 import json
-import math
+import logging
 import sys
 import time as _time
 from pathlib import Path
 
-# Ensure src/ is FIRST on sys.path so the sibling top-level modules
-# (models, inputs, metrics, config, plot) are importable as bare names.
-_pkg_dir = str(Path(__file__).resolve().parent.parent)  # src/
-if _pkg_dir in sys.path:
-    sys.path.remove(_pkg_dir)
-sys.path.insert(0, _pkg_dir)
-_cli_dir = str(Path(__file__).resolve().parent)
-if _cli_dir in sys.path:
-    sys.path.remove(_cli_dir)
-sys.path.insert(0, _cli_dir)
-
-import logging
-import numpy as np
 import torch
-from torch import nn
-
-log = logging.getLogger("oscilloscope")
-
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from matplotlib.animation import FFMpegWriter
 
 import models as M
-from inputs import (
-    make_spike_drive,
-    make_step_drive,
-    make_reference_noise,
-    make_step_drive_from_ref,
-    DT_CAL,
-)
 from config import (
-    Config,
-    cfg,
+    DEFAULT_ARTIFACT_ROOT,
     _MODEL_CLASSES,
-    N_E,
-    N_I,
-    FPS,
-    SEED,
-    SIM_MS,
-    BURN_IN_MS,
-    T_E_ASYNC_DEFAULT,
-    SIGMA_E,
-    STEP_ON_MS,
-    STEP_OFF_MS,
-    W_EI,
-    W_IE,
-    NOISE_SIGMA,
-    NOISE_TAU,
-    SPIKE_RATE_BASE,
-    ARTIFACT_ROOT,
-    W_IN_SPIKES,
-    W_IN_SPARSITY,
-    BIAS,
-    EI_RATIO,
-    DEVICE,
-    patch_dt,
-    run_sim,
-    run_sim_batch,
-    run_sim_image,
-    _extract_records,
-    extract_weights,
-    make_net,
-    make_ping_net,
-    _run_sim_with_net,
-    build_net,
-    build_config,
     _sync_globals_from_cfg,
+    build_config,
+    build_net,
 )
-from metrics import (
-    report_metrics,
-    metrics_str,
-    compute_metrics,
-    format_metrics,
-)
-from plot import (
-    prof,
-    make_transient_fig,
-    draw_transient_frame,
-    reset_weight_xlims,
-    LAYOUT_PRESETS,
-    PANEL_CATALOG,
-    ACTIVE_PANELS,
-    CLR,
-)
+
+# Re-exported through cli/__init__.py for notebook runners (nb003–006).
+from config import _extract_records  # noqa: F401
+
+from figkit import plt
+from plot import make_transient_fig
 
 
 # =============================================================================
@@ -127,15 +57,10 @@ from encoders import (  # noqa: E402,F401
 
 
 
-from scan import (  # noqa: E402
+from scan import (  # noqa: E402,F401
     SCAN_DEFAULTS,
-    _SWEEP_XLABELS,
-    _WEIGHT_SCAN_VARS,
     _apply_scan_var,
     _auto_device,
-    _scan_dt,
-    _scan_od_batched,
-    _scan_streaming,
     generate_scan,
     primary_hid_key,
     primary_inh_key,
@@ -167,12 +92,10 @@ from datasets import (  # noqa: E402,F401
 
 
 # =============================================================================
-# Training (moved to oscilloscope/train.py)
+# Training (moved to train.py)
 # =============================================================================
 
-from train import (  # noqa: E402
-    BATCH_SIZE,
-    GRAD_CLIP,
+from train import (  # noqa: E402,F401
     observe_epoch,
     seed_everything,
     train,
@@ -190,6 +113,8 @@ from video import (  # noqa: E402
     _render_dt_sweep_video,
 )
 from infer import infer  # noqa: E402
+
+log = logging.getLogger("cli")
 
 
 def _apply_from_dir(args, argv):
@@ -301,79 +226,9 @@ def _apply_from_dir(args, argv):
         )
 
 
-def parse_args():
-    """Parse command-line arguments with subparsers for sim/image/video/train."""
+def _build_parent_parser():
+    """Shared parent parser holding every cross-mode argument group."""
     import argparse
-
-    _examples = """\
-Each subcommand has its own complete argument listing. The top-level help
-above only shows the dispatcher; for the actual flags accepted by a mode,
-run:
-
-  python -m cli sim    --help
-  python -m cli image  --help
-  python -m cli video  --help
-  python -m cli train  --help
-  python -m cli infer  --help
-
-The flags fall into the following groups (every group is documented in
-each subcommand's --help):
-
-  Network        --model, --n-hidden, --n-input, --ei-strength, --ei-ratio,
-                 --ei-sparsity, --w-in-sparsity, --bias, --dt, --t-ms,
-                 --burn-in, --tau-mem, --tau-syn, --device, --seed
-  Readout        --readout {rate,li,spike-count,mem-mean}, --readout-tau-out,
-                 --readout-w-out-scale, --kaiming-init, --dales-law,
-                 --no-dales-law, --rec-layers, --ei-layers
-  Input          --input, --input-rate, --stim-overdrive, --drive, --dataset,
-                 --digit, --sample
-  Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-rec, --trainable-w-ee
-  Gradient       --v-grad-dampen, --grad-clip,
-                 --surrogate-slope, --coba-integrator
-  Train (train)  --lr, --epochs, --batch-size, --max-samples, --optimizer,
-                 --loss, --adaptive-lr, --early-stopping, --observe,
-                 --observe-every, --frame-rate, --profile,
-                 --fr-reg-lower-theta, --fr-reg-lower-strength,
-                 --fr-reg-upper-theta, --fr-reg-upper-strength,
-                 --skip-bad-grad-threshold
-  Image (image)  --fake-progress
-  Scan (video)   --scan-var, --scan-min, --scan-max, --frames, --frame-rate,
-                 --resample-input
-  Infer (infer)  --load-weights, --from-dir, --dt-sweep, --eval-encoder,
-                 --frozen-inputs-mode
-  Output / exec  --out-dir, --wipe-dir, --raster, --layout, --panels,
-                 --modal, --modal-gpu
-
-Examples:
-  python -m cli                                    # sim (metrics only)
-  python -m cli image                              # snapshot (ping default)
-  python -m cli video --scan-var ei_strength       # sweep E-I coupling
-  python -m cli video --scan-var spike_rate --scan-min 5 --scan-max 100
-  python -m cli train --epochs 100 --observe video
-  python -m cli train --epochs 100 --trainable-w-ee
-  python -m cli image --input dataset --dataset mnist --digit 3
-  python -m cli infer --load-weights weights.pth --dt 0.5
-  python -m cli infer --from-dir runs/foo --dt-sweep 0.05 0.1 0.25 0.5
-
-Models:
-  ping        COBANet with E↔I coupling. With --ei-strength > 0 the
-              recurrent inhibitory loop is wired up and frozen at init;
-              feedforward weights train against this fixed substrate.
-  cuba        COBANet with --ei-strength 0 (E cells only, no I-loop).
-              The articles/models page calls this "coba" — naming is for
-              CLI-vs-pedagogy reasons.
-  standard-snn   Dimensionless mem = β·mem + I from snnTorch tutorial 5.
-                 Not dt-invariant; β is a fitted hyperparameter.
-  snntorch-library   External snnTorch reference path; uses the library's
-                     Leaky/Synaptic primitives directly.
-
-For the underlying theory of --v-grad-dampen see /articles/ar006/.
-"""
-    parser = argparse.ArgumentParser(
-        description="Oscilloscope — PING network toolkit",
-        epilog=_examples,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
 
     # Shared parent for network/input args
     parent = argparse.ArgumentParser(add_help=False)
@@ -714,21 +569,27 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         choices=["none", "T4", "L4", "A10G", "A100", "H100"],
         help="GPU type for Modal runs (default: T4). Use 'none' for CPU-only.",
     )
+    return parent
+
+
+def _build_subparsers(parser, parent):
+    """Attach the per-mode subcommands (sim/image/video/train/infer)."""
+    import argparse
 
     subparsers = parser.add_subparsers(
         dest="mode", help="Mode: sim (metrics only) | image | video | train | infer"
     )
 
     # -- sim subcommand --
-    sim_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "sim",
         parents=[parent],
         help="Run simulation, report metrics, no plot",
         description="Run a single simulation and report firing-rate metrics "
         "without generating plots or video.",
         epilog="Examples:\n"
-        "  oscilloscope.py sim --model ping --ei-strength 0.5\n"
-        "  oscilloscope.py sim --model standard-snn --dt 0.1",
+        "  cli.py sim --model ping --ei-strength 0.5\n"
+        "  cli.py sim --model standard-snn --dt 0.1",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -741,9 +602,9 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         "oscilloscope figure (E/I rasters, weight histograms, PSD).",
         epilog="Examples:\n"
         "  # untrained PING on MNIST digit 3\n"
-        "  oscilloscope.py image --model ping --dataset mnist --digit 3\n"
+        "  cli.py image --model ping --dataset mnist --digit 3\n"
         "  # with trained weights\n"
-        "  oscilloscope.py image --from-dir path/to/trained --digit 5",
+        "  cli.py image --from-dir path/to/trained --digit 5",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     image_parser.add_argument(
@@ -773,11 +634,11 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         "'noise' adds Poisson noise to input.",
         epilog="Examples:\n"
         "  # untrained PING ei_strength sweep (archive reproduction)\n"
-        "  oscilloscope.py video --model ping --n-hidden 1024 \\\n"
+        "  cli.py video --model ping --n-hidden 1024 \\\n"
         "    --scan-var ei_strength --scan-min 0 --scan-max 0.4 \\\n"
         "    --input synthetic-conductance --frames 600 --frame-rate 120\n\n"
         "  # trained network digit tour\n"
-        "  oscilloscope.py video --from-dir path/to/trained \\\n"
+        "  cli.py video --from-dir path/to/trained \\\n"
         "    --input dataset --scan-var digit --scan-min 0 --scan-max 9",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -842,13 +703,13 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         "metrics.jsonl, test_predictions.json plus optional video.",
         epilog="Examples:\n"
         "  # standard-snn canonical tutorial mode (full MNIST)\n"
-        "  oscilloscope.py train --model standard-snn --kaiming-init \\\n"
+        "  cli.py train --model standard-snn --kaiming-init \\\n"
         "    --dataset mnist --epochs 40 --lr 0.01 --adaptive-lr\n\n"
         "  # proper continuous-time CUBA LIF\n"
-        "  oscilloscope.py train --model cuba --kaiming-init \\\n"
+        "  cli.py train --model cuba --kaiming-init \\\n"
         "    --dataset mnist --epochs 40 --lr 0.01 --adaptive-lr\n\n"
         "  # PING with gamma oscillation on MNIST\n"
-        "  oscilloscope.py train --model ping --dataset mnist \\\n"
+        "  cli.py train --model ping --dataset mnist \\\n"
         "    --ei-strength 0.5 --v-grad-dampen 1000 --lr 0.0001",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -965,9 +826,9 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         "temporal-resolution stability.",
         epilog="Examples:\n"
         "  # single-dt inference\n"
-        "  oscilloscope.py infer --from-dir path/to/trained --dt 0.1\n\n"
+        "  cli.py infer --from-dir path/to/trained --dt 0.1\n\n"
         "  # frozen-input dt-stability sweep\n"
-        "  oscilloscope.py infer --from-dir path/to/trained \\\n"
+        "  cli.py infer --from-dir path/to/trained \\\n"
         "    --dt-sweep 0.05 0.1 0.25 0.5 1.0 2.0 \\\n"
         "    --frozen-inputs-mode upsample --observe video",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1025,7 +886,88 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         "re-introduces sampling noise).",
     )
 
-    args = parser.parse_args()
+
+def parse_args(argv=None):
+    """Parse command-line arguments with subparsers for sim/image/video/train."""
+    import argparse
+
+    argv = sys.argv[1:] if argv is None else list(argv)
+
+    _examples = """\
+Each subcommand has its own complete argument listing. The top-level help
+above only shows the dispatcher; for the actual flags accepted by a mode,
+run:
+
+  python src/cli/cli.py sim    --help
+  python src/cli/cli.py image  --help
+  python src/cli/cli.py video  --help
+  python src/cli/cli.py train  --help
+  python src/cli/cli.py infer  --help
+
+The flags fall into the following groups (every group is documented in
+each subcommand's --help):
+
+  Network        --model, --n-hidden, --n-input, --ei-strength, --ei-ratio,
+                 --ei-sparsity, --w-in-sparsity, --bias, --dt, --t-ms,
+                 --burn-in, --tau-mem, --tau-syn, --device, --seed
+  Readout        --readout {rate,li,spike-count,mem-mean}, --readout-tau-out,
+                 --readout-w-out-scale, --kaiming-init, --dales-law,
+                 --no-dales-law, --rec-layers, --ei-layers
+  Input          --input, --input-rate, --stim-overdrive, --drive, --dataset,
+                 --digit, --sample
+  Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-rec, --trainable-w-ee
+  Gradient       --v-grad-dampen, --grad-clip,
+                 --surrogate-slope, --coba-integrator
+  Train (train)  --lr, --epochs, --batch-size, --max-samples, --optimizer,
+                 --loss, --adaptive-lr, --early-stopping, --observe,
+                 --observe-every, --frame-rate, --profile,
+                 --fr-reg-lower-theta, --fr-reg-lower-strength,
+                 --fr-reg-upper-theta, --fr-reg-upper-strength,
+                 --skip-bad-grad-threshold
+  Image (image)  --fake-progress
+  Scan (video)   --scan-var, --scan-min, --scan-max, --frames, --frame-rate,
+                 --resample-input
+  Infer (infer)  --load-weights, --from-dir, --dt-sweep, --eval-encoder,
+                 --frozen-inputs-mode
+  Output / exec  --out-dir, --wipe-dir, --raster, --layout, --panels,
+                 --modal, --modal-gpu
+
+Examples:
+  python -m cli                                    # sim (metrics only)
+  python -m cli image                              # snapshot (ping default)
+  python -m cli video --scan-var ei_strength       # sweep E-I coupling
+  python -m cli video --scan-var spike_rate --scan-min 5 --scan-max 100
+  python -m cli train --epochs 100 --observe video
+  python -m cli train --epochs 100 --trainable-w-ee
+  python -m cli image --input dataset --dataset mnist --digit 3
+  python -m cli infer --load-weights weights.pth --dt 0.5
+  python -m cli infer --from-dir runs/foo --dt-sweep 0.05 0.1 0.25 0.5
+
+Models:
+  ping        COBANet with E↔I coupling. With --ei-strength > 0 the
+              recurrent inhibitory loop is wired up and frozen at init;
+              feedforward weights train against this fixed substrate.
+  cuba        COBANet with --ei-strength 0 (E cells only, no I-loop).
+              The articles/models page calls this "coba" — naming is for
+              CLI-vs-pedagogy reasons.
+  standard-snn   Dimensionless mem = β·mem + I from snnTorch tutorial 5.
+                 Not dt-invariant; β is a fitted hyperparameter.
+  snntorch-library   External snnTorch reference path; uses the library's
+                     Leaky/Synaptic primitives directly.
+
+For the underlying theory of --v-grad-dampen see /articles/ar006/.
+"""
+    parser = argparse.ArgumentParser(
+        description="Oscilloscope — PING network toolkit",
+        epilog=_examples,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parent = _build_parent_parser()
+
+    _build_subparsers(parser, parent)
+
+    args = parser.parse_args(argv)
     if args.mode is None:
         parser.print_help()
         sys.exit(0)
@@ -1047,7 +989,7 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
 
     # --from-dir: inherit training params from config.json, fill unset values
     if args.mode in ("infer", "video", "image") and getattr(args, "from_dir", None):
-        _apply_from_dir(args, sys.argv[1:])
+        _apply_from_dir(args, argv)
     if args.mode == "infer" and not getattr(args, "load_weights", None):
         print("Error: infer requires --load-weights or --from-dir")
         sys.exit(1)
@@ -1058,7 +1000,7 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
     # avoids the silent footgun where "image --dataset mnist --digit 0" went
     # through the synthetic-spikes branch and ignored the digit.
     def _flag_in_argv(*names):
-        for arg in sys.argv[1:]:
+        for arg in argv:
             for n in names:
                 if arg == n or arg.startswith(n + "="):
                     return True
@@ -1105,7 +1047,7 @@ def save_run_artifacts(out_dir, args, mode):
         f.write(" ".join(sys.argv) + "\n")
 
     # output.log — file handler strips ANSI, stdout keeps it
-    log = logging.getLogger("oscilloscope")
+    log = logging.getLogger("cli")
     log.setLevel(logging.DEBUG)
     log.handlers.clear()
 
@@ -1134,7 +1076,8 @@ def _print_intro(log, config, args, mode):
     model = config.get("model", "ping")
     dataset = config.get("dataset", "scikit")
 
-    g = lambda *keys: {k: config[k] for k in keys if k in config}
+    def g(*keys):
+        return {k: config[k] for k in keys if k in config}
 
     sections = {
         "Data": g("dataset", "digit", "sample", "max_samples"),
@@ -1170,34 +1113,368 @@ def _print_intro(log, config, args, mode):
     runlog.print_intro(log, mode, model, dataset, sections)
 
 
-if __name__ == "__main__":
+def _run_sim(args, C, out_dir, log):
+    t_e_async = C.T_E_ASYNC_DEFAULT
+    log.info(f"Device: {C.DEVICE}")
+    generate_sim_only(
+        spike_rate=args.spike_rate,
+        overdrive=args.overdrive,
+        dt=args.dt,
+        model_name=args.model,
+        input_mode=args.input,
+        t_e_async=t_e_async,
+    )
+
+
+def _run_image(args, C, out_dir, log):
+    t_e_async = C.T_E_ASYNC_DEFAULT
+    log.info(f"Device: {C.DEVICE}")
+    # Apply CLI overrides to module-level config so snapshot generators
+    # (which read C.cfg) see the requested W^EI / W^IE / W^II / sparsity.
+    if args.w_ei is not None:
+        C.cfg.w_ei = tuple(args.w_ei)
+        C.W_EI = tuple(args.w_ei)
+    if args.w_ie is not None:
+        C.cfg.w_ie = tuple(args.w_ie)
+        C.W_IE = tuple(args.w_ie)
+    if args.w_ii is not None:
+        C.cfg.w_ii = tuple(args.w_ii)
+    if getattr(args, "ei_sparsity", 0.0) > 0:
+        C.cfg.sparsity = float(args.ei_sparsity)
+        C.SPARSITY = float(args.ei_sparsity)
+    if args.input == "dataset":
+        generate_image_snapshot(
+            digit_class=args.digit,
+            sample_idx=args.sample,
+            dt=args.dt,
+            dataset=args.dataset,
+            overdrive=args.overdrive,
+            model_name=args.model,
+            load_weights=getattr(args, "load_weights", None),
+        )
+    elif args.input == "synthetic-spikes":
+        generate_spike_snapshot(
+            spike_rate=args.spike_rate,
+            overdrive=args.overdrive,
+            dt=args.dt,
+            model_name=args.model,
+            independent_drive=args.independent_drive,
+            independent_drive_i=args.independent_drive_i,
+            lyapunov_eps=args.lyapunov_eps,
+        )
+    else:
+        generate_snapshot(
+            args.overdrive,
+            dt=args.dt,
+            model_name=args.model,
+            t_e_async=t_e_async,
+        )
+
+
+def _run_video(args, C, out_dir, log):
+    t_e_async = C.T_E_ASYNC_DEFAULT
+    log.info(f"Device: {C.DEVICE}")
+    # Emit init_d0s0.png alongside the scan video when input is dataset.
+    # Mirrors train mode so video runs have a comparable static reference.
+    if args.input == "dataset":
+        generate_image_snapshot(
+            digit_class=args.digit,
+            sample_idx=args.sample,
+            dt=args.dt,
+            dataset=args.dataset,
+            overdrive=args.overdrive,
+            model_name=args.model,
+            out_filename="init_d0s0.png",
+        )
+    generate_scan(
+        scan_var=args.scan_var,
+        scan_min=args.scan_min,
+        scan_max=args.scan_max,
+        n_frames=args.frames,
+        t_e_async=t_e_async,
+        overdrive=args.overdrive,
+        spike_rate=args.spike_rate,
+        input_mode=args.input,
+        dataset=args.dataset,
+        digit_class=args.digit,
+        sample_idx=args.sample,
+        load_weights=getattr(args, "load_weights", None),
+    )
+
+
+def _resolve_w_in(args):
+    """Default w_in to (0.3, 0.06); expand a single value to (w, w*0.1)."""
+    w_in = args.w_in or [0.3, 0.06]
+    if len(w_in) == 1:
+        w_in = [w_in[0], w_in[0] * 0.1]
+    return w_in
+
+
+def _run_train(args, C, out_dir, log):
+    train(
+        model_name=args.model,
+        lr=args.lr,
+        epochs=args.epochs,
+        dt=args.dt or 0.1,
+        observe=args.observe,
+        out_dir=str(out_dir),
+        device_name=args.device,
+        w_in=_resolve_w_in(args),
+        w_ei=args.w_ei,
+        w_ie=args.w_ie,
+        w_ii=args.w_ii,
+        ei_strength=args.ei_strength,
+        ei_ratio=args.ei_ratio,
+        w_in_sparsity=args.w_in_sparsity or 0.0,
+        dataset=args.dataset,
+        snapshot_init=True,
+        snapshot_end=True,
+        t_ms=args.t_ms,
+        hidden_sizes=args.n_hidden,
+        max_samples=args.max_samples,
+        v_grad_dampen=args.v_grad_dampen,
+        dales_law=args.dales_law,
+        ei_layers=args.ei_layers,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        readout_w_out_scale=args.readout_w_out_scale,
+        readout_mode=args.readout_mode,
+        tau_gaba=args.tau_gaba,
+        fr_reg_upper_theta=args.fr_reg_upper_theta,
+        fr_reg_upper_strength=args.fr_reg_upper_strength,
+        fr_reg_lower_theta=args.fr_reg_lower_theta,
+        fr_reg_lower_strength=args.fr_reg_lower_strength,
+        fr_reg_mode=args.fr_reg_mode,
+        trainable_w_ee=args.trainable_w_ee,
+        trainable_w_ei=args.trainable_w_ei,
+        trainable_w_ie=args.trainable_w_ie,
+        tbptt_window=args.tbptt_window,
+    )
+
+
+def _validate_frozen_dt_sweep(frozen_mode, dt_values, dt_ref):
+    """Raise if a frozen-inputs sweep mixes incompatible dt ratios."""
+    if frozen_mode == "resample":
+        return
+    for d in dt_values:
+        if abs(d - dt_ref) < 1e-9:
+            continue
+        if frozen_mode == "upsample" and d > dt_ref + 1e-9:
+            raise ValueError(
+                f"--frozen-inputs-mode upsample requires "
+                f"eval-dt <= train-dt; got dt={d}, dt_ref={dt_ref}"
+            )
+        if frozen_mode == "downsample" and d < dt_ref - 1e-9:
+            raise ValueError(
+                f"--frozen-inputs-mode downsample requires "
+                f"eval-dt >= train-dt; got dt={d}, dt_ref={dt_ref}"
+            )
+        ratio = max(d, dt_ref) / min(d, dt_ref)
+        if abs(ratio - round(ratio)) > 1e-6:
+            raise ValueError(
+                f"--frozen-inputs-mode {frozen_mode} requires "
+                f"integer dt ratios vs train-dt; "
+                f"dt={d}, dt_ref={dt_ref}, ratio={ratio:.4f}"
+            )
+
+
+def _run_infer(args, C, out_dir, log):
+    w_in = _resolve_w_in(args)
+    infer_kwargs = dict(
+        model_name=args.model,
+        load_weights=args.load_weights,
+        dataset=args.dataset,
+        max_samples=args.max_samples,
+        t_ms=args.t_ms,
+        w_in=w_in,
+        ei_strength=args.ei_strength,
+        ei_ratio=args.ei_ratio,
+        w_in_sparsity=args.w_in_sparsity or 0.0,
+        hidden_sizes=args.n_hidden,
+        dales_law=args.dales_law,
+        ei_layers=args.ei_layers,
+        seed=args.seed,
+    )
+    if not args.dt_sweep:
+        acc = infer(dt=args.dt, out_dir=str(out_dir), **infer_kwargs)["acc"]
+        if args.observe:
+            _render_infer_snapshot(args, C, out_dir, log, w_in, acc)
+        return
+
+    dt_values = sorted(args.dt_sweep)
+    log.info(f"dt sweep: {dt_values}")
+
+    encoder = None
+    frozen_mode = getattr(args, "frozen_inputs_mode", None)
+    if frozen_mode is not None:
+        # Anchor the reference at the training dt (paper's framing): spikes are
+        # generated at dt_ref = args.dt once, then transported to each sweep dt
+        # via upsample zero-pad (finer, §2.1 Fig 1B) or downsample sum-pool
+        # (coarser, §2.3). resample draws fresh at the target.
+        dt_ref = float(args.dt)
+        _validate_frozen_dt_sweep(frozen_mode, dt_values, dt_ref)
+        encoder = FrozenEncoder(dt_ref, t_ms=args.t_ms, mode=frozen_mode)
+        log.info(f"  frozen inputs: ref dt={dt_ref} (train-dt), mode={frozen_mode}")
+
+    train_dt = float(args.dt)
+    base_rate = float(args.spike_rate)
+
+    sweep_results = []
+    for sweep_dt in dt_values:
+        if encoder is not None:
+            encoder.reset()
+        res = infer(dt=sweep_dt, out_dir=None, encode_fn=encoder, **infer_kwargs)
+        sweep_results.append(
+            {
+                "dt": sweep_dt,
+                "acc": res["acc"],
+                "input_rate": base_rate,
+                "hid_rate_hz": res.get("hid_rate_hz"),
+                "rates_hz": res.get("rates_hz", {}),
+            }
+        )
+    ref = next((r for r in sweep_results if r["dt"] == train_dt), None)
+    ref_acc = ref["acc"] if ref else None
+
+    log.info(f"\n{'=' * 40}")
+    log.info(f"dt sweep summary ({args.model}):")
+    log.info(f"  {'dt':>8s}  {'acc':>6s}  {'Δacc':>6s}")
+    for r in sweep_results:
+        delta = f"{r['acc'] - ref_acc:+.1f}%" if ref_acc is not None else ""
+        marker = " ←train" if r["dt"] == train_dt else ""
+        log.info(f"  {r['dt']:8.4f}  {r['acc']:5.1f}%  {delta:>6s}{marker}")
+
+    sweep_blob = {
+        "model": args.model,
+        "train_dt": train_dt,
+        "input_rate": args.spike_rate,
+        "t_ms": args.t_ms,
+        "dataset": args.dataset,
+        "load_weights": args.load_weights,
+        "frozen_inputs_mode": frozen_mode,
+        "sweep": sweep_results,
+    }
+    results_path = out_dir / "results.json"
+    with open(results_path, "w") as f:
+        json.dump(sweep_blob, f, indent=2)
+    log.info(f"  → {results_path}")
+
+    _plot_dt_sweep(sweep_results, train_dt, args.model, out_dir)
+    log.info(f"  → {out_dir / 'dt_sweep.png'}")
+
+    if args.observe == "video":
+        vid_net = build_net(
+            args.model,
+            w_in=w_in,
+            w_in_sparsity=args.w_in_sparsity or 0.0,
+            ei_strength=args.ei_strength,
+            ei_ratio=args.ei_ratio,
+            randomize_init=True,
+            dales_law=args.dales_law,
+            hidden_sizes=args.n_hidden,
+            ei_layers=args.ei_layers,
+        )
+        vid_net.load_state_dict(
+            torch.load(args.load_weights, map_location="cpu"), strict=False
+        )
+        vid_net.eval()
+        _render_dt_sweep_video(
+            vid_net,
+            dt_values,
+            sweep_results,
+            train_dt,
+            args.model,
+            args.dataset,
+            out_dir,
+            frozen_inputs=bool(frozen_mode),
+        )
+        log.info(f"  → {out_dir / 'dt_sweep.mp4'}")
+
+
+def _render_infer_snapshot(args, C, out_dir, log, w_in, acc):
+    """Render a single oscilloscope frame for a trained net at one dt (--observe)."""
+    C.N_E = M.N_HID
+    C.N_I = M.N_INH
+    vis_net = build_net(
+        args.model,
+        w_in=w_in,
+        w_in_sparsity=args.w_in_sparsity or 0.0,
+        ei_strength=args.ei_strength,
+        ei_ratio=args.ei_ratio,
+        randomize_init=True,
+        dales_law=args.dales_law,
+        hidden_sizes=args.n_hidden,
+        ei_layers=args.ei_layers,
+    )
+    vis_net.load_state_dict(
+        torch.load(args.load_weights, map_location="cpu"), strict=False
+    )
+    vis_net.eval()
+    loader_dataset = "mnist" if args.dataset in ("mnist", "smnist") else args.dataset
+    ref_pixel_vec, ref_image = _load_dataset_image(loader_dataset, 0, 0)
+    ref_input = torch.from_numpy(ref_pixel_vec).unsqueeze(0)
+    use_smnist = args.dataset == "smnist"
+    ref_spikes = encode_batch(ref_input, args.dt, use_smnist)
+    fig, axes = make_transient_fig(layout="train")
+    observe_epoch(
+        vis_net,
+        ref_spikes,
+        0,
+        acc,
+        0.0,
+        args.dt,
+        args.model,
+        fig,
+        axes,
+        None,
+        digit_image=ref_image,
+        total_epochs=1,
+    )
+    fname = out_dir / "infer_d0s0.png"
+    fig.savefig(fname, dpi=120)
+    plt.close(fig)
+    log.info(f"  → {fname}")
+
+
+_MODE_HANDLERS = {
+    "sim": _run_sim,
+    "image": _run_image,
+    "video": _run_video,
+    "train": _run_train,
+    "infer": _run_infer,
+}
+
+
+def _dispatch_to_modal(args, argv):
+    """Re-dispatch the run to Modal, stripping --modal / --modal-gpu from argv."""
+    out_dir = args.out_dir or str(DEFAULT_ARTIFACT_ROOT)
+    cli_args = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--modal-gpu":
+            i += 2  # skip flag and its value
+        elif argv[i] == "--modal":
+            i += 1
+        else:
+            cli_args.append(argv[i])
+            i += 1
+    from modal_app import dispatch_to_modal
+
+    dispatch_to_modal(cli_args, out_dir, gpu=args.modal_gpu)
+
+
+def main(argv=None):
+    """Parse args and run the requested mode. Returns a process exit code."""
     _t0 = _time.monotonic()
 
-    args = parse_args()
+    argv = sys.argv[1:] if argv is None else list(argv)
+    args = parse_args(argv)
     mode = args.mode
 
     # --modal: re-dispatch to Modal and exit
     if getattr(args, "modal", False):
-        out_dir = args.out_dir
-        if out_dir is None:
-            out_dir = str(Path(__file__).parent.parent / "artifacts" / "oscilloscope")
-        # Rebuild CLI args without --modal / --modal-gpu
-        skip = {"--modal"}
-        cli_args = []
-        argv = sys.argv[1:]
-        i = 0
-        while i < len(argv):
-            if argv[i] == "--modal-gpu":
-                i += 2  # skip flag and its value
-            elif argv[i] in skip:
-                i += 1
-            else:
-                cli_args.append(argv[i])
-                i += 1
-        from modal_app import dispatch_to_modal
-
-        dispatch_to_modal(cli_args, out_dir, gpu=args.modal_gpu)
-        sys.exit(0)
+        _dispatch_to_modal(args, argv)
+        return 0
 
     # Build and sync config for sim/image/video modes
     if mode != "train":
@@ -1209,7 +1486,7 @@ if __name__ == "__main__":
     # Determine output directory
     out_dir = args.out_dir
     if out_dir is None:
-        out_dir = str(Path(__file__).parent.parent / "artifacts" / "oscilloscope")
+        out_dir = str(DEFAULT_ARTIFACT_ROOT)
     out_dir = Path(out_dir)
 
     # Save run artifacts for all modes
@@ -1252,322 +1529,15 @@ if __name__ == "__main__":
         )
 
     if args._input_auto:
-        log.info(f"  --input auto → dataset (inferred from --dataset/--digit/--sample)")
+        log.info("  --input auto → dataset (inferred from --dataset/--digit/--sample)")
 
-    if mode == "sim":
-        t_e_async = C.T_E_ASYNC_DEFAULT
-        log.info(f"Device: {C.DEVICE}")
-        generate_sim_only(
-            spike_rate=args.spike_rate,
-            overdrive=args.overdrive,
-            dt=args.dt,
-            model_name=args.model,
-            input_mode=args.input,
-            t_e_async=t_e_async,
-        )
-
-    elif mode == "image":
-        t_e_async = C.T_E_ASYNC_DEFAULT
-        log.info(f"Device: {C.DEVICE}")
-        # Apply CLI overrides to module-level config so snapshot generators
-        # (which read C.cfg) see the requested W^EI / W^IE / W^II / sparsity.
-        if args.w_ei is not None:
-            C.cfg.w_ei = tuple(args.w_ei)
-            C.W_EI = tuple(args.w_ei)
-        if args.w_ie is not None:
-            C.cfg.w_ie = tuple(args.w_ie)
-            C.W_IE = tuple(args.w_ie)
-        if args.w_ii is not None:
-            C.cfg.w_ii = tuple(args.w_ii)
-        if getattr(args, "ei_sparsity", 0.0) > 0:
-            C.cfg.sparsity = float(args.ei_sparsity)
-            C.SPARSITY = float(args.ei_sparsity)
-        if args.input == "dataset":
-            generate_image_snapshot(
-                digit_class=args.digit,
-                sample_idx=args.sample,
-                dt=args.dt,
-                dataset=args.dataset,
-                overdrive=args.overdrive,
-                model_name=args.model,
-                load_weights=getattr(args, "load_weights", None),
-            )
-        elif args.input == "synthetic-spikes":
-            generate_spike_snapshot(
-                spike_rate=args.spike_rate,
-                overdrive=args.overdrive,
-                dt=args.dt,
-                model_name=args.model,
-                independent_drive=args.independent_drive,
-                independent_drive_i=args.independent_drive_i,
-                lyapunov_eps=args.lyapunov_eps,
-            )
-        else:
-            generate_snapshot(
-                args.overdrive,
-                dt=args.dt,
-                model_name=args.model,
-                t_e_async=t_e_async,
-            )
-
-    elif mode == "video":
-        t_e_async = C.T_E_ASYNC_DEFAULT
-        log.info(f"Device: {C.DEVICE}")
-        # Emit init_d0s0.png alongside the scan video when input is dataset.
-        # Mirrors train mode so video runs have a comparable static reference.
-        if args.input == "dataset":
-            generate_image_snapshot(
-                digit_class=args.digit,
-                sample_idx=args.sample,
-                dt=args.dt,
-                dataset=args.dataset,
-                overdrive=args.overdrive,
-                model_name=args.model,
-                out_filename="init_d0s0.png",
-            )
-        generate_scan(
-            scan_var=args.scan_var,
-            scan_min=args.scan_min,
-            scan_max=args.scan_max,
-            n_frames=args.frames,
-            t_e_async=t_e_async,
-            overdrive=args.overdrive,
-            spike_rate=args.spike_rate,
-            input_mode=args.input,
-            dataset=args.dataset,
-            digit_class=args.digit,
-            sample_idx=args.sample,
-            load_weights=getattr(args, "load_weights", None),
-        )
-
-    elif mode == "train":
-        w_in = args.w_in or [0.3, 0.06]
-        if len(w_in) == 1:
-            w_in = [w_in[0], w_in[0] * 0.1]
-        train(
-            model_name=args.model,
-            lr=args.lr,
-            epochs=args.epochs,
-            dt=args.dt or 0.1,
-            observe=args.observe,
-            out_dir=str(out_dir),
-            device_name=args.device,
-            w_in=w_in,
-            w_ei=args.w_ei,
-            w_ie=args.w_ie,
-            w_ii=args.w_ii,
-            ei_strength=args.ei_strength,
-            ei_ratio=args.ei_ratio,
-            w_in_sparsity=args.w_in_sparsity or 0.0,
-            dataset=args.dataset,
-            snapshot_init=True,
-            snapshot_end=True,
-            t_ms=args.t_ms,
-            hidden_sizes=args.n_hidden,
-            max_samples=args.max_samples,
-            v_grad_dampen=args.v_grad_dampen,
-            dales_law=args.dales_law,
-            ei_layers=args.ei_layers,
-            batch_size=args.batch_size,
-            seed=args.seed,
-            readout_w_out_scale=args.readout_w_out_scale,
-            readout_mode=args.readout_mode,
-            tau_gaba=args.tau_gaba,
-            fr_reg_upper_theta=args.fr_reg_upper_theta,
-            fr_reg_upper_strength=args.fr_reg_upper_strength,
-            fr_reg_lower_theta=args.fr_reg_lower_theta,
-            fr_reg_lower_strength=args.fr_reg_lower_strength,
-            fr_reg_mode=args.fr_reg_mode,
-            trainable_w_ee=args.trainable_w_ee,
-            trainable_w_ei=args.trainable_w_ei,
-            trainable_w_ie=args.trainable_w_ie,
-            tbptt_window=args.tbptt_window,
-        )
-
-    elif mode == "infer":
-        w_in = args.w_in or [0.3, 0.06]
-        if len(w_in) == 1:
-            w_in = [w_in[0], w_in[0] * 0.1]
-        infer_kwargs = dict(
-            model_name=args.model,
-            load_weights=args.load_weights,
-            dataset=args.dataset,
-            max_samples=args.max_samples,
-            t_ms=args.t_ms,
-            w_in=w_in,
-            ei_strength=args.ei_strength,
-            ei_ratio=args.ei_ratio,
-            w_in_sparsity=args.w_in_sparsity or 0.0,
-            hidden_sizes=args.n_hidden,
-            dales_law=args.dales_law,
-            ei_layers=args.ei_layers,
-            seed=args.seed,
-        )
-        if args.dt_sweep:
-            dt_values = sorted(args.dt_sweep)
-            log.info(f"dt sweep: {dt_values}")
-
-            encoder = None
-            frozen_mode = getattr(args, "frozen_inputs_mode", None)
-            if frozen_mode is not None:
-                # Anchor the reference at the training dt (paper's framing):
-                # spikes are generated at dt_ref = args.dt once, then
-                # transported to each sweep dt via upsample zero-pad (finer,
-                # §2.1 Fig 1B) or downsample sum-pool (coarser, §2.3).
-                # resample draws fresh at the target.
-                dt_ref = float(args.dt)
-                if frozen_mode != "resample":
-                    for d in dt_values:
-                        if abs(d - dt_ref) < 1e-9:
-                            continue
-                        if frozen_mode == "upsample" and d > dt_ref + 1e-9:
-                            raise ValueError(
-                                f"--frozen-inputs-mode upsample requires "
-                                f"eval-dt <= train-dt; got dt={d}, "
-                                f"dt_ref={dt_ref}"
-                            )
-                        if frozen_mode == "downsample" and d < dt_ref - 1e-9:
-                            raise ValueError(
-                                f"--frozen-inputs-mode downsample requires "
-                                f"eval-dt >= train-dt; got dt={d}, "
-                                f"dt_ref={dt_ref}"
-                            )
-                        ratio = max(d, dt_ref) / min(d, dt_ref)
-                        if abs(ratio - round(ratio)) > 1e-6:
-                            raise ValueError(
-                                f"--frozen-inputs-mode {frozen_mode} requires "
-                                f"integer dt ratios vs train-dt; "
-                                f"dt={d}, dt_ref={dt_ref}, ratio={ratio:.4f}"
-                            )
-                encoder = FrozenEncoder(dt_ref, t_ms=args.t_ms, mode=frozen_mode)
-                log.info(
-                    f"  frozen inputs: ref dt={dt_ref} (train-dt), mode={frozen_mode}"
-                )
-
-            train_dt = float(args.dt)
-            base_rate = float(args.spike_rate)
-
-            sweep_results = []
-            for sweep_dt in dt_values:
-                if encoder is not None:
-                    encoder.reset()
-                res = infer(
-                    dt=sweep_dt, out_dir=None, encode_fn=encoder, **infer_kwargs
-                )
-                sweep_results.append(
-                    {
-                        "dt": sweep_dt,
-                        "acc": res["acc"],
-                        "input_rate": base_rate,
-                        "hid_rate_hz": res.get("hid_rate_hz"),
-                        "rates_hz": res.get("rates_hz", {}),
-                    }
-                )
-            ref = next((r for r in sweep_results if r["dt"] == train_dt), None)
-            ref_acc = ref["acc"] if ref else None
-
-            log.info(f"\n{'=' * 40}")
-            log.info(f"dt sweep summary ({args.model}):")
-            log.info(f"  {'dt':>8s}  {'acc':>6s}  {'Δacc':>6s}")
-            for r in sweep_results:
-                delta = f"{r['acc'] - ref_acc:+.1f}%" if ref_acc is not None else ""
-                marker = " ←train" if r["dt"] == train_dt else ""
-                log.info(f"  {r['dt']:8.4f}  {r['acc']:5.1f}%  {delta:>6s}{marker}")
-
-            sweep_blob = {
-                "model": args.model,
-                "train_dt": train_dt,
-                "input_rate": args.spike_rate,
-                "t_ms": args.t_ms,
-                "dataset": args.dataset,
-                "load_weights": args.load_weights,
-                "frozen_inputs_mode": frozen_mode,
-                "sweep": sweep_results,
-            }
-            results_path = out_dir / "results.json"
-            with open(results_path, "w") as f:
-                json.dump(sweep_blob, f, indent=2)
-            log.info(f"  → {results_path}")
-
-            _plot_dt_sweep(sweep_results, train_dt, args.model, out_dir)
-            log.info(f"  → {out_dir / 'dt_sweep.png'}")
-
-            if args.observe == "video":
-                vid_net = build_net(
-                    args.model,
-                    w_in=w_in,
-                    w_in_sparsity=args.w_in_sparsity or 0.0,
-                    ei_strength=args.ei_strength,
-                    ei_ratio=args.ei_ratio,
-                    randomize_init=True,
-                    dales_law=args.dales_law,
-                    hidden_sizes=args.n_hidden,
-                    ei_layers=args.ei_layers,
-                )
-                vid_net.load_state_dict(
-                    torch.load(args.load_weights, map_location="cpu"), strict=False
-                )
-                vid_net.eval()
-                _render_dt_sweep_video(
-                    vid_net,
-                    dt_values,
-                    sweep_results,
-                    train_dt,
-                    args.model,
-                    args.dataset,
-                    out_dir,
-                    frozen_inputs=bool(frozen_mode),
-                )
-                log.info(f"  → {out_dir / 'dt_sweep.mp4'}")
-        else:
-            acc = infer(dt=args.dt, out_dir=str(out_dir), **infer_kwargs)["acc"]
-            if args.observe:
-                import config as C
-
-                C.N_E = M.N_HID
-                C.N_I = M.N_INH
-                vis_net = build_net(
-                    args.model,
-                    w_in=w_in,
-                    w_in_sparsity=args.w_in_sparsity or 0.0,
-                    ei_strength=args.ei_strength,
-                    ei_ratio=args.ei_ratio,
-                    randomize_init=True,
-                    dales_law=args.dales_law,
-                    hidden_sizes=args.n_hidden,
-                    ei_layers=args.ei_layers,
-                )
-                vis_net.load_state_dict(
-                    torch.load(args.load_weights, map_location="cpu"), strict=False
-                )
-                vis_net.eval()
-                loader_dataset = (
-                    "mnist" if args.dataset in ("mnist", "smnist") else args.dataset
-                )
-                ref_pixel_vec, ref_image = _load_dataset_image(loader_dataset, 0, 0)
-                ref_input = torch.from_numpy(ref_pixel_vec).unsqueeze(0)
-                use_smnist = args.dataset == "smnist"
-                ref_spikes = encode_batch(ref_input, args.dt, use_smnist)
-                fig, axes = make_transient_fig(layout="train")
-                observe_epoch(
-                    vis_net,
-                    ref_spikes,
-                    0,
-                    acc,
-                    0.0,
-                    args.dt,
-                    args.model,
-                    fig,
-                    axes,
-                    None,
-                    digit_image=ref_image,
-                    total_epochs=1,
-                )
-                fname = out_dir / "infer_d0s0.png"
-                fig.savefig(fname, dpi=120)
-                plt.close(fig)
-                log.info(f"  → {fname}")
+    _MODE_HANDLERS[mode](args, C, out_dir, log)
 
     _elapsed = _time.monotonic() - _t0
     _m, _s = divmod(int(_elapsed), 60)
     log.info(f"Done in {_m}m {_s}s.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

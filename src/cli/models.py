@@ -9,7 +9,6 @@ Layer primitives: exp_synapse, lif_step, snn_lif_step.
 
 from __future__ import annotations
 
-import math
 
 import torch
 import torch.nn as nn
@@ -174,7 +173,7 @@ def spike_biophysical(v, threshold_offset=0.0):
 def spike_snn(v):
     # Dimensionless membrane (threshold=1). slope=1 (pinglab default; not
     # snntorch's 25) gives a wide active window so silent neurons keep gradient
-    # support. Override via SURROGATE_SLOPE (oscilloscope --surrogate-slope) to
+    # support. Override via SURROGATE_SLOPE (--surrogate-slope) to
     # match a specific reference (e.g. Cramer β=40).
     return fast_sigmoid_spike(v - thr_snn, SURROGATE_SLOPE)
 
@@ -650,7 +649,6 @@ class COBANet(SNNBase):
 
         # Per-step matmul on every device — single code path (no CUDA-only
         # fast-path). See CUBANet for the same change and rationale.
-        input_drive_all = None
 
         # Per-layer state
         v_e, ref_e, ge_e, gi_e, s_e = {}, {}, {}, {}, {}
@@ -864,7 +862,7 @@ class COBANet(SNNBase):
             }
         self._set_meta(B, n_spk, rec, sizes)
         # Expose grad-attached per-neuron spike counts so the trainer's
-        # firing-rate regulariser (oscilloscope.train) can build its loss.
+        # firing-rate regulariser (train.py) can build its loss.
         # Mirrors CUBANet.last_spike_counts.
         self.last_spike_counts = rate_counts
         if self.readout_mode == "li":

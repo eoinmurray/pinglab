@@ -1,4 +1,4 @@
-"""End-to-end smoke tests — spawn oscilloscope.py subprocesses in each mode.
+"""End-to-end smoke tests — spawn cli.py subprocesses in each mode.
 
 Marked `slow` because each test launches a fresh `uv run` process.
 Run with: `uv run pytest -m slow`

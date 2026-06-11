@@ -1,4 +1,4 @@
-"""Scan-mode generators for the oscilloscope CLI.
+"""Scan-mode generators for the CLI.
 
 Sweeps a variable from scan_min to scan_max, rendering one video frame per
 value. Three internal paths:
@@ -9,29 +9,13 @@ value. Three internal paths:
 
 from __future__ import annotations
 
-import sys
+import logging
 from pathlib import Path
 
-# Make `import config as C`, `import models as M`, etc. resolve to the
-# top-level files in src/ (mirrors cli.py's path setup).
-_pkg_dir = str(Path(__file__).resolve().parent.parent)
-if _pkg_dir in sys.path:
-    sys.path.remove(_pkg_dir)
-sys.path.insert(0, _pkg_dir)
-_cli_dir = str(Path(__file__).resolve().parent)
-if _cli_dir in sys.path:
-    sys.path.remove(_cli_dir)
-sys.path.insert(0, _cli_dir)
-
-import logging
-
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from matplotlib.animation import FFMpegWriter
+
+from figkit import plt, FFMpegWriter
 
 import models as M
 from config import (
@@ -59,7 +43,7 @@ from plot import draw_transient_frame, make_transient_fig, prof
 from datasets import _load_dataset_image
 from encoders import encode_image_spikes
 
-log = logging.getLogger("oscilloscope")
+log = logging.getLogger("cli")
 
 
 # ── Shared utilities (imported by snapshot/train/infer/__main__) ──────────
@@ -386,7 +370,6 @@ def _scan_streaming(
 
     input_spikes = None
     tonic_g = None
-    img_tensor = None
     _digit_img = None
     _loaded_net = None
 
@@ -394,9 +377,6 @@ def _scan_streaming(
         pixel_vec, _digit_img = _load_dataset_image(dataset, digit_class, sample_idx)
         M.N_IN = len(pixel_vec)
         patch_dt(dt)
-        img_tensor = (
-            torch.tensor(pixel_vec, dtype=torch.float32).unsqueeze(0).to(C.DEVICE)
-        )
 
     # Load trained weights once if provided
     if load_weights is not None:
@@ -701,7 +681,7 @@ def _scan_dt(
         layout = "sweep_video"
     else:
         digit_image = None
-        print("  dt scan uses conductance input (reference noise for dt-invariance)...")
+        log.info("  dt scan uses conductance input (reference noise for dt-invariance)...")
         X_i, eta_ref = make_reference_noise(
             C.N_E, C.SIM_MS, C.NOISE_SIGMA, C.NOISE_TAU, C.SEED
         )
@@ -722,7 +702,6 @@ def _scan_dt(
     with writer.saving(fig, str(out_dir / fname), dpi=120):
         for i, dt_val in enumerate(scan_values):
             burn_steps = int(C.BURN_IN_MS / dt_val)
-            pred = None
             with prof.track_sim():
                 if use_dataset:
                     patch_dt(dt_val)
@@ -743,9 +722,7 @@ def _scan_dt(
                         C.cfg, w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY)
                     )
                     with torch.no_grad():
-                        logits = net_frame.forward(input_spikes=frame_spikes)
-                    if logits is not None:
-                        pred = int(logits.argmax(dim=-1)[0].item())
+                        net_frame.forward(input_spikes=frame_spikes)
                     rec = _extract_records(net_frame)
                     dt_weights = extract_weights(net_frame)
                     ext_g_raw = frame_spikes.cpu().numpy()
