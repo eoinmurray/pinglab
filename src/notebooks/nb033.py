@@ -363,32 +363,6 @@ def cubic_find_hopf(results):
     return None
 
 
-def plot_2d_cubic_eigenvalues(results, hopf, out_path, run_id):
-    theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    xs = [r["I_ext"] for r in results]
-    eigs_re = np.array([[e[0] for e in r["eigs"]] for r in results])
-    eigs_im = np.array([[e[1] for e in r["eigs"]] for r in results])
-    for k in range(eigs_re.shape[1]):
-        color = theme.INK_BLACK if abs(eigs_im[0, k]) < 1e-6 else theme.DEEP_RED
-        ax.plot(xs, eigs_re[:, k], color=color, lw=1.2, alpha=0.8)
-    ax.axhline(0, color=theme.GREY_MID, lw=0.6, ls=":")
-    if hopf:
-        ax.axvline(hopf["I_ext_star"], color=theme.AMBER, lw=1.0, ls="--",
-                   label=f"$I^\\star = {hopf['I_ext_star']:.2f}$")
-        ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper left")
-    ax.set_xlabel("$I_\\text{ext}$", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
-    ax.set_title(
-        "2D-cubic reduction eigenvalues — no Hopf with naive coefficients",
-        fontsize=theme.SIZE_TITLE,
-    )
-    fig.tight_layout()
-    _stamp(fig, run_id)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
 # ── 2D Wilson-Cowan field (synapses adiabatically eliminated) ─────────
 
 
