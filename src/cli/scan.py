@@ -38,7 +38,8 @@ from inputs import (
     make_step_drive_from_ref,
 )
 from metrics import metrics_str
-from plot import draw_transient_frame, make_transient_fig, prof
+from plot import draw_transient_frame, make_transient_fig
+from profiling import prof
 
 from datasets import _load_dataset_image
 from encoders import encode_image_spikes

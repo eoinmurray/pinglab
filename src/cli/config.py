@@ -89,27 +89,36 @@ cfg = Config(artifact_root=str(DEFAULT_ARTIFACT_ROOT))
 # Model Registry
 # =============================================================================
 
-MODEL_REGISTRY = {
-    "ping": lambda **kw: COBANet(
-        w_in=(0, 0),
-        w_hid=(5.1, 3.8),
-        w_ee=(*cfg.w_ee, "normal", cfg.sparsity),
-        w_ei=(*cfg.w_ei, "normal", cfg.sparsity),
-        w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
-        **kw,
-    ),
-    "cuba-ping": lambda **kw: CubaPingNet(**kw),
-    "cuba-noping": lambda **kw: CubaPingNet(no_inhibition=True, **kw),
-}
-
-HAS_INH = {"ping", "cuba-ping"}
-IS_COBA = {"ping"}
-
+# Single source of truth for the model set: name → (class, base kwargs).
+# build_net (train/infer) and _build_sim_net (sim/scan/snapshot) both read it.
 _MODEL_CLASSES = {
     "ping": (COBANet, {}),
     "cuba-ping": (CubaPingNet, {}),
     "cuba-noping": (CubaPingNet, {"no_inhibition": True}),
 }
+
+HAS_INH = {"ping", "cuba-ping"}
+IS_COBA = {"ping"}
+
+
+def _build_sim_net(model_name, **kwargs):
+    """Construct a network for the sim/scan/snapshot path from _MODEL_CLASSES.
+
+    The ping path additionally wires the cfg-derived recurrent weight specs;
+    the train/infer path sets those from CLI args via build_net instead.
+    """
+    cls, base_kwargs = _MODEL_CLASSES[model_name]
+    kwargs = {**base_kwargs, **kwargs}
+    if model_name == "ping":
+        kwargs.update(
+            w_in=(0, 0),
+            w_hid=(5.1, 3.8),
+            w_ee=(*cfg.w_ee, "normal", cfg.sparsity),
+            w_ei=(*cfg.w_ei, "normal", cfg.sparsity),
+            w_ie=(*cfg.w_ie, "normal", cfg.sparsity),
+        )
+    return cls(**kwargs)
+
 
 LEGACY_MODEL_ALIASES: dict[str, str] = {}
 
@@ -412,7 +421,7 @@ def run_sim(
         ext_g_tensor = ext_g_tensor.to(DEVICE)
 
     torch.manual_seed(SEED)
-    net = MODEL_REGISTRY[model_name](hidden_sizes=[M.N_HID])
+    net = _build_sim_net(model_name, hidden_sizes=[M.N_HID])
     net.to(DEVICE)
     net.recording = True
 
@@ -454,7 +463,7 @@ def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100, model_name="
         M.T_steps = min(M.T_steps, T)
 
         torch.manual_seed(SEED)
-        net = MODEL_REGISTRY[model_name](hidden_sizes=[M.N_HID])
+        net = _build_sim_net(model_name, hidden_sizes=[M.N_HID])
         net.to(DEVICE)
         net.recording = True
 
