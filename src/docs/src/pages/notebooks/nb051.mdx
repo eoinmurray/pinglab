@@ -1,0 +1,90 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "051 — Bayesian cue combination in a PING network"
+date: 2026-06-10
+entry: 51
+structure: paper
+collection: future-experiments
+---
+
+*Status: proposal — not yet run. This entry pre-registers the hypotheses, design, and pass/fail criteria before any data is collected, so the result cannot be reverse-engineered into a confirmation.*
+
+## Abstract
+
+A leaky-integrate-and-fire PING network is given two noisy sensory cues about the same hidden variable and trained, by plain gradient descent on a squared-error loss, to report a single estimate. The question is whether the trained network spontaneously performs *Bayes-optimal precision-weighted averaging* — weighting each cue by its reliability — without that arithmetic ever being written into the architecture. If it does, the entry then asks a sharper, riskier question owed to the sampling-school reading (see [ar007](/articles/ar007/)): does the network's *gamma rhythm* carry the posterior uncertainty, with tighter E-cell bands when both cues are reliable and looser bands when either is noisy? This is the project's first contact between the PING machinery and the uncertainty-representation literature (Ernst & Banks 2002; Ma, Beck, Latham & Pouget 2006).
+
+## Background: cue combination as Bayes
+
+Two cues $s_A, s_B$ about a latent $s$, each a noisy observation $s_A = s + \epsilon_A$, $\epsilon_A \sim \mathcal{N}(0, \sigma_A^2)$, and likewise for $B$. With a flat prior and independent Gaussian noise, the posterior over $s$ is Gaussian, and its mean is the *precision-weighted average* of the two cues:
+
+$$
+\hat{s}^* = \frac{s_A/\sigma_A^2 + s_B/\sigma_B^2}{1/\sigma_A^2 + 1/\sigma_B^2},
+\qquad
+\sigma_*^2 = \frac{1}{1/\sigma_A^2 + 1/\sigma_B^2}.
+$$
+
+Precisions ($1/\sigma^2$) add; the more reliable cue pulls the estimate harder; the combined estimate is strictly tighter than either cue alone. This is the calculation human observers were shown to perform near-optimally in visual–haptic size judgement (Ernst & Banks 2002), and the operation that probabilistic population codes make linear in neural activity (Ma et al. 2006). The full derivation and the worked Gaussian case are in [ar007 — Uncertainty & Bayesian inference in the cortex](/articles/ar007/).
+
+The point of this notebook is that nothing in the network is told $\sigma_A$ or $\sigma_B$. The weights $1/\sigma^2$ that optimal combination requires would have to be inferred, per trial, from the *statistics of the input itself* — a noisier cue produces a broader, lower population bump — and applied by the recurrent dynamics. Whether gradient descent finds that solution is an empirical question.
+
+## Hypotheses
+
+- **H1 (primary) — the computation emerges.** A PING network trained with BPTT and an $L_2$ loss on the two-cue task produces readout estimates $\hat{s}$ consistent with Bayes-optimal precision-weighted averaging, without precision-weighting being built in.
+- **H2 (secondary, the conjecture) — the rhythm is legible.** Gamma-band dispersion in the E-cell raster tracks the analytical posterior variance $\sigma_*^2$: tighter bands when both cues are reliable, looser bands when either cue is noisy.
+- **H3 (tertiary) — the two confidences agree.** Two independent uncertainty read-outs — the readout-implicit posterior width (spread of population activity) and the raster band dispersion — co-vary trial by trial. Where they *diverge* localises where in the network uncertainty is actually represented.
+- **H4 (control) — the rhythm is the substrate.** Against a non-rhythmic conductance control (same COBANet, driven to an asynchronous-irregular operating point with no gamma cycle), the temporal uncertainty channel of H2/H3 is *absent* — the control has no band to be tight or loose around. If the control nonetheless matches PING on H1, precision-weighting is generic to the conductance network; if PING additionally carries legible posterior width that the control cannot, the rhythm is what provides it.
+
+## Setup
+
+**Inputs.** Two input populations $A$ and $B$, ≈ 50 neurons each, with Gaussian tuning curves tiling $s \in [-1, 1]$. On each trial the latent $s$ is drawn uniformly; each population is driven by a bump centred on its own corrupted cue value $s_A = s + \epsilon_A$ (resp. $s_B$), with $\epsilon_A \sim \mathcal{N}(0, \sigma_A^2)$ independent of $\epsilon_B$. The reliabilities $\sigma_A, \sigma_B$ are *test-time knobs* — a less reliable cue is delivered as a broader, lower-gain bump, so the network must read reliability off the input statistics, never from a label.
+
+**Network.** Both input populations project to the PING E-cells through learned weights $W_\text{in}$; the recurrent E↔I loop is the standard [COBANet](/articles/ar003/) PING substrate used throughout this collection. The gamma rhythm is the network's own, not imposed.
+
+**Non-rhythmic control.** The same task is trained on a second copy of the *same* COBANet driven to a non-rhythmic, asynchronous-irregular operating point — the V&S-style regime of [nb050](/notebooks/nb050/) (fixed fan-in, $I\to I$ coupling, per-cell independent drive), which produces a broadband spectrum and no gamma cycle. This is the same PING-vs-non-rhythmic contrast nb050 used for the balanced state, here repurposed as the control for *uncertainty representation*: the two networks share architecture, readout, loss, and training schedule, and differ only in whether a rhythm exists. The control has no gamma band, so the temporal channel that H2/H3 measure is structurally unavailable to it — any uncertainty it represents must live in the rate-amplitude channel (population bump width/gain), the PPC mechanism, which needs no oscillation.
+
+**Readout.** Population-vector decode of $\hat{s}$ over an integer number of gamma cycles (so the estimate is phase-consistent), with a plain linear readout run in parallel as a sanity check. The population-activity spread around $\hat{s}$ gives the *readout-implicit posterior width* used in H3.
+
+**Training.** BPTT with surrogate gradients (the [ar006](/articles/ar006/) recipe), $L_2$ loss $\lVert \hat{s} - s \rVert^2$. Crucially, $\sigma_A, \sigma_B$ are *sampled per trial across a range* during training, so the network sees varied and mixed reliability and cannot collapse to a fixed weighting. Optimal behaviour, if it appears, is the cheapest way to minimise loss over that distribution — not something the loss names.
+
+*A caveat that shapes how H2/H3 should be read.* The $L_2$ loss rewards only the point estimate $\hat{s}$; the posterior *width* $\sigma_*^2$ is needed for nothing the loss measures. Computing the weighted mean (H1) forces the network to represent the *input* reliabilities $\sigma_A, \sigma_B$ instrumentally — that much is load-bearing — but there is no gradient pressure to represent the *output* width at all. So any $\sigma_*^2$ that shows up in the raster or the readout (H2, H3) is emergent and free, a structural by-product of the dynamics rather than a trained quantity. That is precisely what makes the PING-mechanism conjecture interesting, but it also means H2/H3 may have no teeth under this loss. If the emergent signal is weak or absent, a follow-up should add a task that *requires* uncertainty — a confidence read-out scored on calibration, a cost-asymmetric loss, or temporal integration where propagating $\sigma^2$ pays — to give uncertainty representation something to be selected for.
+
+## Tests and pass conditions
+
+T1 and T4 run on *both* networks; T2 (which needs a gamma band) runs on PING only; T3 runs on both, using each network's available channels.
+
+| # | Tests | Measures | Pass condition |
+|---|---|---|---|
+| **T1** | Sweep $\sigma_A, \sigma_B$ on a test grid; regress $\hat{s}$ against $\hat{s}^*$ | network estimate vs analytical optimum | slope ≈ 1, low residuals across the whole noise grid |
+| **T2** | Per-trial gamma-band dispersion vs analytical posterior variance $\sigma_*^2$ (PING only) | raster legibility of uncertainty | monotonic positive relationship, ideally linear |
+| **T3** | Per-trial readout-implicit posterior width vs $\sigma_*^2$ (both nets) and vs band dispersion (PING) | agreement of confidence channels | significant positive correlation |
+| **T4** | PING vs non-rhythmic control on T1 and on each network's $\sigma_*^2$-tracking | what the rhythm adds | control matches T1; control's posterior-width tracking is absent or weaker than PING's |
+
+A clean result also reproduces the two qualitative Ernst–Banks signatures inside T1: as one cue is degraded, $\hat{s}$ shifts *towards the more reliable cue* by the precision-predicted amount, and the combined estimate is tighter than either single-cue estimate.
+
+**Planned figures.** (1) $\hat{s}$ vs $\hat{s}^*$ scatter across the $\sigma_A \times \sigma_B$ grid with the unit line, PING and control overlaid. (2) Cue-shift curves: estimate vs cue conflict at several reliability ratios, against the Bayesian prediction. (3) Band dispersion vs $\sigma_*^2$ (PING). (4) Readout width vs $\sigma_*^2$ for PING and control side by side — the panel that shows whether the control carries uncertainty in the rate channel at all. (5) Example rasters at a reliable and an unreliable operating point, PING (banded) above control (scattered).
+
+## Falsification map
+
+The three hypotheses are nested, so the failure points are diagnostic rather than fatal-or-nothing:
+
+- **T1 fails.** The network is not doing cue combination at all. Abandon the Bayesian framing *for this architecture* — H2 and H3 are then moot.
+- **T1 passes, T2 fails.** The inference happens but is not written into the raster. The professor's conjecture (H2) is wrong as stated: uncertainty is computed but encoded somewhere other than gamma-band structure.
+- **T2 and T3 diverge.** The two confidence channels disagree, which localises the representation — uncertainty lives in the readout population's spread but not in the rhythm's dispersion (or vice versa). This is the most informative outcome: it says *where* the network keeps its uncertainty.
+
+The non-rhythmic control (T4) then resolves what the rhythm specifically contributes. Note that passing T1 already requires representing the *input* reliabilities, so a control that passes T1 is never literally without an interior uncertainty metric — the question is only whether it represents the *posterior width* in any legible form:
+
+- **Control matches PING on T1.** Precision-weighting the mean is generic to the conductance network — the rhythm is not needed to *compute* the combined estimate. Expected, and consistent with the PPC account (Ma et al. 2006).
+- **Control fails T1 under the time budget.** The rhythm acts as an inference accelerant: within a few-cycle window PING reaches the weighted estimate while the asynchronous control mixes too slowly. This is the Aitchison–Lengyel (ar007) angle — gamma as the momentum of a fast sampler — and would be a stronger claim than the representational one.
+- **PING tracks $\sigma_*^2$, control does not (in any channel).** The rhythm is the uncertainty substrate — the strong form of the conjecture. Posterior width is legible only where there is a cycle to disperse around.
+- **Both track $\sigma_*^2$ in the rate channel, only PING also in band timing.** The likeliest real outcome: the rhythm supplies a redundant, more legible second read-out rather than a unique one. Uncertainty is represented either way; PING just shows its work.
+
+## What's at stake
+
+If H1 holds, this is a concrete instance of the sampling-school claim that probabilistic computation can fall out of trained recurrent E/I dynamics (Echeveste et al. 2020, via [ar007](/articles/ar007/)) — reached here by ordinary gradient descent rather than by a sampling objective. If H2 also holds, it ties the project's PING work directly to uncertainty representation: the gamma rhythm would be doing double duty as both the network's clock and its confidence gauge. The most likely real outcome — T1 passes, H2 partly holds — is itself the interesting one, because the divergence in T3 is what would tell us where the uncertainty is.
+
+## Next steps
+
+1. **Implement the task and runner.** A two-cue input generator (Gaussian-tuned populations with per-trial reliability), the population-vector readout over whole gamma cycles, and the runner at *src/notebooks/nb051.py* with hardcoded recipe (tier + modal-gpu only). The runner trains two networks on the identical task — the PING substrate and the nb050 non-rhythmic control — sharing readout, loss, and schedule.
+2. **Pilot at the tiny tier** to confirm the network trains to non-trivial accuracy on a single reliability level before opening the mixed-reliability regime.
+3. **Run T1 first** — it gates everything. Only if the precision-weighting is real do T2, T3, and the T4 contrast carry meaning.
+4. **If H2/H3 come out weak**, add a confidence-requiring task variant (calibration-scored confidence output, cost-asymmetric loss, or temporal integration) so that posterior width is something the loss selects for rather than an incidental by-product.
