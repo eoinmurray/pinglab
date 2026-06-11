@@ -90,6 +90,15 @@
         }
       ]
     },
+    "first_lyapunov": {
+      "I_hopf": 1.287876729895904,
+      "omega0": 0.15240015240015223,
+      "f_hopf_Hz": 24.255237582442405,
+      "l1": -1.40614133974106,
+      "verdict": "supercritical",
+      "lam_prime": 0.08481900946895347,
+      "A2_slope_predicted": 0.0003357165243841673
+    },
     "frequency_vs_tau_gaba": {
       "mean_field": [
         {
@@ -148,6 +157,11 @@
       "label": "4D Hopf is supercritical (continuous amplitude onset)",
       "passed": true,
       "detail": "A\u00b2 \u221d (I\u2212I*): slope 3.21e-04, R\u00b2 = 0.997; silent below I* (amp = 0.0000)"
+    },
+    {
+      "label": "Normal form agrees: \u21131 < 0 and predicted slope \u2248 simulated",
+      "passed": true,
+      "detail": "\u21131 = -1.406 (supercritical); predicted A\u00b2 slope 3.36e-04 vs simulated 3.21e-04"
     },
     {
       "label": "2D-cubic verdict: no Hopf (architecture lacks W^EE)",

@@ -33,7 +33,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import linalg
 from scipy.integrate import solve_ivp
-from scipy.optimize import fsolve
+from scipy.optimize import fsolve, brentq
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
@@ -72,6 +72,11 @@ def phi_p(x, rmax, theta, k):
     return (rmax / k) * s * (1 - s)
 
 
+def phi_pp(x, rmax, theta, k):
+    s = phi(x, rmax, theta, k) / rmax
+    return (rmax / (k**2)) * s * (1 - s) * (1 - 2 * s)
+
+
 def phi_ppp(x, rmax, theta, k):
     s = phi(x, rmax, theta, k) / rmax
     return (rmax / (k**3)) * s * (1 - s) * (1 - 6 * s * (1 - s))
@@ -79,9 +84,12 @@ def phi_ppp(x, rmax, theta, k):
 
 def PhiE(x): return phi(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
 def PhiE_p(x): return phi_p(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
+def PhiE_pp(x): return phi_pp(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
 def PhiE_ppp(x): return phi_ppp(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
 def PhiI(x): return phi(x, PHI_I_RMAX, PHI_I_THETA, PHI_I_K)
 def PhiI_p(x): return phi_p(x, PHI_I_RMAX, PHI_I_THETA, PHI_I_K)
+def PhiI_pp(x): return phi_pp(x, PHI_I_RMAX, PHI_I_THETA, PHI_I_K)
+def PhiI_ppp(x): return phi_ppp(x, PHI_I_RMAX, PHI_I_THETA, PHI_I_K)
 
 
 def rhs_4d(t, y, I_ext, w_ei=W_EI, w_ie=W_IE):
@@ -190,32 +198,6 @@ def _stamp(fig, run_id):
         0.995, 0.005, run_id, ha="right", va="bottom",
         fontsize=theme.SIZE_CAPTION, color=theme.LABEL, family="monospace",
     )
-
-
-def plot_eigenvalue_trajectories(results, hopf, out_path, run_id):
-    theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    xs = [r["I_ext"] for r in results]
-    eigs_re = np.array([[e[0] for e in r["eigs"]] for r in results])
-    eigs_im = np.array([[e[1] for e in r["eigs"]] for r in results])
-    for k in range(eigs_re.shape[1]):
-        color = theme.INK_BLACK if abs(eigs_im[0, k]) < 1e-6 else theme.DEEP_RED
-        ax.plot(xs, eigs_re[:, k], color=color, lw=1.2, alpha=0.7)
-    ax.axhline(0, color=theme.GREY_MID, lw=0.6, ls=":")
-    if hopf:
-        ax.axvline(
-            hopf["I_ext_star"], color=theme.AMBER, lw=1.0, ls="--",
-            label=(f"$I^\\star = {hopf['I_ext_star']:.2f}$, "
-                   f"$f^\\star = {hopf['freq_star_Hz']:.1f}$ Hz"),
-        )
-        ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper left")
-    ax.set_xlabel("$I_\\text{ext}$", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
-    ax.set_title("4D system eigenvalues", fontsize=theme.SIZE_TITLE)
-    fig.tight_layout()
-    _stamp(fig, run_id)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
 
 
 def plot_criticality(amps, hopf, out_path, run_id):
@@ -399,9 +381,9 @@ def plot_2d_vs_4d_timeseries(hopf, out_path, run_id):
     pp2 = float(d2[sol2.t > 150].max() - d2[sol2.t > 150].min())
     print(f"  2D-vs-4D at I={I_ext:.2f}: 4D peak-to-peak={pp4:.4f}, 2D={pp2:.6f}")
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    ax.plot(sol2.t, d2, color=theme.DEEP_RED, lw=1.3,
+    ax.plot(sol2.t, d2, color=theme.DEEP_RED, lw=1.6,
             label="2D Wilson-Cowan — rings down to equilibrium")
-    ax.plot(sol4.t, d4, color=theme.INK_BLACK, lw=1.3,
+    ax.plot(sol4.t, d4, color=theme.INK_BLACK, lw=1.3, alpha=0.7,
             label="4D conductance — sustains a limit cycle")
     ax.axhline(0, color=theme.GREY_MID, lw=0.6, ls=":")
     ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
@@ -428,11 +410,16 @@ def plot_eigenvalues_complex(results, hopf, out_path, run_id):
                         s=5, linewidths=0)
     ax.axvline(0, color=theme.GREY_MID, lw=0.6, ls=":")
     if hopf:
-        ax.scatter([0, 0], [hopf["omega_star"], -hopf["omega_star"]],
-                   facecolors="none", edgecolors=theme.ELECTRIC_CYAN, s=70,
-                   lw=1.4, label=f"crossing at $\\pm i\\omega^\\star$, "
-                                 f"$f^\\star={hopf['freq_star_Hz']:.1f}$ Hz")
-        ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
+        w = hopf["omega_star"]
+        ax.scatter([0, 0], [w, -w], facecolors="none",
+                   edgecolors=theme.ELECTRIC_CYAN, s=70, lw=1.4, zorder=5)
+        ax.annotate(f"crossing at $\\pm i\\omega^\\star$\n"
+                    f"$f^\\star = {hopf['freq_star_Hz']:.1f}$ Hz",
+                    xy=(0, w), xytext=(0.10, w + 0.12),
+                    fontsize=theme.SIZE_ANNOTATION, color=theme.GREY_DARK,
+                    ha="left", va="bottom",
+                    arrowprops=dict(arrowstyle="-", color=theme.ELECTRIC_CYAN,
+                                    lw=0.8))
     cbar = fig.colorbar(sc, ax=ax)
     cbar.set_label("$I_\\text{ext}$", fontsize=theme.SIZE_LABEL)
     ax.set_xlabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
@@ -552,6 +539,82 @@ def plot_hopf_locus(wei_grid, wie_grid, Istar, out_path, run_id):
     plt.close(fig)
 
 
+def first_lyapunov_coefficient(hopf_guess):
+    """First Lyapunov coefficient ℓ1 of the 4D Hopf via Kuznetsov's
+    projection formula (Elements of Applied Bifurcation Theory, eq. 10.59).
+
+    ℓ1 < 0 ⇒ supercritical. The 4D field is linear except in the two
+    gains, so the quadratic/cubic forms B, C are non-zero only in the
+    E-equation (via g_iE) and the I-equation (via g_eI). Also returns the
+    predicted A² onset slope for cross-check against the simulation.
+    """
+    # refine the Hopf to where the critical pair is purely imaginary
+    def max_re(I):
+        return max(e.real for e in linalg.eigvals(jacobian(fixed_point(I), I)))
+    I0 = brentq(max_re, hopf_guess - 0.15, hopf_guess + 0.15, xtol=1e-12)
+
+    fp = fixed_point(I0)
+    A = jacobian(fp, I0)
+
+    # critical right/left eigenvectors, normalised so <p, q> = 1
+    w, V = linalg.eig(A)
+    k = min((i for i in range(4) if w[i].imag > 1e-7),
+            key=lambda i: abs(w[i].real))
+    omega0 = float(w[k].imag)
+    q = V[:, k]
+    wl, Vl = linalg.eig(A.T)
+    j = min(range(4), key=lambda i: abs(wl[i] - (-1j * omega0)))
+    p = Vl[:, j]
+    p = p / np.conj(np.vdot(p, q))
+
+    # gain 2nd/3rd derivatives at the fixed-point arguments. State order
+    # (E, I, g_eI, g_iE) = indices (0, 1, 2, 3). The E-eq is nonlinear in
+    # g_iE (index 3) through Phi_E(I_ext - g_iE); the I-eq in g_eI (index 2).
+    _, _, g_eI, g_iE = fp
+    uE = I0 - g_iE
+    bE, cE = PhiE_pp(uE) / TAU_E_MS, -PhiE_ppp(uE) / TAU_E_MS
+    bI, cI = PhiI_pp(g_eI) / TAU_I_MS, PhiI_ppp(g_eI) / TAU_I_MS
+
+    def Bf(x, y):
+        r = np.zeros(4, dtype=complex)
+        r[0] = bE * x[3] * y[3]
+        r[1] = bI * x[2] * y[2]
+        return r
+
+    def Cf(x, y, z):
+        r = np.zeros(4, dtype=complex)
+        r[0] = cE * x[3] * y[3] * z[3]
+        r[1] = cI * x[2] * y[2] * z[2]
+        return r
+
+    qb = np.conj(q)
+    eye = np.eye(4)
+    h11 = linalg.solve(A, Bf(q, qb))
+    h20 = linalg.solve(2j * omega0 * eye - A, Bf(q, q))
+    g21 = (np.vdot(p, Cf(q, q, qb))
+           - 2 * np.vdot(p, Bf(q, h11))
+           + np.vdot(p, Bf(qb, h20)))
+    l1 = float(g21.real / (2 * omega0))
+
+    # transversality and predicted peak-to-peak A² slope vs (I - I*):
+    # A_pp = 4|q_E| r, r² = -beta/Re(c1), beta = lam'(I-I*), Re(c1) = omega0 l1
+    dI = 1e-4
+    lam_prime = (max_re(I0 + dI) - max_re(I0 - dI)) / (2 * dI)
+    Rec1 = omega0 * l1
+    qE = float(abs(q[0]))
+    slope_pred = -16.0 * qE**2 * lam_prime / Rec1 if Rec1 else float("nan")
+
+    return {
+        "I_hopf": float(I0),
+        "omega0": omega0,
+        "f_hopf_Hz": float(1000.0 * omega0 / (2 * np.pi)),
+        "l1": l1,
+        "verdict": "supercritical" if l1 < 0 else "subcritical",
+        "lam_prime": float(lam_prime),
+        "A2_slope_predicted": float(slope_pred),
+    }
+
+
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     run_id = "nb033-numerics"
@@ -567,14 +630,9 @@ def main() -> None:
     else:
         print("  4D: no Hopf detected")
 
-    plot_eigenvalue_trajectories(
-        results, hopf,
-        FIGURES / "eigenvalue_trajectories.png", run_id,
-    )
-    print(f"  wrote {FIGURES / 'eigenvalue_trajectories.png'}")
-
     amp_data = []
     criticality = None
+    lyapunov = None
     if hopf:
         i_star = hopf["I_ext_star"]
         deltas = np.linspace(-0.1, 0.5, 13)
@@ -589,6 +647,13 @@ def main() -> None:
               f"(A² slope {criticality['A2_slope']:.2e}, "
               f"R²={criticality['A2_r2']:.3f}, "
               f"amp below I* = {criticality['amp_below_star']:.4f})")
+
+        lyapunov = first_lyapunov_coefficient(hopf["I_ext_star"])
+        print(f"  first Lyapunov coeff: ℓ1 = {lyapunov['l1']:.4e} "
+              f"({lyapunov['verdict']}); refined I*={lyapunov['I_hopf']:.4f}, "
+              f"f={lyapunov['f_hopf_Hz']:.2f} Hz")
+        print(f"  predicted A² slope = {lyapunov['A2_slope_predicted']:.3e}  "
+              f"vs simulated {criticality['A2_slope']:.3e}")
 
         plot_eigenvalues_complex(
             results, hopf, FIGURES / "eigenvalues_complex.png", run_id)
@@ -649,6 +714,7 @@ def main() -> None:
         "results": {
             "hopf": hopf,
             "criticality": criticality,
+            "first_lyapunov": lyapunov,
             "frequency_vs_tau_gaba": {
                 "mean_field": mf_freq,
                 "spiking_nb041": meas_fgamma,
@@ -684,6 +750,20 @@ def main() -> None:
                     f"R² = {criticality['A2_r2']:.3f}; silent below I* "
                     f"(amp = {criticality['amp_below_star']:.4f})"
                     if criticality else "not evaluated"
+                ),
+            },
+            {
+                "label": "Normal form agrees: ℓ1 < 0 and predicted slope ≈ simulated",
+                "passed": bool(
+                    lyapunov and criticality and lyapunov["l1"] < 0
+                    and abs(lyapunov["A2_slope_predicted"] - criticality["A2_slope"])
+                    < 0.1 * criticality["A2_slope"]
+                ),
+                "detail": (
+                    f"ℓ1 = {lyapunov['l1']:.3f} (supercritical); "
+                    f"predicted A² slope {lyapunov['A2_slope_predicted']:.2e} "
+                    f"vs simulated {criticality['A2_slope']:.2e}"
+                    if lyapunov and criticality else "not evaluated"
                 ),
             },
             {
