@@ -173,7 +173,7 @@ def report_metrics(
     if not quiet:
         import logging
 
-        logging.getLogger("oscilloscope").info(f"  {s}")
+        logging.getLogger("cli").info(f"  {s}")
     return s
 
 

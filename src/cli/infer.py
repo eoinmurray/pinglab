@@ -1,4 +1,4 @@
-"""Inference driver for the oscilloscope CLI.
+"""Inference driver for the CLI.
 
 Replays a trained network over a held-out dataset split, recomputes test
 accuracy and rates, and optionally writes per-sample predictions.
@@ -7,32 +7,19 @@ accuracy and rates, and optionally writes per-sample predictions.
 from __future__ import annotations
 
 import json
-import sys
+import logging
 from pathlib import Path
 
-_pkg_dir = str(Path(__file__).resolve().parent.parent)
-if _pkg_dir in sys.path:
-    sys.path.remove(_pkg_dir)
-sys.path.insert(0, _pkg_dir)
-_cli_dir = str(Path(__file__).resolve().parent)
-if _cli_dir in sys.path:
-    sys.path.remove(_cli_dir)
-sys.path.insert(0, _cli_dir)
-
-import logging
-
-import numpy as np
 import torch
 
 import models as M
 from config import build_net, patch_dt
-
 from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
 from encoders import EVAL_SEED, encode_batch
 from scan import _auto_device
-from train import seed_everything, train
+from train import seed_everything
 
-log = logging.getLogger("oscilloscope")
+log = logging.getLogger("cli")
 
 
 def infer(
@@ -54,7 +41,6 @@ def infer(
     seed=None,
 ):
     """Run inference with saved weights at a given dt."""
-    import config as C
 
     # Seed before dataset load and model init (matters when load_weights is None
     # and any randomness remains in the path).

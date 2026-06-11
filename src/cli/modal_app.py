@@ -1,12 +1,12 @@
-"""Modal remote execution for oscilloscope train/infer.
+"""Modal remote execution for CLI train/infer.
 
-Wraps the oscilloscope CLI so the same args run identically on Modal's
-infrastructure. Artifacts are written to a Modal Volume and synced back
-to the local out-dir after completion.
+Wraps the CLI so the same args run identically on Modal's infrastructure.
+Artifacts are written to a Modal Volume and synced back to the local
+out-dir after completion.
 
-Usage (via oscilloscope --modal flag):
-    uv run python src/oscilloscope.py train --modal --model cuba ...
-    (oscilloscope intercepts --modal and calls this module)
+Usage (via the --modal flag):
+    uv run python src/cli/cli.py train --modal --model cuba ...
+    (cli.py intercepts --modal and calls this module)
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ def _host_git_sha() -> str | None:
         return None
 
 
-def _run_oscilloscope_impl(cli_args: list[str], git_sha: str | None = None) -> str:
+def _run_cli_impl(cli_args: list[str], git_sha: str | None = None) -> str:
     import os
     import subprocess
     import sys
@@ -114,7 +114,7 @@ def _run_oscilloscope_impl(cli_args: list[str], git_sha: str | None = None) -> s
         if torch.cuda.is_available():
             args.extend(["--device", "cuda"])
 
-    cmd = [sys.executable, "/root/cli/cli.py", *args]
+    cmd = [sys.executable, "/root/src/cli/cli.py", *args]
     print(f"modal> {' '.join(cmd)}")
     env = os.environ.copy()
     if git_sha:
@@ -123,7 +123,7 @@ def _run_oscilloscope_impl(cli_args: list[str], git_sha: str | None = None) -> s
     volume.commit()
 
     if result.returncode != 0:
-        raise RuntimeError(f"oscilloscope exited with code {result.returncode}")
+        raise RuntimeError(f"cli exited with code {result.returncode}")
 
     return remote_out
 
@@ -136,7 +136,7 @@ def _run_oscilloscope_impl(cli_args: list[str], git_sha: str | None = None) -> s
     memory=32768,
 )
 def run_cpu(cli_args: list[str], git_sha: str | None = None) -> str:
-    return _run_oscilloscope_impl(cli_args, git_sha)
+    return _run_cli_impl(cli_args, git_sha)
 
 
 @app.function(
@@ -146,7 +146,7 @@ def run_cpu(cli_args: list[str], git_sha: str | None = None) -> str:
     gpu="T4",
 )
 def run_gpu_t4(cli_args: list[str], git_sha: str | None = None) -> str:
-    return _run_oscilloscope_impl(cli_args, git_sha)
+    return _run_cli_impl(cli_args, git_sha)
 
 
 @app.function(
@@ -156,7 +156,7 @@ def run_gpu_t4(cli_args: list[str], git_sha: str | None = None) -> str:
     gpu="A10G",
 )
 def run_gpu_a10g(cli_args: list[str], git_sha: str | None = None) -> str:
-    return _run_oscilloscope_impl(cli_args, git_sha)
+    return _run_cli_impl(cli_args, git_sha)
 
 
 @app.function(
@@ -166,7 +166,7 @@ def run_gpu_a10g(cli_args: list[str], git_sha: str | None = None) -> str:
     gpu="L4",
 )
 def run_gpu_l4(cli_args: list[str], git_sha: str | None = None) -> str:
-    return _run_oscilloscope_impl(cli_args, git_sha)
+    return _run_cli_impl(cli_args, git_sha)
 
 
 @app.function(
@@ -176,7 +176,7 @@ def run_gpu_l4(cli_args: list[str], git_sha: str | None = None) -> str:
     gpu="A100-80GB",
 )
 def run_gpu_a100(cli_args: list[str], git_sha: str | None = None) -> str:
-    return _run_oscilloscope_impl(cli_args, git_sha)
+    return _run_cli_impl(cli_args, git_sha)
 
 
 @app.function(
@@ -186,7 +186,7 @@ def run_gpu_a100(cli_args: list[str], git_sha: str | None = None) -> str:
     gpu="H100",
 )
 def run_gpu_h100(cli_args: list[str], git_sha: str | None = None) -> str:
-    return _run_oscilloscope_impl(cli_args, git_sha)
+    return _run_cli_impl(cli_args, git_sha)
 
 
 _GPU_DISPATCH = {
@@ -200,7 +200,7 @@ _GPU_DISPATCH = {
 
 
 def dispatch_batch_to_modal(jobs: list[dict]):
-    """Dispatch many oscilloscope invocations to Modal in parallel.
+    """Dispatch many CLI invocations to Modal in parallel.
 
     Each job: {"cli_args": list[str], "gpu": str, "local_out_dir": str}.
 
@@ -337,7 +337,7 @@ def dispatch_to_modal(cli_args: list[str], local_out_dir: str, gpu: str = "T4"):
     local_parent = local_path.parent
     local_parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"\nSyncing artifacts from Modal Volume...")
+    print("\nSyncing artifacts from Modal Volume...")
     sync_cmd = [
         "uv",
         "run",

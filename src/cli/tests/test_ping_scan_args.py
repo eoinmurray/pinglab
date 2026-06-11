@@ -1,5 +1,5 @@
 """Regression test: `_ping_scan._render_video` must forward `--t-ms` to the
-oscilloscope CLI. Without it, the video runs at the CLI default (200 ms),
+CLI. Without it, the video runs at the CLI default (200 ms),
 which ends before the 200–300 ms stim window fires — every frame lands in
 flat baseline and the raster / PSD / I-population panels look identical
 across the whole sweep.

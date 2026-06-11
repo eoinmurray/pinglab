@@ -7,27 +7,12 @@ per-dt training/eval video.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-_pkg_dir = str(Path(__file__).resolve().parent.parent)
-if _pkg_dir in sys.path:
-    sys.path.remove(_pkg_dir)
-sys.path.insert(0, _pkg_dir)
-_cli_dir = str(Path(__file__).resolve().parent)
-if _cli_dir in sys.path:
-    sys.path.remove(_cli_dir)
-sys.path.insert(0, _cli_dir)
-
 import logging
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from matplotlib.animation import FFMpegWriter
+
+from figkit import plt, FFMpegWriter
 
 import models as M
 from config import extract_weights, patch_dt
@@ -41,9 +26,8 @@ from encoders import (
     transport_spikes_bin,
 )
 from scan import primary_hid_key, primary_inh_key
-from train import train
 
-log = logging.getLogger("oscilloscope")
+log = logging.getLogger("cli")
 
 
 def _plot_dt_sweep(sweep_results, train_dt, model_name, out_dir):

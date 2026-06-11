@@ -266,7 +266,7 @@ def run(
     repo = Path(__file__).resolve().parents[2]
     artifacts = repo / "src" / "artifacts" / "notebooks" / slug
     figures = repo / "src" / "docs" / "public" / "figures" / "notebooks" / slug
-    oscilloscope = repo / "src" / "pinglab" / "cli/cli.py"
+    oscilloscope = repo / "src" / "cli" / "cli.py"
 
     skip_training = "--skip-training" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv

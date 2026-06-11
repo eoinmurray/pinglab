@@ -1,13 +1,11 @@
-"""Unit tests for assorted oscilloscope.py helpers that were uncovered.
+"""Unit tests for assorted CLI helpers that were uncovered.
 
 Targets pure-ish functions that don't need a GPU or a full training loop:
 encoders, seed plumbing, key helpers, scan-var dispatch, CLI parsing.
 """
 
-import os
 
 import numpy as np
-import pytest
 import torch
 
 import cli as O
@@ -277,14 +275,14 @@ class TestAutoDevice:
 class TestParseArgs:
     def test_train_subparser(self, monkeypatch):
         monkeypatch.setattr(
-            "sys.argv", ["oscilloscope", "train", "--epochs", "3", "--lr", "0.05"]
+            "sys.argv", ["cli", "train", "--epochs", "3", "--lr", "0.05"]
         )
         args = parse_args()
         assert args.epochs == 3
         assert args.lr == 0.05
 
     def test_train_default_lr(self, monkeypatch):
-        monkeypatch.setattr("sys.argv", ["oscilloscope", "train"])
+        monkeypatch.setattr("sys.argv", ["cli", "train"])
         args = parse_args()
         assert args.lr == 0.01
         assert args.epochs == 0
@@ -293,7 +291,7 @@ class TestParseArgs:
         monkeypatch.setattr(
             "sys.argv",
             [
-                "oscilloscope",
+                "cli",
                 "video",
                 "--scan-var",
                 "dt",
@@ -313,7 +311,7 @@ class TestParseArgs:
 
     def test_image_subparser_load_weights(self, monkeypatch):
         monkeypatch.setattr(
-            "sys.argv", ["oscilloscope", "image", "--load-weights", "/tmp/w.pt"]
+            "sys.argv", ["cli", "image", "--load-weights", "/tmp/w.pt"]
         )
         args = parse_args()
         assert args.load_weights == "/tmp/w.pt"

@@ -120,7 +120,7 @@ class TestListOutputFiles:
 
         files = dict(list_output_files(tmp_path))
         assert files["a.txt"] == 5
-        assert files[f"sub/b.bin".replace("/", __import__("os").sep)] == 32
+        assert files["sub/b.bin".replace("/", __import__("os").sep)] == 32
 
     def test_missing_dir_returns_empty(self, tmp_path):
         assert list_output_files(tmp_path / "nope") == []

@@ -47,7 +47,6 @@ def make_step_drive(
         ext_g_sim: (t_steps, n_e) tensor — dt-scaled, feed directly to network
         ext_g_raw: (t_steps, n_e) ndarray — physical values for display
     """
-    sim_ms = t_steps * dt
     rng_het = np.random.RandomState(seed)
     X_i = rng_het.randn(n_e)
 
@@ -144,7 +143,7 @@ def make_spike_drive(
     return torch.tensor(spikes, dtype=torch.float32)
 
 
-def patch_dt(dt_new, sim_ms):
+def recompute_dt_constants(dt_new, sim_ms):
     """Update global model constants for a new dt value."""
     import models as M
 

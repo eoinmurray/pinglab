@@ -1,6 +1,6 @@
 """Tier-1 flag-propagation tests — every knob we rely on in notebook runners.
 
-Pattern follows test_mode_drift.py: spawn oscilloscope, parse config.json /
+Pattern follows test_mode_drift.py: spawn the CLI, parse config.json /
 metrics.json, assert the flag actually landed. In-process tests (fast) check
 behavior where subprocess isn't needed.
 """
@@ -555,7 +555,6 @@ def test_independent_drive_raises_e_rate():
     """--independent-drive on the synthetic-spikes image mode raises the
     E rate above the no-extra-drive baseline (sanity check that the
     per-cell Poisson stream actually reaches state['ge_e'])."""
-    import os
     import subprocess
 
     def _e_rate(*extra):

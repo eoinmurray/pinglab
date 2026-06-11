@@ -14,7 +14,7 @@ docstring, not in the filename.
 
 Each runner:
 
-- Takes no required arguments. Running `uv run python src/pinglab/notebooks/nbNNN.py`
+- Takes no required arguments. Running `uv run python src/notebooks/nbNNN.py`
   regenerates everything the entry cites.
 - Sets `SLUG = "nbNNN"` at module scope. Drives artifact and figure paths.
 - Writes raw run outputs to `src/artifacts/notebooks/<SLUG>/` (gitignored).
@@ -54,11 +54,11 @@ Use `_renumber.py`:
 
 ```bash
 # preview
-uv run python -m pinglab.notebooks._renumber insert 5 --dry-run
+uv run python src/notebooks/_renumber.py insert 5 --dry-run
 # open slot 5 (shifts entries >= 5 up by one)
-uv run python -m pinglab.notebooks._renumber insert 5
+uv run python src/notebooks/_renumber.py insert 5
 # remove slot 5 (shifts entries > 5 down by one)
-uv run python -m pinglab.notebooks._renumber delete 5
+uv run python src/notebooks/_renumber.py delete 5
 ```
 
 It renames `nbNNN.mdx`, `nbNNN.py`, the figures dir, and the artifacts

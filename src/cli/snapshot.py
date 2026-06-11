@@ -1,4 +1,4 @@
-"""Snapshot-mode generators for the oscilloscope CLI.
+"""Snapshot-mode generators for the CLI.
 
 One-shot renderers that produce a single PNG (or a sim-only metrics dump)
 for a given drive level / model / input mode. Four variants:
@@ -10,26 +10,13 @@ for a given drive level / model / input mode. Four variants:
 
 from __future__ import annotations
 
-import sys
+import logging
 from pathlib import Path
 
-_pkg_dir = str(Path(__file__).resolve().parent.parent)
-if _pkg_dir in sys.path:
-    sys.path.remove(_pkg_dir)
-sys.path.insert(0, _pkg_dir)
-_cli_dir = str(Path(__file__).resolve().parent)
-if _cli_dir in sys.path:
-    sys.path.remove(_cli_dir)
-sys.path.insert(0, _cli_dir)
-
-import logging
-
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
+
+from figkit import plt
 
 import models as M
 from config import (
@@ -49,7 +36,7 @@ from datasets import _load_dataset_image
 from encoders import encode_image_spikes
 from scan import primary_hid_key, primary_inh_key
 
-log = logging.getLogger("oscilloscope")
+log = logging.getLogger("cli")
 
 
 def generate_snapshot(

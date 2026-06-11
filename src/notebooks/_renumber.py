@@ -1,8 +1,8 @@
 """Renumber notebooks atomically — insert at, or delete, an entry slot.
 
 Usage:
-    uv run python -m pinglab.notebooks._renumber insert <N> [--dry-run]
-    uv run python -m pinglab.notebooks._renumber delete <N> [--dry-run]
+    uv run python src/notebooks/_renumber.py insert <N> [--dry-run]
+    uv run python src/notebooks/_renumber.py delete <N> [--dry-run]
 
 `insert N` shifts every notebook with entry >= N up by one (nbN -> nb(N+1),
 nb(N+1) -> nb(N+2), ...) so slot N is free for a new notebook. `delete N`
