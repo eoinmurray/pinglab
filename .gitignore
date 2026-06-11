@@ -9,7 +9,6 @@ __pycache__/
 .Python
 *.pt
 *.pth
-!src/pinglab/tests/fixtures/**/*.pt
 src/temp
 .env
 src/data/**

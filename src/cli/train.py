@@ -1,4 +1,4 @@
-"""Training driver for the oscilloscope CLI.
+"""Training driver for the CLI.
 
 Holds seed_everything, observe_epoch (per-epoch oscilloscope frame), and
 the main train() loop that supports CUBA / COBA / PING / snnTorch-library
@@ -10,52 +10,28 @@ optimizer.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import random
 import sys
 import time as _time
 from pathlib import Path
 
-_pkg_dir = str(Path(__file__).resolve().parent.parent)
-if _pkg_dir in sys.path:
-    sys.path.remove(_pkg_dir)
-sys.path.insert(0, _pkg_dir)
-_cli_dir = str(Path(__file__).resolve().parent)
-if _cli_dir in sys.path:
-    sys.path.remove(_cli_dir)
-sys.path.insert(0, _cli_dir)
-
-import logging
-
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
-import torch
-from torch import nn
 
+from figkit import plt
+import torch
+
+import config as C
 import models as M
+import runlog
 from config import (
-    _extract_records,
     build_net,
     extract_weights,
-    make_net,
     patch_dt,
 )
-from inputs import DT_CAL, make_spike_drive
 from metrics import compute_metrics, format_metrics
 from plot import draw_transient_frame, make_transient_fig, reset_weight_xlims
-from runlog import (
-    MetricsJsonl,
-    WarningTracker,
-    print_epoch,
-    print_progress_header,
-    print_summary,
-    provenance,
-    run_id,
-    write_test_predictions,
-)
 
 from datasets import (
     DATASET_N_HIDDEN_DEFAULTS,
@@ -66,13 +42,13 @@ from datasets import (
 from encoders import EVAL_SEED, encode_batch, encode_smnist
 from scan import _auto_device, primary_hid_key, primary_inh_key
 
-log = logging.getLogger("oscilloscope")
+log = logging.getLogger("cli")
 
 
 BATCH_SIZE = 64
 GRAD_CLIP = 1.0
 
-# DATASET_N_HIDDEN_DEFAULTS lives in oscilloscope/datasets.py — re-imported above.
+# DATASET_N_HIDDEN_DEFAULTS lives in datasets.py — re-imported above.
 
 
 def seed_everything(seed):
@@ -84,14 +60,41 @@ def seed_everything(seed):
     """
     if seed is None:
         return
-    import random
-
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
     log.info(f"  seed={seed} (Python, NumPy, torch)")
+
+
+def _to_np(v):
+    """Detach a tensor (or list of per-step tensors) to a CPU numpy array."""
+    if isinstance(v, torch.Tensor):
+        return v.cpu().numpy()
+    return torch.stack(v).numpy()
+
+
+def _firing_rate_penalty(spike_counts, theta, strength, mode, below):
+    """Quadratic firing-rate regularizer summed over per-layer spike counts.
+
+    below=False penalises mean rate ABOVE theta (upper bound); below=True
+    penalises mean rate BELOW theta (lower bound). mode 'population' pools to a
+    single grand-mean scalar (scaled by n_neurons so the strength keeps its
+    per-neuron-recipe magnitude); otherwise the penalty is per-neuron.
+    """
+    reg = 0.0
+    for sc in spike_counts:
+        if mode == "population":
+            value = sc.mean()
+            scale = sc.shape[-1]
+        else:
+            value = sc.mean(dim=0)
+            scale = 1
+        excess = (theta - value) if below else (value - theta)
+        term = strength * (torch.relu(excess) ** 2)
+        reg = reg + (scale * term if mode == "population" else term.sum())
+    return reg
 
 
 def observe_epoch(
@@ -112,8 +115,6 @@ def observe_epoch(
     digit_image=None,
 ):
     """Run reference input through network, render oscilloscope frame, grab."""
-    import config as C
-
     C.N_E = M.N_HID
     C.N_I = M.N_INH
 
@@ -124,11 +125,6 @@ def observe_epoch(
 
     rec = net.spike_record
     burn = int(burn_in_ms / dt)
-
-    def _to_np(v):
-        if isinstance(v, torch.Tensor):
-            return v.cpu().numpy()
-        return torch.stack(v).numpy()
 
     spk_e = _to_np(rec[primary_hid_key(rec)])[burn:]
     _ik = primary_inh_key(rec)
@@ -213,7 +209,6 @@ def train(
     tbptt_window=None,
 ):
     """Train on scikit digits, optionally producing oscilloscope video."""
-    import time
     from torch.utils.data import DataLoader, TensorDataset
 
     burn_in_ms = 20.0
@@ -227,9 +222,8 @@ def train(
     # decay_gaba from the current M.tau_gaba). nb041 sweeps this to
     # vary the gamma frequency f_γ across retrained networks.
     if tau_gaba is not None:
-        import numpy as _np
         M.tau_gaba = float(tau_gaba)
-        M.decay_gaba = float(_np.exp(-M.dt / float(tau_gaba)))
+        M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
 
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
@@ -332,8 +326,6 @@ def train(
     log.info(f"  data: {len(X_tr)} train {len(X_te)} test")
 
     # Save config for reproducibility
-    import json
-    import runlog
 
     config = {
         "model": model_name,
@@ -412,7 +404,6 @@ def train(
             )
 
     if snapshot_init:
-        import config as C
 
         C.N_E = M.N_HID
         C.N_I = M.N_INH
@@ -422,13 +413,6 @@ def train(
         net.recording = False
         rec = net.spike_record
         burn = int(burn_in_ms / dt)
-
-        def _to_np(v):
-            return (
-                v.cpu().numpy()
-                if isinstance(v, torch.Tensor)
-                else torch.stack(v).numpy()
-            )
 
         spk_e = _to_np(rec[primary_hid_key(rec)])[burn:]
         _ik = primary_inh_key(rec)
@@ -474,7 +458,7 @@ def train(
         snapshot_init_state = None
 
     if epochs == 0:
-        log.info(f"  epochs=0, use --epochs N to train")
+        log.info("  epochs=0, use --epochs N to train")
         # Even in probe mode, write a minimal metrics.json so callers can
         # inspect init state without parsing logs.
         from datetime import datetime, timezone
@@ -559,7 +543,6 @@ def train(
         obs_fig.savefig(obs_frames_dir / "epoch_000.png", dpi=120)
 
     # Training loop
-    import runlog
 
     best_acc = 0.0
     best_state = None
@@ -598,56 +581,26 @@ def train(
                 opt.zero_grad()
                 continue
             loss = loss_fn(logits, y_b)
-            if fr_reg_upper_strength > 0 and getattr(
-                net, "last_spike_counts", None
-            ) is not None:
-                reg = 0.0
-                for sc in net.last_spike_counts:
-                    if fr_reg_mode == "population":
-                        # Single scalar penalty on the grand mean across batch
-                        # and neurons; scale by n_neurons so s_u retains its
-                        # per-neuron-recipe magnitude when all cells overshoot.
-                        pop_mean = sc.mean()
-                        n_neurons = sc.shape[-1]
-                        reg = (
-                            reg
-                            + fr_reg_upper_strength
-                            * n_neurons
-                            * torch.relu(pop_mean - fr_reg_upper_theta) ** 2
-                        )
-                    else:
-                        mean_z = sc.mean(dim=0)
-                        reg = (
-                            reg
-                            + fr_reg_upper_strength
-                            * (torch.relu(mean_z - fr_reg_upper_theta) ** 2).sum()
-                        )
-                loss = loss + reg
-            if fr_reg_lower_strength > 0 and getattr(
-                net, "last_spike_counts", None
-            ) is not None:
-                # Symmetric lower-bound: penalise being BELOW θ_l, i.e.
-                # reward firing rate at or above θ_l. Same per-neuron /
-                # population pooling rules as the upper-bound block.
-                reg_l = 0.0
-                for sc in net.last_spike_counts:
-                    if fr_reg_mode == "population":
-                        pop_mean = sc.mean()
-                        n_neurons = sc.shape[-1]
-                        reg_l = (
-                            reg_l
-                            + fr_reg_lower_strength
-                            * n_neurons
-                            * torch.relu(fr_reg_lower_theta - pop_mean) ** 2
-                        )
-                    else:
-                        mean_z = sc.mean(dim=0)
-                        reg_l = (
-                            reg_l
-                            + fr_reg_lower_strength
-                            * (torch.relu(fr_reg_lower_theta - mean_z) ** 2).sum()
-                        )
-                loss = loss + reg_l
+            spike_counts = getattr(net, "last_spike_counts", None)
+            if spike_counts is not None:
+                # Quadratic firing-rate regularizers: upper penalises overshoot
+                # above θ_u, lower rewards firing at or above θ_l.
+                if fr_reg_upper_strength > 0:
+                    loss = loss + _firing_rate_penalty(
+                        spike_counts,
+                        fr_reg_upper_theta,
+                        fr_reg_upper_strength,
+                        fr_reg_mode,
+                        below=False,
+                    )
+                if fr_reg_lower_strength > 0:
+                    loss = loss + _firing_rate_penalty(
+                        spike_counts,
+                        fr_reg_lower_theta,
+                        fr_reg_lower_strength,
+                        fr_reg_mode,
+                        below=True,
+                    )
             opt.zero_grad()
             loss.backward()
             for pname, p in net.named_parameters():
@@ -767,13 +720,6 @@ def train(
             torch.set_rng_state(rng_state)
             burn = int(burn_in_ms / dt)
 
-            def _to_np(v):
-                return (
-                    v.cpu().numpy()
-                    if isinstance(v, torch.Tensor)
-                    else torch.stack(v).numpy()
-                )
-
             _rec = net.spike_record
             spk_e = _to_np(_rec[primary_hid_key(_rec)])[burn:]
             _ik = primary_inh_key(_rec)
@@ -882,7 +828,6 @@ def train(
     # Snapshot end state
     end_state = None
     if snapshot_end:
-        import config as C
 
         C.N_E = M.N_HID
         C.N_I = M.N_INH
@@ -892,13 +837,6 @@ def train(
         net.recording = False
         rec = net.spike_record
         burn = int(burn_in_ms / dt)
-
-        def _to_np(v):
-            return (
-                v.cpu().numpy()
-                if isinstance(v, torch.Tensor)
-                else torch.stack(v).numpy()
-            )
 
         spk_e = _to_np(rec[primary_hid_key(rec)])[burn:]
         _ik = primary_inh_key(rec)

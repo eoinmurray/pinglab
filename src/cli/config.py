@@ -6,16 +6,8 @@ run_sim_batch, run_sim_image, and backward-compat module globals.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-# Ensure src/ is first on sys.path
-_pkg_dir = str(Path(__file__).parent)
-if _pkg_dir in sys.path:
-    sys.path.remove(_pkg_dir)
-sys.path.insert(0, _pkg_dir)
-
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -24,13 +16,14 @@ from torch import nn
 import models as M
 from models import COBANet, CubaPingNet
 from inputs import (
-    make_spike_drive,
-    patch_dt as _patch_dt,
+    recompute_dt_constants as _patch_dt,
     make_step_drive,
-    make_reference_noise,
-    make_step_drive_from_ref,
-    DT_CAL,
 )
+
+# Default output directory when no --out-dir is given: where the oscilloscope
+# snapshot figures land. Defined once and reused by cfg, build_config, and the
+# CLI entrypoint so the path lives in exactly one place.
+DEFAULT_ARTIFACT_ROOT = Path(__file__).parent.parent / "artifacts" / "oscilloscope"
 
 
 # =============================================================================
@@ -89,9 +82,7 @@ class Config:
         return torch.device(self.device)
 
 
-cfg = Config(
-    artifact_root=str(Path(__file__).parent.parent / "artifacts" / "oscilloscope")
-)
+cfg = Config(artifact_root=str(DEFAULT_ARTIFACT_ROOT))
 
 
 # =============================================================================
@@ -113,7 +104,6 @@ MODEL_REGISTRY = {
 
 HAS_INH = {"ping", "cuba-ping"}
 IS_COBA = {"ping"}
-CUBA_MODELS: set[str] = set()
 
 _MODEL_CLASSES = {
     "ping": (COBANet, {}),
@@ -577,9 +567,7 @@ def build_config(args):
     if hasattr(args, "out_dir") and args.out_dir is not None:
         c.artifact_root = args.out_dir
     else:
-        c.artifact_root = str(
-            Path(__file__).parent.parent / "artifacts" / "oscilloscope"
-        )
+        c.artifact_root = str(DEFAULT_ARTIFACT_ROOT)
     c.fps = getattr(args, "frame_rate", 10)
     if hasattr(args, "n_hidden") and args.n_hidden is not None:
         # args.n_hidden may be an int or a list (multi-layer). For legacy Config,

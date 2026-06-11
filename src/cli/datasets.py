@@ -1,6 +1,6 @@
 """Dataset loaders — scikit-digits, MNIST/sMNIST, SHD.
 
-Pulled out of cli.py during the oscilloscope split. The single
+Pulled out of cli.py. The single
 canonical entry point is `load_dataset(name, ...)`. Image-mode notebooks
 (snapshot rendering) use `_load_dataset_image()` for a single sample.
 """

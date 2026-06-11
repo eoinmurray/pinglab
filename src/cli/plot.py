@@ -10,25 +10,15 @@ drawn one frame at a time by `draw_transient_frame`.
 
 from __future__ import annotations
 
-import sys
 import time as _time
-from pathlib import Path
 from contextlib import contextmanager
-
-# Ensure src/ is first on sys.path
-_pkg_dir = str(Path(__file__).parent)
-if _pkg_dir in sys.path:
-    sys.path.remove(_pkg_dir)
-sys.path.insert(0, _pkg_dir)
 
 import numpy as np
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from figkit import plt
 
 import models as M
+import theme
 from metrics import (
     compute_pop_rate,
     compute_psd,
@@ -121,8 +111,6 @@ plt.rcParams.update(
         "savefig.dpi": 200,
     }
 )
-
-import theme
 
 CLR = theme.INK_STRONG
 CLR_LIGHT = theme.LABEL
