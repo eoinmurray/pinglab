@@ -162,7 +162,11 @@ def build_net(
         )
     cls, base_kwargs = _MODEL_CLASSES[model_name]
     kwargs = {**base_kwargs}
-    if model_name in {"cuba-ping", "cuba-noping"}:
+    # CubaPingNet (cuba-*) accepts only a subset of COBANet's recurrent weight
+    # knobs; w_ee / w_ii / the per-matrix trainable flags / n_inh_per_layer
+    # raise a TypeError on it, so they are gated out for cuba models below.
+    is_cuba = model_name in {"cuba-ping", "cuba-noping"}
+    if is_cuba:
         kwargs["readout_mode"] = "mem-mean"
         if tbptt_window is not None:
             kwargs["tbptt_window"] = int(tbptt_window)
@@ -180,15 +184,15 @@ def build_net(
         kwargs["ei_layers"] = set(ei_layers)
     if trainable_w_ee:
         kwargs["trainable_w_ee"] = True
-    if trainable_w_ei:
+    if trainable_w_ei and not is_cuba:
         kwargs["trainable_w_ei"] = True
-    if trainable_w_ie:
+    if trainable_w_ie and not is_cuba:
         kwargs["trainable_w_ie"] = True
-    if trainable_w_ii:
+    if trainable_w_ii and not is_cuba:
         kwargs["trainable_w_ii"] = True
     if w_in is not None:
         kwargs["w_in"] = (*w_in, "normal", w_in_sparsity)
-    if w_ee is not None:
+    if w_ee is not None and not is_cuba:
         kwargs["w_ee"] = (*w_ee, "normal", sparsity)
     if w_ei is not None:
         kwargs["w_ei"] = (*w_ei, "normal", sparsity)
@@ -200,11 +204,11 @@ def build_net(
     elif ei_strength is not None:
         s = ei_strength
         kwargs["w_ie"] = (s * ei_ratio, s * ei_ratio * 0.1, "normal", sparsity)
-    if w_ii is not None:
+    if w_ii is not None and not is_cuba:
         kwargs["w_ii"] = (*w_ii, "normal", sparsity)
     if w_ei is None and w_ie is None and ei_strength is None and sparsity > 0:
         kwargs.setdefault("sparsity", sparsity)
-    if n_inh_per_layer is not None:
+    if n_inh_per_layer is not None and not is_cuba:
         kwargs["n_inh_per_layer"] = dict(n_inh_per_layer)
     net = cls(**kwargs)
     if device is not None:
