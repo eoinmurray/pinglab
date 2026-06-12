@@ -9,6 +9,7 @@ const articleModules = import.meta.glob("./articles/*.mdx", { eager: true });
 type Entry = {
   slug: string;
   entry: number;
+  order: number | null;
   title: string;
   date: any;
   collection: string | null;
@@ -22,6 +23,15 @@ function entryCollection(fm: any): string | null {
   return null;
 }
 
+// Within a collection, follow an explicit `order:` field (ascending) when
+// present, else newest first by entry. Ordered entries sort ahead of others.
+function byOrderThenEntry(a: Entry, b: Entry): number {
+  if (a.order != null && b.order != null) return a.order - b.order;
+  if (a.order != null) return -1;
+  if (b.order != null) return 1;
+  return b.entry - a.entry;
+}
+
 const articles: Entry[] = Object.entries(articleModules)
   .map(([path, mod]: [string, any]) => {
     const slug = path.split("/").pop()!.replace(/\.mdx$/, "");
@@ -29,13 +39,14 @@ const articles: Entry[] = Object.entries(articleModules)
     return {
       slug,
       entry: fm.entry,
+      order: typeof fm.order === "number" ? fm.order : null,
       title: String(fm.title).replace(/^\d+\s*[—–-]\s*/, ""),
       date: fm.date,
       collection: entryCollection(fm),
       kind: "article" as const,
     };
   })
-  .sort((a, b) => b.entry - a.entry);
+  .sort(byOrderThenEntry);
 
 const notebooks: Entry[] = Object.entries(notebookModules)
   .map(([path, mod]: [string, any]) => {
@@ -44,13 +55,14 @@ const notebooks: Entry[] = Object.entries(notebookModules)
     return {
       slug,
       entry: fm.entry,
+      order: typeof fm.order === "number" ? fm.order : null,
       title: String(fm.title).replace(/^\d+\s*[—–-]\s*/, ""),
       date: fm.date,
       collection: entryCollection(fm),
       kind: "notebook" as const,
     };
   })
-  .sort((a, b) => b.entry - a.entry);
+  .sort(byOrderThenEntry);
 
 // Bucket articles + notebooks by collection.
 const UNCOLLECTED = "__uncollected";
