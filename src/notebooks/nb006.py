@@ -56,7 +56,7 @@ def compute_summary_rates() -> dict:
     spike input (flat rate, no stim-window overdrive), then extract
     pre/stim/post E/I population rates."""
     import torch  # noqa: E402
-    import cli.config as config as C  # noqa: E402
+    import cli.config as C  # noqa: E402
     import models as M  # noqa: E402
     from cli.config import make_net, patch_dt  # noqa: E402
     from cli import (

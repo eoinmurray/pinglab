@@ -131,7 +131,7 @@ export default function PingAsciiHero({
           let intensity: number;
           if (inE || inI) {
             const k = (x / cols) * (Math.PI * 2 * 6);
-            const travelling = Math.cos(phase - k);
+            const travelling = Math.cos(phase + k);
             const volley = Math.max(0, travelling);
             const sharp = Math.pow(volley, 4);
             const jitter = 0.08 * Math.sin(x * 1.7 + y * 0.9 + time * 3);

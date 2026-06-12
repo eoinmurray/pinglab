@@ -276,7 +276,6 @@ def run_inproc_infer(
     """
     import torch
 
-    import cli.config as config as C  # noqa: F401
     import models as M
     from cli.config import build_net, patch_dt
     from cli import (
@@ -325,11 +324,8 @@ def run_inproc_infer(
         sparsity=float(cfg.get("sparsity") or 0.0),
         device=device,
         randomize_init=not bool(cfg.get("kaiming_init", False)),
-        kaiming_init=bool(cfg.get("kaiming_init", False)),
         dales_law=bool(cfg.get("dales_law", True)),
         hidden_sizes=hidden_sizes,
-        w_rec=cfg.get("w_rec"),
-        rec_layers=cfg.get("rec_layers"),
         ei_layers=cfg.get("ei_layers"),
     )
     if hasattr(net, "readout_mode"):
@@ -391,7 +387,6 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
     forward pass on a single test sample."""
     import torch
 
-    import cli.config as config as C  # noqa: F401
     import models as M
     from cli.config import build_net, patch_dt
     from cli import (
@@ -432,7 +427,6 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
         sparsity=float(cfg.get("sparsity") or 0.0),
         device=device,
         randomize_init=not bool(cfg.get("kaiming_init", False)),
-        kaiming_init=bool(cfg.get("kaiming_init", False)),
         dales_law=bool(cfg.get("dales_law", True)),
         hidden_sizes=hidden_sizes,
     )
@@ -472,7 +466,6 @@ def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> 
     M.max_rate_hz, run one forward pass on a single test sample."""
     import torch
 
-    import cli.config as config as C  # noqa: F401
     import models as M
     from cli.config import build_net, patch_dt
     from cli import (
@@ -515,7 +508,6 @@ def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> 
         sparsity=float(cfg.get("sparsity") or 0.0),
         device=device,
         randomize_init=not bool(cfg.get("kaiming_init", False)),
-        kaiming_init=bool(cfg.get("kaiming_init", False)),
         dales_law=bool(cfg.get("dales_law", True)),
         hidden_sizes=hidden_sizes,
     )
@@ -685,7 +677,7 @@ def plot_fi_curve_uniform(
     zoom_rows: list[dict] | None = None,
 ) -> None:
     """Two-panel f-I figure under spatially uniform Poisson input:
-    PING (E + I) on the left, COBA (E + I) on the right. If `zoom_rows`
+    COBA (E + I) on the left, PING (E + I) on the right. If `zoom_rows`
     is provided, a third panel below adds the 0-10 Hz zoom overlaying
     both models' E curves to expose the recruitment cliff."""
     theme.apply()
@@ -715,6 +707,17 @@ def plot_fi_curve_uniform(
         ax.set_ylabel("Per-cell firing rate (Hz)", fontsize=theme.SIZE_LABEL)
         ax.set_title(titles[model], fontsize=theme.SIZE_TITLE)
         ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper left")
+
+    # share the y-axis across the two panels so COBA's saturation and PING's
+    # compression are read on one scale (the whole point of the comparison)
+    top_max = max(
+        (max(r["e_rate_hz"], r["i_rate_hz"],
+             r["e_rate_hz"] + r["i_rate_hz"] if r["model"] == "ping" else 0.0)
+         for r in rows),
+        default=1.0,
+    )
+    for ax in top_axes:
+        ax.set_ylim(0, top_max * 1.05)
 
     if zoom_rows is not None:
         # Bottom row: zoom 0-10 Hz, one panel per model, same scheme
@@ -943,7 +946,6 @@ def _load_trained_full(train_dir: Path, device):
     (net, cfg, X_te, y_te) ready for forward passes."""
     import torch
 
-    import cli.config as config as C  # noqa: F401
     import models as M
     from cli.config import build_net, patch_dt
     from cli import load_dataset, seed_everything
@@ -977,7 +979,6 @@ def _load_trained_full(train_dir: Path, device):
         sparsity=float(cfg.get("sparsity") or 0.0),
         device=device,
         randomize_init=not bool(cfg.get("kaiming_init", False)),
-        kaiming_init=bool(cfg.get("kaiming_init", False)),
         dales_law=bool(cfg.get("dales_law", True)),
         hidden_sizes=hidden_sizes,
     )

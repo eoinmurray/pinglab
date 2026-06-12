@@ -169,16 +169,16 @@ $$
 - $g^E_e, g^E_i$ — excitatory / inhibitory conductances on E neurons (µS)
 - $g^I_e$ — excitatory conductance on I neurons (µS); I receives no inhibition
 - $g_{\text{tot}}, \tau_{\text{eff}}, V_\infty$ — per-step aggregate conductance, effective membrane time constant, steady-state voltage
-- $C_m$ — membrane capacitance (nF)
-- $g_L, E_L$ — leak conductance and reversal potential
+- $C_m$ — membrane capacitance (1.0 nF on E, 0.5 nF on I)
+- $g_L, E_L$ — leak conductance (0.05 µS on E, 0.1 µS on I) and reversal potential (−65 mV)
 - $E_e, E_i$ — synaptic reversal potentials (0 mV, −80 mV)
 - $V_{\text{th}}, V_{\text{reset}}$ — spike threshold (−50 mV) and reset voltage (−65 mV)
 - $\tau_{\text{ref}}^e, \tau_{\text{ref}}^i$ — refractory periods (3 ms, 1.5 ms)
-- $\alpha = e^{-\Delta t / \tau_{\text{AMPA}}}$ — per-step AMPA decay factor
-- $\gamma = e^{-\Delta t / \tau_{\text{GABA}}}$ — per-step GABA decay factor
-- $W_{\text{in}}, W_{\text{ei}}, W_{\text{ie}}$ — feedforward, E→I, and I→E weight matrices
+- $\alpha = e^{-\Delta t / \tau_{\text{AMPA}}}$ — per-step AMPA decay factor ($\tau_\text{AMPA} = 2$ ms)
+- $\gamma = e^{-\Delta t / \tau_{\text{GABA}}}$ — per-step GABA decay factor ($\tau_\text{GABA} = 9$ ms)
+- $W_{\text{in}}, W_{\text{ei}}, W_{\text{ie}}$ — feedforward (trained), E→I, and I→E weight matrices ($W_{\text{ei}} \approx 1$ µS, $W_{\text{ie}} \approx 2$ µS at PING init $s = 1$)
 - $s^{\text{inp}}_t, s^e_t, s^i_t$ — input, excitatory, and inhibitory spike trains at step $t$
-- $\Delta t$ — integration timestep
+- $\Delta t$ — integration timestep (0.1 ms)
 
 </div>
 

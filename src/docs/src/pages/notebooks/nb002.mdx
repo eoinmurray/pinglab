@@ -1,0 +1,94 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "002 — PING Spike Movie"
+date: 2026-06-12
+entry: 2
+structure: paper
+collection: basics
+---
+import Figure from "../../components/Figure.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb002/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const ph = numbers.phases ?? {};
+export const pre = ph.async_pre ?? {};
+export const ping = ph.ping ?? {};
+export const post = ph.async_post ?? {};
+export const nbRunId = numbers.notebook_run_id ?? "?";
+export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
+
+## Abstract
+
+**PING** — Pyramidal-Interneuron Network Gamma — is a clock built from two populations: excitatory (**E**) cells fire, recruit inhibitory (**I**) cells, the I volley silences E, the GABA conductance decays, and E fires again. The cycle repeats at ≈30–80 Hz, but only when E gets enough external drive; below threshold the network sits in sparse, asynchronous background firing. Where the sibling videos ([nb003](/notebooks/nb003/), [nb004](/notebooks/nb004/), [nb005](/notebooks/nb005/), [nb006](/notebooks/nb006/)) sweep a knob frame-by-frame, this entry holds everything fixed and plays a single continuous run as a *spike movie*: the E population on a square grid, one frame per simulation window, each cell white when silent and black when it fires. A three-phase drive — low → high → low input — switches the recurrent loop on and back off so you watch the gamma clock ignite and extinguish in real time. See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+
+## Methods
+
+One continuous {fmtHz(3 * (cfg.phase_ms ?? 0) / 1000)} s forward pass on a single fixed PING network — no scan, no reset between phases. The {cfg.n_e}-cell E population is laid out on a {cfg.grid}×{cfg.grid} grid; the drive is a uniform Poisson input over {cfg.n_in} channels whose per-channel rate follows three equal {cfg.phase_ms} ms windows:
+
+- **async (low)** — {fmtHz(cfg.low_rate_hz)} Hz per channel: sub-threshold, the network idles in sparse background firing.
+- **PING (high)** — {fmtHz(cfg.high_rate_hz)} Hz per channel: supra-threshold, the E↔I loop locks into gamma volleys.
+- **async (low)** — back to {fmtHz(cfg.low_rate_hz)} Hz: the clock releases and the grid returns to sparse firing.
+
+The movie has three stacked panels. The **top** panel is two spike grids side by side — the E population in black ({cfg.grid}×{cfg.grid}) and the I population in red — where each cell is filled if it spiked anywhere in that frame's window and blank otherwise (binary, no fade). The **middle** panel is a raster of every cell over the whole run (neuron index against time, E in black, I stacked above in red); the synchronous gamma volleys read off as vertical bands. The **bottom** panel is the per-channel input rate — the low → high → low square wave. A cursor on the raster and rate panels marks where the grid frame sits in time. All knobs are hardcoded literals in *src/notebooks/nb002.py* per the [runner contract](/docs/the-notebooks/#runner-contract); only the frame stride (set by *--tier*) and the Modal target are CLI-tunable.
+
+<RunParameters numbers={numbers} groups={[
+  {
+    title: "Setup",
+    rows: [
+      { label: "Model", value: "ping (COBA, E↔I loop)" },
+      { label: "Input", value: `uniform Poisson, ${cfg.n_in} channels` },
+      { label: "Seed", value: cfg.seed ?? "?" },
+    ],
+  },
+  {
+    title: "Architecture",
+    rows: [
+      { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
+      { label: "E grid", value: `${cfg.grid}×${cfg.grid}` },
+      { label: "dt", value: `${cfg.dt_ms} ms` },
+      { label: "ei-strength", value: cfg.ei_strength ?? "?" },
+    ],
+  },
+  {
+    title: "Protocol & render",
+    rows: [
+      { label: "Phases", value: `${cfg.low_rate_hz}→${cfg.high_rate_hz}→${cfg.low_rate_hz} Hz` },
+      { label: "Phase length", value: `${cfg.phase_ms} ms each` },
+      { label: "Frame stride / FPS", value: `${cfg.frame_stride} / ${cfg.fps}` },
+    ],
+  },
+]} />
+
+## Results
+
+<Figure type="video" id="Figure 1" title="PING spike movie (spike_movie.mp4)" src="/figures/notebooks/nb002/spike_movie.mp4">
+  Three panels. **Top:** two spike grids — the {cfg.n_e}-cell E population (black) and the {cfg.n_i}-cell I population (red) — each cell filled if it spiked in that frame's window, blank otherwise (binary, no fade). **Middle:** the raster over the whole run, E in black and I stacked above in red — synchronous gamma volleys appear as vertical bands, confined to the high-input window. **Bottom:** the per-channel input rate, the low ({fmtHz(cfg.low_rate_hz)} Hz) → high ({fmtHz(cfg.high_rate_hz)} Hz) → low square wave across three {cfg.phase_ms} ms windows. In the low windows the grids twinkle sparsely (and I is dark — interneurons need the recurrent drive to fire) and the raster is a faint scatter; in the high window both grids flash in synchronous waves and the raster locks into bands. The cursor marks where the grid frame sits in time.
+</Figure>
+
+The contrast is unambiguous in both panels. In the async windows the E population idles near {fmtHz(pre.e_rate_hz)} Hz and the I population is effectively silent — individual cells blink on and off with no spatial or temporal structure. When the drive steps up, the recurrent loop engages: the grid stops twinkling and starts flashing as a whole, the E rate rises to {fmtHz(ping.e_rate_hz)} Hz and I to {fmtHz(ping.i_rate_hz)} Hz, and the raster snaps into sharp vertical bands — the synchronous gamma volleys — whose spacing sets a gamma peak of {fmtHz(ping.gamma_peak_hz)} Hz. When the drive falls back the volleys vanish within a cycle and the grid returns to sparse async firing at {fmtHz(post.e_rate_hz)} Hz — symmetric with the opening window, confirming the rhythm is a property of the drive level and not a transient that latches.
+
+### Population rates by phase
+
+| Window | E (Hz) | I (Hz) | gamma peak (Hz) |
+|---|---|---|---|
+| async (low) | {fmtHz(pre.e_rate_hz)} | {fmtHz(pre.i_rate_hz)} | — |
+| PING (high) | {fmtHz(ping.e_rate_hz)} | {fmtHz(ping.i_rate_hz)} | {fmtHz(ping.gamma_peak_hz)} |
+| async (low) | {fmtHz(post.e_rate_hz)} | {fmtHz(post.i_rate_hz)} | — |
+
+## Discussion
+
+The movie makes the central PING claim visible without any rate-curve interpretation: gamma is not a property of a cell but of the *loop*, and it is gated by drive. The two async windows are the control — same network, same weights, only the input level changed — so the synchronous flashing in the middle window can only come from the recurrent E↔I interaction switching on once E clears threshold. The clean, prompt return to sparse firing in the third window shows the rhythm has no hysteresis at this working point: it is the drive that holds the clock, and removing the drive stops it. This is the qualitative picture that the quantitative threshold scans ([nb003](/notebooks/nb003/), [nb004](/notebooks/nb004/)) and the mean-field analysis ([nb033](/notebooks/nb033/)) make precise.
+
+## Next steps
+
+The grid layout is arbitrary here — neurons are placed in index order, so the synchronous flashes carry no spatial meaning beyond "many cells at once". A natural extension is to give the E cells a real topographic embedding (e.g. tuning- or input-correlated placement) so the gamma volleys show spatial structure rather than uniform blinking. The drive step is also a hard square wave; a graded ramp would let the movie show the onset threshold itself — the moment the twinkle locks into a rhythm — rather than jumping across it.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/notebooks/nb002.py --tier small
+```

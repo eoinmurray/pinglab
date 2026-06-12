@@ -1,0 +1,35 @@
+{
+  "slug": "nb002",
+  "notebook_run_id": "r002",
+  "tier": "extra small",
+  "config": {
+    "n_e": 1024,
+    "n_i": 256,
+    "grid": 32,
+    "n_in": 784,
+    "dt_ms": 0.1,
+    "phase_ms": 250.0,
+    "ei_strength": 1.5,
+    "tau_gaba_ms": 14.0,
+    "low_rate_hz": 2.0,
+    "high_rate_hz": 30.0,
+    "frame_stride": 50,
+    "fps": 20,
+    "seed": 42
+  },
+  "phases": {
+    "async_pre": {
+      "e_rate_hz": 2.878906379919499,
+      "i_rate_hz": 0.0
+    },
+    "ping": {
+      "e_rate_hz": 13.121094089001417,
+      "i_rate_hz": 31.187499407678843,
+      "gamma_peak_hz": 32.0
+    },
+    "async_post": {
+      "e_rate_hz": 1.3984374527353793,
+      "i_rate_hz": 0.8906250150175765
+    }
+  }
+}
