@@ -216,7 +216,7 @@ def _load_trained_full(train_dir: Path, device):
     (net, cfg, X_te, y_te) ready for forward passes."""
     import torch
 
-    import cli.config as config as C  # noqa: F401
+    import cli.config as C  # noqa: F401
     import models as M
     from cli.config import build_net, patch_dt
     from cli import load_dataset, seed_everything
