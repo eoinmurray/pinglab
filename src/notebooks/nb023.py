@@ -257,16 +257,13 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
     # ── E neuron ─────────────────────────────────────────────────────
     ge_trace_e = ge_e[:, e_idx]
     gi_trace = data["gi_e_1"][:, e_idx] if has_gi_e else np.zeros_like(ge_trace_e)
-    g_tot_e_full = G_L_E + ge_trace_e + gi_trace
-    v_inf_e = (G_L_E * E_L + ge_trace_e * E_E + gi_trace * E_I) / g_tot_e_full
 
     def _draw_v_e(ax):
         ax.plot(t_ms, v_e[:, e_idx], color=theme.INK_BLACK, lw=0.8, label="V_E")
         ax.axhline(-50.0, color=theme.FAINT, lw=0.5, ls="--", label="V_th")
-        ax.plot(t_ms, v_inf_e, color=theme.MUTED, lw=0.9, ls="-.", label="V_∞")
 
     def _draw_g_e(ax):
-        ax.plot(t_ms, ge_trace_e, color=theme.ELECTRIC_CYAN, lw=0.9, label="g_E (exc)")
+        ax.plot(t_ms, ge_trace_e, color=theme.INK_BLACK, lw=0.9, label="g_E (exc)")
         if has_gi_e:
             ax.plot(t_ms, gi_trace, color=theme.DEEP_RED, lw=0.9, label="g_I (inh)")
         ax.axhline(G_L_E, color=theme.FAINT, lw=0.7, ls=":", label="g_L (leak)")
@@ -276,7 +273,7 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
         i_i_in = -gi_trace * (v_e[:, e_idx] - E_I)
         i_l_in = -G_L_E * (v_e[:, e_idx] - E_L)
         ax.axhline(0.0, color=theme.FAINT, lw=0.5)
-        ax.plot(t_ms, i_e_in, color=theme.ELECTRIC_CYAN, lw=0.9,
+        ax.plot(t_ms, i_e_in, color=theme.INK_BLACK, lw=0.9,
                 label="I_E in (depol.)")
         if has_gi_e:
             ax.plot(t_ms, i_i_in, color=theme.DEEP_RED, lw=0.9,
@@ -287,7 +284,7 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
     written = [
         _save_panel(_draw_v_e, "v_e",
                     f"V_E (neuron {e_idx})  [mV]",
-                    "V_E with V_∞ overlay"),
+                    "E-neuron membrane voltage"),
         _save_panel(_draw_g_e, "g_e",
                     "g  [µS]",
                     f"E-neuron conductances (cell {e_idx})"),
@@ -301,16 +298,13 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
         v_i = data["v_i_1"]
         ge_i = data["ge_i_1"]
         ge_trace_i = ge_i[:, i_idx]
-        g_tot_i_full = G_L_I + ge_trace_i  # I receives no inhibition
-        v_inf_i = (G_L_I * E_L + ge_trace_i * E_E) / g_tot_i_full
 
         def _draw_v_i(ax):
             ax.plot(t_ms, v_i[:, i_idx], color=theme.DEEP_RED, lw=0.8, label="V_I")
             ax.axhline(-50.0, color=theme.FAINT, lw=0.5, ls="--", label="V_th")
-            ax.plot(t_ms, v_inf_i, color=theme.MUTED, lw=0.9, ls="-.", label="V_∞")
 
         def _draw_g_i(ax):
-            ax.plot(t_ms, ge_trace_i, color=theme.ELECTRIC_CYAN, lw=0.9,
+            ax.plot(t_ms, ge_trace_i, color=theme.INK_BLACK, lw=0.9,
                     label="g_E (exc)")
             ax.axhline(G_L_I, color=theme.FAINT, lw=0.7, ls=":", label="g_L (leak)")
 
@@ -318,7 +312,7 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
             i_e_in_i = -ge_trace_i * (v_i[:, i_idx] - E_E)
             i_l_in_i = -G_L_I * (v_i[:, i_idx] - E_L)
             ax.axhline(0.0, color=theme.FAINT, lw=0.5)
-            ax.plot(t_ms, i_e_in_i, color=theme.ELECTRIC_CYAN, lw=0.9,
+            ax.plot(t_ms, i_e_in_i, color=theme.INK_BLACK, lw=0.9,
                     label="I_E in (depol.)")
             ax.plot(t_ms, i_l_in_i, color=theme.FAINT, lw=0.7, ls=":",
                     label="I_L in (leak)")
@@ -326,7 +320,7 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
         written += [
             _save_panel(_draw_v_i, "v_i",
                         f"V_I (neuron {i_idx})  [mV]",
-                        "V_I with V_∞ overlay"),
+                        "I-neuron membrane voltage"),
             _save_panel(_draw_g_i, "g_i",
                         "g  [µS]",
                         f"I-neuron conductances (cell {i_idx})"),

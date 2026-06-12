@@ -3,6 +3,7 @@ layout: ../../layouts/MarkdownLayout.astro
 title: "Manuscript (handwritten)"
 date: 2026-06-05
 entry: 9
+order: 1
 structure: paper
 collection: gamma-gated-sparsity
 ---
@@ -350,30 +351,3 @@ W^{EI}/\tau_\text{AMPA} & 0 & -1/\tau_\text{AMPA} & 0 \\
 $$
 
 with $\Phi'_E, \Phi'_I$ at the fixed-point arguments. The Hopf is the smallest $I_\text{ext}^\star$ at which the leading pair crosses the imaginary axis: $\mathrm{Re}(\lambda) = 0$, $\mathrm{Im}(\lambda) = \omega^\star$, with predicted gamma frequency $f^\star = \omega^\star / (2\pi)$.
-
-#### 2D reduction attempts
-
-This derived system is 4D, we attempt two methods of reducing it to 2D.
-
-First we derive the canonical Wilson Cowen form for this system and show it cannot oscillate under our parameters. Send $\tau_\text{AMPA}, \tau_\text{GABA} \to 0$ in (26): the conductance dynamics collapse instantaneously and $g_e^I \to W^{EI} E$, $g_i^E \to W^{IE} I$. Substituting into (25) gives the textbook 2D Wilson-Cowan system, with $W^{EE} = W^{II} = 0$:
-
-$$
-\tau_E\,\dot E = -E + \Phi_E\!\left(I_\text{ext} - W^{IE} I\right), \qquad
-\tau_I\,\dot I = -I + \Phi_I\!\left(W^{EI} E\right). \tag{28}
-$$
-
-The Jacobian of (28) around the fixed point is
-
-$$
-J_\text{2D} = \begin{pmatrix} -1/\tau_E & -\Phi'_E\,W^{IE}/\tau_E \\ \Phi'_I\,W^{EI}/\tau_I & -1/\tau_I \end{pmatrix}.
-$$
-
-The E↔I coupling sits entirely on the *off*-diagonal, with $W^{EE} = W^{II} = 0$ there is no self-feedback term to add to the diagonal, so the trace is fixed by the membrane time constants alone:
-
-$$
-\mathrm{tr}(J_\text{2D}) = -\frac{1}{\tau_E} - \frac{1}{\tau_I} \tag{5}
-$$
-
-— constant in $I_\text{ext}$ and strictly negative. A Hopf needs $\mathrm{tr}(J) = 0$, which this never reaches: **the naked 2D reduction cannot oscillate at any parameters.** Canonical Wilson-Cowan escapes only through E→E self-excitation $W^{EE} > 0$, a positive diagonal term that lets the trace cross zero — which our Börgers style architecture forbids by construction.
-
-Secondly we attempt to add a FitzHugh-Nagumo-style self-suppression, and show this cannot oscillate under our parameters. Start from (28)

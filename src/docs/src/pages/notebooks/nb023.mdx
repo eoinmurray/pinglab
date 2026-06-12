@@ -3,6 +3,7 @@ layout: ../../layouts/MarkdownLayout.astro
 title: "023 — PING fundamentals"
 date: 2026-05-13
 entry: 23
+order: 2
 structure: paper
 collection: gamma-gated-sparsity
 ---
@@ -28,8 +29,8 @@ The full conductance-based model that produces PING is documented in [COBANet](/
 
 **COBA single-neuron traces.** Three panels for the most active E neuron — voltage, conductances, signed currents — with no I-loop activity to show.
 
-<Figure id="Figure 3a" title="COBA — V_E with V_∞ overlay" src="/figures/notebooks/nb023/traces__coba__v_e.png" alt="V_E (black) and V_∞ (grey dash-dot) for one E neuron over 400 ms in COBA mode. V_E rises to threshold V_th = −50 mV repeatedly with hard resets to V_reset = −65 mV. V_∞ tracks V_E closely with no rhythmic swings.">
-  V_E (black) with V_∞ (grey dash-dot) — the voltage V is being pulled toward at every instant. They track closely because the only synaptic drive is from feedforward input.
+<Figure id="Figure 3a" title="COBA — E-neuron membrane voltage" src="/figures/notebooks/nb023/traces__coba__v_e.png" alt="V_E (black) for one E neuron over 400 ms in COBA mode. V_E rises to threshold V_th = −50 mV repeatedly with hard resets to V_reset = −65 mV, no rhythmic swings.">
+  V_E (black). The only synaptic drive is feedforward input, so the membrane charges to threshold and resets — no rhythmic structure.
 </Figure>
 
 <Figure id="Figure 3b" title="COBA — E-neuron conductances" src="/figures/notebooks/nb023/traces__coba__g_e.png" alt="Conductances on the E neuron in COBA mode: g_E (cyan) and g_L (faint dotted). No g_I trace because the loop is off. All curves non-negative.">
@@ -42,8 +43,8 @@ The full conductance-based model that produces PING is documented in [COBANet](/
 
 **PING single-neuron traces.** Six panels: three for the most active E neuron, three for the most active I neuron. The E panels are where the "sign lives in the driving force" picture becomes literal.
 
-<Figure id="Figure 4a" title="PING — V_E with V_∞ overlay" src="/figures/notebooks/nb023/traces__ping__v_e.png" alt="V_E (black) and V_∞ (grey dash-dot) for one E neuron in PING mode. V_E is held below threshold by rhythmic g_I bursts. V_∞ swings down to ≈ −80 mV during each I-burst and rises back between bursts.">
-  V_E is held below threshold by the rhythmic g_I bursts. The grey dash-dot V_∞ shows where V is being pulled at each instant: during an I-burst, V_∞ swings down toward E_i = −80 mV; as g_i decays, V_∞ rises again. **V_∞ moves directionally even though no quantity ever goes negative.**
+<Figure id="Figure 4a" title="PING — E-neuron membrane voltage" src="/figures/notebooks/nb023/traces__ping__v_e.png" alt="V_E (black) for one E neuron in PING mode. V_E is held below threshold by rhythmic g_I bursts, dipping toward −80 mV during each burst and recovering between bursts.">
+  V_E is held below threshold by the rhythmic g_I bursts: each I-burst pulls the membrane down toward $E_i = -80$ mV, and it recovers as g_i decays between bursts.
 </Figure>
 
 <Figure id="Figure 4b" title="PING — E-neuron conductances" src="/figures/notebooks/nb023/traces__ping__g_e.png" alt="Conductances on the E neuron in PING mode: g_E (cyan, small), g_I (red, large rhythmic bursts), g_L (faint dotted). All curves non-negative; g_I dominates and oscillates at the gamma cadence.">
@@ -54,8 +55,8 @@ The full conductance-based model that produces PING is documented in [COBANet](/
   Signed currents: $I_E^\text{in} = -g_E(V - E_E)$ in cyan is positive (depolarising). $I_I^\text{in} = -g_I(V - E_I)$ in red is **negative (hyperpolarising), even though g_I is positive** — the sign comes purely from the driving force $(V - E_I) > 0$ when $V > E_I$. This is the "sign lives in the driving force, never in the conductance" picture made literal: positive g_I in Figure 4b, negative I_I here.
 </Figure>
 
-<Figure id="Figure 4d" title="PING — V_I with V_∞ overlay" src="/figures/notebooks/nb023/traces__ping__v_i.png" alt="V_I (red) and V_∞ (grey dash-dot) for one I neuron in PING mode. V_I tracks the population E-burst envelope and fires once per cycle.">
-  V_I and V_∞ for the most active I neuron. V_I tracks the population E-burst envelope and fires once per cycle. No inhibitory drive on I, so V_∞ only depends on g_E and g_L.
+<Figure id="Figure 4d" title="PING — I-neuron membrane voltage" src="/figures/notebooks/nb023/traces__ping__v_i.png" alt="V_I (red) for one I neuron in PING mode. V_I tracks the population E-burst envelope and fires once per cycle.">
+  V_I (red) for the most active I neuron. It tracks the population E-burst envelope and fires once per cycle.
 </Figure>
 
 <Figure id="Figure 4e" title="PING — I-neuron conductances" src="/figures/notebooks/nb023/traces__ping__g_i.png" alt="Conductances on the I neuron: g_E (cyan) and g_L (faint dotted). No g_I because I receives no inhibition.">
