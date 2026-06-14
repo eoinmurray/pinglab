@@ -1,6 +1,6 @@
 {
   "slug": "nb002",
-  "notebook_run_id": "r002",
+  "notebook_run_id": "r004",
   "tier": "extra small",
   "config": {
     "n_e": 1024,
