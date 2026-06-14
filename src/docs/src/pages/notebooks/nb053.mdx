@@ -1,0 +1,87 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "053 — Does gradient damping need the loop?"
+date: 2026-06-12
+entry: 53
+structure: paper
+collection: documentation
+---
+import Figure from "../../components/Figure.astro";
+import RunParameters from "../../components/RunParameters.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb053/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const cfg = numbers.config ?? {};
+export const cells = numbers.cells ?? [];
+export const byLabel = Object.fromEntries(cells.map((c) => [c.label, c]));
+export const C = byLabel;
+export const fmtA = (v) => (typeof v === "number" ? v.toFixed(0) : "?");
+
+## Abstract
+
+The [Training](/articles/ar006/) article proves that the gradient explosion in conductance-based spiking networks comes specifically from the recurrent E→I→E loop: the backpropagated voltage gradient compounds once per gamma cycle by a loop gain $\varrho \propto W_{ei}W_{ie}$, and the `--v-grad-dampen` flag exists to tame it. That predicts a clean falsifiable consequence — **if the loop is the cause, then a network with the loop disabled should not need the flag**. This entry tests it directly. A network run as COBA (ei-strength 0, loop off) and as PING (ei-strength 1, loop on), each trained with damping off ($\gamma = 1$) and on ($\gamma = 1000$), otherwise identical. The prediction holds: COBA trains to {fmtA(C["coba__damp_off"]?.best_acc)}% with damping completely off, while PING with damping off has *every* optimiser step's gradient go non-finite and freezes at chance.
+
+## Methods
+
+Four MNIST runs on a 2×2 grid — {`{coba, ping}`} × {`{γ = 1 (off), γ = 1000 (on)}`} — using the canonical recipes from [nb025](/notebooks/nb025/) verbatim, with only `--v-grad-dampen` varied. Both models build as the same COBANet class; COBA simply sets `--ei-strength 0`, which zeroes the E→I weight $W_{ei}$ and so breaks the loop (the I population receives no drive and stays silent). All knobs are hardcoded literals in *src/notebooks/nb053.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
+
+The decisive measurement is the **number of skipped optimiser steps**. The trainer computes the pre-clip gradient norm each batch and, if it is non-finite (Inf/NaN), skips the step — so the skip count is a direct, unambiguous readout of the explosion. We also track final test accuracy and the peak finite pre-clip gradient norm.
+
+<RunParameters numbers={numbers} groups={[
+  {
+    title: "Setup",
+    rows: [
+      { label: "Dataset", value: `mnist, ${cfg.max_samples} samples` },
+      { label: "Epochs", value: cfg.epochs ?? "?" },
+      { label: "Trial / dt", value: `${cfg.t_ms} ms / ${cfg.dt} ms` },
+      { label: "Seed", value: cfg.seed ?? "?" },
+    ],
+  },
+  {
+    title: "Grid",
+    rows: [
+      { label: "Models", value: "coba (ei 0) · ping (ei 1)" },
+      { label: "Damping γ", value: "1 (off) · 1000 (on)" },
+      { label: "Other knobs", value: "nb025 recipes, fixed" },
+    ],
+  },
+]} />
+
+## Results
+
+<Figure id="Figure 1" title="Loop on/off × damping on/off (loop_vs_damping.png)" src="/figures/notebooks/nb053/loop_vs_damping.png" alt="Two panels. Left: test accuracy vs epoch for the four runs; three curves (coba off, coba on, ping on) climb to ≈80%, while ping with damping off stays flat on the chance line at 10–14%. Right: log10 peak pre-clip gradient norm per run; coba-off ≈ 120, coba-on and ping-on below the clip threshold, ping-off marked infinite (all steps skipped).">
+  **Left:** test accuracy across training. Three of the four runs climb to ≈80%; only PING with damping off (black dashed) is flat on the chance line — it never takes a single successful optimiser step. **Right:** peak pre-clip gradient norm (log scale of the value, plotted on a linear axis). COBA with damping off peaks at ≈120 — large but finite, so it clips and trains; PING with damping off is infinite, with all steps skipped.
+</Figure>
+
+| run | loop | damping | steps skipped | best acc |
+|---|---|---|---|---|
+| coba | off | off (γ=1) | {C["coba__damp_off"]?.skipped_steps} | {fmtA(C["coba__damp_off"]?.best_acc)}% |
+| coba | off | on (γ=1000) | {C["coba__damp_on"]?.skipped_steps} | {fmtA(C["coba__damp_on"]?.best_acc)}% |
+| ping | on | off (γ=1) | {C["ping__damp_off"]?.skipped_steps} | {fmtA(C["ping__damp_off"]?.best_acc)}% |
+| ping | on | on (γ=1000) | {C["ping__damp_on"]?.skipped_steps} | {fmtA(C["ping__damp_on"]?.best_acc)}% |
+
+COBA trains to {fmtA(C["coba__damp_off"]?.best_acc)}% with no damping at all — within a point of its damped self ({fmtA(C["coba__damp_on"]?.best_acc)}%) — and skips zero steps; its peak gradient norm stays finite the whole way. PING without damping skips {C["ping__damp_off"]?.skipped_steps} steps (all of them), so the network is frozen at initialisation at {fmtA(C["ping__damp_off"]?.best_acc)}% (chance). Restoring $\gamma = 1000$ recovers PING to {fmtA(C["ping__damp_on"]?.best_acc)}%.
+
+## Discussion
+
+The result confirms the [ar006](/articles/ar006/) mechanism by elimination. Damping is not a generic numerical safeguard for conductance-based networks — it is load-bearing exactly when a recurrent excitatory–inhibitory loop is present, and inert without one. COBA carries the same conductance dynamics, the same surrogate, the same membrane stiffness as PING; the only thing it lacks is the loop, and that single difference is the difference between needing the stabiliser and not. The loop gain $\varrho \propto W_{ei}W_{ie}$ vanishes when $W_{ei} = 0$, so there is nothing to compound, and the leftover feedforward gradient is bounded.
+
+A practical corollary: the canonical recipes apply $\gamma = 1000$ uniformly to the whole conductance family, including COBA. For COBA that is conservative rather than necessary — harmless, but per the [ar006 corollary](/articles/ar006/) it does divide the feedforward learning signal by $\gamma$, which is why COBA-off here reaches essentially the same accuracy with a much larger, un-shrunk gradient.
+
+## Success criteria
+
+- COBA trains with damping off (skips zero steps, accuracy well above chance): **met** — {fmtA(C["coba__damp_off"]?.best_acc)}%, 0 skipped.
+- PING fails with damping off (steps skipped, accuracy at chance): **met** — {C["ping__damp_off"]?.skipped_steps} skipped, {fmtA(C["ping__damp_off"]?.best_acc)}%.
+- Damping restores PING: **met** — {fmtA(C["ping__damp_on"]?.best_acc)}%.
+
+## Next steps
+
+Re-enabling recurrent excitation (a non-zero $W_{ee}$) in an otherwise-COBA network should reintroduce a loop — and therefore the need for damping — even with the inhibitory loop still off, isolating the loop (rather than inhibition specifically) as the cause. Sweeping ei-strength from 0 upward would locate the threshold where the loop gain crosses 1 and damping becomes mandatory.
+
+## Appendix
+
+### Reproduction
+
+```
+uv run src/notebooks/nb053.py --tier small
+```

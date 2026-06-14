@@ -1,0 +1,66 @@
+{
+  "slug": "nb053",
+  "notebook_run_id": "r001",
+  "tier": "small",
+  "config": {
+    "max_samples": 500,
+    "epochs": 12,
+    "t_ms": 200.0,
+    "dt": 0.1,
+    "seed": 42
+  },
+  "cells": [
+    {
+      "label": "coba__damp_off",
+      "model": "coba",
+      "gamma": 1,
+      "peak_grad_norm": 119.76063919067383,
+      "skipped_steps": 0,
+      "nan_seen": false,
+      "crashed": false,
+      "final_acc": 79.0,
+      "best_acc": 79.0,
+      "learned": true,
+      "exploded": false
+    },
+    {
+      "label": "coba__damp_on",
+      "model": "coba",
+      "gamma": 1000,
+      "peak_grad_norm": 0.35612852871418,
+      "skipped_steps": 0,
+      "nan_seen": false,
+      "crashed": false,
+      "final_acc": 80.0,
+      "best_acc": 80.0,
+      "learned": true,
+      "exploded": false
+    },
+    {
+      "label": "ping__damp_off",
+      "model": "ping",
+      "gamma": 1,
+      "peak_grad_norm": null,
+      "skipped_steps": 24,
+      "nan_seen": false,
+      "crashed": false,
+      "final_acc": 14.0,
+      "best_acc": 14.0,
+      "learned": false,
+      "exploded": true
+    },
+    {
+      "label": "ping__damp_on",
+      "model": "ping",
+      "gamma": 1000,
+      "peak_grad_norm": 1.8342127203941345,
+      "skipped_steps": 0,
+      "nan_seen": false,
+      "crashed": false,
+      "final_acc": 82.0,
+      "best_acc": 83.0,
+      "learned": true,
+      "exploded": false
+    }
+  ]
+}

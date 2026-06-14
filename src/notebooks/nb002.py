@@ -200,14 +200,18 @@ def render_movie(spk_e: np.ndarray, spk_i: np.ndarray, stride: int,
     red_cmap = LinearSegmentedColormap.from_list(
         "white_red", ["#ffffff", theme.DEEP_RED])
 
+    # 16:9 canvas matching the nb003-family scan videos (22×12.375 in @120 dpi
+    # → 2640×1484). Font sizes scaled up for the larger frame.
+    fs_title, fs_label, fs_tick = 22, 17, 14
     theme.apply()
-    fig = plt.figure(figsize=(6.4, 6.4), dpi=110)
-    gs = fig.add_gridspec(3, 1, height_ratios=[3.9, 1.9, 1.0], hspace=0.18)
-    gtop = gs[0].subgridspec(1, 2, width_ratios=[1, 1], wspace=0.08)
-    eax = fig.add_subplot(gtop[0])    # E spike grid (black)
-    iax = fig.add_subplot(gtop[1])    # I spike grid (red)
-    sax = fig.add_subplot(gs[1])      # the E+I raster
-    rax = fig.add_subplot(gs[2])      # the input-rate clock
+    fig = plt.figure(figsize=(22, 22 * 9 / 16), dpi=120)
+    gs = fig.add_gridspec(1, 2, width_ratios=[1, 2.7], wspace=0.16)
+    gleft = gs[0].subgridspec(2, 1, height_ratios=[1, 1], hspace=0.22)
+    gright = gs[1].subgridspec(2, 1, height_ratios=[3.0, 1.0], hspace=0.14)
+    eax = fig.add_subplot(gleft[0])    # E spike grid (black)
+    iax = fig.add_subplot(gleft[1])    # I spike grid (red)
+    sax = fig.add_subplot(gright[0])   # the E+I raster
+    rax = fig.add_subplot(gright[1])   # the input-rate clock
 
     e_im = eax.imshow(e_frames[0], cmap="Greys", vmin=0, vmax=1,
                       interpolation="nearest")
@@ -217,10 +221,10 @@ def render_movie(spk_e: np.ndarray, spk_i: np.ndarray, stride: int,
         a.set_xticks([]); a.set_yticks([])
         for sp in a.spines.values():
             sp.set_color(theme.GREY_MID)
-        a.set_xlabel(lab, fontsize=theme.SIZE_LABEL,
+        a.set_xlabel(lab, fontsize=fs_label,
                      color=theme.DEEP_RED if a is iax else theme.INK_BLACK)
-    title = fig.suptitle("", color=theme.INK_BLACK, fontsize=theme.SIZE_TITLE,
-                         family="monospace", y=0.98)
+    title = fig.suptitle("", color=theme.INK_BLACK, fontsize=fs_title,
+                         family="monospace", y=0.97)
 
     # raster — neuron index (y) vs time (x); E black, I red, stacked
     sax.imshow(_rgba_layer(raster_e, theme.INK_BLACK), aspect="auto",
@@ -229,29 +233,29 @@ def render_movie(spk_e: np.ndarray, spk_i: np.ndarray, stride: int,
     sax.imshow(_rgba_layer(raster_i, theme.DEEP_RED), aspect="auto",
                origin="lower", interpolation="nearest",
                extent=[0, t_end, N_E, N_E + N_I])
-    sax.axhline(N_E, color=theme.GREY_MID, lw=0.6)
+    sax.axhline(N_E, color=theme.GREY_MID, lw=0.8)
     sax.set_xlim(0, t_end)
     sax.set_ylim(0, N_E + N_I)
-    sax.set_ylabel("neuron (E | I)", fontsize=theme.SIZE_LABEL)
+    sax.set_ylabel("neuron (E | I)", fontsize=fs_label)
     sax.set_xticklabels([])
-    sax.tick_params(labelsize=theme.SIZE_TICK)
+    sax.tick_params(labelsize=fs_tick)
     for sp in sax.spines.values():
         sp.set_color(theme.GREY_MID)
-    scursor = sax.axvline(0.0, color=theme.DEEP_RED, lw=1.4)
+    scursor = sax.axvline(0.0, color=theme.DEEP_RED, lw=2.0)
 
     # input-rate clock — low → high → low square wave
     rax.axvspan(PHASE_MS / 1000.0, 2 * PHASE_MS / 1000.0,
                 color=theme.GREY_MID, alpha=0.12, lw=0)
-    rax.plot(t_full_s, rate, color=theme.GREY_MID, lw=1.3,
+    rax.plot(t_full_s, rate, color=theme.GREY_MID, lw=1.8,
              drawstyle="steps-post")
     rax.set_xlim(0, t_end)
     rax.set_ylim(0, rate_max)
-    rax.set_xlabel("time (s)", fontsize=theme.SIZE_LABEL)
-    rax.set_ylabel("input rate (Hz)", fontsize=theme.SIZE_LABEL)
-    rax.tick_params(labelsize=theme.SIZE_TICK)
+    rax.set_xlabel("time (s)", fontsize=fs_label)
+    rax.set_ylabel("input rate (Hz)", fontsize=fs_label)
+    rax.tick_params(labelsize=fs_tick)
     for sp in ("top", "right"):
         rax.spines[sp].set_visible(False)
-    cursor = rax.axvline(0.0, color=theme.DEEP_RED, lw=1.4)   # the moving clock
+    cursor = rax.axvline(0.0, color=theme.DEEP_RED, lw=2.0)   # the moving clock
 
     def update(i):
         e_im.set_data(e_frames[i])
@@ -263,10 +267,10 @@ def render_movie(spk_e: np.ndarray, spk_i: np.ndarray, stride: int,
         scursor.set_xdata([x, x])
         return e_im, i_im, title, cursor, scursor
 
-    fig.subplots_adjust(left=0.11, right=0.97, top=0.93, bottom=0.09)
+    fig.subplots_adjust(left=0.06, right=0.985, top=0.91, bottom=0.09)
     anim = animation.FuncAnimation(fig, update, frames=len(e_frames), blit=False)
     writer = animation.FFMpegWriter(fps=FPS, bitrate=6000)
-    anim.save(str(out_path), writer=writer)
+    anim.save(str(out_path), writer=writer, dpi=120)   # 22in×120 → 2640×1484
     plt.close(fig)
 
 
