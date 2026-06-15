@@ -11,53 +11,40 @@ import Figure from "../../components/Figure.astro";
 
 <div class="popout-box">
 
-<div class="popout-title">Equations Summary</div>
+<div class="popout-title">Model equations</div>
 
-**E neurons** (driven by feedforward input and inhibitory feedback):
+The conductance-based membrane equation ([ar009](/articles/ar009/) eq. 1), written separately for each population — E neurons receive both excitation and inhibition, I neurons receive excitation only:
 
 $$
-\begin{aligned}
-\text{(i)} \quad &
-  g^E_{e,t+1} = \alpha\, g^E_{e,t} + W_{\text{in}}\, s^{\text{inp}}_t,
-  \qquad
-  g^E_{i,t+1} = \gamma\, (g^E_{i,t} + W_{\text{ie}}\, s^i_t)
-& \text{[eqs.\ 6, 7]} \\[0.7em]
-\text{(ii)} \quad &
-  g^E_{\text{tot}} = g_L + g^E_e + g^E_i,\quad
-  \tau^E_{\text{eff}} = \frac{C_m}{g^E_{\text{tot}}},\quad
-  V^E_\infty = \frac{g_L E_L + g^E_e E_e + g^E_i E_i}{g^E_{\text{tot}}}
-& \text{[eqs.\ 2, 3, 4]} \\[0.7em]
-\text{(iii)} \quad &
-  V^E_{t+1} = V^E_\infty + (V^E_t - V^E_\infty)\, \exp\!\left(-\Delta t / \tau^E_{\text{eff}}\right)
-& \text{membrane} \\[0.7em]
-\text{(iv)} \quad &
-  s^e_{t+1} = \mathbb{1}[V^E_{t+1} \geq V_{\text{th}}],\quad
-  V^E_{t+1} \leftarrow V_{\text{reset}} \text{ if } s^e_{t+1}=1 \text{ or refractory}
-& \text{spike + reset}
-\end{aligned}
+C_m \frac{dV^E}{dt} = -g_L (V^E - E_L) - g^E_e (V^E - E_e) - g^E_i (V^E - E_i) \tag{1a}
 $$
 
-**I neurons** (driven by excitatory feedback only; no inhibitory input):
+$$
+C_m \frac{dV^I}{dt} = -g_L (V^I - E_L) - g^I_e (V^I - E_e) \tag{1b}
+$$
+
+The conductances driving them are exponential synapses ([ar009](/articles/ar009/) eqs. 6–8) — excitation on E is feedforward, inhibition on E comes from the I population, and excitation on I comes from the E population:
 
 $$
 \begin{aligned}
-\text{(i)} \quad &
-  g^I_{e,t+1} = \alpha\, (g^I_{e,t} + W_{\text{ei}}\, s^e_t)
-& \text{[eq.\ 8]} \\[0.7em]
-\text{(ii)} \quad &
-  g^I_{\text{tot}} = g_L + g^I_e,\quad
-  \tau^I_{\text{eff}} = \frac{C_m}{g^I_{\text{tot}}},\quad
-  V^I_\infty = \frac{g_L E_L + g^I_e E_e}{g^I_{\text{tot}}}
-& \text{[eqs.\ 2, 3, 4]} \\[0.7em]
-\text{(iii)} \quad &
-  V^I_{t+1} = V^I_\infty + (V^I_t - V^I_\infty)\, \exp\!\left(-\Delta t / \tau^I_{\text{eff}}\right)
-& \text{membrane} \\[0.7em]
-\text{(iv)} \quad &
-  s^i_{t+1} = \mathbb{1}[V^I_{t+1} \geq V_{\text{th}}],\quad
-  V^I_{t+1} \leftarrow V_{\text{reset}} \text{ if } s^i_{t+1}=1 \text{ or refractory}
-& \text{spike + reset}
+g^E_{e,t+1} &= e^{-\Delta t / \tau_\text{AMPA}}\, g^E_{e,t} + W_{\text{in}}\, s^{\text{inp}}_t & \text{(6)} \\[0.4em]
+g^E_{i,t+1} &= e^{-\Delta t / \tau_\text{GABA}}\, (g^E_{i,t} + W_{\text{ie}}\, s^i_t) & \text{(7)} \\[0.4em]
+g^I_{e,t+1} &= e^{-\Delta t / \tau_\text{AMPA}}\, (g^I_{e,t} + W_{\text{ei}}\, s^e_t) & \text{(8)}
 \end{aligned}
 $$
+
+where the per-step decay factor is $e^{-\Delta t / \tau_\text{AMPA}}$ for excitatory (AMPA) conductances and $e^{-\Delta t / \tau_\text{GABA}}$ for inhibitory (GABA) ones, with reversal potentials $E_L = -65$ mV (leak), $E_e = 0$ mV (excitatory), $E_i = -80$ mV (inhibitory).
+
+Each population emits a spike when its membrane crosses threshold, then hard-resets:
+
+$$
+\begin{aligned}
+s^e_{t+1} &= \mathbb{1}[V^E_{t+1} \geq V_\text{th}], & V^E_{t+1} &\leftarrow V_\text{reset} \ \text{ if } s^e_{t+1} = 1 \text{ or refractory} \\[0.4em]
+s^i_{t+1} &= \mathbb{1}[V^I_{t+1} \geq V_\text{th}], & V^I_{t+1} &\leftarrow V_\text{reset} \ \text{ if } s^i_{t+1} = 1 \text{ or refractory}
+\end{aligned}
+$$
+
+with spike threshold $V_\text{th} = -50$ mV and reset $V_\text{reset} = -65$ mV; $\mathbb{1}[\cdot]$ is the indicator (1 if the condition holds, 0 otherwise). Symbol definitions follow.
 
 ---
 
