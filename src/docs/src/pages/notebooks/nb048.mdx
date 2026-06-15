@@ -22,7 +22,7 @@ Can a network trained one-digit-at-a-time on 200 ms trials classify a *stream* o
 
 **Stream construction.** Sample $n$ MNIST test digits, encode each as a Poisson spike train for $\tau$ ms at the given input rate, concatenate along time. Digit transitions are *hard switches* — the Poisson rate flips instantaneously at $t = k\tau$. The network processes the full stream in one forward pass. The 2D sweep covers $\tau \in \{10, 15, 25, 40, 50, 75, 100, 200\}$ ms × input rate $\in \{5, 10, 25, 50, 100, 200\}$ Hz per channel, with 40 streams × 10 digits per cell (**1200 segments per cell, 3 seeds**).
 
-**Readout.** Same output LIF, same $W_\text{out}$, same $\beta_\text{out} = \exp(-\Delta t / \tau_\text{out})$ with $\tau_\text{out} = 2$ ms. The only difference from training: a **sliding-window mean** of width $\tau$ ms replaces the full-trial integration.
+**Readout.** The class signal comes from a non-spiking output leaky-integrator (LIF) layer — identical to the trained readout except for the integration window. Per timestep:
 
 $$
 v_\text{out}(t) \;=\; \beta_\text{out}\, v_\text{out}(t-1) \;+\; \frac{1-\beta_\text{out}}{\Delta t}\, \mathbf{s}^E(t-1)\, W_\text{out},
@@ -30,7 +30,17 @@ v_\text{out}(t) \;=\; \beta_\text{out}\, v_\text{out}(t-1) \;+\; \frac{1-\beta_\
 \text{logits}(t) \;=\; \frac{1}{w}\sum_{u=t-w+1}^{t} v_\text{out}(u)
 $$
 
-Per-segment prediction is read at the end of each $\tau$-window.
+term by term:
+
+- $v_\text{out}(t) \in \mathbb{R}^{10}$ — the output-LIF membrane, one non-spiking unit per class; its value is the running evidence for each digit.
+- $\mathbf{s}^E(t) \in \{0,1\}^{N_E}$ — the hidden excitatory spike vector at step $t$, over the $N_E$ excitatory cells.
+- $W_\text{out}$ (shape $N_E \times 10$) — the trained readout weights mapping E spikes to the 10 class units; unchanged from training.
+- $\beta_\text{out} = \exp(-\Delta t / \tau_\text{out})$ — the output-LIF per-step leak factor, with output time constant $\tau_\text{out} = 2$ ms.
+- $\Delta t = 0.1$ ms — the integration timestep; the $(1 - \beta_\text{out})/\Delta t$ prefactor is the exp-Euler input scaling, also unchanged from training.
+- $\tau$ — the presentation time of one digit (ms); $w = \tau / \Delta t$ is that same window measured in timesteps.
+- $\text{logits}(t) \in \mathbb{R}^{10}$ — the mean of $v_\text{out}$ over the trailing $w$ steps. This **sliding-window mean** is the *only* change from training, where the average instead runs over the whole trial (the *mem-mean* readout).
+- $p(\text{class}, t) = \mathrm{softmax}(\text{logits}(t))$, with $\mathrm{softmax}(x)_c = e^{x_c} / \sum_k e^{x_k}$ — the **readout probability**: a distribution over the 10 digits that sums to 1, i.e. the network's online confidence in each class. This is the trace plotted over time in the figures below (the streaming analogue of the single per-trial softmax used at training time).
+- **per-segment prediction** — $\arg\max_c\, p(\text{class}=c,\, t)$, read at the end of each $\tau$-window (the last step of the digit's presentation).
 
 ## Results
 

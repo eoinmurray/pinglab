@@ -181,6 +181,25 @@ $$
 
 The E and I populations are updated synchronously: at step $t+1$ both read the spike outputs $s^e_t$, $s^i_t$ from step $t$ to drive their conductances, and both emit fresh spikes $s^e_{t+1}$, $s^i_{t+1}$ at the end of the step. Synchronous-step semantics keep the E→I→E gamma cycle phase-locked to the integration grid.
 
+## Shunting inhibition
+
+Inhibition in this model does two things at once, and the second is easy to miss. Collecting equation (1) on $V$ puts *every* conductance into the coefficient of $V$:
+
+$$
+C_m \dot V = -\underbrace{(g_L + g_e + g_i)}_{g_{\text{tot}}}\, V + (g_L E_L + g_e E_e + g_i E_i)
+$$
+
+so the inhibitory conductance $g_i$ shows up in two distinct places — and they are two distinct mechanisms.
+
+1. **Driving force (subtractive).** Through the $-g_i(V - E_i)$ term — equivalently the $g_i E_i$ contribution to $V_\infty$ (4) — $g_i$ pulls $V$ toward $E_i = -80$ mV. This is the familiar hyperpolarising face of inhibition.
+2. **Total conductance (divisive — the shunt).** $g_i$ also sits inside $g_{\text{tot}}$ (2), the denominator of *both* $\tau_{\text{eff}} = C_m / g_{\text{tot}}$ (3) and $V_\infty$ (4). Opening $g_i$ raises $g_{\text{tot}}$, which **shortens $\tau_{\text{eff}}$** — the membrane integrates and forgets faster — and **lowers the gain of every other input**: the voltage deflection from an excitatory bump is $\partial V_\infty / \partial g_e = (E_e - V_\infty)/g_{\text{tot}}$, which shrinks as $g_{\text{tot}}$ grows. A larger background conductance divides down the effect of all inputs, excitatory and inhibitory alike.
+
+The shunt is the second facet, and it is present *regardless of the driving-force sign*. The clean test: if the cell happens to sit near $V \approx E_i$, the driving force $(V - E_i) \approx 0$, so the first facet injects almost no current — yet $g_i$ still raises $g_{\text{tot}}$ and still suppresses and speeds the cell. The suppression is the open channel itself, not the current through it.
+
+This is exactly why a conductance-based model is needed to capture shunting: a single non-negative $g_i$ does both jobs (the non-negative-conductances note above). In a current-based (CUBA) model inhibition is a signed current subtracted from the input — it can hyperpolarise, but it never changes $g_{\text{tot}}$, so it cannot shunt.
+
+In the discrete dynamics the shunt enters through the same $g_{\text{tot}}$: $g^E_i$ feeds $g^E_{\text{tot}}$, which sets both the exponent and the rest point of the exp-Euler step $V_{t+1} = V_\infty + (V_t - V_\infty)\exp(-\Delta t / \tau_{\text{eff}})$ (5).
+
 ## Population structure
 
 The network has a single hidden layer partitioned into E and I sub-populations in a 4:1 ratio. Both obey the same LIF equations but with different biophysical constants:
