@@ -6,7 +6,6 @@ import SiteHeader from "../../components/SiteHeader.astro";
 type Entry = {
   slug: string;
   entry: number;
-  order: number | null;
   title: string;
   date: any;
   collection: string | null;
@@ -23,7 +22,6 @@ function buildEntries(modules: Record<string, any>): Entry[] {
     return {
       slug,
       entry: fm.entry,
-      order: typeof fm.order === "number" ? fm.order : null,
       title: String(fm.title ?? slug).replace(/^\d+\s*[—–-]\s*/, ""),
       date: fm.date,
       collection: c,
@@ -31,12 +29,8 @@ function buildEntries(modules: Record<string, any>): Entry[] {
   });
 }
 
-// Narrative order when an `order:` field is present (ascending), else newest
-// first by entry. Ordered entries sort ahead of un-ordered ones.
-function byOrderThenEntry(a: Entry, b: Entry): number {
-  if (a.order != null && b.order != null) return a.order - b.order;
-  if (a.order != null) return -1;
-  if (b.order != null) return 1;
+// Newest first by entry id (highest id first).
+function byEntryDesc(a: Entry, b: Entry): number {
   return b.entry - a.entry;
 }
 
@@ -69,11 +63,11 @@ const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
 
 const articles = buildEntries(articleModules)
   .filter((a) => a.collection === collection)
-  .sort(byOrderThenEntry);
+  .sort(byEntryDesc);
 
 const notebooks = buildEntries(notebookModules)
   .filter((nb) => nb.collection === collection)
-  .sort(byOrderThenEntry);
+  .sort(byEntryDesc);
 
 const formatDate = (raw: any) => {
   const d =
