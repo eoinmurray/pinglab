@@ -21,7 +21,7 @@ This page is the reference for every number and every panel the scope shows. It 
 
 *What it is:* The integration timestep in ms — how much real time elapses per simulation step. Smaller Δt is more accurate but more expensive (more steps per trial).
 
-*How it's calculated:* Read from *--dt*. Held fixed across a training run; swept across an inference sweep (*infer --dt-sweep*).
+*How it's calculated:* Read from *--dt*. Held fixed across a training run; can be varied at inference to probe Δt-stability.
 
 *Common values:* 0.1 ms (fine), 0.25 ms (default), 1.0 ms (coarse). PING breaks down above about 1 ms because the excitatory-inhibitory feedback loop can't complete within a single step.
 

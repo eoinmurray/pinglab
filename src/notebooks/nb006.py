@@ -19,36 +19,127 @@ Notebook entry: src/docs/src/pages/notebooks/nb006.mdx
 
 from __future__ import annotations
 
+import json
+import shutil
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import sh  # noqa: E402
 
-from _ping_scan import (  # noqa: E402
-    DATASET,
-    DIGIT_CLASS,
-    DT_MS,
-    INPUT_RATE_HZ,
-    N_HIDDEN,
-    SAMPLE_IDX,
-    SEED,
-    SIM_MS,
-    STEP_OFF_MS,
-    STEP_ON_MS,
-    ScanSpec,
-    run_scan,
-)
+from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
+from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from _tier import parse_tier  # noqa: E402
 
+OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+
+# --- PING-video scan recipe (inlined; shared defaults across nb003–nb006) ---
+# config.py defaults: sim_ms=600, step_on_ms=200, step_off_ms=300. Input is
+# MNIST d0s0, Poisson-encoded with per-pixel rate ∝ pixel intensity.
+# NOTE: this scan overrides the input drive (see EI_SCAN_* below); the shared
+# INPUT_RATE_HZ / W_IN_* defaults are kept only for the numbers.json `input`
+# provenance block, while the actual overrides are recorded under `scan`.
+SEED = 42
+DEFAULT_TIER = "small"
+TIER_FRAMES = {
+    "extra small": 5,
+    "small": 15,
+    "medium": 100,
+    "large": 300,
+    "extra large": 600,
+}
+N_HIDDEN = 512  # → N_E=512, N_I=128 (n_i = n_e//4)
+DT_MS = 0.1
+SIM_MS = 600.0
+STEP_ON_MS = 200.0
+STEP_OFF_MS = 300.0
+INPUT_RATE_HZ = 50.0  # max per-pixel Poisson rate (fully-on pixel)
+W_IN_MEAN = 0.54  # W_in init mean — pushes net toward PING threshold
+W_IN_STD = 0.108  # W_in init std (proportional to mean)
+DATASET = "mnist"
+DIGIT_CLASS = 0
+SAMPLE_IDX = 0
+SCAN_FPS = 30
+
+# --- This entry's scan ------------------------------------------------------
 SLUG = "nb006"
+SCAN_VAR = "ei_strength"
+SCAN_MIN = 0.0
+SCAN_MAX = 2.0
+VIDEO_NAME = "scan_ei.mp4"
 EI_SCAN_INPUT_RATE_HZ = 200.0
 EI_SCAN_W_IN_MEAN = 1.8  # 6× over the default 0.3 — bigger E baseline drive
 EI_SCAN_W_IN_STD = 0.36  # 6× over the default 0.06
-EI_SCAN_MIN = 0.0
-EI_SCAN_MAX = 2.0
 CANON_EI = 0.8  # well inside the PING-on regime for the replay
+
+
+def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
+    fig = plt.figure(figsize=(2.8, 0.28), dpi=150)
+    fig.patch.set_alpha(0.0)
+    fig.text(
+        0.97,
+        0.5,
+        notebook_run_id,
+        ha="right",
+        va="center",
+        fontsize=10,
+        color="white",
+        family="monospace",
+        bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"),
+    )
+    stamp_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(stamp_path, transparent=True, bbox_inches="tight", pad_inches=0.02)
+    plt.close(fig)
+
+
+def _overlay_stamp_video(src: Path, dst: Path, stamp: Path) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    sh.ffmpeg(
+        "-y",
+        "-i",
+        str(src),
+        "-i",
+        str(stamp),
+        "-filter_complex",
+        "[0:v][1:v]overlay=W-w-10:H-h-10",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-movflags",
+        "+faststart",
+        str(dst),
+        _out=sys.stdout,
+        _err=sys.stderr,
+    )
+    print(f"wrote {dst.relative_to(REPO)}")
+
+
+def _format_run_datetime(dt: datetime) -> str:
+    day = dt.day
+    suffix = (
+        "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    )
+    return dt.strftime(f"%A, {day}{suffix} %B %y at %H:%M")
+
+
+def _format_duration(seconds: float) -> str:
+    s = int(round(seconds))
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60:02d}s"
+    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
 
 
 def compute_summary_rates() -> dict:
@@ -139,33 +230,141 @@ def extras(tier: str, notebook_run_id: str) -> dict:
     return {"rates_hz": rates, "canonical_ei": CANON_EI}
 
 
-
 if __name__ == "__main__":
-    run_scan(
-        ScanSpec(
-            slug=SLUG,
-            scan_var="ei_strength",
-            scan_min=EI_SCAN_MIN,
-            scan_max=EI_SCAN_MAX,
-            video_name="scan_ei.mp4",
-            extra_osc_args=[
-                "--input-rate",
-                str(EI_SCAN_INPUT_RATE_HZ),
-                "--w-in",
-                str(EI_SCAN_W_IN_MEAN),
-                str(EI_SCAN_W_IN_STD),
-                "--stim-overdrive",
-                "1.0",
-                "--dt",
-                str(DT_MS),
-            ],
-            config_payload={
+    artifacts = REPO / "src" / "artifacts" / "notebooks" / SLUG
+    figures = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+
+    wipe_dir = "--no-wipe-dir" not in sys.argv
+    skip_training = "--skip-training" in sys.argv
+    modal_gpu = parse_modal_gpu(sys.argv)
+    tier = parse_tier(sys.argv, choices=TIER_FRAMES.keys(), default=DEFAULT_TIER)
+    frames = TIER_FRAMES[tier]
+
+    t_start = time.monotonic()
+    notebook_run_id = next_run_id(SLUG)
+    print(
+        f"notebook_run_id = {notebook_run_id} tier={tier}"
+        + ("  [skip-training]" if skip_training else "")
+        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+    )
+
+    if wipe_dir:
+        wipe_targets = (figures,) if skip_training else (artifacts, figures)
+        for d in wipe_targets:
+            if d.exists():
+                print(f"[wipe] {d.relative_to(REPO)}")
+                shutil.rmtree(d)
+    artifacts.mkdir(parents=True, exist_ok=True)
+    figures.mkdir(parents=True, exist_ok=True)
+    persist_run_id(SLUG, notebook_run_id)
+    stamp = figures / "_stamp.png"
+    _render_stamp_png(notebook_run_id, stamp)
+
+    scan_dir = artifacts / "scan"
+    mp4_src = scan_dir / "scan.mp4"
+    if skip_training:
+        if not mp4_src.exists():
+            raise SystemExit(f"--skip-training requires existing {mp4_src}")
+    else:
+        print(
+            f"[{SCAN_VAR}] → {scan_dir.relative_to(REPO)}"
+            + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+        )
+        args = [
+            "run",
+            "python",
+            str(OSCILLOSCOPE),
+            "sim",
+            "--video",
+            "--model",
+            "ping",
+            "--n-hidden",
+            str(N_HIDDEN),
+            "--t-ms",
+            str(SIM_MS),
+            "--input",
+            "dataset",
+            "--dataset",
+            DATASET,
+            "--digit",
+            str(DIGIT_CLASS),
+            "--sample",
+            str(SAMPLE_IDX),
+            "--scan-var",
+            SCAN_VAR,
+            "--scan-min",
+            str(SCAN_MIN),
+            "--scan-max",
+            str(SCAN_MAX),
+            "--frames",
+            str(frames),
+            "--frame-rate",
+            str(SCAN_FPS),
+            "--out-dir",
+            str(scan_dir),
+            "--wipe-dir",
+            # --- this entry's extra oscilloscope flags (bumped E drive) ---
+            "--input-rate",
+            str(EI_SCAN_INPUT_RATE_HZ),
+            "--w-in",
+            str(EI_SCAN_W_IN_MEAN),
+            str(EI_SCAN_W_IN_STD),
+            "--stim-overdrive",
+            "1.0",
+            "--dt",
+            str(DT_MS),
+        ]
+        args = append_modal_args(args, modal_gpu)
+        sh.uv(*args, _cwd=str(REPO), _out=sys.stdout, _err=sys.stderr)
+        if not mp4_src.exists():
+            raise SystemExit(f"video run did not produce {mp4_src}")
+
+    _overlay_stamp_video(mp4_src, figures / VIDEO_NAME, stamp)
+    stamp.unlink(missing_ok=True)
+
+    duration_s = time.monotonic() - t_start
+    summary: dict = {
+        "notebook_run_id": notebook_run_id,
+        "run_datetime": _format_run_datetime(datetime.now().astimezone()),
+        "duration_s": round(duration_s, 1),
+        "duration": _format_duration(duration_s),
+        "tier": tier,
+        "config": {
+            "tier": tier,
+            "model": "ping",
+            "n_e": N_HIDDEN,
+            "n_i": N_HIDDEN // 4,
+            "dt_ms": DT_MS,
+            "sim_ms": SIM_MS,
+            "step_on_ms": STEP_ON_MS,
+            "step_off_ms": STEP_OFF_MS,
+            "input": {
+                "mode": "dataset",
+                "dataset": DATASET,
+                "digit": DIGIT_CLASS,
+                "sample": SAMPLE_IDX,
+                "base_rate_hz": INPUT_RATE_HZ,
+                "w_in_mean": W_IN_MEAN,
+                "w_in_std": W_IN_STD,
+            },
+            "seed": SEED,
+            "scan": {
+                "var": SCAN_VAR,
+                "min": SCAN_MIN,
+                "max": SCAN_MAX,
+                "frames": frames,
+                "fps": SCAN_FPS,
                 "fixed_overdrive": 1.0,
                 "input_rate_hz": EI_SCAN_INPUT_RATE_HZ,
                 "w_in_mean": EI_SCAN_W_IN_MEAN,
                 "w_in_std": EI_SCAN_W_IN_STD,
             },
-            extras_fn=extras,
-        )
-    )
+        },
+    }
+    summary.update(extras(tier, notebook_run_id))
+
+    out_path = figures / "numbers.json"
+    out_path.write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"wrote {out_path.relative_to(REPO)}")
+    print(f"  total duration: {summary['duration']}")
     sys.exit(0)

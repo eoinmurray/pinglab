@@ -41,7 +41,8 @@ SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
 SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
 
 COMMON_ARGS = [
-    "image",
+    "sim",
+    "--image",
     "--model", "ping",
     "--input", "dataset",
     "--dataset", "mnist",

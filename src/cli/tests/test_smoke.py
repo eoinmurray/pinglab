@@ -38,15 +38,15 @@ def test_sim_no_output(out_dir):
 
 
 def test_image_output(out_dir):
-    _run(f"{OSC} image --out-dir {out_dir}")
+    _run(f"{OSC} sim --image --out-dir {out_dir}")
 
 
 def test_video_output(out_dir):
-    _run(f"{OSC} video --frames 3 --frame-rate 10 --out-dir {out_dir}")
+    _run(f"{OSC} sim --video --frames 3 --frame-rate 10 --out-dir {out_dir}")
 
 
 def test_dataset_input_scikit(out_dir):
-    _run(f"{OSC} image --input dataset --dataset scikit --out-dir {out_dir}")
+    _run(f"{OSC} sim --image --input dataset --dataset scikit --out-dir {out_dir}")
 
 
 @pytest.mark.parametrize(
@@ -59,7 +59,7 @@ def test_dataset_input_scikit(out_dir):
 )
 def test_scan(out_dir, scan_var, lo, hi):
     _run(
-        f"{OSC} video --scan-var {scan_var} --scan-min {lo} --scan-max {hi} "
+        f"{OSC} sim --video --scan-var {scan_var} --scan-min {lo} --scan-max {hi} "
         f"--frames 3 --frame-rate 10 --out-dir {out_dir}"
     )
 

@@ -69,7 +69,8 @@ def test_from_dir_inherits_config(tmp_path):
 
     image_dir = tmp_path / "image"
     _run_cli(
-        "image",
+        "sim",
+        "--image",
         "--from-dir",
         str(train_dir),
         "--digit",
@@ -110,7 +111,8 @@ def test_from_dir_cli_overrides(tmp_path):
 
     image_dir = tmp_path / "image"
     _run_cli(
-        "image",
+        "sim",
+        "--image",
         "--from-dir",
         str(train_dir),
         "--t-ms",
@@ -152,7 +154,8 @@ def test_from_dir_auto_loads_weights(tmp_path):
 
     infer_dir = tmp_path / "infer"
     _run_cli(
-        "infer",
+        "sim",
+        "--infer",
         "--from-dir",
         str(train_dir),
         "--max-samples",
@@ -379,7 +382,8 @@ def test_scan_var_runs(tmp_path, scan_var, lo, hi, extra):
     """Every --scan-var in the table runs video mode without crashing."""
     out = tmp_path / f"scan-{scan_var}"
     _run_cli(
-        "video",
+        "sim",
+        "--video",
         "--model",
         "ping",
         "--n-hidden",
@@ -560,7 +564,7 @@ def test_independent_drive_raises_e_rate():
     def _e_rate(*extra):
         # Run with a tiny config and parse "E= NN" from CLI stdout.
         cmd = [
-            "uv", "run", "python", "src/cli/cli.py", "image",
+            "uv", "run", "python", "src/cli/cli.py", "sim", "--image",
             "--model", "ping", "--input", "synthetic-spikes",
             "--input-rate", "5", "--t-ms", "300",
             "--w-in", "0.5", "0.1",
@@ -592,7 +596,7 @@ def test_independent_drive_i_raises_i_rate():
 
     def _i_rate(*extra):
         cmd = [
-            "uv", "run", "python", "src/cli/cli.py", "image",
+            "uv", "run", "python", "src/cli/cli.py", "sim", "--image",
             "--model", "ping", "--input", "synthetic-spikes",
             "--input-rate", "5", "--t-ms", "300",
             "--w-in", "0.5", "0.1",
@@ -655,7 +659,8 @@ def test_lyapunov_eps_writes_divergence_to_npz(tmp_path):
     out = tmp_path / "lyap"
     out.mkdir()
     _run_cli(
-        "image",
+        "sim",
+        "--image",
         "--model", "ping", "--input", "synthetic-spikes",
         "--t-ms", "300", "--input-rate", "20",
         "--w-in", "1.5", "0.3", "--ei-strength", "1.5",

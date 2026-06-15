@@ -501,7 +501,8 @@ def generate_raster(model: str, out_path: Path) -> None:
     if npz_path.exists():
         npz_path.unlink()
     argv = [
-        "image",
+        "sim",
+        "--image",
         "--from-dir", str(baseline_dir(model)),
         "--input", "dataset",
         "--dataset", "mnist",

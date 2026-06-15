@@ -19,38 +19,31 @@ The entry point lives at *src/pinglab/cli/\_\_main\_\_.py* and is invoked as a P
 uv run python -m cli <subcommand> [flags…]
 ```
 
-There are five subcommands — *sim*, *image*, *video*, *train*, *infer* — plus the bare invocation *python -m cli*, which prints the top-level help. Every subcommand also responds to *--help* with its own complete flag listing. There is no global config file: the source of truth for every parameter is the command line. Reproducibility is delegated to two artifacts the CLI writes into the output directory on every run — *config.json* (a serialisation of the parsed argparse namespace plus provenance metadata) and *run.sh* (the literal shell command that was invoked). Together they let any downstream subcommand re-derive the exact state via *--from-dir*.
+There are two subcommands — *sim* and *train* — plus the bare invocation *python -m cli*, which prints the top-level help. Every subcommand also responds to *--help* with its own complete flag listing. There is no global config file: the source of truth for every parameter is the command line. Reproducibility is delegated to two artifacts the CLI writes into the output directory on every run — *config.json* (a serialisation of the parsed argparse namespace plus provenance metadata) and *run.sh* (the literal shell command that was invoked). Together they let any downstream subcommand re-derive the exact state via *--from-dir*.
 
-## The five subcommands
+## The two subcommands
 
 ### *sim*
 
-Run one forward pass and print firing-rate metrics. No plots, no video, no weights. This is the cheapest mode; the test suite calls it and the dt-stability checks in [ar003](/articles/ar003/) use it as a primitive. Writes only *config.json*, *run.sh*, and *output.log*.
+Run one forward pass. By default it prints firing-rate metrics only — no plots, no video, no weights — the cheapest mode, used by the test suite and the dt-stability checks in [ar003](/articles/ar003/). Three flags add outputs; each does its own forward pass and reports metrics:
 
-### *image*
+- *--image* — also save a still oscilloscope figure (E and I rasters, weight histograms, PSD panel). The input mode is whatever *--input* / *--dataset* dictate; the default render lands at *src/pinglab/artifacts/oscilloscope/* unless *--out-dir* is set.
+- *--video* — sweep one parameter linearly between *--scan-min* and *--scan-max* over *--frames* values and stitch the result into an MP4. The scan variable is *--scan-var* (legal set registered in *src/pinglab/cli/scan.py*; see *Scan variables* below). This is how the gamma-gated-sparsity collection presents its parameter sweeps — the eye picks up a bifurcation in a sweep far faster than in a row of static panels. With *--input dataset* it also emits an *init_d0s0.png* snapshot alongside the video.
+- *--infer* — load trained weights (*--from-dir* / *--load-weights*) and evaluate test-set accuracy, writing *results.json*; pair with *--image* for a snapshot of the trained network.
 
-Run one forward pass and save a still oscilloscope figure (E and I rasters, weight histograms, PSD panel). The input mode is whatever *--input* / *--dataset* dictate. Loads trained weights via *--load-weights* or *--from-dir*. The default render lands at *src/pinglab/artifacts/oscilloscope/* unless *--out-dir* is set.
+*sim* flags:
 
-*image*-only flags:
-
+- *--image* — render the still snapshot (above).
+- *--video* — render the parameter sweep (above).
+- *--infer* — evaluate test-set accuracy with trained weights (above).
+- *--max-samples INT* — [*--infer*] Cap the evaluation set to N samples.
 - *--from-dir DIR* — Inherit *config.json* + auto-detect *weights.pth* from a training run directory. Any CLI flag explicitly passed overrides the inherited value.
-- *--load-weights PATH* — Direct path to a *weights.pth* file. Mutually exclusive in spirit with *--from-dir* (they can both be set; *--from-dir* sets the auto-detected path which *--load-weights* then overrides).
-
-### *video*
-
-Sweep one parameter linearly between *--scan-min* and *--scan-max* over *--frames* values and stitch the result into an MP4. The scan variable is named with *--scan-var*; the legal set is registered in *src/pinglab/cli/scan.py* (see the *Scan variables* section below). The video form is how the gamma-gated-sparsity collection presents its parameter sweeps — the eye picks up bifurcations in a sweep far faster than it reads a row of static panels.
-
-*video*-only flags:
-
-- *--scan-var NAME* — Parameter to sweep. Default *stim-overdrive*. Full list below.
-- *--scan-min FLOAT* — Sweep start value, in the variable's natural units. For *digit*, an integer class.
-- *--scan-max FLOAT* — Sweep end value. For *digit*, an integer class.
-- *--frames INT* — Number of frames to render. Default 10. For *digit*, overridden by the scan range.
-- *--frame-rate INT* — Output MP4 fps. Default 10.
-- *--from-dir DIR* — Same semantics as *image*.
-- *--load-weights PATH* — Same semantics as *image*.
-
-When *--input dataset* is set, *video* also emits an *init_d0s0.png* snapshot alongside the video, so a sweep run has a static reference comparable to *train* runs.
+- *--load-weights PATH* — Direct path to a *weights.pth* file (*--from-dir* sets the auto-detected path, which *--load-weights* then overrides).
+- *--scan-var NAME* — [*--video*] Parameter to sweep. Default *stim-overdrive*. Full list below.
+- *--scan-min FLOAT* — [*--video*] Sweep start value, in the variable's natural units. For *digit*, an integer class.
+- *--scan-max FLOAT* — [*--video*] Sweep end value. For *digit*, an integer class.
+- *--frames INT* — [*--video*] Number of frames to render. Default 10. For *digit*, overridden by the scan range.
+- *--frame-rate INT* — [*--video*] Output MP4 fps. Default 10.
 
 ### *train*
 
@@ -71,19 +64,6 @@ Surrogate-gradient BPTT training loop. Writes *weights.pth*, *metrics.json*, a p
 - *--fr-reg-lower-strength FLOAT* — Coefficient s\_l on the lower regulariser.
 - *--fr-reg-mode \{per-neuron, population\}* — Pooling axis for the regulariser. *per-neuron* (default) concentrates pressure on the highest-firing cells (the Cramer recipe). *population* uses a single scalar over the grand mean across batch and neurons; pressure distributes uniformly.
 - *--tau-gaba FLOAT* — Override the GABA synaptic decay τ\_GABA (ms). Default = *models.py*'s *tau\_gaba* (9.0 ms, Börgers / Buzsaki-Wang range). nb041 sweeps this across \{4.5, …, 27\} ms while training PING from scratch; the realised gamma frequency f\_γ tracks 1/τ\_GABA.
-
-### *infer*
-
-Load trained weights and evaluate on the test set. Its distinguishing feature is *--dt-sweep*: pass a list of dt values and *infer* runs evaluation at each, optionally with a frozen input encoder so the spike trains are identical across dt rather than re-sampled from Poisson each time. The output is a *dt\_sweep.png* curve, a *results.json* with per-dt accuracies and hidden-rate stats, and optionally a *dt\_sweep.mp4* if *--observe video* is set.
-
-*infer*-only flags:
-
-- *--from-dir DIR* — Inherit config + auto-detect weights.
-- *--load-weights PATH* — Auto-detected when *--from-dir* is set; required otherwise.
-- *--max-samples INT* — Cap evaluation set.
-- *--dt-sweep DT [DT …]* — Run inference at each dt value. Overrides *--dt*.
-- *--observe \{video, image\}* — With *--dt-sweep*, *video* renders one frame per dt. Without, *image* renders a single snapshot.
-- *--frozen-inputs-mode \{upsample, downsample, resample\}* — How input spikes are transported across dt, anchored at the training dt (Parthasarathy et al. §2.1, §2.3). *upsample* count-preservingly zero-pads to a finer eval-dt and requires *eval-dt ≤ train-dt*. *downsample* count-preservingly sum-pools to a coarser eval-dt and requires *eval-dt ≥ train-dt*. *resample* draws fresh Poisson at each eval-dt and re-introduces sampling noise. *upsample* and *downsample* additionally require integer dt ratios vs train-dt.
 
 ## Shared flag groups
 
@@ -142,7 +122,7 @@ The following flag groups are attached to every subcommand via a shared argparse
 
 ## Scan variables
 
-The legal values of *--scan-var* on the *video* subcommand are registered in *SCAN\_DEFAULTS* in *src/pinglab/cli/scan.py*. Each entry pairs a default centre value with a unit label used for axis annotation.
+The legal values of *--scan-var* (used with *sim --video*) are registered in *SCAN\_DEFAULTS* in *src/pinglab/cli/scan.py*. Each entry pairs a default centre value with a unit label used for axis annotation.
 
 - *stim-overdrive* — input multiplier; default 1.0 ×
 - *tau\_gaba* — GABA synaptic decay (ms); default 9.0 ms
@@ -160,13 +140,13 @@ The *w\_ei\_mean* and *w\_ie\_mean* sweeps scale the existing matrix rather than
 
 ## Inheritance via *--from-dir*
 
-The trick that makes the notebook chain work is *--from-dir*. Every *train* run writes a *config.json* alongside its *weights.pth*; *image*, *video*, and *infer* can read that directory and inherit the model, hidden sizes, dataset, E-I parameters, regulariser settings, and seed from it. Any flag the user passes explicitly on the command line wins over the inherited value — the parser builds the set of CLI-explicit flags from *sys.argv* before applying inheritance.
+The trick that makes the notebook chain work is *--from-dir*. Every *train* run writes a *config.json* alongside its *weights.pth*; *sim* (with *--image* / *--video* / *--infer*) can read that directory and inherit the model, hidden sizes, dataset, E-I parameters, regulariser settings, and seed from it. Any flag the user passes explicitly on the command line wins over the inherited value — the parser builds the set of CLI-explicit flags from *sys.argv* before applying inheritance.
 
 The inheritance map is defined in *\_apply\_from\_dir* and covers:
 
 *model, dt, t\_ms, dataset, hidden\_sizes, ei\_strength, ei\_ratio, sparsity, w\_in\_sparsity, w\_in, input\_rate, max\_samples, dales\_law, ei\_layers, seed.*
 
-*--out-dir* is also auto-set to a sibling *infer/* subdirectory of the source run when *infer* inherits, unless overridden.
+*--out-dir* is also auto-set to a sibling *infer/* subdirectory of the source run when *sim --infer* inherits via *--from-dir*, unless overridden.
 
 Legacy model names in older *config.json* files are remapped via *LEGACY\_MODEL\_ALIASES* with a one-line stderr note. Old configs missing the *dales\_law* field trigger a warning prompting the user to pass it explicitly or retrain.
 
@@ -177,17 +157,3 @@ Every subcommand calls *save\_run\_artifacts* on entry, which produces three fil
 - *config.json* — The parsed argparse namespace, augmented with a provenance block from *run\_log.provenance()* containing *git\_sha*, *device*, *run\_id*, *started\_at*, and the resolved Python interpreter. Used by *--from-dir* and by the notebook landing-page metadata extractors.
 - *run.sh* — The literal *sys.argv* joined with spaces and prefixed with *\#!/bin/bash*. Re-running this script reproduces the run bit-for-bit (modulo seeded RNG state, which is also in *config.json*).
 - *output.log* — File handler attached to the *oscilloscope* logger. ANSI escape sequences are stripped from the file but preserved on stdout, so terminals see colour while the log stays grep-friendly.
-
-A *.running* marker file is created during the run (containing PID, start time, run\_id, and the invoking command) and removed by an *atexit* hook on normal exit. Stale *.running* files signal a crashed run.
-
-## Standard outputs by mode
-
-- *sim* — *config.json*, *run.sh*, *output.log* only.
-- *image* — Above, plus the still oscilloscope figure (e.g. *snapshot.png*) and any input-encoding diagnostic plots.
-- *video* — Above, plus the sweep MP4 (named after the scan variable) and *init\_d0s0.png* if the input is a dataset.
-- *train* — Above, plus *weights.pth*, *metrics.json* (per-epoch test accuracy and rate stats), *metrics.jsonl* (per-step training trace), *test\_predictions.json*, and optionally *observe\_&lt;i&gt;.png* per epoch or *observe.mp4*.
-- *infer* — *results.json* (with the dt sweep table and per-dt rate stats), *dt\_sweep.png*, optionally *dt\_sweep.mp4* and *infer\_d0s0.png*.
-
-## The recipe lives in the notebook, not the flag
-
-The one constraint the project imposes on itself: every scientific knob is a flag on the CLI, and every notebook runner *src/pinglab/notebooks/nbNNN.py* hardcodes its choice of those flags as a literal string. The notebook runner accepts only *--tier* (size) and *--modal-gpu* (dispatch target). No lr argument, no epoch argument, no surrogate-slope argument on the notebook itself. New scientific knobs go here, on this CLI, as a flag — the notebook just passes the recipe value inline. If a notebook is reproducing a result, you should be able to read its source and see every choice it made, with no environment variables or *.yaml* configs to chase. The CLI is the substrate; the notebook is the recipe.

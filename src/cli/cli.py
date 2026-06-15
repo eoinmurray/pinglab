@@ -1,12 +1,12 @@
 """PING network toolkit — CLI entrypoint.
 
-Subcommands: sim, image, video, train, infer.
+Subcommands: sim, train.
 
 Usage:
     uv run python src/cli/cli.py                             # sim only (metrics)
-    uv run python src/cli/cli.py sim                         # sim only (metrics)
-    uv run python src/cli/cli.py image                       # snapshot
-    uv run python src/cli/cli.py video --scan-var dt         # dt sweep video
+    uv run python src/cli/cli.py sim --image                 # snapshot
+    uv run python src/cli/cli.py sim --video --scan-var dt   # dt sweep video
+    uv run python src/cli/cli.py sim --infer --from-dir RUN  # evaluate trained net
     uv run python src/cli/cli.py train --epochs 10           # train on scikit digits
 """
 
@@ -35,17 +35,12 @@ from config import _extract_records  # noqa: F401
 from figkit import plt
 from plot import make_transient_fig
 
-
-# =============================================================================
 # =============================================================================
 # Image → spike encoding with stimulus window
 # =============================================================================
 
-
 from encoders import (  # noqa: E402,F401
     EVAL_SEED,
-    FROZEN_MODES,
-    FrozenEncoder,
     downsample_spikes_count,
     encode_batch,
     encode_image_spikes,
@@ -55,8 +50,6 @@ from encoders import (  # noqa: E402,F401
     upsample_spikes_zeropad,
 )
 
-
-
 from scan import (  # noqa: E402,F401
     SCAN_DEFAULTS,
     _apply_scan_var,
@@ -65,9 +58,6 @@ from scan import (  # noqa: E402,F401
     primary_hid_key,
     primary_inh_key,
 )
-
-
-
 
 # =============================================================================
 # Snapshot generators
@@ -89,8 +79,6 @@ from datasets import (  # noqa: E402,F401
     load_dataset,
 )
 
-
-
 # =============================================================================
 # Training (moved to train.py)
 # =============================================================================
@@ -101,17 +89,10 @@ from train import (  # noqa: E402,F401
     train,
 )
 
-
-
 # =============================================================================
 # CLI
 # =============================================================================
 
-
-from video import (  # noqa: E402
-    _plot_dt_sweep,
-    _render_dt_sweep_video,
-)
 from infer import infer  # noqa: E402
 
 log = logging.getLogger("cli")
@@ -573,125 +554,100 @@ def _build_parent_parser():
 
 
 def _build_subparsers(parser, parent):
-    """Attach the per-mode subcommands (sim/image/video/train/infer)."""
+    """Attach the per-mode subcommands (sim/train)."""
     import argparse
 
     subparsers = parser.add_subparsers(
-        dest="mode", help="Mode: sim (metrics only) | image | video | train | infer"
+        dest="mode", help="Mode: sim (--image / --video / --infer for outputs) | train"
     )
 
-    # -- sim subcommand --
-    subparsers.add_parser(
+    # -- sim subcommand (forward pass; --image / --video add outputs) --
+    sim_parser = subparsers.add_parser(
         "sim",
         parents=[parent],
-        help="Run simulation, report metrics, no plot",
-        description="Run a single simulation and report firing-rate metrics "
-        "without generating plots or video.",
+        help="Forward pass + metrics; --image / --video add outputs",
+        description="Run a forward pass and report firing-rate metrics. Add "
+        "--image to also save a still oscilloscope figure, or --video to "
+        "sweep a parameter (--scan-var) and render an MP4.",
         epilog="Examples:\n"
         "  cli.py sim --model ping --ei-strength 0.5\n"
-        "  cli.py sim --model standard-snn --dt 0.1",
+        "  cli.py sim --image --model ping --dataset mnist --digit 3\n"
+        "  cli.py sim --video --scan-var ei_strength --scan-min 0 "
+        "--scan-max 0.4 --frames 600",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-
-    # -- image subcommand --
-    image_parser = subparsers.add_parser(
-        "image",
-        parents=[parent],
-        help="Generate an oscilloscope snapshot image",
-        description="Run one forward pass and save a still-image "
-        "oscilloscope figure (E/I rasters, weight histograms, PSD).",
-        epilog="Examples:\n"
-        "  # untrained PING on MNIST digit 3\n"
-        "  cli.py image --model ping --dataset mnist --digit 3\n"
-        "  # with trained weights\n"
-        "  cli.py image --from-dir path/to/trained --digit 5",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+    sim_parser.add_argument(
+        "--image",
+        action="store_true",
+        help="Also save a still oscilloscope snapshot (E/I rasters, weight "
+        "histograms, PSD).",
     )
-    image_parser.add_argument(
+    sim_parser.add_argument(
+        "--video",
+        action="store_true",
+        help="Sweep a parameter (--scan-var) and render an MP4, one frame per "
+        "value.",
+    )
+    sim_parser.add_argument(
+        "--infer",
+        action="store_true",
+        help="Load trained weights (--from-dir / --load-weights) and evaluate "
+        "test-set accuracy; writes results.json.",
+    )
+    sim_parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=None,
+        help="[--infer] Limit the evaluation dataset to N samples.",
+    )
+    sim_parser.add_argument(
         "--from-dir",
         type=str,
         default=None,
-        help="Load trained weights + inherit config from "
-        "a training run directory "
-        "(e.g. src/artifacts/calibration/mnist/ping-mnist). "
-        "CLI flags override inherited values.",
+        help="Load trained weights + inherit config from a training run "
+        "directory. CLI flags override inherited values.",
     )
-    image_parser.add_argument(
+    sim_parser.add_argument(
         "--load-weights",
         type=str,
         default=None,
         help="Path to a weights.pth file (alternative to --from-dir).",
     )
-    # -- video subcommand --
-    video_parser = subparsers.add_parser(
-        "video",
-        parents=[parent],
-        help="Sweep a parameter, save oscilloscope video",
-        description="Sweep one parameter linearly between --scan-min and "
-        "--scan-max over --frames, rendering one frame per value. "
-        "Supports trained networks via --from-dir. "
-        "Special scan vars: 'digit' iterates dataset classes, "
-        "'noise' adds Poisson noise to input.",
-        epilog="Examples:\n"
-        "  # untrained PING ei_strength sweep (archive reproduction)\n"
-        "  cli.py video --model ping --n-hidden 1024 \\\n"
-        "    --scan-var ei_strength --scan-min 0 --scan-max 0.4 \\\n"
-        "    --input synthetic-conductance --frames 600 --frame-rate 120\n\n"
-        "  # trained network digit tour\n"
-        "  cli.py video --from-dir path/to/trained \\\n"
-        "    --input dataset --scan-var digit --scan-min 0 --scan-max 9",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    video_parser.add_argument(
+    sim_parser.add_argument(
         "--scan-var",
         type=str,
         default="stim-overdrive",
         choices=list(SCAN_DEFAULTS.keys()),
-        help="Parameter to sweep. 'digit' iterates "
-        "dataset classes; 'noise' adds input "
-        "Poisson noise (Hz). See SCAN_DEFAULTS. "
-        "(default: stim-overdrive)",
+        help="[--video] Parameter to sweep. 'digit' iterates dataset classes; "
+        "'noise' adds input Poisson noise (Hz). (default: stim-overdrive)",
     )
-    video_parser.add_argument(
+    sim_parser.add_argument(
         "--scan-min",
         type=float,
         default=1.0,
-        help="Scan start value, in the variable's units "
+        help="[--video] Scan start value, in the variable's units "
         "(default: 1.0). For digit: integer class.",
     )
-    video_parser.add_argument(
+    sim_parser.add_argument(
         "--scan-max",
         type=float,
         default=50.0,
-        help="Scan end value (default: 50.0). For digit: integer class.",
+        help="[--video] Scan end value (default: 50.0). For digit: integer class.",
     )
-    video_parser.add_argument(
+    sim_parser.add_argument(
         "--frames",
         type=int,
         default=10,
-        help="Number of video frames to render "
-        "(default: 10). For 'digit' scan, overridden "
-        "by scan range.",
+        help="[--video] Number of frames to render (default: 10). For 'digit' "
+        "scan, overridden by scan range.",
     )
-    video_parser.add_argument(
+    sim_parser.add_argument(
         "--frame-rate",
         type=int,
         default=10,
-        help="Output video frame rate in fps (default: 10).",
+        help="[--video] Output video frame rate in fps (default: 10).",
     )
-    video_parser.add_argument(
-        "--from-dir",
-        type=str,
-        default=None,
-        help="Load trained weights + inherit config from "
-        "a training run directory. CLI flags override.",
-    )
-    video_parser.add_argument(
-        "--load-weights",
-        type=str,
-        default=None,
-        help="Path to weights.pth (alternative to --from-dir).",
-    )
+
 
     # -- train subcommand --
     train_parser = subparsers.add_parser(
@@ -816,79 +772,9 @@ def _build_subparsers(parser, parent):
         "Distributes pressure uniformly across cells.",
     )
 
-    # -- infer subcommand --
-    infer_parser = subparsers.add_parser(
-        "infer",
-        parents=[parent],
-        help="Run inference with trained weights (optional dt sweep)",
-        description="Evaluate a trained model on the test set. With "
-        "--dt-sweep, run inference at each dt value to measure "
-        "temporal-resolution stability.",
-        epilog="Examples:\n"
-        "  # single-dt inference\n"
-        "  cli.py infer --from-dir path/to/trained --dt 0.1\n\n"
-        "  # frozen-input dt-stability sweep\n"
-        "  cli.py infer --from-dir path/to/trained \\\n"
-        "    --dt-sweep 0.05 0.1 0.25 0.5 1.0 2.0 \\\n"
-        "    --frozen-inputs-mode upsample --observe video",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    infer_parser.add_argument(
-        "--from-dir",
-        type=str,
-        default=None,
-        help="Inherit params from a training run directory "
-        "(reads config.json + weights.pth). "
-        "CLI flags override inherited values.",
-    )
-    infer_parser.add_argument(
-        "--load-weights",
-        type=str,
-        default=None,
-        help="Path to saved weights.pth (auto-detected when --from-dir is set)",
-    )
-    infer_parser.add_argument(
-        "--max-samples", type=int, default=None, help="Limit dataset to N samples"
-    )
-    infer_parser.add_argument(
-        "--dt-sweep",
-        type=float,
-        nargs="+",
-        default=None,
-        metavar="DT",
-        help="Run inference at each dt value and produce "
-        "a sweep summary (e.g. --dt-sweep 0.05 0.1 0.25 0.5 1.0). "
-        "Overrides --dt.",
-    )
-    infer_parser.add_argument(
-        "--observe",
-        type=str,
-        default=None,
-        choices=["video", "image"],
-        help="Save oscilloscope visualization. "
-        "With --dt-sweep: video = one frame per dt. "
-        "Without: image = single snapshot.",
-    )
-    infer_parser.add_argument(
-        "--frozen-inputs-mode",
-        type=str,
-        default=None,
-        choices=list(FROZEN_MODES),
-        help="How input spikes are transported across dt, "
-        "anchored at train-dt (Parthasarathy et al. "
-        "§2.1, §2.3): upsample (count-preserving "
-        "zero-pad to finer eval-dt per Fig 1B, "
-        "requires eval-dt <= train-dt); downsample "
-        "(count-preserving sum-pool to coarser "
-        "eval-dt per §2.3, requires eval-dt >= "
-        "train-dt); resample (fresh Poisson at each "
-        "eval-dt, works in both directions but "
-        "re-introduces sampling noise).",
-    )
-
 
 def parse_args(argv=None):
-    """Parse command-line arguments with subparsers for sim/image/video/train."""
+    """Parse command-line arguments with subparsers for sim/train."""
     import argparse
 
     argv = sys.argv[1:] if argv is None else list(argv)
@@ -899,10 +785,7 @@ above only shows the dispatcher; for the actual flags accepted by a mode,
 run:
 
   python src/cli/cli.py sim    --help
-  python src/cli/cli.py image  --help
-  python src/cli/cli.py video  --help
   python src/cli/cli.py train  --help
-  python src/cli/cli.py infer  --help
 
 The flags fall into the following groups (every group is documented in
 each subcommand's --help):
@@ -924,24 +807,22 @@ each subcommand's --help):
                  --fr-reg-lower-theta, --fr-reg-lower-strength,
                  --fr-reg-upper-theta, --fr-reg-upper-strength,
                  --skip-bad-grad-threshold
-  Image (image)  --fake-progress
-  Scan (video)   --scan-var, --scan-min, --scan-max, --frames, --frame-rate,
-                 --resample-input
-  Infer (infer)  --load-weights, --from-dir, --dt-sweep, --eval-encoder,
-                 --frozen-inputs-mode
+  Sim (sim)      --image, --video, --infer, --from-dir, --load-weights,
+                 --scan-var, --scan-min, --scan-max, --frames, --frame-rate,
+                 --max-samples
   Output / exec  --out-dir, --wipe-dir, --raster, --layout, --panels,
                  --modal, --modal-gpu
 
 Examples:
   python -m cli                                    # sim (metrics only)
-  python -m cli image                              # snapshot (ping default)
-  python -m cli video --scan-var ei_strength       # sweep E-I coupling
-  python -m cli video --scan-var spike_rate --scan-min 5 --scan-max 100
+  python -m cli sim --image                         # snapshot (ping default)
+  python -m cli sim --video --scan-var ei_strength  # sweep E-I coupling
+  python -m cli sim --video --scan-var spike_rate --scan-min 5 --scan-max 100
   python -m cli train --epochs 100 --observe video
   python -m cli train --epochs 100 --trainable-w-ee
-  python -m cli image --input dataset --dataset mnist --digit 3
-  python -m cli infer --load-weights weights.pth --dt 0.5
-  python -m cli infer --from-dir runs/foo --dt-sweep 0.05 0.1 0.25 0.5
+  python -m cli sim --image --input dataset --dataset mnist --digit 3
+  python -m cli sim --infer --load-weights weights.pth --dt 0.5
+  python -m cli sim --infer --from-dir runs/foo
 
 Models:
   ping        COBANet with E↔I coupling. With --ei-strength > 0 the
@@ -972,26 +853,31 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         parser.print_help()
         sys.exit(0)
 
-    if getattr(args, "surrogate_slope", None) is not None:
-        M.SURROGATE_SLOPE = float(args.surrogate_slope)
+    # Plumb CLI overrides into models.py globals. Declarative table —
+    # {arg_name: (M attribute, cast)} — applied only when the arg was given.
+    # Add a new model global by adding a row, not another if-branch.
+    _ARG_TO_GLOBAL = {
+        "surrogate_slope": ("SURROGATE_SLOPE", float),
+        "tau_mem": ("tau_snn", float),
+        "tau_syn": ("tau_ampa", float),
+        "readout_tau_out": ("tau_out_ms", float),
+    }
+    for _arg, (_attr, _cast) in _ARG_TO_GLOBAL.items():
+        _val = getattr(args, _arg, None)
+        if _val is not None:
+            setattr(M, _attr, _cast(_val))
+    # Special cases: a bare flag, and a value that also lives on train.py.
     if getattr(args, "exact_k", False):
         M.EXACT_K_CONNECTIVITY = True
     if getattr(args, "grad_clip", None) is not None:
         import cli.train as _train_mod
-        _train_mod.GRAD_CLIP = float(args.grad_clip)
-        M.GRAD_CLIP = float(args.grad_clip)
-    if getattr(args, "tau_mem", None) is not None:
-        M.tau_snn = float(args.tau_mem)
-    if getattr(args, "tau_syn", None) is not None:
-        M.tau_ampa = float(args.tau_syn)
-    if getattr(args, "readout_tau_out", None) is not None:
-        M.tau_out_ms = float(args.readout_tau_out)
+        M.GRAD_CLIP = _train_mod.GRAD_CLIP = float(args.grad_clip)
 
     # --from-dir: inherit training params from config.json, fill unset values
-    if args.mode in ("infer", "video", "image") and getattr(args, "from_dir", None):
+    if args.mode == "sim" and getattr(args, "from_dir", None):
         _apply_from_dir(args, argv)
-    if args.mode == "infer" and not getattr(args, "load_weights", None):
-        print("Error: infer requires --load-weights or --from-dir")
+    if getattr(args, "infer", False) and not getattr(args, "load_weights", None):
+        print("Error: sim --infer requires --load-weights or --from-dir")
         sys.exit(1)
 
     # Auto-detect: if user explicitly passed --dataset/--digit/--sample but
@@ -1100,7 +986,7 @@ def _print_intro(log, config, args, mode):
         if mode == "train"
         else {},
         "Scan": g("scan_var", "scan_min", "scan_max", "frames", "frame_rate")
-        if mode == "video"
+        if config.get("video")
         else {},
         "Output": g("out_dir", "observe", "wipe_dir"),
         "Provenance": {
@@ -1114,21 +1000,36 @@ def _print_intro(log, config, args, mode):
 
 
 def _run_sim(args, C, out_dir, log):
-    t_e_async = C.T_E_ASYNC_DEFAULT
+    """Forward pass; --image / --video select the output.
+
+    Each path runs its own forward pass and reports firing-rate metrics:
+    --image renders a still snapshot, --video sweeps a parameter into an
+    MP4, and bare `sim` (neither flag) does a metrics-only pass.
+    """
     log.info(f"Device: {C.DEVICE}")
-    generate_sim_only(
-        spike_rate=args.spike_rate,
-        overdrive=args.overdrive,
-        dt=args.dt,
-        model_name=args.model,
-        input_mode=args.input,
-        t_e_async=t_e_async,
-    )
+    if getattr(args, "infer", False):
+        _emit_infer(args, C, out_dir, log)
+        return
+    want_image = getattr(args, "image", False)
+    want_video = getattr(args, "video", False)
+    if want_image:
+        _emit_image(args, C, log)
+    if want_video:
+        _emit_video(args, C, log)
+    if not (want_image or want_video):
+        generate_sim_only(
+            spike_rate=args.spike_rate,
+            overdrive=args.overdrive,
+            dt=args.dt,
+            model_name=args.model,
+            input_mode=args.input,
+            t_e_async=C.T_E_ASYNC_DEFAULT,
+        )
 
 
-def _run_image(args, C, out_dir, log):
+def _emit_image(args, C, log):
+    """Save a still oscilloscope snapshot (the former `image` mode)."""
     t_e_async = C.T_E_ASYNC_DEFAULT
-    log.info(f"Device: {C.DEVICE}")
     # Apply CLI overrides to module-level config so snapshot generators
     # (which read C.cfg) see the requested W^EI / W^IE / W^II / sparsity.
     if args.w_ei is not None:
@@ -1171,11 +1072,11 @@ def _run_image(args, C, out_dir, log):
         )
 
 
-def _run_video(args, C, out_dir, log):
+def _emit_video(args, C, log):
+    """Sweep a parameter and render an MP4 (the former `video` mode)."""
     t_e_async = C.T_E_ASYNC_DEFAULT
-    log.info(f"Device: {C.DEVICE}")
     # Emit init_d0s0.png alongside the scan video when input is dataset.
-    # Mirrors train mode so video runs have a comparable static reference.
+    # Mirrors train mode so sweeps have a comparable static reference.
     if args.input == "dataset":
         generate_image_snapshot(
             digit_class=args.digit,
@@ -1252,35 +1153,12 @@ def _run_train(args, C, out_dir, log):
     )
 
 
-def _validate_frozen_dt_sweep(frozen_mode, dt_values, dt_ref):
-    """Raise if a frozen-inputs sweep mixes incompatible dt ratios."""
-    if frozen_mode == "resample":
-        return
-    for d in dt_values:
-        if abs(d - dt_ref) < 1e-9:
-            continue
-        if frozen_mode == "upsample" and d > dt_ref + 1e-9:
-            raise ValueError(
-                f"--frozen-inputs-mode upsample requires "
-                f"eval-dt <= train-dt; got dt={d}, dt_ref={dt_ref}"
-            )
-        if frozen_mode == "downsample" and d < dt_ref - 1e-9:
-            raise ValueError(
-                f"--frozen-inputs-mode downsample requires "
-                f"eval-dt >= train-dt; got dt={d}, dt_ref={dt_ref}"
-            )
-        ratio = max(d, dt_ref) / min(d, dt_ref)
-        if abs(ratio - round(ratio)) > 1e-6:
-            raise ValueError(
-                f"--frozen-inputs-mode {frozen_mode} requires "
-                f"integer dt ratios vs train-dt; "
-                f"dt={d}, dt_ref={dt_ref}, ratio={ratio:.4f}"
-            )
-
-
-def _run_infer(args, C, out_dir, log):
+def _emit_infer(args, C, out_dir, log):
+    """Load trained weights and evaluate test-set accuracy (the former `infer` mode)."""
     w_in = _resolve_w_in(args)
-    infer_kwargs = dict(
+    acc = infer(
+        dt=args.dt,
+        out_dir=str(out_dir),
         model_name=args.model,
         load_weights=args.load_weights,
         dataset=args.dataset,
@@ -1294,101 +1172,9 @@ def _run_infer(args, C, out_dir, log):
         dales_law=args.dales_law,
         ei_layers=args.ei_layers,
         seed=args.seed,
-    )
-    if not args.dt_sweep:
-        acc = infer(dt=args.dt, out_dir=str(out_dir), **infer_kwargs)["acc"]
-        if args.observe:
-            _render_infer_snapshot(args, C, out_dir, log, w_in, acc)
-        return
-
-    dt_values = sorted(args.dt_sweep)
-    log.info(f"dt sweep: {dt_values}")
-
-    encoder = None
-    frozen_mode = getattr(args, "frozen_inputs_mode", None)
-    if frozen_mode is not None:
-        # Anchor the reference at the training dt (paper's framing): spikes are
-        # generated at dt_ref = args.dt once, then transported to each sweep dt
-        # via upsample zero-pad (finer, §2.1 Fig 1B) or downsample sum-pool
-        # (coarser, §2.3). resample draws fresh at the target.
-        dt_ref = float(args.dt)
-        _validate_frozen_dt_sweep(frozen_mode, dt_values, dt_ref)
-        encoder = FrozenEncoder(dt_ref, t_ms=args.t_ms, mode=frozen_mode)
-        log.info(f"  frozen inputs: ref dt={dt_ref} (train-dt), mode={frozen_mode}")
-
-    train_dt = float(args.dt)
-    base_rate = float(args.spike_rate)
-
-    sweep_results = []
-    for sweep_dt in dt_values:
-        if encoder is not None:
-            encoder.reset()
-        res = infer(dt=sweep_dt, out_dir=None, encode_fn=encoder, **infer_kwargs)
-        sweep_results.append(
-            {
-                "dt": sweep_dt,
-                "acc": res["acc"],
-                "input_rate": base_rate,
-                "hid_rate_hz": res.get("hid_rate_hz"),
-                "rates_hz": res.get("rates_hz", {}),
-            }
-        )
-    ref = next((r for r in sweep_results if r["dt"] == train_dt), None)
-    ref_acc = ref["acc"] if ref else None
-
-    log.info(f"\n{'=' * 40}")
-    log.info(f"dt sweep summary ({args.model}):")
-    log.info(f"  {'dt':>8s}  {'acc':>6s}  {'Δacc':>6s}")
-    for r in sweep_results:
-        delta = f"{r['acc'] - ref_acc:+.1f}%" if ref_acc is not None else ""
-        marker = " ←train" if r["dt"] == train_dt else ""
-        log.info(f"  {r['dt']:8.4f}  {r['acc']:5.1f}%  {delta:>6s}{marker}")
-
-    sweep_blob = {
-        "model": args.model,
-        "train_dt": train_dt,
-        "input_rate": args.spike_rate,
-        "t_ms": args.t_ms,
-        "dataset": args.dataset,
-        "load_weights": args.load_weights,
-        "frozen_inputs_mode": frozen_mode,
-        "sweep": sweep_results,
-    }
-    results_path = out_dir / "results.json"
-    with open(results_path, "w") as f:
-        json.dump(sweep_blob, f, indent=2)
-    log.info(f"  → {results_path}")
-
-    _plot_dt_sweep(sweep_results, train_dt, args.model, out_dir)
-    log.info(f"  → {out_dir / 'dt_sweep.png'}")
-
-    if args.observe == "video":
-        vid_net = build_net(
-            args.model,
-            w_in=w_in,
-            w_in_sparsity=args.w_in_sparsity or 0.0,
-            ei_strength=args.ei_strength,
-            ei_ratio=args.ei_ratio,
-            randomize_init=True,
-            dales_law=args.dales_law,
-            hidden_sizes=args.n_hidden,
-            ei_layers=args.ei_layers,
-        )
-        vid_net.load_state_dict(
-            torch.load(args.load_weights, map_location="cpu"), strict=False
-        )
-        vid_net.eval()
-        _render_dt_sweep_video(
-            vid_net,
-            dt_values,
-            sweep_results,
-            train_dt,
-            args.model,
-            args.dataset,
-            out_dir,
-            frozen_inputs=bool(frozen_mode),
-        )
-        log.info(f"  → {out_dir / 'dt_sweep.mp4'}")
+    )["acc"]
+    if getattr(args, "image", False):
+        _render_infer_snapshot(args, C, out_dir, log, w_in, acc)
 
 
 def _render_infer_snapshot(args, C, out_dir, log, w_in, acc):
@@ -1438,10 +1224,7 @@ def _render_infer_snapshot(args, C, out_dir, log, w_in, acc):
 
 _MODE_HANDLERS = {
     "sim": _run_sim,
-    "image": _run_image,
-    "video": _run_video,
     "train": _run_train,
-    "infer": _run_infer,
 }
 
 
@@ -1492,31 +1275,9 @@ def main(argv=None):
     # Save run artifacts for all modes
     log = save_run_artifacts(out_dir, args, mode)
 
-    # Create enriched .running marker (PID, start time, run_id, cmd).
-    # Deleted on normal exit via atexit hook.
-    import runlog as _rl
-    import json as _json_marker
-
-    try:
-        _cfg = _json_marker.loads((out_dir / "config.json").read_text())
-        _rid = _cfg.get("run_id", _rl.run_id())
-    except Exception:
-        _rid = _rl.run_id()
-    _running_marker = _rl.write_running_marker(out_dir, _rid)
-
-    import atexit as _atexit
-
-    def _cleanup_running_marker():
-        try:
-            _running_marker.unlink(missing_ok=True)
-        except Exception:
-            pass
-
-    _atexit.register(_cleanup_running_marker)
-
     # Single source of truth for input Poisson rate and sim duration. Every
     # code path reads M.max_rate_hz and M.T_ms, so setting them here once means
-    # all dispatch branches (sim/image/video/train/infer × all input types)
+    # all dispatch branches (sim/train × all input types)
     # respect --input-rate / --t-ms without per-call plumbing. Subfunctions
     # that change dt will recalc M.p_scale and M.T_steps via patch_dt as usual.
     M.max_rate_hz = args.spike_rate
