@@ -852,26 +852,6 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         parser.print_help()
         sys.exit(0)
 
-    # Plumb CLI overrides into models.py globals. Declarative table —
-    # {arg_name: (M attribute, cast)} — applied only when the arg was given.
-    # Add a new model global by adding a row, not another if-branch.
-    _ARG_TO_GLOBAL = {
-        "surrogate_slope": ("SURROGATE_SLOPE", float),
-        "tau_mem": ("tau_snn", float),
-        "tau_syn": ("tau_ampa", float),
-        "readout_tau_out": ("tau_out_ms", float),
-    }
-    for _arg, (_attr, _cast) in _ARG_TO_GLOBAL.items():
-        _val = getattr(args, _arg, None)
-        if _val is not None:
-            setattr(M, _attr, _cast(_val))
-    # Special cases: a bare flag, and a value that also lives on train.py.
-    if getattr(args, "exact_k", False):
-        M.EXACT_K_CONNECTIVITY = True
-    if getattr(args, "grad_clip", None) is not None:
-        import cli.train as _train_mod
-        M.GRAD_CLIP = _train_mod.GRAD_CLIP = float(args.grad_clip)
-
     # --from-dir: inherit training params from config.json, fill unset values
     if args.mode == "sim" and getattr(args, "from_dir", None):
         _apply_from_dir(args, argv)
@@ -902,6 +882,46 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         args._input_auto = True
 
     return args
+
+
+def configure_models(args):
+    """Apply CLI overrides to models.py globals — the one sanctioned boundary.
+
+    Model globals (M.SURROGATE_SLOPE, M.tau_snn, M.max_rate_hz, the dt-derived
+    constants, …) are kept as module globals so torch.compile specializes the
+    graph on them as constants, so they cannot live on the Config dataclass
+    ([[project_models_globals_are_torch_compile_choice]]). This is the single
+    place CLI arguments are written into them. The data-dependent globals
+    (M.N_IN / M.N_HID / M.T_steps) are set later by train.py / scan.py, where
+    the dataset shape is known.
+
+    Declarative table — {arg_name: (M attribute, cast)} — applied only when the
+    arg was given. Add a new model global by adding a row, not an if-branch.
+    """
+    arg_to_global = {
+        "surrogate_slope": ("SURROGATE_SLOPE", float),
+        "tau_mem": ("tau_snn", float),
+        "tau_syn": ("tau_ampa", float),
+        "readout_tau_out": ("tau_out_ms", float),
+    }
+    for arg, (attr, cast) in arg_to_global.items():
+        val = getattr(args, arg, None)
+        if val is not None:
+            setattr(M, attr, cast(val))
+    # Special cases: a bare flag, and a value that also lives on train.py.
+    if getattr(args, "exact_k", False):
+        M.EXACT_K_CONNECTIVITY = True
+    if getattr(args, "grad_clip", None) is not None:
+        import cli.train as _train_mod
+
+        M.GRAD_CLIP = _train_mod.GRAD_CLIP = float(args.grad_clip)
+    # Input Poisson rate and trial duration — single source of truth. Every
+    # code path reads M.max_rate_hz / M.T_ms, so setting them here once means
+    # all dispatch branches (sim/train × all input types) respect
+    # --input-rate / --t-ms. Subfunctions that change dt recalc M.p_scale /
+    # M.T_steps via patch_dt as usual.
+    M.max_rate_hz = args.spike_rate
+    M.T_ms = args.t_ms
 
 
 def save_run_artifacts(out_dir, args, mode):
@@ -1259,6 +1279,9 @@ def main(argv=None):
     if mode != "train":
         build_config(args)
 
+    # Apply CLI overrides to models.py globals (all modes, incl. train).
+    configure_models(args)
+
     import config as C
 
     # Determine output directory
@@ -1270,13 +1293,7 @@ def main(argv=None):
     # Save run artifacts for all modes
     log = save_run_artifacts(out_dir, args, mode)
 
-    # Single source of truth for input Poisson rate and sim duration. Every
-    # code path reads M.max_rate_hz and M.T_ms, so setting them here once means
-    # all dispatch branches (sim/train × all input types)
-    # respect --input-rate / --t-ms without per-call plumbing. Subfunctions
-    # that change dt will recalc M.p_scale and M.T_steps via patch_dt as usual.
-    M.max_rate_hz = args.spike_rate
-    M.T_ms = args.t_ms
+    # M.max_rate_hz / M.T_ms are set in configure_models above.
     if args.t_ms <= C.STEP_ON_MS:
         log.warning(
             f"  --t-ms={args.t_ms} <= STEP_ON_MS={C.STEP_ON_MS}: "
