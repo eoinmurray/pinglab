@@ -4,7 +4,7 @@ All constants are hardcoded defaults. Override via module-level assignment
 or by passing arguments to model constructors.
 
 Models: CUBANet, COBANet.
-Layer primitives: exp_synapse, lif_step, snn_lif_step.
+Layer primitives: exp_synapse, lif_step.
 """
 
 from __future__ import annotations
@@ -170,14 +170,6 @@ def spike_biophysical(v, threshold_offset=0.0):
     return fast_sigmoid_spike(v - V_th - threshold_offset, SURROGATE_SLOPE)
 
 
-def spike_snn(v):
-    # Dimensionless membrane (threshold=1). slope=1 (pinglab default; not
-    # snntorch's 25) gives a wide active window so silent neurons keep gradient
-    # support. Override via SURROGATE_SLOPE (--surrogate-slope) to
-    # match a specific reference (e.g. Cramer β=40).
-    return fast_sigmoid_spike(v - thr_snn, SURROGATE_SLOPE)
-
-
 def _scale_grad(x, scale):
     """Return x unchanged in forward, but multiply gradient by scale in backward."""
     return x * scale + x.detach() * (1.0 - scale)
@@ -276,30 +268,6 @@ def lif_step_expeuler(
     v = torch.where(spiked_or_ref, torch.full_like(v, V_reset), v)
     ref = torch.where(s.bool(), torch.full_like(ref, ref_steps), ref)
     return v, s, ref
-
-
-def snn_lif_step(mem, I, beta, spike_fn, reset="zero", can_fire=None):
-    """snnTorch-style LIF step: decay + input, spike, reset. Returns (mem, s).
-
-    Caller is responsible for dt-scaling of the input. Same primitive for
-    standard-snn and cuba; what differs is how I is constructed.
-
-    can_fire: optional bool mask. Where False, neuron is refractory — mem is
-              clamped to V_reset=0 (no integration), spike output is 0.
-
-    reset: "zero" — hard reset to 0 on spike (overshoot discarded)
-           "subtract" — subtract threshold on spike (preserves overshoot)
-    """
-    mem = beta * mem + I
-    if can_fire is not None:
-        # Refractory: clamp mem to V_reset so spike_fn returns ~0.
-        mem = torch.where(can_fire, mem, torch.zeros_like(mem))
-    s = spike_fn(mem)
-    if reset == "subtract":
-        mem = mem - thr_snn * s
-    else:
-        mem = torch.where(s.bool(), 0.0, mem)
-    return mem, s
 
 
 def coba_current(g_e, v, g_i=None):

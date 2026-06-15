@@ -9,6 +9,7 @@ __pycache__/
 .Python
 *.pt
 *.pth
+
 src/temp
 .env
 src/data/**

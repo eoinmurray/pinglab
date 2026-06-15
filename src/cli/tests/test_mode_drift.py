@@ -139,7 +139,8 @@ def test_input_rate_propagates_image(tmp_path):
     expected = 33.0
     out = tmp_path / "ir-image"
     rc, _, _ = _run_cli(
-        "image",
+        "sim",
+        "--image",
         "--model",
         "ping",
         "--dataset",
@@ -165,7 +166,8 @@ def test_input_rate_propagates_video(tmp_path):
     expected = 33.0
     out = tmp_path / "ir-video"
     rc, _, _ = _run_cli(
-        "video",
+        "sim",
+        "--video",
         "--model",
         "ping",
         "--dataset",
@@ -206,7 +208,8 @@ def test_t_ms_propagates_image(tmp_path):
     expected = 150.0
     out = tmp_path / "tms-image"
     rc, _, _ = _run_cli(
-        "image",
+        "sim",
+        "--image",
         "--model",
         "ping",
         "--dataset",
@@ -232,7 +235,8 @@ def test_t_ms_propagates_video(tmp_path):
     expected = 150.0
     out = tmp_path / "tms-video"
     rc, _, _ = _run_cli(
-        "video",
+        "sim",
+        "--video",
         "--model",
         "ping",
         "--dataset",
@@ -296,7 +300,8 @@ def test_train_then_infer_match(tmp_path):
 
     infer_dir = tmp_path / "match-infer"
     rc, _, _ = _run_cli(
-        "infer",
+        "sim",
+        "--infer",
         "--model",
         "ping",
         "--dataset",

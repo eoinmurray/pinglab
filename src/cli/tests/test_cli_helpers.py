@@ -292,7 +292,8 @@ class TestParseArgs:
             "sys.argv",
             [
                 "cli",
-                "video",
+                "sim",
+                "--video",
                 "--scan-var",
                 "dt",
                 "--scan-min",
@@ -311,7 +312,7 @@ class TestParseArgs:
 
     def test_image_subparser_load_weights(self, monkeypatch):
         monkeypatch.setattr(
-            "sys.argv", ["cli", "image", "--load-weights", "/tmp/w.pt"]
+            "sys.argv", ["cli", "sim", "--image", "--load-weights", "/tmp/w.pt"]
         )
         args = parse_args()
         assert args.load_weights == "/tmp/w.pt"

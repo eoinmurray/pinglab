@@ -1,5 +1,5 @@
 """Oscilloscope run logging: ansi, intro/progress/summary, metrics JSONL,
-provenance metadata, and the .running marker — all in one place.
+and provenance metadata — all in one place.
 
 Three blocks make up an oscilloscope run on stdout:
     1. Intro    — grouped config dump (Data / Simulation / Network / ...)
@@ -11,7 +11,7 @@ Public names (kept stable across the previous run_log package layout):
     MetricsJsonl, write_test_predictions
     WarningTracker, _fmt_kv, format_bytes, format_eta, list_output_files,
         print_epoch, print_intro, print_progress_header, print_summary
-    _env_hash, _git_sha, provenance, run_id, write_running_marker
+    _env_hash, _git_sha, provenance, run_id
 """
 
 from __future__ import annotations
@@ -160,24 +160,6 @@ def provenance() -> dict:
         "run_id": run_id(),
         "started_at": datetime.datetime.now().isoformat(timespec="seconds"),
     }
-
-
-def write_running_marker(out_dir: Path, run_id_str: str) -> Path:
-    """Write enriched .running file with PID, start time, run_id, cmd.
-
-    Deleted by atexit hook in caller.
-    """
-    marker = Path(out_dir) / ".running"
-    try:
-        marker.write_text(
-            f"pid={os.getpid()}\n"
-            f"started={datetime.datetime.now().isoformat(timespec='seconds')}\n"
-            f"run_id={run_id_str}\n"
-            f"cmd={' '.join(sys.argv)}\n"
-        )
-    except Exception:
-        pass
-    return marker
 
 
 # ── Intro block ──────────────────────────────────────────────────────────
