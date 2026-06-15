@@ -416,7 +416,7 @@ In words: the per-spike kick $(1-\beta)/\Delta t \cdot W$ approaches $W/\tau$ �
 
 ### Contrast with snnTorch
 
-In the snnTorch discretisation, $W$ and $b$ have prefactor $1$ regardless of $\Delta t$, so the per-spike kick is $W$ (not $W/\tau$) and the per-step bias is $b$ (not $b\, \Delta t/\tau$). Changing $\Delta t$ at eval time therefore shifts the effective input scale in *standard-snn*, while ZOH leaves it fixed — verified empirically in [013 — dt sensitivity](/notebooks/nb013/).
+In the snnTorch discretisation, $W$ and $b$ have prefactor $1$ regardless of $\Delta t$, so the per-spike kick is $W$ (not $W/\tau$) and the per-step bias is $b$ (not $b\, \Delta t/\tau$). Changing $\Delta t$ at eval time therefore shifts the effective input scale in *standard-snn*, while ZOH leaves it fixed.
 
 ## Reset modes
 
