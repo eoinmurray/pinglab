@@ -12,20 +12,43 @@ collection: gamma-gated-sparsity
 
 ## Abstract
 
-A single calibrated scalar for how rhythmic a network is — so "rhythmic / not rhythmic" can sit on one axis instead of being read three different ways (PSD peak in [nb041](/notebooks/nb041/), spikes-per-cycle in [nb046](/notebooks/nb046/), visible banding in [nb023](/notebooks/nb023/)).
+A single calibrated scalar for how rhythmic a network is — so "rhythmic / not rhythmic" can sit on one axis instead of being read three different ways (PSD peak in [nb041](/notebooks/nb041/), spikes-per-cycle in [nb046](/notebooks/nb046/), visible banding in [nb023](/notebooks/nb023/)). The periodogram locates the gamma frequency but is not, on its own, a usable scalar; the approach proposed here reads rhythmicity off the **spike-time autocorrelation**, quantifying the central-lobe-versus-trough "Mexican-hat" shape that marks a rhythm, with the inter-event-interval histogram used to locate the lag at which to read it.
 
-## Background
+## Background: periodogram vs autocorrelation
 
-TODO.
+A periodogram peak gives the frequency $f_\gamma$ but not a bounded measure of how *concentrated* the rhythm is — to become a scalar it needs a cutoff, or a quantification of the mass in the central lobe. The autocorrelation is more direct. Two reference cases (non-homogeneous Poisson processes, the diagnostic suggested by T. O'Leary) make the target shape concrete:
+
+- **Stationary sinusoidal rate (a "pure" rhythm).** The inter-event-interval (IEI) histogram has a tall short-interval peak plus a clear *second mode* at the rhythm period; the autocorrelation is a clean periodic comb of lobes under a triangular envelope. Even here the central lobe has real width and the surrounding trough is not empty.
+- **Non-stationary sinusoidal (drifting frequency).** The IEI second mode broadens and the periodic comb washes out, leaving a sharp central lobe ringed by a trough — the **Mexican hat** — on a broadband floor.
+
+The robust, shared signature across both is that Mexican-hat profile: a central lobe surrounded by a trough. The metric should quantify *that*, not the height of a spectral peak (which conflates the stationary and drifting cases).
 
 ## Proposed metric
 
-TODO.
+From the population E spike train, build two objects:
+
+- the **IEI histogram** — relative timing of consecutive spikes; its peak and second mode set characteristic lags; and
+- the **empirical autocorrelation** $A(\ell)$ — formed by binning the timing of every spike relative to every other spike (central lobe near $\ell = 0$, surrounded by a trough).
+
+Three candidate scalars, to be compared:
+
+1. **IEI-anchored lag.** Take the minimum interval, or the peak, of the IEI histogram as a characteristic lag $\ell^\star$, and report $A(\ell^\star)$.
+2. **Lobe-to-trough ratio.** The height of the central lobe (*excluding* the zero-lag value) relative to the trough, where the trough is located using the IEI histogram's second mode. A bounded ratio — high for a clean rhythm, near 1 for none.
+3. **Biophysical lag.** Use a known network timescale (e.g. the total E→I→E transmission delay) to set the critical lag, and report $A$ at that lag.
+
+## Desiderata
+
+- Bounded and calibrated — near a baseline value for asynchronous (Poisson) firing, high for clean volleys.
+- Robust to the central-lobe spread that even a pure rhythm shows.
+- Discriminates stationary from non-stationary (drifting) rhythms, which a periodogram peak conflates.
+- Rate-comparable, so sparse PING (≈5 Hz) and dense COBA can sit on the same axis.
 
 ## Validation
 
-TODO.
+TODO. Calibrate first on the two synthetic non-homogeneous Poisson references (stationary vs drifting sinusoidal rate) as ground truth, then apply to the trained networks: COBA vs PING ([nb023](/notebooks/nb023/)), the *--ei-strength* sweep ([nb036](/notebooks/nb036/)), and the per-cell jitter sweep ([nb042](/notebooks/nb042/)); cross-check against the [nb041](/notebooks/nb041/) PSD peak.
 
 ## Next steps
 
-TODO.
+1. Implement the IEI histogram and spike-time autocorrelation in the metrics module; validate the three candidate scalars on the synthetic stationary/non-stationary Poisson references.
+2. Pick the scalar that best separates those references and the COBA/PING baselines.
+3. Runner at *src/notebooks/nb054.py* (tier + modal-gpu only) applying the chosen metric to the already-trained networks — measurement only, no new training.
