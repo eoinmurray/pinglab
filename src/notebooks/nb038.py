@@ -228,7 +228,8 @@ def generate_rate_sweep_video(model: str, out_path: Path) -> None:
     if scan_mp4.exists():
         scan_mp4.unlink()
     argv = [
-        "video",
+        "sim",
+        "--video",
         "--from-dir", str(baseline_dir(model)),
         "--input", "dataset",
         "--dataset", "mnist",

@@ -19,10 +19,9 @@ if _pkg_dir in _sys.path:
 _sys.path.insert(0, _pkg_dir)
 
 from .cli import M  # noqa: E402,F401  # re-exported for tests/_apply_scan_var
+from .encoders import FROZEN_MODES, FrozenEncoder  # noqa: E402,F401
 from .cli import (  # noqa: E402,F401
     EVAL_SEED,
-    FROZEN_MODES,
-    FrozenEncoder,
     _apply_scan_var,
     _auto_device,
     _extract_records,

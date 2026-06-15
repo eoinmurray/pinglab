@@ -76,7 +76,7 @@ Three observations:
 
 The headline figure makes four claims simultaneously visible: sparseness in the E raster, cycle locking in the I-burst clock, class-tracking readout probabilities, and re-identification within ≈ 1 cycle of each digit switch. The trained PING dynamics carry per-cycle class information, and the sliding-window readout — the *only* change from the training-time readout — surfaces that information at the per-segment timescale.
 
-For the rate-floor story in [ar009](/articles/ar009/) / [ar010](/articles/ar010/): the architecture's per-cell rate is bounded by $r_E = p \cdot f_\gamma$ ([nb041](/notebooks/nb041/), [nb046](/notebooks/nb046/)). The grid says that with enough drive the network can classify within roughly one cycle — per-cycle information density is sufficient for the task. The bound is tight but not crippling.
+For the rate-floor story in [ar009](/articles/ar009/): the architecture's per-cell rate is bounded by $r_E = p \cdot f_\gamma$ ([nb041](/notebooks/nb041/), [nb046](/notebooks/nb046/)). The grid says that with enough drive the network can classify within roughly one cycle — per-cycle information density is sufficient for the task. The bound is tight but not crippling.
 
 Two caveats:
 
