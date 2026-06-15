@@ -82,7 +82,7 @@ function getBucket(name: string): Bucket {
           ? "Misc"
           : name
               .split("-")
-              .map((w) => (["cuba", "coba", "ping", "snn"].includes(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+              .map((w) => (["coba", "ping", "snn"].includes(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
               .join(" "),
       articles: [],
       notebooks: [],

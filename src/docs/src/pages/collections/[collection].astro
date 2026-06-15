@@ -58,7 +58,7 @@ export async function getStaticPaths() {
 }
 
 const { collection } = Astro.params;
-const ACRONYMS = new Set(["cuba", "coba", "ping", "snn"]);
+const ACRONYMS = new Set(["coba", "ping", "snn"]);
 const collectionLabel = String(collection)
   .split("-")
   .map((w) => (ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
