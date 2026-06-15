@@ -7,7 +7,7 @@ structure: paper
 collection: documentation
 ---
 
-This is the shared training recipe every model on the ladder uses. It runs, in order, through how gradients flow through time, the surrogate that lets them pass through spikes, the one flag that stops them exploding, the loss and optimiser, the readout options, the firing-rate regulariser, weight initialisation, and the tasks the networks are trained on.
+This is the shared training recipe every model on the ladder uses. It runs, in order, through how gradients flow through time, the surrogate that lets them pass through spikes, the one flag that stops them exploding (its own article, [Gradient Stabilisation](/articles/ar015/)), the loss and optimiser, the readout options, the firing-rate regulariser, weight initialisation, and the tasks the networks are trained on.
 
 ## Backpropagation through time
 
@@ -29,7 +29,7 @@ $$
 
 The catch is the product of per-step Jacobians $\partial h^{t+1}/\partial h^t$ running through the chain: if their norms sit above 1 the product explodes in $T$, if below 1 it vanishes.
 
-SNNs fit BPTT naturally — one simulation step is one step of the recursion, with the hidden state holding membrane potentials, synaptic conductances, and refractory counters. A 200 ms trial at $\Delta t = 0.1$ ms unrolls to $T = 2000$ steps. Because the state variables carry physical units (mV, μS), the per-step Jacobians are wildly scaled: voltage updates carry tiny factors like $\Delta t / C_m$ while surrogate gradients through spikes are $O(1)$. That mismatch is exactly what the stabilisation flag below exists to fix.
+SNNs fit BPTT naturally — one simulation step is one step of the recursion, with the hidden state holding membrane potentials, synaptic conductances, and refractory counters. A 200 ms trial at $\Delta t = 0.1$ ms unrolls to $T = 2000$ steps. Because the state variables carry physical units (mV, μS), the per-step Jacobians are wildly scaled: voltage updates carry tiny factors like $\Delta t / C_m$ while surrogate gradients through spikes are $O(1)$. That mismatch is exactly what the gradient-stabilisation flag exists to fix — derived in full in [Gradient Stabilisation](/articles/ar015/).
 
 ## Surrogate gradients
 
@@ -53,165 +53,9 @@ It decays faster than fast-sigmoid away from threshold, which stops the I-popula
 
 Both take their slope from `SURROGATE_SLOPE = 5.0`, overridable per-run with `--surrogate-slope`.
 
-## Gradient stabilisation: `--v-grad-dampen`
+## Gradient stabilisation
 
-**In plain English.** The E and I cells form a loop that makes the network oscillate at gamma (≈25 Hz). Training sends the gradient backward around that same loop, and each time a neuron crosses its spike threshold the surrogate hands the gradient a large multiplier. The loop is traversed *once per gamma cycle* — only about five times in a 200 ms trial — but each pass multiplies by a factor well above one (the surrogate slope enters squared), so a handful of passes is enough to overflow to NaN. The forward simulation stays bounded because the spike reset clamps each cell every cycle; the gradient sidesteps that reset, so forward stability buys nothing backward. The fix, `--v-grad-dampen`, divides the voltage gradient by a constant $\gamma$ at every step, shrinking the loop's multiplier below one — and thanks to a straight-through trick it changes only the gradient, never the simulation. The rest of this section proves each of those claims from the discrete equations.
-
-Naive BPTT through a 2000-step COBA/PING trial reaches NaN within a few batches. This section establishes the failure and its remedy from the discrete equations the code runs — no step omitted. The plan is: write the one-step map, differentiate it exactly (Lemma 1), propagate the gradient backward (the recursion), show the recurrent loop forces that gradient to diverge geometrically (Proposition 1), and show that scaling the per-step voltage gradient by $1/\gamma$ makes the loop a contraction while leaving the forward trajectory untouched (Proposition 2).
-
-### Setup: the discrete update
-
-Index the timesteps $t = 0,\dots,T$ at $\Delta t = 0.1$ ms. Each cell holds a state $(V^t, g_e^t, g_i^t)$. With reversal potentials $E_L, E_e, E_i$, capacitance $C_m$, leak $g_L$, synaptic decays $\beta_e = e^{-\Delta t/\tau_e}$ and $\beta_i = e^{-\Delta t/\tau_i}$, threshold $\vartheta$ and reset $V_r$, the step is exactly (`lif_step_expeuler`, `exp_synapse`):
-
-$$
-s^t = \Theta(V^t - \vartheta)\,\chi^t, \tag{S}
-$$
-$$
-g_e^{t+1} = \beta_e\bigl(g_e^t + W_e\, s_\text{pre}^t\bigr), \qquad g_i^{t+1} = \beta_i\bigl(g_i^t + W_i\, s_\text{pre}^t\bigr), \tag{C}
-$$
-$$
-\tilde V^{t+1} = V_\infty^{t+1} + \bigl(V^t - V_\infty^{t+1}\bigr)\,\alpha^{t+1}, \qquad
-V^{t+1} = \begin{cases} V_r & \text{if } s^t=1 \text{ or refractory} \\ \tilde V^{t+1} & \text{otherwise,} \end{cases} \tag{V}
-$$
-
-where $\chi^t \in \{0,1\}$ is the not-refractory gate, and the membrane decay and rest point are built from the *post*-update conductances $g^{t+1}$:
-
-$$
-g_\text{tot} = g_L + g_e^{t+1} + g_i^{t+1}, \quad
-\alpha^{t+1} = e^{-\Delta t\, g_\text{tot}/C_m}, \quad
-V_\infty^{t+1} = \frac{g_L E_L + g_e^{t+1} E_e + g_i^{t+1} E_i}{g_\text{tot}}. \tag{P}
-$$
-
-The timing matters and is taken from the code: the spike $s^t$ in (S) is read from the *current* voltage $V^t$, drives the conductance one step later in (C), and that conductance sets the voltage in (V). So one synaptic edge — presynaptic voltage to postsynaptic voltage — spans one timestep.
-
-### Lemma 1 — the one-step Jacobian
-
-Differentiate (S), (C), (V) entry by entry. The surrogate (from the Surrogate gradients section) gives the spike derivative
-
-$$
-\frac{\partial s^t}{\partial V^t} = \sigma'(V^t - \vartheta)\,\chi^t, \qquad \sigma'(u) = \frac{k}{(1+k\,|u|)^2}, \qquad \sigma'(0) = k. \tag{1}
-$$
-
-From (C), the conductance partials are a self-decay and a *presynaptic-voltage* coupling obtained by chaining (1):
-
-$$
-\frac{\partial g_e^{t+1}}{\partial g_e^t} = \beta_e, \qquad
-\frac{\partial g_e^{t+1}}{\partial V_\text{pre}^t} = \beta_e W_e\,\sigma'(V_\text{pre}^t - \vartheta)\,\chi_\text{pre}^t. \tag{2}
-$$
-
-From (V), with $g$ held, the membrane self-term is the decay; and differentiating (P) gives the conductance-to-voltage term ($\partial g_\text{tot}/\partial g_e = 1$, $\partial V_\infty/\partial g_e = (E_e - V_\infty)/g_\text{tot}$, $\partial \alpha/\partial g_e = -(\Delta t/C_m)\alpha$):
-
-$$
-\frac{\partial \tilde V^{t+1}}{\partial V^t} = \alpha^{t+1}, \qquad
-\frac{\partial \tilde V^{t+1}}{\partial g_e^{t+1}}
-= \underbrace{(1-\alpha)\frac{E_e - V_\infty}{g_\text{tot}}}_{\text{rest shifts}} \;-\; \underbrace{\tfrac{\Delta t}{C_m}\,\alpha\,(V^t - V_\infty)}_{\text{decay shifts}}
-\;\equiv\; \kappa_e \;\approx\; \frac{\Delta t}{C_m}(E_e - V), \tag{3}
-$$
-
-the last step being the leading order in $\Delta t$ (using $1-\alpha \approx \Delta t\, g_\text{tot}/C_m$). Define $\kappa_i$ identically with $E_i$. Collecting (1)–(3), the one-step Jacobian on $(V, g_e, g_i)$, with the cross-cell coupling in the lower-left block, is
-
-$$
-J^t = \frac{\partial(V,g_e,g_i)^{t+1}}{\partial(V,g_e,g_i)^t} =
-\begin{pmatrix}
-\rho\,\alpha & \kappa_e & \kappa_i \\[1mm]
-\beta_e W_e\,\sigma'(V_\text{pre}-\vartheta)\,\chi_\text{pre} & \beta_e & 0 \\[1mm]
-\beta_i W_i\,\sigma'(V_\text{pre}-\vartheta)\,\chi_\text{pre} & 0 & \beta_i
-\end{pmatrix}. \tag{J}
-$$
-
-The single subtlety, and it is decisive below: the reset in (V) is a `torch.where`, so on any cell that spikes or is refractory the output is the constant $V_r$ and the membrane self-term is gated to zero. We write this as the factor $\rho \in \{0,1\}$ on the $\partial V^{t+1}/\partial V^t$ entry: $\rho = 0$ at a spike (gradient through the cell's own membrane is cut), $\rho = 1$ otherwise. Crucially $\rho$ multiplies only the membrane self-term — it does **not** touch the spike output $s^t$ in (1)–(2), which is evaluated at $V^t$ *before* the reset.
-
-### Backpropagation: the gradient recursion
-
-Let $\lambda^t \equiv \partial \mathcal{L}/\partial(V,g_e,g_i)^t$. Reverse-mode autodiff is exactly the linear recursion
-
-$$
-\lambda^t = (J^t)^\top \lambda^{t+1}, \qquad \lambda^T = \nabla_{x^T}\mathcal{L}
-\quad\Longrightarrow\quad
-\lambda^t = \Bigl(\textstyle\prod_{s=t}^{T-1} J^s\Bigr)^{\!\top}\lambda^T. \tag{4}
-$$
-
-So the gradient that reaches step $t$ is governed by the product of one-step Jacobians, and $\lVert\lambda^t\rVert \le \bigl(\prod_s \lVert J^s\rVert\bigr)\lVert\lambda^T\rVert$. Whether this is benign or catastrophic is decided by the voltage component of (J) chained through the recurrent wiring.
-
-### Proposition 1 — the backpropagated gradient diverges (the problem)
-
-*Claim.* In a network with a recurrent E→I→E loop, the voltage gradient grows geometrically in the number of gamma *cycles* traversed — not in the number of timesteps. A 200 ms trial holds only $N \approx 5$ cycles against $T = 2000$ steps; the danger is that each cycle multiplies by a large factor, not that there are many cycles.
-
-*Proof.* Compose (2) and (3): the gradient carried from a postsynaptic voltage at $t{+}1$ to a presynaptic voltage at $t$ across one synapse is the product of the conductance-coupling and the membrane term,
-
-$$
-a \;\equiv\; \frac{\partial V_\text{post}^{t+1}}{\partial V_\text{pre}^t}
-\;=\; \underbrace{\kappa}_{\approx \frac{\Delta t}{C_m}(E_\text{syn}-V)}\cdot\;\underbrace{\beta W}_{\text{synapse}}\cdot\;\underbrace{\sigma'(V_\text{pre}-\vartheta)}_{\text{spike}}. \tag{5}
-$$
-
-Traverse the loop once: $V_E \to V_I$ across $W_{ei}$ (edge gain $a_{ei}$), then $V_I \to V_E$ across $W_{ie}$ (edge gain $a_{ie}$). Over one round trip the $E$-voltage gradient maps to itself with the **loop gain**
-
-$$
-\boxed{\;\varrho \;=\; a_{ei}\,a_{ie}
-\;=\; \underbrace{k^2}_{\text{two }\sigma'\text{ at volley}} \cdot\, \beta_e\beta_i\, W_{ei} W_{ie}\, \kappa_I \kappa_E.\;} \tag{6}
-$$
-
-The factor $k^2$ appears **once per gamma cycle**. Each population fires a single synchronous volley per cycle, so the two large kicks $\sigma' \to \sigma'(0) = k$ (one for $E$, one for $I$) occur together once per loop traversal and nowhere else; between volleys the per-step Jacobians are the mild sub-unit decays $\alpha, \beta < 1$, which merely carry the gradient along without amplifying it. So (4) collapses, across cycles, to the scalar recursion $\lambda_{V,E}^{(n)} \approx \varrho\,\lambda_{V,E}^{(n+1)}$, giving after $N$ cycles
-
-$$
-\bigl|\lambda_{V,E}\bigr| \;\gtrsim\; |\varrho|^{N}\,\bigl|\lambda_{V,E}^{T}\bigr|. \tag{7}
-$$
-
-**Worked example (default PING init).** Take the released constants: $\Delta t = 0.1$ ms, $k = 5$, $C_m^E = 1.0$ nF, $C_m^I = 0.5$ nF, $E_e = 0$, $E_i = -80$ mV, $V \approx \vartheta = -50$ mV at the crossing, $\tau_\text{AMPA} = 2$ ms ($\beta_e = e^{-0.05} \approx 0.95$), $\tau_\text{GABA} = 9$ ms ($\beta_i \approx 0.99$), and order-µS coupling $W_{ei} \approx 1$, $W_{ie} \approx 2$ µS. The two edge gains (5) are
-
-$$
-\begin{aligned}
-a_{ei} &= \underbrace{\tfrac{0.1}{0.5}\,(0 - (-50))}_{\kappa_{\to I}\,=\,10}\;\cdot\; \underbrace{0.95 \cdot 1}_{\beta_e W_{ei}}\;\cdot\; \underbrace{5}_{k} \;\approx\; 48, \\[1mm]
-a_{ie} &= \underbrace{\tfrac{0.1}{1.0}\,(-80 - (-50))}_{\kappa_{\to E}\,=\,-3}\;\cdot\; \underbrace{0.99 \cdot 2}_{\beta_i W_{ie}}\;\cdot\; \underbrace{5}_{k} \;\approx\; -30,
-\end{aligned}
-$$
-
-so the loop gain is $\varrho = a_{ei}\,a_{ie} \approx -1.4\times 10^{3}$. Over the $N \approx 5$ cycles of a 200 ms trial — not the $T = 2000$ steps — the voltage gradient is amplified by
-
-$$
-|\varrho|^{N} \approx (1.4\times 10^{3})^{5} \approx 6\times 10^{15}.
-$$
-
-A unit gradient seeded at the readout thus returns to $t = 0$ scaled by $\sim 10^{16}$; summed over the batch and compounded across successive optimiser steps it crosses the fp32 ceiling ($\approx 3.4\times 10^{38}$) and the loss becomes NaN within a few batches. The blow-up is robust: even if threshold spread cuts the effective $\sigma'$ tenfold (each edge $\div 10$, so $\varrho \div 100$), $|\varrho| \approx 14$ and $|\varrho|^{5} \approx 6\times 10^{5}$ — still divergent. The compounding is per cycle, not per step. ∎
-
-*Why the forward pass does not blow up the same way.* The forward orbit is bounded because the reset (V) slams each spiking cell to $V_r$ every cycle — that is the $\rho = 0$ gate in (J), a strong per-cycle contraction. But $\varrho$ in (6) is built only from the spike-output edges (5), i.e. from $\sigma'$ evaluated *before* the reset; the gate $\rho$ sits on the membrane self-term and never enters the loop product. So the backward loop bypasses precisely the contraction that bounds the forward orbit. Forward stability and backward divergence are not in contradiction: they travel different paths through (J), and the straight-through reset is what separates them.
-
-### Proposition 2 — per-step voltage-gradient damping bounds it (the solution)
-
-The flag `--v-grad-dampen` inserts, before the reset, the operation `dv = _scale_grad(dv, 1/γ)` where $dv = (V_\infty - V)(1-\alpha)$ is the membrane increment in (V). The primitive
-
-$$
-\texttt{\_scale\_grad}(x, c) = c\,x + \operatorname{detach}(x)(1-c) \tag{8}
-$$
-
-is the identity in the forward pass ($c\,x + (1{-}c)x = x$) but multiplies the backward gradient through $x$ by $c = 1/\gamma$. Re-differentiating (V) with $dv$ so scaled changes two partials of (J):
-
-$$
-\frac{\partial V^{t+1}}{\partial V^t} = 1 - \frac{1-\alpha}{\gamma}\;\in\;[\alpha, 1], \qquad
-\frac{\partial V^{t+1}}{\partial g^{t+1}} = \frac{\kappa}{\gamma}. \tag{9}
-$$
-
-The membrane self-term stays bounded by 1 (for $\gamma \to \infty$ it tends to 1 — the slow integration pathway is *preserved*, not crushed), while every voltage←conductance edge — and therefore every loop edge (5) — is divided by $\gamma$. The loop gain (6) becomes
-
-$$
-\varrho_\gamma = \frac{a_{ei}}{\gamma}\,\frac{a_{ie}}{\gamma} = \frac{\varrho}{\gamma^2}, \tag{10}
-$$
-
-so the backward loop is a contraction, $|\varrho_\gamma| \le 1$, as soon as
-
-$$
-\boxed{\;\gamma \;\ge\; \sqrt{|\varrho|}\;}. \tag{11}
-$$
-
-By (8) the forward trajectory $x^t$ is bitwise identical with or without the flag, so this is a pure modification of the gradient, not of the dynamics. ∎
-
-In code this is the single line `_scale_grad(dv, 1.0 / v_grad_dampen)` in the LIF step. Since $|\varrho| \sim k^2 c$ for an order-unity loop constant $c$, the threshold (11) scales like $\sqrt{|\varrho|} \sim k\sqrt{c}$, consistent with the recipes: $\gamma \approx 80$ for the unitless standard SNN and $\gamma \approx 1000$ for COBA/PING (used by [nb025](/notebooks/nb025/) and downstream), whose larger conductance-scale loop constant demands the larger $\gamma$.
-
-### Corollary — the cost, and choosing γ
-
-The $1/\gamma$ in (9) lands on *every* voltage←conductance gradient, not only the recurrent loop. The feedforward input also enters through $g_e$ (the term $W_\text{in}\,s_\text{in}$ in (C)), so the input-weight gradient is suppressed by the same factor: damping trades a slice of the legitimate learning signal for stability. Hence the operating rule — take the smallest $\gamma$ satisfying (11), i.e. the smallest value that prevents overflow. Too large a $\gamma$ can therefore quietly cap achievable accuracy by starving the input layer of gradient. Distinct from gradient clipping, which rescales the assembled parameter gradient after the fact: damping reshapes the recursion (4) term by term, before any parameter gradient is formed. Tightening (11) per-layer on long-trial tasks is open work.
-
-**Empirical check.** The mechanism predicts the flag is load-bearing only when the loop exists, and [nb053](/notebooks/nb053/) confirms it directly: the same network trains to ≈80% with damping fully off when run as COBA ($W_{ei}=0$, loop off), but freezes at chance as PING ($W_{ei}>0$) because every optimiser step's gradient goes non-finite and is skipped.
+Conductance-based networks (COBA, PING) need one extra ingredient to train: the recurrent E↔I loop makes the backpropagated gradient explode during BPTT, and a single flag, `--v-grad-dampen`, tames it. The full derivation — why the gradient diverges once per gamma cycle, and why per-step voltage damping fixes it without touching the forward pass — has its own article: **[Gradient Stabilisation](/articles/ar015/)**.
 
 ## The training loop
 
