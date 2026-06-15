@@ -5,7 +5,7 @@ Artifacts are written to a Modal Volume and synced back to the local
 out-dir after completion.
 
 Usage (via the --modal flag):
-    uv run python src/cli/cli.py train --modal --model cuba ...
+    uv run python src/cli/cli.py train --modal --model ping ...
     (cli.py intercepts --modal and calls this module)
 """
 
