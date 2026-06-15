@@ -33,9 +33,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import sh  # noqa: E402
 
-from _modal import append_modal_args, parse_modal_gpu  # noqa: E402
-from _run_id import next_run_id, persist as persist_run_id  # noqa: E402
-from _tier import parse_tier  # noqa: E402
+from helpers.modal import append_modal_args, parse_modal_gpu  # noqa: E402
+from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from helpers.tier import parse_tier  # noqa: E402
 
 OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
 
