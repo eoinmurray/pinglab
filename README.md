@@ -2,84 +2,29 @@
 
 Site: [pl.eoinmurray.info](https://pl.eoinmurray.info)
 
-Spiking neural networks with explicit excitatory/inhibitory populations and PING (pyramidal–interneuron gamma) dynamics, trained with surrogate gradients and measured against simpler recurrent baselines.
+Conductance-based spiking neural networks with explicit excitatory/inhibitory populations and PING (pyramidal–interneuron gamma) dynamics. The site is the project's notebook — the manuscript, method reference, and per-result entries all live there.
 
-The shared diagnostic is **Δt-stability**: train at one integration timestep, evaluate at another. Models grounded in continuous-time dynamics generalise across Δt; models that overfit their training step do not.
+## Installation
 
-## Requirements
-
-- [uv](https://docs.astral.sh/uv/) for the Python side
-- [bun](https://bun.sh) for the Astro docs site
-
-## Running experiments
-
-The training/inference entry point is `src/cli/cli.py`.
+Prerequisites: [uv](https://docs.astral.sh/uv/) (Python) and [bun](https://bun.sh) (docs site).
 
 ```sh
-# See all flags
-uv run python src/cli/cli.py --help
+git clone https://github.com/eoinmurray/pinglab.git
+cd pinglab
 
-# Quick smoke run: single-layer snnTorch on MNIST
-uv run python src/cli/cli.py train \
-  --model standard-snn --n-hidden 256 --dataset mnist \
-  --max-samples 1000 --epochs 3
+# Python environment + dependencies
+uv sync
 
-# PING network with explicit E/I
-uv run python src/cli/cli.py train \
-  --model ping --n-hidden 256 --ei-strength 0.5 \
-  --dataset mnist --max-samples 1000 --epochs 3
+# Docs site dependencies
+cd src/docs && bun install
 ```
-
-Run outputs land under `src/artifacts/` (gitignored — reproducible from code + config + seed).
-
-## Notebooks
-
-Each published result has a dedicated runner under `src/notebooks/nbNNN.py` and a matching entry under `src/docs/src/pages/notebooks/nbNNN.mdx`. Runners accept only two CLI args — `--tier {extra small, small, medium, large, extra large}` for run size, and `--modal-gpu {none, T4, L4, A10G, A100, H100}` for remote dispatch; every other hyperparameter is a hardcoded literal in the runner so the file *is* the recipe.
-
-```sh
-# Run a notebook locally at its default tier
-uv run src/notebooks/nb005.py
-
-# Faster pass at the smallest tier
-uv run src/notebooks/nb005.py --tier "extra small"
-
-# Remote dispatch (costs real money — confirm before using)
-uv run src/notebooks/nb005.py --tier large --modal-gpu L4
-```
-
-The runner wipes `src/artifacts/notebooks/<slug>/` and `src/docs/public/figures/notebooks/<slug>/` before each run, then writes figures, a training video, and a `numbers.json` with machine-checked success criteria. The gate's pass/fail badge shows up in the notebook header and on the site homepage.
 
 ## Tests
 
 ```sh
-uv run pytest                         # full unit suite
-uv run pytest -k lif                  # filter by name
-uv run pytest -m "not slow"           # skip slow end-to-end tests
+uv run pytest                  # full suite
+uv run pytest -m "not slow"    # skip slow end-to-end tests
 ```
-
-Unit tests live in `src/cli/tests/` and cover model forward passes, LIF integrators, metrics, and CLI flag propagation. Slow tests (subprocess or GPU) are marked with `@pytest.mark.slow`.
-
-## Docs site
-
-Findings, method notes, and archived drafts live in the notebook inside `src/docs/`.
-
-```sh
-cd src/docs
-bun install
-bun run dev      # local preview
-bun run build    # static build to dist/
-```
-
-Deployed via GitHub Pages (see `.github/workflows/pages.yml`).
-
-## Layout
-
-- `src/cli/` — Python package: models, training harness, plotting, CLI entry point (`cli.py`)
-- `src/notebooks/` — notebook repro scripts (`nbNNN.py`)
-- `src/docs/` — Astro site (notebook entries, method reference, LLM conventions)
-- `src/papers/` — third-party reading list (PDFs gitignored)
-
-Before making any edits, review the conventions in `CLAUDE.md` and the reference articles under `src/docs/src/pages/articles/`.
 
 ## License
 
