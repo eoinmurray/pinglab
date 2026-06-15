@@ -64,7 +64,7 @@ Surrogate-gradient BPTT training loop. Writes *weights.pth*, *metrics.json*, a p
 - *--max-samples INT* — Cap dataset to N samples for smoke tests.
 - *--observe \{video, images\}* — Per-epoch oscilloscope artifact. *video* emits one MP4 with one frame per epoch; *images* emits one PNG per epoch.
 - *--frame-rate INT* — fps for *--observe video*. Default 10.
-- *--v-grad-dampen FLOAT* — Dampening factor on the COBA membrane gradient. Default 80.0. Theory in [ar006](/articles/ar006/).
+- *--v-grad-dampen FLOAT* — Dampening factor on the COBA membrane gradient. Default 80.0. Theory in [ar015](/articles/ar015/).
 - *--fr-reg-upper-theta FLOAT* — Upper-bound target spike count per neuron per trial (θ\_u). Adds *s\_u · Σ relu(⟨z\_i⟩ − θ\_u)²* to the loss. Default 0 (off). Cramer et al. SHD RSNN: 100.
 - *--fr-reg-upper-strength FLOAT* — Coefficient s\_u on the upper regulariser. Cramer et al.: 0.06.
 - *--fr-reg-lower-theta FLOAT* — Lower-bound target spike count (θ\_l). Adds *s\_l · Σ relu(θ\_l − ⟨z\_i⟩)²*. Pushes the optimiser to fire more. Default 0.

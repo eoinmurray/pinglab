@@ -7,73 +7,183 @@ structure: paper
 collection: documentation
 ---
 
-COBANet is a conductance-based leaky integrate-and-fire (LIF) spiking neural network with separate excitatory (E) and inhibitory (I) populations, fixed recurrent E↔I connectivity, and exponential synapses. This article derives the model equations and states the architectural constants. All parameter values follow Börgers (2017).
+COBANet is a conductance-based leaky integrate-and-fire (LIF) spiking neural network with separate excitatory (E) and inhibitory (I) populations, fixed recurrent E↔I matrices, and exponential synapses. It emits two modes — feedforward COBA and recurrent PING — selected by a single scalar. This article derives the model equations and states the architectural constants; all parameter values follow Börgers (2017).
 
-## Neuron model
+## The neuron model
 
-### Membrane dynamics
-
-Each neuron's membrane potential $V$ evolves according to the conductance-based LIF equation:
+The COBA neurons obey
 
 $$
-C_m\, \frac{dV}{dt} = -g_L(V - E_L) - g_e(V - E_e) - g_i(V - E_i) \tag{1}
+C_m \frac{dV}{dt} = -g_L (V - E_L) - g_e (V - E_e) - g_i (V - E_i)
+\tag{1}
 $$
 
-where $C_m$ is capacitance, $g_L$ is leak conductance, $g_e$ and $g_i$ are the total excitatory and inhibitory synaptic conductances, and $E_L$, $E_e$, $E_i$ are the corresponding reversal potentials. Each term pulls $V$ toward its reversal at a rate proportional to the conductance.
+where $V$ is membrane potential, $t$ is time, $C_m$ is capacitance, $g_L$ is leak conductance, $g_e$ is the excitatory synaptic conductance and $g_i$ is the inhibitory synaptic conductance, with reversal potentials $E_L = -65~\text{mV}$ (leak), $E_e = 0~\text{mV}$ (excitatory), $E_i = -80~\text{mV}$ (inhibitory). Each conductance term pulls $V$ toward its reversal potential at a rate proportional to the conductance. Excitatory synapses drive $V$ up towards $E_e = 0$ and inhibitory synapses both pull it down towards $E_i = -80$ and increase total conductance, which lowers the effective membrane time constant — this is *shunting inhibition*.
 
-Collecting on $V$:
+**Where the reversal potentials come from.** Each $E_{\text{ion}}$ is the membrane voltage at which the net current through that channel vanishes, fixed by the Nernst equation from the ratio of intra- to extracellular concentration of the permeant ion(s): $E_e \approx 0$ mV from AMPA's mixed Na⁺/K⁺ permeability, $E_i \approx -80$ mV from GABA$_\text{A}$'s Cl⁻/K⁺ permeability, and $E_L \approx -65$ mV for the resting leak. These are standard cortical values; the specific numbers used here follow Börgers (2017) and are not fit or trained.
 
-$$
-C_m\, \frac{dV}{dt} = -(g_L + g_e + g_i)\, V + (g_L E_L + g_e E_e + g_i E_i) \tag{2}
-$$
+<div class="popout-box">
 
-Define the total conductance, effective time constant, and steady-state voltage:
+<div class="popout-title">Conductances are non-negative; the sign lives in the driving force</div>
 
-$$
-g_{\text{tot}} = g_L + g_e + g_i, \qquad \tau_{\text{eff}} = \frac{C_m}{g_{\text{tot}}}, \qquad V_\infty = \frac{g_L E_L + g_e E_e + g_i E_i}{g_{\text{tot}}} \tag{3}
-$$
+In the COBA formulation $g_L$, $g_e$, and $g_i$ are all **non-negative** — they measure how many ion channels are open, not how much current flows or in which direction. The signed-ness lives in the *current*, $I_{\text{ion}} = g_{\text{ion}}\,(V - E_{\text{ion}})$. At a typical resting $V \approx -65~\text{mV}$, the driving force $(V - E_e) = -65 < 0$ makes $I_e$ inward (depolarising, pulls $V$ up toward $E_e = 0$), while $(V - E_i) = +15 > 0$ makes $I_i$ outward (hyperpolarising, pulls $V$ down toward $E_i = -80$). A single positive $g_i$ trace does *both* jobs: it raises $g_{\text{tot}}$ (the shunting) and pulls $V_\infty$ toward $E_i$ (the hyperpolarising drive, hidden inside $V_\infty$). This is what distinguishes COBA from current-based models (CUBA), where inhibition is a signed weight that subtracts from a net current; **in COBA the sign flip is purely in the driving force, never in the conductance.**
 
-Then (2) becomes:
+</div>
+
+Equation (1) can be written as a linear first-order ODE in the form $C_m \dot{V} = -AV + B$ with $A = g_L + g_e + g_i$ and $B = g_L E_L + g_e E_e + g_i E_i$. Setting $\dot{V} = 0$ we find the voltage at which the inflow $B$ exactly balances the outflow $AV$, and name that voltage $V_\infty$. We define accordingly:
 
 $$
-\tau_{\text{eff}}\, \frac{dV}{dt} = -(V - V_\infty) \tag{4}
-$$
-
-Note that $\tau_{\text{eff}}$ is not the leak-only time constant $\tau_m = C_m / g_L$ — when synapses are open, $g_{\text{tot}} > g_L$ and the membrane responds faster. This is shunting inhibition: open $g_i$ increases $g_{\text{tot}}$, shortening $\tau_{\text{eff}}$ and dampening the membrane's response to all inputs.
-
-### Discretisation
-
-Hold $g_e$, $g_i$ constant over $[t, t + \Delta t]$ (zero-order hold). Then $\tau_{\text{eff}}$ and $V_\infty$ are constant and (4) integrates exactly:
-
-$$
-V_{t+1} = V_\infty + (V_t - V_\infty)\,\exp\!\left(-\Delta t / \tau_{\text{eff}}\right) \tag{5}
-$$
-
-### Spike and reset
-
-$$
-S_{t+1} = \mathbf{1}[V_{t+1} \geq V_{\text{th}}], \qquad V_{t+1} \leftarrow V_{\text{reset}} \;\text{if}\; S_{t+1} = 1 \;\text{or refractory} \tag{6}
-$$
-
-with $V_{\text{th}} = -50$ mV and $V_{\text{reset}} = -65$ mV. Reset is hard (overshoot discarded). After spiking the neuron enters a refractory period during which $V$ is clamped at $V_{\text{reset}}$ and no spike can be emitted.
-
-### Synaptic conductances
-
-Each conductance is the convolution of its presynaptic spike train with a decaying exponential:
-
-$$
-g_{e,\,t+1} = \alpha\, g_{e,\,t} + W\, s_t, \qquad \alpha = e^{-\Delta t / \tau_{\text{AMPA}}} \tag{7a}
+g_{\text{tot}} = g_L + g_e + g_i \tag{2}
 $$
 
 $$
-g_{i,\,t+1} = \gamma\, g_{i,\,t} + W\, s_t, \qquad \gamma = e^{-\Delta t / \tau_{\text{GABA}}} \tag{7b}
+\tau_{\text{eff}} = \frac{C_m}{g_{\text{tot}}} \tag{3}
 $$
 
-Between spikes the conductance decays exponentially toward zero; each presynaptic spike adds a kick proportional to the synaptic weight $W$. Excitatory synapses use the AMPA time constant ($\tau_{\text{AMPA}} = 2$ ms); inhibitory synapses use the GABA time constant ($\tau_{\text{GABA}} = 9$ ms).
+$$
+V_\infty = \frac{g_L E_L + g_e E_e + g_i E_i}{g_{\text{tot}}} \tag{4}
+$$
+
+Substituting equations (2)–(4) into (1) and dividing through by $g_{\text{tot}}$ yields the standard "decay-to-steady-state" form
+
+$$
+\tau_{\text{eff}} \frac{dV}{dt} = -(V - V_\infty) \tag{5}
+$$
+
+Note that $\tau_{\text{eff}}$ is *not* the leak-only time constant $\tau_m = C_m / g_L$ — when synapses are open, $g_{\text{tot}} > g_L$ and the membrane responds faster. Integrating over an interval where $\tau_{\text{eff}}$ and $V_\infty$ are held constant gives the closed-form solution
+
+$$
+V(t) = V_\infty + (V_0 - V_\infty) \exp\!\left(\frac{-t}{\tau_{\text{eff}}}\right),
+$$
+
+the membrane interpolates from its starting value $V_0$ toward $V_\infty$ on timescale $\tau_{\text{eff}}$. However in continuous time $\tau_{\text{eff}}$ and $V_\infty$ are *not* constant — both depend on $g_e(t)$ and $g_i(t)$ which evolve as spikes arrive. A zero-order hold makes this numerically tractable: freeze $g_e$ and $g_i$ over one timestep $\Delta t$, integrate (5) exactly under that freeze, then update $g_e$ and $g_i$ for the next timestep. Under that freeze, (5) integrates analytically to
+
+$$
+V_{t+1} = V_\infty + (V_t - V_\infty) \exp\!\left(\frac{-\Delta t}{\tau_{\text{eff}}}\right).
+$$
+
+After the membrane update, apply the spike reset:
+
+$$
+S_{t+1} = \mathbb{1}[V_{t+1} \geq V_{\text{th}}], \qquad V_{t+1} \leftarrow V_{\text{reset}} \text{ if } S_{t+1} = 1 \text{ or refractory}
+$$
+
+with $V_{\text{th}} = -50~\text{mV}$ and $V_{\text{reset}} = -65~\text{mV}$. Reset is hard (overshoot discarded). Refractory periods are $\tau^e_{\text{ref}} = 3~\text{ms}$ and $\tau^i_{\text{ref}} = 1.5~\text{ms}$, held in a per-neuron countdown that suppresses spiking until exhaustion.
+
+Each conductance is the convolution of its presynaptic spike train with a decaying exponential. For a single neuron receiving feedforward input only:
+
+$$
+g_{e, t+1} = \alpha\, g_{e, t} + W_{\text{in}} s^{\text{inp}}_t
+$$
+
+where $\alpha = \exp(-\Delta t / \tau_{\text{AMPA}})$ is the per-step AMPA decay factor. Between spikes the conductance decays exponentially toward zero; each arriving spike adds a kick proportional to the synaptic weight. The inhibitory conductance $g_i$ follows the same form with GABA decay $\gamma = \exp(-\Delta t / \tau_{\text{GABA}})$.
+
+In a network with E and I populations, two recurrent pathways close the PING loop alongside the feedforward input. There are no E→E connections.
+
+$$
+g^E_{e,t+1} = \alpha\, g^E_{e,t} + W_{\text{in}} s^{\text{inp}}_t \tag{6}
+$$
+
+$$
+g^E_{i,t+1} = \gamma\, (g^E_{i,t} + W_{\text{ie}} s^i_t) \tag{7}
+$$
+
+$$
+g^I_{e,t+1} = \alpha\, (g^I_{e,t} + W_{\text{ei}} s^e_t) \tag{8}
+$$
+
+Equation (6) is the excitatory conductance on E neurons — purely feedforward, no recurrent E→E term. Equation (7) is the inhibitory conductance on E neurons — driven by I spikes through $W_{\text{ie}}$. Equation (8) is the excitatory conductance on I neurons — driven by E spikes through $W_{\text{ei}}$. I neurons receive no inhibition. The trainable feedforward input $W_{\text{in}} s^{\text{inp}}_t$ enters E's excitatory conductance after the decay step, arriving fresh each timestep regardless of recurrent state.
+
+The model emits two modes, COBA and PING; when PING mode is active the $W_{\text{ei}}$ and $W_{\text{ie}}$ matrices are fixed at init and are *not* trainable. They are controlled by a single scalar flag $s$ (*--ei-strength*):
+
+$$
+W_{\text{ei}} \sim \mathcal{N}(s,\ 0.1\,s)
+$$
+
+$$
+W_{\text{ie}} \sim \mathcal{N}(r\,s,\ 0.1\,r\,s)
+$$
+
+where $r$ is the *--ei-ratio* (default $2.0$). At $s = 0$ both matrices are zero, the loop is open, and the network is feedforward COBA. At $s = 1$ the default initialisation gives $W_{\text{ei}} \approx 1~\mu\text{S}$ and $W_{\text{ie}} \approx 2~\mu\text{S}$, strong enough to sustain the PING rhythm from the first forward pass of training.
+
+For each timestep $t \to t+1$, the simulator applies the four updates below in a fixed order. The two populations are updated by the same template but with different driving inputs; they're written out separately here so the recurrent coupling is explicit.
+
+<div class="popout-box">
+
+<div class="popout-title">Equations Summary</div>
+
+**E neurons** (driven by feedforward input and inhibitory feedback):
+
+$$
+\begin{aligned}
+\text{(i)} \quad &
+  g^E_{e,t+1} = \alpha\, g^E_{e,t} + W_{\text{in}}\, s^{\text{inp}}_t,
+  \qquad
+  g^E_{i,t+1} = \gamma\, (g^E_{i,t} + W_{\text{ie}}\, s^i_t)
+& \text{[eqs.\ 6, 7]} \\[0.7em]
+\text{(ii)} \quad &
+  g^E_{\text{tot}} = g_L + g^E_e + g^E_i,\quad
+  \tau^E_{\text{eff}} = \frac{C_m}{g^E_{\text{tot}}},\quad
+  V^E_\infty = \frac{g_L E_L + g^E_e E_e + g^E_i E_i}{g^E_{\text{tot}}}
+& \text{[eqs.\ 2, 3, 4]} \\[0.7em]
+\text{(iii)} \quad &
+  V^E_{t+1} = V^E_\infty + (V^E_t - V^E_\infty)\, \exp\!\left(-\Delta t / \tau^E_{\text{eff}}\right)
+& \text{membrane} \\[0.7em]
+\text{(iv)} \quad &
+  s^e_{t+1} = \mathbb{1}[V^E_{t+1} \geq V_{\text{th}}],\quad
+  V^E_{t+1} \leftarrow V_{\text{reset}} \text{ if } s^e_{t+1}=1 \text{ or refractory}
+& \text{spike + reset}
+\end{aligned}
+$$
+
+**I neurons** (driven by excitatory feedback only; no inhibitory input):
+
+$$
+\begin{aligned}
+\text{(i)} \quad &
+  g^I_{e,t+1} = \alpha\, (g^I_{e,t} + W_{\text{ei}}\, s^e_t)
+& \text{[eq.\ 8]} \\[0.7em]
+\text{(ii)} \quad &
+  g^I_{\text{tot}} = g_L + g^I_e,\quad
+  \tau^I_{\text{eff}} = \frac{C_m}{g^I_{\text{tot}}},\quad
+  V^I_\infty = \frac{g_L E_L + g^I_e E_e}{g^I_{\text{tot}}}
+& \text{[eqs.\ 2, 3, 4]} \\[0.7em]
+\text{(iii)} \quad &
+  V^I_{t+1} = V^I_\infty + (V^I_t - V^I_\infty)\, \exp\!\left(-\Delta t / \tau^I_{\text{eff}}\right)
+& \text{membrane} \\[0.7em]
+\text{(iv)} \quad &
+  s^i_{t+1} = \mathbb{1}[V^I_{t+1} \geq V_{\text{th}}],\quad
+  V^I_{t+1} \leftarrow V_{\text{reset}} \text{ if } s^i_{t+1}=1 \text{ or refractory}
+& \text{spike + reset}
+\end{aligned}
+$$
+
+---
+
+<div class="popout-title">Symbols</div>
+
+- $V^E_t, V^I_t$ — membrane potential of E and I populations at step $t$ (mV)
+- $g^E_e, g^E_i$ — excitatory / inhibitory conductances on E neurons (µS)
+- $g^I_e$ — excitatory conductance on I neurons (µS); I receives no inhibition
+- $g_{\text{tot}}, \tau_{\text{eff}}, V_\infty$ — per-step aggregate conductance, effective membrane time constant, steady-state voltage
+- $C_m$ — membrane capacitance (1.0 nF on E, 0.5 nF on I)
+- $g_L, E_L$ — leak conductance (0.05 µS on E, 0.1 µS on I) and reversal potential (−65 mV)
+- $E_e, E_i$ — synaptic reversal potentials (0 mV, −80 mV)
+- $V_{\text{th}}, V_{\text{reset}}$ — spike threshold (−50 mV) and reset voltage (−65 mV)
+- $\tau_{\text{ref}}^e, \tau_{\text{ref}}^i$ — refractory periods (3 ms, 1.5 ms)
+- $\alpha = e^{-\Delta t / \tau_{\text{AMPA}}}$ — per-step AMPA decay factor ($\tau_\text{AMPA} = 2$ ms)
+- $\gamma = e^{-\Delta t / \tau_{\text{GABA}}}$ — per-step GABA decay factor ($\tau_\text{GABA} = 9$ ms)
+- $W_{\text{in}}, W_{\text{ei}}, W_{\text{ie}}$ — feedforward (trained), E→I, and I→E weight matrices ($W_{\text{ei}} \approx 1$ µS, $W_{\text{ie}} \approx 2$ µS at PING init $s = 1$)
+- $s^{\text{inp}}_t, s^e_t, s^i_t$ — input, excitatory, and inhibitory spike trains at step $t$
+- $\Delta t$ — integration timestep (0.1 ms)
+
+</div>
+
+The E and I populations are updated synchronously: at step $t+1$ both read the spike outputs $s^e_t$, $s^i_t$ from step $t$ to drive their conductances, and both emit fresh spikes $s^e_{t+1}$, $s^i_{t+1}$ at the end of the step. Synchronous-step semantics keep the E→I→E gamma cycle phase-locked to the integration grid.
 
 ## Population structure
 
-The network has a single hidden layer partitioned into E and I sub-populations in a 4:1 ratio. E and I neurons obey the same LIF equations (1)–(6) but with different biophysical constants:
+The network has a single hidden layer partitioned into E and I sub-populations in a 4:1 ratio. Both obey the same LIF equations but with different biophysical constants:
 
 | property | symbol | E | I |
 |---|---|---|---|
@@ -81,7 +191,6 @@ The network has a single hidden layer partitioned into E and I sub-populations i
 | capacitance | $C_m$ | 1.0 nF | 0.5 nF |
 | leak conductance | $g_L = C_m / \tau_m$ | 0.05 µS | 0.1 µS |
 | refractory period | $\tau_{\text{ref}}$ | 3 ms | 1.5 ms |
-| synaptic decay onto target | $\tau_{\text{syn}}$ | 2 ms (AMPA) | 9 ms (GABA) |
 | reversal at target | — | $E_e = 0$ mV | $E_i = -80$ mV |
 | population fraction | — | 4/5 | 1/5 |
 
@@ -89,42 +198,16 @@ Three asymmetries matter for the PING cycle:
 
 1. **I neurons integrate four times faster** ($\tau_m^I = 5$ ms vs $\tau_m^E = 20$ ms). A synchronous E-burst raises I above threshold within a single AMPA window (≈2 ms).
 2. **GABA decay is 4.5× slower than AMPA** ($\tau_{\text{GABA}} = 9$ ms vs $\tau_{\text{AMPA}} = 2$ ms). The resulting I→E inhibition outlasts the triggering excitation, suppressing E long enough for excitatory drive to re-accumulate. This sets the gamma period.
-3. **I neurons receive no inhibition.** Only $g_e$ is wired into the I update. The I population follows E's drive without self-suppression.
-
-## Recurrent connectivity
-
-There are no E→E connections ($W^{EE} = 0$, Börgers-style PING). Two recurrent pathways close the loop alongside feedforward input:
-
-$$
-g^{E}_{e,\,t+1} = \alpha\, g^{E}_{e,\,t} + W_{\text{in}}\, s^{\text{inp}}_t \tag{8}
-$$
-
-$$
-g^{E}_{i,\,t+1} = \gamma\bigl(g^{E}_{i,\,t} + W^{IE}\, s^{I}_t\bigr) \tag{9}
-$$
-
-$$
-g^{I}_{e,\,t+1} = \alpha\bigl(g^{I}_{e,\,t} + W^{EI}\, s^{E}_t\bigr) \tag{10}
-$$
-
-Eq (8): excitatory conductance on E neurons, purely feedforward. Eq (9): inhibitory conductance on E neurons, driven by I spikes through $W^{IE}$. Eq (10): excitatory conductance on I neurons, driven by E spikes through $W^{EI}$.
-
-$W^{EI}$ and $W^{IE}$ are controlled by the scalar *--ei-strength* $s$:
-
-$$
-W^{EI} \sim \mathcal{N}(s,\; 0.1\,s), \qquad W^{IE} \sim \mathcal{N}(r\,s,\; 0.1\,r\,s)
-$$
-
-where $r$ is the *--ei-ratio* (default 2.0). At $s = 0$ both matrices are zero, the loop is open, and the network is feedforward COBA. At $s = 1$ the initialisation gives $W^{EI} \approx 1$ µS and $W^{IE} \approx 2$ µS — sufficient to sustain PING from the first forward pass. Both matrices are held *requires_grad = False*; the optimiser cannot modify them.
+3. **I neurons receive no inhibition.** Only $g_e$ is wired into the I update (eq. 8). The I population follows E's drive without self-suppression.
 
 ## Trainable parameters
 
-Only two weight matrices train:
+Only two weight matrices train; everything else is frozen.
 
-- $W_{\text{in}}$ ($N_{\text{in}} \times N_E$): feedforward input to E conductance. Initialised from $\mathcal{N}(\mu, 0.1\mu)$ with 95% sparsity. Default $\mu$ depends on configuration: 0.3 for COBA, 1.2 for PING.
+- $W_{\text{in}}$ ($N_{\text{in}} \times N_E$): feedforward input to E conductance. Initialised from $\mathcal{N}(\mu, 0.1\mu)$ with 95% sparsity. Default $\mu$ depends on mode: 0.3 for COBA, 1.2 for PING.
 - $W_{\text{out}}$ ($N_E \times N_{\text{classes}}$): linear readout from the time-averaged E spike vector (mem-mean mode).
 
-All recurrent weights ($W^{EI}$, $W^{IE}$), all biophysical constants ($\tau_m$, $C_m$, $g_L$, $\tau_{\text{AMPA}}$, $\tau_{\text{GABA}}$, reversal potentials), and the E→E matrix ($W^{EE} = 0$) are frozen.
+The recurrent matrices $W_{\text{ei}}$, $W_{\text{ie}}$, all biophysical constants ($\tau_m$, $C_m$, $g_L$, $\tau_{\text{AMPA}}$, $\tau_{\text{GABA}}$, reversal potentials), and the absent E→E matrix ($W^{EE} = 0$) are held *requires_grad = False*; the optimiser cannot modify them.
 
 ## Constants
 
