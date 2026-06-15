@@ -58,9 +58,10 @@ export async function getStaticPaths() {
 }
 
 const { collection } = Astro.params;
+const ACRONYMS = new Set(["cuba", "coba", "ping", "snn"]);
 const collectionLabel = String(collection)
   .split("-")
-  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+  .map((w) => (ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
   .join(" ");
 
 const notebookModules = import.meta.glob("../notebooks/*.mdx", { eager: true });
