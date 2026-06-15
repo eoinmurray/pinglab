@@ -60,8 +60,6 @@ Surrogate-gradient BPTT training loop. Writes *weights.pth*, *metrics.json*, a p
 - *--v-grad-dampen FLOAT* — Dampening factor on the COBA membrane gradient. Default 80.0. Theory in [ar015](/articles/ar015/).
 - *--fr-reg-upper-theta FLOAT* — Upper-bound target spike count per neuron per trial (θ\_u). Adds *s\_u · Σ relu(⟨z\_i⟩ − θ\_u)²* to the loss. Default 0 (off). Cramer et al. SHD RSNN: 100.
 - *--fr-reg-upper-strength FLOAT* — Coefficient s\_u on the upper regulariser. Cramer et al.: 0.06.
-- *--fr-reg-lower-theta FLOAT* — Lower-bound target spike count (θ\_l). Adds *s\_l · Σ relu(θ\_l − ⟨z\_i⟩)²*. Pushes the optimiser to fire more. Default 0.
-- *--fr-reg-lower-strength FLOAT* — Coefficient s\_l on the lower regulariser.
 - *--fr-reg-mode \{per-neuron, population\}* — Pooling axis for the regulariser. *per-neuron* (default) concentrates pressure on the highest-firing cells (the Cramer recipe). *population* uses a single scalar over the grand mean across batch and neurons; pressure distributes uniformly.
 - *--tau-gaba FLOAT* — Override the GABA synaptic decay τ\_GABA (ms). Default = *models.py*'s *tau\_gaba* (9.0 ms, Börgers / Buzsaki-Wang range). nb041 sweeps this across \{4.5, …, 27\} ms while training PING from scratch; the realised gamma frequency f\_γ tracks 1/τ\_GABA.
 
@@ -71,10 +69,10 @@ The following flag groups are attached to every subcommand via a shared argparse
 
 ### Network
 
-- *--model \{ping, cuba-ping, cuba-noping\}* — Architecture. *ping* is the COBANet with E↔I coupling (the canonical gamma-generating substrate). *cuba-ping* is the current-based PING variant — same connectivity, CUBA neurons. *cuba-noping* is *cuba-ping* with the inhibitory loop silenced (an explicit no-rhythm control). Default *ping*.
+- *--model \{ping\}* — Architecture. *ping* is the COBANet with E↔I coupling (the canonical gamma-generating substrate); with *--ei-strength 0* the inhibitory loop is silenced for a no-rhythm control. Default *ping*.
 - *--n-hidden INT [INT …]* — Hidden layer sizes. One integer = single layer; multiple stacks layers. Default depends on dataset (scikit 64, mnist 1024, smnist 32, shd 256).
 - *--readout \{rate, li, spike-count, mem-mean\}* — Output stage. *rate* (default) sums last-hidden spikes and projects linearly at the final timestep. *li* is a non-spiking leaky integrator per class with max-over-time — the SHD-standard readout. *spike-count* and *mem-mean* are alternative pooling rules used in dt-stability sweeps.
-- *--dales-law* / *--no-dales-law* — Enforce Dale's law (non-negative weights) or allow signed weights. Default on. *--no-dales-law* is required for *cuba-noping* and the snnTorch tutorial recipe.
+- *--dales-law* / *--no-dales-law* — Enforce Dale's law (non-negative weights) or allow signed weights. Default on. *--no-dales-law* is used for balanced-network experiments where weights may take either sign.
 - *--ei-layers INT [INT …]* — 1-indexed list of hidden layers that get E-I structure. Default: all layers. PING only.
 - *--ei-strength FLOAT* — E-I coupling strength s. Sets W\_EI = s and W\_IE = s·ratio. Default 0.5.
 - *--ei-ratio FLOAT* — W\_IE / W\_EI. Default 2.0.
@@ -83,10 +81,8 @@ The following flag groups are attached to every subcommand via a shared argparse
 - *--t-ms FLOAT* — Total trial duration (ms). Default 200. For synthetic-step inputs, must exceed *STEP\_ON\_MS* (200 ms) or the stimulus window never opens; the CLI warns in this case.
 - *--tau-mem FLOAT* — Membrane time constant τ\_mem (ms). Default 10 ms (*models.py*'s *tau\_snn*). Cramer et al. SHD: 20 ms.
 - *--tau-syn FLOAT* — Synaptic time constant τ\_syn (ms) for the exponential synapse. Default 2 ms. Cramer et al. SHD: 10 ms. Only affects models with *exponential\_synapse=True* (COBA / PING).
-- *--readout-tau-out FLOAT* — Output-LIF τ\_out (ms) for the *spike-count* readout. Default 5 ms. Smaller values prevent saturation under high-rate hidden drive — needed by current-based models at coarse dt. No-op for *rate* / *li*.
-- *--grad-clip FLOAT* — Override the default global-norm gradient clip (1.0). Pass a large value (e.g. *1e6*) to effectively disable clipping.
-- *--tbptt-window INT* — TBPTT detach interval (timesteps) for *cuba-ping*. Default 10. Scale with 1/dt to hold the physical gradient horizon constant when dt changes.
-- *--readout-w-out-scale FLOAT* — Multiplicative scalar applied to the readout matrix (and bias if present) after *build\_net*. Use to compensate for the ≈10× lower hidden firing rate of COBA models vs CUBA models under *mem-mean* / *spike-count* readouts. Train-mode only. Default 1.0.
+- *--readout-tau-out FLOAT* — Output-LIF τ\_out (ms) for the *spike-count* readout. Default 5 ms. Smaller values prevent saturation under high-rate hidden drive at coarse dt. No-op for *rate* / *li*.
+- *--readout-w-out-scale FLOAT* — Multiplicative scalar applied to the readout matrix (and bias if present) after *build\_net*. Use to compensate for low hidden firing rate under *mem-mean* / *spike-count* readouts. Train-mode only. Default 1.0.
 - *--surrogate-slope FLOAT* — Fast-sigmoid surrogate-gradient slope β. Default 1.0. Cramer et al. use 40 for SHD RSNNs.
 - *--device \{cpu, mps, cuda\}* — Compute device. Auto-detected if unset: cuda &gt; mps &gt; cpu.
 
@@ -104,7 +100,6 @@ The following flag groups are attached to every subcommand via a shared argparse
 - *--w-in MEAN [STD]* — Input fan-in init. Default *0.3 0.06*. Single value sets STD = MEAN × 0.1.
 - *--w-ei MEAN STD* — Override the W\_EI init computed from *--ei-strength*.
 - *--w-ie MEAN STD* — Override the W\_IE init computed from *--ei-strength* / *--ei-ratio*.
-- *--trainable-w-ee* — Promote COBANet's E→E recurrent matrix from frozen to gradient-carrying (default frozen). Use for working-memory tasks where the E attractor needs to learn.
 - *--trainable-w-ei* — Promote E→I from frozen to gradient-carrying. Asks whether the optimiser will discover the PING-loop weights from scratch.
 - *--trainable-w-ie* — Promote I→E. Same question, opposite direction. The nb049 result *gradient descent dismantles PING* comes from flipping *--trainable-w-ei* and *--trainable-w-ie* on simultaneously.
 

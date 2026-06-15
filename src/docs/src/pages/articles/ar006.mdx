@@ -33,25 +33,15 @@ SNNs fit BPTT naturally — one simulation step is one step of the recursion, wi
 
 ## Surrogate gradients
 
-The spike function $S = \mathbf{1}[U \geq \theta]$ has zero gradient almost everywhere, so the backward pass substitutes a smooth surrogate. Pinglab implements two.
-
-- **Fast-sigmoid** (`fast_sigmoid_spike`) — used by every model except CubaPingNet. Forward is the hard step; backward is
+The spike function $S = \mathbf{1}[U \geq \theta]$ has zero gradient almost everywhere, so the backward pass substitutes a smooth surrogate. Pinglab uses the fast-sigmoid surrogate everywhere. Forward is the hard step; backward is
 
 $$
 \frac{\partial \tilde S}{\partial U} = \frac{k}{(1 + k\,|U - \theta|)^2}
 $$
 
-This matches snntorch's `FastSigmoid`, so equal-$k$ comparisons against the snntorch reference test the update rule, not the surrogate.
+This matches snntorch's *FastSigmoid*, so equal-$k$ comparisons against the snntorch reference test the update rule, not the surrogate.
 
-- **Arctan** (`arctan_spike`) — used inside CubaPingNet for both E and I spikes. Forward is the hard step; backward is
-
-$$
-\frac{\partial \tilde S}{\partial U} = \frac{k}{1 + (k\pi\,(U - \theta))^2}
-$$
-
-It decays faster than fast-sigmoid away from threshold, which stops the I-population's spike gradient from swamping the E-population's when both sit far below threshold.
-
-Both take their slope from `SURROGATE_SLOPE = 5.0`, overridable per-run with `--surrogate-slope`.
+It takes its slope from *SURROGATE_SLOPE = 5.0*, overridable per-run with *--surrogate-slope*.
 
 ## Gradient stabilisation
 

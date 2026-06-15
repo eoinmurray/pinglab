@@ -1,10 +1,9 @@
 """Training driver for the CLI.
 
 Holds seed_everything, observe_epoch (per-epoch oscilloscope frame), and
-the main train() loop that supports CUBA / COBA / PING / snnTorch-library
-models across MNIST / FashionMNIST / Yin-Yang / sMNIST / SHD with a
-configurable readout, loss, dataset encoder, gradient stabilizer, and
-optimizer.
+the main train() loop for the PING (COBANet) model across MNIST /
+FashionMNIST / Yin-Yang / sMNIST / SHD with a configurable readout, loss,
+dataset encoder, gradient stabilizer, and optimizer.
 """
 
 from __future__ import annotations
@@ -199,14 +198,10 @@ def train(
     tau_gaba=None,
     fr_reg_upper_theta=0.0,
     fr_reg_upper_strength=0.0,
-    fr_reg_lower_theta=0.0,
-    fr_reg_lower_strength=0.0,
     fr_reg_mode="per-neuron",
-    trainable_w_ee=False,
     trainable_w_ei=False,
     trainable_w_ie=False,
     trainable_w_ii=False,
-    tbptt_window=None,
 ):
     """Train on scikit digits, optionally producing oscilloscope video."""
     from torch.utils.data import DataLoader, TensorDataset
@@ -298,11 +293,9 @@ def train(
         hidden_sizes=hidden_sizes,
         ei_layers=ei_layers,
         readout_mode=readout_mode,
-        trainable_w_ee=trainable_w_ee,
         trainable_w_ei=trainable_w_ei,
         trainable_w_ie=trainable_w_ie,
         trainable_w_ii=trainable_w_ii,
-        tbptt_window=tbptt_window,
     )
     if readout_mode != "rate":
         log.info(f"  readout_mode={readout_mode}")
@@ -353,10 +346,8 @@ def train(
         "readout_mode": readout_mode,
         "hidden_sizes": hidden_sizes,
         "ei_layers": list(ei_layers) if ei_layers else None,
-        "trainable_w_ee": trainable_w_ee,
         "trainable_w_ei": trainable_w_ei,
         "trainable_w_ie": trainable_w_ie,
-        "tbptt_window": getattr(net, "tbptt_window", None),
         "seed": seed,
         "tau_gaba_ms": float(M.tau_gaba),
         # Provenance (git SHA, run_id, started_at, device, torch version,
@@ -583,8 +574,7 @@ def train(
             loss = loss_fn(logits, y_b)
             spike_counts = getattr(net, "last_spike_counts", None)
             if spike_counts is not None:
-                # Quadratic firing-rate regularizers: upper penalises overshoot
-                # above θ_u, lower rewards firing at or above θ_l.
+                # Quadratic firing-rate regularizer: penalise overshoot above θ_u.
                 if fr_reg_upper_strength > 0:
                     loss = loss + _firing_rate_penalty(
                         spike_counts,
@@ -592,14 +582,6 @@ def train(
                         fr_reg_upper_strength,
                         fr_reg_mode,
                         below=False,
-                    )
-                if fr_reg_lower_strength > 0:
-                    loss = loss + _firing_rate_penalty(
-                        spike_counts,
-                        fr_reg_lower_theta,
-                        fr_reg_lower_strength,
-                        fr_reg_mode,
-                        below=True,
                     )
             opt.zero_grad()
             loss.backward()

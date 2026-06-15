@@ -251,7 +251,7 @@ def _build_parent_parser():
         "--no-dales-law",
         dest="dales_law",
         action="store_false",
-        help="Allow signed (positive + negative) weights (standard-snn / cuba only)",
+        help="Allow signed (positive + negative) weights.",
     )
     net_group.add_argument(
         "--ei-layers",
@@ -375,32 +375,14 @@ def _build_parent_parser():
         "dt. No-op for --readout rate or li.",
     )
     net_group.add_argument(
-        "--grad-clip",
-        type=float,
-        default=None,
-        help="Override the default global-norm gradient clip "
-        "(default 1.0). Pass a large value (e.g. 1e6) to "
-        "effectively disable clipping and rely on Adam's "
-        "preconditioner instead.",
-    )
-    net_group.add_argument(
-        "--tbptt-window",
-        type=int,
-        default=None,
-        help="TBPTT detach interval in timesteps for models that use it "
-        "(CubaPingNet). Default: 10. Scale with 1/dt to keep the "
-        "physical gradient horizon constant when dt changes.",
-    )
-    net_group.add_argument(
         "--readout-w-out-scale",
         type=float,
         default=1.0,
         help="Multiply the readout matrix W_ff[-1] (and "
         "bias b_ff[-1] if present) by this scalar "
-        "after build_net. Use to compensate for the "
-        "10× lower hidden firing rate of COBANet "
-        "models vs CUBANet under mem-mean / "
-        "spike-count readouts: bumping W_out by ~10 "
+        "after build_net. Use to compensate for low "
+        "hidden firing rate under mem-mean / "
+        "spike-count readouts: bumping W_out up "
         "equalises the trial-level drive into the "
         "output LIF and recovers gradient signal. "
         "Train-mode only. Default 1.0.",
@@ -412,9 +394,8 @@ def _build_parent_parser():
         help="Fast-sigmoid surrogate-gradient slope β. "
         "Larger = narrower active window around "
         "threshold. pinglab default 1.0; Cramer et al. "
-        "use 40 for SHD RSNNs. Applies to "
-        "SurrogateSpike (cuba / standard-snn / ping) "
-        "and snntorch-library's fast_sigmoid.",
+        "use 40 for SHD RSNNs. Applies to the "
+        "fast-sigmoid surrogate used by every spike.",
     )
     net_group.add_argument(
         "--device",
@@ -493,13 +474,6 @@ def _build_parent_parser():
         metavar=("MEAN", "STD"),
         help="W_II (I→I) init (mean std). Default: 0 0 (no I→I, canonical "
         "PING). Enable for Brunel/Vreeswijk balanced-network experiments.",
-    )
-    wt_group.add_argument(
-        "--trainable-w-ee",
-        action="store_true",
-        help="Make COBANet's E→E recurrent matrix gradient-carrying "
-        "(default: frozen). W_ei / W_ie stay frozen. Use for working-"
-        "memory tasks where the E attractor needs to learn.",
     )
     wt_group.add_argument(
         "--trainable-w-ei",
@@ -657,12 +631,6 @@ def _build_subparsers(parser, parent):
         "surrogate-gradient BPTT. Writes weights.pth, metrics.json, "
         "metrics.jsonl, test_predictions.json plus optional video.",
         epilog="Examples:\n"
-        "  # standard-snn canonical tutorial mode (full MNIST)\n"
-        "  cli.py train --model standard-snn --kaiming-init \\\n"
-        "    --dataset mnist --epochs 40 --lr 0.01 --adaptive-lr\n\n"
-        "  # proper continuous-time CUBA LIF\n"
-        "  cli.py train --model cuba --kaiming-init \\\n"
-        "    --dataset mnist --epochs 40 --lr 0.01 --adaptive-lr\n\n"
         "  # PING with gamma oscillation on MNIST\n"
         "  cli.py train --model ping --dataset mnist \\\n"
         "    --ei-strength 0.5 --v-grad-dampen 1000 --lr 0.0001",
@@ -740,23 +708,6 @@ def _build_subparsers(parser, parent):
         "training rate ceiling tracks f_γ.",
     )
     train_parser.add_argument(
-        "--fr-reg-lower-theta",
-        type=float,
-        default=0.0,
-        help="Firing-rate reg: lower-bound target spike "
-        "count per neuron per trial (θ_l). "
-        "Penalty s_l · Σ relu(θ_l − <z_i>)² is "
-        "added to the loss. Default 0 = off. "
-        "Pushes the optimiser to fire MORE (reward-for-spikes pressure).",
-    )
-    train_parser.add_argument(
-        "--fr-reg-lower-strength",
-        type=float,
-        default=0.0,
-        help="Strength s_l on the lower-bound firing-"
-        "rate regulariser (default 0 = off).",
-    )
-    train_parser.add_argument(
         "--fr-reg-mode",
         type=str,
         default="per-neuron",
@@ -797,15 +748,13 @@ each subcommand's --help):
                  --no-dales-law, --rec-layers, --ei-layers
   Input          --input, --input-rate, --stim-overdrive, --drive, --dataset,
                  --digit, --sample
-  Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-rec, --trainable-w-ee
-  Gradient       --v-grad-dampen, --grad-clip,
-                 --surrogate-slope, --coba-integrator
+  Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-rec
+  Gradient       --v-grad-dampen, --surrogate-slope, --coba-integrator
   Train (train)  --lr, --epochs, --batch-size, --max-samples, --optimizer,
                  --loss, --adaptive-lr, --early-stopping, --observe,
                  --observe-every, --frame-rate, --profile,
-                 --fr-reg-lower-theta, --fr-reg-lower-strength,
                  --fr-reg-upper-theta, --fr-reg-upper-strength,
-                 --skip-bad-grad-threshold
+                 --fr-reg-mode, --skip-bad-grad-threshold
   Sim (sim)      --image, --video, --infer, --from-dir, --load-weights,
                  --scan-var, --scan-min, --scan-max, --frames, --frame-rate,
                  --max-samples
@@ -818,7 +767,6 @@ Examples:
   python -m cli sim --video --scan-var ei_strength  # sweep E-I coupling
   python -m cli sim --video --scan-var spike_rate --scan-min 5 --scan-max 100
   python -m cli train --epochs 100 --observe video
-  python -m cli train --epochs 100 --trainable-w-ee
   python -m cli sim --image --input dataset --dataset mnist --digit 3
   python -m cli sim --infer --load-weights weights.pth --dt 0.5
   python -m cli sim --infer --from-dir runs/foo
@@ -827,13 +775,7 @@ Models:
   ping        COBANet with E↔I coupling. With --ei-strength > 0 the
               recurrent inhibitory loop is wired up and frozen at init;
               feedforward weights train against this fixed substrate.
-  cuba        COBANet with --ei-strength 0 (E cells only, no I-loop).
-              The articles/models page calls this "coba" — naming is for
-              CLI-vs-pedagogy reasons.
-  standard-snn   Dimensionless mem = β·mem + I from snnTorch tutorial 5.
-                 Not dt-invariant; β is a fitted hyperparameter.
-  snntorch-library   External snnTorch reference path; uses the library's
-                     Leaky/Synaptic primitives directly.
+              (With --ei-strength 0 the I-loop is silenced — E cells only.)
 
 For the underlying theory of --v-grad-dampen see /articles/ar006/.
 """
@@ -908,13 +850,9 @@ def configure_models(args):
         val = getattr(args, arg, None)
         if val is not None:
             setattr(M, attr, cast(val))
-    # Special cases: a bare flag, and a value that also lives on train.py.
+    # Special case: a bare flag.
     if getattr(args, "exact_k", False):
         M.EXACT_K_CONNECTIVITY = True
-    if getattr(args, "grad_clip", None) is not None:
-        import cli.train as _train_mod
-
-        M.GRAD_CLIP = _train_mod.GRAD_CLIP = float(args.grad_clip)
     # Input Poisson rate and trial duration — single source of truth. Every
     # code path reads M.max_rate_hz / M.T_ms, so setting them here once means
     # all dispatch branches (sim/train × all input types) respect
@@ -1159,13 +1097,9 @@ def _run_train(args, C, out_dir, log):
         tau_gaba=args.tau_gaba,
         fr_reg_upper_theta=args.fr_reg_upper_theta,
         fr_reg_upper_strength=args.fr_reg_upper_strength,
-        fr_reg_lower_theta=args.fr_reg_lower_theta,
-        fr_reg_lower_strength=args.fr_reg_lower_strength,
         fr_reg_mode=args.fr_reg_mode,
-        trainable_w_ee=args.trainable_w_ee,
         trainable_w_ei=args.trainable_w_ei,
         trainable_w_ie=args.trainable_w_ie,
-        tbptt_window=args.tbptt_window,
     )
 
 

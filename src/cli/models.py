@@ -3,7 +3,7 @@
 All constants are hardcoded defaults. Override via module-level assignment
 or by passing arguments to model constructors.
 
-Models: CUBANet, COBANet.
+Models: COBANet.
 Layer primitives: exp_synapse, lif_step.
 """
 
@@ -64,7 +64,6 @@ HIDDEN_SIZES: list[int] = [64]  # hidden layer sizes (N_HID is always last entry
 
 # ── Weight init ───────────────────────────────────────────────────────────
 # Weight init — p1/p2 are pre-fan-in values (init_weight divides by N_pre)
-W_STD_CUBA = 32.0  # nA — CUBA weight init std (pre-fan-in)
 W_FF_MEAN = 5.1  # uS — feedforward init mean (pre-fan-in)
 W_FF_STD = 3.8  # uS — feedforward init std (pre-fan-in)
 W_IN_MEAN = W_FF_MEAN  # alias
@@ -82,11 +81,10 @@ W_II_STD = 0.0  #  enable explicitly for Brunel/Vreeswijk balanced-network exper
 
 # ── Training ──────────────────────────────────────────────────────────────
 BATCH_SIZE = 64
-GRAD_CLIP = 1.0
 # Surrogate-gradient steepness (fast-sigmoid slope). 5 is the stable
 # end-to-end value at pinglab's current BPTT depth / clip / optimizer
 # config — slope=10 (Neftci canonical) and slope=40 (Cramer) both blow
-# up to gn 1e10+ even with --optimizer adamax + --grad-clip 100.
+# up to gn 1e10+ even with the global-norm gradient clip at 100.
 SURROGATE_SLOPE = 5.0
 V_GRAD_DAMPEN = 80.0
 
@@ -125,18 +123,6 @@ torch._dynamo.config.recompile_limit = 32  # ty: ignore[invalid-assignment]
 
 
 # ── Surrogate gradient ───────────────────────────────────────────────────
-
-
-def arctan_spike(u, slope):
-    """Arctan-derivative surrogate: forward Heaviside(u), backward
-    gradient = slope / (1 + (slope·π·u)²). Decays faster than the
-    fast-sigmoid surrogate around the threshold — used by CubaPingNet
-    so the I-population gradient doesn't overwhelm E-population gradient
-    when both populations are far from threshold."""
-    hard = (u >= 0).float()
-    # Antiderivative of slope / (1 + (slope·π·u)²) is arctan(slope·π·u)/π.
-    proxy = torch.atan(slope * 3.141592653589793 * u) / 3.141592653589793
-    return hard.detach() + (proxy - proxy.detach())
 
 
 def fast_sigmoid_spike(u, slope):
@@ -475,7 +461,6 @@ class COBANet(SNNBase):
         hidden_sizes=None,
         ei_layers=None,
         readout_mode="rate",
-        trainable_w_ee=False,
         trainable_w_ei=False,
         trainable_w_ie=False,
         trainable_w_ii=False,
@@ -489,7 +474,7 @@ class COBANet(SNNBase):
             )
         self.readout_mode = readout_mode
         self.signed_weights = not dales_law
-        # Same lazy-compile pattern as CUBANet — see CUBANet for rationale.
+        # Lazy-compile cache for the per-timestep body (compiled on first call).
         self._compiled_cache: dict = {}
         # Optional per-step hook fired right after every layer's spikes are
         # emitted and before they propagate (readout + next-step recurrence +
@@ -522,14 +507,9 @@ class COBANet(SNNBase):
             p1, p2, d, s = _parse_weight_spec(spec, dist, sparsity)
             self.W_ff.append(nn.Parameter(init_weight((n_pre, n_post), d, p1, p2, s)))
 
-        # E-I weights per E-I layer. W_ei / W_ie are fixed anatomical
+        # E-I weights per E-I layer. W_ee / W_ei / W_ie are fixed anatomical
         # connectivity (the recurrent inhibitory circuit is a substrate the
-        # readout learns to read, not a trainable thing). W_ee defaults to
-        # fixed too, but flipping `trainable_w_ee=True` makes E→E gradient-
-        # carrying so the network can learn a Hopfield-style E attractor on
-        # top of the COBA biophysics — useful for working-memory tasks like
-        # DMTS where activity has to persist across silent delays.
-        self.trainable_w_ee = trainable_w_ee
+        # readout learns to read, not a trainable thing).
         self.W_ee = nn.ParameterDict()
         self.W_ei = nn.ParameterDict()
         self.W_ie = nn.ParameterDict()
@@ -544,7 +524,7 @@ class COBANet(SNNBase):
             p1, p2, d, s = _parse_weight_spec(w_ee, dist, sparsity)
             w_ee_t = nn.Parameter(
                 init_weight((n_e, n_e), d, p1, p2, s),
-                requires_grad=trainable_w_ee,
+                requires_grad=False,
             )
             p1, p2, d, s = _parse_weight_spec(w_ei, dist, sparsity)
             w_ei_t = nn.Parameter(
@@ -616,7 +596,7 @@ class COBANet(SNNBase):
         g_noise = noise_std / (E_e - E_L) if noise_std > 0 else 0.0
 
         # Per-step matmul on every device — single code path (no CUDA-only
-        # fast-path). See CUBANet for the same change and rationale.
+        # fast-path).
 
         # Per-layer state
         v_e, ref_e, ge_e, gi_e, s_e = {}, {}, {}, {}, {}
@@ -672,8 +652,7 @@ class COBANet(SNNBase):
                     v_i[k] = v_i[k] + dvi
 
         # Output: cumulative last-hidden-layer spikes → linear decoder
-        # (Same readout as CUBANet — no output spiking neurons, no
-        # per-model confound at the output.)
+        # (no output spiking neurons — a clean linear decode at the output).
         hidden_accum = init_conductance(B, self.hidden_sizes[-1], device)
         v_out = torch.zeros(B, N_OUT, device=device)
         logits_max = torch.full((B, N_OUT), float("-inf"), device=device)
@@ -711,13 +690,13 @@ class COBANet(SNNBase):
         n_spk_tensors["out"] = torch.zeros(1, device=device)
         # Per-layer (B, n_e) spike-count accumulator for the firing-rate
         # regulariser — must keep gradient attached, so it sums state["s_e"]
-        # post-step (CUBANet does the same in its rate_counts list).
+        # post-step.
         rate_counts = [
             torch.zeros(B, n, device=device) for n in self.hidden_sizes
         ]
 
         # Bundle mutating state and per-call config so _step_body can be
-        # compiled per-timestep (the same boundary CUBANet uses). The Python
+        # compiled per-timestep. The Python
         # int `t` and rec_buf writes stay in _forward_loop so the compiled
         # graph never has to re-trace per-t.
         state = {
@@ -752,9 +731,9 @@ class COBANet(SNNBase):
             "n_spk_tensors": n_spk_tensors,
         }
 
-        # Lazy-init torch.compile on the per-timestep body. Same pattern,
-        # rationale, CPU-skip, and PINGLAB_NO_COMPILE escape hatch as
-        # CUBANet. CPU is skipped because Inductor's cpp build fails on
+        # Lazy-init torch.compile on the per-timestep body, with a CPU-skip
+        # and a PINGLAB_NO_COMPILE escape hatch. CPU is skipped because
+        # Inductor's cpp build fails on
         # some hosts and the error escapes the try/except (surfaces only
         # at first compiled call, not at torch.compile() construction).
         if (
@@ -831,7 +810,6 @@ class COBANet(SNNBase):
         self._set_meta(B, n_spk, rec, sizes)
         # Expose grad-attached per-neuron spike counts so the trainer's
         # firing-rate regulariser (train.py) can build its loss.
-        # Mirrors CUBANet.last_spike_counts.
         self.last_spike_counts = rate_counts
         if self.readout_mode == "li":
             return state["logits_max"]
@@ -951,8 +929,7 @@ class COBANet(SNNBase):
             state["logits_max"] = torch.maximum(state["logits_max"], state["v_out"])
             return state["v_out"]
         if cfg["readout_mode"] in ("spike-count", "mem-mean"):
-            # Exp-Euler ZOH on output LIF + subtract reset (see
-            # CUBANet._readout_step for rationale). COBANet's W_ff has
+            # Exp-Euler ZOH on output LIF + subtract reset. COBANet's W_ff has
             # no bias term — bias scaling is moot here.
             one_minus_beta = 1.0 - beta_out
             spike_scale = one_minus_beta / dt
@@ -978,241 +955,3 @@ class COBANet(SNNBase):
         with torch.no_grad():
             for W in self.W_ff:
                 W.data.clamp_(min=0)
-
-
-class CubaPingNet(SNNBase):
-    """CUBA-PING with instant synapses, V-floor, output-LIF mem-mean readout.
-
-    Current-based LIF (CUBA) — input current is the direct projection of
-    presynaptic spikes through fixed weights, with no exponential synaptic
-    decay (instant synapses). Trained via TBPTT (window=10 by default)
-    because the per-cycle I-loop gradient compounds ≈1.8 per round trip
-    and overflows float32 under naive BPTT.
-
-    With no_inhibition=True, the I population and its W_ei/W_ie weights
-    are dropped entirely — the CUBA-no-PING control used by nb041.
-    """
-
-    signed_weights = False
-
-    def __init__(
-        self,
-        w_in=(0.0, 0.5),
-        w_ei=(1.0, 0.1),
-        w_ie=(1.0, 0.1),
-        dist="normal",
-        sparsity=0.0,
-        dales_law=True,
-        hidden_sizes=None,
-        ei_layers=None,
-        readout_mode="mem-mean",
-        trainable_w_ee=False,
-        no_inhibition=False,
-        tbptt_window=10,
-        tau_m_ms=20.0,
-        tau_out_ms=20.0,
-        v_rest=0.0,
-        v_th=1.0,
-        v_reset=0.0,
-        r_m=1.0,
-        w_out_std=0.05,
-    ):
-        super().__init__()
-        if readout_mode != "mem-mean":
-            raise ValueError(
-                f"CubaPingNet requires readout_mode='mem-mean', got {readout_mode!r}"
-            )
-        self.readout_mode = "mem-mean"
-        self.signed_weights = not dales_law
-        self.no_inhibition = bool(no_inhibition)
-        self.tbptt_window = int(tbptt_window)
-        self.tau_m_ms = float(tau_m_ms)
-        self.tau_out_ms = float(tau_out_ms)
-        self.v_rest = float(v_rest)
-        self.v_th = float(v_th)
-        self.v_reset = float(v_reset)
-        self.r_m = float(r_m)
-
-        sizes = hidden_sizes if hidden_sizes is not None else HIDDEN_SIZES
-        if len(sizes) != 1:
-            raise ValueError(
-                "CubaPingNet is single-hidden-layer only; got "
-                f"hidden_sizes={sizes!r}"
-            )
-        self.hidden_sizes = list(sizes)
-        self.n_layers = 1
-        self.ei_layers = set() if self.no_inhibition else {1}
-
-        n_e = sizes[0]
-        n_i = n_e // 4
-
-        # CubaPingNet uses its own raw init (no fan-in / sparsity-compensation
-        # normalisation) so the nb040 recipe values transfer literally.
-        # W_in spec (mean, std, ...): raw N(mean, std) gated by sparsity, then
-        # |·| to keep Dale's law. W_ei/W_ie: N(mean, std) clamped ≥ 0.
-        def _raw_masked(shape, p_mean, p_std, sparse_frac):
-            w = torch.randn(*shape) * p_std + p_mean
-            if sparse_frac > 0:
-                w = w * (torch.rand(*shape) > sparse_frac).float()
-            return w.abs()
-
-        def _raw_clamped(shape, p_mean, p_std):
-            return (torch.randn(*shape) * p_std + p_mean).clamp_min(0.0)
-
-        p1, p2, _d, s_frac = _parse_weight_spec(w_in, dist, sparsity)
-        w_in_init = _raw_masked((N_IN, n_e), p1, p2, s_frac)
-        self.W_ff = nn.ParameterList()
-        self.W_ff.append(nn.Parameter(w_in_init))
-        self.W_ff.append(nn.Parameter(torch.randn(n_e, N_OUT) * float(w_out_std)))
-        self.b_ff = nn.ParameterList([nn.Parameter(torch.zeros(N_OUT))])
-
-        self.W_ee = nn.ParameterDict(
-            {"1": nn.Parameter(torch.zeros(n_e, n_e), requires_grad=False)}
-        )
-        self.W_ei = nn.ParameterDict()
-        self.W_ie = nn.ParameterDict()
-        if not self.no_inhibition:
-            p1, p2, _d, _ = _parse_weight_spec(w_ei, dist, sparsity)
-            self.W_ei["1"] = nn.Parameter(
-                _raw_clamped((n_e, n_i), p1, p2), requires_grad=False
-            )
-            p1, p2, _d, _ = _parse_weight_spec(w_ie, dist, sparsity)
-            self.W_ie["1"] = nn.Parameter(
-                _raw_clamped((n_i, n_e), p1, p2), requires_grad=False
-            )
-
-    def _hid_key(self, layer_idx=1):
-        return "hid"
-
-    def _inh_key(self, layer_idx=1):
-        return "inh"
-
-    def forward(self, input_spikes=None, **_ignored):
-        assert input_spikes is not None
-        if input_spikes.dim() == 2:
-            input_spikes = input_spikes.unsqueeze(1)
-        T, B, _ = input_spikes.shape
-        device = input_spikes.device
-        n_e = self.hidden_sizes[0]
-        n_i = n_e // 4
-
-        W_in = self.W_ff[0] if self.signed_weights else self.W_ff[0].clamp(min=0)
-        W_out = self.W_ff[1]
-        b_out = self.b_ff[0]
-
-        # dt-invariant discretisation: leak scales with dt, instant-synapse
-        # drive does not. For delta-function spikes the Euler update of
-        # τ·dV/dt = -V + R·I over [t, t+dt] integrates to
-        #     V += -(dt/τ)·V + (R/τ)·(spike count in this dt window).
-        # The drive term (R/τ)·(x@W) is independent of dt — each spike kick
-        # contributes the same V jump regardless of how finely we sample.
-        leak = float(dt) / self.tau_m_ms
-        drive = 1.0 / self.tau_m_ms
-        leak_out = float(dt) / self.tau_out_ms
-        drive_out = 1.0 / self.tau_out_ms
-
-        V_E = torch.zeros(B, n_e, device=device)
-        s_E_prev = torch.zeros(B, n_e, device=device)
-        V_out = torch.zeros(B, N_OUT, device=device)
-        mem_sum = torch.zeros(B, N_OUT, device=device)
-        e_count = torch.zeros(B, n_e, device=device)
-        e_spk_total = torch.zeros((), device=device)
-        i_spk_total = torch.zeros((), device=device)
-
-        has_inh = not self.no_inhibition
-        if has_inh:
-            W_ei = self.W_ei["1"]
-            W_ie = self.W_ie["1"]
-            V_I = torch.zeros(B, n_i, device=device)
-            s_I_prev = torch.zeros(B, n_i, device=device)
-
-        rec_buf = None
-        if self.recording:
-            rec_buf = {
-                "input": torch.zeros(T, B, input_spikes.shape[2], device=device),
-                "hid": torch.zeros(T, B, n_e, device=device),
-                "out": torch.zeros(T, B, N_OUT, device=device),
-                "v_e_1": torch.zeros(T, B, n_e, device=device),
-            }
-            if has_inh:
-                rec_buf["inh"] = torch.zeros(T, B, n_i, device=device)
-                rec_buf["v_i_1"] = torch.zeros(T, B, n_i, device=device)
-
-        for t in range(T):
-            if self.training and t > 0 and (t % self.tbptt_window == 0):
-                V_E = V_E.detach()
-                s_E_prev = s_E_prev.detach()
-                V_out = V_out.detach()
-                if has_inh:
-                    V_I = V_I.detach()
-                    s_I_prev = s_I_prev.detach()
-
-            x = input_spikes[t]
-            if has_inh:
-                I_I = s_E_prev @ W_ei
-                V_I = V_I + leak * (-(V_I - self.v_rest)) + drive * self.r_m * I_I
-                V_I = V_I.clamp(min=self.v_rest)
-                s_I = arctan_spike(V_I - self.v_th, SURROGATE_SLOPE)
-                # Hard reset to v_reset on spike — bounds V from above
-                # when the network is overdriven; soft subtract leaves V
-                # arbitrarily high if drive >> v_drop and is unstable at
-                # small dt where many spikes accumulate within one TBPTT
-                # window.
-                V_I = torch.where(
-                    s_I.detach().bool(),
-                    torch.full_like(V_I, self.v_reset),
-                    V_I,
-                )
-                i_spk_total = i_spk_total + s_I.detach().sum()
-                I_E = x @ W_in - s_I_prev @ W_ie
-                s_I_prev = s_I
-            else:
-                I_E = x @ W_in
-
-            V_E = V_E + leak * (-(V_E - self.v_rest)) + drive * self.r_m * I_E
-            V_E = V_E.clamp(min=self.v_rest)
-            s_E = arctan_spike(V_E - self.v_th, SURROGATE_SLOPE)
-            V_E = torch.where(
-                s_E.detach().bool(),
-                torch.full_like(V_E, self.v_reset),
-                V_E,
-            )
-            e_count = e_count + s_E
-            e_spk_total = e_spk_total + s_E.detach().sum()
-
-            V_out = V_out + leak_out * (-V_out) + drive_out * (s_E @ W_out)
-            mem_sum = mem_sum + V_out
-
-            s_E_prev = s_E
-
-            if rec_buf is not None:
-                rec_buf["input"][t] = x
-                rec_buf["hid"][t] = s_E
-                rec_buf["out"][t] = V_out
-                rec_buf["v_e_1"][t] = V_E
-                if has_inh:
-                    rec_buf["inh"][t] = s_I
-                    rec_buf["v_i_1"][t] = V_I
-
-        logits = mem_sum / float(T) + b_out
-
-        self.last_spike_counts = [e_count]
-        sizes = {"hid": n_e, "out": N_OUT}
-        n_spk = {"hid": float(e_spk_total.item()), "out": 0.0}
-        if has_inh:
-            sizes["inh"] = n_i
-            n_spk["inh"] = float(i_spk_total.item())
-        rec = None
-        if rec_buf is not None:
-            rec = {
-                k: (v.squeeze(1).cpu() if B == 1 else v.cpu())
-                for k, v in rec_buf.items()
-            }
-        self._set_meta(B, n_spk, rec, sizes)
-        return logits
-
-    def project_dales(self) -> None:
-        if self.signed_weights:
-            return
-        with torch.no_grad():
-            self.W_ff[0].data.clamp_(min=0)
