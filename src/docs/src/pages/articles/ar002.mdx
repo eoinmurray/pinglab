@@ -8,7 +8,7 @@ collection: documentation
 ---
 import Aside from "../../components/Aside.astro";
 
-[Article 1](/articles/ar001/) derived the continuous-time leaky integrate-and-fire (LIF) neuron from Maxwell's equations and the membrane circuit. This article picks up where that derivation leaves off and asks: how do you turn the continuous LIF into a discrete update rule that runs on a GPU? Two integrator choices (snnTorch-style and zero-order hold) give two rungs — *standard-snn* and *cuba* — both backed by a single Python class, **CUBANet**, in *src/pinglab/models.py*. Every empirical result in the [notebooks](/notebooks/) on the CUBA / standard-snn family traces back to the math here.
+The continuous-time leaky integrate-and-fire (LIF) neuron follows from Maxwell's equations and the membrane circuit. This article picks up from there and asks: how do you turn the continuous LIF into a discrete update rule that runs on a GPU? Two integrator choices (snnTorch-style and zero-order hold) give two rungs — *standard-snn* and *cuba* — both backed by a single Python class, **CUBANet**, in *src/pinglab/models.py*. Every empirical result in the [notebooks](/notebooks/) on the CUBA / standard-snn family traces back to the math here.
 
 The implementation lives in *src/pinglab/models.py*. This article keeps the derivations.
 
