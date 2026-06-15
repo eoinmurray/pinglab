@@ -222,18 +222,12 @@ def build_net(
 # Backward-compat aliases (read from cfg, mutated in-place by CLI / scan fns)
 # =============================================================================
 
-N_E = cfg.n_e
-N_I = cfg.n_i
-
-
-W_EI = cfg.w_ei
-W_IE = cfg.w_ie
-SPARSITY = cfg.sparsity
 
 
 
 
-BIAS = cfg.bias
+
+
 
 
 # =============================================================================
@@ -366,8 +360,8 @@ def run_sim(
     """
     if t_e_async is None:
         t_e_async = cfg.t_e_async
-    M.N_HID = N_E
-    M.N_INH = N_I
+    M.N_HID = cfg.n_e
+    M.N_INH = cfg.n_i
     patch_dt(dt)
     T_steps = M.T_steps
 
@@ -384,7 +378,7 @@ def run_sim(
         M.T_steps = min(M.T_steps, len(ext_g_tensor))
     else:
         ext_g_tensor, _ = make_step_drive(
-            N_E,
+            cfg.n_e,
             T_steps,
             dt,
             t_e_async,
@@ -425,8 +419,8 @@ def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100, model_name="
 
     Returns list of (rec, ext_g_raw) tuples, one per sim.
     """
-    M.N_HID = N_E
-    M.N_INH = N_I
+    M.N_HID = cfg.n_e
+    M.N_INH = cfg.n_i
     patch_dt(dt)
 
     results = []
@@ -506,13 +500,13 @@ def _run_sim_with_net(net, dt, t_e_ping, t_e_async, noise_seed=None):
 
     Returns (rec, ext_g_numpy, weights_dict).
     """
-    M.N_HID = N_E
-    M.N_INH = N_I
+    M.N_HID = cfg.n_e
+    M.N_INH = cfg.n_i
     patch_dt(dt)
     T_steps = M.T_steps
 
     ext_g_tensor, _ = make_step_drive(
-        N_E,
+        cfg.n_e,
         T_steps,
         dt,
         t_e_async,
@@ -621,25 +615,16 @@ def build_config(args):
 
 
 def _sync_globals_from_cfg(c):
-    """Mirror the in-place-mutated aliases from a Config.
+    """Install a Config as the module-wide source of truth.
 
-    Read-only aliases (FPS, SEED, DEVICE, STEP_*, …) resolve lazily via the
-    module __getattr__ below — one source of truth, no sync needed. Only the
-    globals mutated in place by CLI / scan fns are mirrored here.
+    Every alias (C.N_E, C.W_EI, C.STEP_ON_MS, …) resolves to this cfg via
+    the module __getattr__ below, so there is nothing else to mirror.
     """
-    global cfg, N_E, N_I, W_EI, W_IE, SPARSITY, BIAS
+    global cfg
     cfg = c
-    N_E = c.n_e
-    N_I = c.n_i
-    W_EI = c.w_ei
-    W_IE = c.w_ie
-    SPARSITY = c.sparsity
-    BIAS = c.bias
-
-
-# Read-only config aliases resolve to the live Config (one source of truth,
-# no sync step). The in-place-mutated ones above stay real module globals.
-_READONLY_ALIASES = {
+# Every config alias (C.N_E, C.W_EI, C.STEP_ON_MS, …) resolves to the live
+# Config — one source of truth, no mirror globals, no sync step.
+_CFG_ALIASES = {
     "BURN_IN_MS": "burn_in_ms",
     "DEVICE": "torch_device",
     "EI_RATIO": "ei_ratio",
@@ -655,11 +640,17 @@ _READONLY_ALIASES = {
     "T_E_ASYNC_DEFAULT": "t_e_async",
     "W_IN_SPARSITY": "w_in_sparsity",
     "W_IN_SPIKES": "w_in_spikes",
+    "N_E": "n_e",
+    "N_I": "n_i",
+    "W_EI": "w_ei",
+    "W_IE": "w_ie",
+    "SPARSITY": "sparsity",
+    "BIAS": "bias",
 }
 
 
 def __getattr__(name):
-    field = _READONLY_ALIASES.get(name)
+    field = _CFG_ALIASES.get(name)
     if field is not None:
         return getattr(cfg, field)
     if name == "ARTIFACT_ROOT":

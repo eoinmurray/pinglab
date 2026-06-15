@@ -115,8 +115,8 @@ def observe_epoch(
     digit_image=None,
 ):
     """Run reference input through network, render oscilloscope frame, grab."""
-    C.N_E = M.N_HID
-    C.N_I = M.N_INH
+    C.cfg.n_e = M.N_HID
+    C.cfg.n_i = M.N_INH
 
     net.recording = True
     with torch.no_grad():
@@ -405,8 +405,8 @@ def train(
 
     if snapshot_init:
 
-        C.N_E = M.N_HID
-        C.N_I = M.N_INH
+        C.cfg.n_e = M.N_HID
+        C.cfg.n_i = M.N_INH
         net.recording = True
         with torch.no_grad():
             net(input_spikes=ref_spikes)
@@ -829,8 +829,8 @@ def train(
     end_state = None
     if snapshot_end:
 
-        C.N_E = M.N_HID
-        C.N_I = M.N_INH
+        C.cfg.n_e = M.N_HID
+        C.cfg.n_i = M.N_INH
         net.recording = True
         with torch.no_grad():
             net(input_spikes=ref_spikes)

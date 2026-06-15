@@ -1033,15 +1033,12 @@ def _emit_image(args, C, log):
     # (which read C.cfg) see the requested W^EI / W^IE / W^II / sparsity.
     if args.w_ei is not None:
         C.cfg.w_ei = tuple(args.w_ei)
-        C.W_EI = tuple(args.w_ei)
     if args.w_ie is not None:
         C.cfg.w_ie = tuple(args.w_ie)
-        C.W_IE = tuple(args.w_ie)
     if args.w_ii is not None:
         C.cfg.w_ii = tuple(args.w_ii)
     if getattr(args, "ei_sparsity", 0.0) > 0:
         C.cfg.sparsity = float(args.ei_sparsity)
-        C.SPARSITY = float(args.ei_sparsity)
     if args.input == "dataset":
         generate_image_snapshot(
             digit_class=args.digit,
@@ -1178,8 +1175,8 @@ def _emit_infer(args, C, out_dir, log):
 
 def _render_infer_snapshot(args, C, out_dir, log, w_in, acc):
     """Render a single oscilloscope frame for a trained net at one dt (--observe)."""
-    C.N_E = M.N_HID
-    C.N_I = M.N_INH
+    C.cfg.n_e = M.N_HID
+    C.cfg.n_i = M.N_INH
     vis_net = build_net(
         args.model,
         w_in=w_in,
