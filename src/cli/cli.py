@@ -24,7 +24,6 @@ import models as M
 from config import (
     DEFAULT_ARTIFACT_ROOT,
     _MODEL_CLASSES,
-    _sync_globals_from_cfg,
     build_config,
     build_net,
 )
@@ -1259,10 +1258,9 @@ def main(argv=None):
         _dispatch_to_modal(args, argv)
         return 0
 
-    # Build and sync config for sim/image/video modes
+    # Build config for non-train modes (build_config syncs the module aliases).
     if mode != "train":
-        c = build_config(args)
-        _sync_globals_from_cfg(c)
+        build_config(args)
 
     import config as C
 

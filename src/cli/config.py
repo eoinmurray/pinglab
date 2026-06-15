@@ -228,7 +228,6 @@ FPS = cfg.fps
 SEED = cfg.seed
 SIM_MS = cfg.sim_ms
 BURN_IN_MS = cfg.burn_in_ms
-VISIBLE_MS = cfg.visible_ms
 
 T_E_ASYNC_DEFAULT = cfg.t_e_async
 SIGMA_E = cfg.sigma_e
@@ -641,12 +640,14 @@ def build_config(args):
         spike_rate = getattr(args, "spike_rate", M.max_rate_hz)
         M.max_rate_hz = spike_rate
         M.p_scale = M.max_rate_hz * M.dt / 1000.0
+    # Sync the module-level aliases here so callers can't forget to.
+    _sync_globals_from_cfg(c)
     return c
 
 
 def _sync_globals_from_cfg(c):
     """Update module-level backward-compat aliases from a Config object."""
-    global cfg, N_E, N_I, FPS, SEED, SIM_MS, BURN_IN_MS, VISIBLE_MS
+    global cfg, N_E, N_I, FPS, SEED, SIM_MS, BURN_IN_MS
     global T_E_ASYNC_DEFAULT, SIGMA_E, STEP_ON_MS, STEP_OFF_MS
     global W_EI, W_IE, SPARSITY, NOISE_SIGMA, NOISE_TAU
     global SPIKE_RATE_BASE, ARTIFACT_ROOT, DEVICE, EI_RATIO
@@ -658,7 +659,6 @@ def _sync_globals_from_cfg(c):
     SEED = c.seed
     SIM_MS = c.sim_ms
     BURN_IN_MS = c.burn_in_ms
-    VISIBLE_MS = c.visible_ms
     T_E_ASYNC_DEFAULT = c.t_e_async
     SIGMA_E = c.sigma_e
     STEP_ON_MS = c.step_on_ms
