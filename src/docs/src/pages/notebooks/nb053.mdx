@@ -19,7 +19,7 @@ export const fmtA = (v) => (typeof v === "number" ? v.toFixed(0) : "?");
 
 ## Abstract
 
-The [Training](/articles/ar006/) article proves that the gradient explosion in conductance-based spiking networks comes specifically from the recurrent E→I→E loop: the backpropagated voltage gradient compounds once per gamma cycle by a loop gain $\varrho \propto W_{ei}W_{ie}$, and the `--v-grad-dampen` flag exists to tame it. That predicts a clean falsifiable consequence — **if the loop is the cause, then a network with the loop disabled should not need the flag**. This entry tests it directly. A network run as COBA (ei-strength 0, loop off) and as PING (ei-strength 1, loop on), each trained with damping off ($\gamma = 1$) and on ($\gamma = 1000$), otherwise identical. The prediction holds: COBA trains to {fmtA(C["coba__damp_off"]?.best_acc)}% with damping completely off, while PING with damping off has *every* optimiser step's gradient go non-finite and freezes at chance.
+The [Gradient Stabilisation](/articles/ar015/) article proves that the gradient explosion in conductance-based spiking networks comes specifically from the recurrent E→I→E loop: the backpropagated voltage gradient compounds once per gamma cycle by a loop gain $\varrho \propto W_{ei}W_{ie}$, and the `--v-grad-dampen` flag exists to tame it. That predicts a clean falsifiable consequence — **if the loop is the cause, then a network with the loop disabled should not need the flag**. This entry tests it directly. A network run as COBA (ei-strength 0, loop off) and as PING (ei-strength 1, loop on), each trained with damping off ($\gamma = 1$) and on ($\gamma = 1000$), otherwise identical. The prediction holds: COBA trains to {fmtA(C["coba__damp_off"]?.best_acc)}% with damping completely off, while PING with damping off has *every* optimiser step's gradient go non-finite and freezes at chance.
 
 ## Methods
 
@@ -64,9 +64,9 @@ COBA trains to {fmtA(C["coba__damp_off"]?.best_acc)}% with no damping at all —
 
 ## Discussion
 
-The result confirms the [ar006](/articles/ar006/) mechanism by elimination. Damping is not a generic numerical safeguard for conductance-based networks — it is load-bearing exactly when a recurrent excitatory–inhibitory loop is present, and inert without one. COBA carries the same conductance dynamics, the same surrogate, the same membrane stiffness as PING; the only thing it lacks is the loop, and that single difference is the difference between needing the stabiliser and not. The loop gain $\varrho \propto W_{ei}W_{ie}$ vanishes when $W_{ei} = 0$, so there is nothing to compound, and the leftover feedforward gradient is bounded.
+The result confirms the [Gradient Stabilisation](/articles/ar015/) mechanism by elimination. Damping is not a generic numerical safeguard for conductance-based networks — it is load-bearing exactly when a recurrent excitatory–inhibitory loop is present, and inert without one. COBA carries the same conductance dynamics, the same surrogate, the same membrane stiffness as PING; the only thing it lacks is the loop, and that single difference is the difference between needing the stabiliser and not. The loop gain $\varrho \propto W_{ei}W_{ie}$ vanishes when $W_{ei} = 0$, so there is nothing to compound, and the leftover feedforward gradient is bounded.
 
-A practical corollary: the canonical recipes apply $\gamma = 1000$ uniformly to the whole conductance family, including COBA. For COBA that is conservative rather than necessary — harmless, but per the [ar006 corollary](/articles/ar006/) it does divide the feedforward learning signal by $\gamma$, which is why COBA-off here reaches essentially the same accuracy with a much larger, un-shrunk gradient.
+A practical corollary: the canonical recipes apply $\gamma = 1000$ uniformly to the whole conductance family, including COBA. For COBA that is conservative rather than necessary — harmless, but per the [Gradient Stabilisation corollary](/articles/ar015/) it does divide the feedforward learning signal by $\gamma$, which is why COBA-off here reaches essentially the same accuracy with a much larger, un-shrunk gradient.
 
 ## Success criteria
 
