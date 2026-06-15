@@ -291,7 +291,7 @@ def test_train_flag_propagates_to_config(tmp_path, flag, key, expected):
     assert _read_config(out)[key] == expected
 
 
-# --fr-reg-upper / --fr-reg-lower (behavior)
+# --fr-reg-upper (behavior)
 
 
 @pytest.mark.slow
@@ -458,7 +458,7 @@ def test_w_ii_propagates_to_train_config(tmp_path):
 
 
 def test_trainable_w_flags_make_recurrent_matrices_gradient_carrying():
-    """Each --trainable-w-{ei,ie,ii,ee} flag makes the corresponding
+    """Each --trainable-w-{ei,ie,ii} flag makes the corresponding
     recurrent matrix gradient-carrying. nb049's whole story depends on
     this — without it, Adam can't push W^EI entries below zero."""
     import sys
@@ -470,7 +470,6 @@ def test_trainable_w_flags_make_recurrent_matrices_gradient_carrying():
         ("trainable_w_ei", "W_ei"),
         ("trainable_w_ie", "W_ie"),
         ("trainable_w_ii", "W_ii"),
-        ("trainable_w_ee", "W_ee"),
     ]:
         torch.manual_seed(0)
         net_default = build_net(
