@@ -106,18 +106,13 @@ def _apply_scan_var(var_name, value):
         M.tau_ampa = value
         M.decay_ampa = np.exp(-M.dt / value)
     elif var_name == "w_ei_mean":
-        C.W_EI = (value, C.W_EI[1])
-        C.cfg.w_ei = C.W_EI
+        C.cfg.w_ei = (value, C.cfg.w_ei[1])
     elif var_name == "w_ie_mean":
-        C.W_IE = (value, C.W_IE[1])
-        C.cfg.w_ie = C.W_IE
+        C.cfg.w_ie = (value, C.cfg.w_ie[1])
     elif var_name == "ei_strength":
-        C.W_EI = (value, value * 0.1)
-        C.W_IE = (value * C.EI_RATIO, value * C.EI_RATIO * 0.1)
-        C.cfg.w_ei = C.W_EI
-        C.cfg.w_ie = C.W_IE
+        C.cfg.w_ei = (value, value * 0.1)
+        C.cfg.w_ie = (value * C.EI_RATIO, value * C.EI_RATIO * 0.1)
     elif var_name == "bias":
-        C.BIAS = value
         C.cfg.bias = value
 
 
