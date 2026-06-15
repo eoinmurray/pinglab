@@ -224,31 +224,16 @@ def build_net(
 
 N_E = cfg.n_e
 N_I = cfg.n_i
-FPS = cfg.fps
-SEED = cfg.seed
-SIM_MS = cfg.sim_ms
-BURN_IN_MS = cfg.burn_in_ms
 
-T_E_ASYNC_DEFAULT = cfg.t_e_async
-SIGMA_E = cfg.sigma_e
-STEP_ON_MS = cfg.step_on_ms
-STEP_OFF_MS = cfg.step_off_ms
 
 W_EI = cfg.w_ei
 W_IE = cfg.w_ie
 SPARSITY = cfg.sparsity
 
-NOISE_SIGMA = cfg.noise_sigma
-NOISE_TAU = cfg.noise_tau
 
-SPIKE_RATE_BASE = cfg.spike_rate_base
 
-ARTIFACT_ROOT = Path(cfg.artifact_root)
 
-W_IN_SPIKES = cfg.w_in_spikes
-W_IN_SPARSITY = cfg.w_in_sparsity
 BIAS = cfg.bias
-EI_RATIO = cfg.ei_ratio
 
 
 # =============================================================================
@@ -256,16 +241,6 @@ EI_RATIO = cfg.ei_ratio
 # =============================================================================
 
 
-def _get_device():
-    """Pick the best available device.
-
-    Defaults to CPU -- MPS/CUDA add overhead for the sequential timestep loop
-    with per-step recording. Use --device mps/cuda to override.
-    """
-    return torch.device("cpu")
-
-
-DEVICE = _get_device()
 
 
 # =============================================================================
@@ -390,7 +365,7 @@ def run_sim(
     Returns (rec, ext_g_or_spikes_numpy, weights).
     """
     if t_e_async is None:
-        t_e_async = T_E_ASYNC_DEFAULT
+        t_e_async = cfg.t_e_async
     M.N_HID = N_E
     M.N_INH = N_I
     patch_dt(dt)
@@ -398,14 +373,14 @@ def run_sim(
 
     if input_spikes is not None:
         ext_g_tensor = None
-        input_spikes = input_spikes.to(DEVICE)
+        input_spikes = input_spikes.to(cfg.torch_device)
         M.T_steps = min(M.T_steps, len(input_spikes))
     elif ext_g_override is not None:
         ext_g_tensor = (
             ext_g_override.clone().detach()
             if isinstance(ext_g_override, torch.Tensor)
             else torch.tensor(ext_g_override, dtype=torch.float32)
-        ).to(DEVICE)
+        ).to(cfg.torch_device)
         M.T_steps = min(M.T_steps, len(ext_g_tensor))
     else:
         ext_g_tensor, _ = make_step_drive(
@@ -414,18 +389,18 @@ def run_sim(
             dt,
             t_e_async,
             t_e_ping,
-            STEP_ON_MS,
-            STEP_OFF_MS,
-            SIGMA_E,
-            NOISE_SIGMA,
-            NOISE_TAU,
-            SEED,
+            cfg.step_on_ms,
+            cfg.step_off_ms,
+            cfg.sigma_e,
+            cfg.noise_sigma,
+            cfg.noise_tau,
+            cfg.seed,
         )
-        ext_g_tensor = ext_g_tensor.to(DEVICE)
+        ext_g_tensor = ext_g_tensor.to(cfg.torch_device)
 
-    torch.manual_seed(SEED)
+    torch.manual_seed(cfg.seed)
     net = _build_sim_net(model_name, hidden_sizes=[M.N_HID])
-    net.to(DEVICE)
+    net.to(cfg.torch_device)
     net.recording = True
 
     with torch.no_grad():
@@ -461,13 +436,13 @@ def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100, model_name="
         T = len(chunk[0])
 
         ext_g_batch = torch.tensor(np.stack(chunk, axis=1), dtype=torch.float32).to(
-            DEVICE
+            cfg.torch_device
         )
         M.T_steps = min(M.T_steps, T)
 
-        torch.manual_seed(SEED)
+        torch.manual_seed(cfg.seed)
         net = _build_sim_net(model_name, hidden_sizes=[M.N_HID])
-        net.to(DEVICE)
+        net.to(cfg.torch_device)
         net.recording = True
 
         with torch.no_grad():
@@ -501,16 +476,16 @@ def run_sim_image(dt, image, model_name="ping", load_weights=None):
     w_in = (*cfg.w_in_spikes, "normal", cfg.w_in_sparsity)
     net = make_net(cfg, w_in=w_in, model_name=model_name)
     if load_weights is not None:
-        state = torch.load(load_weights, map_location=DEVICE)
+        state = torch.load(load_weights, map_location=cfg.torch_device)
         net.load_state_dict(state, strict=False)
         net.eval()
 
     # Pre-encode image as Poisson spikes — same canonical path as train/infer
-    img_tensor = torch.tensor(image, dtype=torch.float32).unsqueeze(0).to(DEVICE)
+    img_tensor = torch.tensor(image, dtype=torch.float32).unsqueeze(0).to(cfg.torch_device)
     pixels = img_tensor.clamp(0, 1)
     p = M.max_rate_hz * dt / 1000.0
     input_spikes = (
-        (torch.rand(M.T_steps, 1, M.N_IN, device=DEVICE) < pixels.unsqueeze(0) * p)
+        (torch.rand(M.T_steps, 1, M.N_IN, device=cfg.torch_device) < pixels.unsqueeze(0) * p)
         .float()
         .squeeze(1)
     )
@@ -542,15 +517,15 @@ def _run_sim_with_net(net, dt, t_e_ping, t_e_async, noise_seed=None):
         dt,
         t_e_async,
         t_e_ping,
-        STEP_ON_MS,
-        STEP_OFF_MS,
-        SIGMA_E,
-        NOISE_SIGMA,
-        NOISE_TAU,
-        SEED,
+        cfg.step_on_ms,
+        cfg.step_off_ms,
+        cfg.sigma_e,
+        cfg.noise_sigma,
+        cfg.noise_tau,
+        cfg.seed,
         noise_seed=noise_seed,
     )
-    ext_g_tensor = ext_g_tensor.to(DEVICE)
+    ext_g_tensor = ext_g_tensor.to(cfg.torch_device)
 
     net.recording = True
     for attr in ["rec_hid", "rec_inh", "rec_out", "rec_in"]:
@@ -646,32 +621,47 @@ def build_config(args):
 
 
 def _sync_globals_from_cfg(c):
-    """Update module-level backward-compat aliases from a Config object."""
-    global cfg, N_E, N_I, FPS, SEED, SIM_MS, BURN_IN_MS
-    global T_E_ASYNC_DEFAULT, SIGMA_E, STEP_ON_MS, STEP_OFF_MS
-    global W_EI, W_IE, SPARSITY, NOISE_SIGMA, NOISE_TAU
-    global SPIKE_RATE_BASE, ARTIFACT_ROOT, DEVICE, EI_RATIO
-    global W_IN_SPIKES, W_IN_SPARSITY, BIAS
+    """Mirror the in-place-mutated aliases from a Config.
+
+    Read-only aliases (FPS, SEED, DEVICE, STEP_*, …) resolve lazily via the
+    module __getattr__ below — one source of truth, no sync needed. Only the
+    globals mutated in place by CLI / scan fns are mirrored here.
+    """
+    global cfg, N_E, N_I, W_EI, W_IE, SPARSITY, BIAS
     cfg = c
     N_E = c.n_e
     N_I = c.n_i
-    FPS = c.fps
-    SEED = c.seed
-    SIM_MS = c.sim_ms
-    BURN_IN_MS = c.burn_in_ms
-    T_E_ASYNC_DEFAULT = c.t_e_async
-    SIGMA_E = c.sigma_e
-    STEP_ON_MS = c.step_on_ms
-    STEP_OFF_MS = c.step_off_ms
     W_EI = c.w_ei
     W_IE = c.w_ie
     SPARSITY = c.sparsity
-    NOISE_SIGMA = c.noise_sigma
-    NOISE_TAU = c.noise_tau
-    SPIKE_RATE_BASE = c.spike_rate_base
-    ARTIFACT_ROOT = Path(c.artifact_root)
-    DEVICE = c.torch_device
-    W_IN_SPIKES = c.w_in_spikes
-    W_IN_SPARSITY = c.w_in_sparsity
     BIAS = c.bias
-    EI_RATIO = c.ei_ratio
+
+
+# Read-only config aliases resolve to the live Config (one source of truth,
+# no sync step). The in-place-mutated ones above stay real module globals.
+_READONLY_ALIASES = {
+    "BURN_IN_MS": "burn_in_ms",
+    "DEVICE": "torch_device",
+    "EI_RATIO": "ei_ratio",
+    "FPS": "fps",
+    "NOISE_SIGMA": "noise_sigma",
+    "NOISE_TAU": "noise_tau",
+    "SEED": "seed",
+    "SIGMA_E": "sigma_e",
+    "SIM_MS": "sim_ms",
+    "SPIKE_RATE_BASE": "spike_rate_base",
+    "STEP_OFF_MS": "step_off_ms",
+    "STEP_ON_MS": "step_on_ms",
+    "T_E_ASYNC_DEFAULT": "t_e_async",
+    "W_IN_SPARSITY": "w_in_sparsity",
+    "W_IN_SPIKES": "w_in_spikes",
+}
+
+
+def __getattr__(name):
+    field = _READONLY_ALIASES.get(name)
+    if field is not None:
+        return getattr(cfg, field)
+    if name == "ARTIFACT_ROOT":
+        return Path(cfg.artifact_root)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
