@@ -25,7 +25,7 @@ Companion to [nb003](/notebooks/nb003/). Where nb003 holds the input rate fixed 
 
 ## Methods
 
-A scan over the [oscilloscope *video*](/docs/the-oscilloscope/#subcommand-video) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}, with the Poisson input rate set per frame from the scan and held flat across the whole run (overdrive=1, no stim elevation). The sweep walks the rate from {scan.min} Hz → {scan.max} Hz over {scan.frames} frames. All knobs are hardcoded literals in *src/pinglab/notebooks/nb004.py* per the [runner contract](/docs/the-notebooks/#runner-contract).
+A scan over the [oscilloscope *video*](/articles/ar011/) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}, with the Poisson input rate set per frame from the scan and held flat across the whole run (overdrive=1, no stim elevation). The sweep walks the rate from {scan.min} Hz → {scan.max} Hz over {scan.frames} frames. All knobs are hardcoded literals in *src/notebooks/nb004.py* per the runner contract.
 
 <RunParameters numbers={numbers} groups={[
   {
@@ -86,5 +86,5 @@ Cross-reference the input-rate threshold against nb003's overdrive threshold —
 ### Reproduction
 
 ```
-uv run src/pinglab/notebooks/nb004.py
+uv run src/notebooks/nb004.py
 ```
