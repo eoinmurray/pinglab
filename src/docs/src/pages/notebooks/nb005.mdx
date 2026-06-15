@@ -25,7 +25,7 @@ export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
 ## Abstract
 
-Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb003](/notebooks/nb003/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb003](/notebooks/nb003/) (drive) and [nb006](/notebooks/nb006/) (E→I coupling); companion *dt*-stability training experiment is [nb013](/notebooks/nb013/). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
+Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb003](/notebooks/nb003/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb003](/notebooks/nb003/) (drive) and [nb006](/notebooks/nb006/) (E→I coupling). See [The Notebooks](/docs/the-notebooks/) for how this entry's runner/artifact/figure triple is wired up.
 
 ## Methods
 
@@ -81,7 +81,7 @@ TODO: discussion paragraph — write what the results above mean for the project
 
 ## Next steps
 
-The breakdown around *dt* ≈ 1.65 ms sets a hard ceiling on the timestep any downstream training entry can use without losing the rhythm. [nb013](/notebooks/nb013/) tests whether this same ceiling holds end-to-end through training — i.e. whether a model trained at *dt* near the limit still produces PING at inference. The breakdown mode here (saturation, not collapse) suggests the failure is integrator instability rather than loss of the rhythm itself; a side-by-side with explicit-Euler vs the current scheme would isolate that.
+The breakdown around *dt* ≈ 1.65 ms sets a hard ceiling on the timestep any downstream training entry can use without losing the rhythm. Whether this same ceiling holds end-to-end through training — whether a model trained at *dt* near the limit still produces PING at inference — is a separate, open question. The breakdown mode here (saturation, not collapse) suggests the failure is integrator instability rather than loss of the rhythm itself; a side-by-side with explicit-Euler vs the current scheme would isolate that.
 
 ## Appendix
 
