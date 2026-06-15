@@ -11,7 +11,7 @@ This page is the reference for every number and every panel the scope shows. It 
 
 ## model
 
-*What it is:* The model variant driving the run. These sit on a ladder from simplest (snnTorch, a standard feedforward LIF network) to most biophysical (PING, with excitatory and inhibitory populations coupled into a gamma-producing loop). See [Models](/articles/ar002/) for the full ladder.
+*What it is:* The model variant driving the run. These sit on a ladder from simplest (snnTorch, a standard feedforward LIF network) to most biophysical (PING, with excitatory and inhibitory populations coupled into a gamma-producing loop). See [COBANet](/articles/ar003/) for the conductance-based model.
 
 *How it's calculated:* Read from the *--model* CLI flag. A spinner character prefixes the name on live runs so the eye can tell a frozen frame from one that's still updating.
 
@@ -163,7 +163,7 @@ $$
 \hat y_t = \Bigl(\sum_{s \leq t} s^{\text{hid}}_s\Bigr) W_{\text{out}} + b_{\text{out}}
 $$
 
-The argmax at the final step is the model's prediction. See [Models § Linear readout](/articles/ar002/#linear-readout).
+The argmax at the final step is the model's prediction. See [Training § Readout](/articles/ar006/#readout).
 
 *How to read it:* For MNIST there are ten traces; if the network has learned, one trace pulls away from the pack as the trial progresses. If all traces stay flat, or one dominates from t=0, the run is pathological.
 
