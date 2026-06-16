@@ -1,32 +1,19 @@
-"""Notebook runner for entry 054 — A PING rhythmicity metric (calibration).
+"""Notebook runner for entry 054 — A PING rhythmicity metric.
 
-Step 1 of the proposal: implement the spike-time-autocorrelation rhythmicity
-primitives (metrics.iei_histogram / spike_autocorrelogram / rhythmicity_metrics)
-and calibrate the candidate scalars on synthetic non-homogeneous Poisson
-references — the ground truth — before any application to trained networks.
+The lobe–trough contrast of the spike-time autocorrelation, applied to untrained
+PING networks across the recurrent-weight plane. Each network is driven by a
+constant homogeneous Poisson spike input through W_in (sparse weights, so the
+COBA baseline fires irregularly), simulated at init (no training), and scored on
+its E population spike train:
 
-The references span a continuous spectrum rather than three samples. Each is a
-single non-homogeneous Poisson SPIKE TRAIN with rate λ(t) = λ0·(1 + m·sin φ(t))
-— the autocorrelogram is computed from those Poisson-encoded spike events, not
-from the analytic rate (a Poisson process is memoryless, so the correlogram's
-expectation equals the rate autocorrelation, but a single train carries real
-finite-count shot noise — the genuine spike-level object). The modulation depth
-m is swept from 0 (flat, asynchronous) to 1 (a deep rhythm), in two flavours:
-  - stationary — fixed frequency f (a pure rhythm), and
-  - drifting   — f swept as a chirp (a non-stationary rhythm).
-m = 0 is the flat baseline shared by both; the two m = 1 endpoints are the
-"stationary" and "drifting" cases.
+    A(ℓ) = (1/⟨r⟩²)(1/(n−ℓ)) Σ_t r(t) r(t+ℓ)          (chance = 1)
+    contrast = (lobe − trough)/(lobe + trough) ∈ [0, 1)
 
-Two figures:
-  - references.png  — rate, IEI histogram and autocorrelogram (the Mexican hat)
-    at the spectrum endpoints (flat, stationary, drifting).
-  - calibration.png — the scalars across the whole m-sweep: the autocorrelation
-    lobe-to-trough rises from the baseline 1 and tracks together for the
-    stationary and drifting series (stationarity-robust), while the PSD peak
-    rockets for the stationary case and stays pinned for the drifting one it
-    cannot tell from a weak rhythm.
+W_EI (E recruits I) and W_IE (I inhibits E) are swept independently: the two zero
+edges are the COBA control (no inhibitory loop), the interior is the PING regime.
+Outputs the contrast heatmap, the E/I firing-rate maps, and the E/I rasters.
 
-Synthetic + measurement only: no training, no network inference, local CPU.
+Measurement only: no training, local CPU, no GPU.
 
 Notebook entry: src/docs/src/pages/notebooks/nb054.mdx
 """
@@ -46,219 +33,342 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
 from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
+import torch  # noqa: E402
 from cli import theme  # noqa: E402
+from cli import config as C  # noqa: E402
+from cli.config import make_net, patch_dt, _extract_records  # noqa: E402
+from cli.scan import primary_hid_key, primary_inh_key  # noqa: E402
+
+# The networks read globals (N_IN, T_steps, dt…) from the `models` module that
+# `config` imports — reach it via C.M so we mutate the same object build_net does
+# (a second `from cli import models` would be a *different* module under the dual
+# src / src/cli path).
+M = C.M
 from cli.metrics import (  # noqa: E402
-    population_rate_nondiff,
-    rhythmicity_metrics,
+    iei_histogram,
+    population_event_times,
     rhythmicity_scalars,
+    spike_autocorrelogram,
 )
 
 SLUG = "nb054"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 # ─── recipe (hardcoded literals; the notebook IS the recipe) ────────────
 DT_MS = 0.25
-LAMBDA0_HZ = 20.0          # per-cell baseline rate
-F_STATIONARY_HZ = 40.0     # fixed gamma frequency (stationary case)
-F_DRIFT_HZ = (30.0, 55.0)  # chirp endpoints (drifting case)
-M_MAX = 1.0                # modulation depth swept over [0, M_MAX]
 MAX_LAG_MS = 100.0
 BIN_MS = 1.0
-PSD_BAND_HZ = (20.0, 80.0)
-SCALARS = ("lobe_to_trough", "iei_anchored", "psd_snr")
 
-CONDITIONS = ("stationary", "drifting")
-COND_STYLE = {
-    "stationary": dict(color=theme.INK_BLACK, ls="-"),
-    "drifting": dict(color=theme.DEEP_RED, ls="--"),
-}
+# Untrained PING networks driven by a CONSTANT homogeneous Poisson spike input
+# through W_in (sparse weights keep the COBA baseline irregular ⇒ contrast ≈ 0).
+NET_N_E = 256
+NET_N_IN = 200           # input channels
+NET_INPUT_RATE = 100.0   # Hz, constant per channel
+NET_W_IN = 0.2           # input weight mean (sparse, see NET_W_IN_SP)
+NET_W_IN_SP = 0.95
+NET_BURN_MS = 100.0
 
-# Single Poisson spike train per reference; long traces give the correlogram
-# enough spike pairs, n_seeds averages out shot noise, n_m sets sweep density.
+# Independent 2-D sweep of the recurrent weight means (W_EI vs W_IE).
+WEI_MEAN_GRID = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
+WIE_MEAN_GRID = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+GRID_WIN_MS = 600.0      # raster display window
+GRID_E_SHOW = 160        # E cells drawn per raster panel
+GRID_I_SHOW = 48         # I cells drawn per raster panel
+
+# Rate-invariance check: a non-rhythmic NULL network (no inhibitory loop, so no
+# rhythm at any drive) scanned over input rate. A rate-invariant metric should
+# read ≈0 at every E firing rate; any rise is a finite-sample artifact.
+NULL_SCAN_INPUT_HZ = [8.0, 12.0, 16.0, 20.0, 28.0, 40.0, 60.0, 100.0]
+NULL_FLOOR_HZ = 5.0      # below this E rate the null contrast exceeds ≈0.1 (unreliable)
+
+# The size tier scales only the simulation length (more spikes ⇒ cleaner
+# autocorrelogram); the default (medium = 1000 ms) is what the frozen figures use.
 TIER_CONFIG = {
-    "extra small": dict(t_ms=20000.0, n_seeds=2, n_m=5),
-    "small": dict(t_ms=60000.0, n_seeds=3, n_m=7),
-    "medium": dict(t_ms=120000.0, n_seeds=4, n_m=11),
-    "large": dict(t_ms=300000.0, n_seeds=6, n_m=15),
-    "extra large": dict(t_ms=600000.0, n_seeds=8, n_m=21),
+    "extra small": dict(sim_ms=500.0),
+    "small": dict(sim_ms=750.0),
+    "medium": dict(sim_ms=1000.0),
+    "large": dict(sim_ms=2000.0),
+    "extra large": dict(sim_ms=4000.0),
 }
 DEFAULT_TIER = "medium"
 
 
-def rate_trace(kind, m, t_ms, dt):
-    """Per-cell instantaneous rate λ(t) in Hz at modulation depth m."""
-    t = np.arange(int(t_ms / dt)) * dt / 1000.0  # seconds
-    if kind == "stationary":
-        phase = 2 * np.pi * F_STATIONARY_HZ * t
-    elif kind == "drifting":
-        f0, f1 = F_DRIFT_HZ
-        f_t = f0 + (f1 - f0) * (t / t[-1])
-        phase = 2 * np.pi * np.cumsum(f_t) * (dt / 1000.0)
-    else:
-        raise ValueError(kind)
-    return LAMBDA0_HZ * (1.0 + m * np.sin(phase))
+def constant_poisson_input(dt, sim_ms, rate_hz=NET_INPUT_RATE):
+    """[T, N_IN] tensor: constant homogeneous Poisson input, every channel firing
+    at rate_hz for the whole trial (same realisation for every net). T_steps is set
+    from sim_ms via M.T_ms (what patch_dt reads), so the sim length really changes."""
+    M.N_IN = NET_N_IN
+    M.T_ms = sim_ms
+    C.cfg.sim_ms = sim_ms
+    patch_dt(dt)
+    rng = np.random.default_rng(0)
+    inp = (rng.random((M.T_steps, NET_N_IN)) < rate_hz * dt / 1000.0).astype(np.float32)
+    return torch.tensor(inp, device=C.cfg.torch_device)
 
 
-def poisson_spike_train(rate_hz, dt, rng):
-    """[T, 1] raster: one non-homogeneous Poisson spike train at rate λ(t)."""
-    p = np.clip(rate_hz[:, None] * dt / 1000.0, 0.0, 1.0)
-    return (rng.random((rate_hz.size, 1)) < p).astype(np.int8)
+def ping_spikes(input_spikes, wei, wie, dt):
+    """Build a PING net (W_EI mean wei, W_IE mean wie), drive it with the constant
+    Poisson input, and return (E raster, I raster) past the burn-in."""
+    C.cfg.n_e = NET_N_E
+    C.cfg.w_ei = (wei, wei * 0.1)
+    C.cfg.w_ie = (wie, wie * 0.1)
+    net = make_net(C.cfg, w_in=(NET_W_IN, NET_W_IN * 0.2, "normal", NET_W_IN_SP))
+    net.recording = True
+    with torch.no_grad():
+        net.forward(input_spikes=input_spikes)
+    rec = _extract_records(net)
+    b = int(NET_BURN_MS / dt)
+    spk = np.asarray(rec[primary_hid_key(rec)]).squeeze()[b:]
+    ik = primary_inh_key(rec)
+    spk_i = np.asarray(rec[ik]).squeeze()[b:] if ik else None
+    return spk, spk_i
 
 
-def psd_peak_snr(raster, n_neurons, dt, bin_ms=BIN_MS):
-    """Rate PSD peak-to-median ratio in the gamma band."""
-    _, rate = population_rate_nondiff(raster, n_neurons, bin_ms=bin_ms, dt_ms=dt)
-    rate = rate - rate.mean()
-    freqs = np.fft.rfftfreq(rate.size, d=bin_ms / 1000.0)
-    psd = np.abs(np.fft.rfft(rate)) ** 2
-    band = (freqs >= PSD_BAND_HZ[0]) & (freqs <= PSD_BAND_HZ[1])
-    med = np.median(psd[band])
-    if not band.any() or med <= 0:
-        return 0.0
-    return float(psd[band].max() / med)
-
-
-def metrics_for(kind, m, cfg, seed):
-    """All scalars (+ curves) for one (kind, m, seed) — single Poisson train."""
-    rate = rate_trace(kind, m, cfg["t_ms"], DT_MS)
-    rng = np.random.default_rng(1000 + seed)
-    raster = poisson_spike_train(rate, DT_MS, rng)
-    md = rhythmicity_metrics(raster, DT_MS, max_lag_ms=MAX_LAG_MS, bin_ms=BIN_MS)
-    md["psd_snr"] = psd_peak_snr(raster, 1, DT_MS)
-    return md
-
-
-def run_point(kind, m, cfg, seeds):
-    """One spectrum point: trial-average the correlograms across seeds, extract
-    scalars from the average (unbiased on noisy single-train data), and keep the
-    per-seed scalars for the error band."""
-    mds = [metrics_for(kind, m, cfg, s) for s in seeds]
-    ac_lags, iei_lags = mds[0]["ac_lags"], mds[0]["iei_lags"]
-    avg_ac = np.nanmean(np.array([md["ac"] for md in mds]), axis=0)
-    avg_iei = np.mean(np.array([md["iei_counts"] for md in mds]), axis=0)
-    avg = rhythmicity_scalars(ac_lags, avg_ac, iei_lags, avg_iei, BIN_MS)
-    avg.update(ac_lags=ac_lags, ac=avg_ac, iei_lags=iei_lags, iei_counts=avg_iei)
-    avg["psd_snr"] = float(np.mean([md["psd_snr"] for md in mds]))
-    seed = {
-        met: [md[met] for md in mds] for met in ("lobe_to_trough", "iei_anchored")
-    }
-    seed["psd_snr"] = [md["psd_snr"] for md in mds]
-    return {"avg": avg, "seed": seed}
-
-
-def run_sweep(cfg, m_values, seeds):
-    """data[kind][i] = {avg, seed} for m_values[i]."""
-    return {
-        kind: [run_point(kind, m, cfg, seeds) for m in m_values]
-        for kind in CONDITIONS
-    }
-
-
-def curve(data, kind, metric):
-    """(mean, std) along the m-sweep: mean from the trial-averaged correlogram,
-    SD from the per-seed scalars (the single-train shot-noise spread)."""
-    pts = data[kind]
-    mean = np.array(
-        [(p["avg"][metric] if p["avg"][metric] is not None else np.nan) for p in pts]
+def run_grid_point(wei, wie, input_spikes, dt=DT_MS):
+    """One (W_EI mean, W_IE mean) cell: drive with constant Poisson input, compute
+    the contrast + E/I rates, and keep a small raster for display."""
+    spk, spk_i = ping_spikes(input_spikes, wei, wie, dt)
+    ac_lags, ac = spike_autocorrelogram(spk, dt, MAX_LAG_MS, BIN_MS)
+    iei_lags, iei = iei_histogram(population_event_times(spk, dt), MAX_LAG_MS, BIN_MS)
+    sc = rhythmicity_scalars(ac_lags, ac, iei_lags, iei, BIN_MS)
+    ct = sc["contrast"]
+    rate = float(spk.sum() / (spk.shape[1] * spk.shape[0] * dt / 1000.0))
+    rate_i = (float(spk_i.sum() / (spk_i.shape[1] * spk_i.shape[0] * dt / 1000.0))
+              if spk_i is not None else np.nan)
+    win = int(GRID_WIN_MS / dt)
+    return dict(
+        contrast=ct if ct is not None else np.nan,
+        rate_hz=rate,
+        rate_i_hz=rate_i,
+        ac_lags=ac_lags,
+        ac=ac,
+        lobe_lag=sc["lobe_lag"],
+        trough_lag=sc["trough_lag"],
+        e=spk[:win, :GRID_E_SHOW],
+        i=spk_i[:win, :GRID_I_SHOW] if spk_i is not None else None,
     )
-    std = np.array(
-        [np.nanstd([v for v in p["seed"][metric] if v is not None]) for p in pts]
-    )
-    return mean, std
 
 
-def fig_references(shapes, out_path):
-    """3×3 grid: rate / IEI / autocorrelation at the spectrum endpoints."""
-    fig, axes = plt.subplots(3, 3, figsize=(11, 7.5), dpi=150)
-    win_ms = 250.0
-    ac_all = np.concatenate([s["curves"]["ac"][1:] for s in shapes])
-    ac_lo, ac_hi = np.nanmin(ac_all), np.nanmax(ac_all)
-    ac_pad = 0.08 * (ac_hi - ac_lo)
-    for col, s in enumerate(shapes):
-        c, cur = s["color"], s["curves"]
+def run_grid(input_spikes):
+    """grid[wie_idx][wei_idx] over WIE_MEAN_GRID × WEI_MEAN_GRID (wie_idx 0 = lowest)."""
+    return [[run_grid_point(wei, wie, input_spikes) for wei in WEI_MEAN_GRID]
+            for wie in WIE_MEAN_GRID]
 
-        ax = axes[0, col]
-        n = int(win_ms / DT_MS)
-        ax.plot(np.arange(n) * DT_MS, s["rate"][:n], color=c, lw=1.0)
-        ax.set_title(s["label"], fontsize=theme.SIZE_TITLE, color=theme.INK)
-        ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
-        if col == 0:
-            ax.set_ylabel("rate λ(t) (Hz)", fontsize=theme.SIZE_LABEL)
 
-        ax = axes[1, col]
-        counts = cur["iei_counts"]
-        ax.bar(cur["iei_lags"], counts, width=BIN_MS, color=c, alpha=0.85)
-        if counts.size > 4 and counts[3:].max() > 0:
-            ax.set_ylim(0, 1.25 * counts[3:].max())
-        ax.set_xlabel("inter-event interval (ms)", fontsize=theme.SIZE_LABEL)
-        if col == 0:
-            ax.set_ylabel("count (zoomed)", fontsize=theme.SIZE_LABEL)
-
-        ax = axes[2, col]
-        ax.axhline(1.0, color=theme.FAINT, lw=0.8, ls=":")
-        ax.plot(cur["ac_lags"], cur["ac"], color=c, lw=1.2)
-        if cur["lobe_lag"]:
-            ax.plot(cur["lobe_lag"], cur["ac"][int(round(cur["lobe_lag"] / BIN_MS))],
-                    "^", color=theme.INK, ms=6)
-        if cur["trough_lag"]:
-            ax.plot(cur["trough_lag"], cur["ac"][int(round(cur["trough_lag"] / BIN_MS))],
-                    "v", color=theme.DEEP_RED, ms=6)
-        ax.set_ylim(ac_lo - ac_pad, ac_hi + ac_pad)
-        ax.set_xlabel("lag (ms)", fontsize=theme.SIZE_LABEL)
-        if col == 0:
-            ax.set_ylabel("autocorrelation", fontsize=theme.SIZE_LABEL)
-        lt = cur["lobe_to_trough"]
-        ax.text(0.97, 0.92, f"lobe/trough = {lt:.1f}" if lt else "lobe/trough = —",
-                transform=ax.transAxes, ha="right", va="top",
-                fontsize=theme.SIZE_ANNOTATION, color=theme.INK)
-
-    fig.suptitle(
-        "Rhythmicity references (spectrum endpoints): rate, IEI, autocorrelation",
-        fontsize=theme.SIZE_TITLE, color=theme.INK,
-    )
-    fig.tight_layout(rect=(0, 0, 1, 0.97))
+def _contrast_heatmap(vals, title, cbar_label, out_path):
+    """A contrast-valued heatmap over the W_EI × W_IE plane (magma, 0→1)."""
+    fig, ax = plt.subplots(figsize=(6.5, 5.5), dpi=150)
+    im = ax.imshow(vals, origin="lower", aspect="auto", cmap="magma", vmin=0.0, vmax=1.0)
+    ax.set_xticks(range(len(WEI_MEAN_GRID)))
+    ax.set_xticklabels([f"{v:g}" for v in WEI_MEAN_GRID])
+    ax.set_yticks(range(len(WIE_MEAN_GRID)))
+    ax.set_yticklabels([f"{v:g}" for v in WIE_MEAN_GRID])
+    ax.set_xlabel("W_EI mean (μS)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("W_IE mean (μS)", fontsize=theme.SIZE_LABEL)
+    for iy in range(vals.shape[0]):
+        for ix in range(vals.shape[1]):
+            v = vals[iy, ix]
+            if np.isfinite(v):
+                ax.text(ix, iy, f"{v:.2f}", ha="center", va="center",
+                        fontsize=theme.SIZE_ANNOTATION,
+                        color="white" if v < 0.5 else "black")
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label(cbar_label, fontsize=theme.SIZE_LABEL)
+    ax.set_title(title, fontsize=theme.SIZE_TITLE, color=theme.INK)
+    fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
-def fig_spectrum(m_values, sweep, out_path):
-    """The scalars across the modulation-depth sweep, both conditions."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5), dpi=150)
+def fig_grid_heatmap(grid, out_path):
+    """lobe–trough contrast over the W_EI × W_IE plane."""
+    ct = np.array([[c["contrast"] for c in row] for row in grid])  # [wie, wei]
+    _contrast_heatmap(ct, "Contrast over W_EI × W_IE", "lobe–trough contrast", out_path)
 
-    for kind in CONDITIONS:
-        st = COND_STYLE[kind]
-        lt_m, lt_s = sweep[kind]["lobe_to_trough"]
-        ax1.fill_between(m_values, lt_m - lt_s, lt_m + lt_s, color=st["color"], alpha=0.15)
-        ax1.plot(m_values, lt_m, color=st["color"], ls=st["ls"], lw=1.8,
-                 label=f"{kind} · lobe/trough")
-        ia_m, _ = sweep[kind]["iei_anchored"]
-        ax1.plot(m_values, ia_m, color=st["color"], ls=st["ls"], lw=1.0, alpha=0.5,
-                 label=f"{kind} · IEI-anchored")
-    ax1.axhline(1.0, color=theme.FAINT, lw=0.8, ls=":")
-    ax1.set_xlabel("modulation depth m  (0 = flat → 1 = deep rhythm)", fontsize=theme.SIZE_LABEL)
-    ax1.set_ylabel("rhythmicity scalar", fontsize=theme.SIZE_LABEL)
-    ax1.set_title("Autocorrelation scalars track together (baseline = 1)",
-                  fontsize=theme.SIZE_LABEL)
-    ax1.legend(fontsize=theme.SIZE_LEGEND, frameon=False)
 
-    for kind in CONDITIONS:
-        st = COND_STYLE[kind]
-        sn_m, sn_s = sweep[kind]["psd_snr"]
-        ax2.fill_between(m_values, sn_m - sn_s, sn_m + sn_s, color=st["color"], alpha=0.15)
-        ax2.plot(m_values, sn_m, color=st["color"], ls=st["ls"], lw=1.8, label=kind)
-    ax2.set_xlabel("modulation depth m", fontsize=theme.SIZE_LABEL)
-    ax2.set_ylabel("PSD peak / median (gamma band)", fontsize=theme.SIZE_LABEL)
-    ax2.set_title("Periodogram peak diverges (drifting ≈ flat)", fontsize=theme.SIZE_LABEL)
-    ax2.legend(fontsize=theme.SIZE_LEGEND, frameon=False)
+def _rate_heatmap(vals, title, cbar_label, out_path):
+    """One firing-rate heatmap over the W_EI × W_IE grid (Hz, viridis)."""
+    fig, ax = plt.subplots(figsize=(6.5, 5.5), dpi=150)
+    im = ax.imshow(vals, origin="lower", aspect="auto", cmap="viridis")
+    ax.set_xticks(range(len(WEI_MEAN_GRID)))
+    ax.set_xticklabels([f"{v:g}" for v in WEI_MEAN_GRID])
+    ax.set_yticks(range(len(WIE_MEAN_GRID)))
+    ax.set_yticklabels([f"{v:g}" for v in WIE_MEAN_GRID])
+    ax.set_xlabel("W_EI mean (μS)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("W_IE mean (μS)", fontsize=theme.SIZE_LABEL)
+    vmax = np.nanmax(vals) if np.isfinite(vals).any() else 1.0
+    for iy in range(vals.shape[0]):
+        for ix in range(vals.shape[1]):
+            v = vals[iy, ix]
+            if np.isfinite(v):
+                ax.text(ix, iy, f"{v:.0f}", ha="center", va="center",
+                        fontsize=theme.SIZE_ANNOTATION,
+                        color="white" if v < 0.55 * vmax else "black")
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label(cbar_label, fontsize=theme.SIZE_LABEL)
+    ax.set_title(title, fontsize=theme.SIZE_TITLE, color=theme.INK)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
 
-    fig.suptitle(
-        "Calibration spectrum: autocorrelation is stationarity-robust; the PSD peak is not",
-        fontsize=theme.SIZE_TITLE, color=theme.INK,
-    )
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+
+def fig_grid_rate_e(grid, out_path):
+    """E firing-rate heatmap — the gamma-gated sparsity behind the contrast map."""
+    e = np.array([[c["rate_hz"] for c in row] for row in grid])
+    _rate_heatmap(e, "E firing rate over W_EI × W_IE", "E rate (Hz)", out_path)
+
+
+def fig_grid_rate_i(grid, out_path):
+    """I firing-rate heatmap."""
+    i = np.array([[c["rate_i_hz"] for c in row] for row in grid])
+    _rate_heatmap(i, "I firing rate over W_EI × W_IE", "I rate (Hz)", out_path)
+
+
+def fig_grid_rasters(grid, out_path):
+    """E/I rasters laid out to match the heatmap (E black, I red)."""
+    nr, nc = len(WIE_MEAN_GRID), len(WEI_MEAN_GRID)
+    fig, axes = plt.subplots(nr, nc, figsize=(2.0 * nc, 1.7 * nr), dpi=150, squeeze=False)
+    for r in range(nr):  # display top→bottom = high→low W_IE
+        wie_idx = nr - 1 - r
+        for c in range(nc):
+            ax = axes[r][c]
+            cell = grid[wie_idx][c]
+            e = cell["e"]
+            ne = e.shape[1]
+            ax.eventplot([np.nonzero(e[:, k])[0] * DT_MS for k in range(ne)],
+                         colors=theme.INK, linewidths=0.5,
+                         lineoffsets=np.arange(ne), linelengths=1.0)
+            total = ne
+            if cell["i"] is not None:
+                ii = cell["i"]
+                ni = ii.shape[1]
+                ax.eventplot([np.nonzero(ii[:, k])[0] * DT_MS for k in range(ni)],
+                             colors=theme.DEEP_RED, linewidths=0.5,
+                             lineoffsets=np.arange(ne, ne + ni), linelengths=1.0)
+                total = ne + ni
+            ax.set_xlim(0, GRID_WIN_MS)
+            ax.set_ylim(0, total)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            if c == 0:
+                ax.set_ylabel(f"{WIE_MEAN_GRID[wie_idx]:g}", fontsize=theme.SIZE_TICK,
+                              rotation=0, ha="right", va="center")
+            if r == nr - 1:
+                ax.set_xlabel(f"{WEI_MEAN_GRID[c]:g}", fontsize=theme.SIZE_TICK)
+    fig.supxlabel("W_EI mean (μS)", fontsize=theme.SIZE_LABEL)
+    fig.supylabel("W_IE mean (μS)", fontsize=theme.SIZE_LABEL)
+    fig.suptitle("Rasters over W_EI × W_IE  (E black, I red)",
+                 fontsize=theme.SIZE_TITLE, color=theme.INK)
+    fig.tight_layout(rect=(0.02, 0.02, 1, 0.97))
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def fig_grid_autocorr(grid, out_path):
+    """E-population autocorrelogram A(ℓ) per grid cell, laid out to match the
+    heatmap — the Mexican hat the contrast is read from: flat ≈1 at the COBA
+    edges, a deep lobe-and-trough through the PING interior."""
+    nr, nc = len(WIE_MEAN_GRID), len(WEI_MEAN_GRID)
+    fig, axes = plt.subplots(nr, nc, figsize=(2.0 * nc, 1.7 * nr), dpi=150, squeeze=False)
+    # Shared y-range spanning the tallest lobe (+ head/foot room) so every lobe (▲)
+    # and trough (▼) marker stays inside the panel.
+    allac = np.concatenate([c["ac"][1:][np.isfinite(c["ac"][1:])] for row in grid for c in row])
+    ymax = float(np.nanmax(allac)) if allac.size else 3.0
+    for r in range(nr):  # display top→bottom = high→low W_IE
+        wie_idx = nr - 1 - r
+        for cc in range(nc):
+            ax = axes[r][cc]
+            cell = grid[wie_idx][cc]
+            ax.axhline(1.0, color=theme.FAINT, lw=0.6, ls=":")
+            ax.plot(cell["ac_lags"], cell["ac"], color=theme.INK, lw=0.9)
+            ac = cell["ac"]
+            if cell["lobe_lag"] is not None:
+                ax.plot(cell["lobe_lag"], ac[int(round(cell["lobe_lag"] / BIN_MS))],
+                        "^", color=theme.INK_BLACK, ms=5, zorder=5)
+            if cell["trough_lag"] is not None:
+                ax.plot(cell["trough_lag"], ac[int(round(cell["trough_lag"] / BIN_MS))],
+                        "v", color=theme.DEEP_RED, ms=5, zorder=5)
+            ax.set_xlim(-2, 50)
+            ax.set_ylim(-0.06 * ymax, ymax * 1.08)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            if cc == 0:
+                ax.set_ylabel(f"{WIE_MEAN_GRID[wie_idx]:g}", fontsize=theme.SIZE_TICK,
+                              rotation=0, ha="right", va="center")
+            if r == nr - 1:
+                ax.set_xlabel(f"{WEI_MEAN_GRID[cc]:g}", fontsize=theme.SIZE_TICK)
+    fig.supxlabel("W_EI mean (μS)", fontsize=theme.SIZE_LABEL)
+    fig.supylabel("W_IE mean (μS)", fontsize=theme.SIZE_LABEL)
+    fig.suptitle("E autocorrelogram A(ℓ) over W_EI × W_IE  (lag 0–50 ms, dotted = chance)",
+                 fontsize=theme.SIZE_TITLE, color=theme.INK)
+    fig.tight_layout(rect=(0.02, 0.02, 1, 0.97))
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def null_rate_scan(sim_ms):
+    """Scan input rate on a NULL network (W_EI = W_IE = 0, no inhibitory loop, no
+    rhythm at any drive). Returns (E firing rates, contrasts) — a rate-invariant
+    metric should sit at ≈0 across the whole range."""
+    rates, contrasts = [], []
+    for r in NULL_SCAN_INPUT_HZ:
+        inp = constant_poisson_input(DT_MS, sim_ms, r)
+        spk, _ = ping_spikes(inp, 0.0, 0.0, DT_MS)
+        ac_lags, ac = spike_autocorrelogram(spk, DT_MS, MAX_LAG_MS, BIN_MS)
+        iei_lags, iei = iei_histogram(population_event_times(spk, DT_MS), MAX_LAG_MS, BIN_MS)
+        ct = rhythmicity_scalars(ac_lags, ac, iei_lags, iei, BIN_MS)["contrast"]
+        rates.append(float(spk.sum() / (spk.shape[1] * spk.shape[0] * DT_MS / 1000.0)))
+        contrasts.append(ct if ct is not None else np.nan)
+    order = np.argsort(rates)
+    return np.array(rates)[order], np.array(contrasts)[order]
+
+
+def corrected_grid(grid, scan_rates, scan_contrasts):
+    """Rate-corrected contrast: subtract the null-network baseline B at each cell's
+    own E firing rate (B interpolated from the null scan), clipped to [0, 1]. A
+    non-rhythmic network → 0 at any rate; a rhythmic one keeps its excess over the
+    input-coincidence floor."""
+    out = np.full((len(WIE_MEAN_GRID), len(WEI_MEAN_GRID)), np.nan)
+    for iy, row in enumerate(grid):
+        for ix, c in enumerate(row):
+            if np.isfinite(c["contrast"]):
+                b = float(np.interp(c["rate_hz"], scan_rates, scan_contrasts))
+                out[iy, ix] = float(np.clip(c["contrast"] - b, 0.0, 1.0))
+    return out
+
+
+def fig_grid_corrected(corrected, out_path):
+    """Rate-corrected contrast heatmap (raw contrast minus the null baseline)."""
+    _contrast_heatmap(corrected, "Rate-corrected contrast over W_EI × W_IE",
+                      "contrast − null baseline", out_path)
+
+
+def fig_rate_invariance(grid, scan_rates, scan_contrasts, out_path):
+    """Contrast vs E firing rate: the NULL network (black, should be flat ≈0) and
+    the actual PING grid cells (red). The null climbs as firing thins and blows up
+    near zero — the metric is rate-invariant only above a spike-count floor."""
+    g_rate = np.array([c["rate_hz"] for row in grid for c in row])
+    g_ct = np.array([c["contrast"] for row in grid for c in row])
+    fig, ax = plt.subplots(figsize=(8, 4.5), dpi=150)
+    ax.axvspan(0, NULL_FLOOR_HZ, color=theme.DANGER, alpha=0.10)
+    ax.axhline(0.0, color=theme.FAINT, lw=0.8, ls=":")
+    ax.scatter(g_rate, g_ct, s=42, color=theme.DEEP_RED, edgecolor="white",
+               linewidths=0.5, zorder=5, label="PING grid cells")
+    ax.plot(scan_rates, scan_contrasts, color=theme.INK_BLACK, lw=1.6, marker="o",
+            label="null network (no loop)")
+    ax.text(NULL_FLOOR_HZ / 2, 0.52, "low-rate\nbaseline", ha="center", va="center",
+            fontsize=theme.SIZE_ANNOTATION, color=theme.DANGER)
+    ax.set_xlabel("E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("lobe–trough contrast", fontsize=theme.SIZE_LABEL)
+    ax.set_ylim(-0.05, 1.05)
+    ax.set_xlim(0, max(g_rate.max(), scan_rates.max()) * 1.03)
+    ax.set_title("Rate-invariance: a non-rhythmic network reads ≈0 only above a low-rate floor",
+                 fontsize=theme.SIZE_LABEL, color=theme.INK)
+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="center right")
+    fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -267,12 +377,10 @@ def main():
     argv = sys.argv[1:]
     tier = parse_tier(argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(argv)  # accepted for contract parity; unused (local CPU)
-    cfg = TIER_CONFIG[tier]
-    seeds = list(range(cfg["n_seeds"]))
-    m_values = np.linspace(0.0, M_MAX, cfg["n_m"])
+    sim_ms = TIER_CONFIG[tier]["sim_ms"]
 
     if modal_gpu:
-        print("note: nb054 is synthetic + local CPU; --modal-gpu ignored.")
+        print("note: nb054 is local CPU; --modal-gpu ignored.")
 
     t_start = time.monotonic()
     for d in (ARTIFACTS, FIGURES):
@@ -282,49 +390,33 @@ def main():
     notebook_run_id = next_run_id(SLUG)
     theme.apply()
 
-    print(
-        f"nb054 calibration | tier={tier} | single Poisson train × "
-        f"{cfg['t_ms'] / 1000:.0f} s × {cfg['n_seeds']} seed(s) "
-        f"× {cfg['n_m']} m-steps × {len(CONDITIONS)} conditions"
-    )
-    data = run_sweep(cfg, m_values, seeds)
-    sweep = {
-        kind: {met: curve(data, kind, met) for met in SCALARS}
-        for kind in CONDITIONS
-    }
+    n_nets = len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID)
+    print(f"nb054 | tier={tier} | {n_nets} untrained PING networks, "
+          f"constant {NET_INPUT_RATE:.0f} Hz Poisson input, sim {sim_ms:.0f} ms (compiles per net)…")
+    net_input = constant_poisson_input(DT_MS, sim_ms)
+    grid = run_grid(net_input)
+    fig_grid_heatmap(grid, FIGURES / "grid_heatmap.png")
+    fig_grid_rate_e(grid, FIGURES / "grid_rate_e.png")
+    fig_grid_rate_i(grid, FIGURES / "grid_rate_i.png")
+    fig_grid_rasters(grid, FIGURES / "grid_rasters.png")
+    fig_grid_autocorr(grid, FIGURES / "grid_autocorr.png")
+    print(f"wrote grid_heatmap.png + grid_rate_e.png + grid_rate_i.png + grid_rasters.png + grid_autocorr.png")
 
-    # Spectrum endpoints for the shape figure (trial-averaged curves): flat =
-    # stationary at m = 0; the two rhythms at m = 1.
-    shapes = [
-        dict(label="flat (m=0)", color=theme.GREY_MID,
-             curves=data["stationary"][0]["avg"],
-             rate=rate_trace("stationary", m_values[0], cfg["t_ms"], DT_MS)),
-        dict(label="stationary (m=1)", color=theme.INK_BLACK,
-             curves=data["stationary"][-1]["avg"],
-             rate=rate_trace("stationary", m_values[-1], cfg["t_ms"], DT_MS)),
-        dict(label="drifting (m=1)", color=theme.DEEP_RED,
-             curves=data["drifting"][-1]["avg"],
-             rate=rate_trace("drifting", m_values[-1], cfg["t_ms"], DT_MS)),
-    ]
-    fig_references(shapes, FIGURES / "references.png")
-    fig_spectrum(m_values, sweep, FIGURES / "calibration.png")
-    print(f"wrote {FIGURES / 'references.png'}")
-    print(f"wrote {FIGURES / 'calibration.png'}")
+    rates = [c["rate_hz"] for row in grid for c in row]
+    contrasts = [c["contrast"] for row in grid for c in row]
+    print(f"  contrast {np.nanmin(contrasts):.2f}–{np.nanmax(contrasts):.2f}; "
+          f"E rate {min(rates):.1f}–{max(rates):.1f} Hz")
 
-    def endpoint(kind, idx):
-        return {met: float(sweep[kind][met][0][idx]) for met in SCALARS}
+    print("  rate-invariance: null network scanned over input rate…")
+    scan_rates, scan_contrasts = null_rate_scan(sim_ms)
+    fig_rate_invariance(grid, scan_rates, scan_contrasts, FIGURES / "rate_invariance.png")
+    print(f"wrote rate_invariance.png  (null contrast "
+          f"{np.nanmin(scan_contrasts):.2f}–{np.nanmax(scan_contrasts):.2f})")
 
-    # flat = m=0 endpoint (identical for both conditions); rhythms = m=1.
-    references = {
-        "flat": endpoint("stationary", 0),
-        "stationary": endpoint("stationary", -1),
-        "drifting": endpoint("drifting", -1),
-    }
-    for label, vals in references.items():
-        print(
-            f"  {label:11s}  lobe/trough={vals['lobe_to_trough']:.2f}  "
-            f"IEI-anchored={vals['iei_anchored']:.2f}  PSD-SNR={vals['psd_snr']:.1f}"
-        )
+    corrected = corrected_grid(grid, scan_rates, scan_contrasts)
+    fig_grid_corrected(corrected, FIGURES / "grid_corrected.png")
+    print(f"wrote grid_corrected.png  (corrected contrast "
+          f"{np.nanmin(corrected):.2f}–{np.nanmax(corrected):.2f})")
 
     duration_s = time.monotonic() - t_start
     numbers = {
@@ -333,29 +425,43 @@ def main():
         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
         "tier": tier,
         "config": {
-            "source": "single non-homogeneous Poisson spike train",
-            "t_ms": cfg["t_ms"],
-            "n_seeds": cfg["n_seeds"],
-            "n_m": cfg["n_m"],
+            "source": "untrained PING networks, constant Poisson input",
             "dt_ms": DT_MS,
-            "lambda0_hz": LAMBDA0_HZ,
-            "f_stationary_hz": F_STATIONARY_HZ,
-            "f_drift_hz": list(F_DRIFT_HZ),
+            "sim_ms": sim_ms,
+            "burn_ms": NET_BURN_MS,
+            "n_e": NET_N_E,
+            "n_in": NET_N_IN,
+            "input_rate_hz": NET_INPUT_RATE,
             "max_lag_ms": MAX_LAG_MS,
             "bin_ms": BIN_MS,
         },
-        "m_values": [float(x) for x in m_values],
-        "spectrum": {
-            kind: {
-                met: {
-                    "mean": [float(x) for x in sweep[kind][met][0]],
-                    "std": [float(x) for x in sweep[kind][met][1]],
-                }
-                for met in SCALARS
-            }
-            for kind in CONDITIONS
+        "grid": {
+            "wei_mean": list(WEI_MEAN_GRID),
+            "wie_mean": list(WIE_MEAN_GRID),
+            "contrast": [
+                [(c["contrast"] if np.isfinite(c["contrast"]) else None) for c in row]
+                for row in grid
+            ],
+            "rate_e_hz": [
+                [(c["rate_hz"] if np.isfinite(c["rate_hz"]) else None) for c in row]
+                for row in grid
+            ],
+            "rate_i_hz": [
+                [(c["rate_i_hz"] if np.isfinite(c["rate_i_hz"]) else None) for c in row]
+                for row in grid
+            ],
+            "rate_e_min_hz": float(np.nanmin(rates)),
+            "rate_e_max_hz": float(np.nanmax(rates)),
         },
-        "references": references,
+        "rate_invariance": {
+            "null_floor_hz": NULL_FLOOR_HZ,
+            "scan_rate_hz": list(scan_rates),
+            "scan_contrast": [float(c) if np.isfinite(c) else None for c in scan_contrasts],
+        },
+        "corrected": {
+            "contrast": [[float(v) if np.isfinite(v) else None for v in row]
+                         for row in corrected],
+        },
     }
     (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2, default=float))
     persist_run_id(SLUG, notebook_run_id)
