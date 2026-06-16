@@ -3,7 +3,7 @@ layout: ../../layouts/MarkdownLayout.astro
 title: "054 — A PING rhythmicity metric"
 date: 2026-06-15
 entry: 54
-status: draft
+status: final
 structure: paper
 collection: gamma-gated-sparsity
 ---
@@ -11,63 +11,67 @@ import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../../public/figures/notebooks/nb054/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
-export const ref = numbers.references ?? {};
+export const cfg = numbers.config ?? {};
+export const grid = numbers.grid ?? {};
+export const ri = numbers.rate_invariance ?? {};
 export const fmt = (x) => (typeof x === "number" ? x.toFixed(2) : "—");
 export const fmt0 = (x) => (typeof x === "number" ? Math.round(x).toLocaleString() : "—");
 
 ## Abstract
 
-A single calibrated scalar for how rhythmic a network is — so "rhythmic / not rhythmic" can sit on one axis instead of being read three different ways (PSD peak in [nb041](/notebooks/nb041/), spikes-per-cycle in [nb046](/notebooks/nb046/), visible banding in [nb023](/notebooks/nb023/)). The periodogram locates the gamma frequency but is not, on its own, a usable scalar; the metric here reads rhythmicity off the **spike-time autocorrelation**, quantifying the central-lobe-versus-trough "Mexican-hat" shape that marks a rhythm, with the inter-event-interval histogram used to locate the lag at which to read it.
+A single bounded scalar for how rhythmic a spiking network is — the **lobe–trough contrast** of its spike-time autocorrelation, $(\text{lobe}-\text{trough})/(\text{lobe}+\text{trough}) \in [0,1)$. Applied to untrained PING networks across the recurrent-weight plane it reads ≈0 along the COBA edges where the inhibitory loop is absent and rises to 1 through the PING interior, tracking the gamma-gated collapse of the E firing rate from {fmt0(grid.rate_e_max_hz)} to {fmt0(grid.rate_e_min_hz)} Hz.
 
-Calibrated on synthetic non-homogeneous Poisson references, the **lobe-to-trough ratio** flags both a stationary and a frequency-drifting rhythm near-equally ({fmt(ref.stationary?.lobe_to_trough)} and {fmt(ref.drifting?.lobe_to_trough)}) while sitting at the baseline value {fmt(ref.flat?.lobe_to_trough)} for asynchronous firing — where the periodogram peak collapses from {fmt0(ref.stationary?.psd_snr)} to {fmt0(ref.drifting?.psd_snr)} between the two rhythms it cannot tell apart from a weak one.
+## Method
 
-## Background: periodogram vs autocorrelation
+Given a population spike raster — here the excitatory population of a simulated network — write $r(t)$ for the binned population spike count ($n$ bins of width $\Delta t$) and $\ell$ for the lag. The metric is read off in a fixed sequence of steps:
 
-A periodogram peak gives the frequency $f_\gamma$ but not a bounded measure of how *concentrated* the rhythm is — to become a scalar it needs a cutoff, or a quantification of the mass in the central lobe. The autocorrelation is more direct. Two reference cases (non-homogeneous Poisson processes, the diagnostic suggested by T. O'Leary) make the target shape concrete:
+1. **Bin to a population count.** Sum spikes across cells into one count per $\Delta t$ bin, giving the population trace $r(t)$ of length $n$.
+2. **Raw autocorrelation.** Form the lag product $\sum_t r(t)\,r(t+\ell)$, which counts spike pairs separated by lag $\ell$. All lags are computed at once in $O(n\log n)$ via the Wiener–Khinchin route — zero-pad $r$, take its FFT, multiply by the conjugate, inverse-transform — rather than the $O(n^2)$ direct sum.
+3. **Correct for finite overlap.** Only $n-\ell$ bin-pairs exist at lag $\ell$ (the last $\ell$ samples have no partner), so the raw sum tapers toward zero with lag simply from running out of overlap; dividing by that per-lag overlap $n-\ell$ converts it to the *average* product per available pair and flattens the taper.
+4. **Set the chance level.** Divide by the mean rate squared $\langle r\rangle^2$ so rate-matched independent firing sits at $A = 1$, and drop the self-paired zero lag. The result is the normalised autocorrelogram
 
-- **Stationary sinusoidal rate (a "pure" rhythm).** The inter-event-interval (IEI) histogram has a tall short-interval peak plus a clear *second mode* at the rhythm period; the autocorrelation is a clean periodic comb of lobes under a triangular envelope. Even here the central lobe has real width and the surrounding trough is not empty.
-- **Non-stationary sinusoidal (drifting frequency).** The IEI second mode broadens and the periodic comb washes out, leaving a sharp central lobe ringed by a trough — the **Mexican hat** — on a broadband floor.
+   $$
+   A(\ell) = \frac{1}{\langle r\rangle^2}\;\frac{1}{\,n-\ell\,}\sum_{t} r(t)\,r(t+\ell).
+   $$
 
-The robust, shared signature across both is that Mexican-hat profile: a central lobe surrounded by a trough. The metric should quantify *that*, not the height of a spectral peak (which collapses on the drifting case it cannot distinguish from a weak rhythm).
+5. **Locate the Mexican hat.** A rhythmic $A(\ell)$ has a "Mexican-hat" profile: a central lobe above 1 (spikes recur a cycle apart) flanked by a dip below 1 where firing is suppressed between volleys. Scanning out from zero lag, take the trough as the first local minimum of a lightly smoothed $A(\ell)$ — it falls near the half-period — and the lobe as the highest point at a shorter lag.
+6. **Read the contrast.** The metric is the **lobe–trough contrast**
 
-## Proposed metric
+   $$
+   \text{contrast} = \frac{\text{lobe} - \text{trough}}{\text{lobe} + \text{trough}} \in [0, 1),
+   $$
 
-From the population E spike train, build two objects:
+   zero when lobe equals trough (no structure) and approaching 1 as the trough goes silent. It is bounded by construction — no trough floor needed.
 
-- the **IEI histogram** — relative timing of consecutive spikes; its peak and second mode set characteristic lags; and
-- the **empirical autocorrelation** $A(\ell)$ — formed by binning the timing of every spike relative to every other spike, normalised so rate-matched independent firing sits at $A = 1$ (central lobe near $\ell = 0$, surrounded by a trough).
+In words: $A(\ell)$ is how much more (or less) likely a spike is to be followed by another one $\ell$ ms later than under independent firing, with $A = 1$ the chance floor. A central lobe above 1 says spikes *cluster* in volleys; a trough below 1 near the half-period says firing is *suppressed between* them. The contrast is **0** when the spikes carry no such structure (asynchronous) and approaches **1** as sharp volleys separate against near-silence; because it reads the *shape* of $A(\ell)$, it registers a rhythm whether or not its frequency holds still.
 
-Three candidate scalars, compared on the references below:
+## Results
 
-1. **IEI-anchored lag.** Take the peak of the IEI histogram as a characteristic lag $\ell^\star$, and report $A(\ell^\star)$.
-2. **Lobe-to-trough ratio.** The height of the central lobe (*excluding* the zero-lag value) relative to the first trough — located directly as the autocorrelation's first local minimum (the IEI second mode is an unreliable bracket for dense populations, where near-simultaneous spikes swamp it). A ratio, floored against an empty trough — high for a clean rhythm, near 1 for none.
-3. **Biophysical lag.** Use a known network timescale (the total E→I→E transmission delay) to set the critical lag, and report $A$ at that lag.
-
-## Desiderata
-
-- Bounded and calibrated — near a baseline value for asynchronous (Poisson) firing, high for clean volleys.
-- Robust to the central-lobe spread that even a pure rhythm shows.
-- Discriminates rhythmic from non-rhythmic *regardless of stationarity*, where a periodogram peak conflates a frequency-drifting rhythm with a weak one.
-- Rate-comparable, so sparse PING (≈5 Hz) and dense COBA can sit on the same axis.
-
-## Calibration on synthetic references
-
-The metric primitives live in *metrics.py* (*iei_histogram*, *spike_autocorrelogram*, *rhythmicity_metrics*); the runner at *src/notebooks/nb054.py* calibrates them across a continuous spectrum rather than a few samples. Each reference is a population of independent inhomogeneous-Poisson cells sharing a common rate $\lambda(t) = \lambda_0\,(1 + m\sin\phi(t))$, swept over the modulation depth $m$ from 0 (flat, asynchronous) to 1 (a deep rhythm), in two flavours: **stationary** (fixed frequency $f$) and **drifting** ($f$ swept as a chirp). $m = 0$ is the shared flat baseline; the two $m = 1$ endpoints are the stationary and drifting cases. Synthetic and measurement-only — no training, local CPU, seconds to run.
-
-<Figure id="Figure 1" title="Spectrum endpoints: rate, IEI, autocorrelation" src="/figures/notebooks/nb054/references.png" alt="A 3×3 grid. Columns are the spectrum endpoints: flat (m=0), stationary (m=1), and drifting (m=1). Top row: the instantaneous rate λ(t) — flat at 20 Hz, a clean 40 Hz sinusoid, and a frequency-sweeping sinusoid. Middle row: the inter-event-interval histogram, dominated by a sub-millisecond pile. Bottom row: the normalised autocorrelation. Flat is a flat line at 1.0; stationary is a clean periodic comb of lobes (the Mexican hat) with deep troughs near 0.5; drifting shows a sharp central lobe and trough whose comb washes out at longer lag. The located central lobe (up-triangle) and first-minimum trough (down-triangle) are marked.">
-  The spectrum endpoints: each reference's instantaneous rate (top), IEI histogram (middle), and normalised autocorrelation (bottom; the dotted line is the $A = 1$ baseline, ▲ marks the central lobe, ▼ the first-minimum trough). The autocorrelation row shares a $y$-axis: flat reads as a flat line at 1, the stationary rhythm as a clean periodic comb, and the drifting rhythm as a sharp central lobe and trough whose comb washes out — the Mexican-hat signature common to both rhythms.
+<Figure id="Figure 1" title="E/I rasters over the W_EI × W_IE grid" src="/figures/notebooks/nb054/grid_rasters.png" alt="A 6×6 grid of small spike rasters matching the heatmap layout: columns are W_EI mean 0 to 2.5 μS, rows are W_IE mean 0 to 5 μS (lowest at the bottom), excitatory spikes black and inhibitory spikes red. The W_EI = 0 column is asynchronous E with no I spikes (I never recruited). The W_IE = 0 row is dense E with a dense I band (I fires but never gates E). The interior shows vertical gamma volleys that sharpen toward stronger coupling.">
+  E/I rasters for each grid cell. The two zero edges are the controls: $W_{EI} = 0$ (left column) leaves I silent and E asynchronous; $W_{IE} = 0$ (bottom row) lets I fire but not inhibit E, so both stay dense — neither is rhythmic. The interior shows clear gamma volleys (E black, I red) that sharpen as either weight grows — the rhythm the contrast (Figure 5) scores.
 </Figure>
 
-<Figure id="Figure 2" title="Calibration spectrum: scalars vs modulation depth" src="/figures/notebooks/nb054/calibration.png" alt="Two line panels over modulation depth m from 0 to 1, with the stationary series solid and the drifting series dashed. Left: the autocorrelation lobe-to-trough (bold) and IEI-anchored (thin) scalars all rise from 1 at m=0; the stationary and drifting lobe-to-trough curves track closely together up to ≈2.9 and ≈2.6 at m=1. Right: the periodogram peak-to-median ratio — the stationary curve rises steeply to thousands while the drifting curve stays pinned near zero across the whole sweep. Shaded bands are ±1 SD across seeds.">
-  Across the modulation-depth sweep, the autocorrelation lobe-to-trough (left, bold) rises from the baseline 1 with the stationary and drifting curves tracking together — rhythmicity read off independent of stationarity. The periodogram peak (right) rises steeply for the stationary rhythm but stays pinned with the flat baseline for the drifting one — the conflation the autocorrelation avoids. Shaded bands are ±1 SD across seeds.
+<Figure id="Figure 2" title="E autocorrelogram over the W_EI × W_IE grid" src="/figures/notebooks/nb054/grid_autocorr.png" alt="A 6×6 grid of small line plots matching the heatmap layout: columns are W_EI mean 0 to 2.5 μS, rows are W_IE mean 0 to 5 μS (lowest at the bottom). Each panel plots the E-population autocorrelogram A(ℓ) over lags 0 to 50 ms on a shared y-axis, with a dotted line at the chance level of 1. The W_EI = 0 column and the W_IE = 0 row are flat at 1 (no structure). Through the interior a tall central lobe with a trough beside it — the Mexican hat — appears and grows as either weight increases; an up-triangle marks the located central lobe (≈1 ms) and a down-triangle the first-minimum trough (≈12–15 ms) on each panel.">
+  The E-population autocorrelogram $A(\ell)$ for each grid cell (lag 0–50 ms; dotted line = chance, $A = 1$), with the located lobe (▲) and trough (▼) marked. The two zero edges are flat at 1 — asynchronous firing, no structure. Through the interior the Mexican hat emerges: a sharp central lobe at ≈1 ms over a trough near the half-period (≈12–15 ms), with a secondary peak at the full period further out. The contrast in Figure 5 is exactly this lobe-versus-trough read off as one number.
 </Figure>
 
-**Result.** Across the sweep the lobe-to-trough ratio climbs from {fmt(ref.flat?.lobe_to_trough)} at $m = 0$ (flat) to {fmt(ref.stationary?.lobe_to_trough)} (stationary) and {fmt(ref.drifting?.lobe_to_trough)} (drifting) at $m = 1$, the two curves tracking closely — rhythmicity read off independent of stationarity, exactly the wanted behaviour. The periodogram peak SNR (endpoints {fmt0(ref.flat?.psd_snr)} / {fmt0(ref.stationary?.psd_snr)} / {fmt0(ref.drifting?.psd_snr)}) ranks the drifting rhythm with the flat baseline across the whole sweep, confirming the failure mode. The IEI-anchored scalar ({fmt(ref.flat?.iei_anchored)} / {fmt(ref.stationary?.iei_anchored)} / {fmt(ref.drifting?.iei_anchored)} at the endpoints) separates rhythm from baseline too, but with less dynamic range.
+<Figure id="Figure 3" title="E firing rate over the W_EI × W_IE grid" src="/figures/notebooks/nb054/grid_rate_e.png" alt="A 6×6 heatmap (viridis), same axes as the contrast map: x is W_EI mean 0 to 2.5 μS, y is W_IE mean 0 to 5 μS, each cell annotated with the E firing rate in Hz. The W_EI = 0 column and the W_IE = 0 row are all 91 Hz (bright, no inhibitory loop); the interior collapses to 2–13 Hz, falling as either weight grows.">
+  E firing rate across the grid. Along both zero edges the loop is broken and E fires at the input-driven ≈{fmt0(grid.rate_e_max_hz)} Hz; in the interior the inhibitory loop gates E down to a few Hz — the gamma-gated sparsity that rides alongside the rising contrast in Figure 5.
+</Figure>
 
-**Chosen scalar: lobe-to-trough.** Bounded, calibrated at 1 for Poisson, stationarity-robust, and the widest separation of the three. Candidate 3 (biophysical lag) is candidate 1 with the lag fixed from circuit delay instead of the IEI; it is only testable where that delay is known, so it is deferred to the trained-network runner.
+<Figure id="Figure 4" title="I firing rate over the W_EI × W_IE grid" src="/figures/notebooks/nb054/grid_rate_i.png" alt="A 6×6 heatmap (viridis), same axes as the contrast map: x is W_EI mean 0 to 2.5 μS, y is W_IE mean 0 to 5 μS, each cell annotated with the I firing rate in Hz. The W_EI = 0 column is 0 (I never recruited); the W_IE = 0 bottom row runs away to 305–574 Hz (I driven by E but never inhibiting it back); the interior is a controlled 13–33 Hz. The colour scale is dominated by the runaway bottom row, so the interior reads dark — its values are in the annotations.">
+  I firing rate. Silent where $W_{EI} = 0$ (never recruited), it runs away to several hundred Hz along $W_{IE} = 0$ (driven hard with no inhibition to rein it in), and settles to ≈13–33 Hz once the full loop closes. These are untrained networks at init, so the absolute rates are not meant to be physiological; they show *where* the loop engages.
+</Figure>
 
-## Next steps
+<Figure id="Figure 5" title="lobe–trough contrast over the W_EI × W_IE grid" src="/figures/notebooks/nb054/grid_heatmap.png" alt="A 6×6 heatmap. X-axis is W_EI mean from 0 to 2.5 μS, y-axis is W_IE mean from 0 to 5 μS, colour is the lobe–trough contrast from 0 (dark) to 1 (bright); each cell is annotated. The W_EI = 0 column and the W_IE = 0 row are all about 0.01 (dark, no recurrent loop). The W_EI = 0.5 column is the transition (0.8–1.0); the rest of the interior is uniformly at 1.0.">
+  The contrast scalar over the two recurrent weights (untrained networks, constant {fmt0(cfg.input_rate_hz)} Hz Poisson input) — the rasters and autocorrelograms above read off as one number per cell. Both zero edges read ≈**0** — $W_{EI} = 0$ (E never recruits I) and $W_{IE} = 0$ (I never inhibits E) — anchoring the COBA baseline. The interior is rhythmic, the $W_{EI} = 0.5$ column carrying a sharp transition (0.8–1.0) before the strongly-coupled interior saturates at 1.0 as the inter-volley trough empties. The bounded contrast ranks the COBA→PING boundary cleanly; the interior saturates at 1.0 in this raw form (it cannot rank *within* deep PING), which the rate-correction in Figure 7 resolves.
+</Figure>
 
-1. ✅ Primitives (*iei_histogram*, *spike_autocorrelogram*, *rhythmicity_metrics*) implemented and unit-tested; the three candidate scalars calibrated across a modulation-depth spectrum of stationary and drifting references. Lobe-to-trough chosen.
-2. Extend *src/notebooks/nb054.py* to apply the lobe-to-trough metric to the already-trained networks — COBA vs PING ([nb023](/notebooks/nb023/)), the *--ei-strength* sweep ([nb036](/notebooks/nb036/)), and the per-cell jitter sweep ([nb042](/notebooks/nb042/)) — measurement only, no new training.
-3. Cross-check the metric against the [nb041](/notebooks/nb041/) PSD peak on the same checkpoints, and decide whether the biophysical-lag variant adds anything over the data-driven lobe-to-trough once the E→I→E delay is read from the config.
+<Figure id="Figure 6" title="Rate-invariance check: a non-rhythmic network reads ≈0 only above a low-rate floor" src="/figures/notebooks/nb054/rate_invariance.png" alt="A scatter-and-line plot. X-axis is E firing rate from 0 to about 90 Hz, y-axis is lobe–trough contrast from 0 to 1. A black line with markers is a null network (no inhibitory loop) scanned over input rate: it sits at about 0.01–0.08 for E firing rates above 5 Hz, then climbs to 0.27 at 0.6 Hz and 1.0 as E firing approaches zero. A light red band marks E below 5 Hz, labelled 'low-rate baseline'. Red points are the actual PING grid cells, contrast 0.8 to 1.0, clustered at low firing rates from about 2 to 13 Hz, several of them inside the shaded low-rate band.">
+  A direct rate-invariance test on the network. The null line (black) is a network with no inhibitory loop — non-rhythmic at any drive — scanned over input rate; a rate-invariant metric should read ≈0 everywhere. It does down to ≈{fmt0(ri.null_floor_hz)} Hz, but below that it **climbs as firing thins, reaching 1.0 as E nearly stops** (light-red band). This is *not* a finite-sample effect — quadrupling the trace (4× the spikes) leaves the floor unchanged — but a **rate-dependent baseline**: at low firing the population autocorrelogram is dominated by input-driven coincidence, which the metric reads as a weak hat. The real PING cells (red) sit far above the null floor, but the most strongly-gated ones fire down at ≈2 Hz — *inside* the band — so the raw contrast there is the rhythm *plus* this baseline. This is the metric's main weakness on sparse networks; the fix is to subtract this null curve (Figure 7).
+</Figure>
+
+<Figure id="Figure 7" title="Rate-corrected contrast over the W_EI × W_IE grid" src="/figures/notebooks/nb054/grid_corrected.png" alt="A 6×6 heatmap, same axes as Figure 5, colour is the rate-corrected contrast from 0 (dark) to 1 (bright); each cell annotated. The W_EI = 0 column and W_IE = 0 row are all 0.00 (black). The interior ranges from about 0.73 to 0.92, a graded band rather than a uniform 1.0.">
+  The fix: **rate-corrected contrast** — raw contrast minus the null baseline $B$ read at each cell's own firing rate (the black curve of Figure 6). The non-rhythmic edges drop to exactly **0** — and since those edge cells are *not* the ones used to fit $B$, this confirms the correction generalises. The rhythmic interior is preserved but pulled down to **0.73–0.92**; because the most strongly-gated cells fire slowest and so carry the largest baseline, they are pulled down most, which **de-saturates the top end** and restores a rankable gradient through the PING region — the very flattening at 1.0 that limited the raw map (Figure 5). One correction buys both rate-fairness and discrimination within deep PING.
+</Figure>
+

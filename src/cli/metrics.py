@@ -287,7 +287,7 @@ def rhythmicity_scalars(ac_lags, ac, iei_lags, iei_counts, bin_ms=1.0, bio_lag_m
     )
 
     sm = _smooth_ac(ac)
-    lobe_to_trough = trough_lag = lobe_lag = None
+    lobe_to_trough = contrast = trough_lag = lobe_lag = None
     if sm is not None:
         trough_i = None
         for i in range(2, sm.size - 1):
@@ -298,7 +298,13 @@ def rhythmicity_scalars(ac_lags, ac, iei_lags, iei_counts, bin_ms=1.0, bio_lag_m
             trough_lag = float(ac_lags[trough_i])
             lobe_i = 1 + int(np.argmax(sm[1:trough_i]))
             lobe_lag = float(ac_lags[lobe_i])
-            lobe_to_trough = float(sm[lobe_i] / max(sm[trough_i], 0.05))
+            lobe_v, trough_v = float(sm[lobe_i]), float(sm[trough_i])
+            # Unbounded ratio (kept for reference) and the bounded Mexican-hat
+            # contrast (lobe−trough)/(lobe+trough) ∈ [0, 1): 0 = flat (lobe=trough),
+            # → 1 as the trough goes silent. No trough floor needed.
+            lobe_to_trough = lobe_v / max(trough_v, 0.05)
+            denom = lobe_v + trough_v
+            contrast = (lobe_v - trough_v) / denom if denom > 0 else None
 
     return {
         "iei_mode_lag": iei_mode_lag,
@@ -306,6 +312,7 @@ def rhythmicity_scalars(ac_lags, ac, iei_lags, iei_counts, bin_ms=1.0, bio_lag_m
         "trough_lag": trough_lag,
         "iei_anchored": ac_at(iei_mode_lag),
         "lobe_to_trough": lobe_to_trough,
+        "contrast": contrast,
         "biophysical": ac_at(bio_lag_ms),
     }
 
