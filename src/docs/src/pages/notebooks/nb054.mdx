@@ -1,17 +1,25 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
 title: "054 — A PING rhythmicity metric"
-date: 2026-06-12
+date: 2026-06-15
 entry: 54
+status: draft
 structure: paper
 collection: gamma-gated-sparsity
 ---
-
-*Status: proposal — not yet run.*
+import Figure from "../../components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../../public/figures/notebooks/nb054/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const ref = numbers.references ?? {};
+export const fmt = (x) => (typeof x === "number" ? x.toFixed(2) : "—");
+export const fmt0 = (x) => (typeof x === "number" ? Math.round(x).toLocaleString() : "—");
 
 ## Abstract
 
-A single calibrated scalar for how rhythmic a network is — so "rhythmic / not rhythmic" can sit on one axis instead of being read three different ways (PSD peak in [nb041](/notebooks/nb041/), spikes-per-cycle in [nb046](/notebooks/nb046/), visible banding in [nb023](/notebooks/nb023/)). The periodogram locates the gamma frequency but is not, on its own, a usable scalar; the approach proposed here reads rhythmicity off the **spike-time autocorrelation**, quantifying the central-lobe-versus-trough "Mexican-hat" shape that marks a rhythm, with the inter-event-interval histogram used to locate the lag at which to read it.
+A single calibrated scalar for how rhythmic a network is — so "rhythmic / not rhythmic" can sit on one axis instead of being read three different ways (PSD peak in [nb041](/notebooks/nb041/), spikes-per-cycle in [nb046](/notebooks/nb046/), visible banding in [nb023](/notebooks/nb023/)). The periodogram locates the gamma frequency but is not, on its own, a usable scalar; the metric here reads rhythmicity off the **spike-time autocorrelation**, quantifying the central-lobe-versus-trough "Mexican-hat" shape that marks a rhythm, with the inter-event-interval histogram used to locate the lag at which to read it.
+
+Calibrated on synthetic non-homogeneous Poisson references, the **lobe-to-trough ratio** flags both a stationary and a frequency-drifting rhythm near-equally ({fmt(ref.stationary?.lobe_to_trough)} and {fmt(ref.drifting?.lobe_to_trough)}) while sitting at the baseline value {fmt(ref.flat?.lobe_to_trough)} for asynchronous firing — where the periodogram peak collapses from {fmt0(ref.stationary?.psd_snr)} to {fmt0(ref.drifting?.psd_snr)} between the two rhythms it cannot tell apart from a weak one.
 
 ## Background: periodogram vs autocorrelation
 
@@ -20,34 +28,46 @@ A periodogram peak gives the frequency $f_\gamma$ but not a bounded measure of h
 - **Stationary sinusoidal rate (a "pure" rhythm).** The inter-event-interval (IEI) histogram has a tall short-interval peak plus a clear *second mode* at the rhythm period; the autocorrelation is a clean periodic comb of lobes under a triangular envelope. Even here the central lobe has real width and the surrounding trough is not empty.
 - **Non-stationary sinusoidal (drifting frequency).** The IEI second mode broadens and the periodic comb washes out, leaving a sharp central lobe ringed by a trough — the **Mexican hat** — on a broadband floor.
 
-The robust, shared signature across both is that Mexican-hat profile: a central lobe surrounded by a trough. The metric should quantify *that*, not the height of a spectral peak (which conflates the stationary and drifting cases).
+The robust, shared signature across both is that Mexican-hat profile: a central lobe surrounded by a trough. The metric should quantify *that*, not the height of a spectral peak (which collapses on the drifting case it cannot distinguish from a weak rhythm).
 
 ## Proposed metric
 
 From the population E spike train, build two objects:
 
 - the **IEI histogram** — relative timing of consecutive spikes; its peak and second mode set characteristic lags; and
-- the **empirical autocorrelation** $A(\ell)$ — formed by binning the timing of every spike relative to every other spike (central lobe near $\ell = 0$, surrounded by a trough).
+- the **empirical autocorrelation** $A(\ell)$ — formed by binning the timing of every spike relative to every other spike, normalised so rate-matched independent firing sits at $A = 1$ (central lobe near $\ell = 0$, surrounded by a trough).
 
-Three candidate scalars, to be compared:
+Three candidate scalars, compared on the references below:
 
-1. **IEI-anchored lag.** Take the minimum interval, or the peak, of the IEI histogram as a characteristic lag $\ell^\star$, and report $A(\ell^\star)$.
-2. **Lobe-to-trough ratio.** The height of the central lobe (*excluding* the zero-lag value) relative to the trough, where the trough is located using the IEI histogram's second mode. A bounded ratio — high for a clean rhythm, near 1 for none.
-3. **Biophysical lag.** Use a known network timescale (e.g. the total E→I→E transmission delay) to set the critical lag, and report $A$ at that lag.
+1. **IEI-anchored lag.** Take the peak of the IEI histogram as a characteristic lag $\ell^\star$, and report $A(\ell^\star)$.
+2. **Lobe-to-trough ratio.** The height of the central lobe (*excluding* the zero-lag value) relative to the first trough — located directly as the autocorrelation's first local minimum (the IEI second mode is an unreliable bracket for dense populations, where near-simultaneous spikes swamp it). A ratio, floored against an empty trough — high for a clean rhythm, near 1 for none.
+3. **Biophysical lag.** Use a known network timescale (the total E→I→E transmission delay) to set the critical lag, and report $A$ at that lag.
 
 ## Desiderata
 
 - Bounded and calibrated — near a baseline value for asynchronous (Poisson) firing, high for clean volleys.
 - Robust to the central-lobe spread that even a pure rhythm shows.
-- Discriminates stationary from non-stationary (drifting) rhythms, which a periodogram peak conflates.
+- Discriminates rhythmic from non-rhythmic *regardless of stationarity*, where a periodogram peak conflates a frequency-drifting rhythm with a weak one.
 - Rate-comparable, so sparse PING (≈5 Hz) and dense COBA can sit on the same axis.
 
-## Validation
+## Calibration on synthetic references
 
-TODO. Calibrate first on the two synthetic non-homogeneous Poisson references (stationary vs drifting sinusoidal rate) as ground truth, then apply to the trained networks: COBA vs PING ([nb023](/notebooks/nb023/)), the *--ei-strength* sweep ([nb036](/notebooks/nb036/)), and the per-cell jitter sweep ([nb042](/notebooks/nb042/)); cross-check against the [nb041](/notebooks/nb041/) PSD peak.
+The metric primitives live in *metrics.py* (*iei_histogram*, *spike_autocorrelogram*, *rhythmicity_metrics*); the runner at *src/notebooks/nb054.py* calibrates them across a continuous spectrum rather than a few samples. Each reference is a population of independent inhomogeneous-Poisson cells sharing a common rate $\lambda(t) = \lambda_0\,(1 + m\sin\phi(t))$, swept over the modulation depth $m$ from 0 (flat, asynchronous) to 1 (a deep rhythm), in two flavours: **stationary** (fixed frequency $f$) and **drifting** ($f$ swept as a chirp). $m = 0$ is the shared flat baseline; the two $m = 1$ endpoints are the stationary and drifting cases. Synthetic and measurement-only — no training, local CPU, seconds to run.
+
+<Figure id="Figure 1" title="Spectrum endpoints: rate, IEI, autocorrelation" src="/figures/notebooks/nb054/references.png" alt="A 3×3 grid. Columns are the spectrum endpoints: flat (m=0), stationary (m=1), and drifting (m=1). Top row: the instantaneous rate λ(t) — flat at 20 Hz, a clean 40 Hz sinusoid, and a frequency-sweeping sinusoid. Middle row: the inter-event-interval histogram, dominated by a sub-millisecond pile. Bottom row: the normalised autocorrelation. Flat is a flat line at 1.0; stationary is a clean periodic comb of lobes (the Mexican hat) with deep troughs near 0.5; drifting shows a sharp central lobe and trough whose comb washes out at longer lag. The located central lobe (up-triangle) and first-minimum trough (down-triangle) are marked.">
+  The spectrum endpoints: each reference's instantaneous rate (top), IEI histogram (middle), and normalised autocorrelation (bottom; the dotted line is the $A = 1$ baseline, ▲ marks the central lobe, ▼ the first-minimum trough). The autocorrelation row shares a $y$-axis: flat reads as a flat line at 1, the stationary rhythm as a clean periodic comb, and the drifting rhythm as a sharp central lobe and trough whose comb washes out — the Mexican-hat signature common to both rhythms.
+</Figure>
+
+<Figure id="Figure 2" title="Calibration spectrum: scalars vs modulation depth" src="/figures/notebooks/nb054/calibration.png" alt="Two line panels over modulation depth m from 0 to 1, with the stationary series solid and the drifting series dashed. Left: the autocorrelation lobe-to-trough (bold) and IEI-anchored (thin) scalars all rise from 1 at m=0; the stationary and drifting lobe-to-trough curves track closely together up to ≈2.9 and ≈2.6 at m=1. Right: the periodogram peak-to-median ratio — the stationary curve rises steeply to thousands while the drifting curve stays pinned near zero across the whole sweep. Shaded bands are ±1 SD across seeds.">
+  Across the modulation-depth sweep, the autocorrelation lobe-to-trough (left, bold) rises from the baseline 1 with the stationary and drifting curves tracking together — rhythmicity read off independent of stationarity. The periodogram peak (right) rises steeply for the stationary rhythm but stays pinned with the flat baseline for the drifting one — the conflation the autocorrelation avoids. Shaded bands are ±1 SD across seeds.
+</Figure>
+
+**Result.** Across the sweep the lobe-to-trough ratio climbs from {fmt(ref.flat?.lobe_to_trough)} at $m = 0$ (flat) to {fmt(ref.stationary?.lobe_to_trough)} (stationary) and {fmt(ref.drifting?.lobe_to_trough)} (drifting) at $m = 1$, the two curves tracking closely — rhythmicity read off independent of stationarity, exactly the wanted behaviour. The periodogram peak SNR (endpoints {fmt0(ref.flat?.psd_snr)} / {fmt0(ref.stationary?.psd_snr)} / {fmt0(ref.drifting?.psd_snr)}) ranks the drifting rhythm with the flat baseline across the whole sweep, confirming the failure mode. The IEI-anchored scalar ({fmt(ref.flat?.iei_anchored)} / {fmt(ref.stationary?.iei_anchored)} / {fmt(ref.drifting?.iei_anchored)} at the endpoints) separates rhythm from baseline too, but with less dynamic range.
+
+**Chosen scalar: lobe-to-trough.** Bounded, calibrated at 1 for Poisson, stationarity-robust, and the widest separation of the three. Candidate 3 (biophysical lag) is candidate 1 with the lag fixed from circuit delay instead of the IEI; it is only testable where that delay is known, so it is deferred to the trained-network runner.
 
 ## Next steps
 
-1. Implement the IEI histogram and spike-time autocorrelation in the metrics module; validate the three candidate scalars on the synthetic stationary/non-stationary Poisson references.
-2. Pick the scalar that best separates those references and the COBA/PING baselines.
-3. Runner at *src/notebooks/nb054.py* (tier + modal-gpu only) applying the chosen metric to the already-trained networks — measurement only, no new training.
+1. ✅ Primitives (*iei_histogram*, *spike_autocorrelogram*, *rhythmicity_metrics*) implemented and unit-tested; the three candidate scalars calibrated across a modulation-depth spectrum of stationary and drifting references. Lobe-to-trough chosen.
+2. Extend *src/notebooks/nb054.py* to apply the lobe-to-trough metric to the already-trained networks — COBA vs PING ([nb023](/notebooks/nb023/)), the *--ei-strength* sweep ([nb036](/notebooks/nb036/)), and the per-cell jitter sweep ([nb042](/notebooks/nb042/)) — measurement only, no new training.
+3. Cross-check the metric against the [nb041](/notebooks/nb041/) PSD peak on the same checkpoints, and decide whether the biophysical-lag variant adds anything over the data-driven lobe-to-trough once the E→I→E delay is read from the config.
