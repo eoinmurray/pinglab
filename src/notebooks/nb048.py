@@ -32,13 +32,15 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "src" / "notebooks"))
 
-from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
+from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
 
 SLUG = "nb048"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 # Trained-baseline locator — nb025 medium-tier PING at θ_u = off, three
 # seeds. Heatmap and τ-sweep average over all three; headline trials pick
@@ -583,12 +585,6 @@ def run_tau_sweep(
 
 
 # ── Plotting ────────────────────────────────────────────────────────
-def _stamp(fig, run_id: str) -> None:
-    fig.text(
-        0.995, 0.005, run_id,
-        ha="right", va="bottom",
-        fontsize=theme.SIZE_CAPTION, color=theme.LABEL, family="monospace",
-    )
 
 
 def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
@@ -722,7 +718,7 @@ def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
         f"(input {s['input_rate_hz']:g} Hz Poisson)",
         fontsize=theme.SIZE_TITLE,
     )
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -774,7 +770,7 @@ def plot_acc_vs_tau(
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -935,7 +931,7 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
         f"trained PING (no retraining)",
         fontsize=theme.SIZE_TITLE,
     )
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -979,7 +975,7 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -990,9 +986,7 @@ def main() -> None:
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     cfg_tier = TIER_CONFIG[tier]
     notebook_run_id = next_run_id(SLUG)
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    FIGURES.mkdir(parents=True, exist_ok=True)
-    persist_run_id(SLUG, notebook_run_id)
+    prepare_run_dirs(SLUG, notebook_run_id, wipe=False, make_artifacts=True)
 
     t_start = time.monotonic()
     from cli import _auto_device

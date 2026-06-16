@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 import time
 from pathlib import Path
@@ -34,7 +33,10 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
-from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
+from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
 
@@ -42,8 +44,7 @@ sys.path.insert(0, str(REPO / "src" / "notebooks"))
 from nb042 import _load_trained_full  # noqa: E402
 
 SLUG = "nb046"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 NB041_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "nb041"
 NB041_NUMBERS = (
@@ -218,14 +219,6 @@ def evaluate_cell(train_dir: Path, f_gamma_hz: float, device) -> dict:
 # ─── plotting ───────────────────────────────────────────────────────
 
 
-def _stamp(fig, run_id: str) -> None:
-    fig.text(
-        0.995, 0.005, run_id,
-        ha="right", va="bottom",
-        fontsize=theme.SIZE_CAPTION, color=theme.LABEL, family="monospace",
-    )
-
-
 def plot_distribution(rows: list[dict], out_path: Path, run_id: str) -> dict:
     """Bar plot of P(spikes/cell/cycle = k) per τ_GABA, k ∈ {0, 1, 2, ≥3}."""
     theme.apply()
@@ -276,7 +269,7 @@ def plot_distribution(rows: list[dict], out_path: Path, run_id: str) -> dict:
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -348,7 +341,7 @@ def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path, run_id: str) -> dic
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -379,14 +372,8 @@ def main() -> None:
     print(f"  τ_GABAs: {args.tau_gabas}")
     print(f"  seeds:   {args.seeds}")
 
-    if not args.no_wipe_dir:
-        for d in (ARTIFACTS, FIGURES):
-            if d.exists():
-                print(f"[wipe] {d.relative_to(REPO)}")
-                shutil.rmtree(d)
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    FIGURES.mkdir(parents=True, exist_ok=True)
-    persist_run_id(SLUG, notebook_run_id)
+    prepare_run_dirs(SLUG, notebook_run_id, wipe=not args.no_wipe_dir,
+                     make_artifacts=True)
 
     from cli import _auto_device
     device = _auto_device()

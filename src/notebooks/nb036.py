@@ -28,14 +28,17 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
-from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
+from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
 
 SLUG = "nb036"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
 
 TIER_CONFIG = {
@@ -201,14 +204,6 @@ def load_metrics(run_dir: Path) -> dict:
 
 def load_config(run_dir: Path) -> dict:
     return json.loads((run_dir / "config.json").read_text())
-
-
-def _stamp(fig, run_id: str) -> None:
-    fig.text(
-        0.995, 0.005, run_id,
-        ha="right", va="bottom",
-        fontsize=theme.SIZE_CAPTION, color=theme.LABEL, family="monospace",
-    )
 
 
 def _load_trained_full(train_dir: Path, device):
@@ -478,7 +473,7 @@ def plot_coupling_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -598,7 +593,7 @@ def plot_wei_wie_grid(rows: list[dict], out_path: Path, run_id: str) -> None:
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -664,7 +659,7 @@ def plot_wei_wie_acc_vs_e_with_frontier(
     ax.set_ylim(70.0, 90.0)
     ax.legend(fontsize=theme.SIZE_CAPTION, frameon=False, loc="lower right")
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -701,7 +696,7 @@ def plot_wei_wie_acc_vs_e(rows: list[dict], out_path: Path, run_id: str) -> None
     )
     ax.set_ylim(70.0, 90.0)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -819,7 +814,7 @@ def plot_wei_diagonal(rows: list[dict], out_path: Path, run_id: str) -> None:
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -865,21 +860,12 @@ def plot_wei_diagonal_acc_vs_e(
     )
     ax.set_ylim(70.0, 90.0)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
 # ── End W_ei diagonal sweep ──────────────────────────────────────────
-
-def _format_duration(seconds: float) -> str:
-    s = int(round(seconds))
-    if s < 60:
-        return f"{s}s"
-    if s < 3600:
-        return f"{s // 60}m {s % 60:02d}s"
-    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
-
 
 def copy_video(run_dir: Path, out_path: Path) -> None:
     src = run_dir / "training.mp4"
@@ -904,18 +890,10 @@ def main() -> None:
         + ("  [skip-training]" if skip_training else "")
     )
 
-    if wipe_dir:
-        if skip_training:
-            if FIGURES.exists():
-                print(f"[wipe] {FIGURES.relative_to(REPO)}")
-                shutil.rmtree(FIGURES)
-        else:
-            for d in (ARTIFACTS, FIGURES):
-                if d.exists():
-                    print(f"[wipe] {d.relative_to(REPO)}")
-                    shutil.rmtree(d)
-    FIGURES.mkdir(parents=True, exist_ok=True)
-    persist_run_id(SLUG, notebook_run_id)
+    prepare_run_dirs(
+        SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
+        make_artifacts=False,
+    )
 
     only_missing = "--only-missing" in sys.argv
     if not skip_training:
@@ -1116,7 +1094,7 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "git_sha": train_cfg.get("git_sha"),
         "duration_s": round(duration_s, 1),
-        "duration": _format_duration(duration_s),
+        "duration": format_duration(duration_s),
         "tier": tier,
         "config": {
             "tier": tier,
