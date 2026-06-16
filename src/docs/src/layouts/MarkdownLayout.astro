@@ -6,6 +6,7 @@ import "../styles/global.css";
 import { blobUrl } from "../config/repo";
 import ThemeToggle from "../components/ThemeToggle.astro";
 import SiteHeader from "../components/SiteHeader.astro";
+import StatusBadge from "../components/StatusBadge.astro";
 const { frontmatter, headings = [], file } = Astro.props as {
   frontmatter: any;
   headings?: any;
@@ -159,6 +160,11 @@ if (file) {
         <article class="prose max-w-none" style="font-family: var(--font-serif);">
           {frontmatter?.title && (
             <h1 class="entry-title">{frontmatter.title}</h1>
+          )}
+          {frontmatter?.status && (
+            <div class="not-prose -mt-4 mb-6">
+              <StatusBadge status={frontmatter.status} />
+            </div>
           )}
           <slot />
         </article>
