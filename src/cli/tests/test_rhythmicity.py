@@ -98,3 +98,14 @@ def test_trough_located_near_half_period():
     assert abs(m["trough_lag"] - period / 2) < 5.0, m["trough_lag"]
     assert m["lobe_lag"] < m["trough_lag"]
     assert m["lobe_to_trough"] > 2.0
+
+
+def test_contrast_bounded_and_separates():
+    rng = np.random.default_rng(7)
+    flat = _poisson_raster(20.0, 0.25, 400, 3000.0, rng)
+    volley = _volley_raster(25.0, 0.25, 400, 3000.0, jitter_ms=1.5, rng=rng)
+    cf = rhythmicity_metrics(flat, dt=0.25)["contrast"]
+    cv = rhythmicity_metrics(volley, dt=0.25)["contrast"]
+    assert 0.0 <= cf < 0.2, cf            # flat ≈ 0
+    assert 0.0 <= cv < 1.0, cv            # bounded above by 1
+    assert cv > cf + 0.3                  # rhythm clearly higher
