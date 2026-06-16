@@ -16,7 +16,6 @@ Two conditions, plotted side-by-side as the "PING vs AI" contrast:
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 import time
@@ -30,12 +29,13 @@ sys.path.insert(0, str(REPO / "src"))
 
 from cli import theme  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
-from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 
 SLUG = "nb050"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
 SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
 SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
@@ -583,13 +583,7 @@ def main() -> None:
     notebook_run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {notebook_run_id} tier={tier}")
 
-    if wipe_dir:
-        for d in (ARTIFACTS, FIGURES):
-            if d.exists():
-                print(f"[wipe] {d.relative_to(REPO)}")
-                shutil.rmtree(d)
-    FIGURES.mkdir(parents=True, exist_ok=True)
-    persist_run_id(SLUG, notebook_run_id)
+    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
 
     figures: dict[str, Path] = {}
     summary_rows: list[dict] = []
