@@ -38,9 +38,11 @@ from scipy.optimize import fsolve, brentq
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 from cli import theme  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "nb033"
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+_, FIGURES = artifacts_and_figures(SLUG)
 
 # ── Biophysical parameters (units: ms, current units) ─────────────────
 TAU_E_MS = 20.0    # E membrane
@@ -193,13 +195,6 @@ def amplitude_at(I_ext, t_max=2000.0, t_settle=1500.0,
     return float(E.max() - E.min())
 
 
-def _stamp(fig, run_id):
-    fig.text(
-        0.995, 0.005, run_id, ha="right", va="bottom",
-        fontsize=theme.SIZE_CAPTION, color=theme.LABEL, family="monospace",
-    )
-
-
 def plot_criticality(amps, hopf, out_path, run_id):
     theme.apply()
     fig, (ax_a, ax_a2) = plt.subplots(1, 2, figsize=(12.0, 4.5), dpi=150)
@@ -223,7 +218,7 @@ def plot_criticality(amps, hopf, out_path, run_id):
     fig.suptitle("Hopf criticality test by direct simulation",
                  fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -392,7 +387,7 @@ def plot_2d_vs_4d_timeseries(hopf, out_path, run_id):
                  fontsize=theme.SIZE_TITLE)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -427,7 +422,7 @@ def plot_eigenvalues_complex(results, hopf, out_path, run_id):
     ax.set_title("4D eigenvalues in the complex plane",
                  fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -473,7 +468,7 @@ def plot_frequency_vs_tau_gaba(mf, meas, out_path, run_id):
                  fontsize=theme.SIZE_TITLE)
     ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -507,7 +502,7 @@ def plot_limit_cycle(hopf, out_path, run_id):
     ax.set_title(f"4D limit cycle near onset — E leads I by ≈ {abs(lag_ms):.1f} ms",
                  fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -534,7 +529,7 @@ def plot_hopf_locus(wei_grid, wie_grid, Istar, out_path, run_id):
     ax.set_title("Where the recruitment cliff sits in the coupling plane",
                  fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 

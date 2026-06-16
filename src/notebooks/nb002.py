@@ -39,13 +39,13 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
 from helpers.modal import parse_modal_gpu  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
 
 SLUG = "nb002"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 # ── Network + protocol (all hardcoded — the notebook IS the recipe) ──────────
 N_E = 1024              # excitatory cells → 32×32 grid

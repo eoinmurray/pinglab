@@ -26,7 +26,6 @@ Notebook entry: src/docs/src/pages/notebooks/nb049.mdx
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 import time
@@ -39,13 +38,15 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
-from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
+from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
 
 SLUG = "nb049"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
 
 TIER_CONFIG = {
@@ -401,7 +402,7 @@ def plot_weight_matrices(
     _panel(ax_ie, w_ie_init, w_ie_trained,
            r"$W^{IE}$  (256 × 1024)", theme.DEEP_RED, canon_ie)
 
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -533,12 +534,6 @@ def capture_raster(train_dir: Path, device, sample_idx: int = 0) -> dict:
 
 
 # ── Plotting ────────────────────────────────────────────────────────
-def _stamp(fig, run_id: str) -> None:
-    fig.text(
-        0.995, 0.005, run_id,
-        ha="right", va="bottom",
-        fontsize=theme.SIZE_CAPTION, color=theme.LABEL, family="monospace",
-    )
 
 
 def plot_training_trajectories(
@@ -624,7 +619,7 @@ def plot_training_trajectories(
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -867,7 +862,7 @@ def plot_condition_card(
     ax_rast.set_title("Single-trial raster (seed 42)",
                       fontsize=theme.SIZE_LABEL, loc="left", pad=4)
 
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -906,7 +901,7 @@ def plot_final_psds(
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -971,7 +966,7 @@ def plot_raster_strip(
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -982,9 +977,7 @@ def main() -> None:
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     notebook_run_id = next_run_id(SLUG)
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    FIGURES.mkdir(parents=True, exist_ok=True)
-    persist_run_id(SLUG, notebook_run_id)
+    prepare_run_dirs(SLUG, notebook_run_id, wipe=False, make_artifacts=True)
     t_start = time.monotonic()
 
     only_missing = "--only-missing" in sys.argv

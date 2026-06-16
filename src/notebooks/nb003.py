@@ -16,7 +16,6 @@ Notebook entry: src/docs/src/pages/notebooks/nb003.mdx
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 import time
 from datetime import datetime
@@ -25,12 +24,15 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
-import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import sh  # noqa: E402
 
+from helpers.fmt import format_duration, format_run_datetime  # noqa: E402
 from helpers.modal import append_modal_args, parse_modal_gpu  # noqa: E402
-from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
+from helpers.stamp import overlay_stamp_video, render_stamp_png  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 
 OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
@@ -67,69 +69,6 @@ SCAN_MIN = 1.0  # overdrive=1 → no elevation (control)
 SCAN_MAX = 10.0  # overdrive=10 → strong elevation
 VIDEO_NAME = "scan_overdrive.mp4"
 CANON_OVERDRIVE = 5.0  # canonical in-window rate multiplier for the replay
-
-
-def _render_stamp_png(notebook_run_id: str, stamp_path: Path) -> None:
-    fig = plt.figure(figsize=(2.8, 0.28), dpi=150)
-    fig.patch.set_alpha(0.0)
-    fig.text(
-        0.97,
-        0.5,
-        notebook_run_id,
-        ha="right",
-        va="center",
-        fontsize=10,
-        color="white",
-        family="monospace",
-        bbox=dict(facecolor="black", alpha=0.55, pad=3, edgecolor="none"),
-    )
-    stamp_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(stamp_path, transparent=True, bbox_inches="tight", pad_inches=0.02)
-    plt.close(fig)
-
-
-def _overlay_stamp_video(src: Path, dst: Path, stamp: Path) -> None:
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    sh.ffmpeg(
-        "-y",
-        "-i",
-        str(src),
-        "-i",
-        str(stamp),
-        "-filter_complex",
-        "[0:v][1:v]overlay=W-w-10:H-h-10",
-        "-c:v",
-        "libx264",
-        "-pix_fmt",
-        "yuv420p",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "20",
-        "-movflags",
-        "+faststart",
-        str(dst),
-        _out=sys.stdout,
-        _err=sys.stderr,
-    )
-    print(f"wrote {dst.relative_to(REPO)}")
-
-
-def _format_run_datetime(dt: datetime) -> str:
-    day = dt.day
-    suffix = (
-        "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
-    )
-    return dt.strftime(f"%A, {day}{suffix} %B %y at %H:%M")
-
-
-def _format_duration(seconds: float) -> str:
-    s = int(round(seconds))
-    if s < 60:
-        return f"{s}s"
-    if s < 3600:
-        return f"{s // 60}m {s % 60:02d}s"
-    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
 
 
 def compute_summary_rates() -> dict:
@@ -218,8 +157,7 @@ def extras(tier: str, notebook_run_id: str) -> dict:
 
 
 if __name__ == "__main__":
-    artifacts = REPO / "src" / "artifacts" / "notebooks" / SLUG
-    figures = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+    artifacts, figures = artifacts_and_figures(SLUG)
 
     wipe_dir = "--no-wipe-dir" not in sys.argv
     skip_training = "--skip-training" in sys.argv
@@ -235,17 +173,11 @@ if __name__ == "__main__":
         + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
     )
 
-    if wipe_dir:
-        wipe_targets = (figures,) if skip_training else (artifacts, figures)
-        for d in wipe_targets:
-            if d.exists():
-                print(f"[wipe] {d.relative_to(REPO)}")
-                shutil.rmtree(d)
-    artifacts.mkdir(parents=True, exist_ok=True)
-    figures.mkdir(parents=True, exist_ok=True)
-    persist_run_id(SLUG, notebook_run_id)
+    prepare_run_dirs(
+        SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training, make_artifacts=True
+    )
     stamp = figures / "_stamp.png"
-    _render_stamp_png(notebook_run_id, stamp)
+    render_stamp_png(notebook_run_id, stamp)
 
     scan_dir = artifacts / "scan"
     mp4_src = scan_dir / "scan.mp4"
@@ -304,15 +236,15 @@ if __name__ == "__main__":
         if not mp4_src.exists():
             raise SystemExit(f"video run did not produce {mp4_src}")
 
-    _overlay_stamp_video(mp4_src, figures / VIDEO_NAME, stamp)
+    overlay_stamp_video(mp4_src, figures / VIDEO_NAME, stamp)
     stamp.unlink(missing_ok=True)
 
     duration_s = time.monotonic() - t_start
     summary: dict = {
         "notebook_run_id": notebook_run_id,
-        "run_datetime": _format_run_datetime(datetime.now().astimezone()),
+        "run_datetime": format_run_datetime(datetime.now().astimezone()),
         "duration_s": round(duration_s, 1),
-        "duration": _format_duration(duration_s),
+        "duration": format_duration(duration_s),
         "tier": tier,
         "config": {
             "tier": tier,

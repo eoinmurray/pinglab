@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 import time
 from pathlib import Path
@@ -35,14 +34,17 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
-from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
+from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
+from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
 
 SLUG = "nb042"
-ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / SLUG
-FIGURES = REPO / "src" / "docs" / "public" / "figures" / "notebooks" / SLUG
+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 # nb025 trained PING baseline lives here. Three seeds available; the
 # nb042 inference experiment runs against all three for error bars.
@@ -509,14 +511,6 @@ def capture_condition_raster(
 # ─── plotting ───────────────────────────────────────────────────────
 
 
-def _stamp(fig, run_id: str) -> None:
-    fig.text(
-        0.995, 0.005, run_id,
-        ha="right", va="bottom",
-        fontsize=theme.SIZE_CAPTION, color=theme.LABEL, family="monospace",
-    )
-
-
 def plot_bar_chart(rows: list[dict], out_path: Path, run_id: str) -> None:
     """Three conditions on x; grouped bars for E rate (left axis) and
     accuracy (right axis). Mean I rate annotated above each E-rate bar
@@ -582,7 +576,7 @@ def plot_bar_chart(rows: list[dict], out_path: Path, run_id: str) -> None:
     ax_rate.spines["top"].set_visible(False)
     ax_acc.spines["top"].set_visible(False)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -637,7 +631,7 @@ def plot_raster_strip(samples: list[dict], out_path: Path, run_id: str) -> None:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -699,7 +693,7 @@ def plot_jitter_raster_strip(
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -756,7 +750,7 @@ def plot_cell_jitter_raster_strip(
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -850,7 +844,7 @@ def plot_cell_jitter_sweep(
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -916,7 +910,7 @@ def plot_pareto_raster_strip(
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -1012,7 +1006,7 @@ def plot_jitter_sweep(
     ax_rate.spines["top"].set_visible(False)
     ax_acc.spines["top"].set_visible(False)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -1094,7 +1088,7 @@ def plot_pareto(
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -1253,7 +1247,7 @@ def plot_xtau_raw_sweeps(rows: list[dict], out_path: Path, run_id: str) -> None:
     fig.suptitle("Jitter sweep across τ_GABA — raw σ axis",
                  fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -1298,7 +1292,7 @@ def plot_xtau_dimensional_collapse(
     fig.suptitle("Dimensional collapse — σ rescaled by f_γ",
                  fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -1359,7 +1353,7 @@ def plot_xtau_inflection_vs_period(
     fig.suptitle("Inflection σ tracks 1/f_γ across τ_GABA",
                  fontsize=theme.SIZE_TITLE)
     fig.tight_layout()
-    _stamp(fig, run_id)
+    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -1367,15 +1361,6 @@ def plot_xtau_inflection_vs_period(
 
 
 # ─── success criteria ───────────────────────────────────────────────
-
-def _format_duration(seconds: float) -> str:
-    s = int(round(seconds))
-    if s < 60:
-        return f"{s}s"
-    if s < 3600:
-        return f"{s // 60}m {s % 60:02d}s"
-    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1397,14 +1382,9 @@ def main() -> None:
     notebook_run_id = next_run_id(SLUG)
     print(f"notebook_run_id = {notebook_run_id} tier={tier} seeds={args.seeds}")
 
-    if not args.no_wipe_dir:
-        for d in (ARTIFACTS, FIGURES):
-            if d.exists():
-                print(f"[wipe] {d.relative_to(REPO)}")
-                shutil.rmtree(d)
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    FIGURES.mkdir(parents=True, exist_ok=True)
-    persist_run_id(SLUG, notebook_run_id)
+    prepare_run_dirs(
+        SLUG, notebook_run_id, wipe=not args.no_wipe_dir, make_artifacts=True,
+    )
 
     from cli import _auto_device
 
@@ -1669,7 +1649,7 @@ def main() -> None:
     summary = {
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
-        "duration": _format_duration(duration_s),
+        "duration": format_duration(duration_s),
         "tier": tier,
         "config": {
             "seeds": list(args.seeds),
