@@ -2,6 +2,7 @@
 import "../../styles/global.css";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
+import StatusBadge from "../../components/StatusBadge.astro";
 
 const notebookModules = import.meta.glob("./*.mdx", { eager: true });
 
@@ -17,6 +18,7 @@ const notebooks = Object.entries(notebookModules)
       entry: fm.entry,
       title: String(fm.title).replace(/^\d+\s*[—–-]\s*/, ""),
       date: fm.date,
+      status: fm.status,
     };
   })
   .sort((a, b) => b.entry - a.entry);
@@ -100,7 +102,10 @@ const formatDate = (raw) => {
                     <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
                       {nb.title}
                     </a>
-                    <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                    <span class="w-20 shrink-0 text-right">
+                      {nb.status && <StatusBadge status={nb.status} />}
+                    </span>
+                    <span class="w-28 shrink-0 text-right whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
                       {formatDate(nb.date)}
                     </span>
                   </li>
