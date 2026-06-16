@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import ThemeToggle from "../components/ThemeToggle.astro";
+import StatusBadge from "../components/StatusBadge.astro";
 import PingAsciiHero from "../components/articles/PingAsciiHero";
 
 const notebookModules = import.meta.glob("./notebooks/*.mdx", { eager: true });
@@ -13,6 +14,7 @@ type Entry = {
   date: any;
   collection: string | null;
   kind: "article" | "notebook";
+  status?: string;
 };
 
 function entryCollection(fm: any): string | null {
@@ -29,7 +31,10 @@ function byEntryDesc(a: Entry, b: Entry): number {
 
 const articles: Entry[] = Object.entries(articleModules)
   .map(([path, mod]: [string, any]) => {
-    const slug = path.split("/").pop()!.replace(/\.mdx$/, "");
+    const slug = path
+      .split("/")
+      .pop()!
+      .replace(/\.mdx$/, "");
     const fm = mod.frontmatter;
     return {
       slug,
@@ -44,7 +49,10 @@ const articles: Entry[] = Object.entries(articleModules)
 
 const notebooks: Entry[] = Object.entries(notebookModules)
   .map(([path, mod]: [string, any]) => {
-    const slug = path.split("/").pop()!.replace(/\.mdx$/, "");
+    const slug = path
+      .split("/")
+      .pop()!
+      .replace(/\.mdx$/, "");
     const fm = mod.frontmatter;
     return {
       slug,
@@ -53,6 +61,7 @@ const notebooks: Entry[] = Object.entries(notebookModules)
       date: fm.date,
       collection: entryCollection(fm),
       kind: "notebook" as const,
+      status: fm.status,
     };
   })
   .sort(byEntryDesc);
@@ -75,7 +84,11 @@ function getBucket(name: string): Bucket {
           ? "Misc"
           : name
               .split("-")
-              .map((w) => (["coba", "ping", "snn"].includes(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+              .map((w) =>
+                ["coba", "ping", "snn"].includes(w)
+                  ? w.toUpperCase()
+                  : w.charAt(0).toUpperCase() + w.slice(1),
+              )
               .join(" "),
       articles: [],
       notebooks: [],
@@ -205,10 +218,7 @@ const totalCollections = buckets.filter((b) => b.collection !== UNCOLLECTED).len
     </div>
 
     <!-- Hero -->
-    <section
-      class="relative hero-section"
-      style="height: 320px; background: var(--paper);"
-    >
+    <section class="relative hero-section" style="height: 320px; background: var(--paper);">
       <PingAsciiHero client:only="react" height="320px" borderRadius="0" margin="0" />
       <div
         class="hero-overlay absolute inset-0 flex items-center px-6 lg:pl-[25%] lg:pr-16 pointer-events-none"
@@ -221,7 +231,8 @@ const totalCollections = buckets.filter((b) => b.collection !== UNCOLLECTED).len
             PINGLAB
           </h1>
           <p class="mt-3 text-base md:text-lg text-muted max-w-[34rem]">
-            Open research notes on gamma-gated sparsity in conductance-based excitatory–inhibitory spiking neural networks.
+            Open research notes on gamma-gated sparsity in conductance-based excitatory–inhibitory
+            spiking neural networks.
           </p>
           <div class="mt-5 flex flex-wrap items-baseline gap-x-5 gap-y-2 text-sm">
             <a href="/articles/" class="text-muted hover:text-[color:var(--ink)]">
@@ -250,7 +261,6 @@ const totalCollections = buckets.filter((b) => b.collection !== UNCOLLECTED).len
 
     <main class="px-6 pb-48 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
       <div class="max-w-[46rem] flex flex-col gap-16">
-
         <!-- All collections -->
         <section>
           <div class="flex flex-col gap-10">
@@ -278,7 +288,8 @@ const totalCollections = buckets.filter((b) => b.collection !== UNCOLLECTED).len
                           <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
                             {a.title}
                           </a>
-                          <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                          <span class="w-20 shrink-0" />
+                          <span class="w-22 shrink-0 text-right whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
                             {formatDate(a.date)}
                           </span>
                         </li>
@@ -299,7 +310,10 @@ const totalCollections = buckets.filter((b) => b.collection !== UNCOLLECTED).len
                           <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
                             {nb.title}
                           </a>
-                          <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                          <span class="w-20 shrink-0 text-right">
+                            {nb.status && <StatusBadge status={nb.status} />}
+                          </span>
+                          <span class="w-22 shrink-0 text-right whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
                             {formatDate(nb.date)}
                           </span>
                         </li>
@@ -311,7 +325,6 @@ const totalCollections = buckets.filter((b) => b.collection !== UNCOLLECTED).len
             }
           </div>
         </section>
-
       </div>
     </main>
   </body>

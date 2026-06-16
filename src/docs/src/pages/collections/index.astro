@@ -94,14 +94,8 @@ function countLabel(articles: number, notebooks: number): string {
             {
               entries.length > 0 ? (
                 <ol class="pl-0 list-none m-0 text-[0.95rem]">
-                  {entries.map(([name, { articles, notebooks }], i) => (
+                  {entries.map(([name, { articles, notebooks }]) => (
                     <li class="flex items-baseline gap-3 py-[0.3rem]">
-                      <a
-                        href={`/collections/${name}/`}
-                        class="w-4 shrink-0 tabular-nums text-muted-soft"
-                      >
-                        {String(i).padStart(1, "0")}.
-                      </a>
                       <a href={`/collections/${name}/`} class="flex-1 min-w-0">
                         {name
                           .split("-")

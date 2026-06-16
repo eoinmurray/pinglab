@@ -2,6 +2,7 @@
 import "../../styles/global.css";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
+import StatusBadge from "../../components/StatusBadge.astro";
 
 type Entry = {
   slug: string;
@@ -9,6 +10,7 @@ type Entry = {
   title: string;
   date: any;
   collection: string | null;
+  status?: string;
 };
 
 function buildEntries(modules: Record<string, any>): Entry[] {
@@ -25,6 +27,7 @@ function buildEntries(modules: Record<string, any>): Entry[] {
       title: String(fm.title ?? slug).replace(/^\d+\s*[—–-]\s*/, ""),
       date: fm.date,
       collection: c,
+      status: fm.status,
     };
   });
 }
@@ -152,7 +155,8 @@ const formatDate = (raw: any) => {
                       <a href={`/articles/${a.slug}/`} class="flex-1 min-w-0">
                         {a.title}
                       </a>
-                      <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                      <span class="w-20 shrink-0" />
+                      <span class="w-28 shrink-0 text-right whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
                         {formatDate(a.date)}
                       </span>
                     </li>
@@ -178,7 +182,10 @@ const formatDate = (raw: any) => {
                       <a href={`/notebooks/${nb.slug}/`} class="flex-1 min-w-0">
                         {nb.title}
                       </a>
-                      <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                      <span class="w-20 shrink-0 text-right">
+                        {nb.status && <StatusBadge status={nb.status} />}
+                      </span>
+                      <span class="w-28 shrink-0 text-right whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
                         {formatDate(nb.date)}
                       </span>
                     </li>
