@@ -495,6 +495,12 @@ def train(
         log.info(f"  observe → {out_dir / 'frames/'}")
 
     opt = torch.optim.Adam(net.parameters(), lr=lr)
+    # Dale's law via projected gradient: clamp the constrained weights back onto
+    # the non-negative orthant after every step. Registered once as a step-post
+    # hook so it can't be forgotten (no-op when --no-dales-law allows signed
+    # weights). Runs eager, outside the compiled graph.
+    if not net.signed_weights:
+        opt.register_step_post_hook(lambda *_: net.project_dales())
     _ce = torch.nn.CrossEntropyLoss()
 
     def loss_fn(logits, y):
@@ -599,8 +605,7 @@ def train(
                 opt.zero_grad(set_to_none=True)
                 n_skipped_steps += 1
             else:
-                opt.step()
-                net.project_dales()
+                opt.step()  # project_dales runs via the step-post hook
                 total_loss += loss.item()
                 n_batches += 1
                 grad_sum += gn_f

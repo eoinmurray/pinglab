@@ -945,13 +945,23 @@ class COBANet(SNNBase):
         state["hidden_accum"] = state["hidden_accum"] + prev_spk
         return state["hidden_accum"] @ W_ff[-1]
 
+    def _dale_params(self):
+        """Trainable weights subject to Dale's law: the feedforward stack plus
+        any recurrent E↔I matrices flipped to trainable (--trainable-w-*).
+        Non-trainable recurrent buffers are skipped — they are init'd
+        non-negative and never updated."""
+        dicts = (self.W_ee, self.W_ei, self.W_ie, self.W_ii)
+        params = list(self.W_ff) + [p for d in dicts for p in d.values()]
+        return [p for p in params if p.requires_grad]
+
+    @torch.no_grad()
     def project_dales(self) -> None:
-        """Project W_ff back onto the non-negative orthant when Dale's
-        law is enforced. The recurrent W_ee / W_ei / W_ie are stored as
-        non-trainable buffers (requires_grad=False) so they are never
-        touched by the optimiser and need no projection."""
+        """Projected-gradient step for Dale's law: clamp every trainable
+        constrained weight back onto the non-negative orthant. Registered as an
+        optimiser step-post-hook (train.py), so it runs automatically after each
+        opt.step(); no-op when signed weights are allowed. Eager and outside the
+        compiled per-timestep graph, so it does not affect torch.compile."""
         if self.signed_weights:
             return
-        with torch.no_grad():
-            for W in self.W_ff:
-                W.data.clamp_(min=0)
+        for p in self._dale_params():
+            p.clamp_(min=0)
