@@ -26,69 +26,14 @@ export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
 ## Abstract
 
-External drive is one knob ([nb003](/notebooks/nb003/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes. Input rate and $W_\text{in}$ are bumped relative to [nb003](/notebooks/nb003/) / [nb005](/notebooks/nb005/) so E has enough baseline drive to recruit I at all without a stim pulse. See the notebook runner contract for how this entry's runner/artifact/figure triple is wired up.
+External drive is one knob ([nb003](/notebooks/nb003/)); internal E→I→E coupling strength is the other. With the stim-window overdrive pinned at {scan.fixed_overdrive}× (flat input through the trial), this notebook sweeps the E→I coupling strength — walking the network from the async baseline (E and I effectively decoupled) through the emergence of gamma as the feedback loop closes.
 
-## Methods
+## Method
 
 A scan over the [oscilloscope *video*](/articles/ar011/) subcommand with stim-overdrive held at {scan.fixed_overdrive}× and **E→I strength** sweeping {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}). All knobs are hardcoded literals in *src/notebooks/nb006.py* per the runner contract.
 
-<RunParameters numbers={numbers} groups={[
-  {
-    title: "Setup",
-    rows: [
-      { label: "Model", value: cfg.model ?? "?" },
-      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample} @ ${scan.input_rate_hz} Hz` },
-      { label: "W_in init (mean, std)", value: `${scan.w_in_mean}, ${scan.w_in_std}` },
-      { label: "Seed", value: cfg.seed ?? "?" },
-    ],
-  },
-  {
-    title: "Architecture",
-    rows: [
-      { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
-      { label: "dt / T", value: `${cfg.dt_ms} / ${cfg.sim_ms} ms` },
-    ],
-  },
-  {
-    title: "Stimulus & scan",
-    rows: [
-      { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
-      { label: "Fixed overdrive", value: `${scan.fixed_overdrive}×` },
-      { label: "E→I strength scan", value: `${scan.min}–${scan.max}` },
-      { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
-    ],
-  },
-]} />
-
 ## Results
-
 
 <Figure type="video" id="Figure 1" title="E→I coupling sweep (scan_ei.mp4)" src="/figures/notebooks/nb006/scan_ei.mp4">
   Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. **E→I strength** sweeps {scan.min} → {scan.max} over {scan.frames} frames; input rate {scan.input_rate_hz} Hz, $W_\text{in}$ init ({scan.w_in_mean}, {scan.w_in_std}).
-
-  No PING until about E→I strength 1.6; then unstable onset of PING from 1.6 onwards.
 </Figure>
-
-### Population rates
-
-| Window | E (Hz) | I (Hz) |
-|---|---|---|
-| Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
-| In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
-| Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
-
-## Discussion
-
-TODO: discussion paragraph — write what the results above mean for the project.
-
-## Next steps
-
-The recruitment threshold near *ei* ≈ 1.6 here is the practical floor for any *trained* PING circuit — at lower *ei* (e.g. 0.5) the network silently degenerates into feedforward-E with *rate_i* = 0 Hz. A natural follow-up is an independent 2D sweep over (*ei-strength*, *input-rate*) rendered as a heatmap of *rate_i*, since the threshold here is conditional on the bumped input drive used in this entry. With that map in hand, the trained-PING entries can choose an *ei* / drive pair from inside a verified PING basin instead of guessing.
-
-## Appendix
-
-### Reproduction
-
-```
-uv run src/notebooks/nb006.py
-```

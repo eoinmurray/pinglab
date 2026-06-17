@@ -26,37 +26,11 @@ export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
 ## Abstract
 
-**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz, but only when E gets enough external drive; below threshold the network sits in background firing. This notebook is the basic drive-threshold scan — companion sweeps live in [nb005](/notebooks/nb005/) (integration step) and [nb006](/notebooks/nb006/) (E→I coupling strength). See the notebook runner contract for how this entry's runner/artifact/figure triple is wired up.
+**PING** — Pyramidal-Interneuron Network Gamma — emerges when excitatory (**E**) and inhibitory (**I**) populations drive each other: E fires, recruits I, I silences E, I decays, E fires again. The cycle repeats at $\sim$30–80 Hz, but only when E gets enough external drive; below threshold the network sits in background firing.
 
-## Methods
+## Method
 
 A scan over the [oscilloscope *video*](/articles/ar011/) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames. All knobs are hardcoded literals in *src/notebooks/nb003.py* per the runner contract.
-
-<RunParameters numbers={numbers} groups={[
-  {
-    title: "Setup",
-    rows: [
-      { label: "Model", value: cfg.model ?? "?" },
-      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample} @ ${input.base_rate_hz} Hz max` },
-      { label: "Seed", value: cfg.seed ?? "?" },
-    ],
-  },
-  {
-    title: "Architecture",
-    rows: [
-      { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
-      { label: "dt / T", value: `${cfg.dt_ms} / ${cfg.sim_ms} ms` },
-    ],
-  },
-  {
-    title: "Stimulus & scan",
-    rows: [
-      { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
-      { label: "Overdrive scan", value: `${scan.min}×–${scan.max}×` },
-      { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
-    ],
-  },
-]} />
 
 ## Results
 
@@ -64,29 +38,3 @@ A scan over the [oscilloscope *video*](/articles/ar011/) subcommand: each frame 
 <Figure type="video" id="Figure 1" title="Stim-overdrive sweep (scan_overdrive.mp4)" src="/figures/notebooks/nb003/scan_overdrive.mp4">
   Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The stim window ({cfg.step_on_ms}–{cfg.step_off_ms} ms) multiplies the Poisson input rate by the **overdrive** factor shown on the frame; the sweep walks overdrive {scan.min}× → {scan.max}× over {scan.frames} frames.
 </Figure>
-
-In Figure 1 three regimes emerge: async baseline (1–1.2×), unstable PING onset (1.2–6×), stable PING (6×–onwards).
-
-### Population rates
-
-| Window | E (Hz) | I (Hz) |
-|---|---|---|
-| Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
-| In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
-| Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
-
-## Discussion
-
-TODO: discussion paragraph — write what the results above mean for the project.
-
-## Next steps
-
-The threshold around overdrive ≈ 1.2× is sharp on this MNIST sample but the structure depends on input statistics; a sample-averaged version (mean rate envelope across many digits) would harden the regime boundaries. With the threshold map in hand, [nb005](/notebooks/nb005/) and [nb006](/notebooks/nb006/) hold drive fixed in stable-PING territory and sweep the other two knobs (*dt*, *ei-strength*) — together the three videos pin the working-point box for every training entry downstream.
-
-## Appendix
-
-### Reproduction
-
-```
-uv run src/notebooks/nb003.py
-```

@@ -37,6 +37,12 @@ function byEntryDesc(a: Entry, b: Entry): number {
   return b.entry - a.entry;
 }
 
+// Notebooks: final entries first, then newest entry id first within each status.
+function byStatusThenEntry(a: Entry, b: Entry): number {
+  const rank = (s?: string) => (s === "final" ? 0 : 1);
+  return rank(a.status) - rank(b.status) || b.entry - a.entry;
+}
+
 export async function getStaticPaths() {
   const notebookModules = import.meta.glob("../notebooks/*.mdx", { eager: true });
   const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
@@ -70,7 +76,7 @@ const articles = buildEntries(articleModules)
 
 const notebooks = buildEntries(notebookModules)
   .filter((nb) => nb.collection === collection)
-  .sort(byEntryDesc);
+  .sort(byStatusThenEntry);
 
 const formatDate = (raw: any) => {
   const d =

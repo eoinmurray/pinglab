@@ -212,6 +212,43 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def plot_acc_rate_vs_epoch(out_path: Path, run_id: str) -> None:
+    """Two panels — test accuracy (top) and test E rate (bottom) vs epoch, one
+    line per (model, seed). The headline: accuracy plateaus by ~15 epochs for both
+    architectures, while PING's E rate locks to a tight band and COBA's keeps
+    climbing through epoch 100."""
+    theme.apply()
+    cells = _gather_cells()
+    fig, (ax_acc, ax_e) = plt.subplots(
+        2, 1, figsize=(8.0, 6.0), dpi=150, sharex=True,
+        gridspec_kw={"hspace": 0.12, "left": 0.11, "right": 0.97, "top": 0.93, "bottom": 0.09},
+    )
+    for (model, seed), m in cells.items():
+        color = MODEL_COLORS[model]
+        eps = np.array([e["ep"] for e in m["epochs"]])
+        accs = [e.get("acc", 0) for e in m["epochs"]]
+        e_rates = [e.get("test_rate_e", 0) for e in m["epochs"]]
+        label = model.upper() if seed == SEEDS[0] else None
+        ax_acc.plot(eps, accs, color=color, lw=1.2, alpha=0.85, label=label)
+        ax_e.plot(eps, e_rates, color=color, lw=1.2, alpha=0.85, label=label)
+    ax_acc.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    ax_acc.set_ylim(0, 100)
+    ax_acc.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
+    ax_e.set_ylabel("Test E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax_e.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
+    for ax in (ax_acc, ax_e):
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.grid(True, alpha=0.15, lw=0.4)
+        ax.tick_params(labelsize=theme.SIZE_TICK)
+    fig.suptitle("Accuracy converges for both; only PING's rate settles",
+                 fontsize=theme.SIZE_TITLE)
+    stamp_figure(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_weight_dynamics(out_path: Path, run_id: str) -> None:
     """Per-parameter weight norm and grad ratio vs epoch.
 
@@ -983,6 +1020,8 @@ def main() -> None:
                 f" / {rates.size}  ({time.monotonic() - t0:.1f}s)"
             )
 
+    plot_acc_rate_vs_epoch(FIGURES / "acc_rate_vs_epoch.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'acc_rate_vs_epoch.png'}")
     plot_training_curves(FIGURES / "training_curves.png", notebook_run_id)
     print(f"wrote {FIGURES / 'training_curves.png'}")
     plot_weight_dynamics(FIGURES / "weight_dynamics.png", notebook_run_id)

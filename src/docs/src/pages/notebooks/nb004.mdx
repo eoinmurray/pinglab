@@ -22,70 +22,14 @@ export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
 ## Abstract
 
-Companion to [nb003](/notebooks/nb003/). Where nb003 holds the input rate fixed and sweeps an in-window *overdrive* multiplier, this entry has **no stim window** — the Poisson input rate is flat over the whole simulation, and the sweep walks that single rate from low to high. The aim is to map PING onset as a function of constant input drive, with no transient stimulus to confound the picture.
+The Poisson input rate is flat over the whole simulation, and the sweep walks that single rate from low to high. The aim is to map PING onset as a function of constant input drive, with no transient stimulus to confound the picture.
 
-## Methods
+## Method
 
 A scan over the [oscilloscope *video*](/articles/ar011/) subcommand: each frame is a fresh {cfg.sim_ms} ms simulation on MNIST digit {input.digit}, sample {input.sample}, with the Poisson input rate set per frame from the scan and held flat across the whole run (overdrive=1, no stim elevation). The sweep walks the rate from {scan.min} Hz → {scan.max} Hz over {scan.frames} frames. All knobs are hardcoded literals in *src/notebooks/nb004.py* per the runner contract.
 
-<RunParameters numbers={numbers} groups={[
-  {
-    title: "Setup",
-    rows: [
-      { label: "Model", value: cfg.model ?? "?" },
-      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample}` },
-      { label: "Seed", value: cfg.seed ?? "?" },
-    ],
-  },
-  {
-    title: "Architecture",
-    rows: [
-      { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
-      { label: "dt / T", value: `${cfg.dt_ms} / ${cfg.sim_ms} ms` },
-    ],
-  },
-  {
-    title: "Stimulus & scan",
-    rows: [
-      { label: "Envelope", value: `flat (no stim window, overdrive=1)` },
-      { label: "Input-rate scan", value: `${scan.min}–${scan.max} Hz` },
-      { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
-    ],
-  },
-]} />
-
 ## Results
-
 
 <Figure type="video" id="Figure 1" title="Input-rate sweep (scan_input_rate.mp4)" src="/figures/notebooks/nb004/scan_input_rate.mp4">
   Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample}. The Poisson input rate is held flat across the run at the value shown on the frame. Sweep walks the rate from {scan.min} Hz → {scan.max} Hz over {scan.frames} frames.
 </Figure>
-
-### Population rates
-
-| Population | Mean rate (Hz) |
-|---|---|
-| E | {fmtHz(r.e)} |
-| I | {fmtHz(r.i)} |
-
-Rates above are from the canonical replay at input rate = {numbers.canonical_input_rate_hz ?? "?"} Hz.
-
-## Discussion
-
-Filled in once the run produces a video.
-
-### Implications
-
-Filled in once findings are written.
-
-## Next steps
-
-Cross-reference the input-rate threshold against nb003's overdrive threshold — together they parameterise the (base, in-window) drive plane and identify whether PING onset is dominated by total drive or by stim-window contrast.
-
-## Appendix
-
-### Reproduction
-
-```
-uv run src/notebooks/nb004.py
-```
