@@ -29,6 +29,12 @@ function byEntryDesc(a: Entry, b: Entry): number {
   return b.entry - a.entry;
 }
 
+// Notebooks: final entries first, then newest entry id first within each status.
+function byStatusThenEntry(a: Entry, b: Entry): number {
+  const rank = (s?: string) => (s === "final" ? 0 : 1);
+  return rank(a.status) - rank(b.status) || b.entry - a.entry;
+}
+
 const articles: Entry[] = Object.entries(articleModules)
   .map(([path, mod]: [string, any]) => {
     const slug = path
@@ -64,7 +70,7 @@ const notebooks: Entry[] = Object.entries(notebookModules)
       status: fm.status,
     };
   })
-  .sort(byEntryDesc);
+  .sort(byStatusThenEntry);
 
 // Bucket articles + notebooks by collection.
 const UNCOLLECTED = "__uncollected";

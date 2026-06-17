@@ -63,27 +63,3 @@ The three regimes thus encode three different stories about what the network is 
 <Figure id="Figure 6" title="Single-trial rasters at each N_I (critical-balance regime)" src="/figures/notebooks/nb047/raster_strip__critical.png" alt="Stacked single-trial rasters across N_I, critical-balance regime. At small N_I the per-event shunt is moderately large (16× the canonical W^IE at N_I=1, vs 256× in synaptic norm) — the cycle stretches and E firing thins, but less severely than in synaptic norm.">
   At $N_I = 1$ the per-edge $W^{IE}$ is $16 \cdot W^{IE}_\text{ref}$ — between synaptic norm's $256 \times$ and constant's $1 \times$. Cycle distortion scales accordingly.
 </Figure>
-
-## Discussion
-
-**Why is constant per-edge flat?** Three things have to hold simultaneously for the rates not to move with $N_I$:
-
-- *Summed inhibition is the wrong quantity.* It grows ∝ $N_I$ (≈ 250× across the sweep) and yet $r_E$ doesn't budge — so the loop is not in a regime where time-averaged total drive sets the rate.
-- *Per-I-cell drive is fixed.* Each I cell still receives the same E → I input regardless of $N_I$, so $r_I$ is set by single-cell biophysics, not by population size.
-- *Cycle frequency is fixed.* The gamma clock period depends on $\tau_\text{AMPA}$, $\tau_\text{GABA}$, and loop gain $G = \Phi'_E \Phi'_I W^{EI} W^{IE}$ ([nb033](/notebooks/nb033/)). $G$ is independent of $N_I$ at fixed per-edge weights, so the per-cycle Bernoulli participation gate sets $r_E = p \cdot f_\gamma$ at a pool-size-invariant rate.
-
-**The synaptic and critical-balance regimes are the falsifier.** Synaptic normalization holds the time-averaged *mean* drive exactly constant — and rates still drop at small $N_I$. The thing the network actually responds to is the **per-event shunt magnitude**: one huge shunt and many small ones aren't the same, even when their time-averaged drive is identical. Only constant per-edge keeps the per-event magnitude fixed across the sweep.
-
-This matches [nb046](/notebooks/nb046/)'s structural-bound reading: rate is set within each cycle (does the cell cross threshold before the next I-shunt?), not by mean-field balance across cycles.
-
-**Two caveats:**
-
-- *Untrained network.* After training, $W_\text{in}$ adapts and the per-cell operating point shifts; whether the $N_I$-invariance survives training is a separate question.
-- *0% endpoint approximation.* $N_I = 1$ stands in for 0%. Literal $N_I = 0$ would disable the I-loop entirely and collapse to COBA — see [nb025](/notebooks/nb025/) Figure 1.
-
-## Next steps
-
-- **After-training check** — does the $N_I$-invariance survive training, or does the readout pick a preferred $r_E$ that depends on pool size?
-- **$W_\text{in} \times N_I$ map** — locate the recruitment cliff in two dimensions.
-- **$\tau_\text{GABA} \times N_I$ map** — test whether the affine slope $p$ in $r_E = p \cdot f_\gamma$ is $N_I$-invariant.
-- **Direct per-event measurement** — measure the post-I-burst E-firing-suppression window under each regime and check it correlates with the rate drop.

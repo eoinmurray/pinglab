@@ -23,8 +23,6 @@ A single bounded scalar for how rhythmic a spiking network is — the **lobe–t
 
 ## Method
 
-### The metric
-
 Given a population spike raster — here the excitatory population of a simulated network — write $r(t)$ for the binned population spike count ($n$ bins of width $\Delta t$) and $\ell$ for the lag. The metric is read off in a fixed sequence of steps:
 
 1. **Bin to a population count.** Sum spikes across cells into one count per $\Delta t$ bin, giving the population trace $r(t)$ of length $n$.
