@@ -26,68 +26,13 @@ export const fmtHz = (v) => (typeof v === "number" ? v.toFixed(1) : "?");
 
 ## Abstract
 
-Gamma has a period of $\sim$15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb003](/notebooks/nb003/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation. Companion sweeps: [nb003](/notebooks/nb003/) (drive) and [nb006](/notebooks/nb006/) (E→I coupling). See the notebook runner contract for how this entry's runner/artifact/figure triple is wired up.
+Gamma has a period of ≈15–30 ms, so a coarse integration step *dt* can't resolve the E→I→E round-trip. With the Poisson input overdrive pinned well past the PING threshold from [nb003](/notebooks/nb003/) (so the rhythm would be robust at fine *dt*), this notebook sweeps *dt* — isolating the timestep as the only knob that can break the oscillation.
 
-## Methods
+## Method
 
 A scan over the [oscilloscope *video*](/articles/ar011/) subcommand with stim-overdrive held at {scan.fixed_overdrive}× (firmly inside the stable-PING regime mapped by [nb003](/notebooks/nb003/)) while *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames. All knobs are hardcoded literals in *src/notebooks/nb005.py* per the runner contract.
-
-<RunParameters numbers={numbers} groups={[
-  {
-    title: "Setup",
-    rows: [
-      { label: "Model", value: cfg.model ?? "?" },
-      { label: "Input", value: `${input.dataset} d${input.digit} s${input.sample}` },
-      { label: "Seed", value: cfg.seed ?? "?" },
-    ],
-  },
-  {
-    title: "Architecture",
-    rows: [
-      { label: "N_E / N_I", value: `${cfg.n_e} / ${cfg.n_i}` },
-      { label: "T", value: `${cfg.sim_ms} ms` },
-    ],
-  },
-  {
-    title: "Stimulus & scan",
-    rows: [
-      { label: "Stim window", value: `${cfg.step_on_ms}–${cfg.step_off_ms} ms` },
-      { label: "Fixed overdrive", value: `${scan.fixed_overdrive}×` },
-      { label: "dt scan", value: `${scan.min}–${scan.max} ms` },
-      { label: "Frames / FPS", value: `${scan.frames} / ${scan.fps}` },
-    ],
-  },
-]} />
-
 ## Results
-
 
 <Figure type="video" id="Figure 1" title="Integration-step sweep (scan_dt.mp4)" src="/figures/notebooks/nb005/scan_dt.mp4">
   Each frame is a fresh {cfg.sim_ms} ms sim on MNIST digit {input.digit}, sample {input.sample} with stim-overdrive held at {scan.fixed_overdrive}×. *dt* sweeps {scan.min} → {scan.max} ms over {scan.frames} frames.
-
-  Stable until about *dt* = 1.65 ms; beyond that the whole population saturates after PING onset.
 </Figure>
-
-### Population rates
-
-| Window | E (Hz) | I (Hz) |
-|---|---|---|
-| Pre-stim | {fmtHz(r.pre.e)} | {fmtHz(r.pre.i)} |
-| In-stim | {fmtHz(r.stim.e)} | {fmtHz(r.stim.i)} |
-| Post-stim | {fmtHz(r.post.e)} | {fmtHz(r.post.i)} |
-
-## Discussion
-
-TODO: discussion paragraph — write what the results above mean for the project.
-
-## Next steps
-
-The breakdown around *dt* ≈ 1.65 ms sets a hard ceiling on the timestep any downstream training entry can use without losing the rhythm. Whether this same ceiling holds end-to-end through training — whether a model trained at *dt* near the limit still produces PING at inference — is a separate, open question. The breakdown mode here (saturation, not collapse) suggests the failure is integrator instability rather than loss of the rhythm itself; a side-by-side with explicit-Euler vs the current scheme would isolate that.
-
-## Appendix
-
-### Reproduction
-
-```
-uv run src/notebooks/nb005.py
-```

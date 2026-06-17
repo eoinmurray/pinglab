@@ -972,6 +972,44 @@ def plot_raster_strip(
     plt.close(fig)
 
 
+def fig_attractor(summary_rows, out_path, run_id):
+    """One-glance summary in the (E rate, I rate) plane. The frozen control sits in
+    the PING corner (low E, high I); every trainable condition collapses to the
+    dense-E / silent-I (COBA) corner regardless of its initialisation, at ≈ equal
+    accuracy — so gradient descent never reaches PING when the loop can train."""
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8, 5.0), dpi=150)
+    ax.axhline(0.0, color=theme.FAINT, lw=0.8, ls=":")
+    for cond in COND_ORDER:
+        rows = [r for r in summary_rows if r["condition"] == cond]
+        if not rows:
+            continue
+        E = [r["e_rate_hz"] for r in rows]
+        I = [r["i_rate_hz"] for r in rows]
+        acc = float(np.nanmean([r["acc"] for r in rows]))
+        ax.scatter(E, I, s=95, color=COND_COLOURS[cond], marker=COND_MARKERS[cond],
+                   edgecolor="white", linewidths=0.7, zorder=5,
+                   label=f"{CONDITIONS[cond]['label']}  ·  {acc:.0f}%")
+    ax.annotate("PING\nloop on", xy=(9, 38), xytext=(17, 33),
+                fontsize=theme.SIZE_LABEL, color=theme.MUTED, va="center",
+                arrowprops=dict(arrowstyle="->", color=theme.MUTED, lw=1.0))
+    ax.annotate("loop pruned → COBA\n(I silent)", xy=(45, 0.6), xytext=(28, 13),
+                fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED, va="center",
+                arrowprops=dict(arrowstyle="->", color=theme.DEEP_RED, lw=1.0))
+    ax.set_xlabel("E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("I firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_title("Trainable W_EI/W_IE never reach PING — every init collapses to the loop-free corner",
+                 fontsize=theme.SIZE_LABEL, color=theme.INK)
+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right",
+              title="condition · test acc", title_fontsize=theme.SIZE_LEGEND)
+    ax.margins(0.13)
+    stamp_figure(fig, run_id)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 # ── Main ────────────────────────────────────────────────────────────
 def main() -> None:
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
@@ -1054,6 +1092,9 @@ def main() -> None:
             w_out = FIGURES / f"weights__{cond}.png"
             plot_weight_matrices(cond, seed_to_dir, device, w_out, notebook_run_id)
             print(f"wrote {w_out}")
+
+    fig_attractor(summary_rows, FIGURES / "attractor_ei.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'attractor_ei.png'}")
 
     duration_s = time.monotonic() - t_start
     summary = {
