@@ -21,21 +21,20 @@ export const fmt0 = (x) => (typeof x === "number" ? Math.round(x).toLocaleString
 
 A single bounded scalar for how rhythmic a spiking network is — the **lobe–trough contrast** of its spike-time autocorrelation, $(\text{lobe}-\text{trough})/(\text{lobe}+\text{trough}) \in [0,1)$. Driving each excitatory cell with its own private Poisson input makes the metric rate-invariant by construction; across untrained PING networks it reads 0 along the COBA edges and rises smoothly to {fmt(grid.contrast_max)} through the PING interior — a rankable gradient that tracks the gamma-gated collapse of the E firing rate from {fmt0(grid.rate_e_max_hz)} to {fmt0(grid.rate_e_min_hz)} Hz.
 
-## Method
+The networks here are untrained PING populations driven by external input; the rhythmicity metric is read off the resulting excitatory raster. Write $r(t)$ for the binned population spike count ($n$ bins of width $\Delta t$) and $\ell$ for the lag. The metric is read off in a fixed sequence of steps:
 
-Given a population spike raster — here the excitatory population of a simulated network — write $r(t)$ for the binned population spike count ($n$ bins of width $\Delta t$) and $\ell$ for the lag. The metric is read off in a fixed sequence of steps:
-
-1. **Bin to a population count.** Sum spikes across cells into one count per $\Delta t$ bin, giving the population trace $r(t)$ of length $n$.
-2. **Raw autocorrelation.** Form the lag product $\sum_t r(t)\,r(t+\ell)$, which counts spike pairs separated by lag $\ell$. All lags are computed at once in $O(n\log n)$ via the Wiener–Khinchin route — zero-pad $r$, take its FFT, multiply by the conjugate, inverse-transform — rather than the $O(n^2)$ direct sum.
-3. **Correct for finite overlap.** Only $n-\ell$ bin-pairs exist at lag $\ell$ (the last $\ell$ samples have no partner), so the raw sum tapers toward zero with lag simply from running out of overlap; dividing by that per-lag overlap $n-\ell$ converts it to the *average* product per available pair and flattens the taper.
-4. **Set the chance level.** Divide by the mean rate squared $\langle r\rangle^2$ so rate-matched independent firing sits at $A = 1$, and drop the self-paired zero lag. The result is the normalised autocorrelogram
+1. **Drive each E cell with its own private Poisson channel.** Every excitatory cell receives an independent homogeneous Poisson spike train at 100 Hz through a one-to-one identity input weight — there is no shared, dense $W_\text{in}$ projection, so no two cells share an input channel. Private input removes the input-driven spike coincidence that would otherwise inflate the metric at low firing, which is what makes the contrast rate-invariant by construction (Figures 6–7) with no post-hoc correction.
+2. **Bin to a population count.** Sum spikes across cells into one count per $\Delta t$ bin, giving the population trace $r(t)$ of length $n$.
+3. **Raw autocorrelation.** Form the lag product $\sum_t r(t)\,r(t+\ell)$, which counts spike pairs separated by lag $\ell$. All lags are computed at once in $O(n\log n)$ via the Wiener–Khinchin route — zero-pad $r$, take its FFT, multiply by the conjugate, inverse-transform — rather than the $O(n^2)$ direct sum.
+4. **Correct for finite overlap.** Only $n-\ell$ bin-pairs exist at lag $\ell$ (the last $\ell$ samples have no partner), so the raw sum tapers toward zero with lag simply from running out of overlap; dividing by that per-lag overlap $n-\ell$ converts it to the *average* product per available pair and flattens the taper.
+5. **Set the chance level.** Divide by the mean rate squared $\langle r\rangle^2$ so rate-matched independent firing sits at $A = 1$, and drop the self-paired zero lag. The result is the normalised autocorrelogram
 
    $$
    A(\ell) = \frac{1}{\langle r\rangle^2}\;\frac{1}{\,n-\ell\,}\sum_{t} r(t)\,r(t+\ell).
    $$
 
-5. **Locate the Mexican hat.** A rhythmic $A(\ell)$ has a "Mexican-hat" profile: a central lobe above 1 (spikes recur a cycle apart) flanked by a dip below 1 where firing is suppressed between volleys. Scanning out from zero lag, take the trough as the first local minimum of a lightly smoothed $A(\ell)$ — it falls near the half-period — and the lobe as the highest point at a shorter lag.
-6. **Read the contrast.** The metric is the **lobe–trough contrast**
+6. **Locate the Mexican hat.** A rhythmic $A(\ell)$ has a "Mexican-hat" profile: a central lobe above 1 (spikes recur a cycle apart) flanked by a dip below 1 where firing is suppressed between volleys. Scanning out from zero lag, take the trough as the first local minimum of a lightly smoothed $A(\ell)$ — it falls near the half-period — and the lobe as the highest point at a shorter lag.
+7. **Read the contrast.** The metric is the **lobe–trough contrast**
 
    $$
    \text{contrast} = \frac{\text{lobe} - \text{trough}}{\text{lobe} + \text{trough}} \in [0, 1),
