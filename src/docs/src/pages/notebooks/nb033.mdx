@@ -22,9 +22,13 @@ A mean-field account of [nb025](/notebooks/nb025/)'s recruitment cliff. In the 4
 
 We start with $N_E + N_I$ coupled conductance-based spiking neurons and reduce them, step by step, to four coupled ODEs for the population-mean rates $E(t), I(t)$ and the population-mean conductances $g_e^I(t), g_i^E(t)$. Each step replaces one degree of freedom with a smoother, lower-dimensional approximation; the cost of each is recorded at the end. The full chain is:
 
-> $N$-cell spiking COBA → homogeneous-coupling spike-train integrals → population-mean rates and conductances → driving-force linearisation → relaxational rate dynamics with f-I gain $\Phi$ → final 4D system in $(E, I, g_e^I, g_i^E)$.
+1. Summary of COBA model
+2. Homogeneous coupling and population means
+3. Driving-force linearisation
+4. Population rate from an f-I curve
+5. Absorb the driving-force constants.
 
-**Step 1. Single-cell COBA equations.** Index E cells by $j \in \{1, \ldots, N_E\}$ and I cells by $k \in \{1, \ldots, N_I\}$. From the methods paper [ar009](/articles/ar009/) eq. (1) with the architecture constraints $W^{EE} = W^{II} = 0$ (no recurrent E→E, no I→I) and an external drive $I_{\text{ext},j}$ added on E:
+**Step 1. Summary of COBA model.** Index E cells by $j \in \{1, \ldots, N_E\}$ and I cells by $k \in \{1, \ldots, N_I\}$. From the methods paper [ar009](/articles/ar009/) eq. (1) with the architecture constraints $W^{EE} = W^{II} = 0$ (no recurrent E→E, no I→I) and an external drive $I_{\text{ext},j}$ added on E:
 
 $$
 C_m^E\,\dot V_j^E \;=\; -g_L^E(V_j^E - E_L) \;-\; g_{i,j}^E(V_j^E - E_I) \;+\; I_{\text{ext},j}
@@ -50,7 +54,7 @@ $$
 
 with $s_j^E(t) = \sum_n \delta(t - t_{j,n}^E)$ the spike train of E-cell $j$ as a sum of Dirac pulses at its firing times (similarly for $s_k^I$). (3)–(4) are the continuous-time forms of eq. (8) and (7) in the methods backbone — exponential synapses with per-spike weight $W$ and decay $\tau$.
 
-**Step 2. Homogeneous coupling.** The weight matrices in the simulator are random with finite variance. Replace each entry by its population mean: $W^{EI}_{kj} \to w^{EI}$ and $W^{IE}_{jk} \to w^{IE}$ for all $j, k$. The presynaptic-summation terms in (3)–(4) become
+**Step 2. Homogeneous coupling and population means.** Replace each random weight by its population mean, $W^{EI}_{kj} \to w^{EI}$ and $W^{IE}_{jk} \to w^{IE}$. The presynaptic sums in (3)–(4) become
 
 $$
 \sum_j W^{EI}_{kj}\,s_j^E \;\longrightarrow\; w^{EI} \sum_j s_j^E \;=\; w^{EI}\, N_E\, E(t)
@@ -62,7 +66,7 @@ $$
 \tag{6}
 $$
 
-where we introduce the *population-mean firing rates*
+introducing the *population-mean firing rates*
 
 $$
 E(t) \;\equiv\; \frac{1}{N_E}\sum_{j=1}^{N_E} s_j^E(t),
@@ -71,16 +75,16 @@ I(t) \;\equiv\; \frac{1}{N_I}\sum_{k=1}^{N_I} s_k^I(t).
 \tag{7}
 $$
 
-Strictly $E(t), I(t)$ are sums of deltas; under a *smooth-rate ansatz* (averaging over a short window) we treat them as continuous, so $w^{EI} N_E E(t)$ is an ordinary source term. The homogeneous-coupling step (5)–(8) drops weight heterogeneity and **finite-size fluctuations** — the shot noise $\mathrm{Var}[E(t)] \propto E(t)/N_E$ that survives in any finite population. The mean-field limit $N_E, N_I \to \infty$ sends that variance to zero; at finite $N_E = 1024, N_I = 256$ the residual $O(N^{-1/2})$ noise on (9)–(10) both smears the Hopf onset into a rounded shoulder and sustains a low-amplitude noisy gamma just below criticality where the linearised mean-field predicts silence. Both reappear in the spiking simulations.
+A *smooth-rate ansatz* (short-window averaging) treats $E(t), I(t)$ as continuous. This drops weight heterogeneity and **finite-size noise** — the shot noise $\mathrm{Var}[E(t)] \propto E(t)/N_E$ that vanishes only as $N_E, N_I \to \infty$. At finite $N_E = 1024, N_I = 256$ the residual $O(N^{-1/2})$ fluctuations smear the Hopf onset and sustain a weak noisy gamma below threshold, both seen in the spiking simulations.
 
-Because the source terms (5) and (6) no longer carry a cell index, every E cell sees the same $g_i^E$ and every I cell sees the same $g_e^I$. The per-cell conductance equations collapse to two population-mean equations. Defining lumped couplings
+With no cell index left, every E cell sees the same $g_i^E$ and every I cell the same $g_e^I$, collapsing the per-cell conductances to population means. Defining lumped couplings
 
 $$
 \tilde W^{EI} \;\equiv\; w^{EI} N_E, \qquad \tilde W^{IE} \;\equiv\; w^{IE} N_I
 \tag{8}
 $$
 
-(carries-the-fan-in: each E spike contributes the per-edge weight, and there are $N_E$ presynaptic E cells), the conductance dynamics become
+the conductance dynamics become
 
 $$
 \tau_\text{AMPA}\,\dot g_e^I \;=\; -g_e^I \;+\; \tilde W^{EI}\,E
@@ -92,9 +96,20 @@ $$
 \tag{10}
 $$
 
-Two equations down from $N_E + N_I$. (Note: the absolute scale of $\tilde W^{EI}, \tilde W^{IE}$ folds into $W^{EI}, W^{IE}$ used in the final 4D system after Step 5.)
+Two equations, down from $N_E + N_I$. (The fan-in scale $\tilde W$ folds into $W^{EI}, W^{IE}$ in Step 5.)
 
-**Step 3. Driving-force linearisation.** The synaptic terms in (1)–(2) still depend on $V$ through factors $(V - E_I)$ and $(V - E_E)$. Take $V$ to its resting value in the synaptic terms only (not in the leak or the threshold-crossing, which we'll handle separately via the f-I curve). With $V_\text{rest} = -65$ mV and the reversal potentials from [ar009](/articles/ar009/),
+*Running system, end of Step 2 — conductances are now two population means; the membrane is still per-cell but sees those means:*
+
+$$
+\begin{aligned}
+C_m^E\,\dot V_j^E &= -g_L^E(V_j^E - E_L) \;-\; g_i^E\,(V_j^E - E_I) \;+\; I_\text{ext} \\
+C_m^I\,\dot V_k^I &= -g_L^I(V_k^I - E_L) \;-\; g_e^I\,(V_k^I - E_E) \\
+\tau_\text{AMPA}\,\dot g_e^I &= -g_e^I \;+\; \tilde W^{EI}\,E \\
+\tau_\text{GABA}\,\dot g_i^E &= -g_i^E \;+\; \tilde W^{IE}\,I
+\end{aligned}
+$$
+
+**Step 3. Driving-force linearisation.** In COBA the synaptic current is conductance times a *driving force*, $-g\,(V - E_\text{rev})$ — a product of two moving quantities ($g$ and $V$) that makes the model nonlinear and ties the two together. Cut the knot by freezing $V$ at its resting value $V_\text{rest} = E_L = -65$ mV *inside the driving force only* — the leak and spike threshold keep their full $V$-dependence, handled by the f-I curve in Step 4. With the reversal potentials from [ar009](/articles/ar009/), each driving force becomes a fixed voltage gap:
 
 $$
 \Delta V_\text{inh} \;\equiv\; V_\text{rest} - E_I \;=\; -65 - (-80) \;=\; 15~\text{mV}
@@ -105,7 +120,7 @@ $$
 \Delta V_\text{exc} \;\equiv\; V_\text{rest} - E_E \;=\; -65 - 0 \;=\; -65~\text{mV}
 $$
 
-(so $-(V - E_E) \approx -\Delta V_\text{exc} = +65$ mV — depolarising drive on I). The synaptic currents in (1)–(2) become
+The synaptic currents in (1)–(2) then lose their $V$-dependence and become proportional to conductance alone:
 
 $$
 -g_i^E (V_j^E - E_I) \;\approx\; -g_i^E\,\Delta V_\text{inh}
@@ -117,7 +132,18 @@ $$
 \tag{13}
 $$
 
-— each synaptic input is now *linear* in conductance, with the cell-population-independent prefactor folded into a constant. This is the crucial reduction: it kills the multiplicative coupling between membrane potential and synaptic conductance that makes COBA so different from CUBA, but only in the *driving force*. Shunting (the effect of $g$ on $\tau_\text{eff}$ and $g_\text{tot}$) is dropped at this step; this is what the table at the end records.
+— inhibition pulls $V$ down ($\Delta V_\text{inh} = +15$ mV), excitation pushes it up ($|\Delta V_\text{exc}| = 65$ mV). Removing the multiplicative coupling between $g$ and $V$ is what reduces COBA to a current-based (CUBA) form. The price is **shunting**: with $V$ fixed we ignore that conductance also lowers the membrane's effective time constant ($\tau_\text{eff} = C_m / g_\text{tot}$) — the loss the table records.
+
+*Running system, end of Step 3 — the synaptic currents are now linear in conductance (no $V$ left in the driving force):*
+
+$$
+\begin{aligned}
+C_m^E\,\dot V_j^E &= -g_L^E(V_j^E - E_L) \;-\; g_i^E\,\Delta V_\text{inh} \;+\; I_\text{ext} \\
+C_m^I\,\dot V_k^I &= -g_L^I(V_k^I - E_L) \;+\; g_e^I\,|\Delta V_\text{exc}| \\
+\tau_\text{AMPA}\,\dot g_e^I &= -g_e^I \;+\; \tilde W^{EI}\,E \\
+\tau_\text{GABA}\,\dot g_i^E &= -g_i^E \;+\; \tilde W^{IE}\,I
+\end{aligned}
+$$
 
 **Step 4. Population rate from an f-I curve.** Under (11)–(13) the membrane equations (1)–(2) have the form $C_m \dot V = -g_L (V - E_L) + I_\text{syn}$ — exactly LIF with a synaptic current. A LIF cell receiving constant net input current $I$ fires at rate $\phi(I)$ where $\phi$ is its f-I curve. Replacing each cell's spike output by its rate response gives
 
@@ -152,6 +178,17 @@ $$
 $$
 
 where $\Phi_E, \Phi_I$ are the smooth steady-state gain functions (sigmoids in the numerics). Two more equations down — together with (9)–(10), four equations in $(E, I, g_e^I, g_i^E)$.
+
+*Running system, end of Step 4 — a closed 4D rate model in $(E, I, g_e^I, g_i^E)$, constants not yet absorbed:*
+
+$$
+\begin{aligned}
+\tau_E\,\dot E &= -E \;+\; \Phi_E\!\big(I_\text{ext} - g_i^E\,\Delta V_\text{inh}\big) \\
+\tau_I\,\dot I &= -I \;+\; \Phi_I\!\big(g_e^I\,|\Delta V_\text{exc}|\big) \\
+\tau_\text{AMPA}\,\dot g_e^I &= -g_e^I \;+\; \tilde W^{EI}\,E \\
+\tau_\text{GABA}\,\dot g_i^E &= -g_i^E \;+\; \tilde W^{IE}\,I
+\end{aligned}
+$$
 
 **Step 5. Absorb the driving-force constants.** The fixed prefactors $\Delta V_\text{inh}, |\Delta V_\text{exc}|$ in (17)–(18) and the fan-in scalings in (9)–(10) are just multiplicative constants — they don't carry dynamical information. Fold them into the couplings:
 
@@ -213,6 +250,8 @@ $$
 \tau_E\,\dot E = -E + \Phi_E\!\left(I_\text{ext} - W^{IE} I\right), \qquad
 \tau_I\,\dot I = -I + \Phi_I\!\left(W^{EI} E\right). \tag{23}
 $$
+
+This is exactly the $\tau_\text{AMPA}, \tau_\text{GABA} \to 0$ limit of the 4D system (20)–(21). As the synaptic time constants vanish the conductance equations lose their derivatives and go algebraic, $g_e^I = W^{EI} E$ and $g_i^E = W^{IE} I$ — the synapses slaved instantaneously to the rates — and substituting these into the rate equations (20) recovers (23) term for term. So Wilson-Cowan *is* the 4D model with its synaptic clock zeroed out: a legitimate reduction only if the synapses relax fast relative to the rhythm, which they do not ($\tau_\text{GABA} \approx 9$ ms is the same order as the gamma period).
 
 It cannot host the rhythm. Its divergence is pinned to the negative constant $-1/\tau_E - 1/\tau_I$ — with no diagonal recurrence the gain $\Phi'$ multiplies only the off-diagonal cross-terms — so by the Bendixson–Dulac theorem it encloses no periodic orbit for *any* drive, coupling, or gain shape: not merely no Hopf, but no oscillation anywhere in phase space. What it discards is the round-trip synaptic delay (E excites I after $\tau_\text{AMPA}$, I shunts E after $\tau_\text{GABA}$), and that lag is exactly what destabilises the silent state into a rhythm — inhibition that tracks $E$ with zero delay can only damp, never overshoot. Holding it is irreducibly ≥ 4D, which is why the analysis stays in the conductance model above; any 2D rate model that *does* oscillate has imported a destabiliser PING lacks (recurrent excitation in Wilson-Cowan, a cubic self-gain in FitzHugh-Nagumo), reproducing the rhythm through a fictional mechanism. Figure 1 makes the contrast concrete.
 
