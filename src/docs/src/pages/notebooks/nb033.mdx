@@ -14,39 +14,11 @@ export const numbers = Object.values(
 
 ## Abstract
 
-[nb025](/notebooks/nb025/) characterised the PING rate floor empirically: a recruitment cliff where the I-loop engages, gamma at ≈25 Hz. Both are bifurcation behaviours, and this entry pins them down in a mean-field model — with three goals and no more: locate the Hopf, predict its frequency, and classify it super- or subcritical. The right object is the **4D** conductance mean-field $(E, I, g_e^I, g_i^E)$: the Hopf is a linear fact about its $4\times4$ Jacobian (giving $f^\star \approx 24.5$ Hz, in the spiking network's gamma band and tracking its dependence on $\tau_\text{GABA}$), and direct simulation classifies it supercritical. The tempting **2D** rate model cannot host the rhythm at all — provably, by Bendixson–Dulac, and because the reduction that produces it is not even asymptotically valid — so the analysis stays in 4D throughout.
+A mean-field account of [nb025](/notebooks/nb025/)'s recruitment cliff. In the 4D conductance DMFT the cliff is a **Hopf bifurcation** of the silent fixed point: its drive threshold is read off the Jacobian eigenvalues, the imaginary part of the crossing pair gives a gamma rhythm at $f^\star \approx 24.5$ Hz set by the synaptic timescales, and direct simulation classifies the onset as **supercritical** — a soft but sharp switch from silence into a small-amplitude cycle.
 
 ## Methods
 
-### Why a 2D model is the wrong object
-
-The textbook tool for a bifurcation in an E/I circuit is a 2D Wilson-Cowan rate model: two population rates $(E, I)$ with sigmoid gains $\Phi_{E,I}$ and instantaneous E↔I coupling. The PING architecture carries no recurrent E→E or I→I synapse ($W^{EE} = W^{II} = 0$), so the model is
-
-$$
-\tau_E\,\dot E = -E + \Phi_E\!\left(I_\text{ext} - W^{IE} I\right), \qquad
-\tau_I\,\dot I = -I + \Phi_I\!\left(W^{EI} E\right). \tag{1}
-$$
-
-It is the wrong object, for two reasons.
-
-**The reduction isn't valid.** Collapsing the full conductance-based dynamics to (1) means adiabatically eliminating the synaptic conductances — legitimate only if they relax fast relative to the rhythm. They do not: $\tau_\text{GABA} \approx 5$–$10$ ms is the *same order* as the gamma period itself ($\approx 25$ ms at 40 Hz). The inhibitory decay is not a slaved fast variable, it *is* the clock that sets the period. With no timescale separation to exploit, the elimination that produces (1) is unjustified — (1) is not a simplification of PING, it is a different system.
-
-**And even if you force it, it cannot oscillate.** The divergence of the planar field (1) is pinned to a strictly negative *constant*,
-
-$$
-\partial_E \dot E + \partial_I \dot I = -\frac{1}{\tau_E} - \frac{1}{\tau_I},
-\tag{2}
-$$
-
-because $\Phi_E$'s argument carries no $E$ and $\Phi_I$'s carries no $I$ — with no E→E or I→I synapse the gain $\Phi'$ multiplies *only* the off-diagonal cross-terms (it sets the rotation rate, never the divergence). By the Bendixson–Dulac theorem a planar flow whose divergence holds one sign on a simply connected region encloses no periodic orbit; so (1) sustains no limit cycle for *any* drive, coupling strength, gain shape, or amplitude — not merely no Hopf, but no oscillation anywhere in phase space. (The local face of the same fact: the Jacobian trace of (1) equals (2) everywhere, so it never reaches the $\mathrm{tr}(J) = 0$ a Hopf requires.) Consequently any 2D rate model that *does* oscillate has to import a destabiliser PING lacks — recurrent excitation in Wilson-Cowan, a cubic self-gain in FitzHugh-Nagumo — so it reproduces the rhythm through a *fictional* mechanism rather than approximating the real one.
-
-**What's missing is the delay.** What actually destabilises the silent state is the round-trip *phase lag* of the loop — E excites I after $\tau_\text{AMPA}$, I shunts E after $\tau_\text{GABA}$ — and (1), with instantaneous coupling, has discarded exactly it: inhibition that tracks $E$ with zero delay can only damp, never overshoot. Holding the lag is irreducibly more than two-dimensional — either keep the two synaptic conductances $(g_e^I, g_i^E)$ as first-order states (the 4D model below, whose synaptic poles rotate a complex pair across the imaginary axis at a Hopf), or write the delay explicitly (a delay-differential equation, whose transcendental characteristic quasi-polynomial carries infinitely many roots). So the analysis stays in 4D. "Local analysis near the Hopf" is done in the 4D coordinates — the Jacobian crossing below, and the amplitude law of [§3.2](#super-or-subcritical) — never by swapping in a planar system.
-
-<Figure id="Figure 1" title="Same drive, same kick — only the 4D model oscillates" src="/figures/notebooks/nb033/ts_2d_vs_4d.png" alt="Time series of E (deviation from equilibrium) over 300 ms at a fixed supra-threshold drive. The 2D Wilson-Cowan trace (red) oscillates briefly then decays to a flat line at zero. The 4D conductance trace (black) grows from the same initial perturbation into a sustained, constant-amplitude oscillation.">
-  Bendixson made visible. Started from the same small kick at the same supra-threshold drive ($I_\text{ext} = I^\star + 3$), the 2D Wilson-Cowan field (1) (red) rings down to equilibrium, while the full 4D conductance model (black) settles into a sustained gamma cycle. The synaptic delay the 2D model eliminated is the entire difference.
-</Figure>
-
-### The 4D mean-field model
+### The 4D DMFT model
 
 We start with $N_E + N_I$ coupled conductance-based spiking neurons and reduce them, step by step, to four coupled ODEs for the population-mean rates $E(t), I(t)$ and the population-mean conductances $g_e^I(t), g_i^E(t)$. Each step replaces one degree of freedom with a smoother, lower-dimensional approximation; the cost of each is recorded at the end. The full chain is:
 
@@ -56,38 +28,38 @@ We start with $N_E + N_I$ coupled conductance-based spiking neurons and reduce t
 
 $$
 C_m^E\,\dot V_j^E \;=\; -g_L^E(V_j^E - E_L) \;-\; g_{i,j}^E(V_j^E - E_I) \;+\; I_{\text{ext},j}
-\tag{D1a}
+\tag{1}
 $$
 
 $$
 C_m^I\,\dot V_k^I \;=\; -g_L^I(V_k^I - E_L) \;-\; g_{e,k}^I(V_k^I - E_E)
-\tag{D1b}
+\tag{2}
 $$
 
 The E cell has no $g_e^E$ term because the only excitation it receives in this analysis is $I_\text{ext}$ (the feedforward drive); the I cell has no $g_i^I$ because there is no I→I coupling. The conductances $g_{i,j}^E, g_{e,k}^I$ are themselves driven by presynaptic spikes through first-order linear filters:
 
 $$
 \tau_\text{AMPA}\,\dot g_{e,k}^I \;=\; -g_{e,k}^I \;+\; \tau_\text{AMPA}\,\sum_j W^{EI}_{kj}\,s_j^E(t)
-\tag{D2a}
+\tag{3}
 $$
 
 $$
 \tau_\text{GABA}\,\dot g_{i,j}^E \;=\; -g_{i,j}^E \;+\; \tau_\text{GABA}\,\sum_k W^{IE}_{jk}\,s_k^I(t)
-\tag{D2b}
+\tag{4}
 $$
 
-with $s_j^E(t) = \sum_n \delta(t - t_{j,n}^E)$ the spike train of E-cell $j$ as a sum of Dirac pulses at its firing times (similarly for $s_k^I$). (D2a–b) are the continuous-time forms of eq. (8) and (7) in the methods backbone — exponential synapses with per-spike weight $W$ and decay $\tau$.
+with $s_j^E(t) = \sum_n \delta(t - t_{j,n}^E)$ the spike train of E-cell $j$ as a sum of Dirac pulses at its firing times (similarly for $s_k^I$). (3)–(4) are the continuous-time forms of eq. (8) and (7) in the methods backbone — exponential synapses with per-spike weight $W$ and decay $\tau$.
 
-**Step 2. Homogeneous coupling.** The weight matrices in the simulator are random with finite variance. Replace each entry by its population mean: $W^{EI}_{kj} \to w^{EI}$ and $W^{IE}_{jk} \to w^{IE}$ for all $j, k$. The presynaptic-summation terms in (D2a–b) become
+**Step 2. Homogeneous coupling.** The weight matrices in the simulator are random with finite variance. Replace each entry by its population mean: $W^{EI}_{kj} \to w^{EI}$ and $W^{IE}_{jk} \to w^{IE}$ for all $j, k$. The presynaptic-summation terms in (3)–(4) become
 
 $$
 \sum_j W^{EI}_{kj}\,s_j^E \;\longrightarrow\; w^{EI} \sum_j s_j^E \;=\; w^{EI}\, N_E\, E(t)
-\tag{D3a}
+\tag{5}
 $$
 
 $$
 \sum_k W^{IE}_{jk}\,s_k^I \;\longrightarrow\; w^{IE} \sum_k s_k^I \;=\; w^{IE}\, N_I\, I(t)
-\tag{D3b}
+\tag{6}
 $$
 
 where we introduce the *population-mean firing rates*
@@ -96,109 +68,111 @@ $$
 E(t) \;\equiv\; \frac{1}{N_E}\sum_{j=1}^{N_E} s_j^E(t),
 \qquad
 I(t) \;\equiv\; \frac{1}{N_I}\sum_{k=1}^{N_I} s_k^I(t).
-\tag{D3c}
+\tag{7}
 $$
 
-Strictly, $E(t)$ and $I(t)$ as defined are sums of deltas. The mean-field interpretation is that under a *smooth-rate ansatz* — averaging over a short window or assuming a continuous spiking density — we treat $E, I$ as smooth functions, so $w^{EI} N_E E(t)$ becomes an ordinary continuous source term. (D3) drops two things: weight heterogeneity, and **finite-size fluctuations**. The latter is the stochastic noise that survives in any *actual* finite population: even with all weights at their mean values, the population rate $E(t) = N_E^{-1}\sum_j s_j^E(t)$ is a sum of $N_E$ independent point-process samples, so it has shot-noise variance $\mathrm{Var}[E(t)] \propto E(t)/N_E$ over a short window. The mean-field limit takes $N_E, N_I \to \infty$ at fixed $\tilde W^{EI}, \tilde W^{IE}$, in which the law of large numbers makes $E(t), I(t)$ converge to their expected values and the variance vanishes. At finite $N_E = 1024, N_I = 256$ the residual $O(N^{-1/2})$ fluctuations act as a noise term on (D4), which (a) smears the Hopf bifurcation — instead of a sharp $A^2 \propto (I_\text{ext} - I_\text{ext}^\star)$ onset, the spiking simulator shows a rounded shoulder with sub-threshold variance — and (b) maintains a low-amplitude *noisy* gamma oscillation just below criticality where the linearised mean-field predicts strict silence. Both effects reappear in the spiking simulations, with magnitude controlled by $1/\sqrt{N}$.
+Strictly $E(t), I(t)$ are sums of deltas; under a *smooth-rate ansatz* (averaging over a short window) we treat them as continuous, so $w^{EI} N_E E(t)$ is an ordinary source term. The homogeneous-coupling step (5)–(8) drops weight heterogeneity and **finite-size fluctuations** — the shot noise $\mathrm{Var}[E(t)] \propto E(t)/N_E$ that survives in any finite population. The mean-field limit $N_E, N_I \to \infty$ sends that variance to zero; at finite $N_E = 1024, N_I = 256$ the residual $O(N^{-1/2})$ noise on (9)–(10) both smears the Hopf onset into a rounded shoulder and sustains a low-amplitude noisy gamma just below criticality where the linearised mean-field predicts silence. Both reappear in the spiking simulations.
 
-Because the source terms (D3a) and (D3b) no longer carry a cell index, every E cell sees the same $g_i^E$ and every I cell sees the same $g_e^I$. The per-cell conductance equations collapse to two population-mean equations. Defining lumped couplings
+Because the source terms (5) and (6) no longer carry a cell index, every E cell sees the same $g_i^E$ and every I cell sees the same $g_e^I$. The per-cell conductance equations collapse to two population-mean equations. Defining lumped couplings
 
 $$
 \tilde W^{EI} \;\equiv\; w^{EI} N_E, \qquad \tilde W^{IE} \;\equiv\; w^{IE} N_I
-\tag{D3d}
+\tag{8}
 $$
 
 (carries-the-fan-in: each E spike contributes the per-edge weight, and there are $N_E$ presynaptic E cells), the conductance dynamics become
 
 $$
 \tau_\text{AMPA}\,\dot g_e^I \;=\; -g_e^I \;+\; \tilde W^{EI}\,E
-\tag{D4a}
+\tag{9}
 $$
 
 $$
 \tau_\text{GABA}\,\dot g_i^E \;=\; -g_i^E \;+\; \tilde W^{IE}\,I
-\tag{D4b}
+\tag{10}
 $$
 
 Two equations down from $N_E + N_I$. (Note: the absolute scale of $\tilde W^{EI}, \tilde W^{IE}$ folds into $W^{EI}, W^{IE}$ used in the final 4D system after Step 5.)
 
-**Step 3. Driving-force linearisation.** The synaptic terms in (D1) still depend on $V$ through factors $(V - E_I)$ and $(V - E_E)$. Take $V$ to its resting value in the synaptic terms only (not in the leak or the threshold-crossing, which we'll handle separately via the f-I curve). With $V_\text{rest} = -65$ mV and the reversal potentials from [ar009](/articles/ar009/),
+**Step 3. Driving-force linearisation.** The synaptic terms in (1)–(2) still depend on $V$ through factors $(V - E_I)$ and $(V - E_E)$. Take $V$ to its resting value in the synaptic terms only (not in the leak or the threshold-crossing, which we'll handle separately via the f-I curve). With $V_\text{rest} = -65$ mV and the reversal potentials from [ar009](/articles/ar009/),
 
 $$
 \Delta V_\text{inh} \;\equiv\; V_\text{rest} - E_I \;=\; -65 - (-80) \;=\; 15~\text{mV}
-\tag{D5a}
+\tag{11}
 $$
 
 $$
 \Delta V_\text{exc} \;\equiv\; V_\text{rest} - E_E \;=\; -65 - 0 \;=\; -65~\text{mV}
 $$
 
-(so $-(V - E_E) \approx -\Delta V_\text{exc} = +65$ mV — depolarising drive on I). The synaptic currents in (D1a–b) become
+(so $-(V - E_E) \approx -\Delta V_\text{exc} = +65$ mV — depolarising drive on I). The synaptic currents in (1)–(2) become
 
 $$
 -g_i^E (V_j^E - E_I) \;\approx\; -g_i^E\,\Delta V_\text{inh}
-\tag{D5b}
+\tag{12}
 $$
 
 $$
 -g_e^I (V_k^I - E_E) \;\approx\; -g_e^I\,\Delta V_\text{exc} \;=\; +g_e^I \cdot |E_E - V_\text{rest}|
-\tag{D5c}
+\tag{13}
 $$
 
 — each synaptic input is now *linear* in conductance, with the cell-population-independent prefactor folded into a constant. This is the crucial reduction: it kills the multiplicative coupling between membrane potential and synaptic conductance that makes COBA so different from CUBA, but only in the *driving force*. Shunting (the effect of $g$ on $\tau_\text{eff}$ and $g_\text{tot}$) is dropped at this step; this is what the table at the end records.
 
-**Step 4. Population rate from an f-I curve.** Under (D5) the membrane equations (D1a–b) have the form $C_m \dot V = -g_L (V - E_L) + I_\text{syn}$ — exactly LIF with a synaptic current. A LIF cell receiving constant net input current $I$ fires at rate $\phi(I)$ where $\phi$ is its f-I curve. Replacing each cell's spike output by its rate response gives
+**Step 4. Population rate from an f-I curve.** Under (11)–(13) the membrane equations (1)–(2) have the form $C_m \dot V = -g_L (V - E_L) + I_\text{syn}$ — exactly LIF with a synaptic current. A LIF cell receiving constant net input current $I$ fires at rate $\phi(I)$ where $\phi$ is its f-I curve. Replacing each cell's spike output by its rate response gives
 
 $$
 E(t) \;\approx\; \phi_E\!\big(I_\text{eff}^E(t)\big), \qquad
 I(t) \;\approx\; \phi_I\!\big(I_\text{eff}^I(t)\big)
-\tag{D6a}
+\tag{14}
 $$
 
-with effective input currents (from D1 with D5 substituted)
+with effective input currents (from (1)–(2) with (11)–(13) substituted)
 
 $$
 I_\text{eff}^E(t) \;=\; I_\text{ext}(t) \;-\; g_i^E(t)\,\Delta V_\text{inh}
-\tag{D6b}
+\tag{15}
 $$
 
 $$
 I_\text{eff}^I(t) \;=\; g_e^I(t)\,|\Delta V_\text{exc}|
-\tag{D6c}
+\tag{16}
 $$
 
-(I cells receive only excitation in this architecture; E cells receive external drive minus the GABA shunt.) The instantaneous-rate replacement (D6a) is only valid when input changes are slow compared to the membrane integration time. In reality, $E(t)$ relaxes toward the f-I-curve fixed point on its membrane time constant $\tau_E$. Encode this with an explicit relaxation:
+(I cells receive only excitation in this architecture; E cells receive external drive minus the GABA shunt.) The instantaneous-rate replacement (14) is only valid when input changes are slow compared to the membrane integration time. In reality, $E(t)$ relaxes toward the f-I-curve fixed point on its membrane time constant $\tau_E$. Encode this with an explicit relaxation:
 
 $$
 \tau_E\,\dot E \;=\; -E \;+\; \Phi_E\!\big(I_\text{ext} - g_i^E\,\Delta V_\text{inh}\big)
-\tag{D7a}
+\tag{17}
 $$
 
 $$
 \tau_I\,\dot I \;=\; -I \;+\; \Phi_I\!\big(g_e^I\,|\Delta V_\text{exc}|\big)
-\tag{D7b}
+\tag{18}
 $$
 
-where $\Phi_E, \Phi_I$ are the smooth steady-state gain functions (sigmoids in the numerics). Drives that change faster than $\tau_E, \tau_I$ are filtered; the rate doesn't snap to the f-I curve instantaneously. Two more equations down — together with (D4a–b) we now have four equations in $(E, I, g_e^I, g_i^E)$.
+where $\Phi_E, \Phi_I$ are the smooth steady-state gain functions (sigmoids in the numerics). Two more equations down — together with (9)–(10), four equations in $(E, I, g_e^I, g_i^E)$.
 
-**Step 5. Absorb the driving-force constants.** The fixed prefactors $\Delta V_\text{inh}, |\Delta V_\text{exc}|$ in (D7) and the fan-in scalings in (D4) are just multiplicative constants — they don't carry dynamical information. Fold them into the couplings:
+**Step 5. Absorb the driving-force constants.** The fixed prefactors $\Delta V_\text{inh}, |\Delta V_\text{exc}|$ in (17)–(18) and the fan-in scalings in (9)–(10) are just multiplicative constants — they don't carry dynamical information. Fold them into the couplings:
 
 $$
 W^{EI} \;\equiv\; \tilde W^{EI} \cdot |\Delta V_\text{exc}|, \qquad
 W^{IE} \;\equiv\; \tilde W^{IE} \cdot \Delta V_\text{inh}
-\tag{D8}
+\tag{19}
 $$
 
 and likewise absorb the $|\Delta V_\text{exc}|$ inside the I-cell argument by redefining $g_e^I \mapsto g_e^I \cdot |\Delta V_\text{exc}|$ (similarly for $g_i^E$). The conductances now have units of input current rather than µS; the f-I curves take their argument directly. This change of variables is pure bookkeeping — no dynamics are lost.
 
-The four equations after (D4) + (D7) + (D8) are exactly the 4D system shown next.
+#### Approximations Summary
+
+The four equations after (9)–(10) + (17)–(18) + (19) are exactly the 4D system shown next.
 
 | Step | Approximation | What's lost |
 |---|---|---|
-| D3 | homogeneous coupling, smooth-rate density | weight heterogeneity, finite-size noise |
-| D5 | $V \approx V_\text{rest}$ in driving force | shunting, threshold-crossing nonlinearity |
-| D7 | single relaxational mode at $\tau_E, \tau_I$ | sub-membrane dynamics, refractoriness |
-| D8 | absorb constants into $W$ and $g$ | nothing (bookkeeping only) |
+| 2 | homogeneous coupling, smooth-rate density | weight heterogeneity, finite-size noise |
+| 3 | $V \approx V_\text{rest}$ in driving force | shunting, threshold-crossing nonlinearity |
+| 4 | single relaxational mode at $\tau_E, \tau_I$ | sub-membrane dynamics, refractoriness |
+| 5 | absorb constants into $W$ and $g$ | nothing (bookkeeping only) |
 
 #### The 4D system
 
@@ -206,15 +180,15 @@ After Steps 1–5, the mean-field equations are
 
 $$
 \tau_E\,\dot E = -E + \Phi_E(I_\text{ext} - g_i^E), \qquad
-\tau_I\,\dot I = -I + \Phi_I(g_e^I) \tag{3}
+\tau_I\,\dot I = -I + \Phi_I(g_e^I) \tag{20}
 $$
 
 $$
 \tau_\text{AMPA}\,\dot g_e^I = -g_e^I + W^{EI}\,E, \qquad
-\tau_\text{GABA}\,\dot g_i^E = -g_i^E + W^{IE}\,I \tag{4}
+\tau_\text{GABA}\,\dot g_i^E = -g_i^E + W^{IE}\,I \tag{21}
 $$
 
-in state $(E, I, g_e^I, g_i^E)$. Whether this 4D state is *minimal* — or a 2D reduction would do — was settled in [Why 2D reductions fail](#why-2d-reductions-fail): the synaptic phase delays $\tau_\text{AMPA}, \tau_\text{GABA}$ are load-bearing, and a planar model that eliminates them cannot oscillate. The 4D state keeps them.
+in state $(E, I, g_e^I, g_i^E)$. Whether 4D is *minimal* — or a 2D reduction would do — is settled in [Rejection of 2D models](#rejection-of-2d-models) below.
 
 #### 4D Jacobian
 
@@ -226,119 +200,72 @@ J = \begin{pmatrix}
 0 & -1/\tau_I & \Phi'_I/\tau_I & 0 \\
 W^{EI}/\tau_\text{AMPA} & 0 & -1/\tau_\text{AMPA} & 0 \\
 0 & W^{IE}/\tau_\text{GABA} & 0 & -1/\tau_\text{GABA}
-\end{pmatrix} \tag{5}
+\end{pmatrix} \tag{22}
 $$
 
 with $\Phi'_E, \Phi'_I$ evaluated at the fixed-point arguments.
 
+### Rejection of 2D models
+
+The textbook tool for an E/I bifurcation is a 2D Wilson-Cowan rate model — two rates $(E, I)$ with sigmoid gains and instantaneous coupling. With no recurrent E→E or I→I synapse ($W^{EE} = W^{II} = 0$) it reads
+
+$$
+\tau_E\,\dot E = -E + \Phi_E\!\left(I_\text{ext} - W^{IE} I\right), \qquad
+\tau_I\,\dot I = -I + \Phi_I\!\left(W^{EI} E\right). \tag{23}
+$$
+
+It cannot host the rhythm. Its divergence is pinned to the negative constant $-1/\tau_E - 1/\tau_I$ — with no diagonal recurrence the gain $\Phi'$ multiplies only the off-diagonal cross-terms — so by the Bendixson–Dulac theorem it encloses no periodic orbit for *any* drive, coupling, or gain shape: not merely no Hopf, but no oscillation anywhere in phase space. What it discards is the round-trip synaptic delay (E excites I after $\tau_\text{AMPA}$, I shunts E after $\tau_\text{GABA}$), and that lag is exactly what destabilises the silent state into a rhythm — inhibition that tracks $E$ with zero delay can only damp, never overshoot. Holding it is irreducibly ≥ 4D, which is why the analysis stays in the conductance model above; any 2D rate model that *does* oscillate has imported a destabiliser PING lacks (recurrent excitation in Wilson-Cowan, a cubic self-gain in FitzHugh-Nagumo), reproducing the rhythm through a fictional mechanism. Figure 1 makes the contrast concrete.
+
+### Locating the Hopf
+
+The recruitment cliff is a **Hopf bifurcation** of the silent fixed point — the smallest drive $I_\text{ext}^\star$ at which a complex-conjugate eigenvalue pair of the $4\times4$ Jacobian (22) reaches the imaginary axis ($\mathrm{Re}(\lambda) = 0$, $\mathrm{Im}(\lambda) \neq 0$), so the fixed point loses stability to a *growing oscillation* rather than a static shift. To find it, sweep $I_\text{ext}$, track the fixed point (near-silent until the loop engages), and diagonalise $J$ at each step; $I_\text{ext}^\star$ is where the leading pair crosses. Tracking all four eigenvalues certifies the onset: if exactly one complex pair reaches the axis while the others stay well damped this is a *simple, generic* Hopf — not a double-Hopf (two pairs crossing together, which would spawn tori a linear analysis cannot capture) — precisely the condition under which a local near-onset analysis is valid. Canonical parameters: $\tau_E = 20$, $\tau_I = 5$, $\tau_\text{AMPA} = 2$, $\tau_\text{GABA} = 9$ ms; $W^{EI} = 80$, $W^{IE} = 60$.
+
+### Calculating its frequency
+
+At the crossing the eigenvalue pair is purely imaginary, $\lambda = \pm i\omega^\star$, and its imaginary part is the angular frequency of the nascent oscillation: the gamma frequency is $f^\star = \omega^\star / 2\pi$, read straight off the Jacobian at threshold. To test the mechanistic claim that the inhibitory decay sets the period, the Hopf is re-found at each $\tau_\text{GABA}$ of nb041's retrained sweep and the resulting $f^\star$ compared against the spiking network's measured $f_\gamma$.
+
+### Classifying sub- or supercritical
+
+Whether the limit cycle is born with zero amplitude (supercritical, soft onset) or with a finite jump and hysteresis (subcritical, hard onset) is classically the sign of the first Lyapunov coefficient of the Hopf normal form. Rather than compute it, we read it off the *full 4D field* by direct simulation: integrate (20)–(21) from a small perturbation of the fixed point across a grid of $I_\text{ext}$ straddling $I_\text{ext}^\star$ and measure the steady-state peak-to-peak amplitude $A = \max_t E(t) - \min_t E(t)$ — exactly zero at a fixed point, positive the instant a limit cycle exists. The *shape* of $A(I_\text{ext})$ decides the class. Near the crossing the oscillation amplitude $r$ obeys a radial flow $\dot r = \lambda\,r + \ell_1\,r^3 + \dots$, with $\lambda \propto (I_\text{ext} - I_\text{ext}^\star)$ the growth rate and $\ell_1$ the first Lyapunov coefficient; the limit cycle is the balance $r^2 = -\lambda/\ell_1$. A *stabilising* cubic ($\ell_1 < 0$) gives a real cycle $r \propto \sqrt{I_\text{ext} - I_\text{ext}^\star}$, so $A^2 \propto (I_\text{ext} - I_\text{ext}^\star)$ — the supercritical signature; a *destabilising* cubic ($\ell_1 > 0$) gives no small stable cycle, so the amplitude appears with a jump and hysteresis.
+
 ## Results
 
-Of the three goals, two are *linear* — locating the Hopf and reading off its frequency are facts about the $4\times4$ Jacobian — and one is *nonlinear* — whether the bifurcation is super- or subcritical. We take them in that order.
+### The rhythm needs 4D
+
+Given the same kick at the same supra-threshold drive, the 2D Wilson-Cowan reduction (23) rings down to silence while the full 4D conductance model sustains a gamma cycle (Figure 1) — the Bendixson argument made concrete: only the model that keeps the synaptic delay can oscillate.
+
+<Figure id="Figure 1" title="Same drive, same kick — only the 4D model oscillates" src="/figures/notebooks/nb033/ts_2d_vs_4d.png" alt="Time series of E (deviation from equilibrium) over 300 ms at a fixed supra-threshold drive. The 2D Wilson-Cowan trace (red) oscillates briefly then decays to a flat line at zero. The 4D conductance trace (black) grows from the same initial perturbation into a sustained, constant-amplitude oscillation.">
+  From the same small kick at the same supra-threshold drive ($I_\text{ext} = I^\star + 3$), the 2D Wilson-Cowan field (23) (red) rings down to equilibrium while the full 4D conductance model (black) settles into a sustained gamma cycle. The synaptic delay the 2D model eliminated is the entire difference.
+</Figure>
 
 ### Frequency
 
-We locate the bifurcation numerically: sweep $I_\text{ext}$, track the fixed point (near-silent until the loop engages), and diagonalise $J$ at each step. The recruitment cliff is a **Hopf bifurcation** — the smallest $I_\text{ext}^\star$ at which a complex-conjugate eigenvalue pair reaches the imaginary axis ($\mathrm{Re}(\lambda) = 0$, $\mathrm{Im}(\lambda) \neq 0$), so the silent fixed point loses stability to a *growing oscillation* rather than to a static shift. The crossing frequency $\omega^\star = \mathrm{Im}(\lambda)$ is the gamma frequency, $f^\star = \omega^\star / 2\pi$.
-
-For the canonical parameters ($\tau_E = 20$, $\tau_I = 5$, $\tau_\text{AMPA} = 2$, $\tau_\text{GABA} = 9$ ms; $W^{EI} = 80$, $W^{IE} = 60$):
+Sweeping $I_\text{ext}$ and diagonalising $J$ at each step locates the Hopf at
 
 $$
-I_\text{ext}^\star = 1.30, \qquad \omega^\star = 0.154~\text{rad/ms}, \qquad f^\star = \frac{\omega^\star}{2\pi} \approx 24.5~\text{Hz}.
+I_\text{ext}^\star = 1.30, \qquad \omega^\star = 0.154~\text{rad/ms}, \qquad f^\star = \frac{\omega^\star}{2\pi} \approx 24.5~\text{Hz},
 $$
 
-That $f^\star \approx 24.5$ Hz sits squarely in the PING gamma band. It is not a parameter-free number — the mean-field's abstract coupling units set the overall scale — but the *dependence* on the synaptic timescales is the predictive content, and across a $\tau_\text{GABA}$ sweep it tracks the spiking network's gamma (Figure 3 below).
-
-Tracking all four eigenvalues does double duty. At onset exactly one complex pair reaches the imaginary axis while the other modes stay well damped, so this is a *simple, generic* Hopf — not a double-Hopf where two pairs cross together (which would spawn tori the linear frequency cannot capture). That is precisely the condition under which a local near-onset analysis is valid. The complex plane shows the crossing and reads off the frequency at once:
+squarely in the PING gamma band. Exactly one complex pair crosses the imaginary axis while the others stay damped — a simple Hopf (Figure 2). The absolute scale is not parameter-free (the mean-field's coupling units set it), but the *dependence* on the synaptic timescales is the predictive content: across a $\tau_\text{GABA}$ sweep $f^\star$ tracks the spiking network's gamma — qualitatively, not quantitatively (Figure 3).
 
 <Figure id="Figure 2" title="4D eigenvalues in the complex plane" src="/figures/notebooks/nb033/eigenvalues_complex.png" alt="Scatter of the four 4D eigenvalues in the complex (Re, Im) plane, each point coloured by the drive I_ext along the sweep. One conjugate pair migrates rightward and crosses the imaginary axis at ±iω*, circled in cyan; the other modes remain in the left half-plane at onset.">
   The four eigenvalues as $I_\text{ext}$ sweeps (colour = drive). One conjugate pair marches right and crosses the imaginary axis at $\pm i\omega^\star$ (cyan circles) at $I_\text{ext}^\star = 1.30$, reading off $f^\star \approx 24.5$ Hz directly as the crossing height; at onset the other modes sit safely in the left half-plane — the simple-Hopf certificate, seen geometrically. (A second pair only reaches the axis at far higher drive, well above the recruitment cliff.)
 </Figure>
 
-**Does the frequency track the synaptic clock?** The mechanistic claim is that $\tau_\text{GABA}$ sets the period. Re-finding the Hopf at each $\tau_\text{GABA}$ in nb041's retrained sweep and overlaying the spiking network's measured $f_\gamma$:
-
 <Figure id="Figure 3" title="Frequency vs inhibitory decay — mean-field vs spiking" src="/figures/notebooks/nb033/freq_vs_tau_gaba.png" alt="Two curves of gamma frequency (Hz) versus τ_GABA from 4.5 to 27 ms. The 4D mean-field f* (black circles) falls from ≈31 Hz to ≈18 Hz. The nb041 spiking f_gamma (red squares) falls more steeply, from ≈54 Hz to ≈14 Hz, crossing the mean-field curve near τ_GABA ≈ 20 ms.">
   Both fall monotonically with $\tau_\text{GABA}$ — the inhibitory decay is the clock in both. The match is qualitative, not quantitative: the mean-field is *flatter*, under-predicting at short $\tau_\text{GABA}$ (24.5 vs 37 Hz at 9 ms) and slightly over-predicting at long $\tau_\text{GABA}$, with the curves crossing near 20 ms. The reduction captures the mechanism but not the full sensitivity — expected, since it drops the spike-synchrony of the E-volley that sharpens the cycle most at short $\tau_\text{GABA}$.
 </Figure>
 
-**Which coupling moves the cliff?** Sweeping the recruitment threshold $I_\text{ext}^\star$ across the $(W^{EI}, W^{IE})$ plane recovers nb025's empirical asymmetry from the equations:
-
-<Figure id="Figure 4" title="Recruitment threshold across the coupling plane" src="/figures/notebooks/nb033/hopf_locus.png" alt="Heatmap of the Hopf recruitment threshold I* over the (W^EI, W^IE) plane, magma colormap. I* varies strongly along the W^EI axis (E→I drive) and is nearly constant along the W^IE axis (I→E feedback), giving near-vertical contours.">
-  The Hopf threshold $I_\text{ext}^\star$ over the coupling plane. It varies $\approx 4\times$ more strongly along $W^{EI}$ (E→I drive) than along $W^{IE}$ (I→E feedback): the mean-field makes **$W^{EI}$ the dominant knob on the recruitment cliff** — consistent with nb025's "$W^{EI}$ moves the cliff" — with only a weak secondary $W^{IE}$ dependence (the faint diagonal). Ties to nb036's coupling-plane basins.
-</Figure>
-
 ### Super or subcritical
 
-The eigenvalue crossing says a limit cycle is born at $I_\text{ext}^\star$ but not whether it appears with zero amplitude (supercritical, soft onset) or with a finite jump and hysteresis (subcritical, hard onset). That is a nonlinear question, classically the sign of the first Lyapunov coefficient of the Hopf normal form. We read it off the *full 4D field* by direct simulation instead: integrate (3)–(4) from a small perturbation of the fixed point across a grid of $I_\text{ext}$ straddling $I_\text{ext}^\star$ and measure the steady-state peak-to-peak $E$ amplitude — the full top-to-bottom swing of the population rate once settled, $A = \max_t E(t) - \min_t E(t)$, which is exactly zero at a fixed point and positive the instant a limit cycle exists (no period-fitting or cycle-centre needed, the appeal of the direct measure). This needs no center-manifold reduction and no assumption that the local picture is 2D — and it is self-checking, since a hidden degeneracy would show up as beating or quasiperiodicity in the amplitude trace rather than the clean law below. Below $I_\text{ext}^\star$ the perturbation decays to zero; above it the amplitude grows *continuously from zero*, with $A^2 \propto (I_\text{ext} - I_\text{ext}^\star)$ (linear fit slope $3.2 \times 10^{-4}$, $R^2 = 0.997$). The square-root amplitude law and the absence of any jump or hysteresis mark a **supercritical Hopf** — the network slides smoothly from silence into a small-amplitude gamma cycle as drive crosses threshold, exactly the soft recruitment cliff of nb025.
+Direct simulation of (20)–(21) gives an amplitude that grows continuously from zero above threshold, with $A^2 \propto (I_\text{ext} - I_\text{ext}^\star)$ (slope $3.2 \times 10^{-4}$, $R^2 = 0.997$) and no jump or hysteresis — a **supercritical Hopf**, the soft recruitment cliff of nb025 (Figure 4). Because $A \propto \sqrt{I_\text{ext} - I_\text{ext}^\star}$ the onset is soft but *sharp*: the sensitivity $dA/dI_\text{ext}$ diverges at threshold, so most of the amplitude appears in a thin sliver of drive just past $I_\text{ext}^\star$.
 
-<Figure id="Figure 5" title="Supercritical Hopf — amplitude onset by direct simulation" src="/figures/notebooks/nb033/criticality.png" alt="Two panels. Left: steady-state peak-to-peak E amplitude versus I_ext, flat at zero below I* = 1.30 (amber dotted vertical line) then rising continuously to ≈ 0.013. Right: E amplitude squared versus (I_ext − I*), a straight line passing through the origin — the supercritical A² ∝ (I − I*) signature.">
+<Figure id="Figure 4" title="Supercritical Hopf — amplitude onset by direct simulation" src="/figures/notebooks/nb033/criticality.png" alt="Two panels. Left: steady-state peak-to-peak E amplitude versus I_ext, flat at zero below I* = 1.30 (amber dotted vertical line) then rising continuously to ≈ 0.013. Right: E amplitude squared versus (I_ext − I*), a straight line passing through the origin — the supercritical A² ∝ (I − I*) signature.">
   Amplitude is zero below $I_\text{ext}^\star$ and grows continuously above it (left); $A^2$ is linear in $(I_\text{ext} - I_\text{ext}^\star)$ (right, slope $3.2 \times 10^{-4}$, $R^2 = 0.997$). No jump, no hysteresis — a soft onset.
 </Figure>
 
-**Why that shape *is* supercriticality.** The square-root law is not a fit — it is forced by the Hopf normal form, which is what lets the measured curve stand in for the Lyapunov coefficient we declined to compute. Near the crossing the oscillation amplitude $r$ obeys a radial flow $\dot r = \lambda\,r + \ell_1\,r^3 + \dots$, with $\lambda \propto (I_\text{ext} - I_\text{ext}^\star)$ the growth rate of the now-unstable pair and $\ell_1$ the first Lyapunov coefficient. The limit cycle is the balance $\dot r = 0$, i.e. $r^2 = -\lambda/\ell_1$: a *stabilising* cubic ($\ell_1 < 0$) gives a real cycle of radius $r = \sqrt{-\lambda/\ell_1} \propto \sqrt{I_\text{ext} - I_\text{ext}^\star}$ — the linear instability pushes the amplitude out, the cubic reins it in, and they settle at a small finite radius. So "$A^2$ linear in $(I_\text{ext} - I_\text{ext}^\star)$" is *equivalent* to $\ell_1 < 0$, which is the definition of supercritical; a subcritical Hopf ($\ell_1 > 0$) has a destabilising cubic, no small stable cycle, and an amplitude that appears with a jump and hysteresis — neither in the sweep. (It is the dynamical twin of a second-order phase transition: the gamma amplitude is the order parameter and the exponent $\tfrac12$ the mean-field critical exponent.)
+Just above onset the cycle shows E leading I by ≈ 5 ms — the round-trip loop delay the 2D reduction throws away.
 
-The slope carries one more reading. Since $A \propto \sqrt{I_\text{ext} - I_\text{ext}^\star}$, the sensitivity $dA/dI_\text{ext} \propto (I_\text{ext} - I_\text{ext}^\star)^{-1/2}$ *diverges* at threshold: the amplitude rises with a vertical tangent, so the rhythm switches on smoothly (no jump) yet steeply — most of its amplitude appears in a thin sliver of drive just past $I_\text{ext}^\star$. Soft, but sharp: the dynamical content of nb025's recruitment cliff.
-
-The cycle the onset produces, just above threshold:
-
-<Figure id="Figure 6" title="The 4D limit cycle near onset — E leads I" src="/figures/notebooks/nb033/limit_cycle.png" alt="Time series of the E rate (black, left axis) and I rate (red, right axis) over three periods of the 4D limit cycle just above onset. Both are near-sinusoidal; the E peak leads the I peak by a few milliseconds each cycle.">
+<Figure id="Figure 5" title="The 4D limit cycle near onset — E leads I" src="/figures/notebooks/nb033/limit_cycle.png" alt="Time series of the E rate (black, left axis) and I rate (red, right axis) over three periods of the 4D limit cycle just above onset. Both are near-sinusoidal; the E peak leads the I peak by a few milliseconds each cycle.">
   $E$ (black) and $I$ (red) over the limit cycle at $I_\text{ext} = I^\star + 1$. The E burst leads the I burst by ≈ 5 ms — the loop delay made visible: E recruits I, I shunts E a few milliseconds later, and the cycle turns over. This is the round-trip phase lag the 2D reduction throws away.
 </Figure>
-
-## Discussion
-
-The 4D Hopf (Figure 2) locates the recruitment threshold $I_\text{ext}^\star$ and a gamma frequency $f^\star \approx 24.5$ Hz from the synaptic timescales and coupling matrices — in the spiking band, reproducing its $\tau_\text{GABA}$-dependence (Figure 3) and nb025's "$W^{EI}$ moves the cliff" asymmetry (Figure 4), though flatter in absolute Hz than the spiking network. The 2D reduction shows why the full 4D state is needed: with $W^{EE} = 0$ it cannot destabilise the silent fixed point (Bendixson–Dulac, Figure 1), because the oscillation is driven by the synaptic phase delays the reduction throws away. The mean-field thus pins the *mechanism* of the $f_\gamma$ factor in nb041's affine law $r_E = p \cdot f_\gamma$ (the per-cycle participation $p$ being the separate, spike-resolved result of [nb046](/notebooks/nb046/)); the quantitative frequency calibration is approximate and left to the spiking network.
-
-A note on the "use a 2D model" instinct, since it is the natural one: it is right about the *analysis* and wrong about the *object*. All three results here are local near the Hopf — the Jacobian crossing, the frequency, the amplitude scaling — and a Hopf is generically a 2D phenomenon. But the legitimate 2D-ness is the center-manifold normal form *derived from the 4D field*, not a Wilson-Cowan or FitzHugh-Nagumo system substituted for it. The [appendix](#appendix--the-normal-form-derived-from-the-4d-field) carries out exactly that reduction — Kuznetsov's first Lyapunov coefficient computed from the 4D Jacobian and gain derivatives — and it agrees with the direct simulation on the sign ($\ell_1 < 0$), the frequency, and the amplitude slope to ≈ 4%. Working in 4D coordinates throughout keeps the local analysis honest and keeps the parameters mapped onto things the circuit actually has ($\tau_\text{GABA}$, $W^{EI}$) rather than onto a fictional recovery variable. "Reduce locally for the analysis, keep 4D as the object" is one position, not two.
-
-## Appendix — the normal form, derived from the 4D field
-
-[§3.2](#super-or-subcritical) settled super- vs subcriticality by simulation, with no theory required. This appendix does it the textbook way as well — the **first Lyapunov coefficient** — and checks the two agree. It also makes concrete what "go locally 2D near the Hopf" actually means, since that phrase is easy to misread.
-
-**The idea, in words.** Near the Hopf the 4D system has four modes (eigen-directions of the Jacobian): one *oscillating* pair, barely stable, that is about to become the gamma rhythm, and two others that decay fast. "Fast" relative to the barely-stable gamma mode means that whatever state you start in, those two collapse almost immediately, and the long-run behaviour — the limit cycle and whether it switches on softly or with a jump — plays out on a 2D surface carrying the gamma mode. That surface is the **center manifold**; the equation for the dynamics on it is the **normal form**. So near onset the essential dynamics genuinely *are* 2D.
-
-Two things to keep straight, because they are exactly where the "2D" word causes trouble:
-
-- Those 2D coordinates are **not** the rates $(E, I)$. They are the amplitude and phase of the gamma mode — a direction that mixes all four variables.
-- This is therefore **not** the Wilson-Cowan / FitzHugh-Nagumo rate model [§2.1](#why-a-2d-model-is-the-wrong-object) rejected. That model *eliminates the conductances* (wrong — they carry the delay); the center manifold *keeps the full 4D field* and merely drops the directions that decay fast, so the delay — hence the frequency $\omega_0$ — stays in. The center manifold is the *legitimate* "go 2D," derived from the 4D field rather than substituted for it.
-
-**What we need.** Three things, all read off the 4D Jacobian $A$ at the Hopf:
-
-- the frequency $\omega_0$ — the imaginary part of the critical (purely imaginary) eigenvalue, $\pm i\omega_0$;
-- the **critical eigenvectors** $q$ and $p$: $q$ points along the gamma mode ($Aq = i\omega_0 q$), and $p$ is its dual partner ($A^{\!\top}p = -i\omega_0 p$, normalised so $\langle p,q\rangle = 1$), used to measure "how much gamma mode" a given state contains;
-- how the field's *curvature* — its quadratic and cubic terms — bends the gamma mode back on itself.
-
-On the center manifold the dynamics become $\dot z = (i\omega_0 + \lambda)\,z + c_1\,z|z|^2$, where $z$ is the complex gamma amplitude, $\lambda \approx \lambda'(I_\text{ext}^\star)(I_\text{ext} - I_\text{ext}^\star)$ is the growth rate past threshold, and $c_1$ is the cubic term that saturates it. One number decides everything, $\ell_1 = \mathrm{Re}(c_1)/\omega_0$: **negative, the cubic pushes back → supercritical (soft onset); positive, it pushes out → subcritical (hard onset).** This is the same $r^2 = -\lambda/\mathrm{Re}(c_1)$ balance behind §3.2's square-root law — $\ell_1$ is just its sign, computed rather than measured.
-
-**The curvature is almost all zero.** The only nonlinear parts of the 4D field (3)–(4) are the two gain curves: the E-equation bends through $\Phi_E(I_\text{ext} - g_i^E)$, the I-equation through $\Phi_I(g_e^I)$, and the conductance equations are perfectly straight lines. So the quadratic form $B$ (the second derivatives) and cubic form $C$ (the third derivatives) each have a single non-zero slot — with state order $(E, I, g_e^I, g_i^E) = (x_1, x_2, x_3, x_4)$,
-
-$$
-B(\mathbf{x},\mathbf{y}) = \begin{pmatrix} \tfrac{1}{\tau_E}\,\Phi''_E\, x_4 y_4 \\[2pt] \tfrac{1}{\tau_I}\,\Phi''_I\, x_3 y_3 \\[2pt] 0 \\ 0 \end{pmatrix}, \qquad
-C(\mathbf{x},\mathbf{y},\mathbf{z}) = \begin{pmatrix} -\tfrac{1}{\tau_E}\,\Phi'''_E\, x_4 y_4 z_4 \\[2pt] \tfrac{1}{\tau_I}\,\Phi'''_I\, x_3 y_3 z_3 \\[2pt] 0 \\ 0 \end{pmatrix},
-$$
-
-with $\Phi''$ (the gain's curvature) and $\Phi'''$ (its rate of change of curvature) evaluated at each gain's fixed-point drive — $I_\text{ext}^\star - g_i^{E\star}$ for E, $g_e^{I\star}$ for I.
-
-**The formula.** Feeding these into Kuznetsov's projection formula — the standard recipe for reading $\ell_1$ off a vector field of any dimension (*Elements of Applied Bifurcation Theory*, eq. 10.59):
-
-$$
-\ell_1 = \frac{1}{2\omega_0}\,\mathrm{Re}\Big[\langle p, C(q,q,\bar q)\rangle - 2\langle p, B(q,\,A^{-1}B(q,\bar q))\rangle + \langle p, B(\bar q,\,(2i\omega_0 I - A)^{-1}B(q,q))\rangle\Big].
-$$
-
-It looks forbidding but it is pure bookkeeping: project the cubic curvature onto the gamma mode, then subtract the two ways the quadratic curvature feeds back through the *off*-mode directions (the matrix solves $A^{-1}$ and $(2i\omega_0 I - A)^{-1}$ route those quadratic "overtones" back onto the mode), and take the real part. Two linear solves and three dot products, evaluated once at the fixed point.
-
-**The result.** Refining the Hopf to where the pair is exactly imaginary ($I_\text{ext}^\star = 1.288$, $\omega_0 = 0.152$ rad/ms, i.e. $f = 24.3$ Hz — matching the sweep's 24.5 Hz) and evaluating:
-
-$$
-\boxed{\;\ell_1 = -1.41 < 0.\;}
-$$
-
-Negative, so the analytic verdict is **supercritical** — exactly §3.2's, now with the center-manifold-validity assumption made explicit rather than implicit (the "only one mode crosses" condition that licenses the whole reduction was certified back in Figure 2).
-
-**Does it match the simulation? Quantitatively.** The normal form predicts more than a sign. The cycle radius is $r^2 = -\lambda/\mathrm{Re}(c_1)$, and at leading order the measured peak-to-peak E amplitude is $A = 4\,|q_E|\,r$ (with $q_E$ the E-component of the gamma mode $q$), so
-
-$$
-A^2 \approx \frac{-16\,|q_E|^2\,\lambda'(I_\text{ext}^\star)}{\omega_0\,\ell_1}\,(I_\text{ext} - I_\text{ext}^\star).
-$$
-
-With $\lambda'(I_\text{ext}^\star) = 0.085$ and the eigenvector, this predicts an onset slope of $3.36 \times 10^{-4}$ — against the $3.21 \times 10^{-4}$ measured by direct simulation (Figure 5): a ≈ 4% match. The small gap is leading-order truncation — the simulation runs at finite amplitude out to $I^\star + 0.5$, where the higher-order ($r^5$) terms the normal form drops start to matter.
-
-**The verdict.** Sign, frequency, *and* amplitude slope all agree between the analytic normal form and the direct 4D simulation. So "go locally 2D near the Hopf" is real and legitimate here — and it is *this* center-manifold reduction of the 4D field (its eigenvectors $q, p$, its curvature forms $B, C$), not the rate model [§2.1](#why-a-2d-model-is-the-wrong-object) ruled out.
