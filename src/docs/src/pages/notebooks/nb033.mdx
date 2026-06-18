@@ -28,7 +28,7 @@ We start with $N_E + N_I$ coupled conductance-based spiking neurons and reduce t
 4. Population rate from an f-I curve
 5. Absorb the driving-force constants.
 
-**Step 1. Summary of COBA model.** Index E cells by $j \in \{1, \ldots, N_E\}$ and I cells by $k \in \{1, \ldots, N_I\}$. From the methods paper [ar009](/articles/ar009/) eq. (1) with the architecture constraints $W^{EE} = W^{II} = 0$ (no recurrent E→E, no I→I) and an external drive $I_{\text{ext},j}$ added on E:
+**Step 1. Summary of COBA model.** Index E cells by $j \in \{1, \ldots, N_E\}$ and I cells by $k \in \{1, \ldots, N_I\}$. From the [COBANet model](/articles/ar003/) membrane equation, with the architecture constraints $W^{EE} = W^{II} = 0$ (no recurrent E→E, no I→I) and an external drive $I_{\text{ext},j}$ added on E:
 
 $$
 C_m^E\,\dot V_j^E \;=\; -g_L^E(V_j^E - E_L) \;-\; g_{i,j}^E(V_j^E - E_I) \;+\; I_{\text{ext},j}
@@ -52,7 +52,7 @@ $$
 \tag{4}
 $$
 
-with $s_j^E(t) = \sum_n \delta(t - t_{j,n}^E)$ the spike train of E-cell $j$ as a sum of Dirac pulses at its firing times (similarly for $s_k^I$). (3)–(4) are the continuous-time forms of eq. (8) and (7) in the methods backbone — exponential synapses with per-spike weight $W$ and decay $\tau$.
+with $s_j^E(t) = \sum_n \delta(t - t_{j,n}^E)$ the spike train of E-cell $j$ as a sum of Dirac pulses at its firing times (similarly for $s_k^I$). (3)–(4) are the continuous-time forms of the synaptic conductance updates in [COBANet](/articles/ar003/) — exponential synapses with per-spike weight $W$ and decay $\tau$.
 
 **Step 2. Homogeneous coupling and population means.** Replace each random weight by its population mean, $W^{EI}_{kj} \to w^{EI}$ and $W^{IE}_{jk} \to w^{IE}$. The presynaptic sums in (3)–(4) become
 
@@ -109,7 +109,7 @@ C_m^I\,\dot V_k^I &= -g_L^I(V_k^I - E_L) \;-\; g_e^I\,(V_k^I - E_E) \\
 \end{aligned}
 $$
 
-**Step 3. Driving-force linearisation.** In COBA the synaptic current is conductance times a *driving force*, $-g\,(V - E_\text{rev})$ — a product of two moving quantities ($g$ and $V$) that makes the model nonlinear and ties the two together. Cut the knot by freezing $V$ at its resting value $V_\text{rest} = E_L = -65$ mV *inside the driving force only* — the leak and spike threshold keep their full $V$-dependence, handled by the f-I curve in Step 4. With the reversal potentials from [ar009](/articles/ar009/), each driving force becomes a fixed voltage gap:
+**Step 3. Driving-force linearisation.** In COBA the synaptic current is conductance times a *driving force*, $-g\,(V - E_\text{rev})$ — a product of two moving quantities ($g$ and $V$) that makes the model nonlinear and ties the two together. Cut the knot by freezing $V$ at its resting value $V_\text{rest} = E_L = -65$ mV *inside the driving force only* — the leak and spike threshold keep their full $V$-dependence, handled by the f-I curve in Step 4. With the reversal potentials from [COBANet](/articles/ar003/), each driving force becomes a fixed voltage gap:
 
 $$
 \Delta V_\text{inh} \;\equiv\; V_\text{rest} - E_I \;=\; -65 - (-80) \;=\; 15~\text{mV}
