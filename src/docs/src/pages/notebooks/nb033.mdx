@@ -3,7 +3,7 @@ layout: ../../layouts/MarkdownLayout.astro
 title: "033 — DMFT model"
 date: 2026-05-28
 entry: 33
-status: revising
+status: final
 structure: paper
 collection: gamma-gated-sparsity
 ---
@@ -59,12 +59,12 @@ $$
 Recast in continuous time. The synapses (4)–(6) are the exp-Euler form of first-order filters $\tau\,\dot g = -g + \tau\sum W s$, used here as ODEs. At a constant input rate $g_e^E$ (4) settles to a steady mean, so its excitatory current into the E membrane (1) is a near-constant depolarising drive; we replace it by a tonic current $I_{\text{ext}}$, the swept control parameter. The E membrane then carries $I_{\text{ext}}$ in place of $g_e^E$:
 
 $$
-C_m^E\,\dot V^E \;=\; -g_L^E(V^E - E_L) \;-\; g_i^E(V^E - E_I) \;+\; I_{\text{ext}}
+C_m^E\,\dot V^E \;=\; -g_L^E(V^E - E_L) \;-\; g_i^E(V^E - E_i) \;+\; I_{\text{ext}}
 \tag{7}
 $$
 
 $$
-C_m^I\,\dot V^I \;=\; -g_L^I(V^I - E_L) \;-\; g_e^I(V^I - E_E)
+C_m^I\,\dot V^I \;=\; -g_L^I(V^I - E_L) \;-\; g_e^I(V^I - E_e)
 \tag{8}
 $$
 
@@ -117,12 +117,12 @@ $$
 the conductance dynamics become
 
 $$
-\tau_\text{AMPA}\,\dot g_e^I \;=\; -g_e^I \;+\; \tilde W^{EI}\,E
+\tau_\text{AMPA}\,\dot g_e^I \;=\; -g_e^I \;+\; \tau_\text{AMPA}\,\tilde W^{EI}\,E
 \tag{15}
 $$
 
 $$
-\tau_\text{GABA}\,\dot g_i^E \;=\; -g_i^E \;+\; \tilde W^{IE}\,I
+\tau_\text{GABA}\,\dot g_i^E \;=\; -g_i^E \;+\; \tau_\text{GABA}\,\tilde W^{IE}\,I
 \tag{16}
 $$
 
@@ -132,10 +132,10 @@ Two equations, down from $N_E + N_I$. (The fan-in scale $\tilde W$ folds into $W
 
 $$
 \begin{aligned}
-C_m^E\,\dot V_j^E &= -g_L^E(V_j^E - E_L) \;-\; g_i^E\,(V_j^E - E_I) \;+\; I_\text{ext} \\
-C_m^I\,\dot V_k^I &= -g_L^I(V_k^I - E_L) \;-\; g_e^I\,(V_k^I - E_E) \\
-\tau_\text{AMPA}\,\dot g_e^I &= -g_e^I \;+\; \tilde W^{EI}\,E \\
-\tau_\text{GABA}\,\dot g_i^E &= -g_i^E \;+\; \tilde W^{IE}\,I
+C_m^E\,\dot V_j^E &= -g_L^E(V_j^E - E_L) \;-\; g_i^E\,(V_j^E - E_i) \;+\; I_\text{ext} \\
+C_m^I\,\dot V_k^I &= -g_L^I(V_k^I - E_L) \;-\; g_e^I\,(V_k^I - E_e) \\
+\tau_\text{AMPA}\,\dot g_e^I &= -g_e^I \;+\; \tau_\text{AMPA}\,\tilde W^{EI}\,E \\
+\tau_\text{GABA}\,\dot g_i^E &= -g_i^E \;+\; \tau_\text{GABA}\,\tilde W^{IE}\,I
 \end{aligned}
 $$
 
@@ -143,23 +143,23 @@ $$
 The synaptic current is conductance times a *driving force*, $-g\,(V - E_\text{rev})$ — a $g$–$V$ product, hence nonlinear. Freeze $V$ at rest, $V_\text{rest} = E_L = -65$ mV, *in the driving force only* (leak and threshold keep their full $V$-dependence, handled by the f-I curve in 1.5). Each driving force becomes a fixed voltage gap:
 
 $$
-\Delta V_\text{inh} \;\equiv\; V_\text{rest} - E_I \;=\; -65 - (-80) \;=\; 15~\text{mV}
+\Delta V_\text{inh} \;\equiv\; V_\text{rest} - E_i \;=\; -65 - (-80) \;=\; 15~\text{mV}
 \tag{17}
 $$
 
 $$
-\Delta V_\text{exc} \;\equiv\; V_\text{rest} - E_E \;=\; -65 - 0 \;=\; -65~\text{mV}
+\Delta V_\text{exc} \;\equiv\; V_\text{rest} - E_e \;=\; -65 - 0 \;=\; -65~\text{mV}
 $$
 
 The synaptic currents in (7)–(8) then lose their $V$-dependence and become proportional to conductance alone:
 
 $$
--g_i^E (V_j^E - E_I) \;\approx\; -g_i^E\,\Delta V_\text{inh}
+-g_i^E (V_j^E - E_i) \;\approx\; -g_i^E\,\Delta V_\text{inh}
 \tag{18}
 $$
 
 $$
--g_e^I (V_k^I - E_E) \;\approx\; -g_e^I\,\Delta V_\text{exc} \;=\; +g_e^I \cdot |E_E - V_\text{rest}|
+-g_e^I (V_k^I - E_e) \;\approx\; -g_e^I\,\Delta V_\text{exc} \;=\; +g_e^I \cdot |E_e - V_\text{rest}|
 \tag{19}
 $$
 
@@ -171,8 +171,8 @@ $$
 \begin{aligned}
 C_m^E\,\dot V_j^E &= -g_L^E(V_j^E - E_L) \;-\; g_i^E\,\Delta V_\text{inh} \;+\; I_\text{ext} \\
 C_m^I\,\dot V_k^I &= -g_L^I(V_k^I - E_L) \;+\; g_e^I\,|\Delta V_\text{exc}| \\
-\tau_\text{AMPA}\,\dot g_e^I &= -g_e^I \;+\; \tilde W^{EI}\,E \\
-\tau_\text{GABA}\,\dot g_i^E &= -g_i^E \;+\; \tilde W^{IE}\,I
+\tau_\text{AMPA}\,\dot g_e^I &= -g_e^I \;+\; \tau_\text{AMPA}\,\tilde W^{EI}\,E \\
+\tau_\text{GABA}\,\dot g_i^E &= -g_i^E \;+\; \tau_\text{GABA}\,\tilde W^{IE}\,I
 \end{aligned}
 $$
 
@@ -218,8 +218,8 @@ $$
 \begin{aligned}
 \tau_E\,\dot E &= -E \;+\; \Phi_E\!\big(I_\text{ext} - g_i^E\,\Delta V_\text{inh}\big) \\
 \tau_I\,\dot I &= -I \;+\; \Phi_I\!\big(g_e^I\,|\Delta V_\text{exc}|\big) \\
-\tau_\text{AMPA}\,\dot g_e^I &= -g_e^I \;+\; \tilde W^{EI}\,E \\
-\tau_\text{GABA}\,\dot g_i^E &= -g_i^E \;+\; \tilde W^{IE}\,I
+\tau_\text{AMPA}\,\dot g_e^I &= -g_e^I \;+\; \tau_\text{AMPA}\,\tilde W^{EI}\,E \\
+\tau_\text{GABA}\,\dot g_i^E &= -g_i^E \;+\; \tau_\text{GABA}\,\tilde W^{IE}\,I
 \end{aligned}
 $$
 
@@ -245,8 +245,8 @@ $$
 $$
 
 $$
-\tau_\text{AMPA}\,\dot g_e^I = -g_e^I + W^{EI}\,E, \qquad
-\tau_\text{GABA}\,\dot g_i^E = -g_i^E + W^{IE}\,I \tag{27}
+\tau_\text{AMPA}\,\dot g_e^I = -g_e^I + \tau_\text{AMPA}\,W^{EI}\,E, \qquad
+\tau_\text{GABA}\,\dot g_i^E = -g_i^E + \tau_\text{GABA}\,W^{IE}\,I \tag{27}
 $$
 
 in state $(E, I, g_e^I, g_i^E)$. Whether 4D is minimal — or a 2D reduction would do — is settled in [Rejection of 2D models](#2-rejection-of-2d-models) below.
@@ -259,8 +259,8 @@ $$
 J = \begin{pmatrix}
 -1/\tau_E & 0 & 0 & -\Phi'_E/\tau_E \\
 0 & -1/\tau_I & \Phi'_I/\tau_I & 0 \\
-W^{EI}/\tau_\text{AMPA} & 0 & -1/\tau_\text{AMPA} & 0 \\
-0 & W^{IE}/\tau_\text{GABA} & 0 & -1/\tau_\text{GABA}
+W^{EI} & 0 & -1/\tau_\text{AMPA} & 0 \\
+0 & W^{IE} & 0 & -1/\tau_\text{GABA}
 \end{pmatrix} \tag{28}
 $$
 
@@ -271,11 +271,11 @@ with $\Phi'_E, \Phi'_I$ evaluated at the fixed-point arguments.
 The textbook tool for an E/I bifurcation is a 2D Wilson-Cowan rate model — two rates $(E, I)$ with sigmoid gains and instantaneous coupling. With no recurrent E→E or I→I synapse ($W^{EE} = W^{II} = 0$) it reads
 
 $$
-\tau_E\,\dot E = -E + \Phi_E\!\left(I_\text{ext} - W^{IE} I\right), \qquad
-\tau_I\,\dot I = -I + \Phi_I\!\left(W^{EI} E\right). \tag{29}
+\tau_E\,\dot E = -E + \Phi_E\!\left(I_\text{ext} - \tau_\text{GABA} W^{IE} I\right), \qquad
+\tau_I\,\dot I = -I + \Phi_I\!\left(\tau_\text{AMPA} W^{EI} E\right). \tag{29}
 $$
 
-This is the $\tau_\text{AMPA}, \tau_\text{GABA} \to 0$ limit of (26)–(27): the conductance equations go algebraic, $g_e^I = W^{EI} E$ and $g_i^E = W^{IE} I$ (synapses slaved to the rates), and substituting into (26) recovers (29) term for term. So Wilson-Cowan *is* the 4D model with its synaptic clock zeroed — legitimate only if the synapses relax fast relative to the rhythm, which they do not ($\tau_\text{GABA} \approx 9$ ms is the order of the gamma period).
+Wilson-Cowan *is* the 4D model with its synapses made instantaneous: slave each conductance to the quasi-steady value of its filter (15)–(16), $g_e^I = \tau_\text{AMPA} W^{EI} E$ and $g_i^E = \tau_\text{GABA} W^{IE} I$, and substitute into the rate equations (26) to get (29) — the same fixed points, but no synaptic lag. The reduction is legitimate only if the synapses relax fast relative to the rhythm, which they do not ($\tau_\text{GABA} \approx 9$ ms is the order of the gamma period).
 
 It cannot oscillate. Writing (29) as $\dot E = f_E,\ \dot I = f_I$, the divergence of the flow is the trace of its Jacobian:
 
@@ -285,7 +285,7 @@ $$
 \tag{30}
 $$
 
-— a negative constant. With no recurrent E→E or I→I term the gain $\Phi'$ enters only the off-diagonal cross-terms ($\partial\dot E/\partial I = -\Phi'_E W^{IE}/\tau_E$ and $\partial\dot I/\partial E = \Phi'_I W^{EI}/\tau_I$) and drops out of the trace. By Bendixson–Dulac a planar flow of one-signed divergence encloses no periodic orbit — no Hopf, no oscillation, for any drive, coupling, or gain. What it discards is the round-trip synaptic delay (E excites I after $\tau_\text{AMPA}$, I shunts E after $\tau_\text{GABA}$): inhibition tracking $E$ with zero delay damps but cannot overshoot. A 2D model that does oscillate has added a destabiliser absent from PING (recurrent excitation, a cubic self-gain).
+— a negative constant. With no recurrent E→E or I→I term the gain $\Phi'$ enters only the off-diagonal cross-terms ($\partial\dot E/\partial I = -\Phi'_E \tau_\text{GABA} W^{IE}/\tau_E$ and $\partial\dot I/\partial E = \Phi'_I \tau_\text{AMPA} W^{EI}/\tau_I$) and drops out of the trace. By Bendixson–Dulac a planar flow of one-signed divergence encloses no periodic orbit — no Hopf, no oscillation, for any drive, coupling, or gain. What it discards is the round-trip synaptic delay (E excites I after $\tau_\text{AMPA}$, I shunts E after $\tau_\text{GABA}$): inhibition tracking $E$ with zero delay damps but cannot overshoot. A 2D model that does oscillate has added a destabiliser absent from PING (recurrent excitation, a cubic self-gain).
 
 ### 3. Locating the Hopf
 
@@ -320,7 +320,7 @@ A *stable* cycle born at threshold makes the rising and falling branches coincid
 
 #### 5.2 The cycle waveform
 
-The same integration gives the cycle's shape just above onset: $E$ and $I$ are near-sinusoidal, with the E burst leading the I burst by the round-trip synaptic delay — E recruits I, I shunts E a few milliseconds later (Figure 4).
+The same integration gives the cycle's shape above onset: $E$ and $I$ are near-sinusoidal, with the E burst leading the I burst by the round-trip synaptic delay — E recruits I, I shunts E a few milliseconds later (Figure 4).
 
 ## Results
 
@@ -352,8 +352,8 @@ The rising and falling sweeps coincide (Figure 3): the amplitude grows continuou
   Quasi-static up/down ramp of the drive across $I_\text{ext}^\star$. The rising branch (black, drive increasing) and falling branch (red, drive decreasing) coincide: the cycle turns on and off at the same drive, with amplitude growing continuously from zero. No loop, no bistable window — the reversible onset of a supercritical Hopf. (A subcritical onset would show the two branches separating into a hysteresis loop.)
 </Figure>
 
-Just above onset, E leads I by ≈ 5 ms — the loop delay the 2D reduction omits.
+Above onset, E leads I by ≈ 5 ms — the loop delay the 2D reduction omits.
 
-<Figure id="Figure 4" title="The 4D limit cycle near onset — E leads I" src="/figures/notebooks/nb033/limit_cycle.png" alt="Time series of the E rate (black, left axis) and I rate (red, right axis) over three periods of the 4D limit cycle just above onset. Both are near-sinusoidal; the E peak leads the I peak by a few milliseconds each cycle.">
+<Figure id="Figure 4" title="The 4D limit cycle near onset — E leads I" src="/figures/notebooks/nb033/limit_cycle.png" alt="Time series of the E rate (black, left axis) and I rate (red, right axis) over three periods of the 4D limit cycle above onset. Both are near-sinusoidal; the E peak leads the I peak by a few milliseconds each cycle.">
   $E$ (black) and $I$ (red) over the limit cycle at $I_\text{ext} = I^\star + 0.4$ nA. The E burst leads the I burst by ≈ 5 ms: E recruits I, I shunts E a few milliseconds later, and the cycle repeats — the loop delay the 2D reduction omits.
 </Figure>
