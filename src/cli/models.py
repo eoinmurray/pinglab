@@ -165,8 +165,15 @@ def _scale_grad(x, scale):
 
 
 def exp_synapse(g, spikes, W, decay):
-    """Exponential synapse: spike kicks first, then decay."""
-    return (g + spikes @ W) * decay
+    """Exponential synapse: decay, then add the undecayed spike kick.
+
+    Canonical exponential synapse — a presynaptic spike makes g jump by its
+    full weight W (its peak conductance), then decays as exp(-dt/tau). So W is
+    the per-spike conductance increment, independent of dt. (Decay-then-add;
+    cf. the older add-then-decay form, which scaled every kick by one extra
+    factor of `decay`.)
+    """
+    return g * decay + spikes @ W
 
 
 def lif_step(
@@ -855,17 +862,17 @@ class COBANet(SNNBase):
                 # single compiled graph where the three weight shapes are
                 # specialized once per (W_ee, W_ei, W_ie) tuple.
                 ee_drive = state["s_e"][k] @ self.W_ee[k]
-                state["ge_e"][k] = (state["ge_e"][k] + ee_drive) * decay_ampa
+                state["ge_e"][k] = state["ge_e"][k] * decay_ampa + ee_drive
                 ei_drive = state["s_e"][k] @ self.W_ei[k]
                 if k == "1" and cfg["has_ext_g_i"]:
                     ei_drive = ei_drive + slc["ext_t_i"]
-                state["ge_i"][k] = (state["ge_i"][k] + ei_drive) * decay_ampa
+                state["ge_i"][k] = state["ge_i"][k] * decay_ampa + ei_drive
                 state["gi_e"][k] = (
-                    state["gi_e"][k] + state["s_i"][k] @ self.W_ie[k]
-                ) * decay_gaba
+                    state["gi_e"][k] * decay_gaba + state["s_i"][k] @ self.W_ie[k]
+                )
                 state["gi_i"][k] = (
-                    state["gi_i"][k] + state["s_i"][k] @ self.W_ii[k]
-                ) * decay_gaba
+                    state["gi_i"][k] * decay_gaba + state["s_i"][k] @ self.W_ii[k]
+                )
             else:
                 state["ge_e"][k] = state["ge_e"][k] * decay_ampa
 

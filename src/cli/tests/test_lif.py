@@ -106,19 +106,19 @@ class TestExpSynapse:
         torch.testing.assert_close(g_next, g * decay)
 
     def test_impulse_then_decay(self):
-        """With g=0 and an impulse spike through identity W, subsequent steps
-        should decay as decay, decay^2, decay^3, ..."""
+        """Decay-then-add: an impulse spike through identity W lands at its
+        full weight (1.0), then subsequent steps decay as decay, decay^2, ..."""
         g = torch.zeros((1, 3))
         s = torch.ones((1, 3))  # single impulse, broadcast via I
         W = torch.eye(3)
         decay = 0.8
 
         g1 = exp_synapse(g, s, W, decay)
-        torch.testing.assert_close(g1, torch.full((1, 3), decay))
+        torch.testing.assert_close(g1, torch.full((1, 3), 1.0))
 
         # Subsequent steps: zero spikes, only decay
         s_zero = torch.zeros_like(s)
         g2 = exp_synapse(g1, s_zero, W, decay)
         g3 = exp_synapse(g2, s_zero, W, decay)
-        torch.testing.assert_close(g2, torch.full((1, 3), decay**2))
-        torch.testing.assert_close(g3, torch.full((1, 3), decay**3))
+        torch.testing.assert_close(g2, torch.full((1, 3), decay))
+        torch.testing.assert_close(g3, torch.full((1, 3), decay**2))
