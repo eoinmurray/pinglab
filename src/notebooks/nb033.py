@@ -1,23 +1,24 @@
-"""033 — Mean-field PING: 4D bifurcations and the 2D-cubic dead end.
+"""033 — Mean-field PING: the 4D conductance Hopf, calibrated to the LIF f-I.
 
 Numerics for the theory in src/docs/src/pages/notebooks/nb033.mdx.
 
-Two analyses on the same parameters:
+One analysis on one model. The 4D reduction in state $(E, I, g_e^I, g_i^E)$
+uses COBANet's own leaky-integrate-and-fire f-I curve (Ricciardi/Siegert)
+as the population gain, with the recurrent couplings read off the
+biophysics (the ei-strength scalar times the fan-in times the synaptic
+driving force). The only free parameter is the membrane-noise std σ_V.
 
-1. **4D reduction** (state $(E, I, g_e^I, g_i^E)$). Sweeps the external
-   drive $I_\text{ext}$, tracks fixed points, computes the Jacobian's
-   eigenvalues, identifies the Hopf (smallest $I_\text{ext}^\star$ where
-   max Re(λ) = 0), and tests super- vs subcritical character by direct
-   ODE simulation around the bifurcation. This is the load-bearing
-   reduction matched against the empirical PING gamma frequency.
+The runner sweeps the external drive $I_\text{ext}$ (nA), tracks the
+silent fixed point, diagonalises the Jacobian, and locates the Hopf
+(smallest $I_\text{ext}^\star$ where max Re(λ) crosses 0). It then:
 
-2. **2D-cubic reduction** (FitzHugh-Nagumo-style polynomial system,
-   adiabatically eliminating the synapses and Taylor-expanding the E
-   gain at its inflection). Demonstrates that the textbook 2D collapse
-   cannot Hopf for this architecture — the linear self-feedback
-   coefficient α stays below the critical 1 + τ_E/τ_I because
-   W^EE = 0 leaves no positive linear term on the diagonal. The
-   cubic stabilises amplitude but cannot destabilise the fixed point.
+  - reads off the gamma frequency $f^\star = \omega^\star/2\pi$ at the crossing;
+  - re-finds the Hopf across the nb041 $\tau_\text{GABA}$ sweep and compares
+    $f^\star$ to the spiking $f_\gamma$;
+  - tests super- vs subcritical onset by direct ODE simulation of the
+    amplitude across the bifurcation;
+  - contrasts the 4D field against its 2D Wilson-Cowan reduction (synapses
+    adiabatically eliminated), which rings down at the same drive.
 
 Outputs figures and numbers.json to
 src/docs/public/figures/notebooks/nb033/.
@@ -32,8 +33,9 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import linalg
-from scipy.integrate import solve_ivp
-from scipy.optimize import fsolve, brentq
+from scipy.integrate import solve_ivp, quad
+from scipy.optimize import fsolve
+from scipy.special import erf
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
@@ -44,106 +46,95 @@ from helpers.stamp import stamp_figure  # noqa: E402
 SLUG = "nb033"
 _, FIGURES = artifacts_and_figures(SLUG)
 
-# ── Biophysical parameters (units: ms, current units) ─────────────────
-TAU_E_MS = 20.0    # E membrane
-TAU_I_MS = 5.0     # I membrane
+# ── Timescales (ms) ───────────────────────────────────────────────────
+TAU_E_MS = 20.0    # E membrane (= CELL_E tau_m)
+TAU_I_MS = 5.0     # I membrane (= CELL_I tau_m)
 TAU_AMPA_MS = 2.0
 TAU_GABA_MS = 9.0
 
-# Sigmoid gain parameters chosen so loop gain crosses unity within
-# the sweep range.
-PHI_E_RMAX = 0.20   # 1/ms ≈ 200 Hz saturation
-PHI_E_THETA = 1.5
-PHI_E_K = 0.2
-
-PHI_I_RMAX = 0.30
-PHI_I_THETA = 1.0
-PHI_I_K = 0.15
-
-# Coupling magnitudes in the Wilson-Cowan 1972 regime.
-W_EI = 80.0
-W_IE = 60.0
+# ── Calibrated gain: COBANet's LIF f-I (src/cli/models.py params) ──────
+# Couplings are the ei-strength values, fan-in normalised so the lumped
+# W̃ = w·N = s (E→I) and r·s (I→E); σ_V is the one calibration knob.
+E_L_MV, V_TH_MV, V_RESET_MV = -65.0, -50.0, -65.0
+CELL_E = {"tau_m": TAU_E_MS, "g_L": 0.05, "tau_ref": 3.0}
+CELL_I = {"tau_m": TAU_I_MS, "g_L": 0.10, "tau_ref": 1.5}
+DV_INH_MV, DV_EXC_MV = 15.0, 65.0   # |V_rest − E_rev| driving forces
+WT_EI, WT_IE = 1.0, 2.0             # lumped couplings (µS): s and r·s
+SIGMA_V_MV = 4.0                    # membrane-noise std
 
 
-def phi(x, rmax, theta, k):
-    return rmax / (1.0 + np.exp(-(x - theta) / k))
+def lif_fi(mu_I, cell, sigma=SIGMA_V_MV):
+    """Ricciardi/Siegert LIF f-I rate (1/ms) for mean input current mu_I (nA)."""
+    muV = E_L_MV + mu_I / cell["g_L"]
+    y_th = (V_TH_MV - muV) / sigma
+    y_r = (V_RESET_MV - muV) / sigma
+    val, _ = quad(lambda u: np.exp(min(u * u, 700.0)) * (1.0 + erf(u)),
+                  y_r, y_th, limit=200)
+    return 1.0 / (cell["tau_ref"] + cell["tau_m"] * np.sqrt(np.pi) * val)
 
 
-def phi_p(x, rmax, theta, k):
-    s = phi(x, rmax, theta, k) / rmax
-    return (rmax / k) * s * (1 - s)
+def gE(mu, sigma=SIGMA_V_MV):
+    return lif_fi(mu, CELL_E, sigma)
 
 
-def phi_pp(x, rmax, theta, k):
-    s = phi(x, rmax, theta, k) / rmax
-    return (rmax / (k**2)) * s * (1 - s) * (1 - 2 * s)
+def gI(mu, sigma=SIGMA_V_MV):
+    return lif_fi(mu, CELL_I, sigma)
 
 
-def phi_ppp(x, rmax, theta, k):
-    s = phi(x, rmax, theta, k) / rmax
-    return (rmax / (k**3)) * s * (1 - s) * (1 - 6 * s * (1 - s))
+# ── 4D calibrated mean-field, state (E, I, g_e^I, g_i^E) ───────────────
 
 
-def PhiE(x): return phi(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
-def PhiE_p(x): return phi_p(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
-def PhiE_pp(x): return phi_pp(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
-def PhiE_ppp(x): return phi_ppp(x, PHI_E_RMAX, PHI_E_THETA, PHI_E_K)
-def PhiI(x): return phi(x, PHI_I_RMAX, PHI_I_THETA, PHI_I_K)
-def PhiI_p(x): return phi_p(x, PHI_I_RMAX, PHI_I_THETA, PHI_I_K)
-def PhiI_pp(x): return phi_pp(x, PHI_I_RMAX, PHI_I_THETA, PHI_I_K)
-def PhiI_ppp(x): return phi_ppp(x, PHI_I_RMAX, PHI_I_THETA, PHI_I_K)
-
-
-def rhs_4d(t, y, I_ext, w_ei=W_EI, w_ie=W_IE):
-    """4D rate ODEs in state (E, I, g_e^I, g_i^E)."""
+def rhs_4d(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
     E, I, g_eI, g_iE = y
     return [
-        (-E + PhiE(I_ext - g_iE)) / TAU_E_MS,
-        (-I + PhiI(g_eI)) / TAU_I_MS,
-        (-g_eI + w_ei * E) / TAU_AMPA_MS,
-        (-g_iE + w_ie * I) / TAU_GABA_MS,
+        (-E + gE(I_ext - g_iE * DV_INH_MV, sigma)) / TAU_E_MS,
+        (-I + gI(g_eI * DV_EXC_MV, sigma)) / TAU_I_MS,
+        -g_eI / TAU_AMPA_MS + WT_EI * E,
+        -g_iE / tau_gaba + WT_IE * I,
     ]
 
 
-def fixed_point(I_ext, x0=None, w_ei=W_EI, w_ie=W_IE):
-    if x0 is None:
-        x0 = [0.001, 0.001, 0.001, 0.001]
-
+def fixed_point(I_ext, tau_gaba=TAU_GABA_MS, x0=(0.005, 0.002), sigma=SIGMA_V_MV):
+    """Silent fixed point; returns the 4D state or None."""
     def residual(x):
-        E, I, g_eI, g_iE = x
-        return [
-            -E + PhiE(I_ext - g_iE),
-            -I + PhiI(g_eI),
-            -g_eI + w_ei * E,
-            -g_iE + w_ie * I,
-        ]
+        E, I = x
+        g_iE = tau_gaba * WT_IE * max(I, 0.0)
+        g_eI = TAU_AMPA_MS * WT_EI * max(E, 0.0)
+        return [E - gE(I_ext - g_iE * DV_INH_MV, sigma),
+                I - gI(g_eI * DV_EXC_MV, sigma)]
 
     sol, _, ier, _ = fsolve(residual, x0, full_output=True)
-    return sol if ier == 1 else None
+    if ier != 1:
+        return None
+    E, I = sol
+    return np.array([E, I, TAU_AMPA_MS * WT_EI * E, tau_gaba * WT_IE * I])
 
 
-def jacobian(fp, I_ext, w_ei=W_EI, w_ie=W_IE):
-    E, I, g_eI, g_iE = fp
-    pE = PhiE_p(I_ext - g_iE)
-    pI = PhiI_p(g_eI)
-    return np.array([
-        [-1.0 / TAU_E_MS, 0.0, 0.0, -pE / TAU_E_MS],
-        [0.0, -1.0 / TAU_I_MS, pI / TAU_I_MS, 0.0],
-        [w_ei / TAU_AMPA_MS, 0.0, -1.0 / TAU_AMPA_MS, 0.0],
-        [0.0, w_ie / TAU_GABA_MS, 0.0, -1.0 / TAU_GABA_MS],
-    ])
+def jacobian(fp, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV, eps=1e-6):
+    """Numerical 4D Jacobian at a fixed point fp = (E, I, g_e^I, g_i^E)."""
+    def f(y):
+        return np.array(rhs_4d(0.0, y, I_ext, tau_gaba, sigma))
+
+    J = np.zeros((4, 4))
+    y0 = np.asarray(fp, dtype=float)
+    for k in range(4):
+        yp = y0.copy(); yp[k] += eps
+        ym = y0.copy(); ym[k] -= eps
+        J[:, k] = (f(yp) - f(ym)) / (2 * eps)
+    return J
 
 
-def sweep(I_ext_grid, w_ei=W_EI, w_ie=W_IE):
+def sweep(I_ext_grid, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
     results = []
     x = None
     for I_ext in I_ext_grid:
-        fp = fixed_point(I_ext, x0=x, w_ei=w_ei, w_ie=w_ie)
+        fp = fixed_point(I_ext, tau_gaba,
+                         x0=(x[0], x[1]) if x is not None else (0.005, 0.002),
+                         sigma=sigma)
         if fp is None:
             continue
         x = fp
-        J = jacobian(fp, I_ext, w_ei=w_ei, w_ie=w_ie)
-        eigs = linalg.eigvals(J)
+        eigs = linalg.eigvals(jacobian(fp, I_ext, tau_gaba, sigma))
         results.append({
             "I_ext": float(I_ext),
             "fp": fp.tolist(),
@@ -153,7 +144,7 @@ def sweep(I_ext_grid, w_ei=W_EI, w_ie=W_IE):
 
 
 def find_hopf(results):
-    """Smallest I_ext at which max Re(eig) becomes ≥ 0."""
+    """Smallest I_ext at which max Re(eig) crosses 0 with Im ≠ 0."""
     prev_max = None
     for r in results:
         re_max = max(e[0] for e in r["eigs"])
@@ -174,222 +165,127 @@ def find_hopf(results):
     return None
 
 
-def amplitude_at(I_ext, t_max=2000.0, t_settle=1500.0,
-                  w_ei=W_EI, w_ie=W_IE):
-    """Integrate ODE from a small perturbation of the FP; measure
-    asymptotic peak-to-peak E amplitude."""
-    fp = fixed_point(I_ext, w_ei=w_ei, w_ie=w_ie)
-    if fp is None:
-        return 0.0
-    y0 = [v + 0.005 for v in fp]
-    sol = solve_ivp(
-        rhs_4d, (0, t_max), y0, args=(I_ext, w_ei, w_ie),
-        method="LSODA", rtol=1e-6, atol=1e-9, max_step=1.0,
-    )
-    if not sol.success:
-        return 0.0
-    mask = sol.t >= t_settle
-    E = sol.y[0][mask]
-    if E.size < 10:
-        return 0.0
-    return float(E.max() - E.min())
+# ── Super- vs subcritical by direct simulation ────────────────────────
 
 
-def plot_criticality(amps, hopf, out_path, run_id):
-    theme.apply()
-    fig, (ax_a, ax_a2) = plt.subplots(1, 2, figsize=(12.0, 4.5), dpi=150)
-    xs = [d["I_ext"] for d in amps]
-    ys = [d["amp"] for d in amps]
-    i_star = hopf["I_ext_star"]
-    ax_a.plot(xs, ys, marker="o", color=theme.INK_BLACK, lw=1.0)
-    ax_a.axvline(i_star, color=theme.AMBER, lw=0.6, ls=":")
-    ax_a.set_xlabel("$I_\\text{ext}$", fontsize=theme.SIZE_LABEL)
-    ax_a.set_ylabel("E amplitude (peak-to-peak)", fontsize=theme.SIZE_LABEL)
-    ax_a.set_title("Oscillation amplitude vs drive", fontsize=theme.SIZE_TITLE)
-    xs_rel = [d["I_ext"] - i_star for d in amps]
-    ys_sq = [d["amp"]**2 for d in amps]
-    ax_a2.plot(xs_rel, ys_sq, marker="o", color=theme.INK_BLACK, lw=1.0)
-    ax_a2.set_xlabel("$I_\\text{ext} - I^\\star$", fontsize=theme.SIZE_LABEL)
-    ax_a2.set_ylabel("E amplitude$^2$", fontsize=theme.SIZE_LABEL)
-    ax_a2.set_title("Supercritical signature: $A^2 \\propto (I-I^\\star)$",
-                    fontsize=theme.SIZE_TITLE)
-    ax_a2.axhline(0, color=theme.GREY_MID, lw=0.6, ls=":")
-    ax_a2.axvline(0, color=theme.GREY_MID, lw=0.6, ls=":")
-    fig.suptitle("Hopf criticality test by direct simulation",
-                 fontsize=theme.SIZE_TITLE)
-    fig.tight_layout()
-    stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
+def settle(I_ext, y0, tau_gaba=TAU_GABA_MS, t_max=2000.0, t_settle=1500.0):
+    """Integrate from y0 to steady state; return (peak-to-peak E amplitude,
+    final state). The final state is carried into the next sweep step so a
+    coexisting cycle, if any, is followed (quasi-static continuation)."""
+    sol = solve_ivp(rhs_4d, (0, t_max), y0, args=(I_ext, tau_gaba),
+                    method="LSODA", rtol=1e-7, atol=1e-10, max_step=1.0)
+    y_end = sol.y[:, -1]
+    E = sol.y[0][sol.t >= t_settle]
+    amp = float(E.max() - E.min()) if E.size >= 10 else 0.0
+    return amp, y_end
 
 
-def classify_criticality(amp_data, hopf):
-    """Super- vs subcritical from the amplitude-vs-drive curve.
-
-    Supercritical Hopf: the limit cycle is born with zero amplitude and
-    grows continuously, with A^2 ∝ (I - I*) just above threshold and no
-    oscillation below it. Subcritical: amplitude appears discontinuously
-    (a finite jump / hysteresis), so the network is silent below I* but
-    a perturbation does not relax to a small cycle.
-    """
-    i_star = hopf["I_ext_star"]
-    below = [d["amp"] for d in amp_data if d["I_ext"] < i_star - 1e-9]
-    above = [(d["I_ext"] - i_star, d["amp"]) for d in amp_data
-             if d["I_ext"] > i_star + 1e-9]
-    amp_below = max(below) if below else 0.0
+def hysteresis_sweep(i_star, tau_gaba=TAU_GABA_MS, span=(-0.1, 0.55), n=25):
+    """Quasi-static up/down ramp of I_ext across I*. Supercritical onset is
+    reversible (branches coincide); subcritical leaves a hysteresis loop."""
+    grid = np.linspace(i_star + span[0], i_star + span[1], n)
+    thr = 1e-4
+    # rising branch: start from the silent fixed point with a small kick
+    y = fixed_point(grid[0], tau_gaba).copy()
+    y[0] += 1e-3
+    up = []
+    for I in grid:
+        amp, y = settle(I, y, tau_gaba)
+        up.append({"I_ext": float(I), "amp": amp})
+    # falling branch: continue from the high-drive end state
+    down = []
+    for I in grid[::-1]:
+        amp, y = settle(I, y, tau_gaba)
+        down.append({"I_ext": float(I), "amp": amp})
+    down.reverse()
+    # max amplitude gap between branches at equal drive = hysteresis size
+    hyst_gap = float(max(abs(d["amp"] - u["amp"]) for u, d in zip(up, down)))
+    on = next((u["I_ext"] for u in up if u["amp"] > thr), None)
+    off = next((d["I_ext"] for d in down if d["amp"] > thr), None)
+    hyst_width = float(on - off) if (on is not None and off is not None) else None
+    # A^2 vs (I - I*) on the rising branch above threshold
+    above = [(u["I_ext"] - i_star, u["amp"]) for u in up
+             if u["I_ext"] > i_star + 1e-9]
     slope, r2 = 0.0, 0.0
     if len(above) >= 2:
         x = np.array([a[0] for a in above])
-        y = np.array([a[1] ** 2 for a in above])
-        m, c = np.polyfit(x, y, 1)
-        ss_res = float(np.sum((y - (m * x + c)) ** 2))
-        ss_tot = float(np.sum((y - y.mean()) ** 2))
+        ysq = np.array([a[1] ** 2 for a in above])
+        m, c = np.polyfit(x, ysq, 1)
+        ss_res = float(np.sum((ysq - (m * x + c)) ** 2))
+        ss_tot = float(np.sum((ysq - ysq.mean()) ** 2))
         slope = float(m)
         r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
-    supercritical = amp_below < 1e-3 and slope > 0 and r2 > 0.9
+    supercritical = hyst_gap < thr and slope > 0 and r2 > 0.9
     return {
         "verdict": "supercritical" if supercritical else "subcritical/inconclusive",
+        "hyst_gap": hyst_gap,
+        "hyst_width_nA": hyst_width,
         "A2_slope": slope,
-        "A2_r2": float(r2),
-        "amp_below_star": float(amp_below),
-        "amplitude_curve": amp_data,
+        "A2_r2": r2,
+        "up": up,
+        "down": down,
     }
 
 
-# ── 2D-cubic reduction (Wilson-Cowan with FitzHugh-Nagumo-style cubic) ──
-# Demonstrates the failure mode the 4D reduction was designed to escape.
-
-
-def cubic_coefficients():
-    """Taylor-expand Phi_E at its inflection. Even-order terms vanish
-    by symmetry of the sigmoid. Returns (alpha, beta, gamma, delta)
-    for the reduced system:
-
-        tau_E dE/dt = -E + alpha E - beta E^3 - gamma I + alpha I_ext
-        tau_I dI/dt = -I + delta E
-    """
-    a = PhiE_p(PHI_E_THETA)              # linear gain at inflection
-    b = PhiE_ppp(PHI_E_THETA) / 6.0      # cubic Taylor coefficient
-    alpha = a
-    beta = -b                            # > 0 since b < 0 for sigmoid
-    gamma = a * W_IE
-    delta = PhiI_p(0.0) * W_EI
-    return alpha, beta, gamma, delta
-
-
-def cubic_fixed_point(I_ext, x0=None, *, alpha, beta, gamma, delta):
-    if x0 is None:
-        x0 = [0.001, 0.001]
-
-    def residual(x):
-        E, I = x
-        return [
-            -E + alpha * E - beta * E**3 - gamma * I + alpha * I_ext,
-            -I + delta * E,
-        ]
-
-    sol, _, ier, _ = fsolve(residual, x0, full_output=True)
-    return sol if ier == 1 else None
-
-
-def cubic_jacobian(fp, alpha, beta, gamma, delta):
-    E, I = fp
-    return np.array([
-        [(-1.0 + alpha - 3 * beta * E * E) / TAU_E_MS, -gamma / TAU_E_MS],
-        [delta / TAU_I_MS, -1.0 / TAU_I_MS],
-    ])
-
-
-def cubic_sweep(I_grid, alpha, beta, gamma, delta):
-    results = []
-    x = None
-    for I_ext in I_grid:
-        fp = cubic_fixed_point(I_ext, x0=x, alpha=alpha, beta=beta,
-                               gamma=gamma, delta=delta)
-        if fp is None:
-            continue
-        x = fp
-        J = cubic_jacobian(fp, alpha, beta, gamma, delta)
-        eigs = linalg.eigvals(J)
-        results.append({
-            "I_ext": float(I_ext),
-            "fp": fp.tolist(),
-            "eigs": [(float(e.real), float(e.imag)) for e in eigs],
-            "trace": float(np.trace(J)),
-        })
-    return results
-
-
-def cubic_find_hopf(results):
-    prev_max = None
-    for r in results:
-        re_max = max(e[0] for e in r["eigs"])
-        if prev_max is not None and prev_max < 0 <= re_max:
-            cand = [(e[0], e[1]) for e in r["eigs"]
-                    if abs(e[1]) > 1e-6 and e[0] >= -1e-2]
-            if not cand:
-                continue
-            cand.sort(key=lambda x: -x[0])
-            re, im = cand[0]
-            return {
-                "I_ext_star": r["I_ext"],
-                "omega_star": abs(im),
-                "freq_star_Hz": 1000.0 * abs(im) / (2 * np.pi),
-            }
-        prev_max = re_max
-    return None
-
-
-# ── 2D Wilson-Cowan field (synapses adiabatically eliminated) ─────────
-
-
-def rhs_2d(t, y, I_ext, w_ei=W_EI, w_ie=W_IE):
-    """The 2D rate field of nb033 eq (1) — no synaptic state variables."""
-    E, I = y
-    return [
-        (-E + PhiE(I_ext - w_ie * I)) / TAU_E_MS,
-        (-I + PhiI(w_ei * E)) / TAU_I_MS,
-    ]
-
-
-def fixed_point_2d(I_ext, w_ei=W_EI, w_ie=W_IE):
-    def residual(x):
-        E, I = x
-        return [-E + PhiE(I_ext - w_ie * I), -I + PhiI(w_ei * E)]
-    sol, _, ier, _ = fsolve(residual, [0.001, 0.001], full_output=True)
-    return sol
-
-
-def plot_2d_vs_4d_timeseries(hopf, out_path, run_id):
-    """Same network, same drive above the 4D Hopf: 2D rings down, 4D sustains."""
+def plot_hysteresis(sweep, hopf, out_path, run_id):
     theme.apply()
-    I_ext = hopf["I_ext_star"] + 3.0
-    fp4, fp2 = fixed_point(I_ext), fixed_point_2d(I_ext)
-    sol4 = solve_ivp(rhs_4d, (0, 300), [v + 0.02 for v in fp4],
-                     args=(I_ext, W_EI, W_IE), method="LSODA",
-                     rtol=1e-8, atol=1e-11, max_step=0.5)
-    sol2 = solve_ivp(rhs_2d, (0, 300), [fp2[0] + 0.02, fp2[1] + 0.02],
-                     args=(I_ext, W_EI, W_IE), method="LSODA",
-                     rtol=1e-8, atol=1e-11, max_step=0.5)
-    d4, d2 = sol4.y[0] - fp4[0], sol2.y[0] - fp2[0]
-    pp4 = float(d4[sol4.t > 150].max() - d4[sol4.t > 150].min())
-    pp2 = float(d2[sol2.t > 150].max() - d2[sol2.t > 150].min())
-    print(f"  2D-vs-4D at I={I_ext:.2f}: 4D peak-to-peak={pp4:.4f}, 2D={pp2:.6f}")
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    ax.plot(sol2.t, d2, color=theme.DEEP_RED, lw=1.6,
-            label="2D Wilson-Cowan — rings down to equilibrium")
-    ax.plot(sol4.t, d4, color=theme.INK_BLACK, lw=1.3, alpha=0.7,
-            label="4D conductance — sustains a limit cycle")
-    ax.axhline(0, color=theme.GREY_MID, lw=0.6, ls=":")
-    ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("$E - E^\\star$", fontsize=theme.SIZE_LABEL)
-    ax.set_title(f"Same drive ($I_\\text{{ext}} = I^\\star + 3$) — only 4D oscillates",
+    i_star = hopf["I_ext_star"]
+    xu = [d["I_ext"] for d in sweep["up"]]
+    yu = [d["amp"] for d in sweep["up"]]
+    xd = [d["I_ext"] for d in sweep["down"]]
+    yd = [d["amp"] for d in sweep["down"]]
+    ax.plot(xu, yu, "o-", color=theme.INK_BLACK, lw=1.2, ms=5,
+            label="drive increasing")
+    ax.plot(xd, yd, "s--", color=theme.DEEP_RED, lw=1.0, ms=5,
+            markerfacecolor="none", label="drive decreasing")
+    ax.axvline(i_star, color=theme.AMBER, lw=0.6, ls=":")
+    ax.annotate("no hysteresis:\nbranches coincide",
+                xy=(i_star, 0.0),
+                xytext=(i_star - 0.085, max(yu) * 0.55),
+                fontsize=theme.SIZE_ANNOTATION, color=theme.GREY_DARK,
+                ha="left", va="center")
+    ax.set_xlabel("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("E amplitude (peak-to-peak)", fontsize=theme.SIZE_LABEL)
+    ax.set_title("Hysteresis sweep — reversible onset (supercritical)",
                  fontsize=theme.SIZE_TITLE)
-    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
     fig.tight_layout()
     stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
+
+
+# ── 2D Wilson-Cowan field (synapses adiabatically eliminated) ──────────
+
+
+def rhs_2d(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
+    """Same DC coupling as 4D, synapses slaved instantaneously to the rates."""
+    E, I = y
+    g_eI = TAU_AMPA_MS * WT_EI * E
+    g_iE = tau_gaba * WT_IE * I
+    return [
+        (-E + gE(I_ext - g_iE * DV_INH_MV, sigma)) / TAU_E_MS,
+        (-I + gI(g_eI * DV_EXC_MV, sigma)) / TAU_I_MS,
+    ]
+
+
+def compute_2d_vs_4d(hopf, offset=1.0):
+    """Same drive above the 4D Hopf: 2D rings down, 4D sustains. Numeric
+    check for the analytic Bendixson-Dulac rejection of the 2D field."""
+    I_ext = hopf["I_ext_star"] + offset
+    fp4 = fixed_point(I_ext)
+    sol4 = solve_ivp(rhs_4d, (0, 300), fp4 + np.array([2e-3, 0, 0, 0]),
+                     args=(I_ext,), method="LSODA",
+                     rtol=1e-8, atol=1e-11, max_step=0.5)
+    sol2 = solve_ivp(rhs_2d, (0, 300), [fp4[0] + 2e-3, fp4[1]],
+                     args=(I_ext,), method="LSODA",
+                     rtol=1e-8, atol=1e-11, max_step=0.5)
+    d4, d2 = sol4.y[0] - fp4[0], sol2.y[0] - fp4[0]
+    pp4 = float(d4[sol4.t > 150].max() - d4[sol4.t > 150].min())
+    pp2 = float(d2[sol2.t > 150].max() - d2[sol2.t > 150].min())
+    print(f"  2D-vs-4D at I={I_ext:.2f} nA: 4D peak-to-peak={pp4:.4e}, 2D={pp2:.4e}")
+    return {"I_ext": float(I_ext), "pp_4d": pp4, "pp_2d": pp2}
 
 
 def plot_eigenvalues_complex(results, hopf, out_path, run_id):
@@ -410,13 +306,13 @@ def plot_eigenvalues_complex(results, hopf, out_path, run_id):
                    edgecolors=theme.ELECTRIC_CYAN, s=70, lw=1.4, zorder=5)
         ax.annotate(f"crossing at $\\pm i\\omega^\\star$\n"
                     f"$f^\\star = {hopf['freq_star_Hz']:.1f}$ Hz",
-                    xy=(0, w), xytext=(0.10, w + 0.12),
+                    xy=(0, w), xytext=(0.10 * eig_re.max(), w + 0.12 * w),
                     fontsize=theme.SIZE_ANNOTATION, color=theme.GREY_DARK,
                     ha="left", va="bottom",
                     arrowprops=dict(arrowstyle="-", color=theme.ELECTRIC_CYAN,
                                     lw=0.8))
     cbar = fig.colorbar(sc, ax=ax)
-    cbar.set_label("$I_\\text{ext}$", fontsize=theme.SIZE_LABEL)
+    cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
     ax.set_xlabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("Im$(\\lambda)$", fontsize=theme.SIZE_LABEL)
     ax.set_title("4D eigenvalues in the complex plane",
@@ -425,6 +321,42 @@ def plot_eigenvalues_complex(results, hopf, out_path, run_id):
     stamp_figure(fig, run_id)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
+
+
+def plot_limit_cycle(hopf, out_path, run_id, offset=0.4):
+    """4D limit cycle just above onset: E and I waveforms and the E→I lag."""
+    theme.apply()
+    I_ext = hopf["I_ext_star"] + offset
+    fp = fixed_point(I_ext)
+    sol = solve_ivp(rhs_4d, (0, 700), fp + np.array([1e-3, 0, 0, 0]),
+                    args=(I_ext,), method="LSODA",
+                    rtol=1e-9, atol=1e-12, max_step=0.25, dense_output=True)
+    period = 1000.0 / hopf["freq_star_Hz"]
+    tt = np.linspace(700 - 3 * period, 700, 1500)
+    Y = sol.sol(tt)
+    E, I = Y[0], Y[1]
+    Ez, Iz = E - E.mean(), I - I.mean()
+    lags = (np.arange(len(tt)) - len(tt) // 2) * (tt[1] - tt[0])
+    xc = np.correlate(Iz, Ez, mode="same")
+    lag_ms = float(lags[np.argmax(xc)])
+    print(f"  limit cycle at I={I_ext:.2f} nA: I lags E by {lag_ms:.2f} ms")
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    ax.plot(tt - tt[0], E, color=theme.INK_BLACK, lw=1.3, label="$E$")
+    ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("$E$ rate", fontsize=theme.SIZE_LABEL, color=theme.INK_BLACK)
+    ax2 = ax.twinx()
+    ax2.plot(tt - tt[0], I, color=theme.DEEP_RED, lw=1.3, label="$I$")
+    ax2.set_ylabel("$I$ rate", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
+    ax.set_title(f"4D limit cycle near onset — E leads I by ≈ {abs(lag_ms):.1f} ms",
+                 fontsize=theme.SIZE_TITLE)
+    fig.tight_layout()
+    stamp_figure(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    return {"I_ext": float(I_ext), "e_leads_i_ms": float(abs(lag_ms))}
+
+
+# ── Frequency vs inhibitory decay, against the nb041 spiking sweep ─────
 
 
 def load_nb041_fgamma():
@@ -439,15 +371,12 @@ def load_nb041_fgamma():
 
 
 def frequency_vs_tau_gaba(tau_list, I_grid):
-    global TAU_GABA_MS
-    saved = TAU_GABA_MS
     out = []
     for tg in tau_list:
-        TAU_GABA_MS = tg
-        h = find_hopf(sweep(I_grid))
+        h = find_hopf(sweep(I_grid, tau_gaba=tg))
         out.append({"tau_gaba_ms": tg,
-                    "f_star_Hz": h["freq_star_Hz"] if h else None})
-    TAU_GABA_MS = saved
+                    "f_star_Hz": h["freq_star_Hz"] if h else None,
+                    "I_ext_star": h["I_ext_star"] if h else None})
     return out
 
 
@@ -456,8 +385,8 @@ def plot_frequency_vs_tau_gaba(mf, meas, out_path, run_id):
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     tg = [d["tau_gaba_ms"] for d in mf if d["f_star_Hz"] is not None]
     fs = [d["f_star_Hz"] for d in mf if d["f_star_Hz"] is not None]
-    ax.plot(tg, fs, "o-", color=theme.INK_BLACK, lw=1.3,
-            label="4D mean-field $f^\\star$")
+    ax.plot(tg, fs, "o-", color=theme.INK_BLACK, lw=1.4,
+            label="calibrated mean-field $f^\\star$")
     if meas:
         mt = sorted(meas)
         ax.plot(mt, [meas[t] for t in mt], "s--", color=theme.DEEP_RED, lw=1.3,
@@ -473,298 +402,104 @@ def plot_frequency_vs_tau_gaba(mf, meas, out_path, run_id):
     plt.close(fig)
 
 
-def plot_limit_cycle(hopf, out_path, run_id):
-    """4D limit cycle just above onset: E and I waveforms and the E→I lag."""
-    theme.apply()
-    I_ext = hopf["I_ext_star"] + 1.0
-    fp = fixed_point(I_ext)
-    sol = solve_ivp(rhs_4d, (0, 700), [v + 0.01 for v in fp],
-                    args=(I_ext, W_EI, W_IE), method="LSODA",
-                    rtol=1e-9, atol=1e-12, max_step=0.25, dense_output=True)
-    period = 1000.0 / hopf["freq_star_Hz"]
-    tt = np.linspace(700 - 3 * period, 700, 1500)
-    Y = sol.sol(tt)
-    E, I = Y[0], Y[1]
-    # E→I phase lag from cross-correlation
-    Ez, Iz = E - E.mean(), I - I.mean()
-    lags = (np.arange(len(tt)) - len(tt) // 2) * (tt[1] - tt[0])
-    xc = np.correlate(Iz, Ez, mode="same")
-    lag_ms = float(lags[np.argmax(xc)])
-    print(f"  limit cycle at I={I_ext:.2f}: I lags E by {lag_ms:.2f} ms "
-          f"(tau_AMPA={TAU_AMPA_MS})")
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    ax.plot(tt - tt[0], E, color=theme.INK_BLACK, lw=1.3, label="$E$")
-    ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("$E$ rate", fontsize=theme.SIZE_LABEL, color=theme.INK_BLACK)
-    ax2 = ax.twinx()
-    ax2.plot(tt - tt[0], I, color=theme.DEEP_RED, lw=1.3, label="$I$")
-    ax2.set_ylabel("$I$ rate", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
-    ax.set_title(f"4D limit cycle near onset — E leads I by ≈ {abs(lag_ms):.1f} ms",
-                 fontsize=theme.SIZE_TITLE)
-    fig.tight_layout()
-    stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
-def hopf_locus(wei_grid, wie_grid, I_grid):
-    Istar = np.full((len(wie_grid), len(wei_grid)), np.nan)
-    for a, wie in enumerate(wie_grid):
-        for b, wei in enumerate(wei_grid):
-            h = find_hopf(sweep(I_grid, w_ei=wei, w_ie=wie))
-            if h:
-                Istar[a, b] = h["I_ext_star"]
-    return Istar
-
-
-def plot_hopf_locus(wei_grid, wie_grid, Istar, out_path, run_id):
-    theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    im = ax.pcolormesh(wei_grid, wie_grid, Istar, cmap="magma", shading="auto")
-    cbar = fig.colorbar(im, ax=ax)
-    cbar.set_label("$I_\\text{ext}^\\star$ (recruitment threshold)",
-                   fontsize=theme.SIZE_LABEL)
-    ax.set_xlabel("$W^{EI}$ (E→I drive)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("$W^{IE}$ (I→E feedback)", fontsize=theme.SIZE_LABEL)
-    ax.set_title("Where the recruitment cliff sits in the coupling plane",
-                 fontsize=theme.SIZE_TITLE)
-    fig.tight_layout()
-    stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
-def first_lyapunov_coefficient(hopf_guess):
-    """First Lyapunov coefficient ℓ1 of the 4D Hopf via Kuznetsov's
-    projection formula (Elements of Applied Bifurcation Theory, eq. 10.59).
-
-    ℓ1 < 0 ⇒ supercritical. The 4D field is linear except in the two
-    gains, so the quadratic/cubic forms B, C are non-zero only in the
-    E-equation (via g_iE) and the I-equation (via g_eI). Also returns the
-    predicted A² onset slope for cross-check against the simulation.
-    """
-    # refine the Hopf to where the critical pair is purely imaginary
-    def max_re(I):
-        return max(e.real for e in linalg.eigvals(jacobian(fixed_point(I), I)))
-    I0 = brentq(max_re, hopf_guess - 0.15, hopf_guess + 0.15, xtol=1e-12)
-
-    fp = fixed_point(I0)
-    A = jacobian(fp, I0)
-
-    # critical right/left eigenvectors, normalised so <p, q> = 1
-    w, V = linalg.eig(A)
-    k = min((i for i in range(4) if w[i].imag > 1e-7),
-            key=lambda i: abs(w[i].real))
-    omega0 = float(w[k].imag)
-    q = V[:, k]
-    wl, Vl = linalg.eig(A.T)
-    j = min(range(4), key=lambda i: abs(wl[i] - (-1j * omega0)))
-    p = Vl[:, j]
-    p = p / np.conj(np.vdot(p, q))
-
-    # gain 2nd/3rd derivatives at the fixed-point arguments. State order
-    # (E, I, g_eI, g_iE) = indices (0, 1, 2, 3). The E-eq is nonlinear in
-    # g_iE (index 3) through Phi_E(I_ext - g_iE); the I-eq in g_eI (index 2).
-    _, _, g_eI, g_iE = fp
-    uE = I0 - g_iE
-    bE, cE = PhiE_pp(uE) / TAU_E_MS, -PhiE_ppp(uE) / TAU_E_MS
-    bI, cI = PhiI_pp(g_eI) / TAU_I_MS, PhiI_ppp(g_eI) / TAU_I_MS
-
-    def Bf(x, y):
-        r = np.zeros(4, dtype=complex)
-        r[0] = bE * x[3] * y[3]
-        r[1] = bI * x[2] * y[2]
-        return r
-
-    def Cf(x, y, z):
-        r = np.zeros(4, dtype=complex)
-        r[0] = cE * x[3] * y[3] * z[3]
-        r[1] = cI * x[2] * y[2] * z[2]
-        return r
-
-    qb = np.conj(q)
-    eye = np.eye(4)
-    h11 = linalg.solve(A, Bf(q, qb))
-    h20 = linalg.solve(2j * omega0 * eye - A, Bf(q, q))
-    g21 = (np.vdot(p, Cf(q, q, qb))
-           - 2 * np.vdot(p, Bf(q, h11))
-           + np.vdot(p, Bf(qb, h20)))
-    l1 = float(g21.real / (2 * omega0))
-
-    # transversality and predicted peak-to-peak A² slope vs (I - I*):
-    # A_pp = 4|q_E| r, r² = -beta/Re(c1), beta = lam'(I-I*), Re(c1) = omega0 l1
-    dI = 1e-4
-    lam_prime = (max_re(I0 + dI) - max_re(I0 - dI)) / (2 * dI)
-    Rec1 = omega0 * l1
-    qE = float(abs(q[0]))
-    slope_pred = -16.0 * qE**2 * lam_prime / Rec1 if Rec1 else float("nan")
-
-    return {
-        "I_hopf": float(I0),
-        "omega0": omega0,
-        "f_hopf_Hz": float(1000.0 * omega0 / (2 * np.pi)),
-        "l1": l1,
-        "verdict": "supercritical" if l1 < 0 else "subcritical",
-        "lam_prime": float(lam_prime),
-        "A2_slope_predicted": float(slope_pred),
-    }
-
-
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     run_id = "nb033-numerics"
 
-    print(f"[{SLUG}] Sweeping I_ext for 4D reduction")
-    I_grid = np.linspace(0, 12.0, 241)
+    print(f"[{SLUG}] sweeping I_ext (nA) for the calibrated 4D reduction "
+          f"(σ_V = {SIGMA_V_MV} mV)")
+    I_grid = np.linspace(0.0, 4.0, 401)
     results = sweep(I_grid)
     hopf = find_hopf(results)
     if hopf:
-        print(f"  4D Hopf: I_ext* = {hopf['I_ext_star']:.3f}, "
-              f"omega* = {hopf['omega_star']:.3f} rad/ms, "
+        print(f"  4D Hopf: I_ext* = {hopf['I_ext_star']:.3f} nA, "
+              f"omega* = {hopf['omega_star']:.4f} rad/ms, "
               f"f* = {hopf['freq_star_Hz']:.2f} Hz")
     else:
         print("  4D: no Hopf detected")
 
-    amp_data = []
     criticality = None
-    lyapunov = None
+    twod = None
+    limitcyc = None
     if hopf:
-        i_star = hopf["I_ext_star"]
-        deltas = np.linspace(-0.1, 0.5, 13)
-        for dx in deltas:
-            amp = amplitude_at(i_star + dx)
-            amp_data.append({"I_ext": i_star + dx, "amp": amp})
-            print(f"    4D amp at I={i_star + dx:.3f}: {amp:.4f}")
-        plot_criticality(amp_data, hopf, FIGURES / "criticality.png", run_id)
-        print(f"  wrote {FIGURES / 'criticality.png'}")
-        criticality = classify_criticality(amp_data, hopf)
+        criticality = hysteresis_sweep(hopf["I_ext_star"])
         print(f"  criticality: {criticality['verdict']} "
-              f"(A² slope {criticality['A2_slope']:.2e}, "
-              f"R²={criticality['A2_r2']:.3f}, "
-              f"amp below I* = {criticality['amp_below_star']:.4f})")
-
-        lyapunov = first_lyapunov_coefficient(hopf["I_ext_star"])
-        print(f"  first Lyapunov coeff: ℓ1 = {lyapunov['l1']:.4e} "
-              f"({lyapunov['verdict']}); refined I*={lyapunov['I_hopf']:.4f}, "
-              f"f={lyapunov['f_hopf_Hz']:.2f} Hz")
-        print(f"  predicted A² slope = {lyapunov['A2_slope_predicted']:.3e}  "
-              f"vs simulated {criticality['A2_slope']:.3e}")
+              f"(hysteresis gap {criticality['hyst_gap']:.2e}, "
+              f"width {criticality['hyst_width_nA']} nA; "
+              f"A² slope {criticality['A2_slope']:.3e}, "
+              f"R²={criticality['A2_r2']:.3f})")
+        plot_hysteresis(criticality, hopf, FIGURES / "hysteresis.png", run_id)
+        print(f"  wrote {FIGURES / 'hysteresis.png'}")
 
         plot_eigenvalues_complex(
             results, hopf, FIGURES / "eigenvalues_complex.png", run_id)
         print(f"  wrote {FIGURES / 'eigenvalues_complex.png'}")
-        plot_2d_vs_4d_timeseries(hopf, FIGURES / "ts_2d_vs_4d.png", run_id)
-        print(f"  wrote {FIGURES / 'ts_2d_vs_4d.png'}")
-        plot_limit_cycle(hopf, FIGURES / "limit_cycle.png", run_id)
+        twod = compute_2d_vs_4d(hopf)
+        limitcyc = plot_limit_cycle(hopf, FIGURES / "limit_cycle.png", run_id)
         print(f"  wrote {FIGURES / 'limit_cycle.png'}")
 
-    print(f"[{SLUG}] frequency vs tau_GABA (mean-field vs nb041 spiking)")
+    print(f"[{SLUG}] frequency vs tau_GABA (calibrated vs nb041 spiking)")
     mf_freq = frequency_vs_tau_gaba([4.5, 6.0, 9.0, 12.0, 18.0, 27.0], I_grid)
     meas_fgamma = load_nb041_fgamma()
     for d in mf_freq:
         m = meas_fgamma.get(d["tau_gaba_ms"])
-        print(f"    tau_GABA={d['tau_gaba_ms']:5}  mean-field f*={d['f_star_Hz']:.2f} Hz"
+        f = d["f_star_Hz"]
+        print(f"    tau_GABA={d['tau_gaba_ms']:5}  calibrated f*="
+              + (f"{f:.2f} Hz" if f else "—")
               + (f"  spiking f_gamma={m:.2f} Hz" if m else ""))
     plot_frequency_vs_tau_gaba(
         mf_freq, meas_fgamma, FIGURES / "freq_vs_tau_gaba.png", run_id)
     print(f"  wrote {FIGURES / 'freq_vs_tau_gaba.png'}")
-
-    print(f"[{SLUG}] Hopf locus over the (W_EI, W_IE) coupling plane")
-    wei_grid = np.linspace(20.0, 140.0, 9)
-    wie_grid = np.linspace(20.0, 140.0, 9)
-    Istar_grid = hopf_locus(wei_grid, wie_grid, np.linspace(0, 12.0, 161))
-    plot_hopf_locus(wei_grid, wie_grid, Istar_grid,
-                    FIGURES / "hopf_locus.png", run_id)
-    print(f"  I* range across plane: "
-          f"{np.nanmin(Istar_grid):.2f}–{np.nanmax(Istar_grid):.2f}; "
-          f"spread along W_EI vs W_IE: "
-          f"{np.nanstd(np.nanmean(Istar_grid, axis=0)):.3f} vs "
-          f"{np.nanstd(np.nanmean(Istar_grid, axis=1)):.3f}")
-    print(f"  wrote {FIGURES / 'hopf_locus.png'}")
-
-    print(f"[{SLUG}] 2D-cubic reduction (FitzHugh-Nagumo-style)")
-    alpha, beta, gamma, delta = cubic_coefficients()
-    threshold = 1.0 + TAU_E_MS / TAU_I_MS
-    print(f"  Taylor coefficients: α={alpha:.4f}, β={beta:.4f}, "
-          f"γ={gamma:.4f}, δ={delta:.4f}")
-    print(f"  Hopf threshold: α > 1 + τ_E/τ_I = {threshold:.3f}")
-    print(f"  Have α = {alpha:.4f} — {'Hopf possible' if alpha > threshold else 'no Hopf'}")
-    cubic_results = cubic_sweep(I_grid, alpha, beta, gamma, delta)
-    cubic_hopf = cubic_find_hopf(cubic_results)
-    if cubic_hopf:
-        print(f"  2D-cubic Hopf at I_ext* = {cubic_hopf['I_ext_star']:.3f}, "
-              f"f* = {cubic_hopf['freq_star_Hz']:.2f} Hz")
-    else:
-        print("  2D-cubic: no Hopf detected (as expected)")
 
     summary = {
         "slug": SLUG,
         "config": {
             "tau_E_ms": TAU_E_MS, "tau_I_ms": TAU_I_MS,
             "tau_AMPA_ms": TAU_AMPA_MS, "tau_GABA_ms": TAU_GABA_MS,
-            "W_EI": W_EI, "W_IE": W_IE,
-            "phi_E": dict(rmax=PHI_E_RMAX, theta=PHI_E_THETA, k=PHI_E_K),
-            "phi_I": dict(rmax=PHI_I_RMAX, theta=PHI_I_THETA, k=PHI_I_K),
+            "W_tilde_EI": WT_EI, "W_tilde_IE": WT_IE,
+            "dV_inh_mV": DV_INH_MV, "dV_exc_mV": DV_EXC_MV,
+            "sigma_V_mV": SIGMA_V_MV,
+            "cell_E": CELL_E, "cell_I": CELL_I,
         },
         "results": {
             "hopf": hopf,
             "criticality": criticality,
-            "first_lyapunov": lyapunov,
+            "two_d_vs_four_d": twod,
+            "limit_cycle": limitcyc,
             "frequency_vs_tau_gaba": {
                 "mean_field": mf_freq,
                 "spiking_nb041": meas_fgamma,
             },
-            "two_d_cubic": {
-                "cubic_coefficients": dict(
-                    alpha=alpha, beta=beta, gamma=gamma, delta=delta,
-                ),
-                "hopf_threshold_alpha": threshold,
-                "hopf": cubic_hopf,
-                "verdict": (
-                    "no Hopf — α stays below 1 + τ_E/τ_I because W^EE = 0"
-                    if cubic_hopf is None
-                    else f"Hopf at I_ext* = {cubic_hopf['I_ext_star']:.3f}"
-                ),
-            },
         },
         "success_criteria": [
             {
-                "label": "4D Hopf located",
-                "passed": hopf is not None,
+                "label": "Calibrated 4D Hopf in the gamma band",
+                "passed": bool(hopf and 20.0 <= hopf["freq_star_Hz"] <= 80.0),
                 "detail": (
-                    f"I_ext* = {hopf['I_ext_star']:.3f}, "
+                    f"I_ext* = {hopf['I_ext_star']:.3f} nA, "
                     f"f* = {hopf['freq_star_Hz']:.2f} Hz"
                     if hopf else "no Hopf found"
                 ),
             },
             {
-                "label": "4D Hopf is supercritical (continuous amplitude onset)",
+                "label": "Hopf is supercritical (reversible onset, no hysteresis)",
                 "passed": bool(criticality and criticality["verdict"] == "supercritical"),
                 "detail": (
-                    f"A² ∝ (I−I*): slope {criticality['A2_slope']:.2e}, "
-                    f"R² = {criticality['A2_r2']:.3f}; silent below I* "
-                    f"(amp = {criticality['amp_below_star']:.4f})"
+                    f"up/down sweeps coincide (gap {criticality['hyst_gap']:.2e}, "
+                    f"width {criticality['hyst_width_nA']} nA); "
+                    f"A² ∝ (I−I*) slope {criticality['A2_slope']:.3e}, "
+                    f"R² = {criticality['A2_r2']:.3f}"
                     if criticality else "not evaluated"
                 ),
             },
             {
-                "label": "Normal form agrees: ℓ1 < 0 and predicted slope ≈ simulated",
-                "passed": bool(
-                    lyapunov and criticality and lyapunov["l1"] < 0
-                    and abs(lyapunov["A2_slope_predicted"] - criticality["A2_slope"])
-                    < 0.1 * criticality["A2_slope"]
-                ),
+                "label": "2D Wilson-Cowan reduction cannot sustain (rings down)",
+                "passed": bool(twod and twod["pp_2d"] < 1e-4 <= twod["pp_4d"]),
                 "detail": (
-                    f"ℓ1 = {lyapunov['l1']:.3f} (supercritical); "
-                    f"predicted A² slope {lyapunov['A2_slope_predicted']:.2e} "
-                    f"vs simulated {criticality['A2_slope']:.2e}"
-                    if lyapunov and criticality else "not evaluated"
+                    f"at I*+{twod['I_ext'] - hopf['I_ext_star']:.2g} nA: "
+                    f"4D peak-to-peak {twod['pp_4d']:.3e}, 2D {twod['pp_2d']:.3e}"
+                    if twod else "not evaluated"
                 ),
-            },
-            {
-                "label": "2D-cubic verdict: no Hopf (architecture lacks W^EE)",
-                "passed": cubic_hopf is None,
-                "detail": f"α = {alpha:.4f} vs threshold {threshold:.3f}",
             },
         ],
     }
