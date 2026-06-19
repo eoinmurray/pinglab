@@ -20,7 +20,7 @@ The PING rate is a function of the per-synapse inhibitory weight $W^{IE}$ — me
 
 **1. The mechanism, in words.** In a PING cycle the E volley recruits I, the I spikes shunt each E cell toward the inhibitory reversal $E_i$, and E stays quiet until that shunt decays enough for the drive to climb $V$ back to threshold. The cycle's clock — and hence the rate — is that recovery: how far one inhibitory event drives the conductance past the level that silences E, and how long it takes to decay back. This is a *per-event* quantity. Adding more I cells delivers the same shunt through more synapses; it does not change how deep a single event pins a cell or how long the pin lasts. So the rate should track the per-synapse strength — not $N_I$. The rest of this section makes that precise.
 
-**2. The conserved quantity.** Reduce to one E cell — the COBANet membrane of [ar003](/articles/ar003/), with the feedforward excitation written as a tonic current $I_\text{ext}$ as in [nb033](/notebooks/nb033/). When the inhibitory conductance varies slowly the voltage tracks its instantaneous steady state $V_\infty$ (ar003, eqs 11–13); setting $V_\infty = V_\text{th}$ gives the conductance at which the cell is *released* to fire again,
+**2. The invariant release level.** Reduce to one representative E cell — the COBANet membrane of [ar003](/articles/ar003/), with the feedforward excitation written as a tonic current $I_\text{ext}$ as in [nb033](/notebooks/nb033/). This single-cell picture is a heuristic to *motivate* the prediction below, not a proof of it; the full network (§5, Figure 1) is what tests it. When the inhibitory conductance varies slowly the voltage tracks its instantaneous steady state $V_\infty$ (ar003, eqs 11–13; valid in the high-conductance state of a volley, where the open conductances pull the effective membrane time constant below $\tau_\text{GABA}$). Setting $V_\infty = V_\text{th}$ gives the conductance at which the cell is *released* to fire again,
 
 $$
 g_i^\star = \frac{I_\text{ext} - I_\text{th}}{V_\text{th} - E_i}, \qquad I_\text{th} \equiv g_L(V_\text{th} - E_L).
@@ -43,7 +43,7 @@ T_\text{sup} \approx \tau_\text{GABA}\,\ln\!\left(1 + \frac{W^{IE}}{g_i^\star}\r
 \tag{3}
 $$
 
-**4. The prediction: collapse onto $W^{IE}$.** Equation (3) has no $N_I$ in it. The suppression — hence the rate — is a function of the per-event jump $W^{IE}$ relative to the conserved $g_i^\star$ alone, increasing (rate falling) with $W^{IE}$ and saturating logarithmically. The test is therefore to vary $W^{IE}$ and $N_I$ *independently* and plot the rate against $W^{IE}$: if (3) holds, the curves for different $N_I$ must lie on top of one another.
+**4. The prediction: collapse onto $W^{IE}$.** Equation (3) has no $N_I$ in it. The suppression — hence the rate — is a function of the per-event jump $W^{IE}$ relative to the invariant $g_i^\star$ alone, increasing (rate falling) with $W^{IE}$ and saturating logarithmically. The test is therefore to vary $W^{IE}$ and $N_I$ *independently* and plot the rate against $W^{IE}$: if (3) holds, the curves for different $N_I$ must lie on top of one another.
 
 **5. Simulation.** Untrained PING at $N_E = 1024$, $\Delta t = 0.1$ ms, $T = 200$ ms. Per-synapse $W^{IE}$ swept over {0.5, 1, 2, 4, 8, 16} μS (spread held at 10% of the mean) and pool size $N_I$ over {16, 64, 256} — the two varied on an independent grid. Fixed $W^{EI} \sim \mathcal{N}(1.0, 0.1)$ μS and uniform 25 Hz Poisson input; inference only. The biophysical default is $W^{IE} = 2$ μS.
 
