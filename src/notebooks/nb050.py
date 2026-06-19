@@ -724,13 +724,46 @@ def plot_sqrtk(sweep: list[dict], out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def _balance_currents(data) -> dict:
+    """Median per-cell, time-mean membrane currents decomposed by source,
+    for both populations. Computed per cell per timestep then time-averaged
+    (so the g–V correlation is kept, unlike ⟨g⟩·(E−⟨V⟩)), then median over
+    cells. Returns excitatory / inhibitory / leak currents onto E and I,
+    plus the mean membrane potentials.
+    """
+    E_e, E_i, E_L, g_L = 0.0, -80.0, -65.0, 0.05
+    spk_e = data["spk_e"]
+    ge_e, gi_e, v_e = data["ge_e_1"], data["gi_e_1"], data["v_e_1"]
+    b = max(0, ge_e.shape[0] - spk_e.shape[0])
+    ge_e, gi_e, v_e = ge_e[b:], gi_e[b:], v_e[b:]
+    out = {
+        "I_exc_E": float(np.median((ge_e * (E_e - v_e)).mean(axis=0))),
+        "I_inh_E": float(np.median((gi_e * (E_i - v_e)).mean(axis=0))),
+        "I_leak_E": float(np.median((g_L * (E_L - v_e)).mean(axis=0))),
+        "v_e_mean": float(np.median(v_e)),
+    }
+    if "gi_i_1" in data.files and data["gi_i_1"].size:
+        ge_i = data["ge_i_1"][b:]
+        gi_i = data["gi_i_1"][b:]
+        v_i = data["v_i_1"][b:]
+        out.update({
+            "I_exc_I": float(np.median((ge_i * (E_e - v_i)).mean(axis=0))),
+            "I_inh_I": float(np.median((gi_i * (E_i - v_i)).mean(axis=0))),
+            "I_leak_I": float(np.median((g_L * (E_L - v_i)).mean(axis=0))),
+            "v_i_mean": float(np.median(v_i)),
+        })
+    return out
+
+
 def drive_sweep(ai_args: list[str], scales) -> list[dict]:
-    """Sweep the external drive level and record population rates.
+    """Sweep the external drive level and record rates + decomposed currents.
 
     V&S's signature prediction: in the balanced state the rates are a
     *linear* function of the external input, even though the single units
     are strongly nonlinear. We scale both external Poisson rates (E: 45·x,
-    I: 8·x Hz) by a common factor x and measure r_E, r_I.
+    I: 8·x Hz) by a common factor x and measure r_E, r_I — and the mean
+    membrane currents, so the balance equations can be solved and the
+    predicted rates overlaid (see ``balance_predict``).
     """
     static = _strip_flag(_strip_flag(ai_args, "--independent-drive", 2),
                          "--independent-drive-i", 2)
@@ -741,12 +774,61 @@ def drive_sweep(ai_args: list[str], scales) -> list[dict]:
         args = [*static,
                 "--independent-drive", f"{re_ext:.3f}", "0.38",
                 "--independent-drive-i", f"{ri_ext:.3f}", "0.25"]
-        r_e, r_i = _run_scope_rates(args)
+        data = _run_scope(args)
+        spk_e, spk_i = data["spk_e"], data["spk_i"]
+        dt = float(data["dt"])
+        r_e = float(spk_e.mean() * 1000.0 / dt)
+        r_i = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
         out.append({"drive_scale": float(x), "ext_rate_e_hz": re_ext,
-                    "r_e_hz": r_e, "r_i_hz": r_i})
+                    "ext_rate_i_hz": ri_ext, "r_e_hz": r_e, "r_i_hz": r_i,
+                    **_balance_currents(data)})
         print(f"  drive x={x:.2f} (ext_E={re_ext:.0f} Hz): "
               f"r_E={r_e:.1f}, r_I={r_i:.1f} Hz")
     return out
+
+
+def balance_predict(sweep: list[dict]) -> dict:
+    """Solve the leading-order balance equations for the predicted (r_E, r_I).
+
+    The balanced state sets the rates by the requirement that the large
+    mean currents cancel to an O(1) residue. From the drive sweep we read
+    the realized synaptic *current* gains (slopes of mean current vs the
+    driving rate) — the network's effective coefficients, since the flag
+    weights do not survive the sparsity / exact-K / 1/√K machinery — and
+    use the known external-drive gains, then solve:
+
+      E-balance:  I_exc^E(r_ext) + I_inh^E(r_I) + I_leak^E ≈ 0
+      I-balance:  I_exc^I(r_E, r_ext) + I_inh^I(r_I) + I_leak^I ≈ 0
+
+    Returns the predicted r_E, r_I across the sweep and the fitted gains.
+    """
+    E_e = 0.0
+    tau_a, gd_i = 0.002, 0.25
+    x_extE = np.array([s["ext_rate_e_hz"] for s in sweep])
+    x_extI = np.array([s["ext_rate_i_hz"] for s in sweep])
+    r_e = np.array([s["r_e_hz"] for s in sweep])
+    r_i = np.array([s["r_i_hz"] for s in sweep])
+    I_exc_E = np.array([s["I_exc_E"] for s in sweep])
+    I_inh_E = np.array([s["I_inh_E"] for s in sweep])
+    I_leak_E = np.array([s["I_leak_E"] for s in sweep])
+    # E-balance: inhibition (∝ r_I) must cancel external excitation (∝ r_ext).
+    a_E = float(np.polyfit(x_extE, I_exc_E, 1)[0])   # exc current per Hz ext
+    b_E = float(np.polyfit(r_i, I_inh_E, 1)[0])      # inh current per Hz r_I (<0)
+    leak_E = float(I_leak_E.mean())
+    r_i_pred = -(a_E * x_extE + leak_E) / b_E
+    pred = {"a_E": a_E, "b_E": b_E, "r_i_pred": r_i_pred.tolist()}
+    if all("I_exc_I" in s for s in sweep):
+        I_exc_I = np.array([s["I_exc_I"] for s in sweep])
+        I_inh_I = np.array([s["I_inh_I"] for s in sweep])
+        I_leak_I = np.array([s["I_leak_I"] for s in sweep])
+        v_i = np.array([s["v_i_mean"] for s in sweep])
+        # subtract the known external-to-I excitatory current, leaving E→I
+        ext_I_cur = gd_i * tau_a * x_extI * (E_e - v_i)
+        c_I = float(np.polyfit(r_e, I_exc_I - ext_I_cur, 1)[0])  # E→I per Hz r_E
+        leak_I = float(I_leak_I.mean())
+        r_e_pred = -(ext_I_cur + I_inh_I + leak_I) / c_I
+        pred.update({"c_I": c_I, "r_e_pred": r_e_pred.tolist()})
+    return pred
 
 
 def _linfit(x, y):
@@ -759,33 +841,48 @@ def _linfit(x, y):
     return float(m), float(c), r2
 
 
-def plot_linear_response(sweep: list[dict], out_path: Path, run_id: str) -> dict:
+def plot_linear_response(sweep: list[dict], pred: dict,
+                         out_path: Path, run_id: str) -> dict:
     theme.apply()
     xe = [d["ext_rate_e_hz"] for d in sweep]
     re = [d["r_e_hz"] for d in sweep]
     ri = [d["r_i_hz"] for d in sweep]
     me, ce, r2e = _linfit(xe, re)
     mi, ci, r2i = _linfit(xe, ri)
+    # balance-predicted rates and their slopes
+    ri_pred = pred.get("r_i_pred")
+    re_pred = pred.get("r_e_pred")
+    mi_p = _linfit(xe, ri_pred)[0] if ri_pred else None
+    me_p = _linfit(xe, re_pred)[0] if re_pred else None
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    xs = np.linspace(min(xe), max(xe), 50)
-    ax.plot(xs, me * xs + ce, color=theme.INK_BLACK, lw=1.0, ls="--", alpha=0.7)
-    ax.plot(xs, mi * xs + ci, color=theme.DEEP_RED, lw=1.0, ls="--", alpha=0.7)
+    # measured data points
     ax.scatter(xe, re, s=34, color=theme.INK_BLACK, zorder=5,
-               label=f"$r_E$  (fit $R^2$ = {r2e:.3f})")
+               label=f"$r_E$ measured  (slope {me:.3f})")
     ax.scatter(xe, ri, s=34, color=theme.DEEP_RED, zorder=5, marker="s",
-               label=f"$r_I$  (fit $R^2$ = {r2i:.3f})")
+               label=f"$r_I$ measured  (slope {mi:.3f})")
+    # balance-equation predictions (solid lines)
+    if re_pred is not None:
+        ax.plot(xe, re_pred, color=theme.INK_BLACK, lw=1.4, alpha=0.85,
+                label=f"$r_E$ balance prediction  (slope {me_p:.3f})")
+    if ri_pred is not None:
+        ax.plot(xe, ri_pred, color=theme.DEEP_RED, lw=1.4, alpha=0.85,
+                label=f"$r_I$ balance prediction  (slope {mi_p:.3f})")
     ax.set_xlabel("external drive to E  (Hz, per-cell Poisson)")
     ax.set_ylabel("population rate (Hz)")
+    ax.set_ylim(bottom=0)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
-    ax.set_title("Balanced state: rates are linear in the external drive",
-                 fontsize=theme.SIZE_TITLE, loc="left")
+    ax.legend(fontsize=theme.SIZE_LEGEND - 1, frameon=False, loc="upper left")
+    ax.set_title("Balanced state: linear rates; balance equation pins $r_I$, "
+                 "bounds $r_E$", fontsize=theme.SIZE_TITLE, loc="left")
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
-    return {"r_e_slope": me, "r_e_r2": r2e, "r_i_slope": mi, "r_i_r2": r2i}
+    return {"r_e_slope": me, "r_e_r2": r2e, "r_i_slope": mi, "r_i_r2": r2i,
+            "r_e_slope_pred": me_p, "r_i_slope_pred": mi_p,
+            "r_e_slope_ratio": (me_p / me) if me_p else None,
+            "r_i_slope_ratio": (mi_p / mi) if mi_p else None}
 
 
 def plot_lyapunov(lyap_by_cell: dict, out_path: Path, run_id: str) -> None:
@@ -932,10 +1029,11 @@ def main() -> None:
         print(f"wrote {lyap_dst}")
 
     # V&S linear-response prediction: sweep the external drive on the AI net.
-    print("[drive sweep] linear-response test")
+    print("[drive sweep] linear-response + balance-equation test")
     dsweep = drive_sweep(CELLS["ai"]["args"], [0.6, 0.8, 1.0, 1.2, 1.4, 1.6])
+    bpred = balance_predict(dsweep)
     lin_dst = FIGURES / "linear_response.png"
-    lin_stats = plot_linear_response(dsweep, lin_dst, notebook_run_id)
+    lin_stats = plot_linear_response(dsweep, bpred, lin_dst, notebook_run_id)
     figures["linear_response"] = lin_dst
     print(f"wrote {lin_dst}  ({lin_stats})")
 
@@ -955,7 +1053,7 @@ def main() -> None:
         "common_args": COMMON_ARGS,
         "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
         "summary": summary_rows,
-        "linear_response": {"sweep": dsweep, **lin_stats},
+        "linear_response": {"sweep": dsweep, "balance": bpred, **lin_stats},
         "sqrtk_invariance": ksweep,
     }
     def _clean(o):

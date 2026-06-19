@@ -278,7 +278,7 @@ def generate_spike_snapshot(
 
     npz_path = out_dir / "snapshot.npz"
     extra = {}
-    for key in ("v_e_1", "ge_e_1", "gi_e_1", "v_i_1", "ge_i_1"):
+    for key in ("v_e_1", "ge_e_1", "gi_e_1", "v_i_1", "ge_i_1", "gi_i_1"):
         if key in rec:
             extra[key] = np.asarray(rec[key])
     if lyap_dist is not None:
@@ -431,7 +431,7 @@ def generate_image_snapshot(
     npz_name = Path(out_filename).with_suffix(".npz").name
     npz_path = out_dir / npz_name
     extra = {}
-    for key in ("v_e_1", "ge_e_1", "gi_e_1", "v_i_1", "ge_i_1"):
+    for key in ("v_e_1", "ge_e_1", "gi_e_1", "v_i_1", "ge_i_1", "gi_i_1"):
         if key in rec:
             extra[key] = np.asarray(rec[key])
     np.savez(
