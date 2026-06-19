@@ -383,6 +383,103 @@ def plot_current_balance(npz_path: Path, out_path: Path, title: str) -> dict:
     }
 
 
+def plot_current_decomposition(npz_path: Path, out_path: Path, title: str) -> dict:
+    """The V&S cancellation, made visible (their Eq. 1-3 / Fig. 1 idea).
+
+    Left: one representative E cell's membrane currents over a window —
+    the large *excitatory* current $I_E = g_E(E_e - V)$, the large
+    *inhibitory* current $I_I = g_I(E_i - V)$, and their sum $I_E + I_I$.
+    The two large opposing currents nearly cancel, leaving a small,
+    noisy net that hovers around the threshold current $I_{th}$.
+
+    Right: across all E cells, the per-cell time-means $\\langle I_E\\rangle$,
+    $|\\langle I_I\\rangle|$ and the net $\\langle I_E + I_I + I_L\\rangle$.
+    $\\langle I_E\\rangle \\approx |\\langle I_I\\rangle| \\gg$ net is the balance
+    condition: the $O(\\sqrt K)$ excitatory and inhibitory drives cancel to
+    an $O(1)$ residue.
+    """
+    theme.apply()
+    from matplotlib.gridspec import GridSpec
+    E_e, E_i, E_L, V_th, g_L = 0.0, -80.0, -65.0, -50.0, 0.05
+    I_th = g_L * (V_th - E_L)
+    data = np.load(npz_path)
+    spk_e = data["spk_e"]
+    if "ge_e_1" not in data:
+        return {"median_I_exc": None, "median_I_inh": None,
+                "median_I_net": None, "cancellation_ratio": None}
+    ge, gi, v = data["ge_e_1"], data["gi_e_1"], data["v_e_1"]
+    dt = float(data["dt"])
+    burn = max(0, ge.shape[0] - spk_e.shape[0])
+    ge, gi, v = ge[burn:], gi[burn:], v[burn:]
+    I_E = ge * (E_e - v)            # (T, N) excitatory, > 0
+    I_I = gi * (E_i - v)            # (T, N) inhibitory, < 0
+    I_L = g_L * (E_L - v)
+    mu_E = I_E.mean(axis=0)         # per-cell time-means
+    mu_I = I_I.mean(axis=0)
+    mu_net = (I_E + I_I + I_L).mean(axis=0)
+    # representative cell: the one whose net drive is closest to the median
+    med_net = np.median(mu_net)
+    rep = int(np.argmin(np.abs(mu_net - med_net)))
+
+    fig = plt.figure(figsize=(11.0, 4.4), dpi=150)
+    gs = GridSpec(1, 2, figure=fig, width_ratios=[1.35, 1.0],
+                  wspace=0.28, top=0.86, bottom=0.16, left=0.08, right=0.97)
+    ax_ts = fig.add_subplot(gs[0])
+    ax_ba = fig.add_subplot(gs[1])
+
+    # Left: representative-cell current traces over a 250 ms window.
+    t = np.arange(ge.shape[0]) * dt
+    w = (t >= 300.0) & (t < 550.0)
+    ax_ts.plot(t[w], I_E[w, rep], color=theme.ELECTRIC_CYAN, lw=1.0,
+               label="$I_E = g_E(E_e - V)$  (excitatory)")
+    ax_ts.plot(t[w], I_I[w, rep], color=theme.DEEP_RED, lw=1.0,
+               label="$I_I = g_I(E_i - V)$  (inhibitory)")
+    ax_ts.plot(t[w], (I_E + I_I + I_L)[w, rep], color=theme.INK_BLACK, lw=1.4,
+               label="net  $I_E + I_I + I_L$")
+    ax_ts.axhline(I_th, color=theme.AMBER, lw=0.8, ls=":")
+    ax_ts.axhline(0.0, color=theme.GREY_MID, lw=0.5)
+    ax_ts.text(t[w][-1], I_th, " $I_{th}$", color=theme.AMBER,
+               va="center", ha="left", fontsize=theme.SIZE_LABEL - 1)
+    ax_ts.set_xlabel("time (ms)")
+    ax_ts.set_ylabel("membrane current (nA)")
+    ax_ts.spines["top"].set_visible(False)
+    ax_ts.spines["right"].set_visible(False)
+    ax_ts.legend(fontsize=theme.SIZE_LEGEND - 1, frameon=False, loc="upper right",
+                 ncol=1)
+    ax_ts.set_title(f"One E cell: two large currents, small sum (cell {rep})",
+                    loc="left", fontsize=theme.SIZE_LABEL, pad=4)
+
+    # Right: population balance bars (median +/- IQR).
+    def _stat(a):
+        return float(np.median(a)), float(np.percentile(a, 25)), float(np.percentile(a, 75))
+    me, me_lo, me_hi = _stat(mu_E)
+    mi, mi_lo, mi_hi = _stat(np.abs(mu_I))
+    mn, mn_lo, mn_hi = _stat(mu_net)
+    xs = [0, 1, 2]
+    vals = [me, mi, mn]
+    errs = [[me - me_lo, mi - mi_lo, mn - mn_lo], [me_hi - me, mi_hi - mi, mn_hi - mn]]
+    cols = [theme.ELECTRIC_CYAN, theme.DEEP_RED, theme.INK_BLACK]
+    ax_ba.bar(xs, vals, yerr=errs, color=cols, alpha=0.8, capsize=3, width=0.6)
+    ax_ba.axhline(I_th, color=theme.AMBER, lw=0.8, ls=":")
+    ax_ba.text(2.4, I_th, "$I_{th}$", color=theme.AMBER, va="center",
+               ha="left", fontsize=theme.SIZE_LABEL - 1)
+    ax_ba.set_xticks(xs)
+    ax_ba.set_xticklabels(["$\\langle I_E\\rangle$", "$|\\langle I_I\\rangle|$",
+                           "net"])
+    ax_ba.set_ylabel("per-cell mean current (nA)")
+    ax_ba.spines["top"].set_visible(False)
+    ax_ba.spines["right"].set_visible(False)
+    ratio = abs(mn) / me if me else float("nan")
+    ax_ba.set_title(f"Population balance: net / exc = {ratio:.2f}",
+                    loc="left", fontsize=theme.SIZE_LABEL, pad=4)
+
+    fig.suptitle(title, fontsize=theme.SIZE_TITLE, x=0.08, ha="left")
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    return {"median_I_exc": me, "median_I_inh": float(np.median(mu_I)),
+            "median_I_net": mn, "cancellation_ratio": float(ratio)}
+
+
 def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     theme.apply()
     from matplotlib.gridspec import GridSpec
@@ -532,6 +629,165 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     plt.close(fig)
 
 
+def _strip_flag(args: list[str], flag: str, nvals: int) -> list[str]:
+    out, i = [], 0
+    while i < len(args):
+        if args[i] == flag:
+            i += 1 + nvals
+        else:
+            out.append(args[i]); i += 1
+    return out
+
+
+def _run_scope(extra_args: list[str], t_ms: str = "1000"):
+    """Run one oscilloscope sim and return the loaded snapshot npz."""
+    for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
+        if p.exists():
+            p.unlink()
+    argv = ["sim", "--image", "--model", "ping", "--input", "synthetic-spikes",
+            "--t-ms", t_ms, *extra_args]
+    subprocess.run(["uv", "run", "python", str(OSCILLOSCOPE), *argv],
+                   cwd=REPO, check=True)
+    return np.load(SCOPE_OUT_NPZ)
+
+
+def _run_scope_rates(extra_args: list[str], t_ms: str = "1000") -> tuple[float, float]:
+    """Run one oscilloscope sim and return (r_E, r_I) population rates in Hz."""
+    data = _run_scope(extra_args, t_ms)
+    spk_e, spk_i = data["spk_e"], data["spk_i"]
+    dt = float(data["dt"])
+    r_e = float(spk_e.mean() * 1000.0 / dt)
+    r_i = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
+    return r_e, r_i
+
+
+def sqrtk_sweep(sparsities) -> list[dict]:
+    """Vary K (via connection sparsity) with the recurrent weights scaled
+    by 1/sqrt(K) — V&S's defining synaptic scaling. On the balanced
+    manifold the AI signatures (CV -> 1, low pairwise correlation) are
+    K-invariant, down to the finite-K breakdown where the mean-field
+    (central-limit) argument stops holding.
+    """
+    N_E, base_K = 1024, 10.0
+    out = []
+    for s in sparsities:
+        K = (1.0 - s) * N_E
+        sc = float(np.sqrt(base_K / K))   # J ~ 1/sqrt(K)
+        args = ["--input-rate", "1", "--w-in", "0.01", "0.001",
+                "--w-ei", f"{0.6 * sc:.4f}", f"{0.18 * sc:.4f}",
+                "--w-ie", f"{3.0 * sc:.4f}", f"{0.9 * sc:.4f}",
+                "--w-ii", f"{0.4 * sc:.4f}", f"{0.12 * sc:.4f}",
+                "--ei-sparsity", f"{s}", "--exact-k",
+                "--independent-drive", "45", "0.38",
+                "--independent-drive-i", "8", "0.25"]
+        data = _run_scope(args)
+        spk = data["spk_e"]
+        dt = float(data["dt"])
+        cv = float(np.median(_isi_cvs(spk, dt)))
+        _, _, pk = _pair_cross_correlogram(spk, dt)
+        out.append({"K": float(K), "sparsity": float(s), "weight_scale": sc,
+                    "median_cv_e": cv, "xcorr_peak": float(pk)})
+        print(f"  K={K:.0f} (sparsity {s}): medCV={cv:.2f}, xcorr={pk:.4f}")
+    out.sort(key=lambda d: d["K"])
+    return out
+
+
+def plot_sqrtk(sweep: list[dict], out_path: Path, run_id: str) -> None:
+    theme.apply()
+    ks = [d["K"] for d in sweep]
+    cvs = [d["median_cv_e"] for d in sweep]
+    pks = [d["xcorr_peak"] for d in sweep]
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    ax.plot(ks, cvs, "o-", color=theme.INK_BLACK, lw=1.4, zorder=5,
+            label="median ISI CV (E)")
+    ax.axhline(1.0, color=theme.AMBER, lw=0.8, ls=":")
+    ax.text(ks[0], 1.0, "CV = 1 (Poisson) ", color=theme.AMBER,
+            va="bottom", ha="left", fontsize=theme.SIZE_LABEL - 1)
+    ax.set_xlabel("K  (presynaptic inputs per cell, weights $\\propto 1/\\sqrt{K}$)")
+    ax.set_ylabel("median ISI CV (E)")
+    ax.set_ylim(0.0, 1.4)
+    ax.spines["top"].set_visible(False)
+    ax2 = ax.twinx()
+    ax2.plot(ks, pks, "s--", color=theme.DEEP_RED, lw=1.0, alpha=0.8,
+             label="peak pairwise $|C(\\tau)|$")
+    ax2.set_ylabel("peak pairwise $|C(\\tau)|$", color=theme.DEEP_RED)
+    ax2.set_ylim(0, max(pks) * 1.6)
+    ax2.tick_params(axis="y", colors=theme.DEEP_RED)
+    lines = ax.get_lines()[:1] + ax2.get_lines()[:1]
+    ax.legend(lines, [ln.get_label() for ln in lines],
+              fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
+    ax.set_title("$\\sqrt{K}$ scaling: irregularity holds as K grows",
+                 fontsize=theme.SIZE_TITLE, loc="left")
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def drive_sweep(ai_args: list[str], scales) -> list[dict]:
+    """Sweep the external drive level and record population rates.
+
+    V&S's signature prediction: in the balanced state the rates are a
+    *linear* function of the external input, even though the single units
+    are strongly nonlinear. We scale both external Poisson rates (E: 45·x,
+    I: 8·x Hz) by a common factor x and measure r_E, r_I.
+    """
+    static = _strip_flag(_strip_flag(ai_args, "--independent-drive", 2),
+                         "--independent-drive-i", 2)
+    base_e, base_i = 45.0, 8.0
+    out = []
+    for x in scales:
+        re_ext, ri_ext = base_e * x, base_i * x
+        args = [*static,
+                "--independent-drive", f"{re_ext:.3f}", "0.38",
+                "--independent-drive-i", f"{ri_ext:.3f}", "0.25"]
+        r_e, r_i = _run_scope_rates(args)
+        out.append({"drive_scale": float(x), "ext_rate_e_hz": re_ext,
+                    "r_e_hz": r_e, "r_i_hz": r_i})
+        print(f"  drive x={x:.2f} (ext_E={re_ext:.0f} Hz): "
+              f"r_E={r_e:.1f}, r_I={r_i:.1f} Hz")
+    return out
+
+
+def _linfit(x, y):
+    x, y = np.asarray(x, float), np.asarray(y, float)
+    m, c = np.polyfit(x, y, 1)
+    yhat = m * x + c
+    ss_res = float(np.sum((y - yhat) ** 2))
+    ss_tot = float(np.sum((y - y.mean()) ** 2))
+    r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+    return float(m), float(c), r2
+
+
+def plot_linear_response(sweep: list[dict], out_path: Path, run_id: str) -> dict:
+    theme.apply()
+    xe = [d["ext_rate_e_hz"] for d in sweep]
+    re = [d["r_e_hz"] for d in sweep]
+    ri = [d["r_i_hz"] for d in sweep]
+    me, ce, r2e = _linfit(xe, re)
+    mi, ci, r2i = _linfit(xe, ri)
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    xs = np.linspace(min(xe), max(xe), 50)
+    ax.plot(xs, me * xs + ce, color=theme.INK_BLACK, lw=1.0, ls="--", alpha=0.7)
+    ax.plot(xs, mi * xs + ci, color=theme.DEEP_RED, lw=1.0, ls="--", alpha=0.7)
+    ax.scatter(xe, re, s=34, color=theme.INK_BLACK, zorder=5,
+               label=f"$r_E$  (fit $R^2$ = {r2e:.3f})")
+    ax.scatter(xe, ri, s=34, color=theme.DEEP_RED, zorder=5, marker="s",
+               label=f"$r_I$  (fit $R^2$ = {r2i:.3f})")
+    ax.set_xlabel("external drive to E  (Hz, per-cell Poisson)")
+    ax.set_ylabel("population rate (Hz)")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
+    ax.set_title("Balanced state: rates are linear in the external drive",
+                 fontsize=theme.SIZE_TITLE, loc="left")
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    return {"r_e_slope": me, "r_e_r2": r2e, "r_i_slope": mi, "r_i_r2": r2i}
+
+
 def plot_lyapunov(lyap_by_cell: dict, out_path: Path, run_id: str) -> None:
     """Compare spike-train divergence D(t) across cells on one axis.
 
@@ -611,6 +867,18 @@ def main() -> None:
         figures[f"current_balance__{cell}"] = current_dst
         print(f"wrote {current_dst}")
 
+        # The cancellation figure is the V&S mechanism; show it for the AI
+        # cell (PING's time-mean currents also cancel — that point is made
+        # in prose — but its leftover is a clock, not noise).
+        decomp_stats = {}
+        if cell == "ai":
+            decomp_dst = FIGURES / f"current_decomposition__{cell}.png"
+            decomp_stats = plot_current_decomposition(
+                SCOPE_OUT_NPZ, decomp_dst, spec["title"],
+            )
+            figures[f"current_decomposition__{cell}"] = decomp_dst
+            print(f"wrote {decomp_dst}")
+
         # Extract summary statistics for the row table.
         data = np.load(SCOPE_OUT_NPZ)
         spk_e = data["spk_e"]
@@ -653,6 +921,7 @@ def main() -> None:
             "lyap_max_diff_cells": lyap_max,
             "lyap_steady_diff_cells": lyap_steady,
             **current_stats,
+            **decomp_stats,
         })
 
     # Comparison figure: spike-train divergence D(t) for all cells.
@@ -662,6 +931,22 @@ def main() -> None:
         figures["lyapunov_divergence"] = lyap_dst
         print(f"wrote {lyap_dst}")
 
+    # V&S linear-response prediction: sweep the external drive on the AI net.
+    print("[drive sweep] linear-response test")
+    dsweep = drive_sweep(CELLS["ai"]["args"], [0.6, 0.8, 1.0, 1.2, 1.4, 1.6])
+    lin_dst = FIGURES / "linear_response.png"
+    lin_stats = plot_linear_response(dsweep, lin_dst, notebook_run_id)
+    figures["linear_response"] = lin_dst
+    print(f"wrote {lin_dst}  ({lin_stats})")
+
+    # V&S 1/sqrt(K) scaling: AI signatures invariant as K grows.
+    print("[sqrt-K sweep] balanced-manifold invariance")
+    ksweep = sqrtk_sweep([0.96, 0.98, 0.99, 0.995])
+    sqrtk_dst = FIGURES / "sqrtk_invariance.png"
+    plot_sqrtk(ksweep, sqrtk_dst, notebook_run_id)
+    figures["sqrtk_invariance"] = sqrtk_dst
+    print(f"wrote {sqrtk_dst}")
+
     duration_s = time.monotonic() - t_start
     summary = {
         "notebook_run_id": notebook_run_id,
@@ -670,6 +955,8 @@ def main() -> None:
         "common_args": COMMON_ARGS,
         "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
         "summary": summary_rows,
+        "linear_response": {"sweep": dsweep, **lin_stats},
+        "sqrtk_invariance": ksweep,
     }
     def _clean(o):
         import math
