@@ -294,6 +294,20 @@
         "18.0": 22.190546456738282,
         "27.0": 14.219977529238708
       }
+    },
+    "reductions": {
+      "three_d_qss": {
+        "I_ext_star": 0.67,
+        "omega_star": 0.19532357860712146,
+        "freq_star_Hz": 31.086713037721765,
+        "fp_at_star": [
+          0.004138487598130769,
+          0.0007402237760752356,
+          0.013324027969354241
+        ]
+      },
+      "two_d_rate_qss": null,
+      "two_d_fastslow": null
     }
   },
   "success_criteria": [
@@ -311,6 +325,11 @@
       "label": "2D Wilson-Cowan reduction cannot sustain (rings down)",
       "passed": true,
       "detail": "at I*+1 nA: 4D peak-to-peak 1.039e-02, 2D 5.115e-11"
+    },
+    {
+      "label": "Minimal dimension is 3: 3D-by-QSS keeps the Hopf, every 2D loses it",
+      "passed": true,
+      "detail": "3D (AMPA slaved): Hopf at I*=0.670 nA, f*=31.09 Hz; 2D rate-slaved: no Hopf; 2D fast/slow: no Hopf"
     }
   ]
 }
