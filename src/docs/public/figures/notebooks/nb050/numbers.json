@@ -1,9 +1,10 @@
 {
-  "notebook_run_id": "r020",
-  "duration_s": 6.5,
+  "notebook_run_id": "r023",
+  "duration_s": 29.9,
   "tier": "small",
   "common_args": [
-    "image",
+    "sim",
+    "--image",
     "--model",
     "ping",
     "--input",
@@ -52,35 +53,113 @@
   "summary": [
     {
       "cell": "ping",
-      "e_rate_hz": 3.9822049140930176,
-      "i_rate_hz": 31.09808921813965,
-      "median_isi_cv_e": 0.6221292690755034,
-      "median_isi_cv_i": 0.026036784008114846,
-      "f_psd_peak_hz": 30.971435190810247,
-      "peak_abs_xcorr_e": 0.04122902273163091,
+      "e_rate_hz": 3.633897542953491,
+      "i_rate_hz": 31.09375,
+      "median_isi_cv_e": 0.6145383401857762,
+      "median_isi_cv_i": 0.024453804746880282,
+      "f_psd_peak_hz": 30.993089772184092,
+      "peak_abs_xcorr_e": 0.046875573214135935,
       "lyap_final_diff_cells": 0.0,
       "lyap_max_diff_cells": 58.0,
-      "lyap_steady_diff_cells": 0.0,
-      "median_eta_fluct_drive": 5.499805450439453,
+      "lyap_steady_diff_cells": 1.782,
+      "median_eta_fluct_drive": 5.4981536865234375,
       "frac_above_eta_1": 1.0,
-      "median_mu_I": 0.07409415394067764,
-      "median_sigma_I": 3.808185338973999
+      "median_mu_I": 0.075686976313591,
+      "median_sigma_I": 3.791785717010498
     },
     {
       "cell": "ai",
-      "e_rate_hz": 16.55707550048828,
-      "i_rate_hz": 20.66840171813965,
-      "median_isi_cv_e": 1.023500479684913,
-      "median_isi_cv_i": 1.1326368417455948,
-      "f_psd_peak_hz": 44.421593135832055,
-      "peak_abs_xcorr_e": 0.010245883430766227,
-      "lyap_final_diff_cells": 5.0,
-      "lyap_max_diff_cells": 17.0,
-      "lyap_steady_diff_cells": 6.3145,
-      "median_eta_fluct_drive": 23.230520248413086,
+      "e_rate_hz": 15.068359375,
+      "i_rate_hz": 22.72135353088379,
+      "median_isi_cv_e": 1.023483967422165,
+      "median_isi_cv_i": 1.120668635463631,
+      "f_psd_peak_hz": 23.316685084521826,
+      "peak_abs_xcorr_e": 0.008662264022892432,
+      "lyap_final_diff_cells": 4.0,
+      "lyap_max_diff_cells": 16.0,
+      "lyap_steady_diff_cells": 5.8345,
+      "median_eta_fluct_drive": 19.839393615722656,
       "frac_above_eta_1": 1.0,
-      "median_mu_I": 0.658690333366394,
-      "median_sigma_I": 4.272965431213379
+      "median_mu_I": 0.5960674285888672,
+      "median_sigma_I": 4.172816276550293,
+      "median_I_exc": 2.4589312076568604,
+      "median_I_inh": -2.196881055831909,
+      "median_I_net": 0.5960674285888672,
+      "cancellation_ratio": 0.2424091518838649
+    }
+  ],
+  "linear_response": {
+    "sweep": [
+      {
+        "drive_scale": 0.6,
+        "ext_rate_e_hz": 27.0,
+        "r_e_hz": 11.819661140441895,
+        "r_i_hz": 16.145832061767578
+      },
+      {
+        "drive_scale": 0.8,
+        "ext_rate_e_hz": 36.0,
+        "r_e_hz": 13.64474868774414,
+        "r_i_hz": 19.87847328186035
+      },
+      {
+        "drive_scale": 1.0,
+        "ext_rate_e_hz": 45.0,
+        "r_e_hz": 15.068359375,
+        "r_i_hz": 22.72135353088379
+      },
+      {
+        "drive_scale": 1.2,
+        "ext_rate_e_hz": 54.0,
+        "r_e_hz": 16.50390625,
+        "r_i_hz": 25.4296875
+      },
+      {
+        "drive_scale": 1.4,
+        "ext_rate_e_hz": 62.99999999999999,
+        "r_e_hz": 17.85373306274414,
+        "r_i_hz": 27.63020896911621
+      },
+      {
+        "drive_scale": 1.6,
+        "ext_rate_e_hz": 72.0,
+        "r_e_hz": 19.02669334411621,
+        "r_i_hz": 30.12152671813965
+      }
+    ],
+    "r_e_slope": 0.15904019370911607,
+    "r_e_r2": 0.9954328613655992,
+    "r_i_slope": 0.30426036289760033,
+    "r_i_r2": 0.9919490485045505
+  },
+  "sqrtk_invariance": [
+    {
+      "K": 5.1200000000000045,
+      "sparsity": 0.995,
+      "weight_scale": 1.397542485937368,
+      "median_cv_e": 1.166209930656708,
+      "xcorr_peak": 0.009330769816682061
+    },
+    {
+      "K": 10.240000000000009,
+      "sparsity": 0.99,
+      "weight_scale": 0.9882117688026181,
+      "median_cv_e": 1.0159767668133262,
+      "xcorr_peak": 0.00851081761037694
+    },
+    {
+      "K": 20.480000000000018,
+      "sparsity": 0.98,
+      "weight_scale": 0.698771242968684,
+      "median_cv_e": 0.9781784256789637,
+      "xcorr_peak": 0.009269333202628925
+    },
+    {
+      "K": 40.960000000000036,
+      "sparsity": 0.96,
+      "weight_scale": 0.49410588440130904,
+      "median_cv_e": 0.9560637146730365,
+      "xcorr_peak": 0.009292348425853214
     }
   ]
 }
