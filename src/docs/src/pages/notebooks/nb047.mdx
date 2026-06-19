@@ -14,27 +14,90 @@ export const numbers = Object.values(
 
 ## Abstract
 
-How many inhibitory cells does a PING network need? We sweep $N_I$ from 0% to 25% of the excitatory pool ($N_E = 1024$ fixed) on an untrained network and ask how the per-cell firing rates respond. The answer depends on how you scale the $I \to E$ synapses with $N_I$: under **constant per-edge** weights — the biologically motivated choice — rates are *flat* across the sweep, even when the summed inhibitory drive varies by ≈ 250×. Under synaptic ($1/N$) or critical-balance ($1/\sqrt{N}$) scaling the rates reduce slightly at small $N_I$. What the network cares about is the **per-event shunt magnitude**, not the time-averaged total drive — and only constant-per-edge holds that fixed.
+How many inhibitory cells does a PING network need, and how should the $I \to E$ synapses scale with that number? We sweep $N_I$ from 0% to 25% of the excitatory pool ($N_E = 1024$ fixed) on an untrained network and find the per-cell rates obey a conservation law. A quasi-static reduction of one E cell names the conserved quantity: $g_i^\star$, the inhibitory conductance at which the cell is released from the shunt — built from intrinsic constants and the drive alone, independent of $N_I$ and of the per-edge weight. The gamma rate then turns on the **per-event shunt** $W^{IE}$ relative to $g_i^\star$, not on the time-averaged total inhibition. This predicts — and the three sweeps confirm — that **constant per-edge** weights hold the rate flat across the sweep even as the summed drive varies ≈ 250×, while synaptic ($1/N$) and critical-balance ($1/\sqrt{N}$) scaling inflate the per-event shunt at small $N_I$ and drop the rate. $N_I$ is a gauge knob: physical only when a scaling ties it to $W^{IE}$.
 
 ## Methods
 
-**Simulation.** Untrained PING net at $\Delta t = 0.1$ ms, $N_E = 1024$ fixed, $N_I$ swept over {1, 51, 102, 154, 205, 256} (the {0, 5, 10, 15, 20, 25}% points, with 0% implemented as $N_I = 1$). Reference per-edge weights $W^{EI} \sim \mathcal{N}(1.0, 0.1)$ μS and $W^{IE} \sim \mathcal{N}(2.0, 0.2)$ μS at the canonical $N_I = 256$. Drive: uniform 25 Hz Poisson input on 784 channels, $T = 200$ ms, 4 trials per cell. Reported rates are per-cell averages over trials; rasters come from trial 0.
+Reduce to one E cell — the COBANet membrane ([ar003](/articles/ar003/), eq 4) with the feedforward excitation written as a tonic current $I_\text{ext}$, as in the DMFT reduction of [nb033](/notebooks/nb033/):
 
-**Three scaling regimes.** When we change $N_I$ we have to decide what happens to the *strength* of each individual $I \to E$ synapse. There's no neutral choice — the three standard conventions disagree even on what "the same network at different sizes" means. All three coincide at the canonical $N_I = 256$ anchor and only differ once we shrink $N_I$.
+$$
+C_m \dot V = -g_L(V - E_L) - g_i(t)\,(V - E_i) + I_\text{ext},
+\tag{1}
+$$
 
-The intuition: the network is all-to-all between layers, so each E cell receives one I→E synapse *per I cell* — i.e. $N_I$ incoming I→E synapses per E cell, with a per-edge weight $W^{IE}$ on each. When we change $N_I$ we have to decide what happens to that per-edge weight. We can keep it fixed (so total drive into each E cell grows with the pool), rescale it as $1/N_I$ (so total drive stays put), or split the difference. These correspond to:
+with $g_i(t)$ the total inhibitory conductance onto the cell and $I_\text{ext}$ the quasi-steady excitatory drive. When $g_i$ varies slowly against the membrane time constant the voltage tracks its instantaneous fixed point — the $V_\infty$ and total conductance $g_\text{tot}$ of [ar003](/articles/ar003/) (eqs 11–13):
 
-- **Constant per-edge** — the per-edge weight is fixed at $W^{IE}_\text{ref}$ no matter how big or small the I pool is. Each I→E connection that exists has the same strength as it would in the canonical 256-cell network. Drop from $N_I = 256$ to $N_I = 1$ and an E cell now has *one* incoming I→E synapse where it used to have 256 — total inhibitory conductance into each E cell drops by $256\times$.
+$$
+V_\infty(t) = \frac{g_L E_L + g_i(t)\,E_i + I_\text{ext}}{g_\text{tot}}, \qquad g_\text{tot} = g_L + g_i(t),
+\tag{2}
+$$
 
-- **Synaptic normalization ($1/N$)** — per-edge weight scales as $W^{IE}_\text{ref} \cdot (256/N_I)$, so the *time-averaged total* drive into each E cell is held fixed by construction: more I cells but weaker individual synapses, or fewer I cells but proportionally stronger synapses. At $N_I = 1$ the lone I→E connection is $256\times$ stronger per edge to compensate for the missing 255 contributions. This is the classic mean-field convention: it says "what the cell receives on average" is the meaningful quantity, and population size is just a knob for sampling resolution.
+so the cell fires while $V_\infty \ge V_\text{th}$ and is silenced below it. Setting $V_\infty = V_\text{th}$, and writing $I_\text{th} \equiv g_L(V_\text{th} - E_L)$ for the threshold-holding current of [nb050](/notebooks/nb050/), the inhibitory conductance at which firing is *released* is
 
-- **Critical balance ($1/\sqrt{N}$)** — per-edge weight scales as $W^{IE}_\text{ref} \cdot \sqrt{256/N_I}$, the geometric mean of the other two. Brunel and collaborators argued in the asynchronous-irregular literature that this is the "right" scaling for a balanced-state network: it keeps the *variance* of summed input invariant while letting the mean grow as $\sqrt{N_I}$, which is what you'd want if E firing is driven by input fluctuations around the inhibitory floor rather than by deterministic threshold crossings. At $N_I = 1$ each I→E edge is $16\times$ stronger than reference; at $N_I = 256$ it's unchanged.
+$$
+g_i^\star = \frac{I_\text{ext} - I_\text{th}}{V_\text{th} - E_i}.
+\tag{3}
+$$
 
-The three regimes thus encode three different stories about what the network is "really" doing — fixed-anatomy, mean-balanced, or variance-balanced. Running all three on the same $N_I$ sweep is the cleanest way to ask which story actually fits the dynamics.
+$g_i^\star$ is built from intrinsic constants and the drive alone — **it contains neither $N_I$ nor $W^{IE}$.** It is the level the cycle is pinned to.
+
+The inhibitory conductance onto the cell is ar003's exponential GABA synapse ([ar003](/articles/ar003/), eq 8) — one $\delta$-kick per inhibitory spike, decay-then-add (a spike adds its full weight $W^{IE}$):
+
+$$
+\dot g_i = -\frac{g_i}{\tau_\text{GABA}} + W^{IE}\!\sum_{k=1}^{N_I}\sum_{m}\delta(t - t_k^m).
+$$
+
+This linear first-order ODE integrates termwise: each kick at $t_k^m$ adds $W^{IE}$ and decays as $e^{-(t - t_k^m)/\tau_\text{GABA}}$ thereafter, so the solution is the Green's-function form
+
+$$
+g_i(t) = \sum_{k=1}^{N_I} W^{IE} \sum_{m} e^{-(t - t_k^m)/\tau_\text{GABA}}\,\Theta(t - t_k^m).
+\tag{4}
+$$
+
+To get the cycle clock, follow (4) after one inhibitory volley. Write $g_i^\text{pk} = \max_t g_i(t)$ for the peak conductance at the crest of the volley (time $t_\text{pk}$) — the sum of the fresh $W^{IE}$ kicks from the I cells that just fired. With no further spikes (4) is then a single decaying exponential from that peak,
+
+$$
+g_i(t) = g_i^\text{pk}\,e^{-(t - t_\text{pk})/\tau_\text{GABA}},
+$$
+
+and the cell is released the moment this falls back through $g_i^\star$ (eq 3). Setting $g_i^\text{pk}\,e^{-T_\text{sup}/\tau_\text{GABA}} = g_i^\star$ and solving for the elapsed time $T_\text{sup}$ gives the suppression interval
+
+$$
+T_\text{sup} = \tau_\text{GABA} \,\ln\!\frac{g_i^\text{pk}}{g_i^\star},
+\tag{5}
+$$
+
+which with the period $T \approx T_\text{build} + T_\text{sup}$ fixes $r_E \propto 1/T$. The mean-field convention instead conserves the time-averaged total drive,
+
+$$
+\langle g_i\rangle = N_I\,W^{IE}\,r_I\,\tau_\text{GABA},
+\tag{6}
+$$
+
+but (5) shows the rate is set by the ratio $g_i^\text{pk}/g_i^\star$, not by $\langle g_i\rangle$.
+
+**Predictions.** A self-organized PING recruits I cells only until $g_i$ crosses $g_i^\star$ and E shuts off, so the volley overshoots by about one quantum, $g_i^\text{pk} \approx g_i^\star + W^{IE}$, and (5) collapses to
+
+$$
+T_\text{sup} \approx \tau_\text{GABA} \,\ln\!\left(1 + \frac{W^{IE}}{g_i^\star}\right).
+\tag{7}
+$$
+
+The suppression — hence the rate — depends only on the per-event jump $W^{IE}$ relative to the conserved $g_i^\star$, never on $N_I$ or the summed $\langle g_i\rangle$. Each scaling therefore predicts a distinct $r_E(N_I)$:
+
+| scaling | per-event $W^{IE}$ | summed $\langle g_i\rangle$ | predicted $r_E(N_I)$ |
+|---|---|---|---|
+| constant per-edge | $W_\text{ref}$ (fixed) | $\propto N_I$ (≈ 250×) | **flat** |
+| $1/N$ | $W_\text{ref}\,256/N_I$ | fixed | drops at small $N_I$ — steepest |
+| $1/\sqrt N$ | $W_\text{ref}\sqrt{256/N_I}$ | $\propto \sqrt{N_I}$ | drops at small $N_I$ — milder |
+
+Constant per-edge fixes the per-event jump, so (7) predicts the rate is **invariant** across the sweep even though $\langle g_i\rangle$ varies ≈ 250×. The $1/N$ and $1/\sqrt N$ scalings inflate $W^{IE}$ as $N_I$ shrinks — by $256\times$ and $16\times$ at $N_I = 1$ — so a single event overshoots $g_i^\star$ and adds $\tau_\text{GABA}\ln(W^{IE}/g_i^\star)$ to the suppression, lowering $r_E$ logarithmically (a gentle, saturating falloff). The results test these predictions in turn.
 
 ## Results
 
 ### Constant per-edge
+
+As predicted, the rates are **flat** across the sweep — eq (7) with $W^{IE}$ fixed — holding to within 1% even as the summed drive $\langle g_i\rangle$ varies ≈ 250× (eq 6).
 
 <Figure id="Figure 1" title="Constant-per-edge regime — firing rates vs N_I at fixed input" src="/figures/notebooks/nb047/rate_vs_n_inh.png" alt="Two traces vs N_I expressed as percentage of N_E, 0% to 25% in steps of 5%. Black circles (E per-cell rate) sit at ≈ 13.3 Hz across the entire sweep — flat to within 0.2 Hz. Red squares (I per-cell rate) sit at ≈ 33.8 Hz across the sweep — flat to within 2 Hz with small jitter consistent with single-trial sampling.">
   E and I per-cell rates are *invariant* to $N_I$ across the 0–25% sweep — $r_E \approx 13.3$ Hz and $r_I \approx 33.8$ Hz everywhere. The 0% point (one I cell) lands within 1% of the canonical 25% point (256 I cells).
@@ -46,6 +109,8 @@ The three regimes thus encode three different stories about what the network is 
 
 ### Synaptic normalization ($1/N$)
 
+As predicted, the rates **fall at small $N_I$**, most steeply of the three: the per-event shunt inflates as $1/N_I$, so a lone I cell over-pins each E cell.
+
 <Figure id="Figure 3" title="Synaptic-normalization regime — firing rates vs N_I" src="/figures/notebooks/nb047/rate_vs_n_inh__synaptic.png" alt="E and I per-cell firing rates vs N_I (0–25% of N_E) under synaptic normalization (W^IE per edge ∝ 1/N_I). Both rates climb monotonically with N_I: E from ≈ 7.7 Hz at N_I=1 to 13.3 Hz at N_I=256; I from ≈ 20 Hz to 33.8 Hz. The curves saturate near the canonical 25% endpoint where W^IE matches the constant-per-edge value.">
   Rates *drop* at small $N_I$ — opposite of the naïve mean-field prediction. At $N_I = 1$, $r_E$ falls to 7.7 Hz (vs 13.5 Hz under constant per-edge). All three regimes converge at $N_I = 256$.
 </Figure>
@@ -55,6 +120,8 @@ The three regimes thus encode three different stories about what the network is 
 </Figure>
 
 ### Critical balance ($1/\sqrt{N}$)
+
+As predicted, an **intermediate falloff**: the $1/\sqrt N$ inflation of the per-event shunt perturbs the cycle less than $1/N$ but is still enough to lower $r_E$.
 
 <Figure id="Figure 5" title="Critical-balance regime — firing rates vs N_I" src="/figures/notebooks/nb047/rate_vs_n_inh__critical.png" alt="E and I per-cell firing rates vs N_I under critical-balance scaling (W^IE per edge ∝ 1/√N_I). Both rates climb monotonically with N_I, intermediate in shape between constant-per-edge and synaptic normalization: E from ≈ 9.3 Hz at N_I=1 to 13.3 Hz at N_I=256; I from ≈ 25 Hz to 33.8 Hz.">
   Intermediate between the other two regimes: at $N_I = 1$, $r_E = 9.3$ Hz. Even a $\sqrt{N_I}$ per-event scaling is enough to perturb the cycle dynamics.
