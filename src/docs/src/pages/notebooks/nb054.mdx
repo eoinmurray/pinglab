@@ -21,6 +21,8 @@ export const fmt0 = (x) => (typeof x === "number" ? Math.round(x).toLocaleString
 
 A single bounded scalar for how rhythmic a spiking network is — the **lobe–trough contrast** of its spike-time autocorrelation, $(\text{lobe}-\text{trough})/(\text{lobe}+\text{trough}) \in [0,1)$. Driving each excitatory cell with its own private Poisson input makes the metric rate-invariant by construction; across untrained PING networks it reads 0 along the COBA edges and rises smoothly to {fmt(grid.contrast_max)} through the PING interior — a rankable gradient that tracks the gamma-gated collapse of the E firing rate from {fmt0(grid.rate_e_max_hz)} to {fmt0(grid.rate_e_min_hz)} Hz.
 
+## Methods
+
 The networks here are untrained PING populations driven by external input; the rhythmicity metric is read off the resulting excitatory raster. Write $r(t)$ for the binned population spike count ($n$ bins of width $\Delta t$) and $\ell$ for the lag. The metric is read off in a fixed sequence of steps:
 
 1. **Drive each E cell with its own private Poisson channel.** Every excitatory cell receives an independent homogeneous Poisson spike train at 100 Hz through a one-to-one identity input weight — there is no shared, dense $W_\text{in}$ projection, so no two cells share an input channel. Private input removes the input-driven spike coincidence that would otherwise inflate the metric at low firing, which is what makes the contrast rate-invariant by construction (Figures 6–7) with no post-hoc correction.
