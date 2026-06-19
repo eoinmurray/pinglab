@@ -152,13 +152,13 @@ These two read directly off the rasters (Figures 1 and 2). **Irregularity** is t
 
 ### 5. Chaos
 
-The sharpest test, and the one that separates "balanced and noisy" from "balanced and chaotic." Clone the network, perturb every membrane voltage by a tiny ε = 2 mV at $t = 0$, and rerun on *identical frozen input* (same Poisson stream, same seed). Track $D(t)$ = the number of E cells whose spike differs between the two copies. A chaotic network amplifies the perturbation; a stable one forgets it (Figure 7).
+The sharpest test, and the one that separates "balanced and noisy" from "balanced and chaotic." Clone the network, perturb every membrane voltage by a tiny ε = 2 mV at $t = 0$, and rerun on *identical frozen input* (same seed). Track $D(t)$ = the number of E cells whose spike differs between the two copies. A chaotic network amplifies the perturbation; a stable one forgets it (Figure 7).
 
-<Figure id="Figure 7" title="Spike-train divergence after an ε = 2 mV perturbation" src="/figures/notebooks/nb050/lyapunov_divergence.png" alt="Line plot of spike-train divergence D(t) vs time, 0–1000 ms. Grey (PING): a periodic train of pulses that spike up to about 6 cells once per gamma cycle and return to exactly 0 at every trough between cycles. Red (V&S AI): rises within about 100 ms to a sustained fluctuating level around 6 cells and stays there for the full second, never returning to 0.">
-  **PING forgets the kick; AI does not.** PING (grey) is a stable limit cycle: the perturbation flares for an instant at each gamma burst but returns to *exactly zero* at every trough between cycles — it never accumulates ($\lambda \leq 0$). The AI cell (red) saturates at a sustained ≈ 6-cell divergence and never returns to zero — the perturbation grows and persists, the signature of positive $\lambda$ (chaos).
+<Figure id="Figure 7" title="Spike-train divergence after an ε = 2 mV perturbation" src="/figures/notebooks/nb050/lyapunov_divergence.png" alt="Line plot of spike-train divergence D(t) vs time, 0–1000 ms, three traces. Grey (PING): a periodic train of pulses up to about 6 cells once per gamma cycle, returning to exactly 0 at every trough. Red (V&S AI, Poisson drive): rises within about 100 ms to a sustained fluctuating level around 5–6 cells and stays there. Amber (V&S AI, quenched DC): sits distinctly higher, around 9 cells, for the full second.">
+  **PING forgets the kick; AI does not.** PING (grey) is a stable limit cycle: the perturbation flares at each gamma burst but returns to *exactly zero* at every trough — it never accumulates ($\lambda \leq 0$). The AI cell with Poisson drive (red) saturates at a sustained ≈ 6-cell divergence; replacing that drive with a frozen quenched DC (amber) lifts the sustained divergence to ≈ 9 and the peak from 16 to 57 cells — the perturbation grows further once the input no longer pins spike times. Both AI traces persist, the signature of positive $\lambda$ (chaos).
 </Figure>
 
-The divergence saturates at a modest level (a handful of cells out of 1024) because the strong shared input partly *entrains* both copies — strongly-driven neurons fire reliably regardless of network state (the Mainen-Sejnowski effect). So our cell is "noise-entrained with chaos on top" rather than V&S's strongly-autonomous chaos. But the qualitative split is unambiguous: PING's perturbation vanishes to exactly zero every cycle; AI's persists.
+The Poisson-driven divergence saturates at a modest level (a handful of cells out of 1024) because the strong shared *fluctuating* input partly *entrains* both copies — strongly-driven neurons fire reliably regardless of network state (the Mainen-Sejnowski effect). Removing that mask is a controlled test: a *quenched* DC drive (a frozen per-cell offset at the same mean conductance, no per-timestep fluctuation) cannot pin spike times, and the divergence then climbs to ≈ 9 sustained with a 57-cell peak (amber) — the network's autonomous chaos, previously hidden under the entrainment. The qualitative split was always unambiguous (PING vanishes to zero every cycle; AI persists); the quenched test shows the chaos is substantially *stronger* than the Poisson-driven trace alone suggested.
 
 ### 6. Invariance under √K scaling
 
@@ -173,16 +173,17 @@ The balance argument hangs on one structural choice — synapses $\propto 1/\sqr
 All six predictions of the balance argument reproduce on a conductance-based LIF network — cancellation, linear response, fluctuation-driven Poisson firing, asynchrony, chaos, and $\sqrt K$-invariance — side-by-side with a PING control that fails every one. Two honest caveats remain:
 
 - **A near-invariant regime, not a verified $N \to \infty$ limit.** §6 shows the statistics are $K$-invariant under $1/\sqrt K$ scaling, but our external drive is a single per-cell Poisson stream, not V&S's *sparse* external input of $K_\text{ext}$ connections at strength $1/\sqrt K$. A fully $N$-invariant test (rates included, not just CV) needs that sparse external structure so the external mean is itself $O(\sqrt K)$ with $O(1)$ fluctuations.
-- **Weak chaos, masked by input entrainment.** Because our cells are driven by strong shared Poisson noise, the perturbation can't grow far before the common input re-entrains both copies. The autonomous chaos of V&S's quenched-input network would show much larger divergence.
+- **Chaos partly masked by input entrainment (now measured).** Under the fluctuating Poisson drive the perturbation can't grow far before the shared input re-entrains both copies. Swapping in a quenched DC drive (§5) lifts the sustained divergence from ≈ 6 to ≈ 9 cells and the peak from 16 to 57 — so the autonomous chaos is real and stronger than the Poisson trace alone shows, though still modest at this $N$ and $K$.
 
 Both are sharpenings, not contradictions — the regime is V&S; the remaining work is making it *quantitatively* V&S.
 
 ## Next steps
 
 1. **Sparse external drive for a true $N$-invariance test.** Replace the single per-cell Poisson stream with $K_\text{ext} \propto K$ sparse external connections at strength $1/\sqrt K$, so the external input scales like the recurrent one. Then sweep $N$ at fixed $K/N$ and confirm rates (not just CV) are $N$-invariant — proof of the balanced manifold rather than a single-$N$ operating point.
-2. **Quenched-input chaos.** Replace the fresh per-timestep Poisson drive with a frozen DC offset per cell, so the Lyapunov probe measures autonomous network chaos without the input-entrainment mask.
+*Done since first writing:*
 
-*Done since first writing.* **Predicted vs measured rates** — [§2](#2-rates-are-linear-in-the-drive) now solves the balance equations for $(r_E, r_I)$ from the realized current gains and overlays them on the linear-response sweep, turning the linearity check into a quantitative test of the balance equations (it pins $r_I$ to ≈ 20%; $r_E$, lacking recurrent excitation, only loosely).
+- **Quenched-input chaos** — [§5](#5-chaos) now reruns the AI net with a frozen per-cell DC drive (at the same mean conductance) in place of the fresh Poisson stream, so the Lyapunov probe measures autonomous chaos without the input-entrainment mask. Sustained divergence rises from ≈ 6 to ≈ 9 cells, peak 16 → 57.
+- **Predicted vs measured rates** — [§2](#2-rates-are-linear-in-the-drive) now solves the balance equations for $(r_E, r_I)$ from the realized current gains and overlays them on the linear-response sweep, turning the linearity check into a quantitative test (it pins $r_I$ to ≈ 20%; $r_E$, lacking recurrent excitation, only loosely).
 
 ## References
 
