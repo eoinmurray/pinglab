@@ -402,6 +402,203 @@ def plot_frequency_vs_tau_gaba(mf, meas, out_path, run_id):
     plt.close(fig)
 
 
+# ── Dimensional reductions (answering "is it really 4D?", issue #38) ────
+# The Hopf needs a multi-lag negative-feedback ring. Eliminating variables
+# by quasi-steady state tests how low the dimension can go:
+#   - slave the rates -> 2D in (g_e^I, g_i^E): gains sit off-diagonal, so
+#     the divergence is the constant -1/tau_AMPA - 1/tau_GABA < 0 and
+#     Bendixson-Dulac forbids a cycle (the dual of the Wilson-Cowan
+#     rejection, which slaves the conductances instead);
+#   - slave only the fast AMPA conductance -> 3D in (E, I, g_i^E): a
+#     three-lag ring, which retains the Hopf.
+
+
+def rhs_2d_qss(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
+    """Rates slaved to their f-I steady state: 2D in (g_e^I, g_i^E)."""
+    g_eI, g_iE = y
+    E = gE(I_ext - g_iE * DV_INH_MV, sigma)
+    Inh = gI(g_eI * DV_EXC_MV, sigma)
+    return [-g_eI / TAU_AMPA_MS + WT_EI * E,
+            -g_iE / tau_gaba + WT_IE * Inh]
+
+
+def fixed_point_2d_qss(I_ext, tau_gaba=TAU_GABA_MS, x0=None, sigma=SIGMA_V_MV):
+    if x0 is None:
+        x0 = (0.01, 0.02)
+    sol, _, ier, _ = fsolve(
+        lambda y: rhs_2d_qss(0.0, y, I_ext, tau_gaba, sigma), x0,
+        full_output=True)
+    return np.asarray(sol) if ier == 1 else None
+
+
+def rhs_3d_qss(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
+    """Fast AMPA conductance slaved (g_e^I = tau_AMPA W^EI E): 3D in (E, I, g_i^E)."""
+    E, I, g_iE = y
+    g_eI = TAU_AMPA_MS * WT_EI * E
+    return [(-E + gE(I_ext - g_iE * DV_INH_MV, sigma)) / TAU_E_MS,
+            (-I + gI(g_eI * DV_EXC_MV, sigma)) / TAU_I_MS,
+            -g_iE / tau_gaba + WT_IE * I]
+
+
+def fixed_point_3d_qss(I_ext, tau_gaba=TAU_GABA_MS, x0=None, sigma=SIGMA_V_MV):
+    if x0 is None:
+        x0 = (0.005, 0.002, 0.02)
+    sol, _, ier, _ = fsolve(
+        lambda y: rhs_3d_qss(0.0, y, I_ext, tau_gaba, sigma), x0,
+        full_output=True)
+    return np.asarray(sol) if ier == 1 else None
+
+
+def rhs_2d_fastslow(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
+    """Fast/slow lump (issue #38, route 3): slave the fast pair
+    {g_e^I (tau=2), I (tau=5)} to quasi-steady state and keep the slow
+    {E (tau=20), g_i^E (tau=9)} -> 2D in (E, g_i^E)."""
+    E, g_iE = y
+    g_eI = TAU_AMPA_MS * WT_EI * E
+    I = gI(g_eI * DV_EXC_MV, sigma)
+    return [(-E + gE(I_ext - g_iE * DV_INH_MV, sigma)) / TAU_E_MS,
+            -g_iE / tau_gaba + WT_IE * I]
+
+
+def fixed_point_2d_fastslow(I_ext, tau_gaba=TAU_GABA_MS, x0=None, sigma=SIGMA_V_MV):
+    if x0 is None:
+        x0 = (0.005, 0.02)
+    sol, _, ier, _ = fsolve(
+        lambda y: rhs_2d_fastslow(0.0, y, I_ext, tau_gaba, sigma), x0,
+        full_output=True)
+    return np.asarray(sol) if ier == 1 else None
+
+
+def reduction_sweep(rhs, fp_fn, I_grid, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
+    """Fixed point + numeric-Jacobian eigenvalues across an I_ext sweep,
+    for a reduced model (so find_hopf can run on it)."""
+    results = []
+    x = None
+    for I_ext in I_grid:
+        fp = fp_fn(I_ext, tau_gaba, tuple(x) if x is not None else None, sigma)
+        if fp is None:
+            continue
+        x = fp
+        y0 = np.asarray(fp, dtype=float)
+
+        def f(y):
+            return np.asarray(rhs(0.0, y, I_ext, tau_gaba, sigma))
+
+        n = y0.size
+        J = np.zeros((n, n))
+        for k in range(n):
+            yp = y0.copy(); yp[k] += 1e-6
+            ym = y0.copy(); ym[k] -= 1e-6
+            J[:, k] = (f(yp) - f(ym)) / 2e-6
+        eigs = linalg.eigvals(J)
+        results.append({
+            "I_ext": float(I_ext), "fp": [float(v) for v in y0],
+            "eigs": [(float(e.real), float(e.imag)) for e in eigs],
+        })
+    return results
+
+
+def plot_phase_planes(hopf, out_path, run_id, offset=0.4):
+    """Project the 4D limit cycle onto every variable pair (issue #38's
+    experiment 1): the trajectory is a closed loop living on a 2D ribbon —
+    the centre manifold — even though no two physical variables collapse."""
+    theme.apply()
+    I_ext = hopf["I_ext_star"] + offset
+    fp = fixed_point(I_ext)
+    sol = solve_ivp(rhs_4d, (0, 700), fp + np.array([1e-3, 0, 0, 0]),
+                    args=(I_ext,), method="LSODA",
+                    rtol=1e-9, atol=1e-12, max_step=0.25, dense_output=True)
+    period = 1000.0 / hopf["freq_star_Hz"]
+    tt = np.linspace(700 - 4 * period, 700, 2000)
+    Y = sol.sol(tt)
+    labels = ["$E$", "$I$", "$g_e^I$", "$g_i^E$"]
+    pairs = [(0, 1), (2, 3), (0, 3), (1, 2), (0, 2), (1, 3)]
+    fig, axes = plt.subplots(2, 3, figsize=(11.0, 6.5), dpi=150)
+    for ax, (a, b) in zip(axes.flat, pairs):
+        ax.plot(Y[a], Y[b], color=theme.INK_BLACK, lw=1.0)
+        ax.set_xlabel(labels[a], fontsize=theme.SIZE_LABEL)
+        ax.set_ylabel(labels[b], fontsize=theme.SIZE_LABEL)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+    fig.suptitle("4D limit-cycle projected onto every variable pair",
+                 fontsize=theme.SIZE_TITLE)
+    fig.tight_layout()
+    stamp_figure(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_timeseries(hopf, out_path, run_id, offset=0.4):
+    """The four state variables over the limit cycle (issue #38's experiment 1,
+    timeseries half): E, g_e^I, I, g_i^E in loop order, sharing a time axis, so
+    the round-trip phase lags E -> g_e^I -> I -> g_i^E -> E are visible."""
+    theme.apply()
+    I_ext = hopf["I_ext_star"] + offset
+    fp = fixed_point(I_ext)
+    sol = solve_ivp(rhs_4d, (0, 700), fp + np.array([1e-3, 0, 0, 0]),
+                    args=(I_ext,), method="LSODA",
+                    rtol=1e-9, atol=1e-12, max_step=0.25, dense_output=True)
+    period = 1000.0 / hopf["freq_star_Hz"]
+    tt = np.linspace(700 - 3 * period, 700, 1500)
+    Y = sol.sol(tt)
+    t = tt - tt[0]
+    # loop order E -> g_e^I -> I -> g_i^E
+    rows = [(0, "$E$ rate", theme.INK_BLACK),
+            (2, "$g_e^I$", theme.ELECTRIC_CYAN),
+            (1, "$I$ rate", theme.DEEP_RED),
+            (3, "$g_i^E$", theme.AMBER)]
+    fig, axes = plt.subplots(4, 1, figsize=(8.0, 6.5), dpi=150, sharex=True)
+    for ax, (idx, lab, col) in zip(axes, rows):
+        ax.plot(t, Y[idx], color=col, lw=1.4)
+        ax.set_ylabel(lab, fontsize=theme.SIZE_LABEL)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+    axes[-1].set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
+    fig.suptitle("The four state variables over the limit cycle (loop order)",
+                 fontsize=theme.SIZE_TITLE)
+    fig.tight_layout()
+    stamp_figure(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def plot_reduction_ladder(hopf4, hopf3, hopf2, out_path, run_id, I_ext=1.0):
+    """g_i^E divergence after a kick at a common supra-threshold drive for
+    the full 4D model, the 3D (AMPA-slaved) and 2D (rate-slaved) reductions.
+    4D and 3D sustain; 2D rings down — the Hopf survives to 3D, not 2D."""
+    theme.apply()
+    fp4 = fixed_point(I_ext)
+    fp3 = fixed_point_3d_qss(I_ext)
+    fp2 = fixed_point_2d_qss(I_ext)
+    s4 = solve_ivp(rhs_4d, (0, 400), fp4 + np.array([2e-3, 0, 0, 0]),
+                   args=(I_ext,), method="LSODA", rtol=1e-8, atol=1e-11, max_step=0.5)
+    s3 = solve_ivp(rhs_3d_qss, (0, 400), fp3 + np.array([2e-3, 0, 0]),
+                   args=(I_ext,), method="LSODA", rtol=1e-8, atol=1e-11, max_step=0.5)
+    s2 = solve_ivp(rhs_2d_qss, (0, 400), fp2 + np.array([0, 2e-3]),
+                   args=(I_ext,), method="LSODA", rtol=1e-8, atol=1e-11, max_step=0.5)
+    d4, d3, d2 = s4.y[3] - fp4[3], s3.y[2] - fp3[2], s2.y[1] - fp2[1]
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    ax.plot(s4.t, d4, color=theme.INK_BLACK, lw=1.4,
+            label=f"4D full — Hopf ($f^\\star$ = {hopf4['freq_star_Hz']:.0f} Hz)")
+    ax.plot(s3.t, d3, color=theme.ELECTRIC_CYAN, lw=1.4,
+            label=f"3D, AMPA slaved — Hopf ($f^\\star$ = {hopf3['freq_star_Hz']:.0f} Hz)"
+            if hopf3 else "3D, AMPA slaved")
+    ax.plot(s2.t, d2, color=theme.DEEP_RED, lw=1.6,
+            label="2D, rates slaved — rings down (no Hopf)")
+    ax.axhline(0, color=theme.GREY_MID, lw=0.6, ls=":")
+    ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("$g_i^E$ deviation from fixed point", fontsize=theme.SIZE_LABEL)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
+    ax.set_title(f"Eliminating variables: 2D loses the rhythm, 3D keeps it "
+                 f"($I_\\text{{ext}}$ = {I_ext:g} nA)", fontsize=theme.SIZE_TITLE)
+    fig.tight_layout()
+    stamp_figure(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     run_id = "nb033-numerics"
@@ -438,6 +635,27 @@ def main() -> None:
         limitcyc = plot_limit_cycle(hopf, FIGURES / "limit_cycle.png", run_id)
         print(f"  wrote {FIGURES / 'limit_cycle.png'}")
 
+        plot_timeseries(hopf, FIGURES / "timeseries.png", run_id)
+        print(f"  wrote {FIGURES / 'timeseries.png'}")
+        plot_phase_planes(hopf, FIGURES / "phase_planes.png", run_id)
+        print(f"  wrote {FIGURES / 'phase_planes.png'}")
+
+    # Dimensional reductions: how low can the model go (issue #38)?
+    hopf3 = find_hopf(reduction_sweep(rhs_3d_qss, fixed_point_3d_qss, I_grid))
+    hopf2 = find_hopf(reduction_sweep(rhs_2d_qss, fixed_point_2d_qss, I_grid))
+    hopf2fs = find_hopf(reduction_sweep(rhs_2d_fastslow, fixed_point_2d_fastslow, I_grid))
+    print(f"  3D (AMPA slaved): "
+          + (f"Hopf I*={hopf3['I_ext_star']:.3f} nA, f*={hopf3['freq_star_Hz']:.2f} Hz"
+             if hopf3 else "no Hopf"))
+    print(f"  2D (rates slaved): "
+          + (f"Hopf I*={hopf2['I_ext_star']:.3f} nA" if hopf2 else "no Hopf (rings down)"))
+    print(f"  2D (fast/slow lump): "
+          + (f"Hopf I*={hopf2fs['I_ext_star']:.3f} nA" if hopf2fs else "no Hopf (rings down)"))
+    if hopf:
+        plot_reduction_ladder(hopf, hopf3, hopf2,
+                              FIGURES / "reduction_ladder.png", run_id)
+        print(f"  wrote {FIGURES / 'reduction_ladder.png'}")
+
     print(f"[{SLUG}] frequency vs tau_GABA (calibrated vs nb041 spiking)")
     mf_freq = frequency_vs_tau_gaba([4.5, 6.0, 9.0, 12.0, 18.0, 27.0], I_grid)
     meas_fgamma = load_nb041_fgamma()
@@ -470,6 +688,11 @@ def main() -> None:
                 "mean_field": mf_freq,
                 "spiking_nb041": meas_fgamma,
             },
+            "reductions": {
+                "three_d_qss": hopf3,
+                "two_d_rate_qss": hopf2,
+                "two_d_fastslow": hopf2fs,
+            },
         },
         "success_criteria": [
             {
@@ -499,6 +722,17 @@ def main() -> None:
                     f"at I*+{twod['I_ext'] - hopf['I_ext_star']:.2g} nA: "
                     f"4D peak-to-peak {twod['pp_4d']:.3e}, 2D {twod['pp_2d']:.3e}"
                     if twod else "not evaluated"
+                ),
+            },
+            {
+                "label": "Minimal dimension is 3: 3D-by-QSS keeps the Hopf, every 2D loses it",
+                "passed": bool(hopf3 is not None and hopf2 is None and hopf2fs is None),
+                "detail": (
+                    f"3D (AMPA slaved): Hopf at I*={hopf3['I_ext_star']:.3f} nA, "
+                    f"f*={hopf3['freq_star_Hz']:.2f} Hz; "
+                    f"2D rate-slaved: {'Hopf' if hopf2 else 'no Hopf'}; "
+                    f"2D fast/slow: {'Hopf' if hopf2fs else 'no Hopf'}"
+                    if hopf3 else "3D Hopf not found"
                 ),
             },
         ],
