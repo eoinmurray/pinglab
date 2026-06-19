@@ -168,22 +168,34 @@ The balance argument hangs on one structural choice — synapses $\propto 1/\sqr
   Varying $K$ with recurrent weights $\propto 1/\sqrt K$. Median ISI CV (black) holds at ≈ 1 for $K \gtrsim 10$ and the pairwise correlation (red) stays low and flat — the AI state is invariant along the balanced manifold. At $K = 5$ the CV climbs as the finite-$K$ central-limit argument starts to fail.
 </Figure>
 
+### 7. N-invariance with sparse external drive
+
+§6 varied $K$ at fixed $N$ and checked only the CV. The sharper test varies the network size $N$ at fixed $K/N$ (so $K \propto N$) and asks whether the *rates* are invariant. This needs the external drive to scale like the recurrent one: we make the per-cell Poisson stream the superposition of $K_\text{ext} \propto K$ external connections each at strength $\propto 1/\sqrt K$ — amplitude $\propto 1/\sqrt K$, rate $\propto K$ — so its mean is $O(\sqrt K)$ with $O(1)$ fluctuations, matching the recurrent drive. (A single per-cell stream at rate $K r$ and amplitude $J_0/\sqrt K$ *is* exactly that superposition; only cross-cell sharing, which the asynchronous state does not need, is absent.)
+
+The result is partial, and the partiality is the point (Figure 9). The CV stays ≈ 1 and $r_I$ is invariant across $N = 1024$–$4096$ ($K = 10$–$41$), with $K = 5$ ($N = 512$) the finite-$K$ edge as in §6 — but $r_E$ drifts steadily upward. The reason is structural: this PING-derived network has no recurrent E→E excitation, so the E-balance (external excitation cancelled by recurrent inhibition) pins $r_I$, the rate that *does* the cancelling, and leaves $r_E$ as the I-balance residual, which the $\sqrt K$ scaling does not protect — the same loose-$r_E$ story the balance-equation overlay found in [§2](#2-rates-are-linear-in-the-drive). Pinning $r_E$ too would need recurrent excitation (a full Brunel/V&S E–I network with $W^{EE}$). So the balanced manifold is real here for the irregularity and the inhibitory rate; the excitatory rate marks the limit of an inhibition-only-recurrent substrate.
+
+<Figure id="Figure 9" title="N-invariance test: CV and r_I hold, r_E drifts" src="/figures/notebooks/nb050/n_invariance.png" alt="Population rate (Hz) and median ISI CV versus network size N_E from 512 to 4096, with K proportional to N and weights and external drive scaled as 1 over sqrt K. Black circles (r_E) rise steadily from about 12 to 24 Hz. Red squares (r_I) are high (35 Hz) at N=512 (K=5) then sit near 20–23 Hz for N=1024–4096. Amber triangles (median ISI CV, right axis) stay flat at about 1 across all N.">
+  Sweeping $N$ at fixed $K/N$ with recurrent weights *and* the sparse-equivalent external drive scaled $\propto 1/\sqrt K$. The ISI CV (amber) holds at ≈ 1 and $r_I$ (red) is invariant for $K \gtrsim 10$ ($K = 5$ at $N = 512$ is the finite-$K$ edge); $r_E$ (black) drifts upward, because without recurrent E→E excitation it is the unpinned I-balance residual, not a quantity the balance protects.
+</Figure>
+
 ## How faithful is it?
 
 All six predictions of the balance argument reproduce on a conductance-based LIF network — cancellation, linear response, fluctuation-driven Poisson firing, asynchrony, chaos, and $\sqrt K$-invariance — side-by-side with a PING control that fails every one. Two honest caveats remain:
 
-- **A near-invariant regime, not a verified $N \to \infty$ limit.** §6 shows the statistics are $K$-invariant under $1/\sqrt K$ scaling, but our external drive is a single per-cell Poisson stream, not V&S's *sparse* external input of $K_\text{ext}$ connections at strength $1/\sqrt K$. A fully $N$-invariant test (rates included, not just CV) needs that sparse external structure so the external mean is itself $O(\sqrt K)$ with $O(1)$ fluctuations.
+- **Invariant CV and $r_I$, drifting $r_E$ (now tested).** §7 runs the full $N$-sweep at fixed $K/N$ with a sparse-equivalent external drive ($O(\sqrt K)$ mean, $O(1)$ fluctuations). The CV and the inhibitory rate are $N$-invariant, but $r_E$ drifts — because this PING-derived network has no recurrent E→E excitation to pin it. Full rate-invariance would need a $W^{EE}$ network; here the balanced manifold governs the irregularity and $r_I$, not $r_E$.
 - **Chaos partly masked by input entrainment (now measured).** Under the fluctuating Poisson drive the perturbation can't grow far before the shared input re-entrains both copies. Swapping in a quenched DC drive (§5) lifts the sustained divergence from ≈ 6 to ≈ 9 cells and the peak from 16 to 57 — so the autonomous chaos is real and stronger than the Poisson trace alone shows, though still modest at this $N$ and $K$.
 
 Both are sharpenings, not contradictions — the regime is V&S; the remaining work is making it *quantitatively* V&S.
 
 ## Next steps
 
-1. **Sparse external drive for a true $N$-invariance test.** Replace the single per-cell Poisson stream with $K_\text{ext} \propto K$ sparse external connections at strength $1/\sqrt K$, so the external input scales like the recurrent one. Then sweep $N$ at fixed $K/N$ and confirm rates (not just CV) are $N$-invariant — proof of the balanced manifold rather than a single-$N$ operating point.
+1. **Recurrent excitation to pin $r_E$.** The recurring limit across §2 and §7 is that $r_E$ is loose — this PING-derived substrate has no E→E coupling, so no E-balance constrains it. Add a $W^{EE}$ matrix and retune to a balanced point: the full Brunel/V&S E–I architecture, where the E-balance pins $r_E$ and both rates become $N$-invariant.
+
 *Done since first writing:*
 
-- **Quenched-input chaos** — [§5](#5-chaos) now reruns the AI net with a frozen per-cell DC drive (at the same mean conductance) in place of the fresh Poisson stream, so the Lyapunov probe measures autonomous chaos without the input-entrainment mask. Sustained divergence rises from ≈ 6 to ≈ 9 cells, peak 16 → 57.
-- **Predicted vs measured rates** — [§2](#2-rates-are-linear-in-the-drive) now solves the balance equations for $(r_E, r_I)$ from the realized current gains and overlays them on the linear-response sweep, turning the linearity check into a quantitative test (it pins $r_I$ to ≈ 20%; $r_E$, lacking recurrent excitation, only loosely).
+- **Sparse external drive, true $N$-invariance** — [§7](#7-n-invariance-with-sparse-external-drive) sweeps $N$ at fixed $K/N$ with the external drive scaled to $O(\sqrt K)$ mean / $O(1)$ fluctuations; the CV and $r_I$ are $N$-invariant (only $r_E$ drifts, motivating step 1).
+- **Quenched-input chaos** — [§5](#5-chaos) reruns the AI net with a frozen per-cell DC drive (same mean conductance) in place of the Poisson stream, so the Lyapunov probe measures autonomous chaos without the input-entrainment mask: sustained divergence ≈ 6 → ≈ 9 cells, peak 16 → 57.
+- **Predicted vs measured rates** — [§2](#2-rates-are-linear-in-the-drive) solves the balance equations for $(r_E, r_I)$ from the realized current gains and overlays them on the linear-response sweep, turning the linearity check into a quantitative test (pins $r_I$ to ≈ 20%; $r_E$ only loosely).
 
 ## References
 

@@ -692,6 +692,88 @@ def sqrtk_sweep(sparsities) -> list[dict]:
     return out
 
 
+def n_invariance_sweep(n_values, sparsity: float = 0.99) -> list[dict]:
+    """True V&S N-invariance test: sweep the network size N at fixed K/N
+    (fixed sparsity, so K ∝ N), scaling BOTH the recurrent weights and the
+    external drive as the balanced state requires.
+
+    Recurrent weights ∝ 1/√K. The external drive is made V&S-sparse by
+    scaling the per-cell Poisson stream so it equals the superposition of
+    K_ext ∝ K independent external connections each at strength ∝ 1/√K:
+    amplitude ∝ 1/√K and rate ∝ K, giving an external mean O(√K) with O(1)
+    fluctuations — matching the recurrent drive. If the state lives on the
+    balanced manifold the *rates* (not just the CV) are N-invariant.
+    """
+    N_ref = 1024
+    K_ref = (1.0 - sparsity) * N_ref
+    base_re, base_ge = 45.0, 0.38   # external E drive at N_ref
+    base_ri, base_gi = 8.0, 0.25    # external I drive at N_ref
+    out = []
+    for N in n_values:
+        K = (1.0 - sparsity) * N
+        wsc = float(np.sqrt(K_ref / K))   # weights & ext amplitude ∝ 1/√K
+        rsc = K / K_ref                   # ext rate ∝ K
+        args = ["--n-hidden", str(int(N)),
+                "--input-rate", "1", "--w-in", "0.01", "0.001",
+                "--w-ei", f"{0.6 * wsc:.5f}", f"{0.18 * wsc:.5f}",
+                "--w-ie", f"{3.0 * wsc:.5f}", f"{0.9 * wsc:.5f}",
+                "--w-ii", f"{0.4 * wsc:.5f}", f"{0.12 * wsc:.5f}",
+                "--ei-sparsity", f"{sparsity}", "--exact-k",
+                "--independent-drive",
+                f"{base_re * rsc:.4f}", f"{base_ge * wsc:.5f}",
+                "--independent-drive-i",
+                f"{base_ri * rsc:.4f}", f"{base_gi * wsc:.5f}"]
+        data = _run_scope(args)
+        spk_e, spk_i = data["spk_e"], data["spk_i"]
+        dt = float(data["dt"])
+        n_i = int(data["n_i"]) if "n_i" in data.files else 0
+        r_e = float(spk_e.mean() * 1000.0 / dt)
+        r_i = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
+        cv = float(np.median(_isi_cvs(spk_e, dt)))
+        out.append({"N": int(N), "n_i": n_i, "K": float(K),
+                    "r_e_hz": r_e, "r_i_hz": r_i, "median_cv_e": cv})
+        print(f"  N={N} (K={K:.1f}, N_I={n_i}): "
+              f"r_E={r_e:.1f} r_I={r_i:.1f} Hz  medCV={cv:.2f}")
+    return out
+
+
+def plot_n_invariance(sweep: list[dict], out_path: Path, run_id: str) -> None:
+    theme.apply()
+    ns = [d["N"] for d in sweep]
+    re = [d["r_e_hz"] for d in sweep]
+    ri = [d["r_i_hz"] for d in sweep]
+    cv = [d["median_cv_e"] for d in sweep]
+    ks = [d["K"] for d in sweep]
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    ax.plot(ns, re, "o-", color=theme.INK_BLACK, lw=1.6, ms=7, label="$r_E$")
+    ax.plot(ns, ri, "s--", color=theme.DEEP_RED, lw=1.6, ms=7, label="$r_I$")
+    for x, y, k in zip(ns, re, ks):
+        ax.annotate(f"K={k:.0f}", (x, y), textcoords="offset points",
+                    xytext=(0, -14), ha="center",
+                    fontsize=theme.SIZE_ANNOTATION - 1, color=theme.GREY_DARK)
+    ax.set_xlabel("network size $N_E$  ($K \\propto N$; weights & external "
+                  "drive $\\propto 1/\\sqrt{K}$)")
+    ax.set_ylabel("population rate (Hz)")
+    ax.set_ylim(0, 38)
+    ax.spines["top"].set_visible(False)
+    ax2 = ax.twinx()
+    ax2.plot(ns, cv, "^:", color=theme.AMBER, lw=1.4, ms=7,
+             label="median ISI CV (E)")
+    ax2.axhline(1.0, color=theme.AMBER, lw=0.7, ls=":", alpha=0.6)
+    ax2.set_ylabel("median ISI CV (E)", color=theme.AMBER)
+    ax2.set_ylim(0, 1.6)
+    ax2.tick_params(axis="y", colors=theme.AMBER)
+    lines = ax.get_lines()[:2] + ax2.get_lines()[:1]
+    ax.legend(lines, [ln.get_label() for ln in lines],
+              fontsize=theme.SIZE_LEGEND - 1, frameon=False, loc="center right")
+    ax.set_title("N-sweep on the balanced manifold: CV and $r_I$ invariant, "
+                 "$r_E$ drifts", fontsize=theme.SIZE_TITLE, loc="left")
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def plot_sqrtk(sweep: list[dict], out_path: Path, run_id: str) -> None:
     theme.apply()
     ks = [d["K"] for d in sweep]
@@ -1084,6 +1166,16 @@ def main() -> None:
     figures["sqrtk_invariance"] = sqrtk_dst
     print(f"wrote {sqrtk_dst}")
 
+    # V&S true N-invariance: sweep N at fixed K/N with recurrent weights AND
+    # the (sparse-equivalent) external drive scaled so rates — not just CV —
+    # are N-invariant on the balanced manifold.
+    print("[N-invariance sweep] sparse external drive, rates vs N")
+    nsweep = n_invariance_sweep([512, 1024, 2048, 4096])
+    ninv_dst = FIGURES / "n_invariance.png"
+    plot_n_invariance(nsweep, ninv_dst, notebook_run_id)
+    figures["n_invariance"] = ninv_dst
+    print(f"wrote {ninv_dst}")
+
     duration_s = time.monotonic() - t_start
     summary = {
         "notebook_run_id": notebook_run_id,
@@ -1095,6 +1187,7 @@ def main() -> None:
         "quenched_chaos": quenched_stats,
         "linear_response": {"sweep": dsweep, "balance": bpred, **lin_stats},
         "sqrtk_invariance": ksweep,
+        "n_invariance": nsweep,
     }
     def _clean(o):
         import math
