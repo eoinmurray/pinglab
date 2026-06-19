@@ -33,7 +33,7 @@ The networks here are untrained PING populations driven by external input; the r
    A(\ell) = \frac{1}{\langle r\rangle^2}\;\frac{1}{\,n-\ell\,}\sum_{t} r(t)\,r(t+\ell).
    $$
 
-6. **Locate the Mexican hat.** A rhythmic $A(\ell)$ has a "Mexican-hat" profile: a central lobe above 1 (spikes recur a cycle apart) flanked by a dip below 1 where firing is suppressed between volleys. Scanning out from zero lag, take the trough as the first local minimum of a lightly smoothed $A(\ell)$ — it falls near the half-period — and the lobe as the highest point at a shorter lag.
+6. **Locate the Mexican hat.** A rhythmic $A(\ell)$ has a "Mexican-hat" profile: a central lobe above 1 (spikes recur a cycle apart) flanked by a dip below 1 where firing is suppressed between volleys. Scanning out from zero lag, take the trough as the first local minimum of a lightly smoothed $A(\ell)$ — it falls near the half-period — and the lobe as the highest point at a shorter lag. Both searches start one bin past zero, so the self-paired zero-lag value dropped in step 5 is excluded from the lobe height: the lobe is read from the first real lag onward, never the trivial self-correlation.
 7. **Read the contrast.** The metric is the **lobe–trough contrast**
 
    $$
