@@ -469,6 +469,71 @@ def fixed_point_2d_fastslow(I_ext, tau_gaba=TAU_GABA_MS, x0=None, sigma=SIGMA_V_
     return np.asarray(sol) if ier == 1 else None
 
 
+def fixed_point_2d_wc(I_ext, tau_gaba=TAU_GABA_MS, x0=None, sigma=SIGMA_V_MV):
+    """Fixed point of the Wilson-Cowan field rhs_2d (keep E, I)."""
+    if x0 is None:
+        x0 = (0.005, 0.002)
+    sol, _, ier, _ = fsolve(
+        lambda y: rhs_2d(0.0, y, I_ext, tau_gaba, sigma), x0, full_output=True)
+    return np.asarray(sol) if ier == 1 else None
+
+
+# The remaining three of the six keep-a-pair reductions, for completeness
+# (the pure-ring argument says every 2D pair has constant negative trace; the
+# runner checks all six). In each, the two dropped variables are slaved to
+# quasi-steady state in terms of the kept pair.
+
+def rhs_2d_E_ge(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
+    """Keep (E, g_e^I); slave I = Phi_I(g_e^I) and g_i^E = tau_GABA W^IE I."""
+    E, g_eI = y
+    I = gI(g_eI * DV_EXC_MV, sigma)
+    g_iE = tau_gaba * WT_IE * I
+    return [(-E + gE(I_ext - g_iE * DV_INH_MV, sigma)) / TAU_E_MS,
+            -g_eI / TAU_AMPA_MS + WT_EI * E]
+
+
+def fixed_point_2d_E_ge(I_ext, tau_gaba=TAU_GABA_MS, x0=None, sigma=SIGMA_V_MV):
+    if x0 is None:
+        x0 = (0.005, 0.01)
+    sol, _, ier, _ = fsolve(
+        lambda y: rhs_2d_E_ge(0.0, y, I_ext, tau_gaba, sigma), x0, full_output=True)
+    return np.asarray(sol) if ier == 1 else None
+
+
+def rhs_2d_I_gi(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
+    """Keep (I, g_i^E); slave E = Phi_E(I_ext - g_i^E) and g_e^I = tau_AMPA W^EI E."""
+    I, g_iE = y
+    E = gE(I_ext - g_iE * DV_INH_MV, sigma)
+    g_eI = TAU_AMPA_MS * WT_EI * E
+    return [(-I + gI(g_eI * DV_EXC_MV, sigma)) / TAU_I_MS,
+            -g_iE / tau_gaba + WT_IE * I]
+
+
+def fixed_point_2d_I_gi(I_ext, tau_gaba=TAU_GABA_MS, x0=None, sigma=SIGMA_V_MV):
+    if x0 is None:
+        x0 = (0.002, 0.02)
+    sol, _, ier, _ = fsolve(
+        lambda y: rhs_2d_I_gi(0.0, y, I_ext, tau_gaba, sigma), x0, full_output=True)
+    return np.asarray(sol) if ier == 1 else None
+
+
+def rhs_2d_I_ge(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
+    """Keep (I, g_e^I); slave g_i^E = tau_GABA W^IE I and E = Phi_E(I_ext - g_i^E)."""
+    I, g_eI = y
+    g_iE = tau_gaba * WT_IE * I
+    E = gE(I_ext - g_iE * DV_INH_MV, sigma)
+    return [(-I + gI(g_eI * DV_EXC_MV, sigma)) / TAU_I_MS,
+            -g_eI / TAU_AMPA_MS + WT_EI * E]
+
+
+def fixed_point_2d_I_ge(I_ext, tau_gaba=TAU_GABA_MS, x0=None, sigma=SIGMA_V_MV):
+    if x0 is None:
+        x0 = (0.002, 0.01)
+    sol, _, ier, _ = fsolve(
+        lambda y: rhs_2d_I_ge(0.0, y, I_ext, tau_gaba, sigma), x0, full_output=True)
+    return np.asarray(sol) if ier == 1 else None
+
+
 def reduction_sweep(rhs, fp_fn, I_grid, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
     """Fixed point + numeric-Jacobian eigenvalues across an I_ext sweep,
     for a reduced model (so find_hopf can run on it)."""
@@ -640,19 +705,29 @@ def main() -> None:
         plot_phase_planes(hopf, FIGURES / "phase_planes.png", run_id)
         print(f"  wrote {FIGURES / 'phase_planes.png'}")
 
-    # Dimensional reductions: how low can the model go (issue #38)?
+    # Dimensional reductions: how low can the model go? Test all six choices
+    # of which variable pair to keep (eliminate the other two by QSS) plus the
+    # 3D AMPA-slaved ring.
+    two_d_specs = [
+        ("keep_E_I (Wilson-Cowan)", rhs_2d, fixed_point_2d_wc),
+        ("keep_ge_gi (QSS rates)", rhs_2d_qss, fixed_point_2d_qss),
+        ("keep_E_gi (fast/slow)", rhs_2d_fastslow, fixed_point_2d_fastslow),
+        ("keep_E_ge", rhs_2d_E_ge, fixed_point_2d_E_ge),
+        ("keep_I_gi", rhs_2d_I_gi, fixed_point_2d_I_gi),
+        ("keep_I_ge", rhs_2d_I_ge, fixed_point_2d_I_ge),
+    ]
     hopf3 = find_hopf(reduction_sweep(rhs_3d_qss, fixed_point_3d_qss, I_grid))
-    hopf2 = find_hopf(reduction_sweep(rhs_2d_qss, fixed_point_2d_qss, I_grid))
-    hopf2fs = find_hopf(reduction_sweep(rhs_2d_fastslow, fixed_point_2d_fastslow, I_grid))
+    two_d = {}
+    for label, rhs_fn, fp_fn in two_d_specs:
+        h = find_hopf(reduction_sweep(rhs_fn, fp_fn, I_grid))
+        two_d[label] = h
+        print(f"  2D {label}: "
+              + (f"Hopf I*={h['I_ext_star']:.3f} nA" if h else "no Hopf (rings down)"))
     print(f"  3D (AMPA slaved): "
           + (f"Hopf I*={hopf3['I_ext_star']:.3f} nA, f*={hopf3['freq_star_Hz']:.2f} Hz"
              if hopf3 else "no Hopf"))
-    print(f"  2D (rates slaved): "
-          + (f"Hopf I*={hopf2['I_ext_star']:.3f} nA" if hopf2 else "no Hopf (rings down)"))
-    print(f"  2D (fast/slow lump): "
-          + (f"Hopf I*={hopf2fs['I_ext_star']:.3f} nA" if hopf2fs else "no Hopf (rings down)"))
     if hopf:
-        plot_reduction_ladder(hopf, hopf3, hopf2,
+        plot_reduction_ladder(hopf, hopf3, two_d["keep_ge_gi (QSS rates)"],
                               FIGURES / "reduction_ladder.png", run_id)
         print(f"  wrote {FIGURES / 'reduction_ladder.png'}")
 
@@ -690,8 +765,7 @@ def main() -> None:
             },
             "reductions": {
                 "three_d_qss": hopf3,
-                "two_d_rate_qss": hopf2,
-                "two_d_fastslow": hopf2fs,
+                "two_d_all_pairs": two_d,
             },
         },
         "success_criteria": [
@@ -725,13 +799,14 @@ def main() -> None:
                 ),
             },
             {
-                "label": "Minimal dimension is 3: 3D-by-QSS keeps the Hopf, every 2D loses it",
-                "passed": bool(hopf3 is not None and hopf2 is None and hopf2fs is None),
+                "label": "Minimal dimension is 3: 3D-by-QSS keeps the Hopf, all six 2D pairs lose it",
+                "passed": bool(hopf3 is not None
+                               and all(v is None for v in two_d.values())),
                 "detail": (
                     f"3D (AMPA slaved): Hopf at I*={hopf3['I_ext_star']:.3f} nA, "
                     f"f*={hopf3['freq_star_Hz']:.2f} Hz; "
-                    f"2D rate-slaved: {'Hopf' if hopf2 else 'no Hopf'}; "
-                    f"2D fast/slow: {'Hopf' if hopf2fs else 'no Hopf'}"
+                    f"2D pairs with a Hopf: "
+                    f"{[k for k, v in two_d.items() if v] or 'none (all six ring down)'}"
                     if hopf3 else "3D Hopf not found"
                 ),
             },

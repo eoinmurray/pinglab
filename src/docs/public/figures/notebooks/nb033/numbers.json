@@ -306,8 +306,14 @@
           0.013324027969354241
         ]
       },
-      "two_d_rate_qss": null,
-      "two_d_fastslow": null
+      "two_d_all_pairs": {
+        "keep_E_I (Wilson-Cowan)": null,
+        "keep_ge_gi (QSS rates)": null,
+        "keep_E_gi (fast/slow)": null,
+        "keep_E_ge": null,
+        "keep_I_gi": null,
+        "keep_I_ge": null
+      }
     }
   },
   "success_criteria": [
@@ -327,9 +333,9 @@
       "detail": "at I*+1 nA: 4D peak-to-peak 1.039e-02, 2D 5.115e-11"
     },
     {
-      "label": "Minimal dimension is 3: 3D-by-QSS keeps the Hopf, every 2D loses it",
+      "label": "Minimal dimension is 3: 3D-by-QSS keeps the Hopf, all six 2D pairs lose it",
       "passed": true,
-      "detail": "3D (AMPA slaved): Hopf at I*=0.670 nA, f*=31.09 Hz; 2D rate-slaved: no Hopf; 2D fast/slow: no Hopf"
+      "detail": "3D (AMPA slaved): Hopf at I*=0.670 nA, f*=31.09 Hz; 2D pairs with a Hopf: none (all six ring down)"
     }
   ]
 }
