@@ -1,6 +1,6 @@
 {
-  "notebook_run_id": "r025",
-  "duration_s": 28.2,
+  "notebook_run_id": "r026",
+  "duration_s": 30.9,
   "tier": "small",
   "common_args": [
     "sim",
@@ -88,6 +88,13 @@
       "cancellation_ratio": 0.2424091518838649
     }
   ],
+  "quenched_chaos": {
+    "e_rate_hz": 17.74739646911621,
+    "i_rate_hz": 23.68055534362793,
+    "lyap_final_diff_cells": 10.0,
+    "lyap_max_diff_cells": 57.0,
+    "lyap_steady_diff_cells": 9.236
+  },
   "linear_response": {
     "sweep": [
       {

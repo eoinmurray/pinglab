@@ -311,6 +311,28 @@ def _build_parent_parser():
         "V&S-style AI state where both populations need uncorrelated noise.",
     )
     net_group.add_argument(
+        "--quenched-drive",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("MEAN", "STD"),
+        help="Per-E-cell constant-in-time DC excitatory conductance, drawn "
+        "once from N(MEAN, STD) μS (clamped ≥ 0) and frozen for the whole "
+        "trial — V&S's quenched random input. Unlike --independent-drive it "
+        "has no per-timestep fluctuation, so it cannot pin spike times; the "
+        "Lyapunov probe then measures the network's autonomous chaos rather "
+        "than input entrainment. Works on synthetic-spikes mode.",
+    )
+    net_group.add_argument(
+        "--quenched-drive-i",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("MEAN", "STD"),
+        help="Per-I-cell frozen DC excitatory conductance. Same semantics as "
+        "--quenched-drive but targets the I population.",
+    )
+    net_group.add_argument(
         "--exact-k",
         action="store_true",
         help="Use fixed-fan-in (exact-K) recurrent connectivity instead of "
@@ -1015,6 +1037,8 @@ def _emit_image(args, C, log):
             model_name=args.model,
             independent_drive=args.independent_drive,
             independent_drive_i=args.independent_drive_i,
+            quenched_drive=args.quenched_drive,
+            quenched_drive_i=args.quenched_drive_i,
             lyapunov_eps=args.lyapunov_eps,
         )
     else:

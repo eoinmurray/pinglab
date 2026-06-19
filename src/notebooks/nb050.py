@@ -895,8 +895,13 @@ def plot_lyapunov(lyap_by_cell: dict, out_path: Path, run_id: str) -> None:
     strong input entrainment that the shared frozen drive imposes).
     """
     theme.apply()
-    colours = {"ping": theme.MUTED, "ai": theme.DEEP_RED}
-    labels = {"ping": "PING", "ai": "V&S AI"}
+    colours = {"ping": theme.MUTED, "ai": theme.DEEP_RED,
+               "ai_quenched": theme.AMBER}
+    labels = {"ping": "PING", "ai": "V&S AI (Poisson drive)",
+              "ai_quenched": "V&S AI (quenched DC)"}
+    order = {"ping": 0, "ai": 1, "ai_quenched": 2}
+    lyap_by_cell = dict(sorted(lyap_by_cell.items(),
+                               key=lambda kv: order.get(kv[0], 9)))
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     for cell, (t_ms, dist) in lyap_by_cell.items():
         # Smooth lightly (10 ms boxcar) so the per-step jitter doesn't
@@ -1021,6 +1026,40 @@ def main() -> None:
             **decomp_stats,
         })
 
+    # Quenched-input chaos: rerun the AI net with the fresh per-timestep
+    # Poisson drive replaced by a frozen per-cell DC at the *same* mean
+    # conductance, so the operating point is preserved but the input can no
+    # longer pin spike times. The Lyapunov probe then sees the network's
+    # autonomous chaos rather than input entrainment.
+    # Quenched DC mean = Poisson mean conductance g_spike·rate·dt/1000 (dt=0.25):
+    #   E: 0.38·45·0.25/1000 = 0.004275 μS ;  I: 0.25·8·0.25/1000 = 0.0005 μS.
+    # STD ≈ 30% of the mean gives the quenched cell-to-cell spread.
+    print("[quenched chaos] frozen DC drive (autonomous chaos, no input mask)")
+    q_static = _strip_flag(
+        _strip_flag(CELLS["ai"]["args"], "--independent-drive", 2),
+        "--independent-drive-i", 2,
+    )
+    qdata = _run_scope([*q_static,
+                        "--quenched-drive", "0.004275", "0.0013",
+                        "--quenched-drive-i", "0.0005", "0.00015",
+                        "--lyapunov-eps", "2.0"])
+    quenched_stats = {}
+    if "lyap_dist" in qdata.files:
+        qt = np.asarray(qdata["lyap_t_ms"])
+        qd = np.asarray(qdata["lyap_dist"])
+        lyap_by_cell["ai_quenched"] = (qt, qd)
+        q_re = float(qdata["spk_e"].mean() * 1000.0 / float(qdata["dt"]))
+        q_ri = float(qdata["spk_i"].mean() * 1000.0 / float(qdata["dt"]))
+        quenched_stats = {
+            "e_rate_hz": q_re, "i_rate_hz": q_ri,
+            "lyap_final_diff_cells": float(qd[-1]),
+            "lyap_max_diff_cells": float(qd.max()),
+            "lyap_steady_diff_cells": float(qd[len(qd) // 2:].mean()),
+        }
+        print(f"  quenched AI: r_E={q_re:.1f} r_I={q_ri:.1f} Hz  "
+              f"D steady={quenched_stats['lyap_steady_diff_cells']:.1f} "
+              f"max={quenched_stats['lyap_max_diff_cells']:.0f}")
+
     # Comparison figure: spike-train divergence D(t) for all cells.
     if lyap_by_cell:
         lyap_dst = FIGURES / "lyapunov_divergence.png"
@@ -1053,6 +1092,7 @@ def main() -> None:
         "common_args": COMMON_ARGS,
         "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
         "summary": summary_rows,
+        "quenched_chaos": quenched_stats,
         "linear_response": {"sweep": dsweep, "balance": bpred, **lin_stats},
         "sqrtk_invariance": ksweep,
     }

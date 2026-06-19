@@ -113,6 +113,7 @@ def generate_snapshot(
 def generate_spike_snapshot(
     spike_rate=None, overdrive=12.0, dt=None, model_name="ping",
     independent_drive=None, independent_drive_i=None,
+    quenched_drive=None, quenched_drive_i=None,
     lyapunov_eps=0.0,
 ):
     """Generate a snapshot with synthetic spike input.
@@ -125,6 +126,14 @@ def generate_spike_snapshot(
     ``independent_drive_i``: same as above but targeting the I population's
     excitatory conductance. Required for the full V&S-AI state where
     I cells need uncorrelated noise distinct from the E-mediated W^EI input.
+
+    ``quenched_drive`` / ``quenched_drive_i``: optional (mean, std) tuple.
+    Per-cell *constant-in-time* excitatory conductance, drawn once from
+    N(mean, std) (clamped ≥ 0) and held frozen for the whole trial — V&S's
+    quenched random input. Unlike the Poisson drive it has no per-timestep
+    fluctuation, so it cannot pin spike times (Mainen-Sejnowski reliability)
+    and the Lyapunov probe sees the network's *autonomous* chaos rather than
+    input entrainment.
 
     ``lyapunov_eps``: if > 0, run a second forward pass on the *same* input
     with all membrane voltages perturbed by an ε-mV random offset at t=0,
@@ -200,6 +209,29 @@ def generate_spike_snapshot(
             f"  + independent per-I-cell drive: {ind_rate_i:.0f} Hz × {ind_g_i:.4f} μS"
         )
         tonic_g_i = ind_spikes_i * ind_g_i
+    if quenched_drive is not None:
+        q_mean, q_std = float(quenched_drive[0]), float(quenched_drive[1])
+        gen_q = torch.Generator(device="cpu").manual_seed(C.SEED + 3)
+        # one frozen value per E cell, broadcast across all timesteps
+        q_cell = torch.clamp(
+            torch.normal(q_mean, q_std, (C.N_E,), generator=gen_q), min=0.0
+        ).to(C.DEVICE)
+        q_drive_g = q_cell.unsqueeze(0).expand(T_steps, -1)
+        log.info(
+            f"  + quenched per-E-cell DC drive: N({q_mean:.4f}, {q_std:.4f}) μS"
+        )
+        tonic_g = (tonic_g + q_drive_g) if tonic_g is not None else q_drive_g
+    if quenched_drive_i is not None:
+        q_mean_i, q_std_i = float(quenched_drive_i[0]), float(quenched_drive_i[1])
+        gen_qi = torch.Generator(device="cpu").manual_seed(C.SEED + 4)
+        q_cell_i = torch.clamp(
+            torch.normal(q_mean_i, q_std_i, (C.N_I,), generator=gen_qi), min=0.0
+        ).to(C.DEVICE)
+        q_drive_gi = q_cell_i.unsqueeze(0).expand(T_steps, -1)
+        log.info(
+            f"  + quenched per-I-cell DC drive: N({q_mean_i:.4f}, {q_std_i:.4f}) μS"
+        )
+        tonic_g_i = (tonic_g_i + q_drive_gi) if tonic_g_i is not None else q_drive_gi
     with torch.no_grad():
         net.forward(input_spikes=input_spikes, ext_g=tonic_g, ext_g_i=tonic_g_i)
 
