@@ -311,6 +311,26 @@ def _build_parent_parser():
         "V&S-style AI state where both populations need uncorrelated noise.",
     )
     net_group.add_argument(
+        "--drive-tau",
+        type=float,
+        default=None,
+        help="Smoothing time constant (ms) for the --independent-drive "
+        "conductance, decoupled from the global AMPA τ. The per-cell drive is "
+        "filtered with this τ (so its input SNR = sqrt(2·rate·τ_drive)) while "
+        "the recurrent loop keeps tau_ampa — vary input precision without "
+        "perturbing the network's operating point (r_E). synthetic-spikes mode.",
+    )
+    net_group.add_argument(
+        "--noise-std",
+        type=float,
+        default=0.0,
+        help="Additive white-noise amplitude (mV-scale) injected into each E "
+        "cell's excitatory conductance every timestep — independent neural "
+        "noise on top of the stimulus drive. Use with a fixed drive to vary "
+        "the input SNR (contrast / noise) independently of the mean. Works on "
+        "synthetic-spikes mode.",
+    )
+    net_group.add_argument(
         "--quenched-drive",
         type=float,
         nargs=2,
@@ -1039,6 +1059,8 @@ def _emit_image(args, C, log):
             independent_drive_i=args.independent_drive_i,
             quenched_drive=args.quenched_drive,
             quenched_drive_i=args.quenched_drive_i,
+            noise_std=args.noise_std,
+            drive_tau=args.drive_tau,
             lyapunov_eps=args.lyapunov_eps,
         )
     else:

@@ -32,9 +32,12 @@ DANGER = "#cc4444"
 # palette enough for 5–6 distinct series without losing the vibe.
 # Use the greys for related sub-families; reach for cyan/amber when
 # series need to read as *categorically distinct*, not gradations.
-INK_BLACK = "#000000"
-DEEP_RED = "#cc0000"
-DEEP_RED_LIGHT = "#e85050"
+# Enforced house plot pair: the two primary series colours. Use these for
+# any one- or two-series plot (ink for the first/control, red for the
+# second/contrast); reach for the accents below only for a 3rd+ series.
+INK_BLACK = "#1a1a1a"  # ink — near-black, the default series colour
+DEEP_RED = "#c8102e"   # signal red — the contrast series colour
+DEEP_RED_LIGHT = "#e0566a"
 ELECTRIC_CYAN = "#00b4d8"
 AMBER = "#e89400"
 GREY_DARK = "#3a3a3a"
