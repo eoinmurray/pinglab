@@ -1,16 +1,12 @@
-- use `uv` for python
-- use `bun` for javascript
-- there are no side effects — running simulations and tests locally is safe
-- run things in the background where possible
-- read all the READMEs in the repo
-- when making runs always report an eta.
-- when making runs on modal always report estimated cost.
-- BEFORE making any edits, read the repo READMEs and the reference articles under `src/docs/src/pages/articles/` (parameters, metrics, training, the oscilloscope CLI) — together with the project memory's `feedback_notebook_*` entries they hold the layout, glossary, invariants, and conventions every edit must respect. (The former `src/docs/src/pages/styleguide.md` was migrated into those articles + memory and no longer exists as a single file.)
-- do NOT create branches or open PRs unless I explicitly ask — commit to the current branch (usually `main`) and stop. "commit and push" means commit + push, not branch + PR.
-- do NOT dispatch jobs to Modal (`--modal-gpu ...`) without my explicit permission — Modal spends real money. Default to local runs; only use `--modal-gpu` when I say so.
-- NEVER comment on GitHub issues (no `gh issue comment`, no posting/replying). Reading issues is fine; writing to them is not.
-- notebook runners (`src/notebooks/nbNNN.py`) accept ONLY two CLI args: `--tier` (size) and `--modal-gpu` (dispatch target). Every other hyperparameter — lr, epochs, readout, surrogate slope, regulariser strengths, etc. — must be hardcoded as a literal in the runner's `sh.uv(...)` args list. New scientific knobs go on `src/cli/cli.py` as flags; the notebook just passes the recipe value inline. The notebook _is_ the recipe — reproducing a result must not require remembering flags.
-- no log axes unless instructed to do so
+The working conventions for this repo — the "house rules" — now live in the House Rules article:
 
-- when talking about runs always report start time, current time, eta and if on modal cost.
-- in docs (src/docs/), NEVER use `~` or `\sim` for "approximately". Use `≈` in prose and `\approx` inside math (`$...$`). `\sim` is reserved for "distributed as" (e.g. `$u \sim \mathrm{Uniform}(0,1)$`). Same goes for figure titles/labels/annotations in matplotlib — use the Unicode `≈`, never ASCII tilde. ASCII tilde for approximation is a recurring stylistic mistake; the convention in the existing docs corpus is `≈` and matching it preserves typographic consistency.
+- on disk: `src/docs/src/pages/articles/ar016.mdx`
+- on the site: `/articles/ar016/`
+
+Read it before making any edits. It covers tooling (uv / bun), running experiments and reporting timing/cost, the notebook-is-the-recipe rule, figure and prose style (16:9 figures, `≈` not `~`, no backticks in docs), version control, and working style.
+
+Non-negotiables kept here so they are always in context (full detail in the article):
+
+- Do NOT dispatch Modal jobs (`--modal-gpu ...`) without explicit permission — Modal spends real money. Default to local runs.
+- NEVER comment on or otherwise write to GitHub issues. Reading is fine.
+- Do NOT create branches or open PRs unless explicitly asked — commit to the current branch (usually `main`). "Commit and push" means commit + push, not branch + PR.

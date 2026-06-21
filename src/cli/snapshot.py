@@ -114,6 +114,7 @@ def generate_spike_snapshot(
     spike_rate=None, overdrive=12.0, dt=None, model_name="ping",
     independent_drive=None, independent_drive_i=None,
     quenched_drive=None, quenched_drive_i=None,
+    noise_std=0.0, drive_tau=None,
     lyapunov_eps=0.0,
 ):
     """Generate a snapshot with synthetic spike input.
@@ -178,6 +179,7 @@ def generate_spike_snapshot(
 
     input_spikes = input_spikes.to(C.DEVICE)
     tonic_g = None
+    drive_spikes = None  # raw independent-drive spike raster, saved for inspection
     if C.BIAS > 0:
         tonic_g = torch.full(
             (T_steps, C.N_E), C.BIAS, dtype=torch.float32, device=C.DEVICE
@@ -194,6 +196,28 @@ def generate_spike_snapshot(
             f"  + independent per-E-cell drive: {ind_rate:.0f} Hz × {ind_g:.4f} μS"
         )
         ind_drive_g = ind_spikes * ind_g
+        drive_spikes = ind_spikes
+        if drive_tau is not None:
+            # Smooth the drive with its OWN time constant τ_drive, decoupled
+            # from the membrane's AMPA decay. ge_e obeys
+            #   ge_e[t] = ge_e[t-1]·decay_ampa + ext_g[t],
+            # so to make the drive component follow d[t] (the τ_drive-filtered
+            # kicks) we inject ext_g[t] = d[t] − decay_ampa·d[t-1]. The drive
+            # then has SNR = √(2·rate·τ_drive) while τ_AMPA — and the recurrent
+            # loop, hence r_E — are untouched.
+            from scipy.signal import lfilter
+            decay_drive = float(np.exp(-dt / float(drive_tau)))
+            decay_ampa = float(np.exp(-dt / M.tau_ampa))
+            kicks = ind_drive_g.cpu().numpy()
+            d = lfilter([1.0], [1.0, -decay_drive], kicks, axis=0)
+            ext = np.empty_like(d)
+            ext[0] = d[0]
+            ext[1:] = d[1:] - decay_ampa * d[:-1]
+            ind_drive_g = torch.from_numpy(ext.astype(np.float32)).to(C.DEVICE)
+            log.info(
+                f"  + drive smoothing τ_drive = {float(drive_tau):.1f} ms "
+                f"(decoupled from τ_AMPA = {M.tau_ampa:.1f} ms)"
+            )
         tonic_g = (tonic_g + ind_drive_g) if tonic_g is not None else ind_drive_g
     tonic_g_i = None
     if independent_drive_i is not None:
@@ -233,7 +257,8 @@ def generate_spike_snapshot(
         )
         tonic_g_i = (tonic_g_i + q_drive_gi) if tonic_g_i is not None else q_drive_gi
     with torch.no_grad():
-        net.forward(input_spikes=input_spikes, ext_g=tonic_g, ext_g_i=tonic_g_i)
+        net.forward(input_spikes=input_spikes, ext_g=tonic_g, ext_g_i=tonic_g_i,
+                    noise_std=float(noise_std))
 
     rec = _extract_records(net)
 
@@ -313,6 +338,8 @@ def generate_spike_snapshot(
     for key in ("v_e_1", "ge_e_1", "gi_e_1", "v_i_1", "ge_i_1", "gi_i_1"):
         if key in rec:
             extra[key] = np.asarray(rec[key])
+    if drive_spikes is not None:
+        extra["ind_spikes"] = drive_spikes.cpu().numpy().astype(np.float32)
     if lyap_dist is not None:
         extra["lyap_t_ms"] = np.asarray(lyap_t_ms)
         extra["lyap_dist"] = np.asarray(lyap_dist)

@@ -6,12 +6,61 @@ import "../styles/global.css";
 import { blobUrl } from "../config/repo";
 import ThemeToggle from "../components/ThemeToggle.astro";
 import SiteHeader from "../components/SiteHeader.astro";
-import StatusBadge from "../components/StatusBadge.astro";
+import { normalizeStatus, STATUS_META } from "../config/status";
 const { frontmatter, headings = [], file } = Astro.props as {
   frontmatter: any;
   headings?: any;
   file?: string;
 };
+
+// Entry metadata strip shown under the title: nb-id · status · date · collection.
+const idPrefix =
+  typeof file === "string" && file.includes("/articles/") ? "ar" : "nb";
+const entryId =
+  frontmatter?.entry != null
+    ? `${idPrefix}${String(frontmatter.entry).padStart(3, "0")}`
+    : null;
+const collectionLabel = (() => {
+  const c = frontmatter?.collection;
+  if (typeof c !== "string" || !c) return null;
+  return c
+    .split("-")
+    .map((w) =>
+      ["coba", "ping", "snn"].includes(w)
+        ? w.toUpperCase()
+        : w.charAt(0).toUpperCase() + w.slice(1),
+    )
+    .join(" ");
+})();
+const dateLabel = (() => {
+  const raw = frontmatter?.date;
+  if (!raw) return null;
+  const d =
+    raw instanceof Date
+      ? raw
+      : new Date(
+          String(raw).includes("T") ? String(raw) : String(raw) + "T00:00:00Z",
+        );
+  if (isNaN(d.getTime())) return String(raw);
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+})();
+const statusMeta = frontmatter?.status
+  ? STATUS_META[normalizeStatus(frontmatter.status)]
+  : null;
+const metaItems = [
+  entryId && { text: entryId },
+  statusMeta && { text: statusMeta.label, title: statusMeta.description },
+  dateLabel && { text: dateLabel },
+  collectionLabel && {
+    text: collectionLabel,
+    href: `/collections/${frontmatter.collection}/`,
+  },
+].filter(Boolean) as { text: string; title?: string; href?: string }[];
 
 type Heading = { depth: number; slug: string; text: string };
 
@@ -161,9 +210,24 @@ if (file) {
           {frontmatter?.title && (
             <h1 class="entry-title">{frontmatter.title}</h1>
           )}
-          {frontmatter?.status && (
-            <div class="not-prose -mt-4 mb-6">
-              <StatusBadge status={frontmatter.status} />
+          {metaItems.length > 0 && (
+            <div class="not-prose -mt-4 mb-6 flex flex-wrap items-center gap-x-1.5 text-[0.85rem] text-muted-soft">
+              {metaItems.map((m, i) => (
+                <Fragment>
+                  {i > 0 && <span aria-hidden="true">·</span>}
+                  {m.href ? (
+                    <a
+                      href={m.href}
+                      title={m.title}
+                      class="underline-offset-2 hover:text-[color:var(--ink)] hover:underline"
+                    >
+                      {m.text}
+                    </a>
+                  ) : (
+                    <span title={m.title}>{m.text}</span>
+                  )}
+                </Fragment>
+              ))}
             </div>
           )}
           <slot />
