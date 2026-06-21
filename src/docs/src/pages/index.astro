@@ -115,12 +115,16 @@ const buckets = [...bucketByName.values()].sort((a, b) => {
   return totB - totA || a.collection.localeCompare(b.collection);
 });
 
-// future-experiments is pinned to the second slot to keep the proposal thread
-// visible regardless of how few entries it has yet.
-const pinnedIdx = buckets.findIndex((b) => b.collection === "future-experiments");
-if (pinnedIdx > 1) {
-  const [pinned] = buckets.splice(pinnedIdx, 1);
-  buckets.splice(1, 0, pinned);
+// Pin these collections to the top slots (just after the largest
+// collection), in this order, so the active thread stays visible
+// regardless of how few entries it has yet.
+const PINNED_AFTER_FIRST = ["bayesian"];
+for (let i = PINNED_AFTER_FIRST.length - 1; i >= 0; i--) {
+  const idx = buckets.findIndex((b) => b.collection === PINNED_AFTER_FIRST[i]);
+  if (idx > 1) {
+    const [pinned] = buckets.splice(idx, 1);
+    buckets.splice(1, 0, pinned);
+  }
 }
 
 const formatDate = (raw: any) => {
