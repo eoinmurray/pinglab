@@ -195,8 +195,8 @@ def null_scan(sim_ms, private):
 
 def _contrast_heatmap(vals, title, cbar_label, out_path):
     """A contrast-valued heatmap over the W_EI × W_IE plane (magma, 0→1)."""
-    fig, ax = plt.subplots(figsize=(6.5, 5.5), dpi=150)
-    im = ax.imshow(vals, origin="lower", aspect="auto", cmap="magma", vmin=0.0, vmax=1.0)
+    fig, ax = plt.subplots(figsize=(8, 4.5), dpi=150)
+    im = ax.imshow(vals, origin="lower", aspect="auto", vmin=0.0, vmax=1.0)
     ax.set_xticks(range(len(WEI_MEAN_GRID)))
     ax.set_xticklabels([f"{v:.1f}" for v in WEI_MEAN_GRID])
     ax.set_yticks(range(len(WIE_MEAN_GRID)))
@@ -209,7 +209,7 @@ def _contrast_heatmap(vals, title, cbar_label, out_path):
             if np.isfinite(v):
                 ax.text(ix, iy, f"{v:.2f}", ha="center", va="center",
                         fontsize=theme.SIZE_ANNOTATION,
-                        color="white" if v < 0.5 else "black")
+                        color="white" if v > 0.45 else theme.INK_BLACK)
     cbar = fig.colorbar(im, ax=ax)
     cbar.set_label(cbar_label, fontsize=theme.SIZE_LABEL)
     ax.set_title(title, fontsize=theme.SIZE_TITLE, color=theme.INK)
@@ -226,8 +226,8 @@ def fig_grid_heatmap(grid, out_path):
 
 def _rate_heatmap(vals, title, cbar_label, out_path):
     """One firing-rate heatmap over the W_EI × W_IE grid (Hz, viridis)."""
-    fig, ax = plt.subplots(figsize=(6.5, 5.5), dpi=150)
-    im = ax.imshow(vals, origin="lower", aspect="auto", cmap="viridis")
+    fig, ax = plt.subplots(figsize=(8, 4.5), dpi=150)
+    im = ax.imshow(vals, origin="lower", aspect="auto")
     ax.set_xticks(range(len(WEI_MEAN_GRID)))
     ax.set_xticklabels([f"{v:.1f}" for v in WEI_MEAN_GRID])
     ax.set_yticks(range(len(WIE_MEAN_GRID)))
@@ -241,7 +241,7 @@ def _rate_heatmap(vals, title, cbar_label, out_path):
             if np.isfinite(v):
                 ax.text(ix, iy, f"{v:.0f}", ha="center", va="center",
                         fontsize=theme.SIZE_ANNOTATION,
-                        color="white" if v < 0.55 * vmax else "black")
+                        color="white" if v > 0.5 * vmax else theme.INK_BLACK)
     cbar = fig.colorbar(im, ax=ax)
     cbar.set_label(cbar_label, fontsize=theme.SIZE_LABEL)
     ax.set_title(title, fontsize=theme.SIZE_TITLE, color=theme.INK)
@@ -266,7 +266,7 @@ def fig_grid_rasters(grid, out_path):
     """E/I rasters for a 5×5 subset of the grid (E black, I red)."""
     wie_disp, wei_disp = _display_idx(len(WIE_MEAN_GRID)), _display_idx(len(WEI_MEAN_GRID))
     nr, nc = len(wie_disp), len(wei_disp)
-    fig, axes = plt.subplots(nr, nc, figsize=(2.0 * nc, 1.7 * nr), dpi=150, squeeze=False)
+    fig, axes = plt.subplots(nr, nc, figsize=(2.0 * nc, 2.0 * nc * 9 / 16), dpi=150, squeeze=False)
     for r in range(nr):  # display top→bottom = high→low W_IE
         wie_idx = wie_disp[nr - 1 - r]
         for c in range(nc):
@@ -309,7 +309,7 @@ def fig_grid_autocorr(grid, out_path):
     Mexican hat the contrast is read from, with the located lobe (▲) and trough (▼)."""
     wie_disp, wei_disp = _display_idx(len(WIE_MEAN_GRID)), _display_idx(len(WEI_MEAN_GRID))
     nr, nc = len(wie_disp), len(wei_disp)
-    fig, axes = plt.subplots(nr, nc, figsize=(2.0 * nc, 1.7 * nr), dpi=150, squeeze=False)
+    fig, axes = plt.subplots(nr, nc, figsize=(2.0 * nc, 2.0 * nc * 9 / 16), dpi=150, squeeze=False)
     allac = np.concatenate([c["ac"][1:][np.isfinite(c["ac"][1:])] for row in grid for c in row])
     ymax = float(np.nanmax(allac)) if allac.size else 3.0
     for r in range(nr):  # display top→bottom = high→low W_IE
@@ -383,7 +383,7 @@ def fig_null_autocorr(shared_null, priv_null, out_path):
         return recs[int(np.argmin([abs(d["rate"] - t) for d in recs]))]
 
     rows = [("shared input", shared_null), ("private input", priv_null)]
-    fig, axes = plt.subplots(2, len(targets), figsize=(3.4 * len(targets), 5.4),
+    fig, axes = plt.subplots(2, len(targets), figsize=(3.4 * len(targets), 3.4 * len(targets) * 9 / 16),
                              dpi=150, squeeze=False)
     for ri, (lbl, recs) in enumerate(rows):
         for ci, t in enumerate(targets):
@@ -431,6 +431,7 @@ def main():
         d.mkdir(parents=True, exist_ok=True)
     notebook_run_id = next_run_id(SLUG)
     theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
 
     n_nets = len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID)
     print(f"nb054 | tier={tier} | {n_nets} untrained PING networks, private "

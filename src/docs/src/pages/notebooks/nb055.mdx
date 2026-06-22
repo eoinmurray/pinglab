@@ -1,159 +1,98 @@
 ---
 layout: ../../layouts/MarkdownLayout.astro
-title: "Gamma band tightness as an input-precision signal"
+title: "From spikes to the input conductance field"
 date: 2026-06-21
 entry: 55
-status: draft
+status: building
 structure: paper
 collection: bayesian
 ---
+import Figure from "../../components/Figure.astro";
 
-## The idea
+## Abstract
 
-**Hypothesis:** the tightness of a PING network's gamma bands encodes the *precision* (reliability, or inverse uncertainty) of its feedforward input — a candidate precision signal — not the input's strength (contrast). Tighter, more vertical gamma volleys would signal a more reliable stimulus; smeared bands a less reliable one.
+Every entry drives the network with an input and skips the step in between: how presynaptic *spike trains* become the excitatory *conductance field* $g_e(i,t)$ the cells actually feel. That step is a single linear operation — each spike adds a fixed weight that then decays, so the field is the spike train convolved with an exponential kernel (decay-then-add). We generate independent Poisson spike trains, apply the filter, and look at the input and the resulting field side by side, checking the field's statistics against Campbell's theorem. They match exactly. The same algebra carries a warning for everything downstream: with a fixed synapse and Poisson input, three input properties — strength, reliability, and fluctuation timescale — collapse onto a single knob, the rate.
 
-**What "precision of the input" means.** The feedforward drive each E cell receives is a noisy signal, not a clean number. Independent excitatory events arrive and are low-pass filtered by the AMPA conductance into a drive $g_e(t)$ that fluctuates around a mean level. *Precision* is the reliability of that signal — how tightly $g_e(t)$ hugs its mean from moment to moment, i.e. inverse uncertainty about the instantaneous drive. Operationally it is the signal-to-noise ratio of the drive conductance,
+## The synaptic filter
+
+Each E cell $i$ receives a private input spike train, a sum of impulses at the spike times $t_{i,k}$. Each spike injects a quantum $W$ into the cell's excitatory conductance, which then decays with $\tau = \tau_\text{AMPA}$. So the conductance is the spike train convolved with a causal exponential kernel:
 
 $$
-\mathrm{SNR} = \frac{\mu}{\sigma_{g_e}} ,
+g_e(i,t) = W\sum_k \kappa(t - t_{i,k}), \qquad \kappa(s) = e^{-s/\tau}\,\Theta(s) ,
 $$
 
 where:
 
-- $\mu = \langle g_e \rangle$ — the mean drive conductance (μS), what we call *contrast*;
-- $\sigma_{g_e}$ — the standard deviation of $g_e(t)$ over time, the size of its fluctuation (μS).
+- $W$ — the per-synapse weight: peak conductance injected per spike (μS);
+- $\tau$ — the AMPA decay, the kernel's time constant (≈ 2 ms);
+- $\kappa(s)$ — the synaptic kernel; $\Theta(s)$ the step function making it causal (zero before the spike).
 
-A high-precision input is a dense stream of small events that average into a smooth conductance (small $\sigma_{g_e}/\mu$); a low-precision input is a sparse stream of large events felt as a few big kicks (large $\sigma_{g_e}/\mu$), even though, counter-intuitively, that jumpier signal looks calmer on average. This is precision in the Bayesian sense — inverse variance, the weight a signal earns by being reliable — which is why this entry sits in the Bayesian collection: the hypothesis is that the recurrent loop reads out that reliability and reports it as band tightness. For the shot-noise drive here the ratio has a closed form, $\sigma_{g_e}/\mu = 1/\sqrt{2\rho\tau}$, so $\mathrm{SNR} = \sqrt{2\rho\tau}$ (next section).
+This is the diagonal $W_\text{in}$ pathway of [ar003](/articles/ar003/) (its eq. 7) in isolation; the discrete decay-then-add recurrence used below is the *exact* one-step integral of that delta-driven ODE, not an approximation.
 
-This entry is **theory first**. Before touching the simulator we ask whether the dependence can be *derived* from a mean-field argument, so the experiment has a concrete, falsifiable shape to test rather than an open-ended sweep. The plan below (then the code) exists to validate the prediction in §6.
-
-Two knobs define the input, and they must be kept distinct:
-
-- **Contrast** $\mu = W\rho\tau$ — the mean drive (μS): each E cell receives an independent Poisson stream of rate $\rho$, each spike injecting a weight $W$ (the per-synapse peak conductance, μS) into the AMPA conductance with decay $\tau = \tau_\text{AMPA}$.
-- **Precision** $\mathrm{SNR} = \sqrt{2\rho\tau}$ — the inverse relative fluctuation of the drive ($\sigma/\mu = 1/\mathrm{SNR}$), set by the event rate $\rho$.
-
-Because $\mu$ and SNR scale differently, raising $\rho$ while lowering $W$ sharpens precision at fixed contrast — the dissociation the experiment must exploit.
-
-The band-tightness metric is the coefficient of variation of the E population rate $r(t)$ (total E spikes per 1 ms bin):
+The field is a *filtered Poisson process* (shot noise), so its low-order statistics follow from Campbell's theorem. For any process $g(t) = \sum_k h(t - t_k)$ whose events $t_k$ are Poisson at rate $\rho$ and whose single-event response is $h$,
 
 $$
-\mathrm{CV}_r = \frac{\mathrm{std}(r)}{\mathrm{mean}(r)} ,
+\langle g\rangle = \rho\!\int_{-\infty}^{\infty}\! h(s)\,ds, \quad \mathrm{Var}(g) = \rho\!\int_{-\infty}^{\infty}\! h(s)^2\,ds, \quad C(u) = \rho\!\int_{-\infty}^{\infty}\! h(s)\,h(s+u)\,ds,
 $$
 
-where spiky, synchronous volleys give high $\mathrm{CV}_r$ and smeared bands give low $\mathrm{CV}_r$. (This is the CV of $r$ over *time*, distinct from the per-neuron ISI CV.)
+where:
 
-## Mean-field analysis
+- $h(s) = W\kappa(s) = W\,e^{-s/\tau}\,\Theta(s)$ — one spike's contribution (weight × kernel);
+- $\rho$ — the per-cell event rate;
+- $C(u)$ — the autocovariance at lag $u$.
 
-The reduction that makes this tractable: band tightness is a statement about the *width of one gamma volley*, and a volley's width is a first-passage-time problem.
-
-### 1. Tightness is inverse volley width
-
-In the gamma regime $r(t)$ is a train of brief bursts, one per period $T_\gamma$. Model each burst as a Gaussian of temporal width $\sigma_t$ carrying $q$ spikes:
+The kernel integrals are elementary:
 
 $$
-r(t) = \frac{q}{\sqrt{2\pi}\,\sigma_t}\,\exp\!\left(-\frac{t^2}{2\sigma_t^2}\right), \qquad \text{repeating every } T_\gamma .
+\int_0^\infty\! e^{-s/\tau}\,ds = \tau, \qquad \int_0^\infty\! e^{-2s/\tau}\,ds = \frac{\tau}{2}, \qquad \int_0^\infty\! e^{-s/\tau}e^{-(s+u)/\tau}\,ds = \frac{\tau}{2}\,e^{-u/\tau}\ \ (u \ge 0).
 $$
 
-Averaging over one period, $\langle r\rangle = q/T_\gamma$ and $\langle r^2\rangle = q^2/(2\sqrt{\pi}\,\sigma_t\,T_\gamma)$, so
+Substituting $h = W\kappa$ gives the strength, the variance, and the autocovariance,
 
 $$
-\mathrm{CV}_r^2 = \frac{\langle r^2\rangle}{\langle r\rangle^2} - 1 = \frac{T_\gamma}{2\sqrt{\pi}\,\sigma_t} - 1 .
-\tag{1}
+\mu = W\rho\tau, \qquad \sigma^2 = \tfrac{1}{2}W^2\rho\tau, \qquad C(u) = \sigma^2\,e^{-|u|/\tau},
 $$
 
-The spike count $q$ cancels — tightness depends on the *width* of the volley relative to the cycle, not on how many cells fire, so the sparse participation of E cells does not enter at leading order. For a tight volley ($\sigma_t \ll T_\gamma$), $\mathrm{CV}_r \approx \sqrt{T_\gamma/(2\sqrt{\pi}\,\sigma_t)} \propto \sigma_t^{-1/2}$: everything hinges on $\sigma_t(\mathrm{SNR})$.
-
-### 2. Volley width is threshold-crossing jitter
-
-A gamma cycle is a race. After the inhibitory pulse decays, every E cell's membrane potential $V$ climbs toward threshold $V_\text{th}$ on the feedforward drive and fires the moment it crosses; the volley width is the spread in crossing times. For a roughly linear ramp through threshold with slope $\dot V = dV/dt$ and voltage noise $\sigma_V$, the level-crossing result is
+and the reliability follows by dividing,
 
 $$
-\sigma_t = \frac{\sigma_V}{|\dot V|} .
-\tag{2}
+\mathrm{SNR} = \frac{\mu}{\sigma} = \frac{W\rho\tau}{W\sqrt{\rho\tau/2}} = \sqrt{2\rho\tau},
 $$
 
-The ramp slope $\dot V$ is set by the deterministic drive, so at a fixed operating point it is constant; the width therefore tracks the membrane voltage noise $\sigma_V$.
+with $\mu$ the mean drive (strength), $\sigma = \sqrt{\mathrm{Var}}$ the temporal standard deviation, and SNR the reliability. Three things to read off:
 
-### 3. Voltage noise inherits the input's precision
+- **The weight cancels in SNR.** Reliability is set by rate and the kernel, never by $W$ — scaling the weight scales $\mu$ and $\sigma$ together.
+- **SNR counts events per kernel window.** In general $\mathrm{SNR}^2 = \rho\,(\int h)^2/\!\int h^2$; for the exponential $(\int\kappa)^2/\!\int\kappa^2 = \tau^2/(\tau/2) = 2\tau$, so $\mathrm{SNR}^2 = 2\rho\tau$. The $\approx \rho\tau$ spikes overlapping within one kernel width average the relative fluctuation down as $1/\sqrt{\rho\tau}$; the factor 2 is the exponential's shape.
+- **The correlation time is the kernel's.** $C(u)\propto e^{-|u|/\tau}$, so the drive decorrelates on $\tau$ regardless of rate.
 
-In the high-conductance state of a volley the membrane is fast, so $V$ tracks its instantaneous steady state and fluctuations in the drive conductance $g_e$ pass through with gain $(E_e - V)/g_\text{tot}$. The drive's *relative* fluctuation is exactly the inverse SNR — for the shot-noise drive, $\sigma_{g_e}/\langle g_e\rangle = 1/\mathrm{SNR}$ — so
+## Methods
 
-$$
-\sigma_V \;\approx\; \frac{\langle g_e\rangle (E_e - V)\,\kappa}{g_\text{tot}}\,\frac{1}{\mathrm{SNR}} \;=\; \frac{b}{\mathrm{SNR}} ,
-\tag{3}
-$$
+1. Generate $N$ independent per-cell Poisson spike trains at rate $\rho$ over a fixed window, on a grid of step $\Delta t$ (Bernoulli per step, $p = \rho\,\Delta t$).
+2. Filter each train with the decay-then-add recurrence $g[t] = e^{-\Delta t/\tau}\,g[t-1] + W\,s[t]$ to build the field $g_e(i,t)$.
+3. Plot the input raster, the field as a heatmap, and one cell's spikes with the conductance they build.
+4. Compare the field's empirical mean and per-cell SNR against the Campbell predictions $W\rho\tau$ and $\sqrt{2\rho\tau}$.
 
-with $\kappa \le 1$ a membrane low-pass factor. The constant $b$ holds *only* if the mean drive $\langle g_e\rangle$, the operating point ($V$, $g_\text{tot}$), and the time constants are fixed — which is exactly what the experiment must control.
+Hardcoded recipe: $N = 60$ cells, $\rho = 80$ Hz, $W = 0.05$ μS, $\tau = \tau_\text{AMPA} = 2$ ms, $\Delta t = 0.25$ ms, 300 ms window. No network, no recurrence — only the input pathway.
 
-### 4. The heterogeneity floor
+## Results
 
-Even with a perfectly smooth input ($\mathrm{SNR}\to\infty$) the volley has nonzero width: cells differ in threshold, leak, and drive, so they cross at slightly different times regardless of noise. Call that quenched, SNR-independent jitter $\sigma_t^\text{het}$. The noise jitter ($\sigma_t^\text{noise} = a/\mathrm{SNR}$, from §2–3) and the heterogeneity jitter are independent and add in quadrature:
+<Figure id="Figure 1" title="The input — spike trains" src="/figures/notebooks/nb055/raster.png" alt="Spike raster, 60 rows (cells) over 300 ms, each row a sparse line of black ticks; spikes scattered uniformly with no across-cell structure.">
+The raw input: 60 independent Poisson spike trains at 80 Hz over 300 ms, one row per cell, each tick a single input spike. There is no structure beyond the per-cell rate — the trains are independent across cells and uniform in time. This is what arrives at the synapses, before any filtering.
+</Figure>
 
-$$
-\sigma_t(\mathrm{SNR}) = \sqrt{\left(\frac{a}{\mathrm{SNR}}\right)^2 + \big(\sigma_t^\text{het}\big)^2 } .
-\tag{4}
-$$
+<Figure id="Figure 2" title="The output — the conductance field" src="/figures/notebooks/nb055/field.png" alt="Heatmap, 60 cells (rows) over 300 ms; mostly pale with short horizontal streaks, each starting sharply and fading to the right, one per input spike.">
+The same spikes after the synapse: the conductance field $g_e(i,t)$ (colour = conductance, paper = 0 μS, red → ink = higher). Each tick in Figure 1 becomes a streak that starts sharply and fades over a few milliseconds — the spike train convolved with the exponential kernel, smeared in time but still independent across cells. At 80 Hz the kicks are mostly separate, so the field looks granular rather than smooth. The field's statistics match the Campbell predictions: empirical mean $0.0083$ μS versus $W\rho\tau = 0.0080$ μS, and per-cell SNR $0.57$ versus $\sqrt{2\rho\tau} = 0.566$.
+</Figure>
 
-### 5. The prediction
+<Figure id="Figure 3" title="The filter, for one cell" src="/figures/notebooks/nb055/single_cell.png" alt="Two stacked panels sharing a time axis. Top: one cell's input spikes as black ticks. Bottom: a black trace that jumps up at each spike and decays exponentially, with larger peaks where spikes cluster.">
+The transform made explicit for a single cell. Top: that cell's input spikes. Bottom: the conductance $g_e(t)$ they build — each spike a jump of $W = 0.05$ μS followed by an exponential decay ($\tau = 2$ ms), and when spikes arrive close together the tails sum into larger transients. This is one row of Figure 2, and the literal content of $g_e = W\,(s * \kappa)$: discrete events in, a smoothed continuous drive out.
+</Figure>
 
-Substituting (4) into (1) gives the full curve:
+## Discussion
 
-$$
-\mathrm{CV}_r(\mathrm{SNR}) = \sqrt{\,\frac{T_\gamma}{2\sqrt{\pi}\,\sqrt{(a/\mathrm{SNR})^2 + (\sigma_t^\text{het})^2}} - 1\,} .
-\tag{5}
-$$
-
-Three free constants — $T_\gamma$ (gamma period), $a$ (noise-jitter coefficient), $\sigma_t^\text{het}$ (heterogeneity floor) — set the curve; the *shape* is fixed by the argument and has two regimes:
-
-- **Low SNR, noise-limited.** When $a/\mathrm{SNR} \gg \sigma_t^\text{het}$, $\sigma_t \approx a/\mathrm{SNR}$ and $\mathrm{CV}_r \approx \sqrt{T_\gamma\,\mathrm{SNR}/(2\sqrt\pi\,a)} \propto \sqrt{\mathrm{SNR}}$ — a decelerating rise.
-- **High SNR, heterogeneity-limited.** When SNR is large, $\sigma_t \to \sigma_t^\text{het}$ and $\mathrm{CV}_r$ saturates at $\mathrm{CV}_r^{\text{max}} = \sqrt{T_\gamma/(2\sqrt{\pi}\,\sigma_t^\text{het}) - 1}$ — a **ceiling**.
-
-The ceiling is the sharpest claim: tightness saturates not because the input stops improving but because **cell-to-cell heterogeneity, not input noise, becomes the limiting source of jitter**. The plateau is therefore a readout of $\sigma_t^\text{het}$, an intrinsic network property, not of the stimulus.
-
-## 6. The prediction to test
-
-The theory makes three claims the simulation must confront:
-
-1. **Monotone rise with precision.** $\mathrm{CV}_r$ increases with SNR, as $\sqrt{\mathrm{SNR}}$ in the noise-limited regime.
-2. **Saturation at a heterogeneity ceiling.** $\mathrm{CV}_r$ plateaus at high SNR; the plateau measures $\sigma_t^\text{het}$, independent of the stimulus.
-3. **Contrast-invariance.** At fixed SNR, varying contrast $\mu$ leaves $\mathrm{CV}_r$ unchanged (eq. 3 depends on $\sigma_{g_e}/\langle g_e\rangle$, not on $\langle g_e\rangle$).
-
-The form (5) is directly falsifiable: measure the volley width $\sigma_t$ at each SNR; (1) predicts $\mathrm{CV}_r^2 + 1$ is linear in $1/\sigma_t$, and (4) predicts $\sigma_t$ follows $\sqrt{(a/\mathrm{SNR})^2 + (\sigma_t^\text{het})^2}$. If both hold, the constants returned ($T_\gamma$ from the period, $\sigma_t^\text{het}$ from the ceiling) should match the network independently.
-
-## Planned validation
-
-*(No code yet — this is the experiment to build once the theory above is settled.)*
-
-**Network.** $N_E = 1024$ E and $N_I = 256$ I cells in a recurrent PING loop (dense E↔I, no $W^{II}$), $\Delta t = 0.25$ ms, $T = 800$ ms, inference only. $\tau_\text{GABA} = 9$ ms fixes the ≈ 30 ms cycle. The only drive is the per-cell Poisson stream; the precision knob is the event rate $\rho$ traded against the per-spike weight $W$ so the mean drive $\mu = W\rho\tau$ stays fixed while SNR varies — contrast and precision moved independently.
-
-**Input delivery — conductance injection is a diagonal $W_\text{in}$.** The drive is injected directly as a conductance, but this is *exactly* equivalent to a diagonal feedforward matrix $W_\text{in} = \mathrm{diag}(W_1, \dots, W_{N_E})$ — one private input line of weight $W$ per E cell (uniform $W\cdot I$ in the sweeps here; the diagonal entries vary when the input encodes an image) — because a kick of weight $W$ decaying at $\tau$ is precisely a single spike through a weight-$W$ AMPA synapse. Two rules keep the equivalence honest: $W_\text{in}$ stays diagonal so the drive is independent across cells (a dense $W_\text{in}$ shares spikes and manufactures synchrony — a confound), and the input synapse carries its own decay $\tau_\text{in}$ so precision can be varied at fixed rate (a single shared $\tau$ locks SNR to $\rho$). Beyond being more biological, the explicit diagonal-$W_\text{in}$ form is the bridge to image input: pixels → per-cell input rates → $W_\text{in}$ → cells.
-
-The figure set is built mechanism-first, following the *sprinters and a starting gun* picture: each E cell is a sprinter, one gamma cycle is a race from reset to threshold, and the input is the gun. Precision is how crisp the gun is; tightness is how tightly the pack crosses the line.
-
-**Figure 1 — The gun (what precision is).** Per-cell drive conductance $g_e(t)$ for two inputs at the *same mean* $\mu$: reliable (dense small events → smooth trace hugging the mean, small $\sigma_{g_e}/\mu$) vs unreliable (sparse big kicks → jumpy trace, large $\sigma_{g_e}/\mu$). The raw event trains sit above each trace. This is the crisp bang vs the staticky one.
-
-**Figure 2 — The race (the mechanism).** Membrane voltage $V(t)$ of ≈ 25 E cells across one gamma cycle, climbing from reset toward the threshold line, reliable (left) vs unreliable (right). A reliable gun gives a tight bundle crossing threshold in a narrow window; an unreliable one gives frayed traces crossing over a wide window. A histogram of crossing times sits underneath — that histogram is the gamma volley, and its width is $\sigma_t$. This visualises $\sigma_t = \sigma_V/|\dot V|$ (eq. 2) directly: the figure that makes the mechanism legible.
-
-**Figure 3 — The pack (the consequence).** E spike raster (tight vs loose vertical stripes) with the population rate $r(t)$ stacked below it, at the same mean drive and near-equal firing rate $r_E$ (reported on each panel), $\mathrm{CV}_r$ annotated. Shows the visible bands and defines the metric in one frame: $\mathrm{CV}_r$ is just how spiky $r(t)$ is.
-
-**Figure 4 — The headline (clarity, not volume).** $\mathrm{CV}_r$ vs input SNR, one line per contrast $\mu$, expected to lie on top of each other — tightness set by the gun's clarity (SNR), not its volume ($\mu$). The whole claim in one plot, and the test of claims 1 (rise) and 3 (contrast-invariance).
-
-**Figure 5 — Theory meets data (the payoff of going theory-first).** Measured $\mathrm{CV}_r$ over a wide SNR range with the mean-field prediction (eq. 5) overlaid — the $\sqrt{\mathrm{SNR}}$ rise and the heterogeneity ceiling, with $r_E$ tracked to mark where the controlled regime holds. Twin panel: the directly-measured volley width $\sigma_t$ against the quadrature form (eq. 4). The twin is the strong-form test — does the *width* obey the theory, not just the summary $\mathrm{CV}_r$ — and it reads off $\sigma_t^\text{het}$ from the ceiling (claim 2).
-
-**Controls (rigor, not narrative).**
-
-- *No-loop control.* Repeat with the recurrent E↔I coupling zeroed. The input is independent across cells, so any tightness surviving without the loop is inherited from the input, not generated by it; the expectation is a flat line at the asynchronous floor.
-- *Precision-vs-rate control.* Reach each SNR from several event rates $\rho$ by smoothing the drive with its own $\tau_\text{drive}$ (decoupled from $\tau_\text{AMPA}$ so the loop and $r_E$ are unperturbed). If $\mathrm{CV}_r$ collapses onto SNR across an order-of-magnitude range of $\rho$, tightness tracks precision, not the bare event rate.
-
-## Success criteria
-
-- $\mathrm{CV}_r$ rises monotonically with SNR and is flat across contrast $\mu$ (claims 1, 3).
-- A ceiling appears at high SNR (claim 2), and the directly-measured $\sigma_t(\mathrm{SNR})$ obeys the quadrature form (4) with a heterogeneity floor matching the ceiling.
-- The no-loop control sits at the asynchronous floor, confirming the loop generates the tightness.
-- $\mathrm{CV}_r$ collapses onto SNR across an order-of-magnitude range of $\rho$ at fixed $r_E$.
+The transform is linear and low-pass, and that fixes what the input can and cannot say. With a *fixed synapse and independent Poisson input*, three of the field's properties — strength $\mu = W\rho\tau$, reliability $\mathrm{SNR} = \sqrt{2\rho\tau}$, and the correlation time $\tau$ — are all functions of just the rate $\rho$ and the kernel. The synapse hands over the mean and a Poisson-floor reliability for free, both riding on rate; the timescale is simply the kernel's. So a single knob moves three "different" input statistics together — they are not independent until the input departs from independent Poisson (regularised, bursty, correlated across cells, or slowly modulated). The synapse gives strength and the Poisson floor; everything else must be engineered into the spike trains and then filtered.
 
 ## Next steps
 
-- Pin down the mean-field constants we can estimate a priori ($T_\gamma$ from $\tau_\text{GABA}$; a rough $a$ from the drive statistics) so the validation has quantitative targets, not just qualitative shape.
-- Then build the runner and run the sweeps above, theory-prediction overlaid on the measured curve.
-- Once the mechanism holds, replace the conductance injection with an explicit diagonal $W_\text{in}$ of private spike trains (equivalent here, confirmed) and feed graded-noise images through it — the intuitive, encoding-correct demo (image noise / grain, not blur, since the network reads temporal reliability).
+- Add a regularised input at matched rate, so reliability moves while strength stays put — the first genuine dissociation.
+- Add an across-cell correlated regime, to show synchrony entering the field as vertical structure in the heatmap.

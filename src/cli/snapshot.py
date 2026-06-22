@@ -114,7 +114,7 @@ def generate_spike_snapshot(
     spike_rate=None, overdrive=12.0, dt=None, model_name="ping",
     independent_drive=None, independent_drive_i=None,
     quenched_drive=None, quenched_drive_i=None,
-    noise_std=0.0, drive_tau=None,
+    noise_std=0.0,
     lyapunov_eps=0.0,
 ):
     """Generate a snapshot with synthetic spike input.
@@ -197,27 +197,6 @@ def generate_spike_snapshot(
         )
         ind_drive_g = ind_spikes * ind_g
         drive_spikes = ind_spikes
-        if drive_tau is not None:
-            # Smooth the drive with its OWN time constant τ_drive, decoupled
-            # from the membrane's AMPA decay. ge_e obeys
-            #   ge_e[t] = ge_e[t-1]·decay_ampa + ext_g[t],
-            # so to make the drive component follow d[t] (the τ_drive-filtered
-            # kicks) we inject ext_g[t] = d[t] − decay_ampa·d[t-1]. The drive
-            # then has SNR = √(2·rate·τ_drive) while τ_AMPA — and the recurrent
-            # loop, hence r_E — are untouched.
-            from scipy.signal import lfilter
-            decay_drive = float(np.exp(-dt / float(drive_tau)))
-            decay_ampa = float(np.exp(-dt / M.tau_ampa))
-            kicks = ind_drive_g.cpu().numpy()
-            d = lfilter([1.0], [1.0, -decay_drive], kicks, axis=0)
-            ext = np.empty_like(d)
-            ext[0] = d[0]
-            ext[1:] = d[1:] - decay_ampa * d[:-1]
-            ind_drive_g = torch.from_numpy(ext.astype(np.float32)).to(C.DEVICE)
-            log.info(
-                f"  + drive smoothing τ_drive = {float(drive_tau):.1f} ms "
-                f"(decoupled from τ_AMPA = {M.tau_ampa:.1f} ms)"
-            )
         tonic_g = (tonic_g + ind_drive_g) if tonic_g is not None else ind_drive_g
     tonic_g_i = None
     if independent_drive_i is not None:
