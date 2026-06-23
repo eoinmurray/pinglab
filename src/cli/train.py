@@ -568,6 +568,7 @@ def train(
         n_grad = 0
         n_skipped_steps = 0
         layer_ratio_sum = {}
+        grad_norm_sum = {}
         n_samples_train = 0
         t_train_compute = _time.perf_counter()
         for batch_idx, (X_b, y_b) in enumerate(train_loader):
@@ -594,10 +595,12 @@ def train(
             for pname, p in net.named_parameters():
                 if p.grad is None or pname.startswith("b_") or pname.endswith(".bias"):
                     continue
+                gnorm = p.grad.norm().item()
+                grad_norm_sum[pname] = grad_norm_sum.get(pname, 0.0) + gnorm
                 wn = p.norm().item()
                 if wn > 0:
                     layer_ratio_sum[pname] = (
-                        layer_ratio_sum.get(pname, 0.0) + p.grad.norm().item() / wn
+                        layer_ratio_sum.get(pname, 0.0) + gnorm / wn
                     )
             gn = torch.nn.utils.clip_grad_norm_(net.parameters(), GRAD_CLIP)
             gn_f = float(gn)
@@ -616,6 +619,7 @@ def train(
             peak_mem_mps = max(peak_mem_mps, torch.mps.current_allocated_memory())
         avg_grad = grad_sum / max(n_grad, 1)
         grad_ratios = {n: s / max(n_grad, 1) for n, s in layer_ratio_sum.items()}
+        grad_norms = {n: s / max(n_grad, 1) for n, s in grad_norm_sum.items()}
 
         # Eval — deterministic Poisson encoding so this matches infer()
         t_eval = _time.perf_counter()
@@ -743,10 +747,15 @@ def train(
             "samples": n_samples_train,
             "grad_norm": avg_grad,
             "grad_ratios": grad_ratios,
+            "grad_norms": grad_norms,
             "weight_norms": weight_norms,
             "skipped_steps": n_skipped_steps,
             "new_best": new_best,
         }
+        # Flatten per-parameter gradient norms to scalar fields so they land in
+        # the per-epoch jsonl sidecar (e.g. gnorm__W_ei.1, gnorm__W_ie.1).
+        for _pname, _gn in grad_norms.items():
+            record[f"gnorm__{_pname}"] = _gn
         if epoch_metrics:
             record.update(epoch_metrics)
         epoch_records.append(record)
@@ -755,7 +764,7 @@ def train(
         # round-trip via metrics.json).
         jsonl.write(**{
             k: v for k, v in record.items()
-            if k not in ("grad_ratios", "weight_norms")
+            if k not in ("grad_ratios", "grad_norms", "weight_norms")
         })
 
         # Structured progress line + warning tracker

@@ -52,7 +52,7 @@ OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
 TIER_CONFIG = {
     "extra small": dict(max_samples=100, epochs=2),
     "small":       dict(max_samples=500, epochs=10),
-    "medium":      dict(max_samples=2000, epochs=100),
+    "medium":      dict(max_samples=3500, epochs=100),  # 5% of the 70k MNIST corpus
     "large":       dict(max_samples=5000, epochs=100),
     "extra large": dict(max_samples=10000, epochs=100),
 }
@@ -1011,7 +1011,107 @@ def fig_attractor(summary_rows, out_path, run_id):
 
 
 # ── Main ────────────────────────────────────────────────────────────
+def _load_epoch_curves() -> dict:
+    """Read per-epoch metrics.jsonl for every nb049 run on disk."""
+    runs = {}
+    for d in sorted(ARTIFACTS.glob("*__seed*")):
+        f = d / "metrics.jsonl"
+        if not f.exists():
+            continue
+        cond = d.name.rsplit("__seed", 1)[0]
+        rows = [json.loads(ln) for ln in f.read_text().splitlines() if ln.strip()]
+        runs[d.name] = {
+            "cond": cond,
+            "ep": [r["ep"] for r in rows],
+            "acc": [r["acc"] for r in rows],
+            "rate_e": [r.get("test_rate_e", r.get("rate_e")) for r in rows],
+            "rate_i": [r.get("test_rate_i", r.get("rate_i")) for r in rows],
+            "contrast": [r.get("contrast") for r in rows],
+        }
+    return runs
+
+
+def fig_training_curves(out_path: Path, run_id: str) -> None:
+    """Real per-epoch training curves from the logs, 2×2: accuracy, E rate,
+    I rate, and pingness (nb054 lobe–trough contrast). Trainable inits (black)
+    vs the frozen-PING control (red dashed). The I-rate collapse and the
+    pingness gap are the loop being pruned."""
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
+
+    runs = _load_epoch_curves()
+
+    def _smooth(y, w=5):
+        y = np.asarray(y, dtype=float)
+        if w <= 1 or y.size < w:
+            return y
+        yp = np.pad(y, w // 2, mode="edge")
+        return np.convolve(yp, np.ones(w) / w, mode="valid")[: y.size]
+
+    # Aggregate the three seeds per condition into mean + min/max envelope.
+    by_cond: dict[str, list[dict]] = {}
+    for d in runs.values():
+        by_cond.setdefault(d["cond"], []).append(d)
+
+    panels = [
+        ("A", "test accuracy (%)", "acc", (0, 100)),
+        ("B", "E firing rate (Hz)", "rate_e", (0, 60)),
+        ("C", "I firing rate (Hz)", "rate_i", (0, 55)),
+        ("D", "pingness  (lobe–trough contrast)", "contrast", (0, 1.0)),
+    ]
+    xmax = max(max(d["ep"]) for d in runs.values())
+    fig, axes = plt.subplots(2, 2, figsize=(12, 6.75), dpi=200,
+                             gridspec_kw={"hspace": 0.34, "wspace": 0.2})
+    axes = axes.ravel()
+    for k, (letter, ylabel, key, ylim) in enumerate(panels):
+        ax = axes[k]
+        for cond in COND_ORDER:
+            seeds = [d for d in by_cond.get(cond, [])
+                     if not any(v is None for v in d[key])]
+            if not seeds:
+                continue
+            ep = np.asarray(seeds[0]["ep"], dtype=float)
+            stack = np.array([np.asarray(d[key], dtype=float) for d in seeds])
+            mean = _smooth(stack.mean(axis=0))
+            lo = _smooth(stack.min(axis=0))
+            hi = _smooth(stack.max(axis=0))
+            color = COND_COLOURS.get(cond, theme.INK_BLACK)
+            frozen = cond == "frozen_ping"
+            ax.fill_between(ep, lo, hi, color=color, alpha=0.13, lw=0)
+            ax.plot(ep, mean, color=color, lw=2.0,
+                    ls="--" if frozen else "-")
+        ax.set_ylabel(ylabel, fontsize=theme.SIZE_LABEL)
+        ax.set_ylim(*ylim)
+        ax.set_xlim(0, xmax)
+        ax.tick_params(labelsize=theme.SIZE_TICK)
+        if k >= 2:
+            ax.set_xlabel("training epoch", fontsize=theme.SIZE_LABEL)
+        ax.text(0.012, 0.97, letter, transform=ax.transAxes,
+                fontsize=theme.SIZE_TITLE + 1, fontweight="bold", va="top")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+    # One legend entry per condition, mean-line style, in the accuracy panel.
+    for cond in COND_ORDER:
+        if cond in by_cond:
+            axes[0].plot([], [], color=COND_COLOURS.get(cond, theme.INK_BLACK),
+                         lw=2.0, ls="--" if cond == "frozen_ping" else "-",
+                         label=CONDITIONS[cond]["label"])
+    axes[0].legend(frameon=False, fontsize=theme.SIZE_LEGEND - 1, loc="lower right")
+    fig.tight_layout(pad=0.4)
+    stamp_figure(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    # Crop surrounding whitespace — this is a standalone publication figure, so
+    # trim to content rather than holding the fixed 16:9 frame.
+    fig.savefig(out_path, dpi=200, bbox_inches="tight", pad_inches=0.04)
+    plt.close(fig)
+
+
 def main() -> None:
+    if "--curves-only" in sys.argv:
+        fig_training_curves(FIGURES / "training_curves.png", "nb049-curves")
+        print(f"wrote {FIGURES / 'training_curves.png'}")
+        return
+
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     notebook_run_id = next_run_id(SLUG)
@@ -1095,6 +1195,9 @@ def main() -> None:
 
     fig_attractor(summary_rows, FIGURES / "attractor_ei.png", notebook_run_id)
     print(f"wrote {FIGURES / 'attractor_ei.png'}")
+
+    fig_training_curves(FIGURES / "training_curves.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'training_curves.png'}")
 
     duration_s = time.monotonic() - t_start
     summary = {
