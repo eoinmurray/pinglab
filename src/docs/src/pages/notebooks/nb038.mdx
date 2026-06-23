@@ -31,14 +31,10 @@ The PING and COBA baseline definitions and the training recipe are in [nb025](/n
 
 ## Results
 
-<Figure id="Figure 1" title="COBA → PING I-loop transfer at inference" src="/figures/notebooks/nb038/ei_rasters.png" alt="Stacked raster panels showing trained COBA replayed with increasing inference-time ei_strength.">
-  Trained COBA replayed at six inference-time *ei_strength* values (same trial, same feedforward weights, a fresh I-loop each row). At *ei = 0* the asynchronous-dense COBA pattern persists; by *ei ≈ 0.4* the same weights produce gamma cycles. The PING dynamics come from the inhibitory architecture, not from training — the weights that fired at ≈ 52 Hz without the loop fire at ≈ 5 Hz with it wired up.
+<Figure id="Figure 1" title="The I-loop is a post-hoc sparsity knob" src="/figures/notebooks/nb038/loop_transfer_compound.png" alt="Two-by-two figure. Top: single-trial rasters of the trained COBA replayed at ei=0 (dense asynchronous, I silent) and ei=1 (gamma bands, synchronous I bursts in red above E). Bottom left: mean E (black) and I (red) firing rate vs inference E→I strength — E falls from ≈60 to ≈5 Hz, I rises to ≈28 Hz. Bottom right: test accuracy vs ei strength, falling from the ≈87% COBA baseline (dashed) to ≈63% at ei=1.">
+  Switching the recurrent I-loop on *at inference* on a trained COBA network — no retraining, $W^{EI}/W^{IE}$ freshly wired (the COBA checkpoint stores them at zero). **Top** — the same feedforward weights fire densely and asynchronously at *ei = 0* (COBA) and in gamma bands at *ei = 1* (PING); the gamma dynamics come from the inhibitory architecture, not from training. **Bottom left** — E rate falls ≈ 10× (≈ 60 → 5 Hz) as the loop engages while I rises to ≈ 28 Hz; the suppression is continuous in loop strength. **Bottom right** — accuracy *degrades* without retraining, from the ≈ 87% COBA baseline to ≈ 63% at full strength (a ≈ 24 pp cost). So the architecture supplies the rate-gating for free, but using it well needs training *with* the loop ([nb025](/notebooks/nb025/)): the sparsity is architectural, the accuracy is learned.
 </Figure>
 
-<Figure id="Figure 2" title="ei_strength sweep — accuracy" src="/figures/notebooks/nb038/ei_acc_sweep.png" alt="Test accuracy vs inference-time ei_strength on COBA-trained weights, with horizontal lines at the trained COBA baseline and at 10% chance.">
-  Test accuracy vs inference-time *ei_strength* on the trained COBA weights. It stays within ≈ 12 pp of the COBA baseline across the full range — switching the loop on costs little.
-</Figure>
-
-<Figure id="Figure 3" title="ei_strength sweep — E and I rates" src="/figures/notebooks/nb038/ei_rates_sweep.png" alt="Mean E (hidden) and I (inhibitory) population firing rates per test pass versus ei_strength.">
-  Mean E and I rates across the same sweep. E falls monotonically from ≈ 52 Hz (*ei = 0*) to ≈ 5 Hz (*ei = 1*); I rises from zero to ≈ 23 Hz. The suppression is continuous in loop strength.
+<Figure id="Figure 2" title="COBA → PING I-loop transfer — the gradual turn-on" src="/figures/notebooks/nb038/ei_rasters.png" alt="Stacked raster panels showing trained COBA replayed with increasing inference-time ei_strength from 0 to 1.">
+  The full transition: trained COBA replayed at six inference-time *ei_strength* values (same trial, same feedforward weights, a fresh I-loop each row). At *ei = 0* the asynchronous-dense COBA pattern persists; by *ei ≈ 0.4* the same weights produce gamma cycles, sharpening toward *ei = 1*. The rhythm appears continuously as the loop is wired in — no retraining at any point.
 </Figure>
