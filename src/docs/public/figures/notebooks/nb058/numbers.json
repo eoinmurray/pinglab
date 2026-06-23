@@ -1,0 +1,23 @@
+{
+  "notebook_run_id": "r004",
+  "duration_s": 0.3,
+  "tier": "medium",
+  "n_trials": 200,
+  "t_ms": 2000.0,
+  "n_e": 200,
+  "lambda0_hz": 10.0,
+  "rho": 8.0,
+  "w_tune": 0.5,
+  "sigma_p": 1.0,
+  "cycle_ms": 25.0,
+  "median_var": {
+    "A": 0.010812481126656743,
+    "B": 0.010564097619471462,
+    "AB": 0.00460697026209205
+  },
+  "precision_test": {
+    "slope_through_origin": 1.1400055158819908,
+    "n_points": 200
+  },
+  "example_z": 0.5026828498748657
+}
