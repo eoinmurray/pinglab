@@ -123,12 +123,20 @@ def compute_metrics(
     per_neuron_counts = spk_e.sum(axis=0)
     active_frac = float((per_neuron_counts > 0).sum()) / n_e
 
+    # nb054 lobe–trough contrast (pingness): rhythmicity of the E population,
+    # 0 = flat/asynchronous, → 1 as sharp volleys separate against near-silence.
+    try:
+        contrast = rhythmicity_metrics(spk_e, dt).get("contrast")
+    except Exception:
+        contrast = None
+
     return {
         "rate_e": rate_e,
         "rate_i": rate_i,
         "cv": pop_cv,
         "act": active_frac,
         "f0": f0,
+        "contrast": float(contrast) if contrast is not None else 0.0,
     }
 
 
