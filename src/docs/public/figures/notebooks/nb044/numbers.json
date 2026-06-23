@@ -1,11 +1,11 @@
 {
-  "notebook_run_id": "r011",
+  "notebook_run_id": "r012",
   "git_sha": "ed141d7 (dirty)",
-  "duration_s": 87.6,
-  "duration": "1m 28s",
-  "tier": "medium",
+  "duration_s": 78.8,
+  "duration": "1m 19s",
+  "tier": "small",
   "config": {
-    "tier": "medium",
+    "tier": "small",
     "dataset": "mnist",
     "dt_sweep_ms": [
       0.05,
@@ -20,26 +20,26 @@
       44
     ],
     "batch_size": 64,
-    "max_samples": 2000,
-    "epochs": 100,
+    "max_samples": 500,
+    "epochs": 10,
     "t_ms": 200.0
   },
   "results": [
     {
       "dt_ms": 0.05,
       "t_ms": 200.0,
-      "acc": 89.75,
-      "e_rate_hz": 9.55086669921875,
-      "i_rate_hz": 46.024853515625,
+      "acc": 89.25,
+      "e_rate_hz": 9.34901123046875,
+      "i_rate_hz": 46.1669921875,
       "n_total": 400,
       "seed": 42
     },
     {
       "dt_ms": 0.05,
       "t_ms": 200.0,
-      "acc": 89.5,
-      "e_rate_hz": 9.41463623046875,
-      "i_rate_hz": 45.3853515625,
+      "acc": 88.75,
+      "e_rate_hz": 9.223681640625,
+      "i_rate_hz": 45.539501953125,
       "n_total": 400,
       "seed": 43
     },
@@ -47,26 +47,26 @@
       "dt_ms": 0.05,
       "t_ms": 200.0,
       "acc": 89.75,
-      "e_rate_hz": 9.44505615234375,
-      "i_rate_hz": 45.832080078125,
+      "e_rate_hz": 9.26600341796875,
+      "i_rate_hz": 45.927490234375,
       "n_total": 400,
       "seed": 44
     },
     {
       "dt_ms": 0.1,
       "t_ms": 200.0,
-      "acc": 88.25,
-      "e_rate_hz": 9.67532958984375,
-      "i_rate_hz": 43.181689453125,
+      "acc": 87.75,
+      "e_rate_hz": 9.3210693359375,
+      "i_rate_hz": 43.44951171875,
       "n_total": 400,
       "seed": 42
     },
     {
       "dt_ms": 0.1,
       "t_ms": 200.0,
-      "acc": 88.5,
-      "e_rate_hz": 9.7887939453125,
-      "i_rate_hz": 43.66005859375,
+      "acc": 87.75,
+      "e_rate_hz": 9.45579833984375,
+      "i_rate_hz": 43.926220703125,
       "n_total": 400,
       "seed": 43
     },
@@ -74,115 +74,91 @@
       "dt_ms": 0.1,
       "t_ms": 200.0,
       "acc": 88.75,
-      "e_rate_hz": 9.686328125,
-      "i_rate_hz": 43.1205078125,
+      "e_rate_hz": 9.31748046875,
+      "i_rate_hz": 43.43427734375,
       "n_total": 400,
       "seed": 44
     },
     {
       "dt_ms": 0.25,
       "t_ms": 200.0,
-      "acc": 90.0,
-      "e_rate_hz": 12.97674560546875,
-      "i_rate_hz": 54.73701171875,
+      "acc": 88.75,
+      "e_rate_hz": 11.8421142578125,
+      "i_rate_hz": 56.075830078125,
       "n_total": 400,
       "seed": 42
-    },
-    {
-      "dt_ms": 0.25,
-      "t_ms": 200.0,
-      "acc": 90.75,
-      "e_rate_hz": 13.1457275390625,
-      "i_rate_hz": 55.46884765625,
-      "n_total": 400,
-      "seed": 43
     },
     {
       "dt_ms": 0.25,
       "t_ms": 200.0,
       "acc": 89.75,
-      "e_rate_hz": 13.221484375,
-      "i_rate_hz": 55.550048828125,
+      "e_rate_hz": 11.97554931640625,
+      "i_rate_hz": 56.811083984375,
+      "n_total": 400,
+      "seed": 43
+    },
+    {
+      "dt_ms": 0.25,
+      "t_ms": 200.0,
+      "acc": 90.0,
+      "e_rate_hz": 12.0241455078125,
+      "i_rate_hz": 56.87998046875,
       "n_total": 400,
       "seed": 44
     },
     {
       "dt_ms": 0.5,
       "t_ms": 200.0,
-      "acc": 90.75,
-      "e_rate_hz": 10.063525390625,
-      "i_rate_hz": 40.228759765625,
+      "acc": 88.25,
+      "e_rate_hz": 8.41900634765625,
+      "i_rate_hz": 43.472802734375,
       "n_total": 400,
       "seed": 42
     },
     {
       "dt_ms": 0.5,
       "t_ms": 200.0,
-      "acc": 90.25,
-      "e_rate_hz": 10.0582763671875,
-      "i_rate_hz": 40.52568359375,
+      "acc": 88.25,
+      "e_rate_hz": 8.4153564453125,
+      "i_rate_hz": 43.313134765625,
       "n_total": 400,
       "seed": 43
     },
     {
       "dt_ms": 0.5,
       "t_ms": 200.0,
-      "acc": 91.0,
-      "e_rate_hz": 10.022216796875,
-      "i_rate_hz": 40.330712890625,
+      "acc": 90.0,
+      "e_rate_hz": 8.39849853515625,
+      "i_rate_hz": 43.37763671875,
       "n_total": 400,
       "seed": 44
     },
     {
       "dt_ms": 1.0,
       "t_ms": 200.0,
-      "acc": 90.25,
-      "e_rate_hz": 12.00047607421875,
-      "i_rate_hz": 40.0234375,
+      "acc": 86.75,
+      "e_rate_hz": 8.80113525390625,
+      "i_rate_hz": 46.351318359375,
       "n_total": 400,
       "seed": 42
     },
     {
       "dt_ms": 1.0,
       "t_ms": 200.0,
-      "acc": 90.25,
-      "e_rate_hz": 14.3965087890625,
-      "i_rate_hz": 47.677783203125,
+      "acc": 86.5,
+      "e_rate_hz": 10.5466796875,
+      "i_rate_hz": 54.8853515625,
       "n_total": 400,
       "seed": 43
     },
     {
       "dt_ms": 1.0,
       "t_ms": 200.0,
-      "acc": 90.5,
-      "e_rate_hz": 15.7320068359375,
-      "i_rate_hz": 52.04248046875,
+      "acc": 87.25,
+      "e_rate_hz": 11.473974609375,
+      "i_rate_hz": 58.953173828125,
       "n_total": 400,
       "seed": 44
-    }
-  ],
-  "success_criteria": [
-    {
-      "label": "\u0394t-sweep figure rendered",
-      "passed": true,
-      "detail": "dt_sweep.png (54791 bytes)",
-      "detail_href": "/figures/notebooks/nb044/dt_sweep.png"
-    },
-    {
-      "label": "raster strip rendered",
-      "passed": true,
-      "detail": "raster_strip.png (55100 bytes)",
-      "detail_href": "/figures/notebooks/nb044/raster_strip.png"
-    },
-    {
-      "label": "E rate variation across \u0394t sweep \u2264 1 Hz",
-      "passed": false,
-      "detail": "E range = [9.47, 14.04] Hz (span 4.57 Hz)"
-    },
-    {
-      "label": "Accuracy variation across \u0394t sweep \u2264 5 percentage points",
-      "passed": true,
-      "detail": "acc range = [88.50, 90.67]% (span 2.17 pp)"
     }
   ]
 }

@@ -238,14 +238,11 @@ def _baseline_seed_stats(rows: list[dict], model: str) -> tuple[float, float, fl
     return float(accs.mean()), acc_sem, float(rates.mean()), rate_sem, n
 
 
-def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
-    """Twin-y bar chart on the baseline (θ_u = off) cells: per model,
-    side-by-side bars for accuracy (left y-axis) and mean hidden-E rate
-    (right y-axis). Error bars are ±SEM across baseline seeds."""
-    theme.apply()
-    fig, ax_acc = plt.subplots(figsize=(8.0, 4.5))
+def _draw_acc_rate_bars(ax_acc, rows, *, compact: bool = False):
+    """Draw the twin-y accuracy/rate bars (θ_u = off) into ax_acc and return the
+    twin rate axis. Shared by the standalone Figure 2 and the results compound so
+    they look identical: coba grey / ping red, accuracy solid + rate hatched."""
     ax_rate = ax_acc.twinx()
-
     n = len(MODELS)
     xs = np.arange(n)
     width = 0.35
@@ -256,15 +253,13 @@ def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
     rate_sems = [s[3] for s in stats]
     n_seeds = stats[0][4] if stats else 0
 
-    # Local black-and-grey scheme for the headline bar chart — keeps the
-    # two-bars-per-model pairing readable on a single axes without leaning on
-    # the model-color palette used elsewhere.
+    # Local grey/red scheme; the two-bars-per-model pairing is told apart by
+    # hatch (accuracy solid, rate hatched), not colour.
     bar_colors = {"coba": theme.GREY_MID, "ping": theme.DEEP_RED}
     ax_acc.bar(
         xs - width / 2, accs, width=width,
         color=[bar_colors[m] for m in MODELS],
-        edgecolor=theme.INK_BLACK,
-        yerr=acc_sems, ecolor=theme.INK_BLACK, capsize=4,
+        edgecolor=theme.INK_BLACK, yerr=acc_sems, ecolor=theme.INK_BLACK, capsize=4,
     )
     ax_rate.bar(
         xs + width / 2, rates, width=width,
@@ -272,48 +267,49 @@ def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
         edgecolor=theme.INK_BLACK, hatch="///",
         yerr=rate_sems, ecolor=theme.INK_BLACK, capsize=4,
     )
-
+    lab_fs = theme.SIZE_ANNOTATION - (1 if compact else 0)
     for x, a, ae in zip(xs, accs, acc_sems):
         label = f"{a:.1f}%" if n_seeds <= 1 else f"{a:.1f}±{ae:.1f}%"
-        ax_acc.text(
-            x - width / 2, a + ae + 1.5, label,
-            ha="center", va="bottom",
-            fontsize=theme.SIZE_ANNOTATION, color=theme.INK_BLACK,
-        )
+        ax_acc.text(x - width / 2, a + ae + 1.5, label, ha="center", va="bottom",
+                    fontsize=lab_fs, color=theme.INK_BLACK)
     for x, r, re_ in zip(xs, rates, rate_sems):
         label = f"{r:.1f} Hz" if n_seeds <= 1 else f"{r:.1f}±{re_:.1f} Hz"
-        ax_rate.text(
-            x + width / 2, r + re_ + max(rates) * 0.02, label,
-            ha="center", va="bottom",
-            fontsize=theme.SIZE_ANNOTATION, color=theme.INK_BLACK,
-        )
+        ax_rate.text(x + width / 2, r + re_ + (max(rates) * 0.02 if rates else 0.0),
+                     label, ha="center", va="bottom", fontsize=lab_fs, color=theme.INK_BLACK)
 
     ax_acc.set_xticks(xs)
     ax_acc.set_xticklabels(MODELS)
-    ax_acc.set_ylabel("test accuracy (%, final epoch)")
-    ax_rate.set_ylabel("hidden-E firing rate (Hz, final epoch)")
-    title_suffix = (
-        f" — accuracy vs firing rate (θ_u = off, n={n_seeds} seeds, mean ± SEM)"
-        if n_seeds > 1
-        else " — accuracy vs firing rate (θ_u = off)"
-    )
-    ax_acc.set_title("coba / ping" + title_suffix)
     ax_acc.set_ylim(0, max(100, max(accs) + 10))
     ax_rate.set_ylim(0, max(rates) * 1.2 if rates else 1.0)
     ax_acc.grid(True, axis="y", alpha=0.3)
-
     handles = [
         plt.Rectangle((0, 0), 1, 1, facecolor=theme.PAPER, edgecolor=theme.INK_BLACK),
-        plt.Rectangle(
-            (0, 0), 1, 1, facecolor=theme.PAPER, edgecolor=theme.INK_BLACK,
-            hatch="///",
-        ),
+        plt.Rectangle((0, 0), 1, 1, facecolor=theme.PAPER, edgecolor=theme.INK_BLACK, hatch="///"),
     ]
-    ax_acc.legend(
-        handles, ["accuracy (left)", "rate (right)"],
-        loc="upper right", fontsize=theme.SIZE_LEGEND,
-    )
+    ax_acc.legend(handles, ["accuracy (left)", "rate (right)"],
+                  loc="upper right", fontsize=theme.SIZE_LEGEND - (1 if compact else 0))
+    if compact:
+        ax_acc.set_ylabel("test acc (%)")
+        ax_rate.set_ylabel("E rate (Hz)")
+        ax_acc.set_title("Accuracy vs rate (θ_u = off)", loc="left", fontsize=theme.SIZE_LABEL)
+    else:
+        ax_acc.set_ylabel("test accuracy (%, final epoch)")
+        ax_rate.set_ylabel("hidden-E firing rate (Hz, final epoch)")
+        title_suffix = (
+            f" — accuracy vs firing rate (θ_u = off, n={n_seeds} seeds, mean ± SEM)"
+            if n_seeds > 1 else " — accuracy vs firing rate (θ_u = off)"
+        )
+        ax_acc.set_title("coba / ping" + title_suffix)
+    return ax_rate
 
+
+def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
+    """Twin-y bar chart on the baseline (θ_u = off) cells: per model,
+    side-by-side bars for accuracy (left y-axis) and mean hidden-E rate
+    (right y-axis). Error bars are ±SEM across baseline seeds."""
+    theme.apply()
+    fig, ax_acc = plt.subplots(figsize=(8.0, 4.5))
+    _draw_acc_rate_bars(ax_acc, rows, compact=False)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1354,7 +1350,165 @@ def copy_video(run_dir: Path, out_path: Path) -> None:
     print(f"wrote {out_path}")
 
 
+def _despine(ax):
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+
+
+def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
+    """nb023-Figure-1-style super figure (replotted from cache, no retraining):
+    top row two trained-baseline rasters (COBA | PING), bottom row four small
+    plots — train loss, test accuracy, accuracy–rate frontier, accuracy/rate
+    bars."""
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
+    from matplotlib.gridspec import GridSpec
+
+    fig = plt.figure(figsize=(12, 6.75), dpi=150)  # 16:9
+    gs = GridSpec(
+        2, 2, figure=fig, height_ratios=[3.0, 2.6],
+        hspace=0.45, wspace=0.2, top=0.93, bottom=0.1, left=0.07, right=0.96,
+    )
+
+    # --- top row: two rasters side by side (E black, I red above) ---
+    for col, (npz_path, title) in enumerate([
+        (npz_coba, "COBA — loop off"),
+        (npz_ping, "PING — loop on"),
+    ]):
+        ax = fig.add_subplot(gs[0, col])
+        data = np.load(npz_path)
+        spk_e, spk_i, dt = data["spk_e"], data["spk_i"], float(data["dt"])
+        T, N_E = spk_e.shape[0], spk_e.shape[1]
+        N_I = spk_i.shape[1] if spk_i.size > 0 and spk_i.ndim == 2 else 0
+        t_ms = np.arange(T) * dt
+        gap = max(8, N_E // 40)
+        e_t, e_n = np.where(spk_e)
+        ax.scatter(t_ms[e_t], e_n, s=0.8, c=theme.INK_BLACK, marker="|", linewidths=0.35)
+        if N_I > 0 and spk_i.any():
+            i_t, i_n = np.where(spk_i)
+            ax.scatter(t_ms[i_t], i_n + N_E + gap, s=1.0, c=theme.DEEP_RED,
+                       marker="|", linewidths=0.45)
+            ax.set_ylim(-2, N_E + N_I + gap + 2)
+            ax.set_yticks([N_E / 2, N_E + gap + N_I / 2])
+            ax.set_yticklabels(["E", "I"])
+        else:
+            ax.set_ylim(-2, N_E + 2)
+            ax.set_yticks([N_E / 2])
+            ax.set_yticklabels(["E"])
+            ax.text(T * dt * 0.985, N_E - 30, "I silent (loop off)",
+                    ha="right", va="top", fontsize=theme.SIZE_LABEL - 1,
+                    color=theme.MUTED, fontstyle="italic")
+        ax.set_xlim(0, T * dt)
+        ax.set_xlabel("time (ms)")
+        ax.tick_params(axis="y", length=0)
+        ax.set_title(title, loc="left", fontweight="semibold")
+        _despine(ax)
+
+    # --- bottom-left: test accuracy per epoch (both architectures learn) ---
+    ax_acc = fig.add_subplot(gs[1, 0])
+    for m in MODELS:
+        accs, eps = [], []
+        for seed in SEEDS_BASELINE:
+            if not (baseline_dir(m, seed) / "metrics.json").exists():
+                continue
+            md = load_metrics(baseline_dir(m, seed))
+            if not eps:
+                eps = [e["ep"] for e in md["epochs"]]
+            accs.append([e["acc"] for e in md["epochs"]])
+        if not accs:
+            continue
+        ax_acc.plot(eps, np.asarray(accs).mean(0), marker="o", ms=3,
+                    color=MODEL_COLORS[m], label=m)
+    ax_acc.set_xlabel("epoch")
+    ax_acc.set_ylabel("test accuracy (%)")
+    ax_acc.set_ylim(0, 100)
+    ax_acc.set_title("Both architectures learn the task", loc="left",
+                     fontsize=theme.SIZE_LABEL)
+    ax_acc.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
+    _despine(ax_acc)
+
+    # --- bottom-right: accuracy–rate frontier, operating points annotated ---
+    ax_fr = fig.add_subplot(gs[1, 1])
+    model_curves = {}
+    xmax = 1.0
+    for m in MODELS:
+        pts, base = [], None
+        for tu in THETA_U_GRID:
+            cr = [r for r in rows if r["model"] == m and r["theta_u"] == tu]
+            if not cr:
+                continue
+            rate = float(np.mean([r["rate_e"] for r in cr]))
+            acc = float(np.mean([r["final_acc"] for r in cr]))
+            pts.append((rate, acc))
+            if tu is None:
+                base = (rate, acc)
+        pts.sort()
+        model_curves[m] = (pts, base)
+        if pts:
+            xmax = max(xmax, max(p[0] for p in pts))
+    ax_fr.set_xlim(-xmax * 0.03, xmax * 1.12)  # small left margin so near-zero points read; right headroom for labels
+    for m in MODELS:
+        pts, base = model_curves[m]
+        if pts:
+            ax_fr.plot([p[0] for p in pts], [p[1] for p in pts],
+                       marker=MODEL_MARKERS[m], color=MODEL_COLORS[m], label=m)
+        if base is not None:
+            ax_fr.scatter([base[0]], [base[1]], s=120, marker="*",
+                          color=MODEL_COLORS[m], edgecolor=theme.INK_BLACK,
+                          linewidths=0.7, zorder=6)
+            # Label on the inward side: right-half points point their text left.
+            right_half = base[0] > xmax * 0.55
+            dx, ha = (-8, "right") if right_half else (8, "left")
+            ax_fr.annotate(f"{m}: {base[1]:.0f}% @ {base[0]:.1f} Hz",
+                           (base[0], base[1]), xytext=(dx, 9),
+                           textcoords="offset points", ha=ha,
+                           fontsize=theme.SIZE_ANNOTATION, color=MODEL_COLORS[m])
+    ax_fr.set_ylim(0, 100)
+    ax_fr.set_xlabel("hidden-E firing rate (Hz)")
+    ax_fr.set_ylabel("test accuracy (%)")
+    ax_fr.set_title("Same accuracy, fewer spikes  (★ = θ_u off)", loc="left",
+                    fontsize=theme.SIZE_LABEL)
+    ax_fr.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
+    _despine(ax_fr)
+
+    stamp_figure(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def build_results_compound(run_id: str = "replot") -> None:
+    """Assemble rows from cached cell metrics and render the results compound —
+    no training, no inference reruns."""
+    rows: list[dict] = []
+    for model in MODELS:
+        for theta_u in THETA_U_GRID:
+            for seed in seeds_for(theta_u):
+                run_dir = cell_dir(model, theta_u, seed)
+                if not (run_dir / "metrics.json").exists():
+                    continue
+                last = load_metrics(run_dir)["epochs"][-1]
+                rows.append({
+                    "model": model,
+                    "theta_u": theta_u,
+                    "theta_display": theta_display(theta_u),
+                    "final_acc": float(last["acc"]),
+                    "rate_e": float(last.get("rate_e") or 0.0),
+                })
+    npz_coba = baseline_dir("coba") / "infer" / "snapshot.npz"
+    npz_ping = baseline_dir("ping") / "infer" / "snapshot.npz"
+    for p in (npz_coba, npz_ping):
+        if not p.exists():
+            raise SystemExit(f"missing cached raster: {p} (run the notebook once first)")
+    out = FIGURES / "results_compound.png"
+    fig_results_compound(rows, npz_coba, npz_ping, out, run_id)
+    print(f"wrote {out}")
+
+
 def main() -> None:
+    if "--compound-only" in sys.argv:
+        build_results_compound()
+        return
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
@@ -1467,13 +1621,6 @@ def main() -> None:
             f"rate_e={r['rate_e']:6.1f} Hz"
         )
 
-    plot_acc_rate_bars(rows, FIGURES / "acc_vs_rate.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'acc_vs_rate.png'}")
-    plot_learning_curves(FIGURES / "learning_curves.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'learning_curves.png'}")
-    plot_frontier(rows, FIGURES / "frontier.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'frontier.png'}")
-
     # θ_u vs (p, f_γ) decomposition — mechanism behind the frontier floor.
     print("[theta-pfg] measuring p and f_γ per (model, θ_u) cell")
     import torch
@@ -1518,12 +1665,13 @@ def main() -> None:
         generate_raster(model, out)
         print(f"wrote {out}")
 
-    # Publication-quality merged rasters figure — both baselines side by side.
+    # Results compound (Figure 1): rasters + accuracy-per-epoch + the
+    # accuracy–rate frontier in one frame (replaces the four standalones).
     npz_coba = baseline_dir("coba") / "infer" / "snapshot.npz"
     npz_ping = baseline_dir("ping") / "infer" / "snapshot.npz"
     if npz_coba.exists() and npz_ping.exists():
-        out = FIGURES / "baseline_rasters.png"
-        render_baseline_rasters_combined(npz_coba, npz_ping, out)
+        out = FIGURES / "results_compound.png"
+        fig_results_compound(rows, npz_coba, npz_ping, out, notebook_run_id)
         print(f"wrote {out}")
 
     # Low-w_in alternate-schedule sweep — reads metrics from the three

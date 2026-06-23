@@ -198,6 +198,145 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     plt.close(fig)
 
 
+def _despine(ax):
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+
+FI_RATES_HZ = [2, 5, 10, 20, 40, 70, 100]   # uniform Poisson input rates (Hz)
+FI_EI = {"coba": "0", "ping": "1.5"}         # ei-strength per condition
+FI_T_MS = 300
+
+
+def fi_sweep() -> dict:
+    """Free-running f–I curves under uniform Poisson input: mean per-cell E and
+    I firing rate vs input rate, for COBA (loop off) and PING (loop on). No
+    training — the bare drive-response of the architecture."""
+    out = {c: {"in": [], "e": [], "i": []} for c in FI_EI}
+    for rate in FI_RATES_HZ:
+        for cell, ei in FI_EI.items():
+            for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
+                if p.exists():
+                    p.unlink()
+            argv = [
+                "sim", "--image", "--model", "ping", "--input", "synthetic-spikes",
+                "--w-in", "1.5", "0.3", "--ei-strength", ei,
+                "--input-rate", str(rate), "--t-ms", str(FI_T_MS),
+            ]
+            subprocess.run(["uv", "run", "python", str(OSCILLOSCOPE), *argv],
+                           cwd=REPO, check=True)
+            d = np.load(SCOPE_OUT_NPZ)
+            se, si, dt = d["spk_e"], d["spk_i"], float(d["dt"])
+            T = se.shape[0]
+            e = float(se.sum() / (se.shape[1] * T * dt / 1000.0))
+            i = float(si.sum() / (si.shape[1] * T * dt / 1000.0)) if si.size else 0.0
+            out[cell]["in"].append(rate)
+            out[cell]["e"].append(e)
+            out[cell]["i"].append(i)
+            print(f"[f-I] {cell} input={rate} Hz → E={e:.1f} Hz I={i:.1f} Hz")
+    return out
+
+
+def plot_raster_compound(snaps: dict, fi: dict, out_path: Path, titles: dict) -> None:
+    """Super figure: COBA vs PING side by side.
+
+    Each condition is a column-pair: a single raster (I stacked above E, no gap)
+    spans the pair; below it the population-E Welch PSD sits next to the
+    free-running f–I curve. COBA has no I population (loop off).
+    """
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
+    from matplotlib.gridspec import GridSpec
+
+    fig = plt.figure(figsize=(12, 6.75), dpi=150)  # 16:9
+    gs = GridSpec(
+        2, 4, figure=fig, height_ratios=[4.4, 2.6],
+        hspace=0.4, wspace=0.5, top=0.92, bottom=0.12, left=0.06, right=0.99,
+    )
+    fi_max = max(max(fi[c]["e"] + fi[c]["i"]) for c in ("coba", "ping"))
+
+    for col, cell in enumerate(("coba", "ping")):
+        c0 = 2 * col
+        s = snaps[cell]
+        spk_e, spk_i, dt = s["spk_e"], s["spk_i"], s["dt"]
+        T = spk_e.shape[0]
+        t_ms = np.arange(T) * dt
+        has_i = spk_i.size > 0 and spk_i.shape[0] == T and spk_i.any()
+
+        ax_r = fig.add_subplot(gs[0, c0:c0 + 2])         # one raster, I above E
+        ax_psd = fig.add_subplot(gs[1, c0])              # PSD next to f–I
+        ax_fi = fig.add_subplot(gs[1, c0 + 1])
+
+        # Combined raster: E (black) at the bottom, I (red) stacked directly
+        # above it in the same axes — no vertical gap between the populations.
+        n_e = spk_e.shape[1]
+        e_idx, e_t = np.where(spk_e.T)
+        ax_r.scatter(t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|", linewidths=0.5)
+        if has_i:
+            n_i = spk_i.shape[1]
+            i_idx, i_t = np.where(spk_i.T)
+            ax_r.scatter(t_ms[i_t], n_e + i_idx, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.5)
+            ax_r.axhline(n_e, color=theme.GREY_MID, lw=0.6, alpha=0.6)
+            total = n_e + n_i
+            ax_r.set_yticks([n_e / 2, n_e + n_i / 2])
+            ax_r.set_yticklabels(["E", "I"])
+        else:
+            total = n_e
+            ax_r.set_yticks([n_e / 2])
+            ax_r.set_yticklabels(["E"])
+            ax_r.text(0.99, 0.97, "no I population (loop off)",
+                      transform=ax_r.transAxes, ha="right", va="top",
+                      color=theme.GREY_MID, fontstyle="italic",
+                      fontsize=theme.SIZE_LABEL - 1)
+        ax_r.set_ylim(0, total)
+        ax_r.set_xlim(0, T * dt)
+        ax_r.set_xlabel("time (ms)")
+        ax_r.set_title(titles[cell], loc="left", fontweight="semibold")
+        _despine(ax_r)
+
+        # Welch PSD on the population-mean E trace
+        freqs, psd, f_peak = _population_psd(spk_e, dt)
+        band = (freqs >= F_GAMMA_BAND_HZ[0]) & (freqs <= F_GAMMA_BAND_HZ[1])
+        ax_psd.plot(freqs[band], psd[band], color=theme.INK_BLACK, lw=1.4)
+        ax_psd.set_xlim(F_GAMMA_BAND_HZ)
+        ax_psd.set_xlabel("frequency (Hz)")
+        ax_psd.set_ylabel("E PSD (a.u.)")
+        _despine(ax_psd)
+        # Only the loop-on condition has a recurrent gamma peak to mark; the
+        # loop-off control has scattered input-driven power, not a rhythm.
+        if has_i and f_peak is not None:
+            ax_psd.axvline(f_peak, color=theme.DEEP_RED, lw=0.9, ls="--", alpha=0.8)
+            ax_psd.text(f_peak, ax_psd.get_ylim()[1] * 0.95,
+                        f"  $f_\\gamma$ = {f_peak:.1f} Hz", ha="left", va="top",
+                        fontsize=theme.SIZE_LABEL - 1, color=theme.DEEP_RED,
+                        fontweight="semibold")
+        elif not has_i:
+            ax_psd.text(0.97, 0.95, "no recurrent gamma\n(loop off)",
+                        transform=ax_psd.transAxes, ha="right", va="top",
+                        fontsize=theme.SIZE_LABEL - 1, color=theme.GREY_MID,
+                        fontstyle="italic")
+        else:
+            ax_psd.text(0.97, 0.95, "no clear peak", transform=ax_psd.transAxes,
+                        ha="right", va="top", fontsize=theme.SIZE_LABEL - 1,
+                        color=theme.GREY_MID, fontstyle="italic")
+
+        # f–I curve (bottom-right of the pair); shared y-scale shows the
+        # dynamic-range compression PING applies relative to COBA.
+        f = fi[cell]
+        ax_fi.plot(f["in"], f["e"], color=theme.INK_BLACK, marker="o", ms=3, lw=1.3, label="E")
+        ax_fi.plot(f["in"], f["i"], color=theme.DEEP_RED, marker="s", ms=3, lw=1.3, label="I")
+        ax_fi.set_ylim(0, fi_max * 1.05)
+        ax_fi.set_xlim(0, max(FI_RATES_HZ))
+        ax_fi.set_xlabel("input rate (Hz)")
+        ax_fi.set_ylabel("rate (Hz)")
+        _despine(ax_fi)
+        if col == 1:
+            ax_fi.legend(frameon=False, fontsize=theme.SIZE_LABEL - 2, loc="upper left")
+
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def _pick_active(spk: np.ndarray) -> int | None:
     if spk.size == 0 or spk.shape[0] == 0:
         return None
@@ -344,6 +483,7 @@ def main() -> None:
     prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
 
     figures: dict[str, Path] = {}
+    snaps: dict[str, dict] = {}
     for cell, spec in CELLS.items():
         for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
             if p.exists():
@@ -355,16 +495,30 @@ def main() -> None:
         if not SCOPE_OUT_NPZ.exists():
             raise SystemExit(f"oscilloscope did not produce {SCOPE_OUT_NPZ}")
 
-        raster_dst = FIGURES / f"raster__{cell}.png"
-        plot_raster(SCOPE_OUT_NPZ, raster_dst, spec["title"])
-        figures[f"raster__{cell}"] = raster_dst
-        print(f"wrote {raster_dst}")
+        data = np.load(SCOPE_OUT_NPZ)
+        snaps[cell] = {
+            "spk_e": np.array(data["spk_e"]),
+            "spk_i": np.array(data["spk_i"]),
+            "dt": float(data["dt"]),
+        }
 
         traces_dst = FIGURES / f"traces__{cell}.png"
         panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, spec["title"])
         for p in panel_paths:
             figures[p.stem] = p
             print(f"wrote {p}")
+
+    # Free-running f–I curves (uniform Poisson sweep), folded into the super figure.
+    fi = fi_sweep()
+
+    # Super figure: COBA vs PING side by side (I raster, E raster, PSD + f–I).
+    compound_dst = FIGURES / "raster_compound.png"
+    plot_raster_compound(snaps, fi, compound_dst, {
+        "coba": "A   COBA — recurrent loop off",
+        "ping": "B   PING — recurrent loop active",
+    })
+    figures["raster_compound"] = compound_dst
+    print(f"wrote {compound_dst}")
 
     duration_s = time.monotonic() - t_start
     figs_root = FIGURES.parents[2]

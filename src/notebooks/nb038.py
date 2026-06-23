@@ -920,12 +920,14 @@ def run_ei_sweep(notebook_run_id: str) -> list[dict]:
         capture_ei_raster(train_dir, ei, EI_RASTER_SAMPLE_IDX) for ei in EI_RASTER
     ]
 
-    plot_ei_acc_sweep(points, FIGURES / "ei_acc_sweep.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'ei_acc_sweep.png'}")
-    plot_ei_rates_sweep(points, FIGURES / "ei_rates_sweep.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'ei_rates_sweep.png'}")
     plot_ei_rasters(raster_samples, FIGURES / "ei_rasters.png", notebook_run_id)
     print(f"wrote {FIGURES / 'ei_rasters.png'}")
+    # Compound (Figure 1): the rate/accuracy sweeps fold into it, so the two
+    # standalone sweep plots are no longer emitted.
+    fig_loop_transfer_compound(
+        points, raster_samples[0], raster_samples[-1],
+        FIGURES / "loop_transfer_compound.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'loop_transfer_compound.png'}")
     return points
 
 
@@ -1074,7 +1076,98 @@ def copy_video(run_dir: Path, out_path: Path) -> None:
     print(f"wrote {out_path}")
 
 
+def _despine(ax):
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+
+
+def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
+    """Claim-5 anchor: switching the I-loop on at inference (ei 0→1) on a
+    trained COBA cuts the hidden-E rate ~10× at matched accuracy — the gating
+    is architectural, not learned. Top: single-trial rasters at ei = 0 and
+    ei = 1. Bottom: the ei sweep — E/I rate (left) and accuracy (right)."""
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
+    from matplotlib.gridspec import GridSpec
+
+    fig = plt.figure(figsize=(12, 6.75), dpi=150)  # 16:9
+    gs = GridSpec(2, 2, figure=fig, height_ratios=[3.0, 2.6],
+                  hspace=0.5, wspace=0.22, top=0.93, bottom=0.1, left=0.07, right=0.96)
+
+    n_e, n_i, gap = EI_RASTER_N_E_PLOT, EI_RASTER_N_I_PLOT, 6
+    for col, s in enumerate((raster_lo, raster_hi)):
+        ax = fig.add_subplot(gs[0, col])
+        T = s["e"].shape[0]
+        t_axis = np.arange(T) * s["dt"]
+        e_t, e_n = np.where(s["e"])
+        i_t, i_n = np.where(s["i"])
+        ax.scatter(t_axis[e_t], e_n, s=1.6, c=theme.INK_BLACK, marker="|", linewidths=0.4)
+        ax.scatter(t_axis[i_t], i_n + n_e + gap, s=1.6, c=theme.DEEP_RED, marker="|", linewidths=0.4)
+        ax.set_ylim(-2, n_e + n_i + gap + 2)
+        ax.set_yticks([n_e / 2, n_e + gap + n_i / 2])
+        ax.set_yticklabels(["E", "I"])
+        ax.tick_params(axis="y", length=0)
+        ax.set_xlim(0, s["t_ms"])
+        ax.set_xlabel("time (ms)")
+        tag = "loop off (COBA)" if s["ei_strength"] == 0 else "loop on (PING)"
+        ax.set_title(f"ei = {s['ei_strength']:g}  —  {tag}", loc="left", fontweight="semibold")
+        _despine(ax)
+
+    eis = [p["ei_strength"] for p in points]
+    ax_r = fig.add_subplot(gs[1, 0])
+    hid = [p.get("hid_rate_hz") or 0.0 for p in points]
+    inh = [p.get("inh_rate_hz") or 0.0 for p in points]
+    ax_r.plot(eis, hid, marker="o", ms=3, color=theme.INK_BLACK, label="E (hidden)")
+    ax_r.plot(eis, inh, marker="s", ms=3, color=theme.DEEP_RED, label="I")
+    ax_r.set_xlabel("inference E→I strength")
+    ax_r.set_ylabel("rate (Hz)")
+    ax_r.set_title("E rate falls ≈ 10× as the loop engages", loc="left", fontsize=theme.SIZE_LABEL)
+    ax_r.legend(fontsize=theme.SIZE_LEGEND, frameon=False)
+    _despine(ax_r)
+
+    ax_a = fig.add_subplot(gs[1, 1])
+    accs = [p["acc"] for p in points]
+    base_acc = points[0]["acc"]
+    ax_a.axhline(base_acc, color=theme.LABEL, lw=1.0, ls="--",
+                 label=f"COBA baseline {base_acc:.0f}%")
+    ax_a.plot(eis, accs, marker="o", ms=3, color=theme.DEEP_RED, label="transfer")
+    ax_a.set_ylim(0, 100)
+    ax_a.set_xlabel("inference E→I strength")
+    ax_a.set_ylabel("test accuracy (%)")
+    ax_a.set_title("Accuracy degrades without retraining", loc="left", fontsize=theme.SIZE_LABEL)
+    ax_a.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower left")
+    _despine(ax_a)
+
+    stamp_figure(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def build_loop_transfer_compound(run_id: str = "replot") -> None:
+    """Replot-only: inference sweep on the cached COBA weights, no training."""
+    train_dir = baseline_dir("coba")
+    if not (train_dir / "weights.pth").exists():
+        raise SystemExit(f"need trained coba weights at {train_dir} (run the notebook once)")
+    sweep_root = _ei_sweep_dir()
+    sweep_root.mkdir(parents=True, exist_ok=True)
+    points = []
+    for ei in EI_SWEEP:
+        m = run_inproc_infer(train_dir, ei, sweep_root / f"infer_ei{ei:g}")
+        points.append({"ei_strength": ei, "acc": m["best_acc"],
+                       "hid_rate_hz": m.get("hid_rate_hz"), "inh_rate_hz": m.get("inh_rate_hz")})
+        print(f"[ei-sweep] ei={ei}: acc={m['best_acc']:.1f}% E={m.get('hid_rate_hz')} Hz")
+    r_lo = capture_ei_raster(train_dir, 0.0, EI_RASTER_SAMPLE_IDX)
+    r_hi = capture_ei_raster(train_dir, 1.0, EI_RASTER_SAMPLE_IDX)
+    FIGURES.mkdir(parents=True, exist_ok=True)
+    out = FIGURES / "loop_transfer_compound.png"
+    fig_loop_transfer_compound(points, r_lo, r_hi, out, run_id)
+    print(f"wrote {out}")
+
+
 def main() -> None:
+    if "--compound-only" in sys.argv:
+        build_loop_transfer_compound()
+        return
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
@@ -1226,7 +1319,6 @@ def main() -> None:
         "baseline_results": rows,
         "ei_sweep": ei_points,
         "fi_sweep_uniform": fi_rows,
-        "fi_sweep_uniform_zoom": fi_rows_zoom,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")
