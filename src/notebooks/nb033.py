@@ -664,6 +664,86 @@ def plot_reduction_ladder(hopf4, hopf3, hopf2, out_path, run_id, I_ext=1.0):
     plt.close(fig)
 
 
+def _despine(ax):
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+
+
+def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
+    """Claim-3 anchor: the recruitment cliff as a predictable Hopf bifurcation.
+    A — the 4D eigenvalue pair crossing into the right half-plane at I*.
+    B — the hysteresis sweep (supercritical, reversible onset).
+    C — gamma frequency vs τ_GABA, calibrated mean-field vs nb041 spiking."""
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
+    from matplotlib.gridspec import GridSpec
+
+    # Wide 3:1 strip — a 1×3 panel row reads better near-square per panel than
+    # squeezed portrait into 16:9 (deliberate exception to the house ratio).
+    fig = plt.figure(figsize=(13.5, 4.6), dpi=150)
+    gs = GridSpec(1, 3, figure=fig, wspace=0.42,
+                  top=0.86, bottom=0.16, left=0.06, right=0.97)
+
+    # A — eigenvalues in the complex plane, coloured by drive
+    axA = fig.add_subplot(gs[0, 0])
+    xs = np.array([r["I_ext"] for r in results])
+    eig_re = np.array([[e[0] for e in r["eigs"]] for r in results])
+    eig_im = np.array([[e[1] for e in r["eigs"]] for r in results])
+    sc = None
+    for k in range(eig_re.shape[1]):
+        sc = axA.scatter(eig_re[:, k], eig_im[:, k], c=xs, cmap="magma", s=4, linewidths=0)
+    axA.axvline(0, color=theme.GREY_MID, lw=0.6, ls=":")
+    if hopf:
+        w = hopf["omega_star"]
+        axA.scatter([0, 0], [w, -w], facecolors="none",
+                    edgecolors=theme.ELECTRIC_CYAN, s=60, lw=1.4, zorder=5)
+    cbar = fig.colorbar(sc, ax=axA, fraction=0.046, pad=0.02)
+    cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 1)
+    cbar.ax.tick_params(labelsize=theme.SIZE_TICK - 1)
+    axA.set_xlabel("Re$(\\lambda)$", fontsize=theme.SIZE_LABEL)
+    axA.set_ylabel("Im$(\\lambda)$", fontsize=theme.SIZE_LABEL)
+    axA.set_title(f"A  Hopf crossing at $I^\\star$ = {hopf['I_ext_star']:.2f} nA",
+                  loc="left", fontsize=theme.SIZE_LABEL, fontweight="semibold")
+    _despine(axA)
+
+    # B — hysteresis sweep
+    axB = fig.add_subplot(gs[0, 1])
+    xu = [d["I_ext"] for d in sweep["up"]]
+    yu = [d["amp"] for d in sweep["up"]]
+    xd = [d["I_ext"] for d in sweep["down"]]
+    yd = [d["amp"] for d in sweep["down"]]
+    axB.plot(xu, yu, "o-", color=theme.INK_BLACK, lw=1.2, ms=4, label="drive ↑")
+    axB.plot(xd, yd, "s--", color=theme.DEEP_RED, lw=1.0, ms=4,
+             markerfacecolor="none", label="drive ↓")
+    axB.axvline(hopf["I_ext_star"], color=theme.AMBER, lw=0.6, ls=":")
+    axB.set_xlabel("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
+    axB.set_ylabel("E amplitude (pk-pk)", fontsize=theme.SIZE_LABEL)
+    axB.set_title("B  Supercritical, reversible onset",
+                  loc="left", fontsize=theme.SIZE_LABEL, fontweight="semibold")
+    axB.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
+    _despine(axB)
+
+    # C — frequency vs τ_GABA: mean-field prediction vs spiking
+    axC = fig.add_subplot(gs[0, 2])
+    tg = [d["tau_gaba_ms"] for d in mf if d["f_star_Hz"] is not None]
+    fs = [d["f_star_Hz"] for d in mf if d["f_star_Hz"] is not None]
+    axC.plot(tg, fs, "o-", color=theme.INK_BLACK, lw=1.4, label="mean-field $f^\\star$")
+    if meas:
+        mt = sorted(meas)
+        axC.plot(mt, [meas[t] for t in mt], "s--", color=theme.DEEP_RED, lw=1.3,
+                 label="spiking $f_\\gamma$ (nb041)")
+    axC.set_xlabel("$\\tau_\\text{GABA}$ (ms)", fontsize=theme.SIZE_LABEL)
+    axC.set_ylabel("gamma frequency (Hz)", fontsize=theme.SIZE_LABEL)
+    axC.set_title("C  Frequency from biophysics",
+                  loc="left", fontsize=theme.SIZE_LABEL, fontweight="semibold")
+    axC.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
+    _despine(axC)
+
+    stamp_figure(fig, run_id)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
     run_id = "nb033-numerics"
@@ -743,6 +823,13 @@ def main() -> None:
     plot_frequency_vs_tau_gaba(
         mf_freq, meas_fgamma, FIGURES / "freq_vs_tau_gaba.png", run_id)
     print(f"  wrote {FIGURES / 'freq_vs_tau_gaba.png'}")
+
+    # Claim-3 anchor compound: Hopf crossing + hysteresis + frequency.
+    if hopf and criticality:
+        fig_bifurcation_compound(
+            results, hopf, criticality, mf_freq, meas_fgamma,
+            FIGURES / "bifurcation_compound.png", run_id)
+        print(f"  wrote {FIGURES / 'bifurcation_compound.png'}")
 
     summary = {
         "slug": SLUG,

@@ -285,6 +285,7 @@ def plot_dt_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
     ax_rate.set_ylabel("Hidden E rate (Hz)",
                        fontsize=theme.SIZE_LABEL, color=theme.INK_BLACK)
     ax_rate.tick_params(axis="y", labelcolor=theme.INK_BLACK)
+    ax_rate.set_ylim(0, 50)
     ax_rate.set_xticks(dts_sorted)
     ax_rate.set_xticklabels([f"{d:g}" for d in dts_sorted])
     ax_rate.spines["top"].set_visible(False)

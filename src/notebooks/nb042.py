@@ -1360,9 +1360,169 @@ def plot_xtau_inflection_vs_period(
     return {"alpha": alpha, "r2": r2, "n_points": len(inflections)}
 
 
+# ─── rhythm-vs-mean compound (the manuscript figure) ────────────────
+
+
+def _despine(ax) -> None:
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+
+def _compound_raster_panel(ax, s: dict, title: str, subtitle: str) -> None:
+    """One raster panel — E (black) below, I (red) above, rates annotated."""
+    n_e, n_i, gap = RASTER_N_E_PLOT, RASTER_N_I_PLOT, 6
+    T = s["e"].shape[0]
+    t_axis = np.arange(T) * s["dt"]
+    e_t, e_n = np.where(s["e"])
+    i_t, i_n = np.where(s["i"])
+    ax.scatter(t_axis[e_t], e_n, s=1.5, c=theme.INK_BLACK, marker="|", linewidths=0.4)
+    ax.scatter(t_axis[i_t], i_n + n_e + gap,
+               s=1.5, c=theme.DEEP_RED, marker="|", linewidths=0.4)
+    ax.set_ylim(-2, n_e + n_i + gap + 2)
+    ax.set_yticks([n_e / 2, n_e + gap + n_i / 2])
+    ax.set_yticklabels(["E", "I"])
+    ax.tick_params(axis="y", length=0)
+    ax.set_xlim(0, s["t_ms"])
+    ax.set_title(title, fontsize=theme.SIZE_LABEL)
+    ax.text(
+        0.98, 0.94, subtitle
+        + f"\nE = {s['e_rate_hz']:.1f} Hz   I = {s['i_rate_hz']:.1f} Hz",
+        transform=ax.transAxes, ha="right", va="top",
+        fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
+    )
+    _despine(ax)
+
+
+def _compound_sweep_panel(
+    ax, rows: list[dict], *, xlabel: str, title: str,
+    baseline_e: float, symlog: bool,
+) -> None:
+    """One sweep panel — E rate (black) and accuracy (red, twin axis) vs σ."""
+    by_sigma: dict[float, list[dict]] = {}
+    for r in rows:
+        by_sigma.setdefault(r["sigma_ms"], []).append(r)
+    sig = sorted(by_sigma)
+    e_means = [float(np.mean([r["e_rate_hz"] for r in by_sigma[s]])) for s in sig]
+    a_means = [float(np.mean([r["acc"] for r in by_sigma[s]])) for s in sig]
+
+    ax.plot(sig, e_means, marker="D", ms=5, lw=1.4, color=theme.INK_BLACK)
+    if symlog:
+        ax.set_xscale("symlog", linthresh=1.0)
+    ax.set_xlabel(xlabel, fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("E rate (Hz)", color=theme.INK_BLACK, fontsize=theme.SIZE_LABEL)
+    ax.tick_params(axis="y", labelcolor=theme.INK_BLACK)
+    ax.axhline(baseline_e, color=theme.MUTED, lw=0.7, ls="--", alpha=0.7)
+    ax.text(ax.get_xlim()[1], baseline_e, f" baseline ≈ {baseline_e:.1f} Hz",
+            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED,
+            ha="right", va="bottom")
+    ax.set_title(title, fontsize=theme.SIZE_LABEL)
+
+    ax_acc = ax.twinx()
+    ax_acc.plot(sig, a_means, marker="s", ms=5, lw=1.4, color=theme.DEEP_RED)
+    ax_acc.set_ylabel("accuracy (%)", color=theme.DEEP_RED, fontsize=theme.SIZE_LABEL)
+    ax_acc.tick_params(axis="y", labelcolor=theme.DEEP_RED)
+    ax_acc.set_ylim(0, 100)
+    ax.spines["top"].set_visible(False)
+    ax_acc.spines["top"].set_visible(False)
+
+
+def fig_rhythm_compound(
+    cyc_rows: list[dict], cell_rows: list[dict], baseline_e: float,
+    raster_cyc: dict, raster_cell: dict, out_path: Path, run_id: str,
+) -> None:
+    """2×2 manuscript compound — matched mean I, opposite E response.
+
+    Columns are the two manipulations that both preserve mean I rate:
+      left  — cycle-coherent jitter (within-burst synchrony kept, bursts
+              displaced) → E fires through the opened gaps, rate rises.
+      right — per-I-cell jitter (synchrony destroyed, bursts smeared into
+              a continuous shunt) → E silenced, rate falls to zero.
+    Top row: example single-trial rasters; bottom row: the full sweeps.
+    """
+    theme.apply()
+    prev_bbox = plt.rcParams["savefig.bbox"]
+    plt.rcParams["savefig.bbox"] = "standard"
+    fig, axes = plt.subplots(2, 2, figsize=(12, 6.75))
+
+    _compound_raster_panel(
+        axes[0, 0], raster_cell,
+        "Smear the bursts — synchrony destroyed",
+        f"per-I-cell jitter σ = {raster_cell['sigma_ms']:g} ms",
+    )
+    _compound_raster_panel(
+        axes[0, 1], raster_cyc,
+        "Move the bursts — synchrony preserved",
+        f"cycle-coherent jitter σ = {raster_cyc['sigma_ms']:g} ms",
+    )
+    _compound_sweep_panel(
+        axes[1, 0], cell_rows,
+        xlabel="per-I-cell jitter σ (ms)",
+        title="Smear bursts → E rate falls to zero",
+        baseline_e=baseline_e, symlog=False,
+    )
+    _compound_sweep_panel(
+        axes[1, 1], cyc_rows,
+        xlabel="cycle-coherent jitter σ (ms, symlog)",
+        title="Displace bursts → E rate rises",
+        baseline_e=baseline_e, symlog=True,
+    )
+    fig.suptitle(
+        "Gamma gates the rate, not mean inhibition — "
+        "matched mean I, opposite E response",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    stamp_figure(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    plt.rcParams["savefig.bbox"] = prev_bbox
+
+
+def build_rhythm_compound(run_id: str = "replot") -> None:
+    """Rebuild the compound from cached numbers.json — no sweep re-runs.
+
+    Sweep curves load from numbers.json; the two example rasters are cheap
+    single-trial forward passes against the cached nb025 PING weights.
+    """
+    from cli import _auto_device
+
+    data = json.loads((FIGURES / "numbers.json").read_text())
+    rows = data["results"]
+    cyc_rows = data["jitter_sweep"]
+    cell_rows = data["cell_jitter_sweep"]
+    baseline_e = float(np.mean(
+        [r["e_rate_hz"] for r in rows if r["condition"] == "baseline"]
+    ))
+
+    device = _auto_device()
+    seed = int(data["config"]["seeds"][0])
+    train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
+    raster_cyc = capture_condition_raster(
+        train_dir, "jitter_sigma_100", RASTER_SAMPLE_IDX, device,
+        seed_offset=seed + 100,
+    )
+    raster_cyc["sigma_ms"] = 100.0
+    raster_cell = capture_condition_raster(
+        train_dir, "cell_jitter_sigma_5", RASTER_SAMPLE_IDX, device,
+        seed_offset=seed + int(5 * 13),
+    )
+    raster_cell["sigma_ms"] = 5.0
+
+    fig_rhythm_compound(
+        cyc_rows, cell_rows, baseline_e, raster_cyc, raster_cell,
+        FIGURES / "rhythm_compound.png", run_id,
+    )
+    print(f"wrote {FIGURES / 'rhythm_compound.png'}")
+
+
 # ─── success criteria ───────────────────────────────────────────────
 
 def main() -> None:
+    if "--compound-only" in sys.argv:
+        build_rhythm_compound()
+        return
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tier", default=DEFAULT_TIER)
     parser.add_argument("--modal-gpu", default="none")
@@ -1544,6 +1704,16 @@ def main() -> None:
         notebook_run_id,
     )
     print(f"wrote {FIGURES / 'cell_jitter_raster_strip.png'}")
+
+    # Manuscript compound: matched mean I, opposite E response. Reuse the
+    # σ = 100 ms cycle-coherent and σ = 5 ms per-cell raster samples.
+    raster_cyc = next(s for s in jitter_raster_samples if s["sigma_ms"] == 100.0)
+    raster_cell = next(s for s in cell_jitter_raster_samples if s["sigma_ms"] == 5.0)
+    fig_rhythm_compound(
+        jitter_rows, cell_jitter_rows, baseline_e, raster_cyc, raster_cell,
+        FIGURES / "rhythm_compound.png", notebook_run_id,
+    )
+    print(f"wrote {FIGURES / 'rhythm_compound.png'}")
 
     # ── Pareto sweep ──────────────────────────────────────────────
     # Probe whether the rhythmic baseline sits at the (low E, high acc)
