@@ -1,0 +1,24 @@
+---
+layout: ../../layouts/MarkdownLayout.astro
+title: "Manuscript compound figures"
+date: 2026-06-23
+entry: 57
+status: final
+structure: paper
+collection: gamma-gated-sparsity
+---
+import Figure from "../../components/Figure.astro";
+
+## Abstract
+
+A super-compound that puts the gamma onset's *empirics* directly above its *theory*. The top two rows are the [nb054](/notebooks/nb054/) turn-on — the E-rate, I-rate, and lobe–trough-contrast maps over the $W_{ei} \times W_{ie}$ plane, with three example rasters (loop-off / weak / strong). The bottom row is the [nb033](/notebooks/nb033/) mean-field bifurcation — the 4D Hopf crossing, the supercritical-reversible hysteresis sweep, and gamma frequency vs $\tau_\text{GABA}$. The smooth empirical turn-on and its mean-field explanation read as one story: *what* the network does, and *why*.
+
+## Method
+
+No new computation of its own — the entry imports the [nb054](/notebooks/nb054/) and [nb033](/notebooks/nb033/) runners and recomputes their data (the untrained-PING grid sweep and the calibrated 4D mean-field numerics), then lays the two anchor figures out as a single 3×3 panel. Recomputing rather than copying keeps the figure reproducible from the two sources. Full derivations and controls live in the source entries; this is the combined view.
+
+## Results
+
+<Figure id="Figure 1" title="The gamma onset — empirical turn-on over its mean-field bifurcation" src="/figures/notebooks/nb057/onset_super_compound.png" alt="A 3×3 super-compound. Top row: three square 11×11 greyscale heatmaps over W_EI mean (x) and W_IE mean (y), every cell labelled — E firing rate (high on both zero edges, collapsing through the interior), I firing rate (zero along W_EI=0, runaway along W_IE=0, controlled interior), and lobe–trough contrast (0 along both edges, rising to ≈0.9 toward strong coupling, with points A, B, C marked). Middle row: three E/I rasters (E black below, I red above) at A (loop-off, asynchronous), B (intermediate, clear volleys), C (strong, sharp volleys). Bottom row: the 4D mean-field bifurcation — eigenvalues in the complex plane with a complex pair crossing the imaginary axis at I* = 0.59 nA, a supercritical-reversible hysteresis sweep, and gamma frequency falling with τ_GABA for both the mean-field prediction and the nb041 spiking measurement.">
+  **Top (empirics, [nb054](/notebooks/nb054/)).** Across the $W_{ei} \times W_{ie}$ plane the E rate falls, the I rate rises, and the lobe–trough contrast (the rhythm scored 0–1) rises together — three readings of one loop engaging, 0 along both COBA edges and smoothly up toward strong coupling. The rasters at **A/B/C** show loop-off asynchrony giving way to clear, then sharp, gamma volleys. **Bottom (theory, [nb033](/notebooks/nb033/)).** The same onset from a 4D conductance mean-field calibrated from the biophysics: a complex-conjugate eigenvalue pair crosses into the right half-plane at $I^\star = 0.59$ nA (a Hopf), the amplitude rises continuously with coinciding up/down branches (supercritical and reversible, not a hard switch), and the predicted gamma frequency falls with $\tau_\text{GABA}$ in step with the [nb041](/notebooks/nb041/) spiking measurement. The smooth empirical turn-on is exactly what a supercritical Hopf predicts.
+</Figure>

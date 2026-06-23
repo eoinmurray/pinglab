@@ -480,6 +480,95 @@ def fig_grid_maps_compound(grid, out_path):
     plt.close(fig)
 
 
+def fig_turnon_maps_compound(grid, out_path):
+    """Merged turn-on figure: the three scalar maps (E rate, I rate, contrast)
+    over W_EI × W_IE on top, with three representative rasters (loop-off / weak /
+    strong, marked A/B/C on the contrast map) below. Combines the standalone
+    turn-on compound and the grid-maps compound into one panel."""
+    from matplotlib.gridspec import GridSpec
+
+    e = np.array([[c["rate_hz"] for c in row] for row in grid])
+    i = np.array([[c["rate_i_hz"] for c in row] for row in grid])
+    ct = np.array([[c["contrast"] for c in row] for row in grid])
+    i_fin = i[np.isfinite(i)]
+    i_cap = float(np.nanpercentile(i_fin, 92)) if i_fin.size else None
+    e_max = float(np.nanmax(e)) if np.isfinite(e).any() else 1.0
+
+    fig = plt.figure(figsize=(12, 6.75), dpi=150)  # 16:9
+    gs = GridSpec(
+        2, 3, figure=fig, height_ratios=[1.55, 1.0],
+        hspace=0.32, wspace=0.12, top=0.95, bottom=0.09, left=0.06, right=0.99,
+    )
+
+    # Top row — the three scalar maps; A/B/C marked on the contrast panel.
+    panels = [
+        (e, "E firing rate (Hz)", e_max, "{:.0f}", False),
+        (i, "I firing rate (Hz; edge clipped)", i_cap, "{:.0f}", False),
+        (ct, "lobe–trough contrast", 1.0, "{:.2f}", True),
+    ]
+    for k, (vals, title, vmax_color, fmt, mark) in enumerate(panels):
+        ax = fig.add_subplot(gs[0, k])
+        ax.imshow(vals, origin="lower", aspect="equal", cmap="Greys",
+                  vmin=0.0, vmax=vmax_color)
+        xt = range(0, len(WEI_MEAN_GRID), 2)
+        ax.set_xticks(list(xt))
+        ax.set_xticklabels([f"{WEI_MEAN_GRID[t]:.1f}" for t in xt], fontsize=theme.SIZE_TICK - 1)
+        if k == 0:
+            yt = range(0, len(WIE_MEAN_GRID), 2)
+            ax.set_yticks(list(yt))
+            ax.set_yticklabels([f"{WIE_MEAN_GRID[t]:.1f}" for t in yt], fontsize=theme.SIZE_TICK - 1)
+            ax.set_ylabel("W_IE mean (μS)", fontsize=theme.SIZE_LABEL)
+        else:
+            ax.set_yticks([])
+        ax.set_xlabel("W_EI mean (μS)", fontsize=theme.SIZE_LABEL)
+        ax.set_title(title, loc="center", fontsize=theme.SIZE_LABEL - 1, fontweight="semibold")
+        for iy in range(vals.shape[0]):
+            for ix in range(vals.shape[1]):
+                v = vals[iy, ix]
+                if np.isfinite(v):
+                    frac = (v / vmax_color) if vmax_color else 0.0
+                    ax.text(ix, iy, fmt.format(v), ha="center", va="center",
+                            fontsize=4.5, color="white" if frac > 0.55 else theme.INK_BLACK)
+        if mark:
+            for label, wei_i, wie_i in TURNON_POINTS:
+                ax.scatter([wei_i], [wie_i], s=90, facecolor="white",
+                           edgecolor=theme.INK_BLACK, linewidths=1.2, zorder=5)
+                ax.text(wei_i, wie_i, label, ha="center", va="center", zorder=6,
+                        fontsize=theme.SIZE_TICK, fontweight="bold", color=theme.INK_BLACK)
+
+    # Bottom row — the three representative rasters, E black below / I red above.
+    for k, (label, wei_i, wie_i) in enumerate(TURNON_POINTS):
+        ax = fig.add_subplot(gs[1, k])
+        cell = grid[wie_i][wei_i]
+        e_ = cell["e"]
+        n_e = e_.shape[1]
+        T = e_.shape[0]
+        t_ms = np.arange(T) * DT_MS
+        e_idx, e_t = np.where(e_.T)
+        ax.scatter(t_ms[e_t], e_idx, s=0.5, c=theme.INK_BLACK, marker="|", linewidths=0.35)
+        total = n_e
+        if cell["i"] is not None:
+            ii = cell["i"]
+            n_i = ii.shape[1]
+            i_idx, i_t = np.where(ii.T)
+            ax.scatter(t_ms[i_t], n_e + i_idx, s=0.5, c=theme.DEEP_RED, marker="|", linewidths=0.35)
+            ax.axhline(n_e, color=theme.GREY_MID, lw=0.5, alpha=0.6)
+            total = n_e + n_i
+        ax.set_ylim(0, total)
+        ax.set_xlim(0, GRID_WIN_MS)
+        ax.set_yticks([])
+        ax.set_title(
+            f"{label}   W_EI={WEI_MEAN_GRID[wei_i]:.1f}, W_IE={WIE_MEAN_GRID[wie_i]:.1f}"
+            f"   contrast={cell['contrast']:.2f}",
+            loc="left", fontsize=theme.SIZE_TICK - 1,
+        )
+        ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
+        _despine(ax)
+
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def fig_rate_invariance(grid, priv_null, shared_null, out_path):
     """Contrast vs E firing rate: the private-input null (flat ≈0, used) against the
     shared-input null (climbs at low rate, rejected), with the actual PING grid cells."""
@@ -573,11 +662,12 @@ def main():
           f"{NET_INPUT_RATE:.0f} Hz per-cell Poisson input, sim {sim_ms:.0f} ms (compiles per net)…")
     priv_input = poisson_input(DT_MS, sim_ms, NET_N_E, NET_INPUT_RATE)
     grid = run_grid(priv_input)
+    fig_turnon_maps_compound(grid, FIGURES / "turnon_maps_compound.png")
     fig_turnon_compound(grid, FIGURES / "turnon_compound.png")
     fig_grid_maps_compound(grid, FIGURES / "grid_maps.png")
     fig_grid_rasters(grid, FIGURES / "grid_rasters.png")
     fig_grid_autocorr(grid, FIGURES / "grid_autocorr.png")
-    print("wrote turnon_compound + grid_maps + grid_rasters + grid_autocorr")
+    print("wrote turnon_maps_compound + turnon_compound + grid_maps + grid_rasters + grid_autocorr")
 
     rates = [c["rate_hz"] for row in grid for c in row]
     contrasts = [c["contrast"] for row in grid for c in row]

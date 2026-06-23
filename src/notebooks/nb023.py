@@ -23,6 +23,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import FancyArrowPatch, Rectangle
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
@@ -237,22 +238,41 @@ def fi_sweep() -> dict:
     return out
 
 
-def plot_raster_compound(snaps: dict, fi: dict, out_path: Path, titles: dict) -> None:
+def plot_raster_compound(
+    snaps: dict, fi: dict, out_path: Path, titles: dict,
+    include_arch: bool = False,
+) -> None:
     """Super figure: COBA vs PING side by side.
 
     Each condition is a column-pair: a single raster (I stacked above E, no gap)
     spans the pair; below it the population-E Welch PSD sits next to the
     free-running f–I curve. COBA has no I population (loop off).
+
+    With include_arch=True a top row carries each column's architecture
+    schematic (COBA / PING) directly above its plots.
     """
     theme.apply()
     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
     from matplotlib.gridspec import GridSpec
 
     fig = plt.figure(figsize=(12, 6.75), dpi=150)  # 16:9
-    gs = GridSpec(
-        2, 4, figure=fig, height_ratios=[4.4, 2.6],
-        hspace=0.4, wspace=0.5, top=0.92, bottom=0.12, left=0.06, right=0.99,
-    )
+    if include_arch:
+        # Nested gridspecs so the (small) schematic→plots gap is independent of
+        # the (larger) raster→PSD gap that has to clear the time-axis label.
+        outer = GridSpec(
+            2, 1, figure=fig, height_ratios=[2.5, 7.4], hspace=0.10,
+            top=0.93, bottom=0.10, left=0.06, right=0.99,
+        )
+        arch_gs = outer[0].subgridspec(1, 2, wspace=0.5)
+        plot_gs = outer[1].subgridspec(
+            2, 4, height_ratios=[4.4, 2.6], hspace=0.4, wspace=0.5,
+        )
+    else:
+        arch_gs = None
+        plot_gs = GridSpec(
+            2, 4, figure=fig, height_ratios=[4.4, 2.6],
+            hspace=0.4, wspace=0.5, top=0.92, bottom=0.12, left=0.06, right=0.99,
+        )
     fi_max = max(max(fi[c]["e"] + fi[c]["i"]) for c in ("coba", "ping"))
 
     for col, cell in enumerate(("coba", "ping")):
@@ -263,9 +283,14 @@ def plot_raster_compound(snaps: dict, fi: dict, out_path: Path, titles: dict) ->
         t_ms = np.arange(T) * dt
         has_i = spk_i.size > 0 and spk_i.shape[0] == T and spk_i.any()
 
-        ax_r = fig.add_subplot(gs[0, c0:c0 + 2])         # one raster, I above E
-        ax_psd = fig.add_subplot(gs[1, c0])              # PSD next to f–I
-        ax_fi = fig.add_subplot(gs[1, c0 + 1])
+        if include_arch:
+            ax_arch = fig.add_subplot(arch_gs[0, col])
+            _draw_schematic(ax_arch, cell)
+            ax_arch.set_title(titles[cell], loc="left", fontweight="semibold")
+
+        ax_r = fig.add_subplot(plot_gs[0, c0:c0 + 2])    # one raster, I above E
+        ax_psd = fig.add_subplot(plot_gs[1, c0])         # PSD next to f–I
+        ax_fi = fig.add_subplot(plot_gs[1, c0 + 1])
 
         # Combined raster: E (black) at the bottom, I (red) stacked directly
         # above it in the same axes — no vertical gap between the populations.
@@ -291,7 +316,8 @@ def plot_raster_compound(snaps: dict, fi: dict, out_path: Path, titles: dict) ->
         ax_r.set_ylim(0, total)
         ax_r.set_xlim(0, T * dt)
         ax_r.set_xlabel("time (ms)")
-        ax_r.set_title(titles[cell], loc="left", fontweight="semibold")
+        if not include_arch:
+            ax_r.set_title(titles[cell], loc="left", fontweight="semibold")
         _despine(ax_r)
 
         # Welch PSD on the population-mean E trace
@@ -471,6 +497,101 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
     return written
 
 
+# ─── architecture schematic (manuscript Figure 0) ───────────────────
+
+
+def _arch_box(ax, cx, cy, w, h, label, fontsize=15):
+    """A black-edged population box with a centred monospace label."""
+    ax.add_patch(Rectangle(
+        (cx - w / 2, cy - h / 2), w, h,
+        fill=False, edgecolor=theme.INK_BLACK, lw=1.8, zorder=3,
+    ))
+    ax.text(cx, cy, label, ha="center", va="center",
+            fontsize=fontsize, color=theme.INK_BLACK, zorder=4)
+
+
+def _arch_arrow(ax, x0, y0, x1, y1):
+    """A solid black arrow from (x0, y0) to (x1, y1)."""
+    ax.add_patch(FancyArrowPatch(
+        (x0, y0), (x1, y1), arrowstyle="-|>", mutation_scale=14,
+        lw=1.6, color=theme.INK_BLACK, shrinkA=0, shrinkB=0, zorder=3,
+    ))
+
+
+def _arch_label(ax, x, y, text, fontsize=12):
+    ax.text(x, y, text, ha="center", va="center",
+            fontsize=fontsize, color=theme.INK_BLACK, zorder=4)
+
+
+def _draw_schematic(ax, kind: str) -> None:
+    """Draw one architecture schematic (kind = 'coba' or 'ping') into ax.
+
+    The frame fills the axes (16 × 9, no forced square) so the schematic is
+    large; both kinds share the frame and box sizes so the COBA and PING
+    panels read at the same scale. Weight labels sit clear of the boxes.
+    """
+    ax.set_xlim(0, 16)
+    ax.set_ylim(0, 9)
+    ax.axis("off")
+    bw, bh = 3.0, 2.2          # shared box size
+    bf, lf = 13, 10            # box-label / weight-label font sizes
+    if kind == "coba":
+        _arch_box(ax, 8.0, 4.5, bw, bh, "E", fontsize=bf)
+        _arch_arrow(ax, 2.4, 4.5, 6.4, 4.5)        # input → E
+        _arch_label(ax, 4.2, 5.7, "W_in", fontsize=lf)
+        _arch_arrow(ax, 9.6, 4.5, 13.6, 4.5)       # E → output
+        _arch_label(ax, 11.6, 5.7, "W_out", fontsize=lf)
+    else:  # ping
+        _arch_box(ax, 8.0, 6.4, bw, bh, "E", fontsize=bf)
+        _arch_box(ax, 8.0, 2.0, bw, bh, "I", fontsize=bf)
+        _arch_arrow(ax, 2.4, 6.4, 6.4, 6.4)        # input → E
+        _arch_label(ax, 4.2, 7.6, "W_in", fontsize=lf)
+        _arch_arrow(ax, 9.6, 6.4, 13.6, 6.4)       # E → output
+        _arch_label(ax, 11.6, 7.6, "W_out", fontsize=lf)
+        _arch_arrow(ax, 6.9, 5.3, 6.9, 3.1)        # E → I (down, left)
+        _arch_label(ax, 5.0, 4.2, "W_ei", fontsize=lf)
+        _arch_arrow(ax, 9.1, 3.1, 9.1, 5.3)        # I → E (up, right)
+        _arch_label(ax, 11.0, 4.2, "W_ie", fontsize=lf)
+
+
+def plot_architecture(out_path: Path) -> None:
+    """Draw the COBA (left) and PING (right) schematics on one 16:9 figure."""
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
+
+    fig, ax = plt.subplots(figsize=(12, 6.75))
+    ax.set_xlim(0, 16)
+    ax.set_ylim(0, 9)
+    ax.set_aspect("equal")  # 16:9 data range in a 16:9 frame, undistorted
+    ax.axis("off")
+
+    # ── COBA (left), centred on x = 4 ──────────────────────────────
+    ax.text(4.0, 7.6, "COBA", ha="center", va="center",
+            fontsize=14, color=theme.INK_BLACK)
+    _arch_box(ax, 4.0, 5.0, 2.4, 1.7, "E")
+    _arch_arrow(ax, 0.7, 5.0, 2.75, 5.0)        # input → E
+    _arch_label(ax, 1.7, 5.5, "W_in")
+    _arch_arrow(ax, 5.25, 5.0, 7.3, 5.0)        # E → output
+    _arch_label(ax, 6.25, 5.5, "W_out")
+
+    # ── PING (right), centred on x = 12 ────────────────────────────
+    ax.text(12.0, 7.6, "PING", ha="center", va="center",
+            fontsize=14, color=theme.INK_BLACK)
+    _arch_box(ax, 12.0, 5.5, 2.6, 1.7, "E")
+    _arch_box(ax, 12.0, 2.5, 2.6, 1.7, "I")
+    _arch_arrow(ax, 8.5, 5.5, 10.65, 5.5)       # input → E
+    _arch_label(ax, 9.55, 6.0, "W_in")
+    _arch_arrow(ax, 13.3, 5.5, 15.4, 5.5)       # E → output
+    _arch_label(ax, 14.35, 6.0, "W_out")
+    _arch_arrow(ax, 11.3, 4.65, 11.3, 3.35)     # E → I (down, left side)
+    _arch_label(ax, 10.25, 4.0, "W_ei")
+    _arch_arrow(ax, 12.7, 3.35, 12.7, 4.65)     # I → E (up, right side)
+    _arch_label(ax, 13.75, 4.0, "W_ie")
+
+    fig.savefig(out_path, dpi=200)
+    plt.close(fig)
+
+
 def main() -> None:
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
@@ -483,6 +604,13 @@ def main() -> None:
     prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
 
     figures: dict[str, Path] = {}
+
+    # Architecture schematic — manuscript Figure 0 (pure drawing, no compute).
+    arch_dst = FIGURES / "architecture.png"
+    plot_architecture(arch_dst)
+    figures["architecture"] = arch_dst
+    print(f"wrote {arch_dst}")
+
     snaps: dict[str, dict] = {}
     for cell, spec in CELLS.items():
         for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
@@ -511,14 +639,24 @@ def main() -> None:
     # Free-running f–I curves (uniform Poisson sweep), folded into the super figure.
     fi = fi_sweep()
 
-    # Super figure: COBA vs PING side by side (I raster, E raster, PSD + f–I).
-    compound_dst = FIGURES / "raster_compound.png"
-    plot_raster_compound(snaps, fi, compound_dst, {
+    column_titles = {
         "coba": "A   COBA — recurrent loop off",
         "ping": "B   PING — recurrent loop active",
-    })
+    }
+
+    # Super figure: COBA vs PING side by side (raster, PSD + f–I). Used by the
+    # manuscript's Claim 1 (the architecture is its own Claim 0 figure there).
+    compound_dst = FIGURES / "raster_compound.png"
+    plot_raster_compound(snaps, fi, compound_dst, column_titles)
     figures["raster_compound"] = compound_dst
     print(f"wrote {compound_dst}")
+
+    # Merged overview for this notebook: each column's architecture schematic
+    # sits directly above its raster / PSD / f–I plots.
+    overview_dst = FIGURES / "overview_compound.png"
+    plot_raster_compound(snaps, fi, overview_dst, column_titles, include_arch=True)
+    figures["overview_compound"] = overview_dst
+    print(f"wrote {overview_dst}")
 
     duration_s = time.monotonic() - t_start
     figs_root = FIGURES.parents[2]
