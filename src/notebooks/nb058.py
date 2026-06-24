@@ -1,12 +1,15 @@
 """Notebook runner for entry 058 — the canonical Vreeswijk-Sompolinsky state.
 
-Pushes the COBANet into the strict balanced asynchronous-irregular (AI)
-regime — sparse fixed fan-in (K ≈ 10), per-cell independent drive on E and
-I, and an I→I matrix — then tests V&S's textbook predictions on it: large
-opposing E/I currents that cancel, fluctuation-driven firing, irregular
-(CV ≈ 1) and asynchronous (pairwise correlation → 0) activity, rates linear
-in the drive, deterministic chaos, and invariance under the 1/√K synaptic
-scaling. No PING comparison — this entry is the canonical state alone.
+Pushes the COBANet into the full four-coupling balanced asynchronous-irregular
+regime — sparse fixed fan-in (K ≈ 10), per-cell independent drive on E and I,
+and all four recurrent matrices (W^EE, W^EI, W^IE, W^II). Two figures:
+
+  Figure 1 (raster page): combined E+I raster, Welch PSD, ISI-CV histogram,
+    pairwise cross-correlogram — the hallmark irregular (CV ≈ 1),
+    asynchronous, rhythmless firing.
+  Figure 2 (N-sweep): hold K fixed, grow N 4×, for the four-coupling network
+    and a reduced one with W^EE = 0 — showing the signatures and rates are
+    N-invariant and that the fixed-K balance, not W^EE, pins the rates.
 """
 
 from __future__ import annotations
@@ -46,41 +49,119 @@ COMMON_ARGS = [
     "--model", "ping",
     "--input", "synthetic-spikes",
     "--t-ms", "1000",
-    # Lyapunov / chaos probe: rerun on identical frozen input with an
-    # ε = 2 mV initial membrane perturbation and record the spike-train
-    # divergence D(t). The balanced state sustains the divergence — the
-    # signature of positive λ (deterministic chaos).
-    "--lyapunov-eps", "2.0",
+]
+# Canonical Brunel/Vreeswijk asynchronous-irregular state, full four-coupling
+# architecture (W^EE, W^EI, W^IE, W^II all present). The knobs that land it on
+# textbook CV ≈ 1 for both populations:
+#   - --ei-sparsity 0.99 + --exact-k → fixed fan-in K ≈ 10 per post cell
+#     (Brunel/V&S convention; removes the binomial fan-in variance that
+#     otherwise broadens the rate distribution)
+#   - --independent-drive 45 0.38 — large per-spike kicks at low rate on E
+#     (input fluctuations dominate drift)
+#   - --independent-drive-i 8 0.25 — same for I (without it the I-cell CV stays
+#     correlated with E via W^EI)
+#   - --w-ie 3.0 strong I→E shunt so Poisson I activity propagates noise into E
+#   - --w-ii 0.4 modest I→I self-inhibition
+#   - --w-ee 0.4 recurrent E→E completing the four-coupling V&S architecture.
+#     It does NOT pin the rates (the fixed-K balance equations already do — see
+#     the N-sweep) — it is here for canonical completeness and lifts CV
+#     slightly above 1.
+CANONICAL_ARGS = [
+    "--input-rate", "1",
+    "--w-in", "0.01", "0.001",
+    "--w-ei", "0.6", "0.18",
+    "--w-ie", "3.0", "0.9",
+    "--w-ii", "0.4", "0.12",
+    "--w-ee", "0.4", "0.12",
+    "--ei-sparsity", "0.99",
+    "--exact-k",
+    "--independent-drive", "45", "0.38",
+    "--independent-drive-i", "8", "0.25",
 ]
 CELLS: dict[str, dict] = {
     "ai": {
-        "args": [
-            # Brunel/Vreeswijk asynchronous-irregular state, full version.
-            # Five knobs land it on textbook CV ≈ 1 for both populations:
-            #   - --ei-sparsity 0.99 + --exact-k → fixed fan-in K ≈ 10 per
-            #     post cell (Brunel/V&S convention; removes the binomial
-            #     fan-in variance that otherwise broadens the rate dist)
-            #   - --independent-drive 45 0.38 — large per-spike kicks at low
-            #     rate on E (input fluctuations dominate drift)
-            #   - --independent-drive-i 8 0.25 — same for I (without this
-            #     I-cell CV stays correlated with E via W^EI; this entry
-            #     adds the flag)
-            #   - --w-ie 3.0 strong I→E shunt so Poisson I activity
-            #     propagates noise into E
-            #   - --w-ii 0.4 modest I→I self-inhibition
-            "--input-rate", "1",
-            "--w-in", "0.01", "0.001",
-            "--w-ei", "0.6", "0.18",
-            "--w-ie", "3.0", "0.9",
-            "--w-ii", "0.4", "0.12",
-            "--ei-sparsity", "0.99",
-            "--exact-k",
-            "--independent-drive", "45", "0.38",
-            "--independent-drive-i", "8", "0.25",
-        ],
-        "title": "Balanced E/I (V&S) — fixed-K, per-E + per-I drive, CV ≈ 1",
+        "args": CANONICAL_ARGS,
+        "title": "Canonical V&S — four-coupling, fixed-K, per-E + per-I drive",
     },
 }
+
+# N-invariance sweep: hold fan-in K ≈ 10 fixed (sparsity s = 1 - K/N_E) and
+# grow the network 4× — N_E = 1024 → 4096, N_I = N_E / 4 — comparing the
+# canonical four-coupling network (W^EE = 0.4) against the reduced no-E→E one
+# (W^EE = 0). The balance equations depend only on K, so at fixed K the rates
+# and signatures should be N-invariant for both — demonstrating that recurrent
+# excitation is not what pins r_E. Multiple seeds separate finite-size noise
+# from genuine drift.
+K_TARGET = 10
+N_GRID: list[tuple[int, int]] = [(1024, 256), (2048, 512), (4096, 1024)]
+SWEEP_SEEDS = [0, 1, 2]
+SWEEP_VARIANTS = {
+    "canonical": {"w_ee": ("0.4", "0.12"), "label": "canonical ($W^{EE}$ = 0.4)"},
+    "reduced": {"w_ee": ("0.0", "0.0"), "label": "reduced (no E→E)"},
+}
+
+# K-sweep: the defining V&S test. At fixed N_E = 1024 grow the fan-in K via
+# sparsity (s = 1 - K/N_E) under two coupling conventions:
+#   - strong (V&S):  synapse ∝ J/√K → scale recurrent weights by √(K/K0), and
+#     fold the drive into the balance (external mean ∝ √K, fluctuation O(1)):
+#     rate ∝ K, per-spike g ∝ 1/√K. Fluctuations survive K→∞, CV stays ≈ 1.
+#   - weak (mean-field): hold everything fixed → synapse ∝ 1/K, fluctuations
+#     ∝ 1/√K → 0, the state regularises (CV drifts down toward a clock).
+# The exact-K path already divides each synapse by K, so "scale weights by √K"
+# realises J/√K with no model change — pure runner arithmetic.
+K_SWEEP_K0 = 10
+K_SWEEP_KS = [10, 20, 40, 80, 160]
+K_SWEEP_T_MS = 3000  # longer trial so low-rate high-K points get enough ISIs
+K_SWEEP_BASE_W = {  # nominal (mean, std) at K0
+    "w-ei": (0.6, 0.18), "w-ie": (3.0, 0.9),
+    "w-ii": (0.4, 0.12), "w-ee": (0.4, 0.12),
+}
+K_SWEEP_BASE_DRIVE = {"e": (45.0, 0.38), "i": (8.0, 0.25)}  # (rate_hz, g)
+K_SWEEP_VARIANTS = {
+    "strong": {"label": "strong $J/\\sqrt{K}$ (V&S)", "scale": True},
+    "weak": {"label": "weak (mean-field)", "scale": False},
+}
+
+# Self-generation test: drive both networks with a *quenched* DC conductance
+# (a frozen per-cell offset — no per-timestep fluctuation, so the input carries
+# zero noise) and ask whether irregular firing survives. The balanced recurrent
+# network keeps CV ≈ 1 (the irregularity is generated by its own deterministic
+# dynamics); a decoupled network (recurrent weights ≈ 0) under the same frozen
+# DC fires like a clock (CV ≈ 0) — the negative control. A deterministic
+# autonomous system that sustains aperiodic firing is chaotic by elimination.
+CHAOS_SEEDS = [0, 1, 2]
+CHAOS_QUENCH = ["--quenched-drive", "0.0342", "0.01",
+                "--quenched-drive-i", "0.004", "0.005"]
+CHAOS_VARIANTS = {
+    "balanced": {
+        "label": "balanced (full recurrence)",
+        "w": ["--w-ei", "0.6", "0.18", "--w-ie", "3.0", "0.9",
+              "--w-ii", "0.4", "0.12", "--w-ee", "0.4", "0.12"],
+        "quench": CHAOS_QUENCH,
+    },
+    "decoupled": {
+        "label": "decoupled (recurrence ≈ 0)",
+        "w": ["--w-ei", "0.001", "0.0", "--w-ie", "0.001", "0.0",
+              "--w-ii", "0.001", "0.0", "--w-ee", "0.001", "0.0"],
+        # lower DC so the uncoupled clocks fire at a comparable rate
+        "quench": ["--quenched-drive", "0.003", "0.01",
+                   "--quenched-drive-i", "0.004", "0.005"],
+    },
+}
+
+# Direct Lyapunov measurement: clone the network, kick every membrane voltage
+# by ε at t=0 on identical frozen (quenched-DC) input, and track the voltage
+# distance ‖ΔV(t)‖ between the two copies. Spiking dynamics contract between
+# spikes and expand only at spike-flips, so ε must be large enough to flip
+# spikes (ε too small → pure contraction → false λ < 0); ‖ΔV‖ then grows and
+# saturates at the attractor size. The slope of log‖ΔV‖ in the pre-saturation
+# window is the largest Lyapunov exponent: > 0 for the chaotic balanced net,
+# < 0 for the decoupled control. (Precise asymptotic λ would need a
+# renormalised Benettin scheme; this is the initial-growth estimate.)
+LYAP_SEEDS = [0, 1, 2, 3, 4]
+LYAP_EPS = "0.1"
+LYAP_T_MS = "500"
+LYAP_FIT_MS = (5.0, 80.0)   # balanced growth window (post-flip, pre-saturation)
 
 TIER_CONFIG = {
     "extra small": {},
@@ -185,40 +266,6 @@ def _pair_cross_correlogram(
     return lags_ms, mean_corr, peak_abs
 
 
-def _per_cell_fluctuation_drive(ge_e, gi_e, v_e, burn_steps: int):
-    """Per-E-cell V&S signature: total synaptic + leak current $I_{tot}(t)$,
-    its time-mean $\\mu_I$, time-std $\\sigma_I$, and the fluctuation-vs-mean
-    ratio $\\eta = \\sigma_I / |I_{th} - \\mu_I|$ where $I_{th}$ is the
-    constant current needed to maintain V at threshold.
-
-    V&S predicts mean drives cancel to leave $\\mu_I$ well below the
-    threshold-needed value, with fluctuations $\\sigma_I$ comparable to
-    the gap (so the cell fires only when noise pushes V across $V_{th}$).
-    PING in contrast has a strong oscillatory $I_{tot}(t)$ where the
-    deterministic cycle structure dominates the variance.
-
-    Constants: E_e = 0, E_i = -80, E_L = -65, V_th = -50 mV, g_L = 0.05 μS.
-    I_{th} = g_L (V_th - E_L) = 0.75 nA.
-    """
-    E_e = 0.0
-    E_i = -80.0
-    E_L = -65.0
-    V_th = -50.0
-    g_L = 0.05
-    I_th = g_L * (V_th - E_L)  # 0.75 nA threshold-current
-
-    ge = ge_e[burn_steps:]
-    gi = gi_e[burn_steps:]
-    v = v_e[burn_steps:]
-    # Total membrane current per cell per timestep (positive depolarises).
-    I_tot = ge * (E_e - v) + gi * (E_i - v) + g_L * (E_L - v)
-    mu = I_tot.mean(axis=0)       # (N_E,) mean drive
-    sigma = I_tot.std(axis=0)     # (N_E,) fluctuation amplitude
-    gap = I_th - mu               # how much extra mean current would be needed
-    eta = sigma / np.maximum(np.abs(gap), 1e-9)
-    return mu, sigma, gap, eta, I_th
-
-
 def _isi_cvs(spk_2d: np.ndarray, dt_ms: float, min_spikes: int = 3) -> np.ndarray:
     """Per-neuron coefficient of variation of inter-spike intervals.
 
@@ -237,233 +284,6 @@ def _isi_cvs(spk_2d: np.ndarray, dt_ms: float, min_spikes: int = 3) -> np.ndarra
             continue
         cvs.append(isis.std() / isis.mean())
     return np.array(cvs)
-
-
-def plot_current_balance(npz_path: Path, out_path: Path, title: str) -> dict:
-    """Two-panel V&S fluctuation-vs-mean diagnostic.
-
-    Left: scatter of per-cell time-mean $\\mu_I$ vs time-std $\\sigma_I$ of
-    the total membrane current $I_{tot}(t) = g_e(E_e - V) + g_i(E_i - V)
-    + g_L(E_L - V)$. Two reference lines:
-      - $\\mu_I = I_{th}$ (vertical): cells right of this would fire from
-        the mean alone (no fluctuations needed).
-      - $\\sigma_I = I_{th} - \\mu_I$ (diagonal, dashed): on this line the
-        fluctuation amplitude equals the distance to threshold, the
-        boundary of fluctuation-driven firing. V&S cells sit on or above
-        the diagonal *left* of the vertical line. Mean-driven cells sit
-        *right* of the vertical line.
-
-    Right: histogram of $\\eta = \\sigma_I / |I_{th} - \\mu_I|$ across cells,
-    the V&S single-number signature. Reference line at $\\eta = 1$:
-      - $\\eta \\gg 1$: fluctuations dominate the gap to threshold →
-        fluctuation-driven firing (V&S balanced state).
-      - $\\eta \\ll 1$: cell's mean drive is well below threshold and
-        fluctuations are too small to drive it across — cell is silent.
-    """
-    theme.apply()
-    from matplotlib.gridspec import GridSpec
-    data = np.load(npz_path)
-    spk_e = data["spk_e"]
-    if "ge_e_1" not in data:
-        return {
-            "median_eta_fluct_drive": None, "frac_above_eta_1": None,
-            "median_mu_I": None, "median_sigma_I": None,
-        }
-    ge_e = data["ge_e_1"]
-    gi_e = data["gi_e_1"]
-    v_e = data["v_e_1"]
-    burn_steps = max(0, ge_e.shape[0] - spk_e.shape[0])
-    mu, sigma, gap, eta, I_th = _per_cell_fluctuation_drive(
-        ge_e, gi_e, v_e, burn_steps,
-    )
-    valid = np.isfinite(mu) & np.isfinite(sigma) & np.isfinite(eta)
-    mu = mu[valid]
-    sigma = sigma[valid]
-    eta = eta[valid]
-    gap = gap[valid]
-    if mu.size == 0:
-        return {
-            "median_eta_fluct_drive": None, "frac_above_eta_1": None,
-            "median_mu_I": None, "median_sigma_I": None,
-        }
-
-    fig = plt.figure(figsize=(11.0, 4.4), dpi=150)
-    gs = GridSpec(
-        1, 2, figure=fig, width_ratios=[1.0, 1.0],
-        wspace=0.30, top=0.86, bottom=0.16, left=0.08, right=0.97,
-    )
-    ax_sc = fig.add_subplot(gs[0])
-    ax_hi = fig.add_subplot(gs[1])
-
-    # Scatter: mean current vs fluctuation amplitude per cell.
-    ax_sc.scatter(mu, sigma, s=4.0, c=theme.INK_BLACK, alpha=0.35, linewidths=0)
-    x_lo = float(min(mu.min(), 0.0))
-    x_hi = float(max(mu.max(), I_th * 1.2))
-    y_hi = float(max(sigma.max(), abs(I_th - mu.min())))
-    # Vertical: μ = I_th
-    ax_sc.axvline(
-        I_th, color=theme.DEEP_RED, lw=0.9, ls=":", alpha=0.7,
-    )
-    # Diagonal: σ = I_th - μ (only meaningful where μ ≤ I_th)
-    xs = np.linspace(x_lo, I_th, 50)
-    ax_sc.plot(
-        xs, I_th - xs, color=theme.DEEP_RED, lw=0.9, ls="--", alpha=0.7,
-    )
-    ax_sc.set_xlim(x_lo - 0.5, x_hi + 0.5)
-    ax_sc.set_ylim(0, y_hi * 1.1)
-    ax_sc.set_xlabel("$\\mu_I$  (time-mean total current, nA)")
-    ax_sc.set_ylabel("$\\sigma_I$  (time-std, nA)")
-    ax_sc.spines["top"].set_visible(False)
-    ax_sc.spines["right"].set_visible(False)
-    ax_sc.set_title(
-        f"Per-cell drive: mean vs fluctuation (n = {mu.size} E cells)",
-        loc="left", fontsize=theme.SIZE_LABEL, pad=4,
-    )
-    ax_sc.text(
-        0.02, 0.97,
-        f"I$_{{th}}$ = {I_th:.2f} nA (dotted)\n$\\sigma$ = I$_{{th}}$ − $\\mu$ (dashed)",
-        transform=ax_sc.transAxes, ha="left", va="top",
-        fontsize=theme.SIZE_LABEL - 1, color=theme.LABEL,
-    )
-
-    # Histogram of η = σ / |I_th - μ| (clip extremes for display).
-    eta_disp = np.clip(eta, 0, 5.0)
-    median_eta = float(np.median(eta))
-    frac_above_1 = float((eta >= 1.0).mean())
-    ax_hi.hist(
-        eta_disp, bins=np.linspace(0, 5.0, 50),
-        color=theme.INK_BLACK, alpha=0.7,
-    )
-    ax_hi.axvline(1.0, color=theme.DEEP_RED, lw=1.0, ls="--", alpha=0.85)
-    ax_hi.text(
-        1.0, ax_hi.get_ylim()[1] * 0.95,
-        "  η = 1  (fluct ≈ gap)",
-        ha="left", va="top",
-        fontsize=theme.SIZE_LABEL - 1, color=theme.DEEP_RED,
-    )
-    ax_hi.set_xlim(0, 5.0)
-    ax_hi.set_xlabel("$\\eta = \\sigma_I / |I_{th} - \\mu_I|$")
-    ax_hi.set_ylabel("E-cell count")
-    ax_hi.spines["top"].set_visible(False)
-    ax_hi.spines["right"].set_visible(False)
-    ax_hi.set_title(
-        "Fluctuation-vs-mean ratio (V&S signature)",
-        loc="left", fontsize=theme.SIZE_LABEL, pad=4,
-    )
-    ax_hi.text(
-        0.97, 0.97,
-        f"median η = {median_eta:.2f}\n{frac_above_1:.0%} of cells have η ≥ 1",
-        transform=ax_hi.transAxes, ha="right", va="top",
-        fontsize=theme.SIZE_LABEL - 1, color=theme.LABEL,
-        fontweight="semibold",
-    )
-
-    fig.suptitle(title, fontsize=theme.SIZE_TITLE, x=0.08, ha="left")
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-    return {
-        "median_eta_fluct_drive": median_eta,
-        "frac_above_eta_1": frac_above_1,
-        "median_mu_I": float(np.median(mu)),
-        "median_sigma_I": float(np.median(sigma)),
-    }
-
-
-def plot_current_decomposition(npz_path: Path, out_path: Path, title: str) -> dict:
-    """The V&S cancellation, made visible (their Eq. 1-3 / Fig. 1 idea).
-
-    Left: one representative E cell's membrane currents over a window —
-    the large *excitatory* current $I_E = g_E(E_e - V)$, the large
-    *inhibitory* current $I_I = g_I(E_i - V)$, and their sum $I_E + I_I$.
-    The two large opposing currents nearly cancel, leaving a small,
-    noisy net that hovers around the threshold current $I_{th}$.
-
-    Right: across all E cells, the per-cell time-means $\\langle I_E\\rangle$,
-    $|\\langle I_I\\rangle|$ and the net $\\langle I_E + I_I + I_L\\rangle$.
-    $\\langle I_E\\rangle \\approx |\\langle I_I\\rangle| \\gg$ net is the balance
-    condition: the $O(\\sqrt K)$ excitatory and inhibitory drives cancel to
-    an $O(1)$ residue.
-    """
-    theme.apply()
-    from matplotlib.gridspec import GridSpec
-    E_e, E_i, E_L, V_th, g_L = 0.0, -80.0, -65.0, -50.0, 0.05
-    I_th = g_L * (V_th - E_L)
-    data = np.load(npz_path)
-    spk_e = data["spk_e"]
-    if "ge_e_1" not in data:
-        return {"median_I_exc": None, "median_I_inh": None,
-                "median_I_net": None, "cancellation_ratio": None}
-    ge, gi, v = data["ge_e_1"], data["gi_e_1"], data["v_e_1"]
-    dt = float(data["dt"])
-    burn = max(0, ge.shape[0] - spk_e.shape[0])
-    ge, gi, v = ge[burn:], gi[burn:], v[burn:]
-    I_E = ge * (E_e - v)            # (T, N) excitatory, > 0
-    I_I = gi * (E_i - v)            # (T, N) inhibitory, < 0
-    I_L = g_L * (E_L - v)
-    mu_E = I_E.mean(axis=0)         # per-cell time-means
-    mu_I = I_I.mean(axis=0)
-    mu_net = (I_E + I_I + I_L).mean(axis=0)
-    # representative cell: the one whose net drive is closest to the median
-    med_net = np.median(mu_net)
-    rep = int(np.argmin(np.abs(mu_net - med_net)))
-
-    fig = plt.figure(figsize=(11.0, 4.4), dpi=150)
-    gs = GridSpec(1, 2, figure=fig, width_ratios=[1.35, 1.0],
-                  wspace=0.28, top=0.86, bottom=0.16, left=0.08, right=0.97)
-    ax_ts = fig.add_subplot(gs[0])
-    ax_ba = fig.add_subplot(gs[1])
-
-    # Left: representative-cell current traces over a 250 ms window.
-    t = np.arange(ge.shape[0]) * dt
-    w = (t >= 300.0) & (t < 550.0)
-    ax_ts.plot(t[w], I_E[w, rep], color=theme.ELECTRIC_CYAN, lw=1.0,
-               label="$I_E = g_E(E_e - V)$  (excitatory)")
-    ax_ts.plot(t[w], I_I[w, rep], color=theme.DEEP_RED, lw=1.0,
-               label="$I_I = g_I(E_i - V)$  (inhibitory)")
-    ax_ts.plot(t[w], (I_E + I_I + I_L)[w, rep], color=theme.INK_BLACK, lw=1.4,
-               label="net  $I_E + I_I + I_L$")
-    ax_ts.axhline(I_th, color=theme.AMBER, lw=0.8, ls=":")
-    ax_ts.axhline(0.0, color=theme.GREY_MID, lw=0.5)
-    ax_ts.text(t[w][-1], I_th, " $I_{th}$", color=theme.AMBER,
-               va="center", ha="left", fontsize=theme.SIZE_LABEL - 1)
-    ax_ts.set_xlabel("time (ms)")
-    ax_ts.set_ylabel("membrane current (nA)")
-    ax_ts.spines["top"].set_visible(False)
-    ax_ts.spines["right"].set_visible(False)
-    ax_ts.legend(fontsize=theme.SIZE_LEGEND - 1, frameon=False, loc="upper right",
-                 ncol=1)
-    ax_ts.set_title(f"One E cell: two large currents, small sum (cell {rep})",
-                    loc="left", fontsize=theme.SIZE_LABEL, pad=4)
-
-    # Right: population balance bars (median +/- IQR).
-    def _stat(a):
-        return float(np.median(a)), float(np.percentile(a, 25)), float(np.percentile(a, 75))
-    me, me_lo, me_hi = _stat(mu_E)
-    mi, mi_lo, mi_hi = _stat(np.abs(mu_I))
-    mn, mn_lo, mn_hi = _stat(mu_net)
-    xs = [0, 1, 2]
-    vals = [me, mi, mn]
-    errs = [[me - me_lo, mi - mi_lo, mn - mn_lo], [me_hi - me, mi_hi - mi, mn_hi - mn]]
-    cols = [theme.ELECTRIC_CYAN, theme.DEEP_RED, theme.INK_BLACK]
-    ax_ba.bar(xs, vals, yerr=errs, color=cols, alpha=0.8, capsize=3, width=0.6)
-    ax_ba.axhline(I_th, color=theme.AMBER, lw=0.8, ls=":")
-    ax_ba.text(2.4, I_th, "$I_{th}$", color=theme.AMBER, va="center",
-               ha="left", fontsize=theme.SIZE_LABEL - 1)
-    ax_ba.set_xticks(xs)
-    ax_ba.set_xticklabels(["$\\langle I_E\\rangle$", "$|\\langle I_I\\rangle|$",
-                           "net"])
-    ax_ba.set_ylabel("per-cell mean current (nA)")
-    ax_ba.spines["top"].set_visible(False)
-    ax_ba.spines["right"].set_visible(False)
-    ratio = abs(mn) / me if me else float("nan")
-    ax_ba.set_title(f"Population balance: net / exc = {ratio:.2f}",
-                    loc="left", fontsize=theme.SIZE_LABEL, pad=4)
-
-    fig.suptitle(title, fontsize=theme.SIZE_TITLE, x=0.08, ha="left")
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-    return {"median_I_exc": me, "median_I_inh": float(np.median(mu_I)),
-            "median_I_net": mn, "cancellation_ratio": float(ratio)}
 
 
 def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
@@ -534,7 +354,7 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
         ax_psd.axvline(f_peak, color=theme.DEEP_RED, lw=0.9, ls="--", alpha=0.8)
         ax_psd.text(
             f_peak, ax_psd.get_ylim()[1] * 0.95,
-            f"  $f_\\gamma$ = {f_peak:.1f} Hz",
+            f"  max {f_peak:.1f} Hz (noise floor)",
             ha="left", va="top",
             fontsize=theme.SIZE_LABEL - 1, color=theme.DEEP_RED,
             fontweight="semibold",
@@ -601,387 +421,447 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     plt.close(fig)
 
 
-def _strip_flag(args: list[str], flag: str, nvals: int) -> list[str]:
-    out, i = [], 0
-    while i < len(args):
-        if args[i] == flag:
-            i += 1 + nvals
-        else:
-            out.append(args[i]); i += 1
-    return out
+def _sweep_args(n_e: int, n_i: int, sparsity: float,
+                w_ee: tuple[str, str], seed: int) -> list[str]:
+    """Build the sim args for one N-sweep point — the canonical config with
+    N, sparsity (so K stays fixed), W^EE, and seed overridden."""
+    return [
+        "--n-e", str(n_e), "--n-i", str(n_i),
+        "--ei-sparsity", f"{sparsity:.6f}", "--exact-k",
+        "--input-rate", "1", "--w-in", "0.01", "0.001",
+        "--w-ei", "0.6", "0.18", "--w-ie", "3.0", "0.9", "--w-ii", "0.4", "0.12",
+        "--w-ee", w_ee[0], w_ee[1],
+        "--independent-drive", "45", "0.38", "--independent-drive-i", "8", "0.25",
+        "--seed", str(seed),
+    ]
 
 
-def _run_scope(extra_args: list[str], t_ms: str = "1000"):
-    """Run one oscilloscope sim and return the loaded snapshot npz."""
+def _run_and_measure(scope_argv: list[str]) -> dict:
+    """Run one sim and read back the four scalar diagnostics."""
     for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
         if p.exists():
             p.unlink()
-    argv = ["sim", "--image", "--model", "ping", "--input", "synthetic-spikes",
-            "--t-ms", t_ms, *extra_args]
-    subprocess.run(["uv", "run", "python", str(OSCILLOSCOPE), *argv],
-                   cwd=REPO, check=True)
-    return np.load(SCOPE_OUT_NPZ)
-
-
-def _run_scope_rates(extra_args: list[str], t_ms: str = "1000") -> tuple[float, float]:
-    """Run one oscilloscope sim and return (r_E, r_I) population rates in Hz."""
-    data = _run_scope(extra_args, t_ms)
+    cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *COMMON_ARGS, *scope_argv]
+    subprocess.run(cmd, cwd=REPO, check=True)
+    if not SCOPE_OUT_NPZ.exists():
+        raise SystemExit(f"oscilloscope did not produce {SCOPE_OUT_NPZ}")
+    data = np.load(SCOPE_OUT_NPZ)
     spk_e, spk_i = data["spk_e"], data["spk_i"]
     dt = float(data["dt"])
-    r_e = float(spk_e.mean() * 1000.0 / dt)
-    r_i = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
-    return r_e, r_i
+    e_rate = float(spk_e.mean() * 1000.0 / dt)
+    i_rate = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
+    cvs_e = _isi_cvs(spk_e, dt)
+    med_cv_e = float(np.median(cvs_e)) if cvs_e.size > 0 else float("nan")
+    _, _, xpeak = _pair_cross_correlogram(spk_e, dt)
+    return {"e_rate": e_rate, "i_rate": i_rate,
+            "median_isi_cv_e": med_cv_e, "peak_abs_xcorr_e": xpeak}
 
 
-def sqrtk_sweep(sparsities) -> list[dict]:
-    """Vary K (via connection sparsity) with the recurrent weights scaled
-    by 1/sqrt(K) — V&S's defining synaptic scaling. On the balanced
-    manifold the AI signatures (CV -> 1, low pairwise correlation) are
-    K-invariant, down to the finite-K breakdown where the mean-field
-    (central-limit) argument stops holding.
-    """
-    N_E, base_K = 1024, 10.0
-    out = []
-    for s in sparsities:
-        K = (1.0 - s) * N_E
-        sc = float(np.sqrt(base_K / K))   # J ~ 1/sqrt(K)
-        args = ["--input-rate", "1", "--w-in", "0.01", "0.001",
-                "--w-ei", f"{0.6 * sc:.4f}", f"{0.18 * sc:.4f}",
-                "--w-ie", f"{3.0 * sc:.4f}", f"{0.9 * sc:.4f}",
-                "--w-ii", f"{0.4 * sc:.4f}", f"{0.12 * sc:.4f}",
-                "--ei-sparsity", f"{s}", "--exact-k",
-                "--independent-drive", "45", "0.38",
-                "--independent-drive-i", "8", "0.25"]
-        data = _run_scope(args)
-        spk = data["spk_e"]
-        dt = float(data["dt"])
-        cv = float(np.median(_isi_cvs(spk, dt)))
-        _, _, pk = _pair_cross_correlogram(spk, dt)
-        out.append({"K": float(K), "sparsity": float(s), "weight_scale": sc,
-                    "median_cv_e": cv, "xcorr_peak": float(pk)})
-        print(f"  K={K:.0f} (sparsity {s}): medCV={cv:.2f}, xcorr={pk:.4f}")
-    out.sort(key=lambda d: d["K"])
+def run_n_sweep() -> dict:
+    """Sweep N at fixed K for both architecture variants, averaging over
+    seeds. Returns a nested dict variant → metric → (means, stds) over N."""
+    n_es = [ne for ne, _ in N_GRID]
+    out: dict = {"n_e": n_es, "variants": {}}
+    for vkey, vspec in SWEEP_VARIANTS.items():
+        per_metric = {m: {"mean": [], "std": []}
+                      for m in ("e_rate", "i_rate", "median_isi_cv_e",
+                                "peak_abs_xcorr_e")}
+        for (n_e, n_i) in N_GRID:
+            sparsity = 1.0 - K_TARGET / n_e
+            seed_vals = {m: [] for m in per_metric}
+            for seed in SWEEP_SEEDS:
+                argv = _sweep_args(n_e, n_i, sparsity, vspec["w_ee"], seed)
+                print(f"[sweep] {vkey} N_E={n_e} s={sparsity:.4f} seed={seed}")
+                res = _run_and_measure(argv)
+                for m in per_metric:
+                    seed_vals[m].append(res[m])
+            for m in per_metric:
+                arr = np.array(seed_vals[m], dtype=float)
+                per_metric[m]["mean"].append(float(np.nanmean(arr)))
+                per_metric[m]["std"].append(float(np.nanstd(arr)))
+        out["variants"][vkey] = {"label": vspec["label"], "metrics": per_metric}
     return out
 
 
-def n_invariance_sweep(n_values, sparsity: float = 0.99) -> list[dict]:
-    """True V&S N-invariance test: sweep the network size N at fixed K/N
-    (fixed sparsity, so K ∝ N), scaling BOTH the recurrent weights and the
-    external drive as the balanced state requires.
-
-    Recurrent weights ∝ 1/√K. The external drive is made V&S-sparse by
-    scaling the per-cell Poisson stream so it equals the superposition of
-    K_ext ∝ K independent external connections each at strength ∝ 1/√K:
-    amplitude ∝ 1/√K and rate ∝ K, giving an external mean O(√K) with O(1)
-    fluctuations — matching the recurrent drive. If the state lives on the
-    balanced manifold the *rates* (not just the CV) are N-invariant.
-    """
-    N_ref = 1024
-    K_ref = (1.0 - sparsity) * N_ref
-    base_re, base_ge = 45.0, 0.38   # external E drive at N_ref
-    base_ri, base_gi = 8.0, 0.25    # external I drive at N_ref
-    out = []
-    for N in n_values:
-        K = (1.0 - sparsity) * N
-        wsc = float(np.sqrt(K_ref / K))   # weights & ext amplitude ∝ 1/√K
-        rsc = K / K_ref                   # ext rate ∝ K
-        args = ["--n-hidden", str(int(N)),
-                "--input-rate", "1", "--w-in", "0.01", "0.001",
-                "--w-ei", f"{0.6 * wsc:.5f}", f"{0.18 * wsc:.5f}",
-                "--w-ie", f"{3.0 * wsc:.5f}", f"{0.9 * wsc:.5f}",
-                "--w-ii", f"{0.4 * wsc:.5f}", f"{0.12 * wsc:.5f}",
-                "--ei-sparsity", f"{sparsity}", "--exact-k",
-                "--independent-drive",
-                f"{base_re * rsc:.4f}", f"{base_ge * wsc:.5f}",
-                "--independent-drive-i",
-                f"{base_ri * rsc:.4f}", f"{base_gi * wsc:.5f}"]
-        data = _run_scope(args)
-        spk_e, spk_i = data["spk_e"], data["spk_i"]
-        dt = float(data["dt"])
-        n_i = int(data["n_i"]) if "n_i" in data.files else 0
-        r_e = float(spk_e.mean() * 1000.0 / dt)
-        r_i = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
-        cv = float(np.median(_isi_cvs(spk_e, dt)))
-        out.append({"N": int(N), "n_i": n_i, "K": float(K),
-                    "r_e_hz": r_e, "r_i_hz": r_i, "median_cv_e": cv})
-        print(f"  N={N} (K={K:.1f}, N_I={n_i}): "
-              f"r_E={r_e:.1f} r_I={r_i:.1f} Hz  medCV={cv:.2f}")
-    return out
-
-
-def plot_n_invariance(sweep: list[dict], out_path: Path, run_id: str) -> None:
+def plot_n_sweep(sweep: dict, out_path: Path) -> None:
+    """Three panels vs network size N_E (log2 x): median ISI CV, pairwise
+    cross-correlation peak, and the two population rates — canonical
+    (four-coupling) vs reduced (no E→E)."""
     theme.apply()
-    ns = [d["N"] for d in sweep]
-    re = [d["r_e_hz"] for d in sweep]
-    ri = [d["r_i_hz"] for d in sweep]
-    cv = [d["median_cv_e"] for d in sweep]
-    ks = [d["K"] for d in sweep]
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    ax.plot(ns, re, "o-", color=theme.INK_BLACK, lw=1.6, ms=7, label="$r_E$")
-    ax.plot(ns, ri, "s--", color=theme.DEEP_RED, lw=1.6, ms=7, label="$r_I$")
-    for x, y, k in zip(ns, re, ks):
-        ax.annotate(f"K={k:.0f}", (x, y), textcoords="offset points",
-                    xytext=(0, -14), ha="center",
-                    fontsize=theme.SIZE_ANNOTATION - 1, color=theme.GREY_DARK)
-    ax.set_xlabel("network size $N_E$  ($K \\propto N$; weights & external "
-                  "drive $\\propto 1/\\sqrt{K}$)")
-    ax.set_ylabel("population rate (Hz)")
-    ax.set_ylim(0, 38)
-    ax.spines["top"].set_visible(False)
-    ax2 = ax.twinx()
-    ax2.plot(ns, cv, "^:", color=theme.AMBER, lw=1.4, ms=7,
-             label="median ISI CV (E)")
-    ax2.axhline(1.0, color=theme.AMBER, lw=0.7, ls=":", alpha=0.6)
-    ax2.set_ylabel("median ISI CV (E)", color=theme.AMBER)
-    ax2.set_ylim(0, 1.6)
-    ax2.tick_params(axis="y", colors=theme.AMBER)
-    lines = ax.get_lines()[:2] + ax2.get_lines()[:1]
-    ax.legend(lines, [ln.get_label() for ln in lines],
-              fontsize=theme.SIZE_LEGEND - 1, frameon=False, loc="center right")
-    ax.set_title("N-sweep on the balanced manifold: CV and $r_I$ invariant, "
-                 "$r_E$ drifts", fontsize=theme.SIZE_TITLE, loc="left")
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
-def plot_sqrtk(sweep: list[dict], out_path: Path, run_id: str) -> None:
-    theme.apply()
-    ks = [d["K"] for d in sweep]
-    cvs = [d["median_cv_e"] for d in sweep]
-    pks = [d["xcorr_peak"] for d in sweep]
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    ax.plot(ks, cvs, "o-", color=theme.INK_BLACK, lw=1.4, zorder=5,
-            label="median ISI CV (E)")
-    ax.axhline(1.0, color=theme.AMBER, lw=0.8, ls=":")
-    ax.text(ks[0], 1.0, "CV = 1 (Poisson) ", color=theme.AMBER,
-            va="bottom", ha="left", fontsize=theme.SIZE_LABEL - 1)
-    ax.set_xlabel("K  (presynaptic inputs per cell, weights $\\propto 1/\\sqrt{K}$)")
-    ax.set_ylabel("median ISI CV (E)")
-    ax.set_ylim(0.0, 1.4)
-    ax.spines["top"].set_visible(False)
-    ax2 = ax.twinx()
-    ax2.plot(ks, pks, "s--", color=theme.DEEP_RED, lw=1.0, alpha=0.8,
-             label="peak pairwise $|C(\\tau)|$")
-    ax2.set_ylabel("peak pairwise $|C(\\tau)|$", color=theme.DEEP_RED)
-    ax2.set_ylim(0, max(pks) * 1.6)
-    ax2.tick_params(axis="y", colors=theme.DEEP_RED)
-    lines = ax.get_lines()[:1] + ax2.get_lines()[:1]
-    ax.legend(lines, [ln.get_label() for ln in lines],
-              fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
-    ax.set_title("$\\sqrt{K}$ scaling: irregularity holds as K grows",
-                 fontsize=theme.SIZE_TITLE, loc="left")
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
-def _balance_currents(data) -> dict:
-    """Median per-cell, time-mean membrane currents decomposed by source,
-    for both populations. Computed per cell per timestep then time-averaged
-    (so the g–V correlation is kept, unlike ⟨g⟩·(E−⟨V⟩)), then median over
-    cells. Returns excitatory / inhibitory / leak currents onto E and I,
-    plus the mean membrane potentials.
-    """
-    E_e, E_i, E_L, g_L = 0.0, -80.0, -65.0, 0.05
-    spk_e = data["spk_e"]
-    ge_e, gi_e, v_e = data["ge_e_1"], data["gi_e_1"], data["v_e_1"]
-    b = max(0, ge_e.shape[0] - spk_e.shape[0])
-    ge_e, gi_e, v_e = ge_e[b:], gi_e[b:], v_e[b:]
-    out = {
-        "I_exc_E": float(np.median((ge_e * (E_e - v_e)).mean(axis=0))),
-        "I_inh_E": float(np.median((gi_e * (E_i - v_e)).mean(axis=0))),
-        "I_leak_E": float(np.median((g_L * (E_L - v_e)).mean(axis=0))),
-        "v_e_mean": float(np.median(v_e)),
+    n_es = np.array(sweep["n_e"], dtype=float)
+    fig, (ax_cv, ax_x, ax_r) = plt.subplots(
+        1, 3, figsize=(13.5, 4.5), dpi=150)
+    styles = {
+        "canonical": dict(color=theme.INK_BLACK, ls="-", marker="o"),
+        "reduced": dict(color=theme.GREY_MID, ls="--", marker="s"),
     }
-    if "gi_i_1" in data.files and data["gi_i_1"].size:
-        ge_i = data["ge_i_1"][b:]
-        gi_i = data["gi_i_1"][b:]
-        v_i = data["v_i_1"][b:]
-        out.update({
-            "I_exc_I": float(np.median((ge_i * (E_e - v_i)).mean(axis=0))),
-            "I_inh_I": float(np.median((gi_i * (E_i - v_i)).mean(axis=0))),
-            "I_leak_I": float(np.median((g_L * (E_L - v_i)).mean(axis=0))),
-            "v_i_mean": float(np.median(v_i)),
-        })
-    return out
+    for vkey, vdata in sweep["variants"].items():
+        st = styles[vkey]
+        lab = vdata["label"]
+        m = vdata["metrics"]
+        ax_cv.errorbar(n_es, m["median_isi_cv_e"]["mean"],
+                       yerr=m["median_isi_cv_e"]["std"], label=lab,
+                       capsize=3, lw=1.4, **st)
+        ax_x.errorbar(n_es, m["peak_abs_xcorr_e"]["mean"],
+                      yerr=m["peak_abs_xcorr_e"]["std"], label=lab,
+                      capsize=3, lw=1.4, **st)
+        ax_r.errorbar(n_es, m["e_rate"]["mean"], yerr=m["e_rate"]["std"],
+                      label=f"{lab} · r_E", capsize=3, lw=1.4, **st)
+        ax_r.errorbar(n_es, m["i_rate"]["mean"], yerr=m["i_rate"]["std"],
+                      label=f"{lab} · r_I", capsize=3, lw=1.0,
+                      markerfacecolor="none",
+                      color=st["color"], ls=st["ls"], marker=st["marker"])
 
+    for ax in (ax_cv, ax_x, ax_r):
+        ax.set_xscale("log", base=2)
+        ax.set_xticks(n_es)
+        ax.set_xticklabels([f"{int(n)}" for n in n_es])
+        ax.set_xlabel("$N_E$  (fixed $K \\approx 10$)")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
 
-def drive_sweep(ai_args: list[str], scales) -> list[dict]:
-    """Sweep the external drive level and record rates + decomposed currents.
+    ax_cv.axhline(1.0, color=theme.DEEP_RED, lw=0.9, ls=":", alpha=0.85)
+    ax_cv.text(n_es[0], 1.0, " Poisson", color=theme.DEEP_RED, va="bottom",
+               ha="left", fontsize=theme.SIZE_LABEL - 1)
+    ax_cv.set_ylabel("median ISI CV (E)")
+    ax_cv.set_title("Irregularity", loc="left", fontsize=theme.SIZE_LABEL)
+    ax_cv.legend(fontsize=theme.SIZE_LABEL - 2, frameon=False, loc="best")
 
-    V&S's signature prediction: in the balanced state the rates are a
-    *linear* function of the external input, even though the single units
-    are strongly nonlinear. We scale both external Poisson rates (E: 45·x,
-    I: 8·x Hz) by a common factor x and measure r_E, r_I — and the mean
-    membrane currents, so the balance equations can be solved and the
-    predicted rates overlaid (see ``balance_predict``).
-    """
-    static = _strip_flag(_strip_flag(ai_args, "--independent-drive", 2),
-                         "--independent-drive-i", 2)
-    base_e, base_i = 45.0, 8.0
-    out = []
-    for x in scales:
-        re_ext, ri_ext = base_e * x, base_i * x
-        args = [*static,
-                "--independent-drive", f"{re_ext:.3f}", "0.38",
-                "--independent-drive-i", f"{ri_ext:.3f}", "0.25"]
-        data = _run_scope(args)
-        spk_e, spk_i = data["spk_e"], data["spk_i"]
-        dt = float(data["dt"])
-        r_e = float(spk_e.mean() * 1000.0 / dt)
-        r_i = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
-        out.append({"drive_scale": float(x), "ext_rate_e_hz": re_ext,
-                    "ext_rate_i_hz": ri_ext, "r_e_hz": r_e, "r_i_hz": r_i,
-                    **_balance_currents(data)})
-        print(f"  drive x={x:.2f} (ext_E={re_ext:.0f} Hz): "
-              f"r_E={r_e:.1f}, r_I={r_i:.1f} Hz")
-    return out
+    ax_x.axhline(0.0, color=theme.GREY_MID, lw=0.6, alpha=0.7)
+    ax_x.set_ylabel("pairwise C(τ) peak (E)")
+    ax_x.set_title("Asynchrony", loc="left", fontsize=theme.SIZE_LABEL)
+    ax_x.set_ylim(bottom=0.0)
 
+    ax_r.set_ylabel("rate (Hz)")
+    ax_r.set_title("Rates  (filled $r_E$, open $r_I$)",
+                   loc="left", fontsize=theme.SIZE_LABEL)
+    ax_r.legend(fontsize=theme.SIZE_LABEL - 3, frameon=False, loc="best")
 
-def balance_predict(sweep: list[dict]) -> dict:
-    """Solve the leading-order balance equations for the predicted (r_E, r_I).
-
-    The balanced state sets the rates by the requirement that the large
-    mean currents cancel to an O(1) residue. From the drive sweep we read
-    the realized synaptic *current* gains (slopes of mean current vs the
-    driving rate) — the network's effective coefficients, since the flag
-    weights do not survive the sparsity / exact-K / 1/√K machinery — and
-    use the known external-drive gains, then solve:
-
-      E-balance:  I_exc^E(r_ext) + I_inh^E(r_I) + I_leak^E ≈ 0
-      I-balance:  I_exc^I(r_E, r_ext) + I_inh^I(r_I) + I_leak^I ≈ 0
-
-    Returns the predicted r_E, r_I across the sweep and the fitted gains.
-    """
-    E_e = 0.0
-    tau_a, gd_i = 0.002, 0.25
-    x_extE = np.array([s["ext_rate_e_hz"] for s in sweep])
-    x_extI = np.array([s["ext_rate_i_hz"] for s in sweep])
-    r_e = np.array([s["r_e_hz"] for s in sweep])
-    r_i = np.array([s["r_i_hz"] for s in sweep])
-    I_exc_E = np.array([s["I_exc_E"] for s in sweep])
-    I_inh_E = np.array([s["I_inh_E"] for s in sweep])
-    I_leak_E = np.array([s["I_leak_E"] for s in sweep])
-    # E-balance: inhibition (∝ r_I) must cancel external excitation (∝ r_ext).
-    a_E = float(np.polyfit(x_extE, I_exc_E, 1)[0])   # exc current per Hz ext
-    b_E = float(np.polyfit(r_i, I_inh_E, 1)[0])      # inh current per Hz r_I (<0)
-    leak_E = float(I_leak_E.mean())
-    r_i_pred = -(a_E * x_extE + leak_E) / b_E
-    pred = {"a_E": a_E, "b_E": b_E, "r_i_pred": r_i_pred.tolist()}
-    if all("I_exc_I" in s for s in sweep):
-        I_exc_I = np.array([s["I_exc_I"] for s in sweep])
-        I_inh_I = np.array([s["I_inh_I"] for s in sweep])
-        I_leak_I = np.array([s["I_leak_I"] for s in sweep])
-        v_i = np.array([s["v_i_mean"] for s in sweep])
-        # subtract the known external-to-I excitatory current, leaving E→I
-        ext_I_cur = gd_i * tau_a * x_extI * (E_e - v_i)
-        c_I = float(np.polyfit(r_e, I_exc_I - ext_I_cur, 1)[0])  # E→I per Hz r_E
-        leak_I = float(I_leak_I.mean())
-        r_e_pred = -(ext_I_cur + I_inh_I + leak_I) / c_I
-        pred.update({"c_I": c_I, "r_e_pred": r_e_pred.tolist()})
-    return pred
-
-
-def _linfit(x, y):
-    x, y = np.asarray(x, float), np.asarray(y, float)
-    m, c = np.polyfit(x, y, 1)
-    yhat = m * x + c
-    ss_res = float(np.sum((y - yhat) ** 2))
-    ss_tot = float(np.sum((y - y.mean()) ** 2))
-    r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
-    return float(m), float(c), r2
-
-
-def plot_linear_response(sweep: list[dict], pred: dict,
-                         out_path: Path, run_id: str) -> dict:
-    theme.apply()
-    xe = [d["ext_rate_e_hz"] for d in sweep]
-    re = [d["r_e_hz"] for d in sweep]
-    ri = [d["r_i_hz"] for d in sweep]
-    me, ce, r2e = _linfit(xe, re)
-    mi, ci, r2i = _linfit(xe, ri)
-    # balance-predicted rates and their slopes
-    ri_pred = pred.get("r_i_pred")
-    re_pred = pred.get("r_e_pred")
-    mi_p = _linfit(xe, ri_pred)[0] if ri_pred else None
-    me_p = _linfit(xe, re_pred)[0] if re_pred else None
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    # measured data points
-    ax.scatter(xe, re, s=34, color=theme.INK_BLACK, zorder=5,
-               label=f"$r_E$ measured  (slope {me:.3f})")
-    ax.scatter(xe, ri, s=34, color=theme.DEEP_RED, zorder=5, marker="s",
-               label=f"$r_I$ measured  (slope {mi:.3f})")
-    # balance-equation predictions (solid lines)
-    if re_pred is not None:
-        ax.plot(xe, re_pred, color=theme.INK_BLACK, lw=1.4, alpha=0.85,
-                label=f"$r_E$ balance prediction  (slope {me_p:.3f})")
-    if ri_pred is not None:
-        ax.plot(xe, ri_pred, color=theme.DEEP_RED, lw=1.4, alpha=0.85,
-                label=f"$r_I$ balance prediction  (slope {mi_p:.3f})")
-    ax.set_xlabel("external drive to E  (Hz, per-cell Poisson)")
-    ax.set_ylabel("population rate (Hz)")
-    ax.set_ylim(bottom=0)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.legend(fontsize=theme.SIZE_LEGEND - 1, frameon=False, loc="upper left")
-    ax.set_title("Balanced state: linear rates; balance equation pins $r_I$, "
-                 "bounds $r_E$", fontsize=theme.SIZE_TITLE, loc="left")
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.suptitle(
+        "N-invariance at fixed fan-in K — signatures hold as the network "
+        "grows 4×; W$^{EE}$ does not pin the rates",
+        x=0.01, ha="left", fontsize=theme.SIZE_LABEL + 1)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
-    return {"r_e_slope": me, "r_e_r2": r2e, "r_i_slope": mi, "r_i_r2": r2i,
-            "r_e_slope_pred": me_p, "r_i_slope_pred": mi_p,
-            "r_e_slope_ratio": (me_p / me) if me_p else None,
-            "r_i_slope_ratio": (mi_p / mi) if mi_p else None}
 
 
-def plot_lyapunov(lyap_by_cell: dict, out_path: Path, run_id: str) -> None:
-    """Compare spike-train divergence D(t) across cells on one axis.
+def _ksweep_args(k: int, scale_coupling: bool, seed: int) -> list[str]:
+    """Build sim args for one K-sweep point at fixed N_E = 1024. Strong
+    (V&S) scales recurrent weights ∝ √(K/K0) and the drive into the balance
+    (rate ∝ K, g ∝ 1/√K); weak holds everything fixed."""
+    s = 1.0 - k / 1024.0
+    fac = (k / K_SWEEP_K0) ** 0.5 if scale_coupling else 1.0   # √(K/K0)
+    fk = fac * fac if scale_coupling else 1.0                  # K/K0
+    args = [
+        # Longer trial than the default 1000 ms: under strong coupling the
+        # rate drifts down with K (finite-K balance correction), so high-K
+        # cells need a longer window to accumulate enough ISIs for an
+        # unbiased CV (at K=160, 5 Hz → ~5 spikes/1000 ms biases CV low).
+        "--t-ms", str(K_SWEEP_T_MS),
+        "--ei-sparsity", f"{s:.6f}", "--exact-k",
+        "--input-rate", "1", "--w-in", "0.01", "0.001",
+        "--seed", str(seed),
+    ]
+    for flag, (m, sd) in K_SWEEP_BASE_W.items():
+        args += [f"--{flag}", f"{m * fac:.5f}", f"{sd * fac:.5f}"]
+    re_, ge = K_SWEEP_BASE_DRIVE["e"]
+    ri, gi = K_SWEEP_BASE_DRIVE["i"]
+    args += ["--independent-drive", f"{re_ * fk:.4f}", f"{ge / fac:.5f}"]
+    args += ["--independent-drive-i", f"{ri * fk:.4f}", f"{gi / fac:.5f}"]
+    return args
 
-    D(t) = number of E cells whose spike differs between the clean run and
-    an ε-perturbed rerun on identical frozen input. PING re-locks to 0
-    (stable limit cycle, λ ≤ 0); the V&S AI cell sustains a small
-    slowly-growing divergence (weak intrinsic chaos riding on top of the
-    strong input entrainment that the shared frozen drive imposes).
-    """
+
+def run_k_sweep() -> dict:
+    """Sweep K at fixed N for the strong (J/√K) and weak conventions,
+    averaging over seeds. Returns variant → metric → (means, stds) over K."""
+    out: dict = {"k": K_SWEEP_KS, "variants": {}}
+    for vkey, vspec in K_SWEEP_VARIANTS.items():
+        per_metric = {m: {"mean": [], "std": []}
+                      for m in ("e_rate", "i_rate", "median_isi_cv_e",
+                                "peak_abs_xcorr_e")}
+        for k in K_SWEEP_KS:
+            seed_vals = {m: [] for m in per_metric}
+            for seed in SWEEP_SEEDS:
+                argv = _ksweep_args(k, vspec["scale"], seed)
+                print(f"[ksweep] {vkey} K={k} seed={seed}")
+                res = _run_and_measure(argv)
+                for m in per_metric:
+                    seed_vals[m].append(res[m])
+            for m in per_metric:
+                arr = np.array(seed_vals[m], dtype=float)
+                per_metric[m]["mean"].append(float(np.nanmean(arr)))
+                per_metric[m]["std"].append(float(np.nanstd(arr)))
+        out["variants"][vkey] = {"label": vspec["label"], "metrics": per_metric}
+    return out
+
+
+def plot_k_sweep(sweep: dict, out_path: Path) -> None:
+    """Three panels vs fan-in K (log2 x): median ISI CV, pairwise
+    cross-correlation peak, and the population rates — strong J/√K (V&S)
+    vs weak mean-field coupling."""
     theme.apply()
-    colours = {"ping": theme.MUTED, "ai": theme.DEEP_RED,
-               "ai_quenched": theme.AMBER}
-    labels = {"ping": "PING", "ai": "V&S AI (Poisson drive)",
-              "ai_quenched": "V&S AI (quenched DC)"}
-    order = {"ping": 0, "ai": 1, "ai_quenched": 2}
-    lyap_by_cell = dict(sorted(lyap_by_cell.items(),
-                               key=lambda kv: order.get(kv[0], 9)))
+    ks = np.array(sweep["k"], dtype=float)
+    fig, (ax_cv, ax_x, ax_r) = plt.subplots(
+        1, 3, figsize=(13.5, 4.5), dpi=150)
+    styles = {
+        "strong": dict(color=theme.INK_BLACK, ls="-", marker="o"),
+        "weak": dict(color=theme.GREY_MID, ls="--", marker="s"),
+    }
+    for vkey, vdata in sweep["variants"].items():
+        st = styles[vkey]
+        lab = vdata["label"]
+        m = vdata["metrics"]
+        ax_cv.errorbar(ks, m["median_isi_cv_e"]["mean"],
+                       yerr=m["median_isi_cv_e"]["std"], label=lab,
+                       capsize=3, lw=1.4, **st)
+        ax_x.errorbar(ks, m["peak_abs_xcorr_e"]["mean"],
+                      yerr=m["peak_abs_xcorr_e"]["std"], label=lab,
+                      capsize=3, lw=1.4, **st)
+        ax_r.errorbar(ks, m["e_rate"]["mean"], yerr=m["e_rate"]["std"],
+                      label=f"{lab} · r_E", capsize=3, lw=1.4, **st)
+        ax_r.errorbar(ks, m["i_rate"]["mean"], yerr=m["i_rate"]["std"],
+                      label=f"{lab} · r_I", capsize=3, lw=1.0,
+                      markerfacecolor="none",
+                      color=st["color"], ls=st["ls"], marker=st["marker"])
+
+    for ax in (ax_cv, ax_x, ax_r):
+        ax.set_xscale("log", base=2)
+        ax.set_xticks(ks)
+        ax.set_xticklabels([f"{int(n)}" for n in ks])
+        ax.set_xlabel("fan-in $K$  (fixed $N_E = 1024$)")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax_cv.axhline(1.0, color=theme.DEEP_RED, lw=0.9, ls=":", alpha=0.85)
+    ax_cv.text(ks[0], 1.0, " Poisson", color=theme.DEEP_RED, va="bottom",
+               ha="left", fontsize=theme.SIZE_LABEL - 1)
+    ax_cv.set_ylabel("median ISI CV (E)")
+    ax_cv.set_title("Irregularity vs K", loc="left", fontsize=theme.SIZE_LABEL)
+    ax_cv.legend(fontsize=theme.SIZE_LABEL - 2, frameon=False, loc="best")
+
+    ax_x.axhline(0.0, color=theme.GREY_MID, lw=0.6, alpha=0.7)
+    ax_x.set_ylabel("pairwise C(τ) peak (E)")
+    ax_x.set_title("Asynchrony vs K", loc="left", fontsize=theme.SIZE_LABEL)
+    ax_x.set_ylim(bottom=0.0)
+
+    ax_r.set_ylabel("rate (Hz)")
+    ax_r.set_title("Rates  (filled $r_E$, open $r_I$)",
+                   loc="left", fontsize=theme.SIZE_LABEL)
+    ax_r.legend(fontsize=theme.SIZE_LABEL - 3, frameon=False, loc="best")
+
+    fig.suptitle(
+        "The defining V&S limit — $J/\\sqrt{K}$ coupling sustains supra-Poisson "
+        "irregularity as K grows; weak coupling decays toward the Poisson floor",
+        x=0.01, ha="left", fontsize=theme.SIZE_LABEL + 1)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def _chaos_args(variant: dict, seed: int) -> list[str]:
+    """Quenched-DC config for one chaos-test variant: fixed fan-in, no Poisson
+    drive (frozen per-cell DC instead), recurrent weights per variant."""
+    return [
+        "--ei-sparsity", "0.99", "--exact-k",
+        "--input-rate", "1", "--w-in", "0.01", "0.001",
+        *variant["w"], *variant["quench"],
+        "--seed", str(seed),
+    ]
+
+
+def run_chaos() -> dict:
+    """Drive balanced and decoupled networks with quenched DC and measure the
+    per-cell ISI CV over seeds. Keeps the seed-0 spike raster of each for the
+    figure. Returns {variant: {label, cv_mean, cv_std, rate, raster, dt}}."""
+    out: dict = {}
+    for vkey, vspec in CHAOS_VARIANTS.items():
+        cv_meds, rates = [], []
+        raster = None
+        dt = None
+        for seed in CHAOS_SEEDS:
+            for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
+                if p.exists():
+                    p.unlink()
+            argv = [*COMMON_ARGS, *_chaos_args(vspec, seed)]
+            print(f"[chaos] {vkey} seed={seed}")
+            subprocess.run(["uv", "run", "python", str(OSCILLOSCOPE), *argv],
+                           cwd=REPO, check=True)
+            data = np.load(SCOPE_OUT_NPZ)
+            spk_e = data["spk_e"]
+            dt = float(data["dt"])
+            cvs = _isi_cvs(spk_e, dt)
+            cv_meds.append(float(np.median(cvs)) if cvs.size else float("nan"))
+            rates.append(float(spk_e.mean() * 1000.0 / dt))
+            if seed == CHAOS_SEEDS[0]:
+                raster = spk_e
+                raster_cvs = cvs
+        out[vkey] = {
+            "label": vspec["label"],
+            "cv_mean": float(np.nanmean(cv_meds)),
+            "cv_std": float(np.nanstd(cv_meds)),
+            "rate": float(np.mean(rates)),
+            "raster": raster, "raster_cvs": raster_cvs, "dt": dt,
+        }
+    return out
+
+
+def _example_cells(spk: np.ndarray, dt: float, n: int = 6,
+                   win_ms: float = 300.0) -> list[np.ndarray]:
+    """Pick n example E cells (those firing closest to the median rate) and
+    return their spike times (ms) within the window."""
+    T = spk.shape[0]
+    keep = int(win_ms / dt)
+    counts = spk[:keep].sum(axis=0)
+    active = np.where(counts >= 4)[0]
+    if active.size == 0:
+        return []
+    med = np.median(counts[active])
+    order = active[np.argsort(np.abs(counts[active] - med))]
+    chosen = order[:n]
+    t_ms = np.arange(keep) * dt
+    return [t_ms[np.where(spk[:keep, c] > 0)[0]] for c in chosen]
+
+
+def plot_chaos(chaos: dict, out_path: Path) -> None:
+    """Example single-cell spike trains (regular vs irregular spacing) plus the
+    per-cell ISI CV histograms — the self-generated-irregularity result."""
+    theme.apply()
+    fig, (ax_ex, ax_cv) = plt.subplots(1, 2, figsize=(13.5, 4.5), dpi=150)
+    win_ms = 300.0
+
+    # Example spike trains: balanced cells on top (black), decoupled below
+    # (grey), each row one cell over the same window.
+    row = 0
+    yticks, ylabels = [], []
+    for vkey, color in (("balanced", theme.INK_BLACK),
+                        ("decoupled", theme.GREY_MID)):
+        c = chaos[vkey]
+        trains = _example_cells(c["raster"], c["dt"], n=6, win_ms=win_ms)
+        for tr in trains:
+            ax_ex.scatter(tr, np.full_like(tr, row), s=8, c=color, marker="|",
+                          linewidths=1.0)
+            row += 1
+        yticks.append(row - len(trains) / 2.0)
+        ylabels.append(c["label"].split(" (")[0])
+        row += 1  # gap between groups
+    ax_ex.axhline(6.5, color=theme.GREY_MID, lw=0.6, alpha=0.6)
+    ax_ex.set_xlim(0, win_ms)
+    ax_ex.set_ylim(-0.5, row - 0.5)
+    ax_ex.set_yticks(yticks)
+    ax_ex.set_yticklabels(ylabels, rotation=90, va="center")
+    ax_ex.set_xlabel("time (ms)")
+    ax_ex.set_title("Example E-cell spike trains (frozen DC) — even vs irregular",
+                    loc="left", fontsize=theme.SIZE_LABEL)
+    ax_ex.spines["top"].set_visible(False)
+    ax_ex.spines["right"].set_visible(False)
+
+    for vkey, color in (("balanced", theme.INK_BLACK),
+                        ("decoupled", theme.GREY_MID)):
+        cvs = chaos[vkey]["raster_cvs"]
+        if cvs.size:
+            ax_cv.hist(cvs, bins=np.linspace(0, 3.0, 46), color=color,
+                       alpha=0.6,
+                       label=f"{chaos[vkey]['label']} · CV={chaos[vkey]['cv_mean']:.2f}")
+    ax_cv.axvline(1.0, color=theme.DEEP_RED, lw=0.9, ls=":", alpha=0.85)
+    ax_cv.text(1.0, ax_cv.get_ylim()[1] * 0.95, " Poisson", color=theme.DEEP_RED,
+               ha="left", va="top", fontsize=theme.SIZE_LABEL - 1)
+    ax_cv.set_xlim(0, 3.0)
+    ax_cv.set_xlabel("ISI CV per E neuron")
+    ax_cv.set_ylabel("count")
+    ax_cv.set_title("Per-neuron ISI CV (frozen DC)", loc="left",
+                    fontsize=theme.SIZE_LABEL)
+    ax_cv.legend(fontsize=theme.SIZE_LABEL - 2, frameon=False, loc="upper right")
+    ax_cv.spines["top"].set_visible(False)
+    ax_cv.spines["right"].set_visible(False)
+
+    fig.suptitle(
+        "Self-generated irregularity — with frozen (noise-free) DC input, only "
+        "the recurrent network fires aperiodically; decoupled cells are clocks",
+        x=0.01, ha="left", fontsize=theme.SIZE_LABEL + 1)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def _fit_lambda(t_ms: np.ndarray, vmean: np.ndarray,
+                lo: float, hi: float) -> float:
+    """Slope of log‖ΔV‖ vs t (1/s) over [lo, hi] ms — the Lyapunov exponent."""
+    m = (t_ms >= lo) & (t_ms <= hi) & (vmean > 0)
+    if m.sum() < 3:
+        return float("nan")
+    slope = np.polyfit(t_ms[m], np.log(vmean[m]), 1)[0]  # 1/ms
+    return float(slope * 1000.0)                          # 1/s
+
+
+def run_lyapunov() -> dict:
+    """Clone-and-perturb voltage-distance probe for balanced vs decoupled
+    networks under quenched DC, averaged over seeds. Returns per-variant the
+    common time axis, per-seed ‖ΔV(t)‖, the seed-mean, and the fitted λ."""
+    out: dict = {"variants": {}}
+    for vkey, vspec in CHAOS_VARIANTS.items():
+        traces, t_axis = [], None
+        for seed in LYAP_SEEDS:
+            for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
+                if p.exists():
+                    p.unlink()
+            argv = [*COMMON_ARGS, "--t-ms", LYAP_T_MS,
+                    *_chaos_args(vspec, seed), "--lyapunov-eps", LYAP_EPS]
+            print(f"[lyap] {vkey} seed={seed}")
+            subprocess.run(["uv", "run", "python", str(OSCILLOSCOPE), *argv],
+                           cwd=REPO, check=True)
+            data = np.load(SCOPE_OUT_NPZ)
+            if "lyap_vdist" not in data:
+                raise SystemExit("snapshot did not save lyap_vdist")
+            traces.append(np.asarray(data["lyap_vdist"]))
+            t_axis = np.asarray(data["lyap_t_ms"])
+        n = min(len(v) for v in traces)
+        t = t_axis[:n]
+        V = np.array([v[:n] for v in traces])           # (seeds, n)
+        vmean = V.mean(axis=0)
+        lam = _fit_lambda(t, vmean, *LYAP_FIT_MS)
+        out["variants"][vkey] = {
+            "label": vspec["label"], "t_ms": t, "traces": V,
+            "vmean": vmean, "lambda_per_s": lam,
+        }
+    return out
+
+
+def plot_lyapunov(lyap: dict, out_path: Path) -> None:
+    """log‖ΔV(t)‖ for balanced (grows, λ > 0) vs decoupled (decays, λ < 0):
+    the direct Lyapunov-exponent measurement."""
+    theme.apply()
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    for cell, (t_ms, dist) in lyap_by_cell.items():
-        # Smooth lightly (10 ms boxcar) so the per-step jitter doesn't
-        # swamp the trend.
-        w = max(1, int(10.0 / (t_ms[1] - t_ms[0]))) if len(t_ms) > 1 else 1
-        if w > 1:
-            kernel = np.ones(w) / w
-            smooth = np.convolve(dist, kernel, mode="same")
-        else:
-            smooth = dist
-        ax.plot(
-            t_ms, smooth,
-            color=colours.get(cell, theme.INK_BLACK), lw=1.4,
-            label=labels.get(cell, cell),
-        )
-    ax.set_xlabel("time since perturbation (ms)")
-    ax.set_ylabel("spike-train divergence  D(t)  (E cells differing)")
+    styles = {"balanced": theme.INK_BLACK, "decoupled": theme.GREY_MID}
+    for vkey, vdata in lyap["variants"].items():
+        color = styles[vkey]
+        t = vdata["t_ms"]
+        for tr in vdata["traces"]:                       # faint per-seed
+            ax.plot(t, np.clip(tr, 1e-6, None), color=color, lw=0.5, alpha=0.25)
+        ax.plot(t, np.clip(vdata["vmean"], 1e-6, None), color=color, lw=2.0,
+                label=f"{vdata['label']}  ·  λ = {vdata['lambda_per_s']:.0f}/s")
+        # overlay the fit line over the balanced growth window
+        if vkey == "balanced":
+            lo, hi = LYAP_FIT_MS
+            m = (t >= lo) & (t <= hi) & (vdata["vmean"] > 0)
+            if m.sum() >= 3:
+                b = np.polyfit(t[m], np.log(vdata["vmean"][m]), 1)
+                ax.plot(t[m], np.exp(np.polyval(b, t[m])),
+                        color=theme.DEEP_RED, lw=1.4, ls="--",
+                        label=f"fit ({lo:.0f}–{hi:.0f} ms)")
+
+    ax.set_yscale("log")
+    ax.set_xlim(0, float(LYAP_T_MS))
+    ax.set_xlabel("time since ε-kick (ms)")
+    ax.set_ylabel(r"voltage distance $\Vert \Delta V(t) \Vert$  (mV)")
+    ax.set_title(
+        "Direct Lyapunov measurement — the balanced net amplifies a microscopic "
+        "voltage kick (λ > 0); the decoupled control stays marginal (λ ≈ 0)",
+        loc="left", fontsize=theme.SIZE_LABEL)
+    ax.legend(fontsize=theme.SIZE_LABEL - 1, frameon=False, loc="lower right")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
-    ax.set_title(
-        "Chaos probe: spike-train divergence after ε = 2 mV perturbation",
-        fontsize=theme.SIZE_TITLE, loc="left",
-    )
     fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -999,7 +879,6 @@ def main() -> None:
 
     figures: dict[str, Path] = {}
     summary_rows: list[dict] = []
-    lyap_by_cell: dict[str, tuple] = {}
     for cell, spec in CELLS.items():
         for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
             if p.exists():
@@ -1016,31 +895,10 @@ def main() -> None:
         figures[f"raster__{cell}"] = raster_dst
         print(f"wrote {raster_dst}")
 
-        current_dst = FIGURES / f"current_balance__{cell}.png"
-        current_stats = plot_current_balance(
-            SCOPE_OUT_NPZ, current_dst, spec["title"],
-        )
-        figures[f"current_balance__{cell}"] = current_dst
-        print(f"wrote {current_dst}")
-
-        # The cancellation figure is the V&S mechanism; show it for the AI
-        # cell (PING's time-mean currents also cancel — that point is made
-        # in prose — but its leftover is a clock, not noise).
-        decomp_stats = {}
-        if cell == "ai":
-            decomp_dst = FIGURES / f"current_decomposition__{cell}.png"
-            decomp_stats = plot_current_decomposition(
-                SCOPE_OUT_NPZ, decomp_dst, spec["title"],
-            )
-            figures[f"current_decomposition__{cell}"] = decomp_dst
-            print(f"wrote {decomp_dst}")
-
-        # Extract summary statistics for the row table.
+        # Summary statistics — the quantities the raster page reads off.
         data = np.load(SCOPE_OUT_NPZ)
-        spk_e = data["spk_e"]
-        spk_i = data["spk_i"]
+        spk_e, spk_i = data["spk_e"], data["spk_i"]
         dt = float(data["dt"])
-        T = spk_e.shape[0]
         e_rate = float(spk_e.mean() * 1000.0 / dt)
         i_rate = float(spk_i.mean() * 1000.0 / dt) if spk_i.size > 0 else 0.0
         cvs_e = _isi_cvs(spk_e, dt)
@@ -1049,22 +907,6 @@ def main() -> None:
         med_cv_i = float(np.median(cvs_i)) if cvs_i.size > 0 else float("nan")
         _, _, f_peak = _population_psd(spk_e, dt)
         _, _, peak_abs_xcorr = _pair_cross_correlogram(spk_e, dt)
-
-        # Lyapunov / chaos: spike-train divergence curve D(t) from the
-        # perturbed rerun (saved in the npz by the snapshot generator).
-        # The discriminating quantity is the steady-state divergence level
-        # (mean D over the second half): ≈ 0 for a stable limit cycle that
-        # re-locks (PING), > 0 and sustained for chaos (AI).
-        lyap_final = lyap_max = lyap_steady = None
-        if "lyap_dist" in data:
-            lt = np.asarray(data["lyap_t_ms"])
-            ld = np.asarray(data["lyap_dist"])
-            lyap_by_cell[cell] = (lt, ld)
-            lyap_final = float(ld[-1])
-            lyap_max = float(ld.max())
-            half = len(ld) // 2
-            lyap_steady = float(ld[half:].mean())
-
         summary_rows.append({
             "cell": cell,
             "e_rate_hz": e_rate,
@@ -1073,80 +915,44 @@ def main() -> None:
             "median_isi_cv_i": med_cv_i,
             "f_psd_peak_hz": f_peak,
             "peak_abs_xcorr_e": peak_abs_xcorr,
-            "lyap_final_diff_cells": lyap_final,
-            "lyap_max_diff_cells": lyap_max,
-            "lyap_steady_diff_cells": lyap_steady,
-            **current_stats,
-            **decomp_stats,
         })
 
-    # Quenched-input chaos: rerun the AI net with the fresh per-timestep
-    # Poisson drive replaced by a frozen per-cell DC at the *same* mean
-    # conductance, so the operating point is preserved but the input can no
-    # longer pin spike times. The Lyapunov probe then sees the network's
-    # autonomous chaos rather than input entrainment.
-    # Quenched DC mean = Poisson mean conductance g_spike·rate·dt/1000 (dt=0.25):
-    #   E: 0.38·45·0.25/1000 = 0.004275 μS ;  I: 0.25·8·0.25/1000 = 0.0005 μS.
-    # STD ≈ 30% of the mean gives the quenched cell-to-cell spread.
-    print("[quenched chaos] frozen DC drive (autonomous chaos, no input mask)")
-    q_static = _strip_flag(
-        _strip_flag(CELLS["ai"]["args"], "--independent-drive", 2),
-        "--independent-drive-i", 2,
-    )
-    qdata = _run_scope([*q_static,
-                        "--quenched-drive", "0.004275", "0.0013",
-                        "--quenched-drive-i", "0.0005", "0.00015",
-                        "--lyapunov-eps", "2.0"])
-    quenched_stats = {}
-    if "lyap_dist" in qdata.files:
-        qt = np.asarray(qdata["lyap_t_ms"])
-        qd = np.asarray(qdata["lyap_dist"])
-        lyap_by_cell["ai_quenched"] = (qt, qd)
-        q_re = float(qdata["spk_e"].mean() * 1000.0 / float(qdata["dt"]))
-        q_ri = float(qdata["spk_i"].mean() * 1000.0 / float(qdata["dt"]))
-        quenched_stats = {
-            "e_rate_hz": q_re, "i_rate_hz": q_ri,
-            "lyap_final_diff_cells": float(qd[-1]),
-            "lyap_max_diff_cells": float(qd.max()),
-            "lyap_steady_diff_cells": float(qd[len(qd) // 2:].mean()),
-        }
-        print(f"  quenched AI: r_E={q_re:.1f} r_I={q_ri:.1f} Hz  "
-              f"D steady={quenched_stats['lyap_steady_diff_cells']:.1f} "
-              f"max={quenched_stats['lyap_max_diff_cells']:.0f}")
+    # N-invariance sweep → Figure 2.
+    sweep = run_n_sweep()
+    sweep_dst = FIGURES / "n_sweep.png"
+    plot_n_sweep(sweep, sweep_dst)
+    figures["n_sweep"] = sweep_dst
+    print(f"wrote {sweep_dst}")
 
-    # Comparison figure: spike-train divergence D(t) for all cells.
-    if lyap_by_cell:
-        lyap_dst = FIGURES / "lyapunov_divergence.png"
-        plot_lyapunov(lyap_by_cell, lyap_dst, notebook_run_id)
-        figures["lyapunov_divergence"] = lyap_dst
-        print(f"wrote {lyap_dst}")
+    # K-sweep, strong J/√K vs weak coupling → Figure 3.
+    ksweep = run_k_sweep()
+    ksweep_dst = FIGURES / "k_sweep.png"
+    plot_k_sweep(ksweep, ksweep_dst)
+    figures["k_sweep"] = ksweep_dst
+    print(f"wrote {ksweep_dst}")
 
-    # V&S linear-response prediction: sweep the external drive on the AI net.
-    print("[drive sweep] linear-response + balance-equation test")
-    dsweep = drive_sweep(CELLS["ai"]["args"], [0.6, 0.8, 1.0, 1.2, 1.4, 1.6])
-    bpred = balance_predict(dsweep)
-    lin_dst = FIGURES / "linear_response.png"
-    lin_stats = plot_linear_response(dsweep, bpred, lin_dst, notebook_run_id)
-    figures["linear_response"] = lin_dst
-    print(f"wrote {lin_dst}  ({lin_stats})")
+    # Self-generation test under quenched DC → Figure 4.
+    chaos = run_chaos()
+    chaos_dst = FIGURES / "chaos.png"
+    plot_chaos(chaos, chaos_dst)
+    figures["chaos"] = chaos_dst
+    print(f"wrote {chaos_dst}")
+    chaos_summary = {
+        vk: {"label": v["label"], "cv_mean": v["cv_mean"],
+             "cv_std": v["cv_std"], "rate": v["rate"]}
+        for vk, v in chaos.items()
+    }
 
-    # V&S 1/sqrt(K) scaling: AI signatures invariant as K grows.
-    print("[sqrt-K sweep] balanced-manifold invariance")
-    ksweep = sqrtk_sweep([0.96, 0.98, 0.99, 0.995])
-    sqrtk_dst = FIGURES / "sqrtk_invariance.png"
-    plot_sqrtk(ksweep, sqrtk_dst, notebook_run_id)
-    figures["sqrtk_invariance"] = sqrtk_dst
-    print(f"wrote {sqrtk_dst}")
-
-    # V&S true N-invariance: sweep N at fixed K/N with recurrent weights AND
-    # the (sparse-equivalent) external drive scaled so rates — not just CV —
-    # are N-invariant on the balanced manifold.
-    print("[N-invariance sweep] sparse external drive, rates vs N")
-    nsweep = n_invariance_sweep([512, 1024, 2048, 4096])
-    ninv_dst = FIGURES / "n_invariance.png"
-    plot_n_invariance(nsweep, ninv_dst, notebook_run_id)
-    figures["n_invariance"] = ninv_dst
-    print(f"wrote {ninv_dst}")
+    # Direct Lyapunov-exponent measurement → Figure 5.
+    lyap = run_lyapunov()
+    lyap_dst = FIGURES / "lyapunov.png"
+    plot_lyapunov(lyap, lyap_dst)
+    figures["lyapunov"] = lyap_dst
+    print(f"wrote {lyap_dst}")
+    lyap_summary = {
+        vk: {"label": v["label"], "lambda_per_s": v["lambda_per_s"]}
+        for vk, v in lyap["variants"].items()
+    }
 
     duration_s = time.monotonic() - t_start
     summary = {
@@ -1156,10 +962,10 @@ def main() -> None:
         "common_args": COMMON_ARGS,
         "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
         "summary": summary_rows,
-        "quenched_chaos": quenched_stats,
-        "linear_response": {"sweep": dsweep, "balance": bpred, **lin_stats},
-        "sqrtk_invariance": ksweep,
-        "n_invariance": nsweep,
+        "n_sweep": sweep,
+        "k_sweep": ksweep,
+        "chaos": chaos_summary,
+        "lyapunov": lyap_summary,
     }
     def _clean(o):
         import math
