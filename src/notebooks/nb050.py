@@ -69,8 +69,10 @@ CELLS: dict[str, dict] = {
     "ai": {
         "args": [
             *SHARED_CONN, *SHARED_W,
-            # The ONLY difference: per-cell independent (uncorrelated) drive,
-            # one private Poisson stream per cell, bypassing W_in.
+            # The ONLY difference: a DIAGONAL W_in — one private 45 Hz Poisson
+            # input per cell (uncorrelated). Realised as per-cell ext_g, which
+            # is mathematically identical to an identity W_in × 0.38 μS; the
+            # dense input layer is disabled (--w-in ≈ 0).
             "--input-rate", "1", "--w-in", "0.01", "0.001",
             "--independent-drive", "45", "0.38",
             "--independent-drive-i", "8", "0.25",

@@ -5,7 +5,7 @@ date: 2026-06-09
 entry: 50
 status: revising
 structure: paper
-collection: one-shots
+collection: ai-state
 ---
 import Figure from "../../components/Figure.astro";
 export const numbers = Object.values(
@@ -32,7 +32,7 @@ The two models are identical COBANet except for the input. The table is the full
 | $W^{EI}$ (E→I) | $\mathcal{N}(0.6, 0.18)$ μS | $\mathcal{N}(0.6, 0.18)$ μS |
 | $W^{IE}$ (I→E) | $\mathcal{N}(3.0, 0.9)$ μS | $\mathcal{N}(3.0, 0.9)$ μS |
 | $W^{II}$ (I→I) | none | none |
-| External drive | *shared 1024-neuron layer via $W_\text{in}$* | *per-cell independent Poisson, bypassing $W_\text{in}$* |
+| External drive | *dense $W_\text{in}$ (shared 1024-neuron layer)* | *diagonal $W_\text{in}$ (one private input per cell)* |
 | Drive rate | *45 Hz (E)* | *45 Hz (E), 8 Hz (I)* |
 | Input correlation across cells | *correlated* | *independent* |
 
@@ -42,13 +42,15 @@ Both models use sparse fixed-fan-in recurrent connectivity at $p = 1 - s = 0.2$ 
 
 The models share everything above — connectivity, the E↔I weights, $W^{II}$. The single difference is the **input**: a shared (correlated) drive for PING, per-cell independent (uncorrelated) drive for the V&S cell.
 
-Both are Poisson spike trains converted to a decaying AMPA conductance — the same *kind* of input. They differ only in the **correlation of that drive across cells**. The external excitatory conductance onto E cell $j$ obeys
+Both deliver 45 Hz Poisson through the *same* input pathway — spikes routed by $W_\text{in}$ into a decaying AMPA conductance. The only difference is the **structure of $W_\text{in}$**. The external excitatory conductance onto E cell $j$ obeys
 
 $$
-\tau_E \,\dot g^{\text{ext}}_j(t) = -\,g^{\text{ext}}_j(t) \;+\;
+\tau_E \,\dot g^{\text{ext}}_j(t) = -\,g^{\text{ext}}_j(t) \;+\; \sum_{k} W^{\text{in}}_{jk}\, s_k(t),
+\qquad
+W^{\text{in}} =
 \begin{cases}
-\displaystyle\sum_{k=1}^{N_\text{in}} W^{\text{in}}_{jk}\, s_k(t) & \text{(PING)} \\[1.4em]
-g_0\, \xi_j(t) & \text{(V\&S AI)}
+\text{dense} & \text{(PING)} \\
+g_0\,\mathbb{1} \ \ (\text{diagonal}) & \text{(V\&S AI)}
 \end{cases}
 $$
 
@@ -56,10 +58,11 @@ where:
 
 - $g^{\text{ext}}_j(t)$ — external excitatory conductance onto E cell $j$;
 - $\tau_E$ — AMPA decay time constant (2 ms), common to both;
-- $s_k(t) = \sum_m \delta(t - t_k^m)$ — spike train of **shared** input neuron $k$ (Poisson, 45 Hz), read by every E cell;
-- $W^{\text{in}}_{jk}$ — dense input weight from input neuron $k$ to E cell $j$; $N_\text{in} = 1024$;
-- $\xi_j(t) = \sum_m \delta(t - t_j^m)$ — a **private** Poisson train (45 Hz) unique to cell $j$;
-- $g_0$ — conductance increment per private spike (0.38 μS).
+- $s_k(t) = \sum_m \delta(t - t_k^m)$ — spike train of input neuron $k$ (Poisson, 45 Hz); $N_\text{in} = 1024$;
+- $W^{\text{in}}$ — input weight matrix: **dense** for PING (every E cell reads the whole input layer, so all cells share the same drive) or **diagonal** $g_0\,\mathbb{1}$ for the V&S cell (each E cell reads only its own input neuron, $W^{\text{in}}_{jk} = g_0\,\delta_{jk}$, so the drives are independent);
+- $g_0$ — per-spike conductance, 0.38 μS (the diagonal weight).
+
+A dense $W_\text{in}$ correlates the input across cells; a diagonal $W_\text{in}$ leaves it independent. (In the runner the diagonal case is realized as a per-cell independent conductance rather than a literal identity matrix — the two are equivalent.)
 
 The consequence is the cross-cell correlation of the drive:
 
