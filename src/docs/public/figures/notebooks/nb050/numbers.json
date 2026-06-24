@@ -1,6 +1,6 @@
 {
-  "notebook_run_id": "r041",
-  "duration_s": 5.7,
+  "notebook_run_id": "r043",
+  "duration_s": 5.6,
   "tier": "small",
   "common_args": [
     "sim",
@@ -19,8 +19,12 @@
       "--w-in",
       "1.5",
       "0.3",
-      "--ei-strength",
-      "1.5"
+      "--w-ei",
+      "0.6",
+      "0.18",
+      "--w-ie",
+      "3.0",
+      "0.9"
     ],
     "ai": [
       "--input-rate",
@@ -51,12 +55,12 @@
   "summary": [
     {
       "cell": "ping",
-      "e_rate_hz": 3.633897542953491,
-      "i_rate_hz": 31.09375,
-      "median_isi_cv_e": 0.6145383401857762,
-      "median_isi_cv_i": 0.024453804746880282,
-      "f_psd_peak_hz": 30.993089772184092,
-      "peak_abs_xcorr_e": 0.046875573214135935
+      "e_rate_hz": 7.570529460906982,
+      "i_rate_hz": 27.46961784362793,
+      "median_isi_cv_e": 0.616303088547999,
+      "median_isi_cv_i": 0.050637507935337084,
+      "f_psd_peak_hz": 28.812972148308848,
+      "peak_abs_xcorr_e": 0.04655717659772459
     },
     {
       "cell": "ai",
