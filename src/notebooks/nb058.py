@@ -594,37 +594,40 @@ def run_lyapunov() -> dict:
 
 
 def plot_lyapunov(lyap: dict, out_path: Path) -> None:
-    """log‖ΔV(t)‖ for balanced (grows, λ > 0) vs decoupled (decays, λ < 0):
-    the direct Lyapunov-exponent measurement."""
+    """‖ΔV(t)‖ for balanced (grows, λ > 0) vs decoupled (flat, λ ≈ 0):
+    the direct Lyapunov-exponent measurement. Per-seed traces of ‖ΔV‖ are
+    intrinsically jagged, so we show the seed-mean smoothed over a short window
+    with a ±1 SD band rather than the raw spiky cloud."""
+    import matplotlib as mpl
     theme.apply()
+    mpl.rcParams["savefig.bbox"] = "standard"   # exact 16:9 (house rule)
+
+    def smooth(y: np.ndarray, t_ms: np.ndarray, win_ms: float = 6.0):
+        dt = float(t_ms[1] - t_ms[0]) if len(t_ms) > 1 else 1.0
+        w = max(1, int(round(win_ms / dt)))
+        return np.convolve(y, np.ones(w) / w, mode="same")
+
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     styles = {"balanced": theme.INK_BLACK, "decoupled": theme.GREY_MID}
     for vkey, vdata in lyap["variants"].items():
         color = styles[vkey]
         t = vdata["t_ms"]
-        for tr in vdata["traces"]:                       # faint per-seed
-            ax.plot(t, np.clip(tr, 1e-6, None), color=color, lw=0.5, alpha=0.25)
-        ax.plot(t, np.clip(vdata["vmean"], 1e-6, None), color=color, lw=2.0,
-                label=f"{vdata['label']}  ·  λ = {vdata['lambda_per_s']:.0f}/s")
-        # overlay the fit line over the balanced growth window
-        if vkey == "balanced":
-            lo, hi = LYAP_FIT_MS
-            m = (t >= lo) & (t <= hi) & (vdata["vmean"] > 0)
-            if m.sum() >= 3:
-                b = np.polyfit(t[m], np.log(vdata["vmean"][m]), 1)
-                ax.plot(t[m], np.exp(np.polyval(b, t[m])),
-                        color=theme.DEEP_RED, lw=1.4, ls="--",
-                        label=f"fit ({lo:.0f}–{hi:.0f} ms)")
+        traces = np.asarray(vdata["traces"])
+        mean = smooth(np.clip(vdata["vmean"], 1e-6, None), t)
+        sd = smooth(traces.std(axis=0), t)
+        ax.fill_between(t, np.clip(mean - sd, 1e-6, None), mean + sd,
+                        color=color, alpha=0.18, lw=0)
+        ax.plot(t, mean, color=color, lw=2.0,
+                label=f"{vdata['label']}  ·  λ ≈ {vdata['lambda_per_s']:.0f}/s")
 
-    ax.set_yscale("log")
     ax.set_xlim(0, float(LYAP_T_MS))
+    ax.set_ylim(bottom=0)
     ax.set_xlabel("time since ε-kick (ms)")
     ax.set_ylabel(r"voltage distance $\Vert \Delta V(t) \Vert$  (mV)")
-    ax.set_title(
-        "Direct Lyapunov measurement — the balanced net amplifies a microscopic "
-        "voltage kick (λ > 0); the decoupled control stays marginal (λ ≈ 0)",
-        loc="left", fontsize=theme.SIZE_LABEL)
-    ax.legend(fontsize=theme.SIZE_LABEL - 1, frameon=False, loc="lower right")
+    ax.set_title("Direct Lyapunov exponent — only the balanced net amplifies "
+                 "the kick", loc="left", fontsize=theme.SIZE_LABEL)
+    ax.legend(fontsize=theme.SIZE_LABEL - 1, frameon=False, loc="center",
+              bbox_to_anchor=(0.58, 0.60))
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     fig.tight_layout()
