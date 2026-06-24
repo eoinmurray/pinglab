@@ -14,15 +14,13 @@ export const numbers = Object.values(
 
 ## Abstract
 
-One network ([COBANet](/articles/ar003/)) can run as the gamma rhythm **PING** or as the [Vreeswijk-Sompolinsky](https://doi.org/10.1126/science.274.5293.1724) **asynchronous-irregular** state. Harmonising the parameters one at a time leaves a single control: the **correlation of the input** across cells. Gamma turns on continuously as that correlation rises — at matched firing rate — with the recurrent connectivity only modulating how much is needed.
+One network ([COBANet](/articles/ar003/)) can run as the gamma rhythm **PING** or as the [Vreeswijk-Sompolinsky](https://doi.org/10.1126/science.274.5293.1724) **asynchronous-irregular** state. With everything else harmonised — connectivity, weights, $W^{II}$ — the two differ in a single control: the **correlation of the input** across cells. Shared (correlated) drive gives gamma; per-cell independent drive gives the balanced state.
 
 ## Methods
 
 ### Model parameters
 
-Everything else is identical COBANet; the table is the full difference between the two runs.
-
-Rows where the two regimes differ are in *italics*.
+The two models are identical COBANet except for the input. The table is the full configuration; the only rows that differ — all of them describing the input — are in *italics*.
 
 | Parameter | PING | V&S AI |
 |---|---|---|
@@ -30,7 +28,7 @@ Rows where the two regimes differ are in *italics*.
 | $N_E$ / $N_I$ | 1024 / 256 | 1024 / 256 |
 | $\Delta t$ / $T$ | 0.25 ms / 1000 ms | 0.25 ms / 1000 ms |
 | $\tau_{E}$ / $\tau_{I}$ (AMPA / GABA) | 2 / 9 ms | 2 / 9 ms |
-| Recurrent connectivity | *dense* | *sparse, fixed fan-in $K \approx 10$* |
+| Recurrent connectivity | sparse fixed-fan-in, $p = 0.2$ | sparse fixed-fan-in, $p = 0.2$ |
 | $W^{EI}$ (E→I) | $\mathcal{N}(0.6, 0.18)$ μS | $\mathcal{N}(0.6, 0.18)$ μS |
 | $W^{IE}$ (I→E) | $\mathcal{N}(3.0, 0.9)$ μS | $\mathcal{N}(3.0, 0.9)$ μS |
 | $W^{II}$ (I→I) | none | none |
@@ -38,43 +36,13 @@ Rows where the two regimes differ are in *italics*.
 | Drive rate | *20 Hz* | *45 Hz (E), 8 Hz (I)* |
 | Input correlation across cells | *correlated* | *independent* |
 
+Both models use sparse fixed-fan-in recurrent connectivity at $p = 1 - s = 0.2$ on the E↔I matrices ($W^{EE} = 0$, $W^{II}$ off). Because $p$ is also the fraction of recurrent input any two cells share ($\langle n_\text{shared}\rangle / K = K/N = p$), it sets how strongly the loop can cohere — connectivity is the *internal* counterpart of the input knob. We fix it at a cortically realistic $p = 0.2$ (local E↔I connectivity runs ≈ 0.1–0.5) — dense enough for the recurrent loop to cohere, so connectivity is shared and does not distinguish the regimes.
+
 ### Model differences
 
-#### Connectivity
+The models share everything above — connectivity, the E↔I weights, $W^{II}$. The single difference is the **input**: a shared (correlated) drive for PING, per-cell independent (uncorrelated) drive for the V&S cell.
 
-The sparsity applies to the recurrent E↔I matrices — $W^{EI}$ (E→I) and $W^{IE}$ (I→E), the only recurrent couplings present here ($W^{EE} = 0$, and $W^{II}$ is off after harmonisation). Each is either **dense** or **sparse with fixed fan-in**: every postsynaptic cell draws exactly $K$ presynaptic partners at random from its $N$ candidates, at connection probability
-
-$$
-p = \frac{K}{N} = 1 - s,
-$$
-
-where:
-
-- $s$ — the sparsity (fraction of entries zeroed); $s = 0.99$ for the V&S cell;
-- $N$ — number of candidate presynaptic cells (the source population);
-- $K = pN$ — presynaptic inputs per postsynaptic cell (fixed fan-in);
-- $p$ — connection probability.
-
-Note that the sparsity fixes $p$, not $K$: at $s = 0.99$ the fan-in is $K \approx 10$ onto each I cell (from $N_E = 1024$ excitatory sources) but $K \approx 3$ onto each E cell (from $N_I = 256$). What is common across both matrices is $p \approx 0.01$.
-
-What decides whether a population can synchronise is how much *recurrent* input two cells hold in common. For two postsynaptic cells each drawing $K$ of the same $N$ sources, the number of shared presynaptic partners is hypergeometric, with mean and shared fraction
-
-$$
-\langle n_\text{shared}\rangle = \frac{K^2}{N},
-\qquad
-\frac{\langle n_\text{shared}\rangle}{K} = \frac{K}{N} = p .
-$$
-
-So the fraction of its recurrent drive that any cell holds in common with another is exactly $p$, and the pairwise correlation of the recurrent input scales with it:
-
-- **Dense** ($p = O(1)$): two cells receive almost the same recurrent input. That shared fluctuation is what lets the E↔I loop *phase-lock* — cells rise and fall together and settle on one rhythm.
-- **Sparse fixed-$K$** ($K \approx 10$, $N \approx 10^3 \Rightarrow p \approx 0.01$): cells share essentially no presynaptic partners. Each cell's recurrent input is nearly private, the pairwise correlation is of order $p \approx 1\%$, and there is no common signal to cohere on.
-
-This makes connectivity the *internal* counterpart of the input knob: sparse $K$ decorrelates the **recurrent** input exactly as per-cell independent streams decorrelate the **external** input. Both starve the population of the shared drive it needs to synchronise — which is why relaxing *either* one is enough to leave the gamma state. (V&S keep the *balance* intact under this dilution by scaling the weights $\propto 1/\sqrt{K}$, so the mean recurrent drive stays $O(\sqrt{K})$ while its fluctuations stay $O(1)$.)
-
-#### Input
-
-Both regimes are driven by Poisson spike trains converted to a decaying AMPA conductance — the same *kind* of input. They differ in the **correlation of that drive across cells**. The external excitatory conductance onto E cell $j$ obeys
+Both are Poisson spike trains converted to a decaying AMPA conductance — the same *kind* of input. They differ only in the **correlation of that drive across cells**. The external excitatory conductance onto E cell $j$ obeys
 
 $$
 \tau_E \,\dot g^{\text{ext}}_j(t) = -\,g^{\text{ext}}_j(t) \;+\;
@@ -112,43 +80,6 @@ The shared layer is a *common reference* the loop can lock onto; the private str
   Top: a 300 ms raster of the drive — PING's shared input layer (left, 20 Hz) and the V&S cell's per-cell private streams (right, 45 Hz). Bottom: the population rate of each drive. Both are featureless, steady Poisson; the input contains no oscillation in either regime. The regimes differ in input rate and, crucially, in *correlation structure* (shared layer vs private streams), not in temporal content.
 </Figure>
 
-<Figure id="Figure 2" title="PING vs the V&S asynchronous-irregular state — four diagnostics, side by side" src="/figures/notebooks/nb050/raster_compare.png" alt="Four rows by two columns. Left column PING, right column V&S AI. Row 1: combined raster with the E population (black) in the lower band and the I population (red) stacked above — PING shows vertical gamma bands every ≈ 35 ms with I bursting just before each E band, AI is completely scattered. Row 2: Welch PSD — PING a sharp peak at about 29 Hz with harmonics, AI broadband with no clear peak. Row 3: per-neuron ISI CV histogram — PING median about 0.62 (sub-Poisson), AI centered near 1.0 (Poisson). Row 4: mean pairwise cross-correlation — PING a clean comb of peaks at the gamma period, AI flat noise around zero with peak magnitude 0.011.">
-  Row 1 is the raster with both populations on one axis — E (black) below, I (red) above the divider — so the I-leads-E gamma timing is visible directly. Left, PING: cycle-locked gamma bursts, a sharp 29 Hz peak, regular (sub-Poisson) ISIs (CV 0.62), cross-correlations combing at the gamma period (peak 0.047). Right, V&S AI: scattered raster, broadband spectrum, Poisson ISIs (CV 0.97), flat cross-correlation (peak 0.011). Same network, opposite dynamics.
+<Figure id="Figure 2" title="PING vs the V&S asynchronous-irregular state — four diagnostics, side by side" src="/figures/notebooks/nb050/raster_compare.png" alt="Four rows by two columns. Left column PING, right column V&S AI. Row 1: combined raster with the E population (black) in the lower band and the I population (red) stacked above — PING shows vertical gamma bands every ≈ 30 ms with I bursting just before each E band, AI is completely scattered. Row 2: Welch PSD — PING a sharp peak at about 33 Hz with harmonics, AI broadband with no clear peak. Row 3: per-neuron ISI CV histogram — PING median about 0.66 (sub-Poisson), AI broader and centred near 0.8. Row 4: mean pairwise cross-correlation — PING a clean comb of peaks at the gamma period, AI flat noise around zero with peak magnitude 0.010.">
+  Row 1 is the raster with both populations on one axis — E (black) below, I (red) above the divider — so the I-leads-E gamma timing is visible directly. Both networks have identical wiring (sparse $p = 0.2$, matched weights, no $W^{II}$); only the input differs. Left, PING (shared input): cycle-locked gamma bursts, a sharp 33 Hz peak, regular (sub-Poisson) ISIs (CV 0.66), cross-correlations combing at the gamma period (peak 0.044). Right, V&S AI (independent input): scattered raster, broadband spectrum, irregular ISIs, flat cross-correlation (peak 0.010). Same network and wiring, opposite dynamics — the input correlation alone.
 </Figure>
-
-### Harmonising connectivity
-
-The two endpoints above differ in *both* connectivity and input, so neither is yet pinned as the switch. To separate them we sweep the recurrent connection probability $p$ on the shared, harmonised weights (no $W^{II}$) and, at each $p$, drive the network *both* ways — shared correlated input and per-cell independent input — scoring each with the lobe–trough contrast of the E autocorrelogram ([nb054](/notebooks/nb054/)'s rhythmicity metric, 0 = asynchronous, → 1 = sharp volleys).
-
-<Figure id="Figure 3" title="Only correlated input gammas, and only above a critical connectivity" src="/figures/notebooks/nb050/connectivity_sweep.png" alt="Line plot, lobe–trough contrast (y, 0 to 1) versus recurrent connection probability p (x, log scale 0.02 to 1.0), two series. Black circles, shared correlated input: 0.03 at p=0.02, 0.08 at p=0.05, rising steeply to 0.50 at p=0.1 and 0.98 at p=0.2, saturating at 1.0 for p=0.5 and 1.0. Red squares, per-cell independent input: flat near zero (0.004 to 0.023) across the whole range.">
-  Lobe–trough contrast against connection probability $p$, for shared (black) and per-cell independent (red) input on the harmonised weights. Independent input never gammas at any $p$ (contrast ≤ 0.02). Shared input is asynchronous below $p \approx 0.05$, crosses at $p \approx 0.1$ (contrast 0.50), and saturates by $p \approx 0.2$ (0.98). E firing rate stays ≈ 6–13 Hz across the whole sweep, so the contrast reads rhythm, not rate.
-</Figure>
-
-So there is a **critical connection probability $p^* \approx 0.1$**: above it, correlated input produces gamma and independent input does not — the **input correlation alone switches the state**. The original V&S cell ($K \approx 10$, $p \approx 0.01$) sits *below* $p^*$, which is why it stays asynchronous whatever the input. This **harmonises connectivity**: fix $p$ anywhere above $p^*$ — say a cortically realistic $p \approx 0.2$ — and both regimes share it, leaving **input correlation as the single control parameter**. The earlier "gamma needs both" was an artefact of placing the V&S endpoint at $p = 0.01$, below the threshold; once connectivity clears $p^*$ it drops out of the switch entirely.
-
-### Correlation, not rate
-
-One objection remains: the shared and independent conditions also differ in drive *rate* (20 vs 45 Hz), so perhaps the rhythm tracks rate, not correlation. It does not. Fixing $p = 0.2$ and sweeping the drive level for both inputs so their firing rates overlap, the contrast separates cleanly by *correlation* at every matched rate (Figure 4): shared input holds contrast ≥ 0.70 across E rates of 7.7–10.3 Hz, while independent input stays ≤ 0.04 across the same 6.3–9.1 Hz band. Same firing rate, opposite rhythm — the switch is the input correlation, not the rate.
-
-<Figure id="Figure 4" title="Rate-matched control — correlation, not rate, sets the rhythm" src="/figures/notebooks/nb050/rate_match.png" alt="Scatter of lobe–trough contrast (y, 0 to 1) versus achieved E firing rate (x, 6 to 10.5 Hz) at fixed p = 0.2, two series. Black circles, shared correlated input: contrast 0.70 to 1.00, clustered at rates 7.7 to 10.3 Hz. Red squares, per-cell independent input: contrast 0.02 to 0.04, at rates 6.3 to 9.1 Hz. The two clouds overlap in firing rate but are separated by almost the full contrast range.">
-  At fixed $p = 0.2$, the drive level is swept for each input so the achieved E firing rates overlap (≈ 6–10 Hz for both). The two clouds share the rate axis but separate on contrast: shared input is rhythmic (≥ 0.70) and independent input is not (≤ 0.04), at matched rate. Rate is controlled for; the input correlation alone sets the rhythm.
-</Figure>
-
-### The phase diagram
-
-The binary sweep (Figure 3) used the dense shared *layer* as its correlated input — a fixed, moderate correlation. To map the full landscape we replace it with a clean correlation knob $c$: split each cell's drive into a shared fraction $c$ (one common stream broadcast to all cells) and a private fraction $1-c$ at the same per-spike conductance, so the mean *and* variance of the drive are held fixed and only the cross-cell correlation varies ($c = 0$ independent, $c = 1$ fully shared). Sweeping the $p \times c$ plane and scoring each cell with the lobe–trough contrast gives the phase diagram (Figure 5).
-
-<Figure id="Figure 5" title="Phase diagram over connectivity × input correlation" src="/figures/notebooks/nb050/phase_diagram.png" alt="Heatmap of lobe–trough contrast (magma, 0 to 1) over a 4×5 grid: connection probability p (y, 0.05 / 0.10 / 0.20 / 0.50) versus input correlation c (x, 0.00 / 0.25 / 0.50 / 0.75 / 1.00), every cell labelled. The c = 0 column is ≈ 0.01–0.02 (black) at all p. Contrast rises steadily left to right along c, reaching 1.00 (pale) in the c = 1 column at every p. Variation down each column (with p) is small: e.g. at c = 0.25 the values are 0.36, 0.42, 0.50, 0.56 for p = 0.05 to 0.50.">
-  Lobe–trough contrast over the connectivity ($p$) × input-correlation ($c$) plane on the harmonised weights. The gradient is almost entirely horizontal: contrast is set by $c$, with $p$ only weakly modulating the intermediate columns.
-</Figure>
-
-The gradient is overwhelmingly horizontal — **input correlation $c$ is the dominant control**. At every $p$ the contrast climbs monotonically from ≈ 0 ($c = 0$, independent) to 1 ($c = 1$, fully shared), while connectivity $p$ only nudges the intermediate columns (at $c = 0.25$, contrast rises from 0.36 at $p = 0.05$ to 0.56 at $p = 0.5$). So there is no hard connectivity threshold: gamma turns on *continuously* with correlation, and $p$ merely sets how much correlation is needed. The apparent "critical $p$" of Figure 3 was a slice at the shared layer's fixed, moderate correlation; once the correlation itself is free to vary, it is $c$ that carries the network across — at any $p$ in this range. (E rate holds at ≈ 8–11 Hz for $c \le 0.75$, so the rise is not a rate effect; only the fully coherent $c = 1$ column lifts the rate to ≈ 17 Hz, as synchrony feeds back on firing.)
-
-## Next steps
-
-The connectivity sweep, the rate-matched control, and the phase diagram settle the headline: the input correlation $c$ is the single control parameter — gamma turns on continuously with it, at matched rate, with connectivity only modulating the gain. What remains stress-tests it:
-
-1. **Re-check with a stronger PING.** This harmonised loop is a weak rhythm (cross-correlation 0.047); the position of the $c$-gradient (and any residual $p$-dependence) may shift for a more strongly coupled loop, so repeat the $p \times c$ sweep against the original $\alpha_{EI} = 1.5$ PING.
-2. **Rate-match the $c = 1$ corner.** The contrast gradient holds at fixed rate up to $c = 0.75$, but the fully coherent $c = 1$ column also lifts the firing rate (≈ 17 Hz); a drive-level control along $c$ would confirm the saturation there is correlation, not the rate rise it induces.
-
-The throughline is the transient, damped-oscillator reading: cortex most likely *amplifies* a gamma resonance for a few cycles rather than switching attractors, so — with connectivity fixed above $p^*$ — the boundary is the line a stimulus-driven burst of correlated input carries the network across, and back.
