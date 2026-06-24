@@ -14,7 +14,7 @@ export const numbers = Object.values(
 
 ## Abstract
 
-The same conductance-based network ([COBANet](/articles/ar003/), $N_E = 1024$, $N_I = 256$) produces two opposite regimes depending on how it is wired and driven: the gamma rhythm **PING**, and the [Vreeswijk-Sompolinsky](https://doi.org/10.1126/science.274.5293.1724) **asynchronous-irregular (AI)** state — the balanced regime that explains why cortex fires irregularly (CV ≈ 1) without tuning. **The goal is to find the minimum set of control parameters that lets the one simulator exhibit both states** — to pin down exactly which knobs must change to cross between gamma and the balanced regime, and which are incidental. This entry sets the two side by side: their inputs, their parameters, and their rasters.
+The same conductance-based network ([COBANet](/articles/ar003/), $N_E = 1024$, $N_I = 256$) produces two opposite regimes depending on how it is wired and driven: the gamma rhythm **PING**, and the [Vreeswijk-Sompolinsky](https://doi.org/10.1126/science.274.5293.1724) **asynchronous-irregular (AI)** state — the balanced regime that explains why cortex fires irregularly (CV ≈ 1) without tuning. **The goal is to find the common state both regimes share and the minimal parameter(s) that switch between them** — a single operating point from which changing as few knobs as possible carries the network between the balanced AI regime and gamma, mirroring how cortex transiently leaves its asynchronous ground state for a burst of rhythm. This entry sets the two side by side: their inputs, their parameters, and their rasters.
 
 ## Inputs
 
@@ -67,8 +67,8 @@ Rows where the two regimes differ are in *italics*.
 | $\Delta t$ / $T$ | 0.25 ms / 1000 ms | 0.25 ms / 1000 ms |
 | $\tau_{E}$ / $\tau_{I}$ (AMPA / GABA) | 2 / 9 ms | 2 / 9 ms |
 | Recurrent connectivity | *dense* | *sparse, fixed fan-in $K \approx 10$* |
-| $W^{EI}$ (E→I) | *$\mathcal{N}(1.5, 0.15)$ μS* | *$\mathcal{N}(0.6, 0.18)$ μS* |
-| $W^{IE}$ (I→E) | *$\mathcal{N}(3.0, 0.3)$ μS* | *$\mathcal{N}(3.0, 0.9)$ μS* |
+| $W^{EI}$ (E→I) | $\mathcal{N}(0.6, 0.18)$ μS | $\mathcal{N}(0.6, 0.18)$ μS |
+| $W^{IE}$ (I→E) | $\mathcal{N}(3.0, 0.9)$ μS | $\mathcal{N}(3.0, 0.9)$ μS |
 | $W^{II}$ (I→I) | *none* | *$\mathcal{N}(0.4, 0.12)$ μS* |
 | External drive | *shared 1024-neuron layer via $W_\text{in}$* | *per-cell independent Poisson, bypassing $W_\text{in}$* |
 | Drive rate | *20 Hz* | *45 Hz (E), 8 Hz (I)* |
@@ -80,8 +80,8 @@ The decisive rows are the bottom four: a dense loop with a shared drive and no $
 
 Figure 2 puts the two regimes side by side — the same four diagnostics (combined E+I raster, Welch PSD, ISI-CV histogram, pairwise cross-correlogram) stacked in rows. Read it across: every row that is sharp and periodic on the left is broad and scattered on the right.
 
-<Figure id="Figure 2" title="PING vs the V&S asynchronous-irregular state — four diagnostics, side by side" src="/figures/notebooks/nb050/raster_compare.png" alt="Four rows by two columns. Left column PING, right column V&S AI. Row 1: combined raster with the E population (black) in the lower band and the I population (red) stacked above — PING shows vertical gamma bands every ≈ 33 ms with I bursting just before each E band, AI is completely scattered. Row 2: Welch PSD — PING a sharp peak at about 31 Hz with harmonics, AI broadband with no clear peak. Row 3: per-neuron ISI CV histogram — PING median about 0.61 (sub-Poisson), AI centered on 1.02 (Poisson). Row 4: mean pairwise cross-correlation — PING a clean comb of peaks at the gamma period, AI flat noise around zero with peak magnitude 0.009.">
-  Row 1 is the raster with both populations on one axis — E (black) below, I (red) above the divider — so the I-leads-E gamma timing is visible directly. Left, PING: cycle-locked gamma bursts, a sharp 31 Hz peak, regular (sub-Poisson) ISIs (CV 0.61), cross-correlations combing at the gamma period (peak 0.047). Right, V&S AI: scattered raster, broadband spectrum, Poisson ISIs (CV 1.02), flat cross-correlation (peak 0.009). Same network, opposite dynamics.
+<Figure id="Figure 2" title="PING vs the V&S asynchronous-irregular state — four diagnostics, side by side" src="/figures/notebooks/nb050/raster_compare.png" alt="Four rows by two columns. Left column PING, right column V&S AI. Row 1: combined raster with the E population (black) in the lower band and the I population (red) stacked above — PING shows vertical gamma bands every ≈ 34 ms with I bursting just before each E band, AI is completely scattered. Row 2: Welch PSD — PING a sharp peak at about 29 Hz with harmonics, AI broadband with no clear peak. Row 3: per-neuron ISI CV histogram — PING median about 0.62 (sub-Poisson), AI centered on 1.02 (Poisson). Row 4: mean pairwise cross-correlation — PING a clean comb of peaks at the gamma period, AI flat noise around zero with peak magnitude 0.009.">
+  Row 1 is the raster with both populations on one axis — E (black) below, I (red) above the divider — so the I-leads-E gamma timing is visible directly. Left, PING: cycle-locked gamma bursts, a sharp 29 Hz peak, regular (sub-Poisson) ISIs (CV 0.62), cross-correlations combing at the gamma period (peak 0.047). Right, V&S AI: scattered raster, broadband spectrum, Poisson ISIs (CV 1.02), flat cross-correlation (peak 0.009). Same network, opposite dynamics.
 </Figure>
 
-The contrast is total: $\langle r_E\rangle, \langle r_I\rangle$ = 3.6, 31 Hz (PING) vs 15, 23 Hz (AI); a 31 Hz gamma peak vs none; median ISI CV 0.61 vs 1.02; pairwise correlation 0.047 vs 0.009. The balanced state turns the same hardware that makes gamma into a decorrelated, irregular, Poisson-like regime — the cortical "ground state" against which the rest of this collection's gamma work is measured.
+The contrast is total: $\langle r_E\rangle, \langle r_I\rangle$ = 7.6, 28 Hz (PING) vs 15, 23 Hz (AI); a 29 Hz gamma peak vs none; median ISI CV 0.62 vs 1.02; pairwise correlation 0.047 vs 0.009. The balanced state turns the same hardware that makes gamma into a decorrelated, irregular, Poisson-like regime — the cortical "ground state" against which the rest of this collection's gamma work is measured.

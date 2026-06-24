@@ -64,8 +64,13 @@ CELLS: dict[str, dict] = {
             # differ in their input as well as their wiring.
             "--input-rate", "20",
             "--w-in", "1.5", "0.3",
-            "--ei-strength", "1.5",
-            # No --w-ii ⇒ canonical PING (no I→I).
+            # E↔I weights matched to the AI cell — both W_EI and W_IE are now
+            # shared parameters. Verified incidental: PING gamma holds (peak
+            # ≈ 29 Hz, cross-corr ≈ 0.05 vs the AI floor 0.009). So the E↔I
+            # coupling is NOT what switches the two regimes.
+            "--w-ei", "0.6", "0.18",
+            "--w-ie", "3.0", "0.9",
+            # No --w-ii ⇒ canonical PING (no I→I); dense connectivity.
         ],
         "title": "PING — canonical recurrent loop (no W^II)",
     },
