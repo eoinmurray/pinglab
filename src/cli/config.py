@@ -310,6 +310,13 @@ def make_net(cfg_obj, w_in=None, w_hid=(5.1, 3.8), model_name="ping"):
         w_in_pair = (w_in[0], w_in[1])
         w_in_sparsity = cfg_obj.w_in_sparsity
 
+    # Honour an explicit N_I that differs from the default n_e//4 (e.g. the
+    # equal-fan-in V&S configs where K_I = K_E). Single E-I layer → index 1.
+    # Default (n_i == n_e//4) leaves n_inh_per_layer=None, so behaviour is
+    # byte-identical for every existing caller.
+    n_inh_per_layer = (
+        {1: cfg_obj.n_i} if cfg_obj.n_i != cfg_obj.n_e // 4 else None
+    )
     net = build_net(
         model_name,
         w_in=w_in_pair,
@@ -321,6 +328,7 @@ def make_net(cfg_obj, w_in=None, w_hid=(5.1, 3.8), model_name="ping"):
         sparsity=cfg_obj.sparsity,
         device=cfg_obj.torch_device,
         hidden_sizes=[cfg_obj.n_e],
+        n_inh_per_layer=n_inh_per_layer,
     )
     net.recording = True
     return net
