@@ -113,6 +113,7 @@ def generate_snapshot(
 def generate_spike_snapshot(
     spike_rate=None, overdrive=12.0, dt=None, model_name="ping",
     independent_drive=None, independent_drive_i=None,
+    shared_drive=None, shared_drive_i=None,
     quenched_drive=None, quenched_drive_i=None,
     noise_std=0.0,
     lyapunov_eps=0.0,
@@ -198,6 +199,16 @@ def generate_spike_snapshot(
         ind_drive_g = ind_spikes * ind_g
         drive_spikes = ind_spikes
         tonic_g = (tonic_g + ind_drive_g) if tonic_g is not None else ind_drive_g
+    if shared_drive is not None:
+        sh_rate, sh_g = float(shared_drive[0]), float(shared_drive[1])
+        gen_s = torch.Generator(device="cpu").manual_seed(C.SEED + 5)
+        p_s = sh_rate * dt / 1000.0
+        # ONE common Poisson stream, broadcast to every E cell (fully
+        # correlated across cells).
+        sh_spikes = (torch.rand(T_steps, 1, generator=gen_s) < p_s).to(torch.float32)
+        sh_drive_g = (sh_spikes * sh_g).to(C.DEVICE).expand(T_steps, C.N_E).contiguous()
+        log.info(f"  + shared common drive (E): {sh_rate:.0f} Hz × {sh_g:.4f} μS")
+        tonic_g = (tonic_g + sh_drive_g) if tonic_g is not None else sh_drive_g
     tonic_g_i = None
     if independent_drive_i is not None:
         ind_rate_i, ind_g_i = (
@@ -212,6 +223,14 @@ def generate_spike_snapshot(
             f"  + independent per-I-cell drive: {ind_rate_i:.0f} Hz × {ind_g_i:.4f} μS"
         )
         tonic_g_i = ind_spikes_i * ind_g_i
+    if shared_drive_i is not None:
+        sh_rate_i, sh_g_i = float(shared_drive_i[0]), float(shared_drive_i[1])
+        gen_si = torch.Generator(device="cpu").manual_seed(C.SEED + 6)
+        p_si = sh_rate_i * dt / 1000.0
+        sh_spikes_i = (torch.rand(T_steps, 1, generator=gen_si) < p_si).to(torch.float32)
+        sh_drive_gi = (sh_spikes_i * sh_g_i).to(C.DEVICE).expand(T_steps, C.N_I).contiguous()
+        log.info(f"  + shared common drive (I): {sh_rate_i:.0f} Hz × {sh_g_i:.4f} μS")
+        tonic_g_i = (tonic_g_i + sh_drive_gi) if tonic_g_i is not None else sh_drive_gi
     if quenched_drive is not None:
         q_mean, q_std = float(quenched_drive[0]), float(quenched_drive[1])
         gen_q = torch.Generator(device="cpu").manual_seed(C.SEED + 3)

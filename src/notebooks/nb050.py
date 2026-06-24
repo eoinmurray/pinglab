@@ -28,6 +28,12 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
 from cli import theme  # noqa: E402
+from cli.metrics import (  # noqa: E402
+    iei_histogram,
+    population_event_times,
+    rhythmicity_scalars,
+    spike_autocorrelogram,
+)
 from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
@@ -1196,6 +1202,217 @@ def plot_lyapunov(lyap_by_cell: dict, out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+# ── Connectivity-harmonisation sweep ─────────────────────────────────────
+# Goal: find a single connection probability p (recurrent E↔I sparsity) both
+# regimes can share, where the INPUT alone flips the state. At each p we run
+# the shared (correlated) drive and the per-cell independent drive on the
+# harmonised weights (no W^II), and score each with nb054's lobe–trough
+# contrast of the E autocorrelogram (0 = asynchronous, → 1 = sharp volleys).
+P_VALUES = [0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
+MATCHED_WEIGHTS = ["--w-ei", "0.6", "0.18", "--w-ie", "3.0", "0.9"]
+SHARED_INPUT = ["--input-rate", "20", "--w-in", "1.5", "0.3"]
+INDEP_INPUT = ["--input-rate", "1", "--w-in", "0.01", "0.001",
+               "--independent-drive", "45", "0.38",
+               "--independent-drive-i", "8", "0.25"]
+
+
+def _lobe_trough_contrast(spk_e: np.ndarray, dt_ms: float) -> float:
+    """nb054's rhythmicity scalar on the E-population autocorrelogram."""
+    ac_lags, ac = spike_autocorrelogram(spk_e, dt_ms, 100.0, 1.0)
+    iei_lags, iei = iei_histogram(
+        population_event_times(spk_e, dt_ms), 100.0, 1.0)
+    sc = rhythmicity_scalars(ac_lags, ac, iei_lags, iei, 1.0)
+    c = sc.get("contrast")
+    return float(c) if c is not None else float("nan")
+
+
+def connectivity_sweep() -> list[dict]:
+    """Sweep p × {shared, independent} input on the harmonised weights."""
+    out = []
+    for p in P_VALUES:
+        conn = [] if p >= 1.0 else ["--ei-sparsity", f"{1.0 - p:.4f}", "--exact-k"]
+        for cond, inp in (("shared", SHARED_INPUT), ("independent", INDEP_INPUT)):
+            data = _run_scope([*MATCHED_WEIGHTS, *conn, *inp])
+            spk_e, dt = data["spk_e"], float(data["dt"])
+            contrast = _lobe_trough_contrast(spk_e, dt)
+            rate_e = float(spk_e.mean() * 1000.0 / dt)
+            out.append({"p": float(p), "cond": cond,
+                        "contrast": contrast, "rate_e_hz": rate_e})
+            print(f"  p={p:<5} {cond:<12} contrast={contrast:.3f} "
+                  f"r_E={rate_e:.1f} Hz")
+    return out
+
+
+def plot_connectivity_sweep(sweep: list[dict], out_path: Path) -> None:
+    """Lobe–trough contrast vs connection probability, one line per input."""
+    theme.apply()
+    ps = sorted({r["p"] for r in sweep})
+
+    def series(cond, key):
+        return [next(r[key] for r in sweep if r["p"] == p and r["cond"] == cond)
+                for p in ps]
+
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    ax.plot(ps, series("shared", "contrast"), "o-", color=theme.INK_BLACK,
+            label="shared (correlated) input")
+    ax.plot(ps, series("independent", "contrast"), "s--", color=theme.DEEP_RED,
+            label="per-cell independent input")
+    ax.set_xlabel("connection probability  $p$  (recurrent E↔I)")
+    ax.set_ylabel("lobe–trough contrast")
+    ax.set_ylim(-0.03, 1.0)
+    ax.axhline(0.0, color=theme.GREY_MID, lw=0.6, alpha=0.7)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(loc="upper left", fontsize=8)
+    ax.set_title("Connectivity sweep — only correlated input gammas, "
+                 "and only above a critical $p$", loc="left",
+                 fontsize=theme.SIZE_LABEL)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"wrote {out_path}")
+
+
+# ── Rate-matched control: is the switch correlation, or just rate? ───────
+# At a fixed p = 0.2 (above p*), sweep the drive level for BOTH inputs so
+# their achieved E firing rates span a common range, and plot contrast vs
+# E rate. If shared stays high and independent ≈ 0 across the same rates,
+# the switch is the input correlation, not the firing rate.
+RATE_MATCH_CONN = ["--ei-sparsity", "0.8", "--exact-k"]  # p = 0.2
+SHARED_RATES_HZ = [10, 15, 20, 30, 40]
+INDEP_SCALES = [0.5, 0.75, 1.0, 1.5, 2.0]  # × base 45 Hz (E) / 8 Hz (I)
+
+
+def rate_match_sweep() -> list[dict]:
+    out = []
+    for r in SHARED_RATES_HZ:
+        data = _run_scope([*MATCHED_WEIGHTS, *RATE_MATCH_CONN,
+                           "--input-rate", str(r), "--w-in", "1.5", "0.3"])
+        spk, dt = data["spk_e"], float(data["dt"])
+        out.append({"cond": "shared", "rate_e_hz": float(spk.mean() * 1000.0 / dt),
+                    "contrast": _lobe_trough_contrast(spk, dt)})
+    for x in INDEP_SCALES:
+        data = _run_scope([*MATCHED_WEIGHTS, *RATE_MATCH_CONN,
+                           "--input-rate", "1", "--w-in", "0.01", "0.001",
+                           "--independent-drive", f"{45 * x:.2f}", "0.38",
+                           "--independent-drive-i", f"{8 * x:.2f}", "0.25"])
+        spk, dt = data["spk_e"], float(data["dt"])
+        out.append({"cond": "independent", "rate_e_hz": float(spk.mean() * 1000.0 / dt),
+                    "contrast": _lobe_trough_contrast(spk, dt)})
+    for r in out:
+        print(f"  {r['cond']:<12} r_E={r['rate_e_hz']:5.1f} Hz  "
+              f"contrast={r['contrast']:.3f}")
+    return out
+
+
+def plot_rate_match(sweep: list[dict], out_path: Path) -> None:
+    """Contrast vs achieved E firing rate, one series per input — the two
+    clouds overlap in rate but separate in contrast (correlation, not rate)."""
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    for cond, mk, clr, lab in (
+        ("shared", "o", theme.INK_BLACK, "shared (correlated) input"),
+        ("independent", "s", theme.DEEP_RED, "per-cell independent input"),
+    ):
+        pts = sorted((r["rate_e_hz"], r["contrast"]) for r in sweep
+                     if r["cond"] == cond)
+        xs = [a for a, _ in pts]
+        ys = [b for _, b in pts]
+        ax.plot(xs, ys, mk, color=clr, label=lab, ms=9, ls="none", alpha=0.9)
+    ax.set_xlabel("achieved E firing rate (Hz)")
+    ax.set_ylabel("lobe–trough contrast")
+    ax.set_ylim(-0.03, 1.0)
+    ax.axhline(0.0, color=theme.GREY_MID, lw=0.6, alpha=0.7)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(loc="center right", fontsize=8)
+    ax.set_title("Rate-matched control ($p = 0.2$): correlation, not rate, "
+                 "sets the rhythm", loc="left", fontsize=theme.SIZE_LABEL)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"wrote {out_path}")
+
+
+# ── Phase diagram: connectivity p × input correlation c ─────────────────
+# Mix the external drive at cross-cell correlation c: split the per-cell rate
+# into a shared fraction c (one common stream broadcast to all cells) and a
+# private fraction 1-c, same per-spike conductance — so the mean AND variance
+# of each cell's drive are held fixed while only the correlation varies.
+# c = 0 is the V&S (independent) input; c = 1 is fully shared. Score each
+# (p, c) cell with the lobe–trough contrast to map the gamma region.
+P_GRID = [0.05, 0.1, 0.2, 0.5]
+C_GRID = [0.0, 0.25, 0.5, 0.75, 1.0]
+BASE_RATE_E, BASE_G_E = 45.0, "0.38"
+BASE_RATE_I, BASE_G_I = 8.0, "0.25"
+
+
+def _corr_mix_args(c: float) -> list[str]:
+    """Drive flags for cross-cell input correlation c (matched mean+variance)."""
+    args = ["--input-rate", "1", "--w-in", "0.01", "0.001"]
+    priv_e, sh_e = (1.0 - c) * BASE_RATE_E, c * BASE_RATE_E
+    priv_i, sh_i = (1.0 - c) * BASE_RATE_I, c * BASE_RATE_I
+    if priv_e > 1e-6:
+        args += ["--independent-drive", f"{priv_e:.3f}", BASE_G_E]
+    if sh_e > 1e-6:
+        args += ["--shared-drive", f"{sh_e:.3f}", BASE_G_E]
+    if priv_i > 1e-6:
+        args += ["--independent-drive-i", f"{priv_i:.3f}", BASE_G_I]
+    if sh_i > 1e-6:
+        args += ["--shared-drive-i", f"{sh_i:.3f}", BASE_G_I]
+    return args
+
+
+def correlation_grid() -> list[dict]:
+    """p × c grid: lobe–trough contrast and E rate at each cell."""
+    out = []
+    for p in P_GRID:
+        conn = [] if p >= 1.0 else ["--ei-sparsity", f"{1.0 - p:.4f}", "--exact-k"]
+        for c in C_GRID:
+            data = _run_scope([*MATCHED_WEIGHTS, *conn, *_corr_mix_args(c)])
+            spk, dt = data["spk_e"], float(data["dt"])
+            out.append({"p": float(p), "c": float(c),
+                        "contrast": _lobe_trough_contrast(spk, dt),
+                        "rate_e_hz": float(spk.mean() * 1000.0 / dt)})
+            print(f"  p={p:<5} c={c:<5} contrast={out[-1]['contrast']:.3f} "
+                  f"r_E={out[-1]['rate_e_hz']:.1f} Hz")
+    return out
+
+
+def plot_correlation_heatmap(grid: list[dict], out_path: Path) -> None:
+    """Contrast over the connectivity × input-correlation plane."""
+    theme.apply()
+    mat = np.full((len(P_GRID), len(C_GRID)), np.nan)
+    for r in grid:
+        mat[P_GRID.index(r["p"]), C_GRID.index(r["c"])] = r["contrast"]
+    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    im = ax.imshow(mat, origin="lower", aspect="auto", vmin=0.0, vmax=1.0,
+                   cmap="magma")
+    ax.set_xticks(range(len(C_GRID)))
+    ax.set_xticklabels([f"{c:.2f}" for c in C_GRID])
+    ax.set_yticks(range(len(P_GRID)))
+    ax.set_yticklabels([f"{p:.2f}" for p in P_GRID])
+    ax.set_xlabel("input correlation  $c$  (0 = independent, 1 = shared)")
+    ax.set_ylabel("connection probability  $p$")
+    for i in range(len(P_GRID)):
+        for j in range(len(C_GRID)):
+            v = mat[i, j]
+            ax.text(j, i, f"{v:.2f}", ha="center", va="center",
+                    color="white" if v < 0.55 else "black",
+                    fontsize=theme.SIZE_LABEL - 1)
+    cb = fig.colorbar(im, ax=ax)
+    cb.set_label("lobe–trough contrast")
+    ax.set_title("Phase diagram: input correlation $c$ drives the rhythm; "
+                 "$p$ only modulates", loc="left", fontsize=theme.SIZE_LABEL)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"wrote {out_path}")
+
+
 def main() -> None:
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     parse_modal_gpu(sys.argv)
@@ -1265,6 +1482,27 @@ def main() -> None:
         plot_raster_compare(snaps, raster_dst)
         figures["raster_compare"] = raster_dst
 
+    # Connectivity-harmonisation sweep: p × {shared, independent} input.
+    print("[connectivity sweep] contrast vs p for each input")
+    conn_sweep = connectivity_sweep()
+    conn_dst = FIGURES / "connectivity_sweep.png"
+    plot_connectivity_sweep(conn_sweep, conn_dst)
+    figures["connectivity_sweep"] = conn_dst
+
+    # Rate-matched control: contrast vs E rate for both inputs at p = 0.2.
+    print("[rate-match control] contrast vs E rate, shared vs independent")
+    rate_sweep = rate_match_sweep()
+    rate_dst = FIGURES / "rate_match.png"
+    plot_rate_match(rate_sweep, rate_dst)
+    figures["rate_match"] = rate_dst
+
+    # Phase diagram: connectivity p × input correlation c.
+    print("[phase diagram] contrast over p × c")
+    corr_grid = correlation_grid()
+    corr_dst = FIGURES / "phase_diagram.png"
+    plot_correlation_heatmap(corr_grid, corr_dst)
+    figures["phase_diagram"] = corr_dst
+
     duration_s = time.monotonic() - t_start
     summary = {
         "notebook_run_id": notebook_run_id,
@@ -1273,6 +1511,9 @@ def main() -> None:
         "common_args": COMMON_ARGS,
         "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
         "summary": summary_rows,
+        "connectivity_sweep": conn_sweep,
+        "rate_match": rate_sweep,
+        "phase_diagram": corr_grid,
     }
     def _clean(o):
         import math
