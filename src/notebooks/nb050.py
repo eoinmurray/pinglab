@@ -3,8 +3,8 @@ asynchronous-irregular state.
 
 Two COBANet cells that share everything — sparse fixed-K connectivity at
 p = 0.2, matched E↔I weights, no W^II — and differ only in the external
-input: PING gets a shared (correlated) Poisson layer through W_in, the
-V&S cell gets per-cell independent drive. Renders two side-by-side
+input: PING gets a shared (correlated) 45 Hz Poisson layer through W_in,
+the V&S cell gets per-cell independent drive. Renders two side-by-side
 figures: the input each receives, and a four-panel raster comparison
 (combined E+I raster, Welch PSD, ISI-CV histogram, cross-correlogram).
 """
@@ -59,8 +59,10 @@ CELLS: dict[str, dict] = {
         "args": [
             *SHARED_CONN, *SHARED_W,
             # The ONLY difference: a shared (correlated) input layer — a
-            # common 20 Hz Poisson drive read by every E cell through W_in.
-            "--input-rate", "20", "--w-in", "1.5", "0.3",
+            # common 45 Hz Poisson drive read by every E cell through W_in
+            # (rate matched to the AI cell's E drive; W_in scaled down so the
+            # network is not overdriven).
+            "--input-rate", "45", "--w-in", "0.8", "0.16",
         ],
         "title": "PING — gamma (shared, correlated input)",
     },
@@ -344,7 +346,7 @@ def plot_raster_compare(snaps: dict, out_path: Path) -> None:
 
 def plot_input_compare(snaps: dict, out_path: Path) -> None:
     """The external drive each regime receives, side by side. PING reads a
-    1024-neuron input layer at 20 Hz through a dense W_in (a common drive to
+    1024-neuron input layer at 45 Hz through a dense W_in (a common drive to
     all E cells); the V&S AI cell gets one private 45 Hz Poisson stream per E
     cell. Top row: a raster of the drive over a 300 ms window. Bottom row:
     its population rate over time — featureless, steady Poisson in both, so
@@ -353,7 +355,7 @@ def plot_input_compare(snaps: dict, out_path: Path) -> None:
     from matplotlib.gridspec import GridSpec
     INPUT_CLR = "#2c7fb8"
     order = [c for c in ("ping", "ai") if c in snaps]
-    titles = {"ping": "PING — input layer, 20 Hz Poisson (dense $W_{in}$ to all E)",
+    titles = {"ping": "PING — input layer, 45 Hz Poisson (dense $W_{in}$ to all E)",
               "ai": "V&S AI — per-cell streams, 45 Hz Poisson (one per E)"}
     fig = plt.figure(figsize=(13.0, 6.2), dpi=150)
     gs = GridSpec(2, len(order), figure=fig, height_ratios=[3.0, 1.3],
