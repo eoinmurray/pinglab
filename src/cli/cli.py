@@ -311,6 +311,26 @@ def _build_parent_parser():
         "V&S-style AI state where both populations need uncorrelated noise.",
     )
     net_group.add_argument(
+        "--shared-drive",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("RATE_HZ", "G_PER_SPIKE"),
+        help="Shared (common) Poisson drive on E: ONE Poisson stream at "
+        "RATE_HZ broadcast to every E cell, adding G_PER_SPIKE μS of g_E per "
+        "spike. Fully correlated across cells. Combine with --independent-drive "
+        "to mix shared + private drive and tune the cross-cell input correlation.",
+    )
+    net_group.add_argument(
+        "--shared-drive-i",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("RATE_HZ", "G_PER_SPIKE"),
+        help="Shared (common) Poisson drive on I. Same semantics as "
+        "--shared-drive but broadcast to every I cell.",
+    )
+    net_group.add_argument(
         "--noise-std",
         type=float,
         default=0.0,
@@ -1047,6 +1067,8 @@ def _emit_image(args, C, log):
             model_name=args.model,
             independent_drive=args.independent_drive,
             independent_drive_i=args.independent_drive_i,
+            shared_drive=args.shared_drive,
+            shared_drive_i=args.shared_drive_i,
             quenched_drive=args.quenched_drive,
             quenched_drive_i=args.quenched_drive_i,
             noise_std=args.noise_std,
