@@ -277,6 +277,20 @@ def _build_parent_parser():
         help="W_in sparsity (default: 0.95)",
     )
     net_group.add_argument(
+        "--n-e",
+        type=int,
+        default=None,
+        help="Number of excitatory neurons (default: 1024). With --n-i and "
+        "--exact-k, sweep N at fixed fan-in K to test Vreeswijk-Sompolinsky "
+        "N-invariance.",
+    )
+    net_group.add_argument(
+        "--n-i",
+        type=int,
+        default=None,
+        help="Number of inhibitory neurons (default: 256).",
+    )
+    net_group.add_argument(
         "--ei-sparsity",
         type=float,
         default=0.0,
@@ -526,6 +540,16 @@ def _build_parent_parser():
         metavar=("MEAN", "STD"),
         help="W_II (I→I) init (mean std). Default: 0 0 (no I→I, canonical "
         "PING). Enable for Brunel/Vreeswijk balanced-network experiments.",
+    )
+    wt_group.add_argument(
+        "--w-ee",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("MEAN", "STD"),
+        help="W_EE (E→E) init (mean std). Default: 0 0 (no E→E, canonical "
+        "PING). Enable for the full four-coupling Brunel/Vreeswijk balanced "
+        "network (recurrent excitation pins the E rate).",
     )
     wt_group.add_argument(
         "--trainable-w-ei",
@@ -1047,6 +1071,14 @@ def _emit_image(args, C, log):
         C.cfg.w_ie = tuple(args.w_ie)
     if args.w_ii is not None:
         C.cfg.w_ii = tuple(args.w_ii)
+    if args.w_ee is not None:
+        C.cfg.w_ee = tuple(args.w_ee)
+    if args.n_e is not None:
+        C.cfg.n_e = args.n_e
+    if args.n_i is not None:
+        C.cfg.n_i = args.n_i
+    if args.seed is not None:
+        C.cfg.seed = args.seed
     if getattr(args, "ei_sparsity", 0.0) > 0:
         C.cfg.sparsity = float(args.ei_sparsity)
     if args.input == "dataset":
