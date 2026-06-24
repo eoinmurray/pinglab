@@ -319,6 +319,11 @@ def generate_spike_snapshot(
             extra[key] = np.asarray(rec[key])
     if drive_spikes is not None:
         extra["ind_spikes"] = drive_spikes.cpu().numpy().astype(np.float32)
+    # Shared input-layer spike raster (the W_in-routed drive), aligned to the
+    # post-burn-in window like spk_e, for input-side diagnostics.
+    extra["input_spikes"] = (
+        input_spikes.cpu().numpy()[burn_steps:].astype(np.float32)
+    )
     if lyap_dist is not None:
         extra["lyap_t_ms"] = np.asarray(lyap_t_ms)
         extra["lyap_dist"] = np.asarray(lyap_dist)
