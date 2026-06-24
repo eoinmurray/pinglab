@@ -3,7 +3,7 @@ layout: ../../layouts/MarkdownLayout.astro
 title: "The Vreeswijk-Sompolinsky asynchronous-irregular state"
 date: 2026-06-09
 entry: 50
-status: final
+status: revising
 structure: paper
 collection: one-shots
 ---
@@ -14,11 +14,67 @@ export const numbers = Object.values(
 
 ## Abstract
 
-The same conductance-based network ([COBANet](/articles/ar003/), $N_E = 1024$, $N_I = 256$) produces two opposite regimes depending on how it is wired and driven: the gamma rhythm **PING**, and the [Vreeswijk-Sompolinsky](https://doi.org/10.1126/science.274.5293.1724) **asynchronous-irregular (AI)** state — the balanced regime that explains why cortex fires irregularly (CV ≈ 1) without tuning. **The goal is to find the common state both regimes share and the minimal parameter(s) that switch between them** — a single operating point from which changing as few knobs as possible carries the network between the balanced AI regime and gamma, mirroring how cortex transiently leaves its asynchronous ground state for a burst of rhythm. This entry sets the two side by side: their inputs, their parameters, and their rasters.
+One network ([COBANet](/articles/ar003/)) can run as the gamma rhythm **PING** or as the [Vreeswijk-Sompolinsky](https://doi.org/10.1126/science.274.5293.1724) **asynchronous-irregular** state. We find the minimal knobs that switch between them: connectivity and input correlation, with gamma needing both.
 
-## Inputs
+## Methods
 
-Both regimes are driven by Poisson spike trains converted to a decaying AMPA conductance — the same *kind* of input. They differ in one thing: the **correlation of that drive across cells**. The external excitatory conductance onto E cell $j$ obeys
+### Model parameters
+
+Everything else is identical COBANet; the table is the full difference between the two runs.
+
+Rows where the two regimes differ are in *italics*.
+
+| Parameter | PING | V&S AI |
+|---|---|---|
+| Model | COBANet (conductance LIF) | COBANet (conductance LIF) |
+| $N_E$ / $N_I$ | 1024 / 256 | 1024 / 256 |
+| $\Delta t$ / $T$ | 0.25 ms / 1000 ms | 0.25 ms / 1000 ms |
+| $\tau_{E}$ / $\tau_{I}$ (AMPA / GABA) | 2 / 9 ms | 2 / 9 ms |
+| Recurrent connectivity | *dense* | *sparse, fixed fan-in $K \approx 10$* |
+| $W^{EI}$ (E→I) | $\mathcal{N}(0.6, 0.18)$ μS | $\mathcal{N}(0.6, 0.18)$ μS |
+| $W^{IE}$ (I→E) | $\mathcal{N}(3.0, 0.9)$ μS | $\mathcal{N}(3.0, 0.9)$ μS |
+| $W^{II}$ (I→I) | none | none |
+| External drive | *shared 1024-neuron layer via $W_\text{in}$* | *per-cell independent Poisson, bypassing $W_\text{in}$* |
+| Drive rate | *20 Hz* | *45 Hz (E), 8 Hz (I)* |
+| Input correlation across cells | *correlated* | *independent* |
+
+### Model differences
+
+#### Connectivity
+
+The sparsity applies to the recurrent E↔I matrices — $W^{EI}$ (E→I) and $W^{IE}$ (I→E), the only recurrent couplings present here ($W^{EE} = 0$, and $W^{II}$ is off after harmonisation). Each is either **dense** or **sparse with fixed fan-in**: every postsynaptic cell draws exactly $K$ presynaptic partners at random from its $N$ candidates, at connection probability
+
+$$
+p = \frac{K}{N} = 1 - s,
+$$
+
+where:
+
+- $s$ — the sparsity (fraction of entries zeroed); $s = 0.99$ for the V&S cell;
+- $N$ — number of candidate presynaptic cells (the source population);
+- $K = pN$ — presynaptic inputs per postsynaptic cell (fixed fan-in);
+- $p$ — connection probability.
+
+Note that the sparsity fixes $p$, not $K$: at $s = 0.99$ the fan-in is $K \approx 10$ onto each I cell (from $N_E = 1024$ excitatory sources) but $K \approx 3$ onto each E cell (from $N_I = 256$). What is common across both matrices is $p \approx 0.01$.
+
+What decides whether a population can synchronise is how much *recurrent* input two cells hold in common. For two postsynaptic cells each drawing $K$ of the same $N$ sources, the number of shared presynaptic partners is hypergeometric, with mean and shared fraction
+
+$$
+\langle n_\text{shared}\rangle = \frac{K^2}{N},
+\qquad
+\frac{\langle n_\text{shared}\rangle}{K} = \frac{K}{N} = p .
+$$
+
+So the fraction of its recurrent drive that any cell holds in common with another is exactly $p$, and the pairwise correlation of the recurrent input scales with it:
+
+- **Dense** ($p = O(1)$): two cells receive almost the same recurrent input. That shared fluctuation is what lets the E↔I loop *phase-lock* — cells rise and fall together and settle on one rhythm.
+- **Sparse fixed-$K$** ($K \approx 10$, $N \approx 10^3 \Rightarrow p \approx 0.01$): cells share essentially no presynaptic partners. Each cell's recurrent input is nearly private, the pairwise correlation is of order $p \approx 1\%$, and there is no common signal to cohere on.
+
+This makes connectivity the *internal* counterpart of the input knob: sparse $K$ decorrelates the **recurrent** input exactly as per-cell independent streams decorrelate the **external** input. Both starve the population of the shared drive it needs to synchronise — which is why relaxing *either* one is enough to leave the gamma state. (V&S keep the *balance* intact under this dilution by scaling the weights $\propto 1/\sqrt{K}$, so the mean recurrent drive stays $O(\sqrt{K})$ while its fluctuations stay $O(1)$.)
+
+#### Input
+
+Both regimes are driven by Poisson spike trains converted to a decaying AMPA conductance — the same *kind* of input. They differ in the **correlation of that drive across cells**. The external excitatory conductance onto E cell $j$ obeys
 
 $$
 \tau_E \,\dot g^{\text{ext}}_j(t) = -\,g^{\text{ext}}_j(t) \;+\;
@@ -48,40 +104,26 @@ $$
 \qquad j \neq j'.
 $$
 
-This difference is not cosmetic: PING's recurrent loop needs a *common* drive to phase-lock into a rhythm, while the balanced state needs *independent* drive to stay decorrelated. (Driving PING with the AI cell's per-cell independent streams collapses its gamma — the cross-correlation drops from ≈ 0.05 to ≈ 0.01 — so the two regimes necessarily differ in input as well as wiring.) What they share: neither input carries any rhythm. Both are featureless, steady Poisson (Figure 1), so PING's gamma is generated by the network, not inherited from the drive.
+The shared layer is a *common reference* the loop can lock onto; the private streams kick each cell independently, with no common phase. (The drive *rate*, 20 vs 45 Hz, is an incidental magnitude — it sets the operating rates, not the qualitative state.) What both share: neither input carries any rhythm. Both are featureless, steady Poisson (Figure 1), so PING's gamma is generated by the network, not inherited from the drive.
+
+## Results
 
 <Figure id="Figure 1" title="The external drive each regime receives" src="/figures/notebooks/nb050/input_compare.png" alt="Two columns. Left PING: top, a raster of the 1024-neuron input layer firing as independent Poisson at 20 Hz over 300 ms; bottom, its population rate over time, steady around 20 Hz. Right V&S AI: top, a raster of the per-cell independent streams firing as Poisson at 45 Hz; bottom, its population rate steady around 45 Hz. Both rasters are structureless scatter with no temporal bands.">
   Top: a 300 ms raster of the drive — PING's shared input layer (left, 20 Hz) and the V&S cell's per-cell private streams (right, 45 Hz). Bottom: the population rate of each drive. Both are featureless, steady Poisson; the input contains no oscillation in either regime. The regimes differ in input rate and, crucially, in *correlation structure* (shared layer vs private streams), not in temporal content.
 </Figure>
 
-## Model parameters
-
-Everything else is identical COBANet; the table is the full difference between the two runs.
-
-Rows where the two regimes differ are in *italics*.
-
-| Parameter | PING | V&S AI |
-|---|---|---|
-| Model | COBANet (conductance LIF) | COBANet (conductance LIF) |
-| $N_E$ / $N_I$ | 1024 / 256 | 1024 / 256 |
-| $\Delta t$ / $T$ | 0.25 ms / 1000 ms | 0.25 ms / 1000 ms |
-| $\tau_{E}$ / $\tau_{I}$ (AMPA / GABA) | 2 / 9 ms | 2 / 9 ms |
-| Recurrent connectivity | *dense* | *sparse, fixed fan-in $K \approx 10$* |
-| $W^{EI}$ (E→I) | $\mathcal{N}(0.6, 0.18)$ μS | $\mathcal{N}(0.6, 0.18)$ μS |
-| $W^{IE}$ (I→E) | $\mathcal{N}(3.0, 0.9)$ μS | $\mathcal{N}(3.0, 0.9)$ μS |
-| $W^{II}$ (I→I) | none | none |
-| External drive | *shared 1024-neuron layer via $W_\text{in}$* | *per-cell independent Poisson, bypassing $W_\text{in}$* |
-| Drive rate | *20 Hz* | *45 Hz (E), 8 Hz (I)* |
-| Input correlation across cells | *correlated* | *independent* |
-
-The decisive rows are the bottom four: a dense loop with a shared drive and no $I\!\to\!I$ gives gamma; sparse fixed-$K$ wiring with $I\!\to\!I$ and independent drive gives the balanced state.
-
-## Rasters
-
-Figure 2 puts the two regimes side by side — the same four diagnostics (combined E+I raster, Welch PSD, ISI-CV histogram, pairwise cross-correlogram) stacked in rows. Read it across: every row that is sharp and periodic on the left is broad and scattered on the right.
-
 <Figure id="Figure 2" title="PING vs the V&S asynchronous-irregular state — four diagnostics, side by side" src="/figures/notebooks/nb050/raster_compare.png" alt="Four rows by two columns. Left column PING, right column V&S AI. Row 1: combined raster with the E population (black) in the lower band and the I population (red) stacked above — PING shows vertical gamma bands every ≈ 35 ms with I bursting just before each E band, AI is completely scattered. Row 2: Welch PSD — PING a sharp peak at about 29 Hz with harmonics, AI broadband with no clear peak. Row 3: per-neuron ISI CV histogram — PING median about 0.62 (sub-Poisson), AI centered near 1.0 (Poisson). Row 4: mean pairwise cross-correlation — PING a clean comb of peaks at the gamma period, AI flat noise around zero with peak magnitude 0.011.">
   Row 1 is the raster with both populations on one axis — E (black) below, I (red) above the divider — so the I-leads-E gamma timing is visible directly. Left, PING: cycle-locked gamma bursts, a sharp 29 Hz peak, regular (sub-Poisson) ISIs (CV 0.62), cross-correlations combing at the gamma period (peak 0.047). Right, V&S AI: scattered raster, broadband spectrum, Poisson ISIs (CV 0.97), flat cross-correlation (peak 0.011). Same network, opposite dynamics.
 </Figure>
 
-The contrast is total: $\langle r_E\rangle, \langle r_I\rangle$ = 7.6, 28 Hz (PING) vs 9.6, 31 Hz (AI); a 29 Hz gamma peak vs none; median ISI CV 0.62 vs 0.97; pairwise correlation 0.047 vs 0.011. The balanced state turns the same hardware that makes gamma into a decorrelated, irregular, Poisson-like regime — the cortical "ground state" against which the rest of this collection's gamma work is measured.
+## Next steps
+
+The "gamma needs both knobs" result is contingent on the two *extreme* endpoints we chose — fully dense PING vs very sparse V&S ($K \approx 10$, $p \approx 0.01$, ≈ 1% shared recurrent input). It sits awkwardly against cortex, which transitions with *fixed* wiring by changing only its input: taken literally our result says sparse wiring cannot do gamma under correlated drive, which is false. The tell is that $K = 10$ is simply *below* the synchronisation threshold, not that connectivity is the control parameter. The steps that resolve this, in order:
+
+1. **Build the 2D phase diagram.** Sweep connection probability $p$ and input correlation independently, scoring each grid cell with [nb054](/notebooks/nb054/)'s **lobe–trough contrast** $(\text{lobe} - \text{trough})/(\text{lobe} + \text{trough}) \in [0,1)$ off the E-population autocorrelogram, plotted as a heatmap. The metric is bounded, reads 0 for asynchronous firing, rises toward 1 as volleys sharpen, and scores the autocorrelogram's *shape* (so it registers a rhythm even when the frequency wanders); nb054 already validated it as a smooth gamma turn-on scalar over a $W_{EI} \times W_{IE}$ plane — the same kind of map, different axes. Expect the gamma region to be a corner at high $p$ *and* high correlation, bounded by a curve rather than the four points we sampled.
+2. **Test the cortical case.** At a fixed, cortically realistic $p \approx 0.1$–$0.2$ (enough pairwise overlap to cohere), check that moving along the correlation axis *alone* crosses the boundary — recovering the cortical picture of fixed wiring with only the input changing. Confirm in passing that $K = 10$ sits below the boundary at every correlation, which is why it never gammas here.
+3. **Validate the metric under correlated drive.** nb054's rate-invariance comes from driving each E cell with a private per-cell Poisson channel — precisely the input-correlation axis we sweep — so on the correlated side it cannot be inherited. Our drive is steady, non-rhythmic Poisson (shared input adds only a near-zero-lag coincidence, which the contrast excludes), but validate rather than assume: confirm the sparse + correlated corner still scores ≈ 0, and plot contrast against firing rate to show it tracks rhythm, not rate.
+4. **Disentangle correlation from rate.** The input knob still conflates correlation with rate (20 vs 45 Hz); rerun a shared-vs-independent sweep at *matched* rate to isolate correlation cleanly.
+5. **Re-check with a stronger PING.** This harmonised PING is a weak rhythm (cross-correlation 0.047); the boundary may sit elsewhere for a more strongly coupled loop, so repeat against the original $\alpha_{EI} = 1.5$ PING.
+
+The throughline is the transient, damped-oscillator reading: cortex most likely *amplifies* a gamma resonance for a few cycles rather than switching attractors, so the phase-diagram boundary is the line a stimulus-driven burst of correlated input carries the network across — and back.
