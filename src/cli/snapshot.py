@@ -266,7 +266,7 @@ def generate_spike_snapshot(
     # membrane state and measure how fast the two *spike trains* diverge.
     # Done before downstream record mutation so `rec` still holds the clean
     # run's E spikes.
-    lyap_t_ms = lyap_dist = None
+    lyap_t_ms = lyap_dist = lyap_vdist = None
     if lyapunov_eps > 0:
         hid_k = primary_hid_key(rec)
         s_clean = np.asarray(rec[hid_k])  # (T, B, N_E) or (T, N_E)
@@ -282,10 +282,24 @@ def generate_spike_snapshot(
         diff = (s_clean[:n_t] != s_pert[:n_t]).reshape(n_t, -1)
         lyap_dist = diff.sum(axis=1).astype(np.float64)
         lyap_t_ms = np.arange(n_t) * dt
+        # Voltage-distance ‖ΔV(t)‖ over E cells between the clean and perturbed
+        # copies. Unlike the spike-flip D(t), the membrane distance has no
+        # detection deadzone or saturation, so the slope of log‖ΔV‖ in the
+        # linear-growth window is the largest Lyapunov exponent: > 0 ⇒ chaotic
+        # (perturbation amplified), < 0 ⇒ stable (perturbation forgotten).
+        lyap_vdist = None
+        v_key = next((k for k in ("v_e_1",) if k in rec),
+                     next((k for k in rec if k.startswith("v_e_")), None))
+        if v_key is not None and v_key in rec_p:
+            vc = np.asarray(rec[v_key])[:n_t].reshape(n_t, -1)
+            vp = np.asarray(rec_p[v_key])[:n_t].reshape(n_t, -1)
+            lyap_vdist = np.sqrt(((vc - vp) ** 2).sum(axis=1))
         log.info(
             f"  + lyapunov ε={lyapunov_eps:g} mV: "
             f"spike-diff D {lyap_dist[0]:.0f} → {lyap_dist[-1]:.0f} cells "
             f"(max {lyap_dist.max():.0f})"
+            + (f"; ‖ΔV‖ {lyap_vdist[0]:.2e} → {lyap_vdist[-1]:.2e}"
+               if lyap_vdist is not None else "")
         )
 
     spk_e = rec[primary_hid_key(rec)][burn_steps:]
@@ -351,6 +365,8 @@ def generate_spike_snapshot(
         extra["lyap_t_ms"] = np.asarray(lyap_t_ms)
         extra["lyap_dist"] = np.asarray(lyap_dist)
         extra["lyap_eps"] = np.float32(lyapunov_eps)
+        if lyap_vdist is not None:
+            extra["lyap_vdist"] = np.asarray(lyap_vdist)
     np.savez(
         npz_path,
         spk_e=np.asarray(spk_e),
