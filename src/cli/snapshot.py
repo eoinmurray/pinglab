@@ -181,6 +181,7 @@ def generate_spike_snapshot(
     input_spikes = input_spikes.to(C.DEVICE)
     tonic_g = None
     drive_spikes = None  # raw independent-drive spike raster, saved for inspection
+    shared_spikes = None  # raw shared common-stream raster (E), saved for inspection
     if C.BIAS > 0:
         tonic_g = torch.full(
             (T_steps, C.N_E), C.BIAS, dtype=torch.float32, device=C.DEVICE
@@ -206,6 +207,7 @@ def generate_spike_snapshot(
         # ONE common Poisson stream, broadcast to every E cell (fully
         # correlated across cells).
         sh_spikes = (torch.rand(T_steps, 1, generator=gen_s) < p_s).to(torch.float32)
+        shared_spikes = sh_spikes
         sh_drive_g = (sh_spikes * sh_g).to(C.DEVICE).expand(T_steps, C.N_E).contiguous()
         log.info(f"  + shared common drive (E): {sh_rate:.0f} Hz × {sh_g:.4f} μS")
         tonic_g = (tonic_g + sh_drive_g) if tonic_g is not None else sh_drive_g
@@ -338,6 +340,8 @@ def generate_spike_snapshot(
             extra[key] = np.asarray(rec[key])
     if drive_spikes is not None:
         extra["ind_spikes"] = drive_spikes.cpu().numpy().astype(np.float32)
+    if shared_spikes is not None:
+        extra["shared_spikes"] = shared_spikes.cpu().numpy().astype(np.float32)
     # Shared input-layer spike raster (the W_in-routed drive), aligned to the
     # post-burn-in window like spk_e, for input-side diagnostics.
     extra["input_spikes"] = (
