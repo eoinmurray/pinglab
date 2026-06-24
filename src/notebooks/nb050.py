@@ -64,35 +64,34 @@ CELLS: dict[str, dict] = {
             # differ in their input as well as their wiring.
             "--input-rate", "20",
             "--w-in", "1.5", "0.3",
-            # E↔I weights matched to the AI cell — both W_EI and W_IE are now
-            # shared parameters. Verified incidental: PING gamma holds (peak
-            # ≈ 29 Hz, cross-corr ≈ 0.05 vs the AI floor 0.009). So the E↔I
-            # coupling is NOT what switches the two regimes.
+            # E↔I weights matched to the AI cell, and W^II dropped from BOTH
+            # regimes (verified incidental either way: PING gammas with or
+            # without it, the AI state stays balanced without it because the
+            # per-cell independent I-drive already decorrelates the I pool).
             "--w-ei", "0.6", "0.18",
             "--w-ie", "3.0", "0.9",
-            # No --w-ii ⇒ canonical PING (no I→I); dense connectivity.
+            # No W^II in either regime. Remaining differences vs AI: dense
+            # (not sparse fixed-K) connectivity, and the shared (not per-cell
+            # independent) drive.
         ],
         "title": "PING — canonical recurrent loop (no W^II)",
     },
     "ai": {
         "args": [
-            # Brunel/Vreeswijk asynchronous-irregular state, full version.
-            # Five knobs land it on textbook CV ≈ 1 for both populations:
+            # Brunel/Vreeswijk asynchronous-irregular state. The knobs that
+            # land it on textbook CV ≈ 1 for both populations:
             #   - --ei-sparsity 0.99 + --exact-k → fixed fan-in K ≈ 10 per
             #     post cell (Brunel/V&S convention; removes the binomial
             #     fan-in variance that otherwise broadens the rate dist)
             #   - --independent-drive 45 0.38 — per-cell independent (un-
             #     correlated) Poisson on E; the asynchronous state needs this
-            #   - --independent-drive-i 8 0.25 — same for I (without this
-            #     I-cell CV stays correlated with E via W^EI)
-            #   - --w-ie 3.0 strong I→E shunt so Poisson I activity
-            #     propagates noise into E
-            #   - --w-ii 0.4 modest I→I self-inhibition
+            #   - --independent-drive-i 8 0.25 — same for I; this private
+            #     I-drive (not W^II) is what decorrelates the inhibitory pool
+            # W^II is omitted from both regimes — verified incidental here.
             "--input-rate", "1",
             "--w-in", "0.01", "0.001",
             "--w-ei", "0.6", "0.18",
             "--w-ie", "3.0", "0.9",
-            "--w-ii", "0.4", "0.12",
             "--ei-sparsity", "0.99",
             "--exact-k",
             "--independent-drive", "45", "0.38",
