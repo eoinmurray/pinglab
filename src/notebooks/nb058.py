@@ -106,8 +106,8 @@ K_SWEEP_BASE_W = {  # nominal (mean, std) at K0
 }
 K_SWEEP_BASE_DRIVE = {"e": (45.0, 0.38), "i": (8.0, 0.25)}  # (rate_hz, g)
 K_SWEEP_VARIANTS = {
-    "strong": {"label": "strong $J/\\sqrt{K}$ (V&S)", "scale": True},
-    "weak": {"label": "weak (mean-field)", "scale": False},
+    "strong": {"label": "weights scaled $\\propto\\sqrt{K}$ (V&S)", "scale": True},
+    "weak": {"label": "weights held fixed", "scale": False},
 }
 
 # Quenched-DC network configs for the Lyapunov probe: a *balanced* four-coupling
@@ -334,22 +334,15 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     ax_psd.spines["right"].set_visible(False)
     ax_psd.set_title("Welch PSD on population-mean E trace",
                      loc="left", fontsize=theme.SIZE_LABEL, pad=8)
-    if f_peak is not None:
-        ax_psd.axvline(f_peak, color=theme.DEEP_RED, lw=0.9, ls="--", alpha=0.8)
-        ax_psd.text(
-            f_peak, ax_psd.get_ylim()[1] * 0.95,
-            f"  max {f_peak:.1f} Hz (noise floor)",
-            ha="left", va="top",
-            fontsize=theme.SIZE_LABEL - 1, color=theme.DEEP_RED,
-            fontweight="semibold",
-        )
-    else:
-        ax_psd.text(
-            0.99, 0.95, "no clear peak",
-            transform=ax_psd.transAxes, ha="right", va="top",
-            fontsize=theme.SIZE_LABEL - 1, color=theme.GREY_MID,
-            fontstyle="italic",
-        )
+    # No per-trial peak marker: the single-trial argmax wanders seed to seed
+    # (5–90 Hz), so it is not a meaningful peak. The spectrum is broadband;
+    # only a weak gamma-band E–I resonance survives seed-averaging (caption).
+    ax_psd.text(
+        0.99, 0.95, "broadband — no sustained rhythm",
+        transform=ax_psd.transAxes, ha="right", va="top",
+        fontsize=theme.SIZE_LABEL - 1, color=theme.GREY_MID,
+        fontstyle="italic",
+    )
 
     # ISI CV histogram on E cells.
     cvs = _isi_cvs(spk_e, dt)
@@ -503,36 +496,50 @@ def plot_k_sweep(sweep: dict, out_path: Path) -> None:
         ax_r.errorbar(ks, m["i_rate"]["mean"], yerr=m["i_rate"]["std"],
                       label=f"{lab} · r_I", capsize=3, lw=1.0,
                       markerfacecolor="none",
-                      color=st["color"], ls=st["ls"], marker=st["marker"])
+                      color=theme.DEEP_RED, ls=st["ls"], marker=st["marker"])
 
     for ax in (ax_cv, ax_x, ax_r):
         ax.set_xscale("log", base=2)
         ax.set_xticks(ks)
         ax.set_xticklabels([f"{int(n)}" for n in ks])
         ax.set_xlabel("fan-in $K$  (fixed $N_E = 1024$)")
-        ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        # Equivalent top axis: the sweep fixes N_E = 1024, so each K is one
+        # sparsity s = 1 - K/N_E. Same tick positions as K, relabelled.
+        secax = ax.twiny()
+        secax.set_xscale("log", base=2)
+        secax.set_xlim(ax.get_xlim())
+        secax.set_xticks(ks)
+        secax.set_xticklabels([f"{1.0 - k / 1024.0:.2f}" for k in ks],
+                              fontsize=theme.SIZE_LABEL - 2)
+        secax.set_xlabel("sparsity $s = 1 - K/N_E$",
+                         fontsize=theme.SIZE_LABEL - 1)
+        secax.minorticks_off()
+        secax.spines["right"].set_visible(False)
 
     ax_cv.axhline(1.0, color=theme.DEEP_RED, lw=0.9, ls=":", alpha=0.85)
-    ax_cv.text(ks[0], 1.0, " Poisson", color=theme.DEEP_RED, va="bottom",
-               ha="left", fontsize=theme.SIZE_LABEL - 1)
+    ax_cv.text(ks[-1], 1.0, "Poisson ", color=theme.DEEP_RED, va="bottom",
+               ha="right", fontsize=theme.SIZE_LABEL - 1)
     ax_cv.set_ylabel("median ISI CV (E)")
-    ax_cv.set_title("Irregularity vs K", loc="left", fontsize=theme.SIZE_LABEL)
-    ax_cv.legend(fontsize=theme.SIZE_LABEL - 2, frameon=False, loc="best")
+    ax_cv.set_title("Irregularity vs K", loc="left", fontsize=theme.SIZE_LABEL,
+                    pad=24)
+    ax_cv.legend(fontsize=theme.SIZE_LABEL - 2, frameon=False, loc="upper right")
 
     ax_x.axhline(0.0, color=theme.GREY_MID, lw=0.6, alpha=0.7)
     ax_x.set_ylabel("pairwise C(τ) peak (E)")
-    ax_x.set_title("Asynchrony vs K", loc="left", fontsize=theme.SIZE_LABEL)
+    ax_x.set_title("Asynchrony vs K", loc="left", fontsize=theme.SIZE_LABEL,
+                   pad=24)
     ax_x.set_ylim(bottom=0.0)
 
     ax_r.set_ylabel("rate (Hz)")
-    ax_r.set_title("Rates  (filled $r_E$, open $r_I$)",
-                   loc="left", fontsize=theme.SIZE_LABEL)
+    ax_r.set_title("Rates  (filled $r_E$, red open $r_I$)",
+                   loc="left", fontsize=theme.SIZE_LABEL, pad=24)
     ax_r.legend(fontsize=theme.SIZE_LABEL - 3, frameon=False, loc="best")
 
     fig.suptitle(
-        "The defining V&S limit — $J/\\sqrt{K}$ coupling sustains supra-Poisson "
-        "irregularity as K grows; weak coupling decays toward the Poisson floor",
+        "The defining V&S limit — scaling weights $\\propto\\sqrt{K}$ sustains "
+        "supra-Poisson irregularity as K grows; fixed weights decay to the floor",
         x=0.01, ha="left", fontsize=theme.SIZE_LABEL + 1)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out_path, dpi=150)
