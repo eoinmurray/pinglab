@@ -63,7 +63,7 @@
     ],
     "variants": {
       "strong": {
-        "label": "strong $J/\\sqrt{K}$ (V&S)",
+        "label": "weights scaled $\\propto\\sqrt{K}$ (V&S)",
         "metrics": {
           "e_rate": {
             "mean": [
@@ -132,7 +132,7 @@
         }
       },
       "weak": {
-        "label": "weak (mean-field)",
+        "label": "weights held fixed",
         "metrics": {
           "e_rate": {
             "mean": [
