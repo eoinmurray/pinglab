@@ -1,4 +1,4 @@
-\documentclass[11pt]{article}
+\documentclass[10pt]{article}
 
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb}
@@ -10,8 +10,7 @@
 
 \graphicspath{{figures/}}
 
-\title{Gamma-gated sparsity\\
-       \large\textit{(working title --- draft)}}
+\title{paper001}
 \author{Eoin Murray \and Timothy O'Leary}
 \date{\today}
 
@@ -19,25 +18,52 @@
 \maketitle
 
 \begin{abstract}
-% [abstract]
+To be drafted.
 \end{abstract}
 
 \begin{multicols}{2}
 
 \section{Introduction}
-% [introduction]
+
+\begin{enumerate}
+  \item Introduction to gamma implications in the brain.
+  \item Summary of SOTA of modelling gamma.
+  \item We train Gamma for the first time.
+  \item It brings sparsity benefits by architecture.
+\end{enumerate}
 
 \section{Methods}
-% [methods]
+
+\begin{enumerate}
+  \item Summary of single neuron equations.
+  \item Summary of network architecture.
+  \item Defense of fixed $W_{ei}$ $W_{ie}$ weights.
+  \item Summary of rhythmicity metric with literature review.
+  \item Summary of training.
+  \item Summary of gradient damping method for the PING case
+\end{enumerate}
 
 \section{Results}
-% [results]
+
+Paragraphs on recurrent loop creates Gamma. References Figure~\ref{fig:1}.
+
+Paragraphs on supercritial Hopf bifurcation. References Figure ~\ref{fig:2}.
+
+Paragraphs on PING uses less E spikes. References Figure ~\ref{fig:3}.
+
+Paragraphs on sparsity is architecture enforced, not learned. References Figure ~\ref{fig:4} and ~\ref{fig:5}.
+
+Paragraphs on one spike per cell per cycle. References Figure ~\ref{fig:6}, ~\ref{fig:7} and ~\ref{fig:8}.
+
+Paragraphs on the gating is dynamical and robust. References Figure ~\ref{fig:9}, ~\ref{fig:10} and ~\ref{fig:11}.
+
+Paragraphs on real-time streaming classification. References Figure ~\ref{fig:12} and ~\ref{fig:13}.
 
 \section{Discussion}
-% [discussion]
+To be drafted.
 
-\section{Conclusion and Future Directions}
-% [conclusion]
+\section{Conclusion}
+To be drafted.
 
 \end{multicols}
 
