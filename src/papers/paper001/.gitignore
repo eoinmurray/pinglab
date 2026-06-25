@@ -7,6 +7,7 @@
 *.out
 *.synctex.gz
 *.toc
+*.suppinfo
 
 # copied from src/docs/public/figures (regenerate via ./copy-figures.sh)
 !figures/.gitkeep
