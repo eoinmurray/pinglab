@@ -1,0 +1,113 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{multicol}
+\usepackage{siunitx}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figures/}}
+
+\title{Gamma-gated sparsity\\
+       \large\textit{(working title --- draft)}}
+\author{Eoin Murray \and Timothy O'Leary}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+% [abstract]
+\end{abstract}
+
+\begin{multicols}{2}
+
+\section{Introduction}
+% [introduction]
+
+\section{Methods}
+% [methods]
+
+\section{Results}
+% [results]
+
+\section{Discussion}
+% [discussion]
+
+\section{Conclusion and Future Directions}
+% [conclusion]
+
+\end{multicols}
+
+\clearpage
+\appendix
+\section{Figures}
+
+\begin{figure}[H]\centering   % nb023 — model overview (COBA vs PING)
+  \includegraphics[width=0.92\linewidth]{nb023_overview_compound.png}
+  \caption{}\label{fig:1}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb057 — gamma onset / Hopf bifurcation
+  \includegraphics[width=0.92\linewidth]{nb057_onset_super_compound.png}
+  \caption{}\label{fig:2}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb025 — trained accuracy--rate frontier
+  \includegraphics[width=0.85\linewidth]{nb025_results_compound.png}
+  \caption{}\label{fig:3}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb038 — loop transfer at inference
+  \includegraphics[width=0.85\linewidth]{nb038_loop_transfer_compound.png}
+  \caption{}\label{fig:4}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb049 — training prunes the loop
+  \includegraphics[width=0.92\linewidth]{nb049_training_curves.png}
+  \caption{}\label{fig:5}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb041 — rate law r_E = a + p f_gamma
+  \includegraphics[width=0.7\linewidth]{nb041_rate_vs_fgamma.png}
+  \caption{}\label{fig:6}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb046 — spikes per cycle distribution
+  \includegraphics[width=0.92\linewidth]{nb046_spikes_per_cycle_distribution.png}
+  \caption{}\label{fig:7}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb047 — rate vs per-synapse W^IE
+  \includegraphics[width=0.85\linewidth]{nb047_rate_vs_w_ie.png}
+  \caption{}\label{fig:8}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb037 — drop/add perturbation asymmetry
+  \includegraphics[width=0.85\linewidth]{nb037_perturbation_curves.png}
+  \caption{}\label{fig:9}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb042 — timing vs mean inhibition
+  \includegraphics[width=0.85\linewidth]{nb042_rhythm_compound.png}
+  \caption{}\label{fig:10}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb044 — dt invariance
+  \includegraphics[width=0.7\linewidth]{nb044_dt_sweep.png}
+  \caption{}\label{fig:11}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb048 — streaming classification
+  \includegraphics[width=0.85\linewidth]{nb048_varying_headline_stream.png}
+  \caption{}\label{fig:12}
+\end{figure}
+
+\begin{figure}[H]\centering   % nb048 — accuracy grid (tau x rate)
+  \includegraphics[width=0.7\linewidth]{nb048_acc_grid_tau_rate.png}
+  \caption{}\label{fig:13}
+\end{figure}
+
+\end{document}
