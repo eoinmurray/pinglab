@@ -30,7 +30,15 @@ export const numbers = Object.values(
    \tag{2}
    $$
 
-   with $N_\text{pre}$ the presynaptic pool ($N_E$ or $N_I$) and $w$ the weight-matrix mean. Exact-$K$ divides each synapse by its fan-in, so the total a cell receives, $K\cdot(w/K) = w$, is $K$-independent — giving (2). At $s = 0.99$:
+   where:
+
+   - $K$ — the **fan-in**: how many presynaptic cells each neuron receives input from (the size of its "crowd");
+   - $J$ — the **coupling**: the $O(1)$ synaptic strength held *fixed* as $K$ grows. The $J/\sqrt K$ scaling is the load-bearing V&S choice — it keeps the mean recurrent input $O(\sqrt K)$ (large, cancels) while the fluctuation stays $O(1)$ (survives);
+   - $s$ — connection **sparsity** (the *--ei-sparsity* flag); $1-s$ is the probability any given pair is wired;
+   - $N_\text{pre}$ — size of the presynaptic pool a cell draws from ($N_E$ or $N_I$);
+   - $w$ — mean of the recurrent weight matrix in μS (the value passed to *--w-ei* etc.).
+
+   Exact-$K$ divides each synapse by its fan-in, so the total a cell receives, $K\cdot(w/K) = w$, is $K$-independent — giving (2). At $s = 0.99$:
 
    | matrix | direction | $N_\text{pre}$ | $w$ (μS) | $K$ | $J = w/\sqrt K$ |
    |---|---|---|---|---|---|
@@ -54,22 +62,22 @@ export const numbers = Object.values(
    \tag{3}
    $$
 
-   the Euclidean distance between the two copies' $N_E$ E-cell membrane-voltage vectors ($V_i^{\text{clean}}$ unperturbed, $V_i^{\text{pert}}$ kicked). With noise-free input any divergence is network-generated. Balanced net vs a **decoupled** control (recurrent weights ≈ 0). Spiking dynamics contract between spikes and expand only at spike-flips, so $\varepsilon$ must flip spikes ($\varepsilon = 0.1$ mV; smaller just contracts → spurious $\lambda < 0$). The slope of $\log\lVert\Delta V\rVert$ in the post-flip, pre-saturation window is the largest Lyapunov exponent (five seeds). It is an *initial-growth* estimate ($\lVert\Delta V\rVert$ saturates at the attractor size), so the sign, not the magnitude, is the result.
+   the Euclidean distance between the two copies' $N_E$ E-cell membrane-voltage vectors ($V_i^{\text{clean}}$ unperturbed, $V_i^{\text{pert}}$ kicked). With noise-free input any divergence is network-generated. We compare the **balanced** four-coupling net against a **decoupled** control: the same COBA E and I cells under the same DC drive, but with all four recurrent matrices set to ≈ 0, so no cell receives synaptic input from any other. Each decoupled cell is then an independent DC-driven integrator — a clock — and a perturbation has nowhere to spread, fixing the $\lambda \approx 0$ baseline. (It is *not* a feedforward network: there is no input-layer pathway, just the same architecture with every recurrent wire cut.) Spiking dynamics contract between spikes and expand only at spike-flips, so $\varepsilon$ must flip spikes ($\varepsilon = 0.1$ mV; smaller just contracts → spurious $\lambda < 0$). The slope of $\log\lVert\Delta V\rVert$ in the post-flip, pre-saturation window is the largest Lyapunov exponent (five seeds). It is an *initial-growth* estimate ($\lVert\Delta V\rVert$ saturates at the attractor size), so the sign, not the magnitude, is the result.
 
 ## Results
 
-<Figure id="Figure 1" title="The canonical V&S asynchronous-irregular state" src="/figures/notebooks/nb058/raster__ai.png" alt="Four stacked panels for the balanced state. Top: combined spike raster over 1000 ms, E population (black) in the lower band and I population (red) above a divider — both completely scattered, no vertical bands. Second: Welch PSD of the population-mean E trace, broadband across 5–150 Hz with the maximum marked as the noise floor. Third: per-E ISI CV histogram centered on 1.1, median 1.11. Bottom: mean pairwise cross-correlogram, flat noise around zero, peak magnitude 0.01.">
+<Figure id="Figure 1" title="The canonical V&S asynchronous-irregular state" src="/figures/notebooks/nb058/raster__ai.png" alt="Four stacked panels for the balanced state. Top: combined spike raster over 1000 ms, E population (black) in the lower band and I population (red) above a divider — both completely scattered, no vertical bands. Second: Welch PSD of the population-mean E trace, broadband across 5–150 Hz with no marked peak, labelled broadband with no sustained rhythm. Third: per-E ISI CV histogram centered on 1.1, median 1.11. Bottom: mean pairwise cross-correlogram, flat noise around zero, peak magnitude 0.01.">
   Four diagnostics of the four-coupling state (E black, I red above the divider; ⟨r_E⟩ ≈ 17.5, ⟨r_I⟩ ≈ 25.4 Hz).
 
   **What we expect.** Irregular (ISI CV ≈ 1; a constant-current cell sits at 0), asynchronous (near-zero pairwise correlation), rhythmless (broadband, no peak).
 
-  **What we see.** *Raster:* scattered, no bands. *PSD:* broadband — the marked max is the noise floor, not a rhythm. *ISI CV:* median 1.11 (E), 1.20 (I). *Cross-correlogram:* flat, peak |C(τ)| ≈ 0.01, despite heavy shared input — the active decorrelation of [Renart et al. (2010)](https://doi.org/10.1126/science.1179850).
+  **What we see.** *Raster:* scattered, no bands. *PSD:* broadband, no sustained rhythm — the single-trial spectral max wanders seed to seed (5–90 Hz across six seeds), so it is not a peak; but a *weak* gamma-band E–I resonance does survive seed-averaging (≈ 2× the floor near 40 Hz — the same E↔I loop that sharpens into PING gamma in [nb050](/notebooks/nb050/), here heavily damped). *ISI CV:* median 1.11 (E), 1.20 (I). *Cross-correlogram:* flat, peak |C(τ)| ≈ 0.01, despite heavy shared input — the active decorrelation of [Renart et al. (2010)](https://doi.org/10.1126/science.1179850).
 
   **Do they align?** Yes on all three — the COBANet enters the balanced state untuned.
 </Figure>
 
-<Figure id="Figure 2" title="The J/√K coupling test — irregularity survives only under strong coupling" src="/figures/notebooks/nb058/k_sweep.png" alt="Three panels versus fan-in K on a log2 axis (10 to 160), at fixed N_E = 1024. Left, median ISI CV of E cells: the strong J/sqrt(K) coupling (black solid) rises from 1.22 to a peak 1.31 then eases to 1.11, staying well above the Poisson line throughout; weak coupling (grey dashed) decays monotonically from 1.22 down to 1.02, approaching the Poisson floor. Middle, pairwise cross-correlation peak: both ≈ 0.006, flat across K, asynchronous. Right, population rates: weak r_E holds near 17 Hz across all K, while strong r_E drifts down from 17.5 to 4.9 Hz; r_I falls in both.">
-  Fan-in $K = 10 \to 160$ at fixed $N_E = 1024$, strong $J/\sqrt K$ (black) vs weak mean-field (grey); ±1 SD over three seeds, 3 s trials.
+<Figure id="Figure 2" title="The J/√K coupling test — irregularity survives only under strong coupling" src="/figures/notebooks/nb058/k_sweep.png" alt="Three panels versus fan-in K on a log2 axis (10 to 160); a top axis shows the equivalent sparsity s = 1 − K/N_E, 0.99 down to 0.84. Fixed N_E = 1024. Left, median ISI CV of E cells: weights scaled proportional to sqrt(K) (black solid) rises from 1.22 to a peak 1.31 then eases to 1.11, staying above the Poisson line; weights held fixed (grey dashed) decays from 1.22 to 1.02 toward the Poisson floor. Middle, pairwise cross-correlation peak: both ≈ 0.006, flat across K. Right, population rates: r_E in black/grey filled, r_I in red open; held-fixed r_E holds near 17 Hz while scaled r_E drifts down from 17.5 to 4.9 Hz; r_I falls in both.">
+  Fan-in $K = 10 \to 160$ at fixed $N_E = 1024$ — equivalently sparsity $s = 1 - K/N_E$ from 0.99 to 0.84 (top axis) — with recurrent weights scaled $\propto \sqrt K$ (black, the V&S $J/\sqrt K$ rule) versus held fixed (grey); $r_I$ shown in red. ±1 SD over three seeds, 3 s trials.
 
   **What we expect.** Strong coupling keeps the $O(1)$ fluctuations, so irregularity *survives* as $K$ grows; weak coupling loses them ($\propto 1/\sqrt K$), so cells *regularise*. Asynchrony holds in both.
 
