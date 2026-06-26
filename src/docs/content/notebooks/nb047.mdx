@@ -1,5 +1,4 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
 title: "The PING rate is set by the per-synapse weight, not the pool size"
 date: 2026-06-08
 entry: 47
@@ -7,9 +6,9 @@ status: revising
 structure: paper
 collection: gamma-gated-sparsity
 ---
-import Figure from "../../components/Figure.astro";
+import Figure from "../../src/components/Figure.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb047/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../public/figures/notebooks/nb047/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
 ## Abstract

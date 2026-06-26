@@ -1,5 +1,4 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
 title: "PING Spike Video"
 date: 2026-06-12
 entry: 2
@@ -7,10 +6,10 @@ status: final
 structure: paper
 collection: videos
 ---
-import Figure from "../../components/Figure.astro";
-import RunParameters from "../../components/RunParameters.astro";
+import Figure from "../../src/components/Figure.astro";
+import RunParameters from "../../src/components/RunParameters.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb002/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../public/figures/notebooks/nb002/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const ph = numbers.phases ?? {};

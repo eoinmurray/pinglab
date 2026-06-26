@@ -1,26 +1,18 @@
 ---
 import "../../styles/global.css";
+import { getCollection } from "astro:content";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
 
-const notebookModules = import.meta.glob("./*.mdx", { eager: true });
-
-const notebooks = Object.entries(notebookModules)
-  .map(([path, mod]) => {
-    const slug = path
-      .split("/")
-      .pop()
-      .replace(/\.mdx$/, "");
-    const fm = mod.frontmatter;
-    return {
-      slug,
-      entry: fm.entry,
-      title: String(fm.title).replace(/^\d+\s*[—–-]\s*/, ""),
-      date: fm.date,
-      status: fm.status,
-    };
-  })
+const notebooks = (await getCollection("notebooks"))
+  .map((e) => ({
+    slug: e.id,
+    entry: e.data.entry,
+    title: String(e.data.title).replace(/^\d+\s*[—–-]\s*/, ""),
+    date: e.data.date,
+    status: e.data.status,
+  }))
   .sort((a, b) => b.entry - a.entry);
 
 const formatDate = (raw) => {

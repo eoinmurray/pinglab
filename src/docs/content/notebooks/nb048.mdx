@@ -1,5 +1,4 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
 title: "Trained PING streams sequential digits without retraining"
 date: 2026-06-08
 entry: 48
@@ -7,9 +6,9 @@ status: final
 structure: paper
 collection: gamma-gated-sparsity
 ---
-import Figure from "../../components/Figure.astro";
+import Figure from "../../src/components/Figure.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb048/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../public/figures/notebooks/nb048/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 export const cfg = numbers.config ?? {};
 export const fmt = (x) => (typeof x === "number" ? x.toFixed(2) : "—");

@@ -1,0 +1,92 @@
+---
+title: "Paper feed"
+date: 2026-06-26
+entry: 61
+collection: literature
+---
+
+A daily-ish triage of papers relevant to the gamma-gated-sparsity project, curated from arXiv (q-bio.NC, cs.NE), bioRxiv, journal tables of contents (eLife, PLoS Comput Biol, J Neurosci, Nature Neuroscience, Nature Reviews Neuroscience), PubMed, and Semantic Scholar recommendations seeded from the project bibliography. Each entry is a short summary plus why it matters here. Generated 26 June 2026 from 276 candidates; sources are configured in src/docs/scripts/paperfeed/sources.ts.
+
+## New papers
+
+Recently published, caught from the recency feeds (arXiv, bioRxiv, journals, PubMed).
+
+### Synchronization modes in bipartite oscillator networks
+
+[arxiv.org/abs/2606.20345](https://arxiv.org/abs/2606.20345) · arXiv q-bio.NC · 18 Jun 2026
+
+Collective oscillations arising from interactions *between* an excitatory and an inhibitory population rather than from recurrent coupling within one, analysed in a Kuramoto–Sakaguchi framework with coexisting strongly- and partially-synchronized regimes.
+
+**Relevance:** this is PING's phase-model abstraction. The strong-vs-partial synchrony coexistence echoes our lobe–trough contrast turning on across the coupling plane ([Claim 2](/articles/ar009/#claim-2-rhythmicity-turns-on-smoothly-across-the-weiwiew_ei-times-w_ieweiwie-plane--a-predictable-supercritical-hopf-bifurcation)); a cheap caricature of the bifurcation we report numerically.
+
+### Disrupted hippocampal theta–gamma coupling and spike-field coherence following traumatic brain injury
+
+[doi.org/10.7554/eLife.100642](https://doi.org/10.7554/eLife.100642) · eLife · 12 Jun 2026
+
+After experimental TBI, hippocampal theta–gamma cross-frequency coupling and spike-field coherence break down, tracking the learning and memory deficits — evidence that precise rhythm-locked timing, not just rate, supports the computation.
+
+**Relevance:** an in-vivo case where losing gamma timing costs function. Supports the framing that the rhythm does computational work (our [Claim 6](/articles/ar009/#claim-6-the-gating-is-dynamical-and-robust), timing- not mean-dependent), here shown by its pathological absence.
+
+### Theta oscillations selectively support attentional exploration of space
+
+[jneurosci.org/content/46/25/e2017252026](http://www.jneurosci.org/cgi/content/short/46/25/e2017252026?rss=1) · J Neurosci · 24 Jun 2026
+
+Sustained vs reoriented spatial attention are dissociated by theta-band dynamics: the rhythm selectively supports *exploration* (reorienting) rather than sustained selection.
+
+**Relevance:** background for the Introduction's "functions of rhythms" framing. A clean example of a rhythm carrying a specific control function — the kind of functional role we argue gamma plays for sparsity.
+
+### Identifying structural design principles shaping the computational abilities of recurrent networks
+
+[arxiv.org/abs/2606.23874](https://arxiv.org/abs/2606.23874) · arXiv q-bio.NC · 22 Jun 2026
+
+Maps how recurrent-network *architecture* (connectivity structure) sets the computations a network can perform, beyond generic expressivity bounds.
+
+**Relevance:** methodologically adjacent to [Claim 4](/articles/ar009/#claim-4-the-sparsity-is-supplied-by-the-architecture-not-learned) (the sparsity is architectural, not learned). If structure dictates computation, freezing the E↔I loop as a structural prior is the same move — worth citing when we argue architecture over training.
+
+## Old papers
+
+Resurfaced by Semantic Scholar recommendations — related work matched to the project bibliography, not necessarily recent.
+
+### Empirical scaling laws in balanced networks with conductance-based synapses
+
+[arxiv.org/abs/2605.12404](https://arxiv.org/abs/2605.12404) · Semantic Scholar (bibliography seed) · 2026
+
+Derives scaling laws for strongly coupled, recurrent balanced networks built from conductance-based synapses, closing part of the gap between the analytically convenient current-based model and the biophysically realistic conductance one.
+
+**Relevance:** directly load-bearing for [Claim 2](/articles/ar009/#claim-2-rhythmicity-turns-on-smoothly-across-the-weiwiew_ei-times-w_ieweiwie-plane--a-predictable-supercritical-hopf-bifurcation). Our mean-field is conductance-based and calibrated without a fitted scale; their scaling laws are a yardstick to check ours against, and a possible analytic handle on how the gamma onset moves with coupling.
+
+### Approximate macroscopic dynamics of spiking networks from the transport equation
+
+[arxiv.org/abs/2605.14319](https://arxiv.org/abs/2605.14319) · Semantic Scholar (bibliography seed) · 2026
+
+A population-level reduction of integrate-and-fire networks: firing-rate fluctuations across neurons, trials, and populations derived from solutions to the transport (continuity) equation for the membrane-potential density.
+
+**Relevance:** another route to the same place as our 4D conductance mean-field. Worth reading against [Claim 2](/articles/ar009/#claim-2-rhythmicity-turns-on-smoothly-across-the-weiwiew_ei-times-w_ieweiwie-plane--a-predictable-supercritical-hopf-bifurcation) to see whether a density approach predicts the Hopf onset more sharply than the low-dimensional reduction does.
+
+### Multi-objective optimisation with oscillatory dynamics in spiking neural networks
+
+[arxiv.org/abs/2605.25224](https://arxiv.org/abs/2605.25224) · Semantic Scholar (bibliography seed) · 2026
+
+Fitting recurrent SNNs that must also produce realistic oscillations, framed as a multi-objective optimisation balancing task/data fit against oscillatory structure.
+
+**Relevance:** the closest neighbour to what we do — training spiking nets that must stay rhythmic. Their explicit fit-vs-rhythm objective is an alternative to our spike-budget penalty and a good Discussion contrast.
+
+### From cortical synchronous rhythm to brain-inspired learning: an oscillatory SNN with time-delayed coordination
+
+[arxiv.org/abs/2605.01656](https://arxiv.org/abs/2605.01656) · Semantic Scholar (bibliography seed) · 2026
+
+A learning primitive in which rhythm-determined spike timing — not just rate — carries information, coordinated through time delays across a distributed spiking network.
+
+**Relevance:** sits in our gap statement (trained-but-rhythmic SNNs). Like [Yan et al. 2025](https://doi.org/10.1038/s41467-025-63771-x), it imposes/leverages rhythm rather than letting an E↔I loop generate it — a contrast case for [Claim 4](/articles/ar009/#claim-4-the-sparsity-is-supplied-by-the-architecture-not-learned) (architecture-generated, not injected).
+
+### Human neuronal firing varies with the frequency of local field potential oscillations
+
+[doi.org/10.1371/journal.pbio.3003818](https://doi.org/10.1371/journal.pbio.3003818) · Semantic Scholar (bibliography seed) · PLoS Biology · 2026
+
+Human single-unit recordings showing neurons fire preferentially at a specific *frequency* of the surrounding LFP oscillation — frequency tuning of firing, beyond the usual phase tuning.
+
+**Relevance:** empirical company for [Claim 5](/articles/ar009/#claim-5-the-e-rate-is-set-by-the-gamma-clock-one-spike-per-cell-per-cycle). If real neurons key their firing to oscillation frequency, that is the in-vivo shadow of our $r_E = a + p\,f_\gamma$ — the rate set by the rhythm. A citation candidate for the rate-vs-timing framing.
+
+---
+
+*Not shown: ~268 lower-relevance candidates this run (clinical, molecular, off-topic ML). To refresh: run the fetcher (bun run feed, from src/docs) and re-curate. To change coverage, edit the sources and keywords in src/docs/scripts/paperfeed/sources.ts. Per-run candidate sets are archived under src/docs/scripts/paperfeed/archive/.*

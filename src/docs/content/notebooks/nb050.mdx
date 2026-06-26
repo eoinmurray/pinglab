@@ -1,5 +1,4 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
 title: "PING-AI state comparison"
 date: 2026-06-09
 entry: 50
@@ -7,9 +6,9 @@ status: revising
 structure: paper
 collection: ai-state
 ---
-import Figure from "../../components/Figure.astro";
+import Figure from "../../src/components/Figure.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb050/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../public/figures/notebooks/nb050/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
 ## Abstract
