@@ -67,6 +67,31 @@ SIZE_LEGEND = 9       # legend body
 SIZE_ANNOTATION = 8   # in-plot annotations, secondary text
 SIZE_CAPTION = 8      # figure captions / footers
 
+# Paper / print profile. When PAPER_MODE is on, figures are rendered for
+# a LaTeX manuscript (eLife class): smaller absolute fonts so type lands
+# at print point sizes when a figure is included at its true width, thinner
+# rules, and vector PDF output. Toggle with set_paper_mode() BEFORE the
+# plotting code runs — it reassigns the SIZE_* ladder above (which the
+# notebook plot functions read directly) and flips apply() into print rc.
+PAPER_MODE = False
+_SCREEN_SIZES = dict(BASE=10.5, TITLE=11, LABEL=10, TICK=9,
+                     LEGEND=9, ANNOTATION=8, CAPTION=8)
+_PAPER_SIZES = dict(BASE=8.0, TITLE=8.5, LABEL=8.0, TICK=7.0,
+                    LEGEND=7.0, ANNOTATION=6.5, CAPTION=6.5)
+
+
+def set_paper_mode(on: bool = True) -> None:
+    """Switch the typography ladder between screen and print. Reassigns the
+    module-level SIZE_* tokens so notebook plot code (which reads them at call
+    time) picks up the print sizes, and records the mode for apply()."""
+    global PAPER_MODE, SIZE_BASE, SIZE_TITLE, SIZE_LABEL
+    global SIZE_TICK, SIZE_LEGEND, SIZE_ANNOTATION, SIZE_CAPTION
+    PAPER_MODE = on
+    s = _PAPER_SIZES if on else _SCREEN_SIZES
+    SIZE_BASE, SIZE_TITLE, SIZE_LABEL = s["BASE"], s["TITLE"], s["LABEL"]
+    SIZE_TICK, SIZE_LEGEND = s["TICK"], s["LEGEND"]
+    SIZE_ANNOTATION, SIZE_CAPTION = s["ANNOTATION"], s["CAPTION"]
+
 
 def apply() -> None:
     """Register the pinglab brutalist-cyberpunk matplotlib style.
@@ -158,3 +183,30 @@ def apply() -> None:
         "savefig.dpi": 150,
         "savefig.bbox": "tight",
     })
+
+    if PAPER_MODE:
+        # Print refinements: lighter rules so they don't bloat at small
+        # scale, vector PDF with embedded editable text, generous DPI for
+        # any rasterised inset (scatter clouds, images).
+        mpl.rcParams.update({
+            "font.size": SIZE_BASE,
+            "axes.titlesize": SIZE_TITLE,
+            "axes.labelsize": SIZE_LABEL,
+            "xtick.labelsize": SIZE_TICK,
+            "ytick.labelsize": SIZE_TICK,
+            "legend.fontsize": SIZE_LEGEND,
+            "axes.linewidth": 0.8,
+            "axes.titlepad": 6,
+            "xtick.major.width": 0.8,
+            "ytick.major.width": 0.8,
+            "xtick.major.size": 3,
+            "ytick.major.size": 3,
+            "lines.linewidth": 1.3,
+            "patch.linewidth": 0.8,
+            "legend.borderpad": 0.4,
+            "legend.handlelength": 1.6,
+            "savefig.dpi": 300,
+            "savefig.pad_inches": 0.02,
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
+        })

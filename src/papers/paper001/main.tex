@@ -6,6 +6,10 @@
 
 \graphicspath{{figures/}}
 
+% Let bare underscores print in text mode (DOIs in the bibliography contain
+% them); the package leaves math-mode subscripts untouched.
+\usepackage{underscore}
+
 % Remove the grey "Manuscript submitted to eLife" running-header banner
 % (keeps the page-number footer the class sets separately).
 \chead{}
@@ -27,125 +31,104 @@ To be drafted.
 \end{abstract}
 
 \section{Introduction}
-
-\begin{enumerate}
-  \item Introduction to gamma implications in the brain.
-  \item Summary of SOTA of modelling gamma.
-  \item We train Gamma for the first time.
-  \item It brings sparsity benefits by architecture.
-\end{enumerate}
-
-\section{Methods}
-
-\subsection{Summary of single neuron equations}
-
-The model specialises in to two populations — E driven by excitation and inhibition, I by excitation only
-
-\begin{equation}
-C_m^E\,\frac{dV^E}{dt} = -g_L^E (V^E - E_L) - g_e^E (V^E - E_e) - g_i^E (V^E - E_i)
-\end{equation}
-
-\begin{equation}
-C_m^I\,\frac{dV^I}{dt} = -g_L^I (V^I - E_L) - g_e^I (V^I - E_e)
-\end{equation}
-
-
-\begin{enumerate}
-  \item Summary of network architecture.
-  \item Defense of fixed $W_{ei}$ $W_{ie}$ weights.
-  \item Summary of rhythmicity metric with literature review.
-  \item Summary of training.
-  \item Summary of gradient damping method for the PING case.
-\end{enumerate}
+To be drafted.
 
 \section{Results}
-
-Paragraphs on recurrent loop creates Gamma. References Figure~\ref{fig:1}.
-
-Paragraphs on supercritical Hopf bifurcation. References Figure~\ref{fig:2}.
-
-Paragraphs on PING uses fewer E spikes. References Figure~\ref{fig:3}.
-
-Paragraphs on sparsity is architecture enforced, not learned. References Figure~\ref{fig:4} and~\ref{fig:5}.
-
-Paragraphs on one spike per cell per cycle. References Figure~\ref{fig:6},~\ref{fig:7} and~\ref{fig:8}.
-
-Paragraphs on the gating is dynamical and robust. References Figure~\ref{fig:9},~\ref{fig:10} and~\ref{fig:11}.
-
-Paragraphs on real-time streaming classification. References Figure~\ref{fig:12} and~\ref{fig:13}.
+To be drafted.
 
 \section{Discussion}
 To be drafted.
 
-\section{Conclusion}
-To be drafted.
+\section{Materials and methods}
+To be drafted
 
 \appendix
 \section{Figures}
 
-\begin{figure}[!htbp]\centering   % nb023 — model overview (COBA vs PING)
-  \includegraphics[width=\linewidth]{nb023_overview_compound.png}
+% Wide multi-panel compounds span the eLife full width (text column + the
+% wide left margin); single-panel plots sit at the text-column width. Every
+% figure is a vector PDF rendered at its true include width, so on-page type
+% is uniform across the set (see render_figures.py).
+
+\begin{figure}[!htbp]   % nb023 — model overview (COBA vs PING)
+  \begin{fullwidth}\centering
+    \includegraphics[width=\linewidth]{nb023_overview_compound.pdf}
+  \end{fullwidth}
   \caption{}\label{fig:1}
 \end{figure}
 
-\begin{figure}[!htbp]\centering   % nb057 — gamma onset / Hopf bifurcation
-  \includegraphics[width=\linewidth]{nb057_onset_super_compound.png}
+\begin{figure}[!htbp]   % nb057 — gamma onset / Hopf bifurcation
+  \begin{fullwidth}\centering
+    \includegraphics[width=\linewidth]{nb057_onset_super_compound.pdf}
+  \end{fullwidth}
   \caption{}\label{fig:2}
 \end{figure}
 
-\begin{figure}[!htbp]\centering   % nb025 — trained accuracy--rate frontier
-  \includegraphics[width=0.9\linewidth]{nb025_results_compound.png}
+\begin{figure}[!htbp]   % nb025 — trained accuracy--rate frontier
+  \begin{fullwidth}\centering
+    \includegraphics[width=\linewidth]{nb025_results_compound.pdf}
+  \end{fullwidth}
   \caption{}\label{fig:3}
 \end{figure}
 
-\begin{figure}[!htbp]\centering   % nb038 — loop transfer at inference
-  \includegraphics[width=0.9\linewidth]{nb038_loop_transfer_compound.png}
+\begin{figure}[!htbp]   % nb038 — loop transfer at inference
+  \begin{fullwidth}\centering
+    \includegraphics[width=\linewidth]{nb038_loop_transfer_compound.pdf}
+  \end{fullwidth}
   \caption{}\label{fig:4}
 \end{figure}
 
 \begin{figure}[!htbp]\centering   % nb049 — training prunes the loop
-  \includegraphics[width=\linewidth]{nb049_training_curves.png}
+  \includegraphics[width=\linewidth]{nb049_training_curves.pdf}
   \caption{}\label{fig:5}
 \end{figure}
 
 \begin{figure}[!htbp]\centering   % nb041 — rate law r_E = a + p f_gamma
-  \includegraphics[width=0.75\linewidth]{nb041_rate_vs_fgamma.png}
+  \includegraphics[width=\linewidth]{nb041_rate_vs_fgamma.pdf}
   \caption{}\label{fig:6}
 \end{figure}
 
-\begin{figure}[!htbp]\centering   % nb046 — spikes per cycle distribution
-  \includegraphics[width=\linewidth]{nb046_spikes_per_cycle_distribution.png}
+\begin{figure}[!htbp]   % nb046 — spikes per cycle distribution
+  \begin{fullwidth}\centering
+    \includegraphics[width=\linewidth]{nb046_spikes_per_cycle_distribution.pdf}
+  \end{fullwidth}
   \caption{}\label{fig:7}
 \end{figure}
 
 \begin{figure}[!htbp]\centering   % nb047 — rate vs per-synapse W^IE
-  \includegraphics[width=0.9\linewidth]{nb047_rate_vs_w_ie.png}
+  \includegraphics[width=\linewidth]{nb047_rate_vs_w_ie.pdf}
   \caption{}\label{fig:8}
 \end{figure}
 
 \begin{figure}[!htbp]\centering   % nb037 — drop/add perturbation asymmetry
-  \includegraphics[width=0.9\linewidth]{nb037_perturbation_curves.png}
+  \includegraphics[width=\linewidth]{nb037_perturbation_curves.pdf}
   \caption{}\label{fig:9}
 \end{figure}
 
-\begin{figure}[!htbp]\centering   % nb042 — timing vs mean inhibition
-  \includegraphics[width=0.9\linewidth]{nb042_rhythm_compound.png}
+\begin{figure}[!htbp]   % nb042 — timing vs mean inhibition
+  \begin{fullwidth}\centering
+    \includegraphics[width=\linewidth]{nb042_rhythm_compound.pdf}
+  \end{fullwidth}
   \caption{}\label{fig:10}
 \end{figure}
 
 \begin{figure}[!htbp]\centering   % nb044 — dt invariance
-  \includegraphics[width=0.75\linewidth]{nb044_dt_sweep.png}
+  \includegraphics[width=\linewidth]{nb044_dt_sweep.pdf}
   \caption{}\label{fig:11}
 \end{figure}
 
-\begin{figure}[!htbp]\centering   % nb048 — streaming classification
-  \includegraphics[width=0.9\linewidth]{nb048_varying_headline_stream.png}
+\begin{figure}[!htbp]   % nb048 — streaming classification
+  \begin{fullwidth}\centering
+    \includegraphics[width=\linewidth]{nb048_varying_headline_stream.pdf}
+  \end{fullwidth}
   \caption{}\label{fig:12}
 \end{figure}
 
 \begin{figure}[!htbp]\centering   % nb048 — accuracy grid (tau x rate)
-  \includegraphics[width=0.75\linewidth]{nb048_acc_grid_tau_rate.png}
+  \includegraphics[width=\linewidth]{nb048_acc_grid_tau_rate.pdf}
   \caption{}\label{fig:13}
 \end{figure}
+
+\bibliography{references}
 
 \end{document}

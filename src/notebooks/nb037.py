@@ -71,6 +71,15 @@ EI_RASTER_SAMPLE_IDX: int = 0
 EI_RASTER_N_E_PLOT: int = 200
 EI_RASTER_N_I_PLOT: int = 64
 
+# Hidden-spike perturbation sweep levels. drop = fraction of hidden spikes
+# removed (0.0–1.0); add = extra spikes injected per cell over the trial
+# (0.0–40.0). Restored from the committed nb037 numbers.json after a refactor
+# dropped these module constants while leaving the code that references them.
+PERTURB_DROP_LEVELS: list[float] = [round(0.1 * i, 1) for i in range(11)]  # 0.0–1.0
+PERTURB_ADD_LEVELS: list[float] = [float(2 * i) for i in range(21)]        # 0.0–40.0
+PERTURB_RASTER_DROP_LEVELS: list[float] = [0.0, 0.5, 1.0]
+PERTURB_RASTER_ADD_LEVELS: list[float] = [0.0, 20.0, 40.0]
+
 # θ_u sweep grid in spikes-per-trial. None = no penalty (baseline).
 # At T = 200 ms, spikes/trial × 5 = Hz. The grid spans from no
 # pressure (off → ~80 Hz coba baseline) down to 1 Hz —
