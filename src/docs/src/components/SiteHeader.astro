@@ -1,6 +1,6 @@
 ---
-// Site-wide navigation header. PINGLAB on the left (H1 on the home page,
-// otherwise a link back home), then global links on the right.
+// Site-wide navigation header. PINGLAB on top (H1 on the home page, otherwise
+// a link back home), then global links on a row below it.
 interface Props {
   isHome?: boolean;
 }
@@ -8,29 +8,24 @@ const { isHome = false } = Astro.props as Props;
 const pinglabClass = "text-2xl font-bold";
 const pinglabStyle =
   "font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;";
+const linkClass = "text-sm text-muted hover:text-[color:var(--ink)]";
 ---
-<div class="flex items-baseline gap-4 flex-wrap">
+<div>
   {isHome ? (
     <h1 class={pinglabClass} style={pinglabStyle}>PINGLAB</h1>
   ) : (
     <a href="/" class={pinglabClass} style={pinglabStyle}>PINGLAB</a>
   )}
-  <a
-    href="/articles/"
-    class="text-sm text-muted hover:text-[color:var(--ink)]">articles</a
-  >
-  <a
-    href="/notebooks/"
-    class="text-sm text-muted hover:text-[color:var(--ink)]">notebooks</a
-  >
-  <a
-    href="/collections/"
-    class="text-sm text-muted hover:text-[color:var(--ink)]">collections</a
-  >
-  <a
-    href="https://github.com/eoinmurray/pinglab"
-    class="text-sm text-muted hover:text-[color:var(--ink)]"
-    target="_blank"
-    rel="noopener">github</a
-  >
+  <nav class="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+    <a href="/articles/" class={linkClass}>articles</a>
+    <a href="/notebooks/" class={linkClass}>notebooks</a>
+    <a href="/collections/" class={linkClass}>collections</a>
+    <a href="/articles/ar061/" class={linkClass}>feed</a>
+    <a
+      href="https://github.com/eoinmurray/pinglab"
+      class={linkClass}
+      target="_blank"
+      rel="noopener">github</a
+    >
+  </nav>
 </div>

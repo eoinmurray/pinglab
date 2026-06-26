@@ -1,5 +1,4 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
 title: "Rate floor stable across a 20× Δt sweep (trains)"
 date: 2026-06-02
 entry: 44
@@ -7,9 +6,9 @@ status: final
 structure: paper
 collection: gamma-gated-sparsity
 ---
-import Figure from "../../components/Figure.astro";
+import Figure from "../../src/components/Figure.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb044/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../public/figures/notebooks/nb044/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
 ## Abstract

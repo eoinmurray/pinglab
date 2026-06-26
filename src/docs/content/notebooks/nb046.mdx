@@ -1,5 +1,4 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
 title: "Near-strict 1-spike-per-cycle ceiling: 99.45% of (cell, cycle) pairs"
 date: 2026-06-04
 entry: 46
@@ -7,9 +6,9 @@ status: final
 structure: paper
 collection: gamma-gated-sparsity
 ---
-import Figure from "../../components/Figure.astro";
+import Figure from "../../src/components/Figure.astro";
 export const numbers = Object.values(
-  import.meta.glob("../../../public/figures/notebooks/nb046/numbers.json", { eager: true, import: "default" })
+  import.meta.glob("../../public/figures/notebooks/nb046/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
 
 ## Abstract

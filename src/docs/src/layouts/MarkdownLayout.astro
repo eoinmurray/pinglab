@@ -1,37 +1,42 @@
 ---
 import "katex/dist/katex.min.css";
 import katex from "katex";
-import { readFileSync } from "node:fs";
 import "../styles/global.css";
 import { blobUrl } from "../config/repo";
 import ThemeToggle from "../components/ThemeToggle.astro";
 import SiteHeader from "../components/SiteHeader.astro";
 import { normalizeStatus, STATUS_META } from "../config/status";
-const { frontmatter, headings = [], file } = Astro.props as {
-  frontmatter: any;
-  headings?: any;
-  file?: string;
-};
+import { collectionLabel as collectionLabelOf } from "../config/collections";
+// Driven by the content-collection routes (articles|notebooks/[...id].astro):
+// `frontmatter` is the entry's data, `headings` come from render(), `body` is
+// the raw markdown (used to recover `$...$` in TOC headings), `kind`/`id`
+// locate the source file for the entry-id prefix and the Edit-on-GitHub link.
+const { frontmatter, headings = [], body = "", kind = "articles", id = "" } =
+  Astro.props as {
+    frontmatter: any;
+    headings?: any;
+    body?: string;
+    kind?: "articles" | "notebooks";
+    id?: string;
+  };
+
+// Pages can opt out of the table-of-contents sidebar (frontmatter
+// `hideSidebar: true`); the content column is then centered rather than
+// offset to clear the (absent) sidebar.
+const hideSidebar = frontmatter?.hideSidebar === true;
+const insetClass = hideSidebar ? "" : "lg:pl-[25%] lg:pr-16";
+const wrapClass = hideSidebar ? "max-w-[46rem] mx-auto" : "max-w-[46rem]";
 
 // Entry metadata strip shown under the title: nb-id · status · date · collection.
-const idPrefix =
-  typeof file === "string" && file.includes("/articles/") ? "ar" : "nb";
+const idPrefix = kind === "articles" ? "ar" : "nb";
 const entryId =
   frontmatter?.entry != null
     ? `${idPrefix}${String(frontmatter.entry).padStart(3, "0")}`
     : null;
-const collectionLabel = (() => {
-  const c = frontmatter?.collection;
-  if (typeof c !== "string" || !c) return null;
-  return c
-    .split("-")
-    .map((w) =>
-      ["coba", "ping", "snn"].includes(w)
-        ? w.toUpperCase()
-        : w.charAt(0).toUpperCase() + w.slice(1),
-    )
-    .join(" ");
-})();
+const collectionLabel =
+  typeof frontmatter?.collection === "string" && frontmatter.collection
+    ? collectionLabelOf(frontmatter.collection)
+    : null;
 const dateLabel = (() => {
   const raw = frontmatter?.date;
   if (!raw) return null;
@@ -109,18 +114,14 @@ const astroHeadings: Heading[] = (headings as Heading[]).filter(
   (h) => h.depth >= 1 && h.depth <= 6,
 );
 
+// `body` is the raw markdown (frontmatter already stripped by the content
+// loader). Strip fenced code, then pull heading lines to recover their `$...$`.
 let rawHeadings: { depth: number; raw: string }[] = [];
-if (file) {
-  try {
-    const src = readFileSync(file, "utf8");
-    let body = src.replace(/^---\n[\s\S]*?\n---\n?/, "");
-    body = body.replace(/```[\s\S]*?```/g, "");
-    for (const line of body.split(/\r?\n/)) {
-      const m = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
-      if (m) rawHeadings.push({ depth: m[1].length, raw: m[2] });
-    }
-  } catch {
-    rawHeadings = [];
+if (body) {
+  const stripped = body.replace(/```[\s\S]*?```/g, "");
+  for (const line of stripped.split(/\r?\n/)) {
+    const m = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+    if (m) rawHeadings.push({ depth: m[1].length, raw: m[2] });
   }
 }
 
@@ -133,16 +134,10 @@ const toc: TocEntry[] = astroHeadings
   }))
   .filter((h) => h.depth >= 2 && h.depth <= 3);
 
-// `file` is an absolute filesystem path to the source .md/.mdx. Strip the
-// repo prefix so the "Edit on GitHub" link points at the file in-tree.
-let editHref: string | null = null;
-if (file) {
-  const idx = file.indexOf("/src/docs/");
-  if (idx !== -1) {
-    const relPath = file.slice(idx + 1); // drop leading "/"
-    editHref = blobUrl(relPath);
-  }
-}
+// "Edit on GitHub" points at the entry's source under content/.
+const editHref: string | null = id
+  ? blobUrl(`src/docs/content/${kind}/${id}.mdx`)
+  : null;
 
 ---
 
@@ -178,13 +173,13 @@ if (file) {
       <ThemeToggle />
     </div>
 
-    <header class="px-6 pt-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
-      <div class="max-w-[46rem]">
+    <header class:list={["px-6 pt-16 [&_a]:no-underline! [&_a:hover]:underline!", insetClass]}>
+      <div class:list={[wrapClass]}>
         <SiteHeader />
       </div>
     </header>
 
-    {toc.length > 0 && (
+    {toc.length > 0 && !hideSidebar && (
       <aside
         class="hidden lg:block fixed top-32 left-8 w-[calc(25%-4rem)] max-h-[calc(100vh-10rem)] overflow-y-auto text-base pr-4"
         aria-label="Table of contents"
@@ -204,8 +199,8 @@ if (file) {
       </aside>
     )}
 
-    <main class="px-6 pt-10 pb-48 lg:pl-[25%] lg:pr-16">
-      <div class="max-w-[46rem]">
+    <main class:list={["px-6 pt-10 pb-48", insetClass]}>
+      <div class:list={[wrapClass]}>
         <article class="prose max-w-none" style="font-family: var(--font-serif);">
           {frontmatter?.title && (
             <h1 class="entry-title">{frontmatter.title}</h1>

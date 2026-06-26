@@ -1,5 +1,4 @@
 ---
-layout: ../../layouts/MarkdownLayout.astro
 title: "Manuscript"
 date: 2026-06-21
 entry: 9
@@ -8,30 +7,50 @@ collection: gamma-gated-sparsity
 status: draft
 ---
 
-import Figure from "../../components/Figure.astro";
+import Figure from "../../src/components/Figure.astro";
 
 Github issues thread for this document: [https://github.com/eoinmurray/pinglab/issues/39](https://github.com/eoinmurray/pinglab/issues/39)
 
+## Abstract
+
+To be drafted.
+
 ## Introduction
 
-- Introduction to gamma implications in the brain
-- Summary of SOTA of modelling gamma
-- We train Gamma for the first time
-- It brings sparsity benefits by architecture
+- Gamma in the brain: where it appears (cortex, hippocampus), the 30–80 Hz band, and the cognitive functions it is tied to — attention, binding, and gating (Buzsáki & Wang 2012; Fries 2015), with the original empirical attention–gamma link in visual cortex (Fries et al. 2001).
+- The "communication through coherence" hypothesis and its critics — why phase, not just rate, may carry information (Fries 2015; Akam & Kullmann 2012), against the temporal-binding skeptics (Shadlen & Movshon 1999).
+- The PING mechanism: gamma as an emergent property of a recurrent excitatory↔inhibitory loop, not a pacemaker (Börgers 2017; Börgers & Kopell 2003, 2005) — backed by causal experimental evidence that fast-spiking interneurons generate the rhythm (Whittington et al. 1995 in vitro; Cardin et al. 2009 and Sohal et al. 2009 via optogenetics), and by the interneuron synaptic mechanisms that synchronise it (Bartos et al. 2007).
+- State of the art in *modelling* gamma: biophysical PING networks (Kopell et al. 2010; Viriyopase et al. 2016) and next-generation neural-mass / mean-field reductions (Wilson & Cowan 1972; Segneri et al. 2020; Nandi et al. 2024) — all descriptive, none trained on a task.
+- State of the art in *training* spiking networks: surrogate-gradient descent makes SNNs trainable end-to-end (Neftci et al. 2019; Eshraghian et al. 2023), but the trained networks are not rhythmic.
+- The gap: gamma is either modelled-but-not-trained or trained-but-not-rhythmic. The recent oscillation-modulated SNN work (Yan et al. 2025) injects oscillations as a prior rather than letting an E↔I loop generate them.
+- Why spikes are costly in the brain: the cortical energy budget is dominated by the metabolic cost of action potentials and excitatory synaptic transmission (Attwell & Laughlin 2001; Howarth et al. 2012), so a low firing rate is a metabolic imperative for cortex, not a convenience.
+- The biological puzzle we address: cortical pyramidal cells fire at strikingly low rates (often ≪ 10 Hz) despite strong, dense excitatory drive (Barth & Poulet 2012) — what holds them down? We offer architecture-generated gamma gating as one concrete, mechanistic answer.
+- The rate-vs-timing framing: classical views treat rate and spike timing as competitors; we show a regime where the rhythm *sets* the rate, so the two are one quantity (Ainsworth et al. 2012).
+- This work: we train a PING network on a task for the first time, and show the architecture-generated gamma rhythm *gates* the excitatory population to an order-of-magnitude-lower spike rate at matched accuracy.
+- The headline claim in one line: gamma gating buys a per-spike economy that is supplied by the architecture, not learned — and it operates online, on continuous input streams, as cortical processing must.
+- Roadmap of the paper: build the model (Claim 1), locate the onset in theory + data (Claim 2), show the trained economy (Claim 3), prove it is architectural not learned (Claim 4), pin the rate to the clock (Claim 5), test the dynamics for robustness (Claim 6), and demonstrate streaming use (Claim 7).
 
 ## Methods
 
-- Summary of single neuron equations
-- Summary of network architecture
-- Defense of fixed $W_{ei}$ $W_{ie}$ weights
-- Summary of rhythmicity metric with literature review
-- Summary of training
-- Summary of gradient damping method for the PING case
-
-Explain the following modelling choices:
-
-- No $W_{ee}$ and $W_{ii}$
-- No training of $W_{ei}$ and $W_{ie}$
+- Single-neuron model: the LIF/conductance dynamics, membrane time constant, threshold and reset, define every term ($V$, $g_E$, $g_I$, $E_E$, $E_I$, $\tau_m$, $\tau_\text{GABA}$).
+- Synapse model: conductance-based (COBA), the canonical decay-then-add update $g \leftarrow g\,\text{decay} + W\,\text{spike}$, so a spike's full weight is the peak conductance.
+- Network architecture: input → hidden E population, with the optional recurrent loop E→I ($W_{ei}$) and I→E ($W_{ie}$); readout $W_\text{out}$ over the E layer. State that COBA is the loop-off limit ($W_{ei} = W_{ie} = 0$).
+- Modelling choice — no $W_{ee}$, no $W_{ii}$: keep the loop minimal so any rhythm is unambiguously PING (E↔I), not ING (I↔I) or recurrent-E driven; cite the PING/ING distinction (Börgers 2017; Viriyopase et al. 2016).
+- Modelling choice — fixed (untrained) $W_{ei}$, $W_{ie}$: the loop is a structural prior, not a learned feature; defended empirically by Claim 4 (Figures 4–5) where unfreezing the weights prunes the loop away. Dale's-law clamp keeps E and I signs fixed.
+- Rhythmicity metric: the lobe–trough contrast (scored 0–1, nb054), with a short literature note on how it relates to spectral-peak and population-coherence measures (Atallah & Scanziani 2009; Xing et al. 2012).
+- Mean-field reduction: the 4D conductance mean-field used in Claim 2, calibrated from the biophysics with no fitted scale; the Hopf-bifurcation framing (Wilson & Cowan 1972; Segneri et al. 2020).
+- Training: surrogate-gradient descent on MNIST, optimiser, epochs, seeds; the spike-budget penalty $\theta_u$ that traces the accuracy–rate frontier (Neftci et al. 2019; Eshraghian et al. 2023).
+- Gradient damping for the PING case: the method that stabilises backprop through the recurrent loop, why the stiff E↔I dynamics need it, and what it changes vs vanilla surrogate gradients.
+- Surrogate-gradient choice: the surrogate function and its width, and how the spike nonlinearity is handled in the backward pass (Neftci et al. 2019).
+- Dale's-law clamp: how E and I weight signs are enforced through training, and why this matters for the prune-the-loop result (Claim 4).
+- Default parameters table: the canonical $\tau_\text{GABA}$, $W^{IE}$, pool sizes $N_E$/$N_I$, $\Delta t$, and drive — the operating point all "default" runs use, with the swept ranges noted per claim.
+- Integration scheme: the ODE solver and timestep $\Delta t$, with the invariance check (Claim 6, Figure 11) showing results are reported in physical Hz not per-step.
+- Rate and frequency measurement: how mean E/I rate is computed, how $f_\gamma$ is extracted (Welch PSD peak), and the (cell, cycle) binning used for the spikes-per-cycle statistic (Figure 7).
+- Spike accounting: report both the mean E rate and the total population spike count (E + I), so the economy is stated net of the I pool. Note qualitatively that excitatory spikes are the costly currency in cortex (Attwell & Laughlin 2001; Howarth et al. 2012) — we do not build a network-specific metabolic model.
+- Reproducibility: seeds per condition, the size tiers used for each run, and pointers to the per-notebook repro scripts.
+- Software and implementation: the model, training, and analysis are implemented in Python (≥ 3.10). Spiking dynamics and surrogate-gradient training use PyTorch (2.11; with snnTorch 0.9 for baseline spiking primitives); numerical analysis uses NumPy (2.2) and SciPy (1.15); all figures are produced with Matplotlib (3.10). Each result has a standalone notebook script and each manuscript figure is regenerated, at print quality, by a single render pipeline driven from those scripts.
+- Code and data availability: all source, notebook scripts, trained-weight artefacts, and the figure-render pipeline are in the project repository (link in end-matter); the standard datasets (MNIST; SHD for the classification benchmark) are obtained from their public distributors.
+- Datasets and evaluation: MNIST presentation protocol (duration, input rate), the streaming protocol for Claim 7 (sliding leaky integrator over $W_\text{out}$), and the metrics reported (test accuracy, mean E/I rate, $f_\gamma$).
 
 ## Results
 
@@ -105,11 +124,44 @@ The economy would be academic if it only worked on static, one-digit-at-a-time p
 
 ## Discussion
 
-- More
+- What the results add up to: a single E↔I loop simultaneously generates gamma and clamps the E rate ≈10× at matched accuracy, and the gating is architectural (Claims 3–4) rather than learned.
+- Why timing, not mean inhibition: the σ-jitter result (Figure 10) rules out the "more inhibition" explanation — identical mean per-cell I rate, opposite E-rate outcome — so the gate is the *phase structure* of inhibition (Schaefer et al. 2006; Ainsworth et al. 2012).
+- The rate law as a coding statement: $r_E = a + p\,f_\gamma$ with ≤1 spike/cell/cycle (Figures 6–7) means the gamma cycle is the unit of computation — a concrete instance of rhythm-organised rate coding (Ainsworth et al. 2012; Fries 2015).
+- Robustness asymmetry (Figure 9): tolerant to dropped spikes, fragile to added ones — connect to perturbation-sensitivity and rate-vs-timing debates (London et al. 2010; Renart et al. 2010), and to the claim that oscillations sharpen spike precision (Schaefer et al. 2006).
+- Relation to the asynchronous balanced state: PING is a structured alternative to the asynchronous irregular regime (van Vreeswijk & Sompolinsky 1996; Renart et al. 2010); the loop trades chaos for a clock.
+- Relation to inhibitory plasticity / E–I balance: we *fix* the loop where others *learn* balance (Vogels et al. 2011) — and show gradient descent actively prunes it, a result worth dwelling on.
+- A functional role for gamma in cortex: beyond communication-through-coherence and binding, the rhythm may act as a metabolic gate that holds pyramidal firing rates low — a sparsity mechanism the microcircuit gets for free from its E↔I structure, requiring no learned tuning (contrast Yan et al. 2025, who impose oscillations rather than let them emerge from the loop).
+- Is the economy net of the I population? PING trades a high E rate for a fast but small I pool, so by raw spike count the saving is ≈ 5× rather than ≈ 10×. But excitatory glutamatergic signaling dominates the cortical energy budget — an excitatory spike is far more expensive than an inhibitory one (Attwell & Laughlin 2001; Howarth et al. 2012) — so weighting spikes by cost recovers the order-of-magnitude figure. We do not attempt a detailed metabolic model: our network differs from cortex in too many ways (no $W_{ee}$/$W_{ii}$, no realistic synapse counts) for that to mean anything. The robust statement needs no model — even counting every spike equally the economy is still ≈ 5×.
+- Limitations: single dataset (MNIST), single readout, fixed loop topology; the rhythmicity metric is one of several; mean-field calibrated but reduced.
+- Biological caveats: minimal PING vs real cortical microcircuits (no $W_{ee}$/$W_{ii}$, no conduction delays, no heterogeneity); what would change with richer connectivity (Kopell et al. 2010; Nguyen & Rubchinsky 2021).
+- The Hopf framing as explanation, not just description: because onset is a supercritical-reversible bifurcation (Claim 2), the rate-gate has no hysteretic dead-zone — it can be dialled smoothly, which is what makes the inference-time knob of Claim 4 possible.
+- Why drop-tolerant but add-fragile is the *expected* signature of a clock: missing spikes leave the phase intact, off-phase spikes corrupt it — a falsifiable prediction for biological gamma circuits (London et al. 2010).
+- The gamma cycle as a temporal quantum (Figure 13): a computational reading of "communication through coherence" — the cycle bounds how fast a decision can form, independent of drive (Fries 2015; Akam & Kullmann 2012).
+- Capacity question raised but not answered: how many digits/classes can one gamma cycle carry, and how does that scale with assembly size (Börgers et al. 2012)?
+- Honest negative: accuracy on MNIST is modest (≈83–90%); the contribution is the *mechanism and economy*, not a benchmark number — say so plainly.
+- Generality caveat: we have not shown the gate survives on temporally structured inputs where timing carries the signal — that is exactly where it might help most, or break.
 
 ## Conclusion and Future Directions
 
-- More
+- Restate the core finding: architecture-generated gamma is a usable, learned-into computation that gates spikes ≈10× at matched accuracy.
+- The economy is real and physical: invariant across a 20× $\Delta t$ sweep (Figure 11), governed by per-synapse $W^{IE}$ not pool size (Figure 8), and usable for streaming classification (Figures 12–13).
+- Future: harder datasets (SHD as the canonical classification benchmark), deeper / multi-layer PING stacks, and the planned independent 2D $\alpha_{EI} \times \alpha_{IE}$ sweep.
+- Future: theta-nested gamma and multi-rhythm extensions (Segneri et al. 2020; Nandi et al. 2024); minimal-assembly size and capacity limits (Börgers et al. 2012).
+- Future: closing the empirical $W$-plane / cliff picture (nb036) to fully match the mean-field bifurcation story.
+- Future: temporally structured tasks (SHD, streaming sequences) where the gamma clock should help rather than just cost — the real test of timing-coding.
+- Future: learned-but-constrained loops — relax the freeze with a structural regulariser so training can keep PING instead of pruning it, bridging our result with inhibitory-plasticity work (Vogels et al. 2011).
+- Future: testable in vivo predictions — if gamma sets the pyramidal rate (Claim 5), manipulating interneuron timing (e.g. optogenetically) should move the E rate without changing mean inhibition, the in-circuit analogue of Figure 10.
+- Closing line: gamma is not decoration — it is a candidate mechanism by which the cortical microcircuit computes at a sparse, metabolically cheap firing rate.
+
+## Code and data availability
+
+Source code, per-notebook reproduction scripts, trained-weight artefacts, and the figure-render pipeline are available at *[repository URL — to be inserted]*. Standard datasets (MNIST, SHD) are obtained from their public distributors. Library versions are listed in the Methods (Software and implementation).
+
+## Declaration of generative-AI use
+
+> *Placeholder — to be finalised by the authors before submission; wording is the authors' to own.*
+
+AI coding assistants (large-language-model agents) were used during this work for software implementation, figure generation, and drafting of text. The authors designed the experiments and analyses, reviewed and validated all code, figures, and results, and take full responsibility for the content and claims of this manuscript. No AI system is listed as an author. *[Specify the tool(s) and version(s), and the scope of use, per the target journal's policy.]*
 
 ## References
 

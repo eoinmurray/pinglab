@@ -17,7 +17,10 @@ export default defineConfig({
   server: { port: 3000 },
 
 
-  integrations: [mdx(), react()],
+  // react() must come before mdx() so MDX inherits React's JSX runtime;
+  // the reverse order is what triggers the intermittent "jsxDEV is not a
+  // function" / React-in-production-mode error on client:only islands.
+  integrations: [react(), mdx()],
 
   markdown: {
     remarkPlugins: [remarkMath],
@@ -32,6 +35,12 @@ export default defineConfig({
   },
 
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    // Force a single React copy and pre-bundle its jsx runtimes so the
+    // client:only island never loads a mismatched (prod) React build.
+    resolve: { dedupe: ["react", "react-dom"] },
+    optimizeDeps: {
+      include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
+    },
   },
 });

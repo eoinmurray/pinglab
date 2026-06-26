@@ -1,23 +1,16 @@
 ---
 import "../../styles/global.css";
+import { getCollection } from "astro:content";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 
-const articleModules = import.meta.glob("./*.mdx", { eager: true });
-const articles = Object.entries(articleModules)
-  .map(([path, mod]) => {
-    const slug = path
-      .split("/")
-      .pop()
-      .replace(/\.mdx$/, "");
-    const fm = mod.frontmatter;
-    return {
-      slug,
-      entry: fm.entry,
-      title: String(fm.title).replace(/^\d+\s*[—–-]\s*/, ""),
-      date: fm.date,
-    };
-  })
+const articles = (await getCollection("articles"))
+  .map((e) => ({
+    slug: e.id,
+    entry: e.data.entry,
+    title: String(e.data.title).replace(/^\d+\s*[—–-]\s*/, ""),
+    date: e.data.date,
+  }))
   .sort((a, b) => b.entry - a.entry);
 
 const formatDate = (raw) => {
