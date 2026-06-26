@@ -1,8 +1,10 @@
 ---
 import "../../styles/global.css";
+import { getCollection } from "astro:content";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
+import { collectionLabel, collectionDescription } from "../../config/collections";
 
 type Entry = {
   slug: string;
@@ -13,21 +15,19 @@ type Entry = {
   status?: string;
 };
 
-function buildEntries(modules: Record<string, any>): Entry[] {
-  return Object.entries(modules).map(([path, mod]) => {
-    const slug = path
-      .split("/")
-      .pop()!
-      .replace(/\.mdx$/, "");
-    const fm = (mod as any).frontmatter ?? {};
-    const c = typeof fm.collection === "string" && fm.collection.length > 0 ? fm.collection : null;
+function buildEntries(entries: any[]): Entry[] {
+  return entries.map((e) => {
+    const c =
+      typeof e.data.collection === "string" && e.data.collection.length > 0
+        ? e.data.collection
+        : null;
     return {
-      slug,
-      entry: fm.entry,
-      title: String(fm.title ?? slug).replace(/^\d+\s*[—–-]\s*/, ""),
-      date: fm.date,
+      slug: e.id,
+      entry: e.data.entry,
+      title: String(e.data.title ?? e.id).replace(/^\d+\s*[—–-]\s*/, ""),
+      date: e.data.date,
       collection: c,
-      status: fm.status,
+      status: e.data.status,
     };
   });
 }
@@ -44,37 +44,25 @@ function byStatusThenEntry(a: Entry, b: Entry): number {
 }
 
 export async function getStaticPaths() {
-  const notebookModules = import.meta.glob("../notebooks/*.mdx", { eager: true });
-  const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
-
   const cs = new Set<string>();
-  for (const mod of Object.values(notebookModules)) {
-    const c = (mod as any).frontmatter?.collection;
-    if (typeof c === "string" && c.length > 0) cs.add(c);
+  for (const e of await getCollection("notebooks")) {
+    if (e.data.collection) cs.add(e.data.collection);
   }
-  for (const mod of Object.values(articleModules)) {
-    const c = (mod as any).frontmatter?.collection;
-    if (typeof c === "string" && c.length > 0) cs.add(c);
+  for (const e of await getCollection("articles")) {
+    if (e.data.collection) cs.add(e.data.collection);
   }
-
   return [...cs].map((c) => ({ params: { collection: c } }));
 }
 
 const { collection } = Astro.params;
-const ACRONYMS = new Set(["coba", "ping", "snn"]);
-const collectionLabel = String(collection)
-  .split("-")
-  .map((w) => (ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
-  .join(" ");
+const label = collectionLabel(String(collection));
+const description = collectionDescription(String(collection));
 
-const notebookModules = import.meta.glob("../notebooks/*.mdx", { eager: true });
-const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
-
-const articles = buildEntries(articleModules)
+const articles = buildEntries(await getCollection("articles"))
   .filter((a) => a.collection === collection)
   .sort(byEntryDesc);
 
-const notebooks = buildEntries(notebookModules)
+const notebooks = buildEntries(await getCollection("notebooks"))
   .filter((nb) => nb.collection === collection)
   .sort(byStatusThenEntry);
 
@@ -142,9 +130,14 @@ const formatDate = (raw: any) => {
     <main class="px-6 pt-10 pb-48 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
       <div class="max-w-[46rem]">
         <div class="flex flex-col gap-12">
-          <p class="text-xs uppercase tracking-wider text-muted">
-            Collection / <span class="text-ink">{collectionLabel}</span>
-          </p>
+          <div>
+            <p class="text-xs uppercase tracking-wider text-muted">
+              Collection / <span class="text-ink">{label}</span>
+            </p>
+            {description && (
+              <p class="mt-2 text-[0.95rem] leading-snug text-muted-soft">{description}</p>
+            )}
+          </div>
           {
             articles.length > 0 && (
               <section>

@@ -1,10 +1,9 @@
 ---
 import "../../styles/global.css";
+import { getCollection } from "astro:content";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
-
-const notebookModules = import.meta.glob("../notebooks/*.mdx", { eager: true });
-const articleModules = import.meta.glob("../articles/*.mdx", { eager: true });
+import { collectionLabel, collectionDescription } from "../../config/collections";
 
 type Bucket = { articles: number; notebooks: number };
 const buckets = new Map<string, Bucket>();
@@ -15,12 +14,8 @@ function tally(kind: "articles" | "notebooks", c: unknown) {
   buckets.get(c)![kind]++;
 }
 
-for (const mod of Object.values(notebookModules)) {
-  tally("notebooks", (mod as any).frontmatter?.collection);
-}
-for (const mod of Object.values(articleModules)) {
-  tally("articles", (mod as any).frontmatter?.collection);
-}
+for (const e of await getCollection("notebooks")) tally("notebooks", e.data.collection);
+for (const e of await getCollection("articles")) tally("articles", e.data.collection);
 
 // in-progress floats to the top (it is a workflow state, not a topic);
 // otherwise sort by total count desc, then alphabetical.
@@ -95,16 +90,20 @@ function countLabel(articles: number, notebooks: number): string {
               entries.length > 0 ? (
                 <ol class="pl-0 list-none m-0 text-[0.95rem]">
                   {entries.map(([name, { articles, notebooks }]) => (
-                    <li class="flex items-baseline gap-3 py-[0.3rem]">
-                      <a href={`/collections/${name}/`} class="flex-1 min-w-0">
-                        {name
-                          .split("-")
-                          .map((w) => (["coba", "ping", "snn"].includes(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
-                          .join(" ")}
-                      </a>
-                      <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
-                        {countLabel(articles, notebooks)}
-                      </span>
+                    <li class="py-[0.5rem]">
+                      <div class="flex items-baseline gap-3">
+                        <a href={`/collections/${name}/`} class="flex-1 min-w-0">
+                          {collectionLabel(name)}
+                        </a>
+                        <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                          {countLabel(articles, notebooks)}
+                        </span>
+                      </div>
+                      {collectionDescription(name) && (
+                        <p class="mt-0.5 text-[0.85rem] leading-snug text-muted-soft">
+                          {collectionDescription(name)}
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ol>
