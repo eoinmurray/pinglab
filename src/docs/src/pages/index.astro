@@ -2,57 +2,31 @@
 import "../styles/global.css";
 import { getCollection } from "astro:content";
 import ThemeToggle from "../components/ThemeToggle.astro";
-import PingAsciiHero from "../components/articles/PingAsciiHero";
+import SiteHeader from "../components/SiteHeader.astro";
 import { collectionLabel, collectionDescription, collectionRank } from "../config/collections";
 
-type Item = { slug: string; entry: number; title: string; kind: "articles" | "notebooks" };
+type Bucket = { articles: number; notebooks: number };
+const buckets = new Map<string, Bucket>();
 
-const articles = (await getCollection("articles")).map((e) => ({
-  slug: e.id,
-  entry: e.data.entry,
-  title: String(e.data.title).replace(/^\d+\s*[—–-]\s*/, ""),
-  collection: e.data.collection ?? null,
-  kind: "articles" as const,
-}));
-const notebooks = (await getCollection("notebooks")).map((e) => ({
-  slug: e.id,
-  entry: e.data.entry,
-  title: String(e.data.title).replace(/^\d+\s*[—–-]\s*/, ""),
-  collection: e.data.collection ?? null,
-  kind: "notebooks" as const,
-}));
-
-type Card = {
-  slug: string;
-  label: string;
-  description?: string;
-  count: number;
-  latest?: Item;
-};
-
-const cardByName = new Map<string, Card & { items: Item[] }>();
-for (const e of [...articles, ...notebooks]) {
-  if (!e.collection) continue;
-  if (!cardByName.has(e.collection)) {
-    cardByName.set(e.collection, {
-      slug: e.collection,
-      label: collectionLabel(e.collection),
-      description: collectionDescription(e.collection),
-      count: 0,
-      items: [],
-    });
-  }
-  const c = cardByName.get(e.collection)!;
-  c.count++;
-  c.items.push(e);
+function tally(kind: "articles" | "notebooks", c: unknown) {
+  if (typeof c !== "string" || c.length === 0) return;
+  if (!buckets.has(c)) buckets.set(c, { articles: 0, notebooks: 0 });
+  buckets.get(c)![kind]++;
 }
 
-const cards: Card[] = [...cardByName.values()]
-  .map((c) => ({ ...c, latest: [...c.items].sort((a, b) => b.entry - a.entry)[0] }))
-  .sort((a, b) => collectionRank(a.slug) - collectionRank(b.slug) || a.slug.localeCompare(b.slug));
+for (const e of await getCollection("notebooks")) tally("notebooks", e.data.collection);
+for (const e of await getCollection("articles")) tally("articles", e.data.collection);
 
-const totalArticles = articles.length;
-const totalNotebooks = notebooks.length;
+const entries = [...buckets.entries()].sort(
+  (a, b) => collectionRank(a[0]) - collectionRank(b[0]) || a[0].localeCompare(b[0]),
+);
+
+function countLabel(articles: number, notebooks: number): string {
+  const parts: string[] = [];
+  if (articles > 0) parts.push(`${articles} article${articles === 1 ? "" : "s"}`);
+  if (notebooks > 0) parts.push(`${notebooks} notebook${notebooks === 1 ? "" : "s"}`);
+  return parts.join(", ");
+}
 ---
 
 <html lang="en">
@@ -65,7 +39,7 @@ const totalNotebooks = notebooks.length;
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=block"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap"
       rel="stylesheet"
     />
     <script is:inline>
@@ -82,149 +56,54 @@ const totalNotebooks = notebooks.length;
         } catch (e) {}
       })();
     </script>
-    <style>
-      .hero-overlay {
-        background: linear-gradient(
-          to right,
-          rgba(255, 255, 255, 0) 0%,
-          rgba(255, 255, 255, 0.88) 28%,
-          rgba(255, 255, 255, 0.88) 72%,
-          rgba(255, 255, 255, 0) 100%
-        );
-      }
-      :root[data-theme="dark"] .hero-overlay {
-        background: linear-gradient(
-          to right,
-          rgba(21, 20, 15, 0) 0%,
-          rgba(21, 20, 15, 0.88) 28%,
-          rgba(21, 20, 15, 0.88) 72%,
-          rgba(21, 20, 15, 0) 100%
-        );
-      }
-      .col-label { transition: color 0.14s ease; }
-      .col-card:hover .col-label { color: var(--color-cat-red); }
-
-      /* Glitch on the PINGLAB logo: a single red ghost that tears through the
-         black wordmark. Timing/offsets/slices are randomised by the inline
-         script below (variables default to "invisible at rest"). */
-      .logo-glitch { position: relative; }
-      .logo-glitch::before {
-        content: attr(data-text);
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        color: var(--color-cat-red);
-        opacity: var(--g-op, 0);
-        transform: translate(var(--g-x, 0), var(--g-y, 0));
-        clip-path: var(--g-clip, inset(0 0 0 0));
-      }
-    </style>
   </head>
   <body>
     <div class="fixed top-4 right-4 z-40">
       <ThemeToggle />
     </div>
 
-    <!-- Hero -->
-    <section class="relative hero-section" style="height: 320px; background: var(--paper);">
-      <PingAsciiHero client:only="react" height="320px" borderRadius="0" margin="0" />
-      <div
-        class="hero-overlay absolute inset-0 flex items-center justify-center px-6 pointer-events-none"
-      >
-        <div class="max-w-[44rem] w-full text-left pointer-events-auto">
-          <h1
-            class="logo-glitch text-5xl md:text-6xl font-bold tracking-tight"
-            data-text="PINGLAB"
-            style="font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1; min-height: 1em;"
-          >
-            PINGLAB
-          </h1>
-          <p class="mt-3 text-base md:text-lg text-muted max-w-[34rem]">
-            Open research notes on gamma-gated sparsity in conductance-based excitatory–inhibitory
-            spiking neural networks.
-          </p>
-          <div class="mt-5 flex flex-wrap items-baseline gap-x-5 gap-y-2 text-sm">
-            <a href="/articles/" class="text-muted hover:text-[color:var(--ink)]">
-              {totalArticles} articles
-            </a>
-            <a href="/notebooks/" class="text-muted hover:text-[color:var(--ink)]">
-              {totalNotebooks} notebooks
-            </a>
-            <a href="/articles/ar061/" class="text-muted hover:text-[color:var(--ink)]">feed</a>
-            <a
-              href="https://github.com/eoinmurray/pinglab"
-              class="text-muted hover:text-[color:var(--ink)]"
-              target="_blank"
-              rel="noopener"
-            >
-              github →
-            </a>
-          </div>
-        </div>
+    <header class="px-6 pt-16 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[46rem]">
+        <SiteHeader isHome glitch />
       </div>
-    </section>
+    </header>
 
-    <main class="px-6 pt-14 pb-48">
-      <div class="max-w-[44rem] mx-auto">
-        <p class="mb-8 text-xs uppercase tracking-wider text-muted">
-          Collections · {cards.length}
+    <main class="px-6 pt-10 pb-48 lg:pl-[25%] lg:pr-16 [&_a]:no-underline! [&_a:hover]:underline!">
+      <div class="max-w-[46rem]">
+        <p class="mb-12 max-w-[34rem] text-[0.95rem] leading-relaxed text-muted">
+          Open research notes on gamma-gated sparsity in conductance-based
+          excitatory–inhibitory spiking neural networks.
         </p>
-        <div class="flex flex-col gap-10">
+
+        <section>
+          <p class="mb-2 text-xs uppercase tracking-wider text-muted">Collections</p>
           {
-            cards.map((c) => (
-              <a href={`/collections/${c.slug}/`} class="col-card block no-underline!">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span
-                    class="col-label font-bold text-[color:var(--ink)]"
-                    style="font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;"
-                  >
-                    {c.label}
-                  </span>
-                  <span class="shrink-0 text-[0.72rem] tabular-nums uppercase tracking-wider text-muted-soft">
-                    {c.count} {c.count === 1 ? "entry" : "entries"}
-                  </span>
-                </div>
-                {c.description && (
-                  <p class="mt-2 max-w-[34rem] text-[0.9rem] leading-snug text-muted">
-                    {c.description}
-                  </p>
-                )}
-              </a>
-            ))
+            entries.length > 0 ? (
+              <ol class="pl-0 list-none m-0 text-[0.95rem]">
+                {entries.map(([name, { articles, notebooks }]) => (
+                  <li class="py-[0.5rem]">
+                    <div class="flex items-baseline gap-3">
+                      <a href={`/collections/${name}/`} class="flex-1 min-w-0">
+                        {collectionLabel(name)}
+                      </a>
+                      <span class="shrink-0 whitespace-nowrap tabular-nums text-[0.85rem] text-muted-soft">
+                        {countLabel(articles, notebooks)}
+                      </span>
+                    </div>
+                    {collectionDescription(name) && (
+                      <p class="mt-0.5 text-[0.85rem] leading-snug text-muted-soft">
+                        {collectionDescription(name)}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p class="text-sm text-muted">None yet.</p>
+            )
           }
-        </div>
+        </section>
       </div>
     </main>
-
-    <script is:inline>
-      (function () {
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-        var el = document.querySelector(".logo-glitch");
-        if (!el) return;
-        var rnd = function (a, b) { return a + Math.random() * (b - a); };
-        var set = function (k, v) { el.style.setProperty(k, v); };
-        function rest() { set("--g-op", "0"); set("--g-x", "0"); set("--g-y", "0"); }
-        function flick() {
-          var clip = Math.random() < 0.6
-            ? "inset(" + rnd(0, 55).toFixed(0) + "% 0 " + rnd(0, 55).toFixed(0) + "% 0)"
-            : "inset(0 0 0 0)";
-          set("--g-x", rnd(-4, 4).toFixed(1) + "px");
-          set("--g-y", rnd(-2, 2).toFixed(1) + "px");
-          set("--g-clip", clip);
-          set("--g-op", (Math.random() < 0.85 ? 0.9 : 0.5).toFixed(2));
-        }
-        function burst() {
-          var n = 1 + Math.floor(Math.random() * 3); // 1–3 quick flickers
-          var i = 0;
-          (function step() {
-            if (i++ >= n) { rest(); schedule(); return; }
-            flick();
-            setTimeout(function () { rest(); setTimeout(step, rnd(18, 70)); }, rnd(40, 95));
-          })();
-        }
-        function schedule() { setTimeout(burst, rnd(600, 5200)); } // random gap
-        schedule();
-      })();
-    </script>
   </body>
 </html>
