@@ -93,8 +93,8 @@ def dt_label(dt_ms: float) -> str:
 
 
 def cell_dir(dt_ms: float, seed: int) -> Path:
-    """Trained cell — now the shared nb063 cell (train-once / reuse-many)."""
-    from nb063 import cell_dir as shared_cell_dir
+    """Trained cell — now the shared nb022 cell (train-once / reuse-many)."""
+    from nb022 import cell_dir as shared_cell_dir
     return shared_cell_dir(f"ping__{dt_label(dt_ms)}__seed{seed}")
 
 
@@ -436,7 +436,7 @@ def main() -> None:
         make_artifacts=False,
     )
 
-    # Training lives in nb063 now (train-once / reuse-many): the dt sweep is a
+    # Training lives in nb022 now (train-once / reuse-many): the dt sweep is a
     # registry family there (the documented dt exception). This notebook only
     # consumes the cells.
 

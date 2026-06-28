@@ -101,8 +101,8 @@ def tau_label(tau_ms: float) -> str:
 
 
 def cell_dir(tau_ms: float, seed: int) -> Path:
-    """Trained cell — now the shared nb063 cell (train-once / reuse-many)."""
-    from nb063 import cell_dir as shared_cell_dir
+    """Trained cell — now the shared nb022 cell (train-once / reuse-many)."""
+    from nb022 import cell_dir as shared_cell_dir
     return shared_cell_dir(f"ping__{tau_label(tau_ms)}__seed{seed}")
 
 
@@ -706,7 +706,7 @@ def main() -> None:
         make_artifacts=False,
     )
 
-    # Training lives in nb063 now (train-once / reuse-many): the τ_GABA ladder
+    # Training lives in nb022 now (train-once / reuse-many): the τ_GABA ladder
     # is a registry family there. This notebook only consumes the cells.
 
     # Inference: measure (acc, E rate, f_γ) per cell.

@@ -1,15 +1,20 @@
 ---
-title: "Accuracy converges, firing rate does not (trains)"
+title: "Accuracy converges, firing rate does not"
 date: 2026-06-02
 entry: 24
 status: final
 structure: paper
 collection: gamma-gated-sparsity
 ---
+import Banner from "../../src/components/Banner.astro";
 import Figure from "../../src/components/Figure.astro";
 export const numbers = Object.values(
   import.meta.glob("../../public/figures/notebooks/nb024/numbers.json", { eager: true, import: "default" })
 )[0] ?? {};
+
+<Banner>
+The trained networks this entry uses are produced once in the shared training hub, [nb022 (Training)](/notebooks/nb022/), and reused here rather than retrained.
+</Banner>
 
 ## Abstract
 

@@ -123,8 +123,8 @@ COND_MARKERS: dict[str, str] = {
 
 # ── Paths ───────────────────────────────────────────────────────────
 def cell_dir(condition: str, seed: int) -> Path:
-    """Trained cell — now the shared nb063 cell (train-once / reuse-many)."""
-    from nb063 import cell_dir as shared_cell_dir
+    """Trained cell — now the shared nb022 cell (train-once / reuse-many)."""
+    from nb022 import cell_dir as shared_cell_dir
     return shared_cell_dir(f"{condition}__seed{seed}")
 
 
@@ -1123,7 +1123,7 @@ def main() -> None:
     only_missing = "--only-missing" in sys.argv
     skip_training = "--no-train" in sys.argv
 
-    # Training lives in nb063 now (train-once / reuse-many): the init-variant
+    # Training lives in nb022 now (train-once / reuse-many): the init-variant
     # conditions are a registry family there. This notebook only consumes them.
 
     # ── Per-condition aggregation
