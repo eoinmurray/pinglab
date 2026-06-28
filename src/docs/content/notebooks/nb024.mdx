@@ -22,25 +22,14 @@ Trains PING and COBA from scratch for 100 epochs (three seeds each) and asks whe
 
 ## Method
 
-**Training recipe (canonical / medium tier):**
-
-| Parameter | Value |
-|---|---|
-| Integration timestep $\Delta t$ | 0.1 ms |
-| Trial duration $T$ | 200 ms |
-| MNIST samples (80/20 stratified split of 2000) | 1600 train / 400 test ($\approx$ 2.9% of the 70k-sample MNIST corpus) |
-| Epochs | 100 |
-
-[nb041](/notebooks/nb041/) and [nb044](/notebooks/nb044/) noted that test accuracy plateaus within ≈ 10–15 epochs while the trained E rate keeps drifting upward through epoch 30. This entry asks the follow-on: does the rate stabilise if training continues, and if not, why not?
-
-Train PING and COBA (loop disabled, $\theta_u =$ off) from scratch for **100 epochs** (vs [nb025](/notebooks/nb025/)'s 30), three seeds per architecture (42, 43, 44) = six cells. All other recipe parameters are held to [nb025](/notebooks/nb025/) — Adam at $4 \times 10^{-4}$, mem-mean readout, no rate regulariser. Per-epoch metrics are captured (test accuracy, CE loss, mean E and I rate, activity fraction, gradient norm, per-parameter Frobenius norms); after training, inference on the final weights recovers per-cell rate distributions. The operational definition of **converged** is a slope over the last 10 epochs below 0.1 pp/ep (accuracy) and 0.05 Hz/ep per cell (rate).
+Reads the shared θ_u = off baselines (coba and ping, three seeds each) from the training hub — [nb022 (Training)](/notebooks/nb022/), which fixes the recipe (100 epochs, mem-mean readout, no rate regulariser) — and plots their per-epoch training history. The question, following [nb041](/notebooks/nb041/) / [nb044](/notebooks/nb044/): once test accuracy has plateaued, does the firing rate also settle? **Converged** means a last-10-epoch slope below 0.1 pp/ep (accuracy) or 0.05 Hz/ep (rate).
 
 ## Results
 
-<Figure id="Figure 1" title="Hidden firing rate vs epoch — PING's E rate locks, COBA's drifts" src="/figures/notebooks/nb024/rates_vs_epoch.png" alt="Single-panel plot of hidden firing rate (Hz) vs epoch (1 to 100), three seeds per condition overlaid. COBA total (red, = its E rate since I is silent) climbs sharply to ≈ 55 Hz by epoch 10 then keeps drifting up to ≈ 77 Hz at epoch 100, still rising. PING total E+I (black) climbs to ≈ 49 Hz. PING E only (dotted) sits flat at ≈ 4–9 Hz across the whole run. PING I only (dashed) climbs from ≈ 3 to ≈ 40 Hz.">
-  Hidden firing rate vs epoch. **PING's E rate (dotted) sits flat at ≈ 4–9 Hz across all 100 epochs — converged — while COBA's E rate (red) climbs to ≈ 77 Hz and is still rising at epoch 100 — not.** (PING's I rate, dashed, tracks COBA's climbing shape, both driven by the still-growing $W_\text{in}$, so PING's total E + I reaches ≈ 49 Hz vs COBA's ≈ 77 Hz: the headline 10× E-rate gap is ≈ 1.6× on total spikes.) The E rate is the slow variable, and only PING's has settled — accuracy, by contrast, has plateaued for both (table below, Figure 2).
+<Figure id="Figure 1" title="COBA — loss, accuracy, firing rate vs epoch" src="/figures/notebooks/nb024/coba_curves.png" alt="Three panels for COBA (three seeds overlaid): train and test loss vs epoch; test accuracy vs epoch; and E firing rate vs epoch (I is silent).">
+COBA, three seeds. Loss (train solid, test dashed) and **accuracy plateau by ≈ 15 epochs**, but the **E rate keeps climbing to ≈ 77 Hz and is still rising at epoch 100** — accuracy has converged, the rate has not.
 </Figure>
 
-<Figure id="Figure 2" title="Parametric (E rate, accuracy) trajectory, coloured by epoch" src="/figures/notebooks/nb024/rate_acc_trajectory.png" alt="Parametric trajectory plot, test E rate (x-axis, 0 to 80 Hz) vs test accuracy (y-axis, 0 to 100%), epochs encoded as dot colour (epoch 1 dark, epoch 100 bright), open circles mark epoch 1 and stars mark the final epoch. PING trajectories (black) start near (4 Hz, 58%) and walk straight upward to (9 Hz, 88%), then sit there for the remaining ≈90 epochs — a point attractor. COBA trajectories (red) start near (3 Hz, 44%) and walk diagonally through (20 Hz, 67%) and (50 Hz, 80%) to ≈ (77 Hz, 90%), then traverse rightward along the high-accuracy plateau as rate keeps drifting.">
-  The same finding in state space. PING walks straight up to a **point attractor** (rate and accuracy both converge); COBA shoots up in accuracy then **slides rightward along the 88–90% plateau** as its rate keeps climbing. PING has a single attractor; COBA has a manifold of equally-accurate solutions parameterised by rate, and gradient descent drifts along it.
+<Figure id="Figure 2" title="PING — loss, accuracy, firing rate vs epoch" src="/figures/notebooks/nb024/ping_curves.png" alt="Three panels for PING (three seeds overlaid): train and test loss vs epoch; test accuracy vs epoch; and E (solid) and I (dashed) firing rate vs epoch.">
+PING, three seeds. Loss and accuracy plateau by ≈ 15 epochs as in COBA, but here the **E rate locks flat at ≈ 4–9 Hz** — converged. (The I rate, dashed, keeps climbing to ≈ 40 Hz, driven by the still-growing input weights, the same force that drives COBA's E rate up.) The loop pins the excitatory rate; without it, COBA's drifts.
 </Figure>
