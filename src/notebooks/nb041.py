@@ -101,7 +101,9 @@ def tau_label(tau_ms: float) -> str:
 
 
 def cell_dir(tau_ms: float, seed: int) -> Path:
-    return ARTIFACTS / f"ping__{tau_label(tau_ms)}__seed{seed}"
+    """Trained cell — now the shared nb063 cell (train-once / reuse-many)."""
+    from nb063 import cell_dir as shared_cell_dir
+    return shared_cell_dir(f"ping__{tau_label(tau_ms)}__seed{seed}")
 
 
 def build_train_args(tau_ms: float, seed: int, tier: str, out_dir: Path) -> list[str]:
@@ -704,26 +706,8 @@ def main() -> None:
         make_artifacts=False,
     )
 
-    if not skip_training:
-        dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
-        for tau in TAU_GABA_SWEEP:
-            for seed in SEEDS:
-                out = cell_dir(tau, seed)
-                if only_missing and (out / "metrics.json").exists():
-                    print(
-                        f"[skip] τ_GABA={tau:g}ms seed={seed} → "
-                        f"already trained at {out.relative_to(REPO)}"
-                    )
-                    continue
-                print(
-                    f"[train] τ_GABA={tau:g}ms seed={seed} → "
-                    f"{out.relative_to(REPO)}"
-                )
-                dispatcher.submit(
-                    build_train_args(tau, seed, tier, out),
-                    out,
-                )
-        dispatcher.drain()
+    # Training lives in nb063 now (train-once / reuse-many): the τ_GABA ladder
+    # is a registry family there. This notebook only consumes the cells.
 
     # Inference: measure (acc, E rate, f_γ) per cell.
     from cli import _auto_device

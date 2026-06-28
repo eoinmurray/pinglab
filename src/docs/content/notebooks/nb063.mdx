@@ -1,0 +1,91 @@
+---
+title: "Training — the collection's shared cells"
+date: 2026-06-28
+entry: 63
+status: draft
+structure: paper
+collection: gamma-gated-sparsity
+---
+import Figure from "../../src/components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../public/figures/notebooks/nb063/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+## Abstract
+
+The single place this collection trains its canonical networks. Every cell is trained once here — to a shared artifact root — and the analysis notebooks load those weights instead of retraining their own. This replaces the collection's older "standalone runner, no cross-notebook helpers" rule with a train-once / reuse-many policy. Status: **draft** — the recipe and registry are fixed; figures populate from the canonical run.
+
+## Motivation
+
+The canonical coba / ping θ_u spike-budget sweep — [nb025](/notebooks/nb025/)'s reference training — was being retrained independently by [nb024](/notebooks/nb024/), [nb036](/notebooks/nb036/), [nb037](/notebooks/nb037/) and [nb038](/notebooks/nb038/). Same recipe, same architecture, trained five times over. The standalone-runner rule bought reproducibility but paid for it in redundant GPU-hours and, worse, let the probe notebooks drift to lighter epoch budgets (10 epochs where the reference uses 100), so they characterised under-converged networks.
+
+This entry centralises that training. It owns the registry; the analysis notebooks consume it.
+
+## Standard
+
+Every cell is trained to one standard, so the whole collection is characterising the same networks:
+
+| Parameter | Value |
+|---|---|
+| Epochs | 100 |
+| Integration timestep $\Delta t$ | 0.1 ms |
+| Trial duration $T$ | 200 ms |
+| Dataset | MNIST |
+| Models | coba (loop off) and ping (loop on), canonical recipe |
+| θ_u sweep | off, 5, 2, 1, 0.5, 0.2 (enumerated under Trainings) |
+
+[nb044](/notebooks/nb044/)'s integration-timestep audit is the one documented exception: it varies $\Delta t$ by design, so it owns its own training rather than reusing these cells.
+
+## Trainings
+
+The registry is organised into families, each a parameter sweep one notebook used to own. Every cell is trained once, to the shared root.
+
+**θ_u spike-budget sweep** (coba and ping; nb025's reference) — 16 cells:
+
+- **coba / ping, θ_u = off** — seeds 42, 43, 44 (baselines, all seeds)
+- **coba / ping, θ_u ∈ {5, 2, 1, 0.5, 0.2}** — seed 42 each (ten single-seed sweep cells)
+
+θ_u is the upper-bound spike budget in spikes/trial; *off* is the unpenalised network, the cell the probe notebooks build on.
+
+**τ_GABA ladder** (ping; [nb041](/notebooks/nb041/)) — 18 cells:
+
+- **ping, τ_GABA ∈ {4.5, 6, 9, 12, 18, 27} ms** — seeds 42, 43, 44 each
+
+**Δt integration-timestep sweep** (ping; [nb044](/notebooks/nb044/), the documented dt exception) — 15 cells:
+
+- **ping, Δt ∈ {0.05, 0.1, 0.25, 0.5, 1.0} ms** — seeds 42, 43, 44 each
+
+That is **49 cells** across three families. The init-variant ([nb049](/notebooks/nb049/)) and coupling-grid ([nb036](/notebooks/nb036/)) families are still to fold in.
+
+## Method
+
+The runner dispatches each registry cell through the standard train command to a shared root (one directory per cell), then writes a manifest (numbers.json) recording exactly which cells were trained, at what tier, and the git sha — the contract the analysis notebooks rely on. Analysis notebooks import a single helper from this module:
+
+- they ask for a cell by name and receive its trained directory, or a loud failure telling them to run this notebook first;
+- they never train; the training block is gone from each.
+
+The summary below is the accuracy / E-rate cloud across all cells — the θ_u sweep traces each model's spike-economy frontier, and the unpenalised cells are the baselines the probe notebooks build on.
+
+<Figure id="Figure 1" title="Canonical training — shared cells" src="/figures/notebooks/nb063/training_summary.png" alt="Accuracy versus final E-rate for every trained cell, coloured by model.">
+Best test accuracy against final excitatory rate for every shared cell, coloured by model (coba red, ping black), each point labelled by its θ_u budget. Populated by the canonical run.
+</Figure>
+
+## Migrated
+
+Notebooks now reusing these cells instead of retraining:
+
+- [nb037](/notebooks/nb037/) — spike-stream and τ_GABA perturbation probes (θ_u);
+- [nb038](/notebooks/nb038/) — f–I curve and COBA→PING loop-transfer probes (θ_u);
+- [nb041](/notebooks/nb041/) — τ_GABA → f_γ → rate-ceiling sweep (τ_GABA family);
+- [nb044](/notebooks/nb044/) — integration-timestep audit (Δt family);
+- [nb061](/notebooks/nb061/) — gamma-clock readout (reuses the τ_GABA tg6 cell).
+
+The τ_GABA and Δt cells already trained on disk were folded into the shared root, so no retraining was needed for them.
+
+Still to fold: [nb024](/notebooks/nb024/) (100-epoch audit, reuses the θ_u baselines), [nb049](/notebooks/nb049/) init variants, and [nb036](/notebooks/nb036/)'s coupling grid (plus its copy of the θ_u cells).
+
+## Next steps
+
+- Run the canonical training at the medium tier to populate the shared cells and this figure.
+- Migrate nb024 and fold the structural-sweep trainings into the registry.
+- Update the house-rules article ([ar016](/articles/ar016/)) to record the train-once / reuse-many policy for this collection.
