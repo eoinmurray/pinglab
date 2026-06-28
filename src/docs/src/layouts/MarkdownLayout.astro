@@ -3,7 +3,6 @@ import "katex/dist/katex.min.css";
 import katex from "katex";
 import "../styles/global.css";
 import { blobUrl } from "../config/repo";
-import ThemeToggle from "../components/ThemeToggle.astro";
 import SiteHeader from "../components/SiteHeader.astro";
 import { normalizeStatus, STATUS_META } from "../config/status";
 import { collectionLabel as collectionLabelOf } from "../config/collections";
@@ -172,10 +171,6 @@ const editHref: string | null = id
     </script>
   </head>
   <body>
-    <div class="fixed top-4 right-4 z-40">
-      <ThemeToggle />
-    </div>
-
     <header class:list={["px-6 pt-16 [&_a]:no-underline! [&_a:hover]:underline!", insetClass]}>
       <div class:list={[wrapClass]}>
         <SiteHeader />

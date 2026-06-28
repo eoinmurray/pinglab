@@ -1,33 +1,33 @@
 ---
-// Site-wide navigation header. PINGLAB on top (H1 on the home page, otherwise
-// a link back home), then global links on a row below it. On the home page the
-// wordmark carries a subtle red glitch (set `glitch`); it is dormant elsewhere.
+// Site-wide navigation bar. PINGLAB on the left (H1 on the home page, otherwise
+// a link back home), global links pushed to the right on the same baseline. On
+// the home page the wordmark carries a subtle red glitch (set `glitch`); it is
+// dormant elsewhere.
 interface Props {
   isHome?: boolean;
   glitch?: boolean;
 }
+import ThemeToggle from "./ThemeToggle.astro";
 const { isHome = false, glitch = false } = Astro.props as Props;
 const pinglabClass = "text-2xl font-bold" + (glitch ? " logo-glitch" : "");
 const pinglabStyle =
   "font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;";
 const linkClass = "text-sm text-muted hover:text-[color:var(--ink)]";
 ---
-<div>
+<div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
   {isHome ? (
     <h1 class={pinglabClass} style={pinglabStyle} data-text={glitch ? "PINGLAB" : undefined}>PINGLAB</h1>
   ) : (
     <a href="/" class={pinglabClass} style={pinglabStyle}>PINGLAB</a>
   )}
-  <nav class="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-    <a href="/articles/" class={linkClass}>articles</a>
-    <a href="/notebooks/" class={linkClass}>notebooks</a>
-    <a href="/articles/ar061/" class={linkClass}>feed</a>
+  <nav class="flex flex-wrap items-baseline justify-end gap-x-4 gap-y-1">
     <a
       href="https://github.com/eoinmurray/pinglab"
       class={linkClass}
       target="_blank"
-      rel="noopener">github</a
+      rel="noopener">Github</a
     >
+    <ThemeToggle />
   </nav>
 </div>
 
