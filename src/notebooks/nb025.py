@@ -49,6 +49,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
+from nb063 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
 SLUG = "nb025"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -172,10 +173,9 @@ def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
     Sweep cells run only at SEED_SWEEP and skip the suffix to keep
     paths short — they live alongside the baseline ones.
     """
-    label = theta_label(theta_u)
-    if theta_u is None:
-        return ARTIFACTS / f"{model}__{label}__seed{seed}"
-    return ARTIFACTS / f"{model}__{label}"
+    # θ_u cell — now the shared nb063 cell (train-once / reuse-many). nb063
+    # owns the θ_u sweep; nb025 keeps only its low_w_in cells locally.
+    return shared_cell_dir(cell_name(model, theta_u, seed))
 
 
 def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
@@ -1530,31 +1530,9 @@ def main() -> None:
     only_missing = "--only-missing" in sys.argv
     if not skip_training:
         dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
-        for model in MODELS:
-            for theta_u in THETA_U_GRID:
-                build_as = MODEL_RECIPES[model]["__build_as"]
-                gpu_override = None
-                if modal_gpu in ("T4", "L4", "A10G") and build_as == "ping":
-                    gpu_override = "A100"
-                for seed in seeds_for(theta_u):
-                    out = cell_dir(model, theta_u, seed)
-                    if only_missing and (out / "metrics.json").exists():
-                        print(
-                            f"[skip] {model}/θ_u={theta_display(theta_u)}/seed={seed} "
-                            f"already trained → {out.relative_to(REPO)}"
-                        )
-                        continue
-                    print(
-                        f"[train] {model}/θ_u={theta_display(theta_u)}/seed={seed} → "
-                        f"{out.relative_to(REPO)}"
-                        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-                    )
-                    dispatcher.submit(
-                        build_train_args(model, theta_u, seed, tier, out),
-                        out,
-                        gpu_override=gpu_override,
-                    )
-        # Low-w_in alternate-schedule sweep dispatched in the same batch.
+        # θ_u sweep training moved to nb063 (train-once / reuse-many); nb025
+        # reads those cells via cell_dir and trains only its low_w_in sweep.
+        # Low-w_in alternate-schedule sweep:
         gpu_override = None
         if modal_gpu in ("T4", "L4", "A10G"):
             gpu_override = "A100"

@@ -123,7 +123,9 @@ COND_MARKERS: dict[str, str] = {
 
 # ── Paths ───────────────────────────────────────────────────────────
 def cell_dir(condition: str, seed: int) -> Path:
-    return ARTIFACTS / f"{condition}__seed{seed}"
+    """Trained cell — now the shared nb063 cell (train-once / reuse-many)."""
+    from nb063 import cell_dir as shared_cell_dir
+    return shared_cell_dir(f"{condition}__seed{seed}")
 
 
 def build_train_args(
@@ -1121,17 +1123,8 @@ def main() -> None:
     only_missing = "--only-missing" in sys.argv
     skip_training = "--no-train" in sys.argv
 
-    if not skip_training:
-        dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
-        for cond in COND_ORDER:
-            for seed in SEEDS:
-                out = cell_dir(cond, seed)
-                if only_missing and (out / "metrics.json").exists():
-                    print(f"[skip] {cond}/seed={seed} → exists")
-                    continue
-                print(f"[train] {cond}/seed={seed} → {out.relative_to(REPO)}")
-                dispatcher.submit(build_train_args(cond, seed, tier, out), out)
-        dispatcher.drain()
+    # Training lives in nb063 now (train-once / reuse-many): the init-variant
+    # conditions are a registry family there. This notebook only consumes them.
 
     # ── Per-condition aggregation
     print("[aggregate] reading metrics from trained cells")

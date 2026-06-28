@@ -91,6 +91,20 @@ MODELS = ["coba", "ping"]
 MODEL_COLORS = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
 
+# ping recipe without the fixed --ei-strength, for the init family (nb049),
+# whose whole point is to vary ei-strength + recurrent trainability per cell.
+MODEL_RECIPES["ping_init"] = {
+    k: v for k, v in MODEL_RECIPES["ping"].items() if k != "--ei-strength"
+}
+
+# nb049 init conditions: (ei_strength, trainable W_EI, trainable W_IE).
+INIT_CONDITIONS: dict[str, tuple] = {
+    "frozen_ping": ("1", False, False),
+    "trainable_ping_init": ("1", True, True),
+    "trainable_zero_init": ("0", True, True),
+    "trainable_small_init": ("0.1", True, True),
+}
+
 
 TAU_GABA_SWEEP = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)   # nb041
 DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)             # nb044 (the dt exception)
@@ -164,7 +178,24 @@ def _dt_cells() -> list[dict]:
     ]
 
 
-CANONICAL_CELLS = _theta_u_cells() + _tau_gaba_cells() + _dt_cells()
+def _init_cells() -> list[dict]:
+    cells = []
+    for cond, (ei, t_ei, t_ie) in INIT_CONDITIONS.items():
+        extra = ["--ei-strength", ei]
+        if t_ei:
+            extra.append("--trainable-w-ei")
+        if t_ie:
+            extra.append("--trainable-w-ie")
+        for s in SEEDS_BASELINE:
+            cells.append({
+                "name": f"{cond}__seed{s}", "model": "ping_init",
+                "family": "init", "tag": cond, "seed": s, "dt_ms": DT_MS,
+                "extra": extra,
+            })
+    return cells
+
+
+CANONICAL_CELLS = _theta_u_cells() + _tau_gaba_cells() + _dt_cells() + _init_cells()
 
 
 def cell_dir(name: str) -> Path:
@@ -260,6 +291,7 @@ FAMILY_COLORS = {
     "theta_u": theme.INK_BLACK,
     "tau_gaba": theme.DEEP_RED,
     "dt": theme.ELECTRIC_CYAN,
+    "init": theme.AMBER,
 }
 
 
