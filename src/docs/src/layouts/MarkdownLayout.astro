@@ -125,6 +125,9 @@ if (body) {
   }
 }
 
+// Feed entries list one paper per H3, which would flood the TOC; show one
+// level less for them (section headers only) than for normal documents.
+const maxTocDepth = frontmatter?.collection === "weekly-feed" ? 2 : 3;
 const useRaw = rawHeadings.length === astroHeadings.length;
 const toc: TocEntry[] = astroHeadings
   .map((h, i) => ({
@@ -132,7 +135,7 @@ const toc: TocEntry[] = astroHeadings
     slug: h.slug,
     html: useRaw ? renderTocText(rawHeadings[i].raw) : escapeHtml(h.text),
   }))
-  .filter((h) => h.depth >= 2 && h.depth <= 3);
+  .filter((h) => h.depth >= 2 && h.depth <= maxTocDepth);
 
 // "Edit on GitHub" points at the entry's source under content/.
 const editHref: string | null = id

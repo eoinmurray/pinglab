@@ -12,35 +12,52 @@ export type CollectionMeta = {
 export const COLLECTIONS: Record<string, CollectionMeta> = {
   "gamma-gated-sparsity": {
     label: "Gamma-Gated Sparsity",
-    description:
-      "The core project: training a pyramidal–interneuron gamma (PING) spiking network end to end, and showing the architecture-generated rhythm gates the excitatory population to an order-of-magnitude-lower spike rate at matched accuracy. The manuscript, its literature review, and the notebooks behind every claim.",
+    description: "Training PING networks so the gamma rhythm gates excitatory spikes.",
   },
   literature: {
-    description:
-      "Close readings of key papers — pedagogical reviews that tie the external literature back to this project — plus the rolling paper feed.",
+    label: "Literature Reviews",
+    description: "Pedagogical readings of key papers.",
+  },
+  "weekly-feed": {
+    label: "Weekly Feed",
+    description: "A weekly triage of new papers worth reading.",
   },
   documentation: {
-    description:
-      "Reference docs for the codebase and its conventions: the model and synapses, training and gradient stabilisation, metrics, the parameter and unit system, the CLI, and the repo house rules.",
+    description: "Reference docs for the codebase and its conventions.",
   },
   "ai-state": {
     label: "AI State",
-    description:
-      "The asynchronous–irregular balanced state: the Vreeswijk–Sompolinsky regime and where a PING network sits relative to it.",
+    description: "The asynchronous–irregular balanced state, and where PING sits.",
   },
   videos: {
-    description:
-      "Animations of PING dynamics — spikes, drive, input rate, integration step, and E→I coupling — rendered as short videos.",
+    description: "Short animations of PING dynamics.",
   },
   bayesian: {
-    description: "Bayesian inference and methods — literature notes.",
+    description: "Bayesian inference and methods.",
   },
   "ping-as-a-clock": {
     label: "PING as a Clock",
-    description:
-      "The PING rhythm read as a timing reference — the gamma cycle as the clock that paces excitatory spiking.",
+    description: "The gamma cycle read as a self-generated timing reference.",
   },
 };
+
+// Explicit display order for the homepage and the collections index. Slugs not
+// listed here sort after these, alphabetically.
+export const COLLECTION_ORDER = [
+  "gamma-gated-sparsity",
+  "ai-state",
+  "ping-as-a-clock",
+  "bayesian",
+  "literature",
+  "weekly-feed",
+  "videos",
+  "documentation",
+];
+
+export function collectionRank(slug: string): number {
+  const i = COLLECTION_ORDER.indexOf(slug);
+  return i === -1 ? COLLECTION_ORDER.length : i;
+}
 
 const ACRONYMS = new Set(["coba", "ping", "snn", "ai", "cli"]);
 
