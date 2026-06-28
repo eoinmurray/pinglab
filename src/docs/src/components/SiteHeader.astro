@@ -1,25 +1,26 @@
 ---
 // Site-wide navigation header. PINGLAB on top (H1 on the home page, otherwise
-// a link back home), then global links on a row below it.
+// a link back home), then global links on a row below it. On the home page the
+// wordmark carries a subtle red glitch (set `glitch`); it is dormant elsewhere.
 interface Props {
   isHome?: boolean;
+  glitch?: boolean;
 }
-const { isHome = false } = Astro.props as Props;
-const pinglabClass = "text-2xl font-bold";
+const { isHome = false, glitch = false } = Astro.props as Props;
+const pinglabClass = "text-2xl font-bold" + (glitch ? " logo-glitch" : "");
 const pinglabStyle =
   "font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;";
 const linkClass = "text-sm text-muted hover:text-[color:var(--ink)]";
 ---
 <div>
   {isHome ? (
-    <h1 class={pinglabClass} style={pinglabStyle}>PINGLAB</h1>
+    <h1 class={pinglabClass} style={pinglabStyle} data-text={glitch ? "PINGLAB" : undefined}>PINGLAB</h1>
   ) : (
     <a href="/" class={pinglabClass} style={pinglabStyle}>PINGLAB</a>
   )}
   <nav class="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
     <a href="/articles/" class={linkClass}>articles</a>
     <a href="/notebooks/" class={linkClass}>notebooks</a>
-    <a href="/collections/" class={linkClass}>collections</a>
     <a href="/articles/ar061/" class={linkClass}>feed</a>
     <a
       href="https://github.com/eoinmurray/pinglab"
@@ -29,3 +30,50 @@ const linkClass = "text-sm text-muted hover:text-[color:var(--ink)]";
     >
   </nav>
 </div>
+
+<style>
+  /* Red-only glitch: a ghost that tears through the black wordmark. Variables
+     default to "invisible at rest"; the script below randomises them. */
+  .logo-glitch { position: relative; }
+  .logo-glitch::before {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    color: var(--color-cat-red);
+    opacity: var(--g-op, 0);
+    transform: translate(var(--g-x, 0), var(--g-y, 0));
+    clip-path: var(--g-clip, inset(0 0 0 0));
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var el = document.querySelector(".logo-glitch");
+    if (!el) return;
+    var rnd = function (a, b) { return a + Math.random() * (b - a); };
+    var set = function (k, v) { el.style.setProperty(k, v); };
+    function rest() { set("--g-op", "0"); set("--g-x", "0"); set("--g-y", "0"); }
+    function flick() {
+      var clip = Math.random() < 0.6
+        ? "inset(" + rnd(0, 55).toFixed(0) + "% 0 " + rnd(0, 55).toFixed(0) + "% 0)"
+        : "inset(0 0 0 0)";
+      set("--g-x", rnd(-3, 3).toFixed(1) + "px");
+      set("--g-y", rnd(-1.5, 1.5).toFixed(1) + "px");
+      set("--g-clip", clip);
+      set("--g-op", (Math.random() < 0.85 ? 0.9 : 0.5).toFixed(2));
+    }
+    function burst() {
+      var n = 1 + Math.floor(Math.random() * 3);
+      var i = 0;
+      (function step() {
+        if (i++ >= n) { rest(); schedule(); return; }
+        flick();
+        setTimeout(function () { rest(); setTimeout(step, rnd(18, 70)); }, rnd(40, 95));
+      })();
+    }
+    function schedule() { setTimeout(burst, rnd(600, 5200)); }
+    schedule();
+  })();
+</script>
