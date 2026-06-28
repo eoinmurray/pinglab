@@ -18,7 +18,7 @@ Outputs a per-cell accuracy / E-rate summary plus a manifest (numbers.json)
 recording exactly which cells were trained, at what tier, and the git sha —
 the contract the analysis notebooks rely on.
 
-Notebook entry: src/docs/content/notebooks/nb063.mdx
+Notebook entry: src/docs/content/notebooks/nb022.mdx
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
 
-SLUG = "nb063"
+SLUG = "nb022"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 # ── Canonical training registry (the hub the collection reuses) ──────
@@ -59,6 +59,9 @@ SEEDS_BASELINE = [42, 43, 44]
 SEED_SWEEP = 42
 THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
 FR_STRENGTH_UPPER = 1e-3
+TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
+TAU_GABA_GAMMA = 6.0       # GABA decay that puts the loop in gamma (≈ 44 Hz);
+                           # the standard for every family except the τ_GABA sweep
 
 # Canonical recipe (verbatim from nb025 — the reference training).
 MODEL_RECIPES: dict[str, dict] = {
@@ -108,6 +111,10 @@ INIT_CONDITIONS: dict[str, tuple] = {
 
 TAU_GABA_SWEEP = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)   # nb041
 DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)             # nb044 (the dt exception)
+MNIST_POOL = 70000                                   # 60k train + 10k test pool
+CANONICAL_MAX_SAMPLES = MNIST_POOL                    # the canonical run sees all of it
+SUBSET_MAX_SAMPLES = MNIST_POOL // 10                 # 10% of MNIST for the sweeps
+SMOKE_MAX_SAMPLES = 100                               # extra-small plumbing tier
 
 
 def theta_label(theta_u: float | None) -> str:
@@ -154,7 +161,7 @@ def _theta_u_cells() -> list[dict]:
                 cells.append({
                     "name": cell_name(m, tu, s), "model": m, "family": "theta_u",
                     "tag": theta_display(tu), "seed": s, "dt_ms": DT_MS,
-                    "extra": extra,
+                    "tau_gaba": TAU_GABA_GAMMA, "extra": extra,
                 })
     return cells
 
@@ -163,7 +170,7 @@ def _tau_gaba_cells() -> list[dict]:
     return [
         {"name": f"ping__tg{_label(tau)}__seed{s}", "model": "ping",
          "family": "tau_gaba", "tag": f"τ={tau:g}", "seed": s, "dt_ms": DT_MS,
-         "extra": ["--tau-gaba", str(tau)]}
+         "tau_gaba": tau, "extra": []}
         for tau in TAU_GABA_SWEEP for s in SEEDS_BASELINE
     ]
 
@@ -173,8 +180,19 @@ def _dt_cells() -> list[dict]:
     return [
         {"name": f"ping__dt{_label(dt)}__seed{s}", "model": "ping",
          "family": "dt", "tag": f"dt={dt:g}", "seed": s, "dt_ms": dt,
-         "extra": []}
+         "tau_gaba": TAU_GABA_GAMMA, "extra": []}
         for dt in DT_SWEEP_MS for s in SEEDS_BASELINE
+    ]
+
+
+def _canonical_cells() -> list[dict]:
+    # The canonical reference: θ_u = off, trained on ALL of MNIST (not the
+    # subset the other families use). max_samples overrides the tier.
+    return [
+        {"name": f"{m}__canonical__seed{s}", "model": m, "family": "canonical",
+         "tag": "off · all MNIST", "seed": s, "dt_ms": DT_MS, "extra": [],
+         "tau_gaba": TAU_GABA_GAMMA, "max_samples": CANONICAL_MAX_SAMPLES}
+        for m in MODELS for s in SEEDS_BASELINE
     ]
 
 
@@ -190,12 +208,13 @@ def _init_cells() -> list[dict]:
             cells.append({
                 "name": f"{cond}__seed{s}", "model": "ping_init",
                 "family": "init", "tag": cond, "seed": s, "dt_ms": DT_MS,
-                "extra": extra,
+                "tau_gaba": TAU_GABA_GAMMA, "extra": extra,
             })
     return cells
 
 
-CANONICAL_CELLS = _theta_u_cells() + _tau_gaba_cells() + _dt_cells() + _init_cells()
+CANONICAL_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
+                   + _dt_cells() + _init_cells())
 
 
 def cell_dir(name: str) -> Path:
@@ -210,7 +229,7 @@ def load_cell(name: str) -> Path:
     if not (d / "weights.pth").exists():
         raise SystemExit(
             f"missing trained cell '{name}' at {d.relative_to(REPO)}; "
-            "run nb063 (Training) first to produce the shared cells."
+            "run nb022 (Training) first to produce the shared cells."
         )
     return d
 
@@ -219,14 +238,16 @@ def build_train_args(spec: dict, out_dir: Path,
                      max_samples: int, epochs: int) -> list[str]:
     """CLI `train` args for one registry cell, across all families."""
     recipe = MODEL_RECIPES[spec["model"]]
+    ms = spec.get("max_samples") or max_samples   # canonical cells override
     args = [
         "train",
         "--model", recipe["__build_as"],
         "--dataset", "mnist",
-        "--max-samples", str(max_samples),
+        "--max-samples", str(ms),
         "--epochs", str(epochs),
         "--t-ms", str(T_MS),
         "--dt", str(spec["dt_ms"]),
+        "--tau-gaba", str(spec["tau_gaba"]),
         "--seed", str(spec["seed"]),
         "--out-dir", str(out_dir),
         "--wipe-dir",
@@ -244,17 +265,25 @@ def build_train_args(spec: dict, out_dir: Path,
 
 # ── Runner ───────────────────────────────────────────────────────────
 
-# Tier sets sample count; epochs hold at the 100-epoch standard for every tier
-# except the extra-small smoke tier, which drops them so the plumbing can be
-# checked quickly.
+# Sample counts are now a fixed per-family standard (canonical = all MNIST,
+# sweeps = 10%), not tier-scaled. The tier only toggles a smoke run: extra
+# small caps every cell to a handful of samples and 2 epochs so the plumbing
+# can be checked in minutes; any other tier trains the full standard.
 TIER_CONFIG = {
-    "extra small": dict(max_samples=100, epochs=2),
-    "small": dict(max_samples=500, epochs=EPOCHS_STANDARD),
-    "medium": dict(max_samples=2000, epochs=EPOCHS_STANDARD),
-    "large": dict(max_samples=5000, epochs=EPOCHS_STANDARD),
-    "extra large": dict(max_samples=10000, epochs=EPOCHS_STANDARD),
+    "extra small": dict(smoke=True),
+    "small": dict(smoke=False),
+    "medium": dict(smoke=False),
+    "large": dict(smoke=False),
+    "extra large": dict(smoke=False),
 }
 DEFAULT_TIER = "extra small"
+
+
+def cell_samples_epochs(spec: dict, smoke: bool) -> tuple[int, int]:
+    """Per-cell (max_samples, epochs): the family standard, or the smoke cap."""
+    if smoke:
+        return SMOKE_MAX_SAMPLES, 2
+    return spec.get("max_samples", SUBSET_MAX_SAMPLES), EPOCHS_STANDARD
 
 
 def _json_safe(o):
@@ -288,6 +317,7 @@ def final_rates(d: Path) -> tuple[float, float]:
 
 
 FAMILY_COLORS = {
+    "canonical": theme.GREY_DARK,
     "theta_u": theme.INK_BLACK,
     "tau_gaba": theme.DEEP_RED,
     "dt": theme.ELECTRIC_CYAN,
@@ -295,32 +325,79 @@ FAMILY_COLORS = {
 }
 
 
-def plot_summary(rows: list[dict], out_path: Path, run_id: str) -> None:
-    """Training overview: the accuracy / E-rate cloud, one point per cell,
-    coloured by training family."""
+def training_curve(d: Path) -> tuple[list[int], list[float]]:
+    """Per-epoch (epoch, test accuracy) from a cell's metrics.jsonl."""
+    p = d / "metrics.jsonl"
+    if not p.exists():
+        return [], []
+    eps, accs = [], []
+    for ln in p.read_text().splitlines():
+        if not ln.strip():
+            continue
+        r = json.loads(ln)
+        if "ep" in r and "acc" in r:
+            eps.append(int(r["ep"]))
+            accs.append(float(r["acc"]))
+    return eps, accs
+
+
+FAMILY_ORDER = ["canonical", "theta_u", "tau_gaba", "dt", "init"]
+FAMILY_LABELS = {
+    "canonical": "Canonical reference",
+    "theta_u": "θ_u spike-budget sweep",
+    "tau_gaba": "τ_GABA ladder",
+    "dt": "Δt sweep",
+    "init": "Init variants",
+}
+
+
+def plot_family_curves(family: str, cells: list[dict],
+                       out_path: Path, run_id: str) -> int:
+    """One figure for one family: each cell's test-accuracy learning curve,
+    coloured by the swept value. Returns the number of cells actually drawn."""
+    import matplotlib.cm as cm
+    from matplotlib.lines import Line2D
+
     theme.apply()
     plt.rcParams["savefig.bbox"] = "standard"
+    tags = list(dict.fromkeys(c["tag"] for c in cells))  # ordered unique
+    colours = {t: cm.viridis(i / max(1, len(tags) - 1)) for i, t in enumerate(tags)}
+    # ping (and ping-init) solid, coba dashed — distinguishes the two models
+    # in families that train both (θ_u, canonical).
+    linestyle = {"coba": "--", "ping": "-", "ping_init": "-"}
+    models = list(dict.fromkeys(c["model"] for c in cells))
+
     fig, ax = plt.subplots(figsize=(12.0, 6.75), dpi=150)
-    for fam, col in FAMILY_COLORS.items():
-        pts = [r for r in rows if r["family"] == fam
-               and np.isfinite(r["acc"]) and np.isfinite(r["rate_e"])]
-        if not pts:
-            continue
-        ax.scatter([r["rate_e"] for r in pts], [r["acc"] for r in pts],
-                   s=46, color=col, label=fam, zorder=3, alpha=0.85)
-    ax.set_xlabel("final E rate (Hz)")
-    ax.set_ylabel("best test accuracy (%)")
+    n = 0
+    for c in cells:
+        eps, accs = training_curve(cell_dir(c["name"]))
+        if eps:
+            ax.plot(eps, accs, lw=1.1, color=colours[c["tag"]],
+                    ls=linestyle.get(c["model"], "-"), alpha=0.85)
+            n += 1
+    handles = [Line2D([0], [0], color=colours[t], lw=2.4, label=t) for t in tags]
+    leg1 = ax.legend(handles=handles, frameon=False, fontsize=theme.SIZE_LEGEND,
+                     ncol=2, loc="lower right", title="swept value")
+    ax.add_artist(leg1)
+    if len(models) > 1:
+        mh = [Line2D([0], [0], color=theme.MUTED, lw=2.0,
+                     ls=linestyle.get(m, "-"), label="ping" if m == "ping_init" else m)
+              for m in models]
+        ax.legend(handles=mh, frameon=False, fontsize=theme.SIZE_LEGEND,
+                  loc="lower center", title="model")
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("test accuracy (%)")
     ax.set_ylim(0, 100)
-    ax.legend(frameon=False, fontsize=theme.SIZE_LEGEND, loc="lower right")
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
-    ax.set_title("Canonical training — shared cells by family (accuracy vs rate)",
+    ax.set_title(f"{FAMILY_LABELS[family]} — {n}/{len(cells)} cells trained",
                  loc="left", fontweight="semibold", fontsize=theme.SIZE_LABEL)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
+    return n
 
 
 def main() -> None:
@@ -328,12 +405,12 @@ def main() -> None:
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
     only_missing = "--only-missing" in sys.argv
-    max_samples = TIER_CONFIG[tier]["max_samples"]
-    epochs = TIER_CONFIG[tier]["epochs"]
+    smoke = TIER_CONFIG[tier]["smoke"]
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {run_id} tier={tier} epochs={epochs} "
+    print(f"notebook_run_id = {run_id} tier={tier} "
+          f"{'[SMOKE]' if smoke else 'full standard'} "
           f"cells={len(CANONICAL_CELLS)}"
           + ("  [skip-training]" if skip_training else ""))
     # Wipe only this entry's figures, never the shared TRAINING_ROOT.
@@ -348,11 +425,12 @@ def main() -> None:
             if only_missing and (out / "metrics.json").exists():
                 print(f"[skip] {c['name']} already trained")
                 continue
+            ms, ep = cell_samples_epochs(c, smoke)
             gpu_override = "A100" if modal_gpu in ("T4", "L4", "A10G") else None
-            print(f"[train] {c['name']} → {out.relative_to(REPO)}"
+            print(f"[train] {c['name']} (n={ms}, {ep} ep) → {out.relative_to(REPO)}"
                   + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
             dispatcher.submit(
-                build_train_args(c, out, max_samples, epochs),
+                build_train_args(c, out, ms, ep),
                 out, gpu_override=gpu_override,
             )
         dispatcher.drain()
@@ -371,8 +449,20 @@ def main() -> None:
         print(f"  {c['name']:<22} acc={rows[-1]['acc']:5.1f}%  "
               f"E={re:5.1f}Hz I={ri:5.1f}Hz")
 
-    plot_summary(rows, FIGURES / "training_summary.png", run_id)
-    print(f"wrote {FIGURES / 'training_summary.png'}")
+    # One training-curve figure per family. Untrained families get no figure,
+    # so the entry's <Figure> shows its "not generated yet" placeholder.
+    family_status = {}
+    for fam in FAMILY_ORDER:
+        fcells = [c for c in CANONICAL_CELLS if c["family"] == fam]
+        n_trained = sum(1 for c in fcells
+                        if (cell_dir(c["name"]) / "metrics.jsonl").exists())
+        family_status[fam] = {"cells": len(fcells), "trained": n_trained}
+        out = FIGURES / f"curves__{fam}.png"
+        if n_trained:
+            plot_family_curves(fam, fcells, out, run_id)
+            print(f"wrote {out}")
+        else:
+            print(f"[not trained] {fam} — no figure (placeholder shown)")
 
     duration_s = time.monotonic() - t_start
     git_sha = next((c for c in (load_metrics(cell_dir(r["name"])).get("config", {})
@@ -383,10 +473,14 @@ def main() -> None:
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
         "tier": tier,
-        "standard": {"epochs": epochs, "dt_ms": DT_MS, "t_ms": T_MS,
-                     "dataset": "mnist", "max_samples": max_samples},
+        "smoke": smoke,
+        "standard": {"epochs": EPOCHS_STANDARD, "dt_ms": DT_MS, "t_ms": T_MS,
+                     "dataset": "mnist",
+                     "max_samples_canonical": CANONICAL_MAX_SAMPLES,
+                     "max_samples_sweeps": SUBSET_MAX_SAMPLES},
         "training_root": str(TRAINING_ROOT.relative_to(REPO)),
-        "families": sorted({c["family"] for c in CANONICAL_CELLS}),
+        "families": FAMILY_ORDER,
+        "family_status": family_status,
         "n_cells": len(CANONICAL_CELLS),
         "cells": rows,
     }

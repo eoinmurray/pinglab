@@ -59,7 +59,7 @@ SLUG = "nb061"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 # Reused trained cell (nb041): a competent PING in gamma on MNIST.
-# The tg6 PING cell now lives in the shared training root (nb063), not nb041.
+# The tg6 PING cell now lives in the shared training root (nb022), not nb041.
 NB041_CELL = REPO / "src" / "artifacts" / "notebooks" / "training" / "ping__tg6__seed42"
 TAU_GABA_MS = 6.0
 SEED = 42
