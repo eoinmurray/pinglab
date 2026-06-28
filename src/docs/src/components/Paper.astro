@@ -1,0 +1,63 @@
+---
+// A feed-entry card: a titled, linked paper with a meta line and a body slot
+// (summary + relevance, written as Markdown). Used by the Weekly Feed entries.
+interface Props {
+  title: string;
+  href: string;
+  meta?: string;
+}
+const { title, href, meta } = Astro.props;
+const hasRelevance = Astro.slots.has("relevance");
+---
+
+<article class="paper-card not-prose">
+  <a href={href} target="_blank" rel="noopener" class="paper-card__title">{title}</a>
+  {meta && <p class="paper-card__meta">{meta}</p>}
+  <div class="paper-card__body prose max-w-none"><slot /></div>
+  {hasRelevance && (
+    <div class="paper-card__rel prose max-w-none"><slot name="relevance" /></div>
+  )}
+</article>
+
+<style>
+  .paper-card {
+    border: 1px solid var(--color-rule);
+    border-left: 3px solid var(--color-rule);
+    padding: 1rem 1.25rem 1.1rem;
+    margin: 1.1rem 0;
+    background: var(--paper);
+    transition: border-left-color 0.16s ease;
+  }
+  .paper-card:hover {
+    border-left-color: var(--color-cat-red);
+  }
+  .paper-card__title {
+    display: inline-block;
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 1.05rem;
+    line-height: 1.3;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .paper-card__title:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--color-cat-red);
+  }
+  .paper-card__meta {
+    margin: 0.35rem 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--color-muted-soft);
+  }
+  .paper-card__body {
+    margin-top: 0.6rem;
+    font-size: 0.9rem;
+  }
+  .paper-card__rel {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--color-rule);
+    font-size: 0.9rem;
+  }
+</style>

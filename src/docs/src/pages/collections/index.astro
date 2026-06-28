@@ -3,7 +3,7 @@ import "../../styles/global.css";
 import { getCollection } from "astro:content";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
-import { collectionLabel, collectionDescription } from "../../config/collections";
+import { collectionLabel, collectionDescription, collectionRank } from "../../config/collections";
 
 type Bucket = { articles: number; notebooks: number };
 const buckets = new Map<string, Bucket>();
@@ -17,23 +17,11 @@ function tally(kind: "articles" | "notebooks", c: unknown) {
 for (const e of await getCollection("notebooks")) tally("notebooks", e.data.collection);
 for (const e of await getCollection("articles")) tally("articles", e.data.collection);
 
-// in-progress floats to the top (it is a workflow state, not a topic);
-// otherwise sort by total count desc, then alphabetical.
-const entries = [...buckets.entries()].sort((a, b) => {
-  if (a[0] === "in-progress") return -1;
-  if (b[0] === "in-progress") return 1;
-  const totA = a[1].articles + a[1].notebooks;
-  const totB = b[1].articles + b[1].notebooks;
-  return totB - totA || a[0].localeCompare(b[0]);
-});
-
-// future-experiments is pinned to the second slot to keep the proposal thread
-// visible regardless of how few entries it has yet.
-const pinnedIdx = entries.findIndex(([name]) => name === "future-experiments");
-if (pinnedIdx > 1) {
-  const [pinned] = entries.splice(pinnedIdx, 1);
-  entries.splice(1, 0, pinned);
-}
+// Explicit display order (config/collections.ts); unlisted slugs sort after,
+// alphabetically.
+const entries = [...buckets.entries()].sort(
+  (a, b) => collectionRank(a[0]) - collectionRank(b[0]) || a[0].localeCompare(b[0]),
+);
 
 function countLabel(articles: number, notebooks: number): string {
   const parts: string[] = [];
