@@ -93,7 +93,9 @@ def dt_label(dt_ms: float) -> str:
 
 
 def cell_dir(dt_ms: float, seed: int) -> Path:
-    return ARTIFACTS / f"ping__{dt_label(dt_ms)}__seed{seed}"
+    """Trained cell — now the shared nb063 cell (train-once / reuse-many)."""
+    from nb063 import cell_dir as shared_cell_dir
+    return shared_cell_dir(f"ping__{dt_label(dt_ms)}__seed{seed}")
 
 
 def build_train_args(dt_ms: float, seed: int, tier: str, out_dir: Path) -> list[str]:
@@ -434,26 +436,9 @@ def main() -> None:
         make_artifacts=False,
     )
 
-    if not skip_training:
-        dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
-        for dt_ms in DT_SWEEP_MS:
-            for seed in SEEDS:
-                out = cell_dir(dt_ms, seed)
-                if only_missing and (out / "metrics.json").exists():
-                    print(
-                        f"[skip] Δt={dt_ms:g}ms seed={seed} → "
-                        f"already trained at {out.relative_to(REPO)}"
-                    )
-                    continue
-                print(
-                    f"[train] Δt={dt_ms:g}ms seed={seed} → "
-                    f"{out.relative_to(REPO)}"
-                )
-                dispatcher.submit(
-                    build_train_args(dt_ms, seed, tier, out),
-                    out,
-                )
-        dispatcher.drain()
+    # Training lives in nb063 now (train-once / reuse-many): the dt sweep is a
+    # registry family there (the documented dt exception). This notebook only
+    # consumes the cells.
 
     from cli import _auto_device
 
