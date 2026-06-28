@@ -13,7 +13,7 @@
     aria-label="Theme"
     data-theme-button
   >
-    <span data-theme-label>System</span>
+    <span>Theme</span>
     <span aria-hidden="true" class="theme-toggle__caret">▾</span>
   </button>
   <ul role="listbox" class="theme-toggle__menu" data-theme-menu hidden>
@@ -84,10 +84,8 @@
     const root = document.querySelector("[data-theme-toggle]");
     if (!root) return;
     const button = root.querySelector("[data-theme-button]");
-    const label = root.querySelector("[data-theme-label]");
     const menu = root.querySelector("[data-theme-menu]");
     const options = root.querySelectorAll("[data-theme-option]");
-    const LABELS = { light: "Light", dark: "Dark", system: "System" };
 
     function getChoice() {
       try {
@@ -108,7 +106,6 @@
             : "light"
           : choice;
       document.documentElement.setAttribute("data-theme", resolved);
-      label.textContent = LABELS[choice] || "System";
       options.forEach((o) => {
         o.setAttribute(
           "aria-selected",
