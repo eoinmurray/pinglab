@@ -3,7 +3,7 @@ import "../styles/global.css";
 import { getCollection } from "astro:content";
 import ThemeToggle from "../components/ThemeToggle.astro";
 import PingAsciiHero from "../components/articles/PingAsciiHero";
-import { collectionLabel, collectionDescription } from "../config/collections";
+import { collectionLabel, collectionDescription, collectionRank } from "../config/collections";
 
 type Item = { slug: string; entry: number; title: string; kind: "articles" | "notebooks" };
 
@@ -49,7 +49,7 @@ for (const e of [...articles, ...notebooks]) {
 
 const cards: Card[] = [...cardByName.values()]
   .map((c) => ({ ...c, latest: [...c.items].sort((a, b) => b.entry - a.entry)[0] }))
-  .sort((a, b) => b.count - a.count || a.slug.localeCompare(b.slug));
+  .sort((a, b) => collectionRank(a.slug) - collectionRank(b.slug) || a.slug.localeCompare(b.slug));
 
 const totalArticles = articles.length;
 const totalNotebooks = notebooks.length;
@@ -101,12 +101,23 @@ const totalNotebooks = notebooks.length;
           rgba(21, 20, 15, 0) 100%
         );
       }
-      @keyframes blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
-      .cursor { animation: blink 1.1s steps(1) infinite; color: var(--color-cat-red); }
       .col-label { transition: color 0.14s ease; }
       .col-card:hover .col-label { color: var(--color-cat-red); }
-      .col-card:hover .col-arrow { transform: translateX(3px); opacity: 1; }
-      .col-arrow { transition: transform 0.16s ease, opacity 0.16s ease; opacity: 0.5; }
+
+      /* Glitch on the PINGLAB logo: a single red ghost that tears through the
+         black wordmark. Timing/offsets/slices are randomised by the inline
+         script below (variables default to "invisible at rest"). */
+      .logo-glitch { position: relative; }
+      .logo-glitch::before {
+        content: attr(data-text);
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        color: var(--color-cat-red);
+        opacity: var(--g-op, 0);
+        transform: translate(var(--g-x, 0), var(--g-y, 0));
+        clip-path: var(--g-clip, inset(0 0 0 0));
+      }
     </style>
   </head>
   <body>
@@ -120,18 +131,19 @@ const totalNotebooks = notebooks.length;
       <div
         class="hero-overlay absolute inset-0 flex items-center justify-center px-6 pointer-events-none"
       >
-        <div class="max-w-[46rem] w-full text-center pointer-events-auto">
+        <div class="max-w-[44rem] w-full text-left pointer-events-auto">
           <h1
-            class="text-5xl md:text-6xl font-bold tracking-tight"
+            class="logo-glitch text-5xl md:text-6xl font-bold tracking-tight"
+            data-text="PINGLAB"
             style="font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1; min-height: 1em;"
           >
-            PINGLAB<span class="cursor">_</span>
+            PINGLAB
           </h1>
-          <p class="mt-3 text-base md:text-lg text-muted max-w-[34rem] mx-auto">
+          <p class="mt-3 text-base md:text-lg text-muted max-w-[34rem]">
             Open research notes on gamma-gated sparsity in conductance-based excitatory–inhibitory
             spiking neural networks.
           </p>
-          <div class="mt-5 flex flex-wrap items-baseline justify-center gap-x-5 gap-y-2 text-sm">
+          <div class="mt-5 flex flex-wrap items-baseline gap-x-5 gap-y-2 text-sm">
             <a href="/articles/" class="text-muted hover:text-[color:var(--ink)]">
               {totalArticles} articles
             </a>
@@ -153,7 +165,7 @@ const totalNotebooks = notebooks.length;
     </section>
 
     <main class="px-6 pt-14 pb-48">
-      <div class="max-w-[44rem] mx-auto text-center">
+      <div class="max-w-[44rem] mx-auto">
         <p class="mb-8 text-xs uppercase tracking-wider text-muted">
           Collections · {cards.length}
         </p>
@@ -161,26 +173,20 @@ const totalNotebooks = notebooks.length;
           {
             cards.map((c) => (
               <a href={`/collections/${c.slug}/`} class="col-card block no-underline!">
-                <div class="flex items-baseline justify-center gap-2.5">
+                <div class="flex items-baseline justify-between gap-3">
                   <span
                     class="col-label font-bold text-[color:var(--ink)]"
-                    style="font-family: var(--font-mono);"
+                    style="font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;"
                   >
                     {c.label}
                   </span>
-                  <span class="text-[0.72rem] tabular-nums uppercase tracking-wider text-muted-soft">
+                  <span class="shrink-0 text-[0.72rem] tabular-nums uppercase tracking-wider text-muted-soft">
                     {c.count} {c.count === 1 ? "entry" : "entries"}
                   </span>
                 </div>
                 {c.description && (
-                  <p class="mt-2 mx-auto max-w-[34rem] text-[0.9rem] leading-snug text-muted">
+                  <p class="mt-2 max-w-[34rem] text-[0.9rem] leading-snug text-muted">
                     {c.description}
-                  </p>
-                )}
-                {c.latest && (
-                  <p class="mt-2 text-[0.78rem] text-muted-soft">
-                    latest · {c.latest.slug} {c.latest.title}{" "}
-                    <span class="col-arrow inline-block">→</span>
                   </p>
                 )}
               </a>
@@ -189,5 +195,36 @@ const totalNotebooks = notebooks.length;
         </div>
       </div>
     </main>
+
+    <script is:inline>
+      (function () {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        var el = document.querySelector(".logo-glitch");
+        if (!el) return;
+        var rnd = function (a, b) { return a + Math.random() * (b - a); };
+        var set = function (k, v) { el.style.setProperty(k, v); };
+        function rest() { set("--g-op", "0"); set("--g-x", "0"); set("--g-y", "0"); }
+        function flick() {
+          var clip = Math.random() < 0.6
+            ? "inset(" + rnd(0, 55).toFixed(0) + "% 0 " + rnd(0, 55).toFixed(0) + "% 0)"
+            : "inset(0 0 0 0)";
+          set("--g-x", rnd(-4, 4).toFixed(1) + "px");
+          set("--g-y", rnd(-2, 2).toFixed(1) + "px");
+          set("--g-clip", clip);
+          set("--g-op", (Math.random() < 0.85 ? 0.9 : 0.5).toFixed(2));
+        }
+        function burst() {
+          var n = 1 + Math.floor(Math.random() * 3); // 1–3 quick flickers
+          var i = 0;
+          (function step() {
+            if (i++ >= n) { rest(); schedule(); return; }
+            flick();
+            setTimeout(function () { rest(); setTimeout(step, rnd(18, 70)); }, rnd(40, 95));
+          })();
+        }
+        function schedule() { setTimeout(burst, rnd(600, 5200)); } // random gap
+        schedule();
+      })();
+    </script>
   </body>
 </html>

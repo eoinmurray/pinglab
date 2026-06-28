@@ -1,10 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect x="2" y="2" width="28" height="28" rx="6.5" fill="#1a1a1a"/>
-  <g stroke-width="2.3" stroke-linecap="round">
-    <line x1="8"  y1="9"   x2="8"  y2="24" stroke="#f4f4ef"/>
-    <line x1="12" y1="5"   x2="12" y2="24" stroke="#f4f4ef"/>
-    <line x1="16" y1="7"   x2="16" y2="24" stroke="#c8102e"/>
-    <line x1="20" y1="5.5" x2="20" y2="24" stroke="#f4f4ef"/>
-    <line x1="24" y1="9"   x2="24" y2="24" stroke="#f4f4ef"/>
+  <!-- Three well-separated gamma volleys: each a red I-burst capping a tight
+       vertical band of white E spikes — the PING raster signature. -->
+  <g>
+    <!-- volley 1 (cx=8) -->
+    <line x1="5.6" y1="9.5" x2="10.4" y2="9.5" stroke="#c8102e" stroke-width="2.2" stroke-linecap="round"/>
+    <g fill="#f4f4ef">
+      <circle cx="6.7" cy="14.5" r="1.2"/><circle cx="9.3" cy="14.5" r="1.2"/>
+      <circle cx="6.7" cy="18.5" r="1.2"/><circle cx="9.3" cy="18.5" r="1.2"/>
+      <circle cx="6.7" cy="22.5" r="1.2"/><circle cx="9.3" cy="22.5" r="1.2"/>
+    </g>
+    <!-- volley 2 (cx=16) -->
+    <line x1="13.6" y1="9.5" x2="18.4" y2="9.5" stroke="#c8102e" stroke-width="2.2" stroke-linecap="round"/>
+    <g fill="#f4f4ef">
+      <circle cx="14.7" cy="14.5" r="1.2"/><circle cx="17.3" cy="14.5" r="1.2"/>
+      <circle cx="14.7" cy="18.5" r="1.2"/><circle cx="17.3" cy="18.5" r="1.2"/>
+      <circle cx="14.7" cy="22.5" r="1.2"/><circle cx="17.3" cy="22.5" r="1.2"/>
+    </g>
+    <!-- volley 3 (cx=24) -->
+    <line x1="21.6" y1="9.5" x2="26.4" y2="9.5" stroke="#c8102e" stroke-width="2.2" stroke-linecap="round"/>
+    <g fill="#f4f4ef">
+      <circle cx="22.7" cy="14.5" r="1.2"/><circle cx="25.3" cy="14.5" r="1.2"/>
+      <circle cx="22.7" cy="18.5" r="1.2"/><circle cx="25.3" cy="18.5" r="1.2"/>
+      <circle cx="22.7" cy="22.5" r="1.2"/><circle cx="25.3" cy="22.5" r="1.2"/>
+    </g>
   </g>
 </svg>
