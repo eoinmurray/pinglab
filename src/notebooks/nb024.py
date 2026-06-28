@@ -309,12 +309,11 @@ def plot_weight_dynamics(out_path: Path, run_id: str) -> None:
 
 
 def plot_rates_vs_epoch(out_path: Path, run_id: str) -> None:
-    """Total network firing rate vs epoch — COBA E vs PING (E + I).
+    """Hidden firing rate vs epoch — COBA E vs PING E and I, separately.
 
     COBA's I population is silent (ei_strength = 0 → no recurrent input
-    to I), so its E rate IS its total network rate. PING's network total
-    is the sum of E and I rates. Honest like-for-like comparison of
-    the total spike budget the optimiser is spending per cell-second.
+    to I), so only its E rate is shown. PING's E and I rates are plotted
+    as separate traces (E solid, I dashed) rather than a combined total.
     """
     theme.apply()
     cells = _gather_cells()
@@ -330,25 +329,14 @@ def plot_rates_vs_epoch(out_path: Path, run_id: str) -> None:
                      if "COBA total" not in seen_labels else None)
             seen_labels.add("COBA total")
             ax.plot(eps, e_rates, color=color, lw=1.4, alpha=0.85, label=label)
-        else:  # ping
-            total = e_rates + i_rates
-            label = ("PING total (E + I)"
-                     if "PING total" not in seen_labels else None)
-            seen_labels.add("PING total")
-            ax.plot(eps, total, color=color, lw=1.4, alpha=0.85, label=label)
-            # Faint dashed lines for the per-population components.
-            if "PING E only" not in seen_labels:
-                ax.plot(eps, e_rates, color=color, lw=0.8, ls=":",
-                        alpha=0.5, label="PING E only")
-                seen_labels.add("PING E only")
-            else:
-                ax.plot(eps, e_rates, color=color, lw=0.8, ls=":", alpha=0.5)
-            if "PING I only" not in seen_labels:
-                ax.plot(eps, i_rates, color=color, lw=0.8, ls="--",
-                        alpha=0.5, label="PING I only")
-                seen_labels.add("PING I only")
-            else:
-                ax.plot(eps, i_rates, color=color, lw=0.8, ls="--", alpha=0.5)
+        else:  # ping — E and I shown separately (no combined total)
+            e_label = "PING E" if "PING E" not in seen_labels else None
+            seen_labels.add("PING E")
+            ax.plot(eps, e_rates, color=color, lw=1.4, alpha=0.85, label=e_label)
+            i_label = "PING I" if "PING I" not in seen_labels else None
+            seen_labels.add("PING I")
+            ax.plot(eps, i_rates, color=color, lw=1.2, ls="--", alpha=0.85,
+                    label=i_label)
     ax.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("Hidden firing rate (Hz)", fontsize=theme.SIZE_LABEL)
     ax.spines["top"].set_visible(False)
@@ -356,7 +344,7 @@ def plot_rates_vs_epoch(out_path: Path, run_id: str) -> None:
     ax.grid(True, alpha=0.15, lw=0.4)
     ax.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="center right")
     fig.suptitle(
-        "Total network firing rate vs epoch — COBA E vs PING (E + I)",
+        "Hidden firing rate vs epoch — COBA E vs PING E / I",
         fontsize=theme.SIZE_TITLE,
     )
     fig.tight_layout()
@@ -962,6 +950,57 @@ def per_cell_diagnostics(rates_by_cell: dict) -> list[dict]:
             summary.append(cell_summary)
     return summary
 
+def plot_model_curves(model: str, out_path: Path, run_id: str) -> None:
+    """Three panels for one model — loss, test accuracy, and firing rate vs
+    epoch — three seeds overlaid. COBA shows E only (I is silent); PING shows
+    E (solid) and I (dashed)."""
+    from matplotlib.lines import Line2D
+
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"
+    cells = {k: v for k, v in _gather_cells().items() if k[0] == model}
+    color = MODEL_COLORS[model]
+    fig, (axL, axA, axR) = plt.subplots(1, 3, figsize=(13.5, 4.5), dpi=150)
+    for (_, seed), met in sorted(cells.items()):
+        eps = np.array([e["ep"] for e in met["epochs"]])
+        axL.plot(eps, [e.get("loss", 0) for e in met["epochs"]],
+                 color=color, lw=1.2, alpha=0.8)
+        axL.plot(eps, [e.get("test_loss", 0) for e in met["epochs"]],
+                 color=color, lw=1.0, ls="--", alpha=0.6)
+        axA.plot(eps, [e.get("acc", 0) for e in met["epochs"]],
+                 color=color, lw=1.2, alpha=0.85)
+        axR.plot(eps, [e.get("test_rate_e", 0) for e in met["epochs"]],
+                 color=color, lw=1.2, alpha=0.85)
+        if model == "ping":
+            axR.plot(eps, [e.get("test_rate_i", 0) for e in met["epochs"]],
+                     color=color, lw=1.0, ls="--", alpha=0.85)
+    axL.set_title("loss", loc="left", fontweight="semibold")
+    axL.set_ylabel("loss")
+    axL.legend(handles=[Line2D([0], [0], color=color, lw=2, label="train"),
+                        Line2D([0], [0], color=color, lw=2, ls="--", label="test")],
+               frameon=False, fontsize=theme.SIZE_LEGEND)
+    axA.set_title("test accuracy", loc="left", fontweight="semibold")
+    axA.set_ylabel("accuracy (%)")
+    axA.set_ylim(0, 100)
+    axR.set_title("firing rate", loc="left", fontweight="semibold")
+    axR.set_ylabel("rate (Hz)")
+    if model == "ping":
+        axR.legend(handles=[Line2D([0], [0], color=color, lw=2, label="E"),
+                            Line2D([0], [0], color=color, lw=2, ls="--", label="I")],
+                   frameon=False, fontsize=theme.SIZE_LEGEND)
+    for ax in (axL, axA, axR):
+        ax.set_xlabel("epoch")
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    fig.suptitle(f"{model.upper()} — loss, accuracy, firing rate vs epoch",
+                 fontsize=theme.SIZE_TITLE)
+    fig.tight_layout()
+    stamp_figure(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
@@ -989,71 +1028,20 @@ def main() -> None:
     # consumes them — the per-epoch weight_norms it needs are written by the
     # standard train command for every cell.
 
-    # Inference: per-cell rate distribution at the final trained state.
-    from cli import _auto_device
+    # Two figures, one per model, read straight from the shared cells'
+    # per-epoch training history (no inference needed).
+    plot_model_curves("coba", FIGURES / "coba_curves.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'coba_curves.png'}")
+    plot_model_curves("ping", FIGURES / "ping_curves.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'ping_curves.png'}")
 
-    device = _auto_device()
-    print(f"device = {device}")
-    rates_by_cell: dict[tuple[str, int], np.ndarray] = {}
-    for model in MODELS:
-        for seed in SEEDS:
-            rd = cell_dir(model, seed)
-            if not (rd / "weights.pth").exists():
-                raise SystemExit(f"missing weights: {rd / 'weights.pth'}")
-            t0 = time.monotonic()
-            rates = measure_per_cell_rates(rd, device)
-            rates_by_cell[(model, seed)] = rates
-            print(
-                f"  rates  {model:<5} seed={seed}  "
-                f"mean={rates.mean():6.2f} Hz  median={np.median(rates):6.2f} Hz  "
-                f"max={rates.max():6.2f} Hz  silent={int((rates == 0).sum())}"
-                f" / {rates.size}  ({time.monotonic() - t0:.1f}s)"
-            )
-
-    plot_acc_rate_vs_epoch(FIGURES / "acc_rate_vs_epoch.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'acc_rate_vs_epoch.png'}")
-    plot_training_curves(FIGURES / "training_curves.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'training_curves.png'}")
-    plot_weight_dynamics(FIGURES / "weight_dynamics.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'weight_dynamics.png'}")
-    plot_weight_before_after(
-        FIGURES / "weights_before_after.png", notebook_run_id,
-    )
-    print(f"wrote {FIGURES / 'weights_before_after.png'}")
-    plot_rates_vs_epoch(FIGURES / "rates_vs_epoch.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'rates_vs_epoch.png'}")
-
-    # Inference-time (W^EI × W^IE) sweep on the trained PING baseline.
-    print("[wei-wie sweep] inference on trained PING (seed 42)")
-    from cli import _auto_device
-    device = _auto_device()
-    wei_wie_rows = run_wei_wie_total_rate_sweep(cell_dir("ping", 42), device)
-    plot_wei_wie_total_rate(
-        wei_wie_rows, FIGURES / "wei_wie_total_rate.png", notebook_run_id,
-    )
-    print(f"wrote {FIGURES / 'wei_wie_total_rate.png'}")
-    plot_wei_wie_diagonal_total_rate(
-        wei_wie_rows, FIGURES / "wei_wie_diagonal_total_rate.png",
-        notebook_run_id,
-    )
-    print(f"wrote {FIGURES / 'wei_wie_diagonal_total_rate.png'}")
-    plot_rate_acc_trajectory(FIGURES / "rate_acc_trajectory.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'rate_acc_trajectory.png'}")
-    plot_rate_distributions(rates_by_cell, FIGURES / "rate_distributions.png",
-                            notebook_run_id)
-    print(f"wrote {FIGURES / 'rate_distributions.png'}")
-
-    summary = per_cell_diagnostics(rates_by_cell)
-    print("  per-cell convergence + drift:")
-    for cell in summary:
-        wn = cell["weight_drift"]
-        print(
-            f"    {cell['model']:<5} seed={cell['seed']}  "
-            f"acc={cell['final_acc']:5.2f}% (Δ{cell['acc_slope_last10_pp_per_ep']:+.3f}/ep)  "
-            f"E={cell['final_e_rate_hz']:6.2f} Hz (Δ{cell['e_rate_slope_last10_hz_per_ep']:+.3f}/ep)  "
-            f"||W_in||={wn['W_ff.0']['final']:6.2f} (×{wn['W_ff.0']['ratio_final_over_init']:5.3f})  "
-            f"||W_out||={wn['W_ff.1']['final']:7.2f} (×{wn['W_ff.1']['ratio_final_over_init']:5.3f})"
-        )
+    finals = {}
+    for (model, seed), met in _gather_cells().items():
+        last = met["epochs"][-1]
+        finals[f"{model}__seed{seed}"] = {
+            "acc": last.get("acc"), "rate_e": last.get("test_rate_e"),
+            "rate_i": last.get("test_rate_i"),
+        }
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(cell_dir(MODELS[0], SEEDS[0]))
@@ -1063,17 +1051,9 @@ def main() -> None:
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
         "tier": tier,
-        "config": {
-            "tier": tier,
-            "dataset": "mnist",
-            "models": MODELS,
-            "seeds": list(SEEDS),
-            "epochs": EPOCHS,
-            "max_samples": TIER_CONFIG[tier]["max_samples"],
-            "t_ms": T_MS,
-            "dt": DT_TRAIN,
-        },
-        "per_cell": summary,
+        "config": {"dataset": "mnist", "models": MODELS, "seeds": list(SEEDS),
+                   "epochs": EPOCHS, "t_ms": T_MS, "dt": DT_TRAIN},
+        "final": finals,
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary_doc, indent=2) + "\n")
     print(f"wrote {FIGURES / 'numbers.json'}")

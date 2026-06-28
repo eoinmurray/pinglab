@@ -17,23 +17,37 @@ export const stat = (k) => fam[k] ? (fam[k].trained + "/" + fam[k].cells + " cel
 
 The single place this collection trains its canonical networks. Every cell is trained once here, to a shared artifact root, and the analysis notebooks load those weights instead of retraining their own — a train-once / reuse-many policy that replaces the older "standalone runner" rule (see [ar016](/articles/ar016/)). Status: **draft** — the registry and standard are fixed, but the cells await the canonical run: the full-MNIST reference is new, and the folded sweep cells on disk predate the gamma standard ($\tau_\text{GABA} = 6$ ms), so they will be retrained at it.
 
-## Standard
+## Methods
+
+### Current trainings
+
+What is actually on disk now — the cells folded in from the original notebooks. They predate the gamma standard: the θ_u, Δt and init families were trained at the old default $\tau_\text{GABA} = 9$ ms (≈ 36 Hz, high beta) and at smaller sample counts, and the full-MNIST canonical reference has not been trained at all. The canonical run brings every row up to the target below.
+
+| Family | Trained | $\tau_\text{AMPA}$ (ms) | $\tau_\text{GABA}$ (ms) | $\Delta t$ (ms) | Epochs | MNIST used |
+|---|---|---|---|---|---|---|
+| canonical (θ_u off) | 0 / 6 | — | — | — | — | not trained |
+| θ_u sweep | 16 / 16 | 2 | 9 | 0.1 | 100 | 2000 (2.9%) |
+| τ_GABA ladder | 18 / 18 | 2 | 4.5 – 27 | 0.1 | 100 | 2000 (2.9%) |
+| Δt sweep | 15 / 15 | 2 | 9 | 0.05 – 1.0 | 100 | 2000 (2.9%) |
+| init variants | 12 / 12 | 2 | 9 | 0.1 | 100 | 3500 (5.0%) |
+| **total** | **61 / 67** | | | | | |
+
+### Target trainings
 
 Each family fixes its synaptic time constants, a timestep, a training length, and how much of MNIST it sees (of the 70,000-image pool — 60k train + 10k test, sampled then re-split 80/20). The standard $\tau_\text{GABA} = 6$ ms puts the loop in gamma (≈ 44 Hz on the task); the τ_GABA ladder is the family that varies it:
 
-| Family | $\tau_\text{AMPA}$ (ms) | $\tau_\text{GABA}$ (ms) | $\Delta t$ (ms) | Epochs | MNIST used |
-|---|---|---|---|---|---|
-| canonical (θ_u off) | 2 | 6 | 0.1 | 100 | 70000 (all) |
-| θ_u sweep | 2 | 6 | 0.1 | 100 | 7000 (10%) |
-| τ_GABA ladder | 2 | 4.5 – 27 | 0.1 | 100 | 7000 (10%) |
-| Δt sweep | 2 | 6 | 0.05 – 1.0 | 100 | 7000 (10%) |
-| init variants | 2 | 6 | 0.1 | 100 | 7000 (10%) |
+| Family | Trainings | $\tau_\text{AMPA}$ (ms) | $\tau_\text{GABA}$ (ms) | $\Delta t$ (ms) | Epochs | MNIST used |
+|---|---|---|---|---|---|---|
+| canonical (θ_u off) | 6 | 2 | 6 | 0.1 | 100 | 70000 (all) |
+| θ_u sweep | 16 | 2 | 6 | 0.1 | 100 | 7000 (10%) |
+| τ_GABA ladder | 18 | 2 | 4.5 – 27 | 0.1 | 100 | 7000 (10%) |
+| Δt sweep | 15 | 2 | 6 | 0.05 – 1.0 | 100 | 7000 (10%) |
+| init variants | 12 | 2 | 6 | 0.1 | 100 | 7000 (10%) |
+| **total** | **67** | | | | | |
 
 The **canonical** family is the full-MNIST reference (coba and ping at θ_u = off) the 10%-trained sweeps are read against. $\tau_\text{AMPA}$ is fixed at 2 ms throughout. [nb044](/notebooks/nb044/)'s Δt audit is the exception that varies the timestep; the τ_GABA ladder the one that varies the inhibitory decay.
 
-## Trainings
-
-One section per family below: its title, how many of its cells are trained, and the test-accuracy learning curve for every cell (coloured by the swept value). A family with no figure has not been trained yet.
+## Results
 
 ### Canonical reference (θ_u off, all MNIST)
 
@@ -74,16 +88,3 @@ ping with four recurrent-loop inits — frozen PING, trainable from PING / zero 
 <Figure id="Figure 5" title="Init variants — training curves" src={fam.init?.trained ? "/figures/notebooks/nb022/curves__init.png" : ""} alt="Test-accuracy learning curves across the init variants.">
 Test accuracy over epochs across the recurrent-loop init conditions; the trainable-loop cells learn noisier curves than the frozen control.
 </Figure>
-
-## Migrated
-
-Notebooks reusing these cells instead of retraining — their training blocks are gone:
-
-- [nb025](/notebooks/nb025/) (θ_u; keeps its own low_w_in cells), [nb036](/notebooks/nb036/) (θ_u; keeps its coupling grid), [nb037](/notebooks/nb037/), [nb038](/notebooks/nb038/) (θ_u probes), [nb041](/notebooks/nb041/) (τ_GABA), [nb044](/notebooks/nb044/) (Δt), [nb049](/notebooks/nb049/) (init), [nb061](/notebooks/nb061/) (reuses the τ_GABA tg6 cell).
-
-Every cell these notebooks need was already trained on disk and folded into the shared root, so migrating them required no retraining. Still local: [nb036](/notebooks/nb036/)'s coupling grid (nb036-specific) and [nb024](/notebooks/nb024/) (would reuse the θ_u baselines).
-
-## Next steps
-
-- Run the canonical training to populate the full-MNIST reference and bring the folded sweep cells up to the 10% standard.
-- Fold nb036's coupling grid and migrate nb024.
