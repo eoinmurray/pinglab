@@ -25,19 +25,12 @@ export const COLLECTIONS: Record<string, CollectionMeta> = {
   documentation: {
     description: "Reference docs for the codebase and its conventions.",
   },
-  "ai-state": {
-    label: "AI State",
-    description: "The asynchronous–irregular balanced state, and where PING sits.",
-  },
   videos: {
     description: "Short animations of PING dynamics.",
   },
-  bayesian: {
-    description: "Bayesian inference and methods.",
-  },
-  "ping-as-a-clock": {
-    label: "PING as a Clock",
-    description: "The gamma cycle read as a self-generated timing reference.",
+  miscellaneous: {
+    label: "Miscellaneous",
+    description: "Entries that don't fit a focused collection yet — clocks, balanced states, Bayesian methods, autoresearch baselines, and one-offs.",
   },
 };
 
@@ -45,9 +38,7 @@ export const COLLECTIONS: Record<string, CollectionMeta> = {
 // listed here sort after these, alphabetically.
 export const COLLECTION_ORDER = [
   "gamma-gated-sparsity",
-  "ai-state",
-  "ping-as-a-clock",
-  "bayesian",
+  "miscellaneous",
   "literature",
   "weekly-feed",
   "videos",

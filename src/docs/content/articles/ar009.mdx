@@ -19,15 +19,25 @@ To be drafted.
 
 - Gamma in the brain: where it appears (cortex, hippocampus), the 30–80 Hz band, and the cognitive functions it is tied to — attention, binding, and gating (Buzsáki & Wang 2012; Fries 2015), with the original empirical attention–gamma link in visual cortex (Fries et al. 2001).
 - The "communication through coherence" hypothesis and its critics — why phase, not just rate, may carry information (Fries 2015; Akam & Kullmann 2012), against the temporal-binding skeptics (Shadlen & Movshon 1999).
+
 - The PING mechanism: gamma as an emergent property of a recurrent excitatory↔inhibitory loop, not a pacemaker (Börgers 2017; Börgers & Kopell 2003, 2005) — backed by causal experimental evidence that fast-spiking interneurons generate the rhythm (Whittington et al. 1995 in vitro; Cardin et al. 2009 and Sohal et al. 2009 via optogenetics), and by the interneuron synaptic mechanisms that synchronise it (Bartos et al. 2007).
+
 - State of the art in *modelling* gamma: biophysical PING networks (Kopell et al. 2010; Viriyopase et al. 2016) and next-generation neural-mass / mean-field reductions (Wilson & Cowan 1972; Segneri et al. 2020; Nandi et al. 2024) — all descriptive, none trained on a task.
+
 - State of the art in *training* spiking networks: surrogate-gradient descent makes SNNs trainable end-to-end (Neftci et al. 2019; Eshraghian et al. 2023), but the trained networks are not rhythmic.
+
 - The gap: gamma is either modelled-but-not-trained or trained-but-not-rhythmic. The recent oscillation-modulated SNN work (Yan et al. 2025) injects oscillations as a prior rather than letting an E↔I loop generate them.
+
 - Why spikes are costly in the brain: the cortical energy budget is dominated by the metabolic cost of action potentials and excitatory synaptic transmission (Attwell & Laughlin 2001; Howarth et al. 2012), so a low firing rate is a metabolic imperative for cortex, not a convenience.
+
 - The biological puzzle we address: cortical pyramidal cells fire at strikingly low rates (often ≪ 10 Hz) despite strong, dense excitatory drive (Barth & Poulet 2012) — what holds them down? We offer architecture-generated gamma gating as one concrete, mechanistic answer.
+
 - The rate-vs-timing framing: classical views treat rate and spike timing as competitors; we show a regime where the rhythm *sets* the rate, so the two are one quantity (Ainsworth et al. 2012).
+
 - This work: we train a PING network on a task for the first time, and show the architecture-generated gamma rhythm *gates* the excitatory population to an order-of-magnitude-lower spike rate at matched accuracy.
+
 - The headline claim in one line: gamma gating buys a per-spike economy that is supplied by the architecture, not learned — and it operates online, on continuous input streams, as cortical processing must.
+
 - Roadmap of the paper: build the model (Claim 1), locate the onset in theory + data (Claim 2), show the trained economy (Claim 3), prove it is architectural not learned (Claim 4), pin the rate to the clock (Claim 5), test the dynamics for robustness (Claim 6), and demonstrate streaming use (Claim 7).
 
 ## Methods

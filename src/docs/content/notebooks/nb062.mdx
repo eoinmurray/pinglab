@@ -1,0 +1,39 @@
+---
+title: "An SHD baseline for the autoresearch loop"
+date: 2026-06-28
+entry: 62
+status: draft
+structure: paper
+collection: miscellaneous
+---
+import Figure from "../../src/components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../public/figures/notebooks/nb062/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+## Abstract
+
+Karpathy's *autoresearch* loop turns an AI coding agent into an overnight researcher: edit one training file, train for a fixed time budget, keep the change if a single scalar improves, revert otherwise, repeat. It works on language modelling because val-bits-per-byte has effectively unbounded headroom and clean signal. Whether it works on small biologically-structured spiking networks is the open question. This entry establishes the *baseline* the loop iterates against — a single PING/COBA network trained on the Spiking Heidelberg Digits (SHD) audio dataset with the standard leaky-integrator readout, frozen recipe (E/I strength $0.5$, ratio $2$; $128$ hidden units; $\Delta t = 2$ ms over $T = 1{,}000$ ms; Adam at $10^{-3}$; seed $42$). It is deliberately small so a full training run fits inside the autoresearch 5-minute wall-clock budget on a single GPU, and deliberately *not* state-of-the-art: the point is to give the agent enough headroom to find wins, not to compete with the literature.
+
+## Background
+
+SHD is the de-facto SNN classification benchmark — 20 spoken-digit classes (English + German) delivered as 700-channel cochlear event streams, $\approx 8{,}000$ training examples, $\approx 2{,}000$ test. It is genuinely event-based, which matters: the input is already temporal structure, so the architecture choices a PING agent might explore (E/I balance, time constants, synapse models, readout schemes) all have somewhere to bite. The matching MNIST recipe in this repo runs at $\Delta t = 0.1$ ms over $T = 200$ ms — $2{,}000$ timesteps per trial — and a single training run takes $\approx 1$ hour, far outside the 5-minute autoresearch budget. SHD at $\Delta t = 2$ ms over $T = 1{,}000$ ms is $500$ timesteps per trial, $\approx 4$ s per epoch on a Macbook MPS at $n_\text{hidden}=128$, which is what makes the loop feasible at all.
+
+The autoresearch contract differs from a normal training notebook in one important way: this file *is the recipe*, and it is not edited by the agent. The agent works on its own branch (autoresearch/&lt;tag&gt;), hacks on a copy of the trainer there, and only successful experiments get promoted to a new notebook entry in this collection. Treating the baseline as immutable is what makes the comparison honest later.
+
+## Method
+
+1. **Dataset.** Spiking Heidelberg Digits, loaded via *load\_dataset("shd", dt\_ms=2, t\_ms=1000)*; max-samples scaled with tier (medium uses $3{,}000$ training examples, large uses $5{,}000$, extra-large uses the full $\approx 8{,}156$ train set).
+2. **Architecture.** Single-hidden-layer PING/COBA network with $n_\text{hidden} = 128$, E/I split of $4{:}1$ ($96$ excitatory, $32$ inhibitory), Dale's law on. Recurrent E$\to$I and I$\to$E couplings initialised at *ei-strength* $= 0.5$ with *ei-ratio* $= 2.0$ (so $W_\text{IE} = 2\,W_\text{EI}$).
+3. **Dynamics.** Conductance-based leaky integrate-and-fire neurons, integrated at $\Delta t = 2$ ms over a $T = 1{,}000$ ms window, so each trial is $500$ timesteps. Surrogate-gradient BPTT with a membrane-voltage gradient dampener of $80$.
+4. **Readout.** Leaky-integrator readout (*--readout li*) — a non-spiking integrator per class with max-over-time, the standard SHD-style readout.
+5. **Optimisation.** Adam at learning rate $10^{-3}$, batch size $256$, no learning-rate schedule, no early stopping. Epochs scale with tier (medium: $20$; large: $40$; extra-large: $60$). Seed $42$.
+6. **Metric.** Held-out test accuracy on the SHD test set after each epoch; *best_acc* is the max across epochs. This is the single scalar the autoresearch loop will hill-climb on for any descendant experiment in this collection.
+
+## Results
+
+<Figure
+  src="/figures/notebooks/nb062/training_curves.png"
+  alt="SHD baseline training curves: accuracy and loss across epochs."
+  caption={`Training curves for the SHD baseline. Left: held-out test accuracy across ${numbers.n_epochs_run ?? "N"} epochs (black); the dotted line marks best test accuracy ≈ ${numbers.best_acc ?? "?"}% at epoch ${numbers.best_epoch ?? "?"}. Right: cross-entropy loss on the train (black) and test (red) splits. Recipe: PING/COBA, n_hidden = 128 (96 E, 32 I), Dale's law on, ei-strength = 0.5, ei-ratio = 2, Δt = 2 ms over T = 1000 ms (500 timesteps), readout = leaky integrator (li), Adam at 10⁻³, batch 256, seed 42, ${numbers?.tier_config?.max_samples ?? "?"} train samples (tier = ${numbers.tier ?? "?"}). Total training wall time ≈ ${numbers.train_elapsed_human ?? "?"}; the curve flattens well inside the 5-minute autoresearch budget on a single GPU. The headroom between this baseline (≈ ${numbers.best_acc ?? "?"}%) and reported SHD ceilings (mid-80s%) is the search space autoresearch agents are pointed at in subsequent entries.`}
+/>
