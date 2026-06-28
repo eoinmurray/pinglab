@@ -1,5 +1,5 @@
 {
-  "notebook_run_id": "r005",
+  "notebook_run_id": "r006",
   "git_sha": null,
   "duration_s": 0.1,
   "duration": "0s",
@@ -14,10 +14,11 @@
   "training_root": "src/artifacts/notebooks/training",
   "families": [
     "dt",
+    "init",
     "tau_gaba",
     "theta_u"
   ],
-  "n_cells": 49,
+  "n_cells": 61,
   "cells": [
     {
       "name": "coba__off__seed42",
@@ -25,9 +26,9 @@
       "family": "theta_u",
       "tag": "off",
       "seed": 42,
-      "acc": 15.0,
-      "best_epoch": 2,
-      "rate_e": 0.005859375,
+      "acc": 89.75,
+      "best_epoch": 87,
+      "rate_e": 77.27952880859375,
       "rate_i": 0.0
     },
     {
@@ -36,9 +37,9 @@
       "family": "theta_u",
       "tag": "off",
       "seed": 43,
-      "acc": 10.0,
-      "best_epoch": 2,
-      "rate_e": 0.010009765625,
+      "acc": 90.25,
+      "best_epoch": 82,
+      "rate_e": 76.979931640625,
       "rate_i": 0.0
     },
     {
@@ -47,9 +48,9 @@
       "family": "theta_u",
       "tag": "off",
       "seed": 44,
-      "acc": 15.0,
-      "best_epoch": 2,
-      "rate_e": 0.007080078125,
+      "acc": 90.5,
+      "best_epoch": 99,
+      "rate_e": 77.8059326171875,
       "rate_i": 0.0
     },
     {
@@ -58,10 +59,10 @@
       "family": "theta_u",
       "tag": "5",
       "seed": 42,
-      "acc": null,
-      "best_epoch": null,
-      "rate_e": null,
-      "rate_i": null
+      "acc": 81.25,
+      "best_epoch": 99,
+      "rate_e": 22.83326416015625,
+      "rate_i": 0.0
     },
     {
       "name": "coba__tu2",
@@ -69,10 +70,10 @@
       "family": "theta_u",
       "tag": "2",
       "seed": 42,
-      "acc": null,
-      "best_epoch": null,
-      "rate_e": null,
-      "rate_i": null
+      "acc": 75.0,
+      "best_epoch": 91,
+      "rate_e": 9.1629638671875,
+      "rate_i": 0.0
     },
     {
       "name": "coba__tu1",
@@ -80,10 +81,10 @@
       "family": "theta_u",
       "tag": "1",
       "seed": 42,
-      "acc": null,
-      "best_epoch": null,
-      "rate_e": null,
-      "rate_i": null
+      "acc": 72.75,
+      "best_epoch": 9,
+      "rate_e": 4.8839111328125,
+      "rate_i": 0.0
     },
     {
       "name": "coba__tu0p5",
@@ -91,10 +92,10 @@
       "family": "theta_u",
       "tag": "0.5",
       "seed": 42,
-      "acc": null,
-      "best_epoch": null,
-      "rate_e": null,
-      "rate_i": null
+      "acc": 68.0,
+      "best_epoch": 9,
+      "rate_e": 2.93486328125,
+      "rate_i": 0.0
     },
     {
       "name": "coba__tu0p2",
@@ -102,10 +103,10 @@
       "family": "theta_u",
       "tag": "0.2",
       "seed": 42,
-      "acc": null,
-      "best_epoch": null,
-      "rate_e": null,
-      "rate_i": null
+      "acc": 62.25,
+      "best_epoch": 10,
+      "rate_e": 1.79869384765625,
+      "rate_i": 0.0
     },
     {
       "name": "ping__off__seed42",
@@ -113,10 +114,10 @@
       "family": "theta_u",
       "tag": "off",
       "seed": 42,
-      "acc": 25.0,
-      "best_epoch": 2,
-      "rate_e": 3.885009765625,
-      "rate_i": 5.5576171875
+      "acc": 89.5,
+      "best_epoch": 64,
+      "rate_e": 8.98297119140625,
+      "rate_i": 40.13125
     },
     {
       "name": "ping__off__seed43",
@@ -124,10 +125,10 @@
       "family": "theta_u",
       "tag": "off",
       "seed": 43,
-      "acc": 35.0,
-      "best_epoch": 2,
-      "rate_e": 4.167236328125,
-      "rate_i": 5.4921875
+      "acc": 89.25,
+      "best_epoch": 33,
+      "rate_e": 9.06312255859375,
+      "rate_i": 40.52490234375
     },
     {
       "name": "ping__off__seed44",
@@ -135,10 +136,10 @@
       "family": "theta_u",
       "tag": "off",
       "seed": 44,
-      "acc": 5.0,
-      "best_epoch": 1,
-      "rate_e": 3.927978515625,
-      "rate_i": 5.1494140625
+      "acc": 89.25,
+      "best_epoch": 24,
+      "rate_e": 8.913623046875,
+      "rate_i": 40.0806640625
     },
     {
       "name": "ping__tu5",
@@ -146,10 +147,10 @@
       "family": "theta_u",
       "tag": "5",
       "seed": 42,
-      "acc": null,
-      "best_epoch": null,
-      "rate_e": null,
-      "rate_i": null
+      "acc": 89.75,
+      "best_epoch": 87,
+      "rate_e": 9.03326416015625,
+      "rate_i": 40.278369140625
     },
     {
       "name": "ping__tu2",
@@ -157,10 +158,10 @@
       "family": "theta_u",
       "tag": "2",
       "seed": 42,
-      "acc": null,
-      "best_epoch": null,
-      "rate_e": null,
-      "rate_i": null
+      "acc": 89.25,
+      "best_epoch": 32,
+      "rate_e": 7.67669677734375,
+      "rate_i": 35.026220703125
     },
     {
       "name": "ping__tu1",
@@ -168,10 +169,10 @@
       "family": "theta_u",
       "tag": "1",
       "seed": 42,
-      "acc": null,
-      "best_epoch": null,
-      "rate_e": null,
-      "rate_i": null
+      "acc": 88.0,
+      "best_epoch": 87,
+      "rate_e": 5.10228271484375,
+      "rate_i": 24.849169921875
     },
     {
       "name": "ping__tu0p5",
@@ -179,10 +180,10 @@
       "family": "theta_u",
       "tag": "0.5",
       "seed": 42,
-      "acc": null,
-      "best_epoch": null,
-      "rate_e": null,
-      "rate_i": null
+      "acc": 87.75,
+      "best_epoch": 22,
+      "rate_e": 3.97640380859375,
+      "rate_i": 12.099560546875
     },
     {
       "name": "ping__tu0p2",
@@ -190,10 +191,10 @@
       "family": "theta_u",
       "tag": "0.2",
       "seed": 42,
-      "acc": null,
-      "best_epoch": null,
-      "rate_e": null,
-      "rate_i": null
+      "acc": 86.25,
+      "best_epoch": 92,
+      "rate_e": 3.79012451171875,
+      "rate_i": 8.4111328125
     },
     {
       "name": "ping__tg4p5__seed42",
@@ -557,6 +558,138 @@
       "best_epoch": 78,
       "rate_e": 16.86112060546875,
       "rate_i": 55.88720703125
+    },
+    {
+      "name": "frozen_ping__seed42",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "frozen_ping",
+      "seed": 42,
+      "acc": 88.57142857142857,
+      "best_epoch": 20,
+      "rate_e": 9.649658203125,
+      "rate_i": 45.13816964285714
+    },
+    {
+      "name": "frozen_ping__seed43",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "frozen_ping",
+      "seed": 43,
+      "acc": 89.14285714285714,
+      "best_epoch": 68,
+      "rate_e": 9.842892020089286,
+      "rate_i": 45.8599609375
+    },
+    {
+      "name": "frozen_ping__seed44",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "frozen_ping",
+      "seed": 44,
+      "acc": 89.85714285714286,
+      "best_epoch": 73,
+      "rate_e": 9.627015904017858,
+      "rate_i": 45.219838169642856
+    },
+    {
+      "name": "trainable_ping_init__seed42",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "trainable_ping_init",
+      "seed": 42,
+      "acc": 90.85714285714286,
+      "best_epoch": 97,
+      "rate_e": 26.449079241071427,
+      "rate_i": 2.6929408482142856
+    },
+    {
+      "name": "trainable_ping_init__seed43",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "trainable_ping_init",
+      "seed": 43,
+      "acc": 91.0,
+      "best_epoch": 92,
+      "rate_e": 26.430099051339287,
+      "rate_i": 3.037583705357143
+    },
+    {
+      "name": "trainable_ping_init__seed44",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "trainable_ping_init",
+      "seed": 44,
+      "acc": 91.71428571428571,
+      "best_epoch": 71,
+      "rate_e": 24.738839285714285,
+      "rate_i": 3.9399832589285713
+    },
+    {
+      "name": "trainable_zero_init__seed42",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "trainable_zero_init",
+      "seed": 42,
+      "acc": 89.71428571428571,
+      "best_epoch": 66,
+      "rate_e": 56.325223214285714,
+      "rate_i": 0.0
+    },
+    {
+      "name": "trainable_zero_init__seed43",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "trainable_zero_init",
+      "seed": 43,
+      "acc": 89.85714285714286,
+      "best_epoch": 75,
+      "rate_e": 56.65657087053572,
+      "rate_i": 0.0
+    },
+    {
+      "name": "trainable_zero_init__seed44",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "trainable_zero_init",
+      "seed": 44,
+      "acc": 89.71428571428571,
+      "best_epoch": 61,
+      "rate_e": 56.78523297991072,
+      "rate_i": 0.0
+    },
+    {
+      "name": "trainable_small_init__seed42",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "trainable_small_init",
+      "seed": 42,
+      "acc": 90.14285714285714,
+      "best_epoch": 83,
+      "rate_e": 43.974853515625,
+      "rate_i": 5.009486607142857
+    },
+    {
+      "name": "trainable_small_init__seed43",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "trainable_small_init",
+      "seed": 43,
+      "acc": 90.28571428571429,
+      "best_epoch": 97,
+      "rate_e": 43.21930106026786,
+      "rate_i": 3.5184151785714284
+    },
+    {
+      "name": "trainable_small_init__seed44",
+      "model": "ping_init",
+      "family": "init",
+      "tag": "trainable_small_init",
+      "seed": 44,
+      "acc": 90.42857142857143,
+      "best_epoch": 97,
+      "rate_e": 40.86730608258929,
+      "rate_i": 3.543666294642857
     }
   ]
 }
