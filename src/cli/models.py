@@ -218,6 +218,7 @@ def lif_step_expeuler(
     V_floor=V_floor,
     V_max=None,
     threshold_offset=None,
+    v_noise_std=0.0,
 ):
     """COBA LIF step under exponential Euler with a zero-order hold on g_e, g_i.
 
@@ -250,6 +251,15 @@ def lif_step_expeuler(
     if v_grad_dampen != 1.0:
         dv = _scale_grad(dv, 1.0 / v_grad_dampen)
     v = v + dv
+    if v_noise_std > 0.0:
+        # Diffusive membrane noise: zero-mean Wiener increment on v, injected
+        # before the spike decision so it jitters threshold-crossing *timing*
+        # (the quantity a gamma clock can resynchronise). Scaled by
+        # sqrt(2*dt/tau_leak) so the stationary subthreshold std ≈ v_noise_std
+        # (mV) in the passive limit, independent of dt — unlike the old
+        # per-step g_E noise whose power scaled with the step count.
+        tau_leak = C_m / g_L
+        v = v + v_noise_std * (2.0 * dt_step / tau_leak) ** 0.5 * torch.randn_like(v)
     v = v.clamp(min=V_floor) if V_max is None else v.clamp(min=V_floor, max=V_max)
     ref = (ref - 1).clamp(min=0)
     can_spike = ref == 0
@@ -356,7 +366,8 @@ def init_weight(shape, dist="normal", p1=0.0, p2=0.1, sparsity=0.0):
 COBA_INTEGRATOR = "expeuler"  # "expeuler" | "fwd"  — parity toggle for COBA integration
 
 
-def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None, threshold_offset=None):
+def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None, threshold_offset=None,
+                v_noise_std=0.0):
     """One E-neuron LIF step with COBA driving force."""
     if ref_steps is None:
         ref_steps = ref_steps_E
@@ -372,6 +383,7 @@ def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None, threshold_offset=None):
             spike_biophysical,
             v_grad_dampen=V_GRAD_DAMPEN,
             threshold_offset=threshold_offset,
+            v_noise_std=v_noise_std,
         )
     return lif_step(
         v,
@@ -385,7 +397,7 @@ def e_step_coba(v, ref, g_e, g_i=None, ref_steps=None, threshold_offset=None):
     )
 
 
-def i_step_coba(v, ref, g_e, g_i=None, threshold_offset=None):
+def i_step_coba(v, ref, g_e, g_i=None, threshold_offset=None, v_noise_std=0.0):
     """One I-neuron LIF step with COBA driving force.
 
     ``g_i`` is the I→I inhibitory conductance on the I cell, used for
@@ -404,6 +416,7 @@ def i_step_coba(v, ref, g_e, g_i=None, threshold_offset=None):
             spike_biophysical,
             v_grad_dampen=V_GRAD_DAMPEN,
             threshold_offset=threshold_offset,
+            v_noise_std=v_noise_std,
         )
     return lif_step(
         v,
@@ -575,6 +588,7 @@ class COBANet(SNNBase):
         input_spikes=None,
         v_perturb_eps=0.0,
         v_perturb_seed=0,
+        noise_on_inh=True,
     ):
         has_ext_g = ext_g is not None
         has_ext_g_i = ext_g_i is not None
@@ -600,7 +614,11 @@ class COBANet(SNNBase):
             W_ff = list(self.W_ff)
         else:
             W_ff = [W.clamp(min=0) for W in self.W_ff]
-        g_noise = noise_std / (E_e - E_L) if noise_std > 0 else 0.0
+        # `noise_std` is the diffusive membrane-noise amplitude (mV, on the
+        # voltage), applied per-cell-independent to every E and I cell inside
+        # the LIF step (see lif_step_expeuler). Zero-mean and dt-invariant —
+        # replaces the old rectified, first-layer-E-only g_E conductance noise.
+        v_noise_std = float(noise_std) if noise_std > 0 else 0.0
 
         # Per-step matmul on every device — single code path (no CUDA-only
         # fast-path).
@@ -734,7 +752,8 @@ class COBANet(SNNBase):
             "has_ext_g": has_ext_g,
             "has_ext_g_i": has_ext_g_i,
             "readout_mode": self.readout_mode,
-            "g_noise": g_noise,
+            "v_noise_std": v_noise_std,
+            "noise_on_inh": bool(noise_on_inh),
             "n_e0": self.hidden_sizes[0],
             "n_spk_tensors": n_spk_tensors,
         }
@@ -846,7 +865,6 @@ class COBANet(SNNBase):
         drive_gains = cfg["drive_gains"]
         has_input_spikes = cfg["has_input_spikes"]
         has_ext_g = cfg["has_ext_g"]
-        g_noise = cfg["g_noise"]
         n_spk_tensors = cfg["n_spk_tensors"]
 
         prev_spk = None
@@ -890,28 +908,28 @@ class COBANet(SNNBase):
                 ff_drive = prev_spk @ W
                 state["ge_e"][k] = state["ge_e"][k] + ff_drive
 
-            if g_noise > 0 and i == 1:
-                state["ge_e"][k] = state["ge_e"][k] + (
-                    g_noise * torch.randn(cfg["B"], cfg["n_e0"], device=cfg["device"])
-                ).clamp(min=0)
-
             g_e_for_step = state["ge_e"][k]
             g_i_for_e = state["gi_e"][k] if is_ei else None
             g_e_for_i = state["ge_i"][k] if is_ei else None
             g_i_for_i = state["gi_i"][k] if is_ei else None
+            v_noise = cfg["v_noise_std"]
+            v_noise_i = v_noise if cfg["noise_on_inh"] else 0.0
             if is_ei:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
                     state["v_e"][k],
                     state["ref_e"][k],
                     g_e_for_step,
                     g_i_for_e,
+                    v_noise_std=v_noise,
                 )
                 state["v_i"][k], state["s_i"][k], state["ref_i"][k] = i_step_coba(
                     state["v_i"][k], state["ref_i"][k], g_e_for_i, g_i_for_i,
+                    v_noise_std=v_noise_i,
                 )
             else:
                 state["v_e"][k], state["s_e"][k], state["ref_e"][k] = e_step_coba(
                     state["v_e"][k], state["ref_e"][k], g_e_for_step,
+                    v_noise_std=v_noise,
                 )
 
             if self._hidden_perturb_fn is not None:
