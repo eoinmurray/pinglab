@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r001",
+  "notebook_run_id": "r003",
   "git_sha": "ed141d7 (dirty)",
-  "duration_s": 8.8,
-  "duration": "9s",
+  "duration_s": 6.5,
+  "duration": "6s",
   "tier": "small",
   "config": {
     "tier": "small",
@@ -26,20 +26,23 @@
       54.1
     ]
   },
-  "mean_ticks_per_trial": 7.9,
+  "mean_ticks_per_trial": 8.0,
   "accuracy": {
     "continuous": 89.0,
-    "self-clock": 88.0,
+    "self-clock-i": 88.3,
+    "self-clock-e": 86.7,
     "fixed-clock": 77.0,
-    "shuffled": 70.3
+    "shuffled": 75.0
   },
   "samples_per_trial": {
     "continuous": 2000,
-    "self-clock": 7.9,
+    "self-clock-i": 8.0,
+    "self-clock-e": 7.8,
     "fixed-clock": 8,
-    "shuffled": 7.9
+    "shuffled": 8.0
   },
   "fixed_clock_best_phase_steps": 62,
+  "e_leads_i_ms": -1.2,
   "success_criteria": {
     "self_clock_replaces_continuous": true,
     "self_clock_above_shuffled": true,

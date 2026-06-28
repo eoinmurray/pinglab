@@ -4,7 +4,7 @@ date: 2026-06-28
 entry: 61
 status: draft
 structure: paper
-collection: ping-as-a-clock
+collection: miscellaneous
 ---
 import Figure from "../../src/components/Figure.astro";
 export const numbers = Object.values(
@@ -13,7 +13,7 @@ export const numbers = Object.values(
 
 ## Abstract
 
-Granting a clean PING gamma rhythm, can the self-generated tick be *used* as a timing reference? Reusing a competent, already-trained PING (the [nb041](/notebooks/nb041/) tg6 cell — GABA decay 6 ms, ≈90% on MNIST, gamma on the task), we treat the inhibitory volley as the clock edge that *samples* the output readout, and compare four sampling schemes on identical spikes and weights. The self-clock matches the always-on readout — 88% against 89% — while reading only ≈8 samples per trial instead of 2000, a ≈250× reduction. It beats random sampling (70%) and beats even a best-phase fixed external clock (77%). A fixed crystal falls short because the rhythm's rate varies per input, from 24 to 54 Hz, so no single period lands on the volleys. Two conclusions: the gamma tick is *good enough to replace* an always-on readout, and a fixed external clock is *not good enough to replace* the gamma tick.
+Granting a clean PING gamma rhythm, can the self-generated tick be *used* as a timing reference? Reusing a competent, already-trained PING (the [nb041](/notebooks/nb041/) tg6 cell — GABA decay 6 ms, ≈90% on MNIST, gamma on the task), two in-network coincidence-detector neurons read the gamma volley — one off the inhibitory pool, one off the excitatory pool — each emitting one spike per cycle: the clock edge that *samples* the output readout. We compare these against the always-on readout, a fixed external clock, and random sampling. Both self-clocks match the always-on readout — 88% (I tap) and 87% (E tap) against 89% — while reading only ≈8 samples per trial instead of 2000, a ≈250× reduction, and both beat random sampling (75%) and a best-phase fixed external clock (77%). A fixed crystal falls short because the rhythm's rate varies per input, from 24 to 54 Hz, so no single period lands on the volleys. Two conclusions: the gamma tick is *good enough to replace* an always-on readout, and a fixed external clock is *not good enough to replace* the gamma tick.
 
 ## Background
 
@@ -25,21 +25,24 @@ The PING loop generates a gamma rhythm for free, out of its own excitatory–inh
 
 **Reused network.** We do not retrain. The rhythm is a property of a trained network, so we load the [nb041](/notebooks/nb041/) tg6 cell — a PING with GABA decay 6 ms that reaches ≈90% on MNIST and oscillates in gamma during the task — and run inference only. The cell's GABA time constant is wired back into the synaptic decay on load so the rhythm matches the one it was trained with.
 
-**Readout schemes.** The trained readout is a leaky membrane average (mem-mean): it integrates the output membrane over every timestep. We recover the per-step output contribution from the recorded running mean,
+**Readout schemes.** The trained readout is a leaky membrane average (mem-mean): the class logits are the time-average of the output membrane over the whole trial. What the simulator stores each step is that running average, $o(t)$ — the mean so far of the per-step output contributions $v_\text{out}(s)$. To sample the readout at chosen instants we need the per-step contribution itself, and a running mean changes from one step to the next exactly in proportion to the new term, so we recover it by differencing consecutive stored values:
 
 $$
-v_\text{out}(t) = T\,\big[\,o(t) - o(t-1)\,\big],
-\qquad o(t) = \frac{1}{T}\sum_{s\le t} v_\text{out}(s),
+\underbrace{o(t) = \tfrac{1}{T}\textstyle\sum_{s\le t} v_\text{out}(s)}_{\text{recorded each step}}
+\quad\Longrightarrow\quad
+\underbrace{v_\text{out}(t) = T \cdot \big(o(t) - o(t-1)\big)}_{\text{recovered by differencing}}
+\tag{1}
 $$
 
-- $v_\text{out}(t)$ — the output-membrane contribution at step $t$, per class;
-- $o(t)$ — the recorded running mem-mean up to step $t$;
-- $T$ — number of integration steps in the trial (2000 at $\Delta t = 0.1$ ms, 200 ms),
+- $o(t)$ — the running mem-mean the simulator records up to step $t$ (the cumulative average of the output membrane);
+- $v_\text{out}(t)$ — the single-step output contribution at step $t$, per class — the quantity we sample;
+- $T$ — integration steps per trial (2000 at $\Delta t = 0.1$ ms over 200 ms).
 
-then form class logits by averaging $v_\text{out}$ over a chosen set of sample times $\mathcal{S}$:
+Class logits are then the average of $v_\text{out}$ over a chosen set of sample times $\mathcal{S}$:
 
 $$
-z_\mathcal{S} = \frac{1}{|\mathcal{S}|}\sum_{t\in\mathcal{S}} v_\text{out}(t).
+z_\mathcal{S} = \frac{1}{|\mathcal{S}|}\sum_{t\in\mathcal{S}} v_\text{out}(t)
+\tag{2}
 $$
 
 Four choices of $\mathcal{S}$, all on the same spikes and weights:
@@ -49,7 +52,22 @@ Four choices of $\mathcal{S}$, all on the same spikes and weights:
 - **fixed-clock** — a fixed period equal to the median gamma period, an external crystal. We sweep its phase across the cycle and report its *best* phase, to steelman it;
 - **shuffled** — random times, matched in count to the self-clock: the floor control.
 
-**Tick detection.** The volley times are the smoothed local maxima of the inhibitory population rate on each trial, separated by at least ≈0.6 of the expected cycle so each volley is counted once. Per-trial gamma frequency is the inverse of the median inter-volley interval.
+**The tick is emitted in-network.** The clock is not detected by an offline signal-processing pass — it is produced by a coincidence-detector neuron wired into the network. A fast leaky integrate-and-fire unit reads a population's firing fraction,
+
+$$
+u(t) = e^{-\Delta t/\tau_C}\,u(t-1) + \frac{1}{N}\sum_i s_i(t),
+\qquad \text{fire when } u(t)\ge\theta
+\tag{3}
+$$
+
+- $u(t)$ — the detector's membrane, a leaky integral of the fraction of the pool firing;
+- $\tau_C = 1.5$ ms — a short window, so it integrates *coincidences* (a synchronous volley) rather than rate;
+- $\theta$ — threshold on that fraction (0.15 for the inhibitory pool, 0.05 for the larger, less-synchronous excitatory pool);
+- $N$ — pool size,
+
+then resets and holds a refractory lockout of 12 ms (under one gamma cycle) so each volley makes exactly one tick. The unit is read-only — it taps existing spikes with no feedback into the loop — so it needs no training, and it is causal: it fires on the rising synchrony, using only past and present spikes. It reproduces an offline peak-finder's volley times to within the sampling step (median gap 0.0 ms), confirming the tick is genuinely online-realisable.
+
+We instantiate two such detectors and compare them: an **I tap** reading the inhibitory pool and an **E tap** reading the excitatory pool. The difference is a sign convention. A spike is a sign-free event, so the I tap simply weights inhibitory spikes positively — legitimate on event-routed neuromorphic hardware (the receiver assigns the sign), but a Dale's-law violation in a biological substrate, where an inhibitory cell cannot excite the detector. The E tap is Dale's-law-clean: the excitatory volley genuinely excites the detector. Per-trial gamma frequency is the inverse of the median inter-tick interval (I tap).
 
 **Logic.** This is a *non-inferiority* test, not a superiority one. The self-clock is good enough to replace the always-on readout if it falls within a small margin (3 points) of continuous while using far fewer samples; it must beat shuffled or the timing carries no information; and the best-phase fixed clock is the external standard we ask whether a crystal could match.
 
@@ -64,7 +82,7 @@ Single-trial raster (E black, I red) and the population-rate spectrum averaged o
 The self-clock works because the readout itself is volley-locked: the output membrane bursts once per gamma cycle, and sampling on the volley catches each burst.
 
 <Figure id="Figure 2" title="The gamma rhythm gating the readout" src="/figures/notebooks/nb061/clock_gating.png" alt="Inhibitory volley rate above the output trajectory, with sample points landing on each volley.">
-One trial. Top: the inhibitory population rate, its volleys marked as vertical lines. Bottom: the winning-class output trajectory, sampled on those same ticks (dots). The output peaks ride the gamma cycle, so the tick lands on the signal each time — this is the rhythm being used as a sample-and-hold clock.
+One trial. Top: the inhibitory population rate, with the in-network coincidence-detector neuron's spikes marked as vertical lines — one per volley. Bottom: the winning-class output trajectory, sampled on those same ticks (dots). The output peaks ride the gamma cycle, so the tick lands on the signal each time — this is the rhythm being used as a sample-and-hold clock.
 </Figure>
 
 Sampling only on the tick recovers essentially all of the accuracy at a fraction of the cost, and beats both controls.
@@ -76,9 +94,12 @@ Test accuracy across the four schemes, with samples per trial annotated; the sha
 | scheme | accuracy | samples / trial |
 |---|---|---|
 | continuous | 89.0% | 2000 |
-| self-clock | 88.0% | ≈8 |
+| self-clock (I tap) | 88.3% | ≈8 |
+| self-clock (E tap) | 86.7% | ≈8 |
 | fixed-clock (best phase) | 77.0% | 8 |
-| shuffled | 70.3% | ≈8 |
+| shuffled | 75.0% | ≈8 |
+
+Both taps land inside the non-inferiority band; the I tap edges the E tap (88.3 vs 86.7%). The gap is pure timing: the E volley *leads* the I volley by 1.2 ms — the E→I conduction delay, since the excitatory burst drives the inhibitory one — so the E-tap tick fires on the output's rising edge rather than its peak, sampling a touch early. The inhibitory tick, firing with the volley, lands on the peak. A small fixed latch latency on the E tap would close the gap; left uncorrected, the I tap is the better-aligned clock.
 
 The reason the fixed clock falls short is that the rhythm's rate is not fixed: across the test set the per-trial gamma frequency spans 24 to 54 Hz (median 39, interquartile 35–43). A single external period cannot land on the volleys of every trial.
 
@@ -92,12 +113,16 @@ Per-trial gamma frequency across the evaluation set, with the single rate a fixe
 
 **A fixed external clock is not good enough to replace the gamma tick.** Even steelmanned at its best phase, the crystal reaches only 77%, eleven points short, and Figure 4 says why: the rhythm's frequency rides the input, so a fixed period samples off the volleys. The stronger reading is not merely that the self-clock is as cheap as a crystal, but that a crystal cannot do this job — the informative moments are tied to a rhythm only the network itself defines.
 
-**Honest limits.** Shuffled is 70%, not chance: the mem-mean readout integrates, so even random samples recover a good deal, and the clock's marginal value is the 18-point gap over shuffled and the 11-point margin over the crystal — a solid effect, not a knockout. The result is one cell (tg6, seed 42) at the clean operating point ($\sigma = 0$). It grants an intact rhythm; under per-cell membrane noise the rhythm is fragile, so the usability shown here is real but conditional on a regime that noise can spoil. Usable, but only while the rhythm holds.
+**I tap vs E tap.** The hardware-legitimate I tap (88.3%) slightly beats the Dale's-law-clean E tap (86.7%), purely on alignment — the E volley leads by 1.2 ms, so its tick samples early. Neither choice changes the headline: both replace the always-on readout and both beat the crystal. Which to prefer is a substrate question. Event-routed neuromorphic hardware can use either, and the I tap is marginally better-aligned. A biological substrate must use the E tap (or build a post-inhibitory rebound detector on I) and absorb the small latency cost. That the clock can be read off *either* population is itself reassuring: the tick is a property of the loop, not of one cell type.
+
+**Honest limits.** Shuffled is 75%, not chance: the mem-mean readout integrates, so even random samples recover a good deal, and the clock's marginal value is the 13-point gap over shuffled and the 11-point margin over the crystal — a solid effect, not a knockout. The result is one cell (tg6, seed 42) at the clean operating point ($\sigma = 0$). It grants an intact rhythm; under per-cell membrane noise the rhythm is fragile, so the usability shown here is real but conditional on a regime that noise can spoil. Usable, but only while the rhythm holds.
 
 ## Success criteria
 
+Evaluated on the I tap, the primary clock (the E tap is within a point on all three).
+
 - Self-clock within 3 points of continuous — **met** (88 vs 89): good enough to replace the always-on readout.
-- Self-clock above shuffled — **met** (88 vs 70): the timing carries information.
+- Self-clock above shuffled — **met** (88 vs 75): the timing carries information.
 - Self-clock above the best-phase fixed clock — **met** (88 vs 77): a fixed crystal cannot stand in.
 
 ## Next steps

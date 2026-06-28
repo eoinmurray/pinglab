@@ -6,16 +6,18 @@ separate reliability question, not the subject here.)
 
 We reuse a competent, already-trained PING from nb041 (the tg6 cell:
 tau_gaba = 6 ms, ≈90% on MNIST, gamma on the task) rather than retraining —
-the rhythm is what it is once the network is trained. At inference the
-inhibitory volley is treated as the clock edge that *samples* the output
-readout, and four schemes are compared on identical spikes and weights:
+the rhythm is what it is once the network is trained. At inference the gamma volley is treated as the clock edge that *samples*
+the output readout. Two in-network coincidence-detector neurons emit the
+tick (models.py): an I tap on the inhibitory pool and an E tap on the
+excitatory pool. Five schemes are compared on identical spikes and weights:
 
-  continuous   — average the output over every timestep (the trained
-                 readout; the expensive, always-on baseline);
-  self-clock   — sample only at the gamma volley times (the self-grown tick);
-  fixed-clock  — sample at a FIXED period (an external crystal), phase-swept
-                 and reported at its BEST phase to steelman it;
-  shuffled     — sample at random times, matched count (the floor control).
+  continuous    — average the output over every timestep (the trained
+                  readout; the expensive, always-on baseline);
+  self-clock-i  — sample at the inhibitory-volley ticks (I-tap CD neuron);
+  self-clock-e  — sample at the excitatory-volley ticks (E-tap CD neuron);
+  fixed-clock   — sample at a FIXED period (an external crystal), phase-swept
+                  and reported at its BEST phase to steelman it;
+  shuffled      — sample at random times, matched count (the floor control).
 
 Non-inferiority logic: the self-clock should MATCH continuous (good enough
 to replace the always-on readout) at a fraction of the samples, must BEAT
@@ -40,7 +42,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.signal import find_peaks
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
@@ -58,7 +59,8 @@ SLUG = "nb061"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 # Reused trained cell (nb041): a competent PING in gamma on MNIST.
-NB041_CELL = REPO / "src" / "artifacts" / "notebooks" / "nb041" / "ping__tg6__seed42"
+# The tg6 PING cell now lives in the shared training root (nb063), not nb041.
+NB041_CELL = REPO / "src" / "artifacts" / "notebooks" / "training" / "ping__tg6__seed42"
 TAU_GABA_MS = 6.0
 SEED = 42
 
@@ -77,9 +79,18 @@ NONINFERIORITY_MARGIN = 3.0
 
 SCHEME_COLORS = {
     "continuous": theme.LABEL,
-    "self-clock": theme.INK_BLACK,
+    "self-clock-i": theme.INK_BLACK,
+    "self-clock-e": theme.AMBER,
     "fixed-clock": theme.DEEP_RED,
-    "shuffled": getattr(theme, "MUTED", "#999999"),
+    "shuffled": theme.GREY_LIGHT,
+}
+SCHEME_ORDER = ["continuous", "self-clock-i", "self-clock-e", "fixed-clock", "shuffled"]
+SCHEME_LABELS = {
+    "continuous": "continuous",
+    "self-clock-i": "self-clock\n(I tap)",
+    "self-clock-e": "self-clock\n(E tap)",
+    "fixed-clock": "fixed\nclock",
+    "shuffled": "shuffled",
 }
 
 
@@ -146,14 +157,13 @@ def _load_trained(train_dir: Path, n_eval: int):
 # ── Tick detection + readout schemes ─────────────────────────────────
 
 
-def detect_ticks(i_rate_1d: np.ndarray, dt_ms: float, f_gamma_hz: float) -> np.ndarray:
-    """Gamma volley times (step indices) for one trial: smoothed local maxima
-    of the inhibitory population rate, separated by ≈0.6 of the expected
-    cycle so we count each volley once."""
-    period = 1000.0 / f_gamma_hz / dt_ms
-    r = np.convolve(i_rate_1d, np.ones(5) / 5, mode="same")
-    pk, _ = find_peaks(r, distance=max(1, int(0.6 * period)), prominence=r.std() * 0.5)
-    return pk
+def ticks_from_cd(tick_rec: np.ndarray) -> list[np.ndarray]:
+    """Per-trial tick times (step indices) read straight off the in-network
+    coincidence-detector neuron's spike train (models.py emits one channel,
+    one spike per inhibitory volley)."""
+    if tick_rec.ndim == 3:
+        tick_rec = tick_rec[:, :, 0]
+    return [np.flatnonzero(tick_rec[:, b]) for b in range(tick_rec.shape[1])]
 
 
 def reconstruct_vout(out_run: np.ndarray, T: int) -> np.ndarray:
@@ -269,19 +279,19 @@ def plot_accuracy_bars(results, n_samples, cont_acc, margin, out_path, run_id):
     theme.apply()
     plt.rcParams["savefig.bbox"] = "standard"
     fig, ax = plt.subplots(figsize=(12.0, 6.75), dpi=150)
-    order = ["continuous", "self-clock", "fixed-clock", "shuffled"]
+    order = SCHEME_ORDER
     xs = np.arange(len(order))
     accs = [results[k] for k in order]
-    ax.bar(xs, accs, width=0.62,
+    ax.bar(xs, accs, width=0.66,
            color=[SCHEME_COLORS[k] for k in order], edgecolor="none")
     ax.axhspan(cont_acc - margin, cont_acc, color=theme.LABEL, alpha=0.12)
     ax.axhline(cont_acc, color=theme.LABEL, ls="--", lw=1.0)
     for x, a, k in zip(xs, accs, order):
-        ax.text(x, a + 1.0, f"{a:.0f}%", ha="center", fontsize=theme.SIZE_ANNOTATION)
+        ax.text(x, a + 1.0, f"{a:.1f}%", ha="center", fontsize=theme.SIZE_ANNOTATION)
         ax.text(x, 3, f"{n_samples[k]:g}\nsamp", ha="center", va="bottom",
                 fontsize=theme.SIZE_ANNOTATION, color="white")
     ax.set_xticks(xs)
-    ax.set_xticklabels([k.replace("-", "-\n") for k in order])
+    ax.set_xticklabels([SCHEME_LABELS[k] for k in order])
     ax.set_ylabel("test accuracy (%)")
     ax.set_ylim(0, 100)
     ax.set_title(
@@ -362,22 +372,31 @@ def main() -> None:
     out_run = net.spike_record["out"].cpu().numpy()        # (T, B, 10)
     inh = net.spike_record["inh"].cpu().numpy()            # (T, B, n_i)
     hid = net.spike_record["hid"].cpu().numpy()            # (T, B, n_e)
+    tick_i = net.spike_record["tick_i"].cpu().numpy()      # CD neuron, I tap
+    tick_e = net.spike_record["tick_e"].cpu().numpy()      # CD neuron, E tap
     B = out_run.shape[1]
     v_out = reconstruct_vout(out_run, T)
     i_rate = inh.sum(axis=2)                                # (T, B)
 
-    # Seed per-trial detection from the population-level gamma.
-    glob = np.convolve(i_rate.mean(axis=1), np.ones(5) / 5, "same")
-    gpk, _ = find_peaks(glob, distance=int(0.6 * 1000.0 / 44.0 / dt_ms))
-    f_seed = 1000.0 / (np.median(np.diff(gpk)) * dt_ms) if len(gpk) > 1 else 44.0
-
-    ticks, periods = [], []
-    for b in range(B):
-        pk = detect_ticks(i_rate[:, b], dt_ms, f_seed)
-        ticks.append(pk)
-        if len(pk) > 1:
-            periods.append(np.median(np.diff(pk)) * dt_ms)
+    # The clock is emitted in-network by coincidence-detector neurons (models.py):
+    # one taps the inhibitory pool (I), one the excitatory pool (E). Their spike
+    # trains ARE the ticks — no offline peak-finding. The I tap is the canonical
+    # clock (it lands on the output peak); use it for the rhythm/frequency views.
+    ticks_i = ticks_from_cd(tick_i)
+    ticks_e = ticks_from_cd(tick_e)
+    ticks = ticks_i
+    periods = [np.median(np.diff(t)) * dt_ms for t in ticks if len(t) > 1]
     n_ticks = np.array([len(t) for t in ticks])
+    n_ticks_e = np.array([len(t) for t in ticks_e])
+
+    # The E volley leads the I volley by the E→I conduction delay; the E-tap
+    # tick therefore samples a touch before the output peak.
+    e_lead = [
+        (e - ticks_i[b][np.argmin(np.abs(ticks_i[b] - e))]) * dt_ms
+        for b in range(B) if len(ticks_i[b]) and len(ticks_e[b])
+        for e in ticks_e[b]
+    ]
+    e_leads_i_ms = round(float(np.median(e_lead)), 2) if e_lead else None
     f_per_trial = 1000.0 / np.array(periods)
     period_med_steps = int(np.median(periods) / dt_ms)
     fixed_f = 1000.0 / (period_med_steps * dt_ms)
@@ -395,16 +414,19 @@ def main() -> None:
 
     results = {
         "continuous": accuracy(v_out, all_idx, y_eval, T),
-        "self-clock": accuracy(v_out, ticks, y_eval, T),
+        "self-clock-i": accuracy(v_out, ticks_i, y_eval, T),
+        "self-clock-e": accuracy(v_out, ticks_e, y_eval, T),
         "fixed-clock": best_fixed,
         "shuffled": accuracy(v_out, shuf, y_eval, T),
     }
     n_samples = {
-        "continuous": T, "self-clock": round(float(n_ticks.mean()), 1),
+        "continuous": T,
+        "self-clock-i": round(float(n_ticks.mean()), 1),
+        "self-clock-e": round(float(n_ticks_e.mean()), 1),
         "fixed-clock": len(range(best_phase, T, period_med_steps)),
         "shuffled": round(float(n_ticks.mean()), 1),
     }
-    for k in ("continuous", "self-clock", "fixed-clock", "shuffled"):
+    for k in SCHEME_ORDER:
         print(f"  {k:<12} acc={results[k]:5.1f}%  samples/trial={n_samples[k]}")
 
     # Representative trial for the trace figures: a correctly-classified trial
@@ -466,11 +488,13 @@ def main() -> None:
         "accuracy": {k: round(v, 1) for k, v in results.items()},
         "samples_per_trial": n_samples,
         "fixed_clock_best_phase_steps": best_phase,
+        "e_leads_i_ms": e_leads_i_ms,
         "success_criteria": {
+            # Primary clock is the I tap (lands on the output peak).
             "self_clock_replaces_continuous":
-                bool(results["self-clock"] >= results["continuous"] - NONINFERIORITY_MARGIN),
-            "self_clock_above_shuffled": bool(results["self-clock"] > results["shuffled"]),
-            "self_clock_beats_fixed": bool(results["self-clock"] > best_fixed),
+                bool(results["self-clock-i"] >= results["continuous"] - NONINFERIORITY_MARGIN),
+            "self_clock_above_shuffled": bool(results["self-clock-i"] > results["shuffled"]),
+            "self_clock_beats_fixed": bool(results["self-clock-i"] > best_fixed),
         },
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
