@@ -36,7 +36,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
-from nb063 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
+from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
 SLUG = "nb036"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -150,7 +150,7 @@ def seeds_for(theta_u: float | None) -> list[int]:
 
 
 def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
-    """θ_u cell — now the shared nb063 cell (train-once / reuse-many). nb063
+    """θ_u cell — now the shared nb022 cell (train-once / reuse-many). nb022
     owns the θ_u sweep; nb036 keeps its own coupling-grid cells locally."""
     return shared_cell_dir(cell_name(model, theta_u, seed))
 
@@ -893,7 +893,7 @@ def main() -> None:
     if not skip_training:
         dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
         # θ_u baseline/sweep cells (needed for the frontier overlay) are
-        # trained in nb063 now (train-once / reuse-many); read via cell_dir.
+        # trained in nb022 now (train-once / reuse-many); read via cell_dir.
         # nb036 trains only its own coupling cells below.
         gpu_override = None
         if modal_gpu in ("T4", "L4", "A10G"):

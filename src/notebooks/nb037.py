@@ -37,7 +37,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
-from nb063 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
+from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
 SLUG = "nb037"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -160,8 +160,8 @@ def seeds_for(theta_u: float | None) -> list[int]:
 
 
 def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
-    """Trained cell — now the shared nb063 cell (train-once / reuse-many).
-    nb063 owns the θ_u sweep; this notebook only consumes it."""
+    """Trained cell — now the shared nb022 cell (train-once / reuse-many).
+    nb022 owns the θ_u sweep; this notebook only consumes it."""
     return shared_cell_dir(cell_name(model, theta_u, seed))
 
 
@@ -795,8 +795,8 @@ def main() -> None:
         make_artifacts=False,
     )
 
-    # Training lives in nb063 now (train-once / reuse-many). This notebook
-    # consumes the shared cells via cell_dir → nb063.load_cell.
+    # Training lives in nb022 now (train-once / reuse-many). This notebook
+    # consumes the shared cells via cell_dir → nb022.load_cell.
 
     rows: list[dict] = []
     for model in MODELS:

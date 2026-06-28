@@ -96,7 +96,10 @@ PARAM_LABELS = {"W_ff.0": "W_in", "W_ff.1": "W_out"}
 
 
 def cell_dir(model: str, seed: int) -> Path:
-    return ARTIFACTS / f"{model}__seed{seed}"
+    """Trained cell — now the shared nb022 θ_u=off baseline (train-once /
+    reuse-many). nb022 owns the training; nb024 only audits convergence."""
+    from nb022 import cell_dir as shared_cell_dir, cell_name
+    return shared_cell_dir(cell_name(model, None, seed))
 
 
 def build_train_args(model: str, seed: int, tier: str, out_dir: Path) -> list[str]:
@@ -981,23 +984,10 @@ def main() -> None:
         make_artifacts=False,
     )
 
-    if not skip_training:
-        dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
-        for model in MODELS:
-            for seed in SEEDS:
-                out = cell_dir(model, seed)
-                if only_missing and (out / "metrics.json").exists():
-                    print(
-                        f"[skip] {model}/seed={seed} → already trained "
-                        f"at {out.relative_to(REPO)}"
-                    )
-                    continue
-                print(f"[train] {model}/seed={seed} → {out.relative_to(REPO)}")
-                dispatcher.submit(
-                    build_train_args(model, seed, tier, out),
-                    out,
-                )
-        dispatcher.drain()
+    # Training lives in nb022 now (train-once / reuse-many): the θ_u=off
+    # baselines this audit reads are a registry family there. nb024 only
+    # consumes them — the per-epoch weight_norms it needs are written by the
+    # standard train command for every cell.
 
     # Inference: per-cell rate distribution at the final trained state.
     from cli import _auto_device

@@ -1,25 +1,116 @@
 {
-  "notebook_run_id": "r006",
+  "notebook_run_id": "r012",
   "git_sha": null,
-  "duration_s": 0.1,
+  "duration_s": 0.2,
   "duration": "0s",
   "tier": "extra small",
+  "smoke": true,
   "standard": {
-    "epochs": 2,
+    "epochs": 100,
     "dt_ms": 0.1,
     "t_ms": 200.0,
     "dataset": "mnist",
-    "max_samples": 100
+    "max_samples_canonical": 70000,
+    "max_samples_sweeps": 7000
   },
   "training_root": "src/artifacts/notebooks/training",
   "families": [
-    "dt",
-    "init",
+    "canonical",
+    "theta_u",
     "tau_gaba",
-    "theta_u"
+    "dt",
+    "init"
   ],
-  "n_cells": 61,
+  "family_status": {
+    "canonical": {
+      "cells": 6,
+      "trained": 0
+    },
+    "theta_u": {
+      "cells": 16,
+      "trained": 16
+    },
+    "tau_gaba": {
+      "cells": 18,
+      "trained": 18
+    },
+    "dt": {
+      "cells": 15,
+      "trained": 15
+    },
+    "init": {
+      "cells": 12,
+      "trained": 12
+    }
+  },
+  "n_cells": 67,
   "cells": [
+    {
+      "name": "coba__canonical__seed42",
+      "model": "coba",
+      "family": "canonical",
+      "tag": "off \u00b7 all MNIST",
+      "seed": 42,
+      "acc": null,
+      "best_epoch": null,
+      "rate_e": null,
+      "rate_i": null
+    },
+    {
+      "name": "coba__canonical__seed43",
+      "model": "coba",
+      "family": "canonical",
+      "tag": "off \u00b7 all MNIST",
+      "seed": 43,
+      "acc": null,
+      "best_epoch": null,
+      "rate_e": null,
+      "rate_i": null
+    },
+    {
+      "name": "coba__canonical__seed44",
+      "model": "coba",
+      "family": "canonical",
+      "tag": "off \u00b7 all MNIST",
+      "seed": 44,
+      "acc": null,
+      "best_epoch": null,
+      "rate_e": null,
+      "rate_i": null
+    },
+    {
+      "name": "ping__canonical__seed42",
+      "model": "ping",
+      "family": "canonical",
+      "tag": "off \u00b7 all MNIST",
+      "seed": 42,
+      "acc": null,
+      "best_epoch": null,
+      "rate_e": null,
+      "rate_i": null
+    },
+    {
+      "name": "ping__canonical__seed43",
+      "model": "ping",
+      "family": "canonical",
+      "tag": "off \u00b7 all MNIST",
+      "seed": 43,
+      "acc": null,
+      "best_epoch": null,
+      "rate_e": null,
+      "rate_i": null
+    },
+    {
+      "name": "ping__canonical__seed44",
+      "model": "ping",
+      "family": "canonical",
+      "tag": "off \u00b7 all MNIST",
+      "seed": 44,
+      "acc": null,
+      "best_epoch": null,
+      "rate_e": null,
+      "rate_i": null
+    },
     {
       "name": "coba__off__seed42",
       "model": "coba",

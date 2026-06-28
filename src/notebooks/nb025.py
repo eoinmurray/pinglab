@@ -49,7 +49,7 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from cli import theme  # noqa: E402
-from nb063 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
+from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
 SLUG = "nb025"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -173,7 +173,7 @@ def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
     Sweep cells run only at SEED_SWEEP and skip the suffix to keep
     paths short — they live alongside the baseline ones.
     """
-    # θ_u cell — now the shared nb063 cell (train-once / reuse-many). nb063
+    # θ_u cell — now the shared nb022 cell (train-once / reuse-many). nb022
     # owns the θ_u sweep; nb025 keeps only its low_w_in cells locally.
     return shared_cell_dir(cell_name(model, theta_u, seed))
 
@@ -1530,7 +1530,7 @@ def main() -> None:
     only_missing = "--only-missing" in sys.argv
     if not skip_training:
         dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
-        # θ_u sweep training moved to nb063 (train-once / reuse-many); nb025
+        # θ_u sweep training moved to nb022 (train-once / reuse-many); nb025
         # reads those cells via cell_dir and trains only its low_w_in sweep.
         # Low-w_in alternate-schedule sweep:
         gpu_override = None
