@@ -40,11 +40,36 @@
 \maketitle
 
 \begin{abstract}
-To be drafted.
+
+Bullet points for now.
+
 \end{abstract}
 
 \section{Introduction}
-To be drafted.
+
+Introduction is bullets for now, to be completed after methods and results.
+
+Gamma in the brain, it oscillates in the 30-80 Hz band, and is implicated in attention, binding and gating \citep{buzsaki2012mechanisms, fries2015rhythms}, with the original empirical link being gamma in the visual cortex \citep{fries2001modulation}.
+
+Gamma is thought to come from ING and PING, only PING will be investigated here (cite needed for ING).
+
+PING is an emergent property of recurrent EI connections \citep{borgers2017ping, borgerskopell2003synchronization, borgerskopell2005effects}, backed by causal experimental evidence that fast-spiking interneurons generate the rhythm \citep[in vitro,][]{whittington1995synchronized} \citep[via optogenetics,][]{cardin2009driving, sohal2009parvalbumin}, and by the interneuron synaptic mechanisms that synchronise it \citep{bartos2007synaptic}.
+
+We will discuss the state of the art in modelling PING \citep{kopell2010gamma, viriyopase2016cooperation}, and neural mass models and mean field models \citep{wilson1972excitatory, segneri2020theta, nandi2024bursting}. Note here all these model PING, non train it.
+
+Introduction to spiking neural networks with surrogate gradient descent \citep{neftci2019surrogate, eshraghian2023training}. Note these trained networks are current based and non-rhythmic. Or when they are rhythmic the rhythm is injected rather than self organised \citep{yan2025efficient}.
+
+We report a trained PING where the E rate is 10x lower than the non-PING counterpart, while this depends on an increase in the I spikes, it is still relevant because in the cortex I spikes are less costly than E spikes \citep{attwell2001energy, howarth2012updated}.
+
+Biological pyramidal cells fire at low (less than 10Hz) rates, despite strong input \citep{barth2012experimental}. We propose that gamma holds down the rates.
+
+The rate-vs-timing framing: classical views treat rate and spike timing as competitors; we show a regime where the rhythm sets the rate, so the two are one quantity \citep{ainsworth2012rates}.
+
+This work: we train a PING network on a task for the first time, and show the architecture-generated gamma rhythm gates the excitatory population to an order-of-magnitude-lower spike rate at matched accuracy.
+
+The headline claim in one line: gamma gating buys a per-spike economy that is supplied by the architecture, not learned — and it operates online, on continuous input streams, as cortical processing must.
+
+Roadmap of the paper: build the model (Claim 1), locate the onset in theory + data (Claim 2), show the trained economy (Claim 3), prove it is architectural not learned (Claim 4), pin the rate to the clock (Claim 5), test the dynamics for robustness (Claim 6), and demonstrate streaming use (Claim 7).
 
 \section{Results}
 To be drafted.
@@ -53,7 +78,74 @@ To be drafted.
 To be drafted.
 
 \section{Methods}
-To be drafted.
+
+\subsection{Single-neuron model}
+
+We use a conductance-based model with two populations, E and I.
+
+\begin{align}
+  C_m^E \, \frac{dV^E}{dt} &= -g_L^E (V^E - E_L) - g_e^E (V^E - E_e) - g_i^E (V^E - E_i) \\
+  C_m^I \, \frac{dV^I}{dt} &= -g_L^I (V^I - E_L) - g_e^I (V^I - E_e)
+\end{align}
+
+A neuron spikes at threshold $V_\mathrm{th}$ and resets to $V_\mathrm{reset}$ for a refractory period:
+
+\begin{equation}
+  s_{t+1} = \mathbf{1}\!\left[V \geq V_\mathrm{th}\right], \qquad V \leftarrow V_\mathrm{reset} \ \text{if } s_{t+1} = 1 \text{ or refractory}.
+\end{equation}
+
+Each synaptic conductance is an exponential trace driven by presynaptic spikes --- each spike adds its full weight as an instantaneous jump, then the conductance decays with the channel time constant; there is no E$\to$E connection:
+
+\begin{align}
+  \frac{dg^E_e}{dt} &= -\frac{g^E_e}{\tau_\mathrm{AMPA}} + W_\mathrm{in} \sum_k \delta(t - t^\mathrm{inp}_k) \label{eq:gE_e} \\
+  \frac{dg^E_i}{dt} &= -\frac{g^E_i}{\tau_\mathrm{GABA}} + W_\mathrm{ie} \sum_k \delta(t - t^{i}_k)        \label{eq:gE_i} \\
+  \frac{dg^I_e}{dt} &= -\frac{g^I_e}{\tau_\mathrm{AMPA}} + W_\mathrm{ei} \sum_k \delta(t - t^{e}_k)        \label{eq:gI_e}
+\end{align}
+
+Equation~\eqref{eq:gE_e} is E's excitation from the input $W_\mathrm{in}$; \eqref{eq:gE_i} its inhibition from I via $W_\mathrm{ie}$; \eqref{eq:gI_e} the I population's excitation from E via $W_\mathrm{ei}$.
+
+
+\begin{description}
+  \item[Synapse model.] Conductance-based (COBA), the canonical decay-then-add update $g \leftarrow g\,\mathrm{decay} + W\,\mathrm{spike}$, so a spike's full weight is the peak conductance.
+
+  \item[Network architecture.] Input $\to$ hidden E population, with the optional recurrent loop E$\to$I ($W_{ei}$) and I$\to$E ($W_{ie}$); readout $W_\mathrm{out}$ over the E layer. COBA is the loop-off limit ($W_{ei} = W_{ie} = 0$).
+
+  \item[Modelling choice --- no $W_{ee}$, no $W_{ii}$.] Keep the loop minimal so any rhythm is unambiguously PING (E$\leftrightarrow$I), not ING (I$\leftrightarrow$I) or recurrent-E driven; the PING/ING distinction follows \citet{borgers2017ping, viriyopase2016cooperation}.
+
+  \item[Modelling choice --- fixed (untrained) $W_{ei}$, $W_{ie}$.] The loop is a structural prior, not a learned feature; defended empirically by Claim 4 (Figures~\ref{fig:4}--\ref{fig:5}), where unfreezing the weights prunes the loop away. The Dale's-law clamp keeps E and I signs fixed.
+
+  \item[Rhythmicity metric.] The lobe--trough contrast (scored 0--1, nb054), with a short literature note on how it relates to spectral-peak and population-coherence measures \citep{atallah2009instantaneous, xing2012stochastic}.
+
+  \item[Mean-field reduction.] The 4D conductance mean-field used in Claim 2, calibrated from the biophysics with no fitted scale; the Hopf-bifurcation framing follows \citet{wilson1972excitatory, segneri2020theta}.
+
+  \item[Training.] Surrogate-gradient descent on MNIST, optimiser, epochs, seeds; the spike-budget penalty $\theta_u$ traces the accuracy--rate frontier \citep{neftci2019surrogate, eshraghian2023training}.
+
+  \item[Gradient damping for the PING case.] The method that stabilises backprop through the recurrent loop, why the stiff E$\leftrightarrow$I dynamics need it, and what it changes vs.\ vanilla surrogate gradients.
+
+  \item[Surrogate-gradient choice.] The surrogate function and its width, and how the spike nonlinearity is handled in the backward pass \citep{neftci2019surrogate}.
+
+  \item[Dale's-law clamp.] How E and I weight signs are enforced through training, and why this matters for the prune-the-loop result (Claim 4).
+
+  \item[Default parameters table.] The canonical $\tau_\mathrm{GABA}$, $W^{IE}$, pool sizes $N_E$/$N_I$, $\Delta t$, and drive --- the operating point all ``default'' runs use, with the swept ranges noted per claim.
+
+  \item[Integration scheme.] The ODE solver and timestep $\Delta t$, with the invariance check (Claim 6, Figure~\ref{fig:11}) showing results are reported in physical Hz, not per-step.
+
+  \item[Rate and frequency measurement.] How mean E/I rate is computed, how $f_\gamma$ is extracted (Welch PSD peak), and the (cell, cycle) binning used for the spikes-per-cycle statistic (Figure~\ref{fig:7}).
+
+  \item[Spike accounting.] Report both the mean E rate and the total population spike count ($E + I$), so the economy is stated net of the I pool. Excitatory spikes are the costly currency in cortex \citep{attwell2001energy, howarth2012updated} --- we do not build a network-specific metabolic model.
+
+  \item[Reproducibility.] Seeds per condition, the size tiers used for each run, and pointers to the per-notebook repro scripts.
+
+  \item[Software and implementation.] The model, training, and analysis are implemented in Python ($\geq 3.10$). Spiking dynamics and surrogate-gradient training use PyTorch (2.11; with snnTorch 0.9 for baseline spiking primitives); numerical analysis uses NumPy (2.2) and SciPy (1.15); all figures are produced with Matplotlib (3.10). Each result has a standalone notebook script, and each manuscript figure is regenerated, at print quality, by a single render pipeline driven from those scripts.
+
+  \item[Generative-AI use.] Claude Code (Anthropic; model Opus 4.8), an agentic large-language-model coding tool, was used extensively and interactively throughout the development of this work. Its use covers: writing essentially all of the simulation, training, analysis, and figure-rendering code in the project repository; brainstorming, debugging, refactoring, and code review; drafting, revising, and copy-editing prose throughout the manuscript; and interactive iteration on experimental design and presentation choices. No figure, illustration, table, or visualisation in this manuscript is itself produced by a generative AI model: all figures are rendered by Matplotlib from Python code in the project repository, which is available for review. The authors set the research questions, designed every experiment and analysis, decided what to claim, ran every reported simulation, reviewed model-generated code before it was committed, and verified every result and every passage of text in this manuscript. The authors take full responsibility for the content, accuracy, and claims of this work. No AI system is, or could be, listed as an author.
+
+  \item[Datasets and evaluation.] MNIST presentation protocol (duration, input rate), the streaming protocol for Claim 7 (sliding leaky integrator over $W_\mathrm{out}$), and the metrics reported (test accuracy, mean E/I rate, $f_\gamma$).
+\end{description}
+
+\section*{Code and data availability}
+
+Source code, per-notebook reproduction scripts, trained-weight artefacts, and the figure-render pipeline are available at \url{https://github.com/eoinmurray/pinglab}. Standard datasets (MNIST, SHD) are obtained from their public distributors. Library versions are listed in the Methods (Software and implementation).
 
 \appendix
 \section{Figures}
@@ -126,6 +218,7 @@ To be drafted.
   \caption{}\label{fig:13}
 \end{figure}
 
+\clearpage
 \bibliographystyle{unsrtnat}
 \bibliography{references}
 
