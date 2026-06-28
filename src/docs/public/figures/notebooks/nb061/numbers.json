@@ -1,0 +1,48 @@
+{
+  "notebook_run_id": "r001",
+  "git_sha": "ed141d7 (dirty)",
+  "duration_s": 8.8,
+  "duration": "9s",
+  "tier": "small",
+  "config": {
+    "tier": "small",
+    "reused_cell": "src/artifacts/notebooks/nb041/ping__tg6__seed42",
+    "tau_gaba_ms": 6.0,
+    "dataset": "mnist",
+    "t_ms": 200.0,
+    "dt": 0.1,
+    "n_eval": 300,
+    "seed": 42
+  },
+  "f_gamma_hz": 38.9,
+  "f_per_trial": {
+    "median": 39.4,
+    "iqr": [
+      35.2,
+      43.1
+    ],
+    "range": [
+      23.8,
+      54.1
+    ]
+  },
+  "mean_ticks_per_trial": 7.9,
+  "accuracy": {
+    "continuous": 89.0,
+    "self-clock": 88.0,
+    "fixed-clock": 77.0,
+    "shuffled": 70.3
+  },
+  "samples_per_trial": {
+    "continuous": 2000,
+    "self-clock": 7.9,
+    "fixed-clock": 8,
+    "shuffled": 7.9
+  },
+  "fixed_clock_best_phase_steps": 62,
+  "success_criteria": {
+    "self_clock_replaces_continuous": true,
+    "self_clock_above_shuffled": true,
+    "self_clock_beats_fixed": true
+  }
+}

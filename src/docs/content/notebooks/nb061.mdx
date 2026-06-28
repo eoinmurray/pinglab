@@ -1,0 +1,108 @@
+---
+title: "Using the gamma rhythm as a readout clock"
+date: 2026-06-28
+entry: 61
+status: draft
+structure: paper
+collection: ping-as-a-clock
+---
+import Figure from "../../src/components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../public/figures/notebooks/nb061/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+## Abstract
+
+Granting a clean PING gamma rhythm, can the self-generated tick be *used* as a timing reference? Reusing a competent, already-trained PING (the [nb041](/notebooks/nb041/) tg6 cell — GABA decay 6 ms, ≈90% on MNIST, gamma on the task), we treat the inhibitory volley as the clock edge that *samples* the output readout, and compare four sampling schemes on identical spikes and weights. The self-clock matches the always-on readout — 88% against 89% — while reading only ≈8 samples per trial instead of 2000, a ≈250× reduction. It beats random sampling (70%) and beats even a best-phase fixed external clock (77%). A fixed crystal falls short because the rhythm's rate varies per input, from 24 to 54 Hz, so no single period lands on the volleys. Two conclusions: the gamma tick is *good enough to replace* an always-on readout, and a fixed external clock is *not good enough to replace* the gamma tick.
+
+## Background
+
+Neuromorphic hardware sells itself on energy: spikes are sparse, events are rare, so a chip that only works when a spike arrives should sip power where a GPU gulps. But event-driven logic still needs a shared sense of *when* — synaptic delays, refractory periods, the discrete timestep an integrator advances over — and in a synchronous chip that sense of time is distributed by a clock tree that toggles every cycle, everywhere, whether or not the logic underneath is computing. Its dynamic power is routinely one of the largest single draws on the die. The clock is a constant energy tax whose only product is synchrony.
+
+The PING loop generates a gamma rhythm for free, out of its own excitatory–inhibitory dynamics. The question here is whether that architecture-generated rhythm is good enough to *be* the timing reference — to replace the piped-in tick — rather than something the network merely happens to do. The most basic thing a clock does is gate a downstream operation on its edge; here the downstream operation is the classifier's own readout, and the edge is the inhibitory volley. This entry tests usability in the clean regime where the rhythm is intact; whether the rhythm survives per-cell noise is a separate reliability question and not the subject here.
+
+## Method
+
+**Reused network.** We do not retrain. The rhythm is a property of a trained network, so we load the [nb041](/notebooks/nb041/) tg6 cell — a PING with GABA decay 6 ms that reaches ≈90% on MNIST and oscillates in gamma during the task — and run inference only. The cell's GABA time constant is wired back into the synaptic decay on load so the rhythm matches the one it was trained with.
+
+**Readout schemes.** The trained readout is a leaky membrane average (mem-mean): it integrates the output membrane over every timestep. We recover the per-step output contribution from the recorded running mean,
+
+$$
+v_\text{out}(t) = T\,\big[\,o(t) - o(t-1)\,\big],
+\qquad o(t) = \frac{1}{T}\sum_{s\le t} v_\text{out}(s),
+$$
+
+- $v_\text{out}(t)$ — the output-membrane contribution at step $t$, per class;
+- $o(t)$ — the recorded running mem-mean up to step $t$;
+- $T$ — number of integration steps in the trial (2000 at $\Delta t = 0.1$ ms, 200 ms),
+
+then form class logits by averaging $v_\text{out}$ over a chosen set of sample times $\mathcal{S}$:
+
+$$
+z_\mathcal{S} = \frac{1}{|\mathcal{S}|}\sum_{t\in\mathcal{S}} v_\text{out}(t).
+$$
+
+Four choices of $\mathcal{S}$, all on the same spikes and weights:
+
+- **continuous** — every timestep ($\mathcal{S} = \{1,\dots,T\}$): the trained readout, the always-on baseline;
+- **self-clock** — the gamma volley times: the self-grown tick;
+- **fixed-clock** — a fixed period equal to the median gamma period, an external crystal. We sweep its phase across the cycle and report its *best* phase, to steelman it;
+- **shuffled** — random times, matched in count to the self-clock: the floor control.
+
+**Tick detection.** The volley times are the smoothed local maxima of the inhibitory population rate on each trial, separated by at least ≈0.6 of the expected cycle so each volley is counted once. Per-trial gamma frequency is the inverse of the median inter-volley interval.
+
+**Logic.** This is a *non-inferiority* test, not a superiority one. The self-clock is good enough to replace the always-on readout if it falls within a small margin (3 points) of continuous while using far fewer samples; it must beat shuffled or the timing carries no information; and the best-phase fixed clock is the external standard we ask whether a crystal could match.
+
+## Results
+
+The rhythm is real gamma at this operating point — sharp inhibitory volleys and a clean spectral peak at $f_\gamma \approx 39$ Hz, ≈8 cycles in the 200 ms trial.
+
+<Figure id="Figure 1" title="The rhythm is real gamma" src="/figures/notebooks/nb061/rhythm.png" alt="Single-trial E/I raster beside the population-rate spectrum with a sharp peak near 39 Hz.">
+Single-trial raster (E black, I red) and the population-rate spectrum averaged over trials, with the fundamental $f_\gamma \approx 39$ Hz marked. The inhibitory cells fire in tight volleys, one per gamma cycle.
+</Figure>
+
+The self-clock works because the readout itself is volley-locked: the output membrane bursts once per gamma cycle, and sampling on the volley catches each burst.
+
+<Figure id="Figure 2" title="The gamma rhythm gating the readout" src="/figures/notebooks/nb061/clock_gating.png" alt="Inhibitory volley rate above the output trajectory, with sample points landing on each volley.">
+One trial. Top: the inhibitory population rate, its volleys marked as vertical lines. Bottom: the winning-class output trajectory, sampled on those same ticks (dots). The output peaks ride the gamma cycle, so the tick lands on the signal each time — this is the rhythm being used as a sample-and-hold clock.
+</Figure>
+
+Sampling only on the tick recovers essentially all of the accuracy at a fraction of the cost, and beats both controls.
+
+<Figure id="Figure 3" title="Self-clock matches the always-on readout" src="/figures/notebooks/nb061/accuracy_bars.png" alt="Bar chart: continuous 89, self-clock 88, fixed-clock 77, shuffled 70 percent, with samples per trial.">
+Test accuracy across the four schemes, with samples per trial annotated; the shaded band is the non-inferiority margin below continuous. Self-clock sits inside it.
+</Figure>
+
+| scheme | accuracy | samples / trial |
+|---|---|---|
+| continuous | 89.0% | 2000 |
+| self-clock | 88.0% | ≈8 |
+| fixed-clock (best phase) | 77.0% | 8 |
+| shuffled | 70.3% | ≈8 |
+
+The reason the fixed clock falls short is that the rhythm's rate is not fixed: across the test set the per-trial gamma frequency spans 24 to 54 Hz (median 39, interquartile 35–43). A single external period cannot land on the volleys of every trial.
+
+<Figure id="Figure 4" title="A fixed clock cannot track a per-input rhythm" src="/figures/notebooks/nb061/freq_spread.png" alt="Histogram of per-trial gamma frequency from 24 to 54 Hz with the single fixed-clock rate marked.">
+Per-trial gamma frequency across the evaluation set, with the single rate a fixed external clock must commit to (dashed). The rhythm self-organises per input, so the crystal is off-beat on most trials — only a clock derived from the network's own activity tracks it.
+</Figure>
+
+## Discussion
+
+**Good enough to replace the always-on readout.** Self-clock 88% against continuous 89% is within the non-inferiority margin, at ≈250× fewer samples. The readout no longer needs to integrate every timestep; it can latch once per gamma cycle and lose almost nothing. That is the event-driven energy argument made concrete — work is done on the tick, not continuously.
+
+**A fixed external clock is not good enough to replace the gamma tick.** Even steelmanned at its best phase, the crystal reaches only 77%, eleven points short, and Figure 4 says why: the rhythm's frequency rides the input, so a fixed period samples off the volleys. The stronger reading is not merely that the self-clock is as cheap as a crystal, but that a crystal cannot do this job — the informative moments are tied to a rhythm only the network itself defines.
+
+**Honest limits.** Shuffled is 70%, not chance: the mem-mean readout integrates, so even random samples recover a good deal, and the clock's marginal value is the 18-point gap over shuffled and the 11-point margin over the crystal — a solid effect, not a knockout. The result is one cell (tg6, seed 42) at the clean operating point ($\sigma = 0$). It grants an intact rhythm; under per-cell membrane noise the rhythm is fragile, so the usability shown here is real but conditional on a regime that noise can spoil. Usable, but only while the rhythm holds.
+
+## Success criteria
+
+- Self-clock within 3 points of continuous — **met** (88 vs 89): good enough to replace the always-on readout.
+- Self-clock above shuffled — **met** (88 vs 70): the timing carries information.
+- Self-clock above the best-phase fixed clock — **met** (88 vs 77): a fixed crystal cannot stand in.
+
+## Next steps
+
+- Confirm across the [nb041](/notebooks/nb041/) seeds (42/43/44) and a couple of GABA rungs, so the frequency ladder (14–54 Hz) becomes a robustness axis rather than a single point.
+- Build the energy ledger properly: anchor it to the measured ≈250× readout sparsity rather than an assumed per-spike constant, and model a clock tree that scales super-linearly in array size so a crossover can exist.
+- Close the loop: clock a *downstream* layer on the tick (temporal multiplexing of two superposed inputs), so the rhythm gates computation, not just the final readout.
+- Map where on the noise axis the usability survives — the clock is usable in the clean regime, but the rhythm degrades under noise.
