@@ -1,27 +1,40 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% eLife article — class vendored locally (elife.cls, v1.2)
+%%% arXiv preprint — style vendored locally (arxiv.sty).
 %%% Build with pdflatex (latexmk -pdf); see README.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\documentclass[9pt]{elife}
+\documentclass{article}
 
+\usepackage{arxiv}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
 \graphicspath{{figures/}}
-
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[numbers]{natbib}
+\usepackage{hyperref}
 % Let bare underscores print in text mode (DOIs in the bibliography contain
-% them); the package leaves math-mode subscripts untouched.
+% them); leaves math-mode subscripts untouched.
 \usepackage{underscore}
 
-% Remove the grey "Manuscript submitted to eLife" running-header banner
-% (keeps the page-number footer the class sets separately).
-\chead{}
+\renewcommand{\headeright}{Preprint}
+\renewcommand{\undertitle}{Preprint}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Article setup
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \title{paper001}
 
-\author[1]{Eoin Murray}
-\author[1]{Timothy O'Leary}
-\affil[1]{Department of Engineering, University of Cambridge}
+\author{
+  Eoin Murray \\
+  Department of Engineering \\
+  University of Cambridge \\
+  \And
+  Timothy O'Leary \\
+  Department of Engineering \\
+  University of Cambridge \\
+}
 
 \begin{document}
 \maketitle
@@ -39,42 +52,32 @@ To be drafted.
 \section{Discussion}
 To be drafted.
 
-\section{Materials and methods}
-To be drafted
+\section{Methods}
+To be drafted.
 
 \appendix
 \section{Figures}
 
-% Wide multi-panel compounds span the eLife full width (text column + the
-% wide left margin); single-panel plots sit at the text-column width. Every
-% figure is a vector PDF rendered at its true include width, so on-page type
-% is uniform across the set (see render_figures.py).
+% Single-column preprint: every figure spans the text width. Each is a vector
+% PDF; the render pipeline (render_figures.py) controls its native width.
 
-\begin{figure}[!htbp]   % nb023 — model overview (COBA vs PING)
-  \begin{fullwidth}\centering
-    \includegraphics[width=\linewidth]{nb023_overview_compound.pdf}
-  \end{fullwidth}
+\begin{figure}[!htbp]\centering   % nb023 — model overview (COBA vs PING)
+  \includegraphics[width=\linewidth]{nb023_overview_compound.pdf}
   \caption{}\label{fig:1}
 \end{figure}
 
-\begin{figure}[!htbp]   % nb057 — gamma onset / Hopf bifurcation
-  \begin{fullwidth}\centering
-    \includegraphics[width=\linewidth]{nb057_onset_super_compound.pdf}
-  \end{fullwidth}
+\begin{figure}[!htbp]\centering   % nb057 — gamma onset / Hopf bifurcation
+  \includegraphics[width=\linewidth]{nb057_onset_super_compound.pdf}
   \caption{}\label{fig:2}
 \end{figure}
 
-\begin{figure}[!htbp]   % nb025 — trained accuracy--rate frontier
-  \begin{fullwidth}\centering
-    \includegraphics[width=\linewidth]{nb025_results_compound.pdf}
-  \end{fullwidth}
+\begin{figure}[!htbp]\centering   % nb025 — trained accuracy--rate frontier
+  \includegraphics[width=\linewidth]{nb025_results_compound.pdf}
   \caption{}\label{fig:3}
 \end{figure}
 
-\begin{figure}[!htbp]   % nb038 — loop transfer at inference
-  \begin{fullwidth}\centering
-    \includegraphics[width=\linewidth]{nb038_loop_transfer_compound.pdf}
-  \end{fullwidth}
+\begin{figure}[!htbp]\centering   % nb038 — loop transfer at inference
+  \includegraphics[width=\linewidth]{nb038_loop_transfer_compound.pdf}
   \caption{}\label{fig:4}
 \end{figure}
 
@@ -88,10 +91,8 @@ To be drafted
   \caption{}\label{fig:6}
 \end{figure}
 
-\begin{figure}[!htbp]   % nb046 — spikes per cycle distribution
-  \begin{fullwidth}\centering
-    \includegraphics[width=\linewidth]{nb046_spikes_per_cycle_distribution.pdf}
-  \end{fullwidth}
+\begin{figure}[!htbp]\centering   % nb046 — spikes per cycle distribution
+  \includegraphics[width=\linewidth]{nb046_spikes_per_cycle_distribution.pdf}
   \caption{}\label{fig:7}
 \end{figure}
 
@@ -105,10 +106,8 @@ To be drafted
   \caption{}\label{fig:9}
 \end{figure}
 
-\begin{figure}[!htbp]   % nb042 — timing vs mean inhibition
-  \begin{fullwidth}\centering
-    \includegraphics[width=\linewidth]{nb042_rhythm_compound.pdf}
-  \end{fullwidth}
+\begin{figure}[!htbp]\centering   % nb042 — timing vs mean inhibition
+  \includegraphics[width=\linewidth]{nb042_rhythm_compound.pdf}
   \caption{}\label{fig:10}
 \end{figure}
 
@@ -117,10 +116,8 @@ To be drafted
   \caption{}\label{fig:11}
 \end{figure}
 
-\begin{figure}[!htbp]   % nb048 — streaming classification
-  \begin{fullwidth}\centering
-    \includegraphics[width=\linewidth]{nb048_varying_headline_stream.pdf}
-  \end{fullwidth}
+\begin{figure}[!htbp]\centering   % nb048 — streaming classification
+  \includegraphics[width=\linewidth]{nb048_varying_headline_stream.pdf}
   \caption{}\label{fig:12}
 \end{figure}
 
@@ -129,6 +126,7 @@ To be drafted
   \caption{}\label{fig:13}
 \end{figure}
 
+\bibliographystyle{unsrtnat}
 \bibliography{references}
 
 \end{document}
