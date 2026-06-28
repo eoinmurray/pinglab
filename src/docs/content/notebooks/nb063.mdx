@@ -55,7 +55,11 @@ The registry is organised into families, each a parameter sweep one notebook use
 
 - **ping, Δt ∈ {0.05, 0.1, 0.25, 0.5, 1.0} ms** — seeds 42, 43, 44 each
 
-That is **49 cells** across three families. The init-variant ([nb049](/notebooks/nb049/)) and coupling-grid ([nb036](/notebooks/nb036/)) families are still to fold in.
+**Recurrent-loop init variants** (ping; [nb049](/notebooks/nb049/)) — 12 cells:
+
+- **frozen_ping** (ei = 1, W_EI/W_IE frozen), **trainable_ping_init** (ei = 1, trainable), **trainable_zero_init** (ei = 0, trainable), **trainable_small_init** (ei = 0.1, trainable) — seeds 42, 43, 44 each
+
+That is **61 cells** across four families. The coupling-grid ([nb036](/notebooks/nb036/)) family — a 5×5 W^EI×W^IE grid plus a W^EI diagonal sweep — is the one family still trained locally: it is nb036-specific (no redundancy with other notebooks), so it stays put pending a dedicated fold.
 
 ## Method
 
@@ -64,25 +68,28 @@ The runner dispatches each registry cell through the standard train command to a
 - they ask for a cell by name and receive its trained directory, or a loud failure telling them to run this notebook first;
 - they never train; the training block is gone from each.
 
-The summary below is the accuracy / E-rate cloud across all cells — the θ_u sweep traces each model's spike-economy frontier, and the unpenalised cells are the baselines the probe notebooks build on.
+The summary below is the accuracy / E-rate cloud across all cells, coloured by training family — a quick read on where each family sits in the spike-economy plane.
 
-<Figure id="Figure 1" title="Canonical training — shared cells" src="/figures/notebooks/nb063/training_summary.png" alt="Accuracy versus final E-rate for every trained cell, coloured by model.">
-Best test accuracy against final excitatory rate for every shared cell, coloured by model (coba red, ping black), each point labelled by its θ_u budget. Populated by the canonical run.
+<Figure id="Figure 1" title="Canonical training — shared cells by family" src="/figures/notebooks/nb063/training_summary.png" alt="Accuracy versus final E-rate for every trained cell, coloured by training family.">
+Best test accuracy against final excitatory rate for every shared cell, coloured by training family (θ_u, τ_GABA, Δt, init).
 </Figure>
 
 ## Migrated
 
 Notebooks now reusing these cells instead of retraining:
 
+- [nb025](/notebooks/nb025/) — θ_u reference figures (keeps only its own low_w_in cells);
+- [nb036](/notebooks/nb036/) — coupling study (θ_u baselines via the shared root; keeps its own coupling grid);
 - [nb037](/notebooks/nb037/) — spike-stream and τ_GABA perturbation probes (θ_u);
 - [nb038](/notebooks/nb038/) — f–I curve and COBA→PING loop-transfer probes (θ_u);
 - [nb041](/notebooks/nb041/) — τ_GABA → f_γ → rate-ceiling sweep (τ_GABA family);
 - [nb044](/notebooks/nb044/) — integration-timestep audit (Δt family);
+- [nb049](/notebooks/nb049/) — does gradient descent discover PING (init family);
 - [nb061](/notebooks/nb061/) — gamma-clock readout (reuses the τ_GABA tg6 cell).
 
-The τ_GABA and Δt cells already trained on disk were folded into the shared root, so no retraining was needed for them.
+Every cell these notebooks need was already trained on disk and was folded into the shared root, so no retraining was required to migrate them.
 
-Still to fold: [nb024](/notebooks/nb024/) (100-epoch audit, reuses the θ_u baselines), [nb049](/notebooks/nb049/) init variants, and [nb036](/notebooks/nb036/)'s coupling grid (plus its copy of the θ_u cells).
+Still to fold: [nb024](/notebooks/nb024/) (100-epoch audit, would reuse the θ_u baselines) and [nb036](/notebooks/nb036/)'s coupling grid (nb036-specific, no redundancy — a dedicated fold).
 
 ## Next steps
 
