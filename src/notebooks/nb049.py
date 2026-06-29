@@ -1014,22 +1014,24 @@ def fig_attractor(summary_rows, out_path, run_id):
 
 # ── Main ────────────────────────────────────────────────────────────
 def _load_epoch_curves() -> dict:
-    """Read per-epoch metrics.jsonl for every nb049 run on disk."""
+    """Read per-epoch metrics.jsonl for every nb049 condition from the shared
+    training root (nb022 train-once / reuse-many), not nb049's own dir."""
     runs = {}
-    for d in sorted(ARTIFACTS.glob("*__seed*")):
-        f = d / "metrics.jsonl"
-        if not f.exists():
-            continue
-        cond = d.name.rsplit("__seed", 1)[0]
-        rows = [json.loads(ln) for ln in f.read_text().splitlines() if ln.strip()]
-        runs[d.name] = {
-            "cond": cond,
-            "ep": [r["ep"] for r in rows],
-            "acc": [r["acc"] for r in rows],
-            "rate_e": [r.get("test_rate_e", r.get("rate_e")) for r in rows],
-            "rate_i": [r.get("test_rate_i", r.get("rate_i")) for r in rows],
-            "contrast": [r.get("contrast") for r in rows],
-        }
+    for cond in COND_ORDER:
+        for seed in SEEDS:
+            d = cell_dir(cond, seed)
+            f = d / "metrics.jsonl"
+            if not f.exists():
+                continue
+            rows = [json.loads(ln) for ln in f.read_text().splitlines() if ln.strip()]
+            runs[d.name] = {
+                "cond": cond,
+                "ep": [r["ep"] for r in rows],
+                "acc": [r["acc"] for r in rows],
+                "rate_e": [r.get("test_rate_e", r.get("rate_e")) for r in rows],
+                "rate_i": [r.get("test_rate_i", r.get("rate_i")) for r in rows],
+                "contrast": [r.get("contrast") for r in rows],
+            }
     return runs
 
 

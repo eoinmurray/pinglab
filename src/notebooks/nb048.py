@@ -49,8 +49,10 @@ SEEDS: list[int] = [42, 43, 44]
 
 
 def baseline_dir(seed: int) -> Path:
+    # θ_u = off PING baseline now lives in the shared training root (nb022
+    # train-once / reuse-many), not the retired per-notebook nb025 dir.
     return (
-        REPO / "src" / "artifacts" / "notebooks" / "nb025"
+        REPO / "src" / "artifacts" / "notebooks" / "training"
         / f"ping__off__seed{seed}"
     )
 
