@@ -1628,10 +1628,13 @@ def main() -> None:
                 f"θ_u={theta_display(theta_u):>4} ({theta_hz(theta_u):>4.1f} Hz)"
                 if theta_u is not None else "θ_u= off"
             )
+            # f_γ and p are None for COBA (no loop → no gamma cycles to bin).
+            fg = f"{m['f_gamma']:5.2f}" if m["f_gamma"] is not None else "   --"
+            pp = f"{m['p']:.3f}" if m["p"] is not None else "  -- "
             print(
                 f"  {model:<5}  {theta_str}  "
                 f"acc={m['acc']:5.2f}%  E={m['e_rate']:5.2f} Hz  "
-                f"f_γ={m['f_gamma']:5.2f} Hz  p={m['p']:.3f}"
+                f"f_γ={fg} Hz  p={pp}"
             )
     plot_theta_p_fgamma(
         pfg_rows, FIGURES / "theta_p_fgamma.png", notebook_run_id,
