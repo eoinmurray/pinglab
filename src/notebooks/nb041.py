@@ -30,6 +30,7 @@ from scipy import signal as sp_signal
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
@@ -355,7 +356,7 @@ def plot_quantitative_law(
         by_tau.setdefault(r["tau_gaba_ms"], []).append(r)
 
     fig, (ax_rate, ax_acc) = plt.subplots(
-        2, 1, figsize=(8.0, 6.0), dpi=150, sharex=True,
+        2, 1, figsize=(5.6, 4.2), sharex=True,
         gridspec_kw={"hspace": 0.12, "height_ratios": [1.6, 1.0]},
     )
 
@@ -454,7 +455,7 @@ def plot_quantitative_law(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
     return {
         "p_affine": p_fit,
@@ -474,7 +475,7 @@ def plot_training_curves(
     cmap = plt.get_cmap("viridis")
     taus_sorted = list(TAU_GABA_SWEEP)
     fig, (ax_acc, ax_rate) = plt.subplots(
-        2, 1, figsize=(8.0, 6.0), dpi=150, sharex=True,
+        2, 1, figsize=(6.9, 5.175), sharex=True,
         gridspec_kw={"hspace": 0.15},
     )
     for i, tau in enumerate(taus_sorted):
@@ -506,7 +507,7 @@ def plot_training_curves(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -520,7 +521,7 @@ def plot_psd_panel(
     for r in rows:
         by_tau.setdefault(r["tau_gaba_ms"], []).append(r)
 
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    fig, ax = plt.subplots(figsize=(5.6, 3.15))
     cmap = plt.get_cmap("viridis")
     taus_sorted = sorted(by_tau.keys())
     for i, tau in enumerate(taus_sorted):
@@ -552,7 +553,7 @@ def plot_psd_panel(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -575,7 +576,7 @@ def plot_per_trial_peaks(
     cmap = plt.get_cmap("viridis")
 
     fig, axes = plt.subplots(
-        n_taus, 1, figsize=(8.0, 1.5 * n_taus + 1.0), dpi=150, sharex=True,
+        n_taus, 1, figsize=(6.9, (1.5 * n_taus + 1.0) * 0.8625), sharex=True,
     )
     if n_taus == 1:
         axes = [axes]
@@ -622,7 +623,7 @@ def plot_per_trial_peaks(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -641,7 +642,7 @@ def plot_raster_strip(
     n_i = RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 1.0 * n + 1.0),
+        n, 1, figsize=(6.9, (1.0 * n + 1.0) * 0.69),
         sharex=True, gridspec_kw={"hspace": 0.22},
     )
     if n == 1:
@@ -679,13 +680,17 @@ def plot_raster_strip(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
 # ─── success criteria ───────────────────────────────────────────────
 
 def main() -> None:
+    # Publication profile: every figure this notebook writes is a print-sized
+    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+    theme.set_paper_mode(True)
+
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
@@ -732,19 +737,19 @@ def main() -> None:
             )
 
     fit = plot_quantitative_law(
-        rows, FIGURES / "rate_vs_fgamma.png", notebook_run_id,
+        rows, FIGURES / "rate_vs_fgamma", notebook_run_id,
     )
     print(
-        f"wrote {FIGURES / 'rate_vs_fgamma.png'}  "
+        f"wrote {FIGURES / 'rate_vs_fgamma'}.{{svg,pdf}}  "
         f"(affine: a={fit['a_affine']:.2f}, p={fit['p_affine']:.3f}, "
         f"R²={fit['r2_affine']:.3f})"
     )
-    plot_psd_panel(rows, FIGURES / "psds.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'psds.png'}")
+    plot_psd_panel(rows, FIGURES / "psds", notebook_run_id)
+    print(f"wrote {FIGURES / 'psds'}.{{svg,pdf}}")
     plot_per_trial_peaks(
-        rows, FIGURES / "per_trial_peaks.png", notebook_run_id,
+        rows, FIGURES / "per_trial_peaks", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'per_trial_peaks.png'}")
+    print(f"wrote {FIGURES / 'per_trial_peaks'}.{{svg,pdf}}")
 
     # Raster strip — one panel per τ_GABA cluster, seed 42 only. Makes
     # the affine law visceral: shorter τ_GABA → faster gamma → more
@@ -756,13 +761,13 @@ def main() -> None:
         train_dir = cell_dir(tau_ms, SEEDS[0])
         raster_samples.append(capture_raster(train_dir, RASTER_SAMPLE_IDX, device))
     plot_raster_strip(
-        raster_samples, FIGURES / "raster_strip.png", notebook_run_id,
+        raster_samples, FIGURES / "raster_strip", notebook_run_id,
         t_window_ms=RASTER_T_WINDOW_MS,
     )
-    print(f"wrote {FIGURES / 'raster_strip.png'}")
+    print(f"wrote {FIGURES / 'raster_strip'}.{{png,pdf}}")
 
-    plot_training_curves(FIGURES / "training_curves.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'training_curves.png'}")
+    plot_training_curves(FIGURES / "training_curves", notebook_run_id)
+    print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(cell_dir(TAU_GABA_SWEEP[0], SEEDS[0]))

@@ -32,6 +32,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
@@ -545,7 +546,7 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     n_i = EI_RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 5.625),
+        n, 1, figsize=(5.6, 3.15),
         sharex=True, gridspec_kw={"hspace": 0.18},
     )
     if n == 1:
@@ -589,7 +590,7 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -672,10 +673,10 @@ def plot_fi_curve_uniform(
     both models' E curves to expose the recruitment cliff."""
     theme.apply()
     if zoom_rows is None:
-        fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.5), dpi=150)
+        fig, axes = plt.subplots(1, 2, figsize=(5.6, 2.1))
         top_axes = list(axes)
     else:
-        fig, axes = plt.subplots(2, 2, figsize=(12.0, 9.0), dpi=150)
+        fig, axes = plt.subplots(2, 2, figsize=(5.6, 4.2))
         top_axes = list(axes[0])
     titles = {"ping": "PING (I-loop active)", "coba": "COBA (no I-loop)"}
     for ax, model in zip(top_axes, MODELS):
@@ -741,7 +742,7 @@ def plot_fi_curve_uniform(
     )
     fig.tight_layout()
     stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)  # line/curve plot: SVG + PDF
     plt.close(fig)
 
 
@@ -750,7 +751,7 @@ def plot_fi_curve(samples: list[dict], out_path: Path, run_id: str) -> None:
     x-axis: input Poisson rate (Hz, per channel). y-axis: per-cell mean
     firing rate of E (black) and I (red) populations across the trial."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    fig, ax = plt.subplots(figsize=(5.6, 3.15))
     xs = [s["spike_rate"] for s in samples]
     e_ys = [s["e_rate_hz"] for s in samples]
     i_ys = [s["i_rate_hz"] for s in samples]
@@ -765,7 +766,7 @@ def plot_fi_curve(samples: list[dict], out_path: Path, run_id: str) -> None:
     )
     fig.tight_layout()
     stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)  # line/curve plot: SVG + PDF
     plt.close(fig)
 
 
@@ -784,7 +785,7 @@ def plot_ei_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     n_i = EI_RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 5.625),
+        n, 1, figsize=(5.6, 3.15),
         sharex=True, gridspec_kw={"hspace": 0.18},
     )
     if n == 1:
@@ -823,7 +824,7 @@ def plot_ei_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -834,7 +835,7 @@ def plot_ei_acc_sweep(points: list[dict], out_path: Path, run_id: str) -> None:
     base_acc = points[0]["acc"]
     worst = min(points, key=lambda p: p["acc"])
     y_hi = min(max(accs + [base_acc]) + 6, 100)
-    fig, ax = plt.subplots(figsize=(8.0, 4.5))
+    fig, ax = plt.subplots(figsize=(5.6, 3.15))
     ax.axhline(
         base_acc, color=theme.LABEL, lw=1.0, ls="--",
         label=f"baseline {base_acc:.1f}%",
@@ -860,7 +861,7 @@ def plot_ei_acc_sweep(points: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)  # line/curve plot: SVG + PDF
     plt.close(fig)
 
 
@@ -869,7 +870,7 @@ def plot_ei_rates_sweep(points: list[dict], out_path: Path, run_id: str) -> None
     eis = [p["ei_strength"] for p in points]
     hid = [p.get("hid_rate_hz") or 0.0 for p in points]
     inh = [p.get("inh_rate_hz") or 0.0 for p in points]
-    fig, ax = plt.subplots(figsize=(8.0, 4.5))
+    fig, ax = plt.subplots(figsize=(5.6, 3.15))
     ax.plot(eis, hid, marker="o", color=theme.INK_BLACK, label="E (hidden)")
     ax.plot(eis, inh, marker="s", color=theme.DEEP_RED, label="I (inhibitory)")
     ax.set_xlabel("inference E→I strength")
@@ -877,7 +878,7 @@ def plot_ei_rates_sweep(points: list[dict], out_path: Path, run_id: str) -> None
     ax.legend(loc="upper right")
     fig.tight_layout()
     stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)  # line/curve plot: SVG + PDF
     plt.close(fig)
 
 
@@ -914,14 +915,14 @@ def run_ei_sweep(notebook_run_id: str) -> list[dict]:
         capture_ei_raster(train_dir, ei, EI_RASTER_SAMPLE_IDX) for ei in EI_RASTER
     ]
 
-    plot_ei_rasters(raster_samples, FIGURES / "ei_rasters.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'ei_rasters.png'}")
+    plot_ei_rasters(raster_samples, FIGURES / "ei_rasters", notebook_run_id)
+    print(f"wrote {FIGURES / 'ei_rasters'}.{{png,pdf}}")
     # Compound (Figure 1): the rate/accuracy sweeps fold into it, so the two
     # standalone sweep plots are no longer emitted.
     fig_loop_transfer_compound(
         points, raster_samples[0], raster_samples[-1],
-        FIGURES / "loop_transfer_compound.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'loop_transfer_compound.png'}")
+        FIGURES / "loop_transfer_compound", notebook_run_id)
+    print(f"wrote {FIGURES / 'loop_transfer_compound'}.{{png,pdf}}")
     return points
 
 
@@ -1084,7 +1085,7 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
     from matplotlib.gridspec import GridSpec
 
-    fig = plt.figure(figsize=(12, 6.75), dpi=150)  # 16:9
+    fig = plt.figure(figsize=(6.9, 3.88))  # 16:9, full text width
     gs = GridSpec(2, 2, figure=fig, height_ratios=[3.0, 2.6],
                   hspace=0.5, wspace=0.22, top=0.93, bottom=0.1, left=0.07, right=0.96)
 
@@ -1133,7 +1134,8 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
     _despine(ax_a)
 
     stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
+    # Compound contains dense single-trial raster panels: rasterise as PNG, not SVG.
+    save_figure(fig, out_path, formats=("png", "pdf"))
     plt.close(fig)
 
 
@@ -1153,12 +1155,16 @@ def build_loop_transfer_compound(run_id: str = "replot") -> None:
     r_lo = capture_ei_raster(train_dir, 0.0, EI_RASTER_SAMPLE_IDX)
     r_hi = capture_ei_raster(train_dir, 1.0, EI_RASTER_SAMPLE_IDX)
     FIGURES.mkdir(parents=True, exist_ok=True)
-    out = FIGURES / "loop_transfer_compound.png"
+    out = FIGURES / "loop_transfer_compound"
     fig_loop_transfer_compound(points, r_lo, r_hi, out, run_id)
-    print(f"wrote {out}")
+    print(f"wrote {out}.{{png,pdf}}")
 
 
 def main() -> None:
+    # Publication profile: every figure this notebook writes is a print-sized
+    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+    theme.set_paper_mode(True)
+
     if "--compound-only" in sys.argv:
         build_loop_transfer_compound()
         return
@@ -1242,19 +1248,19 @@ def main() -> None:
         for r in rate_grid
     ]
     plot_rate_rasters(
-        rate_samples, FIGURES / "rate_rasters__ping.png", notebook_run_id
+        rate_samples, FIGURES / "rate_rasters__ping", notebook_run_id
     )
-    print(f"wrote {FIGURES / 'rate_rasters__ping.png'}")
-    plot_fi_curve(rate_samples, FIGURES / "fi_curve__ping.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'fi_curve__ping.png'}")
+    print(f"wrote {FIGURES / 'rate_rasters__ping'}.{{png,pdf}}")
+    plot_fi_curve(rate_samples, FIGURES / "fi_curve__ping", notebook_run_id)
+    print(f"wrote {FIGURES / 'fi_curve__ping'}.{{svg,pdf}}")
 
     # Uniform-input f-I curves for PING and COBA — no MNIST structure.
     print("[fi-sweep] uniform Poisson input on trained PING and COBA (wide)")
     fi_rows = run_fi_sweep_uniform(notebook_run_id)
     plot_fi_curve_uniform(
-        fi_rows, FIGURES / "fi_curve_uniform.png", notebook_run_id,
+        fi_rows, FIGURES / "fi_curve_uniform", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'fi_curve_uniform.png'}")
+    print(f"wrote {FIGURES / 'fi_curve_uniform'}.{{svg,pdf}}")
 
     # EI-strength sweep (subsumes nb019): replay COBA-trained weights
     # with progressively stronger I-loop.
