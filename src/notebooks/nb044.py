@@ -26,6 +26,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
@@ -276,7 +277,7 @@ def plot_dt_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
         if len(by_dt[d]) > 1 else 0.0 for d in dts_sorted
     ]
 
-    fig, ax_rate = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    fig, ax_rate = plt.subplots(figsize=(5.6, 3.5))
     ax_rate.errorbar(
         dts_sorted, e_means, yerr=e_sems,
         marker="D", markersize=6, lw=1.4, color=theme.INK_BLACK,
@@ -311,7 +312,7 @@ def plot_dt_sweep(rows: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -327,7 +328,7 @@ def plot_raster_strip(
     n_i = RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 1.0 * n + 1.0),
+        n, 1, figsize=(6.9, 0.7 * n + 0.8),
         sharex=True, gridspec_kw={"hspace": 0.22},
     )
     if n == 1:
@@ -366,7 +367,7 @@ def plot_raster_strip(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -380,7 +381,7 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
     cmap = plt.get_cmap("viridis")
     dts_sorted = list(DT_SWEEP_MS)
     fig, (ax_acc, ax_rate) = plt.subplots(
-        2, 1, figsize=(8.0, 6.0), dpi=150, sharex=True,
+        2, 1, figsize=(5.6, 4.6), sharex=True,
         gridspec_kw={"hspace": 0.15},
     )
     for i, dt_ms in enumerate(dts_sorted):
@@ -412,7 +413,7 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 def main() -> None:
@@ -421,6 +422,10 @@ def main() -> None:
     skip_training = "--skip-training" in sys.argv
     only_missing = "--only-missing" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
+
+    # Publication profile: every figure this notebook writes is a print-sized
+    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+    theme.set_paper_mode(True)
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
@@ -469,8 +474,8 @@ def main() -> None:
                 f"I={res['i_rate_hz']:6.2f} Hz  ({time.monotonic() - t0:.1f}s)"
             )
 
-    plot_dt_sweep(rows, FIGURES / "dt_sweep.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'dt_sweep.png'}")
+    plot_dt_sweep(rows, FIGURES / "dt_sweep", notebook_run_id)
+    print(f"wrote {FIGURES / 'dt_sweep'}.{{svg,pdf}}")
 
     # Raster strip — one trial per Δt, all from seed 42.
     raster_seed = SEEDS[0]
@@ -481,12 +486,12 @@ def main() -> None:
         run_dir = cell_dir(dt_ms, raster_seed)
         samples.append(capture_raster(run_dir, RASTER_SAMPLE_IDX, device))
     plot_raster_strip(
-        samples, FIGURES / "raster_strip.png", notebook_run_id,
+        samples, FIGURES / "raster_strip", notebook_run_id,
         t_window_ms=RASTER_T_WINDOW_MS,
     )
-    print(f"wrote {FIGURES / 'raster_strip.png'}")
-    plot_training_curves(FIGURES / "training_curves.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'training_curves.png'}")
+    print(f"wrote {FIGURES / 'raster_strip'}.{{svg,pdf}}")
+    plot_training_curves(FIGURES / "training_curves", notebook_run_id)
+    print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(cell_dir(DT_SWEEP_MS[0], SEEDS[0]))
