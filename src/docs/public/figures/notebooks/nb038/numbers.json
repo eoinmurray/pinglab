@@ -1,8 +1,8 @@
 {
-  "notebook_run_id": "r002",
-  "git_sha": "0f0ecf9 (dirty)",
-  "duration_s": 119.8,
-  "duration": "2m 00s",
+  "notebook_run_id": "r003",
+  "git_sha": "ed141d7 (dirty)",
+  "duration_s": 165.6,
+  "duration": "2m 46s",
   "tier": "small",
   "config": {
     "tier": "small",
@@ -44,10 +44,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 42,
-      "best_acc": 88.25,
-      "best_epoch": 28,
-      "final_acc": 88.0,
-      "rate_e": 87.75498962402344
+      "best_acc": 89.75,
+      "best_epoch": 87,
+      "final_acc": 89.75,
+      "rate_e": 96.32703399658203
     },
     {
       "model": "coba",
@@ -55,10 +55,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 43,
-      "best_acc": 87.75,
-      "best_epoch": 24,
-      "final_acc": 87.75,
-      "rate_e": 87.6247787475586
+      "best_acc": 90.25,
+      "best_epoch": 82,
+      "final_acc": 89.75,
+      "rate_e": 96.96722412109375
     },
     {
       "model": "coba",
@@ -66,10 +66,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 44,
-      "best_acc": 88.0,
-      "best_epoch": 30,
-      "final_acc": 88.0,
-      "rate_e": 87.6736068725586
+      "best_acc": 90.5,
+      "best_epoch": 99,
+      "final_acc": 90.5,
+      "rate_e": 96.37586212158203
     },
     {
       "model": "coba",
@@ -77,10 +77,10 @@
       "theta_display": "5",
       "theta_u_hz": 25.0,
       "seed": 42,
-      "best_acc": 80.25,
-      "best_epoch": 16,
-      "final_acc": 77.75,
-      "rate_e": 32.828773498535156
+      "best_acc": 81.25,
+      "best_epoch": 99,
+      "final_acc": 81.0,
+      "rate_e": 26.98025131225586
     },
     {
       "model": "coba",
@@ -88,10 +88,10 @@
       "theta_display": "2",
       "theta_u_hz": 10.0,
       "seed": 42,
-      "best_acc": 74.0,
-      "best_epoch": 9,
-      "final_acc": 70.75,
-      "rate_e": 11.729599952697754
+      "best_acc": 75.0,
+      "best_epoch": 91,
+      "final_acc": 73.5,
+      "rate_e": 7.70399284362793
     },
     {
       "model": "coba",
@@ -99,10 +99,10 @@
       "theta_display": "1",
       "theta_u_hz": 5.0,
       "seed": 42,
-      "best_acc": 71.5,
-      "best_epoch": 10,
-      "final_acc": 67.75,
-      "rate_e": 3.2931857109069824
+      "best_acc": 72.75,
+      "best_epoch": 9,
+      "final_acc": 65.0,
+      "rate_e": 1.4105901718139648
     },
     {
       "model": "coba",
@@ -110,10 +110,10 @@
       "theta_display": "0.5",
       "theta_u_hz": 2.5,
       "seed": 42,
-      "best_acc": 68.25,
-      "best_epoch": 10,
-      "final_acc": 66.0,
-      "rate_e": 0.3255208134651184
+      "best_acc": 68.0,
+      "best_epoch": 9,
+      "final_acc": 63.0,
+      "rate_e": 0.0922309011220932
     },
     {
       "model": "coba",
@@ -123,7 +123,7 @@
       "seed": 42,
       "best_acc": 62.25,
       "best_epoch": 10,
-      "final_acc": 59.5,
+      "final_acc": 54.25,
       "rate_e": 0.0
     },
     {
@@ -132,10 +132,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 42,
-      "best_acc": 89.0,
-      "best_epoch": 21,
+      "best_acc": 89.5,
+      "best_epoch": 64,
       "final_acc": 88.25,
-      "rate_e": 7.031249523162842
+      "rate_e": 9.85243034362793
     },
     {
       "model": "ping",
@@ -143,10 +143,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 43,
-      "best_acc": 88.75,
-      "best_epoch": 21,
-      "final_acc": 88.0,
-      "rate_e": 6.781683921813965
+      "best_acc": 89.25,
+      "best_epoch": 33,
+      "final_acc": 87.25,
+      "rate_e": 10.81814193725586
     },
     {
       "model": "ping",
@@ -154,10 +154,10 @@
       "theta_display": "off",
       "theta_u_hz": null,
       "seed": 44,
-      "best_acc": 89.5,
-      "best_epoch": 21,
-      "final_acc": 88.25,
-      "rate_e": 7.150607585906982
+      "best_acc": 89.25,
+      "best_epoch": 24,
+      "final_acc": 88.0,
+      "rate_e": 9.944661140441895
     },
     {
       "model": "ping",
@@ -165,10 +165,10 @@
       "theta_display": "5",
       "theta_u_hz": 25.0,
       "seed": 42,
-      "best_acc": 88.75,
-      "best_epoch": 21,
-      "final_acc": 88.0,
-      "rate_e": 7.107204437255859
+      "best_acc": 89.75,
+      "best_epoch": 87,
+      "final_acc": 87.5,
+      "rate_e": 9.830728530883789
     },
     {
       "model": "ping",
@@ -176,10 +176,10 @@
       "theta_display": "2",
       "theta_u_hz": 10.0,
       "seed": 42,
-      "best_acc": 88.75,
-      "best_epoch": 28,
-      "final_acc": 88.75,
-      "rate_e": 6.749131679534912
+      "best_acc": 89.25,
+      "best_epoch": 32,
+      "final_acc": 87.25,
+      "rate_e": 7.7962236404418945
     },
     {
       "model": "ping",
@@ -187,10 +187,10 @@
       "theta_display": "1",
       "theta_u_hz": 5.0,
       "seed": 42,
-      "best_acc": 86.0,
-      "best_epoch": 19,
-      "final_acc": 86.0,
-      "rate_e": 5.36024284362793
+      "best_acc": 88.0,
+      "best_epoch": 87,
+      "final_acc": 87.75,
+      "rate_e": 4.92078971862793
     },
     {
       "model": "ping",
@@ -198,10 +198,10 @@
       "theta_display": "0.5",
       "theta_u_hz": 2.5,
       "seed": 42,
-      "best_acc": 86.25,
-      "best_epoch": 21,
-      "final_acc": 86.0,
-      "rate_e": 2.83203125
+      "best_acc": 87.75,
+      "best_epoch": 22,
+      "final_acc": 85.5,
+      "rate_e": 3.7326388359069824
     },
     {
       "model": "ping",
@@ -209,88 +209,88 @@
       "theta_display": "0.2",
       "theta_u_hz": 1.0,
       "seed": 42,
-      "best_acc": 85.0,
-      "best_epoch": 21,
-      "final_acc": 84.0,
-      "rate_e": 3.5373263359069824
+      "best_acc": 86.25,
+      "best_epoch": 92,
+      "final_acc": 84.5,
+      "rate_e": 5.16493034362793
     }
   ],
   "ei_sweep": [
     {
       "ei_strength": 0.0,
-      "acc": 86.75,
-      "hid_rate_hz": 59.76453857421875,
+      "acc": 88.25,
+      "hid_rate_hz": 70.062939453125,
       "inh_rate_hz": 0.0,
       "n_total": 400
     },
     {
       "ei_strength": 0.1,
-      "acc": 86.75,
-      "hid_rate_hz": 59.76383056640625,
-      "inh_rate_hz": 0.0005859375,
+      "acc": 88.25,
+      "hid_rate_hz": 69.8711181640625,
+      "inh_rate_hz": 0.179345703125,
       "n_total": 400
     },
     {
       "ei_strength": 0.2,
-      "acc": 81.5,
-      "hid_rate_hz": 36.96741943359375,
-      "inh_rate_hz": 13.95986328125,
+      "acc": 82.5,
+      "hid_rate_hz": 40.295849609375,
+      "inh_rate_hz": 19.372265625,
       "n_total": 400
     },
     {
       "ei_strength": 0.3,
-      "acc": 77.5,
-      "hid_rate_hz": 20.64615478515625,
-      "inh_rate_hz": 22.941650390625,
+      "acc": 76.75,
+      "hid_rate_hz": 23.38961181640625,
+      "inh_rate_hz": 27.87138671875,
       "n_total": 400
     },
     {
       "ei_strength": 0.4,
-      "acc": 73.0,
-      "hid_rate_hz": 14.22955322265625,
-      "inh_rate_hz": 25.660107421875,
+      "acc": 71.5,
+      "hid_rate_hz": 16.4135498046875,
+      "inh_rate_hz": 30.253271484375,
       "n_total": 400
     },
     {
       "ei_strength": 0.5,
-      "acc": 70.0,
-      "hid_rate_hz": 10.8836181640625,
-      "inh_rate_hz": 26.55537109375,
+      "acc": 68.0,
+      "hid_rate_hz": 12.60013427734375,
+      "inh_rate_hz": 31.169580078125,
       "n_total": 400
     },
     {
       "ei_strength": 0.6,
-      "acc": 68.75,
-      "hid_rate_hz": 8.8729248046875,
-      "inh_rate_hz": 26.856298828125,
+      "acc": 64.0,
+      "hid_rate_hz": 10.25059814453125,
+      "inh_rate_hz": 31.31455078125,
       "n_total": 400
     },
     {
       "ei_strength": 0.7,
-      "acc": 67.0,
-      "hid_rate_hz": 7.42239990234375,
-      "inh_rate_hz": 27.036865234375,
+      "acc": 61.5,
+      "hid_rate_hz": 8.61837158203125,
+      "inh_rate_hz": 31.2771484375,
       "n_total": 400
     },
     {
       "ei_strength": 0.8,
-      "acc": 67.0,
-      "hid_rate_hz": 6.40555419921875,
-      "inh_rate_hz": 26.877490234375,
+      "acc": 59.5,
+      "hid_rate_hz": 7.46810302734375,
+      "inh_rate_hz": 31.2740234375,
       "n_total": 400
     },
     {
       "ei_strength": 0.9,
-      "acc": 65.5,
-      "hid_rate_hz": 5.64296875,
-      "inh_rate_hz": 26.7576171875,
+      "acc": 55.25,
+      "hid_rate_hz": 6.57615966796875,
+      "inh_rate_hz": 30.925732421875,
       "n_total": 400
     },
     {
       "ei_strength": 1.0,
-      "acc": 62.75,
-      "hid_rate_hz": 5.028759765625,
-      "inh_rate_hz": 26.649951171875,
+      "acc": 55.0,
+      "hid_rate_hz": 5.86258544921875,
+      "inh_rate_hz": 30.750390625,
       "n_total": 400
     }
   ],
@@ -304,151 +304,151 @@
     {
       "model": "coba",
       "input_rate_hz": 1.0,
-      "e_rate_hz": 5.042266845703125,
+      "e_rate_hz": 19.161529541015625,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 2.0,
-      "e_rate_hz": 30.943756103515625,
+      "e_rate_hz": 54.384613037109375,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 3.0,
-      "e_rate_hz": 56.083221435546875,
+      "e_rate_hz": 83.84719848632812,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 4.0,
-      "e_rate_hz": 77.66357421875,
+      "e_rate_hz": 108.09158325195312,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 5.0,
-      "e_rate_hz": 96.0040283203125,
+      "e_rate_hz": 127.88665771484375,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 6.0,
-      "e_rate_hz": 111.82830810546875,
+      "e_rate_hz": 144.75875854492188,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 7.0,
-      "e_rate_hz": 125.94955444335938,
+      "e_rate_hz": 159.57321166992188,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 8.0,
-      "e_rate_hz": 138.53271484375,
+      "e_rate_hz": 172.349853515625,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 9.0,
-      "e_rate_hz": 149.4781494140625,
+      "e_rate_hz": 183.15048217773438,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 10.0,
-      "e_rate_hz": 159.49844360351562,
+      "e_rate_hz": 192.93548583984375,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 12.0,
-      "e_rate_hz": 176.37466430664062,
+      "e_rate_hz": 209.09866333007812,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 14.0,
-      "e_rate_hz": 190.48416137695312,
+      "e_rate_hz": 222.2662353515625,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 16.0,
-      "e_rate_hz": 202.40249633789062,
+      "e_rate_hz": 233.01010131835938,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 18.0,
-      "e_rate_hz": 212.50778198242188,
+      "e_rate_hz": 241.96243286132812,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 20.0,
-      "e_rate_hz": 221.27838134765625,
+      "e_rate_hz": 249.52499389648438,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 25.0,
-      "e_rate_hz": 238.56491088867188,
+      "e_rate_hz": 264.1307067871094,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 30.0,
-      "e_rate_hz": 251.43264770507812,
+      "e_rate_hz": 274.7047424316406,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 35.0,
-      "e_rate_hz": 261.4967346191406,
+      "e_rate_hz": 282.76031494140625,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 40.0,
-      "e_rate_hz": 269.5582580566406,
+      "e_rate_hz": 289.13360595703125,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 50.0,
-      "e_rate_hz": 281.495361328125,
+      "e_rate_hz": 298.3439636230469,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 60.0,
-      "e_rate_hz": 290.0616455078125,
+      "e_rate_hz": 304.7911071777344,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 70.0,
-      "e_rate_hz": 296.47064208984375,
+      "e_rate_hz": 309.5489501953125,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 80.0,
-      "e_rate_hz": 301.45751953125,
+      "e_rate_hz": 313.3738708496094,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 90.0,
-      "e_rate_hz": 305.3932189941406,
+      "e_rate_hz": 316.44500732421875,
       "i_rate_hz": 0.0
     },
     {
       "model": "coba",
       "input_rate_hz": 100.0,
-      "e_rate_hz": 308.66241455078125,
+      "e_rate_hz": 318.83575439453125,
       "i_rate_hz": 0.0
     },
     {
@@ -460,152 +460,152 @@
     {
       "model": "ping",
       "input_rate_hz": 1.0,
-      "e_rate_hz": 2.574615478515625,
-      "i_rate_hz": 4.5660400390625
+      "e_rate_hz": 3.271331787109375,
+      "i_rate_hz": 15.0897216796875
     },
     {
       "model": "ping",
       "input_rate_hz": 2.0,
-      "e_rate_hz": 3.683929443359375,
-      "i_rate_hz": 17.672119140625
+      "e_rate_hz": 5.045928955078125,
+      "i_rate_hz": 24.9078369140625
     },
     {
       "model": "ping",
       "input_rate_hz": 3.0,
-      "e_rate_hz": 4.626007080078125,
-      "i_rate_hz": 23.623046875
+      "e_rate_hz": 6.3690185546875,
+      "i_rate_hz": 29.9993896484375
     },
     {
       "model": "ping",
       "input_rate_hz": 4.0,
-      "e_rate_hz": 5.06927490234375,
-      "i_rate_hz": 26.0638427734375
+      "e_rate_hz": 7.1588134765625,
+      "i_rate_hz": 33.7744140625
     },
     {
       "model": "ping",
       "input_rate_hz": 5.0,
-      "e_rate_hz": 6.21063232421875,
-      "i_rate_hz": 30.1202392578125
+      "e_rate_hz": 8.41796875,
+      "i_rate_hz": 37.6513671875
     },
     {
       "model": "ping",
       "input_rate_hz": 6.0,
-      "e_rate_hz": 6.627197265625,
-      "i_rate_hz": 30.8782958984375
+      "e_rate_hz": 9.23583984375,
+      "i_rate_hz": 42.1868896484375
     },
     {
       "model": "ping",
       "input_rate_hz": 7.0,
-      "e_rate_hz": 7.53448486328125,
-      "i_rate_hz": 35.140380859375
+      "e_rate_hz": 9.737396240234375,
+      "i_rate_hz": 46.1468505859375
     },
     {
       "model": "ping",
       "input_rate_hz": 8.0,
-      "e_rate_hz": 7.9168701171875,
-      "i_rate_hz": 36.951904296875
+      "e_rate_hz": 11.00189208984375,
+      "i_rate_hz": 49.6795654296875
     },
     {
       "model": "ping",
       "input_rate_hz": 9.0,
-      "e_rate_hz": 8.516998291015625,
-      "i_rate_hz": 40.63720703125
+      "e_rate_hz": 11.400604248046875,
+      "i_rate_hz": 51.5692138671875
     },
     {
       "model": "ping",
       "input_rate_hz": 10.0,
-      "e_rate_hz": 9.150238037109375,
-      "i_rate_hz": 43.6334228515625
+      "e_rate_hz": 12.402496337890625,
+      "i_rate_hz": 55.3656005859375
     },
     {
       "model": "ping",
       "input_rate_hz": 12.0,
-      "e_rate_hz": 10.025634765625,
-      "i_rate_hz": 46.0491943359375
+      "e_rate_hz": 13.58154296875,
+      "i_rate_hz": 60.008544921875
     },
     {
       "model": "ping",
       "input_rate_hz": 14.0,
-      "e_rate_hz": 11.08306884765625,
-      "i_rate_hz": 50.8746337890625
+      "e_rate_hz": 14.78546142578125,
+      "i_rate_hz": 65.26611328125
     },
     {
       "model": "ping",
       "input_rate_hz": 16.0,
-      "e_rate_hz": 12.346954345703125,
-      "i_rate_hz": 54.27001953125
+      "e_rate_hz": 15.9747314453125,
+      "i_rate_hz": 69.0228271484375
     },
     {
       "model": "ping",
       "input_rate_hz": 18.0,
-      "e_rate_hz": 12.991943359375,
-      "i_rate_hz": 56.3543701171875
+      "e_rate_hz": 16.739959716796875,
+      "i_rate_hz": 73.804931640625
     },
     {
       "model": "ping",
       "input_rate_hz": 20.0,
-      "e_rate_hz": 14.03961181640625,
-      "i_rate_hz": 60.142822265625
+      "e_rate_hz": 17.917327880859375,
+      "i_rate_hz": 78.5577392578125
     },
     {
       "model": "ping",
       "input_rate_hz": 25.0,
-      "e_rate_hz": 15.714263916015625,
-      "i_rate_hz": 66.3885498046875
+      "e_rate_hz": 19.687347412109375,
+      "i_rate_hz": 88.7200927734375
     },
     {
       "model": "ping",
       "input_rate_hz": 30.0,
-      "e_rate_hz": 17.125396728515625,
-      "i_rate_hz": 72.8204345703125
+      "e_rate_hz": 21.72943115234375,
+      "i_rate_hz": 97.8240966796875
     },
     {
       "model": "ping",
       "input_rate_hz": 35.0,
-      "e_rate_hz": 18.515472412109375,
-      "i_rate_hz": 79.769287109375
+      "e_rate_hz": 23.07037353515625,
+      "i_rate_hz": 107.6959228515625
     },
     {
       "model": "ping",
       "input_rate_hz": 40.0,
-      "e_rate_hz": 19.85443115234375,
-      "i_rate_hz": 85.9649658203125
+      "e_rate_hz": 24.1851806640625,
+      "i_rate_hz": 117.391357421875
     },
     {
       "model": "ping",
       "input_rate_hz": 50.0,
-      "e_rate_hz": 21.95831298828125,
-      "i_rate_hz": 99.512939453125
+      "e_rate_hz": 26.438140869140625,
+      "i_rate_hz": 135.4901123046875
     },
     {
       "model": "ping",
       "input_rate_hz": 60.0,
-      "e_rate_hz": 23.3843994140625,
-      "i_rate_hz": 110.8233642578125
+      "e_rate_hz": 28.431396484375,
+      "i_rate_hz": 153.4356689453125
     },
     {
       "model": "ping",
       "input_rate_hz": 70.0,
-      "e_rate_hz": 25.023193359375,
-      "i_rate_hz": 121.23779296875
+      "e_rate_hz": 30.491485595703125,
+      "i_rate_hz": 170.699462890625
     },
     {
       "model": "ping",
       "input_rate_hz": 80.0,
-      "e_rate_hz": 26.38092041015625,
-      "i_rate_hz": 132.7081298828125
+      "e_rate_hz": 32.6361083984375,
+      "i_rate_hz": 187.835693359375
     },
     {
       "model": "ping",
       "input_rate_hz": 90.0,
-      "e_rate_hz": 27.568511962890625,
-      "i_rate_hz": 142.6788330078125
+      "e_rate_hz": 34.790191650390625,
+      "i_rate_hz": 204.49462890625
     },
     {
       "model": "ping",
       "input_rate_hz": 100.0,
-      "e_rate_hz": 28.88336181640625,
-      "i_rate_hz": 154.366455078125
+      "e_rate_hz": 37.3846435546875,
+      "i_rate_hz": 221.685791015625
     }
   ]
 }

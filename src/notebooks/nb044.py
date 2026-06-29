@@ -367,7 +367,7 @@ def plot_raster_strip(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -489,7 +489,7 @@ def main() -> None:
         samples, FIGURES / "raster_strip", notebook_run_id,
         t_window_ms=RASTER_T_WINDOW_MS,
     )
-    print(f"wrote {FIGURES / 'raster_strip'}.{{svg,pdf}}")
+    print(f"wrote {FIGURES / 'raster_strip'}.{{png,pdf}}")
     plot_training_curves(FIGURES / "training_curves", notebook_run_id)
     print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
 
