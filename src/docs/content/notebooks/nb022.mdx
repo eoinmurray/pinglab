@@ -47,7 +47,56 @@ Each family fixes its synaptic time constants, a timestep, a training length, an
 
 The **canonical** family is the full-MNIST reference (coba and ping at θ_u = off) the 10%-trained sweeps are read against. $\tau_\text{AMPA}$ is fixed at 2 ms throughout. [nb044](/notebooks/nb044/)'s Δt audit is the exception that varies the timestep; the τ_GABA ladder the one that varies the inhibitory decay.
 
-## Results
+### Saved per cell
+
+Each training writes one directory under the shared root (*src/artifacts/notebooks/training/&lt;cell&gt;/*). Every cell saves the same set of files — the contract the analysis notebooks read:
+
+| File | What it holds |
+|---|---|
+| weights.pth | Trained model state — every parameter tensor of the network. |
+| config.json | The full run config: model, lr, epochs, dt, t_ms, tau_gaba, w_in, ei_strength, ei_ratio, max_samples, n_params, and the git sha. |
+| metrics.json | Summary plus the complete per-epoch history: best_acc, best_epoch, total_elapsed_s, and an *epochs* list (one record per epoch). |
+| metrics.jsonl | The same per-epoch records, one JSON object per line — the streaming log written live during training. |
+| test_predictions.json | Predicted vs true label for every image in the test split. |
+| output.log | The training run's stdout. |
+| run.sh | The exact train command, re-runnable. |
+
+**metrics.json** bundles a run summary with the full per-epoch history; **metrics.jsonl** is the same per-epoch records streamed one JSON object per line (written live, so a run can be inspected before it finishes).
+
+Top-level fields in metrics.json:
+
+| Field | Holds |
+|---|---|
+| mode, model | run mode (*train*) and model name. |
+| run_finished_at | UTC timestamp the run completed. |
+| config | the full run config (mirror of config.json). |
+| init, end | network-dynamics snapshot before / after training — each holds rate_e, rate_i, cv, act, $f_0$. |
+| epochs | the list of per-epoch records (below). |
+| best_acc, best_epoch | best test accuracy over the run and the epoch it occurred. |
+| total_elapsed_s | total wall-clock training time. |
+| perf | hardware + throughput: device, torch version, peak memory, first-epoch and warm-mean epoch time, samples/sec. |
+
+Each per-epoch record — one entry in metrics.json's *epochs* list, one line in metrics.jsonl:
+
+| Field | Holds |
+|---|---|
+| ep | epoch number. |
+| acc | test accuracy (%). |
+| loss, test_loss | mean train and test cross-entropy loss. |
+| rate_e, rate_i | mean train-set E and I firing rate (Hz). |
+| test_rate_e, test_rate_i | mean test-set E and I firing rate (Hz). |
+| cv | inter-spike-interval coefficient of variation (spike-timing irregularity). |
+| act | active fraction — share of hidden neurons that fired. |
+| f0 | gamma peak frequency from the population-rate PSD (Hz). |
+| lr | learning rate this epoch. |
+| grad_norm | clipped global gradient norm, mean over the epoch's steps. |
+| grad_norms | gradient norm **per weight type** — win (W_ff.0, input), wout (W_ff.1, readout), and wei (W_ei.1), wie (W_ie.1) for the trainable recurrent loop. Mirrored as gnorm__&lt;param&gt; in the jsonl. |
+| grad_ratios | per-weight-type update-to-weight ratio, same keys as grad_norms. |
+| weight_norms | per-weight-type Frobenius weight norm (read by the convergence audit). |
+| skipped_steps | optimiser steps skipped on non-finite gradients. |
+| new_best | whether this epoch set a new best accuracy. |
+| samples | training samples seen this epoch. |
+| elapsed_s, train_compute_s, eval_s, observe_s | cumulative wall time and the per-epoch timing breakdown. |
 
 ### Canonical reference (θ_u off, all MNIST)
 
