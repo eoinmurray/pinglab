@@ -15,13 +15,17 @@ export const stat = (k) => fam[k] ? (fam[k].trained + "/" + fam[k].cells + " cel
 
 ## Abstract
 
-The single place this collection trains its canonical networks. Every cell is trained once here, to a shared artifact root, and the analysis notebooks load those weights instead of retraining their own — a train-once / reuse-many policy that replaces the older "standalone runner" rule (see [ar016](/articles/ar016/)). Status: **draft** — the registry and standard are fixed, but the cells await the canonical run: the full-MNIST reference is new, and the folded sweep cells on disk predate the gamma standard ($\tau_\text{GABA} = 6$ ms), so they will be retrained at it.
+The one place this collection trains its networks. Every cell is trained once here, to a shared artifact root; the analysis notebooks load those weights instead of retraining — a train-once / reuse-many policy replacing the older standalone-runner rule (see [ar016](/articles/ar016/)). Status **draft**: registry and standard are fixed, but the cells await the canonical run — the full-MNIST reference is new, and the folded sweep cells predate the gamma standard ($\tau_\text{GABA} = 6$ ms) and will be retrained at it.
 
 ## Methods
 
+### Why GPU, not CPU
+
+Training is surrogate-gradient backpropagation-through-time: the network unrolls over ≈ 2000 timesteps and the loss flows back through the whole graph. Each timestep is dense matrix work — conductance decay, synaptic currents, membrane update, surrogate spike — over ≈ 1280 neurons (1024 excitatory + 256 inhibitory) × the minibatch at once. That is wide and uniform, the shape a GPU's thousands of cores run in parallel while a CPU's handful stalls; measured here a discrete GPU is **≈ 3× faster than CPU**, widening with batch size. The unrolled graph also holds every timestep's activations for the backward pass, so it is memory-heavy and wants a large card. On CPU the canonical cells would take days each and the ≈ 360 GPU-hour registry is infeasible — so every cell trains on a GPU.
+
 ### Current trainings
 
-What is actually on disk now — the cells folded in from the original notebooks. They predate the gamma standard: the θ_u, Δt and init families were trained at the old default $\tau_\text{GABA} = 9$ ms (≈ 36 Hz, high beta) and at smaller sample counts, and the full-MNIST canonical reference has not been trained at all. The canonical run brings every row up to the target below.
+What is on disk now — cells folded in from the original notebooks. They predate the gamma standard: the θ_u, Δt and init families ran at the old $\tau_\text{GABA} = 9$ ms (≈ 36 Hz, high beta) on fewer samples, and the canonical reference is untrained. The canonical run brings every row up to the target below.
 
 | Family | Trained | $\tau_\text{AMPA}$ (ms) | $\tau_\text{GABA}$ (ms) | $\Delta t$ (ms) | Epochs | MNIST used |
 |---|---|---|---|---|---|---|
@@ -34,7 +38,7 @@ What is actually on disk now — the cells folded in from the original notebooks
 
 ### Target trainings
 
-Each family fixes its synaptic time constants, a timestep, a training length, and how much of MNIST it sees (of the 70,000-image pool — 60k train + 10k test, sampled then re-split 80/20). The standard $\tau_\text{GABA} = 6$ ms puts the loop in gamma (≈ 44 Hz on the task); the τ_GABA ladder is the family that varies it:
+Each family fixes its time constants, timestep, training length, and how much of the 70,000-image MNIST pool it sees (sampled, then re-split 80/20). The standard $\tau_\text{GABA} = 6$ ms puts the loop in gamma (≈ 44 Hz); the τ_GABA ladder is the family that varies it:
 
 | Family | Trainings | $\tau_\text{AMPA}$ (ms) | $\tau_\text{GABA}$ (ms) | $\Delta t$ (ms) | Epochs | MNIST used |
 |---|---|---|---|---|---|---|
@@ -45,11 +49,11 @@ Each family fixes its synaptic time constants, a timestep, a training length, an
 | init variants | 12 | 2 | 6 | 0.1 | 100 | 7000 (10%) |
 | **total** | **67** | | | | | |
 
-The **canonical** family is the full-MNIST reference (coba and ping at θ_u = off) the 10%-trained sweeps are read against. $\tau_\text{AMPA}$ is fixed at 2 ms throughout. [nb044](/notebooks/nb044/)'s Δt audit is the exception that varies the timestep; the τ_GABA ladder the one that varies the inhibitory decay.
+The **canonical** family (coba and ping at θ_u = off) is the full-MNIST reference the 10%-trained sweeps are read against. $\tau_\text{AMPA}$ is fixed at 2 ms throughout; [nb044](/notebooks/nb044/)'s audit is the lone exception that varies Δt, the τ_GABA ladder the one that varies inhibitory decay.
 
 ### Cost to run
 
-The full registry is ≈ **360 A100-GPU-hours** of work — the six canonical cells (full MNIST × 100 epochs) dominate at ≈ 186 of those hours; the sixty-one 10%-MNIST sweep cells make up the rest. A *GPU-hour* is one GPU running for one hour; the figures below scale that one number across the venues considered. Surrogate-gradient BPTT over ≈ 2000 timesteps is memory-heavy, which is why the cloud options force (or want) a large-memory card.
+The full registry is ≈ **360 A100-GPU-hours** — the six canonical cells (full MNIST × 100 epochs) dominate at ≈ 186, the sixty-one sweep cells make up the rest. The figures below scale that one number across venues (a *GPU-hour* is one GPU for one hour).
 
 | Venue | Card | Price | Estimated for the run | Notes |
 |---|---|---|---|---|
@@ -60,11 +64,11 @@ The full registry is ≈ **360 A100-GPU-hours** of work — the six canonical ce
 | Owned | M5 MacBook Pro (MPS) | owned | impractical at scale | Far slower than any discrete GPU; fine for the smoke tier only. |
 | Owned | 2060-class laptop | owned | impractical | OOMs on the full BPTT graph; ≈ 45 – 90 days even if it fit. |
 
-The standing plan is **Wilkes3** for the canonical run — an order of magnitude cheaper than Modal — with Modal kept for quick one-off cells where its instant fan-out is worth the premium. Vast.ai is the fallback if the HPC account slips.
+The plan is **Wilkes3** for the canonical run — an order of magnitude under Modal — with Modal kept for quick one-offs where instant fan-out is worth the premium, and Vast.ai as fallback if the HPC account slips.
 
 ### Saved per cell
 
-Each training writes one directory under the shared root (*src/artifacts/notebooks/training/&lt;cell&gt;/*). Every cell saves the same set of files — the contract the analysis notebooks read:
+Each training writes one directory under the shared root (*src/artifacts/notebooks/training/&lt;cell&gt;/*), with the same files every time — the contract the analysis notebooks read:
 
 | File | What it holds |
 |---|---|
@@ -76,7 +80,7 @@ Each training writes one directory under the shared root (*src/artifacts/noteboo
 | output.log | The training run's stdout. |
 | run.sh | The exact train command, re-runnable. |
 
-**metrics.json** bundles a run summary with the full per-epoch history; **metrics.jsonl** is the same per-epoch records streamed one JSON object per line (written live, so a run can be inspected before it finishes).
+**metrics.json** bundles a run summary with the full per-epoch history; **metrics.jsonl** streams those same records live, one per line, so a run can be read before it finishes.
 
 Top-level fields in metrics.json:
 
@@ -115,18 +119,18 @@ Each per-epoch record — one entry in metrics.json's *epochs* list, one line in
 
 ### Canonical reference (θ_u off, all MNIST)
 
-coba and ping at θ_u = off, trained on all 70k images, seeds 42/43/44 (6 cells). The full-data baseline. — **{stat("canonical")}**
+coba and ping at θ_u = off, all 70k images, seeds 42/43/44 (6 cells) — the full-data baseline. — **{stat("canonical")}**
 
 <Figure id="Figure 1" title="Canonical reference — training curves" src={fam.canonical?.trained ? "/figures/notebooks/nb022/curves__canonical.png" : ""} alt="Test-accuracy learning curves for the canonical full-MNIST cells.">
-Test accuracy over epochs for the canonical full-MNIST cells. **Not trained yet** — these cells are new and await the canonical run.
+Test accuracy over epochs, canonical full-MNIST cells. **Not trained yet** — new cells awaiting the canonical run.
 </Figure>
 
 ### θ_u spike-budget sweep
 
-coba and ping across θ_u ∈ off, 5, 2, 1, 0.5, 0.2; baselines at three seeds, sweep cells single-seed (16 cells). θ_u is the upper-bound spike budget in spikes/trial. — **{stat("theta_u")}**
+coba and ping across θ_u ∈ off, 5, 2, 1, 0.5, 0.2 (baselines three seeds, sweep cells single-seed, 16 cells). θ_u is the spike budget in spikes/trial. — **{stat("theta_u")}**
 
 <Figure id="Figure 2" title="θ_u sweep — training curves" src={fam.theta_u?.trained ? "/figures/notebooks/nb022/curves__theta_u.png" : ""} alt="Test-accuracy learning curves across the θ_u spike-budget sweep.">
-Test accuracy over epochs across the θ_u sweep. Tighter spike budgets (smaller θ_u) plateau at lower accuracy — the spike-economy trade-off.
+Test accuracy over epochs across the θ_u sweep. Tighter budgets (smaller θ_u) plateau lower — the spike-economy trade-off.
 </Figure>
 
 ### τ_GABA ladder
@@ -134,12 +138,12 @@ Test accuracy over epochs across the θ_u sweep. Tighter spike budgets (smaller 
 ping across τ_GABA ∈ 4.5, 6, 9, 12, 18, 27 ms, three seeds each (18 cells). — **{stat("tau_gaba")}**
 
 <Figure id="Figure 3" title="τ_GABA ladder — training curves" src={fam.tau_gaba?.trained ? "/figures/notebooks/nb022/curves__tau_gaba.png" : ""} alt="Test-accuracy learning curves across the τ_GABA ladder.">
-Test accuracy over epochs across the τ_GABA ladder; the cells converge to a similar accuracy regardless of the inhibitory decay constant.
+Test accuracy over epochs across the τ_GABA ladder; cells converge to similar accuracy regardless of inhibitory decay.
 </Figure>
 
 ### Δt sweep
 
-ping across Δt ∈ 0.05, 0.1, 0.25, 0.5, 1.0 ms (physical T fixed), three seeds each (15 cells). The documented exception that varies the timestep. — **{stat("dt")}**
+ping across Δt ∈ 0.05, 0.1, 0.25, 0.5, 1.0 ms (physical T fixed), three seeds each (15 cells) — the documented timestep exception. — **{stat("dt")}**
 
 <Figure id="Figure 4" title="Δt sweep — training curves" src={fam.dt?.trained ? "/figures/notebooks/nb022/curves__dt.png" : ""} alt="Test-accuracy learning curves across the Δt sweep.">
 Test accuracy over epochs across the integration-timestep sweep.
@@ -150,5 +154,5 @@ Test accuracy over epochs across the integration-timestep sweep.
 ping with four recurrent-loop inits — frozen PING, trainable from PING / zero / small seed — three seeds each (12 cells). — **{stat("init")}**
 
 <Figure id="Figure 5" title="Init variants — training curves" src={fam.init?.trained ? "/figures/notebooks/nb022/curves__init.png" : ""} alt="Test-accuracy learning curves across the init variants.">
-Test accuracy over epochs across the recurrent-loop init conditions; the trainable-loop cells learn noisier curves than the frozen control.
+Test accuracy over epochs across the recurrent-loop inits; trainable-loop cells learn noisier curves than the frozen control.
 </Figure>
