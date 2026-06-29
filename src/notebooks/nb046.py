@@ -33,6 +33,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -229,7 +230,7 @@ def plot_distribution(rows: list[dict], out_path: Path, run_id: str) -> dict:
         by_tau.setdefault(r["tau_gaba_ms"], []).append(r)
     taus_sorted = sorted(by_tau.keys())
     n = len(taus_sorted)
-    fig, axes = plt.subplots(1, n, figsize=(2.4 * n, 4.5), dpi=150, sharey=True)
+    fig, axes = plt.subplots(1, n, figsize=(6.9, 4.5 * 6.9 / (2.4 * n)), sharey=True)
     if n == 1:
         axes = [axes]
     labels = ["0", "1", "2", "≥3"]
@@ -273,7 +274,7 @@ def plot_distribution(rows: list[dict], out_path: Path, run_id: str) -> dict:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)  # bar chart: SVG + PDF
     plt.close(fig)
     return summary
 
@@ -281,7 +282,7 @@ def plot_distribution(rows: list[dict], out_path: Path, run_id: str) -> dict:
 def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path, run_id: str) -> dict:
     """Per-cell max E rate vs f_γ. y = f_γ line is the 1-spike/cycle ceiling."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    fig, ax = plt.subplots(figsize=(5.6, 3.15))
 
     # Aggregate by τ_GABA.
     by_tau: dict[float, list[dict]] = {}
@@ -345,7 +346,7 @@ def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path, run_id: str) -> dic
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)  # sparse scatter + line overlays: SVG + PDF
     plt.close(fig)
     return {
         "max_cell_slope_vs_fgamma": slope_max,
@@ -364,6 +365,10 @@ def main() -> None:
     parser.add_argument("--tau-gabas", nargs="*", type=float,
                         default=list(TAU_GABA_SWEEP_MS))
     args = parser.parse_args()
+
+    # Publication profile: every figure this notebook writes is a print-sized
+    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+    theme.set_paper_mode(True)
 
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     print(f"notebook_run_id = (allocating) tier={tier}")
@@ -414,14 +419,14 @@ def main() -> None:
             )
 
     dist_summary = plot_distribution(
-        rows, FIGURES / "spikes_per_cycle_distribution.png", notebook_run_id,
+        rows, FIGURES / "spikes_per_cycle_distribution", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'spikes_per_cycle_distribution.png'}")
+    print(f"wrote {FIGURES / 'spikes_per_cycle_distribution'}.{{svg,pdf}}")
     ceil_summary = plot_ceiling_vs_fgamma(
-        rows, FIGURES / "ceiling_vs_fgamma.png", notebook_run_id,
+        rows, FIGURES / "ceiling_vs_fgamma", notebook_run_id,
     )
     print(
-        f"wrote {FIGURES / 'ceiling_vs_fgamma.png'}  "
+        f"wrote {FIGURES / 'ceiling_vs_fgamma'}.{{svg,pdf}}  "
         f"(max-cell slope = {ceil_summary['max_cell_slope_vs_fgamma']:.3f}, "
         f"R² = {ceil_summary['max_cell_r2']:.3f})"
     )

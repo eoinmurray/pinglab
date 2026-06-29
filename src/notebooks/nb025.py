@@ -41,6 +41,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
@@ -308,12 +309,12 @@ def plot_acc_rate_bars(rows: list[dict], out_path: Path, run_id: str) -> None:
     side-by-side bars for accuracy (left y-axis) and mean hidden-E rate
     (right y-axis). Error bars are ±SEM across baseline seeds."""
     theme.apply()
-    fig, ax_acc = plt.subplots(figsize=(8.0, 4.5))
+    fig, ax_acc = plt.subplots(figsize=(5.6, 3.15))
     _draw_acc_rate_bars(ax_acc, rows, compact=False)
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -321,7 +322,7 @@ def plot_learning_curves(out_path: Path, run_id: str) -> None:
     """Train loss + test accuracy per epoch, one curve per model
     (θ_u = off). With multiple seeds, plot mean and shade ±SEM."""
     theme.apply()
-    fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(10.0, 5.625))
+    fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(6.9, 3.881))
     n_seeds = len(SEEDS_BASELINE)
     for m in MODELS:
         per_seed_loss: list[list[float]] = []
@@ -369,7 +370,7 @@ def plot_learning_curves(out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -385,11 +386,11 @@ def render_raster(npz_path: Path, out_path: Path, title: str) -> None:
     has_i = spk_i.size > 0 and spk_i.shape[0] == T and spk_i.any()
     if has_i:
         fig, (ax_e, ax_i) = plt.subplots(
-            2, 1, figsize=(8.0, 4.5), sharex=True,
+            2, 1, figsize=(5.6, 3.15), sharex=True,
             gridspec_kw={"height_ratios": [4, 1]},
         )
     else:
-        fig, ax_e = plt.subplots(1, 1, figsize=(8.0, 4.5))
+        fig, ax_e = plt.subplots(1, 1, figsize=(5.6, 3.15))
         ax_i = None
     e_idx, e_t = np.where(spk_e.T)
     ax_e.scatter(
@@ -411,7 +412,7 @@ def render_raster(npz_path: Path, out_path: Path, title: str) -> None:
     else:
         ax_e.set_xlabel("time (ms)")
     fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -426,7 +427,7 @@ def render_baseline_rasters_combined(
     gamma-locked bursts."""
     theme.apply()
     fig, (ax_coba, ax_ping) = plt.subplots(
-        2, 1, figsize=(10.0, 6.2), dpi=150,
+        2, 1, figsize=(6.9, 4.278), dpi=150,
         sharex=True, gridspec_kw={"hspace": 0.22, "left": 0.07,
                                   "right": 0.985, "top": 0.93, "bottom": 0.09},
     )
@@ -480,7 +481,7 @@ def render_baseline_rasters_combined(
         "same trial duration",
         fontsize=theme.SIZE_TITLE,
     )
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -518,7 +519,7 @@ def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
     points show ±SEM error bars across baseline seeds; sweep points
     are single-seed and unbarred."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5))
+    fig, ax = plt.subplots(figsize=(5.6, 3.15))
     for model in MODELS:
         # Aggregate per (model, θ_u): for the baseline, mean ± SEM
         # across seeds. For sweep cells, just the single seed.
@@ -573,7 +574,7 @@ def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -938,7 +939,7 @@ def plot_theta_p_fgamma(
     ping = by_model("ping")
     coba = by_model("coba")
 
-    fig, axes = plt.subplots(2, 2, figsize=(11.0, 8.0), dpi=150)
+    fig, axes = plt.subplots(2, 2, figsize=(6.9, 5.018), dpi=150)
     (ax_p, ax_fg), (ax_r, ax_a) = axes
 
     if ping:
@@ -989,7 +990,7 @@ def plot_theta_p_fgamma(
     )
     fig.tight_layout()
     stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -1047,7 +1048,9 @@ def plot_low_w_in(rows: list[dict], out_path: Path, run_id: str) -> None:
     (red) overlaid. Reads per-epoch traces from each run's metrics.json."""
     theme.apply()
     n = len(rows)
-    fig, axes = plt.subplots(2, n, figsize=(4.0 * n, 5.5), dpi=150, sharex=True)
+    fig, axes = plt.subplots(
+        2, n, figsize=(6.9, 5.5 * 6.9 / (4.0 * n)), dpi=150, sharex=True,
+    )
     rate_max = 0.0
     for col, row in enumerate(rows):
         metrics = load_metrics(low_w_in_cell_dir(row["w_in"]))
@@ -1097,7 +1100,7 @@ def plot_low_w_in(rows: list[dict], out_path: Path, run_id: str) -> None:
     )
     fig.tight_layout()
     stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -1180,7 +1183,7 @@ def plot_w_in_scale_sweep(rows: list[dict], out_path: Path, run_id: str) -> None
     """Six-panel: CE loss, penalty, total loss, accuracy, E rate, I rate
     vs W_in scale. One curve per (model, theta_u) cell."""
     theme.apply()
-    fig, axes_2d = plt.subplots(2, 3, figsize=(12.0, 8.0), dpi=150)
+    fig, axes_2d = plt.subplots(2, 3, figsize=(6.9, 4.6), dpi=150)
     axes = axes_2d.flatten()
     styles = {
         "coba@tu0.2":  ("COBA ($\\theta_u = 0.2$)",
@@ -1254,7 +1257,7 @@ def plot_w_in_scale_sweep(rows: list[dict], out_path: Path, run_id: str) -> None
     )
     fig.tight_layout()
     stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -1267,7 +1270,7 @@ def plot_w_in_scale_sweep_vs_rate(
     on every curve so the reader sees where on the rate axis training
     landed."""
     theme.apply()
-    fig, axes_2d = plt.subplots(2, 3, figsize=(12.0, 8.0), dpi=150)
+    fig, axes_2d = plt.subplots(2, 3, figsize=(6.9, 4.6), dpi=150)
     axes = axes_2d.flatten()
     styles = {
         "coba@tu0.2":  ("COBA ($\\theta_u = 0.2$)",
@@ -1334,7 +1337,7 @@ def plot_w_in_scale_sweep_vs_rate(
     )
     fig.tight_layout()
     stamp_figure(fig, run_id)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -1364,7 +1367,7 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
     from matplotlib.gridspec import GridSpec
 
-    fig = plt.figure(figsize=(12, 6.75), dpi=150)  # 16:9
+    fig = plt.figure(figsize=(6.9, 3.881), dpi=150)  # 16:9
     gs = GridSpec(
         2, 2, figure=fig, height_ratios=[3.0, 2.6],
         hspace=0.45, wspace=0.2, top=0.93, bottom=0.1, left=0.07, right=0.96,
@@ -1473,7 +1476,7 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
 
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense rasters: PNG, not SVG
     plt.close(fig)
 
 
@@ -1500,12 +1503,17 @@ def build_results_compound(run_id: str = "replot") -> None:
     for p in (npz_coba, npz_ping):
         if not p.exists():
             raise SystemExit(f"missing cached raster: {p} (run the notebook once first)")
-    out = FIGURES / "results_compound.png"
+    out = FIGURES / "results_compound"
     fig_results_compound(rows, npz_coba, npz_ping, out, run_id)
-    print(f"wrote {out}")
+    print(f"wrote {out}.{{png,pdf}}")
 
 
 def main() -> None:
+    # Publication profile: every figure this notebook writes is a print-sized
+    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure;
+    # dense rasters go to PNG + PDF. Set before any early-return path so the
+    # --compound-only route gets paper mode too.
+    theme.set_paper_mode(True)
     if "--compound-only" in sys.argv:
         build_results_compound()
         return
@@ -1637,23 +1645,23 @@ def main() -> None:
                 f"f_γ={fg} Hz  p={pp}"
             )
     plot_theta_p_fgamma(
-        pfg_rows, FIGURES / "theta_p_fgamma.png", notebook_run_id,
+        pfg_rows, FIGURES / "theta_p_fgamma", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'theta_p_fgamma.png'}")
+    print(f"wrote {FIGURES / 'theta_p_fgamma'}.{{svg,pdf}}")
 
     for model in MODELS:
-        out = FIGURES / f"raster__{model}.png"
+        out = FIGURES / f"raster__{model}"
         generate_raster(model, out)
-        print(f"wrote {out}")
+        print(f"wrote {out}.{{png,pdf}}")
 
     # Results compound (Figure 1): rasters + accuracy-per-epoch + the
     # accuracy–rate frontier in one frame (replaces the four standalones).
     npz_coba = baseline_dir("coba") / "infer" / "snapshot.npz"
     npz_ping = baseline_dir("ping") / "infer" / "snapshot.npz"
     if npz_coba.exists() and npz_ping.exists():
-        out = FIGURES / "results_compound.png"
+        out = FIGURES / "results_compound"
         fig_results_compound(rows, npz_coba, npz_ping, out, notebook_run_id)
-        print(f"wrote {out}")
+        print(f"wrote {out}.{{png,pdf}}")
 
     # Low-w_in alternate-schedule sweep — reads metrics from the three
     # dispatched trainings and plots accuracy + E/I rates vs --w-in init.
@@ -1678,22 +1686,22 @@ def main() -> None:
             f"E={last.get('rate_e') or 0:6.2f} Hz  "
             f"I={last.get('rate_i') or 0:6.2f} Hz"
         )
-    plot_low_w_in(low_w_in_rows, FIGURES / "low_w_in_sweep.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'low_w_in_sweep.png'}")
+    plot_low_w_in(low_w_in_rows, FIGURES / "low_w_in_sweep", notebook_run_id)
+    print(f"wrote {FIGURES / 'low_w_in_sweep'}.{{svg,pdf}}")
 
     # W_in scale sweep — direct test of the bifurcation argument.
     print("[w_in-scale-sweep] inference-only on trained PING and COBA")
     w_in_scale_rows = run_w_in_scale_sweep(notebook_run_id)
     plot_w_in_scale_sweep(
-        w_in_scale_rows, FIGURES / "w_in_scale_sweep.png", notebook_run_id,
+        w_in_scale_rows, FIGURES / "w_in_scale_sweep", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'w_in_scale_sweep.png'}")
+    print(f"wrote {FIGURES / 'w_in_scale_sweep'}.{{svg,pdf}}")
     plot_w_in_scale_sweep_vs_rate(
         w_in_scale_rows,
-        FIGURES / "w_in_scale_sweep_vs_rate.png",
+        FIGURES / "w_in_scale_sweep_vs_rate",
         notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'w_in_scale_sweep_vs_rate.png'}")
+    print(f"wrote {FIGURES / 'w_in_scale_sweep_vs_rate'}.{{svg,pdf}}")
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))

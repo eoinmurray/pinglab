@@ -37,6 +37,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
@@ -306,7 +307,7 @@ def plot_weight_matrices(
     canon_ei = 1.0 / 1024.0
     canon_ie = 2.0 / 256.0
 
-    fig = plt.figure(figsize=(13.0, 4.8), dpi=150)
+    fig = plt.figure(figsize=(6.9, 2.55), dpi=150)
     gs = GridSpec(
         2, 2, figure=fig,
         width_ratios=[1.0, 1.0],
@@ -406,7 +407,7 @@ def plot_weight_matrices(
 
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
@@ -545,7 +546,7 @@ def plot_training_trajectories(
     """2×2 panel: W_ei norm, W_ie norm, E rate, accuracy — vs epoch.
     Each line is the mean of three seeds; light shading is mean ± SEM."""
     theme.apply()
-    fig, axes = plt.subplots(2, 2, figsize=(11.0, 8.0), dpi=150, sharex=True)
+    fig, axes = plt.subplots(2, 2, figsize=(6.9, 5.02), dpi=150, sharex=True)
     (ax_wei, ax_wie), (ax_re, ax_acc) = axes
     # (axis, metrics_key, weight_sub_key, ylabel, linestyle, label_in_legend)
     panel_specs = [
@@ -623,7 +624,7 @@ def plot_training_trajectories(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
@@ -657,7 +658,7 @@ def plot_condition_card(
     i_rate_f   = _agg("i_rate_hz")
     f_gamma_f  = _agg("f_gamma_hz")
 
-    fig = plt.figure(figsize=(13.5, 8.5), dpi=150)
+    fig = plt.figure(figsize=(6.9, 4.34), dpi=150)
     gs = GridSpec(
         3, 4, figure=fig,
         height_ratios=[0.32, 1.0, 1.4],
@@ -866,7 +867,7 @@ def plot_condition_card(
 
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))
     plt.close(fig)
 
 
@@ -876,7 +877,7 @@ def plot_final_psds(
 ) -> None:
     """One PSD curve per condition (mean across seeds) — peak marks f_γ."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    fig, ax = plt.subplots(figsize=(6.9, 3.88), dpi=150)
     for cond in COND_ORDER:
         cells = final_by_cond.get(cond, [])
         if not cells:
@@ -905,7 +906,7 @@ def plot_final_psds(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
@@ -916,7 +917,7 @@ def plot_raster_strip(
     theme.apply()
     n = len(COND_ORDER)
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 1.5 * n + 1.0),
+        n, 1, figsize=(6.9, 1.035 * n + 0.69),
         sharex=True, gridspec_kw={"hspace": 0.22},
     )
     if n == 1:
@@ -970,7 +971,7 @@ def plot_raster_strip(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))
     plt.close(fig)
 
 
@@ -980,7 +981,7 @@ def fig_attractor(summary_rows, out_path, run_id):
     dense-E / silent-I (COBA) corner regardless of its initialisation, at ≈ equal
     accuracy — so gradient descent never reaches PING when the loop can train."""
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8, 5.0), dpi=150)
+    fig, ax = plt.subplots(figsize=(5.6, 3.5), dpi=150)
     ax.axhline(0.0, color=theme.FAINT, lw=0.8, ls=":")
     for cond in COND_ORDER:
         rows = [r for r in summary_rows if r["condition"] == cond]
@@ -1008,7 +1009,7 @@ def fig_attractor(summary_rows, out_path, run_id):
     stamp_figure(fig, run_id)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
@@ -1064,7 +1065,7 @@ def fig_training_curves(out_path: Path, run_id: str) -> None:
         ("D", "pingness  (lobe–trough contrast)", "contrast", (0, 1.0)),
     ]
     xmax = max(max(d["ep"]) for d in runs.values())
-    fig, axes = plt.subplots(2, 2, figsize=(12, 6.75), dpi=200,
+    fig, axes = plt.subplots(2, 2, figsize=(5.6, 3.15), dpi=200,
                              gridspec_kw={"hspace": 0.34, "wspace": 0.2})
     axes = axes.ravel()
     for k, (letter, ylabel, key, ylim) in enumerate(panels):
@@ -1105,15 +1106,22 @@ def fig_training_curves(out_path: Path, run_id: str) -> None:
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # Crop surrounding whitespace — this is a standalone publication figure, so
-    # trim to content rather than holding the fixed 16:9 frame.
-    fig.savefig(out_path, dpi=200, bbox_inches="tight", pad_inches=0.04)
+    # trim to content rather than holding the fixed 16:9 frame. save_figure takes
+    # no kwargs, so the crop is applied via rcParams here.
+    plt.rcParams["savefig.bbox"] = "tight"
+    plt.rcParams["savefig.pad_inches"] = 0.04
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
 def main() -> None:
+    # Publication profile: every figure this notebook writes is a print-sized
+    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+    theme.set_paper_mode(True)
+
     if "--curves-only" in sys.argv:
-        fig_training_curves(FIGURES / "training_curves.png", "nb049-curves")
-        print(f"wrote {FIGURES / 'training_curves.png'}")
+        fig_training_curves(FIGURES / "training_curves", "nb049-curves")
+        print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
         return
 
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
@@ -1170,7 +1178,7 @@ def main() -> None:
 
     # Per-condition diagnostic cards + matching weight-matrix cards.
     for cond in COND_ORDER:
-        out = FIGURES / f"card__{cond}.png"
+        out = FIGURES / f"card__{cond}"
         plot_condition_card(
             cond,
             metrics_by_cond.get(cond, []),
@@ -1178,21 +1186,21 @@ def main() -> None:
             rasters_by_cond.get(cond),
             out, notebook_run_id,
         )
-        print(f"wrote {out}")
+        print(f"wrote {out}.{{png,pdf}}")
         seed_to_dir = {
             s: cell_dir(cond, s) for s in SEEDS
             if (cell_dir(cond, s) / "weights.pth").exists()
         }
         if seed_to_dir:
-            w_out = FIGURES / f"weights__{cond}.png"
+            w_out = FIGURES / f"weights__{cond}"
             plot_weight_matrices(cond, seed_to_dir, device, w_out, notebook_run_id)
-            print(f"wrote {w_out}")
+            print(f"wrote {w_out}.{{svg,pdf}}")
 
-    fig_attractor(summary_rows, FIGURES / "attractor_ei.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'attractor_ei.png'}")
+    fig_attractor(summary_rows, FIGURES / "attractor_ei", notebook_run_id)
+    print(f"wrote {FIGURES / 'attractor_ei'}.{{svg,pdf}}")
 
-    fig_training_curves(FIGURES / "training_curves.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'training_curves.png'}")
+    fig_training_curves(FIGURES / "training_curves", notebook_run_id)
+    print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
 
     duration_s = time.monotonic() - t_start
     summary = {

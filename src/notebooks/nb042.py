@@ -34,6 +34,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
@@ -530,7 +531,7 @@ def plot_bar_chart(rows: list[dict], out_path: Path, run_id: str) -> None:
             for k in ("acc", "e_rate_hz", "i_rate_hz")
         }
 
-    fig, ax_rate = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    fig, ax_rate = plt.subplots(figsize=(5.6, 3.15))
     xs = np.arange(len(CONDITIONS))
     width = 0.35
 
@@ -579,7 +580,7 @@ def plot_bar_chart(rows: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -591,7 +592,7 @@ def plot_raster_strip(samples: list[dict], out_path: Path, run_id: str) -> None:
     n_i = RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 5.625),
+        n, 1, figsize=(6.9, 3.88),
         sharex=True, gridspec_kw={"hspace": 0.22},
     )
     if n == 1:
@@ -634,7 +635,7 @@ def plot_raster_strip(samples: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -657,7 +658,7 @@ def plot_jitter_raster_strip(
     n_i = RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 1.0 * n + 1.5),
+        n, 1, figsize=(6.9, 0.69 * n + 1.035),
         sharex=True, gridspec_kw={"hspace": 0.22},
     )
     if n == 1:
@@ -696,7 +697,7 @@ def plot_jitter_raster_strip(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -714,7 +715,7 @@ def plot_cell_jitter_raster_strip(
     n_i = RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 1.0 * n + 1.5),
+        n, 1, figsize=(6.9, 0.69 * n + 1.035),
         sharex=True, gridspec_kw={"hspace": 0.22},
     )
     if n == 1:
@@ -753,7 +754,7 @@ def plot_cell_jitter_raster_strip(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -790,7 +791,7 @@ def plot_cell_jitter_sweep(
         if len(by_sigma[s]) > 1 else 0.0 for s in sigmas_sorted
     ]
 
-    fig, ax_rate = plt.subplots(figsize=(9.0, 5.0), dpi=150)
+    fig, ax_rate = plt.subplots(figsize=(5.6, 3.11))
     ax_rate.errorbar(
         sigmas_sorted, e_means, yerr=e_sems,
         marker="D", markersize=6, lw=1.4, color=theme.INK_BLACK, capsize=3,
@@ -847,7 +848,7 @@ def plot_cell_jitter_sweep(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -865,7 +866,7 @@ def plot_pareto_raster_strip(
     n_i = RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 1.0 * n + 1.5),
+        n, 1, figsize=(6.9, 0.69 * n + 1.035),
         sharex=True, gridspec_kw={"hspace": 0.32},
     )
     if n == 1:
@@ -913,7 +914,7 @@ def plot_pareto_raster_strip(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -948,7 +949,7 @@ def plot_jitter_sweep(
         if len(by_sigma[s]) > 1 else 0.0 for s in sigmas_sorted
     ]
 
-    fig, ax_rate = plt.subplots(figsize=(9.0, 5.0), dpi=150)
+    fig, ax_rate = plt.subplots(figsize=(5.6, 3.11))
     # Use a symlog x-axis so both σ = 0 and σ = 100 are visible.
     ax_rate.errorbar(
         sigmas_sorted, e_means, yerr=e_sems,
@@ -1009,7 +1010,7 @@ def plot_jitter_sweep(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -1022,7 +1023,7 @@ def plot_pareto(
     etc.) for numbers.json.
     """
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    fig, ax = plt.subplots(figsize=(5.6, 3.15))
 
     # Plot non-baseline points coloured by α, sized by k.
     alphas_unique = sorted({r["alpha"] for r in pareto_rows})
@@ -1091,7 +1092,7 @@ def plot_pareto(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
     # Summary: is the baseline strictly Pareto-above every non-baseline cell?
@@ -1225,7 +1226,7 @@ def _xtau_aggregate(rows: list[dict]) -> dict:
 def plot_xtau_raw_sweeps(rows: list[dict], out_path: Path, run_id: str) -> None:
     theme.apply()
     agg = _xtau_aggregate(rows)
-    fig, ax = plt.subplots(figsize=(9.0, 5.0), dpi=150)
+    fig, ax = plt.subplots(figsize=(5.6, 3.11))
     cmap = plt.get_cmap("viridis")
     taus_sorted = sorted({k[0] for k in agg.keys()})
     for i, tau in enumerate(taus_sorted):
@@ -1250,7 +1251,7 @@ def plot_xtau_raw_sweeps(rows: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -1259,7 +1260,7 @@ def plot_xtau_dimensional_collapse(
 ) -> None:
     theme.apply()
     agg = _xtau_aggregate(rows)
-    fig, ax = plt.subplots(figsize=(9.0, 5.0), dpi=150)
+    fig, ax = plt.subplots(figsize=(5.6, 3.11))
     cmap = plt.get_cmap("viridis")
     taus_sorted = sorted({k[0] for k in agg.keys()})
     for i, tau in enumerate(taus_sorted):
@@ -1295,7 +1296,7 @@ def plot_xtau_dimensional_collapse(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -1329,7 +1330,7 @@ def plot_xtau_inflection_vs_period(
         periods.append(1000.0 / f_gamma)
         f_gammas.append(f_gamma)
 
-    fig, ax = plt.subplots(figsize=(7.0, 5.0), dpi=150)
+    fig, ax = plt.subplots(figsize=(5.6, 4.0))
     alpha = r2 = float("nan")
     if inflections:
         ax.scatter(periods, inflections, s=60, color=theme.INK_BLACK, zorder=3,
@@ -1356,7 +1357,7 @@ def plot_xtau_inflection_vs_period(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)
     plt.close(fig)
     return {"alpha": alpha, "r2": r2, "n_points": len(inflections)}
 
@@ -1443,7 +1444,7 @@ def fig_rhythm_compound(
     theme.apply()
     prev_bbox = plt.rcParams["savefig.bbox"]
     plt.rcParams["savefig.bbox"] = "standard"
-    fig, axes = plt.subplots(2, 2, figsize=(12, 6.75))
+    fig, axes = plt.subplots(2, 2, figsize=(6.9, 3.88))
 
     _compound_raster_panel(
         axes[0, 0], raster_cell,
@@ -1475,7 +1476,7 @@ def fig_rhythm_compound(
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense rasters: PNG, not SVG
     plt.close(fig)
     plt.rcParams["savefig.bbox"] = prev_bbox
 
@@ -1512,14 +1513,18 @@ def build_rhythm_compound(run_id: str = "replot") -> None:
 
     fig_rhythm_compound(
         cyc_rows, cell_rows, baseline_e, raster_cyc, raster_cell,
-        FIGURES / "rhythm_compound.png", run_id,
+        FIGURES / "rhythm_compound", run_id,
     )
-    print(f"wrote {FIGURES / 'rhythm_compound.png'}")
+    print(f"wrote {FIGURES / 'rhythm_compound'}")
 
 
 # ─── success criteria ───────────────────────────────────────────────
 
 def main() -> None:
+    # Publication profile: every figure this notebook writes is a print-sized
+    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+    theme.set_paper_mode(True)
+
     if "--compound-only" in sys.argv:
         build_rhythm_compound()
         return
@@ -1585,11 +1590,11 @@ def main() -> None:
         )
         for cond in CONDITIONS
     ]
-    plot_raster_strip(samples, FIGURES / "raster_strip.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'raster_strip.png'}")
+    plot_raster_strip(samples, FIGURES / "raster_strip", notebook_run_id)
+    print(f"wrote {FIGURES / 'raster_strip'}")
 
-    plot_bar_chart(rows, FIGURES / "bar_chart.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'bar_chart.png'}")
+    plot_bar_chart(rows, FIGURES / "bar_chart", notebook_run_id)
+    print(f"wrote {FIGURES / 'bar_chart'}")
 
     # ── Jitter sweep ───────────────────────────────────────────────
     # Adds Gaussian timing jitter σ to each I-spike at inference.
@@ -1624,9 +1629,9 @@ def main() -> None:
     ))
     plot_jitter_sweep(
         jitter_rows, baseline_e, phase_shuffle_e,
-        FIGURES / "jitter_sweep.png", notebook_run_id,
+        FIGURES / "jitter_sweep", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'jitter_sweep.png'}")
+    print(f"wrote {FIGURES / 'jitter_sweep'}")
 
     # Jitter raster strip — one panel per σ from the diagnostic subset,
     # all from the first seed at sample 0 so panels read against the
@@ -1648,10 +1653,10 @@ def main() -> None:
         jitter_raster_samples.append(sample)
     plot_jitter_raster_strip(
         jitter_raster_samples,
-        FIGURES / "jitter_raster_strip.png",
+        FIGURES / "jitter_raster_strip",
         notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'jitter_raster_strip.png'}")
+    print(f"wrote {FIGURES / 'jitter_raster_strip'}")
 
     # ── Per-cell jitter sweep ──────────────────────────────────────
     # Independent Gaussian offset per spike — destroys within-burst
@@ -1681,9 +1686,9 @@ def main() -> None:
     ))
     plot_cell_jitter_sweep(
         cell_jitter_rows, baseline_e, poisson_e,
-        FIGURES / "cell_jitter_sweep.png", notebook_run_id,
+        FIGURES / "cell_jitter_sweep", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'cell_jitter_sweep.png'}")
+    print(f"wrote {FIGURES / 'cell_jitter_sweep'}")
 
     # Per-cell jitter raster strip — diagnostic subset.
     print(
@@ -1701,10 +1706,10 @@ def main() -> None:
         cell_jitter_raster_samples.append(sample)
     plot_cell_jitter_raster_strip(
         cell_jitter_raster_samples,
-        FIGURES / "cell_jitter_raster_strip.png",
+        FIGURES / "cell_jitter_raster_strip",
         notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'cell_jitter_raster_strip.png'}")
+    print(f"wrote {FIGURES / 'cell_jitter_raster_strip'}")
 
     # Manuscript compound: matched mean I, opposite E response. Reuse the
     # σ = 100 ms cycle-coherent and σ = 5 ms per-cell raster samples.
@@ -1712,9 +1717,9 @@ def main() -> None:
     raster_cell = next(s for s in cell_jitter_raster_samples if s["sigma_ms"] == 5.0)
     fig_rhythm_compound(
         jitter_rows, cell_jitter_rows, baseline_e, raster_cyc, raster_cell,
-        FIGURES / "rhythm_compound.png", notebook_run_id,
+        FIGURES / "rhythm_compound", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'rhythm_compound.png'}")
+    print(f"wrote {FIGURES / 'rhythm_compound'}")
 
     # ── Pareto sweep ──────────────────────────────────────────────
     # Probe whether the rhythmic baseline sits at the (low E, high acc)
@@ -1752,9 +1757,9 @@ def main() -> None:
         r for r in rows if r["condition"] == "baseline" and r["seed"] == pareto_seed
     )
     pareto_summary = plot_pareto(
-        pareto_rows, baseline_row, FIGURES / "pareto_sweep.png", notebook_run_id,
+        pareto_rows, baseline_row, FIGURES / "pareto_sweep", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'pareto_sweep.png'}")
+    print(f"wrote {FIGURES / 'pareto_sweep'}")
     print(f"  pareto summary: {pareto_summary}")
 
     # ── Cross-τ_GABA jitter sweep (formerly nb045) ─────────────────
@@ -1798,20 +1803,20 @@ def main() -> None:
                         f"({time.monotonic() - t0:.1f}s)"
                     )
         plot_xtau_raw_sweeps(
-            xtau_rows, FIGURES / "xtau_raw_sweeps.png", notebook_run_id,
+            xtau_rows, FIGURES / "xtau_raw_sweeps", notebook_run_id,
         )
-        print(f"wrote {FIGURES / 'xtau_raw_sweeps.png'}")
+        print(f"wrote {FIGURES / 'xtau_raw_sweeps'}")
         plot_xtau_dimensional_collapse(
-            xtau_rows, FIGURES / "xtau_dimensional_collapse.png",
+            xtau_rows, FIGURES / "xtau_dimensional_collapse",
             notebook_run_id,
         )
-        print(f"wrote {FIGURES / 'xtau_dimensional_collapse.png'}")
+        print(f"wrote {FIGURES / 'xtau_dimensional_collapse'}")
         xtau_fit_summary = plot_xtau_inflection_vs_period(
-            xtau_rows, FIGURES / "xtau_inflection_vs_period.png",
+            xtau_rows, FIGURES / "xtau_inflection_vs_period",
             notebook_run_id,
         )
         print(
-            f"wrote {FIGURES / 'xtau_inflection_vs_period.png'}  "
+            f"wrote {FIGURES / 'xtau_inflection_vs_period'}  "
             f"(α = {xtau_fit_summary['alpha']:.3f}, "
             f"R² = {xtau_fit_summary['r2']:.3f})"
         )
