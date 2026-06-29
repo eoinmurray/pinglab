@@ -32,6 +32,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "src" / "notebooks"))
 
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -606,7 +607,7 @@ def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     spk_i = s["spk_i"]
     probs = s["probs"]
 
-    fig = plt.figure(figsize=(11.0, 8.5), dpi=150)
+    fig = plt.figure(figsize=(6.9, 5.33), dpi=150)
     gs = fig.add_gridspec(
         4, 1, height_ratios=[0.9, 2.2, 1.2, 2.0], hspace=0.18,
     )
@@ -722,7 +723,7 @@ def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     )
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -730,7 +731,7 @@ def plot_acc_vs_tau(
     rows: list[dict], out_path: Path, run_id: str,
 ) -> None:
     theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+    fig, ax = plt.subplots(figsize=(5.6, 3.15), dpi=150)
     constant = sorted(
         [r for r in rows if not r["rate_compensate"]],
         key=lambda r: r["tau_ms"],
@@ -774,7 +775,7 @@ def plot_acc_vs_tau(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
@@ -797,7 +798,7 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     probs = s["probs"]
     T_ms = T_stream_steps * DT
 
-    fig = plt.figure(figsize=(11.0, 8.5), dpi=150)
+    fig = plt.figure(figsize=(6.9, 5.33), dpi=150)
     gs = fig.add_gridspec(
         4, 1, height_ratios=[1.1, 2.2, 1.2, 2.0], hspace=0.18,
     )
@@ -935,7 +936,7 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     )
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -949,7 +950,7 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
         j = taus.index(r["tau_ms"])
         grid[i, j] = r["acc"]
 
-    fig, ax = plt.subplots(figsize=(7.5, 5.5), dpi=150)
+    fig, ax = plt.subplots(figsize=(6.9, 5.06))
     im = ax.imshow(
         grid, origin="lower", aspect="auto", cmap="magma",
         vmin=0, vmax=100,
@@ -979,12 +980,17 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # heatmap: PNG, not SVG
     plt.close(fig)
 
 
 # ── Main ────────────────────────────────────────────────────────────
 def main() -> None:
+    # Publication profile: every figure this notebook writes is a print-sized
+    # artifact, emitted in both web (SVG/PNG) and manuscript (PDF) formats by
+    # save_figure.
+    theme.set_paper_mode(True)
+
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     cfg_tier = TIER_CONFIG[tier]
     notebook_run_id = next_run_id(SLUG)
@@ -1004,17 +1010,17 @@ def main() -> None:
     s = run_headline_stream(net, cfg, X_te, y_te, device)
     correct = sum(s["seg_correct"])
     print(f"  labels={s['labels']}  correct={correct}/{N_DIGITS_HEADLINE}")
-    plot_headline_stream(s, FIGURES / "headline_stream.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'headline_stream.png'}")
+    plot_headline_stream(s, FIGURES / "headline_stream", notebook_run_id)
+    print(f"wrote {FIGURES / 'headline_stream'}.png")
 
     print(f"[varying-headline] segments={VARYING_HEADLINE} (seed {SEEDS[0]})")
     v = run_varying_headline(net, cfg, X_te, y_te, device)
     print(f"  labels={v['labels']}  correct="
           f"{sum(v['seg_correct'])}/{len(VARYING_HEADLINE)}")
     plot_varying_headline_stream(
-        v, FIGURES / "varying_headline_stream.png", notebook_run_id,
+        v, FIGURES / "varying_headline_stream", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'varying_headline_stream.png'}")
+    print(f"wrote {FIGURES / 'varying_headline_stream'}.png")
 
     # Multi-seed sweeps: τ-sweep and grid both run per-seed and average.
     rows_constant: list[dict] = []
@@ -1048,14 +1054,14 @@ def main() -> None:
     tau_agg = (
         aggregate_tau_rows(rows_constant) + aggregate_tau_rows(rows_comp)
     )
-    plot_acc_vs_tau(tau_agg, FIGURES / "acc_vs_tau.png", notebook_run_id)
-    print(f"wrote {FIGURES / 'acc_vs_tau.png'}")
+    plot_acc_vs_tau(tau_agg, FIGURES / "acc_vs_tau", notebook_run_id)
+    print(f"wrote {FIGURES / 'acc_vs_tau'}.svg")
 
     grid_agg = aggregate_grid_rows(grid_rows)
     plot_grid_heatmap(
-        grid_agg, FIGURES / "acc_grid_tau_rate.png", notebook_run_id,
+        grid_agg, FIGURES / "acc_grid_tau_rate", notebook_run_id,
     )
-    print(f"wrote {FIGURES / 'acc_grid_tau_rate.png'}")
+    print(f"wrote {FIGURES / 'acc_grid_tau_rate'}.png")
 
     duration_s = time.monotonic() - t_start
     summary = {
