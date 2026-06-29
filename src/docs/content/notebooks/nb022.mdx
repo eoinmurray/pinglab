@@ -47,6 +47,21 @@ Each family fixes its synaptic time constants, a timestep, a training length, an
 
 The **canonical** family is the full-MNIST reference (coba and ping at θ_u = off) the 10%-trained sweeps are read against. $\tau_\text{AMPA}$ is fixed at 2 ms throughout. [nb044](/notebooks/nb044/)'s Δt audit is the exception that varies the timestep; the τ_GABA ladder the one that varies the inhibitory decay.
 
+### Cost to run
+
+The full registry is ≈ **360 A100-GPU-hours** of work — the six canonical cells (full MNIST × 100 epochs) dominate at ≈ 186 of those hours; the sixty-one 10%-MNIST sweep cells make up the rest. A *GPU-hour* is one GPU running for one hour; the figures below scale that one number across the venues considered. Surrogate-gradient BPTT over ≈ 2000 timesteps is memory-heavy, which is why the cloud options force (or want) a large-memory card.
+
+| Venue | Card | Price | Estimated for the run | Notes |
+|---|---|---|---|---|
+| Modal | A100-80GB (forced) | ≈ \$3.30 / GPU-hr | ≈ **\$1,200** | Fans out across many GPUs, so wall-clock is hours not days; spends real money per run. |
+| Cambridge Wilkes3 | A100-80GB | £0.55 / GPU-hr | ≈ **£200** | Academic HPC, SLURM queue; cheapest credible option but needs account + setup. |
+| Vast.ai | RTX 4090 | ≈ \$0.35 / GPU-hr | ≈ **\$60 – 130** | Cheapest cloud; the 4090 is actually fastest here (FP32 SNN), but it is one rented GPU → serial wall-clock, no Modal-style fan-out. |
+| Local build | RTX 5090 | ≈ \$3,400 capital | electricity after | Continuous runs, no quota or queue; FP32 throughput above the A100; large upfront cost. |
+| Owned | M5 MacBook Pro (MPS) | owned | impractical at scale | Far slower than any discrete GPU; fine for the smoke tier only. |
+| Owned | 2060-class laptop | owned | impractical | OOMs on the full BPTT graph; ≈ 45 – 90 days even if it fit. |
+
+The standing plan is **Wilkes3** for the canonical run — an order of magnitude cheaper than Modal — with Modal kept for quick one-off cells where its instant fan-out is worth the premium. Vast.ai is the fallback if the HPC account slips.
+
 ### Saved per cell
 
 Each training writes one directory under the shared root (*src/artifacts/notebooks/training/&lt;cell&gt;/*). Every cell saves the same set of files — the contract the analysis notebooks read:
