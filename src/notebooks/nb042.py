@@ -46,9 +46,10 @@ from cli import theme  # noqa: E402
 SLUG = "nb042"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
-# nb025 trained PING baseline lives here. Three seeds available; the
-# nb042 inference experiment runs against all three for error bars.
-NB035_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "nb025"
+# θ_u = off PING baseline now lives in the shared training root (nb022
+# train-once / reuse-many). Three seeds available; nb042 runs against all
+# three for error bars.
+NB035_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "training"
 SEEDS: tuple[int, ...] = (42, 43, 44)
 
 CONDITIONS: tuple[str, ...] = ("baseline", "phase_shuffled_i", "poisson_matched_i")
@@ -85,7 +86,7 @@ MIX_K_GRID: tuple[float, ...] = (0.25, 0.5, 1.0, 2.0, 4.0)
 # trained cells and re-runs the cycle-coherent jitter sweep at each
 # cell's own 1/f_γ. Outputs xtau_raw_sweeps, xtau_dimensional_collapse,
 # xtau_inflection_vs_period.
-NB041_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "nb041"
+NB041_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "training"
 NB041_NUMBERS = (
     REPO / "src" / "docs" / "public" / "figures" / "notebooks" / "nb041"
     / "numbers.json"

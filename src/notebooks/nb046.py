@@ -46,7 +46,9 @@ from nb042 import _load_trained_full  # noqa: E402
 SLUG = "nb046"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
-NB041_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "nb041"
+# τ_GABA sweep cells now live in the shared training root (nb022
+# train-once / reuse-many), not the retired per-notebook nb041 dir.
+NB041_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "training"
 NB041_NUMBERS = (
     REPO / "src" / "docs" / "public" / "figures" / "notebooks" / "nb041"
     / "numbers.json"
