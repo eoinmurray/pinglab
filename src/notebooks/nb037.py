@@ -29,6 +29,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
@@ -317,7 +318,7 @@ def plot_perturbation_rasters(
     n_i = EI_RASTER_N_I_PLOT
     gap = 6
     fig, axes = plt.subplots(
-        n, 1, figsize=(10.0, 5.625),
+        n, 1, figsize=(6.9, 3.88),
         sharex=True, gridspec_kw={"hspace": 0.18},
     )
     if n == 1:
@@ -355,7 +356,7 @@ def plot_perturbation_rasters(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG + PDF
     plt.close(fig)
 
 
@@ -547,7 +548,7 @@ def plot_perturbation_curves(
     comparison). Otherwise it falls back to absolute Hz from `points`.
     """
     theme.apply()
-    fig, axes = plt.subplots(1, 2, figsize=(8.0, 4.5), sharey=True, dpi=150)
+    fig, axes = plt.subplots(1, 2, figsize=(5.6, 3.15), sharey=True)
     use_pct = add_pct_rows is not None and len(add_pct_rows) > 0
 
     # Left panel: drop (as % of spikes dropped)
@@ -631,7 +632,7 @@ def plot_perturbation_curves(
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path)  # line/curve plot: SVG + PDF
     plt.close(fig)
 
 
@@ -777,6 +778,10 @@ def copy_video(run_dir: Path, out_path: Path) -> None:
 
 
 def main() -> None:
+    # Publication profile: every figure this notebook writes is a print-sized
+    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+    theme.set_paper_mode(True)
+
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
@@ -862,9 +867,9 @@ def main() -> None:
                     f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:6.2f} Hz"
                 )
     plot_perturbation_curves(
-        perturb_rows, FIGURES / "perturbation_curves.png", notebook_run_id
+        perturb_rows, FIGURES / "perturbation_curves", notebook_run_id
     )
-    print(f"wrote {FIGURES / 'perturbation_curves.png'}")
+    print(f"wrote {FIGURES / 'perturbation_curves'}.{{svg,pdf}}")
 
     # Stacked-raster snapshots of each trained baseline under both
     # perturbation modes, six panels per (model, mode). Same MNIST digit 0
@@ -878,7 +883,7 @@ def main() -> None:
         ]
         plot_perturbation_rasters(
             drop_samples,
-            FIGURES / f"perturb_rasters__drop__{model}.png",
+            FIGURES / f"perturb_rasters__drop__{model}",
             notebook_run_id,
             level_fmt="p(drop) = {level:.1f}",
             title=(
@@ -886,14 +891,14 @@ def main() -> None:
                 "hidden-spike drop"
             ),
         )
-        print(f"wrote {FIGURES / f'perturb_rasters__drop__{model}.png'}")
+        print(f"wrote {FIGURES / f'perturb_rasters__drop__{model}'}.{{png,pdf}}")
         add_samples = [
             capture_perturbation_raster(train_dir, "add", lvl, 0)
             for lvl in PERTURB_RASTER_ADD_LEVELS
         ]
         plot_perturbation_rasters(
             add_samples,
-            FIGURES / f"perturb_rasters__add__{model}.png",
+            FIGURES / f"perturb_rasters__add__{model}",
             notebook_run_id,
             level_fmt="r(add) = {level:g} Hz",
             title=(
@@ -901,7 +906,7 @@ def main() -> None:
                 "hidden-spike Poisson noise added"
             ),
         )
-        print(f"wrote {FIGURES / f'perturb_rasters__add__{model}.png'}")
+        print(f"wrote {FIGURES / f'perturb_rasters__add__{model}'}.{{png,pdf}}")
 
     duration_s = time.monotonic() - t_start
     train_cfg = load_config(baseline_dir(MODELS[0]))

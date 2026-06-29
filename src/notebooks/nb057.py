@@ -27,6 +27,7 @@ sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "src" / "notebooks"))
 
 from cli import theme  # noqa: E402
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
@@ -75,7 +76,8 @@ def build_super_compound(grid, nb054, results, hopf, sweep, mf, meas, out_path, 
 
     # Tall super-compound — three panel rows; a deliberate exception to the
     # 16:9 house ratio (same reasoning as nb033's wide bifurcation strip).
-    fig = plt.figure(figsize=(13.5, 12.0), dpi=150)
+    # Full print width (6.9 in), original 13.5:12.0 aspect preserved.
+    fig = plt.figure(figsize=(6.9, 6.13), dpi=150)
     gs = GridSpec(
         3, 3, figure=fig, height_ratios=[1.25, 0.92, 1.05],
         hspace=0.5, wspace=0.32, top=0.95, bottom=0.06, left=0.07, right=0.95,
@@ -203,11 +205,15 @@ def build_super_compound(grid, nb054, results, hopf, sweep, mf, meas, out_path, 
     axC.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
     _despine(axC)
 
-    fig.savefig(out_path, dpi=150)
+    # Dense rasters + imshow heatmaps: raster PNG, vector PDF.
+    save_figure(fig, out_path, formats=("png", "pdf"))
     plt.close(fig)
 
 
 def main() -> None:
+    # Publication profile: print-sized vectors, emitted as both PNG/SVG (docs)
+    # and PDF (manuscript) by save_figure.
+    theme.set_paper_mode(True)
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     parse_modal_gpu(sys.argv)  # local CPU; modal unused.
     wipe_dir = "--no-wipe-dir" not in sys.argv
@@ -235,10 +241,10 @@ def main() -> None:
     mf_freq = nb033.frequency_vs_tau_gaba([4.5, 6.0, 9.0, 12.0, 18.0, 27.0], I_grid)
     meas_fgamma = nb033.load_nb041_fgamma()
 
-    out = FIGURES / "onset_super_compound.png"
+    out = FIGURES / "onset_super_compound"
     build_super_compound(grid, nb054, results, hopf, criticality, mf_freq,
                          meas_fgamma, out, notebook_run_id)
-    print(f"wrote {out}")
+    print(f"wrote {out}.{{png,pdf}}")
     print(f"done in {time.monotonic() - t_start:.1f}s")
 
 

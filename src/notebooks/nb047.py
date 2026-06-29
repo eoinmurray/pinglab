@@ -31,6 +31,7 @@ import torch
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -145,7 +146,7 @@ def plot_summary(rows_by_ni: dict, out_path: Path, run_id: str) -> None:
     per-synapse weight W^IE, one line per pool size N_I. The lines
     collapse onto one another — the rate is set by W^IE, not N_I."""
     theme.apply()
-    fig, (ax_e, ax_i) = plt.subplots(1, 2, figsize=(10.0, 4.3), dpi=150)
+    fig, (ax_e, ax_i) = plt.subplots(1, 2, figsize=(5.6, 2.41))
     palette = [theme.DEEP_RED, theme.AMBER, theme.INK_BLACK]
     markers = ["s", "^", "o"]
     n_is = sorted(rows_by_ni.keys())
@@ -183,7 +184,7 @@ def plot_summary(rows_by_ni: dict, out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
@@ -193,6 +194,11 @@ def main() -> None:
     cfg = TIER_CONFIG[tier]
     n_batch = int(cfg["n_batch"])
     wipe_dir = "--no-wipe-dir" not in sys.argv
+
+    # Publication profile: every figure this notebook writes is a print-sized
+    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+    theme.set_paper_mode(True)
+
     notebook_run_id = next_run_id(SLUG)
     prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=True)
 
@@ -210,9 +216,9 @@ def main() -> None:
                   f"E={r['r_e_hz']:6.2f} Hz  I={r['r_i_hz']:6.2f} Hz")
         rows_by_ni[n_inh] = ni_rows
 
-    summary_out = FIGURES / "rate_vs_w_ie.png"
+    summary_out = FIGURES / "rate_vs_w_ie"
     plot_summary(rows_by_ni, summary_out, notebook_run_id)
-    print(f"wrote {summary_out}")
+    print(f"wrote {summary_out}.{{svg,pdf}}")
 
     duration_s = time.monotonic() - t_start
     summary = {

@@ -29,6 +29,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
 from cli import theme  # noqa: E402
+from helpers.figsave import save_figure  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
@@ -119,7 +120,7 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     has_i = spk_i.size > 0 and spk_i.shape[0] == T and spk_i.any()
 
     if has_i:
-        fig = plt.figure(figsize=(9.0, 7.5), dpi=150)
+        fig = plt.figure(figsize=(6.9, 5.75))
         gs = GridSpec(
             3, 1, figure=fig,
             height_ratios=[4.0, 1.2, 2.6],
@@ -129,7 +130,7 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
         ax_i = fig.add_subplot(gs[1], sharex=ax_e)
         ax_psd = fig.add_subplot(gs[2])
     else:
-        fig = plt.figure(figsize=(9.0, 6.0), dpi=150)
+        fig = plt.figure(figsize=(6.9, 4.6))
         gs = GridSpec(
             2, 1, figure=fig,
             height_ratios=[4.0, 2.6],
@@ -195,7 +196,7 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
             fontstyle="italic",
         )
 
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -255,7 +256,7 @@ def plot_raster_compound(
     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
     from matplotlib.gridspec import GridSpec
 
-    fig = plt.figure(figsize=(12, 6.75), dpi=150)  # 16:9
+    fig = plt.figure(figsize=(6.9, 3.88))  # 16:9, full print width
     if include_arch:
         # Nested gridspecs so the (small) schematic→plots gap is independent of
         # the (larger) raster→PSD gap that has to clear the time-axis label.
@@ -359,7 +360,7 @@ def plot_raster_compound(
         if col == 1:
             ax_fi.legend(frameon=False, fontsize=theme.SIZE_LABEL - 2, loc="upper left")
 
-    fig.savefig(out_path, dpi=150)
+    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
 
@@ -402,7 +403,7 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
     E_I = -80.0
     G_L_E = 0.05
     G_L_I = 0.10
-    PANEL_SIZE = (8.0, 4.5)
+    PANEL_SIZE = (3.0, 1.6875)  # small per-panel trace tile, 8:4.5 aspect
 
     def _save_panel(plot_fn, suffix: str, ylabel: str, panel_title: str):
         fig, ax = plt.subplots(figsize=PANEL_SIZE)
@@ -413,12 +414,10 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
         ax.set_title(f"{title} — {panel_title}")
         ax.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
         fig.tight_layout()
-        panel_path = out_path.with_name(
-            f"{out_path.stem}__{suffix}{out_path.suffix}"
-        )
-        fig.savefig(panel_path, dpi=120)
+        panel_stem = out_path.with_name(f"{out_path.name}__{suffix}")
+        save_figure(fig, panel_stem)  # line traces: SVG + PDF
         plt.close(fig)
-        return panel_path
+        return panel_stem
 
     # ── E neuron ─────────────────────────────────────────────────────
     ge_trace_e = ge_e[:, e_idx]
@@ -559,7 +558,7 @@ def plot_architecture(out_path: Path) -> None:
     theme.apply()
     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
 
-    fig, ax = plt.subplots(figsize=(12, 6.75))
+    fig, ax = plt.subplots(figsize=(6.9, 3.88))
     ax.set_xlim(0, 16)
     ax.set_ylim(0, 9)
     ax.set_aspect("equal")  # 16:9 data range in a 16:9 frame, undistorted
@@ -588,11 +587,15 @@ def plot_architecture(out_path: Path) -> None:
     _arch_arrow(ax, 12.7, 3.35, 12.7, 4.65)     # I → E (up, right side)
     _arch_label(ax, 13.75, 4.0, "W_ie")
 
-    fig.savefig(out_path, dpi=200)
+    save_figure(fig, out_path)  # schematic line art: SVG + PDF
     plt.close(fig)
 
 
 def main() -> None:
+    # Publication profile: every figure this notebook writes is a print-sized
+    # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+    theme.set_paper_mode(True)
+
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     wipe_dir = "--no-wipe-dir" not in sys.argv
@@ -606,10 +609,10 @@ def main() -> None:
     figures: dict[str, Path] = {}
 
     # Architecture schematic — manuscript Figure 0 (pure drawing, no compute).
-    arch_dst = FIGURES / "architecture.png"
+    arch_dst = FIGURES / "architecture"
     plot_architecture(arch_dst)
     figures["architecture"] = arch_dst
-    print(f"wrote {arch_dst}")
+    print(f"wrote {arch_dst}.{{svg,pdf}}")
 
     snaps: dict[str, dict] = {}
     for cell, spec in CELLS.items():
@@ -630,11 +633,11 @@ def main() -> None:
             "dt": float(data["dt"]),
         }
 
-        traces_dst = FIGURES / f"traces__{cell}.png"
+        traces_dst = FIGURES / f"traces__{cell}"
         panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, spec["title"])
         for p in panel_paths:
             figures[p.stem] = p
-            print(f"wrote {p}")
+            print(f"wrote {p}.{{svg,pdf}}")
 
     # Free-running f–I curves (uniform Poisson sweep), folded into the super figure.
     fi = fi_sweep()
@@ -646,17 +649,17 @@ def main() -> None:
 
     # Super figure: COBA vs PING side by side (raster, PSD + f–I). Used by the
     # manuscript's Claim 1 (the architecture is its own Claim 0 figure there).
-    compound_dst = FIGURES / "raster_compound.png"
+    compound_dst = FIGURES / "raster_compound"
     plot_raster_compound(snaps, fi, compound_dst, column_titles)
     figures["raster_compound"] = compound_dst
-    print(f"wrote {compound_dst}")
+    print(f"wrote {compound_dst}.{{png,pdf}}")
 
     # Merged overview for this notebook: each column's architecture schematic
     # sits directly above its raster / PSD / f–I plots.
-    overview_dst = FIGURES / "overview_compound.png"
+    overview_dst = FIGURES / "overview_compound"
     plot_raster_compound(snaps, fi, overview_dst, column_titles, include_arch=True)
     figures["overview_compound"] = overview_dst
-    print(f"wrote {overview_dst}")
+    print(f"wrote {overview_dst}.{{png,pdf}}")
 
     duration_s = time.monotonic() - t_start
     figs_root = FIGURES.parents[2]

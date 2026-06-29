@@ -61,7 +61,7 @@ Sweep $r_\text{add} \in \{0, 2, \dots, 40\}$ Hz, 21 levels. On the right panel o
 
 ## Results
 
-<Figure id="Figure 1" title="Hidden-spike perturbation — accuracy curves" src="/figures/notebooks/nb037/perturbation_curves.png" alt="Two-panel accuracy plot, both axes in percentage units. Left: accuracy vs % of emitted spikes dropped (0–100%). PING (black) holds ≈ 82% through 80% drop then collapses to chance by 100%; COBA (red) tracks slightly below, collapsing similarly. Right: accuracy vs added Poisson noise as % of each population's baseline rate (0–100%). PING falls off a sharp cliff between 15% and 50% relative noise, reaching chance by 65%. COBA holds 82–88% through 50% then drifts down to 75% at 100% noise.">
+<Figure id="Figure 1" title="Hidden-spike perturbation — accuracy curves" src="/figures/notebooks/nb037/perturbation_curves.svg" alt="Two-panel accuracy plot, both axes in percentage units. Left: accuracy vs % of emitted spikes dropped (0–100%). PING (black) holds ≈ 82% through 80% drop then collapses to chance by 100%; COBA (red) tracks slightly below, collapsing similarly. Right: accuracy vs added Poisson noise as % of each population's baseline rate (0–100%). PING falls off a sharp cliff between 15% and 50% relative noise, reaching chance by 65%. COBA holds 82–88% through 50% then drifts down to 75% at 100% noise.">
   **Left (drop)**: Bernoulli mask, % of emitted spikes dropped. **Right (add)**: Poisson injection per population (each scaled by its own baseline, so the comparison is architecture-fair). The asymmetry is direct: PING tolerates drop up to ≈ 80% but collapses on add between 15% and 50% relative noise, while COBA stays at 75% even with 100% extra Poisson.
 </Figure>
 

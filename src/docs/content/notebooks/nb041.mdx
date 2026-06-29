@@ -49,11 +49,11 @@ We fit this across the 18 cells.
 
 ## Results
 
-<Figure id="Figure 1" title="Per-cell training curves" src="/figures/notebooks/nb041/training_curves.png" alt="Two stacked panels. Top: test accuracy vs epoch, one line per cell, coloured by τ_GABA. Accuracy plateaus at 80–89% by epoch 15 across all cells. Bottom: test E rate vs epoch — every curve climbs steadily across the first 30 epochs then flattens by epoch 70–100.">
+<Figure id="Figure 1" title="Per-cell training curves" src="/figures/notebooks/nb041/training_curves.svg" alt="Two stacked panels. Top: test accuracy vs epoch, one line per cell, coloured by τ_GABA. Accuracy plateaus at 80–89% by epoch 15 across all cells. Bottom: test E rate vs epoch — every curve climbs steadily across the first 30 epochs then flattens by epoch 70–100.">
   Per-cell accuracy (top) and E rate (bottom) over training. Accuracy plateaus by epoch 15; the E rate keeps climbing until epoch 70–100, so the 100-epoch numbers are converged.
 </Figure>
 
-<Figure id="Figure 2" title="Trained-network population PSDs — peak marks f_γ" src="/figures/notebooks/nb041/psds.png" alt="Six PSD curves on a linear y axis, one per τ_GABA value (4.5, 6, 9, 12, 18, 27 ms; viridis colormap), x-axis frequency 5–150 Hz. Each curve has a clear peak in the gamma band, marked with a dot at the parabolic-interpolated peak frequency.">
+<Figure id="Figure 2" title="Trained-network population PSDs — peak marks f_γ" src="/figures/notebooks/nb041/psds.svg" alt="Six PSD curves on a linear y axis, one per τ_GABA value (4.5, 6, 9, 12, 18, 27 ms; viridis colormap), x-axis frequency 5–150 Hz. Each curve has a clear peak in the gamma band, marked with a dot at the parabolic-interpolated peak frequency.">
   Trial-mean Welch PSDs by $\tau_\text{GABA}$; dots mark the parabolic-interpolated peak. The peak shifts cleanly from ≈ 14 Hz at $\tau_\text{GABA} = 27$ ms to ≈ 54 Hz at $\tau_\text{GABA} = 4.5$ ms, with no overlap between adjacent conditions.
 </Figure>
 
@@ -61,6 +61,6 @@ We fit this across the 18 cells.
   One MNIST trial through each network. The cycle period stretches from ≈ 17 ms ($r_E = 14.5$ Hz) to ≈ 63 ms ($r_E = 4.6$ Hz) — the eye and the spectrum agree.
 </Figure>
 
-<Figure id="Figure 4" title="Retrained τ_GABA sweep — post-training E rate tracks measured f_γ" src="/figures/notebooks/nb041/rate_vs_fgamma.png" alt="Top panel: scatter of mean post-training E rate (Hz) vs measured gamma frequency f_γ (Hz). Six clusters, one per τ_GABA value (annotated 4.5–27 ms), three seeds each. Error bars in both dimensions. An affine fit line r_E = 0.76 + 0.216 · f_γ passes through every error bar with R² = 0.997. Bottom panel: test accuracy vs same x-axis — flat at 81–89% across the entire f_γ range. f_γ on the x-axis is the per-trial PSD peak median.">
+<Figure id="Figure 4" title="Retrained τ_GABA sweep — post-training E rate tracks measured f_γ" src="/figures/notebooks/nb041/rate_vs_fgamma.svg" alt="Top panel: scatter of mean post-training E rate (Hz) vs measured gamma frequency f_γ (Hz). Six clusters, one per τ_GABA value (annotated 4.5–27 ms), three seeds each. Error bars in both dimensions. An affine fit line r_E = 0.76 + 0.216 · f_γ passes through every error bar with R² = 0.997. Bottom panel: test accuracy vs same x-axis — flat at 81–89% across the entire f_γ range. f_γ on the x-axis is the per-trial PSD peak median.">
   The law itself. Top: mean post-training E rate vs $f_\gamma$, six clusters × three seeds, error bars from seed variance — the affine fit passes through every error bar. Bottom: per-cluster accuracy is flat, so the rate change is not paid in classification.
 </Figure>
