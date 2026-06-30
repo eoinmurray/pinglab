@@ -177,8 +177,6 @@ def build_train_args(
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
         "--seed", str(seed),
-        "--observe", "video",
-        "--frame-rate", "1",
         "--out-dir", str(out_dir),
         "--wipe-dir",
     ]
