@@ -213,6 +213,44 @@ def _init_cells() -> list[dict]:
     return cells
 
 
+def _theta_u_3seed_cells() -> list[dict]:
+    """3-seed extension of the θ_u sweep: interior θ_u values re-run across
+    all baseline seeds so the ar009 Figure 3 accuracy–rate frontier can be
+    plotted with across-seed bands (currently the interior is single-seed,
+    a disclosure in ar009 §2.3 we'd like to remove). The 'off' baseline is
+    not included here — _theta_u_cells already runs it at all baseline seeds.
+
+    NOT YET WIRED INTO CANONICAL_CELLS — see ar010 (manuscript-driven TODO
+    article, item 3 after the items-1-and-2 merge). To enable training, append
+    ` + _theta_u_3seed_cells()` to the CANONICAL_CELLS expression below.
+    Names use the {model}__tu{val}__seedN convention so they sit alongside
+    rather than overwrite the existing single-seed sweep cells.
+    """
+    cells = []
+    for m in MODELS:
+        for tu in THETA_U_GRID:
+            if tu is None:
+                continue
+            extra = [
+                "--fr-reg-upper-theta", str(tu),
+                "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
+            ]
+            for s in SEEDS_BASELINE:
+                cells.append({
+                    "name": f"{m}__{theta_label(tu)}__seed{s}",
+                    "model": m, "family": "theta_u_3seed",
+                    "tag": theta_display(tu), "seed": s, "dt_ms": DT_MS,
+                    "tau_gaba": TAU_GABA_GAMMA, "extra": extra,
+                })
+    return cells
+
+
+# Available but not enabled — see docstring above. Importable from outside
+# the module for inspection / dry-run; flip the switch by adding to
+# CANONICAL_CELLS below.
+THETA_U_3SEED_CELLS = _theta_u_3seed_cells()
+
+
 CANONICAL_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
                    + _dt_cells() + _init_cells())
 
@@ -319,6 +357,7 @@ def final_rates(d: Path) -> tuple[float, float]:
 FAMILY_COLORS = {
     "canonical": theme.GREY_DARK,
     "theta_u": theme.INK_BLACK,
+    "theta_u_3seed": theme.INK_BLACK,
     "tau_gaba": theme.DEEP_RED,
     "dt": theme.ELECTRIC_CYAN,
     "init": theme.AMBER,
@@ -341,10 +380,11 @@ def training_curve(d: Path) -> tuple[list[int], list[float]]:
     return eps, accs
 
 
-FAMILY_ORDER = ["canonical", "theta_u", "tau_gaba", "dt", "init"]
+FAMILY_ORDER = ["canonical", "theta_u", "theta_u_3seed", "tau_gaba", "dt", "init"]
 FAMILY_LABELS = {
     "canonical": "Canonical reference",
     "theta_u": "θ_u spike-budget sweep",
+    "theta_u_3seed": "θ_u spike-budget sweep (3-seed, ar010 item 3)",
     "tau_gaba": "τ_GABA ladder",
     "dt": "Δt sweep",
     "init": "Init variants",
