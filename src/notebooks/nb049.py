@@ -1114,6 +1114,259 @@ def fig_training_curves(out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def fig_phase_portrait(out_path: Path, run_id: str) -> None:
+    """(E rate × pingness) phase portrait of training.
+
+    One trajectory per trainable condition (mean across seeds), faded-to-saturated
+    along epoch via LineCollection so the flow direction reads off the line itself.
+    Open marker = epoch 0, filled marker = final epoch. The frozen-PING control
+    sits as a single dot cluster in the PING basin — it can't move because the
+    loop gradients are zero, not because it's an attractor of the same dynamics.
+
+    Story: gradient descent has one preferred direction in this plane, and the
+    PING corner only exists under architectural enforcement.
+    """
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"
+
+    from matplotlib.collections import LineCollection
+    from matplotlib.colors import to_rgba
+
+    runs = _load_epoch_curves()
+    by_cond: dict[str, list[dict]] = {}
+    for d in runs.values():
+        by_cond.setdefault(d["cond"], []).append(d)
+
+    fig, ax = plt.subplots(figsize=(5.6, 3.15), dpi=200)
+
+    e_max = 0.0
+    final_accs: dict[str, float] = {}
+
+    for cond in COND_ORDER:
+        seeds = [
+            d for d in by_cond.get(cond, [])
+            if not any(v is None for v in d["rate_e"])
+            and not any(v is None for v in d["contrast"])
+            and not any(v is None for v in d["acc"])
+        ]
+        if not seeds:
+            continue
+        e_stack = np.array([np.asarray(d["rate_e"], dtype=float) for d in seeds])
+        p_stack = np.array([np.asarray(d["contrast"], dtype=float) for d in seeds])
+        a_stack = np.array([np.asarray(d["acc"], dtype=float) for d in seeds])
+        e_mean = e_stack.mean(axis=0)
+        p_mean = p_stack.mean(axis=0)
+        final_accs[cond] = float(a_stack[:, -1].mean())
+        e_max = max(e_max, float(e_mean.max()))
+
+        color = COND_COLOURS.get(cond, theme.INK_BLACK)
+        marker = COND_MARKERS.get(cond, "o")
+        frozen = cond == "frozen_ping"
+        label = f"{CONDITIONS[cond]['label']}  ·  {final_accs[cond]:.1f}%"
+
+        if frozen:
+            # Single dot cluster — frozen control sits in the PING basin and
+            # only drifts a little as the feedforward weights train.
+            ax.scatter(
+                e_stack[:, -1], p_stack[:, -1],
+                s=55, color=color, marker=marker,
+                alpha=0.40, edgecolor="none", zorder=6,
+            )
+            ax.scatter(
+                e_mean[-1], p_mean[-1],
+                s=170, color=color, marker=marker,
+                edgecolor="white", linewidths=1.3, zorder=10, label=label,
+            )
+        else:
+            # Faded-to-saturated trajectory: alpha encodes epoch progress.
+            points = np.array([e_mean, p_mean]).T.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            alphas = np.linspace(0.22, 1.0, len(segments))
+            seg_colors = [to_rgba(color, alpha=a) for a in alphas]
+            lc = LineCollection(segments, colors=seg_colors, linewidths=1.6, zorder=4)
+            ax.add_collection(lc)
+            # Start marker — hollow
+            ax.scatter(
+                e_mean[0], p_mean[0],
+                s=70, facecolor="white", edgecolor=color, marker=marker,
+                linewidths=1.4, zorder=10,
+            )
+            # End marker — filled
+            ax.scatter(
+                e_mean[-1], p_mean[-1],
+                s=70, color=color, marker=marker,
+                edgecolor="white", linewidths=0.9, zorder=10, label=label,
+            )
+
+    # Basin annotations — orient the reader without claiming a separatrix.
+    ax.text(
+        0.02, 0.97, "PING basin\n(loop active)",
+        transform=ax.transAxes, ha="left", va="top",
+        fontsize=theme.SIZE_LABEL, color=theme.MUTED, fontstyle="italic",
+    )
+    ax.text(
+        0.98, 0.04, "COBA basin\n(loop pruned)",
+        transform=ax.transAxes, ha="right", va="bottom",
+        fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED, fontstyle="italic",
+    )
+
+    ax.set_xlabel("E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("pingness  (lobe–trough contrast)", fontsize=theme.SIZE_LABEL)
+    ax.set_title(
+        "Training trajectories collapse to COBA — PING persists only under freeze",
+        fontsize=theme.SIZE_LABEL - 1, color=theme.INK,
+    )
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.set_ylim(0, 1.0)
+    ax.set_xlim(0, max(e_max * 1.08, 60.0))
+    ax.tick_params(labelsize=theme.SIZE_TICK)
+    ax.legend(
+        fontsize=theme.SIZE_LEGEND - 1, frameon=False, loc="center right",
+        title="condition · final acc", title_fontsize=theme.SIZE_LEGEND - 1,
+    )
+    ax.text(
+        1.0, -0.16, "○ epoch 0   ● final epoch",
+        transform=ax.transAxes, ha="right", va="top",
+        fontsize=theme.SIZE_CAPTION, color=theme.GREY_MID,
+    )
+
+    plt.rcParams["savefig.bbox"] = "tight"
+    plt.rcParams["savefig.pad_inches"] = 0.04
+    fig.tight_layout(pad=0.4)
+    stamp_figure(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    save_figure(fig, out_path, formats=("svg", "pdf"))
+    plt.close(fig)
+
+
+def fig_acc_rate_trajectory(out_path: Path, run_id: str) -> None:
+    """(E rate × accuracy) trajectories with pingness as colour.
+
+    The accuracy–rate frontier from nb025 (Figure 3 of the manuscript) given a
+    time axis: every condition climbs in accuracy as training proceeds, but the
+    *route* differs. Trainable inits sprint rightward in E rate; the frozen
+    control barely moves in E. Per-segment colour is the pingness at that
+    epoch, on a shared viridis colormap: only the frozen trajectory lights up
+    bright (high pingness) — every trainable one is dark (low pingness) end-to-end.
+
+    Story: same accuracy, very different spike economy, and only one of them
+    is actually doing PING.
+    """
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"
+
+    from matplotlib.cm import ScalarMappable
+    from matplotlib.collections import LineCollection
+    from matplotlib.colors import Normalize
+
+    runs = _load_epoch_curves()
+    by_cond: dict[str, list[dict]] = {}
+    for d in runs.values():
+        by_cond.setdefault(d["cond"], []).append(d)
+
+    fig, ax = plt.subplots(figsize=(5.6, 3.15), dpi=200)
+
+    # Basin divider in E rate (same boundary as the Figure 3 phase portrait):
+    # left = the low-rate PING corner, right = the dense-E COBA attractor.
+    DIVIDER = 17.0
+    ax.axvspan(0, DIVIDER, color=theme.INK_BLACK, alpha=0.04, zorder=0)
+    ax.axvline(DIVIDER, color=theme.MUTED, lw=0.8, ls="--", zorder=1)
+
+    cmap = plt.get_cmap("viridis")
+    norm = Normalize(vmin=0.0, vmax=1.0)
+
+    e_max = 0.0
+    final_pings: dict[str, float] = {}
+
+    for cond in COND_ORDER:
+        seeds = [
+            d for d in by_cond.get(cond, [])
+            if not any(v is None for v in d["rate_e"])
+            and not any(v is None for v in d["contrast"])
+            and not any(v is None for v in d["acc"])
+        ]
+        if not seeds:
+            continue
+        e_stack = np.array([np.asarray(d["rate_e"], dtype=float) for d in seeds])
+        p_stack = np.array([np.asarray(d["contrast"], dtype=float) for d in seeds])
+        a_stack = np.array([np.asarray(d["acc"], dtype=float) for d in seeds])
+        e_mean = e_stack.mean(axis=0)
+        p_mean = p_stack.mean(axis=0)
+        a_mean = a_stack.mean(axis=0)
+        final_pings[cond] = float(p_mean[-1])
+        e_max = max(e_max, float(e_mean.max()))
+
+        marker = COND_MARKERS.get(cond, "o")
+        # Per-segment pingness colour: average of the segment's two endpoint pingnesses.
+        points = np.array([e_mean, a_mean]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        seg_pings = 0.5 * (p_mean[:-1] + p_mean[1:])
+        lc = LineCollection(
+            segments, cmap=cmap, norm=norm,
+            array=seg_pings, linewidths=2.2, zorder=4,
+        )
+        ax.add_collection(lc)
+
+        # Start (epoch 1) and end (final epoch) markers, coloured by their pingness.
+        start_color = cmap(norm(p_mean[0]))
+        end_color = cmap(norm(p_mean[-1]))
+        ax.scatter(
+            e_mean[0], a_mean[0],
+            s=70, facecolor="white", edgecolor=start_color, marker=marker,
+            linewidths=1.6, zorder=10,
+        )
+        label = f"{CONDITIONS[cond]['label']}  ·  final pingness {final_pings[cond]:.2f}"
+        ax.scatter(
+            e_mean[-1], a_mean[-1],
+            s=85, color=end_color, marker=marker,
+            edgecolor="white", linewidths=0.9, zorder=10, label=label,
+        )
+
+    # Colorbar for pingness — the third dimension.
+    sm = ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax, pad=0.02, fraction=0.045, aspect=22)
+    cbar.set_label("pingness  (lobe–trough contrast)", fontsize=theme.SIZE_LABEL)
+    cbar.ax.tick_params(labelsize=theme.SIZE_TICK)
+
+    ax.set_xlabel("E firing rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    ax.set_title(
+        "Same accuracy reached at very different spike economies — colour shows who still has the rhythm",
+        fontsize=theme.SIZE_LABEL - 1, color=theme.INK,
+    )
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.set_ylim(60, 100)
+    ax.set_xlim(0, max(e_max * 1.08, 60.0))
+    ax.tick_params(labelsize=theme.SIZE_TICK)
+    # Basin labels in the empty top band, clear of the trajectories and legend.
+    x_right = ax.get_xlim()[1]
+    ax.text(DIVIDER * 0.5, 96, "PING basin", ha="center", va="center",
+            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED, zorder=2)
+    ax.text(DIVIDER + (x_right - DIVIDER) * 0.5, 96, "COBA attractor",
+            ha="center", va="center", fontsize=theme.SIZE_ANNOTATION,
+            color=theme.DEEP_RED, zorder=2)
+    ax.legend(
+        fontsize=theme.SIZE_LEGEND - 1, frameon=False, loc="lower right",
+        title="condition · end pingness", title_fontsize=theme.SIZE_LEGEND - 1,
+    )
+    ax.text(
+        1.0, -0.16, "○ epoch 1   ● final epoch",
+        transform=ax.transAxes, ha="right", va="top",
+        fontsize=theme.SIZE_CAPTION, color=theme.GREY_MID,
+    )
+
+    plt.rcParams["savefig.bbox"] = "tight"
+    plt.rcParams["savefig.pad_inches"] = 0.04
+    fig.tight_layout(pad=0.4)
+    stamp_figure(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    save_figure(fig, out_path, formats=("svg", "pdf"))
+    plt.close(fig)
+
+
 def main() -> None:
     # Publication profile: every figure this notebook writes is a print-sized
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
@@ -1122,6 +1375,16 @@ def main() -> None:
     if "--curves-only" in sys.argv:
         fig_training_curves(FIGURES / "training_curves", "nb049-curves")
         print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
+        return
+
+    if "--portrait-only" in sys.argv:
+        fig_phase_portrait(FIGURES / "phase_portrait", "nb049-portrait")
+        print(f"wrote {FIGURES / 'phase_portrait'}.{{svg,pdf}}")
+        return
+
+    if "--accrate-only" in sys.argv:
+        fig_acc_rate_trajectory(FIGURES / "acc_rate_trajectory", "nb049-accrate")
+        print(f"wrote {FIGURES / 'acc_rate_trajectory'}.{{svg,pdf}}")
         return
 
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
@@ -1196,11 +1459,18 @@ def main() -> None:
             plot_weight_matrices(cond, seed_to_dir, device, w_out, notebook_run_id)
             print(f"wrote {w_out}.{{svg,pdf}}")
 
+
     fig_attractor(summary_rows, FIGURES / "attractor_ei", notebook_run_id)
     print(f"wrote {FIGURES / 'attractor_ei'}.{{svg,pdf}}")
 
     fig_training_curves(FIGURES / "training_curves", notebook_run_id)
     print(f"wrote {FIGURES / 'training_curves'}.{{svg,pdf}}")
+
+    fig_phase_portrait(FIGURES / "phase_portrait", notebook_run_id)
+    print(f"wrote {FIGURES / 'phase_portrait'}.{{svg,pdf}}")
+
+    fig_acc_rate_trajectory(FIGURES / "acc_rate_trajectory", notebook_run_id)
+    print(f"wrote {FIGURES / 'acc_rate_trajectory'}.{{svg,pdf}}")
 
     duration_s = time.monotonic() - t_start
     summary = {

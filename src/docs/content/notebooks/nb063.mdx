@@ -1,0 +1,77 @@
+---
+title: "The Poisson process — from coin flips to spike trains"
+date: 2026-06-30
+entry: 63
+status: draft
+structure: paper
+collection: miscellaneous
+---
+import Figure from "../../src/components/Figure.astro";
+export const numbers = Object.values(
+  import.meta.glob("../../public/figures/notebooks/nb063/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
+
+## Abstract
+
+A pedagogical entry, not a result. The Poisson process is the "completely random at a fixed rate" model, and it sits underneath everything this collection does: the network's inputs are Poisson spike trains, and the firing statistics we measure (CV, Fano factor) are defined *relative* to it. This note builds the distribution from the ground up — coin flips → binomial → Poisson — shows that this limit is exactly how the simulator encodes inputs, and explains why a Poisson process is the yardstick against which structured spiking is interesting.
+
+## From coin flips to Poisson
+
+Start with the simplest random event: a coin that lands heads with probability $p$. Flip it once per timestep for $n$ steps, and the number of heads follows the **binomial** distribution. Now do two things at once — **bias the coin harder** (shrink $p$ toward zero, so each flip rarely scores) and **flip it more often** (grow $n$) — while holding the expected number of heads $\lambda = np$ fixed. Each flip becomes vanishingly unlikely, but you take so many that the average yield doesn't move. In that limit the binomial becomes the **Poisson** distribution:
+
+$$P(k) = \frac{\lambda^k e^{-\lambda}}{k!}$$
+
+- $k$ — the number of events (heads, or spikes) observed
+- $\lambda$ — the expected number of events over the whole window
+- $P(k)$ — the probability of seeing exactly $k$
+
+<Figure id="Figure 1" title="Coin flips become Poisson" src="/figures/notebooks/nb063/binomial_to_poisson.svg" alt="Four panels for n = 4, 8, 20, 100, each with p = 4/n. Grey bars are the binomial PMF; the red line is Poisson(λ=4). As n grows the bars converge onto the Poisson curve.">
+Fix $\lambda = 4$ and grow $n$, with $p = \lambda/n$. As the events become more numerous and rarer, the binomial count (grey) converges onto Poisson(λ=4) (red). This limit — many independent chances, each unlikely — is where the input encoder lives.
+</Figure>
+
+## One number sets everything
+
+The Poisson distribution has a single parameter, $\lambda$, and it controls both the centre and the spread. Its defining fingerprint is that the **mean equals the variance**:
+
+$$\mathbb{E}[k] = \operatorname{Var}[k] = \lambda$$
+
+This is what makes "Poisson" a testable claim about real data rather than a vague synonym for "random": measure the mean and variance of a spike count, and if they match, the process is consistent with Poisson.
+
+<Figure id="Figure 2" title="λ sets both the average and the spread" src="/figures/notebooks/nb063/pmf_and_meanvar.svg" alt="Left: Poisson PMF for λ = 1, 4, 10 — larger λ shifts the peak right and widens it. Right: sample variance plotted against sample mean for many λ, scattered tightly along the variance = mean diagonal.">
+Left: the PMF for three values of $\lambda$ — larger $\lambda$ moves the peak right and broadens it. Right: drawing samples at many $\lambda$ and plotting variance against mean, every point lands on the $y=x$ line — the mean-equals-variance signature.
+</Figure>
+
+## Spike trains in continuous time
+
+Take the timestep to zero and the count process becomes a **point process** in continuous time. Two facts make it the canonical spike-train model. The intervals between consecutive events — the **inter-spike intervals (ISIs)** — are exponentially distributed, and the process is **memoryless**: the time to the next spike doesn't depend on when the last one fired. A clean way to summarise irregularity is the coefficient of variation of the ISIs:
+
+$$\mathrm{CV} = \frac{\sigma_{\text{ISI}}}{\mu_{\text{ISI}}}$$
+
+- $\mu_{\text{ISI}}$, $\sigma_{\text{ISI}}$ — the mean and standard deviation of the inter-spike intervals
+
+For a Poisson process $\mathrm{CV} = 1$ exactly. Regular, clock-like firing gives $\mathrm{CV} \to 0$; bursty firing gives $\mathrm{CV} > 1$.
+
+<Figure id="Figure 3" title="Random spike times, memoryless intervals" src="/figures/notebooks/nb063/spike_trains_isi.svg" alt="Left: Poisson spike-train rasters at 10, 30, 60 Hz, denser at higher rate. Right: histogram of inter-spike intervals at 30 Hz overlaid with an exponential curve; CV ≈ 1.">
+Left: homogeneous Poisson spike trains at three rates — random in time, just denser as the rate climbs. Right: the ISIs are exponential, with $\mathrm{CV} \approx 1$ — the defining number for a Poisson spike train.
+</Figure>
+
+## This is the simulator's encoder
+
+None of this is incidental to the project: it *is* the input layer. The canonical encoder (*encode_images_poisson*) turns a pixel into spikes with one line — a per-timestep Bernoulli draw, $\text{spike if } u < \text{intensity}\cdot r\,\Delta t/1000$, with $u$ uniform on $[0,1]$. That is precisely the coin-flip construction above, so the spike count over a trial is Poisson with
+
+$$\lambda = \text{intensity} \times r \times \frac{T}{1000}$$
+
+- $r$ — the maximum input rate (Hz) at full pixel intensity
+- $T$ — the trial length (ms); $\Delta t$ — the integration timestep (ms)
+
+The bias is extreme: at full intensity with $r = 50$ Hz and $\Delta t = 0.1$ ms, the per-step coin lands "spike" just $p = 0.005$ of the time, flipped $T/\Delta t = 2000$ times a trial for $\lambda = 10$ — a heavily biased coin, flipped a lot, exactly the regime above.
+
+Two consequences fall straight out, and the encoder confirms both. Pixel intensity scales $\lambda$ linearly, and the result is **invariant to $\Delta t$** — halving the step doubles the number of draws but halves each draw's probability, leaving $\lambda$ unchanged. Running the real encoder, the spike-count Fano factor (variance/mean) comes out at **≈ 1** across intensities, as a Poisson count must.
+
+<Figure id="Figure 4" title="The input encoder is a Poisson process" src="/figures/notebooks/nb063/encoder_check.svg" alt="Left: empirical spike-count histograms from the encoder at pixel intensities 0.25, 0.5, 1.0 sitting exactly on Poisson PMFs with λ = 2.5, 5, 10. Right: count distributions at dt = 0.1, 0.25, 1.0 ms all collapsing onto Poisson(λ=10).">
+Left: the project's encoder run on three pixel intensities — the empirical counts (shaded) land exactly on Poisson PMFs with $\lambda = 2.5, 5, 10$. Right: the same intensity at three timesteps collapses onto one Poisson, confirming $\Delta t$-invariance.
+</Figure>
+
+## Why Poisson is the yardstick
+
+Cortical spiking is famously "Poisson-like" — irregular, with $\mathrm{CV} \approx 1$ and Fano $\approx 1$ — so a Poisson process is the natural null model for a spiking network. That makes the *interesting* results the **departures** from it. When the PING loop imposes a gamma rhythm, spikes cluster into cycles and the within-cycle statistics go **sub-Poisson** (regular, $\mathrm{CV} < 1$) — which is exactly the structure [nb024](/notebooks/nb024/) reads off the firing rate's CV and [nb046](/notebooks/nb046/) reads off the spikes-per-cycle count. Poisson is the baseline; gamma-gated sparsity is the deviation worth measuring.
