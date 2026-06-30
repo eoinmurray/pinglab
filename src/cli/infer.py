@@ -164,3 +164,118 @@ def infer(
 
     return {"acc": acc, "rates_hz": rates_hz, "hid_rate_hz": hid_rate_hz}
 
+
+def infer_and_snapshot(
+    model_name="ping",
+    dt=0.25,
+    load_weights=None,
+    dataset="scikit",
+    t_ms=200.0,
+    w_in=None,
+    ei_strength=0.5,
+    ei_ratio=2.0,
+    w_in_sparsity=0.0,
+    hidden_sizes=None,
+    out_dir=None,
+    dales_law=True,
+    ei_layers=None,
+    seed=None,
+    digit=0,
+    sample=0,
+):
+    """Run inference on a single sample and save full spike trajectory to snapshot.npz."""
+    import numpy as np
+    from scan import primary_hid_key, primary_inh_key
+
+    seed_everything(seed)
+
+    M.T_ms = t_ms
+    if hidden_sizes is None:
+        default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
+        hidden_sizes = [default]
+    M.N_HID = hidden_sizes[-1]
+    M.N_INH = hidden_sizes[-1] // 4
+    M.HIDDEN_SIZES = list(hidden_sizes)
+
+    device = _auto_device()
+
+    # Load dataset
+    _, X_te, _, y_te = load_dataset(dataset, max_samples=None, split=True)
+    if dataset in ("mnist", "smnist"):
+        if dataset == "smnist":
+            M.N_IN = 28
+            M.T_ms = 28 * 10.0
+            M.T_steps = int(M.T_ms / dt)
+        else:
+            M.N_IN = 784
+    else:
+        M.N_IN = 64
+
+    # Select single sample (by digit class and index within that class)
+    if dataset == "mnist":
+        digit_mask = (y_te == digit)
+        digit_indices = np.where(digit_mask)[0]
+        if sample >= len(digit_indices):
+            log.warning(
+                f"Sample {sample} out of range for digit {digit} "
+                f"({len(digit_indices)} available); using sample 0"
+            )
+            sample = 0
+        sample_idx = digit_indices[sample]
+    else:
+        sample_idx = sample if sample < len(X_te) else 0
+
+    X_single = torch.from_numpy(X_te[sample_idx : sample_idx + 1]).to(device)
+    y_single = torch.from_numpy(y_te[sample_idx : sample_idx + 1]).to(device)
+
+    # Build model
+    net = build_net(
+        model_name,
+        w_in=w_in,
+        w_in_sparsity=w_in_sparsity,
+        ei_strength=ei_strength,
+        ei_ratio=ei_ratio,
+        device=device,
+        randomize_init=True,
+        dales_law=dales_law,
+        hidden_sizes=hidden_sizes,
+        ei_layers=ei_layers,
+    )
+
+    # Load weights
+    assert load_weights is not None
+    state = torch.load(load_weights, map_location=device)
+    net.load_state_dict(state, strict=False)
+
+    # Run forward pass with recording
+    net.recording = True
+    net.eval()
+    with torch.no_grad():
+        spk = encode_batch(X_single, dt, dataset == "smnist")
+        logits = net(input_spikes=spk)
+
+    # Extract spike data
+    rec = net.spike_record
+    spk_e = rec[primary_hid_key(rec)].cpu().numpy()
+    spk_i_key = primary_inh_key(rec)
+    spk_i = (
+        rec[spk_i_key].cpu().numpy()
+        if spk_i_key
+        else np.zeros((spk_e.shape[0], 0), dtype=np.float32)
+    )
+
+    # Save snapshot
+    out_path = Path(out_dir) / "snapshot.npz"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(
+        out_path,
+        spk_e=spk_e,
+        spk_i=spk_i,
+        dt=np.float32(dt),
+        n_e=np.int32(M.N_HID),
+        n_i=np.int32(M.N_INH),
+    )
+    log.info(f"Saved snapshot to {out_path}")
+
+    return {"acc": None}
+
