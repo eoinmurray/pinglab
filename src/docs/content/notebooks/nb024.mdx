@@ -33,3 +33,29 @@ COBA, three seeds. Loss (train solid, test dashed) and **accuracy plateau by ≈
 <Figure id="Figure 2" title="PING — loss, accuracy, firing rate vs epoch" src="/figures/notebooks/nb024/ping_curves.png" alt="Three panels for PING (three seeds overlaid): train and test loss vs epoch; test accuracy vs epoch; and E (solid) and I (dashed) firing rate vs epoch.">
 PING, three seeds. Loss and accuracy plateau by ≈ 15 epochs as in COBA, but here the **E rate locks flat at ≈ 4–9 Hz** — converged. (The I rate, dashed, keeps climbing to ≈ 40 Hz, driven by the still-growing input weights, the same force that drives COBA's E rate up.) The loop pins the excitatory rate; without it, COBA's drifts.
 </Figure>
+
+<Figure id="Figure 3" title="Cross-entropy keeps buying confidence after accuracy converges" src="/figures/notebooks/nb024/confidence_inflation.png" alt="Three panels vs epoch, three seeds each, COBA red and PING black: test accuracy (left), test cross-entropy on a log axis (middle), and E firing rate (right). Dotted vertical lines mark each model's accuracy-convergence epoch. Accuracy is flat past about epoch 20 for both models, but cross-entropy keeps falling to the right of those lines, and COBA's E rate climbs from about 55 to 78 Hz while PING's stays near 9 Hz.">
+Test accuracy (left), test cross-entropy on a log axis (middle), and E firing rate (right) vs epoch; three seeds each, COBA red / PING black. Dotted verticals mark each model's accuracy-convergence epoch (first epoch within 1% of final accuracy). Accuracy is flat past ≈ epoch 20, yet **cross-entropy keeps falling well to its right** — COBA's is still dropping at epoch 100. COBA's E rate climbs ≈ 55 → 78 Hz in lockstep; PING reaches the same low loss early and **stays pinned near ≈ 9 Hz**.
+</Figure>
+
+## Discussion
+
+The rate climb is what the loss spends to keep gaining confidence. Cross-entropy stops at *certain*, not *correct*:
+
+$$\mathrm{CE} = -\log p_y = \log\!\Big(1 + \sum_{k\neq y} e^{\,z_k - z_y}\Big)$$
+
+- $z_y$, $z_k$ — logits for the true class and class $k$
+- $p_y$ — softmax probability of the true class
+- $m = z_y - \max_{k\neq y} z_k$ — decision margin
+
+Accuracy needs only the *sign* of $m$; cross-entropy keeps shrinking with the *size* of the gaps. So past the convergence line the argmax is fixed but the loss still falls by widening margins — which means scaling logits up. With a mem-mean readout, $z \approx W_\text{out}\cdot(\text{E activity})$, so wider margins cost either weight or spikes. COBA takes the spike route (rate ≈ 55 → 78 Hz, still climbing); PING sharpens its readout through the loop and holds ≈ 9 Hz. The loop buys confidence for free; without it, confidence costs spikes.
+
+So the rate doesn't fail to converge — it tracks a loss that never stops rewarding margin. train.py now logs *test_margin*, *test_confidence* and *test_logit_scale* per epoch; once retrained, the prediction is that COBA's margin rises with its rate while PING's plateaus.
+
+## Next steps
+
+Figure 3 infers confidence from the rate. The next run (cells retrained with the new logging) lets us measure it directly:
+
+- Plot per-epoch **margin $\langle m\rangle$**, **confidence $\langle p_y\rangle$** and **logit scale** vs epoch, COBA vs PING — the direct version of Figure 3's middle panel.
+- Overlay each against the E rate to test the lockstep: confidence ↑ with rate for COBA, both flat for PING.
+- Confirm the split quantitatively — does COBA's margin keep rising at epoch 100 (slope > 0) while PING's plateaus (slope ≈ 0), matching the cross-entropy and rate slopes here.
