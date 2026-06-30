@@ -195,10 +195,7 @@ def build_train_args(
         "--epochs", str(BASELINE_EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
-        "--seed", str(seed),
-        "--observe", "video",
-        "--frame-rate", "1",
-        "--out-dir", str(out_dir),
+        "--seed", str(seed)"--out-dir", str(out_dir),
         "--wipe-dir",
     ]
     for k, v in recipe.items():
