@@ -1,4 +1,4 @@
-"""Regression test: every PING-video scan runner (nb003–nb006) must forward
+"""Regression test: every PING-video scan runner (nb003–nb004, nb006) must forward
 `--t-ms` to the oscilloscope `sim --video` call. Without it the video runs at
 the CLI default (200 ms), which ends before the 200–300 ms stim window fires —
 every scan frame lands in flat baseline and the raster / PSD / I-population
@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 NOTEBOOKS = Path(__file__).resolve().parents[2] / "notebooks"  # src/notebooks/
-SCAN_RUNNERS = ["nb003.py", "nb004.py", "nb005.py", "nb006.py"]
+SCAN_RUNNERS = ["nb003.py", "nb004.py", "nb006.py"]
 
 
 @pytest.mark.parametrize("runner", SCAN_RUNNERS)

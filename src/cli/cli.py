@@ -5,7 +5,7 @@ Subcommands: sim, train.
 Usage:
     uv run python src/cli/cli.py                             # sim only (metrics)
     uv run python src/cli/cli.py sim --image                 # snapshot
-    uv run python src/cli/cli.py sim --video --scan-var dt   # dt sweep video
+    uv run python src/cli/cli.py sim --video --scan-var ei_strength  # parameter sweep
     uv run python src/cli/cli.py sim --infer --from-dir RUN  # evaluate trained net
     uv run python src/cli/cli.py train --epochs 10           # train on scikit digits
 """
@@ -1218,8 +1218,7 @@ def _emit_infer(args, C, out_dir, log):
 
 def _render_infer_snapshot(args, C, out_dir, log, w_in, acc):
     """Render a single oscilloscope frame for a trained net at one dt (--observe)."""
-    C.cfg.n_e = M.N_HID
-    C.cfg.n_i = M.N_INH
+    C.cfg.sync_from_model(M.N_HID, M.N_INH)
     vis_net = build_net(
         args.model,
         w_in=w_in,
