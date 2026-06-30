@@ -1,0 +1,96 @@
+---
+title: "TODO — manuscript-driven notebook work"
+date: 2026-06-30
+entry: 10
+structure: notes
+collection: gamma-gated-sparsity
+status: open
+---
+
+Notebook work that would let us upgrade disclosed caveats in [the manuscript (ar009)](/articles/ar009/) into removed caveats. Each item already has a text-side fix in the manuscript; the notebook work converts "we acknowledge" into "we show".
+
+Ordered by leverage: items at the top are the highest-impact / lowest-cost.
+
+## Highest leverage
+
+### 1. d=1 retrain to defang the gradient-damping confound
+
+**Manuscript site:** §2.4 paragraph 3, §3 para 4, §3 limitations paragraph.
+
+**Current disclosure:** the §2.4 released-loop result (gradient descent prunes the canonical PING loop within a single training epoch) is conditional on the d=1000 damping scheme of §5.4. A referee could argue the loop collapse is driven by 1/d^2000 gradient attenuation rather than by gradient descent genuinely preferring loopless networks.
+
+**Notebook work:** run [nb049](/notebooks/nb049/) with `d = 1` (or the lowest `d` that still lets the COBA configuration train at all). If the loop still collapses from every initialisation, the §2.4 result no longer rests on the damping scheme and the conditionality clause can be deleted from the manuscript. If the loop survives at low `d`, the §2.4 framing needs further weakening.
+
+**Where:** new condition in nb049, requires nb022 retrain at the new `d` for each of the four conditions (frozen, trainable PING init, trainable zero init, trainable small init). Single-seed pilot first; 3 seeds if the pilot confirms collapse.
+
+### 2. Add a 1/f_γ reference line to Figure 13
+
+**Manuscript site:** Figure 13 caption (currently quotes 0.4 T_γ and ≈ T_γ in prose).
+
+**Current disclosure:** the caption states the values numerically, but a reader scanning the figure sees only the τ axis in ms and has to do the arithmetic.
+
+**Notebook work:** in [nb048](/notebooks/nb048/), add a vertical reference line at τ = 1/f_γ ≈ 40 ms to the accuracy heatmap (Figure 13). Optionally a second light line at 0.4 T_γ ≈ 15 ms marking the sub-cycle floor. Pure figure tweak, no retraining, no new data — should be a 5-minute change.
+
+**Where:** [nb048](/notebooks/nb048/) `fig_acc_grid_tau_rate` (or equivalent).
+
+### 3. 3-seed θ_u sweep for the accuracy–rate frontier (Figure 3)
+
+**Manuscript site:** §2.3 last sentence (currently discloses that interior θ_u points are n=1 with seed 42; endpoints are n=3).
+
+**Current disclosure:** the §2.3 frontier paragraph now states that the interior θ_u-sweep points are single-seed and the seed-invariance claim is re-attributed to §2.5–§2.7 where n=3 is reported. Reviewer-defensive, but the headline figure of the paper has unbanded interior points.
+
+**Notebook work:** in [nb025](/notebooks/nb025/), rerun the θ_u sweep with three seeds per θ_u value (currently θ_u ∈ {off, 5, 2, 1, 0.5, 0.2}, six values × two configurations = 12 points × 3 seeds = 36 runs). Replot Figure 3 bottom-right with mean and across-seed envelope (or error bars). The disclosure in §2.3 then collapses to "n=3 throughout".
+
+**Where:** [nb025](/notebooks/nb025/) with a 3-seed sweep loop.
+
+## Worth doing but lower priority
+
+### 4. Inference-time hysteresis sweep on the E→I gain
+
+**Manuscript site:** §3 para 1.
+
+**Current disclosure:** the §3 para 1 link from the §2.2 supercritical-Hopf classification (which is on I_ext in the 4D mean-field reduction) to the §2.4 inference-time loop activation (which sweeps E→I gain in the full spiking network) was softened from "is what allows" to "is consistent with", with the direct test flagged as future work.
+
+**Notebook work:** extend [nb038](/notebooks/nb038/) (or new notebook) to do a quasi-static up/down ramp of the inference-time E→I gain on a trained COBA network, looking for branch coincidence (the same hysteresis criterion used in §5.3 for the mean-field classification). If the branches coincide on the spiking network, the §3 para 1 claim upgrades back to causal.
+
+**Where:** extension of [nb038](/notebooks/nb038/) (loop transfer at inference) with a hysteresis ramp.
+
+### 5. Frozen-PING control rerun at the §2.3 operating point
+
+**Manuscript site:** §2.4 paragraph 3 (currently reconciles Figure 5's ≈88–90% / ≈8 Hz frozen-PING numbers with the §2.3 ≈83% / ≈3.8 Hz frontier endpoint via a regime-difference sentence).
+
+**Current disclosure:** §2.4 now explains the discrepancy by pointing at the absence of θ_u in the nb049 setup. A reviewer can read this without confusion, but the cleaner fix is to make the numbers reconcile.
+
+**Notebook work:** rerun the nb049 frozen-PING control with [nb025](/notebooks/nb025/)'s θ_u-disabled config so the operating-point accuracy and E rate line up. Removes the explanatory sentence in §2.4 paragraph 3.
+
+**Where:** [nb049](/notebooks/nb049/) frozen-PING condition with nb025-matched θ_u.
+
+### 6. Cycle-aligned accuracy analysis for the cycle-as-unit claim
+
+**Manuscript site:** §3 para 3.
+
+**Current disclosure:** the §3 para 3 claim that the gamma cycle "acts as a temporal unit for classification" was softened to "is consistent with — though not specifically diagnostic of". The original "diagnostic" claim would need step changes in accuracy at integer multiples of T_γ.
+
+**Notebook work:** in [nb048](/notebooks/nb048/), plot streaming-classification accuracy as a function of τ in units of T_γ rather than ms. Look for visible step changes at τ = T_γ, 2 T_γ, 3 T_γ, etc. If present, upgrade the §3 para 3 claim from "consistent with" to "supported by". If absent, the current softened framing is correct.
+
+**Where:** new analysis in [nb048](/notebooks/nb048/) (presentation grid replotted on a T_γ-normalised axis).
+
+## Separately tracked
+
+These were flagged in earlier reviews and are pending real data rather than text fixes:
+
+- **All numbers in §2.3, §2.5, §2.6, §2.7 to be revisited when the [nb022](/notebooks/nb022/) mega run lands.** The accuracy values (83% / 82% / 88% / 87–89%), E rate values (3.8 Hz / 5 Hz / 8 Hz / 8.4–12 Hz), and R² = 0.997 affine fit are all sourced from prior training runs and will be re-derived from the mega-run trained cells.
+
+- **Empirical W_ei × W_ie plane characterisation** (referenced in §4 conclusion as future work). Would directly test the supercritical Hopf classification by walking the spiking-network parameters across the full plane and looking for the predicted bifurcation.
+
+- **Constrained-training scheme** (§4 conclusion). The loop weights would be regularised toward biophysical values during training rather than held fixed, bridging to the inhibitory-plasticity literature and potentially demonstrating that a relaxed-prior PING is stable under SGD.
+
+## Done — text-side fixes already applied in ar009
+
+For reference, these were the 13 issues from the multi-agent paper review that have been resolved in the manuscript text:
+
+**Critical:** (i) "one gamma cycle" arithmetic across Abstract / §2.7 / §3 / Figure 13; (ii) dual ≈10× / ≈5× framing in Abstract and §4; (iii) Bittar & Garner [26] vs Yan [25] separation in §1, with new §3 paragraph and §3 limitations sentence.
+
+**Major:** (i) d=1000 conditionality disclosed in §2.4 and §3; (ii) §2.4 heading reframed to "does not require trained loop weights" + two-senses-of-architectural paragraph; (iii) §3 para 1 "is what allows" → "is consistent with"; (iv) single-seed θ_u disclosure in §2.3; (v) Δt-retrain protocol in §5.6 + Figure 11; (vi) Figure 5 numbers reconciled in §2.4; (vii) global W_{ei}, W_{ie} → W^{EI}, W^{IE}.
+
+**Minor:** (i) §2.6 baseline value added; (ii) §5.4 fragment headings bolded; (iii) Abstract symbols → coefficients.

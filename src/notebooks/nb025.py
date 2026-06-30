@@ -587,13 +587,14 @@ def _load_trained_full(train_dir: Path, device):
 
     import cli.config as C  # noqa: F401
     import models as M
-    from cli.config import build_net, patch_dt
+    from cli.config import build_net
     from cli import load_dataset, seed_everything
 
     cfg = json.loads((train_dir / "config.json").read_text())
     seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
     M.T_ms = float(cfg["t_ms"])
-    patch_dt(float(cfg["dt"]))
+    dt = float(cfg["dt"])
+    M.T_steps = int(M.T_ms / dt)
     hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
     M.N_HID = hidden_sizes[-1]
     M.N_INH = hidden_sizes[-1] // 4
