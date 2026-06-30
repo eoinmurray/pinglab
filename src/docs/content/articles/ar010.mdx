@@ -1,5 +1,5 @@
 ---
-title: "TODO — manuscript-driven notebook work"
+title: "TODO"
 date: 2026-06-30
 entry: 10
 structure: notes
@@ -13,56 +13,45 @@ Ordered by leverage: items at the top are the highest-impact / lowest-cost.
 
 ## Highest leverage
 
-### 1. d=1 retrain to defang the gradient-damping confound
+### 1. Damping requirements per architecture (PING / COBA) and d=1 PING retrain
 
-**Manuscript site:** §2.4 paragraph 3, §3 para 4, §3 limitations paragraph.
+**Manuscript sites:** §5.4 "Gradient damping for the PING configuration" paragraph (asserted clause "The COBA configuration is trainable at the module default $d = 80$; the PING configuration is not"); §2.4 paragraph 3, §3 para 4, §3 limitations paragraph (the §2.4 released-loop result is currently disclosed as conditional on the $d = 1000$ damping scheme).
 
-**Current disclosure:** the §2.4 released-loop result (gradient descent prunes the canonical PING loop within a single training epoch) is conditional on the d=1000 damping scheme of §5.4. A referee could argue the loop collapse is driven by 1/d^2000 gradient attenuation rather than by gradient descent genuinely preferring loopless networks.
+**Current disclosure:** the paper asserts a damping requirement asymmetry between PING ($d = 1000$) and COBA ($d = 80$ default would work) without illustrating it, and concedes the §2.4 loop-pruning result might be driven by 1/$d^{2000}$ gradient attenuation rather than by gradient descent genuinely preferring loopless networks.
 
-**Notebook work:** run [nb049](/notebooks/nb049/) with `d = 1` (or the lowest `d` that still lets the COBA configuration train at all). If the loop still collapses from every initialisation, the §2.4 result no longer rests on the damping scheme and the conditionality clause can be deleted from the manuscript. If the loop survives at low `d`, the §2.4 framing needs further weakening.
+**Notebook work:** new standalone notebook running both characterisation and the §2.4 d=1 retrain together — the two questions share the same damping-sweep scaffold and are best done in one place.
 
-**Where:** new condition in nb049, requires nb022 retrain at the new `d` for each of the four conditions (frozen, trainable PING init, trainable zero init, trainable small init). Single-seed pilot first; 3 seeds if the pilot confirms collapse.
-
-### 2. New notebook: damping requirements per architecture
-
-**Manuscript site:** §5.4 "Gradient damping for the PING configuration" paragraph; the asserted clause "The COBA configuration is trainable at the module default $d = 80$; the PING configuration is not."
-
-**Current disclosure:** §5.4 asserts the damping requirement asymmetry but does not show it. The choice of $d = 1000$ for both PING and COBA in the paper's experiments is justified by an unillustrated claim.
-
-**Notebook work:** new standalone notebook (suggested slug: nb050 or similar) running three training conditions on MNIST under the standard recipe, differing only in the damping factor:
-
-- PING, $d = 80$ — tests whether the paper's assertion that PING is unstable at the COBA default holds; if it trains, $d = 1000$ is over-engineering.
+Training conditions (each at three seeds):
+- PING, $d = 80$ — tests whether the paper's "PING is unstable at COBA default" assertion holds; if PING trains, $d = 1000$ is over-engineering and the methods simplify.
 - PING, $d = 1000$ — current canonical, baseline reference.
-- COBA, $d = 1$ — tests whether COBA needs any damping at all; if it trains, the $d = 1$ retrain in item 1 above becomes viable and the §5.4 framing can be tightened ("damping is required only for PING").
+- COBA, $d = 1$ — tests whether COBA needs any damping at all; if it trains, the §2.4 d=1 retrain becomes viable.
+- PING released-loop ($W_{ei}, W_{ie}$ trainable), $d = 1$ (or the lowest $d$ that lets COBA train) — repeats the §2.4 nb049 second experiment without the 1/$d^{2000}$ confound.
 
-Outputs: per-epoch test accuracy, gradient norm, training stability indicator (whether `nan`/`inf` appears in any layer's gradient). Three seeds per condition.
+Outputs: per-epoch test accuracy, gradient norm, training stability indicator (whether `nan`/`inf` appears in any layer's gradient), and for the released-loop condition the rhythmicity score $R$ trajectory.
 
 Result interpretation:
-- If both PING conditions train and reach similar accuracy: drop the $d = 1000$ choice in favour of $d = 80$ throughout the paper, simplifying the methods.
-- If PING at $d = 80$ fails (paper's current claim): §5.4 has its evidence, and item 1's d=1 retrain still proceeds at the boundary between COBA-stable and PING-unstable.
-- If COBA at $d = 1$ trains: item 1 above becomes runnable and the manuscript's d=1000 conditionality on the §2.4 pruning result can be tested directly.
+- If both PING fixed-loop conditions ($d = 80$ vs $d = 1000$) train and reach similar accuracy: drop the $d = 1000$ choice in favour of $d = 80$ in §5.4, simplifying the methods.
+- If PING at $d = 80$ fails (paper's current claim): §5.4 has its evidence, and the released-loop retrain still proceeds at whatever $d$ keeps COBA stable.
+- If the released-loop $R$ trajectory still collapses to ≈0.04–0.18 at low $d$: the §2.4 conditionality clause can be deleted from the manuscript.
+- If the released loop survives at low $d$: the §2.4 framing needs weakening — gradient descent could not previously *find* PING because the damping scheme was prohibitively strong.
 
-**Where:** new notebook (no nb049 / nb025 extension — this is a methods-validation entry in its own right).
+**Where:** new notebook (suggested slug: nb050). Requires [nb022](/notebooks/nb022/) extensions to register the new training conditions.
 
-### 3. Add a 1/f_γ reference line to Figure 13
+### 2. ✅ 1/f_γ reference line on Figure 13 — applied
 
-**Manuscript site:** Figure 13 caption (currently quotes 0.4 T_γ and ≈ T_γ in prose).
+**Manuscript site:** Figure 13 caption.
 
-**Current disclosure:** the caption states the values numerically, but a reader scanning the figure sees only the τ axis in ms and has to do the arithmetic.
+**Status:** done. Added vertical reference lines to the [nb048](/notebooks/nb048/) accuracy heatmap at $0.4\,T_\gamma$ (sub-cycle floor) and $T_\gamma \approx 40$ ms (gamma period at $f_\gamma \approx 25$ Hz), via a `--replot-grid` flag that reads cached grid data and re-renders without retraining. The Figure 13 caption now has the visual reference its prose already described.
 
-**Notebook work:** in [nb048](/notebooks/nb048/), add a vertical reference line at τ = 1/f_γ ≈ 40 ms to the accuracy heatmap (Figure 13). Optionally a second light line at 0.4 T_γ ≈ 15 ms marking the sub-cycle floor. Pure figure tweak, no retraining, no new data — should be a 5-minute change.
-
-**Where:** [nb048](/notebooks/nb048/) `fig_acc_grid_tau_rate` (or equivalent).
-
-### 4. 3-seed θ_u sweep for the accuracy–rate frontier (Figure 3)
+### 3. ⏳ 3-seed θ_u sweep for the accuracy–rate frontier — set up, not run
 
 **Manuscript site:** §2.3 last sentence (currently discloses that interior θ_u points are n=1 with seed 42; endpoints are n=3).
 
-**Current disclosure:** the §2.3 frontier paragraph now states that the interior θ_u-sweep points are single-seed and the seed-invariance claim is re-attributed to §2.5–§2.7 where n=3 is reported. Reviewer-defensive, but the headline figure of the paper has unbanded interior points.
+**Current disclosure:** the §2.3 frontier paragraph states that the interior θ_u-sweep points are single-seed and the seed-invariance claim is re-attributed to §2.5–§2.7 where n=3 is reported. Reviewer-defensive, but the headline figure of the paper has unbanded interior points.
 
-**Notebook work:** in [nb025](/notebooks/nb025/), rerun the $\theta_u$ sweep with three seeds per $\theta_u$ value (currently $\theta_u \in \{\text{off}, 5, 2, 1, 0.5, 0.2\}$, six values × two configurations = 12 points × 3 seeds = 36 runs). Replot Figure 3 bottom-right with mean and across-seed envelope (or error bars). The disclosure in §2.3 then collapses to "n=3 throughout".
+**Status:** new `theta_u_3seed` family wired into [nb022](/notebooks/nb022/) (function `_theta_u_3seed_cells()`, exported as `THETA_U_3SEED_CELLS`) — 30 cells (2 models × 5 interior θ_u values × 3 baseline seeds), all using the `{model}__tu{val}__seedN` naming convention so they sit alongside the existing single-seed cells. Not in `CANONICAL_CELLS` yet; to enable training, append ` + _theta_u_3seed_cells()` to the `CANONICAL_CELLS` expression in [nb022](/notebooks/nb022/). After training, [nb025](/notebooks/nb025/) can be repointed to read from the 3-seed cells and Figure 3 replotted with across-seed bands; the §2.3 disclosure then collapses to "n=3 throughout".
 
-**Where:** [nb025](/notebooks/nb025/) with a 3-seed sweep loop.
+**Where:** training is parked behind the nb022 switch. Compute budget needed: 30 extra runs at the standard θ_u-sweep tier.
 
 ## Worth doing but lower priority
 

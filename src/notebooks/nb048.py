@@ -971,6 +971,46 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
                 fontsize=theme.SIZE_LABEL,
                 color=("white" if grid[i, j] < 55 else theme.INK_BLACK),
             )
+    # Reference lines at the sub-cycle accuracy floor (τ ≈ 0.4 T_γ ≈ 15 ms)
+    # and at one gamma period (T_γ ≈ 40 ms at f_γ ≈ 25 Hz). The x-axis is
+    # discrete index; interpolate the τ value into a fractional index.
+    F_GAMMA_HZ = 25.0
+    T_GAMMA_MS = 1000.0 / F_GAMMA_HZ  # ≈ 40 ms
+
+    def _tau_to_index(target_ms: float) -> float:
+        if target_ms <= taus[0]:
+            return 0.0
+        if target_ms >= taus[-1]:
+            return float(len(taus) - 1)
+        for k in range(len(taus) - 1):
+            if taus[k] <= target_ms <= taus[k + 1]:
+                frac = (target_ms - taus[k]) / (taus[k + 1] - taus[k])
+                return k + frac
+        return float(len(taus) - 1)
+
+    idx_subcycle = _tau_to_index(0.4 * T_GAMMA_MS)  # ≈ 15 ms (paper's floor)
+    idx_tgamma   = _tau_to_index(T_GAMMA_MS)        # ≈ 40 ms
+
+    ax.axvline(idx_subcycle, color=theme.FAINT, lw=0.8, ls=":", alpha=0.85,
+               zorder=10)
+    ax.axvline(idx_tgamma,   color=theme.PAPER, lw=1.4, ls="--", alpha=0.95,
+               zorder=10)
+    # Annotate just above the heatmap top.
+    y_top = len(rates) - 0.5
+    ax.annotate(
+        r"$0.4\,T_\gamma$",
+        xy=(idx_subcycle, y_top), xytext=(idx_subcycle, y_top + 0.45),
+        ha="center", va="bottom",
+        fontsize=theme.SIZE_CAPTION, color=theme.MUTED,
+    )
+    ax.annotate(
+        r"$T_\gamma \approx 40$ ms",
+        xy=(idx_tgamma, y_top), xytext=(idx_tgamma, y_top + 0.45),
+        ha="center", va="bottom",
+        fontsize=theme.SIZE_CAPTION, color=theme.INK,
+    )
+    ax.set_ylim(-0.5, y_top + 1.4)
+
     cbar = fig.colorbar(im, ax=ax, shrink=0.85)
     cbar.set_label("Per-segment accuracy (%)", fontsize=theme.SIZE_LABEL)
     fig.suptitle(
@@ -990,6 +1030,22 @@ def main() -> None:
     # artifact, emitted in both web (SVG/PNG) and manuscript (PDF) formats by
     # save_figure.
     theme.set_paper_mode(True)
+
+    if "--replot-grid" in sys.argv:
+        cached = FIGURES / "numbers.json"
+        if not cached.exists():
+            raise SystemExit(
+                f"--replot-grid: no cached data at {cached}; run the full notebook first."
+            )
+        data = json.loads(cached.read_text())
+        grid_agg = data.get("grid_sweep_agg", [])
+        if not grid_agg:
+            raise SystemExit("--replot-grid: cached numbers.json has no grid_sweep_agg.")
+        plot_grid_heatmap(
+            grid_agg, FIGURES / "acc_grid_tau_rate", "nb048-replot",
+        )
+        print(f"wrote {FIGURES / 'acc_grid_tau_rate'}.png (replotted from cache)")
+        return
 
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     cfg_tier = TIER_CONFIG[tier]
