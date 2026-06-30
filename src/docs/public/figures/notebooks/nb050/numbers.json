@@ -1,10 +1,9 @@
 {
-  "notebook_run_id": "r058",
-  "duration_s": 5.3,
+  "notebook_run_id": "r061",
+  "duration_s": 5.5,
   "tier": "small",
   "common_args": [
     "sim",
-    "--image",
     "--model",
     "ping",
     "--input",
@@ -55,21 +54,21 @@
   "summary": [
     {
       "cell": "ping",
-      "e_rate_hz": 8.05555534362793,
-      "i_rate_hz": 27.70399284362793,
-      "median_isi_cv_e": 0.6365185608122794,
-      "median_isi_cv_i": 0.31932536963000857,
-      "f_psd_peak_hz": 31.75615756600201,
-      "peak_abs_xcorr_e": 0.06287223027246283
+      "e_rate_hz": 15.3916015625,
+      "i_rate_hz": 0.34765625,
+      "median_isi_cv_e": 0.7353250000582482,
+      "median_isi_cv_i": 0.5275504637206765,
+      "f_psd_peak_hz": 29.10381805436079,
+      "peak_abs_xcorr_e": 0.01028536863467865
     },
     {
       "cell": "ai",
-      "e_rate_hz": 7.36328125,
-      "i_rate_hz": 13.50694465637207,
-      "median_isi_cv_e": 0.821952977044626,
-      "median_isi_cv_i": 1.3586749827182771,
-      "f_psd_peak_hz": 9.55229013117293,
-      "peak_abs_xcorr_e": 0.010029096274863265
+      "e_rate_hz": 15.3916015625,
+      "i_rate_hz": 0.34765625,
+      "median_isi_cv_e": 0.7353250000582482,
+      "median_isi_cv_i": 0.5275504637206765,
+      "f_psd_peak_hz": 29.10381805436079,
+      "peak_abs_xcorr_e": 0.01028536863467865
     }
   ]
 }
