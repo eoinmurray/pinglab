@@ -78,7 +78,7 @@ from train import (  # noqa: E402,F401
 # CLI
 # =============================================================================
 
-from infer import infer  # noqa: E402
+from infer import infer, infer_and_snapshot  # noqa: E402
 
 log = logging.getLogger("cli")
 
@@ -941,6 +941,8 @@ def _print_intro(log, config, args, mode):
 
 def _run_sim(args, C, out_dir, log):
     """Forward pass with firing-rate metrics."""
+    import numpy as np
+
     log.info(f"Device: {C.DEVICE}")
     if getattr(args, "infer", False):
         _emit_infer(args, C, out_dir, log)
@@ -975,6 +977,20 @@ def _run_sim(args, C, out_dir, log):
         step_off_ms=C.STEP_OFF_MS,
         burn_in_ms=C.BURN_IN_MS,
     )
+
+    # Save full integration window snapshot for notebooks
+    out_path = Path(out_dir) / "snapshot.npz"
+    spk_e_full = rec[primary_hid_key(rec)]
+    spk_i_full = rec[primary_inh_key(rec)] if primary_inh_key(rec) else np.zeros((spk_e_full.shape[0], 0), dtype=np.float32)
+    np.savez(
+        out_path,
+        spk_e=spk_e_full.numpy() if hasattr(spk_e_full, "numpy") else spk_e_full,
+        spk_i=spk_i_full.numpy() if hasattr(spk_i_full, "numpy") else spk_i_full,
+        dt=np.float32(dt),
+        n_e=np.int32(C.N_E),
+        n_i=np.int32(C.N_I),
+    )
+    log.info(f"Saved snapshot to {out_path}")
 
 
 def _resolve_w_in(args):
@@ -1025,6 +1041,29 @@ def _run_train(args, C, out_dir, log):
 def _emit_infer(args, C, out_dir, log):
     """Load trained weights and evaluate test-set accuracy (the former `infer` mode)."""
     w_in = _resolve_w_in(args)
+
+    # If digit/sample are specified, run single-sample inference and save snapshot
+    if hasattr(args, "digit") and hasattr(args, "sample"):
+        infer_and_snapshot(
+            dt=args.dt,
+            out_dir=str(out_dir),
+            model_name=args.model,
+            load_weights=args.load_weights,
+            dataset=args.dataset,
+            t_ms=args.t_ms,
+            w_in=w_in,
+            ei_strength=args.ei_strength,
+            ei_ratio=args.ei_ratio,
+            w_in_sparsity=args.w_in_sparsity or 0.0,
+            hidden_sizes=args.n_hidden,
+            dales_law=args.dales_law,
+            ei_layers=args.ei_layers,
+            seed=args.seed,
+            digit=args.digit,
+            sample=args.sample,
+        )
+        return
+
     acc = infer(
         dt=args.dt,
         out_dir=str(out_dir),
@@ -1042,8 +1081,6 @@ def _emit_infer(args, C, out_dir, log):
         ei_layers=args.ei_layers,
         seed=args.seed,
     )["acc"]
-    if getattr(args, "image", False):
-        _render_infer_snapshot(args, C, out_dir, log, w_in, acc)
 
 
 _MODE_HANDLERS = {

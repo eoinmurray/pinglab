@@ -486,10 +486,10 @@ def generate_raster(model: str, out_path: Path) -> None:
     """Replay the trained baseline (θ_u = off) network on MNIST digit 0
     for 400 ms and render its raster figure."""
     infer_dir = baseline_dir(model) / "infer"
+    infer_dir.mkdir(parents=True, exist_ok=True)
     npz_path = infer_dir / "snapshot.npz"
     if npz_path.exists():
         npz_path.unlink()
-    # Note: --image flag has been removed. Snapshot data generation needs updating.
     baseline = baseline_dir(model)
     argv = [
         "sim",
@@ -500,9 +500,8 @@ def generate_raster(model: str, out_path: Path) -> None:
         "--dataset", "mnist",
         "--digit", "0",
         "--sample", "0",
-        # Longer than the 200 ms training window so PING's rhythm
-        # has room to develop visibly.
         "--t-ms", "400",
+        "--out-dir", str(infer_dir),
     ]
     cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *argv]
     print(f"[raster] {model}: {' '.join(argv)}")
