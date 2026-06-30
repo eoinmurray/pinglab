@@ -4,7 +4,7 @@ date: 2026-06-30
 entry: 10
 structure: notes
 collection: gamma-gated-sparsity
-status: open
+status: draft
 ---
 
 Notebook work that would let us upgrade disclosed caveats in [the manuscript (ar009)](/articles/ar009/) into removed caveats. Each item already has a text-side fix in the manuscript; the notebook work converts "we acknowledge" into "we show".
@@ -23,7 +23,28 @@ Ordered by leverage: items at the top are the highest-impact / lowest-cost.
 
 **Where:** new condition in nb049, requires nb022 retrain at the new `d` for each of the four conditions (frozen, trainable PING init, trainable zero init, trainable small init). Single-seed pilot first; 3 seeds if the pilot confirms collapse.
 
-### 2. Add a 1/f_γ reference line to Figure 13
+### 2. New notebook: damping requirements per architecture
+
+**Manuscript site:** §5.4 "Gradient damping for the PING configuration" paragraph; the asserted clause "The COBA configuration is trainable at the module default $d = 80$; the PING configuration is not."
+
+**Current disclosure:** §5.4 asserts the damping requirement asymmetry but does not show it. The choice of $d = 1000$ for both PING and COBA in the paper's experiments is justified by an unillustrated claim.
+
+**Notebook work:** new standalone notebook (suggested slug: nb050 or similar) running three training conditions on MNIST under the standard recipe, differing only in the damping factor:
+
+- PING, $d = 80$ — tests whether the paper's assertion that PING is unstable at the COBA default holds; if it trains, $d = 1000$ is over-engineering.
+- PING, $d = 1000$ — current canonical, baseline reference.
+- COBA, $d = 1$ — tests whether COBA needs any damping at all; if it trains, the $d = 1$ retrain in item 1 above becomes viable and the §5.4 framing can be tightened ("damping is required only for PING").
+
+Outputs: per-epoch test accuracy, gradient norm, training stability indicator (whether `nan`/`inf` appears in any layer's gradient). Three seeds per condition.
+
+Result interpretation:
+- If both PING conditions train and reach similar accuracy: drop the $d = 1000$ choice in favour of $d = 80$ throughout the paper, simplifying the methods.
+- If PING at $d = 80$ fails (paper's current claim): §5.4 has its evidence, and item 1's d=1 retrain still proceeds at the boundary between COBA-stable and PING-unstable.
+- If COBA at $d = 1$ trains: item 1 above becomes runnable and the manuscript's d=1000 conditionality on the §2.4 pruning result can be tested directly.
+
+**Where:** new notebook (no nb049 / nb025 extension — this is a methods-validation entry in its own right).
+
+### 3. Add a 1/f_γ reference line to Figure 13
 
 **Manuscript site:** Figure 13 caption (currently quotes 0.4 T_γ and ≈ T_γ in prose).
 
@@ -33,13 +54,13 @@ Ordered by leverage: items at the top are the highest-impact / lowest-cost.
 
 **Where:** [nb048](/notebooks/nb048/) `fig_acc_grid_tau_rate` (or equivalent).
 
-### 3. 3-seed θ_u sweep for the accuracy–rate frontier (Figure 3)
+### 4. 3-seed θ_u sweep for the accuracy–rate frontier (Figure 3)
 
 **Manuscript site:** §2.3 last sentence (currently discloses that interior θ_u points are n=1 with seed 42; endpoints are n=3).
 
 **Current disclosure:** the §2.3 frontier paragraph now states that the interior θ_u-sweep points are single-seed and the seed-invariance claim is re-attributed to §2.5–§2.7 where n=3 is reported. Reviewer-defensive, but the headline figure of the paper has unbanded interior points.
 
-**Notebook work:** in [nb025](/notebooks/nb025/), rerun the θ_u sweep with three seeds per θ_u value (currently θ_u ∈ {off, 5, 2, 1, 0.5, 0.2}, six values × two configurations = 12 points × 3 seeds = 36 runs). Replot Figure 3 bottom-right with mean and across-seed envelope (or error bars). The disclosure in §2.3 then collapses to "n=3 throughout".
+**Notebook work:** in [nb025](/notebooks/nb025/), rerun the $\theta_u$ sweep with three seeds per $\theta_u$ value (currently $\theta_u \in \{\text{off}, 5, 2, 1, 0.5, 0.2\}$, six values × two configurations = 12 points × 3 seeds = 36 runs). Replot Figure 3 bottom-right with mean and across-seed envelope (or error bars). The disclosure in §2.3 then collapses to "n=3 throughout".
 
 **Where:** [nb025](/notebooks/nb025/) with a 3-seed sweep loop.
 
@@ -91,6 +112,6 @@ For reference, these were the 13 issues from the multi-agent paper review that h
 
 **Critical:** (i) "one gamma cycle" arithmetic across Abstract / §2.7 / §3 / Figure 13; (ii) dual ≈10× / ≈5× framing in Abstract and §4; (iii) Bittar & Garner [26] vs Yan [25] separation in §1, with new §3 paragraph and §3 limitations sentence.
 
-**Major:** (i) d=1000 conditionality disclosed in §2.4 and §3; (ii) §2.4 heading reframed to "does not require trained loop weights" + two-senses-of-architectural paragraph; (iii) §3 para 1 "is what allows" → "is consistent with"; (iv) single-seed θ_u disclosure in §2.3; (v) Δt-retrain protocol in §5.6 + Figure 11; (vi) Figure 5 numbers reconciled in §2.4; (vii) global W_{ei}, W_{ie} → W^{EI}, W^{IE}.
+**Major:** (i) d=1000 conditionality disclosed in §2.4 and §3; (ii) §2.4 heading reframed to "does not require trained loop weights" + two-senses-of-architectural paragraph; (iii) §3 para 1 "is what allows" → "is consistent with"; (iv) single-seed θ_u disclosure in §2.3; (v) Δt-retrain protocol in §5.6 + Figure 11; (vi) Figure 5 numbers reconciled in §2.4; (vii) global $W_{ei}, W_{ie} \to W^{EI}, W^{IE}$.
 
 **Minor:** (i) §2.6 baseline value added; (ii) §5.4 fragment headings bolded; (iii) Abstract symbols → coefficients.

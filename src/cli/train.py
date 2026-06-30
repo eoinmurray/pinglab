@@ -27,6 +27,7 @@ import runlog
 from config import (
     build_net,
     extract_weights,
+    setup_model_globals,
 )
 from metrics import compute_metrics, format_metrics
 from datasets import (
@@ -183,9 +184,7 @@ def train(
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]
         log.info(f"  n_hidden auto → {hidden_sizes} (smart default for {dataset})")
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
+    setup_model_globals(hidden_sizes)
     M.V_GRAD_DAMPEN = v_grad_dampen
     if batch_size is not None:
         M.BATCH_SIZE = batch_size
