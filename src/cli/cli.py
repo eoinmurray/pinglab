@@ -945,7 +945,10 @@ def _run_sim(args, C, out_dir, log):
 
     log.info(f"Device: {C.DEVICE}")
     if getattr(args, "infer", False):
-        _emit_infer(args, C, out_dir, log)
+        # Check if --digit or --sample were explicitly passed (snapshot mode)
+        snapshot_mode = any(arg in sys.argv for arg in ("--digit", "--sample")) or \
+                       any(arg.startswith("--digit=") or arg.startswith("--sample=") for arg in sys.argv)
+        _emit_infer(args, C, out_dir, log, snapshot_mode=snapshot_mode)
         return
 
     # Metrics-only simulation
@@ -982,14 +985,22 @@ def _run_sim(args, C, out_dir, log):
     out_path = Path(out_dir) / "snapshot.npz"
     spk_e_full = rec[primary_hid_key(rec)]
     spk_i_full = rec[primary_inh_key(rec)] if primary_inh_key(rec) else np.zeros((spk_e_full.shape[0], 0), dtype=np.float32)
-    np.savez(
-        out_path,
-        spk_e=spk_e_full.numpy() if hasattr(spk_e_full, "numpy") else spk_e_full,
-        spk_i=spk_i_full.numpy() if hasattr(spk_i_full, "numpy") else spk_i_full,
-        dt=np.float32(dt),
-        n_e=np.int32(C.N_E),
-        n_i=np.int32(C.N_I),
-    )
+
+    npz_data = {
+        "spk_e": spk_e_full.numpy() if hasattr(spk_e_full, "numpy") else spk_e_full,
+        "spk_i": spk_i_full.numpy() if hasattr(spk_i_full, "numpy") else spk_i_full,
+        "dt": np.float32(dt),
+        "n_e": np.int32(C.N_E),
+        "n_i": np.int32(C.N_I),
+    }
+
+    # Include optional data like Lyapunov divergence if present
+    for key in ["lyap_dist", "lyap_t_ms"]:
+        if key in rec:
+            v = rec[key]
+            npz_data[key] = v.numpy() if hasattr(v, "numpy") else v
+
+    np.savez(out_path, **npz_data)
     log.info(f"Saved snapshot to {out_path}")
 
 
@@ -1038,12 +1049,12 @@ def _run_train(args, C, out_dir, log):
     )
 
 
-def _emit_infer(args, C, out_dir, log):
+def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
     """Load trained weights and evaluate test-set accuracy (the former `infer` mode)."""
     w_in = _resolve_w_in(args)
 
-    # If digit/sample are specified, run single-sample inference and save snapshot
-    if hasattr(args, "digit") and hasattr(args, "sample"):
+    # If snapshot_mode is true, run single-sample inference and save snapshot
+    if snapshot_mode:
         infer_and_snapshot(
             dt=args.dt,
             out_dir=str(out_dir),

@@ -267,14 +267,22 @@ def infer_and_snapshot(
     # Save snapshot
     out_path = Path(out_dir) / "snapshot.npz"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(
-        out_path,
-        spk_e=spk_e,
-        spk_i=spk_i,
-        dt=np.float32(dt),
-        n_e=np.int32(M.N_HID),
-        n_i=np.int32(M.N_INH),
-    )
+
+    npz_data = {
+        "spk_e": spk_e,
+        "spk_i": spk_i,
+        "dt": np.float32(dt),
+        "n_e": np.int32(M.N_HID),
+        "n_i": np.int32(M.N_INH),
+    }
+
+    # Include optional data like Lyapunov divergence if present
+    for key in ["lyap_dist", "lyap_t_ms"]:
+        if key in rec:
+            v = rec[key]
+            npz_data[key] = v.cpu().numpy() if hasattr(v, "cpu") else v
+
+    np.savez(out_path, **npz_data)
     log.info(f"Saved snapshot to {out_path}")
 
     return {"acc": None}

@@ -21,7 +21,12 @@ SCAN_RUNNERS = ["nb003.py", "nb004.py", "nb006.py"]
 
 @pytest.mark.parametrize("runner", SCAN_RUNNERS)
 def test_scan_runner_forwards_t_ms(runner):
-    src = (NOTEBOOKS / runner).read_text()
+    notebook_path = NOTEBOOKS / runner
+    if not notebook_path.exists():
+        # Video scan runners (nb003–nb006) were deleted; skip this test
+        pytest.skip(f"{runner} was deleted")
+
+    src = notebook_path.read_text()
     assert '"--t-ms"' in src, (
         f"{runner}: oscilloscope video call is missing --t-ms; it will default "
         "to 200 ms and the 200–300 ms stim window never fires — every scan "
