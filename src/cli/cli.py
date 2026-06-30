@@ -6,7 +6,7 @@ Usage:
     uv run python src/cli/cli.py                             # sim only (metrics)
     uv run python src/cli/cli.py sim --image                 # snapshot
     uv run python src/cli/cli.py sim --video --scan-var ei_strength  # parameter sweep
-    uv run python src/cli/cli.py sim --infer --from-dir RUN  # evaluate trained net
+    uv run python src/cli/cli.py sim --infer --load-weights weights.pth  # evaluate trained net
     uv run python src/cli/cli.py train --epochs 10           # train on scikit digits
 """
 
@@ -83,13 +83,12 @@ from infer import infer  # noqa: E402
 log = logging.getLogger("cli")
 
 
-def _apply_from_dir(args, argv):
-    """Fill infer args from a training run's config.json + weights.pth.
+def _apply_load_config(args, argv):
+    """Load config from JSON file and apply to args.
 
     Only sets values the user didn't explicitly pass on the CLI.
     """
-    from_dir = Path(args.from_dir)
-    cfg_path = from_dir / "config.json"
+    cfg_path = Path(args.load_config)
     if not cfg_path.exists():
         print(f"Error: {cfg_path} not found")
         sys.exit(1)
@@ -103,20 +102,7 @@ def _apply_from_dir(args, argv):
         cfg["model"] = LEGACY_MODEL_ALIASES[old]
         print(f"  legacy model name {old!r} → {cfg['model']!r}")
 
-    # Auto-detect weights
-    if args.load_weights is None:
-        weights_path = from_dir / "weights.pth"
-        if not weights_path.exists():
-            print(f"Error: {weights_path} not found (pass --load-weights explicitly)")
-            sys.exit(1)
-        args.load_weights = str(weights_path)
-
-    # Auto-set out-dir to a sibling infer/ dir if not specified
-    if args.out_dir is None:
-        args.out_dir = str(from_dir / "infer")
-
     # Map config.json keys → argparse dest names.
-    # Only apply if the user didn't explicitly pass the flag.
     _CONFIG_TO_ARGS = {
         "model": "model",
         "dt": "dt",
@@ -180,7 +166,7 @@ def _apply_from_dir(args, argv):
         inherited.append(f"{cfg_key}={val}")
 
     if inherited:
-        print(f"  from-dir: inherited {', '.join(inherited)}")
+        print(f"  load-config: inherited {', '.join(inherited)}")
 
     # Warn about critical flags missing from config.json (old training runs)
     critical = ["dales_law"]
@@ -610,8 +596,7 @@ def _build_subparsers(parser, parent):
     sim_parser.add_argument(
         "--infer",
         action="store_true",
-        help="Load trained weights (--from-dir / --load-weights) and evaluate "
-        "test-set accuracy; writes results.json.",
+        help="Load trained weights and evaluate test-set accuracy; writes results.json.",
     )
     sim_parser.add_argument(
         "--max-samples",
@@ -620,17 +605,17 @@ def _build_subparsers(parser, parent):
         help="[--infer] Limit the evaluation dataset to N samples.",
     )
     sim_parser.add_argument(
-        "--from-dir",
+        "--load-config",
         type=str,
         default=None,
-        help="Load trained weights + inherit config from a training run "
-        "directory. CLI flags override inherited values.",
+        help="Load config from a JSON file (e.g., from a training run). "
+        "CLI flags override loaded values.",
     )
     sim_parser.add_argument(
         "--load-weights",
         type=str,
         default=None,
-        help="Path to a weights.pth file (alternative to --from-dir).",
+        help="Path to a weights.pth file for inference.",
     )
 
 
@@ -760,21 +745,15 @@ each subcommand's --help):
                  --observe-every, --frame-rate, --profile,
                  --fr-reg-upper-theta, --fr-reg-upper-strength,
                  --fr-reg-mode, --skip-bad-grad-threshold
-  Sim (sim)      --image, --video, --infer, --from-dir, --load-weights,
-                 --scan-var, --scan-min, --scan-max, --frames, --frame-rate,
-                 --max-samples
-  Output / exec  --out-dir, --wipe-dir, --raster, --layout, --panels,
-                 --modal, --modal-gpu
+  Sim (sim)      --infer, --load-config, --load-weights, --max-samples
+  Output / exec  --out-dir, --wipe-dir, --modal, --modal-gpu
 
 Examples:
   python -m cli                                    # sim (metrics only)
-  python -m cli sim --image                         # snapshot (ping default)
-  python -m cli sim --video --scan-var ei_strength  # sweep E-I coupling
-  python -m cli sim --video --scan-var spike_rate --scan-min 5 --scan-max 100
-  python -m cli train --epochs 100 --observe video
-  python -m cli sim --image --input dataset --dataset mnist --digit 3
+  python -m cli sim --input dataset --dataset mnist --digit 3
+  python -m cli train --epochs 100
   python -m cli sim --infer --load-weights weights.pth --dt 0.5
-  python -m cli sim --infer --from-dir runs/foo
+  python -m cli sim --infer --load-config runs/foo/config.json --load-weights runs/foo/weights.pth
 
 Models:
   ping        COBANet with E↔I coupling. With --ei-strength > 0 the
@@ -799,11 +778,11 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         parser.print_help()
         sys.exit(0)
 
-    # --from-dir: inherit training params from config.json, fill unset values
-    if args.mode == "sim" and getattr(args, "from_dir", None):
-        _apply_from_dir(args, argv)
+    # --load-config: load training params from config.json, fill unset values
+    if args.mode == "sim" and getattr(args, "load_config", None):
+        _apply_load_config(args, argv)
     if getattr(args, "infer", False) and not getattr(args, "load_weights", None):
-        print("Error: sim --infer requires --load-weights or --from-dir")
+        print("Error: sim --infer requires --load-weights")
         sys.exit(1)
 
     # Auto-detect: if user explicitly passed --dataset/--digit/--sample but
@@ -819,11 +798,11 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         return False
 
     args._input_auto = False
-    from_dir_set_dataset = getattr(args, "from_dir", None) and getattr(
+    config_set_dataset = getattr(args, "load_config", None) and getattr(
         args, "dataset", "scikit"
     ) in ("mnist", "smnist")
     if args.input == "synthetic-spikes" and (
-        _flag_in_argv("--dataset", "--digit", "--sample") or from_dir_set_dataset
+        _flag_in_argv("--dataset", "--digit", "--sample") or config_set_dataset
     ):
         args.input = "dataset"
         args._input_auto = True

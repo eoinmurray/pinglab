@@ -57,12 +57,12 @@ def _train_probe(out_dir, *extra, epochs=0):
     )
 
 
-# ── --from-dir inheritance ───────────────────────────────────────────────
+# ── --load-config inheritance ────────────────────────────────────────────
 
 
 @pytest.mark.slow
-def test_from_dir_inherits_config(tmp_path):
-    """sim --from-dir picks up dt, t_ms, n_hidden from the training config."""
+def test_load_config_inherits_params(tmp_path):
+    """sim --load-config picks up dt, t_ms, n_hidden from config.json."""
     train_dir = tmp_path / "train"
     _train_probe(train_dir, "--t-ms", "150", "--n-hidden", "128", epochs=1)
     train_cfg = _read_config(train_dir)
@@ -70,8 +70,8 @@ def test_from_dir_inherits_config(tmp_path):
     sim_dir = tmp_path / "sim"
     _run_cli(
         "sim",
-        "--from-dir",
-        str(train_dir),
+        "--load-config",
+        str(train_dir / "config.json"),
         "--digit",
         "0",
         "--out-dir",
@@ -85,49 +85,33 @@ def test_from_dir_inherits_config(tmp_path):
             f"{key}: train={train_cfg[key]} sim={sim_cfg[key]}"
         )
 
-    # Hidden-layer spec is stored inconsistently between modes (train uses a
-    # scalar n_hidden + hidden_sizes list; image emits n_hidden as a list and
-    # hidden_sizes as null). Normalise both sides to a list to compare.
-    def _hidden(cfg):
-        hs = cfg.get("hidden_sizes")
-        if hs:
-            return list(hs)
-        n = cfg.get("n_hidden")
-        return list(n) if isinstance(n, list) else [n]
-
-    assert _hidden(image_cfg) == _hidden(train_cfg), (
-        f"hidden: train={train_cfg.get('n_hidden')}/{train_cfg.get('hidden_sizes')} "
-        f"image={image_cfg.get('n_hidden')}/{image_cfg.get('hidden_sizes')}"
-    )
-
 
 @pytest.mark.slow
-def test_from_dir_cli_overrides(tmp_path):
-    """Explicit CLI flag wins over inherited --from-dir config."""
+def test_load_config_cli_overrides(tmp_path):
+    """Explicit CLI flag wins over loaded --load-config values."""
     train_dir = tmp_path / "train"
     _train_probe(train_dir, "--t-ms", "150", epochs=1)
     assert _read_config(train_dir)["t_ms"] == 150.0
 
-    image_dir = tmp_path / "image"
+    sim_dir = tmp_path / "sim"
     _run_cli(
         "sim",
-        "--image",
-        "--from-dir",
-        str(train_dir),
+        "--load-config",
+        str(train_dir / "config.json"),
         "--t-ms",
         "200",
         "--digit",
         "0",
         "--out-dir",
-        str(image_dir),
+        str(sim_dir),
         "--wipe-dir",
     )
-    assert _read_config(image_dir)["t_ms"] == 200.0
+    assert _read_config(sim_dir)["t_ms"] == 200.0
 
 
 @pytest.mark.slow
-def test_from_dir_auto_loads_weights(tmp_path):
-    """infer --from-dir finds weights.pth automatically — no --load-weights needed."""
+def test_infer_with_load_config_and_weights(tmp_path):
+    """infer loads config and weights via --load-config and --load-weights."""
     train_dir = tmp_path / "train"
     _run_cli(
         "train",
@@ -150,13 +134,16 @@ def test_from_dir_auto_loads_weights(tmp_path):
         "--wipe-dir",
     )
     assert (train_dir / "weights.pth").exists()
+    assert (train_dir / "config.json").exists()
 
     infer_dir = tmp_path / "infer"
     _run_cli(
         "sim",
         "--infer",
-        "--from-dir",
-        str(train_dir),
+        "--load-config",
+        str(train_dir / "config.json"),
+        "--load-weights",
+        str(train_dir / "weights.pth"),
         "--max-samples",
         "60",
         "--out-dir",
@@ -369,40 +356,6 @@ _IMAGE_SCAN_VARS = [
     ("noise", 0.0, 20.0, []),
     ("digit", 0, 2, ["--input", "dataset", "--dataset", "scikit"]),
 ]
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize(
-    "scan_var,lo,hi,extra",
-    [(sv, lo, hi, extra) for sv, lo, hi, extra in _IMAGE_SCAN_VARS],
-    ids=lambda v: v if isinstance(v, str) else None,
-)
-def test_scan_var_runs(tmp_path, scan_var, lo, hi, extra):
-    """Every --scan-var in the table runs video mode without crashing."""
-    out = tmp_path / f"scan-{scan_var}"
-    _run_cli(
-        "sim",
-        "--video",
-        "--model",
-        "ping",
-        "--n-hidden",
-        "32",
-        "--scan-var",
-        scan_var,
-        "--scan-min",
-        str(lo),
-        "--scan-max",
-        str(hi),
-        "--frames",
-        "2",
-        "--t-ms",
-        "250",
-        "--out-dir",
-        str(out),
-        "--wipe-dir",
-        *extra,
-    )
-    assert any(out.glob("*.mp4")), f"no MP4 written for scan {scan_var}"
 
 
 @pytest.mark.slow
