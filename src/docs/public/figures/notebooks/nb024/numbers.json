@@ -1,9 +1,9 @@
 {
-  "notebook_run_id": "r005",
+  "notebook_run_id": "r006",
   "git_sha": "ed141d7 (dirty)",
-  "duration_s": 0.2,
+  "duration_s": 0.4,
   "duration": "0s",
-  "tier": "extra small",
+  "tier": "medium",
   "config": {
     "dataset": "mnist",
     "models": [

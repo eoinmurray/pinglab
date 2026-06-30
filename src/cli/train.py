@@ -632,6 +632,13 @@ def train(
         # only the single-trial observation rate set by observe_epoch.
         test_rate_e_sum = 0.0
         test_rate_i_sum = 0.0
+        # Logit-discrimination accumulators. Cross-entropy keeps falling after
+        # accuracy plateaus because it rewards margin, not just correctness
+        # (nb024): track how separated/confident the logits are per epoch so
+        # that confidence inflation can be told apart from accuracy gains.
+        margin_sum = 0.0       # mean (z_true - z_runner_up), the decision margin
+        conf_sum = 0.0         # mean softmax prob of the true class
+        logit_scale_sum = 0.0  # mean |logit|, the raw logit magnitude
         eval_gen = torch.Generator().manual_seed(EVAL_SEED)
         with torch.no_grad():
             for X_b, y_b in test_loader:
@@ -643,6 +650,17 @@ def train(
                 correct += (logits_t.argmax(1) == y_b).sum().item()
                 B = y_b.size(0)
                 total += B
+                # Per-sample margin, confidence and logit scale.
+                z_true = logits_t.gather(1, y_b.unsqueeze(1)).squeeze(1)
+                z_other = logits_t.clone()
+                z_other.scatter_(1, y_b.unsqueeze(1), float("-inf"))
+                z_runner = z_other.max(1).values
+                margin_sum += float((z_true - z_runner).sum().item())
+                conf_sum += float(
+                    torch.softmax(logits_t, dim=1)
+                    .gather(1, y_b.unsqueeze(1)).sum().item()
+                )
+                logit_scale_sum += float(logits_t.abs().mean(1).sum().item())
                 # net.rates is set by _set_meta after every forward pass;
                 # values are already per-cell Hz averaged over the batch.
                 batch_rates = getattr(net, "rates", None) or {}
@@ -659,6 +677,9 @@ def train(
         avg_test = test_loss_sum / max(test_batches, 1)
         test_rate_e = test_rate_e_sum / total if total else 0.0
         test_rate_i = test_rate_i_sum / total if total else 0.0
+        test_margin = margin_sum / total if total else 0.0
+        test_confidence = conf_sum / total if total else 0.0
+        test_logit_scale = logit_scale_sum / total if total else 0.0
 
         new_best = acc > best_acc
         if new_best:
@@ -739,6 +760,9 @@ def train(
             "test_loss": avg_test,
             "test_rate_e": test_rate_e,
             "test_rate_i": test_rate_i,
+            "test_margin": test_margin,
+            "test_confidence": test_confidence,
+            "test_logit_scale": test_logit_scale,
             "lr": cur_lr,
             "elapsed_s": elapsed,
             "train_compute_s": train_compute_s,
