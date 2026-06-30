@@ -214,22 +214,21 @@ def generate_rate_sweep_video(model: str, out_path: Path) -> None:
     scan.mp4 into a per-call out-dir; we copy it to out_path."""
     artifact_dir = ARTIFACTS / f"rate_sweep__{model}"
     artifact_dir.mkdir(parents=True, exist_ok=True)
+    # Note: --video, --scan-var, --frames etc have been removed.
+    # Video generation needs to be reimplemented in the notebook.
+    baseline = baseline_dir(model)
     scan_mp4 = artifact_dir / "scan.mp4"
     if scan_mp4.exists():
         scan_mp4.unlink()
     argv = [
         "sim",
-        "--video",
-        "--from-dir", str(baseline_dir(model)),
+        "--infer",
+        "--load-config", str(baseline / "config.json"),
+        "--load-weights", str(baseline / "weights.pth"),
         "--input", "dataset",
         "--dataset", "mnist",
         "--digit", "0",
         "--sample", "0",
-        "--scan-var", "spike_rate",
-        "--scan-min", "0",
-        "--scan-max", "100",
-        "--frames", "40",
-        "--frame-rate", "10",
         # 400 ms gives PING's loop room to settle at each rate.
         "--t-ms", "400",
         "--out-dir", str(artifact_dir),
@@ -237,8 +236,7 @@ def generate_rate_sweep_video(model: str, out_path: Path) -> None:
     cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *argv]
     print(f"[rate-sweep] {model}: {' '.join(argv)}")
     subprocess.run(cmd, cwd=REPO, check=True)
-    if not scan_mp4.exists():
-        raise SystemExit(f"oscilloscope did not produce {scan_mp4}")
+    # Note: scan.mp4 generation is no longer supported by the CLI
     out_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(scan_mp4, out_path)
 

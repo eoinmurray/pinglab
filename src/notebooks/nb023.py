@@ -43,9 +43,7 @@ SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
 SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
 
 COMMON_ARGS = [
-    "sim",
-    "--image",
-    "--model", "ping",
+    "sim""--model", "ping",
     "--input", "dataset",
     "--dataset", "mnist",
     "--digit", "0",
@@ -221,7 +219,7 @@ def fi_sweep() -> dict:
                 if p.exists():
                     p.unlink()
             argv = [
-                "sim", "--image", "--model", "ping", "--input", "synthetic-spikes",
+                "sim""--model", "ping", "--input", "synthetic-spikes",
                 "--w-in", "1.5", "0.3", "--ei-strength", ei,
                 "--input-rate", str(rate), "--t-ms", str(FI_T_MS),
             ]
