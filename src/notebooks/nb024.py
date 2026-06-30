@@ -1001,6 +1001,87 @@ def plot_model_curves(model: str, out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 
+def _acc_convergence_epoch(accs: list[float], frac: float = 0.99) -> int | None:
+    """First epoch where test accuracy reaches `frac` of its final value —
+    the point past which the decision boundary is effectively fixed."""
+    if not accs:
+        return None
+    final = accs[-1]
+    if final <= 0:
+        return None
+    thr = frac * final
+    for i, a in enumerate(accs):
+        if a >= thr:
+            return i + 1
+    return len(accs)
+
+
+def plot_confidence_inflation(out_path: Path, run_id: str) -> None:
+    """Why the rate keeps climbing after accuracy converges: cross-entropy
+    rewards margin, not correctness, so the optimiser keeps inflating logit
+    confidence past the accuracy plateau — and the lever it pulls is the
+    firing rate. Three panels vs epoch (3 seeds each, COBA red / PING black):
+    test accuracy, test cross-entropy, E firing rate. Dotted verticals mark
+    each model's accuracy-convergence epoch; CE and rate keep moving to its
+    right. (Direct per-epoch logit margin/confidence arrives once the cells
+    are retrained with the new train.py logging.)"""
+    theme.apply()
+    plt.rcParams["savefig.bbox"] = "standard"
+    cells = _gather_cells()
+    fig, (axA, axL, axR) = plt.subplots(1, 3, figsize=(13.5, 4.5), dpi=150)
+
+    conv_ep: dict[str, float] = {}
+    for model in MODELS:
+        eps_conv = []
+        for (mdl, _), m in cells.items():
+            if mdl != model:
+                continue
+            ce = _acc_convergence_epoch([e.get("acc", 0) for e in m["epochs"]])
+            if ce is not None:
+                eps_conv.append(ce)
+        if eps_conv:
+            conv_ep[model] = float(np.mean(eps_conv))
+
+    for (model, seed), m in sorted(cells.items()):
+        color = MODEL_COLORS[model]
+        eps = np.array([e["ep"] for e in m["epochs"]])
+        label = model.upper() if seed == SEEDS[0] else None
+        axA.plot(eps, [e.get("acc", 0) for e in m["epochs"]],
+                 color=color, lw=1.2, alpha=0.85, label=label)
+        axL.plot(eps, [e.get("test_loss", 0) for e in m["epochs"]],
+                 color=color, lw=1.2, alpha=0.85, label=label)
+        axR.plot(eps, [e.get("test_rate_e", 0) for e in m["epochs"]],
+                 color=color, lw=1.2, alpha=0.85, label=label)
+
+    for model, ce in conv_ep.items():
+        for ax in (axA, axL, axR):
+            ax.axvline(ce, color=MODEL_COLORS[model], lw=0.8, ls=":", alpha=0.6)
+
+    axA.set_title("test accuracy", loc="left", fontweight="semibold")
+    axA.set_ylabel("accuracy (%)")
+    axA.set_ylim(0, 100)
+    axA.legend(frameon=False, fontsize=theme.SIZE_LEGEND, loc="lower right")
+    axL.set_title("test cross-entropy", loc="left", fontweight="semibold")
+    axL.set_ylabel("CE loss")
+    axL.set_yscale("log")
+    axR.set_title("E firing rate", loc="left", fontweight="semibold")
+    axR.set_ylabel("rate (Hz)")
+    for ax in (axA, axL, axR):
+        ax.set_xlabel("epoch")
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    fig.suptitle(
+        "Accuracy converges (dotted line); cross-entropy and rate do not — "
+        "the loss keeps buying confidence with spikes",
+        fontsize=theme.SIZE_TITLE,
+    )
+    fig.tight_layout()
+    stamp_figure(fig, run_id)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
@@ -1034,6 +1115,9 @@ def main() -> None:
     print(f"wrote {FIGURES / 'coba_curves.png'}")
     plot_model_curves("ping", FIGURES / "ping_curves.png", notebook_run_id)
     print(f"wrote {FIGURES / 'ping_curves.png'}")
+    plot_confidence_inflation(
+        FIGURES / "confidence_inflation.png", notebook_run_id)
+    print(f"wrote {FIGURES / 'confidence_inflation.png'}")
 
     finals = {}
     for (model, seed), met in _gather_cells().items():
