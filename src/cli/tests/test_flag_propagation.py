@@ -62,28 +62,27 @@ def _train_probe(out_dir, *extra, epochs=0):
 
 @pytest.mark.slow
 def test_from_dir_inherits_config(tmp_path):
-    """image --from-dir picks up dt, t_ms, n_hidden from the training config."""
+    """sim --from-dir picks up dt, t_ms, n_hidden from the training config."""
     train_dir = tmp_path / "train"
     _train_probe(train_dir, "--t-ms", "150", "--n-hidden", "128", epochs=1)
     train_cfg = _read_config(train_dir)
 
-    image_dir = tmp_path / "image"
+    sim_dir = tmp_path / "sim"
     _run_cli(
         "sim",
-        "--image",
         "--from-dir",
         str(train_dir),
         "--digit",
         "0",
         "--out-dir",
-        str(image_dir),
+        str(sim_dir),
         "--wipe-dir",
     )
-    image_cfg = _read_config(image_dir)
+    sim_cfg = _read_config(sim_dir)
 
     for key in ("dt", "t_ms", "model", "dataset"):
-        assert image_cfg[key] == train_cfg[key], (
-            f"{key}: train={train_cfg[key]} image={image_cfg[key]}"
+        assert sim_cfg[key] == train_cfg[key], (
+            f"{key}: train={train_cfg[key]} sim={sim_cfg[key]}"
         )
 
     # Hidden-layer spec is stored inconsistently between modes (train uses a

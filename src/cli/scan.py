@@ -37,7 +37,6 @@ from inputs import (
     make_step_drive_from_ref,
 )
 from metrics import metrics_str
-from plot import draw_transient_frame, make_transient_fig
 from profiling import prof
 
 from datasets import _load_dataset_image
@@ -134,97 +133,6 @@ _SWEEP_XLABELS = {
     "dt": "dt (ms)",
 }
 
-
-def generate_scan(
-    scan_var="stim-overdrive",
-    scan_min=1.0,
-    scan_max=50.0,
-    n_frames=None,
-    t_e_async=None,
-    overdrive=12.0,
-    resample_input=False,
-    spike_rate=None,
-    input_mode="synthetic-conductance",
-    dataset="scikit",
-    digit_class=0,
-    sample_idx=0,
-    load_weights=None,
-):
-    """Video scanning a variable from scan_min to scan_max."""
-    import config as C
-
-    if t_e_async is None:
-        t_e_async = C.T_E_ASYNC_DEFAULT
-    if spike_rate is None:
-        spike_rate = C.SPIKE_RATE_BASE
-
-    n_frames = n_frames or 10
-    out_dir = Path(C.ARTIFACT_ROOT)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    dt = DT_CAL
-    burn_steps = int(C.BURN_IN_MS / dt)
-
-    default_val = SCAN_DEFAULTS[scan_var][0]
-    unit = SCAN_DEFAULTS[scan_var][1]
-    scan_values = np.linspace(
-        default_val * scan_min, default_val * scan_max, n_frames
-    ).tolist()
-
-    if scan_var in ("stim-overdrive", "ei_strength", "spike_rate", "bias", "dt"):
-        scan_values = np.linspace(scan_min, scan_max, n_frames).tolist()
-    elif scan_var == "digit":
-        # Integer digit classes 0-9 (or custom range)
-        lo = int(scan_min) if scan_min >= 1 else 0
-        hi = int(scan_max) if scan_max >= 1 else 9
-        scan_values = list(range(lo, hi + 1))
-        n_frames = len(scan_values)
-    elif scan_var == "noise":
-        # Linear Hz sweep
-        scan_values = np.linspace(scan_min, scan_max, n_frames).tolist()
-
-    display_values = scan_values
-
-    prof.reset()
-    log.info(
-        f"scan {scan_var} {scan_values[0]:.3g}→{scan_values[-1]:.3g}{unit} | {n_frames}f"
-    )
-
-    if (
-        scan_var == "stim-overdrive"
-        and not resample_input
-        and input_mode not in ("synthetic-spikes", "dataset")
-    ):
-        return _scan_od_batched(
-            scan_values,
-            n_frames,
-            dt,
-            burn_steps,
-            t_e_async,
-            out_dir,
-            display_values,
-            unit,
-        )
-
-    _scan_streaming(
-        scan_var,
-        scan_values,
-        n_frames,
-        dt,
-        burn_steps,
-        t_e_async,
-        overdrive,
-        out_dir,
-        display_values,
-        unit,
-        resample_input=resample_input,
-        spike_rate=spike_rate,
-        input_mode=input_mode,
-        dataset=dataset,
-        digit_class=digit_class,
-        sample_idx=sample_idx,
-        load_weights=load_weights,
-    )
 
 
 def _scan_od_batched(

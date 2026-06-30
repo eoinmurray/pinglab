@@ -288,32 +288,3 @@ class TestParseArgs:
         assert args.lr == 0.01
         assert args.epochs == 0
 
-    def test_video_subparser(self, monkeypatch):
-        monkeypatch.setattr(
-            "sys.argv",
-            [
-                "cli",
-                "sim",
-                "--video",
-                "--scan-var",
-                "ei_strength",
-                "--scan-min",
-                "0.1",
-                "--scan-max",
-                "2.0",
-                "--frames",
-                "5",
-            ],
-        )
-        args = parse_args()
-        assert args.scan_var == "ei_strength"
-        assert args.scan_min == 0.1
-        assert args.scan_max == 2.0
-        assert args.frames == 5
-
-    def test_image_subparser_load_weights(self, monkeypatch):
-        monkeypatch.setattr(
-            "sys.argv", ["cli", "sim", "--image", "--load-weights", "/tmp/w.pt"]
-        )
-        args = parse_args()
-        assert args.load_weights == "/tmp/w.pt"

@@ -1,0 +1,17 @@
+{
+  "notebook_run_id": "r001",
+  "tier": "small",
+  "config": {
+    "max_rate_hz": 50.0,
+    "t_ms": 200.0,
+    "dt_ms": 0.1,
+    "n_trials": 2000,
+    "seed": 42
+  },
+  "encoder_fano": {
+    "intensity_0.25": 1.019032597541809,
+    "intensity_0.5": 0.9570237994194031,
+    "intensity_1": 0.9421607255935669
+  },
+  "duration_s": 0.4
+}
