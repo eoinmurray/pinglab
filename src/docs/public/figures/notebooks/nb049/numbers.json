@@ -1,10 +1,10 @@
 {
-  "notebook_run_id": "r005",
-  "duration_s": 8214.4,
+  "notebook_run_id": "r006",
+  "duration_s": 150.9,
   "config": {
-    "tier": "medium",
-    "epochs": 100,
-    "max_samples": 3500,
+    "tier": "small",
+    "epochs": 10,
+    "max_samples": 500,
     "seeds": [
       42,
       43,
