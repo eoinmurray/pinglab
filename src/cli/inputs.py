@@ -142,18 +142,3 @@ def make_spike_drive(
         spikes[t] = (rng.rand(n_in) < p).astype(np.float32)
     return torch.tensor(spikes, dtype=torch.float32)
 
-
-def recompute_dt_constants(dt_new, sim_ms):
-    """Update global model constants for a new dt value."""
-    import models as M
-
-    M.dt = dt_new
-    M.T_ms = sim_ms
-    M.T_steps = int(sim_ms / dt_new)
-    M.decay_ampa = np.exp(-dt_new / M.tau_ampa)
-    M.decay_gaba = np.exp(-dt_new / M.tau_gaba)
-    M.beta_snn = np.exp(-dt_new / M.tau_snn)
-    M.beta_out = np.exp(-dt_new / M.tau_out_ms)
-    M.ref_steps_E = max(1, int(round(M.ref_ms_E / dt_new)))
-    M.ref_steps_I = max(1, int(round(M.ref_ms_I / dt_new)))
-    M.p_scale = M.max_rate_hz * dt_new / 1000.0

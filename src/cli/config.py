@@ -16,7 +16,6 @@ from torch import nn
 import models as M
 from models import COBANet
 from inputs import (
-    recompute_dt_constants as _patch_dt,
     make_step_drive,
 )
 
@@ -80,6 +79,33 @@ class Config:
     @property
     def torch_device(self):
         return torch.device(self.device)
+
+    def apply_frame_param(self, param_name: str, value: float) -> None:
+        """Apply a single scan-frame parameter override.
+
+        Valid params: w_ei_mean, w_ie_mean, ei_strength, bias.
+        Does not include tau_gaba/tau_ampa (those are M globals, handled separately).
+        """
+        if param_name == "w_ei_mean":
+            self.w_ei = (value, self.w_ei[1])
+        elif param_name == "w_ie_mean":
+            self.w_ie = (value, self.w_ie[1])
+        elif param_name == "ei_strength":
+            self.w_ei = (value, value * 0.1)
+            self.w_ie = (value * self.ei_ratio, value * self.ei_ratio * 0.1)
+        elif param_name == "bias":
+            self.bias = value
+        else:
+            raise ValueError(f"Unknown frame param: {param_name!r}")
+
+    def sync_from_model(self, n_hid: int, n_inh: int) -> None:
+        """After network construction, sync actual network size back to config.
+
+        Called after build_net to keep n_e/n_i in sync with the actual
+        network topology. Ensures config reflects what the network actually is.
+        """
+        self.n_e = n_hid
+        self.n_i = n_inh
 
 
 cfg = Config(artifact_root=str(DEFAULT_ARTIFACT_ROOT))
@@ -227,11 +253,6 @@ def build_net(
 # =============================================================================
 
 
-def patch_dt(dt_new):
-    """Apply a new dt. Uses M.T_ms (set by dispatch from --t-ms)."""
-    _patch_dt(dt_new, M.T_ms)
-
-
 def _extract_records(net):
     """Convert a network's spike_record to a dict of numpy arrays (on CPU)."""
     rec = {}
@@ -355,8 +376,7 @@ def run_sim(
         t_e_async = cfg.t_e_async
     M.N_HID = cfg.n_e
     M.N_INH = cfg.n_i
-    patch_dt(dt)
-    T_steps = M.T_steps
+    T_steps = int(cfg.sim_ms / dt)
 
     if input_spikes is not None:
         ext_g_tensor = None
@@ -458,7 +478,7 @@ def run_sim_image(dt, image, model_name="ping", load_weights=None):
     Returns (rec, predicted_class, net).
     """
     M.N_IN = image.shape[0]
-    patch_dt(dt)
+    # dt-dependent constants are computed locally in model.forward
 
     w_in = (*cfg.w_in_spikes, "normal", cfg.w_in_sparsity)
     net = make_net(cfg, w_in=w_in, model_name=model_name)
@@ -495,8 +515,7 @@ def _run_sim_with_net(net, dt, t_e_ping, t_e_async, noise_seed=None):
     """
     M.N_HID = cfg.n_e
     M.N_INH = cfg.n_i
-    patch_dt(dt)
-    T_steps = M.T_steps
+    T_steps = int(cfg.sim_ms / dt)
 
     ext_g_tensor, _ = make_step_drive(
         cfg.n_e,

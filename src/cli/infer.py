@@ -13,7 +13,7 @@ from pathlib import Path
 import torch
 
 import models as M
-from config import build_net, patch_dt
+from config import build_net
 from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
 from encoders import EVAL_SEED, encode_batch
 from scan import _auto_device
@@ -46,9 +46,8 @@ def infer(
     # and any randomness remains in the path).
     seed_everything(seed)
 
-    # Setup dt and all derived constants
+    # Setup dt (constants are computed locally in model.forward)
     M.T_ms = t_ms
-    patch_dt(dt)
 
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
