@@ -123,6 +123,68 @@ def setup_model_globals(hidden_sizes):
     M.HIDDEN_SIZES = list(hidden_sizes)
 
 
+def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None):
+    """Save spike recording and metadata to NPZ file.
+
+    Args:
+        out_path: Path to output NPZ file
+        rec: Recording dict from network.spike_record
+        dt: Timestep (ms)
+        n_e: Number of excitatory neurons
+        n_i: Number of inhibitory neurons
+        display: Optional stimulus array (ext_g or input_spikes)
+        primary_hid_key_fn: Function to find excitatory spike key in rec (default: primary_hid_key)
+        primary_inh_key_fn: Function to find inhibitory spike key in rec (default: primary_inh_key)
+
+    Saves: spk_e, spk_i, dt, n_e, n_i, plus all other recorded fields (voltages, etc.)
+    """
+    from scan import primary_hid_key as _primary_hid_key, primary_inh_key as _primary_inh_key
+
+    if primary_hid_key_fn is None:
+        primary_hid_key_fn = _primary_hid_key
+    if primary_inh_key_fn is None:
+        primary_inh_key_fn = _primary_inh_key
+
+    # Prepare NPZ data: save all recorded fields plus metadata
+    npz_data = {
+        "dt": np.float32(dt),
+        "n_e": np.int32(n_e),
+        "n_i": np.int32(n_i),
+    }
+
+    # Map spike keys to spk_e/spk_i and save all recorded traces
+    hid_key = primary_hid_key_fn(rec)
+    inh_key = primary_inh_key_fn(rec)
+
+    if hid_key:
+        spk_e = rec[hid_key]
+        npz_data["spk_e"] = spk_e.numpy() if hasattr(spk_e, "numpy") else spk_e
+
+    if inh_key:
+        spk_i = rec[inh_key]
+        npz_data["spk_i"] = spk_i.numpy() if hasattr(spk_i, "numpy") else spk_i
+    else:
+        # Empty inhibitory spike array if no inhibition
+        T = npz_data.get("spk_e", rec[hid_key]).shape[0] if hid_key else 0
+        npz_data["spk_i"] = np.zeros((T, 0), dtype=np.float32)
+
+    # Save all other recorded fields (voltages, conductances, etc.)
+    for key, val in rec.items():
+        if key not in (hid_key, inh_key) and val is not None:
+            # Map "input" to "input_spikes" for backwards compatibility with notebooks
+            save_key = "input_spikes" if key == "input" else key
+            npz_data[save_key] = val.numpy() if hasattr(val, "numpy") else val
+
+    # Save the stimulus (external conductance or input spikes)
+    if display is not None:
+        display_arr = display.numpy() if hasattr(display, "numpy") else display
+        # Save as input_spikes if not already present (for synthetic-spikes mode)
+        if "input_spikes" not in npz_data:
+            npz_data["input_spikes"] = display_arr
+
+    np.savez(out_path, **npz_data)
+
+
 # =============================================================================
 # Model Registry
 # =============================================================================

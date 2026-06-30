@@ -13,7 +13,7 @@ from pathlib import Path
 import torch
 
 import models as M
-from config import build_net, setup_model_globals
+from config import build_net, setup_model_globals, save_snapshot_npz
 from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
 from encoders import EVAL_SEED, encode_batch
 from scan import _auto_device
@@ -250,36 +250,12 @@ def infer_and_snapshot(
         spk = encode_batch(X_single, dt, dataset == "smnist")
         logits = net(input_spikes=spk)
 
-    # Extract spike data
-    rec = net.spike_record
-    spk_e = rec[primary_hid_key(rec)].cpu().numpy()
-    spk_i_key = primary_inh_key(rec)
-    spk_i = (
-        rec[spk_i_key].cpu().numpy()
-        if spk_i_key
-        else np.zeros((spk_e.shape[0], 0), dtype=np.float32)
-    )
-
     # Save snapshot
+    rec = net.spike_record
     out_path = Path(out_dir) / "snapshot.npz"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    npz_data = {
-        "spk_e": spk_e,
-        "spk_i": spk_i,
-        "dt": np.float32(dt),
-        "n_e": np.int32(M.N_HID),
-        "n_i": np.int32(M.N_INH),
-    }
-
-    # Include optional data like Lyapunov divergence if present
-    for key in ["lyap_dist", "lyap_t_ms"]:
-        if key in rec:
-            v = rec[key]
-            npz_data[key] = v.cpu().numpy() if hasattr(v, "cpu") else v
-
-    np.savez(out_path, **npz_data)
-    log.info(f"Saved snapshot to {out_path}")
+    save_snapshot_npz(out_path, rec, dt, M.N_HID, M.N_INH)
 
     return {"acc": None}
 
