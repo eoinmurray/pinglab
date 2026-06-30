@@ -492,10 +492,13 @@ def generate_raster(model: str, out_path: Path) -> None:
     npz_path = infer_dir / "snapshot.npz"
     if npz_path.exists():
         npz_path.unlink()
+    # Note: --image flag has been removed. Snapshot data generation needs updating.
+    baseline = baseline_dir(model)
     argv = [
         "sim",
-        "--image",
-        "--from-dir", str(baseline_dir(model)),
+        "--infer",
+        "--load-config", str(baseline / "config.json"),
+        "--load-weights", str(baseline / "weights.pth"),
         "--input", "dataset",
         "--dataset", "mnist",
         "--digit", "0",
