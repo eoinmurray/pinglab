@@ -24,7 +24,6 @@ from config import (
     extract_weights,
     make_net,
     make_ping_net,
-    patch_dt,
     run_sim,
     run_sim_image,
 )
@@ -158,7 +157,6 @@ def generate_spike_snapshot(
 
     M.N_HID = C.N_E
     M.N_INH = C.N_I
-    patch_dt(dt)
     burn_steps = int(C.BURN_IN_MS / dt)
     T_steps = M.T_steps
 
@@ -401,7 +399,6 @@ def generate_image_snapshot(
     pixel_vec, digit_image = _load_dataset_image(dataset, digit_class, sample_idx)
     n_in = len(pixel_vec)
     M.N_IN = n_in
-    patch_dt(dt)
 
     od_str = f" OD={overdrive:.1f}x" if overdrive > 1 else ""
     log.info(f"image | dataset d{digit_class}s{sample_idx}{od_str}")
@@ -548,7 +545,6 @@ def generate_sim_only(
 
     M.N_HID = C.N_E
     M.N_INH = C.N_I
-    patch_dt(dt)
     burn_steps = int(C.BURN_IN_MS / dt)
     T_steps = M.T_steps
 

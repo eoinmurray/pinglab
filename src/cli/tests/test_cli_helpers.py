@@ -260,9 +260,10 @@ class TestApplyScanVar:
             O.M.tau_ampa = old_tau
             O.M.decay_ampa = old_decay
 
-    def test_unknown_var_is_noop(self):
-        # The function silently ignores unknown vars (current contract).
-        _apply_scan_var("does-not-exist", 999.0)
+    def test_unknown_scan_var_ignored(self):
+        # Unknown scan vars are ignored (only tau_*, config params are handled).
+        # This is correct because scan vars like stim-overdrive don't mutate globals.
+        _apply_scan_var("does-not-exist", 999.0)  # Should not raise
 
 
 class TestAutoDevice:
@@ -295,7 +296,7 @@ class TestParseArgs:
                 "sim",
                 "--video",
                 "--scan-var",
-                "dt",
+                "ei_strength",
                 "--scan-min",
                 "0.1",
                 "--scan-max",
@@ -305,7 +306,7 @@ class TestParseArgs:
             ],
         )
         args = parse_args()
-        assert args.scan_var == "dt"
+        assert args.scan_var == "ei_strength"
         assert args.scan_min == 0.1
         assert args.scan_max == 2.0
         assert args.frames == 5

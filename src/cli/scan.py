@@ -24,7 +24,6 @@ from config import (
     extract_weights,
     make_net,
     make_ping_net,
-    patch_dt,
     run_sim,
     run_sim_batch,
     W_EI,
@@ -96,7 +95,11 @@ SCAN_DEFAULTS = {
 
 
 def _apply_scan_var(var_name, value):
-    """Mutate model/oscilloscope state for a scan variable."""
+    """Apply a scan variable that mutates global state (M globals or cfg).
+
+    Handles tau_* overrides for the M module. Other scan variables like
+    stim-overdrive, spike_rate, noise are handled directly in scan loops.
+    """
     import config as C
 
     if var_name == "tau_gaba":
@@ -105,15 +108,10 @@ def _apply_scan_var(var_name, value):
     elif var_name == "tau_ampa":
         M.tau_ampa = value
         M.decay_ampa = np.exp(-M.dt / value)
-    elif var_name == "w_ei_mean":
-        C.cfg.w_ei = (value, C.cfg.w_ei[1])
-    elif var_name == "w_ie_mean":
-        C.cfg.w_ie = (value, C.cfg.w_ie[1])
-    elif var_name == "ei_strength":
-        C.cfg.w_ei = (value, value * 0.1)
-        C.cfg.w_ie = (value * C.EI_RATIO, value * C.EI_RATIO * 0.1)
-    elif var_name == "bias":
-        C.cfg.bias = value
+    elif var_name in ("w_ei_mean", "w_ie_mean", "ei_strength", "bias"):
+        # Config param mutations
+        C.cfg.apply_frame_param(var_name, value)
+    # Other scan vars (stim-overdrive, spike_rate, noise, digit) don't mutate globals
 
 
 # =============================================================================
@@ -206,22 +204,6 @@ def generate_scan(
             out_dir,
             display_values,
             unit,
-        )
-
-    if scan_var == "dt":
-        return _scan_dt(
-            scan_values,
-            n_frames,
-            t_e_async,
-            overdrive,
-            out_dir,
-            display_values,
-            unit,
-            input_mode=input_mode,
-            dataset=dataset,
-            digit_class=digit_class,
-            sample_idx=sample_idx,
-            spike_rate=spike_rate,
         )
 
     _scan_streaming(
@@ -369,16 +351,17 @@ def _scan_streaming(
     _digit_img = None
     _loaded_net = None
 
+    # Ensure M.T_steps matches dt (needed for forward loop and encoding)
+    M.T_steps = int(C.SIM_MS / dt)
+
     if use_dataset:
         pixel_vec, _digit_img = _load_dataset_image(dataset, digit_class, sample_idx)
         M.N_IN = len(pixel_vec)
-        patch_dt(dt)
 
     # Load trained weights once if provided
     if load_weights is not None:
         M.N_HID = C.N_E
         M.N_INH = C.N_I
-        patch_dt(dt)
         _loaded_net = make_net(C.cfg, w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY))
         state = torch.load(load_weights, map_location="cpu")
         _loaded_net.load_state_dict(state, strict=False)
@@ -389,7 +372,6 @@ def _scan_streaming(
     elif use_spikes:
         M.N_HID = C.N_E
         M.N_INH = C.N_I
-        patch_dt(dt)
         stim_rate = spike_rate * overdrive
         input_spikes = make_spike_drive(
             M.N_IN,
@@ -408,7 +390,6 @@ def _scan_streaming(
 
     if is_weight_scan:
         _apply_scan_var(scan_var, scan_values[0])
-        patch_dt(dt)
         net = make_ping_net(C.cfg)
         w_attr = _WEIGHT_SCAN_VARS[scan_var]
         w_base = getattr(net, w_attr).clone()
@@ -458,7 +439,6 @@ def _scan_streaming(
                         )
                     elif scan_var != "noise":
                         _apply_scan_var(scan_var, val)
-                    patch_dt(dt)
                     if _loaded_net is not None:
                         net_frame = _loaded_net
                     else:
@@ -502,7 +482,6 @@ def _scan_streaming(
                     frame_weights = extract_weights(net_frame)
                 elif use_spikes:
                     _apply_scan_var(scan_var, val)
-                    patch_dt(dt)
                     if scan_var == "stim-overdrive":
                         frame_stim_rate = spike_rate * val
                         frame_spikes = make_spike_drive(
@@ -632,154 +611,6 @@ def _scan_streaming(
                 mark = chr(10003) if pred == truth else chr(10007)
                 pred_str = f" d{truth}→pred={pred}{mark}"
             log.info(f"  {i + 1}/{n_total} {scan_var}={val:.3g}{unit} | {m}{pred_str}")
-
-    plt.close(fig)
-    log.info(f"  → {out_dir / fname}")
-    log.info(f"  frames → {frames_dir}/")
-    prof.report(n_total)
-
-
-def _scan_dt(
-    scan_values,
-    n_frames,
-    t_e_async,
-    overdrive,
-    out_dir,
-    display_values,
-    unit,
-    input_mode="synthetic-conductance",
-    dataset="scikit",
-    digit_class=0,
-    sample_idx=0,
-    spike_rate=None,
-):
-    """dt sweep. Two drive modes:
-    * conductance (default): reference-noise step drive held fixed across
-      dt so each frame is a dt-invariant re-sampling of the same process.
-    * dataset: re-encodes the same MNIST pixel vector as Poisson spikes at
-      each frame's dt (expected per-pixel rate is dt-invariant); drives a
-      PING net through W_in. Dataset mode is what notebook 002 uses so the
-      overdrive and dt videos share an input pipeline.
-    """
-    import config as C
-
-    t_e_ping = t_e_async * overdrive
-    use_dataset = input_mode == "dataset"
-
-    if use_dataset:
-        pixel_vec, digit_image = _load_dataset_image(dataset, digit_class, sample_idx)
-        M.N_IN = len(pixel_vec)
-        M.N_HID = C.N_E
-        M.N_INH = C.N_I
-        patch_dt(scan_values[0])
-        ref_net = make_ping_net(C.cfg, w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY))
-        dt_weights = extract_weights(ref_net)
-        layout = "sweep_video"
-    else:
-        digit_image = None
-        log.info("  dt scan uses conductance input (reference noise for dt-invariance)...")
-        X_i, eta_ref = make_reference_noise(
-            C.N_E, C.SIM_MS, C.NOISE_SIGMA, C.NOISE_TAU, C.SEED
-        )
-        _, _, dt_weights = run_sim(scan_values[0], t_e_ping, t_e_async=t_e_async)
-        layout = "video"
-
-    fig, axes = make_transient_fig(layout=layout)
-    n_total = len(scan_values)
-    lo, hi = display_values[0], display_values[-1]
-    fname = "scan.mp4"
-
-    writer = FFMpegWriter(fps=C.FPS, metadata=dict(title="dt sweep"))
-    frames_dir = out_dir / "frames"
-    frames_dir.mkdir(parents=True, exist_ok=True)
-
-    prof.reset()
-    log.info(f"  sim+render {n_total}f...")
-    with writer.saving(fig, str(out_dir / fname), dpi=120):
-        for i, dt_val in enumerate(scan_values):
-            burn_steps = int(C.BURN_IN_MS / dt_val)
-            with prof.track_sim():
-                if use_dataset:
-                    patch_dt(dt_val)
-                    T_steps = M.T_steps
-                    base_rate = M.max_rate_hz
-                    stim_rate = base_rate * overdrive
-                    frame_spikes = encode_image_spikes(
-                        pixel_vec,
-                        T_steps,
-                        dt_val,
-                        base_rate,
-                        stim_rate,
-                        C.STEP_ON_MS,
-                        C.STEP_OFF_MS,
-                        C.SEED,
-                    ).to(C.DEVICE)
-                    net_frame = make_ping_net(
-                        C.cfg, w_in=(*C.W_IN_SPIKES, "normal", C.W_IN_SPARSITY)
-                    )
-                    with torch.no_grad():
-                        net_frame.forward(input_spikes=frame_spikes)
-                    rec = _extract_records(net_frame)
-                    dt_weights = extract_weights(net_frame)
-                    ext_g_raw = frame_spikes.cpu().numpy()
-                else:
-                    ext_g_sim, ext_g_raw = make_step_drive_from_ref(
-                        C.N_E,
-                        dt_val,
-                        t_e_async,
-                        t_e_ping,
-                        C.STEP_ON_MS,
-                        C.STEP_OFF_MS,
-                        C.SIM_MS,
-                        X_i,
-                        eta_ref,
-                        C.SIGMA_E,
-                    )
-                    rec, _, _w = run_sim(
-                        dt_val, t_e_ping, ext_g_override=ext_g_sim, t_e_async=t_e_async
-                    )
-                spk_e = rec[primary_hid_key(rec)][burn_steps:]
-                spk_i = rec[primary_inh_key(rec)][burn_steps:]
-                spk_o = rec["out"][burn_steps:] if rec.get("out") is not None else None
-                ext_g = ext_g_raw[burn_steps:]
-
-            with prof.track_render():
-                draw_kwargs = dict(
-                    spk_o=spk_o,
-                    weights=dt_weights,
-                    sweep_var="dt",
-                    sweep_range=(lo, hi),
-                    sweep_progress=i / max(1, n_total - 1),
-                    t_e_async=t_e_async,
-                    sweep_levels=display_values,
-                    sweep_frame_idx=i,
-                    n_e=C.N_E,
-                    n_i=C.N_I,
-                    step_on_ms=C.STEP_ON_MS,
-                    step_off_ms=C.STEP_OFF_MS,
-                    burn_in_ms=C.BURN_IN_MS,
-                    w_ie=C.W_IE,
-                )
-                if use_dataset:
-                    draw_kwargs["digit_image"] = digit_image
-                    draw_kwargs["sweep_xlabel"] = "dt (ms)"
-                    draw_kwargs["sweep_xscale"] = "log"
-                draw_transient_frame(
-                    axes,
-                    overdrive,
-                    spk_e,
-                    spk_i,
-                    ext_g,
-                    dt_val,
-                    "PING",
-                    **draw_kwargs,
-                )
-            with prof.track_encode():
-                fig.savefig(frames_dir / f"frame_{i + 1:04d}.png", dpi=120)
-                writer.grab_frame()
-
-            m = metrics_str(spk_e, spk_i, dt_val, n_e=C.N_E, n_i=C.N_I)
-            log.info(f"  {i + 1}/{n_total} dt={dt_val:.3f}ms | {m}")
 
     plt.close(fig)
     log.info(f"  → {out_dir / fname}")

@@ -112,14 +112,18 @@ BATCH_SIZE = 64
 SURROGATE_SLOPE = 5.0
 V_GRAD_DAMPEN = 80.0
 
-# Derived
-decay_ampa = np.exp(-dt / tau_ampa)
-decay_gaba = np.exp(-dt / tau_gaba)
-ref_steps_E = max(1, int(round(ref_ms_E / dt)))
-ref_steps_I = max(1, int(round(ref_ms_I / dt)))
-p_scale = max_rate_hz * dt / 1000.0
-beta_snn = np.exp(-dt / tau_snn)
-beta_out = np.exp(-dt / tau_out_ms)
+
+
+# Module-level defaults for non-compiled utility functions (e_step_coba, i_step_coba).
+# The compiled _step_body gets these from cfg to ensure torch.compile specializes on dt.
+_dt_default = 0.25
+decay_ampa = np.exp(-_dt_default / tau_ampa)
+decay_gaba = np.exp(-_dt_default / tau_gaba)
+ref_steps_E = max(1, int(round(ref_ms_E / _dt_default)))
+ref_steps_I = max(1, int(round(ref_ms_I / _dt_default)))
+p_scale = max_rate_hz * _dt_default / 1000.0
+beta_snn = np.exp(-_dt_default / tau_snn)
+beta_out = np.exp(-_dt_default / tau_out_ms)
 
 
 def _env_no_compile() -> bool:
@@ -770,6 +774,15 @@ class COBANet(SNNBase):
             "s_count": s_count,
             "mem_sum": mem_sum,
         }
+        # Compute dt-dependent constants locally so torch.compile specializes on dt
+        decay_ampa = np.exp(-dt / tau_ampa)
+        decay_gaba = np.exp(-dt / tau_gaba)
+        ref_steps_E = max(1, int(round(ref_ms_E / dt)))
+        ref_steps_I = max(1, int(round(ref_ms_I / dt)))
+        p_scale = max_rate_hz * dt / 1000.0
+        beta_snn = np.exp(-dt / tau_snn)
+        beta_out = np.exp(-dt / tau_out_ms)
+
         cfg = {
             "B": B,
             "device": device,
@@ -784,6 +797,13 @@ class COBANet(SNNBase):
             "noise_on_inh": bool(noise_on_inh),
             "n_e0": self.hidden_sizes[0],
             "n_spk_tensors": n_spk_tensors,
+            "decay_ampa": decay_ampa,
+            "decay_gaba": decay_gaba,
+            "ref_steps_E": ref_steps_E,
+            "ref_steps_I": ref_steps_I,
+            "p_scale": p_scale,
+            "beta_snn": beta_snn,
+            "beta_out": beta_out,
         }
 
         # Lazy-init torch.compile on the per-timestep body, with a CPU-skip
@@ -941,19 +961,19 @@ class COBANet(SNNBase):
                 # single compiled graph where the three weight shapes are
                 # specialized once per (W_ee, W_ei, W_ie) tuple.
                 ee_drive = state["s_e"][k] @ self.W_ee[k]
-                state["ge_e"][k] = state["ge_e"][k] * decay_ampa + ee_drive
+                state["ge_e"][k] = state["ge_e"][k] * cfg["decay_ampa"] + ee_drive
                 ei_drive = state["s_e"][k] @ self.W_ei[k]
                 if k == "1" and cfg["has_ext_g_i"]:
                     ei_drive = ei_drive + slc["ext_t_i"]
-                state["ge_i"][k] = state["ge_i"][k] * decay_ampa + ei_drive
+                state["ge_i"][k] = state["ge_i"][k] * cfg["decay_ampa"] + ei_drive
                 state["gi_e"][k] = (
-                    state["gi_e"][k] * decay_gaba + state["s_i"][k] @ self.W_ie[k]
+                    state["gi_e"][k] * cfg["decay_gaba"] + state["s_i"][k] @ self.W_ie[k]
                 )
                 state["gi_i"][k] = (
-                    state["gi_i"][k] * decay_gaba + state["s_i"][k] @ self.W_ii[k]
+                    state["gi_i"][k] * cfg["decay_gaba"] + state["s_i"][k] @ self.W_ii[k]
                 )
             else:
-                state["ge_e"][k] = state["ge_e"][k] * decay_ampa
+                state["ge_e"][k] = state["ge_e"][k] * cfg["decay_ampa"]
 
             if i == 1:
                 if has_input_spikes:
@@ -1011,16 +1031,16 @@ class COBANet(SNNBase):
 
         if cfg["readout_mode"] == "li":
             I_out = prev_spk @ W_ff[-1]
-            state["v_out"] = beta_snn * state["v_out"] + (1.0 - beta_snn) * I_out
+            state["v_out"] = cfg["beta_snn"] * state["v_out"] + (1.0 - cfg["beta_snn"]) * I_out
             state["logits_max"] = torch.maximum(state["logits_max"], state["v_out"])
             return state["v_out"]
         if cfg["readout_mode"] in ("spike-count", "mem-mean"):
             # Exp-Euler ZOH on output LIF + subtract reset. COBANet's W_ff has
             # no bias term — bias scaling is moot here.
-            one_minus_beta = 1.0 - beta_out
+            one_minus_beta = 1.0 - cfg["beta_out"]
             spike_scale = one_minus_beta / dt
             I_out = spike_scale * (prev_spk @ W_ff[-1])
-            state["v_out"] = beta_out * state["v_out"] + I_out
+            state["v_out"] = cfg["beta_out"] * state["v_out"] + I_out
             s_out = fast_sigmoid_spike(state["v_out"] - thr_snn, SURROGATE_SLOPE)
             state["s_count"] = state["s_count"] + s_out
             state["mem_sum"] = state["mem_sum"] + state["v_out"]

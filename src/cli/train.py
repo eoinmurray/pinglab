@@ -27,7 +27,6 @@ import runlog
 from config import (
     build_net,
     extract_weights,
-    patch_dt,
 )
 from metrics import compute_metrics, format_metrics
 from plot import draw_transient_frame, make_transient_fig, reset_weight_xlims
@@ -114,8 +113,7 @@ def observe_epoch(
     digit_image=None,
 ):
     """Run reference input through network, render oscilloscope frame, grab."""
-    C.cfg.n_e = M.N_HID
-    C.cfg.n_i = M.N_INH
+    C.cfg.sync_from_model(M.N_HID, M.N_INH)
 
     net.recording = True
     with torch.no_grad():
@@ -212,8 +210,7 @@ def train(
 
     # Setup dt and all derived constants
     M.T_ms = t_ms
-    patch_dt(dt)
-    # τ_GABA override: must apply AFTER patch_dt (which recomputes
+    # τ_GABA override: compute the decay constant for custom tau_gaba if given
     # decay_gaba from the current M.tau_gaba). nb041 sweeps this to
     # vary the gamma frequency f_γ across retrained networks.
     if tau_gaba is not None:
