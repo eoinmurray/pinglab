@@ -26,13 +26,11 @@ from config import (
     _MODEL_CLASSES,
     build_config,
     build_net,
+    run_sim,
 )
 
 # Re-exported through cli/__init__.py for notebook runners (nb003–006).
 from config import _extract_records  # noqa: F401
-
-from figkit import plt
-from plot import make_transient_fig
 
 # =============================================================================
 # Image → spike encoding with stimulus window
@@ -53,20 +51,8 @@ from scan import (  # noqa: E402,F401
     SCAN_DEFAULTS,
     _apply_scan_var,
     _auto_device,
-    generate_scan,
     primary_hid_key,
     primary_inh_key,
-)
-
-# =============================================================================
-# Snapshot generators
-# =============================================================================
-
-from snapshot import (  # noqa: E402
-    generate_image_snapshot,
-    generate_sim_only,
-    generate_snapshot,
-    generate_spike_snapshot,
 )
 
 from datasets import (  # noqa: E402,F401
@@ -626,18 +612,6 @@ def _build_subparsers(parser, parent):
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sim_parser.add_argument(
-        "--image",
-        action="store_true",
-        help="Also save a still oscilloscope snapshot (E/I rasters, weight "
-        "histograms, PSD).",
-    )
-    sim_parser.add_argument(
-        "--video",
-        action="store_true",
-        help="Sweep a parameter (--scan-var) and render an MP4, one frame per "
-        "value.",
-    )
-    sim_parser.add_argument(
         "--infer",
         action="store_true",
         help="Load trained weights (--from-dir / --load-weights) and evaluate "
@@ -661,40 +635,6 @@ def _build_subparsers(parser, parent):
         type=str,
         default=None,
         help="Path to a weights.pth file (alternative to --from-dir).",
-    )
-    sim_parser.add_argument(
-        "--scan-var",
-        type=str,
-        default="stim-overdrive",
-        choices=list(SCAN_DEFAULTS.keys()),
-        help="[--video] Parameter to sweep. 'digit' iterates dataset classes; "
-        "'noise' adds input Poisson noise (Hz). (default: stim-overdrive)",
-    )
-    sim_parser.add_argument(
-        "--scan-min",
-        type=float,
-        default=1.0,
-        help="[--video] Scan start value, in the variable's units "
-        "(default: 1.0). For digit: integer class.",
-    )
-    sim_parser.add_argument(
-        "--scan-max",
-        type=float,
-        default=50.0,
-        help="[--video] Scan end value (default: 50.0). For digit: integer class.",
-    )
-    sim_parser.add_argument(
-        "--frames",
-        type=int,
-        default=10,
-        help="[--video] Number of frames to render (default: 10). For 'digit' "
-        "scan, overridden by scan range.",
-    )
-    sim_parser.add_argument(
-        "--frame-rate",
-        type=int,
-        default=10,
-        help="[--video] Output video frame rate in fps (default: 10).",
     )
 
 
@@ -732,13 +672,6 @@ def _build_subparsers(parser, parent):
         type=int,
         default=None,
         help="Mini-batch size for DataLoader. Default: 64 (from models.BATCH_SIZE).",
-    )
-    train_parser.add_argument(
-        "--observe",
-        type=str,
-        default=None,
-        choices=["video", "images"],
-        help="Save oscilloscope per epoch",
     )
     train_parser.add_argument(
         "--max-samples",
@@ -932,8 +865,7 @@ def configure_models(args):
     # Input Poisson rate and trial duration — single source of truth. Every
     # code path reads M.max_rate_hz / M.T_ms, so setting them here once means
     # all dispatch branches (sim/train × all input types) respect
-    # --input-rate / --t-ms. Subfunctions that change dt recalc M.p_scale /
-    # M.T_steps via patch_dt as usual.
+    # --input-rate / --t-ms. Subfunctions that change dt recalc M.T_steps locally.
     M.max_rate_hz = args.spike_rate
     M.T_ms = args.t_ms
 
@@ -1033,116 +965,40 @@ def _print_intro(log, config, args, mode):
 
 
 def _run_sim(args, C, out_dir, log):
-    """Forward pass; --image / --video select the output.
-
-    Each path runs its own forward pass and reports firing-rate metrics:
-    --image renders a still snapshot, --video sweeps a parameter into an
-    MP4, and bare `sim` (neither flag) does a metrics-only pass.
-    """
+    """Forward pass with firing-rate metrics."""
     log.info(f"Device: {C.DEVICE}")
     if getattr(args, "infer", False):
         _emit_infer(args, C, out_dir, log)
         return
-    want_image = getattr(args, "image", False)
-    want_video = getattr(args, "video", False)
-    if want_image:
-        _emit_image(args, C, log)
-    if want_video:
-        _emit_video(args, C, log)
-    if not (want_image or want_video):
-        generate_sim_only(
-            spike_rate=args.spike_rate,
-            overdrive=args.overdrive,
-            dt=args.dt,
-            model_name=args.model,
-            input_mode=args.input,
-            t_e_async=C.T_E_ASYNC_DEFAULT,
-        )
 
+    # Metrics-only simulation
+    from metrics import report_metrics
+    from scan import primary_hid_key, primary_inh_key
 
-def _emit_image(args, C, log):
-    """Save a still oscilloscope snapshot (the former `image` mode)."""
-    t_e_async = C.T_E_ASYNC_DEFAULT
-    # Apply CLI overrides to module-level config so snapshot generators
-    # (which read C.cfg) see the requested W^EI / W^IE / W^II / sparsity.
-    if args.w_ei is not None:
-        C.cfg.w_ei = tuple(args.w_ei)
-    if args.w_ie is not None:
-        C.cfg.w_ie = tuple(args.w_ie)
-    if args.w_ii is not None:
-        C.cfg.w_ii = tuple(args.w_ii)
-    if args.w_ee is not None:
-        C.cfg.w_ee = tuple(args.w_ee)
-    if args.n_e is not None:
-        C.cfg.n_e = args.n_e
-    if args.n_i is not None:
-        C.cfg.n_i = args.n_i
-    if args.seed is not None:
-        C.cfg.seed = args.seed
-    if getattr(args, "ei_sparsity", 0.0) > 0:
-        C.cfg.sparsity = float(args.ei_sparsity)
-    if args.input == "dataset":
-        generate_image_snapshot(
-            digit_class=args.digit,
-            sample_idx=args.sample,
-            dt=args.dt,
-            dataset=args.dataset,
-            overdrive=args.overdrive,
-            model_name=args.model,
-            load_weights=getattr(args, "load_weights", None),
-        )
-    elif args.input == "synthetic-spikes":
-        generate_spike_snapshot(
-            spike_rate=args.spike_rate,
-            overdrive=args.overdrive,
-            dt=args.dt,
-            model_name=args.model,
-            independent_drive=args.independent_drive,
-            independent_drive_i=args.independent_drive_i,
-            shared_drive=args.shared_drive,
-            shared_drive_i=args.shared_drive_i,
-            quenched_drive=args.quenched_drive,
-            quenched_drive_i=args.quenched_drive_i,
-            noise_std=args.noise_std,
-            lyapunov_eps=args.lyapunov_eps,
-        )
-    else:
-        generate_snapshot(
-            args.overdrive,
-            dt=args.dt,
-            model_name=args.model,
-            t_e_async=t_e_async,
-        )
+    spike_rate = getattr(args, "spike_rate", None) or C.SPIKE_RATE_BASE
+    t_e_async = getattr(args, "t_e_async", None) or C.T_E_ASYNC_DEFAULT
+    dt = args.dt
 
+    M.N_HID = C.N_E
+    M.N_INH = C.N_I
+    burn_steps = int(C.BURN_IN_MS / dt)
 
-def _emit_video(args, C, log):
-    """Sweep a parameter and render an MP4 (the former `video` mode)."""
-    t_e_async = C.T_E_ASYNC_DEFAULT
-    # Emit init_d0s0.png alongside the scan video when input is dataset.
-    # Mirrors train mode so sweeps have a comparable static reference.
-    if args.input == "dataset":
-        generate_image_snapshot(
-            digit_class=args.digit,
-            sample_idx=args.sample,
-            dt=args.dt,
-            dataset=args.dataset,
-            overdrive=args.overdrive,
-            model_name=args.model,
-            out_filename="init_d0s0.png",
-        )
-    generate_scan(
-        scan_var=args.scan_var,
-        scan_min=args.scan_min,
-        scan_max=args.scan_max,
-        n_frames=args.frames,
-        t_e_async=t_e_async,
-        overdrive=args.overdrive,
-        spike_rate=args.spike_rate,
-        input_mode=args.input,
-        dataset=args.dataset,
-        digit_class=args.digit,
-        sample_idx=args.sample,
-        load_weights=getattr(args, "load_weights", None),
+    t_e_ping = t_e_async * getattr(args, "overdrive", 1.0)
+    log.info(f"sim | {args.model} conductance OD={getattr(args, 'overdrive', 1.0):.1f}x")
+    rec, _, _ = run_sim(dt, t_e_ping, model_name=args.model, t_e_async=t_e_async)
+
+    spk_e = rec[primary_hid_key(rec)][burn_steps:]
+    spk_i = rec[primary_inh_key(rec)][burn_steps:] if primary_inh_key(rec) else None
+    report_metrics(
+        spk_e,
+        spk_i,
+        dt,
+        args.model,
+        n_e=C.N_E,
+        n_i=C.N_I,
+        step_on_ms=C.STEP_ON_MS,
+        step_off_ms=C.STEP_OFF_MS,
+        burn_in_ms=C.BURN_IN_MS,
     )
 
 
@@ -1160,7 +1016,6 @@ def _run_train(args, C, out_dir, log):
         lr=args.lr,
         epochs=args.epochs,
         dt=args.dt or 0.1,
-        observe=args.observe,
         out_dir=str(out_dir),
         device_name=args.device,
         w_in=_resolve_w_in(args),
@@ -1214,50 +1069,6 @@ def _emit_infer(args, C, out_dir, log):
     )["acc"]
     if getattr(args, "image", False):
         _render_infer_snapshot(args, C, out_dir, log, w_in, acc)
-
-
-def _render_infer_snapshot(args, C, out_dir, log, w_in, acc):
-    """Render a single oscilloscope frame for a trained net at one dt (--observe)."""
-    C.cfg.sync_from_model(M.N_HID, M.N_INH)
-    vis_net = build_net(
-        args.model,
-        w_in=w_in,
-        w_in_sparsity=args.w_in_sparsity or 0.0,
-        ei_strength=args.ei_strength,
-        ei_ratio=args.ei_ratio,
-        randomize_init=True,
-        dales_law=args.dales_law,
-        hidden_sizes=args.n_hidden,
-        ei_layers=args.ei_layers,
-    )
-    vis_net.load_state_dict(
-        torch.load(args.load_weights, map_location="cpu"), strict=False
-    )
-    vis_net.eval()
-    loader_dataset = "mnist" if args.dataset in ("mnist", "smnist") else args.dataset
-    ref_pixel_vec, ref_image = _load_dataset_image(loader_dataset, 0, 0)
-    ref_input = torch.from_numpy(ref_pixel_vec).unsqueeze(0)
-    use_smnist = args.dataset == "smnist"
-    ref_spikes = encode_batch(ref_input, args.dt, use_smnist)
-    fig, axes = make_transient_fig(layout="train")
-    observe_epoch(
-        vis_net,
-        ref_spikes,
-        0,
-        acc,
-        0.0,
-        args.dt,
-        args.model,
-        fig,
-        axes,
-        None,
-        digit_image=ref_image,
-        total_epochs=1,
-    )
-    fname = out_dir / "infer_d0s0.png"
-    fig.savefig(fname, dpi=120)
-    plt.close(fig)
-    log.info(f"  → {fname}")
 
 
 _MODE_HANDLERS = {

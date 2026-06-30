@@ -404,6 +404,7 @@ def run_sim(
             cfg.seed,
         )
         ext_g_tensor = ext_g_tensor.to(cfg.torch_device)
+        M.T_steps = T_steps
 
     torch.manual_seed(cfg.seed)
     net = _build_sim_net(model_name, hidden_sizes=[M.N_HID])
@@ -434,7 +435,7 @@ def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100, model_name="
     """
     M.N_HID = cfg.n_e
     M.N_INH = cfg.n_i
-    patch_dt(dt)
+    M.T_steps = int(C.SIM_MS / dt)
 
     results = []
     for start in range(0, len(ext_g_list), chunk_size):
@@ -554,8 +555,6 @@ def _run_sim_with_net(net, dt, t_e_ping, t_e_async, noise_seed=None):
 
 def build_config(args):
     """Build Config from CLI args."""
-    from plot import LAYOUT_PRESETS  # late import to avoid circular
-
     c = Config()
     if hasattr(args, "out_dir") and args.out_dir is not None:
         c.artifact_root = args.out_dir
@@ -571,10 +570,6 @@ def build_config(args):
     if hasattr(args, "device") and args.device is not None:
         c.device = args.device
     c.raster_mode = getattr(args, "raster", "scatter")
-    if hasattr(args, "panels") and args.panels is not None:
-        c.active_panels = [p.strip() for p in args.panels.split(",")]
-    else:
-        c.active_panels = list(LAYOUT_PRESETS[getattr(args, "layout", "full")])
     if hasattr(args, "drive") and args.drive is not None:
         c.t_e_async = args.drive
     c.ei_ratio = getattr(args, "ei_ratio", 2.0)

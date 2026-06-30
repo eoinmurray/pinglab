@@ -1,6 +1,6 @@
 """Training driver for the CLI.
 
-Holds seed_everything, observe_epoch (per-epoch oscilloscope frame), and
+Holds seed_everything, observe_epoch (per-epoch metrics computation), and
 the main train() loop for the PING (COBANet) model across MNIST /
 FashionMNIST / Yin-Yang / sMNIST / SHD with a configurable readout, loss,
 dataset encoder, gradient stabilizer, and optimizer.
@@ -29,8 +29,6 @@ from config import (
     extract_weights,
 )
 from metrics import compute_metrics, format_metrics
-from plot import draw_transient_frame, make_transient_fig, reset_weight_xlims
-
 from datasets import (
     DATASET_N_HIDDEN_DEFAULTS,
     SHD_N_CHANNELS,
@@ -112,7 +110,7 @@ def observe_epoch(
     lr=None,
     digit_image=None,
 ):
-    """Run reference input through network, render oscilloscope frame, grab."""
+    """Run reference input through network and compute metrics."""
     C.cfg.sync_from_model(M.N_HID, M.N_INH)
 
     net.recording = True
@@ -126,42 +124,7 @@ def observe_epoch(
     spk_e = _to_np(rec[primary_hid_key(rec)])[burn:]
     _ik = primary_inh_key(rec)
     spk_i = _to_np(rec[_ik])[burn:] if _ik else None
-    spk_h1 = _to_np(rec["hid_1"])[burn:] if "hid_1" in rec else None
-    spk_o = _to_np(rec["out"])[burn:] if "out" in rec else None
-    ext_g = (
-        _to_np(rec["input"])[burn:]
-        if "input" in rec
-        else np.zeros((len(spk_e), spk_e.shape[1]))
-    )
 
-    weights = extract_weights(net)
-
-    title = f"Epoch {epoch + 1}  acc={acc:.1f}%  loss={train_loss:.3f}"
-    draw_transient_frame(
-        axes,
-        1.0,
-        spk_e,
-        spk_i,
-        ext_g,
-        dt,
-        title,
-        spk_o=spk_o,
-        weights=weights,
-        model_name=model_name,
-        sweep_frame_idx=epoch,
-        n_e=M.N_HID,
-        n_i=M.N_INH,
-        acc=acc,
-        loss=train_loss,
-        grad_ratios=grad_ratios,
-        lr=lr,
-        total_epochs=total_epochs,
-        digit_image=digit_image,
-        spk_h1=spk_h1,
-    )
-
-    if writer is not None:
-        writer.grab_frame()
     return compute_metrics(spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH)
 
 
@@ -170,7 +133,6 @@ def train(
     lr=0.01,
     epochs=100,
     dt=0.1,
-    observe=False,
     out_dir=None,
     device_name=None,
     w_in=None,
@@ -420,28 +382,6 @@ def train(
         print("Init state (d0s0):")
         log.info(f"  {format_metrics(snapshot_init_state)}")
 
-        if not observe:
-            fig, axes = make_transient_fig(layout="train")
-            draw_transient_frame(
-                axes,
-                1.0,
-                spk_e,
-                spk_i,
-                ext_g,
-                dt,
-                f"Init  {model_name}",
-                spk_o=spk_o,
-                weights=weights,
-                model_name=model_name,
-                n_e=M.N_HID,
-                n_i=M.N_INH,
-                digit_image=ref_image,
-                spk_h1=spk_h1,
-            )
-            fname = out_dir / "init_d0s0.png"
-            fig.savefig(fname, dpi=120)
-            plt.close(fig)
-            log.info(f"  \u2192 {fname}")
     else:
         snapshot_init_state = None
 
@@ -488,8 +428,6 @@ def train(
         return 0.0
 
     log.info(f"  lr={lr} epochs={epochs} batch={bs}")
-    if observe:
-        log.info(f"  observe → {out_dir / 'frames/'}")
 
     opt = torch.optim.Adam(net.parameters(), lr=lr)
     # Dale's law via projected gradient: clamp the constrained weights back onto
@@ -502,39 +440,6 @@ def train(
 
     def loss_fn(logits, y):
         return _ce(logits, y)
-
-    # Observe setup
-    obs_fig = obs_axes = None
-    obs_frames_dir = None
-    if observe:
-        reset_weight_xlims()
-        obs_fig, obs_axes = make_transient_fig(layout="train")
-        obs_frames_dir = out_dir / "frames"
-        obs_frames_dir.mkdir(parents=True, exist_ok=True)
-        assert obs_fig is not None and obs_frames_dir is not None
-
-    # Epoch 0 frame (init state)
-    init_state = None
-    if observe:
-        assert obs_fig is not None and obs_frames_dir is not None
-        init_state = observe_epoch(
-            net,
-            ref_spikes,
-            -1,
-            0.0,
-            0.0,
-            dt,
-            model_name,
-            obs_fig,
-            obs_axes,
-            None,
-            burn_in_ms=burn_in_ms,
-            total_epochs=epochs,
-            digit_image=ref_image,
-        )
-        if init_state:
-            log.info(f"  ep 0/{epochs} init | {format_metrics(init_state)}")
-        obs_fig.savefig(obs_frames_dir / "epoch_000.png", dpi=120)
 
     # Training loop
 
@@ -694,48 +599,23 @@ def train(
             log.info(f"  ⚡ lr → {cur_lr:.0e}")
             prev_lr = cur_lr
 
-        # Oscilloscope frame (returns metrics dict; merged into epoch record)
+        # Compute firing-rate metrics for the JSON.
         t_observe = _time.perf_counter()
-        epoch_metrics = None
-        if observe:
-            assert obs_fig is not None and obs_frames_dir is not None
-            epoch_metrics = observe_epoch(
-                net,
-                ref_spikes,
-                epoch,
-                acc,
-                avg_train,
-                dt,
-                model_name,
-                obs_fig,
-                obs_axes,
-                None,
-                burn_in_ms=burn_in_ms,
-                total_epochs=epochs,
-                grad_ratios=grad_ratios,
-                lr=cur_lr,
-                digit_image=ref_image,
-            )
-            obs_fig.savefig(obs_frames_dir / f"epoch_{epoch + 1:03d}.png", dpi=120)
-        else:
-            # No --observe, but still capture firing-rate metrics for the JSON.
-            # Snapshot the RNG so the reference forward pass (which may use
-            # randomize_init) does not perturb the training trajectory.
-            rng_state = torch.get_rng_state()
-            net.recording = True
-            with torch.no_grad():
-                net(input_spikes=ref_spikes)
-            net.recording = False
-            torch.set_rng_state(rng_state)
-            burn = int(burn_in_ms / dt)
+        rng_state = torch.get_rng_state()
+        net.recording = True
+        with torch.no_grad():
+            net(input_spikes=ref_spikes)
+        net.recording = False
+        torch.set_rng_state(rng_state)
+        burn = int(burn_in_ms / dt)
 
-            _rec = net.spike_record
-            spk_e = _to_np(_rec[primary_hid_key(_rec)])[burn:]
-            _ik = primary_inh_key(_rec)
-            spk_i = _to_np(_rec[_ik])[burn:] if _ik else None
-            epoch_metrics = compute_metrics(
-                spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
-            )
+        _rec = net.spike_record
+        spk_e = _to_np(_rec[primary_hid_key(_rec)])[burn:]
+        _ik = primary_inh_key(_rec)
+        spk_i = _to_np(_rec[_ik])[burn:] if _ik else None
+        epoch_metrics = compute_metrics(
+            spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
+        )
         observe_s = _time.perf_counter() - t_observe
 
         # Trainable-parameter Frobenius norms — surfaced per epoch so
@@ -871,28 +751,6 @@ def train(
         )
         print("End state (d0s0):")
         log.info(f"  {format_metrics(end_state)}")
-        if not observe:
-            fig, axes = make_transient_fig(layout="train")
-            draw_transient_frame(
-                axes,
-                1.0,
-                spk_e,
-                spk_i,
-                ext_g,
-                dt,
-                f"End  {model_name}  acc={best_acc:.1f}%",
-                spk_o=spk_o,
-                weights=weights,
-                model_name=model_name,
-                n_e=M.N_HID,
-                n_i=M.N_INH,
-                digit_image=ref_image,
-                spk_h1=spk_h1,
-            )
-            fname = out_dir / "end_d0s0.png"
-            fig.savefig(fname, dpi=120)
-            plt.close(fig)
-            log.info(f"  \u2192 {fname}")
 
     # Save weights
     if best_state is not None:
@@ -942,38 +800,6 @@ def train(
     with open(metrics_path, "w") as f:
         json.dump(metrics_blob, f, indent=2, default=float)
     log.info(f"  \u2192 {metrics_path}")
-
-    # Finalize: assemble mp4 from frame PNGs
-    if observe:
-        log.info(f"  frames → {obs_frames_dir}/")
-        if observe == "video":
-            import subprocess as _sp
-
-            assert obs_frames_dir is not None
-            mp4_path = out_dir / "training.mp4"
-            ffmpeg_cmd = [
-                "ffmpeg",
-                "-y",
-                "-framerate",
-                "10",
-                "-pattern_type",
-                "glob",
-                "-i",
-                str(obs_frames_dir / "epoch_*.png"),
-                "-vf",
-                "pad=ceil(iw/2)*2:ceil(ih/2)*2",
-                "-c:v",
-                "libx264",
-                "-pix_fmt",
-                "yuv420p",
-                str(mp4_path),
-            ]
-            result = _sp.run(ffmpeg_cmd, capture_output=True)
-            if result.returncode == 0:
-                log.info(f"  → {mp4_path}")
-            else:
-                log.info(f"  ffmpeg failed (frames kept in {obs_frames_dir}/)")
-        plt.close(obs_fig)
 
     jsonl.close()
 
