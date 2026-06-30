@@ -41,7 +41,8 @@ SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
 # Welch PSD has 1 Hz frequency resolution (sharper bins than the 5 Hz
 # of nb041/nb049's 200-ms trials).
 COMMON_ARGS = [
-    "sim""--model", "ping",
+    "sim",
+    "--model", "ping",
     "--input", "synthetic-spikes",
     "--t-ms", "1000",
 ]
