@@ -13,7 +13,7 @@ from pathlib import Path
 import torch
 
 import models as M
-from config import build_net
+from config import build_net, setup_model_globals
 from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
 from encoders import EVAL_SEED, encode_batch
 from scan import _auto_device
@@ -53,9 +53,7 @@ def infer(
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]
         log.info(f"  n_hidden auto → {hidden_sizes} (smart default for {dataset})")
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
+    setup_model_globals(hidden_sizes)
 
     device = _auto_device()
 
@@ -193,9 +191,7 @@ def infer_and_snapshot(
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
+    setup_model_globals(hidden_sizes)
 
     device = _auto_device()
 

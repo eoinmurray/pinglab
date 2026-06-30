@@ -111,6 +111,18 @@ class Config:
 cfg = Config(artifact_root=str(DEFAULT_ARTIFACT_ROOT))
 
 
+def setup_model_globals(hidden_sizes):
+    """Initialize M module globals from hidden_sizes.
+
+    Sets M.N_HID, M.N_INH (computed as N_HID // 4), and M.HIDDEN_SIZES.
+    Call this before building/loading networks to ensure module globals are consistent.
+    """
+    hidden_sizes = list(hidden_sizes) if hidden_sizes else [256]
+    M.N_HID = hidden_sizes[-1]
+    M.N_INH = hidden_sizes[-1] // 4
+    M.HIDDEN_SIZES = list(hidden_sizes)
+
+
 # =============================================================================
 # Model Registry
 # =============================================================================
