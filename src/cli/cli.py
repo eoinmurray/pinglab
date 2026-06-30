@@ -593,22 +593,18 @@ def _build_subparsers(parser, parent):
     import argparse
 
     subparsers = parser.add_subparsers(
-        dest="mode", help="Mode: sim (--image / --video / --infer for outputs) | train"
+        dest="mode", help="Mode: sim or train"
     )
 
-    # -- sim subcommand (forward pass; --image / --video add outputs) --
+    # -- sim subcommand (forward pass + metrics) --
     sim_parser = subparsers.add_parser(
         "sim",
         parents=[parent],
-        help="Forward pass + metrics; --image / --video add outputs",
-        description="Run a forward pass and report firing-rate metrics. Add "
-        "--image to also save a still oscilloscope figure, or --video to "
-        "sweep a parameter (--scan-var) and render an MP4.",
+        help="Forward pass + metrics",
+        description="Run a forward pass and report firing-rate metrics.",
         epilog="Examples:\n"
         "  cli.py sim --model ping --ei-strength 0.5\n"
-        "  cli.py sim --image --model ping --dataset mnist --digit 3\n"
-        "  cli.py sim --video --scan-var ei_strength --scan-min 0 "
-        "--scan-max 0.4 --frames 600",
+        "  cli.py sim --model ping --dataset mnist --digit 3",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sim_parser.add_argument(
