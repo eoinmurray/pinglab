@@ -965,7 +965,7 @@ def _run_sim(args, C, out_dir, log):
 
     t_e_ping = t_e_async * getattr(args, "overdrive", 1.0)
     log.info(f"sim | {args.model} conductance OD={getattr(args, 'overdrive', 1.0):.1f}x")
-    rec, _, _ = run_sim(dt, t_e_ping, model_name=args.model, t_e_async=t_e_async)
+    rec, display, _ = run_sim(dt, t_e_ping, model_name=args.model, t_e_async=t_e_async)
 
     spk_e = rec[primary_hid_key(rec)][burn_steps:]
     spk_i = rec[primary_inh_key(rec)][burn_steps:] if primary_inh_key(rec) else None
@@ -983,22 +983,43 @@ def _run_sim(args, C, out_dir, log):
 
     # Save full integration window snapshot for notebooks
     out_path = Path(out_dir) / "snapshot.npz"
-    spk_e_full = rec[primary_hid_key(rec)]
-    spk_i_full = rec[primary_inh_key(rec)] if primary_inh_key(rec) else np.zeros((spk_e_full.shape[0], 0), dtype=np.float32)
 
+    # Prepare NPZ data: save all recorded fields plus metadata
     npz_data = {
-        "spk_e": spk_e_full.numpy() if hasattr(spk_e_full, "numpy") else spk_e_full,
-        "spk_i": spk_i_full.numpy() if hasattr(spk_i_full, "numpy") else spk_i_full,
         "dt": np.float32(dt),
         "n_e": np.int32(C.N_E),
         "n_i": np.int32(C.N_I),
     }
 
-    # Include optional data like Lyapunov divergence if present
-    for key in ["lyap_dist", "lyap_t_ms"]:
-        if key in rec:
-            v = rec[key]
-            npz_data[key] = v.numpy() if hasattr(v, "numpy") else v
+    # Map spike keys to spk_e/spk_i and save all recorded traces
+    hid_key = primary_hid_key(rec)
+    inh_key = primary_inh_key(rec)
+
+    if hid_key:
+        spk_e = rec[hid_key]
+        npz_data["spk_e"] = spk_e.numpy() if hasattr(spk_e, "numpy") else spk_e
+
+    if inh_key:
+        spk_i = rec[inh_key]
+        npz_data["spk_i"] = spk_i.numpy() if hasattr(spk_i, "numpy") else spk_i
+    else:
+        # Empty inhibitory spike array if no inhibition
+        T = npz_data.get("spk_e", rec[hid_key]).shape[0] if hid_key else 0
+        npz_data["spk_i"] = np.zeros((T, 0), dtype=np.float32)
+
+    # Save all other recorded fields (voltages, conductances, etc.)
+    for key, val in rec.items():
+        if key not in (hid_key, inh_key) and val is not None:
+            # Map "input" to "input_spikes" for backwards compatibility with notebooks
+            save_key = "input_spikes" if key == "input" else key
+            npz_data[save_key] = val.numpy() if hasattr(val, "numpy") else val
+
+    # Save the stimulus (external conductance or input spikes)
+    if display is not None:
+        display_arr = display.numpy() if hasattr(display, "numpy") else display
+        # Save as input_spikes if not already present (for synthetic-spikes mode)
+        if "input_spikes" not in npz_data:
+            npz_data["input_spikes"] = display_arr
 
     np.savez(out_path, **npz_data)
     log.info(f"Saved snapshot to {out_path}")
