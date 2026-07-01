@@ -20,6 +20,7 @@ Notebook entry: src/docs/src/pages/notebooks/nb048.mdx
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -39,9 +40,11 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
+from helpers.datasets import load_mnist_split  # noqa: E402
 
 SLUG = "nb048"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
 
 # Trained-baseline locator — nb025 medium-tier PING at θ_u = off, three
 # seeds. Heatmap and τ-sweep average over all three; headline trials pick
@@ -110,58 +113,78 @@ SEED: int = 42
 
 
 # ── Net build / load ────────────────────────────────────────────────
-def _load_trained_full(device, seed: int = SEEDS[0]):
-    """Mirror nb025's loader but read τ_GABA from the trained config so
-    we replay under the same biophysics. Returns (net, cfg, X_te, y_te)."""
-    import models as M
-    from cli.config import build_net
-    from cli import load_dataset, seed_everything
-
+def _load_eval(seed: int = SEEDS[0]):
+    """Baseline train_dir + config + held-out MNIST test split. No net — forwards
+    go through the CLI (probe --input-file). Uses nb025's PING baseline cell."""
     train_dir = baseline_dir(seed)
     if not (train_dir / "weights.pth").exists():
-        raise SystemExit(
-            f"nb048 needs nb025's PING baseline at {train_dir}"
-        )
+        raise SystemExit(f"nb048 needs nb025's PING baseline at {train_dir}")
     cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", 42)))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
-    )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
+    _, X_te, _, y_te = load_mnist_split(max_samples=int(cfg["max_samples"]))
+    return train_dir, cfg, X_te, y_te
 
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
+
+def _run_stream(train_dir: Path, spk_in) -> tuple:
+    """Forward a pre-built input stream through the trained net via
+    `probe --input-file`; return (spk_e, spk_i) as dense (T, N) arrays."""
+    arr = spk_in.detach().cpu().numpy() if hasattr(spk_in, "detach") else np.asarray(spk_in)
+    if arr.ndim == 2:
+        arr = arr[:, None, :]  # (T, 1, N_IN)
+    tag = f"s{abs(hash(arr.tobytes())) % (10 ** 8)}"
+    out_dir = (ARTIFACTS / "stream" / train_dir.name / tag).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    np.savez(out_dir / "stream.npz", input_spikes=arr.astype("float32"))
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "probe",
+            "--load-config", str((train_dir / "config.json").resolve()),
+            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--n-in", str(N_IN),
+            "--input-file", str(out_dir / "stream.npz"),
+            "--outputs", "rasters",
+            "--out-dir", str(out_dir),
+        ],
+        cwd=REPO,
+        check=True,
     )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 1.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-        readout_mode=cfg.get("readout_mode", "mem-mean"),
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-    return net, cfg, X_te, y_te
+    R = np.load(out_dir / "rasters.npz")
+    T, n_e, n_i = int(R["T"]), int(R["n_e"]), int(R["n_i"])
+
+    def _dense(pfx, N):
+        m = R[f"{pfx}_trial"] == 0
+        d = np.zeros((T, N), dtype=np.int8)
+        d[R[f"{pfx}_t"][m], R[f"{pfx}_cell"][m]] = 1
+        return d
+
+    return _dense("e", n_e), _dense("i", n_i)
+
+
+_W_OUT_CACHE: dict = {}
+
+
+def _load_w_out(train_dir: Path) -> np.ndarray:
+    """Trained readout matrix W_out (= W_ff[-1]) via dump-weights (cached per cell)."""
+    key = str(train_dir)
+    if key not in _W_OUT_CACHE:
+        out_dir = (ARTIFACTS / "wout" / train_dir.name).resolve()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            [
+                "uv", "run", "python", str(OSCILLOSCOPE), "dump-weights",
+                "--load-config", str((train_dir / "config.json").resolve()),
+                "--load-weights", str((train_dir / "weights.pth").resolve()),
+                "--out-dir", str(out_dir),
+            ],
+            cwd=REPO,
+            check=True,
+        )
+        d = np.load(out_dir / "weights_dump.npz")
+        wff = sorted(
+            (k for k in d.files if k.startswith("W_ff_") and k.endswith("_trained")),
+            key=lambda k: int(k.split("_")[2]),
+        )
+        _W_OUT_CACHE[key] = d[wff[-1]]
+    return _W_OUT_CACHE[key]
 
 
 # ── Stream construction ─────────────────────────────────────────────
@@ -263,32 +286,20 @@ def pick_diverse_digits(X_te, y_te, n: int, seed: int) -> tuple[np.ndarray, np.n
     return np.stack(pixels, axis=0), np.array(labels, dtype=np.int64)
 
 
-def run_headline_stream(net, cfg, X_te, y_te, device) -> dict:
+def run_headline_stream(train_dir, cfg, X_te, y_te) -> dict:
     """Run a single 5-digit stream at TAU_HEADLINE_MS and capture
     everything the headline figure needs."""
-    import models as M
     pixels, labels = pick_diverse_digits(
         X_te, y_te, N_DIGITS_HEADLINE, seed=SEED,
     )
     tau_steps = int(round(TAU_HEADLINE_MS / DT))
     T_stream_steps = tau_steps * N_DIGITS_HEADLINE
-    M.T_steps = T_stream_steps
-    M.T_ms = T_stream_steps * DT
 
     gen = torch.Generator().manual_seed(SEED + 1)
     spk_in = encode_stream(pixels, TAU_HEADLINE_MS, INPUT_RATE_HZ, gen)
-    spk_in = spk_in.to(device)
-    with torch.no_grad():
-        _ = net(input_spikes=spk_in)
-    rec = net.spike_record
-    spk_e = rec["hid"].cpu().numpy()  # (T, N_E) with B=1 squeezed
-    spk_i = rec["inh"].cpu().numpy()  # (T, N_I)
-    if spk_e.ndim == 3:
-        spk_e = spk_e[:, 0, :]
-        spk_i = spk_i[:, 0, :]
+    spk_e, spk_i = _run_stream(train_dir, spk_in)
 
-    # W_out is the last entry in W_ff.
-    W_out = list(net.W_ff)[-1].detach().cpu().numpy()  # (N_E, N_CLASSES)
+    W_out = _load_w_out(train_dir)  # (N_E, N_CLASSES)
     tau_out_ms = float(cfg.get("tau_out_ms", 2.0))
     logits = sliding_readout(
         spk_e, W_out, tau_out_ms, window_ms=TAU_HEADLINE_MS,
@@ -334,30 +345,20 @@ def encode_varying_stream(
     return torch.cat(streams, dim=0)
 
 
-def run_varying_headline(net, cfg, X_te, y_te, device) -> dict:
+def run_varying_headline(train_dir, cfg, X_te, y_te) -> dict:
     """One stream where each segment has its own (τ, rate). Reads off
     accuracy at per-segment end with each segment's own τ as the
     sliding-window width."""
-    import models as M
     pixels, labels = pick_diverse_digits(
         X_te, y_te, len(VARYING_HEADLINE), seed=SEED + 7,
     )
     segment_steps = [int(round(t / DT)) for (t, _) in VARYING_HEADLINE]
     T_stream_steps = sum(segment_steps)
-    M.T_steps = T_stream_steps
-    M.T_ms = T_stream_steps * DT
 
     gen = torch.Generator().manual_seed(SEED + 9)
-    spk_in = encode_varying_stream(pixels, VARYING_HEADLINE, gen).to(device)
-    with torch.no_grad():
-        _ = net(input_spikes=spk_in)
-    rec = net.spike_record
-    spk_e = rec["hid"].cpu().numpy()
-    spk_i = rec["inh"].cpu().numpy()
-    if spk_e.ndim == 3:
-        spk_e = spk_e[:, 0, :]
-        spk_i = spk_i[:, 0, :]
-    W_out = list(net.W_ff)[-1].detach().cpu().numpy()
+    spk_in = encode_varying_stream(pixels, VARYING_HEADLINE, gen)
+    spk_e, spk_i = _run_stream(train_dir, spk_in)
+    W_out = _load_w_out(train_dir)
     tau_out_ms = float(cfg.get("tau_out_ms", 2.0))
 
     # v_out is reusable; per-segment readout uses its own window.
@@ -416,22 +417,18 @@ def run_varying_headline(net, cfg, X_te, y_te, device) -> dict:
 
 # ── 2D grid sweep over (τ, input_rate) ──────────────────────────────
 def run_grid_sweep(
-    net, cfg, X_te, y_te, device, train_seed: int,
+    train_dir, cfg, X_te, y_te, train_seed: int,
     n_streams: int, n_per_stream: int,
 ) -> list[dict]:
     """Per-(τ, rate) accuracy on uniform-segment streams for ONE trained
     seed. Each cell runs `n_streams` streams of `n_per_stream` random
     test digits. Caller loops over training seeds."""
-    import models as M
-    W_out = list(net.W_ff)[-1].detach().cpu().numpy()
+    W_out = _load_w_out(train_dir)
     tau_out_ms = float(cfg.get("tau_out_ms", 2.0))
     rng = np.random.default_rng(SEED + 555 + train_seed)
     rows: list[dict] = []
     for tau_ms in TAU_GRID_MS:
         tau_steps = int(round(tau_ms / DT))
-        T_stream_steps = tau_steps * n_per_stream
-        M.T_steps = T_stream_steps
-        M.T_ms = T_stream_steps * DT
         for rate_hz in RATE_GRID_HZ:
             n_correct = 0
             n_total = 0
@@ -442,14 +439,8 @@ def run_grid_sweep(
                 gen = torch.Generator().manual_seed(
                     SEED + 2000 + s + 100 * train_seed
                 )
-                spk_in = encode_stream(
-                    pixels, tau_ms, rate_hz, gen,
-                ).to(device)
-                with torch.no_grad():
-                    _ = net(input_spikes=spk_in)
-                spk_e = net.spike_record["hid"].cpu().numpy()
-                if spk_e.ndim == 3:
-                    spk_e = spk_e[:, 0, :]
+                spk_in = encode_stream(pixels, tau_ms, rate_hz, gen)
+                spk_e, _ = _run_stream(train_dir, spk_in)
                 logits = sliding_readout(
                     spk_e, W_out, tau_out_ms, window_ms=tau_ms,
                 )
@@ -522,7 +513,7 @@ def aggregate_tau_rows(rows: list[dict]) -> list[dict]:
 
 # ── Sweep ───────────────────────────────────────────────────────────
 def run_tau_sweep(
-    net, cfg, X_te, y_te, device, train_seed: int,
+    train_dir, cfg, X_te, y_te, train_seed: int,
     n_streams: int, n_per_stream: int,
     rate_compensate: bool,
 ) -> list[dict]:
@@ -530,8 +521,7 @@ def run_tau_sweep(
     digits each. Per-stream input_rate is either constant (25 Hz) or
     scaled to keep total spikes per digit constant (25 × 200/τ Hz).
     Returns one row per τ."""
-    import models as M
-    W_out = list(net.W_ff)[-1].detach().cpu().numpy()
+    W_out = _load_w_out(train_dir)
     tau_out_ms = float(cfg.get("tau_out_ms", 2.0))
     rng = np.random.default_rng(SEED + 100 + train_seed)
 
@@ -542,9 +532,6 @@ def run_tau_sweep(
             INPUT_RATE_HZ * (TRAINED_T_MS / tau_ms) if rate_compensate
             else INPUT_RATE_HZ
         )
-        T_stream_steps = tau_steps * n_per_stream
-        M.T_steps = T_stream_steps
-        M.T_ms = T_stream_steps * DT
 
         n_correct = 0
         n_total = 0
@@ -555,12 +542,8 @@ def run_tau_sweep(
             gen = torch.Generator().manual_seed(
                 SEED + 1000 + s + 100 * train_seed
             )
-            spk_in = encode_stream(pixels, tau_ms, input_rate, gen).to(device)
-            with torch.no_grad():
-                _ = net(input_spikes=spk_in)
-            spk_e = net.spike_record["hid"].cpu().numpy()
-            if spk_e.ndim == 3:
-                spk_e = spk_e[:, 0, :]
+            spk_in = encode_stream(pixels, tau_ms, input_rate, gen)
+            spk_e, _ = _run_stream(train_dir, spk_in)
             logits = sliding_readout(
                 spk_e, W_out, tau_out_ms, window_ms=tau_ms,
             )
@@ -1054,24 +1037,22 @@ def main() -> None:
     prepare_run_dirs(SLUG, notebook_run_id, wipe=False, make_artifacts=True)
 
     t_start = time.monotonic()
-    from cli import _auto_device
-    device = _auto_device()
-    print(f"[streaming] device={device}  tier={tier}  seeds={SEEDS}")
+    print(f"[streaming] tier={tier}  seeds={SEEDS}")
 
     # Headlines (Figs 1, 3) use the first seed only — they're single-trial
     # demos, not aggregate measurements.
-    net, cfg, X_te, y_te = _load_trained_full(device, seed=SEEDS[0])
+    train_dir, cfg, X_te, y_te = _load_eval(seed=SEEDS[0])
 
     print(f"[headline] τ = {TAU_HEADLINE_MS:g} ms × {N_DIGITS_HEADLINE} digits "
           f"(seed {SEEDS[0]})")
-    s = run_headline_stream(net, cfg, X_te, y_te, device)
+    s = run_headline_stream(train_dir, cfg, X_te, y_te)
     correct = sum(s["seg_correct"])
     print(f"  labels={s['labels']}  correct={correct}/{N_DIGITS_HEADLINE}")
     plot_headline_stream(s, FIGURES / "headline_stream", notebook_run_id)
     print(f"wrote {FIGURES / 'headline_stream'}.png")
 
     print(f"[varying-headline] segments={VARYING_HEADLINE} (seed {SEEDS[0]})")
-    v = run_varying_headline(net, cfg, X_te, y_te, device)
+    v = run_varying_headline(train_dir, cfg, X_te, y_te)
     print(f"  labels={v['labels']}  correct="
           f"{sum(v['seg_correct'])}/{len(VARYING_HEADLINE)}")
     plot_varying_headline_stream(
@@ -1085,17 +1066,17 @@ def main() -> None:
     grid_rows: list[dict] = []
     for sd in SEEDS:
         if sd != SEEDS[0]:
-            net, cfg, X_te, y_te = _load_trained_full(device, seed=sd)
+            train_dir, cfg, X_te, y_te = _load_eval(seed=sd)
         print(f"[tau-sweep] constant input ({INPUT_RATE_HZ:g} Hz)  seed {sd}")
         rows_constant += run_tau_sweep(
-            net, cfg, X_te, y_te, device, train_seed=sd,
+            train_dir, cfg, X_te, y_te, train_seed=sd,
             n_streams=int(cfg_tier["n_streams"]),
             n_per_stream=int(cfg_tier["n_per_stream"]),
             rate_compensate=False,
         )
         print(f"[tau-sweep] rate-compensated  seed {sd}")
         rows_comp += run_tau_sweep(
-            net, cfg, X_te, y_te, device, train_seed=sd,
+            train_dir, cfg, X_te, y_te, train_seed=sd,
             n_streams=int(cfg_tier["n_streams"]),
             n_per_stream=int(cfg_tier["n_per_stream"]),
             rate_compensate=True,
@@ -1103,7 +1084,7 @@ def main() -> None:
         print(f"[grid-sweep] τ × rate "
               f"({len(TAU_GRID_MS)}×{len(RATE_GRID_HZ)} cells)  seed {sd}")
         grid_rows += run_grid_sweep(
-            net, cfg, X_te, y_te, device, train_seed=sd,
+            train_dir, cfg, X_te, y_te, train_seed=sd,
             n_streams=int(cfg_tier["n_grid_streams"]),
             n_per_stream=int(cfg_tier["n_per_stream"]),
         )
