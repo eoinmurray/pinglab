@@ -39,14 +39,23 @@ def infer(
     encode_fn=None,
     ei_layers=None,
     seed=None,
-    emit_per_cell_rates=False,
-    emit_pop_traces=False,
+    outputs=None,
     tau_gaba=None,
     scale_w_in=1.0,
     scale_w_ei=1.0,
     scale_w_ie=1.0,
 ):
-    """Run inference with saved weights at a given dt."""
+    """Run inference with saved weights at a given dt.
+
+    outputs: iterable of extra artifacts to emit from this one forward pass, from
+    {"per_cell_rates", "pop_traces", "rasters"}. metrics.json is always written.
+    Each maps to an emitter below; recording is enabled only if a recording-backed
+    output is requested, so the default accuracy path stays cheap.
+    """
+    outputs = set(outputs or ())
+    emit_per_cell_rates = "per_cell_rates" in outputs
+    emit_pop_traces = "pop_traces" in outputs
+    emit_rasters = "rasters" in outputs
 
     # Seed before dataset load and model init (matters when load_weights is None
     # and any randomness remains in the path).
@@ -159,13 +168,37 @@ def infer(
     # spike activity over cells for each test trial (the population signal every
     # PSD / f_gamma notebook reduces to). The CLI emits this base time-series and
     # the notebook computes the spectrum itself — no metric logic in the CLI.
-    # Both E1 and E2 need spike recording on.
-    if emit_per_cell_rates or emit_pop_traces:
+    # rasters: sparse per-trial spike-index emission (base data for cycle-level
+    # analyses — participation p, spikes-per-cell-per-cycle — that stream over the
+    # full rasters). Spikes are sparse, so we store (trial, t, cell) indices, not
+    # dense arrays. Any recording-backed output turns recording on.
+    _recording_outputs = emit_per_cell_rates or emit_pop_traces or emit_rasters
+    if _recording_outputs:
         net.recording = True
     per_cell_e = None  # running (N_E,) spike-count sum across the test set
     per_cell_i = None  # running (N_I,) spike-count sum across the test set
     pop_e_rows: list = []  # per-trial (T,) mean-over-E-cells activity
     pop_i_rows: list = []  # per-trial (T,) mean-over-I-cells activity
+    # rasters: flat COO lists (trial index, timestep, cell index) for E and I.
+    rast_e = {"trial": [], "t": [], "cell": []}
+    rast_i = {"trial": [], "t": [], "cell": []}
+    rast_trial = 0  # running global trial counter across batches
+    rast_T = 0  # timesteps (set from the recorded raster)
+
+    def _accum_rasters(rec, key, store, base_trial):
+        """Append sparse (trial, t, cell) spike indices for one population."""
+        r = rec.get(key) if key else None
+        if r is None:
+            return 0, 0
+        arr = r.detach().cpu().numpy()
+        if arr.ndim == 2:  # (T, N) → (T, 1, N)
+            arr = arr[:, None, :]
+        T, B, _N = arr.shape
+        t_idx, b_idx, c_idx = arr.nonzero()
+        store["trial"].append((base_trial + b_idx).astype("int32"))
+        store["t"].append(t_idx.astype("int32"))
+        store["cell"].append(c_idx.astype("int32"))
+        return B, T
 
     def _accum_per_cell(rec, key, acc):
         """Sum a recorded raster over time (and batch) to per-cell counts."""
@@ -203,7 +236,7 @@ def infer(
             B = y_b.size(0)
             for k, v in batch_rates.items():
                 rate_sums[k] = rate_sums.get(k, 0.0) + float(v) * B
-            if emit_per_cell_rates or emit_pop_traces:
+            if _recording_outputs:
                 rec = net.spike_record
                 hk, ik = primary_hid_key(rec), primary_inh_key(rec)
                 if emit_per_cell_rates:
@@ -212,6 +245,10 @@ def infer(
                 if emit_pop_traces:
                     _pop_rows(rec, hk, pop_e_rows)
                     _pop_rows(rec, ik, pop_i_rows)
+                if emit_rasters:
+                    nb_e, rast_T = _accum_rasters(rec, hk, rast_e, rast_trial)
+                    _accum_rasters(rec, ik, rast_i, rast_trial)
+                    rast_trial += nb_e
 
     acc = 100.0 * correct / total
     ce_loss = ce_sum / total if total else 0.0
@@ -285,6 +322,39 @@ def infer(
         np.savez(out_npz, **dump)
         n_e = dump.get("pop_e", np.zeros((0, 0))).shape
         log.info(f"  → {out_npz}  (pop_e={n_e})")
+
+    # rasters: write sparse per-trial spike indices for cycle-level analyses.
+    # Format: for each population, concatenated int32 (trial, t, cell) index
+    # vectors, plus shape metadata so the notebook can reconstruct dense rasters
+    # per trial. Spikes are sparse so this stays small (tens of MB) vs the dense
+    # (n_trials × T × N) arrays it represents.
+    if emit_rasters and out_dir_path and out_dir_path.exists():
+        import numpy as np
+
+        def _cat(store):
+            if not store["trial"]:
+                return (np.zeros(0, np.int32),) * 3
+            return (
+                np.concatenate(store["trial"]),
+                np.concatenate(store["t"]),
+                np.concatenate(store["cell"]),
+            )
+
+        e_tr, e_t, e_c = _cat(rast_e)
+        i_tr, i_t, i_c = _cat(rast_i)
+        out_npz = out_dir_path / "rasters.npz"
+        np.savez(
+            out_npz,
+            dt=np.float32(dt),
+            n_trials=np.int32(rast_trial),
+            T=np.int32(rast_T),
+            n_e=np.int32(M.N_HID),
+            n_i=np.int32(M.N_INH),
+            e_trial=e_tr, e_t=e_t, e_cell=e_c,
+            i_trial=i_tr, i_t=i_t, i_cell=i_c,
+        )
+        mb = out_npz.stat().st_size / 1e6
+        log.info(f"  → {out_npz}  ({rast_trial} trials, {e_tr.size + i_tr.size} spikes, {mb:.1f} MB)")
 
     return {"acc": acc, "ce_loss": ce_loss, "rates_hz": rates_hz, "hid_rate_hz": hid_rate_hz}
 

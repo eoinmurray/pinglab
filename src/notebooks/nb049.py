@@ -172,7 +172,7 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
 
     Network construction, weight loading and the forward pass all happen in the CLI —
     this notebook only runs it and reads the artifacts. extra_args adds mode flags
-    (e.g. --emit-pop-traces for PSD, --sample-index for a snapshot raster).
+    (e.g. --outputs pop_traces for PSD, --sample-index for a snapshot raster).
     """
     train_dir = train_dir.resolve()
     out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
@@ -369,7 +369,7 @@ def plot_weight_matrices(
 def measure_trained_state(train_dir: Path) -> dict:
     """Report acc, mean E/I rate, f_γ (Welch PSD peak), and W_ei/W_ie means.
 
-    Runs `sim --infer --emit-pop-traces` (acc + rates in metrics.json, population
+    Runs `sim --infer --outputs pop_traces` (acc + rates in metrics.json, population
     traces in pop_traces.npz) and dump-weights (trained W_ei/W_ie), then computes
     the PSD and gamma peak locally. Metric logic stays in the notebook; the CLI
     only emits the base data.
@@ -377,7 +377,7 @@ def measure_trained_state(train_dir: Path) -> dict:
     from scipy import signal as sp_signal
 
     cfg = json.loads((train_dir / "config.json").read_text())
-    out_dir = _infer_cell(train_dir, ["--emit-pop-traces"], "infer")
+    out_dir = _infer_cell(train_dir, ["--outputs", "pop_traces"], "infer")
     m = json.loads((out_dir / "metrics.json").read_text())
     rates = m.get("rates_hz", {})
 
