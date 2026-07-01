@@ -230,8 +230,15 @@ def infer_and_snapshot(
     seed=None,
     digit=0,
     sample=0,
+    sample_index=None,
 ):
-    """Run inference on a single sample and save full spike trajectory to snapshot.npz."""
+    """Run inference on a single sample and save full spike trajectory to snapshot.npz.
+
+    Sample selection: by default the trial is chosen by (digit class, index within
+    class) for MNIST, or raw index for other datasets. Pass sample_index to force a
+    raw test-set index regardless of dataset — notebooks that grab "test trial N"
+    (rather than "digit D instance S") use this to reproduce a specific raster.
+    """
     import numpy as np
 
     # Seed RNG for reproducibility of inference results
@@ -258,8 +265,12 @@ def infer_and_snapshot(
     else:
         M.N_IN = 64
 
-    # Select single sample (by digit class and index within that class)
-    if dataset == "mnist":
+    # Select single sample. A raw sample_index overrides digit-class selection for
+    # any dataset; otherwise MNIST selects by (digit class, index within class) and
+    # other datasets use the raw index.
+    if sample_index is not None:
+        sample_idx = sample_index if 0 <= sample_index < len(X_te) else 0
+    elif dataset == "mnist":
         digit_mask = (y_te == digit)
         digit_indices = np.where(digit_mask)[0]
         if sample >= len(digit_indices):
