@@ -730,6 +730,13 @@ def _build_subparsers(parser, parent):
         help="[--infer] Also write pop_traces.npz with per-trial population "
         "activity (mean over cells per timestep) for E/I — base signal for PSD/f_gamma.",
     )
+    sim_parser.add_argument(
+        "--tau-gaba",
+        type=float,
+        default=None,
+        help="[--infer] Override GABA synaptic decay τ_GABA (ms) so a trained cell "
+        "replays under its training-time inhibitory dynamics (default: models.py 9.0).",
+    )
 
     # -- dump-weights subcommand (init + trained weight matrices, no forward) --
     dump_parser = subparsers.add_parser(
@@ -1195,6 +1202,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             digit=args.digit,
             sample=args.sample,
             sample_index=getattr(args, "sample_index", None),
+            tau_gaba=getattr(args, "tau_gaba", None),
         )
         return
 
@@ -1216,6 +1224,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         seed=args.seed,
         emit_per_cell_rates=getattr(args, "emit_per_cell_rates", False),
         emit_pop_traces=getattr(args, "emit_pop_traces", False),
+        tau_gaba=getattr(args, "tau_gaba", None),
     )["acc"]
 
 

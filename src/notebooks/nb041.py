@@ -19,6 +19,7 @@ Notebook entry: src/docs/src/pages/notebooks/nb041.mdx
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -137,106 +138,54 @@ def load_config(run_dir: Path) -> dict:
 # ─── inference: measure f_γ and post-training rate ──────────────────
 
 
-def _load_trained_full(train_dir: Path, device):
-    """Load a trained PING checkpoint, apply per-cell τ_GABA, return
-    (net, cfg, X_te, y_te). Mirrors nb037 / nb042 helper but reads
-    τ_GABA from the trained cell's config.json so inference matches
-    training-time dynamics."""
-    import torch
-
-    import models as M
-    from cli.config import build_net
-    from cli import load_dataset, seed_everything
-
-    cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", 42)))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    # Set the per-cell τ_GABA. forward() recomputes decay_gaba from M.tau_gaba
-    # and M.dt each call, so setting M.tau_gaba is what actually drives the rhythm;
-    # M.decay_gaba is set too for any direct reads.
-    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or M.tau_gaba)
-    M.tau_gaba = tau_gaba_ms
-    M.decay_gaba = float(np.exp(-M.dt / tau_gaba_ms))
-
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
-    )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 1.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-        readout_mode=cfg.get("readout_mode", "mem-mean"),
-    )
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-    return net, cfg, X_te, y_te, tau_gaba_ms
+def _cell_tau_gaba(cfg: dict) -> float:
+    """The cell's trained τ_GABA (ms), or the models.py default (9.0) if absent."""
+    return float(cfg.get("tau_gaba_ms") or 9.0)
 
 
-def measure_rate_and_psd(train_dir: Path, device) -> dict:
-    """Forward the test set under the trained τ_GABA. Compute:
-    - acc, mean E rate (Hz)
-    - per-trial population E spike trace → Welch PSD
-    - f_γ as the peak frequency within F_GAMMA_BAND_HZ
+def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
+    """Shell out to the CLI's `sim --infer` for one trained cell; return the out dir.
+
+    Network build, weight load and forward all run in the CLI — the notebook only
+    runs it and reads artifacts. The cell's τ_GABA is passed through so inference
+    replays under the training-time inhibitory dynamics. extra_args adds mode flags
+    (--emit-pop-traces for PSD, --sample-index for a snapshot raster).
     """
-    import torch
-    from torch.utils.data import DataLoader, TensorDataset
-
-    import models as M
-    from cli import EVAL_SEED, encode_batch
-
-    net, cfg, X_te, y_te, tau_gaba_ms = _load_trained_full(train_dir, device)
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
-        batch_size=64,
+    train_dir = train_dir.resolve()
+    cfg = json.loads((train_dir / "config.json").read_text())
+    out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str(train_dir / "config.json"),
+            "--load-weights", str(train_dir / "weights.pth"),
+            "--tau-gaba", str(_cell_tau_gaba(cfg)),
+            "--out-dir", str(out_dir),
+            *extra_args,
+        ],
+        cwd=REPO,
+        check=True,
     )
+    return out_dir
 
-    correct = total = 0
-    e_spike_sum = 0.0
-    pop_traces: list[np.ndarray] = []
-    n_e = M.N_HID
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-            logits = net(input_spikes=spk)
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            hid = net.spike_record["hid"]  # (T, B, N_E) or (T, N_E) at B=1
-            if hid.ndim == 2:
-                hid = hid.unsqueeze(1)
-            e_spike_sum += float(hid.sum().item())
-            # Population trace = mean across E cells per timestep, per trial.
-            # Shape (T, B) → list of (T,) per trial.
-            pop = hid.mean(dim=2).cpu().numpy()  # (T, B)
-            for b in range(pop.shape[1]):
-                pop_traces.append(pop[:, b])
 
-    t_sec = float(cfg["t_ms"]) / 1000.0
+def measure_rate_and_psd(train_dir: Path) -> dict:
+    """Accuracy, mean E rate, and gamma spectrum for a trained cell, via the CLI.
+
+    Runs `sim --infer --emit-pop-traces` under the cell's τ_GABA (acc + rates in
+    metrics.json, per-trial population traces in pop_traces.npz), then computes the
+    Welch PSD and f_γ locally. The CLI emits the base signal; the metric is the
+    notebook's.
+    """
+    cfg = json.loads((train_dir / "config.json").read_text())
+    tau_gaba_ms = _cell_tau_gaba(cfg)
+    out_dir = _infer_cell(train_dir, ["--emit-pop-traces"], "infer")
+    m = json.loads((out_dir / "metrics.json").read_text())
+    rates = m.get("rates_hz", {})
+
+    pt = np.load(out_dir / "pop_traces.npz")
+    pop_traces = list(pt["pop_e"])
     fs = 1000.0 / float(cfg["dt"])  # sampling rate in Hz (dt in ms)
 
     # Welch PSD per trial, averaged. nperseg = trial length gives
@@ -262,15 +211,15 @@ def measure_rate_and_psd(train_dir: Path, device) -> dict:
 
     return {
         "tau_gaba_ms": tau_gaba_ms,
-        "acc": 100.0 * correct / total,
-        "e_rate_hz": e_spike_sum / (total * n_e * t_sec),
+        "acc": float(m["best_acc"]),
+        "e_rate_hz": float(rates.get("hid", 0.0)),
         "f_gamma_hz": f_gamma,
         "freqs_hz": freqs.tolist(),
         "psd": psd_mean.tolist(),
         "per_trial_peaks_hz": [
             float(x) for x in per_trial_peaks if np.isfinite(x)
         ],
-        "n_total": total,
+        "n_total": int(m.get("n_total", 0)),
     }
 
 
@@ -301,28 +250,23 @@ def _peak_with_parabolic(psd: np.ndarray, freqs: np.ndarray) -> float:
     return float(freqs[peak_idx]) + offset * df
 
 
-def capture_raster(train_dir: Path, sample_idx: int, device) -> dict:
-    """Single-trial E and I spike raster from a trained cell.
+def capture_raster(train_dir: Path, sample_idx: int) -> dict:
+    """Single-trial E and I spike raster from a trained cell, via the CLI snapshot.
 
-    Reads the trained τ_GABA from config and patches the module-level
-    decay constant so the forward pass replays under the cell's own
-    dynamics. Returns the cropped spike arrays plus per-cell rates and
-    the cell's τ_GABA for labelling.
+    Runs `sim --infer --sample-index N` under the cell's τ_GABA so the forward
+    replays under its own dynamics, then reads the rasters + class label from
+    snapshot.npz and subsamples cells for the plot.
     """
-    import torch
-
-    import models as M
-    from cli import EVAL_SEED, encode_batch
-
-    net, cfg, X_te, y_te, tau_gaba_ms = _load_trained_full(train_dir, device)
-    X_b = torch.from_numpy(X_te[sample_idx : sample_idx + 1]).to(device)
-    y_b = int(y_te[sample_idx])
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-        _ = net(input_spikes=spk)
-    e_full = net.spike_record["hid"].cpu().numpy()
-    i_full = net.spike_record["inh"].cpu().numpy()
+    cfg = json.loads((train_dir / "config.json").read_text())
+    tau_gaba_ms = _cell_tau_gaba(cfg)
+    out_dir = _infer_cell(train_dir, ["--sample-index", str(sample_idx)], "snapshot")
+    d = np.load(out_dir / "snapshot.npz")
+    e_full = d["spk_e"]
+    i_full = d["spk_i"]
+    if e_full.ndim == 3:
+        e_full = e_full[:, 0, :]
+    if i_full.ndim == 3:
+        i_full = i_full[:, 0, :]
     t_sec = float(cfg["t_ms"]) / 1000.0
     e_rate = float(e_full.sum() / (e_full.shape[1] * t_sec))
     i_rate = float(i_full.sum() / (i_full.shape[1] * t_sec))
@@ -331,7 +275,7 @@ def capture_raster(train_dir: Path, sample_idx: int, device) -> dict:
     i_idx = np.sort(rng.choice(i_full.shape[1], RASTER_N_I_PLOT, replace=False))
     return {
         "tau_gaba_ms": tau_gaba_ms,
-        "label": y_b,
+        "label": int(d["label"]),
         "e": e_full[:, e_idx].astype(bool),
         "i": i_full[:, i_idx].astype(bool),
         "e_rate_hz": e_rate,
@@ -717,11 +661,6 @@ def main() -> None:
     # is a registry family there. This notebook only consumes the cells.
 
     # Inference: measure (acc, E rate, f_γ) per cell.
-    from cli import _auto_device
-
-    device = _auto_device()
-    print(f"device = {device}")
-
     rows: list[dict] = []
     for tau in TAU_GABA_SWEEP:
         for seed in SEEDS:
@@ -729,7 +668,7 @@ def main() -> None:
             if not (run_dir / "weights.pth").exists():
                 raise SystemExit(f"missing weights: {run_dir / 'weights.pth'}")
             t0 = time.monotonic()
-            res = measure_rate_and_psd(run_dir, device)
+            res = measure_rate_and_psd(run_dir)
             res["seed"] = seed
             rows.append(res)
             print(
@@ -761,7 +700,7 @@ def main() -> None:
     raster_samples = []
     for tau_ms in TAU_GABA_SWEEP:
         train_dir = cell_dir(tau_ms, SEEDS[0])
-        raster_samples.append(capture_raster(train_dir, RASTER_SAMPLE_IDX, device))
+        raster_samples.append(capture_raster(train_dir, RASTER_SAMPLE_IDX))
     plot_raster_strip(
         raster_samples, FIGURES / "raster_strip", notebook_run_id,
         t_window_ms=RASTER_T_WINDOW_MS,
