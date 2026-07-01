@@ -172,18 +172,34 @@ def train(
     seed_everything(seed)
 
     # Setup dt and all derived constants
-    M.T_ms = t_ms
-    # τ_GABA override: compute the decay constant for custom tau_gaba if given
-    # decay_gaba from the current M.tau_gaba). nb041 sweeps this to
-    # vary the gamma frequency f_γ across retrained networks.
+    # ─────────────────────────────────────────────────────────────────────────
+    # M MODULE GLOBALS INITIALIZATION
+    # ─────────────────────────────────────────────────────────────────────────
+    # The models.py module (M) uses global state that must be set BEFORE building
+    # the network or loading weights. This is a deliberate torch.compile choice:
+    # dt-dependent constants are computed in forward() (not pre-computed globals),
+    # but network topology constants (N_HID, N_INH, HIDDEN_SIZES) must be fixed.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    M.T_ms = t_ms  # Total simulation time (ms)
+
+    # Optional τ_GABA override: compute decay constant for custom tau values
+    # nb041 sweeps tau_gaba to vary the gamma (E-I oscillation) frequency across models.
+    # Default is M.tau_gaba=10ms; override creates different decay rates for Poisson fitting.
     if tau_gaba is not None:
         M.tau_gaba = float(tau_gaba)
         M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
 
+    # Determine network hidden layer sizes: use CLI arg or smart default per dataset
+    # Smart defaults: scikit=64, mnist=1024, smnist=32, shd=256
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]
         log.info(f"  n_hidden auto → {hidden_sizes} (smart default for {dataset})")
+
+    # Initialize M module globals: M.N_HID, M.N_INH, M.HIDDEN_SIZES
+    # These are read by build_net and model.forward() to determine network topology.
+    # Must be set before build_net() below, or network initialization will be wrong.
     setup_model_globals(hidden_sizes)
     M.V_GRAD_DAMPEN = v_grad_dampen
     if batch_size is not None:

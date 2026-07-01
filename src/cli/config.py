@@ -116,6 +116,19 @@ def setup_model_globals(hidden_sizes):
 
     Sets M.N_HID, M.N_INH (computed as N_HID // 4), and M.HIDDEN_SIZES.
     Call this before building/loading networks to ensure module globals are consistent.
+
+    WHY: The models.py module uses global state (M.N_HID, M.N_INH, M.HIDDEN_SIZES)
+    during forward() and weight initialization. These must be set BEFORE the network
+    is built or weights are loaded, otherwise the network's internal size assumptions
+    will be wrong. This function centralizes the init logic (was duplicated in 4 places).
+
+    Args:
+        hidden_sizes: List of hidden layer sizes. E.g. [256] for 1 layer, [128, 256]
+                      for 2 layers. Uses the LAST element as the primary N_HID.
+
+    Side effects:
+        Mutates: M.N_HID (= hidden_sizes[-1]), M.N_INH (= N_HID // 4),
+                 M.HIDDEN_SIZES (= list copy of hidden_sizes)
     """
     hidden_sizes = list(hidden_sizes) if hidden_sizes else [256]
     M.N_HID = hidden_sizes[-1]
@@ -124,19 +137,47 @@ def setup_model_globals(hidden_sizes):
 
 
 def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None):
-    """Save spike recording and metadata to NPZ file.
+    """Save spike recording and metadata to NPZ file for notebook analysis.
+
+    SINGLE SOURCE OF TRUTH: All snapshot saving across train/infer/sim paths must
+    use this function (was previously duplicated in ~4 places with inconsistent field
+    names and missing metadata). Ensures all snapshots have consistent structure.
+
+    WHY: Recording dicts from different paths use different key names:
+    - train.py records to 'hid', 'inh', 'input' keys
+    - Multi-layer networks record to 'hid_0', 'hid_1', etc.
+    - Notebooks always expect 'spk_e', 'spk_i' (excitatory/inhibitory spikes)
+    This function handles all the mapping and ensures notebooks always get consistent
+    field names.
 
     Args:
         out_path: Path to output NPZ file
-        rec: Recording dict from network.spike_record
-        dt: Timestep (ms)
-        n_e: Number of excitatory neurons
-        n_i: Number of inhibitory neurons
-        display: Optional stimulus array (ext_g or input_spikes)
-        primary_hid_key_fn: Function to find excitatory spike key in rec (default: primary_hid_key)
-        primary_inh_key_fn: Function to find inhibitory spike key in rec (default: primary_inh_key)
+        rec: Recording dict from network.spike_record with spike tensors keyed by
+             layer name (e.g. 'hid', 'inh', 'hid_0', 'hid_1', 'input')
+        dt: Timestep (ms) — stored as metadata
+        n_e: Number of excitatory neurons — stored as metadata
+        n_i: Number of inhibitory neurons — stored as metadata
+        display: Optional stimulus array (ext_g_override or input_spikes tensor).
+                 Used as fallback for 'input_spikes' field if rec doesn't contain it.
+        primary_hid_key_fn: Function that finds the deepest hidden layer key in rec.
+                           Defaults to scan.primary_hid_key (handles multi-layer).
+        primary_inh_key_fn: Function that finds the deepest inhibitory layer key in rec.
+                           Defaults to scan.primary_inh_key.
 
-    Saves: spk_e, spk_i, dt, n_e, n_i, plus all other recorded fields (voltages, etc.)
+    Output NPZ fields:
+        Metadata:
+        - dt (float32): Timestep (ms)
+        - n_e (int32): Number of excitatory neurons
+        - n_i (int32): Number of inhibitory neurons
+
+        Spike data (canonicalized names):
+        - spk_e: Excitatory spike raster (T, n_e) — from rec[hid_key]
+        - spk_i: Inhibitory spike raster (T, n_i) — from rec[inh_key]
+        - input_spikes: Input stimulus (T, n_in) — from rec['input'] or display arg
+
+        All other recorded fields (voltages, conductances, etc.):
+        - v_e_<layer>, v_i_<layer>, g_e_<layer>, g_i_<layer>, etc.
+          (all other keys in rec, minus hid/inh/input)
     """
     from scan import primary_hid_key as _primary_hid_key, primary_inh_key as _primary_inh_key
 
@@ -145,43 +186,52 @@ def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key
     if primary_inh_key_fn is None:
         primary_inh_key_fn = _primary_inh_key
 
-    # Prepare NPZ data: save all recorded fields plus metadata
+    # Start with metadata (dt, n_e, n_i are always present and consistent)
     npz_data = {
         "dt": np.float32(dt),
         "n_e": np.int32(n_e),
         "n_i": np.int32(n_i),
     }
 
-    # Map spike keys to spk_e/spk_i and save all recorded traces
+    # Resolve spike recording keys: find the deepest/primary hidden and inhibitory layers
+    # primary_hid_key returns 'hid' for single-layer, 'hid_1' for the deepest multi-layer
     hid_key = primary_hid_key_fn(rec)
     inh_key = primary_inh_key_fn(rec)
 
+    # Save excitatory spikes under canonical name 'spk_e' (from whatever key they're in)
     if hid_key:
         spk_e = rec[hid_key]
+        # Convert torch tensors to numpy; handle numpy arrays directly
         npz_data["spk_e"] = spk_e.numpy() if hasattr(spk_e, "numpy") else spk_e
 
+    # Save inhibitory spikes under canonical name 'spk_i' or create empty array if absent
     if inh_key:
         spk_i = rec[inh_key]
         npz_data["spk_i"] = spk_i.numpy() if hasattr(spk_i, "numpy") else spk_i
     else:
-        # Empty inhibitory spike array if no inhibition
+        # Networks without inhibition: save empty (T, 0) array so downstream code
+        # doesn't break when trying to access spk_i
         T = npz_data.get("spk_e", rec[hid_key]).shape[0] if hid_key else 0
         npz_data["spk_i"] = np.zeros((T, 0), dtype=np.float32)
 
-    # Save all other recorded fields (voltages, conductances, etc.)
+    # Save all other recorded fields (voltages, conductances, etc.) under their
+    # original names, except 'input' which we rename to 'input_spikes' for clarity
     for key, val in rec.items():
         if key not in (hid_key, inh_key) and val is not None:
-            # Map "input" to "input_spikes" for backwards compatibility with notebooks
+            # 'input' key is confusing; notebooks always expect 'input_spikes'
             save_key = "input_spikes" if key == "input" else key
             npz_data[save_key] = val.numpy() if hasattr(val, "numpy") else val
 
-    # Save the stimulus (external conductance or input spikes)
+    # Fallback for input stimulus: if rec doesn't have 'input' or 'input_spikes',
+    # and display was passed, save it as 'input_spikes'. This handles the
+    # synthetic-spikes inference mode where we don't record the input to rec.
     if display is not None:
         display_arr = display.numpy() if hasattr(display, "numpy") else display
-        # Save as input_spikes if not already present (for synthetic-spikes mode)
+        # Only add if not already present (rec['input'] takes precedence)
         if "input_spikes" not in npz_data:
             npz_data["input_spikes"] = display_arr
 
+    # Write all fields to NPZ (automatic gzip compression)
     np.savez(out_path, **npz_data)
 
 
