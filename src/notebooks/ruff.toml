@@ -1,0 +1,12 @@
+# Notebook-scoped ruff config. Extends the repo root and adds the refactor
+# gate: notebooks must NOT import the `cli` package or `models` directly — they
+# go through CLI subcommands (sim, dump-weights, train) instead. Every remaining
+# direct import lights up as TID253 until it is migrated.
+extend = "../../ruff.toml"
+
+[lint]
+extend-select = ["TID"]
+
+[lint.flake8-tidy-imports.banned-api]
+"cli".msg = "notebooks must go through CLI subcommands, not import cli directly (refactor gate)"
+"models".msg = "notebooks must go through CLI subcommands, not import models directly (refactor gate)"
