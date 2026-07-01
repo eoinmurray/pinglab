@@ -34,7 +34,7 @@ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 
 SLUG = "nb044"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -130,17 +130,18 @@ def load_config(run_dir: Path) -> dict:
 
 
 def _load_trained_full(train_dir: Path, device):
-    """Load trained PING checkpoint, restore the cell's Δt via patch_dt."""
+    """Load trained PING checkpoint, restoring the cell's Δt into M.dt."""
     import torch
 
     import models as M
-    from cli.config import build_net, patch_dt
+    from cli.config import build_net
     from cli import load_dataset, seed_everything
 
     cfg = json.loads((train_dir / "config.json").read_text())
     seed_everything(int(cfg.get("seed", 42)))
     M.T_ms = float(cfg["t_ms"])
-    patch_dt(float(cfg["dt"]))
+    M.dt = float(cfg["dt"])
+    M.T_steps = int(M.T_ms / M.dt)
 
     hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
     M.N_HID = hidden_sizes[-1]

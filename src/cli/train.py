@@ -18,7 +18,6 @@ from pathlib import Path
 
 import numpy as np
 
-from figkit import plt
 import torch
 
 import config as C

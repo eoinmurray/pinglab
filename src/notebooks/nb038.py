@@ -20,8 +20,6 @@ Notebook entry: src/docs/src/pages/notebooks/nb038.mdx
 from __future__ import annotations
 
 import json
-import shutil
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -40,7 +38,7 @@ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
 SLUG = "nb038"
@@ -129,7 +127,7 @@ MIN_ACC_BY_TIER = {
 
 
 def theta_label(theta_u: float | None) -> str:
-    """Filesystem-safe label for an out-dir / video filename."""
+    """Filesystem-safe label for an out-dir."""
     if theta_u is None:
         return "off"
     s = f"{theta_u:g}".replace(".", "p")
@@ -206,39 +204,6 @@ def load_config(run_dir: Path) -> dict:
 
 
 
-def generate_rate_sweep_video(model: str, out_path: Path) -> None:
-    """Replay the trained baseline (θ_u = off) network on one MNIST digit
-    while sweeping the input Poisson rate. The oscilloscope writes
-    scan.mp4 into a per-call out-dir; we copy it to out_path."""
-    artifact_dir = ARTIFACTS / f"rate_sweep__{model}"
-    artifact_dir.mkdir(parents=True, exist_ok=True)
-    # Note: --video, --scan-var, --frames etc have been removed.
-    # Video generation needs to be reimplemented in the notebook.
-    baseline = baseline_dir(model)
-    scan_mp4 = artifact_dir / "scan.mp4"
-    if scan_mp4.exists():
-        scan_mp4.unlink()
-    argv = [
-        "sim",
-        "--infer",
-        "--load-config", str(baseline / "config.json"),
-        "--load-weights", str(baseline / "weights.pth"),
-        "--input", "dataset",
-        "--dataset", "mnist",
-        "--digit", "0",
-        "--sample", "0",
-        # 400 ms gives PING's loop room to settle at each rate.
-        "--t-ms", "400",
-        "--out-dir", str(artifact_dir),
-    ]
-    cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *argv]
-    print(f"[rate-sweep] {model}: {' '.join(argv)}")
-    subprocess.run(cmd, cwd=REPO, check=True)
-    # Note: scan.mp4 generation is no longer supported by the CLI
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(scan_mp4, out_path)
-
-
 
 
 # ── COBA→PING ei_strength sweep (subsumes nb019) ──────────────────────
@@ -264,7 +229,7 @@ def run_inproc_infer(
     import torch
 
     import models as M
-    from cli.config import build_net, patch_dt
+    from cli.config import build_net
     from cli import (
         EVAL_SEED,
         _auto_device,
@@ -276,7 +241,8 @@ def run_inproc_infer(
     cfg = json.loads((train_dir / "config.json").read_text())
     seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
     M.T_ms = float(cfg["t_ms"])
-    patch_dt(float(cfg["dt"]))
+    M.dt = float(cfg["dt"])
+    M.T_steps = int(M.T_ms / M.dt)
 
     hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
     M.N_HID = hidden_sizes[-1]
@@ -375,7 +341,7 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
     import torch
 
     import models as M
-    from cli.config import build_net, patch_dt
+    from cli.config import build_net
     from cli import (
         EVAL_SEED,
         _auto_device,
@@ -387,7 +353,8 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
     cfg = json.loads((train_dir / "config.json").read_text())
     seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
     M.T_ms = float(cfg["t_ms"])
-    patch_dt(float(cfg["dt"]))
+    M.dt = float(cfg["dt"])
+    M.T_steps = int(M.T_ms / M.dt)
     hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
     M.N_HID = hidden_sizes[-1]
     M.N_INH = hidden_sizes[-1] // 4
@@ -454,7 +421,7 @@ def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> 
     import torch
 
     import models as M
-    from cli.config import build_net, patch_dt
+    from cli.config import build_net
     from cli import (
         EVAL_SEED,
         _auto_device,
@@ -466,7 +433,8 @@ def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> 
     cfg = json.loads((train_dir / "config.json").read_text())
     seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
     M.T_ms = float(cfg["t_ms"])
-    patch_dt(float(cfg["dt"]))
+    M.dt = float(cfg["dt"])
+    M.T_steps = int(M.T_ms / M.dt)
     hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
     M.N_HID = hidden_sizes[-1]
     M.N_INH = hidden_sizes[-1] // 4
@@ -936,13 +904,14 @@ def _load_trained_full(train_dir: Path, device):
     import torch
 
     import models as M
-    from cli.config import build_net, patch_dt
+    from cli.config import build_net
     from cli import load_dataset, seed_everything
 
     cfg = json.loads((train_dir / "config.json").read_text())
     seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
     M.T_ms = float(cfg["t_ms"])
-    patch_dt(float(cfg["dt"]))
+    M.dt = float(cfg["dt"])
+    M.T_steps = int(M.T_ms / M.dt)
     hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
     M.N_HID = hidden_sizes[-1]
     M.N_INH = hidden_sizes[-1] // 4
@@ -1057,14 +1026,6 @@ def _eval_net_on_test_with_loss(
                 * (torch.relu(mean_z - fr_upper_theta) ** 2).sum().item()
             )
     return acc, ce_loss, penalty, e_rate, i_rate
-
-def copy_video(run_dir: Path, out_path: Path) -> None:
-    src = run_dir / "training.mp4"
-    if not src.exists():
-        raise SystemExit(f"missing training video: {src}")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, out_path)
-    print(f"wrote {out_path}")
 
 
 def _despine(ax):
@@ -1207,14 +1168,6 @@ def main() -> None:
                         "rate_e": float(last.get("rate_e") or 0.0),
                     }
                 )
-        # One training video per (model, θ_u) — use the canonical seed
-        # (first of SEEDS_BASELINE for baselines, SEED_SWEEP for sweep).
-        for theta_u in THETA_U_GRID:
-            canonical_seed = seeds_for(theta_u)[0]
-            copy_video(
-                cell_dir(model, theta_u, canonical_seed),
-                FIGURES / f"training__{model}__{theta_label(theta_u)}.mp4",
-            )
 
     print("  results:")
     for r in rows:
@@ -1228,12 +1181,6 @@ def main() -> None:
             f"acc(final)={r['final_acc']:6.2f}%  best={r['best_acc']:6.2f}%  "
             f"rate_e={r['rate_e']:6.1f} Hz"
         )
-
-    # Input-rate sweep on the trained ping network — one digit, vary the
-    # Poisson rate over a wide range, render as a scope-frame video.
-    rate_sweep_out = FIGURES / "rate_sweep__ping.mp4"
-    generate_rate_sweep_video("ping", rate_sweep_out)
-    print(f"wrote {rate_sweep_out}")
 
     # Stacked raster snapshot at the first 10 frames of the rate sweep —
     # same panel style as the ei-sweep rasters so the two read as a pair.

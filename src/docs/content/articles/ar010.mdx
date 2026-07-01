@@ -11,6 +11,27 @@ Notebook work that would let us upgrade disclosed caveats in [the manuscript (ar
 
 Ordered by leverage: items at the top are the highest-impact / lowest-cost.
 
+## ⚠️ Blocking: canonical τ_GABA — run all notebooks at 6 ms, not 9 ms
+
+**Why this is first:** the whole collection runs at the canonical τ_GABA = 9 ms, but [nb041](/notebooks/nb041/) measures the resulting gamma frequency at that operating point as f_γ ≈ 35–37 Hz (three seeds), i.e. at the low edge of the gamma band. We want PING sitting more centrally in gamma, which τ_GABA = 6 ms gives (f_γ ≈ 44 Hz). Action: check every notebook's canonical operating point and move it from τ_GABA = 9 ms to 6 ms, then re-run.
+
+Measured f_γ vs τ_GABA from [nb041](/notebooks/nb041/) (canonical PING, three seeds each):
+
+| τ_GABA | measured f_γ | T_γ = 1/f_γ | in gamma band (30–80 Hz)? |
+|---|---|---|---|
+| 4.5 ms | ≈ 54 Hz | ≈ 18 ms | yes (high) |
+| **6 ms** | **≈ 44 Hz** | **≈ 23 ms** | **yes (central) — proposed canonical** |
+| 9 ms (current) | ≈ 36 Hz | ≈ 28 ms | yes (low edge) |
+| 12 ms | ≈ 28 Hz | ≈ 36 ms | no (high-beta) |
+
+**Consequences that must be tracked with this change:**
+- Every reported f_γ, T_γ, and any rate value that depends on the gamma clock shifts. The rate law r_E = 0.76 + 0.216·f_γ (§2.5) is measured across the τ_GABA sweep, so its coefficients are unaffected, but the canonical operating point on that line moves.
+- The manuscript currently states f_γ ≈ 25 Hz in §2.1 and the Figure 1 caption — this is already wrong for τ_GABA = 9 ms (real value ≈ 36 Hz; the 25 Hz appears to be the mean-field prediction leaking in). Moving to 6 ms makes the correct value ≈ 44 Hz. Either way, §2.1, the Figure 1 caption, the Abstract, §2.7.2, §3.3, and the Figure 11 & 13 captions all need their f_γ / T_γ numbers re-derived from the actual measurement at whatever τ_GABA we settle on.
+- The [nb048](/notebooks/nb048/) streaming reference lines (T_γ and 0.4·T_γ on Figure 13) are currently hardcoded to 25 Hz / 40 ms and must be repointed to the measured f_γ at the chosen τ_GABA.
+- The nb022 training hub, and every consumer notebook that loads a canonical cell, must be re-run at the new τ_GABA. This is a full recompute, so best folded into the next [nb022](/notebooks/nb022/) mega run.
+
+**Where:** τ_GABA is set in the training recipe. Grep for the canonical value (9.0 / 9 ms / TAU_GABA_GAMMA) across [nb022](/notebooks/nb022/) and all consumer notebooks; change to 6 ms; re-run the hub.
+
 ## Highest leverage
 
 ### 1. Damping requirements per architecture (PING / COBA) and d=1 PING retrain

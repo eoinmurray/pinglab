@@ -1,0 +1,20 @@
+# ty type-checker configuration for pinglab.
+# Python lives in src/cli and src/notebooks; src/docs (JS/TS), artifacts and
+# papers are not type-checked.
+
+[environment]
+python-version = "3.10"
+# Source roots for first-party import resolution: `cli.*` resolves from src,
+# `helpers.*` from src/notebooks, and `models`/`config`/etc. from src/cli.
+root = ["src", "src/cli", "src/notebooks"]
+
+[src]
+exclude = [
+    "src/docs",
+    "src/artifacts",
+    "src/papers",
+    ".venv",
+]
+
+[terminal]
+output-format = "concise"

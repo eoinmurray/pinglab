@@ -24,11 +24,10 @@ image = (
         "numpy",
         "scipy",
         "scikit-learn",
-        "matplotlib",
         "snntorch>=0.9.4",
         "h5py",
     )
-    .apt_install("ffmpeg", "curl")
+    .apt_install("curl")
     .run_commands(
         "python -c \"from torchvision import datasets; datasets.MNIST('/tmp/mnist', train=True, download=True); datasets.MNIST('/tmp/mnist', train=False, download=True)\""
     )

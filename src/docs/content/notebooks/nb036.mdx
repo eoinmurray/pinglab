@@ -39,8 +39,6 @@ PING and COBA baseline definitions, training recipe, and the spike-budget regula
 
 **Diagonal slice.** The grid varies $W^{EI}$ and $W^{IE}$ independently, but the codebase's standard PING recipe ties them via $W^{IE} = \text{ei\_ratio} \cdot W^{EI}$ with $\text{ei\_ratio} = 2$. Restricting to that line gives a finer-grained view: one knob ($W^{EI}$) at 10 values $\{0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 1.0, 1.5, 2.0\}$, $W^{IE}$ tracking at twice the value, **three seeds (42, 43, 44) per value, 100 training epochs**. Best-epoch accuracy reported. Same recipe as the grid otherwise ($\theta_u = 0.2$, $W_\text{in} = 0.6$).
 
-**Training videos.** Per-epoch oscilloscope videos for every cell of the grid. Each shows one epoch per frame against a fixed test trial; gamma cadence (if any) is visible in the E/I rasters. Naming: *weiX__wieY* for $W^{EI} = X$, $W^{IE} = Y$.
-
 ## Results
 
 <Figure id="Figure 1" title="Recruitment-cliff migration with coupling scale" src="/figures/notebooks/nb036/coupling_sweep.png" alt="Four-panel figure. Left column: vary W^{EI} scale, W^{IE} held at 1. Right column: vary W^{IE} scale, W^{EI} held at 1. Top row: test accuracy vs W_in scale s. Bottom row: I rate vs s. Left column: cliff moves right as W^{EI} weakens; W^{EI} × 0.25 needs s ≈ 0.5 to engage, baseline (× 1.0) engages at s ≈ 0.25, and × 2.0 sits on top of baseline. Right column: all four curves overlap — varying W^{IE} doesn't move the cliff, only changes basin dynamics above it.">

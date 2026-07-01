@@ -29,7 +29,6 @@ Notebook entry: src/docs/src/pages/notebooks/nb025.mdx
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 import time
@@ -49,7 +48,7 @@ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
 SLUG = "nb025"
@@ -142,7 +141,7 @@ MIN_ACC_BY_TIER = {
 
 
 def theta_label(theta_u: float | None) -> str:
-    """Filesystem-safe label for an out-dir / video filename."""
+    """Filesystem-safe label for an out-dir."""
     if theta_u is None:
         return "off"
     s = f"{theta_u:g}".replace(".", "p")
@@ -593,8 +592,8 @@ def _load_trained_full(train_dir: Path, device):
     cfg = json.loads((train_dir / "config.json").read_text())
     seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
     M.T_ms = float(cfg["t_ms"])
-    dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / dt)
+    M.dt = float(cfg["dt"])
+    M.T_steps = int(M.T_ms / M.dt)
     hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
     setup_model_globals(hidden_sizes)
 
@@ -1343,14 +1342,6 @@ def plot_w_in_scale_sweep_vs_rate(
 
 # ── End W_in scale sweep ───────────────────────────────────────────
 
-def copy_video(run_dir: Path, out_path: Path) -> None:
-    src = run_dir / "training.mp4"
-    if not src.exists():
-        raise SystemExit(f"missing training video: {src}")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, out_path)
-    print(f"wrote {out_path}")
-
 
 def _despine(ax):
     for sp in ("top", "right"):
@@ -1584,14 +1575,6 @@ def main() -> None:
                         "rate_e": float(last.get("rate_e") or 0.0),
                     }
                 )
-        # One training video per (model, θ_u) — use the canonical seed
-        # (first of SEEDS_BASELINE for baselines, SEED_SWEEP for sweep).
-        for theta_u in THETA_U_GRID:
-            canonical_seed = seeds_for(theta_u)[0]
-            copy_video(
-                cell_dir(model, theta_u, canonical_seed),
-                FIGURES / f"training__{model}__{theta_label(theta_u)}.mp4",
-            )
 
     print("  results:")
     for r in rows:

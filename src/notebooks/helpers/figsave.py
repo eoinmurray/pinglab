@@ -7,7 +7,7 @@ notebook stays the single recipe — there is no separate render pipeline that
 re-runs the plot at print size.
 
 Sizing/typography is whatever profile is active when the figure was built
-(see cli.theme.set_paper_mode): set paper mode before plotting and the same
+(see helpers.theme.set_paper_mode): set paper mode before plotting and the same
 artifact is print-correct in both places.
 
 Usage:

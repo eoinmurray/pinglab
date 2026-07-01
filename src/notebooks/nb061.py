@@ -53,7 +53,7 @@ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 
 SLUG = "nb061"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -103,15 +103,17 @@ def _load_trained(train_dir: Path, n_eval: int):
     import torch
 
     import models as M
-    from cli.config import build_net, patch_dt
+    from cli.config import build_net
     from cli import _auto_device, load_dataset, seed_everything
 
     cfg = json.loads((train_dir / "config.json").read_text())
     seed_everything(int(cfg.get("seed", SEED)))
     M.T_ms = float(cfg["t_ms"])
-    patch_dt(float(cfg["dt"]))
-    # The rhythm-setting knob: GABA decay. patch_dt recomputes decay_gaba from
-    # the default tau_gaba, so set both explicitly afterwards.
+    M.dt = float(cfg["dt"])
+    M.T_steps = int(M.T_ms / M.dt)
+    # The rhythm-setting knob: GABA decay. forward() recomputes decay_gaba from
+    # M.tau_gaba and M.dt each call, so M.tau_gaba is the knob that matters;
+    # M.decay_gaba is set too for any direct reads.
     M.tau_gaba = TAU_GABA_MS
     M.decay_gaba = float(np.exp(-M.dt / TAU_GABA_MS))
 
