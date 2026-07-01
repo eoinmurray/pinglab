@@ -16,6 +16,7 @@ Notebook entry: src/docs/src/pages/notebooks/nb044.mdx
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -129,111 +130,60 @@ def load_config(run_dir: Path) -> dict:
 # ─── inference: rate, accuracy, raster ──────────────────────────────
 
 
-def _load_trained_full(train_dir: Path, device):
-    """Load trained PING checkpoint, restoring the cell's Δt into M.dt."""
-    import torch
+def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
+    """Shell out to the CLI's `sim --infer` for one trained cell; return the out dir.
 
-    import models as M
-    from cli.config import build_net
-    from cli import load_dataset, seed_everything
+    Network construction, weight loading and the forward pass all happen inside the
+    CLI — this notebook only runs it and reads the artifacts it writes. extra_args
+    tacks on mode-specific flags (e.g. --sample-index for a snapshot).
+    """
+    out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str((train_dir / "config.json").resolve()),
+            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--out-dir", str(out_dir),
+            *extra_args,
+        ],
+        cwd=REPO,
+        check=True,
+    )
+    return out_dir
 
+
+def measure_rate_acc(train_dir: Path) -> dict:
+    """Accuracy + mean E/I firing rate (Hz) over the test set, via the CLI.
+
+    Reads metrics.json emitted by `sim --infer` (best_acc + per-population
+    rates_hz), rather than rebuilding the net and forwarding in-process.
+    """
     cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", 42)))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
-    )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 1.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-        readout_mode=cfg.get("readout_mode", "mem-mean"),
-    )
-    state = torch.load(train_dir / "weights.pth", map_location=device, weights_only=False)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-    return net, cfg, X_te, y_te
-
-
-def measure_rate_acc(train_dir: Path, device) -> dict:
-    """Forward the test set; return (acc, mean E rate Hz, mean I rate Hz)."""
-    import torch
-    from torch.utils.data import DataLoader, TensorDataset
-
-    import models as M
-    from cli import EVAL_SEED, encode_batch
-
-    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
-        batch_size=64,
-    )
-    correct = total = 0
-    e_spike_sum = i_spike_sum = 0.0
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    n_e = M.N_HID
-    n_i = M.N_INH or 1
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-            logits = net(input_spikes=spk)
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            e_spike_sum += float(net.spike_record["hid"].sum().item())
-            if "inh" in net.spike_record:
-                i_spike_sum += float(net.spike_record["inh"].sum().item())
-    t_sec = float(cfg["t_ms"]) / 1000.0
+    out_dir = _infer_cell(train_dir, [], "infer")
+    m = json.loads((out_dir / "metrics.json").read_text())
+    rates = m.get("rates_hz", {})
     return {
         "dt_ms": float(cfg["dt"]),
         "t_ms": float(cfg["t_ms"]),
-        "acc": 100.0 * correct / total,
-        "e_rate_hz": e_spike_sum / (total * n_e * t_sec),
-        "i_rate_hz": i_spike_sum / (total * n_i * t_sec),
-        "n_total": total,
+        "acc": float(m["best_acc"]),
+        "e_rate_hz": float(rates.get("hid", 0.0)),
+        "i_rate_hz": float(rates.get("inh", 0.0)),
+        "n_total": int(m.get("n_total", 0)),
     }
 
 
-def capture_raster(train_dir: Path, sample_idx: int, device) -> dict:
-    """Single-trial raster from a trained cell."""
-    import torch
+def capture_raster(train_dir: Path, sample_idx: int) -> dict:
+    """Single-trial raster from a trained cell, via the CLI snapshot.
 
-    import models as M
-    from cli import EVAL_SEED, encode_batch
-
-    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-    X_b = torch.from_numpy(X_te[sample_idx : sample_idx + 1]).to(device)
-    y_b = int(y_te[sample_idx])
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-        _ = net(input_spikes=spk)
-    e_full = net.spike_record["hid"].cpu().numpy()
-    i_full = net.spike_record["inh"].cpu().numpy()
+    Runs `sim --infer --sample-index N` (raw test-set index) and reads the
+    full E/I rasters from snapshot.npz, then subsamples cells for the plot.
+    """
+    cfg = json.loads((train_dir / "config.json").read_text())
+    out_dir = _infer_cell(train_dir, ["--sample-index", str(sample_idx)], "snapshot")
+    d = np.load(out_dir / "snapshot.npz")
+    e_full = d["spk_e"]  # (T, N_E)
+    i_full = d["spk_i"]  # (T, N_I)
     t_sec = float(cfg["t_ms"]) / 1000.0
     e_rate = float(e_full.sum() / (e_full.shape[1] * t_sec))
     i_rate = float(i_full.sum() / (i_full.shape[1] * t_sec))
@@ -242,7 +192,6 @@ def capture_raster(train_dir: Path, sample_idx: int, device) -> dict:
     i_idx = np.sort(rng.choice(i_full.shape[1], RASTER_N_I_PLOT, replace=False))
     return {
         "dt_ms": float(cfg["dt"]),
-        "label": y_b,
         "e": e_full[:, e_idx].astype(bool),
         "i": i_full[:, i_idx].astype(bool),
         "e_rate_hz": e_rate,
@@ -446,11 +395,6 @@ def main() -> None:
     # registry family there (the documented dt exception). This notebook only
     # consumes the cells.
 
-    from cli import _auto_device
-
-    device = _auto_device()
-    print(f"device = {device}")
-
     rows: list[dict] = []
     for dt_ms in DT_SWEEP_MS:
         for seed in SEEDS:
@@ -458,17 +402,9 @@ def main() -> None:
             if not (run_dir / "weights.pth").exists():
                 raise SystemExit(f"missing weights: {run_dir / 'weights.pth'}")
             t0 = time.monotonic()
-            res = measure_rate_acc(run_dir, device)
+            res = measure_rate_acc(run_dir)
             res["seed"] = seed
             rows.append(res)
-            # Cleanup between cells — without this, MPS memory pressure
-            # causes the next torch.load to mis-dispatch to legacy tar
-            # format and raise KeyError 'storages'.
-            import gc
-            import torch as _t
-            gc.collect()
-            if hasattr(_t, "mps") and _t.backends.mps.is_available():
-                _t.mps.empty_cache()
             print(
                 f"  Δt={dt_ms:>5.2f}ms seed={seed}  "
                 f"acc={res['acc']:5.2f}%  E={res['e_rate_hz']:6.2f} Hz  "
@@ -485,7 +421,7 @@ def main() -> None:
     samples = []
     for dt_ms in DT_SWEEP_MS:
         run_dir = cell_dir(dt_ms, raster_seed)
-        samples.append(capture_raster(run_dir, RASTER_SAMPLE_IDX, device))
+        samples.append(capture_raster(run_dir, RASTER_SAMPLE_IDX))
     plot_raster_strip(
         samples, FIGURES / "raster_strip", notebook_run_id,
         t_window_ms=RASTER_T_WINDOW_MS,
