@@ -17,7 +17,7 @@ from .paths import REPO
 
 def stamp_figure(fig, run_id: str) -> None:
     """Stamp run_id into the bottom-right corner of a matplotlib figure."""
-    from cli import theme
+    from . import theme
 
     fig.text(
         0.995,

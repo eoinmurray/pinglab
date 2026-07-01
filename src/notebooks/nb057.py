@@ -26,7 +26,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "src" / "notebooks"))
 
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402

@@ -39,7 +39,7 @@ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 
 sys.path.insert(0, str(REPO / "src" / "notebooks"))
 from nb042 import _load_trained_full  # noqa: E402

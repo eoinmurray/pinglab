@@ -38,7 +38,7 @@ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 
 SLUG = "nb041"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -145,15 +145,17 @@ def _load_trained_full(train_dir: Path, device):
     import torch
 
     import models as M
-    from cli.config import build_net, patch_dt
+    from cli.config import build_net
     from cli import load_dataset, seed_everything
 
     cfg = json.loads((train_dir / "config.json").read_text())
     seed_everything(int(cfg.get("seed", 42)))
     M.T_ms = float(cfg["t_ms"])
-    patch_dt(float(cfg["dt"]))
-    # Apply the per-cell τ_GABA after patch_dt (which would otherwise
-    # reset decay_gaba from the module default).
+    M.dt = float(cfg["dt"])
+    M.T_steps = int(M.T_ms / M.dt)
+    # Set the per-cell τ_GABA. forward() recomputes decay_gaba from M.tau_gaba
+    # and M.dt each call, so setting M.tau_gaba is what actually drives the rhythm;
+    # M.decay_gaba is set too for any direct reads.
     tau_gaba_ms = float(cfg.get("tau_gaba_ms") or M.tau_gaba)
     M.tau_gaba = tau_gaba_ms
     M.decay_gaba = float(np.exp(-M.dt / tau_gaba_ms))

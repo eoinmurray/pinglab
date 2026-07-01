@@ -1,0 +1,21 @@
+# Ruff configuration for pinglab.
+# Docs live under src/docs (JS/TS) and are excluded; Python lives in src/cli
+# and src/notebooks.
+
+target-version = "py310"
+line-length = 88
+
+extend-exclude = [
+    "src/docs",
+    "src/artifacts",
+    "src/papers",
+    ".venv",
+]
+
+[lint]
+# Lean set: pyflakes (real bugs), pycodestyle errors, and import sorting.
+select = ["E", "F", "I"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

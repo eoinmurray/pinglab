@@ -134,7 +134,7 @@ def render(slug: str) -> None:
     _TARGET_W = width
 
     import matplotlib.pyplot as plt
-    from cli import theme
+    from helpers import theme
     theme.set_paper_mode(True)
     _install_patches()
 
