@@ -17,6 +17,7 @@ Notebook entry: src/docs/src/pages/notebooks/nb037.mdx
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -209,95 +210,43 @@ def load_config(run_dir: Path) -> dict:
 
 
 def capture_perturbation_raster(
-    train_dir: Path, mode: str, level: float, sample_idx: int = 0
+    train_dir: Path, mode: str, level, sample_idx: int = 0
 ) -> dict:
-    """Single-trial raster with the hidden-spike perturbation hook active.
-
-    Same build / load / forward sequence as capture_rate_raster, with
-    _hidden_perturb_fn installed for the duration of the forward pass.
-    """
-    import torch
-
-    import cli.config as C  # noqa: F401
-    import models as M
-    from cli.config import build_net
-    from cli import (
-        EVAL_SEED,
-        _auto_device,
-        encode_batch,
-        load_dataset,
-        seed_everything,
-    )
-
+    """Single-trial raster with the hidden-spike perturbation active, via the CLI
+    snapshot (`sim --infer --perturb-mode M --perturb-level L --sample-index N`)."""
     cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-
-    device = _auto_device()
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
+    lvl = list(level) if isinstance(level, (list, tuple)) else [level]
+    out_dir = (ARTIFACTS / "perturb_raster" / f"{mode}_{'_'.join(str(x) for x in lvl)}_s{sample_idx}").resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str((train_dir / "config.json").resolve()),
+            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--perturb-mode", mode,
+            "--perturb-level", *[str(x) for x in lvl],
+            "--sample-index", str(sample_idx),
+            "--out-dir", str(out_dir),
+        ],
+        cwd=REPO,
+        check=True,
     )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 1.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-
-    perturb_gen = torch.Generator(device=device).manual_seed(EVAL_SEED + 1)
-    net._hidden_perturb_fn = _make_perturb_fn(mode, level, M.dt, perturb_gen)
-
-    X_b = torch.from_numpy(X_te[sample_idx : sample_idx + 1]).to(device)
-    y_b = int(y_te[sample_idx])
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-        _ = net(input_spikes=spk)
-
-    net._hidden_perturb_fn = None
-
-    e_full = net.spike_record["hid"].cpu().numpy()
-    i_full = net.spike_record["inh"].cpu().numpy()
-    e_rate_hz = float(e_full.sum() / (e_full.shape[1] * cfg["t_ms"] / 1000.0))
+    d = np.load(out_dir / "snapshot.npz")
+    e_full, i_full = d["spk_e"], d["spk_i"]
+    if e_full.ndim == 3:
+        e_full = e_full[:, 0, :]
+    if i_full.ndim == 3:
+        i_full = i_full[:, 0, :]
+    t_sec = float(cfg["t_ms"]) / 1000.0
+    e_rate_hz = float(e_full.sum() / (e_full.shape[1] * t_sec))
     rng = np.random.default_rng(0)
     e_idx = np.sort(rng.choice(e_full.shape[1], EI_RASTER_N_E_PLOT, replace=False))
     i_idx = np.sort(rng.choice(i_full.shape[1], EI_RASTER_N_I_PLOT, replace=False))
     return {
         "mode": mode,
-        "level": (
-            list(float(x) for x in level)
-            if isinstance(level, (list, tuple))
-            else float(level)
-        ),
+        "level": (list(float(x) for x in level) if isinstance(level, (list, tuple)) else float(level)),
         "e_rate_hz": e_rate_hz,
-        "label": y_b,
+        "label": int(d["label"]),
         "e": e_full[:, e_idx].astype(bool),
         "i": i_full[:, i_idx].astype(bool),
         "dt": float(cfg["dt"]),
@@ -357,180 +306,40 @@ def plot_perturbation_rasters(
     plt.close(fig)
 
 
-def _make_perturb_fn(mode: str, level: float, dt_ms: float, generator):
-    """Return a per-step callback (s_e, s_i, layer_idx) -> (s_e', s_i').
 
-    Both populations get the same perturbation. The callback runs inside
-    the COBANet step body right after spikes are emitted and before they
-    feed into the readout / recurrence / I-loop, so the perturbation is
-    dynamics-faithful: downstream state reacts to it within the trial.
+
+def run_perturbation_sweep(train_dir: Path, mode: str, level) -> dict:
+    """Evaluate the test set under a hidden-spike perturbation, via the CLI.
+
+    Runs `sim --infer --perturb-mode M --perturb-level L`; the perturbation is
+    applied inside the CLI's forward loop (models.py hook). acc + hidden E rate
+    come from metrics.json.
     """
-    import torch
-
-    if mode == "drop":
-        def fn(s_e, s_i, _layer):
-            mask = (
-                torch.rand(s_e.shape, generator=generator, device=s_e.device)
-                >= level
-            ).float()
-            s_e = s_e * mask
-            if s_i is not None:
-                mask_i = (
-                    torch.rand(s_i.shape, generator=generator, device=s_i.device)
-                    >= level
-                ).float()
-                s_i = s_i * mask_i
-            return s_e, s_i
-
-        return fn
-
-    if mode == "add":
-        p = level * dt_ms / 1000.0
-        def fn(s_e, s_i, _layer):
-            extra_e = (
-                torch.rand(s_e.shape, generator=generator, device=s_e.device) < p
-            ).float()
-            s_e = torch.clamp(s_e + extra_e, 0.0, 1.0)
-            if s_i is not None:
-                extra_i = (
-                    torch.rand(s_i.shape, generator=generator, device=s_i.device) < p
-                ).float()
-                s_i = torch.clamp(s_i + extra_i, 0.0, 1.0)
-            return s_e, s_i
-
-        return fn
-
-    if mode == "add_split":
-        # level is a (r_e_hz, r_i_hz) tuple — different per-population Poisson
-        # rates so we can express noise as a fraction of each model's own
-        # baseline activity. Keeps E and I perturbations independent.
-        r_e_hz, r_i_hz = float(level[0]), float(level[1])
-        p_e = r_e_hz * dt_ms / 1000.0
-        p_i = r_i_hz * dt_ms / 1000.0
-
-        def fn(s_e, s_i, _layer):
-            if p_e > 0:
-                extra_e = (
-                    torch.rand(s_e.shape, generator=generator, device=s_e.device)
-                    < p_e
-                ).float()
-                s_e = torch.clamp(s_e + extra_e, 0.0, 1.0)
-            if s_i is not None and p_i > 0:
-                extra_i = (
-                    torch.rand(s_i.shape, generator=generator, device=s_i.device)
-                    < p_i
-                ).float()
-                s_i = torch.clamp(s_i + extra_i, 0.0, 1.0)
-            return s_e, s_i
-
-        return fn
-
-    raise ValueError(f"unknown perturbation mode {mode!r}")
-
-
-def run_perturbation_sweep(
-    train_dir: Path, mode: str, level: float
-) -> dict:
-    """Evaluate the test set under a hidden-spike perturbation.
-
-    Builds the trained network, attaches the perturbation hook, runs one
-    forward pass over the whole test set, and returns accuracy plus the
-    achieved hidden E firing rate (perturbation can shift either).
-    """
-    import torch
-    from torch.utils.data import DataLoader, TensorDataset
-
-    import cli.config as C  # noqa: F401
-    import models as M
-    from cli.config import build_net
-    from cli import (
-        EVAL_SEED,
-        _auto_device,
-        encode_batch,
-        load_dataset,
-        seed_everything,
-    )
-
     cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-
-    device = _auto_device()
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
+    lvl = list(level) if isinstance(level, (list, tuple)) else [level]
+    out_dir = (ARTIFACTS / "perturb" / f"{mode}_{'_'.join(str(x) for x in lvl)}_{train_dir.name}").resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str((train_dir / "config.json").resolve()),
+            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--perturb-mode", mode,
+            "--perturb-level", *[str(x) for x in lvl],
+            "--out-dir", str(out_dir),
+        ],
+        cwd=REPO,
+        check=True,
     )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 1.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-
-    perturb_gen = torch.Generator(device=device).manual_seed(EVAL_SEED + 1)
-    net._hidden_perturb_fn = _make_perturb_fn(mode, level, M.dt, perturb_gen)
-
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
-        batch_size=64,
-    )
-
-    correct = total = 0
-    e_spike_sum = 0.0
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-            logits = net(input_spikes=spk)
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            # Sum E spikes across the recorded hidden raster. Last hidden
-            # layer feeds the readout; report its rate.
-            last_key = f"hid_{net.n_layers}" if net.n_layers > 1 else "hid"
-            hid_rec = net.spike_record.get(last_key)
-            if hid_rec is None:
-                hid_rec = net.spike_record["hid"]
-            e_spike_sum += float(hid_rec.sum().item())
-
-    net._hidden_perturb_fn = None  # unset so subsequent runs aren't poisoned
-
-    n_e = hidden_sizes[-1]
-    t_sec = float(cfg["t_ms"]) / 1000.0
-    e_rate_hz = e_spike_sum / (total * n_e * t_sec) if total else 0.0
-    acc = 100.0 * correct / total if total else 0.0
+    m = json.loads((out_dir / "metrics.json").read_text())
+    rates = m.get("rates_hz", {})
+    hid = max((k for k in rates if k.startswith("hid")), default=None)
     return {
         "mode": mode,
         "level": level,
-        "acc": acc,
-        "e_rate_hz": e_rate_hz,
-        "n_total": total,
+        "acc": float(m["best_acc"]),
+        "e_rate_hz": float(rates.get(hid, 0.0)) if hid else 0.0,
+        "n_total": int(m.get("n_total", 0)),
     }
 
 
