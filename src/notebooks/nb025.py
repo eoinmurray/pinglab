@@ -579,134 +579,72 @@ def plot_frontier(rows: list[dict], out_path: Path, run_id: str) -> None:
 
 
 
-def _load_trained_full(train_dir: Path, device):
-    """Load full state from a trained run (incl. W_ei/W_ie). Returns
-    (net, cfg, X_te, y_te) ready for forward passes."""
-    import torch
+def _infer_cell(
+    train_dir: Path,
+    extra_args: list[str] | None = None,
+    out_name: str = "infer",
+    max_samples: int | None = None,
+) -> Path:
+    """Shell out to `sim --infer` for one trained cell; return the out dir.
 
-    import cli.config as C  # noqa: F401
-    import models as M
-    from cli.config import build_net, setup_model_globals
-    from cli import load_dataset, seed_everything
-
-    cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    setup_model_globals(hidden_sizes)
-
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
-    )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 1.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-        readout_mode=cfg.get("readout_mode", "mem-mean"),
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-    return net, cfg, X_te, y_te
+    Network build, weight load and the forward pass run in the CLI — the notebook
+    only runs it and reads artifacts. extra_args adds flags (--scale-w-in,
+    --outputs, ...); max_samples caps the evaluation set.
+    """
+    train_dir = train_dir.resolve()
+    out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+        "--load-config", str(train_dir / "config.json"),
+        "--load-weights", str(train_dir / "weights.pth"),
+        "--out-dir", str(out_dir),
+    ]
+    if max_samples is not None:
+        cmd += ["--max-samples", str(max_samples)]
+    cmd += list(extra_args or [])
+    subprocess.run(cmd, cwd=REPO, check=True)
+    return out_dir
 
 
-def _eval_net_on_test(net, cfg, X_te, y_te, device) -> tuple[float, float, float]:
-    """Forward over test set; return (acc, hid_rate_hz, inh_rate_hz)."""
-    acc, _ce, _pen, e_rate, i_rate = _eval_net_on_test_with_loss(
-        net, cfg, X_te, y_te, device
-    )
-    return acc, e_rate, i_rate
-
-
-def _eval_net_on_test_with_loss(
-    net, cfg, X_te, y_te, device,
+def _eval_scaled(
+    train_dir: Path,
+    scale_w_in: float = 1.0,
     fr_upper_theta: float = 0.0,
     fr_upper_strength: float = 0.0,
 ) -> tuple[float, float, float, float, float]:
-    """Forward over test set; return
-    (acc, ce_loss, penalty, hid_rate_hz, inh_rate_hz).
+    """Evaluate a trained cell with W_in scaling; return
+    (acc, ce_loss, penalty, e_rate, i_rate).
 
-    `penalty` is the same firing-rate-upper regulariser the trainer applies:
-    sum over hidden neurons of strength · ReLU(mean_per_neuron_spike_count -
-    theta_u)^2, computed against the per-neuron spike-count mean over the
-    full test set (one application, not per-batch averaging). When strength
-    or theta_u is zero the penalty is zero."""
-    import torch
-    import torch.nn.functional as F
-    from torch.utils.data import DataLoader, TensorDataset
-
-    import models as M
-    from cli import EVAL_SEED, encode_batch
-
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
-        batch_size=64,
+    acc / ce_loss / rates come from metrics.json. The firing-rate-upper penalty is
+    recomputed locally from per_cell_rates.npz — the same objective the trainer
+    applies: strength * sum_neurons ReLU(mean_per_neuron_count - theta)^2, with the
+    mean spike count per neuron = rate_hz * t_sec. Zero when strength or theta is 0.
+    """
+    cfg = json.loads((train_dir / "config.json").read_text())
+    out_dir = _infer_cell(
+        train_dir,
+        ["--scale-w-in", str(scale_w_in), "--outputs", "per_cell_rates"],
+        out_name=f"win_scale/s{scale_w_in:g}",
     )
-    correct = total = 0
-    ce_sum = 0.0
-    e_spike_sum = i_spike_sum = 0.0
-    # Per-neuron spike count accumulators (one tensor per hidden layer)
-    # for computing the training-objective penalty term.
-    sc_accums: list[torch.Tensor] = []
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-            logits = net(input_spikes=spk)
-            ce_sum += float(
-                F.cross_entropy(logits, y_b, reduction="sum").item()
-            )
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            e_spike_sum += float(net.spike_record["hid"].sum().item())
-            if "inh" in net.spike_record:
-                i_spike_sum += float(net.spike_record["inh"].sum().item())
-            if fr_upper_strength > 0 and getattr(net, "last_spike_counts", None):
-                if not sc_accums:
-                    sc_accums = [
-                        torch.zeros(sc.shape[1], device=device)
-                        for sc in net.last_spike_counts
-                    ]
-                for acc_tensor, sc in zip(sc_accums, net.last_spike_counts):
-                    acc_tensor += sc.sum(dim=0)
-    n_e = M.N_HID
-    n_i = M.N_INH or 1
-    t_sec = float(cfg["t_ms"]) / 1000.0
-    e_rate = e_spike_sum / (total * n_e * t_sec) if total else 0.0
-    i_rate = i_spike_sum / (total * n_i * t_sec) if (total and i_spike_sum) else 0.0
-    acc = 100.0 * correct / total if total else 0.0
-    ce_loss = ce_sum / total if total else 0.0
+    m = json.loads((out_dir / "metrics.json").read_text())
+    rates = m.get("rates_hz", {})
     penalty = 0.0
-    if sc_accums and total > 0 and fr_upper_strength > 0:
-        for acc_tensor in sc_accums:
-            mean_z = acc_tensor / total
-            penalty += float(
-                fr_upper_strength
-                * (torch.relu(mean_z - fr_upper_theta) ** 2).sum().item()
-            )
-    return acc, ce_loss, penalty, e_rate, i_rate
+    if fr_upper_strength > 0:
+        pc = np.load(out_dir / "per_cell_rates.npz")
+        t_sec = float(cfg["t_ms"]) / 1000.0
+        mean_count = pc["rate_e_per_cell"] * t_sec
+        penalty = float(
+            fr_upper_strength
+            * (np.maximum(mean_count - fr_upper_theta, 0.0) ** 2).sum()
+        )
+    return (
+        float(m["best_acc"]),
+        float(m["ce_loss"]),
+        penalty,
+        float(rates.get("hid", 0.0)),
+        float(rates.get("inh", 0.0)),
+    )
 
 
 # ── per-cycle participation p and gamma frequency f_γ vs θ_u ────────
@@ -765,115 +703,78 @@ def _f_gamma_from_population(
     return float(freqs[peak_idx] + offset * df)
 
 
-def measure_p_fgamma(train_dir: Path, device, is_ping: bool) -> dict:
-    """Forward the test set; record E and I population spike trains.
-    Compute:
-      - f_γ via Welch PSD on E-population trace (PING only; NaN otherwise)
-      - p = fraction of (cell, cycle) pairs with ≥ 1 spike
-        (PING only — needs the I-burst peaks to delimit cycles)
-      - acc, mean E rate, mean I rate as side measurements.
+def measure_p_fgamma(train_dir: Path, is_ping: bool) -> dict:
+    """Report f_gamma, cycle-participation p, acc and mean E/I rate, via the CLI.
+
+    Runs `sim --infer --outputs pop_traces rasters` (capped near PFG_MAX_TRIALS
+    trials) and computes the metrics locally:
+      - f_gamma via Welch PSD on the per-trial E-population traces (PING only)
+      - p = fraction of (cell, cycle) pairs with >= 1 spike, from the sparse
+        rasters reconstructed per trial (PING only — needs the I-burst peaks to
+        delimit cycles)
+    The CLI emits base data (population traces + sparse spike indices); all metric
+    logic stays here.
     """
-    import torch
-    from torch.utils.data import DataLoader, TensorDataset
-
-    import models as M
-    from cli import EVAL_SEED, encode_batch
-
-    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-    net.recording = True
-    dt_ms = float(M.dt)
-    t_ms = float(cfg["t_ms"])
-    n_e = M.N_HID
-    n_i = M.N_INH or 1
+    cfg = json.loads((train_dir / "config.json").read_text())
+    dt_ms = float(cfg["dt"])
     fs_hz = 1000.0 / dt_ms
-    t_sec = t_ms / 1000.0
 
-    n_take = min(PFG_MAX_TRIALS, X_te.shape[0])
-    test_loader = DataLoader(
-        TensorDataset(
-            torch.from_numpy(X_te[:n_take]), torch.from_numpy(y_te[:n_take])
-        ),
-        batch_size=64,
+    out_dir = _infer_cell(
+        train_dir,
+        ["--outputs", "pop_traces", "rasters"],
+        out_name="pfg",
+        max_samples=PFG_MAX_TRIALS * 5,  # 80/20 split -> ~PFG_MAX_TRIALS test trials
     )
+    m = json.loads((out_dir / "metrics.json").read_text())
+    rates = m.get("rates_hz", {})
+    acc = float(m["best_acc"])
+    e_rate = float(rates.get("hid", 0.0))
+    i_rate = float(rates.get("inh", 0.0))
+    if not is_ping:
+        return {"acc": acc, "e_rate": e_rate, "i_rate": i_rate,
+                "f_gamma": None, "p": None}
 
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    correct = total = 0
-    e_spike_sum = i_spike_sum = 0.0
-    pop_e_traces: list[np.ndarray] = []
-    # Per-cycle (cell, cycle) tallies summed across trials.
+    pt = np.load(out_dir / "pop_traces.npz")
+    pop_e_traces = list(pt["pop_e"])
+    f_gamma_val = _f_gamma_from_population(pop_e_traces, fs_hz)
+    f_gamma = float(f_gamma_val) if np.isfinite(f_gamma_val) else None
+
+    # Reconstruct per-trial dense E/I rasters from the sparse indices and count
+    # (cell, cycle) participation. Cycle boundaries come from the I-burst peaks.
+    R = np.load(out_dir / "rasters.npz")
+    T, n_e, n_i = int(R["T"]), int(R["n_e"]), int(R["n_i"])
+    n_trials = min(int(R["n_trials"]), len(pop_e_traces))
+
+    def _by_trial(prefix):
+        tr = R[f"{prefix}_trial"]
+        order = np.argsort(tr, kind="stable")
+        return R[f"{prefix}_t"][order], R[f"{prefix}_cell"][order], \
+            np.searchsorted(tr[order], np.arange(n_trials + 1))
+
+    e_t, e_c, e_b = _by_trial("e")
+    i_t, i_c, i_b = _by_trial("i")
+
     n_cycle_pairs = 0
     n_cycle_pairs_active = 0
+    for b in range(n_trials):
+        s_i_trial = np.zeros((T, n_i), dtype=np.int8)
+        s_i_trial[i_t[i_b[b]:i_b[b + 1]], i_c[i_b[b]:i_b[b + 1]]] = 1
+        f_gamma_batch = _f_gamma_from_population([pop_e_traces[b]], fs_hz)
+        if not np.isfinite(f_gamma_batch) or f_gamma_batch <= 0:
+            continue
+        peaks = _detect_i_burst_peaks(s_i_trial, dt_ms, f_gamma_batch)
+        if peaks.size == 0:
+            continue
+        s_e_trial = np.zeros((T, n_e), dtype=np.int8)
+        s_e_trial[e_t[e_b[b]:e_b[b + 1]], e_c[e_b[b]:e_b[b + 1]]] = 1
+        counts = _count_e_spikes_per_cycle(s_e_trial, peaks)  # (K, N_E)
+        n_cycle_pairs += counts.size
+        n_cycle_pairs_active += int((counts > 0).sum())
 
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-            logits = net(input_spikes=spk)
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            s_e = net.spike_record["hid"]
-            if s_e.ndim == 2:
-                s_e = s_e.unsqueeze(1)
-            e_spike_sum += float(s_e.sum().item())
-            B = s_e.shape[1]
-            # Population E trace per trial for PSD.
-            pop = s_e.mean(dim=2).cpu().numpy()  # (T, B)
-            for b in range(B):
-                pop_e_traces.append(pop[:, b])
-            if is_ping and "inh" in net.spike_record:
-                s_i = net.spike_record["inh"]
-                if s_i.ndim == 2:
-                    s_i = s_i.unsqueeze(1)
-                i_spike_sum += float(s_i.sum().item())
-                s_e_np = s_e.cpu().numpy().astype(np.int8)  # (T, B, N_E)
-                s_i_np = s_i.cpu().numpy().astype(np.int8)  # (T, B, N_I)
-                # Quick f_γ guess per batch for cycle-peak detection. We
-                # use the running mean f_γ estimate so peaks don't depend
-                # on the final PSD — close enough; refined later.
-                f_gamma_batch = _f_gamma_from_population(
-                    [pop[:, b] for b in range(B)], fs_hz,
-                )
-                if not np.isfinite(f_gamma_batch) or f_gamma_batch <= 0:
-                    continue
-                for b in range(B):
-                    peaks = _detect_i_burst_peaks(
-                        s_i_np[:, b, :], dt_ms, f_gamma_batch,
-                    )
-                    if peaks.size == 0:
-                        continue
-                    counts = _count_e_spikes_per_cycle(
-                        s_e_np[:, b, :], peaks,
-                    )  # (K, N_E)
-                    n_cycle_pairs += counts.size
-                    n_cycle_pairs_active += int((counts > 0).sum())
-
-    acc = 100.0 * correct / total if total else 0.0
-    e_rate = e_spike_sum / (total * n_e * t_sec) if total else 0.0
-    i_rate = (
-        i_spike_sum / (total * n_i * t_sec) if (total and i_spike_sum) else 0.0
-    )
-
-    if is_ping:
-        f_gamma_val = _f_gamma_from_population(pop_e_traces, fs_hz)
-        f_gamma = (
-            float(f_gamma_val)
-            if np.isfinite(f_gamma_val) else None
-        )
-        p = (
-            float(n_cycle_pairs_active) / float(n_cycle_pairs)
-            if n_cycle_pairs > 0 else None
-        )
-    else:
-        f_gamma = None
-        p = None
-
-    return {
-        "acc": float(acc),
-        "e_rate": float(e_rate),
-        "i_rate": float(i_rate),
-        "f_gamma": f_gamma,
-        "p": p,
-    }
+    p = (float(n_cycle_pairs_active) / float(n_cycle_pairs)
+         if n_cycle_pairs > 0 else None)
+    return {"acc": acc, "e_rate": e_rate, "i_rate": i_rate,
+            "f_gamma": f_gamma, "p": p}
 
 
 def _detect_i_burst_peaks(
@@ -1122,16 +1023,14 @@ W_IN_SCALE_VALUES: list[float] = [
 
 
 def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
-    """Inference-only sweep that multiplies each trained net's W_in
-    (i.e. net.W_ff[0]) by every value in W_IN_SCALE_VALUES, evaluates on
-    the test set, and records (cell, scale, loss, acc, rate_e, rate_i).
-    Cells: PING at θ_u = off (baseline), COBA at θ_u = off (baseline),
-    PING at θ_u = 0.2 (heaviest budget — the floor-pinned case).
-    Restores the original W_in after each cell's sweep."""
-    import torch
-    from cli import _auto_device
+    """Inference-only sweep multiplying each trained net's W_in by every value in
+    W_IN_SCALE_VALUES, via the CLI, recording (cell, scale, loss, penalty, acc,
+    rate_e, rate_i). Cells: PING and COBA at θ_u = 0.2.
 
-    device = _auto_device()
+    Each point is one `sim --infer --scale-w-in s --outputs per_cell_rates`; acc /
+    ce_loss / rates come from metrics.json and the firing-rate penalty is recomputed
+    locally from per_cell_rates.npz (see _eval_scaled).
+    """
     cells = [
         ("ping@tu0.2", cell_dir("ping", 0.2, SEED_SWEEP), 0.2),
         ("coba@tu0.2", cell_dir("coba", 0.2, SEED_SWEEP), 0.2),
@@ -1142,38 +1041,30 @@ def run_w_in_scale_sweep(notebook_run_id: str) -> list[dict]:
             raise SystemExit(
                 f"w_in-scale-sweep: missing weights for {label} at {train_dir}"
             )
-        net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-        w_in_original = net.W_ff[0].data.clone()
-        try:
-            for scale in W_IN_SCALE_VALUES:
-                net.W_ff[0].data.copy_(w_in_original * float(scale))
-                with torch.no_grad():
-                    acc, ce_loss, penalty, e_rate, i_rate = (
-                        _eval_net_on_test_with_loss(
-                            net, cfg, X_te, y_te, device,
-                            fr_upper_theta=theta_u,
-                            fr_upper_strength=FR_STRENGTH_UPPER,
-                        )
-                    )
-                total_loss = ce_loss + penalty
-                rows.append({
-                    "cell": label,
-                    "scale": float(scale),
-                    "loss": float(ce_loss),
-                    "penalty": float(penalty),
-                    "total_loss": float(total_loss),
-                    "acc": float(acc),
-                    "rate_e": float(e_rate),
-                    "rate_i": float(i_rate),
-                })
-                print(
-                    f"  {label:<11} s={scale:>5.2f}  "
-                    f"CE={ce_loss:6.3f}  pen={penalty:6.3f}  "
-                    f"tot={total_loss:6.3f}  acc={acc:5.2f}%  "
-                    f"E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
-                )
-        finally:
-            net.W_ff[0].data.copy_(w_in_original)
+        for scale in W_IN_SCALE_VALUES:
+            acc, ce_loss, penalty, e_rate, i_rate = _eval_scaled(
+                train_dir,
+                scale_w_in=float(scale),
+                fr_upper_theta=theta_u,
+                fr_upper_strength=FR_STRENGTH_UPPER,
+            )
+            total_loss = ce_loss + penalty
+            rows.append({
+                "cell": label,
+                "scale": float(scale),
+                "loss": float(ce_loss),
+                "penalty": float(penalty),
+                "total_loss": float(total_loss),
+                "acc": float(acc),
+                "rate_e": float(e_rate),
+                "rate_i": float(i_rate),
+            })
+            print(
+                f"  {label:<11} s={scale:>5.2f}  "
+                f"CE={ce_loss:6.3f}  pen={penalty:6.3f}  "
+                f"tot={total_loss:6.3f}  acc={acc:5.2f}%  "
+                f"E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
+            )
     return rows
 
 
@@ -1591,11 +1482,6 @@ def main() -> None:
 
     # θ_u vs (p, f_γ) decomposition — mechanism behind the frontier floor.
     print("[theta-pfg] measuring p and f_γ per (model, θ_u) cell")
-    import torch
-    pfg_device = (
-        "cuda" if torch.cuda.is_available()
-        else ("mps" if torch.backends.mps.is_available() else "cpu")
-    )
     pfg_rows: list[dict] = []
     for model in MODELS:
         is_ping = (model == "ping")
@@ -1605,7 +1491,7 @@ def main() -> None:
             if not (train_dir / "weights.pth").exists():
                 print(f"  skip {model} θ_u={theta_label(theta_u)} (no weights)")
                 continue
-            m = measure_p_fgamma(train_dir, pfg_device, is_ping=is_ping)
+            m = measure_p_fgamma(train_dir, is_ping=is_ping)
             row = {
                 "model": model,
                 "theta_u": theta_u,
