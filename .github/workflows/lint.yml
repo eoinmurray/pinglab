@@ -36,12 +36,13 @@ jobs:
 
       # The invariant: notebooks may only shell out to cli.py, never import the
       # `cli`/`models` packages (enforced by src/notebooks/ruff.toml TID251).
-      # Non-blocking until the migration burndown hits 0 — at that point remove
-      # `continue-on-error` below and this becomes a hard gate against any
-      # notebook re-introducing a direct import.
+      # The migration burndown is at 0, so this is now a HARD, zero-exception
+      # gate — CI fails if any notebook re-introduces a direct cli/models import
+      # (bare, submodule, or `from … import` form). Do not add continue-on-error
+      # or per-file-ignores: the boundary is non-negotiable. If a notebook needs
+      # something from the network, grow a generic CLI subcommand/flag instead.
       - name: Notebook CLI-import gate
         id: nb_gate
-        continue-on-error: true
         run: uv run ruff check src/notebooks --select TID --output-format=github
 
       - name: Refactor burndown (cli/models imports in notebooks)
