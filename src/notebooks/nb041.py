@@ -149,7 +149,7 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     Network build, weight load and forward all run in the CLI — the notebook only
     runs it and reads artifacts. The cell's τ_GABA is passed through so inference
     replays under the training-time inhibitory dynamics. extra_args adds mode flags
-    (--emit-pop-traces for PSD, --sample-index for a snapshot raster).
+    (--outputs pop_traces for PSD, --sample-index for a snapshot raster).
     """
     train_dir = train_dir.resolve()
     cfg = json.loads((train_dir / "config.json").read_text())
@@ -173,14 +173,14 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
 def measure_rate_and_psd(train_dir: Path) -> dict:
     """Accuracy, mean E rate, and gamma spectrum for a trained cell, via the CLI.
 
-    Runs `sim --infer --emit-pop-traces` under the cell's τ_GABA (acc + rates in
+    Runs `sim --infer --outputs pop_traces` under the cell's τ_GABA (acc + rates in
     metrics.json, per-trial population traces in pop_traces.npz), then computes the
     Welch PSD and f_γ locally. The CLI emits the base signal; the metric is the
     notebook's.
     """
     cfg = json.loads((train_dir / "config.json").read_text())
     tau_gaba_ms = _cell_tau_gaba(cfg)
-    out_dir = _infer_cell(train_dir, ["--emit-pop-traces"], "infer")
+    out_dir = _infer_cell(train_dir, ["--outputs", "pop_traces"], "infer")
     m = json.loads((out_dir / "metrics.json").read_text())
     rates = m.get("rates_hz", {})
 

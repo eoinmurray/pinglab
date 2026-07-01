@@ -719,16 +719,16 @@ def _build_subparsers(parser, parent):
         help="Path to a weights.pth file for inference.",
     )
     sim_parser.add_argument(
-        "--emit-per-cell-rates",
-        action="store_true",
-        help="[--infer] Also write per_cell_rates.npz with per-cell E/I firing "
-        "rates (Hz) over the test set.",
-    )
-    sim_parser.add_argument(
-        "--emit-pop-traces",
-        action="store_true",
-        help="[--infer] Also write pop_traces.npz with per-trial population "
-        "activity (mean over cells per timestep) for E/I — base signal for PSD/f_gamma.",
+        "--outputs",
+        nargs="+",
+        default=None,
+        choices=["per_cell_rates", "pop_traces", "rasters"],
+        metavar="OUTPUT",
+        help="[--infer] Extra artifacts to emit from the one test-set forward pass "
+        "(metrics.json is always written): "
+        "per_cell_rates (per-cell E/I Hz → per_cell_rates.npz), "
+        "pop_traces (per-trial population activity → pop_traces.npz, base signal for PSD/f_gamma), "
+        "rasters (sparse per-trial spike indices → rasters.npz, for cycle-level analysis).",
     )
     sim_parser.add_argument(
         "--tau-gaba",
@@ -1234,8 +1234,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         dales_law=args.dales_law,
         ei_layers=args.ei_layers,
         seed=args.seed,
-        emit_per_cell_rates=getattr(args, "emit_per_cell_rates", False),
-        emit_pop_traces=getattr(args, "emit_pop_traces", False),
+        outputs=getattr(args, "outputs", None),
         tau_gaba=getattr(args, "tau_gaba", None),
         scale_w_in=getattr(args, "scale_w_in", 1.0),
         scale_w_ei=getattr(args, "scale_w_ei", 1.0),
