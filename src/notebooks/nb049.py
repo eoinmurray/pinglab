@@ -167,56 +167,28 @@ def load_config(run_dir: Path) -> dict:
 
 
 # ── Post-hoc inference ─────────────────────────────────────────────
-def _load_trained_full(train_dir: Path, device):
-    """Mirror nb025/nb041 loader pattern but read the per-condition
-    trained config so trainable W_ei/W_ie get loaded correctly."""
-    import torch
+def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
+    """Shell out to the CLI's `sim --infer` for one trained cell; return the out dir.
 
-    import models as M
-    from cli.config import build_net
-    from cli import load_dataset, seed_everything
-
-    cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", 42)))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
+    Network construction, weight loading and the forward pass all happen in the CLI —
+    this notebook only runs it and reads the artifacts. extra_args adds mode flags
+    (e.g. --emit-pop-traces for PSD, --sample-index for a snapshot raster).
+    """
+    train_dir = train_dir.resolve()
+    out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str(train_dir / "config.json"),
+            "--load-weights", str(train_dir / "weights.pth"),
+            "--out-dir", str(out_dir),
+            *extra_args,
+        ],
+        cwd=REPO,
+        check=True,
     )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 0.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-        readout_mode=cfg.get("readout_mode", "mem-mean"),
-        trainable_w_ei=bool(cfg.get("trainable_w_ei", False)),
-        trainable_w_ie=bool(cfg.get("trainable_w_ie", False)),
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-    return net, cfg, X_te, y_te
+    return out_dir
 
 
 F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
@@ -257,7 +229,6 @@ def load_init_and_trained_weights(train_dir: Path):
 def plot_weight_matrices(
     cond: str,
     seed_to_dir: dict[int, Path],
-    device,
     out_path: Path, run_id: str,
 ) -> None:
     """Per-condition weight-distribution card: W^EI and W^IE, init vs trained.
@@ -395,60 +366,29 @@ def plot_weight_matrices(
     plt.close(fig)
 
 
-def measure_trained_state(train_dir: Path, device) -> dict:
-    """Forward the test set; report acc, mean E rate, mean I rate,
-    f_γ (via Welch PSD peak), and the W_ei / W_ie final means."""
-    import torch
+def measure_trained_state(train_dir: Path) -> dict:
+    """Report acc, mean E/I rate, f_γ (Welch PSD peak), and W_ei/W_ie means.
+
+    Runs `sim --infer --emit-pop-traces` (acc + rates in metrics.json, population
+    traces in pop_traces.npz) and dump-weights (trained W_ei/W_ie), then computes
+    the PSD and gamma peak locally. Metric logic stays in the notebook; the CLI
+    only emits the base data.
+    """
     from scipy import signal as sp_signal
-    from torch.utils.data import DataLoader, TensorDataset
 
-    import models as M
-    from cli import EVAL_SEED, encode_batch
+    cfg = json.loads((train_dir / "config.json").read_text())
+    out_dir = _infer_cell(train_dir, ["--emit-pop-traces"], "infer")
+    m = json.loads((out_dir / "metrics.json").read_text())
+    rates = m.get("rates_hz", {})
 
-    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
+    # Trained W_ei / W_ie means via dump-weights (mean abs of the trained matrices).
+    _, w_ei_trained, _, w_ie_trained = load_init_and_trained_weights(train_dir)
+    w_ei_mean = float(np.abs(w_ei_trained).mean())
+    w_ie_mean = float(np.abs(w_ie_trained).mean())
 
-    # Final W_ei / W_ie statistics (across the single ei-layer).
-    w_ei_vals = [w.detach().abs().mean().item() for w in net.W_ei.values()]
-    w_ie_vals = [w.detach().abs().mean().item() for w in net.W_ie.values()]
-
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
-        batch_size=64,
-    )
-    correct = total = 0
-    e_spike_sum = i_spike_sum = 0.0
-    pop_e_traces: list[np.ndarray] = []
-    n_e = M.N_HID
-    n_i = M.N_INH or 1
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-            logits = net(input_spikes=spk)
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            hid = net.spike_record["hid"]
-            if hid.ndim == 2:
-                hid = hid.unsqueeze(1)
-            e_spike_sum += float(hid.sum().item())
-            if "inh" in net.spike_record:
-                inh = net.spike_record["inh"]
-                if inh.ndim == 2:
-                    inh = inh.unsqueeze(1)
-                i_spike_sum += float(inh.sum().item())
-            pop = hid.mean(dim=2).cpu().numpy()  # (T, B)
-            for b in range(pop.shape[1]):
-                pop_e_traces.append(pop[:, b])
-
-    t_sec = float(cfg["t_ms"]) / 1000.0
-    e_rate = e_spike_sum / (total * n_e * t_sec) if total else 0.0
-    i_rate = (
-        i_spike_sum / (total * n_i * t_sec) if (total and i_spike_sum)
-        else 0.0
-    )
-
-    # f_γ via Welch PSD on the per-trial E-population trace.
+    # f_γ via Welch PSD on the per-trial E-population trace (from pop_traces.npz).
+    pt = np.load(out_dir / "pop_traces.npz")
+    pop_e_traces = list(pt["pop_e"])
     fs_hz = 1000.0 / float(cfg["dt"])
     nperseg = pop_e_traces[0].size
     psds: list[np.ndarray] = []
@@ -481,42 +421,38 @@ def measure_trained_state(train_dir: Path, device) -> dict:
         freqs_used = np.zeros(1)
 
     return {
-        "acc": float(100.0 * correct / total) if total else float("nan"),
-        "e_rate_hz": float(e_rate),
-        "i_rate_hz": float(i_rate),
+        "acc": float(m["best_acc"]),
+        "e_rate_hz": float(rates.get("hid", 0.0)),
+        "i_rate_hz": float(rates.get("inh", 0.0)),
         "f_gamma_hz": f_gamma,
-        "w_ei_mean": float(np.mean(w_ei_vals)) if w_ei_vals else 0.0,
-        "w_ie_mean": float(np.mean(w_ie_vals)) if w_ie_vals else 0.0,
+        "w_ei_mean": w_ei_mean,
+        "w_ie_mean": w_ie_mean,
         "psd": psd_used.tolist(),
         "freqs_hz": freqs_used.tolist(),
     }
 
 
-def capture_raster(train_dir: Path, device, sample_idx: int = 0) -> dict:
-    """Single-trial raster for the trained network."""
-    import torch
-    import models as M
-    from cli import EVAL_SEED, encode_batch
+def capture_raster(train_dir: Path, sample_idx: int = 0) -> dict:
+    """Single-trial raster for the trained network, via the CLI snapshot.
 
-    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-    X_b = torch.from_numpy(X_te[sample_idx:sample_idx + 1]).to(device)
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-        _ = net(input_spikes=spk)
-    e = net.spike_record["hid"].cpu().numpy()
-    i = net.spike_record.get("inh")
-    i = i.cpu().numpy() if i is not None else np.zeros((e.shape[0], 0))
+    Runs `sim --infer --sample-index N` and reads E/I rasters + the sample's
+    class label from snapshot.npz.
+    """
+    cfg = json.loads((train_dir / "config.json").read_text())
+    out_dir = _infer_cell(train_dir, ["--sample-index", str(sample_idx)], "snapshot")
+    d = np.load(out_dir / "snapshot.npz")
+    e = d["spk_e"]
+    i = d["spk_i"]
     if e.ndim == 3:
         e = e[:, 0, :]
-        if i.ndim == 3:
-            i = i[:, 0, :]
+    if i.ndim == 3:
+        i = i[:, 0, :]
     return {
         "e": e.astype(bool),
         "i": i.astype(bool),
         "dt_ms": float(cfg["dt"]),
         "t_ms": float(cfg["t_ms"]),
-        "label": int(y_te[sample_idx]),
+        "label": int(d["label"]),
     }
 
 
@@ -1390,8 +1326,6 @@ def main() -> None:
     rasters_by_cond: dict[str, dict] = {}
     summary_rows: list[dict] = []
 
-    from cli import _auto_device
-    device = _auto_device()
     for cond in COND_ORDER:
         metrics_list: list[dict] = []
         final_list: list[dict] = []
@@ -1402,7 +1336,7 @@ def main() -> None:
                 continue
             m = load_metrics(d)
             metrics_list.append(m)
-            f = measure_trained_state(d, device)
+            f = measure_trained_state(d)
             final_list.append(f)
             summary_rows.append({
                 "condition": cond,
@@ -1420,7 +1354,7 @@ def main() -> None:
         if final_list:
             # First seed's raster as representative.
             rasters_by_cond[cond] = capture_raster(
-                cell_dir(cond, SEEDS[0]), device,
+                cell_dir(cond, SEEDS[0]),
             )
 
     # Per-condition diagnostic cards + matching weight-matrix cards.
@@ -1440,7 +1374,7 @@ def main() -> None:
         }
         if seed_to_dir:
             w_out = FIGURES / f"weights__{cond}"
-            plot_weight_matrices(cond, seed_to_dir, device, w_out, notebook_run_id)
+            plot_weight_matrices(cond, seed_to_dir, w_out, notebook_run_id)
             print(f"wrote {w_out}.{{svg,pdf}}")
 
 

@@ -136,7 +136,7 @@ def setup_model_globals(hidden_sizes):
     M.HIDDEN_SIZES = list(hidden_sizes)
 
 
-def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None):
+def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None, label=None):
     """Save spike recording and metadata to NPZ file for notebook analysis.
 
     SINGLE SOURCE OF TRUTH: All snapshot saving across train/infer/sim paths must
@@ -192,6 +192,9 @@ def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key
         "n_e": np.int32(n_e),
         "n_i": np.int32(n_i),
     }
+    # Optional true class label of the snapshotted sample (for annotated rasters).
+    if label is not None:
+        npz_data["label"] = np.int32(label)
 
     # Resolve spike recording keys: find the deepest/primary hidden and inhibitory layers
     # primary_hid_key returns 'hid' for single-layer, 'hid_1' for the deepest multi-layer
