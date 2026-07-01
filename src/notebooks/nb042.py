@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -43,9 +44,12 @@ from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
+from helpers.datasets import load_mnist_split  # noqa: E402
 
 SLUG = "nb042"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+EVAL_SEED = 20260415  # mirror cli.encoders.EVAL_SEED (kept in sync by hand)
 
 # θ_u = off PING baseline now lives in the shared training root (nb022
 # train-once / reuse-many). Three seeds available; nb042 runs against all
@@ -124,80 +128,98 @@ DEFAULT_TIER = "medium"
 # ─── trained-network loading (mirrors nb037 helper) ─────────────────
 
 
-def _load_trained_full(train_dir: Path, device):
-    """Load nb025 trained PING checkpoint. Returns (net, cfg, X_te, y_te)."""
-    import torch
+# ─── CLI-backed baseline + override (net execution runs in the CLI) ──────
 
-    import models as M
-    from cli.config import build_net
-    from cli import load_dataset, seed_everything
 
+def _load_eval(train_dir: Path):
+    """Config + held-out MNIST test split for a trained cell (no net)."""
     cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", 42)))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
+    _, X_te, _, y_te = load_mnist_split(max_samples=int(cfg["max_samples"]))
+    return cfg, X_te, y_te
 
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
+
+_BASE_CACHE: dict = {}
+
+
+def _run_baseline(train_dir: Path, tau_gaba=None):
+    """Baseline pass via `sim --infer --outputs rasters`; return (metrics, rasters).
+    Cached per (cell, τ_GABA) — the baseline I-stream is condition-independent."""
+    key = f"{train_dir}|{tau_gaba}"
+    if key not in _BASE_CACHE:
+        out_dir = (ARTIFACTS / "baseline" / train_dir.name).resolve()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        cmd = [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str((train_dir / "config.json").resolve()),
+            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--outputs", "rasters", "--out-dir", str(out_dir),
+        ]
+        if tau_gaba is not None:
+            cmd += ["--tau-gaba", str(tau_gaba)]
+        subprocess.run(cmd, cwd=REPO, check=True)
+        m = json.loads((out_dir / "metrics.json").read_text())
+        R = dict(np.load(out_dir / "rasters.npz"))
+        _BASE_CACHE[key] = (m, R)
+    return _BASE_CACHE[key]
+
+
+def _build_override_file(R, condition, gen, dt_ms, out_path, cycle_period_ms=None):
+    """Build a sparse I-override NPZ from baseline rasters R by applying the pure
+    _build_override transform per trial (per-trial independent). The transform stays
+    in the notebook; the CLI only injects the result."""
+    import torch
+    T, n_i, n_tr = int(R["T"]), int(R["n_i"]), int(R["n_trials"])
+    tr = R["i_trial"]
+    order = np.argsort(tr, kind="stable")
+    tr, tt, tc = tr[order], R["i_t"][order], R["i_cell"][order]
+    bounds = np.searchsorted(tr, np.arange(n_tr + 1))
+    kwargs = {"cycle_period_ms": cycle_period_ms} if cycle_period_ms else {}
+    out_tr, out_t, out_c = [], [], []
+    for b in range(n_tr):
+        lo, hi = bounds[b], bounds[b + 1]
+        s_i = np.zeros((T, 1, n_i), dtype=np.float32)
+        s_i[tt[lo:hi], 0, tc[lo:hi]] = 1.0
+        ov = _build_override(torch.from_numpy(s_i), condition, gen, dt_ms=dt_ms, **kwargs)
+        ov = ov.detach().cpu().numpy()[:, 0, :]  # (T, n_i)
+        ti, ci = ov.nonzero()
+        out_t.append(ti.astype("int32"))
+        out_c.append(ci.astype("int32"))
+        out_tr.append(np.full(ti.size, b, dtype="int32"))
+    cat = lambda xs: np.concatenate(xs) if xs else np.zeros(0, "int32")  # noqa: E731
+    np.savez(
+        out_path, n_trials=np.int32(n_tr), T=np.int32(T), n_i=np.int32(n_i),
+        i_trial=cat(out_tr), i_t=cat(out_t), i_cell=cat(out_c),
     )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 1.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-        readout_mode=cfg.get("readout_mode", "mem-mean"),
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-    return net, cfg, X_te, y_te
 
 
-# ─── I-stream override perturbation ─────────────────────────────────
+def _run_with_override(train_dir: Path, override_path: Path, tau_gaba=None) -> dict:
+    """Pass B via `sim --infer --i-override-file`; return metrics."""
+    out_dir = (ARTIFACTS / "ovrun" / f"{train_dir.name}__{override_path.stem}").resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+        "--load-config", str((train_dir / "config.json").resolve()),
+        "--load-weights", str((train_dir / "weights.pth").resolve()),
+        "--i-override-file", str(override_path), "--out-dir", str(out_dir),
+    ]
+    if tau_gaba is not None:
+        cmd += ["--tau-gaba", str(tau_gaba)]
+    subprocess.run(cmd, cwd=REPO, check=True)
+    return json.loads((out_dir / "metrics.json").read_text())
 
 
-def _make_i_override_fn(override: "object"):
-    """Return a per-step callback that substitutes s_i with override[t].
-
-    `override` is a (T, B, N_I) tensor — the I-spike stream to inject
-    on each timestep. Holds a closure-local step counter; caller must
-    call `.reset()` before each new forward pass.
-    """
-    state = {"step": 0}
-
-    def fn(s_e, s_i, _layer):
-        t = state["step"]
-        state["step"] = t + 1
-        if s_i is None:
-            return s_e, s_i
-        new_s_i = override[t].to(s_i.device, s_i.dtype)
-        return s_e, new_s_i
-
-    fn.reset = lambda: state.update(step=0)  # type: ignore[attr-defined]
-    return fn
+def _pack_metrics(m: dict, condition: str) -> dict:
+    """Shape a CLI metrics.json into nb042's per-condition row."""
+    rates = m.get("rates_hz", {})
+    hid = max((k for k in rates if k.startswith("hid")), default=None)
+    inh = max((k for k in rates if k.startswith("inh")), default=None)
+    return {
+        "condition": condition,
+        "acc": float(m["best_acc"]),
+        "e_rate_hz": float(rates.get(hid, 0.0)) if hid else 0.0,
+        "i_rate_hz": float(rates.get(inh, 0.0)) if inh else 0.0,
+        "n_total": int(m.get("n_total", 0)),
+    }
 
 
 def _build_override(
@@ -402,97 +424,91 @@ def _alpha_mix_i_stream(
 
 
 def evaluate_condition(
-    train_dir: Path, condition: str, device, seed_offset: int = 0
+    train_dir: Path, condition: str, seed_offset: int = 0, cycle_period_ms=None
 ) -> dict:
-    """Run the full test set under one condition; return acc/E rate/I rate."""
+    """Accuracy + E/I rate for one I-override condition, via the CLI.
+
+    Two passes: baseline (`--outputs rasters`, cached) supplies the I-stream, the
+    notebook builds the override with its pure transforms, then `--i-override-file`
+    replays it. baseline condition just reads the baseline metrics.
+    """
     import torch
-    from torch.utils.data import DataLoader, TensorDataset
+    cfg, _, _ = _load_eval(train_dir)
+    m0, R = _run_baseline(train_dir)
+    if condition == "baseline":
+        return _pack_metrics(m0, condition)
+    gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
+    ov_path = (
+        ARTIFACTS / "override" / f"{train_dir.name}_{condition}_{seed_offset}.npz"
+    ).resolve()
+    ov_path.parent.mkdir(parents=True, exist_ok=True)
+    _build_override_file(R, condition, gen, float(cfg["dt"]), ov_path, cycle_period_ms)
+    return _pack_metrics(_run_with_override(train_dir, ov_path), condition)
 
-    import models as M
-    from cli import EVAL_SEED, encode_batch
 
-    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
-        batch_size=64,
-    )
-    override_gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-
-    correct = total = 0
-    e_spike_sum = i_spike_sum = 0.0
-    n_e = M.N_HID
-    n_i = M.N_INH or 1
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-
-            if condition == "baseline":
-                logits = net(input_spikes=spk)
-            else:
-                # Pass A: capture baseline I-spike stream for this batch.
-                net._hidden_perturb_fn = None
-                _ = net(input_spikes=spk)
-                s_i_base = net.spike_record["inh"].detach().clone()
-                # Pass B: build override and replay.
-                override = _build_override(s_i_base, condition, override_gen,
-                                           dt_ms=float(M.dt))
-                fn = _make_i_override_fn(override)
-                fn.reset()
-                net._hidden_perturb_fn = fn
-                logits = net(input_spikes=spk)
-                net._hidden_perturb_fn = None
-
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            e_spike_sum += float(net.spike_record["hid"].sum().item())
-            i_spike_sum += float(net.spike_record["inh"].sum().item())
-
-    t_sec = float(cfg["t_ms"]) / 1000.0
-    return {
-        "condition": condition,
-        "acc": 100.0 * correct / total,
-        "e_rate_hz": e_spike_sum / (total * n_e * t_sec),
-        "i_rate_hz": i_spike_sum / (total * n_i * t_sec),
-        "n_total": total,
-    }
+def _snapshot(train_dir: Path, sample_idx: int, name: str, i_override=None):
+    """Single-trial snapshot via `sim --infer --sample-index N` (optional
+    --i-override-file); return the loaded snapshot.npz dict."""
+    out_dir = (ARTIFACTS / "condraster" / f"{train_dir.name}_{name}").resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+        "--load-config", str((train_dir / "config.json").resolve()),
+        "--load-weights", str((train_dir / "weights.pth").resolve()),
+        "--sample-index", str(sample_idx), "--out-dir", str(out_dir),
+    ]
+    if i_override is not None:
+        cmd += ["--i-override-file", str(i_override)]
+    else:
+        cmd += ["--outputs", "rasters"]  # baseline pass exposes the I-stream
+    subprocess.run(cmd, cwd=REPO, check=True)
+    return np.load(out_dir / "snapshot.npz")
 
 
 def capture_condition_raster(
-    train_dir: Path, condition: str, sample_idx: int, device,
-    seed_offset: int = 0,
+    train_dir: Path, condition: str, sample_idx: int,
+    seed_offset: int = 0, cycle_period_ms=None,
 ) -> dict:
-    """Single-trial raster under one condition. Same structure as eval."""
+    """Single-trial raster under one I-override condition, via the CLI snapshot.
+
+    Baseline snapshot supplies the trial's I-stream; the notebook builds the
+    override and a second snapshot replays it under --i-override-file.
+    """
     import torch
+    cfg = json.loads((train_dir / "config.json").read_text())
+    d0 = _snapshot(train_dir, sample_idx, f"base_s{sample_idx}")
 
-    import models as M
-    from cli import EVAL_SEED, encode_batch
+    if condition == "baseline":
+        d = d0
+    else:
+        s_i = d0["spk_i"]
+        if s_i.ndim == 3:
+            s_i = s_i[:, 0, :]
+        gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
+        kwargs = {"cycle_period_ms": cycle_period_ms} if cycle_period_ms else {}
+        ov = _build_override(
+            torch.from_numpy(s_i[:, None, :].astype(np.float32)),
+            condition, gen, dt_ms=float(cfg["dt"]), **kwargs,
+        ).detach().cpu().numpy()[:, 0, :]  # (T, n_i)
+        ti, ci = ov.nonzero()
+        ov_path = (
+            ARTIFACTS / "condraster" / f"{train_dir.name}_{condition}_s{sample_idx}_ov.npz"
+        ).resolve()
+        ov_path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez(
+            ov_path, n_trials=np.int32(1), T=np.int32(ov.shape[0]),
+            n_i=np.int32(ov.shape[1]),
+            i_trial=np.zeros(ti.size, "int32"),
+            i_t=ti.astype("int32"), i_cell=ci.astype("int32"),
+        )
+        d = _snapshot(train_dir, sample_idx, f"{condition}_s{sample_idx}", i_override=ov_path)
 
-    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-    X_b = torch.from_numpy(X_te[sample_idx : sample_idx + 1]).to(device)
-    y_b = int(y_te[sample_idx])
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    override_gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
-
-    with torch.no_grad():
-        spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-        if condition == "baseline":
-            _ = net(input_spikes=spk)
-        else:
-            net._hidden_perturb_fn = None
-            _ = net(input_spikes=spk)
-            s_i_base = net.spike_record["inh"].detach().clone()
-            override = _build_override(s_i_base, condition, override_gen,
-                                       dt_ms=float(M.dt))
-            fn = _make_i_override_fn(override)
-            fn.reset()
-            net._hidden_perturb_fn = fn
-            _ = net(input_spikes=spk)
-            net._hidden_perturb_fn = None
-
-    e_full = net.spike_record["hid"].cpu().numpy()
-    i_full = net.spike_record["inh"].cpu().numpy()
+    e_full, i_full = d["spk_e"], d["spk_i"]
+    if e_full.ndim == 3:
+        e_full = e_full[:, 0, :]
+    if i_full.ndim == 3:
+        i_full = i_full[:, 0, :]
+    y_b = int(d["label"])
     t_sec = float(cfg["t_ms"]) / 1000.0
     e_rate = float(e_full.sum() / (e_full.shape[1] * t_sec))
     i_rate = float(i_full.sum() / (i_full.shape[1] * t_sec))
@@ -1141,66 +1157,35 @@ def _xtau_load_nb041_f_gamma() -> dict[tuple[float, int], float]:
 
 def _xtau_evaluate_cell(
     train_dir: Path, sigma_ms: float, cycle_period_ms: float,
-    device, seed_offset: int = 0,
+    seed_offset: int = 0,
 ) -> dict:
-    """Per-cell inference under cycle-coherent jitter, with the cell's
-    own 1/f_γ as the binning period (the cross-cell parameter the
-    single-cell sweep lacked)."""
+    """Per-cell inference under cycle-coherent jitter (the cell's own 1/f_γ as the
+    binning period), via the CLI two-pass override under the cell's τ_GABA."""
     import torch
-    from torch.utils.data import DataLoader, TensorDataset
-
-    import models as M
-    from cli import EVAL_SEED, encode_batch
-
-    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
+    cfg = json.loads((train_dir / "config.json").read_text())
     tau_gaba_ms = float(cfg.get("tau_gaba_ms") or 9.0)
-    import models as M2
-    M2.tau_gaba = tau_gaba_ms
-    M2.decay_gaba = float(np.exp(-M2.dt / tau_gaba_ms))
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
-        batch_size=64,
-    )
-    override_gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-
-    correct = total = 0
-    e_spike_sum = i_spike_sum = 0.0
-    n_e = M.N_HID
-    n_i = M.N_INH or 1
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-            if sigma_ms <= 0.0:
-                logits = net(input_spikes=spk)
-            else:
-                net._hidden_perturb_fn = None
-                _ = net(input_spikes=spk)
-                s_i_base = net.spike_record["inh"].detach().clone()
-                cond = f"jitter_sigma_{sigma_ms:g}"
-                override = _build_override(
-                    s_i_base, cond, override_gen,
-                    dt_ms=float(M.dt), cycle_period_ms=cycle_period_ms,
-                )
-                fn = _make_i_override_fn(override)
-                fn.reset()
-                net._hidden_perturb_fn = fn
-                logits = net(input_spikes=spk)
-                net._hidden_perturb_fn = None
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            e_spike_sum += float(net.spike_record["hid"].sum().item())
-            i_spike_sum += float(net.spike_record["inh"].sum().item())
-    t_sec = float(cfg["t_ms"]) / 1000.0
+    m0, R = _run_baseline(train_dir, tau_gaba=tau_gaba_ms)
+    if sigma_ms <= 0.0:
+        p = _pack_metrics(m0, "baseline")
+    else:
+        gen = torch.Generator().manual_seed(EVAL_SEED + 17 + seed_offset)
+        cond = f"jitter_sigma_{sigma_ms:g}"
+        ov_path = (
+            ARTIFACTS / "override" / f"{train_dir.name}_{cond}_{seed_offset}.npz"
+        ).resolve()
+        ov_path.parent.mkdir(parents=True, exist_ok=True)
+        _build_override_file(
+            R, cond, gen, float(cfg["dt"]), ov_path, cycle_period_ms=cycle_period_ms,
+        )
+        p = _pack_metrics(_run_with_override(train_dir, ov_path, tau_gaba=tau_gaba_ms), cond)
     return {
         "tau_gaba_ms": tau_gaba_ms,
         "sigma_ms": float(sigma_ms),
         "cycle_period_ms": float(cycle_period_ms),
-        "acc": 100.0 * correct / total,
-        "e_rate_hz": e_spike_sum / (total * n_e * t_sec),
-        "i_rate_hz": i_spike_sum / (total * n_i * t_sec),
-        "n_total": total,
+        "acc": p["acc"],
+        "e_rate_hz": p["e_rate_hz"],
+        "i_rate_hz": p["i_rate_hz"],
+        "n_total": p["n_total"],
     }
 
 
@@ -1488,8 +1473,6 @@ def build_rhythm_compound(run_id: str = "replot") -> None:
     Sweep curves load from numbers.json; the two example rasters are cheap
     single-trial forward passes against the cached nb025 PING weights.
     """
-    from cli import _auto_device
-
     data = json.loads((FIGURES / "numbers.json").read_text())
     rows = data["results"]
     cyc_rows = data["jitter_sweep"]
@@ -1498,16 +1481,15 @@ def build_rhythm_compound(run_id: str = "replot") -> None:
         [r["e_rate_hz"] for r in rows if r["condition"] == "baseline"]
     ))
 
-    device = _auto_device()
     seed = int(data["config"]["seeds"][0])
     train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
     raster_cyc = capture_condition_raster(
-        train_dir, "jitter_sigma_100", RASTER_SAMPLE_IDX, device,
+        train_dir, "jitter_sigma_100", RASTER_SAMPLE_IDX,
         seed_offset=seed + 100,
     )
     raster_cyc["sigma_ms"] = 100.0
     raster_cell = capture_condition_raster(
-        train_dir, "cell_jitter_sigma_5", RASTER_SAMPLE_IDX, device,
+        train_dir, "cell_jitter_sigma_5", RASTER_SAMPLE_IDX,
         seed_offset=seed + int(5 * 13),
     )
     raster_cell["sigma_ms"] = 5.0
@@ -1553,11 +1535,6 @@ def main() -> None:
         SLUG, notebook_run_id, wipe=not args.no_wipe_dir, make_artifacts=True,
     )
 
-    from cli import _auto_device
-
-    device = _auto_device()
-    print(f"device = {device}")
-
     rows: list[dict] = []
     for seed in args.seeds:
         train_dir = NB035_ARTIFACTS / f"ping__off__seed{seed}"
@@ -1569,7 +1546,7 @@ def main() -> None:
         print(f"[eval] seed={seed} from {train_dir.relative_to(REPO)}")
         for cond in CONDITIONS:
             t0 = time.monotonic()
-            res = evaluate_condition(train_dir, cond, device, seed_offset=seed)
+            res = evaluate_condition(train_dir, cond, seed_offset=seed)
             res["seed"] = seed
             rows.append(res)
             print(
@@ -1586,7 +1563,7 @@ def main() -> None:
     )
     samples = [
         capture_condition_raster(
-            raster_train_dir, cond, RASTER_SAMPLE_IDX, device,
+            raster_train_dir, cond, RASTER_SAMPLE_IDX,
             seed_offset=args.seeds[0],
         )
         for cond in CONDITIONS
@@ -1608,7 +1585,7 @@ def main() -> None:
             cond = f"jitter_sigma_{sigma_ms:g}"
             t0 = time.monotonic()
             # Reuse evaluate_condition — it dispatches on the condition string.
-            res = evaluate_condition(train_dir, cond, device,
+            res = evaluate_condition(train_dir, cond,
                                      seed_offset=seed + int(sigma_ms))
             res["seed"] = seed
             res["sigma_ms"] = float(sigma_ms)
@@ -1647,7 +1624,7 @@ def main() -> None:
     for sigma_ms in JITTER_RASTER_SIGMAS_MS:
         cond = f"jitter_sigma_{sigma_ms:g}"
         sample = capture_condition_raster(
-            raster_train_dir, cond, RASTER_SAMPLE_IDX, device,
+            raster_train_dir, cond, RASTER_SAMPLE_IDX,
             seed_offset=raster_seed + int(sigma_ms),
         )
         sample["sigma_ms"] = float(sigma_ms)
@@ -1671,7 +1648,7 @@ def main() -> None:
         for sigma_ms in CELL_JITTER_SIGMAS_MS:
             cond = f"cell_jitter_sigma_{sigma_ms:g}"
             t0 = time.monotonic()
-            res = evaluate_condition(train_dir, cond, device,
+            res = evaluate_condition(train_dir, cond,
                                      seed_offset=seed + int(sigma_ms * 13))
             res["seed"] = seed
             res["sigma_ms"] = float(sigma_ms)
@@ -1700,7 +1677,7 @@ def main() -> None:
     for sigma_ms in CELL_JITTER_RASTER_SIGMAS_MS:
         cond = f"cell_jitter_sigma_{sigma_ms:g}"
         sample = capture_condition_raster(
-            raster_train_dir, cond, RASTER_SAMPLE_IDX, device,
+            raster_train_dir, cond, RASTER_SAMPLE_IDX,
             seed_offset=raster_seed + int(sigma_ms * 13),
         )
         sample["sigma_ms"] = float(sigma_ms)
@@ -1741,7 +1718,7 @@ def main() -> None:
             cond = f"alpha_mix_a{alpha:g}_k{k:g}"
             t0 = time.monotonic()
             res = evaluate_condition(
-                pareto_train_dir, cond, device,
+                pareto_train_dir, cond,
                 seed_offset=pareto_seed + int(alpha * 100) + int(k * 10),
             )
             res["seed"] = pareto_seed
@@ -1792,7 +1769,7 @@ def main() -> None:
                 for sigma in XTAU_SIGMAS_MS:
                     t0 = time.monotonic()
                     res = _xtau_evaluate_cell(
-                        train_dir, sigma, cycle_ms, device,
+                        train_dir, sigma, cycle_ms,
                         seed_offset=seed + int(sigma),
                     )
                     res["seed"] = seed
