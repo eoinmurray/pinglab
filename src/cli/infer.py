@@ -491,6 +491,8 @@ def probe(
     n_inh=None,
     ei_strength=1.0,
     ei_ratio=2.0,
+    w_ei_mean=None,
+    w_ie_mean=None,
     w_in=None,
     w_in_sparsity=0.0,
     dales_law=True,
@@ -536,12 +538,12 @@ def probe(
 
     device = _auto_device()
     n_inh_per_layer = {1: int(n_inh)} if n_inh is not None else None
-    net = build_net(
-        model_name,
+    # Independent recurrent means (w_ei_mean/w_ie_mean) override ei_strength/ei_ratio
+    # when given — needed for 2D (W_EI, W_IE) plane sweeps where either can be zero.
+    # std held at 10% of the mean, matching the notebook convention.
+    build_kwargs = dict(
         w_in=w_in,
         w_in_sparsity=w_in_sparsity,
-        ei_strength=ei_strength,
-        ei_ratio=ei_ratio,
         device=device,
         randomize_init=True,
         dales_law=dales_law,
@@ -549,6 +551,13 @@ def probe(
         ei_layers=ei_layers,
         n_inh_per_layer=n_inh_per_layer,
     )
+    if w_ei_mean is not None or w_ie_mean is not None:
+        build_kwargs["w_ei"] = (float(w_ei_mean or 0.0), float(w_ei_mean or 0.0) * 0.1)
+        build_kwargs["w_ie"] = (float(w_ie_mean or 0.0), float(w_ie_mean or 0.0) * 0.1)
+    else:
+        build_kwargs["ei_strength"] = ei_strength
+        build_kwargs["ei_ratio"] = ei_ratio
+    net = build_net(model_name, **build_kwargs)
     if private_w_in:
         # One input channel per E cell (identity W_in) — removes shared-input
         # coincidences so the measured rhythmicity is input-decorrelated.

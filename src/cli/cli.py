@@ -796,6 +796,11 @@ def _build_subparsers(parser, parent):
                               help="Inhibitory pool size (n_inh_per_layer for layer 1).")
     probe_parser.add_argument("--n-batch", type=int, default=64,
                               help="Number of Poisson-input trials (default: 64).")
+    probe_parser.add_argument("--w-ei-mean", type=float, default=None,
+                              help="Explicit W_ei mean (independent of --w-ie-mean; "
+                              "overrides ei-strength/ratio). std = 0.1·mean.")
+    probe_parser.add_argument("--w-ie-mean", type=float, default=None,
+                              help="Explicit W_ie mean (independent of --w-ei-mean).")
     probe_parser.add_argument("--private-w-in", action="store_true",
                               help="Identity W_in: one input channel per E cell.")
     probe_parser.add_argument("--load-config", type=str, default=None,
@@ -1316,6 +1321,8 @@ def _run_probe(args, C, out_dir, log):
         n_inh=getattr(args, "n_inh", None),
         ei_strength=args.ei_strength,
         ei_ratio=args.ei_ratio,
+        w_ei_mean=getattr(args, "w_ei_mean", None),
+        w_ie_mean=getattr(args, "w_ie_mean", None),
         w_in=_resolve_w_in(args),
         w_in_sparsity=args.w_in_sparsity or 0.0,
         dales_law=args.dales_law,
