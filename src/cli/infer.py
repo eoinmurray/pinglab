@@ -41,6 +41,7 @@ def infer(
     seed=None,
     emit_per_cell_rates=False,
     emit_pop_traces=False,
+    tau_gaba=None,
 ):
     """Run inference with saved weights at a given dt."""
 
@@ -51,10 +52,22 @@ def infer(
     # ─────────────────────────────────────────────────────────────────────────
     # M MODULE GLOBALS INITIALIZATION (same as in train.py)
     # ─────────────────────────────────────────────────────────────────────────
-    # Must initialize M globals before building/loading the network.
+    # Must initialize M globals before building/loading the network. forward()
+    # reads the module-level dt for its decay constants, so M.dt must be set to
+    # the requested dt here (otherwise the network runs at the default 0.25 ms).
     # ─────────────────────────────────────────────────────────────────────────
 
     M.T_ms = t_ms  # Total simulation time (ms)
+    M.dt = dt
+    M.T_steps = int(M.T_ms / dt)
+
+    # Optional τ_GABA override — replay a cell under its trained inhibitory decay.
+    # forward() recomputes decay_gaba from M.tau_gaba + M.dt each call, so setting
+    # M.tau_gaba is what drives the rhythm; M.decay_gaba is set too for direct reads.
+    if tau_gaba is not None:
+        import numpy as _np
+        M.tau_gaba = float(tau_gaba)
+        M.decay_gaba = float(_np.exp(-M.dt / float(tau_gaba)))
 
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
@@ -272,6 +285,7 @@ def infer_and_snapshot(
     digit=0,
     sample=0,
     sample_index=None,
+    tau_gaba=None,
 ):
     """Run inference on a single sample and save full spike trajectory to snapshot.npz.
 
@@ -285,8 +299,14 @@ def infer_and_snapshot(
     # Seed RNG for reproducibility of inference results
     seed_everything(seed)
 
-    # Initialize M module globals (same setup as infer() above)
+    # Initialize M module globals (same setup as infer() above). M.dt must be set
+    # so forward()'s decay constants use the requested dt, not the default 0.25.
     M.T_ms = t_ms
+    M.dt = dt
+    M.T_steps = int(M.T_ms / dt)
+    if tau_gaba is not None:
+        M.tau_gaba = float(tau_gaba)
+        M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]
