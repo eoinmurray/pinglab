@@ -44,6 +44,7 @@ def infer(
     scale_w_in=1.0,
     scale_w_ei=1.0,
     scale_w_ie=1.0,
+    skip_load=None,
 ):
     """Run inference with saved weights at a given dt.
 
@@ -126,9 +127,15 @@ def infer(
         ei_layers=ei_layers,
     )
 
-    # Load weights
+    # Load weights. skip_load drops matching state_dict keys (by prefix) so a
+    # freshly-initialised sub-block survives — e.g. transfer-loading W_ff/W_ee from
+    # a COBA checkpoint while keeping a fresh ei_strength I-loop (skip W_ei/W_ie).
     assert load_weights is not None
     state = torch.load(load_weights, map_location=device)
+    if skip_load:
+        state = {k: v for k, v in state.items()
+                 if not any(k.startswith(p) for p in skip_load)}
+        log.info(f"  skip-load: dropped keys matching {list(skip_load)}")
     net.load_state_dict(state, strict=False)
     log.info(f"  loaded {load_weights}")
 
@@ -378,6 +385,7 @@ def infer_and_snapshot(
     sample=0,
     sample_index=None,
     tau_gaba=None,
+    skip_load=None,
 ):
     """Run inference on a single sample and save full spike trajectory to snapshot.npz.
 
@@ -453,9 +461,12 @@ def infer_and_snapshot(
         ei_layers=ei_layers,
     )
 
-    # Load weights
+    # Load weights (skip_load drops matching keys by prefix — see infer()).
     assert load_weights is not None
     state = torch.load(load_weights, map_location=device)
+    if skip_load:
+        state = {k: v for k, v in state.items()
+                 if not any(k.startswith(p) for p in skip_load)}
     net.load_state_dict(state, strict=False)
 
     # Run forward pass with spike recording enabled

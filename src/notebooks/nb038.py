@@ -20,6 +20,7 @@ Notebook entry: src/docs/src/pages/notebooks/nb038.mdx
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -213,201 +214,76 @@ def _ei_sweep_dir() -> Path:
     return ARTIFACTS / "ei_sweep"
 
 
-def run_inproc_infer(
-    train_dir: Path, ei_strength: float, out_dir: Path
-) -> dict:
-    """Build a fresh ping net at the requested ei_strength, load only
-    W_ff and W_ee from the trained coba checkpoint (skip W_ei/W_ie so
-    the freshly-initialised I-loop survives), evaluate accuracy + mean
-    E firing rate on the canonical test split.
-
-    The CLI infer subcommand can't be used here because it always loads
-    the full state dict; the trained-coba checkpoint has W_ei = W_ie = 0
-    (init scaled by ei_strength=0, no gradient updates them) and loading
-    those would nullify the I-loop at any inference ei_strength.
+def run_inproc_infer(train_dir: Path, ei_strength: float, out_dir: Path) -> dict:
+    """Transfer-load W_ff/W_ee from the trained COBA checkpoint into a fresh ping
+    net at the requested ei_strength (skip W_ei/W_ie so the fresh I-loop survives),
+    evaluate accuracy + mean E/I rate. Runs `sim --infer --skip-load W_ei. W_ie.`.
     """
-    import torch
-
-    import models as M
-    from cli.config import build_net
-    from cli import (
-        EVAL_SEED,
-        _auto_device,
-        encode_batch,
-        load_dataset,
-        seed_everything,
-    )
-
-    cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-
-    device = _auto_device()
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
-    )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    from torch.utils.data import DataLoader, TensorDataset
-
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
-        batch_size=64,
-    )
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(ei_strength),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-        ei_layers=cfg.get("ei_layers"),
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    skipped = {k: v for k, v in state.items() if k.startswith(("W_ei.", "W_ie."))}
-    keep = {k: v for k, v in state.items() if k not in skipped}
-    missing, unexpected = net.load_state_dict(keep, strict=False)
-    print(
-        f"  [transfer-load] loaded {len(keep)} keys, skipped "
-        f"{sorted(skipped.keys())}; missing={list(missing)} "
-        f"unexpected={list(unexpected)}"
-    )
-
-    net.eval()
-    correct = total = 0
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    rate_sums: dict[str, float] = {}
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-            logits = net(input_spikes=spk)
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            batch_rates = getattr(net, "rates", None) or {}
-            B = y_b.size(0)
-            for k, v in batch_rates.items():
-                rate_sums[k] = rate_sums.get(k, 0.0) + float(v) * B
-
-    acc = 100.0 * correct / total
-    rates_hz = {k: v / total for k, v in rate_sums.items()} if total else {}
-    hid_key = next((k for k in rates_hz if k.startswith("hid")), None)
-    inh_key = next((k for k in rates_hz if k.startswith("inh")), None)
+    out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str((train_dir / "config.json").resolve()),
+            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--ei-strength", str(ei_strength),
+            "--skip-load", "W_ei.", "W_ie.",
+            "--out-dir", str(out_dir.resolve()),
+        ],
+        cwd=REPO,
+        check=True,
+    )
+    m = json.loads((out_dir / "metrics.json").read_text())
+    rates_hz = m.get("rates_hz", {})
+    hid = next((k for k in rates_hz if k.startswith("hid")), None)
+    inh = next((k for k in rates_hz if k.startswith("inh")), None)
     metrics = {
         "mode": "infer",
         "ei_strength": ei_strength,
-        "best_acc": acc,
-        "n_correct": correct,
-        "n_total": total,
+        "best_acc": float(m["best_acc"]),
+        "n_correct": int(m.get("n_correct", 0)),
+        "n_total": int(m.get("n_total", 0)),
         "rates_hz": rates_hz,
-        "hid_rate_hz": rates_hz.get(hid_key) if hid_key else None,
-        "inh_rate_hz": rates_hz.get(inh_key) if inh_key else None,
+        "hid_rate_hz": rates_hz.get(hid) if hid else None,
+        "inh_rate_hz": rates_hz.get(inh) if inh else None,
     }
-    (out_dir / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
-    print(
-        f"  ei={ei_strength:g}: acc={acc:.2f}%  "
-        f"hid={metrics['hid_rate_hz']:.1f}Hz  "
-        + (f"inh={metrics['inh_rate_hz']:.1f}Hz" if inh_key else "")
-    )
+    print(f"  ei={ei_strength:g}: acc={metrics['best_acc']:.2f}%  "
+          f"hid={metrics['hid_rate_hz']:.1f}Hz")
     return metrics
 
 
 def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> dict:
-    """Single-trial raster: build a fresh ping net at ei_strength, load
-    the same selective state dict as run_inproc_infer, record one
-    forward pass on a single test sample."""
-    import torch
-
-    import models as M
-    from cli.config import build_net
-    from cli import (
-        EVAL_SEED,
-        _auto_device,
-        encode_batch,
-        load_dataset,
-        seed_everything,
-    )
-
+    """Single-trial raster: fresh ping at ei_strength with W_ei/W_ie skipped on load
+    (same transfer-load as run_inproc_infer), via `sim --infer --skip-load ...
+    --sample-index`. Reads spk_e/spk_i + label from snapshot.npz."""
     cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-
-    device = _auto_device()
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
+    out_dir = (ARTIFACTS / "ei_raster" / f"ei{ei_strength:g}_s{sample_idx}").resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str((train_dir / "config.json").resolve()),
+            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--ei-strength", str(ei_strength),
+            "--skip-load", "W_ei.", "W_ie.",
+            "--sample-index", str(sample_idx),
+            "--out-dir", str(out_dir),
+        ],
+        cwd=REPO,
+        check=True,
     )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(ei_strength),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    keep = {k: v for k, v in state.items() if not k.startswith(("W_ei.", "W_ie."))}
-    net.load_state_dict(keep, strict=False)
-    net.eval()
-    net.recording = True
-
-    X_b = torch.from_numpy(X_te[sample_idx : sample_idx + 1]).to(device)
-    y_b = int(y_te[sample_idx])
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-        _ = net(input_spikes=spk)
-
-    e_full = net.spike_record["hid"].cpu().numpy()
-    i_full = net.spike_record["inh"].cpu().numpy()
+    d = np.load(out_dir / "snapshot.npz")
+    e_full, i_full = d["spk_e"], d["spk_i"]
+    if e_full.ndim == 3:
+        e_full = e_full[:, 0, :]
+    if i_full.ndim == 3:
+        i_full = i_full[:, 0, :]
     rng = np.random.default_rng(0)
     e_idx = np.sort(rng.choice(e_full.shape[1], EI_RASTER_N_E_PLOT, replace=False))
     i_idx = np.sort(rng.choice(i_full.shape[1], EI_RASTER_N_I_PLOT, replace=False))
     return {
         "ei_strength": float(ei_strength),
-        "label": y_b,
+        "label": int(d["label"]),
         "e": e_full[:, e_idx].astype(bool),
         "i": i_full[:, i_idx].astype(bool),
         "dt": float(cfg["dt"]),
@@ -416,76 +292,33 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
 
 
 def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> dict:
-    """Single-trial raster: load the trained ping baseline, override
-    M.max_rate_hz, run one forward pass on a single test sample."""
-    import torch
-
-    import models as M
-    from cli.config import build_net
-    from cli import (
-        EVAL_SEED,
-        _auto_device,
-        encode_batch,
-        load_dataset,
-        seed_everything,
-    )
-
+    """Single-trial raster of the trained ping baseline at a given input rate, via
+    `sim --infer --input-rate R --sample-index N` (input-rate sets M.max_rate_hz).
+    Reads spk_e/spk_i + label from snapshot.npz."""
     cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-    M.max_rate_hz = float(spike_rate)
-    M.p_scale = M.max_rate_hz * M.dt / 1000.0
-
-    device = _auto_device()
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
+    out_dir = (ARTIFACTS / "rate_raster" / f"r{spike_rate:g}_s{sample_idx}").resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str((train_dir / "config.json").resolve()),
+            "--load-weights", str((train_dir / "weights.pth").resolve()),
+            "--input-rate", str(spike_rate),
+            "--sample-index", str(sample_idx),
+            "--out-dir", str(out_dir),
+        ],
+        cwd=REPO,
+        check=True,
     )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 1.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-
-    X_b = torch.from_numpy(X_te[sample_idx : sample_idx + 1]).to(device)
-    y_b = int(y_te[sample_idx])
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-        _ = net(input_spikes=spk)
-
-    e_full = net.spike_record["hid"].cpu().numpy()
-    i_full = net.spike_record["inh"].cpu().numpy()
-    # Mean per-cell firing rate over the trial, in Hz, for E and I.
-    e_rate_hz = float(e_full.sum() / (e_full.shape[1] * cfg["t_ms"] / 1000.0))
-    i_rate_hz = float(i_full.sum() / (i_full.shape[1] * cfg["t_ms"] / 1000.0))
+    d = np.load(out_dir / "snapshot.npz")
+    e_full, i_full = d["spk_e"], d["spk_i"]
+    if e_full.ndim == 3:
+        e_full = e_full[:, 0, :]
+    if i_full.ndim == 3:
+        i_full = i_full[:, 0, :]
+    t_sec = float(cfg["t_ms"]) / 1000.0
+    e_rate_hz = float(e_full.sum() / (e_full.shape[1] * t_sec))
+    i_rate_hz = float(i_full.sum() / (i_full.shape[1] * t_sec)) if i_full.shape[1] else 0.0
     rng = np.random.default_rng(0)
     e_idx = np.sort(rng.choice(e_full.shape[1], EI_RASTER_N_E_PLOT, replace=False))
     i_idx = np.sort(rng.choice(i_full.shape[1], EI_RASTER_N_I_PLOT, replace=False))
@@ -493,7 +326,7 @@ def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> 
         "spike_rate": float(spike_rate),
         "e_rate_hz": e_rate_hz,
         "i_rate_hz": i_rate_hz,
-        "label": y_b,
+        "label": int(d["label"]),
         "e": e_full[:, e_idx].astype(bool),
         "i": i_full[:, i_idx].astype(bool),
         "dt": float(cfg["dt"]),
@@ -568,62 +401,43 @@ FI_UNIFORM_BATCH: int = 32  # batch of uniform-1 inputs per rate; average over.
 
 
 def run_fi_sweep_uniform(notebook_run_id: str, rates: list[float] | None = None) -> list[dict]:
-    """Population f-I curves on trained PING and COBA baselines (θ_u =
-    off, seed 42) with spatially uniform Poisson input — every input
-    channel firing at the same rate, no MNIST structure. For each rate
-    in `rates` (defaults to FI_UNIFORM_RATES_HZ), average per-cell E and
-    I firing rates over FI_UNIFORM_BATCH trials."""
-    import torch
-
-    import models as M
-    from cli import EVAL_SEED, _auto_device, encode_batch
-
+    """Population f-I curves on trained PING and COBA baselines with spatially
+    uniform Poisson input, via `cli.py probe --load-weights --input-rate R`. For
+    each rate, averages per-cell E/I firing over FI_UNIFORM_BATCH trials."""
     if rates is None:
         rates = FI_UNIFORM_RATES_HZ
-    device = _auto_device()
     rows: list[dict] = []
     for model in MODELS:
         train_dir = baseline_dir(model)
         if not (train_dir / "weights.pth").exists():
-            raise SystemExit(
-                f"f-I sweep needs trained {model} weights at {train_dir}"
+            print(f"  [fi-uniform] skip {model} (no weights)")
+            continue
+        for rate in rates:
+            out_dir = (ARTIFACTS / "fi_uniform" / f"{model}_r{rate:g}").resolve()
+            out_dir.mkdir(parents=True, exist_ok=True)
+            subprocess.run(
+                [
+                    "uv", "run", "python", str(OSCILLOSCOPE), "probe",
+                    "--load-config", str((train_dir / "config.json").resolve()),
+                    "--load-weights", str((train_dir / "weights.pth").resolve()),
+                    "--n-in", "784",
+                    "--input-rate", str(rate),
+                    "--n-batch", str(FI_UNIFORM_BATCH),
+                    "--out-dir", str(out_dir),
+                ],
+                cwd=REPO,
+                check=True,
             )
-        net, cfg, _X_te, _y_te = _load_trained_full(train_dir, device)
-        net.eval()
-        net.recording = True
-        n_e = M.N_HID
-        n_i = M.N_INH or 1
-        t_sec = float(cfg["t_ms"]) / 1000.0
-        x_uniform = torch.ones(FI_UNIFORM_BATCH, M.N_IN, device=device)
-        original_max_rate = M.max_rate_hz
-        try:
-            for rate in rates:
-                M.max_rate_hz = float(rate)
-                M.p_scale = M.max_rate_hz * M.dt / 1000.0
-                eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-                with torch.no_grad():
-                    spk = encode_batch(x_uniform, M.dt, False, generator=eval_gen)
-                    net(input_spikes=spk)
-                    e_spk_sum = float(net.spike_record["hid"].sum().item())
-                    i_spk_sum = float(net.spike_record["inh"].sum().item()) \
-                        if "inh" in net.spike_record else 0.0
-                e_rate = e_spk_sum / (FI_UNIFORM_BATCH * n_e * t_sec)
-                i_rate = i_spk_sum / (FI_UNIFORM_BATCH * n_i * t_sec) \
-                    if i_spk_sum else 0.0
-                rows.append({
-                    "model": model,
-                    "input_rate_hz": float(rate),
-                    "e_rate_hz": float(e_rate),
-                    "i_rate_hz": float(i_rate),
-                })
-        finally:
-            M.max_rate_hz = original_max_rate
-            M.p_scale = M.max_rate_hz * M.dt / 1000.0
-        print(
-            f"  {model:<5} {len(rates)} rates done; "
-            f"E range {min(r['e_rate_hz'] for r in rows if r['model']==model):.2f}–"
-            f"{max(r['e_rate_hz'] for r in rows if r['model']==model):.2f} Hz"
-        )
+            m = json.loads((out_dir / "metrics.json").read_text())
+            rows.append({
+                "model": model,
+                "input_rate_hz": float(rate),
+                "e_rate_hz": float(m["rate_e_hz"]),
+                "i_rate_hz": float(m["rate_i_hz"]),
+            })
+        e_all = [r["e_rate_hz"] for r in rows if r["model"] == model]
+        if e_all:
+            print(f"  {model:<5} {len(rates)} rates; E range {min(e_all):.2f}-{max(e_all):.2f} Hz")
     return rows
 
 
@@ -898,56 +712,6 @@ def run_ei_sweep(notebook_run_id: str) -> list[dict]:
 TAU_GABA_VALUES: list[float] = [4.5, 6.0, 9.0, 12.0, 18.0, 27.0]  # ms; default 9.0
 
 
-def _load_trained_full(train_dir: Path, device):
-    """Load full state from a trained run (incl. W_ei/W_ie). Returns
-    (net, cfg, X_te, y_te) ready for forward passes."""
-    import torch
-
-    import models as M
-    from cli.config import build_net
-    from cli import load_dataset, seed_everything
-
-    cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
-    )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 1.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-    return net, cfg, X_te, y_te
 
 
 def _despine(ax):
