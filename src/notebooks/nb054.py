@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -37,21 +38,15 @@ from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
-import torch  # noqa: E402
 from helpers import theme  # noqa: E402
-from cli import config as C  # noqa: E402
-from cli.config import make_net, _extract_records  # noqa: E402
-from cli.scan import primary_hid_key, primary_inh_key  # noqa: E402
-
-# The networks read globals (N_IN, T_steps, dt…) from the `models` module that
-# `config` imports — reach it via C.M so we mutate the same object build_net does.
-M = C.M
-from cli.metrics import (  # noqa: E402
+from helpers.rhythmicity import (  # noqa: E402
     iei_histogram,
     population_event_times,
     rhythmicity_scalars,
     spike_autocorrelogram,
 )
+
+OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
 
 SLUG = "nb054"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -105,41 +100,53 @@ TIER_CONFIG = {
 DEFAULT_TIER = "medium"
 
 
-def poisson_input(dt, sim_ms, n_channels, rate_hz):
-    """[T, n_channels] tensor: constant homogeneous Poisson input, each channel
-    independent at rate_hz. M.T_steps is set from sim_ms and M.dt, and M.N_IN is
-    set so the network's W_in matches the channel count."""
-    M.N_IN = n_channels
-    M.T_ms = sim_ms
-    C.cfg.sim_ms = sim_ms
-    M.dt = dt
-    M.T_steps = int(M.T_ms / M.dt)
-    rng = np.random.default_rng(0)
-    inp = (rng.random((M.T_steps, n_channels)) < rate_hz * dt / 1000.0).astype(np.float32)
-    return torch.tensor(inp, device=C.cfg.torch_device)
+def ping_spikes(wei, wie, rate_hz, sim_ms, dt, private=True):
+    """Build an untrained PING (W_EI mean wei, W_IE mean wie) via the CLI probe,
+    drive it with uniform Poisson at rate_hz for one long trial, and return
+    (E raster, I raster) past the burn-in.
 
-
-def ping_spikes(wei, wie, input_spikes, dt, private=True):
-    """Build a PING net (W_EI mean wei, W_IE mean wie), drive it with input_spikes,
-    return (E raster, I raster) past the burn-in. private=True wires each E cell to
-    its own input channel (identity W_in); private=False uses the sparse shared W_in."""
-    C.cfg.n_e = NET_N_E
-    C.cfg.w_ei = (wei, wei * 0.1)
-    C.cfg.w_ie = (wie, wie * 0.1)
+    private=True wires each E cell to its own input channel (identity W_in);
+    private=False uses the sparse shared W_in. Network build + forward run in the
+    CLI; the notebook reconstructs the single-trial raster from rasters.npz.
+    """
+    n_ch = NET_N_E if private else SHARED_N_IN
+    tag = f"{'priv' if private else 'shared'}_wei{wei:g}_wie{wie:g}_r{rate_hz:g}_T{sim_ms:g}"
+    out_dir = (ARTIFACTS / "probe" / tag).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "uv", "run", "python", str(OSCILLOSCOPE), "probe",
+        "--model", "ping",
+        "--n-hidden", str(NET_N_E),
+        "--n-inh", str(NET_N_E),  # equal-fan-in: n_i = n_e
+        "--n-in", str(n_ch),
+        "--w-ei-mean", str(wei),
+        "--w-ie-mean", str(wie),
+        "--input-rate", str(rate_hz),
+        "--n-batch", "1",
+        "--t-ms", str(sim_ms),
+        "--dt", str(dt),
+        "--seed", "42",
+        "--outputs", "rasters",
+        "--out-dir", str(out_dir),
+    ]
     if private:
-        net = make_net(C.cfg, w_in=(PRIVATE_W_IN, 0.0, "normal", 0.0))
-        with torch.no_grad():  # one channel → one E cell, no sharing
-            net.W_ff[0].copy_(torch.eye(NET_N_E, device=net.W_ff[0].device) * PRIVATE_W_IN)
+        cmd += ["--private-w-in", "--w-in", str(PRIVATE_W_IN)]
     else:
-        net = make_net(C.cfg, w_in=(SHARED_W_IN, SHARED_W_IN * 0.2, "normal", SHARED_W_IN_SP))
-    net.recording = True
-    with torch.no_grad():
-        net.forward(input_spikes=input_spikes)
-    rec = _extract_records(net)
+        cmd += ["--w-in", str(SHARED_W_IN), "--w-in-sparsity", str(SHARED_W_IN_SP)]
+    subprocess.run(cmd, cwd=REPO, check=True)
+
+    R = np.load(out_dir / "rasters.npz")
+    T, n_e, n_i = int(R["T"]), int(R["n_e"]), int(R["n_i"])
+
+    def _dense(prefix, N):
+        m = R[f"{prefix}_trial"] == 0
+        d = np.zeros((T, N), dtype=np.int8)
+        d[R[f"{prefix}_t"][m], R[f"{prefix}_cell"][m]] = 1
+        return d
+
     b = int(NET_BURN_MS / dt)
-    spk = np.asarray(rec[primary_hid_key(rec)]).squeeze()[b:]
-    ik = primary_inh_key(rec)
-    spk_i = np.asarray(rec[ik]).squeeze()[b:] if ik else None
+    spk = _dense("e", n_e)[b:]
+    spk_i = _dense("i", n_i)[b:] if n_i > 0 else None
     return spk, spk_i
 
 
@@ -157,10 +164,10 @@ def _score(spk, dt):
     )
 
 
-def run_grid_point(wei, wie, input_spikes, dt=DT_MS):
+def run_grid_point(wei, wie, rate_hz, sim_ms, dt=DT_MS):
     """One (W_EI mean, W_IE mean) cell with private input: contrast + E/I rates,
     autocorrelogram, and a small raster for display."""
-    spk, spk_i = ping_spikes(wei, wie, input_spikes, dt, private=True)
+    spk, spk_i = ping_spikes(wei, wie, rate_hz, sim_ms, dt, private=True)
     s = _score(spk, dt)
     rate_i = (float(spk_i.sum() / (spk_i.shape[1] * spk_i.shape[0] * dt / 1000.0))
               if spk_i is not None else np.nan)
@@ -174,9 +181,9 @@ def run_grid_point(wei, wie, input_spikes, dt=DT_MS):
     )
 
 
-def run_grid(input_spikes):
+def run_grid(rate_hz, sim_ms):
     """grid[wie_idx][wei_idx] over WIE_MEAN_GRID × WEI_MEAN_GRID (wie_idx 0 = lowest)."""
-    return [[run_grid_point(wei, wie, input_spikes) for wei in WEI_MEAN_GRID]
+    return [[run_grid_point(wei, wie, rate_hz, sim_ms) for wei in WEI_MEAN_GRID]
             for wie in WIE_MEAN_GRID]
 
 
@@ -184,11 +191,9 @@ def null_scan(sim_ms, private):
     """Scan input rate on a NULL network (W_EI = W_IE = 0, no rhythm at any drive),
     private or shared input. Returns per-rate records sorted by E rate."""
     inputs = PRIVATE_NULL_INPUT_HZ if private else SHARED_NULL_INPUT_HZ
-    n_ch = NET_N_E if private else SHARED_N_IN
     recs = []
     for r in inputs:
-        inp = poisson_input(DT_MS, sim_ms, n_ch, r)
-        spk, _ = ping_spikes(0.0, 0.0, inp, DT_MS, private=private)
+        spk, _ = ping_spikes(0.0, 0.0, r, sim_ms, DT_MS, private=private)
         recs.append(_score(spk, DT_MS))
     recs.sort(key=lambda d: d["rate"])
     return recs
@@ -661,8 +666,7 @@ def main():
     n_nets = len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID)
     print(f"nb054 | tier={tier} | {n_nets} untrained PING networks, private "
           f"{NET_INPUT_RATE:.0f} Hz per-cell Poisson input, sim {sim_ms:.0f} ms (compiles per net)…")
-    priv_input = poisson_input(DT_MS, sim_ms, NET_N_E, NET_INPUT_RATE)
-    grid = run_grid(priv_input)
+    grid = run_grid(NET_INPUT_RATE, sim_ms)
     fig_turnon_maps_compound(grid, FIGURES / "turnon_maps_compound.png")
     fig_turnon_compound(grid, FIGURES / "turnon_compound.png")
     fig_grid_maps_compound(grid, FIGURES / "grid_maps.png")
