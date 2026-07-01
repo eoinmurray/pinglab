@@ -362,9 +362,10 @@ def infer_and_snapshot(
     out_path = Path(out_dir) / "snapshot.npz"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Save snapshot with canonical field names and metadata
+    # Save snapshot with canonical field names and metadata (including the sample's
+    # true class label, for rasters that annotate the digit).
     # (Uses shared utility to ensure all snapshot fields are consistent across code paths)
-    save_snapshot_npz(out_path, rec, dt, M.N_HID, M.N_INH)
+    save_snapshot_npz(out_path, rec, dt, M.N_HID, M.N_INH, label=int(y_single.item()))
 
     return {"acc": None}
 
