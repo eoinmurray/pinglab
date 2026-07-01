@@ -222,54 +222,36 @@ def _load_trained_full(train_dir: Path, device):
 F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
 
 
-def load_init_and_trained_weights(train_dir: Path, device):
-    """Return (W_ei_init, W_ei_trained, W_ie_init, W_ie_trained) as CPU tensors.
+def load_init_and_trained_weights(train_dir: Path):
+    """Return (W_ei_init, W_ei_trained, W_ie_init, W_ie_trained) as numpy arrays.
 
-    Re-runs build_net under the cell's seed to recover the deterministic
-    init weights, then loads the saved state_dict for the trained weights.
+    Shells out to the CLI's dump-weights mode, which rebuilds the net under the
+    cell's seed to recover the deterministic init weights and reads the trained
+    values from the saved state_dict, then loads the emitted weights_dump.npz.
+    Network construction stays inside the CLI — the notebook only runs it.
     """
-    import torch
-
-    import models as M
-    from cli.config import build_net
-    from cli import seed_everything
-
-    cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", 42)))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2 else None
+    # Resolve to absolute paths: the subprocess runs with cwd=REPO, so any
+    # relative train_dir would otherwise be interpreted against the wrong root.
+    train_dir = train_dir.resolve()
+    out_dir = (ARTIFACTS / "weights_dump" / train_dir.name).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "dump-weights",
+            "--load-config", str(train_dir / "config.json"),
+            "--load-weights", str(train_dir / "weights.pth"),
+            "--out-dir", str(out_dir),
+        ],
+        cwd=REPO,
+        check=True,
     )
-    net_init = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 0.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-        readout_mode=cfg.get("readout_mode", "mem-mean"),
-        trainable_w_ei=bool(cfg.get("trainable_w_ei", False)),
-        trainable_w_ie=bool(cfg.get("trainable_w_ie", False)),
+    d = np.load(out_dir / "weights_dump.npz")
+    return (
+        d["W_ei_1_init"],
+        d["W_ei_1_trained"],
+        d["W_ie_1_init"],
+        d["W_ie_1_trained"],
     )
-    w_ei_init = net_init.W_ei["1"].detach().cpu().numpy()
-    w_ie_init = net_init.W_ie["1"].detach().cpu().numpy()
-    state = torch.load(train_dir / "weights.pth", map_location="cpu")
-    w_ei_trained = state["W_ei.1"].numpy()
-    w_ie_trained = state["W_ie.1"].numpy()
-    return w_ei_init, w_ei_trained, w_ie_init, w_ie_trained
 
 
 def plot_weight_matrices(
@@ -295,7 +277,7 @@ def plot_weight_matrices(
     ei_init_chunks, ei_trained_chunks = [], []
     ie_init_chunks, ie_trained_chunks = [], []
     for seed in seeds_sorted:
-        a, b, c, d = load_init_and_trained_weights(seed_to_dir[seed], device)
+        a, b, c, d = load_init_and_trained_weights(seed_to_dir[seed])
         ei_init_chunks.append(a)
         ei_trained_chunks.append(b)
         ie_init_chunks.append(c)
