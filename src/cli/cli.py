@@ -79,7 +79,7 @@ from train import (  # noqa: E402,F401
 # CLI
 # =============================================================================
 
-from infer import infer, infer_and_snapshot  # noqa: E402
+from infer import infer, infer_and_snapshot, dump_weights  # noqa: E402
 
 log = logging.getLogger("cli")
 
@@ -711,7 +711,38 @@ def _build_subparsers(parser, parent):
         default=None,
         help="Path to a weights.pth file for inference.",
     )
+    sim_parser.add_argument(
+        "--emit-per-cell-rates",
+        action="store_true",
+        help="[--infer] Also write per_cell_rates.npz with per-cell E/I firing "
+        "rates (Hz) over the test set.",
+    )
 
+    # -- dump-weights subcommand (init + trained weight matrices, no forward) --
+    dump_parser = subparsers.add_parser(
+        "dump-weights",
+        parents=[parent],
+        help="Emit init + trained E-I weight matrices to weights_dump.npz",
+        description="Rebuild the net under its training seed to recover the "
+        "deterministic init weights, read trained weights from the state_dict, "
+        "and write both to weights_dump.npz for notebook analysis.",
+        epilog="Example:\n"
+        "  cli.py dump-weights --load-config run/config.json "
+        "--load-weights run/weights.pth --out-dir analysis/",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    dump_parser.add_argument(
+        "--load-config",
+        type=str,
+        default=None,
+        help="Load config from a training run's config.json. CLI flags override.",
+    )
+    dump_parser.add_argument(
+        "--load-weights",
+        type=str,
+        default=None,
+        help="Path to the trained weights.pth whose values to dump.",
+    )
 
     # -- train subcommand --
     train_parser = subparsers.add_parser(
@@ -873,7 +904,7 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         sys.exit(0)
 
     # --load-config: load training params from config.json, fill unset values
-    if args.mode == "sim" and getattr(args, "load_config", None):
+    if args.mode in ("sim", "dump-weights") and getattr(args, "load_config", None):
         config_to_args, dest_to_flag = _build_config_mapping(parent)
         _apply_load_config(args, argv, config_to_args, dest_to_flag)
     if getattr(args, "infer", False) and not getattr(args, "load_weights", None):
@@ -1168,12 +1199,43 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         dales_law=args.dales_law,
         ei_layers=args.ei_layers,
         seed=args.seed,
+        emit_per_cell_rates=getattr(args, "emit_per_cell_rates", False),
     )["acc"]
+
+
+def _run_dump_weights(args, C, out_dir, log):
+    """Emit init + trained weight matrices to weights_dump.npz (no forward pass).
+
+    Mirrors _emit_infer's arg → function mapping so --load-config populates the
+    same fields. Used by notebooks that compare initialisation vs trained
+    anatomical weights without importing build_net.
+    """
+    w_in = _resolve_w_in(args)
+    dump_weights(
+        dt=args.dt,
+        out_dir=str(out_dir),
+        model_name=args.model,
+        load_weights=args.load_weights,
+        dataset=args.dataset,
+        t_ms=args.t_ms,
+        w_in=w_in,
+        ei_strength=args.ei_strength,
+        ei_ratio=args.ei_ratio,
+        w_in_sparsity=args.w_in_sparsity or 0.0,
+        hidden_sizes=args.n_hidden,
+        dales_law=args.dales_law,
+        ei_layers=args.ei_layers,
+        seed=args.seed,
+        readout_mode=getattr(args, "readout_mode", "rate"),
+        trainable_w_ei=getattr(args, "trainable_w_ei", False),
+        trainable_w_ie=getattr(args, "trainable_w_ie", False),
+    )
 
 
 _MODE_HANDLERS = {
     "sim": _run_sim,
     "train": _run_train,
+    "dump-weights": _run_dump_weights,
 }
 
 

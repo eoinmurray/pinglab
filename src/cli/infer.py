@@ -16,7 +16,7 @@ import models as M
 from config import build_net, setup_model_globals, save_snapshot_npz
 from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
 from encoders import EVAL_SEED, encode_batch
-from scan import _auto_device
+from scan import _auto_device, primary_hid_key, primary_inh_key
 from train import seed_everything
 
 log = logging.getLogger("cli")
@@ -39,6 +39,7 @@ def infer(
     encode_fn=None,
     ei_layers=None,
     seed=None,
+    emit_per_cell_rates=False,
 ):
     """Run inference with saved weights at a given dt."""
 
@@ -115,6 +116,28 @@ def infer(
     # batch size. net.rates is set by _set_meta after each forward as Hz
     # per population averaged over the batch.
     rate_sums: dict[str, float] = {}
+
+    # E1: per-cell rate emission. When requested, turn on spike recording and
+    # accumulate per-cell spike counts (summed over time and batch) for the
+    # primary E and I layers. Notebooks that need the per-cell rate distribution
+    # (rather than the population mean) consume per_cell_rates.npz instead of
+    # rebuilding the net in-process. Recording is off by default so the common
+    # accuracy-only path stays cheap.
+    if emit_per_cell_rates:
+        net.recording = True
+    per_cell_e = None  # running (N_E,) spike-count sum across the test set
+    per_cell_i = None  # running (N_I,) spike-count sum across the test set
+
+    def _accum_per_cell(rec, key, acc):
+        """Sum a recorded raster over time (and batch) to per-cell counts."""
+        r = rec.get(key) if key else None
+        if r is None:
+            return acc
+        # (T, B, N) → sum over T and B; (T, N) at B=1 → sum over T.
+        cnt = r.sum(dim=(0, 1)) if r.ndim == 3 else r.sum(dim=0)
+        cnt = cnt.detach().cpu().numpy()
+        return cnt if acc is None else acc + cnt
+
     with torch.no_grad():
         for X_b, y_b in test_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
@@ -126,6 +149,10 @@ def infer(
             B = y_b.size(0)
             for k, v in batch_rates.items():
                 rate_sums[k] = rate_sums.get(k, 0.0) + float(v) * B
+            if emit_per_cell_rates:
+                rec = net.spike_record
+                per_cell_e = _accum_per_cell(rec, primary_hid_key(rec), per_cell_e)
+                per_cell_i = _accum_per_cell(rec, primary_inh_key(rec), per_cell_i)
 
     acc = 100.0 * correct / total
     rates_hz = {k: v / total for k, v in rate_sums.items()} if total else {}
@@ -167,6 +194,22 @@ def infer(
             json.dump(metrics_blob, f, indent=2, default=float)
         log.info(f"  → {out_dir_path / 'metrics.json'}")
 
+    # E1: write per-cell rate arrays if requested. rate = total spikes per cell
+    # over the test set / (n_trials × physical trial time in seconds) → Hz.
+    if emit_per_cell_rates and out_dir_path and out_dir_path.exists():
+        import numpy as np
+
+        t_sec = float(M.T_ms) / 1000.0
+        denom = total * t_sec if total else 1.0
+        dump = {}
+        if per_cell_e is not None:
+            dump["rate_e_per_cell"] = (per_cell_e / denom).astype(np.float32)
+        if per_cell_i is not None:
+            dump["rate_i_per_cell"] = (per_cell_i / denom).astype(np.float32)
+        out_npz = out_dir_path / "per_cell_rates.npz"
+        np.savez(out_npz, **dump)
+        log.info(f"  → {out_npz}  ({len(dump)} arrays)")
+
     return {"acc": acc, "rates_hz": rates_hz, "hid_rate_hz": hid_rate_hz}
 
 
@@ -190,7 +233,6 @@ def infer_and_snapshot(
 ):
     """Run inference on a single sample and save full spike trajectory to snapshot.npz."""
     import numpy as np
-    from scan import primary_hid_key, primary_inh_key
 
     # Seed RNG for reproducibility of inference results
     seed_everything(seed)
@@ -273,4 +315,102 @@ def infer_and_snapshot(
     save_snapshot_npz(out_path, rec, dt, M.N_HID, M.N_INH)
 
     return {"acc": None}
+
+
+def dump_weights(
+    model_name="ping",
+    dt=0.25,
+    load_weights=None,
+    dataset="scikit",
+    t_ms=200.0,
+    w_in=None,
+    ei_strength=0.5,
+    ei_ratio=2.0,
+    w_in_sparsity=0.0,
+    hidden_sizes=None,
+    out_dir=None,
+    dales_law=True,
+    ei_layers=None,
+    seed=None,
+    readout_mode="rate",
+    trainable_w_ei=False,
+    trainable_w_ie=False,
+    kaiming_init=False,
+):
+    """Emit initialisation and trained weight matrices to weights_dump.npz.
+
+    Rebuilds the network under its training seed to recover the deterministic
+    INIT weights (build_net with randomize_init is seed-reproducible), then reads
+    the trained values straight out of the saved state_dict. Lets notebooks
+    compare init-vs-trained anatomical weights without importing build_net.
+
+    For every fixed E-I weight matrix (W_ei, W_ie, W_ee, W_ii) and layer key k,
+    emits two arrays: <name>_<k>_init and <name>_<k>_trained. E.g. a single
+    E-I-layer PING gives W_ei_1_init, W_ei_1_trained, W_ie_1_init, W_ie_1_trained.
+
+    Args mirror infer() so the CLI maps --load-config → this the same way.
+    """
+    import numpy as np
+
+    # Seed BEFORE build_net so the randomized init is byte-identical to training's
+    # init (this is the whole point — reproduce the pre-training weights).
+    seed_everything(seed)
+
+    M.T_ms = t_ms
+    M.dt = dt
+    M.T_steps = int(M.T_ms / M.dt)
+    if hidden_sizes is None:
+        default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
+        hidden_sizes = [default]
+    setup_model_globals(hidden_sizes)
+    if dataset in ("mnist", "smnist"):
+        M.N_IN = 28 if dataset == "smnist" else 784
+    else:
+        M.N_IN = 64
+
+    device = _auto_device()
+    net = build_net(
+        model_name,
+        w_in=w_in,
+        w_in_sparsity=w_in_sparsity,
+        ei_strength=ei_strength,
+        ei_ratio=ei_ratio,
+        device=device,
+        # kaiming cells are already heterogeneous; everything else needs the
+        # seeded symmetry-break, exactly as train/infer do.
+        randomize_init=not kaiming_init,
+        dales_law=dales_law,
+        hidden_sizes=hidden_sizes,
+        ei_layers=ei_layers,
+        readout_mode=readout_mode,
+        trainable_w_ei=trainable_w_ei,
+        trainable_w_ie=trainable_w_ie,
+    )
+
+    _WEIGHT_DICTS = ("W_ei", "W_ie", "W_ee", "W_ii")
+
+    # INIT weights: read straight off the freshly built (untrained) net.
+    dump: dict[str, "np.ndarray"] = {}
+    for name in _WEIGHT_DICTS:
+        pdict = getattr(net, name, None)
+        if pdict is None:
+            continue
+        for k, w in pdict.items():
+            dump[f"{name}_{k}_init"] = w.detach().cpu().numpy()
+
+    # TRAINED weights: pulled from the saved state_dict (keys look like "W_ei.1").
+    assert load_weights is not None, "dump_weights requires --load-weights"
+    state = torch.load(load_weights, map_location="cpu")
+    for sk, sv in state.items():
+        name, _, key = sk.partition(".")
+        if name in _WEIGHT_DICTS and key:
+            arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
+            dump[f"{name}_{key}_trained"] = arr
+
+    out_path = Path(out_dir) / "weights_dump.npz"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(out_path, **dump)
+    log.info(f"  → {out_path}  ({len(dump)} arrays)")
+
+    return {"n_arrays": len(dump), "path": str(out_path)}
 
