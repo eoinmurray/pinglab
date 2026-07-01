@@ -753,6 +753,12 @@ def _build_subparsers(parser, parent):
         "two values (E Hz, I Hz) for add_split.",
     )
     sim_parser.add_argument(
+        "--i-override-file", type=str, default=None,
+        help="[--infer] NPZ with a sparse per-trial I-spike stream "
+        "(i_trial/i_t/i_cell + n_trials/T/n_i) to substitute for the inhibitory "
+        "spikes each timestep — generic injection dual of --outputs rasters.",
+    )
+    sim_parser.add_argument(
         "--scale-w-in", type=float, default=1.0,
         help="[--infer] Multiply loaded input weights (W_ff[0]) before the forward pass.",
     )
@@ -1309,6 +1315,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         skip_load=getattr(args, "skip_load", None),
         perturb_mode=_pmode,
         perturb_level=_plevel,
+        i_override_file=getattr(args, "i_override_file", None),
     )["acc"]
 
 

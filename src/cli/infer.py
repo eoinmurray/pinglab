@@ -90,6 +90,7 @@ def infer(
     skip_load=None,
     perturb_mode=None,
     perturb_level=None,
+    i_override_file=None,
 ):
     """Run inference with saved weights at a given dt.
 
@@ -282,11 +283,53 @@ def infer(
         else:
             rows.append(r.mean(dim=1).detach().cpu().numpy().astype("float32"))
 
+    # I-spike override: substitute the inhibitory spikes each timestep with a
+    # pre-built per-trial stream (loaded from a sparse NPZ — the generic dual of
+    # --outputs rasters). The notebook builds the override (jitter/shuffle/etc.)
+    # from a baseline pass; the CLI just injects it. Per batch we reconstruct the
+    # dense (B, T, N_I) slice for that batch's trials and install a stateful hook.
+    _iov = None
+    if i_override_file is not None:
+        import numpy as _np
+        z = _np.load(i_override_file)
+        _iov = {
+            "T": int(z["T"]), "n_i": int(z["n_i"]), "n_trials": int(z["n_trials"]),
+        }
+        _tr = z["i_trial"]
+        _ord = _np.argsort(_tr, kind="stable")
+        _iov["tr"] = _tr[_ord]
+        _iov["t"] = z["i_t"][_ord]
+        _iov["c"] = z["i_cell"][_ord]
+        _iov["bounds"] = _np.searchsorted(_iov["tr"], _np.arange(_iov["n_trials"] + 1))
+        _iov["g"] = 0  # running global trial offset
+        net.recording = True  # override needs the I-population to exist in the step
+        log.info(f"  i-override: {i_override_file} ({_iov['n_trials']} trials)")
+
     ce_sum = 0.0  # cross-entropy summed over samples → mean loss (a standard eval metric)
     with torch.no_grad():
         for X_b, y_b in test_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
             spk = _encode(X_b, dt, use_smnist, generator=eval_gen)
+            if _iov is not None:
+                import numpy as _np
+                Bc = y_b.size(0)
+                ov = _np.zeros((Bc, _iov["T"], _iov["n_i"]), dtype="float32")
+                for j in range(Bc):
+                    tr = _iov["g"] + j
+                    lo, hi = _iov["bounds"][tr], _iov["bounds"][tr + 1]
+                    ov[j, _iov["t"][lo:hi], _iov["c"][lo:hi]] = 1.0
+                _ov_t = torch.from_numpy(ov).to(device)  # (B, T, N_I)
+                _st = {"step": 0}
+
+                def _ov_fn(s_e, s_i, _layer, _ov=_ov_t, _st=_st):
+                    t = _st["step"]
+                    _st["step"] = t + 1
+                    if s_i is None:
+                        return s_e, s_i
+                    return s_e, _ov[:, t, :]
+
+                net._hidden_perturb_fn = _ov_fn
+                _iov["g"] += Bc
             logits = net(input_spikes=spk)
             ce_sum += float(F.cross_entropy(logits, y_b, reduction="sum").item())
             correct += (logits.argmax(1) == y_b).sum().item()
