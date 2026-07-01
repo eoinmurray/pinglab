@@ -42,6 +42,9 @@ def infer(
     emit_per_cell_rates=False,
     emit_pop_traces=False,
     tau_gaba=None,
+    scale_w_in=1.0,
+    scale_w_ei=1.0,
+    scale_w_ie=1.0,
 ):
     """Run inference with saved weights at a given dt."""
 
@@ -120,7 +123,22 @@ def infer(
     net.load_state_dict(state, strict=False)
     log.info(f"  loaded {load_weights}")
 
+    # Inference-time weight scaling. Multiply the loaded matrices in place before
+    # the forward pass — used by coupling / W_in sweeps that probe how accuracy,
+    # rate and loss respond to scaled recurrent or input weights without retraining.
+    if scale_w_in != 1.0:
+        net.W_ff[0].data.mul_(float(scale_w_in))
+    if scale_w_ei != 1.0:
+        for _k in net.W_ei:
+            net.W_ei[_k].data.mul_(float(scale_w_ei))
+    if scale_w_ie != 1.0:
+        for _k in net.W_ie:
+            net.W_ie[_k].data.mul_(float(scale_w_ie))
+    if (scale_w_in, scale_w_ei, scale_w_ie) != (1.0, 1.0, 1.0):
+        log.info(f"  scaled weights: W_in×{scale_w_in} W_ei×{scale_w_ei} W_ie×{scale_w_ie}")
+
     # Evaluate — pre-encode pixels as Poisson spikes (same path as train)
+    import torch.nn.functional as F
     use_smnist = dataset == "smnist"
     _encode = encode_fn if encode_fn is not None else encode_batch
     net.eval()
@@ -172,11 +190,13 @@ def infer(
         else:
             rows.append(r.mean(dim=1).detach().cpu().numpy().astype("float32"))
 
+    ce_sum = 0.0  # cross-entropy summed over samples → mean loss (a standard eval metric)
     with torch.no_grad():
         for X_b, y_b in test_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
             spk = _encode(X_b, dt, use_smnist, generator=eval_gen)
             logits = net(input_spikes=spk)
+            ce_sum += float(F.cross_entropy(logits, y_b, reduction="sum").item())
             correct += (logits.argmax(1) == y_b).sum().item()
             total += y_b.size(0)
             batch_rates = getattr(net, "rates", None) or {}
@@ -194,6 +214,7 @@ def infer(
                     _pop_rows(rec, ik, pop_i_rows)
 
     acc = 100.0 * correct / total
+    ce_loss = ce_sum / total if total else 0.0
     rates_hz = {k: v / total for k, v in rate_sums.items()} if total else {}
     hid_key = max((k for k in rates_hz if k.startswith("hid")), default=None)
     hid_rate_hz = rates_hz.get(hid_key) if hid_key else None
@@ -224,6 +245,7 @@ def infer(
                 "load_weights": str(load_weights),
             },
             "best_acc": acc,
+            "ce_loss": ce_loss,
             "n_correct": correct,
             "n_total": total,
         }
@@ -264,7 +286,7 @@ def infer(
         n_e = dump.get("pop_e", np.zeros((0, 0))).shape
         log.info(f"  → {out_npz}  (pop_e={n_e})")
 
-    return {"acc": acc, "rates_hz": rates_hz, "hid_rate_hz": hid_rate_hz}
+    return {"acc": acc, "ce_loss": ce_loss, "rates_hz": rates_hz, "hid_rate_hz": hid_rate_hz}
 
 
 def infer_and_snapshot(

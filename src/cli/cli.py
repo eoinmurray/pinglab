@@ -737,6 +737,18 @@ def _build_subparsers(parser, parent):
         help="[--infer] Override GABA synaptic decay τ_GABA (ms) so a trained cell "
         "replays under its training-time inhibitory dynamics (default: models.py 9.0).",
     )
+    sim_parser.add_argument(
+        "--scale-w-in", type=float, default=1.0,
+        help="[--infer] Multiply loaded input weights (W_ff[0]) before the forward pass.",
+    )
+    sim_parser.add_argument(
+        "--scale-w-ei", type=float, default=1.0,
+        help="[--infer] Multiply loaded W_ei matrices before the forward pass.",
+    )
+    sim_parser.add_argument(
+        "--scale-w-ie", type=float, default=1.0,
+        help="[--infer] Multiply loaded W_ie matrices before the forward pass.",
+    )
 
     # -- dump-weights subcommand (init + trained weight matrices, no forward) --
     dump_parser = subparsers.add_parser(
@@ -1225,6 +1237,9 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         emit_per_cell_rates=getattr(args, "emit_per_cell_rates", False),
         emit_pop_traces=getattr(args, "emit_pop_traces", False),
         tau_gaba=getattr(args, "tau_gaba", None),
+        scale_w_in=getattr(args, "scale_w_in", 1.0),
+        scale_w_ei=getattr(args, "scale_w_ei", 1.0),
+        scale_w_ie=getattr(args, "scale_w_ie", 1.0),
     )["acc"]
 
 
