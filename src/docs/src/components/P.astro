@@ -1,0 +1,105 @@
+---
+// Paragraph wrapper for manuscript-review mode.
+// Usage: <P id="1.1" status="draft">Paragraph text …</P>
+//
+// Renders a compact status marker in the left margin (paragraph ID + a
+// coloured dot). No border on the paragraph itself. The marker is
+// absolutely positioned so it does not disrupt the prose flow, and
+// collapses above the paragraph on narrow viewports.
+//
+// Status values: draft (amber) | revising (cyan) | final (green).
+// Anything unrecognised falls back to muted grey.
+//
+// To strip before submission: search-and-replace
+//   <P id="..." status="...">   →   (empty)
+//   </P>                        →   (empty)
+// The paragraphs collapse back to plain MDX prose.
+
+export interface Props {
+  id?: string;
+  status?: string;
+}
+
+const { id, status = "draft" } = Astro.props as Props;
+
+const STATUS_COLOUR: Record<string, string> = {
+  draft: "#c8102e",     // red — signal red from the paper theme
+  revising: "#e89400",  // orange / amber
+  final: "#3a8a3a",     // green
+};
+const colour = STATUS_COLOUR[status] ?? "#999";
+const label = id ?? "";
+---
+
+<p class="review-p" data-review-id={id} data-review-status={status}>
+  <span
+    class="review-marker"
+    style={`color: ${colour};`}
+    title={`§${label} — ${status}`}
+  >
+    <span class="review-line">
+      <span class="review-dot" aria-hidden="true">●</span>
+      <span class="review-id">{label}</span>
+    </span>
+    <span class="review-status">{status}</span>
+  </span>
+  <slot />
+</p>
+
+<style>
+  .review-p {
+    position: relative;
+  }
+
+  .review-marker {
+    position: absolute;
+    right: -4.5rem;
+    top: 0.35em;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: -0.02em;
+    opacity: 0.62;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .review-line {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+  }
+
+  .review-dot {
+    font-size: 0.55rem;
+    line-height: 1;
+  }
+
+  .review-id {
+    color: inherit;
+    opacity: 0.85;
+  }
+
+  .review-status {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.7;
+  }
+
+  /* On narrow viewports collapse the margin marker above the paragraph. */
+  @media (max-width: 960px) {
+    .review-marker {
+      position: static;
+      flex-direction: row;
+      align-items: baseline;
+      gap: 0.4rem;
+      margin-right: 0.4rem;
+      margin-bottom: 0.2rem;
+      opacity: 0.5;
+    }
+  }
+</style>

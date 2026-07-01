@@ -38,3 +38,9 @@ markers = [
     "slow: end-to-end tests that spawn subprocesses or hit the GPU",
     "regression: checks against calibrated artifacts; skipped if absent",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.20",
+    "ty>=0.0.55",
+]

@@ -4,7 +4,7 @@ The submodules import their siblings by bare name (`import models as M`,
 `from config import ...`). That resolves automatically when a module is run
 as a script (its own directory is sys.path[0]) and under pytest (configured
 via `pythonpath` in pyproject.toml). When the package is imported instead
-(e.g. `from cli import theme` in a notebook runner), this __init__ runs first
+(e.g. `from cli import infer` in a notebook runner), this __init__ runs first
 and puts the package directory on sys.path so those bare imports still resolve.
 
 This module also re-exports the symbols imported by tests and notebooks.

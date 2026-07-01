@@ -16,8 +16,6 @@ Notebook entry: src/docs/src/pages/notebooks/nb036.mdx
 from __future__ import annotations
 
 import json
-import shutil
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -35,7 +33,7 @@ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
 SLUG = "nb036"
@@ -124,7 +122,7 @@ MIN_ACC_BY_TIER = {
 
 
 def theta_label(theta_u: float | None) -> str:
-    """Filesystem-safe label for an out-dir / video filename."""
+    """Filesystem-safe label for an out-dir."""
     if theta_u is None:
         return "off"
     s = f"{theta_u:g}".replace(".", "p")
@@ -171,7 +169,7 @@ def build_train_args(
         "--epochs", str(BASELINE_EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
-        "--seed", str(seed)"--frame-rate", "1",
+        "--seed", str(seed),
         "--out-dir", str(out_dir),
         "--wipe-dir",
     ]
@@ -205,13 +203,14 @@ def _load_trained_full(train_dir: Path, device):
 
     import cli.config as C  # noqa: F401
     import models as M
-    from cli.config import build_net, patch_dt
+    from cli.config import build_net
     from cli import load_dataset, seed_everything
 
     cfg = json.loads((train_dir / "config.json").read_text())
     seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
     M.T_ms = float(cfg["t_ms"])
-    patch_dt(float(cfg["dt"]))
+    M.dt = float(cfg["dt"])
+    M.T_steps = int(M.T_ms / M.dt)
     hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
     M.N_HID = hidden_sizes[-1]
     M.N_INH = hidden_sizes[-1] // 4
@@ -858,14 +857,6 @@ def plot_wei_diagonal_acc_vs_e(
 
 
 # ── End W_ei diagonal sweep ──────────────────────────────────────────
-
-def copy_video(run_dir: Path, out_path: Path) -> None:
-    src = run_dir / "training.mp4"
-    if not src.exists():
-        raise SystemExit(f"missing training video: {src}")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, out_path)
-    print(f"wrote {out_path}")
 
 
 def main() -> None:

@@ -38,9 +38,9 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 import torch  # noqa: E402
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 from cli import config as C  # noqa: E402
-from cli.config import make_net, patch_dt, _extract_records  # noqa: E402
+from cli.config import make_net, _extract_records  # noqa: E402
 from cli.scan import primary_hid_key, primary_inh_key  # noqa: E402
 
 # The networks read globals (N_IN, T_steps, dt…) from the `models` module that
@@ -107,12 +107,13 @@ DEFAULT_TIER = "medium"
 
 def poisson_input(dt, sim_ms, n_channels, rate_hz):
     """[T, n_channels] tensor: constant homogeneous Poisson input, each channel
-    independent at rate_hz. T_steps is set from sim_ms via M.T_ms (what patch_dt
-    reads), and M.N_IN is set so the network's W_in matches the channel count."""
+    independent at rate_hz. M.T_steps is set from sim_ms and M.dt, and M.N_IN is
+    set so the network's W_in matches the channel count."""
     M.N_IN = n_channels
     M.T_ms = sim_ms
     C.cfg.sim_ms = sim_ms
-    patch_dt(dt)
+    M.dt = dt
+    M.T_steps = int(M.T_ms / M.dt)
     rng = np.random.default_rng(0)
     inp = (rng.random((M.T_steps, n_channels)) < rate_hz * dt / 1000.0).astype(np.float32)
     return torch.tensor(inp, device=C.cfg.torch_device)

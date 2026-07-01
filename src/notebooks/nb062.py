@@ -46,7 +46,7 @@ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 
 SLUG = "nb062"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)

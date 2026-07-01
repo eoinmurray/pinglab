@@ -39,7 +39,7 @@ from scipy.special import erf
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
-from cli import theme  # noqa: E402
+from helpers import theme  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
