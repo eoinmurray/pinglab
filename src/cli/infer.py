@@ -482,6 +482,163 @@ def infer_and_snapshot(
     return {"acc": None}
 
 
+def probe(
+    model_name="ping",
+    dt=0.1,
+    t_ms=200.0,
+    hidden_sizes=None,
+    n_in=784,
+    n_inh=None,
+    ei_strength=1.0,
+    ei_ratio=2.0,
+    w_in=None,
+    w_in_sparsity=0.0,
+    dales_law=True,
+    ei_layers=None,
+    seed=None,
+    load_weights=None,
+    input_rate_hz=25.0,
+    n_batch=64,
+    out_dir=None,
+    outputs=None,
+    tau_gaba=None,
+    private_w_in=False,
+):
+    """Drive a net with uniform homogeneous Poisson input; emit E/I rates.
+
+    Builds a network (untrained if load_weights is None, else loaded) with the
+    given recurrent structure, drives it with a uniform Poisson spike train
+    (every input channel independent at input_rate_hz) for n_batch trials, and
+    writes population E/I firing rates to metrics.json. Optional --outputs add
+    rasters.npz / per_cell_rates.npz for cycle- or cell-level analysis.
+
+    No dataset and no accuracy — this is the untrained-net / f-I-curve probe path.
+    ei_strength/ei_ratio set the recurrent means (w_ei=(s, s·0.1),
+    w_ie=(s·ratio, s·ratio·0.1)); n_inh sets the I-pool size. private_w_in wires
+    each E cell to its own input channel (identity W_in) for input-decorrelated
+    probes.
+    """
+    import numpy as np
+
+    seed_everything(seed)
+    M.T_ms = t_ms
+    M.dt = dt
+    M.T_steps = int(t_ms / dt)
+    M.N_IN = int(n_in)
+    if tau_gaba is not None:
+        M.tau_gaba = float(tau_gaba)
+        M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
+    if hidden_sizes is None:
+        hidden_sizes = [256]
+    setup_model_globals(hidden_sizes)
+    if n_inh is not None:
+        M.N_INH = int(n_inh)
+
+    device = _auto_device()
+    n_inh_per_layer = {1: int(n_inh)} if n_inh is not None else None
+    net = build_net(
+        model_name,
+        w_in=w_in,
+        w_in_sparsity=w_in_sparsity,
+        ei_strength=ei_strength,
+        ei_ratio=ei_ratio,
+        device=device,
+        randomize_init=True,
+        dales_law=dales_law,
+        hidden_sizes=hidden_sizes,
+        ei_layers=ei_layers,
+        n_inh_per_layer=n_inh_per_layer,
+    )
+    if private_w_in:
+        # One input channel per E cell (identity W_in) — removes shared-input
+        # coincidences so the measured rhythmicity is input-decorrelated.
+        import torch as _t
+        n_e = hidden_sizes[-1]
+        with _t.no_grad():
+            w = net.W_ff[0]
+            scale = float(w_in[0]) if w_in else 1.0
+            net.W_ff[0].copy_(_t.eye(n_e, device=w.device) * scale)
+    if load_weights is not None:
+        state = torch.load(load_weights, map_location=device)
+        net.load_state_dict(state, strict=False)
+    net.eval()
+    net.recording = True
+
+    outputs = set(outputs or ())
+    emit_rasters = "rasters" in outputs
+    emit_per_cell = "per_cell_rates" in outputs
+
+    # Single uniform-Poisson draw of shape (T, n_batch, N_IN) — every channel
+    # independent at input_rate_hz. Seeded off `seed` for reproducibility.
+    T_steps = int(t_ms / dt)
+    p_step = input_rate_hz * dt / 1000.0
+    gen = torch.Generator().manual_seed((seed or 0) + 1)
+    spk_in = (torch.rand(T_steps, int(n_batch), M.N_IN, generator=gen) < p_step).float().to(device)
+    with torch.no_grad():
+        net(input_spikes=spk_in)
+
+    rec = net.spike_record
+    hk, ik = primary_hid_key(rec), primary_inh_key(rec)
+    t_sec = t_ms / 1000.0
+    n_e = M.N_HID
+    n_i = M.N_INH or 1
+    e_sum = float(rec[hk].sum().item()) if hk else 0.0
+    i_sum = float(rec[ik].sum().item()) if ik else 0.0
+    r_e = e_sum / (n_batch * n_e * t_sec)
+    r_i = i_sum / (n_batch * n_i * t_sec) if ik else 0.0
+    log.info(f"  probe: rate_e={r_e:.2f}Hz rate_i={r_i:.2f}Hz (n_batch={n_batch}, input={input_rate_hz}Hz)")
+
+    out_dir_path = Path(out_dir) if out_dir else None
+    if out_dir_path and out_dir_path.exists():
+        blob = {
+            "mode": "probe",
+            "model": model_name,
+            "config": {
+                "dt": dt, "t_ms": t_ms, "n_in": int(n_in), "n_hidden": n_e,
+                "n_inh": n_i, "ei_strength": ei_strength, "ei_ratio": ei_ratio,
+                "input_rate_hz": input_rate_hz, "n_batch": int(n_batch),
+                "load_weights": str(load_weights) if load_weights else None,
+            },
+            "rate_e_hz": r_e,
+            "rate_i_hz": r_i,
+            "rates_hz": {"hid": r_e, "inh": r_i},
+        }
+        with open(out_dir_path / "metrics.json", "w") as f:
+            json.dump(blob, f, indent=2, default=float)
+        log.info(f"  → {out_dir_path / 'metrics.json'}")
+
+        if emit_per_cell:
+            per_e = rec[hk].sum(dim=(0, 1)).detach().cpu().numpy() if hk else np.zeros(0)
+            dump = {"rate_e_per_cell": (per_e / (n_batch * t_sec)).astype(np.float32)}
+            if ik:
+                per_i = rec[ik].sum(dim=(0, 1)).detach().cpu().numpy()
+                dump["rate_i_per_cell"] = (per_i / (n_batch * t_sec)).astype(np.float32)
+            np.savez(out_dir_path / "per_cell_rates.npz", **dump)
+
+        if emit_rasters:
+            def _coo(key):
+                r = rec.get(key)
+                if r is None:
+                    return (np.zeros(0, np.int32),) * 3
+                a = r.detach().cpu().numpy()
+                if a.ndim == 2:
+                    a = a[:, None, :]
+                tt, bb, cc = a.nonzero()
+                return bb.astype("int32"), tt.astype("int32"), cc.astype("int32")
+            e_tr, e_t, e_c = _coo(hk)
+            i_tr, i_t, i_c = _coo(ik)
+            np.savez(
+                out_dir_path / "rasters.npz",
+                dt=np.float32(dt), n_trials=np.int32(n_batch), T=np.int32(T_steps),
+                n_e=np.int32(n_e), n_i=np.int32(n_i),
+                e_trial=e_tr, e_t=e_t, e_cell=e_c,
+                i_trial=i_tr, i_t=i_t, i_cell=i_c,
+            )
+            log.info(f"  → {out_dir_path / 'rasters.npz'}  ({e_tr.size + i_tr.size} spikes)")
+
+    return {"rate_e_hz": r_e, "rate_i_hz": r_i}
+
+
 def dump_weights(
     model_name="ping",
     dt=0.25,
