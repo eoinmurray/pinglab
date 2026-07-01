@@ -16,6 +16,7 @@ Notebook entry: src/docs/src/pages/notebooks/nb036.mdx
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -196,135 +197,44 @@ def load_config(run_dir: Path) -> dict:
     return json.loads((run_dir / "config.json").read_text())
 
 
-def _load_trained_full(train_dir: Path, device):
-    """Load full state from a trained run (incl. W_ei/W_ie). Returns
-    (net, cfg, X_te, y_te) ready for forward passes."""
-    import torch
-
-    import cli.config as C  # noqa: F401
-    import models as M
-    from cli.config import build_net
-    from cli import load_dataset, seed_everything
-
-    cfg = json.loads((train_dir / "config.json").read_text())
-    seed_everything(int(cfg.get("seed", SEEDS_BASELINE[0])))
-    M.T_ms = float(cfg["t_ms"])
-    M.dt = float(cfg["dt"])
-    M.T_steps = int(M.T_ms / M.dt)
-    hidden_sizes = cfg.get("hidden_sizes") or [int(cfg["n_hidden"])]
-    M.N_HID = hidden_sizes[-1]
-    M.N_INH = hidden_sizes[-1] // 4
-    M.HIDDEN_SIZES = list(hidden_sizes)
-
-    _, X_te, _, y_te = load_dataset(
-        cfg["dataset"], max_samples=int(cfg["max_samples"]), split=True
-    )
-    M.N_IN = 784 if cfg["dataset"] == "mnist" else 64
-
-    w_in_cfg = cfg.get("w_in")
-    w_in_arg = (
-        (float(w_in_cfg[0]), float(w_in_cfg[1]))
-        if isinstance(w_in_cfg, list) and len(w_in_cfg) >= 2
-        else None
-    )
-    net = build_net(
-        cfg["model"],
-        w_in=w_in_arg,
-        w_in_sparsity=float(cfg.get("w_in_sparsity") or 0.0),
-        ei_strength=float(cfg.get("ei_strength") or 1.0),
-        ei_ratio=float(cfg.get("ei_ratio") or 2.0),
-        sparsity=float(cfg.get("sparsity") or 0.0),
-        device=device,
-        randomize_init=not bool(cfg.get("kaiming_init", False)),
-        dales_law=bool(cfg.get("dales_law", True)),
-        hidden_sizes=hidden_sizes,
-    )
-    if hasattr(net, "readout_mode"):
-        net.readout_mode = cfg.get("readout_mode", "mem-mean")
-
-    state = torch.load(train_dir / "weights.pth", map_location=device)
-    net.load_state_dict(state, strict=False)
-    net.eval()
-    net.recording = True
-    return net, cfg, X_te, y_te
-
-
-def _eval_net_on_test(net, cfg, X_te, y_te, device) -> tuple[float, float, float]:
-    """Forward over test set; return (acc, hid_rate_hz, inh_rate_hz)."""
-    acc, _ce, _pen, e_rate, i_rate = _eval_net_on_test_with_loss(
-        net, cfg, X_te, y_te, device
-    )
-    return acc, e_rate, i_rate
-
-
-def _eval_net_on_test_with_loss(
-    net, cfg, X_te, y_te, device,
-    fr_upper_theta: float = 0.0,
-    fr_upper_strength: float = 0.0,
+def _eval_scaled(
+    train_dir: Path,
+    scale_w_in: float = 1.0,
+    scale_w_ei: float = 1.0,
+    scale_w_ie: float = 1.0,
 ) -> tuple[float, float, float, float, float]:
-    """Forward over test set; return
-    (acc, ce_loss, penalty, hid_rate_hz, inh_rate_hz).
+    """Evaluate a trained cell with inference-time weight scaling, via the CLI.
 
-    `penalty` is the same firing-rate-upper regulariser the trainer applies:
-    sum over hidden neurons of strength · ReLU(mean_per_neuron_spike_count -
-    theta_u)^2, computed against the per-neuron spike-count mean over the
-    full test set (one application, not per-batch averaging). When strength
-    or theta_u is zero the penalty is zero."""
-    import torch
-    import torch.nn.functional as F
-    from torch.utils.data import DataLoader, TensorDataset
-
-    import models as M
-    from cli import EVAL_SEED, encode_batch
-
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
-        batch_size=64,
+    Shells out to `sim --infer` with the given weight-scale factors and reads
+    metrics.json. Returns (acc, ce_loss, penalty, e_rate, i_rate). penalty is 0
+    for these baseline (theta_u = off) cells — the trainer applied no firing-rate reg.
+    """
+    train_dir = train_dir.resolve()
+    tag = f"win{scale_w_in:g}_wei{scale_w_ei:g}_wie{scale_w_ie:g}"
+    out_dir = (ARTIFACTS / "coupling_sweep" / f"{train_dir.name}__{tag}").resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str(train_dir / "config.json"),
+            "--load-weights", str(train_dir / "weights.pth"),
+            "--scale-w-in", str(scale_w_in),
+            "--scale-w-ei", str(scale_w_ei),
+            "--scale-w-ie", str(scale_w_ie),
+            "--out-dir", str(out_dir),
+        ],
+        cwd=REPO,
+        check=True,
     )
-    correct = total = 0
-    ce_sum = 0.0
-    e_spike_sum = i_spike_sum = 0.0
-    # Per-neuron spike count accumulators (one tensor per hidden layer)
-    # for computing the training-objective penalty term.
-    sc_accums: list[torch.Tensor] = []
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-            logits = net(input_spikes=spk)
-            ce_sum += float(
-                F.cross_entropy(logits, y_b, reduction="sum").item()
-            )
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            e_spike_sum += float(net.spike_record["hid"].sum().item())
-            if "inh" in net.spike_record:
-                i_spike_sum += float(net.spike_record["inh"].sum().item())
-            if fr_upper_strength > 0 and getattr(net, "last_spike_counts", None):
-                if not sc_accums:
-                    sc_accums = [
-                        torch.zeros(sc.shape[1], device=device)
-                        for sc in net.last_spike_counts
-                    ]
-                for acc_tensor, sc in zip(sc_accums, net.last_spike_counts):
-                    acc_tensor += sc.sum(dim=0)
-    n_e = M.N_HID
-    n_i = M.N_INH or 1
-    t_sec = float(cfg["t_ms"]) / 1000.0
-    e_rate = e_spike_sum / (total * n_e * t_sec) if total else 0.0
-    i_rate = i_spike_sum / (total * n_i * t_sec) if (total and i_spike_sum) else 0.0
-    acc = 100.0 * correct / total if total else 0.0
-    ce_loss = ce_sum / total if total else 0.0
-    penalty = 0.0
-    if sc_accums and total > 0 and fr_upper_strength > 0:
-        for acc_tensor in sc_accums:
-            mean_z = acc_tensor / total
-            penalty += float(
-                fr_upper_strength
-                * (torch.relu(mean_z - fr_upper_theta) ** 2).sum().item()
-            )
-    return acc, ce_loss, penalty, e_rate, i_rate
+    m = json.loads((out_dir / "metrics.json").read_text())
+    rates = m.get("rates_hz", {})
+    return (
+        float(m["best_acc"]),
+        float(m["ce_loss"]),
+        0.0,
+        float(rates.get("hid", 0.0)),
+        float(rates.get("inh", 0.0)),
+    )
 
 
 
@@ -356,69 +266,40 @@ def run_coupling_sweep(notebook_run_id: str) -> list[dict]:
     W_ei or W_ie by the coupling scale, multiply W_in by s, evaluate.
     Records (axis, coupling_scale, scale, loss, penalty, total_loss,
     acc, rate_e, rate_i)."""
-    import torch
-    from cli import _auto_device
-
-    device = _auto_device()
     train_dir = baseline_dir("ping")
     if not (train_dir / "weights.pth").exists():
         raise SystemExit(
             f"coupling-sweep needs trained PING weights at {train_dir}"
         )
-    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
-    w_in_original = net.W_ff[0].data.clone()
-    w_ei_original = {k: v.data.clone() for k, v in net.W_ei.items()}
-    w_ie_original = {k: v.data.clone() for k, v in net.W_ie.items()}
 
     rows: list[dict] = []
-    try:
-        for axis in ("W_ei", "W_ie"):
-            for coupling_scale in COUPLING_SCALE_VALUES:
-                # Reset coupling matrices to baseline scaled by this axis's
-                # coupling value (other axis held at 1.0).
-                for k in net.W_ei.keys():
-                    net.W_ei[k].data.copy_(
-                        w_ei_original[k] * (
-                            coupling_scale if axis == "W_ei" else 1.0
-                        )
-                    )
-                for k in net.W_ie.keys():
-                    net.W_ie[k].data.copy_(
-                        w_ie_original[k] * (
-                            coupling_scale if axis == "W_ie" else 1.0
-                        )
-                    )
-                for scale in W_IN_SCALE_VALUES:
-                    net.W_ff[0].data.copy_(w_in_original * float(scale))
-                    with torch.no_grad():
-                        acc, ce_loss, penalty, e_rate, i_rate = (
-                            _eval_net_on_test_with_loss(
-                                net, cfg, X_te, y_te, device,
-                                fr_upper_theta=0.0,
-                                fr_upper_strength=0.0,
-                            )
-                        )
-                    rows.append({
-                        "axis": axis,
-                        "coupling_scale": float(coupling_scale),
-                        "scale": float(scale),
-                        "loss": float(ce_loss),
-                        "penalty": float(penalty),
-                        "total_loss": float(ce_loss + penalty),
-                        "acc": float(acc),
-                        "rate_e": float(e_rate),
-                        "rate_i": float(i_rate),
-                    })
-                    print(
-                        f"  {axis} ×{coupling_scale:>4.2g}  s={scale:>5.2f}  "
-                        f"acc={acc:5.2f}%  E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
-                    )
-    finally:
-        net.W_ff[0].data.copy_(w_in_original)
-        for k in net.W_ei.keys():
-            net.W_ei[k].data.copy_(w_ei_original[k])
-        for k in net.W_ie.keys():
-            net.W_ie[k].data.copy_(w_ie_original[k])
+    for axis in ("W_ei", "W_ie"):
+        for coupling_scale in COUPLING_SCALE_VALUES:
+            # Scale one coupling axis by this value (the other stays at 1.0).
+            sc_ei = coupling_scale if axis == "W_ei" else 1.0
+            sc_ie = coupling_scale if axis == "W_ie" else 1.0
+            for scale in W_IN_SCALE_VALUES:
+                acc, ce_loss, penalty, e_rate, i_rate = _eval_scaled(
+                    train_dir,
+                    scale_w_in=float(scale),
+                    scale_w_ei=sc_ei,
+                    scale_w_ie=sc_ie,
+                )
+                rows.append({
+                    "axis": axis,
+                    "coupling_scale": float(coupling_scale),
+                    "scale": float(scale),
+                    "loss": float(ce_loss),
+                    "penalty": float(penalty),
+                    "total_loss": float(ce_loss + penalty),
+                    "acc": float(acc),
+                    "rate_e": float(e_rate),
+                    "rate_i": float(i_rate),
+                })
+                print(
+                    f"  {axis} ×{coupling_scale:>4.2g}  s={scale:>5.2f}  "
+                    f"acc={acc:5.2f}%  E={e_rate:6.2f} Hz  I={i_rate:6.2f} Hz"
+                )
     return rows
 
 
