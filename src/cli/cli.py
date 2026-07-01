@@ -1288,6 +1288,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             skip_load=getattr(args, "skip_load", None),
             perturb_mode=_pmode,
             perturb_level=_plevel,
+            i_override_file=getattr(args, "i_override_file", None),
         )
         return
 
