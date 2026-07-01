@@ -79,7 +79,7 @@ from train import (  # noqa: E402,F401
 # CLI
 # =============================================================================
 
-from infer import infer, infer_and_snapshot, dump_weights  # noqa: E402
+from infer import infer, infer_and_snapshot, dump_weights, probe  # noqa: E402
 
 log = logging.getLogger("cli")
 
@@ -776,6 +776,40 @@ def _build_subparsers(parser, parent):
         help="Path to the trained weights.pth whose values to dump.",
     )
 
+    # -- probe subcommand (uniform-Poisson drive of an untrained/loaded net) --
+    probe_parser = subparsers.add_parser(
+        "probe",
+        parents=[parent],
+        help="Drive a net with uniform Poisson input; emit E/I rates",
+        description="Build a network (untrained unless --load-weights) with the "
+        "given recurrent structure, drive it with uniform homogeneous Poisson "
+        "input, and write population E/I rates to metrics.json. For untrained-net "
+        "parameter probes and uniform-input f-I curves.",
+        epilog="Example:\n"
+        "  cli.py probe --model ping --n-hidden 1024 --n-inh 64 --ei-strength 1 "
+        "--ei-ratio 2 --w-in 1.2 --input-rate 25 --n-batch 16 --out-dir out/",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    probe_parser.add_argument("--n-in", type=int, default=784,
+                              help="Number of input channels (default: 784).")
+    probe_parser.add_argument("--n-inh", type=int, default=None,
+                              help="Inhibitory pool size (n_inh_per_layer for layer 1).")
+    probe_parser.add_argument("--n-batch", type=int, default=64,
+                              help="Number of Poisson-input trials (default: 64).")
+    probe_parser.add_argument("--private-w-in", action="store_true",
+                              help="Identity W_in: one input channel per E cell.")
+    probe_parser.add_argument("--load-config", type=str, default=None,
+                              help="Load config from a training run's config.json.")
+    probe_parser.add_argument("--load-weights", type=str, default=None,
+                              help="Load trained weights (omit for an untrained net).")
+    probe_parser.add_argument("--tau-gaba", type=float, default=None,
+                              help="Override GABA decay τ_GABA (ms).")
+    probe_parser.add_argument(
+        "--outputs", nargs="+", default=None,
+        choices=["per_cell_rates", "rasters"], metavar="OUTPUT",
+        help="Extra artifacts: per_cell_rates.npz, rasters.npz (sparse spike indices).",
+    )
+
     # -- train subcommand --
     train_parser = subparsers.add_parser(
         "train",
@@ -936,7 +970,7 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         sys.exit(0)
 
     # --load-config: load training params from config.json, fill unset values
-    if args.mode in ("sim", "dump-weights") and getattr(args, "load_config", None):
+    if args.mode in ("sim", "dump-weights", "probe") and getattr(args, "load_config", None):
         config_to_args, dest_to_flag = _build_config_mapping(parent)
         _apply_load_config(args, argv, config_to_args, dest_to_flag)
     if getattr(args, "infer", False) and not getattr(args, "load_weights", None):
@@ -1271,10 +1305,37 @@ def _run_dump_weights(args, C, out_dir, log):
     )
 
 
+def _run_probe(args, C, out_dir, log):
+    """Uniform-Poisson drive of an untrained/loaded net → E/I rates + optional rasters."""
+    probe(
+        model_name=args.model,
+        dt=args.dt,
+        t_ms=args.t_ms,
+        hidden_sizes=args.n_hidden,
+        n_in=getattr(args, "n_in", 784),
+        n_inh=getattr(args, "n_inh", None),
+        ei_strength=args.ei_strength,
+        ei_ratio=args.ei_ratio,
+        w_in=_resolve_w_in(args),
+        w_in_sparsity=args.w_in_sparsity or 0.0,
+        dales_law=args.dales_law,
+        ei_layers=args.ei_layers,
+        seed=args.seed,
+        load_weights=getattr(args, "load_weights", None),
+        input_rate_hz=args.spike_rate,
+        n_batch=getattr(args, "n_batch", 64),
+        out_dir=str(out_dir),
+        outputs=getattr(args, "outputs", None),
+        tau_gaba=getattr(args, "tau_gaba", None),
+        private_w_in=getattr(args, "private_w_in", False),
+    )
+
+
 _MODE_HANDLERS = {
     "sim": _run_sim,
     "train": _run_train,
     "dump-weights": _run_dump_weights,
+    "probe": _run_probe,
 }
 
 
