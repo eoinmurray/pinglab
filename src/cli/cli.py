@@ -566,6 +566,13 @@ def _build_parent_parser():
         "--sample", type=int, default=0, help="Sample index for dataset input"
     )
     inp_group.add_argument(
+        "--sample-index",
+        type=int,
+        default=None,
+        help="Raw test-set index for a snapshot, overriding --digit/--sample "
+        "selection (grabs 'test trial N' regardless of class).",
+    )
+    inp_group.add_argument(
         "--dataset",
         type=str,
         default="scikit",
@@ -1071,9 +1078,10 @@ def _run_sim(args, C, out_dir, log):
 
     log.info(f"Device: {C.DEVICE}")
     if getattr(args, "infer", False):
-        # Check if --digit or --sample were explicitly passed (snapshot mode)
-        snapshot_mode = any(arg in sys.argv for arg in ("--digit", "--sample")) or \
-                       any(arg.startswith("--digit=") or arg.startswith("--sample=") for arg in sys.argv)
+        # Check if --digit / --sample / --sample-index were explicitly passed (snapshot mode)
+        _snap_flags = ("--digit", "--sample", "--sample-index")
+        snapshot_mode = any(arg in sys.argv for arg in _snap_flags) or \
+                       any(arg.split("=")[0] in _snap_flags for arg in sys.argv)
         _emit_infer(args, C, out_dir, log, snapshot_mode=snapshot_mode)
         return
 
@@ -1180,6 +1188,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             seed=args.seed,
             digit=args.digit,
             sample=args.sample,
+            sample_index=getattr(args, "sample_index", None),
         )
         return
 
