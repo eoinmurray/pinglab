@@ -1,0 +1,62 @@
+name: Lint & Type Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install project
+        run: uv sync --dev
+
+      # Non-blocking for now: the codebase has known pre-existing findings, so
+      # these steps report rather than fail. Flip `continue-on-error` off once
+      # the tree is clean to make CI enforce.
+      - name: Ruff
+        id: ruff
+        continue-on-error: true
+        run: uv run ruff check --output-format=github
+
+      - name: ty
+        id: ty
+        continue-on-error: true
+        run: uv run ty check
+
+      # The invariant: notebooks may only shell out to cli.py, never import the
+      # `cli`/`models` packages (enforced by src/notebooks/ruff.toml TID251).
+      # Non-blocking until the migration burndown hits 0 — at that point remove
+      # `continue-on-error` below and this becomes a hard gate against any
+      # notebook re-introducing a direct import.
+      - name: Notebook CLI-import gate
+        id: nb_gate
+        continue-on-error: true
+        run: uv run ruff check src/notebooks --select TID --output-format=github
+
+      - name: Refactor burndown (cli/models imports in notebooks)
+        if: always()
+        run: |
+          {
+            echo "## Notebook refactor burndown"
+            echo ""
+            echo "Direct \`cli\`/\`models\` import sites remaining per notebook (0 = migrated):"
+            echo ""
+            echo '```'
+            uv run ruff check src/notebooks --select TID 2>&1 \
+              | grep -oE 'nb[0-9]+\.py' | sort | uniq -c | sort -rn || echo "none — all notebooks compliant"
+            echo '```'
+            total=$(uv run ruff check src/notebooks --select TID 2>&1 | grep -c TID251 || true)
+            echo ""
+            echo "**Total remaining sites: ${total}**"
+          } >> "$GITHUB_STEP_SUMMARY"
