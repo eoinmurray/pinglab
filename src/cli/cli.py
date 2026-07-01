@@ -738,6 +738,11 @@ def _build_subparsers(parser, parent):
         "replays under its training-time inhibitory dynamics (default: models.py 9.0).",
     )
     sim_parser.add_argument(
+        "--skip-load", nargs="+", default=None, metavar="PREFIX",
+        help="[--infer] Drop state_dict keys with these prefixes before loading "
+        "(e.g. W_ei. W_ie.) so a fresh sub-block survives — transfer-load probes.",
+    )
+    sim_parser.add_argument(
         "--scale-w-in", type=float, default=1.0,
         help="[--infer] Multiply loaded input weights (W_ff[0]) before the forward pass.",
     )
@@ -1254,6 +1259,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             sample=args.sample,
             sample_index=getattr(args, "sample_index", None),
             tau_gaba=getattr(args, "tau_gaba", None),
+            skip_load=getattr(args, "skip_load", None),
         )
         return
 
@@ -1278,6 +1284,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         scale_w_in=getattr(args, "scale_w_in", 1.0),
         scale_w_ei=getattr(args, "scale_w_ei", 1.0),
         scale_w_ie=getattr(args, "scale_w_ie", 1.0),
+        skip_load=getattr(args, "skip_load", None),
     )["acc"]
 
 
