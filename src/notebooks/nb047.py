@@ -20,13 +20,13 @@ Notebook entry: src/docs/src/pages/notebooks/nb047.mdx
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
@@ -41,6 +41,7 @@ from helpers import theme  # noqa: E402
 
 SLUG = "nb047"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
 
 # ── Architecture constants ──────────────────────────────────────────
 N_E: int = 1024
@@ -81,53 +82,41 @@ DEFAULT_TIER: str = "small"
 
 
 # ── Net build ───────────────────────────────────────────────────────
-def _build_untrained_ping(n_inh: int, w_ie_mean: float):
-    """Build an untrained PING net at the given pool size and per-synapse
-    I->E weight."""
-    torch.manual_seed(SEED)
-    import models as M
-    from cli.config import build_net
-
-    M.HIDDEN_SIZES = [N_E]
-    M.N_HID = N_E
-    M.N_INH = int(n_inh)
-    M.N_IN = N_IN
-    M.T_steps = N_STEPS
-    M.T_ms = T_MS
-    M.dt = DT
-
-    return build_net(
-        "ping",
-        w_in=(W_IN_MEAN, W_IN_STD),
-        w_in_sparsity=W_IN_SPARSITY,
-        w_ei=(W_EI_MEAN, W_EI_STD),
-        w_ie=(w_ie_mean, W_IE_REL_STD * w_ie_mean),
-        hidden_sizes=[N_E],
-        n_inh_per_layer={1: int(n_inh)},
-    )
-
-
 # ── Sweep ───────────────────────────────────────────────────────────
 def measure_one(n_inh: int, w_ie_mean: float, n_batch: int) -> dict:
-    """One forward pass at a given (N_I, W^IE). Returns per-cell E and I
-    rates and the population-weighted total."""
-    net = _build_untrained_ping(n_inh, w_ie_mean)
-    net.eval()
-    net.recording = True
+    """One (N_I, W^IE) point via the CLI probe: untrained PING driven by uniform
+    Poisson input, returning population E/I rates and the pop-weighted total.
 
-    gen = torch.Generator().manual_seed(SEED + 1)
-    p_step = INPUT_RATE_HZ * DT / 1000.0
-    spk_in = (torch.rand(N_STEPS, n_batch, N_IN, generator=gen) < p_step).float()
-
-    with torch.no_grad():
-        net(input_spikes=spk_in)
-
-    rec = net.spike_record
-    spk_e = rec["hid"]  # (T, B, N_E)
-    spk_i = rec["inh"]  # (T, B, N_I)
-    t_sec = T_MS / 1000.0
-    r_e = float(spk_e.sum().item()) / (n_batch * N_E * t_sec)
-    r_i = float(spk_i.sum().item()) / (n_batch * n_inh * t_sec) if n_inh > 0 else 0.0
+    Shells out to `cli.py probe`, which builds the untrained net and forwards it —
+    the notebook only runs it and reads metrics.json. The recurrent means map to
+    ei_strength=1 (→ w_ei=(1, 0.1)) and ei_ratio=W^IE (→ w_ie=(W^IE, 0.1·W^IE)).
+    """
+    out_dir = (ARTIFACTS / "probe" / f"nI{int(n_inh)}_wie{w_ie_mean:g}").resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "probe",
+            "--model", "ping",
+            "--n-hidden", str(N_E),
+            "--n-in", str(N_IN),
+            "--n-inh", str(int(n_inh)),
+            "--ei-strength", "1",
+            "--ei-ratio", str(w_ie_mean),
+            "--w-in", str(W_IN_MEAN),
+            "--w-in-sparsity", str(W_IN_SPARSITY),
+            "--input-rate", str(INPUT_RATE_HZ),
+            "--n-batch", str(int(n_batch)),
+            "--t-ms", str(T_MS),
+            "--dt", str(DT),
+            "--seed", str(SEED),
+            "--out-dir", str(out_dir),
+        ],
+        cwd=REPO,
+        check=True,
+    )
+    m = json.loads((out_dir / "metrics.json").read_text())
+    r_e = float(m["rate_e_hz"])
+    r_i = float(m["rate_i_hz"])
     r_total = (N_E * r_e + n_inh * r_i) / (N_E + n_inh)
 
     return {
