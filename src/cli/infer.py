@@ -40,6 +40,7 @@ def infer(
     ei_layers=None,
     seed=None,
     emit_per_cell_rates=False,
+    emit_pop_traces=False,
 ):
     """Run inference with saved weights at a given dt."""
 
@@ -123,10 +124,17 @@ def infer(
     # (rather than the population mean) consume per_cell_rates.npz instead of
     # rebuilding the net in-process. Recording is off by default so the common
     # accuracy-only path stays cheap.
-    if emit_per_cell_rates:
+    # E2: population-trace emission. When requested, record the per-timestep mean
+    # spike activity over cells for each test trial (the population signal every
+    # PSD / f_gamma notebook reduces to). The CLI emits this base time-series and
+    # the notebook computes the spectrum itself — no metric logic in the CLI.
+    # Both E1 and E2 need spike recording on.
+    if emit_per_cell_rates or emit_pop_traces:
         net.recording = True
     per_cell_e = None  # running (N_E,) spike-count sum across the test set
     per_cell_i = None  # running (N_I,) spike-count sum across the test set
+    pop_e_rows: list = []  # per-trial (T,) mean-over-E-cells activity
+    pop_i_rows: list = []  # per-trial (T,) mean-over-I-cells activity
 
     def _accum_per_cell(rec, key, acc):
         """Sum a recorded raster over time (and batch) to per-cell counts."""
@@ -137,6 +145,19 @@ def infer(
         cnt = r.sum(dim=(0, 1)) if r.ndim == 3 else r.sum(dim=0)
         cnt = cnt.detach().cpu().numpy()
         return cnt if acc is None else acc + cnt
+
+    def _pop_rows(rec, key, rows):
+        """Append per-trial population activity: mean over cells at each timestep."""
+        r = rec.get(key) if key else None
+        if r is None:
+            return
+        # (T, B, N) → mean over N → (T, B); (T, N) at B=1 → mean over N → (T,).
+        if r.ndim == 3:
+            pop = r.mean(dim=2).detach().cpu().numpy()  # (T, B)
+            for b in range(pop.shape[1]):
+                rows.append(pop[:, b].astype("float32"))
+        else:
+            rows.append(r.mean(dim=1).detach().cpu().numpy().astype("float32"))
 
     with torch.no_grad():
         for X_b, y_b in test_loader:
@@ -149,10 +170,15 @@ def infer(
             B = y_b.size(0)
             for k, v in batch_rates.items():
                 rate_sums[k] = rate_sums.get(k, 0.0) + float(v) * B
-            if emit_per_cell_rates:
+            if emit_per_cell_rates or emit_pop_traces:
                 rec = net.spike_record
-                per_cell_e = _accum_per_cell(rec, primary_hid_key(rec), per_cell_e)
-                per_cell_i = _accum_per_cell(rec, primary_inh_key(rec), per_cell_i)
+                hk, ik = primary_hid_key(rec), primary_inh_key(rec)
+                if emit_per_cell_rates:
+                    per_cell_e = _accum_per_cell(rec, hk, per_cell_e)
+                    per_cell_i = _accum_per_cell(rec, ik, per_cell_i)
+                if emit_pop_traces:
+                    _pop_rows(rec, hk, pop_e_rows)
+                    _pop_rows(rec, ik, pop_i_rows)
 
     acc = 100.0 * correct / total
     rates_hz = {k: v / total for k, v in rate_sums.items()} if total else {}
@@ -209,6 +235,21 @@ def infer(
         out_npz = out_dir_path / "per_cell_rates.npz"
         np.savez(out_npz, **dump)
         log.info(f"  → {out_npz}  ({len(dump)} arrays)")
+
+    # E2: write per-trial population activity traces (base signal for PSD/f_gamma).
+    # Each row is one test trial's per-timestep mean spike activity over cells.
+    if emit_pop_traces and out_dir_path and out_dir_path.exists():
+        import numpy as np
+
+        dump = {"dt": np.float32(dt)}
+        if pop_e_rows:
+            dump["pop_e"] = np.stack(pop_e_rows)  # (n_samples, T)
+        if pop_i_rows:
+            dump["pop_i"] = np.stack(pop_i_rows)  # (n_samples, T)
+        out_npz = out_dir_path / "pop_traces.npz"
+        np.savez(out_npz, **dump)
+        n_e = dump.get("pop_e", np.zeros((0, 0))).shape
+        log.info(f"  → {out_npz}  (pop_e={n_e})")
 
     return {"acc": acc, "rates_hz": rates_hz, "hid_rate_hz": hid_rate_hz}
 

@@ -724,6 +724,12 @@ def _build_subparsers(parser, parent):
         help="[--infer] Also write per_cell_rates.npz with per-cell E/I firing "
         "rates (Hz) over the test set.",
     )
+    sim_parser.add_argument(
+        "--emit-pop-traces",
+        action="store_true",
+        help="[--infer] Also write pop_traces.npz with per-trial population "
+        "activity (mean over cells per timestep) for E/I — base signal for PSD/f_gamma.",
+    )
 
     # -- dump-weights subcommand (init + trained weight matrices, no forward) --
     dump_parser = subparsers.add_parser(
@@ -1209,6 +1215,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         ei_layers=args.ei_layers,
         seed=args.seed,
         emit_per_cell_rates=getattr(args, "emit_per_cell_rates", False),
+        emit_pop_traces=getattr(args, "emit_pop_traces", False),
     )["acc"]
 
 
