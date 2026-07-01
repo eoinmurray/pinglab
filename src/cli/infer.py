@@ -483,6 +483,7 @@ def infer_and_snapshot(
     skip_load=None,
     perturb_mode=None,
     perturb_level=None,
+    i_override_file=None,
 ):
     """Run inference on a single sample and save full spike trajectory to snapshot.npz.
 
@@ -570,6 +571,24 @@ def infer_and_snapshot(
     if perturb_mode is not None:
         _pgen = torch.Generator(device=device).manual_seed(EVAL_SEED + 1)
         net._hidden_perturb_fn = _make_perturb_fn(perturb_mode, perturb_level, dt, _pgen)
+
+    # Optional single-trial I-spike override (B=1): substitute s_i[t] each step.
+    if i_override_file is not None:
+        z = np.load(i_override_file)
+        T_ov, n_i_ov = int(z["T"]), int(z["n_i"])
+        ov = np.zeros((T_ov, n_i_ov), dtype="float32")
+        ov[z["i_t"], z["i_cell"]] = 1.0  # trial 0 only
+        _ov_t = torch.from_numpy(ov).to(device)
+        _st = {"step": 0}
+
+        def _ov_fn(s_e, s_i, _layer, _ov=_ov_t, _st=_st):
+            t = _st["step"]
+            _st["step"] = t + 1
+            if s_i is None:
+                return s_e, s_i
+            return s_e, _ov[t].unsqueeze(0) if s_i.ndim == 2 else _ov[t]
+
+        net._hidden_perturb_fn = _ov_fn
 
     # Run forward pass with spike recording enabled
     # Recording captures all spike trains and intermediate state (voltages, conductances)
