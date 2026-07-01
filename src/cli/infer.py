@@ -22,6 +22,49 @@ from train import seed_everything
 log = logging.getLogger("cli")
 
 
+def _make_perturb_fn(mode, level, dt_ms, generator):
+    """Per-step hidden-spike perturbation callback (s_e, s_i, layer) -> (s_e', s_i').
+
+    A closed family of dynamics-faithful perturbations installed on
+    net._hidden_perturb_fn (models.py runs it right after spikes are emitted, so
+    the I-loop and readout react within the trial):
+      - drop: Bernoulli mask, each spike kept with prob (1 - level)
+      - add: inject Poisson noise spikes at `level` Hz per cell
+      - add_split: level is (r_e_hz, r_i_hz) — independent E/I Poisson add
+    """
+    import torch
+
+    if mode == "drop":
+        def fn(s_e, s_i, _layer):
+            s_e = s_e * (torch.rand(s_e.shape, generator=generator, device=s_e.device) >= level).float()
+            if s_i is not None:
+                s_i = s_i * (torch.rand(s_i.shape, generator=generator, device=s_i.device) >= level).float()
+            return s_e, s_i
+        return fn
+
+    if mode == "add":
+        p = level * dt_ms / 1000.0
+        def fn(s_e, s_i, _layer):
+            s_e = torch.clamp(s_e + (torch.rand(s_e.shape, generator=generator, device=s_e.device) < p).float(), 0.0, 1.0)
+            if s_i is not None:
+                s_i = torch.clamp(s_i + (torch.rand(s_i.shape, generator=generator, device=s_i.device) < p).float(), 0.0, 1.0)
+            return s_e, s_i
+        return fn
+
+    if mode == "add_split":
+        r_e_hz, r_i_hz = float(level[0]), float(level[1])
+        p_e, p_i = r_e_hz * dt_ms / 1000.0, r_i_hz * dt_ms / 1000.0
+        def fn(s_e, s_i, _layer):
+            if p_e > 0:
+                s_e = torch.clamp(s_e + (torch.rand(s_e.shape, generator=generator, device=s_e.device) < p_e).float(), 0.0, 1.0)
+            if s_i is not None and p_i > 0:
+                s_i = torch.clamp(s_i + (torch.rand(s_i.shape, generator=generator, device=s_i.device) < p_i).float(), 0.0, 1.0)
+            return s_e, s_i
+        return fn
+
+    raise ValueError(f"unknown perturbation mode {mode!r}")
+
+
 def infer(
     model_name="ping",
     dt=0.25,
@@ -45,6 +88,8 @@ def infer(
     scale_w_ei=1.0,
     scale_w_ie=1.0,
     skip_load=None,
+    perturb_mode=None,
+    perturb_level=None,
 ):
     """Run inference with saved weights at a given dt.
 
@@ -152,6 +197,13 @@ def infer(
             net.W_ie[_k].data.mul_(float(scale_w_ie))
     if (scale_w_in, scale_w_ei, scale_w_ie) != (1.0, 1.0, 1.0):
         log.info(f"  scaled weights: W_in×{scale_w_in} W_ei×{scale_w_ei} W_ie×{scale_w_ie}")
+
+    # Optional hidden-spike perturbation: install the callback so drop/add noise
+    # is applied inside the forward loop (I-loop + readout react within the trial).
+    if perturb_mode is not None:
+        _pgen = torch.Generator(device=device).manual_seed(EVAL_SEED + 1)
+        net._hidden_perturb_fn = _make_perturb_fn(perturb_mode, perturb_level, dt, _pgen)
+        log.info(f"  perturb: {perturb_mode} level={perturb_level}")
 
     # Evaluate — pre-encode pixels as Poisson spikes (same path as train)
     import torch.nn.functional as F
@@ -386,6 +438,8 @@ def infer_and_snapshot(
     sample_index=None,
     tau_gaba=None,
     skip_load=None,
+    perturb_mode=None,
+    perturb_level=None,
 ):
     """Run inference on a single sample and save full spike trajectory to snapshot.npz.
 
@@ -468,6 +522,11 @@ def infer_and_snapshot(
         state = {k: v for k, v in state.items()
                  if not any(k.startswith(p) for p in skip_load)}
     net.load_state_dict(state, strict=False)
+
+    # Optional hidden-spike perturbation for the snapshot (same hook as infer()).
+    if perturb_mode is not None:
+        _pgen = torch.Generator(device=device).manual_seed(EVAL_SEED + 1)
+        net._hidden_perturb_fn = _make_perturb_fn(perturb_mode, perturb_level, dt, _pgen)
 
     # Run forward pass with spike recording enabled
     # Recording captures all spike trains and intermediate state (voltages, conductances)
