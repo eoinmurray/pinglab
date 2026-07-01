@@ -46,13 +46,20 @@ def infer(
     # and any randomness remains in the path).
     seed_everything(seed)
 
-    # Setup dt (constants are computed locally in model.forward)
-    M.T_ms = t_ms
+    # ─────────────────────────────────────────────────────────────────────────
+    # M MODULE GLOBALS INITIALIZATION (same as in train.py)
+    # ─────────────────────────────────────────────────────────────────────────
+    # Must initialize M globals before building/loading the network.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    M.T_ms = t_ms  # Total simulation time (ms)
 
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]
         log.info(f"  n_hidden auto → {hidden_sizes} (smart default for {dataset})")
+
+    # Initialize M module globals before building/loading network
     setup_model_globals(hidden_sizes)
 
     device = _auto_device()
@@ -185,8 +192,10 @@ def infer_and_snapshot(
     import numpy as np
     from scan import primary_hid_key, primary_inh_key
 
+    # Seed RNG for reproducibility of inference results
     seed_everything(seed)
 
+    # Initialize M module globals (same setup as infer() above)
     M.T_ms = t_ms
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
@@ -243,18 +252,24 @@ def infer_and_snapshot(
     state = torch.load(load_weights, map_location=device)
     net.load_state_dict(state, strict=False)
 
-    # Run forward pass with recording
+    # Run forward pass with spike recording enabled
+    # Recording captures all spike trains and intermediate state (voltages, conductances)
     net.recording = True
-    net.eval()
+    net.eval()  # Disable dropout, batch norm, etc.
     with torch.no_grad():
+        # Encode pixel data as Poisson spike train using EVAL_SEED for determinism
         spk = encode_batch(X_single, dt, dataset == "smnist")
         logits = net(input_spikes=spk)
 
-    # Save snapshot
+    # Extract and save spike recording to NPZ file for notebook analysis
+    # The recording dict contains spike tensors keyed by layer ('hid', 'inh', etc.),
+    # plus optional traces (voltages, conductances, etc.) if the network recorded them.
     rec = net.spike_record
     out_path = Path(out_dir) / "snapshot.npz"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Save snapshot with canonical field names and metadata
+    # (Uses shared utility to ensure all snapshot fields are consistent across code paths)
     save_snapshot_npz(out_path, rec, dt, M.N_HID, M.N_INH)
 
     return {"acc": None}
