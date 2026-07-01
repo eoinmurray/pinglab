@@ -743,6 +743,16 @@ def _build_subparsers(parser, parent):
         "(e.g. W_ei. W_ie.) so a fresh sub-block survives — transfer-load probes.",
     )
     sim_parser.add_argument(
+        "--perturb-mode", choices=["drop", "add", "add_split"], default=None,
+        help="[--infer] Hidden-spike perturbation applied inside the forward loop: "
+        "drop (Bernoulli mask), add (Poisson noise Hz), add_split (E/I Poisson).",
+    )
+    sim_parser.add_argument(
+        "--perturb-level", nargs="+", type=float, default=None, metavar="LEVEL",
+        help="[--perturb-mode] level: one value for drop (prob) / add (Hz); "
+        "two values (E Hz, I Hz) for add_split.",
+    )
+    sim_parser.add_argument(
         "--scale-w-in", type=float, default=1.0,
         help="[--infer] Multiply loaded input weights (W_ff[0]) before the forward pass.",
     )
@@ -1238,6 +1248,13 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
     """Load trained weights and evaluate test-set accuracy (the former `infer` mode)."""
     w_in = _resolve_w_in(args)
 
+    # Perturbation level: a single value (drop prob / add Hz) collapses to a scalar;
+    # two values stay a tuple for add_split (E Hz, I Hz).
+    _plevel = getattr(args, "perturb_level", None)
+    if _plevel is not None and len(_plevel) == 1:
+        _plevel = _plevel[0]
+    _pmode = getattr(args, "perturb_mode", None)
+
     # If snapshot_mode is true, run single-sample inference and save snapshot
     if snapshot_mode:
         infer_and_snapshot(
@@ -1260,6 +1277,8 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             sample_index=getattr(args, "sample_index", None),
             tau_gaba=getattr(args, "tau_gaba", None),
             skip_load=getattr(args, "skip_load", None),
+            perturb_mode=_pmode,
+            perturb_level=_plevel,
         )
         return
 
@@ -1285,6 +1304,8 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         scale_w_ei=getattr(args, "scale_w_ei", 1.0),
         scale_w_ie=getattr(args, "scale_w_ie", 1.0),
         skip_load=getattr(args, "skip_load", None),
+        perturb_mode=_pmode,
+        perturb_level=_plevel,
     )["acc"]
 
 
