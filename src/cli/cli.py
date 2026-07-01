@@ -85,81 +85,132 @@ log = logging.getLogger("cli")
 
 
 def _build_config_mapping(parent_parser):
-    """Generate config → argparse mappings from the parser itself.
+    """Generate config → argparse mappings from the parser itself via introspection.
 
-    Introspects the parent_parser to build two dicts:
-    - config_to_args: config.json key → argparse dest name
-    - dest_to_flag: argparse dest name → CLI flag
+    CRITICAL FUNCTION: Solves the "config mapping brittleness" problem.
 
-    This is the single source of truth — no hand-maintained dict duplication.
+    PROBLEM SOLVED: Previously, we maintained THREE separate sources of truth:
+    1. _CONFIG_TO_ARGS dict (config.json key → argparse dest)
+    2. _DEST_TO_FLAG dict (argparse dest → CLI flag)
+    3. The actual argparse add_argument() definitions
+    Adding a new flag required 3 edits with high error risk (one could be missed).
+
+    SOLUTION: Dynamically generate both dicts from the parser itself. The parser
+    is the SINGLE SOURCE OF TRUTH. Now adding a flag only requires editing
+    add_argument(), and the mappings are generated automatically.
+
+    Args:
+        parent_parser: argparse.ArgumentParser with all argument groups already
+                      defined (via add_argument_group + add_argument calls)
 
     Returns:
-        tuple: (config_to_args dict, dest_to_flag dict)
+        tuple: (config_to_args, dest_to_flag) where:
+            config_to_args: dict mapping config.json keys → argparse dest names.
+                           Used by _apply_load_config to apply saved config values.
+            dest_to_flag: dict mapping argparse dest names → primary CLI flag string.
+                         Used to check if a flag was explicitly passed on CLI.
+
+    Algorithm:
+    1. Walk all argument groups in the parser (from _action_groups)
+    2. For each argument action (skip 'help'):
+       a. Extract the dest name (where argparse stores the parsed value)
+       b. Infer the config.json key name:
+          - Default: use dest as-is (works for most: --model → model, --dt → dt)
+          - Special cases: map n_hidden→hidden_sizes, readout_mode→readout, etc.
+       c. Choose the primary CLI flag for dest:
+          - Prefer positive forms (--foo) over negative (--no-foo)
+          - For ties, pick the longest flag (--dales-law over -d)
+          - This is needed to check explicit CLI values in _apply_load_config
+
+    WHY THIS IS SAFE: Introspecting from _action_groups is the standard argparse
+    approach and is stable across Python versions. The mappings are generated
+    deterministically from the parser state.
     """
     config_to_args = {}
     dest_to_flag = {}
 
-    # Walk all argument groups and actions
+    # Iterate through all argument groups in the parser (Network, Training, etc.)
     for group in parent_parser._action_groups:
         for action in group._group_actions:
-            # Skip help action
+            # Skip the automatic 'help' action (-h, --help)
             if action.dest == "help":
                 continue
 
             dest = action.dest
 
-            # Infer config.json key from argument definition
-            # Default: dest as-is (works for most flags like --model, --dt, --seed)
+            # Step 1: Infer config.json key from dest name
+            # Default: most flags use dest as-is (e.g. --model stores in dest='model')
             cfg_key = dest
 
-            # Special mappings: cfg keys that differ from dest names
+            # Special cases: when dest name ≠ config.json key name
+            # These mappings must match what config._apply_load_config expects when
+            # loading saved config.json files.
             _SPECIAL_CONFIG_KEYS = {
-                "n_hidden": "hidden_sizes",  # config stores "hidden_sizes"
-                "spike_rate": "input_rate",  # config stores "input_rate"
-                "readout_mode": "readout",  # config stores "readout"
+                "n_hidden": "hidden_sizes",  # CLI --n-hidden → dest=n_hidden; config key=hidden_sizes
+                "spike_rate": "input_rate",  # CLI --spike-rate → dest=spike_rate; config key=input_rate
+                "readout_mode": "readout",   # CLI --readout → dest=readout_mode; config key=readout
             }
             if dest in _SPECIAL_CONFIG_KEYS:
                 cfg_key = _SPECIAL_CONFIG_KEYS[dest]
 
             config_to_args[cfg_key] = dest
 
-            # Build dest → flag mapping (primary flag from option_strings)
-            # Skip if we've already mapped this dest (e.g., multiple actions like
-            # --dales-law and --no-dales-law both set the same dest)
+            # Step 2: Build dest → primary CLI flag mapping
+            # Some dests have multiple flags (e.g., --dales-law and --no-dales-law
+            # both set dest='dales_law'). We pick ONE primary flag to represent this dest.
+            # This is used in _apply_load_config to check if a user explicitly set this value.
             if action.option_strings and dest not in dest_to_flag:
-                # Prefer positive forms (--foo) over negative (--no-foo)
-                # Otherwise pick the longest option
+                # Split flags into positive (--foo) and negative (--no-foo) forms
                 no_flags = [f for f in action.option_strings if f.startswith("--no-")]
                 yes_flags = [f for f in action.option_strings if not f.startswith("--no-")]
+
+                # Prefer positive over negative (user usually passes --foo, not --no-foo)
                 if yes_flags:
+                    # Among positive flags, pick the longest (if -d and --dales-law both exist,
+                    # --dales-law is more readable)
                     flag = max(yes_flags, key=len)
                 else:
+                    # No positive form; use the longest available (usually just --foo)
                     flag = max(action.option_strings, key=len)
+
                 dest_to_flag[dest] = flag
 
     return config_to_args, dest_to_flag
 
 
 def _apply_load_config(args, argv, config_to_args, dest_to_flag):
-    """Load config from JSON file and apply to args.
+    """Load config from JSON file and apply to args (CLI args take precedence).
 
-    Only sets values the user didn't explicitly pass on the CLI.
+    LOADING LOGIC: Merges saved config.json with CLI arguments using a precedence rule:
+    CLI arguments (explicitly passed by user) > saved config.json > defaults.
+
+    This allows users to:
+    - Run `train ... --load-config old_run/config.json` to reuse a config
+    - Override specific values: `... --load-config ... --seed 123` (seed takes precedence)
+    - Only inherit values they didn't explicitly set
 
     Args:
-        args: Parsed command-line arguments.
-        argv: Raw command-line argument list.
+        args: Parsed command-line arguments (from argparse after parse_args).
+              Already has CLI defaults; will be mutated to apply config.json values.
+        argv: Raw command-line argument list (sys.argv[1:]). Used to detect which
+              flags the user explicitly passed (vs. argparse defaults).
         config_to_args: Mapping of config.json keys → argparse dest names
                        (generated by _build_config_mapping).
-        dest_to_flag: Mapping of argparse dest names → CLI flag names
+        dest_to_flag: Mapping of argparse dest names → primary CLI flag names
                      (generated by _build_config_mapping).
+
+    Side effects:
+        Mutates args: Sets attributes on the args namespace for any config.json values
+                     that the user didn't explicitly pass on the CLI.
     """
+    # Load config.json
     cfg_path = Path(args.load_config)
     if not cfg_path.exists():
         print(f"Error: {cfg_path} not found")
         sys.exit(1)
     cfg = json.loads(cfg_path.read_text())
 
-    # Resolve legacy model names from earlier refactors.
+    # Handle legacy model names (code paths from earlier refactors may have used old names)
     from config import LEGACY_MODEL_ALIASES
 
     if cfg.get("model") in LEGACY_MODEL_ALIASES:
@@ -167,7 +218,8 @@ def _apply_load_config(args, argv, config_to_args, dest_to_flag):
         cfg["model"] = LEGACY_MODEL_ALIASES[old]
         print(f"  legacy model name {old!r} → {cfg['model']!r}")
 
-    # Backwards compat: old config.json has "n_hidden" as int
+    # Backwards compat: old config.json files have "n_hidden" as int, new ones use "hidden_sizes" as list
+    # This handles the case where we re-train an old run with a new CLI
     if "n_hidden" in cfg and "hidden_sizes" not in cfg:
         val = cfg["n_hidden"]
         if isinstance(val, int):
@@ -175,27 +227,42 @@ def _apply_load_config(args, argv, config_to_args, dest_to_flag):
         elif isinstance(val, list):
             cfg["hidden_sizes"] = val
 
-    # Build set of flags explicitly passed on CLI
+    # Build set of flags explicitly passed on the CLI by the user.
+    # We parse argv to find flags starting with '--' (ignore positional args, values, etc.)
+    # This lets us determine which values in args came from the CLI vs. argparse defaults.
     explicit = set()
     for a in argv:
         if a.startswith("--"):
+            # Extract flag name; handle both --flag and --flag=value formats
             explicit.add(a.split("=")[0])
 
+    # Apply config.json values to args, but only for flags the user didn't explicitly pass
     inherited = []
     for cfg_key, dest in config_to_args.items():
+        # Skip if this key is missing or None in config.json
         if cfg_key not in cfg or cfg[cfg_key] is None:
             continue
+
+        # Get the primary CLI flag for this dest (e.g. '--dales-law' for dest='dales_law')
         flag = dest_to_flag.get(dest, f"--{dest}")
+
+        # Check if user explicitly passed this flag on the CLI
+        # For boolean flags, also check the negative form (--no-dales-law)
         if flag in explicit or flag.replace("--", "--no-") in explicit:
+            # User set this explicitly; don't override with config.json
             continue
+
+        # User didn't pass this flag; inherit from config.json
         val = cfg[cfg_key]
         setattr(args, dest, val)
         inherited.append(f"{cfg_key}={val}")
 
+    # Log what we inherited
     if inherited:
         print(f"  load-config: inherited {', '.join(inherited)}")
 
-    # Warn about critical flags missing from config.json (old training runs)
+    # Warn about critical flags that are missing from old config.json files
+    # (Old training runs predate these flags and may not have them saved)
     critical = ["dales_law"]
     missing = [k for k in critical if k not in cfg]
     if missing:
