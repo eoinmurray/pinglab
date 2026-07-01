@@ -811,6 +811,9 @@ def _build_subparsers(parser, parent):
                               help="Inhibitory pool size (n_inh_per_layer for layer 1).")
     probe_parser.add_argument("--n-batch", type=int, default=64,
                               help="Number of Poisson-input trials (default: 64).")
+    probe_parser.add_argument("--input-file", type=str, default=None,
+                              help="NPZ with 'input_spikes' (T,B,N_IN) to forward "
+                              "instead of generating Poisson input — arbitrary stimulus.")
     probe_parser.add_argument("--w-ei-mean", type=float, default=None,
                               help="Explicit W_ei mean (independent of --w-ie-mean; "
                               "overrides ei-strength/ratio). std = 0.1·mean.")
@@ -1359,6 +1362,7 @@ def _run_probe(args, C, out_dir, log):
         load_weights=getattr(args, "load_weights", None),
         input_rate_hz=args.spike_rate,
         n_batch=getattr(args, "n_batch", 64),
+        input_file=getattr(args, "input_file", None),
         out_dir=str(out_dir),
         outputs=getattr(args, "outputs", None),
         tau_gaba=getattr(args, "tau_gaba", None),
