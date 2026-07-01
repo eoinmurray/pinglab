@@ -571,6 +571,7 @@ def probe(
     load_weights=None,
     input_rate_hz=25.0,
     n_batch=64,
+    input_file=None,
     out_dir=None,
     outputs=None,
     tau_gaba=None,
@@ -647,12 +648,23 @@ def probe(
     emit_rasters = "rasters" in outputs
     emit_per_cell = "per_cell_rates" in outputs
 
-    # Single uniform-Poisson draw of shape (T, n_batch, N_IN) — every channel
-    # independent at input_rate_hz. Seeded off `seed` for reproducibility.
-    T_steps = int(t_ms / dt)
-    p_step = input_rate_hz * dt / 1000.0
-    gen = torch.Generator().manual_seed((seed or 0) + 1)
-    spk_in = (torch.rand(T_steps, int(n_batch), M.N_IN, generator=gen) < p_step).float().to(device)
+    # Input: either an arbitrary pre-built spike stream (--input-file, the generic
+    # "run the net on this exact input" primitive — dual of --outputs rasters) or a
+    # single uniform-Poisson draw of shape (T, n_batch, N_IN) at input_rate_hz.
+    if input_file is not None:
+        arr = np.load(input_file)["input_spikes"]
+        spk_in = torch.from_numpy(arr).float()
+        if spk_in.ndim == 2:  # (T, N_IN) → (T, 1, N_IN)
+            spk_in = spk_in.unsqueeze(1)
+        spk_in = spk_in.to(device)
+        T_steps, n_batch = spk_in.shape[0], spk_in.shape[1]
+        M.T_steps = T_steps
+        log.info(f"  input-file: {input_file}  shape={tuple(spk_in.shape)}")
+    else:
+        T_steps = int(t_ms / dt)
+        p_step = input_rate_hz * dt / 1000.0
+        gen = torch.Generator().manual_seed((seed or 0) + 1)
+        spk_in = (torch.rand(T_steps, int(n_batch), M.N_IN, generator=gen) < p_step).float().to(device)
     with torch.no_grad():
         net(input_spikes=spk_in)
 
@@ -799,7 +811,14 @@ def dump_weights(
         for k, w in pdict.items():
             dump[f"{name}_{k}_init"] = w.detach().cpu().numpy()
 
-    # TRAINED weights: pulled from the saved state_dict (keys look like "W_ei.1").
+    # Feed-forward weights (W_ff ParameterList): W_ff[0] = W_in, W_ff[-1] = W_out.
+    # Emitted as W_ff_<i>_init so notebooks can read the readout matrix (W_out).
+    if hasattr(net, "W_ff"):
+        for i, w in enumerate(net.W_ff):
+            dump[f"W_ff_{i}_init"] = w.detach().cpu().numpy()
+
+    # TRAINED weights: pulled from the saved state_dict (keys look like "W_ei.1"
+    # or "W_ff.2"). W_ff entries are emitted too; the last index is W_out.
     assert load_weights is not None, "dump_weights requires --load-weights"
     state = torch.load(load_weights, map_location="cpu")
     for sk, sv in state.items():
@@ -807,6 +826,9 @@ def dump_weights(
         if name in _WEIGHT_DICTS and key:
             arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
             dump[f"{name}_{key}_trained"] = arr
+        elif name == "W_ff" and key:
+            arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
+            dump[f"W_ff_{key}_trained"] = arr
 
     out_path = Path(out_dir) / "weights_dump.npz"
     out_path.parent.mkdir(parents=True, exist_ok=True)
