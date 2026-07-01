@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -41,11 +42,9 @@ from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
 
-sys.path.insert(0, str(REPO / "src" / "notebooks"))
-from nb042 import _load_trained_full  # noqa: E402
-
 SLUG = "nb046"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
 
 # τ_GABA sweep cells now live in the shared training root (nb022
 # train-once / reuse-many), not the retired per-notebook nb041 dir.
@@ -145,71 +144,89 @@ def count_e_spikes_per_cycle(
     return counts
 
 
-def evaluate_cell(train_dir: Path, f_gamma_hz: float, device) -> dict:
-    """Run inference; accumulate spikes/cell/cycle distribution."""
-    import torch
-    from torch.utils.data import DataLoader, TensorDataset
+def _infer_cell(train_dir: Path, extra_args: list[str], max_samples: int) -> Path:
+    """Shell out to `sim --infer` under the cell's τ_GABA; return the out dir.
 
-    import models as M
-    from cli import EVAL_SEED, encode_batch
-
-    net, cfg, X_te, y_te = _load_trained_full(train_dir, device)
+    Network build/load/forward run in the CLI; the notebook reads artifacts.
+    """
+    train_dir = train_dir.resolve()
+    cfg = json.loads((train_dir / "config.json").read_text())
     tau_gaba_ms = float(cfg.get("tau_gaba_ms") or 9.0)
-    import models as M2
-    M2.tau_gaba = tau_gaba_ms
-    M2.decay_gaba = float(np.exp(-M2.dt / tau_gaba_ms))
-    dt_ms = float(M.dt)
-    t_ms = float(cfg["t_ms"])
-    n_e = M.N_HID
-
-    test_loader = DataLoader(
-        TensorDataset(torch.from_numpy(X_te), torch.from_numpy(y_te)),
-        batch_size=64,
+    out_dir = (ARTIFACTS / "infer" / train_dir.name).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "--load-config", str(train_dir / "config.json"),
+            "--load-weights", str(train_dir / "weights.pth"),
+            "--tau-gaba", str(tau_gaba_ms),
+            "--max-samples", str(max_samples),
+            "--out-dir", str(out_dir),
+            *extra_args,
+        ],
+        cwd=REPO,
+        check=True,
     )
-    eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+    return out_dir
 
-    # Distribution of (spikes per cell per cycle) — clipped at 3+.
+
+def evaluate_cell(train_dir: Path, f_gamma_hz: float) -> dict:
+    """Spikes-per-cell-per-cycle distribution + per-cell rates, via the CLI.
+
+    Runs `sim --infer --outputs rasters per_cell_rates` under the cell's τ_GABA,
+    then reconstructs per-trial E/I rasters from the sparse rasters.npz and bins
+    (cell, cycle) spike counts locally (I-burst peaks delimit cycles). Per-cell
+    rates come from per_cell_rates.npz; acc from metrics.json.
+    """
+    cfg = json.loads((train_dir / "config.json").read_text())
+    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or 9.0)
+    dt_ms = float(cfg["dt"])
+    out_dir = _infer_cell(
+        train_dir,
+        ["--outputs", "rasters", "per_cell_rates"],
+        max_samples=int(cfg["max_samples"]),
+    )
+    m = json.loads((out_dir / "metrics.json").read_text())
+    acc = float(m["best_acc"])
+
+    per_cell_rate_hz = np.load(out_dir / "per_cell_rates.npz")["rate_e_per_cell"]
+
+    # Reconstruct per-trial rasters from the sparse indices and bin (cell, cycle).
+    R = np.load(out_dir / "rasters.npz")
+    T, n_e, n_i = int(R["T"]), int(R["n_e"]), int(R["n_i"])
+    trial_count = int(R["n_trials"])
+
+    def _by_trial(prefix):
+        tr = R[f"{prefix}_trial"]
+        order = np.argsort(tr, kind="stable")
+        return R[f"{prefix}_t"][order], R[f"{prefix}_cell"][order], \
+            np.searchsorted(tr[order], np.arange(trial_count + 1))
+
+    e_t, e_c, e_b = _by_trial("e")
+    i_t, i_c, i_b = _by_trial("i")
+
     bucket_counts = np.zeros(4, dtype=np.int64)  # 0, 1, 2, ≥3
-    # Per-cell max spike rate (Hz), for the ceiling plot.
-    per_cell_spike_total = np.zeros(n_e, dtype=np.int64)
-    trial_count = 0
     cycle_count = 0
-    correct = total = 0
+    for b in range(trial_count):
+        s_i_trial = np.zeros((T, n_i), dtype=np.int8)
+        s_i_trial[i_t[i_b[b]:i_b[b + 1]], i_c[i_b[b]:i_b[b + 1]]] = 1
+        peaks = detect_i_burst_steps(s_i_trial, dt_ms, f_gamma_hz)
+        if len(peaks) == 0:
+            continue
+        s_e_trial = np.zeros((T, n_e), dtype=np.int8)
+        s_e_trial[e_t[e_b[b]:e_b[b + 1]], e_c[e_b[b]:e_b[b + 1]]] = 1
+        counts = count_e_spikes_per_cycle(s_e_trial, peaks)  # (K, N_E)
+        cycle_count += counts.shape[0]
+        flat = counts.ravel()
+        bucket_counts[0] += int((flat == 0).sum())
+        bucket_counts[1] += int((flat == 1).sum())
+        bucket_counts[2] += int((flat == 2).sum())
+        bucket_counts[3] += int((flat >= 3).sum())
 
-    with torch.no_grad():
-        for X_b, y_b in test_loader:
-            X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, M.dt, False, generator=eval_gen)
-            logits = net(input_spikes=spk)
-            correct += (logits.argmax(1) == y_b).sum().item()
-            total += y_b.size(0)
-            # net.spike_record tensors are shaped (T, B, N).
-            s_e = net.spike_record["hid"].detach().cpu().numpy().astype(np.int8)
-            s_i = net.spike_record["inh"].detach().cpu().numpy().astype(np.int8)
-            T, B, _ = s_e.shape
-            per_cell_spike_total += s_e.sum(axis=(0, 1)).astype(np.int64)
-            trial_count += B
-            for b in range(B):
-                peaks = detect_i_burst_steps(s_i[:, b, :], dt_ms, f_gamma_hz)
-                if len(peaks) == 0:
-                    continue
-                counts = count_e_spikes_per_cycle(s_e[:, b, :], peaks)
-                # counts shape: (K, N_E)
-                cycle_count += counts.shape[0]
-                # Bucket each (cell, cycle) count into {0, 1, 2, ≥3}.
-                flat = counts.ravel()
-                bucket_counts[0] += int((flat == 0).sum())
-                bucket_counts[1] += int((flat == 1).sum())
-                bucket_counts[2] += int((flat == 2).sum())
-                bucket_counts[3] += int((flat >= 3).sum())
-
-    # Per-cell mean firing rate (Hz) over all trials.
-    sec_per_trial = t_ms / 1000.0
-    per_cell_rate_hz = per_cell_spike_total / (trial_count * sec_per_trial)
     return {
         "tau_gaba_ms": tau_gaba_ms,
         "f_gamma_hz": float(f_gamma_hz),
-        "acc": 100.0 * correct / total,
+        "acc": acc,
         "n_trials": int(trial_count),
         "n_cycles_observed": int(cycle_count),
         "bucket_counts": bucket_counts.tolist(),
@@ -382,10 +399,6 @@ def main() -> None:
     prepare_run_dirs(SLUG, notebook_run_id, wipe=not args.no_wipe_dir,
                      make_artifacts=True)
 
-    from cli import _auto_device
-    device = _auto_device()
-    print(f"device = {device}")
-
     f_gamma_map = load_nb041_f_gamma()
     print(f"loaded f_γ for {len(f_gamma_map)} nb041 cells")
 
@@ -403,7 +416,7 @@ def main() -> None:
                 print(f"[skip] no f_γ for τ_GABA={tau}, seed={seed}")
                 continue
             t0 = time.monotonic()
-            res = evaluate_cell(train_dir, f_gamma, device)
+            res = evaluate_cell(train_dir, f_gamma)
             res["seed"] = seed
             rows.append(res)
             cells_done += 1
