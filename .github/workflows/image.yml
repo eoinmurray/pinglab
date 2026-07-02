@@ -1,0 +1,46 @@
+name: Build training image
+
+# Builds the pre-baked RunPod training image (Dockerfile) on amd64 and pushes it
+# to ghcr.io/eoinmurray/pinglab. Only rebuilds when the Dockerfile changes — the
+# repo code is git-pulled on each pod, not baked, so code edits need no rebuild.
+on:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .github/workflows/image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image
+  cancel-in-progress: true
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/eoinmurray/pinglab:cu128
+            ghcr.io/eoinmurray/pinglab:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
