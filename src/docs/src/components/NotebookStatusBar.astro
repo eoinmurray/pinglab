@@ -9,7 +9,7 @@
  * committed figures (provenance state "unknown" with no date), so a brand-new
  * stub stays clean.
  */
-import { commitUrl } from "../config/repo";
+import { blobUrl, commitUrl } from "../config/repo";
 import { provenance, type Provenance, type RunState } from "../config/staleness";
 
 const { slug } = Astro.props as { slug: string };
@@ -37,7 +37,12 @@ const STATE_META: Record<
   fresh: {
     color: "var(--color-success)",
     label: () => "up to date",
-    title: "No commit has touched this notebook's code, the shared helpers, or the CLI since it was run.",
+    title: "Committed run, and no commit has touched this notebook's code, the shared helpers, or the CLI since. Checkout the commit and re-run to reproduce.",
+  },
+  patched: {
+    color: "var(--color-cat-blue)",
+    label: () => "reproducible (patched)",
+    title: "Ran with uncommitted code, but the working-tree diff was captured. Reproduce: checkout the commit, git apply the patch, re-run.",
   },
   stale: {
     color: "var(--color-cat-orange)",
@@ -48,7 +53,7 @@ const STATE_META: Record<
   irreproducible: {
     color: "var(--color-danger)",
     label: () => "irreproducible",
-    title: "This run had uncommitted changes, so it cannot be reproduced from any commit.",
+    title: "No commit to reconstruct from (or uncommitted code that was not captured) — this run cannot be reproduced.",
   },
   unknown: {
     color: "var(--color-muted)",
@@ -97,6 +102,19 @@ const render = p.state !== "unknown" || runDate != null;
           locked to{" "}
           <a class="mono" href={commitUrl(p.sha!)} target="_blank" rel="noopener">
             {short}
+          </a>
+        </span>
+      )}
+      {p.hasPatch && (
+        <span class="item">
+          {"+ "}
+          <a
+            class="mono"
+            href={blobUrl(`src/docs/public/figures/notebooks/${slug}/_dirty.patch`)}
+            target="_blank"
+            rel="noopener"
+          >
+            patch{p.patchLines != null ? ` (${p.patchLines} lines)` : ""}
           </a>
         </span>
       )}

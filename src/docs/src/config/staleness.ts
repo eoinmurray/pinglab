@@ -35,7 +35,17 @@ function findRepoRoot(): string {
 
 const REPO_ROOT = findRepoRoot();
 
-export type RunState = "fresh" | "stale" | "irreproducible" | "unknown";
+// Reproducibility and staleness are orthogonal. "patched" is a reproducible
+// dirty run — it ran with uncommitted code, but the working-tree diff was
+// captured, so a cold clone can checkout the sha, apply the patch, and re-run.
+// "irreproducible" is reserved for the genuinely unrecoverable case (no commit,
+// or dirty code whose patch was not captured).
+export type RunState =
+  | "fresh"
+  | "patched"
+  | "stale"
+  | "irreproducible"
+  | "unknown";
 
 export interface Provenance {
   state: RunState;
@@ -43,6 +53,8 @@ export interface Provenance {
   runAt?: string; // ISO-8601
   sha?: string;
   dirty?: boolean;
+  hasPatch?: boolean;
+  patchLines?: number;
   host?: string;
   commitsSince?: number; // populated when state === "stale"
   changedFiles?: string[]; // sample of dependency files that changed
@@ -99,22 +111,30 @@ export function provenance(slug: string): Provenance {
     return { state: "unknown", note: "unreadable manifest" };
   }
 
+  const patch = m.patch ?? null;
+  const codeDirty = m.code_dirty === true;
   const base: Provenance = {
     state: "unknown",
     runId: m.run_id,
     runAt: m.run_at,
     sha: m.git_sha,
     dirty: m.dirty === true,
+    hasPatch: !!patch,
+    patchLines: patch?.lines,
     host: m.host,
   };
 
-  // A dirty run cannot be reproduced from any commit — there is nothing to
-  // diff against, so staleness is undefined; flag it rather than guess.
-  if (m.dirty === true) {
-    return { ...base, state: "irreproducible", note: "run had uncommitted changes" };
-  }
+  // Reproducibility (axis 1). Unrecoverable only when there is no commit to
+  // check out, or the dep code was dirty and its patch was NOT captured.
   if (!m.git_sha || m.git_sha === "unknown") {
-    return { ...base, note: "run recorded no commit" };
+    return { ...base, state: "irreproducible", note: "run recorded no commit" };
+  }
+  if (codeDirty && !patch) {
+    return {
+      ...base,
+      state: "irreproducible",
+      note: "uncommitted code changes were not captured",
+    };
   }
   // Is the locked commit reachable in this checkout? (Fails on a shallow CI
   // clone or a rebased-away commit.) git cat-file -e exits 0 → "" here.
@@ -122,6 +142,7 @@ export function provenance(slug: string): Provenance {
     return { ...base, note: "locked commit not in history" };
   }
 
+  // Staleness (axis 2): has the dep code moved on since the locked commit?
   const log = git([
     "log",
     "--format=%H",
@@ -133,20 +154,22 @@ export function provenance(slug: string): Provenance {
     return { ...base, note: "staleness unavailable" };
   }
   const commits = log ? log.split("\n").filter(Boolean) : [];
-  if (commits.length === 0) {
-    return { ...base, state: "fresh" };
+  if (commits.length > 0) {
+    const files = git([
+      "diff",
+      "--name-only",
+      `${m.git_sha}..HEAD`,
+      "--",
+      ...deps(slug),
+    ]);
+    return {
+      ...base,
+      state: "stale",
+      commitsSince: commits.length,
+      changedFiles: files ? files.split("\n").filter(Boolean).slice(0, 8) : undefined,
+    };
   }
-  const files = git([
-    "diff",
-    "--name-only",
-    `${m.git_sha}..HEAD`,
-    "--",
-    ...deps(slug),
-  ]);
-  return {
-    ...base,
-    state: "stale",
-    commitsSince: commits.length,
-    changedFiles: files ? files.split("\n").filter(Boolean).slice(0, 8) : undefined,
-  };
+  // Reproducible and current. A captured patch means it ran dirty but is fully
+  // reconstructable, so it is "patched" rather than a pristine "fresh".
+  return { ...base, state: patch ? "patched" : "fresh" };
 }
