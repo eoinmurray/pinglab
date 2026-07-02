@@ -1,0 +1,4 @@
+# The Dockerfile clones the repo from GitHub at build time and COPYs nothing,
+# so the build context is unused — ignore everything to keep CI uploads tiny
+# (the repo's figure/artifact dirs are large).
+*
