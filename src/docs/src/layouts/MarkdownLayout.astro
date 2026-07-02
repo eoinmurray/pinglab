@@ -4,6 +4,7 @@ import katex from "katex";
 import "../styles/global.css";
 import { blobUrl } from "../config/repo";
 import SiteHeader from "../components/SiteHeader.astro";
+import NotebookStatusBar from "../components/NotebookStatusBar.astro";
 import { normalizeStatus, STATUS_META } from "../config/status";
 import { collectionLabel as collectionLabelOf } from "../config/collections";
 // Driven by the content-collection routes (articles|notebooks/[...id].astro):
@@ -223,6 +224,7 @@ const editHref: string | null = id
               ))}
             </div>
           )}
+          {kind === "notebooks" && id && <NotebookStatusBar slug={id} />}
           <slot />
         </article>
         {editHref && (
