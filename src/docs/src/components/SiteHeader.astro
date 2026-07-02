@@ -8,6 +8,7 @@ interface Props {
   glitch?: boolean;
 }
 import ThemeToggle from "./ThemeToggle.astro";
+import KeyboardNav from "./KeyboardNav.astro";
 const { isHome = false, glitch = false } = Astro.props as Props;
 const pinglabClass = "text-2xl font-bold" + (glitch ? " logo-glitch" : "");
 const pinglabStyle =
@@ -31,6 +32,8 @@ const linkClass = "text-sm text-muted hover:text-[color:var(--ink)]";
     <ThemeToggle />
   </nav>
 </div>
+
+<KeyboardNav />
 
 <style>
   /* Red-only glitch: a ghost that tears through the black wordmark. Variables
