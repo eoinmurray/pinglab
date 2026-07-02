@@ -1,6 +1,6 @@
 """Notebook runner for entry 023 — PING fundamentals.
 
-Runs the oscilloscope in *image* mode twice — once with the recurrent
+Runs the pinglab-cli in *image* mode twice — once with the recurrent
 loop disabled (*--ei-strength 0*, "coba") and once with it active
 (*--ei-strength 1.5*, "ping") — and renders dedicated per-cell raster
 plots from the saved spike arrays. Everything else is held fixed
@@ -38,12 +38,12 @@ from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "nb023"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
-SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
-SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
+PINGLAB_CLI = REPO / "src" / "cli/cli.py"
+SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "pinglab-cli" / "snapshot.png"
+SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "pinglab-cli" / "snapshot.npz"
 
-DT_MS = 0.1  # canonical timestep (was the 0.25 oscilloscope default)
-N_E, N_I, N_IN = 1024, 256, 1024  # net geometry (oscilloscope mnist default)
+DT_MS = 0.1  # canonical timestep (was the 0.25 pinglab-cli default)
+N_E, N_I, N_IN = 1024, 256, 1024  # net geometry (pinglab-cli mnist default)
 
 # Per-condition uniform-Poisson input rate for the rasters. A SHARED rate can't
 # serve both: PING's loop clamps E (so it needs ~45 Hz drive to reach f_γ ≈ 40
@@ -277,7 +277,7 @@ def fi_sweep() -> dict:
     input rates: each call runs the net once under homogeneous uniform Poisson
     input at --input-rate (fed through W_in) and writes the spike snapshot; the
     per-cell rate is computed here from that snapshot. The scan lives in the
-    notebook, not the CLI. Same architecture as the raster/PSD (oscilloscope
+    notebook, not the CLI. Same architecture as the raster/PSD (pinglab-cli
     mnist default, 1024 E / 256 I)."""
     out = {c: {"in": [], "e": [], "i": []} for c in FI_EI}
     for cell, ei in FI_EI.items():
@@ -311,7 +311,7 @@ def fi_sweep() -> dict:
                 str(out_dir),
             ]
             subprocess.run(
-                ["uv", "run", "python", str(OSCILLOSCOPE), *argv], cwd=REPO, check=True
+                ["uv", "run", "python", str(PINGLAB_CLI), *argv], cwd=REPO, check=True
             )
             # Single-trial snapshot (no --outputs/--n-batch): read the spikes and
             # compute the mean per-cell rate here.
@@ -825,11 +825,11 @@ def main() -> None:
             if p.exists():
                 p.unlink()
         scope_argv = [*COMMON_ARGS, *spec["args"]]
-        cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *scope_argv]
+        cmd = ["uv", "run", "python", str(PINGLAB_CLI), *scope_argv]
         print(f"[scope] {cell}: {' '.join(scope_argv)}")
         subprocess.run(cmd, cwd=REPO, check=True)
         if not SCOPE_OUT_NPZ.exists():
-            raise SystemExit(f"oscilloscope did not produce {SCOPE_OUT_NPZ}")
+            raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
 
         data = np.load(SCOPE_OUT_NPZ)
         snaps[cell] = {

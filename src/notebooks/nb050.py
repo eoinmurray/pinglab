@@ -31,9 +31,9 @@ from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "nb050"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
-SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
-SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
+PINGLAB_CLI = REPO / "src" / "cli/cli.py"
+SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "pinglab-cli" / "snapshot.png"
+SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "pinglab-cli" / "snapshot.npz"
 
 # Shared knobs across both cells: longer trial (T = 1000 ms) so per-cell
 # ISI distributions get enough samples to be meaningful, and so the
@@ -441,11 +441,11 @@ def main() -> None:
             if p.exists():
                 p.unlink()
         scope_argv = [*COMMON_ARGS, *spec["args"]]
-        cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *scope_argv]
+        cmd = ["uv", "run", "python", str(PINGLAB_CLI), *scope_argv]
         print(f"[scope] {cell}: {' '.join(scope_argv)}")
         subprocess.run(cmd, cwd=REPO, check=True)
         if not SCOPE_OUT_NPZ.exists():
-            raise SystemExit(f"oscilloscope did not produce {SCOPE_OUT_NPZ}")
+            raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
 
         # Stash a copy so the side-by-side raster figure can reload both
         # regimes after the loop (SCOPE_OUT_NPZ is overwritten each cell).

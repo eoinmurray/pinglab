@@ -52,7 +52,7 @@ from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "nb064"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 
 T_MS = 200.0
 DT_TRAIN = 0.1
@@ -120,7 +120,7 @@ SCALE = {
     "t_ms": T_MS,
     "dt_ms": DT_TRAIN,
     "batch_size": int(MODEL_RECIPES["coba"]["--batch-size"]),  # same for both
-    "hidden": 1024,  # oscilloscope's MNIST default (not overridden here)
+    "hidden": 1024,  # pinglab-cli's MNIST default (not overridden here)
     "seeds": len(SEEDS),
     "cells": len(MODELS) * len(DAMPEN_SWEEP) * len(SEEDS),
     "grid": "2 architectures × 4 dampenings × 1 seed",
@@ -338,7 +338,7 @@ def main() -> None:
 
     # ── Train the dampen × model × seed grid (bespoke cells, trained here) ──
     if not skip_training:
-        dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
+        dispatcher = BatchDispatcher(modal_gpu, REPO, PINGLAB_CLI)
         for model in MODELS:
             for dampen in DAMPEN_SWEEP:
                 for seed in SEEDS:

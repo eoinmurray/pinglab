@@ -34,7 +34,6 @@ sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "src" / "notebooks"))
 
 from helpers.figsave import save_figure  # noqa: E402
-from helpers.operating_point import T_GAMMA_MS  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -44,7 +43,7 @@ from helpers.datasets import load_mnist_split  # noqa: E402
 
 SLUG = "nb048"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 
 # Trained-baseline locator — nb025 medium-tier PING at θ_u = off, three
 # seeds. Heatmap and τ-sweep average over all three; headline trials pick
@@ -144,7 +143,7 @@ def _run_stream(train_dir: Path, spk_in) -> tuple:
     np.savez(out_dir / "stream.npz", input_spikes=arr.astype("float32"))
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "sim",
+            "uv", "run", "python", str(PINGLAB_CLI), "sim",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--n-in", str(N_IN),
@@ -178,7 +177,7 @@ def _load_w_out(train_dir: Path) -> np.ndarray:
         out_dir.mkdir(parents=True, exist_ok=True)
         subprocess.run(
             [
-                "uv", "run", "python", str(OSCILLOSCOPE), "dump-weights",
+                "uv", "run", "python", str(PINGLAB_CLI), "dump-weights",
                 "--load-config", str((train_dir / "config.json").resolve()),
                 "--load-weights", str((train_dir / "weights.pth").resolve()),
                 "--out-dir", str(out_dir),
@@ -963,45 +962,6 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
                 fontsize=theme.SIZE_LABEL,
                 color=("white" if grid[i, j] < 55 else theme.INK_BLACK),
             )
-    # Reference lines at the sub-cycle accuracy floor (τ ≈ 0.4 T_γ) and at one
-    # gamma period (T_γ). Both derive from the collection's measured operating
-    # point (helpers/operating_point.py: f_γ ≈ 44 Hz → T_γ ≈ 22.8 ms at the
-    # canonical τ_GABA = 6 ms). The x-axis is a discrete index; interpolate the
-    # τ value into a fractional index.
-    def _tau_to_index(target_ms: float) -> float:
-        if target_ms <= taus[0]:
-            return 0.0
-        if target_ms >= taus[-1]:
-            return float(len(taus) - 1)
-        for k in range(len(taus) - 1):
-            if taus[k] <= target_ms <= taus[k + 1]:
-                frac = (target_ms - taus[k]) / (taus[k + 1] - taus[k])
-                return k + frac
-        return float(len(taus) - 1)
-
-    idx_subcycle = _tau_to_index(0.4 * T_GAMMA_MS)  # ≈ 9 ms (sub-cycle floor)
-    idx_tgamma   = _tau_to_index(T_GAMMA_MS)        # ≈ 23 ms (one gamma period)
-
-    ax.axvline(idx_subcycle, color=theme.FAINT, lw=0.8, ls=":", alpha=0.85,
-               zorder=10)
-    ax.axvline(idx_tgamma,   color=theme.PAPER, lw=1.4, ls="--", alpha=0.95,
-               zorder=10)
-    # Annotate just above the heatmap top.
-    y_top = len(rates) - 0.5
-    ax.annotate(
-        r"$0.4\,T_\gamma$",
-        xy=(idx_subcycle, y_top), xytext=(idx_subcycle, y_top + 0.45),
-        ha="center", va="bottom",
-        fontsize=theme.SIZE_CAPTION, color=theme.MUTED,
-    )
-    ax.annotate(
-        r"$T_\gamma \approx 40$ ms",
-        xy=(idx_tgamma, y_top), xytext=(idx_tgamma, y_top + 0.45),
-        ha="center", va="bottom",
-        fontsize=theme.SIZE_CAPTION, color=theme.INK,
-    )
-    ax.set_ylim(-0.5, y_top + 1.4)
-
     cbar = fig.colorbar(im, ax=ax, shrink=0.85)
     cbar.set_label("Per-segment accuracy (%)", fontsize=theme.SIZE_LABEL)
     fig.suptitle(
@@ -1011,7 +971,10 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path, formats=("png", "pdf"))  # heatmap: PNG, not SVG
+    # Equal breathing room on all four sides (tight bbox + uniform pad),
+    # so the plot sits centered in the exported image.
+    with plt.rc_context({"savefig.pad_inches": 0.15}):
+        save_figure(fig, out_path, formats=("png", "pdf"))  # heatmap: PNG, not SVG
     plt.close(fig)
 
 

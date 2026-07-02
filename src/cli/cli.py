@@ -7,7 +7,7 @@ Usage:
     uv run python src/cli/cli.py sim --image                 # snapshot
     uv run python src/cli/cli.py sim --video --scan-var ei_strength  # parameter sweep
     uv run python src/cli/cli.py sim --infer --load-weights weights.pth  # evaluate trained net
-    uv run python src/cli/cli.py train --epochs 10           # train on scikit digits
+    uv run python src/cli/cli.py train --epochs 10           # train on mnist
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from pathlib import Path
 import torch
 
 import models as M
+import runlog
 from config import (
     DEFAULT_ARTIFACT_ROOT,
     _MODEL_CLASSES,
@@ -294,7 +295,7 @@ def _build_parent_parser():
         help="Hidden layer sizes. Single value = 1 layer, "
         "multiple = stacked layers (e.g. --n-hidden 128 256). "
         "(default: dataset-aware smart default; "
-        "scikit=64, mnist=1024, smnist=32)",
+        "mnist=1024, smnist=32, shd=256)",
     )
     net_group.add_argument(
         "--readout",
@@ -575,9 +576,9 @@ def _build_parent_parser():
     inp_group.add_argument(
         "--dataset",
         type=str,
-        default="scikit",
-        choices=["scikit", "mnist", "smnist", "shd"],
-        help="Dataset (default: scikit)",
+        default="mnist",
+        choices=["mnist", "smnist", "shd"],
+        help="Dataset (default: mnist)",
     )
 
     wt_group = parent.add_argument_group("Weights (advanced)")
@@ -837,7 +838,7 @@ def _build_subparsers(parser, parent):
         "train",
         parents=[parent],
         help="Train an SNN to classify digits",
-        description="Train a model on MNIST / smnist / scikit-digits using "
+        description="Train a model on MNIST / smnist / SHD using "
         "surrogate-gradient BPTT. Writes weights.pth, metrics.json, "
         "metrics.jsonl, test_predictions.json plus optional video.",
         epilog="Examples:\n"
@@ -977,7 +978,8 @@ Models:
 For the underlying theory of --v-grad-dampen see /articles/ar006/.
 """
     parser = argparse.ArgumentParser(
-        description="Oscilloscope — PING network toolkit",
+        prog="pinglab-cli",
+        description="pinglab-cli — PING network toolkit",
         epilog=_examples,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1021,7 +1023,7 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
 
     args._input_auto = False
     config_set_dataset = getattr(args, "load_config", None) and getattr(
-        args, "dataset", "scikit"
+        args, "dataset", None
     ) in ("mnist", "smnist")
     # Only auto-flip when --input was LEFT AT DEFAULT. An explicit --input
     # synthetic-spikes (e.g. uniform-Poisson f–I on a trained cell, which also
@@ -1115,6 +1117,9 @@ def save_run_artifacts(out_dir, args, mode):
     sh.setFormatter(logging.Formatter("%(message)s"))
     log.addHandler(sh)
 
+    # run.jsonl — the canonical, machine-readable event spine for this run.
+    runlog.init_events(out_dir)
+
     # Print structured intro
     _print_intro(log, config, args, mode)
 
@@ -1122,54 +1127,90 @@ def save_run_artifacts(out_dir, args, mode):
 
 
 def _print_intro(log, config, args, mode):
-    """Group CLI args into sections and print via runlog.print_intro."""
+    """Compose curated headline groups and render the banner + config block."""
     import runlog
 
     model = config.get("model", "ping")
-    dataset = config.get("dataset", "scikit")
+    dataset = config.get("dataset", "mnist")
 
-    def g(*keys):
-        return {k: config[k] for k in keys if k in config}
+    # Is the dataset actually consumed this run? Only when a dataset sample
+    # drives the net: train always encodes dataset samples; sim does so only
+    # with --input dataset (the auto-flip sets input="dataset" when --digit/
+    # --sample select a snapshot). With synthetic-spikes/-conductance the net is
+    # driven by Poisson/tonic input through W_in and the dataset/digit/sample
+    # fields are unread — so we neither claim "on mnist" nor list them.
+    input_mode = config.get("input", "synthetic-spikes")
+    dataset_used = mode == "train" or input_mode == "dataset"
+    subtitle = f"on {dataset}" if dataset_used else input_mode
 
-    sections = {
-        "Data": g("dataset", "digit", "sample", "max_samples"),
-        "Simulation": {
-            "dt": f"{config.get('dt', '?')} ms",
-            "t_ms": f"{config.get('t_ms', '?')}",
-            "input_rate": f"{config.get('spike_rate', '?')} Hz",
-            "input": config.get("input", "?"),
-            "burn_in": f"{config.get('burn_in', '?')} ms",
-        },
-        "Network": {
-            "model": model,
-            "hidden_sizes": config.get("n_hidden", "?"),
-            "dales_law": config.get("dales_law", True),
-            "ei_strength": config.get("ei_strength"),
-            "ei_ratio": config.get("ei_ratio"),
-        },
-        "Weights": g("w_in", "w_in_sparsity", "w_ei", "w_ie"),
-        "Training": g("epochs", "lr", "adaptive_lr", "v_grad_dampen")
-        if mode == "train"
-        else {},
-        "Scan": g("scan_var", "scan_min", "scan_max", "frames", "frame_rate")
-        if config.get("video")
-        else {},
-        "Output": g("out_dir", "observe", "wipe_dir"),
-        "Provenance": {
-            "git_sha": config.get("git_sha"),
-            "device": config.get("device"),
-            "run_id": config.get("run_id"),
-            "started_at": config.get("started_at"),
-        },
-    }
-    runlog.print_intro(log, mode, model, dataset, sections)
+    def has(*keys):
+        return any(config.get(k) is not None for k in keys)
+
+    def join(*parts):
+        """Dotted one-liner of the non-empty parts."""
+        return " · ".join(p for p in parts if p)
+
+    # Curated headline groups — one composed line each. The exhaustive config
+    # lives in config.json / run.jsonl; this is the legible summary, not a dump.
+    groups = []
+
+    if dataset_used:
+        data = dataset
+        if config.get("digit") is not None:
+            data = join(data, f"digit {config['digit']}")
+        if config.get("sample") is not None:
+            data = join(data, f"sample {config['sample']}")
+        if config.get("max_samples") is not None:
+            data = join(data, f"≤{config['max_samples']} samples")
+        groups.append(("data", data))
+
+    net_bits = []
+    nh = config.get("n_hidden")
+    if nh is not None:
+        # [1024] → "1024", [64, 32] → "64→32"
+        layers = nh if isinstance(nh, (list, tuple)) else [nh]
+        net_bits.append("hidden " + "→".join(str(x) for x in layers))
+    net_bits.append("Dale's law" if config.get("dales_law", True) else "signed")
+    if has("ei_strength"):
+        net_bits.append(f"E/I {config['ei_strength']}×{config.get('ei_ratio', '?')}")
+    groups.append(("network", join(*net_bits)))
+
+    # Drive line: Poisson rate only when synthetically driven (the input mode
+    # is already the banner subtitle, so it is not repeated here).
+    groups.append(("sim", join(
+        f"dt {config.get('dt', '?')} ms",
+        f"T {config.get('t_ms', '?')} ms",
+        f"Poisson {config.get('spike_rate', '?')} Hz" if not dataset_used else None,
+    )))
+
+    if mode == "train":
+        groups.append(("train", join(
+            f"{config.get('epochs', '?')} epochs",
+            f"lr {config.get('lr', '?')}",
+            f"batch {config.get('batch_size', 64)}",
+            f"v-dampen {config['v_grad_dampen']}" if has("v_grad_dampen") else None,
+        )))
+
+    if config.get("video"):
+        groups.append(("scan", join(
+            f"{config.get('scan_var', '?')} "
+            f"{config.get('scan_min', '?')}→{config.get('scan_max', '?')}",
+            f"{config.get('frames', '?')} frames",
+        )))
+
+    groups.append(("run", join(
+        config.get("run_id"),
+        f"git {config['git_sha']}" if has("git_sha") else None,
+    )))
+
+    runlog.banner(log, mode, model, subtitle)
+    runlog.config_block(log, groups)
 
 
 def _run_sim(args, C, out_dir, log):
     """Forward pass with firing-rate metrics."""
     import numpy as np
 
-    log.info(f"Device: {C.DEVICE}")
     if getattr(args, "infer", False):
         # Check if --digit / --sample / --sample-index were explicitly passed (snapshot mode)
         _snap_flags = ("--digit", "--sample", "--sample-index")
@@ -1195,7 +1236,6 @@ def _run_sim(args, C, out_dir, log):
         return
 
     # Metrics-only simulation
-    from metrics import report_metrics
     from scan import primary_hid_key, primary_inh_key
 
     spike_rate = getattr(args, "spike_rate", None) or C.SPIKE_RATE_BASE
@@ -1219,31 +1259,26 @@ def _run_sim(args, C, out_dir, log):
         p_step = spike_rate * dt / 1000.0  # per-channel Poisson spike prob / step
         gen = torch.Generator().manual_seed(C.SEED)
         spk_in = (torch.rand(T_steps, n_in, generator=gen) < p_step).float()
-        log.info(
-            f"sim | {args.model} synthetic-spikes: uniform Poisson "
-            f"{spike_rate:.0f} Hz × {n_in} ch → W_in"
+        runlog.phase(
+            log, "drive",
+            f"uniform Poisson {spike_rate:.0f} Hz × {n_in} ch → W_in",
         )
         rec, display, _ = run_sim(
             dt, 0.0, model_name=args.model, t_e_async=t_e_async, input_spikes=spk_in,
         )
     else:
         t_e_ping = t_e_async * getattr(args, "overdrive", 1.0)
-        log.info(f"sim | {args.model} conductance OD={getattr(args, 'overdrive', 1.0):.1f}x")
+        runlog.phase(
+            log, "drive",
+            f"tonic conductance · OD {getattr(args, 'overdrive', 1.0):.1f}×",
+        )
         rec, display, _ = run_sim(dt, t_e_ping, model_name=args.model, t_e_async=t_e_async)
 
     spk_e = rec[primary_hid_key(rec)][burn_steps:]
     spk_i = rec[primary_inh_key(rec)][burn_steps:] if primary_inh_key(rec) else None
-    report_metrics(
-        spk_e,
-        spk_i,
-        dt,
-        args.model,
-        n_e=C.N_E,
-        n_i=C.N_I,
-        step_on_ms=C.STEP_ON_MS,
-        step_off_ms=C.STEP_OFF_MS,
-        burn_in_ms=C.BURN_IN_MS,
-    )
+    from metrics import compute_metrics
+    _m = compute_metrics(spk_e, spk_i, dt, args.model, n_e=C.N_E, n_i=C.N_I)
+    runlog.metrics_line(log, _m, label="result")
 
     # Save full integration window snapshot for notebooks
     out_path = Path(out_dir) / "snapshot.npz"
@@ -1480,20 +1515,22 @@ def main(argv=None):
 
     # M.max_rate_hz / M.T_ms are set in configure_models above.
     if args.t_ms <= C.STEP_ON_MS:
-        log.warning(
-            f"  --t-ms={args.t_ms} <= STEP_ON_MS={C.STEP_ON_MS}: "
-            f"the stimulus window never fires within the trial. "
-            f"Consider --t-ms >= {C.STEP_OFF_MS:.0f} (STEP_OFF_MS)."
+        runlog.warn(
+            log,
+            f"T {args.t_ms:.0f} ms ≤ step-on {C.STEP_ON_MS:.0f} ms — "
+            f"stimulus never fires (try T ≥ {C.STEP_OFF_MS:.0f})",
         )
 
     if args._input_auto:
-        log.info("  --input auto → dataset (inferred from --dataset/--digit/--sample)")
+        runlog.phase(log, "input", "auto → dataset (from --dataset/--digit/--sample)")
 
     _MODE_HANDLERS[mode](args, C, out_dir, log)
 
     _elapsed = _time.monotonic() - _t0
-    _m, _s = divmod(int(_elapsed), 60)
-    log.info(f"Done in {_m}m {_s}s.")
+    # No device here: it would be a guess. train's summary reports the device it
+    # actually used; a sim's device is implicit in its (CPU) result path.
+    runlog.done(log, _elapsed)
+    runlog.close_events()
     return 0
 
 

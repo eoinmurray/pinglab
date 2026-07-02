@@ -38,7 +38,7 @@ from helpers import theme  # noqa: E402
 
 SLUG = "nb024"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 
 T_MS = 200.0
 DT_TRAIN = 0.1

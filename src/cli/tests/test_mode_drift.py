@@ -62,11 +62,11 @@ def test_encode_images_poisson_deterministic():
     assert torch.equal(a, b)
 
 
-def test_load_dataset_deterministic_scikit():
+def test_load_dataset_deterministic_mnist():
     from cli import load_dataset
 
-    a_tr, a_te, ay_tr, ay_te = load_dataset("scikit", max_samples=200, split=True)
-    b_tr, b_te, by_tr, by_te = load_dataset("scikit", max_samples=200, split=True)
+    a_tr, a_te, ay_tr, ay_te = load_dataset("mnist", max_samples=200, split=True)
+    b_tr, b_te, by_tr, by_te = load_dataset("mnist", max_samples=200, split=True)
     assert np.array_equal(a_tr, b_tr)
     assert np.array_equal(a_te, b_te)
     assert np.array_equal(ay_tr, by_tr)

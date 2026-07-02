@@ -85,7 +85,7 @@ def _cd_step(u, ref, frac, beta, theta, refrac):
     return fired, u, ref
 
 # ── Architecture ──────────────────────────────────────────────────────────
-N_IN: int = 64  # input neurons (8×8 scikit-digits)
+N_IN: int = 64  # input neurons (module default; overridden per-run by the dataset loader)
 N_HID: int = 64  # hidden excitatory neurons (last layer size for compat)
 N_INH: int = 16  # inhibitory neurons (PING only, per E-I layer)
 N_OUT: int = 10  # output neurons (one per digit class)

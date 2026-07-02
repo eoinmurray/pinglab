@@ -44,7 +44,7 @@ from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "nb046"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 
 # τ_GABA sweep cells now live in the shared training root (nb022
 # train-once / reuse-many), not the retired per-notebook nb041 dir.
@@ -156,7 +156,7 @@ def _infer_cell(train_dir: Path, extra_args: list[str], max_samples: int) -> Pat
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
             "--load-config", str(train_dir / "config.json"),
             "--load-weights", str(train_dir / "weights.pth"),
             "--tau-gaba", str(tau_gaba_ms),

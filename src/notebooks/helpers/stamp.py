@@ -1,7 +1,7 @@
 """Run-id stamping for notebook figures and videos.
 
 `stamp_figure` writes the monotonic run id (e.g. "r007") into the bottom-right
-corner of a matplotlib figure using the shared oscilloscope theme.
+corner of a matplotlib figure using the shared pinglab-cli theme.
 `render_stamp_png` + `overlay_stamp_video` produce the same stamp as a
 transparent PNG and burn it into the corner of an mp4 via ffmpeg, for the
 video runners that can't annotate a figure directly.

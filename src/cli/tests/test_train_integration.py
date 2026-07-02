@@ -61,7 +61,7 @@ class TestTrainParameterPropagation:
             dt=dt_value,
             t_ms=100.0,
             epochs=0,  # probe mode
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,  # larger to allow stratified split
             out_dir=tmp_output_dir,
         )
@@ -77,7 +77,7 @@ class TestTrainParameterPropagation:
             dt=0.1,
             t_ms=t_ms_value,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             out_dir=tmp_output_dir,
         )
@@ -96,7 +96,7 @@ class TestTrainParameterPropagation:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=hidden_sizes_value,
             out_dir=tmp_output_dir,
@@ -112,7 +112,7 @@ class TestTrainParameterPropagation:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             readout_mode="spike-count",
             out_dir=tmp_output_dir,
@@ -128,7 +128,7 @@ class TestTrainParameterPropagation:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             dales_law=False,
             out_dir=tmp_output_dir,
@@ -145,7 +145,7 @@ class TestTrainParameterPropagation:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             seed=42,
             out_dir=tmp_output_dir,
@@ -161,7 +161,7 @@ class TestTrainParameterPropagation:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             seed=42,
             out_dir=tmp_output_dir2,
@@ -185,7 +185,7 @@ class TestMModuleGlobalsSetup:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=hidden_sizes,
             out_dir=tmp_output_dir,
@@ -200,16 +200,16 @@ class TestMModuleGlobalsSetup:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=200,  # need enough samples for stratified split
             hidden_sizes=None,
             out_dir=tmp_output_dir,
         )
-        # scikit default is 64 (from DATASET_N_HIDDEN_DEFAULTS)
-        assert M.N_HID == 64
+        # mnist default is 1024 (from DATASET_N_HIDDEN_DEFAULTS)
+        assert M.N_HID == 1024
         with open(tmp_output_dir / "config.json") as f:
             config = json.load(f)
-        assert config["hidden_sizes"] == [64]
+        assert config["hidden_sizes"] == [1024]
 
     def test_t_steps_computed_correctly(self, tmp_output_dir):
         """M.T_ms should be set and T_steps computed from it."""
@@ -220,7 +220,7 @@ class TestMModuleGlobalsSetup:
             dt=dt,
             t_ms=t_ms,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             out_dir=tmp_output_dir,
         )
@@ -235,7 +235,7 @@ class TestMModuleGlobalsSetup:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             v_grad_dampen=150.0,
             out_dir=tmp_output_dir,
@@ -254,7 +254,7 @@ class TestOutputArtifacts:
             dt=0.1,
             t_ms=100.0,
             epochs=2,  # need at least one epoch with data
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             lr=0.01,
             out_dir=tmp_output_dir,
@@ -272,7 +272,7 @@ class TestOutputArtifacts:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             out_dir=tmp_output_dir,
         )
@@ -299,7 +299,7 @@ class TestOutputArtifacts:
             dt=0.1,
             t_ms=100.0,
             epochs=2,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             lr=0.01,
             out_dir=tmp_output_dir,
@@ -322,7 +322,7 @@ class TestOutputArtifacts:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             out_dir=tmp_output_dir,
         )
@@ -343,7 +343,7 @@ class TestConfigRoundTrip:
             "dt": 0.2,
             "t_ms": 150.0,
             "epochs": 0,
-            "dataset": "scikit",
+            "dataset": "mnist",
             "max_samples": 100,  # enough for stratified split
             "hidden_sizes": [80],
             "lr": 0.005,
@@ -358,7 +358,7 @@ class TestConfigRoundTrip:
         # Verify key values round-tripped
         assert saved_config["dt"] == 0.2
         assert saved_config["t_ms"] == 150.0
-        assert saved_config["dataset"] == "scikit"
+        assert saved_config["dataset"] == "mnist"
         assert saved_config["dales_law"] is False
         assert saved_config["readout_mode"] == "rate"
         assert saved_config["hidden_sizes"] == [80]
@@ -369,22 +369,22 @@ class TestEdgeCases:
 
     def test_hidden_sizes_none_uses_smart_default(self, tmp_output_dir):
         """hidden_sizes=None should auto-detect per dataset."""
-        # Test with scikit (default 64)
-        tmpdir = tmp_output_dir.parent / "edge_scikit"
+        # Test with mnist (default 1024)
+        tmpdir = tmp_output_dir.parent / "edge_mnist"
         tmpdir.mkdir(exist_ok=True)
         train(
             model_name="ping",
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=100,
             hidden_sizes=None,
             out_dir=tmpdir,
         )
         with open(tmpdir / "config.json") as f:
             config = json.load(f)
-        assert config["hidden_sizes"] == [64]  # scikit default is 64
+        assert config["hidden_sizes"] == [1024]  # mnist default is 1024
 
     def test_seed_determinism_across_runs(self, tmp_output_dir):
         """Different runs with same seed should initialize identically."""
@@ -399,7 +399,7 @@ class TestEdgeCases:
                 dt=0.1,
                 t_ms=100.0,
                 epochs=0,
-                dataset="scikit",
+                dataset="mnist",
                 max_samples=50,
                 seed=seed,
                 out_dir=tmpdir,
@@ -417,7 +417,7 @@ class TestEdgeCases:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             out_dir=tmp_output_dir,
         )
@@ -440,7 +440,7 @@ class TestEdgeCases:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=hidden_sizes,
             out_dir=tmp_output_dir,
@@ -463,7 +463,7 @@ class TestBackwardsCompatibility:
             "dt": 0.1,
             "t_ms": 100.0,
             "epochs": 0,
-            "dataset": "scikit",
+            "dataset": "mnist",
             "n_hidden": 256,
             "n_inh": 64,
             "n_in": 64,
@@ -492,8 +492,8 @@ class TestTrainWithMinimalData:
             dt=0.1,
             t_ms=100.0,
             epochs=3,
-            dataset="scikit",
-            max_samples=20,
+            dataset="mnist",
+            max_samples=100,
             lr=0.01,
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
@@ -510,8 +510,8 @@ class TestTrainWithMinimalData:
             dt=0.1,
             t_ms=100.0,
             epochs=2,
-            dataset="scikit",
-            max_samples=20,
+            dataset="mnist",
+            max_samples=100,
             lr=0.01,
             out_dir=tmp_output_dir,
         )
@@ -545,19 +545,6 @@ class TestTrainWithDifferentDatasets:
         )
         assert M.N_IN == 784
 
-    def test_scikit_sets_n_in_correctly(self, tmp_output_dir):
-        """Scikit should set N_IN=64."""
-        train(
-            model_name="ping",
-            dt=0.1,
-            t_ms=100.0,
-            epochs=0,
-            dataset="scikit",
-            max_samples=50,
-            out_dir=tmp_output_dir,
-        )
-        assert M.N_IN == 64
-
 
 class TestConfigValidation:
     """Test that config.json contains valid data types and ranges."""
@@ -569,7 +556,7 @@ class TestConfigValidation:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             out_dir=tmp_output_dir,
         )
@@ -587,7 +574,7 @@ class TestConfigValidation:
             dt=0.1,
             t_ms=100.0,
             epochs=0,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             out_dir=tmp_output_dir,
         )
