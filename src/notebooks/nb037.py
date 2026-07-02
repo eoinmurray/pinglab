@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -82,33 +82,6 @@ THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
 FR_STRENGTH_UPPER = 1e-3
 
 MODELS = ["coba", "ping"]
-
-MODEL_RECIPES: dict[str, dict] = {
-    "coba": {
-        "__build_as": "ping",
-        "--ei-strength": "0",
-        "--v-grad-dampen": "1000",
-        "--w-in": "0.3",
-        "--w-in-sparsity": "0.95",
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--readout-w-out-scale": "100",
-        "--lr": "0.0004",
-        "--batch-size": "256",
-    },
-    "ping": {
-        "__build_as": "ping",
-        "--ei-strength": "1",
-        "--v-grad-dampen": "1000",
-        "--w-in": "1.2",
-        "--w-in-sparsity": "0.95",
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--readout-w-out-scale": "500",
-        "--lr": "0.0004",
-        "--batch-size": "256",
-    },
-}
 
 MODEL_COLORS = {
     "coba": theme.DEEP_RED,
@@ -164,37 +137,6 @@ def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
 
 def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
     return cell_dir(model, None, seed)
-
-
-def build_train_args(
-    model: str, theta_u: float | None, seed: int, out_dir: Path
-) -> list[str]:
-    recipe = MODEL_RECIPES[model]
-    args = [
-        "train",
-        "--model", recipe["__build_as"],
-        "--dataset", "mnist",
-        "--max-samples", str(MAX_SAMPLES),
-        "--epochs", str(BASELINE_EPOCHS),
-        "--t-ms", str(T_MS),
-        "--dt", str(DT_TRAIN),
-        "--seed", str(seed),
-        "--out-dir", str(out_dir),
-        "--wipe-dir",
-    ]
-    for k, v in recipe.items():
-        if k.startswith("__"):
-            continue
-        if v is True:
-            args.append(k)
-        elif v is not None:
-            args += [k, v]
-    if theta_u is not None:
-        args += [
-            "--fr-reg-upper-theta", str(theta_u),
-            "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
-        ]
-    return args
 
 
 def load_metrics(run_dir: Path) -> dict:

@@ -33,7 +33,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.operating_point import (  # noqa: E402
     MODELS_DEFAULT_TAU_GABA_MS,
     TAU_GABA_GAMMA_MS,
@@ -113,25 +113,6 @@ def cell_dir(tau_ms: float, seed: int) -> Path:
     """Trained cell — now the shared nb022 cell (train-once / reuse-many)."""
     from nb022 import cell_dir as shared_cell_dir
     return shared_cell_dir(f"ping__{tau_label(tau_ms)}__seed{seed}")
-
-
-def build_train_args(tau_ms: float, seed: int, out_dir: Path) -> list[str]:
-    args = [
-        "train",
-        "--model", "ping",
-        "--dataset", "mnist",
-        "--max-samples", str(MAX_SAMPLES),
-        "--epochs", str(EPOCHS),
-        "--t-ms", str(T_MS),
-        "--dt", str(DT_TRAIN),
-        "--seed", str(seed),
-        "--tau-gaba", str(tau_ms),
-        "--out-dir", str(out_dir),
-        "--wipe-dir",
-    ]
-    for k, v in PING_RECIPE.items():
-        args += [k, v]
-    return args
 
 
 def load_metrics(run_dir: Path) -> dict:
@@ -647,7 +628,6 @@ def main() -> None:
 
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
-    only_missing = "--only-missing" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
 
     t_start = time.monotonic()

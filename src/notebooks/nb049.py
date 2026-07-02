@@ -38,7 +38,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
 from helpers.figsave import save_figure  # noqa: E402
-from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -134,35 +134,6 @@ def cell_dir(condition: str, seed: int) -> Path:
     """Trained cell — now the shared nb022 cell (train-once / reuse-many)."""
     from nb022 import cell_dir as shared_cell_dir
     return shared_cell_dir(f"{condition}__seed{seed}")
-
-
-def build_train_args(
-    condition: str, seed: int, out_dir: Path,
-) -> list[str]:
-    recipe = CONDITIONS[condition]
-    args = [
-        "train",
-        "--model", "ping",
-        "--dataset", "mnist",
-        "--max-samples", str(MAX_SAMPLES),
-        "--epochs", str(EPOCHS),
-        "--t-ms", str(T_MS),
-        "--dt", str(DT_TRAIN),
-        "--seed", str(seed),
-        "--out-dir", str(out_dir),
-        "--wipe-dir",
-        "--ei-strength", str(recipe["ei_strength"]),
-    ]
-    if recipe["trainable_w_ei"]:
-        args.append("--trainable-w-ei")
-    if recipe["trainable_w_ie"]:
-        args.append("--trainable-w-ie")
-    for k, v in COMMON_RECIPE.items():
-        if v is True:
-            args.append(k)
-        elif v is not None:
-            args += [k, v]
-    return args
 
 
 def load_metrics(run_dir: Path) -> dict:
@@ -1322,9 +1293,6 @@ def main() -> None:
         host=f"modal:{modal_gpu}" if modal_gpu else "local",
     )
     t_start = time.monotonic()
-
-    only_missing = "--only-missing" in sys.argv
-    skip_training = "--no-train" in sys.argv
 
     # Training lives in nb022 now (train-once / reuse-many): the init-variant
     # conditions are a registry family there. This notebook only consumes them.
