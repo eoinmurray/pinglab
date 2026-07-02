@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-07-02T13:59:00.168943</dc:date>
+    <dc:date>2026-07-02T14:13:56.692315</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -137,27 +137,27 @@ L 187.68776 108.81072
 L 130.32584 108.81072 
 L 130.32584 149.44208 
 z
-" clip-path="url(#p46253fbe8e)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.8; stroke-linejoin: miter"/>
+" clip-path="url(#p18b8008324)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.8; stroke-linejoin: miter"/>
    </g>
    <g id="patch_3">
     <path d="M 80.13416 129.1264 
 Q 104.63248 129.1264 127.341946 129.1264 
-" clip-path="url(#p46253fbe8e)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
     <path d="M 121.741946 126.3264 
 L 127.341946 129.1264 
 L 121.741946 131.9264 
 z
-" clip-path="url(#p46253fbe8e)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
    </g>
    <g id="patch_4">
     <path d="M 188.8828 129.1264 
 Q 213.38112 129.1264 236.090586 129.1264 
-" clip-path="url(#p46253fbe8e)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
     <path d="M 230.490586 126.3264 
 L 236.090586 129.1264 
 L 230.490586 131.9264 
 z
-" clip-path="url(#p46253fbe8e)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
    </g>
    <g id="text_2">
     <!-- PING -->
@@ -251,7 +251,7 @@ L 381.28424 96.86032
 L 319.14216 96.86032 
 L 319.14216 137.49168 
 z
-" clip-path="url(#p46253fbe8e)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.8; stroke-linejoin: miter"/>
+" clip-path="url(#p18b8008324)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.8; stroke-linejoin: miter"/>
    </g>
    <g id="patch_6">
     <path d="M 319.14216 209.19408 
@@ -260,51 +260,51 @@ L 381.28424 168.56272
 L 319.14216 168.56272 
 L 319.14216 209.19408 
 z
-" clip-path="url(#p46253fbe8e)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.8; stroke-linejoin: miter"/>
+" clip-path="url(#p18b8008324)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.8; stroke-linejoin: miter"/>
    </g>
    <g id="patch_7">
     <path d="M 266.5604 117.176 
 Q 292.25376 117.176 316.158266 117.176 
-" clip-path="url(#p46253fbe8e)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
     <path d="M 310.558266 114.376 
 L 316.158266 117.176 
 L 310.558266 119.976 
 z
-" clip-path="url(#p46253fbe8e)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
    </g>
    <g id="patch_8">
     <path d="M 381.28424 117.176 
 Q 406.38008 117.176 429.687066 117.176 
-" clip-path="url(#p46253fbe8e)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
     <path d="M 424.087066 114.376 
 L 429.687066 117.176 
 L 424.087066 119.976 
 z
-" clip-path="url(#p46253fbe8e)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
    </g>
    <g id="patch_9">
     <path d="M 333.48264 137.49168 
 Q 333.48264 153.0272 333.48264 166.773866 
-" clip-path="url(#p46253fbe8e)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
     <path d="M 336.28264 161.173866 
 L 333.48264 166.773866 
 L 330.68264 161.173866 
 z
-" clip-path="url(#p46253fbe8e)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
    </g>
    <g id="patch_10">
     <path d="M 366.94376 168.56272 
 Q 366.94376 153.0272 366.94376 139.280534 
-" clip-path="url(#p46253fbe8e)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
     <path d="M 364.14376 144.880534 
 L 366.94376 139.280534 
 L 369.74376 144.880534 
 z
-" clip-path="url(#p46253fbe8e)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
+" clip-path="url(#p18b8008324)" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 1.6; stroke-linecap: round"/>
    </g>
    <g id="text_3">
     <!-- E -->
-    <g style="fill: #1a1a1a" transform="translate(154.491566 133.286556) scale(0.15 -0.15)">
+    <g style="fill: #1a1a1a" transform="translate(154.491566 135.986556) scale(0.15 -0.15)">
      <defs>
       <path id="Menlo-Regular-45" d="M 616 4666 
 L 3384 4666 
@@ -472,13 +472,13 @@ z
    </g>
    <g id="text_6">
     <!-- E -->
-    <g style="fill: #1a1a1a" transform="translate(345.697966 121.336156) scale(0.15 -0.15)">
+    <g style="fill: #1a1a1a" transform="translate(345.697966 124.036156) scale(0.15 -0.15)">
      <use xlink:href="#Menlo-Regular-45"/>
     </g>
    </g>
    <g id="text_7">
     <!-- I -->
-    <g style="fill: #1a1a1a" transform="translate(345.697966 193.038556) scale(0.15 -0.15)">
+    <g style="fill: #1a1a1a" transform="translate(345.697966 195.738556) scale(0.15 -0.15)">
      <use xlink:href="#Menlo-Regular-49"/>
     </g>
    </g>
@@ -550,7 +550,7 @@ z
   </g>
  </g>
  <defs>
-  <clipPath id="p46253fbe8e">
+  <clipPath id="p18b8008324">
    <rect x="63.4036" y="33.5232" width="382.4128" height="215.1072"/>
   </clipPath>
  </defs>
