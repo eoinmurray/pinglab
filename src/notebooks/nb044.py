@@ -34,7 +34,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
 
 SLUG = "nb044"
@@ -62,18 +61,22 @@ RASTER_N_E_PLOT: int = 200
 RASTER_N_I_PLOT: int = 64
 RASTER_T_WINDOW_MS: float = 100.0  # show first 100 ms so the cycle is visible
 
-TIER_CONFIG = {
-    "extra small": dict(max_samples=100, epochs=2),
-    "small": dict(max_samples=500, epochs=10),
-    # Medium tier upgraded 2026-06-03 to 100 epochs to match the
-    # convergence audit in nb024. PING's rate is a converged operating
-    # point at this horizon; the Δt-vs-rate scaling becomes a converged
-    # measurement rather than a training-snapshot.
-    "medium": dict(max_samples=2000, epochs=100),
-    "large": dict(max_samples=5000, epochs=100),
-    "extra large": dict(max_samples=10000, epochs=100),
+# Baked run scale (the retired "small" tier).
+MAX_SAMPLES: int = 500
+EPOCHS: int = 10
+
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "dataset": "mnist",
+    "max_samples": MAX_SAMPLES,
+    "epochs": EPOCHS,
+    "t_ms": T_MS,
+    "batch_size": BATCH_SIZE,
+    "seeds": len(SEEDS),
+    "cells": len(DT_SWEEP_MS) * len(SEEDS),
+    "grid": "5 Δt × 3 seeds (Δt ∈ {0.05, 0.1, 0.25, 0.5, 1.0} ms)",
 }
-DEFAULT_TIER = "small"
 
 # Match nb025 PING recipe except for --batch-size (held at BATCH_SIZE
 # here) and --dt (per cell).
@@ -100,13 +103,13 @@ def cell_dir(dt_ms: float, seed: int) -> Path:
     return shared_cell_dir(f"ping__{dt_label(dt_ms)}__seed{seed}")
 
 
-def build_train_args(dt_ms: float, seed: int, tier: str, out_dir: Path) -> list[str]:
+def build_train_args(dt_ms: float, seed: int, out_dir: Path) -> list[str]:
     args = [
         "train",
         "--model", "ping",
         "--dataset", "mnist",
-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--max-samples", str(MAX_SAMPLES),
+        "--epochs", str(EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(dt_ms),
         "--batch-size", str(BATCH_SIZE),
@@ -367,7 +370,6 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
     plt.close(fig)
 
 def main() -> None:
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
     only_missing = "--only-missing" in sys.argv
@@ -381,7 +383,7 @@ def main() -> None:
     notebook_run_id = next_run_id(SLUG)
     n_cells = len(DT_SWEEP_MS) * len(SEEDS)
     print(
-        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
+        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
         + ("  [skip-training]" if skip_training else "")
         + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
     )
@@ -389,6 +391,8 @@ def main() -> None:
     prepare_run_dirs(
         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
         make_artifacts=False,
+        scale=SCALE,
+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
     )
 
     # Training lives in nb022 now (train-once / reuse-many): the dt sweep is a
@@ -437,15 +441,13 @@ def main() -> None:
         "git_sha": train_cfg.get("git_sha"),
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
-        "tier": tier,
         "config": {
-            "tier": tier,
             "dataset": "mnist",
             "dt_sweep_ms": list(DT_SWEEP_MS),
             "seeds": list(SEEDS),
             "batch_size": BATCH_SIZE,
-            "max_samples": TIER_CONFIG[tier]["max_samples"],
-            "epochs": TIER_CONFIG[tier]["epochs"],
+            "max_samples": MAX_SAMPLES,
+            "epochs": EPOCHS,
             "t_ms": T_MS,
         },
         "results": rows,

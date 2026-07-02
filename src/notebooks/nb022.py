@@ -15,8 +15,8 @@ T = 200 ms, MNIST. (nb044's dt sweep is the one documented exception that
 varies dt; it owns its own training.)
 
 Outputs a per-cell accuracy / E-rate summary plus a manifest (numbers.json)
-recording exactly which cells were trained, at what tier, and the git sha —
-the contract the analysis notebooks rely on.
+recording exactly which cells were trained and the git sha — the contract
+the analysis notebooks rely on.
 
 Notebook entry: src/docs/content/notebooks/nb022.mdx
 """
@@ -41,7 +41,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
 
 SLUG = "nb022"
@@ -117,7 +116,9 @@ DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)             # nb044 (the dt exception)
 MNIST_POOL = 70000                                   # 60k train + 10k test pool
 CANONICAL_MAX_SAMPLES = MNIST_POOL                    # the canonical run sees all of it
 SUBSET_MAX_SAMPLES = MNIST_POOL // 10                 # 10% of MNIST for the sweeps
-SMOKE_MAX_SAMPLES = 100                               # extra-small plumbing tier
+MAX_SAMPLES = 100                                     # plumbing cap on every cell
+EPOCHS = 2                                            # plumbing depth on every cell
+BATCH_SIZE = 256                                      # fixed across every recipe
 
 
 def theta_label(theta_u: float | None) -> str:
@@ -190,7 +191,7 @@ def _dt_cells() -> list[dict]:
 
 def _canonical_cells() -> list[dict]:
     # The canonical reference: θ_u = off, trained on ALL of MNIST (not the
-    # subset the other families use). max_samples overrides the tier.
+    # subset the other families use) once the full standard is restored.
     return [
         {"name": f"{m}__canonical__seed{s}", "model": m, "family": "canonical",
          "tag": "off · all MNIST", "seed": s, "dt_ms": DT_MS, "extra": [],
@@ -257,6 +258,20 @@ THETA_U_3SEED_CELLS = _theta_u_3seed_cells()
 CANONICAL_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
                    + _dt_cells() + _init_cells())
 
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "dataset": "mnist",
+    "max_samples": MAX_SAMPLES,
+    "epochs": EPOCHS,
+    "t_ms": T_MS,
+    "dt_ms": DT_MS,
+    "batch_size": BATCH_SIZE,
+    "seeds": len(SEEDS_BASELINE),
+    "cells": len(CANONICAL_CELLS),
+    "grid": "2 architectures × 5 families",
+}
+
 
 def cell_dir(name: str) -> Path:
     """Shared per-cell artifact directory."""
@@ -306,25 +321,16 @@ def build_train_args(spec: dict, out_dir: Path,
 
 # ── Runner ───────────────────────────────────────────────────────────
 
-# Sample counts are now a fixed per-family standard (canonical = all MNIST,
-# sweeps = 10%), not tier-scaled. The tier only toggles a smoke run: extra
-# small caps every cell to a handful of samples and 2 epochs so the plumbing
-# can be checked in minutes; any other tier trains the full standard.
-TIER_CONFIG = {
-    "extra small": dict(smoke=True),
-    "small": dict(smoke=False),
-    "medium": dict(smoke=False),
-    "large": dict(smoke=False),
-    "extra large": dict(smoke=False),
-}
-DEFAULT_TIER = "extra small"
+# This runner is pinned to the plumbing scale: every cell is capped to
+# MAX_SAMPLES samples and EPOCHS epochs so the whole registry can be trained
+# in minutes to check the wiring. The full per-family standard (canonical =
+# all MNIST, sweeps = 10%, EPOCHS_STANDARD) lives in the constants above and
+# is restored by editing cell_samples_epochs when a real run is scheduled.
 
 
-def cell_samples_epochs(spec: dict, smoke: bool) -> tuple[int, int]:
-    """Per-cell (max_samples, epochs): the family standard, or the smoke cap."""
-    if smoke:
-        return SMOKE_MAX_SAMPLES, 2
-    return spec.get("max_samples", SUBSET_MAX_SAMPLES), EPOCHS_STANDARD
+def cell_samples_epochs(spec: dict) -> tuple[int, int]:
+    """Per-cell (max_samples, epochs): the fixed plumbing cap for every cell."""
+    return MAX_SAMPLES, EPOCHS
 
 
 def _json_safe(o):
@@ -444,21 +450,19 @@ def plot_family_curves(family: str, cells: list[dict],
 
 
 def main() -> None:
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
     only_missing = "--only-missing" in sys.argv
-    smoke = TIER_CONFIG[tier]["smoke"]
 
     t_start = time.monotonic()
     run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {run_id} tier={tier} "
-          f"{'[SMOKE]' if smoke else 'full standard'} "
+    print(f"notebook_run_id = {run_id} "
           f"cells={len(CANONICAL_CELLS)}"
           + ("  [skip-training]" if skip_training else ""))
     # Wipe only this entry's figures, never the shared TRAINING_ROOT.
     prepare_run_dirs(SLUG, run_id, wipe=True, skip_training=skip_training,
-                     make_artifacts=False)
+                     make_artifacts=False, scale=SCALE,
+                     host=f"modal:{modal_gpu}" if modal_gpu else "local")
 
     if not skip_training:
         TRAINING_ROOT.mkdir(parents=True, exist_ok=True)
@@ -468,7 +472,7 @@ def main() -> None:
             if only_missing and (out / "metrics.json").exists():
                 print(f"[skip] {c['name']} already trained")
                 continue
-            ms, ep = cell_samples_epochs(c, smoke)
+            ms, ep = cell_samples_epochs(c)
             gpu_override = "A100" if modal_gpu in ("T4", "L4", "A10G") else None
             print(f"[train] {c['name']} (n={ms}, {ep} ep) → {out.relative_to(REPO)}"
                   + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
@@ -515,8 +519,6 @@ def main() -> None:
         "git_sha": git_sha,
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
-        "tier": tier,
-        "smoke": smoke,
         "standard": {"epochs": EPOCHS_STANDARD, "dt_ms": DT_MS, "t_ms": T_MS,
                      "dataset": "mnist",
                      "max_samples_canonical": CANONICAL_MAX_SAMPLES,

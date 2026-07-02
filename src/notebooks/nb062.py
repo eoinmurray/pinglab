@@ -45,25 +45,33 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
 
 SLUG = "nb062"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
 
-# Tier sizing — max-samples × epochs. ETAs are rough single-run MPS estimates
-# at the dt=2 ms / t=1000 ms grid (500 timesteps per trial, n_hidden=128):
-TIER_CONFIG = {
-    "extra small": dict(max_samples=300,  epochs=2),   # ≈ 5 s   (smoke)
-    "small":       dict(max_samples=1000, epochs=8),   # ≈ 20 s
-    "medium":      dict(max_samples=3000, epochs=20),  # ≈ 50 s  (default)
-    "large":       dict(max_samples=5000, epochs=40),  # ≈ 150 s (headline)
-    "extra large": dict(max_samples=8500, epochs=60),  # ≈ 270 s (full train)
-}
-DEFAULT_TIER = "medium"
+# Run scale — max-samples × epochs, baked at the former "medium" tier. ETA is
+# a rough single-run MPS estimate at the dt=2 ms / t=1000 ms grid (500
+# timesteps per trial, n_hidden=128): ≈ 50 s.
+MAX_SAMPLES = 3000
+EPOCHS = 20
 
 SEED = 42
+
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "dataset":     "shd",
+    "max_samples": MAX_SAMPLES,
+    "epochs":      EPOCHS,
+    "t_ms":        1000,
+    "dt_ms":       2.0,
+    "hidden":      128,
+    "batch_size":  256,
+    "seeds":       1,
+    "cells":       1,
+}
 
 # Hardcoded recipe. New scientific knobs go on the oscilloscope CLI (ar011);
 # this runner just passes the recipe values inline. To explore variants, use
@@ -92,12 +100,11 @@ def cell_dir() -> Path:
     return ARTIFACTS / CELL_NAME
 
 
-def build_train_args(tier: str, out_dir: Path) -> list[str]:
-    cfg = TIER_CONFIG[tier]
+def build_train_args(out_dir: Path) -> list[str]:
     args = [
         "train",
-        "--max-samples", str(cfg["max_samples"]),
-        "--epochs",      str(cfg["epochs"]),
+        "--max-samples", str(MAX_SAMPLES),
+        "--epochs",      str(EPOCHS),
         "--seed",        str(SEED),
         "--out-dir",     str(out_dir),
         "--wipe-dir",
@@ -169,21 +176,23 @@ def fig_training_curves(metrics: dict, out_path: Path, run_id: str) -> None:
 
 # ── Main ────────────────────────────────────────────────────────────
 def main() -> None:
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--no-train" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
 
     run_id = next_run_id(SLUG)
-    prepare_run_dirs(SLUG, run_id, wipe=wipe_dir, make_artifacts=True)
+    prepare_run_dirs(
+        SLUG, run_id, wipe=wipe_dir, make_artifacts=True,
+        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
+    )
 
     t_start = time.monotonic()
     out = cell_dir()
 
     if not skip_training:
         dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
-        print(f"[train] tier={tier}  →  {out.relative_to(REPO)}")
-        dispatcher.submit(build_train_args(tier, out), out)
+        print(f"[train]  →  {out.relative_to(REPO)}")
+        dispatcher.submit(build_train_args(out), out)
         dispatcher.drain()
 
     metrics_path = out / "metrics.json"
@@ -205,8 +214,6 @@ def main() -> None:
         "duration_human":   format_duration(duration_s),
         "train_elapsed_s":  round(train_elapsed, 1),
         "train_elapsed_human": format_duration(train_elapsed),
-        "tier":             tier,
-        "tier_config":      TIER_CONFIG[tier],
         "recipe":           RECIPE,
         "seed":             SEED,
         "best_acc":         round(best_acc, 2),

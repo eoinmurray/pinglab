@@ -38,7 +38,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
 from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
@@ -46,16 +45,24 @@ SLUG = "nb038"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
 
-TIER_CONFIG = {
-    "extra small": dict(max_samples=100, epochs=1),
-    "small": dict(max_samples=500, epochs=5),
-    "medium": dict(max_samples=2000, epochs=10),
-    "large": dict(max_samples=5000, epochs=40),
-    "extra large": dict(max_samples=10000, epochs=40),
-}
-DEFAULT_TIER = "small"
+MAX_SAMPLES = 500
+EPOCHS = 5
 T_MS = 200.0
 DT_TRAIN = 0.1
+
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "dataset": "mnist",
+    "max_samples": MAX_SAMPLES,
+    "epochs": BASELINE_EPOCHS,
+    "t_ms": T_MS,
+    "dt_ms": DT_TRAIN,
+    "batch_size": 256,
+    "seeds": 3,  # SEEDS_BASELINE
+    "cells": 12,  # len(MODELS) * len(THETA_U_GRID)
+    "grid": "2 models × 6 θ_u values",
+}
 
 # Baseline (θ_u = off) cells are trained at multiple seeds so the
 # headline bar chart and learning curves can show mean ± SEM. The θ_u
@@ -63,7 +70,7 @@ DT_TRAIN = 0.1
 # the regulariser, not the seed.
 SEEDS_BASELINE: list[int] = [42, 43, 44]
 SEED_SWEEP: int = 42
-BASELINE_EPOCHS: int = 30  # overrides TIER_CONFIG epochs for baselines
+BASELINE_EPOCHS: int = 30  # overrides SCALE epochs for baselines
 
 # Inference-time ei_strength sweep on the coba__off__seed42 baseline.
 # Subsumes the now-retired nb019 — trains nothing new; just runs the
@@ -118,14 +125,6 @@ MODEL_COLORS = {
 }
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
 
-MIN_ACC_BY_TIER = {
-    "extra small": 15.0,
-    "small": 30.0,
-    "medium": 50.0,
-    "large": 70.0,
-    "extra large": 70.0,
-}
-
 
 def theta_label(theta_u: float | None) -> str:
     """Filesystem-safe label for an out-dir."""
@@ -164,14 +163,14 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
 
 
 def build_train_args(
-    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
+    model: str, theta_u: float | None, seed: int, out_dir: Path
 ) -> list[str]:
     recipe = MODEL_RECIPES[model]
     args = [
         "train",
         "--model", recipe["__build_as"],
         "--dataset", "mnist",
-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--max-samples", str(MAX_SAMPLES),
         "--epochs", str(BASELINE_EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
@@ -812,7 +811,6 @@ def main() -> None:
     if "--compound-only" in sys.argv:
         build_loop_transfer_compound()
         return
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
@@ -821,13 +819,15 @@ def main() -> None:
     notebook_run_id = next_run_id(SLUG)
     n_cells = len(MODELS) * len(THETA_U_GRID)
     print(
-        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
+        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
         + ("  [skip-training]" if skip_training else "")
     )
 
     prepare_run_dirs(
         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
         make_artifacts=False,
+        scale=SCALE,
+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
     )
 
     # Training lives in nb022 now (train-once / reuse-many). This notebook
@@ -903,17 +903,15 @@ def main() -> None:
         "git_sha": train_cfg.get("git_sha"),
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
-        "tier": tier,
         "config": {
-            "tier": tier,
             "dataset": "mnist",
             "models": MODELS,
             "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
             "theta_u_grid_hz": [
                 theta_hz(t) for t in THETA_U_GRID if t is not None
             ],
-            "max_samples": TIER_CONFIG[tier]["max_samples"],
-            "epochs": TIER_CONFIG[tier]["epochs"],
+            "max_samples": MAX_SAMPLES,
+            "epochs": EPOCHS,
             "t_ms": T_MS,
             "dt": DT_TRAIN,
             "seeds_baseline": SEEDS_BASELINE,

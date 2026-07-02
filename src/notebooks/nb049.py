@@ -43,21 +43,14 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
 
 SLUG = "nb049"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
 
-TIER_CONFIG = {
-    "extra small": dict(max_samples=100, epochs=2),
-    "small":       dict(max_samples=500, epochs=10),
-    "medium":      dict(max_samples=3500, epochs=100),  # 5% of the 70k MNIST corpus
-    "large":       dict(max_samples=5000, epochs=100),
-    "extra large": dict(max_samples=10000, epochs=100),
-}
-DEFAULT_TIER = "small"
+MAX_SAMPLES = 500
+EPOCHS = 10
 T_MS = 200.0
 DT_TRAIN = 0.1
 
@@ -121,6 +114,20 @@ COND_MARKERS: dict[str, str] = {
     "trainable_small_init":  "D",
 }
 
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "dataset": "mnist",
+    "max_samples": MAX_SAMPLES,
+    "epochs": EPOCHS,
+    "t_ms": T_MS,
+    "dt_ms": DT_TRAIN,
+    "batch_size": int(COMMON_RECIPE["--batch-size"]),
+    "seeds": len(SEEDS),
+    "cells": len(CONDITIONS) * len(SEEDS),
+    "grid": f"{len(CONDITIONS)} conditions × {len(SEEDS)} seeds",
+}
+
 
 # ── Paths ───────────────────────────────────────────────────────────
 def cell_dir(condition: str, seed: int) -> Path:
@@ -130,15 +137,15 @@ def cell_dir(condition: str, seed: int) -> Path:
 
 
 def build_train_args(
-    condition: str, seed: int, tier: str, out_dir: Path,
+    condition: str, seed: int, out_dir: Path,
 ) -> list[str]:
     recipe = CONDITIONS[condition]
     args = [
         "train",
         "--model", "ping",
         "--dataset", "mnist",
-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
+        "--max-samples", str(MAX_SAMPLES),
+        "--epochs", str(EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
         "--seed", str(seed),
@@ -1307,10 +1314,13 @@ def main() -> None:
         print(f"wrote {FIGURES / 'acc_rate_trajectory'}.{{svg,pdf}}")
         return
 
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     notebook_run_id = next_run_id(SLUG)
-    prepare_run_dirs(SLUG, notebook_run_id, wipe=False, make_artifacts=True)
+    prepare_run_dirs(
+        SLUG, notebook_run_id, wipe=False, make_artifacts=True,
+        scale=SCALE,
+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+    )
     t_start = time.monotonic()
 
     only_missing = "--only-missing" in sys.argv
@@ -1395,9 +1405,8 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
         "config": {
-            "tier": tier,
-            "epochs": TIER_CONFIG[tier]["epochs"],
-            "max_samples": TIER_CONFIG[tier]["max_samples"],
+            "epochs": EPOCHS,
+            "max_samples": MAX_SAMPLES,
             "seeds": SEEDS,
             "conditions": CONDITIONS,
             "common_recipe": COMMON_RECIPE,

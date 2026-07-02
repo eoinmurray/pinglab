@@ -32,7 +32,6 @@ from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 
 SLUG = "nb058"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -146,14 +145,16 @@ LYAP_EPS = "0.1"
 LYAP_T_MS = "500"
 LYAP_FIT_MS = (5.0, 80.0)   # balanced growth window (post-flip, pre-saturation)
 
-TIER_CONFIG = {
-    "extra small": {},
-    "small": {},
-    "medium": {},
-    "large": {},
-    "extra large": {},
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "input": "synthetic-spikes",
+    "t_ms": 1000,
+    "input_rate_hz": 1,
+    "seeds": len(SWEEP_SEEDS),
+    "cells": len(CELLS),
+    "grid": f"K ∈ {K_SWEEP_KS}",
 }
-DEFAULT_TIER = "small"
 
 
 F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
@@ -642,15 +643,18 @@ def plot_lyapunov(lyap: dict, out_path: Path) -> None:
 
 
 def main() -> None:
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-    parse_modal_gpu(sys.argv)
+    modal_gpu = parse_modal_gpu(sys.argv)
     wipe_dir = "--no-wipe-dir" not in sys.argv
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id} tier={tier}")
+    print(f"notebook_run_id = {notebook_run_id}")
 
-    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
+    prepare_run_dirs(
+        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
+        scale=SCALE,
+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+    )
 
     figures: dict[str, Path] = {}
     summary_rows: list[dict] = []
@@ -714,7 +718,6 @@ def main() -> None:
     summary = {
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
-        "tier": tier,
         "common_args": COMMON_ARGS,
         "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
         "summary": summary_rows,

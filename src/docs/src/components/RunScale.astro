@@ -32,8 +32,14 @@ const samplesEpochs =
   s.max_samples != null && s.epochs != null
     ? `${s.max_samples} × ${s.epochs}`
     : null;
+// `cells` is the integer count; `grid` is a human description of the axes.
+// Prefer "N (grid)", but fall back to either alone so a runner that declares
+// only one still renders a row.
+const gridStr = s.grid != null ? String(s.grid) : null;
 const cells =
-  s.cells != null ? `${s.cells}${s.grid ? ` (${s.grid})` : ""}` : null;
+  s.cells != null
+    ? `${s.cells}${gridStr ? ` (${gridStr})` : ""}`
+    : gridStr;
 
 const rows: Row[] = [
   { label: s.dataset ? "Dataset" : "Input", value: s.dataset ?? s.input ?? null },
@@ -44,7 +50,7 @@ const rows: Row[] = [
   { label: "Hidden width", value: s.hidden ?? null },
   { label: "Batch size", value: s.batch_size ?? null },
   { label: "Seeds", value: s.seeds ?? null },
-  { label: "Grid cells", value: cells },
+  { label: s.cells != null ? "Grid cells" : "Grid", value: cells },
   { label: "Elapsed", value: numbers?.duration ?? null },
 ].filter((r) => r.value != null);
 ---

@@ -33,7 +33,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
 from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
@@ -41,14 +40,7 @@ SLUG = "nb036"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
 
-TIER_CONFIG = {
-    "extra small": dict(max_samples=100, epochs=1),
-    "small": dict(max_samples=500, epochs=5),
-    "medium": dict(max_samples=2000, epochs=10),
-    "large": dict(max_samples=5000, epochs=40),
-    "extra large": dict(max_samples=10000, epochs=40),
-}
-DEFAULT_TIER = "small"
+MAX_SAMPLES = 500
 T_MS = 200.0
 DT_TRAIN = 0.1
 
@@ -58,7 +50,7 @@ DT_TRAIN = 0.1
 # the regulariser, not the seed.
 SEEDS_BASELINE: list[int] = [42, 43, 44]
 SEED_SWEEP: int = 42
-BASELINE_EPOCHS: int = 30  # overrides TIER_CONFIG epochs for baselines
+BASELINE_EPOCHS: int = 30  # overrides the baked epochs for baseline cells
 
 # Inference-time ei_strength sweep on the coba__off__seed42 baseline.
 # Subsumes the now-retired nb019 — trains nothing new; just runs the
@@ -113,14 +105,6 @@ MODEL_COLORS = {
 }
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
 
-MIN_ACC_BY_TIER = {
-    "extra small": 15.0,
-    "small": 30.0,
-    "medium": 50.0,
-    "large": 70.0,
-    "extra large": 70.0,
-}
-
 
 def theta_label(theta_u: float | None) -> str:
     """Filesystem-safe label for an out-dir."""
@@ -159,14 +143,14 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
 
 
 def build_train_args(
-    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
+    model: str, theta_u: float | None, seed: int, out_dir: Path
 ) -> list[str]:
     recipe = MODEL_RECIPES[model]
     args = [
         "train",
         "--model", recipe["__build_as"],
         "--dataset", "mnist",
-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--max-samples", str(MAX_SAMPLES),
         "--epochs", str(BASELINE_EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
@@ -377,7 +361,7 @@ def wei_wie_grid_cell_dir(w_ei: float, w_ie: float) -> Path:
 
 
 def build_wei_wie_grid_args(
-    w_ei: float, w_ie: float, tier: str, out_dir: Path,
+    w_ei: float, w_ie: float, out_dir: Path,
 ) -> list[str]:
     """Train PING with explicit --w-ei and --w-ie overrides plus θ_u
     rate penalty. Uses the standard PING recipe in MODEL_RECIPES
@@ -388,7 +372,7 @@ def build_wei_wie_grid_args(
         "train",
         "--model", recipe["__build_as"],
         "--dataset", "mnist",
-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--max-samples", str(MAX_SAMPLES),
         "--epochs", str(WEI_WIE_GRID_EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
@@ -597,7 +581,7 @@ def wei_diagonal_cell_dir(w_ei: float, seed: int) -> Path:
 
 
 def build_wei_diagonal_args(
-    w_ei: float, seed: int, tier: str, out_dir: Path,
+    w_ei: float, seed: int, out_dir: Path,
 ) -> list[str]:
     w_ie = w_ei * WEI_DIAGONAL_RATIO
     recipe = dict(MODEL_RECIPES["ping"])
@@ -606,7 +590,7 @@ def build_wei_diagonal_args(
         "train",
         "--model", recipe["__build_as"],
         "--dataset", "mnist",
-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--max-samples", str(MAX_SAMPLES),
         "--epochs", str(WEI_DIAGONAL_EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
@@ -740,8 +724,25 @@ def plot_wei_diagonal_acc_vs_e(
 # ── End W_ei diagonal sweep ──────────────────────────────────────────
 
 
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "dataset": "mnist",
+    "max_samples": MAX_SAMPLES,
+    "epochs": WEI_WIE_GRID_EPOCHS,
+    "t_ms": T_MS,
+    "dt_ms": DT_TRAIN,
+    "batch_size": 256,
+    "seeds": len(WEI_DIAGONAL_SEEDS),
+    "cells": (
+        len(WEI_WIE_GRID_VALUES) ** 2
+        + len(WEI_DIAGONAL_VALUES) * len(WEI_DIAGONAL_SEEDS)
+    ),
+    "grid": "5×5 (W^EI,W^IE) grid + 10-point W^EI diagonal × 3 seeds",
+}
+
+
 def main() -> None:
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
@@ -750,13 +751,15 @@ def main() -> None:
     notebook_run_id = next_run_id(SLUG)
     n_cells = len(MODELS) * len(THETA_U_GRID)
     print(
-        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
+        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
         + ("  [skip-training]" if skip_training else "")
     )
 
     prepare_run_dirs(
         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
         make_artifacts=False,
+        scale=SCALE,
+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
     )
 
     only_missing = "--only-missing" in sys.argv
@@ -784,7 +787,7 @@ def main() -> None:
                     + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
                 )
                 dispatcher.submit(
-                    build_wei_wie_grid_args(w_ei, w_ie, tier, out),
+                    build_wei_wie_grid_args(w_ei, w_ie, out),
                     out,
                     gpu_override=gpu_override,
                 )
@@ -804,7 +807,7 @@ def main() -> None:
                     + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
                 )
                 dispatcher.submit(
-                    build_wei_diagonal_args(w_ei, seed, tier, out),
+                    build_wei_diagonal_args(w_ei, seed, out),
                     out,
                     gpu_override=gpu_override,
                 )
@@ -936,17 +939,15 @@ def main() -> None:
         "git_sha": train_cfg.get("git_sha"),
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
-        "tier": tier,
         "config": {
-            "tier": tier,
             "dataset": "mnist",
             "models": MODELS,
             "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
             "theta_u_grid_hz": [
                 theta_hz(t) for t in THETA_U_GRID if t is not None
             ],
-            "max_samples": TIER_CONFIG[tier]["max_samples"],
-            "epochs": TIER_CONFIG[tier]["epochs"],
+            "max_samples": MAX_SAMPLES,
+            "epochs": 5,
             "t_ms": T_MS,
             "dt": DT_TRAIN,
             "seeds_baseline": SEEDS_BASELINE,

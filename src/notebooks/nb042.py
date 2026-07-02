@@ -35,21 +35,20 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
+from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
-from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
-from helpers.run_id import next_run_id  # noqa: E402
-from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
-from helpers import theme  # noqa: E402
-from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.operating_point import (  # noqa: E402
     F_GAMMA_HZ,
     MODELS_DEFAULT_TAU_GABA_MS,
     TAU_GABA_GAMMA_MS,
 )
+from helpers.paths import artifacts_and_figures  # noqa: E402
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
+from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "nb042"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -121,14 +120,23 @@ RASTER_SAMPLE_IDX: int = 0
 RASTER_N_E_PLOT: int = 200
 RASTER_N_I_PLOT: int = 64
 
-TIER_CONFIG = {
-    "extra small": dict(),
-    "small": dict(),
-    "medium": dict(),
-    "large": dict(),
-    "extra large": dict(),
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+# nb042 is inference-only against the trained nb025 PING baseline, so the
+# dataset / max_samples / t_ms / dt_ms are inherited from each cell's own
+# config.json at run time. What this runner declares is the evaluation grid:
+# how many seeds and cells it sweeps, and the perturbation grids.
+SCALE = {
+    "dataset": "mnist",
+    "seeds": len(SEEDS),
+    "cells": len(CONDITIONS),
+    "grid": (
+        f"jitter σ ×{len(JITTER_SIGMAS_MS)}, "
+        f"cell-jitter σ ×{len(CELL_JITTER_SIGMAS_MS)}, "
+        f"α×k = {len(MIX_ALPHA_GRID)}×{len(MIX_K_GRID)}, "
+        f"xtau τ×σ = {len(XTAU_TAU_GABAS_MS)}×{len(XTAU_SIGMAS_MS)}"
+    ),
 }
-DEFAULT_TIER = "medium"
 
 
 # ─── trained-network loading (mirrors nb037 helper) ─────────────────
@@ -1519,14 +1527,12 @@ def main() -> None:
         return
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tier", default=DEFAULT_TIER)
     parser.add_argument("--modal-gpu", default="none")
     parser.add_argument("--no-wipe-dir", action="store_true")
     parser.add_argument("--seeds", nargs="*", type=int, default=list(SEEDS),
                         help="subset of nb025 PING seeds to evaluate")
     args = parser.parse_args()
 
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     if modal_gpu:
         raise SystemExit(
@@ -1535,10 +1541,11 @@ def main() -> None:
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id} tier={tier} seeds={args.seeds}")
+    print(f"notebook_run_id = {notebook_run_id} seeds={args.seeds}")
 
     prepare_run_dirs(
         SLUG, notebook_run_id, wipe=not args.no_wipe_dir, make_artifacts=True,
+        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
     )
 
     rows: list[dict] = []
@@ -1810,7 +1817,6 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
-        "tier": tier,
         "config": {
             "seeds": list(args.seeds),
             "conditions": list(CONDITIONS),

@@ -34,14 +34,13 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
+from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
-from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
-from helpers import theme  # noqa: E402
 
 SLUG = "nb046"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -58,14 +57,14 @@ NB041_NUMBERS = (
 TAU_GABA_SWEEP_MS: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
 SEEDS: tuple[int, ...] = (42, 43, 44)
 
-TIER_CONFIG = {
-    "extra small": dict(),
-    "small": dict(),
-    "medium": dict(),
-    "large": dict(),
-    "extra large": dict(),
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "dataset": "mnist",
+    "seeds": len(SEEDS),
+    "cells": len(TAU_GABA_SWEEP_MS) * len(SEEDS),
+    "grid": f"{len(TAU_GABA_SWEEP_MS)} tau_GABA x {len(SEEDS)} seeds",
 }
-DEFAULT_TIER = "medium"
 
 
 def tau_label(tau_ms: float) -> str:
@@ -377,7 +376,6 @@ def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path, run_id: str) -> dic
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tier", default=DEFAULT_TIER)
     parser.add_argument("--no-wipe-dir", action="store_true")
     parser.add_argument("--seeds", nargs="*", type=int, default=list(SEEDS))
     parser.add_argument("--tau-gabas", nargs="*", type=float,
@@ -388,8 +386,7 @@ def main() -> None:
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-    print(f"notebook_run_id = (allocating) tier={tier}")
+    print("notebook_run_id = (allocating)")
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
@@ -398,7 +395,7 @@ def main() -> None:
     print(f"  seeds:   {args.seeds}")
 
     prepare_run_dirs(SLUG, notebook_run_id, wipe=not args.no_wipe_dir,
-                     make_artifacts=True)
+                     make_artifacts=True, scale=SCALE, host="local")
 
     f_gamma_map = load_nb041_f_gamma()
     print(f"loaded f_γ for {len(f_gamma_map)} nb041 cells")
@@ -462,7 +459,6 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "duration_s": duration_s,
         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
-        "tier": tier,
         "config": {
             "tau_gabas_ms": list(args.tau_gabas),
             "seeds": list(args.seeds),
