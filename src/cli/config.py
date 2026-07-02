@@ -287,17 +287,27 @@ HAS_INH = {"ping"}
 IS_COBA = {"ping"}
 
 
-def _build_sim_net(model_name, **kwargs):
+def _build_sim_net(model_name, spike_input=False, **kwargs):
     """Construct a network for the sim/scan/snapshot path from _MODEL_CLASSES.
 
     The ping path additionally wires the cfg-derived recurrent weight specs;
     the train/infer path sets those from CLI args via build_net instead.
+
+    W_in: the conductance-drive path injects current directly onto E cells
+    (ext_g), bypassing input synapses, so W_in is zeroed. When spike_input is
+    True (synthetic-spikes: uniform Poisson fed THROUGH W_in), build real input
+    synapses from cfg.w_in_spikes / cfg.w_in_sparsity — otherwise the spikes hit
+    a zero matrix and the network stays silent.
     """
     cls, base_kwargs = _MODEL_CLASSES[model_name]
     kwargs = {**base_kwargs, **kwargs}
     if model_name == "ping":
+        w_in = (
+            (*cfg.w_in_spikes, "normal", cfg.w_in_sparsity)
+            if spike_input else (0, 0)
+        )
         kwargs.update(
-            w_in=(0, 0),
+            w_in=w_in,
             w_hid=(5.1, 3.8),
             w_ee=(*cfg.w_ee, "normal", cfg.sparsity),
             w_ei=(*cfg.w_ei, "normal", cfg.sparsity),
@@ -573,7 +583,9 @@ def run_sim(
         M.T_steps = T_steps
 
     torch.manual_seed(cfg.seed)
-    net = _build_sim_net(model_name, hidden_sizes=[M.N_HID])
+    net = _build_sim_net(
+        model_name, spike_input=input_spikes is not None, hidden_sizes=[M.N_HID],
+    )
     net.to(cfg.torch_device)
     net.recording = True
 

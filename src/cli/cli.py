@@ -1178,21 +1178,19 @@ def _run_sim(args, C, out_dir, log):
         _emit_infer(args, C, out_dir, log, snapshot_mode=snapshot_mode)
         return
 
-    # Uniform-Poisson drive (formerly the `probe` subcommand): drive a net —
-    # untrained, or --load-weights — with homogeneous Poisson input at
-    # --input-rate fed THROUGH W_in (or an arbitrary --input-file stream), and
-    # emit population E/I rates to metrics.json. This is the single-run primitive
-    # notebooks loop to build f–I curves and untrained-net parameter sweeps; the
-    # scan lives in the notebook, not here. Gated so the per-cell / shared /
-    # quenched conductance drives (which bypass W_in) still take the tonic path.
-    _drive_flags = ("independent_drive", "independent_drive_i", "shared_drive",
-                    "shared_drive_i", "quenched_drive", "quenched_drive_i")
-    _has_cell_drive = any(getattr(args, d, None) is not None for d in _drive_flags)
-    _uniform_poisson = (
-        getattr(args, "input", "synthetic-spikes") == "synthetic-spikes"
-        and not _has_cell_drive
-    ) or getattr(args, "input_file", None) is not None
-    if _uniform_poisson:
+    # Batched uniform-Poisson probe (formerly the `probe` subcommand): drive a
+    # net — untrained, or --load-weights — with homogeneous Poisson input over
+    # --n-batch trials (or an arbitrary --input-file stream) and emit population
+    # E/I rates to metrics.json (+ optional rasters/per_cell_rates). This is the
+    # primitive notebooks loop for f–I curves and untrained-net sweeps. It is the
+    # BATCHED-RATES path; a single-trial synthetic-spikes run instead takes the
+    # snapshot branch below (records voltages, for rasters + trace panels).
+    _wants_probe = (
+        getattr(args, "input_file", None) is not None
+        or getattr(args, "outputs", None) is not None
+        or "--n-batch" in sys.argv
+    )
+    if _wants_probe:
         _emit_probe(args, C, out_dir, log)
         return
 
@@ -1208,9 +1206,30 @@ def _run_sim(args, C, out_dir, log):
     M.N_INH = C.N_I
     burn_steps = int(C.BURN_IN_MS / dt)
 
-    t_e_ping = t_e_async * getattr(args, "overdrive", 1.0)
-    log.info(f"sim | {args.model} conductance OD={getattr(args, 'overdrive', 1.0):.1f}x")
-    rec, display, _ = run_sim(dt, t_e_ping, model_name=args.model, t_e_async=t_e_async)
+    # Drive: synthetic-spikes → one trial of uniform Poisson at --input-rate fed
+    # through W_in (records voltages → snapshot.npz drives both the raster/PSD and
+    # the per-neuron trace panels). Otherwise the Börgers tonic conductance step.
+    _drive_flags = ("independent_drive", "independent_drive_i", "shared_drive",
+                    "shared_drive_i", "quenched_drive", "quenched_drive_i")
+    _has_cell_drive = any(getattr(args, d, None) is not None for d in _drive_flags)
+    if getattr(args, "input", "synthetic-spikes") == "synthetic-spikes" and not _has_cell_drive:
+        import torch
+        n_in = int(getattr(M, "N_IN", C.N_E))
+        T_steps = int(round(args.t_ms / dt))
+        p_step = spike_rate * dt / 1000.0  # per-channel Poisson spike prob / step
+        gen = torch.Generator().manual_seed(C.SEED)
+        spk_in = (torch.rand(T_steps, n_in, generator=gen) < p_step).float()
+        log.info(
+            f"sim | {args.model} synthetic-spikes: uniform Poisson "
+            f"{spike_rate:.0f} Hz × {n_in} ch → W_in"
+        )
+        rec, display, _ = run_sim(
+            dt, 0.0, model_name=args.model, t_e_async=t_e_async, input_spikes=spk_in,
+        )
+    else:
+        t_e_ping = t_e_async * getattr(args, "overdrive", 1.0)
+        log.info(f"sim | {args.model} conductance OD={getattr(args, 'overdrive', 1.0):.1f}x")
+        rec, display, _ = run_sim(dt, t_e_ping, model_name=args.model, t_e_async=t_e_async)
 
     spk_e = rec[primary_hid_key(rec)][burn_steps:]
     spk_i = rec[primary_inh_key(rec)][burn_steps:] if primary_inh_key(rec) else None
