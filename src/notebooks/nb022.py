@@ -65,12 +65,18 @@ TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI 
 # whole collection moves together (see helpers/operating_point.py).
 TAU_GABA_GAMMA = TAU_GABA_GAMMA_MS
 
-# Canonical recipe (verbatim from nb025 — the reference training).
+# Canonical recipe (from nb025 — the reference training).
+# Gradient dampening (--v-grad-dampen) is loop-specific: [nb064](nb064) showed
+# PING needs it (its BPTT gradient explodes through the E→I→E loop without it),
+# while COBA is insensitive and trains identically at dampening 1. So COBA trains
+# with NO dampening (1) and PING keeps the stabiliser (1000). Training COBA
+# without the crutch keeps the two architectures honest — COBA earns its accuracy
+# on the bare feedforward gradient.
 MODEL_RECIPES: dict[str, dict] = {
     "coba": {
         "__build_as": "ping",
         "--ei-strength": "0",
-        "--v-grad-dampen": "1000",
+        "--v-grad-dampen": "1",
         "--w-in": "0.3",
         "--w-in-sparsity": "0.95",
         "--readout": "mem-mean",
