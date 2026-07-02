@@ -26,6 +26,7 @@ import runlog
 from config import (
     build_net,
     extract_weights,
+    set_sim_dt,
     setup_model_globals,
 )
 from metrics import compute_metrics, format_metrics
@@ -180,14 +181,19 @@ def train(
     # but network topology constants (N_HID, N_INH, HIDDEN_SIZES) must be fixed.
     # ─────────────────────────────────────────────────────────────────────────
 
-    M.T_ms = t_ms  # Total simulation time (ms)
+    # Pin dt / T_ms / T_steps to THIS run's values before any forward() call.
+    # Without this, forward() falls back to the models.py defaults (dt = 0.25,
+    # T_steps from the 1000 ms default) and the network trains at the wrong
+    # timestep regardless of --dt — the 8befe44 regression this restores. The
+    # mnist / smnist / shd branches below may override T_steps for their own T.
+    set_sim_dt(dt, t_ms)
 
-    # Optional τ_GABA override: compute decay constant for custom tau values
-    # nb041 sweeps tau_gaba to vary the gamma (E-I oscillation) frequency across models.
-    # Default is M.tau_gaba=10ms; override creates different decay rates for Poisson fitting.
+    # Optional τ_GABA override: forward() recomputes decay_gaba from the module
+    # globals M.tau_gaba and M.dt each call, so setting M.tau_gaba here is what
+    # actually takes effect. nb041 sweeps tau_gaba to vary the gamma (E-I
+    # oscillation) frequency across models.
     if tau_gaba is not None:
         M.tau_gaba = float(tau_gaba)
-        M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
 
     # Determine network hidden layer sizes: use CLI arg or smart default per dataset
     # Smart defaults: scikit=64, mnist=1024, smnist=32, shd=256
@@ -226,14 +232,13 @@ def train(
         if use_smnist:
             M.N_IN = 28
             t_ms = 28 * 10.0  # 10 ms/row × 28 rows
-            M.T_ms = t_ms
-            M.T_steps = int(t_ms / dt)
+            set_sim_dt(dt, t_ms)  # re-pin: smnist has its own total duration
         else:
             M.N_IN = 784
     elif dataset == "shd":
         # X_tr shape is (N, T_steps, 700) — source n_in and T from the data.
         M.N_IN = SHD_N_CHANNELS
-        M.T_steps = X_tr.shape[1]
+        M.T_steps = X_tr.shape[1]  # T comes from the recording, not t_ms/dt
     else:
         M.N_IN = 64
     bs = batch_size if batch_size is not None else BATCH_SIZE

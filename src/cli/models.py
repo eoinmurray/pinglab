@@ -38,6 +38,11 @@ ref_ms_E = 3.0  # ms — excitatory refractory period
 _REF_RATIO = 2.0  # ref_ms_E / ref_ms_I (Börgers)
 ref_ms_I = ref_ms_E / _REF_RATIO  # 1.5 ms
 tau_ampa = 2.0  # ms — AMPA decay
+# GABA decay. Library default is the literature biophysical value. The collection
+# TRAINS at 6 ms (the canonical operating point that centres the loop in gamma,
+# f_γ ≈ 44 Hz) by passing --tau-gaba explicitly; cells carry tau_gaba_ms in their
+# config and inherit it on --load-config, so this default only sets fresh runs
+# that pass neither flag.
 tau_gaba = 9.0  # ms — GABA decay (Börgers: 9 ms; Buzsaki & Wang: 8-12 ms)
 
 # ── Input encoding ────────────────────────────────────────────────────────

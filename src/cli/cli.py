@@ -735,7 +735,9 @@ def _build_subparsers(parser, parent):
         type=float,
         default=None,
         help="[--infer] Override GABA synaptic decay τ_GABA (ms) so a trained cell "
-        "replays under its training-time inhibitory dynamics (default: models.py 9.0).",
+        "replays under its training-time inhibitory dynamics. Normally unset: "
+        "--load-config inherits the cell's trained tau_gaba_ms. Fresh runs without "
+        "either default to models.py (9.0 ms).",
     )
     sim_parser.add_argument(
         "--skip-load", nargs="+", default=None, metavar="PREFIX",
@@ -770,6 +772,39 @@ def _build_subparsers(parser, parent):
         "--scale-w-ie", type=float, default=1.0,
         help="[--infer] Multiply loaded W_ie matrices before the forward pass.",
     )
+    # Uniform-Poisson drive knobs (--input synthetic-spikes / --input-file): the
+    # net structure + drive for f–I curves and untrained-net parameter sweeps.
+    # (Folded in from the retired `probe` subcommand.)
+    sim_parser.add_argument(
+        "--n-in", type=int, default=784,
+        help="[synthetic-spikes] Number of input channels (default: 784).",
+    )
+    sim_parser.add_argument(
+        "--n-inh", type=int, default=None,
+        help="[synthetic-spikes] Inhibitory pool size (n_inh_per_layer, layer 1).",
+    )
+    sim_parser.add_argument(
+        "--n-batch", type=int, default=64,
+        help="[synthetic-spikes] Number of Poisson-input trials averaged (default: 64).",
+    )
+    sim_parser.add_argument(
+        "--input-file", type=str, default=None,
+        help="NPZ with 'input_spikes' (T,B,N_IN) to forward instead of generating "
+        "Poisson input — arbitrary stimulus (routes through the uniform-Poisson path).",
+    )
+    sim_parser.add_argument(
+        "--w-ei-mean", type=float, default=None,
+        help="[synthetic-spikes] Explicit W_ei mean (overrides ei-strength/ratio). "
+        "std = 0.1·mean.",
+    )
+    sim_parser.add_argument(
+        "--w-ie-mean", type=float, default=None,
+        help="[synthetic-spikes] Explicit W_ie mean (independent of --w-ei-mean).",
+    )
+    sim_parser.add_argument(
+        "--private-w-in", action="store_true",
+        help="[synthetic-spikes] Identity W_in: one input channel per E cell.",
+    )
 
     # -- dump-weights subcommand (init + trained weight matrices, no forward) --
     dump_parser = subparsers.add_parser(
@@ -795,48 +830,6 @@ def _build_subparsers(parser, parent):
         type=str,
         default=None,
         help="Path to the trained weights.pth whose values to dump.",
-    )
-
-    # -- probe subcommand (uniform-Poisson drive of an untrained/loaded net) --
-    probe_parser = subparsers.add_parser(
-        "probe",
-        parents=[parent],
-        help="Drive a net with uniform Poisson input; emit E/I rates",
-        description="Build a network (untrained unless --load-weights) with the "
-        "given recurrent structure, drive it with uniform homogeneous Poisson "
-        "input, and write population E/I rates to metrics.json. For untrained-net "
-        "parameter probes and uniform-input f-I curves.",
-        epilog="Example:\n"
-        "  cli.py probe --model ping --n-hidden 1024 --n-inh 64 --ei-strength 1 "
-        "--ei-ratio 2 --w-in 1.2 --input-rate 25 --n-batch 16 --out-dir out/",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    probe_parser.add_argument("--n-in", type=int, default=784,
-                              help="Number of input channels (default: 784).")
-    probe_parser.add_argument("--n-inh", type=int, default=None,
-                              help="Inhibitory pool size (n_inh_per_layer for layer 1).")
-    probe_parser.add_argument("--n-batch", type=int, default=64,
-                              help="Number of Poisson-input trials (default: 64).")
-    probe_parser.add_argument("--input-file", type=str, default=None,
-                              help="NPZ with 'input_spikes' (T,B,N_IN) to forward "
-                              "instead of generating Poisson input — arbitrary stimulus.")
-    probe_parser.add_argument("--w-ei-mean", type=float, default=None,
-                              help="Explicit W_ei mean (independent of --w-ie-mean; "
-                              "overrides ei-strength/ratio). std = 0.1·mean.")
-    probe_parser.add_argument("--w-ie-mean", type=float, default=None,
-                              help="Explicit W_ie mean (independent of --w-ei-mean).")
-    probe_parser.add_argument("--private-w-in", action="store_true",
-                              help="Identity W_in: one input channel per E cell.")
-    probe_parser.add_argument("--load-config", type=str, default=None,
-                              help="Load config from a training run's config.json.")
-    probe_parser.add_argument("--load-weights", type=str, default=None,
-                              help="Load trained weights (omit for an untrained net).")
-    probe_parser.add_argument("--tau-gaba", type=float, default=None,
-                              help="Override GABA decay τ_GABA (ms).")
-    probe_parser.add_argument(
-        "--outputs", nargs="+", default=None,
-        choices=["per_cell_rates", "rasters"], metavar="OUTPUT",
-        help="Extra artifacts: per_cell_rates.npz, rasters.npz (sparse spike indices).",
     )
 
     # -- train subcommand --
@@ -999,8 +992,16 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
         sys.exit(0)
 
     # --load-config: load training params from config.json, fill unset values
-    if args.mode in ("sim", "dump-weights", "probe") and getattr(args, "load_config", None):
+    if args.mode in ("sim", "dump-weights") and getattr(args, "load_config", None):
         config_to_args, dest_to_flag = _build_config_mapping(parent)
+        # --tau-gaba lives on the sim subparser, not the parent parser that
+        # _build_config_mapping walks, so it isn't auto-mapped. Register it here so a
+        # loaded cell replays at its TRAINED τ_GABA (config key tau_gaba_ms), not the
+        # models.py module default. Without this a cell trained at a non-default
+        # τ_GABA (e.g. the 6 ms canonical) loaded via --load-config would silently
+        # evaluate at the module default — a train/eval mismatch.
+        config_to_args["tau_gaba_ms"] = "tau_gaba"
+        dest_to_flag.setdefault("tau_gaba", "--tau-gaba")
         _apply_load_config(args, argv, config_to_args, dest_to_flag)
     if getattr(args, "infer", False) and not getattr(args, "load_weights", None):
         print("Error: sim --infer requires --load-weights")
@@ -1022,7 +1023,11 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
     config_set_dataset = getattr(args, "load_config", None) and getattr(
         args, "dataset", "scikit"
     ) in ("mnist", "smnist")
-    if args.input == "synthetic-spikes" and (
+    # Only auto-flip when --input was LEFT AT DEFAULT. An explicit --input
+    # synthetic-spikes (e.g. uniform-Poisson f–I on a trained cell, which also
+    # passes --load-config → dataset) must be honoured, not overridden.
+    input_explicit = _flag_in_argv("--input")
+    if not input_explicit and args.input == "synthetic-spikes" and (
         _flag_in_argv("--dataset", "--digit", "--sample") or config_set_dataset
     ):
         args.input = "dataset"
@@ -1171,6 +1176,24 @@ def _run_sim(args, C, out_dir, log):
         snapshot_mode = any(arg in sys.argv for arg in _snap_flags) or \
                        any(arg.split("=")[0] in _snap_flags for arg in sys.argv)
         _emit_infer(args, C, out_dir, log, snapshot_mode=snapshot_mode)
+        return
+
+    # Uniform-Poisson drive (formerly the `probe` subcommand): drive a net —
+    # untrained, or --load-weights — with homogeneous Poisson input at
+    # --input-rate fed THROUGH W_in (or an arbitrary --input-file stream), and
+    # emit population E/I rates to metrics.json. This is the single-run primitive
+    # notebooks loop to build f–I curves and untrained-net parameter sweeps; the
+    # scan lives in the notebook, not here. Gated so the per-cell / shared /
+    # quenched conductance drives (which bypass W_in) still take the tonic path.
+    _drive_flags = ("independent_drive", "independent_drive_i", "shared_drive",
+                    "shared_drive_i", "quenched_drive", "quenched_drive_i")
+    _has_cell_drive = any(getattr(args, d, None) is not None for d in _drive_flags)
+    _uniform_poisson = (
+        getattr(args, "input", "synthetic-spikes") == "synthetic-spikes"
+        and not _has_cell_drive
+    ) or getattr(args, "input_file", None) is not None
+    if _uniform_poisson:
+        _emit_probe(args, C, out_dir, log)
         return
 
     # Metrics-only simulation
@@ -1349,8 +1372,10 @@ def _run_dump_weights(args, C, out_dir, log):
     )
 
 
-def _run_probe(args, C, out_dir, log):
-    """Uniform-Poisson drive of an untrained/loaded net → E/I rates + optional rasters."""
+def _emit_probe(args, C, out_dir, log):
+    """Uniform-Poisson drive of an untrained/loaded net → E/I rates + optional
+    rasters. The sim path routes here for --input synthetic-spikes / --input-file
+    (this was the standalone `probe` subcommand before it was folded into sim)."""
     probe(
         model_name=args.model,
         dt=args.dt,
@@ -1382,7 +1407,6 @@ _MODE_HANDLERS = {
     "sim": _run_sim,
     "train": _run_train,
     "dump-weights": _run_dump_weights,
-    "probe": _run_probe,
 }
 
 

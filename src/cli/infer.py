@@ -13,7 +13,7 @@ from pathlib import Path
 import torch
 
 import models as M
-from config import build_net, setup_model_globals, save_snapshot_npz
+from config import build_net, setup_model_globals, save_snapshot_npz, set_sim_dt
 from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
 from encoders import EVAL_SEED, encode_batch
 from scan import _auto_device, primary_hid_key, primary_inh_key
@@ -116,9 +116,7 @@ def infer(
     # the requested dt here (otherwise the network runs at the default 0.25 ms).
     # ─────────────────────────────────────────────────────────────────────────
 
-    M.T_ms = t_ms  # Total simulation time (ms)
-    M.dt = dt
-    M.T_steps = int(M.T_ms / dt)
+    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
 
     # Optional τ_GABA override — replay a cell under its trained inhibitory decay.
     # forward() recomputes decay_gaba from M.tau_gaba + M.dt each call, so setting
@@ -144,8 +142,7 @@ def infer(
     if dataset in ("mnist", "smnist"):
         if dataset == "smnist":
             M.N_IN = 28
-            M.T_ms = 28 * 10.0
-            M.T_steps = int(M.T_ms / dt)
+            set_sim_dt(dt, 28 * 10.0)  # smnist: 10 ms/row × 28 rows
         else:
             M.N_IN = 784
     else:
@@ -499,9 +496,7 @@ def infer_and_snapshot(
 
     # Initialize M module globals (same setup as infer() above). M.dt must be set
     # so forward()'s decay constants use the requested dt, not the default 0.25.
-    M.T_ms = t_ms
-    M.dt = dt
-    M.T_steps = int(M.T_ms / dt)
+    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
     if tau_gaba is not None:
         M.tau_gaba = float(tau_gaba)
         M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
@@ -517,8 +512,7 @@ def infer_and_snapshot(
     if dataset in ("mnist", "smnist"):
         if dataset == "smnist":
             M.N_IN = 28
-            M.T_ms = 28 * 10.0
-            M.T_steps = int(M.T_ms / dt)
+            set_sim_dt(dt, 28 * 10.0)  # smnist: 10 ms/row × 28 rows
         else:
             M.N_IN = 784
     else:
@@ -656,9 +650,7 @@ def probe(
     import numpy as np
 
     seed_everything(seed)
-    M.T_ms = t_ms
-    M.dt = dt
-    M.T_steps = int(t_ms / dt)
+    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
     M.N_IN = int(n_in)
     if tau_gaba is not None:
         M.tau_gaba = float(tau_gaba)
@@ -831,9 +823,7 @@ def dump_weights(
     # init (this is the whole point — reproduce the pre-training weights).
     seed_everything(seed)
 
-    M.T_ms = t_ms
-    M.dt = dt
-    M.T_steps = int(M.T_ms / M.dt)
+    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]

@@ -136,6 +136,41 @@ def setup_model_globals(hidden_sizes):
     M.HIDDEN_SIZES = list(hidden_sizes)
 
 
+def set_sim_dt(dt, t_ms):
+    """Set the module-global timestep and derived step count that forward() reads.
+
+    THE SINGLE CHOKE POINT for dt. Every entry point that calls COBANet.forward()
+    MUST call this (with the run's dt and total sim duration) before the forward
+    pass, or the network silently runs at the models.py module defaults
+    (dt = 0.25 ms, T_steps derived from the 1000 ms default T_ms).
+
+    WHY this exists (and why it is one function, not inlined):
+    - forward() computes every dt-dependent constant LOCALLY from the module-global
+      `dt` — decay_ampa/gaba, beta_snn/out, ref_steps, p_scale (see models.forward).
+      This is a deliberate torch.compile specialization choice: the constants live
+      in the graph, specialized on dt, rather than as pre-computed globals.
+    - It also reads the module-global `T_steps` for the integration-loop length and
+      the recording-buffer allocation.
+    - So the ONLY things an entry point must pin are M.dt, M.T_ms, M.T_steps.
+    - Historically patch_dt/recompute_dt_constants did this centrally. Commit
+      8befe44 removed that helper and inlined the replacement into infer.py's four
+      functions ONLY — train.py and run_sim/run_sim_batch were missed, so any
+      training or plain sim at dt != 0.25 silently ran at dt = 0.25 (wrong decays)
+      and the wrong step count. Re-centralizing here kills that whole class of bug:
+      new forward-calling code calls set_sim_dt and cannot forget a global.
+
+    Args:
+        dt:   Integration timestep in ms (e.g. 0.1 for the trained baselines).
+        t_ms: Total simulation duration in ms for one trial.
+
+    Side effects:
+        Mutates: M.dt (= dt), M.T_ms (= t_ms), M.T_steps (= int(t_ms / dt)).
+    """
+    M.dt = float(dt)
+    M.T_ms = float(t_ms)
+    M.T_steps = int(t_ms / dt)
+
+
 def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None, label=None):
     """Save spike recording and metadata to NPZ file for notebook analysis.
 
@@ -503,6 +538,10 @@ def run_sim(
         t_e_async = cfg.t_e_async
     M.N_HID = cfg.n_e
     M.N_INH = cfg.n_i
+    # Pin dt / T_ms / T_steps so forward() runs at the requested dt (not the 0.25
+    # module default). Below, M.T_steps may be further clamped down to the actual
+    # length of a supplied input/drive tensor.
+    set_sim_dt(dt, cfg.sim_ms)
     T_steps = int(cfg.sim_ms / dt)
 
     if input_spikes is not None:
@@ -562,7 +601,8 @@ def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100, model_name="
     """
     M.N_HID = cfg.n_e
     M.N_INH = cfg.n_i
-    M.T_steps = int(C.SIM_MS / dt)
+    # Pin dt / T_ms / T_steps so the batched forward runs at the requested dt.
+    set_sim_dt(dt, cfg.sim_ms)
 
     results = []
     for start in range(0, len(ext_g_list), chunk_size):
