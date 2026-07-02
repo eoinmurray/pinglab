@@ -43,36 +43,41 @@ SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
 SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
 
 DT_MS = 0.1  # canonical timestep (was the 0.25 oscilloscope default)
+N_E, N_I, N_IN = 1024, 256, 1024  # net geometry (oscilloscope mnist default)
 
+# Per-condition uniform-Poisson input rate for the rasters. A SHARED rate can't
+# serve both: PING's loop clamps E (so it needs ~45 Hz drive to reach f_γ ≈ 40
+# Hz gamma), while COBA is unclamped and the same drive saturates its raster to a
+# solid block (~280 Hz). So each raster is shown at a representative operating
+# point — COBA gentle (legible async ~24 Hz), PING at gamma. The f–I panels
+# still sweep the shared rate range, so "same architecture" is made there.
+COBA_INPUT_RATE_HZ = 5    # → legible async COBA raster (~24 Hz E)
+PING_INPUT_RATE_HZ = 45   # → PING gamma f_γ ≈ 40 Hz
+
+# Rasters + traces are driven by uniform Poisson fed THROUGH W_in
+# (synthetic-spikes), one trial with the full voltage recording — NOT the tonic
+# conductance step. Input rate is the drive knob (the conductance path ignored it
+# and pinned f_γ ~32 Hz). Per-cell args add --ei-strength (loop off/on) and the
+# per-condition --input-rate.
 COMMON_ARGS = [
     "sim",
-    "--model",
-    "ping",
-    "--input",
-    "dataset",
-    "--dataset",
-    "mnist",
-    "--digit",
-    "0",
-    "--sample",
-    "0",
-    "--w-in",
-    "1.5",
-    "0.3",
-    "--input-rate",
-    "50",
-    "--t-ms",
-    "400",
-    "--dt",
-    str(DT_MS),
+    "--model", "ping",
+    "--input", "synthetic-spikes",
+    "--n-hidden", str(N_E),
+    "--n-inh", str(N_I),
+    "--n-in", str(N_IN),
+    "--w-in", "1.5", "0.3",
+    "--w-in-sparsity", "0.95",
+    "--t-ms", "400",
+    "--dt", str(DT_MS),
 ]
 CELLS: dict[str, dict] = {
     "coba": {
-        "args": ["--ei-strength", "0"],
+        "args": ["--ei-strength", "0", "--input-rate", str(COBA_INPUT_RATE_HZ)],
         "title": "COBA — no recurrent loop (ei-strength = 0)",
     },
     "ping": {
-        "args": ["--ei-strength", "1.5"],
+        "args": ["--ei-strength", "1.5", "--input-rate", str(PING_INPUT_RATE_HZ)],
         "title": "PING — recurrent loop active (ei-strength = 1.5)",
     },
 }
@@ -83,10 +88,10 @@ CELLS: dict[str, dict] = {
 # This is a free-running simulation, not a training run, so there is no
 # samples/epochs/batch budget — only the sim geometry and the drive.
 SCALE = {
-    "input": "MNIST digit 0 sample 0",
+    "input": "uniform Poisson (synthetic-spikes)",
     "t_ms": 400,
     "dt_ms": DT_MS,
-    "input_rate_hz": 50,
+    "input_rate_hz": f"{COBA_INPUT_RATE_HZ} (COBA) / {PING_INPUT_RATE_HZ} (PING)",
     "cells": len(CELLS),
     "grid": "COBA (loop off) · PING (loop on)",
 }
@@ -308,8 +313,13 @@ def fi_sweep() -> dict:
             subprocess.run(
                 ["uv", "run", "python", str(OSCILLOSCOPE), *argv], cwd=REPO, check=True
             )
-            m = json.loads((out_dir / "metrics.json").read_text())
-            e, i = float(m["rate_e_hz"]), float(m["rate_i_hz"])
+            # Single-trial snapshot (no --outputs/--n-batch): read the spikes and
+            # compute the mean per-cell rate here.
+            d = np.load(out_dir / "snapshot.npz")
+            se, si, dt = d["spk_e"], d["spk_i"], float(d["dt"])
+            T = se.shape[0]
+            e = float(se.sum() / (se.shape[1] * T * dt / 1000.0))
+            i = float(si.sum() / (si.shape[1] * T * dt / 1000.0)) if si.size else 0.0
             out[cell]["in"].append(rate)
             out[cell]["e"].append(e)
             out[cell]["i"].append(i)
@@ -347,10 +357,10 @@ def plot_raster_compound(
             figure=fig,
             height_ratios=[2.5, 7.4],
             hspace=0.10,
-            top=0.93,
-            bottom=0.10,
-            left=0.06,
-            right=0.99,
+            top=0.92,
+            bottom=0.13,
+            left=0.08,
+            right=0.955,
         )
         arch_gs = outer[0].subgridspec(1, 2, wspace=0.5)
         plot_gs = outer[1].subgridspec(
@@ -370,11 +380,10 @@ def plot_raster_compound(
             hspace=0.4,
             wspace=0.5,
             top=0.92,
-            bottom=0.12,
-            left=0.06,
-            right=0.99,
+            bottom=0.13,
+            left=0.08,
+            right=0.955,
         )
-    fi_max = max(max(fi[c]["e"] + fi[c]["i"]) for c in ("coba", "ping"))
 
     f_gamma: dict[str, float | None] = {}  # measured peak per cell → numbers.json
     for col, cell in enumerate(("coba", "ping")):
@@ -463,19 +472,9 @@ def plot_raster_compound(
                 color=theme.DEEP_RED,
                 fontweight="semibold",
             )
-        elif not has_i:
-            ax_psd.text(
-                0.97,
-                0.95,
-                "no recurrent gamma\n(loop off)",
-                transform=ax_psd.transAxes,
-                ha="right",
-                va="top",
-                fontsize=theme.SIZE_LABEL - 1,
-                color=theme.GREY_MID,
-                fontstyle="italic",
-            )
-        else:
+        elif has_i:
+            # Loop on but no clean peak found. COBA (loop off) gets no label —
+            # the flat spectrum speaks for itself.
             ax_psd.text(
                 0.97,
                 0.95,
@@ -488,8 +487,10 @@ def plot_raster_compound(
                 fontstyle="italic",
             )
 
-        # f–I curve (bottom-right of the pair); shared y-scale shows the
-        # dynamic-range compression PING applies relative to COBA.
+        # f–I curve (bottom-right of the pair). Per-condition y-scale: COBA runs
+        # to its ~400+ Hz ceiling; PING is clamped by the loop, so it gets its
+        # own smaller y-axis where the E-clamp and climbing I are legible (a
+        # shared axis buried PING's curves at the bottom).
         f = fi[cell]
         ax_fi.plot(
             f["in"], f["e"], color=theme.INK_BLACK, marker="o", ms=3, lw=1.3, label="E"
@@ -497,7 +498,8 @@ def plot_raster_compound(
         ax_fi.plot(
             f["in"], f["i"], color=theme.DEEP_RED, marker="s", ms=3, lw=1.3, label="I"
         )
-        ax_fi.set_ylim(0, fi_max * 1.05)
+        cell_max = max(f["e"] + f["i"])
+        ax_fi.set_ylim(0, cell_max * 1.08)
         ax_fi.set_xlim(0, max(FI_RATES_HZ))
         ax_fi.set_xlabel("input rate (Hz)")
         ax_fi.set_ylabel("rate (Hz)")
