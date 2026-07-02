@@ -1,0 +1,22 @@
+{
+  "slug": "nb023",
+  "run_id": "r039",
+  "run_at": "2026-07-02T12:38:50+00:00",
+  "git_sha": "4bfcebc",
+  "dirty": true,
+  "code_dirty": true,
+  "patch": {
+    "file": "_dirty.patch",
+    "sha256": "e54342bd6e8861b8c5d122ea449620c6a9535830924b87f02b2c44d5353fbc74",
+    "lines": 1391
+  },
+  "host": "local",
+  "scale": {
+    "input": "MNIST digit 0 sample 0",
+    "t_ms": 400,
+    "dt_ms": 0.1,
+    "input_rate_hz": 50,
+    "cells": 2,
+    "grid": "COBA (loop off) \u00b7 PING (loop on)"
+  }
+}

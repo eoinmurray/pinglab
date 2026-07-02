@@ -40,6 +40,7 @@ from scipy.special import erf
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 from helpers import theme  # noqa: E402
+from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 
@@ -50,7 +51,9 @@ _, FIGURES = artifacts_and_figures(SLUG)
 TAU_E_MS = 20.0    # E membrane (= CELL_E tau_m)
 TAU_I_MS = 5.0     # I membrane (= CELL_I tau_m)
 TAU_AMPA_MS = 2.0
-TAU_GABA_MS = 9.0
+# Canonical operating point (was 9.0); single source of truth in helpers so the
+# mean-field analysis tracks the spiking collection's τ_GABA.
+TAU_GABA_MS = TAU_GABA_GAMMA_MS
 
 # ── Calibrated gain: COBANet's LIF f-I (src/cli/models.py params) ──────
 # Couplings are the ei-strength values, fan-in normalised so the lumped

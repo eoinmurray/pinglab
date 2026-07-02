@@ -114,7 +114,8 @@ def ping_spikes(wei, wie, rate_hz, sim_ms, dt, private=True):
     out_dir = (ARTIFACTS / "probe" / tag).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "uv", "run", "python", str(OSCILLOSCOPE), "probe",
+        "uv", "run", "python", str(OSCILLOSCOPE), "sim",
+        "--input", "synthetic-spikes",
         "--model", "ping",
         "--n-hidden", str(NET_N_E),
         "--n-inh", str(NET_N_E),  # equal-fan-in: n_i = n_e

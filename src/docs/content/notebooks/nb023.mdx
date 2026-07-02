@@ -2,11 +2,18 @@
 title: "PING fundamentals"
 date: 2026-05-13
 entry: 23
-status: final
+status: revising
 structure: paper
 collection: gamma-gated-sparsity
 ---
 import Figure from "../../src/components/Figure.astro";
+import RunScale from "../../src/components/RunScale.astro";
+export const manifest = Object.values(
+  import.meta.glob("../../public/figures/notebooks/nb023/_manifest.json", { eager: true, import: "default" })
+)[0] ?? {};
+export const numbers = Object.values(
+  import.meta.glob("../../public/figures/notebooks/nb023/numbers.json", { eager: true, import: "default" })
+)[0] ?? {};
 
 ## Abstract
 
@@ -18,12 +25,16 @@ The architecture characterised here is sketched atop Figure 1. An input layer dr
 
 The full conductance-based model that produces PING is documented in [COBANet](/articles/ar003/); this notebook is the empirical companion. Two conditions run on the same network — *ei-strength 0* (loop disabled, the COBA reference) and *ei-strength 1.5* (loop engaged, the PING regime) — with MNIST digit 0 driving the input layer through trained $W_\text{in}$. Population spectra are Welch PSDs on the population-mean E trace (one window per trial of length $T$, parabolic-interpolated peak; same recipe as [nb041](/notebooks/nb041/) and [nb049](/notebooks/nb049/)).
 
+The run scale below renders from the manifest the runner stamps at launch, so it reports the geometry that actually produced the figures. The two loop conditions (COBA, *ei-strength 0*; PING, *ei-strength 1.5*) are the grid; the free-running f–I panels sweep uniform Poisson drive (2–100 Hz, $T = 300$ ms) on the untrained network.
+
+<RunScale manifest={manifest} numbers={numbers} />
+
 **Rate response.** Two views of drive-response. The f–I panels of Figure 1 sweep spatially **uniform** Poisson input (all channels at the same rate, no digit structure) on the *untrained, free-running* network, comparing COBA against PING on a shared rate axis — the bare dynamic-range compression of the architecture. Figure 4 then replays the trained PING baseline ([nb025](/notebooks/nb025/), seed 42, $\theta_u =$ off) over an MNIST digit-0 input-rate sweep, showing how the loop is recruited on a real stimulus.
 
 ## Results
 
-<Figure id="Figure 1" title="The COBA and PING architectures, with their rasters, spectra, and f–I curves" src="/figures/notebooks/nb023/overview_compound.png" alt="Two-column figure. Each column has, from top: a small architecture schematic, a combined spike raster (E neurons black in the lower portion, I neurons red in the upper portion, same axes), and a bottom row pairing a Welch PSD with an f–I curve. Left A (COBA, loop off): schematic of input→E→output with no I; E-only raster firing asynchronously; PSD with scattered power and no gamma peak; f–I where E (black) climbs and saturates near 270 Hz and I (red) stays at zero. Right B (PING, loop active): schematic of input→E→output plus the E↔I loop (W_ei down, W_ie up); combined raster with E in vertical bands and I bursting synchronously once per cycle above; PSD with a sharp peak at f_gamma ≈ 25 Hz; f–I on the same y-scale where E stays ≈ 2–9 Hz and I climbs to ≈ 64 Hz.">
-  The architecture and its behaviour, off and on, on the same network. Each column carries its schematic on top — **A** COBA (input→E→output, no I population) and **B** PING (the same plus the recurrent E↔I loop, $W_\text{ei}$ down and $W_\text{ie}$ up) — directly above the plots it produces. Below each schematic is one combined raster (E black in the lower portion, I red in the upper portion — same axes, no gap) above a bottom row pairing the Welch PSD of the population-mean E trace with the free-running f–I curve (mean per-cell rate vs input rate, E black / I red; the two f–I panels share a y-axis). Rasters and spectra are on MNIST digit-0 input (400 ms); the f–I curves are measured under uniform Poisson drive on the untrained network. **A — COBA** (*ei-strength 0*, loop off): asynchronous E firing, no I activity, no recurrent gamma peak, and an E f–I curve that climbs steeply and saturates toward the refractory ceiling (≈ 270 Hz). **B — PING** (*ei-strength 1.5*, loop on): the I population fires a synchronous burst once per cycle and the E raster breaks into vertical bands (the I volley trails each E volley by the AMPA delay); the PSD carries a clean peak at $f_\gamma \approx 25$ Hz (dashed red line); and on the shared f–I axis the E rate is held ≈ 10× lower than COBA across two decades of drive while inhibition climbs — the loop's dynamic-range compression. The single E→I→E loop is the only change: it converts asynchronous firing into a gamma rhythm *and* clamps the E rate.
+<Figure id="Figure 1" title="The COBA and PING architectures, with their rasters, spectra, and f–I curves" src="/figures/notebooks/nb023/overview_compound.png" alt="Two-column figure. Each column has, from top: a small architecture schematic, a combined spike raster (E neurons black in the lower portion, I neurons red in the upper portion, same axes), and a bottom row pairing a Welch PSD with an f–I curve. Left A (COBA, loop off): schematic of input→E→output with no I; E-only raster firing asynchronously; PSD with scattered power and no gamma peak; f–I where E (black) climbs steeply with input rate and saturates high, while I (red) stays at zero. Right B (PING, loop active): schematic of input→E→output plus the E↔I loop (W_ei down, W_ie up); combined raster with E in vertical bands and I bursting synchronously once per cycle above; PSD with a sharp gamma peak (measured value marked on the plot); f–I on the same y-scale where the E rate is held far below COBA across the whole input-rate sweep while I climbs.">
+  The architecture and its behaviour, off and on, on the same network. Each column carries its schematic on top — **A** COBA (input→E→output, no I population) and **B** PING (the same plus the recurrent E↔I loop, $W_\text{ei}$ down and $W_\text{ie}$ up) — directly above the plots it produces. Below each schematic is one combined raster (E black in the lower portion, I red in the upper portion — same axes, no gap) above a bottom row pairing the Welch PSD of the population-mean E trace with the free-running f–I curve (mean per-cell rate vs input rate, E black / I red; the two f–I panels share a y-axis). Rasters and spectra are on MNIST digit-0 input (400 ms); the f–I curves are measured under uniform Poisson drive on the untrained network. All runs are at $\Delta t = 0.1$ ms. **A — COBA** (*ei-strength 0*, loop off): asynchronous E firing, no I activity, no recurrent gamma peak, and an E f–I curve that climbs steeply with input rate and saturates toward the refractory ceiling. **B — PING** (*ei-strength 1.5*, loop on): the I population fires a synchronous burst once per cycle and the E raster breaks into vertical bands (the I volley trails each E volley by the AMPA delay); the PSD carries a clean gamma peak (dashed red line; $f_\gamma$ measured from this raster's E-population PSD, marked on the plot); and on the shared f–I axis the E rate is held well below COBA across the input-rate sweep while inhibition climbs — the loop's dynamic-range compression. The single E→I→E loop is the only change: it converts asynchronous firing into a gamma rhythm *and* clamps the E rate.
 </Figure>
 
 <Figure id="Figure 2a" title="COBA — E-neuron membrane voltage" src="/figures/notebooks/nb023/traces__coba__v_e.svg" alt="V_E (black) for one E neuron over 400 ms with the recurrent loop off (COBA). V_E charges toward threshold V_th = −50 mV (faint dashed) and hard-resets to V_reset = −65 mV at each spike, with no rhythmic envelope.">
