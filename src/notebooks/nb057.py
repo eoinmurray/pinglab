@@ -32,18 +32,23 @@ from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 
 SLUG = "nb057"
 _, FIGURES = artifacts_and_figures(SLUG)
 
-# Tiers only set the nb054 grid sim length (the nb033 numerics are fixed).
-TIER_CONFIG = {
-    "small": {"sim_ms": 750.0},
-    "medium": {"sim_ms": 1000.0},
-    "large": {"sim_ms": 2000.0},
+# nb054 grid sim length (the nb033 numerics are fixed).
+SIM_MS = 1000.0
+
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "input": "private per-cell Poisson",
+    "t_ms": SIM_MS,
+    "dt_ms": 0.25,
+    "input_rate_hz": 100.0,
+    "cells": 121,  # 11 × 11 (W_EI × W_IE)
+    "grid": "11×11 (W_EI × W_IE)",
 }
-DEFAULT_TIER = "medium"
 
 
 def _load_runner(slug: str):
@@ -214,15 +219,17 @@ def main() -> None:
     # Publication profile: print-sized vectors, emitted as both PNG/SVG (docs)
     # and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-    parse_modal_gpu(sys.argv)  # local CPU; modal unused.
+    modal_gpu = parse_modal_gpu(sys.argv)  # local CPU; modal unused.
     wipe_dir = "--no-wipe-dir" not in sys.argv
-    sim_ms = TIER_CONFIG[tier]["sim_ms"]
+    sim_ms = SIM_MS
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id} tier={tier}")
-    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
+    print(f"notebook_run_id = {notebook_run_id}")
+    prepare_run_dirs(
+        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
+        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
+    )
 
     nb054 = _load_runner("nb054")
     nb033 = _load_runner("nb033")

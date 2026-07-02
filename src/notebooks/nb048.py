@@ -39,7 +39,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
 
@@ -77,15 +76,11 @@ INPUT_RATE_HZ: float = 25.0      # canonical Poisson input rate
 TAU_HEADLINE_MS: float = 50.0    # digit duration in headline figure
 N_DIGITS_HEADLINE: int = 5       # number of digits in the headline stream
 
-# Sweep tier-driven counts. Stream count = streams × digits × seeds.
-TIER_CONFIG: dict[str, dict] = {
-    "extra small": dict(n_streams=4, n_per_stream=4, n_grid_streams=2),
-    "small":       dict(n_streams=20, n_per_stream=10, n_grid_streams=40),
-    "medium":      dict(n_streams=80, n_per_stream=10, n_grid_streams=80),
-    "large":       dict(n_streams=200, n_per_stream=10, n_grid_streams=200),
-    "extra large": dict(n_streams=400, n_per_stream=10, n_grid_streams=400),
-}
-DEFAULT_TIER: str = "small"
+# Sweep counts — baked from the retired "small" tier. Stream count =
+# streams × digits × seeds.
+N_STREAMS: int = 20
+N_PER_STREAM: int = 10
+N_GRID_STREAMS: int = 40
 
 # τ sweep — multiples of the gamma cycle (≈ 28 ms at τ_GABA = 9 ms).
 TAU_SWEEP_MS: list[float] = [25.0, 50.0, 100.0, 200.0]
@@ -111,6 +106,18 @@ RASTER_N_E_PLOT: int = 200
 RASTER_N_I_PLOT: int = 64
 
 SEED: int = 42
+
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE: dict = {
+    "dataset": "mnist",
+    "t_ms": TRAINED_T_MS,
+    "dt_ms": DT,
+    "input_rate_hz": INPUT_RATE_HZ,
+    "seeds": len(SEEDS),
+    "cells": len(TAU_GRID_MS) * len(RATE_GRID_HZ),
+    "grid": f"{len(TAU_GRID_MS)} τ × {len(RATE_GRID_HZ)} rate",
+}
 
 
 # ── Net build / load ────────────────────────────────────────────────
@@ -1031,13 +1038,14 @@ def main() -> None:
         print(f"wrote {FIGURES / 'acc_grid_tau_rate'}.png (replotted from cache)")
         return
 
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-    cfg_tier = TIER_CONFIG[tier]
     notebook_run_id = next_run_id(SLUG)
-    prepare_run_dirs(SLUG, notebook_run_id, wipe=False, make_artifacts=True)
+    prepare_run_dirs(
+        SLUG, notebook_run_id, wipe=False, make_artifacts=True,
+        scale=SCALE, host="local",
+    )
 
     t_start = time.monotonic()
-    print(f"[streaming] tier={tier}  seeds={SEEDS}")
+    print(f"[streaming] seeds={SEEDS}")
 
     # Headlines (Figs 1, 3) use the first seed only — they're single-trial
     # demos, not aggregate measurements.
@@ -1070,23 +1078,23 @@ def main() -> None:
         print(f"[tau-sweep] constant input ({INPUT_RATE_HZ:g} Hz)  seed {sd}")
         rows_constant += run_tau_sweep(
             train_dir, cfg, X_te, y_te, train_seed=sd,
-            n_streams=int(cfg_tier["n_streams"]),
-            n_per_stream=int(cfg_tier["n_per_stream"]),
+            n_streams=N_STREAMS,
+            n_per_stream=N_PER_STREAM,
             rate_compensate=False,
         )
         print(f"[tau-sweep] rate-compensated  seed {sd}")
         rows_comp += run_tau_sweep(
             train_dir, cfg, X_te, y_te, train_seed=sd,
-            n_streams=int(cfg_tier["n_streams"]),
-            n_per_stream=int(cfg_tier["n_per_stream"]),
+            n_streams=N_STREAMS,
+            n_per_stream=N_PER_STREAM,
             rate_compensate=True,
         )
         print(f"[grid-sweep] τ × rate "
               f"({len(TAU_GRID_MS)}×{len(RATE_GRID_HZ)} cells)  seed {sd}")
         grid_rows += run_grid_sweep(
             train_dir, cfg, X_te, y_te, train_seed=sd,
-            n_streams=int(cfg_tier["n_grid_streams"]),
-            n_per_stream=int(cfg_tier["n_per_stream"]),
+            n_streams=N_GRID_STREAMS,
+            n_per_stream=N_PER_STREAM,
         )
 
     tau_agg = (
@@ -1106,7 +1114,6 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
         "config": {
-            "tier": tier,
             "n_e": N_E, "n_i": N_I, "n_in": N_IN, "n_classes": N_CLASSES,
             "dt": DT, "trained_t_ms": TRAINED_T_MS,
             "tau_headline_ms": TAU_HEADLINE_MS,
@@ -1115,9 +1122,9 @@ def main() -> None:
             "tau_grid_ms": TAU_GRID_MS,
             "rate_grid_hz": RATE_GRID_HZ,
             "input_rate_hz": INPUT_RATE_HZ,
-            "n_streams": cfg_tier["n_streams"],
-            "n_grid_streams": cfg_tier["n_grid_streams"],
-            "n_per_stream": cfg_tier["n_per_stream"],
+            "n_streams": N_STREAMS,
+            "n_grid_streams": N_GRID_STREAMS,
+            "n_per_stream": N_PER_STREAM,
             "train_seeds": SEEDS,
             "seed": SEED,
         },

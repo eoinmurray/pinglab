@@ -26,18 +26,16 @@ import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
-from helpers import theme  # noqa: E402
 
 SLUG = "nb047"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -71,14 +69,23 @@ W_IE_REL_STD: float = 0.1  # per-synapse spread held at 10% of the mean
 W_IE_VALUES: list[float] = [0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
 N_I_SWEEP: list[int] = [16, 64, 256]
 
-TIER_CONFIG: dict[str, dict] = {
-    "extra small": dict(n_batch=1),
-    "small": dict(n_batch=4),
-    "medium": dict(n_batch=16),
-    "large": dict(n_batch=64),
-    "extra large": dict(n_batch=256),
+# Baked "small"-tier run scale (retired --tier system): batch of 4 trials.
+N_BATCH: int = 4
+
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE: dict = {
+    "input": "synthetic-spikes",
+    "max_samples": N_BATCH,
+    "t_ms": T_MS,
+    "dt_ms": DT,
+    "input_rate_hz": INPUT_RATE_HZ,
+    "hidden": N_E,
+    "batch_size": N_BATCH,
+    "seeds": 1,
+    "cells": len(W_IE_VALUES) * len(N_I_SWEEP),
+    "grid": f"{len(W_IE_VALUES)} W_ie × {len(N_I_SWEEP)} N_I",
 }
-DEFAULT_TIER: str = "small"
 
 
 # ── Net build ───────────────────────────────────────────────────────
@@ -180,9 +187,7 @@ def plot_summary(rows_by_ni: dict, out_path: Path, run_id: str) -> None:
 
 # ── Main ────────────────────────────────────────────────────────────
 def main() -> None:
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-    cfg = TIER_CONFIG[tier]
-    n_batch = int(cfg["n_batch"])
+    n_batch = N_BATCH
     wipe_dir = "--no-wipe-dir" not in sys.argv
 
     # Publication profile: every figure this notebook writes is a print-sized
@@ -190,11 +195,12 @@ def main() -> None:
     theme.set_paper_mode(True)
 
     notebook_run_id = next_run_id(SLUG)
-    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=True)
+    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=True,
+                     scale=SCALE, host="local")
 
     t_start = time.monotonic()
     print(f"[w_ie x n_inh sweep] N_E={N_E}  input={INPUT_RATE_HZ:g} Hz  "
-          f"batch={n_batch}  tier={tier}")
+          f"batch={n_batch}")
     rows_by_ni: dict[int, list[dict]] = {}
     for n_inh in N_I_SWEEP:
         print(f"--- N_I = {n_inh} ---")
@@ -215,7 +221,6 @@ def main() -> None:
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
         "config": {
-            "tier": tier,
             "n_e": N_E,
             "n_in": N_IN,
             "t_ms": T_MS,

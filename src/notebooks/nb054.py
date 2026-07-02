@@ -22,7 +22,6 @@ Notebook entry: src/docs/src/pages/notebooks/nb054.mdx
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 import time
@@ -36,8 +35,8 @@ sys.path.insert(0, str(REPO / "src"))
 
 from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
 from helpers import theme  # noqa: E402
 from helpers.rhythmicity import (  # noqa: E402
     iei_histogram,
@@ -88,16 +87,20 @@ def _display_idx(n):
 PRIVATE_NULL_INPUT_HZ = [1.0, 2.0, 5.0, 10.0, 20.0, 40.0, 70.0, 100.0]
 SHARED_NULL_INPUT_HZ = [8.0, 12.0, 16.0, 20.0, 28.0, 40.0, 60.0, 100.0]
 
-# The size tier scales only the simulation length (more spikes ⇒ cleaner
-# autocorrelogram); the default (medium = 1000 ms) is what the frozen figures use.
-TIER_CONFIG = {
-    "extra small": dict(sim_ms=500.0),
-    "small": dict(sim_ms=750.0),
-    "medium": dict(sim_ms=1000.0),
-    "large": dict(sim_ms=2000.0),
-    "extra large": dict(sim_ms=4000.0),
+# Simulation length (more spikes ⇒ cleaner autocorrelogram); this is what the
+# frozen figures use (the retired "medium" tier).
+SIM_MS = 1000.0
+
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "input": "private per-cell Poisson",
+    "t_ms": SIM_MS,
+    "dt_ms": DT_MS,
+    "input_rate_hz": NET_INPUT_RATE,
+    "cells": len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID),
+    "grid": f"{len(WEI_MEAN_GRID)} W_EI x {len(WIE_MEAN_GRID)} W_IE",
 }
-DEFAULT_TIER = "medium"
 
 
 def ping_spikes(wei, wie, rate_hz, sim_ms, dt, private=True):
@@ -648,24 +651,21 @@ def fig_null_autocorr(shared_null, priv_null, out_path):
 
 def main():
     argv = sys.argv[1:]
-    tier = parse_tier(argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(argv)  # accepted for contract parity; unused (local CPU)
-    sim_ms = TIER_CONFIG[tier]["sim_ms"]
+    sim_ms = SIM_MS
 
     if modal_gpu:
         print("note: nb054 is local CPU; --modal-gpu ignored.")
 
     t_start = time.monotonic()
-    for d in (ARTIFACTS, FIGURES):
-        if d.exists():
-            shutil.rmtree(d)
-        d.mkdir(parents=True, exist_ok=True)
     notebook_run_id = next_run_id(SLUG)
+    prepare_run_dirs(SLUG, notebook_run_id, make_artifacts=True, scale=SCALE,
+                     host=f"modal:{modal_gpu}" if modal_gpu else "local")
     theme.apply()
     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
 
     n_nets = len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID)
-    print(f"nb054 | tier={tier} | {n_nets} untrained PING networks, private "
+    print(f"nb054 | {n_nets} untrained PING networks, private "
           f"{NET_INPUT_RATE:.0f} Hz per-cell Poisson input, sim {sim_ms:.0f} ms (compiles per net)…")
     grid = run_grid(NET_INPUT_RATE, sim_ms)
     fig_turnon_maps_compound(grid, FIGURES / "turnon_maps_compound.png")
@@ -694,7 +694,6 @@ def main():
         "notebook_run_id": notebook_run_id,
         "duration_s": duration_s,
         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
-        "tier": tier,
         "config": {
             "source": "untrained PING networks, private per-cell Poisson input",
             "dt_ms": DT_MS,
@@ -736,7 +735,6 @@ def main():
         },
     }
     (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2, default=float))
-    persist_run_id(SLUG, notebook_run_id)
     print(f"wrote {FIGURES / 'numbers.json'}")
     print(f"\nTotal runtime: {numbers['duration']}")
 

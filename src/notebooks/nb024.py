@@ -34,7 +34,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
 
 SLUG = "nb024"
@@ -49,15 +48,21 @@ EPOCHS: int = 100
 
 SEEDS: tuple[int, ...] = (42, 43, 44)
 
-# Tier governs max_samples only; epochs is held at EPOCHS above.
-TIER_CONFIG = {
-    "extra small": dict(max_samples=100),
-    "small": dict(max_samples=500),
-    "medium": dict(max_samples=2000),
-    "large": dict(max_samples=5000),
-    "extra large": dict(max_samples=10000),
+MAX_SAMPLES: int = 2000
+BATCH_SIZE: int = 256
+
+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
+# the Methods table via RunScale; the mdx never restates these numbers.
+SCALE = {
+    "dataset": "mnist",
+    "max_samples": MAX_SAMPLES,
+    "epochs": EPOCHS,
+    "t_ms": T_MS,
+    "dt_ms": DT_TRAIN,
+    "batch_size": BATCH_SIZE,
+    "seeds": len(SEEDS),
+    "cells": len(SEEDS) * 2,
 }
-DEFAULT_TIER = "medium"
 
 MODELS = ["coba", "ping"]
 MODEL_RECIPES: dict[str, dict] = {
@@ -102,13 +107,13 @@ def cell_dir(model: str, seed: int) -> Path:
     return shared_cell_dir(cell_name(model, None, seed))
 
 
-def build_train_args(model: str, seed: int, tier: str, out_dir: Path) -> list[str]:
+def build_train_args(model: str, seed: int, out_dir: Path) -> list[str]:
     recipe = MODEL_RECIPES[model]
     args = [
         "train",
         "--model", recipe["__build_as"],
         "--dataset", "mnist",
-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+        "--max-samples", str(MAX_SAMPLES),
         "--epochs", str(EPOCHS),
         "--t-ms", str(T_MS),
         "--dt", str(DT_TRAIN),
@@ -810,7 +815,6 @@ def plot_confidence_inflation(out_path: Path, run_id: str) -> None:
 
 
 def main() -> None:
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
     only_missing = "--only-missing" in sys.argv
@@ -820,7 +824,7 @@ def main() -> None:
     notebook_run_id = next_run_id(SLUG)
     n_cells = len(MODELS) * len(SEEDS)
     print(
-        f"notebook_run_id = {notebook_run_id} tier={tier} epochs={EPOCHS} "
+        f"notebook_run_id = {notebook_run_id} epochs={EPOCHS} "
         f"cells={n_cells}"
         + ("  [skip-training]" if skip_training else "")
         + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
@@ -829,6 +833,8 @@ def main() -> None:
     prepare_run_dirs(
         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
         make_artifacts=False,
+        scale=SCALE,
+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
     )
 
     # Training lives in nb022 now (train-once / reuse-many): the θ_u=off
@@ -861,7 +867,6 @@ def main() -> None:
         "git_sha": train_cfg.get("git_sha"),
         "duration_s": round(duration_s, 1),
         "duration": format_duration(duration_s),
-        "tier": tier,
         "config": {"dataset": "mnist", "models": MODELS, "seeds": list(SEEDS),
                    "epochs": EPOCHS, "t_ms": T_MS, "dt": DT_TRAIN},
         "final": finals,
