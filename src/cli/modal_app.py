@@ -38,7 +38,24 @@ image = (
         "gunzip /tmp/shd/SHD/shd_train.h5.gz && "
         "gunzip /tmp/shd/SHD/shd_test.h5.gz"
     )
-    .add_local_dir("src", remote_path="/root/src")
+    # Upload ONLY src/cli — the CLI code the remote actually runs
+    # (/root/src/cli/cli.py, cwd /root/src). Uploading all of src/ pulled in the
+    # entire docs site (src/docs) and artifacts, which the running Astro dev
+    # server + notebooks constantly rewrite; Modal snapshots the tree and aborts
+    # with "modified during build process" if any file changes mid-snapshot. The
+    # remote needs none of that. Cache dirs inside src/cli are still excluded
+    # since ruff/pytest churn them too.
+    .add_local_dir(
+        "src/cli",
+        remote_path="/root/src/cli",
+        ignore=[
+            "**/.ruff_cache",
+            "**/__pycache__",
+            "**/*.pyc",
+            "**/.pytest_cache",
+            "**/.mypy_cache",
+        ],
+    )
 )
 
 app = modal.App("pinglab")
