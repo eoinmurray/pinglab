@@ -891,7 +891,7 @@ def train(
             "act": f"{end_state.get('act', 0) * 100:.0f}%",
         }
         if end_state.get("f0"):
-            dyn["f₀"] = f"{end_state['f0']:.0f}Hz"
+            dyn["f0"] = f"{end_state['f0']:.0f}Hz"
     runlog.summary(
         log,
         best_acc=best_acc,

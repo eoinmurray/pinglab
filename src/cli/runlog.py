@@ -366,35 +366,58 @@ def phase(log, name: str, detail: str = "", elapsed_s: float | None = None) -> N
 # the zero-width ANSI codes never disturb the columns.
 
 
-def _epoch_cells(ep, acc, loss, e, i, cv, act, dt, eta):
-    """Format the nine cells to their column widths (plain, uncoloured)."""
-    return {
-        "ep": f"{ep:>7}",
-        "acc": f"{acc:>4}",
-        "loss": f"{loss:>6}",
-        "E": f"{e:>5}",
-        "I": f"{i:>5}",
-        "CV": f"{cv:>4}",
-        "act": f"{act:>4}",
-        "dt": f"{dt:>4}",
-        "eta": f"{eta:>6}",
-    }
+# ONE column spec drives the header, the underline, and every row — so they
+# physically cannot drift apart. (key, header, width). Two rules hold columns
+# aligned in EVERY terminal:
+#   1. cells contain ASCII + digits only — no box-drawing, Greek, em-dash or
+#      subscripts, whose width terminals disagree on (East-Asian "ambiguous").
+#   2. units live in the header, cells are bare numbers, and widths are wide
+#      enough that a value never overflows and shoves the row sideways.
+_SEP = object()  # a group separator between column blocks
+_EPOCH_COLS = [
+    ("ep", "epoch", 9),   # "1000/1000"
+    ("acc", "acc%", 5),
+    ("loss", "loss", 7),
+    _SEP,
+    ("E", "E/Hz", 5),
+    ("I", "I/Hz", 5),
+    ("cv", "CV", 5),
+    ("act", "act%", 5),
+    _SEP,
+    ("dt", "dt", 5),      # elapsed, a human duration (self-unit: 4s)
+    ("eta", "eta", 7),
+]
 
 
-def _epoch_line(cells: dict) -> str:
-    b = dim(_BAR)
-    return (
-        f"  {cells['ep']}  {cells['acc']}  {cells['loss']}  {b}  "
-        f"{cells['E']}  {cells['I']}  {cells['CV']}  {cells['act']}  {b}  "
-        f"{cells['dt']}  {cells['eta']}"
-    )
+def _epoch_line(vals: dict, *, header: bool = False, best: bool = False) -> str:
+    """Render one line from the shared column spec.
+
+    header=True → the whole line is dimmed as the column titles; otherwise it is
+    a data row (the │ separators are dimmed individually, and the accuracy cell
+    is greened when best=True). Padding is computed on the plain value, then
+    colour (zero visible width) is applied, so columns never shift.
+    """
+    parts = []
+    for col in _EPOCH_COLS:
+        if col is _SEP:
+            parts.append(_BAR if header else dim(_BAR))
+            continue
+        key, _, w = col
+        cell = f"{str(vals.get(key, '')):>{w}}"
+        if best and key == "acc":
+            cell = green(cell)
+        parts.append(cell)
+    line = "  " + "  ".join(parts)
+    return dim(line) if header else line
 
 
 def epoch_header(log) -> None:
-    """Column header + underline for the per-epoch stream."""
-    cells = _epoch_cells("epoch", "acc", "loss", "E", "I", "CV", "act", "Δt", "eta")
-    log.info(dim(_epoch_line(cells)))
-    log.info(dim("  " + _RULE * (WIDTH - 2)))
+    """Column titles + a rule spanning exactly the header's visible width."""
+    labels = {key: hdr for col in _EPOCH_COLS if col is not _SEP
+              for (key, hdr, _) in [col]}
+    head = _epoch_line(labels, header=True)
+    log.info(head)
+    log.info(dim("  " + _RULE * (len(_strip_ansi(head)) - 2)))
 
 
 # Backwards-compatible alias (train.py historically called this name).
@@ -417,22 +440,19 @@ def epoch_row(
     new_best: bool = False,
     warnings: list | None = None,
 ) -> None:
-    """One epoch row + its run.jsonl event."""
-    i_str = f"{i_rate:.0f}Hz" if i_rate is not None else "—"
-    cells = _epoch_cells(
-        f"{ep}/{total}",
-        f"{acc:.0f}%",
-        f"{loss:.3f}",
-        f"{e_rate:.0f}Hz",
-        i_str,
-        f"{cv:.2f}",
-        f"{activity:.0f}%",
-        f"{int(elapsed_s)}s",
-        format_eta(eta_s),
-    )
-    if new_best:
-        cells["acc"] = green(cells["acc"])
-    line = _epoch_line(cells)
+    """One epoch row + its run.jsonl event. Cells are bare (units in header)."""
+    vals = {
+        "ep": f"{ep}/{total}",
+        "acc": f"{acc:.0f}",
+        "loss": f"{loss:.3f}",
+        "E": f"{e_rate:.0f}",
+        "I": f"{i_rate:.0f}" if i_rate is not None else "-",
+        "cv": f"{cv:.2f}",
+        "act": f"{activity:.0f}",
+        "dt": f"{int(elapsed_s)}s",
+        "eta": format_eta(eta_s),
+    }
+    line = _epoch_line(vals, best=new_best)
     if new_best:
         line += " " + green(_BEST)
     if warnings:
@@ -472,7 +492,7 @@ def metrics_line(log, m: dict, label: str = "result") -> None:
     parts = [f"E {m.get('rate_e', 0):.0f}Hz", f"I {m.get('rate_i', 0):.0f}Hz",
              f"CV {m.get('cv', 0):.2f}", f"act {m.get('act', 0):.0%}"]
     if m.get("f0"):
-        parts.append(f"f₀ {m['f0']:.0f}Hz")
+        parts.append(f"f0 {m['f0']:.0f}Hz")
     body = f" {dim(_DOT)} ".join(parts)
     log.info(f"  {cyan(_STATE)} {dim(f'{label:<9}')} {body}")
     event("metrics", label=label, **{k: m.get(k) for k in
