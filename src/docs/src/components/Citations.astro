@@ -141,6 +141,27 @@ const json = JSON.stringify(references);
       frag.appendChild(document.createTextNode(text.slice(last)));
       node.parentNode.replaceChild(frag, node);
     });
+
+    // Keep cards inside the viewport: a citation near the right edge would have
+    // its left-anchored card overflow (and add horizontal scroll even while
+    // hidden), so flip those to open leftward. Measured from the citation, so
+    // it works with the card hidden. Re-run on resize.
+    const CARD_MAX = 360; // ~22rem card incl. padding/border, with a margin
+    function positionCards() {
+      document.querySelectorAll(".cite").forEach((cite) => {
+        const r = cite.getBoundingClientRect();
+        cite.classList.toggle(
+          "cite-flip",
+          r.left + CARD_MAX > window.innerWidth - 8,
+        );
+      });
+    }
+    positionCards();
+    let resizeTimer;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(positionCards, 150);
+    });
   })();
 </script>
 
@@ -161,11 +182,12 @@ const json = JSON.stringify(references);
   .cite-card {
     position: absolute;
     left: 0;
+    right: auto;
     top: 1.5em;
     z-index: 40;
     display: block;
     width: max-content;
-    max-width: 22rem;
+    max-width: min(22rem, calc(100vw - 1.5rem));
     /* transparent bridge so the mouse can cross into the card without a gap */
     padding: 0.6rem 0.7rem;
     border: 1px solid var(--color-rule);
@@ -192,6 +214,11 @@ const json = JSON.stringify(references);
     right: 0;
     top: -0.7em;
     height: 0.7em;
+  }
+  /* Near the right edge, open leftward so the card can't overflow the page. */
+  .cite-flip .cite-card {
+    left: auto;
+    right: 0;
   }
   .cite:hover .cite-card,
   .cite:focus-within .cite-card {
