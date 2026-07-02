@@ -65,11 +65,6 @@ DT_TRAIN = 0.1
 # the regulariser, not the seed.
 SEEDS_BASELINE: list[int] = [42, 43, 44]
 SEED_SWEEP: int = 42
-# 100 epochs follows nb024's convergence audit: PING's E rate is a
-# converged operating point at this horizon (slope ≤ 0.025 Hz/ep across
-# seeds). COBA's rate is still drifting but closer to its long-run
-# attractor than at 30 epochs.
-BASELINE_EPOCHS: int = 100  # overrides the baked epochs for baseline cells
 
 # Inference-time ei_strength sweep on the coba__off__seed42 baseline.
 # Subsumes the now-retired nb019 — trains nothing new; just runs the
@@ -179,37 +174,6 @@ def cell_dir(model: str, theta_u: float | None, seed: int) -> Path:
 
 def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
     return cell_dir(model, None, seed)
-
-
-def build_train_args(
-    model: str, theta_u: float | None, seed: int, out_dir: Path
-) -> list[str]:
-    recipe = MODEL_RECIPES[model]
-    args = [
-        "train",
-        "--model", recipe["__build_as"],
-        "--dataset", "mnist",
-        "--max-samples", str(MAX_SAMPLES),
-        "--epochs", str(BASELINE_EPOCHS),
-        "--t-ms", str(T_MS),
-        "--dt", str(DT_TRAIN),
-        "--seed", str(seed),
-        "--out-dir", str(out_dir),
-        "--wipe-dir",
-    ]
-    for k, v in recipe.items():
-        if k.startswith("__"):
-            continue
-        if v is True:
-            args.append(k)
-        elif v is not None:
-            args += [k, v]
-    if theta_u is not None:
-        args += [
-            "--fr-reg-upper-theta", str(theta_u),
-            "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
-        ]
-    return args
 
 
 def load_metrics(run_dir: Path) -> dict:

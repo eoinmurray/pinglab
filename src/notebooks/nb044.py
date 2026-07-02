@@ -29,7 +29,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -78,20 +78,6 @@ SCALE = {
     "grid": "5 Δt × 3 seeds (Δt ∈ {0.05, 0.1, 0.25, 0.5, 1.0} ms)",
 }
 
-# Match nb025 PING recipe except for --batch-size (held at BATCH_SIZE
-# here) and --dt (per cell).
-PING_RECIPE: dict[str, str] = {
-    "--ei-strength": "1",
-    "--v-grad-dampen": "1000",
-    "--w-in": "1.2",
-    "--w-in-sparsity": "0.95",
-    "--readout": "mem-mean",
-    "--surrogate-slope": "1",
-    "--readout-w-out-scale": "500",
-    "--lr": "0.0004",
-}
-
-
 def dt_label(dt_ms: float) -> str:
     s = f"{dt_ms:g}".replace(".", "p")
     return f"dt{s}"
@@ -101,25 +87,6 @@ def cell_dir(dt_ms: float, seed: int) -> Path:
     """Trained cell — now the shared nb022 cell (train-once / reuse-many)."""
     from nb022 import cell_dir as shared_cell_dir
     return shared_cell_dir(f"ping__{dt_label(dt_ms)}__seed{seed}")
-
-
-def build_train_args(dt_ms: float, seed: int, out_dir: Path) -> list[str]:
-    args = [
-        "train",
-        "--model", "ping",
-        "--dataset", "mnist",
-        "--max-samples", str(MAX_SAMPLES),
-        "--epochs", str(EPOCHS),
-        "--t-ms", str(T_MS),
-        "--dt", str(dt_ms),
-        "--batch-size", str(BATCH_SIZE),
-        "--seed", str(seed),
-        "--out-dir", str(out_dir),
-        "--wipe-dir",
-    ]
-    for k, v in PING_RECIPE.items():
-        args += [k, v]
-    return args
 
 
 def load_metrics(run_dir: Path) -> dict:
@@ -372,7 +339,6 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
 def main() -> None:
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
-    only_missing = "--only-missing" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
 
     # Publication profile: every figure this notebook writes is a print-sized
