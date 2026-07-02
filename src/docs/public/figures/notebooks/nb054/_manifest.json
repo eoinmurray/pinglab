@@ -1,0 +1,18 @@
+{
+  "slug": "nb054",
+  "run_id": "r007",
+  "run_at": "2026-07-02T17:31:33+00:00",
+  "git_sha": "22436a7",
+  "dirty": true,
+  "code_dirty": false,
+  "patch": null,
+  "host": "local",
+  "scale": {
+    "input": "private per-cell Poisson",
+    "t_ms": 1000.0,
+    "dt_ms": 0.25,
+    "input_rate_hz": 100.0,
+    "cells": 121,
+    "grid": "11 W_EI x 11 W_IE"
+  }
+}
