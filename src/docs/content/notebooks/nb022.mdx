@@ -15,58 +15,57 @@ export const stat = (k) => fam[k] ? (fam[k].trained + "/" + fam[k].cells + " cel
 
 ## Abstract
 
-The one place this collection trains its networks. Every cell is trained once here, to a shared artifact root; the analysis notebooks load those weights instead of retraining — a train-once / reuse-many policy replacing the older standalone-runner rule (see [ar016](/articles/ar016/)). Status **draft**: registry and standard are fixed, but the cells await the canonical run — the full-MNIST reference is new, and the folded sweep cells predate the gamma standard ($\tau_\text{GABA} = 6$ ms) and will be retrained at it.
+The one place this collection trains its networks: every cell is trained once, to a shared root, and the analysis notebooks load those weights instead of retraining (train-once / reuse-many, see [ar016](/articles/ar016/)). Status **draft** — nothing is trained to the gamma standard yet; the cells await the canonical run.
 
 ## Methods
 
-### Why GPU, not CPU
+### 1. The compute cost
 
-Training is surrogate-gradient backpropagation-through-time: the network unrolls over ≈ 2000 timesteps and the loss flows back through the whole graph. Each timestep is dense matrix work — conductance decay, synaptic currents, membrane update, surrogate spike — over ≈ 1280 neurons (1024 excitatory + 256 inhibitory) × the minibatch at once. That is wide and uniform, the shape a GPU's thousands of cores run in parallel while a CPU's handful stalls; measured here a discrete GPU is **≈ 3× faster than CPU**, widening with batch size. The unrolled graph also holds every timestep's activations for the backward pass, so it is memory-heavy and wants a large card. On CPU the canonical cells would take days each and the ≈ 360 GPU-hour registry is infeasible — so every cell trains on a GPU.
+Each trial is surrogate-gradient backprop-through-time: 2000 timesteps ($T = 200$ ms at $\Delta t = 0.1$ ms) over a 1280-neuron conductance network, with the loss flowing back through all of it. What makes it costly:
 
-### Current trainings
+- **Fine timestep, forced by biophysics.** Conductance-based (COBA) synapses inject $g\,(V - E)$, which turns the membrane equation stiff — so $\Delta t = 0.1$ ms, 10× finer than a current-based model. Not optional: the gamma rhythm lives in those terms.
+- **Sequential in time.** The 2000 steps are a dependency chain no hardware parallelises, so the job is **memory-bandwidth-bound** — a GPU beats a CPU only ≈ 10×, not the 50–100× of large matmuls.
+- **Memory-heavy.** The backward pass stores every step's activations — ≈ 12 GB at batch 256.
+- **Scale.** 67 cells × 100 epochs ≈ **255 A100-GPU-hours** (≈ 67.8M sample-forwards) — ≈ 220 days on CPU, so every cell trains on a GPU.
 
-What is on disk now — cells folded in from the original notebooks. They predate the gamma standard: the θ_u, Δt and init families ran at the old $\tau_\text{GABA} = 9$ ms (≈ 36 Hz, high beta) on fewer samples, and the canonical reference is untrained. The canonical run brings every row up to the target below.
+### 2. Gold star trainings
 
-| Family | Trained | $\tau_\text{AMPA}$ (ms) | $\tau_\text{GABA}$ (ms) | $\Delta t$ (ms) | Epochs | MNIST used |
+67 cells across five families. Each fixes its time constants, timestep, length, and how much of the 70,000-image MNIST pool it sees (sampled, re-split 80/20). The standard is $\tau_\text{AMPA} = 2$ ms and $\tau_\text{GABA} = 6$ ms (loop in gamma, ≈ 44 Hz); the τ_GABA ladder varies the inhibitory decay, [nb044](/notebooks/nb044/)'s audit the timestep.
+
+| Family | $\tau_\text{GABA}$ (ms) | $\Delta t$ (ms) | Epochs | MNIST | Cells | At spec |
 |---|---|---|---|---|---|---|
-| canonical (θ_u off) | 0 / 6 | — | — | — | — | not trained |
-| θ_u sweep | 16 / 16 | 2 | 9 | 0.1 | 100 | 2000 (2.9%) |
-| τ_GABA ladder | 18 / 18 | 2 | 4.5 – 27 | 0.1 | 100 | 2000 (2.9%) |
-| Δt sweep | 15 / 15 | 2 | 9 | 0.05 – 1.0 | 100 | 2000 (2.9%) |
-| init variants | 12 / 12 | 2 | 9 | 0.1 | 100 | 3500 (5.0%) |
-| **total** | **61 / 67** | | | | | |
+| canonical (θ_u off) | 6 | 0.1 | 100 | all (70k) | 6 | 0 / 6 |
+| θ_u sweep | 6 | 0.1 | 100 | 10% | 16 | 0 / 16 |
+| τ_GABA ladder | 4.5 – 27 | 0.1 | 100 | 10% | 18 | 0 / 18 |
+| Δt sweep | 6 | 0.05 – 1.0 | 100 | 10% | 15 | 0 / 15 |
+| init variants | 6 | 0.1 | 100 | 10% | 12 | 0 / 12 |
+| **total** | | | | | **67** | **0 / 67** |
 
-### Target trainings
+The **canonical** family (coba and ping at θ_u = off) is the full-MNIST reference the 10%-trained sweeps are read against. *At spec* is trained to the gamma standard above — **none yet**. 61 cells sit on disk from the original notebooks, but at the old standard (2.9–5% MNIST, $\tau_\text{GABA} = 9$ ms), so the canonical run trains all 67 fresh.
 
-Each family fixes its time constants, timestep, training length, and how much of the 70,000-image MNIST pool it sees (sampled, then re-split 80/20). The standard $\tau_\text{GABA} = 6$ ms puts the loop in gamma (≈ 44 Hz); the τ_GABA ladder is the family that varies it:
+Choices behind the table:
 
-| Family | Trainings | $\tau_\text{AMPA}$ (ms) | $\tau_\text{GABA}$ (ms) | $\Delta t$ (ms) | Epochs | MNIST used |
-|---|---|---|---|---|---|---|
-| canonical (θ_u off) | 6 | 2 | 6 | 0.1 | 100 | 70000 (all) |
-| θ_u sweep | 16 | 2 | 6 | 0.1 | 100 | 7000 (10%) |
-| τ_GABA ladder | 18 | 2 | 4.5 – 27 | 0.1 | 100 | 7000 (10%) |
-| Δt sweep | 15 | 2 | 6 | 0.05 – 1.0 | 100 | 7000 (10%) |
-| init variants | 12 | 2 | 6 | 0.1 | 100 | 7000 (10%) |
-| **total** | **67** | | | | | |
+- **100 epochs — the shortenable one.** Test accuracy plateaus by ≈ 15–20 epochs ([nb024](/notebooks/nb024/)), so 100 is generous for the task. It is kept because the post-convergence *dynamics* — the firing-rate drift and confidence inflation the collection studies — only appear in the long tail. For cells where only the trained weights are consumed, this is the obvious cut: it scales the ≈ 255 GPU-hours almost linearly.
+- **3 seeds — necessary.** Baselines train three seeds so cross-seed spread is measurable and the headline effects (e.g. PING's rate attractor holding across seeds, not one-run luck) are shown to be robust; the variance band is load-bearing in the analysis. Sweep cells are single-seed, where the *trend* across the swept value carries the claim instead.
+- **Full MNIST vs 10%.** The canonical reference carries the headline accuracy and rate numbers, so it sees all 70k images; the sweeps only need the trend across their parameter, so 10% is enough and cuts their cost roughly tenfold.
 
-The **canonical** family (coba and ping at θ_u = off) is the full-MNIST reference the 10%-trained sweeps are read against. $\tau_\text{AMPA}$ is fixed at 2 ms throughout; [nb044](/notebooks/nb044/)'s audit is the lone exception that varies Δt, the τ_GABA ladder the one that varies inhibitory decay.
+### 3. Compute options
 
-### Cost to run
+The job is bandwidth-bound, so throughput tracks memory bandwidth and cost follows from it. Measured where the card was to hand, projected from bandwidth otherwise:
 
-The full registry is ≈ **360 A100-GPU-hours** — the six canonical cells (full MNIST × 100 epochs) dominate at ≈ 186, the sixty-one sweep cells make up the rest. The figures below scale that one number across venues (a *GPU-hour* is one GPU for one hour).
-
-| Venue | Card | Price | Estimated for the run | Notes |
+| Option | GPU (bandwidth) | Samples/s | Full-run cost | Wall-clock |
 |---|---|---|---|---|
-| Modal | A100-80GB (forced) | ≈ \$3.30 / GPU-hr | ≈ **\$1,200** | Fans out across many GPUs, so wall-clock is hours not days; spends real money per run. |
-| Cambridge Wilkes3 | A100-80GB | £0.55 / GPU-hr | ≈ **£200** | Academic HPC, SLURM queue; cheapest credible option but needs account + setup. |
-| Vast.ai | RTX 4090 | ≈ \$0.35 / GPU-hr | ≈ **\$60 – 130** | Cheapest cloud; the 4090 is actually fastest here (FP32 SNN), but it is one rented GPU → serial wall-clock, no Modal-style fan-out. |
-| Local build | RTX 5090 | ≈ \$3,400 capital | electricity after | Continuous runs, no quota or queue; FP32 throughput above the A100; large upfront cost. |
-| Owned | M5 MacBook Pro (MPS) | owned | impractical at scale | Far slower than any discrete GPU; fine for the smoke tier only. |
-| Owned | 2060-class laptop | owned | impractical | OOMs on the full BPTT graph; ≈ 45 – 90 days even if it fit. |
+| Modal | A100 (2.0 TB/s) | 74 | ≈ **\$850** | ≈ 1 day (fans out) |
+| Vast.ai | RTX 4090 fleet (1.0 TB/s) | ≈ 37 | ≈ **\$150 – 200** | ≈ 1 – 2 days |
+| Cambridge Wilkes3 | A100 | 74 | ≈ **£140** | **offline through 2026** |
+| benjy (CUED, shared) | A6000 (768 GB/s) | 26.5 | **£0** | ≈ 30 days |
+| hacktar (CUED, shared) | 2080 Ti / 1080 Ti (11 GB) | 6.8 | **£0** | ≈ 115 d — **unusable** |
+| Owned workstation | RTX 5090 (1.8 TB/s) | ≈ 62 | ≈ **£4,700** once | ≈ 13 days |
+| Mac (small runs) | Apple MPS | 36 | — | — |
 
-The plan is **Wilkes3** for the canonical run — an order of magnitude under Modal — with Modal kept for quick one-offs where instant fan-out is worth the premium, and Vast.ai as fallback if the HPC account slips.
+Wilkes3 would be cheapest-and-fast, but the West Cambridge data centre is mid power-and-cooling-upgrade with recurring outages through 2026. Of the CUED boxes, **hacktar** (11 GB cards) is unusable — the graph needs 12 GB and its 1080 Ti is too old for torch.compile — while **benjy** works but is a shared single GPU (a month-long lock is not on) whose mid-2024 driver forces an older PyTorch build. So the one-off canonical run is a cloud fan-out (Modal, turnkey; or a cheaper Vast.ai 4090 fleet), small runs sit on benjy or the Mac, and repeat runs point to a dedicated **5090** — same 1.8 TB/s without the queue, cost, or driver friction.
 
-### Saved per cell
+### 4. Saved per cell
 
 Each training writes one directory under the shared root (*src/artifacts/notebooks/training/&lt;cell&gt;/*), with the same files every time — the contract the analysis notebooks read:
 
@@ -117,7 +116,9 @@ Each per-epoch record — one entry in metrics.json's *epochs* list, one line in
 | samples | training samples seen this epoch. |
 | elapsed_s, train_compute_s, eval_s, observe_s | cumulative wall time and the per-epoch timing breakdown. |
 
-### Canonical reference (θ_u off, all MNIST)
+## Results
+
+### 1. Canonical reference (θ_u off, all MNIST)
 
 coba and ping at θ_u = off, all 70k images, seeds 42/43/44 (6 cells) — the full-data baseline. — **{stat("canonical")}**
 
@@ -125,7 +126,7 @@ coba and ping at θ_u = off, all 70k images, seeds 42/43/44 (6 cells) — the fu
 Test accuracy over epochs, canonical full-MNIST cells. **Not trained yet** — new cells awaiting the canonical run.
 </Figure>
 
-### θ_u spike-budget sweep
+### 2. θ_u spike-budget sweep
 
 coba and ping across θ_u ∈ off, 5, 2, 1, 0.5, 0.2 (baselines three seeds, sweep cells single-seed, 16 cells). θ_u is the spike budget in spikes/trial. — **{stat("theta_u")}**
 
@@ -133,7 +134,7 @@ coba and ping across θ_u ∈ off, 5, 2, 1, 0.5, 0.2 (baselines three seeds, swe
 Test accuracy over epochs across the θ_u sweep. Tighter budgets (smaller θ_u) plateau lower — the spike-economy trade-off.
 </Figure>
 
-### τ_GABA ladder
+### 3. τ_GABA ladder
 
 ping across τ_GABA ∈ 4.5, 6, 9, 12, 18, 27 ms, three seeds each (18 cells). — **{stat("tau_gaba")}**
 
@@ -141,7 +142,7 @@ ping across τ_GABA ∈ 4.5, 6, 9, 12, 18, 27 ms, three seeds each (18 cells). �
 Test accuracy over epochs across the τ_GABA ladder; cells converge to similar accuracy regardless of inhibitory decay.
 </Figure>
 
-### Δt sweep
+### 4. Δt sweep
 
 ping across Δt ∈ 0.05, 0.1, 0.25, 0.5, 1.0 ms (physical T fixed), three seeds each (15 cells) — the documented timestep exception. — **{stat("dt")}**
 
@@ -149,7 +150,7 @@ ping across Δt ∈ 0.05, 0.1, 0.25, 0.5, 1.0 ms (physical T fixed), three seeds
 Test accuracy over epochs across the integration-timestep sweep.
 </Figure>
 
-### Init variants
+### 5. Init variants
 
 ping with four recurrent-loop inits — frozen PING, trainable from PING / zero / small seed — three seeds each (12 cells). — **{stat("init")}**
 
