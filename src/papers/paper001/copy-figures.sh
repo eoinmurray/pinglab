@@ -9,7 +9,7 @@ DST="$(cd "$(dirname "$0")" && pwd)/figures"
 mkdir -p "$DST"
 figs=(
   nb023/overview_compound.png
-  nb057/onset_super_compound.png
+  nb054/onset_super_compound.png
   nb025/results_compound.png
   nb038/loop_transfer_compound.png
   nb049/training_curves.png

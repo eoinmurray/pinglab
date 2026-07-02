@@ -42,7 +42,7 @@ FULL = 6.9     # wide multi-panel compounds (eLife fullwidth)
 # <slug>_<stem>.pdf to match the \includegraphics calls in main.tex.
 REGISTRY = {
     "nb023": (FULL, ["overview_compound"]),
-    "nb057": (FULL, ["onset_super_compound"]),
+    "nb054": (FULL, ["onset_super_compound"]),
     "nb025": (FULL, ["results_compound"]),
     "nb038": (FULL, ["loop_transfer_compound"]),
     "nb049": (COLUMN, ["training_curves"]),
