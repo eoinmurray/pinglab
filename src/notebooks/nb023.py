@@ -423,7 +423,7 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
     E_I = -80.0
     G_L_E = 0.05
     G_L_I = 0.10
-    PANEL_SIZE = (3.0, 1.6875)  # small per-panel trace tile, 8:4.5 aspect
+    PANEL_SIZE = (4.0, 2.25)  # per-panel trace tile, 16:9
 
     def _save_panel(plot_fn, suffix: str, ylabel: str, panel_title: str):
         fig, ax = plt.subplots(figsize=PANEL_SIZE)
@@ -431,7 +431,11 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
         ax.set_xlim(0, T * dt)
         ax.set_xlabel("time (ms)")
         ax.set_ylabel(ylabel)
-        ax.set_title(f"{title} — {panel_title}")
+        # Short left-aligned title: the concise cell label ("COBA"/"PING") plus
+        # the panel descriptor. The full recipe lives in the caption, not here —
+        # a long centred title steals width and squishes the trace.
+        ax.set_title(f"{title} · {panel_title}", loc="left",
+                     fontsize=theme.SIZE_LABEL)
         ax.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
         fig.tight_layout()
         panel_stem = out_path.with_name(f"{out_path.name}__{suffix}")
@@ -656,7 +660,9 @@ def main() -> None:
         }
 
         traces_dst = FIGURES / f"traces__{cell}"
-        panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, spec["title"])
+        # Short label for the per-panel titles (the full recipe is in the mdx
+        # caption); the long spec["title"] squished the small trace tiles.
+        panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, cell.upper())
         for p in panel_paths:
             figures[p.stem] = p
             print(f"wrote {p}.{{svg,pdf}}")

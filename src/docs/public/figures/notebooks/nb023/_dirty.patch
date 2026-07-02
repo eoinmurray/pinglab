@@ -1,498 +1,1558 @@
-diff --git a/src/cli/cli.py b/src/cli/cli.py
-index 50479ae..2537280 100644
---- a/src/cli/cli.py
-+++ b/src/cli/cli.py
-@@ -735,7 +735,9 @@ def _build_subparsers(parser, parent):
-         type=float,
-         default=None,
-         help="[--infer] Override GABA synaptic decay τ_GABA (ms) so a trained cell "
--        "replays under its training-time inhibitory dynamics (default: models.py 9.0).",
-+        "replays under its training-time inhibitory dynamics. Normally unset: "
-+        "--load-config inherits the cell's trained tau_gaba_ms. Fresh runs without "
-+        "either default to models.py (9.0 ms).",
-     )
-     sim_parser.add_argument(
-         "--skip-load", nargs="+", default=None, metavar="PREFIX",
-@@ -770,6 +772,39 @@ def _build_subparsers(parser, parent):
-         "--scale-w-ie", type=float, default=1.0,
-         help="[--infer] Multiply loaded W_ie matrices before the forward pass.",
-     )
-+    # Uniform-Poisson drive knobs (--input synthetic-spikes / --input-file): the
-+    # net structure + drive for f–I curves and untrained-net parameter sweeps.
-+    # (Folded in from the retired `probe` subcommand.)
-+    sim_parser.add_argument(
-+        "--n-in", type=int, default=784,
-+        help="[synthetic-spikes] Number of input channels (default: 784).",
-+    )
-+    sim_parser.add_argument(
-+        "--n-inh", type=int, default=None,
-+        help="[synthetic-spikes] Inhibitory pool size (n_inh_per_layer, layer 1).",
-+    )
-+    sim_parser.add_argument(
-+        "--n-batch", type=int, default=64,
-+        help="[synthetic-spikes] Number of Poisson-input trials averaged (default: 64).",
-+    )
-+    sim_parser.add_argument(
-+        "--input-file", type=str, default=None,
-+        help="NPZ with 'input_spikes' (T,B,N_IN) to forward instead of generating "
-+        "Poisson input — arbitrary stimulus (routes through the uniform-Poisson path).",
-+    )
-+    sim_parser.add_argument(
-+        "--w-ei-mean", type=float, default=None,
-+        help="[synthetic-spikes] Explicit W_ei mean (overrides ei-strength/ratio). "
-+        "std = 0.1·mean.",
-+    )
-+    sim_parser.add_argument(
-+        "--w-ie-mean", type=float, default=None,
-+        help="[synthetic-spikes] Explicit W_ie mean (independent of --w-ei-mean).",
-+    )
-+    sim_parser.add_argument(
-+        "--private-w-in", action="store_true",
-+        help="[synthetic-spikes] Identity W_in: one input channel per E cell.",
-+    )
- 
-     # -- dump-weights subcommand (init + trained weight matrices, no forward) --
-     dump_parser = subparsers.add_parser(
-@@ -797,48 +832,6 @@ def _build_subparsers(parser, parent):
-         help="Path to the trained weights.pth whose values to dump.",
-     )
- 
--    # -- probe subcommand (uniform-Poisson drive of an untrained/loaded net) --
--    probe_parser = subparsers.add_parser(
--        "probe",
--        parents=[parent],
--        help="Drive a net with uniform Poisson input; emit E/I rates",
--        description="Build a network (untrained unless --load-weights) with the "
--        "given recurrent structure, drive it with uniform homogeneous Poisson "
--        "input, and write population E/I rates to metrics.json. For untrained-net "
--        "parameter probes and uniform-input f-I curves.",
--        epilog="Example:\n"
--        "  cli.py probe --model ping --n-hidden 1024 --n-inh 64 --ei-strength 1 "
--        "--ei-ratio 2 --w-in 1.2 --input-rate 25 --n-batch 16 --out-dir out/",
--        formatter_class=argparse.RawDescriptionHelpFormatter,
--    )
--    probe_parser.add_argument("--n-in", type=int, default=784,
--                              help="Number of input channels (default: 784).")
--    probe_parser.add_argument("--n-inh", type=int, default=None,
--                              help="Inhibitory pool size (n_inh_per_layer for layer 1).")
--    probe_parser.add_argument("--n-batch", type=int, default=64,
--                              help="Number of Poisson-input trials (default: 64).")
--    probe_parser.add_argument("--input-file", type=str, default=None,
--                              help="NPZ with 'input_spikes' (T,B,N_IN) to forward "
--                              "instead of generating Poisson input — arbitrary stimulus.")
--    probe_parser.add_argument("--w-ei-mean", type=float, default=None,
--                              help="Explicit W_ei mean (independent of --w-ie-mean; "
--                              "overrides ei-strength/ratio). std = 0.1·mean.")
--    probe_parser.add_argument("--w-ie-mean", type=float, default=None,
--                              help="Explicit W_ie mean (independent of --w-ei-mean).")
--    probe_parser.add_argument("--private-w-in", action="store_true",
--                              help="Identity W_in: one input channel per E cell.")
--    probe_parser.add_argument("--load-config", type=str, default=None,
--                              help="Load config from a training run's config.json.")
--    probe_parser.add_argument("--load-weights", type=str, default=None,
--                              help="Load trained weights (omit for an untrained net).")
--    probe_parser.add_argument("--tau-gaba", type=float, default=None,
--                              help="Override GABA decay τ_GABA (ms).")
--    probe_parser.add_argument(
--        "--outputs", nargs="+", default=None,
--        choices=["per_cell_rates", "rasters"], metavar="OUTPUT",
--        help="Extra artifacts: per_cell_rates.npz, rasters.npz (sparse spike indices).",
--    )
--
-     # -- train subcommand --
-     train_parser = subparsers.add_parser(
-         "train",
-@@ -999,8 +992,16 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
-         sys.exit(0)
- 
-     # --load-config: load training params from config.json, fill unset values
--    if args.mode in ("sim", "dump-weights", "probe") and getattr(args, "load_config", None):
-+    if args.mode in ("sim", "dump-weights") and getattr(args, "load_config", None):
-         config_to_args, dest_to_flag = _build_config_mapping(parent)
-+        # --tau-gaba lives on the sim subparser, not the parent parser that
-+        # _build_config_mapping walks, so it isn't auto-mapped. Register it here so a
-+        # loaded cell replays at its TRAINED τ_GABA (config key tau_gaba_ms), not the
-+        # models.py module default. Without this a cell trained at a non-default
-+        # τ_GABA (e.g. the 6 ms canonical) loaded via --load-config would silently
-+        # evaluate at the module default — a train/eval mismatch.
-+        config_to_args["tau_gaba_ms"] = "tau_gaba"
-+        dest_to_flag.setdefault("tau_gaba", "--tau-gaba")
-         _apply_load_config(args, argv, config_to_args, dest_to_flag)
-     if getattr(args, "infer", False) and not getattr(args, "load_weights", None):
-         print("Error: sim --infer requires --load-weights")
-@@ -1173,6 +1174,24 @@ def _run_sim(args, C, out_dir, log):
-         _emit_infer(args, C, out_dir, log, snapshot_mode=snapshot_mode)
-         return
- 
-+    # Uniform-Poisson drive (formerly the `probe` subcommand): drive a net —
-+    # untrained, or --load-weights — with homogeneous Poisson input at
-+    # --input-rate fed THROUGH W_in (or an arbitrary --input-file stream), and
-+    # emit population E/I rates to metrics.json. This is the single-run primitive
-+    # notebooks loop to build f–I curves and untrained-net parameter sweeps; the
-+    # scan lives in the notebook, not here. Gated so the per-cell / shared /
-+    # quenched conductance drives (which bypass W_in) still take the tonic path.
-+    _drive_flags = ("independent_drive", "independent_drive_i", "shared_drive",
-+                    "shared_drive_i", "quenched_drive", "quenched_drive_i")
-+    _has_cell_drive = any(getattr(args, d, None) is not None for d in _drive_flags)
-+    _uniform_poisson = (
-+        getattr(args, "input", "synthetic-spikes") == "synthetic-spikes"
-+        and not _has_cell_drive
-+    ) or getattr(args, "input_file", None) is not None
-+    if _uniform_poisson:
-+        _emit_probe(args, C, out_dir, log)
-+        return
-+
-     # Metrics-only simulation
-     from metrics import report_metrics
-     from scan import primary_hid_key, primary_inh_key
-@@ -1349,8 +1368,10 @@ def _run_dump_weights(args, C, out_dir, log):
-     )
- 
- 
--def _run_probe(args, C, out_dir, log):
--    """Uniform-Poisson drive of an untrained/loaded net → E/I rates + optional rasters."""
-+def _emit_probe(args, C, out_dir, log):
-+    """Uniform-Poisson drive of an untrained/loaded net → E/I rates + optional
-+    rasters. The sim path routes here for --input synthetic-spikes / --input-file
-+    (this was the standalone `probe` subcommand before it was folded into sim)."""
-     probe(
-         model_name=args.model,
-         dt=args.dt,
-@@ -1382,7 +1403,6 @@ _MODE_HANDLERS = {
-     "sim": _run_sim,
-     "train": _run_train,
-     "dump-weights": _run_dump_weights,
--    "probe": _run_probe,
- }
- 
- 
-diff --git a/src/cli/config.py b/src/cli/config.py
-index 8ec8979..e693161 100644
---- a/src/cli/config.py
-+++ b/src/cli/config.py
-@@ -136,6 +136,41 @@ def setup_model_globals(hidden_sizes):
-     M.HIDDEN_SIZES = list(hidden_sizes)
- 
- 
-+def set_sim_dt(dt, t_ms):
-+    """Set the module-global timestep and derived step count that forward() reads.
-+
-+    THE SINGLE CHOKE POINT for dt. Every entry point that calls COBANet.forward()
-+    MUST call this (with the run's dt and total sim duration) before the forward
-+    pass, or the network silently runs at the models.py module defaults
-+    (dt = 0.25 ms, T_steps derived from the 1000 ms default T_ms).
-+
-+    WHY this exists (and why it is one function, not inlined):
-+    - forward() computes every dt-dependent constant LOCALLY from the module-global
-+      `dt` — decay_ampa/gaba, beta_snn/out, ref_steps, p_scale (see models.forward).
-+      This is a deliberate torch.compile specialization choice: the constants live
-+      in the graph, specialized on dt, rather than as pre-computed globals.
-+    - It also reads the module-global `T_steps` for the integration-loop length and
-+      the recording-buffer allocation.
-+    - So the ONLY things an entry point must pin are M.dt, M.T_ms, M.T_steps.
-+    - Historically patch_dt/recompute_dt_constants did this centrally. Commit
-+      8befe44 removed that helper and inlined the replacement into infer.py's four
-+      functions ONLY — train.py and run_sim/run_sim_batch were missed, so any
-+      training or plain sim at dt != 0.25 silently ran at dt = 0.25 (wrong decays)
-+      and the wrong step count. Re-centralizing here kills that whole class of bug:
-+      new forward-calling code calls set_sim_dt and cannot forget a global.
-+
-+    Args:
-+        dt:   Integration timestep in ms (e.g. 0.1 for the trained baselines).
-+        t_ms: Total simulation duration in ms for one trial.
-+
-+    Side effects:
-+        Mutates: M.dt (= dt), M.T_ms (= t_ms), M.T_steps (= int(t_ms / dt)).
-+    """
-+    M.dt = float(dt)
-+    M.T_ms = float(t_ms)
-+    M.T_steps = int(t_ms / dt)
-+
-+
- def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None, label=None):
-     """Save spike recording and metadata to NPZ file for notebook analysis.
- 
-@@ -503,6 +538,10 @@ def run_sim(
-         t_e_async = cfg.t_e_async
-     M.N_HID = cfg.n_e
-     M.N_INH = cfg.n_i
-+    # Pin dt / T_ms / T_steps so forward() runs at the requested dt (not the 0.25
-+    # module default). Below, M.T_steps may be further clamped down to the actual
-+    # length of a supplied input/drive tensor.
-+    set_sim_dt(dt, cfg.sim_ms)
-     T_steps = int(cfg.sim_ms / dt)
- 
-     if input_spikes is not None:
-@@ -562,7 +601,8 @@ def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100, model_name="
-     """
-     M.N_HID = cfg.n_e
-     M.N_INH = cfg.n_i
--    M.T_steps = int(C.SIM_MS / dt)
-+    # Pin dt / T_ms / T_steps so the batched forward runs at the requested dt.
-+    set_sim_dt(dt, cfg.sim_ms)
- 
-     results = []
-     for start in range(0, len(ext_g_list), chunk_size):
-diff --git a/src/cli/infer.py b/src/cli/infer.py
-index a8e27b5..fe1fdb0 100644
---- a/src/cli/infer.py
-+++ b/src/cli/infer.py
-@@ -13,7 +13,7 @@ from pathlib import Path
- import torch
- 
- import models as M
--from config import build_net, setup_model_globals, save_snapshot_npz
-+from config import build_net, setup_model_globals, save_snapshot_npz, set_sim_dt
- from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
- from encoders import EVAL_SEED, encode_batch
- from scan import _auto_device, primary_hid_key, primary_inh_key
-@@ -116,9 +116,7 @@ def infer(
-     # the requested dt here (otherwise the network runs at the default 0.25 ms).
-     # ─────────────────────────────────────────────────────────────────────────
- 
--    M.T_ms = t_ms  # Total simulation time (ms)
--    M.dt = dt
--    M.T_steps = int(M.T_ms / dt)
-+    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
- 
-     # Optional τ_GABA override — replay a cell under its trained inhibitory decay.
-     # forward() recomputes decay_gaba from M.tau_gaba + M.dt each call, so setting
-@@ -144,8 +142,7 @@ def infer(
-     if dataset in ("mnist", "smnist"):
-         if dataset == "smnist":
-             M.N_IN = 28
--            M.T_ms = 28 * 10.0
--            M.T_steps = int(M.T_ms / dt)
-+            set_sim_dt(dt, 28 * 10.0)  # smnist: 10 ms/row × 28 rows
-         else:
-             M.N_IN = 784
-     else:
-@@ -499,9 +496,7 @@ def infer_and_snapshot(
- 
-     # Initialize M module globals (same setup as infer() above). M.dt must be set
-     # so forward()'s decay constants use the requested dt, not the default 0.25.
--    M.T_ms = t_ms
--    M.dt = dt
--    M.T_steps = int(M.T_ms / dt)
-+    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
-     if tau_gaba is not None:
-         M.tau_gaba = float(tau_gaba)
-         M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
-@@ -517,8 +512,7 @@ def infer_and_snapshot(
-     if dataset in ("mnist", "smnist"):
-         if dataset == "smnist":
-             M.N_IN = 28
--            M.T_ms = 28 * 10.0
--            M.T_steps = int(M.T_ms / dt)
-+            set_sim_dt(dt, 28 * 10.0)  # smnist: 10 ms/row × 28 rows
-         else:
-             M.N_IN = 784
-     else:
-@@ -656,9 +650,7 @@ def probe(
-     import numpy as np
- 
-     seed_everything(seed)
--    M.T_ms = t_ms
--    M.dt = dt
--    M.T_steps = int(t_ms / dt)
-+    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
-     M.N_IN = int(n_in)
-     if tau_gaba is not None:
-         M.tau_gaba = float(tau_gaba)
-@@ -831,9 +823,7 @@ def dump_weights(
-     # init (this is the whole point — reproduce the pre-training weights).
-     seed_everything(seed)
- 
--    M.T_ms = t_ms
--    M.dt = dt
--    M.T_steps = int(M.T_ms / M.dt)
-+    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
-     if hidden_sizes is None:
-         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
-         hidden_sizes = [default]
-diff --git a/src/cli/modal_app.py b/src/cli/modal_app.py
-index 2dc50d0..331d5c0 100644
---- a/src/cli/modal_app.py
-+++ b/src/cli/modal_app.py
-@@ -38,7 +38,24 @@ image = (
-         "gunzip /tmp/shd/SHD/shd_train.h5.gz && "
-         "gunzip /tmp/shd/SHD/shd_test.h5.gz"
-     )
--    .add_local_dir("src", remote_path="/root/src")
-+    # Upload ONLY src/cli — the CLI code the remote actually runs
-+    # (/root/src/cli/cli.py, cwd /root/src). Uploading all of src/ pulled in the
-+    # entire docs site (src/docs) and artifacts, which the running Astro dev
-+    # server + notebooks constantly rewrite; Modal snapshots the tree and aborts
-+    # with "modified during build process" if any file changes mid-snapshot. The
-+    # remote needs none of that. Cache dirs inside src/cli are still excluded
-+    # since ruff/pytest churn them too.
-+    .add_local_dir(
-+        "src/cli",
-+        remote_path="/root/src/cli",
-+        ignore=[
-+            "**/.ruff_cache",
-+            "**/__pycache__",
-+            "**/*.pyc",
-+            "**/.pytest_cache",
-+            "**/.mypy_cache",
-+        ],
-+    )
- )
- 
- app = modal.App("pinglab")
-diff --git a/src/cli/models.py b/src/cli/models.py
-index fc60d0a..0f66e2a 100644
---- a/src/cli/models.py
-+++ b/src/cli/models.py
-@@ -38,6 +38,11 @@ ref_ms_E = 3.0  # ms — excitatory refractory period
- _REF_RATIO = 2.0  # ref_ms_E / ref_ms_I (Börgers)
- ref_ms_I = ref_ms_E / _REF_RATIO  # 1.5 ms
- tau_ampa = 2.0  # ms — AMPA decay
-+# GABA decay. Library default is the literature biophysical value. The collection
-+# TRAINS at 6 ms (the canonical operating point that centres the loop in gamma,
-+# f_γ ≈ 44 Hz) by passing --tau-gaba explicitly; cells carry tau_gaba_ms in their
-+# config and inherit it on --load-config, so this default only sets fresh runs
-+# that pass neither flag.
- tau_gaba = 9.0  # ms — GABA decay (Börgers: 9 ms; Buzsaki & Wang: 8-12 ms)
- 
- # ── Input encoding ────────────────────────────────────────────────────────
-diff --git a/src/cli/train.py b/src/cli/train.py
-index e35edbe..e0ca11d 100644
---- a/src/cli/train.py
-+++ b/src/cli/train.py
-@@ -26,6 +26,7 @@ import runlog
- from config import (
-     build_net,
-     extract_weights,
-+    set_sim_dt,
-     setup_model_globals,
- )
- from metrics import compute_metrics, format_metrics
-@@ -180,14 +181,19 @@ def train(
-     # but network topology constants (N_HID, N_INH, HIDDEN_SIZES) must be fixed.
-     # ─────────────────────────────────────────────────────────────────────────
- 
--    M.T_ms = t_ms  # Total simulation time (ms)
--
--    # Optional τ_GABA override: compute decay constant for custom tau values
--    # nb041 sweeps tau_gaba to vary the gamma (E-I oscillation) frequency across models.
--    # Default is M.tau_gaba=10ms; override creates different decay rates for Poisson fitting.
-+    # Pin dt / T_ms / T_steps to THIS run's values before any forward() call.
-+    # Without this, forward() falls back to the models.py defaults (dt = 0.25,
-+    # T_steps from the 1000 ms default) and the network trains at the wrong
-+    # timestep regardless of --dt — the 8befe44 regression this restores. The
-+    # mnist / smnist / shd branches below may override T_steps for their own T.
-+    set_sim_dt(dt, t_ms)
-+
-+    # Optional τ_GABA override: forward() recomputes decay_gaba from the module
-+    # globals M.tau_gaba and M.dt each call, so setting M.tau_gaba here is what
-+    # actually takes effect. nb041 sweeps tau_gaba to vary the gamma (E-I
-+    # oscillation) frequency across models.
-     if tau_gaba is not None:
-         M.tau_gaba = float(tau_gaba)
--        M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
- 
-     # Determine network hidden layer sizes: use CLI arg or smart default per dataset
-     # Smart defaults: scikit=64, mnist=1024, smnist=32, shd=256
-@@ -226,14 +232,13 @@ def train(
-         if use_smnist:
-             M.N_IN = 28
-             t_ms = 28 * 10.0  # 10 ms/row × 28 rows
--            M.T_ms = t_ms
--            M.T_steps = int(t_ms / dt)
-+            set_sim_dt(dt, t_ms)  # re-pin: smnist has its own total duration
-         else:
-             M.N_IN = 784
-     elif dataset == "shd":
-         # X_tr shape is (N, T_steps, 700) — source n_in and T from the data.
-         M.N_IN = SHD_N_CHANNELS
--        M.T_steps = X_tr.shape[1]
-+        M.T_steps = X_tr.shape[1]  # T comes from the recording, not t_ms/dt
-     else:
-         M.N_IN = 64
-     bs = batch_size if batch_size is not None else BATCH_SIZE
-diff --git a/src/notebooks/helpers/modal.py b/src/notebooks/helpers/modal.py
-index efa0727..ad46041 100644
---- a/src/notebooks/helpers/modal.py
-+++ b/src/notebooks/helpers/modal.py
-@@ -98,6 +98,17 @@ class BatchDispatcher:
-         """Dispatch all queued jobs to Modal in parallel, wait, sync artifacts."""
-         if not self.pending:
-             return
-+        # modal_app lives in src/cli (next to cli.py). Notebooks only put src/ and
-+        # their own dir on sys.path, so add src/cli here to make the top-level
-+        # `import modal_app` resolve. (The flat-layout refactor moved it out from
-+        # under the src root; without this every notebook's --modal-gpu path
-+        # ModuleNotFound-errors at drain time.)
-+        import os
-+        import sys
-+
-+        cli_dir = os.path.dirname(os.path.abspath(str(self.oscilloscope_path)))
-+        if cli_dir not in sys.path:
-+            sys.path.insert(0, cli_dir)
-         from modal_app import dispatch_batch_to_modal
- 
-         dispatch_batch_to_modal(self.pending)
 diff --git a/src/notebooks/nb022.py b/src/notebooks/nb022.py
-index 9753e70..92d9e94 100644
+index 92d9e94..29e3c2b 100644
 --- a/src/notebooks/nb022.py
 +++ b/src/notebooks/nb022.py
-@@ -36,6 +36,7 @@ sys.path.insert(0, str(REPO / "src"))
+@@ -15,8 +15,8 @@ T = 200 ms, MNIST. (nb044's dt sweep is the one documented exception that
+ varies dt; it owns its own training.)
  
+ Outputs a per-cell accuracy / E-rate summary plus a manifest (numbers.json)
+-recording exactly which cells were trained, at what tier, and the git sha —
+-the contract the analysis notebooks rely on.
++recording exactly which cells were trained and the git sha — the contract
++the analysis notebooks rely on.
+ 
+ Notebook entry: src/docs/content/notebooks/nb022.mdx
+ """
+@@ -41,7 +41,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb022"
+@@ -117,7 +116,9 @@ DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)             # nb044 (the dt exception)
+ MNIST_POOL = 70000                                   # 60k train + 10k test pool
+ CANONICAL_MAX_SAMPLES = MNIST_POOL                    # the canonical run sees all of it
+ SUBSET_MAX_SAMPLES = MNIST_POOL // 10                 # 10% of MNIST for the sweeps
+-SMOKE_MAX_SAMPLES = 100                               # extra-small plumbing tier
++MAX_SAMPLES = 100                                     # plumbing cap on every cell
++EPOCHS = 2                                            # plumbing depth on every cell
++BATCH_SIZE = 256                                      # fixed across every recipe
+ 
+ 
+ def theta_label(theta_u: float | None) -> str:
+@@ -190,7 +191,7 @@ def _dt_cells() -> list[dict]:
+ 
+ def _canonical_cells() -> list[dict]:
+     # The canonical reference: θ_u = off, trained on ALL of MNIST (not the
+-    # subset the other families use). max_samples overrides the tier.
++    # subset the other families use) once the full standard is restored.
+     return [
+         {"name": f"{m}__canonical__seed{s}", "model": m, "family": "canonical",
+          "tag": "off · all MNIST", "seed": s, "dt_ms": DT_MS, "extra": [],
+@@ -257,6 +258,20 @@ THETA_U_3SEED_CELLS = _theta_u_3seed_cells()
+ CANONICAL_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
+                    + _dt_cells() + _init_cells())
+ 
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset": "mnist",
++    "max_samples": MAX_SAMPLES,
++    "epochs": EPOCHS,
++    "t_ms": T_MS,
++    "dt_ms": DT_MS,
++    "batch_size": BATCH_SIZE,
++    "seeds": len(SEEDS_BASELINE),
++    "cells": len(CANONICAL_CELLS),
++    "grid": "2 architectures × 5 families",
++}
++
+ 
+ def cell_dir(name: str) -> Path:
+     """Shared per-cell artifact directory."""
+@@ -306,25 +321,16 @@ def build_train_args(spec: dict, out_dir: Path,
+ 
+ # ── Runner ───────────────────────────────────────────────────────────
+ 
+-# Sample counts are now a fixed per-family standard (canonical = all MNIST,
+-# sweeps = 10%), not tier-scaled. The tier only toggles a smoke run: extra
+-# small caps every cell to a handful of samples and 2 epochs so the plumbing
+-# can be checked in minutes; any other tier trains the full standard.
+-TIER_CONFIG = {
+-    "extra small": dict(smoke=True),
+-    "small": dict(smoke=False),
+-    "medium": dict(smoke=False),
+-    "large": dict(smoke=False),
+-    "extra large": dict(smoke=False),
+-}
+-DEFAULT_TIER = "extra small"
++# This runner is pinned to the plumbing scale: every cell is capped to
++# MAX_SAMPLES samples and EPOCHS epochs so the whole registry can be trained
++# in minutes to check the wiring. The full per-family standard (canonical =
++# all MNIST, sweeps = 10%, EPOCHS_STANDARD) lives in the constants above and
++# is restored by editing cell_samples_epochs when a real run is scheduled.
+ 
+ 
+-def cell_samples_epochs(spec: dict, smoke: bool) -> tuple[int, int]:
+-    """Per-cell (max_samples, epochs): the family standard, or the smoke cap."""
+-    if smoke:
+-        return SMOKE_MAX_SAMPLES, 2
+-    return spec.get("max_samples", SUBSET_MAX_SAMPLES), EPOCHS_STANDARD
++def cell_samples_epochs(spec: dict) -> tuple[int, int]:
++    """Per-cell (max_samples, epochs): the fixed plumbing cap for every cell."""
++    return MAX_SAMPLES, EPOCHS
+ 
+ 
+ def _json_safe(o):
+@@ -444,21 +450,19 @@ def plot_family_curves(family: str, cells: list[dict],
+ 
+ 
+ def main() -> None:
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     skip_training = "--skip-training" in sys.argv
+     only_missing = "--only-missing" in sys.argv
+-    smoke = TIER_CONFIG[tier]["smoke"]
+ 
+     t_start = time.monotonic()
+     run_id = next_run_id(SLUG)
+-    print(f"notebook_run_id = {run_id} tier={tier} "
+-          f"{'[SMOKE]' if smoke else 'full standard'} "
++    print(f"notebook_run_id = {run_id} "
+           f"cells={len(CANONICAL_CELLS)}"
+           + ("  [skip-training]" if skip_training else ""))
+     # Wipe only this entry's figures, never the shared TRAINING_ROOT.
+     prepare_run_dirs(SLUG, run_id, wipe=True, skip_training=skip_training,
+-                     make_artifacts=False)
++                     make_artifacts=False, scale=SCALE,
++                     host=f"modal:{modal_gpu}" if modal_gpu else "local")
+ 
+     if not skip_training:
+         TRAINING_ROOT.mkdir(parents=True, exist_ok=True)
+@@ -468,7 +472,7 @@ def main() -> None:
+             if only_missing and (out / "metrics.json").exists():
+                 print(f"[skip] {c['name']} already trained")
+                 continue
+-            ms, ep = cell_samples_epochs(c, smoke)
++            ms, ep = cell_samples_epochs(c)
+             gpu_override = "A100" if modal_gpu in ("T4", "L4", "A10G") else None
+             print(f"[train] {c['name']} (n={ms}, {ep} ep) → {out.relative_to(REPO)}"
+                   + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
+@@ -515,8 +519,6 @@ def main() -> None:
+         "git_sha": git_sha,
+         "duration_s": round(duration_s, 1),
+         "duration": format_duration(duration_s),
+-        "tier": tier,
+-        "smoke": smoke,
+         "standard": {"epochs": EPOCHS_STANDARD, "dt_ms": DT_MS, "t_ms": T_MS,
+                      "dataset": "mnist",
+                      "max_samples_canonical": CANONICAL_MAX_SAMPLES,
+diff --git a/src/notebooks/nb023.py b/src/notebooks/nb023.py
+index 579acc4..f6b3b42 100644
+--- a/src/notebooks/nb023.py
++++ b/src/notebooks/nb023.py
+@@ -423,7 +423,7 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
+     E_I = -80.0
+     G_L_E = 0.05
+     G_L_I = 0.10
+-    PANEL_SIZE = (3.0, 1.6875)  # small per-panel trace tile, 8:4.5 aspect
++    PANEL_SIZE = (4.0, 2.25)  # per-panel trace tile, 16:9
+ 
+     def _save_panel(plot_fn, suffix: str, ylabel: str, panel_title: str):
+         fig, ax = plt.subplots(figsize=PANEL_SIZE)
+@@ -431,7 +431,11 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
+         ax.set_xlim(0, T * dt)
+         ax.set_xlabel("time (ms)")
+         ax.set_ylabel(ylabel)
+-        ax.set_title(f"{title} — {panel_title}")
++        # Short left-aligned title: the concise cell label ("COBA"/"PING") plus
++        # the panel descriptor. The full recipe lives in the caption, not here —
++        # a long centred title steals width and squishes the trace.
++        ax.set_title(f"{title} · {panel_title}", loc="left",
++                     fontsize=theme.SIZE_LABEL)
+         ax.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
+         fig.tight_layout()
+         panel_stem = out_path.with_name(f"{out_path.name}__{suffix}")
+@@ -656,7 +660,9 @@ def main() -> None:
+         }
+ 
+         traces_dst = FIGURES / f"traces__{cell}"
+-        panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, spec["title"])
++        # Short label for the per-panel titles (the full recipe is in the mdx
++        # caption); the long spec["title"] squished the small trace tiles.
++        panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, cell.upper())
+         for p in panel_paths:
+             figures[p.stem] = p
+             print(f"wrote {p}.{{svg,pdf}}")
+diff --git a/src/notebooks/nb024.py b/src/notebooks/nb024.py
+index cdd55ac..0fe6a28 100644
+--- a/src/notebooks/nb024.py
++++ b/src/notebooks/nb024.py
+@@ -34,7 +34,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb024"
+@@ -49,15 +48,21 @@ EPOCHS: int = 100
+ 
+ SEEDS: tuple[int, ...] = (42, 43, 44)
+ 
+-# Tier governs max_samples only; epochs is held at EPOCHS above.
+-TIER_CONFIG = {
+-    "extra small": dict(max_samples=100),
+-    "small": dict(max_samples=500),
+-    "medium": dict(max_samples=2000),
+-    "large": dict(max_samples=5000),
+-    "extra large": dict(max_samples=10000),
++MAX_SAMPLES: int = 2000
++BATCH_SIZE: int = 256
++
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset": "mnist",
++    "max_samples": MAX_SAMPLES,
++    "epochs": EPOCHS,
++    "t_ms": T_MS,
++    "dt_ms": DT_TRAIN,
++    "batch_size": BATCH_SIZE,
++    "seeds": len(SEEDS),
++    "cells": len(SEEDS) * 2,
+ }
+-DEFAULT_TIER = "medium"
+ 
+ MODELS = ["coba", "ping"]
+ MODEL_RECIPES: dict[str, dict] = {
+@@ -102,13 +107,13 @@ def cell_dir(model: str, seed: int) -> Path:
+     return shared_cell_dir(cell_name(model, None, seed))
+ 
+ 
+-def build_train_args(model: str, seed: int, tier: str, out_dir: Path) -> list[str]:
++def build_train_args(model: str, seed: int, out_dir: Path) -> list[str]:
+     recipe = MODEL_RECIPES[model]
+     args = [
+         "train",
+         "--model", recipe["__build_as"],
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
++        "--max-samples", str(MAX_SAMPLES),
+         "--epochs", str(EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(DT_TRAIN),
+@@ -810,7 +815,6 @@ def plot_confidence_inflation(out_path: Path, run_id: str) -> None:
+ 
+ 
+ def main() -> None:
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     skip_training = "--skip-training" in sys.argv
+     only_missing = "--only-missing" in sys.argv
+@@ -820,7 +824,7 @@ def main() -> None:
+     notebook_run_id = next_run_id(SLUG)
+     n_cells = len(MODELS) * len(SEEDS)
+     print(
+-        f"notebook_run_id = {notebook_run_id} tier={tier} epochs={EPOCHS} "
++        f"notebook_run_id = {notebook_run_id} epochs={EPOCHS} "
+         f"cells={n_cells}"
+         + ("  [skip-training]" if skip_training else "")
+         + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+@@ -829,6 +833,8 @@ def main() -> None:
+     prepare_run_dirs(
+         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
+         make_artifacts=False,
++        scale=SCALE,
++        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+     )
+ 
+     # Training lives in nb022 now (train-once / reuse-many): the θ_u=off
+@@ -861,7 +867,6 @@ def main() -> None:
+         "git_sha": train_cfg.get("git_sha"),
+         "duration_s": round(duration_s, 1),
+         "duration": format_duration(duration_s),
+-        "tier": tier,
+         "config": {"dataset": "mnist", "models": MODELS, "seeds": list(SEEDS),
+                    "epochs": EPOCHS, "t_ms": T_MS, "dt": DT_TRAIN},
+         "final": finals,
+diff --git a/src/notebooks/nb025.py b/src/notebooks/nb025.py
+index 1998820..3fd3555 100644
+--- a/src/notebooks/nb025.py
++++ b/src/notebooks/nb025.py
+@@ -47,7 +47,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
+ 
+@@ -55,14 +54,8 @@ SLUG = "nb025"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+ OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
+ 
+-TIER_CONFIG = {
+-    "extra small": dict(max_samples=100, epochs=2),
+-    "small": dict(max_samples=500, epochs=10),
+-    "medium": dict(max_samples=2000, epochs=100),
+-    "large": dict(max_samples=5000, epochs=100),
+-    "extra large": dict(max_samples=10000, epochs=100),
+-}
+-DEFAULT_TIER = "small"
++MAX_SAMPLES = 500
++EPOCHS = 10
+ T_MS = 200.0
+ DT_TRAIN = 0.1
+ 
+@@ -98,6 +91,20 @@ FR_STRENGTH_UPPER = 1e-3
+ 
+ MODELS = ["coba", "ping"]
+ 
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset": "mnist",
++    "max_samples": MAX_SAMPLES,
++    "epochs": EPOCHS,
++    "t_ms": T_MS,
++    "dt_ms": DT_TRAIN,
++    "batch_size": 256,
++    "seeds": len(SEEDS_BASELINE),
++    "cells": len(MODELS) * len(THETA_U_GRID),
++    "grid": "θ_u ∈ {off, 5, 2, 1, 0.5, 0.2} spikes/trial; baselines 100 epochs",
++}
++
+ MODEL_RECIPES: dict[str, dict] = {
+     "coba": {
+         "__build_as": "ping",
+@@ -183,14 +190,14 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
+ 
+ 
+ def build_train_args(
+-    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
++    model: str, theta_u: float | None, seed: int, out_dir: Path
+ ) -> list[str]:
+     recipe = MODEL_RECIPES[model]
+     args = [
+         "train",
+         "--model", recipe["__build_as"],
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
++        "--max-samples", str(MAX_SAMPLES),
+         "--epochs", str(BASELINE_EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(DT_TRAIN),
+@@ -910,7 +917,7 @@ def low_w_in_cell_dir(w_in: float) -> Path:
+     return ARTIFACTS / f"ping__low_w_in__win{label}"
+ 
+ 
+-def build_low_w_in_args(w_in: float, tier: str, out_dir: Path) -> list[str]:
++def build_low_w_in_args(w_in: float, out_dir: Path) -> list[str]:
+     """Train args for the low-w_in alternate-schedule sweep:
+     PING recipe with --w-in overridden and θ_u = 0.2 on from epoch 0."""
+     recipe = dict(MODEL_RECIPES["ping"])
+@@ -919,8 +926,8 @@ def build_low_w_in_args(w_in: float, tier: str, out_dir: Path) -> list[str]:
+         "train",
+         "--model", recipe["__build_as"],
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
++        "--max-samples", str(MAX_SAMPLES),
++        "--epochs", str(EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(DT_TRAIN),
+         "--seed", str(LOW_W_IN_SEED),
+@@ -1398,7 +1405,6 @@ def main() -> None:
+     if "--compound-only" in sys.argv:
+         build_results_compound()
+         return
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     skip_training = "--skip-training" in sys.argv
+     wipe_dir = "--no-wipe-dir" not in sys.argv
+@@ -1407,13 +1413,15 @@ def main() -> None:
+     notebook_run_id = next_run_id(SLUG)
+     n_cells = len(MODELS) * len(THETA_U_GRID)
+     print(
+-        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
++        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
+         + ("  [skip-training]" if skip_training else "")
+     )
+ 
+     prepare_run_dirs(
+         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
+         make_artifacts=False,
++        scale=SCALE,
++        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+     )
+ 
+     only_missing = "--only-missing" in sys.argv
+@@ -1438,7 +1446,7 @@ def main() -> None:
+                 + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+             )
+             dispatcher.submit(
+-                build_low_w_in_args(w_in, tier, out),
++                build_low_w_in_args(w_in, out),
+                 out,
+                 gpu_override=gpu_override,
+             )
+@@ -1578,17 +1586,15 @@ def main() -> None:
+         "git_sha": train_cfg.get("git_sha"),
+         "duration_s": round(duration_s, 1),
+         "duration": format_duration(duration_s),
+-        "tier": tier,
+         "config": {
+-            "tier": tier,
+             "dataset": "mnist",
+             "models": MODELS,
+             "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
+             "theta_u_grid_hz": [
+                 theta_hz(t) for t in THETA_U_GRID if t is not None
+             ],
+-            "max_samples": TIER_CONFIG[tier]["max_samples"],
+-            "epochs": TIER_CONFIG[tier]["epochs"],
++            "max_samples": MAX_SAMPLES,
++            "epochs": EPOCHS,
+             "t_ms": T_MS,
+             "dt": DT_TRAIN,
+             "seeds_baseline": SEEDS_BASELINE,
+diff --git a/src/notebooks/nb036.py b/src/notebooks/nb036.py
+index d0cedc6..dfab5b0 100644
+--- a/src/notebooks/nb036.py
++++ b/src/notebooks/nb036.py
+@@ -33,7 +33,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
+ 
+@@ -41,14 +40,7 @@ SLUG = "nb036"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+ OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
+ 
+-TIER_CONFIG = {
+-    "extra small": dict(max_samples=100, epochs=1),
+-    "small": dict(max_samples=500, epochs=5),
+-    "medium": dict(max_samples=2000, epochs=10),
+-    "large": dict(max_samples=5000, epochs=40),
+-    "extra large": dict(max_samples=10000, epochs=40),
+-}
+-DEFAULT_TIER = "small"
++MAX_SAMPLES = 500
+ T_MS = 200.0
+ DT_TRAIN = 0.1
+ 
+@@ -113,14 +105,6 @@ MODEL_COLORS = {
+ }
+ MODEL_MARKERS = {"coba": "s", "ping": "D"}
+ 
+-MIN_ACC_BY_TIER = {
+-    "extra small": 15.0,
+-    "small": 30.0,
+-    "medium": 50.0,
+-    "large": 70.0,
+-    "extra large": 70.0,
+-}
+-
+ 
+ def theta_label(theta_u: float | None) -> str:
+     """Filesystem-safe label for an out-dir."""
+@@ -159,14 +143,14 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
+ 
+ 
+ def build_train_args(
+-    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
++    model: str, theta_u: float | None, seed: int, out_dir: Path
+ ) -> list[str]:
+     recipe = MODEL_RECIPES[model]
+     args = [
+         "train",
+         "--model", recipe["__build_as"],
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
++        "--max-samples", str(MAX_SAMPLES),
+         "--epochs", str(BASELINE_EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(DT_TRAIN),
+@@ -377,7 +361,7 @@ def wei_wie_grid_cell_dir(w_ei: float, w_ie: float) -> Path:
+ 
+ 
+ def build_wei_wie_grid_args(
+-    w_ei: float, w_ie: float, tier: str, out_dir: Path,
++    w_ei: float, w_ie: float, out_dir: Path,
+ ) -> list[str]:
+     """Train PING with explicit --w-ei and --w-ie overrides plus θ_u
+     rate penalty. Uses the standard PING recipe in MODEL_RECIPES
+@@ -388,7 +372,7 @@ def build_wei_wie_grid_args(
+         "train",
+         "--model", recipe["__build_as"],
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
++        "--max-samples", str(MAX_SAMPLES),
+         "--epochs", str(WEI_WIE_GRID_EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(DT_TRAIN),
+@@ -597,7 +581,7 @@ def wei_diagonal_cell_dir(w_ei: float, seed: int) -> Path:
+ 
+ 
+ def build_wei_diagonal_args(
+-    w_ei: float, seed: int, tier: str, out_dir: Path,
++    w_ei: float, seed: int, out_dir: Path,
+ ) -> list[str]:
+     w_ie = w_ei * WEI_DIAGONAL_RATIO
+     recipe = dict(MODEL_RECIPES["ping"])
+@@ -606,7 +590,7 @@ def build_wei_diagonal_args(
+         "train",
+         "--model", recipe["__build_as"],
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
++        "--max-samples", str(MAX_SAMPLES),
+         "--epochs", str(WEI_DIAGONAL_EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(DT_TRAIN),
+@@ -740,8 +724,25 @@ def plot_wei_diagonal_acc_vs_e(
+ # ── End W_ei diagonal sweep ──────────────────────────────────────────
+ 
+ 
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset": "mnist",
++    "max_samples": MAX_SAMPLES,
++    "epochs": WEI_WIE_GRID_EPOCHS,
++    "t_ms": T_MS,
++    "dt_ms": DT_TRAIN,
++    "batch_size": 256,
++    "seeds": len(WEI_DIAGONAL_SEEDS),
++    "cells": (
++        len(WEI_WIE_GRID_VALUES) ** 2
++        + len(WEI_DIAGONAL_VALUES) * len(WEI_DIAGONAL_SEEDS)
++    ),
++    "grid": "5×5 (W^EI,W^IE) grid + 10-point W^EI diagonal × 3 seeds",
++}
++
++
+ def main() -> None:
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     skip_training = "--skip-training" in sys.argv
+     wipe_dir = "--no-wipe-dir" not in sys.argv
+@@ -750,13 +751,15 @@ def main() -> None:
+     notebook_run_id = next_run_id(SLUG)
+     n_cells = len(MODELS) * len(THETA_U_GRID)
+     print(
+-        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
++        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
+         + ("  [skip-training]" if skip_training else "")
+     )
+ 
+     prepare_run_dirs(
+         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
+         make_artifacts=False,
++        scale=SCALE,
++        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+     )
+ 
+     only_missing = "--only-missing" in sys.argv
+@@ -784,7 +787,7 @@ def main() -> None:
+                     + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+                 )
+                 dispatcher.submit(
+-                    build_wei_wie_grid_args(w_ei, w_ie, tier, out),
++                    build_wei_wie_grid_args(w_ei, w_ie, out),
+                     out,
+                     gpu_override=gpu_override,
+                 )
+@@ -804,7 +807,7 @@ def main() -> None:
+                     + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+                 )
+                 dispatcher.submit(
+-                    build_wei_diagonal_args(w_ei, seed, tier, out),
++                    build_wei_diagonal_args(w_ei, seed, out),
+                     out,
+                     gpu_override=gpu_override,
+                 )
+@@ -936,17 +939,15 @@ def main() -> None:
+         "git_sha": train_cfg.get("git_sha"),
+         "duration_s": round(duration_s, 1),
+         "duration": format_duration(duration_s),
+-        "tier": tier,
+         "config": {
+-            "tier": tier,
+             "dataset": "mnist",
+             "models": MODELS,
+             "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
+             "theta_u_grid_hz": [
+                 theta_hz(t) for t in THETA_U_GRID if t is not None
+             ],
+-            "max_samples": TIER_CONFIG[tier]["max_samples"],
+-            "epochs": TIER_CONFIG[tier]["epochs"],
++            "max_samples": MAX_SAMPLES,
++            "epochs": 5,
+             "t_ms": T_MS,
+             "dt": DT_TRAIN,
+             "seeds_baseline": SEEDS_BASELINE,
+diff --git a/src/notebooks/nb037.py b/src/notebooks/nb037.py
+index d4ac439..e559453 100644
+--- a/src/notebooks/nb037.py
++++ b/src/notebooks/nb037.py
+@@ -35,7 +35,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
+ 
+@@ -43,14 +42,7 @@ SLUG = "nb037"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+ OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
+ 
+-TIER_CONFIG = {
+-    "extra small": dict(max_samples=100, epochs=1),
+-    "small": dict(max_samples=500, epochs=5),
+-    "medium": dict(max_samples=2000, epochs=10),
+-    "large": dict(max_samples=5000, epochs=40),
+-    "extra large": dict(max_samples=10000, epochs=40),
+-}
+-DEFAULT_TIER = "small"
++MAX_SAMPLES = 500
+ T_MS = 200.0
+ DT_TRAIN = 0.1
+ 
+@@ -124,15 +116,20 @@ MODEL_COLORS = {
+ }
+ MODEL_MARKERS = {"coba": "s", "ping": "D"}
+ 
+-MIN_ACC_BY_TIER = {
+-    "extra small": 15.0,
+-    "small": 30.0,
+-    "medium": 50.0,
+-    "large": 70.0,
+-    "extra large": 70.0,
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset": "mnist",
++    "max_samples": MAX_SAMPLES,
++    "epochs": BASELINE_EPOCHS,
++    "t_ms": T_MS,
++    "dt_ms": DT_TRAIN,
++    "batch_size": 256,
++    "seeds": len(SEEDS_BASELINE),
++    "cells": len(MODELS) * len(THETA_U_GRID),
++    "grid": THETA_U_GRID,
+ }
+ 
+-
+ def theta_label(theta_u: float | None) -> str:
+     """Filesystem-safe label for an out-dir."""
+     if theta_u is None:
+@@ -170,14 +167,14 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
+ 
+ 
+ def build_train_args(
+-    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
++    model: str, theta_u: float | None, seed: int, out_dir: Path
+ ) -> list[str]:
+     recipe = MODEL_RECIPES[model]
+     args = [
+         "train",
+         "--model", recipe["__build_as"],
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
++        "--max-samples", str(MAX_SAMPLES),
+         "--epochs", str(BASELINE_EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(DT_TRAIN),
+@@ -451,7 +448,6 @@ def main() -> None:
+     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+     theme.set_paper_mode(True)
+ 
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     skip_training = "--skip-training" in sys.argv
+     wipe_dir = "--no-wipe-dir" not in sys.argv
+@@ -460,13 +456,15 @@ def main() -> None:
+     notebook_run_id = next_run_id(SLUG)
+     n_cells = len(MODELS) * len(THETA_U_GRID)
+     print(
+-        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
++        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
+         + ("  [skip-training]" if skip_training else "")
+     )
+ 
+     prepare_run_dirs(
+         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
+         make_artifacts=False,
++        scale=SCALE,
++        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+     )
+ 
+     # Training lives in nb022 now (train-once / reuse-many). This notebook
+@@ -576,17 +574,15 @@ def main() -> None:
+         "git_sha": train_cfg.get("git_sha"),
+         "duration_s": round(duration_s, 1),
+         "duration": format_duration(duration_s),
+-        "tier": tier,
+         "config": {
+-            "tier": tier,
+             "dataset": "mnist",
+             "models": MODELS,
+             "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
+             "theta_u_grid_hz": [
+                 theta_hz(t) for t in THETA_U_GRID if t is not None
+             ],
+-            "max_samples": TIER_CONFIG[tier]["max_samples"],
+-            "epochs": TIER_CONFIG[tier]["epochs"],
++            "max_samples": MAX_SAMPLES,
++            "epochs": BASELINE_EPOCHS,
+             "t_ms": T_MS,
+             "dt": DT_TRAIN,
+             "seeds_baseline": SEEDS_BASELINE,
+diff --git a/src/notebooks/nb038.py b/src/notebooks/nb038.py
+index a6cfebd..dc79ef1 100644
+--- a/src/notebooks/nb038.py
++++ b/src/notebooks/nb038.py
+@@ -38,7 +38,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
+ 
+@@ -46,24 +45,32 @@ SLUG = "nb038"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+ OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
+ 
+-TIER_CONFIG = {
+-    "extra small": dict(max_samples=100, epochs=1),
+-    "small": dict(max_samples=500, epochs=5),
+-    "medium": dict(max_samples=2000, epochs=10),
+-    "large": dict(max_samples=5000, epochs=40),
+-    "extra large": dict(max_samples=10000, epochs=40),
+-}
+-DEFAULT_TIER = "small"
++MAX_SAMPLES = 500
++EPOCHS = 5
+ T_MS = 200.0
+ DT_TRAIN = 0.1
+ 
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset": "mnist",
++    "max_samples": MAX_SAMPLES,
++    "epochs": EPOCHS,
++    "t_ms": T_MS,
++    "dt_ms": DT_TRAIN,
++    "batch_size": 256,
++    "seeds": 3,  # SEEDS_BASELINE
++    "cells": 12,  # len(MODELS) * len(THETA_U_GRID)
++    "grid": [None, 5.0, 2.0, 1.0, 0.5, 0.2],  # THETA_U_GRID (spikes/trial)
++}
++
+ # Baseline (θ_u = off) cells are trained at multiple seeds so the
+ # headline bar chart and learning curves can show mean ± SEM. The θ_u
+ # sweep cells stay single-seed — the frontier *shape* is dominated by
+ # the regulariser, not the seed.
+ SEEDS_BASELINE: list[int] = [42, 43, 44]
+ SEED_SWEEP: int = 42
+-BASELINE_EPOCHS: int = 30  # overrides TIER_CONFIG epochs for baselines
++BASELINE_EPOCHS: int = 30  # overrides SCALE epochs for baselines
+ 
+ # Inference-time ei_strength sweep on the coba__off__seed42 baseline.
+ # Subsumes the now-retired nb019 — trains nothing new; just runs the
+@@ -118,14 +125,6 @@ MODEL_COLORS = {
+ }
+ MODEL_MARKERS = {"coba": "s", "ping": "D"}
+ 
+-MIN_ACC_BY_TIER = {
+-    "extra small": 15.0,
+-    "small": 30.0,
+-    "medium": 50.0,
+-    "large": 70.0,
+-    "extra large": 70.0,
+-}
+-
+ 
+ def theta_label(theta_u: float | None) -> str:
+     """Filesystem-safe label for an out-dir."""
+@@ -164,14 +163,14 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
+ 
+ 
+ def build_train_args(
+-    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
++    model: str, theta_u: float | None, seed: int, out_dir: Path
+ ) -> list[str]:
+     recipe = MODEL_RECIPES[model]
+     args = [
+         "train",
+         "--model", recipe["__build_as"],
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
++        "--max-samples", str(MAX_SAMPLES),
+         "--epochs", str(BASELINE_EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(DT_TRAIN),
+@@ -812,7 +811,6 @@ def main() -> None:
+     if "--compound-only" in sys.argv:
+         build_loop_transfer_compound()
+         return
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     skip_training = "--skip-training" in sys.argv
+     wipe_dir = "--no-wipe-dir" not in sys.argv
+@@ -821,13 +819,15 @@ def main() -> None:
+     notebook_run_id = next_run_id(SLUG)
+     n_cells = len(MODELS) * len(THETA_U_GRID)
+     print(
+-        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
++        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
+         + ("  [skip-training]" if skip_training else "")
+     )
+ 
+     prepare_run_dirs(
+         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
+         make_artifacts=False,
++        scale=SCALE,
++        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+     )
+ 
+     # Training lives in nb022 now (train-once / reuse-many). This notebook
+@@ -903,17 +903,15 @@ def main() -> None:
+         "git_sha": train_cfg.get("git_sha"),
+         "duration_s": round(duration_s, 1),
+         "duration": format_duration(duration_s),
+-        "tier": tier,
+         "config": {
+-            "tier": tier,
+             "dataset": "mnist",
+             "models": MODELS,
+             "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
+             "theta_u_grid_hz": [
+                 theta_hz(t) for t in THETA_U_GRID if t is not None
+             ],
+-            "max_samples": TIER_CONFIG[tier]["max_samples"],
+-            "epochs": TIER_CONFIG[tier]["epochs"],
++            "max_samples": MAX_SAMPLES,
++            "epochs": EPOCHS,
+             "t_ms": T_MS,
+             "dt": DT_TRAIN,
+             "seeds_baseline": SEEDS_BASELINE,
+diff --git a/src/notebooks/nb041.py b/src/notebooks/nb041.py
+index 3bd91df..7cdf5af 100644
+--- a/src/notebooks/nb041.py
++++ b/src/notebooks/nb041.py
+@@ -42,7 +42,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb041"
+@@ -73,18 +72,8 @@ RASTER_N_E_PLOT: int = 200
+ RASTER_N_I_PLOT: int = 64
+ RASTER_T_WINDOW_MS: float = 100.0
+ 
+-TIER_CONFIG = {
+-    "extra small": dict(max_samples=100, epochs=2),
+-    "small": dict(max_samples=500, epochs=10),
+-    # Medium tier upgraded 2026-06-03 to match nb024's convergence
+-    # finding: PING rate is a converged operating point at 100 epochs
+-    # but is still drifting at 30. Re-anchors the affine fit slope p
+-    # at converged values.
+-    "medium": dict(max_samples=2000, epochs=100),
+-    "large": dict(max_samples=5000, epochs=100),
+-    "extra large": dict(max_samples=10000, epochs=100),
+-}
+-DEFAULT_TIER = "small"
++MAX_SAMPLES = 500
++EPOCHS = 10
+ 
+ # Match nb025 PING recipe — same network, same optimiser,
+ # same readout; only τ_GABA varies.
+@@ -100,6 +89,20 @@ PING_RECIPE: dict[str, str] = {
+     "--batch-size": "256",
+ }
+ 
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset": "mnist",
++    "max_samples": MAX_SAMPLES,
++    "epochs": EPOCHS,
++    "t_ms": T_MS,
++    "dt_ms": DT_TRAIN,
++    "batch_size": int(PING_RECIPE["--batch-size"]),
++    "seeds": len(SEEDS),
++    "cells": len(TAU_GABA_SWEEP) * len(SEEDS),
++    "grid": list(TAU_GABA_SWEEP),
++}
++
+ 
+ def tau_label(tau_ms: float) -> str:
+     s = f"{tau_ms:g}".replace(".", "p")
+@@ -112,13 +115,13 @@ def cell_dir(tau_ms: float, seed: int) -> Path:
+     return shared_cell_dir(f"ping__{tau_label(tau_ms)}__seed{seed}")
+ 
+ 
+-def build_train_args(tau_ms: float, seed: int, tier: str, out_dir: Path) -> list[str]:
++def build_train_args(tau_ms: float, seed: int, out_dir: Path) -> list[str]:
+     args = [
+         "train",
+         "--model", "ping",
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
++        "--max-samples", str(MAX_SAMPLES),
++        "--epochs", str(EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(DT_TRAIN),
+         "--seed", str(seed),
+@@ -642,7 +645,6 @@ def main() -> None:
+     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+     theme.set_paper_mode(True)
+ 
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     skip_training = "--skip-training" in sys.argv
+     only_missing = "--only-missing" in sys.argv
+@@ -652,7 +654,7 @@ def main() -> None:
+     notebook_run_id = next_run_id(SLUG)
+     n_cells = len(TAU_GABA_SWEEP) * len(SEEDS)
+     print(
+-        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
++        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
+         + ("  [skip-training]" if skip_training else "")
+         + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+     )
+@@ -660,6 +662,8 @@ def main() -> None:
+     prepare_run_dirs(
+         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
+         make_artifacts=False,
++        scale=SCALE,
++        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+     )
+ 
+     # Training lives in nb022 now (train-once / reuse-many): the τ_GABA ladder
+@@ -722,15 +726,13 @@ def main() -> None:
+         "git_sha": train_cfg.get("git_sha"),
+         "duration_s": round(duration_s, 1),
+         "duration": format_duration(duration_s),
+-        "tier": tier,
+         "config": {
+-            "tier": tier,
+             "dataset": "mnist",
+             "tau_gaba_sweep_ms": list(TAU_GABA_SWEEP),
+             "seeds": list(SEEDS),
+             "f_gamma_band_hz": list(F_GAMMA_BAND_HZ),
+-            "max_samples": TIER_CONFIG[tier]["max_samples"],
+-            "epochs": TIER_CONFIG[tier]["epochs"],
++            "max_samples": MAX_SAMPLES,
++            "epochs": EPOCHS,
+             "t_ms": T_MS,
+             "dt": DT_TRAIN,
+         },
+diff --git a/src/notebooks/nb042.py b/src/notebooks/nb042.py
+index 99d394b..b8e35c2 100644
+--- a/src/notebooks/nb042.py
++++ b/src/notebooks/nb042.py
+@@ -35,21 +35,20 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
++from helpers.datasets import load_mnist_split  # noqa: E402
+ from helpers.figsave import save_figure  # noqa: E402
  from helpers.fmt import format_duration  # noqa: E402
- from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
-+from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
+ from helpers.modal import parse_modal_gpu  # noqa: E402
+-from helpers.paths import artifacts_and_figures  # noqa: E402
+-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+-from helpers.run_id import next_run_id  # noqa: E402
+-from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+-from helpers import theme  # noqa: E402
+-from helpers.datasets import load_mnist_split  # noqa: E402
+ from helpers.operating_point import (  # noqa: E402
+     F_GAMMA_HZ,
+     MODELS_DEFAULT_TAU_GABA_MS,
+     TAU_GABA_GAMMA_MS,
+ )
++from helpers.paths import artifacts_and_figures  # noqa: E402
++from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
++from helpers.run_id import next_run_id  # noqa: E402
++from helpers.stamp import stamp_figure  # noqa: E402
+ 
+ SLUG = "nb042"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -121,14 +120,23 @@ RASTER_SAMPLE_IDX: int = 0
+ RASTER_N_E_PLOT: int = 200
+ RASTER_N_I_PLOT: int = 64
+ 
+-TIER_CONFIG = {
+-    "extra small": dict(),
+-    "small": dict(),
+-    "medium": dict(),
+-    "large": dict(),
+-    "extra large": dict(),
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++# nb042 is inference-only against the trained nb025 PING baseline, so the
++# dataset / max_samples / t_ms / dt_ms are inherited from each cell's own
++# config.json at run time. What this runner declares is the evaluation grid:
++# how many seeds and cells it sweeps, and the perturbation grids.
++SCALE = {
++    "dataset": "mnist",
++    "seeds": len(SEEDS),
++    "cells": len(CONDITIONS),
++    "grid": (
++        f"jitter σ ×{len(JITTER_SIGMAS_MS)}, "
++        f"cell-jitter σ ×{len(CELL_JITTER_SIGMAS_MS)}, "
++        f"α×k = {len(MIX_ALPHA_GRID)}×{len(MIX_K_GRID)}, "
++        f"xtau τ×σ = {len(XTAU_TAU_GABAS_MS)}×{len(XTAU_SIGMAS_MS)}"
++    ),
+ }
+-DEFAULT_TIER = "medium"
+ 
+ 
+ # ─── trained-network loading (mirrors nb037 helper) ─────────────────
+@@ -1519,14 +1527,12 @@ def main() -> None:
+         return
+ 
+     parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument("--tier", default=DEFAULT_TIER)
+     parser.add_argument("--modal-gpu", default="none")
+     parser.add_argument("--no-wipe-dir", action="store_true")
+     parser.add_argument("--seeds", nargs="*", type=int, default=list(SEEDS),
+                         help="subset of nb025 PING seeds to evaluate")
+     args = parser.parse_args()
+ 
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     if modal_gpu:
+         raise SystemExit(
+@@ -1535,10 +1541,11 @@ def main() -> None:
+ 
+     t_start = time.monotonic()
+     notebook_run_id = next_run_id(SLUG)
+-    print(f"notebook_run_id = {notebook_run_id} tier={tier} seeds={args.seeds}")
++    print(f"notebook_run_id = {notebook_run_id} seeds={args.seeds}")
+ 
+     prepare_run_dirs(
+         SLUG, notebook_run_id, wipe=not args.no_wipe_dir, make_artifacts=True,
++        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
+     )
+ 
+     rows: list[dict] = []
+@@ -1810,7 +1817,6 @@ def main() -> None:
+         "notebook_run_id": notebook_run_id,
+         "duration_s": round(duration_s, 1),
+         "duration": format_duration(duration_s),
+-        "tier": tier,
+         "config": {
+             "seeds": list(args.seeds),
+             "conditions": list(CONDITIONS),
+diff --git a/src/notebooks/nb044.py b/src/notebooks/nb044.py
+index 4b6efd0..029677a 100644
+--- a/src/notebooks/nb044.py
++++ b/src/notebooks/nb044.py
+@@ -34,7 +34,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb044"
+@@ -62,18 +61,22 @@ RASTER_N_E_PLOT: int = 200
+ RASTER_N_I_PLOT: int = 64
+ RASTER_T_WINDOW_MS: float = 100.0  # show first 100 ms so the cycle is visible
+ 
+-TIER_CONFIG = {
+-    "extra small": dict(max_samples=100, epochs=2),
+-    "small": dict(max_samples=500, epochs=10),
+-    # Medium tier upgraded 2026-06-03 to 100 epochs to match the
+-    # convergence audit in nb024. PING's rate is a converged operating
+-    # point at this horizon; the Δt-vs-rate scaling becomes a converged
+-    # measurement rather than a training-snapshot.
+-    "medium": dict(max_samples=2000, epochs=100),
+-    "large": dict(max_samples=5000, epochs=100),
+-    "extra large": dict(max_samples=10000, epochs=100),
++# Baked run scale (the retired "small" tier).
++MAX_SAMPLES: int = 500
++EPOCHS: int = 10
++
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset": "mnist",
++    "max_samples": MAX_SAMPLES,
++    "epochs": EPOCHS,
++    "t_ms": T_MS,
++    "batch_size": BATCH_SIZE,
++    "seeds": len(SEEDS),
++    "cells": len(DT_SWEEP_MS) * len(SEEDS),
++    "grid": "5 Δt × 3 seeds (Δt ∈ {0.05, 0.1, 0.25, 0.5, 1.0} ms)",
+ }
+-DEFAULT_TIER = "small"
+ 
+ # Match nb025 PING recipe except for --batch-size (held at BATCH_SIZE
+ # here) and --dt (per cell).
+@@ -100,13 +103,13 @@ def cell_dir(dt_ms: float, seed: int) -> Path:
+     return shared_cell_dir(f"ping__{dt_label(dt_ms)}__seed{seed}")
+ 
+ 
+-def build_train_args(dt_ms: float, seed: int, tier: str, out_dir: Path) -> list[str]:
++def build_train_args(dt_ms: float, seed: int, out_dir: Path) -> list[str]:
+     args = [
+         "train",
+         "--model", "ping",
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
++        "--max-samples", str(MAX_SAMPLES),
++        "--epochs", str(EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(dt_ms),
+         "--batch-size", str(BATCH_SIZE),
+@@ -367,7 +370,6 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
+     plt.close(fig)
+ 
+ def main() -> None:
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     skip_training = "--skip-training" in sys.argv
+     only_missing = "--only-missing" in sys.argv
+@@ -381,7 +383,7 @@ def main() -> None:
+     notebook_run_id = next_run_id(SLUG)
+     n_cells = len(DT_SWEEP_MS) * len(SEEDS)
+     print(
+-        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
++        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
+         + ("  [skip-training]" if skip_training else "")
+         + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
+     )
+@@ -389,6 +391,8 @@ def main() -> None:
+     prepare_run_dirs(
+         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
+         make_artifacts=False,
++        scale=SCALE,
++        host=f"modal:{modal_gpu}" if modal_gpu else "local",
+     )
+ 
+     # Training lives in nb022 now (train-once / reuse-many): the dt sweep is a
+@@ -437,15 +441,13 @@ def main() -> None:
+         "git_sha": train_cfg.get("git_sha"),
+         "duration_s": round(duration_s, 1),
+         "duration": format_duration(duration_s),
+-        "tier": tier,
+         "config": {
+-            "tier": tier,
+             "dataset": "mnist",
+             "dt_sweep_ms": list(DT_SWEEP_MS),
+             "seeds": list(SEEDS),
+             "batch_size": BATCH_SIZE,
+-            "max_samples": TIER_CONFIG[tier]["max_samples"],
+-            "epochs": TIER_CONFIG[tier]["epochs"],
++            "max_samples": MAX_SAMPLES,
++            "epochs": EPOCHS,
+             "t_ms": T_MS,
+         },
+         "results": rows,
+diff --git a/src/notebooks/nb046.py b/src/notebooks/nb046.py
+index 83ba556..86bc33e 100644
+--- a/src/notebooks/nb046.py
++++ b/src/notebooks/nb046.py
+@@ -34,14 +34,13 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.figsave import save_figure  # noqa: E402
++from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
  from helpers.paths import artifacts_and_figures  # noqa: E402
  from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
  from helpers.run_id import next_run_id  # noqa: E402
-@@ -60,8 +61,10 @@ SEED_SWEEP = 42
- THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
- FR_STRENGTH_UPPER = 1e-3
- TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
--TAU_GABA_GAMMA = 6.0       # GABA decay that puts the loop in gamma (≈ 44 Hz);
--                           # the standard for every family except the τ_GABA sweep
-+# GABA decay that puts the loop in gamma (≈ 44 Hz); the standard for every
-+# family except the τ_GABA sweep. Single source of truth in helpers so the
-+# whole collection moves together (see helpers/operating_point.py).
-+TAU_GABA_GAMMA = TAU_GABA_GAMMA_MS
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+-from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
+-from helpers import theme  # noqa: E402
  
- # Canonical recipe (verbatim from nb025 — the reference training).
- MODEL_RECIPES: dict[str, dict] = {
-diff --git a/src/notebooks/nb023.py b/src/notebooks/nb023.py
-index 66365ff..579acc4 100644
---- a/src/notebooks/nb023.py
-+++ b/src/notebooks/nb023.py
-@@ -30,11 +30,11 @@ sys.path.insert(0, str(REPO / "src"))
+ SLUG = "nb046"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -58,14 +57,14 @@ NB041_NUMBERS = (
+ TAU_GABA_SWEEP_MS: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
+ SEEDS: tuple[int, ...] = (42, 43, 44)
  
- from helpers import theme  # noqa: E402
+-TIER_CONFIG = {
+-    "extra small": dict(),
+-    "small": dict(),
+-    "medium": dict(),
+-    "large": dict(),
+-    "extra large": dict(),
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset": "mnist",
++    "seeds": len(SEEDS),
++    "cells": len(TAU_GABA_SWEEP_MS) * len(SEEDS),
++    "grid": f"{len(TAU_GABA_SWEEP_MS)} tau_GABA x {len(SEEDS)} seeds",
+ }
+-DEFAULT_TIER = "medium"
+ 
+ 
+ def tau_label(tau_ms: float) -> str:
+@@ -377,7 +376,6 @@ def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path, run_id: str) -> dic
+ 
+ def main() -> None:
+     parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument("--tier", default=DEFAULT_TIER)
+     parser.add_argument("--no-wipe-dir", action="store_true")
+     parser.add_argument("--seeds", nargs="*", type=int, default=list(SEEDS))
+     parser.add_argument("--tau-gabas", nargs="*", type=float,
+@@ -388,8 +386,7 @@ def main() -> None:
+     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
+     theme.set_paper_mode(True)
+ 
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+-    print(f"notebook_run_id = (allocating) tier={tier}")
++    print("notebook_run_id = (allocating)")
+ 
+     t_start = time.monotonic()
+     notebook_run_id = next_run_id(SLUG)
+@@ -398,7 +395,7 @@ def main() -> None:
+     print(f"  seeds:   {args.seeds}")
+ 
+     prepare_run_dirs(SLUG, notebook_run_id, wipe=not args.no_wipe_dir,
+-                     make_artifacts=True)
++                     make_artifacts=True, scale=SCALE, host="local")
+ 
+     f_gamma_map = load_nb041_f_gamma()
+     print(f"loaded f_γ for {len(f_gamma_map)} nb041 cells")
+@@ -462,7 +459,6 @@ def main() -> None:
+         "notebook_run_id": notebook_run_id,
+         "duration_s": duration_s,
+         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
+-        "tier": tier,
+         "config": {
+             "tau_gabas_ms": list(args.tau_gabas),
+             "seeds": list(args.seeds),
+diff --git a/src/notebooks/nb047.py b/src/notebooks/nb047.py
+index d61b7f6..0e876bd 100644
+--- a/src/notebooks/nb047.py
++++ b/src/notebooks/nb047.py
+@@ -26,18 +26,16 @@ import time
+ from pathlib import Path
+ 
+ import matplotlib.pyplot as plt
+-import numpy as np
+ 
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
  from helpers.figsave import save_figure  # noqa: E402
-+from helpers.fmt import format_duration  # noqa: E402
- from helpers.modal import parse_modal_gpu  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+-from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb047"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -71,14 +69,22 @@ W_IE_REL_STD: float = 0.1  # per-synapse spread held at 10% of the mean
+ W_IE_VALUES: list[float] = [0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
+ N_I_SWEEP: list[int] = [16, 64, 256]
+ 
+-TIER_CONFIG: dict[str, dict] = {
+-    "extra small": dict(n_batch=1),
+-    "small": dict(n_batch=4),
+-    "medium": dict(n_batch=16),
+-    "large": dict(n_batch=64),
+-    "extra large": dict(n_batch=256),
++# Baked "small"-tier run scale (retired --tier system): batch of 4 trials.
++N_BATCH: int = 4
++
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE: dict = {
++    "input": "synthetic-spikes",
++    "max_samples": N_BATCH,
++    "t_ms": T_MS,
++    "dt_ms": DT,
++    "input_rate_hz": INPUT_RATE_HZ,
++    "hidden": N_E,
++    "batch_size": N_BATCH,
++    "seeds": 1,
++    "grid": len(W_IE_VALUES) * len(N_I_SWEEP),
+ }
+-DEFAULT_TIER: str = "small"
+ 
+ 
+ # ── Net build ───────────────────────────────────────────────────────
+@@ -180,9 +186,7 @@ def plot_summary(rows_by_ni: dict, out_path: Path, run_id: str) -> None:
+ 
+ # ── Main ────────────────────────────────────────────────────────────
+ def main() -> None:
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+-    cfg = TIER_CONFIG[tier]
+-    n_batch = int(cfg["n_batch"])
++    n_batch = N_BATCH
+     wipe_dir = "--no-wipe-dir" not in sys.argv
+ 
+     # Publication profile: every figure this notebook writes is a print-sized
+@@ -190,11 +194,12 @@ def main() -> None:
+     theme.set_paper_mode(True)
+ 
+     notebook_run_id = next_run_id(SLUG)
+-    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=True)
++    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=True,
++                     scale=SCALE, host="local")
+ 
+     t_start = time.monotonic()
+     print(f"[w_ie x n_inh sweep] N_E={N_E}  input={INPUT_RATE_HZ:g} Hz  "
+-          f"batch={n_batch}  tier={tier}")
++          f"batch={n_batch}")
+     rows_by_ni: dict[int, list[dict]] = {}
+     for n_inh in N_I_SWEEP:
+         print(f"--- N_I = {n_inh} ---")
+@@ -215,7 +220,6 @@ def main() -> None:
+         "notebook_run_id": notebook_run_id,
+         "duration_s": round(duration_s, 1),
+         "config": {
+-            "tier": tier,
+             "n_e": N_E,
+             "n_in": N_IN,
+             "t_ms": T_MS,
+diff --git a/src/notebooks/nb048.py b/src/notebooks/nb048.py
+index e3bb25d..1a53f0e 100644
+--- a/src/notebooks/nb048.py
++++ b/src/notebooks/nb048.py
+@@ -39,7 +39,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ from helpers.datasets import load_mnist_split  # noqa: E402
+ 
+@@ -77,15 +76,11 @@ INPUT_RATE_HZ: float = 25.0      # canonical Poisson input rate
+ TAU_HEADLINE_MS: float = 50.0    # digit duration in headline figure
+ N_DIGITS_HEADLINE: int = 5       # number of digits in the headline stream
+ 
+-# Sweep tier-driven counts. Stream count = streams × digits × seeds.
+-TIER_CONFIG: dict[str, dict] = {
+-    "extra small": dict(n_streams=4, n_per_stream=4, n_grid_streams=2),
+-    "small":       dict(n_streams=20, n_per_stream=10, n_grid_streams=40),
+-    "medium":      dict(n_streams=80, n_per_stream=10, n_grid_streams=80),
+-    "large":       dict(n_streams=200, n_per_stream=10, n_grid_streams=200),
+-    "extra large": dict(n_streams=400, n_per_stream=10, n_grid_streams=400),
+-}
+-DEFAULT_TIER: str = "small"
++# Sweep counts — baked from the retired "small" tier. Stream count =
++# streams × digits × seeds.
++N_STREAMS: int = 20
++N_PER_STREAM: int = 10
++N_GRID_STREAMS: int = 40
+ 
+ # τ sweep — multiples of the gamma cycle (≈ 28 ms at τ_GABA = 9 ms).
+ TAU_SWEEP_MS: list[float] = [25.0, 50.0, 100.0, 200.0]
+@@ -112,6 +107,17 @@ RASTER_N_I_PLOT: int = 64
+ 
+ SEED: int = 42
+ 
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE: dict = {
++    "dataset": "mnist",
++    "t_ms": TRAINED_T_MS,
++    "dt_ms": DT,
++    "input_rate_hz": INPUT_RATE_HZ,
++    "seeds": len(SEEDS),
++    "grid": f"{len(TAU_GRID_MS)}×{len(RATE_GRID_HZ)}",
++}
++
+ 
+ # ── Net build / load ────────────────────────────────────────────────
+ def _load_eval(seed: int = SEEDS[0]):
+@@ -1031,13 +1037,14 @@ def main() -> None:
+         print(f"wrote {FIGURES / 'acc_grid_tau_rate'}.png (replotted from cache)")
+         return
+ 
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+-    cfg_tier = TIER_CONFIG[tier]
+     notebook_run_id = next_run_id(SLUG)
+-    prepare_run_dirs(SLUG, notebook_run_id, wipe=False, make_artifacts=True)
++    prepare_run_dirs(
++        SLUG, notebook_run_id, wipe=False, make_artifacts=True,
++        scale=SCALE, host="local",
++    )
+ 
+     t_start = time.monotonic()
+-    print(f"[streaming] tier={tier}  seeds={SEEDS}")
++    print(f"[streaming] seeds={SEEDS}")
+ 
+     # Headlines (Figs 1, 3) use the first seed only — they're single-trial
+     # demos, not aggregate measurements.
+@@ -1070,23 +1077,23 @@ def main() -> None:
+         print(f"[tau-sweep] constant input ({INPUT_RATE_HZ:g} Hz)  seed {sd}")
+         rows_constant += run_tau_sweep(
+             train_dir, cfg, X_te, y_te, train_seed=sd,
+-            n_streams=int(cfg_tier["n_streams"]),
+-            n_per_stream=int(cfg_tier["n_per_stream"]),
++            n_streams=N_STREAMS,
++            n_per_stream=N_PER_STREAM,
+             rate_compensate=False,
+         )
+         print(f"[tau-sweep] rate-compensated  seed {sd}")
+         rows_comp += run_tau_sweep(
+             train_dir, cfg, X_te, y_te, train_seed=sd,
+-            n_streams=int(cfg_tier["n_streams"]),
+-            n_per_stream=int(cfg_tier["n_per_stream"]),
++            n_streams=N_STREAMS,
++            n_per_stream=N_PER_STREAM,
+             rate_compensate=True,
+         )
+         print(f"[grid-sweep] τ × rate "
+               f"({len(TAU_GRID_MS)}×{len(RATE_GRID_HZ)} cells)  seed {sd}")
+         grid_rows += run_grid_sweep(
+             train_dir, cfg, X_te, y_te, train_seed=sd,
+-            n_streams=int(cfg_tier["n_grid_streams"]),
+-            n_per_stream=int(cfg_tier["n_per_stream"]),
++            n_streams=N_GRID_STREAMS,
++            n_per_stream=N_PER_STREAM,
+         )
+ 
+     tau_agg = (
+@@ -1106,7 +1113,6 @@ def main() -> None:
+         "notebook_run_id": notebook_run_id,
+         "duration_s": round(duration_s, 1),
+         "config": {
+-            "tier": tier,
+             "n_e": N_E, "n_i": N_I, "n_in": N_IN, "n_classes": N_CLASSES,
+             "dt": DT, "trained_t_ms": TRAINED_T_MS,
+             "tau_headline_ms": TAU_HEADLINE_MS,
+@@ -1115,9 +1121,9 @@ def main() -> None:
+             "tau_grid_ms": TAU_GRID_MS,
+             "rate_grid_hz": RATE_GRID_HZ,
+             "input_rate_hz": INPUT_RATE_HZ,
+-            "n_streams": cfg_tier["n_streams"],
+-            "n_grid_streams": cfg_tier["n_grid_streams"],
+-            "n_per_stream": cfg_tier["n_per_stream"],
++            "n_streams": N_STREAMS,
++            "n_grid_streams": N_GRID_STREAMS,
++            "n_per_stream": N_PER_STREAM,
+             "train_seeds": SEEDS,
+             "seed": SEED,
+         },
+diff --git a/src/notebooks/nb049.py b/src/notebooks/nb049.py
+index 26ae5f0..30e7c9a 100644
+--- a/src/notebooks/nb049.py
++++ b/src/notebooks/nb049.py
+@@ -43,21 +43,14 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb049"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+ OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
+ 
+-TIER_CONFIG = {
+-    "extra small": dict(max_samples=100, epochs=2),
+-    "small":       dict(max_samples=500, epochs=10),
+-    "medium":      dict(max_samples=3500, epochs=100),  # 5% of the 70k MNIST corpus
+-    "large":       dict(max_samples=5000, epochs=100),
+-    "extra large": dict(max_samples=10000, epochs=100),
+-}
+-DEFAULT_TIER = "small"
++MAX_SAMPLES = 500
++EPOCHS = 10
+ T_MS = 200.0
+ DT_TRAIN = 0.1
+ 
+@@ -121,6 +114,20 @@ COND_MARKERS: dict[str, str] = {
+     "trainable_small_init":  "D",
+ }
+ 
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset": "mnist",
++    "max_samples": MAX_SAMPLES,
++    "epochs": EPOCHS,
++    "t_ms": T_MS,
++    "dt_ms": DT_TRAIN,
++    "batch_size": int(COMMON_RECIPE["--batch-size"]),
++    "seeds": len(SEEDS),
++    "cells": len(CONDITIONS),
++    "grid": len(CONDITIONS) * len(SEEDS),
++}
++
+ 
+ # ── Paths ───────────────────────────────────────────────────────────
+ def cell_dir(condition: str, seed: int) -> Path:
+@@ -130,15 +137,15 @@ def cell_dir(condition: str, seed: int) -> Path:
+ 
+ 
+ def build_train_args(
+-    condition: str, seed: int, tier: str, out_dir: Path,
++    condition: str, seed: int, out_dir: Path,
+ ) -> list[str]:
+     recipe = CONDITIONS[condition]
+     args = [
+         "train",
+         "--model", "ping",
+         "--dataset", "mnist",
+-        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
+-        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
++        "--max-samples", str(MAX_SAMPLES),
++        "--epochs", str(EPOCHS),
+         "--t-ms", str(T_MS),
+         "--dt", str(DT_TRAIN),
+         "--seed", str(seed),
+@@ -1307,10 +1314,13 @@ def main() -> None:
+         print(f"wrote {FIGURES / 'acc_rate_trajectory'}.{{svg,pdf}}")
+         return
+ 
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     notebook_run_id = next_run_id(SLUG)
+-    prepare_run_dirs(SLUG, notebook_run_id, wipe=False, make_artifacts=True)
++    prepare_run_dirs(
++        SLUG, notebook_run_id, wipe=False, make_artifacts=True,
++        scale=SCALE,
++        host=f"modal:{modal_gpu}" if modal_gpu else "local",
++    )
+     t_start = time.monotonic()
+ 
+     only_missing = "--only-missing" in sys.argv
+@@ -1395,9 +1405,8 @@ def main() -> None:
+         "notebook_run_id": notebook_run_id,
+         "duration_s": round(duration_s, 1),
+         "config": {
+-            "tier": tier,
+-            "epochs": TIER_CONFIG[tier]["epochs"],
+-            "max_samples": TIER_CONFIG[tier]["max_samples"],
++            "epochs": EPOCHS,
++            "max_samples": MAX_SAMPLES,
+             "seeds": SEEDS,
+             "conditions": CONDITIONS,
+             "common_recipe": COMMON_RECIPE,
+diff --git a/src/notebooks/nb050.py b/src/notebooks/nb050.py
+index 3386b8c..ede3fea 100644
+--- a/src/notebooks/nb050.py
++++ b/src/notebooks/nb050.py
+@@ -28,7 +28,6 @@ from helpers.modal import parse_modal_gpu  # noqa: E402
  from helpers.paths import artifacts_and_figures  # noqa: E402
  from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
  from helpers.run_id import next_run_id  # noqa: E402
 -from helpers.tier import parse_tier  # noqa: E402
  
- SLUG = "nb023"
+ SLUG = "nb050"
  ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-@@ -42,6 +42,8 @@ OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
- SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
- SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
- 
-+DT_MS = 0.1  # canonical timestep (was the 0.25 oscilloscope default)
-+
- COMMON_ARGS = [
-     "sim",
-     "--model", "ping",
-@@ -52,6 +54,7 @@ COMMON_ARGS = [
-     "--w-in", "1.5", "0.3",
-     "--input-rate", "50",
-     "--t-ms", "400",
-+    "--dt", str(DT_MS),
- ]
- CELLS: dict[str, dict] = {
-     "coba": {
-@@ -64,14 +67,19 @@ CELLS: dict[str, dict] = {
+@@ -80,14 +79,14 @@ CELLS: dict[str, dict] = {
      },
  }
  
@@ -502,112 +1562,25 @@ index 66365ff..579acc4 100644
 -    "medium": {},
 -    "large": {},
 -    "extra large": {},
-+# Run scale — declared once, stamped into the figures-dir manifest by
-+# run_dirs.prepare, and rendered as the Methods table in nb023.mdx via the
-+# RunScale component (single source of truth; the mdx never restates these).
-+# This is a free-running simulation, not a training run, so there is no
-+# samples/epochs/batch budget — only the sim geometry and the drive.
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
 +SCALE = {
-+    "input": "MNIST digit 0 sample 0",
-+    "t_ms": 400,
-+    "dt_ms": DT_MS,
-+    "input_rate_hz": 50,
++    "input": "synthetic-spikes",
++    "t_ms": 1000,
++    "input_rate_hz": 45,
 +    "cells": len(CELLS),
-+    "grid": "COBA (loop off) · PING (loop on)",
  }
 -DEFAULT_TIER = "small"
  
  
  F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
-@@ -206,32 +214,39 @@ def _despine(ax):
- 
- FI_RATES_HZ = [2, 5, 10, 20, 40, 70, 100]   # uniform Poisson input rates (Hz)
- FI_EI = {"coba": "0", "ping": "1.5"}         # ei-strength per condition
--FI_T_MS = 300
-+FI_T_MS = 400
+@@ -421,15 +420,18 @@ def plot_input_compare(snaps: dict, out_path: Path) -> None:
  
  
- def fi_sweep() -> dict:
-     """Free-running f–I curves under uniform Poisson input: mean per-cell E and
-     I firing rate vs input rate, for COBA (loop off) and PING (loop on). No
--    training — the bare drive-response of the architecture."""
-+    training — the bare drive-response of the architecture.
-+
-+    The f–I curve is just this notebook looping the generic `sim` primitive over
-+    input rates: each call runs the net once under homogeneous uniform Poisson
-+    input at --input-rate (fed through W_in) and writes the spike snapshot; the
-+    per-cell rate is computed here from that snapshot. The scan lives in the
-+    notebook, not the CLI. Same architecture as the raster/PSD (oscilloscope
-+    mnist default, 1024 E / 256 I)."""
-     out = {c: {"in": [], "e": [], "i": []} for c in FI_EI}
--    for rate in FI_RATES_HZ:
--        for cell, ei in FI_EI.items():
--            for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
--                if p.exists():
--                    p.unlink()
-+    for cell, ei in FI_EI.items():
-+        for rate in FI_RATES_HZ:
-+            out_dir = (ARTIFACTS / "fi" / f"{cell}__r{rate}").resolve()
-+            out_dir.mkdir(parents=True, exist_ok=True)
-             argv = [
-                 "sim",
-                 "--model", "ping", "--input", "synthetic-spikes",
--                "--w-in", "1.5", "0.3", "--ei-strength", ei,
--                "--input-rate", str(rate), "--t-ms", str(FI_T_MS),
-+                "--n-hidden", "1024", "--n-inh", "256",
-+                "--ei-strength", ei,
-+                "--w-in", "1.5", "0.3", "--w-in-sparsity", "0.95",
-+                "--input-rate", str(rate),
-+                "--t-ms", str(FI_T_MS), "--dt", str(DT_MS),
-+                "--out-dir", str(out_dir),
-             ]
-             subprocess.run(["uv", "run", "python", str(OSCILLOSCOPE), *argv],
-                            cwd=REPO, check=True)
--            d = np.load(SCOPE_OUT_NPZ)
--            se, si, dt = d["spk_e"], d["spk_i"], float(d["dt"])
--            T = se.shape[0]
--            e = float(se.sum() / (se.shape[1] * T * dt / 1000.0))
--            i = float(si.sum() / (si.shape[1] * T * dt / 1000.0)) if si.size else 0.0
-+            m = json.loads((out_dir / "metrics.json").read_text())
-+            e, i = float(m["rate_e_hz"]), float(m["rate_i_hz"])
-             out[cell]["in"].append(rate)
-             out[cell]["e"].append(e)
-             out[cell]["i"].append(i)
-@@ -276,6 +291,7 @@ def plot_raster_compound(
-         )
-     fi_max = max(max(fi[c]["e"] + fi[c]["i"]) for c in ("coba", "ping"))
- 
-+    f_gamma: dict[str, float | None] = {}   # measured peak per cell → numbers.json
-     for col, cell in enumerate(("coba", "ping")):
-         c0 = 2 * col
-         s = snaps[cell]
-@@ -321,8 +337,11 @@ def plot_raster_compound(
-             ax_r.set_title(titles[cell], loc="left", fontweight="semibold")
-         _despine(ax_r)
- 
--        # Welch PSD on the population-mean E trace
-+        # Welch PSD on the population-mean E trace — the SAME spk_e drawn in the
-+        # raster above, so f_γ is measured from the shown raster.
-         freqs, psd, f_peak = _population_psd(spk_e, dt)
-+        # Only the loop-on condition has a genuine recurrent rhythm to report.
-+        f_gamma[cell] = float(f_peak) if (has_i and f_peak is not None) else None
-         band = (freqs >= F_GAMMA_BAND_HZ[0]) & (freqs <= F_GAMMA_BAND_HZ[1])
-         ax_psd.plot(freqs[band], psd[band], color=theme.INK_BLACK, lw=1.4)
-         ax_psd.set_xlim(F_GAMMA_BAND_HZ)
-@@ -362,6 +381,7 @@ def plot_raster_compound(
- 
-     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
-     plt.close(fig)
-+    return f_gamma
- 
- 
- def _pick_active(spk: np.ndarray) -> int | None:
-@@ -596,15 +616,17 @@ def main() -> None:
-     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
-     theme.set_paper_mode(True)
- 
+ def main() -> None:
 -    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
+-    parse_modal_gpu(sys.argv)
++    modal_gpu = parse_modal_gpu(sys.argv)
      wipe_dir = "--no-wipe-dir" not in sys.argv
  
      t_start = time.monotonic()
@@ -618,773 +1591,342 @@ index 66365ff..579acc4 100644
 -    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
 +    prepare_run_dirs(
 +        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
-+        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
++        scale=SCALE,
++        host=f"modal:{modal_gpu}" if modal_gpu else "local",
 +    )
  
      figures: dict[str, Path] = {}
- 
-@@ -650,7 +672,7 @@ def main() -> None:
-     # Super figure: COBA vs PING side by side (raster, PSD + f–I). Used by the
-     # manuscript's Claim 1 (the architecture is its own Claim 0 figure there).
-     compound_dst = FIGURES / "raster_compound"
--    plot_raster_compound(snaps, fi, compound_dst, column_titles)
-+    f_gamma = plot_raster_compound(snaps, fi, compound_dst, column_titles)
-     figures["raster_compound"] = compound_dst
-     print(f"wrote {compound_dst}.{{png,pdf}}")
- 
-@@ -661,21 +683,29 @@ def main() -> None:
-     figures["overview_compound"] = overview_dst
-     print(f"wrote {overview_dst}.{{png,pdf}}")
- 
-+    for cell, fg in f_gamma.items():
-+        print(f"  f_gamma[{cell}] = {fg if fg is None else round(fg, 2)} Hz "
-+              "(measured from the shown raster's E population PSD)")
-+
-     duration_s = time.monotonic() - t_start
--    figs_root = FIGURES.parents[2]
+     summary_rows: list[dict] = []
+@@ -493,7 +495,6 @@ def main() -> None:
      summary = {
          "notebook_run_id": notebook_run_id,
          "duration_s": round(duration_s, 1),
 -        "tier": tier,
-+        "duration": format_duration(duration_s),
-         "config": {
--            "tier": tier,
-             "model": "ping",
-             "input": "mnist d0 s0",
-             "cells": list(CELLS),
-             "t_ms": 400,
-+            "dt_ms": DT_MS,
-             "input_rate_hz": 50,
-             "modal_gpu": modal_gpu,
-         },
-+        # f_γ measured from each shown raster's E-population PSD (None = no
-+        # recurrent rhythm, i.e. COBA loop off). The mdx reads these rather than
-+        # restating a hand-typed number.
-+        "f_gamma_hz": f_gamma,
-+        "fi_curves": fi,
-         "results": [],
-     }
-     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-diff --git a/src/notebooks/nb033.py b/src/notebooks/nb033.py
-index ab5a49b..ba45e2f 100644
---- a/src/notebooks/nb033.py
-+++ b/src/notebooks/nb033.py
-@@ -40,6 +40,7 @@ from scipy.special import erf
- REPO = Path(__file__).resolve().parents[2]
- sys.path.insert(0, str(REPO / "src"))
- from helpers import theme  # noqa: E402
-+from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
- from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
- 
-@@ -50,7 +51,9 @@ _, FIGURES = artifacts_and_figures(SLUG)
- TAU_E_MS = 20.0    # E membrane (= CELL_E tau_m)
- TAU_I_MS = 5.0     # I membrane (= CELL_I tau_m)
- TAU_AMPA_MS = 2.0
--TAU_GABA_MS = 9.0
-+# Canonical operating point (was 9.0); single source of truth in helpers so the
-+# mean-field analysis tracks the spiking collection's τ_GABA.
-+TAU_GABA_MS = TAU_GABA_GAMMA_MS
- 
- # ── Calibrated gain: COBANet's LIF f-I (src/cli/models.py params) ──────
- # Couplings are the ei-strength values, fan-in normalised so the lumped
-diff --git a/src/notebooks/nb038.py b/src/notebooks/nb038.py
-index 1e777e8..a6cfebd 100644
---- a/src/notebooks/nb038.py
-+++ b/src/notebooks/nb038.py
-@@ -417,7 +417,8 @@ def run_fi_sweep_uniform(notebook_run_id: str, rates: list[float] | None = None)
-             out_dir.mkdir(parents=True, exist_ok=True)
-             subprocess.run(
-                 [
--                    "uv", "run", "python", str(OSCILLOSCOPE), "probe",
-+                    "uv", "run", "python", str(OSCILLOSCOPE), "sim",
-+                    "--input", "synthetic-spikes",
-                     "--load-config", str((train_dir / "config.json").resolve()),
-                     "--load-weights", str((train_dir / "weights.pth").resolve()),
-                     "--n-in", "784",
-diff --git a/src/notebooks/nb041.py b/src/notebooks/nb041.py
-index e520831..3bd91df 100644
---- a/src/notebooks/nb041.py
-+++ b/src/notebooks/nb041.py
-@@ -34,6 +34,10 @@ sys.path.insert(0, str(REPO / "src"))
- from helpers.figsave import save_figure  # noqa: E402
- from helpers.fmt import format_duration  # noqa: E402
- from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
-+from helpers.operating_point import (  # noqa: E402
-+    MODELS_DEFAULT_TAU_GABA_MS,
-+    TAU_GABA_GAMMA_MS,
-+)
- from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
-@@ -139,8 +143,8 @@ def load_config(run_dir: Path) -> dict:
- 
- 
- def _cell_tau_gaba(cfg: dict) -> float:
--    """The cell's trained τ_GABA (ms), or the models.py default (9.0) if absent."""
--    return float(cfg.get("tau_gaba_ms") or 9.0)
-+    """The cell's trained τ_GABA (ms), or the models.py default if absent."""
-+    return float(cfg.get("tau_gaba_ms") or MODELS_DEFAULT_TAU_GABA_MS)
- 
- 
- def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
-@@ -329,7 +333,8 @@ def plot_quantitative_law(
-         ax_rate.errorbar(
-             fg_mu, er_mu, xerr=fg_se, yerr=er_se,
-             fmt="o", markersize=6, color=theme.INK_BLACK,
--            capsize=3, label=f"τ_GABA = {tau:g} ms" if tau == 9.0 else None,
-+            capsize=3,
-+            label=f"τ_GABA = {tau:g} ms" if tau == TAU_GABA_GAMMA_MS else None,
-         )
-         ax_rate.annotate(
-             f" {tau:g} ms",
-diff --git a/src/notebooks/nb042.py b/src/notebooks/nb042.py
-index 8d51d5f..99d394b 100644
---- a/src/notebooks/nb042.py
-+++ b/src/notebooks/nb042.py
-@@ -45,6 +45,11 @@ from helpers.stamp import stamp_figure  # noqa: E402
- from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- from helpers.datasets import load_mnist_split  # noqa: E402
-+from helpers.operating_point import (  # noqa: E402
-+    F_GAMMA_HZ,
-+    MODELS_DEFAULT_TAU_GABA_MS,
-+    TAU_GABA_GAMMA_MS,
-+)
- 
- SLUG = "nb042"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-@@ -61,17 +66,18 @@ CONDITIONS: tuple[str, ...] = ("baseline", "phase_shuffled_i", "poisson_matched_
- 
- # Jitter sweep — Gaussian timing jitter on each I-spike. σ in ms.
- # 0 = baseline; well above the trained network's gamma period
--# (≈ 28 ms at τ_GABA = 9 ms) the rate should approach the phase-shuffle
-+# (≈ T_γ at the canonical τ_GABA) the rate should approach the phase-shuffle
- # release level. Predicted transition is at σ ≈ 1 / f_γ.
- JITTER_SIGMAS_MS: tuple[float, ...] = (
-     0.0, 1.0, 3.0, 7.0, 14.0, 21.0, 28.0, 42.0, 60.0, 100.0,
- )
--F_GAMMA_REFERENCE_HZ: float = 36.0   # trained nb025 PING f_γ at τ_GABA = 9 ms
-+# Measured PING f_γ at the canonical τ_GABA (single source of truth).
-+F_GAMMA_REFERENCE_HZ: float = F_GAMMA_HZ
- 
- # Per-I-cell (per-spike) jitter sweep — tests whether within-burst
- # synchrony matters, by drawing an independent Gaussian offset for each
--# I-spike. Predicted transition timescale is τ_GABA ≈ 9 ms (synaptic
--# decay), where the smeared g_i profile starts looking continuous.
-+# I-spike. Predicted transition timescale is τ_GABA (synaptic decay),
-+# where the smeared g_i profile starts looking continuous.
- CELL_JITTER_SIGMAS_MS: tuple[float, ...] = (
-     0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0, 21.0, 50.0,
- )
-@@ -778,7 +784,7 @@ def plot_cell_jitter_raster_strip(
- def plot_cell_jitter_sweep(
-     cell_rows: list[dict], baseline_e_rate: float,
-     poisson_e_rate: float, out_path: Path, run_id: str,
--    tau_gaba_ms: float = 9.0,
-+    tau_gaba_ms: float = TAU_GABA_GAMMA_MS,
- ) -> None:
-     """Per-I-cell jitter sweep — E rate + accuracy on twin axes.
- 
-@@ -1163,7 +1169,7 @@ def _xtau_evaluate_cell(
-     binning period), via the CLI two-pass override under the cell's τ_GABA."""
-     import torch
-     cfg = json.loads((train_dir / "config.json").read_text())
--    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or 9.0)
-+    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or MODELS_DEFAULT_TAU_GABA_MS)
-     m0, R = _run_baseline(train_dir, tau_gaba=tau_gaba_ms)
-     if sigma_ms <= 0.0:
-         p = _pack_metrics(m0, "baseline")
-diff --git a/src/notebooks/nb046.py b/src/notebooks/nb046.py
-index d821825..83ba556 100644
---- a/src/notebooks/nb046.py
-+++ b/src/notebooks/nb046.py
-@@ -40,6 +40,7 @@ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
- from helpers.tier import parse_tier  # noqa: E402
-+from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
- from helpers import theme  # noqa: E402
- 
- SLUG = "nb046"
-@@ -151,7 +152,7 @@ def _infer_cell(train_dir: Path, extra_args: list[str], max_samples: int) -> Pat
-     """
-     train_dir = train_dir.resolve()
-     cfg = json.loads((train_dir / "config.json").read_text())
--    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or 9.0)
-+    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or MODELS_DEFAULT_TAU_GABA_MS)
-     out_dir = (ARTIFACTS / "infer" / train_dir.name).resolve()
-     out_dir.mkdir(parents=True, exist_ok=True)
-     subprocess.run(
-@@ -179,7 +180,7 @@ def evaluate_cell(train_dir: Path, f_gamma_hz: float) -> dict:
-     rates come from per_cell_rates.npz; acc from metrics.json.
-     """
-     cfg = json.loads((train_dir / "config.json").read_text())
--    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or 9.0)
-+    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or MODELS_DEFAULT_TAU_GABA_MS)
-     dt_ms = float(cfg["dt"])
-     out_dir = _infer_cell(
-         train_dir,
-diff --git a/src/notebooks/nb047.py b/src/notebooks/nb047.py
-index 7dee38f..d61b7f6 100644
---- a/src/notebooks/nb047.py
-+++ b/src/notebooks/nb047.py
-@@ -95,7 +95,8 @@ def measure_one(n_inh: int, w_ie_mean: float, n_batch: int) -> dict:
-     out_dir.mkdir(parents=True, exist_ok=True)
-     subprocess.run(
-         [
--            "uv", "run", "python", str(OSCILLOSCOPE), "probe",
-+            "uv", "run", "python", str(OSCILLOSCOPE), "sim",
-+            "--input", "synthetic-spikes",
-             "--model", "ping",
-             "--n-hidden", str(N_E),
-             "--n-in", str(N_IN),
-diff --git a/src/notebooks/nb048.py b/src/notebooks/nb048.py
-index 648f5cc..e3bb25d 100644
---- a/src/notebooks/nb048.py
-+++ b/src/notebooks/nb048.py
-@@ -34,6 +34,7 @@ sys.path.insert(0, str(REPO / "src"))
- sys.path.insert(0, str(REPO / "src" / "notebooks"))
- 
- from helpers.figsave import save_figure  # noqa: E402
-+from helpers.operating_point import T_GAMMA_MS  # noqa: E402
- from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
-@@ -136,7 +137,7 @@ def _run_stream(train_dir: Path, spk_in) -> tuple:
-     np.savez(out_dir / "stream.npz", input_spikes=arr.astype("float32"))
-     subprocess.run(
-         [
--            "uv", "run", "python", str(OSCILLOSCOPE), "probe",
-+            "uv", "run", "python", str(OSCILLOSCOPE), "sim",
-             "--load-config", str((train_dir / "config.json").resolve()),
-             "--load-weights", str((train_dir / "weights.pth").resolve()),
-             "--n-in", str(N_IN),
-@@ -955,12 +956,11 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
-                 fontsize=theme.SIZE_LABEL,
-                 color=("white" if grid[i, j] < 55 else theme.INK_BLACK),
-             )
--    # Reference lines at the sub-cycle accuracy floor (τ ≈ 0.4 T_γ ≈ 15 ms)
--    # and at one gamma period (T_γ ≈ 40 ms at f_γ ≈ 25 Hz). The x-axis is
--    # discrete index; interpolate the τ value into a fractional index.
--    F_GAMMA_HZ = 25.0
--    T_GAMMA_MS = 1000.0 / F_GAMMA_HZ  # ≈ 40 ms
--
-+    # Reference lines at the sub-cycle accuracy floor (τ ≈ 0.4 T_γ) and at one
-+    # gamma period (T_γ). Both derive from the collection's measured operating
-+    # point (helpers/operating_point.py: f_γ ≈ 44 Hz → T_γ ≈ 22.8 ms at the
-+    # canonical τ_GABA = 6 ms). The x-axis is a discrete index; interpolate the
-+    # τ value into a fractional index.
-     def _tau_to_index(target_ms: float) -> float:
-         if target_ms <= taus[0]:
-             return 0.0
-@@ -972,8 +972,8 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
-                 return k + frac
-         return float(len(taus) - 1)
- 
--    idx_subcycle = _tau_to_index(0.4 * T_GAMMA_MS)  # ≈ 15 ms (paper's floor)
--    idx_tgamma   = _tau_to_index(T_GAMMA_MS)        # ≈ 40 ms
-+    idx_subcycle = _tau_to_index(0.4 * T_GAMMA_MS)  # ≈ 9 ms (sub-cycle floor)
-+    idx_tgamma   = _tau_to_index(T_GAMMA_MS)        # ≈ 23 ms (one gamma period)
- 
-     ax.axvline(idx_subcycle, color=theme.FAINT, lw=0.8, ls=":", alpha=0.85,
-                zorder=10)
+         "common_args": COMMON_ARGS,
+         "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
+         "summary": summary_rows,
 diff --git a/src/notebooks/nb054.py b/src/notebooks/nb054.py
-index c995e21..aae821c 100644
+index aae821c..f53356c 100644
 --- a/src/notebooks/nb054.py
 +++ b/src/notebooks/nb054.py
-@@ -114,7 +114,8 @@ def ping_spikes(wei, wie, rate_hz, sim_ms, dt, private=True):
-     out_dir = (ARTIFACTS / "probe" / tag).resolve()
-     out_dir.mkdir(parents=True, exist_ok=True)
-     cmd = [
--        "uv", "run", "python", str(OSCILLOSCOPE), "probe",
-+        "uv", "run", "python", str(OSCILLOSCOPE), "sim",
-+        "--input", "synthetic-spikes",
-         "--model", "ping",
-         "--n-hidden", str(NET_N_E),
-         "--n-inh", str(NET_N_E),  # equal-fan-in: n_i = n_e
-
-diff --git a/src/notebooks/helpers/operating_point.py b/src/notebooks/helpers/operating_point.py
-new file mode 100644
-index 0000000..3a55858
---- /dev/null
-+++ b/src/notebooks/helpers/operating_point.py
-@@ -0,0 +1,58 @@
-+"""Canonical operating point for the gamma-gated-sparsity collection.
-+
-+SINGLE SOURCE OF TRUTH for the inhibitory time constant that defines "the loop
-+is in gamma" and the gamma frequency/period that follow from it. Every notebook
-+that needs the collection's canonical rhythm — the mean-field analysis (nb033),
-+the streaming reference lines (nb048), and the training hub (nb022) — imports
-+from here instead of hardcoding a value, so moving the operating point is a
-+one-line edit followed by a re-run, not a scattered grep-and-replace.
-+
-+Why 6 ms (and why it is still biophysical):
-+    τ_GABA sets the E–I gamma frequency f_γ. At τ_GABA = 9 ms, nb041 measures
-+    f_γ ≈ 36 Hz (3 seeds) — gamma, but the low edge of the band. At τ_GABA = 6 ms
-+    the loop sits centrally in gamma at f_γ ≈ 44 Hz.
-+        6 ms is NOT sub-biophysical: gamma is generated by fast perisomatic GABA_A
-+        synapses from PV+ basket cells, whose IPSC decay is ~5–8 ms (Bartos, Vida &
-+        Jonas 2007, Nat Rev Neurosci 8:45, doi:10.1038/nrn2044) — faster than the
-+        ~9–12 ms of generic dendritic GABA_A (Börgers 9 ms; Buzsaki & Wang 8–12 ms,
-+        which the models.py library default keeps). 6 ms is the fast-PV value for the
-+        exact synapse type that drives gamma, so it gives central gamma AND stays
-+        biophysical. (The manuscript's old "25 Hz" was the mean-field prediction
-+        leaking in; it was never the measured spiking value at any τ_GABA.)
-+
-+Where F_GAMMA_HZ comes from:
-+    It is the MEASURED spiking gamma frequency at TAU_GABA_GAMMA_MS, taken as the
-+    3-seed mean from nb041's numbers.json (canonical PING, f_γ-vs-τ_GABA sweep).
-+    It is NOT a mean-field number and NOT a guess. If nb041 is re-run and the
-+    measurement shifts, update F_GAMMA_HZ here (and only here).
-+
-+    nb041 3-seed means (for reference / re-derivation):
-+        τ_GABA = 4.5 ms → f_γ ≈ 53.8 Hz   (T_γ ≈ 18.6 ms)
-+        τ_GABA = 6.0 ms → f_γ ≈ 44.0 Hz   (T_γ ≈ 22.8 ms)   ← canonical
-+        τ_GABA = 9.0 ms → f_γ ≈ 36.3 Hz   (T_γ ≈ 27.5 ms)
-+        τ_GABA = 12  ms → f_γ ≈ 28.0 Hz   (T_γ ≈ 35.8 ms)
-+"""
-+
-+from __future__ import annotations
-+
-+# Canonical inhibitory (GABA) synaptic decay — the collection's operating point.
-+# Passed to the CLI as --tau-gaba when training every non-sweep cell (nb022).
-+TAU_GABA_GAMMA_MS: float = 6.0
-+
-+# Measured spiking gamma frequency at TAU_GABA_GAMMA_MS (nb041, 3-seed mean).
-+# Re-derive from nb041 if the operating point or the measurement changes.
-+F_GAMMA_HZ: float = 43.95
-+
-+# Gamma period. Everything downstream (sub-cycle floor 0.4·T_γ, streaming
-+# reference lines, "one gamma cycle" arithmetic) derives from this.
-+T_GAMMA_MS: float = 1000.0 / F_GAMMA_HZ  # ≈ 22.8 ms
-+
-+# ── NOT the operating point — the library fallback (mirror of models.py) ─────
-+# Mirror of src/cli/models.py's module default `tau_gaba = 9.0` (the literature
-+# biophysical value). It is what a cell ran at if trained WITHOUT an explicit
-+# --tau-gaba, so it is the correct fallback for "cfg.get('tau_gaba_ms') or …"
-+# when a loaded cell's config predates that field. Distinct from
-+# TAU_GABA_GAMMA_MS: that is "what the collection trains at" (6 ms), this is
-+# "what the CLI falls back to" (9 ms). Notebooks can't import models (the CLI
-+# boundary), so keep this in sync by hand if the models.py default changes.
-+MODELS_DEFAULT_TAU_GABA_MS: float = 9.0
-
-diff --git a/src/notebooks/nb064.py b/src/notebooks/nb064.py
-new file mode 100644
-index 0000000..06ac34a
---- /dev/null
-+++ b/src/notebooks/nb064.py
-@@ -0,0 +1,413 @@
-+"""Notebook runner for entry 064 — the gradient-dampening asymmetry: PING needs
-+it, COBA does not.
-+
-+Claim under test (ar010 item 1, "damping requirements per architecture"):
-+the surrogate-gradient voltage dampening (--v-grad-dampen, theory in ar006) is
-+NOT a global training trick — it is specifically what the recurrent E→I→E loop
-+needs. Concretely:
-+
-+  • COBA (loop off, ei_strength = 0) trains fine at dampen = 1 — accuracy at
-+    dampen = 1 matches accuracy at the canonical dampen = 1000.
-+  • PING (loop on, ei_strength = 1) does NOT train at dampen = 1 — its BPTT
-+    gradient explodes through the inhibitory feedback and accuracy collapses;
-+    it only trains once dampening is applied.
-+
-+Method: train both architectures across a dampening ladder
-+{1, 10, 100, 1000} × 1 seed on MNIST (each cell is otherwise the canonical
-+nb025 recipe for that architecture — only --v-grad-dampen varies), then read
-+best accuracy and the per-epoch gradient norm from each cell's metrics.json.
-+The signature is a double dissociation: COBA's accuracy curve is flat across the
-+ladder while PING's rises from chance; COBA's gradient norm stays bounded while
-+PING's blows up at low dampening.
-+
-+Everything is shelled out to cli.py train (no cli/models imports); the notebook
-+only reads the emitted artifacts. These cells are bespoke to this validation
-+(deliberately-unstable PING included), so they are trained here rather than in
-+the nb022 hub.
-+
-+Notebook entry: src/docs/content/notebooks/nb064.mdx
-+"""
-+
-+from __future__ import annotations
-+
-+import json
-+import sys
-+import time
-+from pathlib import Path
-+
-+import matplotlib.pyplot as plt
-+import numpy as np
-+
-+REPO = Path(__file__).resolve().parents[2]
-+sys.path.insert(0, str(REPO / "src"))
-+
-+from helpers import theme  # noqa: E402
-+from helpers.figsave import save_figure  # noqa: E402
-+from helpers.fmt import format_duration  # noqa: E402
-+from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
-+from helpers.paths import artifacts_and_figures  # noqa: E402
+@@ -22,7 +22,6 @@ Notebook entry: src/docs/src/pages/notebooks/nb054.mdx
+ from __future__ import annotations
+ 
+ import json
+-import shutil
+ import subprocess
+ import sys
+ import time
+@@ -36,8 +35,8 @@ sys.path.insert(0, str(REPO / "src"))
+ 
+ from helpers.modal import parse_modal_gpu  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+-from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
 +from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 +from helpers.run_id import next_run_id  # noqa: E402
-+from helpers.stamp import stamp_figure  # noqa: E402
+ from helpers import theme  # noqa: E402
+ from helpers.rhythmicity import (  # noqa: E402
+     iei_histogram,
+@@ -88,16 +87,20 @@ def _display_idx(n):
+ PRIVATE_NULL_INPUT_HZ = [1.0, 2.0, 5.0, 10.0, 20.0, 40.0, 70.0, 100.0]
+ SHARED_NULL_INPUT_HZ = [8.0, 12.0, 16.0, 20.0, 28.0, 40.0, 60.0, 100.0]
+ 
+-# The size tier scales only the simulation length (more spikes ⇒ cleaner
+-# autocorrelogram); the default (medium = 1000 ms) is what the frozen figures use.
+-TIER_CONFIG = {
+-    "extra small": dict(sim_ms=500.0),
+-    "small": dict(sim_ms=750.0),
+-    "medium": dict(sim_ms=1000.0),
+-    "large": dict(sim_ms=2000.0),
+-    "extra large": dict(sim_ms=4000.0),
++# Simulation length (more spikes ⇒ cleaner autocorrelogram); this is what the
++# frozen figures use (the retired "medium" tier).
++SIM_MS = 1000.0
 +
-+SLUG = "nb064"
-+ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-+OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
-+
-+T_MS = 200.0
-+DT_TRAIN = 0.1
-+
-+# Dampening ladder. 1 = no dampening (the null); 1000 = the canonical nb025
-+# training value. Log-spaced so the transition (if any) is visible.
-+DAMPEN_SWEEP: tuple[float, ...] = (1.0, 10.0, 100.0, 1000.0)
-+MODELS: tuple[str, ...] = ("coba", "ping")
-+# One seed: the claim is a large qualitative dissociation (chance vs converged),
-+# not an effect-size measurement, so a single seed demonstrates it. Add more here
-+# if a replicate is wanted — the aggregation + error bars already handle n > 1.
-+SEEDS: tuple[int, ...] = (42,)
-+
-+# MNIST 10-way — chance accuracy, the floor a collapsed cell falls to.
-+CHANCE_ACC = 10.0
-+
-+# Epochs is a convergence CONTROL here, not a budget dial: the claim is "does
-+# each architecture reach its fate?", so every cell trains for the same fixed
-+# number of epochs — a low epoch budget could make PING look untrainable for
-+# the wrong reason.
-+EPOCHS = 30
-+# This runner's declared data budget (the tier system is retired; each
-+# notebook decides its own scale). 500 samples/epoch is enough for the
-+# qualitative dissociation — chance vs converged — this entry claims; bump
-+# this literal if a replicate at larger N is wanted.
-+MAX_SAMPLES = 500
-+
-+# Canonical nb025 recipes, verbatim EXCEPT --v-grad-dampen (swept here, so it is
-+# omitted and supplied per-cell). Only ei_strength (loop on/off) and the matched
-+# per-architecture w_in / readout scale differ between the two — the same choices
-+# the trained baselines use, so this asks "does each architecture, at its own
-+# recipe, need dampening?".
-+MODEL_RECIPES: dict[str, dict[str, str]] = {
-+    "coba": {
-+        "--ei-strength": "0",
-+        "--w-in": "0.3",
-+        "--w-in-sparsity": "0.95",
-+        "--readout": "mem-mean",
-+        "--surrogate-slope": "1",
-+        "--readout-w-out-scale": "100",
-+        "--lr": "0.0004",
-+        "--batch-size": "256",
-+    },
-+    "ping": {
-+        "--ei-strength": "1",
-+        "--w-in": "1.2",
-+        "--w-in-sparsity": "0.95",
-+        "--readout": "mem-mean",
-+        "--surrogate-slope": "1",
-+        "--readout-w-out-scale": "500",
-+        "--lr": "0.0004",
-+        "--batch-size": "256",
-+    },
-+}
-+
-+# Run scale — declared once, stamped into the figures-dir manifest by
-+# run_dirs.prepare, and rendered as the Methods table in nb064.mdx via the
-+# RunScale component. Single source of truth: the mdx never restates these
-+# numbers by hand. Display-facing strings (dataset, grid) are written for
-+# the table; numeric fields are what the runner actually passes to train.
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
 +SCALE = {
-+    "dataset": "MNIST (10-way)",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs": EPOCHS,
-+    "t_ms": T_MS,
-+    "dt_ms": DT_TRAIN,
-+    "batch_size": int(MODEL_RECIPES["coba"]["--batch-size"]),  # same for both
-+    "hidden": 1024,  # oscilloscope's MNIST default (not overridden here)
-+    "seeds": len(SEEDS),
-+    "cells": len(MODELS) * len(DAMPEN_SWEEP) * len(SEEDS),
-+    "grid": "2 architectures × 4 dampenings × 1 seed",
-+}
++    "input": "private per-cell Poisson",
++    "t_ms": SIM_MS,
++    "dt_ms": DT_MS,
++    "input_rate_hz": NET_INPUT_RATE,
++    "cells": len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID),
++    "grid": f"{len(WEI_MEAN_GRID)} W_EI x {len(WIE_MEAN_GRID)} W_IE",
+ }
+-DEFAULT_TIER = "medium"
+ 
+ 
+ def ping_spikes(wei, wie, rate_hz, sim_ms, dt, private=True):
+@@ -648,24 +651,21 @@ def fig_null_autocorr(shared_null, priv_null, out_path):
+ 
+ def main():
+     argv = sys.argv[1:]
+-    tier = parse_tier(argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(argv)  # accepted for contract parity; unused (local CPU)
+-    sim_ms = TIER_CONFIG[tier]["sim_ms"]
++    sim_ms = SIM_MS
+ 
+     if modal_gpu:
+         print("note: nb054 is local CPU; --modal-gpu ignored.")
+ 
+     t_start = time.monotonic()
+-    for d in (ARTIFACTS, FIGURES):
+-        if d.exists():
+-            shutil.rmtree(d)
+-        d.mkdir(parents=True, exist_ok=True)
+     notebook_run_id = next_run_id(SLUG)
++    prepare_run_dirs(SLUG, notebook_run_id, make_artifacts=True, scale=SCALE,
++                     host=f"modal:{modal_gpu}" if modal_gpu else "local")
+     theme.apply()
+     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
+ 
+     n_nets = len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID)
+-    print(f"nb054 | tier={tier} | {n_nets} untrained PING networks, private "
++    print(f"nb054 | {n_nets} untrained PING networks, private "
+           f"{NET_INPUT_RATE:.0f} Hz per-cell Poisson input, sim {sim_ms:.0f} ms (compiles per net)…")
+     grid = run_grid(NET_INPUT_RATE, sim_ms)
+     fig_turnon_maps_compound(grid, FIGURES / "turnon_maps_compound.png")
+@@ -694,7 +694,6 @@ def main():
+         "notebook_run_id": notebook_run_id,
+         "duration_s": duration_s,
+         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
+-        "tier": tier,
+         "config": {
+             "source": "untrained PING networks, private per-cell Poisson input",
+             "dt_ms": DT_MS,
+@@ -736,7 +735,6 @@ def main():
+         },
+     }
+     (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2, default=float))
+-    persist_run_id(SLUG, notebook_run_id)
+     print(f"wrote {FIGURES / 'numbers.json'}")
+     print(f"\nTotal runtime: {numbers['duration']}")
+ 
+diff --git a/src/notebooks/nb057.py b/src/notebooks/nb057.py
+index 09bd168..823a443 100644
+--- a/src/notebooks/nb057.py
++++ b/src/notebooks/nb057.py
+@@ -32,18 +32,22 @@ from helpers.modal import parse_modal_gpu  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ 
+ SLUG = "nb057"
+ _, FIGURES = artifacts_and_figures(SLUG)
+ 
+-# Tiers only set the nb054 grid sim length (the nb033 numerics are fixed).
+-TIER_CONFIG = {
+-    "small": {"sim_ms": 750.0},
+-    "medium": {"sim_ms": 1000.0},
+-    "large": {"sim_ms": 2000.0},
++# nb054 grid sim length (the nb033 numerics are fixed).
++SIM_MS = 1000.0
 +
-+MODEL_COLORS = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
-+MODEL_MARKERS = {"coba": "s", "ping": "D"}
-+
-+
-+def dampen_label(dampen: float) -> str:
-+    return "d" + f"{dampen:g}".replace(".", "p")
-+
-+
-+def cell_dir(model: str, dampen: float, seed: int) -> Path:
-+    return ARTIFACTS / "train" / f"{model}__{dampen_label(dampen)}__seed{seed}"
-+
-+
-+def build_train_args(model: str, dampen: float, seed: int,
-+                     out_dir: Path) -> list[str]:
-+    """Compose a `train` invocation for one (model, dampen, seed) cell."""
-+    args = [
-+        "train",
-+        "--model", "ping",  # both architectures are built as the PING topology
-+        "--dataset", "mnist",
-+        "--max-samples", str(MAX_SAMPLES),
-+        "--epochs", str(EPOCHS),
-+        "--t-ms", str(T_MS),
-+        "--dt", str(DT_TRAIN),
-+        "--seed", str(seed),
-+        "--v-grad-dampen", str(dampen),   # the swept knob
-+        "--out-dir", str(out_dir),
-+        "--wipe-dir",
-+    ]
-+    for k, v in MODEL_RECIPES[model].items():
-+        args += [k, v]
-+    return args
-+
-+
-+def load_metrics(run_dir: Path) -> dict:
-+    return json.loads((run_dir / "metrics.json").read_text())
-+
-+
-+def load_config(run_dir: Path) -> dict:
-+    return json.loads((run_dir / "config.json").read_text())
-+
-+
-+def _finite(x) -> float:
-+    """Coerce to float; map None / NaN / inf to NaN so plots + criteria can
-+    treat a diverged cell uniformly."""
-+    try:
-+        v = float(x)
-+    except (TypeError, ValueError):
-+        return float("nan")
-+    return v if np.isfinite(v) else float("nan")
-+
-+
-+def extract_cell(model: str, dampen: float, seed: int) -> dict:
-+    """Pull the load-bearing scalars from one trained cell's metrics.json:
-+    best accuracy (did it learn) and the gradient norm (did BPTT stay sane)."""
-+    m = load_metrics(cell_dir(model, dampen, seed))
-+    epochs = m.get("epochs", [])
-+    grad_norms = [_finite(e.get("grad_norm")) for e in epochs]
-+    grad_norms = [g for g in grad_norms if np.isfinite(g)]
-+    return {
-+        "model": model,
-+        "dampen": float(dampen),
-+        "seed": seed,
-+        "best_acc": _finite(m.get("best_acc")),
-+        "final_acc": _finite(epochs[-1].get("acc")) if epochs else float("nan"),
-+        "grad_norm_mean": float(np.mean(grad_norms)) if grad_norms else float("nan"),
-+        "grad_norm_max": float(np.max(grad_norms)) if grad_norms else float("nan"),
-+    }
-+
-+
-+def _agg(
-+    rows: list[dict], model: str, key: str
-+) -> tuple[list[float], list[float], list[float]]:
-+    """Per-dampen (mean, sem, all-seeds) of `key` for one model, in ladder order."""
-+    xs, mus, sems = [], [], []
-+    for d in DAMPEN_SWEEP:
-+        vals = [r[key] for r in rows if r["model"] == model and r["dampen"] == d
-+                and np.isfinite(r[key])]
-+        if not vals:
-+            continue
-+        xs.append(d)
-+        mus.append(float(np.mean(vals)))
-+        sems.append(float(np.std(vals) / np.sqrt(len(vals))) if len(vals) > 1 else 0.0)
-+    return xs, mus, sems
-+
-+
-+def fig_accuracy_vs_dampen(rows: list[dict], out_path: Path, run_id: str) -> None:
-+    """Best accuracy vs dampening, one line per architecture. The claim's
-+    positive half: COBA flat across the ladder, PING rising from chance."""
-+    theme.apply()
-+    fig, ax = plt.subplots(figsize=(8, 4.5))
-+    for model in MODELS:
-+        xs, mus, sems = _agg(rows, model, "best_acc")
-+        ax.errorbar(
-+            xs, mus, yerr=sems, fmt=MODEL_MARKERS[model] + "-",
-+            color=MODEL_COLORS[model], capsize=3, lw=1.4, markersize=6,
-+            label=model.upper(),
-+        )
-+    ax.axhline(CHANCE_ACC, color=theme.FAINT, lw=0.8, ls=":", zorder=1)
-+    ax.text(DAMPEN_SWEEP[0], CHANCE_ACC + 1.5, "chance",
-+            fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED)
-+    ax.set_xscale("log")
-+    ax.set_xlabel("Gradient dampening  1 / ∂v-scale  (--v-grad-dampen)",
-+                  fontsize=theme.SIZE_LABEL)
-+    ax.set_ylabel("Best test accuracy (%)", fontsize=theme.SIZE_LABEL)
-+    ax.set_ylim(0, 100)
-+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="center right")
-+    ax.spines["top"].set_visible(False)
-+    ax.spines["right"].set_visible(False)
-+    ax.grid(True, alpha=0.15, lw=0.4)
-+    fig.suptitle("Only PING needs gradient dampening to train",
-+                 fontsize=theme.SIZE_TITLE)
-+    fig.tight_layout()
-+    stamp_figure(fig, run_id)
-+    out_path.parent.mkdir(parents=True, exist_ok=True)
-+    save_figure(fig, out_path)
-+    plt.close(fig)
-+
-+
-+def fig_gradnorm_vs_dampen(rows: list[dict], out_path: Path, run_id: str) -> None:
-+    """Mean gradient norm vs dampening (log–log). The claim's mechanism:
-+    PING's BPTT gradient explodes at low dampening; COBA's stays bounded."""
-+    theme.apply()
-+    fig, ax = plt.subplots(figsize=(8, 4.5))
-+    for model in MODELS:
-+        xs, mus, sems = _agg(rows, model, "grad_norm_mean")
-+        ax.errorbar(
-+            xs, mus, yerr=sems, fmt=MODEL_MARKERS[model] + "-",
-+            color=MODEL_COLORS[model], capsize=3, lw=1.4, markersize=6,
-+            label=model.upper(),
-+        )
-+    ax.set_xscale("log")
-+    ax.set_yscale("log")
-+    ax.set_xlabel("Gradient dampening (--v-grad-dampen)", fontsize=theme.SIZE_LABEL)
-+    ax.set_ylabel("Mean per-epoch gradient norm", fontsize=theme.SIZE_LABEL)
-+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
-+    ax.spines["top"].set_visible(False)
-+    ax.spines["right"].set_visible(False)
-+    ax.grid(True, alpha=0.15, lw=0.4)
-+    fig.suptitle("PING's BPTT gradient explodes without dampening; COBA's does not",
-+                 fontsize=theme.SIZE_TITLE)
-+    fig.tight_layout()
-+    stamp_figure(fig, run_id)
-+    out_path.parent.mkdir(parents=True, exist_ok=True)
-+    save_figure(fig, out_path)
-+    plt.close(fig)
-+
-+
-+def evaluate_success(rows: list[dict]) -> dict:
-+    """Reduce the sweep to the paper's binary claim.
-+
-+    COBA-does-not-need-it: COBA best_acc at dampen = 1 is within TOL of its best
-+        across the ladder.
-+    PING-needs-it: PING best_acc at dampen = 1 is near chance AND far below PING
-+        at the canonical dampen = 1000.
-+    """
-+    def mean_at(model: str, dampen: float, key: str = "best_acc") -> float:
-+        vals = [r[key] for r in rows if r["model"] == model and r["dampen"] == dampen
-+                and np.isfinite(r[key])]
-+        return float(np.mean(vals)) if vals else float("nan")
-+
-+    TOL_PP = 5.0              # "matches" tolerance, percentage points
-+    NEAR_CHANCE_PP = 15.0     # collapsed if within this of chance
-+
-+    coba_lo = mean_at("coba", DAMPEN_SWEEP[0])
-+    coba_hi = max(mean_at("coba", d) for d in DAMPEN_SWEEP)
-+    ping_lo = mean_at("ping", DAMPEN_SWEEP[0])
-+    ping_hi = mean_at("ping", DAMPEN_SWEEP[-1])
-+
-+    coba_ok = (
-+        np.isfinite(coba_lo) and np.isfinite(coba_hi)
-+        and (coba_hi - coba_lo) <= TOL_PP
-+    )
-+    ping_ok = (
-+        np.isfinite(ping_lo) and np.isfinite(ping_hi)
-+        and ping_lo <= CHANCE_ACC + NEAR_CHANCE_PP
-+        and (ping_hi - ping_lo) > TOL_PP
-+    )
-+    return {
-+        "coba_acc_at_dampen1": coba_lo,
-+        "coba_acc_best": coba_hi,
-+        "ping_acc_at_dampen1": ping_lo,
-+        "ping_acc_at_dampen1000": ping_hi,
-+        "coba_does_not_need_dampening": bool(coba_ok),
-+        "ping_needs_dampening": bool(ping_ok),
-+        "claim_validated": bool(coba_ok and ping_ok),
-+    }
-+
-+
-+def main() -> None:
-+    theme.set_paper_mode(True)
-+
-+    modal_gpu = parse_modal_gpu(sys.argv)
-+    skip_training = "--skip-training" in sys.argv
-+    only_missing = "--only-missing" in sys.argv
-+    wipe_dir = "--no-wipe-dir" not in sys.argv
-+
-+    t_start = time.monotonic()
-+    notebook_run_id = next_run_id(SLUG)
-+    print(
-+        f"notebook_run_id = {notebook_run_id} cells={SCALE['cells']}"
-+        + ("  [skip-training]" if skip_training else "")
-+        + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-+    )
-+
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "t_ms": SIM_MS,
++    "dt_ms": 0.25,
++    "input_rate_hz": 100.0,
++    "cells": 256,
++    "grid": "11×11 (W_EI × W_IE)",
+ }
+-DEFAULT_TIER = "medium"
+ 
+ 
+ def _load_runner(slug: str):
+@@ -214,15 +218,17 @@ def main() -> None:
+     # Publication profile: print-sized vectors, emitted as both PNG/SVG (docs)
+     # and PDF (manuscript) by save_figure.
+     theme.set_paper_mode(True)
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+-    parse_modal_gpu(sys.argv)  # local CPU; modal unused.
++    modal_gpu = parse_modal_gpu(sys.argv)  # local CPU; modal unused.
+     wipe_dir = "--no-wipe-dir" not in sys.argv
+-    sim_ms = TIER_CONFIG[tier]["sim_ms"]
++    sim_ms = SIM_MS
+ 
+     t_start = time.monotonic()
+     notebook_run_id = next_run_id(SLUG)
+-    print(f"notebook_run_id = {notebook_run_id} tier={tier}")
+-    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
++    print(f"notebook_run_id = {notebook_run_id}")
 +    prepare_run_dirs(
-+        SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-+        make_artifacts=True, scale=SCALE,
++        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
++        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
++    )
+ 
+     nb054 = _load_runner("nb054")
+     nb033 = _load_runner("nb033")
+diff --git a/src/notebooks/nb058.py b/src/notebooks/nb058.py
+index 77006e6..72cac0e 100644
+--- a/src/notebooks/nb058.py
++++ b/src/notebooks/nb058.py
+@@ -32,7 +32,6 @@ from helpers.modal import parse_modal_gpu  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ 
+ SLUG = "nb058"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -146,14 +145,16 @@ LYAP_EPS = "0.1"
+ LYAP_T_MS = "500"
+ LYAP_FIT_MS = (5.0, 80.0)   # balanced growth window (post-flip, pre-saturation)
+ 
+-TIER_CONFIG = {
+-    "extra small": {},
+-    "small": {},
+-    "medium": {},
+-    "large": {},
+-    "extra large": {},
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "input": "synthetic-spikes",
++    "t_ms": 1000,
++    "input_rate_hz": 1,
++    "seeds": len(SWEEP_SEEDS),
++    "cells": len(CELLS),
++    "grid": K_SWEEP_KS,
+ }
+-DEFAULT_TIER = "small"
+ 
+ 
+ F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
+@@ -642,15 +643,18 @@ def plot_lyapunov(lyap: dict, out_path: Path) -> None:
+ 
+ 
+ def main() -> None:
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+-    parse_modal_gpu(sys.argv)
++    modal_gpu = parse_modal_gpu(sys.argv)
+     wipe_dir = "--no-wipe-dir" not in sys.argv
+ 
+     t_start = time.monotonic()
+     notebook_run_id = next_run_id(SLUG)
+-    print(f"notebook_run_id = {notebook_run_id} tier={tier}")
++    print(f"notebook_run_id = {notebook_run_id}")
+ 
+-    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
++    prepare_run_dirs(
++        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
++        scale=SCALE,
 +        host=f"modal:{modal_gpu}" if modal_gpu else "local",
 +    )
+ 
+     figures: dict[str, Path] = {}
+     summary_rows: list[dict] = []
+@@ -714,7 +718,6 @@ def main() -> None:
+     summary = {
+         "notebook_run_id": notebook_run_id,
+         "duration_s": round(duration_s, 1),
+-        "tier": tier,
+         "common_args": COMMON_ARGS,
+         "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
+         "summary": summary_rows,
+diff --git a/src/notebooks/nb062.py b/src/notebooks/nb062.py
+index fe7aef9..cb69ca5 100644
+--- a/src/notebooks/nb062.py
++++ b/src/notebooks/nb062.py
+@@ -45,26 +45,34 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers.tier import parse_tier  # noqa: E402
+ from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb062"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+ OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
+ 
+-# Tier sizing — max-samples × epochs. ETAs are rough single-run MPS estimates
+-# at the dt=2 ms / t=1000 ms grid (500 timesteps per trial, n_hidden=128):
+-TIER_CONFIG = {
+-    "extra small": dict(max_samples=300,  epochs=2),   # ≈ 5 s   (smoke)
+-    "small":       dict(max_samples=1000, epochs=8),   # ≈ 20 s
+-    "medium":      dict(max_samples=3000, epochs=20),  # ≈ 50 s  (default)
+-    "large":       dict(max_samples=5000, epochs=40),  # ≈ 150 s (headline)
+-    "extra large": dict(max_samples=8500, epochs=60),  # ≈ 270 s (full train)
+-}
+-DEFAULT_TIER = "medium"
++# Run scale — max-samples × epochs, baked at the former "medium" tier. ETA is
++# a rough single-run MPS estimate at the dt=2 ms / t=1000 ms grid (500
++# timesteps per trial, n_hidden=128): ≈ 50 s.
++MAX_SAMPLES = 3000
++EPOCHS = 20
+ 
+ SEED = 42
+ 
++# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
++# the Methods table via RunScale; the mdx never restates these numbers.
++SCALE = {
++    "dataset":     "shd",
++    "max_samples": MAX_SAMPLES,
++    "epochs":      EPOCHS,
++    "t_ms":        1000,
++    "dt_ms":       2.0,
++    "hidden":      128,
++    "batch_size":  256,
++    "seeds":       1,
++    "cells":       1,
++}
 +
-+    # ── Train the dampen × model × seed grid (bespoke cells, trained here) ──
-+    if not skip_training:
-+        dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
-+        for model in MODELS:
-+            for dampen in DAMPEN_SWEEP:
-+                for seed in SEEDS:
-+                    out = cell_dir(model, dampen, seed)
-+                    if only_missing and (out / "metrics.json").exists():
-+                        print(f"[skip] {out.name} already trained")
-+                        continue
-+                    print(f"[train] {out.name}"
-+                          + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
-+                    dispatcher.submit(
-+                        build_train_args(model, dampen, seed, out), out,
-+                    )
-+        dispatcher.drain()
-+
-+    # ── Read artifacts ─────────────────────────────────────────────────────
-+    rows: list[dict] = []
-+    for model in MODELS:
-+        for dampen in DAMPEN_SWEEP:
-+            for seed in SEEDS:
-+                run_dir = cell_dir(model, dampen, seed)
-+                if not (run_dir / "metrics.json").exists():
-+                    raise SystemExit(f"missing metrics: {run_dir / 'metrics.json'}")
-+                r = extract_cell(model, dampen, seed)
-+                rows.append(r)
-+                print(
-+                    f"  {model:<4} dampen={dampen:>7.1f} seed={seed}  "
-+                    f"best_acc={r['best_acc']:5.2f}%  "
-+                    f"grad_norm≈{r['grad_norm_mean']:.2e}"
-+                )
-+
-+    fig_accuracy_vs_dampen(rows, FIGURES / "accuracy_vs_dampen", notebook_run_id)
-+    print(f"wrote {FIGURES / 'accuracy_vs_dampen'}.{{svg,pdf}}")
-+    fig_gradnorm_vs_dampen(rows, FIGURES / "gradnorm_vs_dampen", notebook_run_id)
-+    print(f"wrote {FIGURES / 'gradnorm_vs_dampen'}.{{svg,pdf}}")
-+
-+    verdict = evaluate_success(rows)
-+    print("  success criteria:")
-+    print(f"    COBA does not need dampening: {verdict['coba_does_not_need_dampening']}"
-+          f"  (acc@1={verdict['coba_acc_at_dampen1']:.1f}%, "
-+          f"best={verdict['coba_acc_best']:.1f}%)")
-+    print(f"    PING needs dampening:         {verdict['ping_needs_dampening']}"
-+          f"  (acc@1={verdict['ping_acc_at_dampen1']:.1f}%, "
-+          f"acc@1000={verdict['ping_acc_at_dampen1000']:.1f}%)")
-+    print(f"    CLAIM VALIDATED: {verdict['claim_validated']}")
-+
-+    duration_s = time.monotonic() - t_start
-+    train_cfg = load_config(cell_dir(MODELS[0], DAMPEN_SWEEP[0], SEEDS[0]))
-+    summary = {
-+        "notebook_run_id": notebook_run_id,
-+        "git_sha": train_cfg.get("git_sha"),
-+        "duration_s": round(duration_s, 1),
-+        "duration": format_duration(duration_s),
-+        "config": {
-+            "dataset": "mnist",
-+            "dampen_sweep": list(DAMPEN_SWEEP),
-+            "models": list(MODELS),
-+            "seeds": list(SEEDS),
-+            "max_samples": MAX_SAMPLES,
-+            "epochs": EPOCHS,
-+            "t_ms": T_MS,
-+            "dt": DT_TRAIN,
-+        },
-+        "success": verdict,
-+        "results": rows,
-+    }
-+    (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-+    print(f"wrote {FIGURES / 'numbers.json'}")
-+    print(f"  total duration: {summary['duration']}")
-+
-+
-+if __name__ == "__main__":
-+    main()
+ # Hardcoded recipe. New scientific knobs go on the oscilloscope CLI (ar011);
+ # this runner just passes the recipe values inline. To explore variants, use
+ # autoresearch on a branch, NOT by editing this file.
+@@ -92,12 +100,11 @@ def cell_dir() -> Path:
+     return ARTIFACTS / CELL_NAME
+ 
+ 
+-def build_train_args(tier: str, out_dir: Path) -> list[str]:
+-    cfg = TIER_CONFIG[tier]
++def build_train_args(out_dir: Path) -> list[str]:
+     args = [
+         "train",
+-        "--max-samples", str(cfg["max_samples"]),
+-        "--epochs",      str(cfg["epochs"]),
++        "--max-samples", str(MAX_SAMPLES),
++        "--epochs",      str(EPOCHS),
+         "--seed",        str(SEED),
+         "--out-dir",     str(out_dir),
+         "--wipe-dir",
+@@ -169,21 +176,23 @@ def fig_training_curves(metrics: dict, out_path: Path, run_id: str) -> None:
+ 
+ # ── Main ────────────────────────────────────────────────────────────
+ def main() -> None:
+-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
+     modal_gpu = parse_modal_gpu(sys.argv)
+     skip_training = "--no-train" in sys.argv
+     wipe_dir = "--no-wipe-dir" not in sys.argv
+ 
+     run_id = next_run_id(SLUG)
+-    prepare_run_dirs(SLUG, run_id, wipe=wipe_dir, make_artifacts=True)
++    prepare_run_dirs(
++        SLUG, run_id, wipe=wipe_dir, make_artifacts=True,
++        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
++    )
+ 
+     t_start = time.monotonic()
+     out = cell_dir()
+ 
+     if not skip_training:
+         dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
+-        print(f"[train] tier={tier}  →  {out.relative_to(REPO)}")
+-        dispatcher.submit(build_train_args(tier, out), out)
++        print(f"[train]  →  {out.relative_to(REPO)}")
++        dispatcher.submit(build_train_args(out), out)
+         dispatcher.drain()
+ 
+     metrics_path = out / "metrics.json"
+@@ -205,8 +214,6 @@ def main() -> None:
+         "duration_human":   format_duration(duration_s),
+         "train_elapsed_s":  round(train_elapsed, 1),
+         "train_elapsed_human": format_duration(train_elapsed),
+-        "tier":             tier,
+-        "tier_config":      TIER_CONFIG[tier],
+         "recipe":           RECIPE,
+         "seed":             SEED,
+         "best_acc":         round(best_acc, 2),
