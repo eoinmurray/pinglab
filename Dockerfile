@@ -33,9 +33,12 @@ WORKDIR /workspace/pinglab
 # build RunPod's driver (CUDA 12.8) supports. cu128 carries the recompile_limit
 # rename, so no source patch is needed (unlike the cu124 fallback for the older
 # CUED drivers).
+# --reinstall is required: without it uv sees "torch" already satisfied by the
+# cu130 build uv sync installed and no-ops, leaving the wrong (driver-incompatible)
+# build baked in.
 RUN uv sync --no-dev \
  && uv pip install --index-url https://download.pytorch.org/whl/cu128 \
-        torch torchvision
+        --reinstall torch torchvision
 
 # Fail the build early if the baked env is broken. CUDA availability itself is
 # checked at runtime on a GPU host, not here (the builder has no GPU).
