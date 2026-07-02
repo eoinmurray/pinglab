@@ -6,16 +6,19 @@
 # box and is the entire reason this image exists.
 #
 # Code is NOT baked: pods `git pull` the latest at launch, so only a dependency
-# change requires a rebuild. Pods must run with `uv run --no-sync` so the pinned
-# cu128 torch below is not reverted to the lockfile's default (cu130) build.
+# change requires a rebuild. Pods must run training with `uv run --no-sync` so
+# the pinned cu128 torch below is not reverted to the lockfile's default (cu130).
 FROM nvidia/cuda:12.8.1-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PATH="/root/.local/bin:${PATH}"
 
+# openssh-server + rsync: RunPod drives the pod over SSH and we rsync artifacts
+# back, so the container must run its own sshd (the CUDA base has neither).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git curl ca-certificates build-essential openssh-client \
-    && rm -rf /var/lib/apt/lists/*
+        git curl ca-certificates build-essential openssh-server rsync \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /run/sshd
 
 # uv manages Python + the locked dependency set.
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -38,4 +41,15 @@ RUN uv sync --no-dev \
 # checked at runtime on a GPU host, not here (the builder has no GPU).
 RUN uv run --no-sync python -c "import torch; print('baked torch', torch.__version__)"
 
-CMD ["/bin/bash"]
+# Start script: install RunPod's injected public key, then run sshd in the
+# foreground (keeps the container alive and lets the launcher connect). Written
+# at build time; $PUBLIC_KEY is expanded at runtime, not here.
+RUN printf '%s\n' \
+      '#!/bin/bash' \
+      'mkdir -p /root/.ssh && chmod 700 /root/.ssh' \
+      '[ -n "$PUBLIC_KEY" ] && echo "$PUBLIC_KEY" > /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys' \
+      'ssh-keygen -A' \
+      'exec /usr/sbin/sshd -D -e' \
+    > /start.sh && chmod +x /start.sh
+
+CMD ["/start.sh"]
