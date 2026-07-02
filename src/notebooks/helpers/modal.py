@@ -98,6 +98,17 @@ class BatchDispatcher:
         """Dispatch all queued jobs to Modal in parallel, wait, sync artifacts."""
         if not self.pending:
             return
+        # modal_app lives in src/cli (next to cli.py). Notebooks only put src/ and
+        # their own dir on sys.path, so add src/cli here to make the top-level
+        # `import modal_app` resolve. (The flat-layout refactor moved it out from
+        # under the src root; without this every notebook's --modal-gpu path
+        # ModuleNotFound-errors at drain time.)
+        import os
+        import sys
+
+        cli_dir = os.path.dirname(os.path.abspath(str(self.oscilloscope_path)))
+        if cli_dir not in sys.path:
+            sys.path.insert(0, cli_dir)
         from modal_app import dispatch_batch_to_modal
 
         dispatch_batch_to_modal(self.pending)
