@@ -1,1932 +1,683 @@
-diff --git a/src/notebooks/nb022.py b/src/notebooks/nb022.py
-index 92d9e94..29e3c2b 100644
---- a/src/notebooks/nb022.py
-+++ b/src/notebooks/nb022.py
-@@ -15,8 +15,8 @@ T = 200 ms, MNIST. (nb044's dt sweep is the one documented exception that
- varies dt; it owns its own training.)
- 
- Outputs a per-cell accuracy / E-rate summary plus a manifest (numbers.json)
--recording exactly which cells were trained, at what tier, and the git sha —
--the contract the analysis notebooks rely on.
-+recording exactly which cells were trained and the git sha — the contract
-+the analysis notebooks rely on.
- 
- Notebook entry: src/docs/content/notebooks/nb022.mdx
- """
-@@ -41,7 +41,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- 
- SLUG = "nb022"
-@@ -117,7 +116,9 @@ DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)             # nb044 (the dt exception)
- MNIST_POOL = 70000                                   # 60k train + 10k test pool
- CANONICAL_MAX_SAMPLES = MNIST_POOL                    # the canonical run sees all of it
- SUBSET_MAX_SAMPLES = MNIST_POOL // 10                 # 10% of MNIST for the sweeps
--SMOKE_MAX_SAMPLES = 100                               # extra-small plumbing tier
-+MAX_SAMPLES = 100                                     # plumbing cap on every cell
-+EPOCHS = 2                                            # plumbing depth on every cell
-+BATCH_SIZE = 256                                      # fixed across every recipe
- 
- 
- def theta_label(theta_u: float | None) -> str:
-@@ -190,7 +191,7 @@ def _dt_cells() -> list[dict]:
- 
- def _canonical_cells() -> list[dict]:
-     # The canonical reference: θ_u = off, trained on ALL of MNIST (not the
--    # subset the other families use). max_samples overrides the tier.
-+    # subset the other families use) once the full standard is restored.
-     return [
-         {"name": f"{m}__canonical__seed{s}", "model": m, "family": "canonical",
-          "tag": "off · all MNIST", "seed": s, "dt_ms": DT_MS, "extra": [],
-@@ -257,6 +258,20 @@ THETA_U_3SEED_CELLS = _theta_u_3seed_cells()
- CANONICAL_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
-                    + _dt_cells() + _init_cells())
- 
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset": "mnist",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs": EPOCHS,
-+    "t_ms": T_MS,
-+    "dt_ms": DT_MS,
-+    "batch_size": BATCH_SIZE,
-+    "seeds": len(SEEDS_BASELINE),
-+    "cells": len(CANONICAL_CELLS),
-+    "grid": "2 architectures × 5 families",
-+}
-+
- 
- def cell_dir(name: str) -> Path:
-     """Shared per-cell artifact directory."""
-@@ -306,25 +321,16 @@ def build_train_args(spec: dict, out_dir: Path,
- 
- # ── Runner ───────────────────────────────────────────────────────────
- 
--# Sample counts are now a fixed per-family standard (canonical = all MNIST,
--# sweeps = 10%), not tier-scaled. The tier only toggles a smoke run: extra
--# small caps every cell to a handful of samples and 2 epochs so the plumbing
--# can be checked in minutes; any other tier trains the full standard.
--TIER_CONFIG = {
--    "extra small": dict(smoke=True),
--    "small": dict(smoke=False),
--    "medium": dict(smoke=False),
--    "large": dict(smoke=False),
--    "extra large": dict(smoke=False),
--}
--DEFAULT_TIER = "extra small"
-+# This runner is pinned to the plumbing scale: every cell is capped to
-+# MAX_SAMPLES samples and EPOCHS epochs so the whole registry can be trained
-+# in minutes to check the wiring. The full per-family standard (canonical =
-+# all MNIST, sweeps = 10%, EPOCHS_STANDARD) lives in the constants above and
-+# is restored by editing cell_samples_epochs when a real run is scheduled.
- 
- 
--def cell_samples_epochs(spec: dict, smoke: bool) -> tuple[int, int]:
--    """Per-cell (max_samples, epochs): the family standard, or the smoke cap."""
--    if smoke:
--        return SMOKE_MAX_SAMPLES, 2
--    return spec.get("max_samples", SUBSET_MAX_SAMPLES), EPOCHS_STANDARD
-+def cell_samples_epochs(spec: dict) -> tuple[int, int]:
-+    """Per-cell (max_samples, epochs): the fixed plumbing cap for every cell."""
-+    return MAX_SAMPLES, EPOCHS
- 
- 
- def _json_safe(o):
-@@ -444,21 +450,19 @@ def plot_family_curves(family: str, cells: list[dict],
- 
- 
- def main() -> None:
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     skip_training = "--skip-training" in sys.argv
-     only_missing = "--only-missing" in sys.argv
--    smoke = TIER_CONFIG[tier]["smoke"]
- 
-     t_start = time.monotonic()
-     run_id = next_run_id(SLUG)
--    print(f"notebook_run_id = {run_id} tier={tier} "
--          f"{'[SMOKE]' if smoke else 'full standard'} "
-+    print(f"notebook_run_id = {run_id} "
-           f"cells={len(CANONICAL_CELLS)}"
-           + ("  [skip-training]" if skip_training else ""))
-     # Wipe only this entry's figures, never the shared TRAINING_ROOT.
-     prepare_run_dirs(SLUG, run_id, wipe=True, skip_training=skip_training,
--                     make_artifacts=False)
-+                     make_artifacts=False, scale=SCALE,
-+                     host=f"modal:{modal_gpu}" if modal_gpu else "local")
- 
-     if not skip_training:
-         TRAINING_ROOT.mkdir(parents=True, exist_ok=True)
-@@ -468,7 +472,7 @@ def main() -> None:
-             if only_missing and (out / "metrics.json").exists():
-                 print(f"[skip] {c['name']} already trained")
-                 continue
--            ms, ep = cell_samples_epochs(c, smoke)
-+            ms, ep = cell_samples_epochs(c)
-             gpu_override = "A100" if modal_gpu in ("T4", "L4", "A10G") else None
-             print(f"[train] {c['name']} (n={ms}, {ep} ep) → {out.relative_to(REPO)}"
-                   + (f"  [modal:{modal_gpu}]" if modal_gpu else ""))
-@@ -515,8 +519,6 @@ def main() -> None:
-         "git_sha": git_sha,
-         "duration_s": round(duration_s, 1),
-         "duration": format_duration(duration_s),
--        "tier": tier,
--        "smoke": smoke,
-         "standard": {"epochs": EPOCHS_STANDARD, "dt_ms": DT_MS, "t_ms": T_MS,
-                      "dataset": "mnist",
-                      "max_samples_canonical": CANONICAL_MAX_SAMPLES,
 diff --git a/src/notebooks/nb023.py b/src/notebooks/nb023.py
-index 579acc4..f6b3b42 100644
+index f6b3b42..2242466 100644
 --- a/src/notebooks/nb023.py
 +++ b/src/notebooks/nb023.py
-@@ -423,7 +423,7 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
-     E_I = -80.0
-     G_L_E = 0.05
-     G_L_I = 0.10
--    PANEL_SIZE = (3.0, 1.6875)  # small per-panel trace tile, 8:4.5 aspect
-+    PANEL_SIZE = (4.0, 2.25)  # per-panel trace tile, 16:9
+@@ -46,15 +46,25 @@ DT_MS = 0.1  # canonical timestep (was the 0.25 oscilloscope default)
  
-     def _save_panel(plot_fn, suffix: str, ylabel: str, panel_title: str):
-         fig, ax = plt.subplots(figsize=PANEL_SIZE)
-@@ -431,7 +431,11 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
-         ax.set_xlim(0, T * dt)
-         ax.set_xlabel("time (ms)")
-         ax.set_ylabel(ylabel)
--        ax.set_title(f"{title} — {panel_title}")
-+        # Short left-aligned title: the concise cell label ("COBA"/"PING") plus
-+        # the panel descriptor. The full recipe lives in the caption, not here —
-+        # a long centred title steals width and squishes the trace.
-+        ax.set_title(f"{title} · {panel_title}", loc="left",
-+                     fontsize=theme.SIZE_LABEL)
+ COMMON_ARGS = [
+     "sim",
+-    "--model", "ping",
+-    "--input", "dataset",
+-    "--dataset", "mnist",
+-    "--digit", "0",
+-    "--sample", "0",
+-    "--w-in", "1.5", "0.3",
+-    "--input-rate", "50",
+-    "--t-ms", "400",
+-    "--dt", str(DT_MS),
++    "--model",
++    "ping",
++    "--input",
++    "dataset",
++    "--dataset",
++    "mnist",
++    "--digit",
++    "0",
++    "--sample",
++    "0",
++    "--w-in",
++    "1.5",
++    "0.3",
++    "--input-rate",
++    "50",
++    "--t-ms",
++    "400",
++    "--dt",
++    str(DT_MS),
+ ]
+ CELLS: dict[str, dict] = {
+     "coba": {
+@@ -91,6 +101,7 @@ def _population_psd(spk_2d: np.ndarray, dt_ms: float):
+     mean-subtracted input. Returns (freqs_hz, psd, f_peak_hz_or_None)
+     with parabolic-interpolated peak frequency inside the gamma band."""
+     from scipy import signal as sp_signal
++
+     T, N = spk_2d.shape
+     if T < 2 or N == 0:
+         return np.array([0.0]), np.array([0.0]), None
+@@ -104,7 +115,7 @@ def _population_psd(spk_2d: np.ndarray, dt_ms: float):
+     abs_idx = int(np.where(band)[0][int(np.argmax(psd[band]))])
+     if 0 < abs_idx < len(psd) - 1:
+         y0, y1, y2 = psd[abs_idx - 1], psd[abs_idx], psd[abs_idx + 1]
+-        denom = (y0 - 2 * y1 + y2)
++        denom = y0 - 2 * y1 + y2
+         delta = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
+         delta = float(max(-0.5, min(0.5, delta)))
+     else:
+@@ -117,6 +128,7 @@ def _population_psd(spk_2d: np.ndarray, dt_ms: float):
+ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+     theme.apply()
+     from matplotlib.gridspec import GridSpec
++
+     data = np.load(npz_path)
+     spk_e = data["spk_e"]
+     spk_i = data["spk_i"]
+@@ -129,9 +141,15 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+     if has_i:
+         fig = plt.figure(figsize=(6.9, 5.75))
+         gs = GridSpec(
+-            3, 1, figure=fig,
++            3,
++            1,
++            figure=fig,
+             height_ratios=[4.0, 1.2, 2.6],
+-            hspace=0.85, top=0.94, bottom=0.08, left=0.12, right=0.97,
++            hspace=0.85,
++            top=0.94,
++            bottom=0.08,
++            left=0.12,
++            right=0.97,
+         )
+         ax_e = fig.add_subplot(gs[0])
+         ax_i = fig.add_subplot(gs[1], sharex=ax_e)
+@@ -139,9 +157,15 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+     else:
+         fig = plt.figure(figsize=(6.9, 4.6))
+         gs = GridSpec(
+-            2, 1, figure=fig,
++            2,
++            1,
++            figure=fig,
+             height_ratios=[4.0, 2.6],
+-            hspace=0.55, top=0.94, bottom=0.10, left=0.12, right=0.97,
++            hspace=0.55,
++            top=0.94,
++            bottom=0.10,
++            left=0.12,
++            right=0.97,
+         )
+         ax_e = fig.add_subplot(gs[0])
+         ax_i = None
+@@ -150,7 +174,12 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+     # E raster
+     e_idx, e_t = np.where(spk_e.T)
+     ax_e.scatter(
+-        t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|", linewidths=0.5,
++        t_ms[e_t],
++        e_idx,
++        s=1.0,
++        c=theme.INK_BLACK,
++        marker="|",
++        linewidths=0.5,
+     )
+     ax_e.set_ylabel("E neuron")
+     ax_e.set_ylim(0, spk_e.shape[1])
+@@ -163,7 +192,12 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+     if has_i:
+         i_idx, i_t = np.where(spk_i.T)
+         ax_i.scatter(
+-            t_ms[i_t], i_idx, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.5,
++            t_ms[i_t],
++            i_idx,
++            s=1.0,
++            c=theme.DEEP_RED,
++            marker="|",
++            linewidths=0.5,
+         )
+         ax_i.set_ylabel("I neuron")
+         ax_i.set_ylim(0, spk_i.shape[1])
+@@ -184,22 +218,34 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+     ax_psd.set_ylabel("Population E PSD (a.u.)")
+     ax_psd.spines["top"].set_visible(False)
+     ax_psd.spines["right"].set_visible(False)
+-    ax_psd.set_title("Welch PSD on population-mean E trace", loc="left",
+-                     fontsize=theme.SIZE_LABEL, pad=8)
++    ax_psd.set_title(
++        "Welch PSD on population-mean E trace",
++        loc="left",
++        fontsize=theme.SIZE_LABEL,
++        pad=8,
++    )
+     if f_peak is not None:
+         ax_psd.axvline(f_peak, color=theme.DEEP_RED, lw=0.9, ls="--", alpha=0.8)
+         ax_psd.text(
+-            f_peak, ax_psd.get_ylim()[1] * 0.95,
++            f_peak,
++            ax_psd.get_ylim()[1] * 0.95,
+             f"  $f_\\gamma$ = {f_peak:.1f} Hz",
+-            ha="left", va="top",
+-            fontsize=theme.SIZE_LABEL - 1, color=theme.DEEP_RED,
++            ha="left",
++            va="top",
++            fontsize=theme.SIZE_LABEL - 1,
++            color=theme.DEEP_RED,
+             fontweight="semibold",
+         )
+     else:
+         ax_psd.text(
+-            0.99, 0.95, "no clear peak",
+-            transform=ax_psd.transAxes, ha="right", va="top",
+-            fontsize=theme.SIZE_LABEL - 1, color=theme.GREY_MID,
++            0.99,
++            0.95,
++            "no clear peak",
++            transform=ax_psd.transAxes,
++            ha="right",
++            va="top",
++            fontsize=theme.SIZE_LABEL - 1,
++            color=theme.GREY_MID,
+             fontstyle="italic",
+         )
+ 
+@@ -212,8 +258,8 @@ def _despine(ax):
+     ax.spines["right"].set_visible(False)
+ 
+ 
+-FI_RATES_HZ = [2, 5, 10, 20, 40, 70, 100]   # uniform Poisson input rates (Hz)
+-FI_EI = {"coba": "0", "ping": "1.5"}         # ei-strength per condition
++FI_RATES_HZ = [2, 5, 10, 20, 40, 70, 100]  # uniform Poisson input rates (Hz)
++FI_EI = {"coba": "0", "ping": "1.5"}  # ei-strength per condition
+ FI_T_MS = 400
+ 
+ 
+@@ -235,16 +281,33 @@ def fi_sweep() -> dict:
+             out_dir.mkdir(parents=True, exist_ok=True)
+             argv = [
+                 "sim",
+-                "--model", "ping", "--input", "synthetic-spikes",
+-                "--n-hidden", "1024", "--n-inh", "256",
+-                "--ei-strength", ei,
+-                "--w-in", "1.5", "0.3", "--w-in-sparsity", "0.95",
+-                "--input-rate", str(rate),
+-                "--t-ms", str(FI_T_MS), "--dt", str(DT_MS),
+-                "--out-dir", str(out_dir),
++                "--model",
++                "ping",
++                "--input",
++                "synthetic-spikes",
++                "--n-hidden",
++                "1024",
++                "--n-inh",
++                "256",
++                "--ei-strength",
++                ei,
++                "--w-in",
++                "1.5",
++                "0.3",
++                "--w-in-sparsity",
++                "0.95",
++                "--input-rate",
++                str(rate),
++                "--t-ms",
++                str(FI_T_MS),
++                "--dt",
++                str(DT_MS),
++                "--out-dir",
++                str(out_dir),
+             ]
+-            subprocess.run(["uv", "run", "python", str(OSCILLOSCOPE), *argv],
+-                           cwd=REPO, check=True)
++            subprocess.run(
++                ["uv", "run", "python", str(OSCILLOSCOPE), *argv], cwd=REPO, check=True
++            )
+             m = json.loads((out_dir / "metrics.json").read_text())
+             e, i = float(m["rate_e_hz"]), float(m["rate_i_hz"])
+             out[cell]["in"].append(rate)
+@@ -255,7 +318,10 @@ def fi_sweep() -> dict:
+ 
+ 
+ def plot_raster_compound(
+-    snaps: dict, fi: dict, out_path: Path, titles: dict,
++    snaps: dict,
++    fi: dict,
++    out_path: Path,
++    titles: dict,
+     include_arch: bool = False,
+ ) -> None:
+     """Super figure: COBA vs PING side by side.
+@@ -276,22 +342,41 @@ def plot_raster_compound(
+         # Nested gridspecs so the (small) schematic→plots gap is independent of
+         # the (larger) raster→PSD gap that has to clear the time-axis label.
+         outer = GridSpec(
+-            2, 1, figure=fig, height_ratios=[2.5, 7.4], hspace=0.10,
+-            top=0.93, bottom=0.10, left=0.06, right=0.99,
++            2,
++            1,
++            figure=fig,
++            height_ratios=[2.5, 7.4],
++            hspace=0.10,
++            top=0.93,
++            bottom=0.10,
++            left=0.06,
++            right=0.99,
+         )
+         arch_gs = outer[0].subgridspec(1, 2, wspace=0.5)
+         plot_gs = outer[1].subgridspec(
+-            2, 4, height_ratios=[4.4, 2.6], hspace=0.4, wspace=0.5,
++            2,
++            4,
++            height_ratios=[4.4, 2.6],
++            hspace=0.4,
++            wspace=0.5,
+         )
+     else:
+         arch_gs = None
+         plot_gs = GridSpec(
+-            2, 4, figure=fig, height_ratios=[4.4, 2.6],
+-            hspace=0.4, wspace=0.5, top=0.92, bottom=0.12, left=0.06, right=0.99,
++            2,
++            4,
++            figure=fig,
++            height_ratios=[4.4, 2.6],
++            hspace=0.4,
++            wspace=0.5,
++            top=0.92,
++            bottom=0.12,
++            left=0.06,
++            right=0.99,
+         )
+     fi_max = max(max(fi[c]["e"] + fi[c]["i"]) for c in ("coba", "ping"))
+ 
+-    f_gamma: dict[str, float | None] = {}   # measured peak per cell → numbers.json
++    f_gamma: dict[str, float | None] = {}  # measured peak per cell → numbers.json
+     for col, cell in enumerate(("coba", "ping")):
+         c0 = 2 * col
+         s = snaps[cell]
+@@ -305,19 +390,28 @@ def plot_raster_compound(
+             _draw_schematic(ax_arch, cell)
+             ax_arch.set_title(titles[cell], loc="left", fontweight="semibold")
+ 
+-        ax_r = fig.add_subplot(plot_gs[0, c0:c0 + 2])    # one raster, I above E
+-        ax_psd = fig.add_subplot(plot_gs[1, c0])         # PSD next to f–I
++        ax_r = fig.add_subplot(plot_gs[0, c0 : c0 + 2])  # one raster, I above E
++        ax_psd = fig.add_subplot(plot_gs[1, c0])  # PSD next to f–I
+         ax_fi = fig.add_subplot(plot_gs[1, c0 + 1])
+ 
+         # Combined raster: E (black) at the bottom, I (red) stacked directly
+         # above it in the same axes — no vertical gap between the populations.
+         n_e = spk_e.shape[1]
+         e_idx, e_t = np.where(spk_e.T)
+-        ax_r.scatter(t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|", linewidths=0.5)
++        ax_r.scatter(
++            t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|", linewidths=0.5
++        )
+         if has_i:
+             n_i = spk_i.shape[1]
+             i_idx, i_t = np.where(spk_i.T)
+-            ax_r.scatter(t_ms[i_t], n_e + i_idx, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.5)
++            ax_r.scatter(
++                t_ms[i_t],
++                n_e + i_idx,
++                s=1.0,
++                c=theme.DEEP_RED,
++                marker="|",
++                linewidths=0.5,
++            )
+             ax_r.axhline(n_e, color=theme.GREY_MID, lw=0.6, alpha=0.6)
+             total = n_e + n_i
+             ax_r.set_yticks([n_e / 2, n_e + n_i / 2])
+@@ -326,10 +420,17 @@ def plot_raster_compound(
+             total = n_e
+             ax_r.set_yticks([n_e / 2])
+             ax_r.set_yticklabels(["E"])
+-            ax_r.text(0.99, 0.97, "no I population (loop off)",
+-                      transform=ax_r.transAxes, ha="right", va="top",
+-                      color=theme.GREY_MID, fontstyle="italic",
+-                      fontsize=theme.SIZE_LABEL - 1)
++            ax_r.text(
++                0.99,
++                0.97,
++                "no I population (loop off)",
++                transform=ax_r.transAxes,
++                ha="right",
++                va="top",
++                color=theme.GREY_MID,
++                fontstyle="italic",
++                fontsize=theme.SIZE_LABEL - 1,
++            )
+         ax_r.set_ylim(0, total)
+         ax_r.set_xlim(0, T * dt)
+         ax_r.set_xlabel("time (ms)")
+@@ -352,25 +453,50 @@ def plot_raster_compound(
+         # loop-off control has scattered input-driven power, not a rhythm.
+         if has_i and f_peak is not None:
+             ax_psd.axvline(f_peak, color=theme.DEEP_RED, lw=0.9, ls="--", alpha=0.8)
+-            ax_psd.text(f_peak, ax_psd.get_ylim()[1] * 0.95,
+-                        f"  $f_\\gamma$ = {f_peak:.1f} Hz", ha="left", va="top",
+-                        fontsize=theme.SIZE_LABEL - 1, color=theme.DEEP_RED,
+-                        fontweight="semibold")
++            ax_psd.text(
++                f_peak,
++                ax_psd.get_ylim()[1] * 0.95,
++                f"  $f_\\gamma$ = {f_peak:.1f} Hz",
++                ha="left",
++                va="top",
++                fontsize=theme.SIZE_LABEL - 1,
++                color=theme.DEEP_RED,
++                fontweight="semibold",
++            )
+         elif not has_i:
+-            ax_psd.text(0.97, 0.95, "no recurrent gamma\n(loop off)",
+-                        transform=ax_psd.transAxes, ha="right", va="top",
+-                        fontsize=theme.SIZE_LABEL - 1, color=theme.GREY_MID,
+-                        fontstyle="italic")
++            ax_psd.text(
++                0.97,
++                0.95,
++                "no recurrent gamma\n(loop off)",
++                transform=ax_psd.transAxes,
++                ha="right",
++                va="top",
++                fontsize=theme.SIZE_LABEL - 1,
++                color=theme.GREY_MID,
++                fontstyle="italic",
++            )
+         else:
+-            ax_psd.text(0.97, 0.95, "no clear peak", transform=ax_psd.transAxes,
+-                        ha="right", va="top", fontsize=theme.SIZE_LABEL - 1,
+-                        color=theme.GREY_MID, fontstyle="italic")
++            ax_psd.text(
++                0.97,
++                0.95,
++                "no clear peak",
++                transform=ax_psd.transAxes,
++                ha="right",
++                va="top",
++                fontsize=theme.SIZE_LABEL - 1,
++                color=theme.GREY_MID,
++                fontstyle="italic",
++            )
+ 
+         # f–I curve (bottom-right of the pair); shared y-scale shows the
+         # dynamic-range compression PING applies relative to COBA.
+         f = fi[cell]
+-        ax_fi.plot(f["in"], f["e"], color=theme.INK_BLACK, marker="o", ms=3, lw=1.3, label="E")
+-        ax_fi.plot(f["in"], f["i"], color=theme.DEEP_RED, marker="s", ms=3, lw=1.3, label="I")
++        ax_fi.plot(
++            f["in"], f["e"], color=theme.INK_BLACK, marker="o", ms=3, lw=1.3, label="E"
++        )
++        ax_fi.plot(
++            f["in"], f["i"], color=theme.DEEP_RED, marker="s", ms=3, lw=1.3, label="I"
++        )
+         ax_fi.set_ylim(0, fi_max * 1.05)
+         ax_fi.set_xlim(0, max(FI_RATES_HZ))
+         ax_fi.set_xlabel("input rate (Hz)")
+@@ -434,8 +560,7 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
+         # Short left-aligned title: the concise cell label ("COBA"/"PING") plus
+         # the panel descriptor. The full recipe lives in the caption, not here —
+         # a long centred title steals width and squishes the trace.
+-        ax.set_title(f"{title} · {panel_title}", loc="left",
+-                     fontsize=theme.SIZE_LABEL)
++        ax.set_title(f"{title} · {panel_title}", loc="left", fontsize=theme.SIZE_LABEL)
          ax.legend(loc="upper right", fontsize=theme.SIZE_LEGEND)
          fig.tight_layout()
          panel_stem = out_path.with_name(f"{out_path.name}__{suffix}")
-@@ -656,7 +660,9 @@ def main() -> None:
-         }
- 
-         traces_dst = FIGURES / f"traces__{cell}"
--        panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, spec["title"])
-+        # Short label for the per-panel titles (the full recipe is in the mdx
-+        # caption); the long spec["title"] squished the small trace tiles.
-+        panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, cell.upper())
-         for p in panel_paths:
-             figures[p.stem] = p
-             print(f"wrote {p}.{{svg,pdf}}")
-diff --git a/src/notebooks/nb024.py b/src/notebooks/nb024.py
-index cdd55ac..0fe6a28 100644
---- a/src/notebooks/nb024.py
-+++ b/src/notebooks/nb024.py
-@@ -34,7 +34,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- 
- SLUG = "nb024"
-@@ -49,15 +48,21 @@ EPOCHS: int = 100
- 
- SEEDS: tuple[int, ...] = (42, 43, 44)
- 
--# Tier governs max_samples only; epochs is held at EPOCHS above.
--TIER_CONFIG = {
--    "extra small": dict(max_samples=100),
--    "small": dict(max_samples=500),
--    "medium": dict(max_samples=2000),
--    "large": dict(max_samples=5000),
--    "extra large": dict(max_samples=10000),
-+MAX_SAMPLES: int = 2000
-+BATCH_SIZE: int = 256
-+
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset": "mnist",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs": EPOCHS,
-+    "t_ms": T_MS,
-+    "dt_ms": DT_TRAIN,
-+    "batch_size": BATCH_SIZE,
-+    "seeds": len(SEEDS),
-+    "cells": len(SEEDS) * 2,
- }
--DEFAULT_TIER = "medium"
- 
- MODELS = ["coba", "ping"]
- MODEL_RECIPES: dict[str, dict] = {
-@@ -102,13 +107,13 @@ def cell_dir(model: str, seed: int) -> Path:
-     return shared_cell_dir(cell_name(model, None, seed))
- 
- 
--def build_train_args(model: str, seed: int, tier: str, out_dir: Path) -> list[str]:
-+def build_train_args(model: str, seed: int, out_dir: Path) -> list[str]:
-     recipe = MODEL_RECIPES[model]
-     args = [
-         "train",
-         "--model", recipe["__build_as"],
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-+        "--max-samples", str(MAX_SAMPLES),
-         "--epochs", str(EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(DT_TRAIN),
-@@ -810,7 +815,6 @@ def plot_confidence_inflation(out_path: Path, run_id: str) -> None:
- 
- 
- def main() -> None:
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     skip_training = "--skip-training" in sys.argv
-     only_missing = "--only-missing" in sys.argv
-@@ -820,7 +824,7 @@ def main() -> None:
-     notebook_run_id = next_run_id(SLUG)
-     n_cells = len(MODELS) * len(SEEDS)
-     print(
--        f"notebook_run_id = {notebook_run_id} tier={tier} epochs={EPOCHS} "
-+        f"notebook_run_id = {notebook_run_id} epochs={EPOCHS} "
-         f"cells={n_cells}"
-         + ("  [skip-training]" if skip_training else "")
-         + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-@@ -829,6 +833,8 @@ def main() -> None:
-     prepare_run_dirs(
-         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-         make_artifacts=False,
-+        scale=SCALE,
-+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-     )
- 
-     # Training lives in nb022 now (train-once / reuse-many): the θ_u=off
-@@ -861,7 +867,6 @@ def main() -> None:
-         "git_sha": train_cfg.get("git_sha"),
-         "duration_s": round(duration_s, 1),
-         "duration": format_duration(duration_s),
--        "tier": tier,
-         "config": {"dataset": "mnist", "models": MODELS, "seeds": list(SEEDS),
-                    "epochs": EPOCHS, "t_ms": T_MS, "dt": DT_TRAIN},
-         "final": finals,
-diff --git a/src/notebooks/nb025.py b/src/notebooks/nb025.py
-index 1998820..3fd3555 100644
---- a/src/notebooks/nb025.py
-+++ b/src/notebooks/nb025.py
-@@ -47,7 +47,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
- 
-@@ -55,14 +54,8 @@ SLUG = "nb025"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
- OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
- 
--TIER_CONFIG = {
--    "extra small": dict(max_samples=100, epochs=2),
--    "small": dict(max_samples=500, epochs=10),
--    "medium": dict(max_samples=2000, epochs=100),
--    "large": dict(max_samples=5000, epochs=100),
--    "extra large": dict(max_samples=10000, epochs=100),
--}
--DEFAULT_TIER = "small"
-+MAX_SAMPLES = 500
-+EPOCHS = 10
- T_MS = 200.0
- DT_TRAIN = 0.1
- 
-@@ -98,6 +91,20 @@ FR_STRENGTH_UPPER = 1e-3
- 
- MODELS = ["coba", "ping"]
- 
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset": "mnist",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs": EPOCHS,
-+    "t_ms": T_MS,
-+    "dt_ms": DT_TRAIN,
-+    "batch_size": 256,
-+    "seeds": len(SEEDS_BASELINE),
-+    "cells": len(MODELS) * len(THETA_U_GRID),
-+    "grid": "θ_u ∈ {off, 5, 2, 1, 0.5, 0.2} spikes/trial; baselines 100 epochs",
-+}
-+
- MODEL_RECIPES: dict[str, dict] = {
-     "coba": {
-         "__build_as": "ping",
-@@ -183,14 +190,14 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
- 
- 
- def build_train_args(
--    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
-+    model: str, theta_u: float | None, seed: int, out_dir: Path
- ) -> list[str]:
-     recipe = MODEL_RECIPES[model]
-     args = [
-         "train",
-         "--model", recipe["__build_as"],
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-+        "--max-samples", str(MAX_SAMPLES),
-         "--epochs", str(BASELINE_EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(DT_TRAIN),
-@@ -910,7 +917,7 @@ def low_w_in_cell_dir(w_in: float) -> Path:
-     return ARTIFACTS / f"ping__low_w_in__win{label}"
- 
- 
--def build_low_w_in_args(w_in: float, tier: str, out_dir: Path) -> list[str]:
-+def build_low_w_in_args(w_in: float, out_dir: Path) -> list[str]:
-     """Train args for the low-w_in alternate-schedule sweep:
-     PING recipe with --w-in overridden and θ_u = 0.2 on from epoch 0."""
-     recipe = dict(MODEL_RECIPES["ping"])
-@@ -919,8 +926,8 @@ def build_low_w_in_args(w_in: float, tier: str, out_dir: Path) -> list[str]:
-         "train",
-         "--model", recipe["__build_as"],
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
--        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
-+        "--max-samples", str(MAX_SAMPLES),
-+        "--epochs", str(EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(DT_TRAIN),
-         "--seed", str(LOW_W_IN_SEED),
-@@ -1398,7 +1405,6 @@ def main() -> None:
-     if "--compound-only" in sys.argv:
-         build_results_compound()
-         return
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     skip_training = "--skip-training" in sys.argv
-     wipe_dir = "--no-wipe-dir" not in sys.argv
-@@ -1407,13 +1413,15 @@ def main() -> None:
-     notebook_run_id = next_run_id(SLUG)
-     n_cells = len(MODELS) * len(THETA_U_GRID)
-     print(
--        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
-+        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
-         + ("  [skip-training]" if skip_training else "")
-     )
- 
-     prepare_run_dirs(
-         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-         make_artifacts=False,
-+        scale=SCALE,
-+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-     )
- 
-     only_missing = "--only-missing" in sys.argv
-@@ -1438,7 +1446,7 @@ def main() -> None:
-                 + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-             )
-             dispatcher.submit(
--                build_low_w_in_args(w_in, tier, out),
-+                build_low_w_in_args(w_in, out),
-                 out,
-                 gpu_override=gpu_override,
-             )
-@@ -1578,17 +1586,15 @@ def main() -> None:
-         "git_sha": train_cfg.get("git_sha"),
-         "duration_s": round(duration_s, 1),
-         "duration": format_duration(duration_s),
--        "tier": tier,
-         "config": {
--            "tier": tier,
-             "dataset": "mnist",
-             "models": MODELS,
-             "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
-             "theta_u_grid_hz": [
-                 theta_hz(t) for t in THETA_U_GRID if t is not None
-             ],
--            "max_samples": TIER_CONFIG[tier]["max_samples"],
--            "epochs": TIER_CONFIG[tier]["epochs"],
-+            "max_samples": MAX_SAMPLES,
-+            "epochs": EPOCHS,
-             "t_ms": T_MS,
-             "dt": DT_TRAIN,
-             "seeds_baseline": SEEDS_BASELINE,
-diff --git a/src/notebooks/nb036.py b/src/notebooks/nb036.py
-index d0cedc6..dfab5b0 100644
---- a/src/notebooks/nb036.py
-+++ b/src/notebooks/nb036.py
-@@ -33,7 +33,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
- 
-@@ -41,14 +40,7 @@ SLUG = "nb036"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
- OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
- 
--TIER_CONFIG = {
--    "extra small": dict(max_samples=100, epochs=1),
--    "small": dict(max_samples=500, epochs=5),
--    "medium": dict(max_samples=2000, epochs=10),
--    "large": dict(max_samples=5000, epochs=40),
--    "extra large": dict(max_samples=10000, epochs=40),
--}
--DEFAULT_TIER = "small"
-+MAX_SAMPLES = 500
- T_MS = 200.0
- DT_TRAIN = 0.1
- 
-@@ -113,14 +105,6 @@ MODEL_COLORS = {
- }
- MODEL_MARKERS = {"coba": "s", "ping": "D"}
- 
--MIN_ACC_BY_TIER = {
--    "extra small": 15.0,
--    "small": 30.0,
--    "medium": 50.0,
--    "large": 70.0,
--    "extra large": 70.0,
--}
--
- 
- def theta_label(theta_u: float | None) -> str:
-     """Filesystem-safe label for an out-dir."""
-@@ -159,14 +143,14 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
- 
- 
- def build_train_args(
--    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
-+    model: str, theta_u: float | None, seed: int, out_dir: Path
- ) -> list[str]:
-     recipe = MODEL_RECIPES[model]
-     args = [
-         "train",
-         "--model", recipe["__build_as"],
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-+        "--max-samples", str(MAX_SAMPLES),
-         "--epochs", str(BASELINE_EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(DT_TRAIN),
-@@ -377,7 +361,7 @@ def wei_wie_grid_cell_dir(w_ei: float, w_ie: float) -> Path:
- 
- 
- def build_wei_wie_grid_args(
--    w_ei: float, w_ie: float, tier: str, out_dir: Path,
-+    w_ei: float, w_ie: float, out_dir: Path,
- ) -> list[str]:
-     """Train PING with explicit --w-ei and --w-ie overrides plus θ_u
-     rate penalty. Uses the standard PING recipe in MODEL_RECIPES
-@@ -388,7 +372,7 @@ def build_wei_wie_grid_args(
-         "train",
-         "--model", recipe["__build_as"],
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-+        "--max-samples", str(MAX_SAMPLES),
-         "--epochs", str(WEI_WIE_GRID_EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(DT_TRAIN),
-@@ -597,7 +581,7 @@ def wei_diagonal_cell_dir(w_ei: float, seed: int) -> Path:
- 
- 
- def build_wei_diagonal_args(
--    w_ei: float, seed: int, tier: str, out_dir: Path,
-+    w_ei: float, seed: int, out_dir: Path,
- ) -> list[str]:
-     w_ie = w_ei * WEI_DIAGONAL_RATIO
-     recipe = dict(MODEL_RECIPES["ping"])
-@@ -606,7 +590,7 @@ def build_wei_diagonal_args(
-         "train",
-         "--model", recipe["__build_as"],
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-+        "--max-samples", str(MAX_SAMPLES),
-         "--epochs", str(WEI_DIAGONAL_EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(DT_TRAIN),
-@@ -740,8 +724,25 @@ def plot_wei_diagonal_acc_vs_e(
- # ── End W_ei diagonal sweep ──────────────────────────────────────────
- 
- 
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset": "mnist",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs": WEI_WIE_GRID_EPOCHS,
-+    "t_ms": T_MS,
-+    "dt_ms": DT_TRAIN,
-+    "batch_size": 256,
-+    "seeds": len(WEI_DIAGONAL_SEEDS),
-+    "cells": (
-+        len(WEI_WIE_GRID_VALUES) ** 2
-+        + len(WEI_DIAGONAL_VALUES) * len(WEI_DIAGONAL_SEEDS)
-+    ),
-+    "grid": "5×5 (W^EI,W^IE) grid + 10-point W^EI diagonal × 3 seeds",
-+}
-+
-+
- def main() -> None:
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     skip_training = "--skip-training" in sys.argv
-     wipe_dir = "--no-wipe-dir" not in sys.argv
-@@ -750,13 +751,15 @@ def main() -> None:
-     notebook_run_id = next_run_id(SLUG)
-     n_cells = len(MODELS) * len(THETA_U_GRID)
-     print(
--        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
-+        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
-         + ("  [skip-training]" if skip_training else "")
-     )
- 
-     prepare_run_dirs(
-         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-         make_artifacts=False,
-+        scale=SCALE,
-+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-     )
- 
-     only_missing = "--only-missing" in sys.argv
-@@ -784,7 +787,7 @@ def main() -> None:
-                     + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-                 )
-                 dispatcher.submit(
--                    build_wei_wie_grid_args(w_ei, w_ie, tier, out),
-+                    build_wei_wie_grid_args(w_ei, w_ie, out),
-                     out,
-                     gpu_override=gpu_override,
-                 )
-@@ -804,7 +807,7 @@ def main() -> None:
-                     + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-                 )
-                 dispatcher.submit(
--                    build_wei_diagonal_args(w_ei, seed, tier, out),
-+                    build_wei_diagonal_args(w_ei, seed, out),
-                     out,
-                     gpu_override=gpu_override,
-                 )
-@@ -936,17 +939,15 @@ def main() -> None:
-         "git_sha": train_cfg.get("git_sha"),
-         "duration_s": round(duration_s, 1),
-         "duration": format_duration(duration_s),
--        "tier": tier,
-         "config": {
--            "tier": tier,
-             "dataset": "mnist",
-             "models": MODELS,
-             "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
-             "theta_u_grid_hz": [
-                 theta_hz(t) for t in THETA_U_GRID if t is not None
-             ],
--            "max_samples": TIER_CONFIG[tier]["max_samples"],
--            "epochs": TIER_CONFIG[tier]["epochs"],
-+            "max_samples": MAX_SAMPLES,
-+            "epochs": 5,
-             "t_ms": T_MS,
-             "dt": DT_TRAIN,
-             "seeds_baseline": SEEDS_BASELINE,
-diff --git a/src/notebooks/nb037.py b/src/notebooks/nb037.py
-index d4ac439..e559453 100644
---- a/src/notebooks/nb037.py
-+++ b/src/notebooks/nb037.py
-@@ -35,7 +35,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
- 
-@@ -43,14 +42,7 @@ SLUG = "nb037"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
- OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
- 
--TIER_CONFIG = {
--    "extra small": dict(max_samples=100, epochs=1),
--    "small": dict(max_samples=500, epochs=5),
--    "medium": dict(max_samples=2000, epochs=10),
--    "large": dict(max_samples=5000, epochs=40),
--    "extra large": dict(max_samples=10000, epochs=40),
--}
--DEFAULT_TIER = "small"
-+MAX_SAMPLES = 500
- T_MS = 200.0
- DT_TRAIN = 0.1
- 
-@@ -124,15 +116,20 @@ MODEL_COLORS = {
- }
- MODEL_MARKERS = {"coba": "s", "ping": "D"}
- 
--MIN_ACC_BY_TIER = {
--    "extra small": 15.0,
--    "small": 30.0,
--    "medium": 50.0,
--    "large": 70.0,
--    "extra large": 70.0,
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset": "mnist",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs": BASELINE_EPOCHS,
-+    "t_ms": T_MS,
-+    "dt_ms": DT_TRAIN,
-+    "batch_size": 256,
-+    "seeds": len(SEEDS_BASELINE),
-+    "cells": len(MODELS) * len(THETA_U_GRID),
-+    "grid": THETA_U_GRID,
- }
- 
--
- def theta_label(theta_u: float | None) -> str:
-     """Filesystem-safe label for an out-dir."""
-     if theta_u is None:
-@@ -170,14 +167,14 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
- 
- 
- def build_train_args(
--    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
-+    model: str, theta_u: float | None, seed: int, out_dir: Path
- ) -> list[str]:
-     recipe = MODEL_RECIPES[model]
-     args = [
-         "train",
-         "--model", recipe["__build_as"],
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-+        "--max-samples", str(MAX_SAMPLES),
-         "--epochs", str(BASELINE_EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(DT_TRAIN),
-@@ -451,7 +448,6 @@ def main() -> None:
-     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
-     theme.set_paper_mode(True)
- 
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     skip_training = "--skip-training" in sys.argv
-     wipe_dir = "--no-wipe-dir" not in sys.argv
-@@ -460,13 +456,15 @@ def main() -> None:
-     notebook_run_id = next_run_id(SLUG)
-     n_cells = len(MODELS) * len(THETA_U_GRID)
-     print(
--        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
-+        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
-         + ("  [skip-training]" if skip_training else "")
-     )
- 
-     prepare_run_dirs(
-         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-         make_artifacts=False,
-+        scale=SCALE,
-+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-     )
- 
-     # Training lives in nb022 now (train-once / reuse-many). This notebook
-@@ -576,17 +574,15 @@ def main() -> None:
-         "git_sha": train_cfg.get("git_sha"),
-         "duration_s": round(duration_s, 1),
-         "duration": format_duration(duration_s),
--        "tier": tier,
-         "config": {
--            "tier": tier,
-             "dataset": "mnist",
-             "models": MODELS,
-             "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
-             "theta_u_grid_hz": [
-                 theta_hz(t) for t in THETA_U_GRID if t is not None
-             ],
--            "max_samples": TIER_CONFIG[tier]["max_samples"],
--            "epochs": TIER_CONFIG[tier]["epochs"],
-+            "max_samples": MAX_SAMPLES,
-+            "epochs": BASELINE_EPOCHS,
-             "t_ms": T_MS,
-             "dt": DT_TRAIN,
-             "seeds_baseline": SEEDS_BASELINE,
-diff --git a/src/notebooks/nb038.py b/src/notebooks/nb038.py
-index a6cfebd..dc79ef1 100644
---- a/src/notebooks/nb038.py
-+++ b/src/notebooks/nb038.py
-@@ -38,7 +38,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
- 
-@@ -46,24 +45,32 @@ SLUG = "nb038"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
- OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
- 
--TIER_CONFIG = {
--    "extra small": dict(max_samples=100, epochs=1),
--    "small": dict(max_samples=500, epochs=5),
--    "medium": dict(max_samples=2000, epochs=10),
--    "large": dict(max_samples=5000, epochs=40),
--    "extra large": dict(max_samples=10000, epochs=40),
--}
--DEFAULT_TIER = "small"
-+MAX_SAMPLES = 500
-+EPOCHS = 5
- T_MS = 200.0
- DT_TRAIN = 0.1
- 
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset": "mnist",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs": EPOCHS,
-+    "t_ms": T_MS,
-+    "dt_ms": DT_TRAIN,
-+    "batch_size": 256,
-+    "seeds": 3,  # SEEDS_BASELINE
-+    "cells": 12,  # len(MODELS) * len(THETA_U_GRID)
-+    "grid": [None, 5.0, 2.0, 1.0, 0.5, 0.2],  # THETA_U_GRID (spikes/trial)
-+}
-+
- # Baseline (θ_u = off) cells are trained at multiple seeds so the
- # headline bar chart and learning curves can show mean ± SEM. The θ_u
- # sweep cells stay single-seed — the frontier *shape* is dominated by
- # the regulariser, not the seed.
- SEEDS_BASELINE: list[int] = [42, 43, 44]
- SEED_SWEEP: int = 42
--BASELINE_EPOCHS: int = 30  # overrides TIER_CONFIG epochs for baselines
-+BASELINE_EPOCHS: int = 30  # overrides SCALE epochs for baselines
- 
- # Inference-time ei_strength sweep on the coba__off__seed42 baseline.
- # Subsumes the now-retired nb019 — trains nothing new; just runs the
-@@ -118,14 +125,6 @@ MODEL_COLORS = {
- }
- MODEL_MARKERS = {"coba": "s", "ping": "D"}
- 
--MIN_ACC_BY_TIER = {
--    "extra small": 15.0,
--    "small": 30.0,
--    "medium": 50.0,
--    "large": 70.0,
--    "extra large": 70.0,
--}
--
- 
- def theta_label(theta_u: float | None) -> str:
-     """Filesystem-safe label for an out-dir."""
-@@ -164,14 +163,14 @@ def baseline_dir(model: str, seed: int = SEEDS_BASELINE[0]) -> Path:
- 
- 
- def build_train_args(
--    model: str, theta_u: float | None, seed: int, tier: str, out_dir: Path
-+    model: str, theta_u: float | None, seed: int, out_dir: Path
- ) -> list[str]:
-     recipe = MODEL_RECIPES[model]
-     args = [
-         "train",
-         "--model", recipe["__build_as"],
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
-+        "--max-samples", str(MAX_SAMPLES),
-         "--epochs", str(BASELINE_EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(DT_TRAIN),
-@@ -812,7 +811,6 @@ def main() -> None:
-     if "--compound-only" in sys.argv:
-         build_loop_transfer_compound()
-         return
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     skip_training = "--skip-training" in sys.argv
-     wipe_dir = "--no-wipe-dir" not in sys.argv
-@@ -821,13 +819,15 @@ def main() -> None:
-     notebook_run_id = next_run_id(SLUG)
-     n_cells = len(MODELS) * len(THETA_U_GRID)
-     print(
--        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
-+        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
-         + ("  [skip-training]" if skip_training else "")
-     )
- 
-     prepare_run_dirs(
-         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-         make_artifacts=False,
-+        scale=SCALE,
-+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-     )
- 
-     # Training lives in nb022 now (train-once / reuse-many). This notebook
-@@ -903,17 +903,15 @@ def main() -> None:
-         "git_sha": train_cfg.get("git_sha"),
-         "duration_s": round(duration_s, 1),
-         "duration": format_duration(duration_s),
--        "tier": tier,
-         "config": {
--            "tier": tier,
-             "dataset": "mnist",
-             "models": MODELS,
-             "theta_u_grid_spikes": [t for t in THETA_U_GRID if t is not None],
-             "theta_u_grid_hz": [
-                 theta_hz(t) for t in THETA_U_GRID if t is not None
-             ],
--            "max_samples": TIER_CONFIG[tier]["max_samples"],
--            "epochs": TIER_CONFIG[tier]["epochs"],
-+            "max_samples": MAX_SAMPLES,
-+            "epochs": EPOCHS,
-             "t_ms": T_MS,
-             "dt": DT_TRAIN,
-             "seeds_baseline": SEEDS_BASELINE,
-diff --git a/src/notebooks/nb041.py b/src/notebooks/nb041.py
-index 3bd91df..7cdf5af 100644
---- a/src/notebooks/nb041.py
-+++ b/src/notebooks/nb041.py
-@@ -42,7 +42,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- 
- SLUG = "nb041"
-@@ -73,18 +72,8 @@ RASTER_N_E_PLOT: int = 200
- RASTER_N_I_PLOT: int = 64
- RASTER_T_WINDOW_MS: float = 100.0
- 
--TIER_CONFIG = {
--    "extra small": dict(max_samples=100, epochs=2),
--    "small": dict(max_samples=500, epochs=10),
--    # Medium tier upgraded 2026-06-03 to match nb024's convergence
--    # finding: PING rate is a converged operating point at 100 epochs
--    # but is still drifting at 30. Re-anchors the affine fit slope p
--    # at converged values.
--    "medium": dict(max_samples=2000, epochs=100),
--    "large": dict(max_samples=5000, epochs=100),
--    "extra large": dict(max_samples=10000, epochs=100),
--}
--DEFAULT_TIER = "small"
-+MAX_SAMPLES = 500
-+EPOCHS = 10
- 
- # Match nb025 PING recipe — same network, same optimiser,
- # same readout; only τ_GABA varies.
-@@ -100,6 +89,20 @@ PING_RECIPE: dict[str, str] = {
-     "--batch-size": "256",
- }
- 
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset": "mnist",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs": EPOCHS,
-+    "t_ms": T_MS,
-+    "dt_ms": DT_TRAIN,
-+    "batch_size": int(PING_RECIPE["--batch-size"]),
-+    "seeds": len(SEEDS),
-+    "cells": len(TAU_GABA_SWEEP) * len(SEEDS),
-+    "grid": list(TAU_GABA_SWEEP),
-+}
-+
- 
- def tau_label(tau_ms: float) -> str:
-     s = f"{tau_ms:g}".replace(".", "p")
-@@ -112,13 +115,13 @@ def cell_dir(tau_ms: float, seed: int) -> Path:
-     return shared_cell_dir(f"ping__{tau_label(tau_ms)}__seed{seed}")
- 
- 
--def build_train_args(tau_ms: float, seed: int, tier: str, out_dir: Path) -> list[str]:
-+def build_train_args(tau_ms: float, seed: int, out_dir: Path) -> list[str]:
-     args = [
-         "train",
-         "--model", "ping",
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
--        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
-+        "--max-samples", str(MAX_SAMPLES),
-+        "--epochs", str(EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(DT_TRAIN),
-         "--seed", str(seed),
-@@ -642,7 +645,6 @@ def main() -> None:
-     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
-     theme.set_paper_mode(True)
- 
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     skip_training = "--skip-training" in sys.argv
-     only_missing = "--only-missing" in sys.argv
-@@ -652,7 +654,7 @@ def main() -> None:
-     notebook_run_id = next_run_id(SLUG)
-     n_cells = len(TAU_GABA_SWEEP) * len(SEEDS)
-     print(
--        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
-+        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
-         + ("  [skip-training]" if skip_training else "")
-         + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-     )
-@@ -660,6 +662,8 @@ def main() -> None:
-     prepare_run_dirs(
-         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-         make_artifacts=False,
-+        scale=SCALE,
-+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-     )
- 
-     # Training lives in nb022 now (train-once / reuse-many): the τ_GABA ladder
-@@ -722,15 +726,13 @@ def main() -> None:
-         "git_sha": train_cfg.get("git_sha"),
-         "duration_s": round(duration_s, 1),
-         "duration": format_duration(duration_s),
--        "tier": tier,
-         "config": {
--            "tier": tier,
-             "dataset": "mnist",
-             "tau_gaba_sweep_ms": list(TAU_GABA_SWEEP),
-             "seeds": list(SEEDS),
-             "f_gamma_band_hz": list(F_GAMMA_BAND_HZ),
--            "max_samples": TIER_CONFIG[tier]["max_samples"],
--            "epochs": TIER_CONFIG[tier]["epochs"],
-+            "max_samples": MAX_SAMPLES,
-+            "epochs": EPOCHS,
-             "t_ms": T_MS,
-             "dt": DT_TRAIN,
-         },
-diff --git a/src/notebooks/nb042.py b/src/notebooks/nb042.py
-index 99d394b..b8e35c2 100644
---- a/src/notebooks/nb042.py
-+++ b/src/notebooks/nb042.py
-@@ -35,21 +35,20 @@ import numpy as np
- REPO = Path(__file__).resolve().parents[2]
- sys.path.insert(0, str(REPO / "src"))
- 
-+from helpers import theme  # noqa: E402
-+from helpers.datasets import load_mnist_split  # noqa: E402
- from helpers.figsave import save_figure  # noqa: E402
- from helpers.fmt import format_duration  # noqa: E402
- from helpers.modal import parse_modal_gpu  # noqa: E402
--from helpers.paths import artifacts_and_figures  # noqa: E402
--from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
--from helpers.run_id import next_run_id  # noqa: E402
--from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
--from helpers import theme  # noqa: E402
--from helpers.datasets import load_mnist_split  # noqa: E402
- from helpers.operating_point import (  # noqa: E402
-     F_GAMMA_HZ,
-     MODELS_DEFAULT_TAU_GABA_MS,
-     TAU_GABA_GAMMA_MS,
- )
-+from helpers.paths import artifacts_and_figures  # noqa: E402
-+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
-+from helpers.run_id import next_run_id  # noqa: E402
-+from helpers.stamp import stamp_figure  # noqa: E402
- 
- SLUG = "nb042"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-@@ -121,14 +120,23 @@ RASTER_SAMPLE_IDX: int = 0
- RASTER_N_E_PLOT: int = 200
- RASTER_N_I_PLOT: int = 64
- 
--TIER_CONFIG = {
--    "extra small": dict(),
--    "small": dict(),
--    "medium": dict(),
--    "large": dict(),
--    "extra large": dict(),
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+# nb042 is inference-only against the trained nb025 PING baseline, so the
-+# dataset / max_samples / t_ms / dt_ms are inherited from each cell's own
-+# config.json at run time. What this runner declares is the evaluation grid:
-+# how many seeds and cells it sweeps, and the perturbation grids.
-+SCALE = {
-+    "dataset": "mnist",
-+    "seeds": len(SEEDS),
-+    "cells": len(CONDITIONS),
-+    "grid": (
-+        f"jitter σ ×{len(JITTER_SIGMAS_MS)}, "
-+        f"cell-jitter σ ×{len(CELL_JITTER_SIGMAS_MS)}, "
-+        f"α×k = {len(MIX_ALPHA_GRID)}×{len(MIX_K_GRID)}, "
-+        f"xtau τ×σ = {len(XTAU_TAU_GABAS_MS)}×{len(XTAU_SIGMAS_MS)}"
-+    ),
- }
--DEFAULT_TIER = "medium"
- 
- 
- # ─── trained-network loading (mirrors nb037 helper) ─────────────────
-@@ -1519,14 +1527,12 @@ def main() -> None:
-         return
- 
-     parser = argparse.ArgumentParser(description=__doc__)
--    parser.add_argument("--tier", default=DEFAULT_TIER)
-     parser.add_argument("--modal-gpu", default="none")
-     parser.add_argument("--no-wipe-dir", action="store_true")
-     parser.add_argument("--seeds", nargs="*", type=int, default=list(SEEDS),
-                         help="subset of nb025 PING seeds to evaluate")
-     args = parser.parse_args()
- 
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     if modal_gpu:
-         raise SystemExit(
-@@ -1535,10 +1541,11 @@ def main() -> None:
- 
-     t_start = time.monotonic()
-     notebook_run_id = next_run_id(SLUG)
--    print(f"notebook_run_id = {notebook_run_id} tier={tier} seeds={args.seeds}")
-+    print(f"notebook_run_id = {notebook_run_id} seeds={args.seeds}")
- 
-     prepare_run_dirs(
-         SLUG, notebook_run_id, wipe=not args.no_wipe_dir, make_artifacts=True,
-+        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
-     )
- 
-     rows: list[dict] = []
-@@ -1810,7 +1817,6 @@ def main() -> None:
-         "notebook_run_id": notebook_run_id,
-         "duration_s": round(duration_s, 1),
-         "duration": format_duration(duration_s),
--        "tier": tier,
-         "config": {
-             "seeds": list(args.seeds),
-             "conditions": list(CONDITIONS),
-diff --git a/src/notebooks/nb044.py b/src/notebooks/nb044.py
-index 4b6efd0..029677a 100644
---- a/src/notebooks/nb044.py
-+++ b/src/notebooks/nb044.py
-@@ -34,7 +34,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- 
- SLUG = "nb044"
-@@ -62,18 +61,22 @@ RASTER_N_E_PLOT: int = 200
- RASTER_N_I_PLOT: int = 64
- RASTER_T_WINDOW_MS: float = 100.0  # show first 100 ms so the cycle is visible
- 
--TIER_CONFIG = {
--    "extra small": dict(max_samples=100, epochs=2),
--    "small": dict(max_samples=500, epochs=10),
--    # Medium tier upgraded 2026-06-03 to 100 epochs to match the
--    # convergence audit in nb024. PING's rate is a converged operating
--    # point at this horizon; the Δt-vs-rate scaling becomes a converged
--    # measurement rather than a training-snapshot.
--    "medium": dict(max_samples=2000, epochs=100),
--    "large": dict(max_samples=5000, epochs=100),
--    "extra large": dict(max_samples=10000, epochs=100),
-+# Baked run scale (the retired "small" tier).
-+MAX_SAMPLES: int = 500
-+EPOCHS: int = 10
-+
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset": "mnist",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs": EPOCHS,
-+    "t_ms": T_MS,
-+    "batch_size": BATCH_SIZE,
-+    "seeds": len(SEEDS),
-+    "cells": len(DT_SWEEP_MS) * len(SEEDS),
-+    "grid": "5 Δt × 3 seeds (Δt ∈ {0.05, 0.1, 0.25, 0.5, 1.0} ms)",
- }
--DEFAULT_TIER = "small"
- 
- # Match nb025 PING recipe except for --batch-size (held at BATCH_SIZE
- # here) and --dt (per cell).
-@@ -100,13 +103,13 @@ def cell_dir(dt_ms: float, seed: int) -> Path:
-     return shared_cell_dir(f"ping__{dt_label(dt_ms)}__seed{seed}")
- 
- 
--def build_train_args(dt_ms: float, seed: int, tier: str, out_dir: Path) -> list[str]:
-+def build_train_args(dt_ms: float, seed: int, out_dir: Path) -> list[str]:
-     args = [
-         "train",
-         "--model", "ping",
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
--        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
-+        "--max-samples", str(MAX_SAMPLES),
-+        "--epochs", str(EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(dt_ms),
-         "--batch-size", str(BATCH_SIZE),
-@@ -367,7 +370,6 @@ def plot_training_curves(out_path: Path, run_id: str) -> None:
-     plt.close(fig)
- 
- def main() -> None:
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     skip_training = "--skip-training" in sys.argv
-     only_missing = "--only-missing" in sys.argv
-@@ -381,7 +383,7 @@ def main() -> None:
-     notebook_run_id = next_run_id(SLUG)
-     n_cells = len(DT_SWEEP_MS) * len(SEEDS)
-     print(
--        f"notebook_run_id = {notebook_run_id} tier={tier} cells={n_cells}"
-+        f"notebook_run_id = {notebook_run_id} cells={n_cells}"
-         + ("  [skip-training]" if skip_training else "")
-         + (f"  [modal:{modal_gpu}]" if modal_gpu else "")
-     )
-@@ -389,6 +391,8 @@ def main() -> None:
-     prepare_run_dirs(
-         SLUG, notebook_run_id, wipe=wipe_dir, skip_training=skip_training,
-         make_artifacts=False,
-+        scale=SCALE,
-+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-     )
- 
-     # Training lives in nb022 now (train-once / reuse-many): the dt sweep is a
-@@ -437,15 +441,13 @@ def main() -> None:
-         "git_sha": train_cfg.get("git_sha"),
-         "duration_s": round(duration_s, 1),
-         "duration": format_duration(duration_s),
--        "tier": tier,
-         "config": {
--            "tier": tier,
-             "dataset": "mnist",
-             "dt_sweep_ms": list(DT_SWEEP_MS),
-             "seeds": list(SEEDS),
-             "batch_size": BATCH_SIZE,
--            "max_samples": TIER_CONFIG[tier]["max_samples"],
--            "epochs": TIER_CONFIG[tier]["epochs"],
-+            "max_samples": MAX_SAMPLES,
-+            "epochs": EPOCHS,
-             "t_ms": T_MS,
-         },
-         "results": rows,
-diff --git a/src/notebooks/nb046.py b/src/notebooks/nb046.py
-index 83ba556..86bc33e 100644
---- a/src/notebooks/nb046.py
-+++ b/src/notebooks/nb046.py
-@@ -34,14 +34,13 @@ import numpy as np
- REPO = Path(__file__).resolve().parents[2]
- sys.path.insert(0, str(REPO / "src"))
- 
-+from helpers import theme  # noqa: E402
- from helpers.figsave import save_figure  # noqa: E402
-+from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
- from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
--from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
--from helpers import theme  # noqa: E402
- 
- SLUG = "nb046"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-@@ -58,14 +57,14 @@ NB041_NUMBERS = (
- TAU_GABA_SWEEP_MS: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
- SEEDS: tuple[int, ...] = (42, 43, 44)
- 
--TIER_CONFIG = {
--    "extra small": dict(),
--    "small": dict(),
--    "medium": dict(),
--    "large": dict(),
--    "extra large": dict(),
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset": "mnist",
-+    "seeds": len(SEEDS),
-+    "cells": len(TAU_GABA_SWEEP_MS) * len(SEEDS),
-+    "grid": f"{len(TAU_GABA_SWEEP_MS)} tau_GABA x {len(SEEDS)} seeds",
- }
--DEFAULT_TIER = "medium"
- 
- 
- def tau_label(tau_ms: float) -> str:
-@@ -377,7 +376,6 @@ def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path, run_id: str) -> dic
- 
- def main() -> None:
-     parser = argparse.ArgumentParser(description=__doc__)
--    parser.add_argument("--tier", default=DEFAULT_TIER)
-     parser.add_argument("--no-wipe-dir", action="store_true")
-     parser.add_argument("--seeds", nargs="*", type=int, default=list(SEEDS))
-     parser.add_argument("--tau-gabas", nargs="*", type=float,
-@@ -388,8 +386,7 @@ def main() -> None:
-     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
-     theme.set_paper_mode(True)
- 
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
--    print(f"notebook_run_id = (allocating) tier={tier}")
-+    print("notebook_run_id = (allocating)")
- 
-     t_start = time.monotonic()
-     notebook_run_id = next_run_id(SLUG)
-@@ -398,7 +395,7 @@ def main() -> None:
-     print(f"  seeds:   {args.seeds}")
- 
-     prepare_run_dirs(SLUG, notebook_run_id, wipe=not args.no_wipe_dir,
--                     make_artifacts=True)
-+                     make_artifacts=True, scale=SCALE, host="local")
- 
-     f_gamma_map = load_nb041_f_gamma()
-     print(f"loaded f_γ for {len(f_gamma_map)} nb041 cells")
-@@ -462,7 +459,6 @@ def main() -> None:
-         "notebook_run_id": notebook_run_id,
-         "duration_s": duration_s,
-         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
--        "tier": tier,
-         "config": {
-             "tau_gabas_ms": list(args.tau_gabas),
-             "seeds": list(args.seeds),
-diff --git a/src/notebooks/nb047.py b/src/notebooks/nb047.py
-index d61b7f6..0e876bd 100644
---- a/src/notebooks/nb047.py
-+++ b/src/notebooks/nb047.py
-@@ -26,18 +26,16 @@ import time
- from pathlib import Path
- 
- import matplotlib.pyplot as plt
--import numpy as np
- 
- REPO = Path(__file__).resolve().parents[2]
- sys.path.insert(0, str(REPO / "src"))
- 
-+from helpers import theme  # noqa: E402
- from helpers.figsave import save_figure  # noqa: E402
- from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
--from helpers import theme  # noqa: E402
- 
- SLUG = "nb047"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-@@ -71,14 +69,22 @@ W_IE_REL_STD: float = 0.1  # per-synapse spread held at 10% of the mean
- W_IE_VALUES: list[float] = [0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
- N_I_SWEEP: list[int] = [16, 64, 256]
- 
--TIER_CONFIG: dict[str, dict] = {
--    "extra small": dict(n_batch=1),
--    "small": dict(n_batch=4),
--    "medium": dict(n_batch=16),
--    "large": dict(n_batch=64),
--    "extra large": dict(n_batch=256),
-+# Baked "small"-tier run scale (retired --tier system): batch of 4 trials.
-+N_BATCH: int = 4
-+
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE: dict = {
-+    "input": "synthetic-spikes",
-+    "max_samples": N_BATCH,
-+    "t_ms": T_MS,
-+    "dt_ms": DT,
-+    "input_rate_hz": INPUT_RATE_HZ,
-+    "hidden": N_E,
-+    "batch_size": N_BATCH,
-+    "seeds": 1,
-+    "grid": len(W_IE_VALUES) * len(N_I_SWEEP),
- }
--DEFAULT_TIER: str = "small"
- 
- 
- # ── Net build ───────────────────────────────────────────────────────
-@@ -180,9 +186,7 @@ def plot_summary(rows_by_ni: dict, out_path: Path, run_id: str) -> None:
- 
- # ── Main ────────────────────────────────────────────────────────────
- def main() -> None:
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
--    cfg = TIER_CONFIG[tier]
--    n_batch = int(cfg["n_batch"])
-+    n_batch = N_BATCH
-     wipe_dir = "--no-wipe-dir" not in sys.argv
- 
-     # Publication profile: every figure this notebook writes is a print-sized
-@@ -190,11 +194,12 @@ def main() -> None:
-     theme.set_paper_mode(True)
- 
-     notebook_run_id = next_run_id(SLUG)
--    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=True)
-+    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=True,
-+                     scale=SCALE, host="local")
- 
-     t_start = time.monotonic()
-     print(f"[w_ie x n_inh sweep] N_E={N_E}  input={INPUT_RATE_HZ:g} Hz  "
--          f"batch={n_batch}  tier={tier}")
-+          f"batch={n_batch}")
-     rows_by_ni: dict[int, list[dict]] = {}
-     for n_inh in N_I_SWEEP:
-         print(f"--- N_I = {n_inh} ---")
-@@ -215,7 +220,6 @@ def main() -> None:
-         "notebook_run_id": notebook_run_id,
-         "duration_s": round(duration_s, 1),
-         "config": {
--            "tier": tier,
-             "n_e": N_E,
-             "n_in": N_IN,
-             "t_ms": T_MS,
-diff --git a/src/notebooks/nb048.py b/src/notebooks/nb048.py
-index e3bb25d..1a53f0e 100644
---- a/src/notebooks/nb048.py
-+++ b/src/notebooks/nb048.py
-@@ -39,7 +39,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- from helpers.datasets import load_mnist_split  # noqa: E402
- 
-@@ -77,15 +76,11 @@ INPUT_RATE_HZ: float = 25.0      # canonical Poisson input rate
- TAU_HEADLINE_MS: float = 50.0    # digit duration in headline figure
- N_DIGITS_HEADLINE: int = 5       # number of digits in the headline stream
- 
--# Sweep tier-driven counts. Stream count = streams × digits × seeds.
--TIER_CONFIG: dict[str, dict] = {
--    "extra small": dict(n_streams=4, n_per_stream=4, n_grid_streams=2),
--    "small":       dict(n_streams=20, n_per_stream=10, n_grid_streams=40),
--    "medium":      dict(n_streams=80, n_per_stream=10, n_grid_streams=80),
--    "large":       dict(n_streams=200, n_per_stream=10, n_grid_streams=200),
--    "extra large": dict(n_streams=400, n_per_stream=10, n_grid_streams=400),
--}
--DEFAULT_TIER: str = "small"
-+# Sweep counts — baked from the retired "small" tier. Stream count =
-+# streams × digits × seeds.
-+N_STREAMS: int = 20
-+N_PER_STREAM: int = 10
-+N_GRID_STREAMS: int = 40
- 
- # τ sweep — multiples of the gamma cycle (≈ 28 ms at τ_GABA = 9 ms).
- TAU_SWEEP_MS: list[float] = [25.0, 50.0, 100.0, 200.0]
-@@ -112,6 +107,17 @@ RASTER_N_I_PLOT: int = 64
- 
- SEED: int = 42
- 
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE: dict = {
-+    "dataset": "mnist",
-+    "t_ms": TRAINED_T_MS,
-+    "dt_ms": DT,
-+    "input_rate_hz": INPUT_RATE_HZ,
-+    "seeds": len(SEEDS),
-+    "grid": f"{len(TAU_GRID_MS)}×{len(RATE_GRID_HZ)}",
-+}
-+
- 
- # ── Net build / load ────────────────────────────────────────────────
- def _load_eval(seed: int = SEEDS[0]):
-@@ -1031,13 +1037,14 @@ def main() -> None:
-         print(f"wrote {FIGURES / 'acc_grid_tau_rate'}.png (replotted from cache)")
-         return
- 
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
--    cfg_tier = TIER_CONFIG[tier]
-     notebook_run_id = next_run_id(SLUG)
--    prepare_run_dirs(SLUG, notebook_run_id, wipe=False, make_artifacts=True)
-+    prepare_run_dirs(
-+        SLUG, notebook_run_id, wipe=False, make_artifacts=True,
-+        scale=SCALE, host="local",
+@@ -462,24 +587,26 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
+         i_i_in = -gi_trace * (v_e[:, e_idx] - E_I)
+         i_l_in = -G_L_E * (v_e[:, e_idx] - E_L)
+         ax.axhline(0.0, color=theme.FAINT, lw=0.5)
+-        ax.plot(t_ms, i_e_in, color=theme.INK_BLACK, lw=0.9,
+-                label="I_E in (depol.)")
++        ax.plot(t_ms, i_e_in, color=theme.INK_BLACK, lw=0.9, label="I_E in (depol.)")
+         if has_gi_e:
+-            ax.plot(t_ms, i_i_in, color=theme.DEEP_RED, lw=0.9,
+-                    label="I_I in (hyperpol.)")
+-        ax.plot(t_ms, i_l_in, color=theme.FAINT, lw=0.7, ls=":",
+-                label="I_L in (leak)")
++            ax.plot(
++                t_ms, i_i_in, color=theme.DEEP_RED, lw=0.9, label="I_I in (hyperpol.)"
++            )
++        ax.plot(t_ms, i_l_in, color=theme.FAINT, lw=0.7, ls=":", label="I_L in (leak)")
+ 
+     written = [
+-        _save_panel(_draw_v_e, "v_e",
+-                    f"V_E (neuron {e_idx})  [mV]",
+-                    "E-neuron membrane voltage"),
+-        _save_panel(_draw_g_e, "g_e",
+-                    "g  [µS]",
+-                    f"E-neuron conductances (cell {e_idx})"),
+-        _save_panel(_draw_i_e, "i_e",
+-                    "I in  [+ depol. / − hyperpol.]",
+-                    f"E-neuron signed currents (cell {e_idx})"),
++        _save_panel(
++            _draw_v_e, "v_e", f"V_E (neuron {e_idx})  [mV]", "E-neuron membrane voltage"
++        ),
++        _save_panel(
++            _draw_g_e, "g_e", "g  [µS]", f"E-neuron conductances (cell {e_idx})"
++        ),
++        _save_panel(
++            _draw_i_e,
++            "i_e",
++            "I in  [+ depol. / − hyperpol.]",
++            f"E-neuron signed currents (cell {e_idx})",
++        ),
+     ]
+ 
+     # ── I neuron ─────────────────────────────────────────────────────
+@@ -493,29 +620,36 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
+             ax.axhline(-50.0, color=theme.FAINT, lw=0.5, ls="--", label="V_th")
+ 
+         def _draw_g_i(ax):
+-            ax.plot(t_ms, ge_trace_i, color=theme.INK_BLACK, lw=0.9,
+-                    label="g_E (exc)")
++            ax.plot(t_ms, ge_trace_i, color=theme.INK_BLACK, lw=0.9, label="g_E (exc)")
+             ax.axhline(G_L_I, color=theme.FAINT, lw=0.7, ls=":", label="g_L (leak)")
+ 
+         def _draw_i_i(ax):
+             i_e_in_i = -ge_trace_i * (v_i[:, i_idx] - E_E)
+             i_l_in_i = -G_L_I * (v_i[:, i_idx] - E_L)
+             ax.axhline(0.0, color=theme.FAINT, lw=0.5)
+-            ax.plot(t_ms, i_e_in_i, color=theme.INK_BLACK, lw=0.9,
+-                    label="I_E in (depol.)")
+-            ax.plot(t_ms, i_l_in_i, color=theme.FAINT, lw=0.7, ls=":",
+-                    label="I_L in (leak)")
++            ax.plot(
++                t_ms, i_e_in_i, color=theme.INK_BLACK, lw=0.9, label="I_E in (depol.)"
++            )
++            ax.plot(
++                t_ms, i_l_in_i, color=theme.FAINT, lw=0.7, ls=":", label="I_L in (leak)"
++            )
+ 
+         written += [
+-            _save_panel(_draw_v_i, "v_i",
+-                        f"V_I (neuron {i_idx})  [mV]",
+-                        "I-neuron membrane voltage"),
+-            _save_panel(_draw_g_i, "g_i",
+-                        "g  [µS]",
+-                        f"I-neuron conductances (cell {i_idx})"),
+-            _save_panel(_draw_i_i, "i_i",
+-                        "I in  [+ depol.]",
+-                        f"I-neuron signed currents (cell {i_idx})"),
++            _save_panel(
++                _draw_v_i,
++                "v_i",
++                f"V_I (neuron {i_idx})  [mV]",
++                "I-neuron membrane voltage",
++            ),
++            _save_panel(
++                _draw_g_i, "g_i", "g  [µS]", f"I-neuron conductances (cell {i_idx})"
++            ),
++            _save_panel(
++                _draw_i_i,
++                "i_i",
++                "I in  [+ depol.]",
++                f"I-neuron signed currents (cell {i_idx})",
++            ),
+         ]
+     return written
+ 
+@@ -525,25 +659,62 @@ def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
+ 
+ def _arch_box(ax, cx, cy, w, h, label, fontsize=15):
+     """A black-edged population box with a centred monospace label."""
+-    ax.add_patch(Rectangle(
+-        (cx - w / 2, cy - h / 2), w, h,
+-        fill=False, edgecolor=theme.INK_BLACK, lw=1.8, zorder=3,
+-    ))
+-    ax.text(cx, cy, label, ha="center", va="center",
+-            fontsize=fontsize, color=theme.INK_BLACK, zorder=4)
++    ax.add_patch(
++        Rectangle(
++            (cx - w / 2, cy - h / 2),
++            w,
++            h,
++            fill=False,
++            edgecolor=theme.INK_BLACK,
++            lw=1.8,
++            zorder=3,
++        )
++    )
++    # va="center" leaves the font's descender gap below the glyph, so a
++    # capital (E/I, no descender) sits high and hugs the box top — exaggerated
++    # when the panel isn't equal-aspect. Nudge down a few points (aspect-
++    # independent) to optically centre the letter.
++    ax.annotate(
++        label,
++        (cx, cy),
++        textcoords="offset points",
++        xytext=(0, -0.18 * fontsize),
++        ha="center",
++        va="center",
++        fontsize=fontsize,
++        color=theme.INK_BLACK,
++        zorder=4,
 +    )
  
-     t_start = time.monotonic()
--    print(f"[streaming] tier={tier}  seeds={SEEDS}")
-+    print(f"[streaming] seeds={SEEDS}")
  
-     # Headlines (Figs 1, 3) use the first seed only — they're single-trial
-     # demos, not aggregate measurements.
-@@ -1070,23 +1077,23 @@ def main() -> None:
-         print(f"[tau-sweep] constant input ({INPUT_RATE_HZ:g} Hz)  seed {sd}")
-         rows_constant += run_tau_sweep(
-             train_dir, cfg, X_te, y_te, train_seed=sd,
--            n_streams=int(cfg_tier["n_streams"]),
--            n_per_stream=int(cfg_tier["n_per_stream"]),
-+            n_streams=N_STREAMS,
-+            n_per_stream=N_PER_STREAM,
-             rate_compensate=False,
-         )
-         print(f"[tau-sweep] rate-compensated  seed {sd}")
-         rows_comp += run_tau_sweep(
-             train_dir, cfg, X_te, y_te, train_seed=sd,
--            n_streams=int(cfg_tier["n_streams"]),
--            n_per_stream=int(cfg_tier["n_per_stream"]),
-+            n_streams=N_STREAMS,
-+            n_per_stream=N_PER_STREAM,
-             rate_compensate=True,
-         )
-         print(f"[grid-sweep] τ × rate "
-               f"({len(TAU_GRID_MS)}×{len(RATE_GRID_HZ)} cells)  seed {sd}")
-         grid_rows += run_grid_sweep(
-             train_dir, cfg, X_te, y_te, train_seed=sd,
--            n_streams=int(cfg_tier["n_grid_streams"]),
--            n_per_stream=int(cfg_tier["n_per_stream"]),
-+            n_streams=N_GRID_STREAMS,
-+            n_per_stream=N_PER_STREAM,
-         )
- 
-     tau_agg = (
-@@ -1106,7 +1113,6 @@ def main() -> None:
-         "notebook_run_id": notebook_run_id,
-         "duration_s": round(duration_s, 1),
-         "config": {
--            "tier": tier,
-             "n_e": N_E, "n_i": N_I, "n_in": N_IN, "n_classes": N_CLASSES,
-             "dt": DT, "trained_t_ms": TRAINED_T_MS,
-             "tau_headline_ms": TAU_HEADLINE_MS,
-@@ -1115,9 +1121,9 @@ def main() -> None:
-             "tau_grid_ms": TAU_GRID_MS,
-             "rate_grid_hz": RATE_GRID_HZ,
-             "input_rate_hz": INPUT_RATE_HZ,
--            "n_streams": cfg_tier["n_streams"],
--            "n_grid_streams": cfg_tier["n_grid_streams"],
--            "n_per_stream": cfg_tier["n_per_stream"],
-+            "n_streams": N_STREAMS,
-+            "n_grid_streams": N_GRID_STREAMS,
-+            "n_per_stream": N_PER_STREAM,
-             "train_seeds": SEEDS,
-             "seed": SEED,
-         },
-diff --git a/src/notebooks/nb049.py b/src/notebooks/nb049.py
-index 26ae5f0..30e7c9a 100644
---- a/src/notebooks/nb049.py
-+++ b/src/notebooks/nb049.py
-@@ -43,21 +43,14 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- 
- SLUG = "nb049"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
- OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
- 
--TIER_CONFIG = {
--    "extra small": dict(max_samples=100, epochs=2),
--    "small":       dict(max_samples=500, epochs=10),
--    "medium":      dict(max_samples=3500, epochs=100),  # 5% of the 70k MNIST corpus
--    "large":       dict(max_samples=5000, epochs=100),
--    "extra large": dict(max_samples=10000, epochs=100),
--}
--DEFAULT_TIER = "small"
-+MAX_SAMPLES = 500
-+EPOCHS = 10
- T_MS = 200.0
- DT_TRAIN = 0.1
- 
-@@ -121,6 +114,20 @@ COND_MARKERS: dict[str, str] = {
-     "trainable_small_init":  "D",
- }
- 
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset": "mnist",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs": EPOCHS,
-+    "t_ms": T_MS,
-+    "dt_ms": DT_TRAIN,
-+    "batch_size": int(COMMON_RECIPE["--batch-size"]),
-+    "seeds": len(SEEDS),
-+    "cells": len(CONDITIONS),
-+    "grid": len(CONDITIONS) * len(SEEDS),
-+}
-+
- 
- # ── Paths ───────────────────────────────────────────────────────────
- def cell_dir(condition: str, seed: int) -> Path:
-@@ -130,15 +137,15 @@ def cell_dir(condition: str, seed: int) -> Path:
+ def _arch_arrow(ax, x0, y0, x1, y1):
+     """A solid black arrow from (x0, y0) to (x1, y1)."""
+-    ax.add_patch(FancyArrowPatch(
+-        (x0, y0), (x1, y1), arrowstyle="-|>", mutation_scale=14,
+-        lw=1.6, color=theme.INK_BLACK, shrinkA=0, shrinkB=0, zorder=3,
+-    ))
++    ax.add_patch(
++        FancyArrowPatch(
++            (x0, y0),
++            (x1, y1),
++            arrowstyle="-|>",
++            mutation_scale=14,
++            lw=1.6,
++            color=theme.INK_BLACK,
++            shrinkA=0,
++            shrinkB=0,
++            zorder=3,
++        )
++    )
  
  
- def build_train_args(
--    condition: str, seed: int, tier: str, out_dir: Path,
-+    condition: str, seed: int, out_dir: Path,
- ) -> list[str]:
-     recipe = CONDITIONS[condition]
-     args = [
-         "train",
-         "--model", "ping",
-         "--dataset", "mnist",
--        "--max-samples", str(TIER_CONFIG[tier]["max_samples"]),
--        "--epochs", str(TIER_CONFIG[tier]["epochs"]),
-+        "--max-samples", str(MAX_SAMPLES),
-+        "--epochs", str(EPOCHS),
-         "--t-ms", str(T_MS),
-         "--dt", str(DT_TRAIN),
-         "--seed", str(seed),
-@@ -1307,10 +1314,13 @@ def main() -> None:
-         print(f"wrote {FIGURES / 'acc_rate_trajectory'}.{{svg,pdf}}")
-         return
+ def _arch_label(ax, x, y, text, fontsize=12):
+-    ax.text(x, y, text, ha="center", va="center",
+-            fontsize=fontsize, color=theme.INK_BLACK, zorder=4)
++    ax.text(
++        x,
++        y,
++        text,
++        ha="center",
++        va="center",
++        fontsize=fontsize,
++        color=theme.INK_BLACK,
++        zorder=4,
++    )
  
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     notebook_run_id = next_run_id(SLUG)
--    prepare_run_dirs(SLUG, notebook_run_id, wipe=False, make_artifacts=True)
-+    prepare_run_dirs(
-+        SLUG, notebook_run_id, wipe=False, make_artifacts=True,
+ 
+ def _draw_schematic(ax, kind: str) -> None:
+@@ -556,24 +727,24 @@ def _draw_schematic(ax, kind: str) -> None:
+     ax.set_xlim(0, 16)
+     ax.set_ylim(0, 9)
+     ax.axis("off")
+-    bw, bh = 3.0, 2.2          # shared box size
+-    bf, lf = 13, 10            # box-label / weight-label font sizes
++    bw, bh = 3.0, 2.6  # shared box size (taller: give E/I room off the top edge)
++    bf, lf = 13, 10  # box-label / weight-label font sizes
+     if kind == "coba":
+         _arch_box(ax, 8.0, 4.5, bw, bh, "E", fontsize=bf)
+-        _arch_arrow(ax, 2.4, 4.5, 6.4, 4.5)        # input → E
++        _arch_arrow(ax, 2.4, 4.5, 6.4, 4.5)  # input → E
+         _arch_label(ax, 4.2, 5.7, "W_in", fontsize=lf)
+-        _arch_arrow(ax, 9.6, 4.5, 13.6, 4.5)       # E → output
++        _arch_arrow(ax, 9.6, 4.5, 13.6, 4.5)  # E → output
+         _arch_label(ax, 11.6, 5.7, "W_out", fontsize=lf)
+     else:  # ping
+         _arch_box(ax, 8.0, 6.4, bw, bh, "E", fontsize=bf)
+         _arch_box(ax, 8.0, 2.0, bw, bh, "I", fontsize=bf)
+-        _arch_arrow(ax, 2.4, 6.4, 6.4, 6.4)        # input → E
++        _arch_arrow(ax, 2.4, 6.4, 6.4, 6.4)  # input → E
+         _arch_label(ax, 4.2, 7.6, "W_in", fontsize=lf)
+-        _arch_arrow(ax, 9.6, 6.4, 13.6, 6.4)       # E → output
++        _arch_arrow(ax, 9.6, 6.4, 13.6, 6.4)  # E → output
+         _arch_label(ax, 11.6, 7.6, "W_out", fontsize=lf)
+-        _arch_arrow(ax, 6.9, 5.3, 6.9, 3.1)        # E → I (down, left)
++        _arch_arrow(ax, 6.9, 5.1, 6.9, 3.3)  # E → I (down, left)
+         _arch_label(ax, 5.0, 4.2, "W_ei", fontsize=lf)
+-        _arch_arrow(ax, 9.1, 3.1, 9.1, 5.3)        # I → E (up, right)
++        _arch_arrow(ax, 9.1, 3.3, 9.1, 5.1)  # I → E (up, right)
+         _arch_label(ax, 11.0, 4.2, "W_ie", fontsize=lf)
+ 
+ 
+@@ -589,26 +760,28 @@ def plot_architecture(out_path: Path) -> None:
+     ax.axis("off")
+ 
+     # ── COBA (left), centred on x = 4 ──────────────────────────────
+-    ax.text(4.0, 7.6, "COBA", ha="center", va="center",
+-            fontsize=14, color=theme.INK_BLACK)
++    ax.text(
++        4.0, 7.6, "COBA", ha="center", va="center", fontsize=14, color=theme.INK_BLACK
++    )
+     _arch_box(ax, 4.0, 5.0, 2.4, 1.7, "E")
+-    _arch_arrow(ax, 0.7, 5.0, 2.75, 5.0)        # input → E
++    _arch_arrow(ax, 0.7, 5.0, 2.75, 5.0)  # input → E
+     _arch_label(ax, 1.7, 5.5, "W_in")
+-    _arch_arrow(ax, 5.25, 5.0, 7.3, 5.0)        # E → output
++    _arch_arrow(ax, 5.25, 5.0, 7.3, 5.0)  # E → output
+     _arch_label(ax, 6.25, 5.5, "W_out")
+ 
+     # ── PING (right), centred on x = 12 ────────────────────────────
+-    ax.text(12.0, 7.6, "PING", ha="center", va="center",
+-            fontsize=14, color=theme.INK_BLACK)
++    ax.text(
++        12.0, 7.6, "PING", ha="center", va="center", fontsize=14, color=theme.INK_BLACK
++    )
+     _arch_box(ax, 12.0, 5.5, 2.6, 1.7, "E")
+     _arch_box(ax, 12.0, 2.5, 2.6, 1.7, "I")
+-    _arch_arrow(ax, 8.5, 5.5, 10.65, 5.5)       # input → E
++    _arch_arrow(ax, 8.5, 5.5, 10.65, 5.5)  # input → E
+     _arch_label(ax, 9.55, 6.0, "W_in")
+-    _arch_arrow(ax, 13.3, 5.5, 15.4, 5.5)       # E → output
++    _arch_arrow(ax, 13.3, 5.5, 15.4, 5.5)  # E → output
+     _arch_label(ax, 14.35, 6.0, "W_out")
+-    _arch_arrow(ax, 11.3, 4.65, 11.3, 3.35)     # E → I (down, left side)
++    _arch_arrow(ax, 11.3, 4.65, 11.3, 3.35)  # E → I (down, left side)
+     _arch_label(ax, 10.25, 4.0, "W_ei")
+-    _arch_arrow(ax, 12.7, 3.35, 12.7, 4.65)     # I → E (up, right side)
++    _arch_arrow(ax, 12.7, 3.35, 12.7, 4.65)  # I → E (up, right side)
+     _arch_label(ax, 13.75, 4.0, "W_ie")
+ 
+     save_figure(fig, out_path)  # schematic line art: SVG + PDF
+@@ -628,8 +801,12 @@ def main() -> None:
+     print(f"notebook_run_id = {notebook_run_id}")
+ 
+     prepare_run_dirs(
+-        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
+-        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
++        SLUG,
++        notebook_run_id,
++        wipe=wipe_dir,
++        make_artifacts=False,
 +        scale=SCALE,
 +        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-+    )
-     t_start = time.monotonic()
- 
-     only_missing = "--only-missing" in sys.argv
-@@ -1395,9 +1405,8 @@ def main() -> None:
-         "notebook_run_id": notebook_run_id,
-         "duration_s": round(duration_s, 1),
-         "config": {
--            "tier": tier,
--            "epochs": TIER_CONFIG[tier]["epochs"],
--            "max_samples": TIER_CONFIG[tier]["max_samples"],
-+            "epochs": EPOCHS,
-+            "max_samples": MAX_SAMPLES,
-             "seeds": SEEDS,
-             "conditions": CONDITIONS,
-             "common_recipe": COMMON_RECIPE,
-diff --git a/src/notebooks/nb050.py b/src/notebooks/nb050.py
-index 3386b8c..ede3fea 100644
---- a/src/notebooks/nb050.py
-+++ b/src/notebooks/nb050.py
-@@ -28,7 +28,6 @@ from helpers.modal import parse_modal_gpu  # noqa: E402
- from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- 
- SLUG = "nb050"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-@@ -80,14 +79,14 @@ CELLS: dict[str, dict] = {
-     },
- }
- 
--TIER_CONFIG = {
--    "extra small": {},
--    "small": {},
--    "medium": {},
--    "large": {},
--    "extra large": {},
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "input": "synthetic-spikes",
-+    "t_ms": 1000,
-+    "input_rate_hz": 45,
-+    "cells": len(CELLS),
- }
--DEFAULT_TIER = "small"
- 
- 
- F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
-@@ -421,15 +420,18 @@ def plot_input_compare(snaps: dict, out_path: Path) -> None:
- 
- 
- def main() -> None:
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
--    parse_modal_gpu(sys.argv)
-+    modal_gpu = parse_modal_gpu(sys.argv)
-     wipe_dir = "--no-wipe-dir" not in sys.argv
- 
-     t_start = time.monotonic()
-     notebook_run_id = next_run_id(SLUG)
--    print(f"notebook_run_id = {notebook_run_id} tier={tier}")
-+    print(f"notebook_run_id = {notebook_run_id}")
- 
--    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
-+    prepare_run_dirs(
-+        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
-+        scale=SCALE,
-+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-+    )
+     )
  
      figures: dict[str, Path] = {}
-     summary_rows: list[dict] = []
-@@ -493,7 +495,6 @@ def main() -> None:
+@@ -690,8 +867,10 @@ def main() -> None:
+     print(f"wrote {overview_dst}.{{png,pdf}}")
+ 
+     for cell, fg in f_gamma.items():
+-        print(f"  f_gamma[{cell}] = {fg if fg is None else round(fg, 2)} Hz "
+-              "(measured from the shown raster's E population PSD)")
++        print(
++            f"  f_gamma[{cell}] = {fg if fg is None else round(fg, 2)} Hz "
++            "(measured from the shown raster's E population PSD)"
++        )
+ 
+     duration_s = time.monotonic() - t_start
      summary = {
-         "notebook_run_id": notebook_run_id,
-         "duration_s": round(duration_s, 1),
--        "tier": tier,
-         "common_args": COMMON_ARGS,
-         "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
-         "summary": summary_rows,
-diff --git a/src/notebooks/nb054.py b/src/notebooks/nb054.py
-index aae821c..f53356c 100644
---- a/src/notebooks/nb054.py
-+++ b/src/notebooks/nb054.py
-@@ -22,7 +22,6 @@ Notebook entry: src/docs/src/pages/notebooks/nb054.mdx
- from __future__ import annotations
- 
- import json
--import shutil
- import subprocess
- import sys
- import time
-@@ -36,8 +35,8 @@ sys.path.insert(0, str(REPO / "src"))
- 
- from helpers.modal import parse_modal_gpu  # noqa: E402
- from helpers.paths import artifacts_and_figures  # noqa: E402
--from helpers.run_id import next_run_id, persist as persist_run_id  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
-+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
-+from helpers.run_id import next_run_id  # noqa: E402
- from helpers import theme  # noqa: E402
- from helpers.rhythmicity import (  # noqa: E402
-     iei_histogram,
-@@ -88,16 +87,20 @@ def _display_idx(n):
- PRIVATE_NULL_INPUT_HZ = [1.0, 2.0, 5.0, 10.0, 20.0, 40.0, 70.0, 100.0]
- SHARED_NULL_INPUT_HZ = [8.0, 12.0, 16.0, 20.0, 28.0, 40.0, 60.0, 100.0]
- 
--# The size tier scales only the simulation length (more spikes ⇒ cleaner
--# autocorrelogram); the default (medium = 1000 ms) is what the frozen figures use.
--TIER_CONFIG = {
--    "extra small": dict(sim_ms=500.0),
--    "small": dict(sim_ms=750.0),
--    "medium": dict(sim_ms=1000.0),
--    "large": dict(sim_ms=2000.0),
--    "extra large": dict(sim_ms=4000.0),
-+# Simulation length (more spikes ⇒ cleaner autocorrelogram); this is what the
-+# frozen figures use (the retired "medium" tier).
-+SIM_MS = 1000.0
-+
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "input": "private per-cell Poisson",
-+    "t_ms": SIM_MS,
-+    "dt_ms": DT_MS,
-+    "input_rate_hz": NET_INPUT_RATE,
-+    "cells": len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID),
-+    "grid": f"{len(WEI_MEAN_GRID)} W_EI x {len(WIE_MEAN_GRID)} W_IE",
- }
--DEFAULT_TIER = "medium"
- 
- 
- def ping_spikes(wei, wie, rate_hz, sim_ms, dt, private=True):
-@@ -648,24 +651,21 @@ def fig_null_autocorr(shared_null, priv_null, out_path):
- 
- def main():
-     argv = sys.argv[1:]
--    tier = parse_tier(argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(argv)  # accepted for contract parity; unused (local CPU)
--    sim_ms = TIER_CONFIG[tier]["sim_ms"]
-+    sim_ms = SIM_MS
- 
-     if modal_gpu:
-         print("note: nb054 is local CPU; --modal-gpu ignored.")
- 
-     t_start = time.monotonic()
--    for d in (ARTIFACTS, FIGURES):
--        if d.exists():
--            shutil.rmtree(d)
--        d.mkdir(parents=True, exist_ok=True)
-     notebook_run_id = next_run_id(SLUG)
-+    prepare_run_dirs(SLUG, notebook_run_id, make_artifacts=True, scale=SCALE,
-+                     host=f"modal:{modal_gpu}" if modal_gpu else "local")
-     theme.apply()
-     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
- 
-     n_nets = len(WEI_MEAN_GRID) * len(WIE_MEAN_GRID)
--    print(f"nb054 | tier={tier} | {n_nets} untrained PING networks, private "
-+    print(f"nb054 | {n_nets} untrained PING networks, private "
-           f"{NET_INPUT_RATE:.0f} Hz per-cell Poisson input, sim {sim_ms:.0f} ms (compiles per net)…")
-     grid = run_grid(NET_INPUT_RATE, sim_ms)
-     fig_turnon_maps_compound(grid, FIGURES / "turnon_maps_compound.png")
-@@ -694,7 +694,6 @@ def main():
-         "notebook_run_id": notebook_run_id,
-         "duration_s": duration_s,
-         "duration": f"{int(duration_s // 60)}m {int(duration_s % 60):02d}s",
--        "tier": tier,
-         "config": {
-             "source": "untrained PING networks, private per-cell Poisson input",
-             "dt_ms": DT_MS,
-@@ -736,7 +735,6 @@ def main():
-         },
-     }
-     (FIGURES / "numbers.json").write_text(json.dumps(numbers, indent=2, default=float))
--    persist_run_id(SLUG, notebook_run_id)
-     print(f"wrote {FIGURES / 'numbers.json'}")
-     print(f"\nTotal runtime: {numbers['duration']}")
- 
-diff --git a/src/notebooks/nb057.py b/src/notebooks/nb057.py
-index 09bd168..823a443 100644
---- a/src/notebooks/nb057.py
-+++ b/src/notebooks/nb057.py
-@@ -32,18 +32,22 @@ from helpers.modal import parse_modal_gpu  # noqa: E402
- from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- 
- SLUG = "nb057"
- _, FIGURES = artifacts_and_figures(SLUG)
- 
--# Tiers only set the nb054 grid sim length (the nb033 numerics are fixed).
--TIER_CONFIG = {
--    "small": {"sim_ms": 750.0},
--    "medium": {"sim_ms": 1000.0},
--    "large": {"sim_ms": 2000.0},
-+# nb054 grid sim length (the nb033 numerics are fixed).
-+SIM_MS = 1000.0
-+
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "t_ms": SIM_MS,
-+    "dt_ms": 0.25,
-+    "input_rate_hz": 100.0,
-+    "cells": 256,
-+    "grid": "11×11 (W_EI × W_IE)",
- }
--DEFAULT_TIER = "medium"
- 
- 
- def _load_runner(slug: str):
-@@ -214,15 +218,17 @@ def main() -> None:
-     # Publication profile: print-sized vectors, emitted as both PNG/SVG (docs)
-     # and PDF (manuscript) by save_figure.
-     theme.set_paper_mode(True)
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
--    parse_modal_gpu(sys.argv)  # local CPU; modal unused.
-+    modal_gpu = parse_modal_gpu(sys.argv)  # local CPU; modal unused.
-     wipe_dir = "--no-wipe-dir" not in sys.argv
--    sim_ms = TIER_CONFIG[tier]["sim_ms"]
-+    sim_ms = SIM_MS
- 
-     t_start = time.monotonic()
-     notebook_run_id = next_run_id(SLUG)
--    print(f"notebook_run_id = {notebook_run_id} tier={tier}")
--    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
-+    print(f"notebook_run_id = {notebook_run_id}")
-+    prepare_run_dirs(
-+        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
-+        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
-+    )
- 
-     nb054 = _load_runner("nb054")
-     nb033 = _load_runner("nb033")
-diff --git a/src/notebooks/nb058.py b/src/notebooks/nb058.py
-index 77006e6..72cac0e 100644
---- a/src/notebooks/nb058.py
-+++ b/src/notebooks/nb058.py
-@@ -32,7 +32,6 @@ from helpers.modal import parse_modal_gpu  # noqa: E402
- from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- 
- SLUG = "nb058"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-@@ -146,14 +145,16 @@ LYAP_EPS = "0.1"
- LYAP_T_MS = "500"
- LYAP_FIT_MS = (5.0, 80.0)   # balanced growth window (post-flip, pre-saturation)
- 
--TIER_CONFIG = {
--    "extra small": {},
--    "small": {},
--    "medium": {},
--    "large": {},
--    "extra large": {},
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "input": "synthetic-spikes",
-+    "t_ms": 1000,
-+    "input_rate_hz": 1,
-+    "seeds": len(SWEEP_SEEDS),
-+    "cells": len(CELLS),
-+    "grid": K_SWEEP_KS,
- }
--DEFAULT_TIER = "small"
- 
- 
- F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
-@@ -642,15 +643,18 @@ def plot_lyapunov(lyap: dict, out_path: Path) -> None:
- 
- 
- def main() -> None:
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
--    parse_modal_gpu(sys.argv)
-+    modal_gpu = parse_modal_gpu(sys.argv)
-     wipe_dir = "--no-wipe-dir" not in sys.argv
- 
-     t_start = time.monotonic()
-     notebook_run_id = next_run_id(SLUG)
--    print(f"notebook_run_id = {notebook_run_id} tier={tier}")
-+    print(f"notebook_run_id = {notebook_run_id}")
- 
--    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
-+    prepare_run_dirs(
-+        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
-+        scale=SCALE,
-+        host=f"modal:{modal_gpu}" if modal_gpu else "local",
-+    )
- 
-     figures: dict[str, Path] = {}
-     summary_rows: list[dict] = []
-@@ -714,7 +718,6 @@ def main() -> None:
-     summary = {
-         "notebook_run_id": notebook_run_id,
-         "duration_s": round(duration_s, 1),
--        "tier": tier,
-         "common_args": COMMON_ARGS,
-         "cells": {cell: spec["args"] for cell, spec in CELLS.items()},
-         "summary": summary_rows,
-diff --git a/src/notebooks/nb062.py b/src/notebooks/nb062.py
-index fe7aef9..cb69ca5 100644
---- a/src/notebooks/nb062.py
-+++ b/src/notebooks/nb062.py
-@@ -45,26 +45,34 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
- from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
- from helpers.run_id import next_run_id  # noqa: E402
- from helpers.stamp import stamp_figure  # noqa: E402
--from helpers.tier import parse_tier  # noqa: E402
- from helpers import theme  # noqa: E402
- 
- SLUG = "nb062"
- ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
- OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
- 
--# Tier sizing — max-samples × epochs. ETAs are rough single-run MPS estimates
--# at the dt=2 ms / t=1000 ms grid (500 timesteps per trial, n_hidden=128):
--TIER_CONFIG = {
--    "extra small": dict(max_samples=300,  epochs=2),   # ≈ 5 s   (smoke)
--    "small":       dict(max_samples=1000, epochs=8),   # ≈ 20 s
--    "medium":      dict(max_samples=3000, epochs=20),  # ≈ 50 s  (default)
--    "large":       dict(max_samples=5000, epochs=40),  # ≈ 150 s (headline)
--    "extra large": dict(max_samples=8500, epochs=60),  # ≈ 270 s (full train)
--}
--DEFAULT_TIER = "medium"
-+# Run scale — max-samples × epochs, baked at the former "medium" tier. ETA is
-+# a rough single-run MPS estimate at the dt=2 ms / t=1000 ms grid (500
-+# timesteps per trial, n_hidden=128): ≈ 50 s.
-+MAX_SAMPLES = 3000
-+EPOCHS = 20
- 
- SEED = 42
- 
-+# Run scale — stamped into the manifest by run_dirs.prepare and rendered as
-+# the Methods table via RunScale; the mdx never restates these numbers.
-+SCALE = {
-+    "dataset":     "shd",
-+    "max_samples": MAX_SAMPLES,
-+    "epochs":      EPOCHS,
-+    "t_ms":        1000,
-+    "dt_ms":       2.0,
-+    "hidden":      128,
-+    "batch_size":  256,
-+    "seeds":       1,
-+    "cells":       1,
-+}
-+
- # Hardcoded recipe. New scientific knobs go on the oscilloscope CLI (ar011);
- # this runner just passes the recipe values inline. To explore variants, use
- # autoresearch on a branch, NOT by editing this file.
-@@ -92,12 +100,11 @@ def cell_dir() -> Path:
-     return ARTIFACTS / CELL_NAME
- 
- 
--def build_train_args(tier: str, out_dir: Path) -> list[str]:
--    cfg = TIER_CONFIG[tier]
-+def build_train_args(out_dir: Path) -> list[str]:
-     args = [
-         "train",
--        "--max-samples", str(cfg["max_samples"]),
--        "--epochs",      str(cfg["epochs"]),
-+        "--max-samples", str(MAX_SAMPLES),
-+        "--epochs",      str(EPOCHS),
-         "--seed",        str(SEED),
-         "--out-dir",     str(out_dir),
-         "--wipe-dir",
-@@ -169,21 +176,23 @@ def fig_training_curves(metrics: dict, out_path: Path, run_id: str) -> None:
- 
- # ── Main ────────────────────────────────────────────────────────────
- def main() -> None:
--    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
-     modal_gpu = parse_modal_gpu(sys.argv)
-     skip_training = "--no-train" in sys.argv
-     wipe_dir = "--no-wipe-dir" not in sys.argv
- 
-     run_id = next_run_id(SLUG)
--    prepare_run_dirs(SLUG, run_id, wipe=wipe_dir, make_artifacts=True)
-+    prepare_run_dirs(
-+        SLUG, run_id, wipe=wipe_dir, make_artifacts=True,
-+        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
-+    )
- 
-     t_start = time.monotonic()
-     out = cell_dir()
- 
-     if not skip_training:
-         dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
--        print(f"[train] tier={tier}  →  {out.relative_to(REPO)}")
--        dispatcher.submit(build_train_args(tier, out), out)
-+        print(f"[train]  →  {out.relative_to(REPO)}")
-+        dispatcher.submit(build_train_args(out), out)
-         dispatcher.drain()
- 
-     metrics_path = out / "metrics.json"
-@@ -205,8 +214,6 @@ def main() -> None:
-         "duration_human":   format_duration(duration_s),
-         "train_elapsed_s":  round(train_elapsed, 1),
-         "train_elapsed_human": format_duration(train_elapsed),
--        "tier":             tier,
--        "tier_config":      TIER_CONFIG[tier],
-         "recipe":           RECIPE,
-         "seed":             SEED,
-         "best_acc":         round(best_acc, 2),

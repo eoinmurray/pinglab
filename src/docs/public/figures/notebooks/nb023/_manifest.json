@@ -1,14 +1,14 @@
 {
   "slug": "nb023",
-  "run_id": "r040",
-  "run_at": "2026-07-02T12:59:00+00:00",
-  "git_sha": "a3b4caf",
+  "run_id": "r045",
+  "run_at": "2026-07-02T13:13:56+00:00",
+  "git_sha": "957b485",
   "dirty": true,
   "code_dirty": true,
   "patch": {
     "file": "_dirty.patch",
-    "sha256": "4d3ad7696e615618f59d24e0ce418aecca7a81fac33ecf59ebea791343f92fdf",
-    "lines": 1933
+    "sha256": "0de050e34c2cb97065ed16d95918a221fc6e4727bcc11d6ae75dd0549a77f7a0",
+    "lines": 684
   },
   "host": "local",
   "scale": {
