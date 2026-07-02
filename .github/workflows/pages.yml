@@ -20,6 +20,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # Full history: the notebook status bar diffs each run's locked
+          # commit against HEAD (src/docs/src/config/staleness.ts). A shallow
+          # clone would make every entry read "unknown".
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v5
