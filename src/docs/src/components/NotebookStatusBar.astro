@@ -63,8 +63,17 @@ const STATE_META: Record<
 };
 
 const meta = STATE_META[p.state];
+// Soften the semantic hue toward the muted grey so the pip/label read as a
+// quiet status cue, not a tableau-bright alarm.
+const faintColor = `color-mix(in srgb, ${meta.color} 55%, var(--color-muted))`;
 const runDate = fmtDate(p.runAt);
 const short = p.sha ? p.sha.slice(0, 7) : null;
+// Link the runner source pinned to the run's commit (the code as it ran); fall
+// back to the default branch when the run recorded no commit.
+const runnerHref = blobUrl(
+  `src/notebooks/${slug}.py`,
+  p.sha ? { sha: p.sha } : {},
+);
 const changedTitle =
   p.state === "stale" && p.changedFiles?.length
     ? `Changed since run:\n${p.changedFiles.join("\n")}`
@@ -86,10 +95,15 @@ const render = p.state !== "unknown" || runDate != null;
 {render && (
   <div class="nb-status not-prose" title={changedTitle}>
     <span class="item status">
-      <span class="pip" style={`background:${meta.color}`} aria-hidden="true"></span>
-      <span class="state" style={`color:${meta.color}`}>{meta.label(p)}</span>
+      <span class="pip" style={`background:${faintColor}`} aria-hidden="true"></span>
+      <span class="state" style={`color:${faintColor}`}>{meta.label(p)}</span>
     </span>
     <span class="right">
+      <span class="item">
+        <a class="mono" href={runnerHref} target="_blank" rel="noopener">
+          {slug}.py
+        </a>
+      </span>
       {dateItem && (
         <span class="item">
           <span class={dateItem.mono ? "mono" : ""}>{dateItem.prefix}</span>
