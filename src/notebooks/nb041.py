@@ -34,6 +34,10 @@ sys.path.insert(0, str(REPO / "src"))
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+from helpers.operating_point import (  # noqa: E402
+    MODELS_DEFAULT_TAU_GABA_MS,
+    TAU_GABA_GAMMA_MS,
+)
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -139,8 +143,8 @@ def load_config(run_dir: Path) -> dict:
 
 
 def _cell_tau_gaba(cfg: dict) -> float:
-    """The cell's trained τ_GABA (ms), or the models.py default (9.0) if absent."""
-    return float(cfg.get("tau_gaba_ms") or 9.0)
+    """The cell's trained τ_GABA (ms), or the models.py default if absent."""
+    return float(cfg.get("tau_gaba_ms") or MODELS_DEFAULT_TAU_GABA_MS)
 
 
 def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
@@ -329,7 +333,8 @@ def plot_quantitative_law(
         ax_rate.errorbar(
             fg_mu, er_mu, xerr=fg_se, yerr=er_se,
             fmt="o", markersize=6, color=theme.INK_BLACK,
-            capsize=3, label=f"τ_GABA = {tau:g} ms" if tau == 9.0 else None,
+            capsize=3,
+            label=f"τ_GABA = {tau:g} ms" if tau == TAU_GABA_GAMMA_MS else None,
         )
         ax_rate.annotate(
             f" {tau:g} ms",

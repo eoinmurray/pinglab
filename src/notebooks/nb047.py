@@ -95,7 +95,8 @@ def measure_one(n_inh: int, w_ie_mean: float, n_batch: int) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "probe",
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim",
+            "--input", "synthetic-spikes",
             "--model", "ping",
             "--n-hidden", str(N_E),
             "--n-in", str(N_IN),

@@ -45,6 +45,11 @@ from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
 from helpers import theme  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
+from helpers.operating_point import (  # noqa: E402
+    F_GAMMA_HZ,
+    MODELS_DEFAULT_TAU_GABA_MS,
+    TAU_GABA_GAMMA_MS,
+)
 
 SLUG = "nb042"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -61,17 +66,18 @@ CONDITIONS: tuple[str, ...] = ("baseline", "phase_shuffled_i", "poisson_matched_
 
 # Jitter sweep — Gaussian timing jitter on each I-spike. σ in ms.
 # 0 = baseline; well above the trained network's gamma period
-# (≈ 28 ms at τ_GABA = 9 ms) the rate should approach the phase-shuffle
+# (≈ T_γ at the canonical τ_GABA) the rate should approach the phase-shuffle
 # release level. Predicted transition is at σ ≈ 1 / f_γ.
 JITTER_SIGMAS_MS: tuple[float, ...] = (
     0.0, 1.0, 3.0, 7.0, 14.0, 21.0, 28.0, 42.0, 60.0, 100.0,
 )
-F_GAMMA_REFERENCE_HZ: float = 36.0   # trained nb025 PING f_γ at τ_GABA = 9 ms
+# Measured PING f_γ at the canonical τ_GABA (single source of truth).
+F_GAMMA_REFERENCE_HZ: float = F_GAMMA_HZ
 
 # Per-I-cell (per-spike) jitter sweep — tests whether within-burst
 # synchrony matters, by drawing an independent Gaussian offset for each
-# I-spike. Predicted transition timescale is τ_GABA ≈ 9 ms (synaptic
-# decay), where the smeared g_i profile starts looking continuous.
+# I-spike. Predicted transition timescale is τ_GABA (synaptic decay),
+# where the smeared g_i profile starts looking continuous.
 CELL_JITTER_SIGMAS_MS: tuple[float, ...] = (
     0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0, 21.0, 50.0,
 )
@@ -778,7 +784,7 @@ def plot_cell_jitter_raster_strip(
 def plot_cell_jitter_sweep(
     cell_rows: list[dict], baseline_e_rate: float,
     poisson_e_rate: float, out_path: Path, run_id: str,
-    tau_gaba_ms: float = 9.0,
+    tau_gaba_ms: float = TAU_GABA_GAMMA_MS,
 ) -> None:
     """Per-I-cell jitter sweep — E rate + accuracy on twin axes.
 
@@ -1163,7 +1169,7 @@ def _xtau_evaluate_cell(
     binning period), via the CLI two-pass override under the cell's τ_GABA."""
     import torch
     cfg = json.loads((train_dir / "config.json").read_text())
-    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or 9.0)
+    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or MODELS_DEFAULT_TAU_GABA_MS)
     m0, R = _run_baseline(train_dir, tau_gaba=tau_gaba_ms)
     if sigma_ms <= 0.0:
         p = _pack_metrics(m0, "baseline")

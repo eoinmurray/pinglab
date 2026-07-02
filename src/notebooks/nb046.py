@@ -40,6 +40,7 @@ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
 from helpers.tier import parse_tier  # noqa: E402
+from helpers.operating_point import MODELS_DEFAULT_TAU_GABA_MS  # noqa: E402
 from helpers import theme  # noqa: E402
 
 SLUG = "nb046"
@@ -151,7 +152,7 @@ def _infer_cell(train_dir: Path, extra_args: list[str], max_samples: int) -> Pat
     """
     train_dir = train_dir.resolve()
     cfg = json.loads((train_dir / "config.json").read_text())
-    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or 9.0)
+    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or MODELS_DEFAULT_TAU_GABA_MS)
     out_dir = (ARTIFACTS / "infer" / train_dir.name).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
@@ -179,7 +180,7 @@ def evaluate_cell(train_dir: Path, f_gamma_hz: float) -> dict:
     rates come from per_cell_rates.npz; acc from metrics.json.
     """
     cfg = json.loads((train_dir / "config.json").read_text())
-    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or 9.0)
+    tau_gaba_ms = float(cfg.get("tau_gaba_ms") or MODELS_DEFAULT_TAU_GABA_MS)
     dt_ms = float(cfg["dt"])
     out_dir = _infer_cell(
         train_dir,

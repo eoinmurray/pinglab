@@ -30,17 +30,19 @@ sys.path.insert(0, str(REPO / "src"))
 
 from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
+from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
-from helpers.tier import parse_tier  # noqa: E402
 
 SLUG = "nb023"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
 SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
 SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
+
+DT_MS = 0.1  # canonical timestep (was the 0.25 oscilloscope default)
 
 COMMON_ARGS = [
     "sim",
@@ -52,6 +54,7 @@ COMMON_ARGS = [
     "--w-in", "1.5", "0.3",
     "--input-rate", "50",
     "--t-ms", "400",
+    "--dt", str(DT_MS),
 ]
 CELLS: dict[str, dict] = {
     "coba": {
@@ -64,14 +67,19 @@ CELLS: dict[str, dict] = {
     },
 }
 
-TIER_CONFIG = {
-    "extra small": {},
-    "small": {},
-    "medium": {},
-    "large": {},
-    "extra large": {},
+# Run scale — declared once, stamped into the figures-dir manifest by
+# run_dirs.prepare, and rendered as the Methods table in nb023.mdx via the
+# RunScale component (single source of truth; the mdx never restates these).
+# This is a free-running simulation, not a training run, so there is no
+# samples/epochs/batch budget — only the sim geometry and the drive.
+SCALE = {
+    "input": "MNIST digit 0 sample 0",
+    "t_ms": 400,
+    "dt_ms": DT_MS,
+    "input_rate_hz": 50,
+    "cells": len(CELLS),
+    "grid": "COBA (loop off) · PING (loop on)",
 }
-DEFAULT_TIER = "small"
 
 
 F_GAMMA_BAND_HZ: tuple[float, float] = (5.0, 150.0)
@@ -206,32 +214,39 @@ def _despine(ax):
 
 FI_RATES_HZ = [2, 5, 10, 20, 40, 70, 100]   # uniform Poisson input rates (Hz)
 FI_EI = {"coba": "0", "ping": "1.5"}         # ei-strength per condition
-FI_T_MS = 300
+FI_T_MS = 400
 
 
 def fi_sweep() -> dict:
     """Free-running f–I curves under uniform Poisson input: mean per-cell E and
     I firing rate vs input rate, for COBA (loop off) and PING (loop on). No
-    training — the bare drive-response of the architecture."""
+    training — the bare drive-response of the architecture.
+
+    The f–I curve is just this notebook looping the generic `sim` primitive over
+    input rates: each call runs the net once under homogeneous uniform Poisson
+    input at --input-rate (fed through W_in) and writes the spike snapshot; the
+    per-cell rate is computed here from that snapshot. The scan lives in the
+    notebook, not the CLI. Same architecture as the raster/PSD (oscilloscope
+    mnist default, 1024 E / 256 I)."""
     out = {c: {"in": [], "e": [], "i": []} for c in FI_EI}
-    for rate in FI_RATES_HZ:
-        for cell, ei in FI_EI.items():
-            for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
-                if p.exists():
-                    p.unlink()
+    for cell, ei in FI_EI.items():
+        for rate in FI_RATES_HZ:
+            out_dir = (ARTIFACTS / "fi" / f"{cell}__r{rate}").resolve()
+            out_dir.mkdir(parents=True, exist_ok=True)
             argv = [
                 "sim",
                 "--model", "ping", "--input", "synthetic-spikes",
-                "--w-in", "1.5", "0.3", "--ei-strength", ei,
-                "--input-rate", str(rate), "--t-ms", str(FI_T_MS),
+                "--n-hidden", "1024", "--n-inh", "256",
+                "--ei-strength", ei,
+                "--w-in", "1.5", "0.3", "--w-in-sparsity", "0.95",
+                "--input-rate", str(rate),
+                "--t-ms", str(FI_T_MS), "--dt", str(DT_MS),
+                "--out-dir", str(out_dir),
             ]
             subprocess.run(["uv", "run", "python", str(OSCILLOSCOPE), *argv],
                            cwd=REPO, check=True)
-            d = np.load(SCOPE_OUT_NPZ)
-            se, si, dt = d["spk_e"], d["spk_i"], float(d["dt"])
-            T = se.shape[0]
-            e = float(se.sum() / (se.shape[1] * T * dt / 1000.0))
-            i = float(si.sum() / (si.shape[1] * T * dt / 1000.0)) if si.size else 0.0
+            m = json.loads((out_dir / "metrics.json").read_text())
+            e, i = float(m["rate_e_hz"]), float(m["rate_i_hz"])
             out[cell]["in"].append(rate)
             out[cell]["e"].append(e)
             out[cell]["i"].append(i)
@@ -276,6 +291,7 @@ def plot_raster_compound(
         )
     fi_max = max(max(fi[c]["e"] + fi[c]["i"]) for c in ("coba", "ping"))
 
+    f_gamma: dict[str, float | None] = {}   # measured peak per cell → numbers.json
     for col, cell in enumerate(("coba", "ping")):
         c0 = 2 * col
         s = snaps[cell]
@@ -321,8 +337,11 @@ def plot_raster_compound(
             ax_r.set_title(titles[cell], loc="left", fontweight="semibold")
         _despine(ax_r)
 
-        # Welch PSD on the population-mean E trace
+        # Welch PSD on the population-mean E trace — the SAME spk_e drawn in the
+        # raster above, so f_γ is measured from the shown raster.
         freqs, psd, f_peak = _population_psd(spk_e, dt)
+        # Only the loop-on condition has a genuine recurrent rhythm to report.
+        f_gamma[cell] = float(f_peak) if (has_i and f_peak is not None) else None
         band = (freqs >= F_GAMMA_BAND_HZ[0]) & (freqs <= F_GAMMA_BAND_HZ[1])
         ax_psd.plot(freqs[band], psd[band], color=theme.INK_BLACK, lw=1.4)
         ax_psd.set_xlim(F_GAMMA_BAND_HZ)
@@ -362,6 +381,7 @@ def plot_raster_compound(
 
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
+    return f_gamma
 
 
 def _pick_active(spk: np.ndarray) -> int | None:
@@ -596,15 +616,17 @@ def main() -> None:
     # vector, emitted as both SVG (docs) and PDF (manuscript) by save_figure.
     theme.set_paper_mode(True)
 
-    tier = parse_tier(sys.argv, choices=TIER_CONFIG.keys(), default=DEFAULT_TIER)
     modal_gpu = parse_modal_gpu(sys.argv)
     wipe_dir = "--no-wipe-dir" not in sys.argv
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id} tier={tier}")
+    print(f"notebook_run_id = {notebook_run_id}")
 
-    prepare_run_dirs(SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False)
+    prepare_run_dirs(
+        SLUG, notebook_run_id, wipe=wipe_dir, make_artifacts=False,
+        scale=SCALE, host=f"modal:{modal_gpu}" if modal_gpu else "local",
+    )
 
     figures: dict[str, Path] = {}
 
@@ -650,7 +672,7 @@ def main() -> None:
     # Super figure: COBA vs PING side by side (raster, PSD + f–I). Used by the
     # manuscript's Claim 1 (the architecture is its own Claim 0 figure there).
     compound_dst = FIGURES / "raster_compound"
-    plot_raster_compound(snaps, fi, compound_dst, column_titles)
+    f_gamma = plot_raster_compound(snaps, fi, compound_dst, column_titles)
     figures["raster_compound"] = compound_dst
     print(f"wrote {compound_dst}.{{png,pdf}}")
 
@@ -661,21 +683,29 @@ def main() -> None:
     figures["overview_compound"] = overview_dst
     print(f"wrote {overview_dst}.{{png,pdf}}")
 
+    for cell, fg in f_gamma.items():
+        print(f"  f_gamma[{cell}] = {fg if fg is None else round(fg, 2)} Hz "
+              "(measured from the shown raster's E population PSD)")
+
     duration_s = time.monotonic() - t_start
-    figs_root = FIGURES.parents[2]
     summary = {
         "notebook_run_id": notebook_run_id,
         "duration_s": round(duration_s, 1),
-        "tier": tier,
+        "duration": format_duration(duration_s),
         "config": {
-            "tier": tier,
             "model": "ping",
             "input": "mnist d0 s0",
             "cells": list(CELLS),
             "t_ms": 400,
+            "dt_ms": DT_MS,
             "input_rate_hz": 50,
             "modal_gpu": modal_gpu,
         },
+        # f_γ measured from each shown raster's E-population PSD (None = no
+        # recurrent rhythm, i.e. COBA loop off). The mdx reads these rather than
+        # restating a hand-typed number.
+        "f_gamma_hz": f_gamma,
+        "fi_curves": fi,
         "results": [],
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")

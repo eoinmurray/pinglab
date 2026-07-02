@@ -34,6 +34,7 @@ sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "src" / "notebooks"))
 
 from helpers.figsave import save_figure  # noqa: E402
+from helpers.operating_point import T_GAMMA_MS  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -136,7 +137,7 @@ def _run_stream(train_dir: Path, spk_in) -> tuple:
     np.savez(out_dir / "stream.npz", input_spikes=arr.astype("float32"))
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "probe",
+            "uv", "run", "python", str(OSCILLOSCOPE), "sim",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--n-in", str(N_IN),
@@ -955,12 +956,11 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
                 fontsize=theme.SIZE_LABEL,
                 color=("white" if grid[i, j] < 55 else theme.INK_BLACK),
             )
-    # Reference lines at the sub-cycle accuracy floor (τ ≈ 0.4 T_γ ≈ 15 ms)
-    # and at one gamma period (T_γ ≈ 40 ms at f_γ ≈ 25 Hz). The x-axis is
-    # discrete index; interpolate the τ value into a fractional index.
-    F_GAMMA_HZ = 25.0
-    T_GAMMA_MS = 1000.0 / F_GAMMA_HZ  # ≈ 40 ms
-
+    # Reference lines at the sub-cycle accuracy floor (τ ≈ 0.4 T_γ) and at one
+    # gamma period (T_γ). Both derive from the collection's measured operating
+    # point (helpers/operating_point.py: f_γ ≈ 44 Hz → T_γ ≈ 22.8 ms at the
+    # canonical τ_GABA = 6 ms). The x-axis is a discrete index; interpolate the
+    # τ value into a fractional index.
     def _tau_to_index(target_ms: float) -> float:
         if target_ms <= taus[0]:
             return 0.0
@@ -972,8 +972,8 @@ def plot_grid_heatmap(rows: list[dict], out_path: Path, run_id: str) -> None:
                 return k + frac
         return float(len(taus) - 1)
 
-    idx_subcycle = _tau_to_index(0.4 * T_GAMMA_MS)  # ≈ 15 ms (paper's floor)
-    idx_tgamma   = _tau_to_index(T_GAMMA_MS)        # ≈ 40 ms
+    idx_subcycle = _tau_to_index(0.4 * T_GAMMA_MS)  # ≈ 9 ms (sub-cycle floor)
+    idx_tgamma   = _tau_to_index(T_GAMMA_MS)        # ≈ 23 ms (one gamma period)
 
     ax.axvline(idx_subcycle, color=theme.FAINT, lw=0.8, ls=":", alpha=0.85,
                zorder=10)

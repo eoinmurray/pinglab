@@ -36,6 +36,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
@@ -60,8 +61,10 @@ SEED_SWEEP = 42
 THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
 FR_STRENGTH_UPPER = 1e-3
 TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
-TAU_GABA_GAMMA = 6.0       # GABA decay that puts the loop in gamma (≈ 44 Hz);
-                           # the standard for every family except the τ_GABA sweep
+# GABA decay that puts the loop in gamma (≈ 44 Hz); the standard for every
+# family except the τ_GABA sweep. Single source of truth in helpers so the
+# whole collection moves together (see helpers/operating_point.py).
+TAU_GABA_GAMMA = TAU_GABA_GAMMA_MS
 
 # Canonical recipe (verbatim from nb025 — the reference training).
 MODEL_RECIPES: dict[str, dict] = {

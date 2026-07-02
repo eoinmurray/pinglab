@@ -417,7 +417,8 @@ def run_fi_sweep_uniform(notebook_run_id: str, rates: list[float] | None = None)
             out_dir.mkdir(parents=True, exist_ok=True)
             subprocess.run(
                 [
-                    "uv", "run", "python", str(OSCILLOSCOPE), "probe",
+                    "uv", "run", "python", str(OSCILLOSCOPE), "sim",
+                    "--input", "synthetic-spikes",
                     "--load-config", str((train_dir / "config.json").resolve()),
                     "--load-weights", str((train_dir / "weights.pth").resolve()),
                     "--n-in", "784",
