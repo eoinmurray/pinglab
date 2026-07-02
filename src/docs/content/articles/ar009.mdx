@@ -9,6 +9,9 @@ status: draft
 
 import Figure from "../../src/components/Figure.astro";
 import P from "../../src/components/P.astro";
+import Citations from "../../src/components/Citations.astro";
+import SectionRefs from "../../src/components/SectionRefs.astro";
+import { references } from "../../src/data/ar009-references.ts";
 
 ## Abstract
 
@@ -521,3 +524,6 @@ Claude Code (Anthropic; model Opus 4.8), an agentic large-language-model coding 
 56. [Xing, Shen, Burns, Yeh, Shapley & Li — *Stochastic Generation of Gamma-Band Activity in Primary Visual Cortex of Awake and Anesthetized Monkeys*](https://doi.org/10.1523/JNEUROSCI.5644-11.2012). 2012.
 57. [Rotter & Diesmann — *Exact Digital Simulation of Time-Invariant Linear Systems with Applications to Neuronal Modeling*](https://doi.org/10.1007/s004220050570). 1999.
 58. [LeCun, Bottou, Bengio & Haffner — *Gradient-Based Learning Applied to Document Recognition*](https://doi.org/10.1109/5.726791). 1998.
+
+<Citations references={references} />
+<SectionRefs />
