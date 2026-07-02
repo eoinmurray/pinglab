@@ -52,7 +52,7 @@ from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
 SLUG = "nb025"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
+PINGLAB_CLI = REPO / "src" / "cli/cli.py"
 
 MAX_SAMPLES = 500
 EPOCHS = 10
@@ -466,11 +466,11 @@ def generate_raster(model: str, out_path: Path) -> None:
         "--t-ms", "400",
         "--out-dir", str(infer_dir),
     ]
-    cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *argv]
+    cmd = ["uv", "run", "python", str(PINGLAB_CLI), *argv]
     print(f"[raster] {model}: {' '.join(argv)}")
     subprocess.run(cmd, cwd=REPO, check=True)
     if not npz_path.exists():
-        raise SystemExit(f"oscilloscope did not produce {npz_path}")
+        raise SystemExit(f"pinglab-cli did not produce {npz_path}")
     render_raster(npz_path, out_path, f"{model} — trained network, MNIST digit 0, 400 ms")
 
 
@@ -558,7 +558,7 @@ def _infer_cell(
     out_dir = (ARTIFACTS / out_name / train_dir.name).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+        "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
         "--load-config", str(train_dir / "config.json"),
         "--load-weights", str(train_dir / "weights.pth"),
         "--out-dir", str(out_dir),
@@ -1264,8 +1264,11 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
             accs.append([e["acc"] for e in md["epochs"]])
         if not accs:
             continue
-        ax_acc.plot(eps, np.asarray(accs).mean(0), marker="o", ms=3,
-                    color=MODEL_COLORS[m], label=m)
+        # Markers every 10th epoch only — 100-epoch curves otherwise read as a
+        # solid band and hide the near-identical COBA/PING traces.
+        ax_acc.plot(eps, np.asarray(accs).mean(0), marker=MODEL_MARKERS[m],
+                    ms=3.2, markevery=10, lw=1.4,
+                    color=MODEL_COLORS[m], label=m.upper())
     ax_acc.set_xlabel("epoch")
     ax_acc.set_ylabel("test accuracy (%)")
     ax_acc.set_ylim(0, 100)
@@ -1275,47 +1278,77 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
     _despine(ax_acc)
 
     # --- bottom-right: accuracy–rate frontier, operating points annotated ---
+    # Log x-axis: COBA's rate spans 0→~97 Hz while PING sits in a tight 4–11 Hz
+    # band, so a linear axis crushes every interesting point into the left ~10%.
+    # Log spreads the sweep and makes the "up-and-left" PING advantage legible.
+    # A hard floor clamps COBA's collapsed (rate→0) cells onto the axis so they
+    # still show COBA failing at low rate rather than dropping off the plot.
     ax_fr = fig.add_subplot(gs[1, 1])
+    RATE_FLOOR = 0.5  # Hz; below this COBA has effectively gone silent
     model_curves = {}
-    xmax = 1.0
     for m in MODELS:
         pts, base = [], None
         for tu in THETA_U_GRID:
             cr = [r for r in rows if r["model"] == m and r["theta_u"] == tu]
             if not cr:
                 continue
-            rate = float(np.mean([r["rate_e"] for r in cr]))
+            rate = max(float(np.mean([r["rate_e"] for r in cr])), RATE_FLOOR)
             acc = float(np.mean([r["final_acc"] for r in cr]))
             pts.append((rate, acc))
             if tu is None:
                 base = (rate, acc)
         pts.sort()
         model_curves[m] = (pts, base)
-        if pts:
-            xmax = max(xmax, max(p[0] for p in pts))
-    ax_fr.set_xlim(-xmax * 0.03, xmax * 1.12)  # small left margin so near-zero points read; right headroom for labels
+    ax_fr.set_xscale("log")
+    ax_fr.set_xlim(RATE_FLOOR * 0.8, 200)  # right headroom for the COBA label
+    ax_fr.set_ylim(40, 100)  # all points ≥ 54%; crop dead space to grow the frontier
     for m in MODELS:
         pts, base = model_curves[m]
         if pts:
             ax_fr.plot([p[0] for p in pts], [p[1] for p in pts],
-                       marker=MODEL_MARKERS[m], color=MODEL_COLORS[m], label=m)
-        if base is not None:
-            ax_fr.scatter([base[0]], [base[1]], s=120, marker="*",
-                          color=MODEL_COLORS[m], edgecolor=theme.INK_BLACK,
-                          linewidths=0.7, zorder=6)
-            # Label on the inward side: right-half points point their text left.
-            right_half = base[0] > xmax * 0.55
-            dx, ha = (-8, "right") if right_half else (8, "left")
-            ax_fr.annotate(f"{m}: {base[1]:.0f}% @ {base[0]:.1f} Hz",
-                           (base[0], base[1]), xytext=(dx, 9),
-                           textcoords="offset points", ha=ha,
-                           fontsize=theme.SIZE_ANNOTATION, color=MODEL_COLORS[m])
-    ax_fr.set_ylim(0, 100)
-    ax_fr.set_xlabel("hidden-E firing rate (Hz)")
+                       marker=MODEL_MARKERS[m], ms=4, lw=1.4,
+                       color=MODEL_COLORS[m], label=m.upper())
+    # Iso-accuracy guide + the headline claim: at ≈ equal accuracy PING fires an
+    # order of magnitude less than COBA. Drawn as a horizontal span between the
+    # two θ_u-off operating stars.
+    ping_base = model_curves["ping"][1]
+    coba_base = model_curves["coba"][1]
+    if ping_base and coba_base:
+        y_guide = ping_base[1]
+        ax_fr.hlines(y_guide, ping_base[0], coba_base[0],
+                     color=theme.GREY_LIGHT, lw=0.8, ls=(0, (4, 3)), zorder=1)
+        ax_fr.annotate(
+            "", xy=(coba_base[0], y_guide), xytext=(ping_base[0], y_guide),
+            arrowprops=dict(arrowstyle="<->", color=theme.MUTED, lw=0.9))
+        ratio = coba_base[0] / ping_base[0]
+        ax_fr.text(
+            (ping_base[0] * coba_base[0]) ** 0.5, y_guide + 1.5,
+            f"≈{ratio:.0f}× fewer spikes\nfor equal accuracy",
+            ha="center", va="bottom", fontsize=theme.SIZE_ANNOTATION,
+            color=theme.MUTED, fontstyle="italic", linespacing=1.1)
+    for m in MODELS:
+        base = model_curves[m][1]
+        if base is None:
+            continue
+        ax_fr.scatter([base[0]], [base[1]], s=130, marker="*",
+                      color=MODEL_COLORS[m], edgecolor=theme.INK_BLACK,
+                      linewidths=0.7, zorder=6)
+        # PING star: label up-left into open space; COBA star: label below (it
+        # sits top-right where up/right would clip the axis and hit the title).
+        if m == "ping":
+            dxdy, ha, va = (-9, 8), "right", "bottom"
+        else:
+            dxdy, ha, va = (0, -11), "center", "top"
+        ax_fr.annotate(f"{m.upper()}\n{base[1]:.0f}% @ {base[0]:.0f} Hz",
+                       (base[0], base[1]), xytext=dxdy,
+                       textcoords="offset points", ha=ha, va=va,
+                       fontsize=theme.SIZE_ANNOTATION, color=MODEL_COLORS[m])
+    ax_fr.set_xlabel("hidden-E firing rate (Hz, log)")
     ax_fr.set_ylabel("test accuracy (%)")
-    ax_fr.set_title("Same accuracy, fewer spikes  (★ = θ_u off)", loc="left",
+    ax_fr.set_title("Same accuracy, fewer spikes", loc="left",
                     fontsize=theme.SIZE_LABEL)
-    ax_fr.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
+    ax_fr.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right",
+                 title="★ = θ_u off", title_fontsize=theme.SIZE_ANNOTATION)
     _despine(ax_fr)
 
     stamp_figure(fig, run_id)
@@ -1382,7 +1415,7 @@ def main() -> None:
 
     only_missing = "--only-missing" in sys.argv
     if not skip_training:
-        dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
+        dispatcher = BatchDispatcher(modal_gpu, REPO, PINGLAB_CLI)
         # θ_u sweep training moved to nb022 (train-once / reuse-many); nb025
         # reads those cells via cell_dir and trains only its low_w_in sweep.
         # Low-w_in alternate-schedule sweep:

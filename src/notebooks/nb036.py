@@ -38,7 +38,7 @@ from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
 SLUG = "nb036"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
+PINGLAB_CLI = REPO / "src" / "cli/cli.py"
 
 MAX_SAMPLES = 500
 T_MS = 200.0
@@ -167,7 +167,7 @@ def _eval_scaled(
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
             "--load-config", str(train_dir / "config.json"),
             "--load-weights", str(train_dir / "weights.pth"),
             "--scale-w-in", str(scale_w_in),
@@ -732,7 +732,7 @@ def main() -> None:
 
     only_missing = "--only-missing" in sys.argv
     if not skip_training:
-        dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
+        dispatcher = BatchDispatcher(modal_gpu, REPO, PINGLAB_CLI)
         # θ_u baseline/sweep cells (needed for the frontier overlay) are
         # trained in nb022 now (train-once / reuse-many); read via cell_dir.
         # nb036 trains only its own coupling cells below.

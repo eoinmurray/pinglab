@@ -39,7 +39,7 @@ from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "nb047"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 
 # ── Architecture constants ──────────────────────────────────────────
 N_E: int = 1024
@@ -102,7 +102,7 @@ def measure_one(n_inh: int, w_ie_mean: float, n_batch: int) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "sim",
+            "uv", "run", "python", str(PINGLAB_CLI), "sim",
             "--input", "synthetic-spikes",
             "--model", "ping",
             "--n-hidden", str(N_E),

@@ -43,7 +43,7 @@ from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
 
 SLUG = "nb038"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
+PINGLAB_CLI = REPO / "src" / "cli/cli.py"
 
 MAX_SAMPLES = 500
 T_MS = 200.0
@@ -163,7 +163,7 @@ def run_inproc_infer(train_dir: Path, ei_strength: float, out_dir: Path) -> dict
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--ei-strength", str(ei_strength),
@@ -201,7 +201,7 @@ def capture_ei_raster(train_dir: Path, ei_strength: float, sample_idx: int) -> d
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--ei-strength", str(ei_strength),
@@ -240,7 +240,7 @@ def capture_rate_raster(train_dir: Path, spike_rate: float, sample_idx: int) -> 
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--input-rate", str(spike_rate),
@@ -357,7 +357,7 @@ def run_fi_sweep_uniform(notebook_run_id: str, rates: list[float] | None = None)
             out_dir.mkdir(parents=True, exist_ok=True)
             subprocess.run(
                 [
-                    "uv", "run", "python", str(OSCILLOSCOPE), "sim",
+                    "uv", "run", "python", str(PINGLAB_CLI), "sim",
                     "--input", "synthetic-spikes",
                     "--load-config", str((train_dir / "config.json").resolve()),
                     "--load-weights", str((train_dir / "weights.pth").resolve()),

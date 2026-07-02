@@ -35,9 +35,9 @@ from helpers.run_id import next_run_id  # noqa: E402
 
 SLUG = "nb058"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
-SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.png"
-SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "oscilloscope" / "snapshot.npz"
+PINGLAB_CLI = REPO / "src" / "cli/cli.py"
+SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "pinglab-cli" / "snapshot.png"
+SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "pinglab-cli" / "snapshot.npz"
 
 # Shared knobs across both cells: longer trial (T = 1000 ms) so per-cell
 # ISI distributions get enough samples to be meaningful, and so the
@@ -403,10 +403,10 @@ def _run_and_measure(scope_argv: list[str]) -> dict:
     for p in (SCOPE_OUT_PNG, SCOPE_OUT_NPZ):
         if p.exists():
             p.unlink()
-    cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *COMMON_ARGS, *scope_argv]
+    cmd = ["uv", "run", "python", str(PINGLAB_CLI), *COMMON_ARGS, *scope_argv]
     subprocess.run(cmd, cwd=REPO, check=True)
     if not SCOPE_OUT_NPZ.exists():
-        raise SystemExit(f"oscilloscope did not produce {SCOPE_OUT_NPZ}")
+        raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
     data = np.load(SCOPE_OUT_NPZ)
     spk_e, spk_i = data["spk_e"], data["spk_i"]
     dt = float(data["dt"])
@@ -581,7 +581,7 @@ def run_lyapunov() -> dict:
             argv = [*COMMON_ARGS, "--t-ms", LYAP_T_MS,
                     *_chaos_args(vspec, seed), "--lyapunov-eps", LYAP_EPS]
             print(f"[lyap] {vkey} seed={seed}")
-            subprocess.run(["uv", "run", "python", str(OSCILLOSCOPE), *argv],
+            subprocess.run(["uv", "run", "python", str(PINGLAB_CLI), *argv],
                            cwd=REPO, check=True)
             data = np.load(SCOPE_OUT_NPZ)
             if "lyap_vdist" not in data:
@@ -663,11 +663,11 @@ def main() -> None:
             if p.exists():
                 p.unlink()
         scope_argv = [*COMMON_ARGS, *spec["args"]]
-        cmd = ["uv", "run", "python", str(OSCILLOSCOPE), *scope_argv]
+        cmd = ["uv", "run", "python", str(PINGLAB_CLI), *scope_argv]
         print(f"[scope] {cell}: {' '.join(scope_argv)}")
         subprocess.run(cmd, cwd=REPO, check=True)
         if not SCOPE_OUT_NPZ.exists():
-            raise SystemExit(f"oscilloscope did not produce {SCOPE_OUT_NPZ}")
+            raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
 
         raster_dst = FIGURES / f"raster__{cell}.png"
         plot_raster(SCOPE_OUT_NPZ, raster_dst, spec["title"])

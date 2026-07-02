@@ -50,7 +50,7 @@ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 # Analysis notebooks import `load_cell` / `cell_dir` from this module rather
 # than retraining; this entry is the single producer of the shared cells.
 TRAINING_ROOT = REPO / "src" / "artifacts" / "notebooks" / "training"
-OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 
 EPOCHS_STANDARD = 100          # standard depth (dt sweep in nb044 is the exception)
 DT_MS = 0.1
@@ -472,7 +472,7 @@ def main() -> None:
 
     if not skip_training:
         TRAINING_ROOT.mkdir(parents=True, exist_ok=True)
-        dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
+        dispatcher = BatchDispatcher(modal_gpu, REPO, PINGLAB_CLI)
         for c in CANONICAL_CELLS:
             out = cell_dir(c["name"])
             if only_missing and (out / "metrics.json").exists():

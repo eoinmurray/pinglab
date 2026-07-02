@@ -354,7 +354,7 @@ _IMAGE_SCAN_VARS = [
     ("bias", 0.0, 0.5, []),
     ("dt", 0.1, 0.5, []),
     ("noise", 0.0, 20.0, []),
-    ("digit", 0, 2, ["--input", "dataset", "--dataset", "scikit"]),
+    ("digit", 0, 2, ["--input", "dataset", "--dataset", "mnist"]),
 ]
 
 
@@ -622,9 +622,9 @@ def test_lyapunov_eps_writes_divergence_to_npz(tmp_path):
     )
     npz = out / "snapshot.npz"
     if not npz.exists():
-        # synthetic-spikes mode writes to the oscilloscope artifact dir by
+        # synthetic-spikes mode writes to the pinglab-cli artifact dir by
         # default; fall back to the repo-standard location.
-        npz = Path("src/artifacts/oscilloscope/snapshot.npz")
+        npz = Path("src/artifacts/pinglab-cli/snapshot.npz")
     data = np.load(npz)
     assert "lyap_dist" in data, "lyap_dist missing from snapshot.npz"
     assert "lyap_t_ms" in data

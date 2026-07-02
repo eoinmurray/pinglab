@@ -49,7 +49,7 @@ from helpers import theme  # noqa: E402
 
 SLUG = "nb062"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli/cli.py"
+PINGLAB_CLI = REPO / "src" / "cli/cli.py"
 
 # Run scale — max-samples × epochs, baked at the former "medium" tier. ETA is
 # a rough single-run MPS estimate at the dt=2 ms / t=1000 ms grid (500
@@ -73,7 +73,7 @@ SCALE = {
     "cells":       1,
 }
 
-# Hardcoded recipe. New scientific knobs go on the oscilloscope CLI (ar011);
+# Hardcoded recipe. New scientific knobs go on the pinglab-cli (ar011);
 # this runner just passes the recipe values inline. To explore variants, use
 # autoresearch on a branch, NOT by editing this file.
 RECIPE: dict[str, str] = {
@@ -190,7 +190,7 @@ def main() -> None:
     out = cell_dir()
 
     if not skip_training:
-        dispatcher = BatchDispatcher(modal_gpu, REPO, OSCILLOSCOPE)
+        dispatcher = BatchDispatcher(modal_gpu, REPO, PINGLAB_CLI)
         print(f"[train]  →  {out.relative_to(REPO)}")
         dispatcher.submit(build_train_args(out), out)
         dispatcher.drain()

@@ -38,7 +38,7 @@ from helpers import theme  # noqa: E402
 
 SLUG = "nb044"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 
 T_MS = 200.0
 
@@ -111,7 +111,7 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--out-dir", str(out_dir),

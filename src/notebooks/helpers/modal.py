@@ -1,7 +1,7 @@
-"""Shared helpers for notebook runners to forward --modal-gpu to oscilloscope.
+"""Shared helpers for notebook runners to forward --modal-gpu to pinglab-cli.
 
 Every notebook runner invokes src/cli/cli.py one or more times via
-sh.uv. When the runner is given --modal-gpu <GPU>, each oscilloscope call gets
+sh.uv. When the runner is given --modal-gpu <GPU>, each pinglab-cli call gets
 --modal --modal-gpu <GPU> appended so the job runs on Modal instead of the
 local machine.
 """
@@ -46,7 +46,7 @@ def append_modal_args(args: list[str], modal_gpu: str | None) -> list[str]:
 
 
 class BatchDispatcher:
-    """Queue oscilloscope calls for parallel Modal dispatch.
+    """Queue pinglab-cli calls for parallel Modal dispatch.
 
     When modal_gpu is None, each submit() runs synchronously via sh.uv
     (drop-in for the existing local path). When modal_gpu is set, submit()
@@ -58,14 +58,14 @@ class BatchDispatcher:
     e.g. ping@dt=0.1 needs A10G while the other models at dt=0.1 fit on T4.
     """
 
-    def __init__(self, modal_gpu, repo_path, oscilloscope_path):
+    def __init__(self, modal_gpu, repo_path, pinglab_cli_path):
         self.modal_gpu = modal_gpu
         self.repo_path = repo_path
-        self.oscilloscope_path = oscilloscope_path
+        self.pinglab_cli_path = pinglab_cli_path
         self.pending: list[dict] = []
 
     def submit(self, osc_args, local_out_dir, gpu_override=None):
-        """Run (local) or queue (modal) an oscilloscope invocation.
+        """Run (local) or queue (modal) a pinglab-cli invocation.
 
         osc_args: list starting at the subcommand (e.g. ['train', '--model', ...]).
         local_out_dir: the path the cell writes to (matches --out-dir in osc_args).
@@ -79,7 +79,7 @@ class BatchDispatcher:
             sh.uv(
                 "run",
                 "python",
-                str(self.oscilloscope_path),
+                str(self.pinglab_cli_path),
                 *osc_args,
                 _cwd=str(self.repo_path),
                 _out=sys.stdout,
@@ -106,7 +106,7 @@ class BatchDispatcher:
         import os
         import sys
 
-        cli_dir = os.path.dirname(os.path.abspath(str(self.oscilloscope_path)))
+        cli_dir = os.path.dirname(os.path.abspath(str(self.pinglab_cli_path)))
         if cli_dir not in sys.path:
             sys.path.insert(0, cli_dir)
         from modal_app import dispatch_batch_to_modal

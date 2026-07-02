@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import random
 import sys
 import time as _time
@@ -29,7 +30,7 @@ from config import (
     set_sim_dt,
     setup_model_globals,
 )
-from metrics import compute_metrics, format_metrics
+from metrics import compute_metrics
 from datasets import (
     DATASET_N_HIDDEN_DEFAULTS,
     SHD_N_CHANNELS,
@@ -143,7 +144,7 @@ def train(
     ei_strength=None,
     ei_ratio=2.0,
     w_in_sparsity=0.0,
-    dataset="scikit",
+    dataset="mnist",
     snapshot_init=True,
     snapshot_end=True,
     t_ms=200.0,
@@ -164,7 +165,7 @@ def train(
     trainable_w_ie=False,
     trainable_w_ii=False,
 ):
-    """Train on scikit digits, optionally producing oscilloscope video."""
+    """Train a model on mnist / smnist / shd, optionally producing a sweep video."""
     from torch.utils.data import DataLoader, TensorDataset
 
     burn_in_ms = 20.0
@@ -196,7 +197,7 @@ def train(
         M.tau_gaba = float(tau_gaba)
 
     # Determine network hidden layer sizes: use CLI arg or smart default per dataset
-    # Smart defaults: scikit=64, mnist=1024, smnist=32, shd=256
+    # Smart defaults: mnist=1024, smnist=32, shd=256
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]
@@ -220,6 +221,7 @@ def train(
 
     # Data — single canonical loader; smnist uses mnist data, encoded row-by-row
     use_smnist = dataset == "smnist"
+    runlog.phase(log, "loading", dataset)
     if dataset == "shd":
         X_tr, X_te, y_tr, y_te = load_dataset(
             dataset, max_samples=max_samples, split=True, dt_ms=dt, t_ms=t_ms
@@ -291,10 +293,10 @@ def train(
     n_params = sum(p.numel() for p in net.parameters())
     n_trainable = sum(p.numel() for p in net.parameters() if p.requires_grad)
 
-    log.info(
-        f"train | {model_name} N={M.N_HID} dt={dt}ms T={M.T_ms}ms | {n_trainable:,} params"
+    runlog.phase(
+        log, "building",
+        f"{n_trainable:,} params · {len(X_tr)} train · {len(X_te)} test",
     )
-    log.info(f"  data: {len(X_tr)} train {len(X_te)} test")
 
     # Save config for reproducibility
 
@@ -338,7 +340,6 @@ def train(
     with open(out_dir / "run.sh", "w") as f:
         f.write("#!/bin/bash\n")
         f.write(" ".join(sys.argv) + "\n")
-    log.info(f"  config \u2192 {out_dir / 'config.json'}")
 
     # Train uses the module-level log (already set up by save_run_artifacts)
 
@@ -398,8 +399,7 @@ def train(
         snapshot_init_state = compute_metrics(
             spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
         )
-        print("Init state (d0s0):")
-        log.info(f"  {format_metrics(snapshot_init_state)}")
+        runlog.metrics_line(log, snapshot_init_state, label="init")
 
     else:
         snapshot_init_state = None
@@ -446,7 +446,6 @@ def train(
         log.info(f"  done (probe only) \u2192 {out_dir}")
         return 0.0
 
-    log.info(f"  lr={lr} epochs={epochs} batch={bs}")
 
     opt = torch.optim.Adam(net.parameters(), lr=lr)
     # Dale's law via projected gradient: clamp the constrained weights back onto
@@ -471,12 +470,22 @@ def train(
     best_epoch = 0
     wtracker = runlog.WarningTracker()
     jsonl = runlog.MetricsJsonl(out_dir / "metrics.jsonl")
-    runlog.print_progress_header(log)
+    # The first training batch pays the one-time torch.compile cost (models.py
+    # compiles the per-timestep body lazily on first call). Warn so the opening
+    # silence reads as "compiling", not "hung". Skip when compile is disabled.
+    if os.environ.get("PINGLAB_NO_COMPILE") != "1":
+        runlog.phase(log, "compiling", "first batch · one-time · ~10–60s")
+    runlog.epoch_header(log)
     # MPS has no max_memory_allocated — sample per epoch and keep the peak.
     # CUDA tracks peak natively (queried at end of run).
     peak_mem_mps = 0
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
+
+    # Running mean of epoch wall-times for a stable ETA. The first epoch is an
+    # outlier (compile + warm-up), so once we have ≥2 epochs we average only the
+    # post-compile ones; ETA stops lurching after epoch 2.
+    epoch_times: list[float] = []
 
     for epoch in range(epochs):
         t_epoch = _time.perf_counter()
@@ -492,6 +501,8 @@ def train(
         grad_norm_sum = {}
         n_samples_train = 0
         t_train_compute = _time.perf_counter()
+        n_train_batches = len(train_loader)
+        hb = runlog.Heartbeat()
         for batch_idx, (X_b, y_b) in enumerate(train_loader):
             X_b, y_b = X_b.to(device), y_b.to(device)
             spk = encode_batch(X_b, dt, use_smnist)
@@ -535,6 +546,15 @@ def train(
                 grad_sum += gn_f
                 n_grad += 1
             n_samples_train += y_b.size(0)
+            # Throttled within-epoch heartbeat: at most one line per interval,
+            # so long epochs (MNIST/SHD) show life without flooding the log.
+            running_loss = total_loss / max(n_batches, 1)
+            hb.beat(
+                log,
+                f"    · ep {epoch + 1}/{epochs}  batch {batch_idx + 1}/{n_train_batches}"
+                f"  loss {running_loss:.3f}"
+                f"  {int(_time.perf_counter() - t_train_compute)}s",
+            )
         train_compute_s = _time.perf_counter() - t_train_compute
         if device.type == "mps":
             peak_mem_mps = max(peak_mem_mps, torch.mps.current_allocated_memory())
@@ -561,6 +581,8 @@ def train(
         conf_sum = 0.0         # mean softmax prob of the true class
         logit_scale_sum = 0.0  # mean |logit|, the raw logit magnitude
         eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+        n_test_batches = len(test_loader)
+        hb_eval = runlog.Heartbeat()
         with torch.no_grad():
             for X_b, y_b in test_loader:
                 X_b, y_b = X_b.to(device), y_b.to(device)
@@ -590,6 +612,11 @@ def train(
                         test_rate_e_sum += float(v) * B
                     elif k.startswith("inh"):
                         test_rate_i_sum += float(v) * B
+                hb_eval.beat(
+                    log,
+                    f"    · ep {epoch + 1}/{epochs}  eval {test_batches}/{n_test_batches}"
+                    f"  {int(_time.perf_counter() - t_eval)}s",
+                )
 
         eval_s = _time.perf_counter() - t_eval
 
@@ -693,7 +720,13 @@ def train(
         cv = epoch_metrics.get("cv", 0.0) if epoch_metrics else 0.0
         activity = epoch_metrics.get("act", 0.0) * 100 if epoch_metrics else 0.0
         flags = wtracker.tick(epoch + 1, acc, activity, avg_train)
-        eta = (epochs - epoch - 1) * elapsed
+        # ETA from a running mean of epoch wall-times, not just the last epoch.
+        # Epoch 1 is a compile-inflated outlier, so drop it from the mean once
+        # we have a post-compile epoch to average — this stops the ETA lurching.
+        epoch_times.append(elapsed)
+        eta_sample = epoch_times[1:] if len(epoch_times) > 1 else epoch_times
+        mean_epoch_s = sum(eta_sample) / len(eta_sample)
+        eta = (epochs - epoch - 1) * mean_epoch_s
         runlog.print_epoch(
             log,
             epoch + 1,
@@ -768,8 +801,6 @@ def train(
         end_state = compute_metrics(
             spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
         )
-        print("End state (d0s0):")
-        log.info(f"  {format_metrics(end_state)}")
 
     # Save weights
     if best_state is not None:
@@ -818,7 +849,6 @@ def train(
     }
     with open(metrics_path, "w") as f:
         json.dump(metrics_blob, f, indent=2, default=float)
-    log.info(f"  \u2192 {metrics_path}")
 
     jsonl.close()
 
@@ -851,23 +881,26 @@ def train(
     dyn = None
     if end_state:
         dyn = {
-            "E rate": f"{end_state.get('rate_e', 0):.0f} Hz",
-            "I rate": (
-                f"{end_state.get('rate_i', 0):.0f} Hz"
+            "E": f"{end_state.get('rate_e', 0):.0f}Hz",
+            "I": (
+                f"{end_state.get('rate_i', 0):.0f}Hz"
                 if end_state.get("rate_i") not in (None, 0.0)
                 else "—"
             ),
             "CV": f"{end_state.get('cv', 0):.2f}",
-            "activity": f"{end_state.get('act', 0) * 100:.0f}%",
+            "act": f"{end_state.get('act', 0) * 100:.0f}%",
         }
         if end_state.get("f0"):
-            dyn["f0"] = f"{end_state['f0']:.0f} Hz"
-    runlog.print_summary(
+            dyn["f₀"] = f"{end_state['f0']:.0f}Hz"
+    runlog.summary(
         log,
         best_acc=best_acc,
         final_acc=acc,
         best_epoch=best_epoch,
+        total_epochs=epochs,
         runtime_s=total_time,
+        perf=perf_block,
+        device=device.type,
         dynamics=dyn,
         out_dir=out_dir,
         warnings=wtracker.summary_lines(),

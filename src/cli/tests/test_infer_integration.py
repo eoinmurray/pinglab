@@ -30,7 +30,7 @@ def tmp_output_dir():
 def trained_weights(tmp_output_dir):
     """Pre-trained weights for infer tests.
 
-    Trains a tiny model on scikit digits to produce weights.pth.
+    Trains a tiny model on mnist to produce weights.pth.
     """
     train_dir = tmp_output_dir / "train"
     train_dir.mkdir(exist_ok=True)
@@ -40,7 +40,7 @@ def trained_weights(tmp_output_dir):
         dt=0.1,
         t_ms=100.0,
         epochs=2,
-        dataset="scikit",
+        dataset="mnist",
         max_samples=100,  # enough for stratified split
         lr=0.01,
         hidden_sizes=[32],
@@ -86,7 +86,7 @@ class TestInferParameterPropagation:
             dt=dt_value,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
         )
@@ -100,7 +100,7 @@ class TestInferParameterPropagation:
             dt=0.1,
             t_ms=t_ms_value,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
         )
@@ -114,7 +114,7 @@ class TestInferParameterPropagation:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=hidden_sizes_value,
         )
@@ -129,7 +129,7 @@ class TestInferParameterPropagation:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             seed=42,
         )
@@ -138,7 +138,7 @@ class TestInferParameterPropagation:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             seed=42,
         )
@@ -157,7 +157,7 @@ class TestMModuleGlobalsInference:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=hidden_sizes,
         )
@@ -171,12 +171,12 @@ class TestMModuleGlobalsInference:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=None,
         )
-        # scikit default is 64 (from DATASET_N_HIDDEN_DEFAULTS)
-        assert M.N_HID == 64
+        # mnist default is 1024 (from DATASET_N_HIDDEN_DEFAULTS)
+        assert M.N_HID == 1024
 
     def test_t_steps_computed_correctly(self, trained_weights):
         """M.T_steps should be int(T_ms / dt)."""
@@ -188,7 +188,7 @@ class TestMModuleGlobalsInference:
             dt=dt,
             t_ms=t_ms,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
         )
         assert M.T_steps == expected_steps
@@ -204,7 +204,7 @@ class TestInferReturnDict:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
         )
@@ -219,7 +219,7 @@ class TestInferReturnDict:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
         )
@@ -233,7 +233,7 @@ class TestInferReturnDict:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
         )
@@ -247,7 +247,7 @@ class TestInferReturnDict:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
         )
@@ -264,7 +264,7 @@ class TestInferAndSnapshot:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
         )
@@ -278,7 +278,7 @@ class TestInferAndSnapshot:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
         )
@@ -298,7 +298,7 @@ class TestInferAndSnapshot:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
         )
@@ -323,7 +323,7 @@ class TestInferAndSnapshot:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
         )
@@ -347,7 +347,7 @@ class TestInferAndSnapshot:
             dt=0.15,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
         )
@@ -369,7 +369,7 @@ class TestInferOutputArtifacts:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
@@ -384,7 +384,7 @@ class TestInferOutputArtifacts:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
@@ -401,19 +401,6 @@ class TestInferOutputArtifacts:
 
 class TestInferHiddenSizesAutoDetection:
     """Test auto-detection of hidden_sizes per dataset."""
-
-    def test_hidden_sizes_auto_scikit(self, trained_weights):
-        """Scikit should default to 256 hidden."""
-        infer(
-            model_name="ping",
-            dt=0.1,
-            t_ms=100.0,
-            load_weights=trained_weights,
-            dataset="scikit",
-            max_samples=50,
-            hidden_sizes=None,
-        )
-        assert M.N_HID == 256
 
     def test_hidden_sizes_auto_mnist(self, tmp_output_dir):
         """MNIST should have its own default hidden size."""
@@ -453,19 +440,21 @@ class TestInferAccuracyValidation:
 
     @pytest.mark.slow
     def test_trained_model_achieves_reasonable_accuracy(self, trained_weights):
-        """Model trained on scikit should achieve reasonable accuracy."""
+        """Model trained on mnist should beat the random baseline."""
         result = infer(
             model_name="ping",
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=None,  # Use all test data
             hidden_sizes=[32],
         )
-        # After 2 epochs on scikit, should beat random (10% for 10 classes)
-        assert result["acc"] > 15.0, (
-            f"Expected accuracy > 15% on scikit after training, "
+        # The shared fixture trains only briefly on a small mnist subset, so
+        # this is a smoke check that learning happened at all: beat chance
+        # (10% for 10 classes) with a small margin.
+        assert result["acc"] > 12.0, (
+            f"Expected accuracy > 12% on mnist after training, "
             f"got {result['acc']:.1f}%"
         )
 
@@ -476,6 +465,10 @@ class TestInferAccuracyValidation:
         from config import build_net
         import torch
 
+        # Build the untrained net at mnist's input size so its W_in matches the
+        # net infer() builds for dataset="mnist" (n_in=784); the autouse fixture
+        # otherwise leaves M.N_IN at the module default of 64.
+        M.N_IN = 784
         net = build_net("ping", hidden_sizes=[32])
         weights_dir = tmp_output_dir / "untrained"
         weights_dir.mkdir()
@@ -487,7 +480,7 @@ class TestInferAccuracyValidation:
             dt=0.1,
             t_ms=100.0,
             load_weights=weights_path,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=100,
             hidden_sizes=[32],
         )
@@ -509,7 +502,7 @@ class TestInferDatasetSpecific:
             t_ms=100.0,
             epochs=1,
             dataset="mnist",
-            max_samples=20,
+            max_samples=100,
             hidden_sizes=[32],
             seed=42,
             out_dir=train_dir,
@@ -526,18 +519,6 @@ class TestInferDatasetSpecific:
         )
         assert M.N_IN == 784
 
-    def test_infer_sets_n_in_for_scikit(self, trained_weights):
-        """Scikit inference should set N_IN=64."""
-        infer(
-            model_name="ping",
-            dt=0.1,
-            t_ms=100.0,
-            load_weights=trained_weights,
-            dataset="scikit",
-            max_samples=50,
-        )
-        assert M.N_IN == 64
-
 
 class TestInferWeightsLoading:
     """Test weight loading behavior."""
@@ -550,7 +531,7 @@ class TestInferWeightsLoading:
                 dt=0.1,
                 t_ms=100.0,
                 load_weights=None,  # Should fail
-                dataset="scikit",
+                dataset="mnist",
                 max_samples=50,
             )
 
@@ -561,7 +542,7 @@ class TestInferWeightsLoading:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
         )
@@ -579,7 +560,7 @@ class TestInferRateComputation:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
         )
@@ -595,7 +576,7 @@ class TestInferRateComputation:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             hidden_sizes=[32],
         )
@@ -615,8 +596,8 @@ class TestInferDeterminism:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
-            max_samples=20,
+            dataset="mnist",
+            max_samples=100,
             seed=123,
         )
         result2 = infer(
@@ -624,8 +605,8 @@ class TestInferDeterminism:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
-            max_samples=20,
+            dataset="mnist",
+            max_samples=100,
             seed=123,
         )
         # Deterministic encoding should give same accuracy
@@ -638,7 +619,7 @@ class TestInferDeterminism:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             seed=42,
         )
@@ -647,7 +628,7 @@ class TestInferDeterminism:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             seed=999,
         )
@@ -667,7 +648,7 @@ class TestInferDalesLaw:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             dales_law=True,
         )
@@ -680,7 +661,7 @@ class TestInferDalesLaw:
             dt=0.1,
             t_ms=100.0,
             load_weights=trained_weights,
-            dataset="scikit",
+            dataset="mnist",
             max_samples=50,
             dales_law=False,
         )

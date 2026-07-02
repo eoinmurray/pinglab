@@ -1,4 +1,4 @@
-"""Dataset loaders — scikit-digits, MNIST/sMNIST, SHD.
+"""Dataset loaders — MNIST/sMNIST, SHD.
 
 Pulled out of cli.py. The single
 canonical entry point is `load_dataset(name, ...)`. Image-mode notebooks
@@ -13,7 +13,6 @@ SHD_N_CHANNELS = 700
 
 # Smart per-dataset hidden-size defaults (used by build_net auto-config).
 DATASET_N_HIDDEN_DEFAULTS = {
-    "scikit": 64,  # n_in = 64
     "mnist": 1024,  # n_in = 784, next pow2
     "smnist": 32,  # n_in = 28, next pow2
     "shd": 256,  # n_in = 700; 256 keeps the ladder tractable locally
@@ -72,7 +71,7 @@ def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
     """Load full dataset as (X, y) numpy arrays in [0, 1] / int64.
 
     Args:
-        name: "scikit" | "mnist" | "smnist" | "shd"
+        name: "mnist" | "smnist" | "shd"
               - smnist is mnist data, encoded row-by-row at run time
               - shd is natively event-based; X shape is (N, T_steps, 700)
         max_samples: optional cap; deterministic random subset (seed 42)
@@ -110,12 +109,6 @@ def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
                 mnist_test.targets.numpy(),
             ]
         ).astype(np.int64)
-    elif name == "scikit":
-        from sklearn.datasets import load_digits
-
-        digits = load_digits()
-        X = digits.data.astype(np.float32) / 16.0
-        y = digits.target.astype(np.int64)
     elif name == "shd":
         if dt_ms is None or t_ms is None:
             raise ValueError("load_dataset('shd', ...) requires dt_ms and t_ms")
@@ -134,16 +127,9 @@ def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
     return X, y
 
 
-def _load_dataset_image(dataset="scikit", digit_class=0, sample_idx=0):
+def _load_dataset_image(dataset="mnist", digit_class=0, sample_idx=0):
     """Load a single image from a dataset. Returns (pixel_vec, digit_image)."""
-    if dataset == "scikit":
-        from sklearn.datasets import load_digits
-
-        digits = load_digits()
-        data = digits.data / 16.0
-        targets = digits.target
-        images = digits.images
-    elif dataset in ("mnist", "smnist"):
+    if dataset in ("mnist", "smnist"):
         from torchvision import datasets, transforms
 
         mnist = datasets.MNIST(

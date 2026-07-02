@@ -19,10 +19,10 @@ from inputs import (
     make_step_drive,
 )
 
-# Default output directory when no --out-dir is given: where the oscilloscope
+# Default output directory when no --out-dir is given: where the pinglab-cli
 # snapshot figures land. Defined once and reused by cfg, build_config, and the
 # CLI entrypoint so the path lives in exactly one place.
-DEFAULT_ARTIFACT_ROOT = Path(__file__).parent.parent / "artifacts" / "oscilloscope"
+DEFAULT_ARTIFACT_ROOT = Path(__file__).parent.parent / "artifacts" / "pinglab-cli"
 
 
 # =============================================================================

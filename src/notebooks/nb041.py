@@ -9,7 +9,7 @@ retrained points lie on r_E = p · f_γ — the optimiser cannot find a
 solution off the structural-bound line even when given the chance to
 try at each timescale.
 
-Adds the --tau-gaba flag to the oscilloscope train subcommand
+Adds the --tau-gaba flag to the pinglab-cli train subcommand
 (symmetric counterpart to --tau-ampa, which doesn't yet exist either —
 add later when needed).
 
@@ -46,7 +46,7 @@ from helpers import theme  # noqa: E402
 
 SLUG = "nb041"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 
 T_MS = 200.0
 DT_TRAIN = 0.1
@@ -145,7 +145,7 @@ def _infer_cell(train_dir: Path, extra_args: list[str], out_name: str) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
-            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
             "--load-config", str(train_dir / "config.json"),
             "--load-weights", str(train_dir / "weights.pth"),
             "--tau-gaba", str(_cell_tau_gaba(cfg)),

@@ -52,7 +52,7 @@ from helpers.stamp import stamp_figure  # noqa: E402
 
 SLUG = "nb042"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
-OSCILLOSCOPE = REPO / "src" / "cli" / "cli.py"
+PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 EVAL_SEED = 20260415  # mirror cli.encoders.EVAL_SEED (kept in sync by hand)
 
 # θ_u = off PING baseline now lives in the shared training root (nb022
@@ -163,7 +163,7 @@ def _run_baseline(train_dir: Path, tau_gaba=None):
         out_dir = (ARTIFACTS / "baseline" / train_dir.name).resolve()
         out_dir.mkdir(parents=True, exist_ok=True)
         cmd = [
-            "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+            "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
             "--load-config", str((train_dir / "config.json").resolve()),
             "--load-weights", str((train_dir / "weights.pth").resolve()),
             "--outputs", "rasters", "--out-dir", str(out_dir),
@@ -211,7 +211,7 @@ def _run_with_override(train_dir: Path, override_path: Path, tau_gaba=None) -> d
     out_dir = (ARTIFACTS / "ovrun" / f"{train_dir.name}__{override_path.stem}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+        "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
         "--load-config", str((train_dir / "config.json").resolve()),
         "--load-weights", str((train_dir / "weights.pth").resolve()),
         "--i-override-file", str(override_path), "--out-dir", str(out_dir),
@@ -466,7 +466,7 @@ def _snapshot(train_dir: Path, sample_idx: int, name: str, i_override=None):
     out_dir = (ARTIFACTS / "condraster" / f"{train_dir.name}_{name}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "uv", "run", "python", str(OSCILLOSCOPE), "sim", "--infer",
+        "uv", "run", "python", str(PINGLAB_CLI), "sim", "--infer",
         "--load-config", str((train_dir / "config.json").resolve()),
         "--load-weights", str((train_dir / "weights.pth").resolve()),
         "--sample-index", str(sample_idx), "--out-dir", str(out_dir),
