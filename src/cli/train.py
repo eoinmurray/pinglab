@@ -258,9 +258,11 @@ def train(
         f"{n_trainable:,} params · {len(X_tr)} train · {len(X_te)} test",
     )
 
-    # Save config for reproducibility
-
+    # Save config for reproducibility. `mode` leads so every config.json (train
+    # and sim/infer) carries it — a reader can dispatch on config["mode"] without
+    # KeyError. Ignored by --load-config (not in the config→arg map).
     config = {
+        "mode": "train",
         "model": model_name,
         "lr": lr,
         "epochs": epochs,
