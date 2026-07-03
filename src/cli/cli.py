@@ -56,8 +56,6 @@ from encoders import (  # noqa: E402,F401
 # =============================================================================
 from infer import dump_weights, infer, infer_and_snapshot, probe  # noqa: E402
 from scan import (  # noqa: E402,F401
-    SCAN_DEFAULTS,
-    _apply_scan_var,
     _auto_device,
     primary_hid_key,
     primary_inh_key,

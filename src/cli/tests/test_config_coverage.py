@@ -1,7 +1,7 @@
 """Coverage-focused tests for config.py.
 
 Complements test_config.py (which covers the Config dataclass surface:
-defaults, torch_device, apply_frame_param, sync_from_model). This file
+defaults, torch_device). This file
 exercises the module-level machinery instead: model-globals setup, dt
 pinning, NPZ snapshot serialisation, the network builder, the simulation
 runners, and the record/weight extraction helpers.
