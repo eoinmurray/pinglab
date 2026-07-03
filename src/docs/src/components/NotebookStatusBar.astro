@@ -135,6 +135,11 @@ const render = p.state !== "unknown" || runDate != null;
       {p.host && p.host !== "local" && (
         <span class="item mono">{p.host}</span>
       )}
+      {p.duration && (
+        <span class="item" title="Run wall-clock time">
+          ran in <span class="mono">{p.duration}</span>
+        </span>
+      )}
     </span>
   </div>
 )}

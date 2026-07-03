@@ -56,6 +56,7 @@ export interface Provenance {
   hasPatch?: boolean;
   patchLines?: number;
   host?: string;
+  duration?: string; // run wall-clock, formatted (e.g. "8m 02s") from numbers.json
   commitsSince?: number; // populated when state === "stale"
   changedFiles?: string[]; // sample of dependency files that changed
   note?: string; // human reason for "unknown" / "irreproducible"
@@ -80,13 +81,25 @@ function deps(slug: string): string[] {
   return [`src/notebooks/${slug}.py`, "src/notebooks/helpers", "src/cli"];
 }
 
+function figuresPath(slug: string, file: string): string {
+  return join(REPO_ROOT, "src/docs/public/figures/notebooks", slug, file);
+}
+
 function manifestPath(slug: string): string {
-  return join(
-    REPO_ROOT,
-    "src/docs/public/figures/notebooks",
-    slug,
-    "_manifest.json",
-  );
+  return figuresPath(slug, "_manifest.json");
+}
+
+// The run wall-clock is only known at run-end, so it lives in numbers.json
+// (written on completion), not the launch-time manifest.
+function runDuration(slug: string): string | undefined {
+  const p = figuresPath(slug, "numbers.json");
+  if (!existsSync(p)) return undefined;
+  try {
+    const n = JSON.parse(readFileSync(p, "utf8"));
+    return typeof n.duration === "string" ? n.duration : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function provenance(slug: string): Provenance {
@@ -122,6 +135,7 @@ export function provenance(slug: string): Provenance {
     hasPatch: !!patch,
     patchLines: patch?.lines,
     host: m.host,
+    duration: runDuration(slug),
   };
 
   // Reproducibility (axis 1). Unrecoverable only when there is no commit to
