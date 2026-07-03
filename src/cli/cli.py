@@ -31,10 +31,7 @@ from config import (
 )
 from datasets import (  # noqa: E402,F401
     DATASET_N_HIDDEN_DEFAULTS,
-    SHD_N_CHANNELS,
     _load_dataset_image,
-    _load_shd,
-    _shd_cache_dir,
     load_dataset,
 )
 
@@ -43,12 +40,8 @@ from datasets import (  # noqa: E402,F401
 # =============================================================================
 from encoders import (  # noqa: E402,F401
     EVAL_SEED,
-    downsample_spikes_count,
     encode_batch,
     encode_images_poisson,
-    encode_smnist,
-    transport_spikes_bin,
-    upsample_spikes_zeropad,
 )
 
 # =============================================================================
@@ -287,19 +280,17 @@ def _build_parent_parser():
         default=None,
         help="Hidden layer sizes. Single value = 1 layer, "
         "multiple = stacked layers (e.g. --n-hidden 128 256). "
-        "(default: dataset-aware smart default; "
-        "mnist=1024, smnist=32, shd=256)",
+        "(default: dataset-aware smart default; mnist=1024)",
     )
     net_group.add_argument(
         "--readout",
-        choices=["rate", "li", "spike-count", "mem-mean"],
+        choices=["rate", "mem-mean"],
         default="rate",
         dest="readout_mode",
         help="Output layer: 'rate' sums last-hidden spikes "
         "and projects linearly at the final timestep "
-        "(default); 'li' uses a non-spiking leaky "
-        "integrator per class with max-over-time, the "
-        "standard SHD-style readout.",
+        "(default); 'mem-mean' averages a per-class output-LIF "
+        "membrane over time (the trained classification readout).",
     )
     net_group.add_argument(
         "--dales-law",
@@ -337,20 +328,6 @@ def _build_parent_parser():
         help="W_in sparsity (default: 0.95)",
     )
     net_group.add_argument(
-        "--n-e",
-        type=int,
-        default=None,
-        help="Number of excitatory neurons (default: 1024). With --n-i and "
-        "--exact-k, sweep N at fixed fan-in K to test Vreeswijk-Sompolinsky "
-        "N-invariance.",
-    )
-    net_group.add_argument(
-        "--n-i",
-        type=int,
-        default=None,
-        help="Number of inhibitory neurons (default: 256).",
-    )
-    net_group.add_argument(
         "--ei-sparsity",
         type=float,
         default=0.0,
@@ -383,36 +360,6 @@ def _build_parent_parser():
         "targets the I cells directly, so their membrane fluctuations are "
         "no longer driven entirely by E spikes via W^EI. Required for full "
         "V&S-style AI state where both populations need uncorrelated noise.",
-    )
-    net_group.add_argument(
-        "--shared-drive",
-        type=float,
-        nargs=2,
-        default=None,
-        metavar=("RATE_HZ", "G_PER_SPIKE"),
-        help="Shared (common) Poisson drive on E: ONE Poisson stream at "
-        "RATE_HZ broadcast to every E cell, adding G_PER_SPIKE μS of g_E per "
-        "spike. Fully correlated across cells. Combine with --independent-drive "
-        "to mix shared + private drive and tune the cross-cell input correlation.",
-    )
-    net_group.add_argument(
-        "--shared-drive-i",
-        type=float,
-        nargs=2,
-        default=None,
-        metavar=("RATE_HZ", "G_PER_SPIKE"),
-        help="Shared (common) Poisson drive on I. Same semantics as "
-        "--shared-drive but broadcast to every I cell.",
-    )
-    net_group.add_argument(
-        "--noise-std",
-        type=float,
-        default=0.0,
-        help="Additive white-noise amplitude (mV-scale) injected into each E "
-        "cell's excitatory conductance every timestep — independent neural "
-        "noise on top of the stimulus drive. Use with a fixed drive to vary "
-        "the input SNR (contrast / noise) independently of the mean. Works on "
-        "synthetic-spikes mode.",
     )
     net_group.add_argument(
         "--quenched-drive",
@@ -470,36 +417,6 @@ def _build_parent_parser():
         "startup transient in post.",
     )
     net_group.add_argument(
-        "--tau-mem",
-        type=float,
-        default=None,
-        help="Membrane time constant τ_mem in ms "
-        "(default: 10 ms, module-level `tau_snn`). "
-        "Cramer et al. SHD: 20 ms.",
-    )
-    net_group.add_argument(
-        "--tau-syn",
-        type=float,
-        default=None,
-        help="Synaptic time constant τ_syn in ms for the "
-        "exponential synapse (default: 2 ms, "
-        "module-level `tau_ampa`). Cramer et al. SHD: "
-        "10 ms. Only affects models with "
-        "exponential_synapse=True (coba / ping).",
-    )
-    net_group.add_argument(
-        "--readout-tau-out",
-        type=float,
-        default=None,
-        help="Output-LIF time constant τ_out in ms for "
-        "the spike-count readout (default: 5 ms, "
-        "module-level `tau_out_ms`). Smaller values "
-        "speed up output-membrane leak so it doesn't "
-        "saturate under high-rate hidden drive — "
-        "needed for snnTorch-family models at coarse "
-        "dt. No-op for --readout rate or li.",
-    )
-    net_group.add_argument(
         "--readout-w-out-scale",
         type=float,
         default=1.0,
@@ -522,14 +439,6 @@ def _build_parent_parser():
         "use 40 for SHD RSNNs. Applies to the "
         "fast-sigmoid surrogate used by every spike.",
     )
-    net_group.add_argument(
-        "--device",
-        type=str,
-        default=None,
-        choices=["cpu", "mps", "cuda"],
-        help="Compute device. If unset, auto-detects: cuda > mps > cpu.",
-    )
-
     inp_group = parent.add_argument_group("Input")
     inp_group.add_argument(
         "--input",
@@ -562,7 +471,7 @@ def _build_parent_parser():
         "--dataset",
         type=str,
         default="mnist",
-        choices=["mnist", "smnist", "shd"],
+        choices=["mnist"],
         help="Dataset (default: mnist)",
     )
 
@@ -724,14 +633,13 @@ def _build_subparsers(parser, parent):
         "(e.g. W_ei. W_ie.) so a fresh sub-block survives — transfer-load probes.",
     )
     sim_parser.add_argument(
-        "--perturb-mode", choices=["drop", "add", "add_split"], default=None,
+        "--perturb-mode", choices=["drop", "add"], default=None,
         help="[--infer] Hidden-spike perturbation applied inside the forward loop: "
-        "drop (Bernoulli mask), add (Poisson noise Hz), add_split (E/I Poisson).",
+        "drop (Bernoulli mask), add (Poisson noise Hz).",
     )
     sim_parser.add_argument(
         "--perturb-level", nargs="+", type=float, default=None, metavar="LEVEL",
-        help="[--perturb-mode] level: one value for drop (prob) / add (Hz); "
-        "two values (E Hz, I Hz) for add_split.",
+        help="[--perturb-mode] level: one value for drop (prob) / add (Hz).",
     )
     sim_parser.add_argument(
         "--i-override-file", type=str, default=None,
@@ -816,7 +724,7 @@ def _build_subparsers(parser, parent):
         "train",
         parents=[parent],
         help="Train an SNN to classify digits",
-        description="Train a model on MNIST / smnist / SHD using "
+        description="Train a model on MNIST using "
         "surrogate-gradient BPTT. Writes weights.pth, metrics.json, "
         "metrics.jsonl, test_predictions.json.",
         epilog="Examples:\n"
@@ -886,20 +794,6 @@ def _build_subparsers(parser, parent):
         "the realised gamma frequency f_γ tracks 1/τ_GABA, and the post-"
         "training rate ceiling tracks f_γ.",
     )
-    train_parser.add_argument(
-        "--fr-reg-mode",
-        type=str,
-        default="per-neuron",
-        choices=["per-neuron", "population"],
-        help="Firing-rate regulariser pooling. 'per-neuron' "
-        "(default) computes relu(<z_i> - θ_u)² for each neuron "
-        "i and sums — concentrates pressure on the highest-firing "
-        "cells (Cramer recipe; same as nb035/036). 'population' "
-        "uses a single scalar relu(<z>_pop - θ_u)² where <z>_pop "
-        "is the grand mean across batch and neurons, then scaled "
-        "by n_neurons to keep s_u's effective magnitude comparable. "
-        "Distributes pressure uniformly across cells.",
-    )
 
 
 def parse_args(argv=None):
@@ -919,20 +813,15 @@ run:
 The flags fall into the following groups (every group is documented in
 each subcommand's --help):
 
-  Network        --model, --n-hidden, --n-input, --ei-strength, --ei-ratio,
-                 --ei-sparsity, --w-in-sparsity, --bias, --dt, --t-ms,
-                 --tau-mem, --tau-syn, --device, --seed
-  Readout        --readout {rate,li,spike-count,mem-mean}, --readout-tau-out,
-                 --readout-w-out-scale, --kaiming-init, --dales-law,
-                 --no-dales-law, --rec-layers, --ei-layers
-  Input          --input, --input-rate, --stim-overdrive, --drive, --dataset,
-                 --digit, --sample
-  Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-rec
+  Network        --model, --n-hidden, --ei-strength, --ei-ratio,
+                 --ei-sparsity, --w-in-sparsity, --dt, --t-ms, --seed
+  Readout        --readout {rate,mem-mean}, --readout-w-out-scale,
+                 --dales-law, --no-dales-law, --ei-layers
+  Input          --input, --input-rate, --dataset, --digit, --sample
+  Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-ii
   Gradient       --v-grad-dampen, --surrogate-slope
-  Train (train)  --lr, --epochs, --batch-size, --max-samples, --optimizer,
-                 --loss, --adaptive-lr, --early-stopping, --profile,
-                 --fr-reg-upper-theta, --fr-reg-upper-strength,
-                 --fr-reg-mode, --skip-bad-grad-threshold
+  Train (train)  --lr, --epochs, --batch-size, --max-samples,
+                 --fr-reg-upper-theta, --fr-reg-upper-strength
   Sim (sim)      --infer, --load-config, --load-weights, --max-samples
   Output / exec  --out-dir, --wipe-dir, --modal, --modal-gpu
 
@@ -998,7 +887,7 @@ For the underlying theory of --v-grad-dampen see /articles/ar006/.
     args._input_auto = False
     config_set_dataset = getattr(args, "load_config", None) and getattr(
         args, "dataset", None
-    ) in ("mnist", "smnist")
+    ) == "mnist"
     # Only auto-flip when --input was LEFT AT DEFAULT. An explicit --input
     # synthetic-spikes (e.g. uniform-Poisson f–I on a trained cell, which also
     # passes --load-config → dataset) must be honoured, not overridden.
@@ -1028,9 +917,6 @@ def configure_models(args):
     """
     arg_to_global = {
         "surrogate_slope": ("SURROGATE_SLOPE", float),
-        "tau_mem": ("tau_snn", float),
-        "tau_syn": ("tau_ampa", float),
-        "readout_tau_out": ("tau_out_ms", float),
     }
     for arg, (attr, cast) in arg_to_global.items():
         val = getattr(args, arg, None)
@@ -1192,15 +1078,13 @@ def _build_cell_drive(args, C, dt, T_steps):
 
       - independent: N uncorrelated per-cell Poisson streams (zero cross-cell
         input correlation — the AI state's decorrelated drive).
-      - shared: ONE common Poisson stream broadcast to every cell (fully
-        correlated); mix with independent to tune the input correlation.
       - quenched: a frozen per-cell DC value drawn once from N(mean, std),
         held constant for the whole trial — V&S's quenched random input, which
         cannot pin spike times so the Lyapunov probe sees autonomous chaos.
 
-    Seeds are offset off C.SEED (independent E +1, I +2; quenched E +3, I +4;
-    shared E +5, I +6) so each source is reproducible and mutually independent,
-    matching the historical cell-drive path.
+    Seeds are offset off C.SEED (independent E +1, I +2; quenched E +3, I +4)
+    so each source is reproducible and mutually independent, matching the
+    historical cell-drive path.
     """
     import torch
 
@@ -1221,11 +1105,6 @@ def _build_cell_drive(args, C, dt, T_steps):
         gen = torch.Generator(device="cpu").manual_seed(C.SEED + 1)
         spk = M.poisson_spikes(rate, (T_steps, C.N_E), dt, gen, device=dev)
         ext_g = _add(ext_g, spk * g)
-    if getattr(args, "shared_drive", None) is not None:
-        rate, g = float(args.shared_drive[0]), float(args.shared_drive[1])
-        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 5)
-        spk = M.poisson_spikes(rate, (T_steps, 1), dt, gen)  # CPU; expand below
-        ext_g = _add(ext_g, (spk * g).to(dev).expand(T_steps, C.N_E).contiguous())
     if getattr(args, "quenched_drive", None) is not None:
         mean, std = float(args.quenched_drive[0]), float(args.quenched_drive[1])
         gen = torch.Generator(device="cpu").manual_seed(C.SEED + 3)
@@ -1237,11 +1116,6 @@ def _build_cell_drive(args, C, dt, T_steps):
         gen = torch.Generator(device="cpu").manual_seed(C.SEED + 2)
         spk = M.poisson_spikes(rate, (T_steps, C.N_I), dt, gen, device=dev)
         ext_g_i = _add(ext_g_i, spk * g)
-    if getattr(args, "shared_drive_i", None) is not None:
-        rate, g = float(args.shared_drive_i[0]), float(args.shared_drive_i[1])
-        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 6)
-        spk = M.poisson_spikes(rate, (T_steps, 1), dt, gen)  # CPU; expand below
-        ext_g_i = _add(ext_g_i, (spk * g).to(dev).expand(T_steps, C.N_I).contiguous())
     if getattr(args, "quenched_drive_i", None) is not None:
         mean, std = float(args.quenched_drive_i[0]), float(args.quenched_drive_i[1])
         gen = torch.Generator(device="cpu").manual_seed(C.SEED + 4)
@@ -1290,8 +1164,8 @@ def _run_sim(args, C, out_dir, log):
     # Drive: synthetic-spikes → one trial of uniform Poisson at --input-rate fed
     # through W_in (records voltages → snapshot.npz drives both the raster/PSD and
     # the per-neuron trace panels). Otherwise the Börgers tonic conductance step.
-    _drive_flags = ("independent_drive", "independent_drive_i", "shared_drive",
-                    "shared_drive_i", "quenched_drive", "quenched_drive_i")
+    _drive_flags = ("independent_drive", "independent_drive_i",
+                    "quenched_drive", "quenched_drive_i")
     _has_cell_drive = any(getattr(args, d, None) is not None for d in _drive_flags)
     if getattr(args, "input", "synthetic-spikes") == "synthetic-spikes" and not _has_cell_drive:
         import torch
@@ -1390,7 +1264,7 @@ def _run_train(args, C, out_dir, log):
         epochs=args.epochs,
         dt=args.dt or 0.1,
         out_dir=str(out_dir),
-        device_name=args.device,
+        device_name=None,
         w_in=_resolve_w_in(args),
         w_ei=args.w_ei,
         w_ie=args.w_ie,
@@ -1414,7 +1288,6 @@ def _run_train(args, C, out_dir, log):
         tau_gaba=args.tau_gaba,
         fr_reg_upper_theta=args.fr_reg_upper_theta,
         fr_reg_upper_strength=args.fr_reg_upper_strength,
-        fr_reg_mode=args.fr_reg_mode,
         trainable_w_ei=args.trainable_w_ei,
         trainable_w_ie=args.trainable_w_ie,
     )
@@ -1424,8 +1297,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
     """Load trained weights and evaluate test-set accuracy (the former `infer` mode)."""
     w_in = _resolve_w_in(args)
 
-    # Perturbation level: a single value (drop prob / add Hz) collapses to a scalar;
-    # two values stay a tuple for add_split (E Hz, I Hz).
+    # Perturbation level: a single value (drop prob / add Hz) collapses to a scalar.
     _plevel = getattr(args, "perturb_level", None)
     if _plevel is not None and len(_plevel) == 1:
         _plevel = _plevel[0]

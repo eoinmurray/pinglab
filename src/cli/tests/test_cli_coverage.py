@@ -86,7 +86,6 @@ class TestParseArgsSubcommands:
         assert args.epochs == 5
         assert args.lr == pytest.approx(0.001)
         assert args.batch_size == 16
-        assert args.fr_reg_mode == "per-neuron"
 
     def test_dump_weights_subparser(self):
         args = parse_args(["dump-weights", "--model", "ping"])
@@ -102,8 +101,8 @@ class TestParseArgsSubcommands:
         assert exc.value.code == 0
 
     def test_readout_and_dales_law_flags(self):
-        args = parse_args(["train", "--readout", "li", "--no-dales-law"])
-        assert args.readout_mode == "li"
+        args = parse_args(["train", "--readout", "mem-mean", "--no-dales-law"])
+        assert args.readout_mode == "mem-mean"
         assert args.dales_law is False
         args2 = parse_args(["train", "--readout", "rate"])
         assert args2.dales_law is True  # default
@@ -123,13 +122,11 @@ class TestParseArgsSubcommands:
                 "--independent-drive", "500", "0.03",
                 "--seed", "7",
                 "--modal-gpu", "A100",
-                "--device", "cpu",
             ]
         )
         assert args.independent_drive == [500.0, 0.03]
         assert args.seed == 7
         assert args.modal_gpu == "A100"
-        assert args.device == "cpu"
 
 
 class TestParseArgsAutoFlip:
@@ -293,9 +290,6 @@ class TestConfigureModels:
             [
                 "sim",
                 "--surrogate-slope", "40",
-                "--tau-mem", "20",
-                "--tau-syn", "10",
-                "--readout-tau-out", "5",
                 "--input-rate", "33",
                 "--t-ms", "77",
                 "--exact-k",
@@ -304,20 +298,17 @@ class TestConfigureModels:
         )
         configure_models(args)
         assert M.SURROGATE_SLOPE == pytest.approx(40.0)
-        assert M.tau_snn == pytest.approx(20.0)
-        assert M.tau_ampa == pytest.approx(10.0)
-        assert M.tau_out_ms == pytest.approx(5.0)
         assert M.max_rate_hz == pytest.approx(33.0)
         assert M.T_ms == pytest.approx(77.0)
         assert M.EXACT_K_CONNECTIVITY is True
 
     def test_none_valued_args_left_alone(self):
-        # No tau overrides → the tau globals keep their module defaults; only the
-        # always-written max_rate_hz / T_ms move.
-        before_tau = M.tau_snn
+        # No surrogate override → the slope global keeps its module default; only
+        # the always-written max_rate_hz / T_ms move.
+        before_slope = M.SURROGATE_SLOPE
         args = parse_args(["sim", "--input-rate", "10", "--t-ms", "50"])
         configure_models(args)
-        assert M.tau_snn == before_tau
+        assert M.SURROGATE_SLOPE == before_slope
         assert M.max_rate_hz == pytest.approx(10.0)
         assert M.T_ms == pytest.approx(50.0)
 

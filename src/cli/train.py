@@ -1,8 +1,7 @@
 """Training driver for the CLI.
 
 Holds seed_everything and the main train() loop for the PING (COBANet) model
-across MNIST / FashionMNIST / Yin-Yang / sMNIST / SHD with a configurable
-readout, loss, dataset encoder, gradient stabilizer, and optimizer.
+on MNIST with a configurable readout, gradient stabilizer, and optimizer.
 """
 
 from __future__ import annotations
@@ -28,11 +27,10 @@ from config import (
 )
 from datasets import (
     DATASET_N_HIDDEN_DEFAULTS,
-    SHD_N_CHANNELS,
     _load_dataset_image,
     load_dataset,
 )
-from encoders import EVAL_SEED, encode_batch, encode_smnist
+from encoders import EVAL_SEED, encode_batch
 from metrics import compute_metrics
 from scan import _auto_device, primary_hid_key, primary_inh_key
 
@@ -69,25 +67,18 @@ def _to_np(v):
     return torch.stack(v).numpy()
 
 
-def _firing_rate_penalty(spike_counts, theta, strength, mode, below):
-    """Quadratic firing-rate regularizer summed over per-layer spike counts.
-
-    below=False penalises mean rate ABOVE theta (upper bound); below=True
-    penalises mean rate BELOW theta (lower bound). mode 'population' pools to a
-    single grand-mean scalar (scaled by n_neurons so the strength keeps its
-    per-neuron-recipe magnitude); otherwise the penalty is per-neuron.
+def _firing_rate_penalty(spike_counts, theta, strength):
+    """Quadratic per-neuron firing-rate regularizer summed over per-layer
+    spike counts. Penalises each neuron's mean spike count ABOVE theta (the
+    upper bound); the per-neuron form concentrates pressure on the highest-
+    firing cells (Cramer recipe).
     """
     reg = 0.0
     for sc in spike_counts:
-        if mode == "population":
-            value = sc.mean()
-            scale = sc.shape[-1]
-        else:
-            value = sc.mean(dim=0)
-            scale = 1
-        excess = (theta - value) if below else (value - theta)
+        value = sc.mean(dim=0)
+        excess = value - theta
         term = strength * (torch.relu(excess) ** 2)
-        reg = reg + (scale * term if mode == "population" else term.sum())
+        reg = reg + term.sum()
     return reg
 
 
@@ -121,12 +112,11 @@ def train(
     tau_gaba=None,
     fr_reg_upper_theta=0.0,
     fr_reg_upper_strength=0.0,
-    fr_reg_mode="per-neuron",
     trainable_w_ei=False,
     trainable_w_ie=False,
     trainable_w_ii=False,
 ):
-    """Train a model on mnist / smnist / shd."""
+    """Train a model on mnist."""
     from torch.utils.data import DataLoader, TensorDataset
 
 
@@ -145,8 +135,7 @@ def train(
     # Pin dt / T_ms / T_steps to THIS run's values before any forward() call.
     # Without this, forward() falls back to the models.py defaults (dt = 0.25,
     # T_steps from the 1000 ms default) and the network trains at the wrong
-    # timestep regardless of --dt — the 8befe44 regression this restores. The
-    # mnist / smnist / shd branches below may override T_steps for their own T.
+    # timestep regardless of --dt — the 8befe44 regression this restores.
     set_sim_dt(dt, t_ms)
 
     # Optional τ_GABA override: forward() recomputes decay_gaba from the module
@@ -157,7 +146,7 @@ def train(
         M.tau_gaba = float(tau_gaba)
 
     # Determine network hidden layer sizes: use CLI arg or smart default per dataset
-    # Smart defaults: mnist=1024, smnist=32, shd=256
+    # Smart defaults: mnist=1024
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]
@@ -179,30 +168,12 @@ def train(
         out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Data — single canonical loader; smnist uses mnist data, encoded row-by-row
-    use_smnist = dataset == "smnist"
+    # Data — single canonical loader.
     runlog.phase(log, "loading", dataset)
-    if dataset == "shd":
-        X_tr, X_te, y_tr, y_te = load_dataset(
-            dataset, max_samples=max_samples, split=True, dt_ms=dt, t_ms=t_ms
-        )
-    else:
-        X_tr, X_te, y_tr, y_te = load_dataset(
-            dataset, max_samples=max_samples, split=True
-        )
-    if dataset in ("mnist", "smnist"):
-        if use_smnist:
-            M.N_IN = 28
-            t_ms = 28 * 10.0  # 10 ms/row × 28 rows
-            set_sim_dt(dt, t_ms)  # re-pin: smnist has its own total duration
-        else:
-            M.N_IN = 784
-    elif dataset == "shd":
-        # X_tr shape is (N, T_steps, 700) — source n_in and T from the data.
-        M.N_IN = SHD_N_CHANNELS
-        M.T_steps = X_tr.shape[1]  # T comes from the recording, not t_ms/dt
-    else:
-        M.N_IN = 64
+    X_tr, X_te, y_tr, y_te = load_dataset(
+        dataset, max_samples=max_samples, split=True
+    )
+    M.N_IN = 784
     bs = batch_size if batch_size is not None else BATCH_SIZE
     train_loader = DataLoader(
         TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(y_tr)),
@@ -307,32 +278,18 @@ def train(
     # Pre-generate fixed reference spike train using the canonical loader
     # (same as image mode) so init/end snapshots use the same digit-0 sample
     # regardless of train/test split shuffling.
-    if dataset == "shd":
-        # SHD has no canonical "digit image" — skip the image snapshot PNGs
-        # (the input-raster snapshot panel is a deferred follow-up). Per-epoch
-        # firing-rate metrics still want a fixed reference input, so use the
-        # first train sample — already-spiked, shape (T, 700), ready for forward.
-        snapshot_init = False
-        snapshot_end = False
-        ref_image = None
-        ref_spikes = torch.from_numpy(X_tr[0]).float().to(device)
-    else:
-        loader_dataset = "mnist" if dataset in ("mnist", "smnist") else dataset
-        ref_pixel_vec, ref_image = _load_dataset_image(
-            loader_dataset, digit_class=0, sample_idx=0
-        )
-        ref_input = torch.from_numpy(ref_pixel_vec).float().unsqueeze(0).to(device)
-        if use_smnist:
-            ref_spikes = encode_smnist(ref_input, dt, M.max_rate_hz).to(device)
-        else:
-            torch.manual_seed(0)
-            pixels = ref_input.clamp(0, 1)
-            p = M.max_rate_hz * dt / 1000.0
-            ref_spikes = (
-                (torch.rand(M.T_steps, 1, M.N_IN, device=device) < pixels * p)
-                .float()
-                .squeeze(1)
-            )
+    ref_pixel_vec, ref_image = _load_dataset_image(
+        dataset, digit_class=0, sample_idx=0
+    )
+    ref_input = torch.from_numpy(ref_pixel_vec).float().unsqueeze(0).to(device)
+    torch.manual_seed(0)
+    pixels = ref_input.clamp(0, 1)
+    p = M.max_rate_hz * dt / 1000.0
+    ref_spikes = (
+        (torch.rand(M.T_steps, 1, M.N_IN, device=device) < pixels * p)
+        .float()
+        .squeeze(1)
+    )
 
     if snapshot_init:
 
@@ -456,7 +413,7 @@ def train(
         hb = runlog.Heartbeat()
         for batch_idx, (X_b, y_b) in enumerate(train_loader):
             X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, dt, use_smnist)
+            spk = encode_batch(X_b, dt)
             logits = net(input_spikes=spk)
             if torch.isnan(logits).any():
                 opt.zero_grad()
@@ -470,8 +427,6 @@ def train(
                         spike_counts,
                         fr_reg_upper_theta,
                         fr_reg_upper_strength,
-                        fr_reg_mode,
-                        below=False,
                     )
             opt.zero_grad()
             loss.backward()
@@ -539,7 +494,7 @@ def train(
         with torch.no_grad():
             for X_b, y_b in test_loader:
                 X_b, y_b = X_b.to(device), y_b.to(device)
-                spk = encode_batch(X_b, dt, use_smnist, generator=eval_gen)
+                spk = encode_batch(X_b, dt, generator=eval_gen)
                 logits_t = net(input_spikes=spk)
                 test_loss_sum += loss_fn(logits_t, y_b).item()
                 test_batches += 1
@@ -807,7 +762,7 @@ def train(
     with torch.no_grad():
         for X_b, y_b in test_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = encode_batch(X_b, dt, use_smnist)
+            spk = encode_batch(X_b, dt)
             logits_t = net(input_spikes=spk)
             p = logits_t.argmax(1)
             for i in range(y_b.size(0)):
@@ -836,8 +791,6 @@ def train(
             "CV": f"{end_state.get('cv', 0):.2f}",
             "act": f"{end_state.get('act', 0) * 100:.0f}%",
         }
-        if end_state.get("f0"):
-            dyn["f0"] = f"{end_state['f0']:.0f}Hz"
     runlog.summary(
         log,
         best_acc=best_acc,

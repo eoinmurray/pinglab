@@ -114,12 +114,12 @@ class TestTrainParameterPropagation:
             epochs=0,
             dataset="mnist",
             max_samples=50,
-            readout_mode="spike-count",
+            readout_mode="mem-mean",
             out_dir=tmp_output_dir,
         )
         with open(tmp_output_dir / "config.json") as f:
             config = json.load(f)
-        assert config["readout_mode"] == "spike-count"
+        assert config["readout_mode"] == "mem-mean"
 
     def test_dales_law_in_config(self, tmp_output_dir):
         """dales_law flag should be saved to config.json."""

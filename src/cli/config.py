@@ -1,7 +1,7 @@
 """Configuration, network construction, and simulation runners.
 
-Contains the Config dataclass, make_net, extract_weights, run_sim,
-run_sim_image, and backward-compat module globals.
+Contains the Config dataclass, extract_weights, run_sim, and
+backward-compat module globals.
 """
 
 from __future__ import annotations
@@ -143,7 +143,7 @@ def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key
         dt: Timestep (ms) — stored as metadata
         n_e: Number of excitatory neurons — stored as metadata
         n_i: Number of inhibitory neurons — stored as metadata
-        display: Optional stimulus array (ext_g_override or input_spikes tensor).
+        display: Optional stimulus array (ext_g or input_spikes tensor).
                  Used as fallback for 'input_spikes' field if rec doesn't contain it.
         primary_hid_key_fn: Function that finds the deepest hidden layer key in rec.
                            Defaults to scan.primary_hid_key (handles multi-layer).
@@ -244,9 +244,6 @@ def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key
 _MODEL_CLASSES = {
     "ping": (COBANet, {}),
 }
-
-HAS_INH = {"ping"}
-IS_COBA = {"ping"}
 
 
 def _build_sim_net(model_name, spike_input=False, **kwargs):
@@ -441,63 +438,10 @@ def extract_weights(net):
     return weights
 
 
-def make_net(cfg_obj, w_in=None, w_hid=(5.1, 3.8), model_name="ping"):
-    """Build a network from a Config object — thin wrapper over build_net.
-
-    Maps cfg fields to build_net args, then sets recording=True for the
-    legacy generate_* / scan code paths that need spike recording.
-
-    The w_in arg overrides cfg.w_in_spikes — supports the legacy
-    (mean, std, dist, sparsity) 4-tuple form used by callers.
-    """
-    M.N_HID = cfg_obj.n_e
-    M.N_INH = cfg_obj.n_i
-    torch.manual_seed(cfg_obj.seed)
-
-    # Resolve w_in: legacy 4-tuple (mean, std, dist, sparsity) → (mean, std), sparsity
-    if w_in is None:
-        w_in_pair = None
-        w_in_sparsity = cfg_obj.w_in_sparsity
-    elif len(w_in) >= 4:
-        w_in_pair = (w_in[0], w_in[1])
-        w_in_sparsity = w_in[3]
-    else:
-        w_in_pair = (w_in[0], w_in[1])
-        w_in_sparsity = cfg_obj.w_in_sparsity
-
-    # Honour an explicit N_I that differs from the default n_e//4 (e.g. the
-    # equal-fan-in V&S configs where K_I = K_E). Single E-I layer → index 1.
-    # Default (n_i == n_e//4) leaves n_inh_per_layer=None, so behaviour is
-    # byte-identical for every existing caller.
-    n_inh_per_layer = (
-        {1: cfg_obj.n_i} if cfg_obj.n_i != cfg_obj.n_e // 4 else None
-    )
-    net = build_net(
-        model_name,
-        w_in=w_in_pair,
-        w_in_sparsity=w_in_sparsity,
-        w_ee=cfg_obj.w_ee,
-        w_ei=cfg_obj.w_ei,
-        w_ie=cfg_obj.w_ie,
-        w_ii=cfg_obj.w_ii if cfg_obj.w_ii != (0.0, 0.0) else None,
-        sparsity=cfg_obj.sparsity,
-        device=cfg_obj.torch_device,
-        hidden_sizes=[cfg_obj.n_e],
-        n_inh_per_layer=n_inh_per_layer,
-    )
-    net.recording = True
-    return net
-
-
-# Backward compat alias
-make_ping_net = make_net
-
-
 def run_sim(
     dt,
     t_e_ping,
     *,
-    ext_g_override=None,
     model_name="ping",
     t_e_async=None,
     input_spikes=None,
@@ -518,8 +462,6 @@ def run_sim(
         network experiments (nb050/nb058): per-cell independent Poisson,
         shared common Poisson, or frozen quenched-DC drive, all pre-built by
         the caller. Without it the network reverts to pure recurrent PING.
-      - ``ext_g_override``: legacy single-tensor ext_g (mutually exclusive
-        with input_spikes; kept for older callers).
       - neither: the Börgers tonic-conductance step drive.
 
     ``v_perturb_eps`` > 0 kicks every membrane voltage by an ε-mV offset at
@@ -558,13 +500,6 @@ def run_sim(
         # Pure cell-drive (no W_in input spikes) — e.g. quenched-DC probes.
         ext_g_tensor = None
         M.T_steps = min(M.T_steps, len(ext_g))
-    elif ext_g_override is not None:
-        ext_g_tensor = (
-            ext_g_override.clone().detach()
-            if isinstance(ext_g_override, torch.Tensor)
-            else torch.tensor(ext_g_override, dtype=torch.float32)
-        ).to(cfg.torch_device)
-        M.T_steps = min(M.T_steps, len(ext_g_tensor))
     else:
         ext_g_tensor, _ = make_step_drive(
             cfg.n_e,
@@ -622,42 +557,6 @@ def run_sim(
     return rec, display, weights
 
 
-def run_sim_image(dt, image, model_name="ping", load_weights=None):
-    """Run a simulation with image input using current config.
-
-    Returns (rec, predicted_class, net).
-    """
-    M.N_IN = image.shape[0]
-    # dt-dependent constants are computed locally in model.forward
-
-    w_in = (*cfg.w_in_spikes, "normal", cfg.w_in_sparsity)
-    net = make_net(cfg, w_in=w_in, model_name=model_name)
-    if load_weights is not None:
-        state = torch.load(load_weights, map_location=cfg.torch_device)
-        net.load_state_dict(state, strict=False)
-        net.eval()
-
-    # Pre-encode image as Poisson spikes — same canonical path as train/infer
-    img_tensor = torch.tensor(image, dtype=torch.float32).unsqueeze(0).to(cfg.torch_device)
-    pixels = img_tensor.clamp(0, 1)
-    p = M.max_rate_hz * dt / 1000.0
-    input_spikes = (
-        (torch.rand(M.T_steps, 1, M.N_IN, device=cfg.torch_device) < pixels.unsqueeze(0) * p)
-        .float()
-        .squeeze(1)
-    )
-
-    with torch.no_grad():
-        kwargs: dict = {"input_spikes": input_spikes}
-        if model_name in HAS_INH:
-            kwargs["randomize_init"] = True
-        out = net.forward(**kwargs)
-
-    rec = _extract_records(net)
-    pred = int(out.argmax(dim=1).cpu().item())
-    return rec, pred, net
-
-
 # =============================================================================
 # Config builder + globals sync
 # =============================================================================
@@ -676,8 +575,6 @@ def build_config(args):
         n_e = args.n_hidden[-1] if isinstance(args.n_hidden, list) else args.n_hidden
         c.n_e = n_e
         c.n_i = n_e // 4
-    if hasattr(args, "device") and args.device is not None:
-        c.device = args.device
     if hasattr(args, "drive") and args.drive is not None:
         c.t_e_async = args.drive
     c.ei_ratio = getattr(args, "ei_ratio", 2.0)

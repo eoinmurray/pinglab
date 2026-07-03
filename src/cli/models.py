@@ -59,30 +59,6 @@ tau_snn = 10.0  # ms — membrane time constant
 tau_out_ms = 2.0  # ms
 thr_snn = 1.0  # spike threshold
 
-# In-network gamma-tick neurons (nb061): coincidence detectors that read a
-# population and emit one spike per synchronous volley — the self-organised
-# clock edge. Fast leak so they integrate coincidences, not rate; threshold on
-# the fraction firing; refractory so one volley makes one tick. Read-only (no
-# feedback into the loop), so they need no training. Two taps are emitted: one
-# off the inhibitory pool (tick_i; legal on event-routed hardware) and one off
-# the excitatory pool (tick_e; Dale's-law-clean, since E excites the detector).
-TICK_TAU_MS = 1.5        # detector membrane time constant (coincidence window)
-TICK_THETA_I = 0.15      # threshold on leaky-integrated fraction of I firing
-TICK_THETA_E = 0.05      # same, for the larger, less-synchronous E pool
-TICK_REFRAC_MS = 12.0    # lockout after a tick (< one gamma cycle)
-
-
-def _cd_step(u, ref, frac, beta, theta, refrac):
-    """One coincidence-detector step: leaky-integrate the population firing
-    fraction, fire on threshold once the refractory lockout has cleared."""
-    import torch
-
-    u = beta * u + frac
-    fired = (u >= theta) & (ref <= 0)
-    u = torch.where(fired, torch.zeros_like(u), u)
-    ref = torch.where(fired, torch.full_like(ref, refrac), (ref - 1).clamp(min=0))
-    return fired, u, ref
-
 # ── Architecture ──────────────────────────────────────────────────────────
 N_IN: int = 64  # input neurons (module default; overridden per-run by the dataset loader)
 N_HID: int = 64  # hidden excitatory neurons (last layer size for compat)
@@ -513,10 +489,9 @@ class COBANet(nn.Module):
         n_inh_per_layer=None,
     ):
         super().__init__()
-        if readout_mode not in ("rate", "li", "spike-count", "mem-mean"):
+        if readout_mode not in ("rate", "mem-mean"):
             raise ValueError(
-                f"readout_mode must be 'rate', 'li', 'spike-count', or "
-                f"'mem-mean', got {readout_mode!r}"
+                f"readout_mode must be 'rate' or 'mem-mean', got {readout_mode!r}"
             )
         self.readout_mode = readout_mode
         self.signed_weights = not dales_law
@@ -706,8 +681,6 @@ class COBANet(nn.Module):
         # (no output spiking neurons — a clean linear decode at the output).
         hidden_accum = init_conductance(B, self.hidden_sizes[-1], device)
         v_out = torch.zeros(B, N_OUT, device=device)
-        logits_max = torch.full((B, N_OUT), float("-inf"), device=device)
-        s_count = torch.zeros(B, N_OUT, device=device)
         mem_sum = torch.zeros(B, N_OUT, device=device)
 
         # Pre-allocate recording buffers on GPU
@@ -733,10 +706,6 @@ class COBANet(nn.Module):
                     rec_buf[f"v_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
                     rec_buf[f"ge_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
                     rec_buf[f"gi_i_{i}"] = torch.zeros(T_steps, B, n_inh, device=device)
-            if self.ei_layers:
-                # The in-network gamma-tick neurons' spike trains: I-tap, E-tap.
-                rec_buf["tick_i"] = torch.zeros(T_steps, B, 1, device=device)
-                rec_buf["tick_e"] = torch.zeros(T_steps, B, 1, device=device)
         # GPU-side spike accumulators
         n_spk_tensors = {}
         for i in range(1, self.n_layers + 1):
@@ -768,8 +737,6 @@ class COBANet(nn.Module):
             "s_i": s_i,
             "hidden_accum": hidden_accum,
             "v_out": v_out,
-            "logits_max": logits_max,
-            "s_count": s_count,
             "mem_sum": mem_sum,
         }
         # Compute dt-dependent constants locally so torch.compile specializes on dt
@@ -828,23 +795,6 @@ class COBANet(nn.Module):
             else self._compiled_cache.get("step", self._step_body)
         )
 
-        # In-network gamma-tick neuron state (coincidence detector on the I
-        # pool). Causal: each step integrates the current inhibitory volley
-        # and fires on threshold. Runs only while recording, since the tick
-        # is consumed by the readout-clock analysis (no loop feedback).
-        tick_ei = min(self.ei_layers) if self.ei_layers else None
-        tick_key = str(tick_ei) if tick_ei is not None else None
-        tick_n_i = float(
-            self.n_inh_per_layer.get(tick_ei, self.hidden_sizes[tick_ei - 1] // 4)
-        ) if tick_ei is not None else 1.0
-        tick_n_e = float(self.hidden_sizes[tick_ei - 1]) if tick_ei is not None else 1.0
-        tick_beta = float(np.exp(-dt / TICK_TAU_MS))
-        tick_refrac = max(1.0, TICK_REFRAC_MS / dt)
-        u_i = torch.zeros(B, 1, device=device)
-        ref_i = torch.zeros(B, 1, device=device)
-        u_e = torch.zeros(B, 1, device=device)
-        ref_e = torch.zeros(B, 1, device=device)
-
         for t in range(T_steps):
             slc = {
                 "in_t": (
@@ -882,17 +832,6 @@ class COBANet(nn.Module):
                         rec_buf[f"ge_i_{i}"][t] = state["ge_i"][k]
                         rec_buf[f"gi_i_{i}"][t] = state["gi_i"][k]
                 rec_buf["out"][t] = logits_t
-                if tick_key is not None and "tick_i" in rec_buf:
-                    # Two coincidence detectors read the volley each step: one
-                    # off the inhibitory pool, one off the excitatory pool.
-                    frac_i = state["s_i"][tick_key].sum(dim=-1, keepdim=True) / tick_n_i
-                    frac_e = state["s_e"][tick_key].sum(dim=-1, keepdim=True) / tick_n_e
-                    fired_i, u_i, ref_i = _cd_step(
-                        u_i, ref_i, frac_i, tick_beta, TICK_THETA_I, tick_refrac)
-                    fired_e, u_e, ref_e = _cd_step(
-                        u_e, ref_e, frac_e, tick_beta, TICK_THETA_E, tick_refrac)
-                    rec_buf["tick_i"][t] = fired_i.float()
-                    rec_buf["tick_e"][t] = fired_e.float()
 
         sizes = {}
         for i in range(1, self.n_layers + 1):
@@ -900,9 +839,6 @@ class COBANet(nn.Module):
             if i in self.ei_layers:
                 sizes[self._inh_key(i)] = self.hidden_sizes[i - 1] // 4
         sizes["out"] = N_OUT
-        if self.ei_layers:
-            sizes["tick_i"] = 1
-            sizes["tick_e"] = 1
         n_spk = {k: v.item() for k, v in n_spk_tensors.items()}
         rec = None
         if rec_buf is not None:
@@ -914,10 +850,6 @@ class COBANet(nn.Module):
         # Expose grad-attached per-neuron spike counts so the trainer's
         # firing-rate regulariser (train.py) can build its loss.
         self.last_spike_counts = rate_counts
-        if self.readout_mode == "li":
-            return state["logits_max"]
-        if self.readout_mode == "spike-count":
-            return state["s_count"]
         if self.readout_mode == "mem-mean":
             return state["mem_sum"] / float(T_steps)
         return logits_t
@@ -1025,12 +957,7 @@ class COBANet(nn.Module):
                 ik = self._inh_key(i)
                 n_spk_tensors[ik] += state["s_i"][k].detach().sum()
 
-        if cfg["readout_mode"] == "li":
-            I_out = prev_spk @ W_ff[-1]
-            state["v_out"] = cfg["beta_snn"] * state["v_out"] + (1.0 - cfg["beta_snn"]) * I_out
-            state["logits_max"] = torch.maximum(state["logits_max"], state["v_out"])
-            return state["v_out"]
-        if cfg["readout_mode"] in ("spike-count", "mem-mean"):
+        if cfg["readout_mode"] == "mem-mean":
             # Exp-Euler ZOH on output LIF + subtract reset. COBANet's W_ff has
             # no bias term — bias scaling is moot here.
             one_minus_beta = 1.0 - cfg["beta_out"]
@@ -1038,12 +965,9 @@ class COBANet(nn.Module):
             I_out = spike_scale * (prev_spk @ W_ff[-1])
             state["v_out"] = cfg["beta_out"] * state["v_out"] + I_out
             s_out = fast_sigmoid_spike(state["v_out"] - thr_snn, SURROGATE_SLOPE)
-            state["s_count"] = state["s_count"] + s_out
             state["mem_sum"] = state["mem_sum"] + state["v_out"]
             state["v_out"] = state["v_out"] - s_out * thr_snn
-            if cfg["readout_mode"] == "mem-mean":
-                return state["mem_sum"] / float(T_steps)
-            return state["s_count"]
+            return state["mem_sum"] / float(T_steps)
         state["hidden_accum"] = state["hidden_accum"] + prev_spk
         return state["hidden_accum"] @ W_ff[-1]
 

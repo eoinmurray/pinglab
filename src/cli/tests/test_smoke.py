@@ -40,7 +40,7 @@ def test_sim_no_output(out_dir):
 # ── Training modes ───────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("dataset", ["mnist", "smnist"])
+@pytest.mark.parametrize("dataset", ["mnist"])
 def test_train_one_epoch(out_dir, dataset):
     _run(
         f"{OSC} train --epochs 1 --dataset {dataset} --n-hidden 64 "

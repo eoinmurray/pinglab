@@ -24,12 +24,8 @@ from .cli import (  # noqa: E402,F401
     _auto_device,
     _extract_records,
     _load_dataset_image,
-    _load_shd,
-    _shd_cache_dir,
-    downsample_spikes_count,
     encode_batch,
     encode_images_poisson,
-    encode_smnist,
     infer,
     load_dataset,
     parse_args,
@@ -37,7 +33,4 @@ from .cli import (  # noqa: E402,F401
     primary_inh_key,
     seed_everything,
     train,
-    transport_spikes_bin,
-    upsample_spikes_zeropad,
 )
-from .encoders import FROZEN_MODES, FrozenEncoder  # noqa: E402,F401
