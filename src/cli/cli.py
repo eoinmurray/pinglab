@@ -1221,14 +1221,12 @@ def _build_cell_drive(args, C, dt, T_steps):
     if getattr(args, "independent_drive", None) is not None:
         rate, g = float(args.independent_drive[0]), float(args.independent_drive[1])
         gen = torch.Generator(device="cpu").manual_seed(C.SEED + 1)
-        p = rate * dt / 1000.0
-        spk = (torch.rand(T_steps, C.N_E, generator=gen) < p).to(torch.float32).to(dev)
+        spk = M.poisson_spikes(rate, (T_steps, C.N_E), dt, gen, device=dev)
         ext_g = _add(ext_g, spk * g)
     if getattr(args, "shared_drive", None) is not None:
         rate, g = float(args.shared_drive[0]), float(args.shared_drive[1])
         gen = torch.Generator(device="cpu").manual_seed(C.SEED + 5)
-        p = rate * dt / 1000.0
-        spk = (torch.rand(T_steps, 1, generator=gen) < p).to(torch.float32)
+        spk = M.poisson_spikes(rate, (T_steps, 1), dt, gen)  # CPU; expand below
         ext_g = _add(ext_g, (spk * g).to(dev).expand(T_steps, C.N_E).contiguous())
     if getattr(args, "quenched_drive", None) is not None:
         mean, std = float(args.quenched_drive[0]), float(args.quenched_drive[1])
@@ -1239,14 +1237,12 @@ def _build_cell_drive(args, C, dt, T_steps):
     if getattr(args, "independent_drive_i", None) is not None:
         rate, g = float(args.independent_drive_i[0]), float(args.independent_drive_i[1])
         gen = torch.Generator(device="cpu").manual_seed(C.SEED + 2)
-        p = rate * dt / 1000.0
-        spk = (torch.rand(T_steps, C.N_I, generator=gen) < p).to(torch.float32).to(dev)
+        spk = M.poisson_spikes(rate, (T_steps, C.N_I), dt, gen, device=dev)
         ext_g_i = _add(ext_g_i, spk * g)
     if getattr(args, "shared_drive_i", None) is not None:
         rate, g = float(args.shared_drive_i[0]), float(args.shared_drive_i[1])
         gen = torch.Generator(device="cpu").manual_seed(C.SEED + 6)
-        p = rate * dt / 1000.0
-        spk = (torch.rand(T_steps, 1, generator=gen) < p).to(torch.float32)
+        spk = M.poisson_spikes(rate, (T_steps, 1), dt, gen)  # CPU; expand below
         ext_g_i = _add(ext_g_i, (spk * g).to(dev).expand(T_steps, C.N_I).contiguous())
     if getattr(args, "quenched_drive_i", None) is not None:
         mean, std = float(args.quenched_drive_i[0]), float(args.quenched_drive_i[1])
@@ -1303,9 +1299,8 @@ def _run_sim(args, C, out_dir, log):
         import torch
         n_in = int(getattr(M, "N_IN", C.N_E))
         T_steps = int(round(args.t_ms / dt))
-        p_step = spike_rate * dt / 1000.0  # per-channel Poisson spike prob / step
         gen = torch.Generator().manual_seed(C.SEED)
-        spk_in = (torch.rand(T_steps, n_in, generator=gen) < p_step).float()
+        spk_in = M.poisson_spikes(spike_rate, (T_steps, n_in), dt, gen)
         runlog.phase(
             log, "drive",
             f"uniform Poisson {spike_rate:.0f} Hz × {n_in} ch → W_in",

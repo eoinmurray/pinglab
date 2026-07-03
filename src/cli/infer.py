@@ -46,6 +46,43 @@ def _hidden_sizes_from_state_dict(state):
     return sizes or None
 
 
+def _pin_run(dt, t_ms, tau_gaba=None, seed=None):
+    """Per-run global setup shared by every infer entry point.
+
+    Seeds the RNGs (before any build/init randomness), pins dt / T_ms / T_steps
+    through the single set_sim_dt choke point, and optionally overrides the GABA
+    time constant. forward() derives decay_gaba from M.tau_gaba + M.dt each call,
+    so setting the time constant is all that's needed.
+    """
+    seed_everything(seed)
+    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
+    if tau_gaba is not None:
+        M.tau_gaba = float(tau_gaba)
+
+
+def _resolve_hidden_sizes(hidden_sizes, load_weights, default_sizes):
+    """Pick the hidden-layer sizes, then install them into the M globals.
+
+    Precedence: an explicit `hidden_sizes` wins; else recover them from the
+    checkpoint (a trained weights.pth fully determines them, and rebuilding at any
+    other size makes load_state_dict fail on shape mismatch); else fall back to
+    `default_sizes`. Centralised so every entry point agrees — this derivation was
+    previously copy-pasted into infer/snapshot/probe/dump and drifted. Returns the
+    chosen list (also written to M via setup_model_globals).
+    """
+    if hidden_sizes is None and load_weights is not None:
+        hidden_sizes = _hidden_sizes_from_state_dict(
+            torch.load(load_weights, map_location="cpu")
+        )
+        if hidden_sizes is not None:
+            log.info(f"  n_hidden ← checkpoint {hidden_sizes}")
+    if hidden_sizes is None:
+        hidden_sizes = list(default_sizes)
+        log.info(f"  n_hidden auto → {hidden_sizes}")
+    setup_model_globals(hidden_sizes)
+    return hidden_sizes
+
+
 def _make_perturb_fn(mode, level, dt_ms, generator):
     """Per-step hidden-spike perturbation callback (s_e, s_i, layer) -> (s_e', s_i').
 
@@ -128,44 +165,12 @@ def infer(
     emit_pop_traces = "pop_traces" in outputs
     emit_rasters = "rasters" in outputs
 
-    # Seed before dataset load and model init (matters when load_weights is None
-    # and any randomness remains in the path).
-    seed_everything(seed)
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # M MODULE GLOBALS INITIALIZATION (same as in train.py)
-    # ─────────────────────────────────────────────────────────────────────────
-    # Must initialize M globals before building/loading the network. forward()
-    # reads the module-level dt for its decay constants, so M.dt must be set to
-    # the requested dt here (otherwise the network runs at the default 0.25 ms).
-    # ─────────────────────────────────────────────────────────────────────────
-
-    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
-
-    # Optional τ_GABA override — replay a cell under its trained inhibitory decay.
-    # forward() derives decay_gaba from M.tau_gaba + M.dt each call, so setting
-    # M.tau_gaba is all that's needed.
-    if tau_gaba is not None:
-        M.tau_gaba = float(tau_gaba)
-
-    # Prefer the checkpoint's own layer shapes: a trained weights.pth fully
-    # determines hidden_sizes, and rebuilding at any other size makes
-    # load_state_dict fail on shape mismatch. Only fall back to the dataset
-    # default when the caller passed nothing and the checkpoint can't tell us
-    # (partial/transfer checkpoint). An explicit hidden_sizes still wins.
-    if hidden_sizes is None and load_weights is not None:
-        _peek = torch.load(load_weights, map_location="cpu")
-        hidden_sizes = _hidden_sizes_from_state_dict(_peek)
-        if hidden_sizes is not None:
-            log.info(f"  n_hidden ← checkpoint {hidden_sizes}")
-    if hidden_sizes is None:
-        default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
-        hidden_sizes = [default]
-        log.info(f"  n_hidden auto → {hidden_sizes} (smart default for {dataset})")
-
-    # Initialize M module globals before building/loading network
-    setup_model_globals(hidden_sizes)
-
+    # Seed, pin dt, and resolve hidden_sizes (explicit > checkpoint > dataset
+    # default) — the shared per-run setup (see _pin_run / _resolve_hidden_sizes).
+    _pin_run(dt, t_ms, tau_gaba=tau_gaba, seed=seed)
+    hidden_sizes = _resolve_hidden_sizes(
+        hidden_sizes, load_weights, [DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)]
+    )
     device = _auto_device()
 
     # Data — same canonical loader and split as train, so the test set is
@@ -524,24 +529,11 @@ def infer_and_snapshot(
     """
     import numpy as np
 
-    # Seed RNG for reproducibility of inference results
-    seed_everything(seed)
-
-    # Initialize M module globals (same setup as infer() above). M.dt must be set
-    # so forward()'s decay constants use the requested dt, not the default 0.25.
-    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
-    if tau_gaba is not None:
-        M.tau_gaba = float(tau_gaba)
-    # Match the checkpoint's layer shapes when the caller didn't pin them (see
-    # _hidden_sizes_from_state_dict); fall back to the dataset default otherwise.
-    if hidden_sizes is None and load_weights is not None:
-        _peek = torch.load(load_weights, map_location="cpu")
-        hidden_sizes = _hidden_sizes_from_state_dict(_peek)
-    if hidden_sizes is None:
-        default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
-        hidden_sizes = [default]
-    setup_model_globals(hidden_sizes)
-
+    # Shared per-run setup (seed, pin dt, resolve hidden_sizes — see infer()).
+    _pin_run(dt, t_ms, tau_gaba=tau_gaba, seed=seed)
+    hidden_sizes = _resolve_hidden_sizes(
+        hidden_sizes, load_weights, [DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)]
+    )
     device = _auto_device()
 
     # Load dataset
@@ -687,19 +679,11 @@ def probe(
     """
     import numpy as np
 
-    seed_everything(seed)
-    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
+    # Shared per-run setup (see infer()); probe pins N_IN explicitly and can
+    # override N_INH after the hidden sizes are installed.
+    _pin_run(dt, t_ms, tau_gaba=tau_gaba, seed=seed)
     M.N_IN = int(n_in)
-    if tau_gaba is not None:
-        M.tau_gaba = float(tau_gaba)
-    # Match the checkpoint's layer shapes when the caller didn't pin them (see
-    # _hidden_sizes_from_state_dict); fall back to the fixed default otherwise.
-    if hidden_sizes is None and load_weights is not None:
-        _peek = torch.load(load_weights, map_location="cpu")
-        hidden_sizes = _hidden_sizes_from_state_dict(_peek)
-    if hidden_sizes is None:
-        hidden_sizes = [256]
-    setup_model_globals(hidden_sizes)
+    hidden_sizes = _resolve_hidden_sizes(hidden_sizes, load_weights, [256])
     if n_inh is not None:
         M.N_INH = int(n_inh)
 
@@ -863,14 +847,13 @@ def dump_weights(
     import numpy as np
 
     # Seed BEFORE build_net so the randomized init is byte-identical to training's
-    # init (this is the whole point — reproduce the pre-training weights).
-    seed_everything(seed)
-
-    set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
-    if hidden_sizes is None:
-        default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
-        hidden_sizes = [default]
-    setup_model_globals(hidden_sizes)
+    # init (this is the whole point — reproduce the pre-training weights). Resolve
+    # hidden_sizes from the checkpoint too, so the init arrays match the trained
+    # shapes for a non-default-size net.
+    _pin_run(dt, t_ms, seed=seed)
+    hidden_sizes = _resolve_hidden_sizes(
+        hidden_sizes, load_weights, [DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)]
+    )
     if dataset in ("mnist", "smnist"):
         M.N_IN = 28 if dataset == "smnist" else 784
     else:
