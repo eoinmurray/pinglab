@@ -29,6 +29,10 @@ from infer import (
 )
 from train import train
 
+# Whole file trains real (tiny) torch models via module fixtures — minutes of
+# wall-clock. Marked slow so `pytest -m "not slow"` is a true fast lane.
+pytestmark = pytest.mark.slow
+
 
 @pytest.fixture(scope="module")
 def trained_ckpt():

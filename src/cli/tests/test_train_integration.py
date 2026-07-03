@@ -13,6 +13,10 @@ import pytest
 import torch
 from train import train
 
+# Whole file trains real (tiny) torch models — minutes of wall-clock. Marked slow
+# so `pytest -m "not slow"` is a true fast lane.
+pytestmark = pytest.mark.slow
+
 
 @pytest.fixture
 def tmp_output_dir():
