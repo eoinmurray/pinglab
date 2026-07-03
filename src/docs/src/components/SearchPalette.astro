@@ -115,7 +115,7 @@ const json = JSON.stringify(items);
             '" data-url="' +
             esc(it.url) +
             '"><span class="pi-id">' +
-            esc(it.id) +
+            esc(it.kind === "collection" ? "" : it.id) +
             '</span><span class="pi-title">' +
             esc(it.title) +
             '</span><span class="pi-sub">' +
@@ -249,6 +249,9 @@ const json = JSON.stringify(items);
     font-family: var(--font-mono, monospace);
     font-size: 0.78rem;
     color: var(--color-muted-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .pi-title {
     flex: 1 1 auto;
