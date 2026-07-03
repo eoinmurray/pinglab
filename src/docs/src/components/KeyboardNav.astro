@@ -12,6 +12,9 @@
  * while typing in a field or with a modifier held. Only visible links are
  * targets (a collapsed citation card is skipped).
  *
+ * `i` jumps to the index, but only on listing pages (not while reading a
+ * content entry), so it can't navigate you away mid-read.
+ *
  * Rendered once via SiteHeader, so every page loads it.
  */
 ---
@@ -40,6 +43,18 @@
       // first so a stop lands only on the title.
       return vis.filter((a, i) => !(vis[i + 1] && vis[i + 1].href === a.href));
     };
+
+    // `i` jumps to the index — only on the listing pages (a content entry has
+    // <article class="prose">), so it never yanks you away mid-read.
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "i") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isField(document.activeElement)) return;
+      if (document.querySelector("article.prose")) return; // content page
+      if (location.pathname.replace(/\/+$/, "") === "/index") return; // already
+      e.preventDefault();
+      location.href = "/index/";
+    });
 
     // Capture phase so a stopPropagation() somewhere on the bubble path can't
     // swallow the arrows before we see them.
