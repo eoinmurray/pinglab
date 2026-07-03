@@ -33,7 +33,6 @@ DEFAULT_ARTIFACT_ROOT = Path(__file__).parent.parent / "artifacts" / "pinglab-cl
 class Config:
     n_e: int = 1024
     n_i: int = 256
-    fps: int = 60
     seed: int = 42
     sim_ms: float = 600.0
     step_on_ms: float = 200.0
@@ -349,7 +348,7 @@ def build_net(
     """Construct a network with the given config.
 
     Single canonical builder used by every mode. Same args produce the same
-    network — no drift between train/infer/image/video/sim.
+    network — no drift between train/infer/image/sim.
 
     hidden_sizes: list of hidden layer sizes (e.g. [128, 256] for 2 layers).
     w_rec: if set, enables recurrence on all layers (or rec_layers subset).
@@ -713,7 +712,6 @@ def build_config(args):
         c.artifact_root = args.out_dir
     else:
         c.artifact_root = str(DEFAULT_ARTIFACT_ROOT)
-    c.fps = getattr(args, "frame_rate", 10)
     if hasattr(args, "n_hidden") and args.n_hidden is not None:
         # args.n_hidden may be an int or a list (multi-layer). For legacy Config,
         # use the last hidden size (the E-I / output-feeding layer).
@@ -785,7 +783,6 @@ def _sync_globals_from_cfg(c):
 _CFG_ALIASES = {
     "DEVICE": "torch_device",
     "EI_RATIO": "ei_ratio",
-    "FPS": "fps",
     "NOISE_SIGMA": "noise_sigma",
     "NOISE_TAU": "noise_tau",
     "SEED": "seed",

@@ -1,4 +1,4 @@
-"""Scan-mode utilities (video generation code removed).
+"""Scan-mode utilities.
 
 Provides shared utilities for scanning parameters and recording-key resolution.
 """

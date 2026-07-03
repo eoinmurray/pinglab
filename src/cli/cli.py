@@ -5,7 +5,6 @@ Subcommands: sim, train.
 Usage:
     uv run python src/cli/cli.py                             # sim only (metrics)
     uv run python src/cli/cli.py sim --image                 # snapshot
-    uv run python src/cli/cli.py sim --video --scan-var ei_strength  # parameter sweep
     uv run python src/cli/cli.py sim --infer --load-weights weights.pth  # evaluate trained net
     uv run python src/cli/cli.py train --epochs 10           # train on mnist
 """
@@ -68,7 +67,6 @@ from scan import (  # noqa: E402,F401
 # Training (moved to train.py)
 # =============================================================================
 from train import (  # noqa: E402,F401
-    observe_epoch,
     seed_everything,
     train,
 )
@@ -829,7 +827,7 @@ def _build_subparsers(parser, parent):
         help="Train an SNN to classify digits",
         description="Train a model on MNIST / smnist / SHD using "
         "surrogate-gradient BPTT. Writes weights.pth, metrics.json, "
-        "metrics.jsonl, test_predictions.json plus optional video.",
+        "metrics.jsonl, test_predictions.json.",
         epilog="Examples:\n"
         "  # PING with gamma oscillation on MNIST\n"
         "  cli.py train --model ping --dataset mnist \\\n"
@@ -868,9 +866,6 @@ def _build_subparsers(parser, parent):
         type=float,
         default=80.0,
         help="Gradient dampening for COBA membrane",
-    )
-    train_parser.add_argument(
-        "--frame-rate", type=int, default=10, help="Video fps for observe (default: 10)"
     )
     train_parser.add_argument(
         "--fr-reg-upper-theta",
@@ -944,8 +939,7 @@ each subcommand's --help):
   Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-rec
   Gradient       --v-grad-dampen, --surrogate-slope, --coba-integrator
   Train (train)  --lr, --epochs, --batch-size, --max-samples, --optimizer,
-                 --loss, --adaptive-lr, --early-stopping, --observe,
-                 --observe-every, --frame-rate, --profile,
+                 --loss, --adaptive-lr, --early-stopping, --profile,
                  --fr-reg-upper-theta, --fr-reg-upper-strength,
                  --fr-reg-mode, --skip-bad-grad-threshold
   Sim (sim)      --infer, --load-config, --load-weights, --max-samples
@@ -1184,13 +1178,6 @@ def _print_intro(log, config, args, mode):
             f"lr {config.get('lr', '?')}",
             f"batch {config.get('batch_size', 64)}",
             f"v-dampen {config['v_grad_dampen']}" if has("v_grad_dampen") else None,
-        )))
-
-    if config.get("video"):
-        groups.append(("scan", join(
-            f"{config.get('scan_var', '?')} "
-            f"{config.get('scan_min', '?')}→{config.get('scan_max', '?')}",
-            f"{config.get('frames', '?')} frames",
         )))
 
     groups.append(("run", join(

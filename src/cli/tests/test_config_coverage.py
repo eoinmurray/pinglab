@@ -436,7 +436,6 @@ class TestBuildConfig:
         # Bare args: only the getattr-with-default branches fire.
         c = C.build_config(_Args())
         assert c.artifact_root == str(C.DEFAULT_ARTIFACT_ROOT)
-        assert c.fps == 10
         assert c.raster_mode == "scatter"
         # _sync_globals_from_cfg installed this Config as the module cfg.
         assert C.cfg is c
@@ -444,7 +443,6 @@ class TestBuildConfig:
     def test_full_args_wire_every_branch(self):
         args = _Args(
             out_dir="/tmp/pinglab-test-out",
-            frame_rate=24,
             n_hidden=[16, 32],
             device="cpu",
             raster="line",
@@ -463,7 +461,6 @@ class TestBuildConfig:
         )
         c = C.build_config(args)
         assert c.artifact_root == "/tmp/pinglab-test-out"
-        assert c.fps == 24
         # n_hidden list -> last element is n_e.
         assert c.n_e == 32
         assert c.n_i == 8
