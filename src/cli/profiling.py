@@ -1,7 +1,7 @@
 """Lightweight timing accumulator for the sim / render / encode phases.
 
 Pulled out of plot.py — it's a stopwatch utility, not plotting code. The
-shared ``prof`` instance is used by the scan/video runners to print a
+shared ``prof`` instance is used by the scan runners to print a
 per-phase breakdown after a run.
 """
 

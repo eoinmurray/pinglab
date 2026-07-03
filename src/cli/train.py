@@ -1,9 +1,8 @@
 """Training driver for the CLI.
 
-Holds seed_everything, observe_epoch (per-epoch metrics computation), and
-the main train() loop for the PING (COBANet) model across MNIST /
-FashionMNIST / Yin-Yang / sMNIST / SHD with a configurable readout, loss,
-dataset encoder, gradient stabilizer, and optimizer.
+Holds seed_everything and the main train() loop for the PING (COBANet) model
+across MNIST / FashionMNIST / Yin-Yang / sMNIST / SHD with a configurable
+readout, loss, dataset encoder, gradient stabilizer, and optimizer.
 """
 
 from __future__ import annotations
@@ -92,39 +91,6 @@ def _firing_rate_penalty(spike_counts, theta, strength, mode, below):
     return reg
 
 
-def observe_epoch(
-    net,
-    ref_spikes,
-    epoch,
-    acc,
-    train_loss,
-    dt,
-    model_name,
-    fig,
-    axes,
-    writer,
-    total_epochs=100,
-    grad_ratios=None,
-    lr=None,
-    digit_image=None,
-):
-    """Run reference input through network and compute metrics."""
-    C.cfg.sync_from_model(M.N_HID, M.N_INH)
-
-    net.recording = True
-    with torch.no_grad():
-        net(input_spikes=ref_spikes)
-    net.recording = False
-
-    rec = net.spike_record
-
-    spk_e = _to_np(rec[primary_hid_key(rec)])
-    _ik = primary_inh_key(rec)
-    spk_i = _to_np(rec[_ik]) if _ik else None
-
-    return compute_metrics(spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH)
-
-
 def train(
     model_name="ping",
     lr=0.01,
@@ -160,7 +126,7 @@ def train(
     trainable_w_ie=False,
     trainable_w_ii=False,
 ):
-    """Train a model on mnist / smnist / shd, optionally producing a sweep video."""
+    """Train a model on mnist / smnist / shd."""
     from torch.utils.data import DataLoader, TensorDataset
 
 
@@ -325,7 +291,7 @@ def train(
         "tau_gaba_ms": float(M.tau_gaba),
         # Provenance (git SHA, run_id, started_at, device, torch version,
         # python env hash) — keeps train-mode config.json at parity with
-        # sim/image/video modes.
+        # sim/image modes.
         **runlog.provenance(),
     }
     with open(out_dir / "config.json", "w") as f:
@@ -556,7 +522,7 @@ def train(
         test_batches = 0
         # Accumulate per-cell rate (Hz) over the full test set so the
         # per-epoch metrics record reflects test-set means rather than
-        # only the single-trial observation rate set by observe_epoch.
+        # only the single-trial observation rate.
         test_rate_e_sum = 0.0
         test_rate_i_sum = 0.0
         # Logit-discrimination accumulators. Cross-entropy keeps falling after

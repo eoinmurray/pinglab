@@ -80,7 +80,7 @@ def load_dataset(name, max_samples=None, split=False, dt_ms=None, t_ms=None):
                train_test_split(seed 42); otherwise return (X, y)
         dt_ms, t_ms: required for "shd" (event binning grid); ignored otherwise
 
-    Single canonical loader used by train, infer, and image/video paths so
+    Single canonical loader used by train, infer, and image paths so
     "first digit-0 sample" means the same physical sample everywhere.
     """
     if name in ("mnist", "smnist"):
