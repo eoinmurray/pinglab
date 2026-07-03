@@ -1,7 +1,7 @@
 {
-  "notebook_run_id": "r054",
-  "duration_s": 39.6,
-  "duration": "40s",
+  "notebook_run_id": "r057",
+  "duration_s": 24.9,
+  "duration": "25s",
   "config": {
     "model": "ping",
     "input": "mnist d0 s0",
