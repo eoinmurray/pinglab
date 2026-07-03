@@ -313,6 +313,19 @@ def coba_current(g_e, v, g_i=None):
     return I
 
 
+def poisson_spikes(rate_hz, shape, dt, generator, device=None):
+    """Bernoulli spike tensor at per-step probability rate_hz * dt / 1000.
+
+    Each entry fires independently with probability (Hz × ms / 1000) per step.
+    Generation runs on the generator's device (usually CPU); pass `device` to
+    move the result. Single source of truth for the uniform-Poisson drive/input
+    streams that cli/infer build (was copy-pasted per drive channel).
+    """
+    p = rate_hz * dt / 1000.0
+    spk = (torch.rand(*shape, generator=generator) < p).to(torch.float32)
+    return spk.to(device) if device is not None else spk
+
+
 def init_lif_state(B, N, device, randomize=False, ref_mean=0.0, ref_std=0.0):
     """Initialise (v, ref) for a LIF population.
     If randomize=True, scatter initial voltages uniformly between E_L and V_th
