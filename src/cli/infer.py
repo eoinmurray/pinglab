@@ -128,7 +128,6 @@ def infer(
     hidden_sizes=None,
     out_dir=None,
     dales_law=True,
-    ei_layers=None,
     seed=None,
     outputs=None,
     tau_gaba=None,
@@ -184,7 +183,6 @@ def infer(
         randomize_init=True,
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
-        ei_layers=ei_layers,
     )
 
     # Load weights. skip_load drops matching state_dict keys (by prefix) so a
@@ -487,7 +485,6 @@ def infer_and_snapshot(
     hidden_sizes=None,
     out_dir=None,
     dales_law=True,
-    ei_layers=None,
     seed=None,
     digit=0,
     sample=0,
@@ -550,7 +547,6 @@ def infer_and_snapshot(
         randomize_init=True,
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
-        ei_layers=ei_layers,
     )
 
     # Load weights (skip_load drops matching keys by prefix — see infer()).
@@ -623,7 +619,6 @@ def probe(
     w_in=None,
     w_in_sparsity=0.0,
     dales_law=True,
-    ei_layers=None,
     seed=None,
     load_weights=None,
     input_rate_hz=25.0,
@@ -670,7 +665,6 @@ def probe(
         randomize_init=True,
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
-        ei_layers=ei_layers,
         n_inh_per_layer=n_inh_per_layer,
     )
     if w_ei_mean is not None or w_ie_mean is not None:
@@ -795,7 +789,6 @@ def dump_weights(
     hidden_sizes=None,
     out_dir=None,
     dales_law=True,
-    ei_layers=None,
     seed=None,
     readout_mode="rate",
     trainable_w_ei=False,
@@ -840,7 +833,6 @@ def dump_weights(
         randomize_init=not kaiming_init,
         dales_law=dales_law,
         hidden_sizes=hidden_sizes,
-        ei_layers=ei_layers,
         readout_mode=readout_mode,
         trainable_w_ei=trainable_w_ei,
         trainable_w_ie=trainable_w_ie,

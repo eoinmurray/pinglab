@@ -481,7 +481,6 @@ class COBANet(nn.Module):
         sparsity=0.0,
         dales_law=True,
         hidden_sizes=None,
-        ei_layers=None,
         readout_mode="rate",
         trainable_w_ei=False,
         trainable_w_ie=False,
@@ -510,11 +509,8 @@ class COBANet(nn.Module):
         all_sizes = [N_IN] + list(sizes) + [N_OUT]
         self.all_sizes = all_sizes
 
-        # Which layers get E-I structure (1-indexed; default: all)
-        if ei_layers is not None:
-            self.ei_layers = set(ei_layers)
-        else:
-            self.ei_layers = set(range(1, self.n_layers + 1))
+        # Every hidden layer gets E-I structure (1-indexed).
+        self.ei_layers = set(range(1, self.n_layers + 1))
 
         # Per-layer N_I override (1-indexed). When None, falls back to
         # n_e // 4. Used by the I-pool sweep in nb047 to vary the E:I

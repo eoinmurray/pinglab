@@ -182,11 +182,11 @@ class TestBuildNet:
         assert net.W_ff[-1].shape[0] == 32
         assert net.hidden_sizes == [16, 32]
 
-    def test_ei_layers_subset(self):
-        # Two hidden layers, only layer 1 gets E-I structure.
-        net = build_net("ping", hidden_sizes=[16, 32], ei_layers=[1])
-        assert net.ei_layers == {1}
-        assert set(net.W_ei.keys()) == {"1"}
+    def test_all_hidden_layers_get_ei(self):
+        # Every hidden layer gets E-I structure (1-indexed).
+        net = build_net("ping", hidden_sizes=[16, 32])
+        assert net.ei_layers == {1, 2}
+        assert set(net.W_ei.keys()) == {"1", "2"}
 
     def test_explicit_weight_specs_and_ei_strength(self):
         # Exercise the w_in / w_ee / w_ei / w_ie / w_ii spec branches plus
@@ -296,9 +296,10 @@ class TestExtractRecords:
 
 class TestExtractWeights:
     def test_new_style_w_ff_and_dicts(self):
-        net = build_net("ping", hidden_sizes=[16, 32], ei_layers=[1])
+        # Single hidden layer -> one E-I layer, so the W_ei/W_ie ParameterDicts
+        # each hold one key and collapse to the bare dict name.
+        net = build_net("ping", hidden_sizes=[16])
         weights = extract_weights(net)
-        # Multi-layer W_ff -> W_in, W_ff_2..., W_out named entries.
         assert "W_in" in weights
         assert "W_out" in weights
         # Single-key ParameterDicts collapse to the dict name.
@@ -308,8 +309,8 @@ class TestExtractWeights:
         assert all(isinstance(v, np.ndarray) and v.ndim == 1 for v in weights.values())
 
     def test_multi_key_dicts_get_suffixed(self):
-        # Two E-I layers -> W_ei has keys '1' and '2' -> suffixed names.
-        net = build_net("ping", hidden_sizes=[16, 32], ei_layers=[1, 2])
+        # Two hidden layers -> two E-I layers -> W_ei keys '1','2' -> suffixed.
+        net = build_net("ping", hidden_sizes=[16, 32])
         weights = extract_weights(net)
         assert "W_ei_1" in weights
         assert "W_ei_2" in weights

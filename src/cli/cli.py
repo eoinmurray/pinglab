@@ -305,14 +305,6 @@ def _build_parent_parser():
         help="Allow signed (positive + negative) weights.",
     )
     net_group.add_argument(
-        "--ei-layers",
-        type=int,
-        nargs="+",
-        default=None,
-        help="Which hidden layers get E-I structure (1-indexed). "
-        "Default: all layers (PING only).",
-    )
-    net_group.add_argument(
         "--ei-strength",
         type=float,
         default=0.5,
@@ -816,7 +808,7 @@ each subcommand's --help):
   Network        --model, --n-hidden, --ei-strength, --ei-ratio,
                  --ei-sparsity, --w-in-sparsity, --dt, --t-ms, --seed
   Readout        --readout {rate,mem-mean}, --readout-w-out-scale,
-                 --dales-law, --no-dales-law, --ei-layers
+                 --dales-law, --no-dales-law
   Input          --input, --input-rate, --dataset, --digit, --sample
   Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-ii
   Gradient       --v-grad-dampen, --surrogate-slope
@@ -1280,7 +1272,6 @@ def _run_train(args, C, out_dir, log):
         max_samples=args.max_samples,
         v_grad_dampen=args.v_grad_dampen,
         dales_law=args.dales_law,
-        ei_layers=args.ei_layers,
         batch_size=args.batch_size,
         seed=args.seed,
         readout_w_out_scale=args.readout_w_out_scale,
@@ -1318,7 +1309,6 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             w_in_sparsity=args.w_in_sparsity or 0.0,
             hidden_sizes=args.n_hidden,
             dales_law=args.dales_law,
-            ei_layers=args.ei_layers,
             seed=args.seed,
             digit=args.digit,
             sample=args.sample,
@@ -1345,7 +1335,6 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         w_in_sparsity=args.w_in_sparsity or 0.0,
         hidden_sizes=args.n_hidden,
         dales_law=args.dales_law,
-        ei_layers=args.ei_layers,
         seed=args.seed,
         outputs=getattr(args, "outputs", None),
         tau_gaba=getattr(args, "tau_gaba", None),
@@ -1380,7 +1369,6 @@ def _run_dump_weights(args, C, out_dir, log):
         w_in_sparsity=args.w_in_sparsity or 0.0,
         hidden_sizes=args.n_hidden,
         dales_law=args.dales_law,
-        ei_layers=args.ei_layers,
         seed=args.seed,
         readout_mode=getattr(args, "readout_mode", "rate"),
         trainable_w_ei=getattr(args, "trainable_w_ei", False),
@@ -1406,7 +1394,6 @@ def _emit_probe(args, C, out_dir, log):
         w_in=_resolve_w_in(args),
         w_in_sparsity=args.w_in_sparsity or 0.0,
         dales_law=args.dales_law,
-        ei_layers=args.ei_layers,
         seed=args.seed,
         load_weights=getattr(args, "load_weights", None),
         input_rate_hz=args.spike_rate,

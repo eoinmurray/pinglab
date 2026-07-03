@@ -293,7 +293,6 @@ def build_net(
     randomize_init=False,
     dales_law=True,
     hidden_sizes=None,
-    ei_layers=None,
     readout_mode="rate",
     trainable_w_ei=False,
     trainable_w_ie=False,
@@ -306,8 +305,7 @@ def build_net(
     network — no drift between train/infer/image/sim.
 
     hidden_sizes: list of hidden layer sizes (e.g. [128, 256] for 2 layers).
-    w_rec: if set, enables recurrence on all layers (or rec_layers subset).
-    ei_layers: which layers get E-I structure (1-indexed). Default: all.
+    Every hidden layer gets E-I structure.
     """
     if model_name not in _MODEL_CLASSES:
         raise ValueError(
@@ -324,8 +322,6 @@ def build_net(
         kwargs["hidden_sizes"] = list(hidden_sizes)
 
     kwargs["dales_law"] = dales_law
-    if ei_layers is not None:
-        kwargs["ei_layers"] = set(ei_layers)
     if trainable_w_ei:
         kwargs["trainable_w_ei"] = True
     if trainable_w_ie:
