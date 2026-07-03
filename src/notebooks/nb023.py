@@ -28,7 +28,7 @@ from matplotlib.patches import FancyArrowPatch, Rectangle
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
-from helpers import theme  # noqa: E402
+from helpers import nblog, theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
@@ -195,6 +195,9 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
 
     # I raster
     if has_i:
+        # has_i is True iff the include-I branch above ran, so ax_i is a real
+        # Axes here (it is only None in the no-I branch). Narrow for the checker.
+        assert ax_i is not None
         i_idx, i_t = np.where(spk_i.T)
         ax_i.scatter(
             t_ms[i_t],
@@ -268,7 +271,7 @@ FI_EI = {"coba": "0", "ping": "1.5"}  # ei-strength per condition
 FI_T_MS = 400
 
 
-def fi_sweep() -> dict:
+def fi_sweep(bar: nblog.ProgressBar | None = None) -> dict:
     """Free-running f–I curves under uniform Poisson input: mean per-cell E and
     I firing rate vs input rate, for COBA (loop off) and PING (loop on). No
     training — the bare drive-response of the architecture.
@@ -310,9 +313,18 @@ def fi_sweep() -> dict:
                 "--out-dir",
                 str(out_dir),
             ]
-            subprocess.run(
-                ["uv", "run", "python", str(PINGLAB_CLI), *argv], cwd=REPO, check=True
+            # Capture the CLI's own output so the progress bar owns the
+            # terminal; on failure, surface what it printed before re-raising.
+            proc = subprocess.run(
+                ["uv", "run", "python", str(PINGLAB_CLI), *argv],
+                cwd=REPO,
+                capture_output=True,
+                text=True,
             )
+            if proc.returncode != 0:
+                sys.stdout.write(proc.stdout)
+                sys.stderr.write(proc.stderr)
+                proc.check_returncode()
             # Single-trial snapshot (no --outputs/--n-batch): read the spikes and
             # compute the mean per-cell rate here.
             d = np.load(out_dir / "snapshot.npz")
@@ -323,7 +335,8 @@ def fi_sweep() -> dict:
             out[cell]["in"].append(rate)
             out[cell]["e"].append(e)
             out[cell]["i"].append(i)
-            print(f"[f-I] {cell} input={rate} Hz → E={e:.1f} Hz I={i:.1f} Hz")
+            if bar is not None:
+                bar.tick(f"{cell} {rate}Hz → E {e:.0f} I {i:.0f}")
     return out
 
 
@@ -333,7 +346,7 @@ def plot_raster_compound(
     out_path: Path,
     titles: dict,
     include_arch: bool = False,
-) -> None:
+) -> dict:
     """Super figure: COBA vs PING side by side.
 
     Each condition is a column-pair: a single raster (I stacked above E, no gap)
@@ -395,6 +408,8 @@ def plot_raster_compound(
         has_i = spk_i.size > 0 and spk_i.shape[0] == T and spk_i.any()
 
         if include_arch:
+            # arch_gs is only built (non-None) in the include_arch branch above.
+            assert arch_gs is not None
             ax_arch = fig.add_subplot(arch_gs[0, col])
             _draw_schematic(ax_arch, cell)
             ax_arch.set_title(titles[cell], loc="left", fontweight="semibold")
@@ -521,7 +536,7 @@ def _pick_active(spk: np.ndarray) -> int | None:
     return int(np.argmax(counts))
 
 
-def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
+def plot_traces(npz_path: Path, out_path: Path, title: str) -> list:
     theme.apply()
     data = np.load(npz_path)
     spk_e = data["spk_e"]
@@ -800,7 +815,7 @@ def main() -> None:
 
     t_start = time.monotonic()
     notebook_run_id = next_run_id(SLUG)
-    print(f"notebook_run_id = {notebook_run_id}")
+    log = nblog.Run(SLUG, notebook_run_id, subtitle="PING fundamentals")
 
     prepare_run_dirs(
         SLUG,
@@ -817,7 +832,8 @@ def main() -> None:
     arch_dst = FIGURES / "architecture"
     plot_architecture(arch_dst)
     figures["architecture"] = arch_dst
-    print(f"wrote {arch_dst}.{{svg,pdf}}")
+    log.phase("architecture", "schematic (Figure 0)")
+    log.wrote(arch_dst, "svg,pdf")
 
     snaps: dict[str, dict] = {}
     for cell, spec in CELLS.items():
@@ -826,8 +842,14 @@ def main() -> None:
                 p.unlink()
         scope_argv = [*COMMON_ARGS, *spec["args"]]
         cmd = ["uv", "run", "python", str(PINGLAB_CLI), *scope_argv]
-        print(f"[scope] {cell}: {' '.join(scope_argv)}")
-        subprocess.run(cmd, cwd=REPO, check=True)
+        log.phase(f"sim · {cell}", " ".join(spec["args"]))
+        # Capture the CLI's own instrument-panel output so this notebook's log
+        # stays clean; on failure, surface it before raising.
+        proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
+        if proc.returncode != 0:
+            sys.stdout.write(proc.stdout)
+            sys.stderr.write(proc.stderr)
+            proc.check_returncode()
         if not SCOPE_OUT_NPZ.exists():
             raise SystemExit(f"pinglab-cli did not produce {SCOPE_OUT_NPZ}")
 
@@ -844,10 +866,13 @@ def main() -> None:
         panel_paths = plot_traces(SCOPE_OUT_NPZ, traces_dst, cell.upper())
         for p in panel_paths:
             figures[p.stem] = p
-            print(f"wrote {p}.{{svg,pdf}}")
+            log.wrote(p, "svg,pdf")
 
-    # Free-running f–I curves (uniform Poisson sweep), folded into the super figure.
-    fi = fi_sweep()
+    # Free-running f–I curves (uniform Poisson sweep), folded into the super
+    # figure. One bar over every (cell, input-rate) sim.
+    fi_bar = log.bar(len(FI_EI) * len(FI_RATES_HZ), "f–I sweep")
+    fi = fi_sweep(bar=fi_bar)
+    fi_bar.done()
 
     column_titles = {
         "coba": "A   COBA — recurrent loop off",
@@ -859,20 +884,17 @@ def main() -> None:
     compound_dst = FIGURES / "raster_compound"
     f_gamma = plot_raster_compound(snaps, fi, compound_dst, column_titles)
     figures["raster_compound"] = compound_dst
-    print(f"wrote {compound_dst}.{{png,pdf}}")
+    log.wrote(compound_dst, "png,pdf")
 
     # Merged overview for this notebook: each column's architecture schematic
     # sits directly above its raster / PSD / f–I plots.
     overview_dst = FIGURES / "overview_compound"
     plot_raster_compound(snaps, fi, overview_dst, column_titles, include_arch=True)
     figures["overview_compound"] = overview_dst
-    print(f"wrote {overview_dst}.{{png,pdf}}")
+    log.wrote(overview_dst, "png,pdf")
 
     for cell, fg in f_gamma.items():
-        print(
-            f"  f_gamma[{cell}] = {fg if fg is None else round(fg, 2)} Hz "
-            "(measured from the shown raster's E population PSD)"
-        )
+        log.result(f"f_gamma[{cell}]", f"{fg if fg is None else round(fg, 2)} Hz")
 
     duration_s = time.monotonic() - t_start
     summary = {
@@ -896,8 +918,8 @@ def main() -> None:
         "results": [],
     }
     (FIGURES / "numbers.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(f"wrote {FIGURES / 'numbers.json'}")
-    print(f"  total duration: {duration_s:.1f}s")
+    log.wrote(FIGURES / "numbers.json")
+    log.summary(duration_s, out_dir=FIGURES)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,11 @@
 import numpy as np
 import pytest
 import torch
-
 from inputs import (
     DT_CAL,
     TAU_AMPA,
     drive_scale,
     make_reference_noise,
-    make_spike_drive,
     make_step_drive,
 )
 
@@ -116,38 +114,3 @@ class TestReferenceNoise:
         assert eta1.shape == (int(sim_ms / 0.01), n_e)
         np.testing.assert_array_equal(X1, X2)
         np.testing.assert_array_equal(eta1, eta2)
-
-
-class TestMakeSpikeDrive:
-    def test_spike_rates_match_target(self):
-        """Empirical spike rates should match the configured Poisson rate."""
-        n_in, dt = 128, 0.25
-        sim_ms = 2000.0
-        t_steps = int(sim_ms / dt)
-        rate_base, rate_stim = 5.0, 50.0
-        step_on, step_off = 500.0, 1500.0
-        spikes = make_spike_drive(
-            n_in,
-            t_steps,
-            dt,
-            rate_base,
-            rate_stim,
-            step_on,
-            step_off,
-            seed=0,
-        ).numpy()
-
-        t_ms = np.arange(t_steps) * dt
-        base_mask = (t_ms < step_on) | (t_ms >= step_off)
-        stim_mask = (t_ms >= step_on) & (t_ms < step_off)
-        base_dur_s = base_mask.sum() * dt / 1000.0
-        stim_dur_s = stim_mask.sum() * dt / 1000.0
-        emp_base = spikes[base_mask].sum() / (n_in * base_dur_s)
-        emp_stim = spikes[stim_mask].sum() / (n_in * stim_dur_s)
-        assert emp_base == pytest.approx(rate_base, rel=0.25)
-        assert emp_stim == pytest.approx(rate_stim, rel=0.15)
-
-    def test_only_zero_or_one(self):
-        spikes = make_spike_drive(16, 200, 0.25, 5.0, 50.0, 20.0, 60.0, seed=0)
-        u = torch.unique(spikes)
-        assert set(u.tolist()).issubset({0.0, 1.0})

@@ -18,10 +18,9 @@ if _pkg_dir in _sys.path:
     _sys.path.remove(_pkg_dir)
 _sys.path.insert(0, _pkg_dir)
 
-from .cli import M  # noqa: E402,F401  # re-exported for tests/_apply_scan_var
-from .encoders import FROZEN_MODES, FrozenEncoder  # noqa: E402,F401
 from .cli import (  # noqa: E402,F401
     EVAL_SEED,
+    M,  # noqa: E402,F401  # re-exported for tests/_apply_scan_var
     _apply_scan_var,
     _auto_device,
     _extract_records,
@@ -30,7 +29,6 @@ from .cli import (  # noqa: E402,F401
     _shd_cache_dir,
     downsample_spikes_count,
     encode_batch,
-    encode_image_spikes,
     encode_images_poisson,
     encode_smnist,
     infer,
@@ -43,3 +41,4 @@ from .cli import (  # noqa: E402,F401
     transport_spikes_bin,
     upsample_spikes_zeropad,
 )
+from .encoders import FROZEN_MODES, FrozenEncoder  # noqa: E402,F401

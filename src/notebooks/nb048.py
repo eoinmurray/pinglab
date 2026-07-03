@@ -33,13 +33,13 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "src" / "notebooks"))
 
+from helpers import theme  # noqa: E402
+from helpers.datasets import load_mnist_split  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers import theme  # noqa: E402
-from helpers.datasets import load_mnist_split  # noqa: E402
 
 SLUG = "nb048"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -624,7 +624,9 @@ def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
                 ax_a.get_position().x1 - ax_a.get_position().x0
             )
         )
-        sub = fig.add_axes([
+        # add_axes([l,b,w,h]) rect form is valid at runtime; matplotlib stub
+        # overloads are too strict → library-stub false positive.
+        sub = fig.add_axes([  # ty: ignore[no-matching-overload]
             sub_l, ax_a.get_position().y0 + 0.005,
             sub_w, ax_a.get_position().height - 0.01,
         ])
@@ -816,7 +818,9 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
         sub_l = ax_a.get_position().x0 + (
             (x_lo / T_ms) * (ax_a.get_position().x1 - ax_a.get_position().x0)
         )
-        sub = fig.add_axes([
+        # add_axes([l,b,w,h]) rect form is valid at runtime; matplotlib stub
+        # overloads are too strict → library-stub false positive.
+        sub = fig.add_axes([  # ty: ignore[no-matching-overload]
             sub_l, ax_a.get_position().y0 + 0.005,
             sub_w, ax_a.get_position().height - 0.02,
         ])
@@ -921,8 +925,8 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     ax_d.spines["right"].set_visible(False)
 
     fig.suptitle(
-        f"Streaming digit classification — per-segment $(\\tau, $ rate$)$ varies, "
-        f"trained PING (no retraining)",
+        "Streaming digit classification — per-segment $(\\tau, $ rate$)$ varies, "
+        "trained PING (no retraining)",
         fontsize=theme.SIZE_TITLE,
     )
     stamp_figure(fig, run_id)

@@ -44,7 +44,6 @@ import sys
 import time
 from pathlib import Path
 
-
 # ── ANSI palette ─────────────────────────────────────────────────────────
 
 WIDTH = 70  # inner width of banners, rules, and the epoch stream
@@ -115,6 +114,33 @@ def _rule(heavy: bool = False) -> str:
     return dim((_RULE_HEAVY if heavy else _RULE) * WIDTH)
 
 
+# ── Terminal cursor ──────────────────────────────────────────────────────
+# During the in-place epoch progress the cursor would otherwise sit stranded
+# mid-table. Hide it while progress is live and restore it when the run ends;
+# an atexit backstop guarantees the terminal is left usable even on a crash.
+
+_cursor_hidden = False
+
+
+def _hide_cursor() -> None:
+    global _cursor_hidden
+    if _IS_TTY and not _cursor_hidden:
+        import atexit
+
+        sys.stdout.write("\x1b[?25l")
+        sys.stdout.flush()
+        _cursor_hidden = True
+        atexit.register(_show_cursor)
+
+
+def _show_cursor() -> None:
+    global _cursor_hidden
+    if _IS_TTY and _cursor_hidden:
+        sys.stdout.write("\x1b[?25h")
+        sys.stdout.flush()
+        _cursor_hidden = False
+
+
 # ── run.jsonl event spine ────────────────────────────────────────────────
 
 
@@ -157,6 +183,8 @@ _EVENTS: EventLog | None = None
 def init_events(out_dir) -> None:
     """Open run.jsonl under out_dir and make event() live."""
     global _EVENTS
+    if _EVENTS is not None:  # close a prior run's file rather than leak its handle
+        _EVENTS.close()
     _EVENTS = EventLog(Path(out_dir) / "run.jsonl")
 
 
@@ -373,8 +401,13 @@ def phase(log, name: str, detail: str = "", elapsed_s: float | None = None) -> N
 #      subscripts, whose width terminals disagree on (East-Asian "ambiguous").
 #   2. units live in the header, cells are bare numbers, and widths are wide
 #      enough that a value never overflows and shoves the row sideways.
-_SEP = object()  # a group separator between column blocks
-_EPOCH_COLS = [
+# The column-group separator is itself a (key, header, width) tuple so the whole
+# list is uniformly typed — the render helpers can index col[2] and do width
+# arithmetic without losing the int type. Separators are found by identity
+# (col is _SEP), never by value, so the empty key/zero width never collide with a
+# real column.
+_SEP: tuple[str, str, int] = ("", "", 0)
+_EPOCH_COLS: list[tuple[str, str, int]] = [
     ("ep", "epoch", 9),   # "1000/1000"
     ("acc", "acc%", 5),
     ("loss", "loss", 7),
@@ -480,6 +513,26 @@ def print_epoch(*args, **kwargs) -> None:
     epoch_row(*args, **kwargs)
 
 
+def epoch_progress(ep: int, total: int, note: str, elapsed_s: float,
+                   loss: float | None = None) -> str:
+    """A partial epoch-stream row for the epoch still in progress.
+
+    Same column grid as a finished row, so everything lines up: the running
+    `loss` sits under the loss column, the `note` (batch/eval counter) fills the
+    as-yet-unknown dynamics columns between the bars, and elapsed sits under dt.
+    Returned plain (bars uncoloured); Heartbeat dims the whole line.
+    """
+    w = {c[0]: c[2] for c in _EPOCH_COLS if c is not _SEP}
+    ep_c = f"{f'{ep}/{total}':>{w['ep']}}"
+    acc_c = " " * w["acc"]
+    loss_c = f"{loss:>{w['loss']}.3f}" if loss is not None else " " * w["loss"]
+    dt_c = f"{f'{int(elapsed_s)}s':>{w['dt']}}"
+    eta_c = " " * w["eta"]
+    mid_w = w["E"] + 2 + w["I"] + 2 + w["cv"] + 2 + w["act"]  # dynamics-group span
+    parts = [ep_c, acc_c, loss_c, _BAR, f"{note:<{mid_w}}", _BAR, dt_c, eta_c]
+    return "  " + "  ".join(parts)
+
+
 # ── One-shot metrics (sim / probe) ───────────────────────────────────────
 
 
@@ -576,6 +629,7 @@ def summary(
 
     files = list_output_files(out_dir) if out_dir is not None else []
     if files:
+        assert out_dir is not None  # files is non-empty only when out_dir is set
         _summary_row(log, _ARROW, cyan, "output",
                      cyan(str(Path(out_dir).resolve()) + "/"))
         # Collapse subdirectories to one line; list top-level files with sizes.
@@ -618,6 +672,7 @@ def summary(
 
 def done(log, elapsed_s: float, device: str | None = None) -> None:
     """Final line: ✓ done  <elapsed> · <device>."""
+    _show_cursor()  # progress is over — hand the cursor back
     bits = [format_eta(elapsed_s)]
     if device:
         bits.append(device)
@@ -629,31 +684,48 @@ def done(log, elapsed_s: float, device: str | None = None) -> None:
 
 
 class Heartbeat:
-    """Throttled plain-line progress emitter for long inner loops.
+    """Within-epoch progress for a long batch/eval loop.
 
-    A training epoch's batch loop (and the eval loop) can run for minutes with
-    no output — worst of all on the very first batch, which pays the one-time
-    torch.compile cost. Call `beat()` every iteration; it emits at most one
-    line per `interval_s` so a slow epoch shows life without flooding
-    output.log. Plain text only (no ANSI, no carriage returns) so it renders
-    identically in a terminal, the ANSI-stripped output.log, and Modal's
-    non-TTY stdout.
+    A full-MNIST epoch is ~875 batches over minutes; without feedback the
+    stream looks hung. Two renderings, chosen by whether stdout is a TTY:
 
-    The clock starts at construction, so a fast epoch (all batches under one
-    interval) stays silent — no clutter — while a slow one still shows life:
-    the compile-heavy opening batch takes longer than an interval, so the first
-    beat() after it returns already qualifies and fires.
+      • terminal (TTY) — rewrites ONE line in place (carriage return), so a
+        live counter climbs where the finished row will land, instead of a
+        wall of lines. Call clear() before the finished row prints so the row
+        overwrites the live line cleanly.
+      • non-TTY (output.log, Modal) — emits a plain line every `log_interval`
+        s. A periodic record with no control characters; clear() is a no-op.
+
+    `beat()` takes an already-formatted line (see epoch_progress) and dims it.
     """
 
-    def __init__(self, interval_s: float = 5.0):
-        self.interval_s = interval_s
-        self._last = time.perf_counter()  # silent until the first interval elapses
+    def __init__(self, tty_interval: float = 0.25, log_interval: float = 5.0):
+        self._tty = _IS_TTY
+        self._interval = tty_interval if self._tty else log_interval
+        self._last = time.perf_counter()
+        self._pending = False  # a live line is on screen, awaiting clear()
 
-    def beat(self, log, msg: str):
+    def beat(self, log, line: str):
         now = time.perf_counter()
-        if now - self._last >= self.interval_s:
-            self._last = now
-            log.info(dim(f"    {_DOT} {msg}"))
+        if now - self._last < self._interval:
+            return
+        self._last = now
+        line = line.rstrip()
+        if self._tty:
+            _hide_cursor()  # keep the cursor out of the live table
+            sys.stdout.write("\r\x1b[2K" + dim(line))  # \r + clear-to-EOL
+            sys.stdout.flush()
+            self._pending = True
+        else:
+            log.info(dim(line))
+
+    def clear(self):
+        """Erase the pending live line (TTY only) so the next full log line
+        prints cleanly in its place. No-op in non-TTY or if nothing pending."""
+        if self._tty and self._pending:
+            sys.stdout.write("\r\x1b[2K")
+            sys.stdout.flush()
+            self._pending = False
 
 
 # ── Warning detector ─────────────────────────────────────────────────────

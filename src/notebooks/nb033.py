@@ -30,10 +30,10 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy import linalg
-from scipy.integrate import solve_ivp, quad
+from scipy.integrate import quad, solve_ivp
 from scipy.optimize import fsolve
 from scipy.special import erf
 
@@ -121,8 +121,10 @@ def jacobian(fp, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV, eps=1e-6):
     J = np.zeros((4, 4))
     y0 = np.asarray(fp, dtype=float)
     for k in range(4):
-        yp = y0.copy(); yp[k] += eps
-        ym = y0.copy(); ym[k] -= eps
+        yp = y0.copy()
+        yp[k] += eps
+        ym = y0.copy()
+        ym[k] -= eps
         J[:, k] = (f(yp) - f(ym)) / (2 * eps)
     return J
 
@@ -302,6 +304,7 @@ def plot_eigenvalues_complex(results, hopf, out_path, run_id):
     for k in range(eig_re.shape[1]):
         sc = ax.scatter(eig_re[:, k], eig_im[:, k], c=xs, cmap="magma",
                         s=5, linewidths=0)
+    assert sc is not None  # eig_re has 4 columns, so the loop always assigns sc
     ax.axvline(0, color=theme.GREY_MID, lw=0.6, ls=":")
     if hopf:
         w = hopf["omega_star"]
@@ -555,8 +558,10 @@ def reduction_sweep(rhs, fp_fn, I_grid, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
         n = y0.size
         J = np.zeros((n, n))
         for k in range(n):
-            yp = y0.copy(); yp[k] += 1e-6
-            ym = y0.copy(); ym[k] -= 1e-6
+            yp = y0.copy()
+            yp[k] += 1e-6
+            ym = y0.copy()
+            ym[k] -= 1e-6
             J[:, k] = (f(yp) - f(ym)) / 2e-6
         eigs = linalg.eigvals(J)
         results.append({
@@ -695,6 +700,7 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     sc = None
     for k in range(eig_re.shape[1]):
         sc = axA.scatter(eig_re[:, k], eig_im[:, k], c=xs, cmap="magma", s=4, linewidths=0)
+    assert sc is not None  # eig_re has 4 columns, so the loop always assigns sc
     axA.axvline(0, color=theme.GREY_MID, lw=0.6, ls=":")
     if hopf:
         w = hopf["omega_star"]
@@ -806,7 +812,7 @@ def main() -> None:
         two_d[label] = h
         print(f"  2D {label}: "
               + (f"Hopf I*={h['I_ext_star']:.3f} nA" if h else "no Hopf (rings down)"))
-    print(f"  3D (AMPA slaved): "
+    print("  3D (AMPA slaved): "
           + (f"Hopf I*={hopf3['I_ext_star']:.3f} nA, f*={hopf3['freq_star_Hz']:.2f} Hz"
              if hopf3 else "no Hopf"))
     if hopf:

@@ -1,7 +1,7 @@
 """Configuration, network construction, and simulation runners.
 
 Contains the Config dataclass, make_net, extract_weights, run_sim,
-run_sim_batch, run_sim_image, and backward-compat module globals.
+run_sim_image, and backward-compat module globals.
 """
 
 from __future__ import annotations
@@ -9,15 +9,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import models as M
 import numpy as np
 import torch
-from torch import nn
-
-import models as M
-from models import COBANet
 from inputs import (
     make_step_drive,
 )
+from models import COBANet
+from torch import nn
 
 # Default output directory when no --out-dir is given: where the pinglab-cli
 # snapshot figures land. Defined once and reused by cfg, build_config, and the
@@ -37,7 +36,6 @@ class Config:
     fps: int = 60
     seed: int = 42
     sim_ms: float = 600.0
-    burn_in_ms: float = 100.0
     step_on_ms: float = 200.0
     step_off_ms: float = 300.0
     t_e_async: float = 0.0006
@@ -71,10 +69,6 @@ class Config:
         ]
     )
     artifact_root: str = ""
-
-    @property
-    def visible_ms(self):
-        return self.sim_ms - self.burn_in_ms
 
     @property
     def torch_device(self):
@@ -171,7 +165,7 @@ def set_sim_dt(dt, t_ms):
     M.T_steps = int(t_ms / dt)
 
 
-def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None, label=None):
+def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None, label=None, extra=None):
     """Save spike recording and metadata to NPZ file for notebook analysis.
 
     SINGLE SOURCE OF TRUTH: All snapshot saving across train/infer/sim paths must
@@ -214,7 +208,8 @@ def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key
         - v_e_<layer>, v_i_<layer>, g_e_<layer>, g_i_<layer>, etc.
           (all other keys in rec, minus hid/inh/input)
     """
-    from scan import primary_hid_key as _primary_hid_key, primary_inh_key as _primary_inh_key
+    from scan import primary_hid_key as _primary_hid_key
+    from scan import primary_inh_key as _primary_inh_key
 
     if primary_hid_key_fn is None:
         primary_hid_key_fn = _primary_hid_key
@@ -269,8 +264,18 @@ def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key
         if "input_spikes" not in npz_data:
             npz_data["input_spikes"] = display_arr
 
-    # Write all fields to NPZ (automatic gzip compression)
-    np.savez(out_path, **npz_data)
+    # Extra caller-supplied arrays (e.g. the Lyapunov ‖ΔV(t)‖ curve and its
+    # time axis) written verbatim under their own keys.
+    if extra is not None:
+        for key, val in extra.items():
+            if val is None:
+                continue
+            npz_data[key] = val.numpy() if hasattr(val, "numpy") else np.asarray(val)
+
+    # Write all fields to NPZ (automatic gzip compression).
+    # ty flags **dict unpacking into savez (it conservatively binds each value to
+    # the allow_pickle: bool kwarg); the array kwargs are correct at runtime.
+    np.savez(out_path, **npz_data)  # ty: ignore[invalid-argument-type]
 
 
 # =============================================================================
@@ -539,8 +544,30 @@ def run_sim(
     model_name="ping",
     t_e_async=None,
     input_spikes=None,
+    ext_g=None,
+    ext_g_i=None,
+    v_perturb_eps=0.0,
+    v_perturb_seed=0,
 ):
     """Run a single simulation with any registered model.
+
+    Drive sources (any combination may be supplied, they are additive inside
+    the forward pass):
+      - ``input_spikes``: (T, N_in) 0/1 raster routed through W_in onto the E
+        cells (the synthetic-spikes input path).
+      - ``ext_g`` / ``ext_g_i``: (T, N_E) / (T, N_I) per-cell excitatory
+        conductance injected directly onto the E / I populations, bypassing
+        W_in. This is the cell-drive path used by the V&S / Brunel balanced
+        network experiments (nb050/nb058): per-cell independent Poisson,
+        shared common Poisson, or frozen quenched-DC drive, all pre-built by
+        the caller. Without it the network reverts to pure recurrent PING.
+      - ``ext_g_override``: legacy single-tensor ext_g (mutually exclusive
+        with input_spikes; kept for older callers).
+      - neither: the Börgers tonic-conductance step drive.
+
+    ``v_perturb_eps`` > 0 kicks every membrane voltage by an ε-mV offset at
+    t=0 (seeded by ``v_perturb_seed``) so a second pass on identical drive
+    diverges only through the dynamics — the clone half of the Lyapunov probe.
 
     Returns (rec, ext_g_or_spikes_numpy, weights).
     """
@@ -554,10 +581,26 @@ def run_sim(
     set_sim_dt(dt, cfg.sim_ms)
     T_steps = int(cfg.sim_ms / dt)
 
+    def _to_dev(t):
+        if t is None:
+            return None
+        t = t if isinstance(t, torch.Tensor) else torch.tensor(t, dtype=torch.float32)
+        return t.to(cfg.torch_device)
+
+    ext_g = _to_dev(ext_g)
+    ext_g_i = _to_dev(ext_g_i)
+
     if input_spikes is not None:
+        # Spike input (optionally with per-cell ext_g/ext_g_i on top).
         ext_g_tensor = None
         input_spikes = input_spikes.to(cfg.torch_device)
         M.T_steps = min(M.T_steps, len(input_spikes))
+        if ext_g is not None:
+            M.T_steps = min(M.T_steps, len(ext_g))
+    elif ext_g is not None:
+        # Pure cell-drive (no W_in input spikes) — e.g. quenched-DC probes.
+        ext_g_tensor = None
+        M.T_steps = min(M.T_steps, len(ext_g))
     elif ext_g_override is not None:
         ext_g_tensor = (
             ext_g_override.clone().detach()
@@ -589,67 +632,37 @@ def run_sim(
     net.to(cfg.torch_device)
     net.recording = True
 
+    fwd_kwargs: dict = {
+        "v_perturb_eps": float(v_perturb_eps),
+        "v_perturb_seed": int(v_perturb_seed),
+    }
+    if input_spikes is not None:
+        fwd_kwargs["input_spikes"] = input_spikes
+        if ext_g is not None:
+            fwd_kwargs["ext_g"] = ext_g
+        if ext_g_i is not None:
+            fwd_kwargs["ext_g_i"] = ext_g_i
+    elif ext_g is not None:
+        fwd_kwargs["ext_g"] = ext_g
+        if ext_g_i is not None:
+            fwd_kwargs["ext_g_i"] = ext_g_i
+    else:
+        fwd_kwargs["ext_g"] = ext_g_tensor
+
     with torch.no_grad():
-        if input_spikes is not None:
-            net.forward(input_spikes=input_spikes)
-        else:
-            net.forward(ext_g=ext_g_tensor)
+        net.forward(**fwd_kwargs)
 
     rec = _extract_records(net)
     weights = extract_weights(net)
 
     if input_spikes is not None:
         display = input_spikes.cpu().numpy()
+    elif ext_g is not None:
+        display = ext_g.cpu().numpy()
     else:
         assert ext_g_tensor is not None
         display = ext_g_tensor.cpu().numpy()
     return rec, display, weights
-
-
-def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100, model_name="ping"):
-    """Run multiple simulations in one batched forward pass.
-
-    Returns list of (rec, ext_g_raw) tuples, one per sim.
-    """
-    M.N_HID = cfg.n_e
-    M.N_INH = cfg.n_i
-    # Pin dt / T_ms / T_steps so the batched forward runs at the requested dt.
-    set_sim_dt(dt, cfg.sim_ms)
-
-    results = []
-    for start in range(0, len(ext_g_list), chunk_size):
-        chunk = ext_g_list[start : start + chunk_size]
-        B = len(chunk)
-        T = len(chunk[0])
-
-        ext_g_batch = torch.tensor(np.stack(chunk, axis=1), dtype=torch.float32).to(
-            cfg.torch_device
-        )
-        M.T_steps = min(M.T_steps, T)
-
-        torch.manual_seed(cfg.seed)
-        net = _build_sim_net(model_name, hidden_sizes=[M.N_HID])
-        net.to(cfg.torch_device)
-        net.recording = True
-
-        with torch.no_grad():
-            kwargs: dict = {"ext_g": ext_g_batch}
-            if model_name in HAS_INH:
-                kwargs["randomize_init"] = False
-            net.forward(**kwargs)
-
-        rec_stacked = {}
-        for k, v in net.spike_record.items():
-            if isinstance(v, list):
-                rec_stacked[k] = torch.stack(v).cpu().numpy()  # ty: ignore[invalid-argument-type]
-            else:
-                rec_stacked[k] = v.cpu().numpy()
-
-        for i in range(B):
-            rec = {k: v[:, i, :] for k, v in rec_stacked.items()}
-            results.append((rec, chunk[i]))
-
-    return results
 
 
 def run_sim_image(dt, image, model_name="ping", load_weights=None):
@@ -688,45 +701,6 @@ def run_sim_image(dt, image, model_name="ping", load_weights=None):
     return rec, pred, net
 
 
-def _run_sim_with_net(net, dt, t_e_ping, t_e_async, noise_seed=None):
-    """Run a simulation reusing an existing network (resets state each call).
-
-    Returns (rec, ext_g_numpy, weights_dict).
-    """
-    M.N_HID = cfg.n_e
-    M.N_INH = cfg.n_i
-    T_steps = int(cfg.sim_ms / dt)
-
-    ext_g_tensor, _ = make_step_drive(
-        cfg.n_e,
-        T_steps,
-        dt,
-        t_e_async,
-        t_e_ping,
-        cfg.step_on_ms,
-        cfg.step_off_ms,
-        cfg.sigma_e,
-        cfg.noise_sigma,
-        cfg.noise_tau,
-        cfg.seed,
-        noise_seed=noise_seed,
-    )
-    ext_g_tensor = ext_g_tensor.to(cfg.torch_device)
-
-    net.recording = True
-    for attr in ["rec_hid", "rec_inh", "rec_out", "rec_in"]:
-        if hasattr(net, attr):
-            setattr(net, attr, [])
-
-    with torch.no_grad():
-        net.forward(ext_g=ext_g_tensor)
-
-    rec = _extract_records(net)
-    weights = extract_weights(net)
-
-    return rec, ext_g_tensor.cpu().numpy(), weights
-
-
 # =============================================================================
 # Config builder + globals sync
 # =============================================================================
@@ -763,8 +737,6 @@ def build_config(args):
         c.w_ie = tuple(args.w_ie)
     if hasattr(args, "w_ee") and args.w_ee is not None:
         c.w_ee = tuple(args.w_ee)
-    if hasattr(args, "burn_in") and args.burn_in is not None:
-        c.burn_in_ms = args.burn_in
     if hasattr(args, "w_in") and args.w_in is not None:
         w = args.w_in
         if len(w) == 1:
@@ -811,7 +783,6 @@ def _sync_globals_from_cfg(c):
 # Every config alias (C.N_E, C.W_EI, C.STEP_ON_MS, …) resolves to the live
 # Config — one source of truth, no mirror globals, no sync step.
 _CFG_ALIASES = {
-    "BURN_IN_MS": "burn_in_ms",
     "DEVICE": "torch_device",
     "EI_RATIO": "ei_ratio",
     "FPS": "fps",

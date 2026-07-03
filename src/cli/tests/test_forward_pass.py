@@ -4,10 +4,9 @@ Catches NaN blow-ups and shape regressions that the training e2e can mask
 by retrying with different data.
 """
 
+import models as M
 import pytest
 import torch
-
-import models as M
 from config import build_net
 
 

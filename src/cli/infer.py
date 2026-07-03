@@ -10,16 +10,40 @@ import json
 import logging
 from pathlib import Path
 
-import torch
-
 import models as M
-from config import build_net, setup_model_globals, save_snapshot_npz, set_sim_dt
+import torch
+from config import build_net, save_snapshot_npz, set_sim_dt, setup_model_globals
 from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
 from encoders import EVAL_SEED, encode_batch
 from scan import _auto_device, primary_hid_key, primary_inh_key
 from train import seed_everything
 
 log = logging.getLogger("cli")
+
+
+def _hidden_sizes_from_state_dict(state):
+    """Recover the hidden-layer E sizes from a saved COBANet state_dict.
+
+    W_ff is the feed-forward ParameterList [input→H1, H1→H2, …, HN→out]; block i
+    has shape (all_sizes[i], all_sizes[i+1]) where all_sizes = [N_IN, *hidden_sizes,
+    N_OUT]. So each hidden size is the *output* dim of a W_ff block, for every block
+    except the final readout (whose output is N_OUT). Recovering this lets infer()
+    rebuild a network that matches the checkpoint instead of the dataset default —
+    otherwise load_state_dict raises a shape mismatch on any non-default checkpoint.
+
+    Returns None when the shape can't be inferred (no W_ff keys, e.g. a partial /
+    transfer checkpoint, or a degenerate single-block net) so the caller falls back
+    to its own default and stays in control.
+    """
+    idxs = sorted(
+        int(k.split(".")[1])
+        for k in state
+        if k.startswith("W_ff.") and k.split(".")[1].isdigit()
+    )
+    if len(idxs) < 2:  # need at least one hidden block + the readout block
+        return None
+    sizes = [int(state[f"W_ff.{i}"].shape[1]) for i in idxs[:-1]]
+    return sizes or None
 
 
 def _make_perturb_fn(mode, level, dt_ms, generator):
@@ -126,6 +150,16 @@ def infer(
         M.tau_gaba = float(tau_gaba)
         M.decay_gaba = float(_np.exp(-M.dt / float(tau_gaba)))
 
+    # Prefer the checkpoint's own layer shapes: a trained weights.pth fully
+    # determines hidden_sizes, and rebuilding at any other size makes
+    # load_state_dict fail on shape mismatch. Only fall back to the dataset
+    # default when the caller passed nothing and the checkpoint can't tell us
+    # (partial/transfer checkpoint). An explicit hidden_sizes still wins.
+    if hidden_sizes is None and load_weights is not None:
+        _peek = torch.load(load_weights, map_location="cpu")
+        hidden_sizes = _hidden_sizes_from_state_dict(_peek)
+        if hidden_sizes is not None:
+            log.info(f"  n_hidden ← checkpoint {hidden_sizes}")
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]
@@ -285,7 +319,7 @@ def infer(
     # --outputs rasters). The notebook builds the override (jitter/shuffle/etc.)
     # from a baseline pass; the CLI just injects it. Per batch we reconstruct the
     # dense (B, T, N_I) slice for that batch's trials and install a stateful hook.
-    _iov = None
+    _iov: dict | None = None  # heterogeneous: ints + arrays, keyed by name
     if i_override_file is not None:
         import numpy as _np
         z = _np.load(i_override_file)
@@ -418,7 +452,8 @@ def infer(
         if pop_i_rows:
             dump["pop_i"] = np.stack(pop_i_rows)  # (n_samples, T)
         out_npz = out_dir_path / "pop_traces.npz"
-        np.savez(out_npz, **dump)
+        # ty false positive on **dict → savez (see save_snapshot_npz in config.py).
+        np.savez(out_npz, **dump)  # ty: ignore[invalid-argument-type]
         n_e = dump.get("pop_e", np.zeros((0, 0))).shape
         log.info(f"  → {out_npz}  (pop_e={n_e})")
 
@@ -500,6 +535,11 @@ def infer_and_snapshot(
     if tau_gaba is not None:
         M.tau_gaba = float(tau_gaba)
         M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
+    # Match the checkpoint's layer shapes when the caller didn't pin them (see
+    # _hidden_sizes_from_state_dict); fall back to the dataset default otherwise.
+    if hidden_sizes is None and load_weights is not None:
+        _peek = torch.load(load_weights, map_location="cpu")
+        hidden_sizes = _hidden_sizes_from_state_dict(_peek)
     if hidden_sizes is None:
         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
         hidden_sizes = [default]
@@ -591,12 +631,13 @@ def infer_and_snapshot(
     with torch.no_grad():
         # Encode pixel data as Poisson spike train using EVAL_SEED for determinism
         spk = encode_batch(X_single, dt, dataset == "smnist")
-        logits = net(input_spikes=spk)
+        net(input_spikes=spk)  # records spikes into net.spike_record (used below)
 
     # Extract and save spike recording to NPZ file for notebook analysis
     # The recording dict contains spike tensors keyed by layer ('hid', 'inh', etc.),
     # plus optional traces (voltages, conductances, etc.) if the network recorded them.
     rec = net.spike_record
+    assert out_dir is not None, "infer_and_snapshot requires out_dir"
     out_path = Path(out_dir) / "snapshot.npz"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -655,6 +696,11 @@ def probe(
     if tau_gaba is not None:
         M.tau_gaba = float(tau_gaba)
         M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
+    # Match the checkpoint's layer shapes when the caller didn't pin them (see
+    # _hidden_sizes_from_state_dict); fall back to the fixed default otherwise.
+    if hidden_sizes is None and load_weights is not None:
+        _peek = torch.load(load_weights, map_location="cpu")
+        hidden_sizes = _hidden_sizes_from_state_dict(_peek)
     if hidden_sizes is None:
         hidden_sizes = [256]
     setup_model_globals(hidden_sizes)
@@ -758,7 +804,8 @@ def probe(
             if ik:
                 per_i = rec[ik].sum(dim=(0, 1)).detach().cpu().numpy()
                 dump["rate_i_per_cell"] = (per_i / (n_batch * t_sec)).astype(np.float32)
-            np.savez(out_dir_path / "per_cell_rates.npz", **dump)
+            # ty false positive on **dict → savez (see config.save_snapshot_npz).
+            np.savez(out_dir_path / "per_cell_rates.npz", **dump)  # ty: ignore[invalid-argument-type]
 
         if emit_rasters:
             def _coo(key):
@@ -882,9 +929,11 @@ def dump_weights(
             arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
             dump[f"W_ff_{key}_trained"] = arr
 
+    assert out_dir is not None, "dump_weights requires out_dir"
     out_path = Path(out_dir) / "weights_dump.npz"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(out_path, **dump)
+    # ty false positive on **dict → savez (see config.save_snapshot_npz).
+    np.savez(out_path, **dump)  # ty: ignore[invalid-argument-type]
     log.info(f"  → {out_path}  ({len(dump)} arrays)")
 
     return {"n_arrays": len(dump), "path": str(out_path)}

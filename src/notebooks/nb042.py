@@ -28,9 +28,13 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+if TYPE_CHECKING:  # torch is imported lazily inside the functions at runtime
+    import torch
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
@@ -237,9 +241,9 @@ def _pack_metrics(m: dict, condition: str) -> dict:
 
 
 def _build_override(
-    s_i_base: "object", condition: str, generator, dt_ms: float = 0.1,
+    s_i_base: "torch.Tensor", condition: str, generator, dt_ms: float = 0.1,
     cycle_period_ms: float | None = None,
-) -> "object":
+) -> "torch.Tensor":
     """Construct the I-spike override tensor for one batch.
 
     s_i_base: (T, B, N_I) baseline recorded I-spikes.
@@ -289,9 +293,9 @@ def _build_override(
 
 
 def _jitter_i_stream(
-    s_i_base: "object", sigma_ms: float, dt_ms: float, generator,
+    s_i_base: "torch.Tensor", sigma_ms: float, dt_ms: float, generator,
     cycle_period_ms: float | None = None,
-) -> "object":
+) -> "torch.Tensor":
     """Cycle-coherent jitter on the I-spike stream.
 
     Bins time into blocks of one gamma cycle (1 / F_GAMMA_REFERENCE_HZ
@@ -348,8 +352,8 @@ def _jitter_i_stream(
 
 
 def _cell_jitter_i_stream(
-    s_i_base: "object", sigma_ms: float, dt_ms: float, generator,
-) -> "object":
+    s_i_base: "torch.Tensor", sigma_ms: float, dt_ms: float, generator,
+) -> "torch.Tensor":
     """Per-spike (per-I-cell) Gaussian jitter on the I-spike stream.
 
     Each spike gets its own independent Gaussian offset Δ ~ 𝒩(0, σ²).
@@ -396,8 +400,8 @@ def _cell_jitter_i_stream(
 
 
 def _alpha_mix_i_stream(
-    s_i_base: "object", alpha: float, k: float, generator,
-) -> "object":
+    s_i_base: "torch.Tensor", alpha: float, k: float, generator,
+) -> "torch.Tensor":
     """Interpolate between baseline rhythm and rate-matched Poisson.
 
     α ∈ [0, 1] controls the per-timestep mixing fraction:

@@ -104,13 +104,17 @@ def apply() -> None:
     from cycler import cycler
     from matplotlib.colors import LinearSegmentedColormap
 
-    cmap_brand = LinearSegmentedColormap.from_list(
-        "pinglab_brand", [PAPER, DEEP_RED, INK_BLACK]
-    )
-    try:
-        mpl.colormaps.register(cmap_brand, force=True)
-    except Exception:
-        pass
+    # apply() is idempotent and called once per plot, so only register the
+    # colormap the first time — re-registering (even with force=True) emits a
+    # UserWarning that pollutes the run log.
+    if "pinglab_brand" not in mpl.colormaps:
+        cmap_brand = LinearSegmentedColormap.from_list(
+            "pinglab_brand", [PAPER, DEEP_RED, INK_BLACK]
+        )
+        try:
+            mpl.colormaps.register(cmap_brand)
+        except Exception:
+            pass
 
     mpl.rcParams.update({
         "font.family": "monospace",

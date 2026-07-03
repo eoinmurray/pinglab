@@ -7,10 +7,9 @@ from __future__ import annotations
 
 import logging
 
+import models as M
 import numpy as np
 import torch
-
-import models as M
 from config import W_EI, W_IE
 
 log = logging.getLogger("cli")

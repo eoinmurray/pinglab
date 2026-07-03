@@ -5,17 +5,13 @@ config round-trip, edge cases, and backwards compatibility.
 """
 
 import json
-import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import numpy as np
+import models as M
 import pytest
 import torch
-
-import models as M
-from config import setup_model_globals
-from train import train, seed_everything
+from train import train
 
 
 @pytest.fixture

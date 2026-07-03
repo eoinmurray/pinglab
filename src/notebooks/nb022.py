@@ -29,11 +29,11 @@ import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
@@ -41,7 +41,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers import theme  # noqa: E402
 
 SLUG = "nb022"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -416,7 +415,9 @@ def plot_family_curves(family: str, cells: list[dict],
     theme.apply()
     plt.rcParams["savefig.bbox"] = "standard"
     tags = list(dict.fromkeys(c["tag"] for c in cells))  # ordered unique
-    colours = {t: cm.viridis(i / max(1, len(tags) - 1)) for i, t in enumerate(tags)}
+    # cm.viridis exists at runtime; the matplotlib stub omits it (false positive).
+    colours = {t: cm.viridis(i / max(1, len(tags) - 1))  # ty: ignore[unresolved-attribute]
+               for i, t in enumerate(tags)}
     # ping (and ping-init) solid, coba dashed — distinguishes the two models
     # in families that train both (θ_u, canonical).
     linestyle = {"coba": "--", "ping": "-", "ping_init": "-"}
@@ -518,7 +519,9 @@ def main() -> None:
             print(f"[not trained] {fam} — no figure (placeholder shown)")
 
     duration_s = time.monotonic() - t_start
-    git_sha = next((c for c in (load_metrics(cell_dir(r["name"])).get("config", {})
+    # rows is a heterogeneous list of dicts, so r["name"] widens to a union;
+    # coerce to str for cell_dir (the value is always the cell-name string).
+    git_sha = next((c for c in (load_metrics(cell_dir(str(r["name"]))).get("config", {})
                                  for r in rows) if c), {}).get("git_sha")
     summary = {
         "notebook_run_id": run_id,

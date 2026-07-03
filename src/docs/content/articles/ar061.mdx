@@ -17,7 +17,7 @@ Published after the cutoff — caught this week from the feeds and recommendatio
 Strongly coupled, recurrent balanced networks reproduce much of what we see in cortical recordings — irregular firing, fast tracking of inputs, a stable population rate — but the standard theory uses current-based synapses, where each spike injects a fixed charge regardless of the postsynaptic state. Real synapses, and our COBA/PING model, are conductance-based: an input opens a conductance, so its effect depends on the membrane's distance from the reversal potential and on how much other conductance is already open. This paper derives empirical scaling laws for conductance-based balanced networks — how rates, correlations, and the balance condition scale with network size and coupling strength — and pins down where the current-based idealisation quietly predicts the wrong thing. It is a serious attempt to keep the analytic tractability of balanced-network theory while admitting the biophysics that actually sets the operating point.
 
 <Fragment slot="relevance">
-**Relevance:** load-bearing for [Claim 2](/articles/ar009/#claim-2-rhythmicity-turns-on-smoothly-across-the-weiwiew_ei-times-w_ieweiwie-plane--a-predictable-supercritical-hopf-bifurcation). Our 4D mean-field is conductance-based and calibrated without a fitted scale; their scaling laws are a yardstick to check it against, and a possible analytic handle on how the gamma onset moves with coupling strength.
+**Relevance:** load-bearing for [§2.2](/articles/ar009/#22-gamma-onset-across-the-weiwiewei-times-wieweiwie-plane). Our 4D mean-field is conductance-based and calibrated without a fitted scale; their scaling laws are a yardstick to check it against, and a possible analytic handle on how the gamma onset moves with coupling strength.
 </Fragment>
 </Paper>
 
@@ -25,7 +25,7 @@ Strongly coupled, recurrent balanced networks reproduce much of what we see in c
 Instead of simulating thousands of integrate-and-fire neurons, you can track the probability density of their membrane potentials and evolve it with a transport (continuity) equation — a kinetic-theory view of a spiking population. This paper develops an approximate but principled reduction of that density dynamics, and uses it to explain how firing-rate fluctuations arise and propagate across single cells, across repeated trials of the same stimulus, and across the population as a whole. The payoff is a macroscopic description that captures the network's collective behaviour — how fast it responds, when it destabilises — without the cost or the sampling noise of full simulation. It is the density-based cousin of lumped rate reductions, and it comes with explicit control over the approximation error.
 
 <Fragment slot="relevance">
-**Relevance:** another route to the same destination as our conductance mean-field, but from the Fokker–Planck/transport side rather than a lumped 4D system. Worth reading against [Claim 2](/articles/ar009/#claim-2-rhythmicity-turns-on-smoothly-across-the-weiwiew_ei-times-w_ieweiwie-plane--a-predictable-supercritical-hopf-bifurcation) to see whether a density treatment pins the Hopf onset more sharply than the lumped reduction does.
+**Relevance:** another route to the same destination as our conductance mean-field, but from the Fokker–Planck/transport side rather than a lumped 4D system. Worth reading against [§2.2](/articles/ar009/#22-gamma-onset-across-the-weiwiewei-times-wieweiwie-plane) to see whether a density treatment pins the Hopf onset more sharply than the lumped reduction does.
 </Fragment>
 </Paper>
 
@@ -33,7 +33,7 @@ Instead of simulating thousands of integrate-and-fire neurons, you can track the
 Many neural rhythms come not from one population talking to itself but from two coupled populations — excitatory and inhibitory — driving each other out of phase. This paper studies that bipartite structure abstractly, as two groups of Kuramoto–Sakaguchi phase oscillators with cross-coupling, and characterises the distinct synchronization modes it supports: a fully locked state, a partially synchronized state where only a fraction of each population entrains, and the transitions between them as coupling and phase-lag change. Because it is a phase model, the regimes and their boundaries are tractable analytically rather than only in simulation. It reads as a stripped-down caricature of PING — the same E↔I-drives-the-rhythm logic, reduced to phases.
 
 <Fragment slot="relevance">
-**Relevance:** the strong-vs-partial synchrony coexistence echoes our lobe–trough contrast turning on across the coupling plane ([Claim 2](/articles/ar009/#claim-2-rhythmicity-turns-on-smoothly-across-the-weiwiew_ei-times-w_ieweiwie-plane--a-predictable-supercritical-hopf-bifurcation)) — a cheap analytic stand-in for the bifurcation we report numerically.
+**Relevance:** the strong-vs-partial synchrony coexistence echoes our lobe–trough contrast turning on across the coupling plane ([§2.2](/articles/ar009/#22-gamma-onset-across-the-weiwiewei-times-wieweiwie-plane)) — a cheap analytic stand-in for the bifurcation we report numerically.
 </Fragment>
 </Paper>
 
@@ -49,7 +49,7 @@ Recurrent spiking networks can be fit to neural data, but a network tuned to mat
 This paper proposes a learning primitive in which information is carried by rhythm-determined spike timing, not firing rate alone, with coordination across a distributed spiking network mediated by tuned conduction delays. During learning, synchrony emerges iteratively, and that emergent timing structure is then used as the computational substrate for downstream tasks. It is explicitly motivated by cortical synchronous rhythms and tries to turn them into a trainable mechanism rather than a fixed prior. That places it in the trained-and-rhythmic corner of the design space this project also occupies — though it engineers the rhythm in rather than letting an E↔I loop generate it.
 
 <Fragment slot="relevance">
-**Relevance:** lands in our gap statement (rhythmic SNNs are usually not trained, trained SNNs are usually not rhythmic). Like Yan et al. 2025, it *imposes or leverages* rhythm rather than letting an E↔I loop generate it — a clean contrast case for [Claim 4](/articles/ar009/#claim-4-the-sparsity-is-supplied-by-the-architecture-not-learned) (architecture-generated, not injected).
+**Relevance:** lands in our gap statement (rhythmic SNNs are usually not trained, trained SNNs are usually not rhythmic). Like Yan et al. 2025, it *imposes or leverages* rhythm rather than letting an E↔I loop generate it — a clean contrast case for [§2.4](/articles/ar009/#24-the-firing-rate-reduction-does-not-require-trained-loop-weights) (architecture-generated, not injected).
 </Fragment>
 </Paper>
 
@@ -65,7 +65,7 @@ Backprop-through-time trains recurrent spiking networks well but scales badly: i
 Decades of work show that cortical and hippocampal neurons lock their spikes to a preferred *phase* of an ongoing oscillation. This study, using invasive human single-unit recordings, demonstrates a complementary and less-appreciated effect: neurons also have a preferred *frequency* at which they fire most, independent of phase — frequency tuning of firing. The effect appears across multiple brain regions and is statistically dissociable from classic phase locking. It is direct human evidence that the frequency of a rhythm, not just its timing, shapes which cells fire and how strongly.
 
 <Fragment slot="relevance">
-**Relevance:** empirical company for [Claim 5](/articles/ar009/#claim-5-the-e-rate-is-set-by-the-gamma-clock-one-spike-per-cell-per-cycle). If real neurons key their firing to oscillation frequency, that is the in-vivo shadow of our $r_E = a + p\,f_\gamma$ — the rate set by the rhythm — and a strong citation for the rate-vs-timing framing.
+**Relevance:** empirical company for [§2.5](/articles/ar009/#25-the-gamma-frequency-sets-the-post-training-e-firing-rate). If real neurons key their firing to oscillation frequency, that is the in-vivo shadow of our $r_E = a + p\,f_\gamma$ — the rate set by the rhythm — and a strong citation for the rate-vs-timing framing.
 </Fragment>
 </Paper>
 
@@ -87,7 +87,7 @@ This is the paper that launched balanced-network theory. It shows that if recurr
 Brunel worked out the full phase diagram of a sparsely connected network of excitatory and inhibitory integrate-and-fire neurons, using a mean-field/Fokker–Planck treatment to derive — analytically — where each dynamical regime lives. The plane spanned by relative inhibition and external drive divides into asynchronous-irregular firing and several oscillatory states (synchronous-regular, synchronous-irregular, fast and slow), with explicit boundaries and predicted frequencies. It is the canonical answer to "when does an E–I spiking network start to oscillate, and at what frequency," and remains the object that later treatments reduce to. Almost every subsequent account of E–I oscillation onset, including phase-model caricatures, is measured against it.
 
 <Fragment slot="relevance">
-**Background for:** *Synchronization modes in bipartite oscillator networks* (the phase-model version of the same question) and the mean-field papers above. It is the closest classical analogue to our [Claim 2](/articles/ar009/#claim-2-rhythmicity-turns-on-smoothly-across-the-weiwiew_ei-times-w_ieweiwie-plane--a-predictable-supercritical-hopf-bifurcation) onset diagram.
+**Background for:** *Synchronization modes in bipartite oscillator networks* (the phase-model version of the same question) and the mean-field papers above. It is the closest classical analogue to our [§2.2](/articles/ar009/#22-gamma-onset-across-the-weiwiewei-times-wieweiwie-plane) onset diagram.
 </Fragment>
 </Paper>
 

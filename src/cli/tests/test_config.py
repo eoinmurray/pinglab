@@ -1,5 +1,4 @@
 import torch
-
 from config import Config
 
 
@@ -10,12 +9,6 @@ class TestConfigDefaults:
         assert c.n_i == 256
         assert c.sim_ms == 600.0
         assert c.device == "cpu"
-
-    def test_visible_ms_is_sim_minus_burn_in(self):
-        c = Config(sim_ms=600.0, burn_in_ms=100.0)
-        assert c.visible_ms == 500.0
-        c2 = Config(sim_ms=400.0, burn_in_ms=50.0)
-        assert c2.visible_ms == 350.0
 
     def test_torch_device_property(self):
         c = Config(device="cpu")

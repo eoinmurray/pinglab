@@ -71,12 +71,13 @@ class BatchDispatcher:
         local_out_dir: the path the cell writes to (matches --out-dir in osc_args).
         gpu_override: force this cell onto a specific GPU, ignoring self.modal_gpu.
         """
-        import sh
         import sys
+
+        import sh
 
         cell_gpu = gpu_override or self.modal_gpu
         if cell_gpu is None:
-            sh.uv(
+            sh.uv(  # ty: ignore[unresolved-attribute]  # sh generates command attrs at runtime
                 "run",
                 "python",
                 str(self.pinglab_cli_path),

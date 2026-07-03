@@ -1,0 +1,25 @@
+{
+  "slug": "nb022",
+  "run_id": "r013",
+  "run_at": "2026-07-03T06:42:38+00:00",
+  "git_sha": "a0fa26c",
+  "dirty": true,
+  "code_dirty": true,
+  "patch": {
+    "file": "_dirty.patch",
+    "sha256": "82fff2fea8abb660ba9bc8805006ed0cd053483b2620079526ca969582cc0c5c",
+    "lines": 5689
+  },
+  "host": "local",
+  "scale": {
+    "dataset": "mnist",
+    "max_samples": 100,
+    "epochs": 2,
+    "t_ms": 200.0,
+    "dt_ms": 0.1,
+    "batch_size": 256,
+    "seeds": 3,
+    "cells": 67,
+    "grid": "2 architectures \u00d7 5 families"
+  }
+}

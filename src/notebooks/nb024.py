@@ -28,13 +28,13 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
-from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers import theme  # noqa: E402
 
 SLUG = "nb024"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -103,7 +103,8 @@ PARAM_LABELS = {"W_ff.0": "W_in", "W_ff.1": "W_out"}
 def cell_dir(model: str, seed: int) -> Path:
     """Trained cell — now the shared nb022 θ_u=off baseline (train-once /
     reuse-many). nb022 owns the training; nb024 only audits convergence."""
-    from nb022 import cell_dir as shared_cell_dir, cell_name
+    from nb022 import cell_dir as shared_cell_dir
+    from nb022 import cell_name
     return shared_cell_dir(cell_name(model, None, seed))
 
 
@@ -644,9 +645,12 @@ def per_cell_diagnostics(rates_by_cell: dict) -> list[dict]:
                 pname: {
                     "init": wn_first.get(pname),
                     "final": wn_last.get(pname),
+                    # Guard both operands: divisor must be truthy (non-zero) and
+                    # the final norm must be present before dividing.
                     "ratio_final_over_init": (
-                        (wn_last.get(pname) / wn_first.get(pname))
-                        if wn_first.get(pname) else None
+                        (wn_last[pname] / wn_first[pname])
+                        if wn_first.get(pname) and wn_last.get(pname) is not None
+                        else None
                     ),
                     "slope_last10": slope_last_n(
                         [(e.get("weight_norms") or {}).get(pname, 0) for e in m["epochs"]],
@@ -817,7 +821,6 @@ def plot_confidence_inflation(out_path: Path, run_id: str) -> None:
 def main() -> None:
     modal_gpu = parse_modal_gpu(sys.argv)
     skip_training = "--skip-training" in sys.argv
-    only_missing = "--only-missing" in sys.argv
     wipe_dir = "--no-wipe-dir" not in sys.argv
 
     t_start = time.monotonic()

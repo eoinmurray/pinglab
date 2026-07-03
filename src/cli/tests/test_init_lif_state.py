@@ -3,10 +3,9 @@ breaking. If the distribution drifts, every PING run starts in lockstep
 and produces spurious oscillations.
 """
 
+import models as M
 import pytest
 import torch
-
-import models as M
 from models import init_lif_state
 
 

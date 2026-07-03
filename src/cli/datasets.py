@@ -34,8 +34,9 @@ def _load_shd(dt_ms, t_ms, max_samples=None):
     is a per-file cap applied before binning — keeps the smoke-test cost
     bounded without reading the full 10k-sample set.
     """
-    import h5py
     from pathlib import Path
+
+    import h5py
 
     root = Path(_shd_cache_dir())
     train_path = root / "shd_train.h5"

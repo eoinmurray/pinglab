@@ -2,10 +2,9 @@
 
 import math
 
+import models as M
 import pytest
 import torch
-
-import models as M
 from models import exp_synapse, lif_step, spike_biophysical
 
 

@@ -1,0 +1,32 @@
+name: Tests & Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # Generous cap: the suite trains several tiny torch models on CPU and spawns
+    # subprocess smoke tests. Bounds a hung subprocess without cutting real runs.
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install project
+        run: uv sync --dev
+
+      # BLOCKING (no continue-on-error): the suite must pass and the CLI source
+      # must stay at/above the coverage floor in [tool.coverage.report] fail_under
+      # (85%). --cov with no argument uses [tool.coverage.run] source/omit, so
+      # modal_app + profiling are excluded and tests are not counted.
+      - name: Pytest + coverage gate
+        run: uv run pytest src/cli/tests --cov --cov-report=term-missing

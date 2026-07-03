@@ -58,7 +58,7 @@ def overlay_stamp_video(src: Path, dst: Path, stamp: Path) -> None:
     import sh
 
     dst.parent.mkdir(parents=True, exist_ok=True)
-    sh.ffmpeg(
+    sh.ffmpeg(  # ty: ignore[unresolved-attribute]  # sh generates command attrs at runtime
         "-y",
         "-i",
         str(src),

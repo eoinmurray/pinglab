@@ -55,8 +55,10 @@ COMMON_ARGS = [
 #   - --ei-sparsity 0.99 + --exact-k → fixed fan-in K ≈ 10 per post cell
 #     (Brunel/V&S convention; removes the binomial fan-in variance that
 #     otherwise broadens the rate distribution)
-#   - --independent-drive 45 0.38 — large per-spike kicks at low rate on E
-#     (input fluctuations dominate drift)
+#   - --independent-drive 8 2.10 — rare, large per-spike kicks on E so the
+#     input fluctuations dominate the mean drift (retuned 2026-07-02 for the
+#     exp-Euler model: the old 45 Hz × 0.38 was too tonic → CV ≈ 0.77;
+#     8 Hz × 2.10 restores median ISI CV_E ≈ 0.97 at the same ≈17 mean drive)
 #   - --independent-drive-i 8 0.25 — same for I (without it the I-cell CV stays
 #     correlated with E via W^EI)
 #   - --w-ie 3.0 strong I→E shunt so Poisson I activity propagates noise into E
@@ -74,7 +76,7 @@ CANONICAL_ARGS = [
     "--w-ee", "0.4", "0.12",
     "--ei-sparsity", "0.99",
     "--exact-k",
-    "--independent-drive", "45", "0.38",
+    "--independent-drive", "8", "2.10",
     "--independent-drive-i", "8", "0.25",
 ]
 CELLS: dict[str, dict] = {
@@ -102,7 +104,7 @@ K_SWEEP_BASE_W = {  # nominal (mean, std) at K0
     "w-ei": (0.6, 0.18), "w-ie": (3.0, 0.9),
     "w-ii": (0.4, 0.12), "w-ee": (0.4, 0.12),
 }
-K_SWEEP_BASE_DRIVE = {"e": (45.0, 0.38), "i": (8.0, 0.25)}  # (rate_hz, g)
+K_SWEEP_BASE_DRIVE = {"e": (8.0, 2.10), "i": (8.0, 0.25)}  # (rate_hz, g)
 K_SWEEP_VARIANTS = {
     "strong": {"label": "weights scaled $\\propto\\sqrt{K}$ (V&S)", "scale": True},
     "weak": {"label": "weights held fixed", "scale": False},
@@ -348,7 +350,7 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
     cvs = _isi_cvs(spk_e, dt)
     if cvs.size > 0:
         ax_cv.hist(
-            cvs, bins=np.linspace(0, 2.0, 40),
+            cvs, bins=np.linspace(0, 2.0, 40),  # ty: ignore[invalid-argument-type]
             color=theme.INK_BLACK, alpha=0.7,
         )
         ax_cv.axvline(1.0, color=theme.DEEP_RED, lw=0.9, ls="--", alpha=0.85)
@@ -456,7 +458,9 @@ def run_k_sweep() -> dict:
         for k in K_SWEEP_KS:
             seed_vals = {m: [] for m in per_metric}
             for seed in SWEEP_SEEDS:
-                argv = _ksweep_args(k, vspec["scale"], seed)
+                # vspec is a mixed str/bool dict so vspec["scale"] infers as
+                # str | bool; the value is always the bool flag — coerce for ty.
+                argv = _ksweep_args(k, bool(vspec["scale"]), seed)
                 print(f"[ksweep] {vkey} K={k} seed={seed}")
                 res = _run_and_measure(argv)
                 for m in per_metric:
@@ -589,6 +593,8 @@ def run_lyapunov() -> dict:
             traces.append(np.asarray(data["lyap_vdist"]))
             t_axis = np.asarray(data["lyap_t_ms"])
         n = min(len(v) for v in traces)
+        # t_axis is set on every loop iteration (LYAP_SEEDS is non-empty); narrow None.
+        assert t_axis is not None
         t = t_axis[:n]
         V = np.array([v[:n] for v in traces])           # (seeds, n)
         vmean = V.mean(axis=0)

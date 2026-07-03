@@ -15,7 +15,6 @@ import numpy as np
 sys.path.insert(0, "src/cli")
 
 from metrics import (  # noqa: E402
-    iei_histogram,
     population_event_times,
     rhythmicity_metrics,
     spike_autocorrelogram,

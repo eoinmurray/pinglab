@@ -200,7 +200,6 @@ Canonical parameter values for the spiking network are given below. Where E and 
 |---|---|---|
 | $C_m$ | Membrane capacitance | 1.0 / 0.5 nF |
 | $g_L$ | Leak conductance | 0.05 / 0.1 μS |
-| $\tau_m$ | Membrane time constant | 20 / 5 ms |
 | $\tau_\mathrm{ref}$ | Refractory period | 3.0 / 1.5 ms |
 | $E_L$ | Leak reversal potential | −65 mV |
 | $V_\mathrm{th}$ | Spike threshold | −50 mV |
@@ -255,7 +254,7 @@ $$
 $$
 
 <P id="5.3.4" status="draft">
-where $I_\mathrm{ext}$ is an external tonic drive to E (the bifurcation control parameter, below), and the driving forces are $\Delta V_\mathrm{exc} = E_e - E_L = 65$ mV and $\Delta V_\mathrm{inh} = E_L - E_i = 15$ mV evaluated at rest. The membrane time constants $\tau_E$, $\tau_I$ and synaptic time constants $\tau_\mathrm{AMPA}$, $\tau_\mathrm{GABA}$ are taken from the parameters table. The fan-in-normalised coupling strengths are $W^{EI} = 1.0$ μS and $W^{IE} = 2.0$ μS, inherited from the spiking network.
+where $I_\mathrm{ext}$ is an external tonic drive to E (the bifurcation control parameter, below), and the driving forces are $\Delta V_\mathrm{exc} = E_e - E_L = 65$ mV and $\Delta V_\mathrm{inh} = E_L - E_i = 15$ mV evaluated at rest. The membrane time constants are the passive ratios $\tau_E = C_m^E / g_L^E = 20$ ms and $\tau_I = C_m^I / g_L^I = 5$ ms, computed from the capacitances and leak conductances in the §5.1 parameters table; the synaptic time constants $\tau_\mathrm{AMPA}$, $\tau_\mathrm{GABA}$ are taken directly from that table. The fan-in-normalised coupling strengths are $W^{EI} = 1.0$ μS and $W^{IE} = 2.0$ μS, inherited from the spiking network.
 </P>
 
 <P id="5.3.5" status="draft">
@@ -267,7 +266,7 @@ $$
 $$
 
 <P id="5.3.6" status="draft">
-with mean membrane potential $\mu_V = E_L + \mu / g_L$ and effective membrane-noise scale $\sigma_V$. The integral is evaluated by numerical quadrature. All parameters of $\Phi$ are taken from the parameters table separately for the E and I populations. The noise scale $\sigma_V$ is set to $4$ mV; the predicted Hopf frequency varies by less than $1$ Hz across $\sigma_V \in [3, 6]$ mV.
+with mean membrane potential $\mu_V = E_L + \mu / g_L$ and effective membrane-noise scale $\sigma_V$. The integral is evaluated by numerical quadrature. All parameters of $\Phi$ are taken from the §5.1 parameters table (with $\tau_m = C_m / g_L$) separately for the E and I populations. The noise scale $\sigma_V$ is set to $4$ mV; the predicted Hopf frequency varies by less than $1$ Hz across $\sigma_V \in [3, 6]$ mV.
 </P>
 
 <P id="5.3.7" status="draft">

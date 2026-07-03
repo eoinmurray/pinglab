@@ -38,9 +38,36 @@ markers = [
     "slow: end-to-end tests that spawn subprocesses or hit the GPU",
     "regression: checks against calibrated artifacts; skipped if absent",
 ]
+filterwarnings = [
+    # torch-internal deprecation surfaced through the model build path (torch
+    # warns about its own deprecated torch.jit.script_method). Not our code and
+    # nothing to fix here — matched narrowly by message so our own warnings still
+    # show. Revisit if a torch upgrade removes the API.
+    "ignore:`torch.jit.script_method` is deprecated:DeprecationWarning",
+]
 
 [dependency-groups]
 dev = [
+    "pytest-cov>=7.1.0",
     "ruff>=0.15.20",
     "ty>=0.0.55",
 ]
+
+[tool.coverage.run]
+# `pytest --cov` measures the CLI package by default. modal_app (cloud dispatch,
+# being retired for RunPod) and profiling (dev-only tooling) are excluded — they
+# are not part of the tested surface, so counting them just drags the number down.
+source = ["src/cli"]
+omit = [
+    "src/cli/tests/*",
+    "src/cli/modal_app.py",
+    "src/cli/profiling.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+# Hard floor enforced in CI: `pytest --cov` exits non-zero below this. The CLI
+# source sits around 90%, so 85 leaves comfortable headroom for churn and for
+# not-yet-tested paths (e.g. the SHD loader) without gating them.
+fail_under = 85

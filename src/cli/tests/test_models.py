@@ -1,9 +1,8 @@
+import models as M
 import pytest
 import torch
-from torch import nn
-
-import models as M
 from config import build_net
+from torch import nn
 
 
 @pytest.fixture(autouse=True)

@@ -125,20 +125,4 @@ def make_step_drive_from_ref(
     return ext_g_sim, ext_g_raw
 
 
-def make_spike_drive(
-    n_in, t_steps, dt, rate_base_hz, rate_stim_hz, step_on_ms, step_off_ms, seed=42
-):
-    """Generate a Poisson spike train with a rate step for synthetic-spikes input.
-
-    All input neurons fire at rate_base_hz, stepping to rate_stim_hz during
-    the stimulus window. Returns (T_steps, N_IN) float32 tensor of 0/1 spikes.
-    """
-    rng = np.random.RandomState(seed)
-    spikes = np.zeros((t_steps, n_in), dtype=np.float32)
-    for t in range(t_steps):
-        t_ms = t * dt
-        rate = rate_stim_hz if step_on_ms <= t_ms < step_off_ms else rate_base_hz
-        p = rate * dt / 1000.0
-        spikes[t] = (rng.rand(n_in) < p).astype(np.float32)
-    return torch.tensor(spikes, dtype=torch.float32)
 

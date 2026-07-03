@@ -15,6 +15,18 @@ extend-exclude = [
 [lint]
 # Lean set: pyflakes (real bugs), pycodestyle errors, and import sorting.
 select = ["E", "F", "I"]
+# Two pycodestyle rules are noise for this codebase, so they are ignored while
+# pyflakes (F*) stays strict — it catches real dead code and bugs:
+#   E501 (line too long) — code wrapping is `ruff format`'s job; the remaining
+#         long lines are help-text strings and comment tables that don't wrap.
+#   E741 (ambiguous name l/I/O) — `I` is inhibitory and `E` excitatory here;
+#         the single-letter E/I vocabulary is deliberate, not ambiguous.
+ignore = ["E501", "E741"]
+
+[lint.per-file-ignores]
+# Notebook runners must set sys.path / REPO before importing local modules, so
+# module-level imports legitimately follow setup code.
+"src/notebooks/*" = ["E402"]
 
 [format]
 quote-style = "double"

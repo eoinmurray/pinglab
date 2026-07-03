@@ -1,0 +1,146 @@
+# Taskfile for pinglab — https://taskfile.dev  (run `task` to list everything)
+#
+# Stack: Python via uv (src/cli, src/notebooks); docs via bun (src/docs).
+# House rule: everything here runs LOCAL. No task dispatches Modal — that
+# spends real money, so it stays an explicit opt-in via a notebook's own
+# --modal-gpu flag (e.g. `task nb NB=nb022 -- --modal-gpu A100`), never a task.
+
+version: "3"
+silent: true
+
+vars:
+  CLI: uv run python src/cli/cli.py
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  # ── Setup ───────────────────────────────────────────────────────────────
+  install:
+    desc: Install all dependencies (Python via uv, docs via bun)
+    cmds:
+      - uv sync --dev
+      - cd src/docs && bun install
+
+  # ── Quality gate (mirrors .github/workflows/lint.yml) ───────────────────
+  lint:
+    desc: Ruff lint over src/cli + src/notebooks
+    cmds:
+      - uv run ruff check {{.CLI_ARGS}}
+
+  fmt:
+    desc: Format Python with ruff
+    cmds:
+      - uv run ruff format {{.CLI_ARGS}}
+
+  typecheck:
+    desc: Type-check with ty
+    cmds:
+      - uv run ty check
+
+  nb-gate:
+    desc: Enforce the notebook→CLI import boundary (no `import cli`/`models`)
+    cmds:
+      - uv run ruff check src/notebooks --select TID
+
+  check:
+    desc: Full quality gate — lint + typecheck + notebook boundary (what CI runs)
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: nb-gate
+
+  # ── Tests (mirrors .github/workflows/test.yml) ──────────────────────────
+  test:
+    desc: "Pick a scope — use `task test:fast` or `task test:all`"
+    cmds:
+      - |
+        echo "\`task test\` is split by scope — pick one:"
+        echo "  task test:fast   (~50s)    lint + typecheck + unit/coverage tests"
+        echo "  task test:all    (~3-5m)   lint + typecheck + the full suite incl @slow"
+        echo ""
+        echo "Both take pass-through args, e.g.  task test:fast -- -k rhythm"
+
+  test:fast:
+    desc: Lint + typecheck + the quick tests (skips the two heavy integration files) — ~50s
+    cmds:
+      # Blank CLI_ARGS for the checks so `task test:fast -- -k foo` reaches pytest only.
+      - task: lint
+        vars: { CLI_ARGS: "" }
+      - task: typecheck
+      - >-
+        uv run pytest src/cli/tests -m "not slow"
+        --ignore=src/cli/tests/test_train_integration.py
+        --ignore=src/cli/tests/test_infer_integration.py
+        {{.CLI_ARGS}}
+
+  test:all:
+    desc: Lint + typecheck + the FULL suite incl @slow end-to-end tests — ~3-5m
+    cmds:
+      - task: lint
+        vars: { CLI_ARGS: "" }
+      - task: typecheck
+      - uv run pytest src/cli/tests {{.CLI_ARGS}}
+
+  test:cov:
+    desc: Tests with the coverage report (mirrors CI)
+    cmds:
+      - uv run pytest src/cli/tests --cov --cov-report=term-missing
+
+  # ── CLI (pinglab-cli) ───────────────────────────────────────────────────
+  sim:
+    desc: "Run a simulation — e.g. task sim -- --t-ms 300 --input-rate 25"
+    cmds:
+      - "{{.CLI}} sim {{.CLI_ARGS}}"
+
+  train:
+    desc: "Train a model — e.g. task train -- --epochs 3 --max-samples 1000"
+    cmds:
+      - "{{.CLI}} train {{.CLI_ARGS}}"
+
+  cli:
+    desc: "Run the CLI with arbitrary args — e.g. task cli -- --help"
+    cmds:
+      - "{{.CLI}} {{.CLI_ARGS}}"
+
+  # ── Notebooks (the reproduce-a-figure runners) ──────────────────────────
+  nb:
+    desc: "Run a notebook runner — e.g. task nb NB=nb054 -- --no-wipe-dir"
+    requires:
+      vars: [NB]
+    cmds:
+      - uv run python src/notebooks/{{.NB}}.py {{.CLI_ARGS}}
+
+  # ── Docs (astro via bun, in src/docs) ───────────────────────────────────
+  docs:
+    desc: Docs dev server (astro, http://localhost:3000)
+    dir: src/docs
+    cmds:
+      - bun run dev --port 3000 --host
+
+  docs:build:
+    desc: Build the docs site
+    dir: src/docs
+    cmds:
+      - bun run build
+
+  docs:preview:
+    desc: Preview the built docs site
+    dir: src/docs
+    cmds:
+      - bun run preview
+
+  docs:feed:
+    desc: Refresh the paper feed (paperfeed fetch)
+    dir: src/docs
+    cmds:
+      - bun run feed
+
+  # ── Housekeeping ────────────────────────────────────────────────────────
+  clean:
+    desc: Remove Python caches (__pycache__, .pytest_cache) — leaves artifacts
+    cmds:
+      - find src -type d -name __pycache__ -prune -exec rm -rf {} +
+      - rm -rf .pytest_cache src/cli/.pytest_cache
