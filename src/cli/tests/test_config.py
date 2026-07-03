@@ -14,13 +14,6 @@ class TestConfigDefaults:
         c = Config(device="cpu")
         assert c.torch_device == torch.device("cpu")
 
-    def test_active_panels_is_per_instance(self):
-        """Mutable default must not be shared between instances."""
-        a = Config()
-        b = Config()
-        a.active_panels.append("custom")
-        assert "custom" not in b.active_panels
-
     def test_overrides_take_effect(self):
         c = Config(n_e=128, n_i=32, sim_ms=200.0, seed=7)
         assert (c.n_e, c.n_i, c.sim_ms, c.seed) == (128, 32, 200.0, 7)

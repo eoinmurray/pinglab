@@ -631,13 +631,6 @@ def _build_parent_parser():
     out_group.add_argument(
         "--wipe-dir", action="store_true", help="Clear output directory before run"
     )
-    out_group.add_argument(
-        "--raster",
-        type=str,
-        default="scatter",
-        choices=["scatter", "imshow"],
-        help="Raster style (default: scatter)",
-    )
     exec_group = parent.add_argument_group("Execution")
     exec_group.add_argument(
         "--seed",
@@ -937,7 +930,7 @@ each subcommand's --help):
   Input          --input, --input-rate, --stim-overdrive, --drive, --dataset,
                  --digit, --sample
   Weights        --w-in, --w-ee, --w-ei, --w-ie, --w-rec
-  Gradient       --v-grad-dampen, --surrogate-slope, --coba-integrator
+  Gradient       --v-grad-dampen, --surrogate-slope
   Train (train)  --lr, --epochs, --batch-size, --max-samples, --optimizer,
                  --loss, --adaptive-lr, --early-stopping, --profile,
                  --fr-reg-upper-theta, --fr-reg-upper-strength,

@@ -118,16 +118,16 @@ V_GRAD_DAMPEN = 80.0
 
 
 
-# Module-level defaults for non-compiled utility functions (e_step_coba, i_step_coba).
-# The compiled _step_body gets these from cfg to ensure torch.compile specializes on dt.
+# Refractory-step defaults for the non-compiled utility functions (e_step_coba,
+# i_step_coba) — the ONLY dt-derived constants kept as module state, because those
+# functions read them directly. Everything else forward() needs (synaptic decays,
+# beta_snn/beta_out) is derived as a local from the time constants + dt each call
+# and passed via the per-call cfg dict; storing them here would be dead state that
+# silently goes stale when dt changes. p_scale is gone entirely — input spikes are
+# pre-encoded from max_rate_hz, so nothing consumed it.
 _dt_default = 0.25
-decay_ampa = np.exp(-_dt_default / tau_ampa)
-decay_gaba = np.exp(-_dt_default / tau_gaba)
 ref_steps_E = max(1, int(round(ref_ms_E / _dt_default)))
 ref_steps_I = max(1, int(round(ref_ms_I / _dt_default)))
-p_scale = max_rate_hz * _dt_default / 1000.0
-beta_snn = np.exp(-_dt_default / tau_snn)
-beta_out = np.exp(-_dt_default / tau_out_ms)
 
 
 def _env_no_compile() -> bool:
@@ -764,7 +764,6 @@ class COBANet(nn.Module):
         decay_gaba = np.exp(-dt / tau_gaba)
         ref_steps_E = max(1, int(round(ref_ms_E / dt)))
         ref_steps_I = max(1, int(round(ref_ms_I / dt)))
-        p_scale = max_rate_hz * dt / 1000.0
         beta_snn = np.exp(-dt / tau_snn)
         beta_out = np.exp(-dt / tau_out_ms)
 
@@ -786,7 +785,6 @@ class COBANet(nn.Module):
             "decay_gaba": decay_gaba,
             "ref_steps_E": ref_steps_E,
             "ref_steps_I": ref_steps_I,
-            "p_scale": p_scale,
             "beta_snn": beta_snn,
             "beta_out": beta_out,
         }

@@ -1,8 +1,8 @@
 """Shared fixtures for the CLI test suite.
 
 The models.py module carries simulation state as module-level globals (dt, T_ms,
-T_steps, the N_* sizes, and the physiological constants tau_gaba, decay_gaba,
-p_scale, …). Every entry point mutates these before a forward pass, so a test
+T_steps, the N_* sizes, and the physiological constants tau_gaba, tau_ampa,
+max_rate_hz, …). Every entry point mutates these before a forward pass, so a test
 that trains, infers, or overrides a time-constant leaves the globals wherever it
 last put them. Left unchecked this leaks across tests: e.g. an infer test that
 sets a custom tau_gaba changes the GABA decay for every later forward pass, which
@@ -26,8 +26,8 @@ _MUTABLE_GLOBALS = (
     "dt", "T_ms", "T_steps",
     "N_IN", "N_HID", "N_INH", "N_OUT", "HIDDEN_SIZES",
     "BATCH_SIZE", "EXACT_K_CONNECTIVITY", "V_GRAD_DAMPEN",
-    "tau_ampa", "tau_gaba", "decay_ampa", "decay_gaba",
-    "max_rate_hz", "p_scale",
+    "tau_ampa", "tau_gaba",
+    "max_rate_hz",
 )
 _BASELINE = {name: copy.deepcopy(getattr(M, name)) for name in _MUTABLE_GLOBALS}
 

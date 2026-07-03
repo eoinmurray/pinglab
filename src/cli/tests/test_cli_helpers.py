@@ -148,27 +148,15 @@ class TestPrimaryKeys:
 
 
 class TestApplyScanVar:
-    def test_tau_gaba_updates_decay(self):
-        old_tau = O.M.tau_gaba
-        old_decay = O.M.decay_gaba
-        try:
-            _apply_scan_var("tau_gaba", 5.0)
-            assert O.M.tau_gaba == 5.0
-            assert abs(O.M.decay_gaba - np.exp(-O.M.dt / 5.0)) < 1e-12
-        finally:
-            O.M.tau_gaba = old_tau
-            O.M.decay_gaba = old_decay
+    # forward() derives the per-step decay from the time constant + dt each call,
+    # so the only thing _apply_scan_var must do is set the time-constant global.
+    def test_tau_gaba_sets_time_constant(self):
+        _apply_scan_var("tau_gaba", 5.0)  # conftest restores M globals after the test
+        assert O.M.tau_gaba == 5.0
 
-    def test_tau_ampa_updates_decay(self):
-        old_tau = O.M.tau_ampa
-        old_decay = O.M.decay_ampa
-        try:
-            _apply_scan_var("tau_ampa", 1.5)
-            assert O.M.tau_ampa == 1.5
-            assert abs(O.M.decay_ampa - np.exp(-O.M.dt / 1.5)) < 1e-12
-        finally:
-            O.M.tau_ampa = old_tau
-            O.M.decay_ampa = old_decay
+    def test_tau_ampa_sets_time_constant(self):
+        _apply_scan_var("tau_ampa", 1.5)
+        assert O.M.tau_ampa == 1.5
 
     def test_unknown_scan_var_ignored(self):
         # Unknown scan vars are ignored (only tau_*, config params are handled).
