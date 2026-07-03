@@ -124,7 +124,6 @@ class TestInferPerturb:
         [
             ("drop", 0.2),
             ("add", 10.0),
-            ("add_split", (10.0, 5.0)),
         ],
     )
     def test_perturb_modes_return_acc(self, trained_ckpt, mode, level):
@@ -430,63 +429,6 @@ class TestProbe:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6b. smnist branches (reuses mnist data, no external download)
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-@pytest.fixture(scope="module")
-def trained_ckpt_smnist():
-    """Tiny smnist checkpoint (28-input, row-by-row) for the smnist branches."""
-    with TemporaryDirectory() as tmpdir:
-        train_dir = Path(tmpdir) / "train_smnist"
-        train_dir.mkdir()
-        train(
-            model_name="ping",
-            dt=0.1,
-            t_ms=100.0,
-            epochs=1,
-            dataset="smnist",
-            max_samples=100,
-            lr=0.01,
-            hidden_sizes=[32, 32],  # smnist needs ≥2 hidden layers
-            seed=42,
-            out_dir=train_dir,
-        )
-        weights_path = train_dir / "weights.pth"
-        assert weights_path.exists()
-        yield weights_path
-
-
-class TestSmnistBranches:
-    def test_infer_smnist_sets_n_in_and_t_ms(self, trained_ckpt_smnist):
-        import models as M
-
-        result = infer(
-            model_name="ping",
-            dt=0.1,
-            t_ms=100.0,  # overridden to 28*10 by the smnist branch
-            load_weights=trained_ckpt_smnist,
-            dataset="smnist",
-            max_samples=50,
-        )
-        assert "acc" in result
-        assert M.N_IN == 28
-        assert M.T_ms == pytest.approx(28 * 10.0)
-
-    def test_snapshot_smnist(self, trained_ckpt_smnist, tmp_out):
-        infer_and_snapshot(
-            model_name="ping",
-            dt=0.1,
-            t_ms=100.0,
-            load_weights=trained_ckpt_smnist,
-            dataset="smnist",
-            out_dir=tmp_out,
-            sample=0,
-        )
-        assert (tmp_out / "snapshot.npz").exists()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # 6c. i_override_file paths (infer + infer_and_snapshot)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -572,15 +514,15 @@ class TestDumpWeights:
         assert any(n.startswith("W_ff_") and n.endswith("_trained") for n in names)
         assert any(n.startswith("W_ei_") and n.endswith("_init") for n in names)
 
-    def test_dump_weights_smnist_and_kaiming(self, trained_ckpt_smnist, tmp_out):
-        # smnist N_IN branch + kaiming_init (randomize_init=False) path.
+    def test_dump_weights_kaiming(self, trained_ckpt, tmp_out):
+        # kaiming_init (randomize_init=False) path.
         result = dump_weights(
             model_name="ping",
             dt=0.1,
             t_ms=100.0,
-            load_weights=trained_ckpt_smnist,
-            dataset="smnist",
-            hidden_sizes=[32, 32],
+            load_weights=trained_ckpt,
+            dataset="mnist",
+            hidden_sizes=[32],
             out_dir=tmp_out,
             seed=42,
             kaiming_init=True,

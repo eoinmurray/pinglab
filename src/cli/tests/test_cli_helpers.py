@@ -12,7 +12,6 @@ from cli import (
     _auto_device,
     encode_batch,
     encode_images_poisson,
-    encode_smnist,
     parse_args,
     primary_hid_key,
     primary_inh_key,
@@ -58,48 +57,13 @@ class TestEncodeImagesPoisson:
         assert set(out.unique().tolist()) <= {0.0, 1.0}
 
 
-class TestEncodeSmnist:
-    def test_shape_with_t_ms_per_row(self):
-        # 28 rows × 10 ms / dt=1.0 = 280 steps, 28 cols.
-        images = torch.zeros(2, 784)
-        out = encode_smnist(images, dt=1.0, max_rate_hz=100.0, t_ms_per_row=10.0)
-        assert out.shape == (280, 2, 28)
-
-    def test_zero_image_no_spikes(self):
-        images = torch.zeros(1, 784)
-        out = encode_smnist(images, dt=1.0, max_rate_hz=200.0)
-        assert out.sum().item() == 0.0
-
-    def test_row_temporal_structure(self):
-        # Row k's pixels drive timesteps [k*steps_per_row, (k+1)*steps_per_row).
-        # Build an image where only row 5 is non-zero.
-        torch.manual_seed(0)
-        img = torch.zeros(1, 28, 28)
-        img[0, 5, :] = 1.0
-        out = encode_smnist(
-            img.reshape(1, 784), dt=1.0, max_rate_hz=500.0, t_ms_per_row=10.0
-        )
-        # Row 5 → timesteps 50..59. All other timesteps must be zero.
-        before = out[:50].sum().item()
-        during = out[50:60].sum().item()
-        after = out[60:].sum().item()
-        assert before == 0.0 and after == 0.0
-        assert during > 0.0
-
-
 class TestEncodeBatch:
     def test_passthrough_for_3d(self):
         # (B, T, N_in) → (T, B, N_in)
         x = torch.randn(2, 30, 700)
-        out = encode_batch(x, dt=1.0, use_smnist=False)
+        out = encode_batch(x, dt=1.0)
         assert out.shape == (30, 2, 700)
         assert torch.equal(out, x.permute(1, 0, 2))
-
-    def test_routes_smnist(self):
-        images = torch.zeros(1, 784)
-        out = encode_batch(images, dt=1.0, use_smnist=True)
-        # Smnist encoder produces (T, B, 28).
-        assert out.shape[1:] == (1, 28)
 
 
 class TestSeedEverything:

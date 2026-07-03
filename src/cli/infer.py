@@ -91,7 +91,6 @@ def _make_perturb_fn(mode, level, dt_ms, generator):
     the I-loop and readout react within the trial):
       - drop: Bernoulli mask, each spike kept with prob (1 - level)
       - add: inject Poisson noise spikes at `level` Hz per cell
-      - add_split: level is (r_e_hz, r_i_hz) — independent E/I Poisson add
     """
     import torch
 
@@ -112,17 +111,6 @@ def _make_perturb_fn(mode, level, dt_ms, generator):
             return s_e, s_i
         return fn
 
-    if mode == "add_split":
-        r_e_hz, r_i_hz = float(level[0]), float(level[1])
-        p_e, p_i = r_e_hz * dt_ms / 1000.0, r_i_hz * dt_ms / 1000.0
-        def fn(s_e, s_i, _layer):
-            if p_e > 0:
-                s_e = torch.clamp(s_e + (torch.rand(s_e.shape, generator=generator, device=s_e.device) < p_e).float(), 0.0, 1.0)
-            if s_i is not None and p_i > 0:
-                s_i = torch.clamp(s_i + (torch.rand(s_i.shape, generator=generator, device=s_i.device) < p_i).float(), 0.0, 1.0)
-            return s_e, s_i
-        return fn
-
     raise ValueError(f"unknown perturbation mode {mode!r}")
 
 
@@ -140,7 +128,6 @@ def infer(
     hidden_sizes=None,
     out_dir=None,
     dales_law=True,
-    encode_fn=None,
     ei_layers=None,
     seed=None,
     outputs=None,
@@ -176,14 +163,7 @@ def infer(
     # Data — same canonical loader and split as train, so the test set is
     # the same physical samples the training never saw
     _, X_te, _, y_te = load_dataset(dataset, max_samples=max_samples, split=True)
-    if dataset in ("mnist", "smnist"):
-        if dataset == "smnist":
-            M.N_IN = 28
-            set_sim_dt(dt, 28 * 10.0)  # smnist: 10 ms/row × 28 rows
-        else:
-            M.N_IN = 784
-    else:
-        M.N_IN = 64
+    M.N_IN = 784
 
     from torch.utils.data import DataLoader, TensorDataset
 
@@ -242,8 +222,6 @@ def infer(
 
     # Evaluate — pre-encode pixels as Poisson spikes (same path as train)
     import torch.nn.functional as F
-    use_smnist = dataset == "smnist"
-    _encode = encode_fn if encode_fn is not None else encode_batch
     net.eval()
     correct = total = 0
     eval_gen = torch.Generator().manual_seed(EVAL_SEED)
@@ -343,7 +321,7 @@ def infer(
     with torch.no_grad():
         for X_b, y_b in test_loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
-            spk = _encode(X_b, dt, use_smnist, generator=eval_gen)
+            spk = encode_batch(X_b, dt, generator=eval_gen)
             if _iov is not None:
                 import numpy as _np
                 Bc = y_b.size(0)
@@ -538,14 +516,7 @@ def infer_and_snapshot(
 
     # Load dataset
     _, X_te, _, y_te = load_dataset(dataset, max_samples=None, split=True)
-    if dataset in ("mnist", "smnist"):
-        if dataset == "smnist":
-            M.N_IN = 28
-            set_sim_dt(dt, 28 * 10.0)  # smnist: 10 ms/row × 28 rows
-        else:
-            M.N_IN = 784
-    else:
-        M.N_IN = 64
+    M.N_IN = 784
 
     # Select single sample. A raw sample_index overrides digit-class selection for
     # any dataset; otherwise MNIST selects by (digit class, index within class) and
@@ -619,7 +590,7 @@ def infer_and_snapshot(
     net.eval()  # Disable dropout, batch norm, etc.
     with torch.no_grad():
         # Encode pixel data as Poisson spike train using EVAL_SEED for determinism
-        spk = encode_batch(X_single, dt, dataset == "smnist")
+        spk = encode_batch(X_single, dt)
         net(input_spikes=spk)  # records spikes into net.spike_record (used below)
 
     # Extract and save spike recording to NPZ file for notebook analysis
@@ -854,10 +825,7 @@ def dump_weights(
     hidden_sizes = _resolve_hidden_sizes(
         hidden_sizes, load_weights, [DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)]
     )
-    if dataset in ("mnist", "smnist"):
-        M.N_IN = 28 if dataset == "smnist" else 784
-    else:
-        M.N_IN = 64
+    M.N_IN = 784
 
     device = _auto_device()
     net = build_net(

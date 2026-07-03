@@ -22,9 +22,7 @@ from config import (
     _extract_records,
     build_net,
     extract_weights,
-    make_net,
     run_sim,
-    run_sim_image,
     save_snapshot_npz,
     set_sim_dt,
     setup_model_globals,
@@ -242,36 +240,6 @@ class TestBuildNet:
 
 
 # ---------------------------------------------------------------------------
-# make_net
-# ---------------------------------------------------------------------------
-
-
-class TestMakeNet:
-    def test_default_w_in(self):
-        cfg_obj = C.Config(n_e=16, n_i=4, seed=1)
-        net = make_net(cfg_obj)
-        assert net.recording is True
-        assert len(net.W_ff) == 2
-
-    def test_legacy_4tuple_w_in(self):
-        cfg_obj = C.Config(n_e=16, n_i=4)
-        # 4-tuple (mean, std, dist, sparsity) form.
-        net = make_net(cfg_obj, w_in=(0.3, 0.06, "normal", 0.9))
-        assert net.recording is True
-
-    def test_short_w_in_pair(self):
-        cfg_obj = C.Config(n_e=16, n_i=4)
-        net = make_net(cfg_obj, w_in=(0.3, 0.06))
-        assert net.recording is True
-
-    def test_non_default_n_i_triggers_per_layer_override(self):
-        # n_i != n_e // 4 -> n_inh_per_layer={1: n_i}.
-        cfg_obj = C.Config(n_e=16, n_i=8)  # 16//4 == 4, so 8 differs
-        net = make_net(cfg_obj)
-        assert net.W_ei["1"].shape[1] == 8
-
-
-# ---------------------------------------------------------------------------
 # run_sim
 # ---------------------------------------------------------------------------
 
@@ -289,30 +257,6 @@ class TestRunSim:
         assert display.shape[0] == int(T_MS / DT)
         assert display.shape[1] == 16
 
-    def test_ext_g_override_path(self):
-        C.cfg.n_e = 16
-        C.cfg.n_i = 4
-        C.cfg.sim_ms = T_MS
-        set_sim_dt(DT, T_MS)
-        T = 30  # shorter than sim_ms/dt -> exercises the min() clamp
-        override = torch.zeros(T, 16)
-        rec, display, weights = run_sim(
-            DT, t_e_ping=0.3, ext_g_override=override
-        )
-        assert display.shape == (T, 16)
-        # T_steps clamped down to the supplied tensor length.
-        assert M.T_steps == T
-
-    def test_ext_g_override_as_numpy(self):
-        C.cfg.n_e = 16
-        C.cfg.n_i = 4
-        C.cfg.sim_ms = T_MS
-        override = np.zeros((20, 16), dtype=np.float32)
-        rec, display, weights = run_sim(
-            DT, t_e_ping=0.3, ext_g_override=override
-        )
-        assert display.shape == (20, 16)
-
     def test_input_spikes_path(self):
         C.cfg.n_e = 16
         C.cfg.n_i = 4
@@ -326,26 +270,6 @@ class TestRunSim:
         )
         assert display.shape[0] == T
         assert M.T_steps == T
-
-
-# ---------------------------------------------------------------------------
-# run_sim_image
-# ---------------------------------------------------------------------------
-
-
-class TestRunSimImage:
-    def test_image_forward_returns_prediction(self):
-        C.cfg.n_e = 16
-        C.cfg.n_i = 4
-        C.cfg.sim_ms = T_MS
-        set_sim_dt(DT, T_MS)
-        # Flat image vector; N_IN is set from image.shape[0].
-        image = np.zeros(12, dtype=np.float32)
-        rec, pred, net = run_sim_image(DT, image)
-        assert M.N_IN == 12
-        assert isinstance(pred, int)
-        assert 0 <= pred < M.N_OUT
-        assert "hid" in rec
 
 
 # ---------------------------------------------------------------------------

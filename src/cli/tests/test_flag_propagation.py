@@ -154,11 +154,11 @@ def test_infer_with_load_config_and_weights(tmp_path):
     assert metrics.get("best_acc") is not None
 
 
-# ── --readout {rate, li} ─────────────────────────────────────────────────
+# ── --readout {rate, mem-mean} ───────────────────────────────────────────
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("readout", ["rate", "li"])
+@pytest.mark.parametrize("readout", ["rate", "mem-mean"])
 def test_readout_propagates(tmp_path, readout):
     out = tmp_path / f"readout-{readout}"
     _train_probe(out, "--readout", readout)
@@ -166,8 +166,8 @@ def test_readout_propagates(tmp_path, readout):
 
 
 def test_readout_changes_model_forward():
-    """rate and li readouts produce differently-shaped output trajectories —
-    rate emits logits once at the final step, li integrates across all steps."""
+    """rate and mem-mean readouts share the same parameters — same W_out
+    shape, only the output reduction differs."""
     import sys
 
     sys.path.insert(0, "src/cli")
@@ -182,17 +182,17 @@ def test_readout_changes_model_forward():
         readout_mode="rate",
     )
     torch.manual_seed(0)
-    net_li = build_net(
+    net_mm = build_net(
         "ping",
         w_in=(10.0, 1.0),
         w_in_sparsity=0.0,
         hidden_sizes=[64],
-        readout_mode="li",
+        readout_mode="mem-mean",
     )
-    # Parameter count must match — same W_out, b_out shape, only reduction differs.
+    # Parameter count must match — same W_out shape, only reduction differs.
     n_rate = sum(p.numel() for p in net_rate.parameters())
-    n_li = sum(p.numel() for p in net_li.parameters())
-    assert n_rate == n_li, f"rate={n_rate} li={n_li}"
+    n_mm = sum(p.numel() for p in net_mm.parameters())
+    assert n_rate == n_mm, f"rate={n_rate} mem-mean={n_mm}"
 
 
 # ── --v-grad-dampen ──────────────────────────────────────────────────────
