@@ -8,7 +8,6 @@ from __future__ import annotations
 import logging
 
 import models as M
-import numpy as np
 import torch
 from config import W_EI, W_IE
 
@@ -113,19 +112,19 @@ def _apply_scan_var(var_name, value):
         value: Value to apply
 
     Handled mutations:
-        tau_gaba, tau_ampa: Time constants → compute discrete decay constants
+        tau_gaba, tau_ampa: synaptic time constants (forward derives the decay)
         w_ei_mean, w_ie_mean, ei_strength, bias: Network params → apply via cfg
     """
     import config as C
 
     if var_name == "tau_gaba":
-        # τ_GABA (inhibitory synaptic time constant) affects E-I gamma oscillation frequency
+        # τ_GABA (inhibitory synaptic time constant) affects E-I gamma oscillation frequency.
+        # forward() derives decay_gaba from tau_gaba + dt each call, so setting the
+        # time constant is all that's needed.
         M.tau_gaba = value
-        M.decay_gaba = np.exp(-M.dt / value)  # Exponential decay: exp(-dt/τ)
     elif var_name == "tau_ampa":
-        # τ_AMPA (excitatory synaptic time constant) affects input timescale
+        # τ_AMPA (excitatory synaptic time constant) affects input timescale.
         M.tau_ampa = value
-        M.decay_ampa = np.exp(-M.dt / value)
     elif var_name in ("w_ei_mean", "w_ie_mean", "ei_strength", "bias"):
         # Network weight/bias mutations: delegate to Config.apply_frame_param
         # (It handles parameter interactions, e.g., ei_strength affects both w_ei and w_ie)

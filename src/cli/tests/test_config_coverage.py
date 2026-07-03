@@ -436,7 +436,6 @@ class TestBuildConfig:
         # Bare args: only the getattr-with-default branches fire.
         c = C.build_config(_Args())
         assert c.artifact_root == str(C.DEFAULT_ARTIFACT_ROOT)
-        assert c.raster_mode == "scatter"
         # _sync_globals_from_cfg installed this Config as the module cfg.
         assert C.cfg is c
 
@@ -445,7 +444,6 @@ class TestBuildConfig:
             out_dir="/tmp/pinglab-test-out",
             n_hidden=[16, 32],
             device="cpu",
-            raster="line",
             drive=0.5,
             ei_ratio=3.0,
             ei_strength=1.0,
@@ -464,7 +462,6 @@ class TestBuildConfig:
         # n_hidden list -> last element is n_e.
         assert c.n_e == 32
         assert c.n_i == 8
-        assert c.raster_mode == "line"
         assert c.t_e_async == pytest.approx(0.5)
         assert c.ei_ratio == pytest.approx(3.0)
         # Explicit w_ei/w_ie/w_ee override the ei_strength-derived ones.
@@ -484,12 +481,6 @@ class TestBuildConfig:
         args = _Args(n_input=20, input="synthetic-spikes")
         C.build_config(args)
         assert M.N_IN == 20
-
-    def test_dataset_input_sets_rate_globals(self):
-        args = _Args(input="dataset", spike_rate=123.0)
-        C.build_config(args)
-        assert M.max_rate_hz == pytest.approx(123.0)
-        assert M.p_scale == pytest.approx(123.0 * M.dt / 1000.0)
 
     def test_ei_strength_without_explicit_specs(self):
         # ei_strength present, no w_ei/w_ie -> derived tuples.

@@ -6,7 +6,7 @@ run_sim_image, and backward-compat module globals.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import models as M
@@ -52,21 +52,6 @@ class Config:
     bias: float = 0.0002
     ei_ratio: float = 2.0
     device: str = "cpu"
-    raster_mode: str = "scatter"
-    active_panels: list = field(
-        default_factory=lambda: [
-            "header",
-            "progress",
-            "sweep",
-            "e_raster",
-            "drive",
-            "weights",
-            "i_raster",
-            "participation",
-            "output",
-            "psd",
-        ]
-    )
     artifact_root: str = ""
 
     @property
@@ -139,7 +124,7 @@ def set_sim_dt(dt, t_ms):
 
     WHY this exists (and why it is one function, not inlined):
     - forward() computes every dt-dependent constant LOCALLY from the module-global
-      `dt` — decay_ampa/gaba, beta_snn/out, ref_steps, p_scale (see models.forward).
+      `dt` — decay_ampa/gaba, beta_snn/out, ref_steps (see models.forward).
       This is a deliberate torch.compile specialization choice: the constants live
       in the graph, specialized on dt, rather than as pre-computed globals.
     - It also reads the module-global `T_steps` for the integration-loop length and
@@ -720,7 +705,6 @@ def build_config(args):
         c.n_i = n_e // 4
     if hasattr(args, "device") and args.device is not None:
         c.device = args.device
-    c.raster_mode = getattr(args, "raster", "scatter")
     if hasattr(args, "drive") and args.drive is not None:
         c.t_e_async = args.drive
     c.ei_ratio = getattr(args, "ei_ratio", 2.0)
@@ -760,11 +744,8 @@ def build_config(args):
     t_ms = getattr(args, "t_ms", None)
     if t_ms is not None:
         c.sim_ms = float(t_ms)
-    # For image input, --input-rate sets the max Poisson encoding rate
-    if input_mode == "dataset":
-        spike_rate = getattr(args, "spike_rate", M.max_rate_hz)
-        M.max_rate_hz = spike_rate
-        M.p_scale = M.max_rate_hz * M.dt / 1000.0
+    # M.max_rate_hz is set by configure_models (the single models-globals boundary),
+    # which runs for all modes after build_config — no need to set it here too.
     # Sync the module-level aliases here so callers can't forget to.
     _sync_globals_from_cfg(c)
     return c

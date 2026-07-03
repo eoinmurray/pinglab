@@ -143,12 +143,10 @@ def infer(
     set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
 
     # Optional τ_GABA override — replay a cell under its trained inhibitory decay.
-    # forward() recomputes decay_gaba from M.tau_gaba + M.dt each call, so setting
-    # M.tau_gaba is what drives the rhythm; M.decay_gaba is set too for direct reads.
+    # forward() derives decay_gaba from M.tau_gaba + M.dt each call, so setting
+    # M.tau_gaba is all that's needed.
     if tau_gaba is not None:
-        import numpy as _np
         M.tau_gaba = float(tau_gaba)
-        M.decay_gaba = float(_np.exp(-M.dt / float(tau_gaba)))
 
     # Prefer the checkpoint's own layer shapes: a trained weights.pth fully
     # determines hidden_sizes, and rebuilding at any other size makes
@@ -534,7 +532,6 @@ def infer_and_snapshot(
     set_sim_dt(dt, t_ms)  # pin dt / T_ms / T_steps (single choke point)
     if tau_gaba is not None:
         M.tau_gaba = float(tau_gaba)
-        M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
     # Match the checkpoint's layer shapes when the caller didn't pin them (see
     # _hidden_sizes_from_state_dict); fall back to the dataset default otherwise.
     if hidden_sizes is None and load_weights is not None:
@@ -695,7 +692,6 @@ def probe(
     M.N_IN = int(n_in)
     if tau_gaba is not None:
         M.tau_gaba = float(tau_gaba)
-        M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
     # Match the checkpoint's layer shapes when the caller didn't pin them (see
     # _hidden_sizes_from_state_dict); fall back to the fixed default otherwise.
     if hidden_sizes is None and load_weights is not None:

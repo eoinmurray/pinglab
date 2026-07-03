@@ -283,7 +283,7 @@ class TestInferScaleWeights:
         assert 0.0 <= result["acc"] <= 100.0
 
     def test_infer_tau_gaba_override(self, trained_ckpt):
-        # Exercises the tau_gaba branch (M.tau_gaba / M.decay_gaba recompute).
+        # Exercises the tau_gaba override branch (sets M.tau_gaba).
         import models as M
 
         result = infer(
