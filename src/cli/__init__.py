@@ -20,8 +20,7 @@ _sys.path.insert(0, _pkg_dir)
 
 from .cli import (  # noqa: E402,F401
     EVAL_SEED,
-    M,  # noqa: E402,F401  # re-exported for tests/_apply_scan_var
-    _apply_scan_var,
+    M,  # noqa: E402,F401  # re-exported for tests
     _auto_device,
     _extract_records,
     _load_dataset_image,

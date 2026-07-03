@@ -7,9 +7,7 @@ from __future__ import annotations
 
 import logging
 
-import models as M
 import torch
-from config import W_EI, W_IE
 
 log = logging.getLogger("cli")
 
@@ -75,59 +73,3 @@ def primary_inh_key(rec):
     """
     inh_keys = sorted(k for k in rec if k.startswith("inh"))
     return inh_keys[-1] if inh_keys else None
-
-
-# Scannable variables
-# =============================================================================
-
-SCAN_DEFAULTS = {
-    "stim-overdrive": (1.0, "x"),
-    "tau_gaba": (9.0, "ms"),
-    "tau_ampa": (2.0, "ms"),
-    "w_ei_mean": (W_EI[0], "μS"),
-    "w_ie_mean": (W_IE[0], "μS"),
-    "ei_strength": (1.0, ""),
-    "spike_rate": (1.0, "Hz"),
-    "bias": (1.0, "μS"),
-    "dt": (1.0, "ms"),
-    "digit": (0, ""),  # dataset digit class (0-9)
-    "noise": (0, "Hz"),  # Poisson noise rate added to input
-}
-
-
-def _apply_scan_var(var_name, value):
-    """Apply a scan variable that mutates global state (M globals or cfg).
-
-    Scan loops sweep over parameters (tau_gaba, w_ei_mean, etc.), running simulations
-    for each value. Some parameters require mutating global state (M.tau_gaba, cfg.w_ei),
-    while others are passed directly to run_sim (stim-overdrive, spike_rate, etc.).
-
-    This function handles the GLOBAL-MUTATING parameters. Loop-passed parameters are
-    handled by the scan loop itself (e.g., stim-overdrive, spike_rate, noise, digit).
-
-    WHY: Separates concerns — global mutations go here, local parameters stay in loops.
-
-    Args:
-        var_name: Scan variable name (tau_gaba, w_ei_mean, ei_strength, etc.)
-        value: Value to apply
-
-    Handled mutations:
-        tau_gaba, tau_ampa: synaptic time constants (forward derives the decay)
-        w_ei_mean, w_ie_mean, ei_strength, bias: Network params → apply via cfg
-    """
-    import config as C
-
-    if var_name == "tau_gaba":
-        # τ_GABA (inhibitory synaptic time constant) affects E-I gamma oscillation frequency.
-        # forward() derives decay_gaba from tau_gaba + dt each call, so setting the
-        # time constant is all that's needed.
-        M.tau_gaba = value
-    elif var_name == "tau_ampa":
-        # τ_AMPA (excitatory synaptic time constant) affects input timescale.
-        M.tau_ampa = value
-    elif var_name in ("w_ei_mean", "w_ie_mean", "ei_strength", "bias"):
-        # Network weight/bias mutations: delegate to Config.apply_frame_param
-        # (It handles parameter interactions, e.g., ei_strength affects both w_ei and w_ie)
-        C.cfg.apply_frame_param(var_name, value)
-    # Other scan vars (stim-overdrive, spike_rate, noise, digit) don't mutate globals;
-    # they're passed as kwargs to run_sim directly in the scan loop

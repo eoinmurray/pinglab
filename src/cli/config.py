@@ -58,33 +58,6 @@ class Config:
     def torch_device(self):
         return torch.device(self.device)
 
-    def apply_frame_param(self, param_name: str, value: float) -> None:
-        """Apply a single scan-frame parameter override.
-
-        Valid params: w_ei_mean, w_ie_mean, ei_strength, bias.
-        Does not include tau_gaba/tau_ampa (those are M globals, handled separately).
-        """
-        if param_name == "w_ei_mean":
-            self.w_ei = (value, self.w_ei[1])
-        elif param_name == "w_ie_mean":
-            self.w_ie = (value, self.w_ie[1])
-        elif param_name == "ei_strength":
-            self.w_ei = (value, value * 0.1)
-            self.w_ie = (value * self.ei_ratio, value * self.ei_ratio * 0.1)
-        elif param_name == "bias":
-            self.bias = value
-        else:
-            raise ValueError(f"Unknown frame param: {param_name!r}")
-
-    def sync_from_model(self, n_hid: int, n_inh: int) -> None:
-        """After network construction, sync actual network size back to config.
-
-        Called after build_net to keep n_e/n_i in sync with the actual
-        network topology. Ensures config reflects what the network actually is.
-        """
-        self.n_e = n_hid
-        self.n_i = n_inh
-
 
 cfg = Config(artifact_root=str(DEFAULT_ARTIFACT_ROOT))
 

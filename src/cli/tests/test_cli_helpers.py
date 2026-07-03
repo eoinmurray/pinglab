@@ -8,9 +8,7 @@ encoders, seed plumbing, key helpers, scan-var dispatch, CLI parsing.
 import numpy as np
 import torch
 
-import cli as O
 from cli import (
-    _apply_scan_var,
     _auto_device,
     encode_batch,
     encode_images_poisson,
@@ -145,23 +143,6 @@ class TestPrimaryKeys:
     def test_inh_picks_deepest(self):
         rec = {"inh_1": 1, "inh_2": 2}
         assert primary_inh_key(rec) == "inh_2"
-
-
-class TestApplyScanVar:
-    # forward() derives the per-step decay from the time constant + dt each call,
-    # so the only thing _apply_scan_var must do is set the time-constant global.
-    def test_tau_gaba_sets_time_constant(self):
-        _apply_scan_var("tau_gaba", 5.0)  # conftest restores M globals after the test
-        assert O.M.tau_gaba == 5.0
-
-    def test_tau_ampa_sets_time_constant(self):
-        _apply_scan_var("tau_ampa", 1.5)
-        assert O.M.tau_ampa == 1.5
-
-    def test_unknown_scan_var_ignored(self):
-        # Unknown scan vars are ignored (only tau_*, config params are handled).
-        # This is correct because scan vars like stim-overdrive don't mutate globals.
-        _apply_scan_var("does-not-exist", 999.0)  # Should not raise
 
 
 class TestAutoDevice:
