@@ -7,71 +7,12 @@ of cli.py.
 
 from __future__ import annotations
 
-import numpy as np
-import torch
-
 import models as M
+import torch
 
 EVAL_SEED = 20260415
 
 FROZEN_MODES = ("upsample", "downsample", "resample")
-
-
-def encode_image_spikes(
-    pixel_vec, T_steps, dt, base_rate, stim_rate, step_on_ms, step_off_ms, seed=42
-):
-    """Poisson-encode an image with a rate step during stimulus window.
-
-    Samples absolute spike *times* (ms) per pixel from a three-section
-    Poisson process (pre/stim/post), then bins them to the given dt. Spike
-    times are a deterministic function of ``seed`` and rate schedule — not
-    of dt — so changing dt rebins the *same* event stream rather than
-    drawing a fresh one. That's what makes dt-sweep rasters look temporally
-    coherent frame-to-frame instead of stretching/flowing.
-
-    pixel_vec: (N_IN,) pixel intensities in [0,1]
-    Returns:   (T_steps, N_IN) float32 tensor of 0/1 spikes
-    """
-    n_in = len(pixel_vec)
-    t_max_ms = T_steps * dt
-    spikes = np.zeros((T_steps, n_in), dtype=np.float32)
-
-    # Three dt-invariant Poisson sections, clipped to [0, t_max_ms].
-    t_on = min(step_on_ms, t_max_ms)
-    t_off = min(step_off_ms, t_max_ms)
-    sections = (
-        (0.0, t_on, base_rate),
-        (t_on, t_off, stim_rate),
-        (t_off, t_max_ms, base_rate),
-    )
-
-    # Independent RNG per (pixel, section) so the pre/post sections are
-    # identical across frames (same rate → same times), and only the stim
-    # section varies when stim_rate changes in a sweep. A single shared RNG
-    # would let the stim section's variable Poisson count shift every
-    # downstream draw, making the whole input raster jump frame-to-frame.
-    base_seed = int(seed) & 0xFFFFFFFF
-    for i in range(n_in):
-        pixel = float(pixel_vec[i])
-        if pixel <= 0.0:
-            continue
-        for s_idx, (t_start, t_end, rate_hz) in enumerate(sections):
-            dur = t_end - t_start
-            if dur <= 0 or rate_hz <= 0:
-                continue
-            expected = pixel * rate_hz * dur / 1000.0
-            if expected <= 0:
-                continue
-            sub_seed = (base_seed + i * 3 + s_idx) & 0xFFFFFFFF
-            rng = np.random.RandomState(sub_seed)
-            n = int(rng.poisson(expected))
-            if n == 0:
-                continue
-            times = rng.uniform(t_start, t_end, size=n)
-            steps = (times / dt).astype(np.int64)
-            steps = steps[(steps >= 0) & (steps < T_steps)]
-            spikes[steps, i] = 1.0
-    return torch.tensor(spikes, dtype=torch.float32)
 
 
 def encode_images_poisson(images, T_steps, dt, max_rate_hz, generator=None):

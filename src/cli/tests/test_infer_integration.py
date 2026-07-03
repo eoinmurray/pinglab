@@ -5,18 +5,15 @@ accuracy validation, and dataset-specific handling.
 """
 
 import json
-import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import models as M
 import numpy as np
 import pytest
 import torch
-
-import models as M
-from config import setup_model_globals
 from infer import infer, infer_and_snapshot
-from train import train, seed_everything
+from train import train
 
 
 @pytest.fixture
@@ -52,28 +49,6 @@ def trained_weights(tmp_output_dir):
     return weights_path
 
 
-@pytest.fixture(autouse=True)
-def _reset_model_globals():
-    """Reset M module globals before and after each test to known defaults."""
-    old = (
-        M.N_IN, M.N_HID, M.N_INH, M.N_OUT, M.HIDDEN_SIZES,
-        M.T_ms, M.T_steps, M.dt
-    )
-    # Reset to module defaults before test
-    M.N_IN = 64
-    M.N_HID = 64
-    M.N_INH = 16
-    M.N_OUT = 10
-    M.HIDDEN_SIZES = [64]
-    M.T_ms = 1000.0
-    M.T_steps = int(M.T_ms / M.dt)
-    # Run test
-    yield
-    # Restore to original values after test
-    (M.N_IN, M.N_HID, M.N_INH, M.N_OUT, M.HIDDEN_SIZES,
-     M.T_ms, M.T_steps, M.dt) = old
-
-
 class TestInferParameterPropagation:
     """Test that infer() parameters propagate correctly."""
 
@@ -107,8 +82,13 @@ class TestInferParameterPropagation:
         assert M.T_ms == t_ms_value
 
     def test_hidden_sizes_propagates_to_m_module(self, trained_weights):
-        """hidden_sizes should set M.N_HID, M.N_INH, M.HIDDEN_SIZES."""
-        hidden_sizes_value = [64]
+        """An explicit hidden_sizes should set M.N_HID, M.N_INH, M.HIDDEN_SIZES.
+
+        Must match the checkpoint's own shape ([32]); infer() now rebuilds the
+        network to the loaded weights, so a mismatched override would fail
+        load_state_dict rather than silently building the wrong size.
+        """
+        hidden_sizes_value = [32]
         infer(
             model_name="ping",
             dt=0.1,
@@ -118,9 +98,9 @@ class TestInferParameterPropagation:
             max_samples=50,
             hidden_sizes=hidden_sizes_value,
         )
-        assert M.N_HID == 64
-        assert M.N_INH == 16  # 64 // 4
-        assert M.HIDDEN_SIZES == [64]
+        assert M.N_HID == 32
+        assert M.N_INH == 8  # 32 // 4
+        assert M.HIDDEN_SIZES == [32]
 
     def test_seed_makes_deterministic_encoding(self, trained_weights, tmp_output_dir):
         """seed parameter should make Poisson encoding deterministic."""
@@ -150,8 +130,8 @@ class TestMModuleGlobalsInference:
     """Test that M module globals are correctly initialized for inference."""
 
     def test_n_hid_n_inh_from_hidden_sizes(self, trained_weights):
-        """M.N_HID and M.N_INH should be derived from hidden_sizes."""
-        hidden_sizes = [80]
+        """M.N_INH should be derived from N_HID (n_e // 4) via hidden_sizes."""
+        hidden_sizes = [32]  # must match the checkpoint infer() rebuilds against
         infer(
             model_name="ping",
             dt=0.1,
@@ -161,11 +141,16 @@ class TestMModuleGlobalsInference:
             max_samples=50,
             hidden_sizes=hidden_sizes,
         )
-        assert M.N_HID == 80
-        assert M.N_INH == 20  # 80 // 4
+        assert M.N_HID == 32
+        assert M.N_INH == 8  # 32 // 4
 
-    def test_hidden_sizes_none_uses_smart_default(self, trained_weights):
-        """hidden_sizes=None should auto-detect per dataset."""
+    def test_hidden_sizes_none_derives_from_checkpoint(self, trained_weights):
+        """hidden_sizes=None should recover the checkpoint's own layer sizes.
+
+        The fixture trains at [32]; infer() reads that back from weights.pth
+        rather than falling to the mnist smart default (1024), which would
+        mismatch the saved weights.
+        """
         infer(
             model_name="ping",
             dt=0.1,
@@ -175,8 +160,8 @@ class TestMModuleGlobalsInference:
             max_samples=50,
             hidden_sizes=None,
         )
-        # mnist default is 1024 (from DATASET_N_HIDDEN_DEFAULTS)
-        assert M.N_HID == 1024
+        assert M.N_HID == 32
+        assert M.HIDDEN_SIZES == [32]
 
     def test_t_steps_computed_correctly(self, trained_weights):
         """M.T_steps should be int(T_ms / dt)."""
@@ -259,7 +244,7 @@ class TestInferAndSnapshot:
 
     def test_infer_and_snapshot_creates_npz(self, trained_weights, tmp_output_dir):
         """infer_and_snapshot should create snapshot.npz."""
-        result = infer_and_snapshot(
+        infer_and_snapshot(
             model_name="ping",
             dt=0.1,
             t_ms=100.0,
@@ -309,7 +294,9 @@ class TestInferAndSnapshot:
         n_e = int(data["n_e"])
         dt = float(data["dt"])
         t_ms = 100.0
-        expected_t_steps = int(t_ms / dt)
+        # round, not int: int(100.0 / 0.1) == 999 from float error, but the sim
+        # runs the physically-correct 1000 steps.
+        expected_t_steps = round(t_ms / dt)
 
         assert spk_e.shape == (expected_t_steps, n_e), (
             f"spk_e shape {spk_e.shape} doesn't match expected "
@@ -334,7 +321,7 @@ class TestInferAndSnapshot:
         n_i = int(data["n_i"])
         dt = float(data["dt"])
         t_ms = 100.0
-        expected_t_steps = int(t_ms / dt)
+        expected_t_steps = round(t_ms / dt)  # round: see spk_e_shape test
 
         # spk_i should match n_i (second dimension)
         assert spk_i.shape[0] == expected_t_steps
@@ -354,7 +341,8 @@ class TestInferAndSnapshot:
         snapshot_path = tmp_output_dir / "snapshot.npz"
         data = np.load(snapshot_path)
 
-        assert float(data["dt"]) == 0.15
+        # dt is stored as float32 in the npz, so 0.15 does not round-trip exactly.
+        assert float(data["dt"]) == pytest.approx(0.15)
         assert int(data["n_e"]) == M.N_HID
         assert int(data["n_i"]) == M.N_INH
 
@@ -463,7 +451,6 @@ class TestInferAccuracyValidation:
         """Random (untrained) weights should give near-random accuracy."""
         # Create weights without training
         from config import build_net
-        import torch
 
         # Build the untrained net at mnist's input size so its W_in matches the
         # net infer() builds for dataset="mnist" (n_in=784); the autouse fixture

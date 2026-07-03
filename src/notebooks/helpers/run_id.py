@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 REPO = Path(__file__).resolve().parents[3]
 FIGURES_ROOT = REPO / "src" / "docs" / "public" / "figures" / "notebooks"
 COUNTER_FILE = "_run.txt"

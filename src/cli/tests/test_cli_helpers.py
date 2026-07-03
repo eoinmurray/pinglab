@@ -10,96 +10,16 @@ import torch
 
 import cli as O
 from cli import (
-    encode_image_spikes,
-    encode_images_poisson,
-    encode_smnist,
-    encode_batch,
-    seed_everything,
-    primary_hid_key,
-    primary_inh_key,
-    _shd_cache_dir,
     _apply_scan_var,
     _auto_device,
+    encode_batch,
+    encode_images_poisson,
+    encode_smnist,
     parse_args,
+    primary_hid_key,
+    primary_inh_key,
+    seed_everything,
 )
-
-
-class TestEncodeImageSpikes:
-    def test_shape_and_binary(self):
-        pixels = np.array([0.5, 1.0, 0.0], dtype=np.float32)
-        spikes = encode_image_spikes(
-            pixels,
-            T_steps=200,
-            dt=1.0,
-            base_rate=10.0,
-            stim_rate=100.0,
-            step_on_ms=50.0,
-            step_off_ms=150.0,
-            seed=42,
-        )
-        assert spikes.shape == (200, 3)
-        assert spikes.dtype == torch.float32
-        assert set(spikes.unique().tolist()) <= {0.0, 1.0}
-
-    def test_zero_pixels_emit_no_spikes(self):
-        pixels = np.zeros(5, dtype=np.float32)
-        spikes = encode_image_spikes(
-            pixels,
-            T_steps=100,
-            dt=1.0,
-            base_rate=50.0,
-            stim_rate=200.0,
-            step_on_ms=20.0,
-            step_off_ms=80.0,
-            seed=1,
-        )
-        assert spikes.sum() == 0.0
-
-    def test_seed_determinism(self):
-        pixels = np.array([0.5, 0.5], dtype=np.float32)
-        a = encode_image_spikes(
-            pixels, 100, 1.0, 10.0, 80.0, step_on_ms=20.0, step_off_ms=80.0, seed=42
-        )
-        b = encode_image_spikes(
-            pixels, 100, 1.0, 10.0, 80.0, step_on_ms=20.0, step_off_ms=80.0, seed=42
-        )
-        assert torch.equal(a, b)
-
-    def test_different_seeds_diverge(self):
-        pixels = np.array([0.5], dtype=np.float32)
-        a = encode_image_spikes(
-            pixels, 200, 1.0, 50.0, 200.0, step_on_ms=20.0, step_off_ms=180.0, seed=1
-        )
-        b = encode_image_spikes(
-            pixels, 200, 1.0, 50.0, 200.0, step_on_ms=20.0, step_off_ms=180.0, seed=2
-        )
-        assert not torch.equal(a, b)
-
-    def test_dt_rebins_same_event_stream(self):
-        # Same seed/rate at two dts → same total spike count (within ±1 from
-        # boundary clipping) because spike *times* are dt-invariant.
-        pixels = np.array([1.0], dtype=np.float32)
-        coarse = encode_image_spikes(
-            pixels,
-            T_steps=100,
-            dt=1.0,
-            base_rate=50.0,
-            stim_rate=50.0,
-            step_on_ms=0.0,
-            step_off_ms=100.0,
-            seed=7,
-        )
-        fine = encode_image_spikes(
-            pixels,
-            T_steps=1000,
-            dt=0.1,
-            base_rate=50.0,
-            stim_rate=50.0,
-            step_on_ms=0.0,
-            step_off_ms=100.0,
-            seed=7,
-        )
-        assert abs(coarse.sum().item() - fine.sum().item()) <= 1
 
 
 class TestEncodeImagesPoisson:
@@ -225,16 +145,6 @@ class TestPrimaryKeys:
     def test_inh_picks_deepest(self):
         rec = {"inh_1": 1, "inh_2": 2}
         assert primary_inh_key(rec) == "inh_2"
-
-
-class TestShdCacheDir:
-    def test_default(self, monkeypatch):
-        monkeypatch.delenv("PINGLAB_SHD_DIR", raising=False)
-        assert _shd_cache_dir() == "/tmp/shd/SHD"
-
-    def test_env_override(self, monkeypatch):
-        monkeypatch.setenv("PINGLAB_SHD_DIR", "/data/shd")
-        assert _shd_cache_dir() == "/data/shd"
 
 
 class TestApplyScanVar:

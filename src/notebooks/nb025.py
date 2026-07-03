@@ -40,6 +40,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
@@ -47,8 +48,8 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers import theme  # noqa: E402
-from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
+from nb022 import cell_dir as shared_cell_dir  # noqa: E402
+from nb022 import cell_name
 
 SLUG = "nb025"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -361,6 +362,7 @@ def render_raster(npz_path: Path, out_path: Path, title: str) -> None:
     ax_e.set_xlim(0, T * dt)
     ax_e.set_title(title)
     if has_i:
+        assert ax_i is not None  # has_i is only True when the 2-axes branch ran
         i_idx, i_t = np.where(spk_i.T)
         ax_i.scatter(
             t_ms[i_t], i_idx, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.5
@@ -1278,29 +1280,25 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
     _despine(ax_acc)
 
     # --- bottom-right: accuracy–rate frontier, operating points annotated ---
-    # Log x-axis: COBA's rate spans 0→~97 Hz while PING sits in a tight 4–11 Hz
-    # band, so a linear axis crushes every interesting point into the left ~10%.
-    # Log spreads the sweep and makes the "up-and-left" PING advantage legible.
-    # A hard floor clamps COBA's collapsed (rate→0) cells onto the axis so they
-    # still show COBA failing at low rate rather than dropping off the plot.
     ax_fr = fig.add_subplot(gs[1, 1])
-    RATE_FLOOR = 0.5  # Hz; below this COBA has effectively gone silent
     model_curves = {}
+    xmax = 1.0
     for m in MODELS:
         pts, base = [], None
         for tu in THETA_U_GRID:
             cr = [r for r in rows if r["model"] == m and r["theta_u"] == tu]
             if not cr:
                 continue
-            rate = max(float(np.mean([r["rate_e"] for r in cr])), RATE_FLOOR)
+            rate = float(np.mean([r["rate_e"] for r in cr]))
             acc = float(np.mean([r["final_acc"] for r in cr]))
             pts.append((rate, acc))
             if tu is None:
                 base = (rate, acc)
         pts.sort()
         model_curves[m] = (pts, base)
-    ax_fr.set_xscale("log")
-    ax_fr.set_xlim(RATE_FLOOR * 0.8, 200)  # right headroom for the COBA label
+        if pts:
+            xmax = max(xmax, max(p[0] for p in pts))
+    ax_fr.set_xlim(-xmax * 0.03, xmax * 1.12)  # left margin so near-zero points read; right headroom for the COBA label
     ax_fr.set_ylim(40, 100)  # all points ≥ 54%; crop dead space to grow the frontier
     for m in MODELS:
         pts, base = model_curves[m]
@@ -1308,24 +1306,6 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
             ax_fr.plot([p[0] for p in pts], [p[1] for p in pts],
                        marker=MODEL_MARKERS[m], ms=4, lw=1.4,
                        color=MODEL_COLORS[m], label=m.upper())
-    # Iso-accuracy guide + the headline claim: at ≈ equal accuracy PING fires an
-    # order of magnitude less than COBA. Drawn as a horizontal span between the
-    # two θ_u-off operating stars.
-    ping_base = model_curves["ping"][1]
-    coba_base = model_curves["coba"][1]
-    if ping_base and coba_base:
-        y_guide = ping_base[1]
-        ax_fr.hlines(y_guide, ping_base[0], coba_base[0],
-                     color=theme.GREY_LIGHT, lw=0.8, ls=(0, (4, 3)), zorder=1)
-        ax_fr.annotate(
-            "", xy=(coba_base[0], y_guide), xytext=(ping_base[0], y_guide),
-            arrowprops=dict(arrowstyle="<->", color=theme.MUTED, lw=0.9))
-        ratio = coba_base[0] / ping_base[0]
-        ax_fr.text(
-            (ping_base[0] * coba_base[0]) ** 0.5, y_guide + 1.5,
-            f"≈{ratio:.0f}× fewer spikes\nfor equal accuracy",
-            ha="center", va="bottom", fontsize=theme.SIZE_ANNOTATION,
-            color=theme.MUTED, fontstyle="italic", linespacing=1.1)
     for m in MODELS:
         base = model_curves[m][1]
         if base is None:
@@ -1333,17 +1313,17 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
         ax_fr.scatter([base[0]], [base[1]], s=130, marker="*",
                       color=MODEL_COLORS[m], edgecolor=theme.INK_BLACK,
                       linewidths=0.7, zorder=6)
-        # PING star: label up-left into open space; COBA star: label below (it
-        # sits top-right where up/right would clip the axis and hit the title).
+        # PING star: label up-right into open plot space; COBA star sits top-
+        # right, so label down-left to avoid clipping the axis and the title.
         if m == "ping":
-            dxdy, ha, va = (-9, 8), "right", "bottom"
+            dxdy, ha, va = (8, 8), "left", "bottom"
         else:
-            dxdy, ha, va = (0, -11), "center", "top"
+            dxdy, ha, va = (-6, -8), "right", "top"
         ax_fr.annotate(f"{m.upper()}\n{base[1]:.0f}% @ {base[0]:.0f} Hz",
                        (base[0], base[1]), xytext=dxdy,
                        textcoords="offset points", ha=ha, va=va,
                        fontsize=theme.SIZE_ANNOTATION, color=MODEL_COLORS[m])
-    ax_fr.set_xlabel("hidden-E firing rate (Hz, log)")
+    ax_fr.set_xlabel("hidden-E firing rate (Hz)")
     ax_fr.set_ylabel("test accuracy (%)")
     ax_fr.set_title("Same accuracy, fewer spikes", loc="left",
                     fontsize=theme.SIZE_LABEL)

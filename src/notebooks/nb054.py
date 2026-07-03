@@ -34,18 +34,18 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
-from helpers.run_id import next_run_id  # noqa: E402
-from helpers import theme  # noqa: E402
 from helpers.rhythmicity import (  # noqa: E402
     iei_histogram,
     population_event_times,
     rhythmicity_scalars,
     spike_autocorrelogram,
 )
+from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+from helpers.run_id import next_run_id  # noqa: E402
 
 PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 
@@ -703,6 +703,10 @@ def _load_runner(slug: str):
     pure-python numerics (the mean-field) can be called directly."""
     path = REPO / "src" / "notebooks" / f"{slug}.py"
     spec = importlib.util.spec_from_file_location(slug, path)
+    # spec_from_file_location returns ModuleSpec | None and spec.loader is
+    # Loader | None; both are always set for a real file path — assert to narrow.
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     sys.modules[slug] = mod
     spec.loader.exec_module(mod)
@@ -765,6 +769,9 @@ def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
         w = hopf["omega_star"]
         axA.scatter([0, 0], [w, -w], facecolors="none",
                     edgecolors=theme.ELECTRIC_CYAN, s=60, lw=1.4, zorder=5)
+    # sc is assigned inside the eigenvalue loop (always ≥1 eigenvalue); narrow
+    # the None branch. PathCollection from scatter is a valid ScalarMappable.
+    assert sc is not None
     cbar = fig.colorbar(sc, ax=axA, fraction=0.046, pad=0.02)
     cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 1)
     cbar.ax.tick_params(labelsize=theme.SIZE_TICK - 1)

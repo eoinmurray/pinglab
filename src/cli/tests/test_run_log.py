@@ -2,7 +2,6 @@ import json
 import re
 
 import pytest
-
 from runlog import (
     MetricsJsonl,
     WarningTracker,

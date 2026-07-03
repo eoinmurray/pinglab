@@ -39,13 +39,13 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers import theme  # noqa: E402
 
 SLUG = "nb062"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)

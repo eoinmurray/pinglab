@@ -21,17 +21,14 @@ jobs:
       - name: Install project
         run: uv sync --dev
 
-      # Non-blocking for now: the codebase has known pre-existing findings, so
-      # these steps report rather than fail. Flip `continue-on-error` off once
-      # the tree is clean to make CI enforce.
+      # Blocking: the tree is clean (ruff + ty both pass repo-wide). These steps
+      # now fail CI on any new finding.
       - name: Ruff
         id: ruff
-        continue-on-error: true
         run: uv run ruff check --output-format=github
 
       - name: ty
         id: ty
-        continue-on-error: true
         run: uv run ty check
 
       # The invariant: notebooks may only shell out to cli.py, never import the

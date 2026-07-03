@@ -18,45 +18,18 @@ import sys
 import time as _time
 from pathlib import Path
 
-import torch
-
 import models as M
 import runlog
+
+# Re-exported through cli/__init__.py for notebook runners (nb003–006).
 from config import (
-    DEFAULT_ARTIFACT_ROOT,
     _MODEL_CLASSES,
+    DEFAULT_ARTIFACT_ROOT,
+    _extract_records,  # noqa: F401
     build_config,
-    build_net,
     run_sim,
     save_snapshot_npz,
 )
-
-# Re-exported through cli/__init__.py for notebook runners (nb003–006).
-from config import _extract_records  # noqa: F401
-
-# =============================================================================
-# Image → spike encoding with stimulus window
-# =============================================================================
-
-from encoders import (  # noqa: E402,F401
-    EVAL_SEED,
-    downsample_spikes_count,
-    encode_batch,
-    encode_image_spikes,
-    encode_images_poisson,
-    encode_smnist,
-    transport_spikes_bin,
-    upsample_spikes_zeropad,
-)
-
-from scan import (  # noqa: E402,F401
-    SCAN_DEFAULTS,
-    _apply_scan_var,
-    _auto_device,
-    primary_hid_key,
-    primary_inh_key,
-)
-
 from datasets import (  # noqa: E402,F401
     DATASET_N_HIDDEN_DEFAULTS,
     SHD_N_CHANNELS,
@@ -67,20 +40,45 @@ from datasets import (  # noqa: E402,F401
 )
 
 # =============================================================================
+# Image → spike encoding
+# =============================================================================
+from encoders import (  # noqa: E402,F401
+    EVAL_SEED,
+    downsample_spikes_count,
+    encode_batch,
+    encode_images_poisson,
+    encode_smnist,
+    transport_spikes_bin,
+    upsample_spikes_zeropad,
+)
+
+# =============================================================================
+# CLI
+# =============================================================================
+from infer import dump_weights, infer, infer_and_snapshot, probe  # noqa: E402
+from scan import (  # noqa: E402,F401
+    SCAN_DEFAULTS,
+    _apply_scan_var,
+    _auto_device,
+    primary_hid_key,
+    primary_inh_key,
+)
+
+# =============================================================================
 # Training (moved to train.py)
 # =============================================================================
-
 from train import (  # noqa: E402,F401
     observe_epoch,
     seed_everything,
     train,
 )
 
-# =============================================================================
-# CLI
-# =============================================================================
-
-from infer import infer, infer_and_snapshot, dump_weights, probe  # noqa: E402
+# Quiet torch's compile-time logging (inductor autotune / dynamo notes). It is
+# benign noise, but — emitted to stderr mid-render — it collides with the
+# in-place epoch progress line and garbles it. Keep ERROR so real compile
+# failures still surface.
+for _torch_logger in ("torch._inductor", "torch._dynamo"):
+    logging.getLogger(_torch_logger).setLevel(logging.ERROR)
 
 log = logging.getLogger("cli")
 
@@ -162,7 +160,6 @@ def _build_config_mapping(parent_parser):
             # This is used in _apply_load_config to check if a user explicitly set this value.
             if action.option_strings and dest not in dest_to_flag:
                 # Split flags into positive (--foo) and negative (--no-foo) forms
-                no_flags = [f for f in action.option_strings if f.startswith("--no-")]
                 yes_flags = [f for f in action.option_strings if not f.startswith("--no-")]
 
                 # Prefer positive over negative (user usually passes --foo, not --no-foo)
@@ -473,9 +470,8 @@ def _build_parent_parser():
         type=float,
         default=200.0,
         help="Total simulation duration in ms (default: 200). "
-        "For synthetic-step modes, must exceed STEP_ON_MS "
-        "(default 200) so the stimulus window is reached; "
-        "values <= STEP_ON_MS leave the trial in flat baseline.",
+        "Metrics are measured over the full trace; notebooks strip any "
+        "startup transient in post.",
     )
     net_group.add_argument(
         "--tau-mem",
@@ -543,7 +539,7 @@ def _build_parent_parser():
         "--input",
         type=str,
         default="synthetic-spikes",
-        choices=["synthetic-conductance", "synthetic-spikes", "dataset"],
+        choices=["synthetic-spikes", "dataset"],
         help="Input mode (default: synthetic-spikes)",
     )
     inp_group.add_argument(
@@ -552,13 +548,6 @@ def _build_parent_parser():
         default=25.0,
         dest="spike_rate",
         help="Baseline input rate in Hz (default: 25)",
-    )
-    inp_group.add_argument(
-        "--stim-overdrive",
-        type=float,
-        default=1.0,
-        dest="overdrive",
-        help="Stimulus multiplier (default: 1.0)",
     )
     inp_group.add_argument(
         "--digit", type=int, default=0, help="Digit class for dataset input (0-9)"
@@ -946,7 +935,7 @@ each subcommand's --help):
 
   Network        --model, --n-hidden, --n-input, --ei-strength, --ei-ratio,
                  --ei-sparsity, --w-in-sparsity, --bias, --dt, --t-ms,
-                 --burn-in, --tau-mem, --tau-syn, --device, --seed
+                 --tau-mem, --tau-syn, --device, --seed
   Readout        --readout {rate,li,spike-count,mem-mean}, --readout-tau-out,
                  --readout-w-out-scale, --kaiming-init, --dales-law,
                  --no-dales-law, --rec-layers, --ei-layers
@@ -1077,6 +1066,7 @@ def save_run_artifacts(out_dir, args, mode):
     """Save config.json (with provenance), run.sh, set up logging, print intro."""
     import json
     import logging
+
     import runlog
 
     out_dir = Path(out_dir)
@@ -1103,6 +1093,11 @@ def save_run_artifacts(out_dir, args, mode):
     # output.log — file handler strips ANSI, stdout keeps it
     log = logging.getLogger("cli")
     log.setLevel(logging.DEBUG)
+    # Close (not just drop) any handlers from a prior run in the same process —
+    # list.clear() would leak the previous output.log file handle. Matters in
+    # tests, which call this many times per process.
+    for _h in log.handlers:
+        _h.close()
     log.handlers.clear()
 
     class _StripAnsiFormatter(logging.Formatter):
@@ -1207,9 +1202,83 @@ def _print_intro(log, config, args, mode):
     runlog.config_block(log, groups)
 
 
+def _build_cell_drive(args, C, dt, T_steps):
+    """Build the per-cell excitatory-conductance drive tensors (ext_g on E,
+    ext_g_i on I) from the --independent-drive / --shared-drive / --quenched-
+    drive flags. Returns (ext_g, ext_g_i), either being None when no drive
+    targets that population.
+
+    This is the drive that pushes the network out of pure recurrent PING into
+    the Vreeswijk-Sompolinsky / Brunel balanced asynchronous-irregular state
+    (nb050/nb058). Each source is added onto whichever population it targets:
+
+      - independent: N uncorrelated per-cell Poisson streams (zero cross-cell
+        input correlation — the AI state's decorrelated drive).
+      - shared: ONE common Poisson stream broadcast to every cell (fully
+        correlated); mix with independent to tune the input correlation.
+      - quenched: a frozen per-cell DC value drawn once from N(mean, std),
+        held constant for the whole trial — V&S's quenched random input, which
+        cannot pin spike times so the Lyapunov probe sees autonomous chaos.
+
+    Seeds are offset off C.SEED (independent E +1, I +2; quenched E +3, I +4;
+    shared E +5, I +6) so each source is reproducible and mutually independent,
+    matching the historical cell-drive path.
+    """
+    import torch
+
+    dev = C.DEVICE
+    ext_g = None      # (T, N_E) drive onto the E population
+    ext_g_i = None    # (T, N_I) drive onto the I population
+
+    # Constant tonic baseline on E (Börgers bias current), if configured.
+    if C.BIAS > 0:
+        ext_g = torch.full((T_steps, C.N_E), float(C.BIAS),
+                           dtype=torch.float32, device=dev)
+
+    def _add(acc, contrib):
+        return contrib if acc is None else acc + contrib
+
+    if getattr(args, "independent_drive", None) is not None:
+        rate, g = float(args.independent_drive[0]), float(args.independent_drive[1])
+        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 1)
+        p = rate * dt / 1000.0
+        spk = (torch.rand(T_steps, C.N_E, generator=gen) < p).to(torch.float32).to(dev)
+        ext_g = _add(ext_g, spk * g)
+    if getattr(args, "shared_drive", None) is not None:
+        rate, g = float(args.shared_drive[0]), float(args.shared_drive[1])
+        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 5)
+        p = rate * dt / 1000.0
+        spk = (torch.rand(T_steps, 1, generator=gen) < p).to(torch.float32)
+        ext_g = _add(ext_g, (spk * g).to(dev).expand(T_steps, C.N_E).contiguous())
+    if getattr(args, "quenched_drive", None) is not None:
+        mean, std = float(args.quenched_drive[0]), float(args.quenched_drive[1])
+        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 3)
+        q = torch.clamp(torch.normal(mean, std, (C.N_E,), generator=gen), min=0.0).to(dev)
+        ext_g = _add(ext_g, q.unsqueeze(0).expand(T_steps, -1))
+
+    if getattr(args, "independent_drive_i", None) is not None:
+        rate, g = float(args.independent_drive_i[0]), float(args.independent_drive_i[1])
+        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 2)
+        p = rate * dt / 1000.0
+        spk = (torch.rand(T_steps, C.N_I, generator=gen) < p).to(torch.float32).to(dev)
+        ext_g_i = _add(ext_g_i, spk * g)
+    if getattr(args, "shared_drive_i", None) is not None:
+        rate, g = float(args.shared_drive_i[0]), float(args.shared_drive_i[1])
+        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 6)
+        p = rate * dt / 1000.0
+        spk = (torch.rand(T_steps, 1, generator=gen) < p).to(torch.float32)
+        ext_g_i = _add(ext_g_i, (spk * g).to(dev).expand(T_steps, C.N_I).contiguous())
+    if getattr(args, "quenched_drive_i", None) is not None:
+        mean, std = float(args.quenched_drive_i[0]), float(args.quenched_drive_i[1])
+        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 4)
+        q = torch.clamp(torch.normal(mean, std, (C.N_I,), generator=gen), min=0.0).to(dev)
+        ext_g_i = _add(ext_g_i, q.unsqueeze(0).expand(T_steps, -1))
+
+    return ext_g, ext_g_i
+
+
 def _run_sim(args, C, out_dir, log):
     """Forward pass with firing-rate metrics."""
-    import numpy as np
 
     if getattr(args, "infer", False):
         # Check if --digit / --sample / --sample-index were explicitly passed (snapshot mode)
@@ -1236,7 +1305,6 @@ def _run_sim(args, C, out_dir, log):
         return
 
     # Metrics-only simulation
-    from scan import primary_hid_key, primary_inh_key
 
     spike_rate = getattr(args, "spike_rate", None) or C.SPIKE_RATE_BASE
     t_e_async = getattr(args, "t_e_async", None) or C.T_E_ASYNC_DEFAULT
@@ -1244,7 +1312,6 @@ def _run_sim(args, C, out_dir, log):
 
     M.N_HID = C.N_E
     M.N_INH = C.N_I
-    burn_steps = int(C.BURN_IN_MS / dt)
 
     # Drive: synthetic-spikes → one trial of uniform Poisson at --input-rate fed
     # through W_in (records voltages → snapshot.npz drives both the raster/PSD and
@@ -1267,22 +1334,72 @@ def _run_sim(args, C, out_dir, log):
             dt, 0.0, model_name=args.model, t_e_async=t_e_async, input_spikes=spk_in,
         )
     else:
-        t_e_ping = t_e_async * getattr(args, "overdrive", 1.0)
+        # Cell-drive path (--independent-drive / --shared-drive / --quenched-
+        # drive, used by nb050/nb058). Build the per-cell excitatory-conductance
+        # drive tensors that push the net into the V&S balanced AI state, feed a
+        # baseline Poisson stream through W_in as well (so W_in-routed input and
+        # direct cell-drive coexist, matching the historical path), and inject
+        # ext_g / ext_g_i on top inside the model's forward pass.
+        import torch
+        T_steps = int(round(args.t_ms / dt))
+        ext_g, ext_g_i = _build_cell_drive(args, C, dt, T_steps)
+        n_in = int(getattr(M, "N_IN", C.N_E))
+        p_step = spike_rate * dt / 1000.0
+        gen = torch.Generator().manual_seed(C.SEED)
+        spk_in = (torch.rand(T_steps, n_in, generator=gen) < p_step).float()
         runlog.phase(
             log, "drive",
-            f"tonic conductance · OD {getattr(args, 'overdrive', 1.0):.1f}×",
+            f"cell-drive · Poisson {spike_rate:.0f} Hz × {n_in} ch → W_in "
+            f"+ per-cell ext_g",
         )
-        rec, display, _ = run_sim(dt, t_e_ping, model_name=args.model, t_e_async=t_e_async)
+        rec, display, _ = run_sim(
+            dt, t_e_async, model_name=args.model, t_e_async=t_e_async,
+            input_spikes=spk_in, ext_g=ext_g, ext_g_i=ext_g_i,
+        )
 
-    spk_e = rec[primary_hid_key(rec)][burn_steps:]
-    spk_i = rec[primary_inh_key(rec)][burn_steps:] if primary_inh_key(rec) else None
+    spk_e = rec[primary_hid_key(rec)]
+    spk_i = rec[primary_inh_key(rec)] if primary_inh_key(rec) else None
     from metrics import compute_metrics
     _m = compute_metrics(spk_e, spk_i, dt, args.model, n_e=C.N_E, n_i=C.N_I)
     runlog.metrics_line(log, _m, label="result")
 
+    # Lyapunov clone-and-perturb probe (nb058 Figure 3): re-run on identical
+    # drive with every membrane voltage ε-kicked at t=0, then record the
+    # voltage distance ‖ΔV(t)‖ between the clean and perturbed copies. Its
+    # initial-growth slope is the largest Lyapunov exponent — positive for the
+    # chaotic balanced net, ≈ 0 for cycle-locked PING. Only meaningful on the
+    # cell-drive path (needs the ext_g tensors rebuilt identically).
+    extra = None
+    lyap_eps = float(getattr(args, "lyapunov_eps", 0.0) or 0.0)
+    if lyap_eps > 0 and _has_cell_drive:
+        v_key = "v_e_1" if "v_e_1" in rec else next(
+            (k for k in rec if k.startswith("v_e_")), None)
+        if v_key is not None:
+            rec_p, _, _ = run_sim(
+                dt, t_e_async, model_name=args.model, t_e_async=t_e_async,
+                input_spikes=spk_in, ext_g=ext_g, ext_g_i=ext_g_i,
+                v_perturb_eps=lyap_eps, v_perturb_seed=C.SEED + 7,
+            )
+            import numpy as np
+            vc = np.asarray(rec[v_key])
+            vp = np.asarray(rec_p[v_key])
+            n_t = min(vc.shape[0], vp.shape[0])
+            vc = vc[:n_t].reshape(n_t, -1)
+            vp = vp[:n_t].reshape(n_t, -1)
+            lyap_vdist = np.sqrt(((vc - vp) ** 2).sum(axis=1))
+            lyap_t_ms = np.arange(n_t) * dt
+            extra = {"lyap_vdist": lyap_vdist.astype(np.float32),
+                     "lyap_t_ms": lyap_t_ms.astype(np.float32),
+                     "lyap_eps": np.float32(lyap_eps)}
+            runlog.phase(
+                log, "lyapunov",
+                f"ε={lyap_eps:g} mV · ‖ΔV‖ {lyap_vdist[0]:.2e} → "
+                f"{lyap_vdist[-1]:.2e}",
+            )
+
     # Save full integration window snapshot for notebooks
     out_path = Path(out_dir) / "snapshot.npz"
-    save_snapshot_npz(out_path, rec, dt, C.N_E, C.N_I, display=display)
+    save_snapshot_npz(out_path, rec, dt, C.N_E, C.N_I, display=display, extra=extra)
 
 
 def _resolve_w_in(args):
@@ -1369,7 +1486,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         )
         return
 
-    acc = infer(
+    infer(
         dt=args.dt,
         out_dir=str(out_dir),
         model_name=args.model,
@@ -1512,14 +1629,6 @@ def main(argv=None):
 
     # Save run artifacts for all modes
     log = save_run_artifacts(out_dir, args, mode)
-
-    # M.max_rate_hz / M.T_ms are set in configure_models above.
-    if args.t_ms <= C.STEP_ON_MS:
-        runlog.warn(
-            log,
-            f"T {args.t_ms:.0f} ms ≤ step-on {C.STEP_ON_MS:.0f} ms — "
-            f"stimulus never fires (try T ≥ {C.STEP_OFF_MS:.0f})",
-        )
 
     if args._input_auto:
         runlog.phase(log, "input", "auto → dataset (from --dataset/--digit/--sample)")

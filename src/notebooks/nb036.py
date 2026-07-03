@@ -27,14 +27,15 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers import theme  # noqa: E402
-from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
+from nb022 import cell_dir as shared_cell_dir  # noqa: E402
+from nb022 import cell_name
 
 SLUG = "nb036"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -369,7 +370,6 @@ def build_wei_wie_grid_args(
 def plot_wei_wie_grid(rows: list[dict], out_path: Path, run_id: str) -> None:
     """Three heatmaps on the (W_ei, W_ie) grid: accuracy, E rate, I rate.
     I rate is the PING-vs-COBA cluster discriminator."""
-    import numpy as np
     theme.apply()
     fig, axes = plt.subplots(1, 3, figsize=(13.0, 4.5), dpi=150)
     g = WEI_WIE_GRID_VALUES
@@ -433,7 +433,6 @@ def plot_wei_wie_acc_vs_e_with_frontier(
     curves. Lets the reader see where the (W^EI, W^IE)-grid solutions
     fall relative to the θ_u-driven accuracy/rate tradeoffs of the
     canonical COBA and PING baselines."""
-    import numpy as np
     theme.apply()
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     # ── Base: Figure 10b scatter ──
@@ -493,7 +492,6 @@ def plot_wei_wie_acc_vs_e(rows: list[dict], out_path: Path, run_id: str) -> None
     cell from Figure 10, coloured by I rate. The cluster structure of
     the grid should appear as separated point clouds: I=0 cells (no-loop
     + stretched-COBA) at low I-rate colour, I>0 cells (PING) at high."""
-    import numpy as np
     theme.apply()
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     xs = np.array([r["rate_e"] for r in rows])
@@ -590,7 +588,6 @@ def plot_wei_diagonal(rows: list[dict], out_path: Path, run_id: str) -> None:
     at 2 × W^EI). Aggregates over the seeds present in rows and plots
     mean ± std as error bars. Individual seed points shown as faint
     markers."""
-    import numpy as np
     theme.apply()
     fig, axes = plt.subplots(1, 3, figsize=(13.0, 4.5), dpi=150)
     by_w: dict[float, list[dict]] = {}
@@ -650,7 +647,6 @@ def plot_wei_diagonal_acc_vs_e(
     diagonal sweep, coloured by I rate. Same idea as Figure 10b but
     each point is one (W^EI, seed) cell; labels mark only the W^EI
     value (W^IE = 2 W^EI implicit)."""
-    import numpy as np
     theme.apply()
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     xs = np.array([r["rate_e"] for r in rows])

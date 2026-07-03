@@ -1,9 +1,7 @@
 import numpy as np
 import pytest
-
 from metrics import (
     find_fundamental_nondiff,
-    format_metrics,
     population_rate_nondiff,
 )
 
@@ -75,16 +73,3 @@ class TestFindFundamental:
         freqs = np.linspace(100.0, 200.0, 50)
         psd = np.ones_like(freqs)
         assert find_fundamental_nondiff(psd, freqs, f_lo=5.0, f_hi=80.0) == 0.0
-
-
-class TestFormatMetrics:
-    def test_f0_shown_only_when_positive(self):
-        base = {"rate_e": 30.0, "rate_i": 80.0, "cv": 0.5, "act": 0.6, "f0": 0.0}
-        assert "f0" not in format_metrics(base)
-        base["f0"] = 42.0
-        assert "f0=" in format_metrics(base)
-
-    def test_basic_fields_present(self):
-        m = {"rate_e": 30.0, "rate_i": 80.0, "cv": 0.5, "act": 0.6, "f0": 0.0}
-        s = format_metrics(m)
-        assert "E=" in s and "I=" in s and "CV=" in s and "act=" in s

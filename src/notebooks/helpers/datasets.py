@@ -20,8 +20,8 @@ def load_mnist_split(max_samples: int | None = None):
 
     X in [0, 1] float32 (N, 784); y int64. Stratified 80/20, random_state=42.
     """
-    from torchvision import datasets, transforms
     from sklearn.model_selection import train_test_split
+    from torchvision import datasets, transforms
 
     tr = datasets.MNIST(root="/tmp/mnist", train=True, download=True,
                         transform=transforms.ToTensor())

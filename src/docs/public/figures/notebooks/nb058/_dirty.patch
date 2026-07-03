@@ -1,0 +1,4827 @@
+diff --git a/src/cli/__init__.py b/src/cli/__init__.py
+index c83d4c9..c6c6b86 100644
+--- a/src/cli/__init__.py
++++ b/src/cli/__init__.py
+@@ -18,10 +18,9 @@ if _pkg_dir in _sys.path:
+     _sys.path.remove(_pkg_dir)
+ _sys.path.insert(0, _pkg_dir)
+ 
+-from .cli import M  # noqa: E402,F401  # re-exported for tests/_apply_scan_var
+-from .encoders import FROZEN_MODES, FrozenEncoder  # noqa: E402,F401
+ from .cli import (  # noqa: E402,F401
+     EVAL_SEED,
++    M,  # noqa: E402,F401  # re-exported for tests/_apply_scan_var
+     _apply_scan_var,
+     _auto_device,
+     _extract_records,
+@@ -30,7 +29,6 @@ from .cli import (  # noqa: E402,F401
+     _shd_cache_dir,
+     downsample_spikes_count,
+     encode_batch,
+-    encode_image_spikes,
+     encode_images_poisson,
+     encode_smnist,
+     infer,
+@@ -43,3 +41,4 @@ from .cli import (  # noqa: E402,F401
+     transport_spikes_bin,
+     upsample_spikes_zeropad,
+ )
++from .encoders import FROZEN_MODES, FrozenEncoder  # noqa: E402,F401
+diff --git a/src/cli/cli.py b/src/cli/cli.py
+index bda7182..f9e962f 100644
+--- a/src/cli/cli.py
++++ b/src/cli/cli.py
+@@ -18,37 +18,44 @@ import sys
+ import time as _time
+ from pathlib import Path
+ 
+-import torch
+-
+ import models as M
+ import runlog
++
++# Re-exported through cli/__init__.py for notebook runners (nb003–006).
+ from config import (
+-    DEFAULT_ARTIFACT_ROOT,
+     _MODEL_CLASSES,
++    DEFAULT_ARTIFACT_ROOT,
++    _extract_records,  # noqa: F401
+     build_config,
+-    build_net,
+     run_sim,
+     save_snapshot_npz,
+ )
+-
+-# Re-exported through cli/__init__.py for notebook runners (nb003–006).
+-from config import _extract_records  # noqa: F401
++from datasets import (  # noqa: E402,F401
++    DATASET_N_HIDDEN_DEFAULTS,
++    SHD_N_CHANNELS,
++    _load_dataset_image,
++    _load_shd,
++    _shd_cache_dir,
++    load_dataset,
++)
+ 
+ # =============================================================================
+-# Image → spike encoding with stimulus window
++# Image → spike encoding
+ # =============================================================================
+-
+ from encoders import (  # noqa: E402,F401
+     EVAL_SEED,
+     downsample_spikes_count,
+     encode_batch,
+-    encode_image_spikes,
+     encode_images_poisson,
+     encode_smnist,
+     transport_spikes_bin,
+     upsample_spikes_zeropad,
+ )
+ 
++# =============================================================================
++# CLI
++# =============================================================================
++from infer import dump_weights, infer, infer_and_snapshot, probe  # noqa: E402
+ from scan import (  # noqa: E402,F401
+     SCAN_DEFAULTS,
+     _apply_scan_var,
+@@ -57,31 +64,15 @@ from scan import (  # noqa: E402,F401
+     primary_inh_key,
+ )
+ 
+-from datasets import (  # noqa: E402,F401
+-    DATASET_N_HIDDEN_DEFAULTS,
+-    SHD_N_CHANNELS,
+-    _load_dataset_image,
+-    _load_shd,
+-    _shd_cache_dir,
+-    load_dataset,
+-)
+-
+ # =============================================================================
+ # Training (moved to train.py)
+ # =============================================================================
+-
+ from train import (  # noqa: E402,F401
+     observe_epoch,
+     seed_everything,
+     train,
+ )
+ 
+-# =============================================================================
+-# CLI
+-# =============================================================================
+-
+-from infer import infer, infer_and_snapshot, dump_weights, probe  # noqa: E402
+-
+ log = logging.getLogger("cli")
+ 
+ 
+@@ -162,7 +153,6 @@ def _build_config_mapping(parent_parser):
+             # This is used in _apply_load_config to check if a user explicitly set this value.
+             if action.option_strings and dest not in dest_to_flag:
+                 # Split flags into positive (--foo) and negative (--no-foo) forms
+-                no_flags = [f for f in action.option_strings if f.startswith("--no-")]
+                 yes_flags = [f for f in action.option_strings if not f.startswith("--no-")]
+ 
+                 # Prefer positive over negative (user usually passes --foo, not --no-foo)
+@@ -473,9 +463,8 @@ def _build_parent_parser():
+         type=float,
+         default=200.0,
+         help="Total simulation duration in ms (default: 200). "
+-        "For synthetic-step modes, must exceed STEP_ON_MS "
+-        "(default 200) so the stimulus window is reached; "
+-        "values <= STEP_ON_MS leave the trial in flat baseline.",
++        "Metrics are measured over the full trace; notebooks strip any "
++        "startup transient in post.",
+     )
+     net_group.add_argument(
+         "--tau-mem",
+@@ -543,7 +532,7 @@ def _build_parent_parser():
+         "--input",
+         type=str,
+         default="synthetic-spikes",
+-        choices=["synthetic-conductance", "synthetic-spikes", "dataset"],
++        choices=["synthetic-spikes", "dataset"],
+         help="Input mode (default: synthetic-spikes)",
+     )
+     inp_group.add_argument(
+@@ -553,13 +542,6 @@ def _build_parent_parser():
+         dest="spike_rate",
+         help="Baseline input rate in Hz (default: 25)",
+     )
+-    inp_group.add_argument(
+-        "--stim-overdrive",
+-        type=float,
+-        default=1.0,
+-        dest="overdrive",
+-        help="Stimulus multiplier (default: 1.0)",
+-    )
+     inp_group.add_argument(
+         "--digit", type=int, default=0, help="Digit class for dataset input (0-9)"
+     )
+@@ -946,7 +928,7 @@ each subcommand's --help):
+ 
+   Network        --model, --n-hidden, --n-input, --ei-strength, --ei-ratio,
+                  --ei-sparsity, --w-in-sparsity, --bias, --dt, --t-ms,
+-                 --burn-in, --tau-mem, --tau-syn, --device, --seed
++                 --tau-mem, --tau-syn, --device, --seed
+   Readout        --readout {rate,li,spike-count,mem-mean}, --readout-tau-out,
+                  --readout-w-out-scale, --kaiming-init, --dales-law,
+                  --no-dales-law, --rec-layers, --ei-layers
+@@ -1077,6 +1059,7 @@ def save_run_artifacts(out_dir, args, mode):
+     """Save config.json (with provenance), run.sh, set up logging, print intro."""
+     import json
+     import logging
++
+     import runlog
+ 
+     out_dir = Path(out_dir)
+@@ -1207,9 +1190,83 @@ def _print_intro(log, config, args, mode):
+     runlog.config_block(log, groups)
+ 
+ 
++def _build_cell_drive(args, C, dt, T_steps):
++    """Build the per-cell excitatory-conductance drive tensors (ext_g on E,
++    ext_g_i on I) from the --independent-drive / --shared-drive / --quenched-
++    drive flags. Returns (ext_g, ext_g_i), either being None when no drive
++    targets that population.
++
++    This is the drive that pushes the network out of pure recurrent PING into
++    the Vreeswijk-Sompolinsky / Brunel balanced asynchronous-irregular state
++    (nb050/nb058). Each source is added onto whichever population it targets:
++
++      - independent: N uncorrelated per-cell Poisson streams (zero cross-cell
++        input correlation — the AI state's decorrelated drive).
++      - shared: ONE common Poisson stream broadcast to every cell (fully
++        correlated); mix with independent to tune the input correlation.
++      - quenched: a frozen per-cell DC value drawn once from N(mean, std),
++        held constant for the whole trial — V&S's quenched random input, which
++        cannot pin spike times so the Lyapunov probe sees autonomous chaos.
++
++    Seeds are offset off C.SEED (independent E +1, I +2; quenched E +3, I +4;
++    shared E +5, I +6) so each source is reproducible and mutually independent,
++    matching the historical cell-drive path.
++    """
++    import torch
++
++    dev = C.DEVICE
++    ext_g = None      # (T, N_E) drive onto the E population
++    ext_g_i = None    # (T, N_I) drive onto the I population
++
++    # Constant tonic baseline on E (Börgers bias current), if configured.
++    if C.BIAS > 0:
++        ext_g = torch.full((T_steps, C.N_E), float(C.BIAS),
++                           dtype=torch.float32, device=dev)
++
++    def _add(acc, contrib):
++        return contrib if acc is None else acc + contrib
++
++    if getattr(args, "independent_drive", None) is not None:
++        rate, g = float(args.independent_drive[0]), float(args.independent_drive[1])
++        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 1)
++        p = rate * dt / 1000.0
++        spk = (torch.rand(T_steps, C.N_E, generator=gen) < p).to(torch.float32).to(dev)
++        ext_g = _add(ext_g, spk * g)
++    if getattr(args, "shared_drive", None) is not None:
++        rate, g = float(args.shared_drive[0]), float(args.shared_drive[1])
++        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 5)
++        p = rate * dt / 1000.0
++        spk = (torch.rand(T_steps, 1, generator=gen) < p).to(torch.float32)
++        ext_g = _add(ext_g, (spk * g).to(dev).expand(T_steps, C.N_E).contiguous())
++    if getattr(args, "quenched_drive", None) is not None:
++        mean, std = float(args.quenched_drive[0]), float(args.quenched_drive[1])
++        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 3)
++        q = torch.clamp(torch.normal(mean, std, (C.N_E,), generator=gen), min=0.0).to(dev)
++        ext_g = _add(ext_g, q.unsqueeze(0).expand(T_steps, -1))
++
++    if getattr(args, "independent_drive_i", None) is not None:
++        rate, g = float(args.independent_drive_i[0]), float(args.independent_drive_i[1])
++        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 2)
++        p = rate * dt / 1000.0
++        spk = (torch.rand(T_steps, C.N_I, generator=gen) < p).to(torch.float32).to(dev)
++        ext_g_i = _add(ext_g_i, spk * g)
++    if getattr(args, "shared_drive_i", None) is not None:
++        rate, g = float(args.shared_drive_i[0]), float(args.shared_drive_i[1])
++        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 6)
++        p = rate * dt / 1000.0
++        spk = (torch.rand(T_steps, 1, generator=gen) < p).to(torch.float32)
++        ext_g_i = _add(ext_g_i, (spk * g).to(dev).expand(T_steps, C.N_I).contiguous())
++    if getattr(args, "quenched_drive_i", None) is not None:
++        mean, std = float(args.quenched_drive_i[0]), float(args.quenched_drive_i[1])
++        gen = torch.Generator(device="cpu").manual_seed(C.SEED + 4)
++        q = torch.clamp(torch.normal(mean, std, (C.N_I,), generator=gen), min=0.0).to(dev)
++        ext_g_i = _add(ext_g_i, q.unsqueeze(0).expand(T_steps, -1))
++
++    return ext_g, ext_g_i
++
++
+ def _run_sim(args, C, out_dir, log):
+     """Forward pass with firing-rate metrics."""
+-    import numpy as np
+ 
+     if getattr(args, "infer", False):
+         # Check if --digit / --sample / --sample-index were explicitly passed (snapshot mode)
+@@ -1236,7 +1293,6 @@ def _run_sim(args, C, out_dir, log):
+         return
+ 
+     # Metrics-only simulation
+-    from scan import primary_hid_key, primary_inh_key
+ 
+     spike_rate = getattr(args, "spike_rate", None) or C.SPIKE_RATE_BASE
+     t_e_async = getattr(args, "t_e_async", None) or C.T_E_ASYNC_DEFAULT
+@@ -1244,7 +1300,6 @@ def _run_sim(args, C, out_dir, log):
+ 
+     M.N_HID = C.N_E
+     M.N_INH = C.N_I
+-    burn_steps = int(C.BURN_IN_MS / dt)
+ 
+     # Drive: synthetic-spikes → one trial of uniform Poisson at --input-rate fed
+     # through W_in (records voltages → snapshot.npz drives both the raster/PSD and
+@@ -1267,22 +1322,72 @@ def _run_sim(args, C, out_dir, log):
+             dt, 0.0, model_name=args.model, t_e_async=t_e_async, input_spikes=spk_in,
+         )
+     else:
+-        t_e_ping = t_e_async * getattr(args, "overdrive", 1.0)
++        # Cell-drive path (--independent-drive / --shared-drive / --quenched-
++        # drive, used by nb050/nb058). Build the per-cell excitatory-conductance
++        # drive tensors that push the net into the V&S balanced AI state, feed a
++        # baseline Poisson stream through W_in as well (so W_in-routed input and
++        # direct cell-drive coexist, matching the historical path), and inject
++        # ext_g / ext_g_i on top inside the model's forward pass.
++        import torch
++        T_steps = int(round(args.t_ms / dt))
++        ext_g, ext_g_i = _build_cell_drive(args, C, dt, T_steps)
++        n_in = int(getattr(M, "N_IN", C.N_E))
++        p_step = spike_rate * dt / 1000.0
++        gen = torch.Generator().manual_seed(C.SEED)
++        spk_in = (torch.rand(T_steps, n_in, generator=gen) < p_step).float()
+         runlog.phase(
+             log, "drive",
+-            f"tonic conductance · OD {getattr(args, 'overdrive', 1.0):.1f}×",
++            f"cell-drive · Poisson {spike_rate:.0f} Hz × {n_in} ch → W_in "
++            f"+ per-cell ext_g",
++        )
++        rec, display, _ = run_sim(
++            dt, t_e_async, model_name=args.model, t_e_async=t_e_async,
++            input_spikes=spk_in, ext_g=ext_g, ext_g_i=ext_g_i,
+         )
+-        rec, display, _ = run_sim(dt, t_e_ping, model_name=args.model, t_e_async=t_e_async)
+ 
+-    spk_e = rec[primary_hid_key(rec)][burn_steps:]
+-    spk_i = rec[primary_inh_key(rec)][burn_steps:] if primary_inh_key(rec) else None
++    spk_e = rec[primary_hid_key(rec)]
++    spk_i = rec[primary_inh_key(rec)] if primary_inh_key(rec) else None
+     from metrics import compute_metrics
+     _m = compute_metrics(spk_e, spk_i, dt, args.model, n_e=C.N_E, n_i=C.N_I)
+     runlog.metrics_line(log, _m, label="result")
+ 
++    # Lyapunov clone-and-perturb probe (nb058 Figure 3): re-run on identical
++    # drive with every membrane voltage ε-kicked at t=0, then record the
++    # voltage distance ‖ΔV(t)‖ between the clean and perturbed copies. Its
++    # initial-growth slope is the largest Lyapunov exponent — positive for the
++    # chaotic balanced net, ≈ 0 for cycle-locked PING. Only meaningful on the
++    # cell-drive path (needs the ext_g tensors rebuilt identically).
++    extra = None
++    lyap_eps = float(getattr(args, "lyapunov_eps", 0.0) or 0.0)
++    if lyap_eps > 0 and _has_cell_drive:
++        v_key = "v_e_1" if "v_e_1" in rec else next(
++            (k for k in rec if k.startswith("v_e_")), None)
++        if v_key is not None:
++            rec_p, _, _ = run_sim(
++                dt, t_e_async, model_name=args.model, t_e_async=t_e_async,
++                input_spikes=spk_in, ext_g=ext_g, ext_g_i=ext_g_i,
++                v_perturb_eps=lyap_eps, v_perturb_seed=C.SEED + 7,
++            )
++            import numpy as np
++            vc = np.asarray(rec[v_key])
++            vp = np.asarray(rec_p[v_key])
++            n_t = min(vc.shape[0], vp.shape[0])
++            vc = vc[:n_t].reshape(n_t, -1)
++            vp = vp[:n_t].reshape(n_t, -1)
++            lyap_vdist = np.sqrt(((vc - vp) ** 2).sum(axis=1))
++            lyap_t_ms = np.arange(n_t) * dt
++            extra = {"lyap_vdist": lyap_vdist.astype(np.float32),
++                     "lyap_t_ms": lyap_t_ms.astype(np.float32),
++                     "lyap_eps": np.float32(lyap_eps)}
++            runlog.phase(
++                log, "lyapunov",
++                f"ε={lyap_eps:g} mV · ‖ΔV‖ {lyap_vdist[0]:.2e} → "
++                f"{lyap_vdist[-1]:.2e}",
++            )
++
+     # Save full integration window snapshot for notebooks
+     out_path = Path(out_dir) / "snapshot.npz"
+-    save_snapshot_npz(out_path, rec, dt, C.N_E, C.N_I, display=display)
++    save_snapshot_npz(out_path, rec, dt, C.N_E, C.N_I, display=display, extra=extra)
+ 
+ 
+ def _resolve_w_in(args):
+@@ -1369,7 +1474,7 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
+         )
+         return
+ 
+-    acc = infer(
++    infer(
+         dt=args.dt,
+         out_dir=str(out_dir),
+         model_name=args.model,
+@@ -1513,14 +1618,6 @@ def main(argv=None):
+     # Save run artifacts for all modes
+     log = save_run_artifacts(out_dir, args, mode)
+ 
+-    # M.max_rate_hz / M.T_ms are set in configure_models above.
+-    if args.t_ms <= C.STEP_ON_MS:
+-        runlog.warn(
+-            log,
+-            f"T {args.t_ms:.0f} ms ≤ step-on {C.STEP_ON_MS:.0f} ms — "
+-            f"stimulus never fires (try T ≥ {C.STEP_OFF_MS:.0f})",
+-        )
+-
+     if args._input_auto:
+         runlog.phase(log, "input", "auto → dataset (from --dataset/--digit/--sample)")
+ 
+diff --git a/src/cli/config.py b/src/cli/config.py
+index 32be607..a25aeeb 100644
+--- a/src/cli/config.py
++++ b/src/cli/config.py
+@@ -1,7 +1,7 @@
+ """Configuration, network construction, and simulation runners.
+ 
+ Contains the Config dataclass, make_net, extract_weights, run_sim,
+-run_sim_batch, run_sim_image, and backward-compat module globals.
++run_sim_image, and backward-compat module globals.
+ """
+ 
+ from __future__ import annotations
+@@ -9,15 +9,14 @@ from __future__ import annotations
+ from dataclasses import dataclass, field
+ from pathlib import Path
+ 
++import models as M
+ import numpy as np
+ import torch
+-from torch import nn
+-
+-import models as M
+-from models import COBANet
+ from inputs import (
+     make_step_drive,
+ )
++from models import COBANet
++from torch import nn
+ 
+ # Default output directory when no --out-dir is given: where the pinglab-cli
+ # snapshot figures land. Defined once and reused by cfg, build_config, and the
+@@ -37,7 +36,6 @@ class Config:
+     fps: int = 60
+     seed: int = 42
+     sim_ms: float = 600.0
+-    burn_in_ms: float = 100.0
+     step_on_ms: float = 200.0
+     step_off_ms: float = 300.0
+     t_e_async: float = 0.0006
+@@ -72,10 +70,6 @@ class Config:
+     )
+     artifact_root: str = ""
+ 
+-    @property
+-    def visible_ms(self):
+-        return self.sim_ms - self.burn_in_ms
+-
+     @property
+     def torch_device(self):
+         return torch.device(self.device)
+@@ -171,7 +165,7 @@ def set_sim_dt(dt, t_ms):
+     M.T_steps = int(t_ms / dt)
+ 
+ 
+-def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None, label=None):
++def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key_fn=None, primary_inh_key_fn=None, label=None, extra=None):
+     """Save spike recording and metadata to NPZ file for notebook analysis.
+ 
+     SINGLE SOURCE OF TRUTH: All snapshot saving across train/infer/sim paths must
+@@ -214,7 +208,8 @@ def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key
+         - v_e_<layer>, v_i_<layer>, g_e_<layer>, g_i_<layer>, etc.
+           (all other keys in rec, minus hid/inh/input)
+     """
+-    from scan import primary_hid_key as _primary_hid_key, primary_inh_key as _primary_inh_key
++    from scan import primary_hid_key as _primary_hid_key
++    from scan import primary_inh_key as _primary_inh_key
+ 
+     if primary_hid_key_fn is None:
+         primary_hid_key_fn = _primary_hid_key
+@@ -269,8 +264,18 @@ def save_snapshot_npz(out_path, rec, dt, n_e, n_i, display=None, primary_hid_key
+         if "input_spikes" not in npz_data:
+             npz_data["input_spikes"] = display_arr
+ 
+-    # Write all fields to NPZ (automatic gzip compression)
+-    np.savez(out_path, **npz_data)
++    # Extra caller-supplied arrays (e.g. the Lyapunov ‖ΔV(t)‖ curve and its
++    # time axis) written verbatim under their own keys.
++    if extra is not None:
++        for key, val in extra.items():
++            if val is None:
++                continue
++            npz_data[key] = val.numpy() if hasattr(val, "numpy") else np.asarray(val)
++
++    # Write all fields to NPZ (automatic gzip compression).
++    # ty flags **dict unpacking into savez (it conservatively binds each value to
++    # the allow_pickle: bool kwarg); the array kwargs are correct at runtime.
++    np.savez(out_path, **npz_data)  # ty: ignore[invalid-argument-type]
+ 
+ 
+ # =============================================================================
+@@ -539,9 +544,31 @@ def run_sim(
+     model_name="ping",
+     t_e_async=None,
+     input_spikes=None,
++    ext_g=None,
++    ext_g_i=None,
++    v_perturb_eps=0.0,
++    v_perturb_seed=0,
+ ):
+     """Run a single simulation with any registered model.
+ 
++    Drive sources (any combination may be supplied, they are additive inside
++    the forward pass):
++      - ``input_spikes``: (T, N_in) 0/1 raster routed through W_in onto the E
++        cells (the synthetic-spikes input path).
++      - ``ext_g`` / ``ext_g_i``: (T, N_E) / (T, N_I) per-cell excitatory
++        conductance injected directly onto the E / I populations, bypassing
++        W_in. This is the cell-drive path used by the V&S / Brunel balanced
++        network experiments (nb050/nb058): per-cell independent Poisson,
++        shared common Poisson, or frozen quenched-DC drive, all pre-built by
++        the caller. Without it the network reverts to pure recurrent PING.
++      - ``ext_g_override``: legacy single-tensor ext_g (mutually exclusive
++        with input_spikes; kept for older callers).
++      - neither: the Börgers tonic-conductance step drive.
++
++    ``v_perturb_eps`` > 0 kicks every membrane voltage by an ε-mV offset at
++    t=0 (seeded by ``v_perturb_seed``) so a second pass on identical drive
++    diverges only through the dynamics — the clone half of the Lyapunov probe.
++
+     Returns (rec, ext_g_or_spikes_numpy, weights).
+     """
+     if t_e_async is None:
+@@ -554,10 +581,26 @@ def run_sim(
+     set_sim_dt(dt, cfg.sim_ms)
+     T_steps = int(cfg.sim_ms / dt)
+ 
++    def _to_dev(t):
++        if t is None:
++            return None
++        t = t if isinstance(t, torch.Tensor) else torch.tensor(t, dtype=torch.float32)
++        return t.to(cfg.torch_device)
++
++    ext_g = _to_dev(ext_g)
++    ext_g_i = _to_dev(ext_g_i)
++
+     if input_spikes is not None:
++        # Spike input (optionally with per-cell ext_g/ext_g_i on top).
+         ext_g_tensor = None
+         input_spikes = input_spikes.to(cfg.torch_device)
+         M.T_steps = min(M.T_steps, len(input_spikes))
++        if ext_g is not None:
++            M.T_steps = min(M.T_steps, len(ext_g))
++    elif ext_g is not None:
++        # Pure cell-drive (no W_in input spikes) — e.g. quenched-DC probes.
++        ext_g_tensor = None
++        M.T_steps = min(M.T_steps, len(ext_g))
+     elif ext_g_override is not None:
+         ext_g_tensor = (
+             ext_g_override.clone().detach()
+@@ -589,69 +632,39 @@ def run_sim(
+     net.to(cfg.torch_device)
+     net.recording = True
+ 
++    fwd_kwargs: dict = {
++        "v_perturb_eps": float(v_perturb_eps),
++        "v_perturb_seed": int(v_perturb_seed),
++    }
++    if input_spikes is not None:
++        fwd_kwargs["input_spikes"] = input_spikes
++        if ext_g is not None:
++            fwd_kwargs["ext_g"] = ext_g
++        if ext_g_i is not None:
++            fwd_kwargs["ext_g_i"] = ext_g_i
++    elif ext_g is not None:
++        fwd_kwargs["ext_g"] = ext_g
++        if ext_g_i is not None:
++            fwd_kwargs["ext_g_i"] = ext_g_i
++    else:
++        fwd_kwargs["ext_g"] = ext_g_tensor
++
+     with torch.no_grad():
+-        if input_spikes is not None:
+-            net.forward(input_spikes=input_spikes)
+-        else:
+-            net.forward(ext_g=ext_g_tensor)
++        net.forward(**fwd_kwargs)
+ 
+     rec = _extract_records(net)
+     weights = extract_weights(net)
+ 
+     if input_spikes is not None:
+         display = input_spikes.cpu().numpy()
++    elif ext_g is not None:
++        display = ext_g.cpu().numpy()
+     else:
+         assert ext_g_tensor is not None
+         display = ext_g_tensor.cpu().numpy()
+     return rec, display, weights
+ 
+ 
+-def run_sim_batch(dt, ext_g_list, w_hid=(5.1, 3.8), chunk_size=100, model_name="ping"):
+-    """Run multiple simulations in one batched forward pass.
+-
+-    Returns list of (rec, ext_g_raw) tuples, one per sim.
+-    """
+-    M.N_HID = cfg.n_e
+-    M.N_INH = cfg.n_i
+-    # Pin dt / T_ms / T_steps so the batched forward runs at the requested dt.
+-    set_sim_dt(dt, cfg.sim_ms)
+-
+-    results = []
+-    for start in range(0, len(ext_g_list), chunk_size):
+-        chunk = ext_g_list[start : start + chunk_size]
+-        B = len(chunk)
+-        T = len(chunk[0])
+-
+-        ext_g_batch = torch.tensor(np.stack(chunk, axis=1), dtype=torch.float32).to(
+-            cfg.torch_device
+-        )
+-        M.T_steps = min(M.T_steps, T)
+-
+-        torch.manual_seed(cfg.seed)
+-        net = _build_sim_net(model_name, hidden_sizes=[M.N_HID])
+-        net.to(cfg.torch_device)
+-        net.recording = True
+-
+-        with torch.no_grad():
+-            kwargs: dict = {"ext_g": ext_g_batch}
+-            if model_name in HAS_INH:
+-                kwargs["randomize_init"] = False
+-            net.forward(**kwargs)
+-
+-        rec_stacked = {}
+-        for k, v in net.spike_record.items():
+-            if isinstance(v, list):
+-                rec_stacked[k] = torch.stack(v).cpu().numpy()  # ty: ignore[invalid-argument-type]
+-            else:
+-                rec_stacked[k] = v.cpu().numpy()
+-
+-        for i in range(B):
+-            rec = {k: v[:, i, :] for k, v in rec_stacked.items()}
+-            results.append((rec, chunk[i]))
+-
+-    return results
+-
+-
+ def run_sim_image(dt, image, model_name="ping", load_weights=None):
+     """Run a simulation with image input using current config.
+ 
+@@ -688,45 +701,6 @@ def run_sim_image(dt, image, model_name="ping", load_weights=None):
+     return rec, pred, net
+ 
+ 
+-def _run_sim_with_net(net, dt, t_e_ping, t_e_async, noise_seed=None):
+-    """Run a simulation reusing an existing network (resets state each call).
+-
+-    Returns (rec, ext_g_numpy, weights_dict).
+-    """
+-    M.N_HID = cfg.n_e
+-    M.N_INH = cfg.n_i
+-    T_steps = int(cfg.sim_ms / dt)
+-
+-    ext_g_tensor, _ = make_step_drive(
+-        cfg.n_e,
+-        T_steps,
+-        dt,
+-        t_e_async,
+-        t_e_ping,
+-        cfg.step_on_ms,
+-        cfg.step_off_ms,
+-        cfg.sigma_e,
+-        cfg.noise_sigma,
+-        cfg.noise_tau,
+-        cfg.seed,
+-        noise_seed=noise_seed,
+-    )
+-    ext_g_tensor = ext_g_tensor.to(cfg.torch_device)
+-
+-    net.recording = True
+-    for attr in ["rec_hid", "rec_inh", "rec_out", "rec_in"]:
+-        if hasattr(net, attr):
+-            setattr(net, attr, [])
+-
+-    with torch.no_grad():
+-        net.forward(ext_g=ext_g_tensor)
+-
+-    rec = _extract_records(net)
+-    weights = extract_weights(net)
+-
+-    return rec, ext_g_tensor.cpu().numpy(), weights
+-
+-
+ # =============================================================================
+ # Config builder + globals sync
+ # =============================================================================
+@@ -763,8 +737,6 @@ def build_config(args):
+         c.w_ie = tuple(args.w_ie)
+     if hasattr(args, "w_ee") and args.w_ee is not None:
+         c.w_ee = tuple(args.w_ee)
+-    if hasattr(args, "burn_in") and args.burn_in is not None:
+-        c.burn_in_ms = args.burn_in
+     if hasattr(args, "w_in") and args.w_in is not None:
+         w = args.w_in
+         if len(w) == 1:
+@@ -811,7 +783,6 @@ def _sync_globals_from_cfg(c):
+ # Every config alias (C.N_E, C.W_EI, C.STEP_ON_MS, …) resolves to the live
+ # Config — one source of truth, no mirror globals, no sync step.
+ _CFG_ALIASES = {
+-    "BURN_IN_MS": "burn_in_ms",
+     "DEVICE": "torch_device",
+     "EI_RATIO": "ei_ratio",
+     "FPS": "fps",
+diff --git a/src/cli/datasets.py b/src/cli/datasets.py
+index f6a345a..3d0687e 100644
+--- a/src/cli/datasets.py
++++ b/src/cli/datasets.py
+@@ -34,9 +34,10 @@ def _load_shd(dt_ms, t_ms, max_samples=None):
+     is a per-file cap applied before binning — keeps the smoke-test cost
+     bounded without reading the full 10k-sample set.
+     """
+-    import h5py
+     from pathlib import Path
+ 
++    import h5py
++
+     root = Path(_shd_cache_dir())
+     train_path = root / "shd_train.h5"
+     test_path = root / "shd_test.h5"
+diff --git a/src/cli/encoders.py b/src/cli/encoders.py
+index 1700998..6ed8b91 100644
+--- a/src/cli/encoders.py
++++ b/src/cli/encoders.py
+@@ -7,73 +7,14 @@ of cli.py.
+ 
+ from __future__ import annotations
+ 
+-import numpy as np
+-import torch
+-
+ import models as M
++import torch
+ 
+ EVAL_SEED = 20260415
+ 
+ FROZEN_MODES = ("upsample", "downsample", "resample")
+ 
+ 
+-def encode_image_spikes(
+-    pixel_vec, T_steps, dt, base_rate, stim_rate, step_on_ms, step_off_ms, seed=42
+-):
+-    """Poisson-encode an image with a rate step during stimulus window.
+-
+-    Samples absolute spike *times* (ms) per pixel from a three-section
+-    Poisson process (pre/stim/post), then bins them to the given dt. Spike
+-    times are a deterministic function of ``seed`` and rate schedule — not
+-    of dt — so changing dt rebins the *same* event stream rather than
+-    drawing a fresh one. That's what makes dt-sweep rasters look temporally
+-    coherent frame-to-frame instead of stretching/flowing.
+-
+-    pixel_vec: (N_IN,) pixel intensities in [0,1]
+-    Returns:   (T_steps, N_IN) float32 tensor of 0/1 spikes
+-    """
+-    n_in = len(pixel_vec)
+-    t_max_ms = T_steps * dt
+-    spikes = np.zeros((T_steps, n_in), dtype=np.float32)
+-
+-    # Three dt-invariant Poisson sections, clipped to [0, t_max_ms].
+-    t_on = min(step_on_ms, t_max_ms)
+-    t_off = min(step_off_ms, t_max_ms)
+-    sections = (
+-        (0.0, t_on, base_rate),
+-        (t_on, t_off, stim_rate),
+-        (t_off, t_max_ms, base_rate),
+-    )
+-
+-    # Independent RNG per (pixel, section) so the pre/post sections are
+-    # identical across frames (same rate → same times), and only the stim
+-    # section varies when stim_rate changes in a sweep. A single shared RNG
+-    # would let the stim section's variable Poisson count shift every
+-    # downstream draw, making the whole input raster jump frame-to-frame.
+-    base_seed = int(seed) & 0xFFFFFFFF
+-    for i in range(n_in):
+-        pixel = float(pixel_vec[i])
+-        if pixel <= 0.0:
+-            continue
+-        for s_idx, (t_start, t_end, rate_hz) in enumerate(sections):
+-            dur = t_end - t_start
+-            if dur <= 0 or rate_hz <= 0:
+-                continue
+-            expected = pixel * rate_hz * dur / 1000.0
+-            if expected <= 0:
+-                continue
+-            sub_seed = (base_seed + i * 3 + s_idx) & 0xFFFFFFFF
+-            rng = np.random.RandomState(sub_seed)
+-            n = int(rng.poisson(expected))
+-            if n == 0:
+-                continue
+-            times = rng.uniform(t_start, t_end, size=n)
+-            steps = (times / dt).astype(np.int64)
+-            steps = steps[(steps >= 0) & (steps < T_steps)]
+-            spikes[steps, i] = 1.0
+-    return torch.tensor(spikes, dtype=torch.float32)
+-
+-
+ def encode_images_poisson(images, T_steps, dt, max_rate_hz, generator=None):
+     """Encode (B, N_in) pixel intensities as Poisson spike trains.
+ 
+diff --git a/src/cli/infer.py b/src/cli/infer.py
+index b733585..437defb 100644
+--- a/src/cli/infer.py
++++ b/src/cli/infer.py
+@@ -10,10 +10,9 @@ import json
+ import logging
+ from pathlib import Path
+ 
+-import torch
+-
+ import models as M
+-from config import build_net, setup_model_globals, save_snapshot_npz, set_sim_dt
++import torch
++from config import build_net, save_snapshot_npz, set_sim_dt, setup_model_globals
+ from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
+ from encoders import EVAL_SEED, encode_batch
+ from scan import _auto_device, primary_hid_key, primary_inh_key
+@@ -22,6 +21,31 @@ from train import seed_everything
+ log = logging.getLogger("cli")
+ 
+ 
++def _hidden_sizes_from_state_dict(state):
++    """Recover the hidden-layer E sizes from a saved COBANet state_dict.
++
++    W_ff is the feed-forward ParameterList [input→H1, H1→H2, …, HN→out]; block i
++    has shape (all_sizes[i], all_sizes[i+1]) where all_sizes = [N_IN, *hidden_sizes,
++    N_OUT]. So each hidden size is the *output* dim of a W_ff block, for every block
++    except the final readout (whose output is N_OUT). Recovering this lets infer()
++    rebuild a network that matches the checkpoint instead of the dataset default —
++    otherwise load_state_dict raises a shape mismatch on any non-default checkpoint.
++
++    Returns None when the shape can't be inferred (no W_ff keys, e.g. a partial /
++    transfer checkpoint, or a degenerate single-block net) so the caller falls back
++    to its own default and stays in control.
++    """
++    idxs = sorted(
++        int(k.split(".")[1])
++        for k in state
++        if k.startswith("W_ff.") and k.split(".")[1].isdigit()
++    )
++    if len(idxs) < 2:  # need at least one hidden block + the readout block
++        return None
++    sizes = [int(state[f"W_ff.{i}"].shape[1]) for i in idxs[:-1]]
++    return sizes or None
++
++
+ def _make_perturb_fn(mode, level, dt_ms, generator):
+     """Per-step hidden-spike perturbation callback (s_e, s_i, layer) -> (s_e', s_i').
+ 
+@@ -126,6 +150,16 @@ def infer(
+         M.tau_gaba = float(tau_gaba)
+         M.decay_gaba = float(_np.exp(-M.dt / float(tau_gaba)))
+ 
++    # Prefer the checkpoint's own layer shapes: a trained weights.pth fully
++    # determines hidden_sizes, and rebuilding at any other size makes
++    # load_state_dict fail on shape mismatch. Only fall back to the dataset
++    # default when the caller passed nothing and the checkpoint can't tell us
++    # (partial/transfer checkpoint). An explicit hidden_sizes still wins.
++    if hidden_sizes is None and load_weights is not None:
++        _peek = torch.load(load_weights, map_location="cpu")
++        hidden_sizes = _hidden_sizes_from_state_dict(_peek)
++        if hidden_sizes is not None:
++            log.info(f"  n_hidden ← checkpoint {hidden_sizes}")
+     if hidden_sizes is None:
+         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
+         hidden_sizes = [default]
+@@ -285,7 +319,7 @@ def infer(
+     # --outputs rasters). The notebook builds the override (jitter/shuffle/etc.)
+     # from a baseline pass; the CLI just injects it. Per batch we reconstruct the
+     # dense (B, T, N_I) slice for that batch's trials and install a stateful hook.
+-    _iov = None
++    _iov: dict | None = None  # heterogeneous: ints + arrays, keyed by name
+     if i_override_file is not None:
+         import numpy as _np
+         z = _np.load(i_override_file)
+@@ -418,7 +452,8 @@ def infer(
+         if pop_i_rows:
+             dump["pop_i"] = np.stack(pop_i_rows)  # (n_samples, T)
+         out_npz = out_dir_path / "pop_traces.npz"
+-        np.savez(out_npz, **dump)
++        # ty false positive on **dict → savez (see save_snapshot_npz in config.py).
++        np.savez(out_npz, **dump)  # ty: ignore[invalid-argument-type]
+         n_e = dump.get("pop_e", np.zeros((0, 0))).shape
+         log.info(f"  → {out_npz}  (pop_e={n_e})")
+ 
+@@ -500,6 +535,11 @@ def infer_and_snapshot(
+     if tau_gaba is not None:
+         M.tau_gaba = float(tau_gaba)
+         M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
++    # Match the checkpoint's layer shapes when the caller didn't pin them (see
++    # _hidden_sizes_from_state_dict); fall back to the dataset default otherwise.
++    if hidden_sizes is None and load_weights is not None:
++        _peek = torch.load(load_weights, map_location="cpu")
++        hidden_sizes = _hidden_sizes_from_state_dict(_peek)
+     if hidden_sizes is None:
+         default = DATASET_N_HIDDEN_DEFAULTS.get(dataset, 256)
+         hidden_sizes = [default]
+@@ -591,12 +631,13 @@ def infer_and_snapshot(
+     with torch.no_grad():
+         # Encode pixel data as Poisson spike train using EVAL_SEED for determinism
+         spk = encode_batch(X_single, dt, dataset == "smnist")
+-        logits = net(input_spikes=spk)
++        net(input_spikes=spk)  # records spikes into net.spike_record (used below)
+ 
+     # Extract and save spike recording to NPZ file for notebook analysis
+     # The recording dict contains spike tensors keyed by layer ('hid', 'inh', etc.),
+     # plus optional traces (voltages, conductances, etc.) if the network recorded them.
+     rec = net.spike_record
++    assert out_dir is not None, "infer_and_snapshot requires out_dir"
+     out_path = Path(out_dir) / "snapshot.npz"
+     out_path.parent.mkdir(parents=True, exist_ok=True)
+ 
+@@ -655,6 +696,11 @@ def probe(
+     if tau_gaba is not None:
+         M.tau_gaba = float(tau_gaba)
+         M.decay_gaba = float(np.exp(-M.dt / float(tau_gaba)))
++    # Match the checkpoint's layer shapes when the caller didn't pin them (see
++    # _hidden_sizes_from_state_dict); fall back to the fixed default otherwise.
++    if hidden_sizes is None and load_weights is not None:
++        _peek = torch.load(load_weights, map_location="cpu")
++        hidden_sizes = _hidden_sizes_from_state_dict(_peek)
+     if hidden_sizes is None:
+         hidden_sizes = [256]
+     setup_model_globals(hidden_sizes)
+@@ -758,7 +804,8 @@ def probe(
+             if ik:
+                 per_i = rec[ik].sum(dim=(0, 1)).detach().cpu().numpy()
+                 dump["rate_i_per_cell"] = (per_i / (n_batch * t_sec)).astype(np.float32)
+-            np.savez(out_dir_path / "per_cell_rates.npz", **dump)
++            # ty false positive on **dict → savez (see config.save_snapshot_npz).
++            np.savez(out_dir_path / "per_cell_rates.npz", **dump)  # ty: ignore[invalid-argument-type]
+ 
+         if emit_rasters:
+             def _coo(key):
+@@ -882,9 +929,11 @@ def dump_weights(
+             arr = sv.detach().cpu().numpy() if hasattr(sv, "detach") else np.asarray(sv)
+             dump[f"W_ff_{key}_trained"] = arr
+ 
++    assert out_dir is not None, "dump_weights requires out_dir"
+     out_path = Path(out_dir) / "weights_dump.npz"
+     out_path.parent.mkdir(parents=True, exist_ok=True)
+-    np.savez(out_path, **dump)
++    # ty false positive on **dict → savez (see config.save_snapshot_npz).
++    np.savez(out_path, **dump)  # ty: ignore[invalid-argument-type]
+     log.info(f"  → {out_path}  ({len(dump)} arrays)")
+ 
+     return {"n_arrays": len(dump), "path": str(out_path)}
+diff --git a/src/cli/inputs.py b/src/cli/inputs.py
+index 95b547d..a1cfdc6 100644
+--- a/src/cli/inputs.py
++++ b/src/cli/inputs.py
+@@ -125,20 +125,4 @@ def make_step_drive_from_ref(
+     return ext_g_sim, ext_g_raw
+ 
+ 
+-def make_spike_drive(
+-    n_in, t_steps, dt, rate_base_hz, rate_stim_hz, step_on_ms, step_off_ms, seed=42
+-):
+-    """Generate a Poisson spike train with a rate step for synthetic-spikes input.
+-
+-    All input neurons fire at rate_base_hz, stepping to rate_stim_hz during
+-    the stimulus window. Returns (T_steps, N_IN) float32 tensor of 0/1 spikes.
+-    """
+-    rng = np.random.RandomState(seed)
+-    spikes = np.zeros((t_steps, n_in), dtype=np.float32)
+-    for t in range(t_steps):
+-        t_ms = t * dt
+-        rate = rate_stim_hz if step_on_ms <= t_ms < step_off_ms else rate_base_hz
+-        p = rate * dt / 1000.0
+-        spikes[t] = (rng.rand(n_in) < p).astype(np.float32)
+-    return torch.tensor(spikes, dtype=torch.float32)
+ 
+diff --git a/src/cli/metrics.py b/src/cli/metrics.py
+index 7fbc663..443970a 100644
+--- a/src/cli/metrics.py
++++ b/src/cli/metrics.py
+@@ -58,23 +58,15 @@ def compute_pop_rate(spk, n_neurons, dt, bin_ms=2.0):
+     return population_rate_nondiff(spk, n_neurons, bin_ms=bin_ms, dt_ms=dt)
+ 
+ 
+-def compute_psd(
+-    spk_e,
+-    n_neurons,
+-    dt,
+-    bin_ms=2.0,
+-    step_on_ms=200.0,
+-    step_off_ms=300.0,
+-    burn_in_ms=100.0,
+-):
+-    """PSD of population rate during stimulus window (or full raster if no window)."""
+-    s0 = int((step_on_ms - burn_in_ms) / dt)
+-    s1 = int((step_off_ms - burn_in_ms) / dt)
+-    spk_stim = spk_e[max(0, s0) : min(len(spk_e), s1)]
+-    if len(spk_stim) < 10:
+-        # No valid stimulus window -- use full raster
+-        spk_stim = spk_e
+-    _, rate_hz = compute_pop_rate(spk_stim, n_neurons, dt, bin_ms)
++def compute_psd(spk_e, n_neurons, dt, bin_ms=2.0):
++    """Peak-normalised PSD of the population rate over the full raster.
++
++    Notebooks strip any startup transient in post; the CLI measures the whole
++    trace it is handed.
++    """
++    if len(spk_e) < 2:
++        return np.array([0.0]), np.array([0.0])
++    _, rate_hz = compute_pop_rate(spk_e, n_neurons, dt, bin_ms)
+     rate_centered = rate_hz - rate_hz.mean()
+     n = len(rate_centered)
+     freqs = np.fft.rfftfreq(n, d=bin_ms / 1000.0)
+@@ -83,30 +75,13 @@ def compute_psd(
+     return freqs, psd
+ 
+ 
+-def compute_metrics(
+-    spk_e,
+-    spk_i,
+-    dt,
+-    model_name="ping",
+-    n_e=1024,
+-    n_i=256,
+-    step_on_ms=200.0,
+-    step_off_ms=300.0,
+-    burn_in_ms=100.0,
+-):
++def compute_metrics(spk_e, spk_i, dt, model_name="ping", n_e=1024, n_i=256):
+     """Compute population metrics from spike rasters. Returns a plain dict."""
+     t_sec = len(spk_e) * dt / 1000.0
+     rate_e = float(spk_e.sum() / (n_e * t_sec))
+     rate_i = float(spk_i.sum() / (n_i * t_sec)) if spk_i is not None else 0.0
+ 
+-    freqs, psd = compute_psd(
+-        spk_e,
+-        n_e,
+-        dt,
+-        step_on_ms=step_on_ms,
+-        step_off_ms=step_off_ms,
+-        burn_in_ms=burn_in_ms,
+-    )
++    freqs, psd = compute_psd(spk_e, n_e, dt)
+     f0 = float(find_fundamental_nondiff(psd, freqs)) if model_name == "ping" else 0.0
+ 
+     # Population spike count CV in 2ms bins
+@@ -140,51 +115,6 @@ def compute_metrics(
+     }
+ 
+ 
+-def format_metrics(m):
+-    """Render a metrics dict as the canonical fixed-width log line."""
+-    f0_str = f" f0={m['f0']:>3.0f}" if m["f0"] > 0 else ""
+-    return (
+-        f"E={m['rate_e']:>3.0f} I={m['rate_i']:>3.0f} "
+-        f"CV={m['cv']:>4.2f} act={m['act']:>4.0%}{f0_str}"
+-    )
+-
+-
+-def report_metrics(
+-    spk_e,
+-    spk_i,
+-    dt,
+-    model_name="ping",
+-    n_e=1024,
+-    n_i=256,
+-    step_on_ms=200.0,
+-    step_off_ms=300.0,
+-    burn_in_ms=100.0,
+-    quiet=False,
+-):
+-    """Compute simulation metrics, log to stdout (unless quiet), return string.
+-
+-    Kept for backward compatibility. New code should call compute_metrics
+-    and format the result with format_metrics.
+-    """
+-    m = compute_metrics(
+-        spk_e,
+-        spk_i,
+-        dt,
+-        model_name=model_name,
+-        n_e=n_e,
+-        n_i=n_i,
+-        step_on_ms=step_on_ms,
+-        step_off_ms=step_off_ms,
+-        burn_in_ms=burn_in_ms,
+-    )
+-    s = format_metrics(m)
+-    if not quiet:
+-        import logging
+-
+-        logging.getLogger("cli").info(f"  {s}")
+-    return s
+-
+-
+ # =========================================================================
+ # Rhythmicity: spike-time autocorrelation + IEI histogram (nb054)
+ # =========================================================================
+diff --git a/src/cli/models.py b/src/cli/models.py
+index 6bdc22b..295037b 100644
+--- a/src/cli/models.py
++++ b/src/cli/models.py
+@@ -9,10 +9,9 @@ Layer primitives: exp_synapse, lif_step.
+ 
+ from __future__ import annotations
+ 
+-
++import numpy as np
+ import torch
+ import torch.nn as nn
+-import numpy as np
+ 
+ # ── Simulation ────────────────────────────────────────────────────────────
+ dt: float = 0.25  # ms — integration timestep
+@@ -355,8 +354,9 @@ def _parse_weight_spec(w, default_dist, default_sparsity):
+ #   True            — fixed fan-in (exact-K): every post cell (column) keeps
+ #     exactly K = round((1-sparsity)·N_pre) random presynaptic inputs.
+ #     Removes the binomial fan-in variance — the Brunel/Vreeswijk convention.
+-# Set via the --exact-k CLI flag (M.EXACT_K_CONNECTIVITY = True).
+-EXACT_K_CONNECTIVITY = False
++# Set via the --exact-k CLI flag (M.EXACT_K_CONNECTIVITY = True). Annotated bool
++# (not the inferred Literal[False]) so entry points can flip it to True.
++EXACT_K_CONNECTIVITY: bool = False
+ 
+ 
+ def init_weight(shape, dist="normal", p1=0.0, p2=0.1, sparsity=0.0):
+@@ -463,11 +463,12 @@ def i_step_coba(v, ref, g_e, g_i=None, threshold_offset=None, v_noise_std=0.0):
+     )
+ 
+ 
+-# ── Base class ───────────────────────────────────────────────────────────
++# ── Model class ──────────────────────────────────────────────────────────
+ 
+ 
+-class SNNBase(nn.Module):
++class COBANet(nn.Module):
+     recording = False
++    signed_weights = False
+ 
+     def _set_meta(self, B, n_spk, rec, sizes):
+         t_sec = T_ms / 1000.0
+@@ -479,27 +480,6 @@ class SNNBase(nn.Module):
+                 for k, v in rec.items()
+             }
+ 
+-    def project_dales(self) -> None:
+-        """Project trainable weights back into the Dale's-law cone.
+-
+-        Override in subclasses that enforce signed weights at forward
+-        time via clamp(min=0). After every optimiser step, calling
+-        this method makes the *stored* parameter values match what the
+-        network actually uses — so a downstream consumer reading
+-        weights.pth sees the constrained weights, not the raw
+-        pre-clamp ones with negative entries that the optimiser drove
+-        toward but the forward pass discarded. No-op by default.
+-        """
+-        pass
+-
+-
+-# ── Model classes ────────────────────────────────────────────────────────
+-
+-
+-
+-class COBANet(SNNBase):
+-    signed_weights = False
+-
+     def __init__(
+         self,
+         w_in=(W_IN_MEAN, W_IN_STD),
+diff --git a/src/cli/runlog.py b/src/cli/runlog.py
+index 0eae8a6..16bc475 100644
+--- a/src/cli/runlog.py
++++ b/src/cli/runlog.py
+@@ -44,7 +44,6 @@ import sys
+ import time
+ from pathlib import Path
+ 
+-
+ # ── ANSI palette ─────────────────────────────────────────────────────────
+ 
+ WIDTH = 70  # inner width of banners, rules, and the epoch stream
+@@ -399,7 +398,7 @@ def _epoch_line(vals: dict, *, header: bool = False, best: bool = False) -> str:
+     """
+     parts = []
+     for col in _EPOCH_COLS:
+-        if col is _SEP:
++        if not isinstance(col, tuple):  # the _SEP separator sentinel
+             parts.append(_BAR if header else dim(_BAR))
+             continue
+         key, _, w = col
+@@ -413,7 +412,7 @@ def _epoch_line(vals: dict, *, header: bool = False, best: bool = False) -> str:
+ 
+ def epoch_header(log) -> None:
+     """Column titles + a rule spanning exactly the header's visible width."""
+-    labels = {key: hdr for col in _EPOCH_COLS if col is not _SEP
++    labels = {key: hdr for col in _EPOCH_COLS if isinstance(col, tuple)
+               for (key, hdr, _) in [col]}
+     head = _epoch_line(labels, header=True)
+     log.info(head)
+@@ -480,6 +479,26 @@ def print_epoch(*args, **kwargs) -> None:
+     epoch_row(*args, **kwargs)
+ 
+ 
++def epoch_progress(ep: int, total: int, note: str, elapsed_s: float,
++                   loss: float | None = None) -> str:
++    """A partial epoch-stream row for the epoch still in progress.
++
++    Same column grid as a finished row, so everything lines up: the running
++    `loss` sits under the loss column, the `note` (batch/eval counter) fills the
++    as-yet-unknown dynamics columns between the bars, and elapsed sits under dt.
++    Returned plain (bars uncoloured); Heartbeat dims the whole line.
++    """
++    w = {c[0]: c[2] for c in _EPOCH_COLS if c is not _SEP}
++    ep_c = f"{f'{ep}/{total}':>{w['ep']}}"
++    acc_c = " " * w["acc"]
++    loss_c = f"{loss:>{w['loss']}.3f}" if loss is not None else " " * w["loss"]
++    dt_c = f"{f'{int(elapsed_s)}s':>{w['dt']}}"
++    eta_c = " " * w["eta"]
++    mid_w = w["E"] + 2 + w["I"] + 2 + w["cv"] + 2 + w["act"]  # dynamics-group span
++    parts = [ep_c, acc_c, loss_c, _BAR, f"{note:<{mid_w}}", _BAR, dt_c, eta_c]
++    return "  " + "  ".join(parts)
++
++
+ # ── One-shot metrics (sim / probe) ───────────────────────────────────────
+ 
+ 
+@@ -576,6 +595,7 @@ def summary(
+ 
+     files = list_output_files(out_dir) if out_dir is not None else []
+     if files:
++        assert out_dir is not None  # files is non-empty only when out_dir is set
+         _summary_row(log, _ARROW, cyan, "output",
+                      cyan(str(Path(out_dir).resolve()) + "/"))
+         # Collapse subdirectories to one line; list top-level files with sizes.
+@@ -629,31 +649,46 @@ def done(log, elapsed_s: float, device: str | None = None) -> None:
+ 
+ 
+ class Heartbeat:
+-    """Throttled plain-line progress emitter for long inner loops.
+-
+-    A training epoch's batch loop (and the eval loop) can run for minutes with
+-    no output — worst of all on the very first batch, which pays the one-time
+-    torch.compile cost. Call `beat()` every iteration; it emits at most one
+-    line per `interval_s` so a slow epoch shows life without flooding
+-    output.log. Plain text only (no ANSI, no carriage returns) so it renders
+-    identically in a terminal, the ANSI-stripped output.log, and Modal's
+-    non-TTY stdout.
+-
+-    The clock starts at construction, so a fast epoch (all batches under one
+-    interval) stays silent — no clutter — while a slow one still shows life:
+-    the compile-heavy opening batch takes longer than an interval, so the first
+-    beat() after it returns already qualifies and fires.
++    """Within-epoch progress for a long batch/eval loop.
++
++    A full-MNIST epoch is ~875 batches over minutes; without feedback the
++    stream looks hung. Two renderings, chosen by whether stdout is a TTY:
++
++      • terminal (TTY) — rewrites ONE line in place (carriage return), so a
++        live counter climbs where the finished row will land, instead of a
++        wall of lines. Call clear() before the finished row prints so the row
++        overwrites the live line cleanly.
++      • non-TTY (output.log, Modal) — emits a plain line every `log_interval`
++        s. A periodic record with no control characters; clear() is a no-op.
++
++    `beat()` takes an already-formatted line (see epoch_progress) and dims it.
+     """
+ 
+-    def __init__(self, interval_s: float = 5.0):
+-        self.interval_s = interval_s
+-        self._last = time.perf_counter()  # silent until the first interval elapses
++    def __init__(self, tty_interval: float = 0.25, log_interval: float = 5.0):
++        self._tty = _IS_TTY
++        self._interval = tty_interval if self._tty else log_interval
++        self._last = time.perf_counter()
++        self._pending = False  # a live line is on screen, awaiting clear()
+ 
+-    def beat(self, log, msg: str):
++    def beat(self, log, line: str):
+         now = time.perf_counter()
+-        if now - self._last >= self.interval_s:
+-            self._last = now
+-            log.info(dim(f"    {_DOT} {msg}"))
++        if now - self._last < self._interval:
++            return
++        self._last = now
++        if self._tty:
++            sys.stdout.write("\r\x1b[2K" + dim(line))  # \r + clear-to-EOL
++            sys.stdout.flush()
++            self._pending = True
++        else:
++            log.info(dim(line))
++
++    def clear(self):
++        """Erase the pending live line (TTY only) so the next full log line
++        prints cleanly in its place. No-op in non-TTY or if nothing pending."""
++        if self._tty and self._pending:
++            sys.stdout.write("\r\x1b[2K")
++            sys.stdout.flush()
++            self._pending = False
+ 
+ 
+ # ── Warning detector ─────────────────────────────────────────────────────
+diff --git a/src/cli/scan.py b/src/cli/scan.py
+index aa7a29c..c164390 100644
+--- a/src/cli/scan.py
++++ b/src/cli/scan.py
+@@ -7,10 +7,9 @@ from __future__ import annotations
+ 
+ import logging
+ 
++import models as M
+ import numpy as np
+ import torch
+-
+-import models as M
+ from config import W_EI, W_IE
+ 
+ log = logging.getLogger("cli")
+diff --git a/src/cli/tests/test_cli_helpers.py b/src/cli/tests/test_cli_helpers.py
+index bd09c15..b62ab3d 100644
+--- a/src/cli/tests/test_cli_helpers.py
++++ b/src/cli/tests/test_cli_helpers.py
+@@ -10,98 +10,19 @@ import torch
+ 
+ import cli as O
+ from cli import (
+-    encode_image_spikes,
++    _apply_scan_var,
++    _auto_device,
++    _shd_cache_dir,
++    encode_batch,
+     encode_images_poisson,
+     encode_smnist,
+-    encode_batch,
+-    seed_everything,
++    parse_args,
+     primary_hid_key,
+     primary_inh_key,
+-    _shd_cache_dir,
+-    _apply_scan_var,
+-    _auto_device,
+-    parse_args,
++    seed_everything,
+ )
+ 
+ 
+-class TestEncodeImageSpikes:
+-    def test_shape_and_binary(self):
+-        pixels = np.array([0.5, 1.0, 0.0], dtype=np.float32)
+-        spikes = encode_image_spikes(
+-            pixels,
+-            T_steps=200,
+-            dt=1.0,
+-            base_rate=10.0,
+-            stim_rate=100.0,
+-            step_on_ms=50.0,
+-            step_off_ms=150.0,
+-            seed=42,
+-        )
+-        assert spikes.shape == (200, 3)
+-        assert spikes.dtype == torch.float32
+-        assert set(spikes.unique().tolist()) <= {0.0, 1.0}
+-
+-    def test_zero_pixels_emit_no_spikes(self):
+-        pixels = np.zeros(5, dtype=np.float32)
+-        spikes = encode_image_spikes(
+-            pixels,
+-            T_steps=100,
+-            dt=1.0,
+-            base_rate=50.0,
+-            stim_rate=200.0,
+-            step_on_ms=20.0,
+-            step_off_ms=80.0,
+-            seed=1,
+-        )
+-        assert spikes.sum() == 0.0
+-
+-    def test_seed_determinism(self):
+-        pixels = np.array([0.5, 0.5], dtype=np.float32)
+-        a = encode_image_spikes(
+-            pixels, 100, 1.0, 10.0, 80.0, step_on_ms=20.0, step_off_ms=80.0, seed=42
+-        )
+-        b = encode_image_spikes(
+-            pixels, 100, 1.0, 10.0, 80.0, step_on_ms=20.0, step_off_ms=80.0, seed=42
+-        )
+-        assert torch.equal(a, b)
+-
+-    def test_different_seeds_diverge(self):
+-        pixels = np.array([0.5], dtype=np.float32)
+-        a = encode_image_spikes(
+-            pixels, 200, 1.0, 50.0, 200.0, step_on_ms=20.0, step_off_ms=180.0, seed=1
+-        )
+-        b = encode_image_spikes(
+-            pixels, 200, 1.0, 50.0, 200.0, step_on_ms=20.0, step_off_ms=180.0, seed=2
+-        )
+-        assert not torch.equal(a, b)
+-
+-    def test_dt_rebins_same_event_stream(self):
+-        # Same seed/rate at two dts → same total spike count (within ±1 from
+-        # boundary clipping) because spike *times* are dt-invariant.
+-        pixels = np.array([1.0], dtype=np.float32)
+-        coarse = encode_image_spikes(
+-            pixels,
+-            T_steps=100,
+-            dt=1.0,
+-            base_rate=50.0,
+-            stim_rate=50.0,
+-            step_on_ms=0.0,
+-            step_off_ms=100.0,
+-            seed=7,
+-        )
+-        fine = encode_image_spikes(
+-            pixels,
+-            T_steps=1000,
+-            dt=0.1,
+-            base_rate=50.0,
+-            stim_rate=50.0,
+-            step_on_ms=0.0,
+-            step_off_ms=100.0,
+-            seed=7,
+-        )
+-        assert abs(coarse.sum().item() - fine.sum().item()) <= 1
+-
+-
+ class TestEncodeImagesPoisson:
+     def test_shape_and_binary(self):
+         images = torch.full((4, 16), 0.5)
+diff --git a/src/cli/tests/test_config.py b/src/cli/tests/test_config.py
+index cf85b16..50abb58 100644
+--- a/src/cli/tests/test_config.py
++++ b/src/cli/tests/test_config.py
+@@ -1,5 +1,4 @@
+ import torch
+-
+ from config import Config
+ 
+ 
+@@ -11,12 +10,6 @@ class TestConfigDefaults:
+         assert c.sim_ms == 600.0
+         assert c.device == "cpu"
+ 
+-    def test_visible_ms_is_sim_minus_burn_in(self):
+-        c = Config(sim_ms=600.0, burn_in_ms=100.0)
+-        assert c.visible_ms == 500.0
+-        c2 = Config(sim_ms=400.0, burn_in_ms=50.0)
+-        assert c2.visible_ms == 350.0
+-
+     def test_torch_device_property(self):
+         c = Config(device="cpu")
+         assert c.torch_device == torch.device("cpu")
+diff --git a/src/cli/tests/test_forward_pass.py b/src/cli/tests/test_forward_pass.py
+index 9c83abb..e7b5c70 100644
+--- a/src/cli/tests/test_forward_pass.py
++++ b/src/cli/tests/test_forward_pass.py
+@@ -4,10 +4,9 @@ Catches NaN blow-ups and shape regressions that the training e2e can mask
+ by retrying with different data.
+ """
+ 
++import models as M
+ import pytest
+ import torch
+-
+-import models as M
+ from config import build_net
+ 
+ 
+diff --git a/src/cli/tests/test_infer_integration.py b/src/cli/tests/test_infer_integration.py
+index 47bca25..8ba3566 100644
+--- a/src/cli/tests/test_infer_integration.py
++++ b/src/cli/tests/test_infer_integration.py
+@@ -5,18 +5,15 @@ accuracy validation, and dataset-specific handling.
+ """
+ 
+ import json
+-import logging
+ from pathlib import Path
+ from tempfile import TemporaryDirectory
+ 
++import models as M
+ import numpy as np
+ import pytest
+ import torch
+-
+-import models as M
+-from config import setup_model_globals
+ from infer import infer, infer_and_snapshot
+-from train import train, seed_everything
++from train import train
+ 
+ 
+ @pytest.fixture
+@@ -52,28 +49,6 @@ def trained_weights(tmp_output_dir):
+     return weights_path
+ 
+ 
+-@pytest.fixture(autouse=True)
+-def _reset_model_globals():
+-    """Reset M module globals before and after each test to known defaults."""
+-    old = (
+-        M.N_IN, M.N_HID, M.N_INH, M.N_OUT, M.HIDDEN_SIZES,
+-        M.T_ms, M.T_steps, M.dt
+-    )
+-    # Reset to module defaults before test
+-    M.N_IN = 64
+-    M.N_HID = 64
+-    M.N_INH = 16
+-    M.N_OUT = 10
+-    M.HIDDEN_SIZES = [64]
+-    M.T_ms = 1000.0
+-    M.T_steps = int(M.T_ms / M.dt)
+-    # Run test
+-    yield
+-    # Restore to original values after test
+-    (M.N_IN, M.N_HID, M.N_INH, M.N_OUT, M.HIDDEN_SIZES,
+-     M.T_ms, M.T_steps, M.dt) = old
+-
+-
+ class TestInferParameterPropagation:
+     """Test that infer() parameters propagate correctly."""
+ 
+@@ -107,8 +82,13 @@ class TestInferParameterPropagation:
+         assert M.T_ms == t_ms_value
+ 
+     def test_hidden_sizes_propagates_to_m_module(self, trained_weights):
+-        """hidden_sizes should set M.N_HID, M.N_INH, M.HIDDEN_SIZES."""
+-        hidden_sizes_value = [64]
++        """An explicit hidden_sizes should set M.N_HID, M.N_INH, M.HIDDEN_SIZES.
++
++        Must match the checkpoint's own shape ([32]); infer() now rebuilds the
++        network to the loaded weights, so a mismatched override would fail
++        load_state_dict rather than silently building the wrong size.
++        """
++        hidden_sizes_value = [32]
+         infer(
+             model_name="ping",
+             dt=0.1,
+@@ -118,9 +98,9 @@ class TestInferParameterPropagation:
+             max_samples=50,
+             hidden_sizes=hidden_sizes_value,
+         )
+-        assert M.N_HID == 64
+-        assert M.N_INH == 16  # 64 // 4
+-        assert M.HIDDEN_SIZES == [64]
++        assert M.N_HID == 32
++        assert M.N_INH == 8  # 32 // 4
++        assert M.HIDDEN_SIZES == [32]
+ 
+     def test_seed_makes_deterministic_encoding(self, trained_weights, tmp_output_dir):
+         """seed parameter should make Poisson encoding deterministic."""
+@@ -150,8 +130,8 @@ class TestMModuleGlobalsInference:
+     """Test that M module globals are correctly initialized for inference."""
+ 
+     def test_n_hid_n_inh_from_hidden_sizes(self, trained_weights):
+-        """M.N_HID and M.N_INH should be derived from hidden_sizes."""
+-        hidden_sizes = [80]
++        """M.N_INH should be derived from N_HID (n_e // 4) via hidden_sizes."""
++        hidden_sizes = [32]  # must match the checkpoint infer() rebuilds against
+         infer(
+             model_name="ping",
+             dt=0.1,
+@@ -161,11 +141,16 @@ class TestMModuleGlobalsInference:
+             max_samples=50,
+             hidden_sizes=hidden_sizes,
+         )
+-        assert M.N_HID == 80
+-        assert M.N_INH == 20  # 80 // 4
++        assert M.N_HID == 32
++        assert M.N_INH == 8  # 32 // 4
++
++    def test_hidden_sizes_none_derives_from_checkpoint(self, trained_weights):
++        """hidden_sizes=None should recover the checkpoint's own layer sizes.
+ 
+-    def test_hidden_sizes_none_uses_smart_default(self, trained_weights):
+-        """hidden_sizes=None should auto-detect per dataset."""
++        The fixture trains at [32]; infer() reads that back from weights.pth
++        rather than falling to the mnist smart default (1024), which would
++        mismatch the saved weights.
++        """
+         infer(
+             model_name="ping",
+             dt=0.1,
+@@ -175,8 +160,8 @@ class TestMModuleGlobalsInference:
+             max_samples=50,
+             hidden_sizes=None,
+         )
+-        # mnist default is 1024 (from DATASET_N_HIDDEN_DEFAULTS)
+-        assert M.N_HID == 1024
++        assert M.N_HID == 32
++        assert M.HIDDEN_SIZES == [32]
+ 
+     def test_t_steps_computed_correctly(self, trained_weights):
+         """M.T_steps should be int(T_ms / dt)."""
+@@ -259,7 +244,7 @@ class TestInferAndSnapshot:
+ 
+     def test_infer_and_snapshot_creates_npz(self, trained_weights, tmp_output_dir):
+         """infer_and_snapshot should create snapshot.npz."""
+-        result = infer_and_snapshot(
++        infer_and_snapshot(
+             model_name="ping",
+             dt=0.1,
+             t_ms=100.0,
+@@ -309,7 +294,9 @@ class TestInferAndSnapshot:
+         n_e = int(data["n_e"])
+         dt = float(data["dt"])
+         t_ms = 100.0
+-        expected_t_steps = int(t_ms / dt)
++        # round, not int: int(100.0 / 0.1) == 999 from float error, but the sim
++        # runs the physically-correct 1000 steps.
++        expected_t_steps = round(t_ms / dt)
+ 
+         assert spk_e.shape == (expected_t_steps, n_e), (
+             f"spk_e shape {spk_e.shape} doesn't match expected "
+@@ -334,7 +321,7 @@ class TestInferAndSnapshot:
+         n_i = int(data["n_i"])
+         dt = float(data["dt"])
+         t_ms = 100.0
+-        expected_t_steps = int(t_ms / dt)
++        expected_t_steps = round(t_ms / dt)  # round: see spk_e_shape test
+ 
+         # spk_i should match n_i (second dimension)
+         assert spk_i.shape[0] == expected_t_steps
+@@ -354,7 +341,8 @@ class TestInferAndSnapshot:
+         snapshot_path = tmp_output_dir / "snapshot.npz"
+         data = np.load(snapshot_path)
+ 
+-        assert float(data["dt"]) == 0.15
++        # dt is stored as float32 in the npz, so 0.15 does not round-trip exactly.
++        assert float(data["dt"]) == pytest.approx(0.15)
+         assert int(data["n_e"]) == M.N_HID
+         assert int(data["n_i"]) == M.N_INH
+ 
+@@ -463,7 +451,6 @@ class TestInferAccuracyValidation:
+         """Random (untrained) weights should give near-random accuracy."""
+         # Create weights without training
+         from config import build_net
+-        import torch
+ 
+         # Build the untrained net at mnist's input size so its W_in matches the
+         # net infer() builds for dataset="mnist" (n_in=784); the autouse fixture
+diff --git a/src/cli/tests/test_init_lif_state.py b/src/cli/tests/test_init_lif_state.py
+index 27a3350..a64fc57 100644
+--- a/src/cli/tests/test_init_lif_state.py
++++ b/src/cli/tests/test_init_lif_state.py
+@@ -3,10 +3,9 @@ breaking. If the distribution drifts, every PING run starts in lockstep
+ and produces spurious oscillations.
+ """
+ 
++import models as M
+ import pytest
+ import torch
+-
+-import models as M
+ from models import init_lif_state
+ 
+ 
+diff --git a/src/cli/tests/test_inputs.py b/src/cli/tests/test_inputs.py
+index b8e38e9..541b97b 100644
+--- a/src/cli/tests/test_inputs.py
++++ b/src/cli/tests/test_inputs.py
+@@ -1,13 +1,11 @@
+ import numpy as np
+ import pytest
+ import torch
+-
+ from inputs import (
+     DT_CAL,
+     TAU_AMPA,
+     drive_scale,
+     make_reference_noise,
+-    make_spike_drive,
+     make_step_drive,
+ )
+ 
+@@ -116,38 +114,3 @@ class TestReferenceNoise:
+         assert eta1.shape == (int(sim_ms / 0.01), n_e)
+         np.testing.assert_array_equal(X1, X2)
+         np.testing.assert_array_equal(eta1, eta2)
+-
+-
+-class TestMakeSpikeDrive:
+-    def test_spike_rates_match_target(self):
+-        """Empirical spike rates should match the configured Poisson rate."""
+-        n_in, dt = 128, 0.25
+-        sim_ms = 2000.0
+-        t_steps = int(sim_ms / dt)
+-        rate_base, rate_stim = 5.0, 50.0
+-        step_on, step_off = 500.0, 1500.0
+-        spikes = make_spike_drive(
+-            n_in,
+-            t_steps,
+-            dt,
+-            rate_base,
+-            rate_stim,
+-            step_on,
+-            step_off,
+-            seed=0,
+-        ).numpy()
+-
+-        t_ms = np.arange(t_steps) * dt
+-        base_mask = (t_ms < step_on) | (t_ms >= step_off)
+-        stim_mask = (t_ms >= step_on) & (t_ms < step_off)
+-        base_dur_s = base_mask.sum() * dt / 1000.0
+-        stim_dur_s = stim_mask.sum() * dt / 1000.0
+-        emp_base = spikes[base_mask].sum() / (n_in * base_dur_s)
+-        emp_stim = spikes[stim_mask].sum() / (n_in * stim_dur_s)
+-        assert emp_base == pytest.approx(rate_base, rel=0.25)
+-        assert emp_stim == pytest.approx(rate_stim, rel=0.15)
+-
+-    def test_only_zero_or_one(self):
+-        spikes = make_spike_drive(16, 200, 0.25, 5.0, 50.0, 20.0, 60.0, seed=0)
+-        u = torch.unique(spikes)
+-        assert set(u.tolist()).issubset({0.0, 1.0})
+diff --git a/src/cli/tests/test_lif.py b/src/cli/tests/test_lif.py
+index 2e3a7c2..ec89d0e 100644
+--- a/src/cli/tests/test_lif.py
++++ b/src/cli/tests/test_lif.py
+@@ -2,10 +2,9 @@
+ 
+ import math
+ 
++import models as M
+ import pytest
+ import torch
+-
+-import models as M
+ from models import exp_synapse, lif_step, spike_biophysical
+ 
+ 
+diff --git a/src/cli/tests/test_lif_expeuler.py b/src/cli/tests/test_lif_expeuler.py
+index 87bf852..a7dba9c 100644
+--- a/src/cli/tests/test_lif_expeuler.py
++++ b/src/cli/tests/test_lif_expeuler.py
+@@ -15,13 +15,11 @@ until `lif_step_expeuler` is implemented.
+ 
+ import math
+ 
++import models as M
+ import pytest
+ import torch
+-
+-import models as M
+ from models import spike_biophysical
+ 
+-
+ pytest.importorskip("models")  # noqa
+ # The symbol under test — implemented in a follow-up commit.
+ lif_step_expeuler = pytest.importorskip(
+diff --git a/src/cli/tests/test_metrics.py b/src/cli/tests/test_metrics.py
+index 84d9e79..79e8b68 100644
+--- a/src/cli/tests/test_metrics.py
++++ b/src/cli/tests/test_metrics.py
+@@ -1,9 +1,7 @@
+ import numpy as np
+ import pytest
+-
+ from metrics import (
+     find_fundamental_nondiff,
+-    format_metrics,
+     population_rate_nondiff,
+ )
+ 
+@@ -75,16 +73,3 @@ class TestFindFundamental:
+         freqs = np.linspace(100.0, 200.0, 50)
+         psd = np.ones_like(freqs)
+         assert find_fundamental_nondiff(psd, freqs, f_lo=5.0, f_hi=80.0) == 0.0
+-
+-
+-class TestFormatMetrics:
+-    def test_f0_shown_only_when_positive(self):
+-        base = {"rate_e": 30.0, "rate_i": 80.0, "cv": 0.5, "act": 0.6, "f0": 0.0}
+-        assert "f0" not in format_metrics(base)
+-        base["f0"] = 42.0
+-        assert "f0=" in format_metrics(base)
+-
+-    def test_basic_fields_present(self):
+-        m = {"rate_e": 30.0, "rate_i": 80.0, "cv": 0.5, "act": 0.6, "f0": 0.0}
+-        s = format_metrics(m)
+-        assert "E=" in s and "I=" in s and "CV=" in s and "act=" in s
+diff --git a/src/cli/tests/test_mode_drift.py b/src/cli/tests/test_mode_drift.py
+index bc30f96..7dfcf30 100644
+--- a/src/cli/tests/test_mode_drift.py
++++ b/src/cli/tests/test_mode_drift.py
+@@ -14,7 +14,6 @@ import numpy as np
+ import pytest
+ import torch
+ 
+-
+ # ── In-process invariants (fast) ─────────────────────────────────────────
+ 
+ 
+diff --git a/src/cli/tests/test_models.py b/src/cli/tests/test_models.py
+index 5a10a47..e5f7240 100644
+--- a/src/cli/tests/test_models.py
++++ b/src/cli/tests/test_models.py
+@@ -1,9 +1,8 @@
++import models as M
+ import pytest
+ import torch
+-from torch import nn
+-
+-import models as M
+ from config import build_net
++from torch import nn
+ 
+ 
+ @pytest.fixture(autouse=True)
+diff --git a/src/cli/tests/test_rhythmicity.py b/src/cli/tests/test_rhythmicity.py
+index 156f437..3d6dd34 100644
+--- a/src/cli/tests/test_rhythmicity.py
++++ b/src/cli/tests/test_rhythmicity.py
+@@ -15,7 +15,6 @@ import numpy as np
+ sys.path.insert(0, "src/cli")
+ 
+ from metrics import (  # noqa: E402
+-    iei_histogram,
+     population_event_times,
+     rhythmicity_metrics,
+     spike_autocorrelogram,
+diff --git a/src/cli/tests/test_run_log.py b/src/cli/tests/test_run_log.py
+index a968806..45a6fc3 100644
+--- a/src/cli/tests/test_run_log.py
++++ b/src/cli/tests/test_run_log.py
+@@ -2,7 +2,6 @@ import json
+ import re
+ 
+ import pytest
+-
+ from runlog import (
+     MetricsJsonl,
+     WarningTracker,
+diff --git a/src/cli/tests/test_train_integration.py b/src/cli/tests/test_train_integration.py
+index 0305188..2b1d615 100644
+--- a/src/cli/tests/test_train_integration.py
++++ b/src/cli/tests/test_train_integration.py
+@@ -5,17 +5,13 @@ config round-trip, edge cases, and backwards compatibility.
+ """
+ 
+ import json
+-import logging
+ from pathlib import Path
+ from tempfile import TemporaryDirectory
+ 
+-import numpy as np
++import models as M
+ import pytest
+ import torch
+-
+-import models as M
+-from config import setup_model_globals
+-from train import train, seed_everything
++from train import train
+ 
+ 
+ @pytest.fixture
+diff --git a/src/cli/train.py b/src/cli/train.py
+index 539af5a..4f888c6 100644
+--- a/src/cli/train.py
++++ b/src/cli/train.py
+@@ -17,20 +17,16 @@ import sys
+ import time as _time
+ from pathlib import Path
+ 
+-import numpy as np
+-
+-import torch
+-
+ import config as C
+ import models as M
++import numpy as np
+ import runlog
++import torch
+ from config import (
+     build_net,
+-    extract_weights,
+     set_sim_dt,
+     setup_model_globals,
+ )
+-from metrics import compute_metrics
+ from datasets import (
+     DATASET_N_HIDDEN_DEFAULTS,
+     SHD_N_CHANNELS,
+@@ -38,6 +34,7 @@ from datasets import (
+     load_dataset,
+ )
+ from encoders import EVAL_SEED, encode_batch, encode_smnist
++from metrics import compute_metrics
+ from scan import _auto_device, primary_hid_key, primary_inh_key
+ 
+ log = logging.getLogger("cli")
+@@ -106,7 +103,6 @@ def observe_epoch(
+     fig,
+     axes,
+     writer,
+-    burn_in_ms=20.0,
+     total_epochs=100,
+     grad_ratios=None,
+     lr=None,
+@@ -121,11 +117,10 @@ def observe_epoch(
+     net.recording = False
+ 
+     rec = net.spike_record
+-    burn = int(burn_in_ms / dt)
+ 
+-    spk_e = _to_np(rec[primary_hid_key(rec)])[burn:]
++    spk_e = _to_np(rec[primary_hid_key(rec)])
+     _ik = primary_inh_key(rec)
+-    spk_i = _to_np(rec[_ik])[burn:] if _ik else None
++    spk_i = _to_np(rec[_ik]) if _ik else None
+ 
+     return compute_metrics(spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH)
+ 
+@@ -168,7 +163,6 @@ def train(
+     """Train a model on mnist / smnist / shd, optionally producing a sweep video."""
+     from torch.utils.data import DataLoader, TensorDataset
+ 
+-    burn_in_ms = 20.0
+ 
+     seed_everything(seed)
+ 
+@@ -316,7 +310,6 @@ def train(
+         "w_in_sparsity": w_in_sparsity,
+         "input_rate": M.max_rate_hz,
+         "v_grad_dampen": v_grad_dampen,
+-        "burn_in_ms": burn_in_ms,
+         "batch_size": bs,
+         "grad_clip": GRAD_CLIP,
+         "max_samples": max_samples,
+@@ -382,19 +375,10 @@ def train(
+             net(input_spikes=ref_spikes)
+         net.recording = False
+         rec = net.spike_record
+-        burn = int(burn_in_ms / dt)
+ 
+-        spk_e = _to_np(rec[primary_hid_key(rec)])[burn:]
++        spk_e = _to_np(rec[primary_hid_key(rec)])
+         _ik = primary_inh_key(rec)
+-        spk_i = _to_np(rec[_ik])[burn:] if _ik else None
+-        spk_h1 = _to_np(rec["hid_1"])[burn:] if "hid_1" in rec else None
+-        spk_o = _to_np(rec["out"])[burn:] if "out" in rec else None
+-        ext_g = (
+-            _to_np(rec["input"])[burn:]
+-            if "input" in rec
+-            else np.zeros((len(spk_e), spk_e.shape[1]))
+-        )
+-        weights = extract_weights(net)
++        spk_i = _to_np(rec[_ik]) if _ik else None
+ 
+         snapshot_init_state = compute_metrics(
+             spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
+@@ -430,7 +414,6 @@ def train(
+                 "max_samples": max_samples,
+                 "dataset": dataset,
+                 "v_grad_dampen": v_grad_dampen,
+-                "burn_in_ms": burn_in_ms,
+                 "n_params": n_params,
+                 "n_trainable": n_trainable,
+             },
+@@ -466,7 +449,7 @@ def train(
+     no_improve = 0
+     t_start = _time.perf_counter()
+     prev_lr = lr
+-    epoch_records = []  # accumulated for metrics.json
++    epoch_records: list = []  # accumulated for metrics.json
+     best_epoch = 0
+     wtracker = runlog.WarningTracker()
+     jsonl = runlog.MetricsJsonl(out_dir / "metrics.jsonl")
+@@ -546,14 +529,17 @@ def train(
+                 grad_sum += gn_f
+                 n_grad += 1
+             n_samples_train += y_b.size(0)
+-            # Throttled within-epoch heartbeat: at most one line per interval,
+-            # so long epochs (MNIST/SHD) show life without flooding the log.
++            # Within-epoch heartbeat: a live partial row (running loss under the
++            # loss column, batch counter in the dynamics gap, elapsed under dt).
+             running_loss = total_loss / max(n_batches, 1)
+             hb.beat(
+                 log,
+-                f"    · ep {epoch + 1}/{epochs}  batch {batch_idx + 1}/{n_train_batches}"
+-                f"  loss {running_loss:.3f}"
+-                f"  {int(_time.perf_counter() - t_train_compute)}s",
++                runlog.epoch_progress(
++                    epoch + 1, epochs,
++                    f"batch {batch_idx + 1}/{n_train_batches}",
++                    _time.perf_counter() - t_train_compute,
++                    loss=running_loss,
++                ),
+             )
+         train_compute_s = _time.perf_counter() - t_train_compute
+         if device.type == "mps":
+@@ -582,7 +568,6 @@ def train(
+         logit_scale_sum = 0.0  # mean |logit|, the raw logit magnitude
+         eval_gen = torch.Generator().manual_seed(EVAL_SEED)
+         n_test_batches = len(test_loader)
+-        hb_eval = runlog.Heartbeat()
+         with torch.no_grad():
+             for X_b, y_b in test_loader:
+                 X_b, y_b = X_b.to(device), y_b.to(device)
+@@ -612,13 +597,17 @@ def train(
+                         test_rate_e_sum += float(v) * B
+                     elif k.startswith("inh"):
+                         test_rate_i_sum += float(v) * B
+-                hb_eval.beat(
++                hb.beat(
+                     log,
+-                    f"    · ep {epoch + 1}/{epochs}  eval {test_batches}/{n_test_batches}"
+-                    f"  {int(_time.perf_counter() - t_eval)}s",
++                    runlog.epoch_progress(
++                        epoch + 1, epochs,
++                        f"eval {test_batches}/{n_test_batches}",
++                        _time.perf_counter() - t_eval,
++                    ),
+                 )
+ 
+         eval_s = _time.perf_counter() - t_eval
++        hb.clear()  # erase the live progress line; the finished row prints in its place
+ 
+         acc = 100.0 * correct / total
+         avg_train = total_loss / max(n_batches, 1)
+@@ -653,12 +642,11 @@ def train(
+             net(input_spikes=ref_spikes)
+         net.recording = False
+         torch.set_rng_state(rng_state)
+-        burn = int(burn_in_ms / dt)
+ 
+         _rec = net.spike_record
+-        spk_e = _to_np(_rec[primary_hid_key(_rec)])[burn:]
++        spk_e = _to_np(_rec[primary_hid_key(_rec)])
+         _ik = primary_inh_key(_rec)
+-        spk_i = _to_np(_rec[_ik])[burn:] if _ik else None
++        spk_i = _to_np(_rec[_ik]) if _ik else None
+         epoch_metrics = compute_metrics(
+             spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
+         )
+@@ -785,19 +773,10 @@ def train(
+             net(input_spikes=ref_spikes)
+         net.recording = False
+         rec = net.spike_record
+-        burn = int(burn_in_ms / dt)
+ 
+-        spk_e = _to_np(rec[primary_hid_key(rec)])[burn:]
++        spk_e = _to_np(rec[primary_hid_key(rec)])
+         _ik = primary_inh_key(rec)
+-        spk_i = _to_np(rec[_ik])[burn:] if _ik else None
+-        spk_h1 = _to_np(rec["hid_1"])[burn:] if "hid_1" in rec else None
+-        spk_o = _to_np(rec["out"])[burn:] if "out" in rec else None
+-        ext_g = (
+-            _to_np(rec["input"])[burn:]
+-            if "input" in rec
+-            else np.zeros((len(spk_e), spk_e.shape[1]))
+-        )
+-        weights = extract_weights(net)
++        spk_i = _to_np(rec[_ik]) if _ik else None
+         end_state = compute_metrics(
+             spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
+         )
+@@ -833,13 +812,12 @@ def train(
+             "max_samples": max_samples,
+             "dataset": dataset,
+             "v_grad_dampen": v_grad_dampen,
+-            "burn_in_ms": burn_in_ms,
+             "batch_size": bs,
+             "grad_clip": GRAD_CLIP,
+             "n_params": n_params,
+             "n_trainable": n_trainable,
+         },
+-        "init": snapshot_init_state if snapshot_init_state else init_state,
++        "init": snapshot_init_state,
+         "epochs": epoch_records,
+         "end": end_state,
+         "best_acc": best_acc,
+diff --git a/src/notebooks/helpers/datasets.py b/src/notebooks/helpers/datasets.py
+index 1cee0df..db6d2c2 100644
+--- a/src/notebooks/helpers/datasets.py
++++ b/src/notebooks/helpers/datasets.py
+@@ -20,8 +20,8 @@ def load_mnist_split(max_samples: int | None = None):
+ 
+     X in [0, 1] float32 (N, 784); y int64. Stratified 80/20, random_state=42.
+     """
+-    from torchvision import datasets, transforms
+     from sklearn.model_selection import train_test_split
++    from torchvision import datasets, transforms
+ 
+     tr = datasets.MNIST(root="/tmp/mnist", train=True, download=True,
+                         transform=transforms.ToTensor())
+diff --git a/src/notebooks/helpers/modal.py b/src/notebooks/helpers/modal.py
+index 54b8ee8..12a8044 100644
+--- a/src/notebooks/helpers/modal.py
++++ b/src/notebooks/helpers/modal.py
+@@ -71,12 +71,13 @@ class BatchDispatcher:
+         local_out_dir: the path the cell writes to (matches --out-dir in osc_args).
+         gpu_override: force this cell onto a specific GPU, ignoring self.modal_gpu.
+         """
+-        import sh
+         import sys
+ 
++        import sh
++
+         cell_gpu = gpu_override or self.modal_gpu
+         if cell_gpu is None:
+-            sh.uv(
++            sh.uv(  # ty: ignore[unresolved-attribute]  # sh generates command attrs at runtime
+                 "run",
+                 "python",
+                 str(self.pinglab_cli_path),
+diff --git a/src/notebooks/helpers/run_id.py b/src/notebooks/helpers/run_id.py
+index 2ce389d..31c9dff 100644
+--- a/src/notebooks/helpers/run_id.py
++++ b/src/notebooks/helpers/run_id.py
+@@ -11,7 +11,6 @@ from __future__ import annotations
+ 
+ from pathlib import Path
+ 
+-
+ REPO = Path(__file__).resolve().parents[3]
+ FIGURES_ROOT = REPO / "src" / "docs" / "public" / "figures" / "notebooks"
+ COUNTER_FILE = "_run.txt"
+diff --git a/src/notebooks/helpers/stamp.py b/src/notebooks/helpers/stamp.py
+index 020d4fd..750909b 100644
+--- a/src/notebooks/helpers/stamp.py
++++ b/src/notebooks/helpers/stamp.py
+@@ -58,7 +58,7 @@ def overlay_stamp_video(src: Path, dst: Path, stamp: Path) -> None:
+     import sh
+ 
+     dst.parent.mkdir(parents=True, exist_ok=True)
+-    sh.ffmpeg(
++    sh.ffmpeg(  # ty: ignore[unresolved-attribute]  # sh generates command attrs at runtime
+         "-y",
+         "-i",
+         str(src),
+diff --git a/src/notebooks/nb022.py b/src/notebooks/nb022.py
+index e596454..2599090 100644
+--- a/src/notebooks/nb022.py
++++ b/src/notebooks/nb022.py
+@@ -29,11 +29,11 @@ import time
+ from pathlib import Path
+ 
+ import matplotlib.pyplot as plt
+-import numpy as np
+ 
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.fmt import format_duration  # noqa: E402
+ from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+ from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
+@@ -41,7 +41,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb022"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -416,7 +415,9 @@ def plot_family_curves(family: str, cells: list[dict],
+     theme.apply()
+     plt.rcParams["savefig.bbox"] = "standard"
+     tags = list(dict.fromkeys(c["tag"] for c in cells))  # ordered unique
+-    colours = {t: cm.viridis(i / max(1, len(tags) - 1)) for i, t in enumerate(tags)}
++    # cm.viridis exists at runtime; the matplotlib stub omits it (false positive).
++    colours = {t: cm.viridis(i / max(1, len(tags) - 1))  # ty: ignore[unresolved-attribute]
++               for i, t in enumerate(tags)}
+     # ping (and ping-init) solid, coba dashed — distinguishes the two models
+     # in families that train both (θ_u, canonical).
+     linestyle = {"coba": "--", "ping": "-", "ping_init": "-"}
+@@ -518,7 +519,9 @@ def main() -> None:
+             print(f"[not trained] {fam} — no figure (placeholder shown)")
+ 
+     duration_s = time.monotonic() - t_start
+-    git_sha = next((c for c in (load_metrics(cell_dir(r["name"])).get("config", {})
++    # rows is a heterogeneous list of dicts, so r["name"] widens to a union;
++    # coerce to str for cell_dir (the value is always the cell-name string).
++    git_sha = next((c for c in (load_metrics(cell_dir(str(r["name"]))).get("config", {})
+                                  for r in rows) if c), {}).get("git_sha")
+     summary = {
+         "notebook_run_id": run_id,
+diff --git a/src/notebooks/nb023.py b/src/notebooks/nb023.py
+index 5df5cc7..4a92629 100644
+--- a/src/notebooks/nb023.py
++++ b/src/notebooks/nb023.py
+@@ -195,6 +195,9 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+ 
+     # I raster
+     if has_i:
++        # has_i is True iff the include-I branch above ran, so ax_i is a real
++        # Axes here (it is only None in the no-I branch). Narrow for the checker.
++        assert ax_i is not None
+         i_idx, i_t = np.where(spk_i.T)
+         ax_i.scatter(
+             t_ms[i_t],
+@@ -333,7 +336,7 @@ def plot_raster_compound(
+     out_path: Path,
+     titles: dict,
+     include_arch: bool = False,
+-) -> None:
++) -> dict:
+     """Super figure: COBA vs PING side by side.
+ 
+     Each condition is a column-pair: a single raster (I stacked above E, no gap)
+@@ -395,6 +398,8 @@ def plot_raster_compound(
+         has_i = spk_i.size > 0 and spk_i.shape[0] == T and spk_i.any()
+ 
+         if include_arch:
++            # arch_gs is only built (non-None) in the include_arch branch above.
++            assert arch_gs is not None
+             ax_arch = fig.add_subplot(arch_gs[0, col])
+             _draw_schematic(ax_arch, cell)
+             ax_arch.set_title(titles[cell], loc="left", fontweight="semibold")
+@@ -521,7 +526,7 @@ def _pick_active(spk: np.ndarray) -> int | None:
+     return int(np.argmax(counts))
+ 
+ 
+-def plot_traces(npz_path: Path, out_path: Path, title: str) -> None:
++def plot_traces(npz_path: Path, out_path: Path, title: str) -> list:
+     theme.apply()
+     data = np.load(npz_path)
+     spk_e = data["spk_e"]
+diff --git a/src/notebooks/nb024.py b/src/notebooks/nb024.py
+index 2fcf2bc..b52d7eb 100644
+--- a/src/notebooks/nb024.py
++++ b/src/notebooks/nb024.py
+@@ -28,13 +28,13 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.fmt import format_duration  # noqa: E402
+-from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
++from helpers.modal import parse_modal_gpu  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb024"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -103,7 +103,8 @@ PARAM_LABELS = {"W_ff.0": "W_in", "W_ff.1": "W_out"}
+ def cell_dir(model: str, seed: int) -> Path:
+     """Trained cell — now the shared nb022 θ_u=off baseline (train-once /
+     reuse-many). nb022 owns the training; nb024 only audits convergence."""
+-    from nb022 import cell_dir as shared_cell_dir, cell_name
++    from nb022 import cell_dir as shared_cell_dir
++    from nb022 import cell_name
+     return shared_cell_dir(cell_name(model, None, seed))
+ 
+ 
+@@ -644,9 +645,12 @@ def per_cell_diagnostics(rates_by_cell: dict) -> list[dict]:
+                 pname: {
+                     "init": wn_first.get(pname),
+                     "final": wn_last.get(pname),
++                    # Guard both operands: divisor must be truthy (non-zero) and
++                    # the final norm must be present before dividing.
+                     "ratio_final_over_init": (
+-                        (wn_last.get(pname) / wn_first.get(pname))
+-                        if wn_first.get(pname) else None
++                        (wn_last[pname] / wn_first[pname])
++                        if wn_first.get(pname) and wn_last.get(pname) is not None
++                        else None
+                     ),
+                     "slope_last10": slope_last_n(
+                         [(e.get("weight_norms") or {}).get(pname, 0) for e in m["epochs"]],
+@@ -817,7 +821,6 @@ def plot_confidence_inflation(out_path: Path, run_id: str) -> None:
+ def main() -> None:
+     modal_gpu = parse_modal_gpu(sys.argv)
+     skip_training = "--skip-training" in sys.argv
+-    only_missing = "--only-missing" in sys.argv
+     wipe_dir = "--no-wipe-dir" not in sys.argv
+ 
+     t_start = time.monotonic()
+diff --git a/src/notebooks/nb025.py b/src/notebooks/nb025.py
+index 4188fa0..4c02289 100644
+--- a/src/notebooks/nb025.py
++++ b/src/notebooks/nb025.py
+@@ -40,6 +40,7 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.figsave import save_figure  # noqa: E402
+ from helpers.fmt import format_duration  # noqa: E402
+ from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+@@ -47,8 +48,8 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+-from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
++from nb022 import cell_dir as shared_cell_dir  # noqa: E402
++from nb022 import cell_name
+ 
+ SLUG = "nb025"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -361,6 +362,7 @@ def render_raster(npz_path: Path, out_path: Path, title: str) -> None:
+     ax_e.set_xlim(0, T * dt)
+     ax_e.set_title(title)
+     if has_i:
++        assert ax_i is not None  # has_i is only True when the 2-axes branch ran
+         i_idx, i_t = np.where(spk_i.T)
+         ax_i.scatter(
+             t_ms[i_t], i_idx, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.5
+@@ -1278,29 +1280,25 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
+     _despine(ax_acc)
+ 
+     # --- bottom-right: accuracy–rate frontier, operating points annotated ---
+-    # Log x-axis: COBA's rate spans 0→~97 Hz while PING sits in a tight 4–11 Hz
+-    # band, so a linear axis crushes every interesting point into the left ~10%.
+-    # Log spreads the sweep and makes the "up-and-left" PING advantage legible.
+-    # A hard floor clamps COBA's collapsed (rate→0) cells onto the axis so they
+-    # still show COBA failing at low rate rather than dropping off the plot.
+     ax_fr = fig.add_subplot(gs[1, 1])
+-    RATE_FLOOR = 0.5  # Hz; below this COBA has effectively gone silent
+     model_curves = {}
++    xmax = 1.0
+     for m in MODELS:
+         pts, base = [], None
+         for tu in THETA_U_GRID:
+             cr = [r for r in rows if r["model"] == m and r["theta_u"] == tu]
+             if not cr:
+                 continue
+-            rate = max(float(np.mean([r["rate_e"] for r in cr])), RATE_FLOOR)
++            rate = float(np.mean([r["rate_e"] for r in cr]))
+             acc = float(np.mean([r["final_acc"] for r in cr]))
+             pts.append((rate, acc))
+             if tu is None:
+                 base = (rate, acc)
+         pts.sort()
+         model_curves[m] = (pts, base)
+-    ax_fr.set_xscale("log")
+-    ax_fr.set_xlim(RATE_FLOOR * 0.8, 200)  # right headroom for the COBA label
++        if pts:
++            xmax = max(xmax, max(p[0] for p in pts))
++    ax_fr.set_xlim(-xmax * 0.03, xmax * 1.12)  # left margin so near-zero points read; right headroom for the COBA label
+     ax_fr.set_ylim(40, 100)  # all points ≥ 54%; crop dead space to grow the frontier
+     for m in MODELS:
+         pts, base = model_curves[m]
+@@ -1308,24 +1306,6 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
+             ax_fr.plot([p[0] for p in pts], [p[1] for p in pts],
+                        marker=MODEL_MARKERS[m], ms=4, lw=1.4,
+                        color=MODEL_COLORS[m], label=m.upper())
+-    # Iso-accuracy guide + the headline claim: at ≈ equal accuracy PING fires an
+-    # order of magnitude less than COBA. Drawn as a horizontal span between the
+-    # two θ_u-off operating stars.
+-    ping_base = model_curves["ping"][1]
+-    coba_base = model_curves["coba"][1]
+-    if ping_base and coba_base:
+-        y_guide = ping_base[1]
+-        ax_fr.hlines(y_guide, ping_base[0], coba_base[0],
+-                     color=theme.GREY_LIGHT, lw=0.8, ls=(0, (4, 3)), zorder=1)
+-        ax_fr.annotate(
+-            "", xy=(coba_base[0], y_guide), xytext=(ping_base[0], y_guide),
+-            arrowprops=dict(arrowstyle="<->", color=theme.MUTED, lw=0.9))
+-        ratio = coba_base[0] / ping_base[0]
+-        ax_fr.text(
+-            (ping_base[0] * coba_base[0]) ** 0.5, y_guide + 1.5,
+-            f"≈{ratio:.0f}× fewer spikes\nfor equal accuracy",
+-            ha="center", va="bottom", fontsize=theme.SIZE_ANNOTATION,
+-            color=theme.MUTED, fontstyle="italic", linespacing=1.1)
+     for m in MODELS:
+         base = model_curves[m][1]
+         if base is None:
+@@ -1333,17 +1313,17 @@ def fig_results_compound(rows, npz_coba, npz_ping, out_path, run_id):
+         ax_fr.scatter([base[0]], [base[1]], s=130, marker="*",
+                       color=MODEL_COLORS[m], edgecolor=theme.INK_BLACK,
+                       linewidths=0.7, zorder=6)
+-        # PING star: label up-left into open space; COBA star: label below (it
+-        # sits top-right where up/right would clip the axis and hit the title).
++        # PING star: label up-right into open plot space; COBA star sits top-
++        # right, so label down-left to avoid clipping the axis and the title.
+         if m == "ping":
+-            dxdy, ha, va = (-9, 8), "right", "bottom"
++            dxdy, ha, va = (8, 8), "left", "bottom"
+         else:
+-            dxdy, ha, va = (0, -11), "center", "top"
++            dxdy, ha, va = (-6, -8), "right", "top"
+         ax_fr.annotate(f"{m.upper()}\n{base[1]:.0f}% @ {base[0]:.0f} Hz",
+                        (base[0], base[1]), xytext=dxdy,
+                        textcoords="offset points", ha=ha, va=va,
+                        fontsize=theme.SIZE_ANNOTATION, color=MODEL_COLORS[m])
+-    ax_fr.set_xlabel("hidden-E firing rate (Hz, log)")
++    ax_fr.set_xlabel("hidden-E firing rate (Hz)")
+     ax_fr.set_ylabel("test accuracy (%)")
+     ax_fr.set_title("Same accuracy, fewer spikes", loc="left",
+                     fontsize=theme.SIZE_LABEL)
+diff --git a/src/notebooks/nb033.py b/src/notebooks/nb033.py
+index ba45e2f..02ac954 100644
+--- a/src/notebooks/nb033.py
++++ b/src/notebooks/nb033.py
+@@ -30,10 +30,10 @@ import json
+ import sys
+ from pathlib import Path
+ 
+-import numpy as np
+ import matplotlib.pyplot as plt
++import numpy as np
+ from scipy import linalg
+-from scipy.integrate import solve_ivp, quad
++from scipy.integrate import quad, solve_ivp
+ from scipy.optimize import fsolve
+ from scipy.special import erf
+ 
+@@ -121,8 +121,10 @@ def jacobian(fp, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV, eps=1e-6):
+     J = np.zeros((4, 4))
+     y0 = np.asarray(fp, dtype=float)
+     for k in range(4):
+-        yp = y0.copy(); yp[k] += eps
+-        ym = y0.copy(); ym[k] -= eps
++        yp = y0.copy()
++        yp[k] += eps
++        ym = y0.copy()
++        ym[k] -= eps
+         J[:, k] = (f(yp) - f(ym)) / (2 * eps)
+     return J
+ 
+@@ -302,6 +304,7 @@ def plot_eigenvalues_complex(results, hopf, out_path, run_id):
+     for k in range(eig_re.shape[1]):
+         sc = ax.scatter(eig_re[:, k], eig_im[:, k], c=xs, cmap="magma",
+                         s=5, linewidths=0)
++    assert sc is not None  # eig_re has 4 columns, so the loop always assigns sc
+     ax.axvline(0, color=theme.GREY_MID, lw=0.6, ls=":")
+     if hopf:
+         w = hopf["omega_star"]
+@@ -555,8 +558,10 @@ def reduction_sweep(rhs, fp_fn, I_grid, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):
+         n = y0.size
+         J = np.zeros((n, n))
+         for k in range(n):
+-            yp = y0.copy(); yp[k] += 1e-6
+-            ym = y0.copy(); ym[k] -= 1e-6
++            yp = y0.copy()
++            yp[k] += 1e-6
++            ym = y0.copy()
++            ym[k] -= 1e-6
+             J[:, k] = (f(yp) - f(ym)) / 2e-6
+         eigs = linalg.eigvals(J)
+         results.append({
+@@ -695,6 +700,7 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
+     sc = None
+     for k in range(eig_re.shape[1]):
+         sc = axA.scatter(eig_re[:, k], eig_im[:, k], c=xs, cmap="magma", s=4, linewidths=0)
++    assert sc is not None  # eig_re has 4 columns, so the loop always assigns sc
+     axA.axvline(0, color=theme.GREY_MID, lw=0.6, ls=":")
+     if hopf:
+         w = hopf["omega_star"]
+@@ -806,7 +812,7 @@ def main() -> None:
+         two_d[label] = h
+         print(f"  2D {label}: "
+               + (f"Hopf I*={h['I_ext_star']:.3f} nA" if h else "no Hopf (rings down)"))
+-    print(f"  3D (AMPA slaved): "
++    print("  3D (AMPA slaved): "
+           + (f"Hopf I*={hopf3['I_ext_star']:.3f} nA, f*={hopf3['freq_star_Hz']:.2f} Hz"
+              if hopf3 else "no Hopf"))
+     if hopf:
+diff --git a/src/notebooks/nb036.py b/src/notebooks/nb036.py
+index e217e5e..b900ebc 100644
+--- a/src/notebooks/nb036.py
++++ b/src/notebooks/nb036.py
+@@ -27,14 +27,15 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.fmt import format_duration  # noqa: E402
+ from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+-from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
++from nb022 import cell_dir as shared_cell_dir  # noqa: E402
++from nb022 import cell_name
+ 
+ SLUG = "nb036"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -369,7 +370,6 @@ def build_wei_wie_grid_args(
+ def plot_wei_wie_grid(rows: list[dict], out_path: Path, run_id: str) -> None:
+     """Three heatmaps on the (W_ei, W_ie) grid: accuracy, E rate, I rate.
+     I rate is the PING-vs-COBA cluster discriminator."""
+-    import numpy as np
+     theme.apply()
+     fig, axes = plt.subplots(1, 3, figsize=(13.0, 4.5), dpi=150)
+     g = WEI_WIE_GRID_VALUES
+@@ -433,7 +433,6 @@ def plot_wei_wie_acc_vs_e_with_frontier(
+     curves. Lets the reader see where the (W^EI, W^IE)-grid solutions
+     fall relative to the θ_u-driven accuracy/rate tradeoffs of the
+     canonical COBA and PING baselines."""
+-    import numpy as np
+     theme.apply()
+     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+     # ── Base: Figure 10b scatter ──
+@@ -493,7 +492,6 @@ def plot_wei_wie_acc_vs_e(rows: list[dict], out_path: Path, run_id: str) -> None
+     cell from Figure 10, coloured by I rate. The cluster structure of
+     the grid should appear as separated point clouds: I=0 cells (no-loop
+     + stretched-COBA) at low I-rate colour, I>0 cells (PING) at high."""
+-    import numpy as np
+     theme.apply()
+     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+     xs = np.array([r["rate_e"] for r in rows])
+@@ -590,7 +588,6 @@ def plot_wei_diagonal(rows: list[dict], out_path: Path, run_id: str) -> None:
+     at 2 × W^EI). Aggregates over the seeds present in rows and plots
+     mean ± std as error bars. Individual seed points shown as faint
+     markers."""
+-    import numpy as np
+     theme.apply()
+     fig, axes = plt.subplots(1, 3, figsize=(13.0, 4.5), dpi=150)
+     by_w: dict[float, list[dict]] = {}
+@@ -650,7 +647,6 @@ def plot_wei_diagonal_acc_vs_e(
+     diagonal sweep, coloured by I rate. Same idea as Figure 10b but
+     each point is one (W^EI, seed) cell; labels mark only the W^EI
+     value (W^IE = 2 W^EI implicit)."""
+-    import numpy as np
+     theme.apply()
+     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
+     xs = np.array([r["rate_e"] for r in rows])
+diff --git a/src/notebooks/nb037.py b/src/notebooks/nb037.py
+index 0bc1ce4..cdeebdb 100644
+--- a/src/notebooks/nb037.py
++++ b/src/notebooks/nb037.py
+@@ -23,11 +23,13 @@ import time
+ from pathlib import Path
+ 
+ import matplotlib.pyplot as plt
++import matplotlib.ticker as mticker
+ import numpy as np
+ 
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.figsave import save_figure  # noqa: E402
+ from helpers.fmt import format_duration  # noqa: E402
+ from helpers.modal import parse_modal_gpu  # noqa: E402
+@@ -35,8 +37,8 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+-from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
++from nb022 import cell_dir as shared_cell_dir  # noqa: E402
++from nb022 import cell_name
+ 
+ SLUG = "nb037"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -254,7 +256,6 @@ def run_perturbation_sweep(train_dir: Path, mode: str, level) -> dict:
+     applied inside the CLI's forward loop (models.py hook). acc + hidden E rate
+     come from metrics.json.
+     """
+-    cfg = json.loads((train_dir / "config.json").read_text())
+     lvl = list(level) if isinstance(level, (list, tuple)) else [level]
+     out_dir = (ARTIFACTS / "perturb" / f"{mode}_{'_'.join(str(x) for x in lvl)}_{train_dir.name}").resolve()
+     out_dir.mkdir(parents=True, exist_ok=True)
+@@ -365,7 +366,7 @@ def plot_perturbation_curves(
+         ax.tick_params(labelsize=theme.SIZE_TICK)
+         ax.spines["top"].set_visible(False)
+         ax.spines["right"].set_visible(False)
+-        ax.yaxis.set_major_locator(plt.matplotlib.ticker.MultipleLocator(20))
++        ax.yaxis.set_major_locator(mticker.MultipleLocator(20))
+         ax.grid(True, axis="y", alpha=0.15, linewidth=0.5)
+     ax_drop.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+     ax_add.legend(
+diff --git a/src/notebooks/nb038.py b/src/notebooks/nb038.py
+index ecbcb96..bac4a54 100644
+--- a/src/notebooks/nb038.py
++++ b/src/notebooks/nb038.py
+@@ -31,6 +31,7 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.figsave import save_figure  # noqa: E402
+ from helpers.fmt import format_duration  # noqa: E402
+ from helpers.modal import parse_modal_gpu  # noqa: E402
+@@ -38,8 +39,8 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+-from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
++from nb022 import cell_dir as shared_cell_dir  # noqa: E402
++from nb022 import cell_name
+ 
+ SLUG = "nb038"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+diff --git a/src/notebooks/nb041.py b/src/notebooks/nb041.py
+index ac988a8..500a798 100644
+--- a/src/notebooks/nb041.py
++++ b/src/notebooks/nb041.py
+@@ -31,6 +31,7 @@ from scipy import signal as sp_signal
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.figsave import save_figure  # noqa: E402
+ from helpers.fmt import format_duration  # noqa: E402
+ from helpers.modal import parse_modal_gpu  # noqa: E402
+@@ -42,7 +43,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb041"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+diff --git a/src/notebooks/nb042.py b/src/notebooks/nb042.py
+index f663c9c..a4b3eb1 100644
+--- a/src/notebooks/nb042.py
++++ b/src/notebooks/nb042.py
+@@ -31,6 +31,10 @@ from pathlib import Path
+ 
+ import matplotlib.pyplot as plt
+ import numpy as np
++from typing import TYPE_CHECKING
++
++if TYPE_CHECKING:  # torch is imported lazily inside the functions at runtime
++    import torch
+ 
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+@@ -237,9 +241,9 @@ def _pack_metrics(m: dict, condition: str) -> dict:
+ 
+ 
+ def _build_override(
+-    s_i_base: "object", condition: str, generator, dt_ms: float = 0.1,
++    s_i_base: "torch.Tensor", condition: str, generator, dt_ms: float = 0.1,
+     cycle_period_ms: float | None = None,
+-) -> "object":
++) -> "torch.Tensor":
+     """Construct the I-spike override tensor for one batch.
+ 
+     s_i_base: (T, B, N_I) baseline recorded I-spikes.
+@@ -289,9 +293,9 @@ def _build_override(
+ 
+ 
+ def _jitter_i_stream(
+-    s_i_base: "object", sigma_ms: float, dt_ms: float, generator,
++    s_i_base: "torch.Tensor", sigma_ms: float, dt_ms: float, generator,
+     cycle_period_ms: float | None = None,
+-) -> "object":
++) -> "torch.Tensor":
+     """Cycle-coherent jitter on the I-spike stream.
+ 
+     Bins time into blocks of one gamma cycle (1 / F_GAMMA_REFERENCE_HZ
+@@ -348,8 +352,8 @@ def _jitter_i_stream(
+ 
+ 
+ def _cell_jitter_i_stream(
+-    s_i_base: "object", sigma_ms: float, dt_ms: float, generator,
+-) -> "object":
++    s_i_base: "torch.Tensor", sigma_ms: float, dt_ms: float, generator,
++) -> "torch.Tensor":
+     """Per-spike (per-I-cell) Gaussian jitter on the I-spike stream.
+ 
+     Each spike gets its own independent Gaussian offset Δ ~ 𝒩(0, σ²).
+@@ -396,8 +400,8 @@ def _cell_jitter_i_stream(
+ 
+ 
+ def _alpha_mix_i_stream(
+-    s_i_base: "object", alpha: float, k: float, generator,
+-) -> "object":
++    s_i_base: "torch.Tensor", alpha: float, k: float, generator,
++) -> "torch.Tensor":
+     """Interpolate between baseline rhythm and rate-matched Poisson.
+ 
+     α ∈ [0, 1] controls the per-timestep mixing fraction:
+diff --git a/src/notebooks/nb044.py b/src/notebooks/nb044.py
+index 9477a38..c9567df 100644
+--- a/src/notebooks/nb044.py
++++ b/src/notebooks/nb044.py
+@@ -27,6 +27,7 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.figsave import save_figure  # noqa: E402
+ from helpers.fmt import format_duration  # noqa: E402
+ from helpers.modal import parse_modal_gpu  # noqa: E402
+@@ -34,7 +35,6 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb044"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+diff --git a/src/notebooks/nb048.py b/src/notebooks/nb048.py
+index 7272206..c3be4d7 100644
+--- a/src/notebooks/nb048.py
++++ b/src/notebooks/nb048.py
+@@ -33,13 +33,13 @@ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ sys.path.insert(0, str(REPO / "src" / "notebooks"))
+ 
++from helpers import theme  # noqa: E402
++from helpers.datasets import load_mnist_split  # noqa: E402
+ from helpers.figsave import save_figure  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+-from helpers.datasets import load_mnist_split  # noqa: E402
+ 
+ SLUG = "nb048"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -624,7 +624,9 @@ def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
+                 ax_a.get_position().x1 - ax_a.get_position().x0
+             )
+         )
+-        sub = fig.add_axes([
++        # add_axes([l,b,w,h]) rect form is valid at runtime; matplotlib stub
++        # overloads are too strict → library-stub false positive.
++        sub = fig.add_axes([  # ty: ignore[no-matching-overload]
+             sub_l, ax_a.get_position().y0 + 0.005,
+             sub_w, ax_a.get_position().height - 0.01,
+         ])
+@@ -816,7 +818,9 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
+         sub_l = ax_a.get_position().x0 + (
+             (x_lo / T_ms) * (ax_a.get_position().x1 - ax_a.get_position().x0)
+         )
+-        sub = fig.add_axes([
++        # add_axes([l,b,w,h]) rect form is valid at runtime; matplotlib stub
++        # overloads are too strict → library-stub false positive.
++        sub = fig.add_axes([  # ty: ignore[no-matching-overload]
+             sub_l, ax_a.get_position().y0 + 0.005,
+             sub_w, ax_a.get_position().height - 0.02,
+         ])
+@@ -921,8 +925,8 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
+     ax_d.spines["right"].set_visible(False)
+ 
+     fig.suptitle(
+-        f"Streaming digit classification — per-segment $(\\tau, $ rate$)$ varies, "
+-        f"trained PING (no retraining)",
++        "Streaming digit classification — per-segment $(\\tau, $ rate$)$ varies, "
++        "trained PING (no retraining)",
+         fontsize=theme.SIZE_TITLE,
+     )
+     stamp_figure(fig, run_id)
+diff --git a/src/notebooks/nb049.py b/src/notebooks/nb049.py
+index 93aec2e..13b64f6 100644
+--- a/src/notebooks/nb049.py
++++ b/src/notebooks/nb049.py
+@@ -37,13 +37,13 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.figsave import save_figure  # noqa: E402
+ from helpers.modal import parse_modal_gpu  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb049"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+@@ -1081,7 +1081,9 @@ def fig_phase_portrait(out_path: Path, run_id: str) -> None:
+             segments = np.concatenate([points[:-1], points[1:]], axis=1)
+             alphas = np.linspace(0.22, 1.0, len(segments))
+             seg_colors = [to_rgba(color, alpha=a) for a in alphas]
+-            lc = LineCollection(segments, colors=seg_colors, linewidths=1.6, zorder=4)
++            # LineCollection accepts an ndarray of segments at runtime; the stub
++            # types it as Sequence → library-stub false positive.
++            lc = LineCollection(segments, colors=seg_colors, linewidths=1.6, zorder=4)  # ty: ignore[invalid-argument-type]
+             ax.add_collection(lc)
+             # Start marker — hollow
+             ax.scatter(
+@@ -1200,8 +1202,10 @@ def fig_acc_rate_trajectory(out_path: Path, run_id: str) -> None:
+         points = np.array([e_mean, a_mean]).T.reshape(-1, 1, 2)
+         segments = np.concatenate([points[:-1], points[1:]], axis=1)
+         seg_pings = 0.5 * (p_mean[:-1] + p_mean[1:])
++        # LineCollection accepts an ndarray of segments at runtime; the stub
++        # types it as Sequence → library-stub false positive.
+         lc = LineCollection(
+-            segments, cmap=cmap, norm=norm,
++            segments, cmap=cmap, norm=norm,  # ty: ignore[invalid-argument-type]
+             array=seg_pings, linewidths=2.2, zorder=4,
+         )
+         ax.add_collection(lc)
+diff --git a/src/notebooks/nb054.py b/src/notebooks/nb054.py
+index 693d91c..d5eef44 100644
+--- a/src/notebooks/nb054.py
++++ b/src/notebooks/nb054.py
+@@ -34,18 +34,18 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.figsave import save_figure  # noqa: E402
+ from helpers.modal import parse_modal_gpu  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+-from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+-from helpers.run_id import next_run_id  # noqa: E402
+-from helpers import theme  # noqa: E402
+ from helpers.rhythmicity import (  # noqa: E402
+     iei_histogram,
+     population_event_times,
+     rhythmicity_scalars,
+     spike_autocorrelogram,
+ )
++from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
++from helpers.run_id import next_run_id  # noqa: E402
+ 
+ PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
+ 
+@@ -703,6 +703,10 @@ def _load_runner(slug: str):
+     pure-python numerics (the mean-field) can be called directly."""
+     path = REPO / "src" / "notebooks" / f"{slug}.py"
+     spec = importlib.util.spec_from_file_location(slug, path)
++    # spec_from_file_location returns ModuleSpec | None and spec.loader is
++    # Loader | None; both are always set for a real file path — assert to narrow.
++    assert spec is not None
++    assert spec.loader is not None
+     mod = importlib.util.module_from_spec(spec)
+     sys.modules[slug] = mod
+     spec.loader.exec_module(mod)
+@@ -765,6 +769,9 @@ def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
+         w = hopf["omega_star"]
+         axA.scatter([0, 0], [w, -w], facecolors="none",
+                     edgecolors=theme.ELECTRIC_CYAN, s=60, lw=1.4, zorder=5)
++    # sc is assigned inside the eigenvalue loop (always ≥1 eigenvalue); narrow
++    # the None branch. PathCollection from scatter is a valid ScalarMappable.
++    assert sc is not None
+     cbar = fig.colorbar(sc, ax=axA, fraction=0.046, pad=0.02)
+     cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 1)
+     cbar.ax.tick_params(labelsize=theme.SIZE_TICK - 1)
+diff --git a/src/notebooks/nb058.py b/src/notebooks/nb058.py
+index 369952e..6408096 100644
+--- a/src/notebooks/nb058.py
++++ b/src/notebooks/nb058.py
+@@ -348,7 +348,7 @@ def plot_raster(npz_path: Path, out_path: Path, title: str) -> None:
+     cvs = _isi_cvs(spk_e, dt)
+     if cvs.size > 0:
+         ax_cv.hist(
+-            cvs, bins=np.linspace(0, 2.0, 40),
++            cvs, bins=np.linspace(0, 2.0, 40),  # ty: ignore[invalid-argument-type]
+             color=theme.INK_BLACK, alpha=0.7,
+         )
+         ax_cv.axvline(1.0, color=theme.DEEP_RED, lw=0.9, ls="--", alpha=0.85)
+@@ -456,7 +456,9 @@ def run_k_sweep() -> dict:
+         for k in K_SWEEP_KS:
+             seed_vals = {m: [] for m in per_metric}
+             for seed in SWEEP_SEEDS:
+-                argv = _ksweep_args(k, vspec["scale"], seed)
++                # vspec is a mixed str/bool dict so vspec["scale"] infers as
++                # str | bool; the value is always the bool flag — coerce for ty.
++                argv = _ksweep_args(k, bool(vspec["scale"]), seed)
+                 print(f"[ksweep] {vkey} K={k} seed={seed}")
+                 res = _run_and_measure(argv)
+                 for m in per_metric:
+@@ -589,6 +591,8 @@ def run_lyapunov() -> dict:
+             traces.append(np.asarray(data["lyap_vdist"]))
+             t_axis = np.asarray(data["lyap_t_ms"])
+         n = min(len(v) for v in traces)
++        # t_axis is set on every loop iteration (LYAP_SEEDS is non-empty); narrow None.
++        assert t_axis is not None
+         t = t_axis[:n]
+         V = np.array([v[:n] for v in traces])           # (seeds, n)
+         vmean = V.mean(axis=0)
+diff --git a/src/notebooks/nb060.py b/src/notebooks/nb060.py
+index 39b9227..5eb2cfb 100644
+--- a/src/notebooks/nb060.py
++++ b/src/notebooks/nb060.py
+@@ -30,12 +30,12 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.fmt import format_duration  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb060"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+diff --git a/src/notebooks/nb062.py b/src/notebooks/nb062.py
+index f67ff4e..27f5085 100644
+--- a/src/notebooks/nb062.py
++++ b/src/notebooks/nb062.py
+@@ -39,13 +39,13 @@ import numpy as np
+ REPO = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO / "src"))
+ 
++from helpers import theme  # noqa: E402
+ from helpers.fmt import format_duration  # noqa: E402
+ from helpers.modal import BatchDispatcher, parse_modal_gpu  # noqa: E402
+ from helpers.paths import artifacts_and_figures  # noqa: E402
+ from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
+ from helpers.run_id import next_run_id  # noqa: E402
+ from helpers.stamp import stamp_figure  # noqa: E402
+-from helpers import theme  # noqa: E402
+ 
+ SLUG = "nb062"
+ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
+
+diff --git a/src/cli/tests/conftest.py b/src/cli/tests/conftest.py
+new file mode 100644
+index 0000000..ef0f127
+--- /dev/null
++++ b/src/cli/tests/conftest.py
+@@ -0,0 +1,45 @@
++"""Shared fixtures for the CLI test suite.
++
++The models.py module carries simulation state as module-level globals (dt, T_ms,
++T_steps, the N_* sizes, and the physiological constants tau_gaba, decay_gaba,
++p_scale, …). Every entry point mutates these before a forward pass, so a test
++that trains, infers, or overrides a time-constant leaves the globals wherever it
++last put them. Left unchecked this leaks across tests: e.g. an infer test that
++sets a custom tau_gaba changes the GABA decay for every later forward pass, which
++made the accuracy and Dale's-law tests fail only in a full-suite run.
++
++We snapshot the module defaults ONCE at import (before any test mutates them) and
++restore the whole set around every test, so each test both starts and ends at the
++canonical models.py baseline regardless of run order.
++"""
++
++from __future__ import annotations
++
++import copy
++
++import models as M
++import pytest
++
++# Every models.py global any CLI entry point reassigns at runtime. Snapshotted at
++# import so the restore target is the true module default, never a leaked value.
++_MUTABLE_GLOBALS = (
++    "dt", "T_ms", "T_steps",
++    "N_IN", "N_HID", "N_INH", "N_OUT", "HIDDEN_SIZES",
++    "BATCH_SIZE", "EXACT_K_CONNECTIVITY", "V_GRAD_DAMPEN",
++    "tau_ampa", "tau_gaba", "decay_ampa", "decay_gaba",
++    "max_rate_hz", "p_scale",
++)
++_BASELINE = {name: copy.deepcopy(getattr(M, name)) for name in _MUTABLE_GLOBALS}
++
++
++def _restore_globals():
++    for name, value in _BASELINE.items():
++        setattr(M, name, copy.deepcopy(value))
++
++
++@pytest.fixture(autouse=True)
++def _reset_model_globals():
++    """Pin models.py globals to their module defaults before and after each test."""
++    _restore_globals()
++    yield
++    _restore_globals()
+
+diff --git a/src/cli/tests/test_cli_coverage.py b/src/cli/tests/test_cli_coverage.py
+new file mode 100644
+index 0000000..8189f10
+--- /dev/null
++++ b/src/cli/tests/test_cli_coverage.py
+@@ -0,0 +1,583 @@
++"""In-process coverage tests for src/cli/cli.py.
++
++These drive cli.py IN-PROCESS (not via subprocess) so the lines actually earn
++coverage credit — subprocess CLI runs run in a separate interpreter and are
++invisible to coverage. The existing suites split the work:
++
++  - test_cli_helpers.py   → encoders / seed / key helpers / parse_args basics
++  - test_flag_propagation.py → mostly subprocess round-trips (no coverage credit)
++
++This file fills the large uncovered blocks that only in-process calls can hit:
++
++  * parse_args across every subcommand + the post-parse auto-flip / --load-config
++    branch (lines ~975-1021)
++  * _build_config_mapping introspection (79-169)
++  * _apply_load_config JSON merge + CLI-override precedence (172-260)
++  * configure_models model-global writes (1023-1056)
++  * save_run_artifacts + _print_intro (1058-1190)
++  * _resolve_w_in (1269-1274)
++  * the dispatch handlers _run_sim / _run_train / _emit_infer / _emit_probe /
++    _run_dump_weights via tiny real main([...]) runs (1193-1509)
++
++Speed budget: one module-scoped 1-epoch train checkpoint is reused by every
++downstream infer / dump-weights test. Runs use mnist, max_samples≈60, dt 0.5,
++n-hidden 32, t-ms 40 to stay well under the ~120s target.
++
++A shared conftest.py autouse fixture already resets models.py globals between
++every test, so this file adds no globals-reset fixture of its own.
++"""
++
++from __future__ import annotations
++
++import json
++from argparse import Namespace
++from types import SimpleNamespace
++
++import models as M
++import pytest
++
++# The `cli` name resolves to the package (cli/__init__.py), which only
++# re-exports a subset of symbols. The private helpers under test (_run_sim,
++# _apply_load_config, main, …) live on the cli.cli SUBMODULE, so import from
++# there directly rather than the package facade.
++import cli.cli as cli
++from cli.cli import (
++    _apply_load_config,
++    _build_config_mapping,
++    _build_parent_parser,
++    _resolve_w_in,
++    configure_models,
++    parse_args,
++    save_run_artifacts,
++)
++
++# Fast, well-behaved run knobs shared across every dispatch test.
++_FAST = ["--n-hidden", "32", "--dt", "0.5", "--t-ms", "40"]
++
++
++# ─────────────────────────────────────────────────────────────────────────
++# parse_args — subparser coverage + post-parse logic
++# ─────────────────────────────────────────────────────────────────────────
++
++
++class TestParseArgsSubcommands:
++    def test_sim_defaults(self):
++        args = parse_args(["sim"])
++        assert args.mode == "sim"
++        assert args.model == "ping"
++        assert args.input == "synthetic-spikes"
++        assert args.dt == pytest.approx(0.25)
++        # sim-only flags exist with their defaults
++        assert args.infer is False
++        assert args.n_batch == 64
++        assert args.n_in == 784
++
++    def test_sim_infer_requires_weights_exits(self):
++        # --infer with no --load-weights hits the sys.exit(1) guard (line ~990).
++        with pytest.raises(SystemExit) as exc:
++            parse_args(["sim", "--infer"])
++        assert exc.value.code == 1
++
++    def test_train_flags(self):
++        args = parse_args(
++            ["train", "--epochs", "5", "--lr", "0.001", "--batch-size", "16"]
++        )
++        assert args.mode == "train"
++        assert args.epochs == 5
++        assert args.lr == pytest.approx(0.001)
++        assert args.batch_size == 16
++        assert args.fr_reg_mode == "per-neuron"
++
++    def test_dump_weights_subparser(self):
++        args = parse_args(["dump-weights", "--model", "ping"])
++        assert args.mode == "dump-weights"
++        # dump-weights carries its own load-config / load-weights options
++        assert hasattr(args, "load_config")
++        assert hasattr(args, "load_weights")
++
++    def test_no_mode_prints_help_and_exits_zero(self):
++        # args.mode is None → parser.print_help() + sys.exit(0) (lines 974-976).
++        with pytest.raises(SystemExit) as exc:
++            parse_args([])
++        assert exc.value.code == 0
++
++    def test_readout_and_dales_law_flags(self):
++        args = parse_args(["train", "--readout", "li", "--no-dales-law"])
++        assert args.readout_mode == "li"
++        assert args.dales_law is False
++        args2 = parse_args(["train", "--readout", "rate"])
++        assert args2.dales_law is True  # default
++
++    def test_nargs_weight_and_hidden_flags(self):
++        args = parse_args(
++            ["train", "--n-hidden", "64", "32", "--w-in", "10", "2", "--w-ei", "0.5", "0.1"]
++        )
++        assert args.n_hidden == [64, 32]
++        assert args.w_in == [10.0, 2.0]
++        assert args.w_ei == [0.5, 0.1]
++
++    def test_drive_and_exec_flags(self):
++        args = parse_args(
++            [
++                "sim",
++                "--independent-drive", "500", "0.03",
++                "--seed", "7",
++                "--modal-gpu", "A100",
++                "--device", "cpu",
++            ]
++        )
++        assert args.independent_drive == [500.0, 0.03]
++        assert args.seed == 7
++        assert args.modal_gpu == "A100"
++        assert args.device == "cpu"
++
++
++class TestParseArgsAutoFlip:
++    def test_digit_auto_flips_to_dataset(self):
++        # --digit given, --input left at default → auto-flip to dataset input.
++        args = parse_args(["sim", "--digit", "3"])
++        assert args.input == "dataset"
++        assert args._input_auto is True
++
++    def test_explicit_input_not_flipped(self):
++        # An explicit --input synthetic-spikes must be honoured even with --digit.
++        args = parse_args(
++            ["sim", "--input", "synthetic-spikes", "--digit", "3"]
++        )
++        assert args.input == "synthetic-spikes"
++        assert args._input_auto is False
++
++    def test_no_dataset_flag_no_flip(self):
++        args = parse_args(["sim"])
++        assert args.input == "synthetic-spikes"
++        assert args._input_auto is False
++
++
++# ─────────────────────────────────────────────────────────────────────────
++# _build_config_mapping — parser introspection (single source of truth)
++# ─────────────────────────────────────────────────────────────────────────
++
++
++class TestBuildConfigMapping:
++    def test_maps_dest_and_special_keys(self):
++        parent = _build_parent_parser()
++        config_to_args, dest_to_flag = _build_config_mapping(parent)
++
++        # Special-case config-key remaps (dest ≠ config.json key).
++        assert config_to_args["hidden_sizes"] == "n_hidden"
++        assert config_to_args["input_rate"] == "spike_rate"
++        assert config_to_args["readout"] == "readout_mode"
++        # Plain pass-through.
++        assert config_to_args["model"] == "model"
++        assert config_to_args["dt"] == "dt"
++
++    def test_prefers_positive_long_flag(self):
++        parent = _build_parent_parser()
++        _, dest_to_flag = _build_config_mapping(parent)
++        # dales_law has --dales-law (positive) and --no-dales-law (negative);
++        # the positive long form must win.
++        assert dest_to_flag["dales_law"] == "--dales-law"
++        assert dest_to_flag["model"] == "--model"
++
++    def test_help_action_excluded(self):
++        parent = _build_parent_parser()
++        config_to_args, _ = _build_config_mapping(parent)
++        assert "help" not in config_to_args.values()
++
++
++# ─────────────────────────────────────────────────────────────────────────
++# _apply_load_config — JSON merge, CLI precedence, legacy handling
++# ─────────────────────────────────────────────────────────────────────────
++
++
++def _mapping():
++    parent = _build_parent_parser()
++    return _build_config_mapping(parent)
++
++
++class TestApplyLoadConfig:
++    def test_inherits_and_cli_overrides(self, tmp_path, capsys):
++        cfg_path = tmp_path / "config.json"
++        cfg_path.write_text(
++            json.dumps(
++                {
++                    "model": "ping",
++                    "dt": 0.5,
++                    "t_ms": 150.0,
++                    "hidden_sizes": [128],
++                    "dales_law": True,
++                }
++            )
++        )
++        config_to_args, dest_to_flag = _mapping()
++
++        # argv explicitly sets --t-ms → must NOT be overwritten by config's 150.
++        argv = ["--load-config", str(cfg_path), "--t-ms", "200"]
++        args = Namespace(
++            load_config=str(cfg_path), t_ms=200.0, dt=0.25, model="ping", n_hidden=None,
++            dales_law=True,
++        )
++        _apply_load_config(args, argv, config_to_args, dest_to_flag)
++
++        # dt was not passed on the CLI → inherited from config.
++        assert args.dt == pytest.approx(0.5)
++        # hidden_sizes → n_hidden inherited.
++        assert args.n_hidden == [128]
++        # t_ms explicitly set on CLI → NOT overwritten.
++        assert args.t_ms == pytest.approx(200.0)
++
++        out = capsys.readouterr().out
++        assert "inherited" in out
++
++    def test_missing_file_exits(self, tmp_path):
++        config_to_args, dest_to_flag = _mapping()
++        missing = tmp_path / "nope.json"
++        args = Namespace(load_config=str(missing))
++        with pytest.raises(SystemExit) as exc:
++            _apply_load_config(args, ["--load-config", str(missing)], config_to_args, dest_to_flag)
++        assert exc.value.code == 1
++
++    def test_legacy_n_hidden_int_promoted(self, tmp_path):
++        # Old config.json with n_hidden int and no hidden_sizes → promoted to list.
++        cfg_path = tmp_path / "old.json"
++        cfg_path.write_text(json.dumps({"model": "ping", "n_hidden": 256}))
++        config_to_args, dest_to_flag = _mapping()
++        args = Namespace(load_config=str(cfg_path), n_hidden=None, model="ping")
++        _apply_load_config(args, ["--load-config", str(cfg_path)], config_to_args, dest_to_flag)
++        assert args.n_hidden == [256]
++
++    def test_legacy_model_alias_remapped(self, tmp_path, monkeypatch, capsys):
++        # LEGACY_MODEL_ALIASES is empty in the live config, so seed one to drive
++        # the alias-remap branch (config's "model" rewritten to the new name).
++        import config as _config
++
++        monkeypatch.setattr(
++            _config, "LEGACY_MODEL_ALIASES", {"old_ping": "ping"}, raising=False
++        )
++        cfg_path = tmp_path / "legacy.json"
++        cfg_path.write_text(json.dumps({"model": "old_ping", "dt": 0.5}))
++        config_to_args, dest_to_flag = _mapping()
++        args = Namespace(load_config=str(cfg_path), model="ping", dt=0.25)
++        _apply_load_config(args, ["--load-config", str(cfg_path)], config_to_args, dest_to_flag)
++        assert args.model == "ping"
++        assert "legacy model name" in capsys.readouterr().out
++
++    def test_legacy_n_hidden_list_promoted(self, tmp_path):
++        # n_hidden already a list (no hidden_sizes) → copied through as list.
++        cfg_path = tmp_path / "oldlist.json"
++        cfg_path.write_text(json.dumps({"model": "ping", "n_hidden": [64, 32]}))
++        config_to_args, dest_to_flag = _mapping()
++        args = Namespace(load_config=str(cfg_path), n_hidden=None, model="ping")
++        _apply_load_config(args, ["--load-config", str(cfg_path)], config_to_args, dest_to_flag)
++        assert args.n_hidden == [64, 32]
++
++    def test_missing_critical_flag_warns(self, tmp_path, capsys):
++        # config.json without dales_law → the "predates these flags" warning.
++        cfg_path = tmp_path / "c.json"
++        cfg_path.write_text(json.dumps({"model": "ping", "dt": 0.5}))
++        config_to_args, dest_to_flag = _mapping()
++        args = Namespace(load_config=str(cfg_path), dt=0.25, model="ping")
++        _apply_load_config(args, ["--load-config", str(cfg_path)], config_to_args, dest_to_flag)
++        out = capsys.readouterr().out
++        assert "WARNING" in out and "dales_law" in out
++
++
++# ─────────────────────────────────────────────────────────────────────────
++# configure_models — the one sanctioned models-global boundary
++# ─────────────────────────────────────────────────────────────────────────
++
++
++class TestConfigureModels:
++    def test_sets_globals_from_args(self):
++        args = parse_args(
++            [
++                "sim",
++                "--surrogate-slope", "40",
++                "--tau-mem", "20",
++                "--tau-syn", "10",
++                "--readout-tau-out", "5",
++                "--input-rate", "33",
++                "--t-ms", "77",
++                "--exact-k",
++                "--ei-sparsity", "0.5",
++            ]
++        )
++        configure_models(args)
++        assert M.SURROGATE_SLOPE == pytest.approx(40.0)
++        assert M.tau_snn == pytest.approx(20.0)
++        assert M.tau_ampa == pytest.approx(10.0)
++        assert M.tau_out_ms == pytest.approx(5.0)
++        assert M.max_rate_hz == pytest.approx(33.0)
++        assert M.T_ms == pytest.approx(77.0)
++        assert M.EXACT_K_CONNECTIVITY is True
++
++    def test_none_valued_args_left_alone(self):
++        # No tau overrides → the tau globals keep their module defaults; only the
++        # always-written max_rate_hz / T_ms move.
++        before_tau = M.tau_snn
++        args = parse_args(["sim", "--input-rate", "10", "--t-ms", "50"])
++        configure_models(args)
++        assert M.tau_snn == before_tau
++        assert M.max_rate_hz == pytest.approx(10.0)
++        assert M.T_ms == pytest.approx(50.0)
++
++
++# ─────────────────────────────────────────────────────────────────────────
++# save_run_artifacts + _print_intro — provenance / banner / run.sh
++# ─────────────────────────────────────────────────────────────────────────
++
++
++class TestSaveRunArtifacts:
++    def test_writes_config_and_runsh(self, tmp_path):
++        out = tmp_path / "run"
++        args = parse_args(
++            ["train", "--epochs", "0", "--n-hidden", "32", "--dataset", "mnist"]
++        )
++        log = save_run_artifacts(out, args, "train")
++        cfg = json.loads((out / "config.json").read_text())
++        assert cfg["mode"] == "train"
++        # provenance metadata was merged in.
++        assert "run_id" in cfg
++        # None-valued args are dropped; set ones survive.
++        assert cfg["epochs"] == 0
++        assert cfg["dataset"] == "mnist"
++        assert (out / "run.sh").exists()
++        assert (out / "run.sh").read_text().startswith("#!/bin/bash")
++        # returns a configured logger
++        assert log.name == "cli"
++
++    def test_wipe_dir_clears_existing(self, tmp_path):
++        out = tmp_path / "run"
++        out.mkdir()
++        stale = out / "stale.txt"
++        stale.write_text("gone")
++        args = parse_args(["sim", "--wipe-dir", "--n-hidden", "32"])
++        save_run_artifacts(out, args, "sim")
++        assert not stale.exists()
++        assert (out / "config.json").exists()
++
++    def test_print_intro_sim_synthetic_subtitle(self, tmp_path, capsys):
++        # Drives _print_intro's synthetic-spikes branch (no dataset used).
++        out = tmp_path / "run"
++        args = parse_args(["sim", "--n-hidden", "64", "32", "--input-rate", "20"])
++        save_run_artifacts(out, args, "sim")
++        printed = capsys.readouterr().out
++        assert "synthetic-spikes" in printed
++        # multi-layer hidden renders with the arrow join
++        assert "64→32" in printed
++
++
++# ─────────────────────────────────────────────────────────────────────────
++# _resolve_w_in
++# ─────────────────────────────────────────────────────────────────────────
++
++
++class TestResolveWIn:
++    def test_default(self):
++        assert _resolve_w_in(SimpleNamespace(w_in=None)) == [0.3, 0.06]
++
++    def test_single_value_expands_to_ten_percent_std(self):
++        w = _resolve_w_in(SimpleNamespace(w_in=[10.0]))
++        assert w[0] == pytest.approx(10.0)
++        assert w[1] == pytest.approx(1.0)
++
++    def test_pair_passthrough(self):
++        assert _resolve_w_in(SimpleNamespace(w_in=[5.0, 2.0])) == [5.0, 2.0]
++
++
++# ─────────────────────────────────────────────────────────────────────────
++# _dispatch_to_modal — argv stripping (stub the real dispatch)
++# ─────────────────────────────────────────────────────────────────────────
++
++
++class TestModalDispatch:
++    def test_main_modal_strips_flags(self, monkeypatch, tmp_path):
++        captured = {}
++
++        def _fake_dispatch(cli_args, out_dir, gpu):
++            captured["cli_args"] = cli_args
++            captured["out_dir"] = out_dir
++            captured["gpu"] = gpu
++
++        import modal_app
++
++        monkeypatch.setattr(modal_app, "dispatch_to_modal", _fake_dispatch)
++
++        rc = cli.main(
++            [
++                "sim",
++                "--modal",
++                "--modal-gpu", "A100",
++                "--n-hidden", "32",
++                "--out-dir", str(tmp_path / "m"),
++            ]
++        )
++        assert rc == 0
++        # --modal and --modal-gpu (+ its value) are stripped before re-dispatch.
++        assert "--modal" not in captured["cli_args"]
++        assert "--modal-gpu" not in captured["cli_args"]
++        assert "A100" not in captured["cli_args"]
++        assert "--n-hidden" in captured["cli_args"]
++        assert captured["gpu"] == "A100"
++
++
++# ─────────────────────────────────────────────────────────────────────────
++# End-to-end dispatch via main([...]) — the expensive torch surface.
++# One module-scoped 1-epoch checkpoint feeds every infer / dump-weights test.
++# ─────────────────────────────────────────────────────────────────────────
++
++
++@pytest.fixture(scope="module")
++def trained(tmp_path_factory):
++    """Train a tiny 1-epoch PING checkpoint once; reuse for infer/dump-weights.
++
++    module-scoped so the ~5s train cost is paid a single time.
++    """
++    out = tmp_path_factory.mktemp("trained")
++    rc = cli.main(
++        [
++            "train",
++            "--model", "ping",
++            "--dataset", "mnist",
++            "--max-samples", "60",
++            "--epochs", "1",
++            "--w-in", "10",
++            "--w-in-sparsity", "0",
++            "--out-dir", str(out),
++            "--wipe-dir",
++            *_FAST,
++        ]
++    )
++    assert rc == 0
++    assert (out / "weights.pth").exists()
++    assert (out / "config.json").exists()
++    return out
++
++
++class TestDispatchRuns:
++    def test_run_sim_metrics_snapshot(self, tmp_path):
++        # Metrics-only synthetic-spikes sim → snapshot.npz (the _run_sim tail).
++        out = tmp_path / "sim"
++        rc = cli.main(
++            [
++                "sim",
++                "--model", "ping",
++                "--input", "synthetic-spikes",
++                "--input-rate", "20",
++                "--out-dir", str(out),
++                "--wipe-dir",
++                *_FAST,
++            ]
++        )
++        assert rc == 0
++        assert (out / "snapshot.npz").exists()
++
++    def test_run_sim_cell_drive_tonic_path(self, tmp_path):
++        # A per-cell drive flag (--quenched-drive) routes _run_sim through the
++        # tonic-conductance branch instead of the uniform-Poisson branch.
++        out = tmp_path / "celldrive"
++        rc = cli.main(
++            [
++                "sim",
++                "--model", "ping",
++                "--input", "synthetic-spikes",
++                "--quenched-drive", "0.5", "0.1",
++                "--out-dir", str(out),
++                "--wipe-dir",
++                *_FAST,
++            ]
++        )
++        assert rc == 0
++        assert (out / "snapshot.npz").exists()
++
++    def test_run_train_probe_epoch0(self, tmp_path):
++        # epochs=0 probe path through _run_train (no weights.pth, but config +
++        # metrics land).
++        out = tmp_path / "probe0"
++        rc = cli.main(
++            [
++                "train",
++                "--model", "ping",
++                "--dataset", "mnist",
++                "--max-samples", "50",
++                "--epochs", "0",
++                "--w-in", "10",
++                "--w-in-sparsity", "0",
++                "--out-dir", str(out),
++                "--wipe-dir",
++                *_FAST,
++            ]
++        )
++        assert rc == 0
++        assert (out / "config.json").exists()
++
++    def test_emit_probe_batched(self, tmp_path):
++        # --n-batch routes _run_sim into the batched-Poisson _emit_probe branch.
++        out = tmp_path / "probe"
++        rc = cli.main(
++            [
++                "sim",
++                "--model", "ping",
++                "--n-batch", "4",
++                "--n-in", "32",
++                "--out-dir", str(out),
++                "--wipe-dir",
++                *_FAST,
++            ]
++        )
++        assert rc == 0
++        assert (out / "snapshot.npz").exists()
++
++    def test_emit_infer_test_accuracy(self, tmp_path, trained):
++        # sim --infer test-set eval path through _emit_infer (non-snapshot).
++        out = tmp_path / "infer"
++        rc = cli.main(
++            [
++                "sim",
++                "--infer",
++                "--load-config", str(trained / "config.json"),
++                "--load-weights", str(trained / "weights.pth"),
++                "--max-samples", "60",
++                "--out-dir", str(out),
++                "--wipe-dir",
++            ]
++        )
++        assert rc == 0
++        metrics = json.loads((out / "metrics.json").read_text())
++        assert metrics  # non-empty metrics dict
++
++    def test_emit_infer_snapshot_mode(self, tmp_path, trained, monkeypatch):
++        # --digit triggers snapshot_mode inside _run_sim → _emit_infer's
++        # infer_and_snapshot branch. NOTE: _run_sim decides snapshot_mode by
++        # scanning the *process* sys.argv (not the argv passed to main), so an
++        # in-process call must set sys.argv for the snapshot branch to fire.
++        out = tmp_path / "snap"
++        argv = [
++            "sim",
++            "--infer",
++            "--load-config", str(trained / "config.json"),
++            "--load-weights", str(trained / "weights.pth"),
++            "--digit", "0",
++            "--sample", "0",
++            "--out-dir", str(out),
++            "--wipe-dir",
++        ]
++        monkeypatch.setattr("sys.argv", ["pinglab-cli", *argv])
++        rc = cli.main(argv)
++        assert rc == 0
++        # snapshot mode records a single-sample spike trajectory to snapshot.npz.
++        assert (out / "snapshot.npz").exists()
++
++    def test_dump_weights(self, tmp_path, trained):
++        out = tmp_path / "dump"
++        rc = cli.main(
++            [
++                "dump-weights",
++                "--load-config", str(trained / "config.json"),
++                "--load-weights", str(trained / "weights.pth"),
++                "--out-dir", str(out),
++                "--wipe-dir",
++            ]
++        )
++        assert rc == 0
++        assert (out / "weights_dump.npz").exists()
+
+diff --git a/src/cli/tests/test_config_coverage.py b/src/cli/tests/test_config_coverage.py
+new file mode 100644
+index 0000000..cfe7f23
+--- /dev/null
++++ b/src/cli/tests/test_config_coverage.py
+@@ -0,0 +1,502 @@
++"""Coverage-focused tests for config.py.
++
++Complements test_config.py (which covers the Config dataclass surface:
++defaults, torch_device, apply_frame_param, sync_from_model). This file
++exercises the module-level machinery instead: model-globals setup, dt
++pinning, NPZ snapshot serialisation, the network builder, the simulation
++runners, and the record/weight extraction helpers.
++
++Everything here is deliberately tiny (dt=0.1, t_ms=100, hidden=[16..32],
++single forward passes, synthetic tensors) so the whole file runs in a
++couple of seconds. The shared conftest autouse fixture already resets the
++models.py globals between tests, so we never need our own reset.
++"""
++
++import config as C
++import models as M
++import numpy as np
++import pytest
++import torch
++from config import (
++    _build_sim_net,
++    _extract_records,
++    build_net,
++    extract_weights,
++    make_net,
++    run_sim,
++    run_sim_image,
++    save_snapshot_npz,
++    set_sim_dt,
++    setup_model_globals,
++)
++
++# Small, fast simulation parameters shared across tests.
++DT = 0.1
++T_MS = 100.0
++
++
++# ---------------------------------------------------------------------------
++# setup_model_globals / set_sim_dt
++# ---------------------------------------------------------------------------
++
++
++class TestSetupModelGlobals:
++    def test_normal_list_multi_layer(self):
++        setup_model_globals([16, 32])
++        # N_HID is the LAST (deepest) layer; N_INH is that // 4.
++        assert M.N_HID == 32
++        assert M.N_INH == 8
++        assert M.HIDDEN_SIZES == [16, 32]
++
++    def test_single_layer(self):
++        setup_model_globals([16])
++        assert M.N_HID == 16
++        assert M.N_INH == 4
++        assert M.HIDDEN_SIZES == [16]
++
++    def test_empty_list_defaults_to_256(self):
++        # Falsy hidden_sizes -> default [256].
++        setup_model_globals([])
++        assert M.N_HID == 256
++        assert M.N_INH == 64
++        assert M.HIDDEN_SIZES == [256]
++
++    def test_none_defaults_to_256(self):
++        setup_model_globals(None)
++        assert M.N_HID == 256
++        assert M.HIDDEN_SIZES == [256]
++
++
++class TestSetSimDt:
++    def test_pins_dt_and_derived_steps(self):
++        set_sim_dt(DT, T_MS)
++        assert M.dt == pytest.approx(0.1)
++        assert M.T_ms == pytest.approx(100.0)
++        assert M.T_steps == int(T_MS / DT)  # 1000
++
++    def test_coerces_to_float_and_int(self):
++        set_sim_dt(1, 50)  # ints in
++        assert isinstance(M.dt, float)
++        assert isinstance(M.T_ms, float)
++        assert isinstance(M.T_steps, int)
++        assert M.T_steps == 50
++
++
++# ---------------------------------------------------------------------------
++# save_snapshot_npz
++# ---------------------------------------------------------------------------
++
++
++class TestSaveSnapshotNpz:
++    def test_single_layer_rec_with_inhibition(self, tmp_path):
++        # Single-layer rec: 'hid'/'inh'/'input' + an extra voltage field.
++        T = 5
++        rec = {
++            "hid": torch.zeros(T, 8),
++            "inh": torch.zeros(T, 2),
++            "input": torch.zeros(T, 8),
++            "v_e": np.zeros((T, 8), dtype=np.float32),
++        }
++        out = tmp_path / "snap.npz"
++        save_snapshot_npz(out, rec, dt=DT, n_e=8, n_i=2, label=3)
++
++        with np.load(out) as data:
++            assert data["dt"] == pytest.approx(0.1)
++            assert int(data["n_e"]) == 8
++            assert int(data["n_i"]) == 2
++            assert int(data["label"]) == 3
++            # Canonicalised spike names.
++            assert data["spk_e"].shape == (T, 8)
++            assert data["spk_i"].shape == (T, 2)
++            # 'input' renamed to 'input_spikes'.
++            assert data["input_spikes"].shape == (T, 8)
++            # Other fields kept under original name.
++            assert data["v_e"].shape == (T, 8)
++
++    def test_no_inhibition_creates_empty_spk_i(self, tmp_path):
++        # rec with no 'inh' key -> spk_i is an empty (T, 0) array.
++        T = 4
++        rec = {"hid": np.zeros((T, 6), dtype=np.float32)}
++        out = tmp_path / "noinh.npz"
++        save_snapshot_npz(out, rec, dt=DT, n_e=6, n_i=0)
++
++        with np.load(out) as data:
++            assert data["spk_e"].shape == (T, 6)
++            assert data["spk_i"].shape == (T, 0)
++
++    def test_display_fallback_supplies_input_spikes(self, tmp_path):
++        # rec without 'input'; display arg fills input_spikes.
++        T = 3
++        rec = {"hid": np.zeros((T, 4), dtype=np.float32)}
++        display = torch.ones(T, 4)
++        out = tmp_path / "disp.npz"
++        save_snapshot_npz(out, rec, dt=DT, n_e=4, n_i=0, display=display)
++
++        with np.load(out) as data:
++            assert data["input_spikes"].shape == (T, 4)
++            assert data["input_spikes"].sum() == pytest.approx(T * 4)
++
++    def test_numpy_rec_values_pass_through(self, tmp_path):
++        # numpy arrays (no .numpy()) must serialise unchanged.
++        T = 2
++        rec = {
++            "hid": np.ones((T, 3), dtype=np.float32),
++            "inh": np.ones((T, 1), dtype=np.float32),
++        }
++        out = tmp_path / "npy.npz"
++        save_snapshot_npz(out, rec, dt=0.25, n_e=3, n_i=1)
++        with np.load(out) as data:
++            assert data["spk_e"].sum() == pytest.approx(T * 3)
++            assert data["spk_i"].shape == (T, 1)
++
++
++# ---------------------------------------------------------------------------
++# build_net / _build_sim_net
++# ---------------------------------------------------------------------------
++
++
++class TestBuildNet:
++    def test_unknown_model_raises(self):
++        with pytest.raises(ValueError, match="Unknown model"):
++            build_net("does-not-exist")
++
++    def test_ping_single_layer_dales_law(self):
++        setup_model_globals([32])
++        net = build_net("ping", hidden_sizes=[32], dales_law=True)
++        # W_ff: input->hid, hid->out => 2 feedforward matrices.
++        assert len(net.W_ff) == 2
++        # First matrix maps N_IN -> 32.
++        assert net.W_ff[0].shape[1] == 32
++        # Last matrix maps 32 -> N_OUT.
++        assert net.W_ff[-1].shape[0] == 32
++        assert net.signed_weights is False  # dales_law True
++
++    def test_ping_signed_weights_when_no_dales(self):
++        net = build_net("ping", hidden_sizes=[16], dales_law=False)
++        assert net.signed_weights is True
++
++    def test_multi_layer_hidden_sizes(self):
++        net = build_net("ping", hidden_sizes=[16, 32])
++        # input->h1, h1->h2, h2->out => 3 feedforward matrices.
++        assert len(net.W_ff) == 3
++        assert net.W_ff[0].shape[1] == 16
++        assert net.W_ff[1].shape == (16, 32)
++        assert net.W_ff[-1].shape[0] == 32
++        assert net.hidden_sizes == [16, 32]
++
++    def test_ei_layers_subset(self):
++        # Two hidden layers, only layer 1 gets E-I structure.
++        net = build_net("ping", hidden_sizes=[16, 32], ei_layers=[1])
++        assert net.ei_layers == {1}
++        assert set(net.W_ei.keys()) == {"1"}
++
++    def test_explicit_weight_specs_and_ei_strength(self):
++        # Exercise the w_in / w_ee / w_ei / w_ie / w_ii spec branches plus
++        # the ei_strength derivation and trainable flags.
++        net = build_net(
++            "ping",
++            hidden_sizes=[16],
++            w_in=(0.3, 0.06),
++            w_in_sparsity=0.5,
++            w_ee=(0.1, 0.01),
++            w_ii=(0.2, 0.02),
++            ei_strength=1.0,
++            ei_ratio=2.0,
++            sparsity=0.2,
++            trainable_w_ei=True,
++            trainable_w_ie=True,
++            trainable_w_ii=True,
++        )
++        assert len(net.W_ff) == 2
++        # ei_strength wired trainable E-I weights.
++        assert net.W_ei["1"].requires_grad is True
++        assert net.W_ie["1"].requires_grad is True
++
++    def test_sparsity_only_branch(self):
++        # No explicit E-I specs and no ei_strength but sparsity>0 -> setdefault.
++        net = build_net("ping", hidden_sizes=[16], sparsity=0.3)
++        assert len(net.W_ff) == 2
++
++    def test_device_and_n_inh_per_layer(self):
++        net = build_net(
++            "ping",
++            hidden_sizes=[16],
++            device="cpu",
++            n_inh_per_layer={1: 8},
++        )
++        # Explicit N_I override honoured.
++        assert net.W_ei["1"].shape[1] == 8
++
++    def test_build_sim_net_spike_input_true(self):
++        setup_model_globals([16])
++        set_sim_dt(DT, T_MS)
++        net = _build_sim_net("ping", spike_input=True, hidden_sizes=[16])
++        # With spike_input, real input synapses are built (W_ff[0] non-zero-able).
++        assert len(net.W_ff) == 2
++
++    def test_build_sim_net_conductance_drive(self):
++        setup_model_globals([16])
++        net = _build_sim_net("ping", spike_input=False, hidden_sizes=[16])
++        # Conductance path zeroes W_in -> input matrix is all zeros.
++        assert np.allclose(net.W_ff[0].data.cpu().numpy(), 0.0)
++
++
++# ---------------------------------------------------------------------------
++# make_net
++# ---------------------------------------------------------------------------
++
++
++class TestMakeNet:
++    def test_default_w_in(self):
++        cfg_obj = C.Config(n_e=16, n_i=4, seed=1)
++        net = make_net(cfg_obj)
++        assert net.recording is True
++        assert len(net.W_ff) == 2
++
++    def test_legacy_4tuple_w_in(self):
++        cfg_obj = C.Config(n_e=16, n_i=4)
++        # 4-tuple (mean, std, dist, sparsity) form.
++        net = make_net(cfg_obj, w_in=(0.3, 0.06, "normal", 0.9))
++        assert net.recording is True
++
++    def test_short_w_in_pair(self):
++        cfg_obj = C.Config(n_e=16, n_i=4)
++        net = make_net(cfg_obj, w_in=(0.3, 0.06))
++        assert net.recording is True
++
++    def test_non_default_n_i_triggers_per_layer_override(self):
++        # n_i != n_e // 4 -> n_inh_per_layer={1: n_i}.
++        cfg_obj = C.Config(n_e=16, n_i=8)  # 16//4 == 4, so 8 differs
++        net = make_net(cfg_obj)
++        assert net.W_ei["1"].shape[1] == 8
++
++
++# ---------------------------------------------------------------------------
++# run_sim
++# ---------------------------------------------------------------------------
++
++
++class TestRunSim:
++    def test_conductance_drive_path(self):
++        # Default path: no override, no spikes -> make_step_drive builds ext_g.
++        C.cfg.n_e = 16
++        C.cfg.n_i = 4
++        C.cfg.sim_ms = T_MS
++        rec, display, weights = run_sim(DT, t_e_ping=0.3)
++        assert "hid" in rec
++        assert isinstance(weights, dict)
++        # display is the conductance drive: (T_steps, n_e).
++        assert display.shape[0] == int(T_MS / DT)
++        assert display.shape[1] == 16
++
++    def test_ext_g_override_path(self):
++        C.cfg.n_e = 16
++        C.cfg.n_i = 4
++        C.cfg.sim_ms = T_MS
++        set_sim_dt(DT, T_MS)
++        T = 30  # shorter than sim_ms/dt -> exercises the min() clamp
++        override = torch.zeros(T, 16)
++        rec, display, weights = run_sim(
++            DT, t_e_ping=0.3, ext_g_override=override
++        )
++        assert display.shape == (T, 16)
++        # T_steps clamped down to the supplied tensor length.
++        assert M.T_steps == T
++
++    def test_ext_g_override_as_numpy(self):
++        C.cfg.n_e = 16
++        C.cfg.n_i = 4
++        C.cfg.sim_ms = T_MS
++        override = np.zeros((20, 16), dtype=np.float32)
++        rec, display, weights = run_sim(
++            DT, t_e_ping=0.3, ext_g_override=override
++        )
++        assert display.shape == (20, 16)
++
++    def test_input_spikes_path(self):
++        C.cfg.n_e = 16
++        C.cfg.n_i = 4
++        C.cfg.sim_ms = T_MS
++        set_sim_dt(DT, T_MS)
++        T = 25
++        # Input spikes feed THROUGH W_in; shape (T, B, N_IN).
++        spikes = torch.zeros(T, 1, M.N_IN)
++        rec, display, weights = run_sim(
++            DT, t_e_ping=0.3, input_spikes=spikes, t_e_async=0.0006
++        )
++        assert display.shape[0] == T
++        assert M.T_steps == T
++
++
++# ---------------------------------------------------------------------------
++# run_sim_image
++# ---------------------------------------------------------------------------
++
++
++class TestRunSimImage:
++    def test_image_forward_returns_prediction(self):
++        C.cfg.n_e = 16
++        C.cfg.n_i = 4
++        C.cfg.sim_ms = T_MS
++        set_sim_dt(DT, T_MS)
++        # Flat image vector; N_IN is set from image.shape[0].
++        image = np.zeros(12, dtype=np.float32)
++        rec, pred, net = run_sim_image(DT, image)
++        assert M.N_IN == 12
++        assert isinstance(pred, int)
++        assert 0 <= pred < M.N_OUT
++        assert "hid" in rec
++
++
++# ---------------------------------------------------------------------------
++# _extract_records / extract_weights
++# ---------------------------------------------------------------------------
++
++
++class TestExtractRecords:
++    def test_stacks_lists_and_copies_tensors(self):
++        setup_model_globals([16])
++        set_sim_dt(DT, T_MS)
++        net = _build_sim_net("ping", spike_input=False, hidden_sizes=[16])
++        net.recording = True
++        # forward() loops M.T_steps times, so the drive tensor must be that long.
++        M.T_steps = 20
++        ext_g = torch.zeros(20, 16)
++        with torch.no_grad():
++            net.forward(ext_g=ext_g)
++        rec = _extract_records(net)
++        # Every recorded value became a numpy array.
++        assert all(isinstance(v, np.ndarray) for v in rec.values())
++        assert "hid" in rec
++
++
++class TestExtractWeights:
++    def test_new_style_w_ff_and_dicts(self):
++        net = build_net("ping", hidden_sizes=[16, 32], ei_layers=[1])
++        weights = extract_weights(net)
++        # Multi-layer W_ff -> W_in, W_ff_2..., W_out named entries.
++        assert "W_in" in weights
++        assert "W_out" in weights
++        # Single-key ParameterDicts collapse to the dict name.
++        assert "W_ei" in weights
++        assert "W_ie" in weights
++        # All values are flat numpy arrays.
++        assert all(isinstance(v, np.ndarray) and v.ndim == 1 for v in weights.values())
++
++    def test_multi_key_dicts_get_suffixed(self):
++        # Two E-I layers -> W_ei has keys '1' and '2' -> suffixed names.
++        net = build_net("ping", hidden_sizes=[16, 32], ei_layers=[1, 2])
++        weights = extract_weights(net)
++        assert "W_ei_1" in weights
++        assert "W_ei_2" in weights
++
++
++# ---------------------------------------------------------------------------
++# Module-level __getattr__ aliases
++# ---------------------------------------------------------------------------
++
++
++class TestModuleGetattr:
++    def test_cfg_field_alias(self):
++        C.cfg.n_e = 128
++        assert C.N_E == 128  # resolves via _CFG_ALIASES
++
++    def test_tuple_alias(self):
++        C.cfg.w_ei = (0.7, 0.07)
++        assert C.W_EI == (0.7, 0.07)
++
++    def test_device_alias(self):
++        assert C.DEVICE == C.cfg.torch_device
++
++    def test_artifact_root_alias_is_path(self):
++        from pathlib import Path
++
++        assert isinstance(C.ARTIFACT_ROOT, Path)
++
++    def test_unknown_attr_raises(self):
++        with pytest.raises(AttributeError, match="no attribute"):
++            _ = C.DOES_NOT_EXIST
++
++
++# ---------------------------------------------------------------------------
++# build_config / _sync_globals_from_cfg
++# ---------------------------------------------------------------------------
++
++
++class _Args:
++    """Minimal argparse-Namespace stand-in for build_config."""
++
++    def __init__(self, **kw):
++        for k, v in kw.items():
++            setattr(self, k, v)
++
++
++class TestBuildConfig:
++    def test_defaults_without_optional_attrs(self):
++        # Bare args: only the getattr-with-default branches fire.
++        c = C.build_config(_Args())
++        assert c.artifact_root == str(C.DEFAULT_ARTIFACT_ROOT)
++        assert c.fps == 10
++        assert c.raster_mode == "scatter"
++        # _sync_globals_from_cfg installed this Config as the module cfg.
++        assert C.cfg is c
++
++    def test_full_args_wire_every_branch(self):
++        args = _Args(
++            out_dir="/tmp/pinglab-test-out",
++            frame_rate=24,
++            n_hidden=[16, 32],
++            device="cpu",
++            raster="line",
++            drive=0.5,
++            ei_ratio=3.0,
++            ei_strength=1.0,
++            w_ei=[0.4, 0.04],
++            w_ie=[0.8, 0.08],
++            w_ee=[0.1, 0.01],
++            w_in=[0.3],  # single value -> std derived as 10%
++            input="synthetic-spikes",
++            sparsity=0.25,
++            w_in_sparsity=0.9,
++            bias=0.0005,
++            t_ms=150.0,
++        )
++        c = C.build_config(args)
++        assert c.artifact_root == "/tmp/pinglab-test-out"
++        assert c.fps == 24
++        # n_hidden list -> last element is n_e.
++        assert c.n_e == 32
++        assert c.n_i == 8
++        assert c.raster_mode == "line"
++        assert c.t_e_async == pytest.approx(0.5)
++        assert c.ei_ratio == pytest.approx(3.0)
++        # Explicit w_ei/w_ie/w_ee override the ei_strength-derived ones.
++        assert c.w_ei == (0.4, 0.04)
++        assert c.w_ie == (0.8, 0.08)
++        assert c.w_ee == (0.1, 0.01)
++        # Single-value w_in -> (mean, 10% mean).
++        assert c.w_in_spikes == (0.3, pytest.approx(0.03))
++        assert c.sparsity == pytest.approx(0.25)
++        assert c.w_in_sparsity == pytest.approx(0.9)
++        assert c.bias == pytest.approx(0.0005)
++        assert c.sim_ms == pytest.approx(150.0)
++        # synthetic-spikes without n_input -> N_IN mirrors n_e.
++        assert M.N_IN == 32
++
++    def test_n_input_sets_module_global(self):
++        args = _Args(n_input=20, input="synthetic-spikes")
++        C.build_config(args)
++        assert M.N_IN == 20
++
++    def test_dataset_input_sets_rate_globals(self):
++        args = _Args(input="dataset", spike_rate=123.0)
++        C.build_config(args)
++        assert M.max_rate_hz == pytest.approx(123.0)
++        assert M.p_scale == pytest.approx(123.0 * M.dt / 1000.0)
++
++    def test_ei_strength_without_explicit_specs(self):
++        # ei_strength present, no w_ei/w_ie -> derived tuples.
++        args = _Args(ei_strength=2.0, ei_ratio=2.0)
++        c = C.build_config(args)
++        assert c.w_ei == (2.0, pytest.approx(0.2))
++        assert c.w_ie == (4.0, pytest.approx(0.4))
+
+diff --git a/src/cli/tests/test_datasets_coverage.py b/src/cli/tests/test_datasets_coverage.py
+new file mode 100644
+index 0000000..ebdb679
+--- /dev/null
++++ b/src/cli/tests/test_datasets_coverage.py
+@@ -0,0 +1,111 @@
++"""Coverage for datasets.py — the SHD loader and load_dataset branches.
++
++The SHD loader normally reads the official ~10k-sample HDF5 files. Here we build a
++tiny synthetic pair with the same layout (labels + ragged spikes/times, spikes/units)
++so the binning path, the missing-file error, and the load_dataset dispatch branches
++are all exercised without the real dataset on disk.
++"""
++
++from __future__ import annotations
++
++import numpy as np
++import pytest
++from datasets import (
++    SHD_N_CHANNELS,
++    _load_dataset_image,
++    _load_shd,
++    _shd_cache_dir,
++    load_dataset,
++)
++
++
++def _make_synthetic_shd(path, n, seed):
++    """Write an HDF5 file matching the SHD layout: labels + vlen event arrays."""
++    import h5py
++
++    rng = np.random.RandomState(seed)
++    vt = h5py.special_dtype(vlen=np.dtype("float64"))
++    vu = h5py.special_dtype(vlen=np.dtype("int64"))
++    with h5py.File(path, "w") as f:
++        # Cycle a few classes (not random) so every class has >=2 members and a
++        # stratified 80/20 split is valid on the concatenated train+test set.
++        f["labels"] = (np.arange(n) % 4).astype(np.int64)
++        times = f.create_dataset("spikes/times", (n,), dtype=vt)
++        units = f.create_dataset("spikes/units", (n,), dtype=vu)
++        for i in range(n):
++            k = int(rng.randint(5, 15))
++            times[i] = rng.uniform(0.0, 0.9, size=k)  # event times in seconds
++            units[i] = rng.randint(0, SHD_N_CHANNELS, size=k)
++
++
++@pytest.fixture
++def shd_cache(tmp_path, monkeypatch):
++    """Point $PINGLAB_SHD_DIR at a synthetic train+test HDF5 pair."""
++    monkeypatch.setenv("PINGLAB_SHD_DIR", str(tmp_path))
++    _make_synthetic_shd(tmp_path / "shd_train.h5", n=12, seed=1)
++    _make_synthetic_shd(tmp_path / "shd_test.h5", n=8, seed=2)
++    return tmp_path
++
++
++def test_shd_cache_dir_env_override(tmp_path, monkeypatch):
++    monkeypatch.setenv("PINGLAB_SHD_DIR", str(tmp_path / "somewhere"))
++    assert _shd_cache_dir() == str(tmp_path / "somewhere")
++
++
++def test_shd_cache_dir_default(monkeypatch):
++    monkeypatch.delenv("PINGLAB_SHD_DIR", raising=False)
++    assert _shd_cache_dir() == "/tmp/shd/SHD"
++
++
++def test_load_shd_bins_events_to_dense_raster(shd_cache):
++    dt_ms, t_ms = 2.0, 100.0
++    X, y = _load_shd(dt_ms=dt_ms, t_ms=t_ms)
++    T_steps = int(round(t_ms / dt_ms))
++    assert X.shape == (20, T_steps, SHD_N_CHANNELS)  # 12 train + 8 test
++    assert y.shape == (20,)
++    assert X.dtype == np.float32
++    # dense binary raster: multiple events per (t, unit) collapse to 1.0
++    assert set(np.unique(X)).issubset({0.0, 1.0})
++    assert X.sum() > 0
++
++
++def test_load_shd_per_file_cap(shd_cache):
++    X, y = _load_shd(dt_ms=2.0, t_ms=100.0, max_samples=5)
++    assert X.shape[0] == 10  # 5 per file × 2 files
++    assert len(y) == 10
++
++
++def test_load_shd_missing_files_raises(tmp_path, monkeypatch):
++    monkeypatch.setenv("PINGLAB_SHD_DIR", str(tmp_path))  # empty dir
++    with pytest.raises(FileNotFoundError, match="SHD HDF5 files not found"):
++        _load_shd(dt_ms=1.0, t_ms=100.0)
++
++
++def test_load_dataset_shd_dispatch(shd_cache):
++    X, y = load_dataset("shd", dt_ms=2.0, t_ms=100.0, max_samples=5)
++    assert X.ndim == 3
++    assert X.shape[-1] == SHD_N_CHANNELS
++    assert len(X) == len(y)
++
++
++def test_load_dataset_shd_requires_dt_and_t(shd_cache):
++    with pytest.raises(ValueError, match="requires dt_ms and t_ms"):
++        load_dataset("shd")
++
++
++def test_load_dataset_shd_split(shd_cache):
++    X_tr, X_te, y_tr, y_te = load_dataset(
++        "shd", dt_ms=2.0, t_ms=100.0, split=True
++    )
++    assert len(X_tr) + len(X_te) == 20
++    assert len(y_te) == len(X_te)
++
++
++def test_load_dataset_unknown_name_raises():
++    with pytest.raises(ValueError, match="Unknown dataset"):
++        load_dataset("not_a_dataset")
++
++
++def test_load_dataset_image_unknown_raises():
++    with pytest.raises(ValueError, match="Unknown dataset"):
++        _load_dataset_image(dataset="not_a_dataset")
+
+diff --git a/src/cli/tests/test_infer_coverage.py b/src/cli/tests/test_infer_coverage.py
+new file mode 100644
+index 0000000..c3b7dc4
+--- /dev/null
++++ b/src/cli/tests/test_infer_coverage.py
+@@ -0,0 +1,596 @@
++"""Coverage-focused tests for src/cli/infer.py.
++
++These exercise the pure helper _hidden_sizes_from_state_dict, the perturbation
++path, the recording-backed output emitters (per_cell_rates / pop_traces /
++rasters), infer_and_snapshot() extras (tau_gaba / scale / skip_load), probe()
++and dump_weights().
++
++All configs are deliberately tiny (dt=0.1, t_ms=100, mnist, hidden [32]) so the
++whole file stays fast. One module-scoped checkpoint is trained and reused.
++
++The autouse conftest fixture resets models.py globals around every test; we do
++NOT add our own globals reset here.
++"""
++
++from __future__ import annotations
++
++from pathlib import Path
++from tempfile import TemporaryDirectory
++
++import numpy as np
++import pytest
++import torch
++from infer import (
++    _hidden_sizes_from_state_dict,
++    dump_weights,
++    infer,
++    infer_and_snapshot,
++    probe,
++)
++from train import train
++
++
++@pytest.fixture(scope="module")
++def trained_ckpt():
++    """Train ONE tiny checkpoint and reuse it across every test in this module.
++
++    Module-scoped so training (the slow part) runs exactly once. Mirrors the
++    `trained_weights` fixture in test_infer_integration.py but scoped to the
++    module instead of the function.
++    """
++    with TemporaryDirectory() as tmpdir:
++        train_dir = Path(tmpdir) / "train"
++        train_dir.mkdir()
++        train(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            epochs=2,
++            dataset="mnist",
++            max_samples=100,
++            lr=0.01,
++            hidden_sizes=[32],
++            seed=42,
++            out_dir=train_dir,
++        )
++        weights_path = train_dir / "weights.pth"
++        assert weights_path.exists(), "training should produce weights.pth"
++        yield weights_path
++
++
++@pytest.fixture
++def tmp_out():
++    with TemporaryDirectory() as tmpdir:
++        yield Path(tmpdir)
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# 1. _hidden_sizes_from_state_dict — pure, cheap, thorough
++# ─────────────────────────────────────────────────────────────────────────────
++
++
++class TestHiddenSizesFromStateDict:
++    def test_single_hidden_layer(self):
++        # W_ff.0: (N_IN, hid), W_ff.1: (hid, N_OUT). Only W_ff.0 is a hidden
++        # block; its output dim (hid) is the recovered hidden size.
++        state = {
++            "W_ff.0": torch.zeros(784, 32),
++            "W_ff.1": torch.zeros(32, 10),
++        }
++        assert _hidden_sizes_from_state_dict(state) == [32]
++
++    def test_two_hidden_layers(self):
++        # blocks: IN→h1, h1→h2, h2→OUT ⇒ hidden = [h1, h2]
++        state = {
++            "W_ff.0": torch.zeros(784, 64),
++            "W_ff.1": torch.zeros(64, 48),
++            "W_ff.2": torch.zeros(48, 10),
++        }
++        assert _hidden_sizes_from_state_dict(state) == [64, 48]
++
++    def test_no_wff_keys_returns_none(self):
++        state = {"W_ei.1": torch.zeros(8, 8), "W_ie.1": torch.zeros(32, 8)}
++        assert _hidden_sizes_from_state_dict(state) is None
++
++    def test_single_wff_block_returns_none(self):
++        # Only one W_ff block ⇒ len(idxs) < 2 ⇒ None (degenerate).
++        state = {"W_ff.0": torch.zeros(784, 32)}
++        assert _hidden_sizes_from_state_dict(state) is None
++
++    def test_ignores_non_wff_keys(self):
++        # Non-W_ff keys and a bogus non-digit W_ff key must be ignored.
++        state = {
++            "W_ff.0": torch.zeros(784, 32),
++            "W_ff.1": torch.zeros(32, 10),
++            "W_ei.1": torch.zeros(8, 8),
++            "some.other.param": torch.zeros(3),
++            "W_ff.bias": torch.zeros(5),  # not a digit index → ignored
++        }
++        assert _hidden_sizes_from_state_dict(state) == [32]
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# 2. Perturbation path through infer()
++# ─────────────────────────────────────────────────────────────────────────────
++
++
++class TestInferPerturb:
++    @pytest.mark.parametrize(
++        "mode,level",
++        [
++            ("drop", 0.2),
++            ("add", 10.0),
++            ("add_split", (10.0, 5.0)),
++        ],
++    )
++    def test_perturb_modes_return_acc(self, trained_ckpt, mode, level):
++        result = infer(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            max_samples=50,
++            hidden_sizes=[32],
++            perturb_mode=mode,
++            perturb_level=level,
++        )
++        assert isinstance(result, dict)
++        assert "acc" in result
++        assert 0.0 <= result["acc"] <= 100.0
++
++    def test_unknown_perturb_mode_raises(self, trained_ckpt):
++        with pytest.raises(ValueError, match="unknown perturbation mode"):
++            infer(
++                model_name="ping",
++                dt=0.1,
++                t_ms=100.0,
++                load_weights=trained_ckpt,
++                dataset="mnist",
++                max_samples=50,
++                hidden_sizes=[32],
++                perturb_mode="nonsense",
++                perturb_level=0.1,
++            )
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# 3. infer() output emitters
++# ─────────────────────────────────────────────────────────────────────────────
++
++
++class TestInferEmitters:
++    def test_all_outputs_written(self, trained_ckpt, tmp_out):
++        result = infer(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            max_samples=50,
++            hidden_sizes=[32],
++            out_dir=tmp_out,
++            outputs={"per_cell_rates", "pop_traces", "rasters"},
++        )
++        assert "acc" in result
++
++        # metrics.json always written
++        assert (tmp_out / "metrics.json").exists()
++
++        # per_cell_rates.npz
++        pcr = tmp_out / "per_cell_rates.npz"
++        assert pcr.exists()
++        d = np.load(pcr)
++        assert "rate_e_per_cell" in d.files
++        assert d["rate_e_per_cell"].shape[0] == 32  # N_E
++
++        # pop_traces.npz. The stratified test split keeps only a fraction of
++        # max_samples, so assert on structure (>0 trials, correct T) not the
++        # exact sample count.
++        pt = tmp_out / "pop_traces.npz"
++        assert pt.exists()
++        d = np.load(pt)
++        assert "pop_e" in d.files
++        n_trials = d["pop_e"].shape[0]
++        assert n_trials > 0
++        # T = round(100/0.1) = 1000 (round, not int, to dodge float error)
++        assert d["pop_e"].shape[1] == round(100.0 / 0.1)
++
++        # rasters.npz
++        rz = tmp_out / "rasters.npz"
++        assert rz.exists()
++        d = np.load(rz)
++        for k in ("e_trial", "e_t", "e_cell", "i_trial", "i_t", "i_cell"):
++            assert k in d.files
++        assert int(d["n_e"]) == 32
++        # rasters counts the same trials the pop traces recorded
++        assert int(d["n_trials"]) == n_trials
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# 4. infer_and_snapshot() extra paths
++# ─────────────────────────────────────────────────────────────────────────────
++
++
++class TestInferAndSnapshotExtras:
++    def test_tau_gaba_and_scale_and_skip_load(self, trained_ckpt, tmp_out):
++        # tau_gaba override + skip_load path in infer_and_snapshot. skip_load
++        # drops matching keys so strict=False load survives on a fresh sub-block.
++        infer_and_snapshot(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            hidden_sizes=[32],
++            out_dir=tmp_out,
++            tau_gaba=5.0,
++            skip_load=["W_ei"],
++        )
++        assert (tmp_out / "snapshot.npz").exists()
++
++    def test_snapshot_with_perturb_and_sample_index(self, trained_ckpt, tmp_out):
++        # sample_index path + perturb hook in snapshot.
++        infer_and_snapshot(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            hidden_sizes=[32],
++            out_dir=tmp_out,
++            sample_index=3,
++            perturb_mode="drop",
++            perturb_level=0.1,
++        )
++        assert (tmp_out / "snapshot.npz").exists()
++
++    def test_snapshot_sample_out_of_range_warns(self, trained_ckpt, tmp_out):
++        # sample far out of range for digit 0 → warns and falls back to sample 0.
++        infer_and_snapshot(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            hidden_sizes=[32],
++            out_dir=tmp_out,
++            digit=0,
++            sample=10_000_000,
++        )
++        assert (tmp_out / "snapshot.npz").exists()
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# 5. infer() scale_w_* args (in-place weight scaling path)
++# ─────────────────────────────────────────────────────────────────────────────
++
++
++class TestInferScaleWeights:
++    def test_scale_all_three(self, trained_ckpt):
++        result = infer(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            max_samples=50,
++            hidden_sizes=[32],
++            scale_w_in=1.5,
++            scale_w_ei=1.2,
++            scale_w_ie=0.8,
++        )
++        assert 0.0 <= result["acc"] <= 100.0
++
++    def test_infer_tau_gaba_override(self, trained_ckpt):
++        # Exercises the tau_gaba branch (M.tau_gaba / M.decay_gaba recompute).
++        import models as M
++
++        result = infer(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            max_samples=50,
++            hidden_sizes=[32],
++            tau_gaba=6.0,
++        )
++        assert "acc" in result
++        assert M.tau_gaba == pytest.approx(6.0)
++
++    def test_skip_load_prefix(self, trained_ckpt):
++        # Exercise the skip_load branch inside infer().
++        result = infer(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            max_samples=50,
++            hidden_sizes=[32],
++            skip_load=["W_ei"],
++        )
++        assert "acc" in result
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# 6. probe()
++# ─────────────────────────────────────────────────────────────────────────────
++
++
++class TestProbe:
++    def test_probe_fresh_net_returns_rates(self, tmp_out):
++        # Untrained net (load_weights=None), no dataset. n_in small to stay cheap.
++        result = probe(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            hidden_sizes=[32],
++            n_in=64,
++            n_batch=8,
++            input_rate_hz=25.0,
++            seed=0,
++            out_dir=tmp_out,
++        )
++        assert "rate_e_hz" in result
++        assert "rate_i_hz" in result
++        assert result["rate_e_hz"] >= 0.0
++        assert (tmp_out / "metrics.json").exists()
++
++    def test_probe_with_outputs(self, tmp_out):
++        probe(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            hidden_sizes=[32],
++            n_in=64,
++            n_batch=8,
++            input_rate_hz=25.0,
++            seed=0,
++            out_dir=tmp_out,
++            outputs={"rasters", "per_cell_rates"},
++        )
++        assert (tmp_out / "rasters.npz").exists()
++        assert (tmp_out / "per_cell_rates.npz").exists()
++
++    def test_probe_with_checkpoint(self, trained_ckpt, tmp_out):
++        # load_weights path: hidden_sizes recovered from the checkpoint, n_in
++        # must match the trained W_in (mnist → 784).
++        result = probe(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            hidden_sizes=None,
++            n_in=784,
++            n_batch=8,
++            input_rate_hz=25.0,
++            seed=0,
++            load_weights=trained_ckpt,
++            out_dir=tmp_out,
++        )
++        assert result["rate_e_hz"] >= 0.0
++
++    def test_probe_explicit_wei_wie_and_ninh(self, tmp_out):
++        # w_ei_mean/w_ie_mean override branch + n_inh sizing.
++        result = probe(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            hidden_sizes=[32],
++            n_in=64,
++            n_inh=8,
++            n_batch=8,
++            w_ei_mean=0.5,
++            w_ie_mean=1.0,
++            tau_gaba=5.0,
++            seed=0,
++            out_dir=tmp_out,
++        )
++        assert result["rate_e_hz"] >= 0.0
++
++    def test_probe_private_w_in(self, tmp_out):
++        # private_w_in identity-W_in path (scale defaults to 1.0 with w_in=None).
++        # n_in must equal n_e for the identity wiring.
++        result = probe(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            hidden_sizes=[32],
++            n_in=32,
++            n_batch=8,
++            private_w_in=True,
++            seed=0,
++            out_dir=tmp_out,
++        )
++        assert result["rate_e_hz"] >= 0.0
++
++    def test_probe_input_file(self, tmp_out):
++        # input_file primitive: build a tiny (T, B, N_IN) stream and run it.
++        T, B, N = 100, 4, 64
++        rng = np.random.default_rng(0)
++        arr = (rng.random((T, B, N)) < 0.02).astype("float32")
++        in_path = tmp_out / "input.npz"
++        np.savez(in_path, input_spikes=arr)
++        result = probe(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            hidden_sizes=[32],
++            n_in=N,
++            seed=0,
++            input_file=str(in_path),
++            out_dir=tmp_out,
++        )
++        assert result["rate_e_hz"] >= 0.0
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# 6b. smnist branches (reuses mnist data, no external download)
++# ─────────────────────────────────────────────────────────────────────────────
++
++
++@pytest.fixture(scope="module")
++def trained_ckpt_smnist():
++    """Tiny smnist checkpoint (28-input, row-by-row) for the smnist branches."""
++    with TemporaryDirectory() as tmpdir:
++        train_dir = Path(tmpdir) / "train_smnist"
++        train_dir.mkdir()
++        train(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            epochs=1,
++            dataset="smnist",
++            max_samples=100,
++            lr=0.01,
++            hidden_sizes=[32, 32],  # smnist needs ≥2 hidden layers
++            seed=42,
++            out_dir=train_dir,
++        )
++        weights_path = train_dir / "weights.pth"
++        assert weights_path.exists()
++        yield weights_path
++
++
++class TestSmnistBranches:
++    def test_infer_smnist_sets_n_in_and_t_ms(self, trained_ckpt_smnist):
++        import models as M
++
++        result = infer(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,  # overridden to 28*10 by the smnist branch
++            load_weights=trained_ckpt_smnist,
++            dataset="smnist",
++            max_samples=50,
++        )
++        assert "acc" in result
++        assert M.N_IN == 28
++        assert M.T_ms == pytest.approx(28 * 10.0)
++
++    def test_snapshot_smnist(self, trained_ckpt_smnist, tmp_out):
++        infer_and_snapshot(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt_smnist,
++            dataset="smnist",
++            out_dir=tmp_out,
++            sample=0,
++        )
++        assert (tmp_out / "snapshot.npz").exists()
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# 6c. i_override_file paths (infer + infer_and_snapshot)
++# ─────────────────────────────────────────────────────────────────────────────
++
++
++def _write_i_override(path, T, n_i, n_trials, seed=0):
++    """Build a sparse I-spike override NPZ in the format infer() expects."""
++    rng = np.random.default_rng(seed)
++    trials, ts, cells = [], [], []
++    for tr in range(n_trials):
++        # a handful of spikes per trial
++        k = 5
++        trials.append(np.full(k, tr, dtype="int32"))
++        ts.append(rng.integers(0, T, size=k).astype("int32"))
++        cells.append(rng.integers(0, n_i, size=k).astype("int32"))
++    np.savez(
++        path,
++        T=np.int32(T),
++        n_i=np.int32(n_i),
++        n_trials=np.int32(n_trials),
++        i_trial=np.concatenate(trials),
++        i_t=np.concatenate(ts),
++        i_cell=np.concatenate(cells),
++    )
++
++
++class TestIOverride:
++    def test_infer_i_override(self, trained_ckpt, tmp_out):
++        # n_i must match the checkpoint's I-pool (32//4 = 8); T = round(100/0.1).
++        ov_path = tmp_out / "iov.npz"
++        _write_i_override(ov_path, T=round(100.0 / 0.1), n_i=8, n_trials=64)
++        result = infer(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            max_samples=50,
++            hidden_sizes=[32],
++            i_override_file=str(ov_path),
++        )
++        assert "acc" in result
++
++    def test_snapshot_i_override(self, trained_ckpt, tmp_out):
++        ov_path = tmp_out / "iov_snap.npz"
++        _write_i_override(ov_path, T=round(100.0 / 0.1), n_i=8, n_trials=1)
++        infer_and_snapshot(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            hidden_sizes=[32],
++            out_dir=tmp_out,
++            i_override_file=str(ov_path),
++        )
++        assert (tmp_out / "snapshot.npz").exists()
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# 7. dump_weights()
++# ─────────────────────────────────────────────────────────────────────────────
++
++
++class TestDumpWeights:
++    def test_dump_weights_writes_npz(self, trained_ckpt, tmp_out):
++        result = dump_weights(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt,
++            dataset="mnist",
++            hidden_sizes=[32],
++            out_dir=tmp_out,
++            seed=42,
++        )
++        assert result["n_arrays"] > 0
++        out_path = tmp_out / "weights_dump.npz"
++        assert out_path.exists()
++        d = np.load(out_path)
++        # init + trained arrays for the E-I matrices and W_ff blocks
++        names = set(d.files)
++        assert any(n.startswith("W_ff_") and n.endswith("_init") for n in names)
++        assert any(n.startswith("W_ff_") and n.endswith("_trained") for n in names)
++        assert any(n.startswith("W_ei_") and n.endswith("_init") for n in names)
++
++    def test_dump_weights_smnist_and_kaiming(self, trained_ckpt_smnist, tmp_out):
++        # smnist N_IN branch + kaiming_init (randomize_init=False) path.
++        result = dump_weights(
++            model_name="ping",
++            dt=0.1,
++            t_ms=100.0,
++            load_weights=trained_ckpt_smnist,
++            dataset="smnist",
++            hidden_sizes=[32, 32],
++            out_dir=tmp_out,
++            seed=42,
++            kaiming_init=True,
++        )
++        assert result["n_arrays"] > 0
++
++    def test_dump_weights_requires_load_weights(self, tmp_out):
++        with pytest.raises(AssertionError):
++            dump_weights(
++                model_name="ping",
++                dt=0.1,
++                t_ms=100.0,
++                load_weights=None,
++                dataset="mnist",
++                hidden_sizes=[32],
++                out_dir=tmp_out,
++            )
+
+diff --git a/src/cli/tests/test_inputs_coverage.py b/src/cli/tests/test_inputs_coverage.py
+new file mode 100644
+index 0000000..d983b61
+--- /dev/null
++++ b/src/cli/tests/test_inputs_coverage.py
+@@ -0,0 +1,74 @@
++"""Coverage for inputs.make_step_drive_from_ref — the dt-invariant drive path.
++
++test_inputs.py covers drive_scale / make_step_drive / make_reference_noise; this
++file fills the remaining gap: building a drive at a target dt by interpolating
++from reference-resolution OU noise (used by the dt-stability sweep).
++"""
++
++from __future__ import annotations
++
++import numpy as np
++from inputs import (
++    drive_scale,
++    make_reference_noise,
++    make_step_drive_from_ref,
++)
++
++
++def test_from_ref_shapes_and_scaling():
++    n_e, sim_ms, dt = 8, 50.0, 0.25
++    X_i, eta_ref = make_reference_noise(n_e, sim_ms, seed=1)
++    ext_g_sim, ext_g_raw = make_step_drive_from_ref(
++        n_e,
++        dt=dt,
++        t_e_async=0.3,
++        t_e_ping=1.2,
++        step_on_ms=10.0,
++        step_off_ms=40.0,
++        sim_ms=sim_ms,
++        X_i=X_i,
++        eta_ref=eta_ref,
++    )
++    t_steps = int(sim_ms / dt)
++    assert ext_g_sim.shape == (t_steps, n_e)
++    assert ext_g_raw.shape == (t_steps, n_e)
++    # sim drive is the raw drive scaled by the dt-invariant factor
++    np.testing.assert_allclose(ext_g_sim, ext_g_raw * drive_scale(dt), rtol=1e-6)
++
++
++def test_from_ref_step_window_is_higher_than_baseline():
++    n_e, sim_ms, dt = 4, 60.0, 0.5
++    X_i, eta_ref = make_reference_noise(n_e, sim_ms, seed=7)
++    _, raw = make_step_drive_from_ref(
++        n_e,
++        dt=dt,
++        t_e_async=0.2,
++        t_e_ping=2.0,
++        step_on_ms=20.0,
++        step_off_ms=40.0,
++        sim_ms=sim_ms,
++        X_i=X_i,
++        eta_ref=eta_ref,
++        sigma_e=0.0,  # kill heterogeneity so the step is the only signal
++    )
++    t_ms = np.arange(int(sim_ms / dt)) * dt
++    inside = raw[(t_ms >= 20.0) & (t_ms < 40.0)].mean()
++    outside = raw[(t_ms < 20.0) | (t_ms >= 40.0)].mean()
++    assert inside > outside
++
++
++def test_from_ref_clips_negative_drive_to_zero():
++    n_e, sim_ms, dt = 4, 20.0, 0.5
++    X_i, eta_ref = make_reference_noise(n_e, sim_ms, seed=3)
++    _, raw = make_step_drive_from_ref(
++        n_e,
++        dt=dt,
++        t_e_async=-5.0,  # negative baseline → clipped to 0
++        t_e_ping=-5.0,
++        step_on_ms=0.0,
++        step_off_ms=0.0,
++        sim_ms=sim_ms,
++        X_i=X_i,
++        eta_ref=eta_ref,
++    )
++    assert np.all(raw >= 0.0)

@@ -14,7 +14,6 @@ import numpy as np
 import pytest
 import torch
 
-
 # ── In-process invariants (fast) ─────────────────────────────────────────
 
 

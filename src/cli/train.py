@@ -17,20 +17,16 @@ import sys
 import time as _time
 from pathlib import Path
 
-import numpy as np
-
-import torch
-
 import config as C
 import models as M
+import numpy as np
 import runlog
+import torch
 from config import (
     build_net,
-    extract_weights,
     set_sim_dt,
     setup_model_globals,
 )
-from metrics import compute_metrics
 from datasets import (
     DATASET_N_HIDDEN_DEFAULTS,
     SHD_N_CHANNELS,
@@ -38,6 +34,7 @@ from datasets import (
     load_dataset,
 )
 from encoders import EVAL_SEED, encode_batch, encode_smnist
+from metrics import compute_metrics
 from scan import _auto_device, primary_hid_key, primary_inh_key
 
 log = logging.getLogger("cli")
@@ -106,7 +103,6 @@ def observe_epoch(
     fig,
     axes,
     writer,
-    burn_in_ms=20.0,
     total_epochs=100,
     grad_ratios=None,
     lr=None,
@@ -121,11 +117,10 @@ def observe_epoch(
     net.recording = False
 
     rec = net.spike_record
-    burn = int(burn_in_ms / dt)
 
-    spk_e = _to_np(rec[primary_hid_key(rec)])[burn:]
+    spk_e = _to_np(rec[primary_hid_key(rec)])
     _ik = primary_inh_key(rec)
-    spk_i = _to_np(rec[_ik])[burn:] if _ik else None
+    spk_i = _to_np(rec[_ik]) if _ik else None
 
     return compute_metrics(spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH)
 
@@ -168,7 +163,6 @@ def train(
     """Train a model on mnist / smnist / shd, optionally producing a sweep video."""
     from torch.utils.data import DataLoader, TensorDataset
 
-    burn_in_ms = 20.0
 
     seed_everything(seed)
 
@@ -316,7 +310,6 @@ def train(
         "w_in_sparsity": w_in_sparsity,
         "input_rate": M.max_rate_hz,
         "v_grad_dampen": v_grad_dampen,
-        "burn_in_ms": burn_in_ms,
         "batch_size": bs,
         "grad_clip": GRAD_CLIP,
         "max_samples": max_samples,
@@ -382,19 +375,10 @@ def train(
             net(input_spikes=ref_spikes)
         net.recording = False
         rec = net.spike_record
-        burn = int(burn_in_ms / dt)
 
-        spk_e = _to_np(rec[primary_hid_key(rec)])[burn:]
+        spk_e = _to_np(rec[primary_hid_key(rec)])
         _ik = primary_inh_key(rec)
-        spk_i = _to_np(rec[_ik])[burn:] if _ik else None
-        spk_h1 = _to_np(rec["hid_1"])[burn:] if "hid_1" in rec else None
-        spk_o = _to_np(rec["out"])[burn:] if "out" in rec else None
-        ext_g = (
-            _to_np(rec["input"])[burn:]
-            if "input" in rec
-            else np.zeros((len(spk_e), spk_e.shape[1]))
-        )
-        weights = extract_weights(net)
+        spk_i = _to_np(rec[_ik]) if _ik else None
 
         snapshot_init_state = compute_metrics(
             spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
@@ -430,7 +414,6 @@ def train(
                 "max_samples": max_samples,
                 "dataset": dataset,
                 "v_grad_dampen": v_grad_dampen,
-                "burn_in_ms": burn_in_ms,
                 "n_params": n_params,
                 "n_trainable": n_trainable,
             },
@@ -466,7 +449,7 @@ def train(
     no_improve = 0
     t_start = _time.perf_counter()
     prev_lr = lr
-    epoch_records = []  # accumulated for metrics.json
+    epoch_records: list = []  # accumulated for metrics.json
     best_epoch = 0
     wtracker = runlog.WarningTracker()
     jsonl = runlog.MetricsJsonl(out_dir / "metrics.jsonl")
@@ -546,14 +529,17 @@ def train(
                 grad_sum += gn_f
                 n_grad += 1
             n_samples_train += y_b.size(0)
-            # Throttled within-epoch heartbeat: at most one line per interval,
-            # so long epochs (MNIST/SHD) show life without flooding the log.
+            # Within-epoch heartbeat: a live partial row (running loss under the
+            # loss column, batch counter in the dynamics gap, elapsed under dt).
             running_loss = total_loss / max(n_batches, 1)
             hb.beat(
                 log,
-                f"    · ep {epoch + 1}/{epochs}  batch {batch_idx + 1}/{n_train_batches}"
-                f"  loss {running_loss:.3f}"
-                f"  {int(_time.perf_counter() - t_train_compute)}s",
+                runlog.epoch_progress(
+                    epoch + 1, epochs,
+                    f"batch {batch_idx + 1}/{n_train_batches}",
+                    _time.perf_counter() - t_train_compute,
+                    loss=running_loss,
+                ),
             )
         train_compute_s = _time.perf_counter() - t_train_compute
         if device.type == "mps":
@@ -582,7 +568,6 @@ def train(
         logit_scale_sum = 0.0  # mean |logit|, the raw logit magnitude
         eval_gen = torch.Generator().manual_seed(EVAL_SEED)
         n_test_batches = len(test_loader)
-        hb_eval = runlog.Heartbeat()
         with torch.no_grad():
             for X_b, y_b in test_loader:
                 X_b, y_b = X_b.to(device), y_b.to(device)
@@ -612,13 +597,17 @@ def train(
                         test_rate_e_sum += float(v) * B
                     elif k.startswith("inh"):
                         test_rate_i_sum += float(v) * B
-                hb_eval.beat(
+                hb.beat(
                     log,
-                    f"    · ep {epoch + 1}/{epochs}  eval {test_batches}/{n_test_batches}"
-                    f"  {int(_time.perf_counter() - t_eval)}s",
+                    runlog.epoch_progress(
+                        epoch + 1, epochs,
+                        f"eval {test_batches}/{n_test_batches}",
+                        _time.perf_counter() - t_eval,
+                    ),
                 )
 
         eval_s = _time.perf_counter() - t_eval
+        hb.clear()  # erase the live progress line; the finished row prints in its place
 
         acc = 100.0 * correct / total
         avg_train = total_loss / max(n_batches, 1)
@@ -653,12 +642,11 @@ def train(
             net(input_spikes=ref_spikes)
         net.recording = False
         torch.set_rng_state(rng_state)
-        burn = int(burn_in_ms / dt)
 
         _rec = net.spike_record
-        spk_e = _to_np(_rec[primary_hid_key(_rec)])[burn:]
+        spk_e = _to_np(_rec[primary_hid_key(_rec)])
         _ik = primary_inh_key(_rec)
-        spk_i = _to_np(_rec[_ik])[burn:] if _ik else None
+        spk_i = _to_np(_rec[_ik]) if _ik else None
         epoch_metrics = compute_metrics(
             spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
         )
@@ -785,19 +773,10 @@ def train(
             net(input_spikes=ref_spikes)
         net.recording = False
         rec = net.spike_record
-        burn = int(burn_in_ms / dt)
 
-        spk_e = _to_np(rec[primary_hid_key(rec)])[burn:]
+        spk_e = _to_np(rec[primary_hid_key(rec)])
         _ik = primary_inh_key(rec)
-        spk_i = _to_np(rec[_ik])[burn:] if _ik else None
-        spk_h1 = _to_np(rec["hid_1"])[burn:] if "hid_1" in rec else None
-        spk_o = _to_np(rec["out"])[burn:] if "out" in rec else None
-        ext_g = (
-            _to_np(rec["input"])[burn:]
-            if "input" in rec
-            else np.zeros((len(spk_e), spk_e.shape[1]))
-        )
-        weights = extract_weights(net)
+        spk_i = _to_np(rec[_ik]) if _ik else None
         end_state = compute_metrics(
             spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
         )
@@ -833,13 +812,12 @@ def train(
             "max_samples": max_samples,
             "dataset": dataset,
             "v_grad_dampen": v_grad_dampen,
-            "burn_in_ms": burn_in_ms,
             "batch_size": bs,
             "grad_clip": GRAD_CLIP,
             "n_params": n_params,
             "n_trainable": n_trainable,
         },
-        "init": snapshot_init_state if snapshot_init_state else init_state,
+        "init": snapshot_init_state,
         "epochs": epoch_records,
         "end": end_state,
         "best_acc": best_acc,

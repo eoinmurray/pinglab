@@ -23,11 +23,13 @@ import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
@@ -35,8 +37,8 @@ from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers import theme  # noqa: E402
-from nb022 import cell_dir as shared_cell_dir, cell_name  # noqa: E402
+from nb022 import cell_dir as shared_cell_dir  # noqa: E402
+from nb022 import cell_name
 
 SLUG = "nb037"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -254,7 +256,6 @@ def run_perturbation_sweep(train_dir: Path, mode: str, level) -> dict:
     applied inside the CLI's forward loop (models.py hook). acc + hidden E rate
     come from metrics.json.
     """
-    cfg = json.loads((train_dir / "config.json").read_text())
     lvl = list(level) if isinstance(level, (list, tuple)) else [level]
     out_dir = (ARTIFACTS / "perturb" / f"{mode}_{'_'.join(str(x) for x in lvl)}_{train_dir.name}").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -365,7 +366,7 @@ def plot_perturbation_curves(
         ax.tick_params(labelsize=theme.SIZE_TICK)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.yaxis.set_major_locator(plt.matplotlib.ticker.MultipleLocator(20))
+        ax.yaxis.set_major_locator(mticker.MultipleLocator(20))
         ax.grid(True, axis="y", alpha=0.15, linewidth=0.5)
     ax_drop.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
     ax_add.legend(

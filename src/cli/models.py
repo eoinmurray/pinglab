@@ -9,10 +9,9 @@ Layer primitives: exp_synapse, lif_step.
 
 from __future__ import annotations
 
-
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 
 # ── Simulation ────────────────────────────────────────────────────────────
 dt: float = 0.25  # ms — integration timestep
@@ -355,8 +354,9 @@ def _parse_weight_spec(w, default_dist, default_sparsity):
 #   True            — fixed fan-in (exact-K): every post cell (column) keeps
 #     exactly K = round((1-sparsity)·N_pre) random presynaptic inputs.
 #     Removes the binomial fan-in variance — the Brunel/Vreeswijk convention.
-# Set via the --exact-k CLI flag (M.EXACT_K_CONNECTIVITY = True).
-EXACT_K_CONNECTIVITY = False
+# Set via the --exact-k CLI flag (M.EXACT_K_CONNECTIVITY = True). Annotated bool
+# (not the inferred Literal[False]) so entry points can flip it to True.
+EXACT_K_CONNECTIVITY: bool = False
 
 
 def init_weight(shape, dist="normal", p1=0.0, p2=0.1, sparsity=0.0):
@@ -463,11 +463,12 @@ def i_step_coba(v, ref, g_e, g_i=None, threshold_offset=None, v_noise_std=0.0):
     )
 
 
-# ── Base class ───────────────────────────────────────────────────────────
+# ── Model class ──────────────────────────────────────────────────────────
 
 
-class SNNBase(nn.Module):
+class COBANet(nn.Module):
     recording = False
+    signed_weights = False
 
     def _set_meta(self, B, n_spk, rec, sizes):
         t_sec = T_ms / 1000.0
@@ -478,27 +479,6 @@ class SNNBase(nn.Module):
                 k: (v if isinstance(v, torch.Tensor) else torch.stack(v))
                 for k, v in rec.items()
             }
-
-    def project_dales(self) -> None:
-        """Project trainable weights back into the Dale's-law cone.
-
-        Override in subclasses that enforce signed weights at forward
-        time via clamp(min=0). After every optimiser step, calling
-        this method makes the *stored* parameter values match what the
-        network actually uses — so a downstream consumer reading
-        weights.pth sees the constrained weights, not the raw
-        pre-clamp ones with negative entries that the optimiser drove
-        toward but the forward pass discarded. No-op by default.
-        """
-        pass
-
-
-# ── Model classes ────────────────────────────────────────────────────────
-
-
-
-class COBANet(SNNBase):
-    signed_weights = False
 
     def __init__(
         self,

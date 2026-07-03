@@ -18,7 +18,7 @@ The trained networks this entry uses are produced once in the shared training hu
 
 ## Abstract
 
-[nb037](/notebooks/nb037/) varied $\tau_\text{GABA}$ at inference and the per-cell E rate tracked the gamma cycle. Does that survive *re-training* at each $\tau_\text{GABA}$? Yes. Across $\tau_\text{GABA} \in \{4.5, 6, 9, 12, 18, 27\}$ ms × 3 seeds, $r_E = 0.76 + 0.216 \cdot f_\gamma$ with $R^2 = 0.997$. The slope is per-cycle E-cell participation; the intercept is a non-rhythmic baseline; accuracy stays at 81–89% across the sweep. The cycle clock constrains what the network can become.
+[nb037](/notebooks/nb037/) varied $\tau_\text{GABA}$ at inference and the per-cell E rate tracked the gamma cycle. Does that survive *re-training* at each $\tau_\text{GABA}$? Yes. Across $\tau_\text{GABA} \in \{4.5, 6, 9, 12, 18, 27\}$ ms × 3 seeds, $r_E = 0.87 + 0.195 \cdot f_\gamma$ with $R^2 = 0.996$. The slope is per-cycle E-cell participation; the intercept is a non-rhythmic baseline; accuracy stays at 80–90% across the sweep. The cycle clock constrains what the network can become.
 
 ## Method
 
@@ -45,7 +45,7 @@ We fit this across the 18 cells.
 | training | $a$ (Hz) | $p$ (Hz/Hz) | $R^2$ |
 |---|---|---|---|
 | 30 epochs | 1.14 | 0.166 | 0.990 |
-| 100 epochs | **0.76** | **0.216** | **0.997** |
+| 100 epochs | **0.87** | **0.195** | **0.996** |
 
 ## Results
 
@@ -61,6 +61,6 @@ We fit this across the 18 cells.
   One MNIST trial through each network. The cycle period stretches from ≈ 17 ms ($r_E = 14.5$ Hz) to ≈ 63 ms ($r_E = 4.6$ Hz) — the eye and the spectrum agree.
 </Figure>
 
-<Figure id="Figure 4" title="Retrained τ_GABA sweep — post-training E rate tracks measured f_γ" src="/figures/notebooks/nb041/rate_vs_fgamma.svg" alt="Top panel: scatter of mean post-training E rate (Hz) vs measured gamma frequency f_γ (Hz). Six clusters, one per τ_GABA value (annotated 4.5–27 ms), three seeds each. Error bars in both dimensions. An affine fit line r_E = 0.76 + 0.216 · f_γ passes through every error bar with R² = 0.997. Bottom panel: test accuracy vs same x-axis — flat at 81–89% across the entire f_γ range. f_γ on the x-axis is the per-trial PSD peak median.">
+<Figure id="Figure 4" title="Retrained τ_GABA sweep — post-training E rate tracks measured f_γ" src="/figures/notebooks/nb041/rate_vs_fgamma.svg" alt="Top panel: scatter of mean post-training E rate (Hz) vs measured gamma frequency f_γ (Hz). Six clusters, one per τ_GABA value (annotated 4.5–27 ms), three seeds each. Error bars in both dimensions. An affine fit line r_E = 0.87 + 0.195 · f_γ passes through every error bar with R² = 0.996. Bottom panel: test accuracy vs same x-axis — flat at 80–90% across the entire f_γ range. f_γ on the x-axis is the per-trial PSD peak median.">
   The law itself. Top: mean post-training E rate vs $f_\gamma$, six clusters × three seeds, error bars from seed variance — the affine fit passes through every error bar. Bottom: per-cluster accuracy is flat, so the rate change is not paid in classification.
 </Figure>

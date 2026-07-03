@@ -37,13 +37,13 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
+from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402
 from helpers.run_dirs import prepare as prepare_run_dirs  # noqa: E402
 from helpers.run_id import next_run_id  # noqa: E402
 from helpers.stamp import stamp_figure  # noqa: E402
-from helpers import theme  # noqa: E402
 
 SLUG = "nb049"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
@@ -1081,7 +1081,9 @@ def fig_phase_portrait(out_path: Path, run_id: str) -> None:
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
             alphas = np.linspace(0.22, 1.0, len(segments))
             seg_colors = [to_rgba(color, alpha=a) for a in alphas]
-            lc = LineCollection(segments, colors=seg_colors, linewidths=1.6, zorder=4)
+            # LineCollection accepts an ndarray of segments at runtime; the stub
+            # types it as Sequence → library-stub false positive.
+            lc = LineCollection(segments, colors=seg_colors, linewidths=1.6, zorder=4)  # ty: ignore[invalid-argument-type]
             ax.add_collection(lc)
             # Start marker — hollow
             ax.scatter(
@@ -1200,8 +1202,10 @@ def fig_acc_rate_trajectory(out_path: Path, run_id: str) -> None:
         points = np.array([e_mean, a_mean]).T.reshape(-1, 1, 2)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
         seg_pings = 0.5 * (p_mean[:-1] + p_mean[1:])
+        # LineCollection accepts an ndarray of segments at runtime; the stub
+        # types it as Sequence → library-stub false positive.
         lc = LineCollection(
-            segments, cmap=cmap, norm=norm,
+            segments, cmap=cmap, norm=norm,  # ty: ignore[invalid-argument-type]
             array=seg_pings, linewidths=2.2, zorder=4,
         )
         ax.add_collection(lc)
