@@ -35,7 +35,7 @@ packages = ["src/cli", "src/notebooks"]
 testpaths = ["src/cli/tests"]
 pythonpath = ["src/cli"]
 markers = [
-    "slow: end-to-end tests that spawn subprocesses or hit the GPU",
+    "slow: minutes of wall-clock — subprocess/GPU end-to-end tests OR heavy in-process torch training; `pytest -m 'not slow'` is the fast iteration lane",
     "regression: checks against calibrated artifacts; skipped if absent",
 ]
 filterwarnings = [

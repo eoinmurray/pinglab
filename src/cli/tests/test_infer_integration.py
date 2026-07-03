@@ -15,6 +15,10 @@ import torch
 from infer import infer, infer_and_snapshot
 from train import train
 
+# Whole file trains real (tiny) torch models via fixtures and runs inference —
+# minutes of wall-clock. Marked slow so `pytest -m "not slow"` is a true fast lane.
+pytestmark = pytest.mark.slow
+
 
 @pytest.fixture
 def tmp_output_dir():
