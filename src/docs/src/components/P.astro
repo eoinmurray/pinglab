@@ -29,18 +29,27 @@ const STATUS_COLOUR: Record<string, string> = {
 };
 const colour = STATUS_COLOUR[status] ?? "#999";
 const label = id ?? "";
+// Anchor id so a URL can point at one paragraph (…/ar009/#p-1.1).
+const anchor = id ? `p-${String(id).trim().replace(/\s+/g, "-")}` : undefined;
 ---
 
-<p class="review-p" data-review-id={id} data-review-status={status}>
+<p class="review-p" id={anchor} data-review-id={id} data-review-status={status}>
   <span
     class="review-marker"
     style={`color: ${colour};`}
-    title={`§${label} — ${status}`}
+    title={anchor ? `§${label} — ${status} · click to copy link` : `§${label} — ${status}`}
   >
-    <span class="review-line">
-      <span class="review-dot" aria-hidden="true">●</span>
-      <span class="review-id">{label}</span>
-    </span>
+    {anchor ? (
+      <a class="review-line review-anchor" href={`#${anchor}`} data-para-anchor>
+        <span class="review-dot" aria-hidden="true">●</span>
+        <span class="review-id">{label}</span>
+      </a>
+    ) : (
+      <span class="review-line">
+        <span class="review-dot" aria-hidden="true">●</span>
+        <span class="review-id">{label}</span>
+      </span>
+    )}
     <span class="review-status">{status}</span>
   </span>
   <slot />
@@ -49,6 +58,34 @@ const label = id ?? "";
 <style>
   .review-p {
     position: relative;
+    scroll-margin-top: 1.5rem;
+  }
+
+  /* The id marker is a link to this paragraph's anchor. */
+  a.review-anchor {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  a.review-anchor:hover {
+    opacity: 1;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  /* Brief "copied" confirmation, driven by the script. */
+  .review-marker[data-copied] .review-status {
+    display: none;
+  }
+  .review-marker[data-copied]::after {
+    content: "copied ✓";
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.85;
+  }
+  /* Flag the paragraph a URL pointed at. */
+  .review-p:target .review-marker {
+    opacity: 1;
   }
 
   .review-marker {
@@ -103,3 +140,28 @@ const label = id ?? "";
     }
   }
 </style>
+
+<script>
+  // Clicking a paragraph marker jumps to its anchor (native <a href="#…">) and
+  // copies the shareable URL to the clipboard, with a brief "copied ✓" flash.
+  // Delegated + idempotent, so it covers every <P> and survives view transitions.
+  (() => {
+    if ((window as any).__paraAnchorBound) return;
+    (window as any).__paraAnchorBound = true;
+    document.addEventListener("click", (e) => {
+      const link = (e.target as HTMLElement)?.closest?.(
+        "a[data-para-anchor]",
+      ) as HTMLAnchorElement | null;
+      if (!link) return;
+      const href = link.getAttribute("href") || "";
+      const url = location.origin + location.pathname + location.search + href;
+      navigator.clipboard?.writeText(url).then(() => {
+        const marker = link.closest(".review-marker") as HTMLElement | null;
+        if (!marker) return;
+        marker.dataset.copied = "1";
+        setTimeout(() => delete marker.dataset.copied, 1200);
+      });
+      // let the native anchor set the hash + scroll (don't preventDefault)
+    });
+  })();
+</script>
