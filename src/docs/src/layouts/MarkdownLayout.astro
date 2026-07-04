@@ -57,6 +57,21 @@ const dateLabel = (() => {
 const statusMeta = frontmatter?.status
   ? STATUS_META[normalizeStatus(frontmatter.status)]
   : null;
+
+// Approximate prose word count from the raw markdown body: drop code, imports,
+// math, and JSX/HTML tags (keeping the text inside them, e.g. captions), then
+// count word-ish tokens. A reading-length cue, not an exact figure.
+const wordCount = (() => {
+  let t = String(body || "");
+  t = t.replace(/```[\s\S]*?```/g, " "); // fenced code
+  t = t.replace(/`[^`]*`/g, " "); // inline code
+  t = t.replace(/^\s*(?:import|export)\b.*$/gm, " "); // import/export lines
+  t = t.replace(/\$\$[\s\S]*?\$\$/g, " "); // display math
+  t = t.replace(/\$[^$\n]*\$/g, " "); // inline math
+  t = t.replace(/<[^>]+>/g, " "); // JSX / HTML tags (keep inner text)
+  return (t.match(/[A-Za-z0-9][A-Za-z0-9'’-]*/g) || []).length;
+})();
+
 const metaItems = [
   entryId && { text: entryId },
   statusMeta && { text: statusMeta.label, title: statusMeta.description },
@@ -65,6 +80,7 @@ const metaItems = [
     text: collectionLabel,
     href: `/collections/${frontmatter.collection}/`,
   },
+  wordCount > 0 && { text: `${wordCount.toLocaleString("en-GB")} words` },
 ].filter(Boolean) as { text: string; title?: string; href?: string }[];
 
 type Heading = { depth: number; slug: string; text: string };
