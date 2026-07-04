@@ -1,15 +1,16 @@
 # Taskfile for pinglab — https://taskfile.dev  (run `task` to list everything)
 #
-# Stack: Python via uv (src/cli, src/notebooks); docs via bun (src/docs).
+# Stack: Python via uv (tools/snn = engine, experiments/ = runners); publishing
+# via Typst (writings/ + artifacts/, built by demolab-engine). See `task build`/`dev`.
 # House rule: everything here runs LOCAL. No task dispatches Modal — that
-# spends real money, so it stays an explicit opt-in via a notebook's own
-# --modal-gpu flag (e.g. `task nb NB=nb022 -- --modal-gpu A100`), never a task.
+# spends real money, so it stays an explicit opt-in via a runner's own
+# --modal-gpu flag (e.g. `task run -- nb022 --modal-gpu A100`), never a task.
 
 version: "3"
 silent: true
 
 vars:
-  CLI: uv run python src/cli/cli.py
+  CLI: uv run python tools/snn/tool.py
 
 tasks:
   default:
@@ -19,14 +20,13 @@ tasks:
 
   # ── Setup ───────────────────────────────────────────────────────────────
   install:
-    desc: Install all dependencies (Python via uv, docs via bun)
+    desc: Install all dependencies (Python via uv)
     cmds:
       - uv sync --dev
-      - cd src/docs && bun install
 
   # ── Quality gate (mirrors .github/workflows/lint.yml) ───────────────────
   lint:
-    desc: Ruff lint over src/cli + src/notebooks
+    desc: Ruff lint over tools/snn + experiments
     cmds:
       - uv run ruff check {{.CLI_ARGS}}
 
@@ -41,12 +41,12 @@ tasks:
       - uv run ty check
 
   nb-gate:
-    desc: Enforce the notebook→CLI import boundary (no `import cli`/`models`)
+    desc: Enforce the experiment→tool boundary (no `import tools`/`models` — subprocess only)
     cmds:
-      - uv run ruff check src/notebooks --select TID
+      - uv run ruff check experiments --select TID
 
   check:
-    desc: Full quality gate — lint + typecheck + notebook boundary (what CI runs)
+    desc: Full quality gate — lint + typecheck + experiment boundary (what CI runs)
     cmds:
       - task: lint
       - task: typecheck
@@ -71,9 +71,9 @@ tasks:
         vars: { CLI_ARGS: "" }
       - task: typecheck
       - >-
-        uv run pytest src/cli/tests -m "not slow"
-        --ignore=src/cli/tests/test_train_integration.py
-        --ignore=src/cli/tests/test_infer_integration.py
+        uv run pytest tools/snn/tests -m "not slow"
+        --ignore=tools/snn/tests/test_train_integration.py
+        --ignore=tools/snn/tests/test_infer_integration.py
         {{.CLI_ARGS}}
 
   test:all:
@@ -82,12 +82,12 @@ tasks:
       - task: lint
         vars: { CLI_ARGS: "" }
       - task: typecheck
-      - uv run pytest src/cli/tests {{.CLI_ARGS}}
+      - uv run pytest tools/snn/tests {{.CLI_ARGS}}
 
   test:cov:
     desc: Tests with the coverage report (mirrors CI)
     cmds:
-      - uv run pytest src/cli/tests --cov --cov-report=term-missing
+      - uv run pytest tools/snn/tests --cov --cov-report=term-missing
 
   # ── CLI (pinglab-cli) ───────────────────────────────────────────────────
   sim:
@@ -105,42 +105,38 @@ tasks:
     cmds:
       - "{{.CLI}} {{.CLI_ARGS}}"
 
-  # ── Notebooks (the reproduce-a-figure runners) ──────────────────────────
-  nb:
-    desc: "Run a notebook runner — e.g. task nb NB=nb054 -- --no-wipe-dir"
-    requires:
-      vars: [NB]
+  # ── Publishing (Typst via demolab-engine) ───────────────────────────────
+  # `task build` / `task dev` drive the Typst engine over writings/ + artifacts/;
+  # `task run` runs a demolab experiment.
+  build:
+    desc: "Build the Typst bundle → artifacts/site/ (web) + artifacts/pdfs/ (PDFs + book)"
     cmds:
-      - uv run python src/notebooks/{{.NB}}.py {{.CLI_ARGS}}
+      - uv run python demolab-engine/build/build.py
 
-  # ── Docs (astro via bun, in src/docs) ───────────────────────────────────
-  docs:
-    desc: Docs dev server (astro, http://localhost:3000)
-    dir: src/docs
+  dev:
+    desc: "Serve the Typst site with hot-reload (auto-picks a free port from 3000; override: task dev -- 3010)"
     cmds:
-      - bun run dev --port 3000 --host
+      # Regenerate the manifest once (picks up added/removed entries), then let
+      # `typst watch` serve + live-reload on edits to any .typ / lib.typ / style.css.
+      - uv run python demolab-engine/build/build.py --generate-only
+      - |
+        port="{{.CLI_ARGS}}"
+        if [ -z "$port" ]; then
+          # typst's own port fallback is unreliable, so find the first free one ourselves.
+          port=3000
+          while lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; do port=$((port + 1)); done
+        fi
+        echo "→ serving on http://localhost:$port  (Ctrl-C to stop)"
+        typst watch --format bundle --features bundle,html --root . demolab-engine/build/main.typ artifacts/site/ --port "$port"
 
-  docs:build:
-    desc: Build the docs site
-    dir: src/docs
+  run:
+    desc: "Run a demolab experiment end-to-end — e.g. task run -- nb047"
     cmds:
-      - bun run build
-
-  docs:preview:
-    desc: Preview the built docs site
-    dir: src/docs
-    cmds:
-      - bun run preview
-
-  docs:feed:
-    desc: Refresh the paper feed (paperfeed fetch)
-    dir: src/docs
-    cmds:
-      - bun run feed
+      - uv run python experiments/{{.CLI_ARGS}}.py
 
   # ── Housekeeping ────────────────────────────────────────────────────────
   clean:
     desc: Remove Python caches (__pycache__, .pytest_cache) — leaves artifacts
     cmds:
-      - find src -type d -name __pycache__ -prune -exec rm -rf {} +
-      - rm -rf .pytest_cache src/cli/.pytest_cache
+      - find tools experiments -type d -name __pycache__ -prune -exec rm -rf {} +
+      - rm -rf .pytest_cache tools/snn/.pytest_cache
