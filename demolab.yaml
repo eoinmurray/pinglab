@@ -1,0 +1,5 @@
+# pinglab publishing config (read by the demolab engine; omit fields for defaults).
+name: pinglab
+book-title: pinglab — the book
+contents-title: pinglab — contents
+# Collections are filled in as writings migrate (a collection's slug title-cases by default).

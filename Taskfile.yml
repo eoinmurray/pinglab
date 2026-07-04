@@ -138,6 +138,28 @@ tasks:
     cmds:
       - bun run feed
 
+  # ── demolab publishing (Typst) — the new structure, coexists with docs/ ──
+  # `task build` / `task dev` drive the Typst engine over writings/ + artifacts/;
+  # `task run` runs a demolab experiment. The Astro `docs:*` tasks above stay live
+  # until the migration is done (side-by-side).
+  build:
+    desc: "Build the Typst bundle → artifacts/site/ (web) + artifacts/pdfs/ (PDFs + book)"
+    cmds:
+      - uv run python demolab-engine/build/build.py
+
+  dev:
+    desc: "Serve the Typst site with hot-reload (port 3001; override: task dev -- 3010)"
+    cmds:
+      - uv run python demolab-engine/build/build.py --generate-only
+      - >-
+        typst watch --format bundle --features bundle,html --root .
+        demolab-engine/build/main.typ artifacts/site/ --port {{.CLI_ARGS | default "3001"}}
+
+  run:
+    desc: "Run a demolab experiment end-to-end — e.g. task run -- exp000"
+    cmds:
+      - uv run python experiments/{{.CLI_ARGS}}.py
+
   # ── Housekeeping ────────────────────────────────────────────────────────
   clean:
     desc: Remove Python caches (__pycache__, .pytest_cache) — leaves artifacts

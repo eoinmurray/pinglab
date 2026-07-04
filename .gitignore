@@ -73,3 +73,7 @@ src/keynote/*.key
 
 # refcheck: PDFs staged for local Astro serving — never distributed on push
 src/docs/public/papers/
+
+# demolab (Typst publishing) scratch + build output
+temp/
+artifacts/site/
