@@ -137,7 +137,7 @@ figcaption,
 p { margin: 1rem 0; }
 img, video { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; }
 figure { margin: 1.75rem 0; text-align: center; }
-figcaption { margin-top: .5rem; }
+figcaption { margin-top: .5rem; text-align: left; }
 table { border-collapse: collapse; margin: 1.25rem 0; font-size: var(--fs-small); }
 th, td { border: 1px solid var(--rule); padding: .35rem .75rem; text-align: left; }
 th { background: var(--paper-tint); font-weight: 600; }
