@@ -259,6 +259,12 @@ def train(
         "trainable_w_ie": trainable_w_ie,
         "seed": seed,
         "tau_gaba_ms": float(M.tau_gaba),
+        # Swept / recipe-varying knobs — must be structured fields, not just
+        # buried in run.sh: fr_reg_upper_theta (θ_u) is the independent variable
+        # of the spike-budget frontier, and readout_w_out_scale differs by model.
+        "fr_reg_upper_theta": fr_reg_upper_theta,
+        "fr_reg_upper_strength": fr_reg_upper_strength,
+        "readout_w_out_scale": readout_w_out_scale,
         # Provenance (git SHA, run_id, started_at, device, torch version,
         # python env hash) — keeps train-mode config.json at parity with
         # sim/image modes.
@@ -701,9 +707,16 @@ def train(
             spk_e, spk_i, dt, model_name, n_e=M.N_HID, n_i=M.N_INH
         )
 
-    # Save weights
+    # Save weights — best-accuracy state (deployment) AND the final-epoch state.
+    # best_epoch can be far earlier than the last epoch: accuracy plateaus while
+    # the firing-rate attractor keeps drifting (nb024), so the end-of-training
+    # network is a genuinely different, scientifically interesting object. Saving
+    # only best_state would make that drifted network unrecoverable. net still
+    # holds the final weights here (the end-state snapshot below is no_grad, and
+    # best_state is not reloaded until test_predictions further down).
     if best_state is not None:
         torch.save(best_state, out_dir / "weights.pth")
+    torch.save(net.state_dict(), out_dir / "weights_final.pth")
 
     # Write structured metrics for tests/analysis (parallels output.log).
     # run_finished_at is the canonical "when did this run actually produce
@@ -714,6 +727,7 @@ def train(
     metrics_path = out_dir / "metrics.json"
     metrics_blob = {
         "mode": "train",
+        "schema_version": 1,
         "model": model_name,
         "run_finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "config": {
@@ -726,6 +740,18 @@ def train(
             "w_in_sparsity": w_in_sparsity,
             "ei_strength": ei_strength,
             "ei_ratio": ei_ratio,
+            # Full training-dynamics config carried here too, so metrics.json is
+            # self-sufficient for the frontier/ladder analyses without opening the
+            # co-located config.json — every knob that shapes the loss landscape.
+            "tau_gaba_ms": float(M.tau_gaba),
+            "fr_reg_upper_theta": fr_reg_upper_theta,
+            "fr_reg_upper_strength": fr_reg_upper_strength,
+            "readout_w_out_scale": readout_w_out_scale,
+            "readout_mode": readout_mode,
+            "dales_law": dales_law,
+            "trainable_w_ei": trainable_w_ei,
+            "trainable_w_ie": trainable_w_ie,
+            "seed": seed,
             "n_hidden": M.N_HID,
             "n_inh": M.N_INH,
             "n_in": M.N_IN,

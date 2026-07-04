@@ -29,12 +29,22 @@ def compute_metrics(spk_e, spk_i, dt, model_name="ping", n_e=1024, n_i=256):
     per_neuron_counts = spk_e.sum(axis=0)
     active_frac = float((per_neuron_counts > 0).sum()) / n_e
 
-    # nb054 lobe–trough contrast (pingness): rhythmicity of the E population,
-    # 0 = flat/asynchronous, → 1 as sharp volleys separate against near-silence.
+    # E-population rhythmicity (nb054). Keep the FULL rhythmicity output, not
+    # just contrast: lobe_lag is the autocorrelogram peak → gamma period → f0
+    # (the collection's headline quantity), and re-deriving any of these needs
+    # the spike raster, which trained cells do not persist. Emitting them here
+    # means every epoch record and the init/end snapshots carry them for free.
+    # contrast: lobe–trough (pingness), 0 = flat/asynchronous → 1 as sharp
+    # volleys separate against near-silence.
     try:
-        contrast = rhythmicity_metrics(spk_e, dt).get("contrast")
+        rhy = rhythmicity_metrics(spk_e, dt)
     except Exception:
-        contrast = None
+        rhy = {}
+    contrast = rhy.get("contrast")
+    lobe_lag = rhy.get("lobe_lag")
+
+    def _f(x):
+        return float(x) if x is not None else None
 
     return {
         "rate_e": rate_e,
@@ -42,6 +52,14 @@ def compute_metrics(spk_e, spk_i, dt, model_name="ping", n_e=1024, n_i=256):
         "cv": pop_cv,
         "act": active_frac,
         "contrast": float(contrast) if contrast is not None else 0.0,
+        # Gamma frequency (Hz) from the autocorrelogram lobe lag, plus the raw
+        # rhythmicity scalars so nothing is lost. f0_hz is None when no rhythm
+        # is resolved (e.g. asynchronous COBA), not 0 — absence ≠ 0 Hz.
+        "f0_hz": (1000.0 / lobe_lag) if lobe_lag else None,
+        "lobe_lag_ms": _f(lobe_lag),
+        "trough_lag_ms": _f(rhy.get("trough_lag")),
+        "iei_mode_lag_ms": _f(rhy.get("iei_mode_lag")),
+        "lobe_to_trough": _f(rhy.get("lobe_to_trough")),
     }
 
 
