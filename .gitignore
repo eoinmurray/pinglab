@@ -69,3 +69,7 @@ src/vite/public/manifest.json
 # Keynote source files — large binaries, not useful in source
 src/keynote/*.key
 .coverage
+
+
+# refcheck: PDFs staged for local Astro serving — never distributed on push
+src/docs/public/papers/
