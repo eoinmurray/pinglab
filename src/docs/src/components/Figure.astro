@@ -44,7 +44,7 @@ const hasMedia = typeof src === "string" && src.length > 0;
     <div
       role="img"
       aria-label={alt || "No figure yet"}
-      class="mb-[0.8rem] flex aspect-[16/9] w-full items-center justify-center rounded-[1px] border border-dashed border-rule bg-paper font-serif text-[0.9rem] italic text-muted-soft"
+      class="figure-placeholder mb-[0.8rem] flex aspect-[16/9] w-full items-center justify-center rounded-[1px] border border-dashed border-rule bg-paper font-serif text-[0.9rem] italic text-muted-soft"
     >
       No figure yet — run the notebook to generate.
     </div>
@@ -304,5 +304,52 @@ const hasMedia = typeof src === "string" && src.length > 0;
         open(t as HTMLImageElement);
       }
     });
+  })();
+</script>
+
+<script>
+  // If a figure image fails to load (file not generated yet, broken path, or a
+  // network error), swap it for the same dashed "no figure yet" placeholder the
+  // component renders when there's no src — so a broken-image icon never shows.
+  // Idempotent; re-runs on Astro view transitions.
+  (() => {
+    // Must match the placeholder markup rendered above (the .figure-placeholder
+    // <div>) so a missing and a broken figure look identical.
+    const CLASS =
+      "figure-placeholder mb-[0.8rem] flex aspect-[16/9] w-full items-center justify-center rounded-[1px] border border-dashed border-rule bg-paper font-serif text-[0.9rem] italic text-muted-soft";
+
+    const swap = (img: HTMLImageElement) => {
+      if (!img.isConnected || img.dataset.figureFailed) return;
+      const div = document.createElement("div");
+      div.setAttribute("role", "img");
+      div.setAttribute("aria-label", img.alt || "Figure unavailable");
+      div.className = CLASS;
+      div.textContent = "No figure yet — run the notebook to generate.";
+      img.replaceWith(div);
+    };
+
+    const check = (img: HTMLImageElement) => {
+      // `complete` is true once the load finished OR errored; a broken load
+      // leaves naturalWidth at 0.
+      if (img.complete) {
+        if (img.naturalWidth === 0) swap(img);
+      } else {
+        img.addEventListener("error", () => swap(img), { once: true });
+        img.addEventListener(
+          "load",
+          () => {
+            if (img.naturalWidth === 0) swap(img);
+          },
+          { once: true },
+        );
+      }
+    };
+
+    const run = () =>
+      document
+        .querySelectorAll<HTMLImageElement>("img[data-figure-zoom]")
+        .forEach(check);
+    run();
+    document.addEventListener("astro:page-load", run);
   })();
 </script>
