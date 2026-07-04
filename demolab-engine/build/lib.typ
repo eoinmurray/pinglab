@@ -188,6 +188,9 @@
   web-styles
   set text(font: "New Computer Modern", size: 11pt)
   set par(justify: true)
+  // Left-align figure captions. In the PDF, align() does it; in HTML, style.css's
+  // figcaption rule does — so the align (a paged-only fn) never runs during HTML export.
+  show figure.caption: it => context { if target() == "html" { it } else { align(left, it) } }
   // outline() queries headings across the whole bundle; keep per-entry docs out of
   // the book's table of contents.
   set heading(outlined: false)
@@ -276,6 +279,7 @@
 #let book-page(entries, brand: default-brand) = {
   set text(font: "New Computer Modern", size: 11pt)
   set par(justify: true)
+  show figure.caption: set align(left) // left-align captions (book is PDF-only)
   // Table of contents (page numbers auto-resolved from each entry's heading), no cover.
   outline(title: [#brand.contents-title], depth: 1)
   for e in entries {
