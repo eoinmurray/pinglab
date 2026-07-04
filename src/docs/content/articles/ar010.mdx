@@ -1,0 +1,592 @@
+---
+title: "Literature Companion"
+date: 2026-07-02
+entry: 10
+structure: notes
+collection: gamma-gated-sparsity
+status: draft
+---
+
+A companion to the reference list of [the manuscript (ar009)](/articles/ar009/). Each entry has three parts: a brief, source-grounded *summary* of the cited paper; a note on its *relevance* to this work — which claim, method, or section it supports, grounds, or contrasts with; and a *used for* pointer naming the concrete places in the manuscript (section, figure, or finding) where the citation actually appears. Entries are numbered to match the manuscript's reference list, so a citation such as [26] in the paper corresponds to entry 26 here.
+
+Reviews were drafted by a fan-out of web-grounded agents (one per reference) and lightly edited; entries not fully verified against the source are flagged.
+
+---
+
+#### 1. Buzsáki & Wang (2012) — [*Mechanisms of Gamma Oscillations*](https://doi.org/10.1146/annurev-neuro-062111-150444)
+
+*Summary.* This canonical review lays out the cellular-synaptic basis of gamma oscillations (defined as 30-90 Hz), arguing that gamma-band rhythmogenesis is "inextricably tied to perisomatic inhibition" via GABA_A synapses. It distinguishes the two mechanistic classes still used today: the interneuron-network (I-I / ING) model, where mutual inhibition among fast-spiking interneurons sets frequency by IPSC decay kinetics, and the excitatory-inhibitory-loop (E-I / PING) model, where pyramidal cells drive interneurons via AMPA and receive delayed GABA_A feedback so that fast excitation and delayed inhibition alternate. In the E-I model, axon-conduction and synaptic delays impose a characteristic phase lag (approximately 5 ms, up to ~90°) between pyramidal and interneuron spikes, and these delays set the gamma frequency; gamma coincides with irregular single-cell firing.
+
+*Relevance.* This is the foundational citation defining the PING (E-I loop) mechanism our manuscript builds its entire architecture on: a fixed pyramidal-interneuron reciprocal loop with no E-E or I-I connections, so any rhythm is unambiguously PING by Buzsáki-Wang's taxonomy. It grounds our gamma frequency band (our ~25-44 Hz sits within their 30-90 Hz definition), our claim that gamma timing is set by the E-I loop and inhibitory kinetics rather than mean drive, and the E-to-I spike phase-lag signature that motivates our phase/timing-gate results (finding 6). It also legitimizes our conductance-based GABA_A perisomatic inhibition as the biophysical substrate of the gate, and frames gamma as a structural/architectural property of the E-I circuit rather than a learned one.
+
+*Used for.* The opening of the Introduction (§1.1), in the sentence associating the gamma band with attention, binding, and gating in cortex — establishing at the outset that gamma is functionally implicated in cortical computation.
+
+---
+
+#### 2. Fries (2015) — [*Rhythms for Cognition: Communication through Coherence*](https://doi.org/10.1016/j.neuron.2015.09.034)
+
+*Summary.* Fries's 2015 Neuron review lays out the Communication through Coherence (CTC) hypothesis: activated neuronal groups oscillate, and rhythmic inhibition creates recurring windows of high and low excitability, so effective communication between two groups requires their gamma rhythms to be coherent with the right phase lag — spikes from a presynaptic group must arrive in the postsynaptic group's window of maximal excitability to have impact. He argues gamma-band synchronization (roughly 30-90 Hz) is fast enough that a volley of excitation escapes the trailing inhibition and drives postsynaptic cells, while phase relationships select which inputs are heard. The updated framework adds a directional division of labor: predominantly bottom-up/feedforward influences are carried in gamma, and predominantly top-down/feedback control is exerted in the alpha-beta band (roughly 8-20 Hz).
+
+*Relevance.* This is a canonical citation for the premise that gamma rhythms are functional rather than epiphenomenal — that the phase/timing structure of rhythmic inhibition, not its mean level, gates communication. It directly grounds our finding (6) that the gate lives in the timing/phase structure of inhibition (jitter that holds mean I-rate fixed still moves E-rate; the drop-tolerant/add-fragile asymmetry), which is essentially a CTC-style claim operationalized inside a trainable PING network. It also motivates why a single unambiguous PING E-to-I loop is worth isolating: CTC treats the PING gamma as the substrate for windowed excitability, and our work reframes that same windowing as a metabolic constraint that clamps excitatory firing rates roughly an order of magnitude below a non-rhythmic baseline.
+
+*Used for.* Two places: §1.1, among the works linking gamma to attention, binding, and gating; and §3.3, where we read the gamma cycle as the computational unit for classification in the spirit of communication-through-coherence.
+
+---
+
+#### 3. Fries, Reynolds, Rorie & Desimone (2001) — [*Modulation of Oscillatory Neuronal Synchronization by Selective Visual Attention*](https://doi.org/10.1126/science.1055465)
+
+*Summary.* Fries, Reynolds, Rorie & Desimone recorded from macaque area V4 while monkeys attended one stimulus and ignored a nearby distracter. Neurons driven by the attended stimulus showed increased gamma-band (35–90 Hz) synchronization together with reduced low-frequency (&lt;17 Hz) synchronization relative to neurons at nearby sites driven by distracters. They argue that, because postsynaptic integration windows are short, this localized rise in gamma synchrony amplifies the impact of behaviorally relevant signals downstream — a landmark demonstration that attention modulates the temporal (phase) structure of firing, not just mean rate.
+
+*Relevance.* This is a keystone empirical anchor for our claim that gamma's computational role lives in the timing/phase structure of activity rather than its mean level (finding 6). Fries et al. show attention selectively boosts gamma synchrony while their short-integration-window argument mirrors our result that a PING-trained network integrates a concatenated digit stream over roughly one gamma cycle (finding 7). It also grounds the broader framing that gamma is behaviorally functional and worth building into a spiking architecture, motivating our use of a fixed PING loop as a metabolic/structural gate rather than treating the rhythm as epiphenomenal.
+
+*Used for.* §1.1, grouped with the citations tying gamma-band synchrony to attentional selection at the start of the Introduction.
+
+---
+
+#### 4. Gray, König, Engel & Singer (1989) — [*Oscillatory Responses in Cat Visual Cortex Exhibit Inter-Columnar Synchronization Which Reflects Global Stimulus Properties*](https://doi.org/10.1038/338334a0)
+
+*Summary.* Gray, König, Engel and Singer recorded from cat striate cortex and showed that stimulus-driven neuronal responses oscillate in the gamma band (~40–60 Hz), and that oscillations in spatially separated cortical columns synchronize with near-zero phase lag. Critically, this inter-columnar synchronization is not fixed wiring but reflects global stimulus properties: two spatially separate cell groups synchronize strongly when driven by a single long continuous moving bar, but weakly or not at all when driven by two independent bars moving in opposite directions. This is the foundational empirical evidence for the "binding-by-synchrony" hypothesis — that gamma-band temporal coordination, rather than firing rate alone, carries relational structure.
+
+*Relevance.* This is the canonical experimental grounding for treating cortical gamma as a real, functionally meaningful rhythm rather than an epiphenomenon — it anchors our claim that a PING E↔I loop producing a ~25–44 Hz gamma rhythm is biologically motivated. It most directly supports our finding (6) that the computational content of gamma lives in the timing/phase structure of activity, not its mean level, since Gray et al. show it is the temporal coordination (synchrony), not the rate, that encodes the global "belongs-together" relation. It also motivates the biophysical, non-trained E↔I coupling in our model: gamma here is a structural feature of cortical dynamics with a demonstrated stimulus-dependent role, consistent with our interpretation of gamma as an architectural constraint.
+
+*Used for.* §1.1, cited as the original visual-cortex observation of stimulus-driven gamma.
+
+---
+
+#### 5. Whittington, Traub, Kopell, Ermentrout & Buhl (2000) — [*Inhibition-Based Rhythms: Experimental and Mathematical Observations on Network Dynamics*](https://doi.org/10.1016/S0167-8760(00)00173-2)
+
+*Summary.* A foundational review synthesizing experiment, large-scale simulation, and mathematical analysis to argue that CNS oscillations spanning ~12-80 Hz (beta and gamma bands) are generated by, or inextricably linked to, the dynamics of GABA_A-ergic inhibitory interneurons. It sets out the two canonical circuit motifs for these rhythms — interneuron-network gamma (ING), where mutually coupled inhibitory cells synchronize on their own, and pyramidal-interneuron network gamma (PING), where the reciprocal excitatory-inhibitory feedback loop paces the rhythm — and shows the oscillation frequency is set by the decay kinetics of GABA_A inhibition, with each cell tending to fire at most once per cycle. It pairs pharmacology (anaesthetics, sedatives, ketamine/opiates acting on inhibition) with formal analysis of coupled-oscillator synchronization to explain how coherent network rhythms emerge as an collective property.
+
+*Relevance.* This is the paper that names and defines the PING mechanism our architecture instantiates — a reciprocal E-to-I / I-to-E loop with no E-to-E or I-to-I coupling — so it grounds our claim that the rhythm in our network is unambiguously PING rather than ING. It also supplies the biophysical rationale for our central firing-rate results: the near-one-spike-per-gamma-cycle discipline it describes is exactly the mechanism behind our affine rate law r_E = a + p·f_gamma and the order-of-magnitude excitatory-rate clamp, while its Kopell/Ermentrout mathematical-analysis lineage is the tradition our 4D conductance mean-field / Hopf-bifurcation reduction extends.
+
+*Used for.* §1.1, in the sentence distinguishing the two canonical generation mechanisms, ING and PING — the taxonomy that makes our pure E↔I loop unambiguously PING.
+
+---
+
+#### 6. Williams et al. (2026) — [*Fast Spiking Interneurons Autonomously Generate Fast Gamma Oscillations in the Medial Entorhinal Cortex with Excitation Strength Tuning ING-PING Transitions*](https://doi.org/10.1523/ENEURO.0452-25.2026)
+
+*Summary.* Combining whole-cell patch-clamp with optogenetics (Thy1-ChR2 and PV-ChR2 mice) and NetPyNE network simulations (100 PV+ interneurons, 400 stellate cells), Williams et al. show that fast-spiking PV+ interneurons in medial entorhinal cortex autonomously generate fast gamma (interneuron-network gamma, ING) at ≈113–144 Hz — persisting with reduced power after AMPA-receptor blockade (DNQX), proving it does not require excitatory pacing. Crucially, their model demonstrates that the strength of excitatory drive onto interneurons is the tuning parameter for the ING↔PING transition: weak drive yields fast ING (≈100–140 Hz), while strengthening it shifts the network to slower PING-dominated oscillations (≈60–100 Hz).
+
+*Relevance.* This directly grounds our manuscript's central mechanistic commitment: we build a network with a pure E↔I loop (no E→E or I→I) so that any rhythm is unambiguously PING, and this paper establishes the experimental/modeling distinction between ING (mutual inhibition) and PING (E↔I) that makes our architectural choice meaningful. Their finding that E→I coupling strength tunes the ING↔PING regime is the biological counterpart to our finding (2) that gamma onset across the W^EI × W^IE coupling plane is a Hopf bifurcation — both frame E→I synaptic strength as the control knob for whether and how gamma emerges. It supports our claim that a single E↔I loop is a legitimate, physiologically grounded PING generator rather than an artifact.
+
+*Used for.* §1.1, alongside [5], for the ING-versus-PING distinction that motivates isolating a pure E↔I loop.
+
+---
+
+#### 7. Börgers (2017) — [*The PING Model of Gamma Rhythms*](https://doi.org/10.1007/978-3-319-51171-9_30)
+
+*Summary.* Börgers' textbook chapter (Ch. 30 of "An Introduction to Modeling Neuronal Dynamics," Springer 2017) is a didactic derivation of the pyramidal–interneuron network gamma (PING) mechanism: RTM excitatory cells drive Wang–Buzsáki interneurons, whose feedback inhibition silences the E-cells until it decays and firing resumes, producing a population rhythm of about 30–80 Hz (≈45 Hz emerges within ≈50 ms of asynchronous onset). He shows the gamma period is a small multiple of the ≈10 ms GABA_A decay but depends far more sensitively on external drive than on inhibitory conductance or decay time (Table 30.1: a 1% drive reduction shifts the period 0.66%, versus 0.10% for g_IE and 0.14% for τ_d,I). He also establishes that PING needs neither E→E nor I→I connectivity — recurrent excitation actually destroys the rhythm (Fig. 30.12) — and that a "suppression boundary" separates rhythmic from non-rhythmic states, requiring drive to E-cells to be strong enough and drive to I-cells weak enough that interneurons fire only when prompted by an E-cell volley.
+
+*Relevance.* This is the canonical reference for the exact circuit motif our manuscript builds on: a fixed E↔I loop with no E→E or I→I connections, so any rhythm is unambiguously PING — a point Börgers makes explicitly by showing recurrent excitation is unnecessary and even harmful. It grounds our finding (2) that gamma arises from the E↔I loop and finding (5) that the E-rate is set by the per-synapse I→E weight rather than pool size, since Börgers scales conductances by expected input count and shows synaptic strengths, not neuron numbers, govern the rhythm. His "at most one I-cell response per E-cell volley" picture and the suppression-boundary/drive-dependence results underpin our claims that the gamma cycle imposes a ≈1-spike-per-cycle ceiling on excitatory firing (finding 5) and that inhibitory timing, not mean level, gates the rate (finding 6).
+
+*Used for.* The load-bearing PING citation and source of the fixed loop-weight values: §1.1 (PING arises from an E↔I loop), §2.4 (the loop weights are held at the canonical biophysical values of [7]), §3.1 (the inductive bias is paid at design time via these weights), and Methods §5.1–§5.2 (parameters and the no-E→E / no-I→I architecture).
+
+---
+
+#### 8. Cardin, Carlén, Meletis, Knoblich, Zhang, Deisseroth, Tsai & Moore (2009) — [*Driving Fast-Spiking Cells Induces Gamma Rhythm and Controls Sensory Responses*](https://doi.org/10.1038/nature08002)
+
+*Summary.* Using optogenetics in mouse barrel cortex in vivo, Cardin et al. drove channelrhodopsin-expressing fast-spiking PV+ interneurons at a range of frequencies (8–200 Hz) and found that this selectively amplified LFP power in the gamma band (~20–80 Hz), whereas driving regular-spiking pyramidal cells amplified only lower frequencies (8–24 Hz) — a double dissociation. They further showed that the phase of a whisker (sensory) input relative to the light-driven 40 Hz gamma cycle controlled the amplitude, timing, and precision of the evoked response, because the rhythmic FS-cell IPSP suppresses transmission at its peak and permits it after decay, sharpening sensory responses.
+
+*Relevance.* This is the canonical causal demonstration that fast-spiking inhibitory interneurons generate gamma and that the gate lives in the timing of inhibition, not its mean level — grounding our core claims that a fixed E↔I (PING) loop produces gamma (~25–44 Hz) and that the firing-rate gate resides in the phase structure of inhibition (our jitter and drop/add-asymmetry findings). Our manuscript cites it as biological evidence for PING-generated gamma and phase-based control of excitatory transmission, motivating why we hold the E↔I loop fixed and why gamma acts as a structural/architectural constraint on excitatory firing rather than a learned one.
+
+*Used for.* §1.1, for the optogenetic demonstration that driving fast-spiking interneurons generates gamma in vivo; and §4.3, where perturbing inhibitory timing optogenetically is proposed as a follow-up experiment.
+
+---
+
+#### 9. Sohal, Zhang, Yizhar & Deisseroth (2009) — [*Parvalbumin Neurons and Gamma Rhythms Enhance Cortical Circuit Performance*](https://doi.org/10.1038/nature07991)
+
+*Summary.* Sohal et al. used optogenetics in mouse neocortex to establish the causal role of fast-spiking parvalbumin (PV) interneurons in gamma (30-80 Hz) rhythms: halorhodopsin-mediated inhibition of PV cells selectively reduced gamma power (~20%, P&lt;0.001) while sparing other bands, whereas channelrhodopsin-2 driving of PV cells was sufficient to generate emergent gamma even from non-rhythmic principal-cell input. Dynamic-clamp experiments injecting simulated currents at 40 Hz versus 8 Hz or non-rhythmic patterns showed gamma-timescale modulation increased pyramidal-cell gain and boosted information transmission (from 0.43 to 0.62 bits per gamma cycle, P&lt;0.001), improving signal-to-noise by reducing noise entropy without raising response entropy.
+
+*Relevance.* This is the canonical experimental grounding for two of our load-bearing claims: that gamma arises from a pyramidal-interneuron (PING-style) E-I feedback loop, and that the loop is generated/gated by the inhibitory cell population rather than E-E connectivity — mirroring our fixed E↔I architecture with no E-E or I-I coupling. It also supplies the functional rationale for our metabolic-gate framing (gamma as a structural constraint that improves circuit performance), letting us cite an in-vivo demonstration that gamma reorganizes excitatory firing and enhances signal transmission, which we contrast with our finding that in a trained SNN the same loop clamps excitatory rate roughly an order of magnitude while matching accuracy.
+
+*Used for.* §1.1 (optogenetic control of gamma by fast-spiking interneurons) and §4.3 (as an in-vivo timing-perturbation precedent for future work).
+
+---
+
+#### 10. Phensy et al. (2026) — [*Prefrontal Gamma Oscillations Engage Dynamic Cell Type-Specific Configurations to Support Flexible Behavior*](https://doi.org/10.1016/j.neuron.2026.05.002)
+
+*Summary.* Using dual-color voltage imaging and optogenetics in mouse prefrontal cortex, Phensy et al. show that parvalbumin (PV) interneurons dynamically entrain mediodorsal-thalamus-projecting pyramidal neurons at ~40 Hz gamma, both locally and across hemispheres. Rather than a single global rhythm, gamma synchrony forms multiple distinct, circuit-specific configurations that are recruited in a behavior-specific manner, and disrupting this cell-type-specific synchronization impairs cognitive flexibility. The work casts prefrontal gamma as a reconfigurable, PV-generated coordination mechanism linking specific projection neuron ensembles to specific behavioral demands.
+
+*Relevance.* This is an in-vivo, cell-type-resolved demonstration of exactly the pyramidal–PV interneuron gamma loop our PING network abstracts: it grounds our claim that a fixed E↔I loop generating ~25–44 Hz gamma is the biologically canonical substrate, and that the interneuron pool acts on excitatory pyramidal cells through timed inhibition. It supports our framing of gamma as a structural gate/router for excitatory activity (rather than a byproduct), paralleling our finding that the gate lives in the timing/phase of inhibition and that PING coordinates which excitatory cells fire when. It is background/biological-plausibility support rather than a methodological or quantitative point of comparison for our firing-rate-economy results.
+
+*Used for.* §1.1 (optogenetic gamma generation) and §4.3 (in-vivo inhibitory-timing perturbation as a proposed experiment).
+
+---
+
+#### 11. Offermanns, Pöpplau & Hanganu-Opatz (2026) — [*Developmental Embedding of Parvalbumin Interneurons Drives Local and Crosshemispheric Prefrontal Gamma Synchrony*](https://doi.org/10.1016/j.pneurobio.2025.102866)
+
+*Summary.* Using bilateral extracellular recordings plus cell-type-selective optogenetic manipulation of parvalbumin-positive (PV+) and somatostatin-positive (SOM+) interneurons in the medial prefrontal cortex (mPFC) of non-anesthetized postnatal-day-16-to-60 mice, the authors show that the inhibitory efficacy and functional network integration of PV+ (but not SOM+) interneurons increases with age. This age-dependent embedding of PV+ cells causally controls the protracted emergence of local prefrontal gamma power and of crosshemispheric gamma synchrony, which strengthens over development in step with rising local gamma. The paper thus assigns the developmental generation of adult-like prefrontal gamma specifically to PV+ interneuron maturation rather than to SOM+ circuits.
+
+*Relevance.* Our PING mechanism makes the interneuron population the gamma pacemaker of the E↔I loop, and this paper provides the in vivo, causal, cell-type-resolved evidence that the relevant interneurons are PV+ fast-spiking cells — grounding the biological identity of the I-population in our loop and the claim that a dedicated E↔I inhibitory circuit generates gamma. The SOM+-negative dissociation supports our design choice of a single PV-like E↔I loop as the sufficient gamma generator, and the finding that PV+ integration, not merely its presence, sets gamma strength parallels our result that the rhythm (and its firing-rate clamp) is architectural — a property of how inhibition is wired into the loop rather than of any single learned weight. It is background/support for our motivation, not a competing model.
+
+*Used for.* §1.1, in the cluster establishing that activating fast-spiking interneurons drives gamma in intact cortex.
+
+---
+
+#### 12. Whittington, Traub & Jefferys (1995) — [*Synchronized Oscillations in Interneuron Networks Driven by Metabotropic Glutamate Receptor Activation*](https://doi.org/10.1038/373612a0)
+
+*Summary.* In rat hippocampal and neocortical slices, activating metabotropic glutamate receptors evokes an emergent ~40 Hz gamma oscillation carried by networks of GABA-A-coupled inhibitory interneurons (an interneuron-network gamma, ING, mechanism), and these synchronized IPSP oscillations can entrain pyramidal-cell discharge. The oscillation frequency is set jointly by the net tonic excitatory drive to the interneurons and by the kinetics (decay time constant) of the GABA-A IPSPs between them, establishing inhibition as the timing element of cortical gamma.
+
+*Relevance.* This is a foundational citation for our central premise that a recurrent E-I loop with GABA-A inhibition generates gamma and that the rhythm's frequency is governed by inhibitory synaptic weight and kinetics rather than excitatory drive alone; our finding (5) that the post-training E-rate is affine in f_gamma and set by the per-synapse W^IE echoes their "frequency set by IPSP kinetics and interneuron excitation" result. It also grounds finding (6) that the gate lives in the timing/phase structure of inhibition, and usefully contrasts with our architecture: they demonstrate pure ING (interneuron-only synchronization), whereas we deliberately isolate PING with no I-to-I connectivity, so citing it sharpens the claim that our rhythm is unambiguously E-I-loop-driven.
+
+*Used for.* §1.1, cited for the earlier in-vitro recordings of interneuron-network gamma.
+
+---
+
+#### 13. Wang & Buzsáki (1996) — [*Gamma Oscillation by Synaptic Inhibition in a Hippocampal Interneuronal Network Model*](https://doi.org/10.1523/JNEUROSCI.16-20-06402.1996)
+
+*Summary.* Wang & Buzsáki show, via computer simulation of a sparsely and randomly connected network of GABAergic fast-spiking interneurons, that mutual synaptic inhibition alone (an I-I loop, no excitation) can generate coherent gamma-band oscillations (20-80 Hz, peaking near 30-50 Hz) even though individual cells span 0-400 Hz. The rhythm is set by the GABA-A decay time constant (≈10 ms, giving an optimal τ_syn/T ratio near 0.2), and network-wide synchrony requires a critical minimum of roughly 60 synaptic contacts per cell that does not scale with network size, while it is readily degraded by heterogeneity in the drive.
+
+*Relevance.* This is the canonical demonstration that an inhibition-based loop imposes a gamma clock whose frequency is dictated by inhibitory synaptic kinetics rather than intrinsic single-cell properties, grounding our claim that a fixed E-I (PING) loop produces a rhythm in the ~25-44 Hz band. It provides the ING counterpoint to our PING mechanism and supports our finding that the gate lives in the timing/phase structure of inhibition and that the excitatory rate is affine in f_γ (each cell firing at most once per gamma cycle), since Wang-Buzsáki likewise tie the period to the GABA-A decay constant. It also anchors the biophysical values we clamp for the recurrent inhibitory weights and the conductance-based COBA LIF formalism used throughout our model and mean-field reduction.
+
+*Used for.* §1.1, cited for the biophysical interneuron-network model of gamma.
+
+---
+
+#### 14. Bartos, Vida & Jonas (2007) — [*Synaptic Mechanisms of Synchronized Gamma Oscillations in Inhibitory Interneuron Networks*](https://doi.org/10.1038/nrn2044)
+
+*Summary.* Bartos, Vida & Jonas review the synaptic basis of gamma-frequency (roughly 30-90 Hz) network oscillations, arguing that fast-spiking, parvalbumin-expressing, soma-targeting interneurons are the key generators. Combining experimental data (hippocampus/neocortex) with computational modeling, they show that mutual fast GABA-A inhibition among these interneurons — the "interneuron network gamma" (ING) mechanism — is sufficient to synchronize the pool, and that specialized synaptic features (fast, large, proximally located IPSCs, short latencies, plus electrical coupling via gap junctions) turn the interneuron network into a robust and frequency-tunable gamma oscillator. The rhythm's frequency is set by the kinetics and strength of recurrent inhibition rather than by cell-intrinsic properties.
+
+*Relevance.* This is a canonical reference grounding the biophysical premise of our PING loop: that gamma is generated by fast GABA-A inhibition from PV-type interneurons and that its frequency and synchrony are controlled by inhibitory synaptic kinetics/weights. It supports our mechanistic claims that the gate resides in the timing/phase structure of inhibition rather than its mean level (finding 6) and that the post-training excitatory rate is set by the per-synapse inhibitory weight W^IE, not the interneuron pool size (finding 5). It also situates our fixed, biophysically-valued E&lt;->I loop within the established inhibition-based-oscillation literature, and its ING framing provides the natural contrast to our explicitly PING (E&lt;->I, no I->I) architecture in which inhibition alone does not close the loop. *(partially verified — spot-check.)*
+
+*Used for.* §1.1, for the synaptic mechanisms that synchronize the interneuron pool.
+
+---
+
+#### 15. Kopell, Börgers, Pervouchine, Malerba & Tort (2010) — [*Gamma and Theta Rhythms in Biophysical Models of Hippocampal Circuits*](https://doi.org/10.1007/978-1-4419-0996-1_15)
+
+*Summary.* A canonical review chapter (in Hippocampal Microcircuits, Springer Series in Computational Neuroscience) surveying how biophysical single-compartment models of CA1/CA3 circuits — pyramidal cells plus fast-spiking basket and O-LM interneurons with Na/K, AMPA and GABA-A kinetics — generate gamma (30-90 Hz) and theta (4-12 Hz) rhythms and their interaction. It lays out the two gamma mechanisms, PING (pyramidal-interneuron network gamma, where E-cell volleys recruit I-cells that then impose a rhythmic inhibitory window pacing the next E-volley) and ING, and shows that PING requires the drive to I-cells to be weak relative to E-cells; a sharp boundary in parameter space separates the PING regime from a "suppression" regime where over-driven interneurons fire autonomously and silence the pyramidal cells, so small excitability changes can toggle the network between rhythmic activity and suppression.
+
+*Relevance.* This is a foundational touchstone for our core mechanistic claim: that a fixed E↔I (PING) loop generates gamma and clamps excitatory firing via the timing of inhibition. It grounds our definition of PING as an E→I→E loop (no E→E or I→I), our observation that the gate lives in the phase/timing structure of inhibition rather than its mean level (their inhibitory-window pacing), and our finding that each E-cell fires ≈once per gamma cycle. Their sharp PING-to-suppression boundary in the drive/coupling plane is the biological analogue of the supercritical Hopf boundary we map across the W^EI × W^IE plane and of the ~10× excitatory-rate reduction we attribute to architecture rather than learning.
+
+*Used for.* §1.2, among the biophysical PING studies; and §3.7, where the implications for microcircuits with richer connectivity are flagged as open.
+
+---
+
+#### 16. Viriyopase, Memmesheimer & Gielen (2016) — [*Cooperation and Competition of Gamma Oscillation Mechanisms*](https://doi.org/10.1152/jn.00493.2015)
+
+*Summary.* A computational study (Journal of Neurophysiology, 2016) of networks with excitatory pyramidal cells and inhibitory interneurons coupled by chemical and electrical (gap-junction) synapses, asking how the two gamma-generating mechanisms — interneuron gamma (ING, from mutual inhibition) and pyramidal-interneuron gamma (PING, from the E to I to E loop) — interact. The central result is competitive: when a network can support both, the mechanism producing the HIGHER frequency "wins," setting the network rhythm (30–80 Hz gamma) and suppressing the slower mechanism; gap junctions and inhibition can either aid or hinder oscillations depending on interneuron type (I vs II) and coupling strength. It also notes that pyramidal firing rates stay well below the oscillation frequency during PING, a previously unexplained feature.
+
+*Relevance.* Grounds our manuscript's core PING vocabulary and the claim that a pyramidal-interneuron E to I loop is a canonical, well-characterized gamma generator distinct from interneuron-only (ING) mechanisms — supporting our design choice to isolate PING by removing E to E and I to I connectivity. Most directly, its observation that pyramidal cells fire far below the gamma frequency prefigures our finding (5) that trained excitatory cells emit at most ~1 spike per gamma cycle, making the E-rate affine in f_gamma; we cite it as prior mechanistic grounding for the low-rate, cycle-locked firing that underlies our metabolic-gate interpretation.
+
+*Used for.* §1.2, among the biophysical-model PING literature that our fixed loop abstracts.
+
+---
+
+#### 17. Brunel & Wang (2003) — [*What Determines the Frequency of Fast Network Oscillations with Irregular Neural Discharges? I. Synaptic Dynamics and Excitation-Inhibition Balance*](https://doi.org/10.1152/jn.01095.2002)
+
+*Summary.* Brunel & Wang derive, via mean-field analysis of sparsely connected leaky integrate-and-fire networks with realistic synaptic kinetics, what sets the frequency of fast network oscillations when individual neurons fire irregularly and sparsely. They identify two regimes: a fast interneuron-driven (ING-type) rhythm governed by inhibitory kinetics that can reach ~200 Hz ripple frequencies, and a slower excitatory-inhibitory feedback loop (PING-type) rhythm in the gamma range (~40 Hz). Frequency depends much more strongly on the shortest synaptic time constants (delay and rise time) than on the slower decay; faster excitation than inhibition, or a higher E/I ratio, favors the feedback loop and a slower, gamma-range oscillation.
+
+*Relevance.* This is a foundational theory reference for our core claim that a fixed E↔I loop with no E→E or I→I connectivity produces gamma unambiguously via feedback (PING), and it grounds our mean-field / Hopf-bifurcation treatment of gamma onset across the W^EI × W^IE plane — Brunel & Wang provide the canonical mean-field prediction of oscillation frequency for exactly this class of sparse LIF E-I networks. It also directly underpins finding (5), that the excitatory rate is affine in gamma frequency: their result that the frequency is set by feedback dynamics and short synaptic timescales licenses our reading of f_γ as a controllable, mechanistically-determined quantity rather than an incidental one. Their gamma-vs-ripple regime distinction (E/I ratio and relative E/I kinetics selecting feedback-loop gamma) frames why our biophysically-clamped loop sits in the gamma band.
+
+*Used for.* §1.2, in the same list of biophysical PING studies.
+
+---
+
+#### 18. Wilson & Cowan (1972) — [*Excitatory and Inhibitory Interactions in Localized Populations of Model Neurons*](https://doi.org/10.1016/S0006-3495(72)86068-5)
+
+*Summary.* Wilson & Cowan (1972, Biophys. J. 12:1-24) derive coupled nonlinear differential equations for the mean activity of spatially localized populations of interacting excitatory and inhibitory model neurons, and analyze them with phase-plane methods and numerical integration. They show that the E-I population supports limit-cycle oscillations whose frequency is a monotonic increasing function of stimulus intensity, alongside simple and multiple hysteresis and bistability; they further prove that the existence of limit-cycle dynamics under one class of stimuli implies multiple stable states and hysteresis under another. This is the founding two-population neural-mass (firing-rate) model of E-I interaction.
+
+*Relevance.* This is the founding reference for our mean-field analysis: our 4D conductance-based reduction is explicitly placed in the Wilson-Cowan / next-generation neural-mass tradition, and their result that E-I coupling generates oscillations is the direct ancestor of finding (1)/(2) — that a single E&lt;->I (PING) loop produces a gamma rhythm born at a supercritical Hopf bifurcation across the W^EI x W^IE plane. Their demonstration that oscillation frequency rises monotonically with drive also foreshadows our affine rate-frequency law r_E = a + p*f_gamma (finding 5), where the E rate tracks the gamma frequency. We cite it to ground the population-level dynamical-systems framing (limit cycles, bifurcation structure) that our LIF network and its conductance mean-field concretize biophysically.
+
+*Used for.* §1.2, among the neural-mass / mean-field PING models; and §5.3, as the Wilson–Cowan tradition our conductance mean-field reduction follows.
+
+---
+
+#### 19. Segneri, Bi, Olmi & Torcini (2020) — [*Theta-Nested Gamma Oscillations in Next Generation Neural Mass Models*](https://doi.org/10.3389/fncom.2020.00047)
+
+*Summary.* Segneri et al. build exact next-generation neural mass models (the Montbrió-Pazó-Roxin 2015 reduction of QIF networks with Lorentzian-distributed excitabilities, evolving instantaneous firing rate r and mean potential v) for both PING (coupled E-I) and ING (self-inhibited) configurations, and show that gamma oscillations (≈20-80 Hz) sit near a Hopf bifurcation. A slow sinusoidal theta drive (1-10 Hz) periodically sweeps the system across that bifurcation, producing theta-nested gamma via phase-amplitude coupling, with m:1 locked states (m≈3-15 gamma cycles per theta cycle) and gamma power growing with forcing amplitude.
+
+*Relevance.* This is a direct precedent for two of our load-bearing choices: (a) treating PING gamma as an exact mean-field / next-generation neural-mass phenomenon rather than only a spiking one, which supports our 4D conductance mean-field reduction, and (b) identifying gamma onset as a Hopf bifurcation, which is exactly the supercritical Hopf we confirm across the W^EI x W^IE coupling plane (finding 2). It also grounds our decision to isolate a clean PING loop (E-I only, no E-E/I-I) as a canonical rhythm-generating motif in the Wilson-Cowan / next-generation tradition we cite.
+
+*Used for.* §1.2 (neural-mass PING models), §4.3 (multi-rhythm and theta-nested-gamma extensions as future work), and §5.3 (the next-generation neural-mass lineage of our reduction).
+
+---
+
+#### 20. Nandi, Valla & di Volo (2024) — [*Bursting Gamma Oscillations in Neural Mass Models*](https://doi.org/10.3389/fncom.2024.1422159)
+
+*Summary.* Nandi, Valla & di Volo use an exact next-generation neural mass model of coupled excitatory-inhibitory quadratic integrate-and-fire populations (Ott-Antonsen reduction to four collective variables: mean membrane potential and instantaneous firing rate per population) to show that gamma (30-80 Hz) naturally emerges in short bursts (~100 ms) rather than as a sustained rhythm. They identify a deterministic, noise-free route to bursting they call intrinsic bursting gamma (IBG), arising from collective chaos: a supercritical Hopf bifurcation separates asynchronous from oscillatory PING states (with a ~2 ms E-to-I delay), and a period-doubling cascade at high external drive initiates the chaotic bursting. IBG networks show stronger phase-amplitude coupling to slower theta rhythms than noise-induced bursting, implying better cross-region communication.
+
+*Relevance.* Our manuscript grounds finding (2) — that gamma onset across the W^EI x W^IE coupling plane is a supercritical Hopf bifurcation confirmed by a 4D conductance mean-field reduction — in exactly this next-generation neural-mass tradition; this paper is a direct methodological touchstone for using a low-dimensional exact E-I mass model to locate the Hopf boundary of PING gamma. It also supports our characterization of PING as an unambiguous E&lt;->I loop rhythm and offers a contrast case for the temporal structure of gamma (their bursty/chaotic regime versus our trained network's more regime-locked ~1-spike-per-cycle rhythm). It reinforces the shared claim that gamma dynamics are governed by an organizing Hopf bifurcation in the E-I coupling parameters rather than by fine-tuned noise.
+
+*Used for.* §1.2, among the neural-mass PING models; and §4.3, cited for theta-nested / multi-rhythm gamma as a future direction.
+
+---
+
+#### 21. Tahvili, Vinck & di Volo (2026) — [*A Mean-Field Model of Neural Networks with PV and SOM Interneurons Reveals Connectivity-Based Mechanisms of Gamma Oscillations*](https://doi.org/10.1371/journal.pcbi.1014378)
+
+*Summary.* Tahvili, Vinck & di Volo (PLOS Comput. Biol., 2026) build a biologically-grounded mean-field reduction of an E–PV–SOM spiking network (8,000 AdEx excitatory + 1,500 conductance-based inhibitory neurons split into PV and SOM pools) and show that ~35 Hz low-gamma oscillations emerge from the cell-specific connectivity structure itself — chiefly the absent PV→SOM inhibition and minimal SOM self-inhibition — rather than from synaptic delays or adaptation, which they remove without abolishing the rhythm. The reduction reproduces spiking dynamics including a 7–8.5 ms PV-leads-SOM phase delay and predicts a transition to seizure-like activity as the SOM/PV density ratio rises.
+
+*Relevance.* This is a direct methodological and conceptual sibling to our work: both derive a mean-field / neural-mass reduction of a conductance-based spiking E–I network to explain gamma as an emergent property of the recurrent connectivity, and both locate the rhythm's origin in wiring rather than in learned weights or single-cell timescales. We cite it to situate our 4D conductance mean-field and supercritical-Hopf analysis of PING within the next-generation neural-mass tradition, and to contrast our deliberately minimal single-loop PING (one E↔I loop, one interneuron type, no E→E/I→I) against their richer three-population E–PV–SOM circuit — supporting our claim that gamma onset and the resulting firing-rate constraint are connectivity-determined.
+
+*Used for.* §1.2, among the mean-field PING models, as a richer three-population (E–PV–SOM) counterpart to our minimal single-loop reduction.
+
+---
+
+#### 22. Eshraghian, Ward, Neftci, Wang, Lenz, Dwivedi, Bennamoun, Jeong & Lu (2023) — [*Training Spiking Neural Networks Using Lessons From Deep Learning*](https://doi.org/10.1109/JPROC.2023.3308088)
+
+*Summary.* A tutorial/review (Proceedings of the IEEE 111(9), 2023; the paper behind the snnTorch package) that ports decades of deep-learning practice to spiking neural networks. Its core methodological content is surrogate-gradient descent to sidestep the non-differentiable spike, backpropagation-through-time (spatiotemporal BPTT) over unrolled leaky-integrate-and-fire dynamics, and the interplay between spike-encoding of data and the training objective; it also connects temporal credit assignment to STDP and surveys the move toward online/biologically plausible learning.
+
+*Relevance.* This is the canonical methods reference for our entire training stack: we optimize the PING SNN with exactly the surrogate-gradient BPTT over LIF neurons that this paper codifies, so we cite it to ground the learning machinery rather than re-derive it. It backs our Methods touchstones (surrogate gradients, BPTT, spike-encoded MNIST/SHD) and the broader claim that gradient-trained SNNs are a mature tool — letting our contribution focus on the architectural gamma gate (Dale's-law clamp, gradient damping through the E↔I loop) rather than on the base training recipe.
+
+*Used for.* §1.2, framing surrogate-gradient descent as the standard SNN training tool; and §5.4, as the citation for the surrogate-gradient BPTT recipe we train with.
+
+---
+
+#### 23. Neftci, Mostafa & Zenke (2019) — [*Surrogate Gradient Learning in Spiking Neural Networks*](https://doi.org/10.1109/MSP.2019.2931595)
+
+*Summary.* This IEEE Signal Processing Magazine review (Neftci, Mostafa & Zenke, 2019) explains the core obstacle to training spiking networks — the spiking nonlinearity is binary and non-differentiable, so its true derivative is zero almost everywhere and infinite at threshold, blocking standard backprop. It introduces surrogate gradients as the fix: keep the hard threshold on the forward pass but substitute a smooth, differentiable approximation (e.g. a fast-sigmoid / boxcar bump around threshold) for the derivative on the backward pass, letting error signals flow through spikes. For recurrent SNNs it frames the network as an RNN unrolled over discrete time so that backpropagation through time (BPTT) computes weight updates through the leaky-integrate-and-fire membrane dynamics.
+
+*Relevance.* This is the methodological cornerstone for how we train the PING network: every result rests on surrogate-gradient BPTT applied to conductance-based LIF neurons unrolled in time, and this paper is the canonical citation for that training paradigm. It specifically grounds our claim (4) machinery — that releasing the E↔I loop weights to gradient descent prunes the loop — since our gradient-damping and Dale's-law clamp schemes are modifications layered on top of the standard surrogate-gradient credit-assignment path this paper defines.
+
+*Used for.* §1.2 and §5.4, as a cornerstone surrogate-gradient reference for our training stack, and again in §5.4 for the surrogate slope s = 1.
+
+---
+
+#### 24. Deckers et al. (2025) — [*Advancing Spatio-Temporal Processing Through Adaptation in Spiking Neural Networks*](https://doi.org/10.1038/s41467-025-60878-z)
+
+*Summary.* Deckers, Baronig, Ferrand, Sabathiel and Legenstein augment the LIF neuron with a linear adaptation current (τ_w dw/dt = -w + a·u + b·z), whose coupling parameter a gives the subthreshold dynamics complex eigenvalues, so each adaptive LIF (AdLIF) neuron becomes a damped resonator with a tunable intrinsic frequency. They show the usual Euler-Forward discretization is unstable/hard to parameterize and replace it with a symplectic-Euler scheme that is provably more stable and lets a lift the resonance up to the Nyquist limit. This yields state-of-the-art event-based results — e.g. 95.81±0.56% on Spiking Heidelberg Digits (SHD) vs a 90.27±0.73% LIF baseline — without normalization, plus robustness to large shifts in mean input strength and spike rate not seen in training.
+
+*Relevance.* We cite it as the state-of-the-art adaptive-SNN counterpoint to our fixed PING architecture: they locate rhythmic/resonant computation inside a single adapting neuron's tuned oscillation, whereas we generate a gamma rhythm at the network level from an untrained E↔I loop, so the comparison sharpens our "rhythm from architecture, not learned per-neuron dynamics" claim. It also grounds two of our methods choices — SHD as the canonical spatio-temporal spiking benchmark, and the need for a stable exponential-/symplectic-Euler integrator over naive Euler-Forward — and their robustness-to-input-strength/spike-rate result parallels our finding that the gamma gate is architectural and set by timing rather than mean drive.
+
+*Used for.* §1.2, among the surrogate-gradient SNN works, as the state-of-the-art adaptive-neuron counterpoint to our fixed-architecture rhythm.
+
+---
+
+#### 25. Yan, Yang, Wu, Liu, Zhang, Li, Tan & Wu (2025) — [*Efficient and Robust Temporal Processing with Neural Oscillations Modulated Spiking Neural Networks*](https://doi.org/10.1038/s41467-025-63771-x)
+
+*Summary.* Yan et al. introduce Rhythm-SNN, which modulates each spiking neuron with an externally-imposed periodic ("ON/OFF") oscillatory gate — heterogeneous square waves with per-neuron period, duty cycle, and phase randomly sampled at initialization and held non-learnable — so neurons only update during their ON phase. Across eight temporal benchmarks (S-MNIST 96.43%, PS-MNIST 96.73%, SHD 86.48%, GSC 94.47%, PTB) it reaches state-of-the-art accuracy while cutting firing rate and energy by roughly one-to-two orders of magnitude, and it improves robustness to Gaussian noise and FGSM/PGD attacks. Theoretically they prove the duty cycle d rescales the BPTT gradient decay exponent from α^c to α^(c·d) and lowers the spiking Lipschitz constant, mitigating vanishing gradients over long sequences and explaining the robustness gains.
+
+*Relevance.* This is the closest methodological neighbor to our central claim (finding 1/3): an oscillation-based mechanism that clamps SNN firing rate roughly an order of magnitude below baseline at matched accuracy, on overlapping datasets (S-MNIST, SHD, surrogate-gradient BPTT). We cite it as the key contrast: their gating is an externally injected, hand-tuned per-neuron square wave with no network origin, whereas our rate reduction emerges from a single fixed biophysical E↔I PING loop — a genuine gamma rhythm we tie to a supercritical Hopf bifurcation (findings 2, 4). Their duty-cycle gradient-decay proof also parallels our gradient-damping analysis of the E↔I loop, letting us position gamma as an architectural/emergent gate rather than an imposed regularizer.
+
+*Used for.* §1.2, §3.5, and §3.7 — the contrast case in which the oscillation is imposed as an external input rather than generated by an internal loop.
+
+---
+
+#### 26. Bittar & Garner (2024) — [*Exploring Neural Oscillations During Speech Perception via Surrogate-Gradient Spiking Neural Networks*](https://doi.org/10.3389/fnins.2024.1449181)
+
+*Summary.* Bittar and Garner train a physiologically-inspired spiking network (adaptive-exponential LIF neurons, boxcar surrogate gradient, BPTT) on speech-recognition benchmarks (TIMIT ~20% phoneme error rate, LibriSpeech 9.5% WER, Google Speech Commands 97.05%) and show that end-to-end gradient descent produces emergent neural oscillations. Cross-frequency phase-amplitude couplings (delta/theta/alpha/beta-gamma) appear during speech but vanish for noise and in untrained nets, and enforcing Dale's law nearly doubles the detected intra-layer couplings (>500 vs ~265). They attribute the low-frequency rhythms to synchronized gamma-range firing organized by inhibitory feedback, with spike-frequency adaptation synchronizing at the neuron level and recurrence at the layer level.
+
+*Relevance.* This is our closest methodological sibling: a surrogate-gradient, Dale's-law SNN in which gamma-band oscillations emerge and are organized by inhibitory feedback — exactly the ingredients of our fixed PING loop, but arrived at by learning rather than architectural clamp. We cite it to situate our claim that gamma is a structural constraint (finding 1/4): they show oscillations can emerge from training and correlate inhibition with performance, whereas we deliberately fix the E-I loop at biophysical values so the rhythm is unambiguously PING and show the rate reduction is architectural (survives with the loop frozen, prunes when released). It also grounds our surrogate-gradient/BPTT/Dale's-law/speech-dataset (SHD) methods touchstones and our framing of inhibition-driven synchronization.
+
+*Used for.* Our closest sibling, cited in §1.2, §3.5, §3.7, and §4.2 as the emergent-via-training pole opposite our imposed-via-architecture PING loop.
+
+---
+
+#### 27. Barth & Poulet (2012) — [*Experimental Evidence for Sparse Firing in the Neocortex*](https://doi.org/10.1016/j.tins.2012.03.008)
+
+*Summary.* Barth and Poulet (Trends in Neurosciences 2012, 35:345-355) review in vivo recording and imaging evidence that spiking in primary sensory neocortex is sparse at the population level: a minority of neurons produce the majority of spikes and some cells are effectively silent, even though subthreshold membrane activity across supragranular neurons is decidedly non-sparse. They emphasize a dissociation between dense synaptic/subthreshold input and sparse spike output, note that firing output is highest in granular and infragranular layers while superficial layers are sparsest, and argue that superficial cortex may employ specific cell and circuit mechanisms to actively enforce sparseness, with attendant computational advantages.
+
+*Relevance.* This is a foundational biological-plausibility citation for our central claim that a low excitatory firing rate is a feature of cortical computation, not a deficiency: it grounds our finding (1)/(3) that the trained PING loop clamps the excitatory rate roughly an order of magnitude below a non-rhythmic COBA baseline at matched MNIST accuracy, showing that real neocortex likewise operates in a sparse-spiking regime. Its subthreshold-dense / spike-sparse dissociation directly parallels our finding (6) that the gamma gate lives in the timing/phase structure of inhibition rather than its mean level — dense inputs gated into sparse output — and supports our framing of gamma as a metabolic/structural constraint on excitatory rates supplied by architecture (finding (4)) rather than a learned code.
+
+*Used for.* §1.3, for the observation that cortical pyramidal cells fire at low rates under strong recurrent input — grounding the sparse-firing premise of our rate-economy argument.
+
+---
+
+#### 28. Attwell & Laughlin (2001) — [*An Energy Budget for Signaling in the Grey Matter of the Brain*](https://doi.org/10.1097/00004647-200110000-00001)
+
+*Summary.* Attwell & Laughlin build the first bottom-up ATP budget for mammalian grey matter, apportioning signaling energy across ion-pumping mechanisms: at a 4 Hz mean firing rate, action potentials consume ~47% and postsynaptic glutamate (largely NMDA/AMPA-driven Na+ influx) ~34%, with resting potentials ~13% and presynaptic Ca2+ and glutamate recycling a few percent each. A single spike costs ~3.8×10^8 ATP molecules, and total predicted signaling load (~30 umol ATP/g/min) closely matches measured cortical consumption (33–50 umol/g/min). The central quantitative point is that energy cost scales roughly linearly with spike rate (~6.5 umol ATP/g/min per additional 1 Hz), making the mean excitatory firing rate the dominant metabolic dial.
+
+*Relevance.* This is the empirical anchor for our framing of gamma as a metabolic gate: because ATP cost is dominated by, and roughly linear in, spike rate, our finding that a PING loop clamps the excitatory rate ~10× below a matched-accuracy COBA baseline translates directly into an order-of-magnitude energy saving. We cite it to justify treating excitatory spike count as the quantity worth minimizing (motivating the per-neuron spike-budget penalty θ_u and the accuracy–rate frontier) and to give physiological weight to the claim that architectural rhythmic inhibition, not learning, supplies a real metabolic benefit. It grounds the "energy economy / metabolic gate" interpretation in measured brain energetics rather than abstract sparsity.
+
+*Used for.* §1.3 (excitatory spikes are more costly per spike than inhibitory ones), §3.6 (excitatory transmission dominates the cortical energy budget), and the Methods discussion of the metabolic rationale behind the spike-budget penalty.
+
+---
+
+#### 29. Howarth, Gleeson & Attwell (2012) — [*Updated Energy Budgets for Neural Computation in the Neocortex and Cerebellum*](https://doi.org/10.1038/jcbfm.2012.35)
+
+*Summary.* Howarth, Gleeson & Attwell recompute the ATP budget for signaling in the mammalian neocortex and cerebellum, assuming an average cortical firing rate of 4 Hz. In cortex, ~50% of signaling energy goes to postsynaptic glutamate receptors, ~21% to action potentials, ~20% to resting potentials, and ~9% to presynaptic release/recycling; the cerebellum is dominated instead by resting potentials (54%). A key revision is that action potentials are far cheaper than earlier estimates (Na/K overlap factor ~1.04-2 in mammals versus 4 for squid), so the metabolically expensive, firing-driven cost is dominated by synaptic (largely postsynaptic) activity that scales with spike traffic.
+
+*Relevance.* This is the quantitative backbone for our manuscript's central framing that gamma acts as a metabolic gate: it establishes that cortical energy cost is dominated by activity-dependent synaptic signaling that scales with firing, so an architectural mechanism that clamps excitatory rate roughly an order of magnitude below a matched-accuracy COBA baseline (finding 1/3) translates into a large real energy saving. We cite it to justify treating the excitatory firing rate as the biologically relevant cost variable being economized, and to motivate why an order-of-magnitude spike reduction at matched accuracy is metabolically meaningful rather than merely a sparsity curiosity.
+
+*Used for.* §1.3, §3.6, and Methods, as the updated cortical energy budget backing the claim that an order-of-magnitude excitatory-rate reduction is a real metabolic saving.
+
+---
+
+#### 30. Ainsworth, Lee, Cunningham, Traub, Kopell & Whittington (2012) — [*Rates and Rhythms: A Synergistic View of Frequency and Temporal Coding in Neuronal Networks*](https://doi.org/10.1016/j.neuron.2012.06.027)
+
+*Summary.* A review/perspective (Neuron 2012) arguing that rate coding (spike-count increases) and temporal coding (spike-timing coincidence) are not competing alternatives but coexist synergistically, with a documented bias in cortical circuits toward temporal coding. It proposes that multiple distinct gamma rhythms in sensory cortex provide the mechanistic substrate for combining rate and temporal codes as a function of stimulus strength: persistent low gamma (~40 Hz) imposes rigid temporal structure at low principal-cell spike rates, while high-gamma/transient regimes permit higher, temporally correlated firing. Interneuron-mediated inhibition sets the rhythmic time base within which principal cells fire.
+
+*Relevance.* We cite it as the conceptual anchor for our central claim that gamma is a structural constraint on excitatory firing rates rather than merely a coding channel: their point that a persistent ~40 Hz rhythm enforces temporal structure while keeping principal-cell rates low directly frames our finding that a PING loop clamps E-rate ~10x below a non-rhythmic COBA baseline. It also grounds our rate-vs-timing dissociation results (finding 6) — that the gate lives in the phase/timing structure of inhibition, not its mean level — within the established synergistic rate/temporal-coding framework, and supports our affine rate-frequency relation (finding 5) where each cell fires at most ~1 spike per gamma cycle. As one of the field's canonical Kopell/Whittington/Traub statements, it situates our PING mechanism in the inhibition-based-rhythm lineage our methods draw on.
+
+*Used for.* §1.3, for the closing point that rate and timing are synergistic descriptions of a single dynamics rather than competing codes.
+
+---
+
+#### 31. Schaefer, Angelo, Spors & Margrie (2006) — [*Neuronal Oscillations Enhance Stimulus Discrimination by Ensuring Action Potential Precision*](https://doi.org/10.1371/journal.pbio.0040163)
+
+*Summary.* Schaefer et al. (PLoS Biology 2006) show experimentally that subthreshold membrane-potential oscillations enhance action-potential timing precision: oscillatory hyperpolarization strips accumulated jitter from spike trains (recovery time constant ≈6.8 ms, requiring ≈20 ms of hyperpolarization), with best precision when inputs arrive on the trough/early rising phase of the cycle. Combining in vivo olfactory-bulb mitral-cell recordings, in vitro slices (mitral, CA1 pyramidal, Purkinje cells), and integrate-and-fire/multi-compartment models across 3–65 Hz, they find that oscillations enable near-perfect template-matching discrimination among ≈1,000 stimuli, whereas discrimination is impossible in the non-oscillatory condition.
+
+*Relevance.* Our manuscript argues the gamma gate lives in the timing/phase structure of inhibition rather than its mean level (finding 6), and that PING confines excitatory cells to ~1 spike per gamma cycle with a defined phase relationship (findings 5, 7). Schaefer et al. provide the experimental grounding for why a periodic inhibitory rhythm is functionally useful at the single-cell level: the oscillation's hyperpolarizing phase resets spike-timing jitter and sharpens AP precision, so a phase-locked gamma cycle is not just rate-limiting but improves the fidelity of the spikes that do fire. It supports our claim that phase/timing (not mean drive) is the operative variable and connects our metabolic-gate framing to a downstream discrimination benefit.
+
+*Used for.* §2.6, where off-phase spikes drive the inhibitory pool at arbitrary phase and disrupt the rhythm; and §3.2, for the prior finding that oscillations sharpen spike-timing precision.
+
+---
+
+#### 32. Nguyen & Rubchinsky (2021) — [*Temporal Patterns of Synchrony in a Pyramidal-Interneuron Gamma (PING) Network*](https://doi.org/10.1063/5.0042451)
+
+*Summary.* Nguyen & Rubchinsky (Chaos 31, 043134, 2021) study the fine temporal structure of gamma synchrony in a conductance-based PING (pyramidal-interneuron gamma) network. They show that gamma-band synchronization is intermittent even on short timescales — alternating synchronized and desynchronized intervals — and, critically, that the temporal patterning of synchrony (the distribution of desynchronization durations) can be reshaped by synaptic strength and membrane kinetics independently of the overall synchronization strength, with a robust tendency toward short but numerous desynchronizations that matches experimental brain recordings.
+
+*Relevance.* Our manuscript cites this to support the claim (finding 6) that the PING gate lives in the timing and phase structure of inhibition, not its mean level: Nguyen & Rubchinsky establish in a biophysical PING model that gamma's cycle-by-cycle temporal organization is a controllable, mechanistically distinct variable from mean synchrony/rate. This grounds our jitter-perturbation and drop-tolerant/add-fragile results — that perturbing inhibitory spike timing while holding mean I-rate fixed moves the E-rate — by showing prior evidence that PING synchrony is fundamentally intermittent and timing-shaped rather than a static locked rhythm. It also uses the same conductance-based, E↔I-loop-only PING substrate as our network, corroborating our modeling choices.
+
+*Used for.* §2.6, supporting the jitter result that desynchrony raises the excitatory rate from ≈8 to ≈50 Hz (Figure 10); and §3.2, on temporal-synchrony patterns within PING circuits.
+
+---
+
+#### 33. Shadlen & Movshon (1999) — [*Synchrony Unbound: A Critical Evaluation of the Temporal Binding Hypothesis*](https://doi.org/10.1016/S0896-6273(00)80822-3)
+
+*Summary.* Shadlen and Movshon's influential review argues that the temporal binding hypothesis — that gamma-band spike synchrony (von der Malsburg's "temporal correlation") tags which neurons belong to a common object — is "inadequate in conception and impoverished in support." They contend it is not a theory of how binding is computed, only of how it is signaled, and that cortical architecture makes synchrony implausible as a special code: cortical neurons receive 3,000–10,000 mostly-excitatory inputs, so with several hundred input spikes arriving per output spike, coincidences within a 5–10 ms window occur constantly by chance and cannot be distinguished from "binding" synchrony. They further note visually evoked responses are already time-locked to within a few ms (matching reported oscillatory synchrony), so any code must not rely on intrinsically generated synchrony, and that the strongest direct tests (e.g. Lamme & Spekreijse 1998) found no correlation difference tied to binding — whereas rate-modulated population activity does reliably track perception.
+
+*Relevance.* Our manuscript studies a fixed PING E↔I loop whose whole function is to impose a gamma rhythm (~25–44 Hz) and a phase/timing structure on excitatory firing; this paper is the canonical skeptical counterweight to reading gamma as a functional "binding" or communication code. Citing it lets us position our claim carefully: we do not argue gamma carries a synchrony binding tag — our result is that the rhythm acts as an architectural metabolic gate that clamps E-rates ~10× lower at matched accuracy (finding 1, 3), a role orthogonal to the binding debate Shadlen and Movshon dismantle. It also sharpens our timing-vs-rate framing (finding 6): where they argue rate, not fine synchrony, mediates perception, we show the loop's gate lives in the phase structure of inhibition while ultimately setting a firing rate — a subtler position their critique helps us delineate.
+
+*Used for.* §3.2, cited on the long-standing rate-versus-timing debate our timing-gate result speaks to.
+
+---
+
+#### 34. London, Roth, Beeren, Häusser & Latham (2010) — [*Sensitivity to Perturbations in vivo Implies High Noise and Suggests Rate Coding in Cortex*](https://doi.org/10.1038/nature09086)
+
+*Summary.* Using whole-cell patch-clamp in anesthetized rat barrel cortex, London, Roth, Beeren, Häusser & Latham (2010) showed that adding a single extra spike in one layer-5 pyramidal neuron produces ≈28 additional spikes across its postsynaptic targets (≈1500 connections × ≈0.019 spike-triggering probability), a detectable rise in local firing rate. They argue this large amplification implies that the cortical network operates in a high-noise regime where millisecond-precise spike patterns are intrinsically irreproducible (such events occur only about once per 10,000 s per neuron), so the resulting variability is pure noise carrying no information; hence cortex likely uses a rate code rather than a fine temporal/spike-timing code.
+
+*Relevance.* Our manuscript's firing-rate-economy framing treats the excitatory rate r_E as the coded, behaviorally-relevant quantity — the thing gamma clamps ~10× below a non-rhythmic COBA baseline and the axis of the accuracy–rate frontier — which is exactly the rate-coding stance London et al. defend for cortex, giving biological grounding for optimizing spike count/rate rather than exact timing. It also usefully contrasts with our finding (6) that the PING gate lives in the timing/phase structure of inhibition: their result cautions that individual-spike timing is noisy at the single-neuron level, whereas our gate is a population-rhythmic timing structure (gamma phase) that constrains rates, not a fine per-spike temporal code, so the two are compatible rather than contradictory. Cite it when motivating why a metabolic/rate gate is the right level of description and when distinguishing rhythm-imposed timing from unreliable single-spike timing.
+
+*Used for.* §3.2, in the same rate-versus-timing-debate citation as [33].
+
+---
+
+#### 35. Akam & Kullmann (2012) — [*Efficient "Communication through Coherence" Requires Oscillations Structured to Minimize Interference between Signals*](https://doi.org/10.1371/journal.pcbi.1002760)
+
+*Summary.* Akam & Kullmann test the communication-through-coherence (CTC) hypothesis in a spiking model where a sender's firing-rate oscillation and a coherent gain modulation in a receiver combine to selectively amplify a target signal: effective gain equals the overlap between the input's rate modulation and the receiver's gain modulation, averaged over the integration window. They show robust routing requires target and distractor to differ in oscillation frequency, phase, or amplitude — incoherent same-band distractors severely degrade decoding (Fisher information 5.7× higher with asynchronous vs. incoherent distractors at 1 Hz firing, rising to 27.8× at 10 Hz), synchronization strength from 0.1→0.9 raised Fisher information ≈95.7-fold, and efficient decoding needs an integration time of roughly two oscillation cycles.
+
+*Relevance.* This grounds our claim that the gamma gate lives in the timing/phase structure of inhibition rather than its mean level (finding 6): CTC formalizes gating as overlap between a rhythmic gain window and a phase-locked input, matching why our jitter perturbations move E-rate while holding mean I-rate fixed. It also supplies the theoretical precedent for our continuous-digit-stream result (finding 7), where a PING trained on isolated digits integrates a concatenated stream over a window of order one gamma cycle — close to Akam & Kullmann's ~two-cycle minimum integration time — casting the gamma rhythm as a structural read-out/routing constraint rather than a learned one.
+
+*Used for.* §3.3, with [2], to frame the gamma cycle as a computational unit in the communication-through-coherence sense.
+
+---
+
+#### 36. Renart, de la Rocha, Bartho, Hollender, Parga, Reyes & Harris (2010) — [*The Asynchronous State in Cortical Circuits*](https://doi.org/10.1126/science.1179850)
+
+*Summary.* Renart et al. (Science 2010) show that a recurrent excitatory–inhibitory spiking network can sustain an "asynchronous state" with near-zero mean pairwise spike-count correlations despite dense shared input. The mechanism is active decorrelation: spontaneous fluctuations of the E and I populations track each other, producing negative correlations in synaptic currents that cancel the shared-input drive; mean correlations scale as 1/N (vanishing in large networks) even though the distribution of individual pair correlations stays wide. They confirm near-zero mean correlations in vivo in rodent neocortex during activated cortical states.
+
+*Relevance.* This is a contrast reference for the dynamical regime of our fixed E↔I (PING) loop: the same recurrent excitation–inhibition substrate that Renart et al. tune into an asynchronous, decorrelated state we deliberately drive into the synchronized, rhythmic gamma regime (the supercritical Hopf side of the W^EI × W^IE plane). It situates our claim that the E↔I loop is a structural knob — tracking inhibition can either cancel correlations (asynchronous state) or organize spikes into gamma cycles — and supports the framing that gamma synchrony, not asynchronous balance, is what gates and clamps the excitatory firing rate in our network. It also grounds our reliance on balanced E–I tracking as the shared biophysical mechanism underlying both regimes.
+
+*Used for.* §3.4, positioning PING as a structured alternative to the asynchronous balanced state.
+
+---
+
+#### 37. van Vreeswijk & Sompolinsky (1996) — [*Chaos in Neuronal Networks with Balanced Excitatory and Inhibitory Activity*](https://doi.org/10.1126/science.274.5293.1724)
+
+*Summary.* A foundational theoretical paper showing that in large, sparsely connected networks of excitatory and inhibitory neurons with relatively strong synapses (each cell needing only ≈√K of its K excitatory inputs to reach threshold), a self-consistent balanced state emerges in which large excitatory and inhibitory currents dynamically cancel, leaving a net input of order the threshold. The residual synaptic fluctuations produce strongly chaotic, temporally irregular (Poisson-like) firing even with constant external input, requiring no external noise. Despite highly nonlinear single-neuron dynamics, the population rates respond linearly to external drive and track changes on time scales far shorter than the single-neuron integration time constant (a factor of ≈1/√K faster).
+
+*Relevance.* This is the canonical E/I-balance reference that our manuscript positions against: it establishes the tradition in which irregular cortical dynamics are an emergent architectural property of coupled E–I networks rather than a learned or single-cell feature — directly paralleling our claim that gamma-driven firing-rate reduction is architectural, not learned. It is also the reference regime our work does NOT operate in: their asynchronous-irregular chaotic balanced state (strong random sparse coupling) contrasts with our fixed-weight PING loop, whose gamma onset is a supercritical Hopf bifurcation and whose rate is set deterministically by the E↔I loop rather than by balanced fluctuations. Citing it frames PING as a rhythmic, phase-based alternative to the chaotic-balance route to controlling excitatory firing rates.
+
+*Used for.* §3.4, alongside [36], as the asynchronous-balanced-state regime our rhythmic loop contrasts with.
+
+---
+
+#### 38. Vogels, Sprekeler, Zenke, Clopath & Gerstner (2011) — [*Inhibitory Plasticity Balances Excitation and Inhibition in Sensory Pathways and Memory Networks*](https://doi.org/10.1126/science.1211095)
+
+*Summary.* Vogels et al. show that a symmetric, Hebbian spike-timing-dependent plasticity rule acting only on inhibitory synapses (the "Vogels-Sprekeler" rule) can self-organize a detailed excitation-inhibition balance: inhibitory weights adapt until inhibitory current tracks each neuron's excitatory drive, homeostatically clamping output to sparse, low firing rates. In feedforward pathways this reproduces the sparse responses to natural stimuli and matches observed E/I receptive-field co-tuning; in recurrent networks it drives an asynchronous-irregular state and can hide/reactivate embedded memory assemblies. The key mechanism is that balance and the resulting rate reduction are LEARNED by plasticity on the inhibitory connections.
+
+*Relevance.* This is the canonical "learned inhibition" account of E/I balance and sparse firing, and our manuscript cites it as the direct contrast to our central claim (finding 4) that the ~10x excitatory-rate reduction is architectural, not learned. Where Vogels et al. reach low sparse rates by training the inhibitory synapses, we hold the PING E↔I loop weights (W^EI, W^IE) fixed at biophysical values under a Dale's-law clamp and still get the rate clamp, and releasing those weights to gradient descent prunes the loop rather than balancing it. It also grounds our framing of gamma-gated inhibition as a metabolic/sparsity gate, positioning our rhythmic, phase-based gate (finding 6) against their rate-based homeostatic-balance gate.
+
+*Used for.* §3.4 (the inhibitory-plasticity literature where E/I balance is learned), §4.3 (making the loop plastic as future work), and §5.2 (the inhibitory pathway versus learned feedforward features) — the learned-inhibition foil to our fixed loop.
+
+---
+
+#### 39. Hennequin, Agnes & Vogels (2017) — [*Inhibitory Plasticity: Balance, Control, and Codependence*](https://doi.org/10.1146/annurev-neuro-072116-031005)
+
+*Summary.* This Annual Review argues that inhibitory neurons, though a minority, exert powerful control by stabilizing networks against strong recurrent excitation and by actively shaping computation, and that this requires a precise, finely tuned excitation–inhibition (E/I) balance. It reviews inhibitory synaptic plasticity rules (e.g. the Vogels–Sprekeler symmetric inhibitory STDP rule that homeostatically drives detailed E/I balance) as the mechanism that establishes both feedforward and feedback control, and it stresses that building nontrivial functioning circuits demands complex, codependent plasticity across excitatory and inhibitory synapses rather than inhibition tuned in isolation.
+
+*Relevance.* Our manuscript holds the recurrent E↔I (PING) loop weights fixed at biophysical values rather than learning them, so this review grounds the counterfactual: it is the canonical statement that inhibitory connections normally require exquisite plasticity-driven fine-tuning to achieve E/I balance and stabilization. It directly frames finding (4) — that when we release the loop weights to gradient descent the loop is pruned within one epoch — by explaining why an unconstrained learner would not spontaneously maintain the balanced inhibitory loop, motivating our Dale's-law clamp and gradient-damping scheme. It also supports our broader interpretive claim that E/I balance and inhibitory control of excitatory firing rates are architectural/structural constraints, contrasting our fixed-loop metabolic gate against the learned-balance paradigm this review synthesizes.
+
+*Used for.* §3.4 and §5.2, as part of the learned-E/I-balance literature our fixed-weight loop is contrasted against.
+
+---
+
+#### 40. Wu, Miehl & Gjorgjieva (2022) — [*Regulation of Circuit Organization and Function Through Inhibitory Synaptic Plasticity*](https://doi.org/10.1016/j.tins.2022.10.006)
+
+*Summary.* A Trends in Neurosciences review (Wu, Miehl & Gjorgjieva, 2022) surveying how inhibitory synaptic plasticity reshapes circuit connectivity and dynamics across three scales: network, single-neuron, and dendritic. It argues that plastic inhibition establishes and maintains excitation/inhibition (E/I) balance, controls and stabilizes neuronal firing rates, gates/modulates excitatory plasticity, and structures networks that support memory formation and recall as well as adaptive phenomena like novelty detection. It ties experimental observations to phenomenological learning rules (firing-rate-, spike-timing-, calcium-, and membrane-potential-based) that are amenable to mathematical analysis.
+
+*Relevance.* We cite it to frame the standard view our manuscript departs from: in this literature the E/I balance and firing-rate control are achieved by plastic, learned inhibition, whereas our central claim is the opposite — the ~10x excitatory-rate reduction is architectural, supplied by a FIXED biophysical PING E to I loop that gradient descent actively prunes rather than tunes (finding 4). It supports the background that inhibition is a primary regulator of E/I balance and firing-rate homeostasis, and sharpens our contrast: we locate the constraint in the timing/phase structure of a non-plastic gamma loop (finding 6), not in the mean level or the learned weights of inhibitory synapses. It also grounds the interpretive framing of inhibition as a rate-stabilizing / metabolic gate.
+
+*Used for.* §3.4, among the inhibitory-plasticity references framing the learned-balance view we depart from.
+
+---
+
+#### 41. Páscoa dos Santos & Verschure (2025) — [*Excitatory-Inhibitory Homeostasis and Bifurcation Control in the Wilson-Cowan Model of Cortical Dynamics*](https://doi.org/10.1371/journal.pcbi.1012723)
+
+*Summary.* Páscoa dos Santos & Verschure (PLOS Comput Biol 2025) analyze how excitatory-inhibitory homeostasis mechanisms (excitatory/inhibitory synaptic scaling, threshold and slope plasticity) reshape the Hopf bifurcation of a Wilson-Cowan neural-mass model, so networks hold target firing rates while positioning themselves at the edge of the gamma-generating limit cycle. They show that multiplicative gains push the Hopf point toward higher rates as input grows while inhibitory coupling pushes it lower, and that combining several homeostatic modes keeps gamma physiological (~30-100 Hz, default ~40 Hz) whereas inhibitory scaling alone runs to >200 Hz and c_EI values up to 250x baseline. The result reframes E-I balance, criticality, and gamma as facets of a single homeostatic control of a supercritical Hopf bifurcation.
+
+*Relevance.* This is a direct theoretical touchstone for our mean-field claim (finding 2) that gamma onset across the W^EI x W^IE coupling plane is a supercritical Hopf bifurcation, since it works the same Wilson-Cowan / neural-mass bifurcation machinery (nullclines, Jacobian eigenvalues, limit-cycle onset) on the same E-I coupling parameters we sweep. It also grounds our firing-rate-economy narrative (findings 1, 3, 5): they explicitly cast E-I interaction as a homeostatic clamp on firing rate operating through bifurcation control, which parallels our reading of the PING loop as an architectural rate gate rather than a learned one, and their inhibitory-coupling-lowers-rate result mirrors our r_E being set by the per-synapse W^IE weight. It is a useful contrast in that their rate control is achieved by tuning coupling via plasticity, whereas ours emerges from fixed biophysical loop weights under surrogate-gradient training.
+
+*Used for.* §3.4, in the same inhibitory-plasticity cluster establishing the learned-balance paradigm.
+
+---
+
+#### 42. Kann (2016) — [*The Interneuron Energy Hypothesis: Implications for Brain Disease*](https://doi.org/10.1016/j.nbd.2015.08.005)
+
+*Summary.* Kann's review advances the "interneuron energy hypothesis": fast-spiking, parvalbumin-positive (PV+) inhibitory interneurons, whose fast action-potential kinetics, ion conductances, extensive axon arbor, and GABA release make them exceptionally energy-hungry (ultrastructurally reflected in mitochondrial and cytochrome-c-oxidase enrichment and reliance on oxidative phosphorylation for ATP), are precisely the cells that drive gamma oscillations (30-100 Hz) underpinning perception, motor behavior, and memory. Because their high metabolic demand makes them selectively vulnerable to metabolic and oxidative stress, PV+ interneuron dysfunction sets a low threshold for failure of gamma-band network oscillations and higher cognition. The paper thus frames gamma as metabolically expensive and inhibition-limited, with implications for stroke, aging, schizophrenia, and epilepsy.
+
+*Relevance.* Our manuscript's central interpretive claim is that gamma is a metabolic gate on excitatory firing supplied by architecture; this paper supplies the biological energy-economy framing that gamma and its inhibitory interneuron engine are tightly coupled to brain energy budgets. It grounds why clamping the excitatory firing rate an order of magnitude below a non-rhythmic COBA baseline (Finding 1) is metabolically meaningful, and it motivates the interneuron-driven E-I loop (our fixed PING loop, where the interneuron pool sets the rhythm) as the biophysical locus of that cost. We cite it to connect our engineered spike-economy result to the real-brain hypothesis that PV+ interneuron gamma is what makes efficient, sparse cortical coding both possible and metabolically constrained.
+
+*Used for.* §3.6, for the interneuron energy hypothesis — fast-spiking interneurons sustain high rates and dense synaptic activity — linking our gate to real metabolic cost.
+
+---
+
+#### 43. Börgers, Talei Franzesi, LeBeau, Boyden & Kopell (2012) — [*Minimal Size of Cell Assemblies Coordinated by Gamma Oscillations*](https://doi.org/10.1371/journal.pcbi.1002362)
+
+*Summary.* Using LIF network simulations plus mathematical analysis, this paper asks how small a cell assembly can be and still coordinate a gamma (25-100 Hz) rhythm through the PING mechanism (E-cells drive and synchronize I-cells, which in turn gate and synchronize the E-cells). Its central result is that with realistic heterogeneity in drive and connectivity, E-I gamma must arise within a few cycles or not at all — gradual build-up is impossible. It distinguishes "strong PING" (tonically driven E-cells fire on essentially every population cycle) from "weak/stochastic PING" (each E-cell participates on only a fraction of cycles), with inhibition suppressing weakly-driven cells so only sufficiently-driven cells escape to spike coherently; the authors deliberately decline to give a hard minimum neuron count, calling any such number too speculative.
+
+*Relevance.* This is a canonical PING-mechanism reference that grounds our core architectural premise: a single reciprocal E-I loop with no E-E/I-I connections produces gamma, and inhibition gates which excitatory cells fire. It directly underwrites our finding (5) that each E-cell fires at most about one spike per gamma cycle — their "strong PING" regime (participation on every cycle) is the operating point our trained network sits in — and finding (6) that the gate lives in the timing/phase of inhibition suppressing weakly-driven cells rather than in its mean level. It also supports our framing of gamma as an architectural rate-limiting constraint: their I-cell suppression of sub-threshold E-cells is the biophysical basis for the order-of-magnitude excitatory-rate reduction we report.
+
+*Used for.* §3.7, where the capacity of a single gamma cycle and its scaling with assembly size are noted as uncharacterized; and §4.3, as the capacity-limit question for future work.
+
+---
+
+#### 44. Cramer, Stradmann, Schemmel & Zenke (2022) — [*The Heidelberg Spiking Data Sets for the Systematic Evaluation of Spiking Neural Networks*](https://doi.org/10.1109/TNNLS.2020.3044364)
+
+*Summary.* Introduces two spike-based audio classification benchmarks — the Spiking Heidelberg Digits (SHD; ~10,420 recordings of spoken digits 0–9 in German and English, 20 classes) and Spiking Speech Commands (SSC; derived from Google Speech Commands, 35 classes) — converting audio to spikes over 700 channels via a biophysically inspired inner-ear model (hydrodynamic basilar membrane → transmitter-pool hair cells → bushy cells). The authors show spike timing is essential: temporal-blind spike-count classifiers plateau (≈55–60% SHD), while LSTMs and surrogate-gradient BPTT-trained LIF networks exploiting timing do far better. Their recurrent SNN (RSNN) baseline reaches 71.4±1.9% on SHD and 50.9±1.1% on SSC (LSTM 85.7% / 75.0%), and recurrent SNNs consistently beat feedforward ones.
+
+*Relevance.* This is the canonical citation for SHD, one of our two datasets (MNIST and SHD) named in the Methods touchstones and used to show our PING firing-rate-economy result generalizes beyond static images to a temporally structured auditory task. It also validates our training recipe: Cramer et al. establish surrogate-gradient BPTT on conductance-style LIF networks as the standard SNN benchmark protocol, and their finding that recurrent connectivity and precise spike timing drive accuracy motivates our focus on the timing/phase structure of the E↔I loop. Their published RSNN accuracy numbers give the field-standard baseline our trained PING and COBA networks are measured against on SHD.
+
+*Used for.* §4.2, for the SHD dataset, cited as the empirical extension beyond MNIST that tests generalization to a temporal task.
+
+---
+
+#### 45. Tiesinga & Sejnowski (2009) — [*Cortical Enlightenment: Are Attentional Gamma Oscillations Driven by ING or PING?*](https://doi.org/10.1016/j.neuron.2009.09.009)
+
+*Summary.* A Neuron minireview by Tiesinga and Sejnowski that dissects the two canonical circuit mechanisms for cortical gamma (30-80 Hz): ING, where mutual inhibition among interneurons sets the rhythm (period fixed by I-cell recovery), versus PING, where synchronized pyramidal volleys recruit feedback inhibition that then paces excitatory recovery (period fixed by E-cell recovery from inhibition). Reviewing then-new optogenetic experiments on parvalbumin-positive interneurons — driving I cells produces gamma more effectively than driving E cells — they argue attentional gamma in cortex is predominantly PING-driven, with ING contributing in restricted regimes (e.g. sleep). They frame inhibition as creating rhythmic "windows of opportunity": excitatory inputs arriving in the low-inhibition pass phase drive spikes, others are gated out.
+
+*Relevance.* This is the definitional anchor for our manuscript's core architectural choice. We deliberately build a pure E↔I loop with no E→E or I→I connectivity precisely so that any rhythm is unambiguously PING rather than ING — this paper supplies the ING/PING taxonomy that makes that disambiguation meaningful, and its ~30-80 Hz range brackets our measured f_gamma of ~25-44 Hz. Its "windows of opportunity" / phase-gating framing directly grounds our finding (6) that the firing-rate gate lives in the timing/phase structure of inhibition rather than its mean level, and its account of the pyramidal-interneuron feedback loop underpins our claim that the E-rate clamp is architectural (the PING loop itself), not learned.
+
+*Used for.* §5.2, supporting the architectural argument that excluding W_ii rules out ING and excluding W_ee rules out recurrent-E-driven oscillation, so any rhythm is PING.
+
+---
+
+#### 46. Brunel (2000) — [*Dynamics of Sparsely Connected Networks of Excitatory and Inhibitory Spiking Neurons*](https://doi.org/10.1023/A:1008925309027)
+
+*Summary.* Brunel (2000, J Comput Neurosci 8:183–208) analyzes sparsely, randomly connected networks of excitatory and inhibitory leaky integrate-and-fire neurons in the diffusion/mean-field limit, deriving a phase diagram over external drive versus the ratio of inhibition to excitation (g). It identifies four regimes: synchronous regular (SR), asynchronous irregular (AI, stationary population rate with near-Poisson single-cell firing), and two synchronous-irregular oscillatory states — a fast one whose global frequency is controlled by the synaptic/transmission delay and a slow one set by the membrane time constant — in all of which cells fire sparsely and irregularly, at rates well below the population oscillation frequency. The AI state, sustained by strong inhibition-dominated balance, is the paper's landmark result explaining cortical-like irregular firing.
+
+*Relevance.* This is the canonical reference for how a recurrent excitatory–inhibitory loop generates a population gamma-band rhythm while individual excitatory cells fire sparsely and at rates below the oscillation frequency — exactly the regime our trained PING network occupies, grounding our claim that gamma clamps the excitatory rate roughly an order of magnitude below a non-rhythmic baseline (finding 1) and that cells fire at most ≈1 spike per gamma cycle (finding 5). Its inhibition-dominated fast-oscillation mechanism, in which the network frequency is architecturally controlled by the E↔I loop rather than by single-cell drive, is the theoretical antecedent our mean-field Hopf analysis (finding 2) and our timing-based gate build on. We cite it to place our PING loop within the established Brunel phase-diagram tradition and to justify the mean-field / neural-mass reduction methodology.
+
+*Used for.* §5.3, as the source of the Ricciardi–Siegert LIF rate functions Φ_E and Φ_I used in the conductance mean-field reduction.
+
+---
+
+#### 47. Gerstner (2000) — [*Population Dynamics of Spiking Neurons: Fast Transients, Asynchronous States, and Locking*](https://doi.org/10.1162/089976600300015899)
+
+*Summary.* Gerstner (Neural Computation 12:43–89, 2000) derives an integral equation for the time evolution of the population activity of a homogeneous pool of integrate-and-fire neurons and uses it to analyze three regimes. He shows that transients away from incoherent (asynchronous) firing can be effectively instantaneous, characterizes the stability of the asynchronous state as a function of noise level and transmission delay (producing a bifurcation diagram), reduces the population's response to small input currents to a linear filter L, and analyzes the stability of perfectly synchronized "locked" solutions. It is a foundational treatment of how spiking populations transition between asynchronous and synchronized/oscillatory states.
+
+*Relevance.* Our manuscript reduces the trained E↔I loop to a 4D conductance mean-field and identifies gamma onset across the W^EI × W^IE plane as a supercritical Hopf bifurcation; Gerstner's population-activity integral equation and his stability/bifurcation analysis of the asynchronous state (destabilized by delay and low noise into synchronized oscillation) are the canonical theoretical precedent for exactly that loss-of-stability-into-rhythm story. We cite it to ground the Wilson–Cowan / next-generation neural-mass lineage behind our LIF-population reduction, and it supports our framing of gamma as an emergent instability of the incoherent state rather than a learned feature — his linear filter L and locking analysis parallel our mean-field transfer function and phase-locked gamma cycle.
+
+*Used for.* §5.3, among the population-dynamics / next-generation neural-mass references grounding the mean-field method.
+
+---
+
+#### 48. Montbrió, Pazó & Roxin (2015) — [*Macroscopic Description for Networks of Spiking Neurons*](https://doi.org/10.1103/PhysRevX.5.021028)
+
+*Summary.* Montbrió, Pazó and Roxin derive the first *exact* firing-rate description of a network of spiking neurons: for all-to-all coupled heterogeneous quadratic integrate-and-fire (QIF) neurons with Lorentzian-distributed inputs, a "Lorentzian ansatz" for the membrane-potential density solves the continuity equation exactly and collapses the network onto just two ODEs for the population firing rate r and mean membrane potential v — with no weak-coupling, timescale-separation, or averaging approximation. Unlike heuristic Wilson-Cowan rate models, these equations exactly reproduce all macroscopic states including synchronous/oscillatory spiking, and the ansatz is the QIF analogue of the Ott-Antonsen reduction for phase oscillators. This launched the "next-generation neural mass" program of exact low-dimensional population models.
+
+*Relevance.* Our manuscript builds a conductance-based mean-field reduction of the PING E↔I loop to prove that gamma onset across the W^EI × W^IE plane is a supercritical Hopf bifurcation; this paper is the canonical citation for the exact-reduction / next-generation-neural-mass tradition that legitimizes replacing a spiking network with a small closed system of rate-and-mean-potential ODEs. It grounds the methodological claim that our 4D reduction is not a Wilson-Cowan-style approximation but part of a lineage of exact/exactness-motivated population descriptions that can capture the very synchronous oscillatory states (our gamma rhythm) that older rate models miss. It thus supports the bifurcation-analysis section rather than the empirical firing-rate-economy findings.
+
+*Used for.* §5.3, cited with [19] and [47] for the next-generation neural-mass lineage of the reduction.
+
+---
+
+#### 49. Zenke & Ganguli (2018) — [*SuperSpike: Supervised Learning in Multilayer Spiking Neural Networks*](https://doi.org/10.1162/neco_a_01086)
+
+*Summary.* Zenke & Ganguli's SuperSpike derives a nonlinear voltage-based three-factor learning rule that trains multilayer/recurrent networks of deterministic leaky integrate-and-fire neurons on precise spatiotemporal spike-pattern tasks. To sidestep the zero-almost-everywhere derivative of the spiking threshold, they replace the spike-train derivative with a smooth surrogate — the derivative of a fast sigmoid, σ'(V) ≈ ∂/∂V[−1/(1+((V−Vth)/β)²)] — and descend the van Rossum distance (a double-exponential-filtered L2 loss) between output and target spike trains. The resulting online update factorizes into a presynaptic eligibility trace, a postsynaptic surrogate nonlinearity, and a per-neuron error/feedback signal; it learns targets like five equidistant output spikes from 100 Poisson inputs and a nonlinearly separable spike-pattern XOR requiring a hidden layer, with symmetric feedback outperforming random/uniform feedback on the hardest spatiotemporal tasks.
+
+*Relevance.* This is a foundational surrogate-gradient methods citation: our manuscript trains the PING spiking network by surrogate-gradient BPTT, and SuperSpike is one of the canonical works establishing that a smooth surrogate for the non-differentiable spike lets gradient descent flow through LIF spiking dynamics. It grounds our Methods choice of a smooth pseudo-derivative at the threshold to backpropagate errors through the E↔I loop, including the gradient-damping / Dale's-law-clamp machinery we build on top of that surrogate. It is a methodological pillar rather than a claim we contest — we adopt its surrogate-gradient paradigm and extend it to a fixed conductance-based PING architecture with a spike-budget penalty, rather than SuperSpike's van Rossum spike-timing objective.
+
+*Used for.* §5.4, for the surrogate-gradient slope s = 1 used in the backward pass.
+
+---
+
+#### 50. Kingma & Ba (2015) — [*Adam: A Method for Stochastic Optimization*](https://doi.org/10.48550/arXiv.1412.6980)
+
+*Summary.* Kingma & Ba introduce Adam, a first-order stochastic optimizer that maintains per-parameter adaptive learning rates from exponential moving averages of the gradient (first moment) and squared gradient (second moment), with bias-correction terms. It is memory-light, invariant to diagonal rescaling of the gradient, well-suited to non-stationary objectives and sparse/noisy gradients, and needs little hyperparameter tuning; the paper also provides an online-convex-optimization regret bound and a variant, AdaMax, based on the infinity norm.
+
+*Relevance.* Adam is the optimizer our surrogate-gradient BPTT training uses to fit the trainable weights (the feedforward and readout layers, plus the released loop weights in the pruning experiment) while the W^EI/W^IE loop is held at biophysical values. It is a standard methods citation grounding the "trained under gradient descent" claims, not a conceptual counterpart to the PING / gamma / firing-rate-economy results, so its connection to our contribution is purely mechanical.
+
+*Used for.* §5.4, as the Adam optimizer used to fit the trainable weights.
+
+---
+
+#### 51. Pascanu, Mikolov & Bengio (2013) — [*On the Difficulty of Training Recurrent Neural Networks*](https://doi.org/10.48550/arXiv.1211.5063)
+
+*Summary.* Pascanu, Mikolov & Bengio characterize why recurrent networks are hard to train with backpropagation through time, analyzing the vanishing- and exploding-gradient problems from analytical, geometric, and dynamical-systems viewpoints: repeated multiplication by the recurrent Jacobian makes gradient norms shrink or blow up exponentially in the number of unrolled steps. They propose two lightweight remedies — gradient norm clipping (rescale the gradient when its norm exceeds a threshold) to tame explosions, and a soft regularization constraint that preserves gradient magnitude across steps to combat vanishing — and show empirically that these stabilize training on long-term-dependency tasks.
+
+*Relevance.* Our manuscript trains a recurrent E↔I spiking network with surrogate-gradient BPTT, so this paper grounds the well-known instability of gradients propagated through a recurrent loop over many timesteps. It is most directly relevant to finding (4), where releasing the loop weights to gradient descent prunes the loop under our Dale's-law clamp and gradient-damping scheme — the exploding/vanishing-gradient analysis motivates why gradients through the recurrent PING loop must be controlled/damped rather than left unconstrained during training.
+
+*Used for.* §5.4, for the exploding-gradient pathology of recurrent networks that motivates damping gradients through the loop.
+
+---
+
+#### 52. Cornford, Kalajdzievski, Leite, Lamarquette, Kullmann & Richards (2021) — [*Learning to Live with Dale's Principle: ANNs with Separate Excitatory and Inhibitory Units*](https://doi.org/10.1101/2020.11.02.364968)
+
+*Summary.* Cornford et al. show that standard artificial and recurrent networks violate Dale's principle — individual units send both excitatory and inhibitory projections — and introduce a reparameterisation (the Dale ANN, DANN) that splits units into strictly excitatory and strictly inhibitory populations with sign-constrained weights. With an appropriate initialisation these Dale-constrained networks train by ordinary gradient descent and match the task performance of unconstrained baselines, demonstrating that biological sign constraints need not cost accuracy.
+
+*Relevance.* This grounds our Dale's-law clamp (Methods §5.4), which projects every weight back into its sign cone after each optimiser step so excitatory and inhibitory signs stay fixed throughout training. Cornford et al. establish that such a constraint is both trainable and performance-neutral, which is what makes our §2.4 loop-pruning result meaningful: gradient descent is free to strengthen the loop within its permitted sign directions and simply does not, rather than being blocked by the constraint.
+
+*Used for.* §5.4, grounding the Dale's-law clamp that projects each weight back into its sign cone after every optimizer step.
+
+---
+
+#### 53. Zhu et al. (2026) — [*Task Success in Trained Spiking Neural Network Models Coincides with Emergence of Cross-Stimulus-Modulated Inhibition*](https://doi.org/10.1007/s00422-025-01030-4)
+
+*Summary.* Zhu et al. train recurrent spiking neural networks (240 excitatory, 100 inhibitory units, Dale's law, mouse-neocortex connectivity probabilities) on a binary motion-entropy state-change-detection task and find that task success coincides with an emergent "push-pull" connectivity motif: excitatory connections strengthen within same-preference populations while inhibitory neurons preferentially suppress oppositely-tuned units (cross-modulation ratio rising from ≈1.06 untrained to ≈2.0 trained). Networks trained without Dale's principle fail to develop the motif and perform worse. Critically, jittering each spike within a ±5 ms window leaves firing rates essentially unchanged yet significantly degrades performance (loss 0.28±0.15 → 0.4±0.3), showing computation depends on millisecond-scale spike-timing coordination rather than rate.
+
+*Relevance.* This is a strong precedent for two of our central claims. Their spike-jitter result — mean firing rate held fixed while task performance collapses under a few-ms perturbation — directly parallels our finding (6) that the gate lives in the timing/phase structure of inhibition, not its mean level, and grounds our jitter-perturbation methodology. It also supports finding (4)'s "architectural, not learned" framing: like our fixed-PING loop, their computation is carried by a specific emergent (Dale's-law-constrained) inhibitory connectivity motif rather than by rate tuning, making it a natural cite for the role of structured E/I inhibition and spike-timing precision in trained cortical-style SNNs.
+
+*Used for.* §5.4, cited with [52] as a Dale's-law SNN precedent for the sign-cone weight clamp.
+
+---
+
+#### 54. Welch (1967) — [*The Use of Fast Fourier Transform for the Estimation of Power Spectra: A Method Based on Time Averaging Over Short, Modified Periodograms*](https://doi.org/10.1109/TAU.1967.1161901)
+
+*Summary.* Welch (1967) introduces the now-standard method for estimating a power spectral density via the FFT: the time series is split into (optionally overlapping) shorter segments, each is multiplied by a window and turned into a "modified periodogram," and these periodograms are averaged. Averaging L segments cuts the variance of the raw-periodogram estimate by roughly a factor of L at the cost of coarser frequency resolution, while the FFT and short segments reduce computation and core-storage requirements. This trade — bias/resolution for a smooth, low-variance spectrum — is why "Welch's method" (a.k.a. WOSA) remains the default PSD estimator in libraries like SciPy.
+
+*Relevance.* This is the methods citation for how we extract the gamma peak frequency f_γ from our simulated traces (population spike rates / conductance signals): we compute a Welch PSD and read off the spectral peak. That extracted f_γ underpins several central claims — locating the ~25–44 Hz gamma band, mapping gamma onset across the W^EI × W^IE plane as a supercritical Hopf bifurcation, and the affine post-training relation r_E = a + p·f_γ. Welch's variance-reduction-via-segment-averaging is precisely what makes the gamma peak a stable, readable quantity rather than a noisy raw periodogram.
+
+*Used for.* §5.5, as the Welch PSD method by which we extract the gamma peak frequency f_γ from the simulated traces.
+
+---
+
+#### 55. Atallah & Scanziani (2009) — [*Instantaneous Modulation of Gamma Oscillation Frequency by Balancing Excitation with Inhibition*](https://doi.org/10.1016/j.neuron.2009.04.027)
+
+*Summary.* Using in vivo and in vitro whole-cell recordings in rat hippocampus, Atallah & Scanziani show that gamma (≈26-41 Hz, mean 34.8 ± 5.3 Hz) fluctuates cycle-by-cycle: the amplitude of one cycle predicts the interval to the next (r ≈ 0.51). Excitatory synaptic drive varies over an order of magnitude but is immediately and proportionally counterbalanced by a larger (≈5×), delayed (EPSC leads IPSC by ≈2.3 ms), slower-decaying inhibition (IPSC decay ≈13 ms vs EPSC ≈8.5 ms; E-I conductance correlation r ≈ 0.63). Because the delayed feedback inhibition sets the recovery time, stronger excitation shortens the inter-cycle interval and thus instantaneously raises gamma frequency while the E/I balance is preserved.
+
+*Relevance.* This is a canonical empirical anchor for our PING loop: it establishes that an E→I→E feedback motif with delayed, dominant inhibition is what sets the gamma period, and that gamma frequency is governed by the balance between excitation and the counterbalancing inhibition — precisely the W^EI × W^IE coupling our fixed loop implements. It directly grounds our finding (5) that the post-training excitatory rate is affine in f_γ with ≈1 spike per gamma cycle, since Atallah & Scanziani show excitatory drive is metered out one E-I wave per cycle and its amount tunes the interval to the next cycle. It also supports our framing of gamma as a phase/timing gate on excitation (finding 6): they show inhibition tracks excitation on a per-cycle basis, so the rhythm's period — not the mean inhibitory level — is the controlled variable.
+
+*Used for.* §5.5, among the spectral-peak and population-coherence measures used to characterize the rhythm.
+
+---
+
+#### 56. Xing, Shen, Burns, Yeh, Shapley & Li (2012) — [*Stochastic Generation of Gamma-Band Activity in Primary Visual Cortex of Awake and Anesthetized Monkeys*](https://doi.org/10.1523/JNEUROSCI.5644-11.2012)
+
+*Summary.* Xing et al. recorded V1 LFPs in awake and anesthetized monkeys and used Gabor-transform spectrograms to show that visually-evoked gamma-band activity (peak ≈60 Hz awake, ≈40 Hz anesthetized) comes in short, irregular bursts — corrected mean duration ≈62–65 ms, fewer than 4 cycles per burst, with peak-frequency SD ≈9 Hz within trials — whose statistics are indistinguishable from phase-randomized surrogates. They argue gamma is not a periodic clock but stochastic, noise-driven output, and reproduce the peaked spectrum with a two-node excitatory–inhibitory (Wilson–Cowan-style) recurrent network driven by Poisson/random input, where gamma emerges as network filtering of broadband activity rather than a sustained limit-cycle oscillation.
+
+*Relevance.* This grounds two of our claims. First, its E–I recurrent network driven by noise, producing a peaked-but-broad gamma spectrum, is the canonical picture behind our supercritical-Hopf finding (2): near the Hopf boundary the deterministic system has a damped resonance that noise excites into intermittent bursts rather than a rigid rhythm, matching our Welch PSD peaks and the ≈25–44 Hz band we report. Second, it directly supports our timing-over-clock reading (6–7): gamma being "too random to serve as a clock" yet still functionally organizing E-firing motivates why our gate lives in the phase/timing structure of inhibition (≈1 spike per cycle, integration over ≈one gamma cycle) rather than requiring a metronomic oscillator. It is a physiological anchor for the PING mechanism, not a firing-rate-economy result per se.
+
+*Used for.* §5.5, alongside [55], for the coherence and spectral measures our gamma quantification follows.
+
+---
+
+#### 57. Rotter & Diesmann (1999) — [*Exact Digital Simulation of Time-Invariant Linear Systems with Applications to Neuronal Modeling*](https://doi.org/10.1007/s004220050570)
+
+*Summary.* Rotter and Diesmann present a method for the exact digital simulation of time-invariant linear systems (Biol Cybern 81:381-402, 1999). Writing the subthreshold dynamics as dy/dt = Ay, they use the matrix exponential exp(A·h) to build a propagator that advances the state exactly across a fixed time step h, and they incorporate a broad class of inputs — including trains of delta-pulses (spikes) — into this exact scheme. Applied to networks of integrate-and-fire neurons with linear subthreshold integration and nonlinear spike generation, "Exact Integration" yields the smallest error in both subthreshold trajectory and spike timing versus general-purpose ODE solvers, especially at moderate step sizes.
+
+*Relevance.* This is the methodological anchor for our exponential-Euler / exact-exponential integration of the COBA-LIF dynamics: for the linear subthreshold and conductance decay terms, the propagator exp(A·h) is exact regardless of step size, which is exactly the property our timestep-invariance result (finding 6) leans on when we argue the gamma gate is a genuine dynamical feature rather than a discretization artifact. It grounds our claim that spike-driven synaptic conductances and delta-pulse inputs are handled exactly on the integration grid, so that measured f_gamma (Welch PSD) and E-firing rates are not sensitive to dt. We cite it as the standard justification for the exponential integrator underlying the network simulation.
+
+*Used for.* §5.6, as the exact-exponential (exponential-Euler) integration scheme for the COBA-LIF dynamics, underpinning the timestep-invariance result.
+
+---
+
+#### 58. LeCun, Bottou, Bengio & Haffner (1998) — [*Gradient-Based Learning Applied to Document Recognition*](https://doi.org/10.1109/5.726791)
+
+*Summary.* This foundational paper introduces LeNet-5, a gradient-based convolutional neural network trained end-to-end by backpropagation for handwritten-digit recognition, and establishes the MNIST dataset as its benchmark; LeNet-5 reaches roughly 0.95% test error on MNIST (dropping to about 0.8% with input distortions), beating the fully-connected nets and template/feature-based classifiers of the era. It argues that learned, weight-shared local receptive fields with spatial pooling let the network absorb feature extraction into training rather than hand-engineering it, and further proposes Graph Transformer Networks to train whole document-recognition pipelines globally.
+
+*Relevance.* Our manuscript trains its PING and COBA spiking networks on MNIST, so this is the canonical origin citation for both the dataset and the gradient-based (surrogate-gradient BPTT) learning paradigm we build on. It grounds the choice of MNIST as the classification task on which we compare accuracy at matched excitatory-spike budgets, and anchors the convolutional/end-to-end-trainable lineage that our surrogate-gradient training of a biophysically-constrained SNN extends into the spiking, Dale's-law-clamped regime.
+
+*Used for.* §5.7, as the origin citation for MNIST, the classification task on which we compare PING and COBA at matched spike budgets.
