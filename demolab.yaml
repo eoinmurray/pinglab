@@ -2,4 +2,11 @@
 name: pinglab
 book-title: pinglab — the book
 contents-title: pinglab — contents
-# Collections are filled in as writings migrate (a collection's slug title-cases by default).
+
+# Homepage collections — display label + description + order. A collection with no
+# entry here still works (its slug title-cases). Filled in as writings migrate.
+collection-order: [ping-networks]
+collections:
+  ping-networks:
+    label: PING networks
+    description: Excitatory–inhibitory spiking networks and the gamma rhythm they generate.

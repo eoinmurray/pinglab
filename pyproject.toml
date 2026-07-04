@@ -32,8 +32,11 @@ build-backend = "hatchling.build"
 packages = ["src/cli", "src/notebooks"]
 
 [tool.pytest.ini_options]
-testpaths = ["src/cli/tests"]
-pythonpath = ["src/cli"]
+# src/cli/tests = the legacy CLI suite; tools = the demolab tool tests (migration).
+# pythonpath adds src/cli (for `import config`/`models`) and repo root (for
+# `import tools.snn.tool`), coexisting during the migration.
+testpaths = ["src/cli/tests", "tools"]
+pythonpath = ["src/cli", "."]
 markers = [
     "slow: minutes of wall-clock — subprocess/GPU end-to-end tests OR heavy in-process torch training; `pytest -m 'not slow'` is the fast iteration lane",
     "regression: checks against calibrated artifacts; skipped if absent",

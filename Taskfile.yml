@@ -148,12 +148,12 @@ tasks:
       - uv run python demolab-engine/build/build.py
 
   dev:
-    desc: "Serve the Typst site with hot-reload (port 3001; override: task dev -- 3010)"
+    desc: "Serve the Typst site with hot-reload (port 3000; override: task dev -- 3010)"
     cmds:
       - uv run python demolab-engine/build/build.py --generate-only
       - >-
         typst watch --format bundle --features bundle,html --root .
-        demolab-engine/build/main.typ artifacts/site/ --port {{.CLI_ARGS | default "3001"}}
+        demolab-engine/build/main.typ artifacts/site/ --port {{.CLI_ARGS | default "3000"}}
 
   run:
     desc: "Run a demolab experiment end-to-end — e.g. task run -- exp000"
