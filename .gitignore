@@ -27,6 +27,8 @@ TODO.md
 .vscode
 .claude/
 build/
+# ...but the vendored Typst engine lives in demolab-engine/build/ and must be tracked.
+!demolab-engine/build/
 dist/
 *.egg-info/
 .pytest_cache/

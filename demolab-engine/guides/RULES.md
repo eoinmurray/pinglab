@@ -7,7 +7,8 @@ follow — principles *and* the tool ↔ experiment contract. It lives inside th
 instructions, see [`README.md`](../../README.md).
 
 Rules are numbered `§<section>.<rule>` so other docs (e.g. the *Doctor the repo* runbook)
-can cite them precisely.
+can cite them precisely. Terms (tool, experiment, deck, collection, provenance…) are
+defined in [`GLOSSARY.md`](GLOSSARY.md).
 
 ## 1. Toolchain
 
@@ -25,7 +26,7 @@ can cite them precisely.
 
 ## 3. Repo layout — the framework/content firewall
 
-**3.1 — Black box** (pure upstream; never edited here, swapped wholesale on update): `demolab-engine/build/` (the Typst engine: `main.typ`, `lib.typ`, `build.py`, `style.css`, `favicon.svg`), `demolab-engine/runbooks/` (the runbooks), and `demolab-engine/guides/` (this file). Updates cleanly and survives any deletion of example content.
+**3.1 — Black box** (pure upstream; never edited here, swapped wholesale on update): `demolab-engine/build/` (the Typst engine: `main.typ`, `lib.typ`, `build.py`, `style.css`, `favicon.svg`), `demolab-engine/runbooks/` (the runbooks), and `demolab-engine/guides/` (this file + `GLOSSARY.md` + `HOUSE-STYLE.md`). Updates cleanly and survives any deletion of example content.
 
 **3.2 — Reconciled** (framework, but kept thin or pinned to root by tooling; updated by diff, not swap): `AGENTS.md` + its `CLAUDE.md` pointer (both thin — they just point here), `README.md`, the `Taskfile`, `pyproject.toml`, and `.github/` CI.
 
@@ -80,6 +81,8 @@ can cite them precisely.
 **5.4 — Numbers can't drift.** Each `writings/<id>.typ` reads its own bundle natively — `json("/artifacts/data/<id>/numbers.json")`, `#image("/artifacts/data/<id>/fig.png")` (compiled with `--root` at the repo root) — so the numbers and figures come straight from the run.
 
 ## 6. Authoring writings
+
+For *how a writing should read* — prose, math, figures, structure — see [`HOUSE-STYLE.md`](HOUSE-STYLE.md). This section is the mechanics.
 
 **6.1 — `meta` + `body`.** A writing is `writings/<id>.typ`: a `#let meta = (title, date, description?, collection?, status?)` block and a `#let body = [ … ]` block. `build.py` discovers entries by those two top-level definitions. Model a new one on `exp000.typ`.
 
