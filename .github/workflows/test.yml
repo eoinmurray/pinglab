@@ -29,4 +29,4 @@ jobs:
       # (85%). --cov with no argument uses [tool.coverage.run] source/omit, so
       # modal_app + profiling are excluded and tests are not counted.
       - name: Pytest + coverage gate
-        run: uv run pytest src/cli/tests --cov --cov-report=term-missing
+        run: uv run pytest tools/snn/tests --cov --cov-report=term-missing

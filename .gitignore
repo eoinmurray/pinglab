@@ -11,11 +11,8 @@ NOTES.md
 *.pt
 *.pth
 
-src/temp
 .env
-src/data/**
 worktrees/
-src/datasets/**
 .env.local
 .env.*.local
 .export
@@ -27,6 +24,8 @@ TODO.md
 .vscode
 .claude/
 build/
+# ...but the vendored Typst engine lives in demolab-engine/build/ and must be tracked.
+!demolab-engine/build/
 dist/
 *.egg-info/
 .pytest_cache/
@@ -34,42 +33,14 @@ dist/
 .ipynb_checkpoints/
 .ruff_cache/
 
-# Results system (new architecture)
-# Track: runs/, sweeps/, reports/, catalog/ (with manifests, configs, plots)
-# Ignore: blobs/ (large files handled by Git LFS or pointers)
-results/blobs/
-
-# Binary data files in old .db/ system (deprecated)
-.db/**/*.npz
-.db/**/*.h5
-.db/**/*.hdf5
-
-# Cached datasets (MNIST, etc.) in experiment data dirs
+# Cached datasets (MNIST, etc.) pulled into a run's data dir
 **/data/MNIST/
 
-# Run data dirs (NPZ, weights, logs) — one per training run
-src/experiments/*/data/*/
-
 node_modules
-
-# Harness run outputs — reproducible from code + config + seed
-src/artifacts/
-
-# Astro build output
-src/docs/dist/
-
-# Frontend builds are handled by src/cathedral/.gitignore
-
-# Avoid committing full-text PDFs of papers (link out instead)
-content/paper.*/*.pdf
-src/posts/*.pdf
-src/vite/public/*.pdf
-src/vite/public/manifest.json
-
-# Keynote source files — large binaries, not useful in source
-src/keynote/*.key
 .coverage
 
-
-# refcheck: PDFs staged for local Astro serving — never distributed on push
-src/docs/public/papers/
+# demolab (Typst publishing) + experiment scratch + build output
+temp/
+artifacts/site/
+# CLI scratch if the default artifact root is ever hit (normally writes to temp/)
+tools/artifacts/

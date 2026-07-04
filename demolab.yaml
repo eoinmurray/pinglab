@@ -1,0 +1,22 @@
+# pinglab publishing config (read by the demolab engine; omit fields for defaults).
+name: PINGLAB
+book-title: pinglab — the book
+contents-title: pinglab — contents
+
+collection-order: [gamma-gated-sparsity, documentation, literature, miscellaneous, weekly-feed]
+collections:
+  gamma-gated-sparsity:
+    label: Gamma-gated sparsity
+    description: PING E/I networks trained with surrogate gradients; what sets the rate, the rhythm, and the sparsity.
+  documentation:
+    label: Documentation
+    description: Model derivations, conventions, and how the toolkit works.
+  literature:
+    label: Literature
+    description: Reading notes and reference companions.
+  miscellaneous:
+    label: Miscellaneous
+    description: Odds and ends.
+  weekly-feed:
+    label: Weekly feed
+    description: Running notes.

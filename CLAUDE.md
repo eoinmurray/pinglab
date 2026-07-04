@@ -1,9 +1,9 @@
 The working conventions for this repo — the "house rules" — now live in the House Rules article:
 
-- on disk: `src/docs/src/pages/articles/ar016.mdx`
-- on the site: `/articles/ar016/`
+- on disk: `writings/ar016.typ`
+- on the site: `/ar016/`
 
-Read it before making any edits. It covers tooling (uv / bun), running experiments and reporting timing/cost, the notebook-is-the-recipe rule, figure and prose style (16:9 figures, `≈` not `~`, no backticks in docs), version control, and working style.
+Read it before making any edits. It covers tooling (uv / typst / task), running experiments and reporting timing/cost, the notebook-is-the-recipe rule, figure and prose style (16:9 figures, `≈` not `~`, no backticks in docs), version control, and working style. The demolab authoring style rules (H1–H13) live in `demolab-engine/guides/HOUSE-STYLE.md`.
 
 Non-negotiables kept here so they are always in context (full detail in the article):
 

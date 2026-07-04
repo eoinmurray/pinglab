@@ -1,19 +1,21 @@
 # ty type-checker configuration for pinglab.
-# Python lives in src/cli and src/notebooks; src/docs (JS/TS), artifacts and
-# papers are not type-checked.
+# Python lives in the demolab layer: tools/snn (the engine) + experiments/ (runners).
 
 [environment]
 python-version = "3.10"
-# Source roots for first-party import resolution: `cli.*` resolves from src,
-# `helpers.*` from src/notebooks, and `models`/`config`/etc. from src/cli.
-root = ["src", "src/cli", "src/notebooks"]
+# Source roots for first-party import resolution: the engine's flat imports
+# (`models`/`config`/etc.) resolve from tools/snn, the runners' `helpers.*` from
+# experiments/, and the repo root (".") so `tools.snn` resolves as a package.
+root = ["tools/snn", "experiments", "."]
 
 [src]
 exclude = [
-    "src/docs",
-    "src/artifacts",
-    "src/papers",
     ".venv",
+    # Vendored black box (never edited here) + generated output — not our
+    # type-checked surface.
+    "demolab-engine",
+    "artifacts",
+    "temp",
 ]
 
 [terminal]

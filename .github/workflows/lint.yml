@@ -31,30 +31,13 @@ jobs:
         id: ty
         run: uv run ty check
 
-      # The invariant: notebooks may only shell out to cli.py, never import the
-      # `cli`/`models` packages (enforced by src/notebooks/ruff.toml TID251).
-      # The migration burndown is at 0, so this is now a HARD, zero-exception
-      # gate — CI fails if any notebook re-introduces a direct cli/models import
-      # (bare, submodule, or `from … import` form). Do not add continue-on-error
-      # or per-file-ignores: the boundary is non-negotiable. If a notebook needs
-      # something from the network, grow a generic CLI subcommand/flag instead.
-      - name: Notebook CLI-import gate
+      # The invariant: experiment runners reach the engine only by running the
+      # snn tool as a subprocess (python tools/snn/tool.py ...), never by importing
+      # the `tools` package or the `models` torch engine (enforced by
+      # experiments/ruff.toml TID251). A HARD, zero-exception gate — CI fails if any
+      # runner introduces a direct import (bare, submodule, or `from … import` form).
+      # Do not add continue-on-error or per-file-ignores: the boundary is
+      # non-negotiable. If a runner needs something, grow a generic tool subcommand.
+      - name: Experiment tool-import gate
         id: nb_gate
-        run: uv run ruff check src/notebooks --select TID --output-format=github
-
-      - name: Refactor burndown (cli/models imports in notebooks)
-        if: always()
-        run: |
-          {
-            echo "## Notebook refactor burndown"
-            echo ""
-            echo "Direct \`cli\`/\`models\` import sites remaining per notebook (0 = migrated):"
-            echo ""
-            echo '```'
-            uv run ruff check src/notebooks --select TID 2>&1 \
-              | grep -oE 'nb[0-9]+\.py' | sort | uniq -c | sort -rn || echo "none — all notebooks compliant"
-            echo '```'
-            total=$(uv run ruff check src/notebooks --select TID 2>&1 | grep -c TID251 || true)
-            echo ""
-            echo "**Total remaining sites: ${total}**"
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: uv run ruff check experiments --select TID --output-format=github

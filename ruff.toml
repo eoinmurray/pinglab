@@ -1,15 +1,17 @@
 # Ruff configuration for pinglab.
-# Docs live under src/docs (JS/TS) and are excluded; Python lives in src/cli
-# and src/notebooks.
+# Python lives in the demolab layer: tools/snn (the engine) + experiments/ (runners).
 
 target-version = "py310"
 line-length = 88
 
 extend-exclude = [
-    "src/docs",
-    "src/artifacts",
-    "src/papers",
     ".venv",
+    # demolab-engine is a vendored black box (re-pulled from upstream, never
+    # edited here) — we don't own its lint, so a future upstream pull can't
+    # break our gate. artifacts/ and temp/ are generated output, not source.
+    "demolab-engine",
+    "artifacts",
+    "temp",
 ]
 
 [lint]
@@ -24,9 +26,10 @@ select = ["E", "F", "I"]
 ignore = ["E501", "E741"]
 
 [lint.per-file-ignores]
-# Notebook runners must set sys.path / REPO before importing local modules, so
-# module-level imports legitimately follow setup code.
-"src/notebooks/*" = ["E402"]
+# Experiment runners set sys.path before importing local modules (helpers +
+# sibling runners live alongside them under experiments/), so module-level
+# imports legitimately follow setup code.
+"experiments/*" = ["E402"]
 
 [format]
 quote-style = "double"
