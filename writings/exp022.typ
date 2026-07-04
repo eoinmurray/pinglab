@@ -9,7 +9,7 @@
 #let body = [
   == Abstract
 
-  The collection's single training hub: every cell is trained once to a shared root, and the analysis notebooks load those weights instead of retraining (train-once / reuse-many, see #link("/ar016/")[ar016]). Status *draft* — nothing is trained to the gamma standard yet.
+  The collection's single training hub: every cell is trained once to a shared root, and the analysis notebooks load those weights instead of retraining (train-once / reuse-many). Status *draft* — nothing is trained to the gamma standard yet.
 
   == Methods
 

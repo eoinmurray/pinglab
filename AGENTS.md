@@ -1,18 +1,15 @@
 # AGENTS.md
 
 pinglab — spiking E/I (PING) networks, trained with surrogate gradients and diagnosed via
-Δt-stability. **Migrating in-place to the demolab framework** (agent-operated lab notebook:
-`tools/` emit data → `experiments/` runners render figures → `writings/*.typ` publish via
-Typst). During the migration the old `src/` (cli, notebooks, Astro docs) and the new
-`tools/ experiments/ writings/` coexist — see [MIGRATE-CODE](demolab-engine/runbooks/MIGRATE-CODE.md).
+Δt-stability. Structured as the **demolab framework** (agent-operated lab notebook): the
+`tools/snn` engine emits data → `experiments/` runners render figures → `writings/*.typ`
+publish via Typst to web + PDFs + a book.
 
-**Conventions (the new structure)** → [`demolab-engine/guides/RULES.md`](demolab-engine/guides/RULES.md):
+**Conventions** → [`demolab-engine/guides/RULES.md`](demolab-engine/guides/RULES.md):
 toolchain, the framework/content firewall, the tool ↔ experiment contract + schemas, and
-how to add a tool / experiment / writing. The `demolab-engine/` dir is vendored **upstream
-from `../demolab`** — never edit it here; "update demolab" re-pulls it wholesale.
-
-**Legacy conventions (still governing the un-migrated `src/`)** → the House Rules article,
-`writings/ar016.typ`.
+how to add a tool / experiment / writing; authoring style is in
+[`HOUSE-STYLE.md`](demolab-engine/guides/HOUSE-STYLE.md). The `demolab-engine/` dir is vendored
+**upstream from `../demolab`** — never edit it here; "update demolab" re-pulls it wholesale.
 
 ## Non-negotiables (both worlds)
 
