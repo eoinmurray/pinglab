@@ -1,4 +1,4 @@
-"""Notebook runner for entry 063 — Training.
+"""Notebook runner for entry 022 — Training.
 
 The single place the gamma-gated-sparsity collection trains its canonical
 networks. Every cell is trained once here, to a shared artifact root
@@ -7,12 +7,13 @@ weights with `load_cell` (imported from this module) instead of retraining
 their own. This replaces the collection's older "standalone runner, no
 cross-notebook helpers" rule with a train-once / reuse-many policy (see ar016).
 
-Phase 1 owns the canonical coba / ping θ_u spike-budget sweep that nb025
+87 cells across five families (canonical, θ_u, τ_GABA, Δt, init) that nb025
 defines and that nb024 / nb036 / nb037 / nb038 each used to retrain
-independently: θ_u ∈ {off, 5, 2, 1, 0.5, 0.2}, baselines (off) at seeds
-42/43/44 and sweep cells single-seed. Standard: 100 epochs, dt = 0.1 ms,
-T = 200 ms, MNIST. (nb044's dt sweep is the one documented exception that
-varies dt; it owns its own training.)
+independently. Standard: 50 epochs, dt = 0.1 ms, T = 200 ms, and THREE seeds
+(42/43/44) for every cell — including the θ_u interior, so the accuracy–rate
+frontier carries error bars (it was single-seed; no longer). Canonical sees all
+of MNIST, the sweeps 10%. (nb044's Δt sweep is the documented exception that
+varies dt.)
 
 Outputs a per-cell accuracy / E-rate summary plus a manifest (numbers.json)
 recording exactly which cells were trained and the git sha — the contract
@@ -24,6 +25,7 @@ Notebook entry: src/docs/content/notebooks/nb022.mdx
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -51,11 +53,10 @@ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 TRAINING_ROOT = REPO / "src" / "artifacts" / "notebooks" / "training"
 PINGLAB_CLI = REPO / "src" / "cli" / "cli.py"
 
-EPOCHS_STANDARD = 100          # standard depth (dt sweep in nb044 is the exception)
+EPOCHS_STANDARD = 50           # standard depth (halved from 100 — see nb022.mdx §2)
 DT_MS = 0.1
 T_MS = 200.0
 SEEDS_BASELINE = [42, 43, 44]
-SEED_SWEEP = 42
 THETA_U_GRID: list[float | None] = [None, 5.0, 2.0, 1.0, 0.5, 0.2]
 FR_STRENGTH_UPPER = 1e-3
 TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
@@ -137,16 +138,19 @@ def theta_display(theta_u: float | None) -> str:
 
 
 def seeds_for(theta_u: float | None) -> list[int]:
-    """Baselines run all seeds; sweep cells stay single-seed (matches nb025)."""
-    return list(SEEDS_BASELINE) if theta_u is None else [SEED_SWEEP]
+    """Every θ_u value — baseline and interior — runs all three seeds, so the
+    accuracy–rate frontier carries across-seed error bars. The interior used to
+    be single-seed (a limitation ar009 §2.3 disclosed); this removes it."""
+    return list(SEEDS_BASELINE)
 
 
 def cell_name(model: str, theta_u: float | None, seed: int) -> str:
-    """θ_u cell name. Matches nb025/nb036/nb037/nb038, so migrating those is a
-    path repoint, not a rename."""
+    """θ_u cell name — always seed-suffixed now the interior is 3-seed too (was
+    `{model}__{tu}` with no seed for the single-seed interior). Consumers that
+    read these cells must iterate seeds_for() rather than assume a single seed."""
     if theta_u is None:
         return f"{model}__off__seed{seed}"
-    return f"{model}__{theta_label(theta_u)}"
+    return f"{model}__{theta_label(theta_u)}__seed{seed}"
 
 
 def _label(x: float) -> str:
@@ -222,44 +226,6 @@ def _init_cells() -> list[dict]:
     return cells
 
 
-def _theta_u_3seed_cells() -> list[dict]:
-    """3-seed extension of the θ_u sweep: interior θ_u values re-run across
-    all baseline seeds so the ar009 Figure 3 accuracy–rate frontier can be
-    plotted with across-seed bands (currently the interior is single-seed,
-    a disclosure in ar009 §2.3 we'd like to remove). The 'off' baseline is
-    not included here — _theta_u_cells already runs it at all baseline seeds.
-
-    NOT YET WIRED INTO CANONICAL_CELLS — see ar010 (manuscript-driven TODO
-    article, item 3 after the items-1-and-2 merge). To enable training, append
-    ` + _theta_u_3seed_cells()` to the CANONICAL_CELLS expression below.
-    Names use the {model}__tu{val}__seedN convention so they sit alongside
-    rather than overwrite the existing single-seed sweep cells.
-    """
-    cells = []
-    for m in MODELS:
-        for tu in THETA_U_GRID:
-            if tu is None:
-                continue
-            extra = [
-                "--fr-reg-upper-theta", str(tu),
-                "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
-            ]
-            for s in SEEDS_BASELINE:
-                cells.append({
-                    "name": f"{m}__{theta_label(tu)}__seed{s}",
-                    "model": m, "family": "theta_u_3seed",
-                    "tag": theta_display(tu), "seed": s, "dt_ms": DT_MS,
-                    "tau_gaba": TAU_GABA_GAMMA, "extra": extra,
-                })
-    return cells
-
-
-# Available but not enabled — see docstring above. Importable from outside
-# the module for inspection / dry-run; flip the switch by adding to
-# CANONICAL_CELLS below.
-THETA_U_3SEED_CELLS = _theta_u_3seed_cells()
-
-
 CANONICAL_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
                    + _dt_cells() + _init_cells())
 
@@ -267,8 +233,9 @@ CANONICAL_CELLS = (_canonical_cells() + _theta_u_cells() + _tau_gaba_cells()
 # the Methods table via RunScale; the mdx never restates these numbers.
 SCALE = {
     "dataset": "mnist",
-    "max_samples": MAX_SAMPLES,
-    "epochs": EPOCHS,
+    # Sweep scale (61/67 cells); the 6 canonical cells override to all of MNIST.
+    "max_samples": SUBSET_MAX_SAMPLES,
+    "epochs": EPOCHS_STANDARD,
     "t_ms": T_MS,
     "dt_ms": DT_MS,
     "batch_size": BATCH_SIZE,
@@ -326,16 +293,25 @@ def build_train_args(spec: dict, out_dir: Path,
 
 # ── Runner ───────────────────────────────────────────────────────────
 
-# This runner is pinned to the plumbing scale: every cell is capped to
-# MAX_SAMPLES samples and EPOCHS epochs so the whole registry can be trained
-# in minutes to check the wiring. The full per-family standard (canonical =
-# all MNIST, sweeps = 10%, EPOCHS_STANDARD) lives in the constants above and
-# is restored by editing cell_samples_epochs when a real run is scheduled.
+# This runner trains at the full per-family standard: the canonical reference
+# sees all of MNIST, every sweep family sees the 10% subset, and depth is
+# EPOCHS_STANDARD throughout. Set PINGLAB_NB022_PLUMBING=1 to fall back to the
+# tiny wiring-check scale (MAX_SAMPLES / EPOCHS) — that trains the whole
+# registry in minutes to smoke-test the fan-out without spending the real
+# ~94 GPU-hours; it is the only reason the plumbing constants still exist.
 
 
 def cell_samples_epochs(spec: dict) -> tuple[int, int]:
-    """Per-cell (max_samples, epochs): the fixed plumbing cap for every cell."""
-    return MAX_SAMPLES, EPOCHS
+    """Per-cell (max_samples, epochs) at the full per-family standard.
+
+    Canonical cells carry their own max_samples (all of MNIST); every other
+    family falls back to the 10% subset. Depth is EPOCHS_STANDARD for all
+    families — the dt sweep is the exception in *dt*, not in epochs.
+
+    PINGLAB_NB022_PLUMBING=1 overrides both to the minutes-long wiring scale."""
+    if os.environ.get("PINGLAB_NB022_PLUMBING") == "1":
+        return MAX_SAMPLES, EPOCHS
+    return spec.get("max_samples") or SUBSET_MAX_SAMPLES, EPOCHS_STANDARD
 
 
 def _json_safe(o):
