@@ -11,12 +11,6 @@ collections:
   documentation:
     label: Documentation
     description: Model derivations, conventions, and how the toolkit works.
-  literature:
-    label: Literature
-    description: Reading notes and reference companions.
   miscellaneous:
     label: Miscellaneous
     description: Odds and ends.
-  weekly-feed:
-    label: Weekly feed
-    description: Running notes.
