@@ -7,7 +7,11 @@
 )
 
 #let body = [
-
+// Divider that survives both targets: a CSS-styled <hr> on the web, a drawn
+// rule in the PDF (matches the engine's own separator in lib.typ).
+#let divider = context {
+  if target() == "html" { html.elem("hr") } else { line(length: 100%, stroke: 0.5pt + gray) }
+}
 
 A literature companion to the #link("/ar009/")[the manuscript (ar009)].
 
@@ -15,70 +19,70 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 
 == Contents
 
-+ Buzsáki & Wang (2012) — Mechanisms of Gamma Oscillations
-+ Fries (2015) — Rhythms for Cognition: Communication through Coherence
-+ Fries, Reynolds, Rorie & Desimone (2001) — Modulation of Oscillatory Neuronal Synchronization by Selective Visual Attention
-+ Gray, König, Engel & Singer (1989) — Oscillatory Responses in Cat Visual Cortex Exhibit Inter-Columnar Synchronization Which Reflects Global Stimulus Properties
-+ Whittington, Traub, Kopell, Ermentrout & Buhl (2000) — Inhibition-Based Rhythms: Experimental and Mathematical Observations on Network Dynamics
-+ Williams et al. (2026) — Fast Spiking Interneurons Autonomously Generate Fast Gamma Oscillations in the Medial Entorhinal Cortex with Excitation Strength Tuning ING-PING Transitions
-+ Börgers (2017) — The PING Model of Gamma Rhythms
-+ Cardin, Carlén, Meletis, Knoblich, Zhang, Deisseroth, Tsai & Moore (2009) — Driving Fast-Spiking Cells Induces Gamma Rhythm and Controls Sensory Responses
-+ Sohal, Zhang, Yizhar & Deisseroth (2009) — Parvalbumin Neurons and Gamma Rhythms Enhance Cortical Circuit Performance
-+ Phensy et al. (2026) — Prefrontal Gamma Oscillations Engage Dynamic Cell Type-Specific Configurations to Support Flexible Behavior
-+ Offermanns, Pöpplau & Hanganu-Opatz (2026) — Developmental Embedding of Parvalbumin Interneurons Drives Local and Crosshemispheric Prefrontal Gamma Synchrony
-+ Whittington, Traub & Jefferys (1995) — Synchronized Oscillations in Interneuron Networks Driven by Metabotropic Glutamate Receptor Activation
-+ Wang & Buzsáki (1996) — Gamma Oscillation by Synaptic Inhibition in a Hippocampal Interneuronal Network Model
-+ Bartos, Vida & Jonas (2007) — Synaptic Mechanisms of Synchronized Gamma Oscillations in Inhibitory Interneuron Networks
-+ Kopell, Börgers, Pervouchine, Malerba & Tort (2010) — Gamma and Theta Rhythms in Biophysical Models of Hippocampal Circuits
-+ Viriyopase, Memmesheimer & Gielen (2016) — Cooperation and Competition of Gamma Oscillation Mechanisms
-+ Brunel & Wang (2003) — What Determines the Frequency of Fast Network Oscillations with Irregular Neural Discharges? I. Synaptic Dynamics and Excitation-Inhibition Balance
-+ Wilson & Cowan (1972) — Excitatory and Inhibitory Interactions in Localized Populations of Model Neurons
-+ Segneri, Bi, Olmi & Torcini (2020) — Theta-Nested Gamma Oscillations in Next Generation Neural Mass Models
-+ Nandi, Valla & di Volo (2024) — Bursting Gamma Oscillations in Neural Mass Models
-+ Tahvili, Vinck & di Volo (2026) — A Mean-Field Model of Neural Networks with PV and SOM Interneurons Reveals Connectivity-Based Mechanisms of Gamma Oscillations
-+ Eshraghian, Ward, Neftci, Wang, Lenz, Dwivedi, Bennamoun, Jeong & Lu (2023) — Training Spiking Neural Networks Using Lessons From Deep Learning
-+ Neftci, Mostafa & Zenke (2019) — Surrogate Gradient Learning in Spiking Neural Networks
-+ Deckers et al. (2025) — Advancing Spatio-Temporal Processing Through Adaptation in Spiking Neural Networks
-+ Yan, Yang, Wu, Liu, Zhang, Li, Tan & Wu (2025) — Efficient and Robust Temporal Processing with Neural Oscillations Modulated Spiking Neural Networks
-+ Bittar & Garner (2024) — Exploring Neural Oscillations During Speech Perception via Surrogate-Gradient Spiking Neural Networks
-+ Barth & Poulet (2012) — Experimental Evidence for Sparse Firing in the Neocortex
-+ Attwell & Laughlin (2001) — An Energy Budget for Signaling in the Grey Matter of the Brain
-+ Howarth, Gleeson & Attwell (2012) — Updated Energy Budgets for Neural Computation in the Neocortex and Cerebellum
-+ Ainsworth, Lee, Cunningham, Traub, Kopell & Whittington (2012) — Rates and Rhythms: A Synergistic View of Frequency and Temporal Coding in Neuronal Networks
-+ Schaefer, Angelo, Spors & Margrie (2006) — Neuronal Oscillations Enhance Stimulus Discrimination by Ensuring Action Potential Precision
-+ Nguyen & Rubchinsky (2021) — Temporal Patterns of Synchrony in a Pyramidal-Interneuron Gamma (PING) Network
-+ Shadlen & Movshon (1999) — Synchrony Unbound: A Critical Evaluation of the Temporal Binding Hypothesis
-+ London, Roth, Beeren, Häusser & Latham (2010) — Sensitivity to Perturbations in vivo Implies High Noise and Suggests Rate Coding in Cortex
-+ Akam & Kullmann (2012) — Efficient "Communication through Coherence" Requires Oscillations Structured to Minimize Interference between Signals
-+ Renart, de la Rocha, Bartho, Hollender, Parga, Reyes & Harris (2010) — The Asynchronous State in Cortical Circuits
-+ van Vreeswijk & Sompolinsky (1996) — Chaos in Neuronal Networks with Balanced Excitatory and Inhibitory Activity
-+ Vogels, Sprekeler, Zenke, Clopath & Gerstner (2011) — Inhibitory Plasticity Balances Excitation and Inhibition in Sensory Pathways and Memory Networks
-+ Hennequin, Agnes & Vogels (2017) — Inhibitory Plasticity: Balance, Control, and Codependence
-+ Wu, Miehl & Gjorgjieva (2022) — Regulation of Circuit Organization and Function Through Inhibitory Synaptic Plasticity
-+ Páscoa dos Santos & Verschure (2025) — Excitatory-Inhibitory Homeostasis and Bifurcation Control in the Wilson-Cowan Model of Cortical Dynamics
-+ Kann (2016) — The Interneuron Energy Hypothesis: Implications for Brain Disease
-+ Börgers, Talei Franzesi, LeBeau, Boyden & Kopell (2012) — Minimal Size of Cell Assemblies Coordinated by Gamma Oscillations
-+ Cramer, Stradmann, Schemmel & Zenke (2022) — The Heidelberg Spiking Data Sets for the Systematic Evaluation of Spiking Neural Networks
-+ Tiesinga & Sejnowski (2009) — Cortical Enlightenment: Are Attentional Gamma Oscillations Driven by ING or PING?
-+ Brunel (2000) — Dynamics of Sparsely Connected Networks of Excitatory and Inhibitory Spiking Neurons
-+ Gerstner (2000) — Population Dynamics of Spiking Neurons: Fast Transients, Asynchronous States, and Locking
-+ Montbrió, Pazó & Roxin (2015) — Macroscopic Description for Networks of Spiking Neurons
-+ Zenke & Ganguli (2018) — SuperSpike: Supervised Learning in Multilayer Spiking Neural Networks
-+ Kingma & Ba (2015) — Adam: A Method for Stochastic Optimization
-+ Pascanu, Mikolov & Bengio (2013) — On the Difficulty of Training Recurrent Neural Networks
-+ Cornford, Kalajdzievski, Leite, Lamarquette, Kullmann & Richards (2021) — Learning to Live with Dale's Principle: ANNs with Separate Excitatory and Inhibitory Units
-+ Zhu et al. (2026) — Task Success in Trained Spiking Neural Network Models Coincides with Emergence of Cross-Stimulus-Modulated Inhibition
-+ Welch (1967) — The Use of Fast Fourier Transform for the Estimation of Power Spectra: A Method Based on Time Averaging Over Short, Modified Periodograms
-+ Atallah & Scanziani (2009) — Instantaneous Modulation of Gamma Oscillation Frequency by Balancing Excitation with Inhibition
-+ Xing, Shen, Burns, Yeh, Shapley & Li (2012) — Stochastic Generation of Gamma-Band Activity in Primary Visual Cortex of Awake and Anesthetized Monkeys
-+ Rotter & Diesmann (1999) — Exact Digital Simulation of Time-Invariant Linear Systems with Applications to Neuronal Modeling
-+ LeCun, Bottou, Bengio & Haffner (1998) — Gradient-Based Learning Applied to Document Recognition
++ #link("https://doi.org/10.1146/annurev-neuro-062111-150444")[Buzsáki & Wang (2012) — Mechanisms of Gamma Oscillations]
++ #link("https://doi.org/10.1016/j.neuron.2015.09.034")[Fries (2015) — Rhythms for Cognition: Communication through Coherence]
++ #link("https://doi.org/10.1126/science.1055465")[Fries, Reynolds, Rorie & Desimone (2001) — Modulation of Oscillatory Neuronal Synchronization by Selective Visual Attention]
++ #link("https://doi.org/10.1038/338334a0")[Gray, König, Engel & Singer (1989) — Oscillatory Responses in Cat Visual Cortex Exhibit Inter-Columnar Synchronization Which Reflects Global Stimulus Properties]
++ #link("https://doi.org/10.1016/S0167-8760(00")[Whittington, Traub, Kopell, Ermentrout & Buhl (2000) — Inhibition-Based Rhythms: Experimental and Mathematical Observations on Network Dynamics]
++ #link("https://doi.org/10.1523/ENEURO.0452-25.2026")[Williams et al. (2026) — Fast Spiking Interneurons Autonomously Generate Fast Gamma Oscillations in the Medial Entorhinal Cortex with Excitation Strength Tuning ING-PING Transitions]
++ #link("https://doi.org/10.1007/978-3-319-51171-9_30")[Börgers (2017) — The PING Model of Gamma Rhythms]
++ #link("https://doi.org/10.1038/nature08002")[Cardin, Carlén, Meletis, Knoblich, Zhang, Deisseroth, Tsai & Moore (2009) — Driving Fast-Spiking Cells Induces Gamma Rhythm and Controls Sensory Responses]
++ #link("https://doi.org/10.1038/nature07991")[Sohal, Zhang, Yizhar & Deisseroth (2009) — Parvalbumin Neurons and Gamma Rhythms Enhance Cortical Circuit Performance]
++ #link("https://doi.org/10.1016/j.neuron.2026.05.002")[Phensy et al. (2026) — Prefrontal Gamma Oscillations Engage Dynamic Cell Type-Specific Configurations to Support Flexible Behavior]
++ #link("https://doi.org/10.1016/j.pneurobio.2025.102866")[Offermanns, Pöpplau & Hanganu-Opatz (2026) — Developmental Embedding of Parvalbumin Interneurons Drives Local and Crosshemispheric Prefrontal Gamma Synchrony]
++ #link("https://doi.org/10.1038/373612a0")[Whittington, Traub & Jefferys (1995) — Synchronized Oscillations in Interneuron Networks Driven by Metabotropic Glutamate Receptor Activation]
++ #link("https://doi.org/10.1523/JNEUROSCI.16-20-06402.1996")[Wang & Buzsáki (1996) — Gamma Oscillation by Synaptic Inhibition in a Hippocampal Interneuronal Network Model]
++ #link("https://doi.org/10.1038/nrn2044")[Bartos, Vida & Jonas (2007) — Synaptic Mechanisms of Synchronized Gamma Oscillations in Inhibitory Interneuron Networks]
++ #link("https://doi.org/10.1007/978-1-4419-0996-1_15")[Kopell, Börgers, Pervouchine, Malerba & Tort (2010) — Gamma and Theta Rhythms in Biophysical Models of Hippocampal Circuits]
++ #link("https://doi.org/10.1152/jn.00493.2015")[Viriyopase, Memmesheimer & Gielen (2016) — Cooperation and Competition of Gamma Oscillation Mechanisms]
++ #link("https://doi.org/10.1152/jn.01095.2002")[Brunel & Wang (2003) — What Determines the Frequency of Fast Network Oscillations with Irregular Neural Discharges? I. Synaptic Dynamics and Excitation-Inhibition Balance]
++ #link("https://doi.org/10.1016/S0006-3495(72")[Wilson & Cowan (1972) — Excitatory and Inhibitory Interactions in Localized Populations of Model Neurons]
++ #link("https://doi.org/10.3389/fncom.2020.00047")[Segneri, Bi, Olmi & Torcini (2020) — Theta-Nested Gamma Oscillations in Next Generation Neural Mass Models]
++ #link("https://doi.org/10.3389/fncom.2024.1422159")[Nandi, Valla & di Volo (2024) — Bursting Gamma Oscillations in Neural Mass Models]
++ #link("https://doi.org/10.1371/journal.pcbi.1014378")[Tahvili, Vinck & di Volo (2026) — A Mean-Field Model of Neural Networks with PV and SOM Interneurons Reveals Connectivity-Based Mechanisms of Gamma Oscillations]
++ #link("https://doi.org/10.1109/JPROC.2023.3308088")[Eshraghian, Ward, Neftci, Wang, Lenz, Dwivedi, Bennamoun, Jeong & Lu (2023) — Training Spiking Neural Networks Using Lessons From Deep Learning]
++ #link("https://doi.org/10.1109/MSP.2019.2931595")[Neftci, Mostafa & Zenke (2019) — Surrogate Gradient Learning in Spiking Neural Networks]
++ #link("https://doi.org/10.1038/s41467-025-60878-z")[Deckers et al. (2025) — Advancing Spatio-Temporal Processing Through Adaptation in Spiking Neural Networks]
++ #link("https://doi.org/10.1038/s41467-025-63771-x")[Yan, Yang, Wu, Liu, Zhang, Li, Tan & Wu (2025) — Efficient and Robust Temporal Processing with Neural Oscillations Modulated Spiking Neural Networks]
++ #link("https://doi.org/10.3389/fnins.2024.1449181")[Bittar & Garner (2024) — Exploring Neural Oscillations During Speech Perception via Surrogate-Gradient Spiking Neural Networks]
++ #link("https://doi.org/10.1016/j.tins.2012.03.008")[Barth & Poulet (2012) — Experimental Evidence for Sparse Firing in the Neocortex]
++ #link("https://doi.org/10.1097/00004647-200110000-00001")[Attwell & Laughlin (2001) — An Energy Budget for Signaling in the Grey Matter of the Brain]
++ #link("https://doi.org/10.1038/jcbfm.2012.35")[Howarth, Gleeson & Attwell (2012) — Updated Energy Budgets for Neural Computation in the Neocortex and Cerebellum]
++ #link("https://doi.org/10.1016/j.neuron.2012.08.004")[Ainsworth, Lee, Cunningham, Traub, Kopell & Whittington (2012) — Rates and Rhythms: A Synergistic View of Frequency and Temporal Coding in Neuronal Networks]
++ #link("https://doi.org/10.1371/journal.pbio.0040163")[Schaefer, Angelo, Spors & Margrie (2006) — Neuronal Oscillations Enhance Stimulus Discrimination by Ensuring Action Potential Precision]
++ #link("https://doi.org/10.1063/5.0042451")[Nguyen & Rubchinsky (2021) — Temporal Patterns of Synchrony in a Pyramidal-Interneuron Gamma (PING) Network]
++ #link("https://doi.org/10.1016/S0896-6273(00")[Shadlen & Movshon (1999) — Synchrony Unbound: A Critical Evaluation of the Temporal Binding Hypothesis]
++ #link("https://doi.org/10.1038/nature09086")[London, Roth, Beeren, Häusser & Latham (2010) — Sensitivity to Perturbations in vivo Implies High Noise and Suggests Rate Coding in Cortex]
++ #link("https://doi.org/10.1371/journal.pcbi.1002760")[Akam & Kullmann (2012) — Efficient "Communication through Coherence" Requires Oscillations Structured to Minimize Interference between Signals]
++ #link("https://doi.org/10.1126/science.1179850")[Renart, de la Rocha, Bartho, Hollender, Parga, Reyes & Harris (2010) — The Asynchronous State in Cortical Circuits]
++ #link("https://doi.org/10.1126/science.274.5293.1724")[van Vreeswijk & Sompolinsky (1996) — Chaos in Neuronal Networks with Balanced Excitatory and Inhibitory Activity]
++ #link("https://doi.org/10.1126/science.1211095")[Vogels, Sprekeler, Zenke, Clopath & Gerstner (2011) — Inhibitory Plasticity Balances Excitation and Inhibition in Sensory Pathways and Memory Networks]
++ #link("https://doi.org/10.1146/annurev-neuro-072116-031005")[Hennequin, Agnes & Vogels (2017) — Inhibitory Plasticity: Balance, Control, and Codependence]
++ #link("https://doi.org/10.1016/j.tins.2022.10.006")[Wu, Miehl & Gjorgjieva (2022) — Regulation of Circuit Organization and Function Through Inhibitory Synaptic Plasticity]
++ #link("https://doi.org/10.1371/journal.pcbi.1012723")[Páscoa dos Santos & Verschure (2025) — Excitatory-Inhibitory Homeostasis and Bifurcation Control in the Wilson-Cowan Model of Cortical Dynamics]
++ #link("https://doi.org/10.1016/j.nbd.2015.08.005")[Kann (2016) — The Interneuron Energy Hypothesis: Implications for Brain Disease]
++ #link("https://doi.org/10.1371/journal.pcbi.1002362")[Börgers, Talei Franzesi, LeBeau, Boyden & Kopell (2012) — Minimal Size of Cell Assemblies Coordinated by Gamma Oscillations]
++ #link("https://doi.org/10.1109/TNNLS.2020.3044364")[Cramer, Stradmann, Schemmel & Zenke (2022) — The Heidelberg Spiking Data Sets for the Systematic Evaluation of Spiking Neural Networks]
++ #link("https://doi.org/10.1016/j.neuron.2009.09.009")[Tiesinga & Sejnowski (2009) — Cortical Enlightenment: Are Attentional Gamma Oscillations Driven by ING or PING?]
++ #link("https://doi.org/10.1023/A:1008925309027")[Brunel (2000) — Dynamics of Sparsely Connected Networks of Excitatory and Inhibitory Spiking Neurons]
++ #link("https://doi.org/10.1162/089976600300015899")[Gerstner (2000) — Population Dynamics of Spiking Neurons: Fast Transients, Asynchronous States, and Locking]
++ #link("https://doi.org/10.1103/PhysRevX.5.021028")[Montbrió, Pazó & Roxin (2015) — Macroscopic Description for Networks of Spiking Neurons]
++ #link("https://doi.org/10.1162/neco_a_01086")[Zenke & Ganguli (2018) — SuperSpike: Supervised Learning in Multilayer Spiking Neural Networks]
++ #link("https://doi.org/10.48550/arXiv.1412.6980")[Kingma & Ba (2015) — Adam: A Method for Stochastic Optimization]
++ #link("https://doi.org/10.48550/arXiv.1211.5063")[Pascanu, Mikolov & Bengio (2013) — On the Difficulty of Training Recurrent Neural Networks]
++ #link("https://doi.org/10.1101/2020.11.02.364968")[Cornford, Kalajdzievski, Leite, Lamarquette, Kullmann & Richards (2021) — Learning to Live with Dale's Principle: ANNs with Separate Excitatory and Inhibitory Units]
++ #link("https://doi.org/10.1007/s00422-025-01030-4")[Zhu et al. (2026) — Task Success in Trained Spiking Neural Network Models Coincides with Emergence of Cross-Stimulus-Modulated Inhibition]
++ #link("https://doi.org/10.1109/TAU.1967.1161901")[Welch (1967) — The Use of Fast Fourier Transform for the Estimation of Power Spectra: A Method Based on Time Averaging Over Short, Modified Periodograms]
++ #link("https://doi.org/10.1016/j.neuron.2009.04.027")[Atallah & Scanziani (2009) — Instantaneous Modulation of Gamma Oscillation Frequency by Balancing Excitation with Inhibition]
++ #link("https://doi.org/10.1523/JNEUROSCI.5644-11.2012")[Xing, Shen, Burns, Yeh, Shapley & Li (2012) — Stochastic Generation of Gamma-Band Activity in Primary Visual Cortex of Awake and Anesthetized Monkeys]
++ #link("https://doi.org/10.1007/s004220050570")[Rotter & Diesmann (1999) — Exact Digital Simulation of Time-Invariant Linear Systems with Applications to Neuronal Modeling]
++ #link("https://doi.org/10.1109/5.726791")[LeCun, Bottou, Bengio & Haffner (1998) — Gradient-Based Learning Applied to Document Recognition]
 
 
-#line(length: 100%)
+#divider
 
 
-==== Buzsáki & Wang (2012) — Mechanisms of Gamma Oscillations
+== Buzsáki & Wang (2012) — Mechanisms of Gamma Oscillations
 
 #link("https://doi.org/10.1146/annurev-neuro-062111-150444")[doi.org/10.1146/annurev-neuro-062111-150444] 
 
@@ -93,10 +97,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Several studies have examined the relationship between cross-frequency coupling of gamma oscillations and cognitive processes"_ (p. 14) — supports the general link between gamma and cognitive function that the manuscript's sentence asserts.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Fries (2015) — Rhythms for Cognition: Communication through Coherence
+== Fries (2015) — Rhythms for Cognition: Communication through Coherence
 
 #link("https://doi.org/10.1016/j.neuron.2015.09.034")[doi.org/10.1016/j.neuron.2015.09.034] 
 
@@ -111,10 +115,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Because the main thrust of the concept is that neuronal communication is subserved by neuronal synchronization, often quantified by the coherence metric, I have named the concept "Communication through Coherence," or CTC."_ (p. 220 (Communication through Coherence)) — Defines the communication-through-coherence framework named in the citing sentence.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Fries, Reynolds, Rorie & Desimone (2001) — Modulation of Oscillatory Neuronal Synchronization by Selective Visual Attention
+== Fries, Reynolds, Rorie & Desimone (2001) — Modulation of Oscillatory Neuronal Synchronization by Selective Visual Attention
 
 #link("https://doi.org/10.1126/science.1055465")[doi.org/10.1126/science.1055465] 
 
@@ -128,10 +132,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Small changes in gamma-frequency synchronization with attention might lead to pronounced firing-rate changes at subsequent stages"_ (p. 1560) — Connects gamma-frequency synchronization to gating/amplification of attended signals through cortical stages.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Gray, König, Engel & Singer (1989) — Oscillatory Responses in Cat Visual Cortex Exhibit Inter-Columnar Synchronization Which Reflects Global Stimulus Properties
+== Gray, König, Engel & Singer (1989) — Oscillatory Responses in Cat Visual Cortex Exhibit Inter-Columnar Synchronization Which Reflects Global Stimulus Properties
 
 #link("https://doi.org/10.1038/338334a0")[doi.org/10.1038/338334a0] 
 
@@ -145,10 +149,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"The frequency of these oscillatory responses ranged from 40 to 60 Hz (mean, 50± 6 Hz)"_ (p. 334) — Quantifies the gamma-band frequency of the oscillatory visual-cortex responses reported in this work.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Whittington, Traub, Kopell, Ermentrout & Buhl (2000) — Inhibition-Based Rhythms: Experimental and Mathematical Observations on Network Dynamics
+== Whittington, Traub, Kopell, Ermentrout & Buhl (2000) — Inhibition-Based Rhythms: Experimental and Mathematical Observations on Network Dynamics
 
 #link("https://doi.org/10.1016/S0167-8760(00")[doi.org/10.1016/S0167-8760(00)00173-2]00173-2)
 
@@ -162,10 +166,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"The central difference is which class of cells (on the whole) acts to pace the network."_ (p. 325) — Establishes that ING and PING are distinguished by which cell population paces the rhythm, confirming they are two distinct generation mechanisms.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Williams et al. (2026) — Fast Spiking Interneurons Autonomously Generate Fast Gamma Oscillations in the Medial Entorhinal Cortex with Excitation Strength Tuning ING-PING Transitions
+== Williams et al. (2026) — Fast Spiking Interneurons Autonomously Generate Fast Gamma Oscillations in the Medial Entorhinal Cortex with Excitation Strength Tuning ING-PING Transitions
 
 #link("https://doi.org/10.1523/ENEURO.0452-25.2026")[doi.org/10.1523/ENEURO.0452-25.2026] 
 
@@ -179,10 +183,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"and interneuron network gamma (ING), which emerges from mutual inhibition among fast-spiking interneurons"_ (p. 2) — Introduction, defining the second of the two proposed gamma mechanisms (ING)
 
 
-#line(length: 100%)
+#divider
 
 
-==== Börgers (2017) — The PING Model of Gamma Rhythms
+== Börgers (2017) — The PING Model of Gamma Rhythms
 
 #link("https://doi.org/10.1007/978-3-319-51171-9_30")[doi.org/10.1007/978-3-319-51171-9_30] 
 
@@ -195,10 +199,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _No verbatim anchor found in the source._
 
 
-#line(length: 100%)
+#divider
 
 
-==== Cardin, Carlén, Meletis, Knoblich, Zhang, Deisseroth, Tsai & Moore (2009) — Driving Fast-Spiking Cells Induces Gamma Rhythm and Controls Sensory Responses
+== Cardin, Carlén, Meletis, Knoblich, Zhang, Deisseroth, Tsai & Moore (2009) — Driving Fast-Spiking Cells Induces Gamma Rhythm and Controls Sensory Responses
 
 #link("https://doi.org/10.1038/nature08002")[doi.org/10.1038/nature08002] 
 
@@ -213,10 +217,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Synchronous FS-PV+ interneuron activity driven by periodic stimulation of light-activated channels generated gamma oscillations in a cortical network, and these gated sensory processing in a temporally specific manner."_ (p. 5, Discussion) — Summarizes that optogenetically driven FS interneuron activity generates gamma in the intact cortical circuit.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Sohal, Zhang, Yizhar & Deisseroth (2009) — Parvalbumin Neurons and Gamma Rhythms Enhance Cortical Circuit Performance
+== Sohal, Zhang, Yizhar & Deisseroth (2009) — Parvalbumin Neurons and Gamma Rhythms Enhance Cortical Circuit Performance
 
 #link("https://doi.org/10.1038/nature07991")[doi.org/10.1038/nature07991] 
 
@@ -230,10 +234,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Because inhibition of PV interneurons was found to suppress gamma power, we next sought to determine whether stimulating PV cells could elicit gamma oscillations in downstream PY neurons."_ (p. 2) — Motivates the experiment where optogenetic drive of PV cells elicits gamma in downstream pyramidal neurons.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Phensy et al. (2026) — Prefrontal Gamma Oscillations Engage Dynamic Cell Type-Specific Configurations to Support Flexible Behavior
+== Phensy et al. (2026) — Prefrontal Gamma Oscillations Engage Dynamic Cell Type-Specific Configurations to Support Flexible Behavior
 
 #link("https://doi.org/10.1016/j.neuron.2026.05.002")[doi.org/10.1016/j.neuron.2026.05.002] 
 
@@ -248,10 +252,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"of 40 Hz optogenetic stimulation delivered either in phase or out of phase across the hemispheres"_ (p. 2, Introduction) — Notes optogenetic 40 Hz stimulation of PVIs was used to manipulate gamma synchrony in intact circuits.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Offermanns, Pöpplau & Hanganu-Opatz (2026) — Developmental Embedding of Parvalbumin Interneurons Drives Local and Crosshemispheric Prefrontal Gamma Synchrony
+== Offermanns, Pöpplau & Hanganu-Opatz (2026) — Developmental Embedding of Parvalbumin Interneurons Drives Local and Crosshemispheric Prefrontal Gamma Synchrony
 
 #link("https://doi.org/10.1016/j.pneurobio.2025.102866")[doi.org/10.1016/j.pneurobio.2025.102866] 
 
@@ -265,10 +269,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Collectively our data suggest that from the third postnatal week on PV+ INs functionally operate in the gamma frequency range, whereas SOM+ INs fail to participate in gamma generation, confirming PV+ INs as driving force for the emergence of prefrontal gamma oscillations."_ (Discussion) — PV+ interneurons are the driving force for prefrontal gamma oscillations.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Whittington, Traub & Jefferys (1995) — Synchronized Oscillations in Interneuron Networks Driven by Metabotropic Glutamate Receptor Activation
+== Whittington, Traub & Jefferys (1995) — Synchronized Oscillations in Interneuron Networks Driven by Metabotropic Glutamate Receptor Activation
 
 #link("https://doi.org/10.1038/373612a0")[doi.org/10.1038/373612a0] 
 
@@ -283,10 +287,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"The oscillation frequency is determined both by the net excitation of interneurons and by the kinetics of the inhibitory postsynaptic potentials between them."_ (p. 612, abstract) — Characterises the mechanism governing the interneuron-network gamma frequency, supporting 'characterised interneuron-driven gamma'.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Wang & Buzsáki (1996) — Gamma Oscillation by Synaptic Inhibition in a Hippocampal Interneuronal Network Model
+== Wang & Buzsáki (1996) — Gamma Oscillation by Synaptic Inhibition in a Hippocampal Interneuronal Network Model
 
 #link("https://doi.org/10.1523/JNEUROSCI.16-20-06402.1996")[doi.org/10.1523/JNEUROSCI.16-20-06402.1996] 
 
@@ -301,10 +305,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"We found that synaptic transmission via GABAA receptors in a sparsely connected network of model interneurons can provide a mechanism for gamma frequency oscillations"_ (p. 6403 (Introduction)) — Restates the modeling finding that gamma frequency oscillations emerge in an inhibitory-only interneuronal network model.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Bartos, Vida & Jonas (2007) — Synaptic Mechanisms of Synchronized Gamma Oscillations in Inhibitory Interneuron Networks
+== Bartos, Vida & Jonas (2007) — Synaptic Mechanisms of Synchronized Gamma Oscillations in Inhibitory Interneuron Networks
 
 #link("https://doi.org/10.1038/nrn2044")[doi.org/10.1038/nrn2044] 
 
@@ -318,10 +322,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"In summary, both gap junctions and PN–IN synapses promote synchronization (FIG. 6)."_ (p. 54) — Summary of the synaptic and electrical mechanisms that synchronise the interneuron network.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Kopell, Börgers, Pervouchine, Malerba & Tort (2010) — Gamma and Theta Rhythms in Biophysical Models of Hippocampal Circuits
+== Kopell, Börgers, Pervouchine, Malerba & Tort (2010) — Gamma and Theta Rhythms in Biophysical Models of Hippocampal Circuits
 
 #link("https://doi.org/10.1007/978-1-4419-0996-1_15")[doi.org/10.1007/978-1-4419-0996-1_15] 
 
@@ -336,10 +340,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"In particular, we wish to highlight the dynamical as well as physiological mechanisms associated with rhythms, and to begin to classify them by mechanisms, not just frequencies."_ (p. 423 (Introduction)) — Shows the models are descriptive/mechanistic in aim (explaining mechanisms), consistent with the manuscript's 'these models are descriptive: they are not trained on a task' framing.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Viriyopase, Memmesheimer & Gielen (2016) — Cooperation and Competition of Gamma Oscillation Mechanisms
+== Viriyopase, Memmesheimer & Gielen (2016) — Cooperation and Competition of Gamma Oscillation Mechanisms
 
 #link("https://doi.org/10.1152/jn.00493.2015")[doi.org/10.1152/jn.00493.2015] 
 
@@ -354,10 +358,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"we have modeled a network of the hippocampal region CA1 using data and biologically plausible parameter values from the literature"_ (p. 233 (Results intro)) — Confirms the biophysically detailed, parameter-grounded nature of the PING/ING modeling.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Brunel & Wang (2003) — What Determines the Frequency of Fast Network Oscillations with Irregular Neural Discharges? I. Synaptic Dynamics and Excitation-Inhibition Balance
+== Brunel & Wang (2003) — What Determines the Frequency of Fast Network Oscillations with Irregular Neural Discharges? I. Synaptic Dynamics and Excitation-Inhibition Balance
 
 #link("https://doi.org/10.1152/jn.01095.2002")[doi.org/10.1152/jn.01095.2002] 
 
@@ -371,10 +375,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Here we show how to derive quantitatively the coherent oscillation frequency for a randomly connected network of leaky integrate-and-fire neurons with realistic synaptic parameters."_ (p. 415, Abstract) — Establishes this is a biophysical spiking-neuron (LIF, realistic synapses) model of fast network oscillations, matching the 'biophysical models' citation.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Wilson & Cowan (1972) — Excitatory and Inhibitory Interactions in Localized Populations of Model Neurons
+== Wilson & Cowan (1972) — Excitatory and Inhibitory Interactions in Localized Populations of Model Neurons
 
 #link("https://doi.org/10.1016/S0006-3495(72")[doi.org/10.1016/S0006-3495(72)86068-5]86068-5)
 
@@ -389,10 +393,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"There is a second form of temporal behavior exhibited by our model which is potentially of greater functional significance: the limit cycle."_ (p. 17) — Establishes that the population model produces limit-cycle oscillations, the rhythmic behaviour relevant to cortical rhythms.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Segneri, Bi, Olmi & Torcini (2020) — Theta-Nested Gamma Oscillations in Next Generation Neural Mass Models
+== Segneri, Bi, Olmi & Torcini (2020) — Theta-Nested Gamma Oscillations in Next Generation Neural Mass Models
 
 #link("https://doi.org/10.3389/fncom.2020.00047")[doi.org/10.3389/fncom.2020.00047] 
 
@@ -407,10 +411,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"In this paper we want to compare the two principal mechanisms at the basis of the emergence of collective oscillatory dynamics in neural networks: namely, the PING and ING mechanisms."_ (section 2.1 (Network Models)) — Frames the paper as a mean-field/neural-mass study of PING-type oscillations.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Nandi, Valla & di Volo (2024) — Bursting Gamma Oscillations in Neural Mass Models
+== Nandi, Valla & di Volo (2024) — Bursting Gamma Oscillations in Neural Mass Models
 
 #link("https://doi.org/10.3389/fncom.2024.1422159")[doi.org/10.3389/fncom.2024.1422159] 
 
@@ -424,10 +428,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"IBG oscillations are distinguished by higher phase-amplitude coupling to slower theta oscillations concerning noise-induced bursting oscillations, thus indicating an increased capacity for information transfer between brain regions"_ (p. 1 (Abstract)) — Abstract states the model characterises gamma-theta phase-amplitude coupling, a multi-rhythm / theta-nested gamma phenomenon.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Tahvili, Vinck & di Volo (2026) — A Mean-Field Model of Neural Networks with PV and SOM Interneurons Reveals Connectivity-Based Mechanisms of Gamma Oscillations
+== Tahvili, Vinck & di Volo (2026) — A Mean-Field Model of Neural Networks with PV and SOM Interneurons Reveals Connectivity-Based Mechanisms of Gamma Oscillations
 
 #link("https://doi.org/10.1371/journal.pcbi.1014378")[doi.org/10.1371/journal.pcbi.1014378] 
 
@@ -441,10 +445,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"it has become a standard model for describing canonical mechanisms driving oscillatory regimes in E/I networks such as Pyramidal–Interneuron Gamma (PING) and Interneuron Gamma (ING) in purely inhibidal networks"_ (p. 2) — Introduction, situating the mean-field approach as a descriptive model of PING gamma mechanisms.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Eshraghian, Ward, Neftci, Wang, Lenz, Dwivedi, Bennamoun, Jeong & Lu (2023) — Training Spiking Neural Networks Using Lessons From Deep Learning
+== Eshraghian, Ward, Neftci, Wang, Lenz, Dwivedi, Bennamoun, Jeong & Lu (2023) — Training Spiking Neural Networks Using Lessons From Deep Learning
 
 #link("https://doi.org/10.1109/JPROC.2023.3308088")[doi.org/10.1109/JPROC.2023.3308088] 
 
@@ -459,10 +463,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"A major advantage of surrogate gradients is they help with overcoming the dead neuron problem."_ (p. 26, Section 4.3.1 (Surrogate Gradients)) — Establishes surrogate gradients as the method used to make spiking non-differentiability trainable end-to-end.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Neftci, Mostafa & Zenke (2019) — Surrogate Gradient Learning in Spiking Neural Networks
+== Neftci, Mostafa & Zenke (2019) — Surrogate Gradient Learning in Spiking Neural Networks
 
 #link("https://doi.org/10.1109/MSP.2019.2931595")[doi.org/10.1109/MSP.2019.2931595] 
 
@@ -477,10 +481,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"it gives an overview of existing approaches and provides an introduction to surrogate gradient methods, specifically, as a particularly flexible and efficient method to overcome the aforementioned challenges."_ (p. 1 (Abstract)) — Establishes that the paper's core subject is surrogate-gradient methods for training SNNs, supporting its inclusion in the cited literature.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Deckers et al. (2025) — Advancing Spatio-Temporal Processing Through Adaptation in Spiking Neural Networks
+== Deckers et al. (2025) — Advancing Spatio-Temporal Processing Through Adaptation in Spiking Neural Networks
 
 #link("https://doi.org/10.1038/s41467-025-60878-z")[doi.org/10.1038/s41467-025-60878-z] 
 
@@ -494,10 +498,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"We trained both the adLIF and LIF SNNs using BPTT with surrogate gradients"_ (p. 8) — Methods/Results describing surrogate-gradient training of the networks.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Yan, Yang, Wu, Liu, Zhang, Li, Tan & Wu (2025) — Efficient and Robust Temporal Processing with Neural Oscillations Modulated Spiking Neural Networks
+== Yan, Yang, Wu, Liu, Zhang, Li, Tan & Wu (2025) — Efficient and Robust Temporal Processing with Neural Oscillations Modulated Spiking Neural Networks
 
 #link("https://doi.org/10.1038/s41467-025-63771-x")[doi.org/10.1038/s41467-025-63771-x] 
 
@@ -512,10 +516,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"speech recognition on Spiking Heidelberg Digits (SHD)"_ (p. 3, temporal-processing section) — SHD is one of the temporally structured tasks the paper evaluates on, supporting that [25] evaluates on SHD.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Bittar & Garner (2024) — Exploring Neural Oscillations During Speech Perception via Surrogate-Gradient Spiking Neural Networks
+== Bittar & Garner (2024) — Exploring Neural Oscillations During Speech Perception via Surrogate-Gradient Spiking Neural Networks
 
 #link("https://doi.org/10.3389/fnins.2024.1449181")[doi.org/10.3389/fnins.2024.1449181] 
 
@@ -530,10 +534,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Our networks' ability to synchronize oscillatory activity in the last layer was also associated with improved speech recognition performance, which points to a functional role for neural oscillations in auditory processing."_ (p. 15 (Discussion)) — Synchronized oscillation correlates with improved recognition performance (task performance).
 
 
-#line(length: 100%)
+#divider
 
 
-==== Barth & Poulet (2012) — Experimental Evidence for Sparse Firing in the Neocortex
+== Barth & Poulet (2012) — Experimental Evidence for Sparse Firing in the Neocortex
 
 #link("https://doi.org/10.1016/j.tins.2012.03.008")[doi.org/10.1016/j.tins.2012.03.008] 
 
@@ -547,10 +551,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Strong recurrent inhibition reduces overall firing output from pyramidal cells, increasing the sparseness of response probabilities."_ (p. 351, Box 1) — Supports the 'under strong recurrent input' portion of the claim, linking recurrent inhibition to reduced pyramidal firing.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Attwell & Laughlin (2001) — An Energy Budget for Signaling in the Grey Matter of the Brain
+== Attwell & Laughlin (2001) — An Energy Budget for Signaling in the Grey Matter of the Brain
 
 #link("https://doi.org/10.1097/00004647-200110000-00001")[doi.org/10.1097/00004647-200110000-00001] 
 
@@ -563,10 +567,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"energy expenditure on glutamatergic signaling is indeed significant, approximately 34% of the total signaling energy usage going on glutamate postsynaptic actions in rodents and perhaps 74% in humans"_ (p. 1143) — Quantifies the large share of the cortical signaling energy budget attributable to excitatory glutamatergic postsynaptic actions.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Howarth, Gleeson & Attwell (2012) — Updated Energy Budgets for Neural Computation in the Neocortex and Cerebellum
+== Howarth, Gleeson & Attwell (2012) — Updated Energy Budgets for Neural Computation in the Neocortex and Cerebellum
 
 #link("https://doi.org/10.1038/jcbfm.2012.35")[doi.org/10.1038/jcbfm.2012.35] 
 
@@ -581,10 +585,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"inhibitory neurons are predicted to use 25% of the signaling energy, and excitatory neurons to use 75%"_ (p. 1227) — Explicit excitatory-vs-inhibitory split showing excitatory signalling takes the far larger share of the (cerebellar) energy budget.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Ainsworth, Lee, Cunningham, Traub, Kopell & Whittington (2012) — Rates and Rhythms: A Synergistic View of Frequency and Temporal Coding in Neuronal Networks
+== Ainsworth, Lee, Cunningham, Traub, Kopell & Whittington (2012) — Rates and Rhythms: A Synergistic View of Frequency and Temporal Coding in Neuronal Networks
 
 #link("https://doi.org/10.1016/j.neuron.2012.08.004")[doi.org/10.1016/j.neuron.2012.08.004] 
 
@@ -597,10 +601,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"The coincident expression of multiple types of gamma rhythm in sensory cortex suggests a mechanistic substrate for combining rate and temporal codes on the basis of stimulus strength."_ (p. 572) — Abstract thesis linking rate and temporal codes via gamma rhythm.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Schaefer, Angelo, Spors & Margrie (2006) — Neuronal Oscillations Enhance Stimulus Discrimination by Ensuring Action Potential Precision
+== Schaefer, Angelo, Spors & Margrie (2006) — Neuronal Oscillations Enhance Stimulus Discrimination by Ensuring Action Potential Precision
 
 #link("https://doi.org/10.1371/journal.pbio.0040163")[doi.org/10.1371/journal.pbio.0040163] 
 
@@ -613,10 +617,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"both synaptically and intrinsically generated membrane potential oscillations dramatically improve action potential (AP) precision by removing the membrane potential variance associated with jitter-accumulating trains of APs"_ (p. 1010 (Abstract)) — Abstract statement of the core finding that oscillations improve AP timing precision.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Nguyen & Rubchinsky (2021) — Temporal Patterns of Synchrony in a Pyramidal-Interneuron Gamma (PING) Network
+== Nguyen & Rubchinsky (2021) — Temporal Patterns of Synchrony in a Pyramidal-Interneuron Gamma (PING) Network
 
 #link("https://doi.org/10.1063/5.0042451")[doi.org/10.1063/5.0042451] 
 
@@ -630,10 +634,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"The study shows how gamma rhythm can be partially synchronized with specific temporal patterning and how this temporal patterning of gamma synchronization is regulated by connectivity strength and other factors."_ (Significance statement, p. 1) — States that temporal patterning of PING gamma synchrony depends on connectivity, backing the manuscript's appeal to prior characterisations of temporal-synchrony patterns in PING circuits.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Shadlen & Movshon (1999) — Synchrony Unbound: A Critical Evaluation of the Temporal Binding Hypothesis
+== Shadlen & Movshon (1999) — Synchrony Unbound: A Critical Evaluation of the Temporal Binding Hypothesis
 
 #link("https://doi.org/10.1016/S0896-6273(00")[doi.org/10.1016/S0896-6273(00)80822-3]80822-3)
 
@@ -646,10 +650,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"There is ample experimental evidence for correlated cortical activity but little that directly or compellingly links this activity to binding. In contrast, there is considerable evidence that the rate-modulated activity of cortical cell populations is crucial in mediating perceptual binding."_ (Conclusion) — Verdict that rate coding, not spike-timing synchrony, tracks perceptual binding.
 
 
-#line(length: 100%)
+#divider
 
 
-==== London, Roth, Beeren, Häusser & Latham (2010) — Sensitivity to Perturbations in vivo Implies High Noise and Suggests Rate Coding in Cortex
+== London, Roth, Beeren, Häusser & Latham (2010) — Sensitivity to Perturbations in vivo Implies High Noise and Suggests Rate Coding in Cortex
 
 #link("https://doi.org/10.1038/nature09086")[doi.org/10.1038/nature09086] 
 
@@ -664,10 +668,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Our results, on the other hand, apply to slowly varying stimuli and higher-order computations, and suggest that in those cases the cortex does not rely on precise spike timing."_ (p. 126) — Discussion contrasting rate vs timing regimes.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Akam & Kullmann (2012) — Efficient \"Communication through Coherence\" Requires Oscillations Structured to Minimize Interference between Signals
+== Akam & Kullmann (2012) — Efficient \"Communication through Coherence\" Requires Oscillations Structured to Minimize Interference between Signals
 
 #link("https://doi.org/10.1371/journal.pcbi.1002760")[doi.org/10.1371/journal.pcbi.1002760] 
 
@@ -682,10 +686,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"To selectively route the information encoded in one input network (the 'target' input) to the output of the receiving network, a top-down control signal imposes an oscillatory modulation on the target network firing rate and a coherent oscillatory gain modulation in the receiving region."_ (p. 6 (Figure 1 caption)) — Describes the coherence-based routing mechanism central to CTC.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Renart, de la Rocha, Bartho, Hollender, Parga, Reyes & Harris (2010) — The Asynchronous State in Cortical Circuits
+== Renart, de la Rocha, Bartho, Hollender, Parga, Reyes & Harris (2010) — The Asynchronous State in Cortical Circuits
 
 #link("https://doi.org/10.1126/science.1179850")[doi.org/10.1126/science.1179850] 
 
@@ -699,10 +703,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"In this state, spontaneous fluctuations in the activity of excitatory and inhibitory populations accurately track each other, generating negative correlations in synaptic currents which cancel the effect of shared input."_ (p. 587 (abstract)) — Describes the balanced E/I mechanism underlying the asynchronous state, the 'balanced state' the manuscript names.
 
 
-#line(length: 100%)
+#divider
 
 
-==== van Vreeswijk & Sompolinsky (1996) — Chaos in Neuronal Networks with Balanced Excitatory and Inhibitory Activity
+== van Vreeswijk & Sompolinsky (1996) — Chaos in Neuronal Networks with Balanced Excitatory and Inhibitory Activity
 
 #link("https://doi.org/10.1126/science.274.5293.1724")[doi.org/10.1126/science.274.5293.1724] 
 
@@ -717,10 +721,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"The ability of our network to react to changes in its environment on time scales that are much shorter than the update times of the individual neurons is a result of the combination of the large synaptic gain (on the order of VlK) and the asynchronous nature of the dynamics."_ (p. 1725) — Explicitly labels the dynamics of the balanced state as asynchronous, supporting the manuscript's term 'asynchronous balanced state'.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Vogels, Sprekeler, Zenke, Clopath & Gerstner (2011) — Inhibitory Plasticity Balances Excitation and Inhibition in Sensory Pathways and Memory Networks
+== Vogels, Sprekeler, Zenke, Clopath & Gerstner (2011) — Inhibitory Plasticity Balances Excitation and Inhibition in Sensory Pathways and Memory Networks
 
 #link("https://doi.org/10.1126/science.1211095")[doi.org/10.1126/science.1211095] 
 
@@ -735,10 +739,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Whereas inhibitory synapses were plastic, the efficacies of the excitatory model synapses were fixed at the beginning of a simulation and left unchanged unless otherwise noted."_ (p. 1570) — Confirms the architecture: inhibitory connectivity is the plastic element, distinct from fixed excitation.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Hennequin, Agnes & Vogels (2017) — Inhibitory Plasticity: Balance, Control, and Codependence
+== Hennequin, Agnes & Vogels (2017) — Inhibitory Plasticity: Balance, Control, and Codependence
 
 #link("https://doi.org/10.1146/annurev-neuro-072116-031005")[doi.org/10.1146/annurev-neuro-072116-031005] 
 
@@ -753,10 +757,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Through ISP, they become closely aligned—that is, exhibit detailed balance (Figure 4g) (Vogels et al. 2011)—even when perturbed by excitatory"_ (p. 563 (Section 4)) — Confirms inhibitory synaptic plasticity aligns inhibitory with excitatory weights to achieve E/I balance.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Wu, Miehl & Gjorgjieva (2022) — Regulation of Circuit Organization and Function Through Inhibitory Synaptic Plasticity
+== Wu, Miehl & Gjorgjieva (2022) — Regulation of Circuit Organization and Function Through Inhibitory Synaptic Plasticity
 
 #link("https://doi.org/10.1016/j.tins.2022.10.006")[doi.org/10.1016/j.tins.2022.10.006] 
 
@@ -771,10 +775,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Inhibitory plasticity can establish excitation/inhibition (E/I) balance, control neuronal firing, and affect local calcium concentration"_ (p. 884 (Abstract)) — Abstract statement that inhibitory (i.e. plastic inhibitory) plasticity establishes E/I balance, supporting the characterization of this literature.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Páscoa dos Santos & Verschure (2025) — Excitatory-Inhibitory Homeostasis and Bifurcation Control in the Wilson-Cowan Model of Cortical Dynamics
+== Páscoa dos Santos & Verschure (2025) — Excitatory-Inhibitory Homeostasis and Bifurcation Control in the Wilson-Cowan Model of Cortical Dynamics
 
 #link("https://doi.org/10.1371/journal.pcbi.1012723")[doi.org/10.1371/journal.pcbi.1012723] 
 
@@ -788,10 +792,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"while previous studies have limited E-I homeostasis to the plasticity of inhibition, we explore the wide range of mechanisms employed by cortical networks"_ (p. 1 (Author summary)) — Author summary contrasts this work with prior studies limiting E-I homeostasis to plasticity of inhibition.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Kann (2016) — The Interneuron Energy Hypothesis: Implications for Brain Disease
+== Kann (2016) — The Interneuron Energy Hypothesis: Implications for Brain Disease
 
 #link("https://doi.org/10.1016/j.nbd.2015.08.005")[doi.org/10.1016/j.nbd.2015.08.005] 
 
@@ -806,10 +810,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"several findings indicate that fast-spiking interneurons utilize much more energy than other cortical neurons."_ (p. 78, Section 4 (Interneuron energy hypothesis)) — States directly that fast-spiking interneurons have substantially higher per-cell energy demands than other cortical neurons.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Börgers, Talei Franzesi, LeBeau, Boyden & Kopell (2012) — Minimal Size of Cell Assemblies Coordinated by Gamma Oscillations
+== Börgers, Talei Franzesi, LeBeau, Boyden & Kopell (2012) — Minimal Size of Cell Assemblies Coordinated by Gamma Oscillations
 
 #link("https://doi.org/10.1371/journal.pcbi.1002362")[doi.org/10.1371/journal.pcbi.1002362] 
 
@@ -823,10 +827,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"For given synaptic strengths and heterogeneities, there is a (soft) lower bound on the possible number of cells in an ensemble oscillating at gamma frequency, based simply on the requirement that synaptic interactions between the two cell populations be strong enough."_ (p. 1 (Abstract)) — States the soft lower bound / minimal assembly size the citing sentence points to for capacity limits.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Cramer, Stradmann, Schemmel & Zenke (2022) — The Heidelberg Spiking Data Sets for the Systematic Evaluation of Spiking Neural Networks
+== Cramer, Stradmann, Schemmel & Zenke (2022) — The Heidelberg Spiking Data Sets for the Systematic Evaluation of Spiking Neural Networks
 
 #link("https://doi.org/10.1109/TNNLS.2020.3044364")[doi.org/10.1109/TNNLS.2020.3044364] 
 
@@ -842,10 +846,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"we found that the temporal information available in the spike times can be leveraged for better classification by suitable classifiers."_ (p. 10, Section 4) — Summarizes the finding that spike timing enables good classification on these spiking benchmarks.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Tiesinga & Sejnowski (2009) — Cortical Enlightenment: Are Attentional Gamma Oscillations Driven by ING or PING?
+== Tiesinga & Sejnowski (2009) — Cortical Enlightenment: Are Attentional Gamma Oscillations Driven by ING or PING?
 
 #link("https://doi.org/10.1016/j.neuron.2009.09.009")[doi.org/10.1016/j.neuron.2009.09.009] 
 
@@ -859,10 +863,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"In the ING mechanism the E cells are followers, which can be modeled by cutting out the E to I projection. In this circuit, activation of E cells should have no effect on the gamma oscillation."_ (p. 6, New Experiments to Distinguish ING and PING) — Confirms ING does not depend on E-to-I drive (E cells are followers), so the E-I loop distinguishes PING from ING.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Brunel (2000) — Dynamics of Sparsely Connected Networks of Excitatory and Inhibitory Spiking Neurons
+== Brunel (2000) — Dynamics of Sparsely Connected Networks of Excitatory and Inhibitory Spiking Neurons
 
 #link("https://doi.org/10.1023/A:1008925309027")[doi.org/10.1023/A:1008925309027] 
 
@@ -876,10 +880,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"the synaptic current of a neuron can be approximated by an average part plus a fluctuating gaussian part"_ (p. 185, Section 3) — Establishes that the rate function is noise-driven: the LIF neuron's input is a mean plus Gaussian noise, the setting for the Ricciardi-Siegert rate.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Gerstner (2000) — Population Dynamics of Spiking Neurons: Fast Transients, Asynchronous States, and Locking
+== Gerstner (2000) — Population Dynamics of Spiking Neurons: Fast Transients, Asynchronous States, and Locking
 
 #link("https://doi.org/10.1162/089976600300015899")[doi.org/10.1162/089976600300015899] 
 
@@ -893,10 +897,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"The relevant equation is a generalization of the integral equations of Wilson and Cowan (1972) and Knight (1972a) and has been discussed previously in Gerstner and van Hemmen (1994) and Gerstner (1995)."_ (p. 45 (Introduction)) — States the population equation is a generalization of the Wilson-Cowan integral equations, situating it in the Wilson-Cowan population-dynamics tradition.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Montbrió, Pazó & Roxin (2015) — Macroscopic Description for Networks of Spiking Neurons
+== Montbrió, Pazó & Roxin (2015) — Macroscopic Description for Networks of Spiking Neurons
 
 #link("https://doi.org/10.1103/PhysRevX.5.021028")[doi.org/10.1103/PhysRevX.5.021028] 
 
@@ -911,10 +915,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"We have presented a method for deriving firing rate equations for a network of heterogeneous QIF neurons, which is exact in the thermodynamic limit."_ (p. 6 (Conclusions)) — Confirms the paper produces exact firing-rate (neural-mass-type) equations, i.e. next-generation neural-mass modelling.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Zenke & Ganguli (2018) — SuperSpike: Supervised Learning in Multilayer Spiking Neural Networks
+== Zenke & Ganguli (2018) — SuperSpike: Supervised Learning in Multilayer Spiking Neural Networks
 
 #link("https://doi.org/10.1162/neco_a_01086")[doi.org/10.1162/neco_a_01086] 
 
@@ -928,10 +932,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"we compute σ'(Ui) = (1 + |hi|)^-2 with hi ≡ β (Ui − ϑ), where ϑ is the neuronal firing threshold and β = (1 mV)^-1 unless mentioned otherwise"_ (section 3.3.2, p. 1522) — The surrogate derivative uses a fast sigmoid with slope parameter β set to unity (per mV).
 
 
-#line(length: 100%)
+#divider
 
 
-==== Kingma & Ba (2015) — Adam: A Method for Stochastic Optimization
+== Kingma & Ba (2015) — Adam: A Method for Stochastic Optimization
 
 #link("https://doi.org/10.48550/arXiv.1412.6980")[doi.org/10.48550/arXiv.1412.6980] 
 
@@ -946,10 +950,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Good default settings for the tested machine learning problems are α = 0.001, β1 = 0.9, β2 = 0.999 and ϵ = 10−8."_ (p. 2, Algorithm 1) — Establishes that Adam is configured by a learning rate (stepsize α) hyperparameter, which the manuscript sets to 4e-4.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Pascanu, Mikolov & Bengio (2013) — On the Difficulty of Training Recurrent Neural Networks
+== Pascanu, Mikolov & Bengio (2013) — On the Difficulty of Training Recurrent Neural Networks
 
 #link("https://doi.org/10.48550/arXiv.1211.5063")[doi.org/10.48550/arXiv.1211.5063] 
 
@@ -962,10 +966,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"To understand this phenomenon we need to look at the form of each temporal component, and in particular at the matrix factors"_ (p. 2, Section 2.1 The mechanics) — Introduces that each gradient's temporal component takes the form of a product of Jacobian matrices.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Cornford, Kalajdzievski, Leite, Lamarquette, Kullmann & Richards (2021) — Learning to Live with Dale's Principle: ANNs with Separate Excitatory and Inhibitory Units
+== Cornford, Kalajdzievski, Leite, Lamarquette, Kullmann & Richards (2021) — Learning to Live with Dale's Principle: ANNs with Separate Excitatory and Inhibitory Units
 
 #link("https://doi.org/10.1101/2020.11.02.364968")[doi.org/10.1101/2020.11.02.364968] 
 
@@ -979,10 +983,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"All of the synaptic weights are strictly non-negative, and inhibition is enforced via the activation rules for the units"_ (p. 3, Section 2.1 (Model definition), constraint 4) — Establishes that the DANN architecture enforces strictly non-negative weights, i.e. sign-constrained weights, the property the clamp maintains.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Zhu et al. (2026) — Task Success in Trained Spiking Neural Network Models Coincides with Emergence of Cross-Stimulus-Modulated Inhibition
+== Zhu et al. (2026) — Task Success in Trained Spiking Neural Network Models Coincides with Emergence of Cross-Stimulus-Modulated Inhibition
 
 #link("https://doi.org/10.1007/s00422-025-01030-4")[doi.org/10.1007/s00422-025-01030-4] 
 
@@ -996,20 +1000,20 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Positivity and negativity of all connections, i.e. the excitatory or inhibitory identity of each neuron, was maintained throughout training consistent with Dale's law"_ (p. 3, Sect. 2.1) — Results: describing that the sign of each connection is held fixed during training per Dale's law.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Welch (1967) — The Use of Fast Fourier Transform for the Estimation of Power Spectra: A Method Based on Time Averaging Over Short, Modified Periodograms
+== Welch (1967) — The Use of Fast Fourier Transform for the Estimation of Power Spectra: A Method Based on Time Averaging Over Short, Modified Periodograms
 
 #link("https://doi.org/10.1109/TAU.1967.1161901")[doi.org/10.1109/TAU.1967.1161901]
 
 *Summary.* _Not grounded — a signal-processing methods citation (Welch's method for power-spectral estimation via averaged, windowed periodograms). It is cited as the tool used to compute spectra, not for a scientific claim to anchor, so no source quote is needed._
 
 
-#line(length: 100%)
+#divider
 
 
-==== Atallah & Scanziani (2009) — Instantaneous Modulation of Gamma Oscillation Frequency by Balancing Excitation with Inhibition
+== Atallah & Scanziani (2009) — Instantaneous Modulation of Gamma Oscillation Frequency by Balancing Excitation with Inhibition
 
 #link("https://doi.org/10.1016/j.neuron.2009.04.027")[doi.org/10.1016/j.neuron.2009.04.027] 
 
@@ -1023,10 +1027,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"Both excitatory and inhibitory synaptic currents occurred at gamma frequencies, as shown by their power spectra, and exhibited a pronounced peak in coherence with the simultaneously recorded LFP within the gamma frequency band (Figure S4)."_ (p. 568) — Population-coherence measure relating synaptic currents to the LFP within the gamma band.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Xing, Shen, Burns, Yeh, Shapley & Li (2012) — Stochastic Generation of Gamma-Band Activity in Primary Visual Cortex of Awake and Anesthetized Monkeys
+== Xing, Shen, Burns, Yeh, Shapley & Li (2012) — Stochastic Generation of Gamma-Band Activity in Primary Visual Cortex of Awake and Anesthetized Monkeys
 
 #link("https://doi.org/10.1523/JNEUROSCI.5644-11.2012")[doi.org/10.1523/JNEUROSCI.5644-11.2012] 
 
@@ -1039,10 +1043,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"To quantify the peak frequency and duration of a gamma-band event in the spectrogram, we first searched for a point in the time-frequency coordinate"_ (p. 13874) — Time-frequency (spectrogram/Gabor) analysis used to identify gamma bursts, related to coherence-based measures.
 
 
-#line(length: 100%)
+#divider
 
 
-==== Rotter & Diesmann (1999) — Exact Digital Simulation of Time-Invariant Linear Systems with Applications to Neuronal Modeling
+== Rotter & Diesmann (1999) — Exact Digital Simulation of Time-Invariant Linear Systems with Applications to Neuronal Modeling
 
 #link("https://doi.org/10.1007/s004220050570")[doi.org/10.1007/s004220050570] 
 
@@ -1056,10 +1060,10 @@ Quotes below are agent-located pointers to each source, self-checked for verbati
 - _"The function ψ solving the equation is constant between any two successive pulses."_ (p. 387, Sect. 3.2.3 Piecewise-constant input) — Establishes the zero-order-hold property: the synaptic input is held piecewise-constant between pulses over each step, matching the claim's 'zero-order hold on the synaptic conductances over each step.'
 
 
-#line(length: 100%)
+#divider
 
 
-==== LeCun, Bottou, Bengio & Haffner (1998) — Gradient-Based Learning Applied to Document Recognition
+== LeCun, Bottou, Bengio & Haffner (1998) — Gradient-Based Learning Applied to Document Recognition
 
 #link("https://doi.org/10.1109/5.726791")[doi.org/10.1109/5.726791] 
 
