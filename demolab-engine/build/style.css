@@ -62,7 +62,7 @@
 /* rem is anchored to the 18px body so the heading scale steps cleanly off body size. */
 html { font-size: 18px; }
 body {
-  max-width: 46em;
+  max-width: 42em;
   margin: 3rem auto;
   padding: 0 1.25rem;
   font: 1rem/1.65 "Computer Modern Serif", Charter, Georgia, "Times New Roman", serif;
@@ -103,16 +103,26 @@ figcaption,
   color: var(--muted);
 }
 .entry-meta { margin: .2rem 0 1.75rem; }
+/* Entry meta bar: id · date on the left, pdf link pushed to the right. */
+.entry-bar { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.entry-bar a { color: var(--muted); }
+.entry-bar a:hover { color: var(--ink); }
+/* On listing pages the description sits closer to the list it heads (entry pages keep the
+   airier 1.75rem before the body). */
+.listing .entry-meta { margin-bottom: 1.25rem; }
 /* Breathing room at the foot of an entry page so the last line isn't flush to the edge. */
 .entry-tail { height: 6rem; }
 
-/* Homepage collection directory: collection-name links, description beneath. */
+/* Homepage collection directory: collection-name links, description beneath. These are the
+   page's hero items, so they sit one step above body — the middle of the home hierarchy
+   (title 28.8 → collection 20.7 → description 15.3). */
 .coll-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
-.coll-row { padding: .5rem 0; }
-.coll-desc { margin: .15rem 0 0; line-height: 1.45; }
+.coll-row { padding: .55rem 0; }
+.coll-title { font-size: 1.15rem; }
+.coll-desc { margin: .2rem 0 0; line-height: 1.45; }
 
 /* Index rows: mono id · title (fills) · date (right) · pdf, columns aligned across rows. */
-.entry-list { list-style: none; padding-left: 0; margin: 1rem 0; }
+.entry-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
 .entry-row { display: flex; align-items: baseline; gap: .6rem; padding: .28rem 0; }
 .entry-row .row-id { flex: 0 0 auto; min-width: 3em; font-family: var(--mono); }
 .entry-row .row-title { flex: 1 1 auto; min-width: 0; }

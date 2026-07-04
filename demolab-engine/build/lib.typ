@@ -145,6 +145,20 @@
   }
 }
 
+// Render items grouped by kind — Articles, then Experiments, then Slides — each a level-2
+// section (empty groups dropped), rows newest-first. Shared by the all-entries page and
+// each collection page so both organise the same way.
+#let grouped-entry-lists(items, show-collection: false, collection-meta: (:)) = {
+  let groups = (("article", "Articles"), ("experiment", "Experiments"), ("deck", "Slides"))
+  for (k, title) in groups {
+    let g = items.filter(x => x.kind == k).sorted(key: x => x.date).rev()
+    if g.len() > 0 {
+      heading(level: 2, title)
+      entry-list(g, show-collection: show-collection, collection-meta: collection-meta)
+    }
+  }
+}
+
 // The homepage directory: one row per collection — label (links to its page) · entry
 // count · description underneath. The entries themselves live on the per-collection
 // pages, mirroring pinglab's home → collection → entry drill-down.
@@ -178,16 +192,20 @@
   // the book's table of contents.
   set heading(outlined: false)
   heading(level: 1, meta.title)
-  // the metadata strip under the title — id · date, dropping any that are absent. A classed
-  // div on the web (styled + spaced by style.css), small gray text in the PDF.
+  // the metadata strip under the title — id · date on the left, a pdf link pushed to the
+  // right (web only; the PDF pass shows the plain gray meta line, since it *is* the pdf).
   let meta-bits = (
     id,
     human-date(meta.date),
   ).filter(x => x != none)
   let meta-line = meta-bits.join(" · ")
+  let pdf-href = if id != none { "pdfs/" + id + ".pdf" } else { none }
   context {
     if target() == "html" {
-      html.elem("div", attrs: (class: "entry-meta"))[#meta-line]
+      html.elem("div", attrs: (class: "entry-meta entry-bar"), {
+        html.elem("span", meta-line)
+        if pdf-href != none { html.elem("a", attrs: (class: "entry-pdf", href: pdf-href), "pdf") }
+      })
     } else {
       text(size: 9pt, fill: gray, meta-line)
     }
@@ -225,8 +243,9 @@
   })
 }
 
-// A per-collection page: the collection's label + description, then its entries as aligned
-// rows (newest first). Reached from the homepage directory; the foot link returns there.
+// A per-collection page: the collection's label + description, then its entries grouped by
+// kind (Articles / Experiments / Slides), the same organisation as the all-entries page.
+// Reached from the homepage directory; the foot link returns there.
 #let collection-page(coll, items, brand: default-brand, collection-meta: (:)) = {
   web-styles
   set text(font: "New Computer Modern", size: 11pt)
@@ -235,7 +254,7 @@
   html.elem("div", attrs: (class: "listing"), {
     heading(level: 1, collection-label(coll, collection-meta))
     if desc != none { html.elem("p", attrs: (class: "entry-meta"), desc) }
-    entry-list(items.sorted(key: x => x.date).rev())
+    grouped-entry-lists(items)
     html.elem("p", attrs: (class: "page-foot"), link("index.html", "← all collections"))
   })
 }
@@ -247,18 +266,9 @@
   set text(font: "New Computer Modern", size: 11pt)
   set heading(outlined: false)
   let items = collect-items(entries, decks)
-  // grouped by kind, fixed order: articles, then experiments, then decks. Each group's
-  // rows are newest-first; empty groups are dropped.
-  let groups = (("article", "Articles"), ("experiment", "Experiments"), ("deck", "Slides"))
   html.elem("div", attrs: (class: "listing"), {
     heading(level: 1, [All entries])
-    for (k, title) in groups {
-      let g = items.filter(x => x.kind == k).sorted(key: x => x.date).rev()
-      if g.len() > 0 {
-        heading(level: 2, title)
-        entry-list(g, show-collection: true, collection-meta: collection-meta)
-      }
-    }
+    grouped-entry-lists(items, show-collection: true, collection-meta: collection-meta)
     html.elem("p", attrs: (class: "page-foot"), link("index.html", "← grouped by collection"))
   })
 }
