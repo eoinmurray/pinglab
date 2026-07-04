@@ -1,0 +1,9 @@
+◆ pinglab · sim · ping                                synthetic-spikes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  network   Dale's law · E/I 0.5×2.0
+  sim       dt 0.25 ms · T 300.0 ms · Poisson 5.0 Hz
+  run       r-20260704-211548 · git 02f3cff (dirty)
+──────────────────────────────────────────────────────────────────────
+  ▸ drive                        uniform Poisson 5 Hz × 1024 ch → W_in
+  ◈ result    E 0Hz · I 0Hz · CV 7.00 · act 0%
+  ✓ done      0s

@@ -33,8 +33,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src" / "notebooks"))
-sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
@@ -51,7 +50,7 @@ ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 # ── Canonical training registry (the hub the collection reuses) ──────
 # Analysis notebooks import `load_cell` / `cell_dir` from this module rather
 # than retraining; this entry is the single producer of the shared cells.
-TRAINING_ROOT = REPO / "src" / "artifacts" / "notebooks" / "training"
+TRAINING_ROOT = REPO / "temp" / "notebooks" / "training"
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 EPOCHS_STANDARD = 50           # standard depth (halved from 100 — see nb022.mdx §2)

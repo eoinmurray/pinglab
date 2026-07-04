@@ -29,8 +29,7 @@ import numpy as np
 from scipy import signal as sp_signal
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src" / "notebooks"))
-sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402

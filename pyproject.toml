@@ -29,14 +29,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cli", "src/notebooks"]
+packages = ["tools/snn"]
 
 [tool.pytest.ini_options]
-# src/cli/tests = the legacy CLI suite; tools = the demolab tool tests (migration).
-# pythonpath adds src/cli (for `import config`/`models`) and repo root (for
-# `import tools.snn.tool`), coexisting during the migration.
-testpaths = ["src/cli/tests", "tools"]
-pythonpath = ["src/cli", "."]
+# The engine + its suite live under tools/snn (the snn tool). pythonpath adds
+# tools/snn so the engine's flat imports (`import config`/`models`) resolve, and
+# the repo root so `import tools.snn` resolves as a package.
+testpaths = ["tools/snn/tests"]
+pythonpath = ["tools/snn", "."]
 markers = [
     "slow: minutes of wall-clock — subprocess/GPU end-to-end tests OR heavy in-process torch training; `pytest -m 'not slow'` is the fast iteration lane",
     "regression: checks against calibrated artifacts; skipped if absent",
@@ -57,14 +57,14 @@ dev = [
 ]
 
 [tool.coverage.run]
-# `pytest --cov` measures the CLI package by default. modal_app (cloud dispatch,
+# `pytest --cov` measures the snn engine by default. modal_app (cloud dispatch,
 # being retired for RunPod) and profiling (dev-only tooling) are excluded — they
 # are not part of the tested surface, so counting them just drags the number down.
-source = ["src/cli"]
+source = ["tools/snn"]
 omit = [
-    "src/cli/tests/*",
-    "src/cli/modal_app.py",
-    "src/cli/profiling.py",
+    "tools/snn/tests/*",
+    "tools/snn/modal_app.py",
+    "tools/snn/profiling.py",
 ]
 
 [tool.coverage.report]

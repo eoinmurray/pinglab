@@ -30,8 +30,7 @@ import numpy as np
 import torch
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src" / "notebooks"))
-sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
@@ -55,7 +54,7 @@ def baseline_dir(seed: int) -> Path:
     # θ_u = off PING baseline now lives in the shared training root (nb022
     # train-once / reuse-many), not the retired per-notebook nb025 dir.
     return (
-        REPO / "src" / "artifacts" / "notebooks" / "training"
+        REPO / "temp" / "notebooks" / "training"
         / f"ping__off__seed{seed}"
     )
 

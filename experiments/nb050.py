@@ -23,8 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src" / "notebooks"))
-sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
 from helpers.modal import parse_modal_gpu  # noqa: E402
@@ -35,8 +34,8 @@ from helpers.run_id import next_run_id  # noqa: E402
 SLUG = "nb050"
 ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
-SCOPE_OUT_PNG = REPO / "src" / "artifacts" / "pinglab-cli" / "snapshot.png"
-SCOPE_OUT_NPZ = REPO / "src" / "artifacts" / "pinglab-cli" / "snapshot.npz"
+SCOPE_OUT_PNG = REPO / "temp" / "pinglab-cli" / "snapshot.png"
+SCOPE_OUT_NPZ = REPO / "temp" / "pinglab-cli" / "snapshot.npz"
 
 # Shared knobs across both cells: longer trial (T = 1000 ms) so per-cell
 # ISI distributions get enough samples to be meaningful, and so the

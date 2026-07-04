@@ -32,6 +32,8 @@ drive it **interactively** (run each step, show the result, confirm before movin
 |---------|---------|
 | *"migrate my code"* | [MIGRATE-CODE.md](demolab-engine/runbooks/MIGRATE-CODE.md) |
 | *"how do I get started"* | [GETTING-STARTED.md](demolab-engine/runbooks/GETTING-STARTED.md) |
+| *"embed demolab as a docs site"* | [EMBED-DOCS.md](demolab-engine/runbooks/EMBED-DOCS.md) |
+| *"migrate the stack to MATLAB / Julia"* | [MIGRATE-STACK.md](demolab-engine/runbooks/MIGRATE-STACK.md) |
 | *"doctor the repo"* | [DOCTOR.md](demolab-engine/runbooks/DOCTOR.md) |
 | *"update demolab"* | [UPDATE.md](demolab-engine/runbooks/UPDATE.md) |
 | *"ground my claims"* | [GROUND-CLAIMS.md](demolab-engine/runbooks/GROUND-CLAIMS.md) |

@@ -37,8 +37,7 @@ from scipy.optimize import fsolve
 from scipy.special import erf
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src" / "notebooks"))
-sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import theme  # noqa: E402
 from helpers.operating_point import TAU_GABA_GAMMA_MS  # noqa: E402
 from helpers.paths import artifacts_and_figures  # noqa: E402

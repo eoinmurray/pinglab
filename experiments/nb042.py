@@ -37,8 +37,7 @@ if TYPE_CHECKING:  # torch is imported lazily inside the functions at runtime
     import torch
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src" / "notebooks"))
-sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
 from helpers.datasets import load_mnist_split  # noqa: E402
@@ -63,7 +62,7 @@ EVAL_SEED = 20260415  # mirror cli.encoders.EVAL_SEED (kept in sync by hand)
 # θ_u = off PING baseline now lives in the shared training root (nb022
 # train-once / reuse-many). Three seeds available; nb042 runs against all
 # three for error bars.
-NB035_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "training"
+NB035_ARTIFACTS = REPO / "temp" / "notebooks" / "training"
 SEEDS: tuple[int, ...] = (42, 43, 44)
 
 CONDITIONS: tuple[str, ...] = ("baseline", "phase_shuffled_i", "poisson_matched_i")
@@ -101,9 +100,9 @@ MIX_K_GRID: tuple[float, ...] = (0.25, 0.5, 1.0, 2.0, 4.0)
 # trained cells and re-runs the cycle-coherent jitter sweep at each
 # cell's own 1/f_γ. Outputs xtau_raw_sweeps, xtau_dimensional_collapse,
 # xtau_inflection_vs_period.
-NB041_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "training"
+NB041_ARTIFACTS = REPO / "temp" / "notebooks" / "training"
 NB041_NUMBERS = (
-    REPO / "src" / "docs" / "public" / "figures" / "notebooks" / "nb041"
+    REPO / "artifacts" / "data" / "nb041"
     / "numbers.json"
 )
 XTAU_TAU_GABAS_MS: tuple[float, ...] = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)

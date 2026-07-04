@@ -32,8 +32,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src" / "notebooks"))
-sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
@@ -49,9 +48,9 @@ SNN_TOOL = REPO / "tools" / "snn" / "tool.py"
 
 # τ_GABA sweep cells now live in the shared training root (nb022
 # train-once / reuse-many), not the retired per-notebook nb041 dir.
-NB041_ARTIFACTS = REPO / "src" / "artifacts" / "notebooks" / "training"
+NB041_ARTIFACTS = REPO / "temp" / "notebooks" / "training"
 NB041_NUMBERS = (
-    REPO / "src" / "docs" / "public" / "figures" / "notebooks" / "nb041"
+    REPO / "artifacts" / "data" / "nb041"
     / "numbers.json"
 )
 

@@ -32,8 +32,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src" / "notebooks"))
-sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
 from helpers.figsave import save_figure  # noqa: E402
@@ -702,7 +701,7 @@ def _load_runner(slug: str):
     """Import a sibling notebook module (nb033) by slug for cross-notebook reuse.
     Notebooks never import each other's package; this loads the module file so its
     pure-python numerics (the mean-field) can be called directly."""
-    path = REPO / "src" / "notebooks" / f"{slug}.py"
+    path = REPO / "experiments" / f"{slug}.py"
     spec = importlib.util.spec_from_file_location(slug, path)
     # spec_from_file_location returns ModuleSpec | None and spec.loader is
     # Loader | None; both are always set for a real file path — assert to narrow.

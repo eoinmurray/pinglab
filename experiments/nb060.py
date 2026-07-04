@@ -27,9 +27,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[1]
-# The plotting/theme/run helpers still live in the (un-migrated) notebook tree.
-sys.path.insert(0, str(REPO / "src" / "notebooks"))
-sys.path.insert(0, str(REPO / "src"))
+# Helpers + sibling runners live alongside this file under experiments/.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from helpers import theme  # noqa: E402
 from helpers.fmt import format_duration  # noqa: E402
