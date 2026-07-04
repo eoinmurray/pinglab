@@ -123,5 +123,5 @@
   - #link("https://doi.org/10.1126/science.274.5293.1724")[van Vreeswijk & Sompolinsky (1996), _Chaos in Neuronal Networks with Balanced Excitatory and Inhibitory Activity_] — the origin of the $1 \/ sqrt(K)$ strong-coupling scaling and the balanced state.
   - #link("https://doi.org/10.1023/A:1008925309027")[Brunel (2000), _Dynamics of Sparsely Connected Networks of Excitatory and Inhibitory Spiking Neurons_] — the analytic phase diagram of where these regimes live and oscillate.
   - #link("https://doi.org/10.1126/science.1179850")[Renart et al. (2010), _The Asynchronous State in Cortical Circuits_] — how balance also decorrelates the population, not just individual cells.
-  - #link("https://doi.org/10.1162/089976600300015899")[Gerstner (2000), _Population Dynamics of Spiking Neurons_] — the population-level companion, reviewed in #link("/ar059/")[ar059].
+  - #link("https://doi.org/10.1162/089976600300015899")[Gerstner (2000), _Population Dynamics of Spiking Neurons_] — the population-level companion.
 ]

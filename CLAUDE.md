@@ -1,9 +1,9 @@
-The working conventions for this repo — the "house rules" — now live in the House Rules article:
+The working conventions for this repo live in the demolab guides:
 
-- on disk: `writings/ar016.typ`
-- on the site: `/ar016/`
+- `demolab-engine/guides/RULES.md` — the framework invariants (repo structure, the tool↔experiment boundary, provenance, how to add a tool / experiment / writing).
+- `demolab-engine/guides/HOUSE-STYLE.md` — authoring style, rules H1–H13 (prose, math with every term defined, 16:9 figures, `≈` not `~`, native Typst math, structure).
 
-Read it before making any edits. It covers tooling (uv / typst / task), running experiments and reporting timing/cost, the notebook-is-the-recipe rule, figure and prose style (16:9 figures, `≈` not `~`, no backticks in docs), version control, and working style. The demolab authoring style rules (H1–H13) live in `demolab-engine/guides/HOUSE-STYLE.md`.
+Read them before making any edits.
 
 Non-negotiables kept here so they are always in context (full detail in the article):
 
