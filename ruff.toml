@@ -1,15 +1,20 @@
 # Ruff configuration for pinglab.
-# Docs live under src/docs (JS/TS) and are excluded; Python lives in src/cli
-# and src/notebooks.
+# Python lives in src/cli, src/notebooks, and the demolab layer (tools/,
+# experiments/).
 
 target-version = "py310"
 line-length = 88
 
 extend-exclude = [
-    "src/docs",
     "src/artifacts",
     "src/papers",
     ".venv",
+    # demolab-engine is a vendored black box (re-pulled from upstream, never
+    # edited here) — we don't own its lint, so a future upstream pull can't
+    # break our gate. artifacts/ and temp/ are generated output, not source.
+    "demolab-engine",
+    "artifacts",
+    "temp",
 ]
 
 [lint]

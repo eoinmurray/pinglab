@@ -57,11 +57,6 @@ node_modules
 # Harness run outputs — reproducible from code + config + seed
 src/artifacts/
 
-# Astro build output
-src/docs/dist/
-
-# Frontend builds are handled by src/cathedral/.gitignore
-
 # Avoid committing full-text PDFs of papers (link out instead)
 content/paper.*/*.pdf
 src/posts/*.pdf
@@ -71,10 +66,6 @@ src/vite/public/manifest.json
 # Keynote source files — large binaries, not useful in source
 src/keynote/*.key
 .coverage
-
-
-# refcheck: PDFs staged for local Astro serving — never distributed on push
-src/docs/public/papers/
 
 # demolab (Typst publishing) scratch + build output
 temp/

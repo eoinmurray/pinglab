@@ -1,6 +1,7 @@
 # Taskfile for pinglab — https://taskfile.dev  (run `task` to list everything)
 #
-# Stack: Python via uv (src/cli, src/notebooks); docs via bun (src/docs).
+# Stack: Python via uv (src/cli, src/notebooks); publishing via Typst
+# (writings/ + artifacts/, built by demolab-engine). See `task build`/`dev`.
 # House rule: everything here runs LOCAL. No task dispatches Modal — that
 # spends real money, so it stays an explicit opt-in via a notebook's own
 # --modal-gpu flag (e.g. `task nb NB=nb022 -- --modal-gpu A100`), never a task.
@@ -19,10 +20,9 @@ tasks:
 
   # ── Setup ───────────────────────────────────────────────────────────────
   install:
-    desc: Install all dependencies (Python via uv, docs via bun)
+    desc: Install all dependencies (Python via uv)
     cmds:
       - uv sync --dev
-      - cd src/docs && bun install
 
   # ── Quality gate (mirrors .github/workflows/lint.yml) ───────────────────
   lint:
@@ -71,7 +71,7 @@ tasks:
         vars: { CLI_ARGS: "" }
       - task: typecheck
       - >-
-        uv run pytest src/cli/tests -m "not slow"
+        uv run pytest src/cli/tests tools -m "not slow"
         --ignore=src/cli/tests/test_train_integration.py
         --ignore=src/cli/tests/test_infer_integration.py
         {{.CLI_ARGS}}
@@ -82,7 +82,7 @@ tasks:
       - task: lint
         vars: { CLI_ARGS: "" }
       - task: typecheck
-      - uv run pytest src/cli/tests {{.CLI_ARGS}}
+      - uv run pytest src/cli/tests tools {{.CLI_ARGS}}
 
   test:cov:
     desc: Tests with the coverage report (mirrors CI)
@@ -113,35 +113,9 @@ tasks:
     cmds:
       - uv run python src/notebooks/{{.NB}}.py {{.CLI_ARGS}}
 
-  # ── Docs (astro via bun, in src/docs) ───────────────────────────────────
-  docs:
-    desc: Docs dev server (astro, http://localhost:3000)
-    dir: src/docs
-    cmds:
-      - bun run dev --port 3000 --host
-
-  docs:build:
-    desc: Build the docs site
-    dir: src/docs
-    cmds:
-      - bun run build
-
-  docs:preview:
-    desc: Preview the built docs site
-    dir: src/docs
-    cmds:
-      - bun run preview
-
-  docs:feed:
-    desc: Refresh the paper feed (paperfeed fetch)
-    dir: src/docs
-    cmds:
-      - bun run feed
-
-  # ── demolab publishing (Typst) — the new structure, coexists with docs/ ──
+  # ── Publishing (Typst via demolab-engine) ───────────────────────────────
   # `task build` / `task dev` drive the Typst engine over writings/ + artifacts/;
-  # `task run` runs a demolab experiment. The Astro `docs:*` tasks above stay live
-  # until the migration is done (side-by-side).
+  # `task run` runs a demolab experiment.
   build:
     desc: "Build the Typst bundle → artifacts/site/ (web) + artifacts/pdfs/ (PDFs + book)"
     cmds:

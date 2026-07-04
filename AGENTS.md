@@ -12,7 +12,7 @@ how to add a tool / experiment / writing. The `demolab-engine/` dir is vendored 
 from `../demolab`** — never edit it here; "update demolab" re-pulls it wholesale.
 
 **Legacy conventions (still governing the un-migrated `src/`)** → the House Rules article,
-`src/docs/src/pages/articles/ar016.mdx`.
+`writings/ar016.typ`.
 
 ## Non-negotiables (both worlds)
 
