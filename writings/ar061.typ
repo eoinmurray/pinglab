@@ -1,0 +1,138 @@
+#let meta = (
+  title: "Weekly Feed — 26 June 2026",
+  date: "2026-06-26",
+  description: "A weekly triage of papers relevant to the gamma-gated-sparsity project: new post-cutoff catches and the older work they build on.",
+  collection: "weekly-feed",
+)
+
+#let paper(title, href, meta, body) = block(breakable: false, below: 1.2em)[
+  #link(href)[*#title*] #h(0.4em) #text(size: 9pt, fill: gray)[#meta]
+
+  #body
+]
+
+#let body = [
+  A weekly triage of papers relevant to the gamma-gated-sparsity project — one entry per week, deduped against prior weeks. *New papers* are this week's catch from the fetcher (arXiv, bioRxiv, journal tables of contents, PubMed, and Semantic Scholar recommendations seeded from the project bibliography) — all published _after_ the January 2026 knowledge cutoff, so genuinely new. *Old papers* are established work from _before_ the cutoff that this week's papers build on, surfaced from background knowledge as context rather than from the fetch. Sources are configured in src/docs/scripts/paperfeed/sources.ts.
+
+  == New papers
+
+  Published after the cutoff — caught this week from the feeds and recommendations.
+
+  #paper(
+    "Empirical scaling laws in balanced networks with conductance-based synapses",
+    "https://arxiv.org/abs/2605.12404",
+    "arXiv (Semantic Scholar) · May 2026",
+  )[
+    Strongly coupled, recurrent balanced networks reproduce much of what we see in cortical recordings — irregular firing, fast tracking of inputs, a stable population rate — but the standard theory uses current-based synapses, where each spike injects a fixed charge regardless of the postsynaptic state. Real synapses, and our COBA/PING model, are conductance-based: an input opens a conductance, so its effect depends on the membrane's distance from the reversal potential and on how much other conductance is already open. This paper derives empirical scaling laws for conductance-based balanced networks — how rates, correlations, and the balance condition scale with network size and coupling strength — and pins down where the current-based idealisation quietly predicts the wrong thing. It is a serious attempt to keep the analytic tractability of balanced-network theory while admitting the biophysics that actually sets the operating point.
+
+    *Relevance:* load-bearing for #link("/ar009/#22-gamma-onset-across-the-weiwiewei-times-wieweiwie-plane")[§2.2]. Our 4D mean-field is conductance-based and calibrated without a fitted scale; their scaling laws are a yardstick to check it against, and a possible analytic handle on how the gamma onset moves with coupling strength.
+  ]
+
+  #paper(
+    "Approximate macroscopic dynamics of spiking networks from the transport equation",
+    "https://arxiv.org/abs/2605.14319",
+    "arXiv (Semantic Scholar) · May 2026",
+  )[
+    Instead of simulating thousands of integrate-and-fire neurons, you can track the probability density of their membrane potentials and evolve it with a transport (continuity) equation — a kinetic-theory view of a spiking population. This paper develops an approximate but principled reduction of that density dynamics, and uses it to explain how firing-rate fluctuations arise and propagate across single cells, across repeated trials of the same stimulus, and across the population as a whole. The payoff is a macroscopic description that captures the network's collective behaviour — how fast it responds, when it destabilises — without the cost or the sampling noise of full simulation. It is the density-based cousin of lumped rate reductions, and it comes with explicit control over the approximation error.
+
+    *Relevance:* another route to the same destination as our conductance mean-field, but from the Fokker–Planck/transport side rather than a lumped 4D system. Worth reading against #link("/ar009/#22-gamma-onset-across-the-weiwiewei-times-wieweiwie-plane")[§2.2] to see whether a density treatment pins the Hopf onset more sharply than the lumped reduction does.
+  ]
+
+  #paper(
+    "Synchronization modes in bipartite oscillator networks",
+    "https://arxiv.org/abs/2606.20345",
+    "arXiv q-bio.NC · Jun 2026",
+  )[
+    Many neural rhythms come not from one population talking to itself but from two coupled populations — excitatory and inhibitory — driving each other out of phase. This paper studies that bipartite structure abstractly, as two groups of Kuramoto–Sakaguchi phase oscillators with cross-coupling, and characterises the distinct synchronization modes it supports: a fully locked state, a partially synchronized state where only a fraction of each population entrains, and the transitions between them as coupling and phase-lag change. Because it is a phase model, the regimes and their boundaries are tractable analytically rather than only in simulation. It reads as a stripped-down caricature of PING — the same E↔I-drives-the-rhythm logic, reduced to phases.
+
+    *Relevance:* the strong-vs-partial synchrony coexistence echoes our lobe–trough contrast turning on across the coupling plane (#link("/ar009/#22-gamma-onset-across-the-weiwiewei-times-wieweiwie-plane")[§2.2]) — a cheap analytic stand-in for the bifurcation we report numerically.
+  ]
+
+  #paper(
+    "Multi-objective optimisation with oscillatory dynamics in spiking neural networks",
+    "https://arxiv.org/abs/2605.25224",
+    "arXiv (Semantic Scholar) · May 2026",
+  )[
+    Recurrent spiking networks can be fit to neural data, but a network tuned to match the firing statistics often loses the oscillatory structure the real circuit shows — and one tuned for clean oscillations often fits the data worse. This paper makes that tension explicit by posing the fit as a multi-objective optimisation, with task/data likelihood and oscillatory structure as competing objectives, and maps the trade-off frontier in both spontaneous activity and decision-making tasks. Rather than hoping oscillations emerge as a by-product, it treats the rhythm as a target to be optimised for alongside performance. That makes it one of the few works that, like ours, deliberately trains a spiking network to stay rhythmic.
+
+    *Relevance:* the closest neighbour to what we do — training spiking networks that must stay rhythmic. Their explicit fit-vs-rhythm objective is an alternative to our spike-budget penalty $theta_u$, and a natural Discussion contrast for how one keeps a trained network oscillating.
+  ]
+
+  #paper(
+    "From cortical synchronous rhythm to brain-inspired learning",
+    "https://arxiv.org/abs/2605.01656",
+    "arXiv (Semantic Scholar) · May 2026",
+  )[
+    This paper proposes a learning primitive in which information is carried by rhythm-determined spike timing, not firing rate alone, with coordination across a distributed spiking network mediated by tuned conduction delays. During learning, synchrony emerges iteratively, and that emergent timing structure is then used as the computational substrate for downstream tasks. It is explicitly motivated by cortical synchronous rhythms and tries to turn them into a trainable mechanism rather than a fixed prior. That places it in the trained-and-rhythmic corner of the design space this project also occupies — though it engineers the rhythm in rather than letting an E↔I loop generate it.
+
+    *Relevance:* lands in our gap statement (rhythmic SNNs are usually not trained, trained SNNs are usually not rhythmic). Like Yan et al. 2025, it _imposes or leverages_ rhythm rather than letting an E↔I loop generate it — a clean contrast case for #link("/ar009/#24-the-firing-rate-reduction-does-not-require-trained-loop-weights")[§2.4] (architecture-generated, not injected).
+  ]
+
+  #paper(
+    "Scalable learning in structured recurrent spiking networks without backpropagation",
+    "https://arxiv.org/abs/2605.00402",
+    "arXiv (Semantic Scholar) · May 2026",
+  )[
+    Backprop-through-time trains recurrent spiking networks well but scales badly: it stores the full unrolled computation and grows stiff as networks deepen. This paper proposes a structured multi-layer recurrent SNN — built from locally connected modules with sparse connectivity — and a local learning rule that avoids BPTT entirely, so the training cost stays manageable as depth and width grow. Throughout, sparsity and locality are first-class design constraints rather than afterthoughts, in service of energy-efficient, biologically grounded computation. It is a concrete alternative to the surrogate-gradient route, and most interesting to us as a way to train deeper PING-like stacks.
+
+    *Relevance:* an alternative to the surrogate-gradient route we use, organised around the same currency — sparsity and energy. Most relevant if we push toward the multi-layer PING stack in the Future Directions: a non-BPTT trainer might sidestep the gradient-stiffness the recurrent loop forces on us.
+  ]
+
+  #paper(
+    "Human neuronal firing varies with the frequency of local field potential oscillations",
+    "https://doi.org/10.1371/journal.pbio.3003818",
+    "PLoS Biology · 2026",
+  )[
+    Decades of work show that cortical and hippocampal neurons lock their spikes to a preferred _phase_ of an ongoing oscillation. This study, using invasive human single-unit recordings, demonstrates a complementary and less-appreciated effect: neurons also have a preferred _frequency_ at which they fire most, independent of phase — frequency tuning of firing. The effect appears across multiple brain regions and is statistically dissociable from classic phase locking. It is direct human evidence that the frequency of a rhythm, not just its timing, shapes which cells fire and how strongly.
+
+    *Relevance:* empirical company for #link("/ar009/#25-the-gamma-frequency-sets-the-post-training-e-firing-rate")[§2.5]. If real neurons key their firing to oscillation frequency, that is the in-vivo shadow of our $r_E = a + p f_gamma$ — the rate set by the rhythm — and a strong citation for the rate-vs-timing framing.
+  ]
+
+  == Old papers
+
+  Published before the cutoff — established work this week's papers build on, surfaced as background.
+
+  #paper(
+    "van Vreeswijk & Sompolinsky (1996) — Chaos in neuronal networks with balanced excitatory and inhibitory activity",
+    "https://doi.org/10.1126/science.274.5293.1724",
+    "Science · 1996",
+  )[
+    This is the paper that launched balanced-network theory. It shows that if recurrent excitation and inhibition are both strong and dynamically cancel, a network settles into a self-sustained state where individual cells fire highly irregularly (CV ≈ 1) yet the population rate is stable and tracks input rapidly. Crucially, the irregularity is intrinsic and chaotic — generated by the deterministic dynamics of the balanced state itself, with no injected noise source. It reframed cortical-like irregular firing from a puzzle to be explained away into the natural operating point of strongly coupled E–I networks.
+
+    *Background for:* _Empirical scaling laws in balanced networks_ and _Approximate macroscopic dynamics_ above — both are modern attempts to make this regime quantitative (conductance-based, and density-based respectively). It is also the reference state behind our own asynchronous-vs-rhythmic framing.
+  ]
+
+  #paper(
+    "Brunel (2000) — Dynamics of sparsely connected networks of excitatory and inhibitory spiking neurons",
+    "https://doi.org/10.1023/A:1008925309027",
+    "J. Comput. Neurosci. · 2000",
+  )[
+    Brunel worked out the full phase diagram of a sparsely connected network of excitatory and inhibitory integrate-and-fire neurons, using a mean-field/Fokker–Planck treatment to derive — analytically — where each dynamical regime lives. The plane spanned by relative inhibition and external drive divides into asynchronous-irregular firing and several oscillatory states (synchronous-regular, synchronous-irregular, fast and slow), with explicit boundaries and predicted frequencies. It is the canonical answer to "when does an E–I spiking network start to oscillate, and at what frequency," and remains the object that later treatments reduce to. Almost every subsequent account of E–I oscillation onset, including phase-model caricatures, is measured against it.
+
+    *Background for:* _Synchronization modes in bipartite oscillator networks_ (the phase-model version of the same question) and the mean-field papers above. It is the closest classical analogue to our #link("/ar009/#22-gamma-onset-across-the-weiwiewei-times-wieweiwie-plane")[§2.2] onset diagram.
+  ]
+
+  #paper(
+    "Wang & Buzsáki (1996) — Gamma oscillation by synaptic inhibition in a hippocampal interneuronal network model",
+    "https://doi.org/10.1523/JNEUROSCI.16-20-06402.1996",
+    "J. Neurosci. · 1996",
+  )[
+    The founding computational model of interneuron-network gamma (ING). A population of mutually inhibitory fast-spiking interneurons, given tonic drive, synchronises into a coherent gamma rhythm, and the analysis shows that the oscillation frequency is set chiefly by the decay time constant of GABA-A inhibition together with the drive level. It established the principle that the inhibitory time constant is the clock that paces the rhythm. That logic — $tau_"GABA"$ sets the period — is the direct ancestor of the GABA-timescale sweeps in this project, and the I-only contrast to PING's E↔I loop.
+
+    *Background for:* _Synchronization modes in bipartite oscillator networks_, and a useful contrast to PING — where the rhythm needs the E→I→E loop rather than I–I coupling alone. The GABA-timescale-sets-frequency logic is exactly what our $tau_"GABA"$ sweeps probe.
+  ]
+
+  #paper(
+    "Bellec et al. (2020) — A solution to the learning dilemma for recurrent networks of spiking neurons",
+    "https://doi.org/10.1038/s41467-020-17236-y",
+    "Nat. Commun. · 2020",
+  )[
+    e-prop is an online, biologically plausible approximation to backprop-through-time for recurrent spiking networks. It comes from factorising the exact BPTT gradient into a locally available eligibility trace (kept per synapse, forward in time) and a top-down learning signal, dropping the term that would require propagating errors backward through the entire unrolled graph. The result trains recurrent spiking networks on temporally demanding tasks at a fraction of BPTT's memory cost, without storing the full history. It is the standard reference for training recurrent spiking nets without BPTT.
+
+    *Background for:* _Scalable learning in structured recurrent SNNs without backpropagation_ above. It is the reference point for "can we train a recurrent spiking net without BPTT" — directly relevant if the multi-layer PING stack makes our surrogate-gradient-through-the-loop training too stiff.
+  ]
+
+  #v(1em)
+
+  _Not shown: ≈250 lower-relevance candidates this week (clinical, molecular, off-topic ML). Next week gets its own dated entry, deduped against this one (bun run feed, from src/docs, then curate). To change coverage, edit src/docs/scripts/paperfeed/sources.ts; per-week candidate sets are archived under src/docs/scripts/paperfeed/archive/._
+]

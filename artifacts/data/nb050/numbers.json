@@ -1,0 +1,74 @@
+{
+  "notebook_run_id": "r061",
+  "duration_s": 5.5,
+  "tier": "small",
+  "common_args": [
+    "sim",
+    "--model",
+    "ping",
+    "--input",
+    "synthetic-spikes",
+    "--t-ms",
+    "1000"
+  ],
+  "cells": {
+    "ping": [
+      "--ei-sparsity",
+      "0.8",
+      "--exact-k",
+      "--w-ei",
+      "0.6",
+      "0.18",
+      "--w-ie",
+      "3.0",
+      "0.9",
+      "--input-rate",
+      "45",
+      "--w-in",
+      "0.8",
+      "0.16"
+    ],
+    "ai": [
+      "--ei-sparsity",
+      "0.8",
+      "--exact-k",
+      "--w-ei",
+      "0.6",
+      "0.18",
+      "--w-ie",
+      "3.0",
+      "0.9",
+      "--input-rate",
+      "1",
+      "--w-in",
+      "0.01",
+      "0.001",
+      "--independent-drive",
+      "45",
+      "0.38",
+      "--independent-drive-i",
+      "8",
+      "0.25"
+    ]
+  },
+  "summary": [
+    {
+      "cell": "ping",
+      "e_rate_hz": 15.3916015625,
+      "i_rate_hz": 0.34765625,
+      "median_isi_cv_e": 0.7353250000582482,
+      "median_isi_cv_i": 0.5275504637206765,
+      "f_psd_peak_hz": 29.10381805436079,
+      "peak_abs_xcorr_e": 0.01028536863467865
+    },
+    {
+      "cell": "ai",
+      "e_rate_hz": 15.3916015625,
+      "i_rate_hz": 0.34765625,
+      "median_isi_cv_e": 0.7353250000582482,
+      "median_isi_cv_i": 0.5275504637206765,
+      "f_psd_peak_hz": 29.10381805436079,
+      "peak_abs_xcorr_e": 0.01028536863467865
+    }
+  ]
+}

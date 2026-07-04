@@ -1,0 +1,172 @@
+{
+  "notebook_run_id": "r006",
+  "duration_s": 150.9,
+  "config": {
+    "tier": "small",
+    "epochs": 10,
+    "max_samples": 500,
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "conditions": {
+      "frozen_ping": {
+        "ei_strength": "1",
+        "trainable_w_ei": false,
+        "trainable_w_ie": false,
+        "label": "Frozen PING (control)"
+      },
+      "trainable_ping_init": {
+        "ei_strength": "1",
+        "trainable_w_ei": true,
+        "trainable_w_ie": true,
+        "label": "Trainable, PING init"
+      },
+      "trainable_zero_init": {
+        "ei_strength": "0",
+        "trainable_w_ei": true,
+        "trainable_w_ie": true,
+        "label": "Trainable, zero init"
+      },
+      "trainable_small_init": {
+        "ei_strength": "0.1",
+        "trainable_w_ei": true,
+        "trainable_w_ie": true,
+        "label": "Trainable, small seed init"
+      }
+    },
+    "common_recipe": {
+      "--v-grad-dampen": "1000",
+      "--w-in": "1.2",
+      "--w-in-sparsity": "0.95",
+      "--readout": "mem-mean",
+      "--surrogate-slope": "1",
+      "--readout-w-out-scale": "500",
+      "--lr": "0.0004",
+      "--batch-size": "256"
+    }
+  },
+  "summary": [
+    {
+      "condition": "frozen_ping",
+      "seed": 42,
+      "acc": 87.28571428571429,
+      "e_rate_hz": 6.380678013392857,
+      "i_rate_hz": 30.920703125,
+      "f_gamma_hz": 30.0,
+      "w_ei_mean": 0.0009763375273905694,
+      "w_ie_mean": 0.007809170056134462
+    },
+    {
+      "condition": "frozen_ping",
+      "seed": 43,
+      "acc": 88.0,
+      "e_rate_hz": 8.948542131696428,
+      "i_rate_hz": 41.789760044642854,
+      "f_gamma_hz": 40.0,
+      "w_ei_mean": 0.0009765292052179575,
+      "w_ie_mean": 0.007807369343936443
+    },
+    {
+      "condition": "frozen_ping",
+      "seed": 44,
+      "acc": 88.14285714285714,
+      "e_rate_hz": 8.895493861607143,
+      "i_rate_hz": 41.84977678571428,
+      "f_gamma_hz": 40.0,
+      "w_ei_mean": 0.0009766268776729703,
+      "w_ie_mean": 0.007812714204192162
+    },
+    {
+      "condition": "trainable_ping_init",
+      "seed": 42,
+      "acc": 90.42857142857143,
+      "e_rate_hz": 28.075857979910715,
+      "i_rate_hz": 2.5625558035714286,
+      "f_gamma_hz": 80.0,
+      "w_ei_mean": 0.0007278997218236327,
+      "w_ie_mean": 0.009422019124031067
+    },
+    {
+      "condition": "trainable_ping_init",
+      "seed": 43,
+      "acc": 90.85714285714286,
+      "e_rate_hz": 27.809228515625,
+      "i_rate_hz": 2.788169642857143,
+      "f_gamma_hz": 95.0,
+      "w_ei_mean": 0.0009312693146057427,
+      "w_ie_mean": 0.009302176535129547
+    },
+    {
+      "condition": "trainable_ping_init",
+      "seed": 44,
+      "acc": 90.28571428571429,
+      "e_rate_hz": 23.135818917410713,
+      "i_rate_hz": 3.524637276785714,
+      "f_gamma_hz": 95.0,
+      "w_ei_mean": 0.0011826601112261415,
+      "w_ie_mean": 0.009404845535755157
+    },
+    {
+      "condition": "trainable_zero_init",
+      "seed": 42,
+      "acc": 89.57142857142857,
+      "e_rate_hz": 52.581368582589285,
+      "i_rate_hz": 0.0,
+      "f_gamma_hz": 70.0,
+      "w_ei_mean": 0.0,
+      "w_ie_mean": 0.0
+    },
+    {
+      "condition": "trainable_zero_init",
+      "seed": 43,
+      "acc": 88.14285714285714,
+      "e_rate_hz": 53.80433872767857,
+      "i_rate_hz": 0.0,
+      "f_gamma_hz": 70.0,
+      "w_ei_mean": 0.0,
+      "w_ie_mean": 0.0
+    },
+    {
+      "condition": "trainable_zero_init",
+      "seed": 44,
+      "acc": 89.14285714285714,
+      "e_rate_hz": 52.387116350446426,
+      "i_rate_hz": 0.0,
+      "f_gamma_hz": 70.0,
+      "w_ei_mean": 0.0,
+      "w_ie_mean": 0.0
+    },
+    {
+      "condition": "trainable_small_init",
+      "seed": 42,
+      "acc": 89.0,
+      "e_rate_hz": 44.75016741071428,
+      "i_rate_hz": 3.3216796875,
+      "f_gamma_hz": 80.0,
+      "w_ei_mean": 0.0001891898864414543,
+      "w_ie_mean": 0.0028102106880396605
+    },
+    {
+      "condition": "trainable_small_init",
+      "seed": 43,
+      "acc": 89.14285714285714,
+      "e_rate_hz": 45.27569056919643,
+      "i_rate_hz": 3.3818638392857143,
+      "f_gamma_hz": 70.0,
+      "w_ei_mean": 0.00022234339849092066,
+      "w_ie_mean": 0.003236541524529457
+    },
+    {
+      "condition": "trainable_small_init",
+      "seed": 44,
+      "acc": 89.57142857142857,
+      "e_rate_hz": 43.61693638392857,
+      "i_rate_hz": 2.9930524553571427,
+      "f_gamma_hz": 70.0,
+      "w_ei_mean": 0.00023905374109745026,
+      "w_ie_mean": 0.003164884401485324
+    }
+  ]
+}
