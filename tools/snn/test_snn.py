@@ -1,8 +1,9 @@
-"""Tests for the snn tool — the demolab manifest contract + CLI wiring.
+"""Tests for the snn tool — the demolab manifest contract + passthrough wiring.
 
-The heavy path (running the pinglab CLI) is covered by the CLI's own suite under
-src/cli/tests; here we test the contract that the tool adds on top: write_output
-validation and the argparse surface. Kept off the filesystem where possible.
+The heavy path (actually running the pinglab CLI) is covered by the CLI's own
+suite under src/cli/tests; here we test the contract the tool adds on top:
+write_output validation, provenance, the subcommand-validating parser, and the
+--out-dir passthrough resolution. Kept off the filesystem where possible.
 """
 import json
 
@@ -42,9 +43,34 @@ def test_provenance_has_expected_keys():
     assert isinstance(p["dirty"], bool)
 
 
-def test_sim_parser_defaults():
-    args = tool.build_parser().parse_args(["sim", "--n-inh", "64", "--ei-ratio", "4.0"])
-    assert args.command == "sim"
-    assert args.n_inh == 64 and args.ei_ratio == 4.0
-    assert args.n_hidden == 1024 and args.seed == 42  # defaults
-    assert args.func is tool.cmd_sim
+def test_parser_accepts_known_subcommands():
+    for cmd in tool.SUBCOMMANDS:
+        args, rest = tool.build_parser().parse_known_args([cmd, "--t-ms", "300"])
+        assert args.command == cmd
+        assert rest == ["--t-ms", "300"]  # passthrough args captured verbatim
+
+
+def test_parser_rejects_unknown_subcommand():
+    with pytest.raises(SystemExit):
+        tool.build_parser().parse_args(["frobnicate"])
+
+
+def test_cli_out_dir_honours_caller_out_dir(tmp_path):
+    # Space-separated and = forms both resolve; a sweep point keeps its own dir.
+    assert tool._cli_out_dir(["--out-dir", "runs/a", "--t-ms", "300"], tmp_path).name == "a"
+    assert tool._cli_out_dir(["--out-dir=runs/b"], tmp_path).name == "b"
+
+
+def test_cli_out_dir_falls_back_to_default(tmp_path):
+    default = tmp_path / "_cli"
+    assert tool._cli_out_dir(["--t-ms", "300"], default) is default
+
+
+def test_setup_run_dir_writes_config_and_run_sh(tmp_path, monkeypatch):
+    monkeypatch.setattr(tool, "TEMP_DIR", tmp_path)
+    run_dir, _ = tool.setup_run_dir("sim", ["--t-ms", "300", "--seed", "1"])
+    cfg = json.loads((run_dir / "config.json").read_text())
+    assert cfg["subcommand"] == "sim"
+    assert cfg["cli_args"] == ["--t-ms", "300", "--seed", "1"]
+    assert {"commit", "dirty", "generated_at"} <= cfg["_provenance"].keys()
+    assert (run_dir / "run.sh").stat().st_mode & 0o111  # executable

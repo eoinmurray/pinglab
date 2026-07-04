@@ -130,7 +130,7 @@ tasks:
         demolab-engine/build/main.typ artifacts/site/ --port {{.CLI_ARGS | default "3000"}}
 
   run:
-    desc: "Run a demolab experiment end-to-end — e.g. task run -- exp000"
+    desc: "Run a demolab experiment end-to-end — e.g. task run -- nb047"
     cmds:
       - uv run python experiments/{{.CLI_ARGS}}.py
 

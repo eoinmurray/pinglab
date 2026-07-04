@@ -1,9 +1,13 @@
 """Canonical artifact + figure directories for a notebook slug.
 
-Every runner writes simulation artifacts under
-`src/artifacts/notebooks/<slug>/` and frozen figures under
-`src/docs/public/figures/notebooks/<slug>/`. `artifacts_and_figures(slug)`
-returns that pair so individual runners don't re-spell the paths.
+Every runner writes scratch simulation artifacts (npz, weights, logs) under
+`src/artifacts/notebooks/<slug>/` (gitignored) and frozen figures + numbers.json
+under `artifacts/data/<slug>/` — the demolab published-data layout the Typst
+writings read from. `artifacts_and_figures(slug)` returns that pair so individual
+runners don't re-spell the paths.
+
+(The figure root used to be the Astro site's `src/docs/public/figures/notebooks/`;
+it moved to `artifacts/data/` when the site migrated to Typst.)
 """
 
 from __future__ import annotations
@@ -12,7 +16,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 ARTIFACTS_ROOT = REPO / "src" / "artifacts" / "notebooks"
-FIGURES_ROOT = REPO / "src" / "docs" / "public" / "figures" / "notebooks"
+FIGURES_ROOT = REPO / "artifacts" / "data"
 
 
 def artifacts_and_figures(slug: str) -> tuple[Path, Path]:

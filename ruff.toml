@@ -29,9 +29,11 @@ select = ["E", "F", "I"]
 ignore = ["E501", "E741"]
 
 [lint.per-file-ignores]
-# Notebook runners must set sys.path / REPO before importing local modules, so
-# module-level imports legitimately follow setup code.
+# Notebook + experiment runners must set sys.path / REPO before importing local
+# modules (helpers live in the un-migrated src/notebooks tree), so module-level
+# imports legitimately follow setup code.
 "src/notebooks/*" = ["E402"]
+"experiments/*" = ["E402"]
 
 [format]
 quote-style = "double"
