@@ -12,6 +12,8 @@ const entrySchema = z.object({
   collection: z.string().optional(),
   status: z.enum(NOTEBOOK_STATUSES).optional(),
   description: z.string().optional(),
+  // opt out of the auto table-of-contents sidebar (content column then centers)
+  hideSidebar: z.boolean().optional(),
 });
 
 const articles = defineCollection({

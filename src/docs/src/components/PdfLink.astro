@@ -1,0 +1,28 @@
+---
+// Conditionally-rendered link to a locally-hosted paper PDF.
+//
+// The PDFs live in public/papers/<slug>.pdf but are gitignored — hosted locally
+// so the site can link to them, never distributed on push. This component checks
+// at BUILD TIME whether the file is present: if so it renders a " · PDF" link;
+// if not (e.g. a fresh clone with no PDFs, or an XML-only source), it renders
+// nothing. That way the committed MDX never produces a dead link in production.
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const { slug } = Astro.props;
+const exists =
+  typeof slug === "string" &&
+  slug.length > 0 &&
+  fs.existsSync(fileURLToPath(new URL(`../../public/papers/${slug}.pdf`, import.meta.url)));
+---
+
+{
+  exists && (
+    <>
+      {" · "}
+      <a href={`/papers/${slug}.pdf`} target="_blank" rel="noopener">
+        pdf
+      </a>
+    </>
+  )
+}
