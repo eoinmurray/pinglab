@@ -1,7 +1,7 @@
 {
-  "notebook_run_id": "r007",
-  "duration_s": 494.83737095902325,
-  "duration": "8m 14s",
+  "notebook_run_id": "r008",
+  "duration_s": 311.2534931250266,
+  "duration": "5m 11s",
   "config": {
     "source": "untrained PING networks, private per-cell Poisson input",
     "dt_ms": 0.25,
